@@ -14,7 +14,7 @@ interface AppLayoutProps {
 export default function AppLayout({ children, workspaces, userName }: AppLayoutProps) {
   return (
     <div className="flex min-h-screen bg-black">
-      <Sidebar workspaces={workspaces} userName={userName} />
+      <Sidebar />
       <main className="flex-1 overflow-y-auto">
         {children}
       </main>

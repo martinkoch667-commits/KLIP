@@ -182,6 +182,10 @@ export default function KonvaEditor({ workspaceId, postId }: { workspaceId: stri
   useEffect(() => { elementsRef.current = elements; }, [elements]);
   useEffect(() => { selectedIdRef.current = selectedId; }, [selectedId]);
 
+  const [saving, setSaving] = useState(false);
+  const [dataLoading, setDataLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+
   // ── Load fonts ────────────────────────────────────────────────────────────
 
   useEffect(() => {
@@ -464,10 +468,6 @@ export default function KonvaEditor({ workspaceId, postId }: { workspaceId: stri
       setSelectedId(prev);
     }, 80);
   };
-
-  const [saving, setSaving] = useState(false);
-  const [dataLoading, setDataLoading] = useState(true);
-  const [loadError, setLoadError] = useState<string | null>(null);
 
   const handleSave = async () => {
     if (!stageRef.current) return;
