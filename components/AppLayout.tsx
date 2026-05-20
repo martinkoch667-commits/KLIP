@@ -1,17 +1,13 @@
 import Sidebar from "./Sidebar";
 
-interface Workspace {
-  id: string;
-  name: string;
-}
-
 interface AppLayoutProps {
-  children: React.ReactNode;
-  workspaces?: Workspace[];
+  workspaces?: any[];
   userName?: string;
+  children: React.ReactNode;
+  activeWorkspaceId?: string;
 }
 
-export default function AppLayout({ children, workspaces, userName }: AppLayoutProps) {
+export default function AppLayout({ workspaces = [], userName = '', children, activeWorkspaceId }: AppLayoutProps) {
   return (
     <div className="flex min-h-screen bg-black">
       <Sidebar />
