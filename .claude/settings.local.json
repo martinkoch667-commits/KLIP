@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm --version)",
+      "Read(//Users/martinkoch/Desktop/KLIP/$HOME/**)",
+      "Read(//Users/martinkoch/Desktop/KLIP/$HOME/.volta/**)",
+      "Bash(npm install:*)",
+      "mcp__Claude_Preview__preview_start",
+      "mcp__Claude_in_Chrome__navigate",
+      "Bash(node -e \"const p = require\\(''/Users/martinkoch/Desktop/KLIP/node_modules/@anthropic-ai/sdk/package.json''\\); console.log\\(p.version\\)\")",
+      "Bash(grep -n \"imagePrompt\\\\|generatingImage\\\\|generatedImages\\\\|referenceImage\\\\|handleGenerateImage\\\\|Drop zone\\\\|AI image\\\\|Brief global\\\\|drop zone\\\\|fileInputRef\\\\|Générer une image\" /Users/martinkoch/Desktop/KLIP/app/workspace/[id]/page.tsx)",
+      "Bash(grep -n \"includeStyle\\\\|referenceImage\\\\|savingSettings\\\\|workspaceName\" /Users/martinkoch/Desktop/KLIP/app/workspace/[id]/page.tsx)"
+    ]
+  }
+}
