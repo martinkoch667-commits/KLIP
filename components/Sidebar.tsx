@@ -7,7 +7,13 @@ import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
 
 interface Workspace { id: string; name: string }
 
-export default function Sidebar() {
+interface SidebarProps {
+  workspaces?: any[];
+  userName?: string;
+  activeWorkspaceId?: string;
+}
+
+export default function Sidebar({ workspaces: _w, userName: _u, activeWorkspaceId: _a }: SidebarProps = {}) {
   const pathname = usePathname();
   const router = useRouter();
   const supabase = createClientComponentClient();

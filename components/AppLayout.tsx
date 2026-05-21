@@ -10,7 +10,7 @@ interface AppLayoutProps {
 export default function AppLayout({ workspaces = [], userName = '', children, activeWorkspaceId }: AppLayoutProps) {
   return (
     <div className="flex min-h-screen bg-black">
-      <Sidebar />
+      <Sidebar workspaces={workspaces} userName={userName} activeWorkspaceId={activeWorkspaceId} />
       <main className="flex-1 overflow-y-auto">
         {children}
       </main>
