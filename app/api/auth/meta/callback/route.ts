@@ -8,6 +8,7 @@ export async function GET(request: NextRequest) {
   const workspaceId = searchParams.get("state");
   const error = searchParams.get("error");
 
+  console.log('[Callback] searchParams:', Object.fromEntries(searchParams));
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
   const redirectUri = process.env.META_REDIRECT_URI ?? `${appUrl}/api/auth/meta/callback`;
 
