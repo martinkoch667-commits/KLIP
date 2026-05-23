@@ -12,7 +12,7 @@ export async function GET(request: NextRequest) {
   console.log("REDIRECT_URI:", process.env.META_REDIRECT_URI);
 
   const redirectUri = process.env.META_REDIRECT_URI ?? `${process.env.NEXT_PUBLIC_APP_URL}/api/auth/meta/callback`;
-  const authUrl = `https://www.facebook.com/v17.0/dialog/oauth?client_id=${process.env.NEXT_PUBLIC_META_APP_ID}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=pages_show_list,public_profile&state=${workspaceId}&response_type=code`;
+  const authUrl = `https://www.facebook.com/v17.0/dialog/oauth?client_id=${process.env.NEXT_PUBLIC_META_APP_ID}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=instagram_business_basic,instagram_business_content_publish&state=${workspaceId}&response_type=code`;
 
   console.log("OAuth URL:", authUrl);
 
