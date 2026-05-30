@@ -23,6 +23,7 @@ interface Workspace {
   name: string;
   instagram_account_id: string | null;
   instagram_username: string | null;
+  instagram_access_token: string | null;
   facebook_page_id: string | null;
 }
 
@@ -46,7 +47,7 @@ function ParametresContent() {
     async function load() {
       const { data } = await supabase
         .from("workspaces")
-        .select("id, name, instagram_account_id, instagram_username, facebook_page_id")
+        .select("id, name, instagram_account_id, instagram_username, instagram_access_token, facebook_page_id")
         .eq("id", id)
         .single();
       if (data) setWorkspace(data);
@@ -72,7 +73,7 @@ function ParametresContent() {
     setDisconnecting(false);
   }
 
-  const isInstagramConnected = !!workspace?.instagram_account_id;
+  const isInstagramConnected = !!(workspace?.instagram_account_id || workspace?.instagram_access_token || workspace?.instagram_username);
 
   return (
     <div className="flex-1 flex flex-col min-w-0">
