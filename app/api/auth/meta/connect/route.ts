@@ -8,7 +8,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "workspaceId manquant" }, { status: 400 });
   }
 
-  const redirectUri = process.env.META_REDIRECT_URI ?? `${process.env.NEXT_PUBLIC_APP_URL}/api/auth/meta/callback`;
+  const redirectUri = "https://klip-swart.vercel.app/api/auth/meta/callback";
 
   const authUrl =
     `https://www.instagram.com/oauth/authorize` +
