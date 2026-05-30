@@ -28,10 +28,12 @@ export async function GET(request: NextRequest) {
       code,
     });
 
-    console.log('[Callback] redirectUri used for token exchange:', redirectUri);
-    console.log('[Callback] code received:', code);
+    console.log('[Callback] redirectUri:', redirectUri);
+    console.log('[Callback] client_id:', process.env.NEXT_PUBLIC_META_APP_ID);
+    console.log('[Callback] code:', code?.substring(0, 20));
     const tokenRes = await fetch("https://api.instagram.com/oauth/access_token", {
       method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
       body: tokenBody,
     });
     const tokenData = await tokenRes.json();
