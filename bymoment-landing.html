@@ -1,0 +1,749 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>By Moment — Studio de campagnes visuelles</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;500;700&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg-dark:        #0C0C0C;
+      --bg-light:       #F5F2EC;
+      --accent:         #B8912A;
+      --accent-dim:     rgba(184,145,42,0.08);
+      --text-dark:      #E8E5DE;
+      --text-dark-muted:#666666;
+      --text-light:     #111111;
+      --text-light-muted:#777777;
+      --border-dark:    #1E1E1E;
+      --border-light:   #D5D0C8;
+      --bg-light-hover: #EDE9E1;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+
+    body {
+      background: var(--bg-dark);
+      color: var(--text-dark);
+      font-family: 'DM Sans', sans-serif;
+      font-weight: 300;
+      line-height: 1.6;
+      overflow-x: hidden;
+    }
+
+    /* ── KEYFRAMES ──────────────────────────────── */
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(24px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes bgFade {
+      0%   { opacity: 1; }
+      90%  { opacity: 1; }
+      100% { opacity: 0; }
+    }
+
+    .fade-up { animation: fadeUp 0.9s ease forwards; opacity: 0; }
+    .fade-up-1 { animation-delay: 0.10s; }
+    .fade-up-2 { animation-delay: 0.25s; }
+    .fade-up-3 { animation-delay: 0.40s; }
+    .fade-up-4 { animation-delay: 0.55s; }
+
+    /* ── BUTTONS ────────────────────────────────── */
+    .btn-primary {
+      display: inline-block;
+      font-family: 'Barlow Condensed', sans-serif;
+      font-weight: 500;
+      font-size: 13px;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      background: var(--accent);
+      color: var(--bg-dark);
+      padding: 14px 32px;
+      border: none;
+      cursor: pointer;
+      text-decoration: none;
+      transition: opacity 0.2s;
+    }
+    .btn-primary:hover { opacity: 0.82; }
+
+    .btn-ghost {
+      display: inline-block;
+      font-family: 'Barlow Condensed', sans-serif;
+      font-weight: 500;
+      font-size: 13px;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      background: transparent;
+      color: var(--text-dark);
+      padding: 14px 32px;
+      border: 1px solid #666;
+      cursor: pointer;
+      text-decoration: none;
+      transition: border-color 0.2s, color 0.2s;
+    }
+    .btn-ghost:hover { border-color: var(--text-dark); color: #fff; }
+
+    /* ── NAV ────────────────────────────────────── */
+    nav {
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      z-index: 200;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 18px 48px;
+      background: var(--bg-dark);
+      border-bottom: 1px solid var(--border-dark);
+      transition: transform 0.35s ease;
+    }
+    nav.hidden { transform: translateY(-100%); }
+
+    .nav-logo {
+      height: 36px;
+      width: auto;
+      object-fit: contain;
+      filter: brightness(0) invert(1);
+    }
+
+    /* ── HERO ───────────────────────────────────── */
+    .hero {
+      position: relative;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+    }
+
+    .hero-slides {
+      position: absolute;
+      inset: 0;
+    }
+
+    .hero-slide {
+      position: absolute;
+      inset: 0;
+      background-size: cover;
+      background-position: center;
+      opacity: 0;
+      transition: opacity 1.2s ease;
+    }
+    .hero-slide.active { opacity: 1; }
+
+    .hero-overlay {
+      position: absolute;
+      inset: 0;
+      background: rgba(0,0,0,0.65);
+      z-index: 1;
+    }
+
+    .hero-content {
+      position: relative;
+      z-index: 2;
+      text-align: center;
+      padding: 120px 40px 80px;
+      max-width: 860px;
+      margin: 0 auto;
+    }
+
+    .hero-label {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-weight: 400;
+      font-size: 12px;
+      letter-spacing: 0.25em;
+      text-transform: uppercase;
+      color: var(--accent);
+      margin-bottom: 28px;
+      display: block;
+    }
+
+    .hero-title {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-weight: 700;
+      font-size: clamp(64px, 10vw, 120px);
+      line-height: 0.88;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      margin-bottom: 28px;
+    }
+    .hero-title .line-white  { display: block; color: #fff; }
+    .hero-title .line-outline {
+      display: block;
+      color: transparent;
+      -webkit-text-stroke: 1px rgba(255,255,255,0.20);
+    }
+    .hero-title .line-gold   { display: block; color: var(--accent); }
+
+    .hero-sub {
+      font-size: 15px;
+      color: #aaa;
+      max-width: 420px;
+      margin: 0 auto 40px;
+      line-height: 1.7;
+    }
+
+    .hero-ctas {
+      display: flex;
+      gap: 14px;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+
+    /* ── STATS (fond clair) ─────────────────────── */
+    .stats {
+      background: var(--bg-light);
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+    }
+
+    .stat-item {
+      padding: 48px 40px;
+      text-align: center;
+    }
+    .stat-item + .stat-item { border-left: 1px solid var(--border-light); }
+
+    .stat-number {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-weight: 700;
+      font-size: 56px;
+      line-height: 1;
+      color: var(--bg-dark);
+      margin-bottom: 10px;
+    }
+    .stat-number .unit { color: var(--accent); }
+
+    .stat-label {
+      font-size: 11px;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: #777;
+      font-family: 'DM Sans', sans-serif;
+      font-weight: 300;
+    }
+
+    /* ── RÉALISATIONS (fond noir) ───────────────── */
+    .cases {
+      background: var(--bg-dark);
+      padding: 80px 40px;
+    }
+
+    .section-header { text-align: center; margin-bottom: 48px; }
+
+    .section-title {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-weight: 700;
+      font-size: 52px;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      line-height: 1.0;
+    }
+    .gold { color: var(--accent); }
+
+    .section-sub {
+      font-size: 13px;
+      color: #666;
+      margin-top: 12px;
+    }
+
+    .cases-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 12px;
+      max-width: 900px;
+      margin: 0 auto;
+    }
+
+    .case-item {
+      position: relative;
+      overflow: hidden;
+      aspect-ratio: 3/2;
+      cursor: pointer;
+    }
+    .case-item img {
+      width: 100%; height: 100%;
+      object-fit: cover;
+      display: block;
+      opacity: 0.85;
+      transition: transform 0.6s ease, opacity 0.6s ease;
+    }
+    .case-item:hover img { transform: scale(1.03); opacity: 1; }
+
+    .case-badge {
+      position: absolute;
+      bottom: 14px; left: 14px;
+      font-family: 'Barlow Condensed', sans-serif;
+      font-weight: 400;
+      font-size: 9px;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      padding: 5px 10px;
+    }
+    .badge-before {
+      background: rgba(0,0,0,0.7);
+      border: 1px solid #333;
+      color: #888;
+    }
+    .badge-bymoment {
+      background: var(--accent);
+      color: #000;
+    }
+
+    /* ── TÉMOIGNAGE (fond clair) ────────────────── */
+    .testimonial {
+      background: var(--bg-light);
+      padding: 80px 40px;
+    }
+
+    .testimonial .section-title { color: var(--text-light); }
+
+    .testimonial-inner {
+      display: grid;
+      grid-template-columns: 1fr 1.6fr;
+      gap: 64px;
+      max-width: 1000px;
+      margin: 60px auto 0;
+      align-items: center;
+    }
+
+    .video-col {
+      display: flex;
+      justify-content: center;
+    }
+
+    .video-placeholder {
+      aspect-ratio: 9/16;
+      max-height: 420px;
+      width: 100%;
+      max-width: 240px;
+      background: #1A1A1A;
+      border: 1.5px solid var(--accent);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 18px;
+    }
+
+    .play-circle {
+      width: 52px; height: 52px;
+      border: 1.5px solid var(--accent);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .play-circle::after {
+      content: '';
+      border-left: 16px solid var(--accent);
+      border-top: 9px solid transparent;
+      border-bottom: 9px solid transparent;
+      margin-left: 4px;
+    }
+
+    .video-label {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-weight: 400;
+      font-size: 9px;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: #666;
+      text-align: center;
+    }
+
+    .quote-deco {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 100px;
+      line-height: 0.5;
+      color: var(--accent);
+      opacity: 0.25;
+      display: block;
+      margin-bottom: 8px;
+    }
+    .quote-text {
+      font-size: 20px;
+      color: #222;
+      font-weight: 300;
+      font-style: italic;
+      line-height: 1.6;
+      margin-bottom: 20px;
+    }
+    .quote-line {
+      width: 36px;
+      height: 1px;
+      background: var(--accent);
+      margin-bottom: 20px;
+    }
+    .quote-author {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-weight: 400;
+      font-size: 12px;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: #777;
+    }
+
+    /* ── CTA MILIEU (fond noir) ─────────────────── */
+    .cta-mid {
+      background: var(--bg-dark);
+      border-top: 1px solid rgba(184,145,42,0.3);
+      border-bottom: 1px solid rgba(184,145,42,0.3);
+      padding: 72px 40px;
+      text-align: center;
+    }
+
+    .cta-mid-text {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-weight: 700;
+      font-size: 40px;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      color: var(--text-dark);
+      margin-bottom: 32px;
+      line-height: 1.1;
+    }
+
+    /* ── ARGUMENTS (fond clair) ─────────────────── */
+    .arguments {
+      background: var(--bg-light);
+      padding: 80px 40px;
+    }
+
+    .arguments .section-title { color: var(--text-light); }
+
+    .arguments-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 1px;
+      background: var(--border-light);
+      max-width: 1000px;
+      margin: 60px auto 0;
+    }
+
+    .arg-item {
+      background: var(--bg-light);
+      padding: 48px 48px;
+      transition: background 0.25s;
+      cursor: default;
+    }
+    .arg-item:hover { background: var(--bg-light-hover); }
+
+    .arg-number {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-weight: 700;
+      font-size: 56px;
+      color: var(--border-light);
+      line-height: 1;
+      margin-bottom: 18px;
+    }
+    .arg-title {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-weight: 700;
+      font-size: 18px;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      color: var(--text-light);
+      margin-bottom: 12px;
+    }
+    .arg-desc {
+      font-size: 13px;
+      color: #777;
+      line-height: 1.75;
+    }
+
+    /* ── CTA FINAL (fond noir) ──────────────────── */
+    .cta-final {
+      background: var(--bg-dark);
+      padding: 100px 40px;
+      text-align: center;
+      position: relative;
+      overflow: hidden;
+    }
+    .cta-final-radial {
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(ellipse 55% 50% at 50% 50%, rgba(184,145,42,0.08) 0%, transparent 70%);
+      pointer-events: none;
+    }
+    .cta-final-inner { position: relative; z-index: 2; }
+
+    .cta-eyebrow {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-weight: 400;
+      font-size: 10px;
+      letter-spacing: 0.3em;
+      text-transform: uppercase;
+      color: var(--accent);
+      margin-bottom: 20px;
+      display: block;
+    }
+
+    .cta-title {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-weight: 700;
+      font-size: clamp(44px, 7vw, 80px);
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      line-height: 0.95;
+      margin-bottom: 24px;
+    }
+    .cta-title .line-white { display: block; color: #fff; }
+    .cta-title .line-gold  { display: block; color: var(--accent); }
+
+    .cta-sub {
+      font-size: 15px;
+      color: #666;
+      max-width: 360px;
+      margin: 0 auto 40px;
+      line-height: 1.7;
+    }
+
+    .cta-note {
+      font-size: 11px;
+      color: #444;
+      margin-top: 16px;
+    }
+
+    /* ── FOOTER ─────────────────────────────────── */
+    footer {
+      background: var(--bg-dark);
+      border-top: 1px solid var(--border-dark);
+      padding: 24px 48px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .footer-left {
+      font-size: 11px;
+      color: #444;
+      letter-spacing: 0.04em;
+    }
+    .footer-right {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-weight: 400;
+      font-size: 12px;
+      letter-spacing: 0.08em;
+      color: var(--accent);
+      text-decoration: none;
+      text-transform: uppercase;
+    }
+
+    /* ── RESPONSIVE ─────────────────────────────── */
+    @media (max-width: 640px) {
+      nav { padding: 14px 20px; }
+
+      .hero-content { padding: 100px 20px 60px; }
+      .hero-title { font-size: clamp(52px, 14vw, 80px); }
+      .hero-ctas { flex-direction: column; align-items: center; }
+
+      .stats { grid-template-columns: 1fr; }
+      .stat-item + .stat-item { border-left: none; border-top: 1px solid var(--border-light); }
+
+      .cases { padding: 56px 20px; }
+      .cases-grid { grid-template-columns: 1fr; }
+
+      .testimonial { padding: 56px 20px; }
+      .testimonial-inner { grid-template-columns: 1fr; gap: 40px; }
+      .video-col { order: 1; }
+      .testimonial-quote { order: 2; }
+
+      .cta-mid { padding: 56px 20px; }
+      .cta-mid-text { font-size: 28px; }
+
+      .arguments { padding: 56px 20px; }
+      .arguments-grid { grid-template-columns: 1fr; }
+      .arg-item { padding: 36px 28px; }
+
+      .cta-final { padding: 72px 20px; }
+      footer { flex-direction: column; gap: 10px; text-align: center; padding: 24px 20px; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- NAV -->
+  <nav id="main-nav">
+    <img
+      src="https://cdn.prod.website-files.com/699f38d43837ea8e13a5dbf3/699f4b3927ae85b6d2b0539b_Fichier%204pictos.png"
+      alt="By Moment"
+      class="nav-logo"
+    />
+    <a href="#rdv" class="btn-primary">Réserver un appel</a>
+  </nav>
+
+  <!-- HERO -->
+  <section class="hero">
+    <div class="hero-slides" id="hero-slides">
+      <div class="hero-slide active" style="background-image:url('https://cdn.prod.website-files.com/699f38d43837ea8e13a5dbf3/699f54d415d91c45778662fe_weavy-Gemini%203%20(Nano%20Banana%20Pro)-2026-02-01%20at%2014.23.22%20-%20Grande.avif')"></div>
+      <div class="hero-slide"        style="background-image:url('https://cdn.prod.website-files.com/699f38d43837ea8e13a5dbf3/699f54d4856208d9f4467116_weavy-Gemini%203%20(Nano%20Banana%20Pro)-2026-02-01%20at%2016.39.13%20-%20Grande.avif')"></div>
+      <div class="hero-slide"        style="background-image:url('https://cdn.prod.website-files.com/699f38d43837ea8e13a5dbf3/69a5eeb0a9cb376794c52942_untitled_Gemini%203%20(Nano%20Banana%20Pro)_2026-03-02_19-46-35.avif')"></div>
+      <div class="hero-slide"        style="background-image:url('https://cdn.prod.website-files.com/699f38d43837ea8e13a5dbf3/69efb749b159457c75f040c1_ghina_Gemini%203%20(Nano%20Banana%20Pro)_2026-04-06_13-22-54.jpg')"></div>
+    </div>
+    <div class="hero-overlay"></div>
+
+    <div class="hero-content">
+      <span class="hero-label fade-up fade-up-1">Studio de campagnes visuelles · Craft Spirits</span>
+      <h1 class="hero-title fade-up fade-up-2">
+        <span class="line-white">Vos visuels</span>
+        <span class="line-outline">méritent</span>
+        <span class="line-gold">mieux.</span>
+      </h1>
+      <p class="hero-sub fade-up fade-up-3">
+        En 5 jours, on crée une campagne visuelle qui donne à votre marque la présence qu'elle mérite — sans shooting, sans logistique.
+      </p>
+      <div class="hero-ctas fade-up fade-up-4">
+        <a href="#cases" class="btn-primary">Voir ce qu'on peut faire →</a>
+        <a href="#cases" class="btn-ghost">Voir les réalisations</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- STATS -->
+  <section class="stats">
+    <div class="stat-item">
+      <div class="stat-number">5<span class="unit">J</span></div>
+      <div class="stat-label">Délai de livraison</div>
+    </div>
+    <div class="stat-item">
+      <div class="stat-number">0<span class="unit">€</span></div>
+      <div class="stat-label">Frais de shooting</div>
+    </div>
+    <div class="stat-item">
+      <div class="stat-number">100<span class="unit">%</span></div>
+      <div class="stat-label">Prêts à publier</div>
+    </div>
+  </section>
+
+  <!-- RÉALISATIONS -->
+  <section class="cases" id="cases">
+    <div class="section-header">
+      <h2 class="section-title">CE QU'ON FAIT <span class="gold">CONCRÈTEMENT</span></h2>
+      <p class="section-sub">Visuels produits craft spirits — livrés en 5 jours, sans shooting.</p>
+    </div>
+    <div class="cases-grid">
+      <div class="case-item">
+        <img src="https://cdn.prod.website-files.com/699f38d43837ea8e13a5dbf3/699f54d415d91c45778662fe_weavy-Gemini%203%20(Nano%20Banana%20Pro)-2026-02-01%20at%2014.23.22%20-%20Grande.avif" alt="Avant" loading="lazy" />
+        <span class="case-badge badge-before">Avant</span>
+      </div>
+      <div class="case-item">
+        <img src="https://cdn.prod.website-files.com/699f38d43837ea8e13a5dbf3/699f54d4856208d9f4467116_weavy-Gemini%203%20(Nano%20Banana%20Pro)-2026-02-01%20at%2016.39.13%20-%20Grande.avif" alt="By Moment" loading="lazy" />
+        <span class="case-badge badge-bymoment">By Moment</span>
+      </div>
+      <div class="case-item">
+        <img src="https://cdn.prod.website-files.com/699f38d43837ea8e13a5dbf3/69a5eeb0a9cb376794c52942_untitled_Gemini%203%20(Nano%20Banana%20Pro)_2026-03-02_19-46-35.avif" alt="By Moment" loading="lazy" />
+        <span class="case-badge badge-bymoment">By Moment</span>
+      </div>
+      <div class="case-item">
+        <img src="https://cdn.prod.website-files.com/699f38d43837ea8e13a5dbf3/69efb749b159457c75f040c1_ghina_Gemini%203%20(Nano%20Banana%20Pro)_2026-04-06_13-22-54.jpg" alt="By Moment" loading="lazy" />
+        <span class="case-badge badge-bymoment">By Moment</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- TÉMOIGNAGE -->
+  <section class="testimonial">
+    <div class="section-header">
+      <h2 class="section-title">ILS NOUS FONT <span class="gold">CONFIANCE</span></h2>
+    </div>
+    <div class="testimonial-inner">
+      <div class="video-col">
+        <div class="video-placeholder">
+          <div class="play-circle"></div>
+          <div class="video-label">Témoignage client · à venir</div>
+        </div>
+      </div>
+      <div class="testimonial-quote">
+        <span class="quote-deco">"</span>
+        <p class="quote-text">
+          Avant By Moment, mes visuels ne rendaient pas justice à mon produit. En 5 jours, ils ont transformé l'image de ma marque.
+        </p>
+        <div class="quote-line"></div>
+        <p class="quote-author">— Prénom Nom · Fondateur, Nom de la marque</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- CTA MILIEU -->
+  <div class="cta-mid">
+    <p class="cta-mid-text">Vous voulez voir ce qu'on peut faire pour votre marque&nbsp;?</p>
+    <a href="#rdv" class="btn-primary">Réserver 20 minutes gratuites →</a>
+  </div>
+
+  <!-- ARGUMENTS -->
+  <section class="arguments">
+    <div class="section-header">
+      <h2 class="section-title">POURQUOI <span class="gold">BY MOMENT</span></h2>
+    </div>
+    <div class="arguments-grid">
+      <div class="arg-item">
+        <div class="arg-number">01</div>
+        <div class="arg-title">Livré en 5 jours ouvrés</div>
+        <p class="arg-desc">Brief le lundi, campagne livrée vendredi. Pas d'attente, pas de va-et-vient.</p>
+      </div>
+      <div class="arg-item">
+        <div class="arg-number">02</div>
+        <div class="arg-title">Zéro shooting, zéro logistique</div>
+        <p class="arg-desc">Pas de décor à louer, pas de modèle à caster. On construit l'univers de votre marque depuis notre atelier.</p>
+      </div>
+      <div class="arg-item">
+        <div class="arg-number">03</div>
+        <div class="arg-title">Tous formats, prêts à publier</div>
+        <p class="arg-desc">Instagram, Facebook Ads, stories, site e-commerce. Chaque fichier livré aux bons formats.</p>
+      </div>
+      <div class="arg-item">
+        <div class="arg-number">04</div>
+        <div class="arg-title">Un univers, pas un template</div>
+        <p class="arg-desc">Lumière, matière, narration. Votre produit devient le héros de chaque visuel.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- CTA FINAL -->
+  <section class="cta-final" id="rdv">
+    <div class="cta-final-radial"></div>
+    <div class="cta-final-inner">
+      <span class="cta-eyebrow">Sans engagement</span>
+      <h2 class="cta-title">
+        <span class="line-white">On crée quelque chose</span>
+        <span class="line-gold">D'inoubliable&nbsp;?</span>
+      </h2>
+      <p class="cta-sub">20 minutes pour voir ce qu'on peut faire pour votre marque. Gratuit, sans engagement.</p>
+      <a href="#" class="btn-primary">Réserver un appel gratuit →</a>
+      <p class="cta-note">Réponse sous 24h · Appel visio ou téléphone · Aucun engagement</p>
+    </div>
+  </section>
+
+  <!-- FOOTER -->
+  <footer>
+    <span class="footer-left">© 2026 BY MOMENT — Studio de campagnes visuelles</span>
+    <a href="#" class="footer-right">by-moment.com</a>
+  </footer>
+
+  <script>
+    // ── NAV hide/show on scroll ──
+    (function () {
+      const nav = document.getElementById('main-nav');
+      let lastY = 0;
+      window.addEventListener('scroll', function () {
+        const y = window.scrollY;
+        nav.classList.toggle('hidden', y > lastY && y > 80);
+        lastY = y;
+      }, { passive: true });
+    })();
+
+    // ── Hero crossfade ──
+    (function () {
+      const slides = document.querySelectorAll('.hero-slide');
+      let current = 0;
+      setInterval(function () {
+        slides[current].classList.remove('active');
+        current = (current + 1) % slides.length;
+        slides[current].classList.add('active');
+      }, 3000);
+    })();
+  </script>
+
+</body>
+</html>
