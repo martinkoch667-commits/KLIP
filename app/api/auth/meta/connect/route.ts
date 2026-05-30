@@ -4,6 +4,7 @@ export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const workspaceId = searchParams.get("workspaceId");
 
+  console.log('[Connect] headers:', Object.fromEntries(request.headers));
   if (!workspaceId) {
     return NextResponse.json({ error: "workspaceId manquant" }, { status: 400 });
   }
