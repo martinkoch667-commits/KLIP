@@ -28,6 +28,8 @@ export async function GET(request: NextRequest) {
       code,
     });
 
+    console.log('[Callback] redirectUri used for token exchange:', redirectUri);
+    console.log('[Callback] code received:', code);
     const tokenRes = await fetch("https://api.instagram.com/oauth/access_token", {
       method: "POST",
       body: tokenBody,
