@@ -14,7 +14,7 @@ export async function GET(request: NextRequest) {
     `https://www.instagram.com/oauth/authorize` +
     `?client_id=${process.env.NEXT_PUBLIC_META_APP_ID}` +
     `&redirect_uri=${encodeURIComponent(redirectUri)}` +
-    `&scope=instagram_business_basic,instagram_business_content_publish` +
+    `&scope=instagram_business_basic,instagram_business_manage_messages,instagram_business_manage_comments,instagram_business_content_publish,instagram_business_manage_insights` +
     `&state=${workspaceId}` +
     `&response_type=code`;
 
