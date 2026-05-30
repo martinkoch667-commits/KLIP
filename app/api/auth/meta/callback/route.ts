@@ -21,7 +21,7 @@ export async function GET(request: NextRequest) {
 
     // Step 1: Exchange code for short-lived token via Instagram API
     const tokenBody = new URLSearchParams({
-      client_id: process.env.META_APP_ID!,
+      client_id: process.env.NEXT_PUBLIC_META_APP_ID!,
       client_secret: process.env.META_APP_SECRET!,
       grant_type: "authorization_code",
       redirect_uri: redirectUri,
@@ -33,6 +33,7 @@ export async function GET(request: NextRequest) {
       body: tokenBody,
     });
     const tokenData = await tokenRes.json();
+    console.log('[Instagram] Token response:', tokenData);
 
     if (!tokenData.access_token) {
       console.error("[Instagram] Token exchange failed:", tokenData);

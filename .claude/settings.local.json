@@ -11,7 +11,9 @@
       "Bash(grep -n \"imagePrompt\\\\|generatingImage\\\\|generatedImages\\\\|referenceImage\\\\|handleGenerateImage\\\\|Drop zone\\\\|AI image\\\\|Brief global\\\\|drop zone\\\\|fileInputRef\\\\|Générer une image\" /Users/martinkoch/Desktop/KLIP/app/workspace/[id]/page.tsx)",
       "Bash(grep -n \"includeStyle\\\\|referenceImage\\\\|savingSettings\\\\|workspaceName\" /Users/martinkoch/Desktop/KLIP/app/workspace/[id]/page.tsx)",
       "Bash(npx tsc:*)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)"
     ]
   }
 }
