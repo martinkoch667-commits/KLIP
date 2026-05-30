@@ -7,10 +7,12 @@ export async function GET(request: NextRequest) {
   const code = searchParams.get("code");
   const workspaceId = searchParams.get("state");
   const error = searchParams.get("error");
-
-  console.log('[Callback] searchParams:', Object.fromEntries(searchParams));
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+  const appUrl = "https://klip-swart.vercel.app";
   const redirectUri = "https://klip-swart.vercel.app/api/auth/meta/callback";
+
+  console.log('[Callback] code:', code?.substring(0, 30));
+  console.log('[Callback] workspaceId:', workspaceId);
+  console.log('[Callback] redirectUri:', redirectUri);
 
   if (error || !code || !workspaceId) {
     return NextResponse.redirect(`${appUrl}/workspace/${workspaceId}/parametres?error=cancelled`);
@@ -19,51 +21,42 @@ export async function GET(request: NextRequest) {
   try {
     const supabase = createRouteHandlerClient({ cookies });
 
-    // Step 1: Exchange code for short-lived token via Instagram API
-    const tokenBody = new URLSearchParams({
-      client_id: process.env.NEXT_PUBLIC_META_APP_ID!,
-      client_secret: process.env.META_APP_SECRET!,
-      grant_type: "authorization_code",
-      redirect_uri: redirectUri,
-      code,
-    });
+    const tokenParams = new URLSearchParams();
+    tokenParams.append('client_id', '991302360155193');
+    tokenParams.append('client_secret', process.env.META_APP_SECRET!);
+    tokenParams.append('grant_type', 'authorization_code');
+    tokenParams.append('redirect_uri', redirectUri);
+    tokenParams.append('code', code);
 
-    console.log('[Callback] redirectUri:', redirectUri);
-    console.log('[Callback] client_id:', process.env.NEXT_PUBLIC_META_APP_ID);
-    console.log('[Callback] code:', code?.substring(0, 20));
+    console.log('[Callback] token params:', tokenParams.toString().replace(process.env.META_APP_SECRET!, '***'));
+
     const tokenRes = await fetch("https://api.instagram.com/oauth/access_token", {
       method: "POST",
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      body: tokenBody,
+      body: tokenParams,
     });
+
     const tokenData = await tokenRes.json();
-    console.log('[Instagram] Token response:', tokenData);
+    console.log('[Callback] tokenData:', tokenData);
 
     if (!tokenData.access_token) {
-      console.error("[Instagram] Token exchange failed:", tokenData);
       return NextResponse.redirect(`${appUrl}/workspace/${workspaceId}/parametres?error=token`);
     }
 
     const shortToken = tokenData.access_token;
     const igUserId = tokenData.user_id;
 
-    // Step 2: Exchange for long-lived token (60 days)
     const longTokenRes = await fetch(
-      `https://graph.instagram.com/access_token` +
-      `?grant_type=ig_exchange_token` +
-      `&client_secret=${process.env.META_APP_SECRET}` +
-      `&access_token=${shortToken}`
+      `https://graph.instagram.com/access_token?grant_type=ig_exchange_token&client_secret=${process.env.META_APP_SECRET}&access_token=${shortToken}`
     );
     const longTokenData = await longTokenRes.json();
     const accessToken = longTokenData.access_token ?? shortToken;
 
-    // Step 3: Get Instagram user details
     const igDetailsRes = await fetch(
       `https://graph.instagram.com/v18.0/${igUserId}?fields=username,name&access_token=${accessToken}`
     );
     const igDetails = await igDetailsRes.json();
 
-    // Step 4: Save to Supabase
     await supabase.from("workspaces").update({
       instagram_account_id: String(igUserId),
       instagram_access_token: accessToken,
