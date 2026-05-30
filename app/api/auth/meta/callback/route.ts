@@ -10,7 +10,7 @@ export async function GET(request: NextRequest) {
 
   console.log('[Callback] searchParams:', Object.fromEntries(searchParams));
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
-  const redirectUri = process.env.META_REDIRECT_URI ?? `${appUrl}/api/auth/meta/callback`;
+  const redirectUri = "https://klip-swart.vercel.app/api/auth/meta/callback";
 
   if (error || !code || !workspaceId) {
     return NextResponse.redirect(`${appUrl}/workspace/${workspaceId}/parametres?error=cancelled`);
