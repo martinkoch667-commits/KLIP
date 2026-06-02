@@ -8,7 +8,8 @@ export async function GET(request: NextRequest) {
   const workspaceId = searchParams.get("state");
   const error = searchParams.get("error");
   const appUrl = "https://klip-swart.vercel.app";
-  const redirectUri = "https://klip-swart.vercel.app/api/auth/meta/callback";
+  const redirectUri = "https://klip-swart.vercel.app/api/auth/meta/callback"; // must be byte-identical to connect route
+  const clientId = "991302360155193"; // must match connect route
 
   console.log('[Callback] code:', code?.substring(0, 30));
   console.log('[Callback] workspaceId:', workspaceId);
@@ -22,7 +23,7 @@ export async function GET(request: NextRequest) {
     const supabase = createRouteHandlerClient({ cookies });
 
     const tokenParams = new URLSearchParams();
-    tokenParams.append('client_id', '991302360155193');
+    tokenParams.append('client_id', clientId);
     tokenParams.append('client_secret', process.env.META_APP_SECRET!);
     tokenParams.append('grant_type', 'authorization_code');
     tokenParams.append('redirect_uri', redirectUri);

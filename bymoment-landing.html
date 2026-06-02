@@ -1,749 +1,664 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>By Moment — Studio de campagnes visuelles</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;500;700&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet" />
-  <style>
-    :root {
-      --bg-dark:        #0C0C0C;
-      --bg-light:       #F5F2EC;
-      --accent:         #B8912A;
-      --accent-dim:     rgba(184,145,42,0.08);
-      --text-dark:      #E8E5DE;
-      --text-dark-muted:#666666;
-      --text-light:     #111111;
-      --text-light-muted:#777777;
-      --border-dark:    #1E1E1E;
-      --border-light:   #D5D0C8;
-      --bg-light-hover: #EDE9E1;
-    }
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BY MOMENT — Studio de Campagnes Visuelles</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,300;0,400;0,500;0,700;0,900;1,300;1,400;1,700;1,900&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --orange:#FF5C1A;
+  --orange-dark:#E04A0E;
+  --orange-dim:rgba(255,92,26,0.10);
+  --black:#000000;
+  --ink:#0D0D0D;
+  --white:#FFFFFF;
+  --light-border:#E5E3DF;
+  --dark-border:#1E1E1E;
+}
+html{scroll-behavior:smooth;font-size:16px}
+body{font-family:'Inter',sans-serif;background:var(--white);color:var(--ink);overflow-x:hidden;-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
+h2{font-family:'Inter',sans-serif}
 
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-    html { scroll-behavior: smooth; }
+/* ========= NAV ========= */
+nav{
+  position:fixed;top:0;left:0;right:0;z-index:100;
+  height:64px;padding:0 48px;
+  display:flex;align-items:center;justify-content:space-between;
+  background:#fff;
+  border-bottom:2px solid var(--ink);
+  transition:box-shadow .3s;
+}
+nav.scrolled{box-shadow:0 4px 20px rgba(0,0,0,.08)}
+.nav-logo img{height:30px;display:block;filter:brightness(0)}
+.btn-nav{
+  display:inline-block;background:var(--ink);color:#fff;
+  font-family:'Inter',sans-serif;font-size:12px;font-weight:700;
+  text-transform:uppercase;letter-spacing:.1em;
+  padding:12px 24px;border-radius:0;border:none;cursor:pointer;
+  text-decoration:none;transition:background .15s;
+}
+.btn-nav:hover{background:#222}
 
-    body {
-      background: var(--bg-dark);
-      color: var(--text-dark);
-      font-family: 'DM Sans', sans-serif;
-      font-weight: 300;
-      line-height: 1.6;
-      overflow-x: hidden;
-    }
+/* ========= BUTTONS ========= */
+.btn-black{
+  display:inline-block;background:var(--ink);color:#fff;
+  font-family:'Inter',sans-serif;font-size:12px;font-weight:700;
+  text-transform:uppercase;letter-spacing:.1em;
+  padding:13px 28px;border-radius:0;border:none;cursor:pointer;
+  text-decoration:none;transition:background .15s;
+}
+.btn-black:hover{background:#222}
+.btn-orange{
+  display:inline-block;background:var(--orange);color:#fff;
+  font-family:'Inter',sans-serif;font-size:12px;font-weight:700;
+  text-transform:uppercase;letter-spacing:.1em;
+  padding:13px 28px;border-radius:0;border:none;cursor:pointer;
+  text-decoration:none;transition:background .15s;
+}
+.btn-orange:hover{background:var(--orange-dark)}
+.btn-white-cta{
+  display:inline-block;background:#fff;color:var(--orange);
+  font-family:'Inter',sans-serif;font-size:14px;font-weight:900;
+  text-transform:uppercase;letter-spacing:.06em;
+  padding:16px 40px;border-radius:0;border:none;cursor:pointer;
+  text-decoration:none;transition:background .15s;
+}
+.btn-white-cta:hover{background:#f0ede9}
 
-    /* ── KEYFRAMES ──────────────────────────────── */
-    @keyframes fadeUp {
-      from { opacity: 0; transform: translateY(24px); }
-      to   { opacity: 1; transform: translateY(0); }
-    }
-    @keyframes bgFade {
-      0%   { opacity: 1; }
-      90%  { opacity: 1; }
-      100% { opacity: 0; }
-    }
+/* ========= HERO ========= */
+.hero{
+  background:#fff;
+  height:100vh;
+  padding-top:64px;
+  display:grid;
+  grid-template-columns:1fr 1fr 1fr;
+  overflow:hidden;
+}
+.hero-side{overflow:hidden;padding:0 8px;height:100%}
+.hero-side-inner{display:flex;flex-direction:column;gap:12px;will-change:transform}
+.hero-side-inner img{width:100%;object-fit:cover;display:block;flex-shrink:0;aspect-ratio:4/5}
+.hero-left .hero-side-inner{margin-top:80px;animation:scrollDown 20s linear infinite}
+.hero-right .hero-side-inner{margin-top:40px;animation:scrollUp 25s linear infinite}
+/* Rotated images for editorial dynamism */
+.hero-side-inner img:nth-child(1){transform:rotate(-1.5deg)}
+.hero-side-inner img:nth-child(2){transform:rotate(1deg)}
+.hero-side-inner img:nth-child(3){transform:rotate(-1deg)}
+.hero-side-inner img:nth-child(4){transform:rotate(1.5deg)}
+.hero-side-inner img:nth-child(5){transform:rotate(-1.5deg)}
+.hero-side-inner img:nth-child(6){transform:rotate(1deg)}
+.hero-side-inner img:nth-child(7){transform:rotate(-1deg)}
+.hero-side-inner img:nth-child(8){transform:rotate(1.5deg)}
+@keyframes scrollDown{0%{transform:translateY(-50%)}100%{transform:translateY(0%)}}
+@keyframes scrollUp{0%{transform:translateY(0%)}100%{transform:translateY(-50%)}}
 
-    .fade-up { animation: fadeUp 0.9s ease forwards; opacity: 0; }
-    .fade-up-1 { animation-delay: 0.10s; }
-    .fade-up-2 { animation-delay: 0.25s; }
-    .fade-up-3 { animation-delay: 0.40s; }
-    .fade-up-4 { animation-delay: 0.55s; }
+.hero-center{
+  display:flex;flex-direction:column;
+  align-items:center;justify-content:center;
+  height:100%;position:relative;overflow:hidden;
+}
+.hero-center-img{width:75%;position:relative;flex-shrink:0}
+.hero-center-img img{width:100%;aspect-ratio:3/4;object-fit:cover;display:block}
+.hero-center-text{
+  mix-blend-mode:exclusion;color:#fff;text-align:center;
+  position:absolute;left:0;right:0;top:0;bottom:0;
+  display:flex;flex-direction:column;
+  align-items:center;justify-content:center;
+  padding:20px;z-index:2;
+}
+.hero-center-text p{
+  font-weight:300;font-style:italic;
+  font-size:clamp(9px,1vw,13px);letter-spacing:.18em;
+  text-transform:uppercase;margin-bottom:14px;line-height:1.4;
+}
+.hero-center-text h1{
+  font-size:clamp(72px,12vw,140px);
+  line-height:.82;letter-spacing:-.04em;
+  text-transform:uppercase;margin-bottom:24px;
+}
+.hero-center-text h1 strong{font-weight:900;display:block}
+.hero-center-text h1 span{font-weight:300;font-style:italic;display:block}
+.hero-center-text a{
+  display:inline-block;background:var(--ink);color:#fff;
+  padding:12px 24px;font-weight:700;font-size:clamp(9px,.9vw,12px);
+  letter-spacing:.1em;text-decoration:none;text-transform:uppercase;
+  font-family:'Inter',sans-serif;transition:opacity .15s;
+}
+.hero-center-text a:hover{opacity:.8}
 
-    /* ── BUTTONS ────────────────────────────────── */
-    .btn-primary {
-      display: inline-block;
-      font-family: 'Barlow Condensed', sans-serif;
-      font-weight: 500;
-      font-size: 13px;
-      letter-spacing: 0.1em;
-      text-transform: uppercase;
-      background: var(--accent);
-      color: var(--bg-dark);
-      padding: 14px 32px;
-      border: none;
-      cursor: pointer;
-      text-decoration: none;
-      transition: opacity 0.2s;
-    }
-    .btn-primary:hover { opacity: 0.82; }
+/* ========= TICKER ========= */
+.ticker-strip{
+  background:var(--black);height:48px;overflow:hidden;
+  display:flex;align-items:center;
+}
+.ticker-inner{
+  display:inline-flex;align-items:center;white-space:nowrap;
+  animation:ticker 20s linear infinite;
+  will-change:transform;
+}
+.ticker-inner span{
+  font-size:13px;font-weight:700;text-transform:uppercase;
+  letter-spacing:.2em;color:#fff;padding:0 32px;
+}
+.ticker-inner span::after{content:" ·";margin-left:32px;opacity:.4}
+@keyframes ticker{from{transform:translateX(0)}to{transform:translateX(-50%)}}
 
-    .btn-ghost {
-      display: inline-block;
-      font-family: 'Barlow Condensed', sans-serif;
-      font-weight: 500;
-      font-size: 13px;
-      letter-spacing: 0.1em;
-      text-transform: uppercase;
-      background: transparent;
-      color: var(--text-dark);
-      padding: 14px 32px;
-      border: 1px solid #666;
-      cursor: pointer;
-      text-decoration: none;
-      transition: border-color 0.2s, color 0.2s;
-    }
-    .btn-ghost:hover { border-color: var(--text-dark); color: #fff; }
+/* ========= STATS ========= */
+.stats-section{background:#fff;padding:0 48px 88px}
+.stats-grid{
+  max-width:960px;margin:0 auto;
+  display:grid;grid-template-columns:repeat(3,1fr);
+}
+.stat-col{
+  padding:56px 48px;
+  border-right:2px solid var(--ink);
+  text-align:left;
+}
+.stat-col:last-child{border-right:none}
+.stat-num{font-size:clamp(80px,12vw,140px);font-weight:900;color:var(--ink);line-height:.9;display:inline}
+.stat-unit{font-size:clamp(80px,12vw,140px);font-weight:300;font-style:italic;color:var(--ink);line-height:.9;display:inline}
+.stat-label{font-size:14px;font-weight:700;text-transform:uppercase;letter-spacing:.15em;color:var(--ink);margin-top:12px}
+.stat-sublabel{font-size:12px;font-weight:300;text-transform:uppercase;color:#AAA;margin-top:4px}
 
-    /* ── NAV ────────────────────────────────────── */
-    nav {
-      position: fixed;
-      top: 0; left: 0; right: 0;
-      z-index: 200;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 18px 48px;
-      background: var(--bg-dark);
-      border-bottom: 1px solid var(--border-dark);
-      transition: transform 0.35s ease;
-    }
-    nav.hidden { transform: translateY(-100%); }
+/* ========= POUR QUI ========= */
+.pour-qui{background:#fff;padding:88px 48px;text-align:center}
+.section-badge-light{
+  display:inline-block;background:var(--orange-dim);
+  border:1px solid rgba(255,92,26,0.2);color:#333;
+  font-size:11px;font-weight:500;text-transform:uppercase;letter-spacing:.1em;
+  padding:6px 16px;border-radius:0;margin-bottom:20px;
+}
+.section-badge-dark{
+  display:inline-block;background:rgba(255,255,255,.05);
+  border:1px solid rgba(255,255,255,.1);color:#888;
+  font-size:11px;font-weight:500;text-transform:uppercase;letter-spacing:.1em;
+  padding:6px 16px;border-radius:0;margin-bottom:20px;
+}
+.pq-cards{max-width:860px;margin:0 auto;display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+.pq-card{
+  background:#fff;border:1px solid var(--light-border);
+  border-left:3px solid transparent;
+  border-radius:0;padding:44px;text-align:left;
+  transition:border-left-color .2s;cursor:default;
+}
+.pq-card:hover{border-left-color:var(--orange)}
+.card-num{font-size:clamp(64px,8vw,96px);font-weight:900;color:#F0F0F0;margin-bottom:16px;display:block;line-height:1}
+.card-title{font-size:15px;font-weight:700;text-transform:uppercase;color:#111;margin-bottom:8px}
+.card-text{font-size:13px;font-weight:300;text-transform:uppercase;color:#888;line-height:1.75}
 
-    .nav-logo {
-      height: 36px;
-      width: auto;
-      object-fit: contain;
-      filter: brightness(0) invert(1);
-    }
+/* ========= PROCESS ========= */
+.process{background:var(--black);padding:88px 48px;text-align:center}
+.process-cards{max-width:960px;margin:0 auto;display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+.process-card{
+  background:#0A0A0A;border:1px solid #1a1a1a;
+  border-left:3px solid transparent;
+  border-radius:0;padding:44px;text-align:left;position:relative;
+  transition:border-left-color .2s;
+}
+.process-card:hover{border-left-color:var(--orange)}
+.process-tag{
+  position:absolute;top:20px;right:20px;
+  font-size:10px;font-weight:500;text-transform:uppercase;letter-spacing:.15em;
+  padding:4px 10px;border-radius:0;
+}
+.tag-step{background:rgba(255,92,26,.1);border:1px solid rgba(255,92,26,.2);color:#AAA}
+.tag-delivery{background:rgba(39,192,96,.1);border:1px solid rgba(39,192,96,.2);color:#27C060}
+.process-num{font-size:clamp(64px,8vw,96px);font-weight:900;color:#1A1A1A;line-height:1;margin-bottom:14px;display:block}
+.process-title{font-size:18px;font-weight:700;text-transform:uppercase;color:#fff;margin-bottom:10px}
+.process-text{font-size:13px;font-weight:300;text-transform:uppercase;color:#555;line-height:1.8}
 
-    /* ── HERO ───────────────────────────────────── */
-    .hero {
-      position: relative;
-      min-height: 100vh;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      overflow: hidden;
-    }
+/* ========= RÉALISATIONS ========= */
+.cases{background:#fff;padding:88px 48px;text-align:center}
+.cases-grid{max-width:840px;margin:0 auto;display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
+.case-item{position:relative;overflow:hidden;aspect-ratio:3/2}
+.case-item img{width:100%;height:100%;object-fit:cover;display:block;transition:transform .6s ease}
+.case-item:hover img{transform:scale(1.04)}
+.case-badge{
+  position:absolute;bottom:14px;left:14px;
+  font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.12em;
+  padding:5px 12px;border-radius:0;
+}
+.case-badge.before{background:rgba(0,0,0,.65);color:#999;border:1px solid rgba(255,255,255,.15)}
+.case-badge.after{background:var(--orange);color:#fff;border:none}
 
-    .hero-slides {
-      position: absolute;
-      inset: 0;
-    }
+/* ========= TESTIMONIAL ========= */
+.testimonial{background:#fff;padding:88px 48px}
+.testi-inner{max-width:640px;margin:0 auto}
+.testi-images{display:flex;gap:8px;margin-bottom:32px;max-width:500px}
+.testi-images img{flex:1;min-width:0;object-fit:cover;aspect-ratio:4/3;display:block}
+.testi-quote-mark{
+  font-size:80px;font-weight:900;font-style:italic;
+  color:#E5E3DF;line-height:.5;display:block;margin-bottom:12px;
+  font-family:'Inter',sans-serif;
+}
+.testi-quote{
+  font-size:18px;font-weight:700;text-transform:uppercase;
+  color:var(--ink);line-height:1.6;margin-bottom:20px;max-width:560px;
+}
+.testi-author-row{display:flex;align-items:center;gap:14px;margin-top:20px}
+.testi-avatar{
+  width:40px;height:40px;border-radius:50%;
+  background:#1a2e5e;color:#fff;
+  display:flex;align-items:center;justify-content:center;
+  font-size:15px;font-weight:700;flex-shrink:0;overflow:hidden;
+}
+.testi-avatar img{width:100%;height:100%;object-fit:cover}
+.testi-name{font-size:13px;font-weight:700;text-transform:uppercase;color:#111}
+.testi-brand{font-size:12px;font-weight:300;text-transform:uppercase;color:#888}
 
-    .hero-slide {
-      position: absolute;
-      inset: 0;
-      background-size: cover;
-      background-position: center;
-      opacity: 0;
-      transition: opacity 1.2s ease;
-    }
-    .hero-slide.active { opacity: 1; }
+/* ========= OBJECTIONS ========= */
+.objections{background:var(--black);padding:88px 48px;text-align:center}
+.obj-grid{max-width:840px;margin:0 auto;display:grid;grid-template-columns:repeat(2,1fr);gap:16px}
+.obj-card{
+  background:#0A0A0A;border:1px solid #1a1a1a;
+  border-left:3px solid transparent;
+  border-radius:0;padding:44px;text-align:left;
+  transition:border-left-color .2s,background .2s;cursor:default;
+}
+.obj-card:hover{background:#0F0F0F;border-left-color:var(--orange)}
+.obj-q{font-size:14px;font-weight:600;text-transform:uppercase;color:#fff;margin-bottom:10px}
+.obj-a{font-size:13px;font-weight:300;text-transform:uppercase;color:#555;line-height:1.8}
 
-    .hero-overlay {
-      position: absolute;
-      inset: 0;
-      background: rgba(0,0,0,0.65);
-      z-index: 1;
-    }
+/* ========= MANIFESTE ========= */
+.manifeste{background:var(--black);padding:120px 48px;text-align:center;border-top:1px solid #111}
+.manifeste-sep{width:64px;height:4px;background:var(--orange);margin:0 auto 48px}
+.manifeste p{
+  font-size:clamp(48px,7vw,88px);
+  font-weight:900;font-style:italic;text-transform:uppercase;
+  color:#fff;line-height:.88;
+  font-family:'Inter',sans-serif;
+}
 
-    .hero-content {
-      position: relative;
-      z-index: 2;
-      text-align: center;
-      padding: 120px 40px 80px;
-      max-width: 860px;
-      margin: 0 auto;
-    }
+/* ========= POURQUOI ========= */
+.pourquoi{background:#fff;padding:88px 48px;text-align:center}
+.diff-grid{max-width:860px;margin:0 auto;display:grid;grid-template-columns:repeat(2,1fr);gap:16px}
+.diff-card{
+  background:#fff;border:1px solid var(--light-border);
+  border-left:3px solid transparent;
+  border-radius:0;padding:44px;text-align:left;
+  transition:border-left-color .2s,background .2s;cursor:default;
+}
+.diff-card:hover{background:#fafafa;border-left-color:var(--orange)}
+.diff-num{font-size:clamp(64px,8vw,96px);font-weight:900;color:#F0F0F0;display:block;margin-bottom:12px;line-height:1}
+.diff-title{font-size:15px;font-weight:700;text-transform:uppercase;color:#111;margin-bottom:10px}
+.diff-text{font-size:13px;font-weight:300;text-transform:uppercase;color:#888;line-height:1.8}
 
-    .hero-label {
-      font-family: 'Barlow Condensed', sans-serif;
-      font-weight: 400;
-      font-size: 12px;
-      letter-spacing: 0.25em;
-      text-transform: uppercase;
-      color: var(--accent);
-      margin-bottom: 28px;
-      display: block;
-    }
+/* ========= CTA FINAL ========= */
+.cta-final{background:var(--orange);padding:120px 48px;text-align:center}
+.cta-pre{
+  font-size:clamp(16px,2vw,22px);font-weight:300;font-style:italic;
+  text-transform:uppercase;color:rgba(255,255,255,0.5);
+  display:block;margin-bottom:20px;letter-spacing:.08em;
+}
+.cta-note{
+  font-size:11px;font-weight:300;text-transform:uppercase;
+  color:rgba(255,255,255,.45);margin-top:14px;letter-spacing:.06em;
+}
 
-    .hero-title {
-      font-family: 'Barlow Condensed', sans-serif;
-      font-weight: 700;
-      font-size: clamp(64px, 10vw, 120px);
-      line-height: 0.88;
-      letter-spacing: 0.05em;
-      text-transform: uppercase;
-      margin-bottom: 28px;
-    }
-    .hero-title .line-white  { display: block; color: #fff; }
-    .hero-title .line-outline {
-      display: block;
-      color: transparent;
-      -webkit-text-stroke: 1px rgba(255,255,255,0.20);
-    }
-    .hero-title .line-gold   { display: block; color: var(--accent); }
+/* ========= FOOTER ========= */
+footer{
+  background:#fff;
+  border-top:2px solid var(--ink);
+  padding:24px 48px;
+  display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:16px;
+}
+.footer-logo img{height:28px;display:block;filter:brightness(0)}
+.footer-copy{font-size:11px;font-weight:700;text-transform:uppercase;color:var(--ink)}
+.footer-url{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--ink)}
 
-    .hero-sub {
-      font-size: 15px;
-      color: #aaa;
-      max-width: 420px;
-      margin: 0 auto 40px;
-      line-height: 1.7;
-    }
+/* ========= SHARED ========= */
+.section-sub-light{font-size:15px;font-weight:300;text-transform:uppercase;color:#888;max-width:500px;margin:16px auto 52px;line-height:1.7}
+.section-sub-dark{font-size:14px;font-weight:300;font-style:italic;text-transform:uppercase;color:#555;text-align:center;margin-bottom:48px}
 
-    .hero-ctas {
-      display: flex;
-      gap: 14px;
-      justify-content: center;
-      flex-wrap: wrap;
-    }
+/* ========= FADE UP — more pronounced ========= */
+.fu{
+  opacity:0;transform:translateY(40px);
+  transition:opacity .6s cubic-bezier(.16,1,.3,1),transform .6s cubic-bezier(.16,1,.3,1);
+}
+.fu.visible{opacity:1;transform:translateY(0)}
+.fu[data-delay="1"]{transition-delay:.1s}
+.fu[data-delay="2"]{transition-delay:.2s}
+.fu[data-delay="3"]{transition-delay:.3s}
+.fu[data-delay="4"]{transition-delay:.4s}
+.fu[data-delay="5"]{transition-delay:.5s}
 
-    /* ── STATS (fond clair) ─────────────────────── */
-    .stats {
-      background: var(--bg-light);
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-    }
-
-    .stat-item {
-      padding: 48px 40px;
-      text-align: center;
-    }
-    .stat-item + .stat-item { border-left: 1px solid var(--border-light); }
-
-    .stat-number {
-      font-family: 'Barlow Condensed', sans-serif;
-      font-weight: 700;
-      font-size: 56px;
-      line-height: 1;
-      color: var(--bg-dark);
-      margin-bottom: 10px;
-    }
-    .stat-number .unit { color: var(--accent); }
-
-    .stat-label {
-      font-size: 11px;
-      letter-spacing: 0.12em;
-      text-transform: uppercase;
-      color: #777;
-      font-family: 'DM Sans', sans-serif;
-      font-weight: 300;
-    }
-
-    /* ── RÉALISATIONS (fond noir) ───────────────── */
-    .cases {
-      background: var(--bg-dark);
-      padding: 80px 40px;
-    }
-
-    .section-header { text-align: center; margin-bottom: 48px; }
-
-    .section-title {
-      font-family: 'Barlow Condensed', sans-serif;
-      font-weight: 700;
-      font-size: 52px;
-      letter-spacing: 0.05em;
-      text-transform: uppercase;
-      line-height: 1.0;
-    }
-    .gold { color: var(--accent); }
-
-    .section-sub {
-      font-size: 13px;
-      color: #666;
-      margin-top: 12px;
-    }
-
-    .cases-grid {
-      display: grid;
-      grid-template-columns: repeat(2, 1fr);
-      gap: 12px;
-      max-width: 900px;
-      margin: 0 auto;
-    }
-
-    .case-item {
-      position: relative;
-      overflow: hidden;
-      aspect-ratio: 3/2;
-      cursor: pointer;
-    }
-    .case-item img {
-      width: 100%; height: 100%;
-      object-fit: cover;
-      display: block;
-      opacity: 0.85;
-      transition: transform 0.6s ease, opacity 0.6s ease;
-    }
-    .case-item:hover img { transform: scale(1.03); opacity: 1; }
-
-    .case-badge {
-      position: absolute;
-      bottom: 14px; left: 14px;
-      font-family: 'Barlow Condensed', sans-serif;
-      font-weight: 400;
-      font-size: 9px;
-      letter-spacing: 0.2em;
-      text-transform: uppercase;
-      padding: 5px 10px;
-    }
-    .badge-before {
-      background: rgba(0,0,0,0.7);
-      border: 1px solid #333;
-      color: #888;
-    }
-    .badge-bymoment {
-      background: var(--accent);
-      color: #000;
-    }
-
-    /* ── TÉMOIGNAGE (fond clair) ────────────────── */
-    .testimonial {
-      background: var(--bg-light);
-      padding: 80px 40px;
-    }
-
-    .testimonial .section-title { color: var(--text-light); }
-
-    .testimonial-inner {
-      display: grid;
-      grid-template-columns: 1fr 1.6fr;
-      gap: 64px;
-      max-width: 1000px;
-      margin: 60px auto 0;
-      align-items: center;
-    }
-
-    .video-col {
-      display: flex;
-      justify-content: center;
-    }
-
-    .video-placeholder {
-      aspect-ratio: 9/16;
-      max-height: 420px;
-      width: 100%;
-      max-width: 240px;
-      background: #1A1A1A;
-      border: 1.5px solid var(--accent);
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      gap: 18px;
-    }
-
-    .play-circle {
-      width: 52px; height: 52px;
-      border: 1.5px solid var(--accent);
-      border-radius: 50%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
-    .play-circle::after {
-      content: '';
-      border-left: 16px solid var(--accent);
-      border-top: 9px solid transparent;
-      border-bottom: 9px solid transparent;
-      margin-left: 4px;
-    }
-
-    .video-label {
-      font-family: 'Barlow Condensed', sans-serif;
-      font-weight: 400;
-      font-size: 9px;
-      letter-spacing: 0.2em;
-      text-transform: uppercase;
-      color: #666;
-      text-align: center;
-    }
-
-    .quote-deco {
-      font-family: 'Barlow Condensed', sans-serif;
-      font-size: 100px;
-      line-height: 0.5;
-      color: var(--accent);
-      opacity: 0.25;
-      display: block;
-      margin-bottom: 8px;
-    }
-    .quote-text {
-      font-size: 20px;
-      color: #222;
-      font-weight: 300;
-      font-style: italic;
-      line-height: 1.6;
-      margin-bottom: 20px;
-    }
-    .quote-line {
-      width: 36px;
-      height: 1px;
-      background: var(--accent);
-      margin-bottom: 20px;
-    }
-    .quote-author {
-      font-family: 'Barlow Condensed', sans-serif;
-      font-weight: 400;
-      font-size: 12px;
-      letter-spacing: 0.12em;
-      text-transform: uppercase;
-      color: #777;
-    }
-
-    /* ── CTA MILIEU (fond noir) ─────────────────── */
-    .cta-mid {
-      background: var(--bg-dark);
-      border-top: 1px solid rgba(184,145,42,0.3);
-      border-bottom: 1px solid rgba(184,145,42,0.3);
-      padding: 72px 40px;
-      text-align: center;
-    }
-
-    .cta-mid-text {
-      font-family: 'Barlow Condensed', sans-serif;
-      font-weight: 700;
-      font-size: 40px;
-      letter-spacing: 0.05em;
-      text-transform: uppercase;
-      color: var(--text-dark);
-      margin-bottom: 32px;
-      line-height: 1.1;
-    }
-
-    /* ── ARGUMENTS (fond clair) ─────────────────── */
-    .arguments {
-      background: var(--bg-light);
-      padding: 80px 40px;
-    }
-
-    .arguments .section-title { color: var(--text-light); }
-
-    .arguments-grid {
-      display: grid;
-      grid-template-columns: repeat(2, 1fr);
-      gap: 1px;
-      background: var(--border-light);
-      max-width: 1000px;
-      margin: 60px auto 0;
-    }
-
-    .arg-item {
-      background: var(--bg-light);
-      padding: 48px 48px;
-      transition: background 0.25s;
-      cursor: default;
-    }
-    .arg-item:hover { background: var(--bg-light-hover); }
-
-    .arg-number {
-      font-family: 'Barlow Condensed', sans-serif;
-      font-weight: 700;
-      font-size: 56px;
-      color: var(--border-light);
-      line-height: 1;
-      margin-bottom: 18px;
-    }
-    .arg-title {
-      font-family: 'Barlow Condensed', sans-serif;
-      font-weight: 700;
-      font-size: 18px;
-      letter-spacing: 0.04em;
-      text-transform: uppercase;
-      color: var(--text-light);
-      margin-bottom: 12px;
-    }
-    .arg-desc {
-      font-size: 13px;
-      color: #777;
-      line-height: 1.75;
-    }
-
-    /* ── CTA FINAL (fond noir) ──────────────────── */
-    .cta-final {
-      background: var(--bg-dark);
-      padding: 100px 40px;
-      text-align: center;
-      position: relative;
-      overflow: hidden;
-    }
-    .cta-final-radial {
-      position: absolute;
-      inset: 0;
-      background: radial-gradient(ellipse 55% 50% at 50% 50%, rgba(184,145,42,0.08) 0%, transparent 70%);
-      pointer-events: none;
-    }
-    .cta-final-inner { position: relative; z-index: 2; }
-
-    .cta-eyebrow {
-      font-family: 'Barlow Condensed', sans-serif;
-      font-weight: 400;
-      font-size: 10px;
-      letter-spacing: 0.3em;
-      text-transform: uppercase;
-      color: var(--accent);
-      margin-bottom: 20px;
-      display: block;
-    }
-
-    .cta-title {
-      font-family: 'Barlow Condensed', sans-serif;
-      font-weight: 700;
-      font-size: clamp(44px, 7vw, 80px);
-      letter-spacing: 0.04em;
-      text-transform: uppercase;
-      line-height: 0.95;
-      margin-bottom: 24px;
-    }
-    .cta-title .line-white { display: block; color: #fff; }
-    .cta-title .line-gold  { display: block; color: var(--accent); }
-
-    .cta-sub {
-      font-size: 15px;
-      color: #666;
-      max-width: 360px;
-      margin: 0 auto 40px;
-      line-height: 1.7;
-    }
-
-    .cta-note {
-      font-size: 11px;
-      color: #444;
-      margin-top: 16px;
-    }
-
-    /* ── FOOTER ─────────────────────────────────── */
-    footer {
-      background: var(--bg-dark);
-      border-top: 1px solid var(--border-dark);
-      padding: 24px 48px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-    }
-    .footer-left {
-      font-size: 11px;
-      color: #444;
-      letter-spacing: 0.04em;
-    }
-    .footer-right {
-      font-family: 'Barlow Condensed', sans-serif;
-      font-weight: 400;
-      font-size: 12px;
-      letter-spacing: 0.08em;
-      color: var(--accent);
-      text-decoration: none;
-      text-transform: uppercase;
-    }
-
-    /* ── RESPONSIVE ─────────────────────────────── */
-    @media (max-width: 640px) {
-      nav { padding: 14px 20px; }
-
-      .hero-content { padding: 100px 20px 60px; }
-      .hero-title { font-size: clamp(52px, 14vw, 80px); }
-      .hero-ctas { flex-direction: column; align-items: center; }
-
-      .stats { grid-template-columns: 1fr; }
-      .stat-item + .stat-item { border-left: none; border-top: 1px solid var(--border-light); }
-
-      .cases { padding: 56px 20px; }
-      .cases-grid { grid-template-columns: 1fr; }
-
-      .testimonial { padding: 56px 20px; }
-      .testimonial-inner { grid-template-columns: 1fr; gap: 40px; }
-      .video-col { order: 1; }
-      .testimonial-quote { order: 2; }
-
-      .cta-mid { padding: 56px 20px; }
-      .cta-mid-text { font-size: 28px; }
-
-      .arguments { padding: 56px 20px; }
-      .arguments-grid { grid-template-columns: 1fr; }
-      .arg-item { padding: 36px 28px; }
-
-      .cta-final { padding: 72px 20px; }
-      footer { flex-direction: column; gap: 10px; text-align: center; padding: 24px 20px; }
-    }
-  </style>
+/* ========= RESPONSIVE ========= */
+@media(max-width:768px){
+  nav{padding:0 20px}
+  .hero{grid-template-columns:1fr 1fr}
+  .hero-right{display:none}
+  .hero-center-text h1{font-size:clamp(40px,10vw,72px)}
+  .stats-section{padding:0 20px 60px}
+  .stats-grid{grid-template-columns:1fr}
+  .stat-col{border-right:none;border-bottom:2px solid var(--ink);padding:40px 24px}
+  .stat-col:last-child{border-bottom:none}
+  .pour-qui,.cases,.testimonial,.pourquoi,.objections,.process{padding:60px 20px}
+  .pq-cards,.process-cards{grid-template-columns:1fr}
+  .cases-grid,.obj-grid,.diff-grid{grid-template-columns:1fr}
+  .testi-images{max-width:100%}
+  .cta-final{padding:80px 20px}
+  .manifeste{padding:80px 20px}
+  footer{padding:20px;flex-direction:column;align-items:flex-start}
+  .ticker-strip{display:none}
+}
+</style>
 </head>
 <body>
 
-  <!-- NAV -->
-  <nav id="main-nav">
-    <img
-      src="https://cdn.prod.website-files.com/699f38d43837ea8e13a5dbf3/699f4b3927ae85b6d2b0539b_Fichier%204pictos.png"
-      alt="By Moment"
-      class="nav-logo"
-    />
-    <a href="#rdv" class="btn-primary">Réserver un appel</a>
-  </nav>
+<!-- ========= NAV ========= -->
+<nav id="main-nav">
+  <a href="#" class="nav-logo">
+    <img src="https://cdn.prod.website-files.com/699f38d43837ea8e13a5dbf3/699f4b3927ae85b6d2b0539b_Fichier%204pictos.png" alt="BY MOMENT" loading="eager">
+  </a>
+  <a href="#rdv" class="btn-nav">R&Eacute;SERVER UN APPEL &rarr;</a>
+</nav>
 
-  <!-- HERO -->
-  <section class="hero">
-    <div class="hero-slides" id="hero-slides">
-      <div class="hero-slide active" style="background-image:url('https://cdn.prod.website-files.com/699f38d43837ea8e13a5dbf3/699f54d415d91c45778662fe_weavy-Gemini%203%20(Nano%20Banana%20Pro)-2026-02-01%20at%2014.23.22%20-%20Grande.avif')"></div>
-      <div class="hero-slide"        style="background-image:url('https://cdn.prod.website-files.com/699f38d43837ea8e13a5dbf3/699f54d4856208d9f4467116_weavy-Gemini%203%20(Nano%20Banana%20Pro)-2026-02-01%20at%2016.39.13%20-%20Grande.avif')"></div>
-      <div class="hero-slide"        style="background-image:url('https://cdn.prod.website-files.com/699f38d43837ea8e13a5dbf3/69a5eeb0a9cb376794c52942_untitled_Gemini%203%20(Nano%20Banana%20Pro)_2026-03-02_19-46-35.avif')"></div>
-      <div class="hero-slide"        style="background-image:url('https://cdn.prod.website-files.com/699f38d43837ea8e13a5dbf3/69efb749b159457c75f040c1_ghina_Gemini%203%20(Nano%20Banana%20Pro)_2026-04-06_13-22-54.jpg')"></div>
-    </div>
-    <div class="hero-overlay"></div>
+<!-- ========= HERO ========= -->
+<section class="hero" id="hero">
 
-    <div class="hero-content">
-      <span class="hero-label fade-up fade-up-1">Studio de campagnes visuelles · Craft Spirits</span>
-      <h1 class="hero-title fade-up fade-up-2">
-        <span class="line-white">Vos visuels</span>
-        <span class="line-outline">méritent</span>
-        <span class="line-gold">mieux.</span>
-      </h1>
-      <p class="hero-sub fade-up fade-up-3">
-        En 5 jours, on crée une campagne visuelle qui donne à votre marque la présence qu'elle mérite — sans shooting, sans logistique.
-      </p>
-      <div class="hero-ctas fade-up fade-up-4">
-        <a href="#cases" class="btn-primary">Voir ce qu'on peut faire →</a>
-        <a href="#cases" class="btn-ghost">Voir les réalisations</a>
-      </div>
+  <div class="hero-side hero-left">
+    <div class="hero-side-inner">
+      <img src="https://cdn.prod.website-files.com/699f38d43837ea8e13a5dbf3/69a5eeb0a9cb376794c52942_untitled_Gemini%203%20(Nano%20Banana%20Pro)_2026-03-02_19-46-35.avif" alt="" loading="eager">
+      <img src="https://cdn.prod.website-files.com/699f38d43837ea8e13a5dbf3/69efb757e72e5cc5bca7f837_campagne%20bateau_Gemini%203%20(Nano%20Banana%20Pro)_2026-04-19_11-23-32.jpg" alt="" loading="eager">
+      <img src="https://cdn.prod.website-files.com/699f38d43837ea8e13a5dbf3/69efb7621853304741e47e74_shwung_Gemini%203%20(Nano%20Banana%20Pro)_2026-04-26_12-13-45.jpg" alt="" loading="lazy">
+      <img src="https://cdn.prod.website-files.com/699f38d43837ea8e13a5dbf3/69efb749b159457c75f040c1_ghina_Gemini%203%20(Nano%20Banana%20Pro)_2026-04-06_13-22-54.jpg" alt="" loading="lazy">
+      <img src="https://cdn.prod.website-files.com/699f38d43837ea8e13a5dbf3/69a5eeb0a9cb376794c52942_untitled_Gemini%203%20(Nano%20Banana%20Pro)_2026-03-02_19-46-35.avif" alt="" loading="lazy">
+      <img src="https://cdn.prod.website-files.com/699f38d43837ea8e13a5dbf3/69efb757e72e5cc5bca7f837_campagne%20bateau_Gemini%203%20(Nano%20Banana%20Pro)_2026-04-19_11-23-32.jpg" alt="" loading="lazy">
+      <img src="https://cdn.prod.website-files.com/699f38d43837ea8e13a5dbf3/69efb7621853304741e47e74_shwung_Gemini%203%20(Nano%20Banana%20Pro)_2026-04-26_12-13-45.jpg" alt="" loading="lazy">
+      <img src="https://cdn.prod.website-files.com/699f38d43837ea8e13a5dbf3/69efb749b159457c75f040c1_ghina_Gemini%203%20(Nano%20Banana%20Pro)_2026-04-06_13-22-54.jpg" alt="" loading="lazy">
     </div>
-  </section>
-
-  <!-- STATS -->
-  <section class="stats">
-    <div class="stat-item">
-      <div class="stat-number">5<span class="unit">J</span></div>
-      <div class="stat-label">Délai de livraison</div>
-    </div>
-    <div class="stat-item">
-      <div class="stat-number">0<span class="unit">€</span></div>
-      <div class="stat-label">Frais de shooting</div>
-    </div>
-    <div class="stat-item">
-      <div class="stat-number">100<span class="unit">%</span></div>
-      <div class="stat-label">Prêts à publier</div>
-    </div>
-  </section>
-
-  <!-- RÉALISATIONS -->
-  <section class="cases" id="cases">
-    <div class="section-header">
-      <h2 class="section-title">CE QU'ON FAIT <span class="gold">CONCRÈTEMENT</span></h2>
-      <p class="section-sub">Visuels produits craft spirits — livrés en 5 jours, sans shooting.</p>
-    </div>
-    <div class="cases-grid">
-      <div class="case-item">
-        <img src="https://cdn.prod.website-files.com/699f38d43837ea8e13a5dbf3/699f54d415d91c45778662fe_weavy-Gemini%203%20(Nano%20Banana%20Pro)-2026-02-01%20at%2014.23.22%20-%20Grande.avif" alt="Avant" loading="lazy" />
-        <span class="case-badge badge-before">Avant</span>
-      </div>
-      <div class="case-item">
-        <img src="https://cdn.prod.website-files.com/699f38d43837ea8e13a5dbf3/699f54d4856208d9f4467116_weavy-Gemini%203%20(Nano%20Banana%20Pro)-2026-02-01%20at%2016.39.13%20-%20Grande.avif" alt="By Moment" loading="lazy" />
-        <span class="case-badge badge-bymoment">By Moment</span>
-      </div>
-      <div class="case-item">
-        <img src="https://cdn.prod.website-files.com/699f38d43837ea8e13a5dbf3/69a5eeb0a9cb376794c52942_untitled_Gemini%203%20(Nano%20Banana%20Pro)_2026-03-02_19-46-35.avif" alt="By Moment" loading="lazy" />
-        <span class="case-badge badge-bymoment">By Moment</span>
-      </div>
-      <div class="case-item">
-        <img src="https://cdn.prod.website-files.com/699f38d43837ea8e13a5dbf3/69efb749b159457c75f040c1_ghina_Gemini%203%20(Nano%20Banana%20Pro)_2026-04-06_13-22-54.jpg" alt="By Moment" loading="lazy" />
-        <span class="case-badge badge-bymoment">By Moment</span>
-      </div>
-    </div>
-  </section>
-
-  <!-- TÉMOIGNAGE -->
-  <section class="testimonial">
-    <div class="section-header">
-      <h2 class="section-title">ILS NOUS FONT <span class="gold">CONFIANCE</span></h2>
-    </div>
-    <div class="testimonial-inner">
-      <div class="video-col">
-        <div class="video-placeholder">
-          <div class="play-circle"></div>
-          <div class="video-label">Témoignage client · à venir</div>
-        </div>
-      </div>
-      <div class="testimonial-quote">
-        <span class="quote-deco">"</span>
-        <p class="quote-text">
-          Avant By Moment, mes visuels ne rendaient pas justice à mon produit. En 5 jours, ils ont transformé l'image de ma marque.
-        </p>
-        <div class="quote-line"></div>
-        <p class="quote-author">— Prénom Nom · Fondateur, Nom de la marque</p>
-      </div>
-    </div>
-  </section>
-
-  <!-- CTA MILIEU -->
-  <div class="cta-mid">
-    <p class="cta-mid-text">Vous voulez voir ce qu'on peut faire pour votre marque&nbsp;?</p>
-    <a href="#rdv" class="btn-primary">Réserver 20 minutes gratuites →</a>
   </div>
 
-  <!-- ARGUMENTS -->
-  <section class="arguments">
-    <div class="section-header">
-      <h2 class="section-title">POURQUOI <span class="gold">BY MOMENT</span></h2>
-    </div>
-    <div class="arguments-grid">
-      <div class="arg-item">
-        <div class="arg-number">01</div>
-        <div class="arg-title">Livré en 5 jours ouvrés</div>
-        <p class="arg-desc">Brief le lundi, campagne livrée vendredi. Pas d'attente, pas de va-et-vient.</p>
-      </div>
-      <div class="arg-item">
-        <div class="arg-number">02</div>
-        <div class="arg-title">Zéro shooting, zéro logistique</div>
-        <p class="arg-desc">Pas de décor à louer, pas de modèle à caster. On construit l'univers de votre marque depuis notre atelier.</p>
-      </div>
-      <div class="arg-item">
-        <div class="arg-number">03</div>
-        <div class="arg-title">Tous formats, prêts à publier</div>
-        <p class="arg-desc">Instagram, Facebook Ads, stories, site e-commerce. Chaque fichier livré aux bons formats.</p>
-      </div>
-      <div class="arg-item">
-        <div class="arg-number">04</div>
-        <div class="arg-title">Un univers, pas un template</div>
-        <p class="arg-desc">Lumière, matière, narration. Votre produit devient le héros de chaque visuel.</p>
+  <div class="hero-center">
+    <div class="hero-center-img">
+      <img src="https://cdn.prod.website-files.com/699f38d43837ea8e13a5dbf3/699f54d4856208d9f4467116_weavy-Gemini%203%20(Nano%20Banana%20Pro)-2026-02-01%20at%2016.39.13%20-%20Grande.avif" alt="" loading="eager">
+      <div class="hero-center-text">
+        <p>STUDIO DE CAMPAGNES VISUELLES &middot; SPIRITUEUX &amp; BOISSONS PREMIUM</p>
+        <h1>
+          <span>DES VISUELS</span>
+          <strong>SANS SHOOTING.</strong>
+          <strong>LIVR&Eacute;S EN 5 JOURS.</strong>
+        </h1>
+        <a href="#rdv">R&Eacute;SERVER UN APPEL GRATUIT &rarr;</a>
       </div>
     </div>
-  </section>
+  </div>
 
-  <!-- CTA FINAL -->
-  <section class="cta-final" id="rdv">
-    <div class="cta-final-radial"></div>
-    <div class="cta-final-inner">
-      <span class="cta-eyebrow">Sans engagement</span>
-      <h2 class="cta-title">
-        <span class="line-white">On crée quelque chose</span>
-        <span class="line-gold">D'inoubliable&nbsp;?</span>
-      </h2>
-      <p class="cta-sub">20 minutes pour voir ce qu'on peut faire pour votre marque. Gratuit, sans engagement.</p>
-      <a href="#" class="btn-primary">Réserver un appel gratuit →</a>
-      <p class="cta-note">Réponse sous 24h · Appel visio ou téléphone · Aucun engagement</p>
+  <div class="hero-side hero-right">
+    <div class="hero-side-inner">
+      <img src="https://cdn.prod.website-files.com/699f38d43837ea8e13a5dbf3/69efb762d15c8c8846b51978_shwung_Gemini%203%20(Nano%20Banana%20Pro)_2026-04-26_12-39-39.jpg" alt="" loading="eager">
+      <img src="https://cdn.prod.website-files.com/699f38d43837ea8e13a5dbf3/69efb756364884420a1877e4_campagne%20bateau_Gemini%203%20(Nano%20Banana%20Pro)_2026-04-19_13-03-26.jpg" alt="" loading="eager">
+      <img src="https://cdn.prod.website-files.com/699f38d43837ea8e13a5dbf3/69a085bcf95cffde01730485_untitled_Gemini%203%20(Nano%20Banana%20Pro)_2026-02-24_20-45-03.avif" alt="" loading="lazy">
+      <img src="https://cdn.prod.website-files.com/699f38d43837ea8e13a5dbf3/699f54d415d91c45778662fe_weavy-Gemini%203%20(Nano%20Banana%20Pro)-2026-02-01%20at%2014.23.22%20-%20Grande.avif" alt="" loading="lazy">
+      <img src="https://cdn.prod.website-files.com/699f38d43837ea8e13a5dbf3/69efb762d15c8c8846b51978_shwung_Gemini%203%20(Nano%20Banana%20Pro)_2026-04-26_12-39-39.jpg" alt="" loading="lazy">
+      <img src="https://cdn.prod.website-files.com/699f38d43837ea8e13a5dbf3/69efb756364884420a1877e4_campagne%20bateau_Gemini%203%20(Nano%20Banana%20Pro)_2026-04-19_13-03-26.jpg" alt="" loading="lazy">
+      <img src="https://cdn.prod.website-files.com/699f38d43837ea8e13a5dbf3/69a085bcf95cffde01730485_untitled_Gemini%203%20(Nano%20Banana%20Pro)_2026-02-24_20-45-03.avif" alt="" loading="lazy">
+      <img src="https://cdn.prod.website-files.com/699f38d43837ea8e13a5dbf3/699f54d415d91c45778662fe_weavy-Gemini%203%20(Nano%20Banana%20Pro)-2026-02-01%20at%2014.23.22%20-%20Grande.avif" alt="" loading="lazy">
     </div>
-  </section>
+  </div>
 
-  <!-- FOOTER -->
-  <footer>
-    <span class="footer-left">© 2026 BY MOMENT — Studio de campagnes visuelles</span>
-    <a href="#" class="footer-right">by-moment.com</a>
-  </footer>
+</section>
 
-  <script>
-    // ── NAV hide/show on scroll ──
-    (function () {
-      const nav = document.getElementById('main-nav');
-      let lastY = 0;
-      window.addEventListener('scroll', function () {
-        const y = window.scrollY;
-        nav.classList.toggle('hidden', y > lastY && y > 80);
-        lastY = y;
-      }, { passive: true });
-    })();
+<!-- ========= TICKER ========= -->
+<div class="ticker-strip" aria-hidden="true">
+  <div class="ticker-inner">
+    <span>CAMPAGNES VISUELLES</span>
+    <span>STUDIO NUM&Eacute;RIQUE</span>
+    <span>SPIRITUEUX CRAFT</span>
+    <span>SANS SHOOTING</span>
+    <span>5 JOURS</span>
+    <span>PACKSHOTS</span>
+    <span>R&Eacute;SEAUX SOCIAUX</span>
+    <span>FRANCE &amp; EUROPE</span>
+    <span>CAMPAGNES VISUELLES</span>
+    <span>STUDIO NUM&Eacute;RIQUE</span>
+    <span>SPIRITUEUX CRAFT</span>
+    <span>SANS SHOOTING</span>
+    <span>5 JOURS</span>
+    <span>PACKSHOTS</span>
+    <span>R&Eacute;SEAUX SOCIAUX</span>
+    <span>FRANCE &amp; EUROPE</span>
+  </div>
+</div>
 
-    // ── Hero crossfade ──
-    (function () {
-      const slides = document.querySelectorAll('.hero-slide');
-      let current = 0;
-      setInterval(function () {
-        slides[current].classList.remove('active');
-        current = (current + 1) % slides.length;
-        slides[current].classList.add('active');
-      }, 3000);
-    })();
-  </script>
+<!-- ========= STATS ========= -->
+<section class="stats-section">
+  <div class="stats-grid fu">
+    <div class="stat-col">
+      <div><span class="stat-num">5</span><span class="stat-unit">J</span></div>
+      <div class="stat-label">DU BRIEF &Agrave; LA LIVRAISON</div>
+      <div class="stat-sublabel">PACKSHOTS + D&Eacute;CLINAISONS R&Eacute;SEAUX</div>
+    </div>
+    <div class="stat-col">
+      <div><span class="stat-num">0</span><span class="stat-unit">&euro;</span></div>
+      <div class="stat-label">Z&Eacute;RO FRAIS DE STUDIO</div>
+      <div class="stat-sublabel">NI PHOTOGRAPHE, NI &Eacute;QUIPE PHYSIQUE</div>
+    </div>
+    <div class="stat-col">
+      <div><span class="stat-num">100</span><span class="stat-unit">%</span></div>
+      <div class="stat-label">SUR MESURE</div>
+      <div class="stat-sublabel">ADAPT&Eacute; &Agrave; L&rsquo;UNIVERS DE CHAQUE MARQUE</div>
+    </div>
+  </div>
+</section>
 
+<!-- ========= POUR QUI ========= -->
+<section class="pour-qui">
+  <div class="section-badge-light fu">POUR VOTRE MARQUE ?</div>
+  <h2 style="font-size:clamp(52px,8vw,96px);line-height:.85;letter-spacing:-.04em;margin-bottom:16px" class="fu" data-delay="1">
+    <span style="font-weight:300;font-style:italic;color:#0D0D0D;opacity:.3">DES VISUELS PREMIUM</span><br>
+    <strong style="font-weight:900;color:#0D0D0D;letter-spacing:-.04em">SANS LES CONTRAINTES</strong><br>
+    <span style="font-weight:300;font-style:italic;color:#0D0D0D;opacity:.3">D&rsquo;UN SHOOTING TRADITIONNEL</span>
+  </h2>
+  <p class="section-sub-light fu" data-delay="2">VOTRE MARQUE A BESOIN DE VISUELS POUR LES R&Eacute;SEAUX, LES COMMERCIAUX, LES SALONS. ON INTERVIENT SUR L&rsquo;URGENCE COMME SUR LES PROJETS LONG TERME.</p>
+  <div class="pq-cards">
+    <div class="pq-card fu" data-delay="1">
+      <span class="card-num">01</span>
+      <div class="card-title">VOUS &Ecirc;TES UNE MARQUE DE SPIRITUEUX</div>
+      <p class="card-text">GIN, WHISKY, RHUM, COGNAC, BITTERS, RTD &mdash; ON CONNA&Icirc;T LES CODES VISUELS DE VOTRE UNIVERS. LUMI&Egrave;RE DRAMATIQUE, MATI&Egrave;RE, MISE EN SC&Egrave;NE PRODUIT.</p>
+    </div>
+    <div class="pq-card fu" data-delay="2">
+      <span class="card-num">02</span>
+      <div class="card-title">VOUS AVEZ BESOIN DE CONTENUS R&Eacute;GULIERS</div>
+      <p class="card-text">R&Eacute;SEAUX SOCIAUX, FICHES PRODUIT, CATALOGUES COMMERCIAUX, LANDING PAGES. ON PRODUIT EN VOLUME SANS SACRIFIER LA QUALIT&Eacute;.</p>
+    </div>
+    <div class="pq-card fu" data-delay="3">
+      <span class="card-num">03</span>
+      <div class="card-title">VOUS CHERCHEZ DE LA R&Eacute;ACTIVIT&Eacute;</div>
+      <p class="card-text">LANCEMENT DE PRODUIT, SALON PROFESSIONNEL, CAMPAGNE URGENTE. ON LIVRE L&Agrave; O&Ugrave; UN SHOOTING PRENDRAIT 3 SEMAINES.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ========= PROCESS ========= -->
+<section class="process">
+  <h2 style="font-size:clamp(52px,8vw,96px);line-height:.85;letter-spacing:-.04em;margin-bottom:56px" class="fu">
+    <span style="font-weight:300;font-style:italic;color:#fff;opacity:.25">CONCR&Egrave;TEMENT,</span>
+    <strong style="font-weight:900;color:#fff;letter-spacing:-.04em"> COMMENT</strong><br>
+    <strong style="font-weight:900;color:#fff;letter-spacing:-.04em">&Ccedil;A MARCHE ?</strong>
+  </h2>
+  <div class="process-cards">
+    <div class="process-card fu" data-delay="1">
+      <span class="process-tag tag-step">&Eacute;TAPE 1</span>
+      <span class="process-num">01</span>
+      <div class="process-title">VOUS NOUS ENVOYEZ VOTRE BRIEF</div>
+      <p class="process-text">R&Eacute;F&Eacute;RENCES PRODUIT, UNIVERS DE MARQUE, FORMATS SOUHAIT&Eacute;S. PAS BESOIN DE PR&Eacute;PARER GRAND CHOSE &mdash; QUELQUES LIGNES SUFFISENT.</p>
+    </div>
+    <div class="process-card fu" data-delay="2">
+      <span class="process-tag tag-step">&Eacute;TAPE 2</span>
+      <span class="process-num">02</span>
+      <div class="process-title">ON CONSTRUIT VOS VISUELS EN STUDIO NUM&Eacute;RIQUE</div>
+      <p class="process-text">PACKSHOTS, AMBIANCES, D&Eacute;CLINAISONS. DIRECTION ARTISTIQUE HUMAINE. DEUX ALLERS-RETOURS INCLUS POUR AFFINER.</p>
+    </div>
+    <div class="process-card fu" data-delay="3">
+      <span class="process-tag tag-delivery">LIVRAISON</span>
+      <span class="process-num">03</span>
+      <div class="process-title">VOUS RECEVEZ VOS FICHIERS PR&Ecirc;TS &Agrave; L&rsquo;EMPLOI</div>
+      <p class="process-text">JPEG HD, PNG, FORMATS CARR&Eacute;S, STORIES, BANNI&Egrave;RES. DIRECTEMENT EXPLOITABLES SUR VOS R&Eacute;SEAUX, PUBS ET SUPPORTS COMMERCIAUX.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ========= RÉALISATIONS ========= -->
+<section class="cases" id="cases">
+  <h2 style="font-size:clamp(52px,8vw,96px);letter-spacing:-.04em;line-height:.85;margin-bottom:12px" class="fu">
+    <span style="font-weight:300;font-style:italic;color:#0D0D0D;opacity:.3">CE QU&rsquo;ON</span>
+    <strong style="font-weight:900;color:#0D0D0D;letter-spacing:-.04em"> PRODUIT</strong>
+  </h2>
+  <p class="section-sub-dark fu" data-delay="1" style="color:#999">CAMPAGNES VISUELLES CRAFT SPIRITS &mdash; LIVR&Eacute;ES EN STUDIO NUM&Eacute;RIQUE, SANS SHOOTING.</p>
+  <div class="cases-grid">
+    <div class="case-item fu" data-delay="1">
+      <img src="https://cdn.prod.website-files.com/699f38d43837ea8e13a5dbf3/699f54d415d91c45778662fe_weavy-Gemini%203%20(Nano%20Banana%20Pro)-2026-02-01%20at%2014.23.22%20-%20Grande.avif" alt="Avant" loading="lazy">
+      <span class="case-badge before">AVANT</span>
+    </div>
+    <div class="case-item fu" data-delay="2">
+      <img src="https://cdn.prod.website-files.com/699f38d43837ea8e13a5dbf3/699f54d4856208d9f4467116_weavy-Gemini%203%20(Nano%20Banana%20Pro)-2026-02-01%20at%2016.39.13%20-%20Grande.avif" alt="By Moment" loading="lazy">
+      <span class="case-badge after">BY MOMENT</span>
+    </div>
+    <div class="case-item fu" data-delay="3">
+      <img src="https://cdn.prod.website-files.com/699f38d43837ea8e13a5dbf3/69a5eeb0a9cb376794c52942_untitled_Gemini%203%20(Nano%20Banana%20Pro)_2026-03-02_19-46-35.avif" alt="By Moment" loading="lazy">
+      <span class="case-badge after">BY MOMENT</span>
+    </div>
+    <div class="case-item fu" data-delay="4">
+      <img src="https://cdn.prod.website-files.com/699f38d43837ea8e13a5dbf3/69efb749b159457c75f040c1_ghina_Gemini%203%20(Nano%20Banana%20Pro)_2026-04-06_13-22-54.jpg" alt="By Moment" loading="lazy">
+      <span class="case-badge after">BY MOMENT</span>
+    </div>
+  </div>
+</section>
+
+<!-- ========= TÉMOIGNAGE ========= -->
+<section class="testimonial">
+  <h2 style="font-size:clamp(52px,8vw,96px);letter-spacing:-.04em;line-height:.85;margin-bottom:48px" class="fu">
+    <span style="font-weight:300;font-style:italic;color:#0D0D0D;opacity:.3">CE QU&rsquo;EN DISENT</span>
+    <strong style="font-weight:900;color:#0D0D0D;letter-spacing:-.04em"> NOS CLIENTS</strong>
+  </h2>
+  <div class="testi-inner fu" data-delay="1">
+    <div class="testi-images">
+      <img src="https://cdn.prod.website-files.com/699f38d43837ea8e13a5dbf3/69efb757d15c8c8846b51807_campagne%20bateau_Gemini%203%20(Nano%20Banana%20Pro)_2026-04-19_12-51-27.jpg" alt="" loading="lazy">
+      <img src="https://cdn.prod.website-files.com/699f38d43837ea8e13a5dbf3/699f54d4856208d9f4467116_weavy-Gemini%203%20(Nano%20Banana%20Pro)-2026-02-01%20at%2016.39.13%20-%20Grande.avif" alt="" loading="lazy">
+    </div>
+    <span class="testi-quote-mark">&ldquo;</span>
+    <p class="testi-quote">ON AVAIT DE BONS PRODUITS MAIS NOS VISUELS NE REFL&Eacute;TAIENT PAS NOTRE POSITIONNEMENT PREMIUM. BY MOMENT A LIVR&Eacute; UNE CAMPAGNE COMPL&Egrave;TE EN 4 JOURS. EXACTEMENT CE QU&rsquo;ON CHERCHAIT.</p>
+    <div class="testi-author-row">
+      <div class="testi-avatar">L</div>
+      <div>
+        <div class="testi-name">ALEX</div>
+        <div class="testi-brand">LUT&Eacute;A</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ========= OBJECTIONS ========= -->
+<section class="objections">
+  <h2 style="font-size:clamp(52px,8vw,96px);letter-spacing:-.04em;line-height:.85;margin-bottom:48px" class="fu">
+    <span style="font-weight:300;font-style:italic;color:#fff;opacity:.25">VOS QUESTIONS,</span>
+    <strong style="font-weight:900;color:#fff;letter-spacing:-.04em"> NOS R&Eacute;PONSES</strong>
+  </h2>
+  <div class="obj-grid">
+    <div class="obj-card fu" data-delay="1">
+      <div class="obj-q">C&rsquo;EST VRAIMENT AUSSI BIEN QU&rsquo;UN VRAI SHOOTING ?</div>
+      <p class="obj-a">ON PRODUIT DES VISUELS QUE DES PHOTOGRAPHES PROFESSIONNELS NE POURRAIENT PAS R&Eacute;ALISER AVEC LES M&Ecirc;MES D&Eacute;LAIS ET BUDGET. D&Eacute;SERT, GLACIER, STUDIO &Eacute;PUR&Eacute; &mdash; SANS CONTRAINTES PHYSIQUES.</p>
+    </div>
+    <div class="obj-card fu" data-delay="2">
+      <div class="obj-q">VOUS AVEZ BESOIN DE QUOI DE NOTRE C&Ocirc;T&Eacute; ?</div>
+      <p class="obj-a">VOS R&Eacute;F&Eacute;RENCES PRODUIT, QUELQUES EXEMPLES DE DIRECTIONS VISUELLES QUI VOUS INSPIRENT, LES FORMATS SOUHAIT&Eacute;S. LE BRIEF PEUT TENIR EN QUELQUES LIGNES.</p>
+    </div>
+    <div class="obj-card fu" data-delay="3">
+      <div class="obj-q">EST-CE ADAPT&Eacute; &Agrave; MON UNIVERS DE MARQUE ?</div>
+      <p class="obj-a">CHAQUE CAMPAGNE EST CONSTRUITE SUR MESURE. PAS DE TEMPLATE, PAS DE FILTRE G&Eacute;N&Eacute;RIQUE. ON TRAVAILLE LA LUMI&Egrave;RE, LA MATI&Egrave;RE ET LA MISE EN SC&Egrave;NE AUTOUR DE VOTRE ADN.</p>
+    </div>
+    <div class="obj-card fu" data-delay="4">
+      <div class="obj-q">ON PEUT TRAVAILLER SUR UN PROJET URGENT ?</div>
+      <p class="obj-a">OUI. ON INTERVIENT AUSSI BIEN SUR DE L&rsquo;URGENCE QUE SUR DES PROJETS PLANIFI&Eacute;S. L&rsquo;APPEL DE 20 MINUTES SUFFIT POUR CADRER LE BESOIN.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ========= MANIFESTE ========= -->
+<section class="manifeste">
+  <div class="manifeste-sep fu"></div>
+  <p class="fu" data-delay="1">L&rsquo;OUTIL EST IA.<br>LA VISION, HUMAINE.<br>LA CR&Eacute;ATION, R&Eacute;ELLE.<br>C&rsquo;EST BY MOMENT.</p>
+</section>
+
+<!-- ========= POURQUOI BY MOMENT ========= -->
+<section class="pourquoi">
+  <h2 style="font-size:clamp(52px,8vw,96px);letter-spacing:-.04em;line-height:.85;margin-bottom:52px" class="fu">
+    <span style="font-weight:300;font-style:italic;color:#0D0D0D;opacity:.3">CE QUI NOUS REND</span>
+    <strong style="font-weight:900;color:#0D0D0D;letter-spacing:-.04em"> DIFF&Eacute;RENTS</strong>
+  </h2>
+  <div class="diff-grid">
+    <div class="diff-card fu" data-delay="1">
+      <span class="diff-num">01</span>
+      <div class="diff-title">SP&Eacute;CIALIS&Eacute;S SPIRITUEUX &amp; BOISSONS</div>
+      <p class="diff-text">ON NE FAIT PAS TOUT POUR TOUT LE MONDE. ON CONNA&Icirc;T LES CODES VISUELS DU SECTEUR &mdash; LUMI&Egrave;RE DRAMATIQUE, MATI&Egrave;RE VERRE, CONDENSATION, AMBIANCES DE D&Eacute;GUSTATION.</p>
+    </div>
+    <div class="diff-card fu" data-delay="2">
+      <span class="diff-num">02</span>
+      <div class="diff-title">STUDIO NUM&Eacute;RIQUE, Z&Eacute;RO LOGISTIQUE</div>
+      <p class="diff-text">PAS DE STUDIO &Agrave; R&Eacute;SERVER, PAS DE PHOTOGRAPHE &Agrave; CALER, PAS D&rsquo;&Eacute;QUIPE &Agrave; MOBILISER. VOTRE BRIEF SUFFIT &Agrave; TOUT D&Eacute;CLENCHER.</p>
+    </div>
+    <div class="diff-card fu" data-delay="3">
+      <span class="diff-num">03</span>
+      <div class="diff-title">5 JOURS DU BRIEF &Agrave; LA LIVRAISON</div>
+      <p class="diff-text">PACKSHOTS, VISUELS D&rsquo;AMBIANCE, D&Eacute;CLINAISONS R&Eacute;SEAUX. TOUT LIVR&Eacute; EN UNE SEMAINE DE TRAVAIL, PR&Ecirc;TS &Agrave; L&rsquo;EMPLOI.</p>
+    </div>
+    <div class="diff-card fu" data-delay="4">
+      <span class="diff-num">04</span>
+      <div class="diff-title">SUR MESURE, JAMAIS EN TEMPLATE</div>
+      <p class="diff-text">CHAQUE CAMPAGNE EST CONSTRUITE AUTOUR DE L&rsquo;UNIVERS DE VOTRE MARQUE. LUMI&Egrave;RE, NARRATION, MISE EN SC&Egrave;NE &mdash; VOTRE PRODUIT DEVIENT LE H&Eacute;ROS.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ========= CTA FINAL ========= -->
+<section class="cta-final" id="rdv">
+  <span class="cta-pre fu">SANS ENGAGEMENT &middot; R&Eacute;PONSE SOUS 24H</span>
+  <h2 style="font-size:clamp(56px,10vw,120px);line-height:.82;letter-spacing:-.04em;margin-bottom:24px;color:#fff" class="fu" data-delay="1">
+    <span style="font-weight:300;font-style:italic;color:rgba(255,255,255,0.5)">ON CONSTRUIT</span>
+    <strong style="font-weight:900;color:#fff;letter-spacing:-.04em"> VOTRE</strong><br>
+    <strong style="font-weight:900;color:#fff;letter-spacing:-.04em">PROCHAINE CAMPAGNE ?</strong>
+  </h2>
+  <p style="font-size:15px;font-weight:300;text-transform:uppercase;color:rgba(255,255,255,0.7);max-width:380px;margin:0 auto 44px;line-height:1.7" class="fu" data-delay="2">UN APPEL DE 20 MINUTES POUR COMPRENDRE VOTRE BESOIN ET VOUS PROPOSER QUELQUE CHOSE DE CONCRET. GRATUIT, SANS ENGAGEMENT.</p>
+  <div class="fu" data-delay="3">
+    <a href="#" class="btn-white-cta">PRENDRE UN RENDEZ-VOUS &rarr;</a>
+  </div>
+  <p class="cta-note fu" data-delay="4">R&Eacute;PONSE SOUS 24H &middot; VISIO OU T&Eacute;L&Eacute;PHONE &middot; AUCUN ENGAGEMENT</p>
+</section>
+
+<!-- ========= FOOTER ========= -->
+<footer>
+  <a href="#" class="footer-logo">
+    <img src="https://cdn.prod.website-files.com/699f38d43837ea8e13a5dbf3/699f5a563673b45e3476bdd4_Fichier%207logo%20v2.png" alt="BY MOMENT" loading="lazy">
+  </a>
+  <span class="footer-copy">&copy; 2026 BY MOMENT &mdash; STUDIO DE CAMPAGNES VISUELLES POUR MARQUES PREMIUM</span>
+  <span class="footer-url">BY-MOMENT.COM</span>
+</footer>
+
+<script>
+const nav = document.getElementById('main-nav');
+const onScroll = () => nav.classList.toggle('scrolled', window.scrollY > 50);
+window.addEventListener('scroll', onScroll, { passive: true });
+onScroll();
+
+const observer = new IntersectionObserver((entries) => {
+  entries.forEach(e => {
+    if (e.isIntersecting) { e.target.classList.add('visible'); observer.unobserve(e.target); }
+  });
+}, { threshold: 0.08, rootMargin: '0px 0px -32px 0px' });
+document.querySelectorAll('.fu').forEach(el => observer.observe(el));
+
+document.querySelectorAll('a[href^="#"]').forEach(a => {
+  a.addEventListener('click', e => {
+    const id = a.getAttribute('href').slice(1);
+    if (!id) return;
+    const t = document.getElementById(id);
+    if (t) { e.preventDefault(); t.scrollIntoView({ behavior: 'smooth' }); }
+  });
+});
+</script>
 </body>
 </html>
