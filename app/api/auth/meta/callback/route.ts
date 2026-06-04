@@ -30,24 +30,23 @@ export async function GET(request: NextRequest) {
   try {
     const supabase = createRouteHandlerClient({ cookies });
 
-    const tokenParams = new URLSearchParams();
-    tokenParams.append('client_id', clientId);
-    tokenParams.append('client_secret', process.env.META_APP_SECRET!);
-    tokenParams.append('grant_type', 'authorization_code');
-    tokenParams.append('redirect_uri', redirectUri);
-    tokenParams.append('code', code);
-
-    const bodyForLog = tokenParams.toString()
-      .replace(encodeURIComponent(process.env.META_APP_SECRET ?? ''), '***')
-      .replace(process.env.META_APP_SECRET ?? '', '***');
+    // Use FormData (multipart/form-data) — matches the official Meta curl example
+    const formData = new FormData();
+    formData.append('client_id', clientId);
+    formData.append('client_secret', process.env.META_APP_SECRET!);
+    formData.append('grant_type', 'authorization_code');
+    formData.append('redirect_uri', redirectUri);
+    formData.append('code', code);
 
     console.log(`[CB:${inv}] POST https://api.instagram.com/oauth/access_token`);
-    console.log(`[CB:${inv}] body:`, bodyForLog);
+    console.log(`[CB:${inv}] client_id:`, clientId);
+    console.log(`[CB:${inv}] redirect_uri:`, redirectUri);
+    console.log(`[CB:${inv}] code (${code.length} chars):`, code);
+    console.log(`[CB:${inv}] META_APP_SECRET set:`, !!process.env.META_APP_SECRET);
 
     const tokenRes = await fetch("https://api.instagram.com/oauth/access_token", {
       method: "POST",
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      body: tokenParams,
+      body: formData, // no explicit Content-Type — FormData sets multipart boundary automatically
     });
 
     const tokenText = await tokenRes.text();
