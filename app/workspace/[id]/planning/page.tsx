@@ -26,6 +26,8 @@ interface Workspace {
   secondary_color: string | null;
   font_family: string | null;
   instagram_account_id: string | null;
+  instagram_access_token: string | null;
+  instagram_username: string | null;
 }
 
 // ─── Date helpers ─────────────────────────────────────────────────────────────
@@ -133,7 +135,7 @@ function PlanningContent() {
 
   const loadData = useCallback(async () => {
     const [{ data: ws }, { data: postsData }] = await Promise.all([
-      supabase.from("workspaces").select("id, name, primary_color, secondary_color, font_family, instagram_account_id").eq("id", id).single(),
+      supabase.from("workspaces").select("id, name, primary_color, secondary_color, font_family, instagram_account_id, instagram_access_token, instagram_username").eq("id", id).single(),
       supabase
         .from("posts")
         .select("id, photo_url, exported_image_url, texte_visuel, description, status, scheduled_at, brief")
@@ -227,8 +229,9 @@ function PlanningContent() {
   async function handlePublish() {
     if (!selectedPost) return;
 
-    // Check Instagram connection before publishing
-    if (!workspace?.instagram_account_id) {
+    // Check Instagram connection before publishing — same logic as parametres page
+    const isConnected = !!(workspace?.instagram_account_id || workspace?.instagram_access_token || workspace?.instagram_username);
+    if (!isConnected) {
       setShowIgModal(true);
       return;
     }
