@@ -42,7 +42,7 @@ export async function GET(request: NextRequest) {
     console.log(`[CB:${inv}] client_id:`, clientId);
     console.log(`[CB:${inv}] redirect_uri:`, redirectUri);
     console.log(`[CB:${inv}] code (${code.length} chars):`, code);
-    console.log(`[CB:${inv}] META_APP_SECRET set:`, !!process.env.META_APP_SECRET);
+    console.log(`[CB:${inv}] META_APP_SECRET set:`, !!process.env.META_APP_SECRET, '| first4:', process.env.META_APP_SECRET?.substring(0, 4));
 
     const tokenRes = await fetch("https://api.instagram.com/oauth/access_token", {
       method: "POST",
