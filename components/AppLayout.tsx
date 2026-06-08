@@ -9,9 +9,9 @@ interface AppLayoutProps {
 
 export default function AppLayout({ workspaces = [], userName = '', children, activeWorkspaceId }: AppLayoutProps) {
   return (
-    <div className="flex min-h-screen bg-black">
+    <div style={{ display: "flex", minHeight: "100vh", background: "var(--canvas)" }}>
       <Sidebar workspaces={workspaces} userName={userName} activeWorkspaceId={activeWorkspaceId} />
-      <main className="flex-1 overflow-y-auto">
+      <main style={{ marginLeft: "var(--sb-w)", flex: 1, minHeight: "100vh", background: "var(--canvas)" }}>
         {children}
       </main>
     </div>

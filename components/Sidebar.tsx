@@ -13,6 +13,33 @@ interface SidebarProps {
   activeWorkspaceId?: string;
 }
 
+const WS_COLORS = ["#7B5CF5", "#2FD79B", "#C8732B", "#5A86E8", "#DD2A7B", "#88B394", "#E8A03A", "#4A8DD4"];
+
+function IconGrid() {
+  return (
+    <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="3" y="3" width="7.5" height="7.5" rx="2"/>
+      <rect x="13.5" y="3" width="7.5" height="7.5" rx="2"/>
+      <rect x="3" y="13.5" width="7.5" height="7.5" rx="2"/>
+      <rect x="13.5" y="13.5" width="7.5" height="7.5" rx="2"/>
+    </svg>
+  );
+}
+function IconPlus() {
+  return (
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 5v14M5 12h14"/>
+    </svg>
+  );
+}
+function IconLogout() {
+  return (
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M15 4h3a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-3M10 12H3m0 0l3.5-3.5M3 12l3.5 3.5"/>
+    </svg>
+  );
+}
+
 export default function Sidebar({ workspaces: _w, userName: _u, activeWorkspaceId: _a }: SidebarProps = {}) {
   const pathname = usePathname();
   const router = useRouter();
@@ -43,174 +70,131 @@ export default function Sidebar({ workspaces: _w, userName: _u, activeWorkspaceI
   const displayName = userEmail.split("@")[0] ?? "Utilisateur";
   const initials = displayName.slice(0, 2).toUpperCase();
 
-  // derive active workspace id from pathname
   const activeMatch = pathname.match(/\/workspace\/([^/]+)/);
   const activeId = activeMatch ? activeMatch[1] : null;
+  const isDashboard = pathname === "/dashboard";
 
   return (
-    <aside style={{
-      width: 240,
-      height: "100vh",
-      position: "fixed",
-      top: 0,
-      left: 0,
-      background: "#000000",
-      borderRight: "1px solid var(--border)",
-      display: "flex",
-      flexDirection: "column",
-      padding: "24px 16px",
-      zIndex: 100,
-      overflowY: "auto",
-    }}>
+    <aside className="sidebar" style={{ width: "var(--sb-w)", position: "fixed", top: 0, left: 0, height: "100vh", zIndex: 100 }}>
+
       {/* Logo */}
-      <div style={{ padding: "0 8px 28px", borderBottom: "1px solid var(--border)" }}>
-        <Link href="/dashboard" style={{ textDecoration: "none" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "6px 10px 14px" }}>
+        <Link href="/dashboard" style={{ textDecoration: "none", display: "flex", alignItems: "center" }}>
           <span style={{
-            fontFamily: "'Cabinet Grotesk', sans-serif",
+            fontFamily: "var(--display)",
             fontWeight: 900,
             fontSize: 22,
-            letterSpacing: "-0.04em",
-            color: "var(--text)",
+            letterSpacing: "-0.05em",
+            lineHeight: 1,
+            color: "var(--cream)",
+            display: "inline-flex",
+            alignItems: "center",
           }}>
-            Kl<span style={{ color: "var(--acid)" }}>ip</span>
+            Kl<span style={{ color: "var(--mint)" }}>ip</span>
+            <span style={{ width: 4, height: 4, background: "var(--mint)", borderRadius: "50%", marginLeft: 3, marginTop: 7, flexShrink: 0 }} />
           </span>
         </Link>
+        <span className="sb-full chip" style={{ marginLeft: "auto", background: "var(--cream-4)", color: "var(--cream-2)", fontSize: 10 }}>
+          Agence
+        </span>
       </div>
 
-      {/* Label */}
-      <div style={{
-        padding: "20px 8px 8px",
-        fontSize: 11,
-        fontWeight: 700,
-        letterSpacing: "0.08em",
-        textTransform: "uppercase",
-        color: "var(--text-muted)",
-        fontFamily: "'Satoshi', sans-serif",
-      }}>
-        Clients
+      {/* Main nav */}
+      <nav style={{ display: "flex", flexDirection: "column", gap: 3 }}>
+        <Link href="/dashboard" className={`nav-item${isDashboard ? " active" : ""}`} style={{ textDecoration: "none" }}>
+          <span className="nav-ic"><IconGrid /></span>
+          <span className="nav-label">Tableau de bord</span>
+        </Link>
+      </nav>
+
+      {/* Divider */}
+      <div style={{ height: 1, background: "var(--cream-4)", margin: "6px 4px" }} />
+
+      {/* Clients label */}
+      <div className="label sb-full" style={{ color: "var(--cream-3)", padding: "0 12px 4px" }}>
+        Vos clients
       </div>
 
       {/* Workspace list */}
-      <div style={{ flex: 1, overflowY: "auto" }}>
+      <div style={{ display: "flex", flexDirection: "column", gap: 2, overflowY: "auto", flex: 1, margin: "0 -4px", padding: "0 4px" }}>
         {workspaces.length === 0 && (
-          <p style={{ padding: "8px", fontSize: 13, color: "var(--text-subtle)" }}>Aucun client</p>
+          <p className="sb-full" style={{ padding: "8px 12px", fontSize: 13, color: "var(--cream-3)" }}>Aucun client</p>
         )}
-        {workspaces.map((ws) => {
+        {workspaces.map((ws, i) => {
           const isActive = ws.id === activeId;
+          const color = WS_COLORS[i % WS_COLORS.length];
+          const wsInitials = ws.name.slice(0, 2).toUpperCase();
           return (
-            <Link
-              key={ws.id}
-              href={`/workspace/${ws.id}`}
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 10,
-                padding: "8px 10px",
-                borderRadius: 8,
-                marginBottom: 2,
-                color: isActive ? "#000" : "var(--text-muted)",
-                background: isActive ? "var(--acid)" : "transparent",
-                textDecoration: "none",
-                fontSize: 14,
-                fontWeight: 500,
-                fontFamily: "'Satoshi', sans-serif",
-                transition: "all 0.15s",
-              }}
-            >
-              <div style={{
-                width: 6,
-                height: 6,
-                borderRadius: "50%",
-                background: isActive ? "#000" : "var(--text-subtle)",
+            <Link key={ws.id} href={`/workspace/${ws.id}`} className={`nav-item${isActive ? " active" : ""}`} style={{ padding: "7px 10px", textDecoration: "none" }}>
+              <span style={{
+                width: 26, height: 26,
+                borderRadius: 7,
+                background: isActive ? "var(--mint-ink)" : color,
+                display: "flex", alignItems: "center", justifyContent: "center",
+                fontSize: 10, fontWeight: 800, color: "#fff",
+                fontFamily: "var(--mono)", letterSpacing: "0.02em",
                 flexShrink: 0,
-              }} />
-              <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                {ws.name}
+              }}>
+                {wsInitials}
               </span>
+              <span className="nav-label trunc" style={{ fontWeight: 600, fontSize: 13 }}>{ws.name}</span>
             </Link>
           );
         })}
       </div>
 
-      {/* Nouveau client */}
+      {/* Add workspace */}
       <Link
         href="/workspace/new"
+        className="sb-full"
         style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 8,
-          padding: "10px 12px",
-          borderRadius: 8,
-          marginTop: 8,
-          background: "var(--acid)",
-          color: "#000",
-          fontWeight: 700,
-          fontSize: 14,
-          textDecoration: "none",
-          fontFamily: "'Satoshi', sans-serif",
+          display: "flex", alignItems: "center", gap: 10,
+          padding: "9px 12px", borderRadius: "var(--r-s)",
+          color: "var(--cream-3)", fontSize: 13, fontWeight: 600,
+          border: "1px dashed var(--cream-4)", transition: "all 0.15s",
+          textDecoration: "none", marginTop: 4,
         }}
+        onMouseEnter={e => { e.currentTarget.style.borderColor = "var(--mint)"; e.currentTarget.style.color = "var(--mint)"; }}
+        onMouseLeave={e => { e.currentTarget.style.borderColor = "var(--cream-4)"; e.currentTarget.style.color = "var(--cream-3)"; }}
       >
-        <span style={{ fontSize: 18, lineHeight: 1 }}>+</span>
-        Nouveau client
+        <IconPlus />
+        <span>Nouveau client</span>
       </Link>
 
-      {/* User footer */}
-      <div style={{
-        marginTop: 16,
-        paddingTop: 16,
-        borderTop: "1px solid var(--border)",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "space-between",
-        gap: 10,
-      }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
-          <div style={{
-            width: 32,
-            height: 32,
-            borderRadius: "50%",
-            background: "var(--acid)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            fontSize: 12,
-            fontWeight: 700,
-            color: "#000",
-            flexShrink: 0,
-            fontFamily: "'Cabinet Grotesk', sans-serif",
-          }}>
-            {initials}
-          </div>
-          <span style={{
-            fontSize: 13,
-            color: "var(--text-muted)",
-            overflow: "hidden",
-            textOverflow: "ellipsis",
-            whiteSpace: "nowrap",
-            fontFamily: "'Satoshi', sans-serif",
-          }}>
-            {displayName}
-          </span>
-        </div>
+      {/* Divider */}
+      <div style={{ height: 1, background: "var(--cream-4)", margin: "8px 4px 4px" }} />
 
-        <button
-          onClick={handleLogout}
-          title="Déconnexion"
-          style={{
-            background: "none",
-            border: "none",
-            cursor: "pointer",
-            padding: 4,
-            color: "var(--text-subtle)",
-            flexShrink: 0,
-            lineHeight: 1,
-          }}
-        >
-          <svg width="14" height="14" viewBox="0 0 12 12" fill="none">
-            <path d="M7 1H2a1 1 0 00-1 1v8a1 1 0 001 1h5M9 9l2-2-2-2M5 7h6" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/>
-          </svg>
-        </button>
-      </div>
+      {/* User footer */}
+      <button
+        style={{
+          display: "flex", alignItems: "center", gap: 10,
+          padding: "7px 10px", borderRadius: "var(--r-s)",
+          background: "transparent", border: "none", cursor: "pointer",
+          width: "100%", textAlign: "left", transition: "background 0.15s",
+          color: "var(--cream)",
+        }}
+        onMouseEnter={e => { e.currentTarget.style.background = "var(--cream-4)"; }}
+        onMouseLeave={e => { e.currentTarget.style.background = "transparent"; }}
+        onClick={handleLogout}
+        title="Se déconnecter"
+      >
+        <span style={{
+          width: 26, height: 26, borderRadius: 7,
+          background: "#7B5CF5",
+          display: "flex", alignItems: "center", justifyContent: "center",
+          fontSize: 10, fontWeight: 800, color: "#fff",
+          fontFamily: "var(--mono)", letterSpacing: "0.02em",
+          flexShrink: 0,
+        }}>
+          {initials}
+        </span>
+        <span className="sb-full" style={{ display: "flex", flexDirection: "column", lineHeight: 1.2, minWidth: 0, flex: 1 }}>
+          <span style={{ fontWeight: 700, fontSize: 13, color: "var(--cream)" }}>{displayName}</span>
+        </span>
+        <span className="sb-full" style={{ color: "var(--cream-3)", marginLeft: "auto", flexShrink: 0 }}>
+          <IconLogout />
+        </span>
+      </button>
     </aside>
   );
 }

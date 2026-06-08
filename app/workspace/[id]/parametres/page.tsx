@@ -6,17 +6,13 @@ import { useParams, useSearchParams } from "next/navigation";
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
 import Sidebar from "@/components/Sidebar";
 
-// ─── Error messages ───────────────────────────────────────────────────────────
-
 const ERROR_MESSAGES: Record<string, string> = {
-  cancelled:     "Connexion annulée.",
-  token:         "Échec de l'échange de token Meta. Réessayez.",
-  no_pages:      "Aucune page Facebook trouvée. Vérifiez vos permissions.",
-  no_instagram:  "Aucun compte Instagram Business lié à vos pages Facebook.",
-  unknown:       "Une erreur est survenue lors de la connexion.",
+  cancelled:    "Connexion annulée.",
+  token:        "Échec de l'échange de token Meta. Réessayez.",
+  no_pages:     "Aucune page Facebook trouvée. Vérifiez vos permissions.",
+  no_instagram: "Aucun compte Instagram Business lié à vos pages Facebook.",
+  unknown:      "Une erreur est survenue lors de la connexion.",
 };
-
-// ─── Workspace type ───────────────────────────────────────────────────────────
 
 interface Workspace {
   id: string;
@@ -27,7 +23,29 @@ interface Workspace {
   facebook_page_id: string | null;
 }
 
-// ─── Content (needs Suspense for useSearchParams) ─────────────────────────────
+function IconInstagram() {
+  return (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="white">
+      <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/>
+    </svg>
+  );
+}
+function IconFacebook() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="white">
+      <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
+    </svg>
+  );
+}
+function IconCheck() {
+  return <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5"/></svg>;
+}
+function IconTrash() {
+  return <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><path d="M4 7h16M9 7V4.5h6V7M6 7l1 13h10l1-13"/></svg>;
+}
+function IconArrow() {
+  return <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><path d="M7 17L17 7M8 7h9v9"/></svg>;
+}
 
 function ParametresContent() {
   const params = useParams();
@@ -57,6 +75,7 @@ function ParametresContent() {
   }, [id, supabase]);
 
   async function handleDisconnect() {
+    if (!confirm("Déconnecter Instagram de ce workspace ?")) return;
     setDisconnecting(true);
     await supabase.from("workspaces").update({
       instagram_account_id: null,
@@ -68,6 +87,7 @@ function ParametresContent() {
       ...prev,
       instagram_account_id: null,
       instagram_username: null,
+      instagram_access_token: null,
       facebook_page_id: null,
     } : null);
     setDisconnecting(false);
@@ -76,186 +96,196 @@ function ParametresContent() {
   const isInstagramConnected = !!(workspace?.instagram_account_id || workspace?.instagram_access_token || workspace?.instagram_username);
 
   return (
-    <div className="flex-1 flex flex-col min-w-0">
-      {/* Header */}
-      <header className="flex items-center justify-between px-8 py-4 border-b border-[#E0E0E0] bg-white">
-        <div>
-          <h1 className="font-syne font-extrabold text-xl text-black leading-none">
-            {workspace?.name ?? "…"}
-          </h1>
-          <p className="text-xs font-inter text-[#888] mt-0.5">Paramètres du workspace</p>
-        </div>
-        <div className="flex items-center gap-3">
-          <Link href={`/workspace/${id}`} className="px-4 py-2 rounded border border-[#E0E0E0] text-sm font-inter font-bold text-black hover:border-black transition-colors">
-            Retour
-          </Link>
-        </div>
-      </header>
+    <main style={{ marginLeft: "var(--sb-w)", flex: 1, overflowY: "auto" }}>
+      <div className="page screen-in" style={{ maxWidth: 680 }}>
 
-      <main className="flex-1 px-8 py-8 max-w-2xl">
+        {/* Header */}
+        <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", gap: 20, marginBottom: 28, flexWrap: "wrap" }}>
+          <div>
+            <div className="label" style={{ marginBottom: 8, display: "flex", alignItems: "center", gap: 8 }}>
+              <Link href={`/workspace/${id}`} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--ink-3)", textDecoration: "none", fontSize: 12, fontWeight: 600, fontFamily: "var(--sans)" }}>
+                ← Retour
+              </Link>
+              <span style={{ color: "var(--line)" }}>·</span>
+              {workspace?.name ?? "…"}
+            </div>
+            <h1 className="h-display" style={{ fontSize: 30 }}>Paramètres</h1>
+          </div>
+        </div>
 
         {/* Success banner */}
         {connected && (
-          <div className="mb-6 flex items-center gap-3 px-4 py-3 rounded bg-green-50 border border-green-200">
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="7" stroke="#16a34a" strokeWidth="1.5"/><path d="M5 8l2.5 2.5 4-4" stroke="#16a34a" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
-            <p className="text-sm font-inter font-medium text-green-700">
-              Compte Instagram connecté avec succès.
-            </p>
+          <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "12px 16px", borderRadius: "var(--r-s)", background: "var(--mint-soft)", border: "1px solid rgba(47,215,155,.25)", marginBottom: 20 }}>
+            <span style={{ color: "var(--mint-2)", display: "flex" }}><IconCheck /></span>
+            <span style={{ fontSize: 13, color: "var(--mint-2)", fontWeight: 600 }}>Compte Instagram connecté avec succès.</span>
           </div>
         )}
 
         {/* Error banner */}
         {errorMsg && (
-          <div className="mb-6 flex items-center gap-3 px-4 py-3 rounded bg-red-50 border border-red-200">
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="7" stroke="#dc2626" strokeWidth="1.5"/><path d="M8 5v4M8 11h.01" stroke="#dc2626" strokeWidth="1.5" strokeLinecap="round"/></svg>
-            <p className="text-sm font-inter font-medium text-red-700">{errorMsg}</p>
+          <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "12px 16px", borderRadius: "var(--r-s)", background: "var(--warn-soft)", border: "1px solid rgba(200,115,43,.25)", marginBottom: 20 }}>
+            <span style={{ color: "var(--warn)", fontSize: 14 }}>!</span>
+            <span style={{ fontSize: 13, color: "var(--warn)", fontWeight: 600 }}>{errorMsg}</span>
           </div>
         )}
 
         {loading ? (
-          <div className="flex items-center justify-center py-20">
-            <svg className="animate-spin w-5 h-5 text-[#CCC]" viewBox="0 0 24 24" fill="none">
-              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
-              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.4 0 0 5.4 0 12h4z"/>
-            </svg>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "center", padding: "80px 0", color: "var(--ink-3)", fontSize: 14 }}>
+            Chargement…
           </div>
         ) : (
-          <div className="space-y-8">
+          <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
 
-            {/* ── Réseaux sociaux ── */}
+            {/* ── Section: Réseaux sociaux ── */}
             <section>
-              <h2 className="font-syne font-bold text-base text-black mb-1">Réseaux sociaux</h2>
-              <p className="text-sm font-inter text-[#888] mb-5">
-                Connectez vos comptes pour publier directement depuis Klip.
-              </p>
+              <div style={{ marginBottom: 16 }}>
+                <h2 className="h-title" style={{ fontSize: 16, marginBottom: 4 }}>Réseaux sociaux</h2>
+                <p style={{ color: "var(--ink-2)", fontSize: 13 }}>Connectez vos comptes pour publier directement depuis Klip.</p>
+              </div>
 
-              <div className="space-y-3">
-                {/* Instagram */}
-                <div className="flex items-center justify-between p-4 rounded border border-[#E0E0E0] bg-white">
-                  <div className="flex items-center gap-3">
-                    {/* Instagram gradient icon */}
-                    <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: "linear-gradient(135deg, #f09433 0%, #e6683c 25%, #dc2743 50%, #cc2366 75%, #bc1888 100%)" }}>
-                      <svg width="20" height="20" viewBox="0 0 24 24" fill="white">
-                        <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/>
-                      </svg>
-                    </div>
-                    <div>
-                      <p className="text-sm font-inter font-bold text-black">Instagram</p>
-                      {isInstagramConnected ? (
-                        <p className="text-xs font-inter text-green-600 mt-0.5">
-                          Connecté · @{workspace?.instagram_username ?? workspace?.instagram_account_id}
-                        </p>
-                      ) : (
-                        <p className="text-xs font-inter text-[#888] mt-0.5">Non connecté</p>
-                      )}
-                    </div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                {/* Instagram row */}
+                <div className="card" style={{ padding: "16px 18px", display: "flex", alignItems: "center", gap: 14 }}>
+                  <span style={{
+                    width: 44, height: 44, borderRadius: 12, flexShrink: 0,
+                    background: "linear-gradient(135deg,#F58529,#DD2A7B,#8134AF)",
+                    display: "grid", placeItems: "center",
+                  }}>
+                    <IconInstagram />
+                  </span>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontWeight: 700, fontSize: 14, color: "var(--ink)", marginBottom: 2 }}>Instagram</div>
+                    {isInstagramConnected ? (
+                      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                        <span className="badge" style={{ background: "var(--mint-soft)", color: "var(--mint-2)", display: "inline-flex", alignItems: "center", gap: 4 }}>
+                          <span className="dot" style={{ background: "var(--mint-2)" }} /> Connecté
+                        </span>
+                        <span style={{ fontSize: 12, color: "var(--ink-3)", fontWeight: 600 }}>
+                          @{workspace?.instagram_username ?? workspace?.instagram_account_id}
+                        </span>
+                      </div>
+                    ) : (
+                      <span style={{ fontSize: 12.5, color: "var(--ink-3)" }}>Non connecté</span>
+                    )}
                   </div>
-
-                  <div className="flex items-center gap-2">
+                  <div style={{ flexShrink: 0 }}>
                     {isInstagramConnected ? (
                       <button
                         onClick={handleDisconnect}
                         disabled={disconnecting}
-                        className="px-4 py-2 rounded border border-red-200 text-xs font-inter font-bold text-red-500 hover:border-red-400 hover:bg-red-50 transition-colors disabled:opacity-50"
+                        className="btn btn-ghost btn-sm"
+                        style={{ color: "var(--warn)", borderColor: "rgba(200,115,43,.3)", opacity: disconnecting ? 0.5 : 1 }}
                       >
-                        {disconnecting ? "…" : "Déconnecter"}
+                        <IconTrash /> {disconnecting ? "…" : "Déconnecter"}
                       </button>
                     ) : (
-                      <a
-                        href={`/api/auth/meta/connect?workspaceId=${id}`}
-                        className="px-4 py-2 rounded bg-black text-white text-xs font-inter font-bold hover:bg-black/80 transition-colors"
-                      >
-                        Connecter Instagram
+                      <a href={`/api/auth/meta/connect?workspaceId=${id}`} className="btn btn-dark btn-sm">
+                        Connecter Instagram <IconArrow />
                       </a>
                     )}
                   </div>
                 </div>
 
-                {/* Facebook */}
-                <div className="flex items-center justify-between p-4 rounded border border-[#E0E0E0] bg-white">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-xl bg-[#1877F2] flex items-center justify-center shrink-0">
-                      <svg width="20" height="20" viewBox="0 0 24 24" fill="white">
-                        <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
-                      </svg>
-                    </div>
-                    <div>
-                      <p className="text-sm font-inter font-bold text-black">Facebook</p>
-                      {workspace?.facebook_page_id ? (
-                        <p className="text-xs font-inter text-green-600 mt-0.5">
-                          Connecté · Page {workspace.facebook_page_id}
-                        </p>
-                      ) : (
-                        <p className="text-xs font-inter text-[#888] mt-0.5">
-                          Connecté via Instagram
-                        </p>
-                      )}
-                    </div>
+                {/* Facebook row */}
+                <div className="card" style={{ padding: "16px 18px", display: "flex", alignItems: "center", gap: 14 }}>
+                  <span style={{
+                    width: 44, height: 44, borderRadius: 12, flexShrink: 0,
+                    background: "#1877F2",
+                    display: "grid", placeItems: "center",
+                  }}>
+                    <IconFacebook />
+                  </span>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontWeight: 700, fontSize: 14, color: "var(--ink)", marginBottom: 2 }}>Facebook</div>
+                    {workspace?.facebook_page_id ? (
+                      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                        <span className="badge" style={{ background: "var(--mint-soft)", color: "var(--mint-2)", display: "inline-flex", alignItems: "center", gap: 4 }}>
+                          <span className="dot" style={{ background: "var(--mint-2)" }} /> Connecté
+                        </span>
+                        <span style={{ fontSize: 12, color: "var(--ink-3)", fontWeight: 600 }}>
+                          Page {workspace.facebook_page_id}
+                        </span>
+                      </div>
+                    ) : isInstagramConnected ? (
+                      <span style={{ fontSize: 12.5, color: "var(--ink-3)" }}>Connecté via Instagram</span>
+                    ) : (
+                      <span style={{ fontSize: 12.5, color: "var(--ink-3)" }}>Non connecté</span>
+                    )}
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div style={{ flexShrink: 0 }}>
                     {!isInstagramConnected ? (
-                      <a
-                        href={`/api/auth/meta/connect?workspaceId=${id}`}
-                        className="px-4 py-2 rounded bg-[#1877F2] text-white text-xs font-inter font-bold hover:bg-[#1877F2]/90 transition-colors"
-                      >
-                        Connecter Facebook
+                      <a href={`/api/auth/meta/connect?workspaceId=${id}`} className="btn btn-sm" style={{ background: "#1877F2", color: "#fff" }}>
+                        Connecter Facebook <IconArrow />
                       </a>
                     ) : (
-                      <span className="px-4 py-2 text-xs font-inter text-[#888]">
-                        Connecté
-                      </span>
+                      <span style={{ fontSize: 12, color: "var(--ink-3)", fontWeight: 600, padding: "6px 10px" }}>Actif</span>
                     )}
                   </div>
                 </div>
               </div>
 
               {!isInstagramConnected && (
-                <p className="text-xs font-inter text-[#AAA] mt-3">
+                <p style={{ fontSize: 12, color: "var(--ink-3)", marginTop: 10, lineHeight: 1.5 }}>
                   La connexion Instagram nécessite un compte Instagram Business lié à une page Facebook.
                 </p>
               )}
             </section>
 
-            {/* ── Workspace name ── */}
+            {/* ── Section: Informations ── */}
             <section>
-              <h2 className="font-syne font-bold text-base text-black mb-4">Informations</h2>
-              <div className="space-y-3">
+              <div style={{ marginBottom: 16 }}>
+                <h2 className="h-title" style={{ fontSize: 16, marginBottom: 4 }}>Informations</h2>
+              </div>
+              <div className="card" style={{ padding: "18px 20px", display: "flex", flexDirection: "column", gap: 16 }}>
                 <div>
-                  <p className="text-[10px] font-inter font-medium text-[#888] uppercase tracking-wider mb-1.5">Nom du client</p>
-                  <p className="text-sm font-inter text-black bg-[#F5F5F5] border border-[#E0E0E0] rounded px-3.5 py-2.5">
+                  <div className="label" style={{ marginBottom: 6 }}>Nom du client</div>
+                  <div style={{ fontSize: 14, fontWeight: 600, color: "var(--ink)", padding: "10px 14px", background: "var(--sunk)", borderRadius: "var(--r-s)" }}>
                     {workspace?.name}
-                  </p>
+                  </div>
                 </div>
-                <div className="flex gap-3">
-                  <Link
-                    href={`/workspace/${id}/style`}
-                    className="px-5 py-2.5 rounded bg-acid text-black text-sm font-inter font-bold hover:bg-acid/90 transition-colors"
-                  >
-                    Modifier le style visuel
+                <div>
+                  <Link href={`/workspace/${id}/style`} className="btn btn-primary btn-sm">
+                    Modifier le style visuel <IconArrow />
                   </Link>
                 </div>
               </div>
             </section>
 
+            {/* ── Section: Danger zone ── */}
+            <section>
+              <div className="card" style={{ padding: "18px 20px", borderColor: "rgba(200,115,43,.25)" }}>
+                <div style={{ marginBottom: 14 }}>
+                  <h2 className="h-title" style={{ fontSize: 15, marginBottom: 4, color: "var(--warn)" }}>Zone de danger</h2>
+                  <p style={{ fontSize: 13, color: "var(--ink-2)" }}>Ces actions sont irréversibles.</p>
+                </div>
+                <button
+                  className="btn btn-ghost btn-sm"
+                  style={{ color: "var(--warn)", borderColor: "rgba(200,115,43,.3)" }}
+                  onClick={async () => {
+                    if (!confirm(`Supprimer le workspace "${workspace?.name}" et tous ses posts ?`)) return;
+                    await supabase.from("workspaces").delete().eq("id", id);
+                    window.location.href = "/dashboard";
+                  }}
+                >
+                  <IconTrash /> Supprimer ce workspace
+                </button>
+              </div>
+            </section>
+
           </div>
         )}
-      </main>
-    </div>
+      </div>
+    </main>
   );
 }
 
-// ─── Page wrapper ─────────────────────────────────────────────────────────────
-
 export default function ParametresPage() {
   return (
-    <div className="flex min-h-screen bg-white">
+    <div style={{ display: "flex", minHeight: "100vh", background: "var(--canvas)" }}>
       <Sidebar />
       <Suspense fallback={
-        <div className="flex-1 flex items-center justify-center">
-          <svg className="animate-spin w-5 h-5 text-[#CCC]" viewBox="0 0 24 24" fill="none">
-            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
-            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.4 0 0 5.4 0 12h4z"/>
-          </svg>
+        <div style={{ marginLeft: "var(--sb-w)", flex: 1, display: "flex", alignItems: "center", justifyContent: "center", color: "var(--ink-3)", fontSize: 14 }}>
+          Chargement…
         </div>
       }>
         <ParametresContent />

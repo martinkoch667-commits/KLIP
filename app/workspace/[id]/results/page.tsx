@@ -13,6 +13,7 @@ interface Post {
   texte_visuel: string;
   description: string;
   status: string;
+  created_at?: string;
 }
 
 interface Workspace {
@@ -34,10 +35,51 @@ function loadGoogleFont(family: string) {
 }
 
 function getImageUrl(post: Post): string {
-  if (post.exported_image_url && post.exported_image_url.startsWith('https://')) {
+  if (post.exported_image_url && post.exported_image_url.startsWith("https://")) {
     return post.exported_image_url;
   }
-  return post.photo_url || '';
+  return post.photo_url || "";
+}
+
+const STATUS_CFG: Record<string, { label: string; bg: string; color: string; dot: string }> = {
+  generated:  { label: "À valider",  bg: "var(--warn-soft)",  color: "var(--warn)",   dot: "var(--warn)" },
+  validated:  { label: "Validé",     bg: "var(--mint-soft)",  color: "var(--mint-2)", dot: "var(--mint-2)" },
+  published:  { label: "Publié",     bg: "var(--mint)",       color: "var(--mint-ink)", dot: "var(--mint-ink)" },
+};
+
+function StatusChip({ status }: { status: string }) {
+  const cfg = STATUS_CFG[status] ?? { label: status, bg: "var(--sunk)", color: "var(--ink-3)", dot: "var(--ink-3)" };
+  return (
+    <span className="badge" style={{ background: cfg.bg, color: cfg.color, display: "inline-flex", alignItems: "center", gap: 5 }}>
+      <span className="dot" style={{ background: cfg.dot }} />
+      {cfg.label}
+    </span>
+  );
+}
+
+function IconInstagram() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="2" y="2" width="20" height="20" rx="5"/>
+      <circle cx="12" cy="12" r="4"/>
+      <circle cx="17.5" cy="6.5" r="1" fill="currentColor" stroke="none"/>
+    </svg>
+  );
+}
+function IconCheck() {
+  return <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5"/></svg>;
+}
+function IconSettings() {
+  return <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z"/></svg>;
+}
+function IconEdit() {
+  return <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5Z"/></svg>;
+}
+function IconCalendar() {
+  return <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4.5" width="18" height="16" rx="3"/><path d="M3 9h18M8 2.5v4M16 2.5v4"/></svg>;
+}
+function IconPlus() {
+  return <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12h14"/></svg>;
 }
 
 export default function ResultsPage() {
@@ -49,8 +91,10 @@ export default function ResultsPage() {
   const [posts, setPosts] = useState<Post[]>([]);
   const [workspace, setWorkspace] = useState<Workspace | null>(null);
   const [loading, setLoading] = useState(true);
+  const [tab, setTab] = useState<"all" | "pending" | "scheduled">("all");
+  const [validated, setValidated] = useState<Record<string, boolean>>({});
   const [showCanva, setShowCanva] = useState(false);
-  const [canvaPostId, setCanvaPostId] = useState('');
+  const [canvaPostId, setCanvaPostId] = useState("");
 
   useEffect(() => {
     async function load() {
@@ -58,7 +102,7 @@ export default function ResultsPage() {
         supabase.from("workspaces").select("id, name, primary_color, secondary_color, font_family").eq("id", id).single(),
         supabase
           .from("posts")
-          .select("id, photo_url, exported_image_url, texte_visuel, description, status")
+          .select("id, photo_url, exported_image_url, texte_visuel, description, status, created_at")
           .eq("workspace_id", id)
           .in("status", ["generated", "validated", "published"])
           .order("created_at", { ascending: false }),
@@ -82,215 +126,221 @@ export default function ResultsPage() {
     await supabase.from("posts").update({ description: post.description }).eq("id", post.id);
   }
 
-  // Overlay style from workspace brand
+  async function validatePost(post: Post) {
+    await supabase.from("posts").update({ status: "validated" }).eq("id", post.id);
+    setPosts((prev) => prev.map((p) => p.id === post.id ? { ...p, status: "validated" } : p));
+    setValidated((v) => ({ ...v, [post.id]: true }));
+  }
+
+  // Filter posts by tab
+  const filteredPosts = posts.filter((p) => {
+    if (tab === "pending") return p.status === "generated";
+    if (tab === "scheduled") return p.status === "validated" || p.status === "published";
+    return true;
+  });
+
+  // Group by date
+  const grouped: Record<string, Post[]> = {};
+  filteredPosts.forEach((p) => {
+    const date = p.created_at ? new Date(p.created_at).toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" }) : "Sans date";
+    (grouped[date] ||= []).push(p);
+  });
+
+  const counts = {
+    all: posts.length,
+    pending: posts.filter((p) => p.status === "generated").length,
+    scheduled: posts.filter((p) => p.status === "validated" || p.status === "published").length,
+  };
+
   const overlayBg = workspace?.primary_color ?? "#000000";
   const overlayText = workspace?.secondary_color ?? "#FFFFFF";
   const overlayFont = workspace?.font_family ?? "Inter";
 
   return (
-    <div style={{ display:'flex', minHeight:'100vh', background:'#0A0A0A', fontFamily:'Satoshi,sans-serif' }}>
+    <div style={{ display: "flex", minHeight: "100vh", background: "var(--canvas)" }}>
       <Sidebar />
+      <main style={{ marginLeft: "var(--sb-w)", flex: 1, overflowY: "auto" }}>
+        <div className="page screen-in" style={{ maxWidth: 860 }}>
 
-      <div style={{ flex:1, display:'flex', flexDirection:'column', minWidth:0, marginLeft:240 }}>
-        {/* Topbar */}
-        <header style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'16px 32px', borderBottom:'1px solid #1E1E1E' }}>
-          <div style={{ display:'flex', alignItems:'center', gap:12 }}>
-            <button
-              onClick={() => router.back()}
-              style={{ width:32, height:32, display:'flex', alignItems:'center', justifyContent:'center', borderRadius:8, border:'1px solid #2A2A2A', background:'transparent', cursor:'pointer' }}
-            >
-              <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-                <path d="M9 2L4 7l5 5" stroke="#888" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-              </svg>
-            </button>
+          {/* Header */}
+          <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", gap: 20, marginBottom: 24, flexWrap: "wrap" }}>
             <div>
-              <h1 style={{ fontFamily:'Cabinet Grotesk,sans-serif', fontWeight:700, fontSize:18, color:'#F0EFE9', lineHeight:1 }}>Résultats générés</h1>
-              <p style={{ fontSize:12, color:'#555', marginTop:3 }}>
-                {loading ? "Chargement…" : `${posts.length} post${posts.length > 1 ? "s" : ""} prêt${posts.length > 1 ? "s" : ""}`}
-              </p>
+              <div className="label" style={{ marginBottom: 8, display: "flex", alignItems: "center", gap: 8 }}>
+                <button
+                  onClick={() => router.back()}
+                  style={{ background: "none", border: "none", cursor: "pointer", color: "var(--ink-3)", display: "flex", alignItems: "center", gap: 4, padding: 0, fontSize: 12, fontWeight: 600, fontFamily: "var(--sans)" }}
+                >
+                  ← Retour
+                </button>
+                <span style={{ color: "var(--line)" }}>·</span>
+                {workspace?.name}
+              </div>
+              <h1 className="h-display" style={{ fontSize: 30 }}>File de publication</h1>
+            </div>
+            <Link href={`/workspace/${id}`} className="btn btn-primary btn-sm">
+              <IconPlus /> Nouveau post
+            </Link>
+          </div>
+
+          {/* Instagram connection banner */}
+          <div className="card" style={{ padding: "16px 20px", display: "flex", alignItems: "center", gap: 14, marginBottom: 18, background: "var(--forest)", color: "var(--cream)", border: "none" }}>
+            <span style={{ width: 42, height: 42, borderRadius: 12, background: "linear-gradient(135deg,#F58529,#DD2A7B,#8134AF)", display: "grid", placeItems: "center", color: "#fff", flexShrink: 0 }}>
+              <IconInstagram />
+            </span>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontWeight: 700, fontSize: 14.5, display: "flex", alignItems: "center", gap: 8, color: "var(--cream)" }}>
+                {workspace?.name ?? "Compte"} connecté
+                <span className="badge" style={{ background: "var(--mint)", color: "var(--mint-ink)", display: "inline-flex", alignItems: "center", gap: 4 }}>
+                  <IconCheck /> Actif
+                </span>
+              </div>
+              <div style={{ fontSize: 12.5, color: "var(--cream-2)", marginTop: 2 }}>
+                Klip publie automatiquement au créneau planifié. Aucune action requise.
+              </div>
+            </div>
+            <Link href={`/workspace/${id}/parametres`} className="btn btn-sm" style={{ background: "rgba(244,243,236,0.12)", color: "var(--cream)", flexShrink: 0 }}>
+              <IconSettings /> Gérer
+            </Link>
+          </div>
+
+          {/* Tabs */}
+          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 20 }}>
+            <div className="seg">
+              {([["all", "Tout"], ["pending", "À valider"], ["scheduled", "Planifiés"]] as [string, string][]).map(([k, l]) => (
+                <button key={k} className={tab === k ? "on" : ""} onClick={() => setTab(k as typeof tab)}>
+                  {l} <span style={{ opacity: 0.55 }}>{counts[k as keyof typeof counts]}</span>
+                </button>
+              ))}
             </div>
           </div>
-          <Link
-            href={`/workspace/${id}`}
-            style={{ padding:'8px 16px', borderRadius:8, background:'#B8F028', color:'#000', fontSize:13, fontWeight:700, textDecoration:'none', fontFamily:'Cabinet Grotesk,sans-serif' }}
-          >
-            + Nouveau post
-          </Link>
-        </header>
 
-        <main style={{ flex:1, padding:'32px' }}>
+          {/* Content */}
           {loading ? (
-            <div style={{ display:'flex', alignItems:'center', justifyContent:'center', padding:'96px 0' }}>
-              <svg className="animate-spin w-6 h-6" style={{ color:'#444' }} viewBox="0 0 24 24" fill="none">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.4 0 0 5.4 0 12h4z"/>
-              </svg>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "center", padding: "80px 0", color: "var(--ink-3)" }}>
+              Chargement…
             </div>
-          ) : posts.length === 0 ? (
-            <div style={{ textAlign:'center', padding:'96px 0' }}>
-              <p style={{ fontSize:14, color:'#444', marginBottom:20 }}>Aucun post généré pour ce workspace.</p>
-              <Link
-                href={`/workspace/${id}`}
-                style={{ display:'inline-flex', padding:'11px 24px', borderRadius:8, background:'#B8F028', color:'#000', fontSize:14, fontWeight:700, textDecoration:'none', fontFamily:'Cabinet Grotesk,sans-serif' }}
-              >
-                Créer des posts
-              </Link>
+          ) : filteredPosts.length === 0 ? (
+            <div className="card" style={{ padding: 40, textAlign: "center", color: "var(--ink-3)" }}>
+              <p style={{ marginBottom: 20, fontSize: 14 }}>Aucun post dans cette file.</p>
+              <Link href={`/workspace/${id}`} className="btn btn-primary">Créer des posts</Link>
             </div>
           ) : (
-            <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:20 }}>
-              {posts.map((post) => (
-                <div key={post.id} style={{ display:'flex', flexDirection:'column', borderRadius:10, border:'1px solid #1E1E1E', overflow:'hidden', background:'#111' }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
+              {Object.entries(grouped).map(([date, datePosts]) => (
+                <div key={date}>
+                  <div className="label" style={{ marginBottom: 10, display: "flex", alignItems: "center", gap: 8 }}>
+                    <IconCalendar />
+                    {date.charAt(0).toUpperCase() + date.slice(1)}
+                  </div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                    {datePosts.map((post) => {
+                      const imgUrl = getImageUrl(post);
+                      const isPending = post.status === "generated";
+                      return (
+                        <div key={post.id} className="card" style={{ padding: 12, display: "flex", alignItems: "center", gap: 14 }}>
+                          {/* Thumbnail */}
+                          <div style={{ width: 52, height: 65, borderRadius: 10, overflow: "hidden", flexShrink: 0, background: "var(--sunk)" }}>
+                            {imgUrl ? (
+                              // eslint-disable-next-line @next/next/no-img-element
+                              <img src={imgUrl} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                            ) : (
+                              <div style={{ width: "100%", height: "100%", background: "var(--sunk)" }} />
+                            )}
+                          </div>
 
-                  {/* Visual: exported final image OR raw photo + overlay */}
-                  <div style={{ position:'relative', width:'100%', aspectRatio:'4/5', overflow:'hidden' }}>
-                    {post.exported_image_url ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img src={post.exported_image_url} alt="" className="w-full h-full object-cover" />
-                    ) : (
-                      <>
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img src={post.photo_url || ''} alt="" className="w-full h-full object-cover" />
-                        {post.texte_visuel && (
-                          <div className="absolute bottom-3 left-3 right-3">
-                            <div
-                              style={{
-                                backgroundColor: overlayBg,
-                                display: "inline-block",
-                                padding: "8px 12px",
-                                borderRadius: "4px",
-                              }}
-                            >
-                              <p
-                                style={{
-                                  fontFamily: `"${overlayFont}", sans-serif`,
-                                  color: overlayText,
-                                  fontWeight: 700,
-                                  fontSize: "14px",
-                                  textTransform: "uppercase",
-                                  lineHeight: 1.2,
-                                  margin: 0,
-                                }}
-                              >
-                                {post.texte_visuel}
-                              </p>
+                          {/* Info */}
+                          <div style={{ minWidth: 0, flex: 1 }}>
+                            <div style={{ fontWeight: 700, fontSize: 14, lineHeight: 1.25, marginBottom: 4 }} className="trunc">
+                              {post.texte_visuel || "Post sans titre"}
+                            </div>
+                            <div style={{ fontSize: 12.5, color: "var(--ink-2)", lineHeight: 1.3 }} className="trunc">
+                              {post.description || <span style={{ color: "var(--ink-3)" }}>Aucune description</span>}
                             </div>
                           </div>
-                        )}
-                      </>
-                    )}
 
-                    {/* Status badge */}
-                    {post.status === "published" && (
-                      <div className="absolute top-2 right-2">
-                        <span className="inline-flex px-2 py-0.5 rounded bg-acid text-black text-[11px] font-inter font-bold">
-                          Planifié
-                        </span>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Content */}
-                  <div style={{ display:'flex', flexDirection:'column', gap:10, padding:12 }}>
-                    <textarea
-                      value={post.description}
-                      onChange={(e) => updateDescription(post.id, e.target.value)}
-                      onBlur={() => saveDescription(post)}
-                      rows={5}
-                      placeholder="Description Instagram…"
-                      style={{ width:'100%', borderRadius:8, border:'1px solid #2A2A2A', background:'#161616', padding:'8px 12px', fontSize:12, color:'#888', resize:'none', outline:'none', fontFamily:'Satoshi,sans-serif' }}
-                    />
-
-                    <div style={{ display:'flex', gap:8, marginTop:12 }}>
-                      <a href={`/workspace/${params.id}/editor/${post.id}`}
-                        style={{ flex:1, textAlign:'center', background:'transparent', border:'1px solid #2A2A2A', color:'#F0EFE9', padding:'10px 0', borderRadius:8, textDecoration:'none', fontSize:13, fontFamily:'Satoshi,sans-serif' }}>
-                        ✏️ Éditer
-                      </a>
-                      <button onClick={() => { setCanvaPostId(post.id); setShowCanva(true); }}
-                        style={{ flex:1, background:'#B8F028', color:'#000', border:'none', padding:'10px 0', borderRadius:8, cursor:'pointer', fontWeight:700, fontSize:13, fontFamily:'Cabinet Grotesk,sans-serif' }}>
-                        ✦ Éditer avec Canva
-                      </button>
-                    </div>
-                    <Link
-                      href={`/workspace/${id}/planning?post=${post.id}`}
-                      style={{ display:'flex', padding:'8px', borderRadius:8, border:'1px solid #1E1E1E', background:'transparent', color:'#555', fontSize:12, fontWeight:700, textDecoration:'none', alignItems:'center', justifyContent:'center', fontFamily:'Cabinet Grotesk,sans-serif' }}
-                    >
-                      Planifier
-                    </Link>
+                          {/* Actions */}
+                          <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
+                            {isPending && !validated[post.id] ? (
+                              <>
+                                <a href={`/workspace/${params.id}/editor/${post.id}`} className="btn btn-ghost btn-sm">
+                                  <IconEdit /> Voir
+                                </a>
+                                <button
+                                  className="btn btn-primary btn-sm"
+                                  onClick={() => validatePost(post)}
+                                >
+                                  <IconCheck /> Valider
+                                </button>
+                              </>
+                            ) : (
+                              <StatusChip status={validated[post.id] ? "validated" : post.status} />
+                            )}
+                            <button
+                              className="btn btn-ghost btn-icon"
+                              onClick={() => { setCanvaPostId(post.id); setShowCanva(true); }}
+                              title="Éditer avec Canva"
+                            >
+                              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg>
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
               ))}
             </div>
           )}
-        </main>
-      </div>
+        </div>
+      </main>
 
-      {/* ── Canva modal ── */}
+      {/* Canva modal */}
       {showCanva && (
-        <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.9)', zIndex:1000, display:'flex', flexDirection:'column' }}>
-          <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'14px 24px', background:'#000', borderBottom:'1px solid #1E1E1E', flexShrink:0 }}>
-            <span style={{ fontFamily:'Cabinet Grotesk,sans-serif', fontWeight:900, fontSize:18, color:'#F0EFE9' }}>
-              Kl<span style={{ color:'#B8F028' }}>ip</span> <span style={{ color:'#444', fontWeight:400, fontSize:14 }}>× Canva Editor</span>
-            </span>
-            <div style={{ display:'flex', gap:10, alignItems:'center' }}>
-              <label style={{ background:'#B8F028', color:'#000', fontWeight:700, padding:'8px 16px', borderRadius:8, cursor:'pointer', fontSize:13, fontFamily:'Cabinet Grotesk,sans-serif' }}>
-                ⬆ Uploader le PNG exporté
-                <input type="file" accept="image/png,image/jpeg" style={{ display:'none' }}
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.55)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}>
+          <div className="card pop-in" style={{ width: "100%", maxWidth: 480, overflow: "hidden" }}>
+            {/* Modal header */}
+            <div style={{ background: "var(--forest)", padding: "20px 24px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+              <span style={{ fontFamily: "var(--display)", fontWeight: 900, fontSize: 20, letterSpacing: "-0.05em", color: "var(--cream)" }}>
+                Kl<span style={{ color: "var(--mint)" }}>ip</span>
+                <span style={{ color: "var(--cream-3)", fontWeight: 400, fontSize: 13 }}> × Canva Editor</span>
+              </span>
+              <button onClick={() => setShowCanva(false)} className="btn btn-ghost btn-sm" style={{ color: "var(--cream-2)" }}>
+                Fermer
+              </button>
+            </div>
+
+            {/* Modal body */}
+            <div style={{ padding: "28px 24px", display: "flex", flexDirection: "column", gap: 14 }}>
+              <div style={{ padding: "10px 14px", background: "var(--sunk)", borderRadius: "var(--r-s)", fontSize: 13, color: "var(--ink-2)", lineHeight: 1.5 }}>
+                Ouvrez Canva, créez votre visuel, téléchargez en PNG puis uploadez-le ici.
+              </div>
+              <a
+                href="https://www.canva.com/design?create&type=InstagramPost"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="btn btn-primary"
+                style={{ justifyContent: "center", width: "100%" }}
+              >
+                Ouvrir Canva →
+              </a>
+              <label className="btn btn-dark" style={{ justifyContent: "center", width: "100%", cursor: "pointer" }}>
+                Uploader mon PNG Canva
+                <input
+                  type="file"
+                  accept="image/png,image/jpeg"
+                  style={{ display: "none" }}
                   onChange={async (e) => {
                     const file = e.target.files?.[0];
                     if (!file) return;
                     const fileName = `${params.id}/${canvaPostId}-canva-${Date.now()}.png`;
-                    await supabase.storage.from('exports').upload(fileName, file, { contentType: file.type, upsert: true });
-                    const { data: urlData } = supabase.storage.from('exports').getPublicUrl(fileName);
-                    await supabase.from('posts').update({ exported_image_url: urlData.publicUrl, status: 'validated' }).eq('id', canvaPostId);
+                    await supabase.storage.from("exports").upload(fileName, file, { contentType: file.type, upsert: true });
+                    const { data: urlData } = supabase.storage.from("exports").getPublicUrl(fileName);
+                    await supabase.from("posts").update({ exported_image_url: urlData.publicUrl, status: "validated" }).eq("id", canvaPostId);
                     setShowCanva(false);
                     window.location.reload();
                   }}
                 />
               </label>
-              <button onClick={() => setShowCanva(false)}
-                style={{ background:'transparent', border:'1px solid #2A2A2A', color:'#888', padding:'8px 16px', borderRadius:8, cursor:'pointer', fontSize:13 }}>
-                Fermer
-              </button>
-            </div>
-          </div>
-          <div style={{ background:'#111', padding:'8px 24px', fontSize:12, color:'#555', borderBottom:'1px solid #1E1E1E' }}>
-            ℹ Créez votre visuel dans Canva ci-dessous → Téléchargez-le en PNG → Uploadez-le avec le bouton en haut à droite
-          </div>
-          <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#0A0A0A' }}>
-            <div style={{ textAlign: 'center', maxWidth: 480, padding: 40 }}>
-              <div style={{ fontSize: 64, marginBottom: 24 }}>✦</div>
-              <h2 style={{ fontFamily: 'Cabinet Grotesk,sans-serif', fontSize: 28, fontWeight: 800, color: '#F0EFE9', marginBottom: 12, letterSpacing: '-0.03em' }}>
-                Créez votre visuel dans Canva
-              </h2>
-              <p style={{ color: '#666', fontSize: 15, lineHeight: 1.6, marginBottom: 32 }}>
-                Canva ne permet pas l'intégration directe. Ouvrez Canva dans un nouvel onglet, créez votre visuel, téléchargez-le en PNG, puis uploadez-le ici.
-              </p>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                <a href="https://www.canva.com/design?create&type=InstagramPost" target="_blank" rel="noopener noreferrer"
-                  style={{ display: 'block', background: '#B8F028', color: '#000', fontWeight: 700, padding: '14px 24px', borderRadius: 10, textDecoration: 'none', fontFamily: 'Cabinet Grotesk,sans-serif', fontSize: 15 }}>
-                  Ouvrir Canva →
-                </a>
-                <label style={{ display: 'block', background: '#111', border: '1px solid #2A2A2A', color: '#F0EFE9', fontWeight: 600, padding: '14px 24px', borderRadius: 10, cursor: 'pointer', fontFamily: 'Cabinet Grotesk,sans-serif', fontSize: 15 }}>
-                  ⬆ Uploader mon PNG Canva
-                  <input type="file" accept="image/png,image/jpeg" style={{ display: 'none' }}
-                    onChange={async (e) => {
-                      const file = e.target.files?.[0];
-                      if (!file) return;
-                      const fileName = `${params.id}/${canvaPostId}-canva-${Date.now()}.png`;
-                      await supabase.storage.from('exports').upload(fileName, file, { contentType: file.type, upsert: true });
-                      const { data: urlData } = supabase.storage.from('exports').getPublicUrl(fileName);
-                      await supabase.from('posts').update({ exported_image_url: urlData.publicUrl, status: 'validated' }).eq('id', canvaPostId);
-                      setShowCanva(false);
-                      window.location.reload();
-                    }}
-                  />
-                </label>
-              </div>
-              <div style={{ marginTop: 32, padding: '16px 20px', background: '#111', borderRadius: 8, border: '1px solid #1E1E1E' }}>
-                <p style={{ color: '#555', fontSize: 13, lineHeight: 1.6 }}>
-                  💡 <strong style={{ color: '#888' }}>Workflow :</strong> Ouvrir Canva → Créer le visuel → Fichier → Télécharger → PNG → Uploader ici
-                </p>
-              </div>
             </div>
           </div>
         </div>

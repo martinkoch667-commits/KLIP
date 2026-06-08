@@ -82,17 +82,17 @@ function ImgNode({ el, onSelect, onChange }: { el: ImageEl; onSelect: () => void
 // ─── Shared styles ────────────────────────────────────────────────────────────
 
 const btnStyle: React.CSSProperties = {
-  padding: '7px 14px', background: '#111', border: '1px solid #2A2A2A',
-  borderRadius: 6, cursor: 'pointer', fontSize: 13, color: '#888', fontFamily: 'Satoshi,sans-serif',
+  padding: '7px 14px', background: 'var(--sunk)', border: '1px solid var(--line)',
+  borderRadius: 6, cursor: 'pointer', fontSize: 13, color: 'var(--ink-2)', fontFamily: 'var(--sans)',
 };
 const smallBtnStyle: React.CSSProperties = {
-  padding: '4px 8px', background: '#111', border: '1px solid #2A2A2A',
-  borderRadius: 4, cursor: 'pointer', fontSize: 12, color: '#666',
+  padding: '4px 8px', background: 'var(--sunk)', border: '1px solid var(--line)',
+  borderRadius: 4, cursor: 'pointer', fontSize: 12, color: 'var(--ink-3)',
 };
 
 function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
-    <p style={{ fontSize: 11, color: '#444', textTransform: 'uppercase', letterSpacing: '0.1em', margin: '0 0 8px 0', fontFamily: 'Cabinet Grotesk,sans-serif', fontWeight: 700 }}>
+    <p style={{ fontSize: 10.5, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '0.1em', margin: '0 0 8px 0', fontFamily: 'var(--mono)', fontWeight: 800 }}>
       {children}
     </p>
   );
@@ -101,7 +101,7 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
 function PropRow({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div style={{ marginBottom: 14 }}>
-      <label style={{ fontSize: 11, color: '#444', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 6, fontFamily: 'Cabinet Grotesk,sans-serif', fontWeight: 700 }}>{label}</label>
+      <label style={{ fontSize: 10.5, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 6, fontFamily: 'var(--mono)', fontWeight: 800 }}>{label}</label>
       {children}
     </div>
   );
@@ -110,10 +110,10 @@ function PropRow({ label, children }: { label: string; children: React.ReactNode
 function ColorRow({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
   return (
     <PropRow label={label}>
-      <div style={{ display: 'flex', gap: 8, alignItems: 'center', background: '#111', border: '1px solid #1E1E1E', borderRadius: 8, padding: '6px 10px' }}>
+      <div style={{ display: 'flex', gap: 8, alignItems: 'center', background: 'var(--sunk)', border: '1px solid var(--line)', borderRadius: 8, padding: '6px 10px' }}>
         <input type="color" value={value} onChange={e => onChange(e.target.value)}
           style={{ width: 28, height: 28, border: 'none', borderRadius: 4, cursor: 'pointer', padding: 0, background: 'transparent' }} />
-        <span style={{ fontSize: 12, color: '#888', fontFamily: 'Satoshi,sans-serif' }}>{value.toUpperCase()}</span>
+        <span style={{ fontSize: 12, color: 'var(--ink-2)', fontFamily: 'var(--mono)' }}>{value.toUpperCase()}</span>
       </div>
     </PropRow>
   );
@@ -128,8 +128,8 @@ function UnsplashThumb({ src, onAdd, onBg }: { src: string; onAdd: () => void; o
       <img src={src} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
       {hovered && (
         <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', flexDirection: 'column', gap: 4, alignItems: 'center', justifyContent: 'center' }}>
-          <button onClick={onAdd} style={{ padding: '4px 8px', background: '#F0EFE9', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 10, fontWeight: 700 }}>+ Canvas</button>
-          <button onClick={onBg} style={{ padding: '4px 8px', background: '#B8F028', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 10, fontWeight: 700 }}>Fond</button>
+          <button onClick={onAdd} style={{ padding: '4px 8px', background: 'var(--cream)', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 10, fontWeight: 700 }}>+ Canvas</button>
+          <button onClick={onBg} style={{ padding: '4px 8px', background: 'var(--mint)', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 10, fontWeight: 700, color: 'var(--mint-ink)' }}>Fond</button>
         </div>
       )}
     </div>
@@ -146,11 +146,11 @@ function TextProperties({ el, onChange, customFonts, onFontUpload }: { el: TextE
     <>
       <PropRow label="Contenu">
         <textarea value={el.text} onChange={e => onChange({ text: e.target.value })} rows={3}
-          style={{ width: '100%', padding: '8px 10px', border: '1px solid #1E1E1E', borderRadius: 6, fontSize: 13, resize: 'vertical', boxSizing: 'border-box', fontFamily: 'Satoshi,sans-serif', outline: 'none', background: '#111', color: '#F0EFE9' }} />
+          style={{ width: '100%', padding: '8px 10px', border: '1px solid var(--line)', borderRadius: 6, fontSize: 13, resize: 'vertical', boxSizing: 'border-box', fontFamily: 'var(--sans)', outline: 'none', background: 'var(--sunk)', color: 'var(--ink)' }} />
       </PropRow>
       <PropRow label="Police">
         <select value={el.fontFamily} onChange={e => onChange({ fontFamily: e.target.value })}
-          style={{ width: '100%', padding: '6px 8px', border: '1px solid #1E1E1E', borderRadius: 6, fontSize: 13, outline: 'none', background: '#111', color: '#F0EFE9' }}>
+          style={{ width: '100%', padding: '6px 8px', border: '1px solid var(--line)', borderRadius: 6, fontSize: 13, outline: 'none', background: 'var(--sunk)', color: 'var(--ink)' }}>
           {customFonts.length > 0 && (
             <optgroup label="Mes polices">
               {customFonts.map(f => <option key={f.name} value={f.name}>{f.name}</option>)}
@@ -161,10 +161,10 @@ function TextProperties({ el, onChange, customFonts, onFontUpload }: { el: TextE
           </optgroup>
         </select>
         <div style={{ marginTop: 12 }}>
-          <label style={{ fontSize: 11, color: '#444', textTransform: 'uppercase', letterSpacing: '0.08em', fontFamily: 'Cabinet Grotesk,sans-serif', fontWeight: 700 }}>
+          <label style={{ fontSize: 10.5, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '0.08em', fontFamily: 'var(--mono)', fontWeight: 800 }}>
             Uploader une police
           </label>
-          <label style={{ display: 'block', marginTop: 8, background: '#111', border: '1px dashed #2A2A2A', color: '#888', padding: '10px', borderRadius: 8, cursor: 'pointer', textAlign: 'center', fontSize: 13 }}>
+          <label style={{ display: 'block', marginTop: 8, background: 'var(--sunk)', border: '1.5px dashed var(--line)', color: 'var(--ink-2)', padding: '10px', borderRadius: 8, cursor: 'pointer', textAlign: 'center', fontSize: 13 }}>
             + Uploader .ttf ou .otf
             <input type="file" accept=".ttf,.otf,.woff,.woff2" style={{ display: 'none' }}
               onChange={async (e) => {
@@ -178,13 +178,13 @@ function TextProperties({ el, onChange, customFonts, onFontUpload }: { el: TextE
         </div>
       </PropRow>
       <PropRow label={`Taille — ${el.fontSize}px`}>
-        <input type="range" min={8} max={120} value={el.fontSize} onChange={e => onChange({ fontSize: Number(e.target.value) })} style={{ width: '100%', accentColor: '#B8F028' }} />
+        <input type="range" min={8} max={120} value={el.fontSize} onChange={e => onChange({ fontSize: Number(e.target.value) })} style={{ width: '100%', accentColor: 'var(--mint-2)' }} />
       </PropRow>
       <PropRow label="Style">
         <div style={{ display: 'flex', gap: 6 }}>
           {[{ label: 'G', title: 'Gras', active: isBold, fn: toggleBold }, { label: 'I', title: 'Italique', active: isItalic, fn: toggleItalic }, { label: 'S', title: 'Souligné', active: isUnderline, fn: () => onChange({ textDecoration: isUnderline ? '' : 'underline' }) }].map(({ label, title, active, fn }) => (
             <button key={label} onClick={fn} title={title}
-              style={{ flex: 1, padding: '6px', border: '1px solid #2A2A2A', borderRadius: 6, cursor: 'pointer', fontWeight: 700, fontSize: 13, background: active ? '#B8F028' : '#111', color: active ? '#000' : '#888' }}>
+              style={{ flex: 1, padding: '6px', border: '1px solid var(--line)', borderRadius: 6, cursor: 'pointer', fontWeight: 700, fontSize: 13, background: active ? 'var(--mint)' : 'var(--sunk)', color: active ? 'var(--mint-ink)' : 'var(--ink-2)' }}>
               {label}
             </button>
           ))}
@@ -194,7 +194,7 @@ function TextProperties({ el, onChange, customFonts, onFontUpload }: { el: TextE
         <div style={{ display: 'flex', gap: 6 }}>
           {(['left', 'center', 'right'] as const).map(a => (
             <button key={a} onClick={() => onChange({ align: a })}
-              style={{ flex: 1, padding: '6px', border: '1px solid #2A2A2A', borderRadius: 6, cursor: 'pointer', fontSize: 13, background: el.align === a ? '#B8F028' : '#111', color: el.align === a ? '#000' : '#888' }}>
+              style={{ flex: 1, padding: '6px', border: '1px solid var(--line)', borderRadius: 6, cursor: 'pointer', fontSize: 13, background: el.align === a ? 'var(--mint)' : 'var(--sunk)', color: el.align === a ? 'var(--mint-ink)' : 'var(--ink-2)' }}>
               {a === 'left' ? '⬅' : a === 'center' ? '↔' : '➡'}
             </button>
           ))}
@@ -203,9 +203,9 @@ function TextProperties({ el, onChange, customFonts, onFontUpload }: { el: TextE
       <ColorRow label="Couleur texte" value={el.fill} onChange={v => onChange({ fill: v })} />
       <div style={{ borderTop: '1px solid #1E1E1E', paddingTop: 12 }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-          <span style={{ fontSize: 11, color: '#444', textTransform: 'uppercase', letterSpacing: '0.07em', fontFamily: 'Cabinet Grotesk,sans-serif', fontWeight: 700 }}>Fond du bloc</span>
+          <span style={{ fontSize: 10.5, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '0.07em', fontFamily: 'var(--mono)', fontWeight: 800 }}>Fond du bloc</span>
           <div onClick={() => onChange({ hasBg: !el.hasBg })}
-            style={{ width: 38, height: 22, borderRadius: 11, background: el.hasBg ? '#B8F028' : '#1E1E1E', cursor: 'pointer', position: 'relative', transition: 'background 0.2s', flexShrink: 0 }}>
+            style={{ width: 38, height: 22, borderRadius: 11, background: el.hasBg ? 'var(--mint)' : 'var(--line)', cursor: 'pointer', position: 'relative', transition: 'background 0.2s', flexShrink: 0 }}>
             <span style={{ position: 'absolute', top: 3, left: el.hasBg ? 19 : 3, width: 16, height: 16, borderRadius: '50%', background: 'white', transition: 'left 0.2s', display: 'block', boxShadow: '0 1px 3px rgba(0,0,0,0.4)' }} />
           </div>
         </div>
@@ -213,22 +213,22 @@ function TextProperties({ el, onChange, customFonts, onFontUpload }: { el: TextE
           <>
             <ColorRow label="Couleur fond" value={el.bgColor} onChange={v => onChange({ bgColor: v })} />
             <PropRow label={`Opacité — ${el.bgOpacity}%`}>
-              <input type="range" min={0} max={100} value={el.bgOpacity} onChange={e => onChange({ bgOpacity: Number(e.target.value) })} style={{ width: '100%', accentColor: '#B8F028' }} />
+              <input type="range" min={0} max={100} value={el.bgOpacity} onChange={e => onChange({ bgOpacity: Number(e.target.value) })} style={{ width: '100%', accentColor: 'var(--mint-2)' }} />
             </PropRow>
             <PropRow label={`Arrondi — ${el.cornerRadius}px`}>
-              <input type="range" min={0} max={50} value={el.cornerRadius} onChange={e => onChange({ cornerRadius: Number(e.target.value) })} style={{ width: '100%', accentColor: '#B8F028' }} />
+              <input type="range" min={0} max={50} value={el.cornerRadius} onChange={e => onChange({ cornerRadius: Number(e.target.value) })} style={{ width: '100%', accentColor: 'var(--mint-2)' }} />
             </PropRow>
             <PropRow label={`Padding H — ${el.paddingH ?? el.padding}px`}>
-              <input type="range" min={0} max={40} value={el.paddingH ?? el.padding} onChange={e => onChange({ paddingH: Number(e.target.value) })} style={{ width: '100%', accentColor: '#B8F028' }} />
+              <input type="range" min={0} max={40} value={el.paddingH ?? el.padding} onChange={e => onChange({ paddingH: Number(e.target.value) })} style={{ width: '100%', accentColor: 'var(--mint-2)' }} />
             </PropRow>
             <PropRow label={`Padding V — ${el.paddingV ?? el.padding}px`}>
-              <input type="range" min={0} max={30} value={el.paddingV ?? el.padding} onChange={e => onChange({ paddingV: Number(e.target.value) })} style={{ width: '100%', accentColor: '#B8F028' }} />
+              <input type="range" min={0} max={30} value={el.paddingV ?? el.padding} onChange={e => onChange({ paddingV: Number(e.target.value) })} style={{ width: '100%', accentColor: 'var(--mint-2)' }} />
             </PropRow>
           </>
         )}
       </div>
       <PropRow label={`Opacité — ${el.opacity}%`}>
-        <input type="range" min={0} max={100} value={el.opacity} onChange={e => onChange({ opacity: Number(e.target.value) })} style={{ width: '100%', accentColor: '#B8F028' }} />
+        <input type="range" min={0} max={100} value={el.opacity} onChange={e => onChange({ opacity: Number(e.target.value) })} style={{ width: '100%', accentColor: 'var(--mint-2)' }} />
       </PropRow>
     </>
   );
@@ -240,15 +240,15 @@ function ShapeProperties({ el, onChange }: { el: RectEl | CircleEl | StarEl; onC
       <ColorRow label="Couleur" value={el.fill} onChange={v => onChange({ fill: v } as any)} />
       <ColorRow label="Bordure" value={el.stroke || '#000000'} onChange={v => onChange({ stroke: v } as any)} />
       <PropRow label={`Épaisseur — ${el.strokeWidth}px`}>
-        <input type="range" min={0} max={10} value={el.strokeWidth} onChange={e => onChange({ strokeWidth: Number(e.target.value) } as any)} style={{ width: '100%', accentColor: '#B8F028' }} />
+        <input type="range" min={0} max={10} value={el.strokeWidth} onChange={e => onChange({ strokeWidth: Number(e.target.value) } as any)} style={{ width: '100%', accentColor: 'var(--mint-2)' }} />
       </PropRow>
       {el.type === 'rect' && (
         <PropRow label={`Arrondi — ${el.cornerRadius}px`}>
-          <input type="range" min={0} max={50} value={el.cornerRadius} onChange={e => onChange({ cornerRadius: Number(e.target.value) } as any)} style={{ width: '100%', accentColor: '#B8F028' }} />
+          <input type="range" min={0} max={50} value={el.cornerRadius} onChange={e => onChange({ cornerRadius: Number(e.target.value) } as any)} style={{ width: '100%', accentColor: 'var(--mint-2)' }} />
         </PropRow>
       )}
       <PropRow label={`Opacité — ${el.opacity}%`}>
-        <input type="range" min={0} max={100} value={el.opacity} onChange={e => onChange({ opacity: Number(e.target.value) } as any)} style={{ width: '100%', accentColor: '#B8F028' }} />
+        <input type="range" min={0} max={100} value={el.opacity} onChange={e => onChange({ opacity: Number(e.target.value) } as any)} style={{ width: '100%', accentColor: 'var(--mint-2)' }} />
       </PropRow>
     </>
   );
@@ -258,10 +258,10 @@ function ImageProperties({ el, onChange, onSetBg }: { el: ImageEl; onChange: (u:
   return (
     <>
       <PropRow label={`Opacité — ${el.opacity}%`}>
-        <input type="range" min={0} max={100} value={el.opacity} onChange={e => onChange({ opacity: Number(e.target.value) })} style={{ width: '100%', accentColor: '#B8F028' }} />
+        <input type="range" min={0} max={100} value={el.opacity} onChange={e => onChange({ opacity: Number(e.target.value) })} style={{ width: '100%', accentColor: 'var(--mint-2)' }} />
       </PropRow>
       <button onClick={onSetBg}
-        style={{ width: '100%', padding: '10px', background: '#111', border: '1px solid #2A2A2A', borderRadius: 6, cursor: 'pointer', fontSize: 13, marginBottom: 8, color: '#888', fontFamily: 'Satoshi,sans-serif' }}>
+        style={{ width: '100%', padding: '10px', background: 'var(--sunk)', border: '1px solid var(--line)', borderRadius: 6, cursor: 'pointer', fontSize: 13, marginBottom: 8, color: 'var(--ink-2)', fontFamily: 'var(--sans)' }}>
         Mettre en fond
       </button>
     </>
@@ -624,19 +624,19 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
   // ── Loading / error states ─────────────────────────────────────────────────
 
   if (dataLoading) return (
-    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', background: '#0A0A0A', flexDirection: 'column', gap: 16 }}>
-      <svg className="animate-spin" style={{ width: 24, height: 24, color: '#444' }} viewBox="0 0 24 24" fill="none">
-        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
-        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.4 0 0 5.4 0 12h4z"/>
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', background: 'var(--canvas)', flexDirection: 'column', gap: 16 }}>
+      <svg style={{ width: 24, height: 24, color: 'var(--ink-3)', animation: 'spin 1s linear infinite' }} viewBox="0 0 24 24" fill="none">
+        <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" strokeOpacity="0.25"/>
+        <path fill="currentColor" fillOpacity="0.75" d="M4 12a8 8 0 018-8V0C5.4 0 0 5.4 0 12h4z"/>
       </svg>
-      <span style={{ fontSize: 13, color: '#555', fontFamily: 'Satoshi,sans-serif' }}>Chargement de l&apos;éditeur…</span>
+      <span style={{ fontSize: 13, color: 'var(--ink-3)', fontFamily: 'var(--sans)' }}>Chargement de l&apos;éditeur…</span>
     </div>
   );
 
   if (loadError) return (
-    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', background: '#0A0A0A', flexDirection: 'column', gap: 16 }}>
-      <p style={{ fontSize: 14, color: '#FF4D3B', fontFamily: 'Satoshi,sans-serif' }}>{loadError}</p>
-      <button onClick={() => window.location.reload()} style={{ padding: '10px 20px', borderRadius: 8, background: '#B8F028', color: '#000', fontSize: 13, fontWeight: 700, border: 'none', cursor: 'pointer', fontFamily: 'Cabinet Grotesk,sans-serif' }}>
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', background: 'var(--canvas)', flexDirection: 'column', gap: 16 }}>
+      <p style={{ fontSize: 14, color: 'var(--warn)', fontFamily: 'var(--sans)' }}>{loadError}</p>
+      <button onClick={() => window.location.reload()} className="btn btn-primary">
         Réessayer
       </button>
     </div>
@@ -645,29 +645,29 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
   // ── Render ────────────────────────────────────────────────────────────────
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', fontFamily: 'Satoshi,sans-serif', background: '#0A0A0A' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', fontFamily: 'var(--sans)', background: 'var(--canvas)' }}>
 
       {/* ── TOPBAR ── */}
-      <div style={{ height: 56, background: '#000', borderBottom: '1px solid #1E1E1E', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 20px', flexShrink: 0, zIndex: 10 }}>
+      <div style={{ height: 56, background: 'var(--forest)', borderBottom: '1px solid rgba(255,255,255,0.07)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 20px', flexShrink: 0, zIndex: 10 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-          <a href={`/workspace/${workspaceId}`} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 32, height: 32, borderRadius: 8, border: '1px solid #2A2A2A', color: '#666', textDecoration: 'none', fontSize: 14 }}>←</a>
-          <span style={{ fontFamily: 'Cabinet Grotesk,sans-serif', fontWeight: 900, fontSize: 20, letterSpacing: '-0.04em', color: '#F0EFE9' }}>
-            Kl<span style={{ color: '#B8F028' }}>ip</span>
+          <a href={`/workspace/${workspaceId}`} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 32, height: 32, borderRadius: 8, border: '1px solid rgba(255,255,255,0.15)', color: 'var(--cream-2)', textDecoration: 'none', fontSize: 14 }}>←</a>
+          <span style={{ fontFamily: 'var(--display)', fontWeight: 900, fontSize: 20, letterSpacing: '-0.04em', color: 'var(--cream)' }}>
+            Kl<span style={{ color: 'var(--mint)' }}>ip</span>
           </span>
         </div>
         <div style={{ display: 'flex', gap: 6 }}>
           <button onClick={undo} disabled={!canUndo} title="Annuler Ctrl+Z"
-            style={{ ...btnStyle, opacity: canUndo ? 1 : 0.35, cursor: canUndo ? 'pointer' : 'not-allowed' }}>↩ Annuler</button>
+            style={{ padding: '6px 12px', background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 6, cursor: canUndo ? 'pointer' : 'not-allowed', fontSize: 13, color: 'var(--cream-2)', fontFamily: 'var(--sans)', opacity: canUndo ? 1 : 0.35 }}>↩ Annuler</button>
           <button onClick={redo} disabled={!canRedo} title="Rétablir"
-            style={{ ...btnStyle, opacity: canRedo ? 1 : 0.35, cursor: canRedo ? 'pointer' : 'not-allowed' }}>↪ Rétablir</button>
+            style={{ padding: '6px 12px', background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 6, cursor: canRedo ? 'pointer' : 'not-allowed', fontSize: 13, color: 'var(--cream-2)', fontFamily: 'var(--sans)', opacity: canRedo ? 1 : 0.35 }}>↪ Rétablir</button>
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
           <button onClick={exportPNG}
-            style={{ background: '#B8F028', border: 'none', color: '#000', padding: '8px 16px', borderRadius: 6, cursor: 'pointer', fontWeight: 700, fontSize: 13, fontFamily: 'Cabinet Grotesk,sans-serif' }}>
-            ⬇ Exporter PNG
+            style={{ background: 'var(--acid)', border: 'none', color: '#000', padding: '8px 16px', borderRadius: 6, cursor: 'pointer', fontWeight: 700, fontSize: 13, fontFamily: 'var(--mono)' }}>
+            Exporter PNG
           </button>
           <button onClick={handleSave} disabled={saving}
-            style={{ ...btnStyle, opacity: saving ? 0.5 : 1, cursor: saving ? 'not-allowed' : 'pointer', color: '#F0EFE9', borderColor: '#2A2A2A' }}>
+            style={{ padding: '8px 16px', background: 'var(--mint)', border: 'none', borderRadius: 6, cursor: saving ? 'not-allowed' : 'pointer', fontWeight: 700, fontSize: 13, color: 'var(--mint-ink)', fontFamily: 'var(--mono)', opacity: saving ? 0.5 : 1 }}>
             {saving ? 'Sauvegarde…' : 'Sauvegarder →'}
           </button>
         </div>
@@ -676,7 +676,7 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
       <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
 
         {/* ── LEFT SIDEBAR ── */}
-        <div style={{ width: 260, background: '#000', borderRight: '1px solid #1E1E1E', overflowY: 'auto', flexShrink: 0 }}>
+        <div style={{ width: 260, background: 'var(--white)', borderRight: '1px solid var(--line)', overflowY: 'auto', flexShrink: 0 }}>
           <div style={{ padding: '16px' }}>
 
             <SectionLabel>Ajouter</SectionLabel>
@@ -690,7 +690,7 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
                 { label: '🌄  Galerie',   fn: () => setShowUnsplash(v => !v) },
               ].map(({ label, fn }) => (
                 <button key={label} onClick={fn}
-                  style={{ padding: '10px 6px', background: showUnsplash && label.includes('Galerie') ? '#1A1A1A' : '#111', border: '1px solid #1E1E1E', borderRadius: 6, cursor: 'pointer', fontSize: 12, textAlign: 'center', color: '#888', fontFamily: 'Satoshi,sans-serif', transition: 'all 0.15s' }}>
+                  style={{ padding: '10px 6px', background: showUnsplash && label.includes('Galerie') ? 'var(--mint-soft)' : 'var(--sunk)', border: '1px solid var(--line)', borderRadius: 6, cursor: 'pointer', fontSize: 12, textAlign: 'center', color: showUnsplash && label.includes('Galerie') ? 'var(--mint-2)' : 'var(--ink-2)', fontFamily: 'var(--sans)', transition: 'all 0.15s' }}>
                   {label}
                 </button>
               ))}
@@ -703,12 +703,12 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
                   <input value={unsplashQuery} onChange={e => setUnsplashQuery(e.target.value)}
                     onKeyDown={e => e.key === 'Enter' && fetchUnsplash(unsplashQuery)}
                     placeholder="Rechercher des photos…"
-                    style={{ flex: 1, padding: '6px 8px', border: '1px solid #1E1E1E', borderRadius: 6, fontSize: 12, outline: 'none', background: '#111', color: '#F0EFE9', fontFamily: 'Satoshi,sans-serif' }} />
+                    className="input" style={{ flex: 1, fontSize: 12 }} />
                   <button onClick={() => fetchUnsplash(unsplashQuery)}
-                    style={{ padding: '6px 10px', background: '#B8F028', color: '#000', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 13, fontWeight: 700 }}>→</button>
+                    style={{ padding: '6px 10px', background: 'var(--mint)', color: 'var(--mint-ink)', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 13, fontWeight: 700 }}>→</button>
                 </div>
                 {unsplashLoading ? (
-                  <p style={{ fontSize: 12, color: '#444', textAlign: 'center', padding: '8px 0', fontFamily: 'Satoshi,sans-serif' }}>Chargement…</p>
+                  <p style={{ fontSize: 12, color: 'var(--ink-3)', textAlign: 'center', padding: '8px 0', fontFamily: 'var(--sans)' }}>Chargement…</p>
                 ) : (
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 4 }}>
                     {unsplashPhotos.map((src, i) => (
@@ -726,7 +726,7 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 20 }}>
               {TEMPLATES.map(t => (
                 <button key={t.label} onClick={() => applyTemplate(t.overrides as Partial<TextEl>)}
-                  style={{ padding: '10px 12px', background: '#111', border: '1px solid #1E1E1E', borderRadius: 6, cursor: 'pointer', fontSize: 12, textAlign: 'left', color: '#888', fontFamily: 'Satoshi,sans-serif', transition: 'all 0.15s' }}>
+                  style={{ padding: '10px 12px', background: 'var(--sunk)', border: '1px solid var(--line)', borderRadius: 6, cursor: 'pointer', fontSize: 12, textAlign: 'left', color: 'var(--ink-2)', fontFamily: 'var(--sans)', transition: 'all 0.15s' }}>
                   {t.label}
                 </button>
               ))}
@@ -736,7 +736,7 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
             <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
               {FORMATS.map(f => (
                 <button key={f.id} onClick={() => setFormatId(f.id)}
-                  style={{ padding: '8px 12px', borderRadius: 6, border: '1px solid', cursor: 'pointer', fontSize: 12, textAlign: 'left', fontFamily: 'Satoshi,sans-serif', transition: 'all 0.15s', background: formatId === f.id ? '#B8F028' : '#111', borderColor: formatId === f.id ? '#B8F028' : '#1E1E1E', color: formatId === f.id ? '#000' : '#888', fontWeight: formatId === f.id ? 700 : 400 }}>
+                  style={{ padding: '8px 12px', borderRadius: 6, border: '1px solid', cursor: 'pointer', fontSize: 12, textAlign: 'left', fontFamily: 'var(--sans)', transition: 'all 0.15s', background: formatId === f.id ? 'var(--mint)' : 'var(--sunk)', borderColor: formatId === f.id ? 'var(--mint)' : 'var(--line)', color: formatId === f.id ? 'var(--mint-ink)' : 'var(--ink-2)', fontWeight: formatId === f.id ? 700 : 400 }}>
                   {f.label} <span style={{ opacity: 0.6, fontSize: 11 }}>{f.sub}</span>
                 </button>
               ))}
@@ -746,7 +746,7 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
         </div>
 
         {/* ── CANVAS ── */}
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', overflow: 'hidden', background: '#0A0A0A' }}>
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', overflow: 'hidden', background: 'var(--sunk)' }}>
           <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'auto', padding: 32 }}>
             <Stage
               ref={stageRef}
@@ -829,7 +829,7 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
 
         {/* ── RIGHT SIDEBAR ── */}
         {selectedEl && (
-          <div style={{ width: 260, background: '#000', borderLeft: '1px solid #1E1E1E', overflowY: 'auto', flexShrink: 0, padding: '16px' }}>
+          <div style={{ width: 260, background: 'var(--white)', borderLeft: '1px solid var(--line)', overflowY: 'auto', flexShrink: 0, padding: '16px' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
               <SectionLabel>{selectedEl.type === 'text' ? 'Texte' : selectedEl.type === 'image' ? 'Image' : 'Forme'}</SectionLabel>
               <div style={{ display: 'flex', gap: 4 }}>
@@ -847,12 +847,10 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
             )}
 
             <div style={{ display: 'flex', gap: 6, marginTop: 16 }}>
-              <button onClick={() => duplicateEl()}
-                style={{ flex: 1, padding: '10px', background: '#111', border: '1px solid #2A2A2A', borderRadius: 6, cursor: 'pointer', color: '#888', fontWeight: 600, fontSize: 12, fontFamily: 'Satoshi,sans-serif' }}>
+              <button onClick={() => duplicateEl()} className="btn btn-ghost btn-sm" style={{ flex: 1, justifyContent: 'center' }}>
                 Dupliquer
               </button>
-              <button onClick={() => deleteEl(selectedId)}
-                style={{ flex: 1, padding: '10px', background: 'rgba(255,77,59,0.1)', border: '1px solid rgba(255,77,59,0.3)', borderRadius: 6, cursor: 'pointer', color: '#FF4D3B', fontWeight: 600, fontSize: 12, fontFamily: 'Satoshi,sans-serif' }}>
+              <button onClick={() => deleteEl(selectedId)} className="btn btn-ghost btn-sm" style={{ flex: 1, justifyContent: 'center', color: 'var(--warn)', borderColor: 'rgba(200,115,43,.3)' }}>
                 Supprimer
               </button>
             </div>
