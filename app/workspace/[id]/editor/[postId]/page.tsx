@@ -307,6 +307,27 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
   const [loadError, setLoadError] = useState<string | null>(null);
   const [customFonts, setCustomFonts] = useState<{ name: string; url: string }[]>([]);
 
+  // ── UI tool + workspace ───────────────────────────────────────────────────
+  const [tool, setTool] = useState<'media'|'text'|'brand'|'stickers'|'shapes'>('media');
+  const [workspaceName, setWorkspaceName] = useState('');
+  const [postPhotoUrl, setPostPhotoUrl] = useState('');
+  const [workspaceData, setWorkspaceData] = useState<{
+    brand_voice_prompt?: string; company_description?: string;
+    description_style?: string; caption_examples?: string;
+    primary_color?: string; secondary_color?: string;
+  } | null>(null);
+
+  // ── AI caption ───────────────────────────────────────────────────────────
+  const [aiCaption, setAiCaption] = useState('');
+  const [aiTyping, setAiTyping] = useState(false);
+  const [aiTone, setAiTone] = useState<'Chic'|'Punchy'|'Minimal'|'Doux'>('Chic');
+  const aiTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  useEffect(() => () => { if (aiTimerRef.current) clearInterval(aiTimerRef.current); }, []);
+
+  // ── Schedule ─────────────────────────────────────────────────────────────
+  const [schedDay, setSchedDay] = useState<number | null>(null);
+  const SCHED_DAYS = ['Lun','Mar','Mer','Jeu','Ven','Sam','Dim'];
+
   // ── Load fonts ────────────────────────────────────────────────────────────
 
   useEffect(() => {
@@ -337,7 +358,8 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
           supabase.from('workspaces').select('*').eq('id', workspaceId).maybeSingle(),
         ]);
         if (postError) throw postError;
-        if (p?.photo_url) setProxyUrl(`/api/proxy-image?url=${encodeURIComponent(p.photo_url)}`);
+        if (p?.photo_url) { setProxyUrl(`/api/proxy-image?url=${encodeURIComponent(p.photo_url)}`); setPostPhotoUrl(p.photo_url); }
+        if (w) { setWorkspaceName(w.name || ''); setWorkspaceData(w); }
         const sw = stageWRef.current;
         const sh = stageHRef.current;
         const defaultEl: TextEl = {
@@ -617,6 +639,34 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
     { label: 'Badge arrondi', overrides: { hasBg: true, bgColor: '#B8F028', bgOpacity: 100, fill: '#000000', cornerRadius: 40, padding: 18, fontSize: 28, width: 300 } },
   ];
 
+  // ── AI generation ─────────────────────────────────────────────────────────
+
+  const generateAI = async (tone: string) => {
+    if (aiTimerRef.current) clearInterval(aiTimerRef.current);
+    setAiTyping(true); setAiCaption('');
+    try {
+      const res = await fetch('/api/generate-description', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          brief: `Post ${tone.toLowerCase()} pour ${workspaceName}`,
+          photoUrl: postPhotoUrl,
+          brandVoicePrompt: workspaceData?.brand_voice_prompt,
+          companyDescription: workspaceData?.company_description,
+          descriptionStyle: workspaceData?.description_style,
+          captionExamples: workspaceData?.caption_examples,
+        }),
+      });
+      const data = await res.json();
+      const text: string = data?.description || data?.texte_visuel || '';
+      let i = 0;
+      aiTimerRef.current = setInterval(() => {
+        i += 3; setAiCaption(text.slice(0, i));
+        if (i >= text.length) { if (aiTimerRef.current) clearInterval(aiTimerRef.current); setAiTyping(false); }
+      }, 14);
+    } catch { setAiTyping(false); }
+  };
+
   const canUndo = histIdxRef.current > 0;
   const canRedo = histIdxRef.current < historyRef.current.length - 1;
   void histTick;
@@ -648,26 +698,45 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
     <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', fontFamily: 'var(--sans)', background: 'var(--canvas)' }}>
 
       {/* ── TOPBAR ── */}
-      <div style={{ height: 56, background: 'var(--forest)', borderBottom: '1px solid rgba(255,255,255,0.07)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 20px', flexShrink: 0, zIndex: 10 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-          <a href={`/workspace/${workspaceId}`} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 32, height: 32, borderRadius: 8, border: '1px solid rgba(255,255,255,0.15)', color: 'var(--cream-2)', textDecoration: 'none', fontSize: 14 }}>←</a>
-          <span style={{ fontFamily: 'var(--display)', fontWeight: 900, fontSize: 20, letterSpacing: '-0.04em', color: 'var(--cream)' }}>
-            Kl<span style={{ color: 'var(--mint)' }}>ip</span>
+      <div style={{ height: 52, background: '#111111', borderBottom: '1px solid rgba(255,255,255,0.06)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 16px', flexShrink: 0, zIndex: 10 }}>
+        {/* Left: back + client + format */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0 }}>
+          <a href={`/workspace/${workspaceId}`}
+            style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 30, height: 30, borderRadius: 7, border: '1px solid rgba(255,255,255,0.14)', color: 'rgba(255,255,255,0.6)', textDecoration: 'none', fontSize: 14, flexShrink: 0 }}>←</a>
+          <div style={{ width: 26, height: 26, borderRadius: 7, background: 'var(--mint)', display: 'grid', placeItems: 'center', flexShrink: 0 }}>
+            <span style={{ fontFamily: 'var(--display)', fontWeight: 900, fontSize: 11, color: '#06281C', letterSpacing: '-0.02em' }}>
+              {workspaceName ? workspaceName.slice(0,2).toUpperCase() : 'KL'}
+            </span>
+          </div>
+          <span style={{ fontWeight: 700, fontSize: 13.5, color: '#fff', fontFamily: 'var(--sans)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 160 }}>{workspaceName || 'Éditeur'}</span>
+          <span style={{ fontSize: 11, fontWeight: 700, fontFamily: 'var(--mono)', color: 'rgba(255,255,255,0.45)', background: 'rgba(255,255,255,0.08)', padding: '3px 8px', borderRadius: 5, flexShrink: 0 }}>
+            Post · {activeFormat.label}
           </span>
         </div>
+
+        {/* Center: aperçu + dupliquer */}
         <div style={{ display: 'flex', gap: 6 }}>
-          <button onClick={undo} disabled={!canUndo} title="Annuler Ctrl+Z"
-            style={{ padding: '6px 12px', background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 6, cursor: canUndo ? 'pointer' : 'not-allowed', fontSize: 13, color: 'var(--cream-2)', fontFamily: 'var(--sans)', opacity: canUndo ? 1 : 0.35 }}>↩ Annuler</button>
-          <button onClick={redo} disabled={!canRedo} title="Rétablir"
-            style={{ padding: '6px 12px', background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 6, cursor: canRedo ? 'pointer' : 'not-allowed', fontSize: 13, color: 'var(--cream-2)', fontFamily: 'var(--sans)', opacity: canRedo ? 1 : 0.35 }}>↪ Rétablir</button>
+          <button style={{ padding: '6px 14px', background: 'transparent', border: '1px solid rgba(255,255,255,0.2)', borderRadius: 6, cursor: 'pointer', fontSize: 12.5, color: 'rgba(255,255,255,0.75)', fontFamily: 'var(--sans)', fontWeight: 600 }}>
+            Aperçu
+          </button>
+          <button style={{ padding: '6px 14px', background: 'transparent', border: '1px solid rgba(255,255,255,0.2)', borderRadius: 6, cursor: 'pointer', fontSize: 12.5, color: 'rgba(255,255,255,0.75)', fontFamily: 'var(--sans)', fontWeight: 600 }}>
+            Dupliquer
+          </button>
         </div>
-        <div style={{ display: 'flex', gap: 8 }}>
+
+        {/* Right: undo/redo + export + save */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <button onClick={undo} disabled={!canUndo} title="Annuler Ctrl+Z"
+            style={{ width: 30, height: 30, background: 'transparent', border: 'none', borderRadius: 6, cursor: canUndo ? 'pointer' : 'default', fontSize: 15, color: 'rgba(255,255,255,0.4)', opacity: canUndo ? 1 : 0.3, display: 'grid', placeItems: 'center' }}>↩</button>
+          <button onClick={redo} disabled={!canRedo} title="Rétablir"
+            style={{ width: 30, height: 30, background: 'transparent', border: 'none', borderRadius: 6, cursor: canRedo ? 'pointer' : 'default', fontSize: 15, color: 'rgba(255,255,255,0.4)', opacity: canRedo ? 1 : 0.3, display: 'grid', placeItems: 'center' }}>↪</button>
+          <div style={{ width: 1, height: 20, background: 'rgba(255,255,255,0.1)', margin: '0 4px' }} />
           <button onClick={exportPNG}
-            style={{ background: 'var(--acid)', border: 'none', color: '#000', padding: '8px 16px', borderRadius: 6, cursor: 'pointer', fontWeight: 700, fontSize: 13, fontFamily: 'var(--mono)' }}>
+            style={{ padding: '6px 14px', background: 'transparent', border: '1px solid rgba(47,215,155,0.5)', borderRadius: 6, cursor: 'pointer', fontWeight: 700, fontSize: 12.5, fontFamily: 'var(--sans)', color: 'var(--mint)' }}>
             Exporter PNG
           </button>
           <button onClick={handleSave} disabled={saving}
-            style={{ padding: '8px 16px', background: 'var(--mint)', border: 'none', borderRadius: 6, cursor: saving ? 'not-allowed' : 'pointer', fontWeight: 700, fontSize: 13, color: 'var(--mint-ink)', fontFamily: 'var(--mono)', opacity: saving ? 0.5 : 1 }}>
+            style={{ padding: '6px 18px', background: 'var(--mint)', border: 'none', borderRadius: 6, cursor: saving ? 'not-allowed' : 'pointer', fontWeight: 700, fontSize: 12.5, color: '#06281C', fontFamily: 'var(--sans)', opacity: saving ? 0.6 : 1 }}>
             {saving ? 'Sauvegarde…' : 'Sauvegarder →'}
           </button>
         </div>
@@ -675,78 +744,51 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
 
       <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
 
-        {/* ── LEFT SIDEBAR ── */}
-        <div style={{ width: 260, background: 'var(--white)', borderRight: '1px solid var(--line)', overflowY: 'auto', flexShrink: 0 }}>
-          <div style={{ padding: '16px' }}>
+        {/* ── LEFT SIDEBAR — tool rail ── */}
+        <div style={{ width: 68, background: '#fff', borderRight: '1px solid var(--line)', display: 'flex', flexDirection: 'column', alignItems: 'center', paddingTop: 10, gap: 2, flexShrink: 0 }}>
+          {([
+            { id: 'media',    label: 'Média',    icon: (
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+            )},
+            { id: 'text',     label: 'Texte',    icon: (
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><polyline points="4 7 4 4 20 4 20 7"/><line x1="9" y1="20" x2="15" y2="20"/><line x1="12" y1="4" x2="12" y2="20"/></svg>
+            )},
+            { id: 'brand',    label: 'Charte',   icon: (
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="13.5" cy="6.5" r="2.5"/><circle cx="19" cy="17" r="2.5"/><circle cx="6.5" cy="17" r="2.5"/><path d="M13.5 9L6.5 14.5M13.5 9L19 14.5"/></svg>
+            )},
+            { id: 'stickers', label: 'Stickers', icon: (
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+            )},
+            { id: 'shapes',   label: 'Formes',   icon: (
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="8" height="8" rx="1"/><circle cx="17" cy="7" r="4"/><polygon points="12 21 3 15 21 15 12 21"/></svg>
+            )},
+          ] as { id: 'media'|'text'|'brand'|'stickers'|'shapes'; label: string; icon: React.ReactNode }[]).map(({ id, label, icon }) => (
+            <button key={id} onClick={() => setTool(id)} title={label}
+              style={{ width: 50, padding: '9px 4px', borderRadius: 10, border: 'none', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, cursor: 'pointer', transition: 'all .14s',
+                background: tool === id ? 'var(--mint-soft)' : 'transparent',
+                color: tool === id ? 'var(--mint-2)' : 'var(--ink-3)' }}>
+              {icon}
+              <span style={{ fontFamily: 'var(--mono)', fontWeight: 800, fontSize: 8, letterSpacing: '.06em', textTransform: 'uppercase', lineHeight: 1 }}>{label}</span>
+            </button>
+          ))}
 
-            <SectionLabel>Ajouter</SectionLabel>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, marginBottom: 20 }}>
-              {[
-                { label: 'T  Texte',     fn: addText },
-                { label: '▭  Rectangle', fn: addRect },
-                { label: '⬭  Cercle',    fn: addCircle },
-                { label: '⭐  Étoile',    fn: addStar },
-                { label: '📷  Image',     fn: () => fileInputRef.current?.click() },
-                { label: '🌄  Galerie',   fn: () => setShowUnsplash(v => !v) },
-              ].map(({ label, fn }) => (
-                <button key={label} onClick={fn}
-                  style={{ padding: '10px 6px', background: showUnsplash && label.includes('Galerie') ? 'var(--mint-soft)' : 'var(--sunk)', border: '1px solid var(--line)', borderRadius: 6, cursor: 'pointer', fontSize: 12, textAlign: 'center', color: showUnsplash && label.includes('Galerie') ? 'var(--mint-2)' : 'var(--ink-2)', fontFamily: 'var(--sans)', transition: 'all 0.15s' }}>
-                  {label}
-                </button>
-              ))}
-            </div>
-
-            {/* Unsplash panel */}
-            {showUnsplash && (
-              <div style={{ marginBottom: 20 }}>
-                <div style={{ display: 'flex', gap: 4, marginBottom: 8 }}>
-                  <input value={unsplashQuery} onChange={e => setUnsplashQuery(e.target.value)}
-                    onKeyDown={e => e.key === 'Enter' && fetchUnsplash(unsplashQuery)}
-                    placeholder="Rechercher des photos…"
-                    className="input" style={{ flex: 1, fontSize: 12 }} />
-                  <button onClick={() => fetchUnsplash(unsplashQuery)}
-                    style={{ padding: '6px 10px', background: 'var(--mint)', color: 'var(--mint-ink)', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 13, fontWeight: 700 }}>→</button>
-                </div>
-                {unsplashLoading ? (
-                  <p style={{ fontSize: 12, color: 'var(--ink-3)', textAlign: 'center', padding: '8px 0', fontFamily: 'var(--sans)' }}>Chargement…</p>
-                ) : (
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 4 }}>
-                    {unsplashPhotos.map((src, i) => (
-                      <UnsplashThumb key={i} src={src}
-                        onAdd={() => addImageEl(`/api/proxy-image?url=${encodeURIComponent(src)}`)}
-                        onBg={() => { setProxyUrl(`/api/proxy-image?url=${encodeURIComponent(src)}`); setShowUnsplash(false); }}
-                      />
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
-
-            <SectionLabel>Templates</SectionLabel>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 20 }}>
-              {TEMPLATES.map(t => (
-                <button key={t.label} onClick={() => applyTemplate(t.overrides as Partial<TextEl>)}
-                  style={{ padding: '10px 12px', background: 'var(--sunk)', border: '1px solid var(--line)', borderRadius: 6, cursor: 'pointer', fontSize: 12, textAlign: 'left', color: 'var(--ink-2)', fontFamily: 'var(--sans)', transition: 'all 0.15s' }}>
-                  {t.label}
-                </button>
-              ))}
-            </div>
-
-            <SectionLabel>Format</SectionLabel>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-              {FORMATS.map(f => (
-                <button key={f.id} onClick={() => setFormatId(f.id)}
-                  style={{ padding: '8px 12px', borderRadius: 6, border: '1px solid', cursor: 'pointer', fontSize: 12, textAlign: 'left', fontFamily: 'var(--sans)', transition: 'all 0.15s', background: formatId === f.id ? 'var(--mint)' : 'var(--sunk)', borderColor: formatId === f.id ? 'var(--mint)' : 'var(--line)', color: formatId === f.id ? 'var(--mint-ink)' : 'var(--ink-2)', fontWeight: formatId === f.id ? 700 : 400 }}>
-                  {f.label} <span style={{ opacity: 0.6, fontSize: 11 }}>{f.sub}</span>
-                </button>
-              ))}
-            </div>
-
+          {/* Format selector at bottom */}
+          <div style={{ marginTop: 'auto', paddingBottom: 12, width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3 }}>
+            <span style={{ fontFamily: 'var(--mono)', fontSize: 7.5, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '.06em', color: 'var(--ink-3)', marginBottom: 2 }}>Format</span>
+            {FORMATS.map(f => (
+              <button key={f.id} onClick={() => setFormatId(f.id)} title={f.label}
+                style={{ width: 34, height: 34, borderRadius: 7, border: '1.5px solid', cursor: 'pointer', fontSize: 8, fontFamily: 'var(--mono)', fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0, transition: 'all .12s',
+                  background: formatId === f.id ? 'var(--mint)' : 'var(--sunk)',
+                  borderColor: formatId === f.id ? 'var(--mint)' : 'var(--line)',
+                  color: formatId === f.id ? 'var(--mint-ink)' : 'var(--ink-3)' }}>
+                {f.id === 'ig-portrait' ? '4:5' : f.id === 'ig-square' ? '1:1' : f.id === 'ig-story' ? '9:16' : 'FB'}
+              </button>
+            ))}
           </div>
         </div>
 
         {/* ── CANVAS ── */}
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', overflow: 'hidden', background: 'var(--sunk)' }}>
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', overflow: 'hidden', background: '#F5F0E8' }}>
           <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'auto', padding: 32 }}>
             <Stage
               ref={stageRef}
@@ -827,35 +869,199 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
           </div>
         </div>
 
-        {/* ── RIGHT SIDEBAR ── */}
-        {selectedEl && (
-          <div style={{ width: 260, background: 'var(--white)', borderLeft: '1px solid var(--line)', overflowY: 'auto', flexShrink: 0, padding: '16px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
-              <SectionLabel>{selectedEl.type === 'text' ? 'Texte' : selectedEl.type === 'image' ? 'Image' : 'Forme'}</SectionLabel>
-              <div style={{ display: 'flex', gap: 4 }}>
-                <button onClick={bringForward} title="Avancer" style={smallBtnStyle}>↑</button>
-                <button onClick={sendBackward} title="Reculer" style={smallBtnStyle}>↓</button>
+        {/* ── RIGHT PANEL (always visible) ── */}
+        <div style={{ width: 300, background: '#fff', borderLeft: '1px solid var(--line)', overflowY: 'auto', flexShrink: 0, display: 'flex', flexDirection: 'column' }}>
+
+          {/* ── Element properties (when selected) ── */}
+          {selectedEl && (
+            <div style={{ padding: '14px 16px', borderBottom: '1px solid var(--line)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+                <span style={{ fontSize: 10, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '0.12em', fontFamily: 'var(--mono)', fontWeight: 800 }}>
+                  {selectedEl.type === 'text' ? 'Texte' : selectedEl.type === 'image' ? 'Image' : 'Forme'}
+                </span>
+                <div style={{ display: 'flex', gap: 4 }}>
+                  <button onClick={bringForward} title="Avancer" style={smallBtnStyle}>↑</button>
+                  <button onClick={sendBackward} title="Reculer" style={smallBtnStyle}>↓</button>
+                </div>
+              </div>
+              {selectedEl.type === 'text' && <TextProperties el={selectedEl} onChange={u => updateEl(selectedEl.id, u)} customFonts={customFonts} onFontUpload={handleFontUpload} />}
+              {(selectedEl.type === 'rect' || selectedEl.type === 'circle' || selectedEl.type === 'star') && (
+                <ShapeProperties el={selectedEl} onChange={u => updateEl(selectedEl.id, u)} />
+              )}
+              {selectedEl.type === 'image' && (
+                <ImageProperties el={selectedEl} onChange={u => updateEl(selectedEl.id, u)} onSetBg={() => setProxyUrl(selectedEl.src)} />
+              )}
+              <div style={{ display: 'flex', gap: 6, marginTop: 14 }}>
+                <button onClick={() => duplicateEl()} className="btn btn-ghost btn-sm" style={{ flex: 1, justifyContent: 'center' }}>Dupliquer</button>
+                <button onClick={() => deleteEl(selectedId)} className="btn btn-ghost btn-sm" style={{ flex: 1, justifyContent: 'center', color: 'var(--warn)', borderColor: 'rgba(200,115,43,.3)' }}>Supprimer</button>
+              </div>
+            </div>
+          )}
+
+          {/* ── Tool panel content ── */}
+          {tool === 'media' && !selectedEl && (
+            <div style={{ padding: '14px 16px', borderBottom: '1px solid var(--line)' }}>
+              <p style={{ fontSize: 10, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '0.12em', fontFamily: 'var(--mono)', fontWeight: 800, marginBottom: 10 }}>Arrière-plan</p>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 8, marginBottom: 12 }}>
+                {['linear-gradient(150deg,#2b8d57,#0c2a1d)','linear-gradient(150deg,#2FD79B,#06281C)','linear-gradient(150deg,#F5F0E8,#c9c4b2)','linear-gradient(150deg,#111111,#333)','linear-gradient(150deg,#0038FF,#001a80)','linear-gradient(150deg,#FF6B6B,#c0392b)'].map((g, i) => (
+                  <button key={i} onClick={() => setProxyUrl('')}
+                    style={{ aspectRatio: '4/5', borderRadius: 10, background: g, border: proxyUrl === '' ? '2.5px solid var(--mint-2)' : '1.5px solid rgba(0,0,0,0.1)', cursor: 'pointer', transition: 'all .12s' }} />
+                ))}
+              </div>
+              <label style={{ display: 'flex', alignItems: 'center', gap: 10, border: '1.5px dashed var(--line)', borderRadius: 10, padding: '12px 14px', cursor: 'pointer', color: 'var(--ink-3)', fontSize: 13, fontWeight: 600 }}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                Importer une photo
+                <input type="file" accept="image/*" style={{ display: 'none' }} onChange={handleFileUpload} />
+              </label>
+              {/* Unsplash */}
+              <div style={{ marginTop: 12 }}>
+                <div style={{ display: 'flex', gap: 4 }}>
+                  <input value={unsplashQuery} onChange={e => setUnsplashQuery(e.target.value)}
+                    onKeyDown={e => e.key === 'Enter' && fetchUnsplash(unsplashQuery)}
+                    placeholder="Chercher une photo…"
+                    style={{ flex: 1, padding: '7px 10px', border: '1px solid var(--line)', borderRadius: 7, fontSize: 12, outline: 'none', fontFamily: 'var(--sans)', background: 'var(--sunk)', color: 'var(--ink)' }} />
+                  <button onClick={() => fetchUnsplash(unsplashQuery)}
+                    style={{ padding: '7px 10px', background: 'var(--mint)', color: 'var(--mint-ink)', border: 'none', borderRadius: 7, cursor: 'pointer', fontSize: 13, fontWeight: 700 }}>→</button>
+                </div>
+                {unsplashLoading ? (
+                  <p style={{ fontSize: 12, color: 'var(--ink-3)', textAlign: 'center', padding: '8px 0' }}>Chargement…</p>
+                ) : (
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 4, marginTop: 8 }}>
+                    {unsplashPhotos.slice(0, 9).map((src, i) => (
+                      <UnsplashThumb key={i} src={src}
+                        onAdd={() => addImageEl(`/api/proxy-image?url=${encodeURIComponent(src)}`)}
+                        onBg={() => { setProxyUrl(`/api/proxy-image?url=${encodeURIComponent(src)}`); }}
+                      />
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {tool === 'text' && !selectedEl && (
+            <div style={{ padding: '14px 16px', borderBottom: '1px solid var(--line)' }}>
+              <p style={{ fontSize: 10, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '0.12em', fontFamily: 'var(--mono)', fontWeight: 800, marginBottom: 10 }}>Ajouter</p>
+              <button onClick={addText}
+                style={{ width: '100%', padding: '10px 12px', background: 'var(--sunk)', border: '1px solid var(--line)', borderRadius: 8, cursor: 'pointer', fontSize: 13, textAlign: 'left', color: 'var(--ink-2)', fontFamily: 'var(--sans)', marginBottom: 8 }}>
+                T  Nouveau texte
+              </button>
+              <p style={{ fontSize: 10, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '0.12em', fontFamily: 'var(--mono)', fontWeight: 800, margin: '12px 0 8px' }}>Templates</p>
+              {TEMPLATES.map(t => (
+                <button key={t.label} onClick={() => applyTemplate(t.overrides as Partial<TextEl>)}
+                  style={{ width: '100%', padding: '9px 12px', background: 'var(--sunk)', border: '1px solid var(--line)', borderRadius: 8, cursor: 'pointer', fontSize: 12, textAlign: 'left', color: 'var(--ink-2)', fontFamily: 'var(--sans)', marginBottom: 6 }}>
+                  {t.label}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {tool === 'shapes' && !selectedEl && (
+            <div style={{ padding: '14px 16px', borderBottom: '1px solid var(--line)' }}>
+              <p style={{ fontSize: 10, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '0.12em', fontFamily: 'var(--mono)', fontWeight: 800, marginBottom: 10 }}>Formes</p>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
+                {[{ label: '▭  Rectangle', fn: addRect },{ label: '⬭  Cercle', fn: addCircle },{ label: '⭐  Étoile', fn: addStar }].map(({ label, fn }) => (
+                  <button key={label} onClick={fn}
+                    style={{ padding: '10px 6px', background: 'var(--sunk)', border: '1px solid var(--line)', borderRadius: 8, cursor: 'pointer', fontSize: 12, textAlign: 'center', color: 'var(--ink-2)', fontFamily: 'var(--sans)' }}>
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {tool === 'stickers' && !selectedEl && (
+            <div style={{ padding: '14px 16px', borderBottom: '1px solid var(--line)' }}>
+              <p style={{ fontSize: 10, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '0.12em', fontFamily: 'var(--mono)', fontWeight: 800, marginBottom: 10 }}>Stickers</p>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 6 }}>
+                {['↗','✦','★','●','→','NEW','%','♥','✓','🔥','⚡','♻'].map((s, i) => (
+                  <button key={i}
+                    style={{ aspectRatio: '1', display: 'grid', placeItems: 'center', background: 'var(--sunk)', border: '1px solid var(--line)', borderRadius: 8, cursor: 'pointer', fontSize: 18 }}>
+                    {s}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {tool === 'brand' && !selectedEl && (
+            <div style={{ padding: '14px 16px', borderBottom: '1px solid var(--line)' }}>
+              <p style={{ fontSize: 10, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '0.12em', fontFamily: 'var(--mono)', fontWeight: 800, marginBottom: 10 }}>Charte · {workspaceName}</p>
+              <div style={{ display: 'flex', gap: 6, marginBottom: 12 }}>
+                {[workspaceData?.primary_color || '#0038FF', workspaceData?.secondary_color || '#FFFFFF', '#111111', '#F5F0E8'].map((col, i) => (
+                  <div key={i} style={{ flex: 1 }}>
+                    <div style={{ height: 40, borderRadius: 8, background: col, boxShadow: 'inset 0 0 0 1px rgba(0,0,0,.1)' }} />
+                    <div style={{ fontFamily: 'var(--mono)', fontSize: 8.5, color: 'var(--ink-3)', marginTop: 4, textAlign: 'center', textTransform: 'uppercase' }}>{col}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* ── Scrollable bottom: AI + Planifier ── */}
+          <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
+
+            {/* DESCRIPTION IA */}
+            <div style={{ padding: '14px 16px', borderBottom: '1px solid var(--line)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+                <span style={{ width: 24, height: 24, borderRadius: 7, background: 'var(--mint)', color: 'var(--mint-ink)', display: 'grid', placeItems: 'center', flexShrink: 0 }}>
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z"/></svg>
+                </span>
+                <span style={{ fontWeight: 700, fontSize: 13, fontFamily: 'var(--sans)' }}>Description IA</span>
+                <span style={{ marginLeft: 'auto', fontSize: 11, fontWeight: 700, color: 'var(--mint-2)', fontFamily: 'var(--mono)', background: 'var(--mint-soft)', padding: '2px 8px', borderRadius: 5, maxWidth: 100, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{workspaceName || '—'}</span>
+              </div>
+              <div style={{ display: 'flex', gap: 5, marginBottom: 10, flexWrap: 'wrap' }}>
+                {(['Chic','Punchy','Minimal','Doux'] as const).map(t => (
+                  <button key={t} onClick={() => setAiTone(t)}
+                    style={{ padding: '5px 10px', borderRadius: 20, fontWeight: 700, fontSize: 11.5, fontFamily: 'var(--sans)', cursor: 'pointer', transition: 'all .14s',
+                      background: aiTone === t ? 'var(--ink)' : '#fff',
+                      color: aiTone === t ? 'var(--paper)' : 'var(--ink-2)',
+                      border: aiTone === t ? 'none' : '1px solid var(--line)' }}>
+                    {t}
+                  </button>
+                ))}
+              </div>
+              <button onClick={() => generateAI(aiTone)}
+                style={{ width: '100%', padding: '9px', background: 'var(--mint)', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 700, fontSize: 13, color: 'var(--mint-ink)', fontFamily: 'var(--sans)', marginBottom: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7 }}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z"/></svg>
+                {aiCaption ? 'Régénérer' : 'Générer la description'}
+              </button>
+              <div style={{ minHeight: 72, padding: '10px 12px', background: 'var(--sunk)', border: '1px solid var(--line)', borderRadius: 8, fontSize: 12.5, lineHeight: 1.55, whiteSpace: 'pre-line', color: aiCaption ? 'var(--ink)' : 'var(--ink-3)', fontFamily: 'var(--sans)' }}>
+                {aiCaption
+                  ? <>{aiCaption}<span style={{ opacity: aiTyping ? 1 : 0, color: 'var(--mint-2)' }}>▍</span></>
+                  : 'La description générée apparaîtra ici, calée sur la voix de la marque.'}
               </div>
             </div>
 
-            {selectedEl.type === 'text' && <TextProperties el={selectedEl} onChange={u => updateEl(selectedEl.id, u)} customFonts={customFonts} onFontUpload={handleFontUpload} />}
-            {(selectedEl.type === 'rect' || selectedEl.type === 'circle' || selectedEl.type === 'star') && (
-              <ShapeProperties el={selectedEl} onChange={u => updateEl(selectedEl.id, u)} />
-            )}
-            {selectedEl.type === 'image' && (
-              <ImageProperties el={selectedEl} onChange={u => updateEl(selectedEl.id, u)} onSetBg={() => setProxyUrl(selectedEl.src)} />
-            )}
-
-            <div style={{ display: 'flex', gap: 6, marginTop: 16 }}>
-              <button onClick={() => duplicateEl()} className="btn btn-ghost btn-sm" style={{ flex: 1, justifyContent: 'center' }}>
-                Dupliquer
-              </button>
-              <button onClick={() => deleteEl(selectedId)} className="btn btn-ghost btn-sm" style={{ flex: 1, justifyContent: 'center', color: 'var(--warn)', borderColor: 'rgba(200,115,43,.3)' }}>
-                Supprimer
-              </button>
+            {/* PLANIFIER */}
+            <div style={{ padding: '14px 16px' }}>
+              <p style={{ fontSize: 10, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '0.12em', fontFamily: 'var(--mono)', fontWeight: 800, marginBottom: 10 }}>Planifier</p>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7,1fr)', gap: 3 }}>
+                {SCHED_DAYS.map((d, i) => {
+                  const sel = schedDay === i;
+                  const best = i === 2 || i === 4;
+                  return (
+                    <button key={d} onClick={() => setSchedDay(sel ? null : i)}
+                      style={{ padding: '6px 2px', borderRadius: 8, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3, position: 'relative', cursor: 'pointer', transition: 'all .12s',
+                        background: sel ? 'var(--mint)' : '#fff',
+                        color: sel ? 'var(--mint-ink)' : 'var(--ink)',
+                        border: sel ? 'none' : '1px solid var(--line)' }}>
+                      <span style={{ fontFamily: 'var(--mono)', fontWeight: 800, fontSize: 8.5 }}>{d}</span>
+                      <span style={{ fontSize: 13, fontWeight: 700 }}>{9 + i}</span>
+                      {best && !sel && <span style={{ position: 'absolute', top: 4, right: 4, width: 5, height: 5, borderRadius: '50%', background: 'var(--mint-2)' }} />}
+                    </button>
+                  );
+                })}
+              </div>
+              {schedDay !== null && (
+                <p style={{ fontSize: 11, color: 'var(--ink-2)', fontWeight: 600, marginTop: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <span style={{ color: 'var(--mint-2)' }}>●</span> {SCHED_DAYS[schedDay]} {9 + schedDay} · 18:30 — fort engagement
+                </p>
+              )}
             </div>
+
           </div>
-        )}
+        </div>
       </div>
 
       <input ref={fileInputRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={handleFileUpload} />
