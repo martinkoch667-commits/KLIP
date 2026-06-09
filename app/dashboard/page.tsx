@@ -271,6 +271,7 @@ function ClientSwitcher({ active, workspaces, onChange }: {
       </button>
       {open && (
         <div className="card pop-in" style={{ position: 'absolute', top: 48, left: 0, width: 260, padding: 6, zIndex: 60, boxShadow: 'var(--shadow-pop)' }}>
+          {console.log('[ClientSwitcher] dropdown open, workspaces prop:', workspaces) as unknown as null}
           <button
             onClick={() => { onChange('all'); setOpen(false); }}
             style={{ display: 'flex', alignItems: 'center', gap: 10, width: '100%', padding: '8px 10px', borderRadius: 9, textAlign: 'left', background: active === 'all' ? 'var(--mint-soft)' : 'transparent', border: 'none', cursor: 'pointer' }}
@@ -325,11 +326,13 @@ export default function Dashboard() {
         setUserName(session.user.email?.split('@')[0] ?? 'vous');
 
         // Load workspaces first — critical for ClientSwitcher
-        const { data: ws } = await supabase
+        const { data: ws, error: wsErr } = await supabase
           .from('workspaces')
           .select('id, name, instagram_account_id, instagram_username')
           .order('created_at', { ascending: true });
+        console.log('[Dashboard] workspaces query result:', { ws, wsErr });
         setWorkspaces(ws ?? []);
+        console.log('[Dashboard] setWorkspaces called with:', ws ?? []);
 
         // Load posts + activity in parallel (activity_log may not exist yet)
         const [{ data: ps }, { data: acts }] = await Promise.all([
@@ -339,7 +342,7 @@ export default function Dashboard() {
         setPosts(ps ?? []);
         setActivities(acts ?? []);
       } catch (err) {
-        console.error('Dashboard load error:', err);
+        console.error('[Dashboard] load error (catch):', err);
       } finally {
         setLoading(false);
       }
