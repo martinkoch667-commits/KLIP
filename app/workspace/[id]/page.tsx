@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
 import Sidebar from "@/components/Sidebar";
+import VoiceButton from "@/components/VoiceButton";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -422,6 +423,7 @@ export default function WorkspacePage() {
                         <input type="checkbox" checked={includeStyle} onChange={e => setIncludeStyle(e.target.checked)} style={{ accentColor: 'var(--mint)' }} />
                         Style de la marque
                       </label>
+                      <VoiceButton value={imagePrompt} onChange={setImagePrompt} />
                       <label className="btn btn-ghost btn-sm" style={{ cursor: 'pointer' }}>
                         Image référence
                         <input type="file" accept="image/*" style={{ display: 'none' }}
@@ -482,6 +484,9 @@ export default function WorkspacePage() {
                     className="input"
                     style={{ minHeight: 90, resize: 'vertical', lineHeight: 1.6 }}
                   />
+                  <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 6 }}>
+                    <VoiceButton value={globalBrief} onChange={setGlobalBrief} />
+                  </div>
                 </div>
 
                 {/* Générer tout */}
@@ -546,6 +551,9 @@ export default function WorkspacePage() {
                                   className="input"
                                   style={{ resize: 'none' }}
                                 />
+                                <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                                  <VoiceButton value={post.brief} onChange={(v) => updateBrief(post.localId, v)} />
+                                </div>
                                 <button
                                   onClick={() => generateOne(post)}
                                   disabled={!post.brief.trim() || post.status === "generating"}

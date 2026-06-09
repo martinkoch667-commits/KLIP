@@ -2,19 +2,25 @@ import { NextRequest, NextResponse } from 'next/server';
 
 export async function POST(request: NextRequest) {
   try {
-    const { prompt } = await request.json();
+    const { prompt, referenceImage } = await request.json();
+
+    // Build parts: optional reference image + text prompt
+    type Part = { text: string } | { inlineData: { mimeType: string; data: string } };
+    const parts: Part[] = [];
+    if (typeof referenceImage === 'string' && referenceImage.startsWith('data:')) {
+      const [header, data] = referenceImage.split(',');
+      const mimeType = header.replace('data:', '').replace(';base64', '');
+      parts.push({ inlineData: { mimeType, data } });
+    }
+    parts.push({ text: prompt });
 
     const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp-image-generation:generateContent?key=${process.env.GEMINI_API_KEY}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image:generateContent?key=${process.env.GEMINI_API_KEY}`,
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          contents: [{
-            parts: [
-              { text: prompt }
-            ]
-          }],
+          contents: [{ parts }],
           generationConfig: {
             responseModalities: ['TEXT', 'IMAGE']
           }

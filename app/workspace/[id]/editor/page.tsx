@@ -4,6 +4,7 @@ import { useState, useRef } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import Sidebar from "@/components/Sidebar";
+import VoiceButton from "@/components/VoiceButton";
 
 const MOCK_CLIENTS: Record<string, { name: string; initials: string }> = {
   leclerc: { name: "Leclerc Geispolsheim", initials: "LG" },
@@ -225,6 +226,9 @@ export default function EditorPage() {
                   rows={5}
                   className="w-full bg-[#F5F5F5] border border-[#E0E0E0] rounded px-3.5 py-3 text-sm font-inter text-black placeholder-[#BBB] focus:border-black outline-none transition-colors resize-none"
                 />
+                <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 6 }}>
+                  <VoiceButton value={description} onChange={setDescription} />
+                </div>
 
                 {description && (
                   <div className="flex items-center justify-between mt-2">
