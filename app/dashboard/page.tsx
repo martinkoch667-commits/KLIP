@@ -319,20 +319,30 @@ export default function Dashboard() {
 
   useEffect(() => {
     const load = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) { router.push('/login'); return; }
-      setUserName(session.user.email?.split('@')[0] ?? 'vous');
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) { router.push('/login'); return; }
+        setUserName(session.user.email?.split('@')[0] ?? 'vous');
 
-      const [{ data: ws }, { data: ps }, { data: acts }] = await Promise.all([
-        supabase.from('workspaces').select('id, name, instagram_account_id, instagram_username').order('created_at', { ascending: true }),
-        supabase.from('posts').select('id, workspace_id, status, photo_url, exported_image_url, texte_visuel, scheduled_at, created_at').order('created_at', { ascending: false }),
-        supabase.from('activity_log').select('id, workspace_id, action_type, post_title, created_at').order('created_at', { ascending: false }).limit(20),
-      ]);
+        // Load workspaces first — critical for ClientSwitcher
+        const { data: ws } = await supabase
+          .from('workspaces')
+          .select('id, name, instagram_account_id, instagram_username')
+          .order('created_at', { ascending: true });
+        setWorkspaces(ws ?? []);
 
-      setWorkspaces(ws ?? []);
-      setPosts(ps ?? []);
-      setActivities(acts ?? []);
-      setLoading(false);
+        // Load posts + activity in parallel (activity_log may not exist yet)
+        const [{ data: ps }, { data: acts }] = await Promise.all([
+          supabase.from('posts').select('id, workspace_id, status, photo_url, exported_image_url, texte_visuel, scheduled_at, created_at').order('created_at', { ascending: false }),
+          supabase.from('activity_log').select('id, workspace_id, action_type, post_title, created_at').order('created_at', { ascending: false }).limit(20),
+        ]);
+        setPosts(ps ?? []);
+        setActivities(acts ?? []);
+      } catch (err) {
+        console.error('Dashboard load error:', err);
+      } finally {
+        setLoading(false);
+      }
     };
     load();
   }, [supabase, router]);
