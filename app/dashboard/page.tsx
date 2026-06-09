@@ -138,38 +138,173 @@ function PostCard({ post, workspaceId, onClick }: { post: PostRow; workspaceId: 
   );
 }
 
-// ─── InstagramGrid ──────────────────────────────────────────────────────────
+// ─── InstagramProfile ────────────────────────────────────────────────────────
 
-function InstagramGrid({ posts, workspaceId }: { posts: PostRow[]; workspaceId: string }) {
-  const grid = posts.slice(0, 9);
-  return (
-    <div className="card" style={{ padding: 16 }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
-        <h2 className="h-title" style={{ fontSize: 15 }}>Fil Instagram</h2>
-        <Link href={`/workspace/${workspaceId}/planning`} className="btn btn-sm btn-ghost" style={{ fontSize: 12 }}>
-          Planifier <IconChevR />
+function IconTabGrid() {
+  return <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>;
+}
+function IconTabReels() {
+  return <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>;
+}
+function IconTabSaved() {
+  return <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>;
+}
+
+interface IGProfile { username: string; media_count?: number; biography?: string; followers_count?: number; follows_count?: number; }
+interface IGMedia { id: string; media_url?: string; thumbnail_url?: string; }
+
+function fmtCount(n?: number) {
+  if (n == null) return '—';
+  if (n >= 1000000) return `${(n / 1000000).toFixed(1)}M`;
+  if (n >= 1000) return `${(n / 1000).toFixed(1)}k`;
+  return String(n);
+}
+
+function InstagramProfile({ workspaceId }: { workspaceId: string }) {
+  const supabase = createClientComponentClient();
+  const [wsInfo, setWsInfo] = useState<{ name: string; instagram_access_token: string | null; instagram_username: string | null } | null>(null);
+  const [profile, setProfile] = useState<IGProfile | null>(null);
+  const [media, setMedia] = useState<IGMedia[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [tab, setTab] = useState(0);
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    setProfile(null);
+    setMedia([]);
+
+    async function load() {
+      const { data: ws } = await supabase
+        .from('workspaces')
+        .select('name, instagram_access_token, instagram_username')
+        .eq('id', workspaceId)
+        .single();
+
+      if (cancelled) return;
+      setWsInfo(ws ?? null);
+
+      const token = ws?.instagram_access_token;
+      if (!token) { setLoading(false); return; }
+
+      try {
+        const [pRes, mRes] = await Promise.all([
+          fetch(`https://graph.instagram.com/me?fields=username,media_count,biography,followers_count,follows_count&access_token=${token}`),
+          fetch(`https://graph.instagram.com/me/media?fields=id,media_url,thumbnail_url,timestamp&limit=9&access_token=${token}`),
+        ]);
+        const [pData, mData] = await Promise.all([pRes.json(), mRes.json()]);
+        if (cancelled) return;
+        if (!pData.error) setProfile(pData);
+        if (!mData.error) setMedia(mData.data ?? []);
+      } catch { /* token expired or network — show what we have */ }
+
+      if (!cancelled) setLoading(false);
+    }
+
+    load();
+    return () => { cancelled = true; };
+  }, [workspaceId, supabase]);
+
+  if (loading) {
+    return (
+      <div className="card" style={{ padding: 20, display: 'grid', placeItems: 'center', minHeight: 180 }}>
+        <span style={{ color: 'var(--ink-3)', fontSize: 13 }}>Chargement…</span>
+      </div>
+    );
+  }
+
+  if (!wsInfo?.instagram_access_token) {
+    return (
+      <div className="card" style={{ padding: 24, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, textAlign: 'center' }}>
+        <span style={{ width: 44, height: 44, borderRadius: '50%', background: 'var(--sunk)', display: 'grid', placeItems: 'center', color: 'var(--ink-3)' }}>
+          <IconInstagram />
+        </span>
+        <p style={{ fontSize: 13, fontWeight: 700, color: 'var(--ink)', margin: 0 }}>Instagram non connecté</p>
+        <p style={{ fontSize: 12, color: 'var(--ink-3)', margin: 0 }}>Connectez un compte pour voir l'aperçu</p>
+        <Link href={`/workspace/${workspaceId}/parametres`} className="btn btn-dark btn-sm" style={{ marginTop: 4 }}>
+          Connecter Instagram
         </Link>
       </div>
-      {grid.length === 0 ? (
-        <div style={{ textAlign: 'center', padding: '24px 0', color: 'var(--ink-3)', fontSize: 13 }}>Aucun post encore</div>
-      ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 4 }}>
-          {grid.map(p => {
-            const imgUrl = p.exported_image_url || p.photo_url;
-            return (
-              <Link key={p.id} href={`/workspace/${workspaceId}/editor/${p.id}`} style={{ aspectRatio: '1', display: 'block', borderRadius: 6, overflow: 'hidden', background: 'var(--sunk)', textDecoration: 'none' }}>
-                {imgUrl ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={imgUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                ) : (
-                  <div style={{ width: '100%', height: '100%', display: 'grid', placeItems: 'center', color: 'var(--ink-3)' }}>
-                    <IconInstagram />
-                  </div>
-                )}
-              </Link>
-            );
-          })}
+    );
+  }
+
+  const initials = (wsInfo.name ?? '??').slice(0, 2).toUpperCase();
+  const handle = profile?.username ?? wsInfo.instagram_username ?? wsInfo.name;
+
+  return (
+    <div className="card" style={{ overflow: 'hidden' }}>
+      {/* Header */}
+      <div style={{ padding: '14px 16px 12px' }}>
+        {/* Handle + badge */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+          <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--ink)' }}>@{handle}</span>
+          <span className="badge" style={{ background: 'var(--mint-soft)', color: 'var(--mint-2)', display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 11 }}>
+            <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--mint-2)', flexShrink: 0 }} />
+            Connecté
+          </span>
         </div>
+
+        {/* Avatar + stats */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          {/* Gradient ring avatar */}
+          <div style={{ padding: 2.5, borderRadius: '50%', background: 'linear-gradient(135deg, #F58529, #DD2A7B, #8134AF)', flexShrink: 0 }}>
+            <div style={{ width: 50, height: 50, borderRadius: '50%', background: '#7B5CF5', display: 'grid', placeItems: 'center', fontSize: 14, fontWeight: 800, color: '#fff', fontFamily: 'var(--mono)' }}>
+              {initials}
+            </div>
+          </div>
+          {/* 3 stats */}
+          <div style={{ display: 'flex', flex: 1 }}>
+            {[
+              { v: fmtCount(profile?.media_count), l: 'Posts' },
+              { v: fmtCount(profile?.followers_count), l: 'Abonnés' },
+              { v: fmtCount(profile?.follows_count), l: 'Abonnements' },
+            ].map(s => (
+              <div key={s.l} style={{ flex: 1, textAlign: 'center' }}>
+                <div style={{ fontSize: 14, fontWeight: 800, color: 'var(--ink)' }}>{s.v}</div>
+                <div style={{ fontSize: 10, color: 'var(--ink-3)', fontWeight: 600, marginTop: 1 }}>{s.l}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Bio */}
+        {profile?.biography && (
+          <p style={{ fontSize: 11.5, color: 'var(--ink-2)', marginTop: 10, lineHeight: 1.5, margin: '10px 0 0' }}>{profile.biography}</p>
+        )}
+      </div>
+
+      {/* Tabs */}
+      <div style={{ display: 'flex', borderTop: '1px solid var(--line-2)', borderBottom: '1px solid var(--line-2)' }}>
+        {[<IconTabGrid key={0} />, <IconTabReels key={1} />, <IconTabSaved key={2} />].map((ic, i) => (
+          <button
+            key={i}
+            onClick={() => setTab(i)}
+            style={{ flex: 1, padding: '9px 0', display: 'grid', placeItems: 'center', background: 'none', border: 'none', cursor: 'pointer', color: tab === i ? 'var(--ink)' : 'var(--ink-3)', borderBottom: tab === i ? '2px solid var(--ink)' : '2px solid transparent', marginBottom: -1 }}
+          >
+            {ic}
+          </button>
+        ))}
+      </div>
+
+      {/* Grid / placeholder */}
+      {tab === 0 ? (
+        media.length === 0 ? (
+          <div style={{ padding: '24px 0', textAlign: 'center', color: 'var(--ink-3)', fontSize: 12 }}>Aucun post</div>
+        ) : (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 2 }}>
+            {media.map(m => {
+              const src = m.media_url ?? m.thumbnail_url;
+              return (
+                <div key={m.id} style={{ aspectRatio: '1', overflow: 'hidden', background: 'var(--sunk)' }}>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  {src && <img src={src} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />}
+                </div>
+              );
+            })}
+          </div>
+        )
+      ) : (
+        <div style={{ padding: '28px 0', textAlign: 'center', color: 'var(--ink-3)', fontSize: 12 }}>Bientôt disponible</div>
       )}
     </div>
   );
@@ -501,9 +636,9 @@ export default function Dashboard() {
               {/* Right column */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
 
-                {/* Single client: Instagram grid */}
+                {/* Single client: Instagram profile preview */}
                 {active !== 'all' && (
-                  <InstagramGrid posts={scopePosts} workspaceId={active} />
+                  <InstagramProfile workspaceId={active} />
                 )}
 
                 {/* All clients: attention needed */}
