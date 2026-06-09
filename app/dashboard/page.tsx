@@ -1,37 +1,84 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Sidebar from '@/components/Sidebar';
 
+// ─── Types ─────────────────────────────────────────────────────────────────
+
+interface WorkspaceRow {
+  id: string;
+  name: string;
+  instagram_account_id: string | null;
+  instagram_username: string | null;
+}
+
+interface PostRow {
+  id: string;
+  workspace_id: string;
+  status: string;
+  photo_url: string | null;
+  exported_image_url: string | null;
+  texte_visuel: string | null;
+  scheduled_at: string | null;
+  created_at: string;
+}
+
+interface ActivityRow {
+  id: string;
+  workspace_id: string;
+  action_type: string;
+  post_title: string | null;
+  created_at: string;
+}
+
 const WS_COLORS = ['#7B5CF5', '#2FD79B', '#C8732B', '#5A86E8', '#DD2A7B', '#88B394', '#E8A03A', '#4A8DD4'];
 
+function wsColor(index: number) { return WS_COLORS[index % WS_COLORS.length]; }
+function wsInitials(name: string) { return name.slice(0, 2).toUpperCase(); }
+
+// ─── Icons ─────────────────────────────────────────────────────────────────
+
+function IconBolt() {
+  return <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><path d="M13 2L4 14h7l-1 8 9-12h-7l1-8Z"/></svg>;
+}
+function IconClock() {
+  return <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>;
+}
 function IconCalendar() {
   return <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4.5" width="18" height="16" rx="3"/><path d="M3 9h18M8 2.5v4M16 2.5v4"/></svg>;
 }
-function IconSend() {
-  return <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><path d="M22 3L11 14M22 3l-7 19-4-8-8-4 19-7Z"/></svg>;
-}
-function IconClients() {
-  return <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><circle cx="9" cy="8" r="3.2"/><path d="M3.5 19a5.5 5.5 0 0 1 11 0"/><path d="M16 5.2a3.2 3.2 0 0 1 0 6M17.5 19a5.5 5.5 0 0 0-2.2-4.4"/></svg>;
-}
-function IconSpark() {
-  return <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><path d="M12 3l1.6 5.4L19 10l-5.4 1.6L12 17l-1.6-5.4L5 10l5.4-1.6L12 3Z"/></svg>;
-}
-function IconTrash() {
-  return <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><path d="M4 7h16M9 7V4.5h6V7M6 7l1 13h10l1-13"/></svg>;
-}
-function IconArrow() {
-  return <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><path d="M7 17L17 7M8 7h9v9"/></svg>;
+function IconInstagram() {
+  return <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.3" cy="6.7" r="1" fill="currentColor" stroke="none"/></svg>;
 }
 function IconPlus() {
   return <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12h14"/></svg>;
 }
+function IconSpark() {
+  return <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><path d="M12 3l1.6 5.4L19 10l-5.4 1.6L12 17l-1.6-5.4L5 10l5.4-1.6L12 3Z"/></svg>;
+}
+function IconChevD() {
+  return <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M6 9l6 6 6-6"/></svg>;
+}
+function IconGrid() {
+  return <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7.5" height="7.5" rx="2"/><rect x="13.5" y="3" width="7.5" height="7.5" rx="2"/><rect x="3" y="13.5" width="7.5" height="7.5" rx="2"/><rect x="13.5" y="13.5" width="7.5" height="7.5" rx="2"/></svg>;
+}
+function IconCheck() {
+  return <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5"/></svg>;
+}
+function IconBell() {
+  return <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 0 1-3.46 0"/></svg>;
+}
+function IconChevR() {
+  return <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 6l6 6-6 6"/></svg>;
+}
+
+// ─── StatTile ───────────────────────────────────────────────────────────────
 
 interface StatTileProps {
-  value: string | number;
+  value: number;
   label: string;
   icon: React.ReactNode;
   tone?: 'mint' | 'warn' | 'default';
@@ -57,24 +104,238 @@ function StatTile({ value, label, icon, tone = 'default', sub }: StatTileProps) 
   );
 }
 
+// ─── PostCard ───────────────────────────────────────────────────────────────
+
+function PostCard({ post, workspaceId, onClick }: { post: PostRow; workspaceId: string; onClick: () => void }) {
+  const imgUrl = post.exported_image_url || post.photo_url;
+  const statusLabel = post.status === 'generated' ? 'À valider' : post.status === 'validated' ? 'Prêt' : 'Brouillon';
+  const statusBg = post.status === 'generated' ? 'var(--warn-soft)' : post.status === 'validated' ? 'var(--mint-soft)' : 'var(--sunk)';
+  const statusColor = post.status === 'generated' ? 'var(--warn)' : post.status === 'validated' ? 'var(--mint-2)' : 'var(--ink-3)';
+  return (
+    <button
+      onClick={onClick}
+      style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', textAlign: 'left', borderRadius: 10, overflow: 'hidden' }}
+    >
+      <div style={{ aspectRatio: '4/5', borderRadius: 10, overflow: 'hidden', position: 'relative', background: 'var(--sunk)' }}>
+        {imgUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={imgUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+        ) : (
+          <div style={{ width: '100%', height: '100%', display: 'grid', placeItems: 'center', color: 'var(--ink-3)' }}>
+            <IconInstagram />
+          </div>
+        )}
+        <span className="chip" style={{ position: 'absolute', top: 7, left: 7, background: statusBg, color: statusColor, fontSize: 10 }}>
+          {statusLabel}
+        </span>
+      </div>
+      {post.texte_visuel && (
+        <p style={{ fontSize: 11.5, color: 'var(--ink-2)', marginTop: 6, fontWeight: 600, overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>
+          {post.texte_visuel}
+        </p>
+      )}
+    </button>
+  );
+}
+
+// ─── InstagramGrid ──────────────────────────────────────────────────────────
+
+function InstagramGrid({ posts, workspaceId }: { posts: PostRow[]; workspaceId: string }) {
+  const grid = posts.slice(0, 9);
+  return (
+    <div className="card" style={{ padding: 16 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+        <h2 className="h-title" style={{ fontSize: 15 }}>Fil Instagram</h2>
+        <Link href={`/workspace/${workspaceId}/planning`} className="btn btn-sm btn-ghost" style={{ fontSize: 12 }}>
+          Planifier <IconChevR />
+        </Link>
+      </div>
+      {grid.length === 0 ? (
+        <div style={{ textAlign: 'center', padding: '24px 0', color: 'var(--ink-3)', fontSize: 13 }}>Aucun post encore</div>
+      ) : (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 4 }}>
+          {grid.map(p => {
+            const imgUrl = p.exported_image_url || p.photo_url;
+            return (
+              <Link key={p.id} href={`/workspace/${workspaceId}/editor/${p.id}`} style={{ aspectRatio: '1', display: 'block', borderRadius: 6, overflow: 'hidden', background: 'var(--sunk)', textDecoration: 'none' }}>
+                {imgUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={imgUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                ) : (
+                  <div style={{ width: '100%', height: '100%', display: 'grid', placeItems: 'center', color: 'var(--ink-3)' }}>
+                    <IconInstagram />
+                  </div>
+                )}
+              </Link>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── ActivityFeed ───────────────────────────────────────────────────────────
+
+const ACTION_LABELS: Record<string, string> = {
+  post_created:   'a créé le post',
+  post_validated: 'a validé le post',
+  post_published: 'a publié le post',
+  post_deleted:   'a supprimé un post',
+  workspace_created: 'a créé le workspace',
+};
+
+function timeAgo(dateStr: string): string {
+  const diff = Date.now() - new Date(dateStr).getTime();
+  const m = Math.floor(diff / 60000);
+  if (m < 1) return 'à l\'instant';
+  if (m < 60) return `il y a ${m} min`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return `il y a ${h}h`;
+  const d = Math.floor(h / 24);
+  return `il y a ${d}j`;
+}
+
+function ActivityFeed({ activities, workspaces }: { activities: ActivityRow[]; workspaces: WorkspaceRow[] }) {
+  const wsMap = Object.fromEntries(workspaces.map((w, i) => [w.id, { name: w.name, color: wsColor(i) }]));
+  return (
+    <div className="card" style={{ padding: 20, flex: 1 }}>
+      <h2 className="h-title" style={{ fontSize: 15, marginBottom: 16 }}>Activité récente</h2>
+      {activities.length === 0 ? (
+        <div style={{ color: 'var(--ink-3)', fontSize: 13, textAlign: 'center', padding: '16px 0' }}>Aucune activité pour l'instant</div>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+          {activities.map(a => {
+            const ws = wsMap[a.workspace_id];
+            const label = ACTION_LABELS[a.action_type] ?? a.action_type;
+            return (
+              <div key={a.id} style={{ display: 'flex', gap: 10 }}>
+                <span style={{ width: 28, height: 28, borderRadius: 8, background: 'var(--mint-soft)', color: 'var(--mint-2)', display: 'grid', placeItems: 'center', flexShrink: 0 }}>
+                  <IconBolt />
+                </span>
+                <div style={{ fontSize: 12.5, lineHeight: 1.45, color: 'var(--ink-2)', minWidth: 0 }}>
+                  <span style={{ color: 'var(--ink)', fontWeight: 700 }}>Klip </span>
+                  {label}
+                  {a.post_title && <> <b style={{ color: 'var(--ink)' }}>"{a.post_title}"</b></>}
+                  <div style={{ fontSize: 11, color: 'var(--ink-3)', marginTop: 2 }}>
+                    {ws?.name ?? 'Client'} · {timeAgo(a.created_at)}
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── ClientSwitcher ─────────────────────────────────────────────────────────
+
+function ClientSwitcher({ active, workspaces, onChange }: {
+  active: string;
+  workspaces: WorkspaceRow[];
+  onChange: (id: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function close(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    }
+    document.addEventListener('mousedown', close);
+    return () => document.removeEventListener('mousedown', close);
+  }, []);
+
+  const cur = workspaces.find(w => w.id === active);
+
+  return (
+    <div ref={ref} style={{ position: 'relative' }}>
+      <button
+        className="btn btn-ghost"
+        style={{ paddingLeft: 8, height: 40, gap: 8 }}
+        onClick={() => setOpen(o => !o)}
+      >
+        {cur ? (
+          <span style={{ width: 24, height: 24, borderRadius: 6, background: wsColor(workspaces.indexOf(cur)), display: 'grid', placeItems: 'center', fontSize: 8, fontWeight: 800, color: '#fff', fontFamily: 'var(--mono)', flexShrink: 0 }}>
+            {wsInitials(cur.name)}
+          </span>
+        ) : (
+          <span style={{ width: 24, height: 24, borderRadius: 6, background: 'var(--ink)', color: 'var(--paper)', display: 'grid', placeItems: 'center', flexShrink: 0 }}>
+            <IconGrid />
+          </span>
+        )}
+        <span style={{ fontWeight: 700, fontSize: 13 }}>{cur ? cur.name : 'Tous les clients'}</span>
+        <IconChevD />
+      </button>
+      {open && (
+        <div className="card pop-in" style={{ position: 'absolute', top: 48, left: 0, width: 260, padding: 6, zIndex: 60, boxShadow: 'var(--shadow-pop)' }}>
+          <button
+            onClick={() => { onChange('all'); setOpen(false); }}
+            style={{ display: 'flex', alignItems: 'center', gap: 10, width: '100%', padding: '8px 10px', borderRadius: 9, textAlign: 'left', background: active === 'all' ? 'var(--mint-soft)' : 'transparent', border: 'none', cursor: 'pointer' }}
+          >
+            <span style={{ width: 26, height: 26, borderRadius: 7, background: 'var(--ink)', color: 'var(--paper)', display: 'grid', placeItems: 'center', flexShrink: 0 }}>
+              <IconGrid />
+            </span>
+            <span style={{ fontWeight: 700, fontSize: 13, flex: 1 }}>Tous les clients</span>
+            {active === 'all' && <span style={{ color: 'var(--mint-2)' }}><IconCheck /></span>}
+          </button>
+          <div style={{ height: 1, background: 'var(--line)', margin: '5px 8px' }} />
+          {workspaces.map((w, i) => (
+            <button
+              key={w.id}
+              onClick={() => { onChange(w.id); setOpen(false); }}
+              style={{ display: 'flex', alignItems: 'center', gap: 10, width: '100%', padding: '8px 10px', borderRadius: 9, textAlign: 'left', background: active === w.id ? 'var(--mint-soft)' : 'transparent', border: 'none', cursor: 'pointer' }}
+            >
+              <span style={{ width: 26, height: 26, borderRadius: 7, background: wsColor(i), display: 'grid', placeItems: 'center', fontSize: 9, fontWeight: 800, color: '#fff', fontFamily: 'var(--mono)', flexShrink: 0 }}>
+                {wsInitials(w.name)}
+              </span>
+              <span style={{ display: 'flex', flexDirection: 'column', lineHeight: 1.25, minWidth: 0, flex: 1 }}>
+                <span style={{ fontWeight: 700, fontSize: 13, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{w.name}</span>
+                {w.instagram_username && <span style={{ fontSize: 11, color: 'var(--ink-3)' }}>@{w.instagram_username}</span>}
+              </span>
+              {active === w.id && <span style={{ color: 'var(--mint-2)' }}><IconCheck /></span>}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Page ───────────────────────────────────────────────────────────────────
+
 export default function Dashboard() {
   const supabase = createClientComponentClient();
   const router = useRouter();
-  const [workspaces, setWorkspaces] = useState<any[]>([]);
-  const [user, setUser] = useState<any>(null);
+
+  const [workspaces, setWorkspaces] = useState<WorkspaceRow[]>([]);
+  const [posts, setPosts] = useState<PostRow[]>([]);
+  const [activities, setActivities] = useState<ActivityRow[]>([]);
+  const [active, setActive] = useState<string>('all');
+  const [userName, setUserName] = useState('');
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const load = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) { router.push('/login'); return; }
-      setUser(session.user);
-      const { data } = await supabase.from('workspaces').select('*').order('created_at', { ascending: false });
-      setWorkspaces(data || []);
+      setUserName(session.user.email?.split('@')[0] ?? 'vous');
+
+      const [{ data: ws }, { data: ps }, { data: acts }] = await Promise.all([
+        supabase.from('workspaces').select('id, name, instagram_account_id, instagram_username').order('created_at', { ascending: true }),
+        supabase.from('posts').select('id, workspace_id, status, photo_url, exported_image_url, texte_visuel, scheduled_at, created_at').order('created_at', { ascending: false }),
+        supabase.from('activity_log').select('id, workspace_id, action_type, post_title, created_at').order('created_at', { ascending: false }).limit(20),
+      ]);
+
+      setWorkspaces(ws ?? []);
+      setPosts(ps ?? []);
+      setActivities(acts ?? []);
       setLoading(false);
     };
     load();
-  }, []);
+  }, [supabase, router]);
 
   if (loading) return (
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', background: 'var(--canvas)', color: 'var(--ink-3)', fontFamily: 'var(--sans)', fontSize: 14 }}>
@@ -82,153 +343,192 @@ export default function Dashboard() {
     </div>
   );
 
-  const userName = user?.email?.split('@')[0] || 'vous';
   const today = new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
-  const todayCapitalized = today.charAt(0).toUpperCase() + today.slice(1);
+  const todayStr = new Date().toISOString().slice(0, 10);
+
+  // Filter by active workspace
+  const scopePosts = active === 'all' ? posts : posts.filter(p => p.workspace_id === active);
+  const scopeActivities = active === 'all' ? activities : activities.filter(a => a.workspace_id === active);
+
+  // Stats
+  const todayPosts = scopePosts.filter(p => p.scheduled_at?.slice(0, 10) === todayStr).length;
+  const pendingPosts = scopePosts.filter(p => p.status === 'generated').length;
+  const scheduledPosts = scopePosts.filter(p => p.scheduled_at).length;
+  const connectedCount = active === 'all'
+    ? workspaces.filter(w => w.instagram_account_id).length
+    : (workspaces.find(w => w.id === active)?.instagram_account_id ? 1 : 0);
+
+  // Upcoming = not-yet-published, sorted by created_at, first 4
+  const upcoming = scopePosts.filter(p => p.status !== 'idle').slice(0, 4);
+
+  // Clients needing attention (have 'generated' posts)
+  const attentionClients = workspaces
+    .map((w, i) => ({ ...w, color: wsColor(i), pending: posts.filter(p => p.workspace_id === w.id && p.status === 'generated').length }))
+    .filter(w => w.pending > 0);
+
+  const curWorkspace = workspaces.find(w => w.id === active);
+  const clientName = curWorkspace?.name ?? '';
 
   return (
     <div style={{ display: 'flex', minHeight: '100vh', background: 'var(--canvas)' }}>
       <Sidebar />
-      <main style={{ marginLeft: 'var(--sb-w)', flex: 1, overflowY: 'auto' }}>
-        <div className="page screen-in">
 
-          {/* Header */}
-          <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 20, marginBottom: 26, flexWrap: 'wrap' }}>
-            <div>
-              <div className="label" style={{ marginBottom: 8 }}>{todayCapitalized}</div>
-              <h1 className="h-display" style={{ fontSize: 36 }}>
-                Bonjour, <span className="it" style={{ color: 'var(--mint-2)' }}>{userName}.</span>
-              </h1>
-            </div>
-            <div style={{ display: 'flex', gap: 10 }}>
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, marginLeft: 'var(--sb-w)' }}>
+
+        {/* Topbar */}
+        <header className="topbar">
+          <ClientSwitcher active={active} workspaces={workspaces} onChange={setActive} />
+          <div style={{ width: 1, height: 24, background: 'var(--line)', flexShrink: 0 }} />
+          <span className="h-title" style={{ fontSize: 15, whiteSpace: 'nowrap', color: 'var(--ink-2)' }}>Tableau de bord</span>
+
+          <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 10 }}>
+            <button className="btn btn-ghost btn-icon" style={{ position: 'relative' }} title="Notifications">
+              <IconBell />
+              {pendingPosts > 0 && (
+                <span style={{ position: 'absolute', top: 6, right: 6, width: 7, height: 7, borderRadius: '50%', background: 'var(--warn)', boxShadow: '0 0 0 2px var(--canvas)' }} />
+              )}
+            </button>
+            {active !== 'all' ? (
+              <Link href={`/workspace/${active}`} className="btn btn-primary">
+                <IconPlus /> Nouveau post
+              </Link>
+            ) : (
               <Link href="/workspace/new" className="btn btn-dark">
                 <IconSpark /> Nouveau client
               </Link>
-            </div>
+            )}
           </div>
+        </header>
 
-          {/* Stat tiles */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 14, marginBottom: 14 }}>
-            <StatTile value={workspaces.length} label="Clients actifs" icon={<IconClients />} tone="mint" />
-            <StatTile value={0} label="Posts publiés aujourd'hui" icon={<IconSend />} sub="Auto" />
-            <StatTile value={0} label="En attente de validation" icon={<IconCalendar />} tone="warn" />
-            <StatTile value={workspaces.length} label="Comptes connectés" icon={
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
-                <rect x="3" y="3" width="18" height="18" rx="5"/>
-                <circle cx="12" cy="12" r="4"/>
-                <circle cx="17.3" cy="6.7" r="1" fill="currentColor" stroke="none"/>
-              </svg>
-            } />
-          </div>
+        {/* Page content */}
+        <main style={{ flex: 1, overflowY: 'auto' }}>
+          <div className="page screen-in">
 
-          {/* Clients grid */}
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16, marginTop: 24 }}>
-            <h2 className="h-title" style={{ fontSize: 18 }}>Vos clients</h2>
-            <Link href="/workspace/new" className="btn btn-primary btn-sm">
-              <IconPlus /> Ajouter un client
-            </Link>
-          </div>
-
-          {workspaces.length === 0 ? (
-            <div
-              className="card"
-              style={{ border: '1.5px dashed var(--line)', background: 'transparent', minHeight: 240, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 12 }}
-            >
-              <span style={{ width: 52, height: 52, borderRadius: 15, background: 'var(--sunk)', display: 'grid', placeItems: 'center', color: 'var(--ink-3)' }}>
-                <IconPlus />
-              </span>
-              <div style={{ textAlign: 'center' }}>
-                <p className="h-title" style={{ fontSize: 17, marginBottom: 6 }}>Aucun client encore</p>
-                <p style={{ color: 'var(--ink-2)', fontSize: 14, marginBottom: 20 }}>Créez votre premier espace client pour démarrer.</p>
-                <Link href="/workspace/new" className="btn btn-primary">
-                  Créer un client
-                </Link>
+            {/* Greeting */}
+            <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 20, marginBottom: 26, flexWrap: 'wrap' }}>
+              <div>
+                <div className="label" style={{ marginBottom: 8 }}>
+                  {today.charAt(0).toUpperCase() + today.slice(1)} · Bonjour {userName}
+                </div>
+                <h1 className="h-display" style={{ fontSize: 36 }}>
+                  {active === 'all'
+                    ? <>Voici l'état de <span className="it" style={{ color: 'var(--mint-2)' }}>vos marques.</span></>
+                    : <>Espace de <span className="it" style={{ color: 'var(--mint-2)' }}>{clientName}.</span></>
+                  }
+                </h1>
+              </div>
+              <div style={{ display: 'flex', gap: 10 }}>
+                {active !== 'all' && (
+                  <Link href={`/workspace/${active}/planning`} className="btn btn-ghost">
+                    <IconCalendar /> Calendrier
+                  </Link>
+                )}
+                {active !== 'all' ? (
+                  <Link href={`/workspace/${active}`} className="btn btn-dark">
+                    <IconSpark /> Composer avec l'IA
+                  </Link>
+                ) : (
+                  <Link href="/workspace/new" className="btn btn-dark">
+                    <IconSpark /> Nouveau client
+                  </Link>
+                )}
               </div>
             </div>
-          ) : (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 16 }}>
-              {workspaces.map((w, i) => {
-                const color = WS_COLORS[i % WS_COLORS.length];
-                const wsInitials = w.name.slice(0, 2).toUpperCase();
-                return (
-                  <div key={w.id} className="card" style={{ overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
-                    {/* Color header band */}
-                    <div style={{ height: 72, background: `linear-gradient(135deg, ${color}33, ${color}88)`, position: 'relative', display: 'flex', alignItems: 'flex-end', padding: 14 }}>
-                      <div style={{ position: 'absolute', top: 10, right: 10 }}>
+
+            {/* Stat tiles */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 14, marginBottom: 14 }} className="dash-stats">
+              <StatTile value={todayPosts} label="À publier aujourd'hui" icon={<IconBolt />} tone="mint" sub="Auto" />
+              <StatTile value={pendingPosts} label="En attente de validation" icon={<IconClock />} tone="warn" />
+              <StatTile value={scheduledPosts} label="Planifiés" icon={<IconCalendar />} />
+              <StatTile
+                value={active === 'all' ? workspaces.length : 1}
+                label={active === 'all' ? 'Clients actifs' : 'Compte connecté'}
+                icon={<IconInstagram />}
+              />
+            </div>
+
+            {/* Main grid */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1.55fr 1fr', gap: 14 }} className="dash-grid">
+
+              {/* Upcoming posts */}
+              <div className="card" style={{ padding: 22 }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 18 }}>
+                  <h2 className="h-title" style={{ fontSize: 17 }}>Prochaines publications</h2>
+                  {active !== 'all' && (
+                    <Link href={`/workspace/${active}/planning`} className="btn btn-sm btn-ghost">
+                      Tout voir <IconChevR />
+                    </Link>
+                  )}
+                </div>
+                {upcoming.length === 0 ? (
+                  <div style={{ color: 'var(--ink-3)', fontSize: 13, textAlign: 'center', padding: '32px 0' }}>
+                    Aucun post en cours
+                    {active !== 'all' && (
+                      <div style={{ marginTop: 12 }}>
+                        <Link href={`/workspace/${active}`} className="btn btn-primary btn-sm">
+                          <IconPlus /> Créer un post
+                        </Link>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 12 }} className="up-grid">
+                    {upcoming.map(p => (
+                      <PostCard
+                        key={p.id}
+                        post={p}
+                        workspaceId={p.workspace_id}
+                        onClick={() => router.push(`/workspace/${p.workspace_id}/editor/${p.id}`)}
+                      />
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Right column */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+
+                {/* Single client: Instagram grid */}
+                {active !== 'all' && (
+                  <InstagramGrid posts={scopePosts} workspaceId={active} />
+                )}
+
+                {/* All clients: attention needed */}
+                {active === 'all' && attentionClients.length > 0 && (
+                  <div className="card" style={{ padding: 20 }}>
+                    <h2 className="h-title" style={{ fontSize: 15, marginBottom: 14 }}>Demande votre attention</h2>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                      {attentionClients.slice(0, 4).map(c => (
                         <button
-                          onClick={async e => {
-                            e.stopPropagation();
-                            if (confirm(`Supprimer "${w.name}" et tous ses posts ?`)) {
-                              await supabase.from('workspaces').delete().eq('id', w.id);
-                              setWorkspaces(prev => prev.filter(x => x.id !== w.id));
-                            }
-                          }}
-                          className="btn btn-ghost btn-icon"
-                          style={{ color: 'var(--ink-3)', padding: 6 }}
-                          title="Supprimer"
+                          key={c.id}
+                          onClick={() => setActive(c.id)}
+                          style={{ display: 'flex', alignItems: 'center', gap: 11, padding: '9px 8px', borderRadius: 10, textAlign: 'left', border: 'none', cursor: 'pointer', background: 'transparent', transition: 'background .14s', width: '100%' }}
+                          onMouseEnter={e => { e.currentTarget.style.background = 'var(--sunk)'; }}
+                          onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}
                         >
-                          <IconTrash />
+                          <span style={{ width: 32, height: 32, borderRadius: 9, background: c.color, display: 'grid', placeItems: 'center', fontSize: 10, fontWeight: 800, color: '#fff', fontFamily: 'var(--mono)', flexShrink: 0 }}>
+                            {wsInitials(c.name)}
+                          </span>
+                          <div style={{ minWidth: 0, flex: 1 }}>
+                            <div style={{ fontWeight: 700, fontSize: 13, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.name}</div>
+                            <div style={{ fontSize: 11.5, color: 'var(--ink-3)' }}>{c.pending} post{c.pending > 1 ? 's' : ''} à valider</div>
+                          </div>
+                          <span className="badge" style={{ background: 'var(--warn-soft)', color: 'var(--warn)', flexShrink: 0 }}>{c.pending}</span>
                         </button>
-                      </div>
-                    </div>
-
-                    <div style={{ padding: '0 18px 18px' }}>
-                      {/* Avatar + name */}
-                      <div style={{ display: 'flex', alignItems: 'flex-end', gap: 12, marginBottom: 14 }}>
-                        <span style={{
-                          width: 48, height: 48, borderRadius: 13,
-                          background: color,
-                          display: 'flex', alignItems: 'center', justifyContent: 'center',
-                          fontSize: 16, fontWeight: 800, color: '#fff',
-                          fontFamily: 'var(--mono)',
-                          boxShadow: '0 0 0 3px var(--white)',
-                          marginTop: -22, flexShrink: 0,
-                        }}>
-                          {wsInitials}
-                        </span>
-                        <div style={{ paddingBottom: 2 }}>
-                          <div className="h-title" style={{ fontSize: 16 }}>{w.name}</div>
-                          <div style={{ fontSize: 12.5, color: 'var(--ink-3)', fontWeight: 600 }}>Workspace actif</div>
-                        </div>
-                      </div>
-
-                      {/* Stats row */}
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 14, paddingTop: 14, borderTop: '1px solid var(--line)', marginBottom: 14 }}>
-                        <div><span className="num" style={{ fontSize: 18 }}>0</span> <span style={{ fontSize: 12, color: 'var(--ink-3)' }}>planifiés</span></div>
-                        <div><span className="num" style={{ fontSize: 18 }}>0</span> <span style={{ fontSize: 12, color: 'var(--ink-3)' }}>publiés</span></div>
-                      </div>
-
-                      {/* CTAs */}
-                      <div style={{ display: 'flex', gap: 8 }}>
-                        <Link href={`/workspace/${w.id}`} className="btn btn-dark btn-sm" style={{ flex: 1, justifyContent: 'center' }}>
-                          Produire
-                        </Link>
-                        <Link href={`/workspace/${w.id}/planning`} className="btn btn-ghost btn-sm" style={{ flex: 1, justifyContent: 'center' }}>
-                          Planning <IconArrow />
-                        </Link>
-                      </div>
+                      ))}
                     </div>
                   </div>
-                );
-              })}
+                )}
 
-              {/* Add card */}
-              <Link
-                href="/workspace/new"
-                className="card"
-                style={{ border: '1.5px dashed var(--line)', background: 'transparent', minHeight: 200, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 10, color: 'var(--ink-3)', transition: 'all .15s', textDecoration: 'none' }}
-                onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--mint-2)'; e.currentTarget.style.color = 'var(--mint-2)'; }}
-                onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--line)'; e.currentTarget.style.color = 'var(--ink-3)'; }}
-              >
-                <span style={{ width: 46, height: 46, borderRadius: 13, background: 'var(--sunk)', display: 'grid', placeItems: 'center' }}>
-                  <IconPlus />
-                </span>
-                <span style={{ fontWeight: 700, fontSize: 14 }}>Nouvel espace client</span>
-              </Link>
+                {/* Activity feed */}
+                <ActivityFeed activities={scopeActivities} workspaces={workspaces} />
+
+              </div>
             </div>
-          )}
-        </div>
-      </main>
+
+          </div>
+        </main>
+      </div>
     </div>
   );
 }
