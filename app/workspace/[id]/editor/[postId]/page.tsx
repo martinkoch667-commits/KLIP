@@ -414,7 +414,7 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
 
   useEffect(() => {
     if (!transformerRef.current || !stageRef.current) return;
-    if (selectedId && selectedEl && selectedEl.type !== 'text') {
+    if (selectedId && selectedEl) {
       const node = stageRef.current.findOne('#' + selectedId);
       if (node) transformerRef.current.nodes([node]);
       else transformerRef.current.nodes([]);
@@ -798,13 +798,14 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
         </div>
 
         {/* ── CANVAS ── */}
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', overflow: 'hidden', background: '#F5F0E8' }}>
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', overflow: 'hidden', background: '#C9C4B8' }}>
           <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'auto', padding: 32 }}>
+            <div style={{ borderRadius: 18, overflow: 'hidden', boxShadow: '0 22px 50px -24px rgba(13,15,10,.45)', flexShrink: 0 }}>
             <Stage
               ref={stageRef}
               width={stageW} height={stageH}
               onMouseDown={e => { if (e.target === e.target.getStage()) setSelectedId(null); }}
-              style={{ boxShadow: '0 8px 48px rgba(0,0,0,0.5)', borderRadius: 2 }}
+              style={{ display: 'block' }}
             >
               <Layer>
                 <Rect x={0} y={0} width={stageW} height={stageH} fill="white" listening={false} />
@@ -873,9 +874,23 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
                   return null;
                 })}
 
-                <Transformer ref={transformerRef} boundBoxFunc={(old, nb) => (nb.width < 10 || nb.height < 10 ? old : nb)} />
+                <Transformer
+                  ref={transformerRef}
+                  boundBoxFunc={(old, nb) => (nb.width < 10 || nb.height < 10 ? old : nb)}
+                  borderStroke="#2FD79B"
+                  borderDash={[6, 4]}
+                  borderStrokeWidth={1.5}
+                  anchorStroke="#2FD79B"
+                  anchorFill="#ffffff"
+                  anchorStrokeWidth={1.5}
+                  anchorSize={9}
+                  anchorCornerRadius={2}
+                  enabledAnchors={selectedEl?.type === 'text' ? [] : ['top-left', 'top-right', 'bottom-left', 'bottom-right']}
+                  rotateEnabled={false}
+                />
               </Layer>
             </Stage>
+            </div>
           </div>
         </div>
 
