@@ -11,8 +11,8 @@ import Sidebar from '@/components/Sidebar';
 interface WorkspaceRow {
   id: string;
   name: string;
-  instagram_account_id: string | null;
-  instagram_username: string | null;
+  instagram_account_id?: string | null;
+  instagram_username?: string | null;
 }
 
 interface PostRow {
@@ -328,7 +328,7 @@ export default function Dashboard() {
         // Load workspaces first — critical for ClientSwitcher
         const { data: ws, error: wsErr } = await supabase
           .from('workspaces')
-          .select('id, name, instagram_account_id, instagram_username')
+          .select('id, name')
           .order('created_at', { ascending: true });
         console.log('[Dashboard] workspaces query result:', { ws, wsErr });
         setWorkspaces(ws ?? []);
