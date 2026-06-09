@@ -584,6 +584,12 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
     }, 80);
   };
 
+  const deletePost = async () => {
+    if (!confirm("Supprimer ce post ? Cette action est irréversible.")) return;
+    await supabase.from('posts').delete().eq('id', postId);
+    window.location.href = `/workspace/${workspaceId}`;
+  };
+
   const handleSave = async () => {
     if (!stageRef.current) return;
     setSaving(true);
@@ -703,6 +709,10 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0 }}>
           <a href={`/workspace/${workspaceId}`}
             style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 30, height: 30, borderRadius: 7, border: '1px solid rgba(255,255,255,0.14)', color: 'rgba(255,255,255,0.6)', textDecoration: 'none', fontSize: 14, flexShrink: 0 }}>←</a>
+          <button onClick={deletePost} title="Supprimer ce post"
+            style={{ width: 30, height: 30, borderRadius: 7, border: '1px solid rgba(255,80,80,0.3)', background: 'transparent', color: 'rgba(255,100,100,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0 }}>
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M4 7h16M9 7V4.5h6V7M6 7l1 13h10l1-13"/></svg>
+          </button>
           <div style={{ width: 26, height: 26, borderRadius: 7, background: 'var(--mint)', display: 'grid', placeItems: 'center', flexShrink: 0 }}>
             <span style={{ fontFamily: 'var(--display)', fontWeight: 900, fontSize: 11, color: '#06281C', letterSpacing: '-0.02em' }}>
               {workspaceName ? workspaceName.slice(0,2).toUpperCase() : 'KL'}

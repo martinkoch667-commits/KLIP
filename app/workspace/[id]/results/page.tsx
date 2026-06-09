@@ -95,6 +95,7 @@ export default function ResultsPage() {
   const [validated, setValidated] = useState<Record<string, boolean>>({});
   const [showCanva, setShowCanva] = useState(false);
   const [canvaPostId, setCanvaPostId] = useState("");
+  const [openMenuId, setOpenMenuId] = useState<string | null>(null);
 
   useEffect(() => {
     async function load() {
@@ -130,6 +131,13 @@ export default function ResultsPage() {
     await supabase.from("posts").update({ status: "validated" }).eq("id", post.id);
     setPosts((prev) => prev.map((p) => p.id === post.id ? { ...p, status: "validated" } : p));
     setValidated((v) => ({ ...v, [post.id]: true }));
+  }
+
+  async function deletePost(post: Post) {
+    setOpenMenuId(null);
+    if (!confirm("Supprimer ce post ? Cette action est irréversible.")) return;
+    await supabase.from("posts").delete().eq("id", post.id);
+    setPosts((prev) => prev.filter((p) => p.id !== post.id));
   }
 
   // Filter posts by tab
@@ -275,13 +283,41 @@ export default function ResultsPage() {
                             ) : (
                               <StatusChip status={validated[post.id] ? "validated" : post.status} />
                             )}
-                            <button
-                              className="btn btn-ghost btn-icon"
-                              onClick={() => { setCanvaPostId(post.id); setShowCanva(true); }}
-                              title="Éditer avec Canva"
-                            >
-                              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg>
-                            </button>
+                            <div style={{ position: "relative" }}>
+                              <button
+                                className="btn btn-ghost btn-icon"
+                                onClick={(e) => { e.stopPropagation(); setOpenMenuId(openMenuId === post.id ? null : post.id); }}
+                                title="Actions"
+                              >
+                                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg>
+                              </button>
+                              {openMenuId === post.id && (
+                                <>
+                                  <div style={{ position: "fixed", inset: 0, zIndex: 9 }} onClick={() => setOpenMenuId(null)} />
+                                  <div style={{ position: "absolute", right: 0, top: "calc(100% + 4px)", zIndex: 10, background: "var(--white)", border: "1px solid var(--line)", borderRadius: "var(--r-s)", boxShadow: "var(--shadow-pop)", minWidth: 160, overflow: "hidden" }}>
+                                    <button
+                                      onClick={(e) => { e.stopPropagation(); setOpenMenuId(null); setCanvaPostId(post.id); setShowCanva(true); }}
+                                      style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", padding: "10px 14px", fontSize: 13, fontWeight: 600, background: "transparent", border: "none", cursor: "pointer", color: "var(--ink)", textAlign: "left" }}
+                                      onMouseEnter={e => (e.currentTarget.style.background = "var(--sunk)")}
+                                      onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
+                                    >
+                                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5Z"/></svg>
+                                      Éditer avec Canva
+                                    </button>
+                                    <div style={{ height: 1, background: "var(--line)", margin: "0 8px" }} />
+                                    <button
+                                      onClick={(e) => { e.stopPropagation(); deletePost(post); }}
+                                      style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", padding: "10px 14px", fontSize: 13, fontWeight: 600, background: "transparent", border: "none", cursor: "pointer", color: "var(--warn)", textAlign: "left" }}
+                                      onMouseEnter={e => (e.currentTarget.style.background = "var(--warn-soft)")}
+                                      onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
+                                    >
+                                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M4 7h16M9 7V4.5h6V7M6 7l1 13h10l1-13"/></svg>
+                                      Supprimer
+                                    </button>
+                                  </div>
+                                </>
+                              )}
+                            </div>
                           </div>
                         </div>
                       );

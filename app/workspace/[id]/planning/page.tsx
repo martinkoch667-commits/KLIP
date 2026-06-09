@@ -183,6 +183,13 @@ function PlanningContent() {
     showToast("Post programmé ✓");
   }
 
+  async function deletePost(post: Post) {
+    if (!confirm("Supprimer ce post ? Cette action est irréversible.")) return;
+    await supabase.from("posts").delete().eq("id", post.id);
+    setPosts((prev) => prev.filter((p) => p.id !== post.id));
+    setSelectedPost(null);
+  }
+
   async function handlePublish() {
     if (!selectedPost) return;
     const isConnected = !!(workspace?.instagram_account_id || workspace?.instagram_access_token || workspace?.instagram_username);
@@ -464,6 +471,16 @@ function PlanningContent() {
                 <IconSpark /> Canva
               </button>
             </div>
+
+            {/* Delete */}
+            <button
+              onClick={() => deletePost(selectedPost)}
+              className="btn btn-ghost btn-sm"
+              style={{ color: 'var(--warn)', borderColor: 'rgba(200,115,43,.3)', width: '100%', justifyContent: 'center' }}
+            >
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M4 7h16M9 7V4.5h6V7M6 7l1 13h10l1-13"/></svg>
+              Supprimer ce post
+            </button>
           </div>
 
           {/* Panel actions */}
