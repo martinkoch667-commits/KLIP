@@ -9,11 +9,11 @@ import {
   Stage,
   Star as KonvaStar,
   Text,
-  Transformer,
 } from 'react-konva';
 import useImage from 'use-image';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import ColorPicker from '@/components/ColorPicker';
+import SelectionOverlay from '@/components/SelectionOverlay';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -64,18 +64,14 @@ function BgImage({ src, w, h }: { src: string; w: number; h: number }) {
   return img ? <KonvaImage image={img} x={0} y={0} width={w} height={h} listening={false} /> : null;
 }
 
-function ImgNode({ el, onSelect, onChange }: { el: ImageEl; onSelect: () => void; onChange: (u: Partial<ImageEl>) => void }) {
+function ImgNode({ el, onSelect, onChange, onDragStart, onDragEnd }: { el: ImageEl; onSelect: () => void; onChange: (u: Partial<ImageEl>) => void; onDragStart?: () => void; onDragEnd?: (x: number, y: number) => void }) {
   const [img] = useImage(el.src, 'anonymous');
   return (
     <KonvaImage id={el.id} image={img} x={el.x} y={el.y} width={el.width} height={el.height}
       rotation={el.rotation} opacity={el.opacity / 100} draggable
       onClick={onSelect} onTap={onSelect}
-      onDragEnd={e => onChange({ x: e.target.x(), y: e.target.y() })}
-      onTransformEnd={e => {
-        const node = e.target;
-        onChange({ x: node.x(), y: node.y(), width: Math.max(20, node.width() * node.scaleX()), height: Math.max(20, node.height() * node.scaleY()), rotation: node.rotation() });
-        node.scaleX(1); node.scaleY(1);
-      }}
+      onDragStart={onDragStart}
+      onDragEnd={e => onDragEnd?.(e.target.x(), e.target.y())}
     />
   );
 }
@@ -284,8 +280,8 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
 
   const supabase = createClientComponentClient();
   const stageRef = useRef<any>(null);
-  const transformerRef = useRef<any>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isKonvaDragging, setIsKonvaDragging] = useState(false);
 
   const [proxyUrl, setProxyUrl] = useState<string>('');
   const [bgImage] = useImage(proxyUrl, 'anonymous');
@@ -419,21 +415,9 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
     return () => clearTimeout(t);
   }, [dataLoading]);
 
-  // ── Transformer ───────────────────────────────────────────────────────────
+  // ── Selected element ──────────────────────────────────────────────────────
 
   const selectedEl = elements.find(e => e.id === selectedId);
-
-  useEffect(() => {
-    if (!transformerRef.current || !stageRef.current) return;
-    if (selectedId && selectedEl) {
-      const node = stageRef.current.findOne('#' + selectedId);
-      if (node) transformerRef.current.nodes([node]);
-      else transformerRef.current.nodes([]);
-    } else {
-      transformerRef.current.nodes([]);
-    }
-    transformerRef.current.getLayer()?.batchDraw();
-  }, [selectedId, selectedEl, elements]);
 
   // ── History ───────────────────────────────────────────────────────────────
 
@@ -825,7 +809,7 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
         {/* ── CANVAS ── */}
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', overflow: 'hidden', background: 'var(--sunk)' }}>
           <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'auto', padding: 28 }}>
-            <div style={{ borderRadius: 18, overflow: 'hidden', boxShadow: '0 22px 50px -24px rgba(13,15,10,.45)', flexShrink: 0 }}>
+            <div style={{ borderRadius: 18, overflow: 'hidden', boxShadow: '0 22px 50px -24px rgba(13,15,10,.45)', flexShrink: 0, position: 'relative' }}>
             <Stage
               ref={stageRef}
               width={stageW} height={stageH}
@@ -839,31 +823,25 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
                 {elements.map(el => {
                   if (hiddenIds.has(el.id)) return null;
                   if (el.type === 'image') return (
-                    <ImgNode key={el.id} el={el} onSelect={() => setSelectedId(el.id)} onChange={u => updateEl(el.id, u)} />
+                    <ImgNode key={el.id} el={el} onSelect={() => setSelectedId(el.id)} onChange={u => updateEl(el.id, u)}
+                      onDragStart={() => setIsKonvaDragging(true)}
+                      onDragEnd={(x, y) => { setIsKonvaDragging(false); updateEl(el.id, { x, y }); }} />
                   );
                   if (el.type === 'rect') return (
                     <Rect key={el.id} id={el.id} x={el.x} y={el.y} width={el.width} height={el.height}
                       fill={el.fill} stroke={el.stroke} strokeWidth={el.strokeWidth}
                       cornerRadius={el.cornerRadius} rotation={el.rotation} opacity={el.opacity / 100} draggable
                       onClick={() => setSelectedId(el.id)} onTap={() => setSelectedId(el.id)}
-                      onDragEnd={e => updateEl(el.id, { x: e.target.x(), y: e.target.y() })}
-                      onTransformEnd={e => {
-                        const n = e.target;
-                        updateEl(el.id, { x: n.x(), y: n.y(), width: Math.max(5, n.width() * n.scaleX()), height: Math.max(5, n.height() * n.scaleY()), rotation: n.rotation() });
-                        n.scaleX(1); n.scaleY(1);
-                      }} />
+                      onDragStart={() => setIsKonvaDragging(true)}
+                      onDragEnd={e => { setIsKonvaDragging(false); updateEl(el.id, { x: e.target.x(), y: e.target.y() }); }} />
                   );
                   if (el.type === 'circle') return (
                     <Circle key={el.id} id={el.id} x={el.x} y={el.y} radius={el.radius}
                       fill={el.fill} stroke={el.stroke} strokeWidth={el.strokeWidth}
                       rotation={el.rotation} opacity={el.opacity / 100} draggable
                       onClick={() => setSelectedId(el.id)} onTap={() => setSelectedId(el.id)}
-                      onDragEnd={e => updateEl(el.id, { x: e.target.x(), y: e.target.y() })}
-                      onTransformEnd={e => {
-                        const n = e.target;
-                        updateEl(el.id, { x: n.x(), y: n.y(), radius: el.radius * n.scaleX(), rotation: n.rotation() });
-                        n.scaleX(1); n.scaleY(1);
-                      }} />
+                      onDragStart={() => setIsKonvaDragging(true)}
+                      onDragEnd={e => { setIsKonvaDragging(false); updateEl(el.id, { x: e.target.x(), y: e.target.y() }); }} />
                   );
                   if (el.type === 'star') return (
                     <KonvaStar key={el.id} id={el.id} x={el.x} y={el.y} numPoints={el.numPoints}
@@ -871,12 +849,8 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
                       fill={el.fill} stroke={el.stroke} strokeWidth={el.strokeWidth}
                       rotation={el.rotation} opacity={el.opacity / 100} draggable
                       onClick={() => setSelectedId(el.id)} onTap={() => setSelectedId(el.id)}
-                      onDragEnd={e => updateEl(el.id, { x: e.target.x(), y: e.target.y() })}
-                      onTransformEnd={e => {
-                        const n = e.target;
-                        updateEl(el.id, { x: n.x(), y: n.y(), outerRadius: el.outerRadius * n.scaleX(), innerRadius: el.innerRadius * n.scaleX(), rotation: n.rotation() });
-                        n.scaleX(1); n.scaleY(1);
-                      }} />
+                      onDragStart={() => setIsKonvaDragging(true)}
+                      onDragEnd={e => { setIsKonvaDragging(false); updateEl(el.id, { x: e.target.x(), y: e.target.y() }); }} />
                   );
                   if (el.type === 'text') {
                     const pH = el.paddingH ?? el.padding;
@@ -888,7 +862,8 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
                       <Group key={el.id} id={el.id} x={el.x} y={el.y} rotation={el.rotation} opacity={el.opacity / 100}
                         draggable
                         onClick={() => setSelectedId(el.id)} onTap={() => setSelectedId(el.id)}
-                        onDragEnd={e => updateEl(el.id, { x: e.target.x(), y: e.target.y() })}>
+                        onDragStart={() => setIsKonvaDragging(true)}
+                        onDragEnd={e => { setIsKonvaDragging(false); updateEl(el.id, { x: e.target.x(), y: e.target.y() }); }}>
                         {el.hasBg && <Rect x={0} y={0} width={blockW} height={blockH} fill={el.bgColor} opacity={el.bgOpacity / 100} cornerRadius={el.cornerRadius} />}
                         <Text x={pH} y={pV} width={measuredW} text={el.text}
                           fontSize={el.fontSize} fontFamily={el.fontFamily}
@@ -900,22 +875,15 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
                   return null;
                 })}
 
-                <Transformer
-                  ref={transformerRef}
-                  boundBoxFunc={(old, nb) => (nb.width < 10 || nb.height < 10 ? old : nb)}
-                  borderStroke="#2FD79B"
-                  borderDash={[6, 4]}
-                  borderStrokeWidth={1.5}
-                  anchorStroke="#2FD79B"
-                  anchorFill="#ffffff"
-                  anchorStrokeWidth={1.5}
-                  anchorSize={9}
-                  anchorCornerRadius={2}
-                  enabledAnchors={selectedEl?.type === 'text' ? [] : ['top-left', 'top-right', 'bottom-left', 'bottom-right']}
-                  rotateEnabled={false}
-                />
               </Layer>
             </Stage>
+            {selectedEl && !hiddenIds.has(selectedEl.id) && !isKonvaDragging && (
+              <SelectionOverlay
+                el={selectedEl}
+                stageRef={stageRef}
+                onChange={u => updateEl(selectedEl.id, u)}
+              />
+            )}
             </div>
           </div>
         </div>
