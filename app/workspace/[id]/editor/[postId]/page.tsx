@@ -268,6 +268,17 @@ function ImageProperties({ el, onChange, onSetBg }: { el: ImageEl; onChange: (u:
   );
 }
 
+// ─── Layer helpers ────────────────────────────────────────────────────────────
+
+function layerName(el: CanvasEl): string {
+  if (el.type === 'text') return el.text.slice(0, 18) || 'Texte';
+  if (el.type === 'image') return 'Image';
+  if (el.type === 'rect') return 'Rectangle';
+  if (el.type === 'circle') return 'Cercle';
+  if (el.type === 'star') return 'Étoile';
+  return 'Élément';
+}
+
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function EditorPage({ params }: { params: { id: string; postId: string } }) {
@@ -287,6 +298,9 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
   const stageH = activeFormat.h;
   const [elements, setElements] = useState<CanvasEl[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [hiddenIds, setHiddenIds] = useState<Set<string>>(new Set());
+  const [dragId, setDragId] = useState<string | null>(null);
+  const [dragOverId, setDragOverId] = useState<string | null>(null);
 
   const historyRef = useRef<CanvasEl[][]>([[]]);
   const histIdxRef = useRef(0);
@@ -571,6 +585,20 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
     const n = [...elements]; [n[idx], n[idx - 1]] = [n[idx - 1], n[idx]]; applyElements(n);
   };
 
+  const moveUp = (idx: number) => {
+    if (idx >= elements.length - 1) return;
+    const n = [...elements]; [n[idx], n[idx + 1]] = [n[idx + 1], n[idx]]; applyElements(n);
+  };
+
+  const moveDown = (idx: number) => {
+    if (idx <= 0) return;
+    const n = [...elements]; [n[idx], n[idx - 1]] = [n[idx - 1], n[idx]]; applyElements(n);
+  };
+
+  const toggleHidden = (id: string) => {
+    setHiddenIds(prev => { const s = new Set(prev); s.has(id) ? s.delete(id) : s.add(id); return s; });
+  };
+
   // ── Export & save ─────────────────────────────────────────────────────────
 
   const exportPNG = () => {
@@ -812,6 +840,7 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
                 {proxyUrl && <BgImage src={proxyUrl} w={stageW} h={stageH} />}
 
                 {elements.map(el => {
+                  if (hiddenIds.has(el.id)) return null;
                   if (el.type === 'image') return (
                     <ImgNode key={el.id} el={el} onSelect={() => setSelectedId(el.id)} onChange={u => updateEl(el.id, u)} />
                   );
@@ -896,6 +925,89 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
 
         {/* ── RIGHT PANEL (always visible) ── */}
         <div style={{ width: 300, background: '#fff', borderLeft: '1px solid var(--line)', overflowY: 'auto', flexShrink: 0, display: 'flex', flexDirection: 'column' }}>
+
+          {/* ── LAYERS PANEL ── */}
+          <div style={{ borderBottom: '1px solid var(--line)', flexShrink: 0 }}>
+            <div style={{ padding: '8px 12px 6px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <span style={{ fontSize: 9.5, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '0.12em', fontFamily: 'var(--mono)', fontWeight: 800 }}>Calques</span>
+              <span style={{ fontSize: 10.5, color: 'var(--ink-3)', fontFamily: 'var(--mono)' }}>{elements.length + (proxyUrl ? 1 : 0)}</span>
+            </div>
+            {[...elements].reverse().map((el, reversedIdx) => {
+              const actualIdx = elements.length - 1 - reversedIdx;
+              const isSelected = el.id === selectedId;
+              const isHidden = hiddenIds.has(el.id);
+              const isDragOver = el.id === dragOverId;
+              return (
+                <div key={el.id}
+                  draggable
+                  onDragStart={() => setDragId(el.id)}
+                  onDragOver={e => { e.preventDefault(); setDragOverId(el.id); }}
+                  onDragLeave={() => setDragOverId(null)}
+                  onDrop={() => {
+                    if (!dragId || dragId === el.id) { setDragId(null); setDragOverId(null); return; }
+                    const fromIdx = elements.findIndex(e => e.id === dragId);
+                    if (fromIdx < 0) return;
+                    const n = [...elements];
+                    const [moved] = n.splice(fromIdx, 1);
+                    n.splice(actualIdx, 0, moved);
+                    applyElements(n);
+                    setDragId(null); setDragOverId(null);
+                  }}
+                  onDragEnd={() => { setDragId(null); setDragOverId(null); }}
+                  onClick={() => setSelectedId(isSelected ? null : el.id)}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 6,
+                    padding: '5px 10px 5px 8px',
+                    background: isSelected ? 'var(--mint-soft)' : isDragOver ? 'rgba(47,215,155,0.08)' : 'transparent',
+                    cursor: 'pointer',
+                    opacity: isHidden ? 0.45 : 1,
+                    borderLeft: isSelected ? '2px solid var(--mint-2)' : '2px solid transparent',
+                    transition: 'background 0.1s',
+                    userSelect: 'none' as const,
+                  }}
+                >
+                  <span style={{ color: 'var(--ink-3)', fontSize: 13, cursor: 'grab', flexShrink: 0, lineHeight: 1 }}>⠿</span>
+                  <span style={{ width: 16, height: 16, flexShrink: 0, color: isSelected ? 'var(--mint-2)' : 'var(--ink-3)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    {el.type === 'text' && <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><polyline points="4 7 4 4 20 4 20 7"/><line x1="9" y1="20" x2="15" y2="20"/><line x1="12" y1="4" x2="12" y2="20"/></svg>}
+                    {el.type === 'image' && <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>}
+                    {el.type === 'rect' && <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><rect x="3" y="3" width="18" height="18" rx="2"/></svg>}
+                    {el.type === 'circle' && <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><circle cx="12" cy="12" r="10"/></svg>}
+                    {el.type === 'star' && <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>}
+                  </span>
+                  <span style={{ flex: 1, fontSize: 11.5, color: isSelected ? 'var(--ink)' : 'var(--ink-2)', fontFamily: 'var(--sans)', fontWeight: isSelected ? 600 : 400, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {layerName(el)}
+                  </span>
+                  <button onClick={e => { e.stopPropagation(); moveUp(actualIdx); }}
+                    disabled={actualIdx >= elements.length - 1}
+                    style={{ width: 18, height: 18, border: 'none', background: 'transparent', cursor: 'pointer', color: 'var(--ink-3)', padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, opacity: actualIdx >= elements.length - 1 ? 0.2 : 0.6 }}>
+                    <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="18 15 12 9 6 15"/></svg>
+                  </button>
+                  <button onClick={e => { e.stopPropagation(); moveDown(actualIdx); }}
+                    disabled={actualIdx <= 0}
+                    style={{ width: 18, height: 18, border: 'none', background: 'transparent', cursor: 'pointer', color: 'var(--ink-3)', padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, opacity: actualIdx <= 0 ? 0.2 : 0.6 }}>
+                    <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+                  </button>
+                  <button onClick={e => { e.stopPropagation(); toggleHidden(el.id); }}
+                    title={isHidden ? 'Afficher' : 'Masquer'}
+                    style={{ width: 18, height: 18, border: 'none', background: 'transparent', cursor: 'pointer', color: 'var(--ink-3)', padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, opacity: isHidden ? 0.4 : 0.6 }}>
+                    {isHidden
+                      ? <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+                      : <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                    }
+                  </button>
+                </div>
+              );
+            })}
+            {proxyUrl && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '5px 10px 5px 8px', opacity: 0.4, borderLeft: '2px solid transparent' }}>
+                <span style={{ color: 'var(--ink-3)', fontSize: 13, flexShrink: 0, lineHeight: 1 }}>⠿</span>
+                <span style={{ width: 16, height: 16, flexShrink: 0, color: 'var(--ink-3)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+                </span>
+                <span style={{ flex: 1, fontSize: 11.5, color: 'var(--ink-3)', fontFamily: 'var(--sans)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>Fond</span>
+              </div>
+            )}
+          </div>
 
           {/* ── Element properties (when selected) ── */}
           {selectedEl && (
