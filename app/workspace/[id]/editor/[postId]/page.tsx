@@ -13,6 +13,7 @@ import {
 } from 'react-konva';
 import useImage from 'use-image';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
+import ColorPicker from '@/components/ColorPicker';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -107,14 +108,10 @@ function PropRow({ label, children }: { label: string; children: React.ReactNode
   );
 }
 
-function ColorRow({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
+function ColorRow({ label, value, onChange, brandColors }: { label: string; value: string; onChange: (v: string) => void; brandColors?: string[] }) {
   return (
     <PropRow label={label}>
-      <div style={{ display: 'flex', gap: 8, alignItems: 'center', background: 'var(--sunk)', border: '1px solid var(--line)', borderRadius: 'var(--r-s)', padding: '6px 10px' }}>
-        <input type="color" value={value} onChange={e => onChange(e.target.value)}
-          style={{ width: 28, height: 28, border: 'none', borderRadius: 4, cursor: 'pointer', padding: 0, background: 'transparent' }} />
-        <span style={{ fontSize: 12, color: 'var(--ink-2)', fontFamily: 'var(--mono)' }}>{value.toUpperCase()}</span>
-      </div>
+      <ColorPicker value={value} onChange={onChange} brandColors={brandColors} />
     </PropRow>
   );
 }
@@ -136,7 +133,7 @@ function UnsplashThumb({ src, onAdd, onBg }: { src: string; onAdd: () => void; o
   );
 }
 
-function TextProperties({ el, onChange, customFonts, onFontUpload }: { el: TextEl; onChange: (u: Partial<TextEl>) => void; customFonts: { name: string; url: string }[]; onFontUpload: (file: File) => Promise<string>; }) {
+function TextProperties({ el, onChange, customFonts, onFontUpload, brandColors }: { el: TextEl; onChange: (u: Partial<TextEl>) => void; customFonts: { name: string; url: string }[]; onFontUpload: (file: File) => Promise<string>; brandColors?: string[] }) {
   const isBold = el.fontStyle.includes('bold');
   const isItalic = el.fontStyle.includes('italic');
   const isUnderline = el.textDecoration === 'underline';
@@ -200,7 +197,7 @@ function TextProperties({ el, onChange, customFonts, onFontUpload }: { el: TextE
           ))}
         </div>
       </PropRow>
-      <ColorRow label="Couleur texte" value={el.fill} onChange={v => onChange({ fill: v })} />
+      <ColorRow label="Couleur texte" value={el.fill} onChange={v => onChange({ fill: v })} brandColors={brandColors} />
       <div style={{ borderTop: '1px solid var(--line)', paddingTop: 12 }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
           <span style={{ fontSize: 10.5, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '0.07em', fontFamily: 'var(--mono)', fontWeight: 800 }}>Fond du bloc</span>
@@ -211,7 +208,7 @@ function TextProperties({ el, onChange, customFonts, onFontUpload }: { el: TextE
         </div>
         {el.hasBg && (
           <>
-            <ColorRow label="Couleur fond" value={el.bgColor} onChange={v => onChange({ bgColor: v })} />
+            <ColorRow label="Couleur fond" value={el.bgColor} onChange={v => onChange({ bgColor: v })} brandColors={brandColors} />
             <PropRow label={`Opacité — ${el.bgOpacity}%`}>
               <input type="range" min={0} max={100} value={el.bgOpacity} onChange={e => onChange({ bgOpacity: Number(e.target.value) })} style={{ width: '100%', accentColor: 'var(--mint-2)' }} />
             </PropRow>
@@ -234,11 +231,11 @@ function TextProperties({ el, onChange, customFonts, onFontUpload }: { el: TextE
   );
 }
 
-function ShapeProperties({ el, onChange }: { el: RectEl | CircleEl | StarEl; onChange: (u: Partial<typeof el>) => void }) {
+function ShapeProperties({ el, onChange, brandColors }: { el: RectEl | CircleEl | StarEl; onChange: (u: Partial<typeof el>) => void; brandColors?: string[] }) {
   return (
     <>
-      <ColorRow label="Couleur" value={el.fill} onChange={v => onChange({ fill: v } as any)} />
-      <ColorRow label="Bordure" value={el.stroke || '#000000'} onChange={v => onChange({ stroke: v } as any)} />
+      <ColorRow label="Couleur" value={el.fill} onChange={v => onChange({ fill: v } as any)} brandColors={brandColors} />
+      <ColorRow label="Bordure" value={el.stroke || '#000000'} onChange={v => onChange({ stroke: v } as any)} brandColors={brandColors} />
       <PropRow label={`Épaisseur — ${el.strokeWidth}px`}>
         <input type="range" min={0} max={10} value={el.strokeWidth} onChange={e => onChange({ strokeWidth: Number(e.target.value) } as any)} style={{ width: '100%', accentColor: 'var(--mint-2)' }} />
       </PropRow>
@@ -1021,9 +1018,9 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
                   <button onClick={sendBackward} title="Reculer" style={smallBtnStyle}>↓</button>
                 </div>
               </div>
-              {selectedEl.type === 'text' && <TextProperties el={selectedEl} onChange={u => updateEl(selectedEl.id, u)} customFonts={customFonts} onFontUpload={handleFontUpload} />}
+              {selectedEl.type === 'text' && <TextProperties el={selectedEl} onChange={u => updateEl(selectedEl.id, u)} customFonts={customFonts} onFontUpload={handleFontUpload} brandColors={[workspaceData?.primary_color, workspaceData?.secondary_color].filter(Boolean) as string[]} />}
               {(selectedEl.type === 'rect' || selectedEl.type === 'circle' || selectedEl.type === 'star') && (
-                <ShapeProperties el={selectedEl} onChange={u => updateEl(selectedEl.id, u)} />
+                <ShapeProperties el={selectedEl} onChange={u => updateEl(selectedEl.id, u)} brandColors={[workspaceData?.primary_color, workspaceData?.secondary_color].filter(Boolean) as string[]} />
               )}
               {selectedEl.type === 'image' && (
                 <ImageProperties el={selectedEl} onChange={u => updateEl(selectedEl.id, u)} onSetBg={() => setProxyUrl(selectedEl.src)} />
