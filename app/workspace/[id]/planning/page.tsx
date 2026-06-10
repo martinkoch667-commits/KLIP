@@ -123,7 +123,7 @@ function PlanningContent() {
 
   const loadData = useCallback(async () => {
     const [{ data: ws }, { data: postsData }] = await Promise.all([
-      supabase.from("workspaces").select("id, name, primary_color, secondary_color, font_family, instagram_account_id, instagram_access_token, instagram_username").eq("id", id).single(),
+      supabase.from("workspaces").select("*").eq("id", id).single(),
       supabase.from("posts").select("id, photo_url, exported_image_url, texte_visuel, description, status, scheduled_at, brief").eq("workspace_id", id).in("status", ["generated", "validated", "scheduled", "published"]).order("scheduled_at", { ascending: true }),
     ]);
     if (ws) setWorkspace(ws);

@@ -15,11 +15,10 @@ export async function GET(request: NextRequest) {
   const clientId = "991302360155193";
 
   // ── Diagnostic block ──────────────────────────────────────────────────────
-  console.log(`[CB:${inv}] FULL request.url:`, request.url);
-  console.log(`[CB:${inv}] code FULL (${code?.length} chars):`, code);
-  console.log(`[CB:${inv}] workspaceId:`, workspaceId);
+  console.log('[CB] full URL:', request.url);
+  console.log('[CB] code:', code?.substring(0, 20));
+  console.log('[CB] state:', workspaceId);
   console.log(`[CB:${inv}] error param:`, error);
-  console.log(`[CB:${inv}] redirectUri used:`, redirectUri);
   console.log(`[CB:${inv}] META_APP_SECRET set:`, !!process.env.META_APP_SECRET);
   // ─────────────────────────────────────────────────────────────────────────
 
