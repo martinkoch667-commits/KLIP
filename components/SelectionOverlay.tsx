@@ -9,6 +9,8 @@ interface AnyEl {
   width?: number; height?: number;
   radius?: number;
   outerRadius?: number; innerRadius?: number;
+  fontSize?: number; padding?: number; paddingV?: number; paddingH?: number;
+  hasBg?: boolean;
   [k: string]: any;
 }
 
@@ -19,31 +21,62 @@ interface Bounds {
   cx: number; cy: number;
 }
 
-// ─── Helpers ─────────────────────────────────────────────────────────────────
+// ─── Bounds from element state (no Konva API needed) ─────────────────────────
 
-function getNodeBounds(stage: any, id: string): Bounds | null {
-  if (!stage) return null;
-  const node = stage.findOne('#' + id);
-  if (!node) return null;
-  const sr = node.getSelfRect();
-  const ap = node.getAbsolutePosition();
-  const rotation = node.getAbsoluteRotation();
-  const rad = rotation * Math.PI / 180;
-  const cos = Math.cos(rad), sin = Math.sin(rad);
-  const x = ap.x + sr.x;
-  const y = ap.y + sr.y;
-  const w = sr.width;
-  const h = sr.height;
-  const originX = -sr.x;
-  const originY = -sr.y;
-  // visual center: rotate the local-center offset around the origin
-  const dx = w / 2 - originX, dy = h / 2 - originY;
-  const cx = x + originX + dx * cos - dy * sin;
-  const cy = y + originY + dx * sin + dy * cos;
-  return { x, y, w, h, rotation, originX, originY, cx, cy };
+function getElementBounds(el: AnyEl): Bounds | null {
+  try {
+    let x: number, y: number, w: number, h: number;
+    let originX = 0, originY = 0;
+    const rotation = el.rotation ?? 0;
+
+    if (el.type === 'rect' || el.type === 'image') {
+      x = el.x; y = el.y;
+      w = Math.max(1, el.width ?? 100);
+      h = Math.max(1, el.height ?? 100);
+      // Konva Rect/Image: rotation around top-left (origin = 0,0)
+      originX = 0; originY = 0;
+
+    } else if (el.type === 'circle') {
+      const r = Math.max(1, el.radius ?? 50);
+      x = el.x - r; y = el.y - r;
+      w = r * 2; h = r * 2;
+      // Konva Circle: x,y = center, rotation around center
+      originX = r; originY = r;
+
+    } else if (el.type === 'star') {
+      const r = Math.max(1, el.outerRadius ?? 50);
+      x = el.x - r; y = el.y - r;
+      w = r * 2; h = r * 2;
+      // Konva Star: x,y = center, rotation around center
+      originX = r; originY = r;
+
+    } else if (el.type === 'text') {
+      x = el.x; y = el.y;
+      w = Math.max(20, el.width ?? 200);
+      const pV = Number(el.paddingV ?? el.padding ?? 10);
+      // Match blockH from editor: fontSize + pV * 2
+      h = Math.max(1, (el.fontSize ?? 32) + pV * 2);
+      originX = 0; originY = 0;
+
+    } else {
+      return null;
+    }
+
+    const rad = rotation * Math.PI / 180;
+    const cos = Math.cos(rad), sin = Math.sin(rad);
+    // Visual center = rotate the local center offset (dx,dy) around the CSS origin
+    const dx = w / 2 - originX, dy = h / 2 - originY;
+    const cx = x + originX + dx * cos - dy * sin;
+    const cy = y + originY + dx * sin + dy * cos;
+
+    return { x, y, w, h, rotation, originX, originY, cx, cy };
+  } catch (err) {
+    console.error('[SelectionOverlay] getElementBounds error:', err);
+    return null;
+  }
 }
 
-// viewport delta → element local delta (undo the CSS rotation)
+// viewport delta → element-local delta (undo the CSS rotation)
 function toLocal(dx: number, dy: number, rotation: number): [number, number] {
   const rad = rotation * Math.PI / 180;
   const cos = Math.cos(rad), sin = Math.sin(rad);
@@ -55,17 +88,17 @@ function toLocal(dx: number, dy: number, rotation: number): [number, number] {
 interface HandleDef { id: string; cursor: string; style: React.CSSProperties }
 
 const HANDLES: HandleDef[] = [
-  { id: 'tl', cursor: 'nw-resize',  style: { left: -5,   top: -5 } },
+  { id: 'tl', cursor: 'nw-resize',  style: { left: -5,    top: -5 } },
   { id: 'tc', cursor: 'n-resize',   style: { left: '50%', top: -5,    transform: 'translateX(-50%)' } },
-  { id: 'tr', cursor: 'ne-resize',  style: { right: -5,  top: -5 } },
-  { id: 'mr', cursor: 'e-resize',   style: { right: -5,  top: '50%',  transform: 'translateY(-50%)' } },
-  { id: 'br', cursor: 'se-resize',  style: { right: -5,  bottom: -5 } },
+  { id: 'tr', cursor: 'ne-resize',  style: { right: -5,   top: -5 } },
+  { id: 'mr', cursor: 'e-resize',   style: { right: -5,   top: '50%', transform: 'translateY(-50%)' } },
+  { id: 'br', cursor: 'se-resize',  style: { right: -5,   bottom: -5 } },
   { id: 'bc', cursor: 's-resize',   style: { left: '50%', bottom: -5,  transform: 'translateX(-50%)' } },
-  { id: 'bl', cursor: 'sw-resize',  style: { left: -5,   bottom: -5 } },
-  { id: 'ml', cursor: 'w-resize',   style: { left: -5,   top: '50%',  transform: 'translateY(-50%)' } },
+  { id: 'bl', cursor: 'sw-resize',  style: { left: -5,    bottom: -5 } },
+  { id: 'ml', cursor: 'w-resize',   style: { left: -5,    top: '50%', transform: 'translateY(-50%)' } },
 ];
 
-const HANDLE_STYLE: React.CSSProperties = {
+const HANDLE_BASE: React.CSSProperties = {
   position: 'absolute',
   width: 10, height: 10,
   background: '#FFFFFF',
@@ -87,8 +120,16 @@ interface Props {
 export default function SelectionOverlay({ el, stageRef, onChange }: Props) {
   const [liveAngle, setLiveAngle] = useState<number | null>(null);
 
-  const bounds = getNodeBounds(stageRef.current, el.id);
+  // Compute bounds from element state — no Konva API calls
+  let bounds: Bounds | null = null;
+  try {
+    bounds = getElementBounds(el);
+  } catch (err) {
+    console.error('[SelectionOverlay] render error:', err);
+    return null;
+  }
   if (!bounds) return null;
+
   const { x, y, w, h, rotation, originX, originY } = bounds;
 
   // ── Resize ──────────────────────────────────────────────────────────────────
@@ -98,64 +139,63 @@ export default function SelectionOverlay({ el, stageRef, onChange }: Props) {
     e.preventDefault();
     const startX = e.clientX, startY = e.clientY;
     const snapEl = { ...el };
-    const snapBounds = { ...bounds };
+    const snapBounds = { ...bounds! };
 
     const onMove = (ev: MouseEvent) => {
-      const dx = ev.clientX - startX, dy = ev.clientY - startY;
-      const [ldx, ldy] = toLocal(dx, dy, snapBounds.rotation);
+      try {
+        const dx = ev.clientX - startX, dy = ev.clientY - startY;
+        const [ldx, ldy] = toLocal(dx, dy, snapBounds.rotation);
 
-      // ── Circles: change radius from center ────────────────────────────────
-      if (el.type === 'circle') {
-        const growHandles = ['br', 'mr', 'bc', 'tr', 'bl'];
-        const sign = growHandles.includes(handleId) ? 1 : -1;
-        const delta = sign * Math.sqrt(ldx * ldx + ldy * ldy) * 0.7;
-        onChange({ radius: Math.max(10, (snapEl.radius ?? 50) + delta) });
-        return;
-      }
+        // ── Circles ───────────────────────────────────────────────────────────
+        if (el.type === 'circle') {
+          const grow = ['br', 'mr', 'bc', 'tr', 'bl'].includes(handleId);
+          const delta = (grow ? 1 : -1) * Math.sqrt(ldx * ldx + ldy * ldy) * 0.7;
+          onChange({ radius: Math.max(10, (snapEl.radius ?? 50) + delta) });
+          return;
+        }
 
-      // ── Stars: scale from center ───────────────────────────────────────────
-      if (el.type === 'star') {
-        const growHandles = ['br', 'mr', 'bc', 'tr', 'bl'];
-        const sign = growHandles.includes(handleId) ? 1 : -1;
-        const delta = sign * Math.sqrt(ldx * ldx + ldy * ldy) * 0.7;
-        const r = Math.max(10, (snapEl.outerRadius ?? 50) + delta);
-        const ratio = (snapEl.innerRadius ?? 25) / (snapEl.outerRadius ?? 50);
-        onChange({ outerRadius: r, innerRadius: Math.max(5, r * ratio) });
-        return;
-      }
+        // ── Stars ─────────────────────────────────────────────────────────────
+        if (el.type === 'star') {
+          const grow = ['br', 'mr', 'bc', 'tr', 'bl'].includes(handleId);
+          const delta = (grow ? 1 : -1) * Math.sqrt(ldx * ldx + ldy * ldy) * 0.7;
+          const r = Math.max(10, (snapEl.outerRadius ?? 50) + delta);
+          const ratio = (snapEl.innerRadius ?? 25) / (snapEl.outerRadius ?? 50);
+          onChange({ outerRadius: r, innerRadius: Math.max(5, r * ratio) });
+          return;
+        }
 
-      // ── Rect / Image / Text: rotation-aware edge resize ───────────────────
-      const rad = snapBounds.rotation * Math.PI / 180;
-      const cos = Math.cos(rad), sin = Math.sin(rad);
+        // ── Rect / Image / Text (rotation-aware) ─────────────────────────────
+        const rad = snapBounds.rotation * Math.PI / 180;
+        const cos = Math.cos(rad), sin = Math.sin(rad);
+        let nx = snapEl.x, ny = snapEl.y;
+        let nw = snapBounds.w, nh = snapBounds.h;
 
-      let nx = snapEl.x, ny = snapEl.y;
-      let nw = snapBounds.w, nh = snapBounds.h;
+        const shift = (lx: number, ly: number) => {
+          nx = snapEl.x + cos * lx - sin * ly;
+          ny = snapEl.y + sin * lx + cos * ly;
+        };
 
-      // Move element origin (top-left for rects, center for circles) by local (lx, ly)
-      const shift = (lx: number, ly: number) => {
-        nx = snapEl.x + cos * lx - sin * ly;
-        ny = snapEl.y + sin * lx + cos * ly;
-      };
+        switch (handleId) {
+          case 'tl': shift(ldx, ldy); nw -= ldx; nh -= ldy; break;
+          case 'tc': shift(0, ldy);              nh -= ldy; break;
+          case 'tr': shift(0, ldy);   nw += ldx; nh -= ldy; break;
+          case 'mr':                  nw += ldx;             break;
+          case 'br':                  nw += ldx; nh += ldy; break;
+          case 'bc':                             nh += ldy; break;
+          case 'bl': shift(ldx, 0);  nw -= ldx; nh += ldy; break;
+          case 'ml': shift(ldx, 0);  nw -= ldx;             break;
+        }
 
-      switch (handleId) {
-        case 'tl': shift(ldx, ldy); nw -= ldx; nh -= ldy; break;
-        case 'tc': shift(0, ldy);              nh -= ldy; break;
-        case 'tr': shift(0, ldy);   nw += ldx; nh -= ldy; break;
-        case 'mr':                  nw += ldx;             break;
-        case 'br':                  nw += ldx; nh += ldy; break;
-        case 'bc':                             nh += ldy; break;
-        case 'bl': shift(ldx, 0);  nw -= ldx; nh += ldy; break;
-        case 'ml': shift(ldx, 0);  nw -= ldx;             break;
-      }
+        nw = Math.max(20, nw);
+        nh = Math.max(20, nh);
 
-      nw = Math.max(20, nw);
-      nh = Math.max(20, nh);
-
-      if (el.type === 'text') {
-        // Text: only width (height is auto from content)
-        onChange({ x: nx, y: ny, width: nw });
-      } else {
-        onChange({ x: nx, y: ny, width: nw, height: nh });
+        if (el.type === 'text') {
+          onChange({ x: nx, y: ny, width: nw });
+        } else {
+          onChange({ x: nx, y: ny, width: nw, height: nh });
+        }
+      } catch (err) {
+        console.error('[SelectionOverlay] resize error:', err);
       }
     };
 
@@ -169,42 +209,49 @@ export default function SelectionOverlay({ el, stageRef, onChange }: Props) {
   const startRotate = (e: React.MouseEvent) => {
     e.stopPropagation();
     e.preventDefault();
-    const stage = stageRef.current;
-    if (!stage) return;
-    const cRect = stage.container().getBoundingClientRect();
-    // Visual center in viewport coordinates (fixed during the whole drag)
-    const vcxV = bounds.cx + cRect.left;
-    const vcyV = bounds.cy + cRect.top;
-    const snapBounds = { ...bounds };
+    try {
+      // Get stage container's viewport rect for coordinate conversion
+      const cRect = stageRef.current?.container?.()?.getBoundingClientRect?.() ?? { left: 0, top: 0 };
+      const vcxV = bounds!.cx + cRect.left;
+      const vcyV = bounds!.cy + cRect.top;
+      const snapBounds = { ...bounds! };
 
-    const onMove = (ev: MouseEvent) => {
-      const raw = Math.atan2(ev.clientY - vcyV, ev.clientX - vcxV) * 180 / Math.PI + 90;
-      const newAngle = ((raw % 360) + 360) % 360;
-      setLiveAngle(Math.round(newAngle));
+      const onMove = (ev: MouseEvent) => {
+        try {
+          const raw = Math.atan2(ev.clientY - vcyV, ev.clientX - vcxV) * 180 / Math.PI + 90;
+          const newAngle = ((raw % 360) + 360) % 360;
+          setLiveAngle(Math.round(newAngle));
 
-      // Circles / stars: x,y IS the center → no position adjustment needed
-      if (el.type === 'circle' || el.type === 'star') {
-        onChange({ rotation: newAngle });
-        return;
-      }
+          if (el.type === 'circle' || el.type === 'star') {
+            onChange({ rotation: newAngle });
+            return;
+          }
 
-      // Rect / image / text: keep the visual center fixed while changing rotation
-      const { w: sw, h: sh, originX: ox, originY: oy, cx: vcxS, cy: vcyS } = snapBounds;
-      const lcx = sw / 2 - ox; // local-space offset from rotation pivot to center
-      const lcy = sh / 2 - oy;
-      const newRad = newAngle * Math.PI / 180;
-      const nc = Math.cos(newRad), ns = Math.sin(newRad);
-      const newX = vcxS - lcx * nc + lcy * ns;
-      const newY = vcyS - lcx * ns - lcy * nc;
-      onChange({ x: newX, y: newY, rotation: newAngle });
-    };
+          // Keep visual center fixed for rect / image / text
+          const { w: sw, h: sh, originX: ox, originY: oy, cx: vcxS, cy: vcyS } = snapBounds;
+          const lcx = sw / 2 - ox;
+          const lcy = sh / 2 - oy;
+          const newRad = newAngle * Math.PI / 180;
+          const nc = Math.cos(newRad), ns = Math.sin(newRad);
+          onChange({
+            x: vcxS - lcx * nc + lcy * ns,
+            y: vcyS - lcx * ns - lcy * nc,
+            rotation: newAngle,
+          });
+        } catch (err) {
+          console.error('[SelectionOverlay] rotate move error:', err);
+        }
+      };
 
-    const onUp = () => {
-      setLiveAngle(null);
-      document.removeEventListener('mousemove', onMove);
-    };
-    document.addEventListener('mousemove', onMove);
-    document.addEventListener('mouseup', onUp, { once: true });
+      const onUp = () => {
+        setLiveAngle(null);
+        document.removeEventListener('mousemove', onMove);
+      };
+      document.addEventListener('mousemove', onMove);
+      document.addEventListener('mouseup', onUp, { once: true });
+    } catch (err) {
+      console.error('[SelectionOverlay] startRotate error:', err);
+    }
   };
 
   // ── Render ───────────────────────────────────────────────────────────────────
@@ -223,7 +270,7 @@ export default function SelectionOverlay({ el, stageRef, onChange }: Props) {
       transition: 'none',
       zIndex: 10,
     }}>
-      {/* Dashed selection border */}
+      {/* Dashed mint selection border */}
       <div style={{
         position: 'absolute', inset: 0,
         border: '1.5px dashed #2FD79B',
@@ -242,7 +289,7 @@ export default function SelectionOverlay({ el, stageRef, onChange }: Props) {
         pointerEvents: 'none',
       }} />
 
-      {/* Rotation handle circle */}
+      {/* Rotation circle handle */}
       <div
         onMouseDown={startRotate}
         style={{
@@ -265,11 +312,11 @@ export default function SelectionOverlay({ el, stageRef, onChange }: Props) {
         <div
           key={hnd.id}
           onMouseDown={startResize(hnd.id)}
-          style={{ ...HANDLE_STYLE, cursor: hnd.cursor, ...hnd.style }}
+          style={{ ...HANDLE_BASE, cursor: hnd.cursor, ...hnd.style }}
         />
       ))}
 
-      {/* Live rotation angle badge */}
+      {/* Live angle badge during rotation */}
       {liveAngle !== null && (
         <div style={{
           position: 'absolute',
