@@ -82,6 +82,11 @@ export async function GET(request: NextRequest) {
     );
     const igDetails = await igDetailsRes.json();
 
+    console.log('[CB] Saving token - first20:', accessToken?.substring(0, 20));
+    console.log('[CB] Saving igUserId:', igUserId);
+    console.log('[CB] Token type:', typeof accessToken);
+    console.log('[CB] Token length:', accessToken?.length);
+
     await supabase.from("workspaces").update({
       instagram_account_id: String(igUserId),
       instagram_access_token: accessToken.trim(),
