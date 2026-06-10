@@ -27,7 +27,11 @@ export async function POST(request: NextRequest) {
     }
 
     const igId = workspace.instagram_account_id;
-    const igToken = workspace.instagram_access_token;
+    const igToken = (workspace.instagram_access_token as string).trim();
+
+    console.log('[Publish] token first 20 chars:', igToken?.substring(0, 20));
+    console.log('[Publish] token length:', igToken?.length);
+    console.log('[Publish] instagram_account_id:', igId);
 
     // Step 1: Create media container
     const containerRes = await fetch(

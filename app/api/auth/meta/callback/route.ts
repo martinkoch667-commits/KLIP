@@ -63,14 +63,19 @@ export async function GET(request: NextRequest) {
       return NextResponse.redirect(`${appUrl}/workspace/${workspaceId}/parametres?error=token`);
     }
 
-    const shortToken = tokenData.access_token as string;
+    const shortToken = (tokenData.access_token as string).trim();
     const igUserId = tokenData.user_id;
+
+    console.log('[CB] short token first 20:', shortToken?.substring(0, 20));
+    console.log('[CB] igUserId:', igUserId);
 
     const longTokenRes = await fetch(
       `https://graph.instagram.com/access_token?grant_type=ig_exchange_token&client_secret=${process.env.META_APP_SECRET}&access_token=${shortToken}`
     );
     const longTokenData = await longTokenRes.json();
-    const accessToken = (longTokenData.access_token ?? shortToken) as string;
+    const accessToken = ((longTokenData.access_token ?? shortToken) as string).trim();
+
+    console.log('[CB] long token first 20:', accessToken?.substring(0, 20));
 
     const igDetailsRes = await fetch(
       `https://graph.instagram.com/v18.0/${igUserId}?fields=username,name&access_token=${accessToken}`
@@ -79,7 +84,7 @@ export async function GET(request: NextRequest) {
 
     await supabase.from("workspaces").update({
       instagram_account_id: String(igUserId),
-      instagram_access_token: accessToken,
+      instagram_access_token: accessToken.trim(),
       instagram_username: igDetails.username ?? igDetails.name ?? String(igUserId),
       instagram_connected_at: new Date().toISOString(),
     }).eq("id", workspaceId);
