@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useRef, useState } from "react";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -119,6 +119,9 @@ interface Props {
 
 export default function SelectionOverlay({ el, stageRef, onChange }: Props) {
   const [liveAngle, setLiveAngle] = useState<number | null>(null);
+  // Always call onChange with the latest prop, even if the closure is stale
+  const onChangeRef = useRef(onChange);
+  onChangeRef.current = onChange;
 
   // Compute bounds from element state — no Konva API calls
   let bounds: Bounds | null = null;
@@ -137,71 +140,115 @@ export default function SelectionOverlay({ el, stageRef, onChange }: Props) {
   const startResize = (handleId: string) => (e: React.MouseEvent) => {
     e.stopPropagation();
     e.preventDefault();
-    const startX = e.clientX, startY = e.clientY;
-    const snapEl = { ...el };
-    const snapBounds = { ...bounds! };
+
+    // Capture everything needed at mousedown — immune to stale closures
+    const startMouseX = e.clientX;
+    const startMouseY = e.clientY;
+    const startW      = bounds!.w;
+    const startH      = bounds!.h;
+    const startElX    = el.x;
+    const startElY    = el.y;
+    const startRot    = bounds!.rotation;
+    const snapRadius  = el.radius ?? 50;
+    const snapOuter   = el.outerRadius ?? 50;
+    const snapInner   = el.innerRadius ?? 25;
+    const elType      = el.type;
+    const ratio       = startW / startH;  // aspect ratio for proportional corners
+
+    const rad = startRot * Math.PI / 180;
+    const cos = Math.cos(rad), sin = Math.sin(rad);
+
+    // Move origin in local space → stage space
+    const shiftOrigin = (lx: number, ly: number) => ({
+      x: startElX + cos * lx - sin * ly,
+      y: startElY + sin * lx + cos * ly,
+    });
 
     const onMove = (ev: MouseEvent) => {
       try {
-        const dx = ev.clientX - startX, dy = ev.clientY - startY;
-        const [ldx, ldy] = toLocal(dx, dy, snapBounds.rotation);
+        const vdx = ev.clientX - startMouseX;
+        const vdy = ev.clientY - startMouseY;
+        const [ldx, ldy] = toLocal(vdx, vdy, startRot);
 
         // ── Circles ───────────────────────────────────────────────────────────
-        if (el.type === 'circle') {
-          const grow = ['br', 'mr', 'bc', 'tr', 'bl'].includes(handleId);
+        if (elType === 'circle') {
+          const grow = ['br', 'mr', 'bc', 'tr'].includes(handleId);
           const delta = (grow ? 1 : -1) * Math.sqrt(ldx * ldx + ldy * ldy) * 0.7;
-          onChange({ radius: Math.max(10, (snapEl.radius ?? 50) + delta) });
+          onChangeRef.current({ radius: Math.max(10, snapRadius + delta) });
           return;
         }
 
         // ── Stars ─────────────────────────────────────────────────────────────
-        if (el.type === 'star') {
-          const grow = ['br', 'mr', 'bc', 'tr', 'bl'].includes(handleId);
+        if (elType === 'star') {
+          const grow = ['br', 'mr', 'bc', 'tr'].includes(handleId);
           const delta = (grow ? 1 : -1) * Math.sqrt(ldx * ldx + ldy * ldy) * 0.7;
-          const r = Math.max(10, (snapEl.outerRadius ?? 50) + delta);
-          const ratio = (snapEl.innerRadius ?? 25) / (snapEl.outerRadius ?? 50);
-          onChange({ outerRadius: r, innerRadius: Math.max(5, r * ratio) });
+          const r = Math.max(10, snapOuter + delta);
+          const starRatio = snapInner / snapOuter;
+          onChangeRef.current({ outerRadius: r, innerRadius: Math.max(5, r * starRatio) });
           return;
         }
 
-        // ── Rect / Image / Text (rotation-aware) ─────────────────────────────
-        const rad = snapBounds.rotation * Math.PI / 180;
-        const cos = Math.cos(rad), sin = Math.sin(rad);
-        let nx = snapEl.x, ny = snapEl.y;
-        let nw = snapBounds.w, nh = snapBounds.h;
-
-        const shift = (lx: number, ly: number) => {
-          nx = snapEl.x + cos * lx - sin * ly;
-          ny = snapEl.y + sin * lx + cos * ly;
-        };
-
-        switch (handleId) {
-          case 'tl': shift(ldx, ldy); nw -= ldx; nh -= ldy; break;
-          case 'tc': shift(0, ldy);              nh -= ldy; break;
-          case 'tr': shift(0, ldy);   nw += ldx; nh -= ldy; break;
-          case 'mr':                  nw += ldx;             break;
-          case 'br':                  nw += ldx; nh += ldy; break;
-          case 'bc':                             nh += ldy; break;
-          case 'bl': shift(ldx, 0);  nw -= ldx; nh += ldy; break;
-          case 'ml': shift(ldx, 0);  nw -= ldx;             break;
+        // ── Text (width only) ─────────────────────────────────────────────────
+        if (elType === 'text') {
+          let nw = startW;
+          let origin = { x: startElX, y: startElY };
+          if (['mr', 'br', 'tr'].includes(handleId)) {
+            nw = startW + ldx;
+          } else if (['ml', 'bl', 'tl'].includes(handleId)) {
+            nw = startW - ldx;
+            origin = shiftOrigin(ldx, 0);
+          }
+          onChangeRef.current({ x: origin.x, y: origin.y, width: Math.max(20, nw) });
+          return;
         }
 
-        nw = Math.max(20, nw);
-        nh = Math.max(20, nh);
+        // ── Rect / Image — proportional corners, single-axis midpoints ────────
+        let nw = startW, nh = startH;
+        let origin = { x: startElX, y: startElY };
 
-        if (el.type === 'text') {
-          onChange({ x: nx, y: ny, width: nw });
+        const isCorner = ['tl', 'tr', 'bl', 'br'].includes(handleId);
+
+        if (isCorner) {
+          // Proportional: project mouse delta onto diagonal, keeping aspect ratio
+          let dScale = 0;
+          switch (handleId) {
+            case 'br': dScale =  (ldx / startW + ldy / startH) / 2; break;
+            case 'tr': dScale =  (ldx / startW - ldy / startH) / 2; break;
+            case 'bl': dScale = (-ldx / startW + ldy / startH) / 2; break;
+            case 'tl': dScale = (-ldx / startW - ldy / startH) / 2; break;
+          }
+          nw = Math.max(20, startW * (1 + dScale));
+          nh = nw / ratio;
+          // Re-derive origin shifts based on final sizes so clamping is correct
+          switch (handleId) {
+            case 'tr': origin = shiftOrigin(0, startH - nh); break;
+            case 'bl': origin = shiftOrigin(startW - nw, 0); break;
+            case 'tl': origin = shiftOrigin(startW - nw, startH - nh); break;
+            // br: origin stays
+          }
         } else {
-          onChange({ x: nx, y: ny, width: nw, height: nh });
+          switch (handleId) {
+            case 'mr': nw = startW + ldx; break;
+            case 'ml': nw = startW - ldx; origin = shiftOrigin(ldx, 0); break;
+            case 'bc': nh = startH + ldy; break;
+            case 'tc': nh = startH - ldy; origin = shiftOrigin(0, ldy); break;
+          }
+          nw = Math.max(20, nw);
+          nh = Math.max(20, nh);
         }
+
+        onChangeRef.current({ x: origin.x, y: origin.y, width: nw, height: nh });
       } catch (err) {
         console.error('[SelectionOverlay] resize error:', err);
       }
     };
 
-    const onUp = () => document.removeEventListener('mousemove', onMove);
-    document.addEventListener('mousemove', onMove);
-    document.addEventListener('mouseup', onUp, { once: true });
+    const onUp = () => {
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
+    };
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
   };
 
   // ── Rotate ──────────────────────────────────────────────────────────────────
@@ -245,10 +292,11 @@ export default function SelectionOverlay({ el, stageRef, onChange }: Props) {
 
       const onUp = () => {
         setLiveAngle(null);
-        document.removeEventListener('mousemove', onMove);
+        window.removeEventListener('mousemove', onMove);
+        window.removeEventListener('mouseup', onUp);
       };
-      document.addEventListener('mousemove', onMove);
-      document.addEventListener('mouseup', onUp, { once: true });
+      window.addEventListener('mousemove', onMove);
+      window.addEventListener('mouseup', onUp);
     } catch (err) {
       console.error('[SelectionOverlay] startRotate error:', err);
     }

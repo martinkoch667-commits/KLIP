@@ -27,7 +27,7 @@ interface TextEl extends BaseEl {
 interface RectEl extends BaseEl { type: 'rect'; width: number; height: number; fill: string; stroke: string; strokeWidth: number; cornerRadius: number; }
 interface CircleEl extends BaseEl { type: 'circle'; radius: number; fill: string; stroke: string; strokeWidth: number; }
 interface StarEl extends BaseEl { type: 'star'; numPoints: number; innerRadius: number; outerRadius: number; fill: string; stroke: string; strokeWidth: number; }
-interface ImageEl extends BaseEl { type: 'image'; src: string; width: number; height: number; }
+interface ImageEl extends BaseEl { type: 'image'; src: string; width: number; height: number; cropX?: number; cropY?: number; naturalW?: number; naturalH?: number; }
 type CanvasEl = TextEl | RectEl | CircleEl | StarEl | ImageEl;
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -64,15 +64,59 @@ function BgImage({ src, w, h }: { src: string; w: number; h: number }) {
   return img ? <KonvaImage image={img} x={0} y={0} width={w} height={h} listening={false} /> : null;
 }
 
-function ImgNode({ el, onSelect, onChange, onDragStart, onDragEnd }: { el: ImageEl; onSelect: () => void; onChange: (u: Partial<ImageEl>) => void; onDragStart?: () => void; onDragEnd?: (x: number, y: number) => void }) {
+function ImgNode({ el, onSelect, onChange, onDragStart, onDragEnd, isCropping }: {
+  el: ImageEl; onSelect: () => void; onChange: (u: Partial<ImageEl>) => void;
+  onDragStart?: () => void; onDragEnd?: (x: number, y: number) => void; isCropping?: boolean;
+}) {
   const [img] = useImage(el.src, 'anonymous');
+
+  // Store natural dimensions once the image is loaded
+  useEffect(() => {
+    if (img && img.naturalWidth > 0 && !el.naturalW) {
+      onChange({ naturalW: img.naturalWidth, naturalH: img.naturalHeight });
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [img]);
+
+  const natW = el.naturalW ?? (img?.naturalWidth || el.width);
+  const natH = el.naturalH ?? (img?.naturalHeight || el.height);
+  const frameW = el.width;
+  const frameH = el.height;
+  const scale = Math.max(frameW / natW, frameH / natH);
+  const scaledW = natW * scale;
+  const scaledH = natH * scale;
+  const cropX = el.cropX ?? (frameW - scaledW) / 2;
+  const cropY = el.cropY ?? (frameH - scaledH) / 2;
+
   return (
-    <KonvaImage id={el.id} image={img} x={el.x} y={el.y} width={el.width} height={el.height}
-      rotation={el.rotation} opacity={el.opacity / 100} draggable
+    <Group
+      id={el.id}
+      x={el.x} y={el.y}
+      rotation={el.rotation}
+      opacity={el.opacity / 100}
+      clipX={0} clipY={0} clipWidth={frameW} clipHeight={frameH}
+      draggable={!isCropping}
       onClick={onSelect} onTap={onSelect}
-      onDragStart={onDragStart}
-      onDragEnd={e => onDragEnd?.(e.target.x(), e.target.y())}
-    />
+      onDragStart={!isCropping ? onDragStart : undefined}
+      onDragEnd={!isCropping ? (e => onDragEnd?.(e.target.x(), e.target.y())) : undefined}
+    >
+      <KonvaImage
+        image={img}
+        x={cropX} y={cropY}
+        width={scaledW} height={scaledH}
+        draggable={isCropping}
+        onDragMove={isCropping ? (e => {
+          const nx = Math.min(0, Math.max(frameW - scaledW, e.target.x()));
+          const ny = Math.min(0, Math.max(frameH - scaledH, e.target.y()));
+          e.target.x(nx); e.target.y(ny);
+        }) : undefined}
+        onDragEnd={isCropping ? (e => {
+          onChange({ cropX: e.target.x(), cropY: e.target.y() });
+        }) : undefined}
+        onMouseEnter={isCropping ? (e => { const s = e.target.getStage(); if (s) s.container().style.cursor = 'grab'; }) : undefined}
+        onMouseLeave={isCropping ? (e => { const s = e.target.getStage(); if (s) s.container().style.cursor = 'default'; }) : undefined}
+      />
+    </Group>
   );
 }
 
@@ -247,16 +291,20 @@ function ShapeProperties({ el, onChange, brandColors }: { el: RectEl | CircleEl 
   );
 }
 
-function ImageProperties({ el, onChange, onSetBg }: { el: ImageEl; onChange: (u: Partial<ImageEl>) => void; onSetBg: () => void }) {
+function ImageProperties({ el, onChange, onSetBg, onCrop }: { el: ImageEl; onChange: (u: Partial<ImageEl>) => void; onSetBg: () => void; onCrop?: () => void }) {
   return (
     <>
       <PropRow label={`Opacité — ${el.opacity}%`}>
         <input type="range" min={0} max={100} value={el.opacity} onChange={e => onChange({ opacity: Number(e.target.value) })} style={{ width: '100%', accentColor: 'var(--mint-2)' }} />
       </PropRow>
-      <button onClick={onSetBg} className="btn btn-ghost btn-sm"
-        style={{ width: '100%', marginBottom: 8 }}>
-        Mettre en fond
-      </button>
+      <div style={{ display: 'flex', gap: 6, marginBottom: 8 }}>
+        <button onClick={onCrop} className="btn btn-ghost btn-sm" style={{ flex: 1, justifyContent: 'center' }}>
+          Recadrer
+        </button>
+        <button onClick={onSetBg} className="btn btn-ghost btn-sm" style={{ flex: 1, justifyContent: 'center' }}>
+          En fond
+        </button>
+      </div>
     </>
   );
 }
@@ -282,6 +330,7 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
   const stageRef = useRef<any>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isKonvaDragging, setIsKonvaDragging] = useState(false);
+  const [cropId, setCropId] = useState<string | null>(null);
 
   const [proxyUrl, setProxyUrl] = useState<string>('');
   const [bgImage] = useImage(proxyUrl, 'anonymous');
@@ -415,6 +464,13 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
     return () => clearTimeout(t);
   }, [dataLoading]);
 
+  // ── Crop mode cursor ──────────────────────────────────────────────────────
+
+  useEffect(() => {
+    const container = stageRef.current?.container?.();
+    if (container) container.style.cursor = cropId ? 'grab' : '';
+  }, [cropId]);
+
   // ── Selected element ──────────────────────────────────────────────────────
 
   const selectedEl = elements.find(e => e.id === selectedId);
@@ -518,9 +574,11 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
   };
 
   const addImageEl = (src: string) => {
-    const el: ImageEl = { id: newId(), type: 'image', x: 50, y: 50, rotation: 0, opacity: 100, src, width: 300, height: 200 };
+    const id = newId();
+    const el: ImageEl = { id, type: 'image', x: 0, y: 0, rotation: 0, opacity: 100, src, width: stageW, height: stageH };
     applyElements([...elements, el]);
-    setSelectedId(el.id);
+    setSelectedId(id);
+    setCropId(id);
     setShowUnsplash(false);
   };
 
@@ -813,7 +871,7 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
             <Stage
               ref={stageRef}
               width={stageW} height={stageH}
-              onMouseDown={e => { if (e.target === e.target.getStage()) setSelectedId(null); }}
+              onMouseDown={e => { if (e.target === e.target.getStage()) { if (cropId) { setCropId(null); } else { setSelectedId(null); } } }}
               style={{ display: 'block' }}
             >
               <Layer>
@@ -825,7 +883,8 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
                   if (el.type === 'image') return (
                     <ImgNode key={el.id} el={el} onSelect={() => setSelectedId(el.id)} onChange={u => updateEl(el.id, u)}
                       onDragStart={() => setIsKonvaDragging(true)}
-                      onDragEnd={(x, y) => { setIsKonvaDragging(false); updateEl(el.id, { x, y }); }} />
+                      onDragEnd={(x, y) => { setIsKonvaDragging(false); updateEl(el.id, { x, y }); }}
+                      isCropping={cropId === el.id} />
                   );
                   if (el.type === 'rect') return (
                     <Rect key={el.id} id={el.id} x={el.x} y={el.y} width={el.width} height={el.height}
@@ -877,12 +936,40 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
 
               </Layer>
             </Stage>
-            {selectedEl && !hiddenIds.has(selectedEl.id) && !isKonvaDragging && (
+            {selectedEl && !hiddenIds.has(selectedEl.id) && !isKonvaDragging && cropId !== selectedEl.id && (
               <SelectionOverlay
                 el={selectedEl}
                 stageRef={stageRef}
                 onChange={u => updateEl(selectedEl.id, u)}
               />
+            )}
+            {cropId && (
+              <div style={{
+                position: 'absolute', bottom: 14, left: '50%',
+                transform: 'translateX(-50%)',
+                display: 'flex', gap: 8, zIndex: 20, pointerEvents: 'auto',
+              }}>
+                <div style={{
+                  background: 'rgba(12,42,29,0.82)', backdropFilter: 'blur(6px)',
+                  borderRadius: 10, padding: '6px 8px',
+                  display: 'flex', alignItems: 'center', gap: 8,
+                  boxShadow: '0 4px 18px rgba(13,15,10,.38)',
+                  fontSize: 12, color: 'rgba(238,237,227,0.7)', fontFamily: 'var(--sans)',
+                }}>
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#2FD79B" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/>
+                    <line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/>
+                  </svg>
+                  Glissez pour recadrer
+                  <button onClick={() => setCropId(null)} style={{
+                    padding: '5px 14px', background: '#2FD79B', color: '#0C2A1D',
+                    border: 'none', borderRadius: 6, cursor: 'pointer',
+                    fontSize: 12, fontWeight: 700, fontFamily: 'var(--sans)',
+                  }}>
+                    Appliquer
+                  </button>
+                </div>
+              </div>
             )}
             </div>
           </div>
@@ -991,7 +1078,7 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
                 <ShapeProperties el={selectedEl} onChange={u => updateEl(selectedEl.id, u)} brandColors={[workspaceData?.primary_color, workspaceData?.secondary_color].filter(Boolean) as string[]} />
               )}
               {selectedEl.type === 'image' && (
-                <ImageProperties el={selectedEl} onChange={u => updateEl(selectedEl.id, u)} onSetBg={() => setProxyUrl(selectedEl.src)} />
+                <ImageProperties el={selectedEl} onChange={u => updateEl(selectedEl.id, u)} onSetBg={() => setProxyUrl(selectedEl.src)} onCrop={() => setCropId(selectedEl.id)} />
               )}
               <div style={{ display: 'flex', gap: 6, marginTop: 14 }}>
                 <button onClick={() => duplicateEl()} className="btn btn-ghost btn-sm" style={{ flex: 1, justifyContent: 'center' }}>Dupliquer</button>
