@@ -40,7 +40,7 @@ export async function POST(request: NextRequest) {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          image_url: post.photo_url,
+          image_url: post.exported_image_url || post.photo_url,
           caption: post.description ?? "",
           access_token: igToken,
         }),
