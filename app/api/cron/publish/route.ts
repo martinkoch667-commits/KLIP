@@ -16,7 +16,7 @@ export async function GET(request: NextRequest) {
 
   const { data: posts, error } = await supabase
     .from("posts")
-    .select("*, workspaces(instagram_access_token, instagram_account_id)")
+    .select("*, workspaces!workspace_id(instagram_access_token, instagram_account_id)")
     .eq("status", "scheduled")
     .lte("scheduled_at", now)
     .limit(10);
