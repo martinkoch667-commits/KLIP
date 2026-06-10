@@ -33,9 +33,9 @@ export async function POST(request: NextRequest) {
     console.log('[Publish] token length:', igToken?.length);
     console.log('[Publish] account_id:', igId);
 
-    // Step 1: Create media container
+    // Step 1: Create media container (Instagram Login API → graph.instagram.com)
     const containerRes = await fetch(
-      `https://graph.facebook.com/v18.0/${igId}/media`,
+      `https://graph.instagram.com/v21.0/me/media`,
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -47,6 +47,7 @@ export async function POST(request: NextRequest) {
       }
     );
     const containerData = await containerRes.json();
+    console.log("[Publish] container response:", JSON.stringify(containerData));
 
     if (!containerData.id) {
       console.error("[Instagram] Container creation failed:", containerData);
@@ -61,7 +62,7 @@ export async function POST(request: NextRequest) {
 
     // Step 3: Publish the container
     const publishRes = await fetch(
-      `https://graph.facebook.com/v18.0/${igId}/media_publish`,
+      `https://graph.instagram.com/v21.0/me/media_publish`,
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },

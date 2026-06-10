@@ -78,9 +78,10 @@ export async function GET(request: NextRequest) {
     console.log('[CB] long token first 20:', accessToken?.substring(0, 20));
 
     const igDetailsRes = await fetch(
-      `https://graph.instagram.com/v18.0/${igUserId}?fields=username,name&access_token=${accessToken}`
+      `https://graph.instagram.com/me?fields=id,username&access_token=${accessToken}`
     );
     const igDetails = await igDetailsRes.json();
+    console.log('[CB] igDetails response:', JSON.stringify(igDetails));
 
     console.log('[CB] Saving token - first20:', accessToken?.substring(0, 20));
     console.log('[CB] Saving igUserId:', igUserId);
