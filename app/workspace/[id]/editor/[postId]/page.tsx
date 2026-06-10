@@ -110,7 +110,7 @@ function PropRow({ label, children }: { label: string; children: React.ReactNode
 function ColorRow({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
   return (
     <PropRow label={label}>
-      <div style={{ display: 'flex', gap: 8, alignItems: 'center', background: 'var(--sunk)', border: '1px solid var(--line)', borderRadius: 8, padding: '6px 10px' }}>
+      <div style={{ display: 'flex', gap: 8, alignItems: 'center', background: 'var(--sunk)', border: '1px solid var(--line)', borderRadius: 'var(--r-s)', padding: '6px 10px' }}>
         <input type="color" value={value} onChange={e => onChange(e.target.value)}
           style={{ width: 28, height: 28, border: 'none', borderRadius: 4, cursor: 'pointer', padding: 0, background: 'transparent' }} />
         <span style={{ fontSize: 12, color: 'var(--ink-2)', fontFamily: 'var(--mono)' }}>{value.toUpperCase()}</span>
@@ -146,11 +146,11 @@ function TextProperties({ el, onChange, customFonts, onFontUpload }: { el: TextE
     <>
       <PropRow label="Contenu">
         <textarea value={el.text} onChange={e => onChange({ text: e.target.value })} rows={3}
-          style={{ width: '100%', padding: '8px 10px', border: '1px solid var(--line)', borderRadius: 6, fontSize: 13, resize: 'vertical', boxSizing: 'border-box', fontFamily: 'var(--sans)', outline: 'none', background: 'var(--sunk)', color: 'var(--ink)' }} />
+          style={{ width: '100%', padding: '8px 10px', border: '1px solid var(--line)', borderRadius: 'var(--r-s)', fontSize: 13, resize: 'vertical', boxSizing: 'border-box', fontFamily: 'var(--sans)', outline: 'none', background: 'var(--sunk)', color: 'var(--ink)' }} />
       </PropRow>
       <PropRow label="Police">
         <select value={el.fontFamily} onChange={e => onChange({ fontFamily: e.target.value })}
-          style={{ width: '100%', padding: '6px 8px', border: '1px solid var(--line)', borderRadius: 6, fontSize: 13, outline: 'none', background: 'var(--sunk)', color: 'var(--ink)' }}>
+          style={{ width: '100%', padding: '6px 8px', border: '1px solid var(--line)', borderRadius: 'var(--r-s)', fontSize: 13, outline: 'none', background: 'var(--sunk)', color: 'var(--ink)' }}>
           {customFonts.length > 0 && (
             <optgroup label="Mes polices">
               {customFonts.map(f => <option key={f.name} value={f.name}>{f.name}</option>)}
@@ -184,7 +184,7 @@ function TextProperties({ el, onChange, customFonts, onFontUpload }: { el: TextE
         <div style={{ display: 'flex', gap: 6 }}>
           {[{ label: 'G', title: 'Gras', active: isBold, fn: toggleBold }, { label: 'I', title: 'Italique', active: isItalic, fn: toggleItalic }, { label: 'S', title: 'Souligné', active: isUnderline, fn: () => onChange({ textDecoration: isUnderline ? '' : 'underline' }) }].map(({ label, title, active, fn }) => (
             <button key={label} onClick={fn} title={title}
-              style={{ flex: 1, padding: '6px', border: '1px solid var(--line)', borderRadius: 6, cursor: 'pointer', fontWeight: 700, fontSize: 13, background: active ? 'var(--mint)' : 'var(--sunk)', color: active ? 'var(--mint-ink)' : 'var(--ink-2)' }}>
+              style={{ flex: 1, padding: '7px 6px', border: 'none', borderRadius: 'var(--r-s)', cursor: 'pointer', fontWeight: 700, fontSize: 13, background: active ? 'var(--mint)' : 'var(--sunk)', color: active ? 'var(--mint-ink)' : 'var(--ink-2)', boxShadow: active ? 'none' : 'inset 0 0 0 1px var(--line)' }}>
               {label}
             </button>
           ))}
@@ -194,14 +194,14 @@ function TextProperties({ el, onChange, customFonts, onFontUpload }: { el: TextE
         <div style={{ display: 'flex', gap: 6 }}>
           {(['left', 'center', 'right'] as const).map(a => (
             <button key={a} onClick={() => onChange({ align: a })}
-              style={{ flex: 1, padding: '6px', border: '1px solid var(--line)', borderRadius: 6, cursor: 'pointer', fontSize: 13, background: el.align === a ? 'var(--mint)' : 'var(--sunk)', color: el.align === a ? 'var(--mint-ink)' : 'var(--ink-2)' }}>
+              style={{ flex: 1, padding: '7px 6px', border: 'none', borderRadius: 'var(--r-s)', cursor: 'pointer', fontSize: 13, background: el.align === a ? 'var(--mint)' : 'var(--sunk)', color: el.align === a ? 'var(--mint-ink)' : 'var(--ink-2)', boxShadow: el.align === a ? 'none' : 'inset 0 0 0 1px var(--line)' }}>
               {a === 'left' ? '⬅' : a === 'center' ? '↔' : '➡'}
             </button>
           ))}
         </div>
       </PropRow>
       <ColorRow label="Couleur texte" value={el.fill} onChange={v => onChange({ fill: v })} />
-      <div style={{ borderTop: '1px solid #1E1E1E', paddingTop: 12 }}>
+      <div style={{ borderTop: '1px solid var(--line)', paddingTop: 12 }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
           <span style={{ fontSize: 10.5, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '0.07em', fontFamily: 'var(--mono)', fontWeight: 800 }}>Fond du bloc</span>
           <div onClick={() => onChange({ hasBg: !el.hasBg })}
@@ -260,8 +260,8 @@ function ImageProperties({ el, onChange, onSetBg }: { el: ImageEl; onChange: (u:
       <PropRow label={`Opacité — ${el.opacity}%`}>
         <input type="range" min={0} max={100} value={el.opacity} onChange={e => onChange({ opacity: Number(e.target.value) })} style={{ width: '100%', accentColor: 'var(--mint-2)' }} />
       </PropRow>
-      <button onClick={onSetBg}
-        style={{ width: '100%', padding: '10px', background: 'var(--sunk)', border: '1px solid var(--line)', borderRadius: 6, cursor: 'pointer', fontSize: 13, marginBottom: 8, color: 'var(--ink-2)', fontFamily: 'var(--sans)' }}>
+      <button onClick={onSetBg} className="btn btn-ghost btn-sm"
+        style={{ width: '100%', marginBottom: 8 }}>
         Mettre en fond
       </button>
     </>
@@ -732,13 +732,13 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
     <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', fontFamily: 'var(--sans)', background: 'var(--canvas)' }}>
 
       {/* ── TOPBAR ── */}
-      <div style={{ height: 52, background: '#111111', borderBottom: '1px solid rgba(255,255,255,0.06)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 16px', flexShrink: 0, zIndex: 10 }}>
+      <div style={{ height: 52, background: 'var(--forest)', borderBottom: '1px solid rgba(238,237,227,.08)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 16px', flexShrink: 0, zIndex: 10 }}>
         {/* Left: back + client + format */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0 }}>
           <a href={`/workspace/${workspaceId}`}
-            style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 30, height: 30, borderRadius: 7, border: '1px solid rgba(255,255,255,0.14)', color: 'rgba(255,255,255,0.6)', textDecoration: 'none', fontSize: 14, flexShrink: 0 }}>←</a>
+            style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 30, height: 30, borderRadius: 7, boxShadow: 'inset 0 0 0 1px rgba(238,237,227,.2)', color: 'var(--cream-2)', textDecoration: 'none', fontSize: 14, flexShrink: 0 }}>←</a>
           <button onClick={deletePost} title="Supprimer ce post"
-            style={{ width: 30, height: 30, borderRadius: 7, border: '1px solid rgba(255,80,80,0.3)', background: 'transparent', color: 'rgba(255,100,100,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0 }}>
+            style={{ width: 30, height: 30, borderRadius: 7, boxShadow: 'inset 0 0 0 1px rgba(255,80,80,.25)', background: 'transparent', color: 'rgba(255,120,120,.65)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0 }}>
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M4 7h16M9 7V4.5h6V7M6 7l1 13h10l1-13"/></svg>
           </button>
           <div style={{ width: 26, height: 26, borderRadius: 7, background: 'var(--mint)', display: 'grid', placeItems: 'center', flexShrink: 0 }}>
@@ -746,18 +746,18 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
               {workspaceName ? workspaceName.slice(0,2).toUpperCase() : 'KL'}
             </span>
           </div>
-          <span style={{ fontWeight: 700, fontSize: 13.5, color: '#fff', fontFamily: 'var(--sans)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 160 }}>{workspaceName || 'Éditeur'}</span>
-          <span style={{ fontSize: 11, fontWeight: 700, fontFamily: 'var(--mono)', color: 'rgba(255,255,255,0.45)', background: 'rgba(255,255,255,0.08)', padding: '3px 8px', borderRadius: 5, flexShrink: 0 }}>
+          <span style={{ fontWeight: 700, fontSize: 13.5, color: 'var(--cream)', fontFamily: 'var(--sans)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 160 }}>{workspaceName || 'Éditeur'}</span>
+          <span style={{ fontSize: 11, fontWeight: 700, fontFamily: 'var(--mono)', color: 'var(--cream-2)', background: 'rgba(238,237,227,.1)', padding: '3px 8px', borderRadius: 5, flexShrink: 0 }}>
             Post · {activeFormat.label}
           </span>
         </div>
 
         {/* Center: aperçu + dupliquer */}
         <div style={{ display: 'flex', gap: 6 }}>
-          <button style={{ padding: '6px 14px', background: 'transparent', border: '1px solid rgba(255,255,255,0.2)', borderRadius: 6, cursor: 'pointer', fontSize: 12.5, color: 'rgba(255,255,255,0.75)', fontFamily: 'var(--sans)', fontWeight: 600 }}>
+          <button className="btn btn-sm" style={{ background: 'transparent', boxShadow: 'inset 0 0 0 1px rgba(238,237,227,.22)', color: 'var(--cream-2)' }}>
             Aperçu
           </button>
-          <button style={{ padding: '6px 14px', background: 'transparent', border: '1px solid rgba(255,255,255,0.2)', borderRadius: 6, cursor: 'pointer', fontSize: 12.5, color: 'rgba(255,255,255,0.75)', fontFamily: 'var(--sans)', fontWeight: 600 }}>
+          <button className="btn btn-sm" style={{ background: 'transparent', boxShadow: 'inset 0 0 0 1px rgba(238,237,227,.22)', color: 'var(--cream-2)' }}>
             Dupliquer
           </button>
         </div>
@@ -765,16 +765,16 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
         {/* Right: undo/redo + export + save */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
           <button onClick={undo} disabled={!canUndo} title="Annuler Ctrl+Z"
-            style={{ width: 30, height: 30, background: 'transparent', border: 'none', borderRadius: 6, cursor: canUndo ? 'pointer' : 'default', fontSize: 15, color: 'rgba(255,255,255,0.4)', opacity: canUndo ? 1 : 0.3, display: 'grid', placeItems: 'center' }}>↩</button>
+            style={{ width: 30, height: 30, background: 'transparent', border: 'none', borderRadius: 6, cursor: canUndo ? 'pointer' : 'default', fontSize: 15, color: 'rgba(238,237,227,.45)', opacity: canUndo ? 1 : 0.3, display: 'grid', placeItems: 'center' }}>↩</button>
           <button onClick={redo} disabled={!canRedo} title="Rétablir"
-            style={{ width: 30, height: 30, background: 'transparent', border: 'none', borderRadius: 6, cursor: canRedo ? 'pointer' : 'default', fontSize: 15, color: 'rgba(255,255,255,0.4)', opacity: canRedo ? 1 : 0.3, display: 'grid', placeItems: 'center' }}>↪</button>
-          <div style={{ width: 1, height: 20, background: 'rgba(255,255,255,0.1)', margin: '0 4px' }} />
-          <button onClick={exportPNG}
-            style={{ padding: '6px 14px', background: 'transparent', border: '1px solid rgba(47,215,155,0.5)', borderRadius: 6, cursor: 'pointer', fontWeight: 700, fontSize: 12.5, fontFamily: 'var(--sans)', color: 'var(--mint)' }}>
+            style={{ width: 30, height: 30, background: 'transparent', border: 'none', borderRadius: 6, cursor: canRedo ? 'pointer' : 'default', fontSize: 15, color: 'rgba(238,237,227,.45)', opacity: canRedo ? 1 : 0.3, display: 'grid', placeItems: 'center' }}>↪</button>
+          <div style={{ width: 1, height: 20, background: 'rgba(238,237,227,.1)', margin: '0 4px' }} />
+          <button onClick={exportPNG} className="btn btn-sm"
+            style={{ background: 'transparent', boxShadow: 'inset 0 0 0 1px rgba(238,237,227,.22)', color: 'var(--cream-2)' }}>
             Exporter PNG
           </button>
-          <button onClick={handleSave} disabled={saving}
-            style={{ padding: '6px 18px', background: 'var(--mint)', border: 'none', borderRadius: 6, cursor: saving ? 'not-allowed' : 'pointer', fontWeight: 700, fontSize: 12.5, color: '#06281C', fontFamily: 'var(--sans)', opacity: saving ? 0.6 : 1 }}>
+          <button onClick={handleSave} disabled={saving} className="btn btn-sm btn-primary"
+            style={{ opacity: saving ? 0.6 : 1, cursor: saving ? 'not-allowed' : 'pointer' }}>
             {saving ? 'Sauvegarde…' : 'Sauvegarder →'}
           </button>
         </div>
@@ -783,7 +783,7 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
       <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
 
         {/* ── LEFT SIDEBAR — tool rail ── */}
-        <div style={{ width: 68, background: '#fff', borderRight: '1px solid var(--line)', display: 'flex', flexDirection: 'column', alignItems: 'center', paddingTop: 10, gap: 2, flexShrink: 0 }}>
+        <div style={{ width: 68, background: 'var(--canvas)', borderRight: '1px solid var(--line)', display: 'flex', flexDirection: 'column', alignItems: 'center', paddingTop: 10, gap: 2, flexShrink: 0 }}>
           {([
             { id: 'media',    label: 'Média',    icon: (
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
@@ -802,7 +802,7 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
             )},
           ] as { id: 'media'|'text'|'brand'|'stickers'|'shapes'; label: string; icon: React.ReactNode }[]).map(({ id, label, icon }) => (
             <button key={id} onClick={() => setTool(id)} title={label}
-              style={{ width: 50, padding: '9px 4px', borderRadius: 10, border: 'none', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, cursor: 'pointer', transition: 'all .14s',
+              style={{ width: 50, padding: '9px 4px', borderRadius: 12, border: 'none', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, cursor: 'pointer', transition: 'all .14s',
                 background: tool === id ? 'var(--mint-soft)' : 'transparent',
                 color: tool === id ? 'var(--mint-2)' : 'var(--ink-3)' }}>
               {icon}
@@ -816,7 +816,7 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
             {FORMATS.map(f => (
               <button key={f.id} onClick={() => setFormatId(f.id)} title={f.label}
                 style={{ width: 34, height: 34, borderRadius: 7, border: '1.5px solid', cursor: 'pointer', fontSize: 8, fontFamily: 'var(--mono)', fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0, transition: 'all .12s',
-                  background: formatId === f.id ? 'var(--mint)' : 'var(--sunk)',
+                  background: formatId === f.id ? 'var(--mint)' : 'var(--white)',
                   borderColor: formatId === f.id ? 'var(--mint)' : 'var(--line)',
                   color: formatId === f.id ? 'var(--mint-ink)' : 'var(--ink-3)' }}>
                 {f.id === 'ig-portrait' ? '4:5' : f.id === 'ig-square' ? '1:1' : f.id === 'ig-story' ? '9:16' : 'FB'}
@@ -826,8 +826,8 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
         </div>
 
         {/* ── CANVAS ── */}
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', overflow: 'hidden', background: '#C9C4B8' }}>
-          <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'auto', padding: 32 }}>
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', overflow: 'hidden', background: 'var(--sunk)' }}>
+          <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'auto', padding: 28 }}>
             <div style={{ borderRadius: 18, overflow: 'hidden', boxShadow: '0 22px 50px -24px rgba(13,15,10,.45)', flexShrink: 0 }}>
             <Stage
               ref={stageRef}
@@ -924,7 +924,7 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
         </div>
 
         {/* ── RIGHT PANEL (always visible) ── */}
-        <div style={{ width: 300, background: '#fff', borderLeft: '1px solid var(--line)', overflowY: 'auto', flexShrink: 0, display: 'flex', flexDirection: 'column' }}>
+        <div style={{ width: 300, background: 'var(--white)', borderLeft: '1px solid var(--line)', overflowY: 'auto', flexShrink: 0, display: 'flex', flexDirection: 'column' }}>
 
           {/* ── LAYERS PANEL ── */}
           <div style={{ borderBottom: '1px solid var(--line)', flexShrink: 0 }}>
@@ -1013,7 +1013,7 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
           {selectedEl && (
             <div style={{ padding: '14px 16px', borderBottom: '1px solid var(--line)' }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
-                <span style={{ fontSize: 10, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '0.12em', fontFamily: 'var(--mono)', fontWeight: 800 }}>
+                <span style={{ fontSize: 11, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '0.12em', fontFamily: 'var(--mono)', fontWeight: 800 }}>
                   {selectedEl.type === 'text' ? 'Texte' : selectedEl.type === 'image' ? 'Image' : 'Forme'}
                 </span>
                 <div style={{ display: 'flex', gap: 4 }}>
@@ -1038,14 +1038,14 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
           {/* ── Tool panel content ── */}
           {tool === 'media' && !selectedEl && (
             <div style={{ padding: '14px 16px', borderBottom: '1px solid var(--line)' }}>
-              <p style={{ fontSize: 10, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '0.12em', fontFamily: 'var(--mono)', fontWeight: 800, marginBottom: 10 }}>Arrière-plan</p>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 8, marginBottom: 12 }}>
+              <p style={{ fontSize: 11, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '0.12em', fontFamily: 'var(--mono)', fontWeight: 800, marginBottom: 10 }}>Arrière-plan</p>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 9, marginBottom: 12 }}>
                 {['linear-gradient(150deg,#2b8d57,#0c2a1d)','linear-gradient(150deg,#2FD79B,#06281C)','linear-gradient(150deg,#F5F0E8,#c9c4b2)','linear-gradient(150deg,#111111,#333)','linear-gradient(150deg,#0038FF,#001a80)','linear-gradient(150deg,#FF6B6B,#c0392b)'].map((g, i) => (
                   <button key={i} onClick={() => setProxyUrl('')}
-                    style={{ aspectRatio: '4/5', borderRadius: 10, background: g, border: proxyUrl === '' ? '2.5px solid var(--mint-2)' : '1.5px solid rgba(0,0,0,0.1)', cursor: 'pointer', transition: 'all .12s' }} />
+                    style={{ aspectRatio: '4/5', borderRadius: 'var(--r)', background: g, border: 'none', cursor: 'pointer', transition: 'all .12s', boxShadow: proxyUrl === '' ? '0 0 0 2.5px var(--mint-2)' : 'inset 0 0 0 1px var(--line)' }} />
                 ))}
               </div>
-              <label style={{ display: 'flex', alignItems: 'center', gap: 10, border: '1.5px dashed var(--line)', borderRadius: 10, padding: '12px 14px', cursor: 'pointer', color: 'var(--ink-3)', fontSize: 13, fontWeight: 600 }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: 10, border: '1.5px dashed var(--line)', borderRadius: 'var(--r)', padding: '12px 14px', cursor: 'pointer', color: 'var(--ink-3)', fontSize: 13, fontWeight: 600 }}>
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
                 Importer une photo
                 <input type="file" accept="image/*" style={{ display: 'none' }} onChange={handleFileUpload} />
@@ -1056,9 +1056,9 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
                   <input value={unsplashQuery} onChange={e => setUnsplashQuery(e.target.value)}
                     onKeyDown={e => e.key === 'Enter' && fetchUnsplash(unsplashQuery)}
                     placeholder="Chercher une photo…"
-                    style={{ flex: 1, padding: '7px 10px', border: '1px solid var(--line)', borderRadius: 7, fontSize: 12, outline: 'none', fontFamily: 'var(--sans)', background: 'var(--sunk)', color: 'var(--ink)' }} />
+                    style={{ flex: 1, padding: '7px 10px', border: '1px solid var(--line)', borderRadius: 'var(--r-s)', fontSize: 12, outline: 'none', fontFamily: 'var(--sans)', background: 'var(--sunk)', color: 'var(--ink)' }} />
                   <button onClick={() => fetchUnsplash(unsplashQuery)}
-                    style={{ padding: '7px 10px', background: 'var(--mint)', color: 'var(--mint-ink)', border: 'none', borderRadius: 7, cursor: 'pointer', fontSize: 13, fontWeight: 700 }}>→</button>
+                    style={{ padding: '7px 10px', background: 'var(--mint)', color: 'var(--mint-ink)', border: 'none', borderRadius: 'var(--r-s)', cursor: 'pointer', fontSize: 13, fontWeight: 700 }}>→</button>
                 </div>
                 {unsplashLoading ? (
                   <p style={{ fontSize: 12, color: 'var(--ink-3)', textAlign: 'center', padding: '8px 0' }}>Chargement…</p>
@@ -1078,15 +1078,15 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
 
           {tool === 'text' && !selectedEl && (
             <div style={{ padding: '14px 16px', borderBottom: '1px solid var(--line)' }}>
-              <p style={{ fontSize: 10, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '0.12em', fontFamily: 'var(--mono)', fontWeight: 800, marginBottom: 10 }}>Ajouter</p>
-              <button onClick={addText}
-                style={{ width: '100%', padding: '10px 12px', background: 'var(--sunk)', border: '1px solid var(--line)', borderRadius: 8, cursor: 'pointer', fontSize: 13, textAlign: 'left', color: 'var(--ink-2)', fontFamily: 'var(--sans)', marginBottom: 8 }}>
+              <p style={{ fontSize: 11, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '0.12em', fontFamily: 'var(--mono)', fontWeight: 800, marginBottom: 10 }}>Ajouter</p>
+              <button onClick={addText} className="btn btn-ghost btn-sm"
+                style={{ width: '100%', textAlign: 'left', justifyContent: 'flex-start', marginBottom: 8 }}>
                 T  Nouveau texte
               </button>
               <p style={{ fontSize: 10, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '0.12em', fontFamily: 'var(--mono)', fontWeight: 800, margin: '12px 0 8px' }}>Templates</p>
               {TEMPLATES.map(t => (
-                <button key={t.label} onClick={() => applyTemplate(t.overrides as Partial<TextEl>)}
-                  style={{ width: '100%', padding: '9px 12px', background: 'var(--sunk)', border: '1px solid var(--line)', borderRadius: 8, cursor: 'pointer', fontSize: 12, textAlign: 'left', color: 'var(--ink-2)', fontFamily: 'var(--sans)', marginBottom: 6 }}>
+                <button key={t.label} onClick={() => applyTemplate(t.overrides as Partial<TextEl>)} className="well"
+                  style={{ width: '100%', padding: '9px 12px', cursor: 'pointer', fontSize: 12, textAlign: 'left', color: 'var(--ink-2)', fontFamily: 'var(--sans)', marginBottom: 6, display: 'block' }}>
                   {t.label}
                 </button>
               ))}
@@ -1095,11 +1095,11 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
 
           {tool === 'shapes' && !selectedEl && (
             <div style={{ padding: '14px 16px', borderBottom: '1px solid var(--line)' }}>
-              <p style={{ fontSize: 10, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '0.12em', fontFamily: 'var(--mono)', fontWeight: 800, marginBottom: 10 }}>Formes</p>
+              <p style={{ fontSize: 11, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '0.12em', fontFamily: 'var(--mono)', fontWeight: 800, marginBottom: 10 }}>Formes</p>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
                 {[{ label: '▭  Rectangle', fn: addRect },{ label: '⬭  Cercle', fn: addCircle },{ label: '⭐  Étoile', fn: addStar }].map(({ label, fn }) => (
-                  <button key={label} onClick={fn}
-                    style={{ padding: '10px 6px', background: 'var(--sunk)', border: '1px solid var(--line)', borderRadius: 8, cursor: 'pointer', fontSize: 12, textAlign: 'center', color: 'var(--ink-2)', fontFamily: 'var(--sans)' }}>
+                  <button key={label} onClick={fn} className="well"
+                    style={{ padding: '10px 6px', cursor: 'pointer', fontSize: 12, textAlign: 'center', color: 'var(--ink-2)', fontFamily: 'var(--sans)' }}>
                     {label}
                   </button>
                 ))}
@@ -1109,11 +1109,11 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
 
           {tool === 'stickers' && !selectedEl && (
             <div style={{ padding: '14px 16px', borderBottom: '1px solid var(--line)' }}>
-              <p style={{ fontSize: 10, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '0.12em', fontFamily: 'var(--mono)', fontWeight: 800, marginBottom: 10 }}>Stickers</p>
+              <p style={{ fontSize: 11, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '0.12em', fontFamily: 'var(--mono)', fontWeight: 800, marginBottom: 10 }}>Stickers</p>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 6 }}>
                 {['↗','✦','★','●','→','NEW','%','♥','✓','🔥','⚡','♻'].map((s, i) => (
-                  <button key={i}
-                    style={{ aspectRatio: '1', display: 'grid', placeItems: 'center', background: 'var(--sunk)', border: '1px solid var(--line)', borderRadius: 8, cursor: 'pointer', fontSize: 18 }}>
+                  <button key={i} className="well"
+                    style={{ aspectRatio: '1', display: 'grid', placeItems: 'center', cursor: 'pointer', fontSize: 18, fontFamily: 'var(--display)', fontWeight: 800 }}>
                     {s}
                   </button>
                 ))}
@@ -1123,11 +1123,11 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
 
           {tool === 'brand' && !selectedEl && (
             <div style={{ padding: '14px 16px', borderBottom: '1px solid var(--line)' }}>
-              <p style={{ fontSize: 10, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '0.12em', fontFamily: 'var(--mono)', fontWeight: 800, marginBottom: 10 }}>Charte · {workspaceName}</p>
+              <p style={{ fontSize: 11, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '0.12em', fontFamily: 'var(--mono)', fontWeight: 800, marginBottom: 10 }}>Charte · {workspaceName}</p>
               <div style={{ display: 'flex', gap: 6, marginBottom: 12 }}>
                 {[workspaceData?.primary_color || '#0038FF', workspaceData?.secondary_color || '#FFFFFF', '#111111', '#F5F0E8'].map((col, i) => (
                   <div key={i} style={{ flex: 1 }}>
-                    <div style={{ height: 40, borderRadius: 8, background: col, boxShadow: 'inset 0 0 0 1px rgba(0,0,0,.1)' }} />
+                    <div style={{ height: 44, borderRadius: 'var(--r-s)', background: col, boxShadow: 'inset 0 0 0 1px var(--line)' }} />
                     <div style={{ fontFamily: 'var(--mono)', fontSize: 8.5, color: 'var(--ink-3)', marginTop: 4, textAlign: 'center', textTransform: 'uppercase' }}>{col}</div>
                   </div>
                 ))}
@@ -1139,7 +1139,7 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
           <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
 
             {/* DESCRIPTION IA */}
-            <div style={{ padding: '14px 16px', borderBottom: '1px solid var(--line)' }}>
+            <div style={{ padding: '14px 16px', borderBottom: '1px solid var(--line)', background: 'var(--canvas)' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
                 <span style={{ width: 24, height: 24, borderRadius: 7, background: 'var(--mint)', color: 'var(--mint-ink)', display: 'grid', placeItems: 'center', flexShrink: 0 }}>
                   <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z"/></svg>
@@ -1150,20 +1150,20 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
               <div style={{ display: 'flex', gap: 5, marginBottom: 10, flexWrap: 'wrap' }}>
                 {(['Chic','Punchy','Minimal','Doux'] as const).map(t => (
                   <button key={t} onClick={() => setAiTone(t)}
-                    style={{ padding: '5px 10px', borderRadius: 20, fontWeight: 700, fontSize: 11.5, fontFamily: 'var(--sans)', cursor: 'pointer', transition: 'all .14s',
-                      background: aiTone === t ? 'var(--ink)' : '#fff',
+                    style={{ padding: '6px 10px', borderRadius: 99, fontWeight: 700, fontSize: 11.5, fontFamily: 'var(--sans)', cursor: 'pointer', transition: 'all .14s',
+                      background: aiTone === t ? 'var(--ink)' : 'var(--white)',
                       color: aiTone === t ? 'var(--paper)' : 'var(--ink-2)',
-                      border: aiTone === t ? 'none' : '1px solid var(--line)' }}>
+                      boxShadow: aiTone === t ? 'none' : 'inset 0 0 0 1px var(--line)' }}>
                     {t}
                   </button>
                 ))}
               </div>
-              <button onClick={() => generateAI(aiTone)}
-                style={{ width: '100%', padding: '9px', background: 'var(--mint)', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 700, fontSize: 13, color: 'var(--mint-ink)', fontFamily: 'var(--sans)', marginBottom: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7 }}>
+              <button onClick={() => generateAI(aiTone)} className="btn btn-primary"
+                style={{ width: '100%', marginBottom: 10 }}>
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z"/></svg>
                 {aiCaption ? 'Régénérer' : 'Générer la description'}
               </button>
-              <div style={{ minHeight: 72, padding: '10px 12px', background: 'var(--sunk)', border: '1px solid var(--line)', borderRadius: 8, fontSize: 12.5, lineHeight: 1.55, whiteSpace: 'pre-line', color: aiCaption ? 'var(--ink)' : 'var(--ink-3)', fontFamily: 'var(--sans)' }}>
+              <div className="input" style={{ minHeight: 72, fontSize: 12.5, lineHeight: 1.55, whiteSpace: 'pre-line', color: aiCaption ? 'var(--ink)' : 'var(--ink-3)' }}>
                 {aiCaption
                   ? <>{aiCaption}<span style={{ opacity: aiTyping ? 1 : 0, color: 'var(--mint-2)' }}>▍</span></>
                   : 'La description générée apparaîtra ici, calée sur la voix de la marque.'}
@@ -1171,8 +1171,8 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
             </div>
 
             {/* PLANIFIER */}
-            <div style={{ padding: '14px 16px' }}>
-              <p style={{ fontSize: 10, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '0.12em', fontFamily: 'var(--mono)', fontWeight: 800, marginBottom: 10 }}>Planifier</p>
+            <div style={{ padding: '14px 16px', background: 'var(--canvas)' }}>
+              <p style={{ fontSize: 11, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '0.12em', fontFamily: 'var(--mono)', fontWeight: 800, marginBottom: 10 }}>Planifier</p>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7,1fr)', gap: 3 }}>
                 {SCHED_DAYS.map((d, i) => {
                   const sel = schedDay === i;
@@ -1180,9 +1180,9 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
                   return (
                     <button key={d} onClick={() => setSchedDay(sel ? null : i)}
                       style={{ padding: '6px 2px', borderRadius: 8, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3, position: 'relative', cursor: 'pointer', transition: 'all .12s',
-                        background: sel ? 'var(--mint)' : '#fff',
+                        background: sel ? 'var(--mint)' : 'var(--white)',
                         color: sel ? 'var(--mint-ink)' : 'var(--ink)',
-                        border: sel ? 'none' : '1px solid var(--line)' }}>
+                        boxShadow: sel ? 'none' : 'inset 0 0 0 1px var(--line)' }}>
                       <span style={{ fontFamily: 'var(--mono)', fontWeight: 800, fontSize: 8.5 }}>{d}</span>
                       <span style={{ fontSize: 13, fontWeight: 700 }}>{9 + i}</span>
                       {best && !sel && <span style={{ position: 'absolute', top: 4, right: 4, width: 5, height: 5, borderRadius: '50%', background: 'var(--mint-2)' }} />}
