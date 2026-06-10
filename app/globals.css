@@ -147,8 +147,8 @@ img { display: block; max-width: 100%; }
   background: none; border: none; cursor: pointer;
 }
 .nav-item:hover { background: var(--cream-4); color: var(--cream); }
-.nav-item.active { background: var(--mint); color: var(--mint-ink); font-weight: 700; }
-.nav-item.active .nav-ic { color: var(--mint-ink); }
+.nav-item.active { background: rgba(47,215,155,.14); color: var(--mint-2); font-weight: 700; }
+.nav-item.active .nav-ic { color: var(--mint-2); }
 .nav-ic { color: var(--cream-2); display: grid; place-items: center; flex-shrink: 0; }
 .nav-label { white-space: nowrap; min-width: 0; }
 .nav-badge {

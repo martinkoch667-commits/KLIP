@@ -96,7 +96,6 @@ export default function Sidebar({ workspaces: _w, userName: _u, activeWorkspaceI
   const isQueue    = pathname.includes("/results");
   const isSettings = pathname.includes("/parametres");
 
-  // Nav items — workspace-specific items show href="#" when no workspace is active
   const navItems = [
     {
       label: "Tableau de bord",
@@ -108,21 +107,21 @@ export default function Sidebar({ workspaces: _w, userName: _u, activeWorkspaceI
     {
       label: "Calendrier",
       icon: <IconCalendar />,
-      href: activeId ? `/workspace/${activeId}/planning` : "#",
+      href: activeId ? `/workspace/${activeId}/planning` : "/dashboard",
       active: isCalendar,
       badge: 0,
     },
     {
       label: "Composer",
       icon: <IconEdit />,
-      href: activeId ? `/workspace/${activeId}` : "#",
+      href: activeId ? `/workspace/${activeId}` : "/dashboard",
       active: isComposer,
       badge: 0,
     },
     {
       label: "File de publication",
       icon: <IconSend />,
-      href: activeId ? `/workspace/${activeId}/results` : "#",
+      href: activeId ? `/workspace/${activeId}/results` : "/dashboard",
       active: isQueue,
       badge: pendingCount,
     },
@@ -130,7 +129,7 @@ export default function Sidebar({ workspaces: _w, userName: _u, activeWorkspaceI
       label: "Clients",
       icon: <IconUsers />,
       href: "/dashboard",
-      active: false,
+      active: isDashboard,
       badge: 0,
     },
   ];
