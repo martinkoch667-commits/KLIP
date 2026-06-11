@@ -31,7 +31,7 @@ export async function GET(request: NextRequest) {
 
   try {
     const [pRes, mRes] = await Promise.all([
-      fetch(`https://graph.instagram.com/me?fields=username,media_count,biography,followers_count,follows_count&access_token=${token}`),
+      fetch(`https://graph.instagram.com/me?fields=username,media_count,biography,followers_count,follows_count,profile_picture_url&access_token=${token}`),
       fetch(`https://graph.instagram.com/me/media?fields=id,media_url,thumbnail_url,timestamp&limit=9&access_token=${token}`),
     ]);
     const [pData, mData] = await Promise.all([pRes.json(), mRes.json()]);

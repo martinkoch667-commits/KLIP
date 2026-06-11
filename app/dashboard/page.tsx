@@ -150,7 +150,7 @@ function IconTabSaved() {
   return <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>;
 }
 
-interface IGProfile { username: string; media_count?: number; biography?: string; followers_count?: number; follows_count?: number; }
+interface IGProfile { username: string; media_count?: number; biography?: string; followers_count?: number; follows_count?: number; profile_picture_url?: string; }
 interface IGMedia { id: string; media_url?: string; thumbnail_url?: string; }
 
 function fmtCount(n?: number) {
@@ -231,11 +231,20 @@ function InstagramProfile({ workspaceId }: { workspaceId: string }) {
 
         {/* Avatar + stats */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          {/* Gradient ring avatar */}
+          {/* Gradient ring avatar — real photo if available */}
           <div style={{ padding: 2.5, borderRadius: '50%', background: 'linear-gradient(135deg, #F58529, #DD2A7B, #8134AF)', flexShrink: 0 }}>
-            <div style={{ width: 50, height: 50, borderRadius: '50%', background: '#7B5CF5', display: 'grid', placeItems: 'center', fontSize: 14, fontWeight: 800, color: '#fff', fontFamily: 'var(--mono)' }}>
-              {initials}
-            </div>
+            {profile?.profile_picture_url ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={`/api/proxy-image?url=${encodeURIComponent(profile.profile_picture_url)}`}
+                alt={profile.username}
+                style={{ width: 50, height: 50, borderRadius: '50%', objectFit: 'cover', display: 'block' }}
+              />
+            ) : (
+              <div style={{ width: 50, height: 50, borderRadius: '50%', background: '#7B5CF5', display: 'grid', placeItems: 'center', fontSize: 14, fontWeight: 800, color: '#fff', fontFamily: 'var(--mono)' }}>
+                {initials}
+              </div>
+            )}
           </div>
           {/* 3 stats */}
           <div style={{ display: 'flex', flex: 1 }}>
@@ -278,7 +287,9 @@ function InstagramProfile({ workspaceId }: { workspaceId: string }) {
         ) : (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 2 }}>
             {media.map(m => {
-              const src = m.media_url ?? m.thumbnail_url;
+              const rawSrc = m.media_url ?? m.thumbnail_url;
+              // Route via proxy to avoid CORS — Instagram media_url are cross-origin
+              const src = rawSrc ? `/api/proxy-image?url=${encodeURIComponent(rawSrc)}` : null;
               return (
                 <div key={m.id} style={{ aspectRatio: '1', overflow: 'hidden', background: 'var(--sunk)' }}>
                   {/* eslint-disable-next-line @next/next/no-img-element */}
