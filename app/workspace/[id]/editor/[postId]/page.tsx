@@ -21,6 +21,8 @@ interface Slide {
   id: string;
   elements: CanvasEl[];
   proxyUrl: string;
+  bgOffsetX?: number; // pixel offset of scaled bg image (cover behavior)
+  bgOffsetY?: number;
   thumbnail?: string;
 }
 
@@ -67,9 +69,47 @@ function measureTextWidth(text: string, fontSize: number, fontFamily: string, fo
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
-function BgImage({ src, w, h }: { src: string; w: number; h: number }) {
+// Bug 3 fix: object-fit cover behavior + drag-to-reposition
+function BgImage({ src, w, h, offsetX = 0, offsetY = 0, draggable = false, onDragEnd }:
+  { src: string; w: number; h: number; offsetX?: number; offsetY?: number; draggable?: boolean; onDragEnd?: (x: number, y: number) => void }
+) {
   const [img] = useImage(src, 'anonymous');
-  return img ? <KonvaImage image={img} x={0} y={0} width={w} height={h} listening={false} /> : null;
+  if (!img) return null;
+
+  const natW = img.naturalWidth || img.width;
+  const natH = img.naturalHeight || img.height;
+
+  // Fallback to stretch if natural dimensions unknown (prevents broken display)
+  if (!natW || !natH) {
+    return <KonvaImage image={img} x={0} y={0} width={w} height={h} listening={false} />;
+  }
+
+  // object-fit: cover — scale so image fills entire stage
+  const scale = Math.max(w / natW, h / natH);
+  const scaledW = natW * scale;
+  const scaledH = natH * scale;
+
+  // Clamp offset so image always covers the stage (no black bars)
+  const clampedX = Math.min(0, Math.max(w - scaledW, offsetX));
+  const clampedY = Math.min(0, Math.max(h - scaledH, offsetY));
+
+  return (
+    <KonvaImage
+      image={img}
+      x={clampedX} y={clampedY}
+      width={scaledW} height={scaledH}
+      listening={draggable}
+      draggable={draggable}
+      onDragMove={draggable ? (e => {
+        const nx = Math.min(0, Math.max(w - scaledW, e.target.x()));
+        const ny = Math.min(0, Math.max(h - scaledH, e.target.y()));
+        e.target.x(nx); e.target.y(ny);
+      }) : undefined}
+      onDragEnd={draggable ? (e => {
+        onDragEnd?.(e.target.x(), e.target.y());
+      }) : undefined}
+    />
+  );
 }
 
 function ImgNode({ el, onSelect, onChange, onDragStart, onDragEnd, isCropping }: {
@@ -364,7 +404,13 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
   const [cropId, setCropId] = useState<string | null>(null);
 
   const [proxyUrl, setProxyUrl] = useState<string>('');
-  const [bgImage] = useImage(proxyUrl, 'anonymous');
+  const [bgOffsetX, setBgOffsetX] = useState(0);
+  const [bgOffsetY, setBgOffsetY] = useState(0);
+  const [bgCropMode, setBgCropMode] = useState(false);
+  const bgOffsetXRef = useRef(0);
+  const bgOffsetYRef = useRef(0);
+  useEffect(() => { bgOffsetXRef.current = bgOffsetX; }, [bgOffsetX]);
+  useEffect(() => { bgOffsetYRef.current = bgOffsetY; }, [bgOffsetY]);
   const [formatId, setFormatId] = useState('ig-portrait');
   const activeFormat = FORMATS.find(f => f.id === formatId) ?? FORMATS[0];
   const stageW = activeFormat.w;
@@ -400,7 +446,13 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
   // ── Carousel: save current slide state into slidesRef ────────────────────
   const saveCurrentSlide = () => {
     const updated = slidesRef.current.map((s, i) =>
-      i === activeSlideIdx ? { ...s, elements: elementsRef.current, proxyUrl: proxyUrlRef.current } : s
+      i === activeSlideIdx ? {
+        ...s,
+        elements: elementsRef.current,
+        proxyUrl: proxyUrlRef.current,
+        bgOffsetX: bgOffsetXRef.current,
+        bgOffsetY: bgOffsetYRef.current,
+      } : s
     );
     slidesRef.current = updated;
     return updated;
@@ -413,6 +465,9 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
     const next = updated[idx];
     setElements(next.elements);
     setProxyUrl(next.proxyUrl);
+    setBgOffsetX(next.bgOffsetX ?? 0);
+    setBgOffsetY(next.bgOffsetY ?? 0);
+    setBgCropMode(false);
     setActiveSlideIdx(idx);
     setSelectedId(null);
     setCropId(null);
@@ -430,6 +485,9 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
     const newIdx = newSlides.length - 1;
     setElements([]);
     setProxyUrl('');
+    setBgOffsetX(0);
+    setBgOffsetY(0);
+    setBgCropMode(false);
     setActiveSlideIdx(newIdx);
     setSelectedId(null);
     setCropId(null);
@@ -585,6 +643,9 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
         const first = initSlides[0];
         setElements(first.elements);
         setProxyUrl(first.proxyUrl);
+        // Bug 3: restore saved bg crop offsets
+        setBgOffsetX(first.bgOffsetX ?? 0);
+        setBgOffsetY(first.bgOffsetY ?? 0);
         historyRef.current = [first.elements];
         histIdxRef.current = 0;
         if (w?.custom_fonts) {
@@ -828,9 +889,17 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
     await supabase.storage.from('exports').upload(fileName, blob, { contentType: 'image/png', upsert: true });
     const { data: urlData } = supabase.storage.from('exports').getPublicUrl(fileName);
     const textEl = elements.find(e => e.type === 'text') as TextEl | undefined;
-    // Build v2 JSON: save current slide state into all slides
+    // Bug 6 fix: flush current slide state into slidesRef before building allSlides
+    saveCurrentSlide();
+    // Build v2 JSON: save all slides (current slide overridden with latest state)
     const allSlides = slidesRef.current.map((s, i) =>
-      i === activeSlideIdx ? { ...s, elements: elementsRef.current, proxyUrl: proxyUrlRef.current } : s
+      i === activeSlideIdx ? {
+        ...s,
+        elements: elementsRef.current,
+        proxyUrl: proxyUrlRef.current,
+        bgOffsetX: bgOffsetXRef.current,
+        bgOffsetY: bgOffsetYRef.current,
+      } : s
     );
     await supabase.from('posts').update({
       status: 'validated',
@@ -1127,7 +1196,10 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
         {/* ── CANVAS ── */}
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', overflow: 'hidden', background: 'var(--sunk)' }}>
           <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'auto', padding: 28 }}>
-            <div style={{ borderRadius: 18, overflow: 'hidden', boxShadow: '0 22px 50px -24px rgba(13,15,10,.45)', flexShrink: 0, position: 'relative' }}>
+            {/* Bug 4 fix: outer div has no overflow:hidden so handles (-5px) aren't clipped */}
+            <div style={{ borderRadius: 18, boxShadow: '0 22px 50px -24px rgba(13,15,10,.45)', flexShrink: 0, position: 'relative' }}>
+            {/* Inner div clips only the Stage canvas to preserve border-radius */}
+            <div style={{ borderRadius: 18, overflow: 'hidden' }}>
             <Stage
               ref={stageRef}
               width={stageW} height={stageH}
@@ -1136,7 +1208,14 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
             >
               <Layer>
                 <Rect x={0} y={0} width={stageW} height={stageH} fill="white" listening={false} />
-                {proxyUrl && <BgImage src={proxyUrl} w={stageW} h={stageH} />}
+                {proxyUrl && (
+                  <BgImage
+                    src={proxyUrl} w={stageW} h={stageH}
+                    offsetX={bgOffsetX} offsetY={bgOffsetY}
+                    draggable={bgCropMode}
+                    onDragEnd={(x, y) => { setBgOffsetX(x); setBgOffsetY(y); }}
+                  />
+                )}
 
                 {elements.map(el => {
                   if (hiddenIds.has(el.id)) return null;
@@ -1183,7 +1262,12 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
                         onClick={() => setSelectedId(el.id)} onTap={() => setSelectedId(el.id)}
                         onDragStart={() => setIsKonvaDragging(true)}
                         onDragEnd={e => { setIsKonvaDragging(false); updateEl(el.id, { x: e.target.x(), y: e.target.y() }); }}>
-                        {el.hasBg && <Rect x={0} y={0} width={blockW} height={blockH} fill={el.bgColor} opacity={el.bgOpacity / 100} cornerRadius={el.cornerRadius} />}
+                        {/* Bug 5 fix: always render Rect for hit detection; transparent when hasBg=false */}
+                        <Rect x={0} y={0} width={blockW} height={blockH}
+                          fill={el.hasBg ? el.bgColor : 'rgba(0,0,0,0.01)'}
+                          opacity={el.hasBg ? el.bgOpacity / 100 : 1}
+                          cornerRadius={el.hasBg ? el.cornerRadius : 0}
+                        />
                         <Text x={pH} y={pV} width={measuredW} text={el.text}
                           fontSize={el.fontSize} fontFamily={el.fontFamily}
                           fontStyle={el.fontStyle} textDecoration={el.textDecoration}
@@ -1196,6 +1280,7 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
 
               </Layer>
             </Stage>
+            </div>{/* end inner overflow:hidden */}
             {selectedEl && !hiddenIds.has(selectedEl.id) && !isKonvaDragging && cropId !== selectedEl.id && (
               <SelectionOverlay
                 el={selectedEl}
@@ -1420,6 +1505,18 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
                 Importer une photo
                 <input type="file" accept="image/*" style={{ display: 'none' }} onChange={handleFileUpload} />
               </label>
+              {/* Bug 3: recadrer le fond */}
+              {proxyUrl && (
+                <button
+                  onClick={() => setBgCropMode(v => !v)}
+                  style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', borderRadius: 'var(--r-s)', border: 'none', cursor: 'pointer', fontSize: 12, fontWeight: 700, width: '100%', background: bgCropMode ? 'var(--mint)' : 'var(--sunk)', color: bgCropMode ? 'var(--mint-ink)' : 'var(--ink-2)', marginTop: 6 }}>
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/>
+                    <line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/>
+                  </svg>
+                  {bgCropMode ? 'Glissez le fond pour recadrer ↑' : 'Recadrer le fond'}
+                </button>
+              )}
               {/* Unsplash */}
               <div style={{ marginTop: 12 }}>
                 <div style={{ display: 'flex', gap: 4 }}>
@@ -1437,7 +1534,7 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
                     {unsplashPhotos.slice(0, 9).map((src, i) => (
                       <UnsplashThumb key={i} src={src}
                         onAdd={() => addImageEl(`/api/proxy-image?url=${encodeURIComponent(src)}`)}
-                        onBg={() => { setProxyUrl(`/api/proxy-image?url=${encodeURIComponent(src)}`); }}
+                        onBg={() => { setProxyUrl(`/api/proxy-image?url=${encodeURIComponent(src)}`); setBgOffsetX(0); setBgOffsetY(0); setBgCropMode(false); }}
                       />
                     ))}
                   </div>
