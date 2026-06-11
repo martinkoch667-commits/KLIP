@@ -3,6 +3,7 @@
 import { useState, useRef, CSSProperties } from "react";
 import Link from "next/link";
 import Sidebar from "@/components/Sidebar";
+import ColorPicker from "@/components/ColorPicker";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -11,25 +12,22 @@ type LogoPosition = "top-left" | "top-right" | "bottom-left" | "bottom-right";
 type Font = "Inter" | "Syne" | "Montserrat" | "Oswald" | "Anton";
 
 interface StyleState {
-  // Text
   text: string;
   font: Font;
   fontSize: number;
   uppercase: boolean;
   bold: boolean;
-  // Block
   blockBg: string;
   blockOpacity: number;
   blockTextColor: string;
   blockRadius: number;
   blockPosition: BlockPosition;
-  // Logo
   logoUrl: string | null;
   logoPosition: LogoPosition;
   logoSize: number;
 }
 
-// ─── Position helpers ─────────────────────────────────────────────────────────
+// ─── Constants ────────────────────────────────────────────────────────────────
 
 const BLOCK_POSITIONS: { value: BlockPosition; label: string }[] = [
   { value: "top-left", label: "Haut gauche" },
@@ -47,6 +45,42 @@ const LOGO_POSITIONS: { value: LogoPosition; label: string }[] = [
 ];
 
 const FONTS: Font[] = ["Inter", "Syne", "Montserrat", "Oswald", "Anton"];
+
+const INITIAL: StyleState = {
+  text: "DU 6 AU 9 MAI, SUPER OFFRES",
+  font: "Inter",
+  fontSize: 28,
+  uppercase: true,
+  bold: true,
+  blockBg: "#0038FF",
+  blockOpacity: 90,
+  blockTextColor: "#FFFFFF",
+  blockRadius: 6,
+  blockPosition: "bottom-left",
+  logoUrl: null,
+  logoPosition: "bottom-right",
+  logoSize: 64,
+};
+
+// ─── Shared styles ────────────────────────────────────────────────────────────
+
+const labelStyle: CSSProperties = {
+  display: "block", marginBottom: 6, fontSize: 11, fontWeight: 700,
+  color: "var(--ink-3)", textTransform: "uppercase", letterSpacing: "0.1em",
+  fontFamily: "var(--display)",
+};
+
+const inputStyle: CSSProperties = {
+  width: "100%", background: "var(--white)", border: "1px solid rgba(13,15,10,.10)",
+  borderRadius: 9, padding: "9px 12px", fontSize: 13.5, color: "var(--ink)",
+  outline: "none", fontFamily: "var(--sans)", boxSizing: "border-box",
+};
+
+const selectStyle: CSSProperties = {
+  ...inputStyle, cursor: "pointer", appearance: "none" as const,
+};
+
+// ─── Position helpers ─────────────────────────────────────────────────────────
 
 function blockPositionStyle(pos: BlockPosition): CSSProperties {
   const base: CSSProperties = { position: "absolute", maxWidth: "80%" };
@@ -81,17 +115,13 @@ function hexToRgb(hex: string) {
 
 function SectionTitle({ children }: { children: React.ReactNode }) {
   return (
-    <h3 className="font-syne font-bold text-sm text-black mb-4 pb-2 border-b border-[#E0E0E0]">
+    <h3 style={{
+      fontFamily: "var(--display)", fontWeight: 800, fontSize: 13,
+      color: "var(--ink)", marginBottom: 14, paddingBottom: 10,
+      borderBottom: "1px solid var(--line-2)",
+    }}>
       {children}
     </h3>
-  );
-}
-
-function Label({ children }: { children: React.ReactNode }) {
-  return (
-    <p className="text-xs font-inter font-medium text-[#888] uppercase tracking-wider mb-1.5">
-      {children}
-    </p>
   );
 }
 
@@ -100,96 +130,71 @@ function Toggle({ value, onChange }: { value: boolean; onChange: (v: boolean) =>
     <button
       type="button"
       onClick={() => onChange(!value)}
-      className={`relative inline-flex items-center w-10 h-5 rounded-full transition-colors shrink-0 ${
-        value ? "bg-black" : "bg-[#DDD]"
-      }`}
+      style={{
+        position: "relative", display: "inline-flex", alignItems: "center",
+        width: 40, height: 22, borderRadius: 99, cursor: "pointer",
+        background: value ? "var(--mint)" : "var(--line)",
+        border: "none", transition: "background 0.15s", flexShrink: 0,
+        padding: 0,
+      }}
     >
-      <span
-        className={`absolute w-3.5 h-3.5 rounded-full bg-white shadow transition-transform ${
-          value ? "translate-x-5" : "translate-x-0.5"
-        }`}
-      />
+      <span style={{
+        position: "absolute",
+        width: 16, height: 16, borderRadius: "50%", background: "#fff",
+        boxShadow: "0 1px 3px rgba(0,0,0,.2)",
+        transition: "transform 0.15s",
+        transform: value ? "translateX(20px)" : "translateX(3px)",
+      }} />
     </button>
   );
 }
 
-function SliderField({
-  label, value, min, max, unit, onChange,
-}: {
+function SliderField({ label, value, min, max, unit, onChange }: {
   label: string; value: number; min: number; max: number; unit: string;
   onChange: (v: number) => void;
 }) {
   return (
     <div>
-      <div className="flex items-center justify-between mb-1.5">
-        <Label>{label}</Label>
-        <span className="text-xs font-inter text-[#888]">{value}{unit}</span>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
+        <span style={labelStyle}>{label}</span>
+        <span style={{ fontSize: 11, color: "var(--ink-3)", fontFamily: "var(--mono)", fontWeight: 700 }}>{value}{unit}</span>
       </div>
       <input
         type="range" min={min} max={max} value={value}
         onChange={(e) => onChange(Number(e.target.value))}
-        className="w-full accent-black h-1 rounded cursor-pointer"
+        style={{ width: "100%", accentColor: "var(--mint)", height: 4, cursor: "pointer" }}
       />
     </div>
   );
 }
 
-function ColorField({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
+function ColorField({ label, value, onChange, opacity, onOpacityChange }: {
+  label: string; value: string; onChange: (v: string) => void;
+  opacity?: number; onOpacityChange?: (v: number) => void;
+}) {
   return (
     <div>
-      <Label>{label}</Label>
-      <div className="flex items-center gap-3 bg-[#F5F5F5] border border-[#E0E0E0] rounded px-3 py-2 hover:border-black transition-colors cursor-pointer">
-        <input
-          type="color" value={value}
-          onChange={(e) => onChange(e.target.value)}
-          className="w-6 h-6 rounded cursor-pointer border-0 bg-transparent p-0 shrink-0"
+      <span style={labelStyle}>{label}</span>
+      <div style={{
+        display: "flex", alignItems: "center", gap: 10,
+        background: "var(--white)", border: "1px solid rgba(13,15,10,.10)",
+        borderRadius: 9, padding: "8px 12px",
+      }}>
+        <ColorPicker
+          value={value}
+          onChange={onChange}
+          opacity={opacity}
+          onOpacityChange={onOpacityChange}
         />
-        <span className="text-sm font-inter text-black uppercase tracking-wider">{value}</span>
+        <span style={{ fontFamily: "var(--mono)", fontWeight: 700, fontSize: 12, color: "var(--ink)", textTransform: "uppercase" }}>
+          {value}
+        </span>
       </div>
     </div>
   );
 }
 
-function SelectField<T extends string>({
-  label, value, options, onChange,
-}: {
-  label: string; value: T;
-  options: { value: T; label: string }[];
-  onChange: (v: T) => void;
-}) {
-  return (
-    <div>
-      <Label>{label}</Label>
-      <select
-        value={value}
-        onChange={(e) => onChange(e.target.value as T)}
-        className="w-full bg-[#F5F5F5] border border-[#E0E0E0] rounded px-3 py-2.5 text-sm font-inter text-black focus:border-black outline-none transition-colors appearance-none cursor-pointer"
-      >
-        {options.map((o) => (
-          <option key={o.value} value={o.value}>{o.label}</option>
-        ))}
-      </select>
-    </div>
-  );
-}
-
 // ─── Main page ────────────────────────────────────────────────────────────────
-
-const INITIAL: StyleState = {
-  text: "DU 6 AU 9 MAI, SUPER OFFRES",
-  font: "Inter",
-  fontSize: 28,
-  uppercase: true,
-  bold: true,
-  blockBg: "#0038FF",
-  blockOpacity: 90,
-  blockTextColor: "#FFFFFF",
-  blockRadius: 6,
-  blockPosition: "bottom-left",
-  logoUrl: null,
-  logoPosition: "bottom-right",
-  logoSize: 64,
-};
 
 export default function StyleEditorPage() {
   const [s, setS] = useState<StyleState>(INITIAL);
@@ -204,7 +209,6 @@ export default function StyleEditorPage() {
     set("logoUrl", URL.createObjectURL(files[0]));
   }
 
-  // Computed canvas styles
   const blockStyle: CSSProperties = {
     ...blockPositionStyle(s.blockPosition),
     backgroundColor: `rgba(${hexToRgb(s.blockBg)}, ${s.blockOpacity / 100})`,
@@ -224,77 +228,85 @@ export default function StyleEditorPage() {
   };
 
   return (
-    <div className="flex min-h-screen bg-white">
+    <div style={{ display: "flex", minHeight: "100vh", background: "var(--canvas)" }}>
       <Sidebar />
 
-      <div className="flex-1 flex flex-col min-w-0">
+      <div style={{ marginLeft: "var(--sb-w)", flex: 1, display: "flex", flexDirection: "column", minWidth: 0 }}>
+
         {/* Topbar */}
-        <header className="flex items-center justify-between px-6 py-3.5 border-b border-[#E0E0E0] bg-white shrink-0">
-          <div className="flex items-center gap-3">
+        <header style={{
+          display: "flex", alignItems: "center", justifyContent: "space-between",
+          padding: "0 26px", height: 64, borderBottom: "1px solid var(--line)",
+          background: "color-mix(in srgb, var(--canvas) 86%, transparent)",
+          backdropFilter: "blur(10px)", flexShrink: 0,
+        }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
             <Link
               href="/workspace/new"
-              className="inline-flex items-center gap-1.5 text-sm font-inter text-[#888] hover:text-black transition-colors"
+              style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13, color: "var(--ink-3)", fontWeight: 600, transition: "color 0.15s" }}
             >
-              <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
                 <path d="M9 2L4 7l5 5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/>
               </svg>
               Nouveau client
             </Link>
-            <span className="text-[#DDD]">/</span>
-            <span className="text-sm font-inter font-medium text-black">Style visuel</span>
-          </div>
-          <div className="w-8 h-8 rounded-full bg-black flex items-center justify-center shrink-0">
-            <span className="text-xs font-syne font-bold text-white">MK</span>
+            <span style={{ color: "var(--line)", fontSize: 16 }}>/</span>
+            <span style={{ fontSize: 13, fontWeight: 600, color: "var(--ink)" }}>Style visuel</span>
           </div>
         </header>
 
         {/* Two-column layout */}
-        <div className="flex flex-1 min-h-0 overflow-hidden">
+        <div style={{ display: "flex", flex: 1, minHeight: 0, overflow: "hidden" }}>
 
-          {/* ── Left panel (45%) ── */}
-          <div className="w-[45%] border-r border-[#E0E0E0] flex flex-col overflow-y-auto shrink-0">
-            <div className="p-7 flex-1">
-              <h2 className="font-syne font-extrabold text-xl text-black mb-7">Style visuel</h2>
+          {/* Left panel */}
+          <div style={{ width: "45%", borderRight: "1px solid var(--line-2)", display: "flex", flexDirection: "column", overflowY: "auto", flexShrink: 0 }}>
+            <div style={{ padding: "28px 28px 0", flex: 1 }}>
+              <h2 style={{ fontFamily: "var(--display)", fontWeight: 800, fontSize: 22, color: "var(--ink)", marginBottom: 28, letterSpacing: "-0.02em" }}>
+                Style visuel
+              </h2>
 
-              <div className="space-y-7">
+              <div style={{ display: "flex", flexDirection: "column", gap: 28 }}>
 
                 {/* Section Texte */}
                 <section>
                   <SectionTitle>Texte</SectionTitle>
-                  <div className="space-y-4">
+                  <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
                     <div>
-                      <Label>Contenu du bloc</Label>
+                      <span style={labelStyle}>Contenu du bloc</span>
                       <textarea
                         value={s.text}
                         onChange={(e) => set("text", e.target.value)}
                         placeholder="DU 6 AU 9 MAI, SUPER OFFRES"
                         rows={2}
-                        className="w-full bg-[#F5F5F5] border border-[#E0E0E0] rounded px-3.5 py-2.5 text-sm font-inter text-black placeholder-[#BBB] focus:border-black outline-none transition-colors resize-none"
+                        style={{ ...inputStyle, resize: "none" }}
                       />
                     </div>
 
-                    <SelectField
-                      label="Typographie"
-                      value={s.font}
-                      options={FONTS.map((f) => ({ value: f, label: f }))}
-                      onChange={(v) => set("font", v)}
-                    />
+                    <div>
+                      <span style={labelStyle}>Typographie</span>
+                      <select
+                        value={s.font}
+                        onChange={(e) => set("font", e.target.value as Font)}
+                        style={selectStyle}
+                      >
+                        {FONTS.map((f) => <option key={f} value={f}>{f}</option>)}
+                      </select>
+                    </div>
 
                     <SliderField
                       label="Taille du texte"
-                      value={s.fontSize}
-                      min={16} max={80} unit="px"
+                      value={s.fontSize} min={16} max={80} unit="px"
                       onChange={(v) => set("fontSize", v)}
                     />
 
-                    <div className="flex items-center gap-6">
-                      <div className="flex items-center gap-2.5">
+                    <div style={{ display: "flex", alignItems: "center", gap: 24 }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                         <Toggle value={s.uppercase} onChange={(v) => set("uppercase", v)} />
-                        <span className="text-sm font-inter text-black">Majuscules</span>
+                        <span style={{ fontSize: 13, color: "var(--ink)", fontWeight: 600 }}>Majuscules</span>
                       </div>
-                      <div className="flex items-center gap-2.5">
+                      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                         <Toggle value={s.bold} onChange={(v) => set("bold", v)} />
-                        <span className="text-sm font-inter text-black">Gras</span>
+                        <span style={{ fontSize: 13, color: "var(--ink)", fontWeight: 600 }}>Gras</span>
                       </div>
                     </div>
                   </div>
@@ -303,12 +315,14 @@ export default function StyleEditorPage() {
                 {/* Section Bloc texte */}
                 <section>
                   <SectionTitle>Bloc texte</SectionTitle>
-                  <div className="space-y-4">
-                    <div className="grid grid-cols-2 gap-3">
+                  <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
                       <ColorField
                         label="Couleur du fond"
                         value={s.blockBg}
                         onChange={(v) => set("blockBg", v)}
+                        opacity={s.blockOpacity}
+                        onOpacityChange={(v) => set("blockOpacity", v)}
                       />
                       <ColorField
                         label="Couleur du texte"
@@ -318,105 +332,118 @@ export default function StyleEditorPage() {
                     </div>
 
                     <SliderField
-                      label="Opacité du fond"
-                      value={s.blockOpacity}
-                      min={0} max={100} unit="%"
-                      onChange={(v) => set("blockOpacity", v)}
-                    />
-
-                    <SliderField
                       label="Arrondi des coins"
-                      value={s.blockRadius}
-                      min={0} max={20} unit="px"
+                      value={s.blockRadius} min={0} max={20} unit="px"
                       onChange={(v) => set("blockRadius", v)}
                     />
 
-                    <SelectField
-                      label="Position du bloc"
-                      value={s.blockPosition}
-                      options={BLOCK_POSITIONS}
-                      onChange={(v) => set("blockPosition", v)}
-                    />
+                    <div>
+                      <span style={labelStyle}>Position du bloc</span>
+                      <select
+                        value={s.blockPosition}
+                        onChange={(e) => set("blockPosition", e.target.value as BlockPosition)}
+                        style={selectStyle}
+                      >
+                        {BLOCK_POSITIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+                      </select>
+                    </div>
                   </div>
                 </section>
 
                 {/* Section Logo */}
                 <section>
                   <SectionTitle>Logo</SectionTitle>
-                  <div className="space-y-4">
-                    {/* Upload */}
+                  <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
                     <div>
-                      <Label>Logo client</Label>
+                      <span style={labelStyle}>Logo client</span>
                       <div
                         onClick={() => logoInputRef.current?.click()}
-                        className="flex items-center gap-4 cursor-pointer group"
+                        style={{ display: "flex", alignItems: "center", gap: 14, cursor: "pointer" }}
                       >
-                        <div className="w-14 h-14 rounded border-2 border-dashed border-[#E0E0E0] bg-[#F5F5F5] group-hover:border-black flex items-center justify-center overflow-hidden transition-colors shrink-0">
+                        <div style={{
+                          width: 52, height: 52, borderRadius: "var(--r-s)", flexShrink: 0,
+                          border: "2px dashed var(--line)", background: "var(--white)",
+                          display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden",
+                        }}>
                           {s.logoUrl ? (
                             // eslint-disable-next-line @next/next/no-img-element
-                            <img src={s.logoUrl} alt="Logo" className="w-full h-full object-contain p-1" />
+                            <img src={s.logoUrl} alt="Logo" style={{ width: "100%", height: "100%", objectFit: "contain", padding: 4 }} />
                           ) : (
-                            <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true">
-                              <path d="M9 3v12M3 9h12" stroke="#AAAAAA" strokeWidth="1.5" strokeLinecap="round"/>
+                            <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+                              <path d="M9 3v12M3 9h12" stroke="var(--ink-3)" strokeWidth="1.5" strokeLinecap="round"/>
                             </svg>
                           )}
                         </div>
-                        <span className="text-sm font-inter text-[#555] group-hover:text-black transition-colors">
+                        <span style={{ fontSize: 13, color: "var(--ink-2)", fontWeight: 600 }}>
                           {s.logoUrl ? "Changer le logo" : "Uploader un logo"}
                         </span>
                       </div>
                       <input
                         ref={logoInputRef}
-                        type="file" accept="image/*" className="hidden"
+                        type="file" accept="image/*"
+                        style={{ display: "none" }}
                         onChange={(e) => handleLogoUpload(e.target.files)}
                       />
                     </div>
 
-                    <SelectField
-                      label="Position du logo"
-                      value={s.logoPosition}
-                      options={LOGO_POSITIONS}
-                      onChange={(v) => set("logoPosition", v)}
-                    />
+                    <div>
+                      <span style={labelStyle}>Position du logo</span>
+                      <select
+                        value={s.logoPosition}
+                        onChange={(e) => set("logoPosition", e.target.value as LogoPosition)}
+                        style={selectStyle}
+                      >
+                        {LOGO_POSITIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+                      </select>
+                    </div>
 
                     <SliderField
                       label="Taille du logo"
-                      value={s.logoSize}
-                      min={40} max={120} unit="px"
+                      value={s.logoSize} min={40} max={120} unit="px"
                       onChange={(v) => set("logoSize", v)}
                     />
                   </div>
                 </section>
+
               </div>
             </div>
 
             {/* Save button */}
-            <div className="sticky bottom-0 px-7 py-4 bg-white border-t border-[#E0E0E0]">
-              <button className="w-full py-3 rounded bg-acid text-black text-sm font-inter font-bold hover:bg-acid/90 transition-colors">
+            <div style={{ padding: "16px 28px", borderTop: "1px solid var(--line-2)", background: "var(--canvas)", position: "sticky", bottom: 0 }}>
+              <button
+                style={{
+                  width: "100%", padding: "12px", borderRadius: 13,
+                  background: "var(--mint)", border: "none", color: "var(--mint-ink)",
+                  fontSize: 14, fontWeight: 700, cursor: "pointer", fontFamily: "var(--display)",
+                  transition: "background 0.15s",
+                }}
+                onMouseEnter={e => { e.currentTarget.style.background = "var(--mint-2)"; }}
+                onMouseLeave={e => { e.currentTarget.style.background = "var(--mint)"; }}
+              >
                 Sauvegarder ce style
               </button>
             </div>
           </div>
 
-          {/* ── Right panel (55%) — Preview ── */}
-          <div className="flex-1 flex items-center justify-center bg-[#F5F5F5] p-8 overflow-auto">
-            <div className="flex flex-col items-center gap-4">
-              <p className="text-xs font-inter text-[#AAA] uppercase tracking-wider">Aperçu — 1:1 Instagram</p>
+          {/* Right panel — Preview */}
+          <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", background: "var(--sunk)", padding: 32, overflow: "auto" }}>
+            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 16 }}>
+              <span style={labelStyle}>Aperçu — 1:1 Instagram</span>
 
-              {/* Canvas */}
-              <div
-                className="relative overflow-hidden shadow-sm"
-                style={{ width: 520, height: 520, flexShrink: 0 }}
-              >
-                {/* Background photo placeholder */}
-                <div className="absolute inset-0 bg-[#CCCCCC] flex items-center justify-center">
-                  <div className="flex flex-col items-center gap-2 select-none pointer-events-none">
-                    <svg width="40" height="40" viewBox="0 0 40 40" fill="none" aria-hidden="true">
+              <div style={{ position: "relative", overflow: "hidden", width: 520, height: 520, flexShrink: 0, borderRadius: "var(--r)", boxShadow: "var(--shadow-pop)" }}>
+                {/* Background placeholder */}
+                <div style={{
+                  position: "absolute", inset: 0,
+                  background: "#CCCCCC",
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                }}>
+                  <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 10, userSelect: "none", pointerEvents: "none" }}>
+                    <svg width="40" height="40" viewBox="0 0 40 40" fill="none">
                       <rect x="2" y="7" width="36" height="27" rx="3" stroke="#AAAAAA" strokeWidth="1.5"/>
                       <circle cx="14" cy="18" r="4" stroke="#AAAAAA" strokeWidth="1.5"/>
                       <path d="M2 30l10-10 7 7 6-6 13 12" stroke="#AAAAAA" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
                     </svg>
-                    <p className="text-sm font-inter text-[#AAAAAA]">Ta photo ici</p>
+                    <span style={{ fontSize: 13, color: "#AAAAAA" }}>Ta photo ici</span>
                   </div>
                 </div>
 
@@ -431,27 +458,30 @@ export default function StyleEditorPage() {
                 <div style={logoPositionStyle(s.logoPosition, s.logoSize)}>
                   {s.logoUrl ? (
                     // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={s.logoUrl} alt="Logo"
-                      className="w-full h-full object-contain drop-shadow-md"
-                    />
+                    <img src={s.logoUrl} alt="Logo" style={{ width: "100%", height: "100%", objectFit: "contain", filter: "drop-shadow(0 2px 4px rgba(0,0,0,.3))" }} />
                   ) : (
-                    <div
-                      className="w-full h-full rounded bg-white/80 border border-white/50 flex items-center justify-center"
-                    >
-                      <span className="text-[9px] font-inter text-[#999] text-center leading-tight px-1">
-                        LOGO
-                      </span>
+                    <div style={{
+                      width: "100%", height: "100%", borderRadius: "var(--r-s)",
+                      background: "rgba(255,255,255,.8)", border: "1px solid rgba(255,255,255,.5)",
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                    }}>
+                      <span style={{ fontSize: 9, color: "#999", fontFamily: "var(--mono)", fontWeight: 700, textAlign: "center", padding: "0 4px" }}>LOGO</span>
                     </div>
                   )}
                 </div>
               </div>
 
               {/* Info bar */}
-              <div className="flex items-center gap-6 text-xs font-inter text-[#AAA]">
-                <span>Police : <span className="text-black font-medium">{s.font}</span></span>
-                <span>Taille : <span className="text-black font-medium">{s.fontSize}px</span></span>
-                <span>Position : <span className="text-black font-medium">{BLOCK_POSITIONS.find(p => p.value === s.blockPosition)?.label}</span></span>
+              <div style={{ display: "flex", alignItems: "center", gap: 20 }}>
+                {[
+                  { label: "Police", value: s.font },
+                  { label: "Taille", value: `${s.fontSize}px` },
+                  { label: "Position", value: BLOCK_POSITIONS.find(p => p.value === s.blockPosition)?.label },
+                ].map(item => (
+                  <span key={item.label} style={{ fontSize: 12, color: "var(--ink-3)" }}>
+                    {item.label} : <span style={{ color: "var(--ink)", fontWeight: 600 }}>{item.value}</span>
+                  </span>
+                ))}
               </div>
             </div>
           </div>

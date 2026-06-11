@@ -161,8 +161,7 @@ function fmtCount(n?: number) {
 }
 
 function InstagramProfile({ workspaceId }: { workspaceId: string }) {
-  const supabase = createClientComponentClient();
-  const [wsInfo, setWsInfo] = useState<{ name: string; instagram_access_token: string | null; instagram_username: string | null } | null>(null);
+  const [wsInfo, setWsInfo] = useState<{ name: string; connected: boolean; instagram_username?: string } | null>(null);
   const [profile, setProfile] = useState<IGProfile | null>(null);
   const [media, setMedia] = useState<IGMedia[]>([]);
   const [loading, setLoading] = useState(true);
@@ -175,35 +174,21 @@ function InstagramProfile({ workspaceId }: { workspaceId: string }) {
     setMedia([]);
 
     async function load() {
-      const { data: ws } = await supabase
-        .from('workspaces')
-        .select('name, instagram_access_token, instagram_username')
-        .eq('id', workspaceId)
-        .single();
-
-      if (cancelled) return;
-      setWsInfo(ws ?? null);
-
-      const token = ws?.instagram_access_token;
-      if (!token) { setLoading(false); return; }
-
       try {
-        const [pRes, mRes] = await Promise.all([
-          fetch(`https://graph.instagram.com/me?fields=username,media_count,biography,followers_count,follows_count&access_token=${token}`),
-          fetch(`https://graph.instagram.com/me/media?fields=id,media_url,thumbnail_url,timestamp&limit=9&access_token=${token}`),
-        ]);
-        const [pData, mData] = await Promise.all([pRes.json(), mRes.json()]);
+        const res = await fetch(`/api/instagram/profile?workspaceId=${workspaceId}`);
+        const data = await res.json();
         if (cancelled) return;
-        if (!pData.error) setProfile(pData);
-        if (!mData.error) setMedia(mData.data ?? []);
-      } catch { /* token expired or network — show what we have */ }
+        setWsInfo({ name: data.name ?? "", connected: !!data.connected });
+        if (data.profile) setProfile(data.profile);
+        if (data.media) setMedia(data.media);
+      } catch { /* network error */ }
 
       if (!cancelled) setLoading(false);
     }
 
     load();
     return () => { cancelled = true; };
-  }, [workspaceId, supabase]);
+  }, [workspaceId]);
 
   if (loading) {
     return (
@@ -213,7 +198,7 @@ function InstagramProfile({ workspaceId }: { workspaceId: string }) {
     );
   }
 
-  if (!wsInfo?.instagram_access_token) {
+  if (!wsInfo?.connected) {
     return (
       <div className="card" style={{ padding: 24, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, textAlign: 'center' }}>
         <span style={{ width: 44, height: 44, borderRadius: '50%', background: 'var(--sunk)', display: 'grid', placeItems: 'center', color: 'var(--ink-3)' }}>
@@ -228,8 +213,8 @@ function InstagramProfile({ workspaceId }: { workspaceId: string }) {
     );
   }
 
-  const initials = (wsInfo.name ?? '??').slice(0, 2).toUpperCase();
-  const handle = profile?.username ?? wsInfo.instagram_username ?? wsInfo.name;
+  const initials = (wsInfo?.name ?? '??').slice(0, 2).toUpperCase();
+  const handle = profile?.username ?? wsInfo?.name;
 
   return (
     <div className="card" style={{ overflow: 'hidden' }}>
