@@ -24,7 +24,10 @@ export async function POST(request: NextRequest) {
     }
 
     const apiKey = process.env.ANTHROPIC_API_KEY;
+    console.log('[generate-description] API key present:', !!apiKey);
+    console.log('[generate-description] API key first4:', apiKey?.substring(0, 4));
     if (!apiKey) {
+      console.error('[generate-description] ANTHROPIC_API_KEY is not set in environment');
       return NextResponse.json({ error: 'Clé API Anthropic manquante' }, { status: 500 });
     }
 
