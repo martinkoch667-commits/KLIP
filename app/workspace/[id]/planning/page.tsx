@@ -34,7 +34,7 @@ interface Workspace {
 
 const DAY_NAMES    = ["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"];
 const MONTH_NAMES  = ["Janvier","Février","Mars","Avril","Mai","Juin","Juillet","Août","Septembre","Octobre","Novembre","Décembre"];
-const HOUR_H       = 60; // px per hour
+const HOUR_H       = 40; // px per hour — compact so 24h fits without excessive scroll
 const HOURS        = Array.from({ length: 24 }, (_, i) => i);
 
 // ─── Date helpers ─────────────────────────────────────────────────────────────
@@ -171,10 +171,10 @@ function PlanningContent() {
     return () => clearInterval(t);
   }, []);
 
-  // ── Auto-scroll to current hour on week view ──────────────────────────────
+  // ── Auto-scroll to 8h on week view load (start of working day, not midnight) ──
   useEffect(() => {
     if (calView !== "week" || !gridRef.current) return;
-    gridRef.current.scrollTop = Math.max(0, nowTop - 2 * HOUR_H);
+    gridRef.current.scrollTop = 8 * HOUR_H; // scroll to 8:00
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [calView]);
 
@@ -447,9 +447,12 @@ function PlanningContent() {
 
                       {/* Post blocks */}
                       {dayPosts.map(post => {
-                        const d        = new Date(post.scheduled_at!);
-                        const topPx    = d.getHours() * HOUR_H + Math.round(d.getMinutes() * HOUR_H / 60);
+                        const d          = new Date(post.scheduled_at!);
+                        const topPx      = d.getHours() * HOUR_H + Math.round(d.getMinutes() * HOUR_H / 60);
                         const isSelected = selectedPost?.id === post.id;
+                        const rawImg     = post.exported_image_url || post.photo_url;
+                        const thumbSrc   = rawImg ? `/api/proxy-image?url=${encodeURIComponent(rawImg)}` : null;
+                        const initials   = (workspace?.name ?? "??").slice(0, 2).toUpperCase();
                         return (
                           <div key={post.id}
                             draggable
@@ -458,22 +461,38 @@ function PlanningContent() {
                             onClick={e => { e.stopPropagation(); selectPost(post); }}
                             style={{
                               position: "absolute", top: topPx + 2, left: 4, right: 4,
-                              minHeight: 42, borderRadius: 6,
-                              padding: "4px 8px",
-                              background: chipColor,
-                              color: "#fff",
-                              fontFamily: "var(--sans)", fontSize: 11, fontWeight: 500,
+                              height: HOUR_H - 6, borderRadius: 6,
+                              padding: "0 6px 0 0",
+                              background: `${chipColor}18`, // light tinted bg
+                              border: `1.5px solid ${chipColor}40`,
+                              color: "var(--ink)",
+                              fontFamily: "var(--sans)", fontSize: 11,
                               cursor: "pointer", zIndex: 2,
-                              boxShadow: isSelected ? `0 0 0 2px #fff, 0 0 0 3.5px ${chipColor}, 0 2px 8px rgba(0,0,0,.18)` : "0 1px 4px rgba(0,0,0,.15)",
+                              boxShadow: isSelected ? `0 0 0 2px ${chipColor}` : "0 1px 3px rgba(0,0,0,.08)",
                               opacity: draggedId === post.id ? 0.35 : 1,
                               overflow: "hidden", userSelect: "none",
+                              display: "flex", alignItems: "center", gap: 6,
                               transition: "box-shadow .12s, opacity .12s",
                             }}
                           >
-                            <div style={{ fontWeight: 700, fontSize: 9.5, opacity: .8, lineHeight: 1, marginBottom: 2 }}>{formatTime(post.scheduled_at)}</div>
-                            {post.texte_visuel && (
-                              <div style={{ fontSize: 11, lineHeight: 1.3, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{post.texte_visuel}</div>
-                            )}
+                            {/* Thumbnail */}
+                            <div style={{ width: 32, height: "100%", flexShrink: 0, overflow: "hidden", borderRadius: "4px 0 0 4px" }}>
+                              {thumbSrc ? (
+                                // eslint-disable-next-line @next/next/no-img-element
+                                <img src={thumbSrc} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+                              ) : (
+                                <div style={{ width: "100%", height: "100%", background: chipColor, display: "grid", placeItems: "center" }}>
+                                  <span style={{ fontSize: 8, fontWeight: 800, color: "#fff", fontFamily: "var(--mono)" }}>{initials}</span>
+                                </div>
+                              )}
+                            </div>
+                            {/* Text */}
+                            <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", justifyContent: "center", gap: 1 }}>
+                              <div style={{ fontSize: 10.5, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", lineHeight: 1.3, color: "var(--ink)" }}>
+                                {post.texte_visuel || "Post"}
+                              </div>
+                              <div style={{ fontSize: 9.5, color: "var(--ink-3)", fontWeight: 500, lineHeight: 1 }}>{formatTime(post.scheduled_at)}</div>
+                            </div>
                           </div>
                         );
                       })}
@@ -544,16 +563,31 @@ function PlanningContent() {
                       </div>
                       {/* Post chips */}
                       <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-                        {dayPosts.slice(0, 3).map(post => (
+                        {dayPosts.slice(0, 3).map(post => {
+                          const rawImg  = post.exported_image_url || post.photo_url;
+                          const thumb   = rawImg ? `/api/proxy-image?url=${encodeURIComponent(rawImg)}` : null;
+                          return (
                           <div key={post.id}
                             draggable
                             onDragStart={e => { e.stopPropagation(); setDraggedId(post.id); }}
                             onDragEnd={() => { setDraggedId(null); setDragOverDay(null); }}
                             onClick={e => { e.stopPropagation(); selectPost(post); }}
-                            style={{ borderRadius: 4, padding: "2px 5px", background: chipColor, color: "#fff", fontFamily: "var(--sans)", fontSize: 10, fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", cursor: "pointer", opacity: draggedId === post.id ? 0.35 : 1 }}>
-                            {formatTime(post.scheduled_at)} {post.texte_visuel || "Post"}
+                            style={{ borderRadius: 4, padding: "2px 4px 2px 2px", background: `${chipColor}18`, border: `1px solid ${chipColor}30`, color: "var(--ink)", fontFamily: "var(--sans)", fontSize: 10, fontWeight: 500, overflow: "hidden", whiteSpace: "nowrap", cursor: "pointer", opacity: draggedId === post.id ? 0.35 : 1, display: "flex", alignItems: "center", gap: 4 }}>
+                            {/* Mini thumb */}
+                            <div style={{ width: 14, height: 14, borderRadius: 2, overflow: "hidden", flexShrink: 0 }}>
+                              {thumb ? (
+                                // eslint-disable-next-line @next/next/no-img-element
+                                <img src={thumb} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+                              ) : (
+                                <div style={{ width: "100%", height: "100%", background: chipColor }} />
+                              )}
+                            </div>
+                            <span style={{ overflow: "hidden", textOverflow: "ellipsis" }}>
+                              {formatTime(post.scheduled_at)} {post.texte_visuel || "Post"}
+                            </span>
                           </div>
-                        ))}
+                          );
+                        })}
                         {dayPosts.length > 3 && (
                           <div style={{ fontSize: 9, color: "var(--ink-3)", fontFamily: "var(--mono)", fontWeight: 700, padding: "1px 4px" }}>+{dayPosts.length - 3} de plus</div>
                         )}
