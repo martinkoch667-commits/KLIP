@@ -1,33 +1,21 @@
 "use client";
 
-import { useState, useRef, useEffect, useCallback, CSSProperties } from "react";
+import { useState, useRef, useEffect, CSSProperties } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
 import Sidebar from "@/components/Sidebar";
 import ColorPicker from "@/components/ColorPicker";
 
-// ─── Google Fonts list ────────────────────────────────────────────────────────
-
-const GOOGLE_FONTS = [
-  "Anton", "Archivo Black", "Barlow Condensed", "Bebas Neue",
-  "DM Sans", "Exo 2", "Fjalla One", "Inter", "Josefin Sans",
-  "Lato", "Merriweather", "Montserrat", "Nunito", "Oswald",
-  "Outfit", "Playfair Display", "Plus Jakarta Sans", "Poppins",
-  "Raleway", "Roboto Condensed", "Rubik", "Space Grotesk",
-  "Syne", "Ubuntu", "Work Sans",
-] as const;
-
-type GoogleFont = (typeof GOOGLE_FONTS)[number];
-
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 type BlockPosition = "top-left" | "top-right" | "center" | "bottom-left" | "bottom-right";
-type LogoPosition = "top-left" | "top-right" | "bottom-left" | "bottom-right";
+type LogoPosition  = "top-left" | "top-right" | "bottom-left" | "bottom-right";
+interface GFont    { family: string; category: string }
 
 interface StyleState {
   text: string;
-  font: GoogleFont;
+  font: string;           // Google family name or custom family name
   fontSize: number;
   uppercase: boolean;
   bold: boolean;
@@ -41,21 +29,32 @@ interface StyleState {
   logoSize: number;
 }
 
+// ─── Fallback fonts ───────────────────────────────────────────────────────────
+
+const FALLBACK_FONTS: GFont[] = [
+  "Anton", "Archivo Black", "Barlow Condensed", "Bebas Neue",
+  "DM Sans", "Exo 2", "Fjalla One", "Inter", "Josefin Sans",
+  "Lato", "Merriweather", "Montserrat", "Nunito", "Oswald",
+  "Outfit", "Playfair Display", "Plus Jakarta Sans", "Poppins",
+  "Raleway", "Roboto Condensed", "Rubik", "Space Grotesk",
+  "Syne", "Ubuntu", "Work Sans",
+].map(f => ({ family: f, category: "sans-serif" }));
+
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const BLOCK_POSITIONS: { value: BlockPosition; label: string }[] = [
-  { value: "top-left", label: "Haut gauche" },
-  { value: "top-right", label: "Haut droite" },
-  { value: "center", label: "Centre" },
-  { value: "bottom-left", label: "Bas gauche" },
+  { value: "top-left",     label: "Haut gauche" },
+  { value: "top-right",    label: "Haut droite" },
+  { value: "center",       label: "Centre" },
+  { value: "bottom-left",  label: "Bas gauche" },
   { value: "bottom-right", label: "Bas droite" },
 ];
 
 const LOGO_POSITIONS: { value: LogoPosition; label: string }[] = [
   { value: "bottom-right", label: "Bas droite" },
-  { value: "bottom-left", label: "Bas gauche" },
-  { value: "top-right", label: "Haut droite" },
-  { value: "top-left", label: "Haut gauche" },
+  { value: "bottom-left",  label: "Bas gauche" },
+  { value: "top-right",    label: "Haut droite" },
+  { value: "top-left",     label: "Haut gauche" },
 ];
 
 const DEFAULT_STYLE: StyleState = {
@@ -73,6 +72,19 @@ const DEFAULT_STYLE: StyleState = {
   logoPosition: "bottom-right",
   logoSize: 64,
 };
+
+// ─── Module-level font loader ─────────────────────────────────────────────────
+
+const _gfLoaded = new Set<string>();
+
+function loadGoogleFont(family: string) {
+  if (_gfLoaded.has(family)) return;
+  _gfLoaded.add(family);
+  const link = document.createElement("link");
+  link.rel = "stylesheet";
+  link.href = `https://fonts.googleapis.com/css2?family=${family.replace(/ /g, "+")}&display=swap`;
+  document.head.appendChild(link);
+}
 
 // ─── Shared styles ────────────────────────────────────────────────────────────
 
@@ -135,16 +147,13 @@ function SectionTitle({ children }: { children: React.ReactNode }) {
 
 function Toggle({ value, onChange }: { value: boolean; onChange: (v: boolean) => void }) {
   return (
-    <button
-      type="button"
-      onClick={() => onChange(!value)}
+    <button type="button" onClick={() => onChange(!value)}
       style={{
         position: "relative", display: "inline-flex", alignItems: "center",
         width: 40, height: 22, borderRadius: 99, cursor: "pointer",
         background: value ? "var(--mint)" : "rgba(13,15,10,.14)",
         border: "none", transition: "background 0.15s", flexShrink: 0, padding: 0,
-      }}
-    >
+      }}>
       <span style={{
         position: "absolute", width: 16, height: 16, borderRadius: "50%",
         background: "#fff", boxShadow: "0 1px 3px rgba(0,0,0,.2)",
@@ -165,8 +174,7 @@ function SliderField({ label, value, min, max, unit, onChange }: {
         <span style={labelStyle}>{label}</span>
         <span style={{ fontSize: 11, color: "var(--ink-3)", fontFamily: "var(--mono)", fontWeight: 700 }}>{value}{unit}</span>
       </div>
-      <input
-        type="range" min={min} max={max} value={value}
+      <input type="range" min={min} max={max} value={value}
         onChange={(e) => onChange(Number(e.target.value))}
         style={{ width: "100%", accentColor: "var(--mint)", height: 4, cursor: "pointer" }}
       />
@@ -195,6 +203,51 @@ function ColorField({ label, value, onChange, opacity, onOpacityChange }: {
   );
 }
 
+// ─── FontPickerRow — lazy-loads the font via IntersectionObserver ─────────────
+
+function FontPickerRow({
+  family, selected, onSelect,
+}: { family: string; selected: boolean; onSelect: () => void }) {
+  const ref = useRef<HTMLButtonElement>(null);
+  const loaded = useRef(false);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const obs = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting && !loaded.current) {
+          loaded.current = true;
+          loadGoogleFont(family);
+        }
+      },
+      { rootMargin: "100px" }
+    );
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, [family]);
+
+  return (
+    <button ref={ref} type="button" onClick={onSelect}
+      style={{
+        width: "100%", padding: "9px 12px", textAlign: "left", border: "none",
+        borderBottom: "1px solid rgba(13,15,10,.04)",
+        background: selected ? "var(--mint-soft)" : "transparent",
+        cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "space-between",
+        transition: "background 0.1s",
+      }}>
+      <span style={{ fontFamily: `"${family}", sans-serif`, fontSize: 15, color: selected ? "var(--mint-2)" : "var(--ink)" }}>
+        {family}
+      </span>
+      {selected && (
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--mint-2)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M20 6 9 17l-5-5"/>
+        </svg>
+      )}
+    </button>
+  );
+}
+
 // ─── Main page ────────────────────────────────────────────────────────────────
 
 export default function WorkspaceStylePage() {
@@ -208,7 +261,16 @@ export default function WorkspaceStylePage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
-  const [loadedFonts, setLoadedFonts] = useState<Set<string>>(new Set());
+
+  // Font picker state
+  const [googleFonts, setGoogleFonts] = useState<GFont[]>([]);
+  const [fontSearch, setFontSearch] = useState("");
+  const [fontPickerOpen, setFontPickerOpen] = useState(false);
+  const [fontPrimaryUrl, setFontPrimaryUrl] = useState<string | null>(null);
+  const [isCustomFont, setIsCustomFont] = useState(false);
+  const fontUploadRef = useRef<HTMLInputElement>(null);
+
+  // Logo upload
   const logoInputRef = useRef<HTMLInputElement>(null);
 
   // Load workspace data
@@ -216,41 +278,64 @@ export default function WorkspaceStylePage() {
     async function load() {
       const { data } = await supabase
         .from("workspaces")
-        .select("name, logo_url, primary_color, secondary_color, font_family")
+        .select("name, logo_url, primary_color, secondary_color, font_family, font_primary_url")
         .eq("id", id)
         .single();
 
       if (data) {
         setWorkspaceName(data.name ?? "…");
-        setS((prev) => ({
-          ...prev,
-          font: (GOOGLE_FONTS.includes(data.font_family as GoogleFont)
-            ? data.font_family
-            : "Oswald") as GoogleFont,
-          blockBg: data.primary_color ?? prev.blockBg,
-          blockTextColor: data.secondary_color ?? prev.blockTextColor,
-          logoUrl: data.logo_url ?? null,
-        }));
+
+        // Handle custom font
+        if (data.font_primary_url && data.font_family) {
+          setIsCustomFont(true);
+          setFontPrimaryUrl(data.font_primary_url);
+          const styleId = "klip-custom-font-primary";
+          if (!document.getElementById(styleId)) {
+            const style = document.createElement("style");
+            style.id = styleId;
+            style.textContent = `@font-face { font-family: "${data.font_family}"; src: url("${data.font_primary_url}"); }`;
+            document.head.appendChild(style);
+          }
+          setS(prev => ({
+            ...prev,
+            font: data.font_family,
+            blockBg: data.primary_color ?? prev.blockBg,
+            blockTextColor: data.secondary_color ?? prev.blockTextColor,
+            logoUrl: data.logo_url ?? null,
+          }));
+        } else {
+          // Google Font
+          const fontFamily = data.font_family ?? "Oswald";
+          loadGoogleFont(fontFamily);
+          setS(prev => ({
+            ...prev,
+            font: fontFamily,
+            blockBg: data.primary_color ?? prev.blockBg,
+            blockTextColor: data.secondary_color ?? prev.blockTextColor,
+            logoUrl: data.logo_url ?? null,
+          }));
+        }
       }
       setLoading(false);
     }
     load();
   }, [id, supabase]);
 
-  // Load Google Font dynamically when font changes
-  const loadFont = useCallback((font: GoogleFont) => {
-    if (loadedFonts.has(font)) return;
-    const link = document.createElement("link");
-    link.rel = "stylesheet";
-    link.href = `https://fonts.googleapis.com/css2?family=${font.replace(/ /g, "+")}&display=swap`;
-    document.head.appendChild(link);
-    setLoadedFonts((prev) => new Set(prev).add(font));
-  }, [loadedFonts]);
+  // Fetch Google Fonts catalog
+  useEffect(() => {
+    fetch("/api/google-fonts")
+      .then(r => r.json())
+      .then(data => setGoogleFonts(Array.isArray(data) ? data : FALLBACK_FONTS))
+      .catch(() => setGoogleFonts(FALLBACK_FONTS));
+  }, []);
 
-  useEffect(() => { loadFont(s.font); }, [s.font, loadFont]);
+  // Load font whenever it changes
+  useEffect(() => {
+    if (!isCustomFont) loadGoogleFont(s.font);
+  }, [s.font, isCustomFont]);
 
   function set<K extends keyof StyleState>(key: K, value: StyleState[K]) {
-    setS((prev) => ({ ...prev, [key]: value }));
+    setS(prev => ({ ...prev, [key]: value }));
   }
 
   function handleLogoUpload(files: FileList | null) {
@@ -258,10 +343,54 @@ export default function WorkspaceStylePage() {
     set("logoUrl", URL.createObjectURL(files[0]));
   }
 
+  // Custom font upload — immediate upload to Supabase + @font-face injection
+  async function handleCustomFontUpload(file: File) {
+    const family = file.name.replace(/\.[^.]+$/, "").replace(/[-_]+/g, " ").trim();
+    const blobUrl = URL.createObjectURL(file);
+
+    // Preview immediately with blob URL
+    const styleId = "klip-custom-font-primary";
+    const existingStyle = document.getElementById(styleId);
+    if (existingStyle) existingStyle.remove();
+    const style = document.createElement("style");
+    style.id = styleId;
+    style.textContent = `@font-face { font-family: "${family}"; src: url("${blobUrl}"); }`;
+    document.head.appendChild(style);
+
+    set("font", family);
+    setIsCustomFont(true);
+    setFontPrimaryUrl(null); // will be set after upload
+
+    // Upload to Supabase Storage
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    const ext = file.name.split(".").pop();
+    const path = `${user.id}/${crypto.randomUUID()}.${ext}`;
+    const { error } = await supabase.storage.from("brand-fonts").upload(path, file);
+    if (!error) {
+      const { data: { publicUrl } } = supabase.storage.from("brand-fonts").getPublicUrl(path);
+      setFontPrimaryUrl(publicUrl);
+      // Update @font-face to use the permanent URL
+      const st = document.getElementById(styleId) as HTMLStyleElement | null;
+      if (st) st.textContent = `@font-face { font-family: "${family}"; src: url("${publicUrl}"); }`;
+    }
+  }
+
+  function handleSelectGoogleFont(family: string) {
+    loadGoogleFont(family);
+    set("font", family);
+    setIsCustomFont(false);
+    setFontPrimaryUrl(null);
+    setFontPickerOpen(false);
+    setFontSearch("");
+  }
+
   async function handleSave() {
     setSaving(true);
     await supabase.from("workspaces").update({
       font_family: s.font,
+      font_primary_url: fontPrimaryUrl,
       primary_color: s.blockBg,
       secondary_color: s.blockTextColor,
     }).eq("id", id);
@@ -274,6 +403,11 @@ export default function WorkspaceStylePage() {
     await handleSave();
     router.push(`/workspace/${id}`);
   }
+
+  const fontSource = googleFonts.length > 0 ? googleFonts : FALLBACK_FONTS;
+  const filteredFonts = fontSearch.trim()
+    ? fontSource.filter(f => f.family.toLowerCase().includes(fontSearch.toLowerCase()))
+    : fontSource.slice(0, 80);
 
   const blockStyle: CSSProperties = {
     ...blockPositionStyle(s.blockPosition),
@@ -319,10 +453,8 @@ export default function WorkspaceStylePage() {
           backdropFilter: "blur(10px)",
         }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <Link
-              href={`/workspace/${id}/parametres`}
-              style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13, color: "var(--ink-3)", fontWeight: 600 }}
-            >
+            <Link href={`/workspace/${id}/parametres`}
+              style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13, color: "var(--ink-3)", fontWeight: 600 }}>
               <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
                 <path d="M9 2L4 7l5 5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/>
               </svg>
@@ -360,36 +492,93 @@ export default function WorkspaceStylePage() {
                   <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
                     <div>
                       <span style={labelStyle}>Contenu du bloc</span>
-                      <textarea
-                        value={s.text}
-                        onChange={(e) => set("text", e.target.value)}
-                        placeholder="DU 6 AU 9 MAI, SUPER OFFRES"
-                        rows={2}
-                        style={{ ...inputStyle, resize: "none" }}
+                      <textarea value={s.text} onChange={(e) => set("text", e.target.value)}
+                        placeholder="DU 6 AU 9 MAI, SUPER OFFRES" rows={2}
+                        style={{ ...inputStyle, resize: "none" }} />
+                    </div>
+
+                    {/* Font picker — combobox */}
+                    <div>
+                      <span style={labelStyle}>
+                        Typographie
+                        {isCustomFont && (
+                          <span style={{ marginLeft: 6, fontSize: 10, fontWeight: 700, color: "var(--mint-2)", textTransform: "none", letterSpacing: 0, background: "var(--mint-soft)", padding: "2px 7px", borderRadius: 99 }}>
+                            CUSTOM
+                          </span>
+                        )}
+                      </span>
+
+                      {/* Combobox trigger / search */}
+                      <div style={{ position: "relative" }}>
+                        <input
+                          value={fontPickerOpen ? fontSearch : s.font}
+                          readOnly={!fontPickerOpen}
+                          onFocus={() => { setFontPickerOpen(true); setFontSearch(""); }}
+                          onBlur={() => setTimeout(() => setFontPickerOpen(false), 160)}
+                          onChange={e => setFontSearch(e.target.value)}
+                          style={{
+                            ...inputStyle,
+                            fontFamily: fontPickerOpen ? "var(--sans)" : `"${s.font}", sans-serif`,
+                            cursor: fontPickerOpen ? "text" : "pointer",
+                          }}
+                          placeholder="Changer de police..."
+                        />
+                        <span style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", pointerEvents: "none", color: "var(--ink-3)", fontSize: 10 }}>
+                          {fontPickerOpen ? "▲" : "▼"}
+                        </span>
+
+                        {/* Dropdown */}
+                        {fontPickerOpen && (
+                          <div style={{
+                            position: "absolute", zIndex: 200, top: "calc(100% + 4px)", left: 0, right: 0,
+                            maxHeight: 220, overflowY: "auto",
+                            background: "var(--white)", border: "1px solid rgba(13,15,10,.12)",
+                            borderRadius: 9, boxShadow: "0 4px 18px rgba(0,0,0,.14)",
+                          }}>
+                            {filteredFonts.length === 0 ? (
+                              <div style={{ padding: "12px 14px", fontSize: 13, color: "var(--ink-3)" }}>Aucune police trouvée</div>
+                            ) : (
+                              filteredFonts.map(font => (
+                                <FontPickerRow
+                                  key={font.family}
+                                  family={font.family}
+                                  selected={!isCustomFont && s.font === font.family}
+                                  onSelect={() => handleSelectGoogleFont(font.family)}
+                                />
+                              ))
+                            )}
+                            {!fontSearch && googleFonts.length > 80 && (
+                              <div style={{ padding: "8px 12px", fontSize: 11, color: "var(--ink-3)", borderTop: "1px solid rgba(13,15,10,.05)", textAlign: "center" }}>
+                                Rechercher parmi {googleFonts.length.toLocaleString()} polices...
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Custom font upload */}
+                      <button type="button"
+                        onClick={() => fontUploadRef.current?.click()}
+                        style={{
+                          marginTop: 6, width: "100%", padding: "8px 12px", borderRadius: 9,
+                          border: "1.5px dashed rgba(13,15,10,.18)", background: "transparent",
+                          cursor: "pointer", fontSize: 12, color: "var(--ink-3)", fontWeight: 600,
+                          display: "flex", alignItems: "center", gap: 6, transition: "all 0.12s",
+                        }}
+                        onMouseEnter={e => { e.currentTarget.style.borderColor = "var(--mint)"; e.currentTarget.style.color = "var(--mint-2)"; }}
+                        onMouseLeave={e => { e.currentTarget.style.borderColor = "rgba(13,15,10,.18)"; e.currentTarget.style.color = "var(--ink-3)"; }}
+                      >
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/>
+                        </svg>
+                        {isCustomFont ? `Custom : ${s.font} — changer` : "Uploader police custom (.ttf, .otf, .woff)"}
+                      </button>
+                      <input ref={fontUploadRef} type="file" accept=".ttf,.otf,.woff,.woff2" style={{ display: "none" }}
+                        onChange={e => { const f = e.target.files?.[0]; if (f) handleCustomFontUpload(f); e.target.value = ""; }}
                       />
                     </div>
 
-                    <div>
-                      <span style={labelStyle}>Typographie</span>
-                      <select
-                        value={s.font}
-                        onChange={(e) => set("font", e.target.value as GoogleFont)}
-                        style={{ ...inputStyle, cursor: "pointer", appearance: "none" as const, fontFamily: `"${s.font}", sans-serif` }}
-                      >
-                        {GOOGLE_FONTS.map((f) => (
-                          <option key={f} value={f}>{f}</option>
-                        ))}
-                      </select>
-                      <span style={{ fontSize: 11, color: "var(--ink-3)", marginTop: 4, display: "block" }}>
-                        Police chargée depuis Google Fonts
-                      </span>
-                    </div>
-
-                    <SliderField
-                      label="Taille du texte"
-                      value={s.fontSize} min={16} max={80} unit="px"
-                      onChange={(v) => set("fontSize", v)}
-                    />
+                    <SliderField label="Taille du texte" value={s.fontSize} min={16} max={80} unit="px" onChange={(v) => set("fontSize", v)} />
 
                     <div style={{ display: "flex", alignItems: "center", gap: 24 }}>
                       <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -409,33 +598,15 @@ export default function WorkspaceStylePage() {
                   <SectionTitle>Bloc texte</SectionTitle>
                   <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
                     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-                      <ColorField
-                        label="Couleur principale"
-                        value={s.blockBg}
-                        onChange={(v) => set("blockBg", v)}
-                        opacity={s.blockOpacity}
-                        onOpacityChange={(v) => set("blockOpacity", v)}
-                      />
-                      <ColorField
-                        label="Couleur secondaire"
-                        value={s.blockTextColor}
-                        onChange={(v) => set("blockTextColor", v)}
-                      />
+                      <ColorField label="Couleur principale" value={s.blockBg} onChange={(v) => set("blockBg", v)}
+                        opacity={s.blockOpacity} onOpacityChange={(v) => set("blockOpacity", v)} />
+                      <ColorField label="Couleur secondaire" value={s.blockTextColor} onChange={(v) => set("blockTextColor", v)} />
                     </div>
-
-                    <SliderField
-                      label="Arrondi des coins"
-                      value={s.blockRadius} min={0} max={20} unit="px"
-                      onChange={(v) => set("blockRadius", v)}
-                    />
-
+                    <SliderField label="Arrondi des coins" value={s.blockRadius} min={0} max={20} unit="px" onChange={(v) => set("blockRadius", v)} />
                     <div>
                       <span style={labelStyle}>Position du bloc</span>
-                      <select
-                        value={s.blockPosition}
-                        onChange={(e) => set("blockPosition", e.target.value as BlockPosition)}
-                        style={{ ...inputStyle, cursor: "pointer", appearance: "none" as const }}
-                      >
+                      <select value={s.blockPosition} onChange={(e) => set("blockPosition", e.target.value as BlockPosition)}
+                        style={{ ...inputStyle, cursor: "pointer", appearance: "none" as const }}>
                         {BLOCK_POSITIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
                       </select>
                     </div>
@@ -448,10 +619,8 @@ export default function WorkspaceStylePage() {
                   <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
                     <div>
                       <span style={labelStyle}>Logo client</span>
-                      <div
-                        onClick={() => logoInputRef.current?.click()}
-                        style={{ display: "flex", alignItems: "center", gap: 14, cursor: "pointer" }}
-                      >
+                      <div onClick={() => logoInputRef.current?.click()}
+                        style={{ display: "flex", alignItems: "center", gap: 14, cursor: "pointer" }}>
                         <div style={{
                           width: 52, height: 52, borderRadius: "var(--r-s)", flexShrink: 0,
                           border: "2px dashed var(--line)", background: "var(--white)",
@@ -470,30 +639,19 @@ export default function WorkspaceStylePage() {
                           {s.logoUrl ? "Changer le logo" : "Uploader un logo"}
                         </span>
                       </div>
-                      <input
-                        ref={logoInputRef}
-                        type="file" accept="image/*"
-                        style={{ display: "none" }}
-                        onChange={(e) => handleLogoUpload(e.target.files)}
-                      />
+                      <input ref={logoInputRef} type="file" accept="image/*" style={{ display: "none" }}
+                        onChange={(e) => handleLogoUpload(e.target.files)} />
                     </div>
 
                     <div>
                       <span style={labelStyle}>Position du logo</span>
-                      <select
-                        value={s.logoPosition}
-                        onChange={(e) => set("logoPosition", e.target.value as LogoPosition)}
-                        style={{ ...inputStyle, cursor: "pointer", appearance: "none" as const }}
-                      >
+                      <select value={s.logoPosition} onChange={(e) => set("logoPosition", e.target.value as LogoPosition)}
+                        style={{ ...inputStyle, cursor: "pointer", appearance: "none" as const }}>
                         {LOGO_POSITIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
                       </select>
                     </div>
 
-                    <SliderField
-                      label="Taille du logo"
-                      value={s.logoSize} min={40} max={120} unit="px"
-                      onChange={(v) => set("logoSize", v)}
-                    />
+                    <SliderField label="Taille du logo" value={s.logoSize} min={40} max={120} unit="px" onChange={(v) => set("logoSize", v)} />
                   </div>
                 </section>
 
@@ -502,32 +660,24 @@ export default function WorkspaceStylePage() {
 
             {/* Save buttons */}
             <div style={{ padding: "16px 28px", borderTop: "1px solid var(--line-2)", background: "var(--canvas)", position: "sticky", bottom: 0, display: "flex", flexDirection: "column", gap: 8 }}>
-              <button
-                onClick={handleSaveAndContinue}
-                disabled={saving}
+              <button onClick={handleSaveAndContinue} disabled={saving}
                 style={{
                   width: "100%", padding: "12px", borderRadius: 13,
                   background: "var(--mint)", border: "none", color: "var(--mint-ink)",
                   fontSize: 14, fontWeight: 700, cursor: saving ? "default" : "pointer",
-                  fontFamily: "var(--display)", transition: "background 0.15s",
-                  opacity: saving ? 0.7 : 1,
+                  fontFamily: "var(--display)", transition: "background 0.15s", opacity: saving ? 0.7 : 1,
                 }}
                 onMouseEnter={e => { if (!saving) e.currentTarget.style.background = "var(--mint-2)"; }}
-                onMouseLeave={e => { e.currentTarget.style.background = "var(--mint)"; }}
-              >
+                onMouseLeave={e => { e.currentTarget.style.background = "var(--mint)"; }}>
                 {saving ? "Sauvegarde…" : "Sauvegarder et continuer →"}
               </button>
-              <button
-                onClick={handleSave}
-                disabled={saving}
+              <button onClick={handleSave} disabled={saving}
                 style={{
                   width: "100%", padding: "10px", borderRadius: 13,
                   background: "transparent", border: "1px solid rgba(13,15,10,.12)",
                   color: "var(--ink-2)", fontSize: 13, fontWeight: 600,
                   cursor: saving ? "default" : "pointer", fontFamily: "var(--sans)",
-                  transition: "all 0.15s",
-                }}
-              >
+                }}>
                 {saved ? "✓ Sauvegardé" : "Sauvegarder ce style"}
               </button>
             </div>

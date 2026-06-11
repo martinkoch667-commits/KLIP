@@ -23,6 +23,8 @@ interface Workspace {
   id: string;
   name: string;
   primary_color: string | null;
+  secondary_color: string | null;
+  font_family: string | null;
   instagram_account_id: string | null;
   instagram_username: string | null;
   facebook_page_id: string | null;
@@ -142,7 +144,7 @@ function PlanningContent() {
   // ── Data loading ──────────────────────────────────────────────────────────
   const loadData = useCallback(async () => {
     const [{ data: ws }, { data: postsData }] = await Promise.all([
-      supabase.from("workspaces").select("id, name, primary_color, instagram_account_id, instagram_username, facebook_page_id").eq("id", id).single(),
+      supabase.from("workspaces").select("id, name, primary_color, secondary_color, font_family, instagram_account_id, instagram_username, facebook_page_id").eq("id", id).single(),
       supabase.from("posts")
         .select("id, photo_url, exported_image_url, texte_visuel, description, status, scheduled_at, brief")
         .eq("workspace_id", id)

@@ -1,12 +1,28 @@
 "use client";
 
-import { useState, useRef, useEffect, CSSProperties } from "react";
+import { useState, useRef, useEffect, useMemo, CSSProperties } from "react";
 import { useRouter } from "next/navigation";
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
 import Sidebar from "@/components/Sidebar";
 import ColorPicker from "@/components/ColorPicker";
 
-// ─── Constants ────────────────────────────────────────────────────────────────
+// ─── Types ────────────────────────────────────────────────────────────────────
+
+interface GFont { family: string; category: string }
+interface CustomFont { file: File; family: string; blobUrl: string }
+
+// ─── Fallback font list (used if API unavailable) ─────────────────────────────
+
+const FALLBACK_FONTS: GFont[] = [
+  "Anton", "Archivo Black", "Barlow Condensed", "Bebas Neue",
+  "DM Sans", "Exo 2", "Fjalla One", "Inter", "Josefin Sans",
+  "Lato", "Merriweather", "Montserrat", "Nunito", "Oswald",
+  "Outfit", "Playfair Display", "Plus Jakarta Sans", "Poppins",
+  "Raleway", "Roboto Condensed", "Rubik", "Space Grotesk",
+  "Syne", "Ubuntu", "Work Sans",
+].map(f => ({ family: f, category: "sans-serif" }));
+
+// ─── Other constants ──────────────────────────────────────────────────────────
 
 const SECTORS = ["Restaurant", "Café", "Retail", "Mode", "Beauté", "Sport", "Tech", "Autre"];
 
@@ -19,16 +35,21 @@ const TONES = [
   { value: "Doux",       desc: "Délicat, rassurant, bienveillant" },
 ];
 
-const FONTS = [
-  "Anton", "Archivo Black", "Barlow Condensed", "Bebas Neue",
-  "DM Sans", "Exo 2", "Fjalla One", "Inter", "Josefin Sans",
-  "Lato", "Merriweather", "Montserrat", "Nunito", "Oswald",
-  "Outfit", "Playfair Display", "Plus Jakarta Sans", "Poppins",
-  "Raleway", "Roboto Condensed", "Rubik", "Space Grotesk",
-  "Syne", "Ubuntu", "Work Sans",
-];
-
 const STEP_LABELS = ["Infos de base", "Voix de marque", "Identité visuelle", "Typographie"];
+const FONT_LIST_LIMIT = 100; // shown by default (top 100 by popularity)
+
+// ─── Module-level font loader (avoids duplicate <link> tags) ──────────────────
+
+const _gfLoaded = new Set<string>();
+
+function loadGoogleFont(family: string) {
+  if (_gfLoaded.has(family)) return;
+  _gfLoaded.add(family);
+  const link = document.createElement("link");
+  link.rel = "stylesheet";
+  link.href = `https://fonts.googleapis.com/css2?family=${family.replace(/ /g, "+")}&display=swap`;
+  document.head.appendChild(link);
+}
 
 // ─── Shared styles ────────────────────────────────────────────────────────────
 
@@ -43,6 +64,66 @@ const labelStyle: CSSProperties = {
   color: "var(--ink-3)", textTransform: "uppercase", letterSpacing: "0.1em",
   fontFamily: "var(--display)",
 };
+
+// ─── FontRow — lazy-loads the font via IntersectionObserver ───────────────────
+
+function FontRow({
+  family, selected, onSelect,
+}: { family: string; selected: boolean; onSelect: () => void }) {
+  const ref = useRef<HTMLButtonElement>(null);
+  const loaded = useRef(false);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const obs = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting && !loaded.current) {
+          loaded.current = true;
+          loadGoogleFont(family);
+        }
+      },
+      { rootMargin: "200px" }
+    );
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, [family]);
+
+  return (
+    <button
+      ref={ref}
+      type="button"
+      onClick={onSelect}
+      style={{
+        width: "100%", padding: "12px 16px", textAlign: "left", border: "none",
+        borderBottom: "1px solid rgba(13,15,10,.04)",
+        background: selected ? "var(--mint-soft)" : "transparent",
+        cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "space-between",
+        transition: "background 0.1s",
+      }}
+    >
+      <div>
+        <span style={{
+          fontFamily: `"${family}", sans-serif`, fontSize: 18, lineHeight: 1.25,
+          color: selected ? "var(--mint-2)" : "var(--ink)", display: "block",
+        }}>
+          Bonjour, voici votre marque
+        </span>
+        <span style={{
+          fontSize: 11, color: selected ? "var(--mint-2)" : "var(--ink-3)",
+          fontFamily: "var(--sans)", fontWeight: 600,
+        }}>
+          {family}
+        </span>
+      </div>
+      {selected && (
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--mint-2)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+          <path d="M20 6 9 17l-5-5"/>
+        </svg>
+      )}
+    </button>
+  );
+}
 
 // ─── Main page ────────────────────────────────────────────────────────────────
 
@@ -80,38 +161,89 @@ export default function NewWorkspacePage() {
   const [assetFiles, setAssetFiles] = useState<File[]>([]);
   const [assetPreviews, setAssetPreviews] = useState<string[]>([]);
 
-  // Step 4 — Typographie
+  // Step 4 — Typographie (Google Fonts)
+  const [googleFonts, setGoogleFonts] = useState<GFont[]>([]);
+  const [fontsLoading, setFontsLoading] = useState(false);
   const [fontPrimary, setFontPrimary] = useState("Oswald");
   const [fontSecondary, setFontSecondary] = useState("");
   const [fontSearch, setFontSearch] = useState("");
+  const [fontSearchSecondary, setFontSearchSecondary] = useState("");
 
-  // Load Google Fonts for preview in step 4
+  // Step 4 — Custom fonts
+  const customPrimaryRef = useRef<HTMLInputElement>(null);
+  const customSecondaryRef = useRef<HTMLInputElement>(null);
+  const [customPrimary, setCustomPrimary] = useState<CustomFont | null>(null);
+  const [customSecondary, setCustomSecondary] = useState<CustomFont | null>(null);
+
+  // Active font names (custom overrides Google selection)
+  const activeFontPrimary = customPrimary ? customPrimary.family : fontPrimary;
+  const activeFontSecondary = customSecondary ? customSecondary.family : fontSecondary;
+
+  // Fetch Google Fonts catalog on step 4 mount
   useEffect(() => {
     if (step !== 4) return;
-    const families = FONTS.map(f => f.replace(/ /g, "+")).join("|");
-    const id = "gf-all-preview";
-    if (!document.getElementById(id)) {
-      const link = document.createElement("link");
-      link.id = id;
-      link.rel = "stylesheet";
-      link.href = `https://fonts.googleapis.com/css2?family=${families}&display=swap`;
-      document.head.appendChild(link);
-    }
-  }, [step]);
+    if (googleFonts.length > 0) return;
+    setFontsLoading(true);
+    fetch("/api/google-fonts")
+      .then(r => r.json())
+      .then(data => setGoogleFonts(Array.isArray(data) ? data : FALLBACK_FONTS))
+      .catch(() => setGoogleFonts(FALLBACK_FONTS))
+      .finally(() => setFontsLoading(false));
+  }, [step, googleFonts.length]);
 
-  // ── File upload helper ───────────────────────────────────────────────────────
+  // Pre-load primary font for preview card whenever it changes
+  useEffect(() => {
+    if (step === 4 && !customPrimary && fontPrimary) loadGoogleFont(fontPrimary);
+  }, [step, fontPrimary, customPrimary]);
 
-  async function uploadFile(file: File, userId: string): Promise<string | null> {
-    const ext = file.name.split(".").pop();
-    const path = `${userId}/${crypto.randomUUID()}.${ext}`;
-    const { error: uploadErr } = await supabase.storage
-      .from("brand-assets")
-      .upload(path, file);
-    if (uploadErr) { console.error("Upload:", uploadErr); return null; }
-    return supabase.storage.from("brand-assets").getPublicUrl(path).data.publicUrl;
+  // ── Filtered font lists ───────────────────────────────────────────────────
+
+  const fontSource = googleFonts.length > 0 ? googleFonts : FALLBACK_FONTS;
+
+  const filteredFonts = useMemo(() => {
+    const q = fontSearch.trim().toLowerCase();
+    if (!q) return fontSource.slice(0, FONT_LIST_LIMIT);
+    return fontSource.filter(f => f.family.toLowerCase().includes(q));
+  }, [fontSource, fontSearch]);
+
+  const filteredFontsSecondary = useMemo(() => {
+    const q = fontSearchSecondary.trim().toLowerCase();
+    const base = fontSource.filter(f => f.family !== activeFontPrimary);
+    if (!q) return base.slice(0, FONT_LIST_LIMIT);
+    return base.filter(f => f.family.toLowerCase().includes(q));
+  }, [fontSource, fontSearchSecondary, activeFontPrimary]);
+
+  // ── Custom font handler ───────────────────────────────────────────────────
+
+  function handleCustomFont(file: File, target: "primary" | "secondary") {
+    const family = file.name.replace(/\.[^.]+$/, "").replace(/[-_]+/g, " ").trim();
+    const blobUrl = URL.createObjectURL(file);
+
+    // Inject @font-face for preview
+    const styleId = `klip-custom-font-${target}`;
+    const existing = document.getElementById(styleId);
+    if (existing) existing.remove();
+    const style = document.createElement("style");
+    style.id = styleId;
+    style.textContent = `@font-face { font-family: "${family}"; src: url("${blobUrl}"); }`;
+    document.head.appendChild(style);
+
+    const font: CustomFont = { file, family, blobUrl };
+    if (target === "primary") setCustomPrimary(font);
+    else setCustomSecondary(font);
   }
 
-  // ── Create workspace ─────────────────────────────────────────────────────────
+  // ── File upload helpers ───────────────────────────────────────────────────
+
+  async function uploadFile(file: File, bucket: string, userId: string): Promise<string | null> {
+    const ext = file.name.split(".").pop();
+    const path = `${userId}/${crypto.randomUUID()}.${ext}`;
+    const { error: uploadErr } = await supabase.storage.from(bucket).upload(path, file);
+    if (uploadErr) { console.error(`Upload [${bucket}]:`, uploadErr); return null; }
+    return supabase.storage.from(bucket).getPublicUrl(path).data.publicUrl;
+  }
+
+  // ── Create workspace ──────────────────────────────────────────────────────
 
   async function createWorkspace() {
     setError(null);
@@ -120,18 +252,28 @@ export default function NewWorkspacePage() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) { router.push("/login"); return; }
 
+      // Brand asset uploads
       let logoUrl: string | null = null;
       let logoDarkUrl: string | null = null;
       const assetUrls: string[] = [];
-
-      if (logoFile)     logoUrl     = await uploadFile(logoFile, user.id);
-      if (logoDarkFile) logoDarkUrl = await uploadFile(logoDarkFile, user.id);
+      if (logoFile)     logoUrl     = await uploadFile(logoFile, "brand-assets", user.id);
+      if (logoDarkFile) logoDarkUrl = await uploadFile(logoDarkFile, "brand-assets", user.id);
       for (const f of assetFiles) {
-        const url = await uploadFile(f, user.id);
+        const url = await uploadFile(f, "brand-assets", user.id);
         if (url) assetUrls.push(url);
       }
 
-      // Build legacy brand_voice_prompt for backward compat with AI generation
+      // Custom font uploads
+      let fontPrimaryUrl: string | null = null;
+      let fontSecondaryUrl: string | null = null;
+      if (customPrimary) {
+        fontPrimaryUrl = await uploadFile(customPrimary.file, "brand-fonts", user.id);
+      }
+      if (customSecondary) {
+        fontSecondaryUrl = await uploadFile(customSecondary.file, "brand-fonts", user.id);
+      }
+
+      // Legacy brand_voice_prompt for backward compat
       const voiceParts: string[] = [];
       if (tone)                  voiceParts.push(`Ton : ${tone}`);
       if (wordsToUse.trim())     voiceParts.push(`Mots à utiliser : ${wordsToUse.trim()}`);
@@ -159,8 +301,10 @@ export default function NewWorkspacePage() {
         logo_dark_url: logoDarkUrl,
         brand_assets: assetUrls,
         // Step 4
-        font_family: fontPrimary,
-        font_secondary: fontSecondary || null,
+        font_family: activeFontPrimary,
+        font_primary_url: fontPrimaryUrl,
+        font_secondary: activeFontSecondary || null,
+        font_secondary_url: fontSecondaryUrl,
       }).select().single();
 
       if (insertErr) throw insertErr;
@@ -172,9 +316,6 @@ export default function NewWorkspacePage() {
   }
 
   const canContinue = step === 1 ? name.trim().length > 0 : true;
-  const filteredFonts = FONTS.filter(f =>
-    f.toLowerCase().includes(fontSearch.toLowerCase())
-  );
 
   return (
     <div style={{ display: "flex", minHeight: "100vh", background: "var(--canvas)" }}>
@@ -402,25 +543,17 @@ export default function NewWorkspacePage() {
                       { label: "Secondaire", value: secondaryColor, onChange: setSecondaryColor },
                       { label: "Accent", value: accentColor, onChange: setAccentColor },
                     ].map(col => (
-                      <div
-                        key={col.label}
-                        className="card"
-                        style={{ padding: "14px 16px" }}
-                      >
+                      <div key={col.label} className="card" style={{ padding: "14px 16px" }}>
                         <span style={{ ...labelStyle, marginBottom: 12, display: "block" }}>{col.label}</span>
                         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                           <ColorPicker value={col.value} onChange={col.onChange} />
-                          <span style={{
-                            fontFamily: "var(--mono)", fontWeight: 700, fontSize: 12,
-                            color: "var(--ink)", textTransform: "uppercase",
-                          }}>
+                          <span style={{ fontFamily: "var(--mono)", fontWeight: 700, fontSize: 12, color: "var(--ink)", textTransform: "uppercase" }}>
                             {col.value}
                           </span>
                         </div>
                         <div style={{
                           width: "100%", height: 6, borderRadius: 99, marginTop: 12,
-                          background: col.value,
-                          boxShadow: "inset 0 0 0 1px rgba(13,15,10,.08)",
+                          background: col.value, boxShadow: "inset 0 0 0 1px rgba(13,15,10,.08)",
                         }} />
                       </div>
                     ))}
@@ -431,8 +564,6 @@ export default function NewWorkspacePage() {
                 <div>
                   <label style={labelStyle}>Logos</label>
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-
-                    {/* Logo principal */}
                     <UploadZone
                       label="Logo principal"
                       hint="PNG, SVG recommandé"
@@ -441,16 +572,10 @@ export default function NewWorkspacePage() {
                       onClick={() => logoRef.current?.click()}
                       onRemove={() => { setLogoFile(null); setLogoPreview(null); }}
                     />
-                    <input
-                      ref={logoRef} type="file" accept=".png,.svg,.jpg,.jpeg"
-                      style={{ display: "none" }}
-                      onChange={e => {
-                        const f = e.target.files?.[0];
-                        if (f) { setLogoFile(f); setLogoPreview(URL.createObjectURL(f)); }
-                      }}
+                    <input ref={logoRef} type="file" accept=".png,.svg,.jpg,.jpeg" style={{ display: "none" }}
+                      onChange={e => { const f = e.target.files?.[0]; if (f) { setLogoFile(f); setLogoPreview(URL.createObjectURL(f)); } }}
                     />
 
-                    {/* Logo variante */}
                     <UploadZone
                       label={<>Logo variante <OptLabel /></>}
                       hint="Blanc ou noir sur fond inversé"
@@ -459,13 +584,8 @@ export default function NewWorkspacePage() {
                       onClick={() => logoDarkRef.current?.click()}
                       onRemove={() => { setLogoDarkFile(null); setLogoDarkPreview(null); }}
                     />
-                    <input
-                      ref={logoDarkRef} type="file" accept=".png,.svg,.jpg,.jpeg"
-                      style={{ display: "none" }}
-                      onChange={e => {
-                        const f = e.target.files?.[0];
-                        if (f) { setLogoDarkFile(f); setLogoDarkPreview(URL.createObjectURL(f)); }
-                      }}
+                    <input ref={logoDarkRef} type="file" accept=".png,.svg,.jpg,.jpeg" style={{ display: "none" }}
+                      onChange={e => { const f = e.target.files?.[0]; if (f) { setLogoDarkFile(f); setLogoDarkPreview(URL.createObjectURL(f)); } }}
                     />
                   </div>
                 </div>
@@ -474,7 +594,8 @@ export default function NewWorkspacePage() {
                 <div>
                   <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
                     <label style={{ ...labelStyle, marginBottom: 0 }}>
-                      Assets supplémentaires <OptLabel /> <span style={{ fontWeight: 400, textTransform: "none", letterSpacing: 0, color: "var(--ink-3)" }}>— {assetFiles.length}/5</span>
+                      Assets supplémentaires <OptLabel />{" "}
+                      <span style={{ fontWeight: 400, textTransform: "none", letterSpacing: 0, color: "var(--ink-3)" }}>— {assetFiles.length}/5</span>
                     </label>
                     {assetFiles.length < 5 && (
                       <button type="button" onClick={() => assetsRef.current?.click()}
@@ -483,13 +604,10 @@ export default function NewWorkspacePage() {
                       </button>
                     )}
                   </div>
-                  <input
-                    ref={assetsRef} type="file" accept=".png,.svg,.jpg,.jpeg" multiple
-                    style={{ display: "none" }}
+                  <input ref={assetsRef} type="file" accept=".png,.svg,.jpg,.jpeg" multiple style={{ display: "none" }}
                     onChange={e => {
                       const files = Array.from(e.target.files ?? []);
-                      const remaining = 5 - assetFiles.length;
-                      const added = files.slice(0, remaining);
+                      const added = files.slice(0, 5 - assetFiles.length);
                       setAssetFiles(prev => [...prev, ...added]);
                       setAssetPreviews(prev => [...prev, ...added.map(f => URL.createObjectURL(f))]);
                       e.target.value = "";
@@ -501,37 +619,23 @@ export default function NewWorkspacePage() {
                         <div key={i} style={{ position: "relative" }}>
                           {/* eslint-disable-next-line @next/next/no-img-element */}
                           <img src={url} alt="" style={{ width: "100%", aspectRatio: "1", objectFit: "contain", borderRadius: 10, background: "var(--sunk)", padding: 6, display: "block" }} />
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setAssetFiles(f => f.filter((_, j) => j !== i));
-                              setAssetPreviews(p => p.filter((_, j) => j !== i));
-                            }}
-                            style={{ position: "absolute", top: 4, right: 4, width: 20, height: 20, borderRadius: "50%", background: "rgba(0,0,0,.55)", border: "none", cursor: "pointer", color: "#fff", fontSize: 12, display: "grid", placeItems: "center" }}
-                          >
+                          <button type="button"
+                            onClick={() => { setAssetFiles(f => f.filter((_, j) => j !== i)); setAssetPreviews(p => p.filter((_, j) => j !== i)); }}
+                            style={{ position: "absolute", top: 4, right: 4, width: 20, height: 20, borderRadius: "50%", background: "rgba(0,0,0,.55)", border: "none", cursor: "pointer", color: "#fff", fontSize: 12, display: "grid", placeItems: "center" }}>
                             ×
                           </button>
                         </div>
                       ))}
                       {assetFiles.length < 5 && (
-                        <div
-                          onClick={() => assetsRef.current?.click()}
-                          style={{ aspectRatio: "1", borderRadius: 10, border: "2px dashed var(--line)", display: "grid", placeItems: "center", cursor: "pointer", color: "var(--ink-3)", fontSize: 22 }}
-                        >
+                        <div onClick={() => assetsRef.current?.click()}
+                          style={{ aspectRatio: "1", borderRadius: 10, border: "2px dashed var(--line)", display: "grid", placeItems: "center", cursor: "pointer", color: "var(--ink-3)", fontSize: 22 }}>
                           +
                         </div>
                       )}
                     </div>
                   ) : (
-                    <div
-                      onClick={() => assetsRef.current?.click()}
-                      style={{
-                        border: "2px dashed var(--line)", borderRadius: 13, padding: 20,
-                        background: "var(--white)", cursor: "pointer", textAlign: "center",
-                        display: "flex", alignItems: "center", justifyContent: "center",
-                        gap: 8, color: "var(--ink-3)", fontSize: 13,
-                      }}
-                    >
+                    <div onClick={() => assetsRef.current?.click()}
+                      style={{ border: "2px dashed var(--line)", borderRadius: 13, padding: 20, background: "var(--white)", cursor: "pointer", textAlign: "center", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, color: "var(--ink-3)", fontSize: 13 }}>
                       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
                         <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/>
                       </svg>
@@ -544,96 +648,237 @@ export default function NewWorkspacePage() {
 
             {/* ─── STEP 4 — Typographie ─── */}
             {step === 4 && (
-              <div key="step4" className="screen-in" style={{ display: "flex", flexDirection: "column", gap: 28 }}>
+              <div key="step4" className="screen-in" style={{ display: "flex", flexDirection: "column", gap: 32 }}>
                 <div>
                   <h1 style={{ fontFamily: "var(--display)", fontWeight: 800, fontSize: 30, color: "var(--ink)", letterSpacing: "-0.02em", marginBottom: 8 }}>
                     Typographie
                   </h1>
                   <p style={{ fontSize: 14, color: "var(--ink-2)" }}>
-                    Les polices utilisées dans les visuels de ce client.
+                    Les polices utilisées dans les visuels de ce client.{" "}
+                    {googleFonts.length > 0 && (
+                      <span style={{ color: "var(--ink-3)" }}>{googleFonts.length.toLocaleString()} polices disponibles.</span>
+                    )}
                   </p>
                 </div>
 
-                {/* Police principale */}
+                {/* ── Police principale ─────────────────────────────────── */}
                 <div>
                   <label style={labelStyle}>Police principale</label>
+
+                  {/* Custom font banner */}
+                  {customPrimary && (
+                    <div style={{
+                      display: "flex", alignItems: "center", justifyContent: "space-between",
+                      padding: "10px 14px", borderRadius: 10, marginBottom: 10,
+                      background: "var(--mint-soft)", border: "1px solid var(--mint)",
+                    }}>
+                      <div>
+                        <span style={{ fontSize: 12, fontWeight: 700, color: "var(--mint-2)", display: "block" }}>
+                          Police custom active
+                        </span>
+                        <span style={{ fontFamily: `"${customPrimary.family}", sans-serif`, fontSize: 16, color: "var(--ink)" }}>
+                          {customPrimary.family}
+                        </span>
+                      </div>
+                      <button type="button"
+                        onClick={() => setCustomPrimary(null)}
+                        style={{ fontSize: 12, fontWeight: 700, color: "var(--ink-3)", background: "none", border: "none", cursor: "pointer", padding: "4px 8px" }}>
+                        × Retirer
+                      </button>
+                    </div>
+                  )}
+
+                  {/* Search */}
                   <input
-                    style={{ ...inputStyle, marginBottom: 8 }}
+                    style={{ ...inputStyle, marginBottom: 6 }}
                     value={fontSearch}
                     onChange={e => setFontSearch(e.target.value)}
                     placeholder="Rechercher une police Google Fonts..."
                     autoFocus
                   />
-                  <div style={{ maxHeight: 220, overflowY: "auto", border: "1px solid rgba(13,15,10,.08)", borderRadius: 13, background: "var(--white)" }}>
-                    {filteredFonts.length === 0 && (
-                      <div style={{ padding: "16px 14px", fontSize: 13, color: "var(--ink-3)" }}>Aucune police trouvée</div>
+
+                  {/* Font list */}
+                  <div style={{
+                    maxHeight: 300, overflowY: "auto",
+                    border: "1px solid rgba(13,15,10,.08)", borderRadius: 13,
+                    background: "var(--white)",
+                  }}>
+                    {fontsLoading ? (
+                      <div style={{ padding: "18px 16px", fontSize: 13, color: "var(--ink-3)", textAlign: "center" }}>
+                        Chargement du catalogue...
+                      </div>
+                    ) : filteredFonts.length === 0 ? (
+                      <div style={{ padding: "16px 14px", fontSize: 13, color: "var(--ink-3)" }}>
+                        Aucune police trouvée
+                      </div>
+                    ) : (
+                      <>
+                        {filteredFonts.map(font => (
+                          <FontRow
+                            key={font.family}
+                            family={font.family}
+                            selected={!customPrimary && fontPrimary === font.family}
+                            onSelect={() => { setFontPrimary(font.family); setCustomPrimary(null); }}
+                          />
+                        ))}
+                        {!fontSearch && googleFonts.length > FONT_LIST_LIMIT && (
+                          <div style={{ padding: "10px 16px", fontSize: 12, color: "var(--ink-3)", borderTop: "1px solid rgba(13,15,10,.05)", textAlign: "center" }}>
+                            + {(googleFonts.length - FONT_LIST_LIMIT).toLocaleString()} autres — affiner avec la recherche
+                          </div>
+                        )}
+                      </>
                     )}
-                    {filteredFonts.map(font => {
-                      const active = fontPrimary === font;
-                      return (
-                        <button
-                          key={font} type="button"
-                          onClick={() => setFontPrimary(font)}
-                          style={{
-                            width: "100%", padding: "10px 14px", textAlign: "left", border: "none",
-                            background: active ? "var(--mint-soft)" : "transparent",
-                            cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "space-between",
-                            borderBottom: "1px solid rgba(13,15,10,.05)",
-                          }}
-                        >
-                          <span style={{ fontFamily: `"${font}", sans-serif`, fontSize: 16, color: active ? "var(--mint-2)" : "var(--ink)" }}>
-                            {font}
-                          </span>
-                          {active && <span style={{ fontSize: 11, color: "var(--mint-2)", fontWeight: 800 }}>✓</span>}
-                        </button>
-                      );
-                    })}
                   </div>
+
+                  {/* Divider */}
+                  <div style={{ display: "flex", alignItems: "center", gap: 10, margin: "14px 0" }}>
+                    <div style={{ flex: 1, height: 1, background: "var(--line-2)" }} />
+                    <span style={{ fontSize: 12, color: "var(--ink-3)", fontFamily: "var(--mono)" }}>ou</span>
+                    <div style={{ flex: 1, height: 1, background: "var(--line-2)" }} />
+                  </div>
+
+                  {/* Custom font upload */}
+                  <button type="button"
+                    onClick={() => customPrimaryRef.current?.click()}
+                    style={{
+                      width: "100%", padding: "11px 16px", borderRadius: 13,
+                      border: "1.5px dashed rgba(13,15,10,.20)", background: "transparent",
+                      cursor: "pointer", fontSize: 13, color: "var(--ink-2)", fontWeight: 600,
+                      display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+                      transition: "border-color 0.15s, color 0.15s",
+                    }}
+                    onMouseEnter={e => { e.currentTarget.style.borderColor = "var(--mint)"; e.currentTarget.style.color = "var(--mint-2)"; }}
+                    onMouseLeave={e => { e.currentTarget.style.borderColor = "rgba(13,15,10,.20)"; e.currentTarget.style.color = "var(--ink-2)"; }}
+                  >
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/>
+                    </svg>
+                    Uploader une police custom (.ttf, .otf, .woff, .woff2)
+                  </button>
+                  <input ref={customPrimaryRef} type="file" accept=".ttf,.otf,.woff,.woff2" style={{ display: "none" }}
+                    onChange={e => { const f = e.target.files?.[0]; if (f) handleCustomFont(f, "primary"); e.target.value = ""; }}
+                  />
                 </div>
 
-                {/* Preview */}
-                {fontPrimary && (
-                  <div className="card" style={{ padding: "20px 24px" }}>
-                    <span style={{ ...labelStyle, display: "block", marginBottom: 14 }}>Aperçu — {fontPrimary}</span>
-                    <p style={{ fontFamily: `"${fontPrimary}", sans-serif`, fontSize: 30, fontWeight: 700, color: "var(--ink)", lineHeight: 1.15, margin: 0 }}>
-                      Bonjour, voici votre marque
+                {/* ── Live preview card ─────────────────────────────────── */}
+                <div className="card" style={{ padding: "24px 28px" }}>
+                  <span style={{ ...labelStyle, display: "block", marginBottom: 16 }}>
+                    Aperçu — {customPrimary ? customPrimary.family : fontPrimary}
+                  </span>
+                  <p style={{
+                    fontFamily: `"${activeFontPrimary}", sans-serif`,
+                    fontSize: 32, fontWeight: 700, color: "var(--ink)",
+                    lineHeight: 1.15, margin: 0,
+                  }}>
+                    Bonjour, voici votre marque
+                  </p>
+                  <p style={{
+                    fontFamily: `"${activeFontPrimary}", sans-serif`,
+                    fontSize: 14, color: "var(--ink-2)", margin: "12px 0 0", lineHeight: 1.6,
+                  }}>
+                    Texte courant — corps de texte en taille normale
+                  </p>
+                  {activeFontSecondary && (
+                    <p style={{
+                      fontFamily: `"${activeFontSecondary}", sans-serif`,
+                      fontSize: 14, color: "var(--ink-3)", margin: "8px 0 0", lineHeight: 1.6,
+                      borderTop: "1px solid var(--line-2)", paddingTop: 8,
+                    }}>
+                      Police secondaire : {activeFontSecondary}
                     </p>
-                    <p style={{ fontFamily: `"${fontPrimary}", sans-serif`, fontSize: 14, color: "var(--ink-2)", margin: "10px 0 0", lineHeight: 1.6 }}>
-                      Texte courant — corps de texte en taille normale
-                    </p>
-                  </div>
-                )}
+                  )}
+                </div>
 
-                {/* Police secondaire */}
+                {/* ── Police secondaire ─────────────────────────────────── */}
                 <div>
                   <label style={labelStyle}>Police secondaire <OptLabel /></label>
-                  <div style={{ maxHeight: 180, overflowY: "auto", border: "1px solid rgba(13,15,10,.08)", borderRadius: 13, background: "var(--white)" }}>
+
+                  {/* Custom secondary banner */}
+                  {customSecondary && (
+                    <div style={{
+                      display: "flex", alignItems: "center", justifyContent: "space-between",
+                      padding: "10px 14px", borderRadius: 10, marginBottom: 10,
+                      background: "var(--mint-soft)", border: "1px solid var(--mint)",
+                    }}>
+                      <div>
+                        <span style={{ fontSize: 12, fontWeight: 700, color: "var(--mint-2)", display: "block" }}>Police custom</span>
+                        <span style={{ fontFamily: `"${customSecondary.family}", sans-serif`, fontSize: 16, color: "var(--ink)" }}>
+                          {customSecondary.family}
+                        </span>
+                      </div>
+                      <button type="button" onClick={() => setCustomSecondary(null)}
+                        style={{ fontSize: 12, fontWeight: 700, color: "var(--ink-3)", background: "none", border: "none", cursor: "pointer", padding: "4px 8px" }}>
+                        × Retirer
+                      </button>
+                    </div>
+                  )}
+
+                  {/* Search */}
+                  <input
+                    style={{ ...inputStyle, marginBottom: 6 }}
+                    value={fontSearchSecondary}
+                    onChange={e => setFontSearchSecondary(e.target.value)}
+                    placeholder="Rechercher une police secondaire..."
+                  />
+
+                  {/* Font list */}
+                  <div style={{
+                    maxHeight: 220, overflowY: "auto",
+                    border: "1px solid rgba(13,15,10,.08)", borderRadius: 13, background: "var(--white)",
+                  }}>
+                    {/* "Aucune" option */}
                     <button type="button"
-                      onClick={() => setFontSecondary("")}
-                      style={{ width: "100%", padding: "10px 14px", textAlign: "left", border: "none", borderBottom: "1px solid rgba(13,15,10,.05)", background: !fontSecondary ? "var(--mint-soft)" : "transparent", cursor: "pointer", fontSize: 13, color: !fontSecondary ? "var(--mint-2)" : "var(--ink-3)", fontWeight: !fontSecondary ? 700 : 400 }}>
+                      onClick={() => { setFontSecondary(""); setCustomSecondary(null); }}
+                      style={{
+                        width: "100%", padding: "10px 16px", textAlign: "left", border: "none",
+                        borderBottom: "1px solid rgba(13,15,10,.05)",
+                        background: !fontSecondary && !customSecondary ? "var(--mint-soft)" : "transparent",
+                        cursor: "pointer", fontSize: 13, fontWeight: 600,
+                        color: !fontSecondary && !customSecondary ? "var(--mint-2)" : "var(--ink-3)",
+                      }}>
                       Aucune
                     </button>
-                    {FONTS.filter(f => f !== fontPrimary).map(font => {
-                      const active = fontSecondary === font;
-                      return (
-                        <button
-                          key={font} type="button"
-                          onClick={() => setFontSecondary(font)}
-                          style={{
-                            width: "100%", padding: "10px 14px", textAlign: "left", border: "none",
-                            background: active ? "var(--mint-soft)" : "transparent",
-                            cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "space-between",
-                            borderBottom: "1px solid rgba(13,15,10,.05)",
-                          }}
-                        >
-                          <span style={{ fontFamily: `"${font}", sans-serif`, fontSize: 16, color: active ? "var(--mint-2)" : "var(--ink)" }}>
-                            {font}
-                          </span>
-                          {active && <span style={{ fontSize: 11, color: "var(--mint-2)", fontWeight: 800 }}>✓</span>}
-                        </button>
-                      );
-                    })}
+                    {filteredFontsSecondary.map(font => (
+                      <FontRow
+                        key={font.family}
+                        family={font.family}
+                        selected={!customSecondary && fontSecondary === font.family}
+                        onSelect={() => { setFontSecondary(font.family); setCustomSecondary(null); }}
+                      />
+                    ))}
+                    {!fontSearchSecondary && googleFonts.length > FONT_LIST_LIMIT && (
+                      <div style={{ padding: "10px 16px", fontSize: 12, color: "var(--ink-3)", textAlign: "center" }}>
+                        + {(googleFonts.length - FONT_LIST_LIMIT).toLocaleString()} autres — rechercher pour affiner
+                      </div>
+                    )}
                   </div>
+
+                  {/* Custom secondary upload */}
+                  <div style={{ display: "flex", alignItems: "center", gap: 10, margin: "14px 0" }}>
+                    <div style={{ flex: 1, height: 1, background: "var(--line-2)" }} />
+                    <span style={{ fontSize: 12, color: "var(--ink-3)", fontFamily: "var(--mono)" }}>ou</span>
+                    <div style={{ flex: 1, height: 1, background: "var(--line-2)" }} />
+                  </div>
+                  <button type="button"
+                    onClick={() => customSecondaryRef.current?.click()}
+                    style={{
+                      width: "100%", padding: "11px 16px", borderRadius: 13,
+                      border: "1.5px dashed rgba(13,15,10,.20)", background: "transparent",
+                      cursor: "pointer", fontSize: 13, color: "var(--ink-2)", fontWeight: 600,
+                      display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+                      transition: "border-color 0.15s, color 0.15s",
+                    }}
+                    onMouseEnter={e => { e.currentTarget.style.borderColor = "var(--mint)"; e.currentTarget.style.color = "var(--mint-2)"; }}
+                    onMouseLeave={e => { e.currentTarget.style.borderColor = "rgba(13,15,10,.20)"; e.currentTarget.style.color = "var(--ink-2)"; }}
+                  >
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/>
+                    </svg>
+                    Uploader une police custom (.ttf, .otf, .woff, .woff2)
+                  </button>
+                  <input ref={customSecondaryRef} type="file" accept=".ttf,.otf,.woff,.woff2" style={{ display: "none" }}
+                    onChange={e => { const f = e.target.files?.[0]; if (f) handleCustomFont(f, "secondary"); e.target.value = ""; }}
+                  />
                 </div>
 
                 {error && (
@@ -664,15 +909,12 @@ export default function NewWorkspacePage() {
         }}>
           <div>
             {step > 1 && (
-              <button
-                type="button"
-                onClick={() => setStep(s => s - 1)}
+              <button type="button" onClick={() => setStep(s => s - 1)}
                 style={{
                   padding: "10px 20px", borderRadius: 13, background: "transparent",
                   border: "1px solid rgba(13,15,10,.12)", color: "var(--ink-2)",
                   fontSize: 13, fontWeight: 600, cursor: "pointer",
-                }}
-              >
+                }}>
                 ← Retour
               </button>
             )}
@@ -683,10 +925,7 @@ export default function NewWorkspacePage() {
               {step} / {STEP_LABELS.length}
             </span>
             {step < 4 ? (
-              <button
-                type="button"
-                onClick={() => { setStep(s => s + 1); }}
-                disabled={!canContinue}
+              <button type="button" onClick={() => setStep(s => s + 1)} disabled={!canContinue}
                 style={{
                   padding: "11px 30px", borderRadius: 13,
                   background: canContinue ? "var(--ink)" : "var(--sunk)",
@@ -695,15 +934,11 @@ export default function NewWorkspacePage() {
                   fontSize: 14, fontWeight: 700,
                   cursor: canContinue ? "pointer" : "not-allowed",
                   fontFamily: "var(--display)", transition: "all 0.15s",
-                }}
-              >
+                }}>
                 Continuer →
               </button>
             ) : (
-              <button
-                type="button"
-                onClick={createWorkspace}
-                disabled={loading}
+              <button type="button" onClick={createWorkspace} disabled={loading}
                 style={{
                   padding: "11px 30px", borderRadius: 13,
                   background: "var(--mint)", border: "none",
@@ -711,8 +946,7 @@ export default function NewWorkspacePage() {
                   cursor: loading ? "default" : "pointer",
                   fontFamily: "var(--display)", transition: "all 0.15s",
                   opacity: loading ? 0.7 : 1,
-                }}
-              >
+                }}>
                 {loading ? "Création en cours…" : "Créer l'espace client →"}
               </button>
             )}
@@ -762,12 +996,8 @@ function UploadZone({
         {preview ? (
           <>
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={preview} alt=""
-              style={{ maxHeight: 68, maxWidth: "100%", objectFit: "contain" }}
-            />
-            <button
-              type="button"
+            <img src={preview} alt="" style={{ maxHeight: 68, maxWidth: "100%", objectFit: "contain" }} />
+            <button type="button"
               onClick={e => { e.stopPropagation(); onRemove(); }}
               style={{
                 position: "absolute", top: 8, right: 8,
@@ -775,8 +1005,7 @@ function UploadZone({
                 background: "rgba(0,0,0,.5)", border: "none",
                 cursor: "pointer", color: "#fff", fontSize: 13,
                 display: "grid", placeItems: "center",
-              }}
-            >
+              }}>
               ×
             </button>
           </>
