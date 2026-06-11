@@ -268,11 +268,35 @@ export default function WorkspacePage() {
     }
   }
 
-  // ── Remove ────────────────────────────────────────────────────────────────
+  // ── Soft-delete ───────────────────────────────────────────────────────────
 
-  async function removePost(item: PostItem) {
+  const [deletedPost, setDeletedPost] = useState<{ item: PostItem; timeoutId: ReturnType<typeof setTimeout> } | null>(null);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => { if (deletedPost) clearTimeout(deletedPost.timeoutId); };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [deletedPost]);
+
+  function removePost(item: PostItem) {
     setPosts((prev) => prev.filter((p) => p.localId !== item.localId));
-    if (item.dbId) await supabase.from("posts").delete().eq("id", item.dbId);
+    // Commit any previously pending delete now
+    if (deletedPost) {
+      clearTimeout(deletedPost.timeoutId);
+      if (deletedPost.item.dbId) supabase.from("posts").delete().eq("id", deletedPost.item.dbId);
+    }
+    const timeoutId = setTimeout(async () => {
+      if (item.dbId) await supabase.from("posts").delete().eq("id", item.dbId);
+      setDeletedPost(null);
+    }, 4000);
+    setDeletedPost({ item, timeoutId });
+  }
+
+  function undoDelete() {
+    if (!deletedPost) return;
+    clearTimeout(deletedPost.timeoutId);
+    setPosts((prev) => [deletedPost.item, ...prev]);
+    setDeletedPost(null);
   }
 
   // ── AI image generation ───────────────────────────────────────────────────
@@ -525,9 +549,7 @@ export default function WorkspacePage() {
                               </div>
                               <button
                                 onClick={() => removePost(post)}
-                                style={{ position: 'absolute', top: 8, right: 8, width: 26, height: 26, borderRadius: '50%', background: 'rgba(0,0,0,.55)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', border: 'none', cursor: 'pointer', backdropFilter: 'blur(4px)', opacity: 0, transition: 'opacity 0.15s' }}
-                                onMouseEnter={e => e.currentTarget.style.opacity = '1'}
-                                onFocus={e => e.currentTarget.style.opacity = '1'}
+                                style={{ position: 'absolute', top: 8, right: 8, width: 26, height: 26, borderRadius: '50%', background: 'rgba(0,0,0,.55)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', border: 'none', cursor: 'pointer', backdropFilter: 'blur(4px)' }}
                               >
                                 <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M1 1l8 8M9 1L1 9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>
                               </button>
@@ -654,6 +676,32 @@ export default function WorkspacePage() {
           </div>
         </div>
       </div>
+
+      {/* Delete toast */}
+      {deletedPost && (
+        <div style={{
+          position: 'fixed', bottom: 24, left: '50%', transform: 'translateX(-50%)',
+          display: 'flex', alignItems: 'center', gap: 12,
+          background: 'var(--forest)', color: 'var(--cream)',
+          borderRadius: 10, padding: '10px 16px',
+          boxShadow: '0 8px 30px rgba(13,15,10,.35)',
+          fontFamily: 'var(--sans)', fontSize: 13.5, fontWeight: 600,
+          zIndex: 9999, whiteSpace: 'nowrap',
+        }}>
+          Post supprimé
+          <button
+            onClick={undoDelete}
+            style={{
+              padding: '4px 12px', borderRadius: 6,
+              background: 'var(--mint)', color: 'var(--mint-ink)',
+              border: 'none', cursor: 'pointer',
+              fontSize: 13, fontWeight: 700, fontFamily: 'var(--sans)',
+            }}
+          >
+            Annuler
+          </button>
+        </div>
+      )}
 
       <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
     </div>
