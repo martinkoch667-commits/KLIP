@@ -236,11 +236,19 @@ export default function NewWorkspacePage() {
   // ── File upload helpers ───────────────────────────────────────────────────
 
   async function uploadFile(file: File, bucket: string, userId: string): Promise<string | null> {
-    const ext = file.name.split(".").pop();
-    const path = `${userId}/${crypto.randomUUID()}.${ext}`;
-    const { error: uploadErr } = await supabase.storage.from(bucket).upload(path, file);
-    if (uploadErr) { console.error(`Upload [${bucket}]:`, uploadErr); return null; }
-    return supabase.storage.from(bucket).getPublicUrl(path).data.publicUrl;
+    try {
+      const ext = file.name.split(".").pop();
+      const path = `${userId}/${crypto.randomUUID()}.${ext}`;
+      const { error: uploadErr } = await supabase.storage.from(bucket).upload(path, file);
+      if (uploadErr) {
+        console.error(`Upload [${bucket}] "${file.name}":`, uploadErr.message);
+        return null;
+      }
+      return supabase.storage.from(bucket).getPublicUrl(path).data.publicUrl;
+    } catch (err) {
+      console.error(`Upload [${bucket}] "${file.name}" unexpected:`, err);
+      return null;
+    }
   }
 
   // ── Create workspace ──────────────────────────────────────────────────────
@@ -252,22 +260,29 @@ export default function NewWorkspacePage() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) { router.push("/login"); return; }
 
-      // Brand asset uploads
+      // Ensure Supabase Storage buckets exist (created server-side with service role)
+      try {
+        await fetch("/api/ensure-buckets", { method: "POST" });
+      } catch (err) {
+        console.warn("[ensure-buckets] could not reach API:", err);
+      }
+
+      // Brand asset uploads (each wrapped independently)
       let logoUrl: string | null = null;
       let logoDarkUrl: string | null = null;
       const assetUrls: string[] = [];
-      if (logoFile)     logoUrl     = await uploadFile(logoFile, "brand-assets", user.id);
+      if (logoFile)     logoUrl     = await uploadFile(logoFile,     "brand-assets", user.id);
       if (logoDarkFile) logoDarkUrl = await uploadFile(logoDarkFile, "brand-assets", user.id);
       for (const f of assetFiles) {
         const url = await uploadFile(f, "brand-assets", user.id);
         if (url) assetUrls.push(url);
       }
 
-      // Custom font uploads
+      // Custom font uploads (each wrapped independently)
       let fontPrimaryUrl: string | null = null;
       let fontSecondaryUrl: string | null = null;
       if (customPrimary) {
-        fontPrimaryUrl = await uploadFile(customPrimary.file, "brand-fonts", user.id);
+        fontPrimaryUrl   = await uploadFile(customPrimary.file,   "brand-fonts", user.id);
       }
       if (customSecondary) {
         fontSecondaryUrl = await uploadFile(customSecondary.file, "brand-fonts", user.id);
@@ -307,7 +322,7 @@ export default function NewWorkspacePage() {
         font_secondary_url: fontSecondaryUrl,
       }).select().single();
 
-      if (insertErr) throw insertErr;
+      if (insertErr || !data) throw insertErr ?? new Error("Workspace non créé — réponse vide");
       router.push(`/workspace/${data.id}`);
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : "Erreur lors de la création.");
