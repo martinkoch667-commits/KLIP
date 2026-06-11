@@ -16,7 +16,8 @@ CREATE INDEX IF NOT EXISTS activity_log_created_at_idx   ON activity_log (create
 
 ALTER TABLE activity_log ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY IF NOT EXISTS "Users can view own activity"
+DROP POLICY IF EXISTS "Users can view own activity" ON activity_log;
+CREATE POLICY "Users can view own activity"
 ON activity_log FOR SELECT
 USING (
   workspace_id IN (
@@ -24,7 +25,8 @@ USING (
   )
 );
 
-CREATE POLICY IF NOT EXISTS "Users can insert own activity"
+DROP POLICY IF EXISTS "Users can insert own activity" ON activity_log;
+CREATE POLICY "Users can insert own activity"
 ON activity_log FOR INSERT
 WITH CHECK (
   workspace_id IN (
