@@ -30,6 +30,7 @@ interface TextEl extends BaseEl {
   textDecoration: string; fill: string; align: string; width: number;
   hasBg: boolean; bgColor: string; bgOpacity: number; cornerRadius: number;
   padding: number; paddingH: number; paddingV: number;
+  role?: string; // IA role: titre | sous-titre | accroche | corps | cta | prix
 }
 interface RectEl extends BaseEl { type: 'rect'; width: number; height: number; fill: string; stroke: string; strokeWidth: number; cornerRadius: number; }
 interface CircleEl extends BaseEl { type: 'circle'; radius: number; fill: string; stroke: string; strokeWidth: number; }
@@ -279,6 +280,24 @@ function TextProperties({ el, onChange, customFonts, onFontUpload, brandColors, 
       <PropRow label={`Opacité — ${el.opacity}%`}>
         <input type="range" min={0} max={100} value={el.opacity} onChange={e => onChange({ opacity: Number(e.target.value) })} style={{ width: '100%', accentColor: 'var(--mint-2)' }} />
       </PropRow>
+      {/* 4D — IA role for structured generation */}
+      <PropRow label="Rôle IA">
+        <select value={el.role || ''} onChange={e => onChange({ role: e.target.value || undefined })}
+          style={{ width: '100%', padding: '6px 8px', border: '1px solid var(--line)', borderRadius: 'var(--r-s)', fontSize: 13, outline: 'none', background: 'var(--sunk)', color: 'var(--ink)' }}>
+          <option value="">Aucun</option>
+          <option value="accroche">Accroche</option>
+          <option value="titre">Titre principal</option>
+          <option value="sous-titre">Sous-titre</option>
+          <option value="corps">Corps de texte</option>
+          <option value="cta">Call-to-action</option>
+          <option value="prix">Prix / Offre</option>
+        </select>
+        {el.role && (
+          <span style={{ fontSize: 10, color: 'var(--mint-2)', marginTop: 4, display: 'block', fontFamily: 'var(--mono)', fontWeight: 700 }}>
+            Ce bloc sera rempli par l'IA lors de la génération
+          </span>
+        )}
+      </PropRow>
     </>
   );
 }
@@ -468,6 +487,8 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
   const [aiTyping, setAiTyping] = useState(false);
   const [aiTone, setAiTone] = useState<'Chic'|'Punchy'|'Minimal'|'Doux'>('Chic');
   const aiTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const [postContext, setPostContext] = useState('');        // 5B — contexte du post
+  const [captionEdited, setCaptionEdited] = useState(false); // 5C — brand memory
   useEffect(() => () => { if (aiTimerRef.current) clearInterval(aiTimerRef.current); }, []);
 
   // ── Schedule ─────────────────────────────────────────────────────────────
@@ -816,6 +837,11 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
       exported_image_url: urlData?.publicUrl || '',
       editor_json: JSON.stringify({ version: 2, slides: allSlides }),
       texte_visuel: textEl?.text || '',
+      // 5C — brand memory: track caption edits
+      ...(aiCaption ? {
+        caption_final: aiCaption,
+        caption_was_edited: captionEdited,
+      } : {}),
     }).eq('id', postId);
     window.location.href = `/workspace/${workspaceId}/planning`;
   };
@@ -855,12 +881,76 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
     { label: 'Badge arrondi', overrides: { hasBg: true, bgColor: '#B8F028', bgOpacity: 100, fill: '#000000', cornerRadius: 40, padding: 18, fontSize: 28, width: 300 } },
   ];
 
+  // 4D — Multi-block layout templates (inserts several role-tagged text elements)
+  const LAYOUT_TEMPLATES: { label: string; emoji: string; blocks: Partial<TextEl>[] }[] = [
+    {
+      label: 'Promotion',
+      emoji: '%',
+      blocks: [
+        { text: 'OFFRE SPÉCIALE', role: 'accroche', fontSize: 14, y: 50, x: 20, fill: workspaceData?.accent_color || '#C8F135', hasBg: true, bgColor: workspaceData?.primary_color || '#0038FF', bgOpacity: 100, cornerRadius: 4, width: 180, fontStyle: 'bold', paddingH: 12, paddingV: 6 },
+        { text: 'TITRE DE L\'OFFRE', role: 'titre', fontSize: 36, y: 100, x: 20, fill: '#FFFFFF', hasBg: false, fontStyle: 'bold', width: stageW - 40 },
+        { text: '-30% ce weekend', role: 'sous-titre', fontSize: 20, y: 160, x: 20, fill: '#FFFFFF', hasBg: false, fontStyle: 'normal', width: stageW - 40 },
+        { text: 'EN PROFITER →', role: 'cta', fontSize: 14, y: stageH - 80, x: 20, fill: workspaceData?.primary_color || '#000', hasBg: true, bgColor: workspaceData?.accent_color || '#C8F135', bgOpacity: 100, cornerRadius: 4, width: 200, fontStyle: 'bold', paddingH: 14, paddingV: 8 },
+      ],
+    },
+    {
+      label: 'Événement',
+      emoji: '★',
+      blocks: [
+        { text: 'C\'EST CE SAMEDI', role: 'accroche', fontSize: 13, y: 50, x: 20, fill: workspaceData?.accent_color || '#C8F135', hasBg: false, fontStyle: 'bold', width: stageW - 40 },
+        { text: 'NOM DE L\'ÉVÉNEMENT', role: 'titre', fontSize: 34, y: 90, x: 20, fill: '#FFFFFF', hasBg: false, fontStyle: 'bold', width: stageW - 40 },
+        { text: 'Date · Lieu · Infos', role: 'corps', fontSize: 15, y: 160, x: 20, fill: 'rgba(255,255,255,0.75)', hasBg: false, fontStyle: 'normal', width: stageW - 40 },
+        { text: 'RÉSERVER', role: 'cta', fontSize: 14, y: stageH - 80, x: 20, fill: workspaceData?.primary_color || '#000', hasBg: true, bgColor: '#FFFFFF', bgOpacity: 95, cornerRadius: 4, width: 160, fontStyle: 'bold', paddingH: 14, paddingV: 8 },
+      ],
+    },
+    {
+      label: 'Produit',
+      emoji: '↗',
+      blocks: [
+        { text: 'NOUVEAUTÉ', role: 'accroche', fontSize: 13, y: 50, x: 20, fill: '#FFFFFF', hasBg: true, bgColor: workspaceData?.primary_color || '#0038FF', bgOpacity: 100, cornerRadius: 4, width: 140, fontStyle: 'bold', paddingH: 12, paddingV: 6 },
+        { text: 'NOM DU PRODUIT', role: 'titre', fontSize: 34, y: 100, x: 20, fill: '#FFFFFF', hasBg: false, fontStyle: 'bold', width: stageW - 40 },
+        { text: 'Description courte', role: 'sous-titre', fontSize: 16, y: 160, x: 20, fill: 'rgba(255,255,255,0.8)', hasBg: false, fontStyle: 'normal', width: stageW - 40 },
+        { text: '49,90 €', role: 'prix', fontSize: 28, y: stageH - 90, x: 20, fill: '#FFFFFF', hasBg: false, fontStyle: 'bold', width: 200 },
+      ],
+    },
+  ];
+
+  const applyLayoutTemplate = (tpl: typeof LAYOUT_TEMPLATES[0]) => {
+    const base: Partial<TextEl> = {
+      type: 'text', rotation: 0, opacity: 100, fontFamily: workspaceData?.font_family || 'Oswald',
+      textDecoration: '', align: 'left', padding: 12, paddingH: 12, paddingV: 8,
+      hasBg: false, bgColor: '#000', bgOpacity: 80, cornerRadius: 4, fill: '#fff',
+      fontSize: 28, width: stageW - 40,
+    };
+    const newEls: TextEl[] = tpl.blocks.map(b => ({ ...base, ...b, id: newId() } as TextEl));
+    const firstId = newEls[0]?.id;
+    applyElements([...elements, ...newEls]);
+    if (firstId) setSelectedId(firstId);
+  };
+
   // ── AI generation ─────────────────────────────────────────────────────────
 
   const generateAI = async (tone: string) => {
     if (aiTimerRef.current) clearInterval(aiTimerRef.current);
-    setAiTyping(true); setAiCaption('');
+    setAiTyping(true); setAiCaption(''); setCaptionEdited(false);
     try {
+      // 4D — collect role-tagged text elements for structured generation
+      const textRoles: Record<string, string> = {};
+      elementsRef.current.forEach(el => {
+        if (el.type === 'text' && (el as TextEl).role) textRoles[(el as TextEl).role!] = (el as TextEl).text;
+      });
+
+      // 5C — fetch last approved captions for this workspace (brand memory)
+      const { data: recentPosts } = await supabase
+        .from('posts')
+        .select('caption_final')
+        .eq('workspace_id', workspaceId)
+        .eq('caption_was_edited', true)
+        .not('caption_final', 'is', null)
+        .order('updated_at', { ascending: false })
+        .limit(3);
+      const approvedCaptions = (recentPosts ?? []).map((p: { caption_final: string | null }) => p.caption_final).filter(Boolean) as string[];
+
       const res = await fetch('/api/generate-description', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -879,9 +969,28 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
           wordsToAvoid: workspaceData?.words_to_avoid,
           captionExamples: workspaceData?.caption_examples,
           descriptionStyle: workspaceData?.description_style,
+          // 4D — text block roles
+          textRoles: Object.keys(textRoles).length > 0 ? textRoles : undefined,
+          // 5B — post context
+          context: postContext.trim() || undefined,
+          // 5C — approved captions for memory
+          approvedCaptions: approvedCaptions.length > 0 ? approvedCaptions : undefined,
         }),
       });
       const data = await res.json();
+
+      // 4D — auto-inject generated blocks into role-tagged elements
+      if (data.blocks && typeof data.blocks === 'object') {
+        const newEls = elementsRef.current.map(el => {
+          if (el.type === 'text' && (el as TextEl).role) {
+            const generated = data.blocks[(el as TextEl).role!];
+            if (generated) return { ...el, text: generated } as TextEl;
+          }
+          return el;
+        });
+        applyElements(newEls, false);
+      }
+
       const text: string = data?.description || data?.texte_visuel || '';
       let i = 0;
       aiTimerRef.current = setInterval(() => {
@@ -1344,7 +1453,25 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
                 style={{ width: '100%', textAlign: 'left', justifyContent: 'flex-start', marginBottom: 8 }}>
                 T  Nouveau texte
               </button>
-              <p style={{ fontSize: 10, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '0.12em', fontFamily: 'var(--mono)', fontWeight: 800, margin: '12px 0 8px' }}>Templates</p>
+
+              {/* 4D — Layout templates (multi-block, IA roles) */}
+              <p style={{ fontSize: 10, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '0.12em', fontFamily: 'var(--mono)', fontWeight: 800, margin: '12px 0 8px' }}>
+                Layouts IA
+              </p>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 5, marginBottom: 12 }}>
+                {LAYOUT_TEMPLATES.map(tpl => (
+                  <button key={tpl.label} onClick={() => applyLayoutTemplate(tpl)} className="well"
+                    style={{ width: '100%', padding: '9px 12px', cursor: 'pointer', fontSize: 12, textAlign: 'left', color: 'var(--ink-2)', fontFamily: 'var(--sans)', display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <span style={{ fontSize: 14 }}>{tpl.emoji}</span>
+                    <span>{tpl.label}</span>
+                    <span style={{ marginLeft: 'auto', fontSize: 9, color: 'var(--mint-2)', fontFamily: 'var(--mono)', fontWeight: 700, background: 'var(--mint-soft)', padding: '2px 5px', borderRadius: 4 }}>
+                      {tpl.blocks.length} blocs
+                    </span>
+                  </button>
+                ))}
+              </div>
+
+              <p style={{ fontSize: 10, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '0.12em', fontFamily: 'var(--mono)', fontWeight: 800, margin: '0 0 8px' }}>Styles</p>
               {TEMPLATES.map(t => (
                 <button key={t.label} onClick={() => applyTemplate(t.overrides as Partial<TextEl>)} className="well"
                   style={{ width: '100%', padding: '9px 12px', cursor: 'pointer', fontSize: 12, textAlign: 'left', color: 'var(--ink-2)', fontFamily: 'var(--sans)', marginBottom: 6, display: 'block' }}>
@@ -1476,6 +1603,16 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
                 <span style={{ fontWeight: 700, fontSize: 13, fontFamily: 'var(--sans)' }}>Description IA</span>
                 <span style={{ marginLeft: 'auto', fontSize: 11, fontWeight: 700, color: 'var(--mint-2)', fontFamily: 'var(--mono)', background: 'var(--mint-soft)', padding: '2px 8px', borderRadius: 5, maxWidth: 100, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{workspaceName || '—'}</span>
               </div>
+
+              {/* 5B — Contexte du post */}
+              <textarea
+                value={postContext}
+                onChange={e => setPostContext(e.target.value)}
+                rows={2}
+                placeholder="Contexte du post (optionnel) — ex: soldes d'été, lancement produit, événement…"
+                style={{ width: '100%', padding: '7px 10px', border: '1px solid var(--line)', borderRadius: 'var(--r-s)', fontSize: 12, resize: 'none', boxSizing: 'border-box', fontFamily: 'var(--sans)', outline: 'none', background: 'var(--sunk)', color: 'var(--ink)', marginBottom: 10, lineHeight: 1.5 }}
+              />
+
               <div style={{ display: 'flex', gap: 5, marginBottom: 10, flexWrap: 'wrap' }}>
                 {(['Chic','Punchy','Minimal','Doux'] as const).map(t => (
                   <button key={t} onClick={() => setAiTone(t)}
@@ -1490,13 +1627,28 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
               <button onClick={() => generateAI(aiTone)} className="btn btn-primary"
                 style={{ width: '100%', marginBottom: 10 }}>
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z"/></svg>
-                {aiCaption ? 'Régénérer' : 'Générer la description'}
+                {aiTyping ? 'Génération…' : aiCaption ? 'Régénérer' : 'Générer la description'}
               </button>
-              <div className="input" style={{ minHeight: 72, fontSize: 12.5, lineHeight: 1.55, whiteSpace: 'pre-line', color: aiCaption ? 'var(--ink)' : 'var(--ink-3)' }}>
-                {aiCaption
-                  ? <>{aiCaption}<span style={{ opacity: aiTyping ? 1 : 0, color: 'var(--mint-2)' }}>▍</span></>
-                  : 'La description générée apparaîtra ici, calée sur la voix de la marque.'}
-              </div>
+
+              {/* 5C — Caption éditable (brand memory) */}
+              {aiTyping ? (
+                <div className="input" style={{ minHeight: 72, fontSize: 12.5, lineHeight: 1.55, whiteSpace: 'pre-line', color: 'var(--ink)' }}>
+                  {aiCaption}<span style={{ color: 'var(--mint-2)' }}>▍</span>
+                </div>
+              ) : (
+                <textarea
+                  value={aiCaption}
+                  onChange={e => { setAiCaption(e.target.value); setCaptionEdited(true); }}
+                  rows={4}
+                  placeholder="La description générée apparaîtra ici, calée sur la voix de la marque."
+                  style={{ width: '100%', padding: '9px 10px', border: '1px solid var(--line)', borderRadius: 'var(--r-s)', fontSize: 12.5, resize: 'vertical', boxSizing: 'border-box', fontFamily: 'var(--sans)', outline: 'none', background: 'var(--sunk)', color: aiCaption ? 'var(--ink)' : 'var(--ink-3)', lineHeight: 1.55 }}
+                />
+              )}
+              {captionEdited && aiCaption && (
+                <span style={{ fontSize: 10, color: 'var(--mint-2)', fontFamily: 'var(--mono)', fontWeight: 700, marginTop: 4, display: 'block' }}>
+                  ✓ Modifié · sera mémorisé comme référence approuvée
+                </span>
+              )}
             </div>
 
             {/* PLANIFIER */}
