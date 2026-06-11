@@ -34,7 +34,7 @@ interface Workspace {
 
 const DAY_NAMES    = ["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"];
 const MONTH_NAMES  = ["Janvier","Février","Mars","Avril","Mai","Juin","Juillet","Août","Septembre","Octobre","Novembre","Décembre"];
-const HOUR_H       = 40; // px per hour — compact so 24h fits without excessive scroll
+const HOUR_H       = 48; // px per hour — 48px gives readable slots with proportional post blocks
 const HOURS        = Array.from({ length: 24 }, (_, i) => i);
 
 // ─── Date helpers ─────────────────────────────────────────────────────────────
@@ -338,38 +338,32 @@ function PlanningContent() {
 
         {/* Topbar */}
         <header className="topbar">
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            {calView === "week" ? (
-              <>
-                <button onClick={() => setWeekStart(w => addDays(w, -7))} className="btn btn-ghost btn-icon"><IconChevL /></button>
-                <h1 className="h-title" style={{ fontSize: 15, textTransform: "capitalize", whiteSpace: "nowrap" }}>{formatMonthYear(weekStart)}</h1>
-                <button onClick={() => setWeekStart(w => addDays(w, 7))} className="btn btn-ghost btn-icon"><IconChevR /></button>
-                {!isCurrentWeek && <button onClick={() => setWeekStart(getMonday(new Date()))} className="btn btn-ghost btn-sm">Aujourd&apos;hui</button>}
-              </>
-            ) : (
-              <>
-                <button onClick={prevMonth} className="btn btn-ghost btn-icon"><IconChevL /></button>
-                <h1 className="h-title" style={{ fontSize: 15, textTransform: "capitalize", whiteSpace: "nowrap" }}>{MONTH_NAMES[monthDate.getMonth()]} {monthDate.getFullYear()}</h1>
-                <button onClick={nextMonth} className="btn btn-ghost btn-icon"><IconChevR /></button>
-              </>
+          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            <button onClick={() => calView === "week" ? setWeekStart(w => addDays(w, -7)) : prevMonth()} className="btn btn-ghost btn-icon"><IconChevL /></button>
+            <h1 style={{ fontSize: 15, fontFamily: "'Archivo', var(--display)", fontWeight: 700, letterSpacing: "-0.02em", textTransform: "capitalize", whiteSpace: "nowrap", color: "var(--ink)" }}>
+              {calView === "week" ? formatMonthYear(weekStart) : `${MONTH_NAMES[monthDate.getMonth()]} ${monthDate.getFullYear()}`}
+            </h1>
+            <button onClick={() => calView === "week" ? setWeekStart(w => addDays(w, 7)) : nextMonth()} className="btn btn-ghost btn-icon"><IconChevR /></button>
+            {calView === "week" && !isCurrentWeek && (
+              <button onClick={() => setWeekStart(getMonday(new Date()))} className="btn btn-ghost btn-sm" style={{ fontSize: 11, padding: "4px 10px" }}>Aujourd&apos;hui</button>
             )}
           </div>
 
-          {/* View toggle */}
-          <div style={{ display: "flex", gap: 2, background: "var(--sunk)", borderRadius: 8, padding: 2 }}>
+          {/* Segmented toggle */}
+          <div style={{ display: "flex", background: "rgba(13,15,10,.07)", borderRadius: 9, padding: 3, gap: 2 }}>
             {(["week","month"] as const).map(v => (
               <button key={v} onClick={() => setCalView(v)}
-                style={{ padding: "5px 14px", borderRadius: 6, border: "none", cursor: "pointer", fontFamily: "var(--sans)", fontSize: 12, fontWeight: 600, transition: "all .12s",
+                style={{ padding: "5px 16px", borderRadius: 7, border: "none", cursor: "pointer", fontFamily: "var(--sans)", fontSize: 12, fontWeight: 600, letterSpacing: "0.01em", transition: "all .15s",
                   background: calView === v ? "var(--white)" : "transparent",
                   color: calView === v ? "var(--ink)" : "var(--ink-3)",
-                  boxShadow: calView === v ? "0 1px 3px rgba(13,15,10,.12)" : "none" }}>
+                  boxShadow: calView === v ? "0 1px 4px rgba(13,15,10,.14), 0 0 0 .5px rgba(13,15,10,.06)" : "none" }}>
                 {v === "week" ? "Semaine" : "Mois"}
               </button>
             ))}
           </div>
 
           <div style={{ marginLeft: "auto", display: "flex", gap: 10 }}>
-            <Link href={`/workspace/${id}`} className="btn btn-primary btn-sm"><IconPlus /> Nouveau post</Link>
+            <Link href={`/workspace/${id}`} className="btn btn-primary btn-sm" style={{ background: "#2FD79B", color: "#0D2E1C", fontWeight: 700, gap: 6 }}><IconPlus /> Nouveau post</Link>
           </div>
         </header>
 
@@ -383,35 +377,38 @@ function PlanningContent() {
 
         {/* ─── WEEK VIEW ───────────────────────────────────────────────────── */}
         {calView === "week" && (
-          <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
+          <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", height: "calc(100vh - 64px)" }}>
 
-            {/* Sticky day header */}
-            <div style={{ display: "grid", gridTemplateColumns: "56px repeat(7,1fr)", borderBottom: "1px solid var(--line)", flexShrink: 0, background: "var(--canvas)", zIndex: 4 }}>
-              <div style={{ borderRight: "1px solid var(--line)" }} />
-              {weekDays.map((day, i) => {
-                const isToday = isSameDay(day, today);
-                return (
-                  <div key={i} style={{ padding: "10px 12px", borderRight: i < 6 ? "1px solid var(--line)" : "none", display: "flex", alignItems: "center", gap: 8 }}>
-                    <span style={{ fontFamily: "var(--display)", fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: ".08em", color: "var(--ink-3)" }}>{DAY_NAMES[i]}</span>
-                    <span style={{ width: 24, height: 24, borderRadius: "50%", display: "grid", placeItems: "center", fontFamily: "var(--sans)", fontWeight: 700, fontSize: 13,
-                      background: isToday ? "var(--mint)" : "transparent",
-                      color: isToday ? "var(--mint-ink)" : "var(--ink)" }}>
-                      {day.getDate()}
-                    </span>
-                  </div>
-                );
-              })}
-            </div>
+            {/* Single scrollable area — day headers sticky at top inside it */}
+            <div ref={gridRef} style={{ flex: 1, overflowY: "auto", overflowX: "hidden", position: "relative", background: "var(--canvas)" }}>
 
-            {/* Scrollable hourly grid */}
-            <div ref={gridRef} style={{ flex: 1, overflowY: "auto" }}>
+              {/* Sticky day-header row */}
+              <div style={{ display: "grid", gridTemplateColumns: "56px repeat(7,1fr)", position: "sticky", top: 0, zIndex: 10, background: "var(--canvas)", borderBottom: `1px solid rgba(13,15,10,.08)`, boxShadow: "0 1px 0 rgba(13,15,10,.04)" }}>
+                {/* Corner cell */}
+                <div style={{ borderRight: `1px solid rgba(13,15,10,.08)`, background: "var(--canvas)" }} />
+                {weekDays.map((day, i) => {
+                  const isToday = isSameDay(day, today);
+                  return (
+                    <div key={i} style={{ padding: "11px 14px 10px", borderRight: i < 6 ? `1px solid rgba(13,15,10,.08)` : "none", display: "flex", alignItems: "center", gap: 8 }}>
+                      <span style={{ fontFamily: "var(--display)", fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: ".07em", color: "var(--ink-3)" }}>{DAY_NAMES[i]}</span>
+                      <span style={{ width: 26, height: 26, borderRadius: "50%", display: "grid", placeItems: "center", fontFamily: "'Archivo', var(--sans)", fontWeight: 700, fontSize: 13, transition: "background .12s",
+                        background: isToday ? "#2FD79B" : "transparent",
+                        color: isToday ? "#0D2E1C" : "var(--ink)" }}>
+                        {day.getDate()}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Grid body */}
               <div style={{ display: "grid", gridTemplateColumns: "56px repeat(7,1fr)" }}>
 
-                {/* Hour labels column */}
-                <div>
+                {/* Hour labels column — sticky left */}
+                <div style={{ position: "sticky", left: 0, zIndex: 3, background: "var(--canvas)", borderRight: `1px solid rgba(13,15,10,.08)` }}>
                   {HOURS.map(h => (
-                    <div key={h} style={{ height: HOUR_H, display: "flex", alignItems: "flex-start", justifyContent: "flex-end", paddingRight: 8, paddingTop: 4, boxSizing: "border-box", fontFamily: "var(--mono)", fontSize: 10, fontWeight: 700, color: "var(--ink-3)", borderBottom: "1px solid var(--line)" }}>
-                      {String(h).padStart(2, "0")}h
+                    <div key={h} style={{ height: HOUR_H, display: "flex", alignItems: "flex-start", justifyContent: "flex-end", paddingRight: 10, paddingTop: 5, boxSizing: "border-box", fontFamily: "var(--display)", fontSize: 11, fontWeight: 400, color: "var(--ink-3)", borderBottom: `1px solid rgba(13,15,10,.06)` }}>
+                      {h === 0 ? "" : `${String(h).padStart(2, "0")}h`}
                     </div>
                   ))}
                 </div>
@@ -422,14 +419,15 @@ function PlanningContent() {
                   const isToday   = isSameDay(day, today);
                   const dayPosts  = postsForDay(day);
                   return (
-                    <div key={dayKey} style={{ position: "relative", borderLeft: "1px solid var(--line)" }}>
+                    <div key={dayKey} style={{ position: "relative", borderRight: di < 6 ? `1px solid rgba(13,15,10,.08)` : "none" }}>
 
-                      {/* Hour slots (drop targets) */}
+                      {/* Hour slots (drop targets + hover) */}
                       {HOURS.map(h => {
                         const isOver = dragOverDay === dayKey && dragOverHour === h;
                         return (
                           <div key={h}
-                            style={{ height: HOUR_H, borderBottom: "1px solid var(--line)", boxSizing: "border-box", background: isOver ? "rgba(47,215,155,.08)" : "transparent", cursor: "pointer", transition: "background .1s" }}
+                            className="cal-slot"
+                            style={{ height: HOUR_H, borderBottom: `1px solid rgba(13,15,10,.06)`, boxSizing: "border-box", background: isOver ? "rgba(47,215,155,.08)" : "transparent", cursor: "pointer", transition: "background .1s" }}
                             onDragOver={e => { e.preventDefault(); setDragOverDay(dayKey); setDragOverHour(h); }}
                             onDragLeave={() => { setDragOverDay(null); setDragOverHour(null); }}
                             onDrop={() => handleDropOnHour(day, h)}
@@ -440,7 +438,7 @@ function PlanningContent() {
 
                       {/* Current time line */}
                       {isToday && (
-                        <div style={{ position: "absolute", top: nowTop, left: 0, right: 0, height: 2, background: "#2FD79B", zIndex: 3, pointerEvents: "none" }}>
+                        <div style={{ position: "absolute", top: nowTop, left: 0, right: 0, height: 2, background: "#2FD79B", zIndex: 4, pointerEvents: "none" }}>
                           <div style={{ position: "absolute", left: -4, top: -3, width: 8, height: 8, borderRadius: "50%", background: "#2FD79B" }} />
                         </div>
                       )}
@@ -449,6 +447,7 @@ function PlanningContent() {
                       {dayPosts.map(post => {
                         const d          = new Date(post.scheduled_at!);
                         const topPx      = d.getHours() * HOUR_H + Math.round(d.getMinutes() * HOUR_H / 60);
+                        const blockH     = Math.max(HOUR_H - 4, 44); // min 1 slot height
                         const isSelected = selectedPost?.id === post.id;
                         const rawImg     = post.exported_image_url || post.photo_url;
                         const thumbSrc   = rawImg ? `/api/proxy-image?url=${encodeURIComponent(rawImg)}` : null;
@@ -461,37 +460,37 @@ function PlanningContent() {
                             onClick={e => { e.stopPropagation(); selectPost(post); }}
                             style={{
                               position: "absolute", top: topPx + 2, left: 4, right: 4,
-                              height: HOUR_H - 6, borderRadius: 6,
-                              padding: "0 6px 0 0",
-                              background: `${chipColor}18`, // light tinted bg
-                              border: `1.5px solid ${chipColor}40`,
+                              height: blockH, borderRadius: 6,
+                              padding: "0 8px 0 0",
+                              background: `${chipColor}26`,
+                              borderLeft: `3px solid ${chipColor}`,
                               color: "var(--ink)",
                               fontFamily: "var(--sans)", fontSize: 11,
                               cursor: "pointer", zIndex: 2,
-                              boxShadow: isSelected ? `0 0 0 2px ${chipColor}` : "0 1px 3px rgba(0,0,0,.08)",
+                              boxShadow: isSelected ? `0 0 0 2px ${chipColor}, 0 2px 8px rgba(0,0,0,.10)` : "0 1px 3px rgba(13,15,10,.08)",
                               opacity: draggedId === post.id ? 0.35 : 1,
                               overflow: "hidden", userSelect: "none",
-                              display: "flex", alignItems: "center", gap: 6,
+                              display: "flex", alignItems: "center", gap: 7,
                               transition: "box-shadow .12s, opacity .12s",
                             }}
                           >
-                            {/* Thumbnail */}
-                            <div style={{ width: 32, height: "100%", flexShrink: 0, overflow: "hidden", borderRadius: "4px 0 0 4px" }}>
+                            {/* 28×28 thumbnail */}
+                            <div style={{ width: 28, height: 28, flexShrink: 0, overflow: "hidden", borderRadius: 4, marginLeft: 5 }}>
                               {thumbSrc ? (
                                 // eslint-disable-next-line @next/next/no-img-element
                                 <img src={thumbSrc} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
                               ) : (
                                 <div style={{ width: "100%", height: "100%", background: chipColor, display: "grid", placeItems: "center" }}>
-                                  <span style={{ fontSize: 8, fontWeight: 800, color: "#fff", fontFamily: "var(--mono)" }}>{initials}</span>
+                                  <span style={{ fontSize: 8, fontWeight: 800, color: "#fff", fontFamily: "var(--sans)" }}>{initials}</span>
                                 </div>
                               )}
                             </div>
                             {/* Text */}
-                            <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", justifyContent: "center", gap: 1 }}>
-                              <div style={{ fontSize: 10.5, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", lineHeight: 1.3, color: "var(--ink)" }}>
+                            <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", justifyContent: "center", gap: 2 }}>
+                              <div style={{ fontSize: 11, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", lineHeight: 1.25, color: "var(--ink)" }}>
                                 {post.texte_visuel || "Post"}
                               </div>
-                              <div style={{ fontSize: 9.5, color: "var(--ink-3)", fontWeight: 500, lineHeight: 1 }}>{formatTime(post.scheduled_at)}</div>
+                              <div style={{ fontSize: 11, color: "var(--ink-3)", fontWeight: 500, lineHeight: 1 }}>{formatTime(post.scheduled_at)}</div>
                             </div>
                           </div>
                         );
@@ -504,20 +503,20 @@ function PlanningContent() {
 
             {/* Unscheduled strip */}
             {unscheduled.length > 0 && (
-              <div style={{ flexShrink: 0, borderTop: "1px solid var(--line)", padding: "10px 20px", background: "var(--canvas)", display: "flex", gap: 8, overflowX: "auto", alignItems: "center" }}>
-                <span style={{ fontFamily: "var(--mono)", fontSize: 9.5, fontWeight: 800, textTransform: "uppercase", letterSpacing: ".08em", color: "var(--ink-3)", flexShrink: 0 }}>Non programmés ({unscheduled.length})</span>
+              <div style={{ flexShrink: 0, borderTop: `1px solid rgba(13,15,10,.08)`, padding: "10px 20px", background: "var(--canvas)", display: "flex", gap: 8, overflowX: "auto", alignItems: "center" }}>
+                <span style={{ fontFamily: "var(--display)", fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: ".08em", color: "var(--ink-3)", flexShrink: 0 }}>Non programmés ({unscheduled.length})</span>
                 {unscheduled.map(post => (
                   <div key={post.id} draggable
                     onDragStart={() => setDraggedId(post.id)}
                     onDragEnd={() => { setDraggedId(null); setDragOverDay(null); setDragOverHour(null); }}
                     onClick={() => selectPost(post)}
-                    style={{ flexShrink: 0, width: 56, height: 68, borderRadius: 8, overflow: "hidden", cursor: "pointer", opacity: draggedId === post.id ? 0.35 : 1, boxShadow: selectedPost?.id === post.id ? `0 0 0 2.5px ${chipColor}` : "0 1px 4px rgba(13,15,10,.12)", userSelect: "none", background: "var(--white)" }}>
+                    style={{ flexShrink: 0, width: 52, height: 64, borderRadius: 8, overflow: "hidden", cursor: "pointer", opacity: draggedId === post.id ? 0.35 : 1, boxShadow: selectedPost?.id === post.id ? `0 0 0 2.5px ${chipColor}` : "0 1px 4px rgba(13,15,10,.12)", userSelect: "none", background: "var(--white)" }}>
                     {(post.exported_image_url || post.photo_url) ? (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img src={post.exported_image_url || post.photo_url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
                     ) : (
                       <div style={{ width: "100%", height: "100%", background: chipColor, display: "grid", placeItems: "center" }}>
-                        <span style={{ fontFamily: "var(--mono)", fontSize: 9, fontWeight: 800, color: "#fff", textTransform: "uppercase" }}>Post</span>
+                        <span style={{ fontFamily: "var(--sans)", fontSize: 9, fontWeight: 800, color: "#fff", textTransform: "uppercase" }}>Post</span>
                       </div>
                     )}
                   </div>
@@ -531,23 +530,23 @@ function PlanningContent() {
         {calView === "month" && (
           <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
             {/* Day headers */}
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(7,1fr)", borderBottom: "1px solid var(--line)", flexShrink: 0, background: "var(--canvas)" }}>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(7,1fr)", borderBottom: `1px solid rgba(13,15,10,.08)`, flexShrink: 0, background: "var(--canvas)" }}>
               {DAY_NAMES.map(d => (
-                <div key={d} style={{ padding: "10px 0 8px", textAlign: "center", fontFamily: "var(--display)", fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: ".08em", color: "var(--ink-3)" }}>{d}</div>
+                <div key={d} style={{ padding: "11px 0 9px", textAlign: "center", fontFamily: "var(--display)", fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: ".07em", color: "var(--ink-3)" }}>{d}</div>
               ))}
             </div>
             {/* Month grid */}
             <div style={{ flex: 1, overflowY: "auto" }}>
               <div style={{ display: "grid", gridTemplateColumns: "repeat(7,1fr)", gridAutoRows: "minmax(90px, 1fr)" }}>
                 {monthGrid.map((day, i) => {
-                  if (!day) return <div key={`e-${i}`} style={{ borderRight: "1px solid var(--line)", borderBottom: "1px solid var(--line)", background: "var(--sunk)", opacity: .5 }} />;
+                  if (!day) return <div key={`e-${i}`} style={{ borderRight: `1px solid rgba(13,15,10,.06)`, borderBottom: `1px solid rgba(13,15,10,.06)`, background: "rgba(13,15,10,.02)", opacity: .7 }} />;
                   const isToday   = isSameDay(day, today);
                   const dayPosts  = postsForDay(day);
                   const dayKey    = toDateInput(day);
                   const isDragOver = dragOverDay === dayKey && !dragOverHour;
                   return (
                     <div key={i}
-                      style={{ borderRight: "1px solid var(--line)", borderBottom: "1px solid var(--line)", padding: "6px 6px 4px", cursor: "pointer", background: isDragOver ? "rgba(47,215,155,.07)" : "var(--white)", transition: "background .1s" }}
+                      style={{ borderRight: `1px solid rgba(13,15,10,.06)`, borderBottom: `1px solid rgba(13,15,10,.06)`, padding: "6px 6px 4px", cursor: "pointer", background: isDragOver ? "rgba(47,215,155,.07)" : "var(--white)", transition: "background .1s" }}
                       onDragOver={e => { e.preventDefault(); setDragOverDay(dayKey); }}
                       onDragLeave={() => setDragOverDay(null)}
                       onDrop={() => handleDropOnDay(day)}
@@ -555,9 +554,9 @@ function PlanningContent() {
                     >
                       {/* Day number */}
                       <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 4 }}>
-                        <span style={{ width: 22, height: 22, borderRadius: "50%", display: "grid", placeItems: "center", fontFamily: "var(--sans)", fontSize: 11, fontWeight: 700,
-                          background: isToday ? "var(--mint)" : "transparent",
-                          color: isToday ? "var(--mint-ink)" : "var(--ink-3)" }}>
+                        <span style={{ width: 22, height: 22, borderRadius: "50%", display: "grid", placeItems: "center", fontFamily: "'Archivo', var(--sans)", fontSize: 11, fontWeight: 700,
+                          background: isToday ? "#2FD79B" : "transparent",
+                          color: isToday ? "#0D2E1C" : "var(--ink-3)" }}>
                           {day.getDate()}
                         </span>
                       </div>
@@ -572,9 +571,9 @@ function PlanningContent() {
                             onDragStart={e => { e.stopPropagation(); setDraggedId(post.id); }}
                             onDragEnd={() => { setDraggedId(null); setDragOverDay(null); }}
                             onClick={e => { e.stopPropagation(); selectPost(post); }}
-                            style={{ borderRadius: 4, padding: "2px 4px 2px 2px", background: `${chipColor}18`, border: `1px solid ${chipColor}30`, color: "var(--ink)", fontFamily: "var(--sans)", fontSize: 10, fontWeight: 500, overflow: "hidden", whiteSpace: "nowrap", cursor: "pointer", opacity: draggedId === post.id ? 0.35 : 1, display: "flex", alignItems: "center", gap: 4 }}>
+                            style={{ borderRadius: 4, padding: "2px 5px 2px 0", background: `${chipColor}22`, borderLeft: `3px solid ${chipColor}`, color: "var(--ink)", fontFamily: "var(--sans)", fontSize: 10, fontWeight: 500, overflow: "hidden", whiteSpace: "nowrap", cursor: "pointer", opacity: draggedId === post.id ? 0.35 : 1, display: "flex", alignItems: "center", gap: 4 }}>
                             {/* Mini thumb */}
-                            <div style={{ width: 14, height: 14, borderRadius: 2, overflow: "hidden", flexShrink: 0 }}>
+                            <div style={{ width: 14, height: 14, borderRadius: 2, overflow: "hidden", flexShrink: 0, marginLeft: 3 }}>
                               {thumb ? (
                                 // eslint-disable-next-line @next/next/no-img-element
                                 <img src={thumb} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
@@ -701,7 +700,7 @@ function PlanningContent() {
         </div>
       )}
 
-      <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
+      <style>{`@keyframes spin{to{transform:rotate(360deg)}} .cal-slot:hover{background:rgba(47,215,155,.04)!important}`}</style>
     </div>
   );
 }
@@ -716,7 +715,7 @@ export default function PlanningPage() {
         <Suspense fallback={
           <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center" }}>
             <span style={{ width: 20, height: 20, borderRadius: "50%", border: "2.5px solid var(--mint-soft)", borderTopColor: "var(--mint-2)", display: "inline-block", animation: "spin .7s linear infinite" }} />
-            <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
+            <style>{`@keyframes spin{to{transform:rotate(360deg)}} .cal-slot:hover{background:rgba(47,215,155,.04)!important}`}</style>
           </div>
         }>
           <PlanningContent />
