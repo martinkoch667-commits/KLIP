@@ -17,6 +17,13 @@ import SelectionOverlay from '@/components/SelectionOverlay';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
+interface Slide {
+  id: string;
+  elements: CanvasEl[];
+  proxyUrl: string;
+  thumbnail?: string;
+}
+
 interface BaseEl { id: string; x: number; y: number; rotation: number; opacity: number; }
 interface TextEl extends BaseEl {
   type: 'text'; text: string; fontSize: number; fontFamily: string; fontStyle: string;
@@ -173,7 +180,7 @@ function UnsplashThumb({ src, onAdd, onBg }: { src: string; onAdd: () => void; o
   );
 }
 
-function TextProperties({ el, onChange, customFonts, onFontUpload, brandColors }: { el: TextEl; onChange: (u: Partial<TextEl>) => void; customFonts: { name: string; url: string }[]; onFontUpload: (file: File) => Promise<string>; brandColors?: string[] }) {
+function TextProperties({ el, onChange, customFonts, onFontUpload, brandColors, brandFontNames }: { el: TextEl; onChange: (u: Partial<TextEl>) => void; customFonts: { name: string; url: string }[]; onFontUpload: (file: File) => Promise<string>; brandColors?: string[]; brandFontNames?: string[] }) {
   const isBold = el.fontStyle.includes('bold');
   const isItalic = el.fontStyle.includes('italic');
   const isUnderline = el.textDecoration === 'underline';
@@ -187,10 +194,15 @@ function TextProperties({ el, onChange, customFonts, onFontUpload, brandColors }
       </PropRow>
       <PropRow label="Police">
         <select value={el.fontFamily} onChange={e => onChange({ fontFamily: e.target.value })}
-          style={{ width: '100%', padding: '6px 8px', border: '1px solid var(--line)', borderRadius: 'var(--r-s)', fontSize: 13, outline: 'none', background: 'var(--sunk)', color: 'var(--ink)' }}>
-          {customFonts.length > 0 && (
+          style={{ width: '100%', padding: '6px 8px', border: '1px solid var(--line)', borderRadius: 'var(--r-s)', fontSize: 13, outline: 'none', background: 'var(--sunk)', color: 'var(--ink)', fontFamily: `"${el.fontFamily}", sans-serif` }}>
+          {brandFontNames && brandFontNames.length > 0 && (
+            <optgroup label="Charte de marque">
+              {brandFontNames.map(f => <option key={f} value={f}>{f}</option>)}
+            </optgroup>
+          )}
+          {customFonts.filter(f => !brandFontNames?.includes(f.name)).length > 0 && (
             <optgroup label="Mes polices">
-              {customFonts.map(f => <option key={f.name} value={f.name}>{f.name}</option>)}
+              {customFonts.filter(f => !brandFontNames?.includes(f.name)).map(f => <option key={f.name} value={f.name}>{f.name}</option>)}
             </optgroup>
           )}
           <optgroup label="Google Fonts">
@@ -358,10 +370,81 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
   useEffect(() => { elementsRef.current = elements; }, [elements]);
   useEffect(() => { selectedIdRef.current = selectedId; }, [selectedId]);
 
+  // ── Carousel slides ───────────────────────────────────────────────────────
+  const [slides, setSlides] = useState<Slide[]>([{ id: 'slide-1', elements: [], proxyUrl: '' }]);
+  const [activeSlideIdx, setActiveSlideIdx] = useState(0);
+  const slidesRef = useRef<Slide[]>(slides);
+  const proxyUrlRef = useRef<string>('');
+  useEffect(() => { slidesRef.current = slides; }, [slides]);
+  useEffect(() => { proxyUrlRef.current = proxyUrl; }, [proxyUrl]);
+
+  // ── Carousel: save current slide state into slidesRef ────────────────────
+  const saveCurrentSlide = () => {
+    const updated = slidesRef.current.map((s, i) =>
+      i === activeSlideIdx ? { ...s, elements: elementsRef.current, proxyUrl: proxyUrlRef.current } : s
+    );
+    slidesRef.current = updated;
+    return updated;
+  };
+
+  const switchSlide = (idx: number) => {
+    if (idx === activeSlideIdx) return;
+    const updated = saveCurrentSlide();
+    setSlides(updated);
+    const next = updated[idx];
+    setElements(next.elements);
+    setProxyUrl(next.proxyUrl);
+    setActiveSlideIdx(idx);
+    setSelectedId(null);
+    setCropId(null);
+    historyRef.current = [next.elements];
+    histIdxRef.current = 0;
+    setHistTick(t => t + 1);
+  };
+
+  const addSlide = () => {
+    const updated = saveCurrentSlide();
+    const newSlide: Slide = { id: `slide-${Date.now()}`, elements: [], proxyUrl: '' };
+    const newSlides = [...updated, newSlide];
+    slidesRef.current = newSlides;
+    setSlides(newSlides);
+    const newIdx = newSlides.length - 1;
+    setElements([]);
+    setProxyUrl('');
+    setActiveSlideIdx(newIdx);
+    setSelectedId(null);
+    setCropId(null);
+    historyRef.current = [[]];
+    histIdxRef.current = 0;
+    setHistTick(t => t + 1);
+  };
+
+  const removeSlide = (idx: number) => {
+    if (slidesRef.current.length <= 1) return;
+    const updated = saveCurrentSlide();
+    const newSlides = updated.filter((_, i) => i !== idx);
+    slidesRef.current = newSlides;
+    setSlides(newSlides);
+    const newActive = idx >= newSlides.length ? newSlides.length - 1
+      : idx < activeSlideIdx ? activeSlideIdx - 1
+      : idx === activeSlideIdx ? Math.min(idx, newSlides.length - 1)
+      : activeSlideIdx;
+    setActiveSlideIdx(newActive);
+    const next = newSlides[newActive];
+    setElements(next.elements);
+    setProxyUrl(next.proxyUrl);
+    setSelectedId(null);
+    setCropId(null);
+    historyRef.current = [next.elements];
+    histIdxRef.current = 0;
+    setHistTick(t => t + 1);
+  };
+
   const [saving, setSaving] = useState(false);
   const [dataLoading, setDataLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [customFonts, setCustomFonts] = useState<{ name: string; url: string }[]>([]);
+  const [brandFontNames, setBrandFontNames] = useState<string[]>([]);
 
   // ── UI tool + workspace ───────────────────────────────────────────────────
   const [tool, setTool] = useState<'media'|'text'|'brand'|'stickers'|'shapes'>('media');
@@ -371,6 +454,13 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
     brand_voice_prompt?: string; company_description?: string;
     description_style?: string; caption_examples?: string;
     primary_color?: string; secondary_color?: string;
+    accent_color?: string;
+    logo_url?: string | null; logo_dark_url?: string | null;
+    brand_assets?: string[] | null;
+    font_family?: string; font_primary_url?: string | null;
+    font_secondary?: string; font_secondary_url?: string | null;
+    words_to_use?: string; words_to_avoid?: string;
+    tone?: string; sector?: string;
   } | null>(null);
 
   // ── AI caption ───────────────────────────────────────────────────────────
@@ -414,8 +504,34 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
           supabase.from('workspaces').select('*').eq('id', workspaceId).maybeSingle(),
         ]);
         if (postError) throw postError;
-        if (p?.photo_url) { setProxyUrl(`/api/proxy-image?url=${encodeURIComponent(p.photo_url)}`); setPostPhotoUrl(p.photo_url); }
-        if (w) { setWorkspaceName(w.name || ''); setWorkspaceData(w); }
+        if (p?.photo_url) { setPostPhotoUrl(p.photo_url); }
+        if (w) {
+          setWorkspaceName(w.name || '');
+          setWorkspaceData(w);
+          // ── Load brand fonts ─────────────────────────────────────────────
+          const bfNames: string[] = [];
+          if (w.font_family) {
+            bfNames.push(w.font_family);
+            if (w.font_primary_url) {
+              try { const ff = new FontFace(w.font_family, `url(${w.font_primary_url})`); await ff.load(); document.fonts.add(ff); } catch {}
+            } else {
+              const lnk = document.createElement('link'); lnk.rel = 'stylesheet';
+              lnk.href = `https://fonts.googleapis.com/css2?family=${w.font_family.replace(/ /g, '+')}&display=swap`;
+              document.head.appendChild(lnk);
+            }
+          }
+          if (w.font_secondary) {
+            bfNames.push(w.font_secondary);
+            if (w.font_secondary_url) {
+              try { const ff = new FontFace(w.font_secondary, `url(${w.font_secondary_url})`); await ff.load(); document.fonts.add(ff); } catch {}
+            } else {
+              const lnk = document.createElement('link'); lnk.rel = 'stylesheet';
+              lnk.href = `https://fonts.googleapis.com/css2?family=${w.font_secondary.replace(/ /g, '+')}&display=swap`;
+              document.head.appendChild(lnk);
+            }
+          }
+          if (bfNames.length > 0) setBrandFontNames(bfNames);
+        }
         const sw = stageWRef.current;
         const sh = stageHRef.current;
         const defaultEl: TextEl = {
@@ -427,14 +543,28 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
           hasBg: true, bgColor: w?.primary_color || '#0038FF',
           bgOpacity: 95, cornerRadius: 4, padding: 16, paddingH: 16, paddingV: 10,
         };
-        let initEls: CanvasEl[];
+        const bgUrl = p?.photo_url ? `/api/proxy-image?url=${encodeURIComponent(p.photo_url)}` : '';
+        let initSlides: Slide[];
         if (p?.editor_json) {
-          try { initEls = JSON.parse(p.editor_json); } catch { initEls = [defaultEl]; }
+          try {
+            const parsed = JSON.parse(p.editor_json);
+            if (parsed && parsed.version === 2 && Array.isArray(parsed.slides)) {
+              initSlides = parsed.slides;
+            } else {
+              // v1: flat elements array
+              const els = Array.isArray(parsed) ? parsed : [defaultEl];
+              initSlides = [{ id: 'slide-1', elements: els, proxyUrl: bgUrl }];
+            }
+          } catch { initSlides = [{ id: 'slide-1', elements: [defaultEl], proxyUrl: bgUrl }]; }
         } else {
-          initEls = [defaultEl];
+          initSlides = [{ id: 'slide-1', elements: [defaultEl], proxyUrl: bgUrl }];
         }
-        setElements(initEls);
-        historyRef.current = [initEls];
+        setSlides(initSlides);
+        slidesRef.current = initSlides;
+        const first = initSlides[0];
+        setElements(first.elements);
+        setProxyUrl(first.proxyUrl);
+        historyRef.current = [first.elements];
         histIdxRef.current = 0;
         if (w?.custom_fonts) {
           try {
@@ -582,6 +712,15 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
     setShowUnsplash(false);
   };
 
+  // Add brand logo/asset as a smaller element (no crop mode)
+  const addLogoEl = (src: string) => {
+    const id = newId();
+    const size = Math.round(stageW * 0.28);
+    const el: ImageEl = { id, type: 'image', x: 20, y: 20, rotation: 0, opacity: 100, src, width: size, height: size };
+    applyElements([...elements, el]);
+    setSelectedId(id);
+  };
+
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -668,10 +807,14 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
     await supabase.storage.from('exports').upload(fileName, blob, { contentType: 'image/png', upsert: true });
     const { data: urlData } = supabase.storage.from('exports').getPublicUrl(fileName);
     const textEl = elements.find(e => e.type === 'text') as TextEl | undefined;
+    // Build v2 JSON: save current slide state into all slides
+    const allSlides = slidesRef.current.map((s, i) =>
+      i === activeSlideIdx ? { ...s, elements: elementsRef.current, proxyUrl: proxyUrlRef.current } : s
+    );
     await supabase.from('posts').update({
       status: 'validated',
       exported_image_url: urlData?.publicUrl || '',
-      editor_json: JSON.stringify(elements),
+      editor_json: JSON.stringify({ version: 2, slides: allSlides }),
       texte_visuel: textEl?.text || '',
     }).eq('id', postId);
     window.location.href = `/workspace/${workspaceId}/planning`;
@@ -724,10 +867,18 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
         body: JSON.stringify({
           brief: `Post ${tone.toLowerCase()} pour ${workspaceName}`,
           photoUrl: postPhotoUrl,
-          brandVoicePrompt: workspaceData?.brand_voice_prompt,
+          workspaceName,
+          // Brand identity
+          sector: workspaceData?.sector,
+          tone,
+          brandTone: workspaceData?.tone,
           companyDescription: workspaceData?.company_description,
-          descriptionStyle: workspaceData?.description_style,
+          // Voice rules
+          brandVoicePrompt: workspaceData?.brand_voice_prompt,
+          wordsToUse: workspaceData?.words_to_use,
+          wordsToAvoid: workspaceData?.words_to_avoid,
           captionExamples: workspaceData?.caption_examples,
+          descriptionStyle: workspaceData?.description_style,
         }),
       });
       const data = await res.json();
@@ -787,7 +938,7 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
           </div>
           <span style={{ fontWeight: 700, fontSize: 13.5, color: 'var(--cream)', fontFamily: 'var(--sans)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 160 }}>{workspaceName || 'Éditeur'}</span>
           <span style={{ fontSize: 11, fontWeight: 700, fontFamily: 'var(--mono)', color: 'var(--cream-2)', background: 'rgba(238,237,227,.1)', padding: '3px 8px', borderRadius: 5, flexShrink: 0 }}>
-            Post · {activeFormat.label}
+            Post · {activeFormat.label}{slides.length > 1 ? ` · ${slides.length} slides` : ''}
           </span>
         </div>
 
@@ -973,6 +1124,64 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
             )}
             </div>
           </div>
+
+          {/* ── SLIDE STRIP ── */}
+          <div style={{
+            height: 88, flexShrink: 0,
+            background: 'var(--canvas)', borderTop: '1px solid var(--line)',
+            display: 'flex', alignItems: 'center',
+            padding: '0 20px', gap: 8,
+            overflowX: 'auto',
+          }}>
+            {slides.map((slide, idx) => {
+              const isActive = idx === activeSlideIdx;
+              return (
+                <div key={slide.id} style={{ position: 'relative', flexShrink: 0 }}>
+                  <button
+                    onClick={() => switchSlide(idx)}
+                    style={{
+                      width: 46, height: 58, borderRadius: 7,
+                      border: `2px solid ${isActive ? 'var(--mint-2)' : 'var(--line)'}`,
+                      background: 'var(--white)',
+                      cursor: 'pointer', padding: 0, overflow: 'hidden',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      transition: 'border-color .12s',
+                      boxShadow: isActive ? '0 0 0 3px var(--mint-soft)' : 'none',
+                    }}
+                  >
+                    <span style={{
+                      fontFamily: 'var(--mono)', fontWeight: 800, fontSize: 12,
+                      color: isActive ? 'var(--mint-2)' : 'var(--ink-3)',
+                    }}>{idx + 1}</span>
+                  </button>
+                  {slides.length > 1 && (
+                    <button
+                      onClick={() => removeSlide(idx)}
+                      style={{
+                        position: 'absolute', top: -5, right: -5,
+                        width: 16, height: 16, borderRadius: '50%',
+                        background: 'var(--ink)', color: 'var(--paper)',
+                        border: 'none', cursor: 'pointer', padding: 0,
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        fontSize: 10, fontWeight: 700, lineHeight: 1,
+                      }}
+                    >×</button>
+                  )}
+                </div>
+              );
+            })}
+            <button
+              onClick={addSlide}
+              style={{
+                width: 46, height: 58, borderRadius: 7, flexShrink: 0,
+                border: '1.5px dashed var(--line)',
+                background: 'transparent',
+                cursor: 'pointer', padding: 0,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                color: 'var(--ink-3)', fontSize: 20, fontWeight: 300,
+              }}
+            >+</button>
+          </div>
         </div>
 
         {/* ── RIGHT PANEL (always visible) ── */}
@@ -1073,9 +1282,9 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
                   <button onClick={sendBackward} title="Reculer" style={smallBtnStyle}>↓</button>
                 </div>
               </div>
-              {selectedEl.type === 'text' && <TextProperties el={selectedEl} onChange={u => updateEl(selectedEl.id, u)} customFonts={customFonts} onFontUpload={handleFontUpload} brandColors={[workspaceData?.primary_color, workspaceData?.secondary_color].filter(Boolean) as string[]} />}
+              {selectedEl.type === 'text' && <TextProperties el={selectedEl} onChange={u => updateEl(selectedEl.id, u)} customFonts={customFonts} onFontUpload={handleFontUpload} brandFontNames={brandFontNames} brandColors={[workspaceData?.primary_color, workspaceData?.secondary_color, workspaceData?.accent_color].filter(Boolean) as string[]} />}
               {(selectedEl.type === 'rect' || selectedEl.type === 'circle' || selectedEl.type === 'star') && (
-                <ShapeProperties el={selectedEl} onChange={u => updateEl(selectedEl.id, u)} brandColors={[workspaceData?.primary_color, workspaceData?.secondary_color].filter(Boolean) as string[]} />
+                <ShapeProperties el={selectedEl} onChange={u => updateEl(selectedEl.id, u)} brandColors={[workspaceData?.primary_color, workspaceData?.secondary_color, workspaceData?.accent_color].filter(Boolean) as string[]} />
               )}
               {selectedEl.type === 'image' && (
                 <ImageProperties el={selectedEl} onChange={u => updateEl(selectedEl.id, u)} onSetBg={() => setProxyUrl(selectedEl.src)} onCrop={() => setCropId(selectedEl.id)} />
@@ -1174,16 +1383,84 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
           )}
 
           {tool === 'brand' && !selectedEl && (
-            <div style={{ padding: '14px 16px', borderBottom: '1px solid var(--line)' }}>
-              <p style={{ fontSize: 11, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '0.12em', fontFamily: 'var(--mono)', fontWeight: 800, marginBottom: 10 }}>Charte · {workspaceName}</p>
-              <div style={{ display: 'flex', gap: 6, marginBottom: 12 }}>
-                {[workspaceData?.primary_color || '#0038FF', workspaceData?.secondary_color || '#FFFFFF', '#111111', '#F5F0E8'].map((col, i) => (
-                  <div key={i} style={{ flex: 1 }}>
-                    <div style={{ height: 44, borderRadius: 'var(--r-s)', background: col, boxShadow: 'inset 0 0 0 1px var(--line)' }} />
-                    <div style={{ fontFamily: 'var(--mono)', fontSize: 8.5, color: 'var(--ink-3)', marginTop: 4, textAlign: 'center', textTransform: 'uppercase' }}>{col}</div>
+            <div style={{ padding: '14px 16px', borderBottom: '1px solid var(--line)', overflowY: 'auto' }}>
+              <p style={{ fontSize: 11, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '0.12em', fontFamily: 'var(--mono)', fontWeight: 800, marginBottom: 14 }}>
+                Charte · {workspaceName}
+              </p>
+
+              {/* ── Couleurs ── */}
+              <SectionLabel>Couleurs</SectionLabel>
+              <div style={{ display: 'flex', gap: 5, marginBottom: 16 }}>
+                {[workspaceData?.primary_color || '#0038FF', workspaceData?.secondary_color || '#FFFFFF', workspaceData?.accent_color].filter(Boolean).map((col, i) => (
+                  <div key={i} style={{ flex: 1, cursor: 'pointer' }} title={`Copier ${col}`}
+                    onClick={() => { try { navigator.clipboard.writeText(col!); } catch {} }}>
+                    <div style={{ height: 36, borderRadius: 6, background: col!, boxShadow: 'inset 0 0 0 1px rgba(0,0,0,.12)' }} />
+                    <div style={{ fontFamily: 'var(--mono)', fontSize: 8, color: 'var(--ink-3)', marginTop: 3, textAlign: 'center', textTransform: 'uppercase', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{col}</div>
                   </div>
                 ))}
               </div>
+
+              {/* ── Typographie ── */}
+              {brandFontNames.length > 0 && (
+                <>
+                  <SectionLabel>Typographie</SectionLabel>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 16 }}>
+                    {brandFontNames.map((font, i) => (
+                      <div key={font} title="Ajouter un texte avec cette police"
+                        onClick={() => {
+                          const el: TextEl = {
+                            id: newId(), type: 'text', x: 30, y: 60 + i * 60, rotation: 0, opacity: 100,
+                            text: font, fontSize: 26, fontFamily: font, fontStyle: 'bold', textDecoration: '',
+                            fill: workspaceData?.primary_color || '#000000', align: 'left', width: 260,
+                            hasBg: false, bgColor: '#000000', bgOpacity: 80, cornerRadius: 4, padding: 12, paddingH: 12, paddingV: 8,
+                          };
+                          applyElements([...elements, el]);
+                          setSelectedId(el.id);
+                        }}
+                        style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 10px', borderRadius: 6, background: 'var(--sunk)', cursor: 'pointer', border: '1px solid var(--line)', transition: 'border-color .12s' }}>
+                        <span style={{ fontFamily: `"${font}", sans-serif`, fontSize: 22, color: 'var(--ink)', lineHeight: 1, minWidth: 28, textAlign: 'center' }}>Aa</span>
+                        <span style={{ fontSize: 11, color: 'var(--ink-2)', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{font}</span>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              )}
+
+              {/* ── Logo ── */}
+              {(workspaceData?.logo_url || workspaceData?.logo_dark_url) && (
+                <>
+                  <SectionLabel>Logo</SectionLabel>
+                  <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
+                    {workspaceData?.logo_url && (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={workspaceData.logo_url} alt="Logo" title="Ajouter au canvas"
+                        style={{ height: 38, maxWidth: 90, objectFit: 'contain', cursor: 'pointer', borderRadius: 5, background: 'var(--white)', padding: 4, border: '1px solid var(--line)' }}
+                        onClick={() => addLogoEl(workspaceData.logo_url!)} />
+                    )}
+                    {workspaceData?.logo_dark_url && (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={workspaceData.logo_dark_url} alt="Logo variante" title="Ajouter au canvas (variante sombre)"
+                        style={{ height: 38, maxWidth: 90, objectFit: 'contain', cursor: 'pointer', borderRadius: 5, background: '#1A1A1A', padding: 4, border: '1px solid var(--line)' }}
+                        onClick={() => addLogoEl(workspaceData.logo_dark_url!)} />
+                    )}
+                  </div>
+                </>
+              )}
+
+              {/* ── Assets de marque ── */}
+              {workspaceData?.brand_assets && workspaceData.brand_assets.length > 0 && (
+                <>
+                  <SectionLabel>Assets de marque</SectionLabel>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 5 }}>
+                    {workspaceData.brand_assets.map((url, i) => (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img key={i} src={url} alt="" title="Ajouter au canvas"
+                        style={{ aspectRatio: '1', objectFit: 'contain', borderRadius: 6, background: 'var(--sunk)', padding: 4, border: '1px solid var(--line)', cursor: 'pointer', width: '100%', display: 'block' }}
+                        onClick={() => addImageEl(url)} />
+                    ))}
+                  </div>
+                </>
+              )}
             </div>
           )}
 
