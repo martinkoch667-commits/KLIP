@@ -322,10 +322,21 @@ export default function NewWorkspacePage() {
         font_secondary_url: fontSecondaryUrl,
       }).select().single();
 
-      if (insertErr || !data) throw insertErr ?? new Error("Workspace non créé — réponse vide");
+      if (insertErr || !data) {
+        console.error("[createWorkspace] insert error:", {
+          message: insertErr?.message,
+          code: insertErr?.code,
+          details: insertErr?.details,
+          hint: insertErr?.hint,
+          full: insertErr,
+        });
+        throw insertErr ?? new Error("Workspace non créé — réponse vide");
+      }
       router.push(`/workspace/${data.id}`);
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : "Erreur lors de la création.");
+      const msg = e instanceof Error ? e.message : "Erreur lors de la création.";
+      console.error("[createWorkspace] caught:", e);
+      setError(msg);
     }
     setLoading(false);
   }
