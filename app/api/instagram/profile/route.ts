@@ -32,17 +32,42 @@ export async function GET(request: NextRequest) {
   try {
     const [pRes, mRes] = await Promise.all([
       fetch(`https://graph.instagram.com/me?fields=username,media_count,biography,followers_count,follows_count,profile_picture_url&access_token=${token}`),
-      fetch(`https://graph.instagram.com/me/media?fields=id,media_url,thumbnail_url,timestamp&limit=9&access_token=${token}`),
+      fetch(`https://graph.instagram.com/me/media?fields=id,media_type,media_url,thumbnail_url,timestamp&limit=9&access_token=${token}`),
     ]);
     const [pData, mData] = await Promise.all([pRes.json(), mRes.json()]);
+
+    // Bug 2 debug logs
+    console.log('[instagram/profile] media API status:', mRes.status);
+    console.log('[instagram/profile] media error:', mData.error ?? null);
+    console.log('[instagram/profile] media count:', mData.data?.length ?? 0);
+    if (mData.data) {
+      mData.data.forEach((m: { id: string; media_type?: string; media_url?: string; thumbnail_url?: string }, i: number) => {
+        console.log(`[instagram/profile] media[${i}]:`, {
+          id: m.id,
+          type: m.media_type,
+          has_media_url: !!m.media_url,
+          has_thumbnail_url: !!m.thumbnail_url,
+        });
+      });
+    }
+
+    const media = (mData.data ?? []).map((m: { id: string; media_type?: string; media_url?: string; thumbnail_url?: string; timestamp?: string }) => ({
+      id: m.id,
+      media_type: m.media_type,
+      // VIDEO posts have no media_url — fall back to thumbnail_url
+      media_url: m.media_url ?? m.thumbnail_url ?? null,
+      thumbnail_url: m.thumbnail_url ?? null,
+      timestamp: m.timestamp,
+    }));
 
     return NextResponse.json({
       connected: true,
       name: ws.name,
       profile: pData.error ? null : pData,
-      media: mData.error ? [] : (mData.data ?? []),
+      media: mData.error ? [] : media,
     });
-  } catch {
+  } catch (err) {
+    console.error('[instagram/profile] caught:', err);
     return NextResponse.json({
       connected: true,
       name: ws.name,
