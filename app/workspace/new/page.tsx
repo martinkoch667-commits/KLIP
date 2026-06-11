@@ -295,43 +295,43 @@ export default function NewWorkspacePage() {
       if (wordsToAvoid.trim())   voiceParts.push(`Mots à ne jamais utiliser : ${wordsToAvoid.trim()}`);
       if (captionExample.trim()) voiceParts.push(`Exemple de caption : ${captionExample.trim()}`);
 
-      const { data, error: insertErr } = await supabase.from("workspaces").insert({
-        user_id: user.id,
-        name: name.trim(),
-        // Step 1
-        sector: sector || null,
-        instagram_username: instagramHandle.replace(/^@/, "").trim() || null,
-        company_description: brandDescription.trim() || null,
-        // Step 2
-        tone: tone || null,
-        words_to_use: wordsToUse.trim() || null,
-        words_to_avoid: wordsToAvoid.trim() || null,
-        caption_examples: captionExample.trim() || null,
-        brand_voice_prompt: voiceParts.join("\n") || null,
-        // Step 3
-        primary_color: primaryColor,
-        secondary_color: secondaryColor,
-        accent_color: accentColor,
-        logo_url: logoUrl,
-        logo_dark_url: logoDarkUrl,
-        brand_assets: assetUrls,
-        // Step 4
-        font_family: activeFontPrimary,
-        font_primary_url: fontPrimaryUrl,
-        font_secondary: activeFontSecondary || null,
-        font_secondary_url: fontSecondaryUrl,
-      }).select().single();
+      // ── Server-side insert (logs errors to Vercel, bypasses RLS) ──────────
+      const res = await fetch("/api/workspace/create", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: name.trim(),
+          // Step 1
+          sector: sector || null,
+          instagram_username: instagramHandle.replace(/^@/, "").trim() || null,
+          company_description: brandDescription.trim() || null,
+          // Step 2
+          tone: tone || null,
+          words_to_use: wordsToUse.trim() || null,
+          words_to_avoid: wordsToAvoid.trim() || null,
+          caption_examples: captionExample.trim() || null,
+          brand_voice_prompt: voiceParts.join("\n") || null,
+          // Step 3
+          primary_color: primaryColor,
+          secondary_color: secondaryColor,
+          accent_color: accentColor,
+          logo_url: logoUrl,
+          logo_dark_url: logoDarkUrl,
+          brand_assets: assetUrls,
+          // Step 4
+          font_family: activeFontPrimary,
+          font_primary_url: fontPrimaryUrl,
+          font_secondary: activeFontSecondary || null,
+          font_secondary_url: fontSecondaryUrl,
+        }),
+      });
 
-      if (insertErr || !data) {
-        console.error("[createWorkspace] insert error:", {
-          message: insertErr?.message,
-          code: insertErr?.code,
-          details: insertErr?.details,
-          hint: insertErr?.hint,
-          full: insertErr,
-        });
-        throw insertErr ?? new Error("Workspace non créé — réponse vide");
+      const json = await res.json();
+      if (!res.ok || !json.workspace) {
+        console.error("[createWorkspace] API error:", json);
+        throw new Error(json.error || json.hint || "Workspace non créé — voir logs Vercel");
       }
+      const data = json.workspace;
       router.push(`/workspace/${data.id}`);
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : "Erreur lors de la création.";
