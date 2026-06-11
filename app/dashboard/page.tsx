@@ -175,7 +175,8 @@ function InstagramProfile({ workspaceId }: { workspaceId: string }) {
 
     async function load() {
       try {
-        const res = await fetch(`/api/instagram/profile?workspaceId=${workspaceId}`);
+        // no-store: Instagram media_url expire in hours — always fetch fresh, never use browser cache
+        const res = await fetch(`/api/instagram/profile?workspaceId=${workspaceId}`, { cache: 'no-store' });
         const data = await res.json();
         if (cancelled) return;
         setWsInfo({ name: data.name ?? "", connected: !!data.connected });
