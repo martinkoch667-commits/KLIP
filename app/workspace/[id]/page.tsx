@@ -30,8 +30,12 @@ interface Workspace {
   id: string;
   name: string;
   logo_url: string | null;
-  brand_voice_prompt: string | null;
+  sector: string | null;
+  tone: string | null;
+  words_to_use: string | null;
+  words_to_avoid: string | null;
   company_description: string | null;
+  brand_voice_prompt: string | null;
   description_style: string | null;
   caption_examples: string | null;
 }
@@ -118,7 +122,7 @@ export default function WorkspacePage() {
   const loadData = useCallback(async () => {
     const { data: ws } = await supabase
       .from("workspaces")
-      .select("id, name, logo_url, brand_voice_prompt, company_description, description_style, caption_examples")
+      .select("id, name, logo_url, sector, tone, words_to_use, words_to_avoid, company_description, brand_voice_prompt, description_style, caption_examples")
       .eq("id", id)
       .single();
 
@@ -199,11 +203,19 @@ export default function WorkspacePage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          brief: combinedBrief, photoUrl,
-          brandVoicePrompt: workspace?.brand_voice_prompt ?? undefined,
+          brief: combinedBrief,
+          photoUrl,
+          // Brand identity
+          workspaceName: workspace?.name ?? undefined,
+          sector: workspace?.sector ?? undefined,
+          tone: workspace?.tone ?? undefined,
           companyDescription: workspace?.company_description ?? undefined,
-          descriptionStyle: workspace?.description_style ?? undefined,
+          brandVoicePrompt: workspace?.brand_voice_prompt ?? undefined,
+          // Voice rules
+          wordsToUse: workspace?.words_to_use ?? undefined,
+          wordsToAvoid: workspace?.words_to_avoid ?? undefined,
           captionExamples: workspace?.caption_examples ?? undefined,
+          descriptionStyle: workspace?.description_style ?? undefined,
         }),
       });
       const data = await res.json();
