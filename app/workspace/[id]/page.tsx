@@ -15,7 +15,8 @@ interface PostItem {
   localId: string;
   dbId?: string;
   file?: File;
-  photo_url: string;
+  isVideo?: boolean;          // true for .mp4 / .mov imports
+  photo_url: string;          // public URL (image or video)
   exported_image_url?: string | null;
   brief: string;
   description: string;
@@ -152,10 +153,18 @@ export default function WorkspacePage() {
     const files = Array.from(e.target.files || []);
     if (!files.length) return;
     const newItems: PostItem[] = files
-      .filter((f) => f.type.startsWith("image/"))
+      .filter((f) => f.type.startsWith("image/") || f.type.startsWith("video/"))
+      .filter((f) => {
+        if (f.size > 100 * 1024 * 1024) {
+          alert(`"${f.name}" dépasse 100 MB — fichier ignoré.`);
+          return false;
+        }
+        return true;
+      })
       .map((file) => ({
         localId: crypto.randomUUID(),
         file,
+        isVideo: file.type.startsWith("video/"),
         photo_url: URL.createObjectURL(file),
         brief: "", description: "", texte_visuel: "",
         status: "idle" as PostStatus,
@@ -181,7 +190,8 @@ export default function WorkspacePage() {
     if (!item.brief.trim() || item.status === "generating") return;
     setPosts((prev) => prev.map((p) => (p.localId === item.localId ? { ...p, status: "generating", error: undefined } : p)));
     try {
-      const photoUrl = item.photo_url.startsWith("http") ? item.photo_url : undefined;
+      // For video posts, don't pass photoUrl to the AI (no frame analysis)
+      const photoUrl = item.isVideo ? undefined : (item.photo_url.startsWith("http") ? item.photo_url : undefined);
       const combinedBrief = globalBrief.trim()
         ? `CONSIGNES GLOBALES : ${globalBrief}\n\nINFOS SPÉCIFIQUES À CE POST : ${item.brief}`
         : item.brief;
@@ -198,17 +208,18 @@ export default function WorkspacePage() {
       });
       const data = await res.json();
       if (res.ok && (data.texte_visuel || data.description)) {
-        const texte_visuel = data.texte_visuel ?? "";
+        const texte_visuel = item.isVideo ? "" : (data.texte_visuel ?? ""); // no visual text for video
         const description = data.description ?? "";
         let dbId = item.dbId;
         let pUrl = item.photo_url;
         if (!dbId) {
           if (item.file) {
-            const ext = item.file.name.split(".").pop();
+            const ext = item.file.name.split(".").pop() ?? (item.isVideo ? "mp4" : "jpg");
             const path = `${id}/${crypto.randomUUID()}.${ext}`;
-            const { error: uploadError } = await supabase.storage.from("photos").upload(path, item.file, { upsert: true });
+            const bucket = item.isVideo ? "videos" : "photos";
+            const { error: uploadError } = await supabase.storage.from(bucket).upload(path, item.file, { upsert: true });
             if (!uploadError) {
-              const { data: urlData } = supabase.storage.from("photos").getPublicUrl(path);
+              const { data: urlData } = supabase.storage.from(bucket).getPublicUrl(path);
               pUrl = urlData.publicUrl;
             }
           }
@@ -247,11 +258,12 @@ export default function WorkspacePage() {
       let pUrl = item.photo_url;
       let dbId = item.dbId;
       if (item.file) {
-        const ext = item.file.name.split(".").pop();
+        const ext = item.file.name.split(".").pop() ?? (item.isVideo ? "mp4" : "jpg");
         const path = `${id}/${crypto.randomUUID()}.${ext}`;
-        const { error: uploadError } = await supabase.storage.from("photos").upload(path, item.file, { upsert: true });
+        const bucket = item.isVideo ? "videos" : "photos";
+        const { error: uploadError } = await supabase.storage.from(bucket).upload(path, item.file, { upsert: true });
         if (!uploadError) {
-          const { data: urlData } = supabase.storage.from("photos").getPublicUrl(path);
+          const { data: urlData } = supabase.storage.from(bucket).getPublicUrl(path);
           pUrl = urlData.publicUrl;
         }
       }
@@ -262,7 +274,8 @@ export default function WorkspacePage() {
         await supabase.from("posts").update({ description: item.description, texte_visuel: item.texte_visuel, status: "validated" }).eq("id", dbId);
       }
       setPosts((prev) => prev.map((p) => p.localId === item.localId ? { ...p, dbId, photo_url: pUrl, status: "validated" } : p));
-      if (dbId) window.location.href = `/workspace/${id}/editor/${dbId}`;
+      // Video posts go straight to planning — no visual editor
+      if (dbId) window.location.href = item.isVideo ? `/workspace/${id}/planning?post=${dbId}` : `/workspace/${id}/editor/${dbId}`;
     } catch {
       setPosts((prev) => prev.map((p) => (p.localId === item.localId ? { ...p, status: "generated" } : p)));
     }
@@ -413,20 +426,22 @@ export default function WorkspacePage() {
                     onDragOver={(e) => e.preventDefault()}
                     onDrop={(e) => {
                       e.preventDefault();
-                      const files = Array.from(e.dataTransfer.files).filter((f) => f.type.startsWith("image/"));
+                      const files = Array.from(e.dataTransfer.files)
+                        .filter((f) => f.type.startsWith("image/") || f.type.startsWith("video/"))
+                        .filter((f) => { if (f.size > 100 * 1024 * 1024) { alert(`"${f.name}" dépasse 100 MB.`); return false; } return true; });
                       if (!files.length) return;
-                      setPosts((prev) => [...files.map(file => ({ localId: crypto.randomUUID(), file, photo_url: URL.createObjectURL(file), brief: "", description: "", texte_visuel: "", status: "idle" as PostStatus })), ...prev]);
+                      setPosts((prev) => [...files.map(file => ({ localId: crypto.randomUUID(), file, isVideo: file.type.startsWith("video/"), photo_url: URL.createObjectURL(file), brief: "", description: "", texte_visuel: "", status: "idle" as PostStatus })), ...prev]);
                     }}
                     style={{ padding: 28, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: 200, cursor: 'pointer', textAlign: 'center', transition: 'border-color 0.15s, background 0.15s', border: '1.5px dashed var(--line)' }}
                     onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--mint-2)'; e.currentTarget.style.background = 'var(--mint-soft)'; }}
                     onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--line)'; e.currentTarget.style.background = 'var(--card)'; }}
                   >
-                    <input ref={fileInputRef} type="file" accept="image/*" multiple onChange={handleFileChange} style={{ display: 'none' }} />
+                    <input ref={fileInputRef} type="file" accept="image/*,video/mp4,video/quicktime" multiple onChange={handleFileChange} style={{ display: 'none' }} />
                     <span style={{ width: 52, height: 52, borderRadius: 15, background: 'var(--ink)', color: 'var(--paper)', display: 'grid', placeItems: 'center', marginBottom: 14 }}>
                       <IconUpload />
                     </span>
-                    <div className="h-title" style={{ fontSize: 15, marginBottom: 6 }}>Déposez vos photos ici</div>
-                    <div style={{ fontSize: 13, color: 'var(--ink-3)' }}>ou cliquez pour sélectionner · JPG, PNG, WEBP</div>
+                    <div className="h-title" style={{ fontSize: 15, marginBottom: 6 }}>Déposez photos ou vidéos ici</div>
+                    <div style={{ fontSize: 13, color: 'var(--ink-3)' }}>ou cliquez pour sélectionner · JPG, PNG, MP4, MOV · max 100 MB</div>
                   </div>
 
                   {/* AI generator */}
@@ -539,13 +554,27 @@ export default function WorkspacePage() {
                       const isGenerated = post.status === "generated" || post.status === "validating" || post.status === "validated";
                       return (
                         <div key={post.localId} className="card" style={{ overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
-                          {/* Photo */}
+                          {/* Photo / Video preview */}
                           <div style={{ padding: 8 }}>
-                            <div style={{ position: 'relative', aspectRatio: '4/5', borderRadius: 11, overflow: 'hidden' }}>
-                              {/* eslint-disable-next-line @next/next/no-img-element */}
-                              <img src={post.exported_image_url || post.photo_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                              <div style={{ position: 'absolute', top: 8, left: 8 }}>
+                            <div style={{ position: 'relative', aspectRatio: '4/5', borderRadius: 11, overflow: 'hidden', background: '#000' }}>
+                              {post.isVideo ? (
+                                <video
+                                  src={post.photo_url}
+                                  controls
+                                  style={{ width: '100%', height: '100%', objectFit: 'contain', display: 'block' }}
+                                />
+                              ) : (
+                                // eslint-disable-next-line @next/next/no-img-element
+                                <img src={post.exported_image_url || post.photo_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                              )}
+                              {/* Status + Video badge */}
+                              <div style={{ position: 'absolute', top: 8, left: 8, display: 'flex', gap: 5 }}>
                                 <StatusChip status={post.status} />
+                                {post.isVideo && (
+                                  <span style={{ background: 'rgba(0,0,0,.7)', color: '#fff', fontSize: 9.5, fontWeight: 700, padding: '3px 7px', borderRadius: 99, fontFamily: 'var(--mono)', backdropFilter: 'blur(4px)', letterSpacing: '.05em' }}>
+                                    ▶ VIDÉO
+                                  </span>
+                                )}
                               </div>
                               <button
                                 onClick={() => removePost(post)}
@@ -608,25 +637,54 @@ export default function WorkspacePage() {
                                 )}
 
                                 <div style={{ display: 'flex', gap: 7, marginTop: 2 }}>
-                                  {post.status !== "validated" && (
-                                    <button
-                                      onClick={() => validatePost(post)}
-                                      disabled={post.status === "validating"}
-                                      className="btn btn-dark"
-                                      style={{ flex: 1, opacity: post.status === "validating" ? 0.5 : 1 }}
-                                    >
-                                      {post.status === "validating" ? <><Spinner /> Sauvegarde…</> : <><IconEdit /> Éditer le visuel</>}
-                                    </button>
-                                  )}
-                                  {post.status === "validated" && post.dbId && (
-                                    <Link href={`/workspace/${id}/editor/${post.dbId}`} className="btn btn-dark" style={{ flex: 1, textAlign: 'center' }}>
-                                      <IconEdit /> Ouvrir l'éditeur
-                                    </Link>
-                                  )}
-                                  {post.status === "generated" && (
-                                    <button onClick={() => generateOne(post)} className="btn btn-ghost btn-icon" title="Regénérer">
-                                      <IconSpark />
-                                    </button>
+                                  {post.isVideo ? (
+                                    /* Video: no visual editor — go straight to planning */
+                                    <>
+                                      {post.status !== "validated" && (
+                                        <button
+                                          onClick={() => validatePost(post)}
+                                          disabled={post.status === "validating"}
+                                          className="btn btn-primary"
+                                          style={{ flex: 1, opacity: post.status === "validating" ? 0.5 : 1 }}
+                                        >
+                                          {post.status === "validating" ? <><Spinner /> Sauvegarde…</> : <>📅 Programmer ce Reel</>}
+                                        </button>
+                                      )}
+                                      {post.status === "validated" && post.dbId && (
+                                        <Link href={`/workspace/${id}/planning?post=${post.dbId}`} className="btn btn-primary" style={{ flex: 1, textAlign: 'center' }}>
+                                          📅 Voir dans le planning
+                                        </Link>
+                                      )}
+                                      {post.status === "generated" && (
+                                        <button onClick={() => generateOne(post)} className="btn btn-ghost btn-icon" title="Regénérer la description">
+                                          <IconSpark />
+                                        </button>
+                                      )}
+                                    </>
+                                  ) : (
+                                    /* Photo: standard editor flow */
+                                    <>
+                                      {post.status !== "validated" && (
+                                        <button
+                                          onClick={() => validatePost(post)}
+                                          disabled={post.status === "validating"}
+                                          className="btn btn-dark"
+                                          style={{ flex: 1, opacity: post.status === "validating" ? 0.5 : 1 }}
+                                        >
+                                          {post.status === "validating" ? <><Spinner /> Sauvegarde…</> : <><IconEdit /> Éditer le visuel</>}
+                                        </button>
+                                      )}
+                                      {post.status === "validated" && post.dbId && (
+                                        <Link href={`/workspace/${id}/editor/${post.dbId}`} className="btn btn-dark" style={{ flex: 1, textAlign: 'center' }}>
+                                          <IconEdit /> Ouvrir l'éditeur
+                                        </Link>
+                                      )}
+                                      {post.status === "generated" && (
+                                        <button onClick={() => generateOne(post)} className="btn btn-ghost btn-icon" title="Regénérer">
+                                          <IconSpark />
+                                        </button>
+                                      )}
+                                    </>
                                   )}
                                 </div>
                               </>
