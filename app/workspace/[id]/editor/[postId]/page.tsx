@@ -806,8 +806,25 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    addImageEl(URL.createObjectURL(file));
     e.target.value = '';
+    const src = URL.createObjectURL(file);
+    // Bug 1 fix: measure natural dimensions so we can add at 50% width, centered, no crop mode
+    const img = new window.Image();
+    img.onload = () => {
+      const natW = img.naturalWidth || stageW;
+      const natH = img.naturalHeight || stageH;
+      const maxW = Math.round(stageW * 0.5);
+      const w = Math.min(natW, maxW);
+      const h = Math.round(w * (natH / natW));
+      const x = Math.round((stageW - w) / 2);
+      const y = Math.round((stageH - h) / 2);
+      const id = newId();
+      const el: ImageEl = { id, type: 'image', x, y, rotation: 0, opacity: 100, src, width: w, height: h };
+      applyElements([...elementsRef.current, el]);
+      setSelectedId(id);
+      // No setCropId — overlay image has resize handles immediately visible
+    };
+    img.src = src;
   };
 
   // ── Unsplash ──────────────────────────────────────────────────────────────
@@ -1254,8 +1271,12 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
                     const pH = el.paddingH ?? el.padding;
                     const pV = el.paddingV ?? el.padding;
                     const measuredW = measureTextWidth(el.text, el.fontSize, el.fontFamily, el.fontStyle);
-                    const blockW = Math.min(Math.max(measuredW + pH * 2, 80), stageW - 40);
+                    // Bug 2 fix: use el.width when explicitly set (by handles or initial creation);
+                    // fall back to measured text width only when el.width is absent.
+                    const rawW = el.width ?? (measuredW + pH * 2);
+                    const blockW = Math.min(Math.max(rawW, 80), stageW - 40);
                     const blockH = el.fontSize + pV * 2;
+                    const textAreaW = Math.max(1, blockW - pH * 2);
                     return (
                       <Group key={el.id} id={el.id} x={el.x} y={el.y} rotation={el.rotation} opacity={el.opacity / 100}
                         draggable
@@ -1268,7 +1289,8 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
                           opacity={el.hasBg ? el.bgOpacity / 100 : 1}
                           cornerRadius={el.hasBg ? el.cornerRadius : 0}
                         />
-                        <Text x={pH} y={pV} width={measuredW} text={el.text}
+                        {/* text wraps within blockW; handles update el.width which drives blockW */}
+                        <Text x={pH} y={pV} width={textAreaW} wrap="word" text={el.text}
                           fontSize={el.fontSize} fontFamily={el.fontFamily}
                           fontStyle={el.fontStyle} textDecoration={el.textDecoration}
                           fill={el.fill} align={el.align} listening={false} />
