@@ -107,6 +107,78 @@ function IconInstagram() { return <svg width="22" height="22" viewBox="0 0 24 24
 function IconPlus() { return <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12h14"/></svg>; }
 function IconSpark() { return <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><path d="M12 3l1.6 5.4L19 10l-5.4 1.6L12 17l-1.6-5.4L5 10l5.4-1.6L12 3Z"/></svg>; }
 
+// ─── Engagement heatmap helpers ────────────────────────────────────────────────
+
+function engageScore(dayOfWeek: number, hour: number): number {
+  // Simulated engagement curve — peaks at typical Instagram best-times
+  // TODO: replace with real Instagram Insights API data per workspace
+  const base: Record<number, number[]> = {
+    1: [4,3,3,2,2,3,5,18,32,44,52,48,42,38,35,30,28,40,62,78,88,82,70,40], // Mon
+    2: [4,3,3,2,2,3,6,20,35,48,55,50,45,40,38,34,30,44,65,80,90,84,72,42], // Tue
+    3: [5,3,3,2,2,4,7,22,38,50,58,52,48,42,40,36,32,46,68,82,92,86,74,44], // Wed
+    4: [5,3,3,2,2,4,6,20,36,48,55,50,46,40,38,34,30,44,66,80,90,84,72,42], // Thu
+    5: [5,4,3,2,2,3,6,18,30,40,48,45,40,38,36,32,30,42,60,75,85,82,70,45], // Fri
+    6: [6,4,3,3,2,3,5,14,22,30,38,42,46,50,52,54,55,58,65,72,78,75,62,48], // Sat
+    0: [7,5,4,3,2,3,5,12,18,26,32,38,42,46,50,54,58,60,65,70,75,72,62,50], // Sun
+  };
+  const curve = base[dayOfWeek] ?? base[1];
+  return curve[hour] ?? 5;
+}
+
+function peakHours(dayOfWeek: number, n = 3): number[] {
+  const scores = Array.from({ length: 24 }, (_, h) => ({ h, s: engageScore(dayOfWeek, h) }));
+  return scores.sort((a, b) => b.s - a.s).slice(0, n).map(x => x.h);
+}
+
+function heatBg(s: number): string {
+  if (s >= 88) return "var(--acid)";
+  if (s >= 72) return "var(--mint)";
+  if (s >= 50) return "rgba(47,215,155,.55)";
+  if (s >= 30) return "rgba(47,215,155,.30)";
+  return "rgba(13,15,10,.09)";
+}
+function heatInk(s: number): string { return s >= 72 ? "var(--mint-ink)" : "var(--ink-2)"; }
+
+function BestTimeStrip({ dayOfWeek, label }: { dayOfWeek: number; label: string }) {
+  const curve = Array.from({ length: 24 }, (_, h) => ({ h, s: engageScore(dayOfWeek, h) }));
+  const peaks = peakHours(dayOfWeek, 3);
+  return (
+    <div className="card" style={{ margin: "0 26px 14px", padding: "13px 18px 11px", flexShrink: 0 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
+        <span style={{ width: 26, height: 26, borderRadius: 8, background: "var(--mint-soft)", color: "var(--mint-2)", display: "grid", placeItems: "center", flexShrink: 0 }}>
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+        </span>
+        <span className="h-title" style={{ fontSize: 14 }}>Meilleur moment pour publier</span>
+        <span className="chip" style={{ background: "var(--sunk)", color: "var(--ink-2)", fontSize: 10.5 }}>{label}</span>
+        <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 8, fontSize: 11, color: "var(--ink-3)", fontWeight: 600 }}>
+          <span>Engagement</span>
+          <span style={{ width: 72, height: 7, borderRadius: 99, background: "linear-gradient(90deg, rgba(13,15,10,.09), rgba(47,215,155,.5), var(--mint), var(--acid))", display: "block" }} />
+          <span className="tnum">100%</span>
+        </div>
+      </div>
+      {/* bars */}
+      <div style={{ display: "flex", alignItems: "flex-end", gap: 2, height: 46 }}>
+        {curve.map(({ h, s }) => {
+          const isPeak = peaks.includes(h);
+          return (
+            <div key={h} title={`${h}h — ${s}% d'engagement`} className="heat-bar"
+              style={{ flex: 1, height: "100%", display: "flex", flexDirection: "column", justifyContent: "flex-end", alignItems: "center", gap: 2, cursor: "default" }}>
+              {isPeak && <span className="tnum" style={{ fontSize: 9, fontWeight: 800, color: "var(--mint-2)", lineHeight: 1 }}>{s}%</span>}
+              <div style={{ width: "100%", height: `${8 + (s / 100) * 28}px`, background: heatBg(s), borderRadius: "3px 3px 2px 2px", boxShadow: isPeak ? "0 0 0 1.5px var(--mint-2)" : "none", transition: "height .2s" }} />
+            </div>
+          );
+        })}
+      </div>
+      {/* hour ticks */}
+      <div style={{ display: "flex", marginTop: 4 }}>
+        {curve.map(({ h }) => (
+          <span key={h} className="tnum" style={{ flex: 1, textAlign: "center", fontSize: 9, fontWeight: 700, color: "var(--ink-3)", visibility: (h % 3 === 0) ? "visible" : "hidden" }}>{h}h</span>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 // ─── Planning content ─────────────────────────────────────────────────────────
 
 function PlanningContent() {
@@ -340,23 +412,19 @@ function PlanningContent() {
         <header className="topbar">
           <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
             <button onClick={() => calView === "week" ? setWeekStart(w => addDays(w, -7)) : prevMonth()} className="btn btn-ghost btn-icon"><IconChevL /></button>
-            <h1 style={{ fontSize: 15, fontFamily: "'Archivo', var(--display)", fontWeight: 700, letterSpacing: "-0.02em", textTransform: "capitalize", whiteSpace: "nowrap", color: "var(--ink)" }}>
+            <h1 className="h-display" style={{ fontSize: 22, textTransform: "capitalize", whiteSpace: "nowrap" }}>
               {calView === "week" ? formatMonthYear(weekStart) : `${MONTH_NAMES[monthDate.getMonth()]} ${monthDate.getFullYear()}`}
             </h1>
             <button onClick={() => calView === "week" ? setWeekStart(w => addDays(w, 7)) : nextMonth()} className="btn btn-ghost btn-icon"><IconChevR /></button>
             {calView === "week" && !isCurrentWeek && (
-              <button onClick={() => setWeekStart(getMonday(new Date()))} className="btn btn-ghost btn-sm" style={{ fontSize: 11, padding: "4px 10px" }}>Aujourd&apos;hui</button>
+              <button onClick={() => setWeekStart(getMonday(new Date()))} className="btn btn-sm btn-ghost">Aujourd&apos;hui</button>
             )}
           </div>
 
           {/* Segmented toggle */}
-          <div style={{ display: "flex", background: "rgba(13,15,10,.07)", borderRadius: 9, padding: 3, gap: 2 }}>
+          <div className="seg">
             {(["week","month"] as const).map(v => (
-              <button key={v} onClick={() => setCalView(v)}
-                style={{ padding: "5px 16px", borderRadius: 7, border: "none", cursor: "pointer", fontFamily: "var(--sans)", fontSize: 12, fontWeight: 600, letterSpacing: "0.01em", transition: "all .15s",
-                  background: calView === v ? "var(--white)" : "transparent",
-                  color: calView === v ? "var(--ink)" : "var(--ink-3)",
-                  boxShadow: calView === v ? "0 1px 4px rgba(13,15,10,.14), 0 0 0 .5px rgba(13,15,10,.06)" : "none" }}>
+              <button key={v} onClick={() => setCalView(v)} className={calView === v ? "on" : ""}>
                 {v === "week" ? "Semaine" : "Mois"}
               </button>
             ))}
@@ -374,6 +442,12 @@ function PlanningContent() {
             <p style={{ fontSize: 13, fontWeight: 600, color: "var(--mint-2)" }}>Compte Instagram connecté avec succès.</p>
           </div>
         )}
+
+        {/* ── BestTimeStrip ── */}
+        <BestTimeStrip
+          dayOfWeek={calView === "week" ? weekStart.getDay() : today.getDay()}
+          label={calView === "week" ? DAY_NAMES[weekStart.getDay() === 0 ? 6 : weekStart.getDay() - 1] : MONTH_NAMES[monthDate.getMonth()]}
+        />
 
         {/* ─── WEEK VIEW ───────────────────────────────────────────────────── */}
         {calView === "week" && (
@@ -447,8 +521,9 @@ function PlanningContent() {
                       {dayPosts.map(post => {
                         const d          = new Date(post.scheduled_at!);
                         const topPx      = d.getHours() * HOUR_H + Math.round(d.getMinutes() * HOUR_H / 60);
-                        const blockH     = Math.max(HOUR_H - 4, 44); // min 1 slot height
+                        const blockH     = Math.max(HOUR_H - 4, 44);
                         const isSelected = selectedPost?.id === post.id;
+                        const isPub      = post.status === "published";
                         const rawImg     = post.exported_image_url || post.photo_url;
                         const thumbSrc   = rawImg ? `/api/proxy-image?url=${encodeURIComponent(rawImg)}` : null;
                         const initials   = (workspace?.name ?? "??").slice(0, 2).toUpperCase();
@@ -460,22 +535,22 @@ function PlanningContent() {
                             onClick={e => { e.stopPropagation(); selectPost(post); }}
                             style={{
                               position: "absolute", top: topPx + 2, left: 4, right: 4,
-                              height: blockH, borderRadius: 6,
+                              height: blockH, borderRadius: 8,
                               padding: "0 8px 0 0",
-                              background: `${chipColor}26`,
+                              background: isPub ? "var(--mint-soft)" : "var(--white)",
                               borderLeft: `3px solid ${chipColor}`,
-                              color: "var(--ink)",
-                              fontFamily: "var(--sans)", fontSize: 11,
-                              cursor: "pointer", zIndex: 2,
-                              boxShadow: isSelected ? `0 0 0 2px ${chipColor}, 0 2px 8px rgba(0,0,0,.10)` : "0 1px 3px rgba(13,15,10,.08)",
+                              boxShadow: isSelected
+                                ? `0 0 0 2px ${chipColor}, var(--shadow-card)`
+                                : isPub ? "inset 0 0 0 1px rgba(47,215,155,.4)" : "inset 0 0 0 1px var(--line)",
                               opacity: draggedId === post.id ? 0.35 : 1,
                               overflow: "hidden", userSelect: "none",
                               display: "flex", alignItems: "center", gap: 7,
-                              transition: "box-shadow .12s, opacity .12s",
+                              cursor: "grab", zIndex: 2,
+                              transition: "box-shadow .12s, opacity .12s, transform .12s",
                             }}
                           >
-                            {/* 28×28 thumbnail */}
-                            <div style={{ width: 28, height: 28, flexShrink: 0, overflow: "hidden", borderRadius: 4, marginLeft: 5 }}>
+                            {/* thumbnail */}
+                            <div style={{ width: 30, height: 36, flexShrink: 0, overflow: "hidden", borderRadius: 5, marginLeft: 6 }}>
                               {thumbSrc ? (
                                 // eslint-disable-next-line @next/next/no-img-element
                                 <img src={thumbSrc} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
@@ -487,10 +562,12 @@ function PlanningContent() {
                             </div>
                             {/* Text */}
                             <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", justifyContent: "center", gap: 2 }}>
-                              <div style={{ fontSize: 11, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", lineHeight: 1.25, color: "var(--ink)" }}>
+                              <div style={{ fontSize: 11, fontWeight: 700, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", lineHeight: 1.25, color: "var(--ink)" }}>
                                 {post.texte_visuel || "Post"}
                               </div>
-                              <div style={{ fontSize: 11, color: "var(--ink-3)", fontWeight: 500, lineHeight: 1 }}>{formatTime(post.scheduled_at)}</div>
+                              <div style={{ fontSize: 10.5, color: isPub ? "var(--mint-2)" : "var(--ink-3)", fontWeight: 700, lineHeight: 1 }}>
+                                {isPub ? "Publié" : formatTime(post.scheduled_at)}
+                              </div>
                             </div>
                           </div>
                         );
@@ -565,15 +642,26 @@ function PlanningContent() {
                         {dayPosts.slice(0, 3).map(post => {
                           const rawImg  = post.exported_image_url || post.photo_url;
                           const thumb   = rawImg ? `/api/proxy-image?url=${encodeURIComponent(rawImg)}` : null;
+                          const isPub   = post.status === "published";
                           return (
                           <div key={post.id}
                             draggable
                             onDragStart={e => { e.stopPropagation(); setDraggedId(post.id); }}
                             onDragEnd={() => { setDraggedId(null); setDragOverDay(null); }}
                             onClick={e => { e.stopPropagation(); selectPost(post); }}
-                            style={{ borderRadius: 4, padding: "2px 5px 2px 0", background: `${chipColor}22`, borderLeft: `3px solid ${chipColor}`, color: "var(--ink)", fontFamily: "var(--sans)", fontSize: 10, fontWeight: 500, overflow: "hidden", whiteSpace: "nowrap", cursor: "pointer", opacity: draggedId === post.id ? 0.35 : 1, display: "flex", alignItems: "center", gap: 4 }}>
+                            style={{
+                              borderRadius: 6, padding: "3px 5px 3px 0",
+                              background: isPub ? "var(--mint-soft)" : "var(--white)",
+                              borderLeft: `3px solid ${chipColor}`,
+                              boxShadow: isPub ? "inset 0 0 0 1px rgba(47,215,155,.3)" : "inset 0 0 0 1px var(--line)",
+                              color: "var(--ink)", fontSize: 10.5, fontWeight: 600,
+                              overflow: "hidden", whiteSpace: "nowrap",
+                              cursor: "grab", opacity: draggedId === post.id ? 0.35 : 1,
+                              display: "flex", alignItems: "center", gap: 4,
+                              transition: "transform .12s",
+                            }}>
                             {/* Mini thumb */}
-                            <div style={{ width: 14, height: 14, borderRadius: 2, overflow: "hidden", flexShrink: 0, marginLeft: 3 }}>
+                            <div style={{ width: 16, height: 16, borderRadius: 3, overflow: "hidden", flexShrink: 0, marginLeft: 4, position: "relative" }}>
                               {thumb ? (
                                 // eslint-disable-next-line @next/next/no-img-element
                                 <img src={thumb} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
@@ -584,6 +672,7 @@ function PlanningContent() {
                             <span style={{ overflow: "hidden", textOverflow: "ellipsis" }}>
                               {formatTime(post.scheduled_at)} {post.texte_visuel || "Post"}
                             </span>
+                            {isPub && <span className="dot" style={{ background: "var(--mint-2)", marginLeft: "auto", marginRight: 4 }} />}
                           </div>
                           );
                         })}
@@ -627,6 +716,23 @@ function PlanningContent() {
             <span style={{ width: 20, height: 20, borderRadius: "50%", border: "2.5px solid var(--mint-soft)", borderTopColor: "var(--mint-2)", display: "inline-block", animation: "spin .7s linear infinite" }} />
           </div>
         )}
+
+        {/* ── Status legend ── */}
+        <div style={{ flexShrink: 0, display: "flex", alignItems: "center", gap: 18, padding: "10px 26px", borderTop: "1px solid var(--line)", background: "var(--canvas)", flexWrap: "wrap" }}>
+          {([
+            { key: "scheduled", dot: "var(--mint-2)",  label: "Programmé"  },
+            { key: "published", dot: "var(--mint)",    label: "Publié"     },
+            { key: "generated", dot: "var(--ink-3)",   label: "Brouillon"  },
+          ]).map(({ key, dot, label }) => (
+            <div key={key} style={{ display: "flex", alignItems: "center", gap: 7, fontSize: 12, color: "var(--ink-2)", fontWeight: 600 }}>
+              <span className="dot" style={{ background: dot }} /> {label}
+            </div>
+          ))}
+          <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 7, fontSize: 11.5, color: "var(--ink-3)", fontWeight: 600 }}>
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M5 9l4-4 4 4M9 5v14M19 15l-4 4-4-4M15 5v14"/></svg>
+            Glissez un post pour le replanifier
+          </div>
+        </div>
       </div>
 
       {/* ── Right panel ───────────────────────────────────────────────────────── */}

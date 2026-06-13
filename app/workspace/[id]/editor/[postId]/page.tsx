@@ -1246,50 +1246,77 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
     <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', fontFamily: 'var(--sans)', background: 'var(--canvas)' }}>
 
       {/* ── TOPBAR ── */}
-      <div style={{ height: 52, background: 'var(--forest)', borderBottom: '1px solid rgba(238,237,227,.08)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 16px', flexShrink: 0, zIndex: 10 }}>
-        {/* Left: back + client + format */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0 }}>
-          <a href={`/workspace/${workspaceId}`}
-            style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 30, height: 30, borderRadius: 7, boxShadow: 'inset 0 0 0 1px rgba(238,237,227,.2)', color: 'var(--cream-2)', textDecoration: 'none', fontSize: 14, flexShrink: 0 }}>←</a>
-          <button onClick={deletePost} title="Supprimer ce post"
-            style={{ width: 30, height: 30, borderRadius: 7, boxShadow: 'inset 0 0 0 1px rgba(255,80,80,.25)', background: 'transparent', color: 'rgba(255,120,120,.65)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0 }}>
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M4 7h16M9 7V4.5h6V7M6 7l1 13h10l1-13"/></svg>
-          </button>
-          <div style={{ width: 26, height: 26, borderRadius: 7, background: 'var(--mint)', display: 'grid', placeItems: 'center', flexShrink: 0 }}>
-            <span style={{ fontFamily: 'var(--display)', fontWeight: 900, fontSize: 11, color: '#06281C', letterSpacing: '-0.02em' }}>
-              {workspaceName ? workspaceName.slice(0,2).toUpperCase() : 'KL'}
+      <div style={{
+        minHeight: 60, flexShrink: 0,
+        display: 'flex', alignItems: 'center', gap: 12, padding: '11px 18px',
+        borderBottom: '1px solid var(--line)',
+        background: 'color-mix(in srgb, var(--canvas) 80%, transparent)',
+        backdropFilter: 'blur(8px)',
+        position: 'relative', zIndex: 30,
+      }}>
+        {/* Left: back + workspace label + undo/redo */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+          <a href={`/workspace/${workspaceId}`} className="btn btn-sm btn-ghost"
+            style={{ gap: 5, textDecoration: 'none', flexShrink: 0 }}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 6l-6 6 6 6"/></svg>
+            Retour
+          </a>
+          <span style={{ width: 1, height: 24, background: 'var(--line)', flexShrink: 0 }} />
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <div style={{ width: 24, height: 24, borderRadius: 7, background: 'var(--mint)', display: 'grid', placeItems: 'center', flexShrink: 0 }}>
+              <span style={{ fontFamily: 'var(--display)', fontWeight: 900, fontSize: 10, color: '#06281C', letterSpacing: '-0.02em' }}>
+                {workspaceName ? workspaceName.slice(0,2).toUpperCase() : 'KL'}
+              </span>
+            </div>
+            <span style={{ fontWeight: 600, fontSize: 13, color: 'var(--ink)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 140 }}>{workspaceName || 'Éditeur'}</span>
+            <span className="chip" style={{ background: 'var(--sunk)', color: 'var(--ink-2)', fontSize: 10.5 }}>
+              {activeFormat.label}{slides.length > 1 ? ` · ${slides.length} slides` : ''}
             </span>
           </div>
-          <span style={{ fontWeight: 700, fontSize: 13.5, color: 'var(--cream)', fontFamily: 'var(--sans)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 160 }}>{workspaceName || 'Éditeur'}</span>
-          <span style={{ fontSize: 11, fontWeight: 700, fontFamily: 'var(--mono)', color: 'var(--cream-2)', background: 'rgba(238,237,227,.1)', padding: '3px 8px', borderRadius: 5, flexShrink: 0 }}>
-            Post · {activeFormat.label}{slides.length > 1 ? ` · ${slides.length} slides` : ''}
-          </span>
-        </div>
-
-        {/* Center: aperçu + dupliquer */}
-        <div style={{ display: 'flex', gap: 6 }}>
-          <button className="btn btn-sm" style={{ background: 'transparent', boxShadow: 'inset 0 0 0 1px rgba(238,237,227,.22)', color: 'var(--cream-2)' }}>
-            Aperçu
+          <span style={{ width: 1, height: 24, background: 'var(--line)', flexShrink: 0 }} />
+          <button onClick={undo} disabled={!canUndo} title="Annuler Ctrl+Z" className="ed-hbtn"
+            style={{ opacity: canUndo ? 1 : 0.3 }}>
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M9 7L4 12l5 5M4 12h11a5 5 0 0 1 0 10h-1"/></svg>
           </button>
-          <button className="btn btn-sm" style={{ background: 'transparent', boxShadow: 'inset 0 0 0 1px rgba(238,237,227,.22)', color: 'var(--cream-2)' }}>
-            Dupliquer
+          <button onClick={redo} disabled={!canRedo} title="Rétablir" className="ed-hbtn"
+            style={{ opacity: canRedo ? 1 : 0.3 }}>
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M15 7l5 5-5 5M20 12H9a5 5 0 0 0 0 10h1"/></svg>
           </button>
         </div>
 
-        {/* Right: undo/redo + export + save */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <button onClick={undo} disabled={!canUndo} title="Annuler Ctrl+Z"
-            style={{ width: 30, height: 30, background: 'transparent', border: 'none', borderRadius: 6, cursor: canUndo ? 'pointer' : 'default', fontSize: 15, color: 'rgba(238,237,227,.45)', opacity: canUndo ? 1 : 0.3, display: 'grid', placeItems: 'center' }}>↩</button>
-          <button onClick={redo} disabled={!canRedo} title="Rétablir"
-            style={{ width: 30, height: 30, background: 'transparent', border: 'none', borderRadius: 6, cursor: canRedo ? 'pointer' : 'default', fontSize: 15, color: 'rgba(238,237,227,.45)', opacity: canRedo ? 1 : 0.3, display: 'grid', placeItems: 'center' }}>↪</button>
-          <div style={{ width: 1, height: 20, background: 'rgba(238,237,227,.1)', margin: '0 4px' }} />
-          <button onClick={exportPNG} className="btn btn-sm"
-            style={{ background: 'transparent', boxShadow: 'inset 0 0 0 1px rgba(238,237,227,.22)', color: 'var(--cream-2)' }}>
-            Exporter PNG
+        {/* Center: contextual hint / selected element label */}
+        <div style={{ flex: 1, display: 'flex', justifyContent: 'center', minWidth: 0 }}>
+          {selectedEl ? (
+            <span style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12.5, fontWeight: 600, color: 'var(--ink-2)', background: 'var(--sunk)', padding: '6px 14px', borderRadius: 9 }}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                {selectedEl.type === 'text' && <><polyline points="4 7 4 4 20 4 20 7"/><line x1="9" y1="20" x2="15" y2="20"/><line x1="12" y1="4" x2="12" y2="20"/></>}
+                {selectedEl.type === 'image' && <><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></>}
+                {(selectedEl.type === 'rect' || selectedEl.type === 'circle' || selectedEl.type === 'star') && <><rect x="4" y="4" width="16" height="16" rx="2.5"/></>}
+              </svg>
+              {selectedEl.type === 'text' ? (selectedEl as TextEl).text.slice(0, 32) : selectedEl.type === 'image' ? 'Image' : 'Forme'}
+            </span>
+          ) : (
+            <span style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--ink-3)', display: 'flex', alignItems: 'center', gap: 7 }}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+              Sélectionnez un calque pour le modifier
+            </span>
+          )}
+        </div>
+
+        {/* Right: delete + export + save */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+          <button onClick={deletePost} title="Supprimer ce post" className="ed-hbtn"
+            style={{ color: 'var(--warn)' }}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M4 7h16M9 7V4.5h6V7M6 7l1 13h10l1-13"/></svg>
+          </button>
+          <span style={{ width: 1, height: 24, background: 'var(--line)' }} />
+          <button onClick={exportPNG} className="btn btn-sm btn-ghost" style={{ height: 36 }}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M12 16V4M7 9l5-5 5 5"/><path d="M4 16v2.5A1.5 1.5 0 0 0 5.5 20h13a1.5 1.5 0 0 0 1.5-1.5V16"/></svg>
+            Exporter
           </button>
           <button onClick={handleSave} disabled={saving} className="btn btn-sm btn-primary"
-            style={{ opacity: saving ? 0.6 : 1, cursor: saving ? 'not-allowed' : 'pointer' }}>
-            {saving ? 'Sauvegarde…' : 'Sauvegarder →'}
+            style={{ height: 36, opacity: saving ? 0.6 : 1, cursor: saving ? 'not-allowed' : 'pointer' }}>
+            {saving ? 'Sauvegarde…' : 'Sauvegarder'}
           </button>
         </div>
       </div>
@@ -1297,7 +1324,7 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
       <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
 
         {/* ── LEFT SIDEBAR — tool rail ── */}
-        <div style={{ width: 68, background: 'var(--canvas)', borderRight: '1px solid var(--line)', display: 'flex', flexDirection: 'column', alignItems: 'center', paddingTop: 10, gap: 2, flexShrink: 0 }}>
+        <div style={{ width: 68, background: 'var(--white)', borderRight: '1px solid var(--line)', display: 'flex', flexDirection: 'column', alignItems: 'center', paddingTop: 10, gap: 2, flexShrink: 0 }}>
           {([
             { id: 'media',    label: 'Média',    icon: (
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
@@ -1340,7 +1367,7 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
         </div>
 
         {/* ── CANVAS ── */}
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', overflow: 'hidden', background: 'var(--sunk)', position: 'relative' }}>
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', overflow: 'hidden', background: 'radial-gradient(120% 80% at 50% -10%, #F8F7F0, var(--sunk) 70%)', position: 'relative' }}>
           <div ref={canvasAreaRef} style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'auto', padding: 28 }}>
             {/* Bug 4 fix: outer div has no overflow:hidden so handles (-5px) aren't clipped */}
             <div style={{ borderRadius: 18, boxShadow: '0 22px 50px -24px rgba(13,15,10,.45)', flexShrink: 0, position: 'relative', transform: `scale(${zoom})`, transformOrigin: 'center center' }}>
@@ -1500,12 +1527,39 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
             )}
           </div>
 
+          {/* ── ZOOM BAR ── */}
+          <div style={{
+            height: 50, flexShrink: 0,
+            background: 'var(--white)', borderTop: '1px solid var(--line)',
+            display: 'flex', alignItems: 'center', gap: 14, padding: '0 18px',
+          }}>
+            <span className="chip" style={{ background: 'var(--sunk)', color: 'var(--ink-2)' }}>
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="16" rx="3"/><circle cx="8.5" cy="9.5" r="1.6"/><path d="M21 16l-5-5L5 20"/></svg>
+              {activeFormat.label}
+            </span>
+            <span style={{ fontSize: 12, color: 'var(--ink-3)', fontWeight: 600 }}>{workspaceName}</span>
+            <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 10 }}>
+              <button onClick={() => setZoom(z => Math.max(0.15, +(z - 0.1).toFixed(2)))} className="ed-hbtn" style={{ width: 28, height: 28 }}>
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14"/></svg>
+              </button>
+              <input type="range" min={0.15} max={1.5} step={0.01} value={zoom}
+                onChange={(e) => setZoom(parseFloat(e.target.value))}
+                className="ed-range" style={{ width: 120 }} />
+              <button onClick={() => setZoom(z => Math.min(1.5, +(z + 0.1).toFixed(2)))} className="ed-hbtn" style={{ width: 28, height: 28 }}>
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12h14"/></svg>
+              </button>
+              <button onClick={() => setZoom(1)} style={{ fontFamily: 'var(--mono)', fontWeight: 800, fontSize: 12, width: 48, textAlign: 'center', fontVariantNumeric: 'tabular-nums', color: zoom !== 1 ? 'var(--mint-2)' : 'var(--ink-3)' }}>
+                {Math.round(zoom * 100)}%
+              </button>
+            </div>
+          </div>
+
           {/* ── SLIDE STRIP ── */}
           <div style={{
-            height: 88, flexShrink: 0,
+            height: 80, flexShrink: 0,
             background: 'var(--canvas)', borderTop: '1px solid var(--line)',
             display: 'flex', alignItems: 'center',
-            padding: '0 20px', gap: 8,
+            padding: '0 16px', gap: 8,
             overflowX: 'auto',
           }}>
             {slides.map((slide, idx) => {
@@ -1564,9 +1618,9 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
 
           {/* ── LAYERS PANEL ── */}
           <div style={{ borderBottom: '1px solid var(--line)', flexShrink: 0 }}>
-            <div style={{ padding: '8px 12px 6px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <span style={{ fontSize: 9.5, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '0.12em', fontFamily: 'var(--mono)', fontWeight: 800 }}>Calques</span>
-              <span style={{ fontSize: 10.5, color: 'var(--ink-3)', fontFamily: 'var(--mono)' }}>{elements.length + (proxyUrl ? 1 : 0)}</span>
+            <div style={{ padding: '10px 14px 8px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <span className="label">Calques</span>
+              <span style={{ fontFamily: 'var(--mono)', fontWeight: 800, fontSize: 11, color: 'var(--ink-3)', background: 'var(--sunk)', padding: '2px 7px', borderRadius: 99 }}>{elements.length + (proxyUrl ? 1 : 0)}</span>
             </div>
             {[...elements].reverse().map((el, reversedIdx) => {
               const actualIdx = elements.length - 1 - reversedIdx;
@@ -1649,7 +1703,7 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
           {selectedEl && (
             <div style={{ padding: '14px 16px', borderBottom: '1px solid var(--line)' }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
-                <span style={{ fontSize: 11, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '0.12em', fontFamily: 'var(--mono)', fontWeight: 800 }}>
+                <span className="label">
                   {selectedEl.type === 'text' ? 'Texte' : selectedEl.type === 'image' ? 'Image' : 'Forme'}
                 </span>
                 <div style={{ display: 'flex', gap: 4 }}>
