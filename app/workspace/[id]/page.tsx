@@ -24,6 +24,7 @@ interface PostItem {
   status: PostStatus;
   error?: string;
   created_at?: string;
+  templateId?: string | null;  // template chosen BEFORE generation
 }
 
 interface Workspace {
@@ -46,7 +47,11 @@ interface PostTemplate {
   thumbnail_url: string | null;
   format_id: string;
   background_style: { type: string; color?: string; colorFrom?: string; colorTo?: string; angle?: number } | null;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  text_zones: any[];  // full CanvasEl[] — needed to build zone-aware prompt + editor_json
 }
+
+const PHOTO_PLACEHOLDER_SRC_COMPOSER = '__PHOTO_PLACEHOLDER__';
 
 // ─── Status badge ─────────────────────────────────────────────────────────────
 
@@ -243,6 +248,8 @@ export default function WorkspacePage() {
   const [savingSettings, setSavingSettings] = useState(false);
   const [templates, setTemplates] = useState<PostTemplate[]>([]);
   const [templatePickerPost, setTemplatePickerPost] = useState<PostItem | null>(null);
+  // Pre-generation template picker (user selects template BEFORE clicking Générer)
+  const [preGenPickerPost, setPreGenPickerPost] = useState<PostItem | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -279,7 +286,7 @@ export default function WorkspacePage() {
 
     const { data: tpls } = await supabase
       .from("post_templates")
-      .select("id, name, thumbnail_url, format_id, background_style")
+      .select("id, name, thumbnail_url, format_id, background_style, text_zones")
       .eq("workspace_id", id)
       .order("sort_order", { ascending: true });
     if (tpls) setTemplates(tpls);
@@ -308,6 +315,7 @@ export default function WorkspacePage() {
         photo_url: URL.createObjectURL(file),
         brief: "", description: "", texte_visuel: "",
         status: "idle" as PostStatus,
+        templateId: null,
       }));
     setPosts((prev) => [...newItems, ...prev]);
     e.target.value = "";
@@ -330,9 +338,25 @@ export default function WorkspacePage() {
     if (!item.brief.trim() || item.status === "generating") return;
     setPosts((prev) => prev.map((p) => (p.localId === item.localId ? { ...p, status: "generating", error: undefined } : p)));
     try {
-      // DIAGNOSTIC — ces logs révèlent pourquoi le template n'est pas pris en compte
-      console.log('[Generate] template_id:', null, '← pas de template au moment de Générer dans le Composer');
-      console.log('[Generate] text_zones sent:', [], '← Composer ne connaît pas les zones du template');
+      // ── Template zone detection ────────────────────────────────────────────
+      const selectedTemplate = item.templateId
+        ? templates.find(t => t.id === item.templateId) ?? null
+        : null;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const allZones: any[] = Array.isArray(selectedTemplate?.text_zones) ? selectedTemplate!.text_zones : [];
+      // Only send zones that have a role — those are AI-fillable
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const templateZones = allZones
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        .filter((z: any) => z.type === 'text' && z.role)
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        .map((z: any) => ({
+          id: z.id,
+          role: z.role,
+          width: Math.max(z.width ?? 200, 1),
+          height: Math.max(z.fontSize + ((z.paddingV ?? z.padding ?? 8) * 2), 1),
+          fontSize: Math.max(z.fontSize ?? 24, 1),
+        }));
 
       // For video posts, don't pass photoUrl to the AI (no frame analysis)
       const photoUrl = item.isVideo ? undefined : (item.photo_url.startsWith("http") ? item.photo_url : undefined);
@@ -356,32 +380,74 @@ export default function WorkspacePage() {
           wordsToAvoid: workspace?.words_to_avoid ?? undefined,
           captionExamples: workspace?.caption_examples ?? undefined,
           descriptionStyle: workspace?.description_style ?? undefined,
+          // Template zone structure (if template selected before generating)
+          templateZones: templateZones.length > 0 ? templateZones : undefined,
         }),
       });
       const data = await res.json();
-      console.log('[Generate] API raw response:', data);
-      console.log('[Generate] parsed result:', { zoneBlocks: data.zoneBlocks ?? null, blocks: data.blocks ?? null, texte_visuel: data.texte_visuel });
       if (res.ok && (data.texte_visuel || data.description)) {
-        const texte_visuel = item.isVideo ? "" : (data.texte_visuel ?? ""); // no visual text for video
+        const texte_visuel = item.isVideo ? "" : (data.texte_visuel ?? "");
         const description = data.description ?? "";
-        console.log('[Generate] zones after update:', '← N/A : le canvas est dans /editor, pas dans le Composer');
+
+        // Upload photo first (need public URL for editor_json)
         let dbId = item.dbId;
         let pUrl = item.photo_url;
-        if (!dbId) {
-          if (item.file) {
-            const ext = item.file.name.split(".").pop() ?? (item.isVideo ? "mp4" : "jpg");
-            const path = `${id}/${crypto.randomUUID()}.${ext}`;
-            const bucket = item.isVideo ? "videos" : "photos";
-            const { error: uploadError } = await supabase.storage.from(bucket).upload(path, item.file, { upsert: true });
-            if (!uploadError) {
-              const { data: urlData } = supabase.storage.from(bucket).getPublicUrl(path);
-              pUrl = urlData.publicUrl;
-            }
+        if (item.file) {
+          const ext = item.file.name.split(".").pop() ?? (item.isVideo ? "mp4" : "jpg");
+          const path = `${id}/${crypto.randomUUID()}.${ext}`;
+          const bucket = item.isVideo ? "videos" : "photos";
+          const { error: uploadError } = await supabase.storage.from(bucket).upload(path, item.file, { upsert: true });
+          if (!uploadError) {
+            const { data: urlData } = supabase.storage.from(bucket).getPublicUrl(path);
+            pUrl = urlData.publicUrl;
           }
-          const { data: post } = await supabase.from("posts").insert({ workspace_id: id, photo_url: pUrl, brief: item.brief, texte_visuel, description, status: "generated" }).select().single();
+        }
+
+        // ── Build editor_json from template zones + AI zone blocks ───────────
+        let editorJson: string | undefined;
+        if (selectedTemplate && data.zoneBlocks && typeof data.zoneBlocks === 'object') {
+          const zoneBlocks = data.zoneBlocks as Record<string, string>;
+          const proxyUrl = pUrl.startsWith('http') ? `/api/proxy-image?url=${encodeURIComponent(pUrl)}` : '';
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const hasPhotoZone = allZones.some((z: any) => z.type === 'image' && z.src === PHOTO_PLACEHOLDER_SRC_COMPOSER);
+
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const initialElements = allZones.map((el: any) => {
+            // Fill text zones with AI-generated content
+            if (el.type === 'text' && zoneBlocks[el.id]) {
+              return { ...el, text: zoneBlocks[el.id] };
+            }
+            // Replace photo placeholder with actual photo
+            if (el.type === 'image' && el.src === PHOTO_PLACEHOLDER_SRC_COMPOSER) {
+              return { ...el, id: `tpl-${el.id}`, src: proxyUrl };
+            }
+            return { ...el, id: el.id.startsWith('tpl-') ? el.id : `tpl-${el.id}` };
+          });
+
+          editorJson = JSON.stringify({
+            version: 2,
+            slides: [{
+              id: 'slide-1',
+              elements: initialElements,
+              proxyUrl: hasPhotoZone ? '' : proxyUrl,
+              bgStyle: selectedTemplate.background_style ?? undefined,
+            }],
+          });
+        }
+
+        if (!dbId) {
+          const { data: post } = await supabase.from("posts").insert({
+            workspace_id: id, photo_url: pUrl, brief: item.brief,
+            texte_visuel, description, status: "generated",
+            template_id: item.templateId ?? null,
+            ...(editorJson ? { editor_json: editorJson } : {}),
+          }).select().single();
           if (post) dbId = post.id;
         } else {
-          await supabase.from("posts").update({ texte_visuel, description, status: "generated" }).eq("id", dbId);
+          await supabase.from("posts").update({
+            texte_visuel, description, status: "generated",
+            ...(editorJson ? { editor_json: editorJson } : {}),
+          }).eq("id", dbId);
         }
         setPosts((prev) => prev.map((p) => p.localId === item.localId ? { ...p, dbId, photo_url: pUrl, texte_visuel, description, status: "generated", error: undefined } : p));
       } else {
@@ -445,12 +511,14 @@ export default function WorkspacePage() {
     }
   }
 
-  // Opens template picker if templates exist, otherwise goes straight to editor
+  // Opens template picker if templates exist and no template was pre-selected
   function openEditorWithTemplatePicker(post: PostItem) {
-    if (post.isVideo || templates.length === 0) {
-      validatePost(post, null);
-      return;
-    }
+    if (post.isVideo) { validatePost(post, null); return; }
+    // Template was already chosen before generation → go straight to editor
+    if (post.templateId) { validatePost(post, post.templateId); return; }
+    // No templates at all → skip picker
+    if (templates.length === 0) { validatePost(post, null); return; }
+    // Show picker
     setTemplatePickerPost(post);
   }
 
@@ -766,6 +834,42 @@ export default function WorkspacePage() {
 
                             {!isGenerated ? (
                               <>
+                                {/* ── Template selector (before generation) ── */}
+                                {!post.isVideo && templates.length > 0 && (() => {
+                                  const activeTpl = post.templateId ? templates.find(t => t.id === post.templateId) : null;
+                                  const bg = activeTpl?.background_style;
+                                  const gradientCss = bg?.type === 'gradient'
+                                    ? `linear-gradient(${bg.angle ?? 135}deg, ${bg.colorFrom ?? '#0038FF'}, ${bg.colorTo ?? '#fff'})`
+                                    : bg?.type === 'solid' ? (bg.color ?? 'var(--sunk)') : 'var(--sunk)';
+                                  return (
+                                    <button
+                                      onClick={() => setPreGenPickerPost(post)}
+                                      style={{
+                                        display: 'flex', alignItems: 'center', gap: 8,
+                                        padding: '7px 10px', borderRadius: 'var(--r-s)',
+                                        background: 'var(--sunk)', border: '1px solid var(--line)',
+                                        cursor: 'pointer', width: '100%', textAlign: 'left',
+                                        transition: 'border-color .15s',
+                                      }}
+                                      onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--mint-2)'; }}
+                                      onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--line)'; }}
+                                    >
+                                      {activeTpl ? (
+                                        <>
+                                          <span style={{ width: 22, height: 22, borderRadius: 5, background: gradientCss, flexShrink: 0, border: '1px solid rgba(0,0,0,.08)' }} />
+                                          <span style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--ink)', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{activeTpl.name}</span>
+                                          <span style={{ fontSize: 11, color: 'var(--mint-2)', fontWeight: 700 }}>Changer →</span>
+                                        </>
+                                      ) : (
+                                        <>
+                                          <span style={{ fontSize: 15, lineHeight: 1 }}>🎨</span>
+                                          <span style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--ink-3)', flex: 1 }}>Choisir un template</span>
+                                          <span style={{ fontSize: 11, color: 'var(--ink-3)' }}>optionnel →</span>
+                                        </>
+                                      )}
+                                    </button>
+                                  );
+                                })()}
                                 <textarea
                                   value={post.brief}
                                   onChange={(e) => updateBrief(post.localId, e.target.value)}
@@ -908,7 +1012,7 @@ export default function WorkspacePage() {
         </div>
       </div>
 
-      {/* Template picker modal */}
+      {/* Template picker modal — post-generation (before opening editor) */}
       {templatePickerPost && (
         <TemplatePicker
           templates={templates}
@@ -918,6 +1022,20 @@ export default function WorkspacePage() {
             validatePost(post, tplId);
           }}
           onClose={() => setTemplatePickerPost(null)}
+        />
+      )}
+
+      {/* Template picker modal — pre-generation (before clicking Générer) */}
+      {preGenPickerPost && (
+        <TemplatePicker
+          templates={templates}
+          onSelect={(tplId) => {
+            const localId = preGenPickerPost.localId;
+            setPreGenPickerPost(null);
+            // Store template on the post item — doesn't open editor
+            setPosts(prev => prev.map(p => p.localId === localId ? { ...p, templateId: tplId } : p));
+          }}
+          onClose={() => setPreGenPickerPost(null)}
         />
       )}
 
