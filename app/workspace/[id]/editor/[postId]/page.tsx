@@ -439,6 +439,7 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
 
   const [proxyUrl, setProxyUrl] = useState<string>('');
   const [bgStyle, setBgStyle] = useState<BgStyle | null>(null);
+  const [postTemplateId, setPostTemplateId] = useState<string | null>(null);
   const [bgOffsetX, setBgOffsetX] = useState(0);
   const [bgOffsetY, setBgOffsetY] = useState(0);
   const [bgCropMode, setBgCropMode] = useState(false);
@@ -618,6 +619,7 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
           supabase.from('workspaces').select('*').eq('id', workspaceId).maybeSingle(),
         ]);
         if (postError) throw postError;
+        if (p?.template_id) setPostTemplateId(p.template_id);
         if (p?.photo_url) { setPostPhotoUrl(p.photo_url); }
         if (w) {
           setWorkspaceName(w.name || '');
@@ -1111,6 +1113,10 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
           };
         });
 
+      // ── DIAGNOSTIC LOGS ──────────────────────────────────────────────────────
+      console.log('[Generate] template_id:', postTemplateId);
+      console.log('[Generate] text_zones sent:', templateZones);
+
       // ── 4D (legacy): role-name map — used only when no template zones ─────────
       const textRoles: Record<string, string> = {};
       if (templateZones.length === 0) {
@@ -1159,6 +1165,8 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
         }),
       });
       const data = await res.json();
+      console.log('[Generate] API raw response:', data);
+      console.log('[Generate] parsed result:', data.zoneBlocks ?? data.blocks ?? null);
 
       // ── 5A: apply zone_blocks by element ID (primary — template mode) ─────────
       if (data.zoneBlocks && typeof data.zoneBlocks === 'object') {
@@ -1184,13 +1192,17 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
         applyElements(newEls, false);
       }
 
+      console.log('[Generate] zones after update:', elementsRef.current
+        .filter(e => e.type === 'text')
+        .map(e => ({ id: e.id, role: (e as TextEl).role, text: (e as TextEl).text.slice(0, 40) })));
+
       const text: string = data?.description || data?.texte_visuel || '';
       let i = 0;
       aiTimerRef.current = setInterval(() => {
         i += 3; setAiCaption(text.slice(0, i));
         if (i >= text.length) { if (aiTimerRef.current) clearInterval(aiTimerRef.current); setAiTyping(false); }
       }, 14);
-    } catch { setAiTyping(false); }
+    } catch (err) { console.error('[Generate] error:', err); setAiTyping(false); }
   };
 
   const canUndo = histIdxRef.current > 0;

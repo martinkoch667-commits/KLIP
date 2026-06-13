@@ -330,6 +330,10 @@ export default function WorkspacePage() {
     if (!item.brief.trim() || item.status === "generating") return;
     setPosts((prev) => prev.map((p) => (p.localId === item.localId ? { ...p, status: "generating", error: undefined } : p)));
     try {
+      // DIAGNOSTIC — ces logs révèlent pourquoi le template n'est pas pris en compte
+      console.log('[Generate] template_id:', null, '← pas de template au moment de Générer dans le Composer');
+      console.log('[Generate] text_zones sent:', [], '← Composer ne connaît pas les zones du template');
+
       // For video posts, don't pass photoUrl to the AI (no frame analysis)
       const photoUrl = item.isVideo ? undefined : (item.photo_url.startsWith("http") ? item.photo_url : undefined);
       const combinedBrief = globalBrief.trim()
@@ -355,9 +359,12 @@ export default function WorkspacePage() {
         }),
       });
       const data = await res.json();
+      console.log('[Generate] API raw response:', data);
+      console.log('[Generate] parsed result:', { zoneBlocks: data.zoneBlocks ?? null, blocks: data.blocks ?? null, texte_visuel: data.texte_visuel });
       if (res.ok && (data.texte_visuel || data.description)) {
         const texte_visuel = item.isVideo ? "" : (data.texte_visuel ?? ""); // no visual text for video
         const description = data.description ?? "";
+        console.log('[Generate] zones after update:', '← N/A : le canvas est dans /editor, pas dans le Composer');
         let dbId = item.dbId;
         let pUrl = item.photo_url;
         if (!dbId) {
