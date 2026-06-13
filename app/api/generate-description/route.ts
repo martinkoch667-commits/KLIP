@@ -31,8 +31,10 @@ export async function POST(request: NextRequest) {
       captionExamples,
       brandVoicePrompt,
       descriptionStyle,
-      // 4D — structured text block roles
+      // 4D — structured text block roles (legacy: keyed by role name)
       textRoles,
+      // 5A — template zones (new: keyed by element id, includes size info)
+      templateZones,
       // 5B — post context
       context,
       // 5C — approved captions (brand memory)
@@ -59,8 +61,23 @@ export async function POST(request: NextRequest) {
     const captionRef   = captionExamples || '';
     const contextText  = context || brief;
 
-    // ─── 4D — Text block roles ────────────────────────────────────────────────
-    const hasRoles = textRoles && typeof textRoles === 'object' && Object.keys(textRoles).length > 0;
+    // ─── 5A — Template zones (ID-keyed, with size info) ──────────────────────
+    type TemplateZone = { id: string; role?: string; width: number; height: number; fontSize: number };
+    const ROLE_LABELS: Record<string, string> = {
+      titre: 'Titre principal',
+      'sous-titre': 'Sous-titre',
+      accroche: 'Accroche / Tag',
+      corps: 'Corps de texte',
+      cta: 'Call-to-action',
+      prix: 'Prix / Offre',
+      personnalise: 'Zone personnalisée',
+    };
+    const zonesArray: TemplateZone[] = Array.isArray(templateZones) ? templateZones : [];
+    const activeZones = zonesArray.filter(z => z.role); // only zones with a role are AI-fillable
+    const hasZoneMode = activeZones.length > 0;
+
+    // ─── 4D — Text block roles (legacy fallback) ──────────────────────────────
+    const hasRoles = !hasZoneMode && textRoles && typeof textRoles === 'object' && Object.keys(textRoles).length > 0;
     const roleKeys = hasRoles ? Object.keys(textRoles as Record<string, string>) : [];
 
     // ─── Build the user prompt ────────────────────────────────────────────────
@@ -123,7 +140,22 @@ export async function POST(request: NextRequest) {
     lines.push('- Le texte doit sonner comme quelqu\'un qui connaît vraiment ce monde');
     lines.push('- Avant d\'écrire : imagine la marque premium de référence de ce secteur. Fais mieux ou au même niveau');
 
-    if (hasRoles) {
+    if (hasZoneMode) {
+      lines.push('');
+      lines.push('── ZONES DU TEMPLATE ─────────────────────────────────────────');
+      lines.push('Ce visuel utilise un template avec ces zones de texte à remplir :');
+      activeZones.forEach(z => {
+        const roleLabel = ROLE_LABELS[z.role!] ?? z.role;
+        const safeW = Math.max(z.width ?? 200, 1);
+        const safeH = Math.max(z.height ?? z.fontSize * 2, 1);
+        const safeF = Math.max(z.fontSize ?? 24, 1);
+        const maxChars = Math.max(5, Math.floor((safeW / (safeF * 0.55)) * (safeH / (safeF * 1.3))));
+        lines.push(`- "${roleLabel}" (id: ${z.id}) : maximum ${maxChars} caractères`);
+      });
+      lines.push('');
+      lines.push('Si certaines zones forment naturellement une seule phrase ou idée (ex: titre + accroche),');
+      lines.push('répartis-la de façon cohérente — chaque zone doit avoir du sens isolément ET ensemble.');
+    } else if (hasRoles) {
       lines.push('');
       lines.push('── BLOCS DE TEXTE VISUELS (rôles) ───────────────────────────');
       lines.push(`Blocs présents sur le visuel : ${roleKeys.join(', ')}`);
@@ -134,7 +166,10 @@ export async function POST(request: NextRequest) {
     lines.push('── FORMAT DE RÉPONSE ─────────────────────────────────────────');
     lines.push('Réponds UNIQUEMENT avec ce JSON valide, sans rien avant ni après :');
 
-    if (hasRoles) {
+    if (hasZoneMode) {
+      const zoneExample = activeZones.map(z => `"${z.id}": "texte pour ${ROLE_LABELS[z.role!] ?? z.role}"`).join(', ');
+      lines.push(`{ "texte_visuel": "TITRE VISUEL", "description": "Caption Instagram avec hashtags.", "zone_blocks": { ${zoneExample} } }`);
+    } else if (hasRoles) {
       const blocksExample = roleKeys.map(r => `"${r}": "contenu pour ${r}"`).join(', ');
       lines.push(`{ "texte_visuel": "TITRE VISUEL", "description": "Caption Instagram avec hashtags.", "blocks": { ${blocksExample} } }`);
     } else {
@@ -173,7 +208,8 @@ export async function POST(request: NextRequest) {
       },
       body: JSON.stringify({
         model: 'claude-opus-4-5',
-        max_tokens: 400,
+        // Zone-mode or role-mode needs more tokens for the extra JSON blocks
+        max_tokens: hasZoneMode ? 800 : hasRoles ? 600 : 400,
         temperature: 0.85,
         system: SYSTEM_PROMPT,
         messages: [{ role: 'user', content }],
@@ -193,6 +229,7 @@ export async function POST(request: NextRequest) {
     let texte_visuel = '';
     let description = '';
     let blocks: Record<string, string> | null = null;
+    let zoneBlocks: Record<string, string> | null = null;
 
     try {
       const jsonMatch = rawText.match(/\{[\s\S]*\}/);
@@ -201,6 +238,7 @@ export async function POST(request: NextRequest) {
         texte_visuel = (parsed.texte_visuel ?? '').trim();
         description  = (parsed.description  ?? '').trim();
         if (parsed.blocks && typeof parsed.blocks === 'object') blocks = parsed.blocks;
+        if (parsed.zone_blocks && typeof parsed.zone_blocks === 'object') zoneBlocks = parsed.zone_blocks;
       } else {
         description = rawText;
       }
@@ -208,9 +246,14 @@ export async function POST(request: NextRequest) {
       description = rawText;
     }
 
-    console.log(`[generate-description] done — texte_visuel="${texte_visuel.slice(0, 40)}" desc_len=${description.length}`);
+    console.log(`[generate-description] done — texte_visuel="${texte_visuel.slice(0, 40)}" desc_len=${description.length} zones=${zoneBlocks ? Object.keys(zoneBlocks).length : 0}`);
 
-    return NextResponse.json({ texte_visuel, description, ...(blocks ? { blocks } : {}) });
+    return NextResponse.json({
+      texte_visuel,
+      description,
+      ...(blocks ? { blocks } : {}),
+      ...(zoneBlocks ? { zoneBlocks } : {}),
+    });
 
   } catch (error: unknown) {
     console.error('[generate-description] unexpected error:', error);

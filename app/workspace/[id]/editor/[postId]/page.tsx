@@ -1095,11 +1095,29 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
     if (aiTimerRef.current) clearInterval(aiTimerRef.current);
     setAiTyping(true); setAiCaption(''); setCaptionEdited(false);
     try {
-      // 4D — collect role-tagged text elements for structured generation
+      // ── 5A: collect template zones (ID-keyed, with size info for char limits) ─
+      const templateZones = elementsRef.current
+        .filter(el => el.type === 'text' && (el as TextEl).role)
+        .map(el => {
+          const t = el as TextEl;
+          const pH = t.paddingH ?? t.padding ?? 12;
+          const pV = t.paddingV ?? t.padding ?? 8;
+          return {
+            id: t.id,
+            role: t.role,
+            width: Math.max(t.width ?? 200, 1),
+            height: Math.max(t.fontSize + pV * 2, 1),
+            fontSize: Math.max(t.fontSize, 1),
+          };
+        });
+
+      // ── 4D (legacy): role-name map — used only when no template zones ─────────
       const textRoles: Record<string, string> = {};
-      elementsRef.current.forEach(el => {
-        if (el.type === 'text' && (el as TextEl).role) textRoles[(el as TextEl).role!] = (el as TextEl).text;
-      });
+      if (templateZones.length === 0) {
+        elementsRef.current.forEach(el => {
+          if (el.type === 'text' && (el as TextEl).role) textRoles[(el as TextEl).role!] = (el as TextEl).text;
+        });
+      }
 
       // 5C — fetch last approved captions for this workspace (brand memory)
       const { data: recentPosts } = await supabase
@@ -1130,7 +1148,9 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
           wordsToAvoid: workspaceData?.words_to_avoid,
           captionExamples: workspaceData?.caption_examples,
           descriptionStyle: workspaceData?.description_style,
-          // 4D — text block roles
+          // 5A — template zones with dimensions (replaces role-name map when present)
+          templateZones: templateZones.length > 0 ? templateZones : undefined,
+          // 4D — legacy role-name map (only sent when no template zones)
           textRoles: Object.keys(textRoles).length > 0 ? textRoles : undefined,
           // 5B — post context
           context: postContext.trim() || undefined,
@@ -1140,11 +1160,23 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
       });
       const data = await res.json();
 
-      // 4D — auto-inject generated blocks into role-tagged elements
-      if (data.blocks && typeof data.blocks === 'object') {
+      // ── 5A: apply zone_blocks by element ID (primary — template mode) ─────────
+      if (data.zoneBlocks && typeof data.zoneBlocks === 'object') {
+        const newEls = elementsRef.current.map(el => {
+          if (el.type === 'text') {
+            const generated = (data.zoneBlocks as Record<string, string>)[el.id];
+            if (generated) return { ...el, text: generated } as TextEl;
+          }
+          return el;
+        });
+        applyElements(newEls, false);
+      }
+
+      // ── 4D: apply blocks by role name (fallback — no-template mode) ──────────
+      if (!data.zoneBlocks && data.blocks && typeof data.blocks === 'object') {
         const newEls = elementsRef.current.map(el => {
           if (el.type === 'text' && (el as TextEl).role) {
-            const generated = data.blocks[(el as TextEl).role!];
+            const generated = (data.blocks as Record<string, string>)[(el as TextEl).role!];
             if (generated) return { ...el, text: generated } as TextEl;
           }
           return el;
