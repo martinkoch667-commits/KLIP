@@ -64,3 +64,40 @@ CREATE POLICY "Users see own workspaces" ON workspaces
   FOR ALL
   USING (auth.uid() = user_id)
   WITH CHECK (auth.uid() = user_id);
+
+-- ── post_templates ────────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS post_templates (
+  id               UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  workspace_id     UUID NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
+  name             TEXT NOT NULL DEFAULT 'Template sans nom',
+  format_id        TEXT NOT NULL DEFAULT 'ig-portrait',
+  background_style JSONB NOT NULL DEFAULT '{"type":"gradient","angle":135,"colorFrom":"#0038FF","colorTo":"#FFFFFF"}'::jsonb,
+  text_zones       JSONB NOT NULL DEFAULT '[]'::jsonb,
+  logo_placement   JSONB DEFAULT NULL,
+  thumbnail_url    TEXT,
+  sort_order       INTEGER NOT NULL DEFAULT 0,
+  created_at       TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at       TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS post_templates_workspace_idx ON post_templates(workspace_id);
+
+CREATE OR REPLACE FUNCTION update_post_templates_updated_at()
+RETURNS TRIGGER LANGUAGE plpgsql AS $$
+BEGIN NEW.updated_at = now(); RETURN NEW; END;
+$$;
+
+DROP TRIGGER IF EXISTS post_templates_updated_at ON post_templates;
+CREATE TRIGGER post_templates_updated_at
+  BEFORE UPDATE ON post_templates
+  FOR EACH ROW EXECUTE FUNCTION update_post_templates_updated_at();
+
+ALTER TABLE post_templates ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Users manage own templates" ON post_templates;
+CREATE POLICY "Users manage own templates" ON post_templates FOR ALL
+  USING (workspace_id IN (SELECT id FROM workspaces WHERE user_id = auth.uid()))
+  WITH CHECK (workspace_id IN (SELECT id FROM workspaces WHERE user_id = auth.uid()));
+
+-- ── posts: add template reference ─────────────────────────────────────────────
+ALTER TABLE posts ADD COLUMN IF NOT EXISTS template_id UUID REFERENCES post_templates(id) ON DELETE SET NULL;

@@ -2,9 +2,14 @@
 
 import { useState, useRef, useEffect, useMemo, CSSProperties } from "react";
 import { useRouter } from "next/navigation";
+import dynamic from "next/dynamic";
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
 import Sidebar from "@/components/Sidebar";
 import ColorPicker from "@/components/ColorPicker";
+import { MiniTemplatePreview, type TemplateDraft } from "@/components/TemplateEditor";
+
+// Dynamically import TemplateEditor (no SSR — requires canvas API)
+const TemplateEditor = dynamic(() => import("@/components/TemplateEditor"), { ssr: false });
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -35,7 +40,7 @@ const TONES = [
   { value: "Doux",       desc: "Délicat, rassurant, bienveillant" },
 ];
 
-const STEP_LABELS = ["Infos de base", "Voix de marque", "Identité visuelle", "Typographie"];
+const STEP_LABELS = ["Infos de base", "Voix de marque", "Identité visuelle", "Typographie", "Templates"];
 const FONT_LIST_LIMIT = 100; // shown by default (top 100 by popularity)
 
 // ─── Module-level font loader (avoids duplicate <link> tags) ──────────────────
@@ -178,6 +183,11 @@ export default function NewWorkspacePage() {
   // Active font names (custom overrides Google selection)
   const activeFontPrimary = customPrimary ? customPrimary.family : fontPrimary;
   const activeFontSecondary = customSecondary ? customSecondary.family : fontSecondary;
+
+  // Step 5 — Templates (created before workspace exists, saved after)
+  const [pendingTemplates, setPendingTemplates] = useState<TemplateDraft[]>([]);
+  const [templateEditorOpen, setTemplateEditorOpen] = useState(false);
+  const [editingTemplateIndex, setEditingTemplateIndex] = useState<number | null>(null);
 
   // Fetch Google Fonts catalog on step 4 mount
   useEffect(() => {
@@ -332,6 +342,28 @@ export default function NewWorkspacePage() {
         throw new Error(json.error || json.hint || "Workspace non créé — voir logs Vercel");
       }
       const data = json.workspace;
+
+      // Save pending templates (created during onboarding step 5)
+      if (pendingTemplates.length > 0) {
+        await Promise.all(
+          pendingTemplates.map((tpl, i) =>
+            fetch("/api/templates", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                workspace_id: data.id,
+                name: tpl.name,
+                format_id: tpl.format_id,
+                background_style: tpl.background_style,
+                text_zones: tpl.text_zones,
+                logo_placement: tpl.logo_placement,
+                sort_order: i,
+              }),
+            })
+          )
+        );
+      }
+
       router.push(`/workspace/${data.id}`);
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : "Erreur lors de la création.";
@@ -358,7 +390,7 @@ export default function NewWorkspacePage() {
                 const active = n === step;
                 const done = n < step;
                 return (
-                  <div key={n} style={{ display: "flex", alignItems: "flex-start", flex: i < 3 ? 1 : "none" }}>
+                  <div key={n} style={{ display: "flex", alignItems: "flex-start", flex: i < 4 ? 1 : "none" }}>
                     <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6, flexShrink: 0 }}>
                       <div style={{
                         width: 34, height: 34, borderRadius: "50%",
@@ -377,7 +409,7 @@ export default function NewWorkspacePage() {
                         {label}
                       </span>
                     </div>
-                    {i < 3 && (
+                    {i < 4 && (
                       <div style={{
                         flex: 1, height: 2, marginTop: 16, marginLeft: 8, marginRight: 8,
                         background: done ? "var(--mint)" : "var(--line-2)",
@@ -919,8 +951,122 @@ export default function NewWorkspacePage() {
               </div>
             )}
 
+            {/* ─── STEP 5 — Templates ─── */}
+            {step === 5 && (
+              <div key="step5" className="screen-in" style={{ display: "flex", flexDirection: "column", gap: 28 }}>
+                <div>
+                  <h1 style={{ fontFamily: "var(--display)", fontWeight: 800, fontSize: 30, color: "var(--ink)", letterSpacing: "-0.02em", marginBottom: 8 }}>
+                    Templates
+                  </h1>
+                  <p style={{ fontSize: 14, color: "var(--ink-2)" }}>
+                    Créez les mises en page visuelles réutilisables pour {name || "ce client"}.{" "}
+                    <span style={{ color: "var(--ink-3)" }}>Cette étape est optionnelle.</span>
+                  </p>
+                </div>
+
+                {/* Grille des templates créés */}
+                {pendingTemplates.length > 0 ? (
+                  <div>
+                    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))", gap: 14, marginBottom: 16 }}>
+                      {pendingTemplates.map((tpl, i) => (
+                        <div key={i} style={{ position: "relative", cursor: "pointer" }}
+                          onClick={() => { setEditingTemplateIndex(i); setTemplateEditorOpen(true); }}>
+                          <MiniTemplatePreview
+                            bg={tpl.background_style}
+                            name={tpl.name}
+                            formatId={tpl.format_id}
+                            zonesCount={tpl.text_zones.length}
+                          />
+                          <button
+                            onClick={e => { e.stopPropagation(); setPendingTemplates(prev => prev.filter((_, j) => j !== i)); }}
+                            style={{ position: "absolute", top: 6, right: 6, width: 20, height: 20, borderRadius: "50%", background: "rgba(0,0,0,.55)", border: "none", cursor: "pointer", color: "#fff", fontSize: 12, display: "grid", placeItems: "center" }}
+                            title="Supprimer"
+                          >×</button>
+                        </div>
+                      ))}
+
+                      {/* Add another */}
+                      <button
+                        onClick={() => { setEditingTemplateIndex(null); setTemplateEditorOpen(true); }}
+                        style={{
+                          border: "2px dashed rgba(13,15,10,.15)", borderRadius: 10, background: "transparent",
+                          cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center",
+                          justifyContent: "center", gap: 6, color: "var(--ink-3)", fontSize: 13,
+                          minHeight: 110, transition: "border-color 0.15s, color 0.15s",
+                        }}
+                        onMouseEnter={e => { e.currentTarget.style.borderColor = "var(--mint)"; e.currentTarget.style.color = "var(--mint-2)"; }}
+                        onMouseLeave={e => { e.currentTarget.style.borderColor = "rgba(13,15,10,.15)"; e.currentTarget.style.color = "var(--ink-3)"; }}
+                      >
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M12 5v14M5 12h14"/>
+                        </svg>
+                        <span style={{ fontSize: 12, fontWeight: 600 }}>Ajouter</span>
+                      </button>
+                    </div>
+                    <p style={{ fontSize: 12, color: "var(--ink-3)", margin: 0 }}>
+                      {pendingTemplates.length} template{pendingTemplates.length > 1 ? "s" : ""} — ils seront sauvegardés avec l'espace client.
+                    </p>
+                  </div>
+                ) : (
+                  /* Empty state */
+                  <div style={{ border: "2px dashed rgba(13,15,10,.15)", borderRadius: 16, padding: "48px 24px", textAlign: "center", display: "flex", flexDirection: "column", alignItems: "center", gap: 16 }}>
+                    <div style={{ width: 52, height: 52, borderRadius: 14, background: "rgba(13,15,10,.05)", display: "grid", placeItems: "center" }}>
+                      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--ink-3)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                        <rect x="3" y="3" width="18" height="18" rx="3"/><path d="M3 9h18M9 9v12"/>
+                      </svg>
+                    </div>
+                    <div>
+                      <p style={{ fontSize: 15, fontWeight: 700, color: "var(--ink)", margin: "0 0 4px" }}>
+                        Aucun template pour l'instant
+                      </p>
+                      <p style={{ fontSize: 13, color: "var(--ink-3)", margin: 0 }}>
+                        Créez des mises en page réutilisables avec les couleurs de la marque.
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => { setEditingTemplateIndex(null); setTemplateEditorOpen(true); }}
+                      style={{
+                        padding: "11px 28px", borderRadius: 13, background: "var(--ink)",
+                        border: "none", color: "var(--paper)", fontSize: 14, fontWeight: 700,
+                        cursor: "pointer", fontFamily: "var(--display)", transition: "opacity 0.15s",
+                      }}
+                    >
+                      Créer un template
+                    </button>
+                  </div>
+                )}
+
+                {error && (
+                  <div style={{ padding: "12px 16px", borderRadius: "var(--r-s)", background: "var(--warn-soft)", border: "1px solid rgba(200,115,43,.25)", color: "var(--warn)", fontSize: 13, fontWeight: 600 }}>
+                    {error}
+                  </div>
+                )}
+              </div>
+            )}
+
           </div>
         </main>
+
+        {/* ── Template editor overlay ────────────────────────────────────────── */}
+        {templateEditorOpen && (
+          <TemplateEditor
+            primaryColor={primaryColor}
+            secondaryColor={secondaryColor}
+            fontFamily={activeFontPrimary}
+            logoPreview={logoPreview}
+            initialDraft={editingTemplateIndex !== null ? pendingTemplates[editingTemplateIndex] : undefined}
+            onSave={draft => {
+              if (editingTemplateIndex !== null) {
+                setPendingTemplates(prev => prev.map((t, i) => i === editingTemplateIndex ? draft : t));
+              } else {
+                setPendingTemplates(prev => [...prev, draft]);
+              }
+              setTemplateEditorOpen(false);
+              setEditingTemplateIndex(null);
+            }}
+            onCancel={() => { setTemplateEditorOpen(false); setEditingTemplateIndex(null); }}
+          />
+        )}
 
         {/* ── Navigation footer ─────────────────────────────────────────────── */}
         <footer style={{
@@ -950,7 +1096,16 @@ export default function NewWorkspacePage() {
             <span style={{ fontSize: 12, color: "var(--ink-3)", fontFamily: "var(--mono)", fontWeight: 700 }}>
               {step} / {STEP_LABELS.length}
             </span>
-            {step < 4 ? (
+
+            {/* Step 5: skip link */}
+            {step === 5 && pendingTemplates.length === 0 && (
+              <button type="button" onClick={createWorkspace} disabled={loading}
+                style={{ padding: "8px 16px", borderRadius: 10, background: "transparent", border: "none", color: "var(--ink-3)", fontSize: 13, fontWeight: 600, cursor: "pointer", textDecoration: "underline" }}>
+                Passer cette étape
+              </button>
+            )}
+
+            {step < 5 ? (
               <button type="button" onClick={() => setStep(s => s + 1)} disabled={!canContinue}
                 style={{
                   padding: "11px 30px", borderRadius: 13,
