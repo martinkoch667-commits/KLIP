@@ -40,6 +40,14 @@ interface Workspace {
   caption_examples: string | null;
 }
 
+interface PostTemplate {
+  id: string;
+  name: string;
+  thumbnail_url: string | null;
+  format_id: string;
+  background_style: { type: string; color?: string; colorFrom?: string; colorTo?: string; angle?: number } | null;
+}
+
 // ─── Status badge ─────────────────────────────────────────────────────────────
 
 const STATUS_CONFIG: Record<PostStatus, { label: string; bg: string; color: string }> = {
@@ -92,6 +100,125 @@ function Spinner() {
   );
 }
 
+// ─── Template Picker Modal ────────────────────────────────────────────────────
+
+function TemplatePicker({
+  templates,
+  onSelect,
+  onClose,
+}: {
+  templates: PostTemplate[];
+  onSelect: (templateId: string | null) => void;
+  onClose: () => void;
+}) {
+  return (
+    <div
+      style={{
+        position: 'fixed', inset: 0, zIndex: 9000,
+        background: 'rgba(10,14,10,0.72)', backdropFilter: 'blur(4px)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+      }}
+      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+    >
+      <div style={{
+        background: 'var(--canvas)', borderRadius: 'var(--r-xl)',
+        border: '1px solid var(--line)',
+        padding: '28px 28px 24px',
+        width: 640, maxWidth: '90vw', maxHeight: '80vh',
+        display: 'flex', flexDirection: 'column', gap: 20,
+        boxShadow: '0 20px 60px rgba(10,14,10,.55)',
+      }}>
+        {/* Header */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div>
+            <h2 className="h-title" style={{ fontSize: 18, marginBottom: 4 }}>Choisir un template</h2>
+            <p style={{ fontSize: 13, color: 'var(--ink-3)' }}>
+              Le template définit la mise en page, les zones de texte et le fond du visuel.
+            </p>
+          </div>
+          <button
+            onClick={onClose}
+            style={{ width: 30, height: 30, borderRadius: 8, background: 'var(--sunk)', border: '1px solid var(--line)', cursor: 'pointer', fontSize: 16, color: 'var(--ink-3)', display: 'grid', placeItems: 'center' }}
+          >×</button>
+        </div>
+
+        {/* Grid */}
+        <div style={{
+          display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))',
+          gap: 12, overflowY: 'auto', paddingBottom: 4,
+        }}>
+          {/* "Partir de zéro" option — always first */}
+          <button
+            onClick={() => onSelect(null)}
+            style={{
+              display: 'flex', flexDirection: 'column', alignItems: 'center',
+              background: 'var(--card)', border: '2px dashed var(--line)',
+              borderRadius: 'var(--r-m)', padding: '12px 8px 10px',
+              cursor: 'pointer', gap: 8, transition: 'border-color .15s, background .15s',
+            }}
+            onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--mint-2)'; e.currentTarget.style.background = 'var(--mint-soft)'; }}
+            onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--line)'; e.currentTarget.style.background = 'var(--card)'; }}
+          >
+            <div style={{
+              width: '100%', aspectRatio: '4/5', borderRadius: 8,
+              background: 'var(--sunk)', border: '1.5px solid var(--line)',
+              display: 'grid', placeItems: 'center', fontSize: 26, color: 'var(--ink-3)',
+            }}>+</div>
+            <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--ink-2)', textAlign: 'center' }}>
+              Partir de zéro
+            </span>
+          </button>
+
+          {/* Template cards */}
+          {templates.map((tpl) => {
+            const bg = tpl.background_style;
+            const gradientCss = bg?.type === 'gradient'
+              ? `linear-gradient(${bg.angle ?? 135}deg, ${bg.colorFrom ?? '#0038FF'}, ${bg.colorTo ?? '#fff'})`
+              : bg?.type === 'solid' ? (bg.color ?? '#fff')
+              : 'var(--sunk)';
+            return (
+              <button
+                key={tpl.id}
+                onClick={() => onSelect(tpl.id)}
+                style={{
+                  display: 'flex', flexDirection: 'column', alignItems: 'center',
+                  background: 'var(--card)', border: '2px solid var(--line)',
+                  borderRadius: 'var(--r-m)', padding: '8px 8px 10px',
+                  cursor: 'pointer', gap: 8, transition: 'border-color .15s, box-shadow .15s',
+                }}
+                onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--mint-2)'; e.currentTarget.style.boxShadow = '0 0 0 3px var(--mint-soft)'; }}
+                onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--line)'; e.currentTarget.style.boxShadow = 'none'; }}
+              >
+                <div style={{
+                  width: '100%', aspectRatio: '4/5', borderRadius: 8, overflow: 'hidden',
+                  background: gradientCss,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                }}>
+                  {tpl.thumbnail_url ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={tpl.thumbnail_url}
+                      alt={tpl.name}
+                      style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                    />
+                  ) : (
+                    <span style={{ fontSize: 10, fontWeight: 700, fontFamily: 'var(--mono)', color: 'rgba(255,255,255,0.55)', letterSpacing: '0.05em', textAlign: 'center', padding: '0 8px' }}>
+                      {tpl.name.slice(0, 20)}
+                    </span>
+                  )}
+                </div>
+                <span style={{ fontSize: 11.5, fontWeight: 700, color: 'var(--ink)', textAlign: 'center', lineHeight: 1.2, width: '100%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {tpl.name}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 type Tab = "produire" | "parametres";
@@ -114,6 +241,8 @@ export default function WorkspacePage() {
   const [referenceImage, setReferenceImage] = useState('');
   const [workspaceName, setWorkspaceName] = useState("");
   const [savingSettings, setSavingSettings] = useState(false);
+  const [templates, setTemplates] = useState<PostTemplate[]>([]);
+  const [templatePickerPost, setTemplatePickerPost] = useState<PostItem | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -147,6 +276,13 @@ export default function WorkspacePage() {
         created_at: p.created_at,
       })));
     }
+
+    const { data: tpls } = await supabase
+      .from("post_templates")
+      .select("id, name, thumbnail_url, format_id, background_style")
+      .eq("workspace_id", id)
+      .order("sort_order", { ascending: true });
+    if (tpls) setTemplates(tpls);
   }, [id, supabase]);
 
   useEffect(() => { loadData(); }, [loadData]);
@@ -261,7 +397,7 @@ export default function WorkspacePage() {
 
   // ── Validate ──────────────────────────────────────────────────────────────
 
-  async function validatePost(item: PostItem) {
+  async function validatePost(item: PostItem, templateId?: string | null) {
     if (item.status === "validating") return;
     setPosts((prev) => prev.map((p) => (p.localId === item.localId ? { ...p, status: "validating" } : p)));
     try {
@@ -280,10 +416,19 @@ export default function WorkspacePage() {
         }
       }
       if (!dbId) {
-        const { data: post } = await supabase.from("posts").insert({ workspace_id: id, photo_url: pUrl, brief: item.brief, description: item.description, texte_visuel: item.texte_visuel, status: "validated" }).select().single();
+        const { data: post } = await supabase.from("posts").insert({
+          workspace_id: id, photo_url: pUrl, brief: item.brief,
+          description: item.description, texte_visuel: item.texte_visuel,
+          status: "validated",
+          template_id: templateId ?? null,
+        }).select().single();
         if (post) dbId = post.id;
       } else {
-        await supabase.from("posts").update({ description: item.description, texte_visuel: item.texte_visuel, status: "validated" }).eq("id", dbId);
+        await supabase.from("posts").update({
+          description: item.description, texte_visuel: item.texte_visuel,
+          status: "validated",
+          ...(templateId !== undefined ? { template_id: templateId ?? null } : {}),
+        }).eq("id", dbId);
       }
       setPosts((prev) => prev.map((p) => p.localId === item.localId ? { ...p, dbId, photo_url: pUrl, status: "validated" } : p));
       // Video posts go straight to planning — no visual editor
@@ -291,6 +436,15 @@ export default function WorkspacePage() {
     } catch {
       setPosts((prev) => prev.map((p) => (p.localId === item.localId ? { ...p, status: "generated" } : p)));
     }
+  }
+
+  // Opens template picker if templates exist, otherwise goes straight to editor
+  function openEditorWithTemplatePicker(post: PostItem) {
+    if (post.isVideo || templates.length === 0) {
+      validatePost(post, null);
+      return;
+    }
+    setTemplatePickerPost(post);
   }
 
   // ── Soft-delete ───────────────────────────────────────────────────────────
@@ -678,7 +832,7 @@ export default function WorkspacePage() {
                                     <>
                                       {post.status !== "validated" && (
                                         <button
-                                          onClick={() => validatePost(post)}
+                                          onClick={() => openEditorWithTemplatePicker(post)}
                                           disabled={post.status === "validating"}
                                           className="btn btn-dark"
                                           style={{ flex: 1, opacity: post.status === "validating" ? 0.5 : 1 }}
@@ -746,6 +900,19 @@ export default function WorkspacePage() {
           </div>
         </div>
       </div>
+
+      {/* Template picker modal */}
+      {templatePickerPost && (
+        <TemplatePicker
+          templates={templates}
+          onSelect={(tplId) => {
+            const post = templatePickerPost;
+            setTemplatePickerPost(null);
+            validatePost(post, tplId);
+          }}
+          onClose={() => setTemplatePickerPost(null)}
+        />
+      )}
 
       {/* Delete toast */}
       {deletedPost && (

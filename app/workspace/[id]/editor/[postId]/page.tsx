@@ -42,6 +42,40 @@ type CanvasEl = TextEl | RectEl | CircleEl | StarEl | ImageEl;
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
+// ─── Template background ──────────────────────────────────────────────────────
+
+interface BgStyle {
+  type: 'gradient' | 'solid';
+  color?: string;
+  angle?: number;
+  colorFrom?: string;
+  colorTo?: string;
+}
+
+const PHOTO_PLACEHOLDER_SRC = '__PHOTO_PLACEHOLDER__';
+
+function BgStyleLayer({ bgStyle, w, h }: { bgStyle: BgStyle; w: number; h: number }) {
+  if (bgStyle.type === 'solid') {
+    return <Rect x={0} y={0} width={w} height={h} fill={bgStyle.color ?? '#ffffff'} listening={false} />;
+  }
+  const angleDeg = bgStyle.angle ?? 135;
+  const angleRad = (angleDeg * Math.PI) / 180;
+  const dx = Math.cos(angleRad);
+  const dy = Math.sin(angleRad);
+  const startX = w * Math.max(0, -dx);
+  const startY = h * Math.max(0, -dy);
+  const endX   = w * Math.max(0,  dx);
+  const endY   = h * Math.max(0,  dy);
+  return (
+    <Rect
+      x={0} y={0} width={w} height={h} listening={false}
+      fillLinearGradientStartPoint={{ x: startX, y: startY }}
+      fillLinearGradientEndPoint={{ x: endX, y: endY }}
+      fillLinearGradientColorStops={[0, bgStyle.colorFrom ?? '#0038FF', 1, bgStyle.colorTo ?? '#ffffff']}
+    />
+  );
+}
+
 const FONTS = [
   'Anton', 'Oswald', 'Bebas Neue', 'Montserrat', 'Syne', 'Inter', 'Poppins',
   'Barlow Condensed', 'Raleway', 'Roboto Condensed', 'Playfair Display', 'Lato',
@@ -404,6 +438,7 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
   const [cropId, setCropId] = useState<string | null>(null);
 
   const [proxyUrl, setProxyUrl] = useState<string>('');
+  const [bgStyle, setBgStyle] = useState<BgStyle | null>(null);
   const [bgOffsetX, setBgOffsetX] = useState(0);
   const [bgOffsetY, setBgOffsetY] = useState(0);
   const [bgCropMode, setBgCropMode] = useState(false);
@@ -622,21 +657,61 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
           hasBg: true, bgColor: w?.primary_color || '#0038FF',
           bgOpacity: 95, cornerRadius: 4, padding: 16, paddingH: 16, paddingV: 10,
         };
-        const bgUrl = p?.photo_url ? `/api/proxy-image?url=${encodeURIComponent(p.photo_url)}` : '';
+        const photoProxyUrl = p?.photo_url ? `/api/proxy-image?url=${encodeURIComponent(p.photo_url)}` : '';
         let initSlides: Slide[];
         if (p?.editor_json) {
+          // Saved state always wins — never re-apply template
           try {
             const parsed = JSON.parse(p.editor_json);
             if (parsed && parsed.version === 2 && Array.isArray(parsed.slides)) {
               initSlides = parsed.slides;
             } else {
-              // v1: flat elements array
               const els = Array.isArray(parsed) ? parsed : [defaultEl];
-              initSlides = [{ id: 'slide-1', elements: els, proxyUrl: bgUrl }];
+              initSlides = [{ id: 'slide-1', elements: els, proxyUrl: photoProxyUrl }];
             }
-          } catch { initSlides = [{ id: 'slide-1', elements: [defaultEl], proxyUrl: bgUrl }]; }
+          } catch { initSlides = [{ id: 'slide-1', elements: [defaultEl], proxyUrl: photoProxyUrl }]; }
+        } else if (p?.template_id) {
+          // Apply template for fresh posts
+          const { data: tpl } = await supabase
+            .from('post_templates')
+            .select('*')
+            .eq('id', p.template_id)
+            .maybeSingle();
+
+          if (tpl) {
+            // Set canvas format from template
+            const tplFormat = FORMATS.find(f => f.id === tpl.format_id);
+            if (tplFormat) setFormatId(tpl.format_id);
+
+            // Apply template background
+            if (tpl.background_style) setBgStyle(tpl.background_style as BgStyle);
+
+            const zones: CanvasEl[] = Array.isArray(tpl.text_zones) ? tpl.text_zones : [];
+            const hasPhotoZone = zones.some(
+              (e: CanvasEl) => e.type === 'image' && (e as ImageEl).src === PHOTO_PLACEHOLDER_SRC
+            );
+
+            // Replace photo placeholder with actual photo; assign fresh ids to avoid conflicts
+            const initElements: CanvasEl[] = zones.map((el: CanvasEl) => {
+              const freshId = el.id.startsWith('tpl-') ? el.id : `tpl-${el.id}`;
+              if (el.type === 'image' && (el as ImageEl).src === PHOTO_PLACEHOLDER_SRC) {
+                return { ...el, id: freshId, src: photoProxyUrl } as ImageEl;
+              }
+              return { ...el, id: freshId };
+            });
+
+            const bgUrl = hasPhotoZone ? '' : photoProxyUrl;
+            initSlides = [{
+              id: 'slide-1',
+              elements: initElements.length > 0 ? initElements : [defaultEl],
+              proxyUrl: bgUrl,
+            }];
+          } else {
+            // Template not found — fallback to default
+            initSlides = [{ id: 'slide-1', elements: [defaultEl], proxyUrl: photoProxyUrl }];
+          }
         } else {
-          initSlides = [{ id: 'slide-1', elements: [defaultEl], proxyUrl: bgUrl }];
+          initSlides = [{ id: 'slide-1', elements: [defaultEl], proxyUrl: photoProxyUrl }];
         }
         setSlides(initSlides);
         slidesRef.current = initSlides;
@@ -1225,6 +1300,8 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
             >
               <Layer>
                 <Rect x={0} y={0} width={stageW} height={stageH} fill="white" listening={false} />
+                {/* Template gradient/solid background — rendered below BgImage */}
+                {bgStyle && <BgStyleLayer bgStyle={bgStyle} w={stageW} h={stageH} />}
                 {proxyUrl && (
                   <BgImage
                     src={proxyUrl} w={stageW} h={stageH}
