@@ -115,9 +115,10 @@ interface Props {
   el: AnyEl;
   stageRef: React.RefObject<any>;
   onChange: (u: Record<string, any>) => void;
+  zoom?: number;
 }
 
-export default function SelectionOverlay({ el, stageRef, onChange }: Props) {
+export default function SelectionOverlay({ el, stageRef, onChange, zoom }: Props) {
   const [liveAngle, setLiveAngle] = useState<number | null>(null);
   // Always call onChange with the latest prop, even if the closure is stale
   const onChangeRef = useRef(onChange);
@@ -153,7 +154,6 @@ export default function SelectionOverlay({ el, stageRef, onChange }: Props) {
     const snapOuter   = el.outerRadius ?? 50;
     const snapInner   = el.innerRadius ?? 25;
     const elType      = el.type;
-    const ratio       = startW / startH;  // aspect ratio for proportional corners
 
     const rad = startRot * Math.PI / 180;
     const cos = Math.cos(rad), sin = Math.sin(rad);
@@ -166,8 +166,9 @@ export default function SelectionOverlay({ el, stageRef, onChange }: Props) {
 
     const onMove = (ev: MouseEvent) => {
       try {
-        const vdx = ev.clientX - startMouseX;
-        const vdy = ev.clientY - startMouseY;
+        const z = zoom ?? 1;
+        const vdx = (ev.clientX - startMouseX) / z;
+        const vdy = (ev.clientY - startMouseY) / z;
         const [ldx, ldy] = toLocal(vdx, vdy, startRot);
 
         // ── Circles ───────────────────────────────────────────────────────────
@@ -209,22 +210,31 @@ export default function SelectionOverlay({ el, stageRef, onChange }: Props) {
         const isCorner = ['tl', 'tr', 'bl', 'br'].includes(handleId);
 
         if (isCorner) {
-          // Proportional: project mouse delta onto diagonal, keeping aspect ratio
-          let dScale = 0;
+          // Free resize: each axis is independent, anchor is the opposite corner
           switch (handleId) {
-            case 'br': dScale =  (ldx / startW + ldy / startH) / 2; break;
-            case 'tr': dScale =  (ldx / startW - ldy / startH) / 2; break;
-            case 'bl': dScale = (-ldx / startW + ldy / startH) / 2; break;
-            case 'tl': dScale = (-ldx / startW - ldy / startH) / 2; break;
-          }
-          nw = Math.max(20, startW * (1 + dScale));
-          nh = nw / ratio;
-          // Re-derive origin shifts based on final sizes so clamping is correct
-          switch (handleId) {
-            case 'tr': origin = shiftOrigin(0, startH - nh); break;
-            case 'bl': origin = shiftOrigin(startW - nw, 0); break;
-            case 'tl': origin = shiftOrigin(startW - nw, startH - nh); break;
-            // br: origin stays
+            case 'br':
+              nw = Math.max(20, startW + ldx);
+              nh = Math.max(20, startH + ldy);
+              // br drags: top-left stays fixed, no origin shift
+              break;
+            case 'tr':
+              nw = Math.max(20, startW + ldx);
+              nh = Math.max(20, startH - ldy);
+              // tr drags: bottom-left stays fixed → top-left shifts up by (startH - nh)
+              origin = shiftOrigin(0, startH - nh);
+              break;
+            case 'bl':
+              nw = Math.max(20, startW - ldx);
+              nh = Math.max(20, startH + ldy);
+              // bl drags: top-right stays fixed → top-left shifts right by (startW - nw)
+              origin = shiftOrigin(startW - nw, 0);
+              break;
+            case 'tl':
+              nw = Math.max(20, startW - ldx);
+              nh = Math.max(20, startH - ldy);
+              // tl drags: bottom-right stays fixed → top-left shifts by (startW-nw, startH-nh)
+              origin = shiftOrigin(startW - nw, startH - nh);
+              break;
           }
         } else {
           switch (handleId) {
@@ -258,9 +268,11 @@ export default function SelectionOverlay({ el, stageRef, onChange }: Props) {
     e.preventDefault();
     try {
       // Get stage container's viewport rect for coordinate conversion
+      // bounds.cx/cy are in stage (canvas) coordinates; multiply by zoom to get viewport offset
       const cRect = stageRef.current?.container?.()?.getBoundingClientRect?.() ?? { left: 0, top: 0 };
-      const vcxV = bounds!.cx + cRect.left;
-      const vcyV = bounds!.cy + cRect.top;
+      const z = zoom ?? 1;
+      const vcxV = cRect.left + bounds!.cx * z;
+      const vcyV = cRect.top  + bounds!.cy * z;
       const snapBounds = { ...bounds! };
 
       const onMove = (ev: MouseEvent) => {

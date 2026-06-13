@@ -556,6 +556,10 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
   const [saving, setSaving] = useState(false);
   const [dataLoading, setDataLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
+
+  // ── Canvas zoom ───────────────────────────────────────────────────────────
+  const [zoom, setZoom] = useState(1);
+  const canvasAreaRef = useRef<HTMLDivElement>(null);
   const [customFonts, setCustomFonts] = useState<{ name: string; url: string }[]>([]);
   const [brandFontNames, setBrandFontNames] = useState<string[]>([]);
 
@@ -601,6 +605,20 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
       link.rel = 'stylesheet';
       document.head.appendChild(link);
     });
+  }, []);
+
+  // ── Trackpad / wheel zoom — must be non-passive to preventDefault ─────────
+  useEffect(() => {
+    const el = canvasAreaRef.current;
+    if (!el) return;
+    const onWheel = (e: WheelEvent) => {
+      if (!e.ctrlKey && !e.metaKey) return;
+      e.preventDefault();
+      // deltaY is negative when zooming in (pinch-out / scroll-up)
+      setZoom(z => Math.min(2, Math.max(0.25, z - e.deltaY * 0.001)));
+    };
+    el.addEventListener('wheel', onWheel, { passive: false });
+    return () => el.removeEventListener('wheel', onWheel);
   }, []);
 
   const stageWRef = useRef(FORMATS[0].w);
@@ -1322,10 +1340,10 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
         </div>
 
         {/* ── CANVAS ── */}
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', overflow: 'hidden', background: 'var(--sunk)' }}>
-          <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'auto', padding: 28 }}>
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', overflow: 'hidden', background: 'var(--sunk)', position: 'relative' }}>
+          <div ref={canvasAreaRef} style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'auto', padding: 28 }}>
             {/* Bug 4 fix: outer div has no overflow:hidden so handles (-5px) aren't clipped */}
-            <div style={{ borderRadius: 18, boxShadow: '0 22px 50px -24px rgba(13,15,10,.45)', flexShrink: 0, position: 'relative' }}>
+            <div style={{ borderRadius: 18, boxShadow: '0 22px 50px -24px rgba(13,15,10,.45)', flexShrink: 0, position: 'relative', transform: `scale(${zoom})`, transformOrigin: 'center center' }}>
             {/* Inner div clips only the Stage canvas to preserve border-radius */}
             <div style={{ borderRadius: 18, overflow: 'hidden' }}>
             <Stage
@@ -1421,6 +1439,7 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
                 el={selectedEl}
                 stageRef={stageRef}
                 onChange={u => updateEl(selectedEl.id, u)}
+                zoom={zoom}
               />
             )}
             {cropId && (
@@ -1452,6 +1471,33 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
               </div>
             )}
             </div>
+          </div>
+
+          {/* ── ZOOM BADGE ── */}
+          <div style={{
+            position: 'absolute', bottom: 96, right: 14, zIndex: 50,
+            background: 'rgba(12,42,29,0.82)', backdropFilter: 'blur(6px)',
+            borderRadius: 8, padding: '5px 10px',
+            display: 'flex', alignItems: 'center', gap: 8,
+            boxShadow: '0 2px 8px rgba(13,15,10,.3)',
+            fontFamily: 'var(--mono)', fontWeight: 700, fontSize: 12,
+            color: zoom !== 1 ? 'var(--mint)' : 'rgba(238,237,227,0.55)',
+            pointerEvents: 'auto',
+          }}>
+            {Math.round(zoom * 100)}%
+            {zoom !== 1 && (
+              <button
+                onClick={() => setZoom(1)}
+                style={{
+                  background: 'rgba(47,215,155,.18)', border: 'none', borderRadius: 4,
+                  color: 'var(--mint)', padding: '2px 7px',
+                  fontSize: 10, fontWeight: 800, cursor: 'pointer', fontFamily: 'var(--mono)',
+                  letterSpacing: '.04em',
+                }}
+              >
+                Reset
+              </button>
+            )}
           </div>
 
           {/* ── SLIDE STRIP ── */}
