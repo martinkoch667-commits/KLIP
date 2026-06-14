@@ -10,6 +10,13 @@ import VoiceButton from "@/components/VoiceButton";
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 type PostStatus = "idle" | "generating" | "generated" | "validating" | "validated";
+type PostType   = "post" | "reel" | "story";
+
+const POST_TYPE_CFG: Record<PostType, { label: string; icon: string; color: string; bg: string; format: string }> = {
+  post:  { label: "Publication", icon: "🖼",  color: "#4F8EF7", bg: "#4F8EF715", format: "1080×1080 px" },
+  reel:  { label: "Reel",        icon: "🎬", color: "#A259FF", bg: "#A259FF15", format: "1080×1920 px" },
+  story: { label: "Story",       icon: "⚡", color: "#FF6B35", bg: "#FF6B3515", format: "1080×1920 px" },
+};
 
 interface PostItem {
   localId: string;
@@ -25,6 +32,7 @@ interface PostItem {
   error?: string;
   created_at?: string;
   templateId?: string | null;  // template chosen BEFORE generation
+  post_type?: PostType;
 }
 
 interface Workspace {
@@ -102,6 +110,38 @@ function IconChevR() {
 function Spinner() {
   return (
     <span style={{ width: 14, height: 14, borderRadius: "50%", border: "2px solid var(--mint-soft)", borderTopColor: "var(--mint-2)", display: "inline-block", animation: "spin .7s linear infinite" }} />
+  );
+}
+
+// ─── Type Picker Modal ────────────────────────────────────────────────────────
+
+function TypePickerModal({ onConfirm, onClose }: { onConfirm: (type: PostType) => void; onClose: () => void }) {
+  const [selected, setSelected] = useState<PostType>('post');
+  return (
+    <div style={{ position: 'fixed', inset: 0, zIndex: 9500, background: 'rgba(10,14,10,0.72)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+      onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
+      <div style={{ background: 'var(--canvas)', borderRadius: 'var(--r-xl)', border: '1px solid var(--line)', padding: '28px 28px 24px', width: 480, maxWidth: '90vw', boxShadow: '0 20px 60px rgba(10,14,10,.55)' }}>
+        <h2 className="h-title" style={{ fontSize: 18, marginBottom: 6 }}>Quel type de contenu ?</h2>
+        <p style={{ fontSize: 13, color: 'var(--ink-3)', marginBottom: 20 }}>Choisissez le format — modifiable plus tard dans la fiche ou le planificateur.</p>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginBottom: 24 }}>
+          {(Object.entries(POST_TYPE_CFG) as [PostType, typeof POST_TYPE_CFG[PostType]][]).map(([id, cfg]) => (
+            <button key={id} onClick={() => setSelected(id)}
+              style={{ padding: '18px 12px', borderRadius: 'var(--r)', border: `2px solid ${selected === id ? cfg.color : 'var(--line)'}`, background: selected === id ? cfg.bg : 'var(--card)', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10, transition: 'border-color .15s, background .15s' }}>
+              <span style={{ fontSize: 26 }}>{cfg.icon}</span>
+              <div style={{ textAlign: 'center' }}>
+                <div style={{ fontSize: 13.5, fontWeight: 700, color: 'var(--ink)', marginBottom: 3 }}>{cfg.label}</div>
+                <div style={{ fontSize: 11, color: 'var(--ink-3)', marginBottom: 6 }}>{cfg.format}</div>
+                <span style={{ display: 'inline-block', background: cfg.color, color: '#fff', fontSize: 10, fontWeight: 700, padding: '2px 7px', borderRadius: 4, fontFamily: 'var(--sans)' }}>{id.charAt(0).toUpperCase() + id.slice(1)}</span>
+              </div>
+            </button>
+          ))}
+        </div>
+        <div style={{ display: 'flex', gap: 10 }}>
+          <button onClick={onClose} className="btn btn-ghost" style={{ flex: 1 }}>Annuler</button>
+          <button onClick={() => onConfirm(selected)} className="btn btn-primary" style={{ flex: 2 }}>Continuer →</button>
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -252,6 +292,8 @@ export default function WorkspacePage() {
   const [preGenPickerPost, setPreGenPickerPost] = useState<PostItem | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [pendingFiles, setPendingFiles] = useState<File[] | null>(null);
+  const [typeMenuPost, setTypeMenuPost] = useState<string | null>(null);
 
   // ── Load data ─────────────────────────────────────────────────────────────
 
@@ -296,29 +338,39 @@ export default function WorkspacePage() {
 
   // ── File selection ────────────────────────────────────────────────────────
 
-  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const files = Array.from(e.target.files || []);
-    if (!files.length) return;
-    const newItems: PostItem[] = files
+  function filterFiles(rawFiles: File[]): File[] {
+    return rawFiles
       .filter((f) => f.type.startsWith("image/") || f.type.startsWith("video/"))
-      .filter((f) => {
-        if (f.size > 100 * 1024 * 1024) {
-          alert(`"${f.name}" dépasse 100 MB — fichier ignoré.`);
-          return false;
-        }
-        return true;
-      })
-      .map((file) => ({
-        localId: crypto.randomUUID(),
-        file,
-        isVideo: file.type.startsWith("video/"),
-        photo_url: URL.createObjectURL(file),
-        brief: "", description: "", texte_visuel: "",
-        status: "idle" as PostStatus,
-        templateId: null,
-      }));
-    setPosts((prev) => [...newItems, ...prev]);
+      .filter((f) => { if (f.size > 100 * 1024 * 1024) { alert(`"${f.name}" dépasse 100 MB — fichier ignoré.`); return false; } return true; });
+  }
+
+  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const files = filterFiles(Array.from(e.target.files || []));
+    if (!files.length) return;
+    setPendingFiles(files);
     e.target.value = "";
+  }
+
+  function createPostItemsWithType(files: File[], post_type: PostType) {
+    const newItems: PostItem[] = files.map((file) => ({
+      localId: crypto.randomUUID(),
+      file,
+      isVideo: file.type.startsWith("video/"),
+      photo_url: URL.createObjectURL(file),
+      brief: "", description: "", texte_visuel: "",
+      status: "idle" as PostStatus,
+      templateId: null,
+      post_type,
+    }));
+    setPosts((prev) => [...newItems, ...prev]);
+    setPendingFiles(null);
+  }
+
+  function updatePostType(localId: string, post_type: PostType) {
+    setPosts(prev => prev.map(p => p.localId === localId ? { ...p, post_type } : p));
+    const post = posts.find(p => p.localId === localId);
+    if (post?.dbId) supabase.from("posts").update({ post_type }).eq("id", post.dbId).then(() => {});
+    setTypeMenuPost(null);
   }
 
   // ── Brief ─────────────────────────────────────────────────────────────────
@@ -636,7 +688,7 @@ export default function WorkspacePage() {
         </div>
 
         {/* Content */}
-        <div className="scroll">
+        <div className="scroll" onClick={() => typeMenuPost && setTypeMenuPost(null)}>
           <div className="page">
 
             {activeTab === "produire" && (
@@ -667,11 +719,9 @@ export default function WorkspacePage() {
                     onDragOver={(e) => e.preventDefault()}
                     onDrop={(e) => {
                       e.preventDefault();
-                      const files = Array.from(e.dataTransfer.files)
-                        .filter((f) => f.type.startsWith("image/") || f.type.startsWith("video/"))
-                        .filter((f) => { if (f.size > 100 * 1024 * 1024) { alert(`"${f.name}" dépasse 100 MB.`); return false; } return true; });
+                      const files = filterFiles(Array.from(e.dataTransfer.files));
                       if (!files.length) return;
-                      setPosts((prev) => [...files.map(file => ({ localId: crypto.randomUUID(), file, isVideo: file.type.startsWith("video/"), photo_url: URL.createObjectURL(file), brief: "", description: "", texte_visuel: "", status: "idle" as PostStatus })), ...prev]);
+                      setPendingFiles(files);
                     }}
                     style={{ padding: 28, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: 200, cursor: 'pointer', textAlign: 'center', transition: 'border-color 0.15s, background 0.15s', border: '1.5px dashed var(--line)' }}
                     onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--mint-2)'; e.currentTarget.style.background = 'var(--mint-soft)'; }}
@@ -823,6 +873,24 @@ export default function WorkspacePage() {
                               >
                                 <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M1 1l8 8M9 1L1 9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>
                               </button>
+                              {/* Post type badge — cliquable */}
+                              <div style={{ position: 'absolute', bottom: 8, right: 8 }}>
+                                {typeMenuPost === post.localId ? (
+                                  <div style={{ display: 'flex', flexDirection: 'column', gap: 3, background: 'rgba(0,0,0,.82)', borderRadius: 7, padding: '5px 5px', backdropFilter: 'blur(6px)' }}>
+                                    {(Object.entries(POST_TYPE_CFG) as [PostType, typeof POST_TYPE_CFG[PostType]][]).map(([tid, cfg]) => (
+                                      <button key={tid} onClick={e => { e.stopPropagation(); updatePostType(post.localId, tid); }}
+                                        style={{ display: 'flex', alignItems: 'center', gap: 5, background: (post.post_type ?? 'post') === tid ? cfg.color : 'transparent', border: 'none', borderRadius: 4, padding: '3px 7px', cursor: 'pointer', color: '#fff', fontSize: 10.5, fontWeight: 700, fontFamily: 'var(--sans)', whiteSpace: 'nowrap' }}>
+                                        {cfg.icon} {cfg.label}
+                                      </button>
+                                    ))}
+                                  </div>
+                                ) : (
+                                  <button onClick={e => { e.stopPropagation(); setTypeMenuPost(post.localId); }}
+                                    style={{ background: POST_TYPE_CFG[post.post_type ?? 'post'].color, color: '#fff', fontSize: 11, fontWeight: 600, padding: '2px 7px', borderRadius: 4, border: 'none', cursor: 'pointer', fontFamily: 'var(--sans)' }}>
+                                    {(post.post_type ?? 'post').charAt(0).toUpperCase() + (post.post_type ?? 'post').slice(1)}
+                                  </button>
+                                )}
+                              </div>
                             </div>
                           </div>
 
@@ -1013,6 +1081,13 @@ export default function WorkspacePage() {
       </div>
 
       {/* Template picker modal — post-generation (before opening editor) */}
+      {pendingFiles && (
+        <TypePickerModal
+          onConfirm={type => createPostItemsWithType(pendingFiles, type)}
+          onClose={() => setPendingFiles(null)}
+        />
+      )}
+
       {templatePickerPost && (
         <TemplatePicker
           templates={templates}

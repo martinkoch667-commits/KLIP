@@ -8,6 +8,14 @@ import Sidebar from "@/components/Sidebar";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
+type PostType = "post" | "reel" | "story";
+
+const POST_TYPE_CFG: Record<PostType, { label: string; color: string; bg: string }> = {
+  post:  { label: "Post",  color: "#4F8EF7", bg: "#4F8EF715" },
+  reel:  { label: "Reel",  color: "#A259FF", bg: "#A259FF15" },
+  story: { label: "Story", color: "#FF6B35", bg: "#FF6B3515" },
+};
+
 interface Post {
   id: string;
   photo_url: string;
@@ -17,6 +25,8 @@ interface Post {
   status: string;
   scheduled_at: string | null;
   brief: string;
+  post_type?: PostType | null;
+  target_platforms?: string[] | null;
 }
 
 interface Workspace {
@@ -198,9 +208,11 @@ function PlanningContent() {
   const [draggedId,    setDraggedId]    = useState<string | null>(null);
   const [dragOverDay,  setDragOverDay]  = useState<string | null>(null);
   const [dragOverHour, setDragOverHour] = useState<number | null>(null);
-  const [panelDate,    setPanelDate]    = useState("");
-  const [panelTime,    setPanelTime]    = useState("09:00");
-  const [panelDesc,    setPanelDesc]    = useState("");
+  const [panelDate,      setPanelDate]      = useState("");
+  const [panelTime,      setPanelTime]      = useState("09:00");
+  const [panelDesc,      setPanelDesc]      = useState("");
+  const [panelPostType,  setPanelPostType]  = useState<PostType>("post");
+  const [panelPlatforms, setPanelPlatforms] = useState<string[]>(["instagram"]);
   const [scheduling,   setScheduling]   = useState(false);
   const [publishing,   setPublishing]   = useState(false);
   const [toast,        setToast]        = useState<{ msg: string; ok: boolean } | null>(null);
@@ -218,7 +230,7 @@ function PlanningContent() {
     const [{ data: ws }, { data: postsData }] = await Promise.all([
       supabase.from("workspaces").select("id, name, primary_color, secondary_color, font_family, instagram_account_id, instagram_username, facebook_page_id").eq("id", id).single(),
       supabase.from("posts")
-        .select("id, photo_url, exported_image_url, texte_visuel, description, status, scheduled_at, brief")
+        .select("id, photo_url, exported_image_url, texte_visuel, description, status, scheduled_at, brief, post_type, target_platforms")
         .eq("workspace_id", id)
         .in("status", ["generated", "validated", "scheduled", "published"])
         .order("scheduled_at", { ascending: true }),
@@ -254,6 +266,12 @@ function PlanningContent() {
   function selectPost(post: Post) {
     setSelectedPost(post);
     setPanelDesc(post.description ?? "");
+    setPanelPostType((post.post_type as PostType) ?? "post");
+    const connected = [
+      ...(workspace?.instagram_account_id ? ["instagram"] : []),
+      ...(workspace?.facebook_page_id ? ["facebook"] : []),
+    ];
+    setPanelPlatforms(post.target_platforms?.length ? post.target_platforms : (connected.length ? connected : ["instagram"]));
     if (post.scheduled_at) {
       const d = new Date(post.scheduled_at);
       setPanelDate(toDateInput(d));
@@ -306,8 +324,8 @@ function PlanningContent() {
     if (!selectedPost || !panelDate) return;
     setScheduling(true);
     const scheduled_at = buildScheduledAt(panelDate, panelTime);
-    await supabase.from("posts").update({ scheduled_at, description: panelDesc, status: "scheduled" }).eq("id", selectedPost.id);
-    setPosts(prev => prev.map(p => p.id === selectedPost.id ? { ...p, scheduled_at, description: panelDesc, status: "scheduled" } : p));
+    await supabase.from("posts").update({ scheduled_at, description: panelDesc, status: "scheduled", post_type: panelPostType, target_platforms: panelPlatforms }).eq("id", selectedPost.id);
+    setPosts(prev => prev.map(p => p.id === selectedPost.id ? { ...p, scheduled_at, description: panelDesc, status: "scheduled", post_type: panelPostType, target_platforms: panelPlatforms } : p));
     setScheduling(false); setSelectedPost(null);
     showToast("Post programmé ✓");
   }
@@ -457,6 +475,68 @@ function PlanningContent() {
           dayOfWeek={calView === "week" ? weekStart.getDay() : today.getDay()}
           label={calView === "week" ? DAY_NAMES[weekStart.getDay() === 0 ? 6 : weekStart.getDay() - 1] : MONTH_NAMES[monthDate.getMonth()]}
         />
+
+        {/* ─── CONTENUS PROGRAMMÉS ─────────────────────────────────────────── */}
+        {(() => {
+          const scheduled = posts.filter(p => p.scheduled_at && (p.status === "scheduled" || p.status === "published")).sort((a, b) => new Date(a.scheduled_at!).getTime() - new Date(b.scheduled_at!).getTime());
+          return (
+            <div style={{ flexShrink: 0, borderBottom: "1px solid var(--line)", background: "var(--white)", padding: "14px 26px 16px" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
+                <span className="h-title" style={{ fontSize: 14 }}>À publier</span>
+                {scheduled.length > 0 && <span className="chip" style={{ background: "var(--mint-soft)", color: "var(--mint-2)", fontSize: 11 }}>{scheduled.length}</span>}
+              </div>
+              {scheduled.length === 0 ? (
+                <div style={{ display: "flex", alignItems: "center", gap: 10, color: "var(--ink-3)", fontSize: 13 }}>
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4.5" width="18" height="16" rx="3"/><path d="M3 9h18M8 2.5v4M16 2.5v4"/></svg>
+                  Aucun contenu programmé pour le moment
+                </div>
+              ) : (
+                <div style={{ display: "flex", gap: 10, overflowX: "auto", paddingBottom: 4 }}>
+                  {scheduled.map(post => {
+                    const rawImg  = post.exported_image_url || post.photo_url;
+                    const thumb   = rawImg ? `/api/proxy-image?url=${encodeURIComponent(rawImg)}` : null;
+                    const isPub   = post.status === "published";
+                    const pType   = (post.post_type as PostType) ?? "post";
+                    const ptCfg   = POST_TYPE_CFG[pType];
+                    const isSelected = selectedPost?.id === post.id;
+                    return (
+                      <div key={post.id} onClick={() => selectPost(post)}
+                        style={{ flexShrink: 0, width: 100, borderRadius: 10, overflow: "hidden", cursor: "pointer", border: `2px solid ${isSelected ? chipColor : "var(--line)"}`, background: "var(--canvas)", boxShadow: isSelected ? `0 0 0 2px ${chipColor}30` : "none", transition: "border-color .12s" }}>
+                        {/* Thumbnail */}
+                        <div style={{ width: "100%", aspectRatio: "1", overflow: "hidden", background: "#000", position: "relative" }}>
+                          {thumb ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img src={thumb} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                          ) : (
+                            <div style={{ width: "100%", height: "100%", background: chipColor }} />
+                          )}
+                          {/* Platform badge */}
+                          <div style={{ position: "absolute", top: 4, left: 4, display: "flex", gap: 2 }}>
+                            {(!post.target_platforms || post.target_platforms.includes("instagram")) && (
+                              <span style={{ width: 16, height: 16, borderRadius: 4, background: isPub ? "#E1306C" : "rgba(225,48,108,.8)", display: "grid", placeItems: "center" }}>
+                                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/></svg>
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                        {/* Meta */}
+                        <div style={{ padding: "6px 7px" }}>
+                          <div style={{ fontSize: 10, fontWeight: 700, color: "var(--ink-3)", marginBottom: 3, fontFamily: "var(--mono)" }}>
+                            {new Date(post.scheduled_at!).toLocaleDateString("fr-FR", { day: "numeric", month: "short" })} · {formatTime(post.scheduled_at)}
+                          </div>
+                          <div style={{ display: "flex", gap: 4, alignItems: "center" }}>
+                            <span style={{ fontSize: 10, fontWeight: 700, padding: "1px 5px", borderRadius: 3, background: ptCfg.color, color: "#fff", fontFamily: "var(--sans)" }}>{ptCfg.label}</span>
+                            {isPub && <span style={{ fontSize: 10, fontWeight: 700, color: "var(--mint-2)" }}>Publié</span>}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          );
+        })()}
 
         {/* ─── WEEK VIEW ───────────────────────────────────────────────────── */}
         {calView === "week" && (
@@ -787,6 +867,50 @@ function PlanningContent() {
                 <input type="time" value={panelTime} onChange={e => setPanelTime(e.target.value)} className="input" style={{ height: 40, fontSize: 12.5 }} />
               </div>
             </div>
+
+            {/* ── Type de contenu ── */}
+            <div>
+              <label className="label" style={{ display: "block", marginBottom: 8 }}>Type de contenu</label>
+              <div style={{ display: "flex", gap: 6 }}>
+                {(Object.entries(POST_TYPE_CFG) as [PostType, typeof POST_TYPE_CFG[PostType]][]).map(([tid, cfg]) => (
+                  <button key={tid} onClick={() => setPanelPostType(tid)}
+                    style={{ flex: 1, padding: "6px 4px", borderRadius: 7, border: `1.5px solid ${panelPostType === tid ? cfg.color : "var(--line)"}`, background: panelPostType === tid ? cfg.bg : "transparent", color: panelPostType === tid ? cfg.color : "var(--ink-3)", fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "var(--sans)", transition: "all .15s" }}>
+                    {cfg.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* ── Publier sur ── */}
+            {(workspace?.instagram_account_id || workspace?.facebook_page_id) && (
+              <div>
+                <label className="label" style={{ display: "block", marginBottom: 8 }}>Publier sur</label>
+                <div style={{ display: "flex", gap: 8 }}>
+                  {workspace?.instagram_account_id && (() => {
+                    const active = panelPlatforms.includes("instagram");
+                    const onlyOne = !workspace?.facebook_page_id;
+                    return (
+                      <button onClick={() => { if (onlyOne) return; setPanelPlatforms(prev => active ? prev.filter(p => p !== "instagram") : [...prev, "instagram"]); }}
+                        style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 5, padding: "10px 8px", borderRadius: 10, border: `2px solid ${active ? "#E1306C" : "var(--line)"}`, background: active ? "#E1306C15" : "transparent", cursor: onlyOne ? "default" : "pointer", transition: "all .15s" }}>
+                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={active ? "#E1306C" : "#9CA3AF"} strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.3" cy="6.7" r="1" fill={active ? "#E1306C" : "#9CA3AF"} stroke="none"/></svg>
+                        <span style={{ fontSize: 11, fontWeight: 600, color: active ? "#E1306C" : "#9CA3AF", fontFamily: "var(--sans)" }}>Instagram</span>
+                      </button>
+                    );
+                  })()}
+                  {workspace?.facebook_page_id && (() => {
+                    const active = panelPlatforms.includes("facebook");
+                    const onlyOne = !workspace?.instagram_account_id;
+                    return (
+                      <button onClick={() => { if (onlyOne) return; setPanelPlatforms(prev => active ? prev.filter(p => p !== "facebook") : [...prev, "facebook"]); }}
+                        style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 5, padding: "10px 8px", borderRadius: 10, border: `2px solid ${active ? "#1877F2" : "var(--line)"}`, background: active ? "#1877F215" : "transparent", cursor: onlyOne ? "default" : "pointer", transition: "all .15s" }}>
+                        <svg width="22" height="22" viewBox="0 0 24 24" fill={active ? "#1877F2" : "#9CA3AF"} xmlns="http://www.w3.org/2000/svg"><path d="M24 12.073C24 5.405 18.627 0 12 0S0 5.405 0 12.073C0 18.1 4.388 23.094 10.125 24v-8.437H7.078v-3.49h3.047V9.41c0-3.025 1.792-4.697 4.533-4.697 1.312 0 2.686.236 2.686.236v2.97h-1.513c-1.491 0-1.956.93-1.956 1.883v2.25h3.328l-.532 3.49h-2.796V24C19.612 23.094 24 18.1 24 12.073z"/></svg>
+                        <span style={{ fontSize: 11, fontWeight: 600, color: active ? "#1877F2" : "#9CA3AF", fontFamily: "var(--sans)" }}>Facebook</span>
+                      </button>
+                    );
+                  })()}
+                </div>
+              </div>
+            )}
 
             <div style={{ display: "flex", gap: 7 }}>
               <Link href={`/workspace/${id}/editor/${selectedPost.id}`} className="btn btn-ghost btn-sm" style={{ flex: 1, justifyContent: "center" }}>
