@@ -38,11 +38,36 @@ interface TextEl extends BaseEl {
   uppercase?: boolean;
   shadowEnabled?: boolean;
   shadowColor?: string;
+  shadowOpacity?: number; // 0-100, default 75
   shadowBlur?: number;
   shadowOffsetX?: number;
   shadowOffsetY?: number;
   stroke?: string;
   strokeWidth?: number;
+  // Highlight
+  highlightEnabled?: boolean;
+  highlightColor?: string;
+  highlightOpacity?: number; // 0-100, default 80
+  highlightBorderRadius?: number; // default 4
+  highlightPadding?: number; // default 8
+  // Glow
+  glowEnabled?: boolean;
+  glowColor?: string;
+  glowIntensity?: number; // 0-100, default 50
+  glowSize?: number; // default 10
+  // Hollow
+  hollowEnabled?: boolean;
+  // Lift
+  liftEnabled?: boolean;
+  liftColor?: string;
+  liftDepth?: number; // default 6
+  liftDirection?: string; // 'tl'|'t'|'tr'|'l'|'r'|'bl'|'b'|'br', default 'br'
+  // Echo
+  echoEnabled?: boolean;
+  echoColor?: string;
+  echoCount?: number; // 1-5, default 3
+  echoOffset?: number; // default 8
+  echoFade?: boolean; // default true
 }
 interface RectEl extends BaseEl { type: 'rect'; width: number; height: number; fill: string; stroke: string; strokeWidth: number; cornerRadius: number; }
 interface CircleEl extends BaseEl { type: 'circle'; radius: number; fill: string; stroke: string; strokeWidth: number; }
@@ -630,6 +655,8 @@ function EditorContextToolbar({ sel, allFonts, brandColors, stageW, stageH, onUp
                   <input type="color" value={textSel.shadowColor ?? '#000000'} onChange={e => u({ shadowColor: e.target.value } as any)}
                     style={{ width: 30, height: 24, borderRadius: 5, border: '1.5px solid var(--line)', cursor: 'pointer', padding: 1 }} />
                 </div>
+                <SliderRow label="Opacité" value={textSel.shadowOpacity ?? 75} min={0} max={100} step={1}
+                  fmt={v => v + '%'} onChange={v => u({ shadowOpacity: v } as any)} />
                 <SliderRow label="Flou" value={textSel.shadowBlur ?? 5} min={0} max={30} step={1}
                   fmt={v => v + 'px'} onChange={v => u({ shadowBlur: v } as any)} />
                 <SliderRow label="Décalage X" value={textSel.shadowOffsetX ?? 2} min={-20} max={20} step={1}
@@ -644,6 +671,113 @@ function EditorContextToolbar({ sel, allFonts, brandColors, stageW, stageH, onUp
                 <input type="number" min={0} max={20} value={textSel.strokeWidth ?? 0} onChange={e => u({ strokeWidth: parseInt(e.target.value) || 0 } as any)}
                   style={{ width: 44, textAlign: 'center', border: '1.5px solid var(--line)', borderRadius: 6, fontSize: 12, padding: '3px 4px', fontWeight: 700, color: 'var(--ink)', outline: 'none' }} />
                 <span style={{ fontSize: 11, color: 'var(--ink-3)' }}>px épaisseur</span>
+              </div>
+              {/* ── Surbrillance ── */}
+              <div style={{ borderTop: '1px solid var(--paper)', margin: '10px 0' }} />
+              <div className="label" style={{ marginBottom: 8 }}>Surbrillance</div>
+              <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10, cursor: 'pointer' }}>
+                <input type="checkbox" checked={!!textSel.highlightEnabled} onChange={e => u({ highlightEnabled: e.target.checked } as any)}
+                  style={{ accentColor: 'var(--mint)', width: 14, height: 14 }} />
+                <span style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--ink-2)' }}>Activer la surbrillance</span>
+              </label>
+              <div style={{ opacity: textSel.highlightEnabled ? 1 : 0.4, pointerEvents: textSel.highlightEnabled ? 'auto' : 'none', transition: 'opacity 150ms' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+                  <span className="label" style={{ marginBottom: 0 }}>Couleur</span>
+                  <input type="color" value={textSel.highlightColor ?? '#FFFF00'} onChange={e => u({ highlightColor: e.target.value } as any)}
+                    style={{ width: 30, height: 24, borderRadius: 5, border: '1.5px solid var(--line)', cursor: 'pointer', padding: 1 }} />
+                </div>
+                <SliderRow label="Opacité" value={textSel.highlightOpacity ?? 80} min={0} max={100} step={1}
+                  fmt={v => v + '%'} onChange={v => u({ highlightOpacity: v } as any)} />
+                <SliderRow label="Arrondi" value={textSel.highlightBorderRadius ?? 4} min={0} max={20} step={1}
+                  fmt={v => v + 'px'} onChange={v => u({ highlightBorderRadius: v } as any)} />
+                <SliderRow label="Épaisseur" value={textSel.highlightPadding ?? 8} min={0} max={20} step={1}
+                  fmt={v => v + 'px'} onChange={v => u({ highlightPadding: v } as any)} />
+              </div>
+              {/* ── Lueur ── */}
+              <div style={{ borderTop: '1px solid var(--paper)', margin: '10px 0' }} />
+              <div className="label" style={{ marginBottom: 8 }}>Lueur</div>
+              <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10, cursor: 'pointer' }}>
+                <input type="checkbox" checked={!!textSel.glowEnabled} onChange={e => u({ glowEnabled: e.target.checked } as any)}
+                  style={{ accentColor: 'var(--mint)', width: 14, height: 14 }} />
+                <span style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--ink-2)' }}>Activer la lueur</span>
+              </label>
+              <div style={{ opacity: textSel.glowEnabled ? 1 : 0.4, pointerEvents: textSel.glowEnabled ? 'auto' : 'none', transition: 'opacity 150ms' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+                  <span className="label" style={{ marginBottom: 0 }}>Couleur</span>
+                  <input type="color" value={textSel.glowColor ?? '#00FFFF'} onChange={e => u({ glowColor: e.target.value } as any)}
+                    style={{ width: 30, height: 24, borderRadius: 5, border: '1.5px solid var(--line)', cursor: 'pointer', padding: 1 }} />
+                </div>
+                <SliderRow label="Intensité" value={textSel.glowIntensity ?? 50} min={0} max={100} step={1}
+                  fmt={v => v + '%'} onChange={v => u({ glowIntensity: v } as any)} />
+                <SliderRow label="Taille" value={textSel.glowSize ?? 10} min={1} max={40} step={1}
+                  fmt={v => v + 'px'} onChange={v => u({ glowSize: v } as any)} />
+              </div>
+              {/* ── Creux ── */}
+              <div style={{ borderTop: '1px solid var(--paper)', margin: '10px 0' }} />
+              <div className="label" style={{ marginBottom: 8 }}>Creux</div>
+              <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
+                <input type="checkbox" checked={!!textSel.hollowEnabled} onChange={e => u({ hollowEnabled: e.target.checked } as any)}
+                  style={{ accentColor: 'var(--mint)', width: 14, height: 14 }} />
+                <span style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--ink-2)' }}>Activer le creux</span>
+              </label>
+              <span style={{ fontSize: 11, color: 'var(--ink-3)', marginTop: 5, display: 'block' }}>Utilise les réglages du Contour texte</span>
+              {/* ── Élévation ── */}
+              <div style={{ borderTop: '1px solid var(--paper)', margin: '10px 0' }} />
+              <div className="label" style={{ marginBottom: 8 }}>Élévation</div>
+              <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10, cursor: 'pointer' }}>
+                <input type="checkbox" checked={!!textSel.liftEnabled} onChange={e => u({ liftEnabled: e.target.checked } as any)}
+                  style={{ accentColor: 'var(--mint)', width: 14, height: 14 }} />
+                <span style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--ink-2)' }}>Activer l'élévation</span>
+              </label>
+              <div style={{ opacity: textSel.liftEnabled ? 1 : 0.4, pointerEvents: textSel.liftEnabled ? 'auto' : 'none', transition: 'opacity 150ms' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+                  <span className="label" style={{ marginBottom: 0 }}>Couleur</span>
+                  <input type="color" value={textSel.liftColor ?? '#333333'} onChange={e => u({ liftColor: e.target.value } as any)}
+                    style={{ width: 30, height: 24, borderRadius: 5, border: '1.5px solid var(--line)', cursor: 'pointer', padding: 1 }} />
+                </div>
+                <SliderRow label="Profondeur" value={textSel.liftDepth ?? 6} min={1} max={20} step={1}
+                  fmt={v => v + 'px'} onChange={v => u({ liftDepth: v } as any)} />
+                <div className="label" style={{ marginBottom: 6 }}>Direction</div>
+                <div style={{ display: 'inline-flex', flexDirection: 'column', gap: 4 }}>
+                  {([['tl','t','tr'],['l','·','r'],['bl','b','br']] as const).map((row, ri) => (
+                    <div key={ri} style={{ display: 'flex', gap: 4 }}>
+                      {row.map(d => {
+                        const arrows: Record<string,string> = { tl:'↖',t:'↑',tr:'↗',l:'←','·':'·',r:'→',bl:'↙',b:'↓',br:'↘' };
+                        const active = (textSel.liftDirection ?? 'br') === d;
+                        return (
+                          <button key={d} onClick={() => d !== '·' && u({ liftDirection: d } as any)}
+                            style={{ width: 28, height: 28, borderRadius: 6, border: '1.5px solid var(--line)', background: active ? 'var(--ink)' : 'var(--sunk)', color: active ? '#fff' : 'var(--ink-2)', cursor: d !== '·' ? 'pointer' : 'default', fontSize: 13, fontWeight: 700, display: 'grid', placeItems: 'center' }}>
+                            {arrows[d]}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  ))}
+                </div>
+              </div>
+              {/* ── Écho ── */}
+              <div style={{ borderTop: '1px solid var(--paper)', margin: '10px 0' }} />
+              <div className="label" style={{ marginBottom: 8 }}>Écho</div>
+              <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10, cursor: 'pointer' }}>
+                <input type="checkbox" checked={!!textSel.echoEnabled} onChange={e => u({ echoEnabled: e.target.checked } as any)}
+                  style={{ accentColor: 'var(--mint)', width: 14, height: 14 }} />
+                <span style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--ink-2)' }}>Activer l'écho</span>
+              </label>
+              <div style={{ opacity: textSel.echoEnabled ? 1 : 0.4, pointerEvents: textSel.echoEnabled ? 'auto' : 'none', transition: 'opacity 150ms' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+                  <span className="label" style={{ marginBottom: 0 }}>Couleur</span>
+                  <input type="color" value={textSel.echoColor ?? '#FF69B4'} onChange={e => u({ echoColor: e.target.value } as any)}
+                    style={{ width: 30, height: 24, borderRadius: 5, border: '1.5px solid var(--line)', cursor: 'pointer', padding: 1 }} />
+                </div>
+                <SliderRow label="Nombre" value={textSel.echoCount ?? 3} min={1} max={5} step={1}
+                  fmt={v => String(v)} onChange={v => u({ echoCount: v } as any)} />
+                <SliderRow label="Décalage" value={textSel.echoOffset ?? 8} min={1} max={30} step={1}
+                  fmt={v => v + 'px'} onChange={v => u({ echoOffset: v } as any)} />
+                <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
+                  <input type="checkbox" checked={textSel.echoFade !== false} onChange={e => u({ echoFade: e.target.checked } as any)}
+                    style={{ accentColor: 'var(--mint)', width: 14, height: 14 }} />
+                  <span style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--ink-2)' }}>Opacité dégressive</span>
+                </label>
               </div>
             </div>
           )}
@@ -2235,21 +2369,84 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
                           opacity={el.hasBg ? el.bgOpacity / 100 : 1}
                           cornerRadius={el.hasBg ? el.cornerRadius : 0}
                         />
+                        {/* Surbrillance — highlight rect behind text */}
+                        {el.highlightEnabled && (() => {
+                          const hp = el.highlightPadding ?? 8;
+                          return (
+                            <Rect
+                              x={pH - hp} y={pV - Math.round(hp / 2)}
+                              width={textAreaW + hp * 2}
+                              height={el.fontSize * (el.lineHeight ?? 1.2) + hp}
+                              fill={el.highlightColor ?? '#FFFF00'}
+                              opacity={(el.highlightOpacity ?? 80) / 100}
+                              cornerRadius={el.highlightBorderRadius ?? 4}
+                              listening={false}
+                            />
+                          );
+                        })()}
+                        {/* Élévation — lift layers rendered deepest */}
+                        {el.liftEnabled && (() => {
+                          const depth = el.liftDepth ?? 6;
+                          const dirMap: Record<string,[number,number]> = { tl:[-1,-1],t:[0,-1],tr:[1,-1],l:[-1,0],r:[1,0],bl:[-1,1],b:[0,1],br:[1,1] };
+                          const [dx,dy] = dirMap[el.liftDirection ?? 'br'] ?? [1,1];
+                          const txt = el.uppercase ? el.text.toUpperCase() : el.text;
+                          return Array.from({ length: depth }, (_,i) => (
+                            <Text key={`lift-${i}`} x={pH + dx*(depth-i)} y={pV + dy*(depth-i)} width={textAreaW} wrap="word"
+                              text={txt} fontSize={el.fontSize} fontFamily={el.fontFamily} fontStyle={el.fontStyle}
+                              fill={el.liftColor ?? '#333333'} align={el.align} listening={false}
+                              lineHeight={el.lineHeight ?? 1.2} letterSpacing={el.letterSpacing ?? 0} />
+                          ));
+                        })()}
+                        {/* Écho — echo layers behind main text */}
+                        {el.echoEnabled && (() => {
+                          const count = el.echoCount ?? 3;
+                          const offset = el.echoOffset ?? 8;
+                          const fade = el.echoFade !== false;
+                          const txt = el.uppercase ? el.text.toUpperCase() : el.text;
+                          return Array.from({ length: count }, (_,i) => (
+                            <Text key={`echo-${i}`} x={pH + offset*(count-i)} y={pV + offset*(count-i)} width={textAreaW} wrap="word"
+                              text={txt} fontSize={el.fontSize} fontFamily={el.fontFamily} fontStyle={el.fontStyle}
+                              fill={el.echoColor ?? '#FF69B4'}
+                              opacity={fade ? 1 / Math.pow(2, count-i) : 0.5}
+                              align={el.align} listening={false}
+                              lineHeight={el.lineHeight ?? 1.2} letterSpacing={el.letterSpacing ?? 0} />
+                          ));
+                        })()}
+                        {/* Lueur — glow Text clone rendered behind main text */}
+                        {el.glowEnabled && (
+                          <Text x={pH} y={pV} width={textAreaW} wrap="word"
+                            text={el.uppercase ? el.text.toUpperCase() : el.text}
+                            fontSize={el.fontSize} fontFamily={el.fontFamily}
+                            fontStyle={el.fontStyle}
+                            fill="transparent"
+                            align={el.align} listening={false}
+                            lineHeight={el.lineHeight ?? 1.2}
+                            letterSpacing={el.letterSpacing ?? 0}
+                            shadowEnabled={true}
+                            shadowColor={el.glowColor ?? '#00FFFF'}
+                            shadowOpacity={(el.glowIntensity ?? 50) / 100}
+                            shadowBlur={el.glowSize ?? 10}
+                            shadowOffsetX={0}
+                            shadowOffsetY={0}
+                          />
+                        )}
                         {/* text wraps within blockW; handles update el.width which drives blockW */}
                         <Text x={pH} y={pV} width={textAreaW} wrap="word"
                           text={el.uppercase ? el.text.toUpperCase() : el.text}
                           fontSize={el.fontSize} fontFamily={el.fontFamily}
                           fontStyle={el.fontStyle} textDecoration={el.textDecoration}
-                          fill={el.fill} align={el.align} listening={false}
+                          fill={el.hollowEnabled ? 'transparent' : el.fill}
+                          align={el.align} listening={false}
                           lineHeight={el.lineHeight ?? 1.2}
                           letterSpacing={el.letterSpacing ?? 0}
                           shadowEnabled={el.shadowEnabled ?? false}
                           shadowColor={el.shadowColor ?? '#000000'}
+                          shadowOpacity={(el.shadowOpacity ?? 75) / 100}
                           shadowBlur={el.shadowBlur ?? 5}
                           shadowOffsetX={el.shadowOffsetX ?? 2}
                           shadowOffsetY={el.shadowOffsetY ?? 2}
-                          stroke={el.strokeWidth ? (el.stroke ?? '#000000') : ''}
-                          strokeWidth={el.strokeWidth ?? 0}
+                          stroke={el.hollowEnabled ? (el.stroke ?? el.fill) : (el.strokeWidth ? (el.stroke ?? '#000000') : '')}
+                          strokeWidth={el.hollowEnabled ? Math.max(el.strokeWidth ?? 0, 1) : (el.strokeWidth ?? 0)}
                         />
                       </Group>
                     );
