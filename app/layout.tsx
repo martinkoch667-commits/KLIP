@@ -4,6 +4,10 @@ import "./globals.css";
 export const metadata: Metadata = {
   title: "Klip",
   description: "Production de contenu client, simplifiée.",
+  icons: {
+    icon: "/favicon-32.png",
+    apple: "/icon-192.png",
+  },
 };
 
 export default function RootLayout({

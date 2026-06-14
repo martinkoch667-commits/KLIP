@@ -94,16 +94,7 @@ export default function LoginPage() {
         {/* Logo */}
         <div style={{ position: "relative", zIndex: 2, marginBottom: "auto" }}>
           <Link href="/" style={{ textDecoration: "none", display: "inline-flex", alignItems: "center" }}>
-            <span style={{
-              fontFamily: "var(--display)",
-              fontWeight: 900, fontSize: 26,
-              letterSpacing: "-0.05em", lineHeight: 1,
-              color: "var(--cream)",
-              display: "inline-flex", alignItems: "center",
-            }}>
-              Kl<span style={{ color: "var(--mint)" }}>ip</span>
-              <span style={{ width: 5, height: 5, background: "var(--mint)", borderRadius: "50%", marginLeft: 3, marginTop: 9, flexShrink: 0 }} />
-            </span>
+            <img src="/logo-klip-mint.png" alt="Klip" style={{ height: 48, width: "auto" }} />
           </Link>
         </div>
 

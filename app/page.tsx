@@ -180,10 +180,11 @@ function Icon({ name, size = 22, stroke = 1.7, style, className }: IconProps) {
 /* ─── KlipLogo ───────────────────────────────────────────────────────────── */
 function KlipLogo({ size = 26, light = false }: { size?: number; light?: boolean }) {
   return (
-    <span style={{ fontFamily: "'Cabinet Grotesk', system-ui, sans-serif", fontWeight: 900, fontSize: size, letterSpacing: '-0.045em', lineHeight: 1, color: light ? '#EFEEE4' : '#0D0F0A', display: 'inline-flex', alignItems: 'center' }}>
-      Kl<span style={{ color: light ? '#2FD79B' : '#22C58A' }}>ip</span>
-      <span style={{ width: size * 0.17, height: size * 0.17, background: '#2FD79B', borderRadius: '50%', marginLeft: size * 0.06, marginTop: size * 0.34, flexShrink: 0 }} />
-    </span>
+    <img
+      src={light ? '/logo-klip-mint.png' : '/logo-klip-dark.png'}
+      alt="Klip"
+      style={{ height: size, width: 'auto' }}
+    />
   );
 }
 

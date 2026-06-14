@@ -12,9 +12,7 @@ export default function PrivacyPolicy() {
       {/* Top bar */}
       <header style={{ borderBottom: "1px solid rgba(13,15,10,.08)", padding: "0 32px", height: 56, display: "flex", alignItems: "center", background: "var(--paper, #FAFAF8)" }}>
         <Link href="/" style={{ display: "flex", alignItems: "center", gap: 10, textDecoration: "none" }}>
-          <span style={{ fontFamily: "var(--display, 'Archivo Black', sans-serif)", fontWeight: 900, fontSize: 18, color: "var(--ink, #0D0F0A)", letterSpacing: "-0.03em" }}>
-            klip
-          </span>
+          <img src="/logo-klip-dark.png" alt="Klip" style={{ height: 28, width: "auto" }} />
         </Link>
         <span style={{ marginLeft: "auto", fontSize: 13, color: "var(--ink-3, #9A9B97)" }}>Privacy Policy</span>
       </header>

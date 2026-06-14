@@ -22,14 +22,7 @@ export default function DataDeletionPage() {
         {/* Logo */}
         <div style={{ marginBottom: 40 }}>
           <Link href="/" style={{ textDecoration: "none" }}>
-            <span style={{
-              fontFamily: "var(--display)", fontWeight: 900, fontSize: 26,
-              letterSpacing: "-0.05em", lineHeight: 1, color: "var(--ink)",
-              display: "inline-flex", alignItems: "center",
-            }}>
-              Kl<span style={{ color: "var(--mint)" }}>ip</span>
-              <span style={{ width: 5, height: 5, background: "var(--mint)", borderRadius: "50%", marginLeft: 3, marginTop: 8, flexShrink: 0 }} />
-            </span>
+            <img src="/logo-klip-dark.png" alt="Klip" style={{ height: 32, width: "auto" }} />
           </Link>
         </div>
 

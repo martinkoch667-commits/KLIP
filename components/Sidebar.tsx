@@ -151,10 +151,7 @@ export default function Sidebar({ workspaces: _w, userName: _u, activeWorkspaceI
       {/* Logo */}
       <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "6px 10px 14px" }}>
         <Link href="/dashboard" style={{ textDecoration: "none", display: "flex", alignItems: "center" }}>
-          <span style={{ fontFamily: "var(--display)", fontWeight: 900, fontSize: 22, letterSpacing: "-0.05em", lineHeight: 1, color: "var(--cream)", display: "inline-flex", alignItems: "center" }}>
-            Kl<span style={{ color: "var(--mint)" }}>ip</span>
-            <span style={{ width: 4, height: 4, background: "var(--mint)", borderRadius: "50%", marginLeft: 3, marginTop: 7, flexShrink: 0 }} />
-          </span>
+          <img src="/logo-klip-mint.png" alt="Klip" style={{ height: 32, width: "auto" }} />
         </Link>
         <span className="sb-full chip" style={{ marginLeft: "auto", background: "var(--cream-4)", color: "var(--cream-2)", fontSize: 10 }}>
           Agence
