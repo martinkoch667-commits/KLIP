@@ -32,7 +32,17 @@ interface TextEl extends BaseEl {
   textDecoration: string; fill: string; align: string; width: number;
   hasBg: boolean; bgColor: string; bgOpacity: number; cornerRadius: number;
   padding: number; paddingH: number; paddingV: number;
-  role?: string; // IA role: titre | sous-titre | accroche | corps | cta | prix
+  role?: string;
+  lineHeight?: number;
+  letterSpacing?: number;
+  uppercase?: boolean;
+  shadowEnabled?: boolean;
+  shadowColor?: string;
+  shadowBlur?: number;
+  shadowOffsetX?: number;
+  shadowOffsetY?: number;
+  stroke?: string;
+  strokeWidth?: number;
 }
 interface RectEl extends BaseEl { type: 'rect'; width: number; height: number; fill: string; stroke: string; strokeWidth: number; cornerRadius: number; }
 interface CircleEl extends BaseEl { type: 'circle'; radius: number; fill: string; stroke: string; strokeWidth: number; }
@@ -431,14 +441,17 @@ interface CtxToolbarProps {
   sel: CanvasEl;
   allFonts: string[];
   brandColors: string[];
+  stageW: number;
+  stageH: number;
   onUpdate: (patch: Partial<CanvasEl>) => void;
   onDuplicate: () => void;
   onDelete: () => void;
   onCrop?: () => void;
   onSetBg?: () => void;
+  onLayerAction: (action: 'front' | 'forward' | 'backward' | 'back') => void;
 }
 
-function EditorContextToolbar({ sel, allFonts, brandColors, onUpdate, onDuplicate, onDelete, onCrop, onSetBg }: CtxToolbarProps) {
+function EditorContextToolbar({ sel, allFonts, brandColors, stageW, stageH, onUpdate, onDuplicate, onDelete, onCrop, onSetBg, onLayerAction }: CtxToolbarProps) {
   const [pop, setPop] = React.useState<string | null>(null);
   const u = (patch: Partial<CanvasEl>) => onUpdate(patch);
   const isText = sel.type === 'text';
@@ -458,6 +471,44 @@ function EditorContextToolbar({ sel, allFonts, brandColors, onUpdate, onDuplicat
       {icon}
     </button>
   );
+  const TextBtn = ({ on, onClick, children }: { on?: boolean; onClick: () => void; children: React.ReactNode }) => (
+    <button onClick={onClick}
+      style={{ height: 32, padding: '0 9px', borderRadius: 8, display: 'flex', alignItems: 'center', gap: 5, border: 'none', cursor: 'pointer', fontSize: 12.5, fontWeight: 600, flexShrink: 0, background: on ? 'var(--sunk)' : 'transparent', color: 'var(--ink)' }}
+      onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'var(--sunk)'; }}
+      onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = on ? 'var(--sunk)' : 'transparent'; }}>
+      {children}
+    </button>
+  );
+  const SliderRow = ({ label, value, min, max, step, fmt, onChange }: { label: string; value: number; min: number; max: number; step: number; fmt: (v: number) => string; onChange: (v: number) => void }) => (
+    <div style={{ marginBottom: 8 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 5 }}>
+        <span className="label" style={{ marginBottom: 0 }}>{label}</span>
+        <span style={{ fontFamily: 'var(--mono)', fontWeight: 800, fontSize: 11, color: 'var(--ink-2)' }}>{fmt(value)}</span>
+      </div>
+      <input type="range" min={min} max={max} step={step} value={value}
+        onChange={e => onChange(parseFloat(e.target.value))} className="ed-range" style={{ width: '100%' }} />
+    </div>
+  );
+  const toggleDecoration = (flag: 'underline' | 'line-through') => {
+    if (!textSel) return;
+    const cur = textSel.textDecoration ?? '';
+    const parts = (['underline', 'line-through'] as const).filter(f => f === flag ? !cur.includes(f) : cur.includes(f));
+    u({ textDecoration: parts.join(' ') } as Partial<TextEl>);
+  };
+  const alignEl = (dir: string) => {
+    if (sel.type === 'circle') {
+      const r = (sel as CircleEl).radius;
+      if (dir === 'left') u({ x: r } as any); else if (dir === 'right') u({ x: stageW - r } as any); else if (dir === 'center-h') u({ x: stageW / 2 } as any); else if (dir === 'top') u({ y: r } as any); else if (dir === 'bottom') u({ y: stageH - r } as any); else if (dir === 'center-v') u({ y: stageH / 2 } as any);
+    } else if (sel.type === 'star') {
+      const r = (sel as StarEl).outerRadius;
+      if (dir === 'left') u({ x: r } as any); else if (dir === 'right') u({ x: stageW - r } as any); else if (dir === 'center-h') u({ x: stageW / 2 } as any); else if (dir === 'top') u({ y: r } as any); else if (dir === 'bottom') u({ y: stageH - r } as any); else if (dir === 'center-v') u({ y: stageH / 2 } as any);
+    } else {
+      const elW = 'width' in sel ? (sel as any).width : 100;
+      const elH = textSel ? textSel.fontSize + (Number(textSel.paddingV ?? textSel.padding ?? 10)) * 2 : ('height' in sel ? (sel as any).height : 100);
+      if (dir === 'left') u({ x: 0 } as any); else if (dir === 'right') u({ x: stageW - elW } as any); else if (dir === 'center-h') u({ x: (stageW - elW) / 2 } as any); else if (dir === 'top') u({ y: 0 } as any); else if (dir === 'bottom') u({ y: stageH - elH } as any); else if (dir === 'center-v') u({ y: (stageH - elH) / 2 } as any);
+    }
+    setPop(null);
+  };
 
   const PALETTE = ['#14160F','#FFFFFF','#C8F135','#2FD79B','#FF6B6B','#0038FF','#FF9500','#5A5E50',...brandColors];
   const palette = Array.from(new Set(PALETTE)).slice(0, 16);
@@ -524,9 +575,17 @@ function EditorContextToolbar({ sel, allFonts, brandColors, onUpdate, onDuplicat
           onClick={() => u({ fontStyle: textSel.fontStyle?.includes('italic') ? (textSel.fontStyle.includes('bold') ? 'bold' : 'normal') : (textSel.fontStyle?.includes('bold') ? 'bold italic' : 'italic') } as Partial<TextEl>)}
           icon={<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M11 5h7M6 19h7M14 5l-4 14"/></svg>} />
         {/* Underline */}
-        <IBtn title="Souligné" on={textSel.textDecoration === 'underline'}
-          onClick={() => u({ textDecoration: textSel.textDecoration === 'underline' ? '' : 'underline' } as Partial<TextEl>)}
+        <IBtn title="Souligné" on={textSel.textDecoration?.includes('underline')}
+          onClick={() => toggleDecoration('underline')}
           icon={<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M7 4v7a5 5 0 0 0 10 0V4M5 21h14"/></svg>} />
+        {/* Strikethrough */}
+        <IBtn title="Barré" on={textSel.textDecoration?.includes('line-through')}
+          onClick={() => toggleDecoration('line-through')}
+          icon={<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M16 4H9a3 3 0 0 0-2.83 4M14 20c-2.8 0-5-1.1-5-4M4 12h16"/></svg>} />
+        {/* Case */}
+        <IBtn title={textSel.uppercase ? 'Minuscules' : 'Majuscules'} on={!!textSel.uppercase}
+          onClick={() => u({ uppercase: !textSel.uppercase } as any)}
+          icon={<span style={{ fontWeight: 800, fontSize: 11.5, fontFamily: 'system-ui', lineHeight: 1, letterSpacing: '-0.02em', display: 'flex', alignItems: 'baseline', gap: 0 }}>A<span style={{ fontSize: 9 }}>a</span></span>} />
         <Div />
         {/* Align cycle */}
         <IBtn title={`Alignement: ${textSel.align}`} on={false}
@@ -537,6 +596,58 @@ function EditorContextToolbar({ sel, allFonts, brandColors, onUpdate, onDuplicat
               ? <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M4 6h16M10 12h10M7 18h13"/></svg>
               : <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M4 6h16M4 12h10M4 18h13"/></svg>
           } />
+        {/* Spacing (line-height + letter-spacing) */}
+        <div style={{ position: 'relative' }}>
+          <IBtn title="Espacement" on={pop === 'spacing'}
+            onClick={() => setPop(p => p === 'spacing' ? null : 'spacing')}
+            icon={<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M8 6h13M8 12h13M8 18h13M3 6v.01M3 12v.01M3 18v.01"/></svg>} />
+          {pop === 'spacing' && (
+            <div style={{ ...popStyle }}>
+              <SliderRow label="Interligne" value={textSel.lineHeight ?? 1.2} min={0.8} max={3} step={0.05}
+                fmt={v => v.toFixed(2)} onChange={v => u({ lineHeight: v } as any)} />
+              <SliderRow label="Interlettrage" value={textSel.letterSpacing ?? 0} min={-5} max={30} step={0.5}
+                fmt={v => (v >= 0 ? '+' : '') + v.toFixed(1) + 'px'} onChange={v => u({ letterSpacing: v } as any)} />
+            </div>
+          )}
+        </div>
+        {/* Effets (shadow + text stroke) */}
+        <div style={{ position: 'relative' }}>
+          <TextBtn on={pop === 'effects'} onClick={() => setPop(p => p === 'effects' ? null : 'effects')}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="3"/><path d="M12 1v3M12 20v3M4.22 4.22l2.12 2.12M17.66 17.66l2.12 2.12M1 12h3M20 12h3M4.22 19.78l2.12-2.12M17.66 6.34l2.12-2.12"/></svg>
+            Effets
+          </TextBtn>
+          {pop === 'effects' && (
+            <div style={{ ...popStyle, minWidth: 230 }}>
+              <div className="label" style={{ marginBottom: 8 }}>Ombre portée</div>
+              <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10, cursor: 'pointer' }}>
+                <input type="checkbox" checked={!!textSel.shadowEnabled} onChange={e => u({ shadowEnabled: e.target.checked } as any)}
+                  style={{ accentColor: 'var(--mint)', width: 14, height: 14 }} />
+                <span style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--ink-2)' }}>Activer l'ombre</span>
+              </label>
+              {textSel.shadowEnabled && (<>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+                  <span className="label" style={{ marginBottom: 0 }}>Couleur</span>
+                  <input type="color" value={textSel.shadowColor ?? '#000000'} onChange={e => u({ shadowColor: e.target.value } as any)}
+                    style={{ width: 30, height: 24, borderRadius: 5, border: '1.5px solid var(--line)', cursor: 'pointer', padding: 1 }} />
+                </div>
+                <SliderRow label="Flou" value={textSel.shadowBlur ?? 5} min={0} max={30} step={1}
+                  fmt={v => v + 'px'} onChange={v => u({ shadowBlur: v } as any)} />
+                <SliderRow label="Décalage X" value={textSel.shadowOffsetX ?? 2} min={-20} max={20} step={1}
+                  fmt={v => (v >= 0 ? '+' : '') + v + 'px'} onChange={v => u({ shadowOffsetX: v } as any)} />
+                <SliderRow label="Décalage Y" value={textSel.shadowOffsetY ?? 2} min={-20} max={20} step={1}
+                  fmt={v => (v >= 0 ? '+' : '') + v + 'px'} onChange={v => u({ shadowOffsetY: v } as any)} />
+              </>)}
+              <div className="label" style={{ margin: '10px 0 8px' }}>Contour texte</div>
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                <input type="color" value={textSel.stroke ?? '#000000'} onChange={e => u({ stroke: e.target.value } as any)}
+                  style={{ width: 30, height: 24, borderRadius: 5, border: '1.5px solid var(--line)', cursor: 'pointer', padding: 1 }} />
+                <input type="number" min={0} max={20} value={textSel.strokeWidth ?? 0} onChange={e => u({ strokeWidth: parseInt(e.target.value) || 0 } as any)}
+                  style={{ width: 44, textAlign: 'center', border: '1.5px solid var(--line)', borderRadius: 6, fontSize: 12, padding: '3px 4px', fontWeight: 700, color: 'var(--ink)', outline: 'none' }} />
+                <span style={{ fontSize: 11, color: 'var(--ink-3)' }}>px épaisseur</span>
+              </div>
+            </div>
+          )}
+        </div>
       </>}
 
       {/* COLOR — text fill or shape fill */}
@@ -628,6 +739,60 @@ function EditorContextToolbar({ sel, allFonts, brandColors, onUpdate, onDuplicat
               <span style={{ fontFamily: 'var(--mono)', fontWeight: 800, fontSize: 11, color: 'var(--ink-2)' }}>{sel.opacity}%</span>
             </div>
             <input type="range" min={0} max={100} step={1} value={sel.opacity} onChange={e => u({ opacity: parseInt(e.target.value) } as Partial<CanvasEl>)} className="ed-range" style={{ width: '100%' }} />
+          </div>
+        )}
+      </div>
+
+      {/* Animer */}
+      <div style={{ position: 'relative' }}>
+        <TextBtn on={pop === 'anim'} onClick={() => setPop(p => p === 'anim' ? null : 'anim')}>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M5 3l14 9-14 9V3z"/></svg>
+          Animer
+        </TextBtn>
+        {pop === 'anim' && (
+          <div style={{ ...popStyle, right: 0, left: 'auto', minWidth: 200, textAlign: 'center', padding: '20px 16px' }}>
+            <div style={{ fontSize: 22, marginBottom: 8 }}>✨</div>
+            <div style={{ fontWeight: 700, fontSize: 14, color: 'var(--ink)', marginBottom: 6 }}>Bientôt disponible</div>
+            <div style={{ fontSize: 12, color: 'var(--ink-3)', lineHeight: 1.4 }}>Les animations par élément arrivent très bientôt.</div>
+          </div>
+        )}
+      </div>
+
+      {/* Position (layer order + canvas alignment) */}
+      <div style={{ position: 'relative' }}>
+        <TextBtn on={pop === 'pos'} onClick={() => setPop(p => p === 'pos' ? null : 'pos')}>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+          Position
+        </TextBtn>
+        {pop === 'pos' && (
+          <div style={{ ...popStyle, right: 0, left: 'auto', minWidth: 210 }}>
+            <div className="label" style={{ marginBottom: 6 }}>Calque</div>
+            {([['front','Premier plan'],['forward','Avancer'],['backward','Reculer'],['back','Arrière-plan']] as const).map(([id, label]) => (
+              <button key={id} onClick={() => { onLayerAction(id); setPop(null); }}
+                style={{ display: 'block', width: '100%', textAlign: 'left', padding: '7px 10px', borderRadius: 7, fontSize: 13, fontWeight: 600, cursor: 'pointer', border: 'none', background: 'transparent', color: 'var(--ink)' }}
+                onMouseEnter={e => (e.currentTarget.style.background = 'var(--sunk)')}
+                onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
+                {label}
+              </button>
+            ))}
+            <div className="label" style={{ margin: '10px 0 8px' }}>Aligner sur la page</div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 4 }}>
+              {[
+                { id: 'left',     title: 'Gauche',                  icon: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M11 5l-7 7 7 7M4 12h16"/></svg> },
+                { id: 'center-h', title: 'Centrer horiz.',          icon: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M12 4v16M5 9l7-7 7 7M5 15l7 7 7-7"/></svg> },
+                { id: 'right',    title: 'Droite',                   icon: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M13 5l7 7-7 7M20 12H4"/></svg> },
+                { id: 'top',      title: 'Haut',                     icon: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M5 11l7-7 7 7M12 4v16"/></svg> },
+                { id: 'center-v', title: 'Centrer vert.',            icon: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M4 12h16M9 5l-7 7 7 7M15 5l7 7-7 7"/></svg> },
+                { id: 'bottom',   title: 'Bas',                      icon: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M5 13l7 7 7-7M12 20V4"/></svg> },
+              ].map(({ id, title, icon }) => (
+                <button key={id} title={title} onClick={() => alignEl(id)}
+                  style={{ height: 34, borderRadius: 7, display: 'grid', placeItems: 'center', background: 'var(--sunk)', border: 'none', cursor: 'pointer', color: 'var(--ink)' }}
+                  onMouseEnter={e => (e.currentTarget.style.background = 'var(--line)')}
+                  onMouseLeave={e => (e.currentTarget.style.background = 'var(--sunk)')}>
+                  {icon}
+                </button>
+              ))}
+            </div>
           </div>
         )}
       </div>
@@ -766,10 +931,18 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
   const [unsplashPhotos, setUnsplashPhotos] = useState<string[]>([]);
   const [unsplashLoading, setUnsplashLoading] = useState(false);
 
+  interface PexelsPhoto { id: number; src: { medium: string; large: string }; photographer: string; alt: string; }
+  const [pexelsQuery, setPexelsQuery] = useState('');
+  const [pexelsPhotos, setPexelsPhotos] = useState<PexelsPhoto[]>([]);
+  const [pexelsPage, setPexelsPage] = useState(1);
+  const [pexelsTotalPages, setPexelsTotalPages] = useState(0);
+  const [pexelsLoading, setPexelsLoading] = useState(false);
+
   const elementsRef = useRef<CanvasEl[]>([]);
   const selectedIdRef = useRef<string | null>(null);
   useEffect(() => { elementsRef.current = elements; }, [elements]);
   useEffect(() => { selectedIdRef.current = selectedId; }, [selectedId]);
+  useEffect(() => { if (selectedId) setBgCropMode(false); }, [selectedId]);
 
   // ── Carousel slides ───────────────────────────────────────────────────────
   const [slides, setSlides] = useState<Slide[]>([{ id: 'slide-1', elements: [], proxyUrl: '' }]);
@@ -864,7 +1037,8 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
   const [brandFontNames, setBrandFontNames] = useState<string[]>([]);
 
   // ── UI tool + workspace ───────────────────────────────────────────────────
-  const [tool, setTool] = useState<'design'|'elements'|'text'|'photos'|'brand'|'upload'|null>(null);
+  const [tool, setTool] = useState<'design'|'elements'|'text'|'photos'|'brand'|'upload'|'calques'|null>(null);
+  const [bgLocked, setBgLocked] = useState(true);
   const [workspaceName, setWorkspaceName] = useState('');
   const [postPhotoUrl, setPostPhotoUrl] = useState('');
   const [workspaceData, setWorkspaceData] = useState<{
@@ -1098,6 +1272,19 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
     if (withHistory) pushHistory(newEls);
   };
 
+  const layerAction = (action: 'front' | 'forward' | 'backward' | 'back') => {
+    if (!selectedId) return;
+    const arr = [...elementsRef.current];
+    const idx = arr.findIndex(e => e.id === selectedId);
+    if (idx === -1) return;
+    const [el] = arr.splice(idx, 1);
+    if (action === 'front') arr.push(el);
+    else if (action === 'forward') arr.splice(Math.min(arr.length, idx + 1), 0, el);
+    else if (action === 'backward') arr.splice(Math.max(0, idx - 1), 0, el);
+    else arr.unshift(el);
+    applyElements(arr);
+  };
+
   const updateEl = useCallback((id: string, updates: Partial<CanvasEl>) => {
     const newEls = elementsRef.current.map(e => e.id === id ? { ...e, ...updates } as CanvasEl : e);
     applyElements(newEls);
@@ -1244,6 +1431,21 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
   };
 
   useEffect(() => { fetchUnsplash('lifestyle'); }, []);
+
+  const fetchPexels = async (q: string, page = 1) => {
+    setPexelsLoading(true);
+    try {
+      const res = await fetch(`/api/pexels?query=${encodeURIComponent(q || 'nature')}&page=${page}`);
+      const data = await res.json();
+      if (page === 1) setPexelsPhotos(data.photos ?? []);
+      else setPexelsPhotos(prev => [...prev, ...(data.photos ?? [])]);
+      setPexelsTotalPages(Math.ceil((data.total_results ?? 0) / 20));
+      setPexelsPage(page);
+    } catch { /* silently fail */ }
+    setPexelsLoading(false);
+  };
+
+  useEffect(() => { fetchPexels('lifestyle'); }, []);
 
   // ── Fit zoom ─────────────────────────────────────────────────────────────
   const fit = useCallback(() => {
@@ -1599,11 +1801,14 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
               sel={selectedEl}
               allFonts={[...FONTS, ...brandFontNames, ...customFonts.map(f => f.name)]}
               brandColors={[workspaceData?.primary_color, workspaceData?.secondary_color, workspaceData?.accent_color].filter(Boolean) as string[]}
+              stageW={stageW}
+              stageH={stageH}
               onUpdate={(patch) => updateEl(selectedEl.id, patch)}
               onDuplicate={duplicateEl}
               onDelete={() => deleteEl(selectedId)}
               onCrop={selectedEl.type === 'image' ? () => setCropId(selectedEl.id) : undefined}
               onSetBg={selectedEl.type === 'image' ? () => setProxyUrl((selectedEl as ImageEl).src) : undefined}
+              onLayerAction={layerAction}
             />
           ) : (
             <span style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--ink-3)', display: 'flex', alignItems: 'center', gap: 7 }}>
@@ -1635,6 +1840,7 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
             { id: 'photos',   label: 'Photos',   icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg> },
             { id: 'brand',    label: 'Charte',   icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="4"/><circle cx="12" cy="4" r="1.5"/><circle cx="19.5" cy="16" r="1.5"/><circle cx="4.5" cy="16" r="1.5"/></svg> },
             { id: 'upload',   label: 'Importer', icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg> },
+            { id: 'calques',  label: 'Calques',  icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg> },
           ] as const).map(({ id, label, icon }) => (
             <button key={id} onClick={() => setTool(tool === id ? null : id)} title={label}
               style={{ width: 50, height: 50, borderRadius: 13, border: 'none', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 4, cursor: 'pointer', transition: 'all .14s',
@@ -1761,46 +1967,68 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
             {/* PHOTOS */}
             {tool === 'photos' && (
               <div style={{ padding: '18px' }}>
-                <PanelHead title="Photos" sub="Cadres & import" onClose={() => setTool(null)} />
-                <label className="btn btn-primary" style={{ width: '100%', justifyContent: 'center', height: 44, marginBottom: 16, cursor: 'pointer' }}>
+                <PanelHead title="Photos" sub="Pexels · 3M+ photos" onClose={() => setTool(null)} />
+                {/* Import local */}
+                <label className="btn btn-primary" style={{ width: '100%', justifyContent: 'center', height: 44, marginBottom: 14, cursor: 'pointer' }}>
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
                   Importer une photo
                   <input type="file" accept="image/*" style={{ display: 'none' }} onChange={handleFileUpload} />
                 </label>
-                <p style={{ fontSize: 10, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '0.12em', fontFamily: 'var(--mono)', fontWeight: 800, margin: '0 0 8px' }}>Cadres</p>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 7, marginBottom: 16 }}>
-                  {[{ label: 'Paysage', ratio: '16/9' },{ label: 'Portrait', ratio: '4/5' },{ label: 'Carré', ratio: '1/1' },{ label: 'Bandeau', ratio: '3/1' }].map(f => (
-                    <button key={f.label} onClick={() => addRect()}
-                      style={{ aspectRatio: f.ratio, borderRadius: 8, border: '1.5px dashed var(--line)', cursor: 'pointer', background: 'var(--sunk)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 4 }}>
-                      <span style={{ fontSize: 10, fontFamily: 'var(--mono)', fontWeight: 700, color: 'var(--ink-3)' }}>{f.label}</span>
+
+                {/* Pexels search */}
+                <div style={{ position: 'relative', marginBottom: 10 }}>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: 'var(--ink-3)', pointerEvents: 'none' }}><circle cx="11" cy="11" r="7"/><path d="M21 21l-4-4"/></svg>
+                  <input value={pexelsQuery} onChange={e => setPexelsQuery(e.target.value)}
+                    onKeyDown={e => { if (e.key === 'Enter') fetchPexels(pexelsQuery, 1); }}
+                    placeholder="Rechercher des photos..."
+                    style={{ width: '100%', padding: '8px 10px 8px 32px', border: '1.5px solid var(--line)', borderRadius: 8, fontSize: 12.5, outline: 'none', fontFamily: 'var(--sans)', background: 'var(--sunk)', color: 'var(--ink)', boxSizing: 'border-box' }} />
+                </div>
+
+                {/* Quick searches */}
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, marginBottom: 12 }}>
+                  {['Nature', 'Ville', 'Nourriture', 'Mode', 'Architecture'].map(q => (
+                    <button key={q} onClick={() => { setPexelsQuery(q); fetchPexels(q, 1); }}
+                      style={{ padding: '4px 10px', borderRadius: 20, border: '1px solid var(--line)', background: pexelsQuery === q ? 'var(--ink)' : 'var(--sunk)', color: pexelsQuery === q ? '#fff' : 'var(--ink-2)', fontSize: 11.5, fontWeight: 600, cursor: 'pointer' }}>
+                      {q}
                     </button>
                   ))}
                 </div>
+
+                {/* Results grid */}
+                {pexelsLoading && pexelsPhotos.length === 0 ? (
+                  <div style={{ textAlign: 'center', padding: '24px 0', color: 'var(--ink-3)', fontSize: 13 }}>Chargement…</div>
+                ) : pexelsPhotos.length === 0 ? (
+                  <div style={{ textAlign: 'center', padding: '24px 0', color: 'var(--ink-3)', fontSize: 13 }}>
+                    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" style={{ marginBottom: 8, display: 'block', margin: '0 auto 8px' }}><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+                    Aucune photo — essayez un autre mot-clé.
+                  </div>
+                ) : (
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
+                    {pexelsPhotos.map(photo => (
+                      <UnsplashThumb key={photo.id}
+                        src={photo.src.medium}
+                        onAdd={() => addImageEl(`/api/proxy-image?url=${encodeURIComponent(photo.src.large)}`)}
+                        onBg={() => { setProxyUrl(`/api/proxy-image?url=${encodeURIComponent(photo.src.large)}`); setBgOffsetX(0); setBgOffsetY(0); setBgCropMode(false); }} />
+                    ))}
+                  </div>
+                )}
+
+                {/* Voir plus */}
+                {pexelsPhotos.length > 0 && pexelsPage < pexelsTotalPages && (
+                  <button onClick={() => fetchPexels(pexelsQuery || 'nature', pexelsPage + 1)}
+                    disabled={pexelsLoading}
+                    style={{ width: '100%', marginTop: 10, padding: '9px 0', borderRadius: 8, border: '1.5px solid var(--line)', background: 'var(--sunk)', color: 'var(--ink-2)', fontSize: 13, fontWeight: 700, cursor: pexelsLoading ? 'wait' : 'pointer' }}>
+                    {pexelsLoading ? 'Chargement…' : 'Voir plus'}
+                  </button>
+                )}
+
                 {proxyUrl && (
                   <button onClick={() => setBgCropMode(v => !v)}
-                    style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', borderRadius: 'var(--r-s)', border: 'none', cursor: 'pointer', fontSize: 12, fontWeight: 700, width: '100%', marginBottom: 10,
+                    style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', borderRadius: 8, border: 'none', cursor: 'pointer', fontSize: 12, fontWeight: 700, width: '100%', marginTop: 12,
                       background: bgCropMode ? 'var(--mint)' : 'var(--sunk)', color: bgCropMode ? 'var(--mint-ink)' : 'var(--ink-2)' }}>
                     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>
                     {bgCropMode ? 'Glissez le fond pour recadrer ↑' : 'Recadrer le fond'}
                   </button>
-                )}
-                <div style={{ display: 'flex', gap: 4, marginBottom: 8 }}>
-                  <input value={unsplashQuery} onChange={e => setUnsplashQuery(e.target.value)}
-                    onKeyDown={e => e.key === 'Enter' && fetchUnsplash(unsplashQuery)}
-                    placeholder="Chercher une photo…"
-                    style={{ flex: 1, padding: '7px 10px', border: '1px solid var(--line)', borderRadius: 'var(--r-s)', fontSize: 12, outline: 'none', fontFamily: 'var(--sans)', background: 'var(--sunk)', color: 'var(--ink)' }} />
-                  <button onClick={() => fetchUnsplash(unsplashQuery)} style={{ padding: '7px 10px', background: 'var(--mint)', color: 'var(--mint-ink)', border: 'none', borderRadius: 'var(--r-s)', cursor: 'pointer', fontSize: 13, fontWeight: 700 }}>→</button>
-                </div>
-                {unsplashLoading ? (
-                  <p style={{ fontSize: 12, color: 'var(--ink-3)', textAlign: 'center', padding: '8px 0' }}>Chargement…</p>
-                ) : (
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 4 }}>
-                    {unsplashPhotos.slice(0, 9).map((src, i) => (
-                      <UnsplashThumb key={i} src={src}
-                        onAdd={() => addImageEl(`/api/proxy-image?url=${encodeURIComponent(src)}`)}
-                        onBg={() => { setProxyUrl(`/api/proxy-image?url=${encodeURIComponent(src)}`); setBgOffsetX(0); setBgOffsetY(0); setBgCropMode(false); }} />
-                    ))}
-                  </div>
                 )}
               </div>
             )}
@@ -1873,6 +2101,56 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
               </div>
             )}
 
+            {/* CALQUES — Layers panel */}
+            {tool === 'calques' && (
+              <div style={{ padding: '18px' }}>
+                <PanelHead title="Calques" sub="Ordre et verrouillage" onClose={() => setTool(null)} />
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                  {/* Elements in reverse z-order (top layer first) */}
+                  {[...elements].reverse().map((el, i) => {
+                    const label = el.type === 'text' ? (el as TextEl).text.slice(0, 22) || 'Texte' : el.type === 'image' ? 'Image' : el.type === 'rect' ? 'Rectangle' : el.type === 'circle' ? 'Cercle' : 'Étoile';
+                    const icon = el.type === 'text'
+                      ? <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><polyline points="4 7 4 4 20 4 20 7"/><line x1="9" y1="20" x2="15" y2="20"/><line x1="12" y1="4" x2="12" y2="20"/></svg>
+                      : el.type === 'image'
+                      ? <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+                      : el.type === 'circle'
+                      ? <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="9"/></svg>
+                      : <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><rect x="3" y="3" width="18" height="18" rx="2"/></svg>;
+                    const isSelected = el.id === selectedId;
+                    return (
+                      <button key={el.id} onClick={() => { setSelectedId(el.id); }}
+                        style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '7px 10px', borderRadius: 8, border: 'none', cursor: 'pointer', textAlign: 'left', width: '100%', background: isSelected ? 'var(--mint-soft)' : 'transparent', color: isSelected ? 'var(--mint-2)' : 'var(--ink-2)' }}
+                        onMouseEnter={e => { if (!isSelected) (e.currentTarget as HTMLElement).style.background = 'var(--sunk)'; }}
+                        onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = isSelected ? 'var(--mint-soft)' : 'transparent'; }}>
+                        <span style={{ flexShrink: 0, opacity: .7 }}>{icon}</span>
+                        <span style={{ flex: 1, fontSize: 12.5, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: isSelected ? 'var(--mint-2)' : 'var(--ink)' }}>{label}</span>
+                        <span style={{ fontSize: 10, color: 'var(--ink-3)', fontFamily: 'var(--mono)', fontWeight: 700, flexShrink: 0 }}>{elements.length - i}</span>
+                      </button>
+                    );
+                  })}
+                  {/* Fond (background) layer — always last */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '7px 10px', borderRadius: 8, borderTop: elements.length > 0 ? '1px solid var(--line)' : 'none', marginTop: elements.length > 0 ? 6 : 0 }}>
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>
+                    <span style={{ flex: 1, fontSize: 12.5, fontWeight: 600, color: proxyUrl ? 'var(--ink)' : 'var(--ink-3)' }}>Fond{!proxyUrl && ' (aucun)'}</span>
+                    <button title={bgLocked ? 'Déverrouiller le fond' : 'Verrouiller le fond'}
+                      onClick={() => { const next = !bgLocked; setBgLocked(next); if (next) setBgCropMode(false); else if (proxyUrl) setBgCropMode(true); }}
+                      style={{ width: 28, height: 28, borderRadius: 7, display: 'grid', placeItems: 'center', border: 'none', cursor: 'pointer', background: 'transparent', color: bgLocked ? 'var(--ink-3)' : 'var(--mint-2)' }}
+                      onMouseEnter={e => (e.currentTarget.style.background = 'var(--sunk)')}
+                      onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
+                      {bgLocked
+                        ? <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                        : <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 9.9-1"/></svg>}
+                    </button>
+                  </div>
+                </div>
+                {!bgLocked && proxyUrl && (
+                  <div style={{ marginTop: 12, padding: '10px 12px', borderRadius: 9, background: 'color-mix(in srgb, var(--mint) 10%, transparent)', border: '1px solid color-mix(in srgb, var(--mint) 30%, transparent)', fontSize: 12, color: 'var(--ink-2)', lineHeight: 1.4 }}>
+                    🔓 Fond déverrouillé — glissez-le sur le canvas pour le repositionner.
+                  </div>
+                )}
+              </div>
+            )}
+
           </div>
         )}
 
@@ -1886,7 +2164,7 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
             <Stage
               ref={stageRef}
               width={stageW} height={stageH}
-              onMouseDown={e => { if (e.target === e.target.getStage()) { if (cropId) { setCropId(null); } else { setSelectedId(null); } } }}
+              onMouseDown={e => { if (e.target === e.target.getStage()) { if (cropId) { setCropId(null); } else { setSelectedId(null); if (!bgLocked && proxyUrl) setBgCropMode(true); else setBgCropMode(false); } } }}
               style={{ display: 'block' }}
             >
               <Layer>
@@ -1958,10 +2236,21 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
                           cornerRadius={el.hasBg ? el.cornerRadius : 0}
                         />
                         {/* text wraps within blockW; handles update el.width which drives blockW */}
-                        <Text x={pH} y={pV} width={textAreaW} wrap="word" text={el.text}
+                        <Text x={pH} y={pV} width={textAreaW} wrap="word"
+                          text={el.uppercase ? el.text.toUpperCase() : el.text}
                           fontSize={el.fontSize} fontFamily={el.fontFamily}
                           fontStyle={el.fontStyle} textDecoration={el.textDecoration}
-                          fill={el.fill} align={el.align} listening={false} />
+                          fill={el.fill} align={el.align} listening={false}
+                          lineHeight={el.lineHeight ?? 1.2}
+                          letterSpacing={el.letterSpacing ?? 0}
+                          shadowEnabled={el.shadowEnabled ?? false}
+                          shadowColor={el.shadowColor ?? '#000000'}
+                          shadowBlur={el.shadowBlur ?? 5}
+                          shadowOffsetX={el.shadowOffsetX ?? 2}
+                          shadowOffsetY={el.shadowOffsetY ?? 2}
+                          stroke={el.strokeWidth ? (el.stroke ?? '#000000') : ''}
+                          strokeWidth={el.strokeWidth ?? 0}
+                        />
                       </Group>
                     );
                   }
