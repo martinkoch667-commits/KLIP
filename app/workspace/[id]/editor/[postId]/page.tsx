@@ -1052,6 +1052,7 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
   const stageH = activeFormat.h;
   const [elements, setElements] = useState<CanvasEl[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [hiddenIds, setHiddenIds] = useState<Set<string>>(new Set());
   const [dragId, setDragId] = useState<string | null>(null);
   const [dragOverId, setDragOverId] = useState<string | null>(null);
@@ -2361,6 +2362,7 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
                       <Group key={el.id} id={el.id} x={el.x} y={el.y} rotation={el.rotation} opacity={el.opacity / 100}
                         draggable
                         onClick={() => setSelectedId(el.id)} onTap={() => setSelectedId(el.id)}
+                        onDblClick={() => { setSelectedId(el.id); setEditingId(el.id); }}
                         onDragStart={() => setIsKonvaDragging(true)}
                         onDragEnd={e => { setIsKonvaDragging(false); updateEl(el.id, { x: e.target.x(), y: e.target.y() }); }}>
                         {/* Bug 5 fix: always render Rect for hit detection; transparent when hasBg=false */}
@@ -2487,6 +2489,63 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
                 />
               </>
             )}
+            {editingId && (() => {
+              const tel = elements.find(e => e.id === editingId) as TextEl | undefined;
+              if (!tel || tel.type !== 'text') return null;
+              const pV = Number(tel.paddingV ?? tel.padding ?? 10);
+              const pH = Number(tel.paddingH ?? tel.padding ?? 10);
+              const blockW = Math.min(Math.max(tel.width ?? 200, 80), stageW - 40);
+              const blockH = tel.fontSize + pV * 2;
+              return (
+                <textarea
+                  key={editingId}
+                  autoFocus
+                  value={tel.uppercase ? tel.text.toUpperCase() : tel.text}
+                  onChange={ev => {
+                    const newText = tel.uppercase ? ev.target.value.toLowerCase() : ev.target.value;
+                    const newEls = elementsRef.current.map(e =>
+                      e.id === editingId ? { ...e, text: newText } as CanvasEl : e
+                    );
+                    setElements(newEls);
+                    elementsRef.current = newEls;
+                  }}
+                  onBlur={() => {
+                    const slice = historyRef.current.slice(0, histIdxRef.current + 1);
+                    historyRef.current = [...slice, elementsRef.current];
+                    histIdxRef.current = historyRef.current.length - 1;
+                    setHistTick(t => t + 1);
+                    setEditingId(null);
+                  }}
+                  onKeyDown={e => { if (e.key === 'Escape') { e.currentTarget.blur(); } }}
+                  style={{
+                    position: 'absolute',
+                    left: tel.x,
+                    top: tel.y,
+                    width: blockW,
+                    minHeight: blockH,
+                    padding: `${pV}px ${pH}px`,
+                    fontSize: tel.fontSize,
+                    fontFamily: tel.fontFamily,
+                    fontWeight: tel.fontStyle.includes('bold') ? 'bold' : 'normal',
+                    fontStyle: tel.fontStyle.includes('italic') ? 'italic' : 'normal',
+                    color: tel.fill,
+                    background: tel.hasBg ? tel.bgColor : 'transparent',
+                    border: '2px solid var(--mint)',
+                    outline: 'none',
+                    resize: 'none',
+                    zIndex: 100,
+                    pointerEvents: 'auto',
+                    lineHeight: String(tel.lineHeight ?? 1.2),
+                    textAlign: tel.align as React.CSSProperties['textAlign'],
+                    letterSpacing: tel.letterSpacing ? `${tel.letterSpacing}px` : 'normal',
+                    transform: tel.rotation ? `rotate(${tel.rotation}deg)` : undefined,
+                    transformOrigin: '0 0',
+                    boxSizing: 'border-box',
+                    overflow: 'hidden',
+                  }}
+                />
+              );
+            })()}
             {cropId && (
               <div style={{
                 position: 'absolute', bottom: 14, left: '50%',
