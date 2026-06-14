@@ -783,7 +783,7 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
   const [brandFontNames, setBrandFontNames] = useState<string[]>([]);
 
   // ── UI tool + workspace ───────────────────────────────────────────────────
-  const [tool, setTool] = useState<'layers'|'media'|'text'|'brand'|'stickers'|'shapes'|'ai'|null>('layers');
+  const [tool, setTool] = useState<'design'|'elements'|'text'|'photos'|'brand'|'upload'|null>(null);
   const [workspaceName, setWorkspaceName] = useState('');
   const [postPhotoUrl, setPostPhotoUrl] = useState('');
   const [workspaceData, setWorkspaceData] = useState<{
@@ -1532,20 +1532,12 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
           )}
         </div>
 
-        {/* Right: delete + export + save */}
+        {/* Right: Aperçu + Partager */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
-          <button onClick={deletePost} title="Supprimer ce post" className="ed-hbtn"
-            style={{ color: 'var(--warn)' }}>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M4 7h16M9 7V4.5h6V7M6 7l1 13h10l1-13"/></svg>
-          </button>
-          <span style={{ width: 1, height: 24, background: 'var(--line)' }} />
-          <button onClick={exportPNG} className="btn btn-sm btn-ghost" style={{ height: 36 }}>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M12 16V4M7 9l5-5 5 5"/><path d="M4 16v2.5A1.5 1.5 0 0 0 5.5 20h13a1.5 1.5 0 0 0 1.5-1.5V16"/></svg>
-            Exporter
-          </button>
+          <button onClick={exportPNG} className="btn btn-sm btn-ghost" style={{ height: 36 }}>Aperçu</button>
           <button onClick={handleSave} disabled={saving} className="btn btn-sm btn-primary"
             style={{ height: 36, opacity: saving ? 0.6 : 1, cursor: saving ? 'not-allowed' : 'pointer' }}>
-            {saving ? 'Sauvegarde…' : 'Sauvegarder'}
+            {saving ? 'Sauvegarde…' : 'Partager'}
           </button>
         </div>
       </div>
@@ -1556,131 +1548,159 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
         {/* ── TOOL RAIL (68px) ── */}
         <div data-stop-deselect style={{ width: 68, background: 'var(--white)', borderRight: '1px solid var(--line)', display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '12px 0', gap: 4, flexShrink: 0 }}>
           {([
-            { id: 'layers',   label: 'Calques',  icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M12 3l9 5-9 5-9-5 9-5zM3 13l9 5 9-5"/></svg> },
-            { id: 'media',    label: 'Média',    icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg> },
+            { id: 'design',   label: 'Modèles',  icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg> },
+            { id: 'elements', label: 'Éléments', icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="8" height="8" rx="1.5"/><circle cx="17" cy="7" r="4"/><polygon points="12 22 3 15.5 21 15.5 12 22"/></svg> },
             { id: 'text',     label: 'Texte',    icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><polyline points="4 7 4 4 20 4 20 7"/><line x1="9" y1="20" x2="15" y2="20"/><line x1="12" y1="4" x2="12" y2="20"/></svg> },
-            { id: 'brand',    label: 'Charte',   icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="13.5" cy="6.5" r="2.5"/><circle cx="19" cy="17" r="2.5"/><circle cx="6.5" cy="17" r="2.5"/><path d="M13.5 9L6.5 14.5M13.5 9L19 14.5"/></svg> },
-            { id: 'shapes',   label: 'Formes',   icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="8" height="8" rx="1"/><circle cx="17" cy="7" r="4"/><polygon points="12 21 3 15 21 15 12 21"/></svg> },
-            { id: 'stickers', label: 'Stickers', icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg> },
-            { id: 'ai',       label: 'IA',       icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z" opacity=".85"/></svg> },
+            { id: 'photos',   label: 'Photos',   icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg> },
+            { id: 'brand',    label: 'Charte',   icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="4"/><circle cx="12" cy="4" r="1.5"/><circle cx="19.5" cy="16" r="1.5"/><circle cx="4.5" cy="16" r="1.5"/></svg> },
+            { id: 'upload',   label: 'Importer', icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg> },
           ] as const).map(({ id, label, icon }) => (
             <button key={id} onClick={() => setTool(tool === id ? null : id)} title={label}
-              style={{ width: 50, padding: '9px 4px', borderRadius: 12, border: 'none', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, cursor: 'pointer', transition: 'all .14s',
+              style={{ width: 50, height: 50, borderRadius: 13, border: 'none', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 4, cursor: 'pointer', transition: 'all .14s',
                 background: tool === id ? 'var(--mint-soft)' : 'transparent',
                 color: tool === id ? 'var(--mint-2)' : 'var(--ink-3)' }}>
               {icon}
-              <span style={{ fontFamily: 'var(--mono)', fontWeight: 800, fontSize: 8, letterSpacing: '.06em', textTransform: 'uppercase', lineHeight: 1 }}>{label}</span>
+              <span style={{ fontFamily: 'var(--mono)', fontWeight: 800, fontSize: 7.5, letterSpacing: '.06em', textTransform: 'uppercase', lineHeight: 1 }}>{label}</span>
             </button>
           ))}
-          {/* Format selector at bottom */}
-          <div style={{ marginTop: 'auto', paddingBottom: 12, width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3 }}>
-            <span style={{ fontFamily: 'var(--mono)', fontSize: 7.5, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '.06em', color: 'var(--ink-3)', marginBottom: 2 }}>Format</span>
-            {FORMATS.map(f => (
-              <button key={f.id} onClick={() => setFormatId(f.id)} title={f.label}
-                style={{ width: 34, height: 34, borderRadius: 7, border: '1.5px solid', cursor: 'pointer', fontSize: 8, fontFamily: 'var(--mono)', fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0, transition: 'all .12s',
-                  background: formatId === f.id ? 'var(--mint)' : 'var(--white)',
-                  borderColor: formatId === f.id ? 'var(--mint)' : 'var(--line)',
-                  color: formatId === f.id ? 'var(--mint-ink)' : 'var(--ink-3)' }}>
-                {f.id === 'ig-portrait' ? '4:5' : f.id === 'ig-square' ? '1:1' : f.id === 'ig-story' ? '9:16' : 'FB'}
-              </button>
-            ))}
-          </div>
         </div>
 
         {/* ── TOOL PANEL FLYOUT (312px, conditional) ── */}
         {tool && (
           <div data-stop-deselect style={{ width: 312, background: 'var(--white)', borderRight: '1px solid var(--line)', overflowY: 'auto', flexShrink: 0, display: 'flex', flexDirection: 'column' }}>
 
-            {/* LAYERS */}
-            {tool === 'layers' && <>
-              <div style={{ padding: '10px 14px 8px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid var(--line)', flexShrink: 0 }}>
-                <span className="label">Calques</span>
-                <span style={{ fontFamily: 'var(--mono)', fontWeight: 800, fontSize: 11, color: 'var(--ink-3)', background: 'var(--sunk)', padding: '2px 7px', borderRadius: 99 }}>{elements.length + (proxyUrl ? 1 : 0)}</span>
-              </div>
-              {[...elements].reverse().map((el, reversedIdx) => {
-                const actualIdx = elements.length - 1 - reversedIdx;
-                const isSelected = el.id === selectedId;
-                const isHidden = hiddenIds.has(el.id);
-                const isDragOver = el.id === dragOverId;
-                return (
-                  <div key={el.id}
-                    draggable
-                    onDragStart={() => setDragId(el.id)}
-                    onDragOver={e => { e.preventDefault(); setDragOverId(el.id); }}
-                    onDragLeave={() => setDragOverId(null)}
-                    onDrop={() => {
-                      if (!dragId || dragId === el.id) { setDragId(null); setDragOverId(null); return; }
-                      const fromIdx = elements.findIndex(e => e.id === dragId);
-                      if (fromIdx < 0) return;
-                      const n = [...elements]; const [moved] = n.splice(fromIdx, 1); n.splice(actualIdx, 0, moved);
-                      applyElements(n); setDragId(null); setDragOverId(null);
-                    }}
-                    onDragEnd={() => { setDragId(null); setDragOverId(null); }}
-                    onClick={() => setSelectedId(isSelected ? null : el.id)}
-                    style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '5px 10px 5px 8px', cursor: 'pointer', userSelect: 'none' as const, transition: 'background 0.1s',
-                      background: isSelected ? 'var(--mint-soft)' : isDragOver ? 'rgba(47,215,155,0.08)' : 'transparent',
-                      opacity: isHidden ? 0.45 : 1, borderLeft: isSelected ? '2px solid var(--mint-2)' : '2px solid transparent' }}>
-                    <span style={{ color: 'var(--ink-3)', fontSize: 13, cursor: 'grab', flexShrink: 0, lineHeight: 1 }}>⠿</span>
-                    <span style={{ width: 16, height: 16, flexShrink: 0, color: isSelected ? 'var(--mint-2)' : 'var(--ink-3)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                      {el.type === 'text' && <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><polyline points="4 7 4 4 20 4 20 7"/><line x1="9" y1="20" x2="15" y2="20"/><line x1="12" y1="4" x2="12" y2="20"/></svg>}
-                      {el.type === 'image' && <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>}
-                      {el.type === 'rect' && <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><rect x="3" y="3" width="18" height="18" rx="2"/></svg>}
-                      {el.type === 'circle' && <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><circle cx="12" cy="12" r="10"/></svg>}
-                      {el.type === 'star' && <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>}
-                    </span>
-                    <span style={{ flex: 1, fontSize: 11.5, color: isSelected ? 'var(--ink)' : 'var(--ink-2)', fontWeight: isSelected ? 600 : 400, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{layerName(el)}</span>
-                    <button onClick={e => { e.stopPropagation(); moveUp(actualIdx); }} disabled={actualIdx >= elements.length - 1}
-                      style={{ width: 18, height: 18, border: 'none', background: 'transparent', cursor: 'pointer', color: 'var(--ink-3)', padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, opacity: actualIdx >= elements.length - 1 ? 0.2 : 0.6 }}>
-                      <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="18 15 12 9 6 15"/></svg>
-                    </button>
-                    <button onClick={e => { e.stopPropagation(); moveDown(actualIdx); }} disabled={actualIdx <= 0}
-                      style={{ width: 18, height: 18, border: 'none', background: 'transparent', cursor: 'pointer', color: 'var(--ink-3)', padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, opacity: actualIdx <= 0 ? 0.2 : 0.6 }}>
-                      <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="6 9 12 15 18 9"/></svg>
-                    </button>
-                    <button onClick={e => { e.stopPropagation(); toggleHidden(el.id); }} title={isHidden ? 'Afficher' : 'Masquer'}
-                      style={{ width: 18, height: 18, border: 'none', background: 'transparent', cursor: 'pointer', color: 'var(--ink-3)', padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, opacity: isHidden ? 0.4 : 0.6 }}>
-                      {isHidden
-                        ? <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
-                        : <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>}
-                    </button>
-                  </div>
-                );
-              })}
-              {proxyUrl && (
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '5px 10px 5px 8px', opacity: 0.4, borderLeft: '2px solid transparent' }}>
-                  <span style={{ color: 'var(--ink-3)', fontSize: 13, flexShrink: 0 }}>⠿</span>
-                  <span style={{ width: 16, height: 16, flexShrink: 0, color: 'var(--ink-3)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
-                  </span>
-                  <span style={{ flex: 1, fontSize: 11.5, color: 'var(--ink-3)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>Fond</span>
+            {/* DESIGN — Modèles */}
+            {tool === 'design' && (
+              <div style={{ padding: '18px' }}>
+                <p className="label" style={{ marginBottom: 12 }}>Modèles</p>
+                <div style={{ display: 'flex', gap: 6, marginBottom: 14 }}>
+                  <input placeholder="Chercher un modèle…"
+                    style={{ flex: 1, padding: '7px 10px', border: '1px solid var(--line)', borderRadius: 'var(--r-s)', fontSize: 12, outline: 'none', fontFamily: 'var(--sans)', background: 'var(--sunk)', color: 'var(--ink)' }} />
                 </div>
-              )}
-            </>}
-
-            {/* MEDIA */}
-            {tool === 'media' && (
-              <div style={{ padding: '14px 16px' }}>
-                <p style={{ fontSize: 11, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '0.12em', fontFamily: 'var(--mono)', fontWeight: 800, marginBottom: 10 }}>Arrière-plan</p>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 9, marginBottom: 12 }}>
-                  {['linear-gradient(150deg,#2b8d57,#0c2a1d)','linear-gradient(150deg,#2FD79B,#06281C)','linear-gradient(150deg,#F5F0E8,#c9c4b2)','linear-gradient(150deg,#111111,#333)','linear-gradient(150deg,#0038FF,#001a80)','linear-gradient(150deg,#FF6B6B,#c0392b)'].map((g, i) => (
-                    <button key={i} onClick={() => setProxyUrl('')}
-                      style={{ aspectRatio: '4/5', borderRadius: 'var(--r)', background: g, border: 'none', cursor: 'pointer', transition: 'all .12s', boxShadow: proxyUrl === '' ? '0 0 0 2.5px var(--mint-2)' : 'inset 0 0 0 1px var(--line)' }} />
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 7 }}>
+                  {([
+                    { from: '#2b8d57', to: '#0c2a1d', angle: 150 },
+                    { from: '#2FD79B', to: '#06281C', angle: 150 },
+                    { from: '#F5F0E8', to: '#c9c4b2', angle: 150 },
+                    { from: '#111111', to: '#333333', angle: 150 },
+                    { from: '#0038FF', to: '#001a80', angle: 150 },
+                    { from: '#FF6B6B', to: '#c0392b', angle: 150 },
+                    { from: '#FFD700', to: '#b8860b', angle: 150 },
+                    { from: '#a855f7', to: '#4c1d95', angle: 150 },
+                    { from: '#f97316', to: '#7c2d12', angle: 150 },
+                  ] as const).map(({ from, to, angle }, i) => (
+                    <button key={i} onClick={() => setBgStyle({ type: 'gradient', colorFrom: from, colorTo: to, angle })}
+                      style={{ aspectRatio: '4/5', borderRadius: 10, background: `linear-gradient(${angle}deg,${from},${to})`, border: 'none', cursor: 'pointer', transition: 'all .12s',
+                        boxShadow: 'inset 0 0 0 1px rgba(0,0,0,.1)' }} />
                   ))}
                 </div>
-                <label style={{ display: 'flex', alignItems: 'center', gap: 10, border: '1.5px dashed var(--line)', borderRadius: 'var(--r)', padding: '12px 14px', cursor: 'pointer', color: 'var(--ink-3)', fontSize: 13, fontWeight: 600, marginBottom: 6 }}>
+              </div>
+            )}
+
+            {/* ELEMENTS — Éléments */}
+            {tool === 'elements' && (
+              <div style={{ padding: '18px' }}>
+                <p className="label" style={{ marginBottom: 12 }}>Éléments</p>
+                <div style={{ display: 'flex', gap: 6, marginBottom: 14 }}>
+                  <input placeholder="Chercher un élément…"
+                    style={{ flex: 1, padding: '7px 10px', border: '1px solid var(--line)', borderRadius: 'var(--r-s)', fontSize: 12, outline: 'none', fontFamily: 'var(--sans)', background: 'var(--sunk)', color: 'var(--ink)' }} />
+                </div>
+                <p style={{ fontSize: 10, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '0.12em', fontFamily: 'var(--mono)', fontWeight: 800, margin: '0 0 8px' }}>Formes</p>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 7, marginBottom: 16 }}>
+                  {[
+                    { label: 'Carré',    fn: addRect,   preview: <rect x="6" y="6" width="12" height="12" rx="1.5" fill="none" stroke="currentColor" strokeWidth="1.5"/> },
+                    { label: 'Cercle',   fn: addCircle, preview: <circle cx="12" cy="12" r="7" fill="none" stroke="currentColor" strokeWidth="1.5"/> },
+                    { label: 'Pilule',   fn: addRect,   preview: <rect x="4" y="8" width="16" height="8" rx="4" fill="none" stroke="currentColor" strokeWidth="1.5"/> },
+                    { label: 'Triangle', fn: addStar,   preview: <polygon points="12,5 20,19 4,19" fill="none" stroke="currentColor" strokeWidth="1.5"/> },
+                    { label: 'Ligne',    fn: () => addRect(), preview: <line x1="4" y1="12" x2="20" y2="12" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/> },
+                    { label: 'Étoile',   fn: addStar,   preview: <polygon points="12,3 14.5,9 21,9.5 16,14 17.5,21 12,17.5 6.5,21 8,14 3,9.5 9.5,9" fill="none" stroke="currentColor" strokeWidth="1.3"/> },
+                  ].map(({ label, fn, preview }) => (
+                    <button key={label} onClick={fn} className="well"
+                      style={{ aspectRatio: '1', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 5, cursor: 'pointer', borderRadius: 10 }}>
+                      <svg width="24" height="24" viewBox="0 0 24 24" style={{ color: 'var(--ink-2)' }}>{preview}</svg>
+                      <span style={{ fontSize: 9.5, fontFamily: 'var(--mono)', fontWeight: 700, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '.04em' }}>{label}</span>
+                    </button>
+                  ))}
+                </div>
+                <p style={{ fontSize: 10, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '0.12em', fontFamily: 'var(--mono)', fontWeight: 800, margin: '0 0 8px' }}>Badges</p>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  {['NOUVEAU', '-20%', 'RÉSA EN BIO'].map(badge => (
+                    <button key={badge} onClick={() => { const el: TextEl = { id: newId(), type: 'text', x: 60, y: 60, rotation: 0, opacity: 100, text: badge, fontSize: 32, fontFamily: 'Archivo', fontStyle: 'bold', textDecoration: '', fill: '#fff', align: 'center', width: 220, hasBg: true, bgColor: workspaceData?.primary_color || '#0038FF', bgOpacity: 100, cornerRadius: 8, padding: 16, paddingH: 20, paddingV: 12 }; applyElements([...elements, el]); setSelectedId(el.id); }}
+                      style={{ padding: '9px 14px', borderRadius: 8, border: '1.5px dashed var(--line)', cursor: 'pointer', fontSize: 13, fontFamily: 'Archivo', fontWeight: 800, letterSpacing: '.05em', color: 'var(--ink-2)', background: 'var(--sunk)', textAlign: 'left' }}>
+                      {badge}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* TEXT */}
+            {tool === 'text' && (
+              <div style={{ padding: '18px' }}>
+                <p className="label" style={{ marginBottom: 12 }}>Texte</p>
+                <button onClick={addText} className="btn btn-ghost" style={{ width: '100%', justifyContent: 'center', marginBottom: 16, gap: 8, height: 40 }}>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                  Ajouter une zone de texte
+                </button>
+                <p style={{ fontSize: 10, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '0.12em', fontFamily: 'var(--mono)', fontWeight: 800, margin: '0 0 8px' }}>Styles</p>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  <button onClick={() => applyTemplate({ fontSize: 88, fontFamily: 'Archivo', fontStyle: 'italic bold', fill: workspaceData?.primary_color || '#111' } as Partial<TextEl>)}
+                    style={{ padding: '12px 14px', borderRadius: 10, border: '1px solid var(--line)', cursor: 'pointer', background: 'var(--sunk)', textAlign: 'left' }}>
+                    <span style={{ fontFamily: 'Archivo', fontStyle: 'italic', fontWeight: 900, fontSize: 26, color: 'var(--ink)', display: 'block', lineHeight: 1 }}>Titre</span>
+                    <span style={{ fontSize: 10, color: 'var(--ink-3)', fontFamily: 'var(--mono)', fontWeight: 700 }}>Archivo Italic · 88px</span>
+                  </button>
+                  <button onClick={() => applyTemplate({ fontSize: 46, fontFamily: 'Cabinet Grotesk', fontStyle: 'bold', fill: workspaceData?.primary_color || '#111' } as Partial<TextEl>)}
+                    style={{ padding: '12px 14px', borderRadius: 10, border: '1px solid var(--line)', cursor: 'pointer', background: 'var(--sunk)', textAlign: 'left' }}>
+                    <span style={{ fontFamily: 'Cabinet Grotesk', fontWeight: 700, fontSize: 20, color: 'var(--ink)', display: 'block', lineHeight: 1 }}>Sous-titre</span>
+                    <span style={{ fontSize: 10, color: 'var(--ink-3)', fontFamily: 'var(--mono)', fontWeight: 700 }}>Cabinet Grotesk · 46px</span>
+                  </button>
+                  <button onClick={() => applyTemplate({ fontSize: 28, fontFamily: 'Satoshi', fontStyle: 'normal', fill: '#333' } as Partial<TextEl>)}
+                    style={{ padding: '12px 14px', borderRadius: 10, border: '1px solid var(--line)', cursor: 'pointer', background: 'var(--sunk)', textAlign: 'left' }}>
+                    <span style={{ fontFamily: 'Satoshi', fontWeight: 400, fontSize: 15, color: 'var(--ink-2)', display: 'block', lineHeight: 1.4 }}>Corps de texte</span>
+                    <span style={{ fontSize: 10, color: 'var(--ink-3)', fontFamily: 'var(--mono)', fontWeight: 700 }}>Satoshi · 28px</span>
+                  </button>
+                </div>
+                <p style={{ fontSize: 10, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '0.12em', fontFamily: 'var(--mono)', fontWeight: 800, margin: '16px 0 8px' }}>Layouts IA</p>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+                  {LAYOUT_TEMPLATES.map(tpl => (
+                    <button key={tpl.label} onClick={() => applyLayoutTemplate(tpl)} className="well"
+                      style={{ width: '100%', padding: '9px 12px', cursor: 'pointer', fontSize: 12, textAlign: 'left', color: 'var(--ink-2)', fontFamily: 'var(--sans)', display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <span style={{ fontSize: 14 }}>{tpl.emoji}</span>
+                      <span>{tpl.label}</span>
+                      <span style={{ marginLeft: 'auto', fontSize: 9, color: 'var(--mint-2)', fontFamily: 'var(--mono)', fontWeight: 700, background: 'var(--mint-soft)', padding: '2px 5px', borderRadius: 4 }}>{tpl.blocks.length} blocs</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* PHOTOS */}
+            {tool === 'photos' && (
+              <div style={{ padding: '18px' }}>
+                <p className="label" style={{ marginBottom: 12 }}>Photos</p>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 10, border: '1.5px dashed var(--line)', borderRadius: 10, padding: '12px 14px', cursor: 'pointer', color: 'var(--ink-3)', fontSize: 13, fontWeight: 600, marginBottom: 14 }}>
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
                   Importer une photo
                   <input type="file" accept="image/*" style={{ display: 'none' }} onChange={handleFileUpload} />
                 </label>
+                <p style={{ fontSize: 10, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '0.12em', fontFamily: 'var(--mono)', fontWeight: 800, margin: '0 0 8px' }}>Cadres</p>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 7, marginBottom: 16 }}>
+                  {[{ label: 'Paysage', ratio: '16/9' },{ label: 'Portrait', ratio: '4/5' },{ label: 'Carré', ratio: '1/1' },{ label: 'Bandeau', ratio: '3/1' }].map(f => (
+                    <button key={f.label} onClick={() => addRect()}
+                      style={{ aspectRatio: f.ratio, borderRadius: 8, border: '1.5px dashed var(--line)', cursor: 'pointer', background: 'var(--sunk)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 4 }}>
+                      <span style={{ fontSize: 10, fontFamily: 'var(--mono)', fontWeight: 700, color: 'var(--ink-3)' }}>{f.label}</span>
+                    </button>
+                  ))}
+                </div>
                 {proxyUrl && (
                   <button onClick={() => setBgCropMode(v => !v)}
-                    style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', borderRadius: 'var(--r-s)', border: 'none', cursor: 'pointer', fontSize: 12, fontWeight: 700, width: '100%',
-                      background: bgCropMode ? 'var(--mint)' : 'var(--sunk)', color: bgCropMode ? 'var(--mint-ink)' : 'var(--ink-2)', marginBottom: 6 }}>
+                    style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', borderRadius: 'var(--r-s)', border: 'none', cursor: 'pointer', fontSize: 12, fontWeight: 700, width: '100%', marginBottom: 10,
+                      background: bgCropMode ? 'var(--mint)' : 'var(--sunk)', color: bgCropMode ? 'var(--mint-ink)' : 'var(--ink-2)' }}>
                     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>
                     {bgCropMode ? 'Glissez le fond pour recadrer ↑' : 'Recadrer le fond'}
                   </button>
                 )}
-                <div style={{ display: 'flex', gap: 4, marginTop: 8 }}>
+                <div style={{ display: 'flex', gap: 4, marginBottom: 8 }}>
                   <input value={unsplashQuery} onChange={e => setUnsplashQuery(e.target.value)}
                     onKeyDown={e => e.key === 'Enter' && fetchUnsplash(unsplashQuery)}
                     placeholder="Chercher une photo…"
@@ -1690,7 +1710,7 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
                 {unsplashLoading ? (
                   <p style={{ fontSize: 12, color: 'var(--ink-3)', textAlign: 'center', padding: '8px 0' }}>Chargement…</p>
                 ) : (
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 4, marginTop: 8 }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 4 }}>
                     {unsplashPhotos.slice(0, 9).map((src, i) => (
                       <UnsplashThumb key={i} src={src}
                         onAdd={() => addImageEl(`/api/proxy-image?url=${encodeURIComponent(src)}`)}
@@ -1701,60 +1721,10 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
               </div>
             )}
 
-            {/* TEXT */}
-            {tool === 'text' && (
-              <div style={{ padding: '14px 16px' }}>
-                <p style={{ fontSize: 11, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '0.12em', fontFamily: 'var(--mono)', fontWeight: 800, marginBottom: 10 }}>Ajouter</p>
-                <button onClick={addText} className="btn btn-ghost btn-sm" style={{ width: '100%', textAlign: 'left', justifyContent: 'flex-start', marginBottom: 8 }}>T  Nouveau texte</button>
-                <p style={{ fontSize: 10, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '0.12em', fontFamily: 'var(--mono)', fontWeight: 800, margin: '12px 0 8px' }}>Layouts IA</p>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 5, marginBottom: 12 }}>
-                  {LAYOUT_TEMPLATES.map(tpl => (
-                    <button key={tpl.label} onClick={() => applyLayoutTemplate(tpl)} className="well"
-                      style={{ width: '100%', padding: '9px 12px', cursor: 'pointer', fontSize: 12, textAlign: 'left', color: 'var(--ink-2)', fontFamily: 'var(--sans)', display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <span style={{ fontSize: 14 }}>{tpl.emoji}</span>
-                      <span>{tpl.label}</span>
-                      <span style={{ marginLeft: 'auto', fontSize: 9, color: 'var(--mint-2)', fontFamily: 'var(--mono)', fontWeight: 700, background: 'var(--mint-soft)', padding: '2px 5px', borderRadius: 4 }}>{tpl.blocks.length} blocs</span>
-                    </button>
-                  ))}
-                </div>
-                <p style={{ fontSize: 10, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '0.12em', fontFamily: 'var(--mono)', fontWeight: 800, margin: '0 0 8px' }}>Styles</p>
-                {TEMPLATES.map(t => (
-                  <button key={t.label} onClick={() => applyTemplate(t.overrides as Partial<TextEl>)} className="well"
-                    style={{ width: '100%', padding: '9px 12px', cursor: 'pointer', fontSize: 12, textAlign: 'left', color: 'var(--ink-2)', fontFamily: 'var(--sans)', marginBottom: 6, display: 'block' }}>
-                    {t.label}
-                  </button>
-                ))}
-              </div>
-            )}
-
-            {/* SHAPES */}
-            {tool === 'shapes' && (
-              <div style={{ padding: '14px 16px' }}>
-                <p style={{ fontSize: 11, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '0.12em', fontFamily: 'var(--mono)', fontWeight: 800, marginBottom: 10 }}>Formes</p>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
-                  {[{ label: '▭  Rectangle', fn: addRect },{ label: '⬭  Cercle', fn: addCircle },{ label: '⭐  Étoile', fn: addStar }].map(({ label, fn }) => (
-                    <button key={label} onClick={fn} className="well" style={{ padding: '10px 6px', cursor: 'pointer', fontSize: 12, textAlign: 'center', color: 'var(--ink-2)' }}>{label}</button>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* STICKERS */}
-            {tool === 'stickers' && (
-              <div style={{ padding: '14px 16px' }}>
-                <p style={{ fontSize: 11, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '0.12em', fontFamily: 'var(--mono)', fontWeight: 800, marginBottom: 10 }}>Stickers</p>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 6 }}>
-                  {['↗','✦','★','●','→','NEW','%','♥','✓','🔥','⚡','♻'].map((s, i) => (
-                    <button key={i} className="well" style={{ aspectRatio: '1', display: 'grid', placeItems: 'center', cursor: 'pointer', fontSize: 18, fontFamily: 'var(--display)', fontWeight: 800 }}>{s}</button>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* BRAND */}
+            {/* BRAND — Charte */}
             {tool === 'brand' && (
-              <div style={{ padding: '14px 16px' }}>
-                <p style={{ fontSize: 11, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '0.12em', fontFamily: 'var(--mono)', fontWeight: 800, marginBottom: 14 }}>Charte · {workspaceName}</p>
+              <div style={{ padding: '18px' }}>
+                <p className="label" style={{ marginBottom: 14 }}>Charte · {workspaceName}</p>
                 <SectionLabel>Couleurs</SectionLabel>
                 <div style={{ display: 'flex', gap: 5, marginBottom: 16 }}>
                   {[workspaceData?.primary_color || '#0038FF', workspaceData?.secondary_color || '#FFFFFF', workspaceData?.accent_color].filter(Boolean).map((col, i) => (
@@ -1802,60 +1772,19 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
               </div>
             )}
 
-            {/* AI + PLANIFIER */}
-            {tool === 'ai' && (
-              <div style={{ display: 'flex', flexDirection: 'column', flex: 1 }}>
-                <div style={{ padding: '14px 16px', borderBottom: '1px solid var(--line)', background: 'var(--canvas)' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
-                    <span style={{ width: 24, height: 24, borderRadius: 7, background: 'var(--mint)', color: 'var(--mint-ink)', display: 'grid', placeItems: 'center', flexShrink: 0 }}>
-                      <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z"/></svg>
-                    </span>
-                    <span style={{ fontWeight: 700, fontSize: 13 }}>Description IA</span>
-                    <span style={{ marginLeft: 'auto', fontSize: 11, fontWeight: 700, color: 'var(--mint-2)', fontFamily: 'var(--mono)', background: 'var(--mint-soft)', padding: '2px 8px', borderRadius: 5, maxWidth: 100, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{workspaceName || '—'}</span>
-                  </div>
-                  <textarea value={postContext} onChange={e => setPostContext(e.target.value)} rows={2}
-                    placeholder="Contexte du post (optionnel) — ex: soldes d'été, lancement produit…"
-                    style={{ width: '100%', padding: '7px 10px', border: '1px solid var(--line)', borderRadius: 'var(--r-s)', fontSize: 12, resize: 'none', boxSizing: 'border-box', fontFamily: 'var(--sans)', outline: 'none', background: 'var(--sunk)', color: 'var(--ink)', marginBottom: 10, lineHeight: 1.5 }} />
-                  <div style={{ display: 'flex', gap: 5, marginBottom: 10, flexWrap: 'wrap' }}>
-                    {(['Chic','Punchy','Minimal','Doux'] as const).map(t => (
-                      <button key={t} onClick={() => setAiTone(t)}
-                        style={{ padding: '6px 10px', borderRadius: 99, fontWeight: 700, fontSize: 11.5, cursor: 'pointer', transition: 'all .14s',
-                          background: aiTone === t ? 'var(--ink)' : 'var(--white)', color: aiTone === t ? 'var(--paper)' : 'var(--ink-2)',
-                          boxShadow: aiTone === t ? 'none' : 'inset 0 0 0 1px var(--line)' }}>{t}</button>
-                    ))}
-                  </div>
-                  <button onClick={() => generateAI(aiTone)} className="btn btn-primary" style={{ width: '100%', marginBottom: 10 }}>
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z"/></svg>
-                    {aiTyping ? 'Génération…' : aiCaption ? 'Régénérer' : 'Générer la description'}
-                  </button>
-                  {aiTyping ? (
-                    <div className="input" style={{ minHeight: 72, fontSize: 12.5, lineHeight: 1.55, whiteSpace: 'pre-line', color: 'var(--ink)' }}>{aiCaption}<span style={{ color: 'var(--mint-2)' }}>▍</span></div>
-                  ) : (
-                    <textarea value={aiCaption} onChange={e => { setAiCaption(e.target.value); setCaptionEdited(true); }} rows={4}
-                      placeholder="La description générée apparaîtra ici, calée sur la voix de la marque."
-                      style={{ width: '100%', padding: '9px 10px', border: '1px solid var(--line)', borderRadius: 'var(--r-s)', fontSize: 12.5, resize: 'vertical', boxSizing: 'border-box', fontFamily: 'var(--sans)', outline: 'none', background: 'var(--sunk)', color: aiCaption ? 'var(--ink)' : 'var(--ink-3)', lineHeight: 1.55 }} />
-                  )}
-                  {captionEdited && aiCaption && <span style={{ fontSize: 10, color: 'var(--mint-2)', fontFamily: 'var(--mono)', fontWeight: 700, marginTop: 4, display: 'block' }}>✓ Modifié · sera mémorisé comme référence approuvée</span>}
-                </div>
-                <div style={{ padding: '14px 16px', background: 'var(--canvas)' }}>
-                  <p style={{ fontSize: 11, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '0.12em', fontFamily: 'var(--mono)', fontWeight: 800, marginBottom: 10 }}>Planifier</p>
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7,1fr)', gap: 3 }}>
-                    {SCHED_DAYS.map((d, i) => {
-                      const isSel = schedDay === i;
-                      const best = i === 2 || i === 4;
-                      return (
-                        <button key={d} onClick={() => setSchedDay(isSel ? null : i)}
-                          style={{ padding: '6px 2px', borderRadius: 8, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3, position: 'relative', cursor: 'pointer', transition: 'all .12s',
-                            background: isSel ? 'var(--mint)' : 'var(--white)', color: isSel ? 'var(--mint-ink)' : 'var(--ink)',
-                            boxShadow: isSel ? 'none' : 'inset 0 0 0 1px var(--line)' }}>
-                          <span style={{ fontFamily: 'var(--mono)', fontWeight: 800, fontSize: 8.5 }}>{d}</span>
-                          <span style={{ fontSize: 13, fontWeight: 700 }}>{9 + i}</span>
-                          {best && !isSel && <span style={{ position: 'absolute', top: 4, right: 4, width: 5, height: 5, borderRadius: '50%', background: 'var(--mint-2)' }} />}
-                        </button>
-                      );
-                    })}
-                  </div>
-                  {schedDay !== null && <p style={{ fontSize: 11, color: 'var(--ink-2)', fontWeight: 600, marginTop: 8, display: 'flex', alignItems: 'center', gap: 6 }}><span style={{ color: 'var(--mint-2)' }}>●</span> {SCHED_DAYS[schedDay]} {9 + schedDay} · 18:30 — fort engagement</p>}
+            {/* UPLOAD — Importer */}
+            {tool === 'upload' && (
+              <div style={{ padding: '18px' }}>
+                <p className="label" style={{ marginBottom: 12 }}>Importer</p>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 10, border: '1.5px dashed var(--line)', borderRadius: 10, padding: '12px 14px', cursor: 'pointer', color: 'var(--ink-3)', fontSize: 13, fontWeight: 600, marginBottom: 12 }}>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                  Choisir un fichier
+                  <input type="file" accept="image/*" style={{ display: 'none' }} onChange={handleFileUpload} />
+                </label>
+                <div style={{ border: '1.5px dashed var(--line)', borderRadius: 10, padding: '32px 14px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10, color: 'var(--ink-3)' }}>
+                  <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                  <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink-2)' }}>Glissez vos fichiers ici</span>
+                  <span style={{ fontSize: 11, color: 'var(--ink-3)' }}>PNG, JPG, SVG, WEBP</span>
                 </div>
               </div>
             )}
@@ -2028,26 +1957,28 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
           <div style={{
             height: 50, flexShrink: 0,
             background: 'var(--white)', borderTop: '1px solid var(--line)',
-            display: 'flex', alignItems: 'center', gap: 14, padding: '0 18px',
+            display: 'flex', alignItems: 'center', gap: 10, padding: '0 18px',
           }}>
-            <span className="chip" style={{ background: 'var(--sunk)', color: 'var(--ink-2)' }}>
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="16" rx="3"/><circle cx="8.5" cy="9.5" r="1.6"/><path d="M21 16l-5-5L5 20"/></svg>
-              {activeFormat.label}
+            <span className="chip" style={{ background: 'var(--sunk)', color: 'var(--ink-2)', gap: 5 }}>
+              Page {activeSlideIdx + 1} · {activeFormat.label}
             </span>
-            <span style={{ fontSize: 12, color: 'var(--ink-3)', fontWeight: 600 }}>{workspaceName}</span>
-            <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 10 }}>
+            <span style={{ fontSize: 12, color: 'var(--ink-3)', fontWeight: 600, flexShrink: 0 }}>{workspaceName}</span>
+            <button className="btn btn-sm btn-ghost" style={{ height: 32, flexShrink: 0 }}>Animer</button>
+            <span style={{ width: 1, height: 20, background: 'var(--line)', flexShrink: 0 }} />
+            <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8 }}>
               <button onClick={() => setZoom(z => Math.max(0.15, +(z - 0.1).toFixed(2)))} className="ed-hbtn" style={{ width: 28, height: 28 }}>
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14"/></svg>
               </button>
               <input type="range" min={0.15} max={1.5} step={0.01} value={zoom}
                 onChange={(e) => setZoom(parseFloat(e.target.value))}
-                className="ed-range" style={{ width: 120 }} />
+                className="ed-range" style={{ width: 100 }} />
               <button onClick={() => setZoom(z => Math.min(1.5, +(z + 0.1).toFixed(2)))} className="ed-hbtn" style={{ width: 28, height: 28 }}>
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12h14"/></svg>
               </button>
-              <button onClick={() => setZoom(1)} style={{ fontFamily: 'var(--mono)', fontWeight: 800, fontSize: 12, width: 48, textAlign: 'center', fontVariantNumeric: 'tabular-nums', color: zoom !== 1 ? 'var(--mint-2)' : 'var(--ink-3)' }}>
+              <span style={{ fontFamily: 'var(--mono)', fontWeight: 800, fontSize: 12, width: 40, textAlign: 'center', fontVariantNumeric: 'tabular-nums', color: zoom !== 1 ? 'var(--mint-2)' : 'var(--ink-3)' }}>
                 {Math.round(zoom * 100)}%
-              </button>
+              </span>
+              <button onClick={fit} className="btn btn-sm btn-ghost" style={{ height: 32, flexShrink: 0 }}>Fit</button>
             </div>
           </div>
 

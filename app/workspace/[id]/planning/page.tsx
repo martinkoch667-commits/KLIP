@@ -410,28 +410,37 @@ function PlanningContent() {
 
         {/* Topbar */}
         <header className="topbar">
-          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-            <button onClick={() => calView === "week" ? setWeekStart(w => addDays(w, -7)) : prevMonth()} className="btn btn-ghost btn-icon"><IconChevL /></button>
-            <h1 className="h-display" style={{ fontSize: 22, textTransform: "capitalize", whiteSpace: "nowrap" }}>
-              {calView === "week" ? formatMonthYear(weekStart) : `${MONTH_NAMES[monthDate.getMonth()]} ${monthDate.getFullYear()}`}
-            </h1>
-            <button onClick={() => calView === "week" ? setWeekStart(w => addDays(w, 7)) : nextMonth()} className="btn btn-ghost btn-icon"><IconChevR /></button>
-            {calView === "week" && !isCurrentWeek && (
-              <button onClick={() => setWeekStart(getMonday(new Date()))} className="btn btn-sm btn-ghost">Aujourd&apos;hui</button>
-            )}
-          </div>
+          <h1 className="h-display" style={{ fontSize: 22, textTransform: "capitalize", whiteSpace: "nowrap" }}>
+            {calView === "week" ? formatMonthYear(weekStart) : `${MONTH_NAMES[monthDate.getMonth()]} ${monthDate.getFullYear()}`}
+          </h1>
 
-          {/* Segmented toggle */}
-          <div className="seg">
-            {(["week","month"] as const).map(v => (
-              <button key={v} onClick={() => setCalView(v)} className={calView === v ? "on" : ""}>
-                {v === "week" ? "Semaine" : "Mois"}
-              </button>
-            ))}
-          </div>
+          {calView === "week" && (
+            <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+              <button onClick={() => setWeekStart(w => addDays(w, -7))} className="btn btn-ghost btn-icon"><IconChevL /></button>
+              <button onClick={() => setWeekStart(w => addDays(w, 7))} className="btn btn-ghost btn-icon"><IconChevR /></button>
+            </div>
+          )}
+          {calView === "month" && (
+            <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+              <button onClick={prevMonth} className="btn btn-ghost btn-icon"><IconChevL /></button>
+              <button onClick={nextMonth} className="btn btn-ghost btn-icon"><IconChevR /></button>
+            </div>
+          )}
 
-          <div style={{ marginLeft: "auto", display: "flex", gap: 10 }}>
+          {!isCurrentWeek && calView === "week" && (
+            <button onClick={() => setWeekStart(getMonday(new Date()))} className="btn btn-sm btn-ghost">Aujourd&apos;hui</button>
+          )}
+
+          <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 10 }}>
             <Link href={`/workspace/${id}`} className="btn btn-primary btn-sm" style={{ background: "#2FD79B", color: "#0D2E1C", fontWeight: 700, gap: 6 }}><IconPlus /> Nouveau post</Link>
+            {/* Segmented toggle */}
+            <div className="seg">
+              {(["month","week"] as const).map(v => (
+                <button key={v} onClick={() => setCalView(v)} className={calView === v ? "on" : ""}>
+                  {v === "week" ? "Semaine" : "Mois"}
+                </button>
+              ))}
+            </div>
           </div>
         </header>
 
@@ -614,7 +623,7 @@ function PlanningContent() {
             </div>
             {/* Month grid */}
             <div style={{ flex: 1, overflowY: "auto" }}>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(7,1fr)", gridAutoRows: "minmax(90px, 1fr)" }}>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(7,1fr)", gridAutoRows: "minmax(116px, 1fr)" }}>
                 {monthGrid.map((day, i) => {
                   if (!day) return <div key={`e-${i}`} style={{ borderRight: `1px solid rgba(13,15,10,.06)`, borderBottom: `1px solid rgba(13,15,10,.06)`, background: "rgba(13,15,10,.02)", opacity: .7 }} />;
                   const isToday   = isSameDay(day, today);
