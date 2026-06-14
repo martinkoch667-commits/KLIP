@@ -215,27 +215,30 @@ export default function SelectionOverlay({ el, stageRef, onChange, onDragEnd, zo
         const isCorner = ['tl', 'tr', 'bl', 'br'].includes(handleId);
 
         if (isCorner) {
-          // Proportional resize: project drag onto the corner's diagonal direction
-          // This preserves the aspect ratio while anchoring the opposite corner.
-          const diag = Math.sqrt(startW * startW + startH * startH);
-          const minScale = Math.max(20 / startW, 20 / startH);
-          let proj = 0;
+          // Free resize: width and height independent per corner
           switch (handleId) {
-            case 'br': proj =  (ldx * startW + ldy * startH) / diag; break; // toward ↘
-            case 'tl': proj = -(ldx * startW + ldy * startH) / diag; break; // toward ↖
-            case 'tr': proj =  (ldx * startW - ldy * startH) / diag; break; // toward ↗
-            case 'bl': proj = -(ldx * startW - ldy * startH) / diag; break; // toward ↙
+            case 'br':
+              nw = startW + ldx;
+              nh = startH + ldy;
+              break;
+            case 'tr':
+              nw = startW + ldx;
+              nh = startH - ldy;
+              origin = shiftOrigin(0, startH - Math.max(20, nh));
+              break;
+            case 'bl':
+              nw = startW - ldx;
+              nh = startH + ldy;
+              origin = shiftOrigin(startW - Math.max(20, nw), 0);
+              break;
+            case 'tl':
+              nw = startW - ldx;
+              nh = startH - ldy;
+              origin = shiftOrigin(startW - Math.max(20, nw), startH - Math.max(20, nh));
+              break;
           }
-          const scale = Math.max(minScale, (diag + proj) / diag);
-          nw = startW * scale;
-          nh = startH * scale;
-          // Shift origin so opposite corner stays anchored
-          switch (handleId) {
-            case 'br': break; // top-left stays — no origin shift
-            case 'tr': origin = shiftOrigin(0, startH - nh); break;
-            case 'bl': origin = shiftOrigin(startW - nw, 0); break;
-            case 'tl': origin = shiftOrigin(startW - nw, startH - nh); break;
-          }
+          nw = Math.max(20, nw);
+          nh = Math.max(20, nh);
         } else {
           switch (handleId) {
             case 'mr': nw = startW + ldx; break;
