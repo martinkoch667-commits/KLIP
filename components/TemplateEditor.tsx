@@ -336,6 +336,7 @@ interface TemplateEditorProps {
   secondaryColor?: string;
   fontFamily?: string;
   logoUrl?: string | null;
+  logoPreview?: string | null;
   initialDraft?: Partial<TemplateDraft>;
   onSave: (draft: TemplateDraft) => void;
   onCancel: () => void;

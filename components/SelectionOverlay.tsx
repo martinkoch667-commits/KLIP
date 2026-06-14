@@ -100,11 +100,11 @@ const HANDLES: HandleDef[] = [
 
 const HANDLE_BASE: React.CSSProperties = {
   position: 'absolute',
-  width: 10, height: 10,
+  width: 13, height: 13,
   background: '#FFFFFF',
-  border: '1.5px solid #2FD79B',
-  borderRadius: 2,
-  boxShadow: '0 1px 3px rgba(13,15,10,.20)',
+  border: '1.5px solid #8B5CF6',
+  borderRadius: '50%',
+  boxShadow: '0 1px 3px rgba(13,15,10,.22)',
   pointerEvents: 'auto',
   transition: 'opacity .15s',
 };
@@ -330,21 +330,22 @@ export default function SelectionOverlay({ el, stageRef, onChange, zoom }: Props
       transition: 'none',
       zIndex: 10,
     }}>
-      {/* Dashed mint selection border */}
+      {/* Selection border */}
       <div style={{
         position: 'absolute', inset: 0,
-        border: '1.5px dashed #2FD79B',
-        borderRadius: 4,
-        background: 'rgba(47,215,155,.06)',
+        border: '2px solid #8B5CF6',
+        borderRadius: 3,
+        boxShadow: '0 0 0 1px rgba(255,255,255,.5)',
+        background: 'transparent',
         pointerEvents: 'none',
       }} />
 
       {/* Rotation connector line */}
       <div style={{
         position: 'absolute',
-        left: '50%', top: -20,
-        width: 1, height: 20,
-        background: '#2FD79B',
+        left: '50%', top: -26,
+        width: 2, height: 26,
+        background: '#8B5CF6',
         transform: 'translateX(-50%)',
         pointerEvents: 'none',
       }} />
@@ -352,20 +353,24 @@ export default function SelectionOverlay({ el, stageRef, onChange, zoom }: Props
       {/* Rotation circle handle */}
       <div
         onMouseDown={startRotate}
+        title="Pivoter"
         style={{
           position: 'absolute',
-          left: '50%', top: -32,
-          width: 12, height: 12,
+          left: '50%', top: -52,
+          width: 26, height: 26,
           transform: 'translate(-50%, 0)',
           borderRadius: '50%',
-          background: '#2FD79B',
-          border: '1.5px solid #FFFFFF',
-          boxShadow: '0 1px 4px rgba(13,15,10,.22)',
-          cursor: 'crosshair',
+          background: '#FFFFFF',
+          boxShadow: '0 2px 7px rgba(13,15,10,.28)',
+          cursor: 'grab',
           pointerEvents: 'auto',
+          display: 'grid', placeItems: 'center',
+          color: '#5A5E50',
           transition: 'opacity .15s',
         }}
-      />
+      >
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12a9 9 0 1 1-3-6.7M21 4v4h-4"/></svg>
+      </div>
 
       {/* 8 resize handles */}
       {visibleHandles.map(hnd => (

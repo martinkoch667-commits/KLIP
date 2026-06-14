@@ -460,7 +460,7 @@ function EditorContextToolbar({ sel, allFonts, brandColors, onUpdate, onDuplicat
   );
 
   const PALETTE = ['#14160F','#FFFFFF','#C8F135','#2FD79B','#FF6B6B','#0038FF','#FF9500','#5A5E50',...brandColors];
-  const palette = [...new Set(PALETTE)].slice(0, 16);
+  const palette = Array.from(new Set(PALETTE)).slice(0, 16);
   const colorVal = textSel?.fill ?? (sel.type === 'rect' ? (sel as RectEl).fill : sel.type === 'circle' ? (sel as CircleEl).fill : sel.type === 'star' ? (sel as StarEl).fill : '#000');
   const setFill = (c: string) => {
     if (textSel) u({ fill: c } as Partial<TextEl>);
@@ -640,6 +640,87 @@ function EditorContextToolbar({ sel, allFonts, brandColors, onUpdate, onDuplicat
       {/* DELETE */}
       <IBtn title="Supprimer" danger onClick={onDelete}
         icon={<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M4 7h16M9 7V4.5h6V7M6 7l1 13h10l1-13"/></svg>} />
+    </div>
+  );
+}
+
+// ─── SelectionPill (floats above selected element in canvas space) ─────────────
+
+interface PillProps {
+  elX: number; elY: number; elW: number;
+  onDuplicate: () => void;
+  onDelete: () => void;
+}
+
+function SelectionPill({ elX, elY, elW, onDuplicate, onDelete }: PillProps) {
+  const pillW = 260;
+  return (
+    <div style={{
+      position: 'absolute',
+      left: elX + elW / 2 - pillW / 2,
+      top: elY - 58,
+      width: pillW,
+      zIndex: 55,
+      pointerEvents: 'auto',
+    }}>
+      <div className="pop-in" style={{
+        display: 'flex', alignItems: 'center', gap: 2,
+        background: '#fff', borderRadius: 11, padding: '5px 6px',
+        boxShadow: '0 10px 30px -8px rgba(13,15,10,.35), 0 0 0 1px rgba(13,15,10,.05)',
+      }}>
+        {/* Demander à Klip */}
+        <button style={{
+          display: 'flex', alignItems: 'center', gap: 7, padding: '0 12px 0 9px', height: 30,
+          borderRadius: 8, color: '#14160F', fontFamily: 'var(--sans)', fontWeight: 700, fontSize: 13,
+          whiteSpace: 'nowrap', background: 'linear-gradient(120deg,rgba(47,215,155,.13),rgba(200,241,53,.13))',
+          border: 'none', cursor: 'pointer',
+        }}>
+          <span style={{
+            width: 19, height: 19, borderRadius: '50%',
+            background: 'conic-gradient(from 120deg,#2FD79B,#C8F135,#2FD79B)',
+            display: 'grid', placeItems: 'center', flexShrink: 0,
+          }}>
+            <span style={{ width: 13, height: 13, borderRadius: '50%', background: '#fff', display: 'grid', placeItems: 'center' }}>
+              <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="#14160F" strokeWidth="2.2" strokeLinecap="round"><path d="M15 4V2M15 14v-2M8 9h2M20 9h2M17.6 11.6l1.4 1.4M17.6 6.4l1.4-1.4M4 21l10-10"/></svg>
+            </span>
+          </span>
+          Demander à Klip
+        </button>
+        <span style={{ width: 1, height: 18, background: '#E4E3D7', flexShrink: 0 }} />
+        {/* Duplicate */}
+        <button onClick={e => { e.stopPropagation(); onDuplicate(); }} title="Dupliquer"
+          style={{ width: 30, height: 30, borderRadius: 8, display: 'grid', placeItems: 'center', color: '#3a3d33', background: 'transparent', border: 'none', cursor: 'pointer' }}
+          onMouseEnter={e => (e.currentTarget.style.background = '#F1F0E8')}
+          onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="11" height="11" rx="2.4"/><path d="M5 15V5a2 2 0 0 1 2-2h8"/></svg>
+        </button>
+        {/* Delete */}
+        <button onClick={e => { e.stopPropagation(); onDelete(); }} title="Supprimer"
+          style={{ width: 30, height: 30, borderRadius: 8, display: 'grid', placeItems: 'center', color: '#C4452F', background: 'transparent', border: 'none', cursor: 'pointer' }}
+          onMouseEnter={e => (e.currentTarget.style.background = '#F1F0E8')}
+          onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M4 7h16M9 7V4.5h6V7M6 7l1 13h10l1-13"/></svg>
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ─── Panel head (title + optional sub + close button) ─────────────────────────
+
+function PanelHead({ title, sub, onClose }: { title: string; sub?: string; onClose: () => void }) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'flex-start', marginBottom: 16 }}>
+      <div style={{ minWidth: 0 }}>
+        <h3 className="h-title" style={{ fontSize: 17 }}>{title}</h3>
+        {sub && <div style={{ fontSize: 12.5, color: 'var(--ink-3)', marginTop: 2 }}>{sub}</div>}
+      </div>
+      <button onClick={onClose} title="Fermer"
+        style={{ marginLeft: 'auto', width: 30, height: 30, borderRadius: 8, display: 'grid', placeItems: 'center', color: 'var(--ink-3)', flexShrink: 0, background: 'transparent', border: 'none', cursor: 'pointer' }}
+        onMouseEnter={e => (e.currentTarget.style.background = 'var(--sunk)')}
+        onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M15 6l-6 6 6 6"/></svg>
+      </button>
     </div>
   );
 }
@@ -1567,17 +1648,18 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
 
         {/* ── TOOL PANEL FLYOUT (312px, conditional) ── */}
         {tool && (
-          <div data-stop-deselect style={{ width: 312, background: 'var(--white)', borderRight: '1px solid var(--line)', overflowY: 'auto', flexShrink: 0, display: 'flex', flexDirection: 'column' }}>
+          <div data-stop-deselect className="pop-in" style={{ width: 312, background: 'var(--white)', borderRight: '1px solid var(--line)', overflowY: 'auto', flexShrink: 0, display: 'flex', flexDirection: 'column' }}>
 
             {/* DESIGN — Modèles */}
             {tool === 'design' && (
               <div style={{ padding: '18px' }}>
-                <p className="label" style={{ marginBottom: 12 }}>Modèles</p>
-                <div style={{ display: 'flex', gap: 6, marginBottom: 14 }}>
-                  <input placeholder="Chercher un modèle…"
-                    style={{ flex: 1, padding: '7px 10px', border: '1px solid var(--line)', borderRadius: 'var(--r-s)', fontSize: 12, outline: 'none', fontFamily: 'var(--sans)', background: 'var(--sunk)', color: 'var(--ink)' }} />
+                <PanelHead title="Modèles" sub={`Mises en page · ${workspaceName}`} onClose={() => setTool(null)} />
+                <div style={{ position: 'relative', marginBottom: 16 }}>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" style={{ position: 'absolute', left: 12, top: 12, color: 'var(--ink-3)', pointerEvents: 'none' }}><circle cx="11" cy="11" r="7"/><path d="M21 21l-4-4"/></svg>
+                  <input className="input" placeholder="Rechercher un modèle…" style={{ paddingLeft: 36, height: 40, background: 'var(--sunk)', border: 'none' }} />
                 </div>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 7 }}>
+                <p className="label" style={{ marginBottom: 9 }}>Arrière-plans</p>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 9 }}>
                   {([
                     { from: '#2b8d57', to: '#0c2a1d', angle: 150 },
                     { from: '#2FD79B', to: '#06281C', angle: 150 },
@@ -1590,8 +1672,10 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
                     { from: '#f97316', to: '#7c2d12', angle: 150 },
                   ] as const).map(({ from, to, angle }, i) => (
                     <button key={i} onClick={() => setBgStyle({ type: 'gradient', colorFrom: from, colorTo: to, angle })}
-                      style={{ aspectRatio: '4/5', borderRadius: 10, background: `linear-gradient(${angle}deg,${from},${to})`, border: 'none', cursor: 'pointer', transition: 'all .12s',
-                        boxShadow: 'inset 0 0 0 1px rgba(0,0,0,.1)' }} />
+                      style={{ aspectRatio: '4/5', borderRadius: 11, background: `linear-gradient(${angle}deg,${from},${to})`, border: 'none', cursor: 'pointer', transition: 'transform .12s',
+                        boxShadow: 'inset 0 0 0 1px rgba(13,15,10,.10)' }}
+                      onMouseEnter={e => { e.currentTarget.style.transform = 'scale(1.04)'; }}
+                      onMouseLeave={e => { e.currentTarget.style.transform = 'none'; }} />
                   ))}
                 </div>
               </div>
@@ -1600,10 +1684,10 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
             {/* ELEMENTS — Éléments */}
             {tool === 'elements' && (
               <div style={{ padding: '18px' }}>
-                <p className="label" style={{ marginBottom: 12 }}>Éléments</p>
-                <div style={{ display: 'flex', gap: 6, marginBottom: 14 }}>
-                  <input placeholder="Chercher un élément…"
-                    style={{ flex: 1, padding: '7px 10px', border: '1px solid var(--line)', borderRadius: 'var(--r-s)', fontSize: 12, outline: 'none', fontFamily: 'var(--sans)', background: 'var(--sunk)', color: 'var(--ink)' }} />
+                <PanelHead title="Éléments" sub="Formes & blocs de couleur" onClose={() => setTool(null)} />
+                <div style={{ position: 'relative', marginBottom: 16 }}>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" style={{ position: 'absolute', left: 12, top: 12, color: 'var(--ink-3)', pointerEvents: 'none' }}><circle cx="11" cy="11" r="7"/><path d="M21 21l-4-4"/></svg>
+                  <input className="input" placeholder="Rechercher un élément…" style={{ paddingLeft: 36, height: 40, background: 'var(--sunk)', border: 'none' }} />
                 </div>
                 <p style={{ fontSize: 10, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '0.12em', fontFamily: 'var(--mono)', fontWeight: 800, margin: '0 0 8px' }}>Formes</p>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 7, marginBottom: 16 }}>
@@ -1637,8 +1721,8 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
             {/* TEXT */}
             {tool === 'text' && (
               <div style={{ padding: '18px' }}>
-                <p className="label" style={{ marginBottom: 12 }}>Texte</p>
-                <button onClick={addText} className="btn btn-ghost" style={{ width: '100%', justifyContent: 'center', marginBottom: 16, gap: 8, height: 40 }}>
+                <PanelHead title="Texte" onClose={() => setTool(null)} />
+                <button onClick={addText} className="btn btn-dark" style={{ width: '100%', justifyContent: 'center', marginBottom: 16, gap: 8, height: 44 }}>
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
                   Ajouter une zone de texte
                 </button>
@@ -1677,8 +1761,8 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
             {/* PHOTOS */}
             {tool === 'photos' && (
               <div style={{ padding: '18px' }}>
-                <p className="label" style={{ marginBottom: 12 }}>Photos</p>
-                <label style={{ display: 'flex', alignItems: 'center', gap: 10, border: '1.5px dashed var(--line)', borderRadius: 10, padding: '12px 14px', cursor: 'pointer', color: 'var(--ink-3)', fontSize: 13, fontWeight: 600, marginBottom: 14 }}>
+                <PanelHead title="Photos" sub="Cadres & import" onClose={() => setTool(null)} />
+                <label className="btn btn-primary" style={{ width: '100%', justifyContent: 'center', height: 44, marginBottom: 16, cursor: 'pointer' }}>
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
                   Importer une photo
                   <input type="file" accept="image/*" style={{ display: 'none' }} onChange={handleFileUpload} />
@@ -1724,7 +1808,7 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
             {/* BRAND — Charte */}
             {tool === 'brand' && (
               <div style={{ padding: '18px' }}>
-                <p className="label" style={{ marginBottom: 14 }}>Charte · {workspaceName}</p>
+                <PanelHead title="Charte de marque" sub={workspaceName} onClose={() => setTool(null)} />
                 <SectionLabel>Couleurs</SectionLabel>
                 <div style={{ display: 'flex', gap: 5, marginBottom: 16 }}>
                   {[workspaceData?.primary_color || '#0038FF', workspaceData?.secondary_color || '#FFFFFF', workspaceData?.accent_color].filter(Boolean).map((col, i) => (
@@ -1775,8 +1859,8 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
             {/* UPLOAD — Importer */}
             {tool === 'upload' && (
               <div style={{ padding: '18px' }}>
-                <p className="label" style={{ marginBottom: 12 }}>Importer</p>
-                <label style={{ display: 'flex', alignItems: 'center', gap: 10, border: '1.5px dashed var(--line)', borderRadius: 10, padding: '12px 14px', cursor: 'pointer', color: 'var(--ink-3)', fontSize: 13, fontWeight: 600, marginBottom: 12 }}>
+                <PanelHead title="Importer" onClose={() => setTool(null)} />
+                <label className="btn btn-primary" style={{ width: '100%', justifyContent: 'center', height: 44, marginBottom: 14, cursor: 'pointer' }}>
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
                   Choisir un fichier
                   <input type="file" accept="image/*" style={{ display: 'none' }} onChange={handleFileUpload} />
@@ -1888,12 +1972,21 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
             </Stage>
             </div>{/* end inner overflow:hidden */}
             {selectedEl && !hiddenIds.has(selectedEl.id) && !isKonvaDragging && cropId !== selectedEl.id && (
-              <SelectionOverlay
-                el={selectedEl}
-                stageRef={stageRef}
-                onChange={u => updateEl(selectedEl.id, u)}
-                zoom={zoom}
-              />
+              <>
+                <SelectionOverlay
+                  el={selectedEl}
+                  stageRef={stageRef}
+                  onChange={u => updateEl(selectedEl.id, u)}
+                  zoom={zoom}
+                />
+                <SelectionPill
+                  elX={selectedEl.x}
+                  elY={selectedEl.y}
+                  elW={('width' in selectedEl ? (selectedEl as any).width : ('radius' in selectedEl ? (selectedEl as any).radius * 2 : ('outerRadius' in selectedEl ? (selectedEl as any).outerRadius * 2 : 100))) ?? 100}
+                  onDuplicate={duplicateEl}
+                  onDelete={() => deleteEl(selectedId)}
+                />
+              </>
             )}
             {cropId && (
               <div style={{
@@ -1957,28 +2050,35 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
           <div style={{
             height: 50, flexShrink: 0,
             background: 'var(--white)', borderTop: '1px solid var(--line)',
-            display: 'flex', alignItems: 'center', gap: 10, padding: '0 18px',
+            display: 'flex', alignItems: 'center', gap: 14, padding: '0 18px',
           }}>
-            <span className="chip" style={{ background: 'var(--sunk)', color: 'var(--ink-2)', gap: 5 }}>
+            <span className="chip" style={{ background: 'var(--sunk)', color: 'var(--ink-2)' }}>
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><rect x="3" y="4" width="18" height="16" rx="3"/><circle cx="8.5" cy="9.5" r="1.6"/><path d="M21 16l-5-5L5 20"/></svg>
               Page {activeSlideIdx + 1} · {activeFormat.label}
             </span>
-            <span style={{ fontSize: 12, color: 'var(--ink-3)', fontWeight: 600, flexShrink: 0 }}>{workspaceName}</span>
-            <button className="btn btn-sm btn-ghost" style={{ height: 32, flexShrink: 0 }}>Animer</button>
-            <span style={{ width: 1, height: 20, background: 'var(--line)', flexShrink: 0 }} />
-            <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8 }}>
-              <button onClick={() => setZoom(z => Math.max(0.15, +(z - 0.1).toFixed(2)))} className="ed-hbtn" style={{ width: 28, height: 28 }}>
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14"/></svg>
+            <span style={{ fontSize: 12.5, color: 'var(--ink-3)', fontWeight: 600, flexShrink: 0 }}>{workspaceName}</span>
+
+            <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 10 }}>
+              <button className="btn btn-sm btn-ghost" style={{ height: 34 }}>
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><path d="M5 12a7 7 0 0 1 7-7M19 12a7 7 0 0 1-7 7"/><path d="M12 5l-2.4 1.4M12 5l2.4 1.4M12 19l-2.4-1.4M12 19l2.4-1.4"/></svg>
+                Animer
+              </button>
+              <span style={{ width: 1, height: 22, background: 'var(--line)', flexShrink: 0 }} />
+              <button onClick={() => setZoom(z => Math.max(0.15, +(z - 0.1).toFixed(2)))} style={{ width: 30, height: 30, borderRadius: 8, display: 'grid', placeItems: 'center', color: 'var(--ink-2)', background: 'transparent', border: 'none', cursor: 'pointer' }}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M5 12h14"/></svg>
               </button>
               <input type="range" min={0.15} max={1.5} step={0.01} value={zoom}
                 onChange={(e) => setZoom(parseFloat(e.target.value))}
-                className="ed-range" style={{ width: 100 }} />
-              <button onClick={() => setZoom(z => Math.min(1.5, +(z + 0.1).toFixed(2)))} className="ed-hbtn" style={{ width: 28, height: 28 }}>
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12h14"/></svg>
+                className="ed-range" style={{ width: 132 }} />
+              <button onClick={() => setZoom(z => Math.min(1.5, +(z + 0.1).toFixed(2)))} style={{ width: 30, height: 30, borderRadius: 8, display: 'grid', placeItems: 'center', color: 'var(--ink-2)', background: 'transparent', border: 'none', cursor: 'pointer' }}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M12 5v14M5 12h14"/></svg>
               </button>
-              <span style={{ fontFamily: 'var(--mono)', fontWeight: 800, fontSize: 12, width: 40, textAlign: 'center', fontVariantNumeric: 'tabular-nums', color: zoom !== 1 ? 'var(--mint-2)' : 'var(--ink-3)' }}>
+              <span style={{ fontFamily: 'var(--mono)', fontWeight: 800, fontSize: 12, width: 42, textAlign: 'center', fontVariantNumeric: 'tabular-nums', color: 'var(--ink-2)' }}>
                 {Math.round(zoom * 100)}%
               </span>
-              <button onClick={fit} className="btn btn-sm btn-ghost" style={{ height: 32, flexShrink: 0 }}>Fit</button>
+              <button onClick={fit} title="Ajuster" className="btn btn-sm btn-ghost btn-icon" style={{ height: 34, width: 34 }}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><path d="M8 3H5a2 2 0 0 0-2 2v3M16 3h3a2 2 0 0 1 2 2v3M8 21H5a2 2 0 0 1-2-2v-3M16 21h3a2 2 0 0 0 2-2v-3"/></svg>
+              </button>
             </div>
           </div>
 
