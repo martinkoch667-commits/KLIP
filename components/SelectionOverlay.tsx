@@ -210,31 +210,26 @@ export default function SelectionOverlay({ el, stageRef, onChange, zoom }: Props
         const isCorner = ['tl', 'tr', 'bl', 'br'].includes(handleId);
 
         if (isCorner) {
-          // Free resize: each axis is independent, anchor is the opposite corner
+          // Proportional resize: project drag onto the corner's diagonal direction
+          // This preserves the aspect ratio while anchoring the opposite corner.
+          const diag = Math.sqrt(startW * startW + startH * startH);
+          const minScale = Math.max(20 / startW, 20 / startH);
+          let proj = 0;
           switch (handleId) {
-            case 'br':
-              nw = Math.max(20, startW + ldx);
-              nh = Math.max(20, startH + ldy);
-              // br drags: top-left stays fixed, no origin shift
-              break;
-            case 'tr':
-              nw = Math.max(20, startW + ldx);
-              nh = Math.max(20, startH - ldy);
-              // tr drags: bottom-left stays fixed → top-left shifts up by (startH - nh)
-              origin = shiftOrigin(0, startH - nh);
-              break;
-            case 'bl':
-              nw = Math.max(20, startW - ldx);
-              nh = Math.max(20, startH + ldy);
-              // bl drags: top-right stays fixed → top-left shifts right by (startW - nw)
-              origin = shiftOrigin(startW - nw, 0);
-              break;
-            case 'tl':
-              nw = Math.max(20, startW - ldx);
-              nh = Math.max(20, startH - ldy);
-              // tl drags: bottom-right stays fixed → top-left shifts by (startW-nw, startH-nh)
-              origin = shiftOrigin(startW - nw, startH - nh);
-              break;
+            case 'br': proj =  (ldx * startW + ldy * startH) / diag; break; // toward ↘
+            case 'tl': proj = -(ldx * startW + ldy * startH) / diag; break; // toward ↖
+            case 'tr': proj =  (ldx * startW - ldy * startH) / diag; break; // toward ↗
+            case 'bl': proj = -(ldx * startW - ldy * startH) / diag; break; // toward ↙
+          }
+          const scale = Math.max(minScale, (diag + proj) / diag);
+          nw = startW * scale;
+          nh = startH * scale;
+          // Shift origin so opposite corner stays anchored
+          switch (handleId) {
+            case 'br': break; // top-left stays — no origin shift
+            case 'tr': origin = shiftOrigin(0, startH - nh); break;
+            case 'bl': origin = shiftOrigin(startW - nw, 0); break;
+            case 'tl': origin = shiftOrigin(startW - nw, startH - nh); break;
           }
         } else {
           switch (handleId) {
