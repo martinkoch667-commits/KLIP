@@ -115,14 +115,19 @@ interface Props {
   el: AnyEl;
   stageRef: React.RefObject<any>;
   onChange: (u: Record<string, any>) => void;
+  onDragEnd?: () => void;
   zoom?: number;
 }
 
-export default function SelectionOverlay({ el, stageRef, onChange, zoom }: Props) {
+export default function SelectionOverlay({ el, stageRef, onChange, onDragEnd, zoom }: Props) {
   const [liveAngle, setLiveAngle] = useState<number | null>(null);
-  // Always call onChange with the latest prop, even if the closure is stale
+  // Keep latest callbacks in refs so closures never go stale
   const onChangeRef = useRef(onChange);
   onChangeRef.current = onChange;
+  const onDragEndRef = useRef(onDragEnd);
+  onDragEndRef.current = onDragEnd;
+  const zoomRef = useRef(zoom ?? 1);
+  zoomRef.current = zoom ?? 1;
 
   // Compute bounds from element state — no Konva API calls
   let bounds: Bounds | null = null;
@@ -166,7 +171,7 @@ export default function SelectionOverlay({ el, stageRef, onChange, zoom }: Props
 
     const onMove = (ev: MouseEvent) => {
       try {
-        const z = zoom ?? 1;
+        const z = zoomRef.current;
         const vdx = (ev.clientX - startMouseX) / z;
         const vdy = (ev.clientY - startMouseY) / z;
         const [ldx, ldy] = toLocal(vdx, vdy, startRot);
@@ -251,6 +256,7 @@ export default function SelectionOverlay({ el, stageRef, onChange, zoom }: Props
     const onUp = () => {
       window.removeEventListener('mousemove', onMove);
       window.removeEventListener('mouseup', onUp);
+      onDragEndRef.current?.();
     };
     window.addEventListener('mousemove', onMove);
     window.addEventListener('mouseup', onUp);
@@ -265,7 +271,7 @@ export default function SelectionOverlay({ el, stageRef, onChange, zoom }: Props
       // Get stage container's viewport rect for coordinate conversion
       // bounds.cx/cy are in stage (canvas) coordinates; multiply by zoom to get viewport offset
       const cRect = stageRef.current?.container?.()?.getBoundingClientRect?.() ?? { left: 0, top: 0 };
-      const z = zoom ?? 1;
+      const z = zoomRef.current;
       const vcxV = cRect.left + bounds!.cx * z;
       const vcyV = cRect.top  + bounds!.cy * z;
       const snapBounds = { ...bounds! };
@@ -301,6 +307,7 @@ export default function SelectionOverlay({ el, stageRef, onChange, zoom }: Props
         setLiveAngle(null);
         window.removeEventListener('mousemove', onMove);
         window.removeEventListener('mouseup', onUp);
+        onDragEndRef.current?.();
       };
       window.addEventListener('mousemove', onMove);
       window.addEventListener('mouseup', onUp);
@@ -335,23 +342,23 @@ export default function SelectionOverlay({ el, stageRef, onChange, zoom }: Props
         pointerEvents: 'none',
       }} />
 
-      {/* Rotation connector line */}
+      {/* Rotation connector line — below element */}
       <div style={{
         position: 'absolute',
-        left: '50%', top: -26,
+        left: '50%', bottom: -26,
         width: 2, height: 26,
         background: '#8B5CF6',
         transform: 'translateX(-50%)',
         pointerEvents: 'none',
       }} />
 
-      {/* Rotation circle handle */}
+      {/* Rotation circle handle — below element, clear of SelectionPill */}
       <div
         onMouseDown={startRotate}
         title="Pivoter"
         style={{
           position: 'absolute',
-          left: '50%', top: -52,
+          left: '50%', bottom: -52,
           width: 26, height: 26,
           transform: 'translate(-50%, 0)',
           borderRadius: '50%',
@@ -376,12 +383,12 @@ export default function SelectionOverlay({ el, stageRef, onChange, zoom }: Props
         />
       ))}
 
-      {/* Live angle badge during rotation */}
+      {/* Live angle badge during rotation — next to the handle below */}
       {liveAngle !== null && (
         <div style={{
           position: 'absolute',
-          top: -52, left: '50%',
-          transform: 'translateX(-50%)',
+          bottom: -52, left: '50%',
+          transform: 'translateX(20px)',
           background: '#0C2A1D',
           color: '#EEEDE3',
           borderRadius: 6,

@@ -2462,7 +2462,20 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
                 <SelectionOverlay
                   el={selectedEl}
                   stageRef={stageRef}
-                  onChange={u => updateEl(selectedEl.id, u)}
+                  onChange={u => {
+                    // Live update — no history push per frame
+                    const newEls = elementsRef.current.map(e =>
+                      e.id === selectedEl.id ? { ...e, ...u } as CanvasEl : e
+                    );
+                    setElements(newEls);
+                  }}
+                  onDragEnd={() => {
+                    // Commit a single undo entry when drag ends
+                    const slice = historyRef.current.slice(0, histIdxRef.current + 1);
+                    historyRef.current = [...slice, elementsRef.current];
+                    histIdxRef.current = historyRef.current.length - 1;
+                    setHistTick(t => t + 1);
+                  }}
                   zoom={zoom}
                 />
                 <SelectionPill
