@@ -281,7 +281,7 @@ export default function SelectionOverlay({ el, stageRef, onChange, onDragEnd, zo
 
       const onMove = (ev: MouseEvent) => {
         try {
-          const raw = Math.atan2(ev.clientY - vcyV, ev.clientX - vcxV) * 180 / Math.PI + 90;
+          const raw = Math.atan2(ev.clientY - vcyV, ev.clientX - vcxV) * 180 / Math.PI - 90;
           const newAngle = ((raw % 360) + 360) % 360;
           setLiveAngle(Math.round(newAngle));
 
