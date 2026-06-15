@@ -20,9 +20,9 @@ interface Template {
 const WS_COLORS = ["#7B5CF5","#2FD79B","#C8732B","#5A86E8","#DD2A7B","#88B394","#E8A03A","#4A8DD4"];
 const FORMAT_LABEL: Record<string, string> = {
   "ig-portrait": "Portrait 4:5",
-  "ig-square": "Carré",
-  "ig-story": "Story",
-  "facebook": "Facebook",
+  "ig-square":   "Carré",
+  "ig-story":    "Story",
+  "facebook":    "Facebook",
 };
 
 export default function TemplatesPage() {
@@ -64,7 +64,7 @@ export default function TemplatesPage() {
       <div className="work">
         <div className="topbar" style={{ justifyContent:"space-between" }}>
           <div style={{ display:"flex", alignItems:"center", gap:16 }}>
-            <h1 style={{ fontSize:17, fontWeight:800, fontFamily:"var(--display)", margin:0 }}>Templates</h1>
+            <h1 style={{ fontSize:14, fontWeight:800, margin:0 }}>Templates</h1>
             <span style={{ fontSize:13, color:"var(--ink-3)", fontWeight:600 }}>{filtered.length} modèle{filtered.length !== 1 ? "s" : ""}</span>
           </div>
           <div style={{ display:"flex", alignItems:"center", gap:8 }}>
@@ -88,12 +88,14 @@ export default function TemplatesPage() {
               <div style={{ textAlign:"center", padding:"60px 0", color:"var(--ink-3)" }}>Chargement…</div>
             ) : filtered.length === 0 ? (
               <div style={{ textAlign:"center", padding:"80px 0" }}>
-                <div style={{ width:52, height:52, borderRadius:"var(--r-l)", background:"var(--sunk)", display:"grid", placeItems:"center", margin:"0 auto 16px", color:"var(--ink-3)" }}>
-                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="M3 9h18M9 9v12"/></svg>
+                <div style={{ width:64, height:64, borderRadius:"var(--r-l)", background:"var(--sunk)", display:"grid", placeItems:"center", margin:"0 auto 20px", color:"var(--ink-3)" }}>
+                  <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="M3 9h18M9 9v12"/></svg>
                 </div>
-                <div style={{ fontSize:15, fontWeight:700, color:"var(--ink)", marginBottom:6 }}>Aucun template</div>
-                <div style={{ fontSize:13, color:"var(--ink-3)", marginBottom:20 }}>
-                  Créez des modèles réutilisables depuis l&apos;espace client.
+                <div style={{ fontSize:15, fontWeight:800, textTransform:"uppercase", letterSpacing:".06em", color:"var(--ink)", marginBottom:8, fontFamily:"var(--sans)" }}>
+                  Aucun template
+                </div>
+                <div style={{ fontSize:13, color:"var(--ink-3)", marginBottom:24, maxWidth:280, margin:"0 auto 24px" }}>
+                  Créez votre premier template pour aller plus vite.
                 </div>
                 {workspaces.length > 0 && (
                   <Link href={`/workspace/${workspaces[0].id}/templates`} className="btn btn-primary">
@@ -107,7 +109,18 @@ export default function TemplatesPage() {
                 {filtered.map(tpl => {
                   const ws = wsMap[tpl.workspace_id];
                   return (
-                    <div key={tpl.id} className="card" style={{ display:"flex", flexDirection:"column", overflow:"hidden" }}>
+                    <div key={tpl.id}
+                      className="lift"
+                      style={{
+                        display:"flex", flexDirection:"column", overflow:"hidden",
+                        background:"var(--paper)",
+                        border:"1px solid rgba(13,15,10,.10)",
+                        borderRadius:12,
+                        transition:"border-color .15s, box-shadow .15s",
+                      }}
+                      onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = "var(--mint)"; }}
+                      onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = "rgba(13,15,10,.10)"; }}
+                    >
                       {/* Preview */}
                       <div style={{ aspectRatio:"4/5", position:"relative", overflow:"hidden", ...getBgStyle(tpl) }}>
                         {tpl.thumbnail_url
@@ -126,17 +139,24 @@ export default function TemplatesPage() {
                       </div>
                       {/* Info */}
                       <div style={{ padding:"10px 12px 12px", display:"flex", flexDirection:"column", gap:8 }}>
-                        <div style={{ fontSize:13, fontWeight:700, color:"var(--ink)", lineHeight:1.3 }}>{tpl.name}</div>
+                        <div style={{ fontSize:12, fontWeight:800, textTransform:"uppercase", letterSpacing:".04em", color:"var(--ink)", lineHeight:1.3, fontFamily:"var(--sans)" }}>
+                          {tpl.name}
+                        </div>
                         <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between" }}>
-                          <div style={{ display:"flex", alignItems:"center", gap:5 }}>
-                            <span style={{ width:18, height:18, borderRadius:4, background: ws?.color ?? "var(--mint)", display:"grid", placeItems:"center", fontSize:8, fontWeight:800, color:"#fff" }}>
-                              {ws?.name?.slice(0,2).toUpperCase() ?? "??"}
-                            </span>
-                            <span style={{ fontSize:11, color:"var(--ink-3)", fontWeight:600 }}>{ws?.name ?? "Client"}</span>
-                          </div>
+                          {ws ? (
+                            <div style={{ display:"flex", alignItems:"center", gap:5 }}>
+                              <span style={{ width:16, height:16, borderRadius:4, background: ws.color, display:"grid", placeItems:"center", fontSize:7, fontWeight:800, color:"#fff" }}>
+                                {ws.name.slice(0,2).toUpperCase()}
+                              </span>
+                              <span style={{ fontSize:10, color:"var(--ink-3)", fontWeight:600 }}>{ws.name}</span>
+                            </div>
+                          ) : (
+                            <span style={{ fontSize:10, color:"var(--ink-3)", fontWeight:700, background:"var(--sunk)", padding:"2px 6px", borderRadius:4 }}>Global</span>
+                          )}
                         </div>
                         <Link href={`/workspace/${tpl.workspace_id}/templates`}
-                          className="btn btn-ghost btn-sm" style={{ width:"100%", textDecoration:"none", textAlign:"center", justifyContent:"center" }}>
+                          className="btn btn-ghost btn-sm"
+                          style={{ width:"100%", textDecoration:"none", textAlign:"center", justifyContent:"center", fontSize:11 }}>
                           Utiliser
                         </Link>
                       </div>
