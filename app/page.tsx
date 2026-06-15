@@ -3,7 +3,6 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import Link from 'next/link';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import { useRouter } from 'next/navigation';
-import KlipDemo from '@/components/KlipDemo';
 
 /* ─── Design tokens ──────────────────────────────────────────────────────────
    Landing uses TWO accent colors:
@@ -995,7 +994,6 @@ export default function LandingPage() {
       <Nav onDemo={scrollToDemo} />
       <Hero onDemo={scrollToDemo} />
       <Marquee />
-      <KlipDemo />
       <Probleme />
       <Process />
       <DemoSection />
