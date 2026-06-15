@@ -10,6 +10,20 @@ export async function GET(request: NextRequest) {
   if (code) {
     const supabase = createRouteHandlerClient({ cookies });
     await supabase.auth.exchangeCodeForSession(code);
+
+    // Check if new user (no account_type set) → onboarding
+    const { data: { session } } = await supabase.auth.getSession();
+    if (session?.user?.id) {
+      const { data: settings } = await supabase
+        .from("user_settings")
+        .select("account_type")
+        .eq("user_id", session.user.id)
+        .maybeSingle();
+
+      if (!settings?.account_type) {
+        return NextResponse.redirect(new URL("/onboarding/plan", requestUrl.origin));
+      }
+    }
   }
 
   return NextResponse.redirect(new URL("/dashboard", requestUrl.origin));

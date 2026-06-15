@@ -5,6 +5,7 @@ import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Sidebar from "@/components/Sidebar";
+import { useAccountType } from "@/hooks/useAccountType";
 
 interface Workspace { id: string; name: string }
 interface Post {
@@ -36,6 +37,7 @@ export default function FeedPage() {
   const [posts, setPosts] = useState<Post[]>([]);
   const [filterWsId, setFilterWsId] = useState("all");
   const [loading, setLoading] = useState(true);
+  const { isAgency } = useAccountType();
 
   useEffect(() => {
     (async () => {
@@ -121,7 +123,7 @@ export default function FeedPage() {
           </div>
 
           {/* Actions */}
-          {isPending ? (
+          {isPending && isAgency ? (
             <div style={{ display:"flex", gap:6, marginTop:"auto" }}>
               <button
                 onClick={() => handleValidate(post.id)}
