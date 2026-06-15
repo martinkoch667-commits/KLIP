@@ -3,6 +3,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import Link from 'next/link';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import { useRouter } from 'next/navigation';
+import KlipDemo from '@/components/KlipDemo';
 
 /* ─── Design tokens ──────────────────────────────────────────────────────────
    Landing uses TWO accent colors:
@@ -304,11 +305,15 @@ function Hero({ onDemo }: { onDemo: () => void }) {
         </div>
         {/* sub */}
         <div className="lp-reveal in d2" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-          <p className="lp-lead" style={{ maxWidth: 540, marginTop: 28 }}>
-            Un éditeur visuel par-là. Un outil IA pour le texte par-ci.
-            Un tableur pour le planning. Meta Business pour publier.
-            Vous avez tout — et vous perdez un temps fou à tout recoller.
-            Klip met fin à ça.
+          <p className="lp-lead" style={{ maxWidth: 580, marginTop: 28 }}>
+            Un éditeur visuel par-là. Un outil IA pour le texte par-ci.<br />
+            Un planificateur ailleurs. Un fil de messagerie pour valider.<br />
+            Et au bout : le mauvais fichier envoyé au mauvais client.
+          </p>
+          <p className="lp-lead" style={{ maxWidth: 580, marginTop: 16 }}>
+            Klip réunit tout le processus de post-production de vos contenus
+            dans un seul outil — pour les agences et les community managers
+            qui veulent arrêter de jongler et recommencer à créer.
           </p>
           {/* CTAs */}
           <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginTop: 34, justifyContent: 'center', alignItems: 'center' }}>
@@ -356,10 +361,9 @@ function Marquee() {
 /* ─── Problème — fond forêt ──────────────────────────────────────────────── */
 function Probleme() {
   const tools = [
-    { n: 'Canva',         t: 'pour les visuels' },
-    { n: 'ChatGPT',       t: 'pour les légendes' },
-    { n: 'Un tableur',    t: 'pour le planning' },
-    { n: 'Meta Business', t: 'pour publier' },
+    { n: 'Le mauvais fichier.', t: "Vous finissez le visuel sur votre éditeur, vous l'exportez, vous l'envoyez sur votre fil de messagerie au client, il vous dit « c'était pas cette photo ». Vous recommencez." },
+    { n: '6 clients, 6 dossiers.', t: "Vous gérez 6 clients. Chacun a sa charte, ses tons, ses formats. Vous avez 6 projets dans votre éditeur visuel, 6 dossiers partagés, 6 fils de conversation. Vous perdez 20 minutes à retrouver le bon logo." },
+    { n: 'La publication bloquée.', t: "Votre publication du jeudi est prête. Mais le visuel est dans votre éditeur. La légende est dans un doc de suivi. La validation client dort dans vos mails depuis mardi." },
   ];
   return (
     <section id="probleme" className="lp-section lp-forest" style={{ overflow: 'hidden' }}>
@@ -382,18 +386,14 @@ function Probleme() {
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             {tools.map((x, i) => (
-              <div key={i} className={`lp-reveal d${i + 1}`} style={{ padding: '20px 24px', display: 'flex', alignItems: 'center', gap: 18, transform: `rotate(${i % 2 ? .5 : -.6}deg)`, background: '#103725', borderRadius: 18, boxShadow: 'inset 0 0 0 1px rgba(239,238,228,.22)' }}>
-                <span style={{ fontFamily: "'early-sans-variable', sans-serif", fontWeight: 900, fontSize: 13, color: 'rgba(239,238,228,.28)', width: 22 }}>{String(i + 1).padStart(2, '0')}</span>
+              <div key={i} className={`lp-reveal d${i + 1}`} style={{ padding: '20px 24px', display: 'flex', alignItems: 'flex-start', gap: 18, transform: `rotate(${i % 2 ? .5 : -.6}deg)`, background: '#103725', borderRadius: 18, boxShadow: 'inset 0 0 0 1px rgba(239,238,228,.22)' }}>
+                <span style={{ fontFamily: "'early-sans-variable', sans-serif", fontWeight: 900, fontSize: 13, color: 'rgba(239,238,228,.28)', width: 22, flexShrink: 0, paddingTop: 4 }}>{String(i + 1).padStart(2, '0')}</span>
                 <div style={{ flex: 1 }}>
-                  <div style={{ fontFamily: "'Archivo', sans-serif", fontWeight: 800, fontSize: 24, letterSpacing: '-0.02em', color: '#EFEEE4' }}>{x.n}</div>
-                  <div style={{ color: 'rgba(239,238,228,.55)', fontSize: 14.5 }}>{x.t}</div>
+                  <div style={{ fontFamily: "'Archivo', sans-serif", fontWeight: 800, fontSize: 20, letterSpacing: '-0.02em', color: '#EFEEE4', marginBottom: 6 }}>{x.n}</div>
+                  <div style={{ color: 'rgba(239,238,228,.55)', fontSize: 14, lineHeight: 1.55 }}>{x.t}</div>
                 </div>
-                <Icon name="arrowUR" size={18} style={{ color: 'rgba(239,238,228,.28)' }} />
               </div>
             ))}
-            <div className="lp-reveal d4" style={{ textAlign: 'center', fontFamily: "'early-sans-variable', sans-serif", fontWeight: 800, color: 'rgba(239,238,228,.28)', fontSize: 13, marginTop: 6 }}>
-              … et vous, au milieu, à tout recoller à la main.
-            </div>
           </div>
         </div>
       </div>
@@ -404,9 +404,10 @@ function Probleme() {
 /* ─── Process ────────────────────────────────────────────────────────────── */
 function Process() {
   const steps = [
-    { ic: 'upload',   n: '01', t: 'Importez & organisez',       d: "Vos photos dans Klip. Votre espace client, prêt en 30 secondes. Charte, logo, voix de marque — tout est là." },
-    { ic: 'wand',     n: '02', t: "L'IA génère le contenu",      d: "Visuel mis en forme, légende, hashtags — calibrés sur la voix de chaque marque. Vous validez, vous ajustez, vous gardez la main." },
-    { ic: 'calendar', n: '03', t: 'Planifiez & publiez',         d: "Choisissez les créneaux. Klip publie sur Instagram tout seul, au bon moment. Passez au client suivant." },
+    { ic: 'upload',    n: '01', t: 'Importer',  d: "Importez vos photos et vidéos directement dans Klip. Jusqu'à 7 fichiers en une seule fois." },
+    { ic: 'image',     n: '02', t: 'Créer',     d: "Éditeur visuel intégré. Charte du client sauvegardée. Formats Story, Reel et Post en un clic. Sans exporter, sans copier-coller." },
+    { ic: 'wand',      n: '03', t: 'Rédiger',   d: "L'IA génère la légende dans le ton exact du client en 10 secondes. Vous relisez, vous ajustez." },
+    { ic: 'instagram', n: '04', t: 'Publier',   d: "Programmation automatique sur Instagram et Facebook. Sélectionnez le type de post, choisissez l'heure. Klip fait le reste." },
   ];
   return (
     <section id="process" className="lp-section">
@@ -414,23 +415,26 @@ function Process() {
         <div style={{ maxWidth: 720 }}>
           <span className="lp-eyebrow lp-reveal">Comment ça marche</span>
           <h2 className="lp-display lp-upper lp-reveal d1" style={{ fontSize: 'clamp(38px, 4.8vw, 66px)', marginTop: 20 }}>
-            Un seul endroit.<br /><span className="lp-it lp-mint">Tout le workflow.</span>
+            Un seul endroit.<br /><span className="lp-it lp-mint">Toute la post-production.</span>
           </h2>
         </div>
-        <div className="lp-3col" style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 20, marginTop: 56 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 16, marginTop: 56 }}>
           {steps.map((s, i) => (
-            <div key={i} className={`lp-card lp-reveal d${i + 1}`} style={{ padding: 30, position: 'relative', overflow: 'hidden' }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 26 }}>
-                <span style={{ width: 52, height: 52, borderRadius: 14, background: '#2FD79B', color: '#06281C', display: 'grid', placeItems: 'center' }}>
-                  <Icon name={s.ic} size={24} />
+            <div key={i} className={`lp-card lp-reveal d${i + 1}`} style={{ padding: 28, position: 'relative', overflow: 'hidden' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 22 }}>
+                <span style={{ width: 48, height: 48, borderRadius: 13, background: '#2FD79B', color: '#06281C', display: 'grid', placeItems: 'center' }}>
+                  <Icon name={s.ic} size={22} />
                 </span>
-                <span className="lp-display" style={{ fontWeight: 700, fontSize: 56, lineHeight: 1, color: 'rgba(13,15,10,.1)' }}>{s.n}</span>
+                <span className="lp-display" style={{ fontWeight: 700, fontSize: 48, lineHeight: 1, color: 'rgba(13,15,10,.1)' }}>{s.n}</span>
               </div>
-              <h3 className="lp-display" style={{ fontWeight: 700, fontSize: 26, letterSpacing: '-0.02em', marginBottom: 10 }}>{s.t}</h3>
-              <p style={{ color: '#565A4E', fontSize: 15.5, lineHeight: 1.62 }}>{s.d}</p>
+              <h3 className="lp-display lp-upper" style={{ fontWeight: 800, fontSize: 18, letterSpacing: '0.04em', marginBottom: 10 }}>{s.t}</h3>
+              <p style={{ color: '#565A4E', fontSize: 14.5, lineHeight: 1.62 }}>{s.d}</p>
             </div>
           ))}
         </div>
+        <p className="lp-reveal" style={{ marginTop: 28, textAlign: 'center', color: '#8E9183', fontFamily: "'early-sans-variable', sans-serif", fontWeight: 700, fontSize: 14 }}>
+          Plus besoin de jongler entre votre éditeur visuel, votre outil IA, votre planificateur et vos fils de validation.
+        </p>
       </div>
     </section>
   );
@@ -667,9 +671,9 @@ function MiniCalendar() {
 }
 
 type FeatTone = 'acid' | 'forest' | undefined;
-function FeatCard({ ic, t, d, span, tone, children }: { ic: string; t: string; d: string; span?: boolean; tone?: FeatTone; children?: React.ReactNode }) {
+function FeatCard({ ic, t, d, cols = 1, tone, children }: { ic: string; t: string; d: string; cols?: 1 | 2 | 3; tone?: FeatTone; children?: React.ReactNode }) {
   return (
-    <div className={`lp-reveal${span ? ' lp-feat-wide' : ''}`} style={{ gridColumn: span ? 'span 2' : 'span 1', padding: 28, borderRadius: 18, display: 'flex', flexDirection: 'column', gap: 14, background: tone === 'acid' ? '#2FD79B' : tone === 'forest' ? '#0C2A1D' : '#FBFAF4', color: tone === 'forest' ? '#EFEEE4' : '#0D0F0A', boxShadow: tone ? 'none' : 'inset 0 0 0 1px rgba(13,15,10,.07), 0 1px 2px rgba(13,15,10,.03)' }}>
+    <div className={`lp-reveal${cols > 1 ? ' lp-feat-wide' : ''}`} style={{ gridColumn: `span ${cols}`, padding: 28, borderRadius: 18, display: 'flex', flexDirection: 'column', gap: 14, background: tone === 'acid' ? '#2FD79B' : tone === 'forest' ? '#0C2A1D' : '#FBFAF4', color: tone === 'forest' ? '#EFEEE4' : '#0D0F0A', boxShadow: tone ? 'none' : 'inset 0 0 0 1px rgba(13,15,10,.07), 0 1px 2px rgba(13,15,10,.03)' }}>
       <span style={{ width: 46, height: 46, borderRadius: 12, display: 'grid', placeItems: 'center', background: tone === 'acid' ? '#06281C' : tone === 'forest' ? '#2FD79B' : '#0D0F0A', color: tone === 'acid' ? '#2FD79B' : tone === 'forest' ? '#06281C' : '#F1F0E8' }}>
         <Icon name={ic} size={22} />
       </span>
@@ -691,16 +695,15 @@ function Features() {
           </h2>
         </div>
         <div className="lp-3col" style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 16, marginTop: 52 }}>
-          <FeatCard ic="image"     t="Éditeur visuel canvas" d="Glissez le visuel, ajustez le texte, appliquez la charte du client. Du pixel parfait en quelques secondes — sans Canva, sans export." span>
+          <FeatCard ic="image" t="Éditeur visuel intégré" d="Créez vos visuels directement dans Klip. Charte du client sauvegardée, templates prêts à l'emploi, formats Story, Reel et Post en un clic. C'est la fin des exports et des mauvais fichiers." cols={2}>
             <div style={{ marginTop: 'auto' }}><MiniEditor /></div>
           </FeatCard>
-          <FeatCard ic="voice"     t="Voix de marque"        d="Ton, style, mots à éviter — définis une fois par client. L'IA ne déborde jamais du cadre." tone="acid" />
-          <FeatCard ic="wand"      t="Génération IA"         d="Légendes, hashtags et accroches générés depuis la photo et l'ADN de la marque. Sans effort." />
-          <FeatCard ic="calendar"  t="Calendrier éditorial"  d="Tous vos posts, tous vos clients, sur une grille. Replanifiez d'un glissé-déposé." span>
+          <FeatCard ic="wand" t="Légendes générées par IA" d="Décrivez le post, l'IA rédige dans le ton exact du client. Vous relisez, vous publiez. 10 secondes au lieu de 20 minutes." tone="acid" />
+          <FeatCard ic="calendar" t="Calendrier global multi-clients" d="Tous vos clients, tous vos posts, une seule vue. Glissez, déposez, reprogrammez. Rien ne passe entre les mailles." cols={2}>
             <div style={{ marginTop: 'auto' }}><MiniCalendar /></div>
           </FeatCard>
-          <FeatCard ic="layers"    t="Espaces clients isolés" d="Charte, historique, comptes connectés — cloisonnés, jamais mélangés. Chaque client dans sa bulle." />
-          <FeatCard ic="instagram" t="Publication Instagram"  d="Connexion compte pro en quelques clics. Programmez ou publiez sans quitter Klip." tone="forest" span />
+          <FeatCard ic="instagram" t="Publication automatique" d="Instagram, Facebook, Story, Reel, Post — Klip publie à l'heure exacte que vous avez choisie. Vous dormez, vos clients restent actifs." />
+          <FeatCard ic="layers" t="Workflow de validation — Agence" d="Votre équipe prépare, vous validez, le client reçoit. Sans un seul mail. Sans fil de messagerie. Sans le mauvais fichier." tone="forest" cols={3} />
         </div>
       </div>
     </section>
@@ -770,18 +773,26 @@ function Testimonials() {
 function Pricing() {
   const [annual, setAnnual] = useState(true);
   const plans = [
-    { name: 'Studio', m: 29, y: 25, tag: '7 jours gratuits', accent: false, feats: ["Jusqu\u2019\u00e0 5 clients", '\u00c9diteur visuel canvas', 'G\u00e9n\u00e9ration IA illimit\u00e9e', 'Calendrier \u00e9ditorial', 'Publication Instagram directe', 'Voix de marque par client'] },
-    { name: 'Agence', m: 96, y: 89, tag: 'Le plus populaire', accent: true,  feats: ['Clients illimit\u00e9s', 'Tout le plan Studio', 'Multi-membres & r\u00f4les', 'Workflow de validation client', 'Rapports & analytiques', 'Support prioritaire d\u00e9di\u00e9'] },
+    {
+      name: 'Studio', m: 29, y: 25, tag: '7 jours gratuits', accent: false,
+      sub: 'Freelances & community managers',
+      feats: ['3 comptes clients', '1 profil utilisateur', 'Posts illimités', 'Éditeur visuel intégré', 'Génération IA illimitée', 'Publication automatique Instagram & Facebook'],
+    },
+    {
+      name: 'Agence', m: 96, y: 89, tag: 'Le plus populaire', accent: true,
+      sub: 'Agences & studios de communication',
+      feats: ['10 comptes clients inclus', '+15€ / client supplémentaire / mois', '5 profils membres inclus', '+10€ / membre supplémentaire / mois', 'Posts illimités', 'Éditeur visuel intégré', 'Génération IA illimitée', 'Publication automatique Instagram & Facebook', 'Workflow de validation intégré', 'Rôles Manager & Créa'],
+    },
   ];
   return (
     <section id="tarifs" className="lp-section">
       <div className="lp-wrap">
         <div style={{ textAlign: 'center', maxWidth: 640, margin: '0 auto' }}>
           <span className="lp-eyebrow lp-reveal" style={{ justifyContent: 'center' }}>Tarifs</span>
-          <h2 className="lp-display lp-reveal d1" style={{ fontSize: 'clamp(38px, 4.8vw, 64px)', marginTop: 18 }}>
-            Simple. <span className="lp-it lp-mint">Sans surprise.</span>
+          <h2 className="lp-display lp-upper lp-reveal d1" style={{ fontSize: 'clamp(38px, 4.8vw, 64px)', marginTop: 18 }}>
+            Simple. <span className="lp-it lp-mint">Prévisible.</span>
           </h2>
-          <p className="lp-lead lp-reveal d2" style={{ margin: '16px auto 0' }}>Deux formules, tout inclus. Changez ou arrêtez quand vous voulez.</p>
+          <p className="lp-lead lp-reveal d2" style={{ margin: '16px auto 0' }}>7 jours gratuits sur tous les plans. Sans carte bancaire.</p>
           {/* toggle */}
           <div className="lp-reveal d2" style={{ display: 'inline-flex', alignItems: 'center', gap: 4, marginTop: 28, padding: 5, borderRadius: 999, background: '#FBFAF4', boxShadow: 'inset 0 0 0 1px rgba(13,15,10,.1)' }}>
             {([['Mensuel', false], ['Annuel', true]] as [string, boolean][]).map(([l, v]) => (
@@ -799,7 +810,8 @@ function Pricing() {
                 <span style={{ fontFamily: "'early-sans-variable', sans-serif", fontWeight: 900, fontSize: 16 }}>{p.name}</span>
                 <span style={{ fontFamily: "'early-sans-variable', sans-serif", fontWeight: 800, fontSize: 11, letterSpacing: '.08em', textTransform: 'uppercase', padding: '5px 11px', borderRadius: 999, background: p.accent ? '#2FD79B' : '#0D0F0A', color: p.accent ? '#06281C' : '#F1F0E8' }}>{p.tag}</span>
               </div>
-              <div style={{ display: 'flex', alignItems: 'flex-end', gap: 4, margin: '22px 0 6px' }}>
+              <p style={{ marginTop: 10, fontSize: 12.5, color: p.accent ? 'rgba(239,238,228,.5)' : '#8E9183', fontFamily: "'early-sans-variable', sans-serif", fontWeight: 600 }}>{p.sub}</p>
+              <div style={{ display: 'flex', alignItems: 'flex-end', gap: 4, margin: '18px 0 6px' }}>
                 <span className="lp-display" style={{ fontWeight: 700, fontSize: 64, lineHeight: .9, letterSpacing: '-0.03em' }}>{annual ? p.y : p.m}€</span>
                 <span style={{ fontSize: 15, color: p.accent ? 'rgba(239,238,228,.6)' : '#8E9183', marginBottom: 10, fontFamily: "'early-sans-variable', sans-serif", fontWeight: 700, whiteSpace: 'nowrap' }}>/ mois</span>
               </div>
@@ -821,7 +833,13 @@ function Pricing() {
             </div>
           ))}
         </div>
-        <p className="lp-reveal" style={{ textAlign: 'center', marginTop: 24, color: '#8E9183', fontFamily: "'early-sans-variable', sans-serif", fontWeight: 700, fontSize: 13.5 }}>7 jours gratuits · sans carte bancaire · résiliable en un clic · Vous avez plus de 20 clients ? <a href="mailto:contact@klip.fr" style={{ color: '#2FD79B', textDecoration: 'underline', textUnderlineOffset: 2 }}>contact@klip.fr</a></p>
+        <p className="lp-reveal" style={{ textAlign: 'center', marginTop: 24, color: '#8E9183', fontFamily: "'early-sans-variable', sans-serif", fontWeight: 700, fontSize: 13.5 }}>
+          7 jours gratuits · sans carte bancaire · résiliable en un clic
+        </p>
+        <p className="lp-reveal" style={{ textAlign: 'center', marginTop: 10, color: '#8E9183', fontFamily: "'early-sans-variable', sans-serif", fontWeight: 700, fontSize: 13.5 }}>
+          Vous avez plus de 20 clients ou une grande équipe ? Parlons-en. →{' '}
+          <a href="mailto:contact@klip.fr" style={{ color: '#2FD79B', textDecoration: 'underline', textUnderlineOffset: 2 }}>contact@klip.fr</a>
+        </p>
       </div>
     </section>
   );
@@ -977,6 +995,7 @@ export default function LandingPage() {
       <Nav onDemo={scrollToDemo} />
       <Hero onDemo={scrollToDemo} />
       <Marquee />
+      <KlipDemo />
       <Probleme />
       <Process />
       <DemoSection />
