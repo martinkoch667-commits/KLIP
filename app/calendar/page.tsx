@@ -21,6 +21,8 @@ interface Post {
 const WS_COLORS = ["#7B5CF5","#2FD79B","#C8732B","#5A86E8","#DD2A7B","#88B394","#E8A03A","#4A8DD4"];
 const MONTH_NAMES = ["Janvier","Février","Mars","Avril","Mai","Juin","Juillet","Août","Septembre","Octobre","Novembre","Décembre"];
 const DAY_NAMES   = ["Lun","Mar","Mer","Jeu","Ven","Sam","Dim"];
+const POST_TYPE_COLOR: Record<string, string> = { post:"#4F8EF7", reel:"#A259FF", story:"#FF6B35" };
+const POST_TYPE_LABEL: Record<string, string> = { post:"Post", reel:"Reel", story:"Story" };
 
 function startOfWeek(d: Date) {
   const dt = new Date(d);
@@ -60,7 +62,6 @@ export default function CalendarPage() {
   const wsMap = Object.fromEntries(workspaces.map((w,i) => [w.id, { name: w.name, color: WS_COLORS[i % WS_COLORS.length] }]));
   const filtered = filterWsId === "all" ? posts : posts.filter(p => p.workspace_id === filterWsId);
 
-  // Build day → posts map
   const byDay: Record<string, Post[]> = {};
   filtered.forEach(p => {
     if (!p.scheduled_at) return;
@@ -68,10 +69,8 @@ export default function CalendarPage() {
     (byDay[ymd] = byDay[ymd] || []).push(p);
   });
 
-  // Week days
   const weekDays = Array.from({length:7}, (_,i) => { const d = new Date(weekStart); d.setDate(d.getDate()+i); return d; });
 
-  // Month grid
   const monthStart = new Date(monthDate.getFullYear(), monthDate.getMonth(), 1);
   const firstDow = (monthStart.getDay()+6)%7;
   const daysInMonth = new Date(monthDate.getFullYear(), monthDate.getMonth()+1, 0).getDate();
@@ -79,8 +78,7 @@ export default function CalendarPage() {
   const monthCells = Array.from({length:totalCells}, (_,i) => {
     const offset = i - firstDow;
     if (offset < 0 || offset >= daysInMonth) return null;
-    const d = new Date(monthDate.getFullYear(), monthDate.getMonth(), offset+1);
-    return d;
+    return new Date(monthDate.getFullYear(), monthDate.getMonth(), offset+1);
   });
 
   function navWeek(dir: number) { const d = new Date(weekStart); d.setDate(d.getDate()+7*dir); setWeekStart(startOfWeek(d)); }
@@ -88,14 +86,41 @@ export default function CalendarPage() {
 
   const today = toYMD(new Date());
 
+  function PostPill({ p, compact = false }: { p: Post; compact?: boolean }) {
+    const ws = wsMap[p.workspace_id];
+    const rawImg = p.exported_image_url || p.photo_url;
+    const thumb = rawImg ? `/api/proxy-image?url=${encodeURIComponent(rawImg)}` : null;
+    const pt = p.post_type ?? "post";
+    const time = p.scheduled_at ? new Date(p.scheduled_at).toLocaleTimeString("fr-FR", { hour:"2-digit", minute:"2-digit" }) : null;
+
+    return (
+      <Link href={`/workspace/${p.workspace_id}/editor/${p.id}`}
+        style={{ display:"flex", alignItems:"center", gap:5, background: ws?.color ?? "var(--mint)", borderRadius:6, padding: compact ? "3px 5px" : "5px 7px", textDecoration:"none", marginBottom:2, overflow:"hidden" }}>
+        {!compact && thumb && (
+          <img src={thumb} alt="" style={{ width:20, height:20, borderRadius:3, objectFit:"cover", flexShrink:0 }}/>
+        )}
+        <div style={{ minWidth:0, flex:1 }}>
+          <div style={{ display:"flex", alignItems:"center", gap:4, flexWrap:"wrap" }}>
+            <span style={{ fontSize:9, fontWeight:800, color:"#fff", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", maxWidth:compact?60:90 }}>{ws?.name ?? "Client"}</span>
+            <span style={{ fontSize:8, fontWeight:700, color:"rgba(255,255,255,.75)", background:"rgba(0,0,0,.18)", borderRadius:3, padding:"1px 4px", flexShrink:0 }}>
+              {POST_TYPE_LABEL[pt] ?? pt}
+            </span>
+          </div>
+          {!compact && time && (
+            <span style={{ fontSize:8, color:"rgba(255,255,255,.7)", fontWeight:600 }}>{time}</span>
+          )}
+        </div>
+      </Link>
+    );
+  }
+
   return (
     <div className="app">
       <Sidebar />
       <div className="work">
-        <div className="topbar" style={{ justifyContent: "space-between" }}>
+        <div className="topbar" style={{ justifyContent:"space-between" }}>
           <div style={{ display:"flex", alignItems:"center", gap:16 }}>
-            <h1 style={{ fontSize:17, fontWeight:800, fontFamily:"var(--display)", margin:0 }}>Calendrier</h1>
-            {/* Filter */}
+            <h1 style={{ fontSize:14, fontWeight:800, margin:0 }}>Calendrier</h1>
             <select value={filterWsId} onChange={e => setFilterWsId(e.target.value)}
               style={{ fontSize:12, fontWeight:600, border:"1px solid var(--line)", borderRadius:"var(--r-s)", padding:"5px 10px", background:"var(--sunk)", color:"var(--ink)", outline:"none" }}>
               <option value="all">Tous les clients</option>
@@ -103,13 +128,9 @@ export default function CalendarPage() {
             </select>
           </div>
           <div style={{ display:"flex", alignItems:"center", gap:8 }}>
-            <div style={{ display:"flex", gap:2, background:"var(--sunk)", borderRadius:"var(--r-s)", padding:3 }}>
+            <div className="seg">
               {(["week","month"] as const).map(v => (
-                <button key={v} onClick={() => setCalView(v)}
-                  style={{ padding:"4px 10px", borderRadius:6, border:"none", fontSize:12, fontWeight:700,
-                    background: calView===v ? "var(--card)" : "transparent",
-                    color: calView===v ? "var(--ink)" : "var(--ink-3)",
-                    boxShadow: calView===v ? "0 1px 3px rgba(13,15,10,.1)" : "none" }}>
+                <button key={v} onClick={() => setCalView(v)} className={calView===v?"on":""}>
                   {v==="week" ? "Semaine" : "Mois"}
                 </button>
               ))}
@@ -139,48 +160,43 @@ export default function CalendarPage() {
                 {weekDays.map(d => {
                   const ymd = toYMD(d);
                   const isToday = ymd === today;
+                  const count = (byDay[ymd] ?? []).length;
                   return (
                     <div key={ymd} style={{ padding:"10px 8px", borderBottom:"1px solid var(--line)", borderLeft:"1px solid var(--line)", background:"var(--sunk)", textAlign:"center" }}>
                       <div style={{ fontSize:11, fontWeight:700, color:"var(--ink-3)", textTransform:"uppercase", letterSpacing:".08em", marginBottom:4 }}>{DAY_NAMES[(d.getDay()+6)%7]}</div>
-                      <div style={{ width:28, height:28, borderRadius:"50%", background: isToday ? "var(--forest)" : "transparent", color: isToday ? "var(--cream)" : "var(--ink)", fontWeight:800, fontSize:14, display:"grid", placeItems:"center", margin:"0 auto" }}>{d.getDate()}</div>
+                      <div style={{ display:"flex", alignItems:"center", justifyContent:"center", gap:5 }}>
+                        <div style={{ width:28, height:28, borderRadius:"50%", background: isToday ? "var(--forest)" : "transparent", color: isToday ? "var(--cream)" : "var(--ink)", fontWeight:800, fontSize:14, display:"grid", placeItems:"center" }}>{d.getDate()}</div>
+                        {count > 0 && <span style={{ fontSize:9, fontWeight:800, color:"var(--mint-2)", background:"var(--mint-soft)", borderRadius:99, padding:"1px 5px" }}>{count}</span>}
+                      </div>
                     </div>
                   );
                 })}
-                {/* Time gutter label */}
+                {/* Time gutter */}
                 <div style={{ borderRight:"1px solid var(--line)" }}>
                   {[9,10,11,12,13,14,15,16,17,18].map(h => (
-                    <div key={h} style={{ height:60, borderBottom:"1px solid var(--line-2)", display:"flex", alignItems:"flex-start", paddingTop:4, justifyContent:"center" }}>
+                    <div key={h} style={{ height:64, borderBottom:"1px solid var(--line-2)", display:"flex", alignItems:"flex-start", paddingTop:4, justifyContent:"center" }}>
                       <span style={{ fontSize:10, color:"var(--ink-3)", fontWeight:700, fontFamily:"var(--mono)" }}>{h}h</span>
                     </div>
                   ))}
                 </div>
+                {/* Day columns */}
                 {weekDays.map(d => {
                   const ymd = toYMD(d);
                   const dayPosts = byDay[ymd] ?? [];
                   return (
                     <div key={ymd} style={{ borderLeft:"1px solid var(--line)", position:"relative" }}>
                       {[9,10,11,12,13,14,15,16,17,18].map(h => (
-                        <div key={h} style={{ height:60, borderBottom:"1px solid var(--line-2)" }}/>
+                        <div key={h} style={{ height:64, borderBottom:"1px solid var(--line-2)" }}/>
                       ))}
-                      {dayPosts.map(p => {
-                        const ws = wsMap[p.workspace_id];
-                        const rawImg = p.exported_image_url || p.photo_url;
-                        const thumb = rawImg ? `/api/proxy-image?url=${encodeURIComponent(rawImg)}` : null;
-                        return (
-                          <Link key={p.id} href={`/workspace/${p.workspace_id}/planning`}
-                            style={{ position:"absolute", top:4, left:4, right:4, background: ws?.color ?? "var(--mint)", borderRadius:6, padding:"4px 6px", display:"flex", alignItems:"center", gap:5, textDecoration:"none", zIndex:1 }}>
-                            {thumb && <img src={thumb} alt="" style={{ width:18, height:18, borderRadius:3, objectFit:"cover", flexShrink:0 }}/>}
-                            <span style={{ fontSize:10, fontWeight:700, color:"#fff", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{ws?.name ?? "Client"}</span>
-                          </Link>
-                        );
-                      })}
+                      <div style={{ position:"absolute", top:4, left:4, right:4, display:"flex", flexDirection:"column", gap:2 }}>
+                        {dayPosts.map(p => <PostPill key={p.id} p={p} />)}
+                      </div>
                     </div>
                   );
                 })}
               </div>
             ) : (
               <div style={{ border:"1px solid var(--line)", borderRadius:"var(--r-l)", overflow:"hidden", background:"var(--card)" }}>
-                {/* Month header */}
                 <div style={{ display:"grid", gridTemplateColumns:"repeat(7,1fr)", borderBottom:"1px solid var(--line)", background:"var(--sunk)" }}>
                   {DAY_NAMES.map(d => (
                     <div key={d} style={{ padding:"10px 0", textAlign:"center", fontSize:11, fontWeight:700, color:"var(--ink-3)", textTransform:"uppercase", letterSpacing:".08em" }}>{d}</div>
@@ -188,24 +204,16 @@ export default function CalendarPage() {
                 </div>
                 <div style={{ display:"grid", gridTemplateColumns:"repeat(7,1fr)" }}>
                   {monthCells.map((d, i) => {
-                    if (!d) return <div key={i} style={{ minHeight:90, borderRight:"1px solid var(--line-2)", borderBottom:"1px solid var(--line-2)", background:"var(--sunk)", opacity:.5 }}/>;
+                    if (!d) return <div key={i} style={{ minHeight:100, borderRight:"1px solid var(--line-2)", borderBottom:"1px solid var(--line-2)", background:"var(--sunk)", opacity:.5 }}/>;
                     const ymd = toYMD(d);
                     const dayPosts = byDay[ymd] ?? [];
                     const isToday = ymd === today;
                     return (
-                      <div key={ymd} style={{ minHeight:90, borderRight:"1px solid var(--line-2)", borderBottom:"1px solid var(--line-2)", padding:"6px 8px" }}>
-                        <span style={{ width:22, height:22, borderRadius:"50%", background: isToday ? "var(--forest)" : "transparent", color: isToday ? "var(--cream)" : "var(--ink)", fontWeight:800, fontSize:12, display:"inline-flex", alignItems:"center", justifyContent:"center", marginBottom:4 }}>{d.getDate()}</span>
-                        <div style={{ display:"flex", flexDirection:"column", gap:2 }}>
-                          {dayPosts.slice(0,3).map(p => {
-                            const ws = wsMap[p.workspace_id];
-                            return (
-                              <Link key={p.id} href={`/workspace/${p.workspace_id}/planning`}
-                                style={{ fontSize:9, fontWeight:700, color:"#fff", background: ws?.color ?? "var(--mint)", borderRadius:4, padding:"2px 5px", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", textDecoration:"none" }}>
-                                {ws?.name ?? "Client"}
-                              </Link>
-                            );
-                          })}
-                          {dayPosts.length > 3 && <span style={{ fontSize:9, color:"var(--ink-3)", fontWeight:700 }}>+{dayPosts.length-3} de plus</span>}
+                      <div key={ymd} style={{ minHeight:100, borderRight:"1px solid var(--line-2)", borderBottom:"1px solid var(--line-2)", padding:"6px 7px" }}>
+                        <span style={{ width:22, height:22, borderRadius:"50%", background: isToday ? "var(--forest)" : "transparent", color: isToday ? "var(--cream)" : "var(--ink)", fontWeight:800, fontSize:12, display:"inline-flex", alignItems:"center", justifyContent:"center", marginBottom:5 }}>{d.getDate()}</span>
+                        <div style={{ display:"flex", flexDirection:"column" }}>
+                          {dayPosts.slice(0,3).map(p => <PostPill key={p.id} p={p} compact />)}
+                          {dayPosts.length > 3 && <span style={{ fontSize:9, color:"var(--ink-3)", fontWeight:700, marginTop:2 }}>+{dayPosts.length-3}</span>}
                         </div>
                       </div>
                     );
