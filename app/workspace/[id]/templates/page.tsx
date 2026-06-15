@@ -802,7 +802,11 @@ function ZoneInspector({ zone, onChange, onDelete }: { zone: TextZone; onChange:
                 onClick={() => onChange({ align: a })}
                 style={{ background: zone.align === a ? 'var(--mint-soft)' : 'var(--sunk)', border: `1px solid ${zone.align === a ? 'var(--mint)' : 'var(--cream-4)'}`, borderRadius: 4, padding: '4px 8px', color: zone.align === a ? 'var(--mint)' : 'var(--cream-3)', fontSize: 11, cursor: 'pointer', fontWeight: 600 }}
               >
-                {a === 'left' ? '⬅' : a === 'center' ? '↔' : '➡'}
+                {a === 'left'
+                  ? <svg width="13" height="11" viewBox="0 0 13 11" fill="currentColor"><rect x="0" y="0" width="13" height="2" rx="1"/><rect x="0" y="4.5" width="8" height="2" rx="1"/><rect x="0" y="9" width="10" height="2" rx="1"/></svg>
+                  : a === 'center'
+                  ? <svg width="13" height="11" viewBox="0 0 13 11" fill="currentColor"><rect x="0" y="0" width="13" height="2" rx="1"/><rect x="2.5" y="4.5" width="8" height="2" rx="1"/><rect x="1.5" y="9" width="10" height="2" rx="1"/></svg>
+                  : <svg width="13" height="11" viewBox="0 0 13 11" fill="currentColor"><rect x="0" y="0" width="13" height="2" rx="1"/><rect x="5" y="4.5" width="8" height="2" rx="1"/><rect x="3" y="9" width="10" height="2" rx="1"/></svg>}
               </button>
             ))}
           </div>

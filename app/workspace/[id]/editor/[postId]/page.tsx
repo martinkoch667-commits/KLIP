@@ -354,7 +354,11 @@ function TextProperties({ el, onChange, customFonts, onFontUpload, brandColors, 
           {(['left', 'center', 'right'] as const).map(a => (
             <button key={a} onClick={() => onChange({ align: a })}
               style={{ flex: 1, padding: '7px 6px', border: 'none', borderRadius: 'var(--r-s)', cursor: 'pointer', fontSize: 13, background: el.align === a ? 'var(--mint)' : 'var(--sunk)', color: el.align === a ? 'var(--mint-ink)' : 'var(--ink-2)', boxShadow: el.align === a ? 'none' : 'inset 0 0 0 1px var(--line)' }}>
-              {a === 'left' ? '⬅' : a === 'center' ? '↔' : '➡'}
+              {a === 'left'
+                ? <svg width="13" height="11" viewBox="0 0 13 11" fill="currentColor"><rect x="0" y="0" width="13" height="2" rx="1"/><rect x="0" y="4.5" width="8" height="2" rx="1"/><rect x="0" y="9" width="10" height="2" rx="1"/></svg>
+                : a === 'center'
+                ? <svg width="13" height="11" viewBox="0 0 13 11" fill="currentColor"><rect x="0" y="0" width="13" height="2" rx="1"/><rect x="2.5" y="4.5" width="8" height="2" rx="1"/><rect x="1.5" y="9" width="10" height="2" rx="1"/></svg>
+                : <svg width="13" height="11" viewBox="0 0 13 11" fill="currentColor"><rect x="0" y="0" width="13" height="2" rx="1"/><rect x="5" y="4.5" width="8" height="2" rx="1"/><rect x="3" y="9" width="10" height="2" rx="1"/></svg>}
             </button>
           ))}
         </div>
@@ -885,7 +889,6 @@ function EditorContextToolbar({ sel, allFonts, brandColors, stageW, stageH, onUp
         </TextBtn>
         {pop === 'anim' && (
           <div style={{ ...popStyle, right: 0, left: 'auto', minWidth: 200, textAlign: 'center', padding: '20px 16px' }}>
-            <div style={{ fontSize: 22, marginBottom: 8 }}>✨</div>
             <div style={{ fontWeight: 700, fontSize: 14, color: 'var(--ink)', marginBottom: 6 }}>Bientôt disponible</div>
             <div style={{ fontSize: 12, color: 'var(--ink-3)', lineHeight: 1.4 }}>Les animations par élément arrivent très bientôt.</div>
           </div>
@@ -1047,6 +1050,7 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
   useEffect(() => { bgOffsetXRef.current = bgOffsetX; }, [bgOffsetX]);
   useEffect(() => { bgOffsetYRef.current = bgOffsetY; }, [bgOffsetY]);
   const [formatId, setFormatId] = useState('ig-portrait');
+  const [postType, setPostType] = useState<'post' | 'reel' | 'story'>('post');
   const activeFormat = FORMATS.find(f => f.id === formatId) ?? FORMATS[0];
   const stageW = activeFormat.w;
   const stageH = activeFormat.h;
@@ -1247,6 +1251,9 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
         ]);
         if (postError) throw postError;
         if (p?.template_id) setPostTemplateId(p.template_id);
+        // Set canvas format from post_type (template will override below if applicable)
+        const PT_FORMAT: Record<string, string> = { post: 'ig-square', reel: 'ig-story', story: 'ig-story' };
+        if (p?.post_type && PT_FORMAT[p.post_type]) { setFormatId(PT_FORMAT[p.post_type]); setPostType(p.post_type as 'post' | 'reel' | 'story'); }
         if (p?.photo_url) { setPostPhotoUrl(p.photo_url); }
         if (w) {
           setWorkspaceName(w.name || '');
@@ -1674,6 +1681,25 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
     window.location.href = `/workspace/${workspaceId}/planning`;
   };
 
+  // ── Post type change — updates format + clamps elements + saves to DB ───────
+
+  const changePostType = async (newType: 'post' | 'reel' | 'story') => {
+    const TYPE_FORMAT: Record<string, string> = { post: 'ig-square', reel: 'ig-story', story: 'ig-story' };
+    const newFormatId = TYPE_FORMAT[newType];
+    const newFmt = FORMATS.find(f => f.id === newFormatId) ?? FORMATS[0];
+    setPostType(newType);
+    setFormatId(newFormatId);
+    // Constrain element positions within new canvas bounds
+    const clamped = elementsRef.current.map(el => ({
+      ...el,
+      x: Math.min(el.x, newFmt.w - 20),
+      y: Math.min(el.y, newFmt.h - 20),
+    }));
+    setElements(clamped);
+    elementsRef.current = clamped;
+    await supabase.from('posts').update({ post_type: newType }).eq('id', postId);
+  };
+
   // ── Font upload ───────────────────────────────────────────────────────────
 
   const handleFontUpload = async (file: File): Promise<string> => {
@@ -1723,7 +1749,7 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
     },
     {
       label: 'Événement',
-      emoji: '★',
+      emoji: 'E',
       blocks: [
         { text: 'C\'EST CE SAMEDI', role: 'accroche', fontSize: 13, y: 50, x: 20, fill: workspaceData?.accent_color || '#C8F135', hasBg: false, fontStyle: 'bold', width: stageW - 40 },
         { text: 'NOM DE L\'ÉVÉNEMENT', role: 'titre', fontSize: 34, y: 90, x: 20, fill: '#FFFFFF', hasBg: false, fontStyle: 'bold', width: stageW - 40 },
@@ -1953,8 +1979,21 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
           )}
         </div>
 
-        {/* Right: Aperçu + Partager */}
+        {/* Right: Type selector + Aperçu + Partager */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+          {/* Post type pills */}
+          <div style={{ display: 'flex', gap: 2, padding: '3px', background: 'var(--sunk)', borderRadius: 'var(--r-s)', border: '1px solid var(--line)' }}>
+            {(['post', 'reel', 'story'] as const).map(t => (
+              <button key={t} onClick={() => changePostType(t)}
+                style={{ padding: '3px 9px', borderRadius: 6, border: 'none', cursor: 'pointer', fontSize: 11, fontWeight: 700, fontFamily: 'var(--sans)', transition: 'all .12s',
+                  background: postType === t ? 'var(--canvas)' : 'transparent',
+                  color: postType === t ? 'var(--ink)' : 'var(--ink-3)',
+                  boxShadow: postType === t ? '0 1px 3px rgba(13,15,10,.1)' : 'none',
+                }}>
+                {t === 'post' ? 'Post' : t === 'reel' ? 'Reel' : 'Story'}
+              </button>
+            ))}
+          </div>
           <button onClick={exportPNG} className="btn btn-sm btn-ghost" style={{ height: 36 }}>Aperçu</button>
           <button onClick={handleSave} disabled={saving} className="btn btn-sm btn-primary"
             style={{ height: 36, opacity: saving ? 0.6 : 1, cursor: saving ? 'not-allowed' : 'pointer' }}>
@@ -2280,7 +2319,7 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
                 </div>
                 {!bgLocked && proxyUrl && (
                   <div style={{ marginTop: 12, padding: '10px 12px', borderRadius: 9, background: 'color-mix(in srgb, var(--mint) 10%, transparent)', border: '1px solid color-mix(in srgb, var(--mint) 30%, transparent)', fontSize: 12, color: 'var(--ink-2)', lineHeight: 1.4 }}>
-                    🔓 Fond déverrouillé — glissez-le sur le canvas pour le repositionner.
+                    Fond déverrouillé — glissez-le sur le canvas pour le repositionner.
                   </div>
                 )}
               </div>

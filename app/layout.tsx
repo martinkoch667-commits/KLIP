@@ -26,6 +26,9 @@ export default function RootLayout({
         />
         {/* Fonts */}
         <link rel="preconnect" href="https://api.fontshare.com" />
+        {/* Early Sans Variable (Adobe Fonts) — replaces Satoshi + Cabinet Grotesk for UI */}
+        <link rel="stylesheet" href="https://use.typekit.net/pgn2gxc.css" />
+        {/* Keep Satoshi + Cabinet Grotesk for canvas font presets in editor */}
         <link href="https://api.fontshare.com/v2/css?f[]=cabinet-grotesk@800,700,500,400&f[]=satoshi@700,500,400&f[]=gambetta@700,400i&display=swap" rel="stylesheet" />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />

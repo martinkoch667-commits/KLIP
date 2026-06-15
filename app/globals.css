@@ -64,8 +64,8 @@
 
   /* typography */
   --display: 'Archivo', system-ui, sans-serif;
-  --sans:    'Satoshi', system-ui, sans-serif;
-  --mono:    'Cabinet Grotesk', system-ui, sans-serif;
+  --sans:    'early-sans-variable', system-ui, sans-serif;
+  --mono:    'early-sans-variable', system-ui, sans-serif;
 
   /* radii */
   --r-s:  9px;

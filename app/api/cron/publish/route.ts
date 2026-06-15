@@ -98,7 +98,7 @@ export async function GET(request: NextRequest) {
         instagram_post_id: publishData.id,
       }).eq("id", post.id);
 
-      console.log(`[Cron] Post ${post.id}: published ✓ (ig: ${publishData.id})`);
+      console.log(`[Cron] Post ${post.id}: published OK (ig: ${publishData.id})`);
       published++;
     } catch (err) {
       console.error(`[Cron] Post ${post.id}: unexpected error`, err);

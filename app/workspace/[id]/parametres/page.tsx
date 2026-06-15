@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useParams, useSearchParams } from "next/navigation";
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
 import Sidebar from "@/components/Sidebar";
+import { resetOnboardingTour } from "@/components/OnboardingTour";
 
 const ERROR_MESSAGES: Record<string, string> = {
   cancelled:    "Connexion annulée.",
@@ -246,6 +247,32 @@ function ParametresContent() {
                     Modifier le style visuel <IconArrow />
                   </Link>
                 </div>
+              </div>
+            </section>
+
+            {/* ── Section: Aide & Tutoriel ── */}
+            <section>
+              <div style={{ marginBottom: 16 }}>
+                <h2 className="h-title" style={{ fontSize: 16, marginBottom: 4 }}>Aide &amp; Tutoriel</h2>
+                <p style={{ color: "var(--ink-2)", fontSize: 13 }}>Relancez le tutoriel de démarrage à tout moment.</p>
+              </div>
+              <div className="card" style={{ padding: "16px 18px", display: "flex", alignItems: "center", gap: 14 }}>
+                <span style={{ width: 44, height: 44, borderRadius: 12, flexShrink: 0, background: "var(--sunk)", display: "grid", placeItems: "center", color: "var(--ink-2)" }}>
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                </span>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontWeight: 700, fontSize: 14, color: "var(--ink)", marginBottom: 2 }}>Tutoriel de démarrage</div>
+                  <div style={{ fontSize: 12.5, color: "var(--ink-3)" }}>Revoir les fonctionnalités principales de Klip.</div>
+                </div>
+                <button
+                  className="btn btn-ghost btn-sm"
+                  onClick={() => {
+                    resetOnboardingTour();
+                    window.location.href = "/dashboard";
+                  }}
+                >
+                  Revoir le tutoriel
+                </button>
               </div>
             </section>
 

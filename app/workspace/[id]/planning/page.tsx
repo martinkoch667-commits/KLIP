@@ -327,7 +327,7 @@ function PlanningContent() {
     await supabase.from("posts").update({ scheduled_at, description: panelDesc, status: "scheduled", post_type: panelPostType, target_platforms: panelPlatforms }).eq("id", selectedPost.id);
     setPosts(prev => prev.map(p => p.id === selectedPost.id ? { ...p, scheduled_at, description: panelDesc, status: "scheduled", post_type: panelPostType, target_platforms: panelPlatforms } : p));
     setScheduling(false); setSelectedPost(null);
-    showToast("Post programmé ✓");
+    showToast("Post programmé");
   }
 
   async function deletePost(post: Post) {
@@ -350,7 +350,7 @@ function PlanningContent() {
     setPublishing(false); setSelectedPost(null);
     if (res.ok) {
       setPosts(prev => prev.map(p => p.id === selectedPost.id ? { ...p, status: "published", description: panelDesc } : p));
-      showToast("Publié sur Instagram ✓");
+      showToast("Publié sur Instagram");
     } else {
       showToast(data?.error === "Compte Instagram non connecté" ? "Erreur — compte non connecté" : `Erreur — ${data?.error ?? "publication échouée"}`, false);
     }

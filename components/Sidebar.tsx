@@ -94,11 +94,11 @@ export default function Sidebar({ workspaces: _w, userName: _u, activeWorkspaceI
   const initials = displayName.slice(0, 2).toUpperCase();
 
   // Nav item active states
-  const isComposer   = activeId ? (pathname === `/workspace/${activeId}` || pathname.includes("/editor")) : false;
-  const isCalendar   = pathname.includes("/planning");
-  const isQueue      = pathname.includes("/results");
-  const isSettings   = pathname.includes("/parametres");
-  const isTemplates  = pathname.includes("/templates");
+  const isComposer   = pathname === "/composer" || (activeId ? (pathname === `/workspace/${activeId}` || pathname.includes("/editor")) : false);
+  const isCalendar   = pathname === "/calendar" || pathname.includes("/planning");
+  const isQueue      = pathname === "/feed" || pathname.includes("/results");
+  const isSettings   = pathname === "/settings" || pathname.includes("/parametres");
+  const isTemplates  = pathname === "/templates" || (activeId ? pathname.includes("/templates") : false);
 
   const navItems = [
     {
@@ -107,41 +107,39 @@ export default function Sidebar({ workspaces: _w, userName: _u, activeWorkspaceI
       href: "/dashboard",
       active: isDashboard,
       badge: 0,
+      tourId: "dashboard",
     },
     {
       label: "Calendrier",
       icon: <IconCalendar />,
-      href: activeId ? `/workspace/${activeId}/planning` : "/dashboard",
+      href: "/calendar",
       active: isCalendar,
       badge: 0,
+      tourId: "calendar",
     },
     {
       label: "Composer",
       icon: <IconEdit />,
-      href: activeId ? `/workspace/${activeId}` : "/dashboard",
+      href: "/composer",
       active: isComposer,
       badge: 0,
+      tourId: "composer",
     },
     {
-      label: "File de publication",
+      label: "Fil de publication",
       icon: <IconSend />,
-      href: activeId ? `/workspace/${activeId}/results` : "/dashboard",
+      href: "/feed",
       active: isQueue,
       badge: pendingCount,
+      tourId: "feed",
     },
     {
       label: "Templates",
       icon: <IconTemplate />,
-      href: activeId ? `/workspace/${activeId}/templates` : "/dashboard",
+      href: "/templates",
       active: isTemplates,
       badge: 0,
-    },
-    {
-      label: "Clients",
-      icon: <IconUsers />,
-      href: "/dashboard",
-      active: isDashboard,
-      badge: 0,
+      tourId: "templates",
     },
   ];
 
@@ -164,6 +162,7 @@ export default function Sidebar({ workspaces: _w, userName: _u, activeWorkspaceI
           <Link
             key={item.label}
             href={item.href}
+            data-tour={item.tourId}
             className={`nav-item${item.active ? " active" : ""}`}
             style={{ textDecoration: "none" }}
           >
@@ -180,7 +179,7 @@ export default function Sidebar({ workspaces: _w, userName: _u, activeWorkspaceI
       <div style={{ height: 1, background: "var(--cream-4)", margin: "6px 4px" }} />
 
       {/* Clients label */}
-      <div className="label sb-full" style={{ color: "var(--cream-3)", padding: "0 12px 4px" }}>
+      <div data-tour="clients" className="label sb-full" style={{ color: "var(--cream-3)", padding: "0 12px 4px" }}>
         Vos clients
       </div>
 
@@ -206,6 +205,7 @@ export default function Sidebar({ workspaces: _w, userName: _u, activeWorkspaceI
 
       {/* Add workspace */}
       <Link
+        data-tour="new-post"
         href="/workspace/new"
         className="sb-full"
         style={{ display: "flex", alignItems: "center", gap: 10, padding: "9px 12px", borderRadius: "var(--r-s)", color: "var(--cream-3)", fontSize: 13, fontWeight: 600, border: "1px dashed var(--cream-4)", transition: "all 0.15s", textDecoration: "none", marginTop: 4 }}
@@ -219,17 +219,15 @@ export default function Sidebar({ workspaces: _w, userName: _u, activeWorkspaceI
       {/* Divider */}
       <div style={{ height: 1, background: "var(--cream-4)", margin: "8px 4px 4px" }} />
 
-      {/* Réglages (workspace-specific) */}
-      {activeId && (
-        <Link
-          href={`/workspace/${activeId}/parametres`}
-          className={`nav-item${isSettings ? " active" : ""}`}
-          style={{ textDecoration: "none" }}
-        >
-          <span className="nav-ic"><IconSettings /></span>
-          <span className="nav-label">Réglages</span>
-        </Link>
-      )}
+      {/* Réglages globaux */}
+      <Link
+        href="/settings"
+        className={`nav-item${isSettings ? " active" : ""}`}
+        style={{ textDecoration: "none" }}
+      >
+        <span className="nav-ic"><IconSettings /></span>
+        <span className="nav-label">Réglages</span>
+      </Link>
 
       {/* User footer */}
       <button

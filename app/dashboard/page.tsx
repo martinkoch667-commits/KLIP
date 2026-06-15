@@ -5,6 +5,7 @@ import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Sidebar from '@/components/Sidebar';
+import OnboardingTour from '@/components/OnboardingTour';
 
 // ─── Types ─────────────────────────────────────────────────────────────────
 
@@ -521,7 +522,7 @@ export default function Dashboard() {
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, marginLeft: 'var(--sb-w)' }}>
 
         {/* Topbar */}
-        <header className="topbar">
+        <header className="topbar" data-tour="dashboard">
           <ClientSwitcher active={active} workspaces={workspaces} onChange={setActive} />
           <div style={{ width: 1, height: 24, background: 'var(--line)', flexShrink: 0 }} />
           <span className="h-title" style={{ fontSize: 15, whiteSpace: 'nowrap', color: 'var(--ink-2)' }}>Tableau de bord</span>
@@ -674,6 +675,8 @@ export default function Dashboard() {
           </div>
         </main>
       </div>
+
+      <OnboardingTour />
     </div>
   );
 }

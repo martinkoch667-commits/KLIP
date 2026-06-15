@@ -12,10 +12,10 @@ import VoiceButton from "@/components/VoiceButton";
 type PostStatus = "idle" | "generating" | "generated" | "validating" | "validated";
 type PostType   = "post" | "reel" | "story";
 
-const POST_TYPE_CFG: Record<PostType, { label: string; icon: string; color: string; bg: string; format: string }> = {
-  post:  { label: "Publication", icon: "🖼",  color: "#4F8EF7", bg: "#4F8EF715", format: "1080×1080 px" },
-  reel:  { label: "Reel",        icon: "🎬", color: "#A259FF", bg: "#A259FF15", format: "1080×1920 px" },
-  story: { label: "Story",       icon: "⚡", color: "#FF6B35", bg: "#FF6B3515", format: "1080×1920 px" },
+const POST_TYPE_CFG: Record<PostType, { label: string; color: string; bg: string; format: string }> = {
+  post:  { label: "Publication", color: "#4F8EF7", bg: "#4F8EF715", format: "1080×1080 px" },
+  reel:  { label: "Reel",        color: "#A259FF", bg: "#A259FF15", format: "1080×1920 px" },
+  story: { label: "Story",       color: "#FF6B35", bg: "#FF6B3515", format: "1080×1920 px" },
 };
 
 interface PostItem {
@@ -115,30 +115,63 @@ function Spinner() {
 
 // ─── Type Picker Modal ────────────────────────────────────────────────────────
 
+const TYPE_ICONS: Record<PostType, React.ReactNode> = {
+  post: (
+    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="3" y="3" width="18" height="18" rx="3"/>
+      <path d="M3 9h18M9 21V9"/>
+    </svg>
+  ),
+  reel: (
+    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="4" y="2" width="16" height="20" rx="3"/>
+      <polygon points="10 9 15 12 10 15 10 9"/>
+      <path d="M4 6h16M4 18h16"/>
+    </svg>
+  ),
+  story: (
+    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="6" y="2" width="12" height="20" rx="3"/>
+      <path d="M9 7h6M9 11h4"/>
+    </svg>
+  ),
+};
+
 function TypePickerModal({ onConfirm, onClose }: { onConfirm: (type: PostType) => void; onClose: () => void }) {
   const [selected, setSelected] = useState<PostType>('post');
   return (
-    <div style={{ position: 'fixed', inset: 0, zIndex: 9500, background: 'rgba(10,14,10,0.72)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+    <div style={{ position: 'fixed', inset: 0, zIndex: 9500, background: 'rgba(12,42,29,0.78)', backdropFilter: 'blur(6px)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
       onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
-      <div style={{ background: 'var(--canvas)', borderRadius: 'var(--r-xl)', border: '1px solid var(--line)', padding: '28px 28px 24px', width: 480, maxWidth: '90vw', boxShadow: '0 20px 60px rgba(10,14,10,.55)' }}>
-        <h2 className="h-title" style={{ fontSize: 18, marginBottom: 6 }}>Quel type de contenu ?</h2>
-        <p style={{ fontSize: 13, color: 'var(--ink-3)', marginBottom: 20 }}>Choisissez le format — modifiable plus tard dans la fiche ou le planificateur.</p>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginBottom: 24 }}>
+      <div style={{ background: 'var(--paper)', borderRadius: 'var(--r-xl)', border: '1px solid var(--line)', padding: '32px', width: 480, maxWidth: '90vw', boxShadow: '0 24px 64px rgba(12,42,29,.45)' }}>
+        <p style={{ margin: '0 0 8px', fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--ink-3)', fontFamily: 'var(--mono)' }}>Nouveau contenu</p>
+        <h2 style={{ margin: '0 0 6px', fontSize: 20, fontWeight: 800, color: 'var(--ink)', fontFamily: 'var(--display)', lineHeight: 1.2 }}>Quel type de contenu ?</h2>
+        <p style={{ margin: '0 0 24px', fontSize: 13, color: 'var(--ink-2)', lineHeight: 1.5 }}>Choisissez le format — modifiable plus tard dans la fiche ou le planificateur.</p>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10, marginBottom: 28 }}>
           {(Object.entries(POST_TYPE_CFG) as [PostType, typeof POST_TYPE_CFG[PostType]][]).map(([id, cfg]) => (
             <button key={id} onClick={() => setSelected(id)}
-              style={{ padding: '18px 12px', borderRadius: 'var(--r)', border: `2px solid ${selected === id ? cfg.color : 'var(--line)'}`, background: selected === id ? cfg.bg : 'var(--card)', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10, transition: 'border-color .15s, background .15s' }}>
-              <span style={{ fontSize: 26 }}>{cfg.icon}</span>
+              style={{
+                padding: '22px 12px 18px',
+                borderRadius: 'var(--r)',
+                border: selected === id ? '2px solid var(--mint-2)' : '1.5px solid var(--line)',
+                background: selected === id ? 'rgba(47,215,155,0.08)' : 'var(--sunk)',
+                cursor: 'pointer',
+                display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12,
+                transition: 'border-color .15s, background .15s',
+                outline: 'none',
+              }}>
+              <span style={{ color: selected === id ? 'var(--mint-2)' : 'var(--ink-2)', display: 'flex' }}>
+                {TYPE_ICONS[id as PostType]}
+              </span>
               <div style={{ textAlign: 'center' }}>
-                <div style={{ fontSize: 13.5, fontWeight: 700, color: 'var(--ink)', marginBottom: 3 }}>{cfg.label}</div>
-                <div style={{ fontSize: 11, color: 'var(--ink-3)', marginBottom: 6 }}>{cfg.format}</div>
-                <span style={{ display: 'inline-block', background: cfg.color, color: '#fff', fontSize: 10, fontWeight: 700, padding: '2px 7px', borderRadius: 4, fontFamily: 'var(--sans)' }}>{id.charAt(0).toUpperCase() + id.slice(1)}</span>
+                <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--ink)', fontFamily: 'var(--sans)', marginBottom: 4 }}>{cfg.label}</div>
+                <div style={{ fontSize: 11, color: 'var(--ink-3)', fontFamily: 'var(--mono)' }}>{cfg.format}</div>
               </div>
             </button>
           ))}
         </div>
         <div style={{ display: 'flex', gap: 10 }}>
           <button onClick={onClose} className="btn btn-ghost" style={{ flex: 1 }}>Annuler</button>
-          <button onClick={() => onConfirm(selected)} className="btn btn-primary" style={{ flex: 2 }}>Continuer →</button>
+          <button onClick={() => onConfirm(selected)} className="btn btn-primary" style={{ flex: 2 }}>Continuer</button>
         </div>
       </div>
     </div>
@@ -492,12 +525,14 @@ export default function WorkspacePage() {
             workspace_id: id, photo_url: pUrl, brief: item.brief,
             texte_visuel, description, status: "generated",
             template_id: item.templateId ?? null,
+            post_type: item.post_type ?? 'post',
             ...(editorJson ? { editor_json: editorJson } : {}),
           }).select().single();
           if (post) dbId = post.id;
         } else {
           await supabase.from("posts").update({
             texte_visuel, description, status: "generated",
+            post_type: item.post_type ?? 'post',
             ...(editorJson ? { editor_json: editorJson } : {}),
           }).eq("id", dbId);
         }
@@ -546,6 +581,7 @@ export default function WorkspacePage() {
           description: item.description, texte_visuel: item.texte_visuel,
           status: "validated",
           template_id: templateId ?? null,
+          post_type: item.post_type ?? 'post',
         }).select().single();
         if (post) dbId = post.id;
       } else {
@@ -880,14 +916,15 @@ export default function WorkspacePage() {
                                     {(Object.entries(POST_TYPE_CFG) as [PostType, typeof POST_TYPE_CFG[PostType]][]).map(([tid, cfg]) => (
                                       <button key={tid} onClick={e => { e.stopPropagation(); updatePostType(post.localId, tid); }}
                                         style={{ display: 'flex', alignItems: 'center', gap: 5, background: (post.post_type ?? 'post') === tid ? cfg.color : 'transparent', border: 'none', borderRadius: 4, padding: '3px 7px', cursor: 'pointer', color: '#fff', fontSize: 10.5, fontWeight: 700, fontFamily: 'var(--sans)', whiteSpace: 'nowrap' }}>
-                                        {cfg.icon} {cfg.label}
+                                        {cfg.label}
                                       </button>
                                     ))}
                                   </div>
                                 ) : (
                                   <button onClick={e => { e.stopPropagation(); setTypeMenuPost(post.localId); }}
-                                    style={{ background: POST_TYPE_CFG[post.post_type ?? 'post'].color, color: '#fff', fontSize: 11, fontWeight: 600, padding: '2px 7px', borderRadius: 4, border: 'none', cursor: 'pointer', fontFamily: 'var(--sans)' }}>
-                                    {(post.post_type ?? 'post').charAt(0).toUpperCase() + (post.post_type ?? 'post').slice(1)}
+                                    style={{ background: POST_TYPE_CFG[post.post_type ?? 'post'].color, color: '#fff', fontSize: 11, fontWeight: 600, padding: '2px 6px 2px 8px', borderRadius: 4, border: 'none', cursor: 'pointer', fontFamily: 'var(--sans)', display: 'flex', alignItems: 'center', gap: 3 }}>
+                                    {POST_TYPE_CFG[post.post_type ?? 'post'].label}
+                                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6"/></svg>
                                   </button>
                                 )}
                               </div>
@@ -930,7 +967,7 @@ export default function WorkspacePage() {
                                         </>
                                       ) : (
                                         <>
-                                          <span style={{ fontSize: 15, lineHeight: 1 }}>🎨</span>
+                                          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" style={{ color: 'var(--ink-3)', flexShrink: 0 }}><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
                                           <span style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--ink-3)', flex: 1 }}>Choisir un template</span>
                                           <span style={{ fontSize: 11, color: 'var(--ink-3)' }}>optionnel →</span>
                                         </>
@@ -992,12 +1029,12 @@ export default function WorkspacePage() {
                                           className="btn btn-primary"
                                           style={{ flex: 1, opacity: post.status === "validating" ? 0.5 : 1 }}
                                         >
-                                          {post.status === "validating" ? <><Spinner /> Sauvegarde…</> : <>📅 Programmer ce Reel</>}
+                                          {post.status === "validating" ? <><Spinner /> Sauvegarde…</> : <><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg> Programmer ce Reel</>}
                                         </button>
                                       )}
                                       {post.status === "validated" && post.dbId && (
                                         <Link href={`/workspace/${id}/planning?post=${post.dbId}`} className="btn btn-primary" style={{ flex: 1, textAlign: 'center' }}>
-                                          📅 Voir dans le planning
+                                          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg> Voir dans le planning
                                         </Link>
                                       )}
                                       {post.status === "generated" && (

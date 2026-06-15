@@ -678,7 +678,7 @@ export default function WorkspaceStylePage() {
                   color: "var(--ink-2)", fontSize: 13, fontWeight: 600,
                   cursor: saving ? "default" : "pointer", fontFamily: "var(--sans)",
                 }}>
-                {saved ? "✓ Sauvegardé" : "Sauvegarder ce style"}
+                {saved ? "Sauvegardé" : "Sauvegarder ce style"}
               </button>
             </div>
           </div>

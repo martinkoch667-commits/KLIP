@@ -595,8 +595,8 @@ export default function KonvaEditor({ workspaceId, postId }: { workspaceId: stri
                 { label: '▭  Rectangle', fn: addRect },
                 { label: '⬭  Cercle', fn: addCircle },
                 { label: '⭐  Étoile', fn: addStar },
-                { label: '📷  Image', fn: () => fileInputRef.current?.click() },
-                { label: '🌄  Galerie', fn: () => setShowUnsplash(v => !v) },
+                { label: 'Image', fn: () => fileInputRef.current?.click() },
+                { label: 'Galerie', fn: () => setShowUnsplash(v => !v) },
               ].map(({ label, fn }) => (
                 <button key={label} onClick={fn}
                   style={{ padding: '10px 6px', background: showUnsplash && label.includes('Galerie') ? '#F0F0F0' : '#F9FAFB', border: '1px solid #E5E7EB', borderRadius: 6, cursor: 'pointer', fontSize: 12, textAlign: 'center', color: '#111' }}>
@@ -907,7 +907,11 @@ function TextProperties({ el, onChange }: { el: TextEl; onChange: (u: Partial<Te
           {(['left', 'center', 'right'] as const).map(a => (
             <button key={a} onClick={() => onChange({ align: a })}
               style={{ flex: 1, padding: '6px', border: '1px solid #E5E7EB', borderRadius: 6, cursor: 'pointer', fontSize: 13, background: el.align === a ? '#C8F135' : 'white' }}>
-              {a === 'left' ? '⬅' : a === 'center' ? '↔' : '➡'}
+              {a === 'left'
+                ? <svg width="13" height="11" viewBox="0 0 13 11" fill="currentColor"><rect x="0" y="0" width="13" height="2" rx="1"/><rect x="0" y="4.5" width="8" height="2" rx="1"/><rect x="0" y="9" width="10" height="2" rx="1"/></svg>
+                : a === 'center'
+                ? <svg width="13" height="11" viewBox="0 0 13 11" fill="currentColor"><rect x="0" y="0" width="13" height="2" rx="1"/><rect x="2.5" y="4.5" width="8" height="2" rx="1"/><rect x="1.5" y="9" width="10" height="2" rx="1"/></svg>
+                : <svg width="13" height="11" viewBox="0 0 13 11" fill="currentColor"><rect x="0" y="0" width="13" height="2" rx="1"/><rect x="5" y="4.5" width="8" height="2" rx="1"/><rect x="3" y="9" width="10" height="2" rx="1"/></svg>}
             </button>
           ))}
         </div>

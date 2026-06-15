@@ -60,10 +60,12 @@ export async function POST(request: NextRequest) {
     console.log("[Publish] token length:", igToken?.length);
 
     // ── Determine media type ───────────────────────────────────────────────────
-    const mediaUrl = post.exported_image_url || post.photo_url;
-    const isVideo  = isVideoUrl(mediaUrl);
+    const mediaUrl   = post.exported_image_url || post.photo_url;
+    const isVideo    = isVideoUrl(mediaUrl);
+    const postType: string = post.post_type ?? 'post';
+    const isStory    = postType === 'story' && !isVideo;
 
-    console.log(`[Publish] media_type: ${isVideo ? "REELS (video)" : "IMAGE"}`, mediaUrl?.slice(0, 80));
+    console.log(`[Publish] post_type: ${postType}, media_type: ${isVideo ? "REELS (video)" : isStory ? "STORIES" : "IMAGE"}`, mediaUrl?.slice(0, 80));
 
     // ═══════════════════════════════════════════════════════════════════════════
     // REELS flow (video)
@@ -132,14 +134,19 @@ export async function POST(request: NextRequest) {
     // ═══════════════════════════════════════════════════════════════════════════
 
     // Step 1: Create media container
+    const containerBody: Record<string, unknown> = {
+      image_url:    mediaUrl,
+      access_token: igToken,
+    };
+    if (isStory) {
+      containerBody.media_type = "STORIES";
+    } else {
+      containerBody.caption = post.description ?? "";
+    }
     const containerRes = await fetch("https://graph.instagram.com/v21.0/me/media", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        image_url:    mediaUrl,
-        caption:      post.description ?? "",
-        access_token: igToken,
-      }),
+      body: JSON.stringify(containerBody),
     });
     const containerData = await containerRes.json();
     console.log("[Publish Image] container response:", JSON.stringify(containerData));
@@ -181,7 +188,7 @@ export async function POST(request: NextRequest) {
       instagram_post_id: publishData.id,
     }).eq("id", postId);
 
-    return NextResponse.json({ success: true, instagramPostId: publishData.id, type: "image" });
+    return NextResponse.json({ success: true, instagramPostId: publishData.id, type: isStory ? "story" : "image" });
 
   } catch (err: unknown) {
     console.error("[Instagram] Publish error:", err);

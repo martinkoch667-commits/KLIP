@@ -15,7 +15,7 @@ const LP_CSS = `
   .lp {
     background: #F1F0E8;
     color: #0D0F0A;
-    font-family: 'Satoshi', system-ui, sans-serif;
+    font-family: 'early-sans-variable', system-ui, sans-serif;
     font-size: 17px;
     line-height: 1.6;
     -webkit-font-smoothing: antialiased;
@@ -37,7 +37,7 @@ const LP_CSS = `
   .lp-mint    { color: #2FD79B; }
 
   .lp-eyebrow {
-    font-family: 'Cabinet Grotesk', system-ui, sans-serif;
+    font-family: 'early-sans-variable', system-ui, sans-serif;
     font-weight: 800; font-size: 12px; letter-spacing: 0.16em; text-transform: uppercase;
     color: #8E9183; display: inline-flex; align-items: center; gap: 9px;
   }
@@ -55,7 +55,7 @@ const LP_CSS = `
 
   /* ── BUTTONS ── */
   .lp-btn {
-    font-family: 'Cabinet Grotesk', system-ui, sans-serif;
+    font-family: 'early-sans-variable', system-ui, sans-serif;
     font-weight: 800; font-size: 15.5px; letter-spacing: -0.01em;
     display: inline-flex; align-items: center; gap: 9px;
     padding: 15px 26px; border-radius: 999px; white-space: nowrap;
@@ -122,7 +122,7 @@ const LP_CSS = `
   @media (prefers-reduced-motion: reduce) { .lp-reveal { opacity: 1 !important; transform: none !important; } }
 
   /* nav link hover */
-  .lp-nav-link { color: #565A4E; transition: color .15s; font-family: 'Cabinet Grotesk', system-ui, sans-serif; font-weight: 700; font-size: 15px; }
+  .lp-nav-link { color: #565A4E; transition: color .15s; font-family: 'early-sans-variable', system-ui, sans-serif; font-weight: 700; font-size: 15px; }
   .lp-nav-link:hover { color: #0D0F0A; }
 
   /* footer links */
@@ -205,7 +205,7 @@ function PostThumb({ i = 0, tag, brand }: { i?: number; tag: string; brand: stri
     <div style={{ borderRadius: 16, overflow: 'hidden', background: '#fff', boxShadow: '0 1px 0 1px rgba(13,15,10,.05), 0 20px 40px -24px rgba(13,15,10,.4)' }}>
       <div style={{ position: 'relative', aspectRatio: '4/5', background: grad, padding: 14, display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <span style={{ fontFamily: "'Cabinet Grotesk', sans-serif", fontWeight: 800, fontSize: 11, letterSpacing: '.1em', textTransform: 'uppercase', color: fg, opacity: .8 }}>{brand}</span>
+          <span style={{ fontFamily: "'early-sans-variable', sans-serif", fontWeight: 800, fontSize: 11, letterSpacing: '.1em', textTransform: 'uppercase', color: fg, opacity: .8 }}>{brand}</span>
           <span style={{ width: 20, height: 20, borderRadius: '50%', border: `1.5px solid ${fg}`, opacity: .55 }} />
         </div>
         <div style={{ fontFamily: "'Archivo', sans-serif", fontWeight: 700, fontStyle: 'italic', fontSize: 22, lineHeight: .98, letterSpacing: '-0.02em', color: fg, whiteSpace: 'pre-line' }}>{tag}</div>
@@ -224,7 +224,7 @@ function PostThumb({ i = 0, tag, brand }: { i?: number; tag: string; brand: stri
 /* ─── FChip — floating workflow label ────────────────────────────────────── */
 function FChip({ icon, label, style, accent }: { icon: string; label: string; style?: React.CSSProperties; accent?: boolean }) {
   return (
-    <div style={{ position: 'absolute', display: 'inline-flex', alignItems: 'center', gap: 8, fontFamily: "'Cabinet Grotesk', sans-serif", fontWeight: 800, fontSize: 13.5, padding: '9px 15px', borderRadius: 999, whiteSpace: 'nowrap', background: accent ? '#2FD79B' : '#fff', color: accent ? '#06281C' : '#0D0F0A', boxShadow: '0 1px 0 1px rgba(13,15,10,.05), 0 16px 30px -18px rgba(13,15,10,.45)', ...style }}>
+    <div style={{ position: 'absolute', display: 'inline-flex', alignItems: 'center', gap: 8, fontFamily: "'early-sans-variable', sans-serif", fontWeight: 800, fontSize: 13.5, padding: '9px 15px', borderRadius: 999, whiteSpace: 'nowrap', background: accent ? '#2FD79B' : '#fff', color: accent ? '#06281C' : '#0D0F0A', boxShadow: '0 1px 0 1px rgba(13,15,10,.05), 0 16px 30px -18px rgba(13,15,10,.45)', ...style }}>
       <Icon name={icon} size={16} /> {label}
     </div>
   );
@@ -318,7 +318,7 @@ function Hero({ onDemo }: { onDemo: () => void }) {
             </button>
           </div>
           {/* trust */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 24, color: '#8E9183', fontFamily: "'Cabinet Grotesk', sans-serif", fontWeight: 700, fontSize: 13.5 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 24, color: '#8E9183', fontFamily: "'early-sans-variable', sans-serif", fontWeight: 700, fontSize: 13.5 }}>
             <Icon name="check" size={15} style={{ color: '#2FD79B' }} /> Sans carte bancaire
             <span style={{ opacity: .4 }}>·</span> 14 jours offerts
             <span style={{ opacity: .4 }}>·</span> Conçu pour les agences
@@ -374,13 +374,13 @@ function Probleme() {
             </p>
             <div className="lp-reveal d3" style={{ marginTop: 30, display: 'inline-flex', alignItems: 'center', gap: 12, padding: '14px 20px', borderRadius: 14, background: '#2FD79B', color: '#06281C' }}>
               <Icon name="clock" size={20} style={{ flexShrink: 0 }} />
-              <span style={{ fontFamily: "'Cabinet Grotesk', sans-serif", fontWeight: 800, fontSize: 14.5, lineHeight: 1.2 }}>≈ 2 h perdues par client, chaque semaine</span>
+              <span style={{ fontFamily: "'early-sans-variable', sans-serif", fontWeight: 800, fontSize: 14.5, lineHeight: 1.2 }}>≈ 2 h perdues par client, chaque semaine</span>
             </div>
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             {tools.map((x, i) => (
               <div key={i} className={`lp-reveal d${i + 1}`} style={{ padding: '20px 24px', display: 'flex', alignItems: 'center', gap: 18, transform: `rotate(${i % 2 ? .5 : -.6}deg)`, background: '#103725', borderRadius: 18, boxShadow: 'inset 0 0 0 1px rgba(239,238,228,.22)' }}>
-                <span style={{ fontFamily: "'Cabinet Grotesk', sans-serif", fontWeight: 900, fontSize: 13, color: 'rgba(239,238,228,.28)', width: 22 }}>{String(i + 1).padStart(2, '0')}</span>
+                <span style={{ fontFamily: "'early-sans-variable', sans-serif", fontWeight: 900, fontSize: 13, color: 'rgba(239,238,228,.28)', width: 22 }}>{String(i + 1).padStart(2, '0')}</span>
                 <div style={{ flex: 1 }}>
                   <div style={{ fontFamily: "'Archivo', sans-serif", fontWeight: 800, fontSize: 24, letterSpacing: '-0.02em', color: '#EFEEE4' }}>{x.n}</div>
                   <div style={{ color: 'rgba(239,238,228,.55)', fontSize: 14.5 }}>{x.t}</div>
@@ -388,7 +388,7 @@ function Probleme() {
                 <Icon name="arrowUR" size={18} style={{ color: 'rgba(239,238,228,.28)' }} />
               </div>
             ))}
-            <div className="lp-reveal d4" style={{ textAlign: 'center', fontFamily: "'Cabinet Grotesk', sans-serif", fontWeight: 800, color: 'rgba(239,238,228,.28)', fontSize: 13, marginTop: 6 }}>
+            <div className="lp-reveal d4" style={{ textAlign: 'center', fontFamily: "'early-sans-variable', sans-serif", fontWeight: 800, color: 'rgba(239,238,228,.28)', fontSize: 13, marginTop: 6 }}>
               … et vous, au milieu, à tout recoller à la main.
             </div>
           </div>
@@ -441,8 +441,8 @@ const DEMO_PHOTOS = [
   { g: 'linear-gradient(150deg,#b85c4a,#5a1f17)', n: 'chef-07.jpg' },
 ];
 const DEMO_VOICES: Record<string, string> = {
-  Chic:    "La lumière de fin d\u2019été sur nos tables. Nouvelle carte, réservations ouvertes pour septembre. ✦\n\n#maisonlou #artdevivre #septembre",
-  Punchy:  "Septembre, on remet le couvert 🔥 Nouvelle carte, résa en bio — ça part vite.\n\n#maisonlou #foodie #septembre",
+  Chic:    "La lumière de fin d\u2019été sur nos tables. Nouvelle carte, réservations ouvertes pour septembre.\n\n#maisonlou #artdevivre #septembre",
+  Punchy:  "Septembre, on remet le couvert. Nouvelle carte, résa en bio — ça part vite.\n\n#maisonlou #foodie #septembre",
   Minimal: "Septembre. Nouvelle carte. Réservez.\n\n#maisonlou",
 };
 const DEMO_DAYS = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
@@ -482,10 +482,10 @@ function ProductDemo() {
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 9, marginLeft: 6 }}>
           <span style={{ width: 24, height: 24, borderRadius: 7, background: '#2FD79B', display: 'grid', placeItems: 'center', color: '#06281C', flexShrink: 0 }}><Icon name="layers" size={14} /></span>
-          <span style={{ fontFamily: "'Cabinet Grotesk', sans-serif", fontWeight: 800, fontSize: 14 }}>Maison Lou</span>
-          <span style={{ fontSize: 12, color: '#8E9183', fontFamily: "'Cabinet Grotesk', sans-serif", fontWeight: 700 }}>· espace client</span>
+          <span style={{ fontFamily: "'early-sans-variable', sans-serif", fontWeight: 800, fontSize: 14 }}>Maison Lou</span>
+          <span style={{ fontSize: 12, color: '#8E9183', fontFamily: "'early-sans-variable', sans-serif", fontWeight: 700 }}>· espace client</span>
         </div>
-        <span style={{ marginLeft: 'auto', fontFamily: "'Cabinet Grotesk', sans-serif", fontWeight: 800, fontSize: 11, letterSpacing: '.1em', textTransform: 'uppercase', color: '#8E9183' }}>Démo live</span>
+        <span style={{ marginLeft: 'auto', fontFamily: "'early-sans-variable', sans-serif", fontWeight: 800, fontSize: 11, letterSpacing: '.1em', textTransform: 'uppercase', color: '#8E9183' }}>Démo live</span>
       </div>
 
       {/* stepper */}
@@ -494,7 +494,7 @@ function ProductDemo() {
           const active = i === step, done = i < step;
           return (
             <button key={t} onClick={() => (i <= step || (i === step + 1 && canNext)) && setStep(i)}
-              style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 9, padding: '10px 12px', borderRadius: 999, fontFamily: "'Cabinet Grotesk', sans-serif", fontWeight: 800, fontSize: 14, background: active ? '#0D0F0A' : done ? 'rgba(47,215,155,.18)' : 'transparent', color: active ? '#F1F0E8' : '#0D0F0A', boxShadow: !active && !done ? 'inset 0 0 0 1px rgba(13,15,10,.12)' : 'none', transition: 'all .2s' }}>
+              style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 9, padding: '10px 12px', borderRadius: 999, fontFamily: "'early-sans-variable', sans-serif", fontWeight: 800, fontSize: 14, background: active ? '#0D0F0A' : done ? 'rgba(47,215,155,.18)' : 'transparent', color: active ? '#F1F0E8' : '#0D0F0A', boxShadow: !active && !done ? 'inset 0 0 0 1px rgba(13,15,10,.12)' : 'none', transition: 'all .2s' }}>
               <span style={{ width: 20, height: 20, borderRadius: '50%', display: 'grid', placeItems: 'center', fontSize: 12, background: active || done ? '#2FD79B' : 'rgba(13,15,10,.1)', color: '#06281C' }}>
                 {done ? <Icon name="check" size={12} /> : i + 1}
               </span>
@@ -509,7 +509,7 @@ function ProductDemo() {
         {/* step 0 */}
         {step === 0 && (
           <div>
-            <p style={{ fontFamily: "'Cabinet Grotesk', sans-serif", fontWeight: 800, fontSize: 14, marginBottom: 14, color: '#565A4E' }}>Choisissez un visuel du dernier shooting</p>
+            <p style={{ fontFamily: "'early-sans-variable', sans-serif", fontWeight: 800, fontSize: 14, marginBottom: 14, color: '#565A4E' }}>Choisissez un visuel du dernier shooting</p>
             <div className="lp-photo-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 12 }}>
               {DEMO_PHOTOS.map((p, i) => {
                 const sel = photo === i;
@@ -517,14 +517,14 @@ function ProductDemo() {
                   <button key={i} onClick={() => setPhoto(i)} style={{ position: 'relative', borderRadius: 14, overflow: 'hidden', aspectRatio: '4/5', padding: 0, boxShadow: sel ? '0 0 0 3px #2FD79B, 0 14px 28px -16px rgba(0,0,0,.5)' : 'inset 0 0 0 1px rgba(13,15,10,.12)', transition: 'all .15s', transform: sel ? 'translateY(-3px)' : 'none' }}>
                     <span style={{ position: 'absolute', inset: 0, background: p.g }} />
                     {sel && <span style={{ position: 'absolute', top: 8, right: 8, width: 24, height: 24, borderRadius: '50%', background: '#2FD79B', color: '#06281C', display: 'grid', placeItems: 'center' }}><Icon name="check" size={15} /></span>}
-                    <span style={{ position: 'absolute', left: 8, bottom: 8, fontFamily: "'Cabinet Grotesk', sans-serif", fontWeight: 700, fontSize: 10.5, color: '#fff', textShadow: '0 1px 4px rgba(0,0,0,.5)' }}>{p.n}</span>
+                    <span style={{ position: 'absolute', left: 8, bottom: 8, fontFamily: "'early-sans-variable', sans-serif", fontWeight: 700, fontSize: 10.5, color: '#fff', textShadow: '0 1px 4px rgba(0,0,0,.5)' }}>{p.n}</span>
                   </button>
                 );
               })}
             </div>
             <div style={{ marginTop: 16, border: '1.5px dashed rgba(13,15,10,.15)', borderRadius: 14, padding: 18, display: 'flex', alignItems: 'center', gap: 12, color: '#8E9183' }}>
               <Icon name="upload" size={20} />
-              <span style={{ fontFamily: "'Cabinet Grotesk', sans-serif", fontWeight: 700, fontSize: 14 }}>… ou déposez vos propres fichiers ici</span>
+              <span style={{ fontFamily: "'early-sans-variable', sans-serif", fontWeight: 700, fontSize: 14 }}>… ou déposez vos propres fichiers ici</span>
             </div>
           </div>
         )}
@@ -535,7 +535,7 @@ function ProductDemo() {
             <div style={{ background: '#fff', borderRadius: 16, overflow: 'hidden', boxShadow: 'inset 0 0 0 1px rgba(13,15,10,.1)', maxWidth: 310, margin: '0 auto' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 9, padding: '10px 12px' }}>
                 <span style={{ width: 28, height: 28, borderRadius: '50%', background: '#2FD79B' }} />
-                <span style={{ fontFamily: "'Cabinet Grotesk', sans-serif", fontWeight: 800, fontSize: 13 }}>maisonlou</span>
+                <span style={{ fontFamily: "'early-sans-variable', sans-serif", fontWeight: 800, fontSize: 13 }}>maisonlou</span>
                 <span style={{ marginLeft: 'auto', color: '#8E9183' }}>···</span>
               </div>
               <div style={{ position: 'relative', aspectRatio: '4/5', background: ph.g, display: 'flex', alignItems: 'flex-end', padding: 18 }}>
@@ -554,10 +554,10 @@ function ProductDemo() {
         {/* step 1 — generate */}
         {step === 1 && (
           <div>
-            <p style={{ fontFamily: "'Cabinet Grotesk', sans-serif", fontWeight: 800, fontSize: 14, marginBottom: 12, color: '#565A4E' }}>Voix de la marque</p>
+            <p style={{ fontFamily: "'early-sans-variable', sans-serif", fontWeight: 800, fontSize: 14, marginBottom: 12, color: '#565A4E' }}>Voix de la marque</p>
             <div style={{ display: 'flex', gap: 8, marginBottom: 18 }}>
               {Object.keys(DEMO_VOICES).map(v => (
-                <button key={v} onClick={() => { setVoice(v); if (caption) generate(v); }} style={{ flex: 1, padding: 10, borderRadius: 10, fontFamily: "'Cabinet Grotesk', sans-serif", fontWeight: 800, fontSize: 13.5, background: voice === v ? '#0D0F0A' : 'transparent', color: voice === v ? '#F1F0E8' : '#0D0F0A', boxShadow: voice === v ? 'none' : 'inset 0 0 0 1px rgba(13,15,10,.12)', transition: 'all .15s' }}>{v}</button>
+                <button key={v} onClick={() => { setVoice(v); if (caption) generate(v); }} style={{ flex: 1, padding: 10, borderRadius: 10, fontFamily: "'early-sans-variable', sans-serif", fontWeight: 800, fontSize: 13.5, background: voice === v ? '#0D0F0A' : 'transparent', color: voice === v ? '#F1F0E8' : '#0D0F0A', boxShadow: voice === v ? 'none' : 'inset 0 0 0 1px rgba(13,15,10,.12)', transition: 'all .15s' }}>{v}</button>
               ))}
             </div>
             <button onClick={() => generate(voice)} className="lp-btn lp-btn-mint" style={{ width: '100%', justifyContent: 'center', marginBottom: 16 }}>
@@ -566,7 +566,7 @@ function ProductDemo() {
             <div style={{ background: '#fff', borderRadius: 12, padding: 16, minHeight: 140, boxShadow: 'inset 0 0 0 1px rgba(13,15,10,.1)' }}>
               {caption
                 ? <p style={{ fontSize: 14.5, lineHeight: 1.6, whiteSpace: 'pre-line' }}>{caption}<span style={{ opacity: typing ? 1 : 0, color: '#2FD79B' }}>▍</span></p>
-                : <p style={{ fontSize: 14, color: '#8E9183', fontFamily: "'Cabinet Grotesk', sans-serif", fontWeight: 600 }}>La description générée apparaîtra ici.</p>}
+                : <p style={{ fontSize: 14, color: '#8E9183', fontFamily: "'early-sans-variable', sans-serif", fontWeight: 600 }}>La description générée apparaîtra ici.</p>}
             </div>
           </div>
         )}
@@ -574,13 +574,13 @@ function ProductDemo() {
         {/* step 2 — schedule */}
         {step === 2 && (
           <div>
-            <p style={{ fontFamily: "'Cabinet Grotesk', sans-serif", fontWeight: 800, fontSize: 14, marginBottom: 12, color: '#565A4E' }}>Choisissez un créneau</p>
+            <p style={{ fontFamily: "'early-sans-variable', sans-serif", fontWeight: 800, fontSize: 14, marginBottom: 12, color: '#565A4E' }}>Choisissez un créneau</p>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7,1fr)', gap: 6, marginBottom: 16 }}>
               {DEMO_DAYS.map((d, i) => {
                 const sel = day === i, best = i === 2 || i === 4;
                 return (
                   <button key={d} onClick={() => { setDay(i); setPublished(false); }} style={{ padding: '12px 4px', borderRadius: 10, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, background: sel ? '#2FD79B' : '#fff', color: sel ? '#06281C' : '#0D0F0A', boxShadow: sel ? 'none' : 'inset 0 0 0 1px rgba(13,15,10,.12)', transition: 'all .15s', position: 'relative' }}>
-                    <span style={{ fontFamily: "'Cabinet Grotesk', sans-serif", fontWeight: 800, fontSize: 12 }}>{d}</span>
+                    <span style={{ fontFamily: "'early-sans-variable', sans-serif", fontWeight: 800, fontSize: 12 }}>{d}</span>
                     <span className="lp-display" style={{ fontWeight: 700, fontSize: 18 }}>{8 + i}</span>
                     {best && !sel && <span style={{ position: 'absolute', top: 5, right: 5, width: 6, height: 6, borderRadius: '50%', background: '#2FD79B' }} />}
                   </button>
@@ -588,14 +588,14 @@ function ProductDemo() {
               })}
             </div>
             {day !== null && (
-              <div style={{ fontFamily: "'Cabinet Grotesk', sans-serif", fontWeight: 700, fontSize: 13, color: '#565A4E', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
+              <div style={{ fontFamily: "'early-sans-variable', sans-serif", fontWeight: 700, fontSize: 13, color: '#565A4E', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
                 <Icon name="clock" size={15} style={{ color: '#2FD79B' }} /> Suggéré : {DEMO_DAYS[day]} {8 + day} sept · 18 h 30
               </div>
             )}
             {published
               ? <div style={{ background: '#0C2A1D', color: '#EFEEE4', borderRadius: 12, padding: 18, display: 'flex', alignItems: 'center', gap: 12 }}>
                   <span style={{ width: 34, height: 34, borderRadius: '50%', background: '#2FD79B', color: '#06281C', display: 'grid', placeItems: 'center' }}><Icon name="check" size={20} /></span>
-                  <div><div style={{ fontFamily: "'Cabinet Grotesk', sans-serif", fontWeight: 800, fontSize: 15 }}>Programmé sur Instagram</div><div style={{ fontSize: 13, color: 'rgba(239,238,228,.6)' }}>Vous pouvez passer au client suivant.</div></div>
+                  <div><div style={{ fontFamily: "'early-sans-variable', sans-serif", fontWeight: 800, fontSize: 15 }}>Programmé sur Instagram</div><div style={{ fontSize: 13, color: 'rgba(239,238,228,.6)' }}>Vous pouvez passer au client suivant.</div></div>
                 </div>
               : <button onClick={() => day !== null && setPublished(true)} className="lp-btn lp-btn-mint" style={{ width: '100%', justifyContent: 'center', opacity: day === null ? .5 : 1 }}>
                   <Icon name="instagram" size={18} /> Programmer la publication
@@ -606,10 +606,10 @@ function ProductDemo() {
 
       {/* footer nav */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 18px', borderTop: '1px solid rgba(13,15,10,.1)', background: '#fff' }}>
-        <button onClick={reset} style={{ fontFamily: "'Cabinet Grotesk', sans-serif", fontWeight: 700, fontSize: 13.5, color: '#8E9183', display: 'inline-flex', alignItems: 'center', gap: 7 }}>↺ Recommencer</button>
+        <button onClick={reset} style={{ fontFamily: "'early-sans-variable', sans-serif", fontWeight: 700, fontSize: 13.5, color: '#8E9183', display: 'inline-flex', alignItems: 'center', gap: 7 }}>↺ Recommencer</button>
         {step < 2
           ? <button onClick={() => canNext && setStep(step + 1)} className="lp-btn lp-btn-ink lp-btn-sm" style={{ opacity: canNext ? 1 : .4, pointerEvents: canNext ? 'auto' : 'none' }}>Suivant <Icon name="arrow" size={16} /></button>
-          : <span style={{ fontFamily: "'Cabinet Grotesk', sans-serif", fontWeight: 800, fontSize: 13, color: '#8E9183' }}>{published ? '✦ Et voilà.' : 'Dernière étape'}</span>}
+          : <span style={{ fontFamily: "'early-sans-variable', sans-serif", fontWeight: 800, fontSize: 13, color: '#8E9183' }}>{published ? 'Et voilà.' : 'Dernière étape'}</span>}
       </div>
     </div>
   );
@@ -643,7 +643,7 @@ function MiniEditor() {
       <div style={{ position: 'absolute', right: 14, top: 14, display: 'flex', gap: 6 }}>
         {['#2FD79B', '#0c2a1d', '#EFEEE4'].map(c => <span key={c} style={{ width: 18, height: 18, borderRadius: '50%', background: c, boxShadow: '0 0 0 1.5px rgba(255,255,255,.5)' }} />)}
       </div>
-      <span style={{ position: 'absolute', right: 14, bottom: 14, fontFamily: "'Cabinet Grotesk', sans-serif", fontWeight: 800, fontSize: 10, letterSpacing: '.1em', color: 'rgba(255,255,255,.6)' }}>ÉDITEUR · GLISSER-DÉPOSER</span>
+      <span style={{ position: 'absolute', right: 14, bottom: 14, fontFamily: "'early-sans-variable', sans-serif", fontWeight: 800, fontSize: 10, letterSpacing: '.1em', color: 'rgba(255,255,255,.6)' }}>ÉDITEUR · GLISSER-DÉPOSER</span>
     </div>
   );
 }
@@ -653,7 +653,7 @@ function MiniCalendar() {
     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7,1fr)', gap: 5, marginTop: 4 }}>
       {['L', 'M', 'M', 'J', 'V', 'S', 'D'].map((d, i) => (
         <div key={i} style={{ aspectRatio: '1', borderRadius: 8, background: '#fff', boxShadow: 'inset 0 0 0 1px rgba(13,15,10,.1)', position: 'relative', display: 'grid', placeItems: 'start', padding: 6 }}>
-          <span style={{ fontFamily: "'Cabinet Grotesk', sans-serif", fontWeight: 800, fontSize: 10, color: '#8E9183' }}>{d}</span>
+          <span style={{ fontFamily: "'early-sans-variable', sans-serif", fontWeight: 800, fontSize: 10, color: '#8E9183' }}>{d}</span>
           <div style={{ position: 'absolute', bottom: 6, left: 6, display: 'flex', gap: 3 }}>
             {dots.filter(x => x[0] === i).map((x, j) => <span key={j} style={{ width: 7, height: 7, borderRadius: '50%', background: x[1] }} />)}
           </div>
@@ -710,7 +710,7 @@ function Logos() {
   return (
     <section className="lp-section-sm" style={{ borderTop: '1px solid rgba(13,15,10,.1)', borderBottom: '1px solid rgba(13,15,10,.1)' }}>
       <div className="lp-wrap">
-        <p className="lp-reveal" style={{ textAlign: 'center', fontFamily: "'Cabinet Grotesk', sans-serif", fontWeight: 800, fontSize: 12, letterSpacing: '.14em', textTransform: 'uppercase', color: '#8E9183', marginBottom: 32 }}>
+        <p className="lp-reveal" style={{ textAlign: 'center', fontFamily: "'early-sans-variable', sans-serif", fontWeight: 800, fontSize: 12, letterSpacing: '.14em', textTransform: 'uppercase', color: '#8E9183', marginBottom: 32 }}>
           Pensé pour des studios comme le vôtre
         </p>
         <div className="lp-reveal d1" style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', alignItems: 'center', gap: '22px 48px' }}>
@@ -745,7 +745,7 @@ function Testimonials() {
             <p className="lp-display" style={{ fontWeight: 700, fontSize: 'clamp(26px,2.6vw,38px)', lineHeight: 1.12, letterSpacing: '-0.02em', margin: '24px 0' }}>&ldquo;{quotes[0].q}&rdquo;</p>
             <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
               <span style={{ width: 40, height: 40, borderRadius: '50%', background: '#2FD79B', flexShrink: 0 }} />
-              <div><div style={{ fontFamily: "'Cabinet Grotesk', sans-serif", fontWeight: 800, fontSize: 15 }}>{quotes[0].a}</div><div style={{ fontSize: 13, color: 'rgba(239,238,228,.6)' }}>{quotes[0].r}</div></div>
+              <div><div style={{ fontFamily: "'early-sans-variable', sans-serif", fontWeight: 800, fontSize: 15 }}>{quotes[0].a}</div><div style={{ fontSize: 13, color: 'rgba(239,238,228,.6)' }}>{quotes[0].r}</div></div>
             </div>
           </div>
           {quotes.slice(1).map((x, i) => (
@@ -753,7 +753,7 @@ function Testimonials() {
               <p style={{ fontSize: 18.5, lineHeight: 1.5, fontWeight: 500 }}>&ldquo;{x.q}&rdquo;</p>
               <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 24 }}>
                 <span style={{ width: 38, height: 38, borderRadius: '50%', background: 'linear-gradient(140deg,#2FD79B,#1f7a4d)', flexShrink: 0 }} />
-                <div><div style={{ fontFamily: "'Cabinet Grotesk', sans-serif", fontWeight: 800, fontSize: 14.5 }}>{x.a}</div><div style={{ fontSize: 12.5, color: '#8E9183' }}>{x.r}</div></div>
+                <div><div style={{ fontFamily: "'early-sans-variable', sans-serif", fontWeight: 800, fontSize: 14.5 }}>{x.a}</div><div style={{ fontSize: 12.5, color: '#8E9183' }}>{x.r}</div></div>
               </div>
             </div>
           ))}
@@ -782,7 +782,7 @@ function Pricing() {
           {/* toggle */}
           <div className="lp-reveal d2" style={{ display: 'inline-flex', alignItems: 'center', gap: 4, marginTop: 28, padding: 5, borderRadius: 999, background: '#FBFAF4', boxShadow: 'inset 0 0 0 1px rgba(13,15,10,.1)' }}>
             {([['Mensuel', false], ['Annuel', true]] as [string, boolean][]).map(([l, v]) => (
-              <button key={l} onClick={() => setAnnual(v)} style={{ padding: '9px 18px', borderRadius: 999, fontFamily: "'Cabinet Grotesk', sans-serif", fontWeight: 800, fontSize: 14, background: annual === v ? '#0D0F0A' : 'transparent', color: annual === v ? '#F1F0E8' : '#565A4E', display: 'inline-flex', alignItems: 'center', gap: 8, transition: 'all .2s' }}>
+              <button key={l} onClick={() => setAnnual(v)} style={{ padding: '9px 18px', borderRadius: 999, fontFamily: "'early-sans-variable', sans-serif", fontWeight: 800, fontSize: 14, background: annual === v ? '#0D0F0A' : 'transparent', color: annual === v ? '#F1F0E8' : '#565A4E', display: 'inline-flex', alignItems: 'center', gap: 8, transition: 'all .2s' }}>
                 {l}{v && <span style={{ fontSize: 11, padding: '2px 7px', borderRadius: 999, background: '#2FD79B', color: '#06281C' }}>−2 mois</span>}
               </button>
             ))}
@@ -793,14 +793,14 @@ function Pricing() {
           {plans.map((p, i) => (
             <div key={p.name} className={`lp-reveal d${i + 1}`} style={{ borderRadius: 22, padding: 34, position: 'relative', overflow: 'hidden', background: p.accent ? '#0C2A1D' : '#FBFAF4', color: p.accent ? '#EFEEE4' : '#0D0F0A', boxShadow: p.accent ? '0 30px 60px -40px rgba(12,42,29,.9)' : 'inset 0 0 0 1px rgba(13,15,10,.1)' }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <span style={{ fontFamily: "'Cabinet Grotesk', sans-serif", fontWeight: 900, fontSize: 16 }}>{p.name}</span>
-                <span style={{ fontFamily: "'Cabinet Grotesk', sans-serif", fontWeight: 800, fontSize: 11, letterSpacing: '.08em', textTransform: 'uppercase', padding: '5px 11px', borderRadius: 999, background: p.accent ? '#2FD79B' : '#0D0F0A', color: p.accent ? '#06281C' : '#F1F0E8' }}>{p.tag}</span>
+                <span style={{ fontFamily: "'early-sans-variable', sans-serif", fontWeight: 900, fontSize: 16 }}>{p.name}</span>
+                <span style={{ fontFamily: "'early-sans-variable', sans-serif", fontWeight: 800, fontSize: 11, letterSpacing: '.08em', textTransform: 'uppercase', padding: '5px 11px', borderRadius: 999, background: p.accent ? '#2FD79B' : '#0D0F0A', color: p.accent ? '#06281C' : '#F1F0E8' }}>{p.tag}</span>
               </div>
               <div style={{ display: 'flex', alignItems: 'flex-end', gap: 4, margin: '22px 0 6px' }}>
                 <span className="lp-display" style={{ fontWeight: 700, fontSize: 64, lineHeight: .9, letterSpacing: '-0.03em' }}>{annual ? p.y : p.m}€</span>
-                <span style={{ fontSize: 15, color: p.accent ? 'rgba(239,238,228,.6)' : '#8E9183', marginBottom: 10, fontFamily: "'Cabinet Grotesk', sans-serif", fontWeight: 700, whiteSpace: 'nowrap' }}>/ mois</span>
+                <span style={{ fontSize: 15, color: p.accent ? 'rgba(239,238,228,.6)' : '#8E9183', marginBottom: 10, fontFamily: "'early-sans-variable', sans-serif", fontWeight: 700, whiteSpace: 'nowrap' }}>/ mois</span>
               </div>
-              <p style={{ fontSize: 13, color: p.accent ? 'rgba(239,238,228,.6)' : '#8E9183', fontFamily: "'Cabinet Grotesk', sans-serif", fontWeight: 600, minHeight: 18 }}>
+              <p style={{ fontSize: 13, color: p.accent ? 'rgba(239,238,228,.6)' : '#8E9183', fontFamily: "'early-sans-variable', sans-serif", fontWeight: 600, minHeight: 18 }}>
                 {annual ? `Facturé ${p.y * 12}\u20ac par an` : 'Facturé chaque mois'}
               </p>
               <div style={{ height: 1, background: p.accent ? 'rgba(239,238,228,.22)' : 'rgba(13,15,10,.1)', margin: '22px 0' }} />
@@ -818,7 +818,7 @@ function Pricing() {
             </div>
           ))}
         </div>
-        <p className="lp-reveal" style={{ textAlign: 'center', marginTop: 24, color: '#8E9183', fontFamily: "'Cabinet Grotesk', sans-serif", fontWeight: 700, fontSize: 13.5 }}>14 jours offerts · sans carte bancaire · résiliable en un clic</p>
+        <p className="lp-reveal" style={{ textAlign: 'center', marginTop: 24, color: '#8E9183', fontFamily: "'early-sans-variable', sans-serif", fontWeight: 700, fontSize: 13.5 }}>14 jours offerts · sans carte bancaire · résiliable en un clic</p>
       </div>
     </section>
   );
@@ -885,7 +885,7 @@ function FinalCTA() {
               </Link>
               <a href="#demo" className="lp-btn" style={{ fontSize: 17, padding: '17px 32px', background: 'transparent', color: '#06281C', boxShadow: 'inset 0 0 0 1.5px rgba(6,40,28,.3)' }}>Revoir la démo</a>
             </div>
-            <p style={{ marginTop: 22, fontFamily: "'Cabinet Grotesk', sans-serif", fontWeight: 700, fontSize: 14, color: '#06281C', opacity: .65 }}>14 jours offerts · sans carte bancaire</p>
+            <p style={{ marginTop: 22, fontFamily: "'early-sans-variable', sans-serif", fontWeight: 700, fontSize: 14, color: '#06281C', opacity: .65 }}>14 jours offerts · sans carte bancaire</p>
           </div>
         </div>
       </div>
@@ -919,14 +919,14 @@ function Footer() {
           </div>
           {cols.map(([h, links]) => (
             <div key={h}>
-              <div style={{ fontFamily: "'Cabinet Grotesk', sans-serif", fontWeight: 800, fontSize: 12, letterSpacing: '.12em', textTransform: 'uppercase', color: 'rgba(239,238,228,.5)', marginBottom: 18 }}>{h}</div>
+              <div style={{ fontFamily: "'early-sans-variable', sans-serif", fontWeight: 800, fontSize: 12, letterSpacing: '.12em', textTransform: 'uppercase', color: 'rgba(239,238,228,.5)', marginBottom: 18 }}>{h}</div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                 {links.map(l => <a key={l} href="#" className="lp-foot-link" style={{ color: '#EFEEE4', fontSize: 15 }}>{l}</a>)}
               </div>
             </div>
           ))}
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 16, marginTop: 56, paddingTop: 26, borderTop: '1px solid rgba(239,238,228,.22)', color: 'rgba(239,238,228,.5)', fontSize: 13.5, fontFamily: "'Cabinet Grotesk', sans-serif", fontWeight: 600 }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 16, marginTop: 56, paddingTop: 26, borderTop: '1px solid rgba(239,238,228,.22)', color: 'rgba(239,238,228,.5)', fontSize: 13.5, fontFamily: "'early-sans-variable', sans-serif", fontWeight: 600 }}>
           <span>© 2026 Klip — Fait avec soin pour les agences créatives.</span>
           <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
             <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#2FD79B' }} /> Tous les systèmes opérationnels

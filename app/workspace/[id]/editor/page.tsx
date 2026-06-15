@@ -34,9 +34,9 @@ export default function EditorPage() {
     setGenerating(true);
     await new Promise((r) => setTimeout(r, 1200));
     const samples = [
-      `🛒 Découvrez nos offres exceptionnelles cette semaine chez ${client.name} ! Des promotions incroyables vous attendent en magasin. Ne manquez pas cette opportunité unique de faire de bonnes affaires. #Promo #BonPlan`,
-      `✨ Nouveau produit disponible dès maintenant chez ${client.name}. Venez le découvrir en boutique et profitez d'une expérience unique. Nous vous attendons ! #Nouveauté #Qualité`,
-      `💚 Chez ${client.name}, votre satisfaction est notre priorité. Retrouvez toute notre sélection et laissez-vous surprendre. À très vite ! #ServiceClient #Excellence`,
+      `Découvrez nos offres exceptionnelles cette semaine chez ${client.name} ! Des promotions incroyables vous attendent en magasin. Ne manquez pas cette opportunité unique de faire de bonnes affaires. #Promo #BonPlan`,
+      `Nouveau produit disponible dès maintenant chez ${client.name}. Venez le découvrir en boutique et profitez d'une expérience unique. Nous vous attendons ! #Nouveauté #Qualité`,
+      `Chez ${client.name}, votre satisfaction est notre priorité. Retrouvez toute notre sélection et laissez-vous surprendre. À très vite ! #ServiceClient #Excellence`,
     ];
     setDescription(samples[Math.floor(Math.random() * samples.length)]);
     setGenerating(false);
