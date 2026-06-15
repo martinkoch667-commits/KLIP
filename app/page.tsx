@@ -298,20 +298,22 @@ function Hero({ onDemo }: { onDemo: () => void }) {
         {/* big headline — 2 lines */}
         <div className="lp-reveal in d1" style={{ display: 'inline-block' }}>
           <h1 className="lp-display lp-upper" style={{ fontSize: 'clamp(44px, 7vw, 100px)', margin: 0 }}>
-            Postez pour dix clients<br />
-            <span className="lp-it lp-mint">comme pour un seul.</span>
+            Créer. Planifier. Publier.<br />
+            <span className="lp-it lp-mint">Tout. Ici.</span>
           </h1>
         </div>
         {/* sub */}
         <div className="lp-reveal in d2" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
           <p className="lp-lead" style={{ maxWidth: 540, marginTop: 28 }}>
-            Klip réunit l&apos;éditeur visuel, les descriptions générées par IA, le calendrier
-            et la publication Instagram. Un espace par client. Zéro onglet de trop.
+            Un éditeur visuel par-là. Un outil IA pour le texte par-ci.
+            Un tableur pour le planning. Meta Business pour publier.
+            Vous avez tout — et vous perdez un temps fou à tout recoller.
+            Klip met fin à ça.
           </p>
           {/* CTAs */}
           <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginTop: 34, justifyContent: 'center', alignItems: 'center' }}>
             <Link href="/register" className="lp-btn lp-btn-mint">
-              Commencer gratuitement <Icon name="arrowUR" size={18} className="arr" />
+              Essayer gratuitement <Icon name="arrowUR" size={18} className="arr" />
             </Link>
             <button className="lp-btn lp-btn-ghost" onClick={onDemo}>
               <Icon name="play" size={16} /> Voir la démo
@@ -319,9 +321,9 @@ function Hero({ onDemo }: { onDemo: () => void }) {
           </div>
           {/* trust */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 24, color: '#8E9183', fontFamily: "'early-sans-variable', sans-serif", fontWeight: 700, fontSize: 13.5 }}>
-            <Icon name="check" size={15} style={{ color: '#2FD79B' }} /> Sans carte bancaire
-            <span style={{ opacity: .4 }}>·</span> 14 jours offerts
-            <span style={{ opacity: .4 }}>·</span> Conçu pour les agences
+            <Icon name="check" size={15} style={{ color: '#2FD79B' }} /> 7 jours gratuits
+            <span style={{ opacity: .4 }}>·</span> Sans carte bancaire
+            <span style={{ opacity: .4 }}>·</span> Annulable à tout moment
           </div>
         </div>
         {/* collage */}
@@ -366,15 +368,16 @@ function Probleme() {
           <div>
             <span className="lp-eyebrow lp-reveal" style={{ color: '#2FD79B' }}>Le problème</span>
             <h2 className="lp-display lp-upper lp-reveal d1" style={{ fontSize: 'clamp(34px, 4.2vw, 58px)', marginTop: 20, color: '#EFEEE4' }}>
-              Quatre outils.<br />Trop d&apos;allers-retours.<br /><span className="lp-it lp-mint">Vos soirées qui filent.</span>
+              On sait exactement<br /><span className="lp-it lp-mint">ce que vous vivez.</span>
             </h2>
             <p className="lp-lead lp-reveal d2" style={{ marginTop: 24, maxWidth: 460 }}>
-              Chaque client, c&apos;est le même rituel : copier-coller d&apos;un outil à l&apos;autre,
-              renvoyer une maquette, attendre la validation, reprogrammer. Multiplié par dix.
+              Canva pour les visuels. ChatGPT pour les textes. Un tableur pour le planning.
+              Meta Business pour publier. Et vous, au milieu, à tout recoller à la main —
+              pour chaque client, chaque semaine.
             </p>
             <div className="lp-reveal d3" style={{ marginTop: 30, display: 'inline-flex', alignItems: 'center', gap: 12, padding: '14px 20px', borderRadius: 14, background: '#2FD79B', color: '#06281C' }}>
               <Icon name="clock" size={20} style={{ flexShrink: 0 }} />
-              <span style={{ fontFamily: "'early-sans-variable', sans-serif", fontWeight: 800, fontSize: 14.5, lineHeight: 1.2 }}>≈ 2 h perdues par client, chaque semaine</span>
+              <span style={{ fontFamily: "'early-sans-variable', sans-serif", fontWeight: 800, fontSize: 14.5, lineHeight: 1.2 }}>2H PAR JOUR. En moyenne, perdues à coller des outils ensemble.</span>
             </div>
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
@@ -401,17 +404,17 @@ function Probleme() {
 /* ─── Process ────────────────────────────────────────────────────────────── */
 function Process() {
   const steps = [
-    { ic: 'upload',   n: '01', t: 'Importez vos photos',  d: "Vous rentrez du shooting. Glissez vos visuels dans l\u2019espace du client. C\u2019est tout." },
-    { ic: 'wand',     n: '02', t: "L\u2019IA met en forme",   d: "Texte sur le visuel, l\u00e9gende, hashtags \u2014 calibr\u00e9s sur la voix de chaque marque." },
-    { ic: 'calendar', n: '03', t: 'Planifiez & publiez',  d: "Choisissez les cr\u00e9neaux. Klip publie sur Instagram tout seul, au bon moment." },
+    { ic: 'upload',   n: '01', t: 'Importez & organisez',       d: "Vos photos dans Klip. Votre espace client, prêt en 30 secondes. Charte, logo, voix de marque — tout est là." },
+    { ic: 'wand',     n: '02', t: "L'IA génère le contenu",      d: "Visuel mis en forme, légende, hashtags — calibrés sur la voix de chaque marque. Vous validez, vous ajustez, vous gardez la main." },
+    { ic: 'calendar', n: '03', t: 'Planifiez & publiez',         d: "Choisissez les créneaux. Klip publie sur Instagram tout seul, au bon moment. Passez au client suivant." },
   ];
   return (
     <section id="process" className="lp-section">
       <div className="lp-wrap">
         <div style={{ maxWidth: 720 }}>
           <span className="lp-eyebrow lp-reveal">Comment ça marche</span>
-          <h2 className="lp-display lp-reveal d1" style={{ fontSize: 'clamp(38px, 4.8vw, 66px)', marginTop: 20 }}>
-            Du shooting au post publié,<br /><span className="lp-it lp-mint">en trois respirations.</span>
+          <h2 className="lp-display lp-upper lp-reveal d1" style={{ fontSize: 'clamp(38px, 4.8vw, 66px)', marginTop: 20 }}>
+            Un seul endroit.<br /><span className="lp-it lp-mint">Tout le workflow.</span>
           </h2>
         </div>
         <div className="lp-3col" style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 20, marginTop: 56 }}>
@@ -682,22 +685,22 @@ function Features() {
     <section id="features" className="lp-section">
       <div className="lp-wrap">
         <div style={{ maxWidth: 720 }}>
-          <span className="lp-eyebrow lp-reveal">Tout au même endroit</span>
-          <h2 className="lp-display lp-reveal d1" style={{ fontSize: 'clamp(38px, 4.8vw, 66px)', marginTop: 20 }}>
-            Ce qu&apos;il fallait dix outils pour faire,<br /><span className="lp-it lp-mint">Klip le fait d&apos;un trait.</span>
+          <span className="lp-eyebrow lp-reveal">Pourquoi Klip</span>
+          <h2 className="lp-display lp-upper lp-reveal d1" style={{ fontSize: 'clamp(38px, 4.8vw, 66px)', marginTop: 20 }}>
+            Tout ce qu&apos;il faut.<br /><span className="lp-it lp-mint">Rien de superflu.</span>
           </h2>
         </div>
         <div className="lp-3col" style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 16, marginTop: 52 }}>
-          <FeatCard ic="image"     t="Éditeur visuel"       d="Appliquez la charte de chaque client — couleurs, typo, logo. Glissez le texte, c'est calé au pixel." span>
+          <FeatCard ic="image"     t="Éditeur visuel canvas" d="Glissez le visuel, ajustez le texte, appliquez la charte du client. Du pixel parfait en quelques secondes — sans Canva, sans export." span>
             <div style={{ marginTop: 'auto' }}><MiniEditor /></div>
           </FeatCard>
-          <FeatCard ic="voice"     t="Voix de marque"       d="Ton, style, mots interdits. Chaque génération respecte l'ADN du client." tone="acid" />
-          <FeatCard ic="wand"      t="Descriptions IA"      d="Légendes et hashtags générés depuis la photo et le contexte de la marque." />
-          <FeatCard ic="calendar"  t="Calendrier éditorial" d="Tous les posts, tous les clients, sur une grille. Glissez pour replanifier." span>
+          <FeatCard ic="voice"     t="Voix de marque"        d="Ton, style, mots à éviter — définis une fois par client. L'IA ne déborde jamais du cadre." tone="acid" />
+          <FeatCard ic="wand"      t="Génération IA"         d="Légendes, hashtags et accroches générés depuis la photo et l'ADN de la marque. Sans effort." />
+          <FeatCard ic="calendar"  t="Calendrier éditorial"  d="Tous vos posts, tous vos clients, sur une grille. Replanifiez d'un glissé-déposé." span>
             <div style={{ marginTop: 'auto' }}><MiniCalendar /></div>
           </FeatCard>
-          <FeatCard ic="layers"    t="Un espace par client" d="Charte, historique, comptes connectés — cloisonnés, jamais mélangés." />
-          <FeatCard ic="instagram" t="Publication directe"  d="Connexion Instagram pro. Programmez ou publiez sans quitter Klip." tone="forest" span />
+          <FeatCard ic="layers"    t="Espaces clients isolés" d="Charte, historique, comptes connectés — cloisonnés, jamais mélangés. Chaque client dans sa bulle." />
+          <FeatCard ic="instagram" t="Publication Instagram"  d="Connexion compte pro en quelques clics. Programmez ou publiez sans quitter Klip." tone="forest" span />
         </div>
       </div>
     </section>
@@ -767,8 +770,8 @@ function Testimonials() {
 function Pricing() {
   const [annual, setAnnual] = useState(true);
   const plans = [
-    { name: 'Solo',   m: 29, y: 24, tag: 'Pour démarrer', accent: false, feats: ["Jusqu\u2019\u00e0 3 clients", '\u00c9diteur visuel complet', 'Descriptions IA illimit\u00e9es', 'Calendrier \u00e9ditorial', 'Publication Instagram'] },
-    { name: 'Agence', m: 79, y: 65, tag: 'Le plus choisi', accent: true,  feats: ['Clients illimit\u00e9s', 'Tout le plan Solo', 'Voix de marque par client', 'R\u00f4les & validations \u00e9quipe', 'Support prioritaire'] },
+    { name: 'Studio', m: 29, y: 25, tag: '7 jours gratuits', accent: false, feats: ["Jusqu\u2019\u00e0 5 clients", '\u00c9diteur visuel canvas', 'G\u00e9n\u00e9ration IA illimit\u00e9e', 'Calendrier \u00e9ditorial', 'Publication Instagram directe', 'Voix de marque par client'] },
+    { name: 'Agence', m: 96, y: 89, tag: 'Le plus populaire', accent: true,  feats: ['Clients illimit\u00e9s', 'Tout le plan Studio', 'Multi-membres & r\u00f4les', 'Workflow de validation client', 'Rapports & analytiques', 'Support prioritaire d\u00e9di\u00e9'] },
   ];
   return (
     <section id="tarifs" className="lp-section">
@@ -783,7 +786,7 @@ function Pricing() {
           <div className="lp-reveal d2" style={{ display: 'inline-flex', alignItems: 'center', gap: 4, marginTop: 28, padding: 5, borderRadius: 999, background: '#FBFAF4', boxShadow: 'inset 0 0 0 1px rgba(13,15,10,.1)' }}>
             {([['Mensuel', false], ['Annuel', true]] as [string, boolean][]).map(([l, v]) => (
               <button key={l} onClick={() => setAnnual(v)} style={{ padding: '9px 18px', borderRadius: 999, fontFamily: "'early-sans-variable', sans-serif", fontWeight: 800, fontSize: 14, background: annual === v ? '#0D0F0A' : 'transparent', color: annual === v ? '#F1F0E8' : '#565A4E', display: 'inline-flex', alignItems: 'center', gap: 8, transition: 'all .2s' }}>
-                {l}{v && <span style={{ fontSize: 11, padding: '2px 7px', borderRadius: 999, background: '#2FD79B', color: '#06281C' }}>−2 mois</span>}
+                {l}{v && <span style={{ fontSize: 11, padding: '2px 7px', borderRadius: 999, background: '#2FD79B', color: '#06281C' }}>économisez jusqu&apos;à 15%</span>}
               </button>
             ))}
           </div>
@@ -813,12 +816,12 @@ function Pricing() {
                 ))}
               </div>
               <Link href="/register" className={`lp-btn ${p.accent ? 'lp-btn-acid' : 'lp-btn-mint'}`} style={{ width: '100%', justifyContent: 'center' }}>
-                Commencer <Icon name="arrowUR" size={17} />
+                Commencer l&apos;essai gratuit <Icon name="arrowUR" size={17} />
               </Link>
             </div>
           ))}
         </div>
-        <p className="lp-reveal" style={{ textAlign: 'center', marginTop: 24, color: '#8E9183', fontFamily: "'early-sans-variable', sans-serif", fontWeight: 700, fontSize: 13.5 }}>14 jours offerts · sans carte bancaire · résiliable en un clic</p>
+        <p className="lp-reveal" style={{ textAlign: 'center', marginTop: 24, color: '#8E9183', fontFamily: "'early-sans-variable', sans-serif", fontWeight: 700, fontSize: 13.5 }}>7 jours gratuits · sans carte bancaire · résiliable en un clic · Vous avez plus de 20 clients ? <a href="mailto:contact@klip.fr" style={{ color: '#2FD79B', textDecoration: 'underline', textUnderlineOffset: 2 }}>contact@klip.fr</a></p>
       </div>
     </section>
   );
@@ -875,17 +878,20 @@ function FinalCTA() {
       <div className="lp-wrap">
         <div className="lp-reveal" style={{ position: 'relative', overflow: 'hidden', background: '#2FD79B', borderRadius: 28, padding: 'clamp(48px,7vw,96px) 40px', textAlign: 'center' }}>
           <div style={{ position: 'relative', zIndex: 2 }}>
-            <span className="lp-eyebrow plain" style={{ color: '#06281C', opacity: .65, justifyContent: 'center' }}>Prêt ?</span>
+            <span className="lp-eyebrow plain" style={{ color: '#06281C', opacity: .65, justifyContent: 'center' }}>C&apos;est le moment.</span>
             <h2 className="lp-display lp-upper" style={{ fontSize: 'clamp(40px, 6.4vw, 96px)', color: '#06281C', marginTop: 16 }}>
-              Rendez à vos clients<br /><span className="lp-it">le temps qu&apos;ils méritent.</span>
+              Arrêtez de gérer des logiciels.<br /><span className="lp-it">Commencez à créer.</span>
             </h2>
+            <p style={{ marginTop: 20, fontFamily: "'early-sans-variable', sans-serif", fontWeight: 700, fontSize: 16, color: '#06281C', opacity: .75 }}>
+              Rejoignez les premières agences qui ont repris le contrôle de leur temps.
+            </p>
             <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap', marginTop: 36 }}>
               <Link href="/register" className="lp-btn lp-btn-ink" style={{ fontSize: 17, padding: '17px 32px' }}>
-                Commencer gratuitement <Icon name="arrowUR" size={18} className="arr" />
+                Démarrer gratuitement — accès immédiat <Icon name="arrowUR" size={18} className="arr" />
               </Link>
               <a href="#demo" className="lp-btn" style={{ fontSize: 17, padding: '17px 32px', background: 'transparent', color: '#06281C', boxShadow: 'inset 0 0 0 1.5px rgba(6,40,28,.3)' }}>Revoir la démo</a>
             </div>
-            <p style={{ marginTop: 22, fontFamily: "'early-sans-variable', sans-serif", fontWeight: 700, fontSize: 14, color: '#06281C', opacity: .65 }}>14 jours offerts · sans carte bancaire</p>
+            <p style={{ marginTop: 22, fontFamily: "'early-sans-variable', sans-serif", fontWeight: 700, fontSize: 14, color: '#06281C', opacity: .65 }}>7 jours gratuits · sans carte bancaire</p>
           </div>
         </div>
       </div>
