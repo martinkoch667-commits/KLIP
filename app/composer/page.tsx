@@ -16,17 +16,20 @@ interface Post {
   description: string | null;
   status: string;
   post_type: string | null;
+  updated_at: string | null;
   created_at: string;
 }
 
 const WS_COLORS = ["#7B5CF5","#2FD79B","#C8732B","#5A86E8","#DD2A7B","#88B394","#E8A03A","#4A8DD4"];
-const POST_TYPE_LABEL: Record<string, string> = { post:"Publication", reel:"Reel", story:"Story" };
+const POST_TYPE_LABEL: Record<string, string> = { post:"Post", reel:"Reel", story:"Story" };
 const POST_TYPE_COLOR: Record<string, string> = { post:"#4F8EF7", reel:"#A259FF", story:"#FF6B35" };
 
-const STATUS_LABEL: Record<string, string> = {
-  idle: "Brouillon",
-  generating: "Génération…",
-  generated: "Prêt à valider",
+const STATUS_CFG: Record<string, { label: string; bg: string; color: string }> = {
+  idle:       { label:"Brouillon",       bg:"var(--sunk)",      color:"var(--ink-3)" },
+  generating: { label:"En génération",   bg:"var(--sunk)",      color:"var(--ink-3)" },
+  generated:  { label:"Prêt à valider",  bg:"var(--warn-soft)", color:"var(--warn)" },
+  validated:  { label:"En validation",   bg:"rgba(255,107,53,.14)", color:"#FF6B35" },
+  rejected:   { label:"Refusé",          bg:"rgba(220,38,38,.12)", color:"#DC2626" },
 };
 
 export default function ComposerPage() {
@@ -44,9 +47,9 @@ export default function ComposerPage() {
       const [{ data: ws }, { data: ps }] = await Promise.all([
         supabase.from("workspaces").select("id,name").order("created_at"),
         supabase.from("posts")
-          .select("id,workspace_id,exported_image_url,photo_url,texte_visuel,description,status,post_type,created_at")
-          .in("status", ["idle","generating","generated"])
-          .order("created_at", { ascending: false }),
+          .select("id,workspace_id,exported_image_url,photo_url,texte_visuel,description,status,post_type,updated_at,created_at")
+          .in("status", ["idle","generating","generated","validated","rejected"])
+          .order("updated_at", { ascending: false, nullsFirst: false }),
       ]);
       setWorkspaces(ws ?? []);
       setPosts(ps ?? []);
@@ -57,9 +60,9 @@ export default function ComposerPage() {
   const wsMap = Object.fromEntries(workspaces.map((w,i) => [w.id, { name: w.name, color: WS_COLORS[i % WS_COLORS.length] }]));
   const filtered = filterWsId === "all" ? posts : posts.filter(p => p.workspace_id === filterWsId);
 
-  function formatDate(iso: string) {
-    const d = new Date(iso);
-    return d.toLocaleDateString("fr-FR", { day:"numeric", month:"short", year:"numeric" });
+  function formatDate(iso: string | null) {
+    if (!iso) return "—";
+    return new Date(iso).toLocaleDateString("fr-FR", { day:"numeric", month:"short" });
   }
 
   return (
@@ -68,7 +71,7 @@ export default function ComposerPage() {
       <div className="work">
         <div className="topbar" style={{ justifyContent:"space-between" }}>
           <div style={{ display:"flex", alignItems:"center", gap:16 }}>
-            <h1 style={{ fontSize:17, fontWeight:800, fontFamily:"var(--display)", margin:0 }}>Composer</h1>
+            <h1 style={{ fontSize:14, fontWeight:800, margin:0 }}>Composer</h1>
             <span style={{ fontSize:13, color:"var(--ink-3)", fontWeight:600 }}>
               {filtered.length} brouillon{filtered.length !== 1 ? "s" : ""}
             </span>
@@ -96,17 +99,16 @@ export default function ComposerPage() {
                 <Link href="/dashboard" className="btn btn-primary">Aller au tableau de bord</Link>
               </div>
             ) : (
-              <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(260px,1fr))", gap:16 }}>
+              <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(240px,1fr))", gap:16 }}>
                 {filtered.map(post => {
                   const ws = wsMap[post.workspace_id];
                   const rawImg = post.exported_image_url || post.photo_url;
                   const thumb = rawImg ? `/api/proxy-image?url=${encodeURIComponent(rawImg)}` : null;
                   const pt = post.post_type ?? "post";
+                  const cfg = STATUS_CFG[post.status] ?? { label: post.status, bg:"var(--sunk)", color:"var(--ink-3)" };
                   return (
                     <Link key={post.id} href={`/workspace/${post.workspace_id}/editor/${post.id}`}
-                      className="card" style={{ textDecoration:"none", display:"flex", flexDirection:"column", overflow:"hidden", cursor:"pointer", transition:"transform .12s, box-shadow .12s" }}
-                      onMouseEnter={e => { (e.currentTarget as HTMLElement).style.transform="translateY(-2px)"; (e.currentTarget as HTMLElement).style.boxShadow="0 8px 24px rgba(13,15,10,.12)"; }}
-                      onMouseLeave={e => { (e.currentTarget as HTMLElement).style.transform=""; (e.currentTarget as HTMLElement).style.boxShadow=""; }}>
+                      className="card lift" style={{ textDecoration:"none", display:"flex", flexDirection:"column", overflow:"hidden", cursor:"pointer" }}>
                       {/* Thumbnail */}
                       <div style={{ aspectRatio:"4/5", background:"var(--sunk)", position:"relative", overflow:"hidden" }}>
                         {thumb
@@ -115,12 +117,13 @@ export default function ComposerPage() {
                               <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg>
                             </div>}
                         {/* Type badge */}
-                        <span style={{ position:"absolute", bottom:8, right:8, background: POST_TYPE_COLOR[pt] ?? "#4F8EF7", color:"#fff", fontSize:10, fontWeight:700, padding:"2px 6px", borderRadius:4, fontFamily:"var(--sans)" }}>
+                        <span style={{ position:"absolute", bottom:8, right:8, background: POST_TYPE_COLOR[pt] ?? "#4F8EF7", color:"#fff", fontSize:9, fontWeight:700, padding:"2px 6px", borderRadius:4, fontFamily:"var(--mono)" }}>
                           {POST_TYPE_LABEL[pt] ?? pt}
                         </span>
                       </div>
                       {/* Info */}
-                      <div style={{ padding:"12px 14px 14px", display:"flex", flexDirection:"column", gap:8, flex:1 }}>
+                      <div style={{ padding:"11px 13px 13px", display:"flex", flexDirection:"column", gap:7, flex:1 }}>
+                        {/* Client badge */}
                         <div style={{ display:"flex", alignItems:"center", gap:6 }}>
                           <span style={{ width:20, height:20, borderRadius:5, background: ws?.color ?? "var(--mint)", display:"grid", placeItems:"center", fontSize:9, fontWeight:800, color:"#fff", flexShrink:0 }}>
                             {ws?.name?.slice(0,2).toUpperCase() ?? "??"}
@@ -128,14 +131,14 @@ export default function ComposerPage() {
                           <span style={{ fontSize:12, fontWeight:700, color:"var(--ink-2)", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{ws?.name ?? "Client"}</span>
                         </div>
                         {post.texte_visuel && (
-                          <p style={{ fontSize:13, fontWeight:600, color:"var(--ink)", margin:0, lineHeight:1.4, overflow:"hidden", textOverflow:"ellipsis", display:"-webkit-box", WebkitLineClamp:2, WebkitBoxOrient:"vertical" }}>
+                          <p style={{ fontSize:12, fontWeight:600, color:"var(--ink)", margin:0, lineHeight:1.4, overflow:"hidden", textOverflow:"ellipsis", display:"-webkit-box", WebkitLineClamp:2, WebkitBoxOrient:"vertical" }}>
                             {post.texte_visuel}
                           </p>
                         )}
                         <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginTop:"auto" }}>
-                          <span style={{ fontSize:11, color:"var(--ink-3)" }}>{formatDate(post.created_at)}</span>
-                          <span style={{ fontSize:11, fontWeight:700, color:"var(--warn)", background:"var(--warn-soft)", padding:"2px 7px", borderRadius:4 }}>
-                            {STATUS_LABEL[post.status] ?? post.status}
+                          <span style={{ fontSize:11, color:"var(--ink-3)" }}>{formatDate(post.updated_at ?? post.created_at)}</span>
+                          <span style={{ fontSize:10, fontWeight:700, background: cfg.bg, color: cfg.color, padding:"2px 7px", borderRadius:4, fontFamily:"var(--mono)" }}>
+                            {cfg.label}
                           </span>
                         </div>
                       </div>
