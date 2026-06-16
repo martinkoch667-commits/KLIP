@@ -6,6 +6,7 @@ import { useParams, useRouter } from "next/navigation";
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
 import Sidebar from "@/components/Sidebar";
 import VoiceButton from "@/components/VoiceButton";
+import NotificationBell from "@/components/NotificationBell";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -710,6 +711,7 @@ export default function WorkspacePage() {
             </div>
           </div>
           <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8 }}>
+            <NotificationBell />
             <Link href={`/workspace/${id}/planning`} className="btn btn-ghost btn-sm">Planning</Link>
             <Link href={`/workspace/${id}/results`} className="btn btn-ghost btn-sm">Résultats</Link>
             <Link href={`/workspace/${id}/parametres`} className="btn btn-ghost btn-sm">Paramètres</Link>

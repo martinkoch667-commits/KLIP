@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Sidebar from '@/components/Sidebar';
 import OnboardingTour from '@/components/OnboardingTour';
+import NotificationBell from '@/components/NotificationBell';
 
 // ─── Types ─────────────────────────────────────────────────────────────────
 
@@ -528,12 +529,7 @@ export default function Dashboard() {
           <span className="h-title" style={{ fontSize: 15, whiteSpace: 'nowrap', color: 'var(--ink-2)' }}>Tableau de bord</span>
 
           <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 10 }}>
-            <button className="btn btn-ghost btn-icon" style={{ position: 'relative' }} title="Notifications">
-              <IconBell />
-              {pendingPosts > 0 && (
-                <span style={{ position: 'absolute', top: 6, right: 6, width: 7, height: 7, borderRadius: '50%', background: 'var(--warn)', boxShadow: '0 0 0 2px var(--canvas)' }} />
-              )}
-            </button>
+            <NotificationBell />
             {active !== 'all' ? (
               <Link href={`/workspace/${active}`} className="btn btn-primary">
                 <IconPlus /> Nouveau post
