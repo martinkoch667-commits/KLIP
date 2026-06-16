@@ -433,8 +433,7 @@ input.ed-range::-moz-range-thumb {
   .cal-outer > * { min-width: 640px; }
 
   /* Editor — horizontal scroll so all panels accessible */
-  .ed-body { overflow-x: auto; -webkit-overflow-scrolling: touch; }
-  .ed-body > * { min-width: 680px; }
+  .ed-body { overflow-x: auto; -webkit-overflow-scrolling: touch; min-width: min-content; }
 
   /* New workspace form grids */
   .ws-new-3col { grid-template-columns: 1fr !important; }
