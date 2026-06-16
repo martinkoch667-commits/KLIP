@@ -10,12 +10,13 @@ import VoiceButton from "@/components/VoiceButton";
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 type PostStatus = "idle" | "generating" | "generated" | "validating" | "validated";
-type PostType   = "post" | "reel" | "story";
+type PostType   = "post" | "reel" | "story" | "carrousel";
 
 const POST_TYPE_CFG: Record<PostType, { label: string; color: string; bg: string; format: string }> = {
-  post:  { label: "Publication", color: "#4F8EF7", bg: "#4F8EF715", format: "1080×1080 px" },
-  reel:  { label: "Reel",        color: "#A259FF", bg: "#A259FF15", format: "1080×1920 px" },
-  story: { label: "Story",       color: "#FF6B35", bg: "#FF6B3515", format: "1080×1920 px" },
+  post:      { label: "Publication",  color: "#4F8EF7", bg: "#4F8EF715", format: "1080×1080 px" },
+  reel:      { label: "Reel",         color: "#A259FF", bg: "#A259FF15", format: "1080×1920 px" },
+  story:     { label: "Story",        color: "#FF6B35", bg: "#FF6B3515", format: "1080×1920 px" },
+  carrousel: { label: "Carrousel",    color: "#F7A94F", bg: "#F7A94F15", format: "1080×1080 px" },
 };
 
 interface PostItem {
@@ -133,6 +134,12 @@ const TYPE_ICONS: Record<PostType, React.ReactNode> = {
     <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
       <rect x="6" y="2" width="12" height="20" rx="3"/>
       <path d="M9 7h6M9 11h4"/>
+    </svg>
+  ),
+  carrousel: (
+    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="5" y="4" width="14" height="16" rx="2"/>
+      <path d="M2 7v10M22 7v10"/>
     </svg>
   ),
 };

@@ -1050,7 +1050,7 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
   useEffect(() => { bgOffsetXRef.current = bgOffsetX; }, [bgOffsetX]);
   useEffect(() => { bgOffsetYRef.current = bgOffsetY; }, [bgOffsetY]);
   const [formatId, setFormatId] = useState('ig-portrait');
-  const [postType, setPostType] = useState<'post' | 'reel' | 'story'>('post');
+  const [postType, setPostType] = useState<'post' | 'reel' | 'story' | 'carrousel'>('post');
   const activeFormat = FORMATS.find(f => f.id === formatId) ?? FORMATS[0];
   const stageW = activeFormat.w;
   const stageH = activeFormat.h;
@@ -1252,8 +1252,8 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
         if (postError) throw postError;
         if (p?.template_id) setPostTemplateId(p.template_id);
         // Set canvas format from post_type (template will override below if applicable)
-        const PT_FORMAT: Record<string, string> = { post: 'ig-square', reel: 'ig-story', story: 'ig-story' };
-        if (p?.post_type && PT_FORMAT[p.post_type]) { setFormatId(PT_FORMAT[p.post_type]); setPostType(p.post_type as 'post' | 'reel' | 'story'); }
+        const PT_FORMAT: Record<string, string> = { post: 'ig-square', reel: 'ig-story', story: 'ig-story', carrousel: 'ig-square' };
+        if (p?.post_type && PT_FORMAT[p.post_type]) { setFormatId(PT_FORMAT[p.post_type]); setPostType(p.post_type as 'post' | 'reel' | 'story' | 'carrousel'); }
         if (p?.photo_url) { setPostPhotoUrl(p.photo_url); }
         if (w) {
           setWorkspaceName(w.name || '');
@@ -1683,8 +1683,8 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
 
   // ── Post type change — updates format + clamps elements + saves to DB ───────
 
-  const changePostType = async (newType: 'post' | 'reel' | 'story') => {
-    const TYPE_FORMAT: Record<string, string> = { post: 'ig-square', reel: 'ig-story', story: 'ig-story' };
+  const changePostType = async (newType: 'post' | 'reel' | 'story' | 'carrousel') => {
+    const TYPE_FORMAT: Record<string, string> = { post: 'ig-square', reel: 'ig-story', story: 'ig-story', carrousel: 'ig-square' };
     const newFormatId = TYPE_FORMAT[newType];
     const newFmt = FORMATS.find(f => f.id === newFormatId) ?? FORMATS[0];
     setPostType(newType);
@@ -1983,14 +1983,14 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
           {/* Post type pills */}
           <div style={{ display: 'flex', gap: 2, padding: '3px', background: 'var(--sunk)', borderRadius: 'var(--r-s)', border: '1px solid var(--line)' }}>
-            {(['post', 'reel', 'story'] as const).map(t => (
+            {(['post', 'reel', 'story', 'carrousel'] as const).map(t => (
               <button key={t} onClick={() => changePostType(t)}
                 style={{ padding: '3px 9px', borderRadius: 6, border: 'none', cursor: 'pointer', fontSize: 11, fontWeight: 700, fontFamily: 'var(--sans)', transition: 'all .12s',
                   background: postType === t ? 'var(--canvas)' : 'transparent',
                   color: postType === t ? 'var(--ink)' : 'var(--ink-3)',
                   boxShadow: postType === t ? '0 1px 3px rgba(13,15,10,.1)' : 'none',
                 }}>
-                {t === 'post' ? 'Post' : t === 'reel' ? 'Reel' : 'Story'}
+                {t === 'post' ? 'Post' : t === 'reel' ? 'Reel' : t === 'story' ? 'Story' : 'Carrousel'}
               </button>
             ))}
           </div>

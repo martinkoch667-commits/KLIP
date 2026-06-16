@@ -80,7 +80,7 @@ export default function OnboardingPlanPage() {
         { user_id: session.user.id, account_type: "solo" },
         { onConflict: "user_id" }
       );
-      router.push("/dashboard");
+      router.push("/onboarding/survey");
     } catch {
       setError("Une erreur est survenue. Veuillez réessayer.");
       setLoadingStudio(false);
@@ -119,7 +119,7 @@ export default function OnboardingPlanPage() {
         });
       }
 
-      router.push("/dashboard");
+      router.push("/onboarding/survey");
     } catch {
       setError("Une erreur est survenue. Veuillez réessayer.");
       setLoadingAgency(false);
