@@ -135,6 +135,7 @@ const LP_CSS = `
   @media (max-width: 980px) {
     .lp-hero-art { display: none !important; }
     .lp-nav-links { display: none !important; }
+    .lp-mob-btn { display: flex !important; }
   }
   @media (max-width: 900px) {
     .lp { font-size: 16px; }
@@ -148,9 +149,28 @@ const LP_CSS = `
     .lp-nav-login { display: none !important; }
     .lp-foot-grid { grid-template-columns: 1fr 1fr !important; gap: 32px !important; }
   }
+  @media (max-width: 640px) {
+    .lp-section { padding: 64px 0; }
+    .lp-section-sm { padding: 44px 0; }
+    .lp-wrap { padding: 0 16px; }
+    .lp-foot-grid { grid-template-columns: 1fr !important; gap: 28px !important; }
+    .lp-btn { padding: 14px 22px; font-size: 14px; min-height: 48px; }
+    .lp-btn-sm { padding: 10px 18px; font-size: 13px; min-height: 44px; }
+    .lp-nav-cta { display: none !important; }
+  }
   @media (max-width: 560px) {
     .lp-photo-grid { grid-template-columns: repeat(2,1fr) !important; }
   }
+
+  /* Mobile menu */
+  .lp-mob-btn { display: none; align-items: center; justify-content: center; width: 40px; height: 40px; border-radius: 10px; background: rgba(13,15,10,.08); color: #0D0F0A; }
+  .lp-mob-btn-solid { background: rgba(238,237,227,.15); color: #F1F0E8; }
+  .lp-mob-menu { position: fixed; inset: 0; background: #F1F0E8; z-index: 1000; display: flex; flex-direction: column; padding: 20px 24px 40px; transform: translateX(100%); transition: transform .28s cubic-bezier(.16,1,.3,1); }
+  .lp-mob-menu.open { transform: translateX(0); }
+  .lp-mob-menu-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 40px; }
+  .lp-mob-nav-link { display: block; font-family: 'Archivo', system-ui, sans-serif; font-weight: 800; font-size: 28px; text-transform: uppercase; letter-spacing: -0.02em; color: #0C2A1D; padding: 12px 0; border-bottom: 1px solid rgba(13,15,10,.08); }
+  .lp-mob-nav-link:last-child { border-bottom: none; }
+  .lp-mob-menu-footer { margin-top: auto; display: flex; flex-direction: column; gap: 12px; }
 `;
 
 /* ─── Icon ───────────────────────────────────────────────────────────────── */
@@ -260,6 +280,7 @@ function HeroCollage() {
 /* ─── Nav ────────────────────────────────────────────────────────────────── */
 function Nav({ onDemo }: { onDemo: () => void }) {
   const [solid, setSolid] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
   useEffect(() => {
     const f = () => setSolid(window.scrollY > 24);
     f();
@@ -273,18 +294,61 @@ function Nav({ onDemo }: { onDemo: () => void }) {
     ['Tarifs', '#tarifs'],
   ];
   return (
-    <nav style={{ position: 'fixed', top: 0, left: 0, right: 0, zIndex: 200, transition: 'all .3s', padding: '20px 0', background: 'transparent', borderBottom: '1px solid transparent' }} className={solid ? 'lp-nav-solid' : ''}>
-      <div className="lp-wrap" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 24 }}>
-        <a href="#top" aria-label="Klip"><KlipLogo size={26} /></a>
-        <div className="lp-nav-links" style={{ display: 'flex', alignItems: 'center', gap: 30 }}>
-          {links.map(([l, h]) => <a key={h} href={h} className="lp-nav-link">{l}</a>)}
+    <>
+      <nav style={{ position: 'fixed', top: 0, left: 0, right: 0, zIndex: 200, transition: 'all .3s', padding: '20px 0', background: 'transparent', borderBottom: '1px solid transparent' }} className={solid ? 'lp-nav-solid' : ''}>
+        <div className="lp-wrap" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 24 }}>
+          <a href="#top" aria-label="Klip"><KlipLogo size={26} /></a>
+          <div className="lp-nav-links" style={{ display: 'flex', alignItems: 'center', gap: 30 }}>
+            {links.map(([l, h]) => <a key={h} href={h} className="lp-nav-link">{l}</a>)}
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <Link href="/login" className="lp-nav-login lp-nav-link">Se connecter</Link>
+            <Link href="/register" className={`lp-btn lp-btn-mint lp-btn-sm lp-nav-cta`}>Essayer gratuitement</Link>
+            {/* Hamburger — visible on mobile only via CSS */}
+            <button
+              className={`lp-mob-btn${solid ? ' lp-mob-btn-solid' : ''}`}
+              onClick={() => setMenuOpen(true)}
+              aria-label="Ouvrir le menu"
+            >
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M3 12h18M3 6h18M3 18h18"/>
+              </svg>
+            </button>
+          </div>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <Link href="/login" className="lp-nav-login lp-nav-link">Se connecter</Link>
-          <Link href="/register" className="lp-btn lp-btn-mint lp-btn-sm">Essayer gratuitement</Link>
+      </nav>
+
+      {/* Mobile full-screen menu */}
+      <div className={`lp-mob-menu${menuOpen ? ' open' : ''}`}>
+        <div className="lp-mob-menu-head">
+          <KlipLogo size={26} />
+          <button
+            onClick={() => setMenuOpen(false)}
+            style={{ width: 40, height: 40, borderRadius: 10, background: 'rgba(13,15,10,.08)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#0D0F0A' }}
+            aria-label="Fermer"
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M18 6 6 18M6 6l12 12"/>
+            </svg>
+          </button>
+        </div>
+
+        <nav style={{ display: 'flex', flexDirection: 'column' }}>
+          {links.map(([l, h]) => (
+            <a key={h} href={h} className="lp-mob-nav-link" onClick={() => setMenuOpen(false)}>{l}</a>
+          ))}
+        </nav>
+
+        <div className="lp-mob-menu-footer">
+          <Link href="/register" className="lp-btn lp-btn-mint" style={{ justifyContent: 'center' }} onClick={() => setMenuOpen(false)}>
+            Essayer gratuitement
+          </Link>
+          <Link href="/login" className="lp-btn lp-btn-ghost" style={{ justifyContent: 'center' }} onClick={() => setMenuOpen(false)}>
+            Se connecter
+          </Link>
         </div>
       </div>
-    </nav>
+    </>
   );
 }
 

@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
+import MobileSidebar from "./ui/MobileSidebar";
 
 interface Workspace { id: string; name: string }
 
@@ -144,6 +145,8 @@ export default function Sidebar({ workspaces: _w, userName: _u, activeWorkspaceI
   ];
 
   return (
+    <>
+    <MobileSidebar />
     <aside className="sidebar" style={{ width: "var(--sb-w)", position: "fixed", top: 0, left: 0, height: "100vh", zIndex: 100 }}>
 
       {/* Logo */}
@@ -248,5 +251,6 @@ export default function Sidebar({ workspaces: _w, userName: _u, activeWorkspaceI
         </span>
       </button>
     </aside>
+    </>
   );
 }
