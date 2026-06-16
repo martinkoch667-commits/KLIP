@@ -597,7 +597,7 @@ export default function WorkspaceStylePage() {
                 <section>
                   <SectionTitle>Bloc texte</SectionTitle>
                   <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                    <div className="ws-upload-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
                       <ColorField label="Couleur principale" value={s.blockBg} onChange={(v) => set("blockBg", v)}
                         opacity={s.blockOpacity} onOpacityChange={(v) => set("blockOpacity", v)} />
                       <ColorField label="Couleur secondaire" value={s.blockTextColor} onChange={(v) => set("blockTextColor", v)} />

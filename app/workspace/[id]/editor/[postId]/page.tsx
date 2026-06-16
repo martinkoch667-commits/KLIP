@@ -2003,7 +2003,7 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
       </div>
 
       {/* ── BODY: rail + flyout + canvas workspace ── */}
-      <div style={{ flex: 1, display: 'flex', minHeight: 0 }}>
+      <div className="ed-body" style={{ flex: 1, display: 'flex', minHeight: 0 }}>
 
         {/* ── TOOL RAIL (68px) ── */}
         <div data-stop-deselect style={{ width: 68, background: 'var(--white)', borderRight: '1px solid var(--line)', display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '12px 0', gap: 4, flexShrink: 0 }}>
