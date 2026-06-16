@@ -111,6 +111,8 @@ const LP_CSS = `
 
   /* marquee */
   @keyframes lp-ticker { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+  @keyframes lp-spin { to { transform: rotate(360deg); } }
+  @keyframes lp-fadein { from { opacity: 0; transform: translateX(-50%) translateY(4px); } to { opacity: 1; transform: translateX(-50%) translateY(0); } }
 
   /* scroll reveal */
   .lp-reveal { opacity: 0; transform: translateY(20px); }
@@ -297,22 +299,16 @@ function Hero({ onDemo }: { onDemo: () => void }) {
         </div>
         {/* big headline — 2 lines */}
         <div className="lp-reveal in d1" style={{ display: 'inline-block' }}>
-          <h1 className="lp-display lp-upper" style={{ fontSize: 'clamp(44px, 7vw, 100px)', margin: 0 }}>
-            Créer. Planifier. Publier.<br />
-            <span className="lp-it lp-mint">Tout. Ici.</span>
+          <h1 className="lp-display lp-upper" style={{ fontSize: 'clamp(40px, 6.5vw, 92px)', margin: 0, lineHeight: 1.0 }}>
+            Gagnez 2h par jour<br />
+            <span className="lp-it lp-mint">sur chaque client.</span>
           </h1>
         </div>
         {/* sub */}
         <div className="lp-reveal in d2" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-          <p className="lp-lead" style={{ maxWidth: 580, marginTop: 28 }}>
-            Un éditeur visuel par-là. Un outil IA pour le texte par-ci.<br />
-            Un planificateur ailleurs. Un fil de messagerie pour valider.<br />
-            Et au bout : le mauvais fichier envoyé au mauvais client.
-          </p>
-          <p className="lp-lead" style={{ maxWidth: 580, marginTop: 16 }}>
-            Klip réunit tout le processus de post-production de vos contenus
-            dans un seul outil — pour les agences et les community managers
-            qui veulent arrêter de jongler et recommencer à créer.
+          <p className="lp-lead" style={{ maxWidth: 620, marginTop: 24 }}>
+            Klip centralise toute la post-production de vos contenus sociaux —
+            création visuelle, légendes IA et planification — dans un seul outil.
           </p>
           {/* CTAs */}
           <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginTop: 34, justifyContent: 'center', alignItems: 'center' }}>
@@ -441,181 +437,264 @@ function Process() {
 
 /* ─── Interactive Demo ───────────────────────────────────────────────────── */
 const DEMO_PHOTOS = [
-  { g: 'linear-gradient(150deg,#2b8d57,#0c2a1d)', n: 'terrasse-01.jpg' },
-  { g: 'linear-gradient(150deg,#caa14a,#6e4d1c)', n: 'dessert-04.jpg' },
-  { g: 'linear-gradient(150deg,#4a6a8d,#1a2535)', n: 'salle-02.jpg' },
-  { g: 'linear-gradient(150deg,#b85c4a,#5a1f17)', n: 'chef-07.jpg' },
+  { id: 0, label: 'Visuel produit', bg: '#8B6914' },
+  { id: 1, label: 'Photo ambiance', bg: '#4A3728' },
+  { id: 2, label: 'Contenu équipe', bg: '#6B4423' },
+  { id: 3, label: 'Shot atelier',   bg: '#3D2B1F' },
 ];
-const DEMO_VOICES: Record<string, string> = {
-  Chic:    "La lumière de fin d\u2019été sur nos tables. Nouvelle carte, réservations ouvertes pour septembre.\n\n#maisonlou #artdevivre #septembre",
-  Punchy:  "Septembre, on remet le couvert. Nouvelle carte, résa en bio — ça part vite.\n\n#maisonlou #foodie #septembre",
-  Minimal: "Septembre. Nouvelle carte. Réservez.\n\n#maisonlou",
-};
-const DEMO_DAYS = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
+const DEMO_CAPTIONS_LIST = [
+  "Notre savoir-faire, au cœur de chaque création. Une nouvelle collection qui raconte notre histoire.\n\n#studiolumiere #artisanat #collection",
+  "Dans les coulisses de l'atelier. La passion du détail, visible à chaque étape.\n\n#studiolumiere #behindthescenes #craftsmanship",
+  "Notre équipe, votre confiance. Ensemble depuis le premier jour.\n\n#studiolumiere #team #confiance",
+  "L'excellence n'est pas un hasard. C'est le résultat d'un travail quotidien.\n\n#studiolumiere #excellence #passion",
+];
+const DEMO_TIPS = [
+  "Importez vos visuels et choisissez le type de contenu — Post, Reel ou Story.",
+  "L'IA génère une légende adaptée au ton de votre client en quelques secondes.",
+  "Personnalisez le visuel directement dans l'éditeur intégré. Sans exporter.",
+  "Programmez en un clic sur Instagram et Facebook. Klip publie automatiquement.",
+];
+const DEMO_STEP_LABELS = ['Importer', 'Générer', 'Éditer', 'Publier'];
 
 function ProductDemo() {
-  const [step, setStep]           = useState(0);
-  const [photo, setPhoto]         = useState<number | null>(null);
-  const [voice, setVoice]         = useState('Chic');
-  const [caption, setCaption]     = useState('');
-  const [typing, setTyping]       = useState(false);
-  const [day, setDay]             = useState<number | null>(null);
-  const [published, setPublished] = useState(false);
-  const timer = useRef<ReturnType<typeof setInterval> | null>(null);
+  const [step, setStep]             = useState(0);
+  const [postType, setPostType]     = useState<'post'|'reel'|'story'>('post');
+  const [generating, setGenerating] = useState(false);
+  const [generated, setGenerated]   = useState(false);
+  const [captions, setCaptions]     = useState(DEMO_CAPTIONS_LIST.map(c => c));
+  const [fontSize, setFontSize]     = useState(28);
+  const [textColor, setTextColor]   = useState('#FFFFFF');
+  const [published, setPublished]   = useState<boolean[]>([false, false, false, false]);
+  const [publishing, setPublishing] = useState(false);
+  const [allDone, setAllDone]       = useState(false);
+  const genTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const generate = useCallback((v: string) => {
-    const full = DEMO_VOICES[v];
-    setTyping(true); setCaption('');
-    if (timer.current) clearInterval(timer.current);
-    let i = 0;
-    timer.current = setInterval(() => {
-      i += 2; setCaption(full.slice(0, i));
-      if (i >= full.length) { if (timer.current) clearInterval(timer.current); setTyping(false); }
-    }, 14);
-  }, []);
-  useEffect(() => () => { if (timer.current) clearInterval(timer.current); }, []);
+  const reset = () => {
+    setStep(0); setPostType('post'); setGenerating(false); setGenerated(false);
+    setCaptions(DEMO_CAPTIONS_LIST.map(c => c)); setFontSize(28); setTextColor('#FFFFFF');
+    setPublished([false,false,false,false]); setPublishing(false); setAllDone(false);
+    if (genTimer.current) clearTimeout(genTimer.current);
+  };
+  useEffect(() => () => { if (genTimer.current) clearTimeout(genTimer.current); }, []);
 
-  const reset  = () => { setStep(0); setPhoto(null); setCaption(''); setVoice('Chic'); setDay(null); setPublished(false); };
-  const canNext = step === 0 ? photo !== null : step === 1 ? caption.length > 0 && !typing : day !== null;
-  const ph = DEMO_PHOTOS[photo ?? 0];
+  function handleGenerate() {
+    setGenerating(true); setGenerated(false);
+    genTimer.current = setTimeout(() => { setGenerating(false); setGenerated(true); }, 1500);
+  }
+
+  async function handlePublishAll() {
+    setPublishing(true);
+    for (let i = 0; i < 4; i++) {
+      await new Promise(r => setTimeout(r, 600));
+      setPublished(prev => { const n = [...prev]; n[i] = true; return n; });
+    }
+    setPublishing(false); setAllDone(true);
+  }
+
+  const TEXT_COLORS = ['#FFFFFF','#0D0F0A','#2FD79B','#C8F135','#FFD166'];
+  const EDIT_PHOTO = DEMO_PHOTOS[1];
 
   return (
-    <div style={{ background: '#FBFAF4', borderRadius: 22, overflow: 'hidden', boxShadow: '0 1px 0 1px rgba(13,15,10,.07), 0 50px 90px -50px rgba(0,0,0,.75)', maxWidth: 980, margin: '0 auto' }}>
-      {/* window bar */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '14px 18px', background: '#fff', borderBottom: '1px solid rgba(13,15,10,.1)' }}>
+    <div style={{ background: '#F4F3EC', borderRadius: 22, overflow: 'hidden', boxShadow: '0 1px 0 1px rgba(13,15,10,.07), 0 50px 90px -50px rgba(0,0,0,.65)', maxWidth: 980, margin: '0 auto' }}>
+
+      {/* macOS window bar */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '12px 18px', background: '#fff', borderBottom: '1px solid rgba(13,15,10,.09)' }}>
         <div style={{ display: 'flex', gap: 7 }}>
-          {['#ff5f57', '#febc2e', '#28c840'].map(c => <span key={c} style={{ width: 11, height: 11, borderRadius: '50%', background: c }} />)}
+          {['#ff5f57','#febc2e','#28c840'].map(c => <span key={c} style={{ width: 11, height: 11, borderRadius: '50%', background: c }} />)}
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 9, marginLeft: 6 }}>
-          <span style={{ width: 24, height: 24, borderRadius: 7, background: '#2FD79B', display: 'grid', placeItems: 'center', color: '#06281C', flexShrink: 0 }}><Icon name="layers" size={14} /></span>
-          <span style={{ fontFamily: "'early-sans-variable', sans-serif", fontWeight: 800, fontSize: 14 }}>Maison Lou</span>
-          <span style={{ fontSize: 12, color: '#8E9183', fontFamily: "'early-sans-variable', sans-serif", fontWeight: 700 }}>· espace client</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginLeft: 6 }}>
+          <span style={{ width: 22, height: 22, borderRadius: 6, background: '#0C2A1D', display: 'grid', placeItems: 'center', flexShrink: 0 }}>
+            <svg width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="M2 2h5v5H2zM9 2h5v5H9zM2 9h5v5H2zM9 9h5v5H9z" fill="#2FD79B"/></svg>
+          </span>
+          <span style={{ fontFamily: "'early-sans-variable', sans-serif", fontWeight: 800, fontSize: 13, color: '#0D0F0A' }}>Studio Lumière</span>
+          <span style={{ fontSize: 11.5, color: '#8E9183', fontFamily: "'early-sans-variable', sans-serif", fontWeight: 600 }}>· espace client</span>
         </div>
-        <span style={{ marginLeft: 'auto', fontFamily: "'early-sans-variable', sans-serif", fontWeight: 800, fontSize: 11, letterSpacing: '.1em', textTransform: 'uppercase', color: '#8E9183' }}>Démo live</span>
+        <span style={{ marginLeft: 'auto', fontFamily: "'early-sans-variable', sans-serif", fontWeight: 800, fontSize: 10, letterSpacing: '.12em', textTransform: 'uppercase', color: '#8E9183' }}>Démo interactive</span>
       </div>
 
-      {/* stepper */}
-      <div style={{ display: 'flex', gap: 6, padding: '14px 18px', background: '#FBFAF4', borderBottom: '1px solid rgba(13,15,10,.1)' }}>
-        {['Importer', 'Générer', 'Planifier'].map((t, i) => {
+      {/* Tutorial bubble */}
+      <div style={{ margin: '14px 18px 0', background: '#2FD79B', borderRadius: 12, padding: '10px 14px', display: 'flex', alignItems: 'flex-start', gap: 9 }}>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#06281C" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0, marginTop: 1 }}><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
+        <span style={{ fontFamily: "'early-sans-variable', sans-serif", fontWeight: 700, fontSize: 13, color: '#06281C', lineHeight: 1.45 }}>{DEMO_TIPS[step]}</span>
+      </div>
+
+      {/* Progress stepper */}
+      <div style={{ display: 'flex', alignItems: 'center', padding: '16px 24px 14px', gap: 0 }}>
+        {DEMO_STEP_LABELS.map((label, i) => {
           const active = i === step, done = i < step;
           return (
-            <button key={t} onClick={() => (i <= step || (i === step + 1 && canNext)) && setStep(i)}
-              style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 9, padding: '10px 12px', borderRadius: 999, fontFamily: "'early-sans-variable', sans-serif", fontWeight: 800, fontSize: 14, background: active ? '#0D0F0A' : done ? 'rgba(47,215,155,.18)' : 'transparent', color: active ? '#F1F0E8' : '#0D0F0A', boxShadow: !active && !done ? 'inset 0 0 0 1px rgba(13,15,10,.12)' : 'none', transition: 'all .2s' }}>
-              <span style={{ width: 20, height: 20, borderRadius: '50%', display: 'grid', placeItems: 'center', fontSize: 12, background: active || done ? '#2FD79B' : 'rgba(13,15,10,.1)', color: '#06281C' }}>
-                {done ? <Icon name="check" size={12} /> : i + 1}
-              </span>
-              {t}
-            </button>
+            <div key={label} style={{ display: 'flex', alignItems: 'center', flex: i < 3 ? 1 : 'none' }}>
+              <button onClick={() => done && setStep(i)} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5, background: 'none', border: 'none', cursor: done ? 'pointer' : 'default', padding: 0 }}>
+                <span style={{ width: 28, height: 28, borderRadius: '50%', display: 'grid', placeItems: 'center', background: active ? '#0D0F0A' : done ? '#2FD79B' : 'rgba(13,15,10,.1)', color: active ? '#2FD79B' : done ? '#06281C' : '#8E9183', fontFamily: "'early-sans-variable', sans-serif", fontWeight: 800, fontSize: 12, transition: 'all .2s', flexShrink: 0 }}>
+                  {done ? <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5"/></svg> : i + 1}
+                </span>
+                <span style={{ fontFamily: "'early-sans-variable', sans-serif", fontWeight: 700, fontSize: 11, color: active ? '#0D0F0A' : done ? '#2FD79B' : '#8E9183', whiteSpace: 'nowrap', transition: 'color .2s' }}>{label}</span>
+              </button>
+              {i < 3 && <div style={{ flex: 1, height: 2, background: done ? '#2FD79B' : 'rgba(13,15,10,.1)', margin: '0 6px', marginBottom: 18, transition: 'background .3s' }} />}
+            </div>
           );
         })}
       </div>
 
-      {/* body */}
-      <div style={{ padding: 24, minHeight: 360, display: 'grid', gridTemplateColumns: step === 0 ? '1fr' : '1fr 1fr', gap: 24 }}>
-        {/* step 0 */}
-        {step === 0 && (
-          <div>
-            <p style={{ fontFamily: "'early-sans-variable', sans-serif", fontWeight: 800, fontSize: 14, marginBottom: 14, color: '#565A4E' }}>Choisissez un visuel du dernier shooting</p>
-            <div className="lp-photo-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 12 }}>
-              {DEMO_PHOTOS.map((p, i) => {
-                const sel = photo === i;
-                return (
-                  <button key={i} onClick={() => setPhoto(i)} style={{ position: 'relative', borderRadius: 14, overflow: 'hidden', aspectRatio: '4/5', padding: 0, boxShadow: sel ? '0 0 0 3px #2FD79B, 0 14px 28px -16px rgba(0,0,0,.5)' : 'inset 0 0 0 1px rgba(13,15,10,.12)', transition: 'all .15s', transform: sel ? 'translateY(-3px)' : 'none' }}>
-                    <span style={{ position: 'absolute', inset: 0, background: p.g }} />
-                    {sel && <span style={{ position: 'absolute', top: 8, right: 8, width: 24, height: 24, borderRadius: '50%', background: '#2FD79B', color: '#06281C', display: 'grid', placeItems: 'center' }}><Icon name="check" size={15} /></span>}
-                    <span style={{ position: 'absolute', left: 8, bottom: 8, fontFamily: "'early-sans-variable', sans-serif", fontWeight: 700, fontSize: 10.5, color: '#fff', textShadow: '0 1px 4px rgba(0,0,0,.5)' }}>{p.n}</span>
-                  </button>
-                );
-              })}
-            </div>
-            <div style={{ marginTop: 16, border: '1.5px dashed rgba(13,15,10,.15)', borderRadius: 14, padding: 18, display: 'flex', alignItems: 'center', gap: 12, color: '#8E9183' }}>
-              <Icon name="upload" size={20} />
-              <span style={{ fontFamily: "'early-sans-variable', sans-serif", fontWeight: 700, fontSize: 14 }}>… ou déposez vos propres fichiers ici</span>
-            </div>
-          </div>
-        )}
+      {/* Slide container */}
+      <div style={{ overflow: 'hidden', position: 'relative' }}>
+        <div style={{ display: 'flex', width: '400%', transform: `translateX(-${step * 25}%)`, transition: 'transform .35s cubic-bezier(.4,0,.2,1)' }}>
 
-        {/* preview (steps 1 & 2) */}
-        {step > 0 && (
-          <div>
-            <div style={{ background: '#fff', borderRadius: 16, overflow: 'hidden', boxShadow: 'inset 0 0 0 1px rgba(13,15,10,.1)', maxWidth: 310, margin: '0 auto' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 9, padding: '10px 12px' }}>
-                <span style={{ width: 28, height: 28, borderRadius: '50%', background: '#2FD79B' }} />
-                <span style={{ fontFamily: "'early-sans-variable', sans-serif", fontWeight: 800, fontSize: 13 }}>maisonlou</span>
-                <span style={{ marginLeft: 'auto', color: '#8E9183' }}>···</span>
-              </div>
-              <div style={{ position: 'relative', aspectRatio: '4/5', background: ph.g, display: 'flex', alignItems: 'flex-end', padding: 18 }}>
-                <div className="lp-display lp-it" style={{ fontWeight: 700, fontSize: 30, lineHeight: .98, color: '#fff', textShadow: '0 2px 18px rgba(0,0,0,.35)' }}>L&apos;été se réserve maintenant</div>
-              </div>
-              <div style={{ display: 'flex', gap: 14, padding: '11px 12px 6px', color: '#0D0F0A' }}>
-                <Icon name="heart" size={20} /><Icon name="chat" size={20} /><Icon name="send" size={20} />
-              </div>
-              <div style={{ padding: '0 12px 14px', fontSize: 12.5, lineHeight: 1.5, color: '#0D0F0A', minHeight: 40, whiteSpace: 'pre-line' }}>
-                {caption ? <span><b>maisonlou</b> {caption}</span> : <span style={{ color: '#8E9183' }}>La légende s&apos;ajoutera ici.</span>}
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* step 1 — generate */}
-        {step === 1 && (
-          <div>
-            <p style={{ fontFamily: "'early-sans-variable', sans-serif", fontWeight: 800, fontSize: 14, marginBottom: 12, color: '#565A4E' }}>Voix de la marque</p>
-            <div style={{ display: 'flex', gap: 8, marginBottom: 18 }}>
-              {Object.keys(DEMO_VOICES).map(v => (
-                <button key={v} onClick={() => { setVoice(v); if (caption) generate(v); }} style={{ flex: 1, padding: 10, borderRadius: 10, fontFamily: "'early-sans-variable', sans-serif", fontWeight: 800, fontSize: 13.5, background: voice === v ? '#0D0F0A' : 'transparent', color: voice === v ? '#F1F0E8' : '#0D0F0A', boxShadow: voice === v ? 'none' : 'inset 0 0 0 1px rgba(13,15,10,.12)', transition: 'all .15s' }}>{v}</button>
+          {/* ── STEP 0: IMPORTER ── */}
+          <div style={{ width: '25%', padding: '4px 20px 20px', boxSizing: 'border-box' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 14 }}>
+              {DEMO_PHOTOS.map((p) => (
+                <div key={p.id} style={{ position: 'relative', borderRadius: 12, overflow: 'hidden', aspectRatio: '4/5', background: p.bg, boxShadow: '0 0 0 2.5px #2FD79B, 0 8px 20px -8px rgba(0,0,0,.4)' }}>
+                  <span style={{ position: 'absolute', top: 8, right: 8, width: 20, height: 20, borderRadius: '50%', background: '#2FD79B', color: '#06281C', display: 'grid', placeItems: 'center' }}>
+                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+                  </span>
+                  <span style={{ position: 'absolute', left: 8, bottom: 8, fontFamily: "'early-sans-variable', sans-serif", fontWeight: 700, fontSize: 10, color: '#fff', textShadow: '0 1px 4px rgba(0,0,0,.6)', lineHeight: 1.3 }}>{p.label}</span>
+                </div>
               ))}
             </div>
-            <button onClick={() => generate(voice)} className="lp-btn lp-btn-mint" style={{ width: '100%', justifyContent: 'center', marginBottom: 16 }}>
-              <Icon name="spark" size={18} /> {caption ? 'Régénérer' : 'Générer la description'}
+            <div style={{ display: 'flex', gap: 7, marginBottom: 16 }}>
+              {(['post','reel','story'] as const).map(t => (
+                <button key={t} onClick={() => setPostType(t)} style={{ flex: 1, padding: '8px 4px', borderRadius: 8, fontFamily: "'early-sans-variable', sans-serif", fontWeight: 800, fontSize: 12, textTransform: 'uppercase', letterSpacing: '.06em', background: postType === t ? '#0D0F0A' : 'transparent', color: postType === t ? '#2FD79B' : '#8E9183', boxShadow: postType === t ? 'none' : 'inset 0 0 0 1px rgba(13,15,10,.15)', transition: 'all .15s' }}>
+                  {t}
+                </button>
+              ))}
+            </div>
+            <button onClick={() => setStep(1)} className="lp-btn lp-btn-mint" style={{ width: '100%', justifyContent: 'center' }}>
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 3l14 9-14 9V3z"/></svg>
+              Générer les légendes
             </button>
-            <div style={{ background: '#fff', borderRadius: 12, padding: 16, minHeight: 140, boxShadow: 'inset 0 0 0 1px rgba(13,15,10,.1)' }}>
-              {caption
-                ? <p style={{ fontSize: 14.5, lineHeight: 1.6, whiteSpace: 'pre-line' }}>{caption}<span style={{ opacity: typing ? 1 : 0, color: '#2FD79B' }}>▍</span></p>
-                : <p style={{ fontSize: 14, color: '#8E9183', fontFamily: "'early-sans-variable', sans-serif", fontWeight: 600 }}>La description générée apparaîtra ici.</p>}
-            </div>
           </div>
-        )}
 
-        {/* step 2 — schedule */}
-        {step === 2 && (
-          <div>
-            <p style={{ fontFamily: "'early-sans-variable', sans-serif", fontWeight: 800, fontSize: 14, marginBottom: 12, color: '#565A4E' }}>Choisissez un créneau</p>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7,1fr)', gap: 6, marginBottom: 16 }}>
-              {DEMO_DAYS.map((d, i) => {
-                const sel = day === i, best = i === 2 || i === 4;
-                return (
-                  <button key={d} onClick={() => { setDay(i); setPublished(false); }} style={{ padding: '12px 4px', borderRadius: 10, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, background: sel ? '#2FD79B' : '#fff', color: sel ? '#06281C' : '#0D0F0A', boxShadow: sel ? 'none' : 'inset 0 0 0 1px rgba(13,15,10,.12)', transition: 'all .15s', position: 'relative' }}>
-                    <span style={{ fontFamily: "'early-sans-variable', sans-serif", fontWeight: 800, fontSize: 12 }}>{d}</span>
-                    <span className="lp-display" style={{ fontWeight: 700, fontSize: 18 }}>{8 + i}</span>
-                    {best && !sel && <span style={{ position: 'absolute', top: 5, right: 5, width: 6, height: 6, borderRadius: '50%', background: '#2FD79B' }} />}
+          {/* ── STEP 1: GÉNÉRER ── */}
+          <div style={{ width: '25%', padding: '4px 20px 20px', boxSizing: 'border-box' }}>
+            {!generated ? (
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: 280, gap: 18 }}>
+                {generating ? (
+                  <>
+                    <div style={{ width: 44, height: 44, borderRadius: '50%', border: '3px solid rgba(47,215,155,.2)', borderTopColor: '#2FD79B', animation: 'lp-spin 0.8s linear infinite' }} />
+                    <span style={{ fontFamily: "'early-sans-variable', sans-serif", fontWeight: 700, fontSize: 14, color: '#565A4E' }}>Génération en cours…</span>
+                  </>
+                ) : (
+                  <button onClick={handleGenerate} className="lp-btn lp-btn-mint" style={{ padding: '12px 28px', fontSize: 14 }}>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87L18.18 21 12 17.77 5.82 21 7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+                    Générer avec l&apos;IA
                   </button>
-                );
-              })}
-            </div>
-            {day !== null && (
-              <div style={{ fontFamily: "'early-sans-variable', sans-serif", fontWeight: 700, fontSize: 13, color: '#565A4E', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
-                <Icon name="clock" size={15} style={{ color: '#2FD79B' }} /> Suggéré : {DEMO_DAYS[day]} {8 + day} sept · 18 h 30
+                )}
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                {DEMO_PHOTOS.map((p, i) => (
+                  <div key={p.id} style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
+                    <div style={{ width: 36, height: 36, borderRadius: 8, background: p.bg, flexShrink: 0, marginTop: 2 }} />
+                    <textarea
+                      value={captions[i]}
+                      onChange={e => setCaptions(prev => { const n=[...prev]; n[i]=e.target.value; return n; })}
+                      style={{ flex: 1, fontSize: 11.5, lineHeight: 1.5, padding: '7px 10px', borderRadius: 8, border: '1px solid rgba(13,15,10,.12)', background: '#fff', resize: 'none', fontFamily: 'inherit', color: '#0D0F0A', height: 68, outline: 'none' }}
+                    />
+                  </div>
+                ))}
+                <button onClick={() => setStep(2)} className="lp-btn lp-btn-ink" style={{ width: '100%', justifyContent: 'center', marginTop: 4 }}>
+                  Éditer le visuel →
+                </button>
               </div>
             )}
-            {published
-              ? <div style={{ background: '#0C2A1D', color: '#EFEEE4', borderRadius: 12, padding: 18, display: 'flex', alignItems: 'center', gap: 12 }}>
-                  <span style={{ width: 34, height: 34, borderRadius: '50%', background: '#2FD79B', color: '#06281C', display: 'grid', placeItems: 'center' }}><Icon name="check" size={20} /></span>
-                  <div><div style={{ fontFamily: "'early-sans-variable', sans-serif", fontWeight: 800, fontSize: 15 }}>Programmé sur Instagram</div><div style={{ fontSize: 13, color: 'rgba(239,238,228,.6)' }}>Vous pouvez passer au client suivant.</div></div>
-                </div>
-              : <button onClick={() => day !== null && setPublished(true)} className="lp-btn lp-btn-mint" style={{ width: '100%', justifyContent: 'center', opacity: day === null ? .5 : 1 }}>
-                  <Icon name="instagram" size={18} /> Programmer la publication
-                </button>}
           </div>
-        )}
+
+          {/* ── STEP 2: ÉDITER ── */}
+          <div style={{ width: '25%', padding: '4px 20px 20px', boxSizing: 'border-box' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 220px', gap: 16, alignItems: 'start' }}>
+              {/* canvas preview */}
+              <div style={{ position: 'relative', borderRadius: 14, overflow: 'hidden', aspectRatio: '4/5', background: EDIT_PHOTO.bg, boxShadow: '0 8px 32px -12px rgba(0,0,0,.5)', display: 'flex', alignItems: 'flex-end', padding: 16 }}>
+                <div style={{ fontFamily: "'Archivo', sans-serif", fontWeight: 900, fontSize: fontSize * 0.55, lineHeight: 1.1, color: textColor, textShadow: '0 2px 12px rgba(0,0,0,.4)', userSelect: 'none' }}>
+                  Studio<br/>Lumière
+                </div>
+              </div>
+              {/* controls */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                <div>
+                  <div style={{ fontFamily: "'early-sans-variable', sans-serif", fontWeight: 700, fontSize: 11, color: '#8E9183', marginBottom: 7, textTransform: 'uppercase', letterSpacing: '.08em' }}>Taille texte</div>
+                  <input type="range" min={12} max={48} value={fontSize} onChange={e => setFontSize(+e.target.value)}
+                    style={{ width: '100%', accentColor: '#2FD79B' }} />
+                  <div style={{ fontFamily: "'early-sans-variable', sans-serif", fontWeight: 700, fontSize: 11, color: '#565A4E', textAlign: 'right' }}>{fontSize}px</div>
+                </div>
+                <div>
+                  <div style={{ fontFamily: "'early-sans-variable', sans-serif", fontWeight: 700, fontSize: 11, color: '#8E9183', marginBottom: 7, textTransform: 'uppercase', letterSpacing: '.08em' }}>Couleur texte</div>
+                  <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap' }}>
+                    {TEXT_COLORS.map(c => (
+                      <button key={c} onClick={() => setTextColor(c)} style={{ width: 26, height: 26, borderRadius: 6, background: c, border: textColor === c ? '2.5px solid #2FD79B' : '2px solid rgba(13,15,10,.15)', padding: 0, cursor: 'pointer', transition: 'transform .15s', transform: textColor === c ? 'scale(1.15)' : 'none' }} />
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <div style={{ fontFamily: "'early-sans-variable', sans-serif", fontWeight: 700, fontSize: 11, color: '#8E9183', marginBottom: 7, textTransform: 'uppercase', letterSpacing: '.08em' }}>Position</div>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 5 }}>
+                    {['↖','↑','↗','←','·','→','↙','↓','↘'].map(a => (
+                      <button key={a} style={{ padding: '6px 4px', borderRadius: 6, fontSize: 14, background: a === '↙' ? '#0D0F0A' : 'rgba(13,15,10,.06)', color: a === '↙' ? '#2FD79B' : '#565A4E', border: 'none', cursor: 'pointer' }}>{a}</button>
+                    ))}
+                  </div>
+                </div>
+                <button onClick={() => setStep(3)} className="lp-btn lp-btn-mint" style={{ width: '100%', justifyContent: 'center', marginTop: 2 }}>
+                  Programmer →
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* ── STEP 3: PUBLIER ── */}
+          <div style={{ width: '25%', padding: '4px 20px 20px', boxSizing: 'border-box' }}>
+            {allDone ? (
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: 280, gap: 16, textAlign: 'center', padding: '0 20px' }}>
+                <div style={{ width: 56, height: 56, borderRadius: '50%', background: '#2FD79B', display: 'grid', placeItems: 'center' }}>
+                  <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#06281C" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+                </div>
+                <div>
+                  <div style={{ fontFamily: "'early-sans-variable', sans-serif", fontWeight: 900, fontSize: 15, color: '#0D0F0A', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '.06em' }}>Tout est programmé.</div>
+                  <div style={{ fontSize: 13, color: '#565A4E', lineHeight: 1.5 }}>4 contenus publiés automatiquement.<br/>Vous venez de gagner 2 heures.</div>
+                </div>
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                {DEMO_PHOTOS.map((p, i) => (
+                  <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: 10, background: '#fff', borderRadius: 12, padding: '10px 12px', boxShadow: published[i] ? '0 0 0 1.5px #2FD79B' : 'inset 0 0 0 1px rgba(13,15,10,.1)', transition: 'box-shadow .2s' }}>
+                    <div style={{ width: 30, height: 30, borderRadius: 7, background: p.bg, flexShrink: 0 }} />
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontFamily: "'early-sans-variable', sans-serif", fontWeight: 700, fontSize: 11, color: '#565A4E', marginBottom: 4 }}>{p.label}</div>
+                      <input type="datetime-local" defaultValue={`2025-06-${16+i}T18:30`}
+                        style={{ fontSize: 10.5, border: '1px solid rgba(13,15,10,.1)', borderRadius: 5, padding: '2px 5px', color: '#0D0F0A', background: '#F4F3EC', fontFamily: 'inherit', outline: 'none', width: '100%' }} />
+                    </div>
+                    <div style={{ display: 'flex', gap: 5, flexShrink: 0 }}>
+                      <span style={{ width: 18, height: 18, borderRadius: 4, background: 'rgba(47,215,155,.15)', display: 'grid', placeItems: 'center' }}>
+                        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#21B381" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.3" cy="6.7" r="1" fill="#21B381" stroke="none"/></svg>
+                      </span>
+                      <span style={{ width: 18, height: 18, borderRadius: 4, background: 'rgba(79,142,247,.12)', display: 'grid', placeItems: 'center' }}>
+                        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#4F8EF7" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"/></svg>
+                      </span>
+                    </div>
+                    {published[i] && (
+                      <span style={{ width: 20, height: 20, borderRadius: '50%', background: '#2FD79B', display: 'grid', placeItems: 'center', flexShrink: 0 }}>
+                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#06281C" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+                      </span>
+                    )}
+                  </div>
+                ))}
+                <button onClick={handlePublishAll} disabled={publishing} className="lp-btn lp-btn-mint" style={{ width: '100%', justifyContent: 'center', marginTop: 4, opacity: publishing ? .7 : 1 }}>
+                  {publishing ? 'Publication…' : 'Tout publier →'}
+                </button>
+              </div>
+            )}
+          </div>
+
+        </div>
       </div>
 
-      {/* footer nav */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 18px', borderTop: '1px solid rgba(13,15,10,.1)', background: '#fff' }}>
-        <button onClick={reset} style={{ fontFamily: "'early-sans-variable', sans-serif", fontWeight: 700, fontSize: 13.5, color: '#8E9183', display: 'inline-flex', alignItems: 'center', gap: 7 }}>↺ Recommencer</button>
-        {step < 2
-          ? <button onClick={() => canNext && setStep(step + 1)} className="lp-btn lp-btn-ink lp-btn-sm" style={{ opacity: canNext ? 1 : .4, pointerEvents: canNext ? 'auto' : 'none' }}>Suivant <Icon name="arrow" size={16} /></button>
-          : <span style={{ fontFamily: "'early-sans-variable', sans-serif", fontWeight: 800, fontSize: 13, color: '#8E9183' }}>{published ? 'Et voilà.' : 'Dernière étape'}</span>}
+      {/* Footer nav */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 20px', borderTop: '1px solid rgba(13,15,10,.09)', background: '#fff' }}>
+        <button onClick={reset} style={{ fontFamily: "'early-sans-variable', sans-serif", fontWeight: 700, fontSize: 13, color: '#8E9183', background: 'none', border: 'none', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6 }}>↺ Recommencer</button>
+        {step < 3
+          ? <button onClick={() => setStep(s => s + 1)} className="lp-btn lp-btn-ink lp-btn-sm">
+              Suivant <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+            </button>
+          : <span style={{ fontFamily: "'early-sans-variable', sans-serif", fontWeight: 800, fontSize: 12, color: allDone ? '#2FD79B' : '#8E9183' }}>{allDone ? '✓ Terminé' : 'Planifiez vos publications'}</span>}
       </div>
     </div>
   );
@@ -769,20 +848,51 @@ function Testimonials() {
 }
 
 /* ─── Pricing ────────────────────────────────────────────────────────────── */
+function PricingTip({ tip, accent }: { tip: string; accent?: boolean }) {
+  const [show, setShow] = useState(false);
+  return (
+    <span style={{ position: 'relative', display: 'inline-flex', marginLeft: 5, verticalAlign: 'middle' }}
+      onMouseEnter={() => setShow(true)} onMouseLeave={() => setShow(false)}>
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke={accent ? 'rgba(239,238,228,.5)' : '#8E9183'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ cursor: 'default', flexShrink: 0 }}><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
+      {show && (
+        <span style={{ position: 'absolute', bottom: '100%', left: '50%', transform: 'translateX(-50%)', marginBottom: 8, background: '#0C2A1D', color: '#EFEEE4', borderRadius: 8, padding: '10px 14px', fontSize: 12, fontFamily: "'early-sans-variable', sans-serif", fontWeight: 600, lineHeight: 1.5, whiteSpace: 'nowrap', maxWidth: 240, zIndex: 10, pointerEvents: 'none', boxShadow: '0 8px 24px rgba(0,0,0,.2)', animation: 'lp-fadein .15s ease' }}>
+          {tip}
+          <span style={{ position: 'absolute', bottom: -5, left: '50%', transform: 'translateX(-50%)', width: 10, height: 10, background: '#0C2A1D', clipPath: 'polygon(0 0,100% 0,50% 100%)' }} />
+        </span>
+      )}
+    </span>
+  );
+}
+
 function Pricing() {
   const [annual, setAnnual] = useState(true);
+
+  const FEAT_TIPS: Record<string, string> = {
+    '+15€ / client supplémentaire / mois': 'Au-delà des 10 clients inclus, chaque client additionnel est facturé 15€/mois.',
+    '+10€ / membre supplémentaire / mois': 'Au-delà des 5 membres inclus, chaque membre additionnel est facturé 10€/mois.',
+  };
+
   const plans = [
     {
-      name: 'Studio', m: 29, y: 25, tag: '7 jours gratuits', accent: false,
+      name: 'Studio', m: 29, y: 25, tag: '7 jours gratuits', accent: false, custom: false,
       sub: 'Freelances & community managers',
       feats: ['3 comptes clients', '1 profil utilisateur', 'Posts illimités', 'Éditeur visuel intégré', 'Génération IA illimitée', 'Publication automatique Instagram & Facebook'],
+      cta: { label: "Commencer l'essai gratuit", href: '/register', cls: 'lp-btn-mint' },
     },
     {
-      name: 'Agence', m: 96, y: 89, tag: 'Le plus populaire', accent: true,
+      name: 'Agence', m: 96, y: 89, tag: 'Le plus populaire', accent: true, custom: false,
       sub: 'Agences & studios de communication',
       feats: ['10 comptes clients inclus', '+15€ / client supplémentaire / mois', '5 profils membres inclus', '+10€ / membre supplémentaire / mois', 'Posts illimités', 'Éditeur visuel intégré', 'Génération IA illimitée', 'Publication automatique Instagram & Facebook', 'Workflow de validation intégré', 'Rôles Manager & Créa'],
+      cta: { label: "Commencer l'essai gratuit", href: '/register', cls: 'lp-btn-acid' },
+    },
+    {
+      name: 'Sur mesure', m: null, y: null, tag: 'Sur devis', accent: false, custom: true,
+      sub: 'Grands comptes & franchises',
+      feats: ['Clients illimités', 'Membres illimités', 'Onboarding dédié', 'SLA & support prioritaire', 'Facturation personnalisée'],
+      cta: { label: 'Nous contacter', href: 'mailto:contact@klip.fr?subject=Klip%20%E2%80%94%20Demande%20de%20devis%20sur%20mesure', cls: 'lp-btn-ghost' },
     },
   ];
+
   return (
     <section id="tarifs" className="lp-section">
       <div className="lp-wrap">
@@ -802,42 +912,45 @@ function Pricing() {
           </div>
         </div>
         {/* cards */}
-        <div className="lp-2col" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, maxWidth: 760, margin: '46px auto 0' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 20, maxWidth: 1060, margin: '46px auto 0' }}>
           {plans.map((p, i) => (
-            <div key={p.name} className={`lp-reveal d${i + 1}`} style={{ borderRadius: 22, padding: 34, position: 'relative', overflow: 'hidden', background: p.accent ? '#0C2A1D' : '#FBFAF4', color: p.accent ? '#EFEEE4' : '#0D0F0A', boxShadow: p.accent ? '0 30px 60px -40px rgba(12,42,29,.9)' : 'inset 0 0 0 1px rgba(13,15,10,.1)' }}>
+            <div key={p.name} className={`lp-reveal d${i + 1}`} style={{ borderRadius: 22, padding: 32, position: 'relative', overflow: 'visible', background: p.custom ? '#0C2A1D' : p.accent ? '#0C2A1D' : '#FBFAF4', color: p.custom ? '#EFEEE4' : p.accent ? '#EFEEE4' : '#0D0F0A', boxShadow: p.accent ? '0 30px 60px -40px rgba(12,42,29,.9)' : p.custom ? 'none' : 'inset 0 0 0 1px rgba(13,15,10,.1)', outline: p.custom ? '1.5px solid #2FD79B' : 'none' }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 <span style={{ fontFamily: "'early-sans-variable', sans-serif", fontWeight: 900, fontSize: 16 }}>{p.name}</span>
-                <span style={{ fontFamily: "'early-sans-variable', sans-serif", fontWeight: 800, fontSize: 11, letterSpacing: '.08em', textTransform: 'uppercase', padding: '5px 11px', borderRadius: 999, background: p.accent ? '#2FD79B' : '#0D0F0A', color: p.accent ? '#06281C' : '#F1F0E8' }}>{p.tag}</span>
+                <span style={{ fontFamily: "'early-sans-variable', sans-serif", fontWeight: 800, fontSize: 11, letterSpacing: '.08em', textTransform: 'uppercase', padding: '5px 11px', borderRadius: 999, background: p.custom ? '#2FD79B' : p.accent ? '#2FD79B' : '#0D0F0A', color: p.custom ? '#06281C' : p.accent ? '#06281C' : '#F1F0E8' }}>{p.tag}</span>
               </div>
-              <p style={{ marginTop: 10, fontSize: 12.5, color: p.accent ? 'rgba(239,238,228,.5)' : '#8E9183', fontFamily: "'early-sans-variable', sans-serif", fontWeight: 600 }}>{p.sub}</p>
+              <p style={{ marginTop: 10, fontSize: 12, color: p.accent || p.custom ? 'rgba(239,238,228,.5)' : '#8E9183', fontFamily: "'early-sans-variable', sans-serif", fontWeight: 600 }}>{p.sub}</p>
               <div style={{ display: 'flex', alignItems: 'flex-end', gap: 4, margin: '18px 0 6px' }}>
-                <span className="lp-display" style={{ fontWeight: 700, fontSize: 64, lineHeight: .9, letterSpacing: '-0.03em' }}>{annual ? p.y : p.m}€</span>
-                <span style={{ fontSize: 15, color: p.accent ? 'rgba(239,238,228,.6)' : '#8E9183', marginBottom: 10, fontFamily: "'early-sans-variable', sans-serif", fontWeight: 700, whiteSpace: 'nowrap' }}>/ mois</span>
+                {p.m !== null
+                  ? <>
+                      <span className="lp-display" style={{ fontWeight: 700, fontSize: 58, lineHeight: .9, letterSpacing: '-0.03em' }}>{annual ? p.y : p.m}€</span>
+                      <span style={{ fontSize: 14, color: p.accent ? 'rgba(239,238,228,.6)' : '#8E9183', marginBottom: 8, fontFamily: "'early-sans-variable', sans-serif", fontWeight: 700, whiteSpace: 'nowrap' }}>/ mois</span>
+                    </>
+                  : <span className="lp-display" style={{ fontWeight: 700, fontSize: 38, lineHeight: 1.1, letterSpacing: '-0.02em', color: '#2FD79B' }}>Sur devis</span>}
               </div>
-              <p style={{ fontSize: 13, color: p.accent ? 'rgba(239,238,228,.6)' : '#8E9183', fontFamily: "'early-sans-variable', sans-serif", fontWeight: 600, minHeight: 18 }}>
-                {annual ? `Facturé ${p.y * 12}\u20ac par an` : 'Facturé chaque mois'}
+              <p style={{ fontSize: 12.5, color: p.accent || p.custom ? 'rgba(239,238,228,.55)' : '#8E9183', fontFamily: "'early-sans-variable', sans-serif", fontWeight: 600, minHeight: 18 }}>
+                {p.m !== null ? (annual ? `Facturé ${(p.y ?? 0) * 12}\u20ac par an` : 'Facturé chaque mois') : 'Adapté à vos besoins'}
               </p>
-              <div style={{ height: 1, background: p.accent ? 'rgba(239,238,228,.22)' : 'rgba(13,15,10,.1)', margin: '22px 0' }} />
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 28 }}>
+              <div style={{ height: 1, background: p.accent || p.custom ? 'rgba(239,238,228,.18)' : 'rgba(13,15,10,.1)', margin: '20px 0' }} />
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 11, marginBottom: 26 }}>
                 {p.feats.map(f => (
-                  <div key={f} style={{ display: 'flex', alignItems: 'center', gap: 11, fontSize: 14.5 }}>
-                    <span style={{ width: 20, height: 20, borderRadius: '50%', flexShrink: 0, display: 'grid', placeItems: 'center', background: '#2FD79B', color: '#06281C' }}><Icon name="check" size={13} /></span>
-                    {f}
+                  <div key={f} style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 13.5 }}>
+                    <span style={{ width: 18, height: 18, borderRadius: '50%', flexShrink: 0, display: 'grid', placeItems: 'center', background: '#2FD79B', color: '#06281C' }}><Icon name="check" size={11} /></span>
+                    <span style={{ display: 'inline-flex', alignItems: 'center' }}>
+                      {f}
+                      {FEAT_TIPS[f] && <PricingTip tip={FEAT_TIPS[f]} accent={p.accent || p.custom} />}
+                    </span>
                   </div>
                 ))}
               </div>
-              <Link href="/register" className={`lp-btn ${p.accent ? 'lp-btn-acid' : 'lp-btn-mint'}`} style={{ width: '100%', justifyContent: 'center' }}>
-                Commencer l&apos;essai gratuit <Icon name="arrowUR" size={17} />
-              </Link>
+              <a href={p.cta.href} className={`lp-btn ${p.cta.cls}`} style={{ width: '100%', justifyContent: 'center', textDecoration: 'none' }}>
+                {p.cta.label} {p.m !== null && <Icon name="arrowUR" size={16} />}
+              </a>
             </div>
           ))}
         </div>
         <p className="lp-reveal" style={{ textAlign: 'center', marginTop: 24, color: '#8E9183', fontFamily: "'early-sans-variable', sans-serif", fontWeight: 700, fontSize: 13.5 }}>
           7 jours gratuits · sans carte bancaire · résiliable en un clic
-        </p>
-        <p className="lp-reveal" style={{ textAlign: 'center', marginTop: 10, color: '#8E9183', fontFamily: "'early-sans-variable', sans-serif", fontWeight: 700, fontSize: 13.5 }}>
-          Vous avez plus de 20 clients ou une grande équipe ? Parlons-en. →{' '}
-          <a href="mailto:contact@klip.fr" style={{ color: '#2FD79B', textDecoration: 'underline', textUnderlineOffset: 2 }}>contact@klip.fr</a>
         </p>
       </div>
     </section>
