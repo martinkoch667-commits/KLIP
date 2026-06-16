@@ -544,6 +544,8 @@ function KlipDemo() {
   const [published, setPublished]   = useState<boolean[]>([false,false,false,false]);
   const [publishing, setPublishing] = useState(false);
   const [allDone, setAllDone]       = useState(false);
+  const [editorTool, setEditorTool] = useState<string|null>('text');
+  const [fontFamily, setFontFamily] = useState('Anton');
   const genRef = useRef<ReturnType<typeof setTimeout>|null>(null);
 
   const reset = () => {
@@ -552,6 +554,7 @@ function KlipDemo() {
     setCaptions(DEMO_CAPTIONS.map(c => c)); setFontSize(32); setTextColor('#FFFFFF');
     setTextPos('bottom'); setShadow(false);
     setPublished([false,false,false,false]); setPublishing(false); setAllDone(false);
+    setEditorTool('text'); setFontFamily('Anton');
     if (genRef.current) clearTimeout(genRef.current);
   };
   useEffect(() => () => { if (genRef.current) clearTimeout(genRef.current); }, []);
@@ -700,71 +703,244 @@ function KlipDemo() {
               </div>
 
               {/* ── STEP 2: ÉDITER ── */}
-              <div style={{ width: '25%', boxSizing: 'border-box', display: 'flex', height: '100%' }}>
-                {/* Layers */}
-                <div style={{ width: 108, background: '#fff', borderRight: '1px solid rgba(13,15,10,.08)', padding: '12px 10px', flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 14 }}>
-                  <div>
-                    <div style={{ fontFamily: "'early-sans-variable', sans-serif", fontWeight: 800, fontSize: 9, textTransform: 'uppercase', letterSpacing: '.1em', color: '#8E9183', marginBottom: 7 }}>Calques</div>
-                    {['Texte','Fond'].map(l => (
-                      <div key={l} style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '4px 5px', borderRadius: 5, background: l === 'Texte' ? 'rgba(47,215,155,.12)' : 'transparent', marginBottom: 2 }}>
-                        <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke={l==='Texte'?'#2FD79B':'#8E9183'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m9 18 6-6-6-6"/></svg>
-                        <span style={{ fontFamily: "'early-sans-variable', sans-serif", fontWeight: 700, fontSize: 10.5, color: l==='Texte'?'#0D0F0A':'#8E9183' }}>{l}</span>
+              <div style={{ width: '25%', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', height: '100%' }}>
+
+                {/* ── Editor topbar ── */}
+                <div style={{ height: 38, background: '#fff', borderBottom: '1px solid rgba(13,15,10,.08)', display: 'flex', alignItems: 'center', padding: '0 7px', gap: 5, flexShrink: 0, overflow: 'hidden' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0 }}>
+                    <button style={{ display: 'flex', alignItems: 'center', gap: 3, padding: '2px 6px', borderRadius: 5, background: 'rgba(13,15,10,.06)', border: 'none', cursor: 'default', fontFamily: "'early-sans-variable', sans-serif", fontWeight: 700, fontSize: 9, color: '#565A4E' }}>
+                      <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 6l-6 6 6 6"/></svg>
+                      Retour
+                    </button>
+                    <span style={{ width: 1, height: 14, background: 'rgba(13,15,10,.1)', flexShrink: 0 }} />
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
+                      <div style={{ width: 15, height: 15, borderRadius: 4, background: '#2FD79B', display: 'grid', placeItems: 'center', flexShrink: 0 }}>
+                        <span style={{ fontFamily: "'early-sans-variable', sans-serif", fontWeight: 900, fontSize: 6, color: '#06281C' }}>SL</span>
                       </div>
+                      <span style={{ fontFamily: "'early-sans-variable', sans-serif", fontWeight: 700, fontSize: 9, color: '#0D0F0A', whiteSpace: 'nowrap' }}>Studio Lumière</span>
+                      <span style={{ fontSize: 8, padding: '1px 4px', borderRadius: 4, background: 'rgba(13,15,10,.07)', color: '#565A4E', fontFamily: "'early-sans-variable', sans-serif", fontWeight: 700, whiteSpace: 'nowrap' }}>Carré</span>
+                    </div>
+                    <span style={{ width: 1, height: 14, background: 'rgba(13,15,10,.1)', flexShrink: 0 }} />
+                    {[
+                      <svg key="u" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 7L4 12l5 5M4 12h11a5 5 0 0 1 0 10h-1"/></svg>,
+                      <svg key="r" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 7l5 5-5 5M20 12H9a5 5 0 0 0 0 10h1"/></svg>,
+                    ].map((icon, i) => (
+                      <button key={i} style={{ width: 20, height: 20, borderRadius: 4, border: 'none', background: 'transparent', display: 'grid', placeItems: 'center', color: 'rgba(13,15,10,.25)', cursor: 'default' }}>{icon}</button>
                     ))}
                   </div>
-                  <div>
-                    <div style={{ fontFamily: "'early-sans-variable', sans-serif", fontWeight: 800, fontSize: 9, textTransform: 'uppercase', letterSpacing: '.1em', color: '#8E9183', marginBottom: 7 }}>Effets</div>
-                    {([['Ombre', shadow, () => setShadow(s => !s)], ['Lueur', false, () => {}]] as [string, boolean, () => void][]).map(([lbl, on, toggle]) => (
-                      <div key={lbl} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 7 }}>
-                        <span style={{ fontFamily: "'early-sans-variable', sans-serif", fontWeight: 600, fontSize: 10.5, color: '#565A4E' }}>{lbl}</span>
-                        <button onClick={toggle} style={{ width: 26, height: 15, borderRadius: 8, background: on ? '#2FD79B' : 'rgba(13,15,10,.15)', border: 'none', cursor: 'pointer', position: 'relative', padding: 0, transition: 'background .15s', flexShrink: 0 }}>
-                          <span style={{ position: 'absolute', top: 2.5, left: on ? 13 : 2.5, width: 10, height: 10, borderRadius: '50%', background: '#fff', transition: 'left .15s', display: 'block' }} />
-                        </button>
-                      </div>
+                  <div style={{ flex: 1, display: 'flex', justifyContent: 'center', minWidth: 0, overflow: 'hidden' }}>
+                    <span style={{ fontFamily: "'early-sans-variable', sans-serif", fontWeight: 700, fontSize: 9, color: '#8E9183', whiteSpace: 'nowrap' }}>Texte « Notre savoir-faire » sélectionné</span>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 3, flexShrink: 0 }}>
+                    <div style={{ display: 'flex', gap: 1, padding: 2, background: 'rgba(13,15,10,.07)', borderRadius: 5, border: '1px solid rgba(13,15,10,.08)' }}>
+                      {['Post','Reel','Story'].map(t => (
+                        <button key={t} style={{ padding: '2px 5px', borderRadius: 3, border: 'none', cursor: 'default', fontFamily: "'early-sans-variable', sans-serif", fontWeight: 700, fontSize: 8, background: t==='Post'?'#fff':'transparent', color: t==='Post'?'#0D0F0A':'#8E9183', boxShadow: t==='Post'?'0 1px 2px rgba(13,15,10,.1)':'none' }}>{t}</button>
+                      ))}
+                    </div>
+                    <button style={{ padding: '2px 6px', borderRadius: 4, border: '1px solid rgba(13,15,10,.14)', background: 'transparent', fontFamily: "'early-sans-variable', sans-serif", fontWeight: 700, fontSize: 8.5, color: '#565A4E', cursor: 'default' }}>Aperçu</button>
+                    <button onClick={() => setStep(3)} style={{ padding: '2px 7px', borderRadius: 4, border: 'none', background: '#2FD79B', fontFamily: "'early-sans-variable', sans-serif", fontWeight: 700, fontSize: 8.5, color: '#06281C', cursor: 'pointer' }}>Partager</button>
+                  </div>
+                </div>
+
+                {/* ── Editor body ── */}
+                <div style={{ flex: 1, display: 'flex', minHeight: 0 }}>
+
+                  {/* Tool rail */}
+                  <div style={{ width: 44, background: '#fff', borderRight: '1px solid rgba(13,15,10,.08)', display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '6px 0', gap: 1, flexShrink: 0 }}>
+                    {([
+                      ['design',   'Modèles',  <><rect key="a" x="3" y="3" width="7" height="9" rx="1.5"/><rect key="b" x="14" y="3" width="7" height="5" rx="1.5"/><rect key="c" x="14" y="12" width="7" height="9" rx="1.5"/><rect key="d" x="3" y="16" width="7" height="5" rx="1.5"/></>],
+                      ['elements', 'Éléments', <><rect key="a" x="3" y="3" width="8" height="8" rx="1.5"/><circle key="b" cx="17" cy="7" r="4"/><polygon key="c" points="12 22 3 15.5 21 15.5 12 22"/></>],
+                      ['text',     'Texte',    <><polyline key="a" points="4 7 4 4 20 4 20 7"/><line key="b" x1="9" y1="20" x2="15" y2="20"/><line key="c" x1="12" y1="4" x2="12" y2="20"/></>],
+                      ['photos',   'Photos',   <><rect key="a" x="3" y="3" width="18" height="18" rx="2"/><circle key="b" cx="8.5" cy="8.5" r="1.5"/><polyline key="c" points="21 15 16 10 5 21"/></>],
+                      ['brand',    'Charte',   <><circle key="a" cx="12" cy="12" r="4"/><circle key="b" cx="12" cy="4" r="1.5"/><circle key="c" cx="19.5" cy="16" r="1.5"/><circle key="d" cx="4.5" cy="16" r="1.5"/></>],
+                      ['upload',   'Importer', <><path key="a" d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline key="b" points="17 8 12 3 7 8"/><line key="c" x1="12" y1="3" x2="12" y2="15"/></>],
+                      ['calques',  'Calques',  <><path key="a" d="M12 2L2 7l10 5 10-5-10-5z"/><path key="b" d="M2 17l10 5 10-5"/><path key="c" d="M2 12l10 5 10-5"/></>],
+                    ] as [string, string, React.ReactNode][]).map(([id, label, paths]) => (
+                      <button key={id} onClick={() => setEditorTool(editorTool === id ? null : id)} title={label}
+                        style={{ width: 36, height: 36, borderRadius: 8, border: 'none', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 2, cursor: 'pointer', transition: 'all .12s',
+                          background: editorTool===id ? 'rgba(47,215,155,.15)' : 'transparent',
+                          color: editorTool===id ? '#2FD79B' : 'rgba(13,15,10,.4)' }}>
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">{paths}</svg>
+                        <span style={{ fontFamily: "'early-sans-variable', sans-serif", fontWeight: 800, fontSize: 5.5, letterSpacing: '.05em', textTransform: 'uppercase', lineHeight: 1 }}>{label}</span>
+                      </button>
                     ))}
                   </div>
-                </div>
-                {/* Canvas */}
-                <div style={{ flex: 1, background: '#E4E3DB', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 10, gap: 6, overflow: 'hidden' }}>
-                  <div style={{ flex: 1, width: '100%', borderRadius: 10, background: DEMO_MEDIAS[0].bgColor, boxShadow: '0 8px 24px rgba(0,0,0,.3)', display: 'flex', flexDirection: 'column', justifyContent: alignMap[textPos], padding: 14, overflow: 'hidden' }}>
-                    <div style={{ fontFamily: "'Archivo', sans-serif", fontWeight: 900, fontSize: fontSize * 0.42, lineHeight: 1.1, color: textColor, textShadow: shadow ? '0 2px 12px rgba(0,0,0,.6)' : 'none', userSelect: 'none' }}>
-                      Notre<br/>savoir-faire
-                    </div>
-                  </div>
-                  <span style={{ fontFamily: "'early-sans-variable', sans-serif", fontWeight: 600, fontSize: 9, color: '#8E9183', letterSpacing: '.06em', flexShrink: 0 }}>1080 × 1080 px</span>
-                </div>
-                {/* Controls */}
-                <div style={{ width: 138, background: '#fff', borderLeft: '1px solid rgba(13,15,10,.08)', padding: '12px 10px', flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 12 }}>
-                  <div>
-                    <div style={{ fontFamily: "'early-sans-variable', sans-serif", fontWeight: 700, fontSize: 9, textTransform: 'uppercase', letterSpacing: '.1em', color: '#8E9183', marginBottom: 5 }}>Police</div>
-                    <div style={{ padding: '4px 7px', borderRadius: 5, border: '1px solid rgba(13,15,10,.12)', fontFamily: "'early-sans-variable', sans-serif", fontSize: 11, color: '#565A4E' }}>Archivo</div>
-                  </div>
-                  <div>
-                    <div style={{ fontFamily: "'early-sans-variable', sans-serif", fontWeight: 700, fontSize: 9, textTransform: 'uppercase', letterSpacing: '.1em', color: '#8E9183', marginBottom: 5 }}>Taille</div>
-                    <input type="range" min={16} max={56} value={fontSize} onChange={e => setFontSize(+e.target.value)} style={{ width: '100%', accentColor: '#2FD79B' }} />
-                    <div style={{ fontFamily: "'early-sans-variable', sans-serif", fontWeight: 700, fontSize: 10, color: '#565A4E', textAlign: 'right' }}>{fontSize}px</div>
-                  </div>
-                  <div>
-                    <div style={{ fontFamily: "'early-sans-variable', sans-serif", fontWeight: 700, fontSize: 9, textTransform: 'uppercase', letterSpacing: '.1em', color: '#8E9183', marginBottom: 5 }}>Couleur</div>
-                    <div style={{ display: 'flex', gap: 5 }}>
-                      {SWATCHES.map(c => (
-                        <button key={c} onClick={() => setTextColor(c)} style={{ width: 22, height: 22, borderRadius: 5, background: c, border: textColor===c ? '2px solid #2FD79B' : '1.5px solid rgba(13,15,10,.15)', padding: 0, cursor: 'pointer', flexShrink: 0 }} />
-                      ))}
-                    </div>
-                  </div>
-                  <div>
-                    <div style={{ fontFamily: "'early-sans-variable', sans-serif", fontWeight: 700, fontSize: 9, textTransform: 'uppercase', letterSpacing: '.1em', color: '#8E9183', marginBottom: 5 }}>Position</div>
-                    <div style={{ display: 'flex', gap: 4 }}>
-                      {(['top','center','bottom'] as const).map(p => (
-                        <button key={p} onClick={() => setTextPos(p)} style={{ flex: 1, padding: '5px 2px', borderRadius: 5, background: textPos===p ? '#0D0F0A' : 'rgba(13,15,10,.07)', border: 'none', cursor: 'pointer', fontFamily: "'early-sans-variable', sans-serif", fontWeight: 800, fontSize: 10, color: textPos===p ? '#2FD79B' : '#8E9183' }}>
-                          {p==='top'?'H':p==='center'?'C':'B'}
+
+                  {/* Flyout panel */}
+                  {editorTool && (
+                    <div style={{ width: 148, background: '#fff', borderRight: '1px solid rgba(13,15,10,.08)', overflowY: 'auto', flexShrink: 0, padding: '9px 9px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 9 }}>
+                        <span style={{ fontFamily: "'early-sans-variable', sans-serif", fontWeight: 800, fontSize: 10.5, color: '#0D0F0A' }}>
+                          {editorTool==='text'?'Texte':editorTool==='calques'?'Calques':editorTool==='design'?'Modèles':editorTool==='elements'?'Éléments':editorTool==='photos'?'Photos':editorTool==='brand'?'Charte':'Importer'}
+                        </span>
+                        <button onClick={() => setEditorTool(null)} style={{ width: 18, height: 18, borderRadius: 4, border: 'none', background: 'rgba(13,15,10,.07)', display: 'grid', placeItems: 'center', cursor: 'pointer', color: '#565A4E' }}>
+                          <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
                         </button>
-                      ))}
+                      </div>
+
+                      {/* Texte */}
+                      {editorTool === 'text' && <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
+                        <div>
+                          <div style={{ fontFamily: "'early-sans-variable', sans-serif", fontWeight: 800, fontSize: 7.5, textTransform: 'uppercase', letterSpacing: '.1em', color: '#8E9183', marginBottom: 3 }}>Police</div>
+                          <select value={fontFamily} onChange={e => setFontFamily(e.target.value)} style={{ width: '100%', fontSize: 10, padding: '3px 5px', borderRadius: 5, border: '1px solid rgba(13,15,10,.12)', background: '#FAFAF4', color: '#0D0F0A', fontFamily: 'inherit', cursor: 'pointer', outline: 'none' }}>
+                            {['Anton','Oswald','Bebas Neue','Montserrat','Syne','Inter','Poppins','Raleway','Roboto Condensed','Playfair Display','Archivo Black'].map(f => <option key={f} value={f}>{f}</option>)}
+                          </select>
+                        </div>
+                        <div>
+                          <div style={{ fontFamily: "'early-sans-variable', sans-serif", fontWeight: 800, fontSize: 7.5, textTransform: 'uppercase', letterSpacing: '.1em', color: '#8E9183', marginBottom: 3 }}>Style</div>
+                          <div style={{ display: 'flex', gap: 3 }}>
+                            {(['B','I','U'] as const).map((lbl, i) => (
+                              <button key={lbl} style={{ flex: 1, height: 22, borderRadius: 5, border: `1.5px solid ${i===0?'#2FD79B':'rgba(13,15,10,.12)'}`, background: i===0?'rgba(47,215,155,.12)':'transparent', fontFamily: lbl==='B'?"'Archivo',sans-serif":'inherit', fontWeight: lbl==='B'?900:400, fontStyle: lbl==='I'?'italic':'normal', textDecoration: lbl==='U'?'underline':'none', fontSize: 11, color: i===0?'#0D0F0A':'#8E9183', cursor: 'default' }}>{lbl}</button>
+                            ))}
+                          </div>
+                        </div>
+                        <div>
+                          <div style={{ fontFamily: "'early-sans-variable', sans-serif", fontWeight: 800, fontSize: 7.5, textTransform: 'uppercase', letterSpacing: '.1em', color: '#8E9183', marginBottom: 2 }}>Taille — {fontSize}px</div>
+                          <input type="range" min={16} max={56} value={fontSize} onChange={e => setFontSize(+e.target.value)} style={{ width: '100%', accentColor: '#2FD79B', height: 3 }} />
+                        </div>
+                        <div>
+                          <div style={{ fontFamily: "'early-sans-variable', sans-serif", fontWeight: 800, fontSize: 7.5, textTransform: 'uppercase', letterSpacing: '.1em', color: '#8E9183', marginBottom: 3 }}>Couleur</div>
+                          <div style={{ display: 'flex', gap: 3, flexWrap: 'wrap' }}>
+                            {['#FFFFFF','#0D0F0A','#2FD79B','#E63946','#FFB703','#457B9D'].map(c => (
+                              <button key={c} onClick={() => setTextColor(c)} style={{ width: 19, height: 19, borderRadius: 4, background: c, border: textColor===c?'2px solid #2FD79B':'1.5px solid rgba(13,15,10,.15)', padding: 0, cursor: 'pointer', flexShrink: 0 }} />
+                            ))}
+                          </div>
+                        </div>
+                        <div>
+                          <div style={{ fontFamily: "'early-sans-variable', sans-serif", fontWeight: 800, fontSize: 7.5, textTransform: 'uppercase', letterSpacing: '.1em', color: '#8E9183', marginBottom: 3 }}>Alignement</div>
+                          <div style={{ display: 'flex', gap: 3 }}>
+                            {([
+                              <svg key="l" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M21 6H3M15 12H3M17 18H3"/></svg>,
+                              <svg key="c" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M21 6H3M17 12H7M19 18H5"/></svg>,
+                              <svg key="r" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M21 6H3M21 12H9M21 18H7"/></svg>,
+                            ] as React.ReactNode[]).map((icon, i) => (
+                              <button key={i} style={{ flex: 1, height: 22, borderRadius: 5, background: i===0?'rgba(13,15,10,.12)':'rgba(13,15,10,.05)', border: 'none', cursor: 'default', display: 'grid', placeItems: 'center', color: '#565A4E' }}>{icon}</button>
+                            ))}
+                          </div>
+                        </div>
+                        <div>
+                          <div style={{ fontFamily: "'early-sans-variable', sans-serif", fontWeight: 800, fontSize: 7.5, textTransform: 'uppercase', letterSpacing: '.1em', color: '#8E9183', marginBottom: 3 }}>Position</div>
+                          <div style={{ display: 'flex', gap: 3 }}>
+                            {(['top','center','bottom'] as const).map(p => (
+                              <button key={p} onClick={() => setTextPos(p)} style={{ flex: 1, padding: '3px 1px', borderRadius: 5, background: textPos===p?'#0D0F0A':'rgba(13,15,10,.07)', border: 'none', cursor: 'pointer', fontFamily: "'early-sans-variable', sans-serif", fontWeight: 800, fontSize: 7.5, color: textPos===p?'#2FD79B':'#8E9183' }}>
+                                {p==='top'?'Haut':p==='center'?'Ctr':'Bas'}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                        <div style={{ height: 1, background: 'rgba(13,15,10,.08)' }} />
+                        <div style={{ fontFamily: "'early-sans-variable', sans-serif", fontWeight: 800, fontSize: 7.5, textTransform: 'uppercase', letterSpacing: '.1em', color: '#8E9183' }}>Effets</div>
+                        {([['Ombre', shadow, () => setShadow(s => !s)], ['Glow', false, () => {}], ['Surbrillance', false, () => {}], ['Hollow', false, () => {}]] as [string, boolean, () => void][]).map(([lbl, on, toggle]) => (
+                          <div key={lbl} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                            <span style={{ fontFamily: "'early-sans-variable', sans-serif", fontWeight: 600, fontSize: 9.5, color: '#565A4E' }}>{lbl}</span>
+                            <button onClick={toggle} style={{ width: 24, height: 14, borderRadius: 7, background: on?'#2FD79B':'rgba(13,15,10,.15)', border: 'none', cursor: 'pointer', position: 'relative', padding: 0, transition: 'background .15s', flexShrink: 0 }}>
+                              <span style={{ position: 'absolute', top: 2, left: on?11:2, width: 10, height: 10, borderRadius: '50%', background: '#fff', transition: 'left .15s', display: 'block' }} />
+                            </button>
+                          </div>
+                        ))}
+                      </div>}
+
+                      {/* Calques */}
+                      {editorTool === 'calques' && <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                        {([['Notre savoir-faire','text',true],['Image fond','image',false],['Fond','fond',false]] as [string,string,boolean][]).map(([label, type, active]) => {
+                          const icon = type==='text'
+                            ? <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><polyline points="4 7 4 4 20 4 20 7"/><line x1="9" y1="20" x2="15" y2="20"/><line x1="12" y1="4" x2="12" y2="20"/></svg>
+                            : type==='image'
+                            ? <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+                            : <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>;
+                          return (
+                            <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '5px 6px', borderRadius: 6, background: active?'rgba(47,215,155,.15)':'transparent' }}>
+                              <span style={{ color: active?'#2FD79B':'#8E9183', flexShrink: 0 }}>{icon}</span>
+                              <span style={{ fontFamily: "'early-sans-variable', sans-serif", fontWeight: active?700:600, fontSize: 10, color: active?'#0D0F0A':'#8E9183', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>{label}</span>
+                              {active && <span style={{ fontFamily: "'early-sans-variable', sans-serif", fontWeight: 700, fontSize: 7.5, color: '#2FD79B', flexShrink: 0 }}>1</span>}
+                            </div>
+                          );
+                        })}
+                      </div>}
+
+                      {/* Modèles */}
+                      {editorTool === 'design' && <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 5 }}>
+                        {['linear-gradient(150deg,#1b5e3a,#0c2a1d)','linear-gradient(150deg,#2FD79B,#21B381)','linear-gradient(150deg,#0c2a1d,#1f7a4d)','linear-gradient(135deg,#e9e7da,#cfd3b0)','linear-gradient(150deg,#103725,#2b8d57)','linear-gradient(135deg,#1a1a2e,#16213e)'].map((g, i) => (
+                          <div key={i} style={{ aspectRatio: '1', borderRadius: 7, background: g, cursor: 'pointer', border: i===0?'2px solid #2FD79B':'1.5px solid rgba(13,15,10,.1)' }} />
+                        ))}
+                      </div>}
+
+                      {/* Éléments */}
+                      {editorTool === 'elements' && <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 5 }}>
+                        {[
+                          <svg key="r" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><rect x="3" y="3" width="18" height="18" rx="2"/></svg>,
+                          <svg key="c" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><circle cx="12" cy="12" r="9"/></svg>,
+                          <svg key="t" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><polygon points="12 4 3 20 21 20 12 4"/></svg>,
+                          <svg key="s" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>,
+                          <svg key="l" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><line x1="3" y1="21" x2="21" y2="3"/></svg>,
+                          <svg key="a" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>,
+                        ].map((icon, i) => (
+                          <div key={i} style={{ aspectRatio: '1', borderRadius: 6, background: 'rgba(13,15,10,.05)', display: 'grid', placeItems: 'center', cursor: 'pointer', border: '1px solid rgba(13,15,10,.08)', color: '#565A4E' }}>{icon}</div>
+                        ))}
+                      </div>}
+
+                      {/* Photos */}
+                      {editorTool === 'photos' && <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                        <div style={{ border: '1.5px dashed rgba(13,15,10,.2)', borderRadius: 7, padding: '12px 6px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5 }}>
+                          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#8E9183" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                          <span style={{ fontFamily: "'early-sans-variable', sans-serif", fontWeight: 700, fontSize: 9, color: '#8E9183', textAlign: 'center' }}>Glissez vos photos</span>
+                        </div>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 4 }}>
+                          {DEMO_MEDIAS.map(m => <div key={m.id} style={{ aspectRatio: '1', borderRadius: 6, background: m.bgColor, cursor: 'pointer', border: '1.5px solid rgba(13,15,10,.08)' }} />)}
+                        </div>
+                      </div>}
+
+                      {/* Charte */}
+                      {editorTool === 'brand' && <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                        <div style={{ fontFamily: "'early-sans-variable', sans-serif", fontWeight: 800, fontSize: 7.5, textTransform: 'uppercase', letterSpacing: '.1em', color: '#8E9183' }}>Couleurs</div>
+                        <div style={{ display: 'flex', gap: 4 }}>
+                          {['#8B6914','#EFEEE4','#2FD79B'].map(c => (
+                            <div key={c} style={{ flex: 1 }}>
+                              <div style={{ height: 26, borderRadius: 5, background: c, border: '1px solid rgba(13,15,10,.12)' }} />
+                              <div style={{ fontFamily: "'early-sans-variable', sans-serif", fontSize: 6.5, color: '#8E9183', marginTop: 2, textAlign: 'center', textTransform: 'uppercase' }}>{c}</div>
+                            </div>
+                          ))}
+                        </div>
+                        <div style={{ fontFamily: "'early-sans-variable', sans-serif", fontWeight: 800, fontSize: 7.5, textTransform: 'uppercase', letterSpacing: '.1em', color: '#8E9183', marginTop: 2 }}>Typographie</div>
+                        {['Archivo Black','Syne'].map(f => (
+                          <div key={f} style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '5px 7px', borderRadius: 5, background: 'rgba(13,15,10,.04)', border: '1px solid rgba(13,15,10,.08)', cursor: 'pointer' }}>
+                            <span style={{ fontFamily: `"${f}",sans-serif`, fontSize: 16, color: '#0D0F0A', lineHeight: 1 }}>Aa</span>
+                            <span style={{ fontFamily: "'early-sans-variable', sans-serif", fontSize: 9.5, fontWeight: 600, color: '#565A4E' }}>{f}</span>
+                          </div>
+                        ))}
+                      </div>}
+
+                      {/* Importer */}
+                      {editorTool === 'upload' && <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
+                        <div style={{ padding: '7px 10px', borderRadius: 6, background: '#0D0F0A', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5, cursor: 'pointer' }}>
+                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#F1F0E8" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                          <span style={{ fontFamily: "'early-sans-variable', sans-serif", fontWeight: 700, fontSize: 10, color: '#F1F0E8' }}>Choisir un fichier</span>
+                        </div>
+                        <div style={{ border: '1.5px dashed rgba(13,15,10,.2)', borderRadius: 7, padding: '20px 8px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5 }}>
+                          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#8E9183" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                          <span style={{ fontFamily: "'early-sans-variable', sans-serif", fontSize: 9, fontWeight: 600, color: '#8E9183', textAlign: 'center' }}>PNG, JPG, SVG, WEBP</span>
+                        </div>
+                      </div>}
                     </div>
+                  )}
+
+                  {/* Canvas */}
+                  <div style={{ flex: 1, background: '#E4E3DB', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 10, gap: 6, overflow: 'hidden' }}>
+                    <div style={{ flex: 1, width: '100%', borderRadius: 10, background: DEMO_MEDIAS[0].bgColor, boxShadow: '0 8px 24px rgba(0,0,0,.3)', display: 'flex', flexDirection: 'column', justifyContent: alignMap[textPos], padding: 14, overflow: 'hidden', position: 'relative' }}>
+                      <div style={{ position: 'absolute', inset: 10, border: '1.5px solid #2FD79B', borderRadius: 4, pointerEvents: 'none', boxShadow: '0 0 0 1px rgba(47,215,155,.2)' }}>
+                        {['tl','tr','bl','br'].map(p => (
+                          <div key={p} style={{ position: 'absolute', width: 7, height: 7, borderRadius: 2, background: '#fff', border: '1.5px solid #2FD79B',
+                            top: p.startsWith('t')?-4:'auto', bottom: p.startsWith('b')?-4:'auto',
+                            left: p.endsWith('l')?-4:'auto', right: p.endsWith('r')?-4:'auto' }} />
+                        ))}
+                      </div>
+                      <div style={{ fontFamily: `"${fontFamily}","Archivo",sans-serif`, fontWeight: 900, fontSize: fontSize * 0.42, lineHeight: 1.1, color: textColor, textShadow: shadow?'0 2px 12px rgba(0,0,0,.6)':'none', userSelect: 'none' }}>
+                        Notre<br/>savoir-faire
+                      </div>
+                    </div>
+                    <span style={{ fontFamily: "'early-sans-variable', sans-serif", fontWeight: 600, fontSize: 9, color: '#8E9183', letterSpacing: '.06em', flexShrink: 0 }}>1080 × 1080 px</span>
                   </div>
-                  <button onClick={() => setStep(3)} style={{ width: '100%', padding: '8px', borderRadius: 8, background: '#2FD79B', color: '#06281C', fontFamily: "'early-sans-variable', sans-serif", fontWeight: 800, fontSize: 12, border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5, marginTop: 'auto' }}>
-                    Programmer <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
-                  </button>
+
                 </div>
               </div>
 
