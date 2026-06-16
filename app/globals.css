@@ -404,9 +404,9 @@ input.ed-range::-moz-range-thumb {
   .sidebar { display: none !important; }
   :root { --sb-w: 0px; }
 
-  /* Compact layout */
+  /* Compact layout — extra left padding for hamburger button (40px + 12px gap) */
   .page { padding: 20px 16px 80px !important; }
-  .topbar { padding: 0 14px !important; height: 56px !important; }
+  .topbar { padding: 0 14px 0 60px !important; height: 56px !important; }
 
   /* Touch targets */
   .btn { min-height: 44px; padding: 10px 16px; }
@@ -415,6 +415,22 @@ input.ed-range::-moz-range-thumb {
 
   /* Prevent iOS zoom on input focus */
   input, textarea, select { font-size: 16px !important; }
+
+  /* Dashboard grids — stack on mobile */
+  .dash-stats { grid-template-columns: repeat(2, 1fr) !important; }
+  .dash-grid { grid-template-columns: 1fr !important; }
+
+  /* Workspace grids */
+  .ws-upload-grid { grid-template-columns: 1fr !important; }
+  .ws-gen-grid { grid-template-columns: repeat(2, 1fr) !important; }
+  .ws-posts-grid { grid-template-columns: repeat(2, 1fr) !important; }
+
+  /* Feed kanban — stack columns vertically */
+  .feed-kanban { grid-template-columns: 1fr !important; height: auto !important; min-height: 0 !important; }
+
+  /* Calendar — horizontal scroll on mobile */
+  .cal-outer { padding: 12px 0 !important; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .cal-outer > * { min-width: 640px; }
 }
 
 /* ── Mobile nav drawer ───────────────────────────────────────────────────────── */

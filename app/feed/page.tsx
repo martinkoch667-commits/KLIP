@@ -170,7 +170,7 @@ export default function FeedPage() {
           {loading ? (
             <div style={{ textAlign:"center", padding:"60px 0", color:"var(--ink-3)" }}>Chargement…</div>
           ) : (
-            <div style={{ display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:0, height:"100%", minHeight:"calc(100vh - 64px)" }}>
+            <div className="feed-kanban" style={{ display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:0, height:"100%", minHeight:"calc(100vh - 64px)" }}>
               {COLUMNS.map((col, ci) => {
                 const colPosts = filtered.filter(p => col.statuses.includes(p.status as never));
                 return (

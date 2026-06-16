@@ -29,6 +29,13 @@ const AUTH_CSS = `
   .auth-forgot{font-size:12px;color:rgba(20,22,15,.5);text-decoration:none;display:block;text-align:right;margin-top:5px;}
   .auth-forgot:hover{color:var(--mint);}
   .auth-error{font-size:13px;color:var(--warn);background:var(--warn-soft);border:1px solid rgba(200,115,43,.2);border-radius:8px;padding:9px 12px;}
+  @media(max-width:480px){
+    .auth-wrap{padding:16px;}
+    .auth-card{padding:28px 20px;border-radius:14px;}
+    .auth-title{font-size:20px;}
+    .auth-btn,.auth-google{min-height:48px;font-size:15px;}
+    .auth-input{padding:13px 14px;}
+  }
 `;
 
 function GoogleIcon() {

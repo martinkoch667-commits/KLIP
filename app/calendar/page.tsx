@@ -152,7 +152,7 @@ export default function CalendarPage() {
         </div>
 
         <div className="scroll">
-          <div style={{ padding:"24px 28px" }}>
+          <div className="cal-outer" style={{ padding:"24px 28px" }}>
             {calView === "week" ? (
               <div style={{ display:"grid", gridTemplateColumns:`60px repeat(7, 1fr)`, border:"1px solid var(--line)", borderRadius:"var(--r-l)", overflow:"hidden", background:"var(--card)" }}>
                 {/* Header */}

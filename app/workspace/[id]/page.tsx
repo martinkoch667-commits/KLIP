@@ -753,7 +753,7 @@ export default function WorkspacePage() {
                 </div>
 
                 {/* Upload + AI generation — 50/50 */}
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 20 }}>
+                <div className="ws-upload-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 20 }}>
 
                   {/* Upload zone */}
                   <div
@@ -826,7 +826,7 @@ export default function WorkspacePage() {
                 {generatedImages.length > 0 && (
                   <div className="card" style={{ padding: 16, marginBottom: 20 }}>
                     <div className="label" style={{ marginBottom: 12 }}>Images générées</div>
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10 }}>
+                    <div className="ws-gen-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10 }}>
                       {generatedImages.map((url, i) => (
                         <div key={i} style={{ position: 'relative', aspectRatio: '4/5', borderRadius: 10, overflow: 'hidden', border: '1px solid var(--line)' }}>
                           {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -883,7 +883,7 @@ export default function WorkspacePage() {
                     Aucune photo — commence par sélectionner des images ci-dessus.
                   </div>
                 ) : (
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 16 }}>
+                  <div className="ws-posts-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 16 }}>
                     {posts.map((post) => {
                       const isGenerated = post.status === "generated" || post.status === "validating" || post.status === "validated";
                       return (

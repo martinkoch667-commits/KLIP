@@ -35,6 +35,14 @@ const OB_CSS = `
   .ob-btn-agency:disabled{opacity:.5;cursor:not-allowed;}
   .ob-error{font-size:13px;color:var(--warn);font-weight:600;text-align:center;}
   .ob-hint{font-size:11px;color:rgba(20,22,15,.35);text-align:center;}
+  @media(max-width:640px){
+    .ob-wrap{padding:32px 16px;}
+    .ob-grid{gap:16px;}
+    .ob-card{padding:22px 18px;}
+    .ob-plan-name{font-size:17px;}
+    .ob-price-big{font-size:24px;}
+    .ob-btn-studio,.ob-btn-agency{min-height:48px;font-size:14px;}
+  }
 `;
 
 function CheckIcon() {

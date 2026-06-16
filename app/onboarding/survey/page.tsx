@@ -28,6 +28,13 @@ const SV_CSS = `
   .sv-btn:disabled{opacity:.35;cursor:not-allowed;}
   .sv-btn-ghost{padding:12px 28px;background:transparent;color:rgba(20,22,15,.5);font-family:var(--display);font-weight:700;font-size:13px;text-transform:uppercase;letter-spacing:.06em;border-radius:8px;border:1.5px solid rgba(20,22,15,.12);cursor:pointer;transition:border-color .12s,color .12s;}
   .sv-btn-ghost:hover{border-color:var(--ink);color:var(--ink);}
+  @media(max-width:600px){
+    .sv-wrap{padding:24px 16px;}
+    .sv-card{padding:28px 20px;border-radius:14px;}
+    .sv-question{font-size:18px;}
+    .sv-choice{padding:12px 14px;font-size:13px;}
+    .sv-btn{min-height:48px;padding:12px 20px;}
+  }
 `;
 
 const QUESTIONS = [

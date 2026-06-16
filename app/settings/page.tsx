@@ -76,6 +76,14 @@ const ST_CSS = `
 .st-nav-label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--ink-3);padding:0 12px;margin:12px 0 6px;}
 .st-badge{display:inline-flex;padding:3px 9px;border-radius:99px;font-size:11px;font-weight:700;font-family:var(--mono);}
 @media(max-width:900px){.st-grid2{grid-template-columns:1fr;}}
+@media(max-width:767px){
+  .st-layout{flex-direction:column;}
+  .st-nav{width:100%;height:auto;position:static;border-right:none;border-bottom:1px solid var(--line);display:flex;flex-direction:row;overflow-x:auto;padding:8px;gap:4px;-webkit-overflow-scrolling:touch;scrollbar-width:none;}
+  .st-nav::-webkit-scrollbar{display:none;}
+  .st-content{padding:20px 16px 60px;}
+  .st-tab-btn{width:auto;white-space:nowrap;flex-shrink:0;margin-bottom:0;padding:8px 14px;}
+  .st-nav-label{display:none;}
+}
 `;
 
 // ─── Shared helpers ───────────────────────────────────────────────────────────
