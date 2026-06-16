@@ -514,7 +514,7 @@ export default function NewWorkspacePage() {
 
                 <div>
                   <label style={labelStyle}>Ton de communication</label>
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
+                  <div className="ws-new-3col" style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
                     {TONES.map(t => {
                       const active = tone === t.value;
                       return (
@@ -540,7 +540,7 @@ export default function NewWorkspacePage() {
                   </div>
                 </div>
 
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+                <div className="ws-upload-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
                   <div>
                     <label style={labelStyle}>Mots à utiliser souvent <OptLabel /></label>
                     <input
@@ -595,7 +595,7 @@ export default function NewWorkspacePage() {
                 {/* Colors */}
                 <div>
                   <label style={labelStyle}>Couleurs de marque</label>
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12 }}>
+                  <div className="ws-new-3col" style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12 }}>
                     {[
                       { label: "Principale", value: primaryColor, onChange: setPrimaryColor },
                       { label: "Secondaire", value: secondaryColor, onChange: setSecondaryColor },
@@ -621,7 +621,7 @@ export default function NewWorkspacePage() {
                 {/* Logos */}
                 <div>
                   <label style={labelStyle}>Logos</label>
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                  <div className="ws-upload-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
                     <UploadZone
                       label="Logo principal"
                       hint="PNG, SVG recommandé"
@@ -672,7 +672,7 @@ export default function NewWorkspacePage() {
                     }}
                   />
                   {assetPreviews.length > 0 ? (
-                    <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 8 }}>
+                    <div className="ws-new-5col" style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 8 }}>
                       {assetPreviews.map((url, i) => (
                         <div key={i} style={{ position: "relative" }}>
                           {/* eslint-disable-next-line @next/next/no-img-element */}

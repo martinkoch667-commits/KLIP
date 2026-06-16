@@ -316,7 +316,7 @@ export default function StyleEditorPage() {
                 <section>
                   <SectionTitle>Bloc texte</SectionTitle>
                   <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                    <div className="ws-upload-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
                       <ColorField
                         label="Couleur du fond"
                         value={s.blockBg}
