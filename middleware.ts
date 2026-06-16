@@ -2,7 +2,7 @@ import { createMiddlewareClient } from "@supabase/auth-helpers-nextjs";
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
-const PROTECTED_ROUTES = ["/dashboard", "/workspace"];
+const PROTECTED_ROUTES = ["/dashboard", "/workspace", "/calendar", "/composer", "/feed", "/templates", "/settings"];
 
 export async function middleware(req: NextRequest) {
   const res = NextResponse.next();
@@ -26,5 +26,13 @@ export async function middleware(req: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/dashboard/:path*", "/workspace/:path*"],
+  matcher: [
+    "/dashboard/:path*",
+    "/workspace/:path*",
+    "/calendar/:path*",
+    "/composer/:path*",
+    "/feed/:path*",
+    "/templates/:path*",
+    "/settings/:path*",
+  ],
 };
