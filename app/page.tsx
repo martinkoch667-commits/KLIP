@@ -136,6 +136,10 @@ const LP_CSS = `
     .lp-hero-art { display: none !important; }
     .lp-nav-links { display: none !important; }
     .lp-mob-btn { display: flex !important; }
+    .lp-hero-col { text-align: center; }
+    .lp-hero-col .lp-lead { margin-left: auto !important; margin-right: auto !important; }
+    .lp-hero-btns { justify-content: center !important; }
+    .lp-finalcta-btn { font-size: 15px !important; padding: 14px 22px !important; }
   }
   @media (max-width: 900px) {
     .lp { font-size: 16px; }
@@ -369,7 +373,7 @@ function Hero({ onDemo }: { onDemo: () => void }) {
     <header id="top" className="lp-section lp-hero-grid" style={{ paddingTop: 168, paddingBottom: 100, overflow: 'hidden' }}>
       <div className="lp-wrap" style={{ position: 'relative', zIndex: 2 }}>
         <div className="lp-2col" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 48, alignItems: 'center' }}>
-          <div>
+          <div className="lp-hero-col">
             <span className="lp-eyebrow lp-reveal" style={{ marginBottom: 24 }}>Pour les agences &amp; community managers</span>
             <div className="lp-reveal in d1">
               <h1 className="lp-display lp-upper" style={{ fontSize: 'clamp(40px, 5.5vw, 82px)', margin: 0, lineHeight: 1.0 }}>
@@ -381,7 +385,7 @@ function Hero({ onDemo }: { onDemo: () => void }) {
               <p className="lp-lead" style={{ maxWidth: 460, marginTop: 24 }}>
                 Création visuelle, légendes IA et planification — tout dans un seul outil.
               </p>
-              <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginTop: 36, alignItems: 'center' }}>
+              <div className="lp-hero-btns" style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginTop: 36, alignItems: 'center' }}>
                 <Link href="/register" className="lp-btn lp-btn-mint">
                   Essayer gratuitement <Icon name="arrowUR" size={18} className="arr" />
                 </Link>
@@ -1173,10 +1177,10 @@ function FinalCTA() {
               Rejoignez les premières agences qui ont repris le contrôle de leur temps.
             </p>
             <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap', marginTop: 36 }}>
-              <Link href="/register" className="lp-btn lp-btn-ink" style={{ fontSize: 17, padding: '17px 32px' }}>
+              <Link href="/register" className="lp-btn lp-btn-ink lp-finalcta-btn" style={{ fontSize: 17, padding: '17px 32px' }}>
                 Démarrer gratuitement — accès immédiat <Icon name="arrowUR" size={18} className="arr" />
               </Link>
-              <a href="#demo" className="lp-btn" style={{ fontSize: 17, padding: '17px 32px', background: 'transparent', color: '#06281C', boxShadow: 'inset 0 0 0 1.5px rgba(6,40,28,.3)' }}>Revoir la démo</a>
+              <a href="#demo" className="lp-btn lp-finalcta-btn" style={{ fontSize: 17, padding: '17px 32px', background: 'transparent', color: '#06281C', boxShadow: 'inset 0 0 0 1.5px rgba(6,40,28,.3)' }}>Revoir la démo</a>
             </div>
             <p style={{ marginTop: 22, fontFamily: "'early-sans-variable', sans-serif", fontWeight: 700, fontSize: 14, color: '#06281C', opacity: .65 }}>7 jours gratuits · sans carte bancaire</p>
           </div>
