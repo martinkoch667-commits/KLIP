@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createRouteHandlerClient } from "@supabase/auth-helpers-nextjs";
 import { cookies } from "next/headers";
+import { createNotification } from "@/lib/notifications";
 
 // ─── Helper: detect video by URL extension ────────────────────────────────────
 function isVideoUrl(url: string | null | undefined): boolean {
@@ -38,6 +39,9 @@ export async function POST(request: NextRequest) {
     }
 
     const supabase = createRouteHandlerClient({ cookies });
+
+    const { data: { session } } = await supabase.auth.getSession();
+    const userId = session?.user?.id ?? null;
 
     // Load post and workspace
     const [{ data: post }, { data: workspace }] = await Promise.all([
@@ -126,6 +130,14 @@ export async function POST(request: NextRequest) {
         instagram_post_id: publishData.id,
       }).eq("id", postId);
 
+      if (userId) await createNotification({
+        userId, workspaceId,
+        type: 'post_published',
+        title: 'Post publié ✓',
+        message: `« ${post.title ?? post.description?.slice(0, 40) ?? 'Sans titre'} » a été publié sur @${workspace.instagram_username ?? 'votre compte'}`,
+        postId, postTitle: post.title ?? undefined,
+      });
+
       return NextResponse.json({ success: true, instagramPostId: publishData.id, type: "reels" });
     }
 
@@ -187,6 +199,14 @@ export async function POST(request: NextRequest) {
       status: "published",
       instagram_post_id: publishData.id,
     }).eq("id", postId);
+
+    if (userId) await createNotification({
+      userId, workspaceId,
+      type: 'post_published',
+      title: 'Post publié ✓',
+      message: `« ${post.title ?? post.description?.slice(0, 40) ?? 'Sans titre'} » a été publié sur @${workspace.instagram_username ?? 'votre compte'}`,
+      postId, postTitle: post.title ?? undefined,
+    });
 
     return NextResponse.json({ success: true, instagramPostId: publishData.id, type: isStory ? "story" : "image" });
 

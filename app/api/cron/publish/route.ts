@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { createNotification } from "@/lib/notifications";
 
 export async function GET(request: NextRequest) {
   const authHeader = request.headers.get("authorization");
@@ -16,7 +17,7 @@ export async function GET(request: NextRequest) {
 
   const { data: posts, error } = await supabase
     .from("posts")
-    .select("*, workspaces!workspace_id(instagram_access_token, instagram_account_id)")
+    .select("*, workspaces!workspace_id(instagram_access_token, instagram_account_id, instagram_username)")
     .eq("status", "scheduled")
     .lte("scheduled_at", now)
     .limit(10);
@@ -32,11 +33,16 @@ export async function GET(request: NextRequest) {
   let failed = 0;
 
   for (const post of posts ?? []) {
-    const workspace = post.workspaces as { instagram_access_token: string; instagram_account_id: string } | null;
+    const workspace = post.workspaces as { instagram_access_token: string; instagram_account_id: string; instagram_username?: string } | null;
+    const postUserId: string | null = post.user_id ?? null;
+    const postWorkspaceId: string = post.workspace_id;
+    const postLabel: string = post.title ?? post.description?.slice(0, 40) ?? 'Sans titre';
+    const igHandle: string = workspace?.instagram_username ?? 'votre compte';
 
     if (!workspace?.instagram_access_token || !workspace?.instagram_account_id) {
       console.error(`[Cron] Post ${post.id}: workspace missing Instagram credentials`);
       await supabase.from("posts").update({ status: "failed" }).eq("id", post.id);
+      if (postUserId) await createNotification({ userId: postUserId, workspaceId: postWorkspaceId, type: 'post_failed', title: 'Échec de publication', message: `La publication de « ${postLabel} » a échoué (Instagram non connecté)`, postId: post.id, postTitle: postLabel });
       failed++;
       continue;
     }
@@ -48,6 +54,7 @@ export async function GET(request: NextRequest) {
     if (!imageUrl) {
       console.error(`[Cron] Post ${post.id}: no image URL`);
       await supabase.from("posts").update({ status: "failed" }).eq("id", post.id);
+      if (postUserId) await createNotification({ userId: postUserId, workspaceId: postWorkspaceId, type: 'post_failed', title: 'Échec de publication', message: `La publication de « ${postLabel} » a échoué (aucune image)`, postId: post.id, postTitle: postLabel });
       failed++;
       continue;
     }
@@ -89,6 +96,7 @@ export async function GET(request: NextRequest) {
       if (!publishData.id) {
         console.error(`[Cron] Post ${post.id}: publish failed`, publishData);
         await supabase.from("posts").update({ status: "failed" }).eq("id", post.id);
+        if (postUserId) await createNotification({ userId: postUserId, workspaceId: postWorkspaceId, type: 'post_failed', title: 'Échec de publication', message: `La publication de « ${postLabel} » a échoué`, postId: post.id, postTitle: postLabel });
         failed++;
         continue;
       }
@@ -98,11 +106,14 @@ export async function GET(request: NextRequest) {
         instagram_post_id: publishData.id,
       }).eq("id", post.id);
 
+      if (postUserId) await createNotification({ userId: postUserId, workspaceId: postWorkspaceId, type: 'post_published', title: 'Post publié ✓', message: `« ${postLabel} » a été publié sur @${igHandle}`, postId: post.id, postTitle: postLabel });
+
       console.log(`[Cron] Post ${post.id}: published OK (ig: ${publishData.id})`);
       published++;
     } catch (err) {
       console.error(`[Cron] Post ${post.id}: unexpected error`, err);
       await supabase.from("posts").update({ status: "failed" }).eq("id", post.id);
+      if (postUserId) await createNotification({ userId: postUserId, workspaceId: postWorkspaceId, type: 'post_failed', title: 'Échec de publication', message: `La publication de « ${postLabel} » a échoué de manière inattendue`, postId: post.id, postTitle: postLabel });
       failed++;
     }
   }
