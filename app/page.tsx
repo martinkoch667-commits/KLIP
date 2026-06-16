@@ -288,47 +288,30 @@ function Nav({ onDemo }: { onDemo: () => void }) {
   );
 }
 
-/* ─── Hero — centered, Archivo 900 géant, 2 lignes ──────────────────────── */
+/* ─── Hero ───────────────────────────────────────────────────────────────── */
 function Hero({ onDemo }: { onDemo: () => void }) {
   return (
-    <header id="top" className="lp-section lp-hero-grid" style={{ paddingTop: 168, paddingBottom: 40, textAlign: 'center', overflow: 'hidden' }}>
+    <header id="top" className="lp-section lp-hero-grid" style={{ paddingTop: 168, paddingBottom: 120, textAlign: 'center', overflow: 'hidden' }}>
       <div className="lp-wrap" style={{ position: 'relative', zIndex: 2 }}>
-        {/* eyebrow */}
-        <div className="lp-reveal in" style={{ display: 'flex', justifyContent: 'center', marginBottom: 24 }}>
-          <span className="lp-eyebrow">Le studio social des agences</span>
-        </div>
-        {/* big headline — 2 lines */}
         <div className="lp-reveal in d1" style={{ display: 'inline-block' }}>
           <h1 className="lp-display lp-upper" style={{ fontSize: 'clamp(40px, 6.5vw, 92px)', margin: 0, lineHeight: 1.0 }}>
             Gagnez 2h par jour<br />
             <span className="lp-it lp-mint">sur chaque client.</span>
           </h1>
         </div>
-        {/* sub */}
         <div className="lp-reveal in d2" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-          <p className="lp-lead" style={{ maxWidth: 620, marginTop: 24 }}>
-            Klip centralise toute la post-production de vos contenus sociaux —
-            création visuelle, légendes IA et planification — dans un seul outil.
+          <p className="lp-lead" style={{ maxWidth: 560, marginTop: 24 }}>
+            Création visuelle, légendes IA et planification — tout dans un seul outil.
           </p>
-          {/* CTAs */}
-          <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginTop: 34, justifyContent: 'center', alignItems: 'center' }}>
+          <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginTop: 36, justifyContent: 'center', alignItems: 'center' }}>
             <Link href="/register" className="lp-btn lp-btn-mint">
               Essayer gratuitement <Icon name="arrowUR" size={18} className="arr" />
             </Link>
             <button className="lp-btn lp-btn-ghost" onClick={onDemo}>
-              <Icon name="play" size={16} /> Voir la démo
+              Voir la démo
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="arr"><path d="M12 5v14M5 12l7 7 7-7"/></svg>
             </button>
           </div>
-          {/* trust */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 24, color: '#8E9183', fontFamily: "'early-sans-variable', sans-serif", fontWeight: 700, fontSize: 13.5 }}>
-            <Icon name="check" size={15} style={{ color: '#2FD79B' }} /> 7 jours gratuits
-            <span style={{ opacity: .4 }}>·</span> Sans carte bancaire
-            <span style={{ opacity: .4 }}>·</span> Annulable à tout moment
-          </div>
-        </div>
-        {/* collage */}
-        <div className="lp-reveal in d3" style={{ marginTop: 56, height: 380 }}>
-          <HeroCollage />
         </div>
       </div>
     </header>
@@ -435,270 +418,356 @@ function Process() {
   );
 }
 
-/* ─── Interactive Demo ───────────────────────────────────────────────────── */
-const DEMO_PHOTOS = [
-  { id: 0, label: 'Visuel produit', bg: '#8B6914' },
-  { id: 1, label: 'Photo ambiance', bg: '#4A3728' },
-  { id: 2, label: 'Contenu équipe', bg: '#6B4423' },
-  { id: 3, label: 'Shot atelier',   bg: '#3D2B1F' },
+/* ─── KlipDemo ───────────────────────────────────────────────────────────── */
+const DEMO_CLIENT = { name: 'Studio Lumière', instagram: '@studiolumiere' };
+const DEMO_MEDIAS = [
+  { id: 1, bgColor: '#8B6914', label: 'Visuel produit' },
+  { id: 2, bgColor: '#4A3728', label: 'Photo ambiance' },
+  { id: 3, bgColor: '#6B4423', label: 'Contenu équipe' },
+  { id: 4, bgColor: '#3D2B1F', label: 'Shot atelier' },
 ];
-const DEMO_CAPTIONS_LIST = [
-  "Notre savoir-faire, au cœur de chaque création. Une nouvelle collection qui raconte notre histoire.\n\n#studiolumiere #artisanat #collection",
-  "Dans les coulisses de l'atelier. La passion du détail, visible à chaque étape.\n\n#studiolumiere #behindthescenes #craftsmanship",
-  "Notre équipe, votre confiance. Ensemble depuis le premier jour.\n\n#studiolumiere #team #confiance",
-  "L'excellence n'est pas un hasard. C'est le résultat d'un travail quotidien.\n\n#studiolumiere #excellence #passion",
+const DEMO_CAPTIONS = [
+  "Notre savoir-faire au cœur de chaque création. Une nouvelle collection qui raconte notre histoire.",
+  "Dans les coulisses de l'atelier. La passion du détail, visible à chaque étape.",
+  "Notre équipe, votre confiance. Ensemble depuis le premier jour.",
+  "L'excellence n'est pas un hasard. C'est le résultat d'un travail quotidien.",
 ];
 const DEMO_TIPS = [
-  "Importez vos visuels et choisissez le type de contenu — Post, Reel ou Story.",
-  "L'IA génère une légende adaptée au ton de votre client en quelques secondes.",
-  "Personnalisez le visuel directement dans l'éditeur intégré. Sans exporter.",
-  "Programmez en un clic sur Instagram et Facebook. Klip publie automatiquement.",
+  "Importez vos visuels et choisissez le type — Post, Reel ou Story.",
+  "L'IA génère une légende dans le ton de votre client. Éditez si besoin.",
+  "Personnalisez le visuel dans l'éditeur intégré. Sans exporter, sans changer d'outil.",
+  "Choisissez la date, l'heure et la plateforme. Klip publie automatiquement.",
 ];
 const DEMO_STEP_LABELS = ['Importer', 'Générer', 'Éditer', 'Publier'];
 
-function ProductDemo() {
+function KlipDemo() {
   const [step, setStep]             = useState(0);
+  const [showModal, setShowModal]   = useState(false);
   const [postType, setPostType]     = useState<'post'|'reel'|'story'>('post');
   const [generating, setGenerating] = useState(false);
   const [generated, setGenerated]   = useState(false);
-  const [captions, setCaptions]     = useState(DEMO_CAPTIONS_LIST.map(c => c));
-  const [fontSize, setFontSize]     = useState(28);
+  const [captions, setCaptions]     = useState(DEMO_CAPTIONS.map(c => c));
+  const [fontSize, setFontSize]     = useState(32);
   const [textColor, setTextColor]   = useState('#FFFFFF');
-  const [published, setPublished]   = useState<boolean[]>([false, false, false, false]);
+  const [textPos, setTextPos]       = useState<'top'|'center'|'bottom'>('bottom');
+  const [shadow, setShadow]         = useState(false);
+  const [published, setPublished]   = useState<boolean[]>([false,false,false,false]);
   const [publishing, setPublishing] = useState(false);
   const [allDone, setAllDone]       = useState(false);
-  const genTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const genRef = useRef<ReturnType<typeof setTimeout>|null>(null);
 
   const reset = () => {
-    setStep(0); setPostType('post'); setGenerating(false); setGenerated(false);
-    setCaptions(DEMO_CAPTIONS_LIST.map(c => c)); setFontSize(28); setTextColor('#FFFFFF');
+    setStep(0); setShowModal(false); setPostType('post');
+    setGenerating(false); setGenerated(false);
+    setCaptions(DEMO_CAPTIONS.map(c => c)); setFontSize(32); setTextColor('#FFFFFF');
+    setTextPos('bottom'); setShadow(false);
     setPublished([false,false,false,false]); setPublishing(false); setAllDone(false);
-    if (genTimer.current) clearTimeout(genTimer.current);
+    if (genRef.current) clearTimeout(genRef.current);
   };
-  useEffect(() => () => { if (genTimer.current) clearTimeout(genTimer.current); }, []);
+  useEffect(() => () => { if (genRef.current) clearTimeout(genRef.current); }, []);
 
-  function handleGenerate() {
+  function handleContinue() {
+    setShowModal(false);
     setGenerating(true); setGenerated(false);
-    genTimer.current = setTimeout(() => { setGenerating(false); setGenerated(true); }, 1500);
+    setStep(1);
+    genRef.current = setTimeout(() => { setGenerating(false); setGenerated(true); }, 1500);
   }
 
   async function handlePublishAll() {
     setPublishing(true);
     for (let i = 0; i < 4; i++) {
-      await new Promise(r => setTimeout(r, 600));
+      await new Promise(r => setTimeout(r, 300));
       setPublished(prev => { const n = [...prev]; n[i] = true; return n; });
     }
     setPublishing(false); setAllDone(true);
   }
 
-  const TEXT_COLORS = ['#FFFFFF','#0D0F0A','#2FD79B','#C8F135','#FFD166'];
-  const EDIT_PHOTO = DEMO_PHOTOS[1];
+  const alignMap = { top: 'flex-start' as const, center: 'center' as const, bottom: 'flex-end' as const };
+  const SWATCHES = ['#FFFFFF','#0D0F0A','#2FD79B'];
+
+  const navItems = [
+    { label: 'Dashboard',  active: false, icon: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg> },
+    { label: 'Calendrier', active: false, icon: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="17" rx="3"/><path d="M3 9h18M8 2v4M16 2v4"/></svg> },
+    { label: 'Composer',   active: true,  icon: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5Z"/></svg> },
+    { label: 'Feed',       active: false, icon: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 3v18M3 9h6M3 15h6"/></svg> },
+    { label: 'Templates',  active: false, icon: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3m16-5h-3a2 2 0 0 0-2 2v3M3 16v3a2 2 0 0 0 2 2h3m8 0h3a2 2 0 0 0 2-2v-3"/></svg> },
+  ];
 
   return (
-    <div style={{ background: '#F4F3EC', borderRadius: 22, overflow: 'hidden', boxShadow: '0 1px 0 1px rgba(13,15,10,.07), 0 50px 90px -50px rgba(0,0,0,.65)', maxWidth: 980, margin: '0 auto' }}>
+    <div style={{ position: 'relative', borderRadius: 16, overflow: 'hidden', boxShadow: '0 24px 64px rgba(0,0,0,.15)', maxWidth: 960, margin: '0 auto', border: '1px solid rgba(13,15,10,.1)' }}>
 
-      {/* macOS window bar */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '12px 18px', background: '#fff', borderBottom: '1px solid rgba(13,15,10,.09)' }}>
-        <div style={{ display: 'flex', gap: 7 }}>
-          {['#ff5f57','#febc2e','#28c840'].map(c => <span key={c} style={{ width: 11, height: 11, borderRadius: '50%', background: c }} />)}
+      {/* ── macOS bar ── */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '9px 16px', background: '#fff', borderBottom: '1px solid rgba(13,15,10,.08)' }}>
+        <div style={{ display: 'flex', gap: 6 }}>
+          {['#ff5f57','#febc2e','#28c840'].map(c => <span key={c} style={{ width: 10, height: 10, borderRadius: '50%', background: c }} />)}
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginLeft: 6 }}>
-          <span style={{ width: 22, height: 22, borderRadius: 6, background: '#0C2A1D', display: 'grid', placeItems: 'center', flexShrink: 0 }}>
-            <svg width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="M2 2h5v5H2zM9 2h5v5H9zM2 9h5v5H2zM9 9h5v5H9z" fill="#2FD79B"/></svg>
+        <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+          <span style={{ width: 20, height: 20, borderRadius: 5, background: '#0C2A1D', display: 'grid', placeItems: 'center', flexShrink: 0 }}>
+            <svg width="11" height="11" viewBox="0 0 16 16" fill="none"><path d="M2 2h5v5H2zM9 2h5v5H9zM2 9h5v5H2zM9 9h5v5H9z" fill="#2FD79B"/></svg>
           </span>
-          <span style={{ fontFamily: "'early-sans-variable', sans-serif", fontWeight: 800, fontSize: 13, color: '#0D0F0A' }}>Studio Lumière</span>
-          <span style={{ fontSize: 11.5, color: '#8E9183', fontFamily: "'early-sans-variable', sans-serif", fontWeight: 600 }}>· espace client</span>
+          <span style={{ fontFamily: "'early-sans-variable', sans-serif", fontWeight: 700, fontSize: 12, color: '#565A4E' }}>{DEMO_CLIENT.name} — Klip</span>
         </div>
-        <span style={{ marginLeft: 'auto', fontFamily: "'early-sans-variable', sans-serif", fontWeight: 800, fontSize: 10, letterSpacing: '.12em', textTransform: 'uppercase', color: '#8E9183' }}>Démo interactive</span>
+        <span style={{ fontFamily: "'early-sans-variable', sans-serif", fontWeight: 800, fontSize: 10, letterSpacing: '.12em', textTransform: 'uppercase', color: '#2FD79B' }}>Démo</span>
       </div>
 
-      {/* Tutorial bubble */}
-      <div style={{ margin: '14px 18px 0', background: '#2FD79B', borderRadius: 12, padding: '10px 14px', display: 'flex', alignItems: 'flex-start', gap: 9 }}>
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#06281C" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0, marginTop: 1 }}><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
-        <span style={{ fontFamily: "'early-sans-variable', sans-serif", fontWeight: 700, fontSize: 13, color: '#06281C', lineHeight: 1.45 }}>{DEMO_TIPS[step]}</span>
-      </div>
+      {/* ── App body ── */}
+      <div style={{ display: 'flex', height: 500 }}>
 
-      {/* Progress stepper */}
-      <div style={{ display: 'flex', alignItems: 'center', padding: '16px 24px 14px', gap: 0 }}>
-        {DEMO_STEP_LABELS.map((label, i) => {
-          const active = i === step, done = i < step;
-          return (
-            <div key={label} style={{ display: 'flex', alignItems: 'center', flex: i < 3 ? 1 : 'none' }}>
-              <button onClick={() => done && setStep(i)} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5, background: 'none', border: 'none', cursor: done ? 'pointer' : 'default', padding: 0 }}>
-                <span style={{ width: 28, height: 28, borderRadius: '50%', display: 'grid', placeItems: 'center', background: active ? '#0D0F0A' : done ? '#2FD79B' : 'rgba(13,15,10,.1)', color: active ? '#2FD79B' : done ? '#06281C' : '#8E9183', fontFamily: "'early-sans-variable', sans-serif", fontWeight: 800, fontSize: 12, transition: 'all .2s', flexShrink: 0 }}>
-                  {done ? <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5"/></svg> : i + 1}
-                </span>
-                <span style={{ fontFamily: "'early-sans-variable', sans-serif", fontWeight: 700, fontSize: 11, color: active ? '#0D0F0A' : done ? '#2FD79B' : '#8E9183', whiteSpace: 'nowrap', transition: 'color .2s' }}>{label}</span>
-              </button>
-              {i < 3 && <div style={{ flex: 1, height: 2, background: done ? '#2FD79B' : 'rgba(13,15,10,.1)', margin: '0 6px', marginBottom: 18, transition: 'background .3s' }} />}
+        {/* Left nav */}
+        <nav style={{ width: 180, background: '#0C2A1D', flexShrink: 0, display: 'flex', flexDirection: 'column', padding: '14px 0', gap: 2 }}>
+          <div style={{ padding: '0 14px', marginBottom: 20 }}>
+            <img src="/logo-klip-mint.png" alt="Klip" style={{ height: 26, width: 'auto' }} onError={e => { (e.target as HTMLImageElement).style.display='none'; }} />
+          </div>
+          {navItems.map(item => (
+            <div key={item.label} style={{ margin: '0 8px', padding: '8px 10px', borderRadius: 8, background: item.active ? 'rgba(47,215,155,.15)' : 'transparent', display: 'flex', alignItems: 'center', gap: 9 }}>
+              <span style={{ color: item.active ? '#2FD79B' : 'rgba(239,238,228,.45)', display: 'flex', flexShrink: 0 }}>{item.icon}</span>
+              <span style={{ fontFamily: "'early-sans-variable', sans-serif", fontWeight: item.active ? 800 : 600, fontSize: 13, color: item.active ? '#EFEEE4' : 'rgba(239,238,228,.55)', whiteSpace: 'nowrap' }}>{item.label}</span>
             </div>
-          );
-        })}
-      </div>
+          ))}
+        </nav>
 
-      {/* Slide container */}
-      <div style={{ overflow: 'hidden', position: 'relative' }}>
-        <div style={{ display: 'flex', width: '400%', transform: `translateX(-${step * 25}%)`, transition: 'transform .35s cubic-bezier(.4,0,.2,1)' }}>
+        {/* Right panel */}
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', background: '#F1F0E8', overflow: 'hidden' }}>
 
-          {/* ── STEP 0: IMPORTER ── */}
-          <div style={{ width: '25%', padding: '4px 20px 20px', boxSizing: 'border-box' }}>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 14 }}>
-              {DEMO_PHOTOS.map((p) => (
-                <div key={p.id} style={{ position: 'relative', borderRadius: 12, overflow: 'hidden', aspectRatio: '4/5', background: p.bg, boxShadow: '0 0 0 2.5px #2FD79B, 0 8px 20px -8px rgba(0,0,0,.4)' }}>
-                  <span style={{ position: 'absolute', top: 8, right: 8, width: 20, height: 20, borderRadius: '50%', background: '#2FD79B', color: '#06281C', display: 'grid', placeItems: 'center' }}>
-                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
-                  </span>
-                  <span style={{ position: 'absolute', left: 8, bottom: 8, fontFamily: "'early-sans-variable', sans-serif", fontWeight: 700, fontSize: 10, color: '#fff', textShadow: '0 1px 4px rgba(0,0,0,.6)', lineHeight: 1.3 }}>{p.label}</span>
-                </div>
-              ))}
-            </div>
-            <div style={{ display: 'flex', gap: 7, marginBottom: 16 }}>
-              {(['post','reel','story'] as const).map(t => (
-                <button key={t} onClick={() => setPostType(t)} style={{ flex: 1, padding: '8px 4px', borderRadius: 8, fontFamily: "'early-sans-variable', sans-serif", fontWeight: 800, fontSize: 12, textTransform: 'uppercase', letterSpacing: '.06em', background: postType === t ? '#0D0F0A' : 'transparent', color: postType === t ? '#2FD79B' : '#8E9183', boxShadow: postType === t ? 'none' : 'inset 0 0 0 1px rgba(13,15,10,.15)', transition: 'all .15s' }}>
-                  {t}
-                </button>
-              ))}
-            </div>
-            <button onClick={() => setStep(1)} className="lp-btn lp-btn-mint" style={{ width: '100%', justifyContent: 'center' }}>
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 3l14 9-14 9V3z"/></svg>
-              Générer les légendes
-            </button>
+          {/* Content header */}
+          <div style={{ padding: '9px 16px', background: '#fff', borderBottom: '1px solid rgba(13,15,10,.08)', display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
+            <div style={{ width: 26, height: 26, borderRadius: '50%', background: '#2FD79B', color: '#06281C', display: 'grid', placeItems: 'center', fontFamily: "'early-sans-variable', sans-serif", fontWeight: 900, fontSize: 10, flexShrink: 0 }}>SL</div>
+            <span style={{ fontFamily: "'early-sans-variable', sans-serif", fontWeight: 800, fontSize: 13, color: '#0D0F0A' }}>{DEMO_CLIENT.name}</span>
+            <span style={{ fontSize: 12, color: '#8E9183', fontFamily: "'early-sans-variable', sans-serif", fontWeight: 600 }}>{DEMO_CLIENT.instagram}</span>
           </div>
 
-          {/* ── STEP 1: GÉNÉRER ── */}
-          <div style={{ width: '25%', padding: '4px 20px 20px', boxSizing: 'border-box' }}>
-            {!generated ? (
-              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: 280, gap: 18 }}>
-                {generating ? (
-                  <>
-                    <div style={{ width: 44, height: 44, borderRadius: '50%', border: '3px solid rgba(47,215,155,.2)', borderTopColor: '#2FD79B', animation: 'lp-spin 0.8s linear infinite' }} />
-                    <span style={{ fontFamily: "'early-sans-variable', sans-serif", fontWeight: 700, fontSize: 14, color: '#565A4E' }}>Génération en cours…</span>
-                  </>
-                ) : (
-                  <button onClick={handleGenerate} className="lp-btn lp-btn-mint" style={{ padding: '12px 28px', fontSize: 14 }}>
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87L18.18 21 12 17.77 5.82 21 7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
-                    Générer avec l&apos;IA
-                  </button>
-                )}
-              </div>
-            ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                {DEMO_PHOTOS.map((p, i) => (
-                  <div key={p.id} style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
-                    <div style={{ width: 36, height: 36, borderRadius: 8, background: p.bg, flexShrink: 0, marginTop: 2 }} />
-                    <textarea
-                      value={captions[i]}
-                      onChange={e => setCaptions(prev => { const n=[...prev]; n[i]=e.target.value; return n; })}
-                      style={{ flex: 1, fontSize: 11.5, lineHeight: 1.5, padding: '7px 10px', borderRadius: 8, border: '1px solid rgba(13,15,10,.12)', background: '#fff', resize: 'none', fontFamily: 'inherit', color: '#0D0F0A', height: 68, outline: 'none' }}
-                    />
-                  </div>
-                ))}
-                <button onClick={() => setStep(2)} className="lp-btn lp-btn-ink" style={{ width: '100%', justifyContent: 'center', marginTop: 4 }}>
-                  Éditer le visuel →
-                </button>
-              </div>
-            )}
+          {/* Tutorial bubble */}
+          <div style={{ margin: '10px 14px 0', background: '#2FD79B', borderRadius: 8, padding: '8px 12px', display: 'flex', alignItems: 'flex-start', gap: 8, flexShrink: 0 }}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#06281C" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0, marginTop: 1 }}><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
+            <span style={{ fontFamily: "'early-sans-variable', sans-serif", fontWeight: 700, fontSize: 12, color: '#06281C', lineHeight: 1.4 }}>{DEMO_TIPS[step]}</span>
           </div>
 
-          {/* ── STEP 2: ÉDITER ── */}
-          <div style={{ width: '25%', padding: '4px 20px 20px', boxSizing: 'border-box' }}>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 220px', gap: 16, alignItems: 'start' }}>
-              {/* canvas preview */}
-              <div style={{ position: 'relative', borderRadius: 14, overflow: 'hidden', aspectRatio: '4/5', background: EDIT_PHOTO.bg, boxShadow: '0 8px 32px -12px rgba(0,0,0,.5)', display: 'flex', alignItems: 'flex-end', padding: 16 }}>
-                <div style={{ fontFamily: "'Archivo', sans-serif", fontWeight: 900, fontSize: fontSize * 0.55, lineHeight: 1.1, color: textColor, textShadow: '0 2px 12px rgba(0,0,0,.4)', userSelect: 'none' }}>
-                  Studio<br/>Lumière
-                </div>
-              </div>
-              {/* controls */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-                <div>
-                  <div style={{ fontFamily: "'early-sans-variable', sans-serif", fontWeight: 700, fontSize: 11, color: '#8E9183', marginBottom: 7, textTransform: 'uppercase', letterSpacing: '.08em' }}>Taille texte</div>
-                  <input type="range" min={12} max={48} value={fontSize} onChange={e => setFontSize(+e.target.value)}
-                    style={{ width: '100%', accentColor: '#2FD79B' }} />
-                  <div style={{ fontFamily: "'early-sans-variable', sans-serif", fontWeight: 700, fontSize: 11, color: '#565A4E', textAlign: 'right' }}>{fontSize}px</div>
-                </div>
-                <div>
-                  <div style={{ fontFamily: "'early-sans-variable', sans-serif", fontWeight: 700, fontSize: 11, color: '#8E9183', marginBottom: 7, textTransform: 'uppercase', letterSpacing: '.08em' }}>Couleur texte</div>
-                  <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap' }}>
-                    {TEXT_COLORS.map(c => (
-                      <button key={c} onClick={() => setTextColor(c)} style={{ width: 26, height: 26, borderRadius: 6, background: c, border: textColor === c ? '2.5px solid #2FD79B' : '2px solid rgba(13,15,10,.15)', padding: 0, cursor: 'pointer', transition: 'transform .15s', transform: textColor === c ? 'scale(1.15)' : 'none' }} />
-                    ))}
+          {/* Progress stepper */}
+          <div style={{ padding: '10px 14px 6px', flexShrink: 0 }}>
+            <div style={{ display: 'flex', alignItems: 'center' }}>
+              {DEMO_STEP_LABELS.map((label, i) => {
+                const active = i === step, done = i < step;
+                return (
+                  <div key={label} style={{ display: 'flex', alignItems: 'center', flex: i < 3 ? 1 : 'none' }}>
+                    <button onClick={() => done && setStep(i)} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3, background: 'none', border: 'none', cursor: done ? 'pointer' : 'default', padding: 0 }}>
+                      <span style={{ width: 10, height: 10, borderRadius: '50%', background: active || done ? '#2FD79B' : 'rgba(13,15,10,.2)', display: 'block', transition: 'background .2s' }} />
+                      <span style={{ fontFamily: "'early-sans-variable', sans-serif", fontWeight: 700, fontSize: 9.5, color: active ? '#0D0F0A' : done ? '#2FD79B' : '#8E9183', whiteSpace: 'nowrap', letterSpacing: '.05em', textTransform: 'uppercase', transition: 'color .2s' }}>{label}</span>
+                    </button>
+                    {i < 3 && <div style={{ flex: 1, height: 2, background: done ? '#2FD79B' : 'rgba(13,15,10,.12)', margin: '0 6px', marginBottom: 14, transition: 'background .3s' }} />}
                   </div>
-                </div>
-                <div>
-                  <div style={{ fontFamily: "'early-sans-variable', sans-serif", fontWeight: 700, fontSize: 11, color: '#8E9183', marginBottom: 7, textTransform: 'uppercase', letterSpacing: '.08em' }}>Position</div>
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 5 }}>
-                    {['↖','↑','↗','←','·','→','↙','↓','↘'].map(a => (
-                      <button key={a} style={{ padding: '6px 4px', borderRadius: 6, fontSize: 14, background: a === '↙' ? '#0D0F0A' : 'rgba(13,15,10,.06)', color: a === '↙' ? '#2FD79B' : '#565A4E', border: 'none', cursor: 'pointer' }}>{a}</button>
-                    ))}
-                  </div>
-                </div>
-                <button onClick={() => setStep(3)} className="lp-btn lp-btn-mint" style={{ width: '100%', justifyContent: 'center', marginTop: 2 }}>
-                  Programmer →
-                </button>
-              </div>
+                );
+              })}
             </div>
           </div>
 
-          {/* ── STEP 3: PUBLIER ── */}
-          <div style={{ width: '25%', padding: '4px 20px 20px', boxSizing: 'border-box' }}>
-            {allDone ? (
-              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: 280, gap: 16, textAlign: 'center', padding: '0 20px' }}>
-                <div style={{ width: 56, height: 56, borderRadius: '50%', background: '#2FD79B', display: 'grid', placeItems: 'center' }}>
-                  <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#06281C" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
-                </div>
-                <div>
-                  <div style={{ fontFamily: "'early-sans-variable', sans-serif", fontWeight: 900, fontSize: 15, color: '#0D0F0A', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '.06em' }}>Tout est programmé.</div>
-                  <div style={{ fontSize: 13, color: '#565A4E', lineHeight: 1.5 }}>4 contenus publiés automatiquement.<br/>Vous venez de gagner 2 heures.</div>
-                </div>
-              </div>
-            ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                {DEMO_PHOTOS.map((p, i) => (
-                  <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: 10, background: '#fff', borderRadius: 12, padding: '10px 12px', boxShadow: published[i] ? '0 0 0 1.5px #2FD79B' : 'inset 0 0 0 1px rgba(13,15,10,.1)', transition: 'box-shadow .2s' }}>
-                    <div style={{ width: 30, height: 30, borderRadius: 7, background: p.bg, flexShrink: 0 }} />
-                    <div style={{ flex: 1 }}>
-                      <div style={{ fontFamily: "'early-sans-variable', sans-serif", fontWeight: 700, fontSize: 11, color: '#565A4E', marginBottom: 4 }}>{p.label}</div>
-                      <input type="datetime-local" defaultValue={`2025-06-${16+i}T18:30`}
-                        style={{ fontSize: 10.5, border: '1px solid rgba(13,15,10,.1)', borderRadius: 5, padding: '2px 5px', color: '#0D0F0A', background: '#F4F3EC', fontFamily: 'inherit', outline: 'none', width: '100%' }} />
+          {/* Slides */}
+          <div style={{ flex: 1, overflow: 'hidden', position: 'relative' }}>
+            <div style={{ display: 'flex', width: '400%', height: '100%', transform: `translateX(-${step * 25}%)`, transition: 'transform .3s ease-out' }}>
+
+              {/* ── STEP 0: WORKSPACE ── */}
+              <div style={{ width: '25%', padding: '10px 14px 12px', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', gap: 10 }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, flex: 1 }}>
+                  {DEMO_MEDIAS.map(m => (
+                    <div key={m.id} style={{ position: 'relative', borderRadius: 10, overflow: 'hidden', background: m.bgColor, boxShadow: '0 4px 12px rgba(0,0,0,.25)' }}>
+                      <span style={{ position: 'absolute', left: 8, bottom: 8, fontFamily: "'early-sans-variable', sans-serif", fontWeight: 700, fontSize: 10, color: 'rgba(255,255,255,.8)', lineHeight: 1.3 }}>{m.label}</span>
                     </div>
-                    <div style={{ display: 'flex', gap: 5, flexShrink: 0 }}>
-                      <span style={{ width: 18, height: 18, borderRadius: 4, background: 'rgba(47,215,155,.15)', display: 'grid', placeItems: 'center' }}>
-                        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#21B381" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.3" cy="6.7" r="1" fill="#21B381" stroke="none"/></svg>
-                      </span>
-                      <span style={{ width: 18, height: 18, borderRadius: 4, background: 'rgba(79,142,247,.12)', display: 'grid', placeItems: 'center' }}>
-                        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#4F8EF7" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"/></svg>
-                      </span>
-                    </div>
-                    {published[i] && (
-                      <span style={{ width: 20, height: 20, borderRadius: '50%', background: '#2FD79B', display: 'grid', placeItems: 'center', flexShrink: 0 }}>
-                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#06281C" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
-                      </span>
+                  ))}
+                </div>
+                <button onClick={() => setShowModal(true)} style={{ width: '100%', padding: '10px 16px', borderRadius: 10, border: '1.5px dashed rgba(13,15,10,.2)', background: 'rgba(255,255,255,.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, fontFamily: "'early-sans-variable', sans-serif", fontWeight: 700, fontSize: 13, color: '#565A4E', cursor: 'pointer', flexShrink: 0 }}>
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12h14"/></svg>
+                  Importer du contenu
+                </button>
+              </div>
+
+              {/* ── STEP 1: GÉNÉRER ── */}
+              <div style={{ width: '25%', padding: '10px 14px 12px', boxSizing: 'border-box', overflow: 'auto' }}>
+                {!generated ? (
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', gap: 14 }}>
+                    {generating && (
+                      <>
+                        <div style={{ width: 40, height: 40, borderRadius: '50%', border: '3px solid rgba(47,215,155,.2)', borderTopColor: '#2FD79B', animation: 'lp-spin .8s linear infinite' }} />
+                        <span style={{ fontFamily: "'early-sans-variable', sans-serif", fontWeight: 700, fontSize: 13, color: '#565A4E' }}>L&apos;IA rédige vos légendes…</span>
+                      </>
                     )}
                   </div>
-                ))}
-                <button onClick={handlePublishAll} disabled={publishing} className="lp-btn lp-btn-mint" style={{ width: '100%', justifyContent: 'center', marginTop: 4, opacity: publishing ? .7 : 1 }}>
-                  {publishing ? 'Publication…' : 'Tout publier →'}
-                </button>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
+                    {DEMO_MEDIAS.map((m, i) => (
+                      <div key={m.id} style={{ background: '#fff', borderRadius: 10, padding: '9px 11px', boxShadow: 'inset 0 0 0 1px rgba(13,15,10,.08)', display: 'flex', gap: 9, alignItems: 'flex-start' }}>
+                        <div style={{ width: 30, height: 30, borderRadius: 6, background: m.bgColor, flexShrink: 0 }} />
+                        <div style={{ flex: 1 }}>
+                          <textarea value={captions[i]} onChange={e => setCaptions(prev => { const n=[...prev]; n[i]=e.target.value; return n; })} style={{ width: '100%', fontSize: 11, lineHeight: 1.45, padding: '4px 7px', borderRadius: 6, border: '1px solid rgba(13,15,10,.1)', background: '#FAFAF4', resize: 'none', fontFamily: 'inherit', color: '#0D0F0A', height: 46, outline: 'none' }} />
+                          {i === 0 && (
+                            <button onClick={() => setStep(2)} style={{ marginTop: 5, padding: '4px 10px', borderRadius: 5, background: '#0D0F0A', color: '#F1F0E8', fontFamily: "'early-sans-variable', sans-serif", fontWeight: 700, fontSize: 11, border: 'none', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                              Éditer le visuel <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
-            )}
-          </div>
 
+              {/* ── STEP 2: ÉDITER ── */}
+              <div style={{ width: '25%', boxSizing: 'border-box', display: 'flex', height: '100%' }}>
+                {/* Layers */}
+                <div style={{ width: 108, background: '#fff', borderRight: '1px solid rgba(13,15,10,.08)', padding: '12px 10px', flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 14 }}>
+                  <div>
+                    <div style={{ fontFamily: "'early-sans-variable', sans-serif", fontWeight: 800, fontSize: 9, textTransform: 'uppercase', letterSpacing: '.1em', color: '#8E9183', marginBottom: 7 }}>Calques</div>
+                    {['Texte','Fond'].map(l => (
+                      <div key={l} style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '4px 5px', borderRadius: 5, background: l === 'Texte' ? 'rgba(47,215,155,.12)' : 'transparent', marginBottom: 2 }}>
+                        <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke={l==='Texte'?'#2FD79B':'#8E9183'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m9 18 6-6-6-6"/></svg>
+                        <span style={{ fontFamily: "'early-sans-variable', sans-serif", fontWeight: 700, fontSize: 10.5, color: l==='Texte'?'#0D0F0A':'#8E9183' }}>{l}</span>
+                      </div>
+                    ))}
+                  </div>
+                  <div>
+                    <div style={{ fontFamily: "'early-sans-variable', sans-serif", fontWeight: 800, fontSize: 9, textTransform: 'uppercase', letterSpacing: '.1em', color: '#8E9183', marginBottom: 7 }}>Effets</div>
+                    {([['Ombre', shadow, () => setShadow(s => !s)], ['Lueur', false, () => {}]] as [string, boolean, () => void][]).map(([lbl, on, toggle]) => (
+                      <div key={lbl} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 7 }}>
+                        <span style={{ fontFamily: "'early-sans-variable', sans-serif", fontWeight: 600, fontSize: 10.5, color: '#565A4E' }}>{lbl}</span>
+                        <button onClick={toggle} style={{ width: 26, height: 15, borderRadius: 8, background: on ? '#2FD79B' : 'rgba(13,15,10,.15)', border: 'none', cursor: 'pointer', position: 'relative', padding: 0, transition: 'background .15s', flexShrink: 0 }}>
+                          <span style={{ position: 'absolute', top: 2.5, left: on ? 13 : 2.5, width: 10, height: 10, borderRadius: '50%', background: '#fff', transition: 'left .15s', display: 'block' }} />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                {/* Canvas */}
+                <div style={{ flex: 1, background: '#E4E3DB', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 10, gap: 6, overflow: 'hidden' }}>
+                  <div style={{ flex: 1, width: '100%', borderRadius: 10, background: DEMO_MEDIAS[0].bgColor, boxShadow: '0 8px 24px rgba(0,0,0,.3)', display: 'flex', flexDirection: 'column', justifyContent: alignMap[textPos], padding: 14, overflow: 'hidden' }}>
+                    <div style={{ fontFamily: "'Archivo', sans-serif", fontWeight: 900, fontSize: fontSize * 0.42, lineHeight: 1.1, color: textColor, textShadow: shadow ? '0 2px 12px rgba(0,0,0,.6)' : 'none', userSelect: 'none' }}>
+                      Notre<br/>savoir-faire
+                    </div>
+                  </div>
+                  <span style={{ fontFamily: "'early-sans-variable', sans-serif", fontWeight: 600, fontSize: 9, color: '#8E9183', letterSpacing: '.06em', flexShrink: 0 }}>1080 × 1080 px</span>
+                </div>
+                {/* Controls */}
+                <div style={{ width: 138, background: '#fff', borderLeft: '1px solid rgba(13,15,10,.08)', padding: '12px 10px', flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 12 }}>
+                  <div>
+                    <div style={{ fontFamily: "'early-sans-variable', sans-serif", fontWeight: 700, fontSize: 9, textTransform: 'uppercase', letterSpacing: '.1em', color: '#8E9183', marginBottom: 5 }}>Police</div>
+                    <div style={{ padding: '4px 7px', borderRadius: 5, border: '1px solid rgba(13,15,10,.12)', fontFamily: "'early-sans-variable', sans-serif", fontSize: 11, color: '#565A4E' }}>Archivo</div>
+                  </div>
+                  <div>
+                    <div style={{ fontFamily: "'early-sans-variable', sans-serif", fontWeight: 700, fontSize: 9, textTransform: 'uppercase', letterSpacing: '.1em', color: '#8E9183', marginBottom: 5 }}>Taille</div>
+                    <input type="range" min={16} max={56} value={fontSize} onChange={e => setFontSize(+e.target.value)} style={{ width: '100%', accentColor: '#2FD79B' }} />
+                    <div style={{ fontFamily: "'early-sans-variable', sans-serif", fontWeight: 700, fontSize: 10, color: '#565A4E', textAlign: 'right' }}>{fontSize}px</div>
+                  </div>
+                  <div>
+                    <div style={{ fontFamily: "'early-sans-variable', sans-serif", fontWeight: 700, fontSize: 9, textTransform: 'uppercase', letterSpacing: '.1em', color: '#8E9183', marginBottom: 5 }}>Couleur</div>
+                    <div style={{ display: 'flex', gap: 5 }}>
+                      {SWATCHES.map(c => (
+                        <button key={c} onClick={() => setTextColor(c)} style={{ width: 22, height: 22, borderRadius: 5, background: c, border: textColor===c ? '2px solid #2FD79B' : '1.5px solid rgba(13,15,10,.15)', padding: 0, cursor: 'pointer', flexShrink: 0 }} />
+                      ))}
+                    </div>
+                  </div>
+                  <div>
+                    <div style={{ fontFamily: "'early-sans-variable', sans-serif", fontWeight: 700, fontSize: 9, textTransform: 'uppercase', letterSpacing: '.1em', color: '#8E9183', marginBottom: 5 }}>Position</div>
+                    <div style={{ display: 'flex', gap: 4 }}>
+                      {(['top','center','bottom'] as const).map(p => (
+                        <button key={p} onClick={() => setTextPos(p)} style={{ flex: 1, padding: '5px 2px', borderRadius: 5, background: textPos===p ? '#0D0F0A' : 'rgba(13,15,10,.07)', border: 'none', cursor: 'pointer', fontFamily: "'early-sans-variable', sans-serif", fontWeight: 800, fontSize: 10, color: textPos===p ? '#2FD79B' : '#8E9183' }}>
+                          {p==='top'?'H':p==='center'?'C':'B'}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <button onClick={() => setStep(3)} style={{ width: '100%', padding: '8px', borderRadius: 8, background: '#2FD79B', color: '#06281C', fontFamily: "'early-sans-variable', sans-serif", fontWeight: 800, fontSize: 12, border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5, marginTop: 'auto' }}>
+                    Programmer <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+                  </button>
+                </div>
+              </div>
+
+              {/* ── STEP 3: PUBLIER ── */}
+              <div style={{ width: '25%', padding: '10px 14px 12px', boxSizing: 'border-box', overflow: 'auto' }}>
+                {allDone ? (
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', gap: 16, textAlign: 'center', padding: '0 20px' }}>
+                    <div style={{ width: 64, height: 64, borderRadius: '50%', background: '#2FD79B', display: 'grid', placeItems: 'center' }}>
+                      <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#06281C" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+                    </div>
+                    <div>
+                      <div style={{ fontFamily: "'early-sans-variable', sans-serif", fontWeight: 900, fontSize: 15, color: '#0D0F0A', textTransform: 'uppercase', letterSpacing: '.04em', marginBottom: 8 }}>Tout est programmé.</div>
+                      <div style={{ fontSize: 13, color: '#565A4E', lineHeight: 1.6, marginBottom: 18 }}>4 contenus publiés automatiquement.<br/>Vous venez de gagner 2 heures.</div>
+                      <Link href="/register" className="lp-btn lp-btn-mint lp-btn-sm">
+                        Créer mon compte gratuit <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="arr"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+                      </Link>
+                    </div>
+                  </div>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 2 }}>
+                      <span style={{ fontFamily: "'early-sans-variable', sans-serif", fontWeight: 700, fontSize: 11, color: '#565A4E' }}>Publier sur :</span>
+                      {[['Instagram','#E1306C'],['Facebook','#4F8EF7']].map(([name, color]) => (
+                        <button key={name} style={{ padding: '3px 9px', borderRadius: 5, border: name==='Instagram' ? `1.5px solid ${color}` : '1.5px solid rgba(13,15,10,.12)', background: name==='Instagram' ? `${color}15` : 'transparent', fontFamily: "'early-sans-variable', sans-serif", fontWeight: 700, fontSize: 10.5, color: name==='Instagram' ? color : '#8E9183', cursor: 'pointer' }}>{name}</button>
+                      ))}
+                    </div>
+                    {DEMO_MEDIAS.map((m, i) => (
+                      <div key={m.id} style={{ background: '#fff', borderRadius: 10, padding: '8px 10px', boxShadow: published[i] ? '0 0 0 1.5px #2FD79B' : 'inset 0 0 0 1px rgba(13,15,10,.08)', transition: 'box-shadow .2s', display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <div style={{ width: 28, height: 28, borderRadius: 6, background: m.bgColor, flexShrink: 0 }} />
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ fontFamily: "'early-sans-variable', sans-serif", fontWeight: 700, fontSize: 11, color: '#0D0F0A', marginBottom: 4 }}>{m.label}</div>
+                          <div style={{ display: 'flex', gap: 4 }}>
+                            <input type="date" defaultValue={`2025-06-${16+i}`} style={{ fontSize: 10, border: '1px solid rgba(13,15,10,.1)', borderRadius: 4, padding: '2px 4px', color: '#565A4E', background: '#F4F3EC', fontFamily: 'inherit', outline: 'none', width: 92 }} />
+                            <input type="time" defaultValue="18:30" style={{ fontSize: 10, border: '1px solid rgba(13,15,10,.1)', borderRadius: 4, padding: '2px 4px', color: '#565A4E', background: '#F4F3EC', fontFamily: 'inherit', outline: 'none', width: 54 }} />
+                          </div>
+                        </div>
+                        {published[i]
+                          ? <span style={{ width: 20, height: 20, borderRadius: '50%', background: '#2FD79B', display: 'grid', placeItems: 'center', flexShrink: 0 }}><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#06281C" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5"/></svg></span>
+                          : <span style={{ width: 20, height: 20, borderRadius: '50%', border: '1.5px solid rgba(13,15,10,.15)', flexShrink: 0 }} />
+                        }
+                      </div>
+                    ))}
+                    <button onClick={handlePublishAll} disabled={publishing} style={{ width: '100%', padding: '10px 16px', borderRadius: 10, background: '#2FD79B', color: '#06281C', fontFamily: "'early-sans-variable', sans-serif", fontWeight: 800, fontSize: 13, border: 'none', cursor: publishing ? 'not-allowed' : 'pointer', opacity: publishing ? .7 : 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, marginTop: 2 }}>
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+                      {publishing ? 'Publication…' : 'Tout programmer'}
+                    </button>
+                  </div>
+                )}
+              </div>
+
+            </div>
+          </div>
         </div>
       </div>
 
-      {/* Footer nav */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 20px', borderTop: '1px solid rgba(13,15,10,.09)', background: '#fff' }}>
-        <button onClick={reset} style={{ fontFamily: "'early-sans-variable', sans-serif", fontWeight: 700, fontSize: 13, color: '#8E9183', background: 'none', border: 'none', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6 }}>↺ Recommencer</button>
+      {/* Footer */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '9px 16px', background: '#fff', borderTop: '1px solid rgba(13,15,10,.08)' }}>
+        <button onClick={reset} style={{ fontFamily: "'early-sans-variable', sans-serif", fontWeight: 700, fontSize: 12, color: '#8E9183', background: 'none', border: 'none', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+          Recommencer
+        </button>
         {step < 3
-          ? <button onClick={() => setStep(s => s + 1)} className="lp-btn lp-btn-ink lp-btn-sm">
-              Suivant <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+          ? <button onClick={() => setStep(s => s + 1)} style={{ padding: '6px 14px', borderRadius: 8, background: '#0D0F0A', color: '#F1F0E8', fontFamily: "'early-sans-variable', sans-serif", fontWeight: 700, fontSize: 12, border: 'none', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+              Suivant <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
             </button>
-          : <span style={{ fontFamily: "'early-sans-variable', sans-serif", fontWeight: 800, fontSize: 12, color: allDone ? '#2FD79B' : '#8E9183', display: 'inline-flex', alignItems: 'center', gap: 5 }}>
-              {allDone && <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.8" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5"/></svg>}
-              {allDone ? 'Terminé' : 'Planifiez vos publications'}
-            </span>}
+          : allDone
+            ? <span style={{ fontFamily: "'early-sans-variable', sans-serif", fontWeight: 800, fontSize: 12, color: '#2FD79B', display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.8" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+                Terminé
+              </span>
+            : <span style={{ fontFamily: "'early-sans-variable', sans-serif", fontWeight: 700, fontSize: 12, color: '#8E9183' }}>Planifiez vos publications</span>
+        }
       </div>
+
+      {/* Type picker modal */}
+      {showModal && (
+        <div style={{ position: 'absolute', inset: 0, zIndex: 50, background: 'rgba(12,42,29,.72)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div style={{ background: '#fff', borderRadius: 16, padding: '26px 28px', width: 340, boxShadow: '0 24px 64px rgba(0,0,0,.3)' }}>
+            <div style={{ fontFamily: "'early-sans-variable', sans-serif", fontWeight: 900, fontSize: 14, textTransform: 'uppercase', letterSpacing: '.06em', color: '#0D0F0A', marginBottom: 18 }}>Quel type de contenu ?</div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 8, marginBottom: 20 }}>
+              {([['post','1080×1080'],['reel','1080×1920'],['story','1080×1920']] as [typeof postType, string][]).map(([t, fmt]) => (
+                <button key={t} onClick={() => setPostType(t)} style={{ padding: '11px 6px', borderRadius: 10, border: postType===t ? '2px solid #0D0F0A' : '1.5px solid rgba(13,15,10,.15)', background: postType===t ? 'rgba(13,15,10,.05)' : '#fff', cursor: 'pointer', textAlign: 'center' }}>
+                  <div style={{ fontFamily: "'early-sans-variable', sans-serif", fontWeight: 800, fontSize: 12, color: '#0D0F0A', textTransform: 'capitalize', marginBottom: 3 }}>{t}</div>
+                  <div style={{ fontFamily: "'early-sans-variable', sans-serif", fontWeight: 600, fontSize: 9.5, color: '#8E9183' }}>{fmt}</div>
+                </button>
+              ))}
+            </div>
+            <button onClick={handleContinue} style={{ width: '100%', padding: '11px', borderRadius: 10, background: '#2FD79B', color: '#06281C', fontFamily: "'early-sans-variable', sans-serif", fontWeight: 800, fontSize: 13, border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+              Continuer <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -707,16 +776,15 @@ function DemoSection() {
   return (
     <section id="demo" className="lp-section lp-forest">
       <div className="lp-wrap" style={{ position: 'relative', zIndex: 2 }}>
-        <div style={{ textAlign: 'center', maxWidth: 700, margin: '0 auto 48px' }}>
-          <span className="lp-eyebrow plain lp-reveal" style={{ color: '#2FD79B', justifyContent: 'center' }}>Démo interactive</span>
-          <h2 className="lp-display lp-reveal d1" style={{ fontSize: 'clamp(36px, 4.4vw, 60px)', lineHeight: 1.05, marginTop: 18, color: '#EFEEE4' }}>
-            Essayez. <span className="lp-it lp-mint">Cliquez partout.</span>
+        <div style={{ textAlign: 'center', marginBottom: 52 }}>
+          <h2 className="lp-display lp-upper lp-reveal" style={{ fontSize: 'clamp(34px, 4.2vw, 56px)', lineHeight: 1.0, color: '#EFEEE4' }}>
+            Voyez Klip <span className="lp-it lp-mint">en action.</span>
           </h2>
-          <p className="lp-lead lp-reveal d2" style={{ margin: '24px auto 0', color: 'rgba(239,238,228,.62)' }}>
-            Un vrai aperçu du flow Klip — importez une photo, générez la description, planifiez. Sans inscription.
+          <p className="lp-lead lp-reveal d1" style={{ color: 'rgba(239,238,228,.62)', marginTop: 14 }}>
+            Cliquez pour vivre le workflow complet.
           </p>
         </div>
-        <div className="lp-reveal d2"><ProductDemo /></div>
+        <div className="lp-reveal d2"><KlipDemo /></div>
       </div>
     </section>
   );
