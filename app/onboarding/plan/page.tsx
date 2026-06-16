@@ -4,215 +4,217 @@ import { useState } from "react";
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
 import { useRouter } from "next/navigation";
 
-function IconUser() {
+const OB_CSS = `
+  .ob-wrap{min-height:100vh;background:var(--canvas);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:40px 24px;}
+  .ob-logo{display:block;height:48px;width:auto;margin:0 auto 44px;}
+  .ob-title{font-family:var(--display);font-weight:800;font-size:28px;text-transform:uppercase;color:var(--forest);letter-spacing:-.01em;text-align:center;margin-bottom:8px;}
+  .ob-sub{font-size:14px;color:rgba(20,22,15,.6);text-align:center;margin-bottom:40px;font-weight:500;}
+  .ob-grid{display:grid;grid-template-columns:1fr 1fr;gap:24px;width:100%;max-width:800px;margin-bottom:28px;}
+  @media(max-width:640px){.ob-grid{grid-template-columns:1fr;}}
+  .ob-card{background:#fff;border-radius:16px;padding:32px;position:relative;transition:border-color .15s,box-shadow .15s;display:flex;flex-direction:column;}
+  .ob-card-studio{border:2px solid rgba(20,22,15,.15);}
+  .ob-card-studio:hover{border-color:var(--mint);box-shadow:0 8px 32px rgba(47,215,155,.12);}
+  .ob-card-agency{border:2px solid var(--mint);box-shadow:0 8px 32px rgba(47,215,155,.12);}
+  .ob-badge{display:inline-block;padding:4px 10px;background:var(--mint);color:var(--forest);font-family:var(--sans);font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.1em;border-radius:99px;margin-bottom:20px;}
+  .ob-plan-name{font-family:var(--display);font-weight:800;font-size:20px;text-transform:uppercase;color:var(--forest);letter-spacing:-.01em;margin-bottom:4px;}
+  .ob-plan-desc{font-size:13px;color:rgba(20,22,15,.55);font-weight:500;margin-bottom:20px;}
+  .ob-features{display:flex;flex-direction:column;gap:10px;margin-bottom:24px;}
+  .ob-feature{display:flex;align-items:center;gap:9px;font-size:13px;color:var(--ink);font-weight:500;}
+  .ob-check{width:18px;height:18px;border-radius:5px;flex-shrink:0;background:var(--mint-soft);color:var(--mint-2);display:grid;place-items:center;}
+  .ob-price-big{font-family:var(--display);font-weight:800;font-size:28px;color:var(--forest);letter-spacing:-.02em;line-height:1;}
+  .ob-price-small{font-size:12px;color:rgba(20,22,15,.45);font-weight:500;margin-top:4px;margin-bottom:24px;}
+  .ob-agency-input{width:100%;border:1.5px solid rgba(20,22,15,.15);border-radius:8px;padding:11px 14px;font-family:var(--sans);font-size:14px;color:var(--ink);background:var(--canvas);outline:none;transition:border-color .15s;margin-bottom:14px;}
+  .ob-agency-input::placeholder{color:rgba(20,22,15,.30);}
+  .ob-agency-input:focus{border-color:var(--mint);background:#fff;}
+  .ob-agency-label{display:block;font-family:var(--sans);font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:rgba(20,22,15,.55);margin-bottom:6px;}
+  .ob-btn-studio{width:100%;padding:12px;background:var(--forest);color:var(--canvas);font-family:var(--display);font-weight:700;font-size:13px;text-transform:uppercase;letter-spacing:.06em;border-radius:8px;border:none;cursor:pointer;transition:background .15s,color .15s;margin-top:auto;}
+  .ob-btn-studio:hover:not(:disabled){background:var(--mint);color:var(--forest);}
+  .ob-btn-studio:disabled{opacity:.5;cursor:not-allowed;}
+  .ob-btn-agency{width:100%;padding:12px;background:var(--mint);color:var(--forest);font-family:var(--display);font-weight:700;font-size:13px;text-transform:uppercase;letter-spacing:.06em;border-radius:8px;border:none;cursor:pointer;transition:background .15s,color .15s;margin-top:auto;}
+  .ob-btn-agency:hover:not(:disabled){background:var(--forest);color:var(--canvas);}
+  .ob-btn-agency:disabled{opacity:.5;cursor:not-allowed;}
+  .ob-error{font-size:13px;color:var(--warn);font-weight:600;text-align:center;}
+  .ob-hint{font-size:11px;color:rgba(20,22,15,.35);text-align:center;}
+`;
+
+function CheckIcon() {
   return (
-    <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-      <circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/>
-    </svg>
-  );
-}
-function IconAgency() {
-  return (
-    <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-      <circle cx="9" cy="7" r="3"/><circle cx="17" cy="9" r="2.5"/>
-      <path d="M2 20c0-3.3 3.1-6 7-6s7 2.7 7 6"/><path d="M17 14c2.2.5 4 2.3 4 4.5"/>
-    </svg>
-  );
-}
-function IconCheck() {
-  return (
-    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.8" strokeLinecap="round" strokeLinejoin="round">
       <path d="M20 6 9 17l-5-5"/>
     </svg>
   );
 }
 
-const PLANS = [
-  {
-    key: "solo" as const,
-    label: "Solo",
-    desc: "Je gère mes propres comptes sociaux ou ceux de quelques clients.",
-    features: ["1 utilisateur","Jusqu'à 5 clients","Éditeur canvas complet","Génération IA","Publication Instagram"],
-    icon: <IconUser />,
-  },
-  {
-    key: "agency" as const,
-    label: "Agence",
-    desc: "Je gère une équipe et de nombreux clients avec workflow de validation.",
-    features: ["Multi-membres","Workflow de validation","Rôles & droits","Clients illimités","Tout ce que Solo inclut"],
-    icon: <IconAgency />,
-  },
+const STUDIO_FEATURES = [
+  "3 comptes clients",
+  "1 profil utilisateur",
+  "Posts illimités",
+  "IA incluse",
+  "Publication Instagram & Facebook",
+];
+
+const AGENCY_FEATURES = [
+  "10 clients inclus",
+  "5 membres inclus",
+  "Workflow de validation",
+  "Rôles Manager / Créa",
+  "Tout ce que Studio inclut",
 ];
 
 export default function OnboardingPlanPage() {
   const supabase = createClientComponentClient();
   const router = useRouter();
-  const [selected, setSelected] = useState<"solo"|"agency"|null>(null);
   const [agencyName, setAgencyName] = useState("");
-  const [loading, setLoading] = useState(false);
+  const [agencyExpanded, setAgencyExpanded] = useState(false);
+  const [loadingStudio, setLoadingStudio] = useState(false);
+  const [loadingAgency, setLoadingAgency] = useState(false);
   const [error, setError] = useState("");
 
-  async function handleConfirm() {
-    if (!selected || loading) return;
-    if (selected === "agency" && !agencyName.trim()) {
+  async function handleSolo() {
+    setError("");
+    setLoadingStudio(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) { router.push("/login"); return; }
+      await supabase.from("user_settings").upsert(
+        { user_id: session.user.id, account_type: "solo" },
+        { onConflict: "user_id" }
+      );
+      router.push("/dashboard");
+    } catch {
+      setError("Une erreur est survenue. Veuillez réessayer.");
+      setLoadingStudio(false);
+    }
+  }
+
+  async function handleAgency() {
+    if (!agencyName.trim()) {
       setError("Veuillez entrer le nom de votre agence.");
       return;
     }
     setError("");
-    setLoading(true);
-
+    setLoadingAgency(true);
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) { router.push("/login"); return; }
       const userId = session.user.id;
 
-      // 1. Upsert user_settings with account_type
-      await supabase.from("user_settings").upsert({
-        user_id: userId,
-        account_type: selected,
-      }, { onConflict: "user_id" });
+      await supabase.from("user_settings").upsert(
+        { user_id: userId, account_type: "agency" },
+        { onConflict: "user_id" }
+      );
 
-      if (selected === "agency") {
-        // 2. Create agency
-        const { data: agency } = await supabase
-          .from("agencies")
-          .insert({ name: agencyName.trim(), owner_id: userId })
-          .select("id")
-          .single();
+      const { data: agency } = await supabase
+        .from("agencies")
+        .insert({ name: agencyName.trim(), owner_id: userId })
+        .select("id")
+        .single();
 
-        // 3. Add owner as agency_member
-        if (agency?.id) {
-          await supabase.from("agency_members").insert({
-            agency_id: agency.id,
-            user_id: userId,
-            role: "admin",
-            accepted_at: new Date().toISOString(),
-          });
-        }
+      if (agency?.id) {
+        await supabase.from("agency_members").insert({
+          agency_id: agency.id,
+          user_id: userId,
+          role: "admin",
+          accepted_at: new Date().toISOString(),
+        });
       }
 
       router.push("/dashboard");
     } catch {
       setError("Une erreur est survenue. Veuillez réessayer.");
-      setLoading(false);
+      setLoadingAgency(false);
     }
   }
 
   return (
-    <div style={{
-      minHeight:"100vh", background:"var(--canvas)",
-      display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center",
-      padding:"40px 24px", fontFamily:"var(--sans)",
-    }}>
-      {/* Logo */}
-      <div style={{ marginBottom:44 }}>
-        <img src="/logo-klip-dark.png" alt="Klip" style={{ height:36, width:"auto" }}
-          onError={e => { (e.target as HTMLImageElement).style.display="none"; }} />
-        <div style={{ fontSize:22, fontWeight:900, fontFamily:"var(--display)", color:"var(--forest)", letterSpacing:"-.02em", textAlign:"center" }}>
-          Klip
+    <div className="ob-wrap">
+      <style dangerouslySetInnerHTML={{ __html: OB_CSS }} />
+
+      <img src="/logo-klip-dark.png" alt="Klip" className="ob-logo"
+        onError={e => { (e.target as HTMLImageElement).style.display = "none"; }} />
+
+      <h1 className="ob-title">Quel type de compte ?</h1>
+      <p className="ob-sub">Choisissez votre plan pour commencer.</p>
+
+      <div className="ob-grid">
+        {/* STUDIO */}
+        <div className="ob-card ob-card-studio">
+          <div className="ob-plan-name">Studio</div>
+          <div className="ob-plan-desc">Freelances & community managers</div>
+
+          <div className="ob-features">
+            {STUDIO_FEATURES.map(f => (
+              <div key={f} className="ob-feature">
+                <span className="ob-check"><CheckIcon /></span>
+                {f}
+              </div>
+            ))}
+          </div>
+
+          <div className="ob-price-big">29€ <span style={{ fontSize: 16, fontWeight: 600, color: "rgba(20,22,15,.5)" }}>/&nbsp;mois</span></div>
+          <div className="ob-price-small">ou 25€/mois en annuel</div>
+
+          <button
+            onClick={handleSolo}
+            disabled={loadingStudio || loadingAgency}
+            className="ob-btn-studio"
+          >
+            {loadingStudio ? "Création…" : "Choisir Studio"}
+          </button>
         </div>
-      </div>
 
-      {/* Heading */}
-      <div style={{ textAlign:"center", marginBottom:36 }}>
-        <h1 style={{ fontSize:28, fontWeight:900, fontFamily:"var(--sans)", textTransform:"uppercase", letterSpacing:".06em", color:"var(--ink)", margin:"0 0 10px", lineHeight:1.1 }}>
-          Quel type de compte ?
-        </h1>
-        <p style={{ fontSize:14, color:"var(--ink-2)", margin:0, fontWeight:500 }}>
-          Choisissez le profil qui correspond à votre usage.
-        </p>
-      </div>
+        {/* AGENCE */}
+        <div className="ob-card ob-card-agency">
+          <div className="ob-badge">Le plus populaire</div>
+          <div className="ob-plan-name">Agence</div>
+          <div className="ob-plan-desc">Agences & studios de communication</div>
 
-      {/* Cards */}
-      <div style={{ display:"flex", gap:14, flexWrap:"wrap", justifyContent:"center", marginBottom:28, width:"100%", maxWidth:640 }}>
-        {PLANS.map(plan => {
-          const active = selected === plan.key;
-          return (
+          <div className="ob-features">
+            {AGENCY_FEATURES.map(f => (
+              <div key={f} className="ob-feature">
+                <span className="ob-check"><CheckIcon /></span>
+                {f}
+              </div>
+            ))}
+          </div>
+
+          <div className="ob-price-big">96€ <span style={{ fontSize: 16, fontWeight: 600, color: "rgba(20,22,15,.5)" }}>/&nbsp;mois</span></div>
+          <div className="ob-price-small">ou 89€/mois en annuel</div>
+
+          {!agencyExpanded ? (
             <button
-              key={plan.key}
-              onClick={() => setSelected(plan.key)}
-              style={{
-                flex:"1 1 260px", maxWidth:290, textAlign:"left",
-                background: active ? "var(--forest)" : "var(--card)",
-                border:`2px solid ${active ? "var(--forest)" : "var(--line)"}`,
-                borderRadius:"var(--r-xl)", padding:"26px 26px 30px",
-                cursor:"pointer", transition:"all .15s",
-                transform: active ? "translateY(-2px)" : "none",
-                boxShadow: active ? "0 16px 40px -12px rgba(12,42,29,.28)" : "0 2px 8px rgba(13,15,10,.06)",
-              }}
+              onClick={() => setAgencyExpanded(true)}
+              disabled={loadingStudio || loadingAgency}
+              className="ob-btn-agency"
             >
-              {/* Icon */}
-              <span style={{
-                display:"inline-flex", width:50, height:50, borderRadius:13,
-                alignItems:"center", justifyContent:"center", marginBottom:16,
-                background: active ? "rgba(47,215,155,.18)" : "var(--sunk)",
-                color: active ? "var(--mint)" : "var(--ink-2)",
-              }}>
-                {plan.icon}
-              </span>
-
-              <div style={{ fontWeight:900, fontSize:20, fontFamily:"var(--sans)", textTransform:"uppercase", letterSpacing:".06em", color: active ? "var(--cream)" : "var(--ink)", marginBottom:6 }}>
-                {plan.label}
-              </div>
-              <div style={{ fontSize:12.5, color: active ? "rgba(238,237,227,.6)" : "var(--ink-3)", fontWeight:500, marginBottom:20, lineHeight:1.5 }}>
-                {plan.desc}
-              </div>
-
-              <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
-                {plan.features.map(f => (
-                  <div key={f} style={{ display:"flex", alignItems:"center", gap:8 }}>
-                    <span style={{ width:18, height:18, borderRadius:5, flexShrink:0, background: active ? "rgba(47,215,155,.2)" : "var(--mint-soft)", color:"var(--mint-2)", display:"grid", placeItems:"center" }}>
-                      <IconCheck />
-                    </span>
-                    <span style={{ fontSize:12, fontWeight:600, color: active ? "rgba(238,237,227,.8)" : "var(--ink-2)" }}>{f}</span>
-                  </div>
-                ))}
-              </div>
+              Choisir Agence
             </button>
-          );
-        })}
+          ) : (
+            <>
+              <label className="ob-agency-label">Nom de votre agence</label>
+              <input
+                type="text"
+                className="ob-agency-input"
+                placeholder="Ex : Studio Créatif"
+                value={agencyName}
+                onChange={e => setAgencyName(e.target.value)}
+                autoFocus
+                onKeyDown={e => { if (e.key === "Enter") handleAgency(); }}
+              />
+              <button
+                onClick={handleAgency}
+                disabled={loadingAgency || loadingStudio || !agencyName.trim()}
+                className="ob-btn-agency"
+              >
+                {loadingAgency ? "Création…" : "Choisir Agence"}
+              </button>
+            </>
+          )}
+        </div>
       </div>
 
-      {/* Agency name field */}
-      {selected === "agency" && (
-        <div style={{ width:"100%", maxWidth:360, marginBottom:20 }}>
-          <label style={{ fontSize:11, fontWeight:700, textTransform:"uppercase", letterSpacing:".08em", color:"var(--ink-3)", display:"block", marginBottom:6, fontFamily:"var(--mono)" }}>
-            Nom de votre agence
-          </label>
-          <input
-            className="input"
-            type="text"
-            placeholder="Ex : Studio Créatif"
-            value={agencyName}
-            onChange={e => setAgencyName(e.target.value)}
-            autoFocus
-          />
-        </div>
-      )}
-
-      {/* Error */}
-      {error && (
-        <div style={{ fontSize:13, color:"var(--warn)", marginBottom:14, fontWeight:600 }}>{error}</div>
-      )}
-
-      {/* CTA */}
-      <button
-        onClick={handleConfirm}
-        disabled={!selected || loading}
-        className="btn btn-primary"
-        style={{
-          padding:"12px 40px", fontSize:14, fontWeight:800,
-          textTransform:"uppercase", letterSpacing:".06em",
-          opacity: selected ? 1 : 0.4, cursor: selected ? "pointer" : "default",
-          minWidth:200,
-        }}
-      >
-        {loading ? "Création…" : "Commencer"}
-      </button>
-
-      <p style={{ fontSize:11, color:"var(--ink-3)", marginTop:14 }}>
-        Modifiable depuis les paramètres à tout moment.
-      </p>
+      {error && <p className="ob-error" style={{ marginBottom: 12 }}>{error}</p>}
+      <p className="ob-hint">Modifiable depuis les paramètres à tout moment.</p>
     </div>
   );
 }
