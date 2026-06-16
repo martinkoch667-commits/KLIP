@@ -161,6 +161,17 @@ const LP_CSS = `
   @media (max-width: 560px) {
     .lp-photo-grid { grid-template-columns: repeat(2,1fr) !important; }
   }
+  @media (max-width: 900px) {
+    .lp-process-grid { grid-template-columns: repeat(2,1fr) !important; }
+    .lp-pricing-grid { grid-template-columns: 1fr !important; max-width: 460px !important; margin-left: auto !important; margin-right: auto !important; }
+  }
+  @media (max-width: 640px) {
+    .lp-process-grid { grid-template-columns: 1fr !important; }
+  }
+  @media (max-width: 767px) {
+    .lp-demo-outer { overflow-x: auto; -webkit-overflow-scrolling: touch; padding-bottom: 8px; }
+    .lp-demo-outer > * { min-width: 680px; }
+  }
 
   /* Mobile menu */
   .lp-mob-btn { display: none; align-items: center; justify-content: center; width: 40px; height: 40px; border-radius: 10px; background: rgba(13,15,10,.08); color: #0D0F0A; }
@@ -355,26 +366,37 @@ function Nav({ onDemo }: { onDemo: () => void }) {
 /* ─── Hero ───────────────────────────────────────────────────────────────── */
 function Hero({ onDemo }: { onDemo: () => void }) {
   return (
-    <header id="top" className="lp-section lp-hero-grid" style={{ paddingTop: 168, paddingBottom: 120, textAlign: 'center', overflow: 'hidden' }}>
+    <header id="top" className="lp-section lp-hero-grid" style={{ paddingTop: 168, paddingBottom: 100, overflow: 'hidden' }}>
       <div className="lp-wrap" style={{ position: 'relative', zIndex: 2 }}>
-        <div className="lp-reveal in d1" style={{ display: 'inline-block' }}>
-          <h1 className="lp-display lp-upper" style={{ fontSize: 'clamp(40px, 6.5vw, 92px)', margin: 0, lineHeight: 1.0 }}>
-            Gagnez 2h par jour<br />
-            <span className="lp-it lp-mint">sur chaque client.</span>
-          </h1>
-        </div>
-        <div className="lp-reveal in d2" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-          <p className="lp-lead" style={{ maxWidth: 560, marginTop: 24 }}>
-            Création visuelle, légendes IA et planification — tout dans un seul outil.
-          </p>
-          <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginTop: 36, justifyContent: 'center', alignItems: 'center' }}>
-            <Link href="/register" className="lp-btn lp-btn-mint">
-              Essayer gratuitement <Icon name="arrowUR" size={18} className="arr" />
-            </Link>
-            <button className="lp-btn lp-btn-ghost" onClick={onDemo}>
-              Voir la démo
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="arr"><path d="M12 5v14M5 12l7 7 7-7"/></svg>
-            </button>
+        <div className="lp-2col" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 48, alignItems: 'center' }}>
+          <div>
+            <span className="lp-eyebrow lp-reveal" style={{ marginBottom: 24 }}>Pour les agences &amp; community managers</span>
+            <div className="lp-reveal in d1">
+              <h1 className="lp-display lp-upper" style={{ fontSize: 'clamp(40px, 5.5vw, 82px)', margin: 0, lineHeight: 1.0 }}>
+                Gagnez 2h par jour<br />
+                <span className="lp-it lp-mint">sur chaque client.</span>
+              </h1>
+            </div>
+            <div className="lp-reveal in d2">
+              <p className="lp-lead" style={{ maxWidth: 460, marginTop: 24 }}>
+                Création visuelle, légendes IA et planification — tout dans un seul outil.
+              </p>
+              <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginTop: 36, alignItems: 'center' }}>
+                <Link href="/register" className="lp-btn lp-btn-mint">
+                  Essayer gratuitement <Icon name="arrowUR" size={18} className="arr" />
+                </Link>
+                <button className="lp-btn lp-btn-ghost" onClick={onDemo}>
+                  Voir la démo
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="arr"><path d="M12 5v14M5 12l7 7 7-7"/></svg>
+                </button>
+              </div>
+              <p style={{ marginTop: 20, fontSize: 13, color: '#8E9183', fontFamily: "'early-sans-variable', system-ui, sans-serif", fontWeight: 700 }}>
+                7 jours gratuits · Sans carte bancaire · Résiliable à tout moment
+              </p>
+            </div>
+          </div>
+          <div className="lp-hero-art lp-reveal d2">
+            <HeroCollage />
           </div>
         </div>
       </div>
@@ -460,7 +482,7 @@ function Process() {
             Un seul endroit.<br /><span className="lp-it lp-mint">Toute la post-production.</span>
           </h2>
         </div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 16, marginTop: 56 }}>
+        <div className="lp-process-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 16, marginTop: 56 }}>
           {steps.map((s, i) => (
             <div key={i} className={`lp-card lp-reveal d${i + 1}`} style={{ padding: 28, position: 'relative', overflow: 'hidden' }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 22 }}>
@@ -848,7 +870,7 @@ function DemoSection() {
             Cliquez pour vivre le workflow complet.
           </p>
         </div>
-        <div className="lp-reveal d2"><KlipDemo /></div>
+        <div className="lp-reveal d2 lp-demo-outer"><KlipDemo /></div>
       </div>
     </section>
   );
@@ -1047,7 +1069,7 @@ function Pricing() {
           </div>
         </div>
         {/* cards */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 20, maxWidth: 1060, margin: '46px auto 0' }}>
+        <div className="lp-pricing-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 20, maxWidth: 1060, margin: '46px auto 0' }}>
           {plans.map((p, i) => (
             <div key={p.name} className={`lp-reveal d${i + 1}`} style={{ borderRadius: 22, padding: 32, position: 'relative', overflow: 'visible', background: p.custom ? '#0C2A1D' : p.accent ? '#0C2A1D' : '#FBFAF4', color: p.custom ? '#EFEEE4' : p.accent ? '#EFEEE4' : '#0D0F0A', boxShadow: p.accent ? '0 30px 60px -40px rgba(12,42,29,.9)' : p.custom ? 'none' : 'inset 0 0 0 1px rgba(13,15,10,.1)', outline: p.custom ? '1.5px solid #2FD79B' : 'none' }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
