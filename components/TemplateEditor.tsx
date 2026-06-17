@@ -364,7 +364,7 @@ export default function TemplateEditor({
   const [name, setName] = useState(initialDraft?.name ?? 'Nouveau template');
   const [formatId, setFormatId] = useState(initialDraft?.format_id ?? 'ig-portrait');
   const [bgStyle, setBgStyle] = useState<BgStyle>(
-    initialDraft?.background_style ?? { type: 'gradient', angle: 135, colorFrom: primaryColor, colorTo: secondaryColor }
+    initialDraft?.background_style ?? { type: 'solid', color: primaryColor }
   );
   const [elements, setElements] = useState<CanvasEl[]>(
     Array.isArray(initialDraft?.text_zones) ? (initialDraft!.text_zones as CanvasEl[]) : []
@@ -623,7 +623,7 @@ export default function TemplateEditor({
       </div>
 
       {/* ── BODY ───────────────────────────────────────────────────────────── */}
-      <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
+      <div className="tpl-ed-body" style={{ flex: 1, display: 'flex', minHeight: 0 }}>
 
         {/* ── LEFT TOOL RAIL ─────────────────────────────────────────────── */}
         <div style={{ width: 68, background: 'var(--canvas)', borderRight: '1px solid var(--line)', display: 'flex', flexDirection: 'column', alignItems: 'center', paddingTop: 10, gap: 2, flexShrink: 0 }}>
@@ -658,7 +658,7 @@ export default function TemplateEditor({
         </div>
 
         {/* ── CANVAS AREA ────────────────────────────────────────────────── */}
-        <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'auto', padding: 28, background: 'var(--sunk)' }}>
+        <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'auto', padding: 28, background: 'var(--sunk)', minWidth: stageW + 56 }}>
           {/* Outer div: no overflow:hidden so handles (-5px) aren't clipped */}
           <div style={{ borderRadius: 18, boxShadow: '0 22px 50px -24px rgba(13,15,10,.55)', flexShrink: 0, position: 'relative' }}>
             {/* Inner div: clips only the Stage for rounded corners */}
@@ -855,26 +855,12 @@ export default function TemplateEditor({
           {tool === 'media' && !selectedEl && (
             <div style={{ padding: '14px 16px' }}>
               <SectionLabel>Arrière-plan</SectionLabel>
-              <div style={{ display: 'flex', gap: 6, marginBottom: 10 }}>
-                {(['gradient', 'solid'] as const).map(type => (
-                  <button key={type} onClick={() => setBgStyle(b => ({ ...b, type }))}
-                    style={{ flex: 1, padding: '6px 0', borderRadius: 'var(--r-s)', border: `1px solid ${bgStyle.type === type ? 'var(--mint)' : 'var(--line)'}`, background: bgStyle.type === type ? 'var(--mint-soft)' : 'var(--sunk)', color: bgStyle.type === type ? 'var(--mint-2)' : 'var(--ink-3)', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
-                    {type === 'gradient' ? 'Dégradé' : 'Uni'}
-                  </button>
-                ))}
-              </div>
-              {bgStyle.type === 'solid' ? (
-                <ColorRow label="Couleur" value={bgStyle.color ?? '#000000'} onChange={v => setBgStyle(b => ({ ...b, color: v }))} brandColors={brandColors} />
-              ) : (
-                <>
-                  <ColorRow label="Couleur départ" value={bgStyle.colorFrom ?? primaryColor} onChange={v => setBgStyle(b => ({ ...b, colorFrom: v }))} brandColors={brandColors} />
-                  <ColorRow label="Couleur fin" value={bgStyle.colorTo ?? secondaryColor} onChange={v => setBgStyle(b => ({ ...b, colorTo: v }))} brandColors={brandColors} />
-                  <PropRow label={`Angle — ${bgStyle.angle ?? 135}°`}>
-                    <input type="range" min={0} max={360} value={bgStyle.angle ?? 135}
-                      onChange={e => setBgStyle(b => ({ ...b, angle: Number(e.target.value) }))} style={{ width: '100%', accentColor: 'var(--mint-2)' }} />
-                  </PropRow>
-                </>
-              )}
+              <ColorRow
+                label="Couleur de fond"
+                value={bgStyle.type === 'solid' ? (bgStyle.color ?? primaryColor) : (bgStyle.colorFrom ?? primaryColor)}
+                onChange={v => setBgStyle({ type: 'solid', color: v })}
+                brandColors={brandColors}
+              />
               {/* Photo placeholder */}
               <div style={{ borderTop: '1px solid var(--line)', paddingTop: 12, marginTop: 4 }}>
                 <SectionLabel>Zone photo</SectionLabel>
