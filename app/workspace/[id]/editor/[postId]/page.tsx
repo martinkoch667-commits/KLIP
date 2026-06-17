@@ -1597,6 +1597,13 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
     setZoom(Math.max(0.15, Math.min(1.5, +z.toFixed(3))));
   }, [stageW, stageH]);
 
+  // Auto-fit after data loads and whenever the format (stageW/stageH) changes
+  useEffect(() => {
+    if (dataLoading) return;
+    const id = requestAnimationFrame(() => fit());
+    return () => cancelAnimationFrame(id);
+  }, [dataLoading, fit]);
+
   // ── Z-order ───────────────────────────────────────────────────────────────
 
   const bringForward = () => {
