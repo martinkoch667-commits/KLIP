@@ -113,7 +113,7 @@ export default function Sidebar({ workspaces: _w, userName: _u, activeWorkspaceI
     {
       label: "Calendrier",
       icon: <IconCalendar />,
-      href: "/calendar",
+      href: activeId ? `/workspace/${activeId}/planning` : "/calendar",
       active: isCalendar,
       badge: 0,
       tourId: "calendar",
@@ -121,7 +121,7 @@ export default function Sidebar({ workspaces: _w, userName: _u, activeWorkspaceI
     {
       label: "Composer",
       icon: <IconEdit />,
-      href: "/composer",
+      href: activeId ? `/workspace/${activeId}` : "/composer",
       active: isComposer,
       badge: 0,
       tourId: "composer",
@@ -129,7 +129,7 @@ export default function Sidebar({ workspaces: _w, userName: _u, activeWorkspaceI
     {
       label: "Fil de publication",
       icon: <IconSend />,
-      href: "/feed",
+      href: activeId ? `/workspace/${activeId}/results` : "/feed",
       active: isQueue,
       badge: pendingCount,
       tourId: "feed",
@@ -137,7 +137,7 @@ export default function Sidebar({ workspaces: _w, userName: _u, activeWorkspaceI
     {
       label: "Templates",
       icon: <IconTemplate />,
-      href: "/templates",
+      href: activeId ? `/workspace/${activeId}/templates` : "/templates",
       active: isTemplates,
       badge: 0,
       tourId: "templates",
