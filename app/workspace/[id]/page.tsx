@@ -848,7 +848,7 @@ export default function WorkspacePage() {
                   <div className="card" style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 12 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                       <span className="h-title" style={{ fontSize: 15 }}>Générer avec l'IA</span>
-                      <span className="chip" style={{ background: 'var(--sunk)', color: 'var(--ink-2)' }}>Gemini</span>
+                      <span className="chip" style={{ background: 'var(--mint-soft)', color: 'var(--mint-2)' }}>Klip IA</span>
                     </div>
                     <textarea
                       value={imagePrompt}

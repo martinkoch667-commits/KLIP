@@ -29,10 +29,10 @@ export async function POST(request: NextRequest) {
     );
 
     const data = await response.json();
-    console.log('Gemini response:', JSON.stringify(data).substring(0, 500));
+    console.log('IA response:', JSON.stringify(data).substring(0, 500));
 
     if (!response.ok) {
-      return NextResponse.json({ error: data.error?.message || 'Erreur Gemini' }, { status: 500 });
+      return NextResponse.json({ error: data.error?.message || 'Erreur IA' }, { status: 500 });
     }
 
     const images: string[] = (data.candidates?.[0]?.content?.parts ?? [])
