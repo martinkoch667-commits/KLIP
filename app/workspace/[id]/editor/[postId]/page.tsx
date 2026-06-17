@@ -1956,7 +1956,7 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
         </div>
 
         {/* Center: ContextToolbar (when selected) or hint */}
-        <div style={{ flex: 1, display: 'flex', justifyContent: 'center', minWidth: 0 }}>
+        <div className="ed-topbar-center" style={{ flex: 1, display: 'flex', justifyContent: 'center', minWidth: 0 }}>
           {selectedEl ? (
             <EditorContextToolbar
               sel={selectedEl}
@@ -1980,9 +1980,9 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
         </div>
 
         {/* Right: Type selector + Aperçu + Partager */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+        <div className="ed-topbar-right" style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
           {/* Post type pills */}
-          <div style={{ display: 'flex', gap: 2, padding: '3px', background: 'var(--sunk)', borderRadius: 'var(--r-s)', border: '1px solid var(--line)' }}>
+          <div className="ed-type-pills" style={{ display: 'flex', gap: 2, padding: '3px', background: 'var(--sunk)', borderRadius: 'var(--r-s)', border: '1px solid var(--line)' }}>
             {(['post', 'reel', 'story', 'carrousel'] as const).map(t => (
               <button key={t} onClick={() => changePostType(t)}
                 style={{ padding: '3px 9px', borderRadius: 6, border: 'none', cursor: 'pointer', fontSize: 11, fontWeight: 700, fontFamily: 'var(--sans)', transition: 'all .12s',

@@ -710,11 +710,11 @@ export default function WorkspacePage() {
               <p style={{ fontSize: 12, color: 'var(--ink-3)', marginTop: 1 }}>Workspace client</p>
             </div>
           </div>
-          <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8 }}>
+          <div className="ws-topbar-nav" style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8 }}>
             <NotificationBell />
-            <Link href={`/workspace/${id}/planning`} className="btn btn-ghost btn-sm">Planning</Link>
-            <Link href={`/workspace/${id}/results`} className="btn btn-ghost btn-sm">Résultats</Link>
-            <Link href={`/workspace/${id}/parametres`} className="btn btn-ghost btn-sm">Paramètres</Link>
+            <Link href={`/workspace/${id}/planning`} className="btn btn-ghost btn-sm ws-topbar-link">Planning</Link>
+            <Link href={`/workspace/${id}/results`} className="btn btn-ghost btn-sm ws-topbar-link">Résultats</Link>
+            <Link href={`/workspace/${id}/parametres`} className="btn btn-ghost btn-sm ws-topbar-link">Paramètres</Link>
           </div>
         </header>
 

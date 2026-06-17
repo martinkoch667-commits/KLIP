@@ -435,6 +435,13 @@ input.ed-range::-moz-range-thumb {
   /* Editor — horizontal scroll so all panels accessible */
   .ed-body { overflow-x: auto; -webkit-overflow-scrolling: touch; min-width: min-content; }
 
+  /* Editor topbar — hide center hint and type pills on mobile (too wide) */
+  .ed-topbar-center { display: none !important; }
+  .ed-type-pills { display: none !important; }
+
+  /* Workspace topbar — hide nav links on mobile (accessible via sidebar) */
+  .ws-topbar-link { display: none !important; }
+
   /* New workspace form grids */
   .ws-new-3col { grid-template-columns: 1fr !important; }
   .ws-new-5col { grid-template-columns: repeat(3, 1fr) !important; }
