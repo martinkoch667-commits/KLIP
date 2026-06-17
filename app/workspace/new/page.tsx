@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect, useMemo, CSSProperties } from "react";
+import { useState, useRef, useEffect, useMemo, CSSProperties, Fragment } from "react";
 import { useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
@@ -382,9 +382,10 @@ export default function NewWorkspacePage() {
       <div style={{ marginLeft: "var(--sb-w)", flex: 1, display: "flex", flexDirection: "column" }}>
 
         {/* ── Progress header ───────────────────────────────────────────────── */}
-        <header style={{ padding: "28px 40px 0", flexShrink: 0 }}>
+        <header className="ws-new-header" style={{ padding: "28px 40px 0", flexShrink: 0 }}>
           <div style={{ maxWidth: 680, margin: "0 auto" }}>
-            <div style={{ display: "flex", alignItems: "flex-start" }}>
+            {/* Desktop stepper */}
+            <div className="ws-new-stepper-full" style={{ display: "flex", alignItems: "flex-start" }}>
               {STEP_LABELS.map((label, i) => {
                 const n = i + 1;
                 const active = n === step;
@@ -420,18 +421,50 @@ export default function NewWorkspacePage() {
                 );
               })}
             </div>
+
+            {/* Mobile stepper — compact circles + active label */}
+            <div className="ws-new-stepper-mobile" style={{ display: "none", alignItems: "center", gap: 4 }}>
+              {STEP_LABELS.map((label, i) => {
+                const n = i + 1;
+                const active = n === step;
+                const done = n < step;
+                return (
+                  <Fragment key={n}>
+                    {i > 0 && (
+                      <div style={{ width: 14, height: 2, background: done ? "var(--mint)" : "var(--line)", flexShrink: 0, borderRadius: 2 }} />
+                    )}
+                    <div style={{ display: "flex", alignItems: "center", gap: active ? 6 : 0 }}>
+                      <div style={{
+                        width: active ? 36 : 28, height: active ? 36 : 28, borderRadius: "50%",
+                        background: done ? "var(--mint)" : active ? "var(--forest)" : "var(--sunk)",
+                        color: done ? "var(--mint-ink)" : active ? "#fff" : "var(--ink-3)",
+                        display: "flex", alignItems: "center", justifyContent: "center",
+                        fontSize: 12, fontWeight: 800, flexShrink: 0, transition: "all .2s",
+                      }}>
+                        {done
+                          ? <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                          : n}
+                      </div>
+                      {active && (
+                        <span style={{ fontSize: 13, fontWeight: 700, color: "var(--ink)", whiteSpace: "nowrap" }}>{label}</span>
+                      )}
+                    </div>
+                  </Fragment>
+                );
+              })}
+            </div>
           </div>
         </header>
 
         {/* ── Step content ──────────────────────────────────────────────────── */}
-        <main style={{ flex: 1, overflowY: "auto", padding: "0 40px" }}>
+        <main className="ws-new-main" style={{ flex: 1, overflowY: "auto", padding: "0 40px" }}>
           <div style={{ maxWidth: 680, margin: "0 auto", paddingTop: 40, paddingBottom: 120 }}>
 
             {/* ─── STEP 1 — Infos de base ─── */}
             {step === 1 && (
               <div key="step1" className="screen-in" style={{ display: "flex", flexDirection: "column", gap: 24 }}>
                 <div>
-                  <h1 style={{ fontFamily: "var(--display)", fontWeight: 800, fontSize: 30, color: "var(--ink)", letterSpacing: "-0.02em", marginBottom: 8 }}>
+                  <h1 className="ws-new-step-title" style={{ fontFamily: "var(--display)", fontWeight: 800, fontSize: 30, color: "var(--ink)", letterSpacing: "-0.02em", marginBottom: 8 }}>
                     Infos de base
                   </h1>
                   <p style={{ fontSize: 14, color: "var(--ink-2)" }}>
@@ -474,9 +507,9 @@ export default function NewWorkspacePage() {
                 <div>
                   <label style={labelStyle}>Handle Instagram <OptLabel /></label>
                   <div style={{ position: "relative" }}>
-                    <span style={{
+                    <span className="ws-new-at" style={{
                       position: "absolute", left: 16, top: "50%", transform: "translateY(-50%)",
-                      color: "var(--ink-3)", fontWeight: 700, fontSize: 14, pointerEvents: "none",
+                      color: "var(--ink-3)", fontWeight: 700, fontSize: 14, pointerEvents: "none", lineHeight: 1,
                     }}>@</span>
                     <input
                       style={{ ...inputStyle, paddingLeft: 32 }}
@@ -504,7 +537,7 @@ export default function NewWorkspacePage() {
             {step === 2 && (
               <div key="step2" className="screen-in" style={{ display: "flex", flexDirection: "column", gap: 28 }}>
                 <div>
-                  <h1 style={{ fontFamily: "var(--display)", fontWeight: 800, fontSize: 30, color: "var(--ink)", letterSpacing: "-0.02em", marginBottom: 8 }}>
+                  <h1 className="ws-new-step-title" style={{ fontFamily: "var(--display)", fontWeight: 800, fontSize: 30, color: "var(--ink)", letterSpacing: "-0.02em", marginBottom: 8 }}>
                     Voix de marque
                   </h1>
                   <p style={{ fontSize: 14, color: "var(--ink-2)" }}>
@@ -584,7 +617,7 @@ export default function NewWorkspacePage() {
             {step === 3 && (
               <div key="step3" className="screen-in" style={{ display: "flex", flexDirection: "column", gap: 28 }}>
                 <div>
-                  <h1 style={{ fontFamily: "var(--display)", fontWeight: 800, fontSize: 30, color: "var(--ink)", letterSpacing: "-0.02em", marginBottom: 8 }}>
+                  <h1 className="ws-new-step-title" style={{ fontFamily: "var(--display)", fontWeight: 800, fontSize: 30, color: "var(--ink)", letterSpacing: "-0.02em", marginBottom: 8 }}>
                     Identité visuelle
                   </h1>
                   <p style={{ fontSize: 14, color: "var(--ink-2)" }}>
@@ -708,7 +741,7 @@ export default function NewWorkspacePage() {
             {step === 4 && (
               <div key="step4" className="screen-in" style={{ display: "flex", flexDirection: "column", gap: 32 }}>
                 <div>
-                  <h1 style={{ fontFamily: "var(--display)", fontWeight: 800, fontSize: 30, color: "var(--ink)", letterSpacing: "-0.02em", marginBottom: 8 }}>
+                  <h1 className="ws-new-step-title" style={{ fontFamily: "var(--display)", fontWeight: 800, fontSize: 30, color: "var(--ink)", letterSpacing: "-0.02em", marginBottom: 8 }}>
                     Typographie
                   </h1>
                   <p style={{ fontSize: 14, color: "var(--ink-2)" }}>
@@ -955,7 +988,7 @@ export default function NewWorkspacePage() {
             {step === 5 && (
               <div key="step5" className="screen-in" style={{ display: "flex", flexDirection: "column", gap: 28 }}>
                 <div>
-                  <h1 style={{ fontFamily: "var(--display)", fontWeight: 800, fontSize: 30, color: "var(--ink)", letterSpacing: "-0.02em", marginBottom: 8 }}>
+                  <h1 className="ws-new-step-title" style={{ fontFamily: "var(--display)", fontWeight: 800, fontSize: 30, color: "var(--ink)", letterSpacing: "-0.02em", marginBottom: 8 }}>
                     Templates
                   </h1>
                   <p style={{ fontSize: 14, color: "var(--ink-2)" }}>
@@ -1069,7 +1102,7 @@ export default function NewWorkspacePage() {
         )}
 
         {/* ── Navigation footer ─────────────────────────────────────────────── */}
-        <footer style={{
+        <footer className="ws-new-footer" style={{
           position: "fixed", bottom: 0,
           left: "var(--sb-w)", right: 0,
           background: "color-mix(in srgb, var(--canvas) 92%, transparent)",
@@ -1079,7 +1112,7 @@ export default function NewWorkspacePage() {
           display: "flex", alignItems: "center", justifyContent: "space-between",
           zIndex: 50,
         }}>
-          <div>
+          <div className="ws-new-footer-left">
             {step > 1 && (
               <button type="button" onClick={() => setStep(s => s - 1)}
                 style={{
@@ -1092,8 +1125,8 @@ export default function NewWorkspacePage() {
             )}
           </div>
 
-          <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-            <span style={{ fontSize: 12, color: "var(--ink-3)", fontFamily: "var(--mono)", fontWeight: 700 }}>
+          <div className="ws-new-footer-right" style={{ display: "flex", alignItems: "center", gap: 14 }}>
+            <span className="ws-new-footer-count" style={{ fontSize: 12, color: "var(--ink-3)", fontFamily: "var(--mono)", fontWeight: 700 }}>
               {step} / {STEP_LABELS.length}
             </span>
 
@@ -1107,11 +1140,12 @@ export default function NewWorkspacePage() {
 
             {step < 5 ? (
               <button type="button" onClick={() => setStep(s => s + 1)} disabled={!canContinue}
+                className="ws-new-footer-btn"
                 style={{
                   padding: "11px 30px", borderRadius: 13,
-                  background: canContinue ? "var(--ink)" : "var(--sunk)",
+                  background: canContinue ? "var(--mint)" : "var(--sunk)",
                   border: "none",
-                  color: canContinue ? "var(--paper)" : "var(--ink-3)",
+                  color: canContinue ? "var(--mint-ink)" : "var(--ink-3)",
                   fontSize: 14, fontWeight: 700,
                   cursor: canContinue ? "pointer" : "not-allowed",
                   fontFamily: "var(--display)", transition: "all 0.15s",
@@ -1120,6 +1154,7 @@ export default function NewWorkspacePage() {
               </button>
             ) : (
               <button type="button" onClick={createWorkspace} disabled={loading}
+                className="ws-new-footer-btn"
                 style={{
                   padding: "11px 30px", borderRadius: 13,
                   background: "var(--mint)", border: "none",
@@ -1133,6 +1168,25 @@ export default function NewWorkspacePage() {
             )}
           </div>
         </footer>
+
+        {/* ── Mobile back button — fixed top-left ───────────────────────────── */}
+        {step > 1 && (
+          <button
+            type="button"
+            className="ws-new-back-mobile"
+            onClick={() => setStep(s => s - 1)}
+            style={{
+              display: "none", position: "fixed", top: 12, left: 12, zIndex: 200,
+              padding: "8px 14px", borderRadius: 10,
+              background: "var(--white)", border: "1px solid var(--line)",
+              fontSize: 13, fontWeight: 600, color: "var(--ink-2)", cursor: "pointer",
+              alignItems: "center", gap: 4,
+              boxShadow: "0 2px 8px rgba(13,15,10,.08)",
+            }}
+          >
+            ← Retour
+          </button>
+        )}
 
       </div>
     </div>
