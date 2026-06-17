@@ -186,7 +186,7 @@ function BgImage({ src, w, h, offsetX = 0, offsetY = 0, draggable = false, onDra
 }
 
 function ImgNode({ el, onSelect, onChange, onDragStart, onDragEnd, isCropping }: {
-  el: ImageEl; onSelect: () => void; onChange: (u: Partial<ImageEl>) => void;
+  el: ImageEl; onSelect: (shiftKey: boolean) => void; onChange: (u: Partial<ImageEl>) => void;
   onDragStart?: () => void; onDragEnd?: (x: number, y: number) => void; isCropping?: boolean;
 }) {
   const [img] = useImage(el.src, 'anonymous');
@@ -217,7 +217,7 @@ function ImgNode({ el, onSelect, onChange, onDragStart, onDragEnd, isCropping }:
       opacity={el.opacity / 100}
       clipX={0} clipY={0} clipWidth={frameW} clipHeight={frameH}
       draggable={!isCropping}
-      onClick={onSelect} onTap={onSelect}
+      onClick={e => onSelect(e.evt.shiftKey)} onTap={() => onSelect(false)}
       onDragStart={!isCropping ? onDragStart : undefined}
       onDragEnd={!isCropping ? (e => onDragEnd?.(e.target.x(), e.target.y())) : undefined}
     >
@@ -1073,6 +1073,7 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
   const stageH = activeFormat.h;
   const [elements, setElements] = useState<CanvasEl[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [hiddenIds, setHiddenIds] = useState<Set<string>>(new Set());
   const [dragId, setDragId] = useState<string | null>(null);
@@ -1096,9 +1097,63 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
 
   const elementsRef = useRef<CanvasEl[]>([]);
   const selectedIdRef = useRef<string | null>(null);
+  const selectedIdsRef = useRef<string[]>([]);
   useEffect(() => { elementsRef.current = elements; }, [elements]);
   useEffect(() => { selectedIdRef.current = selectedId; }, [selectedId]);
+  useEffect(() => { selectedIdsRef.current = selectedIds; }, [selectedIds]);
   useEffect(() => { if (selectedId) { setBgCropMode(false); setBgImageSelected(false); } }, [selectedId]);
+
+  // ── Multi-selection helpers ────────────────────────────────────────────────
+  const multiDragStartRef = useRef<Record<string, { x: number; y: number }>>({});
+
+  const handleElClick = (id: string, shiftKey: boolean) => {
+    if (shiftKey) {
+      setSelectedIds(prev => {
+        if (prev.includes(id)) {
+          const next = prev.filter(x => x !== id);
+          setSelectedId(next.at(-1) ?? null);
+          return next;
+        } else {
+          setSelectedId(id);
+          return [...prev, id];
+        }
+      });
+    } else {
+      setSelectedId(id);
+      setSelectedIds([id]);
+    }
+  };
+
+  const handleElDragStart = (id: string) => {
+    setIsKonvaDragging(true);
+    const ids = selectedIdsRef.current;
+    if (ids.length > 1) {
+      const starts: Record<string, { x: number; y: number }> = {};
+      for (const sid of ids) {
+        const e = elementsRef.current.find(el => el.id === sid);
+        if (e) starts[sid] = { x: e.x, y: e.y };
+      }
+      multiDragStartRef.current = starts;
+    }
+  };
+
+  const handleElDragEnd = (id: string, x: number, y: number) => {
+    setIsKonvaDragging(false);
+    const ids = selectedIdsRef.current;
+    if (ids.length > 1 && multiDragStartRef.current[id]) {
+      const start = multiDragStartRef.current[id];
+      const dx = x - start.x;
+      const dy = y - start.y;
+      const newEls = elementsRef.current.map(e => {
+        if (!ids.includes(e.id)) return e;
+        const s = multiDragStartRef.current[e.id];
+        return s ? { ...e, x: s.x + dx, y: s.y + dy } : e;
+      });
+      applyElements(newEls);
+    } else {
+      updateEl(id, { x, y });
+    }
+  };
 
   // ── Carousel slides ───────────────────────────────────────────────────────
   const [slides, setSlides] = useState<Slide[]>([{ id: 'slide-1', elements: [], proxyUrl: '' }]);
@@ -1489,32 +1544,63 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // ── Alignment (single element vs canvas) ─────────────────────────────────
+  // ── Alignment (single vs canvas; multi vs group bounding box) ────────────
+
+  const getElBox = (e: CanvasEl) => {
+    if (e.type === 'circle') { const r = (e as CircleEl).radius; return { l: e.x - r, t: e.y - r, r: e.x + r, b: e.y + r, w: r*2, h: r*2, cx: e.x, cy: e.y }; }
+    if (e.type === 'star') { const r = (e as StarEl).outerRadius; return { l: e.x - r, t: e.y - r, r: e.x + r, b: e.y + r, w: r*2, h: r*2, cx: e.x, cy: e.y }; }
+    const w = 'width' in e ? (e as any).width : 100;
+    const h = e.type === 'text' ? (e as TextEl).fontSize + 2 * Number((e as TextEl).paddingV ?? (e as TextEl).padding ?? 10) : ('height' in e ? (e as any).height : 100);
+    return { l: e.x, t: e.y, r: e.x + w, b: e.y + h, w, h, cx: e.x + w/2, cy: e.y + h/2 };
+  };
 
   const alignEl = (dir: string) => {
-    const el = selectedEl;
-    if (!el) return;
-    let patch: Record<string, number> = {};
-    const getW = (e: CanvasEl) => e.type === 'circle' ? (e as CircleEl).radius * 2 : e.type === 'star' ? (e as StarEl).outerRadius * 2 : ('width' in e ? (e as any).width : 100);
-    const getH = (e: CanvasEl) => e.type === 'circle' ? (e as CircleEl).radius * 2 : e.type === 'star' ? (e as StarEl).outerRadius * 2 : (e.type === 'text' ? (e as TextEl).fontSize + 2 * Number((e as TextEl).paddingV ?? (e as TextEl).padding ?? 10) : ('height' in e ? (e as any).height : 100));
-    if (el.type === 'circle' || el.type === 'star') {
-      const r = el.type === 'circle' ? (el as CircleEl).radius : (el as StarEl).outerRadius;
-      if (dir === 'left') patch = { x: r };
-      else if (dir === 'right') patch = { x: stageW - r };
-      else if (dir === 'center-h') patch = { x: stageW / 2 };
-      else if (dir === 'top') patch = { y: r };
-      else if (dir === 'bottom') patch = { y: stageH - r };
-      else if (dir === 'center-v') patch = { y: stageH / 2 };
+    const ids = selectedIds.length > 1 ? selectedIds : (selectedId ? [selectedId] : []);
+    if (ids.length === 0) return;
+
+    if (ids.length === 1) {
+      // Single element: align relative to canvas
+      const el = elements.find(e => e.id === ids[0]);
+      if (!el) return;
+      const box = getElBox(el);
+      let patch: Record<string, number> = {};
+      if (el.type === 'circle' || el.type === 'star') {
+        const r = el.type === 'circle' ? (el as CircleEl).radius : (el as StarEl).outerRadius;
+        if (dir === 'left') patch = { x: r }; else if (dir === 'right') patch = { x: stageW - r };
+        else if (dir === 'center-h') patch = { x: stageW / 2 }; else if (dir === 'top') patch = { y: r };
+        else if (dir === 'bottom') patch = { y: stageH - r }; else if (dir === 'center-v') patch = { y: stageH / 2 };
+      } else {
+        if (dir === 'left') patch = { x: 0 }; else if (dir === 'right') patch = { x: stageW - box.w };
+        else if (dir === 'center-h') patch = { x: (stageW - box.w) / 2 }; else if (dir === 'top') patch = { y: 0 };
+        else if (dir === 'bottom') patch = { y: stageH - box.h }; else if (dir === 'center-v') patch = { y: (stageH - box.h) / 2 };
+      }
+      updateEl(el.id, patch as Partial<CanvasEl>);
     } else {
-      const elW = getW(el); const elH = getH(el);
-      if (dir === 'left') patch = { x: 0 };
-      else if (dir === 'right') patch = { x: stageW - elW };
-      else if (dir === 'center-h') patch = { x: (stageW - elW) / 2 };
-      else if (dir === 'top') patch = { y: 0 };
-      else if (dir === 'bottom') patch = { y: stageH - elH };
-      else if (dir === 'center-v') patch = { y: (stageH - elH) / 2 };
+      // Multi: align elements relative to each other
+      const sels = elements.filter(e => ids.includes(e.id));
+      const boxes = sels.map(e => ({ id: e.id, type: e.type, box: getElBox(e) }));
+      const minL = Math.min(...boxes.map(b => b.box.l));
+      const minT = Math.min(...boxes.map(b => b.box.t));
+      const maxR = Math.max(...boxes.map(b => b.box.r));
+      const maxB = Math.max(...boxes.map(b => b.box.b));
+      const avgCx = (minL + maxR) / 2;
+      const avgCy = (minT + maxB) / 2;
+      const newEls = elements.map(e => {
+        if (!ids.includes(e.id)) return e;
+        const { box } = boxes.find(b => b.id === e.id)!;
+        if (e.type === 'circle' || e.type === 'star') {
+          if (dir === 'left') return { ...e, x: minL + box.w / 2 }; if (dir === 'right') return { ...e, x: maxR - box.w / 2 };
+          if (dir === 'center-h') return { ...e, x: avgCx }; if (dir === 'top') return { ...e, y: minT + box.h / 2 };
+          if (dir === 'bottom') return { ...e, y: maxB - box.h / 2 }; if (dir === 'center-v') return { ...e, y: avgCy };
+        } else {
+          if (dir === 'left') return { ...e, x: minL }; if (dir === 'right') return { ...e, x: maxR - box.w };
+          if (dir === 'center-h') return { ...e, x: avgCx - box.w / 2 }; if (dir === 'top') return { ...e, y: minT };
+          if (dir === 'bottom') return { ...e, y: maxB - box.h }; if (dir === 'center-v') return { ...e, y: avgCy - box.h / 2 };
+        }
+        return e;
+      });
+      applyElements(newEls);
     }
-    updateEl(el.id, patch as Partial<CanvasEl>);
   };
 
   // ── Keyboard shortcuts ────────────────────────────────────────────────────
@@ -1523,6 +1609,7 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
     const handler = (e: KeyboardEvent) => {
       const tag = (e.target as HTMLElement).tagName;
       if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+      if (e.key === 'Escape') { setSelectedId(null); setSelectedIds([]); setEditingId(null); return; }
       if (e.key === 'Delete' || e.key === 'Backspace') deleteEl();
       if ((e.metaKey || e.ctrlKey) && e.key === 'z' && !e.shiftKey) { e.preventDefault(); undo(); }
       if ((e.metaKey || e.ctrlKey) && (e.key === 'y' || (e.key === 'z' && e.shiftKey))) { e.preventDefault(); redo(); }
@@ -2400,7 +2487,7 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
         {/* ── CANVAS WORKSPACE ── */}
         <div style={{ flex: 1, minWidth: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column', background: 'radial-gradient(120% 80% at 50% -10%, #FBFAF4, #ECEBE1 70%)' }}>
           <div ref={canvasAreaRef}
-          onMouseDown={() => { setSelectedId(null); setBgCropMode(false); setBgImageSelected(false); }}
+          onMouseDown={() => { setSelectedId(null); setSelectedIds([]); setEditingId(null); setBgCropMode(false); setBgImageSelected(false); }}
           style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'auto', padding: 28, position: 'relative' }}>
             {/* Canvas wrapper stops click propagation so gray-area deselect only fires outside canvas */}
             <div onMouseDown={e => e.stopPropagation()} style={{ borderRadius: 18, boxShadow: '0 22px 50px -24px rgba(13,15,10,.45)', flexShrink: 0, position: 'relative', transform: `scale(${zoom})`, transformOrigin: 'center center' }}>
@@ -2430,35 +2517,35 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
                 {elements.map(el => {
                   if (hiddenIds.has(el.id)) return null;
                   if (el.type === 'image') return (
-                    <ImgNode key={el.id} el={el} onSelect={() => setSelectedId(el.id)} onChange={u => updateEl(el.id, u)}
-                      onDragStart={() => setIsKonvaDragging(true)}
-                      onDragEnd={(x, y) => { setIsKonvaDragging(false); updateEl(el.id, { x, y }); }}
+                    <ImgNode key={el.id} el={el} onSelect={sk => handleElClick(el.id, sk)} onChange={u => updateEl(el.id, u)}
+                      onDragStart={() => handleElDragStart(el.id)}
+                      onDragEnd={(x, y) => handleElDragEnd(el.id, x, y)}
                       isCropping={cropId === el.id} />
                   );
                   if (el.type === 'rect') return (
                     <Rect key={el.id} id={el.id} x={el.x} y={el.y} width={el.width} height={el.height}
                       fill={el.fill} stroke={el.stroke} strokeWidth={el.strokeWidth}
                       cornerRadius={el.cornerRadius} rotation={el.rotation} opacity={el.opacity / 100} draggable
-                      onClick={() => setSelectedId(el.id)} onTap={() => setSelectedId(el.id)}
-                      onDragStart={() => setIsKonvaDragging(true)}
-                      onDragEnd={e => { setIsKonvaDragging(false); updateEl(el.id, { x: e.target.x(), y: e.target.y() }); }} />
+                      onClick={e => handleElClick(el.id, e.evt.shiftKey)} onTap={() => handleElClick(el.id, false)}
+                      onDragStart={() => handleElDragStart(el.id)}
+                      onDragEnd={e => handleElDragEnd(el.id, e.target.x(), e.target.y())} />
                   );
                   if (el.type === 'circle') return (
                     <Circle key={el.id} id={el.id} x={el.x} y={el.y} radius={el.radius}
                       fill={el.fill} stroke={el.stroke} strokeWidth={el.strokeWidth}
                       rotation={el.rotation} opacity={el.opacity / 100} draggable
-                      onClick={() => setSelectedId(el.id)} onTap={() => setSelectedId(el.id)}
-                      onDragStart={() => setIsKonvaDragging(true)}
-                      onDragEnd={e => { setIsKonvaDragging(false); updateEl(el.id, { x: e.target.x(), y: e.target.y() }); }} />
+                      onClick={e => handleElClick(el.id, e.evt.shiftKey)} onTap={() => handleElClick(el.id, false)}
+                      onDragStart={() => handleElDragStart(el.id)}
+                      onDragEnd={e => handleElDragEnd(el.id, e.target.x(), e.target.y())} />
                   );
                   if (el.type === 'star') return (
                     <KonvaStar key={el.id} id={el.id} x={el.x} y={el.y} numPoints={el.numPoints}
                       innerRadius={el.innerRadius} outerRadius={el.outerRadius}
                       fill={el.fill} stroke={el.stroke} strokeWidth={el.strokeWidth}
                       rotation={el.rotation} opacity={el.opacity / 100} draggable
-                      onClick={() => setSelectedId(el.id)} onTap={() => setSelectedId(el.id)}
-                      onDragStart={() => setIsKonvaDragging(true)}
-                      onDragEnd={e => { setIsKonvaDragging(false); updateEl(el.id, { x: e.target.x(), y: e.target.y() }); }} />
+                      onClick={e => handleElClick(el.id, e.evt.shiftKey)} onTap={() => handleElClick(el.id, false)}
+                      onDragStart={() => handleElDragStart(el.id)}
+                      onDragEnd={e => handleElDragEnd(el.id, e.target.x(), e.target.y())} />
                   );
                   if (el.type === 'text') {
                     const pH = el.paddingH ?? el.padding;
@@ -2477,10 +2564,10 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
                     return (
                       <Group key={el.id} id={el.id} x={el.x} y={el.y} rotation={el.rotation} opacity={el.opacity / 100}
                         draggable
-                        onClick={() => setSelectedId(el.id)} onTap={() => setSelectedId(el.id)}
+                        onClick={e => handleElClick(el.id, e.evt.shiftKey)} onTap={() => handleElClick(el.id, false)}
                         onDblClick={() => { setSelectedId(el.id); setEditingId(el.id); }}
-                        onDragStart={() => setIsKonvaDragging(true)}
-                        onDragEnd={e => { setIsKonvaDragging(false); updateEl(el.id, { x: e.target.x(), y: e.target.y() }); }}>
+                        onDragStart={() => handleElDragStart(el.id)}
+                        onDragEnd={e => handleElDragEnd(el.id, e.target.x(), e.target.y())}>
                         {/* Bug 5 fix: always render Rect for hit detection; transparent when hasBg=false */}
                         <Rect x={0} y={0} width={blockW} height={blockH}
                           fill={el.hasBg ? el.bgColor : 'rgba(0,0,0,0.01)'}
@@ -2590,6 +2677,28 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
                 </button>
               </div>
             )}
+            {/* Multi-selection bounding box */}
+            {selectedIds.length > 1 && !isKonvaDragging && (() => {
+              const sels = elements.filter(e => selectedIds.includes(e.id) && !hiddenIds.has(e.id));
+              if (sels.length < 2) return null;
+              let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+              for (const e of sels) {
+                const box = getElBox(e);
+                minX = Math.min(minX, box.l); minY = Math.min(minY, box.t);
+                maxX = Math.max(maxX, box.r); maxY = Math.max(maxY, box.b);
+              }
+              return (
+                <div style={{
+                  position: 'absolute',
+                  left: minX - 6, top: minY - 6,
+                  width: maxX - minX + 12, height: maxY - minY + 12,
+                  border: '2px dashed #8B5CF6',
+                  borderRadius: 4,
+                  pointerEvents: 'none',
+                  zIndex: 9,
+                }} />
+              );
+            })()}
             {selectedEl && !hiddenIds.has(selectedEl.id) && !isKonvaDragging && cropId !== selectedEl.id && (
               <>
                 <SelectionOverlay
