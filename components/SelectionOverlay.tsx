@@ -54,8 +54,26 @@ function getElementBounds(el: AnyEl): Bounds | null {
       x = el.x; y = el.y;
       w = Math.max(20, el.width ?? 200);
       const pV = Number(el.paddingV ?? el.padding ?? 10);
-      // Match blockH from editor: fontSize + pV * 2
-      h = Math.max(1, (el.fontSize ?? 32) + pV * 2);
+      const pH = Number(el.paddingH ?? el.padding ?? 10);
+      const fontSize = el.fontSize ?? 32;
+      const lineHeight = el.lineHeight ?? 1.2;
+      const textAreaW = Math.max(1, w - pH * 2);
+      let lineCount = 1;
+      try {
+        if (typeof document !== 'undefined') {
+          const cvs = document.createElement('canvas');
+          const ctx = cvs.getContext('2d');
+          if (ctx) {
+            ctx.font = `${el.fontStyle ?? 'bold'} ${fontSize}px ${el.fontFamily ?? 'Archivo'}`;
+            const allLines = (el.text ?? '').split('\n');
+            lineCount = allLines.reduce((acc: number, line: string) => {
+              const lw = ctx.measureText(line || ' ').width;
+              return acc + Math.max(1, Math.ceil(lw / Math.max(1, textAreaW)));
+            }, 0);
+          }
+        }
+      } catch {}
+      h = Math.max(1, lineCount) * fontSize * lineHeight + pV * 2;
       originX = 0; originY = 0;
 
     } else {
@@ -152,6 +170,7 @@ export default function SelectionOverlay({ el, stageRef, onChange, onDragEnd, zo
     const startMouseY = e.clientY;
     const startW      = bounds!.w;
     const startH      = bounds!.h;
+    const startRatio  = startH / Math.max(1, startW);
     const startElX    = el.x;
     const startElY    = el.y;
     const startRot    = bounds!.rotation;
@@ -215,30 +234,29 @@ export default function SelectionOverlay({ el, stageRef, onChange, onDragEnd, zo
         const isCorner = ['tl', 'tr', 'bl', 'br'].includes(handleId);
 
         if (isCorner) {
-          // Free resize: width and height independent per corner
+          // Step 1: raw resize per corner
           switch (handleId) {
-            case 'br':
-              nw = startW + ldx;
-              nh = startH + ldy;
-              break;
-            case 'tr':
-              nw = startW + ldx;
-              nh = startH - ldy;
-              origin = shiftOrigin(0, startH - Math.max(20, nh));
-              break;
-            case 'bl':
-              nw = startW - ldx;
-              nh = startH + ldy;
-              origin = shiftOrigin(startW - Math.max(20, nw), 0);
-              break;
-            case 'tl':
-              nw = startW - ldx;
-              nh = startH - ldy;
-              origin = shiftOrigin(startW - Math.max(20, nw), startH - Math.max(20, nh));
-              break;
+            case 'br': nw = startW + ldx; nh = startH + ldy; break;
+            case 'tr': nw = startW + ldx; nh = startH - ldy; break;
+            case 'bl': nw = startW - ldx; nh = startH + ldy; break;
+            case 'tl': nw = startW - ldx; nh = startH - ldy; break;
           }
+          // Step 2: Shift/Cmd → constrain to original aspect ratio
+          if ((ev.shiftKey || ev.metaKey) && startRatio > 0) {
+            const relW = Math.abs(nw / startW - 1);
+            const relH = Math.abs(nh / startH - 1);
+            if (relW >= relH) { nh = nw * startRatio; }
+            else { nw = nh / startRatio; }
+          }
+          // Step 3: clamp
           nw = Math.max(20, nw);
           nh = Math.max(20, nh);
+          // Step 4: recalculate origin per corner
+          switch (handleId) {
+            case 'tr': origin = shiftOrigin(0, startH - nh); break;
+            case 'bl': origin = shiftOrigin(startW - nw, 0); break;
+            case 'tl': origin = shiftOrigin(startW - nw, startH - nh); break;
+          }
         } else {
           switch (handleId) {
             case 'mr': nw = startW + ldx; break;

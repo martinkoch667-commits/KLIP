@@ -140,8 +140,8 @@ function measureTextWidth(text: string, fontSize: number, fontFamily: string, fo
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
 // Bug 3 fix: object-fit cover behavior + drag-to-reposition
-function BgImage({ src, w, h, offsetX = 0, offsetY = 0, draggable = false, onDragEnd }:
-  { src: string; w: number; h: number; offsetX?: number; offsetY?: number; draggable?: boolean; onDragEnd?: (x: number, y: number) => void }
+function BgImage({ src, w, h, offsetX = 0, offsetY = 0, draggable = false, onDragEnd, opacity = 1, onSelect }:
+  { src: string; w: number; h: number; offsetX?: number; offsetY?: number; draggable?: boolean; onDragEnd?: (x: number, y: number) => void; opacity?: number; onSelect?: () => void }
 ) {
   const [img] = useImage(src, 'anonymous');
   if (!img) return null;
@@ -168,8 +168,11 @@ function BgImage({ src, w, h, offsetX = 0, offsetY = 0, draggable = false, onDra
       image={img}
       x={clampedX} y={clampedY}
       width={scaledW} height={scaledH}
-      listening={draggable}
+      listening={draggable || !!onSelect}
       draggable={draggable}
+      opacity={opacity}
+      onClick={onSelect}
+      onTap={onSelect}
       onDragMove={draggable ? (e => {
         const nx = Math.min(0, Math.max(w - scaledW, e.target.x()));
         const ny = Math.min(0, Math.max(h - scaledH, e.target.y()));
@@ -1095,7 +1098,7 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
   const selectedIdRef = useRef<string | null>(null);
   useEffect(() => { elementsRef.current = elements; }, [elements]);
   useEffect(() => { selectedIdRef.current = selectedId; }, [selectedId]);
-  useEffect(() => { if (selectedId) setBgCropMode(false); }, [selectedId]);
+  useEffect(() => { if (selectedId) { setBgCropMode(false); setBgImageSelected(false); } }, [selectedId]);
 
   // ── Carousel slides ───────────────────────────────────────────────────────
   const [slides, setSlides] = useState<Slide[]>([{ id: 'slide-1', elements: [], proxyUrl: '' }]);
@@ -1192,6 +1195,8 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
   // ── UI tool + workspace ───────────────────────────────────────────────────
   const [tool, setTool] = useState<'design'|'elements'|'text'|'photos'|'brand'|'upload'|'calques'|null>(null);
   const [bgLocked, setBgLocked] = useState(true);
+  const [bgImageSelected, setBgImageSelected] = useState(false);
+  const [bgOpacity, setBgOpacity] = useState(100);
   const [workspaceName, setWorkspaceName] = useState('');
   const [postPhotoUrl, setPostPhotoUrl] = useState('');
   const [workspaceData, setWorkspaceData] = useState<{
@@ -1266,7 +1271,7 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
         if (postError) throw postError;
         if (p?.template_id) setPostTemplateId(p.template_id);
         // Set canvas format from post_type (template will override below if applicable)
-        const PT_FORMAT: Record<string, string> = { post: 'ig-square', reel: 'ig-story', story: 'ig-story', carrousel: 'ig-square' };
+        const PT_FORMAT: Record<string, string> = { post: 'ig-portrait', reel: 'ig-story', story: 'ig-story', carrousel: 'ig-square' };
         if (p?.post_type && PT_FORMAT[p.post_type]) { setFormatId(PT_FORMAT[p.post_type]); setPostType(p.post_type as 'post' | 'reel' | 'story' | 'carrousel'); }
         if (p?.photo_url) { setPostPhotoUrl(p.photo_url); }
         if (w) {
@@ -1543,12 +1548,9 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
     setSelectedId(id);
   };
 
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    e.target.value = '';
+  const handleFileDrop = (file: File) => {
+    if (!file.type.startsWith('image/')) return;
     const src = URL.createObjectURL(file);
-    // Bug 1 fix: measure natural dimensions so we can add at 50% width, centered, no crop mode
     const img = new window.Image();
     img.onload = () => {
       const natW = img.naturalWidth || stageW;
@@ -1562,9 +1564,15 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
       const el: ImageEl = { id, type: 'image', x, y, rotation: 0, opacity: 100, src, width: w, height: h };
       applyElements([...elementsRef.current, el]);
       setSelectedId(id);
-      // No setCropId — overlay image has resize handles immediately visible
     };
     img.src = src;
+  };
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    e.target.value = '';
+    handleFileDrop(file);
   };
 
   // ── Unsplash ──────────────────────────────────────────────────────────────
@@ -1705,7 +1713,7 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
   // ── Post type change — updates format + clamps elements + saves to DB ───────
 
   const changePostType = async (newType: 'post' | 'reel' | 'story' | 'carrousel') => {
-    const TYPE_FORMAT: Record<string, string> = { post: 'ig-square', reel: 'ig-story', story: 'ig-story', carrousel: 'ig-square' };
+    const TYPE_FORMAT: Record<string, string> = { post: 'ig-portrait', reel: 'ig-story', story: 'ig-story', carrousel: 'ig-square' };
     const newFormatId = TYPE_FORMAT[newType];
     const newFmt = FORMATS.find(f => f.id === newFormatId) ?? FORMATS[0];
     setPostType(newType);
@@ -2026,7 +2034,7 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
           <button onClick={exportPNG} className="btn btn-sm btn-ghost" style={{ height: 36 }}>Aperçu</button>
           <button onClick={handleSave} disabled={saving} className="btn btn-sm btn-primary"
             style={{ height: 36, opacity: saving ? 0.6 : 1, cursor: saving ? 'not-allowed' : 'pointer' }}>
-            {saving ? 'Sauvegarde…' : 'Partager'}
+            {saving ? 'Sauvegarde…' : 'Publier →'}
           </button>
         </div>
       </div>
@@ -2296,7 +2304,10 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
                   Choisir un fichier
                   <input type="file" accept="image/*" style={{ display: 'none' }} onChange={handleFileUpload} />
                 </label>
-                <div style={{ border: '1.5px dashed var(--line)', borderRadius: 10, padding: '32px 14px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10, color: 'var(--ink-3)' }}>
+                <div
+                  onDragOver={e => { e.preventDefault(); e.stopPropagation(); }}
+                  onDrop={e => { e.preventDefault(); e.stopPropagation(); const file = e.dataTransfer.files?.[0]; if (file) handleFileDrop(file); }}
+                  style={{ border: '1.5px dashed var(--line)', borderRadius: 10, padding: '32px 14px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10, color: 'var(--ink-3)' }}>
                   <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
                   <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink-2)' }}>Glissez vos fichiers ici</span>
                   <span style={{ fontSize: 11, color: 'var(--ink-3)' }}>PNG, JPG, SVG, WEBP</span>
@@ -2359,9 +2370,11 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
 
         {/* ── CANVAS WORKSPACE ── */}
         <div style={{ flex: 1, minWidth: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column', background: 'radial-gradient(120% 80% at 50% -10%, #FBFAF4, #ECEBE1 70%)' }}>
-          <div ref={canvasAreaRef} style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'auto', padding: 28, position: 'relative' }}>
-            {/* Bug 4 fix: outer div has no overflow:hidden so handles (-5px) aren't clipped */}
-            <div style={{ borderRadius: 18, boxShadow: '0 22px 50px -24px rgba(13,15,10,.45)', flexShrink: 0, position: 'relative', transform: `scale(${zoom})`, transformOrigin: 'center center' }}>
+          <div ref={canvasAreaRef}
+          onMouseDown={() => { setSelectedId(null); setBgCropMode(false); setBgImageSelected(false); }}
+          style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'auto', padding: 28, position: 'relative' }}>
+            {/* Canvas wrapper stops click propagation so gray-area deselect only fires outside canvas */}
+            <div onMouseDown={e => e.stopPropagation()} style={{ borderRadius: 18, boxShadow: '0 22px 50px -24px rgba(13,15,10,.45)', flexShrink: 0, position: 'relative', transform: `scale(${zoom})`, transformOrigin: 'center center' }}>
             {/* Inner div clips only the Stage canvas to preserve border-radius */}
             <div style={{ borderRadius: 18, overflow: 'hidden' }}>
             <Stage
@@ -2380,6 +2393,8 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
                     offsetX={bgOffsetX} offsetY={bgOffsetY}
                     draggable={bgCropMode}
                     onDragEnd={(x, y) => { setBgOffsetX(x); setBgOffsetY(y); }}
+                    opacity={bgOpacity / 100}
+                    onSelect={!bgLocked && !bgCropMode ? () => { setBgImageSelected(true); setSelectedId(null); } : undefined}
                   />
                 )}
 
@@ -2420,12 +2435,16 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
                     const pH = el.paddingH ?? el.padding;
                     const pV = el.paddingV ?? el.padding;
                     const measuredW = measureTextWidth(el.text, el.fontSize, el.fontFamily, el.fontStyle);
-                    // Bug 2 fix: use el.width when explicitly set (by handles or initial creation);
-                    // fall back to measured text width only when el.width is absent.
                     const rawW = el.width ?? (measuredW + pH * 2);
                     const blockW = Math.min(Math.max(rawW, 80), stageW - 40);
-                    const blockH = el.fontSize + pV * 2;
                     const textAreaW = Math.max(1, blockW - pH * 2);
+                    // Dynamic blockH: account for text wrapping and manual line breaks
+                    const allLines = (el.uppercase ? el.text.toUpperCase() : el.text).split('\n');
+                    const lineCount = allLines.reduce((acc: number, line: string) => {
+                      const lw = measureTextWidth(line || ' ', el.fontSize, el.fontFamily, el.fontStyle);
+                      return acc + Math.max(1, Math.ceil(lw / Math.max(1, textAreaW)));
+                    }, 0);
+                    const blockH = Math.max(1, lineCount) * el.fontSize * (el.lineHeight ?? 1.2) + pV * 2;
                     return (
                       <Group key={el.id} id={el.id} x={el.x} y={el.y} rotation={el.rotation} opacity={el.opacity / 100}
                         draggable
@@ -2527,6 +2546,21 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
               </Layer>
             </Stage>
             </div>{/* end inner overflow:hidden */}
+            {/* BG image selected — selection border + opacity pill */}
+            {bgImageSelected && (
+              <div onMouseDown={e => e.stopPropagation()} style={{ position: 'absolute', inset: 0, borderRadius: 18, border: '2px solid #8B5CF6', pointerEvents: 'none', zIndex: 10 }} />
+            )}
+            {bgImageSelected && (
+              <div onMouseDown={e => e.stopPropagation()} style={{ position: 'absolute', top: -50, left: '50%', transform: 'translateX(-50%)', zIndex: 20, background: '#fff', borderRadius: 11, padding: '6px 12px', boxShadow: '0 8px 24px -8px rgba(13,15,10,.3), 0 0 0 1px rgba(13,15,10,.06)', display: 'flex', alignItems: 'center', gap: 10 }}>
+                <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--ink-2)' }}>Opacité fond</span>
+                <input type="range" min={10} max={100} value={bgOpacity} onChange={e => setBgOpacity(Number(e.target.value))} style={{ width: 80, accentColor: '#8B5CF6' }} />
+                <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--ink)', minWidth: 28, fontVariantNumeric: 'tabular-nums' }}>{bgOpacity}%</span>
+                <button onClick={() => { setProxyUrl(''); setBgImageSelected(false); }} style={{ width: 22, height: 22, border: 'none', background: 'transparent', cursor: 'pointer', color: 'var(--ink-3)', display: 'grid', placeItems: 'center', borderRadius: 5 }}
+                  title="Supprimer le fond">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                </button>
+              </div>
+            )}
             {selectedEl && !hiddenIds.has(selectedEl.id) && !isKonvaDragging && cropId !== selectedEl.id && (
               <>
                 <SelectionOverlay
