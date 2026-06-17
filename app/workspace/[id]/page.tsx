@@ -336,6 +336,14 @@ export default function WorkspacePage() {
   const [pendingFiles, setPendingFiles] = useState<File[] | null>(null);
   const [typeMenuPost, setTypeMenuPost] = useState<string | null>(null);
 
+  // ── Share link ────────────────────────────────────────────────────────────
+  const [shareOpen, setShareOpen] = useState(false);
+  const [shareToken, setShareToken] = useState<{ id: string; token: string; label: string; expires_at: string | null; created_at: string } | null>(null);
+  const [shareLoading, setShareLoading] = useState(false);
+  const [shareCopied, setShareCopied] = useState(false);
+  const [shareExpiryEnabled, setShareExpiryEnabled] = useState(false);
+  const [shareExpiryDate, setShareExpiryDate] = useState('');
+
   // ── Load data ─────────────────────────────────────────────────────────────
 
   const loadData = useCallback(async () => {
@@ -376,6 +384,51 @@ export default function WorkspacePage() {
   }, [id, supabase]);
 
   useEffect(() => { loadData(); }, [loadData]);
+
+  // ── Share helpers ─────────────────────────────────────────────────────────
+
+  async function openShare() {
+    setShareOpen(true);
+    setShareLoading(true);
+    const res = await fetch(`/api/share-tokens?workspaceId=${id}`);
+    const { token } = await res.json();
+    if (token) {
+      setShareToken(token);
+      if (token.expires_at) {
+        setShareExpiryEnabled(true);
+        setShareExpiryDate(token.expires_at.slice(0, 10));
+      }
+    } else {
+      const r = await fetch('/api/share-tokens', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ workspaceId: id, label: 'Lien client' }),
+      });
+      const { token: newToken } = await r.json();
+      setShareToken(newToken ?? null);
+    }
+    setShareLoading(false);
+  }
+
+  async function regenerateShareToken() {
+    setShareLoading(true);
+    const expiresAt = shareExpiryEnabled && shareExpiryDate ? new Date(shareExpiryDate).toISOString() : null;
+    const r = await fetch('/api/share-tokens', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ workspaceId: id, label: 'Lien client', expiresAt }),
+    });
+    const { token } = await r.json();
+    setShareToken(token ?? null);
+    setShareLoading(false);
+  }
+
+  async function copyShareLink() {
+    if (!shareToken) return;
+    await navigator.clipboard.writeText(`https://klip-swart.vercel.app/preview/${shareToken.token}`);
+    setShareCopied(true);
+    setTimeout(() => setShareCopied(false), 2500);
+  }
 
   // ── File selection ────────────────────────────────────────────────────────
 
@@ -715,6 +768,17 @@ export default function WorkspacePage() {
             <Link href={`/workspace/${id}/planning`} className="btn btn-ghost btn-sm ws-topbar-link">Planning</Link>
             <Link href={`/workspace/${id}/results`} className="btn btn-ghost btn-sm ws-topbar-link">Résultats</Link>
             <Link href={`/workspace/${id}/parametres`} className="btn btn-ghost btn-sm ws-topbar-link">Paramètres</Link>
+            <button
+              onClick={openShare}
+              className="btn btn-sm"
+              style={{ background: 'var(--mint)', color: 'var(--mint-ink)', border: 'none', fontWeight: 700, display: 'flex', alignItems: 'center', gap: 6 }}
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/>
+                <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
+              </svg>
+              Partager
+            </button>
           </div>
         </header>
 
@@ -1183,6 +1247,109 @@ export default function WorkspacePage() {
           >
             Annuler
           </button>
+        </div>
+      )}
+
+      {/* Share modal */}
+      {shareOpen && (
+        <div
+          style={{ position: 'fixed', inset: 0, zIndex: 9000, background: 'rgba(10,14,10,0.72)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+          onClick={e => { if (e.target === e.currentTarget) setShareOpen(false); }}
+        >
+          <div style={{ background: 'var(--white)', borderRadius: 'var(--r-xl)', border: '1px solid var(--line)', padding: '28px 28px 24px', width: 480, maxWidth: '92vw', boxShadow: '0 20px 60px rgba(10,14,10,.55)', display: 'flex', flexDirection: 'column', gap: 20 }}>
+            {/* Header */}
+            <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 }}>
+              <div>
+                <h2 className="h-title" style={{ fontSize: 18, marginBottom: 4 }}>Partager le calendrier</h2>
+                <p style={{ fontSize: 13, color: 'var(--ink-3)', lineHeight: 1.5 }}>Envoyez ce lien à votre client pour qu&apos;il consulte et valide les posts sans compte Klip.</p>
+              </div>
+              <button onClick={() => setShareOpen(false)} style={{ width: 30, height: 30, borderRadius: 8, background: 'var(--sunk)', border: '1px solid var(--line)', cursor: 'pointer', fontSize: 18, color: 'var(--ink-3)', display: 'grid', placeItems: 'center', flexShrink: 0 }}>×</button>
+            </div>
+
+            {/* Link row */}
+            {shareLoading ? (
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 44, color: 'var(--ink-3)', fontSize: 13 }}>Génération du lien…</div>
+            ) : shareToken ? (
+              <div style={{ display: 'flex', gap: 8 }}>
+                <input
+                  readOnly
+                  value={`https://klip-swart.vercel.app/preview/${shareToken.token}`}
+                  style={{ flex: 1, fontFamily: 'var(--mono)', fontSize: 12, padding: '10px 12px', borderRadius: 8, border: '1px solid var(--line)', background: 'var(--sunk)', color: 'var(--ink-2)', minWidth: 0 }}
+                  onFocus={e => e.currentTarget.select()}
+                />
+                <button
+                  onClick={copyShareLink}
+                  className="btn btn-sm"
+                  style={{ background: shareCopied ? 'var(--mint)' : 'var(--forest)', color: shareCopied ? 'var(--mint-ink)' : 'var(--cream)', border: 'none', fontWeight: 700, whiteSpace: 'nowrap', transition: 'background .2s' }}
+                >
+                  {shareCopied ? 'Copié ✓' : 'Copier'}
+                </button>
+              </div>
+            ) : (
+              <p style={{ fontSize: 13, color: 'var(--danger)', textAlign: 'center' }}>Erreur lors de la génération du lien.</p>
+            )}
+
+            {/* Expiry toggle */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', userSelect: 'none' }}>
+                <span style={{ position: 'relative', width: 36, height: 20, display: 'inline-block' }}>
+                  <input
+                    type="checkbox"
+                    checked={shareExpiryEnabled}
+                    onChange={e => setShareExpiryEnabled(e.target.checked)}
+                    style={{ opacity: 0, width: 0, height: 0, position: 'absolute' }}
+                  />
+                  <span style={{
+                    position: 'absolute', inset: 0, borderRadius: 20,
+                    background: shareExpiryEnabled ? 'var(--mint)' : 'var(--line)',
+                    transition: 'background .2s',
+                  }} />
+                  <span style={{
+                    position: 'absolute', top: 2, left: shareExpiryEnabled ? 18 : 2, width: 16, height: 16,
+                    borderRadius: '50%', background: '#fff',
+                    transition: 'left .2s', boxShadow: '0 1px 3px rgba(0,0,0,.25)',
+                  }} />
+                </span>
+                <span style={{ fontSize: 13.5, fontWeight: 600, color: 'var(--ink)' }}>Date d&apos;expiration</span>
+              </label>
+              {shareExpiryEnabled && (
+                <input
+                  type="date"
+                  value={shareExpiryDate}
+                  min={new Date().toISOString().slice(0, 10)}
+                  onChange={e => setShareExpiryDate(e.target.value)}
+                  style={{ fontFamily: 'var(--sans)', fontSize: 13, padding: '8px 12px', borderRadius: 8, border: '1px solid var(--line)', background: 'var(--sunk)', color: 'var(--ink)', width: '100%' }}
+                />
+              )}
+            </div>
+
+            {/* Actions */}
+            <div style={{ display: 'flex', gap: 10, borderTop: '1px solid var(--line)', paddingTop: 16 }}>
+              <button
+                onClick={regenerateShareToken}
+                disabled={shareLoading}
+                className="btn btn-ghost btn-sm"
+                style={{ flex: 1, justifyContent: 'center', display: 'flex', gap: 6, alignItems: 'center' }}
+              >
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/>
+                  <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/>
+                </svg>
+                Régénérer le lien
+              </button>
+              <button
+                onClick={copyShareLink}
+                disabled={!shareToken || shareLoading}
+                className="btn btn-sm"
+                style={{ flex: 1, background: 'var(--mint)', color: 'var(--mint-ink)', border: 'none', fontWeight: 700, display: 'flex', gap: 6, alignItems: 'center', justifyContent: 'center' }}
+              >
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                  <rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/>
+                </svg>
+                {shareCopied ? 'Lien copié ✓' : 'Copier le lien'}
+              </button>
+            </div>
+          </div>
         </div>
       )}
 

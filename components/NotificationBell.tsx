@@ -7,7 +7,7 @@ import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 
 interface Notification {
   id: string;
-  type: 'post_published' | 'post_failed' | 'post_pending_review' | 'post_approved' | 'post_rejected';
+  type: 'post_published' | 'post_failed' | 'post_pending_review' | 'post_approved' | 'post_rejected' | 'post_revision_requested';
   title: string;
   message: string;
   post_id: string | null;
@@ -31,16 +31,17 @@ function relativeTime(iso: string): string {
 
 function NotifIcon({ type }: { type: Notification['type'] }) {
   const styles: Record<string, { bg: string; color: string }> = {
-    post_published:      { bg: '#DCFCE7', color: '#16A34A' },
-    post_failed:         { bg: '#FEE2E2', color: '#DC2626' },
-    post_pending_review: { bg: '#FEF3C7', color: '#D97706' },
-    post_approved:       { bg: 'rgba(47,215,155,.15)', color: '#2FD79B' },
-    post_rejected:       { bg: '#FEF3C7', color: '#D97706' },
+    post_published:         { bg: '#DCFCE7', color: '#16A34A' },
+    post_failed:            { bg: '#FEE2E2', color: '#DC2626' },
+    post_pending_review:    { bg: '#FEF3C7', color: '#D97706' },
+    post_approved:          { bg: 'rgba(47,215,155,.15)', color: '#2FD79B' },
+    post_rejected:          { bg: '#FEF3C7', color: '#D97706' },
+    post_revision_requested:{ bg: '#FEF3C7', color: '#D97706' },
   };
   const s = styles[type] ?? styles.post_published;
   const isOk = type === 'post_published' || type === 'post_approved';
   const isKo = type === 'post_failed' || type === 'post_rejected';
-  const isPending = type === 'post_pending_review';
+  const isPending = type === 'post_pending_review' || type === 'post_revision_requested';
   return (
     <span style={{ width: 30, height: 30, borderRadius: '50%', background: s.bg, color: s.color, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
       {isOk && <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5"/></svg>}
