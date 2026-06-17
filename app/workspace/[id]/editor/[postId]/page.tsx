@@ -477,6 +477,7 @@ interface CtxToolbarProps {
   stageW: number;
   stageH: number;
   onUpdate: (patch: Partial<CanvasEl>) => void;
+  onAlign: (dir: string) => void;
   onDuplicate: () => void;
   onDelete: () => void;
   onCrop?: () => void;
@@ -484,7 +485,7 @@ interface CtxToolbarProps {
   onLayerAction: (action: 'front' | 'forward' | 'backward' | 'back') => void;
 }
 
-function EditorContextToolbar({ sel, allFonts, brandColors, stageW, stageH, onUpdate, onDuplicate, onDelete, onCrop, onSetBg, onLayerAction }: CtxToolbarProps) {
+function EditorContextToolbar({ sel, allFonts, brandColors, stageW, stageH, onUpdate, onAlign, onDuplicate, onDelete, onCrop, onSetBg, onLayerAction }: CtxToolbarProps) {
   const [pop, setPop] = React.useState<string | null>(null);
   const u = (patch: Partial<CanvasEl>) => onUpdate(patch);
   const isText = sel.type === 'text';
@@ -528,21 +529,6 @@ function EditorContextToolbar({ sel, allFonts, brandColors, stageW, stageH, onUp
     const parts = (['underline', 'line-through'] as const).filter(f => f === flag ? !cur.includes(f) : cur.includes(f));
     u({ textDecoration: parts.join(' ') } as Partial<TextEl>);
   };
-  const alignEl = (dir: string) => {
-    if (sel.type === 'circle') {
-      const r = (sel as CircleEl).radius;
-      if (dir === 'left') u({ x: r } as any); else if (dir === 'right') u({ x: stageW - r } as any); else if (dir === 'center-h') u({ x: stageW / 2 } as any); else if (dir === 'top') u({ y: r } as any); else if (dir === 'bottom') u({ y: stageH - r } as any); else if (dir === 'center-v') u({ y: stageH / 2 } as any);
-    } else if (sel.type === 'star') {
-      const r = (sel as StarEl).outerRadius;
-      if (dir === 'left') u({ x: r } as any); else if (dir === 'right') u({ x: stageW - r } as any); else if (dir === 'center-h') u({ x: stageW / 2 } as any); else if (dir === 'top') u({ y: r } as any); else if (dir === 'bottom') u({ y: stageH - r } as any); else if (dir === 'center-v') u({ y: stageH / 2 } as any);
-    } else {
-      const elW = 'width' in sel ? (sel as any).width : 100;
-      const elH = textSel ? textSel.fontSize + (Number(textSel.paddingV ?? textSel.padding ?? 10)) * 2 : ('height' in sel ? (sel as any).height : 100);
-      if (dir === 'left') u({ x: 0 } as any); else if (dir === 'right') u({ x: stageW - elW } as any); else if (dir === 'center-h') u({ x: (stageW - elW) / 2 } as any); else if (dir === 'top') u({ y: 0 } as any); else if (dir === 'bottom') u({ y: stageH - elH } as any); else if (dir === 'center-v') u({ y: (stageH - elH) / 2 } as any);
-    }
-    setPop(null);
-  };
-
   const PALETTE = ['#14160F','#FFFFFF','#C8F135','#2FD79B','#FF6B6B','#0038FF','#FF9500','#5A5E50',...brandColors];
   const palette = Array.from(new Set(PALETTE)).slice(0, 16);
   const colorVal = textSel?.fill ?? (sel.type === 'rect' ? (sel as RectEl).fill : sel.type === 'circle' ? (sel as CircleEl).fill : sel.type === 'star' ? (sel as StarEl).fill : '#000');
@@ -926,7 +912,7 @@ function EditorContextToolbar({ sel, allFonts, brandColors, stageW, stageH, onUp
                 { id: 'center-v', title: 'Centrer vert.',            icon: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M4 12h16M9 5l-7 7 7 7M15 5l7 7-7 7"/></svg> },
                 { id: 'bottom',   title: 'Bas',                      icon: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M5 13l7 7 7-7M12 20V4"/></svg> },
               ].map(({ id, title, icon }) => (
-                <button key={id} title={title} onClick={() => alignEl(id)}
+                <button key={id} title={title} onClick={() => { onAlign(id); setPop(null); }}
                   style={{ height: 34, borderRadius: 7, display: 'grid', placeItems: 'center', background: 'var(--sunk)', border: 'none', cursor: 'pointer', color: 'var(--ink)' }}
                   onMouseEnter={e => (e.currentTarget.style.background = 'var(--line)')}
                   onMouseLeave={e => (e.currentTarget.style.background = 'var(--sunk)')}>
@@ -937,6 +923,20 @@ function EditorContextToolbar({ sel, allFonts, brandColors, stageW, stageH, onUp
           </div>
         )}
       </div>
+
+      <Div />
+
+      {/* 6 ALIGNMENT BUTTONS — inline (vs canvas when 1 element, vs group when multi) */}
+      {[
+        { id: 'left',     title: 'Aligner à gauche',           icon: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M4 4v16"/><rect x="6" y="7" width="10" height="4" rx="1"/><rect x="6" y="13" width="7" height="4" rx="1"/></svg> },
+        { id: 'center-h', title: 'Centrer horizontalement',    icon: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M12 4v16"/><rect x="5" y="7" width="14" height="4" rx="1"/><rect x="7" y="13" width="10" height="4" rx="1"/></svg> },
+        { id: 'right',    title: 'Aligner à droite',           icon: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M20 4v16"/><rect x="8" y="7" width="10" height="4" rx="1"/><rect x="11" y="13" width="7" height="4" rx="1"/></svg> },
+        { id: 'top',      title: 'Aligner en haut',            icon: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M4 4h16"/><rect x="7" y="6" width="4" height="10" rx="1"/><rect x="13" y="6" width="4" height="7" rx="1"/></svg> },
+        { id: 'center-v', title: 'Centrer verticalement',      icon: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M4 12h16"/><rect x="7" y="5" width="4" height="14" rx="1"/><rect x="13" y="7" width="4" height="10" rx="1"/></svg> },
+        { id: 'bottom',   title: 'Aligner en bas',             icon: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M4 20h16"/><rect x="7" y="8" width="4" height="10" rx="1"/><rect x="13" y="11" width="4" height="7" rx="1"/></svg> },
+      ].map(({ id, title, icon }) => (
+        <IBtn key={id} title={title} onClick={() => onAlign(id)} icon={icon} />
+      ))}
 
       <Div />
 
@@ -1489,6 +1489,34 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // ── Alignment (single element vs canvas) ─────────────────────────────────
+
+  const alignEl = (dir: string) => {
+    const el = selectedEl;
+    if (!el) return;
+    let patch: Record<string, number> = {};
+    const getW = (e: CanvasEl) => e.type === 'circle' ? (e as CircleEl).radius * 2 : e.type === 'star' ? (e as StarEl).outerRadius * 2 : ('width' in e ? (e as any).width : 100);
+    const getH = (e: CanvasEl) => e.type === 'circle' ? (e as CircleEl).radius * 2 : e.type === 'star' ? (e as StarEl).outerRadius * 2 : (e.type === 'text' ? (e as TextEl).fontSize + 2 * Number((e as TextEl).paddingV ?? (e as TextEl).padding ?? 10) : ('height' in e ? (e as any).height : 100));
+    if (el.type === 'circle' || el.type === 'star') {
+      const r = el.type === 'circle' ? (el as CircleEl).radius : (el as StarEl).outerRadius;
+      if (dir === 'left') patch = { x: r };
+      else if (dir === 'right') patch = { x: stageW - r };
+      else if (dir === 'center-h') patch = { x: stageW / 2 };
+      else if (dir === 'top') patch = { y: r };
+      else if (dir === 'bottom') patch = { y: stageH - r };
+      else if (dir === 'center-v') patch = { y: stageH / 2 };
+    } else {
+      const elW = getW(el); const elH = getH(el);
+      if (dir === 'left') patch = { x: 0 };
+      else if (dir === 'right') patch = { x: stageW - elW };
+      else if (dir === 'center-h') patch = { x: (stageW - elW) / 2 };
+      else if (dir === 'top') patch = { y: 0 };
+      else if (dir === 'bottom') patch = { y: stageH - elH };
+      else if (dir === 'center-v') patch = { y: (stageH - elH) / 2 };
+    }
+    updateEl(el.id, patch as Partial<CanvasEl>);
+  };
+
   // ── Keyboard shortcuts ────────────────────────────────────────────────────
 
   useEffect(() => {
@@ -2002,6 +2030,7 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
               stageW={stageW}
               stageH={stageH}
               onUpdate={(patch) => updateEl(selectedEl.id, patch)}
+              onAlign={alignEl}
               onDuplicate={duplicateEl}
               onDelete={() => deleteEl(selectedId)}
               onCrop={selectedEl.type === 'image' ? () => setCropId(selectedEl.id) : undefined}
