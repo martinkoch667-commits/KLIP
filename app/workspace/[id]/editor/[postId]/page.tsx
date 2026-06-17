@@ -14,6 +14,7 @@ import useImage from 'use-image';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import ColorPicker from '@/components/ColorPicker';
 import SelectionOverlay from '@/components/SelectionOverlay';
+import Sidebar from '@/components/Sidebar';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -1037,6 +1038,19 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
   const stageRef = useRef<any>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isKonvaDragging, setIsKonvaDragging] = useState(false);
+
+  // ── Sidebar collapse (persisted in localStorage) ──────────────────────────
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+  useEffect(() => {
+    setSidebarOpen(localStorage.getItem('editorSidebarOpen') !== 'false');
+  }, []);
+  function toggleSidebar() {
+    setSidebarOpen(prev => {
+      const next = !prev;
+      localStorage.setItem('editorSidebarOpen', String(next));
+      return next;
+    });
+  }
   const [cropId, setCropId] = useState<string | null>(null);
 
   const [proxyUrl, setProxyUrl] = useState<string>('');
@@ -1921,7 +1935,9 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
   // ── Render ────────────────────────────────────────────────────────────────
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', fontFamily: 'var(--sans)', background: 'radial-gradient(120% 80% at 50% -10%, #FBFAF4, #ECEBE1 70%)', overflow: 'hidden' }}>
+    <>
+      {sidebarOpen && <Sidebar />}
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', fontFamily: 'var(--sans)', background: 'radial-gradient(120% 80% at 50% -10%, #FBFAF4, #ECEBE1 70%)', overflow: 'hidden', marginLeft: sidebarOpen ? 'var(--sb-w)' : 0, transition: 'margin-left 0.2s' }}>
 
       {/* ── TOPBAR ── */}
       <div data-stop-deselect style={{
@@ -1932,8 +1948,14 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
         backdropFilter: 'blur(8px)',
         position: 'relative', zIndex: 30,
       }}>
-        {/* Left: back + workspace label + undo/redo */}
+        {/* Left: burger + back + workspace label + undo/redo */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+          <button onClick={toggleSidebar} title={sidebarOpen ? 'Masquer la sidebar' : 'Afficher la sidebar'}
+            className="btn btn-sm btn-ghost btn-icon" style={{ flexShrink: 0 }}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/>
+            </svg>
+          </button>
           <a href={`/workspace/${workspaceId}`} className="btn btn-sm btn-ghost"
             style={{ gap: 5, textDecoration: 'none', flexShrink: 0 }}>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 6l-6 6 6 6"/></svg>
@@ -2749,5 +2771,6 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
 
       <input ref={fileInputRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={handleFileUpload} />
     </div>
+    </>
   );
 }
