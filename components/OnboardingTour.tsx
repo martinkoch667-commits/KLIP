@@ -179,25 +179,95 @@ export default function OnboardingTour({ onComplete }: Props) {
     })();
   }, [supabase]);
 
-  if (!visible || !rect) return null;
+  if (!visible) return null;
 
   const current = TOUR_STEPS[step];
   const winW = typeof window !== "undefined" ? window.innerWidth : 1440;
   const winH = typeof window !== "undefined" ? window.innerHeight : 900;
+  const isMobile = winW <= 767;
+
+  // ── Tooltip card (shared between mobile modal + desktop spotlight) ──────────
+  const tooltipCard = (
+    <div style={{
+      background: "var(--forest)",
+      color: "var(--canvas)",
+      borderRadius: 16,
+      padding: "22px 24px",
+      boxShadow: "0 8px 40px rgba(0,0,0,0.32)",
+      fontFamily: "var(--sans)",
+      pointerEvents: "auto",
+      width: isMobile ? "100%" : 320,
+      maxWidth: isMobile ? 400 : undefined,
+      position: "relative",
+    }}>
+      {/* Progress dots */}
+      <div style={{ display:"flex", gap:5, marginBottom:14 }}>
+        {TOUR_STEPS.map((_, i) => (
+          <div key={i} style={{
+            width: i === step ? 20 : 6, height: 6, borderRadius: 99,
+            background: i === step ? "var(--mint)" : "rgba(47,215,155,.3)",
+            transition: "width .2s, background .2s",
+          }}/>
+        ))}
+      </div>
+
+      {/* Step counter */}
+      <div style={{ fontSize: 11, fontWeight: 700, letterSpacing:".08em", textTransform:"uppercase", color:"var(--mint-2)", marginBottom:6, fontFamily:"var(--mono)" }}>
+        {step + 1} / {TOUR_STEPS.length}
+      </div>
+      <h3 style={{ fontSize: 17, fontWeight: 800, margin:"0 0 8px", fontFamily:"var(--display)", color:"var(--cream)", lineHeight:1.2 }}>
+        {current.title}
+      </h3>
+      <p style={{ fontSize: 13, lineHeight: 1.6, color:"var(--cream-2)", margin:"0 0 20px" }}>
+        {current.description}
+      </p>
+
+      {/* Buttons */}
+      <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+        {step > 0 && (
+          <button onClick={prev}
+            style={{ padding:"9px 16px", borderRadius:"var(--r-s)", background:"var(--cream-4)", color:"var(--cream)", border:"none", cursor:"pointer", fontSize:13, fontWeight:700 }}>
+            Retour
+          </button>
+        )}
+        <button onClick={next}
+          style={{ padding:"9px 18px", borderRadius:"var(--r-s)", background:"var(--mint)", color:"var(--mint-ink)", border:"none", cursor:"pointer", fontSize:13, fontWeight:800, flex:1 }}>
+          {step === TOUR_STEPS.length - 1 ? "Terminer ✓" : "Suivant →"}
+        </button>
+        <button onClick={close}
+          style={{ padding:"9px 10px", background:"none", border:"none", cursor:"pointer", fontSize:12, color:"rgba(238,237,227,.4)", fontWeight:600, flexShrink:0 }}>
+          Passer
+        </button>
+      </div>
+    </div>
+  );
+
+  // ── Mobile: centered modal (no spotlight — sidebar is hidden) ────────────────
+  if (isMobile) {
+    return (
+      <div style={{
+        position: "fixed", inset: 0, zIndex: 9000,
+        background: "rgba(0,0,0,0.72)",
+        display: "flex", alignItems: "flex-end", justifyContent: "center",
+        padding: "0 16px 40px",
+      }}
+        onClick={e => { if (e.target === e.currentTarget) close(); }}
+      >
+        {tooltipCard}
+      </div>
+    );
+  }
+
+  // ── Desktop: spotlight tour ─────────────────────────────────────────────────
+  if (!rect) return null;
+
   const { top: ttTop, left: ttLeft } = getTooltipPosition(rect, current.position, winW, winH);
   const PADDING = 8;
 
   return (
     <>
-      {/* Overlay with spotlight cutout via box-shadow */}
-      <div
-        onClick={() => {}}
-        style={{
-          position: "fixed", inset: 0, zIndex: 9000,
-          pointerEvents: "none",
-        }}
-      >
-        {/* Darken all four sides around the spotlight */}
+      {/* Overlay with spotlight cutout */}
+      <div style={{ position: "fixed", inset: 0, zIndex: 9000, pointerEvents: "none" }}>
         <svg style={{ position:"absolute", inset:0, width:"100%", height:"100%", pointerEvents:"none" }}>
           <defs>
             <mask id="spotlight-mask">
@@ -210,7 +280,6 @@ export default function OnboardingTour({ onComplete }: Props) {
             </mask>
           </defs>
           <rect width="100%" height="100%" fill="rgba(0,0,0,0.62)" mask="url(#spotlight-mask)"/>
-          {/* Spotlight border */}
           <rect
             x={rect.left - PADDING} y={rect.top - PADDING}
             width={rect.width + PADDING*2} height={rect.height + PADDING*2}
@@ -220,58 +289,8 @@ export default function OnboardingTour({ onComplete }: Props) {
       </div>
 
       {/* Tooltip */}
-      <div style={{
-        position: "fixed",
-        top: ttTop, left: ttLeft,
-        zIndex: 9001,
-        width: 320,
-        background: "var(--forest)",
-        color: "var(--canvas)",
-        borderRadius: 12,
-        padding: "20px 24px",
-        boxShadow: "0 8px 32px rgba(0,0,0,0.24)",
-        fontFamily: "var(--sans)",
-        pointerEvents: "auto",
-      }}>
-        {/* Progress dots */}
-        <div style={{ display:"flex", gap:5, marginBottom:14 }}>
-          {TOUR_STEPS.map((_, i) => (
-            <div key={i} style={{
-              width: i === step ? 20 : 6, height: 6, borderRadius: 99,
-              background: i === step ? "var(--mint)" : "rgba(47,215,155,.3)",
-              transition: "width .2s, background .2s",
-            }}/>
-          ))}
-        </div>
-
-        {/* Content */}
-        <div style={{ fontSize: 11, fontWeight: 700, letterSpacing:".08em", textTransform:"uppercase", color:"var(--mint-2)", marginBottom:6, fontFamily:"var(--mono)" }}>
-          {step + 1} / {TOUR_STEPS.length}
-        </div>
-        <h3 style={{ fontSize: 16, fontWeight: 800, margin:"0 0 8px", fontFamily:"var(--display)", color:"var(--cream)", lineHeight:1.2 }}>
-          {current.title}
-        </h3>
-        <p style={{ fontSize: 13, lineHeight: 1.55, color:"var(--cream-2)", margin:"0 0 20px" }}>
-          {current.description}
-        </p>
-
-        {/* Buttons */}
-        <div style={{ display:"flex", alignItems:"center", gap:8 }}>
-          {step > 0 && (
-            <button onClick={prev}
-              style={{ padding:"7px 14px", borderRadius:"var(--r-s)", background:"var(--cream-4)", color:"var(--cream)", border:"none", cursor:"pointer", fontSize:13, fontWeight:700 }}>
-              Retour
-            </button>
-          )}
-          <button onClick={next}
-            style={{ padding:"7px 18px", borderRadius:"var(--r-s)", background:"var(--mint)", color:"var(--mint-ink)", border:"none", cursor:"pointer", fontSize:13, fontWeight:800, flex:1 }}>
-            {step === TOUR_STEPS.length - 1 ? "Terminer" : "Suivant"}
-          </button>
-          <button onClick={close}
-            style={{ padding:"7px 10px", background:"none", border:"none", cursor:"pointer", fontSize:12, color:"rgba(238,237,227,.4)", fontWeight:600, flexShrink:0 }}>
-            Passer
-          </button>
-        </div>
+      <div style={{ position: "fixed", top: ttTop, left: ttLeft, zIndex: 9001 }}>
+        {tooltipCard}
       </div>
     </>
   );
