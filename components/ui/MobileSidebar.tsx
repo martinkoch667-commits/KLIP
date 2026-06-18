@@ -134,7 +134,7 @@ export default function MobileSidebar() {
               style={{ textDecoration: "none", padding: "10px 12px" }}
             >
               <span className="nav-ic">{item.icon}</span>
-              <span style={{ fontWeight: 600, fontSize: 14 }}>{item.label}</span>
+              <span className="nav-label">{item.label}</span>
               {item.badge > 0 && (
                 <span className="nav-badge" style={{ marginLeft: "auto" }}>{item.badge}</span>
               )}
