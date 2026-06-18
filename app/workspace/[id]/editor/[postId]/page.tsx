@@ -6,6 +6,7 @@ import {
   Image as KonvaImage,
   Layer,
   Rect,
+  Shape as KonvaShape,
   Stage,
   Star as KonvaStar,
   Text,
@@ -73,8 +74,9 @@ interface TextEl extends BaseEl {
 interface RectEl extends BaseEl { type: 'rect'; width: number; height: number; fill: string; stroke: string; strokeWidth: number; cornerRadius: number; }
 interface CircleEl extends BaseEl { type: 'circle'; radius: number; fill: string; stroke: string; strokeWidth: number; }
 interface StarEl extends BaseEl { type: 'star'; numPoints: number; innerRadius: number; outerRadius: number; fill: string; stroke: string; strokeWidth: number; }
+interface VectorEl extends BaseEl { type: 'vector'; shape: 'rectangle'|'circle'|'triangle'|'star'|'pill'|'arrow'|'diamond'|'hexagon'; width: number; height: number; fill: string; fillType?: 'color'|'none'; stroke: string; strokeWidth: number; }
 interface ImageEl extends BaseEl { type: 'image'; src: string; width: number; height: number; cropX?: number; cropY?: number; naturalW?: number; naturalH?: number; }
-type CanvasEl = TextEl | RectEl | CircleEl | StarEl | ImageEl;
+type CanvasEl = TextEl | RectEl | CircleEl | StarEl | VectorEl | ImageEl;
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -238,6 +240,97 @@ function ImgNode({ el, onSelect, onChange, onDragStart, onDragEnd, isCropping }:
         onMouseLeave={isCropping ? (e => { const s = e.target.getStage(); if (s) s.container().style.cursor = 'default'; }) : undefined}
       />
     </Group>
+  );
+}
+
+// ─── Vector draw helpers ──────────────────────────────────────────────────────
+
+function drawVectorShape(ctx: CanvasRenderingContext2D, shape: VectorEl['shape'], w: number, h: number) {
+  ctx.beginPath();
+  switch (shape) {
+    case 'rectangle':
+      ctx.rect(0, 0, w, h);
+      break;
+    case 'circle': {
+      const rx = w / 2, ry = h / 2;
+      ctx.ellipse(rx, ry, rx, ry, 0, 0, Math.PI * 2);
+      break;
+    }
+    case 'triangle':
+      ctx.moveTo(w / 2, 0); ctx.lineTo(w, h); ctx.lineTo(0, h); ctx.closePath();
+      break;
+    case 'star': {
+      const cx = w / 2, cy = h / 2;
+      const r1 = Math.min(w, h) / 2, r2 = r1 * 0.42;
+      for (let i = 0; i < 10; i++) {
+        const a = (i * Math.PI) / 5 - Math.PI / 2;
+        const r = i % 2 === 0 ? r1 : r2;
+        i === 0 ? ctx.moveTo(cx + r * Math.cos(a), cy + r * Math.sin(a)) : ctx.lineTo(cx + r * Math.cos(a), cy + r * Math.sin(a));
+      }
+      ctx.closePath();
+      break;
+    }
+    case 'pill': {
+      const r = h / 2;
+      ctx.moveTo(r, 0); ctx.lineTo(w - r, 0);
+      ctx.arc(w - r, h / 2, r, -Math.PI / 2, Math.PI / 2);
+      ctx.lineTo(r, h);
+      ctx.arc(r, h / 2, r, Math.PI / 2, -Math.PI / 2);
+      ctx.closePath();
+      break;
+    }
+    case 'arrow': {
+      const aw = w * 0.38, ah = h * 0.30;
+      ctx.moveTo(0, h / 2 - ah / 2); ctx.lineTo(w - aw, h / 2 - ah / 2);
+      ctx.lineTo(w - aw, 0); ctx.lineTo(w, h / 2);
+      ctx.lineTo(w - aw, h); ctx.lineTo(w - aw, h / 2 + ah / 2);
+      ctx.lineTo(0, h / 2 + ah / 2); ctx.closePath();
+      break;
+    }
+    case 'diamond':
+      ctx.moveTo(w / 2, 0); ctx.lineTo(w, h / 2); ctx.lineTo(w / 2, h); ctx.lineTo(0, h / 2); ctx.closePath();
+      break;
+    case 'hexagon': {
+      const cx = w / 2, cy = h / 2, r = Math.min(w, h) / 2;
+      for (let i = 0; i < 6; i++) {
+        const a = (i * Math.PI) / 3 - Math.PI / 6;
+        i === 0 ? ctx.moveTo(cx + r * Math.cos(a), cy + r * Math.sin(a)) : ctx.lineTo(cx + r * Math.cos(a), cy + r * Math.sin(a));
+      }
+      ctx.closePath();
+      break;
+    }
+  }
+}
+
+function VectorNode({ el, onSelect, onDragStart, onDragEnd }: {
+  el: VectorEl; onSelect: (shiftKey: boolean) => void;
+  onDragStart?: () => void; onDragEnd?: (x: number, y: number) => void;
+}) {
+  return (
+    <KonvaShape
+      x={el.x} y={el.y}
+      width={el.width} height={el.height}
+      rotation={el.rotation}
+      opacity={el.opacity / 100}
+      fill={el.fillType === 'none' ? 'rgba(0,0,0,0)' : el.fill}
+      stroke={el.stroke}
+      strokeWidth={el.strokeWidth}
+      draggable
+      sceneFunc={(kctx, shape) => {
+        const ctx = (kctx as any)._context as CanvasRenderingContext2D;
+        drawVectorShape(ctx, el.shape, shape.width(), shape.height());
+        kctx.fillStrokeShape(shape);
+      }}
+      hitFunc={(kctx, shape) => {
+        const ctx = (kctx as any)._context as CanvasRenderingContext2D;
+        drawVectorShape(ctx, el.shape, shape.width(), shape.height());
+        kctx.fillStrokeShape(shape);
+      }}
+      onClick={e => onSelect(e.evt.shiftKey)}
+      onTap={() => onSelect(false)}
+      onDragStart={onDragStart}
+      onDragEnd={e => onDragEnd?.(e.target.x(), e.target.y())}
+    />
   );
 }
 
@@ -459,12 +552,15 @@ function ImageProperties({ el, onChange, onSetBg, onCrop }: { el: ImageEl; onCha
 
 // ─── Layer helpers ────────────────────────────────────────────────────────────
 
+const VECTOR_LABELS: Record<VectorEl['shape'], string> = { rectangle: 'Rectangle', circle: 'Rond', triangle: 'Triangle', star: 'Étoile', pill: 'Pilule', arrow: 'Flèche', diamond: 'Losange', hexagon: 'Hexagone' };
+
 function layerName(el: CanvasEl): string {
-  if (el.type === 'text') return el.text.slice(0, 18) || 'Texte';
+  if (el.type === 'text') return (el as TextEl).text.slice(0, 18) || 'Texte';
   if (el.type === 'image') return 'Image';
   if (el.type === 'rect') return 'Rectangle';
   if (el.type === 'circle') return 'Cercle';
   if (el.type === 'star') return 'Étoile';
+  if (el.type === 'vector') return VECTOR_LABELS[(el as VectorEl).shape] ?? 'Forme';
   return 'Élément';
 }
 
@@ -489,10 +585,12 @@ function EditorContextToolbar({ sel, allFonts, brandColors, stageW, stageH, onUp
   const [pop, setPop] = React.useState<string | null>(null);
   const u = (patch: Partial<CanvasEl>) => onUpdate(patch);
   const isText = sel.type === 'text';
-  const isShape = sel.type === 'rect' || sel.type === 'circle' || sel.type === 'star';
+  const isShape = sel.type === 'rect' || sel.type === 'circle' || sel.type === 'star' || sel.type === 'vector';
   const isImage = sel.type === 'image';
+  const isVector = sel.type === 'vector';
   const textSel = isText ? sel as TextEl : null;
   const rectSel = sel.type === 'rect' ? sel as RectEl : null;
+  const vecSel = isVector ? sel as VectorEl : null;
 
   const Div = () => <span style={{ width: 1, height: 22, background: 'var(--line)', margin: '0 4px', flexShrink: 0 }} />;
   const IBtn = ({ icon, on, title, onClick, danger }: { icon: React.ReactNode; on?: boolean; title: string; onClick: () => void; danger?: boolean }) => (
@@ -531,9 +629,10 @@ function EditorContextToolbar({ sel, allFonts, brandColors, stageW, stageH, onUp
   };
   const PALETTE = ['#14160F','#FFFFFF','#C8F135','#2FD79B','#FF6B6B','#0038FF','#FF9500','#5A5E50',...brandColors];
   const palette = Array.from(new Set(PALETTE)).slice(0, 16);
-  const colorVal = textSel?.fill ?? (sel.type === 'rect' ? (sel as RectEl).fill : sel.type === 'circle' ? (sel as CircleEl).fill : sel.type === 'star' ? (sel as StarEl).fill : '#000');
+  const colorVal = textSel?.fill ?? (vecSel?.fill ?? (sel.type === 'rect' ? (sel as RectEl).fill : sel.type === 'circle' ? (sel as CircleEl).fill : sel.type === 'star' ? (sel as StarEl).fill : '#000'));
   const setFill = (c: string) => {
     if (textSel) u({ fill: c } as Partial<TextEl>);
+    else if (isVector) u({ fill: c } as Partial<VectorEl>);
     else if (isShape) u({ fill: c } as Partial<RectEl>);
   };
 
@@ -828,6 +927,39 @@ function EditorContextToolbar({ sel, allFonts, brandColors, stageW, stageH, onUp
           </div>
         )}
       </>}
+
+      {/* VECTOR — stroke controls */}
+      {vecSel && (
+        <div style={{ position: 'relative' }}>
+          <IBtn title="Contour" on={pop === 'vstroke'}
+            onClick={() => setPop(p => p === 'vstroke' ? null : 'vstroke')}
+            icon={<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><rect x="3" y="3" width="18" height="18" rx="3"/></svg>} />
+          {pop === 'vstroke' && (
+            <div style={{ ...popStyle, minWidth: 220 }}>
+              <div className="label" style={{ marginBottom: 8 }}>Contour</div>
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 10 }}>
+                <input type="color" value={vecSel.stroke || '#000000'} onChange={e => u({ stroke: e.target.value } as Partial<VectorEl>)}
+                  style={{ width: 30, height: 24, borderRadius: 5, border: '1.5px solid var(--line)', cursor: 'pointer', padding: 1 }} />
+                <span style={{ fontSize: 11, color: 'var(--ink-3)' }}>couleur</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 5 }}>
+                <span className="label" style={{ marginBottom: 0 }}>Épaisseur</span>
+                <span style={{ fontFamily: 'var(--mono)', fontWeight: 800, fontSize: 11, color: 'var(--ink-2)' }}>{vecSel.strokeWidth}px</span>
+              </div>
+              <input type="range" min={0} max={20} step={1} value={vecSel.strokeWidth} onChange={e => u({ strokeWidth: parseInt(e.target.value) } as Partial<VectorEl>)} className="ed-range" style={{ width: '100%' }} />
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 10, marginBottom: 5 }}>
+                <span className="label" style={{ marginBottom: 0 }}>Remplissage</span>
+              </div>
+              <div style={{ display: 'flex', gap: 6 }}>
+                <button onClick={() => u({ fillType: 'color' } as Partial<VectorEl>)}
+                  style={{ flex: 1, padding: '5px', borderRadius: 7, border: vecSel.fillType !== 'none' ? '2px solid var(--mint-2)' : '1.5px solid var(--line)', cursor: 'pointer', background: vecSel.fillType !== 'none' ? 'var(--mint-soft)' : 'var(--sunk)', fontSize: 11, fontWeight: 700, color: vecSel.fillType !== 'none' ? 'var(--mint-2)' : 'var(--ink-3)' }}>Couleur</button>
+                <button onClick={() => u({ fillType: 'none' } as Partial<VectorEl>)}
+                  style={{ flex: 1, padding: '5px', borderRadius: 7, border: vecSel.fillType === 'none' ? '2px solid var(--mint-2)' : '1.5px solid var(--line)', cursor: 'pointer', background: vecSel.fillType === 'none' ? 'var(--mint-soft)' : 'var(--sunk)', fontSize: 11, fontWeight: 700, color: vecSel.fillType === 'none' ? 'var(--mint-2)' : 'var(--ink-3)' }}>Aucun</button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* SHAPE extra — corner radius for rect */}
       {rectSel && (
@@ -1652,6 +1784,20 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
     setSelectedId(el.id);
   };
 
+  const addVector = (shape: VectorEl['shape']) => {
+    const defaultFill = workspaceData?.primary_color || '#2FD79B';
+    const defaultSize: Record<VectorEl['shape'], [number, number]> = {
+      rectangle: [200, 120], circle: [140, 140], triangle: [160, 140],
+      star: [140, 140], pill: [220, 80], arrow: [200, 100],
+      diamond: [140, 160], hexagon: [150, 150],
+    };
+    const [w, h] = defaultSize[shape];
+    const el: VectorEl = { id: newId(), type: 'vector', shape, x: Math.round((stageW - w) / 2), y: Math.round((stageH - h) / 2), rotation: 0, opacity: 100, width: w, height: h, fill: defaultFill, fillType: 'color', stroke: '', strokeWidth: 0 };
+    applyElements([...elements, el]);
+    setSelectedId(el.id);
+    setTool(null);
+  };
+
   const addImageEl = (src: string) => {
     const id = newId();
     const el: ImageEl = { id, type: 'image', x: 0, y: 0, rotation: 0, opacity: 100, src, width: stageW, height: stageH };
@@ -2301,6 +2447,25 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
                     </button>
                   ))}
                 </div>
+                <p style={{ fontSize: 10, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '0.12em', fontFamily: 'var(--mono)', fontWeight: 800, margin: '0 0 8px 0', marginTop: 16 }}>Formes vectorielles</p>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 7, marginBottom: 16 }}>
+                  {([
+                    { shape: 'rectangle' as const, label: 'Rect', icon: <rect x="4" y="6" width="16" height="12" rx="1" fill="none" stroke="currentColor" strokeWidth="1.6"/> },
+                    { shape: 'circle' as const,    label: 'Rond', icon: <circle cx="12" cy="12" r="7" fill="none" stroke="currentColor" strokeWidth="1.6"/> },
+                    { shape: 'triangle' as const,  label: 'Triangle', icon: <polygon points="12,4 21,20 3,20" fill="none" stroke="currentColor" strokeWidth="1.5"/> },
+                    { shape: 'star' as const,      label: 'Étoile', icon: <polygon points="12,3 14.5,9 21,9.5 16,14 17.5,21 12,17.5 6.5,21 8,14 3,9.5 9.5,9" fill="none" stroke="currentColor" strokeWidth="1.3"/> },
+                    { shape: 'pill' as const,      label: 'Pilule', icon: <rect x="3" y="8" width="18" height="8" rx="4" fill="none" stroke="currentColor" strokeWidth="1.6"/> },
+                    { shape: 'arrow' as const,     label: 'Flèche', icon: <><path fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" d="M3 10h12V6l6 6-6 6v-4H3z"/></> },
+                    { shape: 'diamond' as const,   label: 'Losange', icon: <polygon points="12,3 21,12 12,21 3,12" fill="none" stroke="currentColor" strokeWidth="1.5"/> },
+                    { shape: 'hexagon' as const,   label: 'Hexa', icon: <polygon points="12,3 20,7.5 20,16.5 12,21 4,16.5 4,7.5" fill="none" stroke="currentColor" strokeWidth="1.5"/> },
+                  ]).map(({ shape, label, icon }) => (
+                    <button key={shape} onClick={() => addVector(shape)} className="well"
+                      style={{ aspectRatio: '1', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 4, cursor: 'pointer', borderRadius: 10 }}>
+                      <svg width="24" height="24" viewBox="0 0 24 24" style={{ color: 'var(--ink-2)' }}>{icon}</svg>
+                      <span style={{ fontSize: 8.5, fontFamily: 'var(--mono)', fontWeight: 700, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '.04em' }}>{label}</span>
+                    </button>
+                  ))}
+                </div>
                 <p style={{ fontSize: 10, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '0.12em', fontFamily: 'var(--mono)', fontWeight: 800, margin: '0 0 8px' }}>Badges</p>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                   {['NOUVEAU', '-20%', 'RÉSA EN BIO'].map(badge => (
@@ -2500,13 +2665,15 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                   {/* Elements in reverse z-order (top layer first) */}
                   {[...elements].reverse().map((el, i) => {
-                    const label = el.type === 'text' ? (el as TextEl).text.slice(0, 22) || 'Texte' : el.type === 'image' ? 'Image' : el.type === 'rect' ? 'Rectangle' : el.type === 'circle' ? 'Cercle' : 'Étoile';
+                    const label = layerName(el);
                     const icon = el.type === 'text'
                       ? <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><polyline points="4 7 4 4 20 4 20 7"/><line x1="9" y1="20" x2="15" y2="20"/><line x1="12" y1="4" x2="12" y2="20"/></svg>
                       : el.type === 'image'
                       ? <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
                       : el.type === 'circle'
                       ? <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="9"/></svg>
+                      : el.type === 'vector'
+                      ? <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><polygon points="12,3 21,12 12,21 3,12"/></svg>
                       : <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><rect x="3" y="3" width="18" height="18" rx="2"/></svg>;
                     const isSelected = el.id === selectedId;
                     return (
@@ -2617,6 +2784,12 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
                       onClick={e => handleElClick(el.id, e.evt.shiftKey)} onTap={() => handleElClick(el.id, false)}
                       onDragStart={() => handleElDragStart(el.id)}
                       onDragEnd={e => handleElDragEnd(el.id, e.target.x(), e.target.y())} />
+                  );
+                  if (el.type === 'vector') return (
+                    <VectorNode key={el.id} el={el as VectorEl}
+                      onSelect={sk => handleElClick(el.id, sk)}
+                      onDragStart={() => handleElDragStart(el.id)}
+                      onDragEnd={(x, y) => handleElDragEnd(el.id, x, y)} />
                   );
                   if (el.type === 'text') {
                     const pH = el.paddingH ?? el.padding;

@@ -1,16 +1,55 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { createClient } from '@supabase/supabase-js';
 
-// ─── Shared system prompt — injected in every call ────────────────────────────
-const SYSTEM_PROMPT = `Tu es un directeur artistique et copywriter senior spécialisé en contenu Instagram pour des marques premium. Tu travailles pour des agences de communication exigeantes.
+// ─── Brand-aware system prompt template ────────────────────────────────────────
+const PROMPT_TEMPLATE = `Tu es un copywriter expert en contenu Instagram pour agences de communication premium.
+Tu écris pour [NOM_CLIENT], une marque dans le secteur [SECTEUR].
 
-Ton style :
-- Tu écris comme un humain qui connaît profondément la marque, pas comme une IA
-- Tu évites absolument : "Découvrez", "Bienvenue", "Plongez dans", "Rejoignez-nous", "N'attendez plus", "Profitez de", "Incontournable", "Authentique", "Passion", "Excellence", "Qualité"
-- Tu n'utilises jamais de hashtags génériques (#food #lifestyle #instagood)
-- Tu n'exagères jamais : pas de "!", pas de superlatifs vides, pas d'emojis excessifs
-- Tu observes ce qui se fait chez les marques premium du même secteur et tu fais mieux
-- Chaque texte doit sembler écrit spécifiquement pour cette marque, pas pour n'importe qui
-- Tu privilégies la suggestion à l'affirmation, l'évocation à la description`;
+IDENTITÉ DE MARQUE :
+[DESCRIPTION_MARQUE]
+
+TON DE COMMUNICATION : [TON] — applique ce ton rigoureusement.
+
+VOCABULAIRE AUTORISÉ (utilise ces mots naturellement) : [MOTS_POSITIFS]
+VOCABULAIRE INTERDIT (n'utilise JAMAIS ces mots) : [MOTS_INTERDITS]
+[REFERENCE_CAPTION]
+RÈGLES ABSOLUES :
+- Ne commence JAMAIS par "Découvrez", "Bienvenue", "Plongez", "Profitez"
+- Maximum 1 point d'exclamation par caption
+- Maximum 1 emoji, utilisé avec intention et jamais en début de phrase
+- 3 à 5 hashtags ultra-spécifiques à la niche, jamais génériques (#food #lifestyle sont interdits)
+- La caption doit sonner comme écrite par quelqu'un qui connaît profondément cette marque depuis des années
+- Évite absolument tout ce qui ressemble à du contenu généré par IA : superlatifs vides, formules creuses, enthousiasme forcé
+- Privilégie la suggestion à l'affirmation, l'évocation à la description
+- Entre 60 et 150 mots — ni trop court ni trop long
+- La première phrase est cruciale : commence par une image, une sensation ou un fait concret`;
+
+interface WorkspaceData {
+  name: string | null;
+  sector: string | null;
+  tone: string | null;
+  words_to_use: string | null;
+  words_to_avoid: string | null;
+  company_description: string | null;
+  caption_examples: string | null;
+  brand_voice_prompt: string | null;
+  description_style: string | null;
+}
+
+function buildSystemPrompt(ws: WorkspaceData): string {
+  const refBlock = ws.caption_examples
+    ? `\nSTYLE DE RÉFÉRENCE (inspire-toi du style, pas du contenu) :\n"${ws.caption_examples}"\n`
+    : '\n';
+
+  return PROMPT_TEMPLATE
+    .replace('[NOM_CLIENT]',       ws.name             || 'ce client')
+    .replace('[SECTEUR]',          ws.sector           || 'non spécifié')
+    .replace('[DESCRIPTION_MARQUE]', ws.company_description || 'Non renseignée')
+    .replace('[TON]',              ws.tone             || 'Professionnel')
+    .replace('[MOTS_POSITIFS]',    ws.words_to_use     || 'aucune contrainte')
+    .replace('[MOTS_INTERDITS]',   ws.words_to_avoid   || 'aucune contrainte')
+    .replace('[REFERENCE_CAPTION]', refBlock);
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -18,26 +57,26 @@ export async function POST(request: NextRequest) {
     const {
       brief,
       photoUrl,
-      // Brand identity — new field names (+ legacy aliases)
+      // New: workspace ID for server-side fetch
+      workspaceId,
+      // Legacy body params (fallback if workspaceId missing)
       workspaceName,
       sector,
       tone,
       brandTone,
       companyDescription,
       brandDescription,
-      // Voice rules
       wordsToUse,
       wordsToAvoid,
       captionExamples,
       brandVoicePrompt,
       descriptionStyle,
-      // 4D — structured text block roles (legacy: keyed by role name)
-      textRoles,
-      // 5A — template zones (new: keyed by element id, includes size info)
-      templateZones,
-      // 5B — post context
+      // Post context (new textarea field)
       context,
-      // 5C — approved captions (brand memory)
+      // Template zones
+      textRoles,
+      templateZones,
+      // Brand memory
       approvedCaptions,
     } = body;
 
@@ -51,17 +90,43 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Clé API Anthropic manquante' }, { status: 500 });
     }
 
-    // ─── Resolve field values (new names take priority, fall back to legacy) ──
-    const clientName   = workspaceName || 'cette marque';
-    const clientSector = sector || 'non spécifié';
-    const clientTone   = tone || brandTone || 'Professionnel';
-    const clientDesc   = brandDescription || companyDescription || '';
-    const positiveWords = wordsToUse || '';
-    const negativeWords = wordsToAvoid || '';
-    const captionRef   = captionExamples || '';
-    const contextText  = context || brief;
+    // ─── 1. Fetch workspace data from Supabase ────────────────────────────────
+    let ws: WorkspaceData = {
+      name:                workspaceName || null,
+      sector:              sector || null,
+      tone:                tone || brandTone || null,
+      words_to_use:        wordsToUse || null,
+      words_to_avoid:      wordsToAvoid || null,
+      company_description: brandDescription || companyDescription || null,
+      caption_examples:    captionExamples || null,
+      brand_voice_prompt:  brandVoicePrompt || null,
+      description_style:   descriptionStyle || null,
+    };
 
-    // ─── 5A — Template zones (ID-keyed, with size info) ──────────────────────
+    if (workspaceId && process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY) {
+      try {
+        const supabase = createClient(
+          process.env.NEXT_PUBLIC_SUPABASE_URL,
+          process.env.SUPABASE_SERVICE_ROLE_KEY,
+        );
+        const { data } = await supabase
+          .from('workspaces')
+          .select('name, sector, tone, words_to_use, words_to_avoid, company_description, caption_examples, brand_voice_prompt, description_style')
+          .eq('id', workspaceId)
+          .single();
+        if (data) ws = data as WorkspaceData;
+      } catch (e) {
+        console.warn('[generate-description] workspace fetch failed, using body params:', e);
+      }
+    }
+
+    // ─── 2. Build system prompt from brand data ───────────────────────────────
+    const systemPrompt = buildSystemPrompt(ws);
+
+    // ─── 3. Build user message ────────────────────────────────────────────────
+    const contextText = [context, brief].filter(Boolean).join('\n').trim();
+
+    // ── Template zones (5A) ──
     type TemplateZone = { id: string; role?: string; width: number; height: number; fontSize: number };
     const ROLE_LABELS: Record<string, string> = {
       titre: 'Titre principal',
@@ -73,72 +138,29 @@ export async function POST(request: NextRequest) {
       personnalise: 'Zone personnalisée',
     };
     const zonesArray: TemplateZone[] = Array.isArray(templateZones) ? templateZones : [];
-    const activeZones = zonesArray.filter(z => z.role); // only zones with a role are AI-fillable
+    const activeZones = zonesArray.filter(z => z.role);
     const hasZoneMode = activeZones.length > 0;
 
-    // ─── 4D — Text block roles (legacy fallback) ──────────────────────────────
+    // ── Text block roles (4D legacy) ──
     const hasRoles = !hasZoneMode && textRoles && typeof textRoles === 'object' && Object.keys(textRoles).length > 0;
     const roleKeys = hasRoles ? Object.keys(textRoles as Record<string, string>) : [];
 
-    // ─── Build the user prompt ────────────────────────────────────────────────
     const lines: string[] = [];
 
-    // — Titre visuel —
-    lines.push(`GÉNÈRE DU CONTENU INSTAGRAM POUR : ${clientName}`);
-    lines.push('');
-    lines.push('── BRIEF ─────────────────────────────────────────────────────');
-    lines.push(`Contexte : ${contextText}`);
-    lines.push('');
-    lines.push('── IDENTITÉ DE LA MARQUE ─────────────────────────────────────');
-    lines.push(`Marque : ${clientName}`);
-    lines.push(`Secteur : ${clientSector}`);
-    lines.push(`Ton demandé : ${clientTone}`);
-    if (clientDesc)       lines.push(`Description : ${clientDesc}`);
-    if (brandVoicePrompt) lines.push(`Voix de marque : ${brandVoicePrompt}`);
-    if (descriptionStyle) lines.push(`Style rédactionnel : ${descriptionStyle}`);
-
-    if (positiveWords || negativeWords) {
-      lines.push('');
-      lines.push('── RÈGLES LEXICALES ──────────────────────────────────────────');
-      if (positiveWords) lines.push(`Mots à utiliser : ${positiveWords}`);
-      if (negativeWords) lines.push(`Mots BANNIS — ne jamais écrire : ${negativeWords}`);
-    }
-
-    if (captionRef) {
-      lines.push('');
-      lines.push('── CAPTION DE RÉFÉRENCE APPROUVÉE PAR CE CLIENT ─────────────');
-      lines.push(captionRef.trim());
-      lines.push('(Reproduis ce registre et ce niveau de langue — pas le contenu exact)');
-    }
+    lines.push(`CONTEXTE DU POST : ${contextText || 'Aucun contexte fourni'}`);
 
     if (approvedCaptions && Array.isArray(approvedCaptions) && approvedCaptions.length > 0) {
       lines.push('');
       lines.push('── CAPTIONS VALIDÉES PAR L\'AGENCE (MÉMOIRE DE MARQUE) ────────');
-      approvedCaptions.forEach((cap: string, i: number) => {
-        lines.push(`${i + 1}. ${cap}`);
-      });
+      approvedCaptions.forEach((cap: string, i: number) => lines.push(`${i + 1}. ${cap}`));
       lines.push('(Maintiens ce style et ce niveau de langue)');
     }
 
-    lines.push('');
-    lines.push('── RÈGLES DU TITRE VISUEL (texte_visuel) ─────────────────────');
-    lines.push('- Maximum 6 mots — idéalement 3 à 5');
-    lines.push('- Pas de ponctuation sauf un point ou un tiret si ça renforce le style');
-    lines.push('- Pas de verbe obligatoire — noms et adjectifs percutants suffisent');
-    lines.push('- Le texte doit fonctionner visuellement sur une image — avoir du rythme');
-    lines.push('- Pas de questions ("Vous cherchez...?") ni d\'injonctions molles ("Venez découvrir")');
-    lines.push(`- Pense à ce que ferait Jacquemus, Le Labo, Rimowa ou Aesop dans le secteur "${clientSector}"`);
-
-    lines.push('');
-    lines.push('── RÈGLES DE LA CAPTION INSTAGRAM (description) ──────────────');
-    lines.push('- Entre 60 et 150 mots maximum');
-    lines.push('- La première phrase accroche sans être racoleure — commence par une image, une sensation ou un fait concret. Jamais par "Découvrez"');
-    lines.push('- Le corps développe une seule idée, pas trois');
-    lines.push('- La dernière ligne peut être un appel à l\'action subtil — jamais "Commandez maintenant"');
-    lines.push('- Hashtags : 3 à 5 max, très spécifiques à la niche, après un saut de ligne');
-    lines.push('- Maximum 1 emoji, utilisé avec intention — pas pour décorer');
-    lines.push('- Le texte doit sonner comme quelqu\'un qui connaît vraiment ce monde');
-    lines.push('- Avant d\'écrire : imagine la marque premium de référence de ce secteur. Fais mieux ou au même niveau');
+    if (ws.brand_voice_prompt || ws.description_style) {
+      lines.push('');
+      if (ws.brand_voice_prompt) lines.push(`Voix de marque : ${ws.brand_voice_prompt}`);
+      if (ws.description_style)  lines.push(`Style rédactionnel : ${ws.description_style}`);
+    }
 
     if (hasZoneMode) {
       lines.push('');
@@ -153,34 +175,30 @@ export async function POST(request: NextRequest) {
         lines.push(`- "${roleLabel}" (id: ${z.id}) : maximum ${maxChars} caractères`);
       });
       lines.push('');
-      lines.push('Si certaines zones forment naturellement une seule phrase ou idée (ex: titre + accroche),');
-      lines.push('répartis-la de façon cohérente — chaque zone doit avoir du sens isolément ET ensemble.');
+      lines.push('Répartis le contenu de façon cohérente — chaque zone doit avoir du sens isolément ET ensemble.');
     } else if (hasRoles) {
       lines.push('');
-      lines.push('── BLOCS DE TEXTE VISUELS (rôles) ───────────────────────────');
-      lines.push(`Blocs présents sur le visuel : ${roleKeys.join(', ')}`);
-      lines.push('Génère du contenu adapté pour CHACUN de ces rôles dans "blocks"');
+      lines.push(`Blocs visuels présents : ${roleKeys.join(', ')}`);
     }
 
     lines.push('');
-    lines.push('── FORMAT DE RÉPONSE ─────────────────────────────────────────');
+    lines.push('── FORMAT DE RÉPONSE (JSON strict) ───────────────────────────');
     lines.push('Réponds UNIQUEMENT avec ce JSON valide, sans rien avant ni après :');
 
     if (hasZoneMode) {
       const zoneExample = activeZones.map(z => `"${z.id}": "texte pour ${ROLE_LABELS[z.role!] ?? z.role}"`).join(', ');
-      lines.push(`{ "texte_visuel": "TITRE VISUEL", "description": "Caption Instagram avec hashtags.", "zone_blocks": { ${zoneExample} } }`);
+      lines.push(`{ "texte_visuel": "TITRE VISUEL 3-5 mots", "description": "Caption Instagram.", "zone_blocks": { ${zoneExample} } }`);
     } else if (hasRoles) {
       const blocksExample = roleKeys.map(r => `"${r}": "contenu pour ${r}"`).join(', ');
-      lines.push(`{ "texte_visuel": "TITRE VISUEL", "description": "Caption Instagram avec hashtags.", "blocks": { ${blocksExample} } }`);
+      lines.push(`{ "texte_visuel": "TITRE VISUEL 3-5 mots", "description": "Caption Instagram.", "blocks": { ${blocksExample} } }`);
     } else {
-      lines.push('{ "texte_visuel": "TITRE VISUEL", "description": "Caption Instagram avec hashtags." }');
+      lines.push('{ "texte_visuel": "TITRE VISUEL 3-5 mots", "description": "Caption Instagram avec hashtags." }');
     }
 
     const userPrompt = lines.join('\n');
 
-    // ─── Build message content (with optional image) ──────────────────────────
+    // ─── 4. Build message content (with optional image) ──────────────────────
     const hasImage = typeof photoUrl === 'string' && photoUrl.startsWith('http');
-
     type MessageContent =
       | { type: 'image'; source: { type: 'url'; url: string } }
       | { type: 'text'; text: string };
@@ -196,8 +214,8 @@ export async function POST(request: NextRequest) {
         : userPrompt,
     });
 
-    // ─── Call Claude ──────────────────────────────────────────────────────────
-    console.log(`[generate-description] client="${clientName}" sector="${clientSector}" tone="${clientTone}" hasImage=${hasImage}`);
+    // ─── 5. Call Claude ───────────────────────────────────────────────────────
+    console.log(`[generate-description] workspace="${ws.name}" sector="${ws.sector}" tone="${ws.tone}" hasImage=${hasImage} hasZones=${hasZoneMode}`);
 
     const response = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
@@ -208,10 +226,9 @@ export async function POST(request: NextRequest) {
       },
       body: JSON.stringify({
         model: 'claude-opus-4-5',
-        // Zone-mode or role-mode needs more tokens for the extra JSON blocks
         max_tokens: hasZoneMode ? 800 : hasRoles ? 600 : 400,
-        temperature: 0.85,
-        system: SYSTEM_PROMPT,
+        temperature: 0.9,
+        system: systemPrompt,
         messages: [{ role: 'user', content }],
       }),
     });
@@ -225,7 +242,7 @@ export async function POST(request: NextRequest) {
 
     const rawText: string = data.content?.[0]?.text ?? '';
 
-    // ─── Parse JSON response ──────────────────────────────────────────────────
+    // ─── 6. Parse JSON response ───────────────────────────────────────────────
     let texte_visuel = '';
     let description = '';
     let blocks: Record<string, string> | null = null;
@@ -237,8 +254,8 @@ export async function POST(request: NextRequest) {
         const parsed = JSON.parse(jsonMatch[0]);
         texte_visuel = (parsed.texte_visuel ?? '').trim();
         description  = (parsed.description  ?? '').trim();
-        if (parsed.blocks && typeof parsed.blocks === 'object') blocks = parsed.blocks;
-        if (parsed.zone_blocks && typeof parsed.zone_blocks === 'object') zoneBlocks = parsed.zone_blocks;
+        if (parsed.blocks      && typeof parsed.blocks      === 'object') blocks      = parsed.blocks;
+        if (parsed.zone_blocks && typeof parsed.zone_blocks === 'object') zoneBlocks  = parsed.zone_blocks;
       } else {
         description = rawText;
       }
@@ -246,12 +263,12 @@ export async function POST(request: NextRequest) {
       description = rawText;
     }
 
-    console.log(`[generate-description] done — texte_visuel="${texte_visuel.slice(0, 40)}" desc_len=${description.length} zones=${zoneBlocks ? Object.keys(zoneBlocks).length : 0}`);
+    console.log(`[generate-description] done — texte_visuel="${texte_visuel.slice(0, 40)}" desc_len=${description.length}`);
 
     return NextResponse.json({
       texte_visuel,
       description,
-      ...(blocks ? { blocks } : {}),
+      ...(blocks     ? { blocks }     : {}),
       ...(zoneBlocks ? { zoneBlocks } : {}),
     });
 

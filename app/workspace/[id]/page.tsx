@@ -344,6 +344,8 @@ export default function WorkspacePage() {
   const [shareExpiryEnabled, setShareExpiryEnabled] = useState(false);
   const [shareExpiryDate, setShareExpiryDate] = useState('');
 
+  const [postContexts, setPostContexts] = useState<Record<string, string>>({});
+
   // ── Load data ─────────────────────────────────────────────────────────────
 
   const loadData = useCallback(async () => {
@@ -515,7 +517,11 @@ export default function WorkspacePage() {
         body: JSON.stringify({
           brief: combinedBrief,
           photoUrl,
-          // Brand identity
+          // Server-side workspace fetch (preferred)
+          workspaceId: id,
+          // Context textarea for this specific post
+          context: postContexts[item.localId] ?? '',
+          // Brand identity (fallback if server fetch fails)
           workspaceName: workspace?.name ?? undefined,
           sector: workspace?.sector ?? undefined,
           tone: workspace?.tone ?? undefined,
@@ -1059,6 +1065,18 @@ export default function WorkspacePage() {
                                 />
                                 <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
                                   <VoiceButton value={post.brief} onChange={(v) => updateBrief(post.localId, v)} />
+                                </div>
+                                <div>
+                                  <p className="label" style={{ marginBottom: 4 }}>CONTEXTE DU POST (optionnel)</p>
+                                  <textarea
+                                    value={postContexts[post.localId] ?? ''}
+                                    onChange={e => setPostContexts(prev => ({ ...prev, [post.localId]: e.target.value }))}
+                                    placeholder="Ex : lancement du menu automne, nouvelle collection, promo flash..."
+                                    maxLength={200}
+                                    rows={2}
+                                    className="input"
+                                    style={{ resize: 'none', fontSize: 12.5 }}
+                                  />
                                 </div>
                                 <button
                                   onClick={() => generateOne(post)}
