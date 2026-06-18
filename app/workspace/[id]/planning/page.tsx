@@ -824,9 +824,10 @@ function PlanningContent() {
         </div>
       </div>
 
-      {/* ── Right panel ───────────────────────────────────────────────────────── */}
+      {/* ── Post panel modal ─────────────────────────────────────────────────── */}
       {selectedPost && (
-        <div style={{ width: 300, flexShrink: 0, borderLeft: "1px solid var(--line)", background: "var(--white)", display: "flex", flexDirection: "column", overflowY: "auto", boxShadow: "-4px 0 20px rgba(13,15,10,.06)" }}>
+        <div style={{ position: "fixed", inset: 0, zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(13,15,10,.45)" }} onClick={() => setSelectedPost(null)}>
+        <div style={{ width: 420, maxHeight: "90vh", borderRadius: 16, background: "var(--white)", display: "flex", flexDirection: "column", overflowY: "auto", boxShadow: "0 24px 60px -12px rgba(13,15,10,.45), 0 0 0 1px rgba(13,15,10,.06)" }} onClick={e => e.stopPropagation()}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "16px 20px", borderBottom: "1px solid var(--line)" }}>
             <span className="h-title" style={{ fontSize: 15 }}>Programmer</span>
             <button onClick={() => setSelectedPost(null)} className="btn btn-ghost btn-icon"><IconClose /></button>
@@ -936,7 +937,7 @@ function PlanningContent() {
               {publishing ? "Publication…" : "Publier maintenant"}
             </button>
           </div>
-        </div>
+        </div></div>
       )}
 
       <style>{`@keyframes spin{to{transform:rotate(360deg)}} .cal-slot:hover{background:rgba(47,215,155,.04)!important}`}</style>
