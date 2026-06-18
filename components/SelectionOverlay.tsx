@@ -177,6 +177,7 @@ export default function SelectionOverlay({ el, stageRef, onChange, onDragEnd, zo
     const snapRadius  = el.radius ?? 50;
     const snapOuter   = el.outerRadius ?? 50;
     const snapInner   = el.innerRadius ?? 25;
+    const startFontSize = el.fontSize ?? 32;
     const elType      = el.type;
 
     const rad = startRot * Math.PI / 180;
@@ -213,7 +214,7 @@ export default function SelectionOverlay({ el, stageRef, onChange, onDragEnd, zo
           return;
         }
 
-        // ── Text (width only) ─────────────────────────────────────────────────
+        // ── Text: corner handles scale fontSize proportionally, mid handles width-only ──
         if (elType === 'text') {
           let nw = startW;
           let origin = { x: startElX, y: startElY };
@@ -223,7 +224,15 @@ export default function SelectionOverlay({ el, stageRef, onChange, onDragEnd, zo
             nw = startW - ldx;
             origin = shiftOrigin(ldx, 0);
           }
-          onChangeRef.current({ x: origin.x, y: origin.y, width: Math.max(20, nw) });
+          nw = Math.max(20, nw);
+          const isCornerHandle = ['tl', 'tr', 'bl', 'br'].includes(handleId);
+          if (isCornerHandle) {
+            const scaleRatio = nw / startW;
+            const newFontSize = Math.max(8, Math.round(startFontSize * scaleRatio));
+            onChangeRef.current({ x: origin.x, y: origin.y, width: nw, fontSize: newFontSize });
+          } else {
+            onChangeRef.current({ x: origin.x, y: origin.y, width: nw });
+          }
           return;
         }
 

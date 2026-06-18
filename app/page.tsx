@@ -728,8 +728,26 @@ function KlipDemo() {
                       <button key={i} style={{ width: 20, height: 20, borderRadius: 4, border: 'none', background: 'transparent', display: 'grid', placeItems: 'center', color: 'rgba(13,15,10,.25)', cursor: 'default' }}>{icon}</button>
                     ))}
                   </div>
-                  <div style={{ flex: 1, display: 'flex', justifyContent: 'center', minWidth: 0, overflow: 'hidden' }}>
-                    <span style={{ fontFamily: "'early-sans-variable', sans-serif", fontWeight: 700, fontSize: 9, color: '#8E9183', whiteSpace: 'nowrap' }}>Texte « Notre savoir-faire » sélectionné</span>
+                  <div style={{ flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 2, minWidth: 0, overflow: 'hidden' }}>
+                    <select value={fontFamily} onChange={e => setFontFamily(e.target.value)} style={{ fontSize: 8, padding: '1px 3px', border: '1px solid rgba(13,15,10,.12)', borderRadius: 3, background: '#F4F3EC', color: '#0D0F0A', outline: 'none', maxWidth: 58, cursor: 'pointer', fontFamily: 'inherit' }}>
+                      {['Anton','Archivo Black','Syne','Inter','Oswald','Montserrat'].map(f => <option key={f} value={f}>{f}</option>)}
+                    </select>
+                    <span style={{ width: 1, height: 12, background: 'rgba(13,15,10,.1)', flexShrink: 0 }} />
+                    <input type="number" value={fontSize} onChange={e => setFontSize(Math.max(8, Math.min(120, +e.target.value)))} style={{ width: 26, fontSize: 8, padding: '1px 3px', border: '1px solid rgba(13,15,10,.12)', borderRadius: 3, background: '#F4F3EC', textAlign: 'center', outline: 'none', color: '#0D0F0A' }} />
+                    <span style={{ width: 1, height: 12, background: 'rgba(13,15,10,.1)', flexShrink: 0 }} />
+                    {(['B','I','U'] as const).map((lbl, i) => (
+                      <button key={lbl} style={{ width: 17, height: 17, borderRadius: 3, border: `1px solid ${i===0?'rgba(47,215,155,.6)':'rgba(13,15,10,.1)'}`, background: i===0?'rgba(47,215,155,.12)':'transparent', fontFamily: lbl==='B'?"'Archivo',sans-serif":'inherit', fontWeight: lbl==='B'?900:400, fontStyle: lbl==='I'?'italic':'normal', textDecoration: lbl==='U'?'underline':'none', fontSize: 9, color: i===0?'#0D0F0A':'#8E9183', cursor: 'default', display: 'grid', placeItems: 'center' }}>{lbl}</button>
+                    ))}
+                    <span style={{ width: 1, height: 12, background: 'rgba(13,15,10,.1)', flexShrink: 0 }} />
+                    {([
+                      <svg key="al" width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M21 6H3M15 12H3M17 18H3"/></svg>,
+                      <svg key="ac" width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M21 6H3M17 12H7M19 18H5"/></svg>,
+                      <svg key="ar" width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M21 6H3M21 12H9M21 18H7"/></svg>,
+                    ] as React.ReactNode[]).map((icon, i) => (
+                      <button key={i} style={{ width: 17, height: 17, borderRadius: 3, border: 'none', background: i===0?'rgba(13,15,10,.1)':'transparent', cursor: 'default', display: 'grid', placeItems: 'center', color: i===0?'#0D0F0A':'#8E9183' }}>{icon}</button>
+                    ))}
+                    <span style={{ width: 1, height: 12, background: 'rgba(13,15,10,.1)', flexShrink: 0 }} />
+                    <button style={{ width: 17, height: 17, borderRadius: 3, border: '1.5px solid rgba(13,15,10,.15)', background: textColor, cursor: 'default', flexShrink: 0 }} />
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 3, flexShrink: 0 }}>
                     <div style={{ display: 'flex', gap: 1, padding: 2, background: 'rgba(13,15,10,.07)', borderRadius: 5, border: '1px solid rgba(13,15,10,.08)' }}>
@@ -738,7 +756,7 @@ function KlipDemo() {
                       ))}
                     </div>
                     <button style={{ padding: '2px 6px', borderRadius: 4, border: '1px solid rgba(13,15,10,.14)', background: 'transparent', fontFamily: "'early-sans-variable', sans-serif", fontWeight: 700, fontSize: 8.5, color: '#565A4E', cursor: 'default' }}>Aperçu</button>
-                    <button onClick={() => setStep(3)} style={{ padding: '2px 7px', borderRadius: 4, border: 'none', background: '#2FD79B', fontFamily: "'early-sans-variable', sans-serif", fontWeight: 700, fontSize: 8.5, color: '#06281C', cursor: 'pointer' }}>Partager</button>
+                    <button onClick={() => setStep(3)} style={{ padding: '2px 7px', borderRadius: 4, border: 'none', background: '#2FD79B', fontFamily: "'early-sans-variable', sans-serif", fontWeight: 700, fontSize: 8.5, color: '#06281C', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 3 }}>Publier <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg></button>
                   </div>
                 </div>
 
@@ -757,11 +775,10 @@ function KlipDemo() {
                       ['calques',  'Calques',  <><path key="a" d="M12 2L2 7l10 5 10-5-10-5z"/><path key="b" d="M2 17l10 5 10-5"/><path key="c" d="M2 12l10 5 10-5"/></>],
                     ] as [string, string, React.ReactNode][]).map(([id, label, paths]) => (
                       <button key={id} onClick={() => setEditorTool(editorTool === id ? null : id)} title={label}
-                        style={{ width: 36, height: 36, borderRadius: 8, border: 'none', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 2, cursor: 'pointer', transition: 'all .12s',
+                        style={{ width: 36, height: 36, borderRadius: 8, border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: 'all .12s',
                           background: editorTool===id ? 'rgba(47,215,155,.15)' : 'transparent',
                           color: editorTool===id ? '#2FD79B' : 'rgba(13,15,10,.4)' }}>
-                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">{paths}</svg>
-                        <span style={{ fontFamily: "'early-sans-variable', sans-serif", fontWeight: 800, fontSize: 5.5, letterSpacing: '.05em', textTransform: 'uppercase', lineHeight: 1 }}>{label}</span>
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">{paths}</svg>
                       </button>
                     ))}
                   </div>
@@ -925,20 +942,53 @@ function KlipDemo() {
                   )}
 
                   {/* Canvas */}
-                  <div style={{ flex: 1, background: '#E4E3DB', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 10, gap: 6, overflow: 'hidden' }}>
-                    <div style={{ flex: 1, width: '100%', borderRadius: 10, background: DEMO_MEDIAS[0].bgColor, boxShadow: '0 8px 24px rgba(0,0,0,.3)', display: 'flex', flexDirection: 'column', justifyContent: alignMap[textPos], padding: 14, overflow: 'hidden', position: 'relative' }}>
-                      <div style={{ position: 'absolute', inset: 10, border: '1.5px solid #2FD79B', borderRadius: 4, pointerEvents: 'none', boxShadow: '0 0 0 1px rgba(47,215,155,.2)' }}>
-                        {['tl','tr','bl','br'].map(p => (
-                          <div key={p} style={{ position: 'absolute', width: 7, height: 7, borderRadius: 2, background: '#fff', border: '1.5px solid #2FD79B',
-                            top: p.startsWith('t')?-4:'auto', bottom: p.startsWith('b')?-4:'auto',
-                            left: p.endsWith('l')?-4:'auto', right: p.endsWith('r')?-4:'auto' }} />
-                        ))}
+                  <div style={{ flex: 1, background: '#E4E3DB', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+                    {/* Canvas scroll area */}
+                    <div style={{ flex: 1, position: 'relative', overflow: 'hidden' }}>
+                      {/* Floating context toolbar */}
+                      <div style={{ position: 'absolute', top: 6, left: '50%', transform: 'translateX(-50%)', background: '#fff', borderRadius: 7, boxShadow: '0 2px 10px rgba(0,0,0,.18)', border: '1px solid rgba(13,15,10,.1)', display: 'flex', alignItems: 'center', gap: 0, padding: '2px 4px', zIndex: 10, whiteSpace: 'nowrap' }}>
+                        <span style={{ fontSize: 7.5, fontWeight: 700, color: '#565A4E', padding: '0 4px 0 2px', fontFamily: "'early-sans-variable', sans-serif" }}>Texte</span>
+                        <span style={{ width: 1, height: 11, background: 'rgba(13,15,10,.1)', flexShrink: 0 }} />
+                        <button style={{ width: 15, height: 15, borderRadius: 3, border: '1.5px solid rgba(13,15,10,.15)', background: textColor, cursor: 'default', margin: '0 2px', flexShrink: 0 }} />
+                        <span style={{ fontSize: 7.5, color: '#565A4E', padding: '0 2px', fontFamily: "'early-sans-variable', sans-serif", fontWeight: 600 }}>{fontSize}px</span>
+                        <span style={{ width: 1, height: 11, background: 'rgba(13,15,10,.1)', flexShrink: 0, margin: '0 1px' }} />
+                        <button style={{ width: 15, height: 15, borderRadius: 2, border: 'none', background: 'rgba(47,215,155,.12)', fontFamily: "'Archivo',sans-serif", fontWeight: 900, fontSize: 9, color: '#0D0F0A', cursor: 'default' }}>B</button>
+                        <button style={{ width: 15, height: 15, borderRadius: 2, border: 'none', background: 'transparent', fontStyle: 'italic', fontSize: 9, color: '#8E9183', cursor: 'default' }}>I</button>
+                        <span style={{ width: 1, height: 11, background: 'rgba(13,15,10,.1)', flexShrink: 0, margin: '0 1px' }} />
+                        <button style={{ width: 15, height: 15, borderRadius: 2, border: 'none', background: 'rgba(13,15,10,.08)', cursor: 'default', display: 'grid', placeItems: 'center', color: '#565A4E' }}>
+                          <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M3 6h18M3 12h12"/></svg>
+                        </button>
+                        <button style={{ width: 15, height: 15, borderRadius: 2, border: 'none', background: 'transparent', cursor: 'default', display: 'grid', placeItems: 'center', color: '#8E9183' }}>
+                          <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M3 6h18M7 12h10M5 18h14"/></svg>
+                        </button>
+                        <span style={{ width: 1, height: 11, background: 'rgba(13,15,10,.1)', flexShrink: 0, margin: '0 1px' }} />
+                        <button style={{ width: 15, height: 15, borderRadius: 2, border: 'none', background: 'rgba(220,38,38,.1)', cursor: 'default', display: 'grid', placeItems: 'center', color: '#DC2626' }}>
+                          <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M4 7h16M9 7V4.5h6V7M6 7l1 13h10l1-13"/></svg>
+                        </button>
                       </div>
-                      <div style={{ fontFamily: `"${fontFamily}","Archivo",sans-serif`, fontWeight: 900, fontSize: fontSize * 0.42, lineHeight: 1.1, color: textColor, textShadow: shadow?'0 2px 12px rgba(0,0,0,.6)':'none', userSelect: 'none' }}>
-                        Notre<br/>savoir-faire
+                      {/* Canvas card */}
+                      <div style={{ position: 'absolute', inset: '28px 8px 8px', borderRadius: 10, background: DEMO_MEDIAS[0].bgColor, boxShadow: '0 8px 24px rgba(0,0,0,.3)', display: 'flex', flexDirection: 'column', justifyContent: alignMap[textPos], padding: 14, overflow: 'hidden' }}>
+                        <div style={{ position: 'absolute', inset: 10, border: '1.5px solid #2FD79B', borderRadius: 4, pointerEvents: 'none', boxShadow: '0 0 0 1px rgba(47,215,155,.2)' }}>
+                          {['tl','tr','bl','br'].map(p => (
+                            <div key={p} style={{ position: 'absolute', width: 7, height: 7, borderRadius: 2, background: '#fff', border: '1.5px solid #2FD79B',
+                              top: p.startsWith('t')?-4:'auto', bottom: p.startsWith('b')?-4:'auto',
+                              left: p.endsWith('l')?-4:'auto', right: p.endsWith('r')?-4:'auto' }} />
+                          ))}
+                        </div>
+                        <div style={{ fontFamily: `"${fontFamily}","Archivo",sans-serif`, fontWeight: 900, fontSize: fontSize * 0.42, lineHeight: 1.1, color: textColor, textShadow: shadow?'0 2px 12px rgba(0,0,0,.6)':'none', userSelect: 'none' }}>
+                          Notre<br/>savoir-faire
+                        </div>
                       </div>
                     </div>
-                    <span style={{ fontFamily: "'early-sans-variable', sans-serif", fontWeight: 600, fontSize: 9, color: '#8E9183', letterSpacing: '.06em', flexShrink: 0 }}>1080 × 1080 px</span>
+                    {/* ZoomBar */}
+                    <div style={{ height: 30, background: '#fff', borderTop: '1px solid rgba(13,15,10,.08)', display: 'flex', alignItems: 'center', padding: '0 8px', gap: 4, flexShrink: 0 }}>
+                      <span style={{ fontSize: 8, color: '#8E9183', fontFamily: "'early-sans-variable', sans-serif", fontWeight: 600, whiteSpace: 'nowrap', letterSpacing: '.02em' }}>Page 1 · Carré 1:1</span>
+                      <div style={{ flex: 1 }} />
+                      <button style={{ width: 14, height: 14, borderRadius: 3, border: '1px solid rgba(13,15,10,.12)', background: 'transparent', display: 'grid', placeItems: 'center', color: '#565A4E', cursor: 'default', fontSize: 11, fontWeight: 700, lineHeight: 1 }}>−</button>
+                      <input type="range" min={25} max={200} defaultValue={100} style={{ width: 44, accentColor: '#2FD79B', cursor: 'pointer' }} readOnly />
+                      <button style={{ width: 14, height: 14, borderRadius: 3, border: '1px solid rgba(13,15,10,.12)', background: 'transparent', display: 'grid', placeItems: 'center', color: '#565A4E', cursor: 'default', fontSize: 11, fontWeight: 700, lineHeight: 1 }}>+</button>
+                      <span style={{ fontSize: 8, fontWeight: 700, color: '#565A4E', fontFamily: "'early-sans-variable', sans-serif", width: 24, textAlign: 'right' }}>100%</span>
+                    </div>
                   </div>
 
                 </div>
