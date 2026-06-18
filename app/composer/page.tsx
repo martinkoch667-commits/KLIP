@@ -62,14 +62,44 @@ export default function ComposerPage() {
         </div>
 
         <div className="scroll">
+          {/* Hero block — outside .page, but padded to match laterals */}
+          <div style={{ padding: "28px 34px 0" }}>
+            <div style={{ position: "relative", background: "var(--forest)", borderRadius: "var(--r-l)", padding: "28px 32px", overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+              {/* Decorative blobs */}
+              <div style={{ position: "absolute", top: -40, right: 120, width: 160, height: 160, borderRadius: "50%", background: "rgba(47,215,155,.08)", pointerEvents: "none" }} />
+              <div style={{ position: "absolute", bottom: -30, right: 40, width: 110, height: 110, borderRadius: "50%", background: "rgba(47,215,155,.06)", pointerEvents: "none" }} />
+
+              {/* Left content */}
+              <div style={{ position: "relative", zIndex: 1 }}>
+                {/* Klip IA badge */}
+                <div style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "rgba(47,215,155,.15)", borderRadius: 99, padding: "4px 10px", marginBottom: 14 }}>
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--mint)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                  </svg>
+                  <span style={{ fontSize: 10, fontWeight: 800, color: "var(--mint)", fontFamily: "var(--mono)", textTransform: "uppercase", letterSpacing: ".08em" }}>Klip IA</span>
+                </div>
+                <h2 style={{ fontFamily: "var(--display)", fontWeight: 800, fontSize: 22, color: "#fff", margin: "0 0 6px", letterSpacing: "-0.02em" }}>
+                  Générer du contenu
+                </h2>
+                <p style={{ fontSize: 13, color: "rgba(255,255,255,.55)", margin: 0, lineHeight: 1.5 }}>
+                  Sélectionnez un client pour créer des posts IA.
+                </p>
+              </div>
+
+              {/* Right: preview bars */}
+              <div style={{ position: "relative", zIndex: 1, display: "flex", flexDirection: "column", gap: 6, alignItems: "flex-end", flexShrink: 0 }}>
+                <div style={{ width: 40, height: 7, borderRadius: 99, background: "rgba(255,255,255,.18)" }} />
+                <div style={{ width: 60, height: 7, borderRadius: 99, background: "var(--mint)" }} />
+                <div style={{ width: 40, height: 7, borderRadius: 99, background: "rgba(255,255,255,.18)" }} />
+              </div>
+            </div>
+          </div>
+
           <div className="page">
-            <div style={{ marginBottom: 28 }}>
-              <h2 style={{ fontFamily: "var(--display)", fontWeight: 800, fontSize: 28, color: "var(--ink)", marginBottom: 6, letterSpacing: "-0.02em" }}>
-                Choisir un client
-              </h2>
-              <p style={{ fontSize: 14, color: "var(--ink-2)" }}>
-                Sélectionnez le client pour lequel vous souhaitez créer des posts.
-              </p>
+            {/* Section header */}
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14 }}>
+              <span className="label">Vos clients</span>
+              <span className="chip">{workspaces.length}</span>
             </div>
 
             {loading ? (
@@ -80,7 +110,7 @@ export default function ComposerPage() {
                 <Link href="/workspace/new" className="btn btn-primary">+ Nouveau client</Link>
               </div>
             ) : (
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 14 }}>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 12 }}>
                 {workspaces.map((ws, i) => {
                   const color = ws.primary_color || WS_COLORS[i % WS_COLORS.length];
                   const initials = ws.name.slice(0, 2).toUpperCase();
@@ -88,22 +118,30 @@ export default function ComposerPage() {
                     <Link key={ws.id} href={`/workspace/${ws.id}`} style={{ textDecoration: "none" }}>
                       <div
                         className="card"
-                        style={{ padding: "18px 20px", display: "flex", alignItems: "center", gap: 16, cursor: "pointer", transition: "box-shadow .15s, transform .15s" }}
+                        style={{ padding: "16px 18px", overflow: "hidden", borderTop: `4px solid ${color}`, display: "flex", flexDirection: "column", gap: 10, cursor: "pointer", transition: "box-shadow .15s, transform .15s" }}
                         onMouseEnter={e => { e.currentTarget.style.boxShadow = "var(--shadow-pop)"; e.currentTarget.style.transform = "translateY(-2px)"; }}
                         onMouseLeave={e => { e.currentTarget.style.boxShadow = ""; e.currentTarget.style.transform = ""; }}
                       >
-                        <div style={{ width: 46, height: 46, borderRadius: 12, background: color, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, fontWeight: 800, color: "#fff", fontFamily: "var(--mono)", flexShrink: 0 }}>
-                          {initials}
+                        {/* Top row: avatar + name */}
+                        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                          {ws.logo_url ? (
+                            <img src={ws.logo_url} alt="" style={{ width: 40, height: 40, borderRadius: 10, objectFit: "cover", flexShrink: 0 }} />
+                          ) : (
+                            <div style={{ width: 40, height: 40, borderRadius: 10, background: color, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 800, color: "#fff", fontFamily: "var(--mono)", flexShrink: 0 }}>
+                              {initials}
+                            </div>
+                          )}
+                          <span style={{ fontWeight: 700, fontSize: 14, color: "var(--ink)", lineHeight: 1.3 }}>{ws.name}</span>
                         </div>
-                        <div style={{ minWidth: 0, flex: 1 }}>
-                          <div style={{ fontWeight: 700, fontSize: 15, color: "var(--ink)", marginBottom: 3 }}>{ws.name}</div>
-                          <div style={{ fontSize: 12, color: ws.draftCount > 0 ? "var(--warn)" : "var(--ink-3)" }}>
-                            {ws.draftCount > 0 ? `${ws.draftCount} brouillon${ws.draftCount > 1 ? "s" : ""} en attente` : "Aucun brouillon"}
-                          </div>
+                        {/* Bottom row: draft badge + chevron */}
+                        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                          <span style={{ fontSize: 11, fontWeight: 700, color: ws.draftCount > 0 ? "var(--warn)" : "var(--ink-3)", background: ws.draftCount > 0 ? "var(--warn-soft)" : "var(--sunk)", borderRadius: 99, padding: "3px 8px" }}>
+                            {ws.draftCount > 0 ? `${ws.draftCount} brouillon${ws.draftCount > 1 ? "s" : ""}` : "Aucun brouillon"}
+                          </span>
+                          <svg style={{ color: "var(--ink-3)", flexShrink: 0 }} width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M9 18l6-6-6-6"/>
+                          </svg>
                         </div>
-                        <svg style={{ color: "var(--ink-3)", flexShrink: 0 }} width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                          <path d="M9 18l6-6-6-6"/>
-                        </svg>
                       </div>
                     </Link>
                   );

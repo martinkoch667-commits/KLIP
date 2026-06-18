@@ -95,7 +95,7 @@ export default function CalendarPage() {
 
     return (
       <Link href={`/workspace/${p.workspace_id}/editor/${p.id}`}
-        style={{ display:"flex", alignItems:"center", gap:5, background: ws?.color ?? "var(--mint)", borderRadius:6, padding: compact ? "3px 5px" : "5px 7px", textDecoration:"none", marginBottom:2, overflow:"hidden" }}>
+        style={{ display:"flex", alignItems:"center", gap:5, background: ws?.color ?? "var(--mint)", borderRadius:6, padding: compact ? "3px 5px" : "5px 7px", textDecoration:"none", marginBottom:2, overflow:"hidden", boxShadow: compact ? "none" : "0 1px 3px rgba(0,0,0,.15)" }}>
         {!compact && thumb && (
           <img src={thumb} alt="" style={{ width:20, height:20, borderRadius:3, objectFit:"cover", flexShrink:0 }}/>
         )}
@@ -127,7 +127,7 @@ export default function CalendarPage() {
               {workspaces.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
             </select>
           </div>
-          <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+          <div className="ws-topbar-link" style={{ display:"flex", alignItems:"center", gap:8 }}>
             <div className="seg">
               {(["week","month"] as const).map(v => (
                 <button key={v} onClick={() => setCalView(v)} className={calView===v?"on":""}>
@@ -151,6 +151,18 @@ export default function CalendarPage() {
           </div>
         </div>
 
+        {/* Mini stat banner */}
+        <div className="ws-topbar-link" style={{ height:44, background:"var(--sunk)", borderBottom:"1px solid var(--line)", padding:"0 28px", display:"flex", alignItems:"center", gap:20, flexShrink:0 }}>
+          <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--ink-2)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/>
+            </svg>
+            <span style={{ fontSize:13, fontWeight:700, color:"var(--ink-2)" }}>
+              {posts.length} post{posts.length !== 1 ? "s" : ""} ce mois
+            </span>
+          </div>
+        </div>
+
         <div className="scroll">
           <div className="cal-outer" style={{ padding:"24px 28px" }}>
             {calView === "week" ? (
@@ -162,7 +174,7 @@ export default function CalendarPage() {
                   const isToday = ymd === today;
                   const count = (byDay[ymd] ?? []).length;
                   return (
-                    <div key={ymd} style={{ padding:"10px 8px", borderBottom:"1px solid var(--line)", borderLeft:"1px solid var(--line)", background:"var(--sunk)", textAlign:"center" }}>
+                    <div key={ymd} style={{ padding:"10px 8px", borderBottom:"1px solid var(--line)", borderLeft:"1px solid var(--line)", background: isToday ? "rgba(12,42,29,.06)" : "var(--sunk)", textAlign:"center" }}>
                       <div style={{ fontSize:11, fontWeight:700, color:"var(--ink-3)", textTransform:"uppercase", letterSpacing:".08em", marginBottom:4 }}>{DAY_NAMES[(d.getDay()+6)%7]}</div>
                       <div style={{ display:"flex", alignItems:"center", justifyContent:"center", gap:5 }}>
                         <div style={{ width:28, height:28, borderRadius:"50%", background: isToday ? "var(--forest)" : "transparent", color: isToday ? "var(--cream)" : "var(--ink)", fontWeight:800, fontSize:14, display:"grid", placeItems:"center" }}>{d.getDate()}</div>
@@ -209,7 +221,7 @@ export default function CalendarPage() {
                     const dayPosts = byDay[ymd] ?? [];
                     const isToday = ymd === today;
                     return (
-                      <div key={ymd} style={{ minHeight:100, borderRight:"1px solid var(--line-2)", borderBottom:"1px solid var(--line-2)", padding:"6px 7px" }}>
+                      <div key={ymd} style={{ minHeight:100, borderRight:"1px solid var(--line-2)", borderBottom:"1px solid var(--line-2)", padding:"6px 7px", boxShadow: isToday ? "inset 0 0 0 2px var(--forest)" : "none" }}>
                         <span style={{ width:22, height:22, borderRadius:"50%", background: isToday ? "var(--forest)" : "transparent", color: isToday ? "var(--cream)" : "var(--ink)", fontWeight:800, fontSize:12, display:"inline-flex", alignItems:"center", justifyContent:"center", marginBottom:5 }}>{d.getDate()}</span>
                         <div style={{ display:"flex", flexDirection:"column" }}>
                           {dayPosts.slice(0,3).map(p => <PostPill key={p.id} p={p} compact />)}
