@@ -1194,6 +1194,9 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
     historyRef.current = [next.elements];
     histIdxRef.current = 0;
     setHistTick(t => t + 1);
+    requestAnimationFrame(() => {
+      slideContainerRefs.current[idx]?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    });
   };
 
   const addSlide = () => {
@@ -1244,6 +1247,7 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
   // ── Canvas zoom ───────────────────────────────────────────────────────────
   const [zoom, setZoom] = useState(1);
   const canvasAreaRef = useRef<HTMLDivElement>(null);
+  const slideContainerRefs = useRef<(HTMLDivElement | null)[]>([]);
   const [customFonts, setCustomFonts] = useState<{ name: string; url: string }[]>([]);
   const [brandFontNames, setBrandFontNames] = useState<string[]>([]);
 
@@ -2485,12 +2489,21 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
         )}
 
         {/* ── CANVAS WORKSPACE ── */}
-        <div style={{ flex: 1, minWidth: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column', background: 'radial-gradient(120% 80% at 50% -10%, #FBFAF4, #ECEBE1 70%)' }}>
+        <div style={{ flex: 1, minWidth: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column', background: 'radial-gradient(120% 80% at 50% -10%, #FBFAF4, #ECEBE1 70%)', position: 'relative' }}>
           <div ref={canvasAreaRef}
           onMouseDown={() => { setSelectedId(null); setSelectedIds([]); setEditingId(null); setBgCropMode(false); setBgImageSelected(false); }}
-          style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'auto', padding: 28, position: 'relative' }}>
-            {/* Canvas wrapper stops click propagation so gray-area deselect only fires outside canvas */}
-            <div onMouseDown={e => e.stopPropagation()} style={{ borderRadius: 18, boxShadow: '0 22px 50px -24px rgba(13,15,10,.45)', flexShrink: 0, position: 'relative', transform: `scale(${zoom})`, transformOrigin: 'center center' }}>
+          style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', overflowY: 'auto', padding: '40px 28px', gap: 40 }}>
+            {slides.map((slide, idx) => {
+              const isActive = idx === activeSlideIdx;
+              return (
+                <div key={slide.id}
+                  ref={el => { slideContainerRefs.current[idx] = el; }}
+                  style={{ flexShrink: 0, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                  <div style={{ marginBottom: 8, fontSize: 11, color: 'var(--ink-3)', fontWeight: 700, fontFamily: 'var(--mono)', letterSpacing: '.04em' }}>{idx + 1}</div>
+                  <div style={{ width: stageW * zoom, height: stageH * zoom, position: 'relative', borderRadius: Math.round(18 * zoom), boxShadow: isActive ? '0 22px 50px -24px rgba(13,15,10,.45)' : '0 8px 22px -10px rgba(13,15,10,.22)', outline: isActive ? '2.5px solid var(--mint)' : '2px solid transparent', flexShrink: 0 }}>
+                  {isActive ? (
+                    <>
+                    <div onMouseDown={e => e.stopPropagation()} style={{ position: 'absolute', top: 0, left: 0, width: stageW, height: stageH, transform: `scale(${zoom})`, transformOrigin: 'top left', borderRadius: 18 }}>
             {/* Inner div clips only the Stage canvas to preserve border-radius */}
             <div style={{ borderRadius: 18, overflow: 'hidden' }}>
             <Stage
@@ -2815,11 +2828,22 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
               </div>
             )}
             </div>
+                    </>
+                  ) : (
+                    <div onClick={() => switchSlide(idx)}
+                      style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', borderRadius: Math.round(18 * zoom), overflow: 'hidden', cursor: 'pointer', background: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <span style={{ fontFamily: 'var(--mono)', fontWeight: 800, fontSize: Math.max(14, Math.round(18 * zoom)), color: 'var(--ink-3)', opacity: 0.4 }}>{idx + 1}</span>
+                    </div>
+                  )}
+                  </div>
+                </div>
+              );
+            })}
           </div>
 
           {/* ── ZOOM BADGE ── */}
           <div style={{
-            position: 'absolute', bottom: 96, right: 14, zIndex: 50,
+            position: 'absolute', bottom: 144, right: 14, zIndex: 50,
             background: 'rgba(12,42,29,0.82)', backdropFilter: 'blur(6px)',
             borderRadius: 8, padding: '5px 10px',
             display: 'flex', alignItems: 'center', gap: 8,
