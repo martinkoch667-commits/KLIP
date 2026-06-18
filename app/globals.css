@@ -502,6 +502,7 @@ input.ed-range::-moz-range-thumb {
   display: flex; flex-direction: column; padding: 18px 14px;
   overflow-y: auto; gap: 2px;
 }
+.mob-drawer .nav-item { justify-content: flex-start !important; padding: 10px 12px !important; }
 .mob-hamburger {
   display: none;
   position: fixed; top: 8px; left: 12px; z-index: 250;
