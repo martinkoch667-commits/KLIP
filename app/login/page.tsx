@@ -76,9 +76,10 @@ function LoginForm() {
 
   async function handleGoogleSignIn() {
     setGoogleLoading(true);
+    const redirect = searchParams.get("redirect") ?? "/dashboard";
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
-      options: { redirectTo: `${window.location.origin}/auth/callback` },
+      options: { redirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(redirect)}` },
     });
     if (error) {
       console.error(error);
