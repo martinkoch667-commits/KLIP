@@ -75,7 +75,7 @@ interface RectEl extends BaseEl { type: 'rect'; width: number; height: number; f
 interface CircleEl extends BaseEl { type: 'circle'; radius: number; fill: string; stroke: string; strokeWidth: number; }
 interface StarEl extends BaseEl { type: 'star'; numPoints: number; innerRadius: number; outerRadius: number; fill: string; stroke: string; strokeWidth: number; }
 interface AnchorPoint { x: number; y: number; cpIn?: { x: number; y: number }; cpOut?: { x: number; y: number }; }
-interface VectorEl extends BaseEl { type: 'vector'; shape: 'rectangle'|'circle'|'triangle'|'star'|'pill'|'arrow'|'diamond'|'hexagon'|'custom'; width: number; height: number; fill: string; fillType?: 'color'|'none'; stroke: string; strokeWidth: number; points?: AnchorPoint[]; closed?: boolean; }
+interface VectorEl extends BaseEl { type: 'vector'; shape: 'rectangle'|'circle'|'triangle'|'star'|'pill'|'arrow'|'diamond'|'hexagon'|'custom'; width: number; height: number; fill: string; fillType?: 'color'|'none'|'image'; stroke: string; strokeWidth: number; points?: AnchorPoint[]; closed?: boolean; imageSrc?: string; imageOffsetX?: number; imageOffsetY?: number; }
 interface ImageEl extends BaseEl { type: 'image'; src: string; width: number; height: number; cropX?: number; cropY?: number; naturalW?: number; naturalH?: number; }
 type CanvasEl = TextEl | RectEl | CircleEl | StarEl | VectorEl | ImageEl;
 
@@ -344,16 +344,73 @@ function drawVectorShape(ctx: CanvasRenderingContext2D, shape: Exclude<VectorEl[
   }
 }
 
-function VectorNode({ el, onSelect, onDragStart, onDragEnd }: {
+function VectorNode({ el, onSelect, onDblClick, onDragStart, onDragEnd, isMaskCrop, onImageOffset }: {
   el: VectorEl; onSelect: (shiftKey: boolean) => void;
+  onDblClick?: () => void;
   onDragStart?: () => void; onDragEnd?: (x: number, y: number) => void;
+  isMaskCrop?: boolean; onImageOffset?: (x: number, y: number) => void;
 }) {
+  const [maskImg] = useImage(el.fillType === 'image' && el.imageSrc ? el.imageSrc : '', 'anonymous');
+
+  if (el.fillType === 'image' && el.imageSrc) {
+    const natW = maskImg ? (maskImg.naturalWidth || maskImg.width || el.width) : el.width;
+    const natH = maskImg ? (maskImg.naturalHeight || maskImg.height || el.height) : el.height;
+    const scale = Math.max(el.width / natW, el.height / natH);
+    const scaledW = natW * scale;
+    const scaledH = natH * scale;
+    const offX = el.imageOffsetX ?? (el.width - scaledW) / 2;
+    const offY = el.imageOffsetY ?? (el.height - scaledH) / 2;
+    const clipFn = (ctx: any) => {
+      const c = ctx as CanvasRenderingContext2D;
+      if (el.shape === 'custom') drawCustomPath(c, el.points ?? [], el.closed ?? false);
+      else drawVectorShape(c, el.shape as Exclude<VectorEl['shape'], 'custom'>, el.width, el.height);
+    };
+    return (
+      <Group
+        x={el.x} y={el.y} rotation={el.rotation} opacity={el.opacity / 100}
+        clipFunc={clipFn}
+        draggable={!isMaskCrop}
+        onClick={e => onSelect(e.evt.shiftKey)} onTap={() => onSelect(false)}
+        onDblClick={() => onDblClick?.()}
+        onDragStart={!isMaskCrop ? onDragStart : undefined}
+        onDragEnd={!isMaskCrop ? (e => onDragEnd?.(e.target.x(), e.target.y())) : undefined}
+      >
+        <KonvaImage
+          image={maskImg} x={offX} y={offY} width={scaledW} height={scaledH}
+          draggable={!!isMaskCrop}
+          onDragMove={isMaskCrop ? (e => {
+            const nx = Math.min(0, Math.max(el.width - scaledW, e.target.x()));
+            const ny = Math.min(0, Math.max(el.height - scaledH, e.target.y()));
+            e.target.x(nx); e.target.y(ny);
+          }) : undefined}
+          onDragEnd={isMaskCrop ? (e => onImageOffset?.(e.target.x(), e.target.y())) : undefined}
+          onMouseEnter={isMaskCrop ? (e => { const s = e.target.getStage(); if (s) s.container().style.cursor = 'grab'; }) : undefined}
+          onMouseLeave={isMaskCrop ? (e => { const s = e.target.getStage(); if (s) s.container().style.cursor = 'default'; }) : undefined}
+        />
+        {el.strokeWidth > 0 && (
+          <KonvaShape
+            width={el.width} height={el.height}
+            stroke={el.stroke} strokeWidth={el.strokeWidth * 2}
+            fill="rgba(0,0,0,0)"
+            listening={false}
+            sceneFunc={(kctx, shape) => {
+              const ctx = (kctx as any)._context as CanvasRenderingContext2D;
+              if (el.shape === 'custom') drawCustomPath(ctx, el.points ?? [], el.closed ?? false);
+              else drawVectorShape(ctx, el.shape as Exclude<VectorEl['shape'], 'custom'>, shape.width(), shape.height());
+              kctx.fillStrokeShape(shape);
+            }}
+          />
+        )}
+      </Group>
+    );
+  }
+
   const draw = (kctx: any, shape: any) => {
     const ctx = (kctx as any)._context as CanvasRenderingContext2D;
     if (el.shape === 'custom') {
       drawCustomPath(ctx, el.points ?? [], el.closed ?? false);
     } else {
-      drawVectorShape(ctx, el.shape, shape.width(), shape.height());
+      drawVectorShape(ctx, el.shape as Exclude<VectorEl['shape'], 'custom'>, shape.width(), shape.height());
     }
     kctx.fillStrokeShape(shape);
   };
@@ -371,6 +428,7 @@ function VectorNode({ el, onSelect, onDragStart, onDragEnd }: {
       hitFunc={draw}
       onClick={e => onSelect(e.evt.shiftKey)}
       onTap={() => onSelect(false)}
+      onDblClick={() => onDblClick?.()}
       onDragStart={onDragStart}
       onDragEnd={e => onDragEnd?.(e.target.x(), e.target.y())}
     />
@@ -621,10 +679,11 @@ interface CtxToolbarProps {
   onDelete: () => void;
   onCrop?: () => void;
   onSetBg?: () => void;
+  onMaskPhoto?: () => void;
   onLayerAction: (action: 'front' | 'forward' | 'backward' | 'back') => void;
 }
 
-function EditorContextToolbar({ sel, allFonts, brandColors, stageW, stageH, onUpdate, onAlign, onDuplicate, onDelete, onCrop, onSetBg, onLayerAction }: CtxToolbarProps) {
+function EditorContextToolbar({ sel, allFonts, brandColors, stageW, stageH, onUpdate, onAlign, onDuplicate, onDelete, onCrop, onSetBg, onMaskPhoto, onLayerAction }: CtxToolbarProps) {
   const [pop, setPop] = React.useState<string | null>(null);
   const u = (patch: Partial<CanvasEl>) => onUpdate(patch);
   const isText = sel.type === 'text';
@@ -994,11 +1053,19 @@ function EditorContextToolbar({ sel, allFonts, brandColors, stageW, stageH, onUp
                 <span className="label" style={{ marginBottom: 0 }}>Remplissage</span>
               </div>
               <div style={{ display: 'flex', gap: 6 }}>
-                <button onClick={() => u({ fillType: 'color' } as Partial<VectorEl>)}
-                  style={{ flex: 1, padding: '5px', borderRadius: 7, border: vecSel.fillType !== 'none' ? '2px solid var(--mint-2)' : '1.5px solid var(--line)', cursor: 'pointer', background: vecSel.fillType !== 'none' ? 'var(--mint-soft)' : 'var(--sunk)', fontSize: 11, fontWeight: 700, color: vecSel.fillType !== 'none' ? 'var(--mint-2)' : 'var(--ink-3)' }}>Couleur</button>
-                <button onClick={() => u({ fillType: 'none' } as Partial<VectorEl>)}
-                  style={{ flex: 1, padding: '5px', borderRadius: 7, border: vecSel.fillType === 'none' ? '2px solid var(--mint-2)' : '1.5px solid var(--line)', cursor: 'pointer', background: vecSel.fillType === 'none' ? 'var(--mint-soft)' : 'var(--sunk)', fontSize: 11, fontWeight: 700, color: vecSel.fillType === 'none' ? 'var(--mint-2)' : 'var(--ink-3)' }}>Aucun</button>
+                {(['color','none','image'] as const).map(ft => (
+                  <button key={ft}
+                    onClick={() => ft === 'image' ? (onMaskPhoto?.(), setPop(null)) : u({ fillType: ft } as Partial<VectorEl>)}
+                    style={{ flex: 1, padding: '5px 4px', borderRadius: 7, border: vecSel.fillType === ft ? '2px solid var(--mint-2)' : '1.5px solid var(--line)', cursor: 'pointer', background: vecSel.fillType === ft ? 'var(--mint-soft)' : 'var(--sunk)', fontSize: 10.5, fontWeight: 700, color: vecSel.fillType === ft ? 'var(--mint-2)' : 'var(--ink-3)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 3 }}>
+                    {ft === 'color' ? 'Couleur' : ft === 'none' ? 'Aucun' : <><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>Photo</>}
+                  </button>
+                ))}
               </div>
+              {vecSel.fillType === 'image' && vecSel.imageSrc && (
+                <button onClick={() => { onMaskPhoto?.(); setPop(null); }} style={{ marginTop: 8, width: '100%', padding: '5px', borderRadius: 7, border: '1.5px solid var(--line)', cursor: 'pointer', background: 'var(--sunk)', fontSize: 11, fontWeight: 700, color: 'var(--ink-3)' }}>
+                  Changer la photo
+                </button>
+              )}
             </div>
           )}
         </div>
@@ -1230,6 +1297,8 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
     });
   }
   const [cropId, setCropId] = useState<string | null>(null);
+  const [maskCropId, setMaskCropId] = useState<string | null>(null);
+  const maskPhotoInputRef = useRef<HTMLInputElement>(null);
 
   const [proxyUrl, setProxyUrl] = useState<string>('');
   const [bgStyle, setBgStyle] = useState<BgStyle | null>(null);
@@ -1279,7 +1348,7 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
   useEffect(() => { elementsRef.current = elements; }, [elements]);
   useEffect(() => { selectedIdRef.current = selectedId; }, [selectedId]);
   useEffect(() => { selectedIdsRef.current = selectedIds; }, [selectedIds]);
-  useEffect(() => { if (selectedId) { setBgCropMode(false); setBgImageSelected(false); } }, [selectedId]);
+  useEffect(() => { if (selectedId) { setBgCropMode(false); setBgImageSelected(false); setMaskCropId(null); } }, [selectedId]);
 
   // ── Multi-selection helpers ────────────────────────────────────────────────
   const multiDragStartRef = useRef<Record<string, { x: number; y: number }>>({});
@@ -2001,6 +2070,15 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
     handleFileDrop(file);
   };
 
+  const handleMaskPhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !selectedIdRef.current) return;
+    e.target.value = '';
+    const src = URL.createObjectURL(file);
+    updateEl(selectedIdRef.current, { fillType: 'image', imageSrc: src, imageOffsetX: undefined, imageOffsetY: undefined } as Partial<VectorEl>);
+    setMaskCropId(selectedIdRef.current);
+  };
+
   // ── Unsplash ──────────────────────────────────────────────────────────────
 
   const fetchUnsplash = async (q: string) => {
@@ -2479,6 +2557,7 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
               onDelete={() => deleteEl(selectedId)}
               onCrop={selectedEl.type === 'image' ? () => setCropId(selectedEl.id) : undefined}
               onSetBg={selectedEl.type === 'image' ? () => setProxyUrl((selectedEl as ImageEl).src) : undefined}
+              onMaskPhoto={selectedEl.type === 'vector' ? () => maskPhotoInputRef.current?.click() : undefined}
               onLayerAction={layerAction}
             />
           ) : (
@@ -2945,8 +3024,11 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
                   if (el.type === 'vector') return (
                     <VectorNode key={el.id} el={el as VectorEl}
                       onSelect={sk => handleElClick(el.id, sk)}
+                      onDblClick={() => { if ((el as VectorEl).fillType === 'image' && (el as VectorEl).imageSrc) setMaskCropId(el.id); }}
                       onDragStart={() => handleElDragStart(el.id)}
-                      onDragEnd={(x, y) => handleElDragEnd(el.id, x, y)} />
+                      onDragEnd={(x, y) => handleElDragEnd(el.id, x, y)}
+                      isMaskCrop={maskCropId === el.id}
+                      onImageOffset={(x, y) => updateEl(el.id, { imageOffsetX: x, imageOffsetY: y } as Partial<VectorEl>)} />
                   );
                   if (el.type === 'text') {
                     const pH = el.paddingH ?? el.padding;
@@ -3163,7 +3245,7 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
                 }} />
               );
             })()}
-            {selectedEl && !hiddenIds.has(selectedEl.id) && !isKonvaDragging && cropId !== selectedEl.id && (
+            {selectedEl && !hiddenIds.has(selectedEl.id) && !isKonvaDragging && cropId !== selectedEl.id && maskCropId !== selectedEl.id && (
               <>
                 <SelectionOverlay
                   el={selectedEl}
@@ -3250,6 +3332,17 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
                 />
               );
             })()}
+            {maskCropId && (
+              <div style={{ position: 'absolute', bottom: 14, left: '50%', transform: 'translateX(-50%)', display: 'flex', gap: 8, zIndex: 20, pointerEvents: 'auto' }}>
+                <div style={{ background: 'rgba(12,42,29,0.82)', backdropFilter: 'blur(6px)', borderRadius: 10, padding: '6px 8px', display: 'flex', alignItems: 'center', gap: 8, boxShadow: '0 4px 18px rgba(13,15,10,.38)', fontSize: 12, color: 'rgba(238,237,227,0.7)', fontFamily: 'var(--sans)' }}>
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#2FD79B" strokeWidth="2.2" strokeLinecap="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+                  Glissez la photo dans la forme
+                  <button onClick={() => setMaskCropId(null)} style={{ padding: '5px 14px', background: '#2FD79B', color: '#0C2A1D', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 12, fontWeight: 700, fontFamily: 'var(--sans)' }}>
+                    Appliquer
+                  </button>
+                </div>
+              </div>
+            )}
             {cropId && (
               <div style={{
                 position: 'absolute', bottom: 14, left: '50%',
@@ -3417,6 +3510,7 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
       </div>
 
       <input ref={fileInputRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={handleFileUpload} />
+      <input ref={maskPhotoInputRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={handleMaskPhotoUpload} />
     </div>
     </>
   );
