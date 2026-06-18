@@ -6,7 +6,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
 import MobileSidebar from "./ui/MobileSidebar";
 
-interface Workspace { id: string; name: string }
+interface Workspace { id: string; name: string; brand_icon_url?: string | null }
 
 interface SidebarProps {
   workspaces?: any[];
@@ -67,7 +67,7 @@ export default function Sidebar({ workspaces: _w, userName: _u, activeWorkspaceI
       setUserEmail(session.user.email ?? "");
       const { data } = await supabase
         .from("workspaces")
-        .select("id, name")
+        .select("id, name, brand_icon_url")
         .order("created_at", { ascending: true });
       setWorkspaces(data ?? []);
     }
@@ -197,9 +197,14 @@ export default function Sidebar({ workspaces: _w, userName: _u, activeWorkspaceI
           const wsInitials = ws.name.slice(0, 2).toUpperCase();
           return (
             <Link key={ws.id} href={`/workspace/${ws.id}`} className={`nav-item${isActive ? " active" : ""}`} style={{ padding: "7px 10px", textDecoration: "none" }}>
-              <span style={{ width: 26, height: 26, borderRadius: 7, background: isActive ? "var(--mint-ink)" : color, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, fontWeight: 800, color: "#fff", fontFamily: "var(--mono)", letterSpacing: "0.02em", flexShrink: 0 }}>
-                {wsInitials}
-              </span>
+              {ws.brand_icon_url ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={ws.brand_icon_url} alt={ws.name} style={{ width: 26, height: 26, borderRadius: 7, objectFit: "cover", flexShrink: 0, outline: isActive ? "2px solid var(--mint)" : "none" }} />
+              ) : (
+                <span style={{ width: 26, height: 26, borderRadius: 7, background: isActive ? "var(--mint-ink)" : color, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, fontWeight: 800, color: "#fff", fontFamily: "var(--mono)", letterSpacing: "0.02em", flexShrink: 0 }}>
+                  {wsInitials}
+                </span>
+              )}
               <span className="nav-label trunc" style={{ fontWeight: 600, fontSize: 13 }}>{ws.name}</span>
             </Link>
           );

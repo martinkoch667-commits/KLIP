@@ -159,12 +159,15 @@ export default function NewWorkspacePage() {
   const logoRef = useRef<HTMLInputElement>(null);
   const logoDarkRef = useRef<HTMLInputElement>(null);
   const assetsRef = useRef<HTMLInputElement>(null);
+  const brandIconRef = useRef<HTMLInputElement>(null);
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
   const [logoDarkFile, setLogoDarkFile] = useState<File | null>(null);
   const [logoDarkPreview, setLogoDarkPreview] = useState<string | null>(null);
   const [assetFiles, setAssetFiles] = useState<File[]>([]);
   const [assetPreviews, setAssetPreviews] = useState<string[]>([]);
+  const [brandIconFile, setBrandIconFile] = useState<File | null>(null);
+  const [brandIconPreview, setBrandIconPreview] = useState<string | null>(null);
 
   // Step 4 — Typographie (Google Fonts)
   const [googleFonts, setGoogleFonts] = useState<GFont[]>([]);
@@ -280,9 +283,11 @@ export default function NewWorkspacePage() {
       // Brand asset uploads (each wrapped independently)
       let logoUrl: string | null = null;
       let logoDarkUrl: string | null = null;
+      let brandIconUrl: string | null = null;
       const assetUrls: string[] = [];
-      if (logoFile)     logoUrl     = await uploadFile(logoFile,     "brand-assets", user.id);
-      if (logoDarkFile) logoDarkUrl = await uploadFile(logoDarkFile, "brand-assets", user.id);
+      if (logoFile)      logoUrl      = await uploadFile(logoFile,      "brand-assets", user.id);
+      if (logoDarkFile)  logoDarkUrl  = await uploadFile(logoDarkFile,  "brand-assets", user.id);
+      if (brandIconFile) brandIconUrl = await uploadFile(brandIconFile, "brand-assets", user.id);
       for (const f of assetFiles) {
         const url = await uploadFile(f, "brand-assets", user.id);
         if (url) assetUrls.push(url);
@@ -328,6 +333,7 @@ export default function NewWorkspacePage() {
           logo_url: logoUrl,
           logo_dark_url: logoDarkUrl,
           brand_assets: assetUrls,
+          brand_icon_url: brandIconUrl,
           // Step 4
           font_family: activeFontPrimary,
           font_primary_url: fontPrimaryUrl,
@@ -649,6 +655,32 @@ export default function NewWorkspacePage() {
                       </div>
                     ))}
                   </div>
+                </div>
+
+                {/* Brand icon */}
+                <div>
+                  <label style={labelStyle}>Icône de marque <OptLabel /></label>
+                  <p style={{ fontSize: 12, color: "var(--ink-3)", marginBottom: 10 }}>Image carrée (PNG/JPG/SVG) affichée dans la sidebar à la place des initiales.</p>
+                  <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+                    <div style={{ width: 64, height: 64, borderRadius: 12, border: "1.5px dashed var(--line)", background: "var(--sunk)", overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                      {brandIconPreview
+                        // eslint-disable-next-line @next/next/no-img-element
+                        ? <img src={brandIconPreview} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                        : <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--ink-3)" strokeWidth="1.6" strokeLinecap="round"><rect x="3" y="3" width="18" height="18" rx="4"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
+                      }
+                    </div>
+                    <div style={{ display: "flex", gap: 8 }}>
+                      <button type="button" onClick={() => brandIconRef.current?.click()} className="btn btn-ghost btn-sm">
+                        {brandIconPreview ? "Remplacer" : "Choisir une image"}
+                      </button>
+                      {brandIconPreview && (
+                        <button type="button" onClick={() => { setBrandIconFile(null); setBrandIconPreview(null); }} className="btn btn-ghost btn-sm" style={{ color: "var(--warn)" }}>Supprimer</button>
+                      )}
+                    </div>
+                  </div>
+                  <input ref={brandIconRef} type="file" accept=".png,.jpg,.jpeg,.svg" style={{ display: "none" }}
+                    onChange={e => { const f = e.target.files?.[0]; if (f) { setBrandIconFile(f); setBrandIconPreview(URL.createObjectURL(f)); } }}
+                  />
                 </div>
 
                 {/* Logos */}

@@ -33,7 +33,7 @@ export async function POST(request: NextRequest) {
       "tone", "words_to_use", "words_to_avoid", "caption_examples",
       "brand_voice_prompt", "description_style",
       "primary_color", "secondary_color", "accent_color",
-      "logo_url", "logo_dark_url", "brand_assets",
+      "logo_url", "logo_dark_url", "brand_assets", "brand_icon_url",
       "font_family", "font_primary_url", "font_secondary", "font_secondary_url",
     ] as const;
     for (const field of optionalFields) {

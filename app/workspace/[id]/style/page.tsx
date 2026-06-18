@@ -184,9 +184,10 @@ export default function StyleTemplatePage() {
   const [colorAccent, setColorAccent]       = useState("#C8F135");
 
   // ── Assets ──────────────────────────────────────────────────────────────────
-  const logoRef     = useRef<HTMLInputElement>(null);
-  const logoDarkRef = useRef<HTMLInputElement>(null);
-  const assetsRef   = useRef<HTMLInputElement>(null);
+  const logoRef      = useRef<HTMLInputElement>(null);
+  const logoDarkRef  = useRef<HTMLInputElement>(null);
+  const assetsRef    = useRef<HTMLInputElement>(null);
+  const brandIconRef = useRef<HTMLInputElement>(null);
   const [logoFile, setLogoFile]               = useState<File | null>(null);
   const [logoPreview, setLogoPreview]         = useState<string | null>(null);
   const [logoUrl, setLogoUrl]                 = useState<string | null>(null);
@@ -196,6 +197,9 @@ export default function StyleTemplatePage() {
   const [assetFiles, setAssetFiles]           = useState<File[]>([]);
   const [assetPreviews, setAssetPreviews]     = useState<string[]>([]);
   const [existingAssets, setExistingAssets]   = useState<string[]>([]);
+  const [brandIconFile, setBrandIconFile]     = useState<File | null>(null);
+  const [brandIconPreview, setBrandIconPreview] = useState<string | null>(null);
+  const [brandIconUrl, setBrandIconUrl]       = useState<string | null>(null);
 
   // ── Typographie ─────────────────────────────────────────────────────────────
   const [googleFonts, setGoogleFonts]             = useState<GFont[]>([]);
@@ -238,6 +242,8 @@ export default function StyleTemplatePage() {
         setLogoPreview(data.logo_url ?? null);
         setLogoDarkUrl(data.logo_dark_url ?? null);
         setLogoDarkPreview(data.logo_dark_url ?? null);
+        setBrandIconUrl(data.brand_icon_url ?? null);
+        setBrandIconPreview(data.brand_icon_url ?? null);
         setExistingAssets(Array.isArray(data.brand_assets) ? data.brand_assets : []);
         if (data.font_family) setFontPrimary(data.font_family);
         if (data.font_secondary) setFontSecondary(data.font_secondary);
@@ -343,13 +349,15 @@ export default function StyleTemplatePage() {
     try {
       await fetch("/api/ensure-buckets", { method: "POST" }).catch(() => {});
 
-      let finalLogoUrl     = logoUrl;
-      let finalLogoDarkUrl = logoDarkUrl;
+      let finalLogoUrl      = logoUrl;
+      let finalLogoDarkUrl  = logoDarkUrl;
+      let finalBrandIconUrl = brandIconUrl;
       let finalFontPrimaryUrl: string | null = null;
       let finalFontSecondaryUrl: string | null = null;
 
-      if (logoFile)     finalLogoUrl     = await uploadFile(logoFile, "brand-assets");
-      if (logoDarkFile) finalLogoDarkUrl = await uploadFile(logoDarkFile, "brand-assets");
+      if (logoFile)      finalLogoUrl      = await uploadFile(logoFile,      "brand-assets");
+      if (logoDarkFile)  finalLogoDarkUrl  = await uploadFile(logoDarkFile,  "brand-assets");
+      if (brandIconFile) finalBrandIconUrl = await uploadFile(brandIconFile, "brand-assets");
 
       const newAssetUrls: string[] = [];
       for (const f of assetFiles) { const u = await uploadFile(f, "brand-assets"); if (u) newAssetUrls.push(u); }
@@ -379,6 +387,7 @@ export default function StyleTemplatePage() {
         logo_url:        finalLogoUrl,
         logo_dark_url:   finalLogoDarkUrl,
         brand_assets:    [...existingAssets, ...newAssetUrls],
+        brand_icon_url:  finalBrandIconUrl,
         font_family:     activeFontPrimary,
         font_secondary:  activeFontSecondary || null,
       };
@@ -389,8 +398,9 @@ export default function StyleTemplatePage() {
 
       // Sync state
       setWorkspaceName(name.trim() || workspaceName);
-      if (finalLogoUrl !== logoUrl)         { setLogoUrl(finalLogoUrl); setLogoPreview(finalLogoUrl); setLogoFile(null); }
-      if (finalLogoDarkUrl !== logoDarkUrl) { setLogoDarkUrl(finalLogoDarkUrl); setLogoDarkPreview(finalLogoDarkUrl); setLogoDarkFile(null); }
+      if (finalLogoUrl !== logoUrl)             { setLogoUrl(finalLogoUrl); setLogoPreview(finalLogoUrl); setLogoFile(null); }
+      if (finalLogoDarkUrl !== logoDarkUrl)     { setLogoDarkUrl(finalLogoDarkUrl); setLogoDarkPreview(finalLogoDarkUrl); setLogoDarkFile(null); }
+      if (finalBrandIconUrl !== brandIconUrl)   { setBrandIconUrl(finalBrandIconUrl); setBrandIconPreview(finalBrandIconUrl); setBrandIconFile(null); }
       if (newAssetUrls.length) { setExistingAssets(p => [...p, ...newAssetUrls]); setAssetFiles([]); setAssetPreviews([]); }
 
       showToast("Charte mise à jour ✓");
@@ -596,6 +606,31 @@ export default function StyleTemplatePage() {
                 {/* Section Assets */}
                 <SectionCard title="Assets">
                   <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+                    {/* Brand icon */}
+                    <div>
+                      <label style={labelStyle}>Icône de marque</label>
+                      <p style={{ fontSize: 12, color: "var(--ink-3)", marginBottom: 10 }}>Image carrée affichée dans la sidebar à la place des initiales.</p>
+                      <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+                        <div style={{ width: 56, height: 56, borderRadius: 12, border: "1.5px dashed var(--line)", background: "var(--sunk)", overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                          {brandIconPreview
+                            // eslint-disable-next-line @next/next/no-img-element
+                            ? <img src={brandIconPreview} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                            : <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--ink-3)" strokeWidth="1.6" strokeLinecap="round"><rect x="3" y="3" width="18" height="18" rx="4"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
+                          }
+                        </div>
+                        <div style={{ display: "flex", gap: 8 }}>
+                          <button type="button" onClick={() => brandIconRef.current?.click()} className="btn btn-ghost btn-sm">
+                            {brandIconPreview ? "Remplacer" : "Choisir"}
+                          </button>
+                          {brandIconPreview && (
+                            <button type="button" onClick={() => { setBrandIconFile(null); setBrandIconPreview(null); setBrandIconUrl(null); }} className="btn btn-ghost btn-sm" style={{ color: "var(--warn)" }}>Supprimer</button>
+                          )}
+                        </div>
+                      </div>
+                      <input ref={brandIconRef} type="file" accept=".png,.jpg,.jpeg,.svg" style={{ display: "none" }}
+                        onChange={e => { const f = e.target.files?.[0]; if (f) { setBrandIconFile(f); setBrandIconPreview(URL.createObjectURL(f)); } }} />
+                    </div>
+
                     <div className="ws-upload-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
                       <UploadZone label="Logo principal" hint="PNG, SVG recommandé" preview={logoPreview} dark={false}
                         onClick={() => logoRef.current?.click()}
