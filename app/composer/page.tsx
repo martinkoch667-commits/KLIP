@@ -64,10 +64,10 @@ export default function ComposerPage() {
         <div className="scroll">
           {/* Hero block — outside .page, but padded to match laterals */}
           <div style={{ padding: "28px 34px 0" }}>
-            <div style={{ position: "relative", background: "var(--forest)", borderRadius: "var(--r-l)", padding: "28px 32px", overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-              {/* Decorative blobs */}
-              <div style={{ position: "absolute", top: -40, right: 120, width: 160, height: 160, borderRadius: "50%", background: "rgba(47,215,155,.08)", pointerEvents: "none" }} />
-              <div style={{ position: "absolute", bottom: -30, right: 40, width: 110, height: 110, borderRadius: "50%", background: "rgba(47,215,155,.06)", pointerEvents: "none" }} />
+            <div style={{ position: "relative", background: "linear-gradient(150deg, #1b5e3a, #0c2a1d)", borderRadius: "var(--r-l)", padding: "28px 32px", overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+              {/* Glow blobs */}
+              <div style={{ position: "absolute", top: -60, right: 60, width: 220, height: 220, borderRadius: "50%", background: "radial-gradient(circle, var(--mint), transparent 70%)", opacity: .28, filter: "blur(24px)", pointerEvents: "none" }} />
+              <div style={{ position: "absolute", bottom: -60, right: -20, width: 160, height: 160, borderRadius: "50%", background: "radial-gradient(circle, #C8F135, transparent 70%)", opacity: .14, filter: "blur(18px)", pointerEvents: "none" }} />
 
               {/* Left content */}
               <div style={{ position: "relative", zIndex: 1 }}>
@@ -88,8 +88,8 @@ export default function ComposerPage() {
 
               {/* Right: preview bars */}
               <div style={{ position: "relative", zIndex: 1, display: "flex", flexDirection: "column", gap: 6, alignItems: "flex-end", flexShrink: 0 }}>
-                <div style={{ width: 40, height: 7, borderRadius: 99, background: "rgba(255,255,255,.18)" }} />
-                <div style={{ width: 60, height: 7, borderRadius: 99, background: "var(--mint)" }} />
+                <div style={{ width: 40, height: 7, borderRadius: 99, background: "rgba(255,255,255,.15)" }} />
+                <div style={{ width: 60, height: 7, borderRadius: 99, background: "linear-gradient(90deg, var(--mint), #C8F135)" }} />
                 <div style={{ width: 40, height: 7, borderRadius: 99, background: "rgba(255,255,255,.18)" }} />
               </div>
             </div>
