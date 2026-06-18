@@ -74,7 +74,8 @@ interface TextEl extends BaseEl {
 interface RectEl extends BaseEl { type: 'rect'; width: number; height: number; fill: string; stroke: string; strokeWidth: number; cornerRadius: number; }
 interface CircleEl extends BaseEl { type: 'circle'; radius: number; fill: string; stroke: string; strokeWidth: number; }
 interface StarEl extends BaseEl { type: 'star'; numPoints: number; innerRadius: number; outerRadius: number; fill: string; stroke: string; strokeWidth: number; }
-interface VectorEl extends BaseEl { type: 'vector'; shape: 'rectangle'|'circle'|'triangle'|'star'|'pill'|'arrow'|'diamond'|'hexagon'; width: number; height: number; fill: string; fillType?: 'color'|'none'; stroke: string; strokeWidth: number; }
+interface AnchorPoint { x: number; y: number; cpIn?: { x: number; y: number }; cpOut?: { x: number; y: number }; }
+interface VectorEl extends BaseEl { type: 'vector'; shape: 'rectangle'|'circle'|'triangle'|'star'|'pill'|'arrow'|'diamond'|'hexagon'|'custom'; width: number; height: number; fill: string; fillType?: 'color'|'none'; stroke: string; strokeWidth: number; points?: AnchorPoint[]; closed?: boolean; }
 interface ImageEl extends BaseEl { type: 'image'; src: string; width: number; height: number; cropX?: number; cropY?: number; naturalW?: number; naturalH?: number; }
 type CanvasEl = TextEl | RectEl | CircleEl | StarEl | VectorEl | ImageEl;
 
@@ -245,7 +246,48 @@ function ImgNode({ el, onSelect, onChange, onDragStart, onDragEnd, isCropping }:
 
 // ─── Vector draw helpers ──────────────────────────────────────────────────────
 
-function drawVectorShape(ctx: CanvasRenderingContext2D, shape: VectorEl['shape'], w: number, h: number) {
+function buildSvgPath(points: AnchorPoint[], closed: boolean): string {
+  if (points.length === 0) return '';
+  let d = `M ${points[0].x} ${points[0].y}`;
+  for (let i = 1; i < points.length; i++) {
+    const prev = points[i - 1];
+    const curr = points[i];
+    const cp1 = prev.cpOut ?? { x: prev.x, y: prev.y };
+    const cp2 = curr.cpIn ?? { x: curr.x, y: curr.y };
+    d += ` C ${cp1.x} ${cp1.y} ${cp2.x} ${cp2.y} ${curr.x} ${curr.y}`;
+  }
+  if (closed && points.length > 2) {
+    const last = points[points.length - 1];
+    const first = points[0];
+    const cp1 = last.cpOut ?? { x: last.x, y: last.y };
+    const cp2 = first.cpIn ?? { x: first.x, y: first.y };
+    d += ` C ${cp1.x} ${cp1.y} ${cp2.x} ${cp2.y} ${first.x} ${first.y} Z`;
+  }
+  return d;
+}
+
+function drawCustomPath(ctx: CanvasRenderingContext2D, points: AnchorPoint[], closed: boolean) {
+  if (points.length < 2) return;
+  ctx.beginPath();
+  ctx.moveTo(points[0].x, points[0].y);
+  for (let i = 1; i < points.length; i++) {
+    const prev = points[i - 1];
+    const curr = points[i];
+    const cp1 = prev.cpOut ?? { x: prev.x, y: prev.y };
+    const cp2 = curr.cpIn ?? { x: curr.x, y: curr.y };
+    ctx.bezierCurveTo(cp1.x, cp1.y, cp2.x, cp2.y, curr.x, curr.y);
+  }
+  if (closed) {
+    const last = points[points.length - 1];
+    const first = points[0];
+    const cp1 = last.cpOut ?? { x: last.x, y: last.y };
+    const cp2 = first.cpIn ?? { x: first.x, y: first.y };
+    ctx.bezierCurveTo(cp1.x, cp1.y, cp2.x, cp2.y, first.x, first.y);
+    ctx.closePath();
+  }
+}
+
+function drawVectorShape(ctx: CanvasRenderingContext2D, shape: Exclude<VectorEl['shape'], 'custom'>, w: number, h: number) {
   ctx.beginPath();
   switch (shape) {
     case 'rectangle':
@@ -306,6 +348,15 @@ function VectorNode({ el, onSelect, onDragStart, onDragEnd }: {
   el: VectorEl; onSelect: (shiftKey: boolean) => void;
   onDragStart?: () => void; onDragEnd?: (x: number, y: number) => void;
 }) {
+  const draw = (kctx: any, shape: any) => {
+    const ctx = (kctx as any)._context as CanvasRenderingContext2D;
+    if (el.shape === 'custom') {
+      drawCustomPath(ctx, el.points ?? [], el.closed ?? false);
+    } else {
+      drawVectorShape(ctx, el.shape, shape.width(), shape.height());
+    }
+    kctx.fillStrokeShape(shape);
+  };
   return (
     <KonvaShape
       x={el.x} y={el.y}
@@ -316,16 +367,8 @@ function VectorNode({ el, onSelect, onDragStart, onDragEnd }: {
       stroke={el.stroke}
       strokeWidth={el.strokeWidth}
       draggable
-      sceneFunc={(kctx, shape) => {
-        const ctx = (kctx as any)._context as CanvasRenderingContext2D;
-        drawVectorShape(ctx, el.shape, shape.width(), shape.height());
-        kctx.fillStrokeShape(shape);
-      }}
-      hitFunc={(kctx, shape) => {
-        const ctx = (kctx as any)._context as CanvasRenderingContext2D;
-        drawVectorShape(ctx, el.shape, shape.width(), shape.height());
-        kctx.fillStrokeShape(shape);
-      }}
+      sceneFunc={draw}
+      hitFunc={draw}
       onClick={e => onSelect(e.evt.shiftKey)}
       onTap={() => onSelect(false)}
       onDragStart={onDragStart}
@@ -552,7 +595,7 @@ function ImageProperties({ el, onChange, onSetBg, onCrop }: { el: ImageEl; onCha
 
 // ─── Layer helpers ────────────────────────────────────────────────────────────
 
-const VECTOR_LABELS: Record<VectorEl['shape'], string> = { rectangle: 'Rectangle', circle: 'Rond', triangle: 'Triangle', star: 'Étoile', pill: 'Pilule', arrow: 'Flèche', diamond: 'Losange', hexagon: 'Hexagone' };
+const VECTOR_LABELS: Record<VectorEl['shape'], string> = { rectangle: 'Rectangle', circle: 'Rond', triangle: 'Triangle', star: 'Étoile', pill: 'Pilule', arrow: 'Flèche', diamond: 'Losange', hexagon: 'Hexagone', custom: 'Tracé libre' };
 
 function layerName(el: CanvasEl): string {
   if (el.type === 'text') return (el as TextEl).text.slice(0, 18) || 'Texte';
@@ -1413,6 +1456,16 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
   const aiTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const [postContext, setPostContext] = useState('');        // 5B — contexte du post
   const [captionEdited, setCaptionEdited] = useState(false); // 5C — brand memory
+
+  // ── Pen tool (Outil Plume) ────────────────────────────────────────────────
+  const [isPenMode, setIsPenMode] = useState(false);
+  const [penPoints, setPenPoints] = useState<AnchorPoint[]>([]);
+  const [penPreviewPos, setPenPreviewPos] = useState<{ x: number; y: number } | null>(null);
+  const penPointsRef = useRef<AnchorPoint[]>([]);
+  const penDragOriginRef = useRef<{ x: number; y: number } | null>(null);
+  const penIsDraggingRef = useRef(false);
+  const isPenModeRef = useRef(false);
+  useEffect(() => { isPenModeRef.current = isPenMode; }, [isPenMode]);
   useEffect(() => () => { if (aiTimerRef.current) clearInterval(aiTimerRef.current); }, []);
 
   // ── Schedule ─────────────────────────────────────────────────────────────
@@ -1748,7 +1801,14 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
     const handler = (e: KeyboardEvent) => {
       const tag = (e.target as HTMLElement).tagName;
       if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
-      if (e.key === 'Escape') { setSelectedId(null); setSelectedIds([]); setEditingId(null); return; }
+      if (e.key === 'Escape') {
+        if (isPenModeRef.current) {
+          setIsPenMode(false); penPointsRef.current = []; setPenPoints([]); setPenPreviewPos(null);
+          penDragOriginRef.current = null; penIsDraggingRef.current = false;
+          return;
+        }
+        setSelectedId(null); setSelectedIds([]); setEditingId(null); return;
+      }
       if (e.key === 'Delete' || e.key === 'Backspace') deleteEl();
       if ((e.metaKey || e.ctrlKey) && e.key === 'z' && !e.shiftKey) { e.preventDefault(); undo(); }
       if ((e.metaKey || e.ctrlKey) && (e.key === 'y' || (e.key === 'z' && e.shiftKey))) { e.preventDefault(); redo(); }
@@ -1789,13 +1849,102 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
     const defaultSize: Record<VectorEl['shape'], [number, number]> = {
       rectangle: [200, 120], circle: [140, 140], triangle: [160, 140],
       star: [140, 140], pill: [220, 80], arrow: [200, 100],
-      diamond: [140, 160], hexagon: [150, 150],
+      diamond: [140, 160], hexagon: [150, 150], custom: [160, 160],
     };
     const [w, h] = defaultSize[shape];
     const el: VectorEl = { id: newId(), type: 'vector', shape, x: Math.round((stageW - w) / 2), y: Math.round((stageH - h) / 2), rotation: 0, opacity: 100, width: w, height: h, fill: defaultFill, fillType: 'color', stroke: '', strokeWidth: 0 };
     applyElements([...elements, el]);
     setSelectedId(el.id);
     setTool(null);
+  };
+
+  // ── Pen tool handlers ─────────────────────────────────────────────────────
+
+  const cancelPenMode = () => {
+    setIsPenMode(false);
+    penPointsRef.current = [];
+    setPenPoints([]);
+    setPenPreviewPos(null);
+    penDragOriginRef.current = null;
+    penIsDraggingRef.current = false;
+  };
+
+  const finishPenPath = (closed: boolean) => {
+    const pts = [...penPointsRef.current];
+    if (pts.length < 2) { cancelPenMode(); return; }
+    const xs = pts.map(p => p.x); const ys = pts.map(p => p.y);
+    const minX = Math.min(...xs); const minY = Math.min(...ys);
+    const maxX = Math.max(...xs); const maxY = Math.max(...ys);
+    const w = Math.max(maxX - minX, 10); const h = Math.max(maxY - minY, 10);
+    const relPts: AnchorPoint[] = pts.map(p => ({
+      x: p.x - minX, y: p.y - minY,
+      ...(p.cpIn  ? { cpIn:  { x: p.cpIn.x  - minX, y: p.cpIn.y  - minY } } : {}),
+      ...(p.cpOut ? { cpOut: { x: p.cpOut.x - minX, y: p.cpOut.y - minY } } : {}),
+    }));
+    const el: VectorEl = {
+      id: newId(), type: 'vector', shape: 'custom', x: minX, y: minY, rotation: 0, opacity: 100,
+      width: w, height: h, fill: workspaceData?.primary_color || '#2FD79B',
+      fillType: 'color', stroke: '', strokeWidth: 0, points: relPts, closed,
+    };
+    applyElements([...elementsRef.current, el]);
+    setSelectedId(el.id);
+    cancelPenMode();
+  };
+
+  const handlePenMouseDown = (e: React.MouseEvent<SVGSVGElement>) => {
+    if (e.detail >= 2) return; // belongs to dblclick — skip
+    e.stopPropagation();
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = (e.clientX - rect.left) / zoom;
+    const y = (e.clientY - rect.top) / zoom;
+    // Close shape if clicking near first anchor point (≥3 points required)
+    if (penPointsRef.current.length >= 3) {
+      const first = penPointsRef.current[0];
+      if (Math.hypot(x - first.x, y - first.y) < 14) { finishPenPath(true); return; }
+    }
+    penDragOriginRef.current = { x, y };
+    penIsDraggingRef.current = false;
+  };
+
+  const handlePenMouseMove = (e: React.MouseEvent<SVGSVGElement>) => {
+    e.stopPropagation();
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = (e.clientX - rect.left) / zoom;
+    const y = (e.clientY - rect.top) / zoom;
+    setPenPreviewPos({ x, y });
+    if (penDragOriginRef.current && !penIsDraggingRef.current) {
+      const d = penDragOriginRef.current;
+      if (Math.hypot(x - d.x, y - d.y) > 5) penIsDraggingRef.current = true;
+    }
+  };
+
+  const handlePenMouseUp = (e: React.MouseEvent<SVGSVGElement>) => {
+    e.stopPropagation();
+    const origin = penDragOriginRef.current;
+    if (!origin) return; // skipped mousedown (part of dblclick)
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = (e.clientX - rect.left) / zoom;
+    const y = (e.clientY - rect.top) / zoom;
+    let newPoint: AnchorPoint;
+    if (penIsDraggingRef.current) {
+      const dx = x - origin.x; const dy = y - origin.y;
+      newPoint = { x: origin.x, y: origin.y, cpOut: { x: origin.x + dx, y: origin.y + dy }, cpIn: { x: origin.x - dx, y: origin.y - dy } };
+    } else {
+      newPoint = { x: origin.x, y: origin.y };
+    }
+    const next = [...penPointsRef.current, newPoint];
+    penPointsRef.current = next;
+    setPenPoints([...next]);
+    penDragOriginRef.current = null;
+    penIsDraggingRef.current = false;
+  };
+
+  const handlePenDblClick = (e: React.MouseEvent<SVGSVGElement>) => {
+    e.stopPropagation();
+    // Remove last point added by the first click of the dblclick
+    if (penPointsRef.current.length > 1) penPointsRef.current = penPointsRef.current.slice(0, -1);
+    if (penPointsRef.current.length >= 2) finishPenPath(false);
+    else cancelPenMode();
   };
 
   const addImageEl = (src: string) => {
@@ -2377,7 +2526,7 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
             { id: 'upload',   label: 'Importer', icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg> },
             { id: 'calques',  label: 'Calques',  icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg> },
           ] as const).map(({ id, label, icon }) => (
-            <button key={id} onClick={() => setTool(tool === id ? null : id)} title={label}
+            <button key={id} onClick={() => { setTool(tool === id ? null : id); if (isPenMode) cancelPenMode(); }} title={label}
               style={{ width: 50, height: 50, borderRadius: 13, border: 'none', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 4, cursor: 'pointer', transition: 'all .14s',
                 background: tool === id ? 'var(--mint-soft)' : 'transparent',
                 color: tool === id ? 'var(--mint-2)' : 'var(--ink-3)' }}>
@@ -2385,6 +2534,14 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
               <span style={{ fontFamily: 'var(--mono)', fontWeight: 800, fontSize: 7.5, letterSpacing: '.06em', textTransform: 'uppercase', lineHeight: 1 }}>{label}</span>
             </button>
           ))}
+          <div style={{ width: 36, height: 1, background: 'var(--line)', margin: '2px 0' }} />
+          <button onClick={() => { setIsPenMode(p => !p); setTool(null); }} title="Outil Plume — dessiner un tracé libre"
+            style={{ width: 50, height: 50, borderRadius: 13, border: 'none', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 4, cursor: isPenMode ? 'crosshair' : 'pointer', transition: 'all .14s',
+              background: isPenMode ? 'var(--mint-soft)' : 'transparent',
+              color: isPenMode ? 'var(--mint-2)' : 'var(--ink-3)' }}>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M12 19l7-7 3 3-7 7-3-3z"/><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"/><path d="M2 2l7.586 7.586"/><circle cx="11" cy="11" r="2"/></svg>
+            <span style={{ fontFamily: 'var(--mono)', fontWeight: 800, fontSize: 7.5, letterSpacing: '.06em', textTransform: 'uppercase', lineHeight: 1 }}>Plume</span>
+          </button>
         </div>
 
         {/* ── TOOL PANEL FLYOUT (312px, conditional) ── */}
@@ -2906,6 +3063,69 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
               </Layer>
             </Stage>
             </div>{/* end inner overflow:hidden */}
+
+            {/* ── Pen tool overlay ── */}
+            {isPenMode && (
+              <svg
+                style={{ position: 'absolute', top: 0, left: 0, width: stageW, height: stageH, cursor: 'crosshair', zIndex: 25, overflow: 'visible' }}
+                onMouseDown={handlePenMouseDown}
+                onMouseMove={handlePenMouseMove}
+                onMouseUp={handlePenMouseUp}
+                onDoubleClick={handlePenDblClick}
+              >
+                {/* transparent hit region for the full canvas */}
+                <rect x={0} y={0} width={stageW} height={stageH} fill="transparent" />
+                {/* drawn path so far */}
+                {penPoints.length >= 2 && (
+                  <path d={buildSvgPath(penPoints, false)} fill="rgba(47,215,155,0.10)" stroke="#2FD79B" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                )}
+                {/* preview line from last anchor to cursor */}
+                {penPreviewPos && penPoints.length >= 1 && (() => {
+                  const last = penPoints[penPoints.length - 1];
+                  const cp1 = last.cpOut ?? last;
+                  return (
+                    <path d={`M ${last.x} ${last.y} C ${cp1.x} ${cp1.y} ${penPreviewPos.x} ${penPreviewPos.y} ${penPreviewPos.x} ${penPreviewPos.y}`}
+                      fill="none" stroke="#2FD79B" strokeWidth="1" strokeDasharray="5 4" opacity="0.55" />
+                  );
+                })()}
+                {/* anchor points + Bézier handles */}
+                {penPoints.map((p, i) => (
+                  <g key={i}>
+                    {p.cpOut && (
+                      <>
+                        <line x1={p.x} y1={p.y} x2={p.cpOut.x} y2={p.cpOut.y} stroke="#2FD79B" strokeWidth="1" opacity="0.5" />
+                        <circle cx={p.cpOut.x} cy={p.cpOut.y} r={3.5} fill="#2FD79B" />
+                      </>
+                    )}
+                    {p.cpIn && (
+                      <>
+                        <line x1={p.x} y1={p.y} x2={p.cpIn.x} y2={p.cpIn.y} stroke="#2FD79B" strokeWidth="1" opacity="0.5" />
+                        <circle cx={p.cpIn.x} cy={p.cpIn.y} r={3.5} fill="#2FD79B" />
+                      </>
+                    )}
+                    <circle
+                      cx={p.x} cy={p.y}
+                      r={i === 0 && penPoints.length >= 3 ? 8 : 5}
+                      fill={i === 0 ? 'rgba(47,215,155,0.18)' : '#fff'}
+                      stroke="#2FD79B" strokeWidth="1.8"
+                      style={{ cursor: i === 0 && penPoints.length >= 3 ? 'pointer' : 'crosshair' }}
+                    />
+                    {i === 0 && penPoints.length >= 3 && (
+                      <circle cx={p.x} cy={p.y} r={3} fill="#2FD79B" />
+                    )}
+                  </g>
+                ))}
+              </svg>
+            )}
+
+            {/* pen mode hint bar */}
+            {isPenMode && (
+              <div style={{ position: 'absolute', bottom: 14, left: '50%', transform: 'translateX(-50%)', zIndex: 26, background: 'rgba(12,42,29,0.82)', backdropFilter: 'blur(6px)', borderRadius: 10, padding: '7px 14px', display: 'flex', alignItems: 'center', gap: 8, boxShadow: '0 4px 18px rgba(13,15,10,.38)', fontSize: 12, color: 'rgba(238,237,227,0.75)', fontFamily: 'var(--sans)', pointerEvents: 'none', whiteSpace: 'nowrap' }}>
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#2FD79B" strokeWidth="2.2" strokeLinecap="round"><path d="M12 19l7-7 3 3-7 7-3-3z"/><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"/></svg>
+                <span><b style={{ color: '#eeeee0' }}>Clic</b> — ancre &middot; <b style={{ color: '#eeeee0' }}>Clic+glisser</b> — courbe &middot; <b style={{ color: '#eeeee0' }}>Dbl-clic</b> — terminer &middot; <b style={{ color: '#eeeee0' }}>Échap</b> — annuler{penPoints.length >= 3 && <> &middot; <b style={{ color: '#2FD79B' }}>1er point</b> — fermer</>}</span>
+              </div>
+            )}
+
             {/* BG image selected — selection border + opacity pill */}
             {bgImageSelected && (
               <div onMouseDown={e => e.stopPropagation()} style={{ position: 'absolute', inset: 0, borderRadius: 18, border: '2px solid #8B5CF6', pointerEvents: 'none', zIndex: 10 }} />
