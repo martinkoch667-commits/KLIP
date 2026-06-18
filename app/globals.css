@@ -146,8 +146,7 @@ img { display: block; max-width: 100%; }
 /* ── App frame ──────────────────────────────────────────────────────────────── */
 
 .app {
-  display: grid;
-  grid-template-columns: var(--sb-w) 1fr;
+  display: block;
   height: 100vh;
   overflow: hidden;
 }
@@ -186,7 +185,7 @@ img { display: block; max-width: 100%; }
 
 /* ── Workspace ──────────────────────────────────────────────────────────────── */
 
-.work { display: flex; flex-direction: column; height: 100vh; overflow: hidden; min-width: 0; }
+.work { margin-left: var(--sb-w); display: flex; flex-direction: column; height: 100vh; overflow: hidden; min-width: 0; }
 .topbar {
   height: 64px; flex-shrink: 0;
   display: flex; align-items: center; gap: 16px;
@@ -403,9 +402,6 @@ input.ed-range::-moz-range-thumb {
   /* Hide desktop sidebar — MobileSidebar handles navigation */
   .sidebar { display: none !important; }
   :root { --sb-w: 0px; }
-
-  /* Override grid to block so .work fills full width (grid 0px 1fr puts .work in 0px col) */
-  .app { display: block; }
 
   /* Compact layout — extra left padding for hamburger button (40px + 12px gap) */
   .page { padding: 20px 16px 80px !important; }
