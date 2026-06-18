@@ -157,7 +157,7 @@ export default function FeedPage() {
         <div className="topbar" style={{ justifyContent:"space-between" }}>
           <div style={{ display:"flex", alignItems:"center", gap:16 }}>
             <h1 style={{ fontSize:14, fontWeight:800, margin:0 }}>Fil de publication</h1>
-            <span style={{ fontSize:13, color:"var(--ink-3)", fontWeight:600 }}>{filtered.length} post{filtered.length !== 1 ? "s" : ""}</span>
+            <span className="ws-topbar-link" style={{ fontSize:13, color:"var(--ink-3)", fontWeight:600 }}>{filtered.length} post{filtered.length !== 1 ? "s" : ""}</span>
           </div>
           <select value={filterWsId} onChange={e => setFilterWsId(e.target.value)}
             style={{ fontSize:12, fontWeight:600, border:"1px solid var(--line)", borderRadius:"var(--r-s)", padding:"5px 10px", background:"var(--sunk)", color:"var(--ink)", outline:"none" }}>
@@ -188,7 +188,7 @@ export default function FeedPage() {
                           Aucun post
                         </div>
                       ) : (
-                        <div style={{ display:"flex", flexDirection:"column", gap:12 }}>
+                        <div className="feed-cards-grid" style={{ display:"flex", flexDirection:"column", gap:12 }}>
                           {colPosts.map(post => <PostCard key={post.id} post={post} col={col} />)}
                         </div>
                       )}

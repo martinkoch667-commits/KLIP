@@ -428,8 +428,12 @@ input.ed-range::-moz-range-thumb {
   .ws-gen-grid { grid-template-columns: repeat(2, 1fr) !important; }
   .ws-posts-grid { grid-template-columns: repeat(2, 1fr) !important; }
 
-  /* Feed kanban — stack columns vertically */
+  /* Feed kanban — stack columns vertically, compact 2-col cards */
   .feed-kanban { grid-template-columns: 1fr !important; height: auto !important; min-height: 0 !important; }
+  .feed-kanban > div { overflow: visible !important; border-right: none !important; border-bottom: 1px solid var(--line); }
+  .feed-kanban > div:last-child { border-bottom: none; }
+  .feed-kanban > div > div:last-child { overflow-y: visible !important; padding: 10px 10px 16px !important; }
+  .feed-cards-grid { display: grid !important; grid-template-columns: repeat(2, 1fr) !important; gap: 8px !important; flex-direction: unset !important; }
 
   /* Calendar — horizontal scroll on mobile */
   .cal-outer { padding: 12px 0 !important; overflow-x: auto; -webkit-overflow-scrolling: touch; }
