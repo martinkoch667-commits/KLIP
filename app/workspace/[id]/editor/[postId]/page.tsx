@@ -1068,6 +1068,9 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
   useEffect(() => { bgOffsetYRef.current = bgOffsetY; }, [bgOffsetY]);
   const [formatId, setFormatId] = useState('ig-portrait');
   const [postType, setPostType] = useState<'post' | 'reel' | 'story' | 'carrousel'>('post');
+  const [editorToast, setEditorToast] = useState<string | null>(null);
+  const [showStoryWarn, setShowStoryWarn] = useState(false);
+  const [pendingStoryType, setPendingStoryType] = useState<'post' | 'reel' | 'story' | 'carrousel' | null>(null);
   const activeFormat = FORMATS.find(f => f.id === formatId) ?? FORMATS[0];
   const stageW = activeFormat.w;
   const stageH = activeFormat.h;
@@ -1667,8 +1670,17 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
     setSelectedId(id);
   };
 
+  const showEditorToast = (msg: string) => {
+    setEditorToast(msg);
+    setTimeout(() => setEditorToast(null), 4000);
+  };
+
   const handleFileDrop = (file: File) => {
     if (!file.type.startsWith('image/')) return;
+    if (postType === 'reel') {
+      showEditorToast('Les Reels Instagram nécessitent une vidéo. Importez un fichier .mp4 ou .mov.');
+      return;
+    }
     const src = URL.createObjectURL(file);
     const img = new window.Image();
     img.onload = () => {
@@ -1834,6 +1846,11 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
   const changePostType = async (newType: 'post' | 'reel' | 'story' | 'carrousel') => {
     const TYPE_FORMAT: Record<string, string> = { post: 'ig-portrait', reel: 'ig-story', story: 'ig-story', carrousel: 'ig-square' };
     const newFormatId = TYPE_FORMAT[newType];
+    if (newType === 'story' && formatId !== 'ig-story' && elements.length > 0) {
+      setPendingStoryType('story');
+      setShowStoryWarn(true);
+      return;
+    }
     const newFmt = FORMATS.find(f => f.id === newFormatId) ?? FORMATS[0];
     setPostType(newType);
     setFormatId(newFormatId);
@@ -2064,6 +2081,47 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
   return (
     <>
       {sidebarOpen && <Sidebar />}
+
+      {/* ── Editor toast ── */}
+      {editorToast && (
+        <div style={{ position: 'fixed', bottom: 24, left: '50%', transform: 'translateX(-50%)', zIndex: 200, padding: '11px 22px', borderRadius: 99, fontWeight: 700, fontSize: 13, background: 'var(--warn)', color: '#fff', boxShadow: '0 8px 24px rgba(13,15,10,.3)', whiteSpace: 'nowrap', pointerEvents: 'none' }}>
+          {editorToast}
+        </div>
+      )}
+
+      {/* ── Story format warning modal ── */}
+      {showStoryWarn && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(13,15,10,.45)' }} onClick={() => { setShowStoryWarn(false); setPendingStoryType(null); }}>
+          <div className="card" style={{ padding: 28, maxWidth: 380, width: '100%', margin: '0 16px' }} onClick={e => e.stopPropagation()}>
+            <div style={{ width: 44, height: 44, borderRadius: 12, background: 'rgba(200,115,43,.12)', display: 'grid', placeItems: 'center', marginBottom: 16 }}>
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--warn)" strokeWidth="2" strokeLinecap="round"><path d="M10.3 3.4 2.7 17A2 2 0 0 0 4.4 20h15.2a2 2 0 0 0 1.7-3L13.7 3.4a2 2 0 0 0-3.4 0Z"/><path d="M12 9v4M12 17h.01"/></svg>
+            </div>
+            <h3 style={{ fontSize: 16, fontWeight: 800, color: 'var(--ink)', marginBottom: 8 }}>Changer de format ?</h3>
+            <p style={{ fontSize: 13.5, color: 'var(--ink-2)', lineHeight: 1.55, marginBottom: 22 }}>
+              Passer en format Story (9:16) va adapter le cadre de votre visuel. Des éléments peuvent dépasser le cadre et nécessiter des ajustements.
+            </p>
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button onClick={() => { setShowStoryWarn(false); setPendingStoryType(null); }} className="btn btn-ghost" style={{ flex: 1 }}>Annuler</button>
+              <button onClick={async () => {
+                setShowStoryWarn(false);
+                if (pendingStoryType) {
+                  const TYPE_FORMAT: Record<string, string> = { post: 'ig-portrait', reel: 'ig-story', story: 'ig-story', carrousel: 'ig-square' };
+                  const newFormatId = TYPE_FORMAT[pendingStoryType];
+                  const newFmt = FORMATS.find(f => f.id === newFormatId) ?? FORMATS[0];
+                  setPostType(pendingStoryType);
+                  setFormatId(newFormatId);
+                  const clamped = elementsRef.current.map(el => ({ ...el, x: Math.min(el.x, newFmt.w - 20), y: Math.min(el.y, newFmt.h - 20) }));
+                  setElements(clamped);
+                  elementsRef.current = clamped;
+                  await supabase.from('posts').update({ post_type: pendingStoryType }).eq('id', postId);
+                }
+                setPendingStoryType(null);
+              }} className="btn btn-primary" style={{ flex: 1 }}>Continuer</button>
+            </div>
+          </div>
+        </div>
+      )}
+
     <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', fontFamily: 'var(--sans)', background: 'radial-gradient(120% 80% at 50% -10%, #FBFAF4, #ECEBE1 70%)', overflow: 'hidden', marginLeft: sidebarOpen ? 'var(--sb-w)' : 0, transition: 'margin-left 0.2s' }}>
 
       {/* ── TOPBAR ── */}
