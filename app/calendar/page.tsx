@@ -164,6 +164,20 @@ export default function CalendarPage() {
         </div>
 
         <div className="scroll">
+          {posts.length === 0 && (
+            <div style={{ margin:"28px 28px 0", padding:"28px 32px", borderRadius:"var(--r-l)", background:"var(--card)", border:"1px solid var(--line)", display:"flex", alignItems:"center", gap:24 }}>
+              <div style={{ width:56, height:56, borderRadius:16, background:"var(--sunk)", display:"grid", placeItems:"center", color:"var(--ink-3)", flexShrink:0 }}>
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="3" y="4.5" width="18" height="16" rx="3"/><path d="M3 9h18M8 2.5v4M16 2.5v4"/>
+                </svg>
+              </div>
+              <div style={{ flex:1 }}>
+                <h2 style={{ fontFamily:"var(--display)", fontWeight:800, fontSize:18, color:"var(--ink)", marginBottom:4, letterSpacing:"-.01em" }}>Aucun post planifié</h2>
+                <p style={{ fontSize:13, color:"var(--ink-3)", lineHeight:1.5 }}>Commencez à planifier votre contenu. Vos posts apparaîtront sur le calendrier une fois une date attribuée.</p>
+              </div>
+              <Link href="/composer" className="btn btn-primary" style={{ textDecoration:"none", flexShrink:0 }}>Créer un post</Link>
+            </div>
+          )}
           <div className="cal-outer" style={{ padding:"24px 28px" }}>
             {calView === "week" ? (
               <div style={{ display:"grid", gridTemplateColumns:`60px repeat(7, 1fr)`, border:"1px solid var(--line)", borderRadius:"var(--r-l)", overflow:"hidden", background:"var(--card)" }}>

@@ -61,12 +61,30 @@ export default function TemplatesPage() {
 
         <div className="scroll">
           <div className="page" style={{ maxWidth: 680 }}>
+            {/* Page header */}
+            <div style={{ display:"flex", alignItems:"flex-end", justifyContent:"space-between", gap:16, marginBottom:28, flexWrap:"wrap" }}>
+              <div>
+                <div className="label" style={{ marginBottom:8 }}>Mise en page</div>
+                <h1 style={{ fontFamily:"var(--display)", fontWeight:800, fontSize:28, color:"var(--ink)", letterSpacing:"-.02em", margin:0 }}>Templates</h1>
+                <p style={{ fontSize:13, color:"var(--ink-3)", marginTop:6 }}>Modèles réutilisables assignés à vos clients.</p>
+              </div>
+              <Link href="/workspace/new" className="btn btn-primary" style={{ textDecoration:"none", flexShrink:0 }}>+ Nouveau client</Link>
+            </div>
+
             {loading ? (
               <div style={{ color: "var(--ink-3)", fontSize: 13 }}>Chargement…</div>
             ) : workspaces.length === 0 ? (
-              <div style={{ textAlign: "center", padding: "60px 20px" }}>
-                <p style={{ color: "var(--ink-3)", marginBottom: 16 }}>Aucun client pour l&apos;instant.</p>
-                <Link href="/workspace/new" className="btn btn-primary">+ Nouveau client</Link>
+              <div style={{ display:"flex", flexDirection:"column", alignItems:"center", textAlign:"center", padding:"72px 20px", gap:20 }}>
+                <div style={{ width:76, height:76, borderRadius:22, background:"var(--sunk)", border:"1px solid var(--line)", display:"grid", placeItems:"center", color:"var(--ink-3)" }}>
+                  <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                    <rect x="3" y="3" width="18" height="18" rx="3"/><path d="M3 9h18M9 9v12"/>
+                  </svg>
+                </div>
+                <div>
+                  <h2 style={{ fontFamily:"var(--display)", fontWeight:800, fontSize:24, color:"var(--ink)", marginBottom:8, letterSpacing:"-.02em" }}>Aucun template</h2>
+                  <p style={{ fontSize:14, color:"var(--ink-3)", maxWidth:340, lineHeight:1.6, margin:"0 auto" }}>Créez des mises en page réutilisables et assignez-les à vos clients pour aller plus vite.</p>
+                </div>
+                <Link href="/workspace/new" className="btn btn-primary" style={{ textDecoration:"none" }}>+ Nouveau client</Link>
               </div>
             ) : (
               <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>

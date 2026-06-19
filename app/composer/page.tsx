@@ -105,9 +105,17 @@ export default function ComposerPage() {
             {loading ? (
               <div style={{ color: "var(--ink-3)", fontSize: 13 }}>Chargement…</div>
             ) : workspaces.length === 0 ? (
-              <div style={{ textAlign: "center", padding: "60px 20px" }}>
-                <p style={{ color: "var(--ink-3)", marginBottom: 16 }}>Aucun client pour l&apos;instant.</p>
-                <Link href="/workspace/new" className="btn btn-primary">+ Nouveau client</Link>
+              <div style={{ display:"flex", flexDirection:"column", alignItems:"center", textAlign:"center", padding:"72px 20px", gap:20 }}>
+                <div style={{ width:76, height:76, borderRadius:22, background:"linear-gradient(150deg,var(--mint-soft),rgba(47,215,155,.06))", border:"1px solid var(--mint-soft)", display:"grid", placeItems:"center", color:"var(--mint-2)" }}>
+                  <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                  </svg>
+                </div>
+                <div>
+                  <h2 style={{ fontFamily:"var(--display)", fontWeight:800, fontSize:24, color:"var(--ink)", marginBottom:8, letterSpacing:"-.02em" }}>Aucun client pour l&apos;instant</h2>
+                  <p style={{ fontSize:14, color:"var(--ink-3)", maxWidth:340, lineHeight:1.6, margin:"0 auto" }}>Créez votre premier espace client pour commencer à générer du contenu avec l&apos;IA.</p>
+                </div>
+                <Link href="/workspace/new" className="btn btn-primary" style={{ textDecoration:"none" }}>+ Nouveau client</Link>
               </div>
             ) : (
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 12 }}>

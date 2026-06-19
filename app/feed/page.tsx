@@ -183,6 +183,19 @@ export default function FeedPage() {
         <div className="scroll">
           {loading ? (
             <div style={{ textAlign:"center", padding:"60px 0", color:"var(--ink-3)" }}>Chargement…</div>
+          ) : filtered.length === 0 ? (
+            <div style={{ display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", textAlign:"center", padding:"80px 20px", gap:20, minHeight:"calc(100vh - 116px)" }}>
+              <div style={{ width:76, height:76, borderRadius:22, background:"var(--mint-soft)", border:"1px solid rgba(47,215,155,.2)", display:"grid", placeItems:"center", color:"var(--mint-2)" }}>
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M22 3L11 14M22 3l-7 19-4-8-8-4 19-7Z"/>
+                </svg>
+              </div>
+              <div>
+                <h2 style={{ fontFamily:"var(--display)", fontWeight:800, fontSize:24, color:"var(--ink)", marginBottom:8, letterSpacing:"-.02em" }}>Aucune publication en attente</h2>
+                <p style={{ fontSize:14, color:"var(--ink-3)", maxWidth:360, lineHeight:1.6, margin:"0 auto" }}>Tout est à jour. Créez du nouveau contenu pour commencer à alimenter votre fil.</p>
+              </div>
+              <Link href="/composer" className="btn btn-primary" style={{ textDecoration:"none" }}>Composer du contenu</Link>
+            </div>
           ) : (
             <div className="feed-kanban" style={{ display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:0, height:"100%", minHeight:"calc(100vh - 64px)" }}>
               {COLUMNS.map((col, ci) => {
