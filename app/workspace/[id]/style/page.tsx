@@ -403,7 +403,7 @@ export default function StyleTemplatePage() {
       if (finalBrandIconUrl !== brandIconUrl)   { setBrandIconUrl(finalBrandIconUrl); setBrandIconPreview(finalBrandIconUrl); setBrandIconFile(null); }
       if (newAssetUrls.length) { setExistingAssets(p => [...p, ...newAssetUrls]); setAssetFiles([]); setAssetPreviews([]); }
 
-      showToast("Charte mise à jour ✓");
+      showToast("Charte mise à jour");
     } finally {
       setSaving(false);
     }
@@ -431,7 +431,7 @@ export default function StyleTemplatePage() {
         setTemplates(prev => [...prev, template]);
       }
       setEditingTpl(null);
-      showToast("Template sauvegardé ✓");
+      showToast("Template sauvegardé");
     } catch (err) { console.error(err); }
   }
 

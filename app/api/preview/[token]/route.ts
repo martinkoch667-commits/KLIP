@@ -79,7 +79,7 @@ export async function PATCH(
         userId: ownerId,
         workspaceId: row.workspace_id,
         type: 'post_approved',
-        title: 'Post approuvé par le client ✓',
+        title: 'Post approuvé par le client',
         message: `« ${postLabel} » a été approuvé par votre client`,
         postId,
         postTitle: postLabel,

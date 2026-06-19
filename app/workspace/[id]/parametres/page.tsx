@@ -103,7 +103,7 @@ function ParametresContent() {
           <div>
             <div className="label" style={{ marginBottom: 8, display: "flex", alignItems: "center", gap: 8 }}>
               <Link href={`/workspace/${id}`} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--ink-3)", textDecoration: "none", fontSize: 12, fontWeight: 600, fontFamily: "var(--sans)" }}>
-                ← Retour
+                Retour
               </Link>
               <span style={{ color: "var(--line)" }}>·</span>
               {workspace?.name ?? "…"}

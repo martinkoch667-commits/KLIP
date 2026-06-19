@@ -2282,7 +2282,7 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
         { text: 'OFFRE SPÉCIALE', role: 'accroche', fontSize: 14, y: 50, x: 20, fill: workspaceData?.accent_color || '#C8F135', hasBg: true, bgColor: workspaceData?.primary_color || '#0038FF', bgOpacity: 100, cornerRadius: 4, width: 180, fontStyle: 'bold', paddingH: 12, paddingV: 6 },
         { text: 'TITRE DE L\'OFFRE', role: 'titre', fontSize: 36, y: 100, x: 20, fill: '#FFFFFF', hasBg: false, fontStyle: 'bold', width: stageW - 40 },
         { text: '-30% ce weekend', role: 'sous-titre', fontSize: 20, y: 160, x: 20, fill: '#FFFFFF', hasBg: false, fontStyle: 'normal', width: stageW - 40 },
-        { text: 'EN PROFITER →', role: 'cta', fontSize: 14, y: stageH - 80, x: 20, fill: workspaceData?.primary_color || '#000', hasBg: true, bgColor: workspaceData?.accent_color || '#C8F135', bgOpacity: 100, cornerRadius: 4, width: 200, fontStyle: 'bold', paddingH: 14, paddingV: 8 },
+        { text: 'EN PROFITER', role: 'cta', fontSize: 14, y: stageH - 80, x: 20, fill: workspaceData?.primary_color || '#000', hasBg: true, bgColor: workspaceData?.accent_color || '#C8F135', bgOpacity: 100, cornerRadius: 4, width: 200, fontStyle: 'bold', paddingH: 14, paddingV: 8 },
       ],
     },
     {
@@ -2586,7 +2586,7 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
           <button onClick={exportPNG} className="btn btn-sm btn-ghost" style={{ height: 36 }}>Aperçu</button>
           <button onClick={handleSave} disabled={saving} className="btn btn-sm btn-primary"
             style={{ height: 36, opacity: saving ? 0.6 : 1, cursor: saving ? 'not-allowed' : 'pointer' }}>
-            {saving ? 'Sauvegarde…' : 'Publier →'}
+            {saving ? 'Sauvegarde…' : 'Publier'}
           </button>
         </div>
       </div>
@@ -2817,7 +2817,7 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
                     style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', borderRadius: 8, border: 'none', cursor: 'pointer', fontSize: 12, fontWeight: 700, width: '100%', marginTop: 12,
                       background: bgCropMode ? 'var(--mint)' : 'var(--sunk)', color: bgCropMode ? 'var(--mint-ink)' : 'var(--ink-2)' }}>
                     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>
-                    {bgCropMode ? 'Glissez le fond pour recadrer ↑' : 'Recadrer le fond'}
+                    {bgCropMode ? 'Glissez le fond pour recadrer' : 'Recadrer le fond'}
                   </button>
                 )}
               </div>

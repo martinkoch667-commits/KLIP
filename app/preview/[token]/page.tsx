@@ -39,7 +39,7 @@ function calendarDays(year: number, month: number): (number | null)[] {
 }
 
 function statusChip(post: Post) {
-  if (post.approved_by_client)    return { label: 'Approuvé ✓',      bg: 'rgba(47,215,155,.15)', color: '#2FD79B' };
+  if (post.approved_by_client)    return { label: 'Approuvé',      bg: 'rgba(47,215,155,.15)', color: '#2FD79B' };
   if (post.client_comment)        return { label: 'Modif. demandée',  bg: '#FEF3C7',              color: '#D97706' };
   if (post.status === 'published') return { label: 'Publié',           bg: '#DCFCE7',              color: '#16A34A' };
   if (post.status === 'scheduled') return { label: 'Planifié',         bg: 'rgba(79,142,247,.12)', color: '#4F8EF7' };
@@ -313,12 +313,12 @@ export default function PreviewPage() {
               {/* Action done feedback */}
               {actionDone === 'approved' && (
                 <div style={{ padding: '12px', borderRadius: 12, background: 'rgba(47,215,155,.12)', border: '1px solid #2FD79B', textAlign: 'center', marginBottom: 14 }}>
-                  <p style={{ fontSize: 14, fontWeight: 700, color: '#2FD79B', margin: 0 }}>✓ Approuvé — merci !</p>
+                  <p style={{ fontSize: 14, fontWeight: 700, color: '#2FD79B', margin: 0 }}>Approuvé — merci !</p>
                 </div>
               )}
               {actionDone === 'commented' && (
                 <div style={{ padding: '12px', borderRadius: 12, background: '#FEF3C7', border: '1px solid #FCD34D', textAlign: 'center', marginBottom: 14 }}>
-                  <p style={{ fontSize: 14, fontWeight: 700, color: '#D97706', margin: 0 }}>Commentaire envoyé ✓</p>
+                  <p style={{ fontSize: 14, fontWeight: 700, color: '#D97706', margin: 0 }}>Commentaire envoyé</p>
                 </div>
               )}
 

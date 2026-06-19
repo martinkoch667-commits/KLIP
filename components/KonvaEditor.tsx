@@ -573,11 +573,11 @@ export default function KonvaEditor({ workspaceId, postId }: { workspaceId: stri
         <div style={{ display: 'flex', gap: 8 }}>
           <button onClick={exportPNG}
             style={{ background: '#C8F135', border: 'none', color: 'black', padding: '8px 16px', borderRadius: 6, cursor: 'pointer', fontWeight: 700, fontSize: 13 }}>
-            ⬇ Exporter PNG
+            Exporter PNG
           </button>
           <button onClick={handleSave} disabled={saving}
             style={{ ...btnStyle, opacity: saving ? 0.5 : 1, cursor: saving ? 'not-allowed' : 'pointer' }}>
-            {saving ? 'Sauvegarde…' : 'Sauvegarder →'}
+            {saving ? 'Sauvegarde…' : 'Sauvegarder'}
           </button>
         </div>
       </div>
@@ -617,7 +617,7 @@ export default function KonvaEditor({ workspaceId, postId }: { workspaceId: stri
                     style={{ flex: 1, padding: '6px 8px', border: '1px solid #E5E7EB', borderRadius: 6, fontSize: 12, outline: 'none' }}
                   />
                   <button onClick={() => fetchUnsplash(unsplashQuery)}
-                    style={{ padding: '6px 10px', background: '#0038FF', color: 'white', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 13 }}>→</button>
+                    style={{ padding: '6px 10px', background: '#0038FF', color: 'white', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 13, display:'flex', alignItems:'center' }}><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg></button>
                 </div>
                 {unsplashLoading ? (
                   <p style={{ fontSize: 12, color: '#9CA3AF', textAlign: 'center', padding: '8px 0' }}>Chargement…</p>
@@ -765,8 +765,8 @@ export default function KonvaEditor({ workspaceId, postId }: { workspaceId: stri
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
               <SectionLabel>{selectedEl.type === 'text' ? 'Texte' : selectedEl.type === 'image' ? 'Image' : 'Forme'}</SectionLabel>
               <div style={{ display: 'flex', gap: 4 }}>
-                <button onClick={bringForward} title="Avancer" style={smallBtnStyle}>↑</button>
-                <button onClick={sendBackward} title="Reculer" style={smallBtnStyle}>↓</button>
+                <button onClick={bringForward} title="Avancer" style={smallBtnStyle}><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 19V5M5 12l7-7 7 7"/></svg></button>
+                <button onClick={sendBackward} title="Reculer" style={smallBtnStyle}><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12l7 7 7-7"/></svg></button>
               </div>
             </div>
 

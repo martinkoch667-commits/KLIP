@@ -232,7 +232,7 @@ export default function OnboardingTour({ onComplete }: Props) {
         )}
         <button onClick={next}
           style={{ padding:"9px 18px", borderRadius:"var(--r-s)", background:"var(--mint)", color:"var(--mint-ink)", border:"none", cursor:"pointer", fontSize:13, fontWeight:800, flex:1 }}>
-          {step === TOUR_STEPS.length - 1 ? "Terminer ✓" : "Suivant →"}
+          {step === TOUR_STEPS.length - 1 ? "Terminer" : "Suivant"}
         </button>
         <button onClick={close}
           style={{ padding:"9px 10px", background:"none", border:"none", cursor:"pointer", fontSize:12, color:"rgba(238,237,227,.4)", fontWeight:600, flexShrink:0 }}>

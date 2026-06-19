@@ -590,7 +590,7 @@ export default function TemplateEditor({
         {/* Left: back + name + format badge */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0 }}>
           <button onClick={onCancel}
-            style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 30, height: 30, borderRadius: 7, boxShadow: 'inset 0 0 0 1px rgba(238,237,227,.2)', color: 'var(--cream-2)', background: 'transparent', border: 'none', cursor: 'pointer', fontSize: 14, flexShrink: 0 }}>←</button>
+            style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 30, height: 30, borderRadius: 7, boxShadow: 'inset 0 0 0 1px rgba(238,237,227,.2)', color: 'var(--cream-2)', background: 'transparent', border: 'none', cursor: 'pointer', flexShrink: 0 }}><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 18l-6-6 6-6"/></svg></button>
           <input
             value={name}
             onChange={e => setName(e.target.value)}
@@ -617,7 +617,7 @@ export default function TemplateEditor({
           </button>
           <button onClick={handleSave}
             style={{ padding: '8px 20px', background: 'var(--mint)', border: 'none', borderRadius: 8, color: 'var(--mint-ink)', fontSize: 13, cursor: 'pointer', fontWeight: 700, fontFamily: 'var(--display)' }}>
-            Enregistrer →
+            Enregistrer
           </button>
         </div>
       </div>
@@ -827,8 +827,8 @@ export default function TemplateEditor({
                   {selectedEl.type === 'text' ? 'Texte' : selectedEl.type === 'image' ? ((selectedEl as ImageEl).src === PHOTO_PLACEHOLDER_SRC ? 'Zone photo' : 'Image') : 'Forme'}
                 </span>
                 <div style={{ display: 'flex', gap: 4 }}>
-                  <button onClick={bringForward} title="Avancer" style={smallBtnStyle}>↑</button>
-                  <button onClick={sendBackward} title="Reculer" style={smallBtnStyle}>↓</button>
+                  <button onClick={bringForward} title="Avancer" style={smallBtnStyle}><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 19V5M5 12l7-7 7 7"/></svg></button>
+                  <button onClick={sendBackward} title="Reculer" style={smallBtnStyle}><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12l7 7 7-7"/></svg></button>
                 </div>
               </div>
               {selectedEl.type === 'text' && (

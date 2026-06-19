@@ -314,7 +314,7 @@ export default function OnboardingPlanPage() {
                 onKeyDown={e => { if (e.key === "Enter") handleAgency(); }}
               />
               <button onClick={handleAgency} disabled={loadingAgency || loadingStudio || !agencyName.trim()} className="ob-btn-agency">
-                {loadingAgency ? "Création…" : "Confirmer →"}
+                {loadingAgency ? "Création…" : "Confirmer"}
               </button>
             </>
           )}

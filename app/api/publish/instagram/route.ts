@@ -133,7 +133,7 @@ export async function POST(request: NextRequest) {
       if (userId) await createNotification({
         userId, workspaceId,
         type: 'post_published',
-        title: 'Post publié ✓',
+        title: 'Post publié',
         message: `« ${post.title ?? post.description?.slice(0, 40) ?? 'Sans titre'} » a été publié sur @${workspace.instagram_username ?? 'votre compte'}`,
         postId, postTitle: post.title ?? undefined,
       });
@@ -203,7 +203,7 @@ export async function POST(request: NextRequest) {
     if (userId) await createNotification({
       userId, workspaceId,
       type: 'post_published',
-      title: 'Post publié ✓',
+      title: 'Post publié',
       message: `« ${post.title ?? post.description?.slice(0, 40) ?? 'Sans titre'} » a été publié sur @${workspace.instagram_username ?? 'votre compte'}`,
       postId, postTitle: post.title ?? undefined,
     });

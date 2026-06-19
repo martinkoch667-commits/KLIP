@@ -93,8 +93,6 @@ export default function ResultsPage() {
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState<"all" | "pending" | "scheduled">("all");
   const [validated, setValidated] = useState<Record<string, boolean>>({});
-  const [showCanva, setShowCanva] = useState(false);
-  const [canvaPostId, setCanvaPostId] = useState("");
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -178,7 +176,7 @@ export default function ResultsPage() {
                   onClick={() => router.back()}
                   style={{ background: "none", border: "none", cursor: "pointer", color: "var(--ink-3)", display: "flex", alignItems: "center", gap: 4, padding: 0, fontSize: 12, fontWeight: 600, fontFamily: "var(--sans)" }}
                 >
-                  ← Retour
+                  Retour
                 </button>
                 <span style={{ color: "var(--line)" }}>·</span>
                 {workspace?.name}
@@ -268,20 +266,14 @@ export default function ResultsPage() {
 
                           {/* Actions */}
                           <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
-                            {isPending && !validated[post.id] ? (
-                              <>
-                                <a href={`/workspace/${params.id}/editor/${post.id}`} className="btn btn-ghost btn-sm">
-                                  <IconEdit /> Voir
-                                </a>
-                                <button
-                                  className="btn btn-primary btn-sm"
-                                  onClick={() => validatePost(post)}
-                                >
-                                  <IconCheck /> Valider
-                                </button>
-                              </>
-                            ) : (
-                              <StatusChip status={validated[post.id] ? "validated" : post.status} />
+                            <StatusChip status={validated[post.id] ? "validated" : post.status} />
+                            <a href={`/workspace/${id}/editor/${post.id}`} className="btn btn-ghost btn-sm">
+                              <IconEdit /> Modifier
+                            </a>
+                            {isPending && !validated[post.id] && (
+                              <button className="btn btn-primary btn-sm" onClick={() => validatePost(post)}>
+                                <IconCheck /> Valider
+                              </button>
                             )}
                             <div style={{ position: "relative" }}>
                               <button
@@ -295,16 +287,6 @@ export default function ResultsPage() {
                                 <>
                                   <div style={{ position: "fixed", inset: 0, zIndex: 9 }} onClick={() => setOpenMenuId(null)} />
                                   <div style={{ position: "absolute", right: 0, top: "calc(100% + 4px)", zIndex: 10, background: "var(--white)", border: "1px solid var(--line)", borderRadius: "var(--r-s)", boxShadow: "var(--shadow-pop)", minWidth: 160, overflow: "hidden" }}>
-                                    <button
-                                      onClick={(e) => { e.stopPropagation(); setOpenMenuId(null); setCanvaPostId(post.id); setShowCanva(true); }}
-                                      style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", padding: "10px 14px", fontSize: 13, fontWeight: 600, background: "transparent", border: "none", cursor: "pointer", color: "var(--ink)", textAlign: "left" }}
-                                      onMouseEnter={e => (e.currentTarget.style.background = "var(--sunk)")}
-                                      onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
-                                    >
-                                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5Z"/></svg>
-                                      Éditer avec Canva
-                                    </button>
-                                    <div style={{ height: 1, background: "var(--line)", margin: "0 8px" }} />
                                     <button
                                       onClick={(e) => { e.stopPropagation(); deletePost(post); }}
                                       style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", padding: "10px 14px", fontSize: 13, fontWeight: 600, background: "transparent", border: "none", cursor: "pointer", color: "var(--warn)", textAlign: "left" }}
@@ -330,57 +312,6 @@ export default function ResultsPage() {
         </div>
       </main>
 
-      {/* Canva modal */}
-      {showCanva && (
-        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.55)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}>
-          <div className="card pop-in" style={{ width: "100%", maxWidth: 480, overflow: "hidden" }}>
-            {/* Modal header */}
-            <div style={{ background: "var(--forest)", padding: "20px 24px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-              <span style={{ fontFamily: "var(--display)", fontWeight: 900, fontSize: 20, letterSpacing: "-0.05em", color: "var(--cream)" }}>
-                Kl<span style={{ color: "var(--mint)" }}>ip</span>
-                <span style={{ color: "var(--cream-3)", fontWeight: 400, fontSize: 13 }}> × Canva Editor</span>
-              </span>
-              <button onClick={() => setShowCanva(false)} className="btn btn-ghost btn-sm" style={{ color: "var(--cream-2)" }}>
-                Fermer
-              </button>
-            </div>
-
-            {/* Modal body */}
-            <div style={{ padding: "28px 24px", display: "flex", flexDirection: "column", gap: 14 }}>
-              <div style={{ padding: "10px 14px", background: "var(--sunk)", borderRadius: "var(--r-s)", fontSize: 13, color: "var(--ink-2)", lineHeight: 1.5 }}>
-                Ouvrez Canva, créez votre visuel, téléchargez en PNG puis uploadez-le ici.
-              </div>
-              <a
-                href="https://www.canva.com/design?create&type=InstagramPost"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="btn btn-primary"
-                style={{ justifyContent: "center", width: "100%" }}
-              >
-                Ouvrir Canva →
-              </a>
-              <label className="btn btn-dark" style={{ justifyContent: "center", width: "100%", cursor: "pointer" }}>
-                Uploader mon PNG Canva
-                <input
-                  type="file"
-                  accept="image/png,image/jpeg"
-                  style={{ display: "none" }}
-                  onChange={async (e) => {
-                    const file = e.target.files?.[0];
-                    if (!file) return;
-                    const fileName = `${params.id}/${canvaPostId}-canva-${Date.now()}.png`;
-                    await supabase.storage.from("exports").upload(fileName, file, { contentType: file.type, upsert: true });
-                    const { data: urlData } = supabase.storage.from("exports").getPublicUrl(fileName);
-                    await supabase.from("posts").update({ exported_image_url: urlData.publicUrl, status: "validated" }).eq("id", canvaPostId);
-                    setShowCanva(false);
-                    window.location.reload();
-                  }}
-                />
-              </label>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

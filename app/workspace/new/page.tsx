@@ -1152,7 +1152,7 @@ export default function NewWorkspacePage() {
                   border: "1px solid rgba(13,15,10,.12)", color: "var(--ink-2)",
                   fontSize: 13, fontWeight: 600, cursor: "pointer",
                 }}>
-                ← Retour
+                Retour
               </button>
             )}
           </div>
@@ -1182,7 +1182,7 @@ export default function NewWorkspacePage() {
                   cursor: canContinue ? "pointer" : "not-allowed",
                   fontFamily: "var(--display)", transition: "all 0.15s",
                 }}>
-                Continuer →
+                Continuer
               </button>
             ) : (
               <button type="button" onClick={createWorkspace} disabled={loading}
@@ -1195,7 +1195,7 @@ export default function NewWorkspacePage() {
                   fontFamily: "var(--display)", transition: "all 0.15s",
                   opacity: loading ? 0.7 : 1,
                 }}>
-                {loading ? "Création en cours…" : "Créer l'espace client →"}
+                {loading ? "Création en cours…" : "Créer l'espace client"}
               </button>
             )}
           </div>
@@ -1216,7 +1216,7 @@ export default function NewWorkspacePage() {
               boxShadow: "0 2px 8px rgba(13,15,10,.08)",
             }}
           >
-            ← Retour
+            Retour
           </button>
         )}
 

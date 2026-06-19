@@ -1042,13 +1042,13 @@ export default function WorkspacePage() {
                                         <>
                                           <span style={{ width: 22, height: 22, borderRadius: 5, background: gradientCss, flexShrink: 0, border: '1px solid rgba(0,0,0,.08)' }} />
                                           <span style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--ink)', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{activeTpl.name}</span>
-                                          <span style={{ fontSize: 11, color: 'var(--mint-2)', fontWeight: 700 }}>Changer →</span>
+                                          <span style={{ fontSize: 11, color: 'var(--mint-2)', fontWeight: 700 }}>Changer</span>
                                         </>
                                       ) : (
                                         <>
                                           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" style={{ color: 'var(--ink-3)', flexShrink: 0 }}><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
                                           <span style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--ink-3)', flex: 1 }}>Choisir un template</span>
-                                          <span style={{ fontSize: 11, color: 'var(--ink-3)' }}>optionnel →</span>
+                                          <span style={{ fontSize: 11, color: 'var(--ink-3)' }}>optionnel</span>
                                         </>
                                       )}
                                     </button>
@@ -1300,7 +1300,7 @@ export default function WorkspacePage() {
                   className="btn btn-sm"
                   style={{ background: shareCopied ? 'var(--mint)' : 'var(--forest)', color: shareCopied ? 'var(--mint-ink)' : 'var(--cream)', border: 'none', fontWeight: 700, whiteSpace: 'nowrap', transition: 'background .2s' }}
                 >
-                  {shareCopied ? 'Copié ✓' : 'Copier'}
+                  {shareCopied ? 'Copié' : 'Copier'}
                 </button>
               </div>
             ) : (
@@ -1364,7 +1364,7 @@ export default function WorkspacePage() {
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
                   <rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/>
                 </svg>
-                {shareCopied ? 'Lien copié ✓' : 'Copier le lien'}
+                {shareCopied ? 'Lien copié' : 'Copier le lien'}
               </button>
             </div>
           </div>

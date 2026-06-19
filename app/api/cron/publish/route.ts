@@ -106,7 +106,7 @@ export async function GET(request: NextRequest) {
         instagram_post_id: publishData.id,
       }).eq("id", post.id);
 
-      if (postUserId) await createNotification({ userId: postUserId, workspaceId: postWorkspaceId, type: 'post_published', title: 'Post publié ✓', message: `« ${postLabel} » a été publié sur @${igHandle}`, postId: post.id, postTitle: postLabel });
+      if (postUserId) await createNotification({ userId: postUserId, workspaceId: postWorkspaceId, type: 'post_published', title: 'Post publié', message: `« ${postLabel} » a été publié sur @${igHandle}`, postId: post.id, postTitle: postLabel });
 
       console.log(`[Cron] Post ${post.id}: published OK (ig: ${publishData.id})`);
       published++;
