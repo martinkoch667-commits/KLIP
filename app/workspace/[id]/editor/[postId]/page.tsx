@@ -847,8 +847,7 @@ function EditorContextToolbar({ sel, allFonts, brandColors, stageW, stageH, onUp
               {textSel.shadowEnabled && (<>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
                   <span className="label" style={{ marginBottom: 0 }}>Couleur</span>
-                  <input type="color" value={textSel.shadowColor ?? '#000000'} onChange={e => u({ shadowColor: e.target.value } as any)}
-                    style={{ width: 30, height: 24, borderRadius: 5, border: '1.5px solid var(--line)', cursor: 'pointer', padding: 1 }} />
+                  <ColorPicker value={textSel.shadowColor ?? '#000000'} onChange={c => u({ shadowColor: c } as any)} />
                 </div>
                 <SliderRow label="Opacité" value={textSel.shadowOpacity ?? 75} min={0} max={100} step={1}
                   fmt={v => v + '%'} onChange={v => u({ shadowOpacity: v } as any)} />
@@ -861,8 +860,7 @@ function EditorContextToolbar({ sel, allFonts, brandColors, stageW, stageH, onUp
               </>)}
               <div className="label" style={{ margin: '10px 0 8px' }}>Contour texte</div>
               <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                <input type="color" value={textSel.stroke ?? '#000000'} onChange={e => u({ stroke: e.target.value } as any)}
-                  style={{ width: 30, height: 24, borderRadius: 5, border: '1.5px solid var(--line)', cursor: 'pointer', padding: 1 }} />
+                <ColorPicker value={textSel.stroke ?? '#000000'} onChange={c => u({ stroke: c } as any)} />
                 <input type="number" min={0} max={20} value={textSel.strokeWidth ?? 0} onChange={e => u({ strokeWidth: parseInt(e.target.value) || 0 } as any)}
                   style={{ width: 44, textAlign: 'center', border: '1.5px solid var(--line)', borderRadius: 6, fontSize: 12, padding: '3px 4px', fontWeight: 700, color: 'var(--ink)', outline: 'none' }} />
                 <span style={{ fontSize: 11, color: 'var(--ink-3)' }}>px épaisseur</span>
@@ -878,8 +876,7 @@ function EditorContextToolbar({ sel, allFonts, brandColors, stageW, stageH, onUp
               <div style={{ opacity: textSel.highlightEnabled ? 1 : 0.4, pointerEvents: textSel.highlightEnabled ? 'auto' : 'none', transition: 'opacity 150ms' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
                   <span className="label" style={{ marginBottom: 0 }}>Couleur</span>
-                  <input type="color" value={textSel.highlightColor ?? '#FFFF00'} onChange={e => u({ highlightColor: e.target.value } as any)}
-                    style={{ width: 30, height: 24, borderRadius: 5, border: '1.5px solid var(--line)', cursor: 'pointer', padding: 1 }} />
+                  <ColorPicker value={textSel.highlightColor ?? '#FFFF00'} onChange={c => u({ highlightColor: c } as any)} />
                 </div>
                 <SliderRow label="Opacité" value={textSel.highlightOpacity ?? 80} min={0} max={100} step={1}
                   fmt={v => v + '%'} onChange={v => u({ highlightOpacity: v } as any)} />
@@ -899,8 +896,7 @@ function EditorContextToolbar({ sel, allFonts, brandColors, stageW, stageH, onUp
               <div style={{ opacity: textSel.glowEnabled ? 1 : 0.4, pointerEvents: textSel.glowEnabled ? 'auto' : 'none', transition: 'opacity 150ms' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
                   <span className="label" style={{ marginBottom: 0 }}>Couleur</span>
-                  <input type="color" value={textSel.glowColor ?? '#00FFFF'} onChange={e => u({ glowColor: e.target.value } as any)}
-                    style={{ width: 30, height: 24, borderRadius: 5, border: '1.5px solid var(--line)', cursor: 'pointer', padding: 1 }} />
+                  <ColorPicker value={textSel.glowColor ?? '#00FFFF'} onChange={c => u({ glowColor: c } as any)} />
                 </div>
                 <SliderRow label="Intensité" value={textSel.glowIntensity ?? 50} min={0} max={100} step={1}
                   fmt={v => v + '%'} onChange={v => u({ glowIntensity: v } as any)} />
@@ -927,8 +923,7 @@ function EditorContextToolbar({ sel, allFonts, brandColors, stageW, stageH, onUp
               <div style={{ opacity: textSel.liftEnabled ? 1 : 0.4, pointerEvents: textSel.liftEnabled ? 'auto' : 'none', transition: 'opacity 150ms' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
                   <span className="label" style={{ marginBottom: 0 }}>Couleur</span>
-                  <input type="color" value={textSel.liftColor ?? '#333333'} onChange={e => u({ liftColor: e.target.value } as any)}
-                    style={{ width: 30, height: 24, borderRadius: 5, border: '1.5px solid var(--line)', cursor: 'pointer', padding: 1 }} />
+                  <ColorPicker value={textSel.liftColor ?? '#333333'} onChange={c => u({ liftColor: c } as any)} />
                 </div>
                 <SliderRow label="Profondeur" value={textSel.liftDepth ?? 6} min={1} max={20} step={1}
                   fmt={v => v + 'px'} onChange={v => u({ liftDepth: v } as any)} />
@@ -961,8 +956,7 @@ function EditorContextToolbar({ sel, allFonts, brandColors, stageW, stageH, onUp
               <div style={{ opacity: textSel.echoEnabled ? 1 : 0.4, pointerEvents: textSel.echoEnabled ? 'auto' : 'none', transition: 'opacity 150ms' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
                   <span className="label" style={{ marginBottom: 0 }}>Couleur</span>
-                  <input type="color" value={textSel.echoColor ?? '#FF69B4'} onChange={e => u({ echoColor: e.target.value } as any)}
-                    style={{ width: 30, height: 24, borderRadius: 5, border: '1.5px solid var(--line)', cursor: 'pointer', padding: 1 }} />
+                  <ColorPicker value={textSel.echoColor ?? '#FF69B4'} onChange={c => u({ echoColor: c } as any)} />
                 </div>
                 <SliderRow label="Nombre" value={textSel.echoCount ?? 3} min={1} max={5} step={1}
                   fmt={v => String(v)} onChange={v => u({ echoCount: v } as any)} />
@@ -1040,8 +1034,7 @@ function EditorContextToolbar({ sel, allFonts, brandColors, stageW, stageH, onUp
             <div style={{ ...popStyle, minWidth: 220 }}>
               <div className="label" style={{ marginBottom: 8 }}>Contour</div>
               <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 10 }}>
-                <input type="color" value={vecSel.stroke || '#000000'} onChange={e => u({ stroke: e.target.value } as Partial<VectorEl>)}
-                  style={{ width: 30, height: 24, borderRadius: 5, border: '1.5px solid var(--line)', cursor: 'pointer', padding: 1 }} />
+                <ColorPicker value={vecSel.stroke || '#000000'} onChange={c => u({ stroke: c } as Partial<VectorEl>)} />
                 <span style={{ fontSize: 11, color: 'var(--ink-3)' }}>couleur</span>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 5 }}>

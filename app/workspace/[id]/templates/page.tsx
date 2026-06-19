@@ -14,6 +14,7 @@ import useImage from 'use-image';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import Sidebar from '@/components/Sidebar';
 import SelectionOverlay from '@/components/SelectionOverlay';
+import ColorPicker from '@/components/ColorPicker';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -511,18 +512,18 @@ export default function TemplatesPage() {
               {editorBg.type === 'solid' ? (
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                   <span style={{ fontSize: 12, color: 'var(--cream-3)' }}>Couleur</span>
-                  <input type="color" value={editorBg.color ?? '#000000'} onChange={e => setEditorBg(b => ({ ...b, color: e.target.value }))} style={{ width: 36, height: 28, border: 'none', borderRadius: 4, cursor: 'pointer', padding: 0, background: 'none' }} />
+                  <ColorPicker value={editorBg.color ?? '#000000'} onChange={c => setEditorBg(b => ({ ...b, color: c }))} />
                 </div>
               ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                     <span style={{ fontSize: 12, color: 'var(--cream-3)', width: 50 }}>Départ</span>
-                    <input type="color" value={editorBg.colorFrom ?? '#0038FF'} onChange={e => setEditorBg(b => ({ ...b, colorFrom: e.target.value }))} style={{ width: 36, height: 28, border: 'none', borderRadius: 4, cursor: 'pointer', padding: 0, background: 'none' }} />
+                    <ColorPicker value={editorBg.colorFrom ?? '#0038FF'} onChange={c => setEditorBg(b => ({ ...b, colorFrom: c }))} />
                     <span style={{ fontSize: 12, color: 'var(--cream-3)', flex: 1 }}>{editorBg.colorFrom ?? '#0038FF'}</span>
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                     <span style={{ fontSize: 12, color: 'var(--cream-3)', width: 50 }}>Fin</span>
-                    <input type="color" value={editorBg.colorTo ?? '#FFFFFF'} onChange={e => setEditorBg(b => ({ ...b, colorTo: e.target.value }))} style={{ width: 36, height: 28, border: 'none', borderRadius: 4, cursor: 'pointer', padding: 0, background: 'none' }} />
+                    <ColorPicker value={editorBg.colorTo ?? '#FFFFFF'} onChange={c => setEditorBg(b => ({ ...b, colorTo: c }))} />
                     <span style={{ fontSize: 12, color: 'var(--cream-3)', flex: 1 }}>{editorBg.colorTo ?? '#FFFFFF'}</span>
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -788,7 +789,7 @@ function ZoneInspector({ zone, onChange, onDelete }: { zone: TextZone; onChange:
         {/* Color */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <label style={{ fontSize: 11, color: 'var(--cream-3)', width: 60, flexShrink: 0 }}>Couleur</label>
-          <input type="color" value={zone.fill} onChange={e => onChange({ fill: e.target.value })} style={{ width: 36, height: 28, border: 'none', borderRadius: 4, cursor: 'pointer', padding: 0, background: 'none' }} />
+          <ColorPicker value={zone.fill} onChange={c => onChange({ fill: c })} />
           <span style={{ fontSize: 12, color: 'var(--cream-3)' }}>{zone.fill}</span>
         </div>
 

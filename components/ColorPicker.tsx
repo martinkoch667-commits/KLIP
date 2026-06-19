@@ -1,5 +1,19 @@
 "use client";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
+
+const RECENT_KEY = 'klip-recent-colors';
+const RECENT_MAX = 8;
+
+function getRecent(): string[] {
+  if (typeof window === 'undefined') return [];
+  try { return JSON.parse(localStorage.getItem(RECENT_KEY) ?? '[]'); } catch { return []; }
+}
+
+function pushRecent(color: string) {
+  const list = getRecent().filter(c => c.toLowerCase() !== color.toLowerCase());
+  list.unshift(color);
+  localStorage.setItem(RECENT_KEY, JSON.stringify(list.slice(0, RECENT_MAX)));
+}
 
 // ── Color math ────────────────────────────────────────────────────────────────
 
@@ -84,6 +98,8 @@ export default function ColorPicker({
   const [b, setB] = useState(100);
   const [hexStr, setHexStr] = useState('FFFFFF');
   const [pos, setPos] = useState({ top: 0, left: 0 });
+  const [recentColors, setRecentColors] = useState<string[]>([]);
+  const [hasEyedropper] = useState(() => typeof window !== 'undefined' && 'EyeDropper' in window);
 
   const trigRef = useRef<HTMLButtonElement>(null);
   const popRef = useRef<HTMLDivElement>(null);
@@ -99,12 +115,17 @@ export default function ColorPicker({
     setHexStr(value.replace('#', '').toUpperCase());
   }, [value, open]);
 
+  // Load recent colors when popover opens
+  useEffect(() => {
+    if (open) setRecentColors(getRecent());
+  }, [open]);
+
   // Open popover — compute fixed position
   const handleOpen = () => {
     if (open) { setOpen(false); return; }
     if (trigRef.current) {
       const r = trigRef.current.getBoundingClientRect();
-      const popW = 276, popH = onOpacityChange ? 510 : 468;
+      const popW = 276, popH = onOpacityChange ? 560 : 520;
       const left = Math.min(r.left, window.innerWidth - popW - 8);
       const top = r.bottom + 6 + popH > window.innerHeight
         ? r.top - popH - 6
@@ -126,20 +147,31 @@ export default function ColorPicker({
     return () => document.removeEventListener('mousedown', fn);
   }, [open]);
 
-  // Commit a new color from HSB
   const commit = (nh: number, ns: number, nb: number) => {
     const col = hsbToHex(nh, ns, nb);
     onChange(col);
     setHexStr(col.replace('#', '').toUpperCase());
+    pushRecent(col);
+    setRecentColors(getRecent());
   };
 
-  // Pick a preset or brand color
   const pick = (col: string) => {
     const [nh, ns, nb] = hexToHsb(col);
     setH(nh); setS(ns); setB(nb);
     onChange(col);
     setHexStr(col.replace('#', '').toUpperCase());
+    pushRecent(col);
+    setRecentColors(getRecent());
   };
+
+  const handleEyedropper = useCallback(async () => {
+    try {
+      // @ts-ignore EyeDropper is not yet in TS lib
+      const dropper = new window.EyeDropper();
+      const { sRGBHex } = await dropper.open();
+      pick(sRGBHex);
+    } catch { /* user cancelled */ }
+  }, [h, s, b]);
 
   // Drag handlers
   const startField = makeDragger(fieldRef, (x, y) => {
@@ -221,6 +253,26 @@ export default function ColorPicker({
             ))}
           </div>
 
+          {/* Recent colors */}
+          {recentColors.length > 0 && (
+            <div style={{ marginBottom: 10 }}>
+              <div className="label" style={{ marginBottom: 7 }}>Récentes</div>
+              <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
+                {recentColors.map((col, i) => (
+                  <button key={i} type="button" onClick={() => pick(col)}
+                    style={{
+                      width: 28, height: 28, borderRadius: 6, background: col,
+                      border: 'none', cursor: 'pointer',
+                      boxShadow: value.toLowerCase() === col.toLowerCase()
+                        ? '0 0 0 2.5px var(--mint-2)'
+                        : 'inset 0 0 0 1.5px rgba(13,15,10,.18)',
+                    }}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* HSB gradient field */}
           <div
             ref={fieldRef}
@@ -298,7 +350,7 @@ export default function ColorPicker({
             </div>
           )}
 
-          {/* Hex + opacity inputs */}
+          {/* Hex + opacity inputs + eyedropper */}
           <div style={{ display: 'flex', gap: 7, marginTop: 4 }}>
             <div style={{
               flex: 1, display: 'flex', alignItems: 'center', gap: 5,
@@ -339,6 +391,23 @@ export default function ColorPicker({
                 />
                 <span style={{ fontFamily: 'var(--mono)', fontSize: 11, color: 'var(--ink-3)', flexShrink: 0 }}>%</span>
               </div>
+            )}
+            {hasEyedropper && (
+              <button
+                type="button"
+                onClick={handleEyedropper}
+                title="Pipette"
+                style={{
+                  width: 36, height: 36, borderRadius: 'var(--r-s)', border: '1.5px solid var(--line)',
+                  background: 'var(--sunk)', cursor: 'pointer', display: 'grid', placeItems: 'center',
+                  color: 'var(--ink-2)', flexShrink: 0,
+                }}
+              >
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M12 2a5 5 0 0 1 5 5c0 2-1 3.5-2.5 4.5L19 16l-3 3-4.5-4.5C10.5 15.5 9 14.5 9 12.5V12L3.5 6.5A2 2 0 0 1 6.5 3.5L12 9V7a5 5 0 0 1 0-5z"/>
+                  <path d="M3 21l3-3"/>
+                </svg>
+              </button>
             )}
           </div>
         </div>

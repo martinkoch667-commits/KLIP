@@ -13,6 +13,7 @@ import {
 } from 'react-konva';
 import useImage from 'use-image';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
+import ColorPicker from '@/components/ColorPicker';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -829,8 +830,7 @@ function ColorRow({ label, value, onChange }: { label: string; value: string; on
   return (
     <PropRow label={label}>
       <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-        <input type="color" value={value} onChange={e => onChange(e.target.value)}
-          style={{ width: 36, height: 32, border: '1px solid #E5E7EB', borderRadius: 6, cursor: 'pointer', padding: 2 }} />
+        <ColorPicker value={value} onChange={onChange} />
         <span style={{ fontSize: 12, color: '#374151', fontFamily: 'monospace' }}>{value.toUpperCase()}</span>
       </div>
     </PropRow>
