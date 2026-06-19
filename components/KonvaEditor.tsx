@@ -177,6 +177,19 @@ export default function KonvaEditor({ workspaceId, postId }: { workspaceId: stri
   const [unsplashPhotos, setUnsplashPhotos] = useState<string[]>([]);
   const [unsplashLoading, setUnsplashLoading] = useState(false);
 
+  // Pexels
+  const [pexelsQuery, setPexelsQuery] = useState('');
+  const [pexelsPhotos, setPexelsPhotos] = useState<string[]>([]);
+  const [pexelsLoading, setPexelsLoading] = useState(false);
+
+  // Iconify
+  const [iconifyQuery, setIconifyQuery] = useState('');
+  const [iconifyIcons, setIconifyIcons] = useState<string[]>([]);
+  const [iconifyLoading, setIconifyLoading] = useState(false);
+
+  // Gallery tab: 'unsplash' | 'pexels' | 'icons'
+  const [galleryTab, setGalleryTab] = useState<'unsplash' | 'pexels' | 'icons'>('pexels');
+
   // Refs to avoid stale closures in keyboard handler
   const elementsRef = useRef<CanvasEl[]>([]);
   const selectedIdRef = useRef<string | null>(null);
@@ -436,6 +449,40 @@ export default function KonvaEditor({ workspaceId, postId }: { workspaceId: stri
 
   useEffect(() => { fetchUnsplash('lifestyle'); }, []);
 
+  // ── Pexels ────────────────────────────────────────────────────────────────
+
+  const fetchPexels = async (q: string) => {
+    setPexelsLoading(true);
+    try {
+      const res = await fetch(`/api/pexels?query=${encodeURIComponent(q || 'nature')}`);
+      const data = await res.json();
+      setPexelsPhotos(
+        (data.photos ?? []).map((p: { src: { medium: string } }) => p.src.medium)
+      );
+    } catch {
+      setPexelsPhotos([]);
+    }
+    setPexelsLoading(false);
+  };
+
+  useEffect(() => { fetchPexels('lifestyle'); }, []);
+
+  // ── Iconify ───────────────────────────────────────────────────────────────
+
+  const fetchIconify = async (q: string) => {
+    setIconifyLoading(true);
+    try {
+      const res = await fetch(`/api/iconify?query=${encodeURIComponent(q || 'star')}`);
+      const data = await res.json();
+      setIconifyIcons(data.icons ?? []);
+    } catch {
+      setIconifyIcons([]);
+    }
+    setIconifyLoading(false);
+  };
+
+  useEffect(() => { fetchIconify('social media'); }, []);
+
   // ── Z-order ───────────────────────────────────────────────────────────────
 
   const bringForward = () => {
@@ -606,31 +653,110 @@ export default function KonvaEditor({ workspaceId, postId }: { workspaceId: stri
               ))}
             </div>
 
-            {/* Unsplash panel */}
+            {/* Media gallery panel */}
             {showUnsplash && (
               <div style={{ marginBottom: 20 }}>
-                <div style={{ display: 'flex', gap: 4, marginBottom: 8 }}>
-                  <input
-                    value={unsplashQuery}
-                    onChange={e => setUnsplashQuery(e.target.value)}
-                    onKeyDown={e => e.key === 'Enter' && fetchUnsplash(unsplashQuery)}
-                    placeholder="Rechercher des photos…"
-                    style={{ flex: 1, padding: '6px 8px', border: '1px solid #E5E7EB', borderRadius: 6, fontSize: 12, outline: 'none' }}
-                  />
-                  <button onClick={() => fetchUnsplash(unsplashQuery)}
-                    style={{ padding: '6px 10px', background: '#0038FF', color: 'white', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 13, display:'flex', alignItems:'center' }}><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg></button>
+                {/* Tabs */}
+                <div style={{ display: 'flex', gap: 4, marginBottom: 10 }}>
+                  {([['pexels', 'Pexels'], ['icons', 'Icônes'], ['unsplash', 'Unsplash']] as const).map(([tab, label]) => (
+                    <button key={tab} onClick={() => setGalleryTab(tab)}
+                      style={{ flex: 1, padding: '5px 0', border: `1px solid ${galleryTab === tab ? '#0038FF' : '#E5E7EB'}`, borderRadius: 6, cursor: 'pointer', fontSize: 11, fontWeight: 600, background: galleryTab === tab ? '#EEF2FF' : '#F9FAFB', color: galleryTab === tab ? '#0038FF' : '#6B7280' }}>
+                      {label}
+                    </button>
+                  ))}
                 </div>
-                {unsplashLoading ? (
-                  <p style={{ fontSize: 12, color: '#9CA3AF', textAlign: 'center', padding: '8px 0' }}>Chargement…</p>
-                ) : (
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 4 }}>
-                    {unsplashPhotos.map((src, i) => (
-                      <UnsplashThumb key={i} src={src}
-                        onAdd={() => addImageEl(`/api/proxy-image?url=${encodeURIComponent(src)}`)}
-                        onBg={() => { setProxyUrl(`/api/proxy-image?url=${encodeURIComponent(src)}`); setShowUnsplash(false); }}
-                      />
-                    ))}
-                  </div>
+
+                {/* Pexels tab */}
+                {galleryTab === 'pexels' && (
+                  <>
+                    <div style={{ display: 'flex', gap: 4, marginBottom: 8 }}>
+                      <input value={pexelsQuery} onChange={e => setPexelsQuery(e.target.value)}
+                        onKeyDown={e => e.key === 'Enter' && fetchPexels(pexelsQuery)}
+                        placeholder="Rechercher sur Pexels…"
+                        style={{ flex: 1, padding: '6px 8px', border: '1px solid #E5E7EB', borderRadius: 6, fontSize: 12, outline: 'none' }} />
+                      <button onClick={() => fetchPexels(pexelsQuery)}
+                        style={{ padding: '6px 10px', background: '#0038FF', color: 'white', border: 'none', borderRadius: 6, cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+                      </button>
+                    </div>
+                    {pexelsLoading ? (
+                      <p style={{ fontSize: 12, color: '#9CA3AF', textAlign: 'center', padding: '8px 0' }}>Chargement…</p>
+                    ) : pexelsPhotos.length === 0 ? (
+                      <p style={{ fontSize: 12, color: '#9CA3AF', textAlign: 'center', padding: '8px 0' }}>Aucun résultat</p>
+                    ) : (
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 4 }}>
+                        {pexelsPhotos.map((src, i) => (
+                          <UnsplashThumb key={i} src={src}
+                            onAdd={() => addImageEl(`/api/proxy-image?url=${encodeURIComponent(src)}`)}
+                            onBg={() => { setProxyUrl(`/api/proxy-image?url=${encodeURIComponent(src)}`); setShowUnsplash(false); }}
+                          />
+                        ))}
+                      </div>
+                    )}
+                  </>
+                )}
+
+                {/* Iconify tab */}
+                {galleryTab === 'icons' && (
+                  <>
+                    <div style={{ display: 'flex', gap: 4, marginBottom: 8 }}>
+                      <input value={iconifyQuery} onChange={e => setIconifyQuery(e.target.value)}
+                        onKeyDown={e => e.key === 'Enter' && fetchIconify(iconifyQuery)}
+                        placeholder="Rechercher une icône…"
+                        style={{ flex: 1, padding: '6px 8px', border: '1px solid #E5E7EB', borderRadius: 6, fontSize: 12, outline: 'none' }} />
+                      <button onClick={() => fetchIconify(iconifyQuery)}
+                        style={{ padding: '6px 10px', background: '#0038FF', color: 'white', border: 'none', borderRadius: 6, cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+                      </button>
+                    </div>
+                    {iconifyLoading ? (
+                      <p style={{ fontSize: 12, color: '#9CA3AF', textAlign: 'center', padding: '8px 0' }}>Chargement…</p>
+                    ) : iconifyIcons.length === 0 ? (
+                      <p style={{ fontSize: 12, color: '#9CA3AF', textAlign: 'center', padding: '8px 0' }}>Aucune icône trouvée</p>
+                    ) : (
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 4 }}>
+                        {iconifyIcons.map((iconId, i) => {
+                          const [prefix, name] = iconId.split(':');
+                          const svgUrl = `https://api.iconify.design/${prefix}/${name}.svg`;
+                          return (
+                            <button key={i} title={iconId}
+                              onClick={() => addImageEl(`/api/proxy-image?url=${encodeURIComponent(svgUrl)}`)}
+                              style={{ aspectRatio: '1', border: '1px solid #E5E7EB', borderRadius: 6, cursor: 'pointer', background: '#F9FAFB', display: 'grid', placeItems: 'center', padding: 4, overflow: 'hidden' }}>
+                              <img src={svgUrl} alt={name} width={28} height={28} style={{ display: 'block' }} />
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </>
+                )}
+
+                {/* Unsplash tab */}
+                {galleryTab === 'unsplash' && (
+                  <>
+                    <div style={{ display: 'flex', gap: 4, marginBottom: 8 }}>
+                      <input value={unsplashQuery} onChange={e => setUnsplashQuery(e.target.value)}
+                        onKeyDown={e => e.key === 'Enter' && fetchUnsplash(unsplashQuery)}
+                        placeholder="Rechercher des photos…"
+                        style={{ flex: 1, padding: '6px 8px', border: '1px solid #E5E7EB', borderRadius: 6, fontSize: 12, outline: 'none' }} />
+                      <button onClick={() => fetchUnsplash(unsplashQuery)}
+                        style={{ padding: '6px 10px', background: '#0038FF', color: 'white', border: 'none', borderRadius: 6, cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+                      </button>
+                    </div>
+                    {unsplashLoading ? (
+                      <p style={{ fontSize: 12, color: '#9CA3AF', textAlign: 'center', padding: '8px 0' }}>Chargement…</p>
+                    ) : (
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 4 }}>
+                        {unsplashPhotos.map((src, i) => (
+                          <UnsplashThumb key={i} src={src}
+                            onAdd={() => addImageEl(`/api/proxy-image?url=${encodeURIComponent(src)}`)}
+                            onBg={() => { setProxyUrl(`/api/proxy-image?url=${encodeURIComponent(src)}`); setShowUnsplash(false); }}
+                          />
+                        ))}
+                      </div>
+                    )}
+                  </>
                 )}
               </div>
             )}
