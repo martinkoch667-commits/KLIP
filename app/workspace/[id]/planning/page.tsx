@@ -27,6 +27,8 @@ interface Post {
   brief: string;
   post_type?: PostType | null;
   target_platforms?: string[] | null;
+  tagged_users?: string[] | null;
+  music_note?: string | null;
 }
 
 interface Workspace {
@@ -208,11 +210,13 @@ function PlanningContent() {
   const [draggedId,    setDraggedId]    = useState<string | null>(null);
   const [dragOverDay,  setDragOverDay]  = useState<string | null>(null);
   const [dragOverHour, setDragOverHour] = useState<number | null>(null);
-  const [panelDate,      setPanelDate]      = useState("");
-  const [panelTime,      setPanelTime]      = useState("09:00");
-  const [panelDesc,      setPanelDesc]      = useState("");
-  const [panelPostType,  setPanelPostType]  = useState<PostType>("post");
-  const [panelPlatforms, setPanelPlatforms] = useState<string[]>(["instagram"]);
+  const [panelDate,         setPanelDate]         = useState("");
+  const [panelTime,         setPanelTime]         = useState("09:00");
+  const [panelDesc,         setPanelDesc]         = useState("");
+  const [panelPostType,     setPanelPostType]     = useState<PostType>("post");
+  const [panelPlatforms,    setPanelPlatforms]    = useState<string[]>(["instagram"]);
+  const [panelTaggedUsers,  setPanelTaggedUsers]  = useState("");
+  const [panelMusicNote,    setPanelMusicNote]    = useState("");
   const [scheduling,   setScheduling]   = useState(false);
   const [publishing,   setPublishing]   = useState(false);
   const [toast,        setToast]        = useState<{ msg: string; ok: boolean } | null>(null);
@@ -230,7 +234,7 @@ function PlanningContent() {
     const [{ data: ws }, { data: postsData }] = await Promise.all([
       supabase.from("workspaces").select("id, name, primary_color, secondary_color, font_family, instagram_account_id, instagram_username, facebook_page_id").eq("id", id).single(),
       supabase.from("posts")
-        .select("id, photo_url, exported_image_url, texte_visuel, description, status, scheduled_at, brief, post_type, target_platforms")
+        .select("id, photo_url, exported_image_url, texte_visuel, description, status, scheduled_at, brief, post_type, target_platforms, tagged_users, music_note")
         .eq("workspace_id", id)
         .in("status", ["generated", "validated", "scheduled", "published"])
         .order("scheduled_at", { ascending: true }),
@@ -272,6 +276,8 @@ function PlanningContent() {
       ...(workspace?.facebook_page_id ? ["facebook"] : []),
     ];
     setPanelPlatforms(post.target_platforms?.length ? post.target_platforms : (connected.length ? connected : ["instagram"]));
+    setPanelTaggedUsers((post.tagged_users ?? []).join(", "));
+    setPanelMusicNote(post.music_note ?? "");
     if (post.scheduled_at) {
       const d = new Date(post.scheduled_at);
       setPanelDate(toDateInput(d));
@@ -324,8 +330,20 @@ function PlanningContent() {
     if (!selectedPost || !panelDate) return;
     setScheduling(true);
     const scheduled_at = buildScheduledAt(panelDate, panelTime);
-    await supabase.from("posts").update({ scheduled_at, description: panelDesc, status: "scheduled", post_type: panelPostType, target_platforms: panelPlatforms }).eq("id", selectedPost.id);
-    setPosts(prev => prev.map(p => p.id === selectedPost.id ? { ...p, scheduled_at, description: panelDesc, status: "scheduled", post_type: panelPostType, target_platforms: panelPlatforms } : p));
+    const tagged_users = panelTaggedUsers
+      .split(",")
+      .map(s => s.trim().replace(/^@/, ""))
+      .filter(Boolean);
+    await supabase.from("posts").update({
+      scheduled_at,
+      description: panelDesc,
+      status: "scheduled",
+      post_type: panelPostType,
+      target_platforms: panelPlatforms,
+      tagged_users,
+      music_note: panelMusicNote || null,
+    }).eq("id", selectedPost.id);
+    setPosts(prev => prev.map(p => p.id === selectedPost.id ? { ...p, scheduled_at, description: panelDesc, status: "scheduled", post_type: panelPostType, target_platforms: panelPlatforms, tagged_users, music_note: panelMusicNote || null } : p));
     setScheduling(false); setSelectedPost(null);
     showToast("Post programmé");
   }
@@ -879,6 +897,45 @@ function PlanningContent() {
                     {cfg.label}
                   </button>
                 ))}
+              </div>
+            </div>
+
+            {/* ── Tags Instagram ── */}
+            <div>
+              <label className="label" style={{ display: "block", marginBottom: 6 }}>Personnes taguées</label>
+              <div style={{ position: "relative" }}>
+                <input
+                  type="text"
+                  value={panelTaggedUsers}
+                  onChange={e => setPanelTaggedUsers(e.target.value)}
+                  placeholder="@username1, @username2…"
+                  className="input"
+                  style={{ fontSize: 12.5, paddingLeft: 30 }}
+                />
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"
+                  style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", color: "var(--ink-3)", pointerEvents: "none" }}>
+                  <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
+                </svg>
+              </div>
+              <span style={{ fontSize: 11, color: "var(--ink-3)", marginTop: 4, display: "block" }}>Séparez les comptes par une virgule</span>
+            </div>
+
+            {/* ── Note musicale (affichage seul si rempli, éditable) ── */}
+            <div>
+              <label className="label" style={{ display: "block", marginBottom: 6 }}>Note musicale</label>
+              <div style={{ position: "relative" }}>
+                <input
+                  type="text"
+                  value={panelMusicNote}
+                  onChange={e => setPanelMusicNote(e.target.value)}
+                  placeholder="Titre — Artiste"
+                  className="input"
+                  style={{ fontSize: 12.5, paddingLeft: 30 }}
+                />
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"
+                  style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", color: "var(--ink-3)", pointerEvents: "none" }}>
+                  <path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/>
+                </svg>
               </div>
             </div>
 
