@@ -76,6 +76,26 @@ function getElementBounds(el: AnyEl): Bounds | null {
       h = Math.max(1, lineCount) * fontSize * lineHeight + pV * 2;
       originX = 0; originY = 0;
 
+    } else if (el.type === 'vector') {
+      if (el.shape === 'custom' && el.points && Array.isArray(el.points) && el.points.length >= 2) {
+        const pts = el.points as Array<{x:number;y:number;cpIn?:{x:number;y:number};cpOut?:{x:number;y:number}}>;
+        let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+        for (const p of pts) {
+          minX = Math.min(minX, p.x, p.cpIn?.x ?? p.x, p.cpOut?.x ?? p.x);
+          minY = Math.min(minY, p.y, p.cpIn?.y ?? p.y, p.cpOut?.y ?? p.y);
+          maxX = Math.max(maxX, p.x, p.cpIn?.x ?? p.x, p.cpOut?.x ?? p.x);
+          maxY = Math.max(maxY, p.y, p.cpIn?.y ?? p.y, p.cpOut?.y ?? p.y);
+        }
+        x = el.x + minX; y = el.y + minY;
+        w = Math.max(20, maxX - minX);
+        h = Math.max(20, maxY - minY);
+        originX = 0; originY = 0;
+      } else {
+        x = el.x; y = el.y;
+        w = Math.max(20, el.width ?? 100);
+        h = Math.max(20, el.height ?? 100);
+        originX = 0; originY = 0;
+      }
     } else {
       return null;
     }
@@ -179,6 +199,11 @@ export default function SelectionOverlay({ el, stageRef, onChange, onDragEnd, zo
     const snapInner   = el.innerRadius ?? 25;
     const startFontSize = el.fontSize ?? 32;
     const elType      = el.type;
+    const startCustomPts = elType === 'vector' && el.shape === 'custom' && Array.isArray(el.points)
+      ? (el.points as Array<{x:number;y:number;cpIn?:{x:number;y:number};cpOut?:{x:number;y:number}}>).map(p => ({ x:p.x, y:p.y, cpIn: p.cpIn ? {...p.cpIn} : undefined, cpOut: p.cpOut ? {...p.cpOut} : undefined }))
+      : null;
+    const startPtMinX = startCustomPts ? Math.min(...startCustomPts.map(p => p.x)) : 0;
+    const startPtMinY = startCustomPts ? Math.min(...startCustomPts.map(p => p.y)) : 0;
 
     const rad = startRot * Math.PI / 180;
     const cos = Math.cos(rad), sin = Math.sin(rad);
@@ -211,6 +236,46 @@ export default function SelectionOverlay({ el, stageRef, onChange, onDragEnd, zo
           const r = Math.max(10, snapOuter + delta);
           const starRatio = snapInner / snapOuter;
           onChangeRef.current({ outerRadius: r, innerRadius: Math.max(5, r * starRatio) });
+          return;
+        }
+
+        // ── Vector custom path — scale all points proportionally ──────────────
+        if (elType === 'vector' && startCustomPts) {
+          let nw = startW, nh = startH;
+          let origin = { x: startElX, y: startElY };
+          const isCorner = ['tl','tr','bl','br'].includes(handleId);
+          if (isCorner) {
+            switch (handleId) {
+              case 'br': nw = startW + ldx; nh = startH + ldy; break;
+              case 'tr': nw = startW + ldx; nh = startH - ldy; break;
+              case 'bl': nw = startW - ldx; nh = startH + ldy; break;
+              case 'tl': nw = startW - ldx; nh = startH - ldy; break;
+            }
+          } else {
+            switch (handleId) {
+              case 'mr': nw = startW + ldx; break;
+              case 'ml': nw = startW - ldx; origin = shiftOrigin(ldx, 0); break;
+              case 'bc': nh = startH + ldy; break;
+              case 'tc': nh = startH - ldy; origin = shiftOrigin(0, ldy); break;
+            }
+          }
+          nw = Math.max(20, nw); nh = Math.max(20, nh);
+          if (isCorner) {
+            switch (handleId) {
+              case 'tr': origin = shiftOrigin(0, startH - nh); break;
+              case 'bl': origin = shiftOrigin(startW - nw, 0); break;
+              case 'tl': origin = shiftOrigin(startW - nw, startH - nh); break;
+            }
+          }
+          const sx = nw / Math.max(1, startW);
+          const sy = nh / Math.max(1, startH);
+          const newPts = startCustomPts.map(p => ({
+            x: startPtMinX + (p.x - startPtMinX) * sx,
+            y: startPtMinY + (p.y - startPtMinY) * sy,
+            ...(p.cpIn  ? { cpIn:  { x: startPtMinX + (p.cpIn.x  - startPtMinX) * sx, y: startPtMinY + (p.cpIn.y  - startPtMinY) * sy } } : {}),
+            ...(p.cpOut ? { cpOut: { x: startPtMinX + (p.cpOut.x - startPtMinX) * sx, y: startPtMinY + (p.cpOut.y - startPtMinY) * sy } } : {}),
+          }));
+          onChangeRef.current({ x: origin.x, y: origin.y, points: newPts });
           return;
         }
 

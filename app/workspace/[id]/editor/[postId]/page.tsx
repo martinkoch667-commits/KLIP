@@ -729,8 +729,6 @@ function EditorContextToolbar({ sel, allFonts, brandColors, stageW, stageH, onUp
     const parts = (['underline', 'line-through'] as const).filter(f => f === flag ? !cur.includes(f) : cur.includes(f));
     u({ textDecoration: parts.join(' ') } as Partial<TextEl>);
   };
-  const PALETTE = ['#14160F','#FFFFFF','#C8F135','#2FD79B','#FF6B6B','#0038FF','#FF9500','#5A5E50',...brandColors];
-  const palette = Array.from(new Set(PALETTE)).slice(0, 16);
   const colorVal = textSel?.fill ?? (vecSel?.fill ?? (sel.type === 'rect' ? (sel as RectEl).fill : sel.type === 'circle' ? (sel as CircleEl).fill : sel.type === 'star' ? (sel as StarEl).fill : '#000'));
   const setFill = (c: string) => {
     if (textSel) u({ fill: c } as Partial<TextEl>);
@@ -739,14 +737,6 @@ function EditorContextToolbar({ sel, allFonts, brandColors, stageW, stageH, onUp
   };
 
   const popStyle: React.CSSProperties = { position: 'absolute', top: 'calc(100% + 8px)', left: 0, background: '#fff', borderRadius: 12, padding: 12, boxShadow: '0 18px 44px -14px rgba(13,15,10,.28), 0 0 0 1px rgba(13,15,10,.06)', zIndex: 100, minWidth: 220 };
-  const swatchGrid = (colors: string[], activeColor: string, onPick: (c: string) => void) => (
-    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 10 }}>
-      {colors.map((c, i) => (
-        <button key={i} onClick={() => onPick(c)} title={c}
-          style={{ width: 26, height: 26, borderRadius: 6, background: c, cursor: 'pointer', border: 'none', boxShadow: activeColor === c ? '0 0 0 2.5px var(--mint-2)' : 'inset 0 0 0 1px rgba(13,15,10,.14)' }} />
-      ))}
-    </div>
-  );
 
   return (
     <div className="pop-in" style={{ display: 'flex', alignItems: 'center', gap: 2, background: '#fff', borderRadius: 12, padding: '5px 8px', boxShadow: '0 8px 26px -10px rgba(13,15,10,.2), 0 0 0 1px rgba(13,15,10,.06)', overflow: 'visible', position: 'relative' }}>
@@ -975,19 +965,7 @@ function EditorContextToolbar({ sel, allFonts, brandColors, stageW, stageH, onUp
 
       {/* COLOR — text fill or shape fill */}
       {(isText || isShape) && (
-        <div style={{ position: 'relative' }}>
-          <button onClick={() => setPop(p => p === 'color' ? null : 'color')} title="Couleur"
-            style={{ width: 32, height: 32, borderRadius: 8, display: 'grid', placeItems: 'center', background: pop === 'color' ? 'var(--sunk)' : 'transparent', border: 'none', cursor: 'pointer' }}>
-            <span style={{ width: 18, height: 18, borderRadius: 5, background: colorVal, boxShadow: 'inset 0 0 0 1.5px rgba(13,15,10,.2)' }} />
-          </button>
-          {pop === 'color' && (
-            <div style={popStyle}>
-              <div className="label" style={{ marginBottom: 8 }}>{isShape ? 'Remplissage' : 'Couleur du texte'}</div>
-              {swatchGrid(palette, colorVal, (c) => { setFill(c); setPop(null); })}
-              <ColorPicker value={colorVal} onChange={(c: string) => setFill(c)} />
-            </div>
-          )}
-        </div>
+        <ColorPicker value={colorVal} onChange={(c: string) => setFill(c)} brandColors={brandColors} />
       )}
 
       {/* TEXT background */}
@@ -1004,8 +982,7 @@ function EditorContextToolbar({ sel, allFonts, brandColors, stageW, stageH, onUp
             {pop === 'bg' && (
               <div style={{ ...popStyle, left: 'auto', right: 0 }}>
                 <div className="label" style={{ marginBottom: 8 }}>Fond du texte</div>
-                {swatchGrid(palette, textSel.bgColor, (c) => u({ bgColor: c } as Partial<TextEl>))}
-                <ColorPicker value={textSel.bgColor} onChange={(c: string) => u({ bgColor: c } as Partial<TextEl>)} />
+                <ColorPicker value={textSel.bgColor} onChange={(c: string) => u({ bgColor: c } as Partial<TextEl>)} brandColors={brandColors} />
                 <div style={{ marginTop: 10 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 5 }}>
                     <span className="label" style={{ marginBottom: 0 }}>Opacité fond</span>
