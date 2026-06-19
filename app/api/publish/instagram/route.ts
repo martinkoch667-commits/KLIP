@@ -68,8 +68,18 @@ export async function POST(request: NextRequest) {
     const isVideo    = isVideoUrl(mediaUrl);
     const postType: string = post.post_type ?? 'post';
     const isStory    = postType === 'story' && !isVideo;
+    const isCarousel = postType === 'carrousel' && !isVideo;
 
-    console.log(`[Publish] post_type: ${postType}, media_type: ${isVideo ? "REELS (video)" : isStory ? "STORIES" : "IMAGE"}`, mediaUrl?.slice(0, 80));
+    // Parse carousel URLs from editor_json
+    let carouselUrls: string[] = [];
+    if (isCarousel && post.editor_json) {
+      try {
+        const editorData = JSON.parse(post.editor_json);
+        carouselUrls = editorData.carousel_urls ?? [];
+      } catch { /* ignore parse errors */ }
+    }
+
+    console.log(`[Publish] post_type: ${postType}, media_type: ${isVideo ? "REELS (video)" : isStory ? "STORIES" : isCarousel ? `CAROUSEL (${carouselUrls.length} slides)` : "IMAGE"}`, mediaUrl?.slice(0, 80));
 
     // ═══════════════════════════════════════════════════════════════════════════
     // REELS flow (video)
@@ -139,6 +149,91 @@ export async function POST(request: NextRequest) {
       });
 
       return NextResponse.json({ success: true, instagramPostId: publishData.id, type: "reels" });
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // CAROUSEL flow
+    // ═══════════════════════════════════════════════════════════════════════════
+    if (isCarousel && carouselUrls.length >= 2) {
+      // Step 1: Create a container for each carousel item
+      const itemIds: string[] = [];
+      for (const imgUrl of carouselUrls) {
+        const itemRes = await fetch("https://graph.instagram.com/v21.0/me/media", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            image_url:        imgUrl,
+            is_carousel_item: true,
+            access_token:     igToken,
+          }),
+        });
+        const itemData = await itemRes.json();
+        console.log("[Publish Carousel] item response:", JSON.stringify(itemData));
+        if (!itemData.id) {
+          return NextResponse.json(
+            { error: itemData.error?.message ?? `Échec container carousel slide` },
+            { status: 500 }
+          );
+        }
+        itemIds.push(itemData.id);
+      }
+
+      // Step 2: Create the carousel container
+      const carouselRes = await fetch("https://graph.instagram.com/v21.0/me/media", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          media_type:   "CAROUSEL",
+          children:     itemIds.join(","),
+          caption:      post.description ?? "",
+          access_token: igToken,
+        }),
+      });
+      const carouselData = await carouselRes.json();
+      console.log("[Publish Carousel] carousel container:", JSON.stringify(carouselData));
+
+      if (!carouselData.id) {
+        return NextResponse.json(
+          { error: carouselData.error?.message ?? "Échec container carousel" },
+          { status: 500 }
+        );
+      }
+
+      // Step 3: Wait 5 seconds then publish
+      await new Promise((resolve) => setTimeout(resolve, 5000));
+
+      const publishRes = await fetch("https://graph.instagram.com/v21.0/me/media_publish", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          creation_id:  carouselData.id,
+          access_token: igToken,
+        }),
+      });
+      const publishData = await publishRes.json();
+      console.log("[Publish Carousel] publish response:", JSON.stringify(publishData));
+
+      if (!publishData.id) {
+        return NextResponse.json(
+          { error: publishData.error?.message ?? "Échec publication carousel" },
+          { status: 500 }
+        );
+      }
+
+      await supabase.from("posts").update({
+        status: "published",
+        instagram_post_id: publishData.id,
+      }).eq("id", postId);
+
+      if (userId) await createNotification({
+        userId, workspaceId,
+        type: 'post_published',
+        title: 'Post publié',
+        message: `Carousel de ${carouselUrls.length} slides publié sur @${workspace.instagram_username ?? 'votre compte'}`,
+        postId, postTitle: post.title ?? undefined,
+      });
+
+      return NextResponse.json({ success: true, instagramPostId: publishData.id, type: "carousel" });
     }
 
     // ═══════════════════════════════════════════════════════════════════════════

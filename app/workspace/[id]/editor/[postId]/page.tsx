@@ -1405,6 +1405,7 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
 
   // ── Carousel: save current slide state into slidesRef ────────────────────
   const saveCurrentSlide = () => {
+    const thumbnail = stageRef.current?.toDataURL({ pixelRatio: 0.3 }) ?? undefined;
     const updated = slidesRef.current.map((s, i) =>
       i === activeSlideIdx ? {
         ...s,
@@ -1412,6 +1413,7 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
         proxyUrl: proxyUrlRef.current,
         bgOffsetX: bgOffsetXRef.current,
         bgOffsetY: bgOffsetYRef.current,
+        thumbnail,
       } : s
     );
     slidesRef.current = updated;
@@ -2174,35 +2176,76 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
     if (!stageRef.current) return;
     setSaving(true);
     setSelectedId(null);
+    setSelectedIds([]);
     await new Promise(resolve => setTimeout(resolve, 200));
-    const dataURL = stageRef.current.toDataURL({ pixelRatio: 2 });
-    const blob = await fetch(dataURL).then(r => r.blob());
-    const fileName = `${workspaceId}/${postId}-${Date.now()}.png`;
-    await supabase.storage.from('exports').upload(fileName, blob, { contentType: 'image/png', upsert: true });
-    const { data: urlData } = supabase.storage.from('exports').getPublicUrl(fileName);
-    const textEl = elements.find(e => e.type === 'text') as TextEl | undefined;
-    // Bug 6 fix: flush current slide state into slidesRef before building allSlides
+
+    // Flush current slide
     saveCurrentSlide();
-    // Build v2 JSON: save all slides (current slide overridden with latest state)
-    const allSlides = slidesRef.current.map((s, i) =>
-      i === activeSlideIdx ? {
-        ...s,
-        elements: elementsRef.current,
-        proxyUrl: proxyUrlRef.current,
-        bgOffsetX: bgOffsetXRef.current,
-        bgOffsetY: bgOffsetYRef.current,
-      } : s
-    );
+
+    const isCarousel = postType === 'carrousel';
+    const totalSlides = slidesRef.current.length;
+    const carouselUrls: string[] = [];
+
+    const uploadCurrent = async (idx: number): Promise<string> => {
+      const dataURL = stageRef.current!.toDataURL({ pixelRatio: 2 });
+      const blob = await fetch(dataURL).then(r => r.blob());
+      const fn = `${workspaceId}/${postId}-slide${idx}-${Date.now()}.png`;
+      await supabase.storage.from('exports').upload(fn, blob, { contentType: 'image/png', upsert: true });
+      const { data: ud } = supabase.storage.from('exports').getPublicUrl(fn);
+      return ud?.publicUrl || '';
+    };
+
+    if (isCarousel && totalSlides > 1) {
+      const origIdx = activeSlideIdx;
+      for (let i = 0; i < totalSlides; i++) {
+        if (i !== activeSlideIdx) {
+          const s = slidesRef.current[i];
+          setElements(s.elements);
+          elementsRef.current = s.elements;
+          setProxyUrl(s.proxyUrl);
+          proxyUrlRef.current = s.proxyUrl;
+          setBgOffsetX(s.bgOffsetX ?? 0);
+          bgOffsetXRef.current = s.bgOffsetX ?? 0;
+          setBgOffsetY(s.bgOffsetY ?? 0);
+          bgOffsetYRef.current = s.bgOffsetY ?? 0;
+          await new Promise(resolve => setTimeout(resolve, 400));
+        }
+        const url = await uploadCurrent(i);
+        carouselUrls.push(url);
+      }
+      // Restore original slide
+      const orig = slidesRef.current[origIdx];
+      setElements(orig.elements);
+      elementsRef.current = orig.elements;
+      setProxyUrl(orig.proxyUrl);
+      proxyUrlRef.current = orig.proxyUrl;
+      setBgOffsetX(orig.bgOffsetX ?? 0);
+      bgOffsetXRef.current = orig.bgOffsetX ?? 0;
+      setBgOffsetY(orig.bgOffsetY ?? 0);
+      bgOffsetYRef.current = orig.bgOffsetY ?? 0;
+      await new Promise(resolve => setTimeout(resolve, 300));
+    }
+
+    // Export cover (active slide) for calendar / feed previews
+    const coverDataURL = stageRef.current.toDataURL({ pixelRatio: 2 });
+    const coverBlob = await fetch(coverDataURL).then(r => r.blob());
+    const coverFn = `${workspaceId}/${postId}-${Date.now()}.png`;
+    await supabase.storage.from('exports').upload(coverFn, coverBlob, { contentType: 'image/png', upsert: true });
+    const { data: coverUrl } = supabase.storage.from('exports').getPublicUrl(coverFn);
+
+    const textEl = elements.find(e => e.type === 'text') as TextEl | undefined;
+    const allSlides = slidesRef.current;
+
     await supabase.from('posts').update({
       status: 'validated',
-      exported_image_url: urlData?.publicUrl || '',
-      editor_json: JSON.stringify({ version: 2, slides: allSlides }),
+      exported_image_url: isCarousel && carouselUrls.length > 0 ? carouselUrls[0] : (coverUrl?.publicUrl || ''),
+      editor_json: JSON.stringify({
+        version: 2,
+        slides: allSlides,
+        ...(isCarousel && carouselUrls.length > 0 ? { carousel_urls: carouselUrls } : {}),
+      }),
       texte_visuel: textEl?.text || '',
-      // 5C — brand memory: track caption edits
-      ...(aiCaption ? {
-        caption_final: aiCaption,
-        caption_was_edited: captionEdited,
-      } : {}),
+      ...(aiCaption ? { caption_final: aiCaption, caption_was_edited: captionEdited } : {}),
     }).eq('id', postId);
     window.location.href = `/workspace/${workspaceId}/planning`;
   };
@@ -3369,7 +3412,11 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
                   ) : (
                     <div onClick={() => switchSlide(idx)}
                       style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', borderRadius: Math.round(18 * zoom), overflow: 'hidden', cursor: 'pointer', background: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                      <span style={{ fontFamily: 'var(--mono)', fontWeight: 800, fontSize: Math.max(14, Math.round(18 * zoom)), color: 'var(--ink-3)', opacity: 0.4 }}>{idx + 1}</span>
+                      {slide.thumbnail ? (
+                        <img src={slide.thumbnail} alt={`Slide ${idx + 1}`} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+                      ) : (
+                        <span style={{ fontFamily: 'var(--mono)', fontWeight: 800, fontSize: Math.max(14, Math.round(18 * zoom)), color: 'var(--ink-3)', opacity: 0.4 }}>{idx + 1}</span>
+                      )}
                     </div>
                   )}
                   </div>
@@ -3463,11 +3510,17 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
                       display: 'flex', alignItems: 'center', justifyContent: 'center',
                       transition: 'border-color .12s',
                       boxShadow: isActive ? '0 0 0 3px var(--mint-soft)' : 'none',
+                      position: 'relative',
                     }}
                   >
+                    {slide.thumbnail && !isActive ? (
+                      <img src={slide.thumbnail} alt="" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', borderRadius: 5 }} />
+                    ) : null}
                     <span style={{
                       fontFamily: 'var(--mono)', fontWeight: 800, fontSize: 12,
-                      color: isActive ? 'var(--mint-2)' : 'var(--ink-3)',
+                      color: isActive ? 'var(--mint-2)' : (slide.thumbnail ? 'rgba(255,255,255,.85)' : 'var(--ink-3)'),
+                      position: 'relative', zIndex: 1,
+                      textShadow: slide.thumbnail && !isActive ? '0 1px 3px rgba(0,0,0,.5)' : 'none',
                     }}>{idx + 1}</span>
                   </button>
                   {slides.length > 1 && (
