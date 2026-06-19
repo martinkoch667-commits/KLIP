@@ -29,6 +29,7 @@ interface Post {
   target_platforms?: string[] | null;
   tagged_users?: string[] | null;
   music_note?: string | null;
+  thumbnail_url?: string | null;
 }
 
 interface Workspace {
@@ -234,7 +235,7 @@ function PlanningContent() {
     const [{ data: ws }, { data: postsData }] = await Promise.all([
       supabase.from("workspaces").select("id, name, primary_color, secondary_color, font_family, instagram_account_id, instagram_username, facebook_page_id").eq("id", id).single(),
       supabase.from("posts")
-        .select("id, photo_url, exported_image_url, texte_visuel, description, status, scheduled_at, brief, post_type, target_platforms, tagged_users, music_note")
+        .select("id, photo_url, exported_image_url, texte_visuel, description, status, scheduled_at, brief, post_type, target_platforms, tagged_users, music_note, thumbnail_url")
         .eq("workspace_id", id)
         .in("status", ["generated", "validated", "scheduled", "published"])
         .order("scheduled_at", { ascending: true }),
@@ -511,7 +512,7 @@ function PlanningContent() {
               ) : (
                 <div style={{ display: "flex", gap: 10, overflowX: "auto", paddingBottom: 4 }}>
                   {scheduled.map(post => {
-                    const rawImg  = post.exported_image_url || post.photo_url;
+                    const rawImg  = post.exported_image_url || post.thumbnail_url || post.photo_url;
                     const thumb   = rawImg ? `/api/proxy-image?url=${encodeURIComponent(rawImg)}` : null;
                     const isPub   = post.status === "published";
                     const pType   = (post.post_type as PostType) ?? "post";
@@ -631,7 +632,7 @@ function PlanningContent() {
                         const blockH     = Math.max(HOUR_H - 4, 44);
                         const isSelected = selectedPost?.id === post.id;
                         const isPub      = post.status === "published";
-                        const rawImg     = post.exported_image_url || post.photo_url;
+                        const rawImg     = post.exported_image_url || post.thumbnail_url || post.photo_url;
                         const thumbSrc   = rawImg ? `/api/proxy-image?url=${encodeURIComponent(rawImg)}` : null;
                         const initials   = (workspace?.name ?? "??").slice(0, 2).toUpperCase();
                         return (
@@ -695,9 +696,9 @@ function PlanningContent() {
                     onDragEnd={() => { setDraggedId(null); setDragOverDay(null); setDragOverHour(null); }}
                     onClick={() => selectPost(post)}
                     style={{ flexShrink: 0, width: 52, height: 64, borderRadius: 8, overflow: "hidden", cursor: "pointer", opacity: draggedId === post.id ? 0.35 : 1, boxShadow: selectedPost?.id === post.id ? `0 0 0 2.5px ${chipColor}` : "0 1px 4px rgba(13,15,10,.12)", userSelect: "none", background: "var(--white)" }}>
-                    {(post.exported_image_url || post.photo_url) ? (
+                    {(post.exported_image_url || post.thumbnail_url || post.photo_url) ? (
                       // eslint-disable-next-line @next/next/no-img-element
-                      <img src={post.exported_image_url || post.photo_url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                      <img src={post.exported_image_url || post.thumbnail_url || post.photo_url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
                     ) : (
                       <div style={{ width: "100%", height: "100%", background: chipColor, display: "grid", placeItems: "center" }}>
                         <span style={{ fontFamily: "var(--sans)", fontSize: 9, fontWeight: 800, color: "#fff", textTransform: "uppercase" }}>Post</span>
@@ -747,7 +748,7 @@ function PlanningContent() {
                       {/* Post chips */}
                       <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
                         {dayPosts.slice(0, 3).map(post => {
-                          const rawImg  = post.exported_image_url || post.photo_url;
+                          const rawImg  = post.exported_image_url || post.thumbnail_url || post.photo_url;
                           const thumb   = rawImg ? `/api/proxy-image?url=${encodeURIComponent(rawImg)}` : null;
                           const isPub   = post.status === "published";
                           return (
@@ -803,9 +804,9 @@ function PlanningContent() {
                     onDragEnd={() => { setDraggedId(null); setDragOverDay(null); }}
                     onClick={() => selectPost(post)}
                     style={{ flexShrink: 0, width: 56, height: 68, borderRadius: 8, overflow: "hidden", cursor: "pointer", opacity: draggedId === post.id ? 0.35 : 1, boxShadow: selectedPost?.id === post.id ? `0 0 0 2.5px ${chipColor}` : "0 1px 4px rgba(13,15,10,.12)", userSelect: "none", background: "var(--white)" }}>
-                    {(post.exported_image_url || post.photo_url) ? (
+                    {(post.exported_image_url || post.thumbnail_url || post.photo_url) ? (
                       // eslint-disable-next-line @next/next/no-img-element
-                      <img src={post.exported_image_url || post.photo_url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                      <img src={post.exported_image_url || post.thumbnail_url || post.photo_url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
                     ) : (
                       <div style={{ width: "100%", height: "100%", background: chipColor, display: "grid", placeItems: "center" }}>
                         <span style={{ fontFamily: "var(--mono)", fontSize: 9, fontWeight: 800, color: "#fff", textTransform: "uppercase" }}>Post</span>
@@ -852,7 +853,7 @@ function PlanningContent() {
           </div>
 
           <div style={{ flex: 1, padding: "16px 20px", display: "flex", flexDirection: "column", gap: 16 }}>
-            {(selectedPost.exported_image_url || selectedPost.photo_url) && (
+            {(selectedPost.exported_image_url || selectedPost.thumbnail_url || selectedPost.photo_url) && (
               <div style={{ position: "relative", width: "100%", aspectRatio: "4/5", borderRadius: "var(--r)", overflow: "hidden" }}>
                 {selectedPost.exported_image_url ? (
                   // eslint-disable-next-line @next/next/no-img-element
@@ -860,7 +861,7 @@ function PlanningContent() {
                 ) : (
                   <>
                     {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={selectedPost.photo_url || ""} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                    <img src={selectedPost.thumbnail_url || selectedPost.photo_url || ""} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
                     {selectedPost.texte_visuel && (
                       <div style={{ position: "absolute", bottom: 10, left: 10, right: 10, background: workspace?.primary_color ?? "#0038FF", color: workspace?.secondary_color ?? "#FFFFFF", fontFamily: workspace?.font_family ? `"${workspace.font_family}", sans-serif` : "Oswald, sans-serif", fontWeight: "bold", fontSize: 14, padding: "6px 12px", borderRadius: 4, textTransform: "uppercase", maxWidth: "80%" }}>
                         {selectedPost.texte_visuel}

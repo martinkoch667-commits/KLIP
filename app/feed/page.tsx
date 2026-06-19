@@ -13,6 +13,7 @@ interface Post {
   workspace_id: string;
   exported_image_url: string | null;
   photo_url: string | null;
+  thumbnail_url?: string | null;
   description: string | null;
   status: string;
   post_type: string | null;
@@ -46,7 +47,7 @@ export default function FeedPage() {
       const [{ data: ws }, { data: ps }] = await Promise.all([
         supabase.from("workspaces").select("id,name").order("created_at"),
         supabase.from("posts")
-          .select("id,workspace_id,exported_image_url,photo_url,description,status,post_type,scheduled_at,created_at")
+          .select("id,workspace_id,exported_image_url,photo_url,thumbnail_url,description,status,post_type,scheduled_at,created_at")
           .in("status", ["generated","validated","scheduled","published"])
           .order("scheduled_at", { ascending: false, nullsFirst: false }),
       ]);
@@ -76,7 +77,7 @@ export default function FeedPage() {
 
   function PostCard({ post, col }: { post: Post; col: typeof COLUMNS[number] }) {
     const ws = wsMap[post.workspace_id];
-    const rawImg = post.exported_image_url || post.photo_url;
+    const rawImg = post.exported_image_url || post.thumbnail_url || post.photo_url;
     const thumb = rawImg ? `/api/proxy-image?url=${encodeURIComponent(rawImg)}` : null;
     const pt = post.post_type ?? "post";
     const isPending = col.key === "pending";
