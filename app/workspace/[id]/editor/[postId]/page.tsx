@@ -3060,7 +3060,23 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
                   if (el.type === 'vector') return (
                     <VectorNode key={el.id} el={el as VectorEl}
                       onSelect={sk => handleElClick(el.id, sk)}
-                      onDblClick={() => { if ((el as VectorEl).fillType === 'image' && (el as VectorEl).imageSrc) setMaskCropId(el.id); }}
+                      onDblClick={() => {
+                        const v = el as VectorEl;
+                        if (v.fillType === 'image' && v.imageSrc) { setMaskCropId(el.id); return; }
+                        if (v.shape === 'custom' && v.points && v.points.length >= 2) {
+                          // Re-enter pen mode on this element — load its absolute points
+                          const absPoints: AnchorPoint[] = v.points.map(p => ({
+                            x: p.x + v.x, y: p.y + v.y,
+                            ...(p.cpIn  ? { cpIn:  { x: p.cpIn.x  + v.x, y: p.cpIn.y  + v.y } } : {}),
+                            ...(p.cpOut ? { cpOut: { x: p.cpOut.x + v.x, y: p.cpOut.y + v.y } } : {}),
+                          }));
+                          penPointsRef.current = absPoints;
+                          setPenPoints([...absPoints]);
+                          setIsPenMode(true);
+                          setSelectedId(null);
+                          applyElements(elementsRef.current.filter(e => e.id !== el.id));
+                        }
+                      }}
                       onDragStart={() => handleElDragStart(el.id)}
                       onDragEnd={(x, y) => handleElDragEnd(el.id, x, y)}
                       isMaskCrop={maskCropId === el.id}
@@ -3197,8 +3213,32 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
                 {penPoints.length >= 2 && (
                   <path d={buildSvgPath(penPoints, false)} fill="rgba(47,215,155,0.10)" stroke="#2FD79B" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
                 )}
-                {/* preview line from last anchor to cursor */}
-                {penPreviewPos && penPoints.length >= 1 && (() => {
+                {/* Live Bézier preview during click+drag (before mouseup) */}
+                {penDragOriginRef.current && penIsDraggingRef.current && penPreviewPos && (() => {
+                  const origin = penDragOriginRef.current!;
+                  const dx = penPreviewPos.x - origin.x;
+                  const dy = penPreviewPos.y - origin.y;
+                  const cpOut = { x: origin.x + dx, y: origin.y + dy };
+                  const cpIn  = { x: origin.x - dx, y: origin.y - dy };
+                  const last  = penPoints.length >= 1 ? penPoints[penPoints.length - 1] : null;
+                  return (
+                    <g>
+                      {/* Handle line */}
+                      <line x1={cpIn.x} y1={cpIn.y} x2={cpOut.x} y2={cpOut.y} stroke="#2FD79B" strokeWidth="1" opacity="0.6" />
+                      <circle cx={cpOut.x} cy={cpOut.y} r={3.5} fill="#2FD79B" />
+                      <circle cx={cpIn.x} cy={cpIn.y} r={3.5} fill="#2FD79B" />
+                      {/* Provisional anchor */}
+                      <circle cx={origin.x} cy={origin.y} r={5} fill="#fff" stroke="#2FD79B" strokeWidth="1.8" />
+                      {/* Bezier from last point to provisional anchor using handles */}
+                      {last && (
+                        <path d={`M ${last.x} ${last.y} C ${(last.cpOut ?? last).x} ${(last.cpOut ?? last).y} ${cpIn.x} ${cpIn.y} ${origin.x} ${origin.y}`}
+                          fill="none" stroke="#2FD79B" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                      )}
+                    </g>
+                  );
+                })()}
+                {/* Straight preview line from last anchor to cursor (when not dragging) */}
+                {penPreviewPos && penPoints.length >= 1 && !penIsDraggingRef.current && (() => {
                   const last = penPoints[penPoints.length - 1];
                   const cp1 = last.cpOut ?? last;
                   return (
