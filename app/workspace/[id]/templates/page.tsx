@@ -13,7 +13,6 @@ import {
 import useImage from 'use-image';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import Sidebar from '@/components/Sidebar';
-import SelectionOverlay from '@/components/SelectionOverlay';
 import ColorPicker from '@/components/ColorPicker';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -83,28 +82,28 @@ const FORMATS = [
 // ─── Role config ──────────────────────────────────────────────────────────────
 
 const ROLES: { id: TextZone['role']; label: string; defaultSize: number; defaultStyle: string }[] = [
-  { id: 'titre',       label: 'Titre',       defaultSize: 42, defaultStyle: 'bold' },
-  { id: 'sous-titre',  label: 'Sous-titre',  defaultSize: 22, defaultStyle: 'bold' },
-  { id: 'accroche',    label: 'Accroche',    defaultSize: 18, defaultStyle: 'normal' },
-  { id: 'corps',       label: 'Corps',       defaultSize: 14, defaultStyle: 'normal' },
-  { id: 'cta',         label: 'CTA',         defaultSize: 16, defaultStyle: 'bold' },
-  { id: 'tag',         label: 'Tag / Badge', defaultSize: 12, defaultStyle: 'bold' },
-  { id: 'personnalise',label: 'Personnalisé', defaultSize: 16, defaultStyle: 'normal' },
+  { id: 'titre',        label: 'Titre',        defaultSize: 42, defaultStyle: 'bold' },
+  { id: 'sous-titre',   label: 'Sous-titre',   defaultSize: 22, defaultStyle: 'bold' },
+  { id: 'accroche',     label: 'Accroche',     defaultSize: 18, defaultStyle: 'normal' },
+  { id: 'corps',        label: 'Corps',        defaultSize: 14, defaultStyle: 'normal' },
+  { id: 'cta',          label: 'CTA',          defaultSize: 16, defaultStyle: 'bold' },
+  { id: 'tag',          label: 'Tag / Badge',  defaultSize: 12, defaultStyle: 'bold' },
+  { id: 'personnalise', label: 'Personnalisé', defaultSize: 16, defaultStyle: 'normal' },
 ];
 
 const ROLE_COLORS: Record<string, string> = {
-  titre:       '#FFFFFF',
-  'sous-titre':'#E0E0E0',
-  accroche:    '#FFFFFF',
-  corps:       '#CCCCCC',
-  cta:         '#2FD79B',
-  tag:         '#C8F135',
-  personnalise:'#FFFFFF',
+  titre:        '#FFFFFF',
+  'sous-titre': '#E0E0E0',
+  accroche:     '#FFFFFF',
+  corps:        '#CCCCCC',
+  cta:          '#2FD79B',
+  tag:          '#C8F135',
+  personnalise: '#FFFFFF',
 };
 
 function newId() { return `z-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`; }
 
-// ─── Linear gradient helper for Konva ────────────────────────────────────────
+// ─── Gradient helper for Konva ────────────────────────────────────────────────
 
 function hexToRgb(hex: string): [number, number, number] {
   const h = hex.replace('#', '');
@@ -112,31 +111,23 @@ function hexToRgb(hex: string): [number, number, number] {
   return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
 }
 
-// ─── Canvas gradient background component ────────────────────────────────────
+// ─── Canvas gradient background ───────────────────────────────────────────────
 
 function GradientBg({ bg, w, h }: { bg: BgStyle; w: number; h: number }) {
-  const stageRef = useRef<HTMLCanvasElement | null>(null);
-
   if (bg.type === 'solid') {
     return <Rect x={0} y={0} width={w} height={h} fill={bg.color ?? '#000'} />;
   }
-
-  // Gradient via fillLinearGradientColorStops
   const angle = ((bg.angle ?? 135) * Math.PI) / 180;
   const len = Math.sqrt(w * w + h * h);
-  const cx = w / 2;
-  const cy = h / 2;
+  const cx = w / 2, cy = h / 2;
   const startX = cx - Math.cos(angle) * len / 2;
   const startY = cy - Math.sin(angle) * len / 2;
   const endX   = cx + Math.cos(angle) * len / 2;
   const endY   = cy + Math.sin(angle) * len / 2;
-
   const [r1, g1, b1] = hexToRgb(bg.colorFrom ?? '#0038FF');
   const [r2, g2, b2] = hexToRgb(bg.colorTo   ?? '#FFFFFF');
-
   return (
-    <Rect
-      x={0} y={0} width={w} height={h}
+    <Rect x={0} y={0} width={w} height={h}
       fillLinearGradientStartPoint={{ x: startX, y: startY }}
       fillLinearGradientEndPoint={{ x: endX, y: endY }}
       fillLinearGradientColorStops={[
@@ -152,23 +143,11 @@ function GradientBg({ bg, w, h }: { bg: BgStyle; w: number; h: number }) {
 function PhotoPlaceholder({ x, y, w, h }: { x: number; y: number; w: number; h: number }) {
   return (
     <Group x={x} y={y}>
-      <Rect
-        width={w} height={h}
-        fill="rgba(255,255,255,0.08)"
-        stroke="rgba(255,255,255,0.25)"
-        strokeWidth={1.5}
-        dash={[6, 4]}
-        cornerRadius={6}
-      />
-      <Text
-        text="PHOTO"
-        width={w} height={h}
-        align="center" verticalAlign="middle"
-        fontSize={12} fontStyle="bold"
-        fill="rgba(255,255,255,0.35)"
-        fontFamily="Inter, sans-serif"
-        listening={false}
-      />
+      <Rect width={w} height={h} fill="rgba(255,255,255,0.08)" stroke="rgba(255,255,255,0.25)"
+        strokeWidth={1.5} dash={[6, 4]} cornerRadius={6} />
+      <Text text="PHOTO" width={w} height={h} align="center" verticalAlign="middle"
+        fontSize={12} fontStyle="bold" fill="rgba(255,255,255,0.35)"
+        fontFamily="Inter, sans-serif" listening={false} />
     </Group>
   );
 }
@@ -181,6 +160,23 @@ function LogoImg({ src, x, y, w, h }: { src: string; x: number; y: number; w: nu
   return <KonvaImage image={img} x={x} y={y} width={w} height={h} />;
 }
 
+// ─── Shared panel styles ──────────────────────────────────────────────────────
+
+const panelLabel: React.CSSProperties = {
+  display: 'block', fontSize: 10.5, fontWeight: 700, letterSpacing: '0.1em',
+  textTransform: 'uppercase', color: 'var(--ink-3)', fontFamily: 'var(--display)', marginBottom: 8,
+};
+
+const panelInput: React.CSSProperties = {
+  width: '100%', background: 'var(--white)', border: '1px solid var(--line)',
+  borderRadius: 'var(--r-s)', padding: '7px 10px', color: 'var(--ink)',
+  fontSize: 13.5, outline: 'none', boxSizing: 'border-box', fontFamily: 'var(--sans)',
+};
+
+const panelSection: React.CSSProperties = {
+  padding: '14px 18px', borderBottom: '1px solid var(--line)',
+};
+
 // ─── Main page ────────────────────────────────────────────────────────────────
 
 export default function TemplatesPage() {
@@ -192,7 +188,6 @@ export default function TemplatesPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
-  // Editor state
   const [editing, setEditing] = useState<PostTemplate | null>(null);
   const [editorName, setEditorName] = useState('');
   const [editorFormat, setEditorFormat] = useState('ig-portrait');
@@ -203,7 +198,7 @@ export default function TemplatesPage() {
 
   const stageRef = useRef<any>(null);
 
-  // ── Load workspace & templates ──────────────────────────────────────────────
+  // ── Load ────────────────────────────────────────────────────────────────────
 
   useEffect(() => {
     if (!workspaceId) return;
@@ -223,18 +218,15 @@ export default function TemplatesPage() {
     load();
   }, [workspaceId, supabase]);
 
-  // ── Format dimensions ───────────────────────────────────────────────────────
-
   const fmt = FORMATS.find(f => f.id === editorFormat) ?? FORMATS[0];
   const stageW = fmt.w;
   const stageH = fmt.h;
 
-  // ── Open editor for new or existing template ────────────────────────────────
+  // ── Open ────────────────────────────────────────────────────────────────────
 
   function openNew() {
     const bg: BgStyle = {
-      type: 'gradient',
-      angle: 135,
+      type: 'gradient', angle: 135,
       colorFrom: workspace?.primary_color ?? '#0038FF',
       colorTo: workspace?.secondary_color ?? '#FFFFFF',
     };
@@ -257,13 +249,12 @@ export default function TemplatesPage() {
     setEditing(tpl);
   }
 
-  // ── Add a text zone ─────────────────────────────────────────────────────────
+  // ── Zones ───────────────────────────────────────────────────────────────────
 
   function addTextZone(role: TextZone['role']) {
     const cfg = ROLES.find(r => r.id === role)!;
     const zone: TextZone = {
-      id: newId(),
-      role,
+      id: newId(), role,
       x: Math.round(stageW * 0.1),
       y: Math.round(stageH * 0.1 + editorZones.length * 60),
       width: Math.round(stageW * 0.8),
@@ -278,42 +269,29 @@ export default function TemplatesPage() {
     setSelectedZoneId(zone.id);
   }
 
-  // ── Add logo ────────────────────────────────────────────────────────────────
-
   function addLogo() {
     if (!workspace?.logo_url && !workspace?.logo_dark_url) return;
     setEditorLogo({ x: 20, y: 20, width: 80, height: 40 });
   }
-
-  // ── Remove logo ──────────────────────────────────────────────────────────────
-
-  function removeLogo() { setEditorLogo(null); }
-
-  // ── Delete zone ──────────────────────────────────────────────────────────────
 
   function deleteZone(id: string) {
     setEditorZones(prev => prev.filter(z => z.id !== id));
     if (selectedZoneId === id) setSelectedZoneId(null);
   }
 
-  // ── Update zone field ────────────────────────────────────────────────────────
-
   function updateZone(id: string, patch: Partial<TextZone>) {
     setEditorZones(prev => prev.map(z => z.id === id ? { ...z, ...patch } : z));
   }
 
-  // ── Save template ────────────────────────────────────────────────────────────
+  // ── Save ────────────────────────────────────────────────────────────────────
 
   async function saveTemplate() {
     if (!editing) return;
     setSaving(true);
-
-    // Capture thumbnail
     let thumbnailUrl: string | null = editing.thumbnail_url ?? null;
     if (stageRef.current) {
       try {
         const dataUrl = stageRef.current.toDataURL({ pixelRatio: 0.5 });
-        // Upload to Supabase storage
         const blob = await (await fetch(dataUrl)).blob();
         const path = `templates/${workspaceId}/${editing.id || newId()}.png`;
         const { data: storageData } = await supabase.storage.from('photos').upload(path, blob, { upsert: true, contentType: 'image/png' });
@@ -323,17 +301,10 @@ export default function TemplatesPage() {
         }
       } catch { /* ignore thumbnail errors */ }
     }
-
     const payload = {
-      workspace_id: workspaceId,
-      name: editorName,
-      format_id: editorFormat,
-      background_style: editorBg,
-      text_zones: editorZones,
-      logo_placement: editorLogo,
-      thumbnail_url: thumbnailUrl,
+      workspace_id: workspaceId, name: editorName, format_id: editorFormat,
+      background_style: editorBg, text_zones: editorZones, logo_placement: editorLogo, thumbnail_url: thumbnailUrl,
     };
-
     try {
       if (editing.id) {
         const res = await fetch(`/api/templates/${editing.id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
@@ -352,224 +323,181 @@ export default function TemplatesPage() {
     }
   }
 
-  // ── Delete template ──────────────────────────────────────────────────────────
-
   async function deleteTemplate(id: string) {
     if (!confirm('Supprimer ce template ?')) return;
     await fetch(`/api/templates/${id}`, { method: 'DELETE' });
     setTemplates(prev => prev.filter(t => t.id !== id));
   }
 
-  // ── SelectionOverlay adapter for text zones ──────────────────────────────────
-
   const selectedZone = editorZones.find(z => z.id === selectedZoneId) ?? null;
-
-  // Convert zone to CanvasEl-like for SelectionOverlay
-  const overlayEl = selectedZone ? {
-    id: selectedZone.id,
-    type: 'text' as const,
-    x: selectedZone.x,
-    y: selectedZone.y,
-    rotation: 0,
-    opacity: 1,
-    text: selectedZone.placeholder,
-    fontSize: selectedZone.fontSize,
-    fontFamily: selectedZone.fontFamily,
-    fontStyle: selectedZone.fontStyle,
-    textDecoration: '',
-    fill: selectedZone.fill,
-    align: selectedZone.align,
-    width: selectedZone.width,
-    hasBg: false,
-    bgColor: '#000000',
-    bgOpacity: 0.5,
-    cornerRadius: 4,
-    padding: 8,
-    paddingH: 8,
-    paddingV: 4,
-    role: selectedZone.role,
-  } : null;
-
-  function handleOverlayChange(patch: Partial<typeof overlayEl>) {
-    if (!selectedZoneId) return;
-    updateZone(selectedZoneId, patch as Partial<TextZone>);
-  }
-
-  // ── Render ───────────────────────────────────────────────────────────────────
-
   const logoSrc = workspace?.logo_url ?? workspace?.logo_dark_url ?? '';
 
+  // ── Render ──────────────────────────────────────────────────────────────────
+
   return (
-    <div style={{ display: 'flex', minHeight: '100vh', background: 'var(--bg)' }}>
+    <div style={{ display: 'flex', minHeight: '100vh', background: 'var(--canvas)' }}>
       <Sidebar />
 
-      <main style={{ marginLeft: 'var(--sb-w)', flex: 1, padding: '32px 40px', minHeight: '100vh' }}>
+      <main style={{ marginLeft: 'var(--sb-w)', flex: 1 }}>
+        <div className="page">
 
-        {/* Header */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 32 }}>
-          <div>
-            <h1 style={{ fontFamily: 'var(--display)', fontWeight: 900, fontSize: 28, letterSpacing: '-0.04em', color: 'var(--cream)', margin: 0 }}>
-              Templates
-            </h1>
-            <p style={{ color: 'var(--cream-3)', fontSize: 14, marginTop: 4 }}>
-              Créez des mises en page réutilisables pour {workspace?.name ?? '…'}
-            </p>
+          {/* Header */}
+          <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 20, marginBottom: 32, flexWrap: 'wrap' }}>
+            <div>
+              <p className="label" style={{ marginBottom: 6 }}>{workspace?.name ?? '…'}</p>
+              <h1 className="h-display" style={{ fontSize: 28, color: 'var(--ink)', margin: 0 }}>Templates</h1>
+              <p style={{ color: 'var(--ink-3)', fontSize: 13.5, marginTop: 4, marginBottom: 0 }}>
+                Mises en page réutilisables pour vos posts
+              </p>
+            </div>
+            <button onClick={openNew} className="btn btn-primary" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span style={{ fontSize: 18, lineHeight: 1 }}>+</span>
+              Nouveau template
+            </button>
           </div>
-          <button
-            onClick={openNew}
-            className="btn-primary"
-            style={{ display: 'flex', alignItems: 'center', gap: 8 }}
-          >
-            <span style={{ fontSize: 18, lineHeight: 1 }}>+</span>
-            Nouveau template
-          </button>
+
+          {/* Grid */}
+          {loading ? (
+            <p style={{ color: 'var(--ink-3)', fontSize: 14 }}>Chargement…</p>
+          ) : templates.length === 0 ? (
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 16, padding: '80px 0', color: 'var(--ink-3)' }}>
+              <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" style={{ opacity: 0.4 }}>
+                <rect x="3" y="3" width="18" height="18" rx="3"/><path d="M3 9h18M9 9v12"/>
+              </svg>
+              <p style={{ fontSize: 15, margin: 0, color: 'var(--ink-2)', fontWeight: 600 }}>Aucun template pour ce client</p>
+              <p style={{ fontSize: 13, margin: 0, color: 'var(--ink-3)' }}>Créez votre premier gabarit pour accélérer la production</p>
+              <button onClick={openNew} className="btn btn-ghost btn-sm">Créer le premier template</button>
+            </div>
+          ) : (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 20 }}>
+              {templates.map(tpl => (
+                <TemplateCard key={tpl.id} tpl={tpl} onEdit={() => openEdit(tpl)} onDelete={() => deleteTemplate(tpl.id)} />
+              ))}
+            </div>
+          )}
         </div>
-
-        {/* Grid */}
-        {loading ? (
-          <p style={{ color: 'var(--cream-3)' }}>Chargement…</p>
-        ) : templates.length === 0 ? (
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 16, padding: '80px 0', color: 'var(--cream-3)' }}>
-            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" style={{ opacity: 0.4 }}>
-              <rect x="3" y="3" width="18" height="18" rx="3"/><path d="M3 9h18M9 9v12"/>
-            </svg>
-            <p style={{ fontSize: 16, margin: 0 }}>Aucun template pour ce client</p>
-            <button onClick={openNew} className="btn-secondary">Créer le premier template</button>
-          </div>
-        ) : (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 20 }}>
-            {templates.map(tpl => (
-              <TemplateCard
-                key={tpl.id}
-                tpl={tpl}
-                onEdit={() => openEdit(tpl)}
-                onDelete={() => deleteTemplate(tpl.id)}
-              />
-            ))}
-          </div>
-        )}
       </main>
 
-      {/* ── Editor overlay ─────────────────────────────────────────────────────── */}
+      {/* ── Editor overlay ──────────────────────────────────────────────────────── */}
       {editing && (
         <div style={{
           position: 'fixed', inset: 0, zIndex: 200,
-          background: 'rgba(0,0,0,0.72)', backdropFilter: 'blur(6px)',
+          background: 'rgba(13,15,10,0.60)', backdropFilter: 'blur(6px)',
           display: 'flex', alignItems: 'stretch',
         }}>
-          {/* Left panel — tools */}
+          {/* Left panel */}
           <div style={{
-            width: 280, background: 'var(--surface)', borderRight: '1px solid var(--cream-4)',
-            display: 'flex', flexDirection: 'column', gap: 0, overflowY: 'auto',
+            width: 280, background: 'var(--paper)', borderRight: '1px solid var(--line)',
+            display: 'flex', flexDirection: 'column', overflowY: 'auto',
           }}>
-            {/* Name & format */}
-            <div style={{ padding: '20px 18px 14px', borderBottom: '1px solid var(--cream-4)' }}>
-              <label className="label" style={{ color: 'var(--cream-3)', fontSize: 11, display: 'block', marginBottom: 4 }}>NOM DU TEMPLATE</label>
+            {/* Name */}
+            <div style={{ ...panelSection, paddingTop: 20, paddingBottom: 14 }}>
+              <label style={panelLabel}>Nom du template</label>
               <input
                 value={editorName}
                 onChange={e => setEditorName(e.target.value)}
-                style={{ width: '100%', background: 'var(--sunk)', border: '1px solid var(--cream-4)', borderRadius: 'var(--r-s)', padding: '7px 10px', color: 'var(--cream)', fontSize: 14, outline: 'none', boxSizing: 'border-box' }}
+                style={panelInput}
               />
             </div>
 
             {/* Format */}
-            <div style={{ padding: '14px 18px', borderBottom: '1px solid var(--cream-4)' }}>
-              <label className="label" style={{ color: 'var(--cream-3)', fontSize: 11, display: 'block', marginBottom: 8 }}>FORMAT</label>
+            <div style={panelSection}>
+              <label style={panelLabel}>Format</label>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                 {FORMATS.map(f => (
-                  <button
-                    key={f.id}
-                    onClick={() => setEditorFormat(f.id)}
-                    style={{
-                      background: editorFormat === f.id ? 'var(--mint-soft)' : 'var(--sunk)',
-                      border: `1px solid ${editorFormat === f.id ? 'var(--mint)' : 'var(--cream-4)'}`,
-                      borderRadius: 'var(--r-s)', padding: '7px 10px', textAlign: 'left', cursor: 'pointer',
-                      color: editorFormat === f.id ? 'var(--mint)' : 'var(--cream-2)', fontSize: 13, fontWeight: 600,
-                      display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                    }}
-                  >
+                  <button key={f.id} onClick={() => setEditorFormat(f.id)} style={{
+                    background: editorFormat === f.id ? 'var(--mint-soft)' : 'var(--white)',
+                    border: `1.5px solid ${editorFormat === f.id ? 'var(--mint-2)' : 'var(--line)'}`,
+                    borderRadius: 'var(--r-s)', padding: '7px 10px', textAlign: 'left', cursor: 'pointer',
+                    color: editorFormat === f.id ? 'var(--mint-2)' : 'var(--ink-2)',
+                    fontSize: 13, fontWeight: 600, display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                  }}>
                     <span>{f.label}</span>
-                    <span style={{ fontSize: 11, opacity: 0.6, fontWeight: 400 }}>{f.sub}</span>
+                    <span style={{ fontSize: 11, opacity: 0.55, fontWeight: 400 }}>{f.sub}</span>
                   </button>
                 ))}
               </div>
             </div>
 
             {/* Background */}
-            <div style={{ padding: '14px 18px', borderBottom: '1px solid var(--cream-4)' }}>
-              <label className="label" style={{ color: 'var(--cream-3)', fontSize: 11, display: 'block', marginBottom: 8 }}>ARRIÈRE-PLAN</label>
+            <div style={panelSection}>
+              <label style={panelLabel}>Arrière-plan</label>
               <div style={{ display: 'flex', gap: 6, marginBottom: 10 }}>
                 {(['gradient', 'solid'] as const).map(type => (
-                  <button
-                    key={type}
-                    onClick={() => setEditorBg(b => ({ ...b, type }))}
-                    style={{ flex: 1, padding: '6px 0', borderRadius: 'var(--r-s)', border: `1px solid ${editorBg.type === type ? 'var(--mint)' : 'var(--cream-4)'}`, background: editorBg.type === type ? 'var(--mint-soft)' : 'var(--sunk)', color: editorBg.type === type ? 'var(--mint)' : 'var(--cream-3)', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}
-                  >
+                  <button key={type} onClick={() => setEditorBg(b => ({ ...b, type }))} style={{
+                    flex: 1, padding: '6px 0', borderRadius: 'var(--r-s)',
+                    border: `1.5px solid ${editorBg.type === type ? 'var(--mint-2)' : 'var(--line)'}`,
+                    background: editorBg.type === type ? 'var(--mint-soft)' : 'var(--white)',
+                    color: editorBg.type === type ? 'var(--mint-2)' : 'var(--ink-3)',
+                    fontSize: 12, fontWeight: 600, cursor: 'pointer',
+                  }}>
                     {type === 'gradient' ? 'Dégradé' : 'Uni'}
                   </button>
                 ))}
               </div>
               {editorBg.type === 'solid' ? (
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <span style={{ fontSize: 12, color: 'var(--cream-3)' }}>Couleur</span>
+                  <span style={{ fontSize: 12, color: 'var(--ink-3)' }}>Couleur</span>
                   <ColorPicker value={editorBg.color ?? '#000000'} onChange={c => setEditorBg(b => ({ ...b, color: c }))} />
                 </div>
               ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <span style={{ fontSize: 12, color: 'var(--cream-3)', width: 50 }}>Départ</span>
+                    <span style={{ fontSize: 12, color: 'var(--ink-3)', width: 50 }}>Départ</span>
                     <ColorPicker value={editorBg.colorFrom ?? '#0038FF'} onChange={c => setEditorBg(b => ({ ...b, colorFrom: c }))} />
-                    <span style={{ fontSize: 12, color: 'var(--cream-3)', flex: 1 }}>{editorBg.colorFrom ?? '#0038FF'}</span>
+                    <span style={{ fontSize: 12, color: 'var(--ink-3)', flex: 1 }}>{editorBg.colorFrom ?? '#0038FF'}</span>
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <span style={{ fontSize: 12, color: 'var(--cream-3)', width: 50 }}>Fin</span>
+                    <span style={{ fontSize: 12, color: 'var(--ink-3)', width: 50 }}>Fin</span>
                     <ColorPicker value={editorBg.colorTo ?? '#FFFFFF'} onChange={c => setEditorBg(b => ({ ...b, colorTo: c }))} />
-                    <span style={{ fontSize: 12, color: 'var(--cream-3)', flex: 1 }}>{editorBg.colorTo ?? '#FFFFFF'}</span>
+                    <span style={{ fontSize: 12, color: 'var(--ink-3)', flex: 1 }}>{editorBg.colorTo ?? '#FFFFFF'}</span>
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <span style={{ fontSize: 12, color: 'var(--cream-3)', width: 50 }}>Angle</span>
+                    <span style={{ fontSize: 12, color: 'var(--ink-3)', width: 50 }}>Angle</span>
                     <input type="range" min={0} max={360} value={editorBg.angle ?? 135} onChange={e => setEditorBg(b => ({ ...b, angle: Number(e.target.value) }))} style={{ flex: 1 }} />
-                    <span style={{ fontSize: 12, color: 'var(--cream-3)', width: 30, textAlign: 'right' }}>{editorBg.angle ?? 135}°</span>
+                    <span style={{ fontSize: 12, color: 'var(--ink-2)', width: 30, textAlign: 'right' }}>{editorBg.angle ?? 135}°</span>
                   </div>
                 </div>
               )}
             </div>
 
-            {/* Add text zones */}
-            <div style={{ padding: '14px 18px', borderBottom: '1px solid var(--cream-4)' }}>
-              <label className="label" style={{ color: 'var(--cream-3)', fontSize: 11, display: 'block', marginBottom: 8 }}>ZONES DE TEXTE</label>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+            {/* Zones de texte */}
+            <div style={panelSection}>
+              <label style={panelLabel}>Zones de texte</label>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
                 {ROLES.map(r => (
-                  <button
-                    key={r.id}
-                    onClick={() => addTextZone(r.id)}
-                    style={{
-                      background: 'var(--sunk)', border: '1px solid var(--cream-4)', borderRadius: 'var(--r-s)',
-                      padding: '7px 10px', textAlign: 'left', cursor: 'pointer', color: 'var(--cream-2)',
-                      fontSize: 13, display: 'flex', alignItems: 'center', gap: 8,
-                    }}
-                  >
+                  <button key={r.id} onClick={() => addTextZone(r.id)} style={{
+                    background: 'var(--white)', border: '1px solid var(--line)',
+                    borderRadius: 'var(--r-s)', padding: '7px 10px', textAlign: 'left',
+                    cursor: 'pointer', color: 'var(--ink-2)', fontSize: 13,
+                    display: 'flex', alignItems: 'center', gap: 8,
+                  }}>
                     <span style={{ width: 8, height: 8, borderRadius: '50%', background: ROLE_COLORS[r.id], flexShrink: 0 }} />
                     {r.label}
-                    <span style={{ marginLeft: 'auto', opacity: 0.5, fontSize: 18, lineHeight: 1 }}>+</span>
+                    <span style={{ marginLeft: 'auto', opacity: 0.4, fontSize: 18, lineHeight: 1, color: 'var(--ink)' }}>+</span>
                   </button>
                 ))}
               </div>
             </div>
 
             {/* Logo */}
-            <div style={{ padding: '14px 18px', borderBottom: '1px solid var(--cream-4)' }}>
-              <label className="label" style={{ color: 'var(--cream-3)', fontSize: 11, display: 'block', marginBottom: 8 }}>LOGO</label>
+            <div style={panelSection}>
+              <label style={panelLabel}>Logo</label>
               {editorLogo ? (
-                <button onClick={removeLogo} style={{ background: 'var(--error-soft, #3a1212)', border: '1px solid var(--cream-4)', borderRadius: 'var(--r-s)', padding: '7px 10px', color: 'var(--error, #ff6b6b)', fontSize: 13, cursor: 'pointer', width: '100%' }}>
+                <button onClick={() => setEditorLogo(null)} style={{
+                  background: 'rgba(220,38,38,.07)', border: '1.5px solid rgba(220,38,38,.18)',
+                  borderRadius: 'var(--r-s)', padding: '7px 10px', color: '#DC2626',
+                  fontSize: 13, fontWeight: 600, cursor: 'pointer', width: '100%',
+                }}>
                   Retirer le logo
                 </button>
               ) : (
-                <button
-                  onClick={addLogo}
-                  disabled={!workspace?.logo_url && !workspace?.logo_dark_url}
-                  style={{ background: 'var(--sunk)', border: '1px solid var(--cream-4)', borderRadius: 'var(--r-s)', padding: '7px 10px', color: 'var(--cream-2)', fontSize: 13, cursor: 'pointer', width: '100%', opacity: (!workspace?.logo_url && !workspace?.logo_dark_url) ? 0.4 : 1 }}
-                >
+                <button onClick={addLogo} disabled={!workspace?.logo_url && !workspace?.logo_dark_url} style={{
+                  background: 'var(--white)', border: '1px solid var(--line)',
+                  borderRadius: 'var(--r-s)', padding: '7px 10px', color: 'var(--ink-2)',
+                  fontSize: 13, cursor: 'pointer', width: '100%',
+                  opacity: (!workspace?.logo_url && !workspace?.logo_dark_url) ? 0.4 : 1,
+                }}>
                   {(!workspace?.logo_url && !workspace?.logo_dark_url) ? 'Aucun logo configuré' : 'Placer le logo'}
                 </button>
               )}
@@ -582,102 +510,54 @@ export default function TemplatesPage() {
           </div>
 
           {/* Canvas area */}
-          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 20, position: 'relative', padding: 32 }}>
-            {/* Canvas with overlay */}
-            <div style={{ position: 'relative', display: 'inline-block', boxShadow: '0 24px 80px rgba(0,0,0,0.6)' }}>
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 16, padding: 40 }}>
+            <div style={{ position: 'relative', display: 'inline-block', boxShadow: '0 24px 80px rgba(0,0,0,0.55)' }}>
               <Stage ref={stageRef} width={stageW} height={stageH} style={{ display: 'block', borderRadius: 8 }}>
                 <Layer>
                   <GradientBg bg={editorBg} w={stageW} h={stageH} />
-
-                  {/* Photo placeholder — centered, 60% width */}
                   <PhotoPlaceholder
-                    x={Math.round(stageW * 0.2)}
-                    y={Math.round(stageH * 0.25)}
-                    w={Math.round(stageW * 0.6)}
-                    h={Math.round(stageH * 0.4)}
+                    x={Math.round(stageW * 0.2)} y={Math.round(stageH * 0.25)}
+                    w={Math.round(stageW * 0.6)} h={Math.round(stageH * 0.4)}
                   />
-
-                  {/* Logo */}
                   {editorLogo && logoSrc && (
                     <LogoImg src={logoSrc} x={editorLogo.x} y={editorLogo.y} w={editorLogo.width} h={editorLogo.height} />
                   )}
-
-                  {/* Text zones */}
                   {editorZones.map(zone => (
-                    <Group
-                      key={zone.id}
-                      x={zone.x} y={zone.y}
-                      draggable
+                    <Group key={zone.id} x={zone.x} y={zone.y} draggable
                       onDragEnd={e => updateZone(zone.id, { x: Math.round(e.target.x()), y: Math.round(e.target.y()) })}
                       onClick={() => setSelectedZoneId(zone.id)}
                       onTap={() => setSelectedZoneId(zone.id)}
                     >
-                      {/* Selection indicator */}
                       {selectedZoneId === zone.id && (
-                        <Rect
-                          x={-2} y={-2}
-                          width={zone.width + 4}
-                          height={zone.fontSize + 12}
-                          fill="transparent"
-                          stroke="var(--mint)"
-                          strokeWidth={1.5}
-                          dash={[4, 3]}
-                          cornerRadius={3}
-                          listening={false}
-                        />
+                        <Rect x={-2} y={-2} width={zone.width + 4} height={zone.fontSize + 12}
+                          fill="transparent" stroke="#2FD79B" strokeWidth={1.5}
+                          dash={[4, 3]} cornerRadius={3} listening={false} />
                       )}
-                      <Text
-                        text={zone.placeholder}
-                        fontSize={zone.fontSize}
-                        fontFamily={zone.fontFamily}
-                        fontStyle={zone.fontStyle}
-                        fill={zone.fill}
-                        align={zone.align}
-                        width={zone.width}
-                        wrap="word"
-                        opacity={0.8}
-                        listening={false}
-                      />
-                      {/* Role badge */}
-                      <Rect x={0} y={-18} width={60} height={14} fill={ROLE_COLORS[zone.role] ?? '#fff'} cornerRadius={3} opacity={0.15} listening={false} />
-                      <Text x={3} y={-17} text={zone.role} fontSize={9} fontStyle="bold" fill={ROLE_COLORS[zone.role] ?? '#fff'} listening={false} />
+                      <Text text={zone.placeholder} fontSize={zone.fontSize} fontFamily={zone.fontFamily}
+                        fontStyle={zone.fontStyle} fill={zone.fill} align={zone.align}
+                        width={zone.width} wrap="word" opacity={0.8} listening={false} />
+                      <Rect x={0} y={-18} width={60} height={14} fill={ROLE_COLORS[zone.role] ?? '#fff'}
+                        cornerRadius={3} opacity={0.15} listening={false} />
+                      <Text x={3} y={-17} text={zone.role} fontSize={9} fontStyle="bold"
+                        fill={ROLE_COLORS[zone.role] ?? '#fff'} listening={false} />
                     </Group>
                   ))}
                 </Layer>
               </Stage>
-
-              {/* Click outside to deselect */}
-              {selectedZoneId && (
-                <div
-                  style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}
-                  onClick={() => setSelectedZoneId(null)}
-                />
-              )}
             </div>
-
-            {/* Stage dimensions */}
-            <p style={{ color: 'var(--cream-3)', fontSize: 12, margin: 0 }}>
+            <p style={{ color: 'rgba(238,237,227,.5)', fontSize: 12, margin: 0 }}>
               {fmt.label} — {fmt.sub}
             </p>
           </div>
 
-          {/* Footer actions */}
+          {/* Footer */}
           <div style={{
             position: 'absolute', bottom: 0, left: 280, right: 0, height: 64,
-            background: 'rgba(13,15,10,0.9)', borderTop: '1px solid var(--cream-4)',
-            display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 12, padding: '0 32px',
+            background: 'var(--paper)', borderTop: '1px solid var(--line)',
+            display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 10, padding: '0 28px',
           }}>
-            <button
-              onClick={() => setEditing(null)}
-              style={{ background: 'var(--sunk)', border: '1px solid var(--cream-4)', borderRadius: 'var(--r-s)', padding: '9px 20px', color: 'var(--cream-2)', fontSize: 14, cursor: 'pointer', fontWeight: 600 }}
-            >
-              Annuler
-            </button>
-            <button
-              onClick={saveTemplate}
-              disabled={saving}
-              className="btn-primary"
-            >
+            <button onClick={() => setEditing(null)} className="btn btn-ghost">Annuler</button>
+            <button onClick={saveTemplate} disabled={saving} className="btn btn-primary">
               {saving ? 'Enregistrement…' : 'Enregistrer le template'}
             </button>
           </div>
@@ -694,52 +574,46 @@ function TemplateCard({ tpl, onEdit, onDelete }: { tpl: PostTemplate; onEdit: ()
   const aspect = fmt.h / fmt.w;
 
   return (
-    <div
-      style={{ background: 'var(--surface)', border: '1px solid var(--cream-4)', borderRadius: 10, overflow: 'hidden', cursor: 'pointer', transition: 'border-color 0.15s', display: 'flex', flexDirection: 'column' }}
-      onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = 'var(--mint)'; }}
-      onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = 'var(--cream-4)'; }}
-    >
+    <div className="card" style={{ overflow: 'hidden', cursor: 'pointer', display: 'flex', flexDirection: 'column' }}
+      onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = 'var(--mint-2)'; }}
+      onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = ''; }}>
       {/* Thumbnail */}
-      <div
-        onClick={onEdit}
-        style={{ width: '100%', paddingTop: `${aspect * 100}%`, position: 'relative', background: 'var(--sunk)', overflow: 'hidden' }}
-      >
+      <div onClick={onEdit} style={{ width: '100%', paddingTop: `${aspect * 100}%`, position: 'relative', background: 'var(--sunk)', overflow: 'hidden', borderRadius: '13px 13px 0 0' }}>
         {tpl.thumbnail_url ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img src={tpl.thumbnail_url} alt={tpl.name} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />
         ) : (
-          <MiniPreview bg={tpl.background_style} aspect={aspect} />
+          <MiniPreview bg={tpl.background_style} />
         )}
       </div>
 
       {/* Footer */}
-      <div style={{ padding: '10px 12px', display: 'flex', alignItems: 'center', gap: 8 }}>
+      <div style={{ padding: '10px 14px', display: 'flex', alignItems: 'center', gap: 8 }}>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <p style={{ margin: 0, fontWeight: 700, fontSize: 13, color: 'var(--cream)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{tpl.name}</p>
-          <p style={{ margin: 0, fontSize: 11, color: 'var(--cream-3)' }}>{fmt.label} · {(tpl.text_zones ?? []).length} zone{(tpl.text_zones ?? []).length !== 1 ? 's' : ''}</p>
+          <p style={{ margin: 0, fontWeight: 700, fontSize: 13, color: 'var(--ink)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{tpl.name}</p>
+          <p style={{ margin: 0, fontSize: 11, color: 'var(--ink-3)', marginTop: 1 }}>
+            {fmt.label} · {(tpl.text_zones ?? []).length} zone{(tpl.text_zones ?? []).length !== 1 ? 's' : ''}
+          </p>
         </div>
-        <button
-          onClick={e => { e.stopPropagation(); onDelete(); }}
-          style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--cream-3)', padding: 4, borderRadius: 4 }}
-          title="Supprimer"
-        >
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg>
+        <button onClick={e => { e.stopPropagation(); onDelete(); }}
+          style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--ink-3)', padding: 4, borderRadius: 4, display: 'flex' }}
+          title="Supprimer">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+            <path d="M10 11v6M14 11v6M9 6V4h6v2"/>
+          </svg>
         </button>
       </div>
     </div>
   );
 }
 
-// ─── Mini preview (CSS gradient, no canvas) ───────────────────────────────────
+// ─── Mini preview ─────────────────────────────────────────────────────────────
 
-function MiniPreview({ bg, aspect }: { bg: BgStyle; aspect: number }) {
-  let background: string;
-  if (bg.type === 'solid') {
-    background = bg.color ?? '#000';
-  } else {
-    const angle = bg.angle ?? 135;
-    background = `linear-gradient(${angle}deg, ${bg.colorFrom ?? '#0038FF'}, ${bg.colorTo ?? '#FFFFFF'})`;
-  }
+function MiniPreview({ bg }: { bg: BgStyle }) {
+  const background = bg.type === 'solid'
+    ? (bg.color ?? '#000')
+    : `linear-gradient(${bg.angle ?? 135}deg, ${bg.colorFrom ?? '#0038FF'}, ${bg.colorTo ?? '#FFFFFF'})`;
   return (
     <div style={{ position: 'absolute', inset: 0, background, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 4, padding: '8px 10px', width: '70%' }}>
@@ -751,58 +625,57 @@ function MiniPreview({ bg, aspect }: { bg: BgStyle; aspect: number }) {
   );
 }
 
-// ─── Zone inspector panel ─────────────────────────────────────────────────────
+// ─── Zone inspector ───────────────────────────────────────────────────────────
 
 function ZoneInspector({ zone, onChange, onDelete }: { zone: TextZone; onChange: (patch: Partial<TextZone>) => void; onDelete: () => void }) {
   return (
-    <div style={{ padding: '14px 18px' }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
-        <label className="label" style={{ color: 'var(--cream-3)', fontSize: 11 }}>ZONE SÉLECTIONNÉE</label>
-        <button onClick={onDelete} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--cream-3)', fontSize: 12, padding: '2px 6px' }}>Supprimer</button>
+    <div style={{ padding: '14px 18px', borderTop: '1px solid var(--line)' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+        <span style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--ink-3)', fontFamily: 'var(--display)' }}>Zone sélectionnée</span>
+        <button onClick={onDelete} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--ink-3)', fontSize: 12, padding: '2px 6px', fontWeight: 600 }}>
+          Supprimer
+        </button>
       </div>
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-        {/* Placeholder text */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+        {/* Placeholder */}
         <div>
-          <label style={{ fontSize: 11, color: 'var(--cream-3)', display: 'block', marginBottom: 3 }}>Texte de référence</label>
-          <input
-            value={zone.placeholder}
-            onChange={e => onChange({ placeholder: e.target.value })}
-            style={{ width: '100%', background: 'var(--sunk)', border: '1px solid var(--cream-4)', borderRadius: 'var(--r-s)', padding: '6px 8px', color: 'var(--cream)', fontSize: 13, outline: 'none', boxSizing: 'border-box' }}
-          />
+          <label style={{ fontSize: 11, color: 'var(--ink-3)', display: 'block', marginBottom: 3, fontWeight: 600 }}>Texte de référence</label>
+          <input value={zone.placeholder} onChange={e => onChange({ placeholder: e.target.value })} style={panelInput} />
         </div>
 
         {/* Font size */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <label style={{ fontSize: 11, color: 'var(--cream-3)', width: 60, flexShrink: 0 }}>Taille</label>
+          <label style={{ fontSize: 11, color: 'var(--ink-3)', width: 54, flexShrink: 0, fontWeight: 600 }}>Taille</label>
           <input type="range" min={8} max={96} value={zone.fontSize} onChange={e => onChange({ fontSize: Number(e.target.value) })} style={{ flex: 1 }} />
-          <span style={{ fontSize: 12, color: 'var(--cream-2)', width: 28, textAlign: 'right' }}>{zone.fontSize}</span>
+          <span style={{ fontSize: 12, color: 'var(--ink-2)', width: 26, textAlign: 'right', fontWeight: 700 }}>{zone.fontSize}</span>
         </div>
 
         {/* Width */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <label style={{ fontSize: 11, color: 'var(--cream-3)', width: 60, flexShrink: 0 }}>Largeur</label>
+          <label style={{ fontSize: 11, color: 'var(--ink-3)', width: 54, flexShrink: 0, fontWeight: 600 }}>Largeur</label>
           <input type="range" min={40} max={560} value={zone.width} onChange={e => onChange({ width: Number(e.target.value) })} style={{ flex: 1 }} />
-          <span style={{ fontSize: 12, color: 'var(--cream-2)', width: 28, textAlign: 'right' }}>{zone.width}</span>
+          <span style={{ fontSize: 12, color: 'var(--ink-2)', width: 26, textAlign: 'right', fontWeight: 700 }}>{zone.width}</span>
         </div>
 
         {/* Color */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <label style={{ fontSize: 11, color: 'var(--cream-3)', width: 60, flexShrink: 0 }}>Couleur</label>
+          <label style={{ fontSize: 11, color: 'var(--ink-3)', width: 54, flexShrink: 0, fontWeight: 600 }}>Couleur</label>
           <ColorPicker value={zone.fill} onChange={c => onChange({ fill: c })} />
-          <span style={{ fontSize: 12, color: 'var(--cream-3)' }}>{zone.fill}</span>
+          <span style={{ fontSize: 11, color: 'var(--ink-3)' }}>{zone.fill}</span>
         </div>
 
         {/* Align */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <label style={{ fontSize: 11, color: 'var(--cream-3)', width: 60, flexShrink: 0 }}>Alignement</label>
+          <label style={{ fontSize: 11, color: 'var(--ink-3)', width: 54, flexShrink: 0, fontWeight: 600 }}>Alignement</label>
           <div style={{ display: 'flex', gap: 4 }}>
             {(['left', 'center', 'right'] as const).map(a => (
-              <button
-                key={a}
-                onClick={() => onChange({ align: a })}
-                style={{ background: zone.align === a ? 'var(--mint-soft)' : 'var(--sunk)', border: `1px solid ${zone.align === a ? 'var(--mint)' : 'var(--cream-4)'}`, borderRadius: 4, padding: '4px 8px', color: zone.align === a ? 'var(--mint)' : 'var(--cream-3)', fontSize: 11, cursor: 'pointer', fontWeight: 600 }}
-              >
+              <button key={a} onClick={() => onChange({ align: a })} style={{
+                background: zone.align === a ? 'var(--mint-soft)' : 'var(--white)',
+                border: `1.5px solid ${zone.align === a ? 'var(--mint-2)' : 'var(--line)'}`,
+                borderRadius: 6, padding: '5px 8px', cursor: 'pointer',
+                color: zone.align === a ? 'var(--mint-2)' : 'var(--ink-3)',
+              }}>
                 {a === 'left'
                   ? <svg width="13" height="11" viewBox="0 0 13 11" fill="currentColor"><rect x="0" y="0" width="13" height="2" rx="1"/><rect x="0" y="4.5" width="8" height="2" rx="1"/><rect x="0" y="9" width="10" height="2" rx="1"/></svg>
                   : a === 'center'
@@ -815,14 +688,16 @@ function ZoneInspector({ zone, onChange, onDelete }: { zone: TextZone; onChange:
 
         {/* Style */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <label style={{ fontSize: 11, color: 'var(--cream-3)', width: 60, flexShrink: 0 }}>Style</label>
+          <label style={{ fontSize: 11, color: 'var(--ink-3)', width: 54, flexShrink: 0, fontWeight: 600 }}>Style</label>
           <div style={{ display: 'flex', gap: 4 }}>
             {(['normal', 'bold', 'italic'] as const).map(s => (
-              <button
-                key={s}
-                onClick={() => onChange({ fontStyle: s })}
-                style={{ background: zone.fontStyle === s ? 'var(--mint-soft)' : 'var(--sunk)', border: `1px solid ${zone.fontStyle === s ? 'var(--mint)' : 'var(--cream-4)'}`, borderRadius: 4, padding: '4px 7px', color: zone.fontStyle === s ? 'var(--mint)' : 'var(--cream-3)', fontSize: 11, cursor: 'pointer', fontWeight: 600 }}
-              >
+              <button key={s} onClick={() => onChange({ fontStyle: s })} style={{
+                background: zone.fontStyle === s ? 'var(--mint-soft)' : 'var(--white)',
+                border: `1.5px solid ${zone.fontStyle === s ? 'var(--mint-2)' : 'var(--line)'}`,
+                borderRadius: 6, padding: '4px 8px', cursor: 'pointer',
+                color: zone.fontStyle === s ? 'var(--mint-2)' : 'var(--ink-3)',
+                fontSize: 12, fontWeight: 700,
+              }}>
                 {s === 'normal' ? 'N' : s === 'bold' ? 'B' : 'I'}
               </button>
             ))}
