@@ -192,6 +192,98 @@ function BestTimeStrip({ dayOfWeek, label }: { dayOfWeek: number; label: string 
   );
 }
 
+// ─── Calendar right rail ──────────────────────────────────────────────────────
+
+const DOW_SHORT = ["Lun","Mar","Mer","Jeu","Ven","Sam","Dim"];
+
+function CalendarRail({ posts, weekDays, chipColor, workspaceId }: {
+  posts: Post[];
+  weekDays: Date[];
+  chipColor: string;
+  workspaceId: string;
+}) {
+  const weekPosts  = posts.filter(p => p.scheduled_at && weekDays.some(d => isSameDay(new Date(p.scheduled_at!), d)));
+  const byStatus = (s: string) => weekPosts.filter(p => p.status === s).length;
+  const stats = [
+    { label: "Planifiés",  n: byStatus("scheduled"), tone: "mint" },
+    { label: "À valider",  n: byStatus("generated") + byStatus("validated"), tone: "warn" },
+    { label: "Brouillons", n: byStatus("draft"),     tone: "ink" },
+    { label: "Publiés",    n: byStatus("published"), tone: "mint" },
+  ];
+  const toFinish = posts.filter(p => p.status === "generated" || p.status === "validated").slice(0, 5);
+
+  // load per day-of-week
+  const load = DOW_SHORT.map((_, i) => weekPosts.filter(p => {
+    const d = new Date(p.scheduled_at!).getDay();
+    return (d === 0 ? 6 : d - 1) === i;
+  }).length);
+  const maxLoad = Math.max(1, ...load);
+
+  return (
+    <aside style={{ width: 288, flexShrink: 0, borderLeft: "1px solid var(--line)", background: "var(--paper)", display: "flex", flexDirection: "column", gap: 0, overflowY: "auto" }}>
+      {/* Week overview */}
+      <div style={{ padding: 16, borderBottom: "1px solid var(--line)" }}>
+        <div className="label" style={{ marginBottom: 12 }}>Cette semaine</div>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+          {stats.map(s => (
+            <div key={s.label} className="well" style={{ padding: "11px 13px" }}>
+              <div className="num" style={{ fontSize: 24, lineHeight: 1, color: s.tone === "warn" ? "var(--warn)" : s.tone === "mint" && s.n > 0 ? "var(--mint-2)" : "var(--ink)" }}>{s.n}</div>
+              <div style={{ fontSize: 11.5, color: "var(--ink-2)", fontWeight: 600, marginTop: 5 }}>{s.label}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* À finaliser */}
+      <div style={{ padding: 16, borderBottom: "1px solid var(--line)" }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+          <h3 className="h-title" style={{ fontSize: 13 }}>À finaliser</h3>
+          {toFinish.length > 0 && <span className="chip" style={{ background: "var(--warn-soft)", color: "var(--warn)", fontSize: 10.5 }}>{posts.filter(p => p.status === "generated" || p.status === "validated").length}</span>}
+        </div>
+        {toFinish.length === 0 ? (
+          <div style={{ fontSize: 12.5, color: "var(--ink-3)", padding: "6px 0" }}>Tout est planifié. ✦</div>
+        ) : (
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            {toFinish.map(p => {
+              const rawImg = p.exported_image_url || p.thumbnail_url || p.photo_url;
+              const thumb = rawImg ? `/api/proxy-image?url=${encodeURIComponent(rawImg)}` : null;
+              return (
+                <Link key={p.id} href={`/workspace/${workspaceId}/editor/${p.id}`}
+                  style={{ display: "flex", alignItems: "center", gap: 10, padding: 7, borderRadius: 10, textDecoration: "none", boxShadow: "inset 0 0 0 1px var(--line)", transition: "background .14s" }}
+                  onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = "var(--sunk)"; }}
+                  onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = "transparent"; }}>
+                  <div style={{ width: 30, height: 38, borderRadius: 7, background: chipColor, flexShrink: 0, overflow: "hidden" }}>
+                    {thumb && <img src={thumb} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />}
+                  </div>
+                  <div style={{ minWidth: 0, flex: 1 }}>
+                    <div style={{ fontWeight: 700, fontSize: 12.5, color: "var(--ink)" }} className="trunc">{p.texte_visuel || p.description?.slice(0, 40) || "Post"}</div>
+                    <div style={{ fontSize: 11, color: "var(--ink-3)", fontWeight: 600, marginTop: 2 }}>{STATUS_CFG[p.status]?.label ?? "Brouillon"}</div>
+                  </div>
+                  <IconChevR />
+                </Link>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* Charge de la semaine */}
+      <div style={{ padding: 16 }}>
+        <h3 className="h-title" style={{ fontSize: 13, marginBottom: 14 }}>Charge de la semaine</h3>
+        <div style={{ display: "flex", alignItems: "flex-end", gap: 5, height: 64 }}>
+          {DOW_SHORT.map((d, i) => (
+            <div key={d} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 5 }}>
+              <span className="tnum" style={{ fontSize: 10, fontWeight: 800, color: load[i] ? "var(--ink-2)" : "var(--ink-3)" }}>{load[i] || ""}</span>
+              <div style={{ width: "100%", height: `${10 + (load[i] / maxLoad) * 36}px`, borderRadius: "4px 4px 2px 2px", background: load[i] >= maxLoad && maxLoad > 1 ? chipColor : load[i] ? `${chipColor}66` : "var(--sunk)" }} />
+              <span className="label" style={{ fontSize: 9 }}>{d}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </aside>
+  );
+}
+
 // ─── Planning content ─────────────────────────────────────────────────────────
 
 function PlanningContent() {
@@ -842,6 +934,9 @@ function PlanningContent() {
           </div>
         </div>
       </div>
+
+      {/* ── Calendar Rail ─────────────────────────────────────────────────────── */}
+      <CalendarRail posts={posts} weekDays={weekDays} chipColor={chipColor} workspaceId={id} />
 
       {/* ── Post panel modal ─────────────────────────────────────────────────── */}
       {selectedPost && (
