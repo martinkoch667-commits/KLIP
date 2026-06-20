@@ -5,7 +5,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
 
-interface Workspace { id: string; name: string }
+interface Workspace { id: string; name: string; brand_icon_url?: string | null; logo_url?: string | null; logo_dark_url?: string | null; primary_color?: string | null }
 
 const WS_COLORS = ["#7B5CF5", "#2FD79B", "#C8732B", "#5A86E8", "#DD2A7B", "#88B394", "#E8A03A", "#4A8DD4"];
 
@@ -65,7 +65,7 @@ export default function MobileSidebar() {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) return;
       setUserEmail(session.user.email ?? "");
-      const { data } = await supabase.from("workspaces").select("id, name").order("created_at", { ascending: true });
+      const { data } = await supabase.from("workspaces").select("id, name, brand_icon_url, logo_url, logo_dark_url, primary_color").order("created_at", { ascending: true });
       setWorkspaces(data ?? []);
     }
     load();
@@ -155,12 +155,18 @@ export default function MobileSidebar() {
           )}
           {workspaces.map((ws, i) => {
             const isActive = ws.id === activeId;
-            const color = WS_COLORS[i % WS_COLORS.length];
+            const color = ws.primary_color || WS_COLORS[i % WS_COLORS.length];
+            const logoSrc = ws.brand_icon_url || ws.logo_url || ws.logo_dark_url || null;
             return (
               <Link key={ws.id} href={`/workspace/${ws.id}`} className={`nav-item${isActive ? " active" : ""}`} style={{ padding: "7px 10px", textDecoration: "none" }}>
-                <span style={{ width: 26, height: 26, borderRadius: 7, background: isActive ? "var(--mint-ink)" : color, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, fontWeight: 800, color: "#fff", fontFamily: "var(--mono)", flexShrink: 0 }}>
-                  {ws.name.slice(0, 2).toUpperCase()}
-                </span>
+                {logoSrc ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={logoSrc} alt={ws.name} style={{ width: 26, height: 26, borderRadius: 7, objectFit: "contain", flexShrink: 0, background: color, padding: 3, outline: isActive ? "2px solid var(--mint)" : "none" }} />
+                ) : (
+                  <span style={{ width: 26, height: 26, borderRadius: 7, background: isActive ? "var(--mint-ink)" : color, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, fontWeight: 800, color: "#fff", fontFamily: "var(--mono)", flexShrink: 0 }}>
+                    {ws.name.slice(0, 2).toUpperCase()}
+                  </span>
+                )}
                 <span style={{ fontWeight: 600, fontSize: 13, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{ws.name}</span>
               </Link>
             );

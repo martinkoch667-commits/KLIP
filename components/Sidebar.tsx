@@ -6,7 +6,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
 import MobileSidebar from "./ui/MobileSidebar";
 
-interface Workspace { id: string; name: string; brand_icon_url?: string | null }
+interface Workspace { id: string; name: string; brand_icon_url?: string | null; logo_url?: string | null; logo_dark_url?: string | null; primary_color?: string | null }
 
 interface SidebarProps {
   workspaces?: any[];
@@ -67,7 +67,7 @@ export default function Sidebar({ workspaces: _w, userName: _u, activeWorkspaceI
       setUserEmail(session.user.email ?? "");
       const { data } = await supabase
         .from("workspaces")
-        .select("id, name, brand_icon_url")
+        .select("id, name, brand_icon_url, logo_url, logo_dark_url, primary_color")
         .order("created_at", { ascending: true });
       setWorkspaces(data ?? []);
     }
@@ -191,13 +191,14 @@ export default function Sidebar({ workspaces: _w, userName: _u, activeWorkspaceI
         )}
         {workspaces.map((ws, i) => {
           const isActive = ws.id === activeId;
-          const color = WS_COLORS[i % WS_COLORS.length];
+          const color = ws.primary_color || WS_COLORS[i % WS_COLORS.length];
           const wsInitials = ws.name.slice(0, 2).toUpperCase();
+          const logoSrc = ws.brand_icon_url || ws.logo_url || ws.logo_dark_url || null;
           return (
             <Link key={ws.id} href={`/workspace/${ws.id}`} className={`nav-item${isActive ? " active" : ""}`} style={{ padding: "7px 10px", textDecoration: "none" }}>
-              {ws.brand_icon_url ? (
+              {logoSrc ? (
                 // eslint-disable-next-line @next/next/no-img-element
-                <img src={ws.brand_icon_url} alt={ws.name} style={{ width: 26, height: 26, borderRadius: 7, objectFit: "cover", flexShrink: 0, outline: isActive ? "2px solid var(--mint)" : "none" }} />
+                <img src={logoSrc} alt={ws.name} style={{ width: 26, height: 26, borderRadius: 7, objectFit: "contain", flexShrink: 0, background: color, padding: 3, outline: isActive ? "2px solid var(--mint)" : "none" }} />
               ) : (
                 <span style={{ width: 26, height: 26, borderRadius: 7, background: isActive ? "var(--mint-ink)" : color, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, fontWeight: 800, color: "#fff", fontFamily: "var(--mono)", letterSpacing: "0.02em", flexShrink: 0 }}>
                   {wsInitials}
