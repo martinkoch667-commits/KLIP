@@ -341,14 +341,14 @@ export default function FeedPage() {
               </div>
 
               {/* Stat tiles */}
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 12, marginBottom: 20 }}>
+              <div className="feed-stats-grid" style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 12, marginBottom: 20 }}>
                 <QStatTile value={counts.all} label="Dans la file" icon="send" />
                 <QStatTile value={counts.pending} label="À valider" icon="clock" tone="warn" />
                 <QStatTile value={counts.scheduled} label="Planifiés" icon="calendar" tone="mint" />
                 <QStatTile value={counts.published} label="Publiés" icon="check" />
               </div>
 
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 320px", gap: 20, alignItems: "start" }}>
+              <div className="feed-rail-layout" style={{ display: "grid", gridTemplateColumns: "1fr 320px", gap: 20, alignItems: "start" }}>
                 {/* Main column */}
                 <div style={{ minWidth: 0 }}>
                   {/* IG connection banner */}
@@ -542,6 +542,10 @@ export default function FeedPage() {
         @media (max-width: 1080px) {
           .feed-rail-layout { grid-template-columns: 1fr !important; }
           .feed-stats-grid { grid-template-columns: repeat(2,1fr) !important; }
+        }
+        @media (max-width: 767px) {
+          .feed-stats-grid { grid-template-columns: repeat(2,1fr) !important; }
+          .feed-rail-layout { grid-template-columns: 1fr !important; }
         }
       `}</style>
     </div>

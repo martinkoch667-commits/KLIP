@@ -598,6 +598,9 @@ input.ed-range::-moz-range-thumb {
   /* Feed engagement column — hide to save space */
   .feed-engage-col { display: none !important; }
 
+  /* Feed page — tighter scroll padding on mobile */
+  .scroll { padding: 20px 16px 60px !important; }
+
   /* Smaller display titles in app */
   .page .h-display { font-size: clamp(20px, 5.5vw, 30px) !important; }
 }
