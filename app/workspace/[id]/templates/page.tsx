@@ -494,6 +494,14 @@ export default function TemplatesPage() {
               @media (max-width: 560px)  { .tpl-grid { grid-template-columns: 1fr; } }
               .tpl-card:hover .tpl-hover { opacity: 1 !important; }
               .tpl-card:hover { transform: translateY(-2px); box-shadow: var(--shadow-pop); }
+              @media (max-width: 767px) {
+                .tpl-editor-left { width: 220px !important; }
+                .tpl-canvas-wrap canvas { max-width: calc(100vw - 260px) !important; height: auto !important; }
+              }
+              @media (max-width: 560px) {
+                .tpl-editor-left { display: none !important; }
+                .tpl-canvas-wrap canvas { max-width: calc(100vw - 32px) !important; height: auto !important; }
+              }
             `}</style>
           </div>
         </div>
@@ -543,7 +551,7 @@ export default function TemplatesPage() {
           {/* Editor body */}
           <div style={{ flex: 1, display: 'flex', minHeight: 0 }}>
             {/* Left panel */}
-            <div style={{
+            <div className="tpl-editor-left" style={{
               width: 264, background: 'var(--paper)', borderRight: '1px solid var(--line)',
               display: 'flex', flexDirection: 'column', overflowY: 'auto', flexShrink: 0,
             }}>
@@ -660,11 +668,11 @@ export default function TemplatesPage() {
             {/* Canvas area */}
             <div style={{
               flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center',
-              justifyContent: 'center', gap: 16, padding: 40,
-              background: 'radial-gradient(ellipse 80% 60% at 50% 40%, #162A1E, #0C1A12)',
+              justifyContent: 'center', gap: 16, padding: 24, overflow: 'auto',
+              background: 'var(--sunk)',
             }}>
-              <div style={{ position: 'relative', display: 'inline-block', boxShadow: '0 24px 80px rgba(0,0,0,0.65)', borderRadius: 8, overflow: 'hidden' }}>
-                <Stage ref={stageRef} width={stageW} height={stageH} style={{ display: 'block' }}>
+              <div className="tpl-canvas-wrap" style={{ position: 'relative', display: 'inline-block', boxShadow: '0 8px 40px rgba(0,0,0,0.22)', borderRadius: 8, overflow: 'hidden', maxWidth: '100%' }}>
+                <Stage ref={stageRef} width={stageW} height={stageH} style={{ display: 'block', maxWidth: '100%' }}>
                   <Layer>
                     <GradientBg bg={editorBg} w={stageW} h={stageH} />
                     <PhotoPlaceholder

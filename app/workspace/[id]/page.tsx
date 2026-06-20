@@ -915,7 +915,7 @@ export default function WorkspacePage() {
                 <div style={{ position: 'relative', borderRadius: 'var(--r-xl)', overflow: 'hidden', padding: '30px 32px', marginBottom: 16, background: 'linear-gradient(120deg, #0A2418 0%, var(--forest) 48%, #103A28 100%)', color: 'var(--cream)' }}>
                   <div className="halo-blob" style={{ width: 300, height: 300, right: -70, top: -150, background: 'var(--mint)', opacity: .42 }} />
                   <div className="halo-blob" style={{ width: 220, height: 220, right: 180, bottom: -150, background: 'var(--acid)', opacity: .28 }} />
-                  <div style={{ position: 'relative', zIndex: 2, display: 'grid', gridTemplateColumns: '1fr auto', gap: 28, alignItems: 'center' }}>
+                  <div className="ws-hero-grid" style={{ position: 'relative', zIndex: 2, display: 'grid', gridTemplateColumns: '1fr auto', gap: 28, alignItems: 'center' }}>
                     <div>
                       <div className="label" style={{ color: 'var(--mint)', marginBottom: 12 }}>Production · {workspace?.name ?? "…"}</div>
                       <h1 className="h-display" style={{ fontSize: 36, color: 'var(--cream)', maxWidth: 520 }}>
@@ -1649,7 +1649,19 @@ export default function WorkspacePage() {
         </div>
       )}
 
-      <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
+      <style>{`
+        @keyframes spin{to{transform:rotate(360deg)}}
+        @media(max-width:767px){
+          .ws-hero-grid{grid-template-columns:1fr !important;}
+          .ws-hero-grid > *:last-child{display:none !important;}
+          .ws-upload-grid{grid-template-columns:1fr !important;}
+          .ws-posts-grid{grid-template-columns:repeat(2,1fr) !important;}
+          .ws-gen-grid{grid-template-columns:repeat(2,1fr) !important;}
+        }
+        @media(max-width:480px){
+          .ws-posts-grid{grid-template-columns:1fr !important;}
+        }
+      `}</style>
     </div>
   );
 }
