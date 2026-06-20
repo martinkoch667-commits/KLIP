@@ -113,8 +113,10 @@ export default function MobileSidebar() {
 
         {/* Header row */}
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "6px 4px 14px" }}>
-          <img src="/logo-klip-mint.png" alt="Klip" style={{ height: 28, width: "auto" }}
-            onError={e => { (e.target as HTMLImageElement).style.display = "none"; }} />
+          <Link href="/dashboard" style={{ textDecoration: "none", display: "flex", alignItems: "center" }} onClick={() => setOpen(false)}>
+            <img src="/logo-klip-mint.png" alt="Klip" style={{ height: 28, width: "auto" }}
+              onError={e => { (e.target as HTMLImageElement).style.display = "none"; }} />
+          </Link>
           <button
             onClick={() => setOpen(false)}
             style={{ background: "var(--cream-4)", border: "none", cursor: "pointer", color: "var(--cream)", width: 32, height: 32, borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center" }}

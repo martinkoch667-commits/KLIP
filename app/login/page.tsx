@@ -132,7 +132,9 @@ export default function LoginPage() {
     <main className="auth-wrap">
       <style dangerouslySetInnerHTML={{ __html: AUTH_CSS }} />
       <div className="auth-card">
-        <img src="/logo-klip-dark.png" alt="Klip" className="auth-logo" />
+        <Link href="/" style={{ display: 'block', textAlign: 'center' }}>
+          <img src="/logo-klip-dark.png" alt="Klip" className="auth-logo" />
+        </Link>
         <h1 className="auth-title">Connexion</h1>
         <p className="auth-sub">
           Pas encore de compte ?{" "}
