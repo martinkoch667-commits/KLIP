@@ -624,34 +624,79 @@ export default function Dashboard() {
         <main style={{ flex: 1, overflowY: 'auto' }}>
           <div className="page screen-in">
 
-            {/* Greeting */}
-            <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 20, marginBottom: 26, flexWrap: 'wrap' }}>
-              <div>
-                <div className="label" style={{ marginBottom: 8 }}>
-                  {today.charAt(0).toUpperCase() + today.slice(1)} · Bonjour {userName}
+            {/* Hero */}
+            <div style={{ position: 'relative', borderRadius: 'var(--r-xl)', overflow: 'hidden', padding: '30px 32px', marginBottom: 16, background: 'linear-gradient(120deg, #0A2418 0%, var(--forest) 48%, #103A28 100%)', color: 'var(--cream)' }}>
+              <div className="halo-blob" style={{ width: 300, height: 300, right: -70, top: -150, background: 'var(--mint)', opacity: .42 }} />
+              <div className="halo-blob" style={{ width: 220, height: 220, right: 180, bottom: -150, background: 'var(--acid)', opacity: .28 }} />
+              <div style={{ position: 'relative', zIndex: 2, display: 'grid', gridTemplateColumns: '1fr auto', gap: 28, alignItems: 'center' }} className="dash-hero">
+                <div>
+                  <div className="label" style={{ color: 'var(--mint)', marginBottom: 12 }}>
+                    {today.charAt(0).toUpperCase() + today.slice(1)} · Bonjour {userName}
+                  </div>
+                  <h1 className="h-display" style={{ fontSize: 38, color: 'var(--cream)', maxWidth: 520 }}>
+                    {active === 'all'
+                      ? <>Voici l'état de <span className="it" style={{ color: 'var(--mint)' }}>vos marques.</span></>
+                      : <>Espace de <span className="it" style={{ color: 'var(--mint)' }}>{clientName}.</span></>}
+                  </h1>
+                  <p style={{ color: 'var(--cream-2)', marginTop: 10, maxWidth: 460, fontSize: 14.5 }}>
+                    {pendingPosts > 0
+                      ? <><b style={{ color: 'var(--cream)' }}>{pendingPosts} post{pendingPosts > 1 ? 's' : ''}</b> attendent votre validation · Publications automatiques activées.</>
+                      : <>Tout est sous contrôle · Publications automatiques activées.</>}
+                  </p>
+                  <div style={{ display: 'flex', gap: 10, marginTop: 18 }}>
+                    {active !== 'all' ? (
+                      <Link href={`/workspace/${active}`} className="btn btn-primary"><IconSpark /> Composer avec l'IA</Link>
+                    ) : (
+                      <Link href="/composer" className="btn btn-primary"><IconSpark /> Composer avec l'IA</Link>
+                    )}
+                    {active !== 'all' && (
+                      <Link href={`/workspace/${active}/planning`} className="btn" style={{ background: 'var(--cream-4)', color: 'var(--cream)', boxShadow: 'inset 0 0 0 1px var(--cream-3)' }}>
+                        <IconCalendar /> Calendrier
+                      </Link>
+                    )}
+                  </div>
                 </div>
-                <h1 className="h-display" style={{ fontSize: 36 }}>
-                  {active === 'all'
-                    ? <>Voici l'état de <span className="it" style={{ color: 'var(--mint-2)' }}>vos marques.</span></>
-                    : <>Espace de <span className="it" style={{ color: 'var(--mint-2)' }}>{clientName}.</span></>
-                  }
-                </h1>
-              </div>
-              <div style={{ display: 'flex', gap: 10 }}>
-                {active !== 'all' && (
-                  <Link href={`/workspace/${active}/planning`} className="btn btn-ghost">
-                    <IconCalendar /> Calendrier
-                  </Link>
-                )}
-                {active !== 'all' ? (
-                  <Link href={`/workspace/${active}`} className="btn btn-dark">
-                    <IconSpark /> Composer avec l'IA
-                  </Link>
-                ) : (
-                  <Link href="/workspace/new" className="btn btn-dark">
-                    <IconSpark /> Nouveau client
-                  </Link>
-                )}
+
+                {/* glass panel: today's posts */}
+                <div className="dash-hero-card" style={{ width: 256, borderRadius: 'var(--r-l)', background: 'rgba(238,237,227,.08)', boxShadow: 'inset 0 0 0 1px var(--cream-4)', backdropFilter: 'blur(6px)', padding: 16 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 13 }}>
+                    <span style={{ width: 24, height: 24, borderRadius: 7, background: 'var(--mint)', color: 'var(--mint-ink)', display: 'grid', placeItems: 'center', flexShrink: 0 }}>
+                      <IconBolt />
+                    </span>
+                    <span className="label" style={{ color: 'var(--cream)' }}>À publier aujourd'hui</span>
+                    <span className="num" style={{ marginLeft: 'auto', fontSize: 18, color: 'var(--acid)' }}>{todayPosts}</span>
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
+                    {upcoming.slice(0, 3).map(p => {
+                      const src = p.exported_image_url || p.photo_url;
+                      const ws = workspaces.find(w => w.id === p.workspace_id);
+                      return (
+                        <button key={p.id}
+                          onClick={() => router.push(`/workspace/${p.workspace_id}/editor/${p.id}`)}
+                          style={{ display: 'flex', alignItems: 'center', gap: 9, padding: 6, borderRadius: 9, textAlign: 'left', transition: 'background .14s', background: 'transparent', border: 'none', cursor: 'pointer', width: '100%', color: 'var(--cream)' }}
+                          onMouseEnter={e => (e.currentTarget.style.background = 'rgba(238,237,227,.08)')}
+                          onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
+                          <div style={{ width: 28, height: 34, borderRadius: 6, background: 'rgba(255,255,255,.1)', flexShrink: 0, overflow: 'hidden' }}>
+                            {src && <img src={src} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />}
+                          </div>
+                          <span style={{ minWidth: 0, flex: 1 }}>
+                            <span style={{ display: 'block', fontWeight: 700, fontSize: 12, color: 'var(--cream)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                              {p.texte_visuel?.slice(0, 28) || 'Post'}
+                            </span>
+                            <span style={{ fontSize: 10.5, color: 'var(--cream-2)', fontWeight: 600 }}>
+                              {ws?.name ?? 'Client'}{p.scheduled_at ? ' · ' + new Date(p.scheduled_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) : ''}
+                            </span>
+                          </span>
+                        </button>
+                      );
+                    })}
+                    {upcoming.length === 0 && (
+                      <div style={{ fontSize: 12.5, color: 'var(--cream-2)', textAlign: 'center', padding: '12px 0' }}>
+                        Aucune publication pour l'instant
+                      </div>
+                    )}
+                  </div>
+                </div>
               </div>
             </div>
 

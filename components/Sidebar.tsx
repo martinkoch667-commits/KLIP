@@ -74,16 +74,14 @@ export default function Sidebar({ workspaces: _w, userName: _u, activeWorkspaceI
     load();
   }, [supabase]);
 
-  // Badge: count posts awaiting validation in active workspace
+  // Badge: count pending posts across ALL workspaces
   useEffect(() => {
-    if (!activeId) { setPendingCount(0); return; }
     supabase
       .from("posts")
       .select("id", { count: "exact", head: true })
-      .eq("workspace_id", activeId)
       .eq("status", "generated")
       .then(({ count }) => setPendingCount(count ?? 0));
-  }, [activeId, supabase]);
+  }, [supabase]);
 
   async function handleLogout() {
     await supabase.auth.signOut();

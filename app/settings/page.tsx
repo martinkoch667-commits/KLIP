@@ -8,7 +8,7 @@ import Sidebar from "@/components/Sidebar";
 import { resetOnboardingTour } from "@/components/OnboardingTour";
 import { useAccountType } from "@/hooks/useAccountType";
 
-type Tab = "profile" | "security" | "notifications" | "appearance" | "integrations" | "agency" | "billing" | "help";
+type Tab = "profile" | "security" | "notifications" | "appearance" | "publi" | "integrations" | "agency" | "billing" | "help";
 
 interface UserPrefs {
   notif_email_publish_success: boolean;
@@ -40,8 +40,10 @@ const WS_COLORS = ["#7B5CF5","#2FD79B","#C8732B","#5A86E8","#DD2A7B","#88B394","
 
 const ST_CSS = `
 .st-layout{display:flex;min-height:100%;}
-.st-nav{width:216px;flex-shrink:0;border-right:1px solid var(--line);background:var(--paper);padding:16px 10px;position:sticky;top:0;align-self:flex-start;height:calc(100vh - 64px);overflow-y:auto;}
+.st-nav{width:232px;flex-shrink:0;border-right:1px solid var(--line);background:var(--paper);padding:16px 10px;position:sticky;top:0;align-self:flex-start;height:calc(100vh - 64px);overflow-y:auto;}
 .st-content{flex:1;padding:36px 44px;max-width:760px;}
+.set-row{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:14px 0;border-bottom:1px solid var(--line-2);}
+.set-row:last-child{border-bottom:none;}
 .st-tab-btn{display:flex;align-items:center;gap:10px;padding:9px 12px;border-radius:8px;font-size:13px;font-weight:600;color:var(--ink-2);cursor:pointer;transition:all .12s;border:none;background:none;width:100%;text-align:left;margin-bottom:2px;}
 .st-tab-btn:hover{background:var(--sunk);color:var(--ink);}
 .st-tab-btn.on{background:var(--white);color:var(--ink);box-shadow:var(--shadow-card);}
@@ -90,10 +92,26 @@ const ST_CSS = `
 
 function Toggle({ checked, onChange }: { checked: boolean; onChange: (v: boolean) => void }) {
   return (
-    <label className="st-toggle">
-      <input type="checkbox" checked={checked} onChange={e => onChange(e.target.checked)} />
-      <span className="st-slider" />
-    </label>
+    <button
+      onClick={() => onChange(!checked)}
+      style={{
+        width: 42, height: 24, borderRadius: 99, border: 'none', cursor: 'pointer',
+        background: checked ? 'var(--mint)' : 'var(--sunk)',
+        position: 'relative', flexShrink: 0,
+        transition: 'background .16s',
+        boxShadow: checked ? 'none' : 'inset 0 0 0 1px var(--line)',
+        padding: 0,
+      }}
+    >
+      <span style={{
+        position: 'absolute', top: 3,
+        left: checked ? 21 : 3,
+        width: 18, height: 18, borderRadius: '50%',
+        background: '#fff',
+        boxShadow: '0 1px 3px rgba(13,15,10,.3)',
+        transition: 'left .16s',
+      }} />
+    </button>
   );
 }
 
@@ -501,6 +519,91 @@ function AppearanceTab({ supabase, userId }: { supabase: any; userId: string }) 
   );
 }
 
+// ─── Publication Tab ──────────────────────────────────────────────────────────
+
+const TIMEZONES_PUB: string[] = (() => {
+  try { return (Intl as any).supportedValuesOf("timeZone") as string[]; }
+  catch { return ["Europe/Paris","Europe/London","Europe/Berlin","Europe/Rome","Europe/Madrid","America/New_York","America/Chicago","America/Los_Angeles"]; }
+})();
+
+function PubliSection({ supabase, userId }: { supabase: any; userId: string }) {
+  const [tz, setTz] = useState("Europe/Paris");
+  const [autoPublish, setAutoPublish] = useState(true);
+  const [reminderBefore, setReminderBefore] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+
+  useEffect(() => {
+    (async () => {
+      const { data } = await supabase.from("user_preferences").select("timezone,notif_email_reminder").eq("user_id", userId).maybeSingle();
+      if (data?.timezone) setTz(data.timezone);
+      if (data?.notif_email_reminder !== undefined) setReminderBefore(data.notif_email_reminder);
+    })();
+  }, [supabase, userId]);
+
+  async function handleSave() {
+    setSaving(true);
+    await supabase.from("user_preferences").upsert(
+      { user_id: userId, timezone: tz, notif_email_reminder: reminderBefore, updated_at: new Date().toISOString() },
+      { onConflict: "user_id" }
+    );
+    setSaving(false);
+    setSaved(true);
+    setTimeout(() => setSaved(false), 2500);
+  }
+
+  const TIME_SLOTS = ['08:00', '12:30', '18:30', '21:00'];
+
+  return (
+    <>
+      <SectionHeader title="Publication" sub="Configurez la publication automatique et vos créneaux préférés." />
+
+      <div className="st-card">
+        <div className="label" style={{ marginBottom: 4 }}>Automatisation</div>
+        <div className="set-row">
+          <div>
+            <div style={{ fontSize: 13.5, fontWeight: 700, color: 'var(--ink)' }}>Publication automatique</div>
+            <div style={{ fontSize: 12, color: 'var(--ink-3)', marginTop: 2 }}>Klip publie au créneau planifié sans intervention manuelle.</div>
+          </div>
+          <Toggle checked={autoPublish} onChange={setAutoPublish} />
+        </div>
+        <div className="set-row">
+          <div>
+            <div style={{ fontSize: 13.5, fontWeight: 700, color: 'var(--ink)' }}>Rappel 1h avant</div>
+            <div style={{ fontSize: 12, color: 'var(--ink-3)', marginTop: 2 }}>Notification avant chaque publication programmée.</div>
+          </div>
+          <Toggle checked={reminderBefore} onChange={setReminderBefore} />
+        </div>
+      </div>
+
+      <div className="st-card">
+        <div className="label" style={{ marginBottom: 12 }}>Créneaux conseillés</div>
+        <p style={{ fontSize: 13, color: 'var(--ink-2)', marginBottom: 14 }}>Créneaux à fort engagement selon votre audience. L'IA les utilise lors de la planification automatique.</p>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+          {TIME_SLOTS.map(t => (
+            <span key={t} className="chip" style={{ background: 'var(--mint-soft)', color: 'var(--mint-2)', fontFamily: 'var(--mono)', fontWeight: 700, fontSize: 12.5, padding: '6px 14px' }}>{t}</span>
+          ))}
+          <span className="chip" style={{ background: 'var(--sunk)', color: 'var(--ink-3)', fontSize: 12, padding: '6px 14px', border: '1px dashed var(--line)', cursor: 'default' }}>Personnaliser — bientôt</span>
+        </div>
+      </div>
+
+      <div className="st-card">
+        <div className="label" style={{ marginBottom: 12 }}>Fuseau horaire</div>
+        <select className="st-input st-select" value={tz} onChange={e => setTz(e.target.value)}>
+          {TIMEZONES_PUB.map(t => <option key={t} value={t}>{t.replace(/_/g, " ")}</option>)}
+        </select>
+        <div style={{ fontSize: 11, color: 'var(--ink-3)', marginTop: 6 }}>Utilisé pour la programmation automatique des posts.</div>
+      </div>
+
+      <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+        <button className="st-btn" onClick={handleSave} disabled={saving}>
+          {saving ? "Enregistrement…" : saved ? "Enregistré ✦" : "Enregistrer"}
+        </button>
+      </div>
+    </>
+  );
+}
+
 // ─── Integrations Tab ─────────────────────────────────────────────────────────
 
 function IntegrationsTab({ supabase }: { supabase: any }) {
@@ -831,23 +934,25 @@ function HelpTab() {
 
 // ─── Tab definitions ──────────────────────────────────────────────────────────
 
-const TABS: { id: Tab; label: string; agencyOnly?: boolean }[] = [
-  { id: "profile",       label: "Mon profil" },
+const TABS: { id: Tab; label: string; agencyOnly?: boolean; hidden?: boolean }[] = [
+  { id: "profile",       label: "Mon compte" },
   { id: "security",      label: "Sécurité" },
   { id: "notifications", label: "Notifications" },
-  { id: "appearance",    label: "Apparence" },
-  { id: "integrations",  label: "Intégrations" },
-  { id: "agency",        label: "Mon agence", agencyOnly: true },
+  { id: "publi",         label: "Publication" },
+  { id: "integrations",  label: "Comptes sociaux" },
+  { id: "agency",        label: "Mon équipe", agencyOnly: true },
   { id: "billing",       label: "Facturation" },
   { id: "help",          label: "Aide & Tutoriel" },
+  { id: "appearance",    label: "Apparence", hidden: true },
 ];
 
 const TAB_ICONS: Record<Tab, React.ReactNode> = {
   profile:       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>,
   security:      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2l7 3v5c0 5-3.5 9-7 11C8.5 19 5 15 5 10V5l7-3z"/></svg>,
   notifications: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 0 1-3.46 0"/></svg>,
+  publi:         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><path d="M22 3L11 14M22 3l-7 19-4-8-8-4 19-7Z"/></svg>,
   appearance:    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9M16.5 3.5l4 4L7 21H3v-4L16.5 3.5z"/></svg>,
-  integrations:  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>,
+  integrations:  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.3" cy="6.7" r="1" fill="currentColor" stroke="none"/></svg>,
   agency:        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>,
   billing:       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="5" width="20" height="14" rx="3"/><path d="M2 10h20"/></svg>,
   help:          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3M12 17h.01"/></svg>,
@@ -880,7 +985,7 @@ export default function SettingsPage() {
   const meta = session.user.user_metadata ?? {};
   const providers = (session.user.app_metadata?.providers as string[]) ?? [session.user.app_metadata?.provider ?? "email"];
 
-  const visibleTabs = TABS.filter(t => !t.agencyOnly || isAgency);
+  const visibleTabs = TABS.filter(t => (!t.agencyOnly || isAgency) && !t.hidden);
 
   return (
     <div className="app">
@@ -915,6 +1020,7 @@ export default function SettingsPage() {
               {tab === "profile"       && <ProfileTab       supabase={supabase} userId={userId} email={email} meta={meta} />}
               {tab === "security"      && <SecurityTab      supabase={supabase} providers={providers} />}
               {tab === "notifications" && <NotificationsTab supabase={supabase} userId={userId} />}
+              {tab === "publi"         && <PubliSection     supabase={supabase} userId={userId} />}
               {tab === "appearance"    && <AppearanceTab    supabase={supabase} userId={userId} />}
               {tab === "integrations"  && <IntegrationsTab  supabase={supabase} />}
               {tab === "agency"        && <AgencyTab        supabase={supabase} userId={userId} />}

@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Sidebar from "@/components/Sidebar";
 
-interface WorkspaceCard {
+interface WsCard {
   id: string;
   name: string;
   primary_color: string | null;
@@ -15,12 +15,47 @@ interface WorkspaceCard {
 }
 
 const WS_COLORS = ["#7B5CF5","#2FD79B","#C8732B","#5A86E8","#DD2A7B","#88B394","#E8A03A","#4A8DD4"];
+const TONES = ['Chic', 'Engagé', 'Fun', 'Pro', 'Poétique', 'Direct'];
+
+function IcSpark() {
+  return <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><path d="M12 3l1.6 5.4L19 10l-5.4 1.6L12 17l-1.6-5.4L5 10l5.4-1.6L12 3Z"/></svg>;
+}
+function IcUpload() {
+  return <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>;
+}
+function IcCheck() {
+  return <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5"/></svg>;
+}
+
+function BatchSteps() {
+  const steps = [['Importer', true, false], ['Générer', false, false], ['Peaufiner', false, false]];
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 22 }}>
+      {steps.map(([label, active], i) => (
+        <div key={String(label)} style={{ display: 'flex', alignItems: 'center', gap: 9, flex: i < 2 ? undefined : 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
+            <span style={{
+              width: 26, height: 26, borderRadius: '50%', display: 'grid', placeItems: 'center',
+              fontFamily: 'var(--mono)', fontWeight: 800, fontSize: 12,
+              background: active ? 'var(--ink)' : 'var(--sunk)',
+              color: active ? 'var(--paper)' : 'var(--ink-3)',
+            }}>{i + 1}</span>
+            <span style={{ fontWeight: 700, fontSize: 13.5, color: active ? 'var(--ink)' : 'var(--ink-3)' }}>{String(label)}</span>
+          </div>
+          {i < 2 && <div style={{ flex: 1, height: 2, borderRadius: 2, background: 'var(--line)', maxWidth: 80, minWidth: 24 }} />}
+        </div>
+      ))}
+    </div>
+  );
+}
 
 export default function ComposerPage() {
   const supabase = createClientComponentClient();
   const router = useRouter();
-  const [workspaces, setWorkspaces] = useState<WorkspaceCard[]>([]);
+  const [workspaces, setWorkspaces] = useState<WsCard[]>([]);
   const [loading, setLoading] = useState(true);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [tone, setTone] = useState('Chic');
 
   useEffect(() => {
     (async () => {
@@ -34,7 +69,7 @@ export default function ComposerPage() {
 
       if (!ws) { setLoading(false); return; }
 
-      const cards: WorkspaceCard[] = await Promise.all(
+      const cards: WsCard[] = await Promise.all(
         ws.map(async (w) => {
           const { count } = await supabase
             .from("posts")
@@ -46,9 +81,14 @@ export default function ComposerPage() {
       );
 
       setWorkspaces(cards);
+      if (cards.length > 0) setSelectedId(cards[0].id);
       setLoading(false);
     })();
   }, [supabase, router]);
+
+  function handleCompose() {
+    if (selectedId) router.push(`/workspace/${selectedId}`);
+  }
 
   return (
     <div className="app">
@@ -57,105 +97,129 @@ export default function ComposerPage() {
         <div className="topbar">
           <h1 style={{ fontSize: 14, fontWeight: 800, margin: 0 }}>Composer avec l&apos;IA</h1>
           <div style={{ marginLeft: "auto" }}>
-            <Link href="/workspace/new" className="btn btn-sm btn-primary">+ Nouveau client</Link>
+            <Link href="/workspace/new" className="btn btn-sm btn-ghost">+ Nouveau client</Link>
           </div>
         </div>
 
         <div className="scroll">
-          {/* Hero block — outside .page, but padded to match laterals */}
-          <div style={{ padding: "28px 34px 0" }}>
-            <div style={{ position: "relative", background: "linear-gradient(150deg, #1b5e3a, #0c2a1d)", borderRadius: "var(--r-l)", padding: "28px 32px", overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-              {/* Glow blobs */}
-              <div style={{ position: "absolute", top: -60, right: 60, width: 220, height: 220, borderRadius: "50%", background: "radial-gradient(circle, var(--mint), transparent 70%)", opacity: .28, filter: "blur(24px)", pointerEvents: "none" }} />
-              <div style={{ position: "absolute", bottom: -60, right: -20, width: 160, height: 160, borderRadius: "50%", background: "radial-gradient(circle, #C8F135, transparent 70%)", opacity: .14, filter: "blur(18px)", pointerEvents: "none" }} />
-
-              {/* Left content */}
-              <div style={{ position: "relative", zIndex: 1 }}>
-                {/* Klip IA badge */}
-                <div style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "rgba(47,215,155,.15)", borderRadius: 99, padding: "4px 10px", marginBottom: 14 }}>
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--mint)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
-                  </svg>
-                  <span style={{ fontSize: 10, fontWeight: 800, color: "var(--mint)", fontFamily: "var(--mono)", textTransform: "uppercase", letterSpacing: ".08em" }}>Klip IA</span>
-                </div>
-                <h2 style={{ fontFamily: "var(--display)", fontWeight: 800, fontSize: 22, color: "#fff", margin: "0 0 6px", letterSpacing: "-0.02em" }}>
-                  Générer du contenu
-                </h2>
-                <p style={{ fontSize: 13, color: "rgba(255,255,255,.55)", margin: 0, lineHeight: 1.5 }}>
-                  Sélectionnez un client pour créer des posts IA.
+          <div className="page screen-in" style={{ maxWidth: 1180 }}>
+            {/* Hero header */}
+            <div style={{
+              position: 'relative', borderRadius: 24, overflow: 'hidden',
+              padding: '28px 30px', marginBottom: 26,
+              background: 'var(--forest)', color: 'var(--cream)',
+            }}>
+              <div style={{ position: 'absolute', width: 280, height: 280, borderRadius: '50%', right: -60, top: -120, background: 'radial-gradient(circle, var(--mint), transparent 70%)', opacity: .5, filter: 'blur(20px)' }} />
+              <div style={{ position: 'absolute', width: 200, height: 200, borderRadius: '50%', right: 160, bottom: -140, background: 'radial-gradient(circle, var(--acid), transparent 70%)', opacity: .35, filter: 'blur(20px)' }} />
+              <div style={{ position: 'relative', zIndex: 2 }}>
+                <div className="label" style={{ color: 'var(--mint)', marginBottom: 10 }}>Création de contenu</div>
+                <h1 className="h-display" style={{ fontSize: 38, color: 'var(--cream)', maxWidth: 600 }}>
+                  Vos photos. <span className="it" style={{ color: 'var(--mint)' }}>Des posts en quelques clics.</span>
+                </h1>
+                <p style={{ color: 'var(--cream-2)', marginTop: 10, maxWidth: 520, fontSize: 15 }}>
+                  Choisissez un client, sélectionnez la voix de marque, et laissez Klip générer les descriptions pour vous.
                 </p>
               </div>
-
-              {/* Right: preview bars */}
-              <div style={{ position: "relative", zIndex: 1, display: "flex", flexDirection: "column", gap: 6, alignItems: "flex-end", flexShrink: 0 }}>
-                <div style={{ width: 40, height: 7, borderRadius: 99, background: "rgba(255,255,255,.15)" }} />
-                <div style={{ width: 60, height: 7, borderRadius: 99, background: "linear-gradient(90deg, var(--mint), #C8F135)" }} />
-                <div style={{ width: 40, height: 7, borderRadius: 99, background: "rgba(255,255,255,.18)" }} />
-              </div>
             </div>
-          </div>
 
-          <div className="page">
-            {/* Section header */}
-            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14 }}>
-              <span className="label">Vos clients</span>
-              <span className="chip">{workspaces.length}</span>
-            </div>
+            <BatchSteps />
 
             {loading ? (
-              <div style={{ color: "var(--ink-3)", fontSize: 13 }}>Chargement…</div>
+              <div style={{ color: 'var(--ink-3)', fontSize: 13 }}>Chargement…</div>
             ) : workspaces.length === 0 ? (
-              <div style={{ display:"flex", flexDirection:"column", alignItems:"center", textAlign:"center", padding:"72px 20px", gap:20 }}>
-                <div style={{ width:76, height:76, borderRadius:22, background:"linear-gradient(150deg,var(--mint-soft),rgba(47,215,155,.06))", border:"1px solid var(--mint-soft)", display:"grid", placeItems:"center", color:"var(--mint-2)" }}>
-                  <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
-                  </svg>
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', padding: '80px 20px', gap: 20 }}>
+                <div style={{ width: 76, height: 76, borderRadius: 22, background: 'var(--sunk)', display: 'grid', placeItems: 'center', color: 'var(--ink-3)' }}>
+                  <IcUpload />
                 </div>
                 <div>
-                  <h2 style={{ fontFamily:"var(--display)", fontWeight:800, fontSize:24, color:"var(--ink)", marginBottom:8, letterSpacing:"-.02em" }}>Aucun client pour l&apos;instant</h2>
-                  <p style={{ fontSize:14, color:"var(--ink-3)", maxWidth:340, lineHeight:1.6, margin:"0 auto" }}>Créez votre premier espace client pour commencer à générer du contenu avec l&apos;IA.</p>
+                  <h2 className="h-display" style={{ fontSize: 24, marginBottom: 8 }}>Aucun client</h2>
+                  <p style={{ fontSize: 14, color: 'var(--ink-3)', maxWidth: 340, lineHeight: 1.6, margin: '0 auto' }}>
+                    Créez votre premier espace client pour commencer à générer du contenu avec l&apos;IA.
+                  </p>
                 </div>
-                <Link href="/workspace/new" className="btn btn-primary" style={{ textDecoration:"none" }}>+ Nouveau client</Link>
+                <Link href="/workspace/new" className="btn btn-primary" style={{ textDecoration: 'none' }}>+ Nouveau client</Link>
               </div>
             ) : (
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 12 }}>
-                {workspaces.map((ws, i) => {
-                  const color = ws.primary_color || WS_COLORS[i % WS_COLORS.length];
-                  const initials = ws.name.slice(0, 2).toUpperCase();
-                  return (
-                    <Link key={ws.id} href={`/workspace/${ws.id}`} style={{ textDecoration: "none" }}>
-                      <div
-                        className="card"
-                        style={{ padding: "16px 18px", overflow: "hidden", borderTop: `4px solid ${color}`, display: "flex", flexDirection: "column", gap: 10, cursor: "pointer", transition: "box-shadow .15s, transform .15s" }}
-                        onMouseEnter={e => { e.currentTarget.style.boxShadow = "var(--shadow-pop)"; e.currentTarget.style.transform = "translateY(-2px)"; }}
-                        onMouseLeave={e => { e.currentTarget.style.boxShadow = ""; e.currentTarget.style.transform = ""; }}
-                      >
-                        {/* Top row: avatar + name */}
-                        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                          {ws.logo_url ? (
-                            <img src={ws.logo_url} alt="" style={{ width: 40, height: 40, borderRadius: 10, objectFit: "cover", flexShrink: 0 }} />
-                          ) : (
-                            <div style={{ width: 40, height: 40, borderRadius: 10, background: color, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 800, color: "#fff", fontFamily: "var(--mono)", flexShrink: 0 }}>
-                              {initials}
-                            </div>
-                          )}
-                          <span style={{ fontWeight: 700, fontSize: 14, color: "var(--ink)", lineHeight: 1.3 }}>{ws.name}</span>
-                        </div>
-                        {/* Bottom row: draft badge + chevron */}
-                        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                          <span style={{ fontSize: 11, fontWeight: 700, color: ws.draftCount > 0 ? "var(--warn)" : "var(--ink-3)", background: ws.draftCount > 0 ? "var(--warn-soft)" : "var(--sunk)", borderRadius: 99, padding: "3px 8px" }}>
-                            {ws.draftCount > 0 ? `${ws.draftCount} brouillon${ws.draftCount > 1 ? "s" : ""}` : "Aucun brouillon"}
-                          </span>
-                          <svg style={{ color: "var(--ink-3)", flexShrink: 0 }} width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                            <path d="M9 18l6-6-6-6"/>
-                          </svg>
-                        </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 300px', gap: 18, alignItems: 'start' }} className="batch-import">
+                {/* Dropzone */}
+                <div className="card" style={{ padding: 22 }}>
+                  <button
+                    onClick={handleCompose}
+                    style={{
+                      width: '100%', border: '1.5px dashed var(--line)', borderRadius: 16,
+                      padding: '48px 20px', background: 'var(--canvas)', cursor: 'pointer',
+                      display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 14,
+                      transition: 'all .15s',
+                    }}
+                    onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--mint-2)'; e.currentTarget.style.background = 'var(--mint-soft)'; }}
+                    onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--line)'; e.currentTarget.style.background = 'var(--canvas)'; }}
+                  >
+                    <span style={{ width: 56, height: 56, borderRadius: 15, background: 'var(--ink)', color: 'var(--paper)', display: 'grid', placeItems: 'center' }}>
+                      <IcUpload />
+                    </span>
+                    <div style={{ textAlign: 'center' }}>
+                      <div style={{ fontWeight: 700, fontSize: 16 }}>Ouvrir l&apos;éditeur</div>
+                      <div style={{ fontSize: 13, color: 'var(--ink-3)', marginTop: 2 }}>
+                        {selectedId ? `Composer pour ${workspaces.find(w => w.id === selectedId)?.name}` : 'Sélectionnez un client ci-contre'}
                       </div>
-                    </Link>
-                  );
-                })}
+                    </div>
+                  </button>
+                </div>
+
+                {/* Right panel */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 16, position: 'sticky', top: 0 }}>
+                  {/* Client picker */}
+                  <div className="card" style={{ padding: 18 }}>
+                    <div className="label" style={{ marginBottom: 10 }}>Client</div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                      {workspaces.map((ws, i) => {
+                        const color = ws.primary_color || WS_COLORS[i % WS_COLORS.length];
+                        const initials = ws.name.slice(0, 2).toUpperCase();
+                        const isSelected = selectedId === ws.id;
+                        return (
+                          <button key={ws.id} onClick={() => setSelectedId(ws.id)} style={{
+                            display: 'flex', alignItems: 'center', gap: 10, padding: 8,
+                            borderRadius: 9, textAlign: 'left', background: isSelected ? 'var(--mint-soft)' : 'transparent',
+                            border: 'none', cursor: 'pointer', transition: 'background .14s',
+                          }}>
+                            <span style={{ width: 28, height: 28, borderRadius: 8, background: color, display: 'grid', placeItems: 'center', fontSize: 9, fontWeight: 800, color: '#fff', fontFamily: 'var(--mono)', flexShrink: 0 }}>
+                              {initials}
+                            </span>
+                            <span style={{ fontWeight: 700, fontSize: 13.5, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{ws.name}</span>
+                            {isSelected && <span style={{ color: 'var(--mint-2)' }}><IcCheck /></span>}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Tone selector */}
+                  <div className="card" style={{ padding: 18 }}>
+                    <div className="label" style={{ marginBottom: 10 }}>Voix de marque</div>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 7 }}>
+                      {TONES.map(t => (
+                        <button key={t} onClick={() => setTone(t)} style={{
+                          padding: 9, borderRadius: 9, fontWeight: 700, fontSize: 13, transition: 'all .14s', border: 'none', cursor: 'pointer',
+                          background: tone === t ? 'var(--ink)' : 'var(--white)',
+                          color: tone === t ? 'var(--paper)' : 'var(--ink-2)',
+                          boxShadow: tone === t ? 'none' : 'inset 0 0 0 1px var(--line)',
+                        }}>{t}</button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <button
+                    className="btn btn-primary"
+                    style={{ width: '100%', padding: '13px', fontSize: 14.5, opacity: selectedId ? 1 : .45, pointerEvents: selectedId ? 'auto' : 'none' }}
+                    onClick={handleCompose}
+                  >
+                    <IcSpark /> Composer avec l&apos;IA
+                  </button>
+                </div>
               </div>
             )}
+
+            <style>{`@media(max-width:900px){.batch-import{grid-template-columns:1fr;}}`}</style>
           </div>
         </div>
       </div>

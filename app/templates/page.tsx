@@ -6,19 +6,94 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Sidebar from "@/components/Sidebar";
 
-interface WorkspaceCard {
+interface WsCard {
   id: string;
   name: string;
   primary_color: string | null;
+  instagram_username: string | null;
   templateCount: number;
 }
 
 const WS_COLORS = ["#7B5CF5","#2FD79B","#C8732B","#5A86E8","#DD2A7B","#88B394","#E8A03A","#4A8DD4"];
 
+function deriveSwatches(primary: string): string[] {
+  return [primary, '#EEEDE3', '#14160F', '#8B8E7F', primary + 'aa'];
+}
+
+function ClientKitCard({ ws, color, index }: { ws: WsCard; color: string; index: number }) {
+  const initials = ws.name.slice(0, 2).toUpperCase();
+  const swatches = deriveSwatches(color).slice(0, 5);
+  const placeholders = [
+    `linear-gradient(150deg, ${color}cc, ${color}44)`,
+    `linear-gradient(150deg, ${color}88, #14160F)`,
+    `linear-gradient(150deg, #EEEDE3, ${color}66)`,
+  ];
+
+  return (
+    <Link href={`/workspace/${ws.id}/templates`} style={{ textDecoration: 'none' }}>
+      <div
+        className="card"
+        style={{ overflow: 'hidden', display: 'flex', flexDirection: 'column', cursor: 'pointer', transition: 'transform .14s, box-shadow .14s' }}
+        onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = 'var(--shadow-pop)'; }}
+        onMouseLeave={e => { e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = ''; }}
+      >
+        {/* brand band */}
+        <div style={{ height: 70, background: color, position: 'relative' }} />
+        <div style={{ padding: '0 18px 18px' }}>
+          {/* avatar overlap + name */}
+          <div style={{ display: 'flex', alignItems: 'flex-end', gap: 12, marginBottom: 14 }}>
+            <div style={{
+              width: 46, height: 46, borderRadius: 13, background: color,
+              display: 'grid', placeItems: 'center', fontSize: 13, fontWeight: 800,
+              color: '#fff', fontFamily: 'var(--mono)', flexShrink: 0,
+              marginTop: -22, boxShadow: '0 0 0 3px var(--white)',
+            }}>
+              {initials}
+            </div>
+            <div style={{ paddingBottom: 2, minWidth: 0, flex: 1 }}>
+              <div className="h-title trunc" style={{ fontSize: 16 }}>{ws.name}</div>
+              <div style={{ fontSize: 12, color: 'var(--ink-3)', fontWeight: 600 }}>
+                {ws.instagram_username ? `@${ws.instagram_username}` : 'Non connecté'}
+              </div>
+            </div>
+            <span className="chip" style={{ background: 'var(--sunk)', color: 'var(--ink-2)', fontSize: 10.5, flexShrink: 0 }}>
+              {ws.templateCount} modèle{ws.templateCount !== 1 ? 's' : ''}
+            </span>
+          </div>
+
+          {/* palette */}
+          <div className="label" style={{ marginBottom: 7, fontSize: 10 }}>Palette</div>
+          <div style={{ display: 'flex', gap: 5, marginBottom: 14 }}>
+            {swatches.map((c, i) => (
+              <span key={i} style={{ width: 24, height: 24, borderRadius: 6, background: c, boxShadow: 'inset 0 0 0 1px rgba(13,15,10,.12)' }} />
+            ))}
+          </div>
+
+          {/* template thumbnails */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 8, marginBottom: 14 }}>
+            {placeholders.map((grad, i) => (
+              <div key={i} style={{ borderRadius: 9, overflow: 'hidden', boxShadow: 'inset 0 0 0 1px var(--line)', aspectRatio: '4/5', background: grad }} />
+            ))}
+          </div>
+
+          <button
+            className="btn btn-ghost btn-sm"
+            style={{ width: '100%' }}
+            onClick={e => { e.preventDefault(); window.location.href = `/workspace/${ws.id}/templates`; }}
+          >
+            Ouvrir la charte
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M7 17L17 7M7 7h10v10"/></svg>
+          </button>
+        </div>
+      </div>
+    </Link>
+  );
+}
+
 export default function TemplatesPage() {
   const supabase = createClientComponentClient();
   const router = useRouter();
-  const [workspaces, setWorkspaces] = useState<WorkspaceCard[]>([]);
+  const [workspaces, setWorkspaces] = useState<WsCard[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -28,12 +103,12 @@ export default function TemplatesPage() {
 
       const { data: ws } = await supabase
         .from("workspaces")
-        .select("id, name, primary_color")
+        .select("id, name, primary_color, instagram_username")
         .order("created_at");
 
       if (!ws) { setLoading(false); return; }
 
-      const cards: WorkspaceCard[] = await Promise.all(
+      const cards: WsCard[] = await Promise.all(
         ws.map(async (w) => {
           const { count } = await supabase
             .from("post_templates")
@@ -53,73 +128,58 @@ export default function TemplatesPage() {
       <Sidebar />
       <div className="work">
         <div className="topbar" style={{ justifyContent: "space-between" }}>
-          <h1 style={{ fontSize: 14, fontWeight: 800, margin: 0 }}>Templates</h1>
-          <Link href="/workspace/new" className="btn btn-primary btn-sm" style={{ textDecoration: "none", fontSize: 12 }}>
+          <h1 style={{ fontSize: 14, fontWeight: 800, margin: 0 }}>Modèles</h1>
+          <Link href="/workspace/new" className="btn btn-primary btn-sm" style={{ textDecoration: "none" }}>
             + Nouveau client
           </Link>
         </div>
 
         <div className="scroll">
-          <div className="page" style={{ maxWidth: 680 }}>
+          <div className="page screen-in" style={{ maxWidth: 1320 }}>
             {/* Page header */}
-            <div style={{ display:"flex", alignItems:"flex-end", justifyContent:"space-between", gap:16, marginBottom:28, flexWrap:"wrap" }}>
+            <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 20, marginBottom: 28, flexWrap: 'wrap' }}>
               <div>
-                <div className="label" style={{ marginBottom:8 }}>Mise en page</div>
-                <h1 style={{ fontFamily:"var(--display)", fontWeight:800, fontSize:28, color:"var(--ink)", letterSpacing:"-.02em", margin:0 }}>Templates</h1>
-                <p style={{ fontSize:13, color:"var(--ink-3)", marginTop:6 }}>Modèles réutilisables assignés à vos clients.</p>
+                <div className="label" style={{ marginBottom: 8 }}>Chartes & modèles · {workspaces.length} client{workspaces.length !== 1 ? 's' : ''}</div>
+                <h1 className="h-display" style={{ fontSize: 33 }}>
+                  Modèles par <span className="it" style={{ color: 'var(--mint-2)' }}>client.</span>
+                </h1>
+                <p style={{ color: 'var(--ink-2)', marginTop: 7, maxWidth: 520 }}>
+                  Chaque client a sa charte et sa bibliothèque de modèles. Ouvrez un compte pour créer ou modifier ses gabarits.
+                </p>
               </div>
-              <Link href="/workspace/new" className="btn btn-primary" style={{ textDecoration:"none", flexShrink:0 }}>+ Nouveau client</Link>
             </div>
 
             {loading ? (
-              <div style={{ color: "var(--ink-3)", fontSize: 13 }}>Chargement…</div>
+              <div style={{ color: 'var(--ink-3)', fontSize: 13 }}>Chargement…</div>
             ) : workspaces.length === 0 ? (
-              <div style={{ display:"flex", flexDirection:"column", alignItems:"center", textAlign:"center", padding:"72px 20px", gap:20 }}>
-                <div style={{ width:76, height:76, borderRadius:22, background:"var(--sunk)", border:"1px solid var(--line)", display:"grid", placeItems:"center", color:"var(--ink-3)" }}>
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', padding: '80px 20px', gap: 20 }}>
+                <div style={{ width: 76, height: 76, borderRadius: 22, background: 'var(--sunk)', display: 'grid', placeItems: 'center', color: 'var(--ink-3)' }}>
                   <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
                     <rect x="3" y="3" width="18" height="18" rx="3"/><path d="M3 9h18M9 9v12"/>
                   </svg>
                 </div>
                 <div>
-                  <h2 style={{ fontFamily:"var(--display)", fontWeight:800, fontSize:24, color:"var(--ink)", marginBottom:8, letterSpacing:"-.02em" }}>Aucun template</h2>
-                  <p style={{ fontSize:14, color:"var(--ink-3)", maxWidth:340, lineHeight:1.6, margin:"0 auto" }}>Créez des mises en page réutilisables et assignez-les à vos clients pour aller plus vite.</p>
+                  <h2 className="h-display" style={{ fontSize: 24, marginBottom: 8 }}>Aucun client</h2>
+                  <p style={{ fontSize: 14, color: 'var(--ink-3)', maxWidth: 340, lineHeight: 1.6, margin: '0 auto' }}>
+                    Créez un espace client pour commencer à construire votre bibliothèque de modèles.
+                  </p>
                 </div>
-                <Link href="/workspace/new" className="btn btn-primary" style={{ textDecoration:"none" }}>+ Nouveau client</Link>
+                <Link href="/workspace/new" className="btn btn-primary" style={{ textDecoration: 'none' }}>
+                  + Nouveau client
+                </Link>
               </div>
             ) : (
-              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                {workspaces.map((ws, i) => {
-                  const color = ws.primary_color || WS_COLORS[i % WS_COLORS.length];
-                  const initials = ws.name.slice(0, 2).toUpperCase();
-                  return (
-                    <Link key={ws.id} href={`/workspace/${ws.id}/templates`} style={{ textDecoration: "none" }}>
-                      <div
-                        className="card"
-                        style={{ padding: "14px 18px", display: "flex", alignItems: "center", gap: 14, cursor: "pointer", transition: "box-shadow .15s, transform .15s", borderLeft: `3px solid ${color}` }}
-                        onMouseEnter={e => { e.currentTarget.style.boxShadow = "var(--shadow-pop)"; e.currentTarget.style.transform = "translateY(-1px)"; }}
-                        onMouseLeave={e => { e.currentTarget.style.boxShadow = ""; e.currentTarget.style.transform = ""; }}
-                      >
-                        <div style={{ width: 40, height: 40, borderRadius: 10, background: color, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 800, color: "#fff", fontFamily: "var(--mono)", flexShrink: 0 }}>
-                          {initials}
-                        </div>
-                        <div style={{ minWidth: 0, flex: 1 }}>
-                          <div style={{ fontWeight: 700, fontSize: 14, color: "var(--ink)" }}>{ws.name}</div>
-                          <div style={{ fontSize: 11.5, color: "var(--ink-3)", marginTop: 1 }}>
-                            {ws.templateCount > 0 ? `${ws.templateCount} template${ws.templateCount > 1 ? "s" : ""}` : "Aucun template"}
-                          </div>
-                        </div>
-                        <span style={{ fontSize: 11, fontWeight: 700, background: ws.templateCount > 0 ? "rgba(79,142,247,.12)" : "var(--sunk)", color: ws.templateCount > 0 ? "#4F8EF7" : "var(--ink-3)", padding: "3px 9px", borderRadius: 99, flexShrink: 0 }}>
-                          {ws.templateCount}
-                        </span>
-                        <svg style={{ color: "var(--ink-3)", flexShrink: 0 }} width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                          <path d="M9 18l6-6-6-6"/>
-                        </svg>
-                      </div>
-                    </Link>
-                  );
-                })}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 16 }} className="kit-grid">
+                {workspaces.map((ws, i) => (
+                  <ClientKitCard key={ws.id} ws={ws} color={ws.primary_color || WS_COLORS[i % WS_COLORS.length]} index={i} />
+                ))}
               </div>
             )}
+
+            <style>{`
+              @media(max-width:1080px){.kit-grid{grid-template-columns:repeat(2,1fr)}}
+              @media(max-width:680px){.kit-grid{grid-template-columns:1fr}}
+            `}</style>
           </div>
         </div>
       </div>

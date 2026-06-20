@@ -377,13 +377,13 @@ function Hero({ onDemo }: { onDemo: () => void }) {
             <span className="lp-eyebrow lp-reveal" style={{ marginBottom: 24 }}>Pour les agences &amp; community managers</span>
             <div className="lp-reveal in d1">
               <h1 className="lp-display lp-upper" style={{ fontSize: 'clamp(40px, 5.5vw, 82px)', margin: 0, lineHeight: 1.0 }}>
-                Gagnez 2h par jour<br />
-                <span className="lp-it lp-mint">sur chaque client.</span>
+                Le social de<br />tous vos clients,<br />
+                <span className="lp-it lp-mint">d'un même geste.</span>
               </h1>
             </div>
             <div className="lp-reveal in d2">
               <p className="lp-lead" style={{ maxWidth: 460, marginTop: 24 }}>
-                Création visuelle, légendes IA et planification — tout dans un seul outil.
+                Klip réunit l'éditeur visuel, les descriptions IA, le calendrier et la publication Instagram automatique. Un espace par client. Zéro onglet de trop.
               </p>
               <div className="lp-hero-btns" style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginTop: 36, alignItems: 'center' }}>
                 <Link href="/register" className="lp-btn lp-btn-mint">
