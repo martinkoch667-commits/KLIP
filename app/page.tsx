@@ -303,9 +303,8 @@ function Nav({ onDemo }: { onDemo: () => void }) {
     return () => window.removeEventListener('scroll', f);
   }, []);
   const links: [string, string][] = [
-    ['Le problème', '#probleme'],
-    ['Comment ça marche', '#process'],
     ['Démo', '#demo'],
+    ['Fonctionnalités', '#features'],
     ['Tarifs', '#tarifs'],
   ];
   return (
@@ -374,7 +373,6 @@ function Hero({ onDemo }: { onDemo: () => void }) {
       <div className="lp-wrap" style={{ position: 'relative', zIndex: 2 }}>
         <div className="lp-2col" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 48, alignItems: 'center' }}>
           <div className="lp-hero-col">
-            <span className="lp-eyebrow lp-reveal" style={{ marginBottom: 24 }}>Pour les agences &amp; community managers</span>
             <div className="lp-reveal in d1">
               <h1 className="lp-display lp-upper" style={{ fontSize: 'clamp(40px, 5.5vw, 82px)', margin: 0, lineHeight: 1.0 }}>
                 Le social de<br />tous vos clients,<br />
@@ -438,8 +436,7 @@ function Probleme() {
       <div className="lp-wrap">
         <div className="lp-2col" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 64, alignItems: 'center' }}>
           <div>
-            <span className="lp-eyebrow lp-reveal" style={{ color: '#2FD79B' }}>Le problème</span>
-            <h2 className="lp-display lp-upper lp-reveal d1" style={{ fontSize: 'clamp(34px, 4.2vw, 58px)', marginTop: 20, color: '#EFEEE4' }}>
+            <h2 className="lp-display lp-upper lp-reveal d1" style={{ fontSize: 'clamp(34px, 4.2vw, 58px)', marginTop: 0, color: '#EFEEE4' }}>
               On sait exactement<br /><span className="lp-it lp-mint">ce que vous vivez.</span>
             </h2>
             <p className="lp-lead lp-reveal d2" style={{ marginTop: 24, maxWidth: 460 }}>
@@ -481,8 +478,7 @@ function Process() {
     <section id="process" className="lp-section">
       <div className="lp-wrap">
         <div style={{ maxWidth: 720 }}>
-          <span className="lp-eyebrow lp-reveal">Comment ça marche</span>
-          <h2 className="lp-display lp-upper lp-reveal d1" style={{ fontSize: 'clamp(38px, 4.8vw, 66px)', marginTop: 20 }}>
+          <h2 className="lp-display lp-upper lp-reveal d1" style={{ fontSize: 'clamp(38px, 4.8vw, 66px)', marginTop: 0 }}>
             Un seul endroit.<br /><span className="lp-it lp-mint">Toute la post-production.</span>
           </h2>
         </div>
@@ -1154,8 +1150,7 @@ function Features() {
     <section id="features" className="lp-section">
       <div className="lp-wrap">
         <div style={{ maxWidth: 720 }}>
-          <span className="lp-eyebrow lp-reveal">Pourquoi Klip</span>
-          <h2 className="lp-display lp-upper lp-reveal d1" style={{ fontSize: 'clamp(38px, 4.8vw, 66px)', marginTop: 20 }}>
+          <h2 className="lp-display lp-upper lp-reveal d1" style={{ fontSize: 'clamp(38px, 4.8vw, 66px)', marginTop: 0 }}>
             Tout ce qu&apos;il faut.<br /><span className="lp-it lp-mint">Rien de superflu.</span>
           </h2>
         </div>

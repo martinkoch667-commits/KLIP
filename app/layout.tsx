@@ -1,13 +1,79 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Klip",
-  description: "Production de contenu client, simplifiée.",
+  title: {
+    default: "Klip — Le studio social pour agences & community managers",
+    template: "%s | Klip",
+  },
+  description:
+    "Klip réunit l'éditeur visuel, la génération de légendes par IA, le calendrier et la publication automatique Instagram en un seul endroit. Gérez tous vos clients depuis un même espace.",
+  keywords: [
+    "agence social media",
+    "community manager",
+    "publication Instagram automatique",
+    "planification réseaux sociaux",
+    "légendes IA Instagram",
+    "gestion multi-clients",
+    "calendrier éditorial",
+    "création contenu Instagram",
+    "outil social media agence",
+    "Klip",
+  ],
+  authors: [{ name: "Klip" }],
+  creator: "Klip",
+  publisher: "Klip",
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: { index: true, follow: true, "max-image-preview": "large", "max-snippet": -1 },
+  },
+  openGraph: {
+    type: "website",
+    locale: "fr_FR",
+    siteName: "Klip",
+    title: "Klip — Le studio social pour agences & community managers",
+    description:
+      "Créez, planifiez et publiez le contenu de tous vos clients Instagram depuis un seul espace. Éditeur visuel, légendes IA, calendrier et publication automatique.",
+    images: [{ url: "/og-image.png", width: 1200, height: 630, alt: "Klip — Le studio social des agences" }],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Klip — Le studio social pour agences & community managers",
+    description:
+      "Créez, planifiez et publiez le contenu de tous vos clients Instagram depuis un seul espace. Éditeur visuel, légendes IA, calendrier et publication automatique.",
+    images: ["/og-image.png"],
+  },
   icons: {
     icon: "/favicon-32.png",
     apple: "/icon-192.png",
   },
+  alternates: {
+    canonical: "https://www.klip.app",
+  },
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 5,
+  themeColor: "#0C2A1D",
+};
+
+const jsonLd = {
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  name: "Klip",
+  applicationCategory: "BusinessApplication",
+  operatingSystem: "Web",
+  description:
+    "Klip est le studio social pour agences et community managers. Éditeur visuel, légendes IA, calendrier et publication Instagram automatique dans un seul espace.",
+  offers: [
+    { "@type": "Offer", name: "Studio", price: "25", priceCurrency: "EUR" },
+    { "@type": "Offer", name: "Agence", price: "89", priceCurrency: "EUR" },
+  ],
+  inLanguage: "fr",
+  url: "https://www.klip.app",
 };
 
 export default function RootLayout({
@@ -23,6 +89,10 @@ export default function RootLayout({
           dangerouslySetInnerHTML={{
             __html: `(function(){try{var t=localStorage.getItem('klip-theme')||'dark';document.documentElement.setAttribute('data-theme',t);}catch(e){}})();`,
           }}
+        />
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
         />
         {/* Fonts */}
         <link rel="preconnect" href="https://api.fontshare.com" />
