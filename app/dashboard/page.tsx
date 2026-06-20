@@ -439,6 +439,84 @@ function ClientSwitcher({ active, workspaces, onChange }: {
   );
 }
 
+// ─── WorkspaceCard ──────────────────────────────────────────────────────────
+
+function WorkspaceCard({ workspace, posts, color, index, onOpen }: {
+  workspace: WorkspaceRow;
+  posts: PostRow[];
+  color: string;
+  index: number;
+  onOpen: () => void;
+}) {
+  const wsPosts = posts.filter(p => p.workspace_id === workspace.id);
+  const pending = wsPosts.filter(p => p.status === 'generated').length;
+  const scheduled = wsPosts.filter(p => p.scheduled_at).length;
+  const recentWithImg = wsPosts.filter(p => p.exported_image_url || p.photo_url).slice(0, 3);
+  const initials = wsInitials(workspace.name);
+
+  return (
+    <div className="card" style={{ overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+      {/* Brand header */}
+      <div style={{ height: 72, background: color, position: 'relative', flexShrink: 0 }}>
+        <div style={{ position: 'absolute', top: 10, right: 10, display: 'flex', gap: 4 }}>
+          {[color, '#EEEDE3', '#14160F'].map((col, i) => (
+            <span key={i} style={{ width: 14, height: 14, borderRadius: '50%', background: col, boxShadow: '0 0 0 1.5px rgba(255,255,255,.45)' }} />
+          ))}
+        </div>
+      </div>
+      <div style={{ padding: '0 18px 18px', flex: 1, display: 'flex', flexDirection: 'column' }}>
+        {/* Avatar + name */}
+        <div style={{ display: 'flex', alignItems: 'flex-end', gap: 12, marginBottom: 14 }}>
+          <div style={{ width: 46, height: 46, borderRadius: 13, background: color, display: 'grid', placeItems: 'center', fontSize: 14, fontWeight: 800, color: '#fff', fontFamily: 'var(--mono)', flexShrink: 0, marginTop: -20, boxShadow: '0 0 0 3px var(--white)' }}>
+            {initials}
+          </div>
+          <div style={{ paddingBottom: 2, minWidth: 0 }}>
+            <div className="h-title" style={{ fontSize: 16 }} >{workspace.name}</div>
+            <div style={{ fontSize: 12, color: 'var(--ink-3)', fontWeight: 600 }}>
+              {workspace.instagram_username ? `@${workspace.instagram_username}` : 'Instagram non connecté'}
+            </div>
+          </div>
+        </div>
+
+        {/* Recent post thumbs */}
+        {recentWithImg.length > 0 && (
+          <div style={{ display: 'flex', gap: 6, marginBottom: 14 }}>
+            {recentWithImg.map(p => {
+              const src = p.exported_image_url || p.photo_url;
+              return (
+                <div key={p.id} style={{ flex: 1, aspectRatio: '4/5', borderRadius: 7, overflow: 'hidden', background: 'var(--sunk)' }}>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={src!} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                </div>
+              );
+            })}
+            {Array.from({ length: 3 - recentWithImg.length }).map((_, i) => (
+              <div key={`empty-${i}`} style={{ flex: 1, aspectRatio: '4/5', borderRadius: 7, background: 'var(--sunk)' }} />
+            ))}
+          </div>
+        )}
+
+        {/* Stats + action */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 14, paddingTop: 14, borderTop: '1px solid var(--line)', marginTop: 'auto' }}>
+          <div>
+            <span className="num" style={{ fontSize: 18 }}>{scheduled}</span>
+            <span style={{ fontSize: 12, color: 'var(--ink-3)', marginLeft: 4 }}>planifiés</span>
+          </div>
+          {pending > 0 && (
+            <div>
+              <span className="num" style={{ fontSize: 18, color: 'var(--warn)' }}>{pending}</span>
+              <span style={{ fontSize: 12, color: 'var(--ink-3)', marginLeft: 4 }}>à valider</span>
+            </div>
+          )}
+          <button className="btn btn-sm btn-ghost" style={{ marginLeft: 'auto' }} onClick={onOpen}>
+            Ouvrir <IconChevR />
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── Page ───────────────────────────────────────────────────────────────────
 
 export default function Dashboard() {
@@ -589,84 +667,84 @@ export default function Dashboard() {
               />
             </div>
 
-            {/* Main grid */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1.55fr 1fr', gap: 14 }} className="dash-grid">
+            {/* All clients: workspace card grid */}
+            {active === 'all' && (
+              <>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+                  <h2 className="h-title" style={{ fontSize: 17 }}>Vos clients</h2>
+                  <Link href="/workspace/new" className="btn btn-primary">
+                    <IconPlus /> Ajouter un client
+                  </Link>
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 14, marginBottom: 14 }} className="clients-grid">
+                  {workspaces.map((w, i) => (
+                    <WorkspaceCard
+                      key={w.id}
+                      workspace={w}
+                      posts={posts}
+                      color={wsColor(i)}
+                      index={i}
+                      onOpen={() => setActive(w.id)}
+                    />
+                  ))}
+                  {/* Add new client card */}
+                  <Link href="/workspace/new"
+                    style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 12, minHeight: 220, borderRadius: 'var(--r)', border: '1.5px dashed var(--line)', color: 'var(--ink-3)', textDecoration: 'none', transition: 'all .15s' }}
+                    onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = 'var(--mint-2)'; (e.currentTarget as HTMLElement).style.color = 'var(--mint-2)'; }}
+                    onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = 'var(--line)'; (e.currentTarget as HTMLElement).style.color = 'var(--ink-3)'; }}
+                  >
+                    <span style={{ width: 46, height: 46, borderRadius: 13, background: 'var(--sunk)', display: 'grid', placeItems: 'center' }}><IconPlus /></span>
+                    <span style={{ fontWeight: 700, fontSize: 14 }}>Nouvel espace client</span>
+                  </Link>
+                </div>
 
-              {/* Upcoming posts */}
-              <div className="card" style={{ padding: 22 }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 18 }}>
-                  <h2 className="h-title" style={{ fontSize: 17 }}>Prochaines publications</h2>
-                  {active !== 'all' && (
+                {/* Activity feed below */}
+                <ActivityFeed activities={scopeActivities} workspaces={workspaces} />
+              </>
+            )}
+
+            {/* Single client: detailed grid */}
+            {active !== 'all' && (
+              <div style={{ display: 'grid', gridTemplateColumns: '1.55fr 1fr', gap: 14 }} className="dash-grid">
+
+                {/* Upcoming posts */}
+                <div className="card" style={{ padding: 22 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 18 }}>
+                    <h2 className="h-title" style={{ fontSize: 17 }}>Prochaines publications</h2>
                     <Link href={`/workspace/${active}/planning`} className="btn btn-sm btn-ghost">
                       Tout voir <IconChevR />
                     </Link>
-                  )}
-                </div>
-                {upcoming.length === 0 ? (
-                  <div style={{ color: 'var(--ink-3)', fontSize: 13, textAlign: 'center', padding: '32px 0' }}>
-                    Aucun post en cours
-                    {active !== 'all' && (
+                  </div>
+                  {upcoming.length === 0 ? (
+                    <div style={{ color: 'var(--ink-3)', fontSize: 13, textAlign: 'center', padding: '32px 0' }}>
+                      Aucun post en cours
                       <div style={{ marginTop: 12 }}>
                         <Link href={`/workspace/${active}`} className="btn btn-primary btn-sm">
                           <IconPlus /> Créer un post
                         </Link>
                       </div>
-                    )}
-                  </div>
-                ) : (
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 12 }} className="up-grid">
-                    {upcoming.map(p => (
-                      <PostCard
-                        key={p.id}
-                        post={p}
-                        workspaceId={p.workspace_id}
-                        onClick={() => router.push(`/workspace/${p.workspace_id}/editor/${p.id}`)}
-                      />
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              {/* Right column */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-
-                {/* Single client: Instagram profile preview */}
-                {active !== 'all' && (
-                  <InstagramProfile workspaceId={active} />
-                )}
-
-                {/* All clients: attention needed */}
-                {active === 'all' && attentionClients.length > 0 && (
-                  <div className="card" style={{ padding: 20 }}>
-                    <h2 className="h-title" style={{ fontSize: 15, marginBottom: 14 }}>Demande votre attention</h2>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                      {attentionClients.slice(0, 4).map(c => (
-                        <button
-                          key={c.id}
-                          onClick={() => setActive(c.id)}
-                          style={{ display: 'flex', alignItems: 'center', gap: 11, padding: '9px 8px', borderRadius: 10, textAlign: 'left', border: 'none', cursor: 'pointer', background: 'transparent', transition: 'background .14s', width: '100%' }}
-                          onMouseEnter={e => { e.currentTarget.style.background = 'var(--sunk)'; }}
-                          onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}
-                        >
-                          <span style={{ width: 32, height: 32, borderRadius: 9, background: c.color, display: 'grid', placeItems: 'center', fontSize: 10, fontWeight: 800, color: '#fff', fontFamily: 'var(--mono)', flexShrink: 0 }}>
-                            {wsInitials(c.name)}
-                          </span>
-                          <div style={{ minWidth: 0, flex: 1 }}>
-                            <div style={{ fontWeight: 700, fontSize: 13, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.name}</div>
-                            <div style={{ fontSize: 11.5, color: 'var(--ink-3)' }}>{c.pending} post{c.pending > 1 ? 's' : ''} à valider</div>
-                          </div>
-                          <span className="badge" style={{ background: 'var(--warn-soft)', color: 'var(--warn)', flexShrink: 0 }}>{c.pending}</span>
-                        </button>
+                    </div>
+                  ) : (
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 12 }} className="up-grid">
+                      {upcoming.map(p => (
+                        <PostCard
+                          key={p.id}
+                          post={p}
+                          workspaceId={p.workspace_id}
+                          onClick={() => router.push(`/workspace/${p.workspace_id}/editor/${p.id}`)}
+                        />
                       ))}
                     </div>
-                  </div>
-                )}
+                  )}
+                </div>
 
-                {/* Activity feed */}
-                <ActivityFeed activities={scopeActivities} workspaces={workspaces} />
-
+                {/* Right column */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                  <InstagramProfile workspaceId={active} />
+                  <ActivityFeed activities={scopeActivities} workspaces={workspaces} />
+                </div>
               </div>
-            </div>
+            )}
 
           </div>
         </main>

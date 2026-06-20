@@ -911,18 +911,47 @@ export default function WorkspacePage() {
             {activeTab === "produire" && (
               <div className="screen-in">
 
-                {/* Forest header banner */}
-                <div style={{ position: 'relative', borderRadius: 'var(--r-xl)', overflow: 'hidden', padding: '28px 30px', marginBottom: 26, background: 'var(--forest)', color: 'var(--cream)' }}>
-                  <div style={{ position: 'absolute', width: 280, height: 280, borderRadius: '50%', right: -60, top: -100, background: 'radial-gradient(circle, var(--mint), transparent 70%)', opacity: 0.35, filter: 'blur(20px)', pointerEvents: 'none' }} />
-                  <div style={{ position: 'absolute', width: 180, height: 180, borderRadius: '50%', right: 200, bottom: -100, background: 'radial-gradient(circle, var(--acid), transparent 70%)', opacity: 0.25, filter: 'blur(16px)', pointerEvents: 'none' }} />
-                  <div style={{ position: 'relative', zIndex: 2 }}>
-                    <div className="label" style={{ color: 'var(--mint)', marginBottom: 10 }}>Production</div>
-                    <h1 className="h-display" style={{ fontSize: 34, color: 'var(--cream)', maxWidth: 560 }}>
-                      {workspace?.name ?? "…"}. <span className="it" style={{ color: 'var(--mint)' }}>Une fournée de posts.</span>
-                    </h1>
-                    <p style={{ color: 'var(--cream-2)', marginTop: 10, maxWidth: 500, fontSize: 14 }}>
-                      Déposez vos photos, l'IA rédige chaque description et texte visuel en un clic.
-                    </p>
+                {/* Hero */}
+                <div style={{ position: 'relative', borderRadius: 'var(--r-xl)', overflow: 'hidden', padding: '30px 32px', marginBottom: 16, background: 'linear-gradient(120deg, #0A2418 0%, var(--forest) 48%, #103A28 100%)', color: 'var(--cream)' }}>
+                  <div className="halo-blob" style={{ width: 300, height: 300, right: -70, top: -150, background: 'var(--mint)', opacity: .42 }} />
+                  <div className="halo-blob" style={{ width: 220, height: 220, right: 180, bottom: -150, background: 'var(--acid)', opacity: .28 }} />
+                  <div style={{ position: 'relative', zIndex: 2, display: 'grid', gridTemplateColumns: '1fr auto', gap: 28, alignItems: 'center' }}>
+                    <div>
+                      <div className="label" style={{ color: 'var(--mint)', marginBottom: 12 }}>Production · {workspace?.name ?? "…"}</div>
+                      <h1 className="h-display" style={{ fontSize: 36, color: 'var(--cream)', maxWidth: 520 }}>
+                        Créez du contenu <span className="it" style={{ color: 'var(--mint)' }}>qui convertit.</span>
+                      </h1>
+                      <p style={{ color: 'var(--cream-2)', marginTop: 10, maxWidth: 460, fontSize: 14.5 }}>
+                        {posts.length > 0
+                          ? <><b style={{ color: 'var(--cream)' }}>{posts.filter(p => p.status === 'generated' || p.status === 'validated').length} post{posts.filter(p => p.status === 'generated' || p.status === 'validated').length !== 1 ? 's' : ''}</b> prêts · déposez d'autres photos ou lancez la génération.</>
+                          : <>Déposez vos photos, l'IA rédige chaque description et texte visuel en un clic.</>}
+                      </p>
+                      <div style={{ display: 'flex', gap: 10, marginTop: 18 }}>
+                        <button className="btn btn-primary" onClick={() => fileInputRef.current?.click()}>
+                          <IconUpload /> Ajouter des photos
+                        </button>
+                        <button className="btn" style={{ background: 'rgba(238,237,227,.12)', color: 'var(--cream)', boxShadow: 'inset 0 0 0 1px rgba(238,237,227,.2)' }} onClick={() => document.getElementById('ai-gen-card')?.scrollIntoView({ behavior: 'smooth', block: 'center' })}>
+                          <IconSpark /> Générer avec l'IA
+                        </button>
+                      </div>
+                    </div>
+                    {/* Session stats panel */}
+                    <div style={{ width: 220, borderRadius: 'var(--r-l)', background: 'rgba(238,237,227,.08)', boxShadow: 'inset 0 0 0 1px rgba(238,237,227,.15)', backdropFilter: 'blur(6px)', padding: '16px 18px' }}>
+                      <div className="label" style={{ color: 'var(--cream)', marginBottom: 12 }}>Cette session</div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                        {[
+                          { label: 'Photos importées', n: posts.length },
+                          { label: 'Générés', n: posts.filter(p => p.status === 'generated').length },
+                          { label: 'Validés', n: posts.filter(p => p.status === 'validated').length },
+                          { label: 'En cours', n: posts.filter(p => p.status === 'generating' || p.status === 'validating').length },
+                        ].map(({ label, n }) => (
+                          <div key={label} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                            <span style={{ fontSize: 12, color: 'var(--cream-2)', fontWeight: 600 }}>{label}</span>
+                            <span className="num" style={{ fontSize: 18, color: n > 0 ? 'var(--mint)' : 'var(--cream-3)', lineHeight: 1 }}>{n}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
                   </div>
                 </div>
 
@@ -953,7 +982,7 @@ export default function WorkspacePage() {
                   </div>
 
                   {/* AI generator */}
-                  <div className="card" style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 12 }}>
+                  <div id="ai-gen-card" className="card" style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 12 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                       <span className="h-title" style={{ fontSize: 15 }}>Générer avec l'IA</span>
                       <span className="chip" style={{ background: 'var(--mint-soft)', color: 'var(--mint-2)' }}>Klip IA</span>

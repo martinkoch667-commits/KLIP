@@ -44,7 +44,7 @@ const ST_CSS = `
 .st-content{flex:1;padding:36px 44px;max-width:760px;}
 .st-tab-btn{display:flex;align-items:center;gap:10px;padding:9px 12px;border-radius:8px;font-size:13px;font-weight:600;color:var(--ink-2);cursor:pointer;transition:all .12s;border:none;background:none;width:100%;text-align:left;margin-bottom:2px;}
 .st-tab-btn:hover{background:var(--sunk);color:var(--ink);}
-.st-tab-btn.on{background:var(--forest);color:var(--cream);}
+.st-tab-btn.on{background:var(--white);color:var(--ink);box-shadow:var(--shadow-card);}
 .st-h{font-family:var(--display);font-weight:800;font-size:20px;text-transform:uppercase;color:var(--forest);letter-spacing:-.01em;margin:0 0 4px;}
 .st-sub{font-size:13px;color:var(--ink-3);margin:0 0 28px;}
 .st-card{background:#fff;border-radius:14px;border:1px solid rgba(13,15,10,.10);padding:24px;margin-bottom:16px;}
@@ -741,24 +741,19 @@ function BillingTab({ accountType }: { accountType: string }) {
     <>
       <SectionHeader title="Facturation" sub="Votre plan actuel et l'historique de vos factures." />
 
-      <div className="st-card">
-        <div className="st-label" style={{ marginBottom: 16 }}>Plan actuel</div>
-        <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
-          <div style={{ flex: 1 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}>
-              <span style={{ fontSize: 20, fontWeight: 800, fontFamily: "var(--display)", color: "var(--forest)", textTransform: "uppercase" }}>{plan.name}</span>
-              <span className="st-badge" style={{ background: "var(--mint-soft)", color: "var(--mint-2)" }}>Actif</span>
-            </div>
-            <div style={{ fontSize: 13, color: "var(--ink-3)" }}>{plan.desc}</div>
+      {/* Subscription hero */}
+      <div style={{ position: 'relative', borderRadius: 'var(--r-xl)', overflow: 'hidden', padding: '24px 26px', marginBottom: 16, background: 'linear-gradient(120deg,#0A2418,var(--forest) 55%,#103A28)', color: 'var(--cream)' }}>
+        <div className="halo-blob" style={{ width: 240, height: 240, right: -60, top: -130, background: 'var(--mint)', opacity: .4 }} />
+        <div style={{ position: 'relative', zIndex: 2, display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 20, flexWrap: 'wrap' }}>
+          <div>
+            <div className="label" style={{ color: 'var(--mint)', marginBottom: 8 }}>Votre abonnement</div>
+            <h2 className="h-display" style={{ fontSize: 28, color: 'var(--cream)' }}>{plan.name}</h2>
+            <p style={{ color: 'var(--cream-2)', marginTop: 6, fontSize: 13.5 }}>{plan.desc}</p>
           </div>
-          <div style={{ textAlign: "right" }}>
-            <div style={{ fontFamily: "var(--display)", fontWeight: 800, fontSize: 22, color: "var(--forest)" }}>{plan.price}</div>
+          <div style={{ textAlign: 'right', flexShrink: 0 }}>
+            <div className="num" style={{ fontSize: 34, color: 'var(--acid)' }}>{plan.price}</div>
+            <Link href="/onboarding/plan" className="btn btn-primary btn-sm" style={{ marginTop: 10, display: 'inline-block', textDecoration: 'none' }}>Changer de plan</Link>
           </div>
-        </div>
-        <hr className="st-divider" />
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-          <span style={{ fontSize: 13, color: "var(--ink-3)" }}>Besoin d'un plan différent ?</span>
-          <Link href="/onboarding/plan" className="st-btn-ghost" style={{ textDecoration: "none" }}>Voir les plans</Link>
         </div>
       </div>
 
@@ -896,6 +891,12 @@ export default function SettingsPage() {
           <h1 style={{ fontSize: 14, fontWeight: 800, margin: 0 }}>Paramètres</h1>
         </div>
         <div className="scroll">
+          <div className="page" style={{ paddingBottom: 0 }}>
+            <div style={{ marginBottom: 24 }}>
+              <div className="label" style={{ marginBottom: 8 }}>Votre compte</div>
+              <h1 className="h-display" style={{ fontSize: 32 }}>Réglages</h1>
+            </div>
+          </div>
           <div className="st-layout">
 
             {/* Settings sidebar nav */}
@@ -903,7 +904,7 @@ export default function SettingsPage() {
               <div className="st-nav-label" style={{ marginTop: 4 }}>Mon compte</div>
               {visibleTabs.map(t => (
                 <button key={t.id} className={`st-tab-btn${tab === t.id ? " on" : ""}`} onClick={() => setTab(t.id)}>
-                  <span style={{ flexShrink: 0, opacity: tab === t.id ? 1 : 0.55 }}>{TAB_ICONS[t.id]}</span>
+                  <span style={{ flexShrink: 0, color: tab === t.id ? 'var(--mint-2)' : undefined, opacity: tab === t.id ? 1 : 0.55 }}>{TAB_ICONS[t.id]}</span>
                   {t.label}
                 </button>
               ))}
@@ -927,3 +928,4 @@ export default function SettingsPage() {
     </div>
   );
 }
+
