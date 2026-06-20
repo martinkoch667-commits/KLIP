@@ -549,21 +549,26 @@ input.ed-range::-moz-range-thumb {
   .dash-hero-card { display: none !important; }
 }
 
-/* Dashboard stats — 2 cols on tablet */
-@media (max-width: 900px) {
+/* Grids — tablet 2 cols */
+@media (max-width: 1080px) {
+  .clients-grid { grid-template-columns: repeat(2, 1fr) !important; }
+  .ws-cards-grid { grid-template-columns: repeat(2, 1fr) !important; }
   .dash-stats { grid-template-columns: repeat(2, 1fr) !important; }
 }
 
-/* Workspace cards grid — 2 col on tablet */
-@media (max-width: 1100px) {
-  .ws-cards-grid { grid-template-columns: repeat(2, 1fr) !important; }
-}
-
+/* Grids — mobile 1 col */
 @media (max-width: 767px) {
-  /* Workspace cards — 1 col */
+  /* All listing grids → 1 column */
+  .clients-grid { grid-template-columns: 1fr !important; }
   .ws-cards-grid { grid-template-columns: 1fr !important; }
 
-  /* Dashboard stats — 2 col */
+  /* Dashboard detail grid (posts + instagram + activity) → stack */
+  .dash-grid { grid-template-columns: 1fr !important; }
+
+  /* Upcoming posts 4-col → 2-col */
+  .up-grid { grid-template-columns: repeat(2, 1fr) !important; }
+
+  /* Stats row → 2 col */
   .dash-stats { grid-template-columns: repeat(2, 1fr) !important; }
 
   /* Settings layout — vertical stack */
@@ -582,8 +587,8 @@ input.ed-range::-moz-range-thumb {
   }
   .set-nav-col button { white-space: nowrap !important; flex-shrink: 0 !important; }
 
-  /* Pricing grid already has inline responsive; safety net */
-  .lp-pricing-grid { grid-template-columns: 1fr !important; max-width: 460px !important; margin-left: auto !important; margin-right: auto !important; }
+  /* Prevent horizontal overflow */
+  .work { overflow-x: hidden !important; }
 
   /* Feed engagement column — hide to save space */
   .feed-engage-col { display: none !important; }

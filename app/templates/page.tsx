@@ -177,8 +177,8 @@ export default function TemplatesPage() {
             )}
 
             <style>{`
-              @media(max-width:1080px){.kit-grid{grid-template-columns:repeat(2,1fr)}}
-              @media(max-width:680px){.kit-grid{grid-template-columns:1fr}}
+              @media(max-width:1080px){.kit-grid{grid-template-columns:repeat(2,1fr) !important}}
+              @media(max-width:680px){.kit-grid{grid-template-columns:1fr !important}}
             `}</style>
           </div>
         </div>

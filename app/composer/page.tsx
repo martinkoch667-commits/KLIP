@@ -219,7 +219,7 @@ export default function ComposerPage() {
               </div>
             )}
 
-            <style>{`@media(max-width:900px){.batch-import{grid-template-columns:1fr;}}`}</style>
+            <style>{`@media(max-width:900px){.batch-import{grid-template-columns:1fr !important;}}`}</style>
           </div>
         </div>
       </div>
