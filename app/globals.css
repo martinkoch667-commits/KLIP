@@ -485,6 +485,11 @@ input.ed-range::-moz-range-thumb {
   /* Template editor — horizontal scroll (inchangé) */
   .tpl-ed-body { overflow-x: auto; -webkit-overflow-scrolling: touch; min-width: min-content; }
 
+  /* Planning — empiler la colonne "Cette semaine" sous le calendrier */
+  .plan-root { flex-direction: column !important; overflow-y: auto !important; -webkit-overflow-scrolling: touch; }
+  .plan-main { min-height: 78vh; }
+  .plan-rail { width: 100% !important; flex-shrink: 0; border-left: none !important; border-top: 1px solid var(--line); overflow-y: visible !important; }
+
   /* Workspace topbar — hide nav links on mobile (accessible via sidebar) */
   .ws-topbar-link { display: none !important; }
 

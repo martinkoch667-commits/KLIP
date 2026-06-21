@@ -220,7 +220,7 @@ function CalendarRail({ posts, weekDays, chipColor, workspaceId }: {
   const maxLoad = Math.max(1, ...load);
 
   return (
-    <aside style={{ width: 288, flexShrink: 0, borderLeft: "1px solid var(--line)", background: "var(--paper)", display: "flex", flexDirection: "column", gap: 0, overflowY: "auto" }}>
+    <aside className="plan-rail" style={{ width: 288, flexShrink: 0, borderLeft: "1px solid var(--line)", background: "var(--paper)", display: "flex", flexDirection: "column", gap: 0, overflowY: "auto" }}>
       {/* Week overview */}
       <div style={{ padding: 16, borderBottom: "1px solid var(--line)" }}>
         <div className="label" style={{ marginBottom: 12 }}>Cette semaine</div>
@@ -481,7 +481,7 @@ function PlanningContent() {
 
   // ── Render ────────────────────────────────────────────────────────────────
   return (
-    <div style={{ flex: 1, display: "flex", minWidth: 0, overflow: "hidden", position: "relative" }}>
+    <div className="plan-root" style={{ flex: 1, display: "flex", minWidth: 0, overflow: "hidden", position: "relative" }}>
 
       {/* Toast */}
       {toast && (
@@ -535,7 +535,7 @@ function PlanningContent() {
       )}
 
       {/* ── Main area ─────────────────────────────────────────────────────────── */}
-      <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0, overflow: "hidden" }}>
+      <div className="plan-main" style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0, overflow: "hidden" }}>
 
         {/* Topbar */}
         <header className="topbar">
