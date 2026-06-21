@@ -836,9 +836,8 @@ function Testimonials() {
 /* ─── Pricing ────────────────────────────────────────────────────────────── */
 function Pricing() {
   const tiers = [
-    { name: 'Solo', price: '24', tag: 'Le freelance qui démarre', clients: 'Jusqu’à 3 clients', feats: ['Éditeur visuel complet', 'Descriptions IA', 'Calendrier éditorial', '1 compte Instagram'], cta: 'Commencer', pop: false },
-    { name: 'Studio', price: '59', tag: 'Le bon rythme de croisière', clients: 'Jusqu’à 10 clients', feats: ['Tout Solo, plus :', 'Voix de marque par client', 'Validation client intégrée', 'Création en lot', 'Comptes Instagram illimités'], cta: 'Essai 7 jours', pop: true },
-    { name: 'Agence', price: '129', tag: 'Quand l’équipe s’agrandit', clients: 'Clients illimités', feats: ['Tout Studio, plus :', 'Membres d’équipe illimités', 'Rôles & permissions', 'Support prioritaire'], cta: 'Nous contacter', pop: false },
+    { name: 'Studio', price: '29', tag: 'Freelances & community managers', clients: 'Jusqu’à 3 clients', plan: 'studio', feats: ['Éditeur visuel complet', 'Descriptions IA illimitées', 'Calendrier éditorial', 'Publication Instagram & Facebook', '1 utilisateur'], cta: 'Essai 7 jours gratuit', pop: false },
+    { name: 'Agence', price: '96', tag: 'Agences & studios de communication', clients: 'Jusqu’à 10 clients', plan: 'agency', feats: ['Tout Studio, plus :', 'Jusqu’à 5 membres d’équipe', 'Workflow de validation client', 'Rôles Manager & Créa', 'Création en lot'], cta: 'Essai 7 jours gratuit', pop: true },
   ];
   return (
     <section id="tarifs" className="section dotgrid" style={{ overflow: 'hidden' }}>
@@ -847,9 +846,9 @@ function Pricing() {
           <h2 className="display reveal d1" style={{ fontSize: 'clamp(38px, 5.6vw, 78px)', marginTop: 22 }}>
             Un prix qui grandit <span className="it-serif acid-fill">avec vous.</span>
           </h2>
-          <p className="lead reveal d2" style={{ marginTop: 22 }}>Sans engagement. Vous changez d&apos;offre quand vous voulez.</p>
+          <p className="lead reveal d2" style={{ marginTop: 22 }}>7 jours gratuits, sans carte bancaire. Vous changez d&apos;offre quand vous voulez.</p>
         </div>
-        <div className="price-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 18, marginTop: 56, alignItems: 'start' }}>
+        <div className="price-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 18, marginTop: 56, alignItems: 'start', maxWidth: 780, marginLeft: 'auto', marginRight: 'auto' }}>
           {tiers.map((t, i) => (
             <div key={i} className={`reveal d${i + 1}`} style={{ position: 'relative', background: t.pop ? 'var(--forest)' : 'var(--paper-2)', color: t.pop ? 'var(--cream)' : 'var(--ink)', borderRadius: 'var(--radius)', padding: '34px 32px', border: t.pop ? 'none' : '1px solid var(--line)', boxShadow: t.pop ? '0 40px 80px -40px rgba(6,32,24,.6)' : 'none', transform: t.pop ? 'translateY(-14px)' : 'none' }}>
               {t.pop && <span style={{ position: 'absolute', top: -13, right: 26, background: 'var(--acid)', color: 'var(--acid-ink)', fontFamily: 'var(--mono)', fontWeight: 700, fontSize: 11.5, letterSpacing: '.08em', textTransform: 'uppercase', padding: '6px 12px', borderRadius: 999 }}>Le plus choisi</span>}
@@ -860,7 +859,7 @@ function Pricing() {
                 <span style={{ fontFamily: 'var(--mono)', fontSize: 13, color: t.pop ? 'var(--cream-2)' : 'var(--ink-3)' }}>/mois</span>
               </div>
               <div className="chip" style={{ marginBottom: 24, background: t.pop ? 'var(--forest-2)' : 'var(--paper-3)', color: t.pop ? 'var(--cream-2)' : 'var(--ink-2)', boxShadow: 'inset 0 0 0 1px var(--line)' }}>{t.clients}</div>
-              <Link href={t.pop ? '/register' : i === 2 ? 'mailto:contact@klip.fr' : '/register'} className={`btn ${t.pop ? 'btn-acid' : 'btn-ghost'}`} style={{ width: '100%', justifyContent: 'center', marginBottom: 26 }}>{t.cta}</Link>
+              <Link href={`/register?plan=${t.plan}`} className={`btn ${t.pop ? 'btn-acid' : 'btn-ghost'}`} style={{ width: '100%', justifyContent: 'center', marginBottom: 26 }}>{t.cta}</Link>
               <ul style={{ listStyle: 'none', display: 'flex', flexDirection: 'column', gap: 12 }}>
                 {t.feats.map((f, j) => {
                   const head = j === 0 && f.endsWith(':');
@@ -946,10 +945,10 @@ function FinalCTA() {
 
 /* ─── Footer ─────────────────────────────────────────────────────────────── */
 function Footer() {
-  const cols: [string, string[]][] = [
-    ['Produit', ['Éditeur visuel', 'Descriptions IA', 'Calendrier', 'Publication']],
-    ['Ressources', ['Tarifs', 'FAQ', 'Guide de démarrage', 'Statut']],
-    ['Entreprise', ['À propos', 'Blog', 'Contact', 'Mentions légales']],
+  const cols: [string, [string, string][]][] = [
+    ['Produit', [['Éditeur visuel', '#features'], ['Calendrier', '#apercu'], ['Tarifs', '#tarifs'], ['FAQ', '#faq']]],
+    ['Ressources', [['Comment ça marche', '#how'], ['Le problème', '#probleme'], ['Connexion', '/login'], ['Créer un compte', '/register']]],
+    ['Légal', [['Mentions légales', '/mentions-legales'], ['CGU / CGV', '/conditions'], ['Confidentialité', '/privacy'], ['Cookies', '/cookies']]],
   ];
   return (
     <footer className="on-forest" style={{ paddingTop: 72, paddingBottom: 40, borderTop: '1px solid var(--line-f)' }}>
@@ -965,7 +964,7 @@ function Footer() {
             <div key={i}>
               <div style={{ fontFamily: 'var(--mono)', fontWeight: 700, fontSize: 12.5, letterSpacing: '.1em', textTransform: 'uppercase', color: 'var(--cream-3)', marginBottom: 16 }}>{h}</div>
               <ul style={{ listStyle: 'none', display: 'flex', flexDirection: 'column', gap: 11 }}>
-                {links.map((l, j) => <li key={j}><a href="#" style={{ color: 'var(--cream-2)', fontSize: 15 }}>{l}</a></li>)}
+                {links.map(([label, href], j) => <li key={j}><a href={href} style={{ color: 'var(--cream-2)', fontSize: 15 }}>{label}</a></li>)}
               </ul>
             </div>
           ))}
