@@ -129,25 +129,48 @@ const V2_CSS = `
 .v2-mob-menu.open { transform:translateX(0); }
 .v2-mob-link { display:block; font-family:'Archivo',sans-serif; font-weight:800; font-size:30px; text-transform:uppercase; letter-spacing:-0.02em; color:#F0EFE4; padding:13px 0; border-bottom:1px solid rgba(240,239,228,.16); }
 
-/* responsive */
+/* ── responsive ──────────────────────────────────────────────── */
+/* tablette : grilles 2 → 1 col, nav repliée, flottants masqués */
 @media (max-width:960px) {
   .v2 .nav-links, .v2 .nav-cta-ghost { display:none !important; }
-  .v2 .hero-peek { display:none !important; }
-  .v2 .grid-2, .v2 .grid-3, .v2 .bento, .v2 .testi-grid, .v2 .price-grid, .v2 .foot-grid, .v2 .feat-hero { grid-template-columns:1fr !important; }
-  .v2 .span-2 { grid-column:auto !important; }
   .v2-mob-btn { display:inline-flex; }
-}
-@media (max-width:760px) {
-  .v2 { font-size:16px; }
-  .v2 .wrap { padding:0 22px; }
-  .v2 .hero-float { display:none !important; }
-  .v2 .ed-rail, .v2 .ed-zoomr { display:none !important; }
-  .v2 .nav-login { display:none !important; }
+  .v2 .hero-float { display:none !important; }        /* évite tout débordement latéral */
+  .v2 .grid-2, .v2 .grid-3, .v2 .bento, .v2 .testi-grid, .v2 .price-grid, .v2 .feat-hero { grid-template-columns:1fr !important; }
+  .v2 .span-2 { grid-column:auto !important; }
+  .v2 .testi-grid > div:first-child { grid-row:auto !important; }   /* gros témoignage : plus de span 2 */
+  .v2 .price-grid > div { transform:none !important; }              /* carte "populaire" non décalée */
+  .v2 .foot-grid { grid-template-columns:1fr 1fr !important; gap:34px !important; }
 }
 @media (max-width:860px) {
   .v2 .sho-row { grid-template-columns:1fr !important; }
   .v2 .sho-row > div { order:initial !important; }
   .v2 .sho-row .sho-shot { order:-1 !important; }
+}
+/* mobile */
+@media (max-width:760px) {
+  .v2 { font-size:16px; }
+  .v2 .wrap { padding:0 20px; }
+  .v2 .ed-rail, .v2 .ed-zoomr { display:none !important; }
+  .v2 .nav-login { display:none !important; }
+  .v2 .hero-peek { margin-top:48px !important; }
+  .v2 .lead { font-size:17px !important; }
+  .v2 .btn { width:auto; }
+  /* éditeur (Showcase) : canvas plus compact */
+  .v2 .ed-canvas { height:auto !important; aspect-ratio:4/5; width:100% !important; max-width:300px; }
+  .v2 .ed-work { padding:18px !important; }
+}
+/* petits téléphones */
+@media (max-width:560px) {
+  .v2 .foot-grid { grid-template-columns:1fr !important; gap:30px !important; }
+  .v2 .section { padding:64px 0; }
+  .v2 .btn { padding:14px 22px; font-size:15px; }
+  /* CTAs en pleine largeur, empilés */
+  .v2 .hero-cta, .v2 .final-cta { flex-direction:column; align-items:stretch !important; }
+  .v2 .hero-cta .btn, .v2 .final-cta .btn { width:100%; justify-content:center; }
+  /* stat -11h : empilée */
+  .v2 .stat-bar { flex-direction:column; align-items:flex-start !important; gap:14px !important; padding:26px 24px !important; }
+  /* tarifs : largeur lisible centrée */
+  .v2 .price-grid { max-width:420px; margin-left:auto; margin-right:auto; }
 }
 @media (prefers-reduced-motion:reduce) {
   .v2 .reveal { opacity:1 !important; transform:none !important; }
@@ -366,7 +389,7 @@ function Hero() {
             </span>
           ))}
         </div>
-        <div className="reveal d3" style={{ display: 'flex', gap: 14, justifyContent: 'center', marginTop: 34, flexWrap: 'wrap' }}>
+        <div className="reveal d3 hero-cta" style={{ display: 'flex', gap: 14, justifyContent: 'center', marginTop: 34, flexWrap: 'wrap' }}>
           <Link href="/register" className="btn btn-acid">Essayer gratuitement <span className="arr"><Icon name="arrowUR" size={18} /></span></Link>
           <a href="#apercu" className="btn btn-ghost">Voir KLIP en action</a>
         </div>
@@ -437,7 +460,7 @@ function Probleme() {
             </div>
           ))}
         </div>
-        <div className="reveal d2" style={{ marginTop: 28, padding: '34px 38px', display: 'flex', alignItems: 'center', gap: 28, flexWrap: 'wrap', background: 'var(--acid)', color: 'var(--acid-ink)', borderRadius: 'var(--radius)' }}>
+        <div className="reveal d2 stat-bar" style={{ marginTop: 28, padding: '34px 38px', display: 'flex', alignItems: 'center', gap: 28, flexWrap: 'wrap', background: 'var(--acid)', color: 'var(--acid-ink)', borderRadius: 'var(--radius)' }}>
           <span style={{ fontFamily: 'var(--heavy)', fontWeight: 900, fontSize: 'clamp(46px, 6vw, 76px)', letterSpacing: '-0.04em', lineHeight: 1 }}>−11h</span>
           <span style={{ fontFamily: 'var(--mono)', fontWeight: 700, fontSize: 16, maxWidth: 420, lineHeight: 1.5 }}>
             par semaine et par gestionnaire, englouties à jongler entre les outils plutôt qu&apos;à créer. C&apos;est un client de plus que vous ne prenez pas.
@@ -553,8 +576,8 @@ function EditorUI() {
             );
           })}
         </div>
-        <div style={{ flex: 1, minWidth: 0, display: 'grid', placeItems: 'center', padding: 26 }}>
-          <div style={{ position: 'relative', height: 408, aspectRatio: '4 / 5', borderRadius: 16, overflow: 'hidden', boxShadow: '0 30px 70px -30px rgba(13,15,10,.55)', background: 'linear-gradient(155deg,#1f7a4d,#0c2a1d)' }}>
+        <div className="ed-work" style={{ flex: 1, minWidth: 0, display: 'grid', placeItems: 'center', padding: 26 }}>
+          <div className="ed-canvas" style={{ position: 'relative', height: 408, aspectRatio: '4 / 5', borderRadius: 16, overflow: 'hidden', boxShadow: '0 30px 70px -30px rgba(13,15,10,.55)', background: 'linear-gradient(155deg,#1f7a4d,#0c2a1d)' }}>
             <span style={{ position: 'absolute', top: 18, left: 18, fontFamily: 'var(--mono)', fontWeight: 700, fontSize: 11, letterSpacing: '.14em', color: E.cream }}>MAISON LOU</span>
             <div style={{ position: 'absolute', top: 44, left: 18, right: 18, height: 150, borderRadius: 12, border: '1.5px dashed rgba(238,237,227,.5)', background: 'rgba(255,255,255,.06)', display: 'grid', placeItems: 'center', color: 'rgba(238,237,227,.6)' }}>
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5 }}><EdIcon name="image" size={22} stroke={1.5} /><span style={{ fontFamily: 'var(--mono)', fontSize: 9.5, fontWeight: 700 }}>PHOTO DU PLAT</span></div>
@@ -879,7 +902,7 @@ function FinalCTA() {
         <p className="lead reveal d2" style={{ maxWidth: 560, margin: '26px auto 0', fontSize: 20 }}>
           Un seul outil pour tous vos clients. Essayez KLIP gratuitement pendant 14 jours — sans carte bancaire.
         </p>
-        <div className="reveal d3" style={{ display: 'flex', gap: 14, justifyContent: 'center', marginTop: 40, flexWrap: 'wrap' }}>
+        <div className="reveal d3 final-cta" style={{ display: 'flex', gap: 14, justifyContent: 'center', marginTop: 40, flexWrap: 'wrap' }}>
           <Link href="/register" className="btn btn-acid">Démarrer gratuitement <span className="arr"><Icon name="arrowUR" size={18} /></span></Link>
           <a href="#apercu" className="btn btn-ghost">Revoir le produit</a>
         </div>
