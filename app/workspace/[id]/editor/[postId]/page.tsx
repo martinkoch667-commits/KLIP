@@ -2636,6 +2636,27 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
         </div>
       </div>
 
+      {/* ── Barre contextuelle MOBILE (au-dessus du rail) ── */}
+      {selectedEl && (
+        <div className="ed-mobile-ctx" data-stop-deselect>
+          <EditorContextToolbar
+            sel={selectedEl}
+            allFonts={[...FONTS, ...brandFontNames, ...customFonts.map(f => f.name)]}
+            brandColors={[workspaceData?.primary_color, workspaceData?.secondary_color, workspaceData?.accent_color].filter(Boolean) as string[]}
+            stageW={stageW}
+            stageH={stageH}
+            onUpdate={(patch) => updateEl(selectedEl.id, patch)}
+            onAlign={alignEl}
+            onDuplicate={duplicateEl}
+            onDelete={() => deleteEl(selectedId)}
+            onCrop={selectedEl.type === 'image' ? () => setCropId(selectedEl.id) : undefined}
+            onSetBg={selectedEl.type === 'image' ? () => setProxyUrl((selectedEl as ImageEl).src) : undefined}
+            onMaskPhoto={selectedEl.type === 'vector' ? () => maskPhotoInputRef.current?.click() : undefined}
+            onLayerAction={layerAction}
+          />
+        </div>
+      )}
+
       {/* ── BODY: rail + flyout + canvas workspace ── */}
       <div className="ed-body" style={{ flex: 1, display: 'flex', minHeight: 0 }}>
 
