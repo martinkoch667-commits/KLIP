@@ -150,14 +150,19 @@ const V2_CSS = `
 @media (max-width:760px) {
   .v2 { font-size:16px; }
   .v2 .wrap { padding:0 20px; }
-  .v2 .ed-rail, .v2 .ed-zoomr { display:none !important; }
   .v2 .nav-login { display:none !important; }
   .v2 .hero-peek { margin-top:48px !important; }
   .v2 .lead { font-size:17px !important; }
-  .v2 .btn { width:auto; }
-  /* éditeur (Showcase) : canvas plus compact */
-  .v2 .ed-canvas { height:auto !important; aspect-ratio:4/5; width:100% !important; max-width:300px; }
-  .v2 .ed-work { padding:18px !important; }
+  /* éditeur (Showcase) : rendu à sa largeur confortable, défilable horizontalement */
+  .v2 .ed-embed { overflow-x:auto; -webkit-overflow-scrolling:touch; border-radius:14px; }
+  .v2 .ed-embed > div { min-width:680px; }
+  .v2 .ed-zoomr { display:none !important; }
+}
+/* pipeline du hero : vertical + flèches vers le bas quand ça ne tient plus en ligne */
+@media (max-width:720px) {
+  .v2 .hero-flow { flex-direction:column; gap:8px; }
+  .v2 .hero-flow-item { flex-direction:column; gap:8px; width:auto; }
+  .v2 .hero-flow-arr { transform:rotate(90deg); }
 }
 /* petits téléphones */
 @media (max-width:560px) {
@@ -379,13 +384,13 @@ function Hero() {
         <p className="lead reveal d1" style={{ textAlign: 'center', maxWidth: 680, margin: '28px auto 0', fontSize: 21 }}>
           Un seul espace pour gérer le contenu Instagram de <strong style={{ color: 'var(--cream)', fontWeight: 700 }}>tous vos clients</strong> — chaque marque avec sa voix. Fini de jongler entre dix outils et d&apos;y perdre vos soirées.
         </p>
-        <div className="reveal d2" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, flexWrap: 'wrap', marginTop: 28 }}>
+        <div className="reveal d2 hero-flow" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, flexWrap: 'wrap', marginTop: 28 }}>
           {flow.map((s, i) => (
-            <span key={i} style={{ display: 'inline-flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', justifyContent: 'center' }}>
+            <span key={i} className="hero-flow-item" style={{ display: 'inline-flex', alignItems: 'center', gap: 10, justifyContent: 'center' }}>
               <span style={{ display: 'inline-flex', alignItems: 'center', gap: 9, fontFamily: 'var(--mono)', fontWeight: 700, fontSize: 13.5, color: 'var(--cream)', padding: '10px 16px', borderRadius: 999, background: 'var(--forest-2)', boxShadow: 'inset 0 0 0 1px var(--line-f)' }}>
                 <span style={{ color: 'var(--acid)', display: 'inline-flex' }}><Icon name={s.ic} size={16} /></span>{s.t}
               </span>
-              {i < flow.length - 1 && <span style={{ color: 'var(--cream-3)', display: 'inline-flex' }}><Icon name="arrow" size={18} /></span>}
+              {i < flow.length - 1 && <span className="hero-flow-arr" style={{ color: 'var(--cream-3)', display: 'inline-flex' }}><Icon name="arrow" size={18} /></span>}
             </span>
           ))}
         </div>
@@ -642,7 +647,7 @@ function Showcase() {
               Sélectionnez un texte et tout s&apos;ouvre — police, taille, couleurs de la charte, effets, animations. La même puissance que Canva ou la suite Adobe, déjà calée sur votre client.
             </p>
           </div>
-          <EditorUI />
+          <div className="ed-embed"><EditorUI /></div>
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 'clamp(56px,8vw,104px)', marginTop: 'clamp(64px,9vw,120px)' }}>
           {shots.map((s, i) => {
