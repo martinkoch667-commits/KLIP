@@ -186,6 +186,34 @@ const LP_CSS = `
   .lp-mob-nav-link { display: block; font-family: 'Archivo', system-ui, sans-serif; font-weight: 800; font-size: 28px; text-transform: uppercase; letter-spacing: -0.02em; color: #0C2A1D; padding: 12px 0; border-bottom: 1px solid rgba(13,15,10,.08); }
   .lp-mob-nav-link:last-child { border-bottom: none; }
   .lp-mob-menu-footer { margin-top: auto; display: flex; flex-direction: column; gap: 12px; }
+
+  /* Hero showcase — grad-stage */
+  .lp-grad-stage {
+    position: relative; border-radius: 28px; overflow: hidden;
+    background:
+      radial-gradient(120% 130% at 16% 0%, rgba(47,215,155,.26), transparent 55%),
+      radial-gradient(120% 130% at 100% 100%, rgba(47,215,155,.20), transparent 52%),
+      linear-gradient(160deg, #0C2A1D 0%, #103A28 58%, #16704a 100%);
+  }
+  .lp-grad-stage::before {
+    content: ""; position: absolute; inset: 0; z-index: 1; pointer-events: none;
+    background-image: radial-gradient(circle at center, rgba(239,238,228,.10) 1.2px, transparent 1.3px);
+    background-size: 24px 24px;
+    -webkit-mask-image: radial-gradient(ellipse 80% 70% at 50% 40%, #000, transparent 75%);
+    mask-image: radial-gradient(ellipse 80% 70% at 50% 40%, #000, transparent 75%);
+  }
+
+  /* Floating animation classes */
+  @keyframes lp-float-a { 0%, 100% { transform: translateY(0) rotate(-6deg); } 50% { transform: translateY(-22px) rotate(4deg); } }
+  @keyframes lp-float-b { 0%, 100% { transform: translateY(0) rotate(7deg); } 50% { transform: translateY(-15px) rotate(-3deg); } }
+  @keyframes lp-blob-drift { 0%, 100% { transform: translate(0,0) scale(1); } 50% { transform: translate(28px,-24px) scale(1.08); } }
+  @keyframes lp-emblem-float { 0%, 100% { transform: translateY(0) rotate(-3deg); } 50% { transform: translateY(-14px) rotate(3deg); } }
+  .lp-float-a { animation: lp-float-a 7s ease-in-out infinite; }
+  .lp-float-b { animation: lp-float-b 6s ease-in-out infinite; }
+  .lp-gblob   { animation: lp-blob-drift 15s ease-in-out infinite; }
+
+  @media (max-width: 760px) { .lp-hero-float { display: none !important; } }
+  @media (prefers-reduced-motion: reduce) { .lp-float-a, .lp-float-b, .lp-gblob { animation: none !important; } }
 `;
 
 /* ─── Icon ───────────────────────────────────────────────────────────────── */
@@ -267,6 +295,86 @@ function FChip({ icon, label, style, accent }: { icon: string; label: string; st
   );
 }
 
+/* ─── Emblem3D ───────────────────────────────────────────────────────────── */
+function Emblem3D({ shape = 'spark', tone = 'teal', size = 120, floatAnim = false, style }: { shape?: string; tone?: string; size?: number; floatAnim?: boolean; style?: React.CSSProperties }) {
+  const TONES: Record<string, { hi: string; mid: string; lo: string; edge: string }> = {
+    lime:   { hi: '#F2FFB0', mid: '#2FD79B', lo: '#1FC98A', edge: '#0B7A4F' },
+    teal:   { hi: '#CFF6FF', mid: '#41C8E8', lo: '#1577A0', edge: '#0c526d' },
+    forest: { hi: '#86E9AE', mid: '#26A968', lo: '#0F5836', edge: '#073d23' },
+  };
+  const PATHS: Record<string, string> = {
+    spark: 'M100 6 C110 62 138 90 194 100 C138 110 110 138 100 194 C90 138 62 110 6 100 C62 90 90 62 100 6 Z',
+    blob:  'M100 10 C140 6 196 36 190 96 C186 140 156 196 100 190 C44 196 12 142 10 96 C8 44 60 14 100 10 Z',
+    drop:  'M100 10 C150 74 178 112 178 142 A78 78 0 0 1 22 142 C22 112 50 74 100 10 Z',
+  };
+  const T = TONES[tone] || TONES.teal;
+  const d = PATHS[shape] || PATHS.spark;
+  const u = `em-${shape}-${tone}-${size}`;
+  return (
+    <div style={{ width: size, height: size, lineHeight: 0, filter: `drop-shadow(0 ${Math.round(size * 0.13)}px ${Math.round(size * 0.18)}px ${T.edge}88)`, animation: floatAnim ? `lp-emblem-float ${5 + (size % 4)}s ease-in-out infinite` : 'none', ...style }}>
+      <svg viewBox="0 0 200 200" width={size} height={size}>
+        <defs>
+          <radialGradient id={`${u}b`} cx="36%" cy="30%" r="82%">
+            <stop offset="0%" stopColor={T.hi} /><stop offset="42%" stopColor={T.mid} /><stop offset="100%" stopColor={T.lo} />
+          </radialGradient>
+          <radialGradient id={`${u}s`} cx="34%" cy="26%" r="34%">
+            <stop offset="0%" stopColor="#fff" stopOpacity="0.92" /><stop offset="100%" stopColor="#fff" stopOpacity="0" />
+          </radialGradient>
+          <clipPath id={`${u}c`}><path d={d} /></clipPath>
+        </defs>
+        <path d={d} fill={`url(#${u}b)`} stroke={T.edge} strokeWidth="1" strokeOpacity="0.5" />
+        <g clipPath={`url(#${u}c)`}>
+          <ellipse cx="118" cy="150" rx="92" ry="60" fill={T.lo} opacity="0.55" />
+          <ellipse cx="68" cy="54" rx="50" ry="38" fill={`url(#${u}s)`} />
+          <circle cx="60" cy="48" r="9" fill="#fff" opacity="0.85" />
+        </g>
+      </svg>
+    </div>
+  );
+}
+
+/* ─── HeroShowcase — grad-stage with floating posts + emblems ────────────── */
+function HeroShowcase() {
+  const thumbs = [
+    { i: 0, brand: 'Maison Lou',  tag: "L'été se\nréserve",  pos: { left: '5%',  top: '15%' } as React.CSSProperties,    w: 158, cls: 'lp-float-a' },
+    { i: 2, brand: 'Studio Vél',  tag: 'On recrute.',        pos: { right: '6%', top: '9%' } as React.CSSProperties,     w: 150, cls: 'lp-float-b' },
+    { i: 5, brand: 'Brut & Co',   tag: 'Édition\nlimitée',   pos: { left: '8%',  bottom: '7%' } as React.CSSProperties,  w: 146, cls: 'lp-float-b' },
+    { i: 1, brand: 'Café Oreste', tag: 'Nouvelle\ncarte ↗',  pos: { right: '7%', bottom: '8%' } as React.CSSProperties,  w: 152, cls: 'lp-float-a' },
+  ];
+  return (
+    <div className="lp-grad-stage" style={{ height: 'clamp(360px, 44vw, 500px)' }}>
+      {/* centre — mock Instagram post */}
+      <div style={{ position: 'absolute', left: '50%', top: '50%', transform: 'translate(-50%,-50%)', width: 'clamp(190px,19vw,254px)', zIndex: 5 }}>
+        <div style={{ borderRadius: 18, overflow: 'hidden', background: '#fff', boxShadow: '0 1px 0 1px rgba(13,15,10,.06), 0 36px 70px -34px rgba(0,0,0,.6)' }}>
+          <div style={{ aspectRatio: '4/5', background: 'linear-gradient(150deg,#1b5e3a,#0c2a1d)', padding: 14, display: 'flex', alignItems: 'flex-end' }}>
+            <div style={{ fontFamily: "'Archivo', sans-serif", fontWeight: 700, fontStyle: 'italic', fontSize: 21, lineHeight: .98, color: '#EFEEE4' }}>L'été se réserve maintenant</div>
+          </div>
+          <div style={{ padding: '9px 12px 12px', display: 'flex', alignItems: 'center', gap: 8, background: '#fff' }}>
+            <span style={{ width: 24, height: 24, borderRadius: '50%', background: 'linear-gradient(140deg,#2FD79B,#1f7a4d)', flexShrink: 0 }} />
+            <div style={{ flex: 1 }}>
+              <div style={{ fontFamily: "'early-sans-variable', sans-serif", fontWeight: 800, fontSize: 12 }}>maisonlou</div>
+              <div style={{ height: 5, width: '58%', borderRadius: 3, background: 'rgba(13,15,10,.12)', marginTop: 4 }} />
+            </div>
+          </div>
+        </div>
+      </div>
+      {/* floating brand posts */}
+      {thumbs.map((t, k) => (
+        <div key={k} className={`lp-hero-float ${t.cls}`} style={{ position: 'absolute', ...t.pos, width: t.w, zIndex: 3 }}>
+          <PostThumb i={t.i} brand={t.brand} tag={t.tag} />
+        </div>
+      ))}
+      {/* glossy emblems */}
+      <div className="lp-hero-float" style={{ position: 'absolute', left: '29%', top: '6%', zIndex: 4 }}><Emblem3D shape="blob" tone="lime" size={84} floatAnim /></div>
+      <div style={{ position: 'absolute', right: '30%', bottom: '6%', zIndex: 4 }}><Emblem3D shape="spark" tone="forest" size={70} floatAnim /></div>
+      <div className="lp-hero-float" style={{ position: 'absolute', right: '39%', top: '11%', zIndex: 4 }}><Emblem3D shape="drop" tone="teal" size={54} floatAnim /></div>
+      {/* workflow chips */}
+      <FChip icon="wand"      label="Description IA" accent style={{ top: '15%', left: '35%', zIndex: 6 }} />
+      <FChip icon="instagram" label="Publié"                style={{ bottom: '16%', right: '34%', zIndex: 6 }} />
+    </div>
+  );
+}
+
 /* ─── HeroCollage ────────────────────────────────────────────────────────── */
 function HeroCollage() {
   const cards = [
@@ -303,8 +411,9 @@ function Nav({ onDemo }: { onDemo: () => void }) {
     return () => window.removeEventListener('scroll', f);
   }, []);
   const links: [string, string][] = [
+    ['Le problème', '#probleme'],
+    ['Comment ça marche', '#process'],
     ['Démo', '#demo'],
-    ['Fonctionnalités', '#features'],
     ['Tarifs', '#tarifs'],
   ];
   return (
@@ -348,7 +457,7 @@ function Nav({ onDemo }: { onDemo: () => void }) {
         </div>
 
         <nav style={{ display: 'flex', flexDirection: 'column' }}>
-          {links.map(([l, h]) => (
+          {[['Le problème','#probleme'],['Comment ça marche','#process'],['Démo','#demo'],['Tarifs','#tarifs']].map(([l,h]) => (
             <a key={h} href={h} className="lp-mob-nav-link" onClick={() => setMenuOpen(false)}>{l}</a>
           ))}
         </nav>
@@ -366,41 +475,45 @@ function Nav({ onDemo }: { onDemo: () => void }) {
   );
 }
 
-/* ─── Hero ───────────────────────────────────────────────────────────────── */
+/* ─── Hero — centré avec HeroShowcase ───────────────────────────────────── */
 function Hero({ onDemo }: { onDemo: () => void }) {
   return (
-    <header id="top" className="lp-section lp-hero-grid" style={{ paddingTop: 168, paddingBottom: 100, overflow: 'hidden' }}>
+    <header id="top" className="lp-section" style={{ paddingTop: 168, paddingBottom: 32, textAlign: 'center', overflow: 'hidden', position: 'relative' }}>
+      {/* background gradient blobs */}
+      <div className="lp-gblob" style={{ position: 'absolute', width: 'min(46vw,560px)', aspectRatio: '1', left: '-9%', top: '1%', borderRadius: '50%', background: 'radial-gradient(circle, rgba(47,215,155,.5), transparent 66%)', filter: 'blur(72px)', opacity: .16, zIndex: 0, pointerEvents: 'none' }} />
+      <div className="lp-gblob" style={{ position: 'absolute', width: 'min(40vw,480px)', aspectRatio: '1', right: '-7%', top: '14%', borderRadius: '50%', background: 'radial-gradient(circle, rgba(47,215,155,.42), transparent 66%)', filter: 'blur(72px)', opacity: .12, zIndex: 0, pointerEvents: 'none', animationDelay: '-6s' }} />
+
       <div className="lp-wrap" style={{ position: 'relative', zIndex: 2 }}>
-        <div className="lp-2col" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 48, alignItems: 'center' }}>
-          <div className="lp-hero-col">
-            <div className="lp-reveal in d1">
-              <h1 className="lp-display lp-upper" style={{ fontSize: 'clamp(40px, 5.5vw, 82px)', margin: 0, lineHeight: 1.0 }}>
-                Le social de<br />tous vos clients,<br />
-                <span className="lp-it lp-mint">d'un même geste.</span>
-              </h1>
-            </div>
-            <div className="lp-reveal in d2">
-              <p className="lp-lead" style={{ maxWidth: 460, marginTop: 24 }}>
-                Klip réunit l'éditeur visuel, les descriptions IA, le calendrier et la publication Instagram automatique. Un espace par client. Zéro onglet de trop.
-              </p>
-              <div className="lp-hero-btns" style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginTop: 36, alignItems: 'center' }}>
-                <Link href="/register" className="lp-btn lp-btn-mint">
-                  Essayer gratuitement <Icon name="arrowUR" size={18} className="arr" />
-                </Link>
-                <button className="lp-btn lp-btn-ghost" onClick={onDemo}>
-                  Voir la démo
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="arr"><path d="M12 5v14M5 12l7 7 7-7"/></svg>
-                </button>
-              </div>
-              <p style={{ marginTop: 20, fontSize: 13, color: '#8E9183', fontFamily: "'early-sans-variable', system-ui, sans-serif", fontWeight: 700 }}>
-                7 jours gratuits · Sans carte bancaire · Résiliable à tout moment
-              </p>
-            </div>
+        <div className="lp-reveal in" style={{ display: 'flex', justifyContent: 'center', marginBottom: 24 }}>
+          <span className="lp-eyebrow">Le studio social des agences</span>
+        </div>
+        <div className="lp-reveal in d1">
+          <h1 className="lp-display lp-upper" style={{ fontSize: 'clamp(46px, 8vw, 112px)', margin: '0 auto', maxWidth: 1000 }}>
+            Postez pour dix clients<br /><span className="lp-it lp-mint">comme pour un seul.</span>
+          </h1>
+        </div>
+        <div className="lp-reveal in d2" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+          <p className="lp-lead" style={{ maxWidth: 500, marginTop: 28 }}>
+            Klip réunit l&apos;éditeur visuel, les descriptions IA, le calendrier et la publication Instagram. Un espace par client. Zéro onglet de trop.
+          </p>
+          <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginTop: 34, alignItems: 'center', justifyContent: 'center' }}>
+            <Link href="/register" className="lp-btn lp-btn-mint">
+              Commencer gratuitement <Icon name="arrowUR" size={18} className="arr" />
+            </Link>
+            <button className="lp-btn lp-btn-ghost" onClick={onDemo}>
+              <Icon name="play" size={16} /> Voir la démo
+            </button>
           </div>
-          <div className="lp-hero-art lp-reveal d2">
-            <HeroCollage />
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 22, color: '#8E9183', fontFamily: "'early-sans-variable', system-ui, sans-serif", fontWeight: 700, fontSize: 13.5 }}>
+            <Icon name="check" size={14} style={{ color: '#2FD79B' }} /> Sans carte bancaire
+            <span style={{ opacity: .4 }}>·</span> 14 jours offerts
+            <span style={{ opacity: .4 }}>·</span> Conçu pour les agences
           </div>
         </div>
+      </div>
+
+      <div className="lp-wrap lp-reveal in d3" style={{ position: 'relative', zIndex: 2, marginTop: 60 }}>
+        <HeroShowcase />
       </div>
     </header>
   );
@@ -427,38 +540,43 @@ function Marquee() {
 /* ─── Problème — fond forêt ──────────────────────────────────────────────── */
 function Probleme() {
   const tools = [
-    { n: 'Le mauvais fichier.', t: "Vous finissez le visuel sur votre éditeur, vous l'exportez, vous l'envoyez sur votre fil de messagerie au client, il vous dit « c'était pas cette photo ». Vous recommencez." },
-    { n: '6 clients, 6 dossiers.', t: "Vous gérez 6 clients. Chacun a sa charte, ses tons, ses formats. Vous avez 6 projets dans votre éditeur visuel, 6 dossiers partagés, 6 fils de conversation. Vous perdez 20 minutes à retrouver le bon logo." },
-    { n: 'La publication bloquée.', t: "Votre publication du jeudi est prête. Mais le visuel est dans votre éditeur. La légende est dans un doc de suivi. La validation client dort dans vos mails depuis mardi." },
+    { n: 'Canva', t: 'pour les visuels' },
+    { n: 'ChatGPT', t: 'pour les légendes' },
+    { n: 'Un tableur', t: 'pour le planning' },
+    { n: 'Meta Business', t: 'pour publier' },
   ];
   return (
     <section id="probleme" className="lp-section lp-forest" style={{ overflow: 'hidden' }}>
-      <div className="lp-wrap">
+      <div className="lp-wrap" style={{ position: 'relative', zIndex: 2 }}>
         <div className="lp-2col" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 64, alignItems: 'center' }}>
           <div>
-            <h2 className="lp-display lp-upper lp-reveal d1" style={{ fontSize: 'clamp(34px, 4.2vw, 58px)', marginTop: 0, color: '#EFEEE4' }}>
-              On sait exactement<br /><span className="lp-it lp-mint">ce que vous vivez.</span>
+            <span className="lp-eyebrow lp-reveal" style={{ color: '#2FD79B' }}>Le problème</span>
+            <h2 className="lp-display lp-upper lp-reveal d1" style={{ fontSize: 'clamp(34px, 4.2vw, 58px)', marginTop: 20, color: '#EFEEE4' }}>
+              Quatre outils.<br />Trop d&apos;allers-retours.<br /><span className="lp-it lp-mint">Vos soirées qui filent.</span>
             </h2>
             <p className="lp-lead lp-reveal d2" style={{ marginTop: 24, maxWidth: 460 }}>
-              Canva pour les visuels. ChatGPT pour les textes. Un tableur pour le planning.
-              Meta Business pour publier. Et vous, au milieu, à tout recoller à la main —
-              pour chaque client, chaque semaine.
+              Chaque client, c&apos;est le même rituel : copier-coller d&apos;un outil à l&apos;autre,
+              renvoyer une maquette, attendre la validation, reprogrammer. Multiplié par dix.
             </p>
             <div className="lp-reveal d3" style={{ marginTop: 30, display: 'inline-flex', alignItems: 'center', gap: 12, padding: '14px 20px', borderRadius: 14, background: '#2FD79B', color: '#06281C' }}>
               <Icon name="clock" size={20} style={{ flexShrink: 0 }} />
-              <span style={{ fontFamily: "'early-sans-variable', sans-serif", fontWeight: 800, fontSize: 14.5, lineHeight: 1.2 }}>2H PAR JOUR. En moyenne, perdues à coller des outils ensemble.</span>
+              <span style={{ fontFamily: "'early-sans-variable', sans-serif", fontWeight: 800, fontSize: 14.5, lineHeight: 1.2 }}>≈ 2 h perdues par client, chaque semaine</span>
             </div>
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             {tools.map((x, i) => (
-              <div key={i} className={`lp-reveal d${i + 1}`} style={{ padding: '20px 24px', display: 'flex', alignItems: 'flex-start', gap: 18, transform: `rotate(${i % 2 ? .5 : -.6}deg)`, background: '#103725', borderRadius: 18, boxShadow: 'inset 0 0 0 1px rgba(239,238,228,.22)' }}>
-                <span style={{ fontFamily: "'early-sans-variable', sans-serif", fontWeight: 900, fontSize: 13, color: 'rgba(239,238,228,.28)', width: 22, flexShrink: 0, paddingTop: 4 }}>{String(i + 1).padStart(2, '0')}</span>
+              <div key={i} className={`lp-reveal d${i + 1}`} style={{ padding: '20px 24px', display: 'flex', alignItems: 'center', gap: 18, transform: `rotate(${i % 2 ? .5 : -.6}deg)`, background: '#103725', borderRadius: 18, boxShadow: 'inset 0 0 0 1px rgba(239,238,228,.22)' }}>
+                <span style={{ fontFamily: "'early-sans-variable', sans-serif", fontWeight: 900, fontSize: 13, color: 'rgba(239,238,228,.28)', width: 22, flexShrink: 0 }}>{String(i + 1).padStart(2, '0')}</span>
                 <div style={{ flex: 1 }}>
-                  <div style={{ fontFamily: "'Archivo', sans-serif", fontWeight: 800, fontSize: 20, letterSpacing: '-0.02em', color: '#EFEEE4', marginBottom: 6 }}>{x.n}</div>
-                  <div style={{ color: 'rgba(239,238,228,.55)', fontSize: 14, lineHeight: 1.55 }}>{x.t}</div>
+                  <div style={{ fontFamily: "'Archivo', sans-serif", fontWeight: 800, fontSize: 24, letterSpacing: '-0.02em', color: '#EFEEE4' }}>{x.n}</div>
+                  <div style={{ color: 'rgba(239,238,228,.6)', fontSize: 14.5 }}>{x.t}</div>
                 </div>
+                <Icon name="arrowUR" size={18} style={{ color: 'rgba(239,238,228,.3)', flexShrink: 0 }} />
               </div>
             ))}
+            <div className="lp-reveal d4" style={{ textAlign: 'center', fontFamily: "'early-sans-variable', sans-serif", fontWeight: 800, color: 'rgba(239,238,228,.3)', fontSize: 13, marginTop: 6 }}>
+              … et vous, au milieu, à tout recoller à la main.
+            </div>
           </div>
         </div>
       </div>
@@ -1383,28 +1501,22 @@ function FAQ() {
   );
 }
 
-/* ─── FinalCTA — fond acid #2FD79B ──────────────────────────────────────── */
+/* ─── FinalCTA — fond forêt ──────────────────────────────────────────────── */
 function FinalCTA() {
   return (
-    <section className="lp-section">
-      <div className="lp-wrap">
-        <div className="lp-reveal" style={{ position: 'relative', overflow: 'hidden', background: '#2FD79B', borderRadius: 28, padding: 'clamp(48px,7vw,96px) 40px', textAlign: 'center' }}>
-          <div style={{ position: 'relative', zIndex: 2 }}>
-            <span className="lp-eyebrow plain" style={{ color: '#06281C', opacity: .65, justifyContent: 'center' }}>C&apos;est le moment.</span>
-            <h2 className="lp-display lp-upper" style={{ fontSize: 'clamp(40px, 6.4vw, 96px)', color: '#06281C', marginTop: 16 }}>
-              Arrêtez de gérer des logiciels.<br /><span className="lp-it">Commencez à créer.</span>
-            </h2>
-            <p style={{ marginTop: 20, fontFamily: "'early-sans-variable', sans-serif", fontWeight: 700, fontSize: 16, color: '#06281C', opacity: .75 }}>
-              Rejoignez les premières agences qui ont repris le contrôle de leur temps.
-            </p>
-            <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap', marginTop: 36 }}>
-              <Link href="/register" className="lp-btn lp-btn-ink lp-finalcta-btn" style={{ fontSize: 17, padding: '17px 32px' }}>
-                Démarrer gratuitement — accès immédiat <Icon name="arrowUR" size={18} className="arr" />
-              </Link>
-              <a href="#demo" className="lp-btn lp-finalcta-btn" style={{ fontSize: 17, padding: '17px 32px', background: 'transparent', color: '#06281C', boxShadow: 'inset 0 0 0 1.5px rgba(6,40,28,.3)' }}>Revoir la démo</a>
-            </div>
-            <p style={{ marginTop: 22, fontFamily: "'early-sans-variable', sans-serif", fontWeight: 700, fontSize: 14, color: '#06281C', opacity: .65 }}>7 jours gratuits · sans carte bancaire</p>
-          </div>
+    <section className="lp-section lp-forest" style={{ overflow: 'hidden', textAlign: 'center' }}>
+      <div className="lp-wrap" style={{ position: 'relative', zIndex: 2 }}>
+        <h2 className="lp-display lp-upper lp-reveal d1" style={{ fontSize: 'clamp(46px, 8vw, 116px)', maxWidth: 1000, margin: '0 auto', color: '#EFEEE4' }}>
+          Créez plus, <span className="lp-it lp-mint">jonglez moins.</span>
+        </h2>
+        <p className="lp-lead lp-reveal d2" style={{ maxWidth: 560, margin: '26px auto 0', fontSize: 20, color: 'rgba(239,238,228,.62)' }}>
+          Un seul outil pour tous vos clients. Essayez Klip gratuitement pendant 14 jours — sans carte bancaire.
+        </p>
+        <div className="lp-reveal d3" style={{ display: 'flex', gap: 14, justifyContent: 'center', marginTop: 40, flexWrap: 'wrap' }}>
+          <Link href="/register" className="lp-btn lp-btn-mint">
+            Démarrer gratuitement <Icon name="arrowUR" size={18} className="arr" />
+          </Link>
+          <a href="#demo" className="lp-btn lp-btn-ghost-light">Revoir le produit</a>
         </div>
       </div>
     </section>
