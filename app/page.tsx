@@ -123,17 +123,17 @@ const V2_CSS = `
 /* nav */
 .v2 .nav-link:hover { color:var(--ink) !important; }
 
-/* mobile menu */
-.v2-mob-btn { display:none; align-items:center; justify-content:center; width:42px; height:42px; border-radius:12px; }
-.v2-mob-menu { position:fixed; inset:0; background:var(--forest); z-index:1000; display:flex; flex-direction:column; padding:22px 26px 42px; transform:translateX(100%); transition:transform .3s cubic-bezier(.16,1,.3,1); }
-.v2-mob-menu.open { transform:translateX(0); }
-.v2-mob-link { display:block; font-family:'Archivo',sans-serif; font-weight:800; font-size:30px; text-transform:uppercase; letter-spacing:-0.02em; color:#F0EFE4; padding:13px 0; border-bottom:1px solid rgba(240,239,228,.16); }
+/* mobile menu (scopé .v2 pour battre la règle a color:inherit) */
+.v2 .v2-mob-btn { display:none; align-items:center; justify-content:center; width:42px; height:42px; border-radius:12px; }
+.v2 .v2-mob-menu { position:fixed; inset:0; background:#062018; z-index:1000; display:flex; flex-direction:column; padding:22px 26px 42px; transform:translateX(100%); transition:transform .3s cubic-bezier(.16,1,.3,1); }
+.v2 .v2-mob-menu.open { transform:translateX(0); }
+.v2 .v2-mob-link { display:block; font-family:'Archivo',sans-serif; font-weight:800; font-size:30px; text-transform:uppercase; letter-spacing:-0.02em; color:#F0EFE4 !important; padding:13px 0; border-bottom:1px solid rgba(240,239,228,.16); }
 
 /* ── responsive ──────────────────────────────────────────────── */
 /* tablette : grilles 2 → 1 col, nav repliée, flottants masqués */
 @media (max-width:960px) {
   .v2 .nav-links, .v2 .nav-cta-ghost { display:none !important; }
-  .v2-mob-btn { display:inline-flex; }
+  .v2 .v2-mob-btn { display:inline-flex; }
   .v2 .hero-float { display:none !important; }        /* évite tout débordement latéral */
   .v2 .grid-2, .v2 .grid-3, .v2 .bento, .v2 .testi-grid, .v2 .price-grid, .v2 .feat-hero { grid-template-columns:1fr !important; }
   .v2 .span-2 { grid-column:auto !important; }
@@ -153,10 +153,6 @@ const V2_CSS = `
   .v2 .nav-login { display:none !important; }
   .v2 .hero-peek { margin-top:48px !important; }
   .v2 .lead { font-size:17px !important; }
-  /* éditeur (Showcase) : rendu à sa largeur confortable, défilable horizontalement */
-  .v2 .ed-embed { overflow-x:auto; -webkit-overflow-scrolling:touch; border-radius:14px; }
-  .v2 .ed-embed > div { min-width:680px; }
-  .v2 .ed-zoomr { display:none !important; }
 }
 /* pipeline du hero : vertical + flèches vers le bas quand ça ne tient plus en ligne */
 @media (max-width:720px) {
@@ -254,10 +250,12 @@ function useParallax(speed = 0.12) {
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
-    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     let raf: number | null = null;
+    const disabled = () => reduce || window.innerWidth <= 860; // pas de parallax sur tablette/mobile
     const update = () => {
       raf = null;
+      if (disabled()) { el.style.transform = ''; return; }
       const r = el.getBoundingClientRect();
       const off = (r.top + r.height / 2) - window.innerHeight / 2;
       el.style.transform = `translate3d(0, ${(-off * speed).toFixed(1)}px, 0)`;
@@ -269,6 +267,36 @@ function useParallax(speed = 0.12) {
     return () => { window.removeEventListener('scroll', onScroll); window.removeEventListener('resize', onScroll); if (raf) cancelAnimationFrame(raf); };
   }, [speed]);
   return ref;
+}
+
+/* ─── ScaleToFit — réduit une maquette desktop pour qu'elle tienne en entier ─ */
+function ScaleToFit({ designWidth, children }: { designWidth: number; children: React.ReactNode }) {
+  const wrapRef = useRef<HTMLDivElement>(null);
+  const innerRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const compute = () => {
+      const wrap = wrapRef.current, inner = innerRef.current;
+      if (!wrap || !inner) return;
+      const avail = wrap.clientWidth;
+      if (avail >= designWidth) {
+        inner.style.transform = '';
+        inner.style.width = '';
+        wrap.style.height = '';
+      } else {
+        const scale = avail / designWidth;
+        inner.style.transformOrigin = 'top left';
+        inner.style.width = `${designWidth}px`;
+        inner.style.transform = `scale(${scale})`;
+        wrap.style.height = `${inner.offsetHeight * scale}px`;
+      }
+    };
+    compute();
+    window.addEventListener('resize', compute);
+    const ro = new ResizeObserver(compute);
+    if (innerRef.current) ro.observe(innerRef.current);
+    return () => { window.removeEventListener('resize', compute); ro.disconnect(); };
+  }, [designWidth]);
+  return <div ref={wrapRef} style={{ overflow: 'hidden' }}><div ref={innerRef}>{children}</div></div>;
 }
 
 /* ─── SplitText — animated per-character headline ────────────────────────── */
@@ -647,7 +675,7 @@ function Showcase() {
               Sélectionnez un texte et tout s&apos;ouvre — police, taille, couleurs de la charte, effets, animations. La même puissance que Canva ou la suite Adobe, déjà calée sur votre client.
             </p>
           </div>
-          <div className="ed-embed"><EditorUI /></div>
+          <ScaleToFit designWidth={920}><EditorUI /></ScaleToFit>
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 'clamp(56px,8vw,104px)', marginTop: 'clamp(64px,9vw,120px)' }}>
           {shots.map((s, i) => {
