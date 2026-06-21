@@ -1,219 +1,159 @@
 'use client';
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import { useRouter } from 'next/navigation';
 
-/* ─── Design tokens ──────────────────────────────────────────────────────────
-   Landing uses TWO accent colors:
-   • mint  #2FD79B — primary CTAs, italic text accents, eyebrow
-   • acid  #2FD79B — marquee strip, icon backgrounds, check circles, FinalCTA
-   Background: #F1F0E8 (warm paper)   Sections foncées: #0C2A1D (forest)
-   ─────────────────────────────────────────────────────────────────────────── */
+/* ════════════════════════════════════════════════════════════════════════════
+   KLIP — Landing v2 (magazine) · réplique fidèle de KLIP-5 / "KLIP Landing v2"
+   Accent = vert de la charte actuelle (#2FD79B) au lieu du lime #CBFF3A.
+   ════════════════════════════════════════════════════════════════════════════ */
 
-const LP_CSS = `
-  .lp {
-    background: #F1F0E8;
-    color: #0D0F0A;
-    font-family: 'early-sans-variable', system-ui, sans-serif;
-    font-size: 17px;
-    line-height: 1.6;
-    -webkit-font-smoothing: antialiased;
-  }
-  .lp *, .lp *::before, .lp *::after { box-sizing: border-box; }
-  .lp a { color: inherit; text-decoration: none; }
-  .lp button { font-family: inherit; cursor: pointer; border: none; background: none; }
-  .lp ::selection { background: #2FD79B; color: #06281C; }
+const V2_CSS = `
+.v2 {
+  /* surfaces */
+  --paper:#F2F0E6; --paper-2:#FBFAF2; --paper-3:#E9E6D7; --white:#FFFFFF;
+  --forest:#062018; --forest-2:#0B3122; --forest-3:#11432F;
+  /* ink */
+  --ink:#0A0C07; --ink-2:#4E5247; --ink-3:#888B7C;
+  --line:rgba(10,12,7,.14); --line-2:rgba(10,12,7,.08);
+  /* on forest */
+  --cream:#F0EFE4; --cream-2:rgba(240,239,228,.66); --cream-3:rgba(240,239,228,.34); --line-f:rgba(240,239,228,.16);
+  /* accent — vert charte */
+  --acid:#2FD79B; --acid-2:#21B381; --acid-ink:#06281C; --mint:#34E0A1;
+  /* type */
+  --heavy:'Archivo', system-ui, sans-serif;
+  --grotesk:'early-sans-variable','Hanken Grotesk', system-ui, sans-serif;
+  --sans:'early-sans-variable','Hanken Grotesk', system-ui, sans-serif;
+  --mono:'early-sans-variable','Hanken Grotesk', system-ui, sans-serif;
+  --maxw:1240px;
+  --radius:20px; --radius-s:12px; --radius-l:30px;
 
-  /* layout */
-  .lp-wrap     { max-width: 1180px; margin: 0 auto; padding: 0 32px; }
-  .lp-section  { padding: 120px 0; position: relative; }
-  .lp-section-sm { padding: 84px 0; position: relative; }
+  background:var(--paper); color:var(--ink); font-family:var(--sans);
+  font-size:17px; line-height:1.6; -webkit-font-smoothing:antialiased; overflow-x:hidden;
+}
+.v2 *, .v2 *::before, .v2 *::after { box-sizing:border-box; }
+.v2 a { color:inherit; text-decoration:none; }
+.v2 button { font-family:inherit; cursor:pointer; border:none; background:none; }
+.v2 img { display:block; max-width:100%; }
+.v2 ::selection { background:var(--acid); color:var(--acid-ink); }
 
-  /* typography */
-  .lp-display { font-family: 'Archivo', system-ui, sans-serif; font-weight: 800; line-height: 1.0; letter-spacing: -0.03em; text-wrap: balance; }
-  .lp-upper   { text-transform: uppercase; font-weight: 900; letter-spacing: -0.015em; line-height: 0.94; }
-  .lp-it      { font-style: italic; }
-  .lp-mint    { color: #2FD79B; }
+/* type */
+.v2 .display { font-family:var(--heavy); font-weight:800; text-transform:uppercase; letter-spacing:-0.03em; line-height:.95; text-wrap:balance; }
+.v2 .it-serif { font-family:var(--heavy); font-style:italic; font-weight:800; letter-spacing:-0.02em; }
+.v2 .eyebrow { font-family:var(--mono); font-weight:700; font-size:12.5px; letter-spacing:.14em; text-transform:uppercase; color:var(--ink-2); display:inline-flex; align-items:center; gap:10px; }
+.v2 .eyebrow::before { content:""; width:9px; height:9px; background:var(--acid); border-radius:var(--radius-s); box-shadow:0 0 0 4px color-mix(in srgb, var(--acid) 26%, transparent); }
+.v2 .eyebrow.plain::before { display:none; }
+.v2 .on-forest .eyebrow { color:var(--cream-2); }
+.v2 .lead { color:var(--ink-2); font-size:19.5px; line-height:1.6; text-wrap:pretty; }
+.v2 .on-forest .lead { color:var(--cream-2); }
 
-  .lp-eyebrow {
-    font-family: 'early-sans-variable', system-ui, sans-serif;
-    font-weight: 800; font-size: 12px; letter-spacing: 0.16em; text-transform: uppercase;
-    color: #8E9183; display: inline-flex; align-items: center; gap: 9px;
-  }
-  .lp-eyebrow::before {
-    content: ""; width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0;
-    background: #2FD79B; box-shadow: 0 0 0 4px rgba(47,215,155,.25);
-  }
-  .lp-eyebrow.plain::before { display: none; }
-  .lp-lead { color: #565A4E; font-size: 19px; line-height: 1.62; }
+/* acid-fill (green text accent) */
+.v2 .acid-fill { background:linear-gradient(96deg,#18B06A 0%,#0B6E45 82%); -webkit-background-clip:text; background-clip:text; -webkit-text-fill-color:transparent; color:transparent; }
+.v2 .on-forest .acid-fill { background:linear-gradient(96deg,var(--acid),var(--mint) 80%); -webkit-background-clip:text; background-clip:text; -webkit-text-fill-color:transparent; color:transparent; }
+.v2 .accent-lit, .v2 .accent-lit .split-char { color:var(--acid); -webkit-text-fill-color:var(--acid); background:none; }
 
-  /* forest sections */
-  .lp-forest { background: #0C2A1D; color: #EFEEE4; }
-  .lp-forest .lp-eyebrow { color: rgba(239,238,228,.62); }
-  .lp-forest .lp-lead    { color: rgba(239,238,228,.62); }
+/* layout */
+.v2 .wrap { max-width:var(--maxw); margin:0 auto; padding:0 34px; }
+.v2 .section { padding:clamp(80px,11vw,150px) 0; position:relative; }
+.v2 .on-forest {
+  background:
+    radial-gradient(100% 70% at 50% -12%, rgba(52,224,161,.13), transparent 55%),
+    radial-gradient(75% 65% at 92% 6%, rgba(47,215,155,.06), transparent 55%),
+    radial-gradient(95% 80% at 4% 100%, rgba(31,168,115,.14), transparent 60%),
+    var(--forest);
+  color:var(--cream);
+}
+.v2 .sec-no { font-family:var(--mono); font-weight:700; font-size:13px; letter-spacing:.1em; color:var(--ink-3); }
 
-  /* ── BUTTONS ── */
-  .lp-btn {
-    font-family: 'early-sans-variable', system-ui, sans-serif;
-    font-weight: 800; font-size: 15.5px; letter-spacing: -0.01em;
-    display: inline-flex; align-items: center; gap: 9px;
-    padding: 15px 26px; border-radius: 999px; white-space: nowrap;
-    transition: transform .18s cubic-bezier(.2,.7,.3,1), box-shadow .2s, background .2s, color .2s;
-  }
-  .lp-btn:hover { transform: translateY(-2px); }
-  .lp-btn .arr { transition: transform .2s; }
-  .lp-btn:hover .arr { transform: translate(3px,-3px); }
+/* buttons */
+.v2 .btn { font-family:var(--grotesk); font-weight:800; font-size:16px; letter-spacing:-0.01em; display:inline-flex; align-items:center; gap:10px; padding:16px 28px; border-radius:999px; transition:transform .18s cubic-bezier(.2,.7,.3,1), box-shadow .2s, background .2s, color .2s; white-space:nowrap; }
+.v2 .btn .arr { transition:transform .2s; }
+.v2 .btn:hover .arr { transform:translate(3px,-3px); }
+.v2 .btn-acid { background:var(--acid); color:var(--acid-ink); box-shadow:0 14px 30px -14px color-mix(in srgb, var(--acid) 75%, #000); }
+.v2 .btn-acid:hover { transform:translateY(-2px); box-shadow:0 20px 36px -16px color-mix(in srgb, var(--acid) 80%, #000); }
+.v2 .btn-ink { background:var(--ink); color:var(--paper); }
+.v2 .btn-ink:hover { transform:translateY(-2px); }
+.v2 .btn-ghost { background:transparent; color:var(--ink); box-shadow:inset 0 0 0 1.6px var(--line); }
+.v2 .btn-ghost:hover { box-shadow:inset 0 0 0 2px var(--ink); }
+.v2 .on-forest .btn-ghost { color:var(--cream); box-shadow:inset 0 0 0 1.6px var(--line-f); }
+.v2 .on-forest .btn-ghost:hover { box-shadow:inset 0 0 0 2px var(--cream); }
+.v2 .btn-cream { background:var(--cream); color:var(--forest); }
+.v2 .btn-cream:hover { transform:translateY(-2px); }
+.v2 .btn-sm { padding:12px 19px; font-size:14px; }
 
-  /* mint — primary CTA */
-  .lp-btn-mint {
-    background: #2FD79B; color: #06281C !important;
-    box-shadow: 0 1px 0 rgba(0,0,0,.04), 0 10px 24px -12px rgba(47,215,155,.55);
-  }
-  .lp-btn-mint:hover { background: #26C98E; box-shadow: 0 1px 0 rgba(0,0,0,.04), 0 16px 30px -12px rgba(47,215,155,.6); }
+/* chip / card / frame */
+.v2 .chip { font-family:var(--mono); font-weight:700; font-size:12.5px; letter-spacing:.02em; display:inline-flex; align-items:center; gap:8px; padding:8px 14px; border-radius:999px; background:var(--paper-2); box-shadow:inset 0 0 0 1px var(--line); color:var(--ink-2); white-space:nowrap; }
+.v2 .on-forest .chip { background:var(--forest-2); color:var(--cream-2); box-shadow:inset 0 0 0 1px var(--line-f); }
+.v2 .card { background:var(--paper-2); border-radius:var(--radius); box-shadow:inset 0 0 0 1px var(--line-2), 0 1px 2px rgba(10,12,7,.03); }
+.v2 .frame { border-radius:var(--radius); overflow:hidden; background:var(--white); box-shadow:0 0 0 1px rgba(10,12,7,.08), 0 50px 90px -48px rgba(0,0,0,.55); }
+.v2 .frame-bar { height:38px; display:flex; align-items:center; gap:7px; padding:0 14px; background:var(--paper-3); border-bottom:1px solid var(--line); }
+.v2 .frame-dot { width:11px; height:11px; border-radius:50%; background:var(--ink-3); opacity:.5; }
+.v2 .frame-url { margin-left:10px; font-family:var(--mono); font-size:11.5px; color:var(--ink-3); letter-spacing:.02em; }
 
-  /* acid — for use on forest/dark bg */
-  .lp-btn-acid {
-    background: #2FD79B; color: #06281C !important;
-    box-shadow: 0 1px 0 rgba(0,0,0,.04), 0 10px 24px -12px rgba(47,215,155,.45);
-  }
-  .lp-btn-acid:hover { background: #21B381; box-shadow: 0 1px 0 rgba(0,0,0,.04), 0 16px 30px -12px rgba(47,215,155,.55); }
+/* dotted texture */
+.v2 .dotgrid::before { content:""; position:absolute; inset:0; z-index:0; background-image:radial-gradient(circle at center, var(--line) 1.3px, transparent 1.5px); background-size:28px 28px; -webkit-mask-image:radial-gradient(ellipse 75% 65% at 50% 38%, #000 0%, transparent 72%); mask-image:radial-gradient(ellipse 75% 65% at 50% 38%, #000 0%, transparent 72%); pointer-events:none; }
+.v2 .on-forest .dotgrid::before { background-image:radial-gradient(circle at center, var(--line-f) 1.3px, transparent 1.5px); }
 
-  .lp-btn-ink   { background: #0D0F0A; color: #F1F0E8 !important; }
-  .lp-btn-ghost { background: transparent; color: #0D0F0A !important; box-shadow: inset 0 0 0 1.5px rgba(13,15,10,.18); }
-  .lp-btn-ghost:hover { box-shadow: inset 0 0 0 1.5px #0D0F0A; }
-  .lp-btn-ghost-light { background: transparent; color: #EFEEE4 !important; box-shadow: inset 0 0 0 1.5px rgba(239,238,228,.35); }
-  .lp-btn-ghost-light:hover { box-shadow: inset 0 0 0 1.5px rgba(239,238,228,.65); }
-  .lp-btn-sm  { padding: 11px 18px !important; font-size: 14px !important; }
+/* split-text hero */
+.v2 .split-line { display:block; }
+.v2 .split-word { display:inline-block; white-space:nowrap; }
+.v2 .split-char { display:inline-block; opacity:0; transform:translateY(.55em); will-change:transform,opacity; }
+.v2 .split-char.lit { opacity:1; transform:none; transition:opacity .5s ease, transform .62s cubic-bezier(.2,.85,.25,1); }
 
-  /* card */
-  .lp-card {
-    background: #FBFAF4; border-radius: 18px;
-    box-shadow: inset 0 0 0 1px rgba(13,15,10,.07), 0 1px 2px rgba(13,15,10,.03);
-  }
+/* reveal */
+.v2 .reveal { opacity:0; transform:translateY(26px); }
+.v2 .reveal.in { opacity:1; transform:none; transition:opacity .8s cubic-bezier(.16,1,.3,1), transform .8s cubic-bezier(.16,1,.3,1); }
+.v2 .reveal.d1.in { transition-delay:.08s; } .v2 .reveal.d2.in { transition-delay:.16s; }
+.v2 .reveal.d3.in { transition-delay:.24s; } .v2 .reveal.d4.in { transition-delay:.32s; }
 
-  /* nav scroll-solid */
-  .lp-nav-solid {
-    background: rgba(241,240,232,.85) !important;
-    backdrop-filter: blur(14px) saturate(1.4) !important;
-    border-bottom: 1px solid rgba(13,15,10,.12) !important;
-    padding: 12px 0 !important;
-  }
+/* floats */
+@keyframes v2-floatA { 0%,100%{transform:translateY(0) rotate(-5deg);} 50%{transform:translateY(-20px) rotate(4deg);} }
+@keyframes v2-floatB { 0%,100%{transform:translateY(0) rotate(6deg);} 50%{transform:translateY(-14px) rotate(-3deg);} }
+@keyframes v2-spin { to { transform:rotate(360deg); } }
+.v2 .floatA { animation:v2-floatA 7s ease-in-out infinite; }
+.v2 .floatB { animation:v2-floatB 6s ease-in-out infinite; }
 
-  /* hero dot-grid background */
-  .lp-hero-grid::before {
-    content: ""; position: absolute; inset: 0; z-index: 0; pointer-events: none;
-    background-image: radial-gradient(circle at center, rgba(13,15,10,.13) 1.3px, transparent 1.4px);
-    background-size: 26px 26px;
-    -webkit-mask-image: radial-gradient(ellipse 72% 62% at 50% 36%, #000 0%, transparent 72%);
-    mask-image: radial-gradient(ellipse 72% 62% at 50% 36%, #000 0%, transparent 72%);
-  }
+/* showcase */
+.v2 .sho-kicker { font-family:var(--mono); font-weight:700; font-size:12.5px; letter-spacing:.12em; text-transform:uppercase; color:var(--acid); }
+.v2 .sho-shot { position:relative; border-radius:var(--radius); overflow:hidden; background:var(--forest-2); border:1px solid var(--line-f); box-shadow:0 50px 90px -48px rgba(0,0,0,.55); }
+.v2 .sho-shot img { display:block; width:100%; height:auto; }
+.v2 .sho-shot::after { content:""; position:absolute; inset:0; box-shadow:inset 0 0 0 1px var(--line-f); border-radius:inherit; pointer-events:none; }
 
-  /* marquee */
-  @keyframes lp-ticker { from { transform: translateX(0); } to { transform: translateX(-50%); } }
-  @keyframes lp-spin { to { transform: rotate(360deg); } }
-  @keyframes lp-fadein { from { opacity: 0; transform: translateX(-50%) translateY(4px); } to { opacity: 1; transform: translateX(-50%) translateY(0); } }
+/* nav */
+.v2 .nav-link:hover { color:var(--ink) !important; }
 
-  /* scroll reveal */
-  .lp-reveal { opacity: 0; transform: translateY(20px); }
-  .lp-reveal.in { opacity: 1; transform: none; transition: opacity .65s cubic-bezier(.16,1,.3,1), transform .65s cubic-bezier(.16,1,.3,1); }
-  .lp-reveal.d1.in { transition-delay: .07s; }
-  .lp-reveal.d2.in { transition-delay: .14s; }
-  .lp-reveal.d3.in { transition-delay: .21s; }
-  .lp-reveal.d4.in { transition-delay: .28s; }
-  @media (prefers-reduced-motion: reduce) { .lp-reveal { opacity: 1 !important; transform: none !important; } }
+/* mobile menu */
+.v2-mob-btn { display:none; align-items:center; justify-content:center; width:42px; height:42px; border-radius:12px; }
+.v2-mob-menu { position:fixed; inset:0; background:var(--forest); z-index:1000; display:flex; flex-direction:column; padding:22px 26px 42px; transform:translateX(100%); transition:transform .3s cubic-bezier(.16,1,.3,1); }
+.v2-mob-menu.open { transform:translateX(0); }
+.v2-mob-link { display:block; font-family:'Archivo',sans-serif; font-weight:800; font-size:30px; text-transform:uppercase; letter-spacing:-0.02em; color:#F0EFE4; padding:13px 0; border-bottom:1px solid rgba(240,239,228,.16); }
 
-  /* nav link hover */
-  .lp-nav-link { color: #565A4E; transition: color .15s; font-family: 'early-sans-variable', system-ui, sans-serif; font-weight: 700; font-size: 15px; }
-  .lp-nav-link:hover { color: #0D0F0A; }
-
-  /* footer links */
-  .lp-foot-link { opacity: .85; transition: opacity .15s; }
-  .lp-foot-link:hover { opacity: 1; }
-
-  /* responsive */
-  @media (max-width: 980px) {
-    .lp-hero-art { display: none !important; }
-    .lp-nav-links { display: none !important; }
-    .lp-mob-btn { display: flex !important; }
-    .lp-hero-col { text-align: center; }
-    .lp-hero-col .lp-lead { margin-left: auto !important; margin-right: auto !important; }
-    .lp-hero-btns { justify-content: center !important; }
-    .lp-finalcta-btn { font-size: 15px !important; padding: 14px 22px !important; }
-  }
-  @media (max-width: 900px) {
-    .lp { font-size: 16px; }
-    .lp-section { padding: 84px 0; }
-    .lp-section-sm { padding: 60px 0; }
-    .lp-wrap { padding: 0 22px; }
-    .lp-2col { grid-template-columns: 1fr !important; }
-    .lp-3col { grid-template-columns: 1fr !important; }
-    .lp-feat-wide { grid-column: span 1 !important; }
-    .lp-testi-main { grid-row: auto !important; }
-    .lp-nav-login { display: none !important; }
-    .lp-foot-grid { grid-template-columns: 1fr 1fr !important; gap: 32px !important; }
-  }
-  @media (max-width: 640px) {
-    .lp-section { padding: 64px 0; }
-    .lp-section-sm { padding: 44px 0; }
-    .lp-wrap { padding: 0 16px; }
-    .lp-foot-grid { grid-template-columns: 1fr !important; gap: 28px !important; }
-    .lp-btn { padding: 14px 22px; font-size: 14px; min-height: 48px; }
-    .lp-btn-sm { padding: 10px 18px; font-size: 13px; min-height: 44px; }
-    .lp-nav-cta { display: none !important; }
-  }
-  @media (max-width: 560px) {
-    .lp-photo-grid { grid-template-columns: repeat(2,1fr) !important; }
-  }
-  @media (max-width: 900px) {
-    .lp-process-grid { grid-template-columns: repeat(2,1fr) !important; }
-    .lp-pricing-grid { grid-template-columns: 1fr !important; max-width: 460px !important; margin-left: auto !important; margin-right: auto !important; }
-  }
-  @media (max-width: 640px) {
-    .lp-process-grid { grid-template-columns: 1fr !important; }
-  }
-  @media (max-width: 767px) {
-    .lp-demo-outer { overflow-x: auto; -webkit-overflow-scrolling: touch; padding-bottom: 8px; }
-    .lp-demo-outer > * { min-width: 680px; }
-  }
-
-  /* Mobile menu */
-  .lp-mob-btn { display: none; align-items: center; justify-content: center; width: 40px; height: 40px; border-radius: 10px; background: rgba(13,15,10,.08); color: #0D0F0A; }
-  .lp-mob-btn-solid { background: rgba(238,237,227,.15); color: #F1F0E8; }
-  .lp-mob-menu { position: fixed; inset: 0; background: #F1F0E8; z-index: 1000; display: flex; flex-direction: column; padding: 20px 24px 40px; transform: translateX(100%); transition: transform .28s cubic-bezier(.16,1,.3,1); }
-  .lp-mob-menu.open { transform: translateX(0); }
-  .lp-mob-menu-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 40px; }
-  .lp-mob-nav-link { display: block; font-family: 'Archivo', system-ui, sans-serif; font-weight: 800; font-size: 28px; text-transform: uppercase; letter-spacing: -0.02em; color: #0C2A1D; padding: 12px 0; border-bottom: 1px solid rgba(13,15,10,.08); }
-  .lp-mob-nav-link:last-child { border-bottom: none; }
-  .lp-mob-menu-footer { margin-top: auto; display: flex; flex-direction: column; gap: 12px; }
-
-  /* Hero showcase — grad-stage */
-  .lp-grad-stage {
-    position: relative; border-radius: 28px; overflow: hidden;
-    background:
-      radial-gradient(120% 130% at 16% 0%, rgba(47,215,155,.26), transparent 55%),
-      radial-gradient(120% 130% at 100% 100%, rgba(47,215,155,.20), transparent 52%),
-      linear-gradient(160deg, #0C2A1D 0%, #103A28 58%, #16704a 100%);
-  }
-  .lp-grad-stage::before {
-    content: ""; position: absolute; inset: 0; z-index: 1; pointer-events: none;
-    background-image: radial-gradient(circle at center, rgba(239,238,228,.10) 1.2px, transparent 1.3px);
-    background-size: 24px 24px;
-    -webkit-mask-image: radial-gradient(ellipse 80% 70% at 50% 40%, #000, transparent 75%);
-    mask-image: radial-gradient(ellipse 80% 70% at 50% 40%, #000, transparent 75%);
-  }
-
-  /* Floating animation classes */
-  @keyframes lp-float-a { 0%, 100% { transform: translateY(0) rotate(-6deg); } 50% { transform: translateY(-22px) rotate(4deg); } }
-  @keyframes lp-float-b { 0%, 100% { transform: translateY(0) rotate(7deg); } 50% { transform: translateY(-15px) rotate(-3deg); } }
-  @keyframes lp-blob-drift { 0%, 100% { transform: translate(0,0) scale(1); } 50% { transform: translate(28px,-24px) scale(1.08); } }
-  @keyframes lp-emblem-float { 0%, 100% { transform: translateY(0) rotate(-3deg); } 50% { transform: translateY(-14px) rotate(3deg); } }
-  .lp-float-a { animation: lp-float-a 7s ease-in-out infinite; }
-  .lp-float-b { animation: lp-float-b 6s ease-in-out infinite; }
-  .lp-gblob   { animation: lp-blob-drift 15s ease-in-out infinite; }
-
-  @media (max-width: 760px) { .lp-hero-float { display: none !important; } }
-  @media (prefers-reduced-motion: reduce) { .lp-float-a, .lp-float-b, .lp-gblob { animation: none !important; } }
+/* responsive */
+@media (max-width:960px) {
+  .v2 .nav-links, .v2 .nav-cta-ghost { display:none !important; }
+  .v2 .hero-peek { display:none !important; }
+  .v2 .grid-2, .v2 .grid-3, .v2 .bento, .v2 .testi-grid, .v2 .price-grid, .v2 .foot-grid, .v2 .feat-hero { grid-template-columns:1fr !important; }
+  .v2 .span-2 { grid-column:auto !important; }
+  .v2-mob-btn { display:inline-flex; }
+}
+@media (max-width:760px) {
+  .v2 { font-size:16px; }
+  .v2 .wrap { padding:0 22px; }
+  .v2 .hero-float { display:none !important; }
+  .v2 .ed-rail, .v2 .ed-zoomr { display:none !important; }
+  .v2 .nav-login { display:none !important; }
+}
+@media (max-width:860px) {
+  .v2 .sho-row { grid-template-columns:1fr !important; }
+  .v2 .sho-row > div { order:initial !important; }
+  .v2 .sho-row .sho-shot { order:-1 !important; }
+}
+@media (prefers-reduced-motion:reduce) {
+  .v2 .reveal { opacity:1 !important; transform:none !important; }
+  .v2 .split-char { opacity:1 !important; transform:none !important; }
+  .v2 .floatA, .v2 .floatB { animation:none !important; }
+}
 `;
 
 /* ─── Icon ───────────────────────────────────────────────────────────────── */
@@ -242,1102 +182,592 @@ function Icon({ name, size = 22, stroke = 1.7, style, className }: IconProps) {
   }
 }
 
+/* ─── EdIcon — editor mock icon set ──────────────────────────────────────── */
+function EdIcon({ name, size = 18, stroke = 1.8, style }: { name: string; size?: number; stroke?: number; style?: React.CSSProperties }) {
+  const p = { width: size, height: size, viewBox: '0 0 24 24' as const, fill: 'none' as const, stroke: 'currentColor', strokeWidth: stroke, strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const, style };
+  switch (name) {
+    case 'bold':      return <svg {...p}><path d="M7 5h6a3.5 3.5 0 0 1 0 7H7zM7 12h7a3.5 3.5 0 0 1 0 7H7z" strokeWidth={2}/></svg>;
+    case 'italic':    return <svg {...p}><path d="M11 5h7M6 19h7M14 5l-4 14" strokeWidth={2}/></svg>;
+    case 'underline': return <svg {...p}><path d="M7 4v7a5 5 0 0 0 10 0V4M5 21h14" strokeWidth={2}/></svg>;
+    case 'strike':    return <svg {...p}><path d="M5 12h14M8 7.5A4 4 0 0 1 16 8M8.5 16a4 4 0 0 0 7-2.4" strokeWidth={2}/></svg>;
+    case 'alignL':    return <svg {...p}><path d="M4 6h16M4 12h10M4 18h13"/></svg>;
+    case 'case':      return <svg {...p}><path d="M3 17l3.5-9 3.5 9M4.2 14h4.6M14 11.5a2.8 2.8 0 1 1 0 5.5 2.8 2.8 0 0 1 0-5.5zM19.6 11.6V17"/></svg>;
+    case 'lineH':     return <svg {...p}><path d="M4 5l2.2-2L8.4 5M4 19l2.2 2L8.4 19M6.2 4v16M12 6h9M12 12h9M12 18h9"/></svg>;
+    case 'transp':    return <svg {...p}><rect x="3" y="3" width="18" height="18" rx="3"/><path d="M3 9h6V3M9 15h6V9M15 21v-6h6" fill="currentColor" stroke="none" opacity=".22"/></svg>;
+    case 'effects':   return <svg {...p}><path d="M12 3l1.7 4.8L18 9l-4.3 1.2L12 15l-1.7-4.8L6 9l4.3-1.2zM18.5 14l.7 2 2 .7-2 .7-.7 2-.7-2-2-.7 2-.7z"/></svg>;
+    case 'animate':   return <svg {...p}><path d="M5 12a7 7 0 0 1 7-7M19 12a7 7 0 0 1-7 7"/><path d="M12 5l-2.4 1.4M12 5l2.4 1.4M12 19l-2.4-1.4M12 19l2.4-1.4"/></svg>;
+    case 'position':  return <svg {...p}><rect x="3" y="3" width="11" height="11" rx="2"/><path d="M10 10h10v10H10v-2"/></svg>;
+    case 'undo':      return <svg {...p}><path d="M9 7L4 12l5 5M4 12h11a5 5 0 0 1 0 10h-1"/></svg>;
+    case 'redo':      return <svg {...p}><path d="M15 7l5 5-5 5M20 12H9a5 5 0 0 0 0 10h1"/></svg>;
+    case 'plus':      return <svg {...p}><path d="M12 5v14M5 12h14"/></svg>;
+    case 'minus':     return <svg {...p}><path d="M5 12h14"/></svg>;
+    case 'fit':       return <svg {...p}><path d="M8 3H5a2 2 0 0 0-2 2v3M16 3h3a2 2 0 0 1 2 2v3M8 21H5a2 2 0 0 1-2-2v-3M16 21h3a2 2 0 0 0 2-2v-3"/></svg>;
+    case 'image':     return <svg {...p}><rect x="3" y="4" width="18" height="16" rx="3"/><circle cx="8.5" cy="9.5" r="1.6"/><path d="M21 16l-5-5L5 20"/></svg>;
+    case 'text':      return <svg {...p}><path d="M5 6.5V5h14v1.5M12 5v14M9 19h6"/></svg>;
+    case 'upload':    return <svg {...p}><path d="M12 16V4M7 9l5-5 5 5"/><path d="M4 16v2.5A1.5 1.5 0 0 0 5.5 20h13a1.5 1.5 0 0 0 1.5-1.5V16"/></svg>;
+    case 'chevD':     return <svg {...p}><path d="M6 9l6 6 6-6"/></svg>;
+    case 'eye':       return <svg {...p}><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>;
+    case 'play':      return <svg {...p}><path d="M7 5l12 7-12 7V5Z" fill="currentColor" stroke="none"/></svg>;
+    case 'palette':   return <svg {...p}><path d="M12 3a9 9 0 1 0 0 18c1.4 0 2-1 2-2 0-1.4-1-1.5-1-3 0-.8.7-1.5 1.5-1.5H17a4 4 0 0 0 4-4c0-4-4-7.5-9-7.5Z"/><circle cx="7.5" cy="11" r="1.1" fill="currentColor" stroke="none"/><circle cx="12" cy="7.5" r="1.1" fill="currentColor" stroke="none"/><circle cx="16" cy="10" r="1.1" fill="currentColor" stroke="none"/></svg>;
+    case 'template':  return <svg {...p}><rect x="3" y="3" width="18" height="18" rx="3"/><path d="M3 9h18M9 9v12"/></svg>;
+    case 'shapes':    return <svg {...p}><rect x="3" y="13" width="8" height="8" rx="1.6"/><circle cx="16.5" cy="16.5" r="4.2"/><path d="M9 3l5 8H4z"/></svg>;
+    default: return null;
+  }
+}
+
 /* ─── KlipLogo ───────────────────────────────────────────────────────────── */
-function KlipLogo({ size = 26, light = false }: { size?: number; light?: boolean }) {
-  return (
-    <img
-      src={light ? '/logo-klip-mint.png' : '/logo-klip-dark.png'}
-      alt="Klip"
-      style={{ height: size, width: 'auto' }}
-    />
-  );
+function KlipLogo({ size = 28, light = false }: { size?: number; light?: boolean }) {
+  return <img src={light ? '/logo-klip-mint.png' : '/logo-klip-dark.png'} alt="Klip" style={{ height: size, width: 'auto' }} />;
 }
 
-/* ─── PostThumb — Instagram card placeholder ─────────────────────────────── */
-const POST_GRADS = [
-  'linear-gradient(150deg,#1b5e3a,#0c2a1d)',
-  'linear-gradient(150deg,#2FD79B,#21B381)',
-  'linear-gradient(150deg,#0c2a1d,#1f7a4d)',
-  'linear-gradient(150deg,#e9e7da,#cfd3b0)',
-  'linear-gradient(150deg,#103725,#2b8d57)',
-  'linear-gradient(150deg,#d7f25a,#9bd11f)',
-];
-function PostThumb({ i = 0, tag, brand }: { i?: number; tag: string; brand: string }) {
-  const grad = POST_GRADS[i % POST_GRADS.length];
-  const lime = i % 6 === 1 || i % 6 === 3 || i % 6 === 5;
-  const fg = lime ? '#16321a' : '#EFEEE4';
-  return (
-    <div style={{ borderRadius: 16, overflow: 'hidden', background: '#fff', boxShadow: '0 1px 0 1px rgba(13,15,10,.05), 0 20px 40px -24px rgba(13,15,10,.4)' }}>
-      <div style={{ position: 'relative', aspectRatio: '4/5', background: grad, padding: 14, display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <span style={{ fontFamily: "'early-sans-variable', sans-serif", fontWeight: 800, fontSize: 11, letterSpacing: '.1em', textTransform: 'uppercase', color: fg, opacity: .8 }}>{brand}</span>
-          <span style={{ width: 20, height: 20, borderRadius: '50%', border: `1.5px solid ${fg}`, opacity: .55 }} />
-        </div>
-        <div style={{ fontFamily: "'Archivo', sans-serif", fontWeight: 700, fontStyle: 'italic', fontSize: 22, lineHeight: .98, letterSpacing: '-0.02em', color: fg, whiteSpace: 'pre-line' }}>{tag}</div>
-        <div style={{ display: 'flex', gap: 12, color: fg, opacity: .8 }}>
-          <Icon name="heart" size={16} /><Icon name="chat" size={16} /><Icon name="send" size={16} />
-        </div>
-      </div>
-      <div style={{ padding: '9px 12px 11px', display: 'flex', flexDirection: 'column', gap: 5 }}>
-        <span style={{ height: 6, width: '78%', borderRadius: 3, background: 'rgba(13,15,10,.12)' }} />
-        <span style={{ height: 6, width: '52%', borderRadius: 3, background: 'rgba(13,15,10,.08)' }} />
-      </div>
-    </div>
-  );
+/* ─── useParallax ────────────────────────────────────────────────────────── */
+function useParallax(speed = 0.12) {
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    let raf: number | null = null;
+    const update = () => {
+      raf = null;
+      const r = el.getBoundingClientRect();
+      const off = (r.top + r.height / 2) - window.innerHeight / 2;
+      el.style.transform = `translate3d(0, ${(-off * speed).toFixed(1)}px, 0)`;
+    };
+    const onScroll = () => { if (!raf) raf = requestAnimationFrame(update); };
+    update();
+    window.addEventListener('scroll', onScroll, { passive: true });
+    window.addEventListener('resize', onScroll);
+    return () => { window.removeEventListener('scroll', onScroll); window.removeEventListener('resize', onScroll); if (raf) cancelAnimationFrame(raf); };
+  }, [speed]);
+  return ref;
 }
 
-/* ─── FChip — floating workflow label ────────────────────────────────────── */
-function FChip({ icon, label, style, accent }: { icon: string; label: string; style?: React.CSSProperties; accent?: boolean }) {
-  return (
-    <div style={{ position: 'absolute', display: 'inline-flex', alignItems: 'center', gap: 8, fontFamily: "'early-sans-variable', sans-serif", fontWeight: 800, fontSize: 13.5, padding: '9px 15px', borderRadius: 999, whiteSpace: 'nowrap', background: accent ? '#2FD79B' : '#fff', color: accent ? '#06281C' : '#0D0F0A', boxShadow: '0 1px 0 1px rgba(13,15,10,.05), 0 16px 30px -18px rgba(13,15,10,.45)', ...style }}>
-      <Icon name={icon} size={16} /> {label}
-    </div>
-  );
-}
+/* ─── SplitText — animated per-character headline ────────────────────────── */
+type Run = { t: string; cls?: string };
+function SplitText({ lines, className = '', stagger = 22, style }: { lines: (Run[] | string)[]; className?: string; stagger?: number; style?: React.CSSProperties }) {
+  const ref = useRef<HTMLHeadingElement>(null);
+  useEffect(() => {
+    const root = ref.current;
+    if (!root) return;
+    const chars = Array.from(root.querySelectorAll<HTMLElement>('.split-char'));
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) { chars.forEach(c => c.classList.add('lit')); return; }
+    const io = new IntersectionObserver((ents) => {
+      ents.forEach(en => {
+        if (en.isIntersecting) {
+          chars.forEach((c, i) => { c.style.transitionDelay = `${i * stagger}ms`; requestAnimationFrame(() => c.classList.add('lit')); });
+          io.disconnect();
+        }
+      });
+    }, { threshold: 0.3 });
+    io.observe(root);
+    return () => io.disconnect();
+  }, [stagger]);
 
-/* ─── Emblem3D ───────────────────────────────────────────────────────────── */
-function Emblem3D({ shape = 'spark', tone = 'teal', size = 120, floatAnim = false, style }: { shape?: string; tone?: string; size?: number; floatAnim?: boolean; style?: React.CSSProperties }) {
-  const TONES: Record<string, { hi: string; mid: string; lo: string; edge: string }> = {
-    lime:   { hi: '#F2FFB0', mid: '#2FD79B', lo: '#1FC98A', edge: '#0B7A4F' },
-    teal:   { hi: '#CFF6FF', mid: '#41C8E8', lo: '#1577A0', edge: '#0c526d' },
-    forest: { hi: '#86E9AE', mid: '#26A968', lo: '#0F5836', edge: '#073d23' },
+  const renderRun = (text: string, cls: string | undefined, kBase: string) => {
+    const tokens = text.split(/(\s+)/);
+    const out: React.ReactNode[] = [];
+    tokens.forEach((tok, ti) => {
+      if (tok === '') return;
+      if (/^\s+$/.test(tok)) { out.push(<span key={`${kBase}-s${ti}`}> </span>); return; }
+      out.push(
+        <span key={`${kBase}-w${ti}`} className={`split-word ${cls || ''}`}>
+          {Array.from(tok).map((ch, ci) => <span key={ci} className="split-char">{ch}</span>)}
+        </span>
+      );
+    });
+    return out;
   };
-  const PATHS: Record<string, string> = {
-    spark: 'M100 6 C110 62 138 90 194 100 C138 110 110 138 100 194 C90 138 62 110 6 100 C62 90 90 62 100 6 Z',
-    blob:  'M100 10 C140 6 196 36 190 96 C186 140 156 196 100 190 C44 196 12 142 10 96 C8 44 60 14 100 10 Z',
-    drop:  'M100 10 C150 74 178 112 178 142 A78 78 0 0 1 22 142 C22 112 50 74 100 10 Z',
-  };
-  const T = TONES[tone] || TONES.teal;
-  const d = PATHS[shape] || PATHS.spark;
-  const u = `em-${shape}-${tone}-${size}`;
-  return (
-    <div style={{ width: size, height: size, lineHeight: 0, filter: `drop-shadow(0 ${Math.round(size * 0.13)}px ${Math.round(size * 0.18)}px ${T.edge}88)`, animation: floatAnim ? `lp-emblem-float ${5 + (size % 4)}s ease-in-out infinite` : 'none', ...style }}>
-      <svg viewBox="0 0 200 200" width={size} height={size}>
-        <defs>
-          <radialGradient id={`${u}b`} cx="36%" cy="30%" r="82%">
-            <stop offset="0%" stopColor={T.hi} /><stop offset="42%" stopColor={T.mid} /><stop offset="100%" stopColor={T.lo} />
-          </radialGradient>
-          <radialGradient id={`${u}s`} cx="34%" cy="26%" r="34%">
-            <stop offset="0%" stopColor="#fff" stopOpacity="0.92" /><stop offset="100%" stopColor="#fff" stopOpacity="0" />
-          </radialGradient>
-          <clipPath id={`${u}c`}><path d={d} /></clipPath>
-        </defs>
-        <path d={d} fill={`url(#${u}b)`} stroke={T.edge} strokeWidth="1" strokeOpacity="0.5" />
-        <g clipPath={`url(#${u}c)`}>
-          <ellipse cx="118" cy="150" rx="92" ry="60" fill={T.lo} opacity="0.55" />
-          <ellipse cx="68" cy="54" rx="50" ry="38" fill={`url(#${u}s)`} />
-          <circle cx="60" cy="48" r="9" fill="#fff" opacity="0.85" />
-        </g>
-      </svg>
-    </div>
-  );
-}
 
-/* ─── HeroShowcase — grad-stage with floating posts + emblems ────────────── */
-function HeroShowcase() {
-  const thumbs = [
-    { i: 0, brand: 'Maison Lou',  tag: "L'été se\nréserve",  pos: { left: '5%',  top: '15%' } as React.CSSProperties,    w: 158, cls: 'lp-float-a' },
-    { i: 2, brand: 'Studio Vél',  tag: 'On recrute.',        pos: { right: '6%', top: '9%' } as React.CSSProperties,     w: 150, cls: 'lp-float-b' },
-    { i: 5, brand: 'Brut & Co',   tag: 'Édition\nlimitée',   pos: { left: '8%',  bottom: '7%' } as React.CSSProperties,  w: 146, cls: 'lp-float-b' },
-    { i: 1, brand: 'Café Oreste', tag: 'Nouvelle\ncarte ↗',  pos: { right: '7%', bottom: '8%' } as React.CSSProperties,  w: 152, cls: 'lp-float-a' },
-  ];
   return (
-    <div className="lp-grad-stage" style={{ height: 'clamp(360px, 44vw, 500px)' }}>
-      {/* centre — mock Instagram post */}
-      <div style={{ position: 'absolute', left: '50%', top: '50%', transform: 'translate(-50%,-50%)', width: 'clamp(190px,19vw,254px)', zIndex: 5 }}>
-        <div style={{ borderRadius: 18, overflow: 'hidden', background: '#fff', boxShadow: '0 1px 0 1px rgba(13,15,10,.06), 0 36px 70px -34px rgba(0,0,0,.6)' }}>
-          <div style={{ aspectRatio: '4/5', background: 'linear-gradient(150deg,#1b5e3a,#0c2a1d)', padding: 14, display: 'flex', alignItems: 'flex-end' }}>
-            <div style={{ fontFamily: "'Archivo', sans-serif", fontWeight: 700, fontStyle: 'italic', fontSize: 21, lineHeight: .98, color: '#EFEEE4' }}>L'été se réserve maintenant</div>
-          </div>
-          <div style={{ padding: '9px 12px 12px', display: 'flex', alignItems: 'center', gap: 8, background: '#fff' }}>
-            <span style={{ width: 24, height: 24, borderRadius: '50%', background: 'linear-gradient(140deg,#2FD79B,#1f7a4d)', flexShrink: 0 }} />
-            <div style={{ flex: 1 }}>
-              <div style={{ fontFamily: "'early-sans-variable', sans-serif", fontWeight: 800, fontSize: 12 }}>maisonlou</div>
-              <div style={{ height: 5, width: '58%', borderRadius: 3, background: 'rgba(13,15,10,.12)', marginTop: 4 }} />
-            </div>
-          </div>
-        </div>
-      </div>
-      {/* floating brand posts */}
-      {thumbs.map((t, k) => (
-        <div key={k} className={`lp-hero-float ${t.cls}`} style={{ position: 'absolute', ...t.pos, width: t.w, zIndex: 3 }}>
-          <PostThumb i={t.i} brand={t.brand} tag={t.tag} />
-        </div>
-      ))}
-      {/* glossy emblems */}
-      <div className="lp-hero-float" style={{ position: 'absolute', left: '29%', top: '6%', zIndex: 4 }}><Emblem3D shape="blob" tone="lime" size={84} floatAnim /></div>
-      <div style={{ position: 'absolute', right: '30%', bottom: '6%', zIndex: 4 }}><Emblem3D shape="spark" tone="forest" size={70} floatAnim /></div>
-      <div className="lp-hero-float" style={{ position: 'absolute', right: '39%', top: '11%', zIndex: 4 }}><Emblem3D shape="drop" tone="teal" size={54} floatAnim /></div>
-      {/* workflow chips */}
-      <FChip icon="wand"      label="Description IA" accent style={{ top: '15%', left: '35%', zIndex: 6 }} />
-      <FChip icon="instagram" label="Publié"                style={{ bottom: '16%', right: '34%', zIndex: 6 }} />
-    </div>
-  );
-}
-
-/* ─── HeroCollage ────────────────────────────────────────────────────────── */
-function HeroCollage() {
-  const cards = [
-    { i: 0, brand: 'Maison Lou',  tag: "L'été se\nréserve\nmaintenant", rot: -5, y: 18 },
-    { i: 1, brand: 'Café Oreste', tag: "Nouvelle\ncarte ↗",             rot: 3,  y: -22 },
-    { i: 5, brand: 'Brut & Co',   tag: 'Édition\nlimitée',              rot: -3, y: -10 },
-    { i: 2, brand: 'Studio Vél',  tag: 'On recrute.',                   rot: 5,  y: 24 },
-  ];
-  return (
-    <div style={{ position: 'relative', width: '100%', height: '100%', minHeight: 340, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 16 }}>
-        {cards.map((c, k) => (
-          <div key={k} style={{ width: 156, flexShrink: 0, transform: `rotate(${c.rot}deg) translateY(${c.y}px)` }}>
-            <PostThumb i={c.i} brand={c.brand} tag={c.tag} />
-          </div>
-        ))}
-      </div>
-      <FChip icon="image"     label="Visuel"         accent style={{ top: '6%',   left: '10%' }} />
-      <FChip icon="wand"      label="Description IA"        style={{ top: '1%',   right: '12%' }} />
-      <FChip icon="instagram" label="Publié"                style={{ bottom: '5%',left: '18%' }} />
-      <FChip icon="calendar"  label="Planifié"              style={{ bottom: '1%',right: '15%' }} />
-    </div>
+    <h1 ref={ref} className={`display ${className}`} style={style}>
+      {lines.map((line, li) => {
+        const runs: Run[] = Array.isArray(line) ? line : [{ t: line }];
+        return (
+          <span className="split-line" key={li}>
+            {runs.map((run, ri) => <span key={ri}>{renderRun(run.t, run.cls, `${li}-${ri}`)}</span>)}
+          </span>
+        );
+      })}
+    </h1>
   );
 }
 
 /* ─── Nav ────────────────────────────────────────────────────────────────── */
-function Nav({ onDemo }: { onDemo: () => void }) {
+function Nav() {
   const [solid, setSolid] = useState(false);
-  const [menuOpen, setMenuOpen] = useState(false);
+  const [open, setOpen] = useState(false);
   useEffect(() => {
-    const f = () => setSolid(window.scrollY > 24);
-    f();
-    window.addEventListener('scroll', f, { passive: true });
-    return () => window.removeEventListener('scroll', f);
+    const on = () => setSolid(window.scrollY > 40); on();
+    window.addEventListener('scroll', on, { passive: true });
+    return () => window.removeEventListener('scroll', on);
   }, []);
-  const links: [string, string][] = [
-    ['Le problème', '#probleme'],
-    ['Comment ça marche', '#process'],
-    ['Démo', '#demo'],
-    ['Tarifs', '#tarifs'],
-  ];
+  const links: [string, string][] = [['Le problème', '#probleme'], ['Comment ça marche', '#how'], ['Le produit', '#apercu'], ['Tarifs', '#tarifs'], ['FAQ', '#faq']];
   return (
     <>
-      <nav style={{ position: 'fixed', top: 0, left: 0, right: 0, zIndex: 200, transition: 'all .3s', padding: '20px 0', background: 'transparent', borderBottom: '1px solid transparent' }} className={solid ? 'lp-nav-solid' : ''}>
-        <div className="lp-wrap" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 24 }}>
-          <a href="#top" aria-label="Klip"><KlipLogo size={26} /></a>
-          <div className="lp-nav-links" style={{ display: 'flex', alignItems: 'center', gap: 30 }}>
-            {links.map(([l, h]) => <a key={h} href={h} className="lp-nav-link">{l}</a>)}
+      <nav style={{ position: 'fixed', top: 0, left: 0, right: 0, zIndex: 60, transition: 'background .3s, box-shadow .3s, border-color .3s', background: solid ? 'color-mix(in srgb, var(--paper) 86%, transparent)' : 'transparent', backdropFilter: solid ? 'saturate(1.3) blur(14px)' : 'none', WebkitBackdropFilter: solid ? 'saturate(1.3) blur(14px)' : 'none', borderBottom: solid ? '1px solid var(--line)' : '1px solid transparent' }}>
+        <div className="wrap" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', height: 76 }}>
+          <a href="#top" style={{ display: 'flex', alignItems: 'center' }}><KlipLogo size={28} light={!solid} /></a>
+          <div className="nav-links" style={{ display: 'flex', alignItems: 'center', gap: 30 }}>
+            {links.map(([t, h]) => <a key={h} href={h} className="nav-link" style={{ fontFamily: 'var(--mono)', fontSize: 13.5, fontWeight: 700, letterSpacing: '.01em', color: solid ? 'var(--ink-2)' : 'var(--cream-2)', transition: 'color .15s' }}>{t}</a>)}
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            <Link href="/login" className="lp-nav-login lp-nav-link">Se connecter</Link>
-            <Link href="/register" className={`lp-btn lp-btn-mint lp-btn-sm lp-nav-cta`}>Essayer gratuitement</Link>
-            {/* Hamburger — visible on mobile only via CSS */}
-            <button
-              className={`lp-mob-btn${solid ? ' lp-mob-btn-solid' : ''}`}
-              onClick={() => setMenuOpen(true)}
-              aria-label="Ouvrir le menu"
-            >
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M3 12h18M3 6h18M3 18h18"/>
-              </svg>
+            <Link href="/login" className="nav-login" style={{ fontFamily: 'var(--mono)', fontSize: 13.5, fontWeight: 700, color: solid ? 'var(--ink)' : 'var(--cream)' }}>Connexion</Link>
+            <Link href="/register" className="btn btn-acid btn-sm">Essai gratuit</Link>
+            <button className="v2-mob-btn" onClick={() => setOpen(true)} aria-label="Menu" style={{ background: solid ? 'rgba(10,12,7,.08)' : 'rgba(240,239,228,.15)', color: solid ? 'var(--ink)' : 'var(--cream)' }}>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><path d="M3 12h18M3 6h18M3 18h18"/></svg>
             </button>
           </div>
         </div>
       </nav>
 
-      {/* Mobile full-screen menu */}
-      <div className={`lp-mob-menu${menuOpen ? ' open' : ''}`}>
-        <div className="lp-mob-menu-head">
-          <KlipLogo size={26} />
-          <button
-            onClick={() => setMenuOpen(false)}
-            style={{ width: 40, height: 40, borderRadius: 10, background: 'rgba(13,15,10,.08)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#0D0F0A' }}
-            aria-label="Fermer"
-          >
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M18 6 6 18M6 6l12 12"/>
-            </svg>
+      <div className={`v2-mob-menu${open ? ' open' : ''}`}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 38 }}>
+          <KlipLogo size={28} light />
+          <button onClick={() => setOpen(false)} aria-label="Fermer" style={{ width: 42, height: 42, borderRadius: 12, background: 'rgba(240,239,228,.12)', display: 'grid', placeItems: 'center', color: '#F0EFE4' }}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
           </button>
         </div>
-
         <nav style={{ display: 'flex', flexDirection: 'column' }}>
-          {[['Le problème','#probleme'],['Comment ça marche','#process'],['Démo','#demo'],['Tarifs','#tarifs']].map(([l,h]) => (
-            <a key={h} href={h} className="lp-mob-nav-link" onClick={() => setMenuOpen(false)}>{l}</a>
-          ))}
+          {links.map(([t, h]) => <a key={h} href={h} className="v2-mob-link" onClick={() => setOpen(false)}>{t}</a>)}
         </nav>
-
-        <div className="lp-mob-menu-footer">
-          <Link href="/register" className="lp-btn lp-btn-mint" style={{ justifyContent: 'center' }} onClick={() => setMenuOpen(false)}>
-            Essayer gratuitement
-          </Link>
-          <Link href="/login" className="lp-btn lp-btn-ghost" style={{ justifyContent: 'center' }} onClick={() => setMenuOpen(false)}>
-            Se connecter
-          </Link>
+        <div style={{ marginTop: 'auto', display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <Link href="/register" className="btn btn-acid" style={{ justifyContent: 'center' }} onClick={() => setOpen(false)}>Essai gratuit</Link>
+          <Link href="/login" className="btn btn-ghost" style={{ justifyContent: 'center', color: '#F0EFE4', boxShadow: 'inset 0 0 0 1.6px rgba(240,239,228,.3)' }} onClick={() => setOpen(false)}>Connexion</Link>
         </div>
       </div>
     </>
   );
 }
 
-/* ─── Hero — centré avec HeroShowcase ───────────────────────────────────── */
-function Hero({ onDemo }: { onDemo: () => void }) {
+/* ─── Hero ───────────────────────────────────────────────────────────────── */
+function Hero() {
+  const peek = useParallax(0.06);
+  const f1 = useParallax(-0.14), f2 = useParallax(0.18), f3 = useParallax(0.1), f4 = useParallax(-0.12);
+  const lines: (Run[])[] = [[{ t: 'Tous vos clients.' }], [{ t: 'Un seul ' }, { t: 'outil.', cls: 'it-serif accent-lit' }]];
+  const flow = [{ ic: 'upload', t: 'Importez' }, { ic: 'image', t: 'Composez & rédigez' }, { ic: 'send', t: 'Programmez & publiez' }];
   return (
-    <header id="top" className="lp-section" style={{ paddingTop: 168, paddingBottom: 32, textAlign: 'center', overflow: 'hidden', position: 'relative' }}>
-      {/* background gradient blobs */}
-      <div className="lp-gblob" style={{ position: 'absolute', width: 'min(46vw,560px)', aspectRatio: '1', left: '-9%', top: '1%', borderRadius: '50%', background: 'radial-gradient(circle, rgba(47,215,155,.5), transparent 66%)', filter: 'blur(72px)', opacity: .16, zIndex: 0, pointerEvents: 'none' }} />
-      <div className="lp-gblob" style={{ position: 'absolute', width: 'min(40vw,480px)', aspectRatio: '1', right: '-7%', top: '14%', borderRadius: '50%', background: 'radial-gradient(circle, rgba(47,215,155,.42), transparent 66%)', filter: 'blur(72px)', opacity: .12, zIndex: 0, pointerEvents: 'none', animationDelay: '-6s' }} />
+    <header id="top" className="section dotgrid on-forest" style={{ paddingTop: 150, paddingBottom: 84, position: 'relative', overflow: 'hidden' }}>
+      <div className="wrap" style={{ position: 'relative', zIndex: 2 }}>
+        <p className="reveal" style={{ textAlign: 'center', fontFamily: 'var(--mono)', fontWeight: 700, fontSize: 14, letterSpacing: '.04em', color: 'var(--cream-2)', marginBottom: 22, textTransform: 'uppercase' }}>
+          L&apos;outil de post-production des community managers
+        </p>
+        <SplitText lines={lines} className="hero-h1" style={{ textAlign: 'center', fontSize: 'clamp(38px, 6.6vw, 80px)', margin: '0 auto', maxWidth: 1080 }} stagger={22} />
+        <p className="lead reveal d1" style={{ textAlign: 'center', maxWidth: 680, margin: '28px auto 0', fontSize: 21 }}>
+          Un seul espace pour gérer le contenu Instagram de <strong style={{ color: 'var(--cream)', fontWeight: 700 }}>tous vos clients</strong> — chaque marque avec sa voix. Fini de jongler entre dix outils et d&apos;y perdre vos soirées.
+        </p>
+        <div className="reveal d2" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, flexWrap: 'wrap', marginTop: 28 }}>
+          {flow.map((s, i) => (
+            <span key={i} style={{ display: 'inline-flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', justifyContent: 'center' }}>
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 9, fontFamily: 'var(--mono)', fontWeight: 700, fontSize: 13.5, color: 'var(--cream)', padding: '10px 16px', borderRadius: 999, background: 'var(--forest-2)', boxShadow: 'inset 0 0 0 1px var(--line-f)' }}>
+                <span style={{ color: 'var(--acid)', display: 'inline-flex' }}><Icon name={s.ic} size={16} /></span>{s.t}
+              </span>
+              {i < flow.length - 1 && <span style={{ color: 'var(--cream-3)', display: 'inline-flex' }}><Icon name="arrow" size={18} /></span>}
+            </span>
+          ))}
+        </div>
+        <div className="reveal d3" style={{ display: 'flex', gap: 14, justifyContent: 'center', marginTop: 34, flexWrap: 'wrap' }}>
+          <Link href="/register" className="btn btn-acid">Essayer gratuitement <span className="arr"><Icon name="arrowUR" size={18} /></span></Link>
+          <a href="#apercu" className="btn btn-ghost">Voir KLIP en action</a>
+        </div>
 
-      <div className="lp-wrap" style={{ position: 'relative', zIndex: 2 }}>
-        <div className="lp-reveal in" style={{ display: 'flex', justifyContent: 'center', marginBottom: 24 }}>
-          <span className="lp-eyebrow">Le studio social des agences</span>
-        </div>
-        <div className="lp-reveal in d1">
-          <h1 className="lp-display lp-upper" style={{ fontSize: 'clamp(46px, 8vw, 112px)', margin: '0 auto', maxWidth: 1000 }}>
-            Postez pour dix clients<br /><span className="lp-it lp-mint">comme pour un seul.</span>
-          </h1>
-        </div>
-        <div className="lp-reveal in d2" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-          <p className="lp-lead" style={{ maxWidth: 500, marginTop: 28 }}>
-            Klip réunit l&apos;éditeur visuel, les descriptions IA, le calendrier et la publication Instagram. Un espace par client. Zéro onglet de trop.
-          </p>
-          <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginTop: 34, alignItems: 'center', justifyContent: 'center' }}>
-            <Link href="/register" className="lp-btn lp-btn-mint">
-              Commencer gratuitement <Icon name="arrowUR" size={18} className="arr" />
-            </Link>
-            <button className="lp-btn lp-btn-ghost" onClick={onDemo}>
-              <Icon name="play" size={16} /> Voir la démo
-            </button>
+        {/* product peek */}
+        <div className="hero-peek" style={{ position: 'relative', maxWidth: 1080, margin: '72px auto 0' }}>
+          <div ref={peek} className="frame reveal d2">
+            <div className="frame-bar">
+              <span className="frame-dot" /><span className="frame-dot" /><span className="frame-dot" />
+              <span className="frame-url">app.klip.studio / tableau-de-bord</span>
+            </div>
+            <img src="/klip-media/dashboard.png" alt="Tableau de bord KLIP" style={{ display: 'block', width: '100%' }} />
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 22, color: '#8E9183', fontFamily: "'early-sans-variable', system-ui, sans-serif", fontWeight: 700, fontSize: 13.5 }}>
-            <Icon name="check" size={14} style={{ color: '#2FD79B' }} /> Sans carte bancaire
-            <span style={{ opacity: .4 }}>·</span> 14 jours offerts
-            <span style={{ opacity: .4 }}>·</span> Conçu pour les agences
+          <div ref={f1} className="hero-float floatA" style={{ position: 'absolute', left: -42, top: '34%', zIndex: 5 }}>
+            <div style={{ background: 'var(--acid)', color: 'var(--acid-ink)', padding: '14px 18px', borderRadius: 'var(--radius-s)', boxShadow: '0 24px 50px -22px rgba(47,215,155,.8)', fontFamily: 'var(--mono)', fontWeight: 700, fontSize: 13, maxWidth: 170, lineHeight: 1.4 }}>
+              <div style={{ fontSize: 22, fontWeight: 700, marginBottom: 2 }}>6 clients</div>un seul écran
+            </div>
+          </div>
+          <div ref={f2} className="hero-float floatB" style={{ position: 'absolute', right: -36, top: '12%', zIndex: 5 }}>
+            <div style={{ background: 'var(--forest)', color: 'var(--cream)', padding: '14px 18px', borderRadius: 'var(--radius-s)', boxShadow: '0 24px 50px -22px rgba(0,0,0,.6)', fontFamily: 'var(--mono)', fontWeight: 700, fontSize: 13, display: 'flex', alignItems: 'center', gap: 10 }}>
+              <Icon name="spark" size={20} style={{ color: 'var(--acid)' }} /><span>Légende IA<br />générée ✓</span>
+            </div>
+          </div>
+          <div ref={f3} className="hero-float floatB" style={{ position: 'absolute', left: -44, bottom: '13%', zIndex: 5 }}>
+            <div style={{ background: 'var(--paper-2)', color: 'var(--ink)', padding: '13px 17px', borderRadius: 'var(--radius-s)', boxShadow: '0 24px 50px -24px rgba(0,0,0,.45)', fontFamily: 'var(--mono)', fontWeight: 700, fontSize: 13, display: 'flex', alignItems: 'center', gap: 11 }}>
+              <span style={{ width: 30, height: 30, flex: 'none', display: 'grid', placeItems: 'center', borderRadius: 8, background: 'var(--ink)', color: 'var(--acid)' }}><Icon name="image" size={16} /></span>
+              <span>Éditeur visuel<br /><span style={{ color: 'var(--ink-3)' }}>type Canva / Adobe</span></span>
+            </div>
+          </div>
+          <div ref={f4} className="hero-float floatA" style={{ position: 'absolute', right: -30, bottom: '23%', zIndex: 5 }}>
+            <div style={{ background: 'var(--acid)', color: 'var(--acid-ink)', padding: '13px 17px', borderRadius: 'var(--radius-s)', boxShadow: '0 24px 50px -22px rgba(47,215,155,.75)', fontFamily: 'var(--mono)', fontWeight: 700, fontSize: 13, display: 'flex', alignItems: 'center', gap: 10 }}>
+              <Icon name="calendar" size={18} /><span>Programmé<br />Jeu. 18:30 ✓</span>
+            </div>
           </div>
         </div>
-      </div>
-
-      <div className="lp-wrap lp-reveal in d3" style={{ position: 'relative', zIndex: 2, marginTop: 60 }}>
-        <HeroShowcase />
       </div>
     </header>
   );
 }
 
-/* ─── Marquee — fond acid #2FD79B ────────────────────────────────────────── */
-function Marquee() {
-  const words = ['Créer', 'Planifier', 'Publier', 'Recommencer', 'Gagner du temps', 'Un espace par client', 'Descriptions IA', 'Calendrier'];
-  const row = [...words, ...words];
-  return (
-    <div style={{ background: '#2FD79B', borderTop: '2px solid #0D0F0A', borderBottom: '2px solid #0D0F0A', overflow: 'hidden', padding: '16px 0' }}>
-      <div style={{ display: 'flex', width: 'max-content', animation: 'lp-ticker 32s linear infinite' }}>
-        {row.map((w, i) => (
-          <span key={i} style={{ display: 'inline-flex', alignItems: 'center', gap: 24, paddingRight: 24 }}>
-            <span className="lp-display lp-it" style={{ fontWeight: 900, fontSize: 27, letterSpacing: '-0.02em', textTransform: 'uppercase', color: '#06281C' }}>{w}</span>
-            <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#06281C', opacity: .55 }} />
-          </span>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-/* ─── Problème — fond forêt ──────────────────────────────────────────────── */
+/* ─── Probleme ───────────────────────────────────────────────────────────── */
 function Probleme() {
-  const tools = [
-    { n: 'Canva', t: 'pour les visuels' },
-    { n: 'ChatGPT', t: 'pour les légendes' },
-    { n: 'Un tableur', t: 'pour le planning' },
-    { n: 'Meta Business', t: 'pour publier' },
+  const pains = [
+    { ic: 'layers', t: 'Quatre outils ouverts', d: 'Canva, Notes, le tableur de planning, l’app Instagram. Vous copiez-collez toute la journée.' },
+    { ic: 'clock', t: 'Des soirées à rattraper', d: 'Le contenu déborde sur vos week-ends. Plus vous prenez de clients, plus vous coulez.' },
+    { ic: 'voice', t: 'Une voix par client, à la main', d: 'Vous gardez le ton de chaque marque en tête. Une erreur, et c’est le client qui le voit.' },
+    { ic: 'chat', t: 'La validation par mail', d: 'Allers-retours interminables, captures d’écran, versions perdues. Le post sort en retard.' },
   ];
   return (
-    <section id="probleme" className="lp-section lp-forest" style={{ overflow: 'hidden' }}>
-      <div className="lp-wrap" style={{ position: 'relative', zIndex: 2 }}>
-        <div className="lp-2col" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 64, alignItems: 'center' }}>
-          <div>
-            <span className="lp-eyebrow lp-reveal" style={{ color: '#2FD79B' }}>Le problème</span>
-            <h2 className="lp-display lp-upper lp-reveal d1" style={{ fontSize: 'clamp(34px, 4.2vw, 58px)', marginTop: 20, color: '#EFEEE4' }}>
-              Quatre outils.<br />Trop d&apos;allers-retours.<br /><span className="lp-it lp-mint">Vos soirées qui filent.</span>
-            </h2>
-            <p className="lp-lead lp-reveal d2" style={{ marginTop: 24, maxWidth: 460 }}>
-              Chaque client, c&apos;est le même rituel : copier-coller d&apos;un outil à l&apos;autre,
-              renvoyer une maquette, attendre la validation, reprogrammer. Multiplié par dix.
-            </p>
-            <div className="lp-reveal d3" style={{ marginTop: 30, display: 'inline-flex', alignItems: 'center', gap: 12, padding: '14px 20px', borderRadius: 14, background: '#2FD79B', color: '#06281C' }}>
-              <Icon name="clock" size={20} style={{ flexShrink: 0 }} />
-              <span style={{ fontFamily: "'early-sans-variable', sans-serif", fontWeight: 800, fontSize: 14.5, lineHeight: 1.2 }}>≈ 2 h perdues par client, chaque semaine</span>
-            </div>
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-            {tools.map((x, i) => (
-              <div key={i} className={`lp-reveal d${i + 1}`} style={{ padding: '20px 24px', display: 'flex', alignItems: 'center', gap: 18, transform: `rotate(${i % 2 ? .5 : -.6}deg)`, background: '#103725', borderRadius: 18, boxShadow: 'inset 0 0 0 1px rgba(239,238,228,.22)' }}>
-                <span style={{ fontFamily: "'early-sans-variable', sans-serif", fontWeight: 900, fontSize: 13, color: 'rgba(239,238,228,.28)', width: 22, flexShrink: 0 }}>{String(i + 1).padStart(2, '0')}</span>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontFamily: "'Archivo', sans-serif", fontWeight: 800, fontSize: 24, letterSpacing: '-0.02em', color: '#EFEEE4' }}>{x.n}</div>
-                  <div style={{ color: 'rgba(239,238,228,.6)', fontSize: 14.5 }}>{x.t}</div>
-                </div>
-                <Icon name="arrowUR" size={18} style={{ color: 'rgba(239,238,228,.3)', flexShrink: 0 }} />
-              </div>
-            ))}
-            <div className="lp-reveal d4" style={{ textAlign: 'center', fontFamily: "'early-sans-variable', sans-serif", fontWeight: 800, color: 'rgba(239,238,228,.3)', fontSize: 13, marginTop: 6 }}>
-              … et vous, au milieu, à tout recoller à la main.
-            </div>
-          </div>
-        </div>
-      </div>
-    </section>
-  );
-}
-
-/* ─── Process ────────────────────────────────────────────────────────────── */
-function Process() {
-  const steps = [
-    { ic: 'upload',    n: '01', t: 'Importer',  d: "Importez vos photos et vidéos directement dans Klip. Jusqu'à 7 fichiers en une seule fois." },
-    { ic: 'image',     n: '02', t: 'Créer',     d: "Éditeur visuel intégré. Charte du client sauvegardée. Formats Story, Reel et Post en un clic. Sans exporter, sans copier-coller." },
-    { ic: 'wand',      n: '03', t: 'Rédiger',   d: "L'IA génère la légende dans le ton exact du client en 10 secondes. Vous relisez, vous ajustez." },
-    { ic: 'instagram', n: '04', t: 'Publier',   d: "Programmation automatique sur Instagram et Facebook. Sélectionnez le type de post, choisissez l'heure. Klip fait le reste." },
-  ];
-  return (
-    <section id="process" className="lp-section">
-      <div className="lp-wrap">
-        <div style={{ maxWidth: 720 }}>
-          <h2 className="lp-display lp-upper lp-reveal d1" style={{ fontSize: 'clamp(38px, 4.8vw, 66px)', marginTop: 0 }}>
-            Un seul endroit.<br /><span className="lp-it lp-mint">Toute la post-production.</span>
+    <section id="probleme" className="section on-forest dotgrid" style={{ overflow: 'hidden', borderTop: '1px solid var(--line-f)' }}>
+      <div className="wrap" style={{ position: 'relative', zIndex: 2 }}>
+        <div style={{ maxWidth: 880 }}>
+          <h2 className="display reveal d1" style={{ fontSize: 'clamp(40px, 6.4vw, 90px)', marginTop: 22 }}>
+            Vous avez touché le <span className="it-serif acid-fill">plafond&nbsp;de&nbsp;verre.</span>
           </h2>
-        </div>
-        <div className="lp-process-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 16, marginTop: 56 }}>
-          {steps.map((s, i) => (
-            <div key={i} className={`lp-card lp-reveal d${i + 1}`} style={{ padding: 28, position: 'relative', overflow: 'hidden' }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 22 }}>
-                <span style={{ width: 48, height: 48, borderRadius: 13, background: '#2FD79B', color: '#06281C', display: 'grid', placeItems: 'center' }}>
-                  <Icon name={s.ic} size={22} />
-                </span>
-                <span className="lp-display" style={{ fontWeight: 700, fontSize: 48, lineHeight: 1, color: 'rgba(13,15,10,.1)' }}>{s.n}</span>
-              </div>
-              <h3 className="lp-display lp-upper" style={{ fontWeight: 800, fontSize: 18, letterSpacing: '0.04em', marginBottom: 10 }}>{s.t}</h3>
-              <p style={{ color: '#565A4E', fontSize: 14.5, lineHeight: 1.62 }}>{s.d}</p>
-            </div>
-          ))}
-        </div>
-        <p className="lp-reveal" style={{ marginTop: 28, textAlign: 'center', color: '#8E9183', fontFamily: "'early-sans-variable', sans-serif", fontWeight: 700, fontSize: 14 }}>
-          Plus besoin de jongler entre votre éditeur visuel, votre outil IA, votre planificateur et vos fils de validation.
-        </p>
-      </div>
-    </section>
-  );
-}
-
-/* ─── KlipDemo ───────────────────────────────────────────────────────────── */
-const DEMO_CLIENT = { name: 'Studio Lumière', instagram: '@studiolumiere' };
-const DEMO_MEDIAS = [
-  { id: 1, bgColor: '#8B6914', label: 'Visuel produit' },
-  { id: 2, bgColor: '#4A3728', label: 'Photo ambiance' },
-  { id: 3, bgColor: '#6B4423', label: 'Contenu équipe' },
-  { id: 4, bgColor: '#3D2B1F', label: 'Shot atelier' },
-];
-const DEMO_CAPTIONS = [
-  "Notre savoir-faire au cœur de chaque création. Une nouvelle collection qui raconte notre histoire.",
-  "Dans les coulisses de l'atelier. La passion du détail, visible à chaque étape.",
-  "Notre équipe, votre confiance. Ensemble depuis le premier jour.",
-  "L'excellence n'est pas un hasard. C'est le résultat d'un travail quotidien.",
-];
-const DEMO_TIPS = [
-  "Importez vos visuels et choisissez le type — Post, Reel ou Story.",
-  "L'IA génère une légende dans le ton de votre client. Éditez si besoin.",
-  "Personnalisez le visuel dans l'éditeur intégré. Sans exporter, sans changer d'outil.",
-  "Choisissez la date, l'heure et la plateforme. Klip publie automatiquement.",
-];
-const DEMO_STEP_LABELS = ['Importer', 'Générer', 'Éditer', 'Publier'];
-
-function KlipDemo() {
-  const [step, setStep]             = useState(0);
-  const [showModal, setShowModal]   = useState(false);
-  const [postType, setPostType]     = useState<'post'|'reel'|'story'>('post');
-  const [generating, setGenerating] = useState(false);
-  const [generated, setGenerated]   = useState(false);
-  const [captions, setCaptions]     = useState(DEMO_CAPTIONS.map(c => c));
-  const [fontSize, setFontSize]     = useState(32);
-  const [textColor, setTextColor]   = useState('#FFFFFF');
-  const [textPos, setTextPos]       = useState<'top'|'center'|'bottom'>('bottom');
-  const [shadow, setShadow]         = useState(false);
-  const [published, setPublished]   = useState<boolean[]>([false,false,false,false]);
-  const [publishing, setPublishing] = useState(false);
-  const [allDone, setAllDone]       = useState(false);
-  const [editorTool, setEditorTool] = useState<string|null>('text');
-  const [fontFamily, setFontFamily] = useState('Anton');
-  const genRef = useRef<ReturnType<typeof setTimeout>|null>(null);
-
-  const reset = () => {
-    setStep(0); setShowModal(false); setPostType('post');
-    setGenerating(false); setGenerated(false);
-    setCaptions(DEMO_CAPTIONS.map(c => c)); setFontSize(32); setTextColor('#FFFFFF');
-    setTextPos('bottom'); setShadow(false);
-    setPublished([false,false,false,false]); setPublishing(false); setAllDone(false);
-    setEditorTool('text'); setFontFamily('Anton');
-    if (genRef.current) clearTimeout(genRef.current);
-  };
-  useEffect(() => () => { if (genRef.current) clearTimeout(genRef.current); }, []);
-
-  function handleContinue() {
-    setShowModal(false);
-    setGenerating(true); setGenerated(false);
-    setStep(1);
-    genRef.current = setTimeout(() => { setGenerating(false); setGenerated(true); }, 1500);
-  }
-
-  async function handlePublishAll() {
-    setPublishing(true);
-    for (let i = 0; i < 4; i++) {
-      await new Promise(r => setTimeout(r, 300));
-      setPublished(prev => { const n = [...prev]; n[i] = true; return n; });
-    }
-    setPublishing(false); setAllDone(true);
-  }
-
-  const alignMap = { top: 'flex-start' as const, center: 'center' as const, bottom: 'flex-end' as const };
-  const SWATCHES = ['#FFFFFF','#0D0F0A','#2FD79B'];
-
-  const navItems = [
-    { label: 'Dashboard',  active: false, icon: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg> },
-    { label: 'Calendrier', active: false, icon: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="17" rx="3"/><path d="M3 9h18M8 2v4M16 2v4"/></svg> },
-    { label: 'Composer',   active: true,  icon: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5Z"/></svg> },
-    { label: 'Feed',       active: false, icon: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 3v18M3 9h6M3 15h6"/></svg> },
-    { label: 'Templates',  active: false, icon: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3m16-5h-3a2 2 0 0 0-2 2v3M3 16v3a2 2 0 0 0 2 2h3m8 0h3a2 2 0 0 0 2-2v-3"/></svg> },
-  ];
-
-  return (
-    <div style={{ position: 'relative', borderRadius: 16, overflow: 'hidden', boxShadow: '0 24px 64px rgba(0,0,0,.15)', maxWidth: 960, margin: '0 auto', border: '1px solid rgba(13,15,10,.1)' }}>
-
-      {/* ── macOS bar ── */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '9px 16px', background: '#fff', borderBottom: '1px solid rgba(13,15,10,.08)' }}>
-        <div style={{ display: 'flex', gap: 6 }}>
-          {['#ff5f57','#febc2e','#28c840'].map(c => <span key={c} style={{ width: 10, height: 10, borderRadius: '50%', background: c }} />)}
-        </div>
-        <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
-          <span style={{ width: 20, height: 20, borderRadius: 5, background: '#0C2A1D', display: 'grid', placeItems: 'center', flexShrink: 0 }}>
-            <svg width="11" height="11" viewBox="0 0 16 16" fill="none"><path d="M2 2h5v5H2zM9 2h5v5H9zM2 9h5v5H2zM9 9h5v5H9z" fill="#2FD79B"/></svg>
-          </span>
-          <span style={{ fontFamily: "'early-sans-variable', sans-serif", fontWeight: 700, fontSize: 12, color: '#565A4E' }}>{DEMO_CLIENT.name} — Klip</span>
-        </div>
-        <span style={{ fontFamily: "'early-sans-variable', sans-serif", fontWeight: 800, fontSize: 10, letterSpacing: '.12em', textTransform: 'uppercase', color: '#2FD79B' }}>Démo</span>
-      </div>
-
-      {/* ── App body ── */}
-      <div style={{ display: 'flex', height: 500 }}>
-
-        {/* Left nav */}
-        <nav style={{ width: 180, background: '#0C2A1D', flexShrink: 0, display: 'flex', flexDirection: 'column', padding: '14px 0', gap: 2 }}>
-          <div style={{ padding: '0 14px', marginBottom: 20 }}>
-            <img src="/logo-klip-mint.png" alt="Klip" style={{ height: 26, width: 'auto' }} onError={e => { (e.target as HTMLImageElement).style.display='none'; }} />
-          </div>
-          {navItems.map(item => (
-            <div key={item.label} style={{ margin: '0 8px', padding: '8px 10px', borderRadius: 8, background: item.active ? 'rgba(47,215,155,.15)' : 'transparent', display: 'flex', alignItems: 'center', gap: 9 }}>
-              <span style={{ color: item.active ? '#2FD79B' : 'rgba(239,238,228,.45)', display: 'flex', flexShrink: 0 }}>{item.icon}</span>
-              <span style={{ fontFamily: "'early-sans-variable', sans-serif", fontWeight: item.active ? 800 : 600, fontSize: 13, color: item.active ? '#EFEEE4' : 'rgba(239,238,228,.55)', whiteSpace: 'nowrap' }}>{item.label}</span>
-            </div>
-          ))}
-        </nav>
-
-        {/* Right panel */}
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', background: '#F1F0E8', overflow: 'hidden' }}>
-
-          {/* Content header */}
-          <div style={{ padding: '9px 16px', background: '#fff', borderBottom: '1px solid rgba(13,15,10,.08)', display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
-            <div style={{ width: 26, height: 26, borderRadius: '50%', background: '#2FD79B', color: '#06281C', display: 'grid', placeItems: 'center', fontFamily: "'early-sans-variable', sans-serif", fontWeight: 900, fontSize: 10, flexShrink: 0 }}>SL</div>
-            <span style={{ fontFamily: "'early-sans-variable', sans-serif", fontWeight: 800, fontSize: 13, color: '#0D0F0A' }}>{DEMO_CLIENT.name}</span>
-            <span style={{ fontSize: 12, color: '#8E9183', fontFamily: "'early-sans-variable', sans-serif", fontWeight: 600 }}>{DEMO_CLIENT.instagram}</span>
-          </div>
-
-          {/* Tutorial bubble */}
-          <div style={{ margin: '10px 14px 0', background: '#2FD79B', borderRadius: 8, padding: '8px 12px', display: 'flex', alignItems: 'flex-start', gap: 8, flexShrink: 0 }}>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#06281C" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0, marginTop: 1 }}><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
-            <span style={{ fontFamily: "'early-sans-variable', sans-serif", fontWeight: 700, fontSize: 12, color: '#06281C', lineHeight: 1.4 }}>{DEMO_TIPS[step]}</span>
-          </div>
-
-          {/* Progress stepper */}
-          <div style={{ padding: '10px 14px 6px', flexShrink: 0 }}>
-            <div style={{ display: 'flex', alignItems: 'center' }}>
-              {DEMO_STEP_LABELS.map((label, i) => {
-                const active = i === step, done = i < step;
-                return (
-                  <div key={label} style={{ display: 'flex', alignItems: 'center', flex: i < 3 ? 1 : 'none' }}>
-                    <button onClick={() => done && setStep(i)} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3, background: 'none', border: 'none', cursor: done ? 'pointer' : 'default', padding: 0 }}>
-                      <span style={{ width: 10, height: 10, borderRadius: '50%', background: active || done ? '#2FD79B' : 'rgba(13,15,10,.2)', display: 'block', transition: 'background .2s' }} />
-                      <span style={{ fontFamily: "'early-sans-variable', sans-serif", fontWeight: 700, fontSize: 9.5, color: active ? '#0D0F0A' : done ? '#2FD79B' : '#8E9183', whiteSpace: 'nowrap', letterSpacing: '.05em', textTransform: 'uppercase', transition: 'color .2s' }}>{label}</span>
-                    </button>
-                    {i < 3 && <div style={{ flex: 1, height: 2, background: done ? '#2FD79B' : 'rgba(13,15,10,.12)', margin: '0 6px', marginBottom: 14, transition: 'background .3s' }} />}
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* Slides */}
-          <div style={{ flex: 1, overflow: 'hidden', position: 'relative' }}>
-            <div style={{ display: 'flex', width: '400%', height: '100%', transform: `translateX(-${step * 25}%)`, transition: 'transform .3s ease-out' }}>
-
-              {/* ── STEP 0: WORKSPACE ── */}
-              <div style={{ width: '25%', padding: '10px 14px 12px', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', gap: 10 }}>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, flex: 1 }}>
-                  {DEMO_MEDIAS.map(m => (
-                    <div key={m.id} style={{ position: 'relative', borderRadius: 10, overflow: 'hidden', background: m.bgColor, boxShadow: '0 4px 12px rgba(0,0,0,.25)' }}>
-                      <span style={{ position: 'absolute', left: 8, bottom: 8, fontFamily: "'early-sans-variable', sans-serif", fontWeight: 700, fontSize: 10, color: 'rgba(255,255,255,.8)', lineHeight: 1.3 }}>{m.label}</span>
-                    </div>
-                  ))}
-                </div>
-                <button onClick={() => setShowModal(true)} style={{ width: '100%', padding: '10px 16px', borderRadius: 10, border: '1.5px dashed rgba(13,15,10,.2)', background: 'rgba(255,255,255,.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, fontFamily: "'early-sans-variable', sans-serif", fontWeight: 700, fontSize: 13, color: '#565A4E', cursor: 'pointer', flexShrink: 0 }}>
-                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12h14"/></svg>
-                  Importer du contenu
-                </button>
-              </div>
-
-              {/* ── STEP 1: GÉNÉRER ── */}
-              <div style={{ width: '25%', padding: '10px 14px 12px', boxSizing: 'border-box', overflow: 'auto' }}>
-                {!generated ? (
-                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', gap: 14 }}>
-                    {generating && (
-                      <>
-                        <div style={{ width: 40, height: 40, borderRadius: '50%', border: '3px solid rgba(47,215,155,.2)', borderTopColor: '#2FD79B', animation: 'lp-spin .8s linear infinite' }} />
-                        <span style={{ fontFamily: "'early-sans-variable', sans-serif", fontWeight: 700, fontSize: 13, color: '#565A4E' }}>L&apos;IA rédige vos légendes…</span>
-                      </>
-                    )}
-                  </div>
-                ) : (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
-                    {DEMO_MEDIAS.map((m, i) => (
-                      <div key={m.id} style={{ background: '#fff', borderRadius: 10, padding: '9px 11px', boxShadow: 'inset 0 0 0 1px rgba(13,15,10,.08)', display: 'flex', gap: 9, alignItems: 'flex-start' }}>
-                        <div style={{ width: 30, height: 30, borderRadius: 6, background: m.bgColor, flexShrink: 0 }} />
-                        <div style={{ flex: 1 }}>
-                          <textarea value={captions[i]} onChange={e => setCaptions(prev => { const n=[...prev]; n[i]=e.target.value; return n; })} style={{ width: '100%', fontSize: 11, lineHeight: 1.45, padding: '4px 7px', borderRadius: 6, border: '1px solid rgba(13,15,10,.1)', background: '#FAFAF4', resize: 'none', fontFamily: 'inherit', color: '#0D0F0A', height: 46, outline: 'none' }} />
-                          {i === 0 && (
-                            <button onClick={() => setStep(2)} style={{ marginTop: 5, padding: '4px 10px', borderRadius: 5, background: '#0D0F0A', color: '#F1F0E8', fontFamily: "'early-sans-variable', sans-serif", fontWeight: 700, fontSize: 11, border: 'none', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-                              Éditer le visuel <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
-                            </button>
-                          )}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              {/* ── STEP 2: ÉDITER ── */}
-              <div style={{ width: '25%', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', height: '100%' }}>
-
-                {/* ── Editor topbar ── */}
-                <div style={{ height: 38, background: '#fff', borderBottom: '1px solid rgba(13,15,10,.08)', display: 'flex', alignItems: 'center', padding: '0 7px', gap: 5, flexShrink: 0, overflow: 'hidden' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0 }}>
-                    <button style={{ display: 'flex', alignItems: 'center', gap: 3, padding: '2px 6px', borderRadius: 5, background: 'rgba(13,15,10,.06)', border: 'none', cursor: 'default', fontFamily: "'early-sans-variable', sans-serif", fontWeight: 700, fontSize: 9, color: '#565A4E' }}>
-                      <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 6l-6 6 6 6"/></svg>
-                      Retour
-                    </button>
-                    <span style={{ width: 1, height: 14, background: 'rgba(13,15,10,.1)', flexShrink: 0 }} />
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
-                      <div style={{ width: 15, height: 15, borderRadius: 4, background: '#2FD79B', display: 'grid', placeItems: 'center', flexShrink: 0 }}>
-                        <span style={{ fontFamily: "'early-sans-variable', sans-serif", fontWeight: 900, fontSize: 6, color: '#06281C' }}>SL</span>
-                      </div>
-                      <span style={{ fontFamily: "'early-sans-variable', sans-serif", fontWeight: 700, fontSize: 9, color: '#0D0F0A', whiteSpace: 'nowrap' }}>Studio Lumière</span>
-                      <span style={{ fontSize: 8, padding: '1px 4px', borderRadius: 4, background: 'rgba(13,15,10,.07)', color: '#565A4E', fontFamily: "'early-sans-variable', sans-serif", fontWeight: 700, whiteSpace: 'nowrap' }}>Carré</span>
-                    </div>
-                    <span style={{ width: 1, height: 14, background: 'rgba(13,15,10,.1)', flexShrink: 0 }} />
-                    {[
-                      <svg key="u" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 7L4 12l5 5M4 12h11a5 5 0 0 1 0 10h-1"/></svg>,
-                      <svg key="r" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 7l5 5-5 5M20 12H9a5 5 0 0 0 0 10h1"/></svg>,
-                    ].map((icon, i) => (
-                      <button key={i} style={{ width: 20, height: 20, borderRadius: 4, border: 'none', background: 'transparent', display: 'grid', placeItems: 'center', color: 'rgba(13,15,10,.25)', cursor: 'default' }}>{icon}</button>
-                    ))}
-                  </div>
-                  <div style={{ flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 2, minWidth: 0, overflow: 'hidden' }}>
-                    <select value={fontFamily} onChange={e => setFontFamily(e.target.value)} style={{ fontSize: 8, padding: '1px 3px', border: '1px solid rgba(13,15,10,.12)', borderRadius: 3, background: '#F4F3EC', color: '#0D0F0A', outline: 'none', maxWidth: 58, cursor: 'pointer', fontFamily: 'inherit' }}>
-                      {['Anton','Archivo Black','Syne','Inter','Oswald','Montserrat'].map(f => <option key={f} value={f}>{f}</option>)}
-                    </select>
-                    <span style={{ width: 1, height: 12, background: 'rgba(13,15,10,.1)', flexShrink: 0 }} />
-                    <input type="number" value={fontSize} onChange={e => setFontSize(Math.max(8, Math.min(120, +e.target.value)))} style={{ width: 26, fontSize: 8, padding: '1px 3px', border: '1px solid rgba(13,15,10,.12)', borderRadius: 3, background: '#F4F3EC', textAlign: 'center', outline: 'none', color: '#0D0F0A' }} />
-                    <span style={{ width: 1, height: 12, background: 'rgba(13,15,10,.1)', flexShrink: 0 }} />
-                    {(['B','I','U'] as const).map((lbl, i) => (
-                      <button key={lbl} style={{ width: 17, height: 17, borderRadius: 3, border: `1px solid ${i===0?'rgba(47,215,155,.6)':'rgba(13,15,10,.1)'}`, background: i===0?'rgba(47,215,155,.12)':'transparent', fontFamily: lbl==='B'?"'Archivo',sans-serif":'inherit', fontWeight: lbl==='B'?900:400, fontStyle: lbl==='I'?'italic':'normal', textDecoration: lbl==='U'?'underline':'none', fontSize: 9, color: i===0?'#0D0F0A':'#8E9183', cursor: 'default', display: 'grid', placeItems: 'center' }}>{lbl}</button>
-                    ))}
-                    <span style={{ width: 1, height: 12, background: 'rgba(13,15,10,.1)', flexShrink: 0 }} />
-                    {([
-                      <svg key="al" width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M21 6H3M15 12H3M17 18H3"/></svg>,
-                      <svg key="ac" width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M21 6H3M17 12H7M19 18H5"/></svg>,
-                      <svg key="ar" width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M21 6H3M21 12H9M21 18H7"/></svg>,
-                    ] as React.ReactNode[]).map((icon, i) => (
-                      <button key={i} style={{ width: 17, height: 17, borderRadius: 3, border: 'none', background: i===0?'rgba(13,15,10,.1)':'transparent', cursor: 'default', display: 'grid', placeItems: 'center', color: i===0?'#0D0F0A':'#8E9183' }}>{icon}</button>
-                    ))}
-                    <span style={{ width: 1, height: 12, background: 'rgba(13,15,10,.1)', flexShrink: 0 }} />
-                    <button style={{ width: 17, height: 17, borderRadius: 3, border: '1.5px solid rgba(13,15,10,.15)', background: textColor, cursor: 'default', flexShrink: 0 }} />
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 3, flexShrink: 0 }}>
-                    <div style={{ display: 'flex', gap: 1, padding: 2, background: 'rgba(13,15,10,.07)', borderRadius: 5, border: '1px solid rgba(13,15,10,.08)' }}>
-                      {['Post','Reel','Story'].map(t => (
-                        <button key={t} style={{ padding: '2px 5px', borderRadius: 3, border: 'none', cursor: 'default', fontFamily: "'early-sans-variable', sans-serif", fontWeight: 700, fontSize: 8, background: t==='Post'?'#fff':'transparent', color: t==='Post'?'#0D0F0A':'#8E9183', boxShadow: t==='Post'?'0 1px 2px rgba(13,15,10,.1)':'none' }}>{t}</button>
-                      ))}
-                    </div>
-                    <button style={{ padding: '2px 6px', borderRadius: 4, border: '1px solid rgba(13,15,10,.14)', background: 'transparent', fontFamily: "'early-sans-variable', sans-serif", fontWeight: 700, fontSize: 8.5, color: '#565A4E', cursor: 'default' }}>Aperçu</button>
-                    <button onClick={() => setStep(3)} style={{ padding: '2px 7px', borderRadius: 4, border: 'none', background: '#2FD79B', fontFamily: "'early-sans-variable', sans-serif", fontWeight: 700, fontSize: 8.5, color: '#06281C', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 3 }}>Publier <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg></button>
-                  </div>
-                </div>
-
-                {/* ── Editor body ── */}
-                <div style={{ flex: 1, display: 'flex', minHeight: 0 }}>
-
-                  {/* Tool rail */}
-                  <div style={{ width: 44, background: '#fff', borderRight: '1px solid rgba(13,15,10,.08)', display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '6px 0', gap: 1, flexShrink: 0 }}>
-                    {([
-                      ['design',   'Modèles',  <><rect key="a" x="3" y="3" width="7" height="9" rx="1.5"/><rect key="b" x="14" y="3" width="7" height="5" rx="1.5"/><rect key="c" x="14" y="12" width="7" height="9" rx="1.5"/><rect key="d" x="3" y="16" width="7" height="5" rx="1.5"/></>],
-                      ['elements', 'Éléments', <><rect key="a" x="3" y="3" width="8" height="8" rx="1.5"/><circle key="b" cx="17" cy="7" r="4"/><polygon key="c" points="12 22 3 15.5 21 15.5 12 22"/></>],
-                      ['text',     'Texte',    <><polyline key="a" points="4 7 4 4 20 4 20 7"/><line key="b" x1="9" y1="20" x2="15" y2="20"/><line key="c" x1="12" y1="4" x2="12" y2="20"/></>],
-                      ['photos',   'Photos',   <><rect key="a" x="3" y="3" width="18" height="18" rx="2"/><circle key="b" cx="8.5" cy="8.5" r="1.5"/><polyline key="c" points="21 15 16 10 5 21"/></>],
-                      ['brand',    'Charte',   <><circle key="a" cx="12" cy="12" r="4"/><circle key="b" cx="12" cy="4" r="1.5"/><circle key="c" cx="19.5" cy="16" r="1.5"/><circle key="d" cx="4.5" cy="16" r="1.5"/></>],
-                      ['upload',   'Importer', <><path key="a" d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline key="b" points="17 8 12 3 7 8"/><line key="c" x1="12" y1="3" x2="12" y2="15"/></>],
-                      ['calques',  'Calques',  <><path key="a" d="M12 2L2 7l10 5 10-5-10-5z"/><path key="b" d="M2 17l10 5 10-5"/><path key="c" d="M2 12l10 5 10-5"/></>],
-                    ] as [string, string, React.ReactNode][]).map(([id, label, paths]) => (
-                      <button key={id} onClick={() => setEditorTool(editorTool === id ? null : id)} title={label}
-                        style={{ width: 36, height: 36, borderRadius: 8, border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: 'all .12s',
-                          background: editorTool===id ? 'rgba(47,215,155,.15)' : 'transparent',
-                          color: editorTool===id ? '#2FD79B' : 'rgba(13,15,10,.4)' }}>
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">{paths}</svg>
-                      </button>
-                    ))}
-                  </div>
-
-                  {/* Flyout panel */}
-                  {editorTool && (
-                    <div style={{ width: 148, background: '#fff', borderRight: '1px solid rgba(13,15,10,.08)', overflowY: 'auto', flexShrink: 0, padding: '9px 9px' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 9 }}>
-                        <span style={{ fontFamily: "'early-sans-variable', sans-serif", fontWeight: 800, fontSize: 10.5, color: '#0D0F0A' }}>
-                          {editorTool==='text'?'Texte':editorTool==='calques'?'Calques':editorTool==='design'?'Modèles':editorTool==='elements'?'Éléments':editorTool==='photos'?'Photos':editorTool==='brand'?'Charte':'Importer'}
-                        </span>
-                        <button onClick={() => setEditorTool(null)} style={{ width: 18, height: 18, borderRadius: 4, border: 'none', background: 'rgba(13,15,10,.07)', display: 'grid', placeItems: 'center', cursor: 'pointer', color: '#565A4E' }}>
-                          <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
-                        </button>
-                      </div>
-
-                      {/* Texte */}
-                      {editorTool === 'text' && <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
-                        <div>
-                          <div style={{ fontFamily: "'early-sans-variable', sans-serif", fontWeight: 800, fontSize: 7.5, textTransform: 'uppercase', letterSpacing: '.1em', color: '#8E9183', marginBottom: 3 }}>Police</div>
-                          <select value={fontFamily} onChange={e => setFontFamily(e.target.value)} style={{ width: '100%', fontSize: 10, padding: '3px 5px', borderRadius: 5, border: '1px solid rgba(13,15,10,.12)', background: '#FAFAF4', color: '#0D0F0A', fontFamily: 'inherit', cursor: 'pointer', outline: 'none' }}>
-                            {['Anton','Oswald','Bebas Neue','Montserrat','Syne','Inter','Poppins','Raleway','Roboto Condensed','Playfair Display','Archivo Black'].map(f => <option key={f} value={f}>{f}</option>)}
-                          </select>
-                        </div>
-                        <div>
-                          <div style={{ fontFamily: "'early-sans-variable', sans-serif", fontWeight: 800, fontSize: 7.5, textTransform: 'uppercase', letterSpacing: '.1em', color: '#8E9183', marginBottom: 3 }}>Style</div>
-                          <div style={{ display: 'flex', gap: 3 }}>
-                            {(['B','I','U'] as const).map((lbl, i) => (
-                              <button key={lbl} style={{ flex: 1, height: 22, borderRadius: 5, border: `1.5px solid ${i===0?'#2FD79B':'rgba(13,15,10,.12)'}`, background: i===0?'rgba(47,215,155,.12)':'transparent', fontFamily: lbl==='B'?"'Archivo',sans-serif":'inherit', fontWeight: lbl==='B'?900:400, fontStyle: lbl==='I'?'italic':'normal', textDecoration: lbl==='U'?'underline':'none', fontSize: 11, color: i===0?'#0D0F0A':'#8E9183', cursor: 'default' }}>{lbl}</button>
-                            ))}
-                          </div>
-                        </div>
-                        <div>
-                          <div style={{ fontFamily: "'early-sans-variable', sans-serif", fontWeight: 800, fontSize: 7.5, textTransform: 'uppercase', letterSpacing: '.1em', color: '#8E9183', marginBottom: 2 }}>Taille — {fontSize}px</div>
-                          <input type="range" min={16} max={56} value={fontSize} onChange={e => setFontSize(+e.target.value)} style={{ width: '100%', accentColor: '#2FD79B', height: 3 }} />
-                        </div>
-                        <div>
-                          <div style={{ fontFamily: "'early-sans-variable', sans-serif", fontWeight: 800, fontSize: 7.5, textTransform: 'uppercase', letterSpacing: '.1em', color: '#8E9183', marginBottom: 3 }}>Couleur</div>
-                          <div style={{ display: 'flex', gap: 3, flexWrap: 'wrap' }}>
-                            {['#FFFFFF','#0D0F0A','#2FD79B','#E63946','#FFB703','#457B9D'].map(c => (
-                              <button key={c} onClick={() => setTextColor(c)} style={{ width: 19, height: 19, borderRadius: 4, background: c, border: textColor===c?'2px solid #2FD79B':'1.5px solid rgba(13,15,10,.15)', padding: 0, cursor: 'pointer', flexShrink: 0 }} />
-                            ))}
-                          </div>
-                        </div>
-                        <div>
-                          <div style={{ fontFamily: "'early-sans-variable', sans-serif", fontWeight: 800, fontSize: 7.5, textTransform: 'uppercase', letterSpacing: '.1em', color: '#8E9183', marginBottom: 3 }}>Alignement</div>
-                          <div style={{ display: 'flex', gap: 3 }}>
-                            {([
-                              <svg key="l" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M21 6H3M15 12H3M17 18H3"/></svg>,
-                              <svg key="c" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M21 6H3M17 12H7M19 18H5"/></svg>,
-                              <svg key="r" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M21 6H3M21 12H9M21 18H7"/></svg>,
-                            ] as React.ReactNode[]).map((icon, i) => (
-                              <button key={i} style={{ flex: 1, height: 22, borderRadius: 5, background: i===0?'rgba(13,15,10,.12)':'rgba(13,15,10,.05)', border: 'none', cursor: 'default', display: 'grid', placeItems: 'center', color: '#565A4E' }}>{icon}</button>
-                            ))}
-                          </div>
-                        </div>
-                        <div>
-                          <div style={{ fontFamily: "'early-sans-variable', sans-serif", fontWeight: 800, fontSize: 7.5, textTransform: 'uppercase', letterSpacing: '.1em', color: '#8E9183', marginBottom: 3 }}>Position</div>
-                          <div style={{ display: 'flex', gap: 3 }}>
-                            {(['top','center','bottom'] as const).map(p => (
-                              <button key={p} onClick={() => setTextPos(p)} style={{ flex: 1, padding: '3px 1px', borderRadius: 5, background: textPos===p?'#0D0F0A':'rgba(13,15,10,.07)', border: 'none', cursor: 'pointer', fontFamily: "'early-sans-variable', sans-serif", fontWeight: 800, fontSize: 7.5, color: textPos===p?'#2FD79B':'#8E9183' }}>
-                                {p==='top'?'Haut':p==='center'?'Ctr':'Bas'}
-                              </button>
-                            ))}
-                          </div>
-                        </div>
-                        <div style={{ height: 1, background: 'rgba(13,15,10,.08)' }} />
-                        <div style={{ fontFamily: "'early-sans-variable', sans-serif", fontWeight: 800, fontSize: 7.5, textTransform: 'uppercase', letterSpacing: '.1em', color: '#8E9183' }}>Effets</div>
-                        {([['Ombre', shadow, () => setShadow(s => !s)], ['Glow', false, () => {}], ['Surbrillance', false, () => {}], ['Hollow', false, () => {}]] as [string, boolean, () => void][]).map(([lbl, on, toggle]) => (
-                          <div key={lbl} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                            <span style={{ fontFamily: "'early-sans-variable', sans-serif", fontWeight: 600, fontSize: 9.5, color: '#565A4E' }}>{lbl}</span>
-                            <button onClick={toggle} style={{ width: 24, height: 14, borderRadius: 7, background: on?'#2FD79B':'rgba(13,15,10,.15)', border: 'none', cursor: 'pointer', position: 'relative', padding: 0, transition: 'background .15s', flexShrink: 0 }}>
-                              <span style={{ position: 'absolute', top: 2, left: on?11:2, width: 10, height: 10, borderRadius: '50%', background: '#fff', transition: 'left .15s', display: 'block' }} />
-                            </button>
-                          </div>
-                        ))}
-                      </div>}
-
-                      {/* Calques */}
-                      {editorTool === 'calques' && <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                        {([['Notre savoir-faire','text',true],['Image fond','image',false],['Fond','fond',false]] as [string,string,boolean][]).map(([label, type, active]) => {
-                          const icon = type==='text'
-                            ? <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><polyline points="4 7 4 4 20 4 20 7"/><line x1="9" y1="20" x2="15" y2="20"/><line x1="12" y1="4" x2="12" y2="20"/></svg>
-                            : type==='image'
-                            ? <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
-                            : <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>;
-                          return (
-                            <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '5px 6px', borderRadius: 6, background: active?'rgba(47,215,155,.15)':'transparent' }}>
-                              <span style={{ color: active?'#2FD79B':'#8E9183', flexShrink: 0 }}>{icon}</span>
-                              <span style={{ fontFamily: "'early-sans-variable', sans-serif", fontWeight: active?700:600, fontSize: 10, color: active?'#0D0F0A':'#8E9183', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>{label}</span>
-                              {active && <span style={{ fontFamily: "'early-sans-variable', sans-serif", fontWeight: 700, fontSize: 7.5, color: '#2FD79B', flexShrink: 0 }}>1</span>}
-                            </div>
-                          );
-                        })}
-                      </div>}
-
-                      {/* Modèles */}
-                      {editorTool === 'design' && <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 5 }}>
-                        {['linear-gradient(150deg,#1b5e3a,#0c2a1d)','linear-gradient(150deg,#2FD79B,#21B381)','linear-gradient(150deg,#0c2a1d,#1f7a4d)','linear-gradient(135deg,#e9e7da,#cfd3b0)','linear-gradient(150deg,#103725,#2b8d57)','linear-gradient(135deg,#1a1a2e,#16213e)'].map((g, i) => (
-                          <div key={i} style={{ aspectRatio: '1', borderRadius: 7, background: g, cursor: 'pointer', border: i===0?'2px solid #2FD79B':'1.5px solid rgba(13,15,10,.1)' }} />
-                        ))}
-                      </div>}
-
-                      {/* Éléments */}
-                      {editorTool === 'elements' && <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 5 }}>
-                        {[
-                          <svg key="r" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><rect x="3" y="3" width="18" height="18" rx="2"/></svg>,
-                          <svg key="c" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><circle cx="12" cy="12" r="9"/></svg>,
-                          <svg key="t" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><polygon points="12 4 3 20 21 20 12 4"/></svg>,
-                          <svg key="s" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>,
-                          <svg key="l" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><line x1="3" y1="21" x2="21" y2="3"/></svg>,
-                          <svg key="a" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>,
-                        ].map((icon, i) => (
-                          <div key={i} style={{ aspectRatio: '1', borderRadius: 6, background: 'rgba(13,15,10,.05)', display: 'grid', placeItems: 'center', cursor: 'pointer', border: '1px solid rgba(13,15,10,.08)', color: '#565A4E' }}>{icon}</div>
-                        ))}
-                      </div>}
-
-                      {/* Photos */}
-                      {editorTool === 'photos' && <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                        <div style={{ border: '1.5px dashed rgba(13,15,10,.2)', borderRadius: 7, padding: '12px 6px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5 }}>
-                          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#8E9183" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-                          <span style={{ fontFamily: "'early-sans-variable', sans-serif", fontWeight: 700, fontSize: 9, color: '#8E9183', textAlign: 'center' }}>Glissez vos photos</span>
-                        </div>
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 4 }}>
-                          {DEMO_MEDIAS.map(m => <div key={m.id} style={{ aspectRatio: '1', borderRadius: 6, background: m.bgColor, cursor: 'pointer', border: '1.5px solid rgba(13,15,10,.08)' }} />)}
-                        </div>
-                      </div>}
-
-                      {/* Charte */}
-                      {editorTool === 'brand' && <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                        <div style={{ fontFamily: "'early-sans-variable', sans-serif", fontWeight: 800, fontSize: 7.5, textTransform: 'uppercase', letterSpacing: '.1em', color: '#8E9183' }}>Couleurs</div>
-                        <div style={{ display: 'flex', gap: 4 }}>
-                          {['#8B6914','#EFEEE4','#2FD79B'].map(c => (
-                            <div key={c} style={{ flex: 1 }}>
-                              <div style={{ height: 26, borderRadius: 5, background: c, border: '1px solid rgba(13,15,10,.12)' }} />
-                              <div style={{ fontFamily: "'early-sans-variable', sans-serif", fontSize: 6.5, color: '#8E9183', marginTop: 2, textAlign: 'center', textTransform: 'uppercase' }}>{c}</div>
-                            </div>
-                          ))}
-                        </div>
-                        <div style={{ fontFamily: "'early-sans-variable', sans-serif", fontWeight: 800, fontSize: 7.5, textTransform: 'uppercase', letterSpacing: '.1em', color: '#8E9183', marginTop: 2 }}>Typographie</div>
-                        {['Archivo Black','Syne'].map(f => (
-                          <div key={f} style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '5px 7px', borderRadius: 5, background: 'rgba(13,15,10,.04)', border: '1px solid rgba(13,15,10,.08)', cursor: 'pointer' }}>
-                            <span style={{ fontFamily: `"${f}",sans-serif`, fontSize: 16, color: '#0D0F0A', lineHeight: 1 }}>Aa</span>
-                            <span style={{ fontFamily: "'early-sans-variable', sans-serif", fontSize: 9.5, fontWeight: 600, color: '#565A4E' }}>{f}</span>
-                          </div>
-                        ))}
-                      </div>}
-
-                      {/* Importer */}
-                      {editorTool === 'upload' && <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
-                        <div style={{ padding: '7px 10px', borderRadius: 6, background: '#0D0F0A', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5, cursor: 'pointer' }}>
-                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#F1F0E8" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-                          <span style={{ fontFamily: "'early-sans-variable', sans-serif", fontWeight: 700, fontSize: 10, color: '#F1F0E8' }}>Choisir un fichier</span>
-                        </div>
-                        <div style={{ border: '1.5px dashed rgba(13,15,10,.2)', borderRadius: 7, padding: '20px 8px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5 }}>
-                          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#8E9183" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-                          <span style={{ fontFamily: "'early-sans-variable', sans-serif", fontSize: 9, fontWeight: 600, color: '#8E9183', textAlign: 'center' }}>PNG, JPG, SVG, WEBP</span>
-                        </div>
-                      </div>}
-                    </div>
-                  )}
-
-                  {/* Canvas */}
-                  <div style={{ flex: 1, background: '#E4E3DB', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-                    {/* Canvas scroll area */}
-                    <div style={{ flex: 1, position: 'relative', overflow: 'hidden' }}>
-                      {/* Floating context toolbar */}
-                      <div style={{ position: 'absolute', top: 6, left: '50%', transform: 'translateX(-50%)', background: '#fff', borderRadius: 7, boxShadow: '0 2px 10px rgba(0,0,0,.18)', border: '1px solid rgba(13,15,10,.1)', display: 'flex', alignItems: 'center', gap: 0, padding: '2px 4px', zIndex: 10, whiteSpace: 'nowrap' }}>
-                        <span style={{ fontSize: 7.5, fontWeight: 700, color: '#565A4E', padding: '0 4px 0 2px', fontFamily: "'early-sans-variable', sans-serif" }}>Texte</span>
-                        <span style={{ width: 1, height: 11, background: 'rgba(13,15,10,.1)', flexShrink: 0 }} />
-                        <button style={{ width: 15, height: 15, borderRadius: 3, border: '1.5px solid rgba(13,15,10,.15)', background: textColor, cursor: 'default', margin: '0 2px', flexShrink: 0 }} />
-                        <span style={{ fontSize: 7.5, color: '#565A4E', padding: '0 2px', fontFamily: "'early-sans-variable', sans-serif", fontWeight: 600 }}>{fontSize}px</span>
-                        <span style={{ width: 1, height: 11, background: 'rgba(13,15,10,.1)', flexShrink: 0, margin: '0 1px' }} />
-                        <button style={{ width: 15, height: 15, borderRadius: 2, border: 'none', background: 'rgba(47,215,155,.12)', fontFamily: "'Archivo',sans-serif", fontWeight: 900, fontSize: 9, color: '#0D0F0A', cursor: 'default' }}>B</button>
-                        <button style={{ width: 15, height: 15, borderRadius: 2, border: 'none', background: 'transparent', fontStyle: 'italic', fontSize: 9, color: '#8E9183', cursor: 'default' }}>I</button>
-                        <span style={{ width: 1, height: 11, background: 'rgba(13,15,10,.1)', flexShrink: 0, margin: '0 1px' }} />
-                        <button style={{ width: 15, height: 15, borderRadius: 2, border: 'none', background: 'rgba(13,15,10,.08)', cursor: 'default', display: 'grid', placeItems: 'center', color: '#565A4E' }}>
-                          <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M3 6h18M3 12h12"/></svg>
-                        </button>
-                        <button style={{ width: 15, height: 15, borderRadius: 2, border: 'none', background: 'transparent', cursor: 'default', display: 'grid', placeItems: 'center', color: '#8E9183' }}>
-                          <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M3 6h18M7 12h10M5 18h14"/></svg>
-                        </button>
-                        <span style={{ width: 1, height: 11, background: 'rgba(13,15,10,.1)', flexShrink: 0, margin: '0 1px' }} />
-                        <button style={{ width: 15, height: 15, borderRadius: 2, border: 'none', background: 'rgba(220,38,38,.1)', cursor: 'default', display: 'grid', placeItems: 'center', color: '#DC2626' }}>
-                          <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M4 7h16M9 7V4.5h6V7M6 7l1 13h10l1-13"/></svg>
-                        </button>
-                      </div>
-                      {/* Canvas card */}
-                      <div style={{ position: 'absolute', inset: '28px 8px 8px', borderRadius: 10, background: DEMO_MEDIAS[0].bgColor, boxShadow: '0 8px 24px rgba(0,0,0,.3)', display: 'flex', flexDirection: 'column', justifyContent: alignMap[textPos], padding: 14, overflow: 'hidden' }}>
-                        <div style={{ position: 'absolute', inset: 10, border: '1.5px solid #2FD79B', borderRadius: 4, pointerEvents: 'none', boxShadow: '0 0 0 1px rgba(47,215,155,.2)' }}>
-                          {['tl','tr','bl','br'].map(p => (
-                            <div key={p} style={{ position: 'absolute', width: 7, height: 7, borderRadius: 2, background: '#fff', border: '1.5px solid #2FD79B',
-                              top: p.startsWith('t')?-4:'auto', bottom: p.startsWith('b')?-4:'auto',
-                              left: p.endsWith('l')?-4:'auto', right: p.endsWith('r')?-4:'auto' }} />
-                          ))}
-                        </div>
-                        <div style={{ fontFamily: `"${fontFamily}","Archivo",sans-serif`, fontWeight: 900, fontSize: fontSize * 0.42, lineHeight: 1.1, color: textColor, textShadow: shadow?'0 2px 12px rgba(0,0,0,.6)':'none', userSelect: 'none' }}>
-                          Notre<br/>savoir-faire
-                        </div>
-                      </div>
-                    </div>
-                    {/* ZoomBar */}
-                    <div style={{ height: 30, background: '#fff', borderTop: '1px solid rgba(13,15,10,.08)', display: 'flex', alignItems: 'center', padding: '0 8px', gap: 4, flexShrink: 0 }}>
-                      <span style={{ fontSize: 8, color: '#8E9183', fontFamily: "'early-sans-variable', sans-serif", fontWeight: 600, whiteSpace: 'nowrap', letterSpacing: '.02em' }}>Page 1 · Carré 1:1</span>
-                      <div style={{ flex: 1 }} />
-                      <button style={{ width: 14, height: 14, borderRadius: 3, border: '1px solid rgba(13,15,10,.12)', background: 'transparent', display: 'grid', placeItems: 'center', color: '#565A4E', cursor: 'default', fontSize: 11, fontWeight: 700, lineHeight: 1 }}>−</button>
-                      <input type="range" min={25} max={200} defaultValue={100} style={{ width: 44, accentColor: '#2FD79B', cursor: 'pointer' }} readOnly />
-                      <button style={{ width: 14, height: 14, borderRadius: 3, border: '1px solid rgba(13,15,10,.12)', background: 'transparent', display: 'grid', placeItems: 'center', color: '#565A4E', cursor: 'default', fontSize: 11, fontWeight: 700, lineHeight: 1 }}>+</button>
-                      <span style={{ fontSize: 8, fontWeight: 700, color: '#565A4E', fontFamily: "'early-sans-variable', sans-serif", width: 24, textAlign: 'right' }}>100%</span>
-                    </div>
-                  </div>
-
-                </div>
-              </div>
-
-              {/* ── STEP 3: PUBLIER ── */}
-              <div style={{ width: '25%', padding: '10px 14px 12px', boxSizing: 'border-box', overflow: 'auto' }}>
-                {allDone ? (
-                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', gap: 16, textAlign: 'center', padding: '0 20px' }}>
-                    <div style={{ width: 64, height: 64, borderRadius: '50%', background: '#2FD79B', display: 'grid', placeItems: 'center' }}>
-                      <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#06281C" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
-                    </div>
-                    <div>
-                      <div style={{ fontFamily: "'early-sans-variable', sans-serif", fontWeight: 900, fontSize: 15, color: '#0D0F0A', textTransform: 'uppercase', letterSpacing: '.04em', marginBottom: 8 }}>Tout est programmé.</div>
-                      <div style={{ fontSize: 13, color: '#565A4E', lineHeight: 1.6, marginBottom: 18 }}>4 contenus publiés automatiquement.<br/>Vous venez de gagner 2 heures.</div>
-                      <Link href="/register" className="lp-btn lp-btn-mint lp-btn-sm">
-                        Créer mon compte gratuit <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="arr"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
-                      </Link>
-                    </div>
-                  </div>
-                ) : (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 2 }}>
-                      <span style={{ fontFamily: "'early-sans-variable', sans-serif", fontWeight: 700, fontSize: 11, color: '#565A4E' }}>Publier sur :</span>
-                      {[['Instagram','#E1306C'],['Facebook','#4F8EF7']].map(([name, color]) => (
-                        <button key={name} style={{ padding: '3px 9px', borderRadius: 5, border: name==='Instagram' ? `1.5px solid ${color}` : '1.5px solid rgba(13,15,10,.12)', background: name==='Instagram' ? `${color}15` : 'transparent', fontFamily: "'early-sans-variable', sans-serif", fontWeight: 700, fontSize: 10.5, color: name==='Instagram' ? color : '#8E9183', cursor: 'pointer' }}>{name}</button>
-                      ))}
-                    </div>
-                    {DEMO_MEDIAS.map((m, i) => (
-                      <div key={m.id} style={{ background: '#fff', borderRadius: 10, padding: '8px 10px', boxShadow: published[i] ? '0 0 0 1.5px #2FD79B' : 'inset 0 0 0 1px rgba(13,15,10,.08)', transition: 'box-shadow .2s', display: 'flex', alignItems: 'center', gap: 8 }}>
-                        <div style={{ width: 28, height: 28, borderRadius: 6, background: m.bgColor, flexShrink: 0 }} />
-                        <div style={{ flex: 1, minWidth: 0 }}>
-                          <div style={{ fontFamily: "'early-sans-variable', sans-serif", fontWeight: 700, fontSize: 11, color: '#0D0F0A', marginBottom: 4 }}>{m.label}</div>
-                          <div style={{ display: 'flex', gap: 4 }}>
-                            <input type="date" defaultValue={`2025-06-${16+i}`} style={{ fontSize: 10, border: '1px solid rgba(13,15,10,.1)', borderRadius: 4, padding: '2px 4px', color: '#565A4E', background: '#F4F3EC', fontFamily: 'inherit', outline: 'none', width: 92 }} />
-                            <input type="time" defaultValue="18:30" style={{ fontSize: 10, border: '1px solid rgba(13,15,10,.1)', borderRadius: 4, padding: '2px 4px', color: '#565A4E', background: '#F4F3EC', fontFamily: 'inherit', outline: 'none', width: 54 }} />
-                          </div>
-                        </div>
-                        {published[i]
-                          ? <span style={{ width: 20, height: 20, borderRadius: '50%', background: '#2FD79B', display: 'grid', placeItems: 'center', flexShrink: 0 }}><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#06281C" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5"/></svg></span>
-                          : <span style={{ width: 20, height: 20, borderRadius: '50%', border: '1.5px solid rgba(13,15,10,.15)', flexShrink: 0 }} />
-                        }
-                      </div>
-                    ))}
-                    <button onClick={handlePublishAll} disabled={publishing} style={{ width: '100%', padding: '10px 16px', borderRadius: 10, background: '#2FD79B', color: '#06281C', fontFamily: "'early-sans-variable', sans-serif", fontWeight: 800, fontSize: 13, border: 'none', cursor: publishing ? 'not-allowed' : 'pointer', opacity: publishing ? .7 : 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, marginTop: 2 }}>
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
-                      {publishing ? 'Publication…' : 'Tout programmer'}
-                    </button>
-                  </div>
-                )}
-              </div>
-
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Footer */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '9px 16px', background: '#fff', borderTop: '1px solid rgba(13,15,10,.08)' }}>
-        <button onClick={reset} style={{ fontFamily: "'early-sans-variable', sans-serif", fontWeight: 700, fontSize: 12, color: '#8E9183', background: 'none', border: 'none', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 5 }}>
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
-          Recommencer
-        </button>
-        {step < 3
-          ? <button onClick={() => setStep(s => s + 1)} style={{ padding: '6px 14px', borderRadius: 8, background: '#0D0F0A', color: '#F1F0E8', fontFamily: "'early-sans-variable', sans-serif", fontWeight: 700, fontSize: 12, border: 'none', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 5 }}>
-              Suivant <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
-            </button>
-          : allDone
-            ? <span style={{ fontFamily: "'early-sans-variable', sans-serif", fontWeight: 800, fontSize: 12, color: '#2FD79B', display: 'inline-flex', alignItems: 'center', gap: 5 }}>
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.8" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
-                Terminé
-              </span>
-            : <span style={{ fontFamily: "'early-sans-variable', sans-serif", fontWeight: 700, fontSize: 12, color: '#8E9183' }}>Planifiez vos publications</span>
-        }
-      </div>
-
-      {/* Type picker modal */}
-      {showModal && (
-        <div style={{ position: 'absolute', inset: 0, zIndex: 50, background: 'rgba(12,42,29,.72)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <div style={{ background: '#fff', borderRadius: 16, padding: '26px 28px', width: 340, boxShadow: '0 24px 64px rgba(0,0,0,.3)' }}>
-            <div style={{ fontFamily: "'early-sans-variable', sans-serif", fontWeight: 900, fontSize: 14, textTransform: 'uppercase', letterSpacing: '.06em', color: '#0D0F0A', marginBottom: 18 }}>Quel type de contenu ?</div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 8, marginBottom: 20 }}>
-              {([['post','1080×1080'],['reel','1080×1920'],['story','1080×1920']] as [typeof postType, string][]).map(([t, fmt]) => (
-                <button key={t} onClick={() => setPostType(t)} style={{ padding: '11px 6px', borderRadius: 10, border: postType===t ? '2px solid #0D0F0A' : '1.5px solid rgba(13,15,10,.15)', background: postType===t ? 'rgba(13,15,10,.05)' : '#fff', cursor: 'pointer', textAlign: 'center' }}>
-                  <div style={{ fontFamily: "'early-sans-variable', sans-serif", fontWeight: 800, fontSize: 12, color: '#0D0F0A', textTransform: 'capitalize', marginBottom: 3 }}>{t}</div>
-                  <div style={{ fontFamily: "'early-sans-variable', sans-serif", fontWeight: 600, fontSize: 9.5, color: '#8E9183' }}>{fmt}</div>
-                </button>
-              ))}
-            </div>
-            <button onClick={handleContinue} style={{ width: '100%', padding: '11px', borderRadius: 10, background: '#2FD79B', color: '#06281C', fontFamily: "'early-sans-variable', sans-serif", fontWeight: 800, fontSize: 13, border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
-              Continuer <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
-            </button>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
-function DemoSection() {
-  return (
-    <section id="demo" className="lp-section lp-forest">
-      <div className="lp-wrap" style={{ position: 'relative', zIndex: 2 }}>
-        <div style={{ textAlign: 'center', marginBottom: 52 }}>
-          <h2 className="lp-display lp-upper lp-reveal" style={{ fontSize: 'clamp(34px, 4.2vw, 56px)', lineHeight: 1.0, color: '#EFEEE4' }}>
-            Voyez Klip <span className="lp-it lp-mint">en action.</span>
-          </h2>
-          <p className="lp-lead lp-reveal d1" style={{ color: 'rgba(239,238,228,.62)', marginTop: 14 }}>
-            Cliquez pour vivre le workflow complet.
+          <p className="lead reveal d2" style={{ marginTop: 26, maxWidth: 620 }}>
+            Votre agence ne grandit plus au rythme de votre talent, mais au rythme de votre logistique. Chaque nouveau client ajoute des heures de manipulation, pas de création.
           </p>
         </div>
-        <div className="lp-reveal d2 lp-demo-outer"><KlipDemo /></div>
+        <div className="grid-2" style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 16, marginTop: 56 }}>
+          {pains.map((p, i) => (
+            <div key={i} className={`reveal d${(i % 2) + 1}`} style={{ background: 'var(--forest-2)', border: '1px solid var(--line-f)', borderRadius: 'var(--radius)', padding: '28px 30px', display: 'flex', gap: 20, alignItems: 'flex-start' }}>
+              <span style={{ flex: 'none', width: 48, height: 48, display: 'grid', placeItems: 'center', borderRadius: 12, background: 'var(--forest-3)', color: 'var(--acid)' }}><Icon name={p.ic} size={23} /></span>
+              <div>
+                <h3 style={{ fontFamily: 'var(--heavy)', fontWeight: 800, fontSize: 21, letterSpacing: '-0.02em', marginBottom: 7, textTransform: 'uppercase' }}>{p.t}</h3>
+                <p style={{ color: 'var(--cream-2)', fontSize: 15.5, lineHeight: 1.55 }}>{p.d}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+        <div className="reveal d2" style={{ marginTop: 28, padding: '34px 38px', display: 'flex', alignItems: 'center', gap: 28, flexWrap: 'wrap', background: 'var(--acid)', color: 'var(--acid-ink)', borderRadius: 'var(--radius)' }}>
+          <span style={{ fontFamily: 'var(--heavy)', fontWeight: 900, fontSize: 'clamp(46px, 6vw, 76px)', letterSpacing: '-0.04em', lineHeight: 1 }}>−11h</span>
+          <span style={{ fontFamily: 'var(--mono)', fontWeight: 700, fontSize: 16, maxWidth: 420, lineHeight: 1.5 }}>
+            par semaine et par gestionnaire, englouties à jongler entre les outils plutôt qu&apos;à créer. C&apos;est un client de plus que vous ne prenez pas.
+          </span>
+        </div>
       </div>
     </section>
   );
 }
 
-/* ─── Features bento ─────────────────────────────────────────────────────── */
-function MiniEditor() {
+/* ─── Steps ──────────────────────────────────────────────────────────────── */
+function Steps() {
+  const peek = useParallax(0.06);
+  const steps = [
+    { n: '01', ic: 'upload', t: 'Importez vos médias', d: 'Déposez les photos et vidéos d’un client — tout votre matériel réuni au même endroit.' },
+    { n: '02', ic: 'image', t: 'Composez & retouchez', d: 'Créez vos visuels ou retravaillez vos imports dans l’éditeur intégré, type Canva. La charte du client est déjà appliquée.' },
+    { n: '03', ic: 'wand', t: 'Rédigez avec l’IA', d: 'Légendes, descriptions et hashtags générés depuis l’image et la voix de marque du client.' },
+    { n: '04', ic: 'send', t: 'Programmez & publiez', d: 'Calez sur le calendrier, faites valider, KLIP publie sur Instagram — pour chacun de vos clients.' },
+  ];
   return (
-    <div style={{ position: 'relative', borderRadius: 14, overflow: 'hidden', aspectRatio: '16/9', background: 'linear-gradient(150deg,#1f7a4d,#0c2a1d)' }}>
-      <div className="lp-display lp-it" style={{ position: 'absolute', left: 16, bottom: 22, fontWeight: 700, fontSize: 26, color: '#fff', textShadow: '0 2px 14px rgba(0,0,0,.4)' }}>Nouvelle carte ↗</div>
-      <div style={{ position: 'absolute', left: 16, bottom: 22, width: 152, height: 36, border: '1.5px dashed #2FD79B', borderRadius: 6 }} />
-      <div style={{ position: 'absolute', right: 14, top: 14, display: 'flex', gap: 6 }}>
-        {['#2FD79B', '#0c2a1d', '#EFEEE4'].map(c => <span key={c} style={{ width: 18, height: 18, borderRadius: '50%', background: c, boxShadow: '0 0 0 1.5px rgba(255,255,255,.5)' }} />)}
-      </div>
-      <span style={{ position: 'absolute', right: 14, bottom: 14, fontFamily: "'early-sans-variable', sans-serif", fontWeight: 800, fontSize: 10, letterSpacing: '.1em', color: 'rgba(255,255,255,.6)' }}>ÉDITEUR · GLISSER-DÉPOSER</span>
-    </div>
-  );
-}
-function MiniCalendar() {
-  const dots: [number, string][] = [[1, '#2FD79B'], [2, '#0C2A1D'], [4, '#2FD79B'], [4, '#0C2A1D'], [6, '#0C2A1D']];
-  return (
-    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7,1fr)', gap: 5, marginTop: 4 }}>
-      {['L', 'M', 'M', 'J', 'V', 'S', 'D'].map((d, i) => (
-        <div key={i} style={{ aspectRatio: '1', borderRadius: 8, background: '#fff', boxShadow: 'inset 0 0 0 1px rgba(13,15,10,.1)', position: 'relative', display: 'grid', placeItems: 'start', padding: 6 }}>
-          <span style={{ fontFamily: "'early-sans-variable', sans-serif", fontWeight: 800, fontSize: 10, color: '#8E9183' }}>{d}</span>
-          <div style={{ position: 'absolute', bottom: 6, left: 6, display: 'flex', gap: 3 }}>
-            {dots.filter(x => x[0] === i).map((x, j) => <span key={j} style={{ width: 7, height: 7, borderRadius: '50%', background: x[1] }} />)}
+    <section id="how" className="section">
+      <div className="wrap">
+        <div style={{ maxWidth: 840 }}>
+          <h2 className="display reveal" style={{ fontSize: 'clamp(36px, 5.4vw, 76px)' }}>
+            De la photo au post publié,<br /><span className="it-serif acid-fill">sans changer d&apos;outil.</span>
+          </h2>
+          <p className="lead reveal d1" style={{ marginTop: 24, maxWidth: 660 }}>
+            KLIP réunit toute la post-production de vos réseaux : importez vos prises de vue, composez vos visuels, laissez l&apos;IA écrire, programmez. Pour chaque client, sans jamais quitter l&apos;outil.
+          </p>
+        </div>
+        <div className="grid-2" style={{ display: 'grid', gridTemplateColumns: '1fr 1.04fr', gap: 56, marginTop: 54, alignItems: 'center' }}>
+          <div style={{ display: 'flex', flexDirection: 'column' }}>
+            {steps.map((s, i) => (
+              <div key={i} className="reveal" style={{ display: 'flex', gap: 20, padding: '22px 4px', borderTop: '1px solid var(--line)', borderBottom: i === steps.length - 1 ? '1px solid var(--line)' : 'none' }}>
+                <span style={{ flex: 'none', fontFamily: 'var(--heavy)', fontWeight: 900, fontSize: 26, lineHeight: 1, color: 'var(--acid-2)', minWidth: 46 }}>{s.n}</span>
+                <div>
+                  <h3 style={{ display: 'flex', alignItems: 'center', gap: 10, fontFamily: 'var(--heavy)', fontWeight: 800, fontSize: 22, letterSpacing: '-0.02em', marginBottom: 7, textTransform: 'uppercase' }}>
+                    <span style={{ color: 'var(--ink-3)', display: 'inline-flex' }}><Icon name={s.ic} size={18} /></span>{s.t}
+                  </h3>
+                  <p style={{ color: 'var(--ink-2)', fontSize: 15.5, lineHeight: 1.55 }}>{s.d}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+          <div ref={peek} className="frame reveal d2">
+            <div className="frame-bar">
+              <span className="frame-dot" /><span className="frame-dot" /><span className="frame-dot" />
+              <span className="frame-url">app.klip.studio / composer</span>
+            </div>
+            <img src="/klip-media/composer.png" alt="Création dans KLIP" style={{ display: 'block', width: '100%' }} />
           </div>
         </div>
-      ))}
-    </div>
+      </div>
+    </section>
   );
 }
 
-type FeatTone = 'acid' | 'forest' | undefined;
-function FeatCard({ ic, t, d, cols = 1, tone, children }: { ic: string; t: string; d: string; cols?: 1 | 2 | 3; tone?: FeatTone; children?: React.ReactNode }) {
-  return (
-    <div className={`lp-reveal${cols > 1 ? ' lp-feat-wide' : ''}`} style={{ gridColumn: `span ${cols}`, padding: 28, borderRadius: 18, display: 'flex', flexDirection: 'column', gap: 14, background: tone === 'acid' ? '#2FD79B' : tone === 'forest' ? '#0C2A1D' : '#FBFAF4', color: tone === 'forest' ? '#EFEEE4' : '#0D0F0A', boxShadow: tone ? 'none' : 'inset 0 0 0 1px rgba(13,15,10,.07), 0 1px 2px rgba(13,15,10,.03)' }}>
-      <span style={{ width: 46, height: 46, borderRadius: 12, display: 'grid', placeItems: 'center', background: tone === 'acid' ? '#06281C' : tone === 'forest' ? '#2FD79B' : '#0D0F0A', color: tone === 'acid' ? '#2FD79B' : tone === 'forest' ? '#06281C' : '#F1F0E8' }}>
-        <Icon name={ic} size={22} />
-      </span>
-      <h3 className="lp-display" style={{ fontWeight: 700, fontSize: 24, letterSpacing: '-0.02em' }}>{t}</h3>
-      <p style={{ fontSize: 15, lineHeight: 1.6, color: tone === 'acid' ? 'rgba(6,40,28,.82)' : tone === 'forest' ? 'rgba(239,238,228,.62)' : '#565A4E' }}>{d}</p>
-      {children}
-    </div>
+/* ─── EditorUI — éditeur visuel reproduit ────────────────────────────────── */
+function EditorUI() {
+  const E = { sunk: '#ECEBE1', mint: '#1F9D63', mintSoft: '#E2F4EA', line: 'rgba(13,15,10,.12)', ink: '#14160F', ink2: '#5A5E50', ink3: '#8A8D7E', cream: '#EEEDE3' };
+  const Div = () => <span style={{ width: 1, height: 22, background: E.line, margin: '0 5px', flexShrink: 0 }} />;
+  const IBtn = ({ name, on }: { name: string; on?: boolean }) => (
+    <span style={{ width: 33, height: 33, borderRadius: 9, display: 'grid', placeItems: 'center', flexShrink: 0, color: on ? E.mint : E.ink, background: on ? E.mintSoft : 'transparent' }}><EdIcon name={name} size={18} /></span>
   );
-}
-
-function Features() {
+  const TxtBtn = ({ name, label }: { name: string; label: string }) => (
+    <span style={{ height: 33, padding: '0 11px', borderRadius: 9, display: 'flex', alignItems: 'center', gap: 7, fontFamily: 'var(--sans)', fontWeight: 700, fontSize: 13, color: E.ink, flexShrink: 0, whiteSpace: 'nowrap' }}><EdIcon name={name} size={16} /> {label}</span>
+  );
+  const rail: [string, string][] = [['template', 'Modèles'], ['shapes', 'Éléments'], ['text', 'Texte'], ['image', 'Photos'], ['palette', 'Charte'], ['upload', 'Importer']];
+  const handle = [{ t: -5, l: -5 }, { t: -5, r: -5 }, { b: -5, l: -5 }, { b: -5, r: -5 }, { t: -5, l: '50%' }, { b: -5, l: '50%' }, { t: '50%', l: -5 }, { t: '50%', r: -5 }] as { t?: number | string; l?: number | string; r?: number | string; b?: number | string }[];
   return (
-    <section id="features" className="lp-section">
-      <div className="lp-wrap">
-        <div style={{ maxWidth: 720 }}>
-          <h2 className="lp-display lp-upper lp-reveal d1" style={{ fontSize: 'clamp(38px, 4.8vw, 66px)', marginTop: 0 }}>
-            Tout ce qu&apos;il faut.<br /><span className="lp-it lp-mint">Rien de superflu.</span>
-          </h2>
+    <div style={{ width: '100%', borderRadius: 14, overflow: 'hidden', color: E.ink, background: 'radial-gradient(120% 80% at 50% -10%, #FBFAF4, #ECEBE1 70%)', border: '1px solid rgba(13,15,10,.1)', boxShadow: '0 40px 80px -36px rgba(0,0,0,.6)' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', minHeight: 58, background: 'rgba(255,255,255,.72)', backdropFilter: 'blur(8px)', borderBottom: `1px solid ${E.line}` }}>
+        <div style={{ display: 'flex', gap: 2, flexShrink: 0, color: E.ink2 }}>
+          <span style={{ width: 32, height: 32, display: 'grid', placeItems: 'center' }}><EdIcon name="undo" size={18} /></span>
+          <span style={{ width: 32, height: 32, display: 'grid', placeItems: 'center' }}><EdIcon name="redo" size={18} /></span>
         </div>
-        <div className="lp-3col" style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 16, marginTop: 52 }}>
-          <FeatCard ic="image" t="Éditeur visuel intégré" d="Créez vos visuels directement dans Klip. Charte du client sauvegardée, templates prêts à l'emploi, formats Story, Reel et Post en un clic. C'est la fin des exports et des mauvais fichiers." cols={2}>
-            <div style={{ marginTop: 'auto' }}><MiniEditor /></div>
-          </FeatCard>
-          <FeatCard ic="wand" t="Légendes générées par IA" d="Décrivez le post, l'IA rédige dans le ton exact du client. Vous relisez, vous publiez. 10 secondes au lieu de 20 minutes." tone="acid" />
-          <FeatCard ic="calendar" t="Calendrier global multi-clients" d="Tous vos clients, tous vos posts, une seule vue. Glissez, déposez, reprogrammez. Rien ne passe entre les mailles." cols={2}>
-            <div style={{ marginTop: 'auto' }}><MiniCalendar /></div>
-          </FeatCard>
-          <FeatCard ic="instagram" t="Publication automatique" d="Instagram, Facebook, Story, Reel, Post — Klip publie à l'heure exacte que vous avez choisie. Vous dormez, vos clients restent actifs." />
-          <FeatCard ic="layers" t="Workflow de validation — Agence" d="Votre équipe prépare, vous validez, le client reçoit. Sans un seul mail. Sans fil de messagerie. Sans le mauvais fichier." tone="forest" cols={3} />
+        <Div />
+        <div style={{ flex: 1, minWidth: 0, display: 'flex', justifyContent: 'center', overflowX: 'auto' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 2, background: '#fff', borderRadius: 12, padding: '5px 7px', boxShadow: '0 8px 26px -10px rgba(13,15,10,.26), 0 0 0 1px rgba(13,15,10,.05)' }}>
+            <span style={{ height: 33, padding: '0 10px', borderRadius: 9, display: 'flex', alignItems: 'center', gap: 8, background: E.sunk, flexShrink: 0 }}>
+              <span style={{ fontFamily: "'Archivo',sans-serif", fontWeight: 600, fontSize: 13 }}>Archivo</span><EdIcon name="chevD" size={13} style={{ color: E.ink3 }} />
+            </span>
+            <span style={{ display: 'flex', alignItems: 'center', background: E.sunk, borderRadius: 9, marginLeft: 4, height: 33, flexShrink: 0 }}>
+              <span style={{ width: 28, display: 'grid', placeItems: 'center', color: E.ink }}><EdIcon name="minus" size={15} /></span>
+              <span style={{ width: 34, textAlign: 'center', fontWeight: 700, fontSize: 13, fontVariantNumeric: 'tabular-nums' }}>92</span>
+              <span style={{ width: 28, display: 'grid', placeItems: 'center', color: E.ink }}><EdIcon name="plus" size={15} /></span>
+            </span>
+            <Div />
+            <span style={{ width: 33, height: 33, borderRadius: 9, display: 'grid', placeItems: 'center', flexShrink: 0 }}>
+              <span style={{ width: 19, height: 19, borderRadius: 6, background: E.cream, boxShadow: 'inset 0 0 0 1.5px rgba(13,15,10,.18)' }} />
+            </span>
+            <IBtn name="bold" on /><IBtn name="italic" on /><IBtn name="underline" /><IBtn name="strike" /><IBtn name="case" />
+            <Div />
+            <IBtn name="alignL" /><IBtn name="lineH" /><TxtBtn name="effects" label="Effets" />
+            <Div />
+            <IBtn name="transp" /><TxtBtn name="animate" label="Animer" /><TxtBtn name="position" label="Position" />
+          </div>
+        </div>
+        <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
+          <span style={{ height: 34, padding: '0 13px', borderRadius: 999, display: 'flex', alignItems: 'center', gap: 7, fontFamily: 'var(--mono)', fontWeight: 700, fontSize: 12, color: E.ink2, boxShadow: `inset 0 0 0 1px ${E.line}` }}><EdIcon name="eye" size={15} /> Aperçu</span>
+          <span style={{ height: 34, padding: '0 13px', borderRadius: 999, display: 'flex', alignItems: 'center', gap: 7, fontFamily: 'var(--mono)', fontWeight: 700, fontSize: 12, color: '#fff', background: E.mint }}><EdIcon name="upload" size={15} /> Partager</span>
+        </div>
+      </div>
+      <div style={{ display: 'flex', minHeight: 420 }}>
+        <div className="ed-rail" style={{ width: 70, flexShrink: 0, background: '#fff', borderRight: `1px solid ${E.line}`, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, padding: '12px 0' }}>
+          {rail.map(([ic, label], i) => {
+            const on = i === 2;
+            return (
+              <span key={i} style={{ width: 54, height: 56, borderRadius: 13, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 5, color: on ? E.mint : E.ink2, background: on ? E.mintSoft : 'transparent' }}>
+                <EdIcon name={ic} size={20} stroke={1.7} />
+                <span style={{ fontFamily: 'var(--mono)', fontWeight: 700, fontSize: 9, letterSpacing: '.02em', textTransform: 'uppercase' }}>{label}</span>
+              </span>
+            );
+          })}
+        </div>
+        <div style={{ flex: 1, minWidth: 0, display: 'grid', placeItems: 'center', padding: 26 }}>
+          <div style={{ position: 'relative', height: 408, aspectRatio: '4 / 5', borderRadius: 16, overflow: 'hidden', boxShadow: '0 30px 70px -30px rgba(13,15,10,.55)', background: 'linear-gradient(155deg,#1f7a4d,#0c2a1d)' }}>
+            <span style={{ position: 'absolute', top: 18, left: 18, fontFamily: 'var(--mono)', fontWeight: 700, fontSize: 11, letterSpacing: '.14em', color: E.cream }}>MAISON LOU</span>
+            <div style={{ position: 'absolute', top: 44, left: 18, right: 18, height: 150, borderRadius: 12, border: '1.5px dashed rgba(238,237,227,.5)', background: 'rgba(255,255,255,.06)', display: 'grid', placeItems: 'center', color: 'rgba(238,237,227,.6)' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5 }}><EdIcon name="image" size={22} stroke={1.5} /><span style={{ fontFamily: 'var(--mono)', fontSize: 9.5, fontWeight: 700 }}>PHOTO DU PLAT</span></div>
+            </div>
+            <span style={{ position: 'absolute', top: 208, left: 18, background: 'var(--acid)', color: '#14160F', fontFamily: 'var(--mono)', fontWeight: 700, fontSize: 11, letterSpacing: '.08em', padding: '7px 14px', borderRadius: 999 }}>SEPTEMBRE</span>
+            <div style={{ position: 'absolute', top: 248, left: 18, width: 226 }}>
+              <div style={{ fontFamily: "'Archivo',sans-serif", fontWeight: 800, fontStyle: 'italic', fontSize: 32, lineHeight: 0.96, letterSpacing: '-0.03em', color: E.cream, textShadow: '0 3px 16px rgba(0,0,0,.45)' }}>Nouvelle carte d&apos;automne</div>
+              <div style={{ position: 'absolute', inset: '-9px -11px', border: `1.5px solid ${E.mint}`, borderRadius: 3 }}>
+                {handle.map((h, i) => (
+                  <span key={i} style={{ position: 'absolute', top: h.t, left: h.l, right: h.r, bottom: h.b, width: 8, height: 8, transform: (h.l === '50%' || h.t === '50%') ? 'translate(-50%,-50%)' : 'none', background: '#fff', border: `1.5px solid ${E.mint}`, borderRadius: 2 }} />
+                ))}
+                <span style={{ position: 'absolute', top: -26, left: '50%', transform: 'translateX(-50%)', width: 1, height: 18, background: E.mint }} />
+                <span style={{ position: 'absolute', top: -34, left: '50%', transform: 'translateX(-50%)', width: 14, height: 14, borderRadius: '50%', background: '#fff', border: `1.5px solid ${E.mint}` }} />
+              </div>
+            </div>
+            <div style={{ position: 'absolute', top: 352, left: 18, width: 200, fontFamily: "'Satoshi',sans-serif", fontWeight: 500, fontSize: 13, lineHeight: 1.25, color: 'rgba(238,237,227,.82)' }}>Réservations ouvertes tout le mois</div>
+          </div>
+        </div>
+      </div>
+      <div style={{ height: 48, display: 'flex', alignItems: 'center', gap: 12, padding: '0 16px', borderTop: `1px solid ${E.line}`, background: '#fff' }}>
+        <span style={{ display: 'flex', alignItems: 'center', gap: 7, fontFamily: 'var(--mono)', fontWeight: 700, fontSize: 11, color: E.ink2, background: E.sunk, padding: '6px 11px', borderRadius: 999 }}><EdIcon name="image" size={13} /> Page 1 · Post 4:5</span>
+        <span style={{ fontSize: 12, color: E.ink3, fontWeight: 600 }}>Maison Lou</span>
+        <div className="ed-zoomr" style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 9, color: E.ink2 }}>
+          <span style={{ display: 'flex', alignItems: 'center', gap: 6, fontFamily: 'var(--mono)', fontWeight: 700, fontSize: 11.5, padding: '6px 10px', borderRadius: 999, boxShadow: `inset 0 0 0 1px ${E.line}` }}><EdIcon name="play" size={13} /> Animer</span>
+          <span style={{ width: 1, height: 20, background: E.line }} />
+          <EdIcon name="minus" size={15} />
+          <span style={{ width: 92, height: 4, borderRadius: 2, background: E.sunk, position: 'relative' }}><span style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: '42%', background: E.mint, borderRadius: 2 }} /><span style={{ position: 'absolute', left: '42%', top: '50%', transform: 'translate(-50%,-50%)', width: 12, height: 12, borderRadius: '50%', background: '#fff', boxShadow: '0 1px 4px rgba(0,0,0,.3)' }} /></span>
+          <EdIcon name="plus" size={15} />
+          <span style={{ fontFamily: 'var(--mono)', fontWeight: 700, fontSize: 11.5, width: 38, textAlign: 'center' }}>50%</span>
+          <EdIcon name="fit" size={15} />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ─── Showcase ───────────────────────────────────────────────────────────── */
+function Showcase() {
+  const a = useParallax(0.06), b = useParallax(0.09);
+  const shots = [
+    { ref: a, img: '/klip-media/calendar.png', t: 'Calendrier éditorial', d: 'Tous les posts de tous vos clients sur une seule grille. Glissez pour replanifier, repérez les trous, gardez le rythme — sans tableur.', tags: ['Glisser-déposer', 'Vue mois / semaine', 'Multi-clients'] },
+    { ref: b, img: '/klip-media/queue.png', t: 'File de publication', d: 'Vos comptes Instagram connectés. Vous validez, KLIP publie au créneau prévu — plus besoin de rouvrir l’app ni de poster à la main.', tags: ['Auto-publication', 'Validation client', 'Créneaux'] },
+  ];
+  return (
+    <section id="apercu" className="section on-forest" style={{ overflow: 'hidden' }}>
+      <div className="wrap">
+        <div style={{ maxWidth: 820 }}>
+          <h2 className="display reveal" style={{ fontSize: 'clamp(38px, 5.6vw, 78px)' }}>
+            Une interface qui <span className="it-serif acid-fill">respire.</span>
+          </h2>
+          <p className="lead reveal d2" style={{ marginTop: 24, maxWidth: 580 }}>
+            Pensée pour gérer six marques sans jamais les mélanger. Voilà à quoi ressemble une journée de travail sans friction.
+          </p>
+        </div>
+        <div className="reveal" style={{ marginTop: 64 }}>
+          <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 28, flexWrap: 'wrap', marginBottom: 26 }}>
+            <div style={{ maxWidth: 560 }}>
+              <span className="sho-kicker">01 — L&apos;éditeur visuel</span>
+              <h3 className="display" style={{ fontSize: 'clamp(28px,3.4vw,46px)', color: 'var(--cream)', marginTop: 14 }}>Un studio de création, pas un simple cadre</h3>
+            </div>
+            <p style={{ color: 'var(--cream-2)', fontSize: 16, lineHeight: 1.6, maxWidth: 380 }}>
+              Sélectionnez un texte et tout s&apos;ouvre — police, taille, couleurs de la charte, effets, animations. La même puissance que Canva ou la suite Adobe, déjà calée sur votre client.
+            </p>
+          </div>
+          <EditorUI />
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 'clamp(56px,8vw,104px)', marginTop: 'clamp(64px,9vw,120px)' }}>
+          {shots.map((s, i) => {
+            const flip = i % 2 === 1;
+            return (
+              <div key={i} className="sho-row" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'clamp(34px,5vw,72px)', alignItems: 'center' }}>
+                <div className="reveal" style={{ order: flip ? 2 : 1 }}>
+                  <span className="sho-kicker">{`0${i + 2}`} — {s.t}</span>
+                  <h3 className="display" style={{ fontSize: 'clamp(28px,3.4vw,46px)', color: 'var(--cream)', marginTop: 14 }}>{s.t}</h3>
+                  <p style={{ color: 'var(--cream-2)', fontSize: 17, lineHeight: 1.6, marginTop: 18, maxWidth: 440 }}>{s.d}</p>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 9, marginTop: 24 }}>
+                    {s.tags.map((t, j) => <span key={j} className="chip">{t}</span>)}
+                  </div>
+                </div>
+                <div ref={s.ref} className="reveal d2 sho-shot" style={{ order: flip ? 1 : 2 }}>
+                  <img src={s.img} alt={s.t} />
+                </div>
+              </div>
+            );
+          })}
         </div>
       </div>
     </section>
   );
 }
 
-/* ─── Logos ──────────────────────────────────────────────────────────────── */
-function Logos() {
-  const names = ['Atelier Nord', 'STUDIO VÉL', 'Maison Pixel', 'Brut & Co', 'La Fabrique', 'Onde·', 'Calibre', 'Studio Aria'];
+/* ─── EditorMock — mini éditeur (Features) ───────────────────────────────── */
+function EditorMock() {
+  const corners = [{ top: -5, left: -5 }, { top: -5, right: -5 }, { bottom: -5, left: -5 }, { bottom: -5, right: -5 }] as React.CSSProperties[];
   return (
-    <section className="lp-section-sm" style={{ borderTop: '1px solid rgba(13,15,10,.1)', borderBottom: '1px solid rgba(13,15,10,.1)' }}>
-      <div className="lp-wrap">
-        <p className="lp-reveal" style={{ textAlign: 'center', fontFamily: "'early-sans-variable', sans-serif", fontWeight: 800, fontSize: 12, letterSpacing: '.14em', textTransform: 'uppercase', color: '#8E9183', marginBottom: 32 }}>
-          Pensé pour des studios comme le vôtre
-        </p>
-        <div className="lp-reveal d1" style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', alignItems: 'center', gap: '22px 48px' }}>
-          {names.map((n, i) => (
-            <span key={i} className="lp-display" style={{ fontWeight: 700, fontSize: 23, letterSpacing: '-0.02em', color: '#0D0F0A', opacity: .38, fontStyle: i % 3 === 0 ? 'italic' : 'normal' }}>{n}</span>
+    <div style={{ background: 'var(--paper-2)', borderRadius: 12, padding: 16, display: 'flex', flexDirection: 'column', gap: 14, width: '100%', maxWidth: 350, margin: '0 auto', boxShadow: '0 34px 64px -30px rgba(0,0,0,.55)', border: '1px solid var(--line-2)' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
+        <span style={{ width: 30, height: 30, borderRadius: 8, background: 'linear-gradient(140deg,#1f7a4d,#0c2a1d)', color: '#fff', display: 'grid', placeItems: 'center', fontFamily: 'var(--mono)', fontWeight: 700, fontSize: 11 }}>ML</span>
+        <div style={{ display: 'flex', gap: 5 }}>
+          {['#0c2a1d', 'var(--acid)', '#EFEEE4'].map((c, i) => <span key={i} style={{ width: 18, height: 18, borderRadius: '50%', background: c, boxShadow: 'inset 0 0 0 1px var(--line)' }} />)}
+        </div>
+        <span style={{ fontFamily: 'var(--mono)', fontWeight: 700, fontSize: 11, color: 'var(--ink-2)', padding: '5px 9px', borderRadius: 7, boxShadow: 'inset 0 0 0 1px var(--line)' }}>Aa Archivo</span>
+        <span style={{ marginLeft: 'auto', fontFamily: 'var(--mono)', fontWeight: 700, fontSize: 11, color: 'var(--ink-3)' }}>● calé au pixel</span>
+      </div>
+      <div style={{ position: 'relative', borderRadius: 12, overflow: 'hidden', aspectRatio: '3 / 4', background: 'radial-gradient(130% 130% at 18% 0%, #20a368, #0a2419 72%)', padding: 22, display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+        <span style={{ fontFamily: 'var(--mono)', fontWeight: 700, fontSize: 10, letterSpacing: '.14em', color: 'rgba(255,255,255,.82)' }}>MAISON LOU</span>
+        <div style={{ position: 'relative', alignSelf: 'flex-start', maxWidth: '82%' }}>
+          <div style={{ fontFamily: 'var(--heavy)', fontWeight: 900, fontStyle: 'italic', fontSize: 'clamp(20px,2.3vw,30px)', lineHeight: 1, color: '#fff', textTransform: 'uppercase', letterSpacing: '-0.02em' }}>L&apos;été se réserve maintenant</div>
+          <div style={{ position: 'absolute', inset: '-11px -13px', border: '1.6px dashed var(--acid)', borderRadius: 4, pointerEvents: 'none' }}>
+            {corners.map((c, i) => <span key={i} style={{ position: 'absolute', ...c, width: 9, height: 9, background: 'var(--acid)', border: '1.5px solid #fff', borderRadius: 2 }} />)}
+          </div>
+        </div>
+        <div style={{ display: 'flex', gap: 6 }}>
+          {['#terrasse', '#nouvellecarte', '#septembre'].map((h, i) => (
+            <span key={i} style={{ fontFamily: 'var(--mono)', fontWeight: 700, fontSize: 10.5, color: 'rgba(255,255,255,.9)', padding: '4px 9px', borderRadius: 999, background: 'rgba(255,255,255,.12)' }}>{h}</span>
           ))}
         </div>
       </div>
+    </div>
+  );
+}
+
+/* ─── Features ───────────────────────────────────────────────────────────── */
+function Features() {
+  const tags = ['Charte par client', 'Glisser-déposer', 'Calé au pixel'];
+  const F = ({ ic, t, d, tone }: { ic: string; t: string; d: string; tone?: 'acid' | 'forest' }) => {
+    const isAcid = tone === 'acid', isForest = tone === 'forest';
+    return (
+      <div className="card reveal" style={{ padding: 28, display: 'flex', flexDirection: 'column', gap: 13, background: isAcid ? 'var(--acid)' : isForest ? 'var(--forest)' : 'var(--paper-2)', color: isForest ? 'var(--cream)' : 'var(--ink)' }}>
+        <span style={{ width: 46, height: 46, borderRadius: 12, display: 'grid', placeItems: 'center', background: isAcid ? 'var(--acid-ink)' : isForest ? 'var(--acid)' : 'var(--ink)', color: isAcid ? 'var(--acid)' : isForest ? 'var(--acid-ink)' : 'var(--paper)' }}>
+          <Icon name={ic} size={22} />
+        </span>
+        <h3 style={{ fontFamily: 'var(--heavy)', fontWeight: 800, fontSize: 21, letterSpacing: '-0.02em', textTransform: 'uppercase' }}>{t}</h3>
+        <p style={{ fontSize: 15, lineHeight: 1.58, color: isForest ? 'var(--cream-2)' : isAcid ? 'var(--acid-ink)' : 'var(--ink-2)', opacity: isAcid ? .82 : 1 }}>{d}</p>
+      </div>
+    );
+  };
+  return (
+    <section id="features" className="section">
+      <div className="wrap">
+        <div style={{ maxWidth: 820 }}>
+          <h2 className="display reveal" style={{ fontSize: 'clamp(38px, 5.6vw, 78px)' }}>
+            Ce qu&apos;il fallait dix outils pour faire,<br /><span className="it-serif acid-fill">KLIP le fait d&apos;un trait.</span>
+          </h2>
+        </div>
+        <div className="reveal feat-hero" style={{ display: 'grid', gridTemplateColumns: '1fr 1.12fr', gap: 0, marginTop: 52, background: 'var(--forest)', color: 'var(--cream)', borderRadius: 'var(--radius)', overflow: 'hidden', boxShadow: '0 50px 100px -55px rgba(6,32,24,.8)' }}>
+          <div style={{ padding: 'clamp(32px, 3.6vw, 52px)', display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 20 }}>
+            <span style={{ alignSelf: 'flex-start', display: 'inline-flex', alignItems: 'center', gap: 8, background: 'var(--acid)', color: 'var(--acid-ink)', fontFamily: 'var(--mono)', fontWeight: 700, fontSize: 12, letterSpacing: '.08em', textTransform: 'uppercase', padding: '8px 13px', borderRadius: 999 }}>
+              <Icon name="spark" size={14} /> Atout phare
+            </span>
+            <h3 className="display" style={{ fontSize: 'clamp(36px, 4.4vw, 62px)' }}>Éditeur visuel</h3>
+            <p style={{ color: 'var(--cream-2)', fontSize: 17.5, lineHeight: 1.6, maxWidth: 440 }}>
+              La charte de chaque client — couleurs, typo, logo — appliquée d&apos;un clic. Vous glissez le texte, c&apos;est calé au pixel. Plus aucun logiciel de design à ouvrir.
+            </p>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 9 }}>
+              {tags.map((t, i) => (
+                <span key={i} style={{ display: 'inline-flex', alignItems: 'center', gap: 7, fontFamily: 'var(--mono)', fontWeight: 700, fontSize: 12.5, color: 'var(--cream)', padding: '8px 13px', borderRadius: 999, background: 'var(--forest-2)', border: '1px solid var(--line-f)' }}>
+                  <Icon name="check" size={14} style={{ color: 'var(--acid)' }} /> {t}
+                </span>
+              ))}
+            </div>
+          </div>
+          <div style={{ background: 'var(--forest-2)', padding: 'clamp(26px, 3vw, 44px)', display: 'grid', placeItems: 'center' }}>
+            <EditorMock />
+          </div>
+        </div>
+        <div className="bento" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(238px, 1fr))', gap: 16, marginTop: 16 }}>
+          <F ic="voice" t="Voix de marque" d="Ton, style, mots interdits. Chaque génération respecte l&rsquo;ADN du client." tone="acid" />
+          <F ic="wand" t="Descriptions IA" d="Légendes et hashtags générés depuis la photo et le contexte de la marque." />
+          <F ic="layers" t="Un espace par client" d="Charte, historique, comptes connectés — cloisonnés, jamais mélangés." />
+          <F ic="instagram" t="Publication directe" d="Connexion compte pro. Programmez, validez, KLIP publie au créneau." tone="forest" />
+        </div>
+      </div>
     </section>
   );
 }
 
-/* ─── Témoignages ────────────────────────────────────────────────────────── */
+/* ─── Testimonials ───────────────────────────────────────────────────────── */
 function Testimonials() {
-  const quotes = [
-    { q: "On est passé de quatre outils à un seul. Le lundi matin n\u2019a plus rien à voir.", a: 'Camille R.', r: 'Directrice de création · studio indépendant' },
-    { q: "La voix de marque par client, c\u2019est ce qui change tout. L\u2019IA ne déborde jamais du cadre.", a: 'Yanis B.', r: 'Social media manager' },
-    { q: "Je gère six comptes sans jongler entre dix onglets. Mes clients valident plus vite.", a: 'Léa M.', r: 'Freelance · contenu de marque' },
+  const big = { q: 'On est passé de quatre outils à un seul. Le lundi matin n’a plus rien à voir — et on a pris trois clients de plus sans embaucher.', a: 'Camille R.', r: 'Directrice de création · Studio Klein' };
+  const small = [
+    { q: 'La voix de marque par client, c’est ce qui change tout. L’IA ne déborde jamais du cadre.', a: 'Yanis B.', r: 'Social media manager' },
+    { q: 'Je gère six comptes sans jongler entre dix onglets. Mes clients valident plus vite.', a: 'Léa M.', r: 'Freelance · contenu de marque' },
   ];
   return (
-    <section className="lp-section">
-      <div className="lp-wrap">
-        <div style={{ maxWidth: 680 }}>
-          <span className="lp-eyebrow lp-reveal">Sur le terrain</span>
-          <h2 className="lp-display lp-reveal d1" style={{ fontSize: 'clamp(36px, 4.4vw, 58px)', marginTop: 20 }}>
-            Le calme, <span className="lp-it lp-mint">retrouvé.</span>
+    <section className="section on-forest" style={{ overflow: 'hidden' }}>
+      <div className="wrap">
+        <div style={{ maxWidth: 700 }}>
+          <h2 className="display reveal d1" style={{ fontSize: 'clamp(38px, 5.6vw, 78px)', marginTop: 22 }}>
+            Le calme, <span className="it-serif acid-fill">retrouvé.</span>
           </h2>
         </div>
-        <div className="lp-2col" style={{ display: 'grid', gridTemplateColumns: '1.3fr 1fr', gap: 16, marginTop: 48 }}>
-          <div className="lp-reveal lp-testi-main" style={{ background: '#0C2A1D', color: '#EFEEE4', borderRadius: 20, padding: '40px 38px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', gridRow: 'span 2' }}>
-            <Icon name="spark" size={28} style={{ color: '#2FD79B' }} />
-            <p className="lp-display" style={{ fontWeight: 700, fontSize: 'clamp(26px,2.6vw,38px)', lineHeight: 1.12, letterSpacing: '-0.02em', margin: '24px 0' }}>&ldquo;{quotes[0].q}&rdquo;</p>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-              <span style={{ width: 40, height: 40, borderRadius: '50%', background: '#2FD79B', flexShrink: 0 }} />
-              <div><div style={{ fontFamily: "'early-sans-variable', sans-serif", fontWeight: 800, fontSize: 15 }}>{quotes[0].a}</div><div style={{ fontSize: 13, color: 'rgba(239,238,228,.6)' }}>{quotes[0].r}</div></div>
+        <div className="testi-grid" style={{ display: 'grid', gridTemplateColumns: '1.25fr 1fr', gap: 16, marginTop: 52 }}>
+          <div className="reveal" style={{ gridRow: 'span 2', background: 'var(--acid)', color: 'var(--acid-ink)', borderRadius: 'var(--radius)', padding: '42px 40px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+            <Icon name="spark" size={30} />
+            <p style={{ fontFamily: 'var(--heavy)', fontWeight: 800, fontSize: 'clamp(26px, 2.7vw, 40px)', lineHeight: 1.1, letterSpacing: '-0.025em', margin: '26px 0' }}>&ldquo;{big.q}&rdquo;</p>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 13 }}>
+              <span style={{ width: 44, height: 44, borderRadius: '50%', background: 'var(--forest)' }} />
+              <div>
+                <div style={{ fontFamily: 'var(--mono)', fontWeight: 700, fontSize: 15 }}>{big.a}</div>
+                <div style={{ fontSize: 13.5, opacity: .72 }}>{big.r}</div>
+              </div>
             </div>
           </div>
-          {quotes.slice(1).map((x, i) => (
-            <div key={i} className={`lp-card lp-reveal d${i + 1}`} style={{ padding: 30, display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
-              <p style={{ fontSize: 18.5, lineHeight: 1.5, fontWeight: 500 }}>&ldquo;{x.q}&rdquo;</p>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 24 }}>
-                <span style={{ width: 38, height: 38, borderRadius: '50%', background: 'linear-gradient(140deg,#2FD79B,#1f7a4d)', flexShrink: 0 }} />
-                <div><div style={{ fontFamily: "'early-sans-variable', sans-serif", fontWeight: 800, fontSize: 14.5 }}>{x.a}</div><div style={{ fontSize: 12.5, color: '#8E9183' }}>{x.r}</div></div>
+          {small.map((x, i) => (
+            <div key={i} className={`reveal d${i + 1}`} style={{ background: 'var(--forest-2)', borderRadius: 'var(--radius)', padding: 32, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', border: '1px solid var(--line-f)' }}>
+              <p style={{ fontSize: 19, lineHeight: 1.5, fontWeight: 500, color: 'var(--cream)' }}>&ldquo;{x.q}&rdquo;</p>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 26 }}>
+                <span style={{ width: 40, height: 40, borderRadius: '50%', background: 'linear-gradient(140deg, var(--acid), var(--mint))' }} />
+                <div>
+                  <div style={{ fontFamily: 'var(--mono)', fontWeight: 700, fontSize: 14, color: 'var(--cream)' }}>{x.a}</div>
+                  <div style={{ fontSize: 13, color: 'var(--cream-3)' }}>{x.r}</div>
+                </div>
               </div>
             </div>
           ))}
@@ -1348,110 +778,47 @@ function Testimonials() {
 }
 
 /* ─── Pricing ────────────────────────────────────────────────────────────── */
-function PricingTip({ tip, accent }: { tip: string; accent?: boolean }) {
-  const [show, setShow] = useState(false);
-  return (
-    <span style={{ position: 'relative', display: 'inline-flex', marginLeft: 5, verticalAlign: 'middle' }}
-      onMouseEnter={() => setShow(true)} onMouseLeave={() => setShow(false)}>
-      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke={accent ? 'rgba(239,238,228,.5)' : '#8E9183'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ cursor: 'default', flexShrink: 0 }}><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
-      {show && (
-        <span style={{ position: 'absolute', bottom: '100%', left: '50%', transform: 'translateX(-50%)', marginBottom: 8, background: '#0C2A1D', color: '#EFEEE4', borderRadius: 8, padding: '10px 14px', fontSize: 12, fontFamily: "'early-sans-variable', sans-serif", fontWeight: 600, lineHeight: 1.5, whiteSpace: 'nowrap', maxWidth: 240, zIndex: 10, pointerEvents: 'none', boxShadow: '0 8px 24px rgba(0,0,0,.2)', animation: 'lp-fadein .15s ease' }}>
-          {tip}
-          <span style={{ position: 'absolute', bottom: -5, left: '50%', transform: 'translateX(-50%)', width: 10, height: 10, background: '#0C2A1D', clipPath: 'polygon(0 0,100% 0,50% 100%)' }} />
-        </span>
-      )}
-    </span>
-  );
-}
-
 function Pricing() {
-  const [annual, setAnnual] = useState(true);
-
-  const FEAT_TIPS: Record<string, string> = {
-    '+15€ / client supplémentaire / mois': 'Au-delà des 10 clients inclus, chaque client additionnel est facturé 15€/mois.',
-    '+10€ / membre supplémentaire / mois': 'Au-delà des 5 membres inclus, chaque membre additionnel est facturé 10€/mois.',
-  };
-
-  const plans = [
-    {
-      name: 'Studio', m: 29, y: 25, tag: '7 jours gratuits', accent: false, custom: false,
-      sub: 'Freelances & community managers',
-      feats: ['3 comptes clients', '1 profil utilisateur', 'Posts illimités', 'Éditeur visuel intégré', 'Génération IA illimitée', 'Publication automatique Instagram & Facebook'],
-      cta: { label: "Commencer l'essai gratuit", href: '/register', cls: 'lp-btn-mint' },
-    },
-    {
-      name: 'Agence', m: 96, y: 89, tag: 'Le plus populaire', accent: true, custom: false,
-      sub: 'Agences & studios de communication',
-      feats: ['10 comptes clients inclus', '+15€ / client supplémentaire / mois', '5 profils membres inclus', '+10€ / membre supplémentaire / mois', 'Posts illimités', 'Éditeur visuel intégré', 'Génération IA illimitée', 'Publication automatique Instagram & Facebook', 'Workflow de validation intégré', 'Rôles Manager & Créa'],
-      cta: { label: "Commencer l'essai gratuit", href: '/register', cls: 'lp-btn-acid' },
-    },
-    {
-      name: 'Sur mesure', m: null, y: null, tag: 'Sur devis', accent: false, custom: true,
-      sub: 'Grands comptes & franchises',
-      feats: ['Clients illimités', 'Membres illimités', 'Onboarding dédié', 'SLA & support prioritaire', 'Facturation personnalisée'],
-      cta: { label: 'Nous contacter', href: 'mailto:contact@klip.fr?subject=Klip%20%E2%80%94%20Demande%20de%20devis%20sur%20mesure', cls: 'lp-btn-ghost' },
-    },
+  const tiers = [
+    { name: 'Solo', price: '24', tag: 'Le freelance qui démarre', clients: 'Jusqu’à 3 clients', feats: ['Éditeur visuel complet', 'Descriptions IA', 'Calendrier éditorial', '1 compte Instagram'], cta: 'Commencer', pop: false },
+    { name: 'Studio', price: '59', tag: 'Le bon rythme de croisière', clients: 'Jusqu’à 10 clients', feats: ['Tout Solo, plus :', 'Voix de marque par client', 'Validation client intégrée', 'Création en lot', 'Comptes Instagram illimités'], cta: 'Essai 14 jours', pop: true },
+    { name: 'Agence', price: '129', tag: 'Quand l’équipe s’agrandit', clients: 'Clients illimités', feats: ['Tout Studio, plus :', 'Membres d’équipe illimités', 'Rôles & permissions', 'Support prioritaire'], cta: 'Nous contacter', pop: false },
   ];
-
   return (
-    <section id="tarifs" className="lp-section">
-      <div className="lp-wrap">
-        <div style={{ textAlign: 'center', maxWidth: 640, margin: '0 auto' }}>
-          <span className="lp-eyebrow lp-reveal" style={{ justifyContent: 'center' }}>Tarifs</span>
-          <h2 className="lp-display lp-upper lp-reveal d1" style={{ fontSize: 'clamp(38px, 4.8vw, 64px)', marginTop: 18 }}>
-            Simple. <span className="lp-it lp-mint">Prévisible.</span>
+    <section id="tarifs" className="section dotgrid" style={{ overflow: 'hidden' }}>
+      <div className="wrap" style={{ position: 'relative', zIndex: 2 }}>
+        <div style={{ textAlign: 'center', maxWidth: 720, margin: '0 auto' }}>
+          <h2 className="display reveal d1" style={{ fontSize: 'clamp(38px, 5.6vw, 78px)', marginTop: 22 }}>
+            Un prix qui grandit <span className="it-serif acid-fill">avec vous.</span>
           </h2>
-          <p className="lp-lead lp-reveal d2" style={{ margin: '16px auto 0' }}>7 jours gratuits sur tous les plans. Sans carte bancaire.</p>
-          {/* toggle */}
-          <div className="lp-reveal d2" style={{ display: 'inline-flex', alignItems: 'center', gap: 4, marginTop: 28, padding: 5, borderRadius: 999, background: '#FBFAF4', boxShadow: 'inset 0 0 0 1px rgba(13,15,10,.1)' }}>
-            {([['Mensuel', false], ['Annuel', true]] as [string, boolean][]).map(([l, v]) => (
-              <button key={l} onClick={() => setAnnual(v)} style={{ padding: '9px 18px', borderRadius: 999, fontFamily: "'early-sans-variable', sans-serif", fontWeight: 800, fontSize: 14, background: annual === v ? '#0D0F0A' : 'transparent', color: annual === v ? '#F1F0E8' : '#565A4E', display: 'inline-flex', alignItems: 'center', gap: 8, transition: 'all .2s' }}>
-                {l}{v && <span style={{ fontSize: 11, padding: '2px 7px', borderRadius: 999, background: '#2FD79B', color: '#06281C' }}>économisez jusqu&apos;à 15%</span>}
-              </button>
-            ))}
-          </div>
+          <p className="lead reveal d2" style={{ marginTop: 22 }}>Sans engagement. Le plafond de verre, vous le brisez quand vous voulez.</p>
         </div>
-        {/* cards */}
-        <div className="lp-pricing-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 20, maxWidth: 1060, margin: '46px auto 0' }}>
-          {plans.map((p, i) => (
-            <div key={p.name} className={`lp-reveal d${i + 1}`} style={{ borderRadius: 22, padding: 32, position: 'relative', overflow: 'visible', background: p.custom ? '#0C2A1D' : p.accent ? '#0C2A1D' : '#FBFAF4', color: p.custom ? '#EFEEE4' : p.accent ? '#EFEEE4' : '#0D0F0A', boxShadow: p.accent ? '0 30px 60px -40px rgba(12,42,29,.9)' : p.custom ? 'none' : 'inset 0 0 0 1px rgba(13,15,10,.1)', outline: p.custom ? '1.5px solid #2FD79B' : 'none' }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <span style={{ fontFamily: "'early-sans-variable', sans-serif", fontWeight: 900, fontSize: 16 }}>{p.name}</span>
-                <span style={{ fontFamily: "'early-sans-variable', sans-serif", fontWeight: 800, fontSize: 11, letterSpacing: '.08em', textTransform: 'uppercase', padding: '5px 11px', borderRadius: 999, background: p.custom ? '#2FD79B' : p.accent ? '#2FD79B' : '#0D0F0A', color: p.custom ? '#06281C' : p.accent ? '#06281C' : '#F1F0E8' }}>{p.tag}</span>
+        <div className="price-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 18, marginTop: 56, alignItems: 'start' }}>
+          {tiers.map((t, i) => (
+            <div key={i} className={`reveal d${i + 1}`} style={{ position: 'relative', background: t.pop ? 'var(--forest)' : 'var(--paper-2)', color: t.pop ? 'var(--cream)' : 'var(--ink)', borderRadius: 'var(--radius)', padding: '34px 32px', border: t.pop ? 'none' : '1px solid var(--line)', boxShadow: t.pop ? '0 40px 80px -40px rgba(6,32,24,.6)' : 'none', transform: t.pop ? 'translateY(-14px)' : 'none' }}>
+              {t.pop && <span style={{ position: 'absolute', top: -13, right: 26, background: 'var(--acid)', color: 'var(--acid-ink)', fontFamily: 'var(--mono)', fontWeight: 700, fontSize: 11.5, letterSpacing: '.08em', textTransform: 'uppercase', padding: '6px 12px', borderRadius: 999 }}>Le plus choisi</span>}
+              <div style={{ fontFamily: 'var(--heavy)', fontWeight: 800, fontSize: 22, textTransform: 'uppercase', letterSpacing: '-0.01em' }}>{t.name}</div>
+              <div style={{ fontFamily: 'var(--mono)', fontSize: 13, color: t.pop ? 'var(--cream-3)' : 'var(--ink-3)', marginTop: 4 }}>{t.tag}</div>
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, margin: '22px 0 4px' }}>
+                <span style={{ fontFamily: 'var(--heavy)', fontWeight: 900, fontSize: 58, letterSpacing: '-0.04em', lineHeight: 1 }}>{t.price}€</span>
+                <span style={{ fontFamily: 'var(--mono)', fontSize: 13, color: t.pop ? 'var(--cream-2)' : 'var(--ink-3)' }}>/mois</span>
               </div>
-              <p style={{ marginTop: 10, fontSize: 12, color: p.accent || p.custom ? 'rgba(239,238,228,.5)' : '#8E9183', fontFamily: "'early-sans-variable', sans-serif", fontWeight: 600 }}>{p.sub}</p>
-              <div style={{ display: 'flex', alignItems: 'flex-end', gap: 4, margin: '18px 0 6px' }}>
-                {p.m !== null
-                  ? <>
-                      <span className="lp-display" style={{ fontWeight: 700, fontSize: 58, lineHeight: .9, letterSpacing: '-0.03em' }}>{annual ? p.y : p.m}€</span>
-                      <span style={{ fontSize: 14, color: p.accent ? 'rgba(239,238,228,.6)' : '#8E9183', marginBottom: 8, fontFamily: "'early-sans-variable', sans-serif", fontWeight: 700, whiteSpace: 'nowrap' }}>/ mois</span>
-                    </>
-                  : <span className="lp-display" style={{ fontWeight: 700, fontSize: 38, lineHeight: 1.1, letterSpacing: '-0.02em', color: '#2FD79B' }}>Sur devis</span>}
-              </div>
-              <p style={{ fontSize: 12.5, color: p.accent || p.custom ? 'rgba(239,238,228,.55)' : '#8E9183', fontFamily: "'early-sans-variable', sans-serif", fontWeight: 600, minHeight: 18 }}>
-                {p.m !== null ? (annual ? `Facturé ${(p.y ?? 0) * 12}\u20ac par an` : 'Facturé chaque mois') : 'Adapté à vos besoins'}
-              </p>
-              <div style={{ height: 1, background: p.accent || p.custom ? 'rgba(239,238,228,.18)' : 'rgba(13,15,10,.1)', margin: '20px 0' }} />
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 11, marginBottom: 26 }}>
-                {p.feats.map(f => (
-                  <div key={f} style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 13.5 }}>
-                    <span style={{ width: 18, height: 18, borderRadius: '50%', flexShrink: 0, display: 'grid', placeItems: 'center', background: '#2FD79B', color: '#06281C' }}><Icon name="check" size={11} /></span>
-                    <span style={{ display: 'inline-flex', alignItems: 'center' }}>
-                      {f}
-                      {FEAT_TIPS[f] && <PricingTip tip={FEAT_TIPS[f]} accent={p.accent || p.custom} />}
-                    </span>
-                  </div>
-                ))}
-              </div>
-              <a href={p.cta.href} className={`lp-btn ${p.cta.cls}`} style={{ width: '100%', justifyContent: 'center', textDecoration: 'none' }}>
-                {p.cta.label} {p.m !== null && <Icon name="arrowUR" size={16} />}
-              </a>
+              <div className="chip" style={{ marginBottom: 24, background: t.pop ? 'var(--forest-2)' : 'var(--paper-3)', color: t.pop ? 'var(--cream-2)' : 'var(--ink-2)', boxShadow: 'inset 0 0 0 1px var(--line)' }}>{t.clients}</div>
+              <Link href={t.pop ? '/register' : i === 2 ? 'mailto:contact@klip.fr' : '/register'} className={`btn ${t.pop ? 'btn-acid' : 'btn-ghost'}`} style={{ width: '100%', justifyContent: 'center', marginBottom: 26 }}>{t.cta}</Link>
+              <ul style={{ listStyle: 'none', display: 'flex', flexDirection: 'column', gap: 12 }}>
+                {t.feats.map((f, j) => {
+                  const head = j === 0 && f.endsWith(':');
+                  return (
+                    <li key={j} style={{ display: 'flex', gap: 11, alignItems: 'flex-start', fontSize: 15, color: t.pop ? 'var(--cream-2)' : 'var(--ink-2)', fontWeight: head ? 700 : 400 }}>
+                      {!head && <Icon name="check" size={17} style={{ flex: 'none', marginTop: 2, color: t.pop ? 'var(--acid)' : 'var(--acid-2)' }} />}
+                      <span>{f}</span>
+                    </li>
+                  );
+                })}
+              </ul>
             </div>
           ))}
         </div>
-        <p className="lp-reveal" style={{ textAlign: 'center', marginTop: 24, color: '#8E9183', fontFamily: "'early-sans-variable', sans-serif", fontWeight: 700, fontSize: 13.5 }}>
-          7 jours gratuits · sans carte bancaire · résiliable en un clic
-        </p>
       </div>
     </section>
   );
@@ -1459,37 +826,37 @@ function Pricing() {
 
 /* ─── FAQ ────────────────────────────────────────────────────────────────── */
 function FAQ() {
-  const [open, setOpen] = useState<number>(0);
   const items = [
-    { q: 'Klip publie-t-il vraiment tout seul sur Instagram ?',  a: "Oui. Une fois votre compte Instagram professionnel connecté, Klip programme et publie au créneau choisi, sans intervention de votre part." },
-    { q: "Faut-il un compte Instagram professionnel ?",           a: "Pour la publication automatique, oui — c\u2019est une exigence de Meta. La connexion se fait en quelques clics, on vous guide." },
-    { q: 'Combien de clients puis-je gérer ?',                    a: "Jusqu\u2019à 3 avec Solo, et autant que vous voulez avec Agence. Chaque client a son espace : charte, voix de marque, historique et comptes séparés." },
-    { q: "L\u2019IA respecte-t-elle la charte de chaque marque ?", a: "Vous définissez le ton, le style et les mots à éviter par client. Chaque génération reste dans ce cadre — vous gardez la main sur le résultat final." },
-    { q: "Les données de mes clients sont-elles cloisonnées ?",   a: "Chaque espace est isolé. Aucune donnée ne fuit d\u2019un client à l\u2019autre, et vous contrôlez qui accède à quoi." },
-    { q: "Puis-je annuler à tout moment ?",                       a: "Oui, en un clic depuis vos paramètres. Aucun engagement, aucune justification à fournir." },
+    { q: 'Faut-il déjà avoir un compte Instagram pro ?', a: 'Oui. KLIP se connecte à un compte Instagram professionnel ou créateur via l’API officielle. La connexion prend deux minutes, par client.' },
+    { q: 'L’IA respecte-t-elle vraiment la voix de chaque marque ?', a: 'Vous définissez le ton, le style et les mots interdits de chaque client une fois. Chaque génération s’appuie sur cette voix — vous gardez la main et peaufinez d’un clic.' },
+    { q: 'Mes clients peuvent-ils valider sans compte KLIP ?', a: 'Oui. Vous envoyez un lien de validation : le client approuve ou commente directement, sans rien installer. Fini les allers-retours par mail.' },
+    { q: 'Mes données clients sont-elles cloisonnées ?', a: 'Chaque client a son espace : charte, historique, comptes connectés. Rien n’est mélangé entre deux marques, jamais.' },
+    { q: 'Puis-je changer d’offre en cours de route ?', a: 'À tout moment, sans engagement. Vous montez d’un palier quand vous prenez plus de clients, et redescendez si besoin.' },
   ];
+  const [open, setOpen] = useState(0);
   return (
-    <section className="lp-section" style={{ background: '#FBFAF4', borderTop: '1px solid rgba(13,15,10,.1)' }}>
-      <div className="lp-wrap">
-        <div className="lp-2col" style={{ display: 'grid', gridTemplateColumns: '.8fr 1.2fr', gap: 56 }}>
+    <section id="faq" className="section">
+      <div className="wrap">
+        <div className="grid-2" style={{ display: 'grid', gridTemplateColumns: '0.85fr 1.15fr', gap: 56, alignItems: 'start' }}>
           <div>
-            <span className="lp-eyebrow lp-reveal">Questions</span>
-            <h2 className="lp-display lp-reveal d1" style={{ fontSize: 'clamp(34px, 4vw, 54px)', marginTop: 18 }}>
-              Tout ce que vous vous <span className="lp-it lp-mint">demandez.</span>
+            <h2 className="display reveal d1" style={{ fontSize: 'clamp(36px, 4.8vw, 64px)', marginTop: 22 }}>
+              Les questions <span className="it-serif acid-fill">qu&apos;on nous pose.</span>
             </h2>
-            <p className="lp-lead lp-reveal d2" style={{ marginTop: 18 }}>Une autre question ? <a href="mailto:hello@klip.app" style={{ color: '#0D0F0A', textDecoration: 'underline', textUnderlineOffset: 3 }}>Écrivez-nous.</a></p>
+            <p className="lead reveal d2" style={{ marginTop: 22 }}>Une autre en tête ? <a href="mailto:hello@klip.app" style={{ color: 'var(--ink)', textDecoration: 'underline', textDecorationColor: 'var(--acid-2)', textUnderlineOffset: 3 }}>Écrivez-nous.</a></p>
           </div>
-          <div className="lp-reveal d1">
+          <div style={{ display: 'flex', flexDirection: 'column' }}>
             {items.map((it, i) => {
-              const o = open === i;
+              const isOpen = open === i;
               return (
-                <div key={i} style={{ borderTop: '1px solid rgba(13,15,10,.1)', borderBottom: i === items.length - 1 ? '1px solid rgba(13,15,10,.1)' : 'none' }}>
-                  <button onClick={() => setOpen(o ? -1 : i)} style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, padding: '22px 0', textAlign: 'left' }}>
-                    <span className="lp-display" style={{ fontWeight: 700, fontSize: 20, letterSpacing: '-0.01em', color: '#0D0F0A' }}>{it.q}</span>
-                    <span style={{ flexShrink: 0, width: 30, height: 30, borderRadius: '50%', display: 'grid', placeItems: 'center', background: o ? '#2FD79B' : 'transparent', color: o ? '#06281C' : '#0D0F0A', boxShadow: o ? 'none' : 'inset 0 0 0 1.5px rgba(13,15,10,.14)', transition: 'all .2s', transform: o ? 'rotate(45deg)' : 'none' }}><Icon name="plus" size={16} /></span>
+                <div key={i} className="reveal" style={{ borderTop: '1px solid var(--line)', borderBottom: i === items.length - 1 ? '1px solid var(--line)' : 'none' }}>
+                  <button onClick={() => setOpen(isOpen ? -1 : i)} style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 18, padding: '24px 2px', textAlign: 'left' }}>
+                    <span style={{ fontFamily: 'var(--heavy)', fontWeight: 800, fontSize: 19.5, letterSpacing: '-0.015em' }}>{it.q}</span>
+                    <span style={{ flex: 'none', width: 34, height: 34, display: 'grid', placeItems: 'center', borderRadius: '50%', background: isOpen ? 'var(--acid)' : 'var(--paper-3)', color: isOpen ? 'var(--acid-ink)' : 'var(--ink)', transition: 'transform .3s, background .2s', transform: isOpen ? 'rotate(45deg)' : 'none' }}>
+                      <Icon name="plus" size={18} />
+                    </span>
                   </button>
-                  <div style={{ maxHeight: o ? 200 : 0, overflow: 'hidden', transition: 'max-height .35s cubic-bezier(.16,1,.3,1)' }}>
-                    <p style={{ paddingBottom: 24, color: '#565A4E', fontSize: 16, lineHeight: 1.62, maxWidth: 560 }}>{it.a}</p>
+                  <div style={{ maxHeight: isOpen ? 240 : 0, overflow: 'hidden', transition: 'max-height .4s cubic-bezier(.16,1,.3,1)' }}>
+                    <p style={{ padding: '0 50px 26px 2px', color: 'var(--ink-2)', fontSize: 16, lineHeight: 1.6 }}>{it.a}</p>
                   </div>
                 </div>
               );
@@ -1501,66 +868,55 @@ function FAQ() {
   );
 }
 
-/* ─── FinalCTA — fond forêt ──────────────────────────────────────────────── */
+/* ─── FinalCTA ───────────────────────────────────────────────────────────── */
 function FinalCTA() {
   return (
-    <section className="lp-section lp-forest" style={{ overflow: 'hidden', textAlign: 'center' }}>
-      <div className="lp-wrap" style={{ position: 'relative', zIndex: 2 }}>
-        <h2 className="lp-display lp-upper lp-reveal d1" style={{ fontSize: 'clamp(46px, 8vw, 116px)', maxWidth: 1000, margin: '0 auto', color: '#EFEEE4' }}>
-          Créez plus, <span className="lp-it lp-mint">jonglez moins.</span>
+    <section className="section on-forest dotgrid" style={{ overflow: 'hidden', textAlign: 'center' }}>
+      <div className="wrap" style={{ position: 'relative', zIndex: 2 }}>
+        <h2 className="display reveal d1" style={{ fontSize: 'clamp(46px, 8vw, 116px)', maxWidth: 1000, margin: '0 auto' }}>
+          Créez plus, <span className="it-serif acid-fill">jonglez moins.</span>
         </h2>
-        <p className="lp-lead lp-reveal d2" style={{ maxWidth: 560, margin: '26px auto 0', fontSize: 20, color: 'rgba(239,238,228,.62)' }}>
-          Un seul outil pour tous vos clients. Essayez Klip gratuitement pendant 14 jours — sans carte bancaire.
+        <p className="lead reveal d2" style={{ maxWidth: 560, margin: '26px auto 0', fontSize: 20 }}>
+          Un seul outil pour tous vos clients. Essayez KLIP gratuitement pendant 14 jours — sans carte bancaire.
         </p>
-        <div className="lp-reveal d3" style={{ display: 'flex', gap: 14, justifyContent: 'center', marginTop: 40, flexWrap: 'wrap' }}>
-          <Link href="/register" className="lp-btn lp-btn-mint">
-            Démarrer gratuitement <Icon name="arrowUR" size={18} className="arr" />
-          </Link>
-          <a href="#demo" className="lp-btn lp-btn-ghost-light">Revoir le produit</a>
+        <div className="reveal d3" style={{ display: 'flex', gap: 14, justifyContent: 'center', marginTop: 40, flexWrap: 'wrap' }}>
+          <Link href="/register" className="btn btn-acid">Démarrer gratuitement <span className="arr"><Icon name="arrowUR" size={18} /></span></Link>
+          <a href="#apercu" className="btn btn-ghost">Revoir le produit</a>
         </div>
       </div>
     </section>
   );
 }
 
-/* ─── Footer — fond forêt ────────────────────────────────────────────────── */
+/* ─── Footer ─────────────────────────────────────────────────────────────── */
 function Footer() {
   const cols: [string, string[]][] = [
-    ['Produit',    ['Fonctionnalités', 'Démo', 'Tarifs', 'Nouveautés']],
-    ['Ressources', ["Centre d\u2019aide", 'Guide agences', 'Statut', 'Contact']],
-    ['Légal',      ['Confidentialité', 'Conditions', 'Cookies']],
+    ['Produit', ['Éditeur visuel', 'Descriptions IA', 'Calendrier', 'Publication']],
+    ['Ressources', ['Tarifs', 'FAQ', 'Guide de démarrage', 'Statut']],
+    ['Agence', ['À propos', 'Blog', 'Contact', 'Mentions légales']],
   ];
   return (
-    <footer style={{ background: '#0C2A1D', color: '#EFEEE4', padding: '72px 0 40px' }}>
-      <div className="lp-wrap">
-        <div className="lp-foot-grid" style={{ display: 'grid', gridTemplateColumns: '1.6fr 1fr 1fr 1fr', gap: 40 }}>
+    <footer className="on-forest" style={{ paddingTop: 72, paddingBottom: 40, borderTop: '1px solid var(--line-f)' }}>
+      <div className="wrap">
+        <div className="foot-grid" style={{ display: 'grid', gridTemplateColumns: '1.6fr 1fr 1fr 1fr', gap: 40 }}>
           <div>
             <KlipLogo size={30} light />
-            <p style={{ marginTop: 18, color: 'rgba(239,238,228,.6)', fontSize: 15.5, lineHeight: 1.6, maxWidth: 320 }}>
-              Le studio social qui pense comme votre agence. Créez, planifiez et publiez le contenu de tous vos clients au même endroit.
+            <p style={{ color: 'var(--cream-2)', fontSize: 15, lineHeight: 1.6, marginTop: 18, maxWidth: 280 }}>
+              Le studio social des agences. Toutes vos marques, un seul espace.
             </p>
-            <div style={{ display: 'flex', gap: 10, marginTop: 22 }}>
-              {(['instagram', 'send', 'chat'] as const).map(ic => (
-                <span key={ic} style={{ width: 40, height: 40, borderRadius: '50%', display: 'grid', placeItems: 'center', boxShadow: 'inset 0 0 0 1px rgba(239,238,228,.22)', color: '#EFEEE4' }}>
-                  <Icon name={ic} size={18} />
-                </span>
-              ))}
-            </div>
           </div>
-          {cols.map(([h, links]) => (
-            <div key={h}>
-              <div style={{ fontFamily: "'early-sans-variable', sans-serif", fontWeight: 800, fontSize: 12, letterSpacing: '.12em', textTransform: 'uppercase', color: 'rgba(239,238,228,.5)', marginBottom: 18 }}>{h}</div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                {links.map(l => <a key={l} href="#" className="lp-foot-link" style={{ color: '#EFEEE4', fontSize: 15 }}>{l}</a>)}
-              </div>
+          {cols.map(([h, links], i) => (
+            <div key={i}>
+              <div style={{ fontFamily: 'var(--mono)', fontWeight: 700, fontSize: 12.5, letterSpacing: '.1em', textTransform: 'uppercase', color: 'var(--cream-3)', marginBottom: 16 }}>{h}</div>
+              <ul style={{ listStyle: 'none', display: 'flex', flexDirection: 'column', gap: 11 }}>
+                {links.map((l, j) => <li key={j}><a href="#" style={{ color: 'var(--cream-2)', fontSize: 15 }}>{l}</a></li>)}
+              </ul>
             </div>
           ))}
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 16, marginTop: 56, paddingTop: 26, borderTop: '1px solid rgba(239,238,228,.22)', color: 'rgba(239,238,228,.5)', fontSize: 13.5, fontFamily: "'early-sans-variable', sans-serif", fontWeight: 600 }}>
-          <span>© 2026 Klip — Fait avec soin pour les agences créatives.</span>
-          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
-            <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#2FD79B' }} /> Tous les systèmes opérationnels
-          </span>
+        <div style={{ marginTop: 56, paddingTop: 26, borderTop: '1px solid var(--line-f)', display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: 14, fontFamily: 'var(--mono)', fontSize: 13, color: 'var(--cream-3)' }}>
+          <span>© 2026 KLIP — Tous droits réservés.</span>
+          <span>Conçu pour les agences qui veulent grandir.</span>
         </div>
       </div>
     </footer>
@@ -1570,42 +926,32 @@ function Footer() {
 /* ─── Page ───────────────────────────────────────────────────────────────── */
 export default function LandingPage() {
   const supabase = createClientComponentClient();
-  const router   = useRouter();
+  const router = useRouter();
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session) router.push('/dashboard');
-    });
+    supabase.auth.getSession().then(({ data: { session } }) => { if (session) router.push('/dashboard'); });
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // scroll reveal via IntersectionObserver
   useEffect(() => {
-    const els = Array.from(document.querySelectorAll<HTMLElement>('.lp-reveal:not(.in)'));
-    if (!('IntersectionObserver' in window) || els.length === 0) {
-      els.forEach(e => e.classList.add('in'));
-      return;
-    }
+    const els = Array.from(document.querySelectorAll<HTMLElement>('.v2 .reveal:not(.in)'));
+    if (!('IntersectionObserver' in window) || els.length === 0) { els.forEach(e => e.classList.add('in')); return; }
     const io = new IntersectionObserver(entries => {
       entries.forEach(en => { if (en.isIntersecting) { en.target.classList.add('in'); io.unobserve(en.target); } });
-    }, { threshold: 0.1, rootMargin: '0px 0px -6% 0px' });
+    }, { threshold: 0.12, rootMargin: '0px 0px -8% 0px' });
     els.forEach(e => io.observe(e));
     return () => io.disconnect();
   });
 
-  const scrollToDemo = () => document.getElementById('demo')?.scrollIntoView({ behavior: 'smooth' });
-
   return (
-    <div className="lp">
-      <style dangerouslySetInnerHTML={{ __html: LP_CSS }} />
-      <Nav onDemo={scrollToDemo} />
-      <Hero onDemo={scrollToDemo} />
-      <Marquee />
+    <div className="v2">
+      <style dangerouslySetInnerHTML={{ __html: V2_CSS }} />
+      <Nav />
+      <Hero />
       <Probleme />
-      <Process />
-      <DemoSection />
+      <Steps />
+      <Showcase />
       <Features />
-      <Logos />
       <Testimonials />
       <Pricing />
       <FAQ />
