@@ -328,7 +328,7 @@ function Nav() {
   const links: [string, string][] = [['Le problème', '#probleme'], ['Comment ça marche', '#how'], ['Le produit', '#apercu'], ['Tarifs', '#tarifs'], ['FAQ', '#faq']];
   return (
     <>
-      <nav style={{ position: 'fixed', top: 0, left: 0, right: 0, zIndex: 60, transition: 'background .3s, box-shadow .3s, border-color .3s', background: solid ? 'color-mix(in srgb, var(--paper) 86%, transparent)' : 'transparent', backdropFilter: solid ? 'saturate(1.3) blur(14px)' : 'none', WebkitBackdropFilter: solid ? 'saturate(1.3) blur(14px)' : 'none', borderBottom: solid ? '1px solid var(--line)' : '1px solid transparent' }}>
+      <nav style={{ position: 'fixed', top: 0, left: 0, right: 0, zIndex: 60, transition: 'background .3s, box-shadow .3s, border-color .3s', background: solid ? 'rgba(242,240,230,.95)' : 'transparent', backdropFilter: solid ? 'saturate(1.3) blur(14px)' : 'none', WebkitBackdropFilter: solid ? 'saturate(1.3) blur(14px)' : 'none', borderBottom: solid ? '1px solid var(--line)' : '1px solid transparent' }}>
         <div className="wrap" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', height: 76 }}>
           <a href="#top" style={{ display: 'flex', alignItems: 'center' }}><KlipLogo size={28} light={!solid} /></a>
           <div className="nav-links" style={{ display: 'flex', alignItems: 'center', gap: 30 }}>
