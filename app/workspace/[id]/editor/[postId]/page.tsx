@@ -1312,6 +1312,12 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
   const [pexelsTotalPages, setPexelsTotalPages] = useState(0);
   const [pexelsLoading, setPexelsLoading] = useState(false);
 
+  // Icônes SVG (Iconify) + couleur d'ajout
+  const [iconQuery, setIconQuery] = useState('');
+  const [iconResults, setIconResults] = useState<string[]>([]);
+  const [iconLoading, setIconLoading] = useState(false);
+  const [iconColor, setIconColor] = useState('#14160F');
+
   const elementsRef = useRef<CanvasEl[]>([]);
   const selectedIdRef = useRef<string | null>(null);
   const selectedIdsRef = useRef<string[]>([]);
@@ -2087,6 +2093,32 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
 
   useEffect(() => { fetchPexels('lifestyle'); }, []);
 
+  // ── Icônes SVG (Iconify) ────────────────────────────────────────────────
+  const fetchIcons = async (q: string) => {
+    setIconLoading(true);
+    try {
+      const res = await fetch(`/api/iconify?query=${encodeURIComponent(q || 'star')}&limit=48`);
+      const data = await res.json();
+      setIconResults(data.icons ?? []);
+    } catch { setIconResults([]); }
+    setIconLoading(false);
+  };
+  useEffect(() => { fetchIcons('shape'); }, []);
+
+  // URL SVG iconify ("prefix:name" → prefix/name.svg) avec couleur
+  const iconSvgUrl = (name: string, color: string, h = 240) =>
+    `https://api.iconify.design/${name.replace(':', '/')}.svg?height=${h}&color=${encodeURIComponent(color)}`;
+
+  const addIcon = (name: string) => {
+    addLogoEl(`/api/proxy-image?url=${encodeURIComponent(iconSvgUrl(name, iconColor))}`);
+  };
+
+  // ── Motifs / patterns (SVG généré, ajouté en pleine page) ────────────────
+  const addPattern = (svg: string) => {
+    const uri = `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
+    addImageEl(uri);
+  };
+
   // ── Fit zoom ─────────────────────────────────────────────────────────────
   const fit = useCallback(() => {
     const ws = canvasAreaRef.current;
@@ -2723,6 +2755,69 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
                       {badge}
                     </button>
                   ))}
+                </div>
+
+                {/* ── Icônes SVG (Iconify) ── */}
+                <p style={{ fontSize: 10, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '0.12em', fontFamily: 'var(--mono)', fontWeight: 800, margin: '20px 0 8px' }}>Icônes & stickers</p>
+                <div style={{ display: 'flex', gap: 6, marginBottom: 8 }}>
+                  <div style={{ position: 'relative', flex: 1 }}>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: 'var(--ink-3)', pointerEvents: 'none' }}><circle cx="11" cy="11" r="7"/><path d="M21 21l-4-4"/></svg>
+                    <input value={iconQuery} onChange={e => setIconQuery(e.target.value)}
+                      onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); fetchIcons(iconQuery); } }}
+                      enterKeyHint="search" inputMode="search" autoCapitalize="none" autoCorrect="off"
+                      placeholder="Rechercher une icône…"
+                      style={{ width: '100%', padding: '8px 10px 8px 32px', border: '1.5px solid var(--line)', borderRadius: 8, fontSize: 12.5, outline: 'none', fontFamily: 'var(--sans)', background: 'var(--sunk)', color: 'var(--ink)', boxSizing: 'border-box' }} />
+                  </div>
+                  <button type="button" onClick={() => fetchIcons(iconQuery)} aria-label="Rechercher"
+                    style={{ flexShrink: 0, width: 40, borderRadius: 8, border: 'none', background: 'var(--mint, #2FD79B)', color: '#06281C', display: 'grid', placeItems: 'center', cursor: 'pointer' }}>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4-4"/></svg>
+                  </button>
+                </div>
+                {/* couleur d'icône */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 10 }}>
+                  <span style={{ fontSize: 10, color: 'var(--ink-3)', fontFamily: 'var(--mono)', fontWeight: 700 }}>Couleur :</span>
+                  {[['#14160F', 'Noir'], ['#FFFFFF', 'Blanc'], [workspaceData?.primary_color || '#2FD79B', 'Marque']].map(([c]) => (
+                    <button key={c} onClick={() => setIconColor(c)} title={c}
+                      style={{ width: 22, height: 22, borderRadius: 6, background: c, cursor: 'pointer', border: iconColor === c ? '2px solid var(--mint, #2FD79B)' : '1.5px solid var(--line)', padding: 0 }} />
+                  ))}
+                </div>
+                {iconLoading ? (
+                  <p style={{ fontSize: 12, color: 'var(--ink-3)', textAlign: 'center', padding: '12px 0' }}>Chargement…</p>
+                ) : iconResults.length === 0 ? (
+                  <p style={{ fontSize: 12, color: 'var(--ink-3)', textAlign: 'center', padding: '12px 0' }}>Aucune icône — essayez un autre mot-clé.</p>
+                ) : (
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5,1fr)', gap: 6, marginBottom: 8 }}>
+                    {iconResults.map(name => (
+                      <button key={name} onClick={() => addIcon(name)} title={name}
+                        style={{ aspectRatio: '1', borderRadius: 8, border: '1px solid var(--line)', background: iconColor === '#FFFFFF' ? '#3a3f36' : 'var(--sunk)', cursor: 'pointer', display: 'grid', placeItems: 'center', padding: 6 }}>
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={iconSvgUrl(name, iconColor, 48)} alt="" style={{ width: '100%', height: '100%', objectFit: 'contain', display: 'block' }} />
+                      </button>
+                    ))}
+                  </div>
+                )}
+
+                {/* ── Motifs ── */}
+                <p style={{ fontSize: 10, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '0.12em', fontFamily: 'var(--mono)', fontWeight: 800, margin: '16px 0 8px' }}>Motifs</p>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 7 }}>
+                  {([
+                    { label: 'Pois', inner: (c: string) => `<pattern id='a' width='44' height='44' patternUnits='userSpaceOnUse'><circle cx='12' cy='12' r='6' fill='${c}'/></pattern>`, id: 'a' },
+                    { label: 'Rayures', inner: (c: string) => `<pattern id='b' width='28' height='28' patternUnits='userSpaceOnUse' patternTransform='rotate(45)'><rect width='10' height='28' fill='${c}'/></pattern>`, id: 'b' },
+                    { label: 'Grille', inner: (c: string) => `<pattern id='c' width='40' height='40' patternUnits='userSpaceOnUse'><path d='M40 0H0V40' fill='none' stroke='${c}' stroke-width='3'/></pattern>`, id: 'c' },
+                    { label: 'Vagues', inner: (c: string) => `<pattern id='d' width='60' height='30' patternUnits='userSpaceOnUse'><path d='M0 15 Q15 0 30 15 T60 15' fill='none' stroke='${c}' stroke-width='4'/></pattern>`, id: 'd' },
+                    { label: 'Chevrons', inner: (c: string) => `<pattern id='e' width='40' height='24' patternUnits='userSpaceOnUse'><path d='M0 22 L20 4 L40 22' fill='none' stroke='${c}' stroke-width='4'/></pattern>`, id: 'e' },
+                    { label: 'Confettis', inner: (c: string) => `<pattern id='f' width='60' height='60' patternUnits='userSpaceOnUse'><rect x='8' y='10' width='10' height='10' rx='2' fill='${c}' transform='rotate(20 13 15)'/><circle cx='44' cy='20' r='5' fill='${c}'/><rect x='30' y='42' width='9' height='9' rx='2' fill='${c}' transform='rotate(-15 34 46)'/></pattern>`, id: 'f' },
+                  ]).map(({ label, inner, id }) => {
+                    const svg = `<svg xmlns='http://www.w3.org/2000/svg' width='600' height='600'><defs>${inner(iconColor)}</defs><rect width='600' height='600' fill='url(#${id})'/></svg>`;
+                    const uri = `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
+                    return (
+                      <button key={label} onClick={() => addPattern(svg)} title={label} className="well"
+                        style={{ aspectRatio: '1', borderRadius: 10, cursor: 'pointer', overflow: 'hidden', padding: 0, background: iconColor === '#FFFFFF' ? '#3a3f36' : 'var(--sunk)' }}>
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={uri} alt={label} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
             )}
