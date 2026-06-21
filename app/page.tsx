@@ -373,7 +373,7 @@ function Hero() {
     <header id="top" className="section dotgrid on-forest" style={{ paddingTop: 150, paddingBottom: 84, position: 'relative', overflow: 'hidden' }}>
       <div className="wrap" style={{ position: 'relative', zIndex: 2 }}>
         <p className="reveal" style={{ textAlign: 'center', fontFamily: 'var(--mono)', fontWeight: 700, fontSize: 14, letterSpacing: '.04em', color: 'var(--cream-2)', marginBottom: 22, textTransform: 'uppercase' }}>
-          L&apos;outil de post-production des community managers
+          L&apos;outil de post-production de vos réseaux sociaux
         </p>
         <SplitText lines={lines} className="hero-h1" style={{ textAlign: 'center', fontSize: 'clamp(38px, 6.6vw, 80px)', margin: '0 auto', maxWidth: 1080 }} stagger={22} />
         <p className="lead reveal d1" style={{ textAlign: 'center', maxWidth: 680, margin: '28px auto 0', fontSize: 21 }}>
@@ -443,10 +443,10 @@ function Probleme() {
       <div className="wrap" style={{ position: 'relative', zIndex: 2 }}>
         <div style={{ maxWidth: 880 }}>
           <h2 className="display reveal d1" style={{ fontSize: 'clamp(40px, 6.4vw, 90px)', marginTop: 22 }}>
-            Vous avez touché le <span className="it-serif acid-fill">plafond&nbsp;de&nbsp;verre.</span>
+            Plus vous prenez de clients, <span className="it-serif acid-fill">plus vous ralentissez.</span>
           </h2>
           <p className="lead reveal d2" style={{ marginTop: 26, maxWidth: 620 }}>
-            Votre agence ne grandit plus au rythme de votre talent, mais au rythme de votre logistique. Chaque nouveau client ajoute des heures de manipulation, pas de création.
+            Vous ne grandissez plus au rythme de votre talent, mais au rythme de votre logistique. Chaque nouveau client ajoute des heures de manipulation, pas de création.
           </p>
         </div>
         <div className="grid-2" style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 16, marginTop: 56 }}>
@@ -814,7 +814,7 @@ function Pricing() {
           <h2 className="display reveal d1" style={{ fontSize: 'clamp(38px, 5.6vw, 78px)', marginTop: 22 }}>
             Un prix qui grandit <span className="it-serif acid-fill">avec vous.</span>
           </h2>
-          <p className="lead reveal d2" style={{ marginTop: 22 }}>Sans engagement. Le plafond de verre, vous le brisez quand vous voulez.</p>
+          <p className="lead reveal d2" style={{ marginTop: 22 }}>Sans engagement. Vous changez d&apos;offre quand vous voulez.</p>
         </div>
         <div className="price-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 18, marginTop: 56, alignItems: 'start' }}>
           {tiers.map((t, i) => (
@@ -916,7 +916,7 @@ function Footer() {
   const cols: [string, string[]][] = [
     ['Produit', ['Éditeur visuel', 'Descriptions IA', 'Calendrier', 'Publication']],
     ['Ressources', ['Tarifs', 'FAQ', 'Guide de démarrage', 'Statut']],
-    ['Agence', ['À propos', 'Blog', 'Contact', 'Mentions légales']],
+    ['Entreprise', ['À propos', 'Blog', 'Contact', 'Mentions légales']],
   ];
   return (
     <footer className="on-forest" style={{ paddingTop: 72, paddingBottom: 40, borderTop: '1px solid var(--line-f)' }}>
@@ -925,7 +925,7 @@ function Footer() {
           <div>
             <KlipLogo size={30} light />
             <p style={{ color: 'var(--cream-2)', fontSize: 15, lineHeight: 1.6, marginTop: 18, maxWidth: 280 }}>
-              Le studio social des agences. Toutes vos marques, un seul espace.
+              Le studio social de tous vos clients. Toutes vos marques, un seul espace.
             </p>
           </div>
           {cols.map(([h, links], i) => (
@@ -939,7 +939,7 @@ function Footer() {
         </div>
         <div style={{ marginTop: 56, paddingTop: 26, borderTop: '1px solid var(--line-f)', display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: 14, fontFamily: 'var(--mono)', fontSize: 13, color: 'var(--cream-3)' }}>
           <span>© 2026 KLIP — Tous droits réservés.</span>
-          <span>Conçu pour les agences qui veulent grandir.</span>
+          <span>Conçu pour tous ceux qui gèrent plusieurs marques.</span>
         </div>
       </div>
     </footer>
