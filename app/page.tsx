@@ -837,7 +837,7 @@ function Testimonials() {
 function Pricing() {
   const tiers = [
     { name: 'Solo', price: '24', tag: 'Le freelance qui démarre', clients: 'Jusqu’à 3 clients', feats: ['Éditeur visuel complet', 'Descriptions IA', 'Calendrier éditorial', '1 compte Instagram'], cta: 'Commencer', pop: false },
-    { name: 'Studio', price: '59', tag: 'Le bon rythme de croisière', clients: 'Jusqu’à 10 clients', feats: ['Tout Solo, plus :', 'Voix de marque par client', 'Validation client intégrée', 'Création en lot', 'Comptes Instagram illimités'], cta: 'Essai 14 jours', pop: true },
+    { name: 'Studio', price: '59', tag: 'Le bon rythme de croisière', clients: 'Jusqu’à 10 clients', feats: ['Tout Solo, plus :', 'Voix de marque par client', 'Validation client intégrée', 'Création en lot', 'Comptes Instagram illimités'], cta: 'Essai 7 jours', pop: true },
     { name: 'Agence', price: '129', tag: 'Quand l’équipe s’agrandit', clients: 'Clients illimités', feats: ['Tout Studio, plus :', 'Membres d’équipe illimités', 'Rôles & permissions', 'Support prioritaire'], cta: 'Nous contacter', pop: false },
   ];
   return (
@@ -933,7 +933,7 @@ function FinalCTA() {
           Créez plus, <span className="it-serif acid-fill">jonglez moins.</span>
         </h2>
         <p className="lead reveal d2" style={{ maxWidth: 560, margin: '26px auto 0', fontSize: 20 }}>
-          Un seul outil pour tous vos clients. Essayez KLIP gratuitement pendant 14 jours — sans carte bancaire.
+          Un seul outil pour tous vos clients. Essayez KLIP gratuitement pendant 7 jours — sans carte bancaire.
         </p>
         <div className="reveal d3 final-cta" style={{ display: 'flex', gap: 14, justifyContent: 'center', marginTop: 40, flexWrap: 'wrap' }}>
           <Link href="/register" className="btn btn-acid">Démarrer gratuitement <span className="arr"><Icon name="arrowUR" size={18} /></span></Link>
