@@ -2779,12 +2779,19 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
                 </label>
 
                 {/* Pexels search */}
-                <div style={{ position: 'relative', marginBottom: 10 }}>
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: 'var(--ink-3)', pointerEvents: 'none' }}><circle cx="11" cy="11" r="7"/><path d="M21 21l-4-4"/></svg>
-                  <input value={pexelsQuery} onChange={e => setPexelsQuery(e.target.value)}
-                    onKeyDown={e => { if (e.key === 'Enter') fetchPexels(pexelsQuery, 1); }}
-                    placeholder="Rechercher des photos..."
-                    style={{ width: '100%', padding: '8px 10px 8px 32px', border: '1.5px solid var(--line)', borderRadius: 8, fontSize: 12.5, outline: 'none', fontFamily: 'var(--sans)', background: 'var(--sunk)', color: 'var(--ink)', boxSizing: 'border-box' }} />
+                <div style={{ display: 'flex', gap: 6, marginBottom: 10 }}>
+                  <div style={{ position: 'relative', flex: 1 }}>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: 'var(--ink-3)', pointerEvents: 'none' }}><circle cx="11" cy="11" r="7"/><path d="M21 21l-4-4"/></svg>
+                    <input value={pexelsQuery} onChange={e => setPexelsQuery(e.target.value)}
+                      onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); fetchPexels(pexelsQuery, 1); } }}
+                      enterKeyHint="search" inputMode="search" autoCapitalize="none" autoCorrect="off"
+                      placeholder="Rechercher des photos..."
+                      style={{ width: '100%', padding: '8px 10px 8px 32px', border: '1.5px solid var(--line)', borderRadius: 8, fontSize: 12.5, outline: 'none', fontFamily: 'var(--sans)', background: 'var(--sunk)', color: 'var(--ink)', boxSizing: 'border-box' }} />
+                  </div>
+                  <button type="button" onClick={() => fetchPexels(pexelsQuery || 'nature', 1)} aria-label="Rechercher"
+                    style={{ flexShrink: 0, width: 40, borderRadius: 8, border: 'none', background: 'var(--mint, #2FD79B)', color: '#06281C', display: 'grid', placeItems: 'center', cursor: 'pointer' }}>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4-4"/></svg>
+                  </button>
                 </div>
 
                 {/* Quick searches */}
