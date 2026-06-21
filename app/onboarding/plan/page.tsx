@@ -189,6 +189,7 @@ export default function OnboardingPlanPage() {
         { user_id: session.user.id, account_type: "solo" },
         { onConflict: "user_id" }
       );
+      fetch("/api/email/welcome", { method: "POST" }).catch(() => {});
       router.push("/onboarding/survey");
     } catch {
       setError("Une erreur est survenue. Veuillez réessayer.");
@@ -228,6 +229,7 @@ export default function OnboardingPlanPage() {
         });
       }
 
+      fetch("/api/email/welcome", { method: "POST" }).catch(() => {});
       router.push("/onboarding/survey");
     } catch {
       setError("Une erreur est survenue. Veuillez réessayer.");

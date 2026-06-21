@@ -3,6 +3,8 @@ import type { NextRequest } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import Stripe from "stripe";
 import { stripe, planForPriceId, mapStripeStatus } from "@/lib/stripe";
+import { sendEmail, emails } from "@/lib/email";
+import { getPlan } from "@/lib/plans";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -49,6 +51,12 @@ export async function POST(req: NextRequest) {
             stripe_customer_id: typeof s.customer === "string" ? s.customer : s.customer?.id,
             stripe_subscription_id: typeof s.subscription === "string" ? s.subscription : s.subscription?.id,
           }, { onConflict: "user_id" });
+        }
+        // E-mail de confirmation (best-effort)
+        const payEmail = s.customer_details?.email ?? s.customer_email;
+        if (payEmail) {
+          const tpl = emails.paymentConfirmed(getPlan(plan).label);
+          await sendEmail(payEmail, tpl.subject, tpl.html);
         }
         break;
       }
