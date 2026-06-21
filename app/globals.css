@@ -439,15 +439,51 @@ input.ed-range::-moz-range-thumb {
   .cal-outer { padding: 12px 0 !important; overflow-x: auto; -webkit-overflow-scrolling: touch; }
   .cal-outer > * { min-width: 640px; }
 
-  /* Editor — horizontal scroll so all panels accessible */
-  .ed-body { overflow-x: auto; -webkit-overflow-scrolling: touch; min-width: min-content; }
+  /* ── Éditeur mobile : rail en bas, panneau en bottom-sheet, canvas plein écran ── */
+  .ed-body { overflow: hidden !important; min-width: 0 !important; position: relative; }
 
-  /* Template editor — same horizontal scroll treatment */
-  .tpl-ed-body { overflow-x: auto; -webkit-overflow-scrolling: touch; min-width: min-content; }
+  /* Rail d'outils → barre horizontale fixée en bas */
+  .ed-rail {
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 45;
+    width: auto !important; height: auto !important;
+    flex-direction: row !important; justify-content: flex-start !important;
+    align-items: center;
+    overflow-x: auto; -webkit-overflow-scrolling: touch;
+    border-right: none !important; border-top: 1px solid var(--line);
+    padding: 6px 8px !important; gap: 2px !important;
+    background: var(--white); box-shadow: 0 -4px 16px rgba(13,15,10,.06);
+  }
+  .ed-rail > button { width: 56px !important; height: 52px !important; flex-shrink: 0; }
+  .ed-rail > div { display: none !important; } /* séparateur sans sens en barre */
 
-  /* Editor topbar — hide center hint and type pills on mobile (too wide) */
-  .ed-topbar-center { display: none !important; }
+  /* Panneau flyout → bottom-sheet au-dessus du rail */
+  .ed-panel {
+    position: fixed !important; left: 0; right: 0; bottom: 66px; z-index: 44;
+    width: auto !important; max-height: 50vh;
+    border-right: none !important; border-top: 1px solid var(--line);
+    border-radius: 16px 16px 0 0;
+    box-shadow: 0 -12px 32px rgba(13,15,10,.18);
+  }
+
+  /* Zone canvas → pleine largeur, marge basse pour le rail */
+  .ed-canvas-area { padding-bottom: 72px; }
+
+  /* Barre contextuelle (édition d'un élément) → flottante au-dessus du rail */
+  .ed-topbar-center {
+    position: fixed; left: 0; right: 0; bottom: 72px; z-index: 46;
+    justify-content: center !important; padding: 0 8px;
+    overflow-x: auto; -webkit-overflow-scrolling: touch;
+    pointer-events: none; background: none;
+  }
+  .ed-topbar-center > * { pointer-events: auto; }
+  .ed-hint-desktop { display: none !important; }
+
+  /* Topbar compacte : on masque libellés et pills */
+  .ed-hide-sm { display: none !important; }
   .ed-type-pills { display: none !important; }
+
+  /* Template editor — horizontal scroll (inchangé) */
+  .tpl-ed-body { overflow-x: auto; -webkit-overflow-scrolling: touch; min-width: min-content; }
 
   /* Workspace topbar — hide nav links on mobile (accessible via sidebar) */
   .ws-topbar-link { display: none !important; }

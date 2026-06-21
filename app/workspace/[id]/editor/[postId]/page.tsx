@@ -2543,7 +2543,7 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
     <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', fontFamily: 'var(--sans)', background: 'radial-gradient(120% 80% at 50% -10%, #FBFAF4, #ECEBE1 70%)', overflow: 'hidden', marginLeft: sidebarOpen ? 'var(--sb-w)' : 0, transition: 'margin-left 0.2s' }}>
 
       {/* ── TOPBAR ── */}
-      <div data-stop-deselect style={{
+      <div data-stop-deselect className="ed-topbar" style={{
         minHeight: 60, flexShrink: 0,
         display: 'flex', alignItems: 'center', gap: 12, padding: '11px 18px',
         borderBottom: '1px solid var(--line)',
@@ -2552,7 +2552,7 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
         position: 'relative', zIndex: 30,
       }}>
         {/* Left: burger + back + workspace label + undo/redo */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+        <div className="ed-topbar-left" style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
           <button onClick={toggleSidebar} title={sidebarOpen ? 'Masquer la sidebar' : 'Afficher la sidebar'}
             className="btn btn-sm btn-ghost btn-icon" style={{ flexShrink: 0 }}>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -2562,10 +2562,10 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
           <a href={`/workspace/${workspaceId}`} className="btn btn-sm btn-ghost"
             style={{ gap: 5, textDecoration: 'none', flexShrink: 0 }}>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 6l-6 6 6 6"/></svg>
-            Retour
+            <span className="ed-hide-sm">Retour</span>
           </a>
-          <span style={{ width: 1, height: 24, background: 'var(--line)', flexShrink: 0 }} />
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <span className="ed-hide-sm" style={{ width: 1, height: 24, background: 'var(--line)', flexShrink: 0 }} />
+          <div className="ed-hide-sm" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
             <div style={{ width: 24, height: 24, borderRadius: 7, background: 'var(--mint)', display: 'grid', placeItems: 'center', flexShrink: 0 }}>
               <span style={{ fontFamily: 'var(--display)', fontWeight: 900, fontSize: 10, color: '#06281C', letterSpacing: '-0.02em' }}>
                 {workspaceName ? workspaceName.slice(0,2).toUpperCase() : 'KL'}
@@ -2606,7 +2606,7 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
               onLayerAction={layerAction}
             />
           ) : (
-            <span style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--ink-3)', display: 'flex', alignItems: 'center', gap: 7 }}>
+            <span className="ed-hint-desktop" style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--ink-3)', display: 'flex', alignItems: 'center', gap: 7 }}>
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
               Sélectionnez un calque pour le modifier
             </span>
@@ -2640,7 +2640,7 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
       <div className="ed-body" style={{ flex: 1, display: 'flex', minHeight: 0 }}>
 
         {/* ── TOOL RAIL (68px) ── */}
-        <div data-stop-deselect style={{ width: 68, background: 'var(--white)', borderRight: '1px solid var(--line)', display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '12px 0', gap: 4, flexShrink: 0 }}>
+        <div data-stop-deselect className="ed-rail" style={{ width: 68, background: 'var(--white)', borderRight: '1px solid var(--line)', display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '12px 0', gap: 4, flexShrink: 0 }}>
           {([
             { id: 'design',   label: 'Modèles',  icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg> },
             { id: 'elements', label: 'Éléments', icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="8" height="8" rx="1.5"/><circle cx="17" cy="7" r="4"/><polygon points="12 22 3 15.5 21 15.5 12 22"/></svg> },
@@ -2670,7 +2670,7 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
 
         {/* ── TOOL PANEL FLYOUT (312px, conditional) ── */}
         {tool && (
-          <div data-stop-deselect className="pop-in" style={{ width: 312, background: 'var(--white)', borderRight: '1px solid var(--line)', overflowY: 'auto', flexShrink: 0, display: 'flex', flexDirection: 'column' }}>
+          <div data-stop-deselect className="pop-in ed-panel" style={{ width: 312, background: 'var(--white)', borderRight: '1px solid var(--line)', overflowY: 'auto', flexShrink: 0, display: 'flex', flexDirection: 'column' }}>
 
             {/* DESIGN — Modèles */}
             {tool === 'design' && (
@@ -3065,7 +3065,7 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
         )}
 
         {/* ── CANVAS WORKSPACE ── */}
-        <div style={{ flex: 1, minWidth: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column', background: 'radial-gradient(120% 80% at 50% -10%, #FBFAF4, #ECEBE1 70%)', position: 'relative' }}>
+        <div className="ed-canvas-area" style={{ flex: 1, minWidth: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column', background: 'radial-gradient(120% 80% at 50% -10%, #FBFAF4, #ECEBE1 70%)', position: 'relative' }}>
           <div ref={canvasAreaRef}
           onMouseDown={() => { setSelectedId(null); setSelectedIds([]); setEditingId(null); setBgCropMode(false); setBgImageSelected(false); }}
           style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', overflowY: 'auto', padding: '40px 28px', gap: 40 }}>
