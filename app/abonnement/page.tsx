@@ -64,9 +64,31 @@ export default function AbonnementPage() {
     router.replace("/login");
   }
 
-  // Le paiement Stripe sera branché au bloc 2 — pour l'instant on informe.
-  function choose() {
-    alert("Le paiement en ligne arrive très bientôt. Écrivez-nous à martinkoch667@gmail.com pour activer votre offre dès maintenant.");
+  const [busy, setBusy] = useState<string | null>(null);
+
+  async function choose(plan: "solo" | "agency") {
+    setBusy(plan);
+    try {
+      const res = await fetch("/api/stripe/checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ plan }),
+      });
+      const json = await res.json();
+      if (res.ok && json.url) {
+        window.location.href = json.url; // redirection vers Stripe Checkout
+        return;
+      }
+      if (json.code === "STRIPE_OFF") {
+        alert("Le paiement en ligne arrive très bientôt. Écrivez-nous à martinkoch667@gmail.com pour activer votre offre dès maintenant.");
+      } else {
+        alert(json.error || "Une erreur est survenue. Réessayez.");
+      }
+    } catch {
+      alert("Une erreur est survenue. Réessayez.");
+    } finally {
+      setBusy(null);
+    }
   }
 
   const tiers = [
@@ -91,7 +113,9 @@ export default function AbonnementPage() {
             <div className="ab-price">{p.priceMonthly}€ <span>/ mois</span></div>
             <div style={{ height: 1, background: "rgba(255,255,255,.1)", margin: "16px 0" }} />
             {feats.map(f => <div key={f} className="ab-li"><span className="ab-dot"><Check /></span>{f}</div>)}
-            <button className="ab-btn" onClick={choose}>Choisir {p.label}</button>
+            <button className="ab-btn" onClick={() => choose(p.key)} disabled={busy !== null}>
+              {busy === p.key ? "Redirection…" : `Choisir ${p.label}`}
+            </button>
           </div>
         ))}
       </div>
