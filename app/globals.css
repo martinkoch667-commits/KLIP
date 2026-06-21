@@ -473,13 +473,16 @@ input.ed-range::-moz-range-thumb {
 
   /* Barre contextuelle : la version topbar est masquée, on utilise .ed-mobile-ctx */
   .ed-topbar-center { display: none !important; }
+  /* En flux normal, juste sous la topbar — passe à la ligne (tout accessible, menus non coupés) */
   .ed-mobile-ctx {
-    display: flex; position: fixed; left: 0; right: 0; bottom: 74px; z-index: 60;
-    justify-content: flex-start; padding: 0 8px;
-    overflow-x: auto; -webkit-overflow-scrolling: touch;
-    pointer-events: none;
+    display: flex; flex-shrink: 0; width: 100%;
+    padding: 8px 10px;
+    background: var(--canvas); border-bottom: 1px solid var(--line);
   }
-  .ed-mobile-ctx > * { pointer-events: auto; margin: 0 auto; }
+  .ed-mobile-ctx .pop-in {
+    flex-wrap: wrap; max-width: 100%; row-gap: 6px;
+    justify-content: flex-start; box-shadow: none;
+  }
 
   /* Topbar compacte : on masque libellés et pills */
   .ed-hide-sm { display: none !important; }
