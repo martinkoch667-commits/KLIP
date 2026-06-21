@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
 
@@ -55,6 +55,15 @@ export default function RegisterPage() {
   const [googleLoading, setGoogleLoading] = useState(false);
   const [sent, setSent] = useState(false);
   const supabase = createClientComponentClient();
+
+  // Mémorise l'offre choisie sur la landing (?plan=studio|agency) pour l'onboarding
+  useEffect(() => {
+    try {
+      const p = new URLSearchParams(window.location.search).get("plan");
+      if (p === "studio" || p === "solo") localStorage.setItem("klip_plan", "solo");
+      else if (p === "agency" || p === "agence") localStorage.setItem("klip_plan", "agency");
+    } catch { /* ignore */ }
+  }, []);
 
   async function handleRegister(e: React.FormEvent) {
     e.preventDefault();

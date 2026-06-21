@@ -3,6 +3,7 @@ import { createClient } from "@supabase/supabase-js";
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
+import { getPlan } from "@/lib/plans";
 
 export async function POST(req: NextRequest) {
   const { email, agency_id, role } = await req.json();
@@ -24,6 +25,24 @@ export async function POST(req: NextRequest) {
     .maybeSingle();
 
   if (!agency) return NextResponse.json({ error: "Not agency owner" }, { status: 403 });
+
+  // ── Bridage par offre : limite de membres d'équipe ────────────────────────
+  const { data: ownerSettings } = await supabase
+    .from("user_settings")
+    .select("account_type")
+    .eq("user_id", session.user.id)
+    .maybeSingle();
+  const plan = getPlan(ownerSettings?.account_type);
+  const { count: memberCount } = await supabase
+    .from("agency_members")
+    .select("id", { count: "exact", head: true })
+    .eq("agency_id", agency_id);
+  if ((memberCount ?? 0) >= plan.maxMembers) {
+    return NextResponse.json({
+      error: `Limite atteinte : l'offre ${plan.label} autorise ${plan.maxMembers} membre${plan.maxMembers > 1 ? "s" : ""} (vous compris). Passez à l'offre supérieure pour inviter plus de personnes.`,
+      code: "PLAN_LIMIT",
+    }, { status: 403 });
+  }
 
   // Requires SUPABASE_SERVICE_ROLE_KEY to invite users
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;

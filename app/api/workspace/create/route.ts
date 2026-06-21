@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createRouteHandlerClient } from "@supabase/auth-helpers-nextjs";
 import { createClient } from "@supabase/supabase-js";
 import { cookies } from "next/headers";
+import { getPlan } from "@/lib/plans";
 
 export async function POST(request: NextRequest) {
   try {
@@ -42,6 +43,24 @@ export async function POST(request: NextRequest) {
 
     if (!payload.name) {
       return NextResponse.json({ error: "name is required" }, { status: 400 });
+    }
+
+    // ── 3b. Bridage par offre : limite de clients ───────────────────────────
+    const { data: settings } = await supabase
+      .from("user_settings")
+      .select("account_type")
+      .eq("user_id", userId)
+      .maybeSingle();
+    const plan = getPlan(settings?.account_type);
+    const { count } = await supabase
+      .from("workspaces")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", userId);
+    if ((count ?? 0) >= plan.maxClients) {
+      return NextResponse.json({
+        error: `Limite atteinte : l'offre ${plan.label} autorise ${plan.maxClients} client${plan.maxClients > 1 ? "s" : ""}. Passez à l'offre supérieure pour en ajouter davantage.`,
+        code: "PLAN_LIMIT",
+      }, { status: 403 });
     }
 
     // ── 4. Service-role client (bypasses RLS, logs server-side) ─────────────

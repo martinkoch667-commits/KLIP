@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
 import { useRouter } from "next/navigation";
 
@@ -169,6 +169,15 @@ export default function OnboardingPlanPage() {
   const [loadingStudio, setLoadingStudio] = useState(false);
   const [loadingAgency, setLoadingAgency] = useState(false);
   const [error, setError] = useState("");
+
+  // Pré-sélection de l'offre choisie sur la landing (?plan transmis via register)
+  useEffect(() => {
+    try {
+      const p = localStorage.getItem("klip_plan");
+      if (p === "agency") setAgencyExpanded(true);
+      localStorage.removeItem("klip_plan");
+    } catch { /* ignore */ }
+  }, []);
 
   async function handleSolo() {
     setError("");
