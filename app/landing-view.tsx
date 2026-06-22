@@ -1,6 +1,7 @@
 'use client';
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import { useRouter } from 'next/navigation';
 
@@ -241,7 +242,7 @@ function EdIcon({ name, size = 18, stroke = 1.8, style }: { name: string; size?:
 
 /* ─── KlipLogo ───────────────────────────────────────────────────────────── */
 function KlipLogo({ size = 28, light = false }: { size?: number; light?: boolean }) {
-  return <img src={light ? '/logo-klip-mint.png' : '/logo-klip-dark.png'} alt="Klip" style={{ height: size, width: 'auto' }} />;
+  return <Image src={light ? '/logo-klip-mint.png' : '/logo-klip-dark.png'} alt="Klip" width={1096} height={408} style={{ height: size, width: 'auto' }} />;
 }
 
 /* ─── useParallax ────────────────────────────────────────────────────────── */
@@ -434,7 +435,7 @@ function Hero() {
               <span className="frame-dot" /><span className="frame-dot" /><span className="frame-dot" />
               <span className="frame-url">app.klip.studio / tableau-de-bord</span>
             </div>
-            <img src="/klip-media/dashboard.png" alt="Tableau de bord Klip — gérer le contenu Instagram de tous ses clients au même endroit" style={{ display: 'block', width: '100%' }} />
+            <Image src="/klip-media/dashboard.png" alt="Tableau de bord Klip — gérer le contenu Instagram de tous ses clients au même endroit" width={2200} height={1114} priority sizes="(max-width: 1080px) 100vw, 1080px" style={{ display: 'block', width: '100%', height: 'auto' }} />
           </div>
           <div ref={f1} className="hero-float floatA" style={{ position: 'absolute', left: -42, top: '34%', zIndex: 5 }}>
             <div style={{ background: 'var(--acid)', color: 'var(--acid-ink)', padding: '14px 18px', borderRadius: 'var(--radius-s)', boxShadow: '0 24px 50px -22px rgba(47,215,155,.8)', fontFamily: 'var(--mono)', fontWeight: 700, fontSize: 13, maxWidth: 170, lineHeight: 1.4 }}>
@@ -543,7 +544,7 @@ function Steps() {
               <span className="frame-dot" /><span className="frame-dot" /><span className="frame-dot" />
               <span className="frame-url">app.klip.studio / composer</span>
             </div>
-            <img src="/klip-media/composer.png" alt="Éditeur visuel Klip pour composer un post Instagram aux couleurs du client" style={{ display: 'block', width: '100%' }} />
+            <Image src="/klip-media/composer.png" alt="Éditeur visuel Klip pour composer un post Instagram aux couleurs du client" width={1440} height={900} sizes="(max-width: 960px) 100vw, 600px" style={{ display: 'block', width: '100%', height: 'auto' }} />
           </div>
         </div>
       </div>
@@ -691,7 +692,7 @@ function Showcase() {
                   </div>
                 </div>
                 <div ref={s.ref} className="reveal d2 sho-shot" style={{ order: flip ? 1 : 2 }}>
-                  <img src={s.img} alt={`${s.t} Klip — planification et publication Instagram pour agences`} />
+                  <Image src={s.img} alt={`${s.t} Klip — planification et publication Instagram pour agences`} width={1440} height={900} sizes="(max-width: 860px) 100vw, 600px" style={{ display: 'block', width: '100%', height: 'auto' }} />
                 </div>
               </div>
             );
