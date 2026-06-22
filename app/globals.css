@@ -197,6 +197,10 @@ img { display: block; max-width: 100%; }
   border-bottom: 1px solid var(--line);
   background: color-mix(in srgb, var(--canvas) 86%, transparent);
   backdrop-filter: blur(10px);
+  /* backdrop-filter crée un contexte d'empilement : sans z-index, les menus
+     déroulants de la topbar passent SOUS le contenu de la page. */
+  position: relative;
+  z-index: 50;
 }
 .scroll { flex: 1; overflow-y: auto; overflow-x: hidden; }
 .page { padding: 30px 34px 60px; max-width: 1320px; margin: 0 auto; width: 100%; }
