@@ -57,22 +57,6 @@ export const viewport: Viewport = {
   themeColor: "#0C2A1D",
 };
 
-const jsonLd = {
-  "@context": "https://schema.org",
-  "@type": "SoftwareApplication",
-  name: "Klip",
-  applicationCategory: "BusinessApplication",
-  operatingSystem: "Web",
-  description:
-    "Klip est le studio social pour agences et community managers. Éditeur visuel, légendes IA, calendrier et publication Instagram automatique dans un seul espace.",
-  offers: [
-    { "@type": "Offer", name: "Studio", price: "25", priceCurrency: "EUR" },
-    { "@type": "Offer", name: "Agence", price: "89", priceCurrency: "EUR" },
-  ],
-  inLanguage: "fr",
-  url: "https://www.klip.app",
-};
-
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -86,10 +70,6 @@ export default function RootLayout({
           dangerouslySetInnerHTML={{
             __html: `(function(){try{var t=localStorage.getItem('klip-theme')||'dark';document.documentElement.setAttribute('data-theme',t);}catch(e){}})();`,
           }}
-        />
-        <script
-          type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
         />
         {/* Fonts */}
         <link rel="preconnect" href="https://api.fontshare.com" />

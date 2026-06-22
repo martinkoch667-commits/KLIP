@@ -27,6 +27,49 @@ export const metadata: Metadata = {
   robots: { index: true, follow: true },
 };
 
+const SITE = "https://klip-swart.vercel.app";
+
+const softwareLd = {
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  name: "Klip",
+  applicationCategory: "BusinessApplication",
+  operatingSystem: "Web",
+  url: SITE,
+  inLanguage: "fr",
+  description:
+    "Outil tout-en-un de création et planification de contenu Instagram pour agences de communication : éditeur visuel, descriptions IA, calendrier, validation client et publication automatique.",
+  offers: [
+    { "@type": "Offer", name: "Studio", price: "29.00", priceCurrency: "EUR" },
+    { "@type": "Offer", name: "Agence", price: "96.00", priceCurrency: "EUR" },
+  ],
+};
+
+// Reprend les questions/réponses réelles de la section FAQ de la landing
+const FAQ = [
+  ["Faut-il déjà avoir un compte Instagram pro ?", "Oui. Klip se connecte à un compte Instagram professionnel ou créateur via l’API officielle. La connexion prend deux minutes, par client."],
+  ["L’IA respecte-t-elle vraiment la voix de chaque marque ?", "Vous définissez le ton, le style et les mots interdits de chaque client une fois. Chaque génération s’appuie sur cette voix — vous gardez la main et peaufinez d’un clic."],
+  ["Mes clients peuvent-ils valider sans compte Klip ?", "Oui. Vous envoyez un lien de validation : le client approuve ou commente directement, sans rien installer. Fini les allers-retours par mail."],
+  ["Mes données clients sont-elles cloisonnées ?", "Chaque client a son espace : charte, historique, comptes connectés. Rien n’est mélangé entre deux marques, jamais."],
+  ["Puis-je changer d’offre en cours de route ?", "À tout moment, sans engagement. Vous montez d’un palier quand vous prenez plus de clients, et redescendez si besoin."],
+];
+
+const faqLd = {
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  mainEntity: FAQ.map(([q, a]) => ({
+    "@type": "Question",
+    name: q,
+    acceptedAnswer: { "@type": "Answer", text: a },
+  })),
+};
+
 export default function Page() {
-  return <LandingView />;
+  return (
+    <>
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(softwareLd) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(faqLd) }} />
+      <LandingView />
+    </>
+  );
 }
