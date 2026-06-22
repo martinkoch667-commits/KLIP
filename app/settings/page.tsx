@@ -853,9 +853,23 @@ function BillingTab({ accountType }: { accountType: string }) {
             <h2 className="h-display" style={{ fontSize: 28, color: 'var(--cream)' }}>{plan.name}</h2>
             <p style={{ color: 'var(--cream-2)', marginTop: 6, fontSize: 13.5 }}>{plan.desc}</p>
           </div>
-          <div style={{ textAlign: 'right', flexShrink: 0 }}>
+          <div style={{ textAlign: 'right', flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 8, alignItems: 'flex-end' }}>
             <div className="num" style={{ fontSize: 34, color: 'var(--acid)' }}>{plan.price}</div>
-            <Link href="/onboarding/plan" className="btn btn-primary btn-sm" style={{ marginTop: 10, display: 'inline-block', textDecoration: 'none' }}>Changer de plan</Link>
+            <button
+              onClick={async () => {
+                try {
+                  const res = await fetch('/api/stripe/portal', { method: 'POST' });
+                  const j = await res.json();
+                  if (res.ok && j?.url) { window.location.href = j.url; return; }
+                  alert(j?.error || "Aucun abonnement actif à gérer pour le moment.");
+                } catch { alert("Une erreur est survenue."); }
+              }}
+              className="btn btn-primary btn-sm"
+              style={{ border: 'none', cursor: 'pointer' }}
+            >
+              Gérer mon abonnement
+            </button>
+            <Link href="/onboarding/plan" style={{ fontSize: 12.5, color: 'var(--cream-2)', textDecoration: 'underline' }}>Changer de plan</Link>
           </div>
         </div>
       </div>
