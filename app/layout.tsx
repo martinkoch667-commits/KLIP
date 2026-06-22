@@ -36,14 +36,13 @@ export const metadata: Metadata = {
     title: "Klip — Le studio social pour agences & community managers",
     description:
       "Créez, planifiez et publiez le contenu de tous vos clients Instagram depuis un seul espace. Éditeur visuel, légendes IA, calendrier et publication automatique.",
-    images: [{ url: "/og-image.png", width: 1200, height: 630, alt: "Klip — Le studio social des agences" }],
+    // image fournie par app/opengraph-image.tsx (route dynamique)
   },
   twitter: {
     card: "summary_large_image",
     title: "Klip — Le studio social pour agences & community managers",
     description:
       "Créez, planifiez et publiez le contenu de tous vos clients Instagram depuis un seul espace. Éditeur visuel, légendes IA, calendrier et publication automatique.",
-    images: ["/og-image.png"],
   },
   icons: {
     icon: "/favicon-32.png",
