@@ -105,7 +105,7 @@ function LoginForm() {
             value={password} onChange={e => setPassword(e.target.value)}
             placeholder="••••••••" className="auth-input"
           />
-          <a href="#" className="auth-forgot">Mot de passe oublié ?</a>
+          <Link href="/mot-de-passe-oublie" className="auth-forgot">Mot de passe oublié ?</Link>
         </div>
         {error && <p className="auth-error">{error}</p>}
         <button type="submit" disabled={loading} className="auth-btn">
