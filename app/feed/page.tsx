@@ -130,7 +130,7 @@ function QueueCard({
     : "—";
 
   return (
-    <div className="card" style={{ padding: 12, display: "flex", alignItems: "center", gap: 14 }}>
+    <div className="card feed-post-row" style={{ padding: 12, display: "flex", alignItems: "center", gap: 14 }}>
       <button onClick={onEdit} style={{
         position: "relative", width: 56, height: 70, borderRadius: 10,
         background: "var(--sunk)", flexShrink: 0, cursor: "pointer", border: "none", overflow: "hidden",
@@ -307,8 +307,8 @@ export default function FeedPage() {
       <Sidebar />
       <div className="work">
         <div className="topbar" style={{ justifyContent: "space-between" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-            <h1 style={{ fontSize: 14, fontWeight: 800, margin: 0 }}>File de publication</h1>
+          <div style={{ display: "flex", alignItems: "center", gap: 14, minWidth: 0 }}>
+            <h1 className="feed-tb-title" style={{ fontSize: 14, fontWeight: 800, margin: 0 }}>File de publication</h1>
             {filterWsId !== "all" && (
               <button onClick={() => setFilterWsId("all")} style={{ fontSize: 12, color: "var(--ink-3)", fontWeight: 600, background: "none", border: "none", cursor: "pointer" }}>
                 Tous les clients ×
@@ -352,7 +352,7 @@ export default function FeedPage() {
                 {/* Main column */}
                 <div style={{ minWidth: 0 }}>
                   {/* IG connection banner */}
-                  <div className="card" style={{
+                  <div className="card feed-ig-banner" style={{
                     padding: "14px 18px", display: "flex", alignItems: "center", gap: 14,
                     marginBottom: 16, background: "var(--forest)", color: "var(--cream)", border: "none",
                   }}>
@@ -546,6 +546,14 @@ export default function FeedPage() {
         @media (max-width: 767px) {
           .feed-stats-grid { grid-template-columns: repeat(2,1fr) !important; }
           .feed-rail-layout { grid-template-columns: 1fr !important; }
+          /* topbar : titre redondant masqué (le grand titre est plus bas) */
+          .feed-tb-title { display: none !important; }
+          /* bannière Instagram : "Gérer" passe en pleine largeur sous le texte */
+          .feed-ig-banner { flex-wrap: wrap !important; row-gap: 12px; }
+          .feed-ig-banner > a { flex-basis: 100%; justify-content: center; }
+          /* lignes de post : les actions passent sur une 2e ligne alignées à droite */
+          .feed-post-row { flex-wrap: wrap !important; row-gap: 10px; }
+          .feed-post-row > :nth-child(3) { flex-basis: 100%; display: flex; justify-content: flex-end; }
         }
       `}</style>
     </div>
