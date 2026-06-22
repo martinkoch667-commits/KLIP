@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
+  metadataBase: new URL("https://klip-swart.vercel.app"),
   title: {
     default: "Klip — Le studio social pour agences & community managers",
     template: "%s | Klip",
@@ -47,9 +48,6 @@ export const metadata: Metadata = {
   icons: {
     icon: "/favicon-32.png",
     apple: "/icon-192.png",
-  },
-  alternates: {
-    canonical: "https://www.klip.app",
   },
 };
 
