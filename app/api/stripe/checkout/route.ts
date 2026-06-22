@@ -3,32 +3,35 @@ import type { NextRequest } from "next/server";
 import { createRouteHandlerClient } from "@supabase/auth-helpers-nextjs";
 import { createClient } from "@supabase/supabase-js";
 import { cookies } from "next/headers";
-import { stripe, priceIdForPlan, APP_URL } from "@/lib/stripe";
-import { planFromParam } from "@/lib/plans";
+import { stripe, priceId, APP_URL, type Plan, type Period } from "@/lib/stripe";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function POST(req: NextRequest) {
   if (!stripe) {
-    return NextResponse.json({ error: "Le paiement n'est pas encore activé.", code: "STRIPE_OFF" }, { status: 503 });
+    return NextResponse.json({ error: "Paiement non configuré.", code: "STRIPE_OFF" }, { status: 503 });
   }
 
+  // ── Auth obligatoire ───────────────────────────────────────────────────
   const supabase = createRouteHandlerClient({ cookies });
   const { data: { session } } = await supabase.auth.getSession();
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const userId = session.user.id;
   const email = session.user.email ?? undefined;
 
-  let body: { plan?: string } = {};
+  // ── Body : plan + period ──────────────────────────────────────────────
+  let body: { plan?: string; period?: string } = {};
   try { body = await req.json(); } catch { /* defaults */ }
-  const plan = planFromParam(body.plan);
-  const priceId = priceIdForPlan(plan);
-  if (!priceId) {
+  const plan = (body.plan === "agence" ? "agence" : "studio") as Plan;
+  const period = (body.period === "yearly" ? "yearly" : "monthly") as Period;
+
+  const price = priceId(plan, period);
+  if (!price) {
     return NextResponse.json({ error: "Offre non configurée côté paiement.", code: "STRIPE_OFF" }, { status: 503 });
   }
 
-  // Récupère/crée le client Stripe, réutilise celui déjà stocké si présent.
+  // ── Customer Stripe : réutilise/crée, stocke sur user_settings ─────────
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
   const admin = serviceKey
     ? createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, serviceKey, { auth: { persistSession: false, autoRefreshToken: false } })
@@ -52,16 +55,20 @@ export async function POST(req: NextRequest) {
     }
   }
 
+  // ── Session Checkout (abonnement + essai 7 jours) ──────────────────────
   try {
     const checkout = await stripe.checkout.sessions.create({
       mode: "subscription",
       customer: customerId,
-      line_items: [{ price: priceId, quantity: 1 }],
+      line_items: [{ price, quantity: 1 }],
+      subscription_data: {
+        trial_period_days: 7,
+        metadata: { user_id: userId, plan, period },
+      },
       allow_promotion_codes: true,
-      success_url: `${APP_URL}/dashboard?checkout=success`,
-      cancel_url: `${APP_URL}/abonnement?checkout=cancel`,
-      metadata: { user_id: userId, plan },
-      subscription_data: { metadata: { user_id: userId, plan } },
+      metadata: { user_id: userId, plan, period },
+      success_url: `${APP_URL}/dashboard?welcome=true`,
+      cancel_url: `${APP_URL}/#tarifs`,
     });
     return NextResponse.json({ url: checkout.url });
   } catch (err) {

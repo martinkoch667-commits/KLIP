@@ -1,38 +1,38 @@
 import Stripe from "stripe";
-import type { AccountType } from "./plans";
 
-/* Client Stripe — null tant que la clé n'est pas configurée (mode "prêt à brancher"). */
+/* Client Stripe côté serveur — null tant que la clé n'est pas configurée. */
 export const stripe = process.env.STRIPE_SECRET_KEY
   ? new Stripe(process.env.STRIPE_SECRET_KEY)
   : null;
 
-export const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://klip-swart.vercel.app";
+/* Domaine de prod (override possible via env). */
+export const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://getklip.fr";
 
-/* Mapping offre interne (account_type) ↔ price_id Stripe (à définir en env). */
-export function priceIdForPlan(plan: AccountType): string | null {
-  if (plan === "agency") return process.env.STRIPE_PRICE_AGENCY ?? null;
-  return process.env.STRIPE_PRICE_SOLO ?? null;
+export type Plan = "studio" | "agence";
+export type Period = "monthly" | "yearly";
+
+/* Mappe (offre + période) → Price ID Stripe (variables d'env Vercel). */
+export function priceId(plan: Plan, period: Period): string | null {
+  const map: Record<string, string | undefined> = {
+    "studio:monthly": process.env.STRIPE_PRICE_STUDIO_MONTHLY,
+    "studio:yearly": process.env.STRIPE_PRICE_STUDIO_YEARLY,
+    "agence:monthly": process.env.STRIPE_PRICE_AGENCE_MONTHLY,
+    "agence:yearly": process.env.STRIPE_PRICE_AGENCE_YEARLY,
+  };
+  return map[`${plan}:${period}`] ?? null;
 }
 
-export function planForPriceId(priceId?: string | null): AccountType | null {
-  if (!priceId) return null;
-  if (priceId === process.env.STRIPE_PRICE_AGENCY) return "agency";
-  if (priceId === process.env.STRIPE_PRICE_SOLO) return "solo";
+/* Price ID → (offre + période), pour le webhook. */
+export function planFromPriceId(id?: string | null): { plan: Plan; period: Period } | null {
+  if (!id) return null;
+  if (id === process.env.STRIPE_PRICE_STUDIO_MONTHLY) return { plan: "studio", period: "monthly" };
+  if (id === process.env.STRIPE_PRICE_STUDIO_YEARLY) return { plan: "studio", period: "yearly" };
+  if (id === process.env.STRIPE_PRICE_AGENCE_MONTHLY) return { plan: "agence", period: "monthly" };
+  if (id === process.env.STRIPE_PRICE_AGENCE_YEARLY) return { plan: "agence", period: "yearly" };
   return null;
 }
 
-/* Statut Stripe → statut interne (user_settings.subscription_status). */
-export function mapStripeStatus(s: string): "active" | "past_due" | "expired" | "canceled" {
-  switch (s) {
-    case "active":
-    case "trialing":
-      return "active";
-    case "past_due":
-    case "unpaid":
-      return "past_due";
-    case "canceled":
-      return "canceled";
-    default:
-      return "expired";
-  }
+/* offre Stripe → account_type interne (user_settings : 'solo' = Studio, 'agency' = Agence). */
+export function accountTypeForPlan(plan?: string | null): "solo" | "agency" {
+  return plan === "agence" ? "agency" : "solo";
 }
