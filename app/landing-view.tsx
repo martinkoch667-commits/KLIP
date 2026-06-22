@@ -434,7 +434,7 @@ function Hero() {
               <span className="frame-dot" /><span className="frame-dot" /><span className="frame-dot" />
               <span className="frame-url">app.klip.studio / tableau-de-bord</span>
             </div>
-            <img src="/klip-media/dashboard.png" alt="Tableau de bord KLIP" style={{ display: 'block', width: '100%' }} />
+            <img src="/klip-media/dashboard.png" alt="Tableau de bord Klip — gérer le contenu Instagram de tous ses clients au même endroit" style={{ display: 'block', width: '100%' }} />
           </div>
           <div ref={f1} className="hero-float floatA" style={{ position: 'absolute', left: -42, top: '34%', zIndex: 5 }}>
             <div style={{ background: 'var(--acid)', color: 'var(--acid-ink)', padding: '14px 18px', borderRadius: 'var(--radius-s)', boxShadow: '0 24px 50px -22px rgba(47,215,155,.8)', fontFamily: 'var(--mono)', fontWeight: 700, fontSize: 13, maxWidth: 170, lineHeight: 1.4 }}>
@@ -543,7 +543,7 @@ function Steps() {
               <span className="frame-dot" /><span className="frame-dot" /><span className="frame-dot" />
               <span className="frame-url">app.klip.studio / composer</span>
             </div>
-            <img src="/klip-media/composer.png" alt="Création dans KLIP" style={{ display: 'block', width: '100%' }} />
+            <img src="/klip-media/composer.png" alt="Éditeur visuel Klip pour composer un post Instagram aux couleurs du client" style={{ display: 'block', width: '100%' }} />
           </div>
         </div>
       </div>
@@ -691,7 +691,7 @@ function Showcase() {
                   </div>
                 </div>
                 <div ref={s.ref} className="reveal d2 sho-shot" style={{ order: flip ? 1 : 2 }}>
-                  <img src={s.img} alt={s.t} />
+                  <img src={s.img} alt={`${s.t} Klip — planification et publication Instagram pour agences`} />
                 </div>
               </div>
             );
