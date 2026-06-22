@@ -834,12 +834,39 @@ function Testimonials() {
   );
 }
 
+/* ─── Checkout helper (landing) ──────────────────────────────────────────── */
+async function startCheckout(plan: 'studio' | 'agence', period: 'monthly' | 'yearly') {
+  try {
+    const res = await fetch('/api/stripe/checkout', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ plan, period }),
+    });
+    if (res.status === 401) {
+      // pas connecté → on mémorise le choix et on envoie vers l'inscription
+      try { localStorage.setItem('klip_pending_checkout', JSON.stringify({ plan, period })); } catch {}
+      window.location.href = `/register?plan=${plan}`;
+      return;
+    }
+    const json = await res.json();
+    if (res.ok && json.url) { window.location.href = json.url; return; }
+    if (json.code === 'STRIPE_OFF') { alert('Le paiement en ligne arrive très bientôt.'); return; }
+    alert(json.error || 'Une erreur est survenue. Réessayez.');
+  } catch {
+    alert('Une erreur est survenue. Réessayez.');
+  }
+}
+
 /* ─── Pricing ────────────────────────────────────────────────────────────── */
 function Pricing() {
+  const [period, setPeriod] = useState<'monthly' | 'yearly'>('monthly');
+  const [busy, setBusy] = useState<string | null>(null);
   const tiers = [
-    { name: 'Studio', price: '29', tag: 'Freelances & community managers', clients: 'Jusqu’à 3 clients', plan: 'studio', feats: ['Éditeur visuel complet', 'Descriptions IA illimitées', 'Calendrier éditorial', 'Publication Instagram & Facebook', '1 utilisateur'], cta: 'Essai 7 jours gratuit', pop: false },
-    { name: 'Agence', price: '96', tag: 'Agences & studios de communication', clients: 'Jusqu’à 10 clients', plan: 'agency', feats: ['Tout Studio, plus :', 'Jusqu’à 5 membres d’équipe', 'Workflow de validation client', 'Rôles Manager & Créa', 'Création en lot'], cta: 'Essai 7 jours gratuit', pop: true },
+    { name: 'Studio', plan: 'studio' as const, monthly: 29, yearly: 24, tag: 'Freelances & community managers', clients: 'Jusqu’à 3 clients', feats: ['Éditeur visuel complet', 'Descriptions IA illimitées', 'Calendrier éditorial', 'Publication Instagram & Facebook', '1 utilisateur'], pop: false },
+    { name: 'Agence', plan: 'agence' as const, monthly: 96, yearly: 80, tag: 'Agences & studios de communication', clients: 'Jusqu’à 10 clients', feats: ['Tout Studio, plus :', 'Jusqu’à 5 membres d’équipe', 'Workflow de validation client', 'Rôles Manager & Créa', 'Création en lot'], pop: true },
   ];
+  async function onChoose(plan: 'studio' | 'agence') { setBusy(plan); await startCheckout(plan, period); setBusy(null); }
+
   return (
     <section id="tarifs" className="section dotgrid" style={{ overflow: 'hidden' }}>
       <div className="wrap" style={{ position: 'relative', zIndex: 2 }}>
@@ -847,20 +874,37 @@ function Pricing() {
           <h2 className="display reveal d1" style={{ fontSize: 'clamp(38px, 5.6vw, 78px)', marginTop: 22 }}>
             Un prix qui grandit <span className="it-serif acid-fill">avec vous.</span>
           </h2>
-          <p className="lead reveal d2" style={{ marginTop: 22 }}>7 jours gratuits, sans carte bancaire. Vous changez d&apos;offre quand vous voulez.</p>
+          <p className="lead reveal d2" style={{ marginTop: 22 }}>7 jours d&apos;essai gratuit. Vous changez d&apos;offre quand vous voulez.</p>
+          {/* Toggle Mensuel / Annuel */}
+          <div className="reveal d2" style={{ display: 'inline-flex', alignItems: 'center', gap: 4, marginTop: 26, padding: 5, borderRadius: 999, background: 'var(--paper-2)', boxShadow: 'inset 0 0 0 1px var(--line)' }}>
+            {([['monthly', 'Mensuel'], ['yearly', 'Annuel']] as const).map(([p, label]) => (
+              <button key={p} onClick={() => setPeriod(p)}
+                style={{ padding: '9px 18px', borderRadius: 999, fontFamily: 'var(--mono)', fontWeight: 700, fontSize: 14, border: 'none', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 8,
+                  background: period === p ? 'var(--ink)' : 'transparent', color: period === p ? 'var(--paper)' : 'var(--ink-2)' }}>
+                {label}{p === 'yearly' && <span style={{ fontSize: 11, padding: '2px 7px', borderRadius: 999, background: 'var(--acid)', color: 'var(--acid-ink)' }}>2 mois offerts</span>}
+              </button>
+            ))}
+          </div>
         </div>
-        <div className="price-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 18, marginTop: 56, alignItems: 'start', maxWidth: 780, marginLeft: 'auto', marginRight: 'auto' }}>
-          {tiers.map((t, i) => (
+        <div className="price-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 18, marginTop: 48, alignItems: 'start', maxWidth: 780, marginLeft: 'auto', marginRight: 'auto' }}>
+          {tiers.map((t, i) => {
+            const shown = period === 'yearly' ? t.yearly : t.monthly;
+            return (
             <div key={i} className={`reveal d${i + 1}`} style={{ position: 'relative', background: t.pop ? 'var(--forest)' : 'var(--paper-2)', color: t.pop ? 'var(--cream)' : 'var(--ink)', borderRadius: 'var(--radius)', padding: '34px 32px', border: t.pop ? 'none' : '1px solid var(--line)', boxShadow: t.pop ? '0 40px 80px -40px rgba(6,32,24,.6)' : 'none', transform: t.pop ? 'translateY(-14px)' : 'none' }}>
               {t.pop && <span style={{ position: 'absolute', top: -13, right: 26, background: 'var(--acid)', color: 'var(--acid-ink)', fontFamily: 'var(--mono)', fontWeight: 700, fontSize: 11.5, letterSpacing: '.08em', textTransform: 'uppercase', padding: '6px 12px', borderRadius: 999 }}>Le plus choisi</span>}
               <h3 style={{ fontFamily: 'var(--heavy)', fontWeight: 800, fontSize: 22, textTransform: 'uppercase', letterSpacing: '-0.01em', margin: 0 }}>{t.name}</h3>
               <div style={{ fontFamily: 'var(--mono)', fontSize: 13, color: t.pop ? 'var(--cream-3)' : 'var(--ink-3)', marginTop: 4 }}>{t.tag}</div>
-              <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, margin: '22px 0 4px' }}>
-                <span style={{ fontFamily: 'var(--heavy)', fontWeight: 900, fontSize: 58, letterSpacing: '-0.04em', lineHeight: 1 }}>{t.price}€</span>
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, margin: '22px 0 2px' }}>
+                <span style={{ fontFamily: 'var(--heavy)', fontWeight: 900, fontSize: 58, letterSpacing: '-0.04em', lineHeight: 1 }}>{shown}€</span>
                 <span style={{ fontFamily: 'var(--mono)', fontSize: 13, color: t.pop ? 'var(--cream-2)' : 'var(--ink-3)' }}>/mois</span>
               </div>
+              <div style={{ fontFamily: 'var(--mono)', fontSize: 11.5, color: t.pop ? 'var(--cream-3)' : 'var(--ink-3)', marginBottom: 18, minHeight: 16 }}>
+                {period === 'yearly' ? `soit ${t.yearly * 12}€ facturés par an` : 'facturé chaque mois'}
+              </div>
               <div className="chip" style={{ marginBottom: 24, background: t.pop ? 'var(--forest-2)' : 'var(--paper-3)', color: t.pop ? 'var(--cream-2)' : 'var(--ink-2)', boxShadow: 'inset 0 0 0 1px var(--line)' }}>{t.clients}</div>
-              <Link href={`/register?plan=${t.plan}`} className={`btn ${t.pop ? 'btn-acid' : 'btn-ghost'}`} style={{ width: '100%', justifyContent: 'center', marginBottom: 26 }}>{t.cta}</Link>
+              <button onClick={() => onChoose(t.plan)} disabled={busy !== null} className={`btn ${t.pop ? 'btn-acid' : 'btn-ghost'}`} style={{ width: '100%', justifyContent: 'center', marginBottom: 26 }}>
+                {busy === t.plan ? 'Redirection…' : 'Essai 7 jours gratuit'}
+              </button>
               <ul style={{ listStyle: 'none', display: 'flex', flexDirection: 'column', gap: 12 }}>
                 {t.feats.map((f, j) => {
                   const head = j === 0 && f.endsWith(':');
@@ -873,7 +917,7 @@ function Pricing() {
                 })}
               </ul>
             </div>
-          ))}
+          );})}
         </div>
       </div>
     </section>

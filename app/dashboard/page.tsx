@@ -530,6 +530,21 @@ export default function Dashboard() {
   const [userName, setUserName] = useState('');
   const [loading, setLoading] = useState(true);
 
+  // Reprise d'un Checkout demandé depuis la landing avant inscription
+  useEffect(() => {
+    let raw: string | null = null;
+    try { raw = localStorage.getItem('klip_pending_checkout'); } catch { raw = null; }
+    if (!raw) return;
+    try { localStorage.removeItem('klip_pending_checkout'); } catch {}
+    try {
+      const { plan, period } = JSON.parse(raw);
+      fetch('/api/stripe/checkout', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ plan, period }) })
+        .then(r => r.json())
+        .then(j => { if (j?.url) window.location.href = j.url; })
+        .catch(() => {});
+    } catch {}
+  }, []);
+
   useEffect(() => {
     const load = async () => {
       try {

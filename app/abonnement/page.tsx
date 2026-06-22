@@ -69,10 +69,12 @@ export default function AbonnementPage() {
   async function choose(plan: "solo" | "agency") {
     setBusy(plan);
     try {
+      // map account_type interne → offre Stripe (solo = Studio, agency = Agence)
+      const stripePlan = plan === "agency" ? "agence" : "studio";
       const res = await fetch("/api/stripe/checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ plan }),
+        body: JSON.stringify({ plan: stripePlan, period: "monthly" }),
       });
       const json = await res.json();
       if (res.ok && json.url) {
