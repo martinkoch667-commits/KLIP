@@ -423,7 +423,7 @@ const SOCIAL_AVATARS = [
 
 function HeroSocialProof() {
   return (
-    <div className="reveal in hero-proof" style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 11, marginBottom: 26 }}>
+    <div className="reveal in hero-proof" style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 11, marginTop: 30 }}>
       <div className="hero-proof-avatars" aria-hidden="true" style={{ display: "flex" }}>
         {SOCIAL_AVATARS.map((src, i) => (
           // eslint-disable-next-line @next/next/no-img-element
@@ -449,7 +449,6 @@ function Hero() {
   return (
     <header id="top" className="section dotgrid on-forest" style={{ paddingTop: 150, paddingBottom: 84, position: 'relative', overflow: 'hidden' }}>
       <div className="wrap" style={{ position: 'relative', zIndex: 2 }}>
-        <HeroSocialProof />
         <p className="reveal" style={{ textAlign: 'center', fontFamily: 'var(--mono)', fontWeight: 700, fontSize: 14, letterSpacing: '.04em', color: 'var(--cream-2)', marginBottom: 22, textTransform: 'uppercase' }}>
           L&apos;outil de post-production de vos réseaux sociaux
         </p>
@@ -467,6 +466,9 @@ function Hero() {
             </span>
           ))}
         </div>
+
+        <HeroSocialProof />
+
         <div className="reveal d3 hero-cta" style={{ display: 'flex', gap: 14, justifyContent: 'center', marginTop: 34, flexWrap: 'wrap' }}>
           <Link href="/register" className="btn btn-acid">Essayer gratuitement <span className="arr"><Icon name="arrowUR" size={18} /></span></Link>
           <a href="#apercu" className="btn btn-ghost">Voir KLIP en action</a>
