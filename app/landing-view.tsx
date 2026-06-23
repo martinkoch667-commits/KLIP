@@ -401,27 +401,28 @@ function Nav() {
 // TODO: remplacer par le compteur réel d'utilisateurs quand on aura les premiers clients
 // (ex: `+50 community managers utilisent déjà Klip`)
 const socialProofText = "Rejoignez les premiers community managers qui passent à Klip";
-// Avatars génériques (dégradés charte forest → mint) — pas de vraies personnes
+// Photos d'avatars — TODO: remplacer par les vraies photos de tes premiers clients.
+// (placeholders de visages via i.pravatar.cc en attendant)
 const SOCIAL_AVATARS = [
-  "linear-gradient(135deg,#0C2A1D,#2FD79B)",
-  "linear-gradient(135deg,#103A28,#34E0A1)",
-  "linear-gradient(135deg,#0B3122,#5FE6B4)",
-  "linear-gradient(135deg,#16442F,#2FD79B)",
-  "linear-gradient(135deg,#0C2A1D,#34E0A1)",
-  "linear-gradient(135deg,#103A28,#5FE6B4)",
+  "https://i.pravatar.cc/80?img=11",
+  "https://i.pravatar.cc/80?img=32",
+  "https://i.pravatar.cc/80?img=5",
+  "https://i.pravatar.cc/80?img=47",
+  "https://i.pravatar.cc/80?img=12",
+  "https://i.pravatar.cc/80?img=26",
 ];
 
 function HeroSocialProof() {
   return (
-    <div className="reveal d3 hero-proof" style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 12, marginTop: 30 }}>
+    <div className="reveal in hero-proof" style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 11, marginBottom: 26 }}>
       <div className="hero-proof-avatars" aria-hidden="true" style={{ display: "flex" }}>
-        {SOCIAL_AVATARS.map((g, i) => (
-          <span key={i} style={{ width: 38, height: 38, borderRadius: "50%", border: "2px solid #0C2A1D", marginLeft: i === 0 ? 0 : -11, background: g, display: "grid", placeItems: "center", boxShadow: "0 2px 6px rgba(0,0,0,.35)" }}>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="rgba(255,255,255,.92)"><circle cx="12" cy="9" r="3.4" /><path d="M5.5 19.2c0-3.4 2.9-5.4 6.5-5.4s6.5 2 6.5 5.4z" /></svg>
-          </span>
+        {SOCIAL_AVATARS.map((src, i) => (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img key={i} src={src} alt="" width={38} height={38} loading="lazy"
+            style={{ width: 38, height: 38, borderRadius: "50%", border: "2px solid #0C2A1D", marginLeft: i === 0 ? 0 : -11, objectFit: "cover", boxShadow: "0 2px 6px rgba(0,0,0,.35)" }} />
         ))}
       </div>
-      <div className="hero-proof-text" style={{ display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap", justifyContent: "center" }}>
+      <div className="hero-proof-text" style={{ display: "flex", alignItems: "center", gap: 13, flexWrap: "wrap", justifyContent: "center", textAlign: "center" }}>
         <span style={{ fontFamily: "var(--sans)", fontWeight: 700, fontSize: 14.5, color: "var(--cream)" }}>{socialProofText}</span>
         <span className="hero-proof-div" style={{ width: 1, height: 18, background: "var(--line-f)" }} />
         <span style={{ fontFamily: "var(--sans)", fontWeight: 400, fontSize: 14, color: "var(--cream-3)" }}>7 jours d&apos;essai gratuit</span>
@@ -439,6 +440,7 @@ function Hero() {
   return (
     <header id="top" className="section dotgrid on-forest" style={{ paddingTop: 150, paddingBottom: 84, position: 'relative', overflow: 'hidden' }}>
       <div className="wrap" style={{ position: 'relative', zIndex: 2 }}>
+        <HeroSocialProof />
         <p className="reveal" style={{ textAlign: 'center', fontFamily: 'var(--mono)', fontWeight: 700, fontSize: 14, letterSpacing: '.04em', color: 'var(--cream-2)', marginBottom: 22, textTransform: 'uppercase' }}>
           L&apos;outil de post-production de vos réseaux sociaux
         </p>
@@ -460,8 +462,6 @@ function Hero() {
           <Link href="/register" className="btn btn-acid">Essayer gratuitement <span className="arr"><Icon name="arrowUR" size={18} /></span></Link>
           <a href="#apercu" className="btn btn-ghost">Voir KLIP en action</a>
         </div>
-
-        <HeroSocialProof />
 
         {/* product peek */}
         <div className="hero-peek" style={{ position: 'relative', maxWidth: 1080, margin: '52px auto 0' }}>
