@@ -27,7 +27,7 @@ export async function middleware(req: NextRequest) {
   if (isProtected && session) {
     const { data: settings } = await supabase
       .from("user_settings")
-      .select("subscription_status, trial_ends_at")
+      .select("subscription_status, trial_ends_at, is_comped")
       .eq("user_id", session.user.id)
       .maybeSingle();
 

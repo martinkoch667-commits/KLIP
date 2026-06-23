@@ -53,8 +53,10 @@ export type SubscriptionStatus = "trialing" | "active" | "past_due" | "expired" 
 export function isAccessBlocked(s: {
   subscription_status?: string | null;
   trial_ends_at?: string | null;
+  is_comped?: boolean | null;
 } | null | undefined): boolean {
   if (!s) return false; // pas encore onboardé → on laisse passer (l'onboarding gère)
+  if (s.is_comped) return false; // accès offert à vie → jamais bloqué, jamais débité
   const status = s.subscription_status;
   if (status === "active") return false;
   if (status === "expired" || status === "canceled" || status === "past_due") return true;
