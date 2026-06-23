@@ -32,7 +32,7 @@ export async function GET(request: Request) {
   try {
     const res = await fetch(
       `https://api.openverse.org/v1/images/?q=${encodeURIComponent(query)}&page_size=${PER_PAGE}&page=${page}&mature=false`,
-      { headers: { 'User-Agent': 'KLIP/1.0 (https://klip-swart.vercel.app)' } }
+      { headers: { 'User-Agent': 'KLIP/1.0 (https://getklip.fr)' } }
     );
     if (!res.ok) throw new Error(`Openverse ${res.status}`);
     const data = await res.json();

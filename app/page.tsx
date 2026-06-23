@@ -12,7 +12,7 @@ export const metadata: Metadata = {
   openGraph: {
     type: "website",
     locale: "fr_FR",
-    url: "https://klip-swart.vercel.app",
+    url: "https://getklip.fr",
     siteName: "Klip",
     title: "Klip — Le studio social tout-en-un pour agences",
     description:
@@ -27,7 +27,7 @@ export const metadata: Metadata = {
   robots: { index: true, follow: true },
 };
 
-const SITE = "https://klip-swart.vercel.app";
+const SITE = "https://getklip.fr";
 
 const softwareLd = {
   "@context": "https://schema.org",

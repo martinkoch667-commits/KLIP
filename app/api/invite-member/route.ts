@@ -60,7 +60,7 @@ export async function POST(req: NextRequest) {
   );
 
   const { data: inviteData, error: inviteError } = await adminClient.auth.admin.inviteUserByEmail(email, {
-    redirectTo: `${process.env.NEXT_PUBLIC_APP_URL ?? "https://klip-swart.vercel.app"}/auth/callback`,
+    redirectTo: `${process.env.NEXT_PUBLIC_APP_URL ?? "https://getklip.fr"}/auth/callback`,
     data: { invited_to_agency: agency_id, invited_role: role ?? "member" },
   });
 

@@ -35,7 +35,7 @@ export default function PrivacyPolicy() {
 
         {/* Intro */}
         <p style={prose}>
-          This Privacy Policy describes how <strong>Klip</strong> ("we", "us", "our") — operated by Martin Koch, micro-entreprise SIREN&nbsp;931920821 — collects, uses and protects your personal information when you use our service at <strong>klip-swart.vercel.app</strong>. By using Klip, you agree to the practices described below.
+          This Privacy Policy describes how <strong>Klip</strong> ("we", "us", "our") — operated by Martin Koch, micro-entreprise SIREN&nbsp;931920821 — collects, uses and protects your personal information when you use our service at <strong>getklip.fr</strong>. By using Klip, you agree to the practices described below.
         </p>
 
         <Divider />
@@ -109,7 +109,7 @@ export default function PrivacyPolicy() {
           </ul>
           <p style={prose}>
             To request immediate deletion of your Instagram data:&nbsp;
-            <a href="https://klip-swart.vercel.app/data-deletion" style={link}>klip-swart.vercel.app/data-deletion</a>
+            <a href="https://getklip.fr/data-deletion" style={link}>getklip.fr/data-deletion</a>
           </p>
         </Section>
 
@@ -143,7 +143,7 @@ export default function PrivacyPolicy() {
           </p>
           <p style={prose}>
             To request data deletion:&nbsp;
-            <a href="https://klip-swart.vercel.app/data-deletion" style={link}>klip-swart.vercel.app/data-deletion</a>
+            <a href="https://getklip.fr/data-deletion" style={link}>getklip.fr/data-deletion</a>
           </p>
         </Section>
 
@@ -173,7 +173,7 @@ export default function PrivacyPolicy() {
             </p>
             <p style={{ ...prose, marginBottom: 0 }}>
               Data deletion:&nbsp;
-              <a href="https://klip-swart.vercel.app/data-deletion" style={link}>klip-swart.vercel.app/data-deletion</a>
+              <a href="https://getklip.fr/data-deletion" style={link}>getklip.fr/data-deletion</a>
             </p>
           </div>
         </Section>

@@ -3,7 +3,7 @@
 
 const RESEND_API = "https://api.resend.com/emails";
 const FROM = process.env.EMAIL_FROM ?? "KLIP <onboarding@resend.dev>";
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://klip-swart.vercel.app";
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://getklip.fr";
 
 export const emailEnabled = () => !!process.env.RESEND_API_KEY;
 

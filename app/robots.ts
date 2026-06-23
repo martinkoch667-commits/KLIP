@@ -19,6 +19,6 @@ export default function robots(): MetadataRoute.Robots {
         "/templates",
       ],
     },
-    sitemap: "https://klip-swart.vercel.app/sitemap.xml",
+    sitemap: "https://getklip.fr/sitemap.xml",
   };
 }

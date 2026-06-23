@@ -440,7 +440,7 @@ export default function WorkspacePage() {
 
   async function copyShareLink() {
     if (!shareToken) return;
-    await navigator.clipboard.writeText(`https://klip-swart.vercel.app/preview/${shareToken.token}`);
+    await navigator.clipboard.writeText(`https://getklip.fr/preview/${shareToken.token}`);
     setShareCopied(true);
     setTimeout(() => setShareCopied(false), 2500);
   }
@@ -1569,7 +1569,7 @@ export default function WorkspacePage() {
               <div style={{ display: 'flex', gap: 8 }}>
                 <input
                   readOnly
-                  value={`https://klip-swart.vercel.app/preview/${shareToken.token}`}
+                  value={`https://getklip.fr/preview/${shareToken.token}`}
                   style={{ flex: 1, fontFamily: 'var(--mono)', fontSize: 12, padding: '10px 12px', borderRadius: 8, border: '1px solid var(--line)', background: 'var(--sunk)', color: 'var(--ink-2)', minWidth: 0 }}
                   onFocus={e => e.currentTarget.select()}
                 />
