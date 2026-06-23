@@ -161,6 +161,15 @@ const V2_CSS = `
   .v2 .hero-flow-item { flex-direction:column; gap:8px; width:auto; }
   .v2 .hero-flow-arr { transform:rotate(90deg); }
 }
+/* hero compact sur mobile — pour voir le pipeline (Importez/Composez/Programmez) dès l'arrivée */
+@media (max-width:680px) {
+  .v2 #top { padding-top:98px !important; padding-bottom:52px !important; }
+  .v2 .hero-proof { margin-bottom:14px !important; }
+  .v2 .hero-h1 { font-size:clamp(30px, 8vw, 40px) !important; }
+  .v2 #top .lead { font-size:16px !important; margin-top:16px !important; }
+  .v2 .hero-flow { margin-top:18px !important; gap:6px !important; }
+  .v2 .hero-cta { margin-top:22px !important; }
+}
 /* petits téléphones */
 @media (max-width:560px) {
   .v2 .foot-grid { grid-template-columns:1fr !important; gap:30px !important; }
