@@ -1069,6 +1069,110 @@ function Footer() {
 
 /* ─── Page ───────────────────────────────────────────────────────────────── */
 /* ─── SocialProofBar — bandeau crédibilité "early access" ─────────────────── */
+/* ─── Comparatif "Klip remplace votre stack" ─────────────────────────────── */
+// Prix Klip affiché — TODO: ajuster si la grille tarifaire change
+const KLIP_PRICE = 29;
+// Stack actuelle — montants facilement modifiables ici
+const STACK_TOOLS = [
+  { tool: "Canva Pro", use: "Créer les visuels", cost: 12 },
+  { tool: "ChatGPT Plus", use: "Écrire les légendes", cost: 23 },
+  { tool: "Metricool / Later", use: "Planifier et publier", cost: 25 },
+  { tool: "Notion / tableur", use: "Suivre le planning", cost: 10 },
+  { tool: "Mails + WeTransfer", use: "Validation client", cost: 10 },
+];
+const STACK_TOTAL = STACK_TOOLS.reduce((s, t) => s + t.cost, 0);
+
+function Comparison() {
+  return (
+    <section id="comparatif" className="section">
+      <div className="wrap">
+        <div style={{ maxWidth: 820, marginBottom: 48 }}>
+          <h2 className="display reveal" style={{ fontSize: "clamp(36px, 5.2vw, 72px)" }}>
+            Un seul outil. <span className="it-serif acid-fill">À la place de cinq.</span>
+          </h2>
+          <p className="lead reveal d1" style={{ marginTop: 22, maxWidth: 620 }}>
+            Arrêtez de payer et de jongler entre cinq abonnements. Klip réunit toute votre production de contenu.
+          </p>
+        </div>
+
+        <div className="cmp-grid">
+          {/* Stack actuelle */}
+          <div className="cmp-stack reveal">
+            <div className="cmp-stack-head">
+              <span>Votre stack actuelle</span>
+              <span>Coût/mois</span>
+            </div>
+            {STACK_TOOLS.map((t) => (
+              <div key={t.tool} className="cmp-row">
+                <span className="cmp-dot" />
+                <div className="cmp-row-main">
+                  <span className="cmp-tool">{t.tool}</span>
+                  <span className="cmp-use">{t.use}</span>
+                </div>
+                <span className="cmp-cost">~{t.cost}€</span>
+              </div>
+            ))}
+            <div className="cmp-total">
+              <span>Total</span>
+              <span>~{STACK_TOTAL}€/mois</span>
+            </div>
+            <p className="cmp-note">Tarifs moyens constatés, donnés à titre indicatif.</p>
+          </div>
+
+          {/* Flèche avant → après */}
+          <div className="cmp-arrow" aria-hidden="true">
+            <span><Icon name="arrow" size={22} /></span>
+          </div>
+
+          {/* Bloc Klip */}
+          <div className="cmp-klip reveal d1">
+            <span className="cmp-klip-badge"><Icon name="spark" size={14} /> Avec Klip</span>
+            <p className="cmp-klip-lead">Tout ça réuni, à partir de</p>
+            <div className="cmp-klip-price">
+              <span className="cmp-klip-num">{KLIP_PRICE}€</span>
+              <span className="cmp-klip-per">/mois</span>
+            </div>
+            <p className="cmp-klip-vs">au lieu de ~{STACK_TOTAL}€/mois pour cinq outils</p>
+            <Link href="/register" className="btn btn-acid" style={{ marginTop: 22, justifyContent: "center" }}>
+              Essayer gratuitement <span className="arr"><Icon name="arrowUR" size={18} /></span>
+            </Link>
+          </div>
+        </div>
+      </div>
+
+      <style>{`
+        .v2 .cmp-grid { display: grid; grid-template-columns: 1fr; gap: 18px; align-items: center; }
+        .v2 .cmp-stack { background: var(--paper-2); border: 1px solid var(--line); border-radius: var(--radius); padding: 26px 28px; }
+        .v2 .cmp-stack-head { display: flex; justify-content: space-between; font-family: var(--mono); font-weight: 700; font-size: 11.5px; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-3); padding-bottom: 14px; border-bottom: 1px solid var(--line); }
+        .v2 .cmp-row { display: flex; align-items: center; gap: 13px; padding: 14px 0; border-bottom: 1px solid var(--line-2); }
+        .v2 .cmp-dot { width: 22px; height: 22px; border-radius: 7px; background: var(--paper-3); box-shadow: inset 0 0 0 1px var(--line); flex-shrink: 0; }
+        .v2 .cmp-row-main { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0; }
+        .v2 .cmp-tool { font-family: var(--sans); font-weight: 700; font-size: 15px; color: var(--ink-2); }
+        .v2 .cmp-use { font-family: var(--sans); font-weight: 400; font-size: 13px; color: var(--ink-3); }
+        .v2 .cmp-cost { font-family: var(--mono); font-weight: 700; font-size: 15px; color: var(--ink-3); flex-shrink: 0; }
+        .v2 .cmp-total { display: flex; justify-content: space-between; align-items: center; margin-top: 8px; padding-top: 16px; border-top: 2px solid var(--line); font-family: var(--heavy); font-weight: 800; font-size: 19px; color: var(--ink); }
+        .v2 .cmp-note { font-family: var(--sans); font-weight: 400; font-size: 12px; color: var(--ink-3); margin-top: 14px; }
+
+        .v2 .cmp-arrow { display: grid; place-items: center; }
+        .v2 .cmp-arrow > span { width: 46px; height: 46px; border-radius: 50%; background: var(--acid); color: var(--acid-ink); display: grid; place-items: center; box-shadow: 0 10px 24px -10px color-mix(in srgb, var(--acid) 70%, #000); transform: rotate(90deg); }
+
+        .v2 .cmp-klip { background: var(--forest); color: var(--cream); border-radius: var(--radius); padding: 38px 34px; display: flex; flex-direction: column; align-items: flex-start; box-shadow: 0 40px 80px -42px rgba(6,32,24,.7); }
+        .v2 .cmp-klip-badge { display: inline-flex; align-items: center; gap: 7px; background: var(--acid); color: var(--acid-ink); font-family: var(--mono); font-weight: 700; font-size: 12px; letter-spacing: .06em; text-transform: uppercase; padding: 7px 13px; border-radius: 999px; }
+        .v2 .cmp-klip-lead { color: var(--cream-2); font-size: 16px; margin-top: 20px; }
+        .v2 .cmp-klip-price { display: flex; align-items: baseline; gap: 8px; margin-top: 6px; }
+        .v2 .cmp-klip-num { font-family: var(--heavy); font-weight: 800; font-size: clamp(56px, 7vw, 84px); letter-spacing: -.04em; line-height: 1; color: var(--cream); }
+        .v2 .cmp-klip-per { font-family: var(--mono); font-weight: 700; font-size: 16px; color: var(--cream-2); }
+        .v2 .cmp-klip-vs { font-family: var(--sans); font-size: 14px; color: var(--cream-3); margin-top: 10px; }
+
+        @media (min-width: 861px) {
+          .v2 .cmp-grid { grid-template-columns: 1.45fr 64px 1fr; gap: 8px; }
+          .v2 .cmp-arrow > span { transform: rotate(0deg); }
+        }
+      `}</style>
+    </section>
+  );
+}
+
 export default function LandingPage() {
   const supabase = createClientComponentClient();
   const router = useRouter();
@@ -1096,6 +1200,7 @@ export default function LandingPage() {
       <Probleme />
       <Steps />
       <Showcase />
+      <Comparison />
       <Features />
       <Testimonials />
       <Pricing />
