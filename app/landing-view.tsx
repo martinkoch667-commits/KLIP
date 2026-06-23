@@ -1024,6 +1024,58 @@ function Footer() {
 }
 
 /* ─── Page ───────────────────────────────────────────────────────────────── */
+/* ─── SocialProofBar — bandeau crédibilité "early access" ─────────────────── */
+function SocialProofBar() {
+  // TODO: remplacer par le compteur réel d'utilisateurs quand on aura les premiers clients
+  // (ex: `+50 community managers utilisent déjà Klip`)
+  const socialProofText = "Rejoignez les premiers community managers qui passent à Klip";
+
+  // Avatars génériques (dégradés charte forest → mint) — pas de vraies personnes
+  const avatarGradients = [
+    "linear-gradient(135deg,#062018,#2FD79B)",
+    "linear-gradient(135deg,#0C2A1D,#34E0A1)",
+    "linear-gradient(135deg,#103A28,#2FD79B)",
+    "linear-gradient(135deg,#0B3122,#5FE6B4)",
+    "linear-gradient(135deg,#062018,#34E0A1)",
+    "linear-gradient(135deg,#11432F,#2FD79B)",
+  ];
+
+  return (
+    <section className="sp-section" style={{ background: "var(--paper)", borderTop: "1px solid var(--line-2)", borderBottom: "1px solid var(--line-2)" }}>
+      <div className="wrap sp-bar">
+        <div className="sp-avatars" aria-hidden="true">
+          {avatarGradients.map((g, i) => (
+            <span key={i} className="sp-av" style={{ background: g }}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="rgba(255,255,255,.92)">
+                <circle cx="12" cy="9" r="3.4" />
+                <path d="M5.5 19.2c0-3.4 2.9-5.4 6.5-5.4s6.5 2 6.5 5.4z" />
+              </svg>
+            </span>
+          ))}
+        </div>
+        <div className="sp-text">
+          <p className="sp-main">{socialProofText}</p>
+          <p className="sp-sub">Accès anticipé · Places limitées</p>
+        </div>
+      </div>
+      <style>{`
+        .v2 .sp-section { padding: 26px 0; }
+        .v2 .sp-bar { display: flex; align-items: center; justify-content: center; gap: 20px; flex-wrap: wrap; }
+        .v2 .sp-avatars { display: flex; flex-shrink: 0; }
+        .v2 .sp-av { width: 36px; height: 36px; border-radius: 50%; border: 2px solid var(--paper); margin-left: -10px; display: grid; place-items: center; box-shadow: 0 1px 3px rgba(10,12,7,.18); }
+        .v2 .sp-av:first-child { margin-left: 0; }
+        .v2 .sp-text { display: flex; flex-direction: column; gap: 3px; }
+        .v2 .sp-main { font-family: var(--heavy); font-weight: 700; font-size: clamp(15px, 1.5vw, 18px); letter-spacing: -0.01em; color: var(--ink); margin: 0; line-height: 1.25; }
+        .v2 .sp-sub { font-family: var(--sans); font-weight: 400; font-size: 13px; color: var(--ink-3); margin: 0; }
+        @media (max-width: 640px) {
+          .v2 .sp-bar { flex-direction: column; text-align: center; gap: 14px; }
+          .v2 .sp-main { font-size: 16px; }
+        }
+      `}</style>
+    </section>
+  );
+}
+
 export default function LandingPage() {
   const supabase = createClientComponentClient();
   const router = useRouter();
@@ -1048,6 +1100,7 @@ export default function LandingPage() {
       <style dangerouslySetInnerHTML={{ __html: V2_CSS }} />
       <Nav />
       <Hero />
+      <SocialProofBar />
       <Probleme />
       <Steps />
       <Showcase />
