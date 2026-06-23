@@ -1074,28 +1074,29 @@ function Footer() {
 /* ─── Comparatif "Klip remplace votre stack" ─────────────────────────────── */
 // Prix Klip affiché — TODO: ajuster si la grille tarifaire change
 const KLIP_PRICE = 29;
-// Stack actuelle — logos (Simple Icons) + montants, facilement modifiables ici
+// Stack actuelle — logos (favicon de marque) + montants, facilement modifiables ici
 const STACK_TOOLS = [
-  { name: "Canva", use: "Créer les visuels", cost: 12, slug: "canva", color: "00C4CC" },
-  { name: "ChatGPT", use: "Écrire les légendes", cost: 23, slug: "openai", color: "10A37F" },
-  { name: "Metricool", use: "Planifier & publier", cost: 25, slug: "metricool", color: "7C5CFF" },
-  { name: "Notion", use: "Suivre le planning", cost: 10, slug: "notion", color: "0A0A0A" },
-  { name: "WeTransfer", use: "Validation client", cost: 10, slug: "wetransfer", color: "409FFF" },
+  { name: "Canva", use: "Créer les visuels", cost: 12, domain: "canva.com", color: "00C4CC" },
+  { name: "ChatGPT", use: "Écrire les légendes", cost: 23, domain: "chatgpt.com", color: "10A37F" },
+  { name: "Metricool", use: "Planifier & publier", cost: 25, domain: "metricool.com", color: "7C5CFF" },
+  { name: "Notion", use: "Suivre le planning", cost: 10, domain: "notion.so", color: "111111" },
+  { name: "WeTransfer", use: "Validation client", cost: 10, domain: "wetransfer.com", color: "409FFF" },
 ];
 const STACK_TOTAL = STACK_TOOLS.reduce((s, t) => s + t.cost, 0);
 
-/* Logo de marque (Simple Icons CDN) avec repli sur une pastille initiale si absent */
-function ToolLogo({ slug, color, name }: { slug: string; color: string; name: string }) {
+/* Logo de marque dans une pastille blanche — favicon Google (fiable), repli initiale */
+function ToolLogo({ domain, color, name }: { domain: string; color: string; name: string }) {
   const [err, setErr] = useState(false);
-  if (err) {
-    return (
-      <span style={{ width: 34, height: 34, borderRadius: 9, background: `#${color}`, color: "#fff", display: "grid", placeItems: "center", fontFamily: "var(--heavy)", fontWeight: 800, fontSize: 15 }}>
-        {name.charAt(0)}
-      </span>
-    );
-  }
-  // eslint-disable-next-line @next/next/no-img-element
-  return <img src={`https://cdn.simpleicons.org/${slug}/${color}`} alt={name} width={34} height={34} loading="lazy" onError={() => setErr(true)} style={{ width: 34, height: 34, objectFit: "contain" }} />;
+  return (
+    <span className="cmp-logo-chip">
+      {err ? (
+        <span style={{ color: `#${color}`, fontFamily: "var(--heavy)", fontWeight: 800, fontSize: 17 }}>{name.charAt(0)}</span>
+      ) : (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={`https://www.google.com/s2/favicons?sz=128&domain=${domain}`} alt={name} width={26} height={26} loading="lazy" onError={() => setErr(true)} style={{ width: 26, height: 26, objectFit: "contain" }} />
+      )}
+    </span>
+  );
 }
 
 function Comparison() {
@@ -1112,10 +1113,11 @@ function Comparison() {
         </div>
 
         {/* Grille de logos (la stack actuelle, prix barrés) */}
+        <p className="cmp-eyebrow reveal">Votre stack actuelle</p>
         <div className="cmp-logos reveal">
           {STACK_TOOLS.map((t) => (
             <div key={t.name} className="cmp-logo-card">
-              <ToolLogo slug={t.slug} color={t.color} name={t.name} />
+              <ToolLogo domain={t.domain} color={t.color} name={t.name} />
               <span className="cmp-logo-name">{t.name}</span>
               <span className="cmp-logo-use">{t.use}</span>
               <span className="cmp-logo-cost">~{t.cost}€<span>/mois</span></span>
@@ -1147,15 +1149,16 @@ function Comparison() {
       </div>
 
       <style>{`
-        .v2 .cmp-logos { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
-        .v2 .cmp-logo-card { background: var(--paper-2); border: 1px solid var(--line); border-radius: var(--radius-s); padding: 22px 16px; display: flex; flex-direction: column; align-items: center; text-align: center; gap: 6px; }
-        .v2 .cmp-logo-card > img, .v2 .cmp-logo-card > span:first-child { filter: grayscale(.15); opacity: .9; }
-        .v2 .cmp-logo-name { font-family: var(--sans); font-weight: 700; font-size: 14px; color: var(--ink-2); margin-top: 4px; }
-        .v2 .cmp-logo-use { font-family: var(--sans); font-weight: 400; font-size: 12px; color: var(--ink-3); }
-        .v2 .cmp-logo-cost { font-family: var(--mono); font-weight: 700; font-size: 15px; color: var(--ink-3); text-decoration: line-through; text-decoration-color: var(--acid-2); margin-top: 4px; }
+        .v2 .cmp-eyebrow { text-align: center; font-family: var(--mono); font-weight: 700; font-size: 12px; letter-spacing: .14em; text-transform: uppercase; color: var(--ink-3); margin-bottom: 16px; }
+        .v2 .cmp-logos { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; max-width: 980px; margin: 0 auto; }
+        .v2 .cmp-logo-card { background: var(--paper-2); box-shadow: inset 0 0 0 1px var(--line-2); border-radius: var(--radius-s); padding: 24px 16px; display: flex; flex-direction: column; align-items: center; text-align: center; gap: 5px; }
+        .v2 .cmp-logo-chip { width: 48px; height: 48px; border-radius: 13px; background: #fff; box-shadow: 0 2px 8px rgba(10,12,7,.10), inset 0 0 0 1px var(--line-2); display: grid; place-items: center; margin-bottom: 8px; }
+        .v2 .cmp-logo-name { font-family: var(--heavy); font-weight: 700; font-size: 15px; color: var(--ink); }
+        .v2 .cmp-logo-use { font-family: var(--sans); font-weight: 400; font-size: 12.5px; color: var(--ink-3); }
+        .v2 .cmp-logo-cost { font-family: var(--mono); font-weight: 700; font-size: 15px; color: var(--ink-3); text-decoration: line-through; text-decoration-color: color-mix(in srgb, var(--acid) 70%, transparent); text-decoration-thickness: 2px; margin-top: 6px; }
         .v2 .cmp-logo-cost span { text-decoration: none; font-size: 11px; color: var(--ink-3); }
 
-        .v2 .cmp-today { text-align: center; font-family: var(--sans); font-size: 15px; color: var(--ink-2); margin-top: 22px; }
+        .v2 .cmp-today { text-align: center; font-family: var(--sans); font-size: 15px; color: var(--ink-2); margin-top: 24px; }
         .v2 .cmp-today strong { font-family: var(--heavy); font-weight: 800; color: var(--ink); }
 
         .v2 .cmp-arrow { display: grid; place-items: center; margin: 18px 0; }
