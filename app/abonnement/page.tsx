@@ -40,6 +40,8 @@ const CSS = `
   position:relative;z-index:1;margin-top:6px;line-height:1.5;}
 .ab-logout{margin-top:26px;font-size:13px;color:rgba(238,237,227,.45);text-decoration:underline;
   text-underline-offset:3px;background:none;border:none;cursor:pointer;position:relative;z-index:1;}
+.ab-choice{align-self:flex-start;font-family:var(--mono);font-size:9.5px;font-weight:800;letter-spacing:.12em;
+  text-transform:uppercase;color:#0C2A1D;background:var(--mint);padding:3px 9px;border-radius:99px;margin-bottom:10px;}
 `;
 
 function Check() {
@@ -50,11 +52,19 @@ export default function AbonnementPage() {
   const supabase = createClientComponentClient();
   const router = useRouter();
   const [email, setEmail] = useState<string | null>(null);
+  const [chosen, setChosen] = useState<"solo" | "agency" | null>(null);
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (!session) router.replace("/login");
-      else setEmail(session.user.email ?? null);
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
+      if (!session) { router.replace("/login"); return; }
+      setEmail(session.user.email ?? null);
+      // Récupère l'offre déjà choisie à l'inscription (onboarding) pour la pré-sélectionner.
+      const { data } = await supabase
+        .from("user_settings")
+        .select("account_type")
+        .eq("user_id", session.user.id)
+        .maybeSingle();
+      if (data?.account_type === "agency" || data?.account_type === "solo") setChosen(data.account_type);
     });
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -105,24 +115,31 @@ export default function AbonnementPage() {
       <img src="/logo-klip-mint.png" alt="Klip" className="ab-logo"
         onError={e => { const i = e.target as HTMLImageElement; i.src = "/logo-klip-dark.png"; i.style.filter = "invert(1) brightness(2)"; }} />
       <span className="ab-badge">Dernière étape</span>
-      <h1 className="ab-title">Choisissez votre offre<br />pour démarrer</h1>
-      <p className="ab-sub">Activez votre essai gratuit de 7 jours — sans engagement, résiliable à tout moment. Vous n&apos;êtes débité qu&apos;à la fin de l&apos;essai.</p>
+      <h1 className="ab-title">{chosen ? "Activez votre offre :" : "Choisissez votre offre"}<br />{chosen ? PLANS[chosen].label : "pour démarrer"}</h1>
+      <p className="ab-sub">{chosen
+        ? "On vous emmène directement au paiement de l’offre choisie à l’inscription. Essai gratuit de 7 jours, sans engagement, résiliable à tout moment — vous n’êtes débité qu’à la fin de l’essai."
+        : "Activez votre essai gratuit de 7 jours — sans engagement, résiliable à tout moment. Vous n’êtes débité qu’à la fin de l’essai."}</p>
 
       <div className="ab-grid">
-        {tiers.map(({ p, pop, feats }) => (
-          <div key={p.key} className={`ab-card${pop ? " pop" : ""}`}>
-            <div className="ab-name">{p.label}</div>
-            <div className="ab-price">{p.priceMonthly}€ <span>/ mois</span></div>
-            <div style={{ height: 1, background: "rgba(255,255,255,.1)", margin: "16px 0" }} />
-            {feats.map(f => <div key={f} className="ab-li"><span className="ab-dot"><Check /></span>{f}</div>)}
-            <button className="ab-btn" onClick={() => choose(p.key)} disabled={busy !== null}>
-              {busy === p.key ? "Redirection…" : `Choisir ${p.label}`}
-            </button>
-          </div>
-        ))}
+        {tiers.map(({ p, pop, feats }) => {
+          const isChosen = chosen === p.key;
+          const isOther  = chosen !== null && !isChosen;
+          return (
+            <div key={p.key} className={`ab-card${(isChosen || (pop && !chosen)) ? " pop" : ""}`}>
+              {isChosen && <span className="ab-choice">Votre choix</span>}
+              <div className="ab-name">{p.label}</div>
+              <div className="ab-price">{p.priceMonthly}€ <span>/ mois</span></div>
+              <div style={{ height: 1, background: "rgba(255,255,255,.1)", margin: "16px 0" }} />
+              {feats.map(f => <div key={f} className="ab-li"><span className="ab-dot"><Check /></span>{f}</div>)}
+              <button className={`ab-btn${isOther ? " ghost" : ""}`} onClick={() => choose(p.key)} disabled={busy !== null}>
+                {busy === p.key ? "Redirection…" : isChosen ? `Continuer avec ${p.label} →` : isOther ? `Prendre ${p.label} à la place` : `Choisir ${p.label}`}
+              </button>
+            </div>
+          );
+        })}
       </div>
 
-      <p className="ab-note">💳 Le paiement en ligne (Stripe) arrive très bientôt. En attendant, contactez-nous pour activer votre offre.</p>
+      <p className="ab-note">🔒 Paiement sécurisé par Stripe · Carte requise pour activer l’essai · Aucun débit avant la fin des 7 jours.</p>
       <button className="ab-logout" onClick={logout}>Se déconnecter{email ? ` (${email})` : ""}</button>
     </div>
   );

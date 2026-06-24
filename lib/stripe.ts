@@ -5,8 +5,19 @@ export const stripe = process.env.STRIPE_SECRET_KEY
   ? new Stripe(process.env.STRIPE_SECRET_KEY)
   : null;
 
-/* Domaine de prod (override possible via env). */
-export const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://getklip.fr";
+/* Domaine de prod (override possible via env).
+   On normalise : Stripe exige une URL absolue avec schéma (https://). Si la
+   variable d'env est renseignée sans "https://" (ex. "getklip.fr"), on l'ajoute,
+   et on retire un éventuel slash final. */
+function normalizeAppUrl(raw?: string | null): string {
+  const fallback = "https://getklip.fr";
+  const v = (raw ?? "").trim();
+  if (!v) return fallback;
+  const withScheme = /^https?:\/\//i.test(v) ? v : `https://${v}`;
+  return withScheme.replace(/\/+$/, "");
+}
+
+export const APP_URL = normalizeAppUrl(process.env.NEXT_PUBLIC_APP_URL);
 
 export type Plan = "studio" | "agence";
 export type Period = "monthly" | "yearly";
