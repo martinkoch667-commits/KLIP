@@ -73,7 +73,7 @@ export default function PreviewPage() {
   const [error, setError]           = useState<string | null>(null);
   const [workspace, setWorkspace]   = useState<Workspace | null>(null);
   const [posts, setPosts]           = useState<Post[]>([]);
-  const [tokenMeta, setTokenMeta]   = useState<{ label: string; created_at: string } | null>(null);
+  const [tokenMeta, setTokenMeta]   = useState<{ label: string; created_at: string; date_from?: string | null; date_to?: string | null } | null>(null);
 
   // Calendar nav
   const today = new Date();
@@ -96,6 +96,12 @@ export default function PreviewPage() {
         setWorkspace(d.workspace);
         setPosts(d.posts);
         setTokenMeta(d.tokenMeta);
+        // Ouvrir le calendrier sur le mois de début de la période partagée
+        if (d.tokenMeta?.date_from) {
+          const df = new Date(d.tokenMeta.date_from);
+          setYear(df.getFullYear());
+          setMonth(df.getMonth());
+        }
       })
       .catch(() => setError('Impossible de charger la page'))
       .finally(() => setLoading(false));
@@ -181,6 +187,13 @@ export default function PreviewPage() {
           Vue client
         </span>
       </header>
+
+      {(tokenMeta?.date_from || tokenMeta?.date_to) && (
+        <div style={{ background: '#0B3122', color: 'rgba(255,255,255,.85)', textAlign: 'center', padding: '8px 16px', fontSize: 12.5, fontWeight: 600, fontFamily: 'var(--sans, sans-serif)', flexShrink: 0 }}>
+          Période à valider : {tokenMeta?.date_from ? new Date(tokenMeta.date_from).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' }) : '…'}
+          {' → '}{tokenMeta?.date_to ? new Date(tokenMeta.date_to).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' }) : '…'}
+        </div>
+      )}
 
       {/* ── Calendar ──────────────────────────────────────────────────────── */}
       <main style={{ flex: 1, padding: '20px 16px 40px', maxWidth: 900, margin: '0 auto', width: '100%' }}>
