@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { useParams } from 'next/navigation';
+import Image from 'next/image';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -56,12 +57,8 @@ function postColor(post: Post): string {
 
 // ─── Logo Klip (blanc) ────────────────────────────────────────────────────────
 
-function KlipLogo() {
-  return (
-    <span style={{ fontFamily: 'var(--display)', fontWeight: 900, fontSize: 20, color: '#fff', letterSpacing: '-0.04em' }}>
-      klip
-    </span>
-  );
+function KlipLogo({ size = 26 }: { size?: number }) {
+  return <Image src="/logo-klip-mint.png" alt="Klip" width={1096} height={408} priority style={{ height: size, width: 'auto' }} />;
 }
 
 // ─── Main ─────────────────────────────────────────────────────────────────────
