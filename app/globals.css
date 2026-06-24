@@ -500,6 +500,10 @@ input.ed-range::-moz-range-thumb {
   .plan-main { min-height: 78vh; }
   .plan-rail { width: 100% !important; flex-shrink: 0; border-left: none !important; border-top: 1px solid var(--line); overflow-y: visible !important; }
 
+  /* Planning — vue semaine : grille défilable horizontalement avec jours lisibles */
+  .plan-cal-scroll { overflow-x: auto !important; -webkit-overflow-scrolling: touch; }
+  .plan-cal-grid { min-width: 680px; }
+
   /* Workspace topbar — hide nav links on mobile (accessible via sidebar) */
   .ws-topbar-link { display: none !important; }
 

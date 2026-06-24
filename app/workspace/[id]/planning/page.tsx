@@ -654,10 +654,10 @@ function PlanningContent() {
           <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", height: "calc(100vh - 64px)" }}>
 
             {/* Single scrollable area — day headers sticky at top inside it */}
-            <div ref={gridRef} style={{ flex: 1, overflowY: "auto", overflowX: "hidden", position: "relative", background: "var(--canvas)" }}>
+            <div ref={gridRef} className="plan-cal-scroll" style={{ flex: 1, overflowY: "auto", overflowX: "hidden", position: "relative", background: "var(--canvas)" }}>
 
               {/* Sticky day-header row */}
-              <div style={{ display: "grid", gridTemplateColumns: "56px repeat(7,1fr)", position: "sticky", top: 0, zIndex: 10, background: "var(--canvas)", borderBottom: `1px solid rgba(13,15,10,.08)`, boxShadow: "0 1px 0 rgba(13,15,10,.04)" }}>
+              <div className="plan-cal-grid" style={{ display: "grid", gridTemplateColumns: "56px repeat(7,1fr)", position: "sticky", top: 0, zIndex: 10, background: "var(--canvas)", borderBottom: `1px solid rgba(13,15,10,.08)`, boxShadow: "0 1px 0 rgba(13,15,10,.04)" }}>
                 {/* Corner cell */}
                 <div style={{ borderRight: `1px solid rgba(13,15,10,.08)`, background: "var(--canvas)" }} />
                 {weekDays.map((day, i) => {
@@ -676,7 +676,7 @@ function PlanningContent() {
               </div>
 
               {/* Grid body */}
-              <div style={{ display: "grid", gridTemplateColumns: "56px repeat(7,1fr)" }}>
+              <div className="plan-cal-grid" style={{ display: "grid", gridTemplateColumns: "56px repeat(7,1fr)" }}>
 
                 {/* Hour labels column — sticky left */}
                 <div style={{ position: "sticky", left: 0, zIndex: 3, background: "var(--canvas)", borderRight: `1px solid rgba(13,15,10,.08)` }}>
