@@ -12,7 +12,7 @@ function db() {
 async function resolveToken(token: string) {
   const { data } = await db()
     .from('share_tokens')
-    .select('id, workspace_id, label, expires_at, created_at, workspaces(id, name, primary_color, secondary_color, accent_color, logo_url, instagram_username, user_id)')
+    .select('id, workspace_id, label, expires_at, created_at, date_from, date_to, workspaces(id, name, primary_color, secondary_color, accent_color, logo_url, instagram_username, user_id)')
     .eq('token', token)
     .maybeSingle();
   return data ?? null;
@@ -29,17 +29,22 @@ export async function GET(
     return NextResponse.json({ error: 'Lien expiré' }, { status: 410 });
   }
 
-  const { data: posts } = await db()
+  let q = db()
     .from('posts')
     .select('id, title, description, texte_visuel, photo_url, exported_image_url, status, scheduled_at, post_type, approved_by_client, client_comment, client_reviewed_at')
     .eq('workspace_id', row.workspace_id)
-    .neq('status', 'failed')
-    .order('scheduled_at', { ascending: true, nullsFirst: false });
+    .neq('status', 'failed');
+
+  // Filtrage par plage de dates si le lien en définit une (sur scheduled_at)
+  if (row.date_from) q = q.gte('scheduled_at', row.date_from);
+  if (row.date_to)   q = q.lte('scheduled_at', row.date_to);
+
+  const { data: posts } = await q.order('scheduled_at', { ascending: true, nullsFirst: false });
 
   return NextResponse.json({
     workspace: row.workspaces,
     posts: posts ?? [],
-    tokenMeta: { label: row.label, created_at: row.created_at },
+    tokenMeta: { label: row.label, created_at: row.created_at, date_from: row.date_from, date_to: row.date_to },
   });
 }
 

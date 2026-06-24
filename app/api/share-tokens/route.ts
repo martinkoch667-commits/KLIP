@@ -21,7 +21,7 @@ export async function GET(request: NextRequest) {
 
   const { data: token } = await serviceRole()
     .from('share_tokens')
-    .select('id, token, label, expires_at, created_at')
+    .select('id, token, label, expires_at, created_at, date_from, date_to')
     .eq('workspace_id', workspaceId)
     .maybeSingle();
 
@@ -34,7 +34,7 @@ export async function POST(request: NextRequest) {
   const { data: { session } } = await supabase.auth.getSession();
   if (!session) return NextResponse.json({ error: 'Non autorisé' }, { status: 401 });
 
-  const { workspaceId, label, expiresAt } = await request.json();
+  const { workspaceId, label, expiresAt, dateFrom, dateTo } = await request.json();
   if (!workspaceId) return NextResponse.json({ error: 'workspaceId requis' }, { status: 400 });
 
   const db = serviceRole();
@@ -48,9 +48,11 @@ export async function POST(request: NextRequest) {
       workspace_id: workspaceId,
       label: label ?? 'Lien client',
       expires_at: expiresAt ?? null,
+      date_from: dateFrom ?? null,
+      date_to: dateTo ?? null,
       created_by: session.user.id,
     })
-    .select('id, token, label, expires_at, created_at')
+    .select('id, token, label, expires_at, created_at, date_from, date_to')
     .single();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
