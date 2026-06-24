@@ -104,9 +104,9 @@ export default function AbonnementPage() {
       <div className="ab-glow" />
       <img src="/logo-klip-mint.png" alt="Klip" className="ab-logo"
         onError={e => { const i = e.target as HTMLImageElement; i.src = "/logo-klip-dark.png"; i.style.filter = "invert(1) brightness(2)"; }} />
-      <span className="ab-badge">Essai terminé</span>
-      <h1 className="ab-title">Votre essai gratuit<br />est arrivé à terme</h1>
-      <p className="ab-sub">Choisissez une offre pour continuer à gérer vos clients sur KLIP. Sans engagement, résiliable à tout moment.</p>
+      <span className="ab-badge">Dernière étape</span>
+      <h1 className="ab-title">Choisissez votre offre<br />pour démarrer</h1>
+      <p className="ab-sub">Activez votre essai gratuit de 7 jours — sans engagement, résiliable à tout moment. Vous n&apos;êtes débité qu&apos;à la fin de l&apos;essai.</p>
 
       <div className="ab-grid">
         {tiers.map(({ p, pop, feats }) => (

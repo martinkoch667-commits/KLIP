@@ -67,7 +67,7 @@ export async function POST(req: NextRequest) {
       },
       allow_promotion_codes: true,
       metadata: { user_id: userId, plan, period },
-      success_url: `${APP_URL}/dashboard?welcome=true`,
+      success_url: `${APP_URL}/checkout-success`,
       cancel_url: `${APP_URL}/#tarifs`,
     });
     return NextResponse.json({ url: checkout.url });

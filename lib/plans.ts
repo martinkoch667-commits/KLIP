@@ -57,10 +57,9 @@ export function isAccessBlocked(s: {
 } | null | undefined): boolean {
   if (!s) return false; // pas encore onboardé → on laisse passer (l'onboarding gère)
   if (s.is_comped) return false; // accès offert à vie → jamais bloqué, jamais débité
-  const status = s.subscription_status;
-  if (status === "active") return false;
-  if (status === "expired" || status === "canceled" || status === "past_due") return true;
-  // trialing (ou null hérité) → bloqué seulement si la date d'essai est passée
-  if (s.trial_ends_at && new Date(s.trial_ends_at).getTime() < Date.now()) return true;
-  return false;
+  // Modèle B : accès UNIQUEMENT avec un abonnement Stripe actif/en essai.
+  // Le webhook (et /api/stripe/sync) mappent trialing+active Stripe → 'active' ici.
+  if (s.subscription_status === "active") return false;
+  // Tout le reste (trialing par défaut sans Stripe, expired, canceled, past_due, null) → bloqué.
+  return true;
 }
