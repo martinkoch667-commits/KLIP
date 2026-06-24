@@ -384,7 +384,7 @@ export default function WorkspacePage() {
         brief: p.brief ?? "",
         description: p.description ?? "",
         texte_visuel: p.texte_visuel ?? "",
-        status: (p.status === "generated" ? "generated" : p.status === "validated" ? "validated" : "idle") as PostStatus,
+        status: (p.status === "generated" ? "generated" : (p.status === "validated" || p.status === "scheduled" || p.status === "published") ? "validated" : "idle") as PostStatus,
         created_at: p.created_at,
         thumbnail_url: p.thumbnail_url ?? null,
       })));

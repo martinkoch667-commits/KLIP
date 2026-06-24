@@ -76,8 +76,9 @@ function formatTime(iso: string | null): string {
 function formatMonthYear(date: Date): string {
   return date.toLocaleDateString("fr-FR", { month: "long", year: "numeric" });
 }
-function buildScheduledAt(dateStr: string, timeStr: string): string {
-  return new Date(`${dateStr}T${timeStr || "09:00"}:00`).toISOString();
+function buildScheduledAt(dateStr: string, timeStr: string): string | null {
+  const d = new Date(`${dateStr}T${timeStr || "09:00"}:00`);
+  return isNaN(d.getTime()) ? null : d.toISOString();
 }
 // Month view grid: Mon-based, pads with nulls
 function getMonthGrid(year: number, month: number): (Date | null)[] {
@@ -422,7 +423,9 @@ function PlanningContent() {
     setDragOverDay(null); setDragOverHour(null);
     const timeStr = `${String(hour).padStart(2,"0")}:00`;
     const scheduled_at = buildScheduledAt(toDateInput(day), timeStr);
-    await supabase.from("posts").update({ scheduled_at, status: "scheduled" }).eq("id", draggedId);
+    if (!scheduled_at) { setDraggedId(null); showToast("Date invalide", false); return; }
+    const { error } = await supabase.from("posts").update({ scheduled_at, status: "scheduled" }).eq("id", draggedId);
+    if (error) { setDraggedId(null); showToast(`Échec : ${error.message}`, false); return; }
     setPosts(prev => prev.map(p => p.id === draggedId ? { ...p, scheduled_at, status: "scheduled" } : p));
     if (selectedPost?.id === draggedId) {
       setSelectedPost(prev => prev ? { ...prev, scheduled_at, status: "scheduled" } : null);
@@ -441,7 +444,9 @@ function PlanningContent() {
       ? `${String(new Date(post.scheduled_at).getHours()).padStart(2,"0")}:${String(new Date(post.scheduled_at).getMinutes()).padStart(2,"0")}`
       : "09:00";
     const scheduled_at = buildScheduledAt(toDateInput(day), time);
-    await supabase.from("posts").update({ scheduled_at, status: "scheduled" }).eq("id", draggedId);
+    if (!scheduled_at) { setDraggedId(null); showToast("Date invalide", false); return; }
+    const { error } = await supabase.from("posts").update({ scheduled_at, status: "scheduled" }).eq("id", draggedId);
+    if (error) { setDraggedId(null); showToast(`Échec : ${error.message}`, false); return; }
     setPosts(prev => prev.map(p => p.id === draggedId ? { ...p, scheduled_at, status: "scheduled" } : p));
     if (selectedPost?.id === draggedId) {
       setSelectedPost(prev => prev ? { ...prev, scheduled_at, status: "scheduled" } : null);
@@ -455,11 +460,12 @@ function PlanningContent() {
     if (!selectedPost || !panelDate) return;
     setScheduling(true);
     const scheduled_at = buildScheduledAt(panelDate, panelTime);
+    if (!scheduled_at) { setScheduling(false); showToast("Date ou heure invalide", false); return; }
     const tagged_users = panelTaggedUsers
       .split(",")
       .map(s => s.trim().replace(/^@/, ""))
       .filter(Boolean);
-    await supabase.from("posts").update({
+    const { error } = await supabase.from("posts").update({
       scheduled_at,
       description: panelDesc,
       status: "scheduled",
@@ -468,8 +474,10 @@ function PlanningContent() {
       tagged_users,
       music_note: panelMusicNote || null,
     }).eq("id", selectedPost.id);
+    setScheduling(false);
+    if (error) { showToast(`Échec de la programmation : ${error.message}`, false); return; }
     setPosts(prev => prev.map(p => p.id === selectedPost.id ? { ...p, scheduled_at, description: panelDesc, status: "scheduled", post_type: panelPostType, target_platforms: panelPlatforms, tagged_users, music_note: panelMusicNote || null } : p));
-    setScheduling(false); setSelectedPost(null);
+    setSelectedPost(null);
     showToast("Post programmé");
   }
 
