@@ -39,7 +39,12 @@ export async function GET(
   if (row.date_from) q = q.gte('scheduled_at', row.date_from);
   if (row.date_to)   q = q.lte('scheduled_at', row.date_to);
 
-  const { data: posts } = await q.order('scheduled_at', { ascending: true, nullsFirst: false });
+  const { data: posts, error: postsError } = await q.order('scheduled_at', { ascending: true, nullsFirst: false });
+
+  // Ne pas masquer une erreur (ex. colonne manquante) derrière une liste vide.
+  if (postsError) {
+    return NextResponse.json({ error: `Erreur de chargement des posts : ${postsError.message}` }, { status: 500 });
+  }
 
   return NextResponse.json({
     workspace: row.workspaces,
