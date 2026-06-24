@@ -61,6 +61,79 @@ function KlipLogo({ size = 26 }: { size?: number }) {
   return <Image src="/logo-klip-mint.png" alt="Klip" width={1096} height={408} priority style={{ height: size, width: 'auto' }} />;
 }
 
+// ─── Styles (page client) ───────────────────────────────────────────────────
+const CW_CSS = `
+.cw-root { min-height:100vh; background:var(--canvas,#F4F3EC); display:flex; flex-direction:column; font-family:var(--sans,system-ui,sans-serif); color:#0D0F0A; }
+.cw-header { position:sticky; top:0; z-index:20; height:60px; background:#0C2A1D; display:flex; align-items:center; gap:14px; padding:0 20px; }
+.cw-header-title { flex:1; text-align:center; font-size:14px; font-weight:600; color:rgba(255,255,255,.92); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.cw-badge { flex-shrink:0; padding:5px 11px; border-radius:99px; background:rgba(52,224,161,.16); color:#34E0A1; font-size:11.5px; font-weight:700; }
+.cw-period { background:#082016; color:rgba(255,255,255,.82); text-align:center; padding:9px 16px; font-size:12.5px; font-weight:600; }
+.cw-main { flex:1; width:100%; max-width:920px; margin:0 auto; padding:24px 18px 56px; box-sizing:border-box; }
+.cw-intro { display:flex; align-items:center; justify-content:space-between; gap:16px; background:#fff; border:1px solid rgba(13,15,10,.07); border-radius:16px; padding:18px 20px; margin-bottom:22px; box-shadow:0 1px 2px rgba(13,15,10,.04); }
+.cw-intro-title { font-family:var(--display,sans-serif); font-size:19px; font-weight:800; letter-spacing:-.02em; margin:0 0 4px; }
+.cw-intro-sub { font-size:13px; color:#6b7280; margin:0; line-height:1.45; }
+.cw-progress { flex-shrink:0; text-align:center; background:var(--canvas,#F4F3EC); border-radius:12px; padding:8px 18px; }
+.cw-progress-num { display:block; font-family:var(--display,sans-serif); font-size:22px; font-weight:800; color:#0C2A1D; line-height:1; }
+.cw-progress-num small { color:#9ca3af; font-weight:700; }
+.cw-progress-label { font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.08em; color:#9ca3af; }
+.cw-nav { display:flex; align-items:center; gap:8px; margin-bottom:14px; }
+.cw-nav-btn { width:38px; height:38px; border-radius:10px; border:1px solid rgba(13,15,10,.1); background:#fff; cursor:pointer; display:grid; place-items:center; color:#0D0F0A; transition:.15s; }
+.cw-nav-btn:hover { border-color:rgba(13,15,10,.24); }
+.cw-month { font-family:var(--display,sans-serif); font-weight:800; font-size:19px; letter-spacing:-.02em; min-width:158px; text-align:center; }
+.cw-today-btn { margin-left:4px; padding:8px 14px; border-radius:10px; border:1px solid rgba(13,15,10,.1); background:#fff; cursor:pointer; font-size:12.5px; font-weight:600; color:#374151; }
+.cw-count { margin-left:auto; font-size:12.5px; color:#9ca3af; font-weight:600; }
+.cw-dows { display:grid; grid-template-columns:repeat(7,1fr); gap:6px; margin-bottom:6px; }
+.cw-dow { text-align:center; font-size:10.5px; font-weight:800; color:#9ca3af; text-transform:uppercase; letter-spacing:.08em; }
+.cw-grid { display:grid; grid-template-columns:repeat(7,1fr); gap:6px; }
+.cw-cell { min-height:104px; background:#fff; border-radius:12px; border:1px solid rgba(13,15,10,.07); padding:7px 6px 6px; display:flex; flex-direction:column; gap:4px; }
+.cw-cell--pad { background:transparent; border:none; min-height:0; }
+.cw-cell--today { border-color:#2FD79B; box-shadow:0 0 0 1px #2FD79B inset; }
+.cw-daynum { font-size:11.5px; font-weight:700; color:#9ca3af; padding:0 2px; }
+.cw-daynum--today { color:#16A36F; }
+.cw-chip { position:relative; height:54px; border-radius:9px; border:none; padding:0; cursor:pointer; overflow:hidden; background:#E8E7DD; display:block; width:100%; transition:transform .12s, box-shadow .12s; }
+.cw-chip:hover { transform:translateY(-1px); box-shadow:0 6px 16px rgba(13,15,10,.18); }
+.cw-chip-img { position:absolute; inset:0; background-size:cover; background-position:center; }
+.cw-chip-ph { position:absolute; inset:0; display:grid; place-items:center; color:#b5b3a4; }
+.cw-chip-bar { position:absolute; left:0; right:0; bottom:0; display:flex; align-items:center; gap:4px; padding:4px 6px; background:linear-gradient(transparent, rgba(0,0,0,.72)); }
+.cw-chip-dot { width:6px; height:6px; border-radius:50%; flex-shrink:0; }
+.cw-chip-time { font-size:10px; font-weight:800; color:#fff; letter-spacing:.02em; }
+.cw-flag { position:absolute; top:4px; right:4px; width:17px; height:17px; border-radius:50%; font-size:10px; font-weight:900; display:grid; place-items:center; box-shadow:0 1px 3px rgba(0,0,0,.3); }
+.cw-legend { display:flex; gap:18px; margin-top:22px; flex-wrap:wrap; }
+.cw-legend-item { display:flex; align-items:center; gap:6px; font-size:12px; color:#6b7280; }
+.cw-legend-dot { width:10px; height:10px; border-radius:3px; }
+.cw-footer { text-align:center; padding:18px 0 28px; font-size:12px; color:#9ca3af; }
+.cw-overlay { position:fixed; inset:0; background:rgba(8,32,22,.55); backdrop-filter:blur(5px); z-index:500; display:flex; align-items:center; justify-content:center; padding:16px; animation:cwFade .15s ease; }
+.cw-modal { background:#fff; border-radius:22px; box-shadow:0 30px 70px rgba(0,0,0,.3); max-width:430px; width:100%; max-height:92vh; overflow-y:auto; animation:cwPop .2s cubic-bezier(.16,1,.3,1); }
+.cw-acct { display:flex; align-items:center; gap:10px; padding:13px 15px; }
+.cw-avatar { width:36px; height:36px; border-radius:50%; background:#0C2A1D; color:#34E0A1; font-weight:800; font-size:13px; display:grid; place-items:center; overflow:hidden; flex-shrink:0; background-size:cover; background-position:center; }
+.cw-acct-name { font-weight:700; font-size:13.5px; color:#0D0F0A; line-height:1.2; }
+.cw-acct-sub { font-size:11.5px; color:#9ca3af; }
+.cw-modal-close { margin-left:auto; width:30px; height:30px; border-radius:50%; border:1px solid rgba(13,15,10,.1); background:#f7f6f3; cursor:pointer; display:grid; place-items:center; color:#6b7280; flex-shrink:0; }
+.cw-modal-img { width:100%; aspect-ratio:4/5; object-fit:cover; background:#0D0F0A; display:block; }
+.cw-modal-body { padding:16px 18px 20px; }
+.cw-modal-cap { font-size:13.5px; color:#1f2937; line-height:1.6; margin:0 0 14px; white-space:pre-wrap; }
+.cw-meta-row { display:flex; align-items:center; gap:7px; padding:9px 12px; border-radius:10px; background:var(--canvas,#F4F3EC); margin-bottom:14px; }
+.cw-meta-txt { font-size:12.5px; color:#4b5563; font-weight:600; }
+.cw-btn { flex:1; padding:13px; border-radius:12px; border:none; font-weight:700; font-size:14px; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:7px; transition:.12s; }
+.cw-btn-approve { background:#2FD79B; color:#06281C; }
+.cw-btn-approve:hover { background:#28c78d; }
+.cw-btn-modify { background:#fff; color:#0D0F0A; border:1.5px solid rgba(13,15,10,.16); }
+.cw-btn-modify:hover { border-color:rgba(13,15,10,.3); }
+.cw-textarea { width:100%; padding:11px 12px; border-radius:10px; border:1.5px solid rgba(13,15,10,.15); font-size:13.5px; color:#0D0F0A; outline:none; resize:none; line-height:1.5; font-family:inherit; box-sizing:border-box; }
+.cw-textarea:focus { border-color:#2FD79B; }
+@keyframes cwFade { from { opacity:0 } to { opacity:1 } }
+@keyframes cwPop { from { opacity:0; transform:translateY(12px) scale(.98) } to { opacity:1; transform:none } }
+@media (max-width:640px) {
+  .cw-main { padding:16px 10px 40px; }
+  .cw-intro { flex-direction:column; align-items:flex-start; padding:14px 16px; }
+  .cw-grid, .cw-dows { gap:4px; }
+  .cw-cell { min-height:80px; border-radius:9px; padding:5px 4px 4px; }
+  .cw-chip { height:42px; }
+  .cw-month { font-size:16px; min-width:120px; }
+  .cw-count { display:none; }
+}
+`;
+
 // ─── Main ─────────────────────────────────────────────────────────────────────
 
 export default function PreviewPage() {
@@ -172,87 +245,101 @@ export default function PreviewPage() {
   const cells = calendarDays(year, month);
 
   return (
-    <div style={{ minHeight: '100vh', background: 'var(--canvas, #F5F4F1)', display: 'flex', flexDirection: 'column' }}>
+    <div className="cw-root">
+      <style>{CW_CSS}</style>
 
       {/* ── Header ────────────────────────────────────────────────────────── */}
-      <header style={{ height: 56, background: '#0C2A1D', display: 'flex', alignItems: 'center', padding: '0 20px', gap: 16, flexShrink: 0 }}>
+      <header className="cw-header">
         <KlipLogo />
-        <span style={{ flex: 1, textAlign: 'center', fontSize: 14, fontWeight: 500, color: 'rgba(255,255,255,.7)', fontFamily: 'var(--sans, sans-serif)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-          Programmation · <strong style={{ color: '#fff' }}>{workspace?.name}</strong>
-        </span>
-        <span style={{ flexShrink: 0, padding: '4px 10px', borderRadius: 99, background: 'rgba(47,215,155,.15)', color: '#2FD79B', fontSize: 11.5, fontWeight: 700, fontFamily: 'var(--sans, sans-serif)', whiteSpace: 'nowrap' }}>
-          Vue client
-        </span>
+        <span className="cw-header-title">{workspace?.name ?? 'Programmation'}</span>
+        <span className="cw-badge">Vue client</span>
       </header>
 
       {(tokenMeta?.date_from || tokenMeta?.date_to) && (
-        <div style={{ background: '#0B3122', color: 'rgba(255,255,255,.85)', textAlign: 'center', padding: '8px 16px', fontSize: 12.5, fontWeight: 600, fontFamily: 'var(--sans, sans-serif)', flexShrink: 0 }}>
-          Période à valider : {tokenMeta?.date_from ? new Date(tokenMeta.date_from).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' }) : '…'}
+        <div className="cw-period">
+          Période à valider · {tokenMeta?.date_from ? new Date(tokenMeta.date_from).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' }) : '…'}
           {' → '}{tokenMeta?.date_to ? new Date(tokenMeta.date_to).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' }) : '…'}
         </div>
       )}
 
       {/* ── Calendar ──────────────────────────────────────────────────────── */}
-      <main style={{ flex: 1, padding: '20px 16px 40px', maxWidth: 900, margin: '0 auto', width: '100%' }}>
+      <main className="cw-main">
+
+        {/* Intro + progression */}
+        <div className="cw-intro">
+          <div>
+            <h1 className="cw-intro-title">Validez vos prochaines publications</h1>
+            <p className="cw-intro-sub">Cliquez sur une publication pour l’approuver ou demander une modification.</p>
+          </div>
+          {posts.length > 0 && (
+            <div className="cw-progress">
+              <span className="cw-progress-num">{posts.filter(p => p.approved_by_client || p.client_comment).length}<small>/{posts.length}</small></span>
+              <span className="cw-progress-label">traitées</span>
+            </div>
+          )}
+        </div>
 
         {/* Month nav */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 20 }}>
-          <button onClick={prevMonth} style={{ width: 36, height: 36, borderRadius: 9, border: '1px solid rgba(13,15,10,.12)', background: '#fff', cursor: 'pointer', display: 'grid', placeItems: 'center' }}>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 6l-6 6 6 6"/></svg>
+        <div className="cw-nav">
+          <button className="cw-nav-btn" onClick={prevMonth} aria-label="Mois précédent">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 6l-6 6 6 6"/></svg>
           </button>
-          <span style={{ fontWeight: 700, fontSize: 18, color: '#0D0F0A', minWidth: 180, textAlign: 'center', fontFamily: 'var(--display, sans-serif)' }}>
-            {MONTH_FR[month]} {year}
-          </span>
-          <button onClick={nextMonth} style={{ width: 36, height: 36, borderRadius: 9, border: '1px solid rgba(13,15,10,.12)', background: '#fff', cursor: 'pointer', display: 'grid', placeItems: 'center' }}>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 6l6 6-6 6"/></svg>
+          <span className="cw-month">{MONTH_FR[month]} {year}</span>
+          <button className="cw-nav-btn" onClick={nextMonth} aria-label="Mois suivant">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 6l6 6-6 6"/></svg>
           </button>
-          <button onClick={goToday} style={{ marginLeft: 4, padding: '6px 14px', borderRadius: 9, border: '1px solid rgba(13,15,10,.12)', background: '#fff', cursor: 'pointer', fontSize: 12.5, fontWeight: 600, color: '#444' }}>
-            Aujourd&apos;hui
-          </button>
-          <span style={{ marginLeft: 'auto', fontSize: 12, color: '#9ca3af' }}>
-            {posts.length} post{posts.length !== 1 ? 's' : ''}
-          </span>
+          <button className="cw-today-btn" onClick={goToday}>Aujourd’hui</button>
+          <span className="cw-count">{posts.length} publication{posts.length !== 1 ? 's' : ''}</span>
         </div>
 
         {/* Day headers */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 2, marginBottom: 2 }}>
-          {DAY_FR.map(d => (
-            <div key={d} style={{ textAlign: 'center', fontSize: 11, fontWeight: 700, color: '#9ca3af', padding: '6px 0', fontFamily: 'var(--mono, monospace)', textTransform: 'uppercase', letterSpacing: '.06em' }}>{d}</div>
-          ))}
+        <div className="cw-dows">
+          {DAY_FR.map(d => <div key={d} className="cw-dow">{d}</div>)}
         </div>
 
         {/* Calendar grid */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 2 }}>
+        <div className="cw-grid">
           {cells.map((day, i) => {
-            if (day === null) return <div key={`pad-${i}`} style={{ minHeight: 80, background: 'transparent' }} />;
+            if (day === null) return <div key={`pad-${i}`} className="cw-cell cw-cell--pad" />;
             const isToday = day === today.getDate() && month === today.getMonth() && year === today.getFullYear();
             const key = `${year}-${month}-${day}`;
             const dayPosts = postsByDay[key] ?? [];
             return (
-              <div key={key} style={{ minHeight: 80, background: '#fff', borderRadius: 8, border: `1px solid ${isToday ? '#2FD79B' : 'rgba(13,15,10,.07)'}`, padding: '6px 5px', display: 'flex', flexDirection: 'column', gap: 3 }}>
-                <span style={{ fontSize: 11.5, fontWeight: isToday ? 800 : 500, color: isToday ? '#2FD79B' : '#6b7280', display: 'block', marginBottom: 2 }}>{day}</span>
-                {dayPosts.map(p => (
-                  <button key={p.id} onClick={() => { setSelected(p); setCommenting(false); setComment(''); setActionDone(null); }}
-                    style={{ display: 'block', width: '100%', padding: '3px 5px', borderRadius: 5, border: 'none', cursor: 'pointer', textAlign: 'left', fontSize: 10.5, fontWeight: 600, lineHeight: 1.3, background: postColor(p) + '22', color: postColor(p), overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                    {p.scheduled_at ? new Date(p.scheduled_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) : ''}{' '}
-                    {p.title ?? p.description?.slice(0, 20) ?? 'Post'}
-                  </button>
-                ))}
+              <div key={key} className={`cw-cell${isToday ? ' cw-cell--today' : ''}`}>
+                <span className={`cw-daynum${isToday ? ' cw-daynum--today' : ''}`}>{day}</span>
+                {dayPosts.map(p => {
+                  const img  = p.exported_image_url || p.photo_url;
+                  const time = p.scheduled_at ? new Date(p.scheduled_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) : '';
+                  return (
+                    <button key={p.id} className="cw-chip"
+                      onClick={() => { setSelected(p); setCommenting(false); setComment(''); setActionDone(null); }}>
+                      {img
+                        ? <span className="cw-chip-img" style={{ backgroundImage: `url(${img})` }} />
+                        : <span className="cw-chip-ph"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.6-3.6a2 2 0 0 0-2.8 0L6 20"/></svg></span>}
+                      <span className="cw-chip-bar">
+                        <span className="cw-chip-dot" style={{ background: postColor(p) }} />
+                        <span className="cw-chip-time">{time}</span>
+                      </span>
+                      {p.approved_by_client && <span className="cw-flag" style={{ background: '#2FD79B', color: '#06281C' }}>✓</span>}
+                      {!p.approved_by_client && p.client_comment && <span className="cw-flag" style={{ background: '#F59E0B', color: '#fff' }}>!</span>}
+                    </button>
+                  );
+                })}
               </div>
             );
           })}
         </div>
 
         {/* Legend */}
-        <div style={{ display: 'flex', gap: 16, marginTop: 20, flexWrap: 'wrap' }}>
+        <div className="cw-legend">
           {[
             { color: '#4F8EF7', label: 'Planifié' },
             { color: '#2FD79B', label: 'Approuvé' },
             { color: '#D97706', label: 'Modification demandée' },
             { color: '#16A34A', label: 'Publié' },
           ].map(item => (
-            <div key={item.label} style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, color: '#6b7280' }}>
-              <span style={{ width: 10, height: 10, borderRadius: 3, background: item.color, flexShrink: 0 }} />
+            <div key={item.label} className="cw-legend-item">
+              <span className="cw-legend-dot" style={{ background: item.color }} />
               {item.label}
             </div>
           ))}
@@ -260,110 +347,121 @@ export default function PreviewPage() {
       </main>
 
       {/* ── Footer ────────────────────────────────────────────────────────── */}
-      <footer style={{ textAlign: 'center', padding: '16px 0 24px', fontSize: 12, color: '#9ca3af', fontFamily: 'var(--sans, sans-serif)' }}>
+      <footer className="cw-footer">
         Propulsé par <strong style={{ color: '#6b7280' }}>Klip</strong>
         {tokenMeta && (
           <span> · Lien généré le {new Date(tokenMeta.created_at).toLocaleDateString('fr-FR')}</span>
         )}
       </footer>
 
-      {/* ── Post detail modal ──────────────────────────────────────────────── */}
-      {selected && (
-        <div onClick={e => { if (e.target === e.currentTarget) setSelected(null); }}
-          style={{ position: 'fixed', inset: 0, background: 'rgba(13,15,10,.5)', backdropFilter: 'blur(4px)', zIndex: 500, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
-          <div style={{ background: '#fff', borderRadius: 20, boxShadow: '0 24px 60px rgba(0,0,0,.25)', maxWidth: 480, width: '100%', maxHeight: '90vh', overflowY: 'auto' }}>
+      {/* ── Fiche post (façon publication Instagram) ───────────────────────── */}
+      {selected && (() => {
+        const img = selected.exported_image_url || selected.photo_url;
+        const handle = workspace?.instagram_username ? `@${workspace.instagram_username}` : 'Publication proposée';
+        const avatarInitials = (workspace?.name ?? 'C').trim().slice(0, 2).toUpperCase();
+        const canAct = !selected.approved_by_client && !actionDone && (selected.status === 'scheduled' || selected.status === 'draft' || selected.status === 'idle');
+        return (
+          <div className="cw-overlay" onClick={e => { if (e.target === e.currentTarget) setSelected(null); }}>
+            <div className="cw-modal">
 
-            {/* Image */}
-            {(selected.exported_image_url || selected.photo_url) && (
-              <div style={{ width: '100%', aspectRatio: '4/5', overflow: 'hidden', borderRadius: '20px 20px 0 0', position: 'relative', background: '#000' }}>
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={selected.exported_image_url ?? selected.photo_url ?? ''} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                {selected.texte_visuel && (
-                  <div style={{ position: 'absolute', bottom: 16, left: 16, right: 16, background: 'rgba(0,0,0,.6)', borderRadius: 8, padding: '8px 12px', backdropFilter: 'blur(4px)' }}>
-                    <p style={{ color: '#fff', fontSize: 13, fontWeight: 600, margin: 0, lineHeight: 1.4 }}>{selected.texte_visuel}</p>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* Content */}
-            <div style={{ padding: '20px 22px 24px' }}>
-              {/* Status + close */}
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
-                {(() => { const s = statusChip(selected); return <span style={{ padding: '4px 10px', borderRadius: 99, background: s.bg, color: s.color, fontSize: 12, fontWeight: 700 }}>{s.label}</span>; })()}
-                <button onClick={() => setSelected(null)} style={{ width: 30, height: 30, borderRadius: '50%', border: '1px solid rgba(13,15,10,.1)', background: '#f9f9f8', cursor: 'pointer', display: 'grid', placeItems: 'center', color: '#6b7280' }}>
+              {/* Account row */}
+              <div className="cw-acct">
+                <span className="cw-avatar" style={workspace?.logo_url ? { backgroundImage: `url(${workspace.logo_url})` } : undefined}>
+                  {!workspace?.logo_url && avatarInitials}
+                </span>
+                <div>
+                  <div className="cw-acct-name">{workspace?.name}</div>
+                  <div className="cw-acct-sub">{handle}</div>
+                </div>
+                <button className="cw-modal-close" onClick={() => setSelected(null)} aria-label="Fermer">
                   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
                 </button>
               </div>
 
-              {/* Title */}
-              {selected.title && <h3 style={{ fontWeight: 700, fontSize: 17, color: '#0D0F0A', margin: '0 0 8px', lineHeight: 1.3 }}>{selected.title}</h3>}
-
-              {/* Description (caption) */}
-              {selected.description && (
-                <p style={{ fontSize: 13.5, color: '#374151', lineHeight: 1.6, margin: '0 0 14px', whiteSpace: 'pre-wrap' }}>{selected.description}</p>
-              )}
-
-              {/* Date */}
-              {selected.scheduled_at && (
-                <div style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '8px 12px', borderRadius: 10, background: '#f9f9f8', border: '1px solid rgba(13,15,10,.07)', marginBottom: 16 }}>
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
-                  <span style={{ fontSize: 13, color: '#6b7280', fontWeight: 500 }}>{fmtDate(selected.scheduled_at)}</span>
-                </div>
-              )}
-
-              {/* Client comment existing */}
-              {selected.client_comment && (
-                <div style={{ padding: '10px 12px', borderRadius: 10, background: '#FEF3C7', border: '1px solid #FCD34D', marginBottom: 14 }}>
-                  <p style={{ fontSize: 11, fontWeight: 700, color: '#D97706', margin: '0 0 4px', textTransform: 'uppercase', letterSpacing: '.05em' }}>Votre commentaire</p>
-                  <p style={{ fontSize: 13, color: '#92400E', margin: 0, lineHeight: 1.5 }}>{selected.client_comment}</p>
-                </div>
-              )}
-
-              {/* Action done feedback */}
-              {actionDone === 'approved' && (
-                <div style={{ padding: '12px', borderRadius: 12, background: 'rgba(47,215,155,.12)', border: '1px solid #2FD79B', textAlign: 'center', marginBottom: 14 }}>
-                  <p style={{ fontSize: 14, fontWeight: 700, color: '#2FD79B', margin: 0 }}>Approuvé — merci !</p>
-                </div>
-              )}
-              {actionDone === 'commented' && (
-                <div style={{ padding: '12px', borderRadius: 12, background: '#FEF3C7', border: '1px solid #FCD34D', textAlign: 'center', marginBottom: 14 }}>
-                  <p style={{ fontSize: 14, fontWeight: 700, color: '#D97706', margin: 0 }}>Commentaire envoyé</p>
-                </div>
-              )}
-
-              {/* Action buttons — only if not yet reviewed */}
-              {!selected.approved_by_client && !actionDone && (selected.status === 'scheduled' || selected.status === 'draft' || selected.status === 'idle') && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                  {!commenting ? (
-                    <div style={{ display: 'flex', gap: 10 }}>
-                      <button onClick={handleApprove} disabled={actionLoading} style={{ flex: 1, padding: '12px', borderRadius: 12, border: 'none', background: '#2FD79B', color: '#06281C', fontWeight: 700, fontSize: 14, cursor: actionLoading ? 'not-allowed' : 'pointer', opacity: actionLoading ? 0.7 : 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
-                        Approuver
-                      </button>
-                      <button onClick={() => setCommenting(true)} style={{ flex: 1, padding: '12px', borderRadius: 12, border: '1.5px solid #EF4444', background: 'transparent', color: '#EF4444', fontWeight: 700, fontSize: 14, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
-                        Modifier
-                      </button>
+              {/* Image */}
+              {img && (
+                <div style={{ position: 'relative' }}>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={img} alt="" className="cw-modal-img" />
+                  {selected.texte_visuel && (
+                    <div style={{ position: 'absolute', bottom: 14, left: 14, right: 14, background: 'rgba(0,0,0,.55)', borderRadius: 10, padding: '8px 12px', backdropFilter: 'blur(4px)' }}>
+                      <p style={{ color: '#fff', fontSize: 13, fontWeight: 600, margin: 0, lineHeight: 1.4 }}>{selected.texte_visuel}</p>
                     </div>
-                  ) : (
-                    <>
-                      <textarea value={comment} onChange={e => setComment(e.target.value)} placeholder="Décrivez la modification souhaitée…" rows={3}
-                        style={{ width: '100%', padding: '10px 12px', borderRadius: 10, border: '1.5px solid rgba(13,15,10,.15)', fontSize: 13.5, color: '#0D0F0A', outline: 'none', resize: 'none', lineHeight: 1.5, fontFamily: 'inherit', boxSizing: 'border-box' }} />
-                      <div style={{ display: 'flex', gap: 8 }}>
-                        <button onClick={() => setCommenting(false)} style={{ flex: 1, padding: '10px', borderRadius: 10, border: '1px solid rgba(13,15,10,.12)', background: '#f9f9f8', cursor: 'pointer', fontSize: 13.5, fontWeight: 600, color: '#6b7280' }}>Annuler</button>
-                        <button onClick={handleComment} disabled={!comment.trim() || actionLoading} style={{ flex: 2, padding: '10px', borderRadius: 10, border: 'none', background: '#EF4444', color: '#fff', fontWeight: 700, fontSize: 13.5, cursor: (!comment.trim() || actionLoading) ? 'not-allowed' : 'pointer', opacity: (!comment.trim() || actionLoading) ? 0.6 : 1 }}>
-                          Envoyer la demande
-                        </button>
-                      </div>
-                    </>
                   )}
                 </div>
               )}
+
+              {/* Body */}
+              <div className="cw-modal-body">
+                {/* Status chip */}
+                <div style={{ marginBottom: 12 }}>
+                  {(() => { const s = statusChip(selected); return <span style={{ padding: '5px 11px', borderRadius: 99, background: s.bg, color: s.color, fontSize: 12, fontWeight: 700 }}>{s.label}</span>; })()}
+                </div>
+
+                {selected.title && <h3 style={{ fontFamily: 'var(--display, sans-serif)', fontWeight: 800, fontSize: 17, color: '#0D0F0A', margin: '0 0 8px', lineHeight: 1.3 }}>{selected.title}</h3>}
+
+                {selected.description && <p className="cw-modal-cap">{selected.description}</p>}
+
+                {selected.scheduled_at && (
+                  <div className="cw-meta-row">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#16A36F" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+                    <span className="cw-meta-txt">Publication prévue le {fmtDate(selected.scheduled_at)}</span>
+                  </div>
+                )}
+
+                {/* Existing comment */}
+                {selected.client_comment && (
+                  <div style={{ padding: '11px 13px', borderRadius: 12, background: '#FEF3C7', border: '1px solid #FCD34D', marginBottom: 14 }}>
+                    <p style={{ fontSize: 10.5, fontWeight: 800, color: '#B45309', margin: '0 0 4px', textTransform: 'uppercase', letterSpacing: '.06em' }}>Votre demande de modification</p>
+                    <p style={{ fontSize: 13, color: '#92400E', margin: 0, lineHeight: 1.5 }}>{selected.client_comment}</p>
+                  </div>
+                )}
+
+                {/* Done feedback */}
+                {(actionDone === 'approved' || selected.approved_by_client) && (
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '13px', borderRadius: 12, background: 'rgba(47,215,155,.14)', border: '1px solid #2FD79B' }}>
+                    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#0C7A52" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+                    <span style={{ fontSize: 14, fontWeight: 700, color: '#0C7A52' }}>Publication approuvée — merci !</span>
+                  </div>
+                )}
+                {actionDone === 'commented' && (
+                  <div style={{ textAlign: 'center', padding: '13px', borderRadius: 12, background: '#FEF3C7', border: '1px solid #FCD34D' }}>
+                    <span style={{ fontSize: 14, fontWeight: 700, color: '#B45309' }}>Demande envoyée à l’agence ✓</span>
+                  </div>
+                )}
+
+                {/* Actions */}
+                {canAct && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                    {!commenting ? (
+                      <div style={{ display: 'flex', gap: 10 }}>
+                        <button className="cw-btn cw-btn-approve" onClick={handleApprove} disabled={actionLoading} style={{ opacity: actionLoading ? 0.7 : 1 }}>
+                          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+                          Approuver
+                        </button>
+                        <button className="cw-btn cw-btn-modify" onClick={() => setCommenting(true)}>
+                          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+                          Demander une modif.
+                        </button>
+                      </div>
+                    ) : (
+                      <>
+                        <textarea className="cw-textarea" value={comment} onChange={e => setComment(e.target.value)} placeholder="Décrivez la modification souhaitée (texte, visuel, date…)" rows={3} autoFocus />
+                        <div style={{ display: 'flex', gap: 8 }}>
+                          <button onClick={() => setCommenting(false)} style={{ flex: 1, padding: '11px', borderRadius: 10, border: '1px solid rgba(13,15,10,.12)', background: '#f7f6f3', cursor: 'pointer', fontSize: 13.5, fontWeight: 600, color: '#6b7280' }}>Annuler</button>
+                          <button onClick={handleComment} disabled={!comment.trim() || actionLoading} style={{ flex: 2, padding: '11px', borderRadius: 10, border: 'none', background: '#0C2A1D', color: '#fff', fontWeight: 700, fontSize: 13.5, cursor: (!comment.trim() || actionLoading) ? 'not-allowed' : 'pointer', opacity: (!comment.trim() || actionLoading) ? 0.6 : 1 }}>
+                            Envoyer la demande
+                          </button>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                )}
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
     </div>
   );
 }
