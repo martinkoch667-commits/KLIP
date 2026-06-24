@@ -319,6 +319,38 @@ function PlanningContent() {
   const [calView,      setCalView]      = useState<"week" | "month">("week");
   const [monthDate,    setMonthDate]    = useState<Date>(() => { const d = new Date(); d.setDate(1); d.setHours(0,0,0,0); return d; });
   const [nowTop,       setNowTop]       = useState(() => new Date().getHours() * HOUR_H + new Date().getMinutes());
+  // Partage pour validation client
+  const isoDay = (d: Date) => d.toISOString().slice(0, 10);
+  const [shareOpen,  setShareOpen]  = useState(false);
+  const [shareFrom,  setShareFrom]  = useState(() => isoDay(new Date()));
+  const [shareTo,    setShareTo]    = useState(() => { const d = new Date(); d.setDate(d.getDate() + 30); return isoDay(d); });
+  const [shareLink,  setShareLink]  = useState("");
+  const [shareBusy,  setShareBusy]  = useState(false);
+
+  async function generateShareLink() {
+    setShareBusy(true); setShareLink("");
+    try {
+      const res = await fetch("/api/share-tokens", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          workspaceId: id,
+          label: "Validation client",
+          dateFrom: shareFrom ? new Date(shareFrom + "T00:00:00").toISOString() : null,
+          dateTo:   shareTo   ? new Date(shareTo + "T23:59:59").toISOString()   : null,
+        }),
+      });
+      const json = await res.json();
+      if (res.ok && json.token?.token) {
+        setShareLink(`${window.location.origin}/preview/${json.token.token}`);
+      } else {
+        setToast({ msg: json.error || "Erreur lors de la génération du lien", ok: false });
+      }
+    } catch {
+      setToast({ msg: "Erreur réseau", ok: false });
+    }
+    setShareBusy(false);
+  }
 
   const connected = searchParams.get("connected") === "true";
 
@@ -534,6 +566,47 @@ function PlanningContent() {
         </div>
       )}
 
+      {/* Modale : partager pour validation client */}
+      {shareOpen && (
+        <div style={{ position: "fixed", inset: 0, zIndex: 60, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(13,15,10,.45)", padding: 16 }} onClick={() => setShareOpen(false)}>
+          <div className="card pop-in" style={{ padding: 28, maxWidth: 440, width: "100%" }} onClick={e => e.stopPropagation()}>
+            <h2 className="h-title" style={{ fontSize: 18, marginBottom: 6 }}>Partager pour validation</h2>
+            <p style={{ color: "var(--ink-2)", fontSize: 13.5, marginBottom: 20, lineHeight: 1.5 }}>
+              Choisissez la période à envoyer à votre client. Il pourra voir le calendrier, valider chaque post ou demander des modifications — sans créer de compte.
+            </p>
+            <div style={{ display: "flex", gap: 12, marginBottom: 18 }}>
+              <label style={{ flex: 1, fontSize: 12, fontWeight: 700, color: "var(--ink-2)" }}>Du
+                <input type="date" value={shareFrom} onChange={e => setShareFrom(e.target.value)}
+                  style={{ width: "100%", marginTop: 5, padding: "9px 11px", borderRadius: 9, border: "1px solid var(--line)", background: "var(--sunk)", color: "var(--ink)", fontFamily: "var(--sans)", outline: "none" }} />
+              </label>
+              <label style={{ flex: 1, fontSize: 12, fontWeight: 700, color: "var(--ink-2)" }}>Au
+                <input type="date" value={shareTo} min={shareFrom} onChange={e => setShareTo(e.target.value)}
+                  style={{ width: "100%", marginTop: 5, padding: "9px 11px", borderRadius: 9, border: "1px solid var(--line)", background: "var(--sunk)", color: "var(--ink)", fontFamily: "var(--sans)", outline: "none" }} />
+              </label>
+            </div>
+
+            {!shareLink ? (
+              <button onClick={generateShareLink} disabled={shareBusy} className="btn btn-primary" style={{ width: "100%", justifyContent: "center", background: "#2FD79B", color: "#0D2E1C", fontWeight: 700 }}>
+                {shareBusy ? "Génération…" : "Générer le lien"}
+              </button>
+            ) : (
+              <>
+                <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
+                  <input readOnly value={shareLink} onFocus={e => e.currentTarget.select()}
+                    style={{ flex: 1, padding: "9px 11px", borderRadius: 9, border: "1px solid var(--line)", background: "var(--sunk)", color: "var(--ink-2)", fontSize: 12.5, fontFamily: "var(--mono)", outline: "none" }} />
+                  <button onClick={() => { navigator.clipboard.writeText(shareLink); setToast({ msg: "Lien copié !", ok: true }); }} className="btn btn-dark btn-sm">Copier</button>
+                </div>
+                <p style={{ fontSize: 12, color: "var(--ink-3)", lineHeight: 1.5 }}>
+                  Envoyez ce lien à votre client. Vous recevrez une notification pour chaque validation ou commentaire, visible sur chaque post.
+                </p>
+              </>
+            )}
+
+            <button onClick={() => { setShareOpen(false); setShareLink(""); }} className="btn btn-ghost btn-sm" style={{ width: "100%", justifyContent: "center", marginTop: 14 }}>Fermer</button>
+          </div>
+        </div>
+      )}
+
       {/* ── Main area ─────────────────────────────────────────────────────────── */}
       <div className="plan-main" style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0, overflow: "hidden" }}>
 
@@ -561,6 +634,10 @@ function PlanningContent() {
           )}
 
           <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 10 }}>
+            <button onClick={() => setShareOpen(true)} className="btn btn-ghost btn-sm" style={{ gap: 6 }}>
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="M8.6 13.5l6.8 4M15.4 6.5l-6.8 4"/></svg>
+              Partager pour validation
+            </button>
             <Link href={`/workspace/${id}`} className="btn btn-primary btn-sm" style={{ background: "#2FD79B", color: "#0D2E1C", fontWeight: 700, gap: 6 }}><IconPlus /> Nouveau post</Link>
             {/* Segmented toggle */}
             <div className="seg">
