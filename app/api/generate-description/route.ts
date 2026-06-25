@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
+import { cookies } from 'next/headers';
 
 // ─── Brand-aware system prompt template ────────────────────────────────────────
 const PROMPT_TEMPLATE = `Tu es un copywriter expert en contenu Instagram pour agences de communication premium.
@@ -53,6 +55,11 @@ function buildSystemPrompt(ws: WorkspaceData): string {
 
 export async function POST(request: NextRequest) {
   try {
+    // Auth requise : empêche l'abus du quota IA par des appels anonymes.
+    const authClient = createRouteHandlerClient({ cookies });
+    const { data: { session } } = await authClient.auth.getSession();
+    if (!session) return NextResponse.json({ error: 'Non autorisé' }, { status: 401 });
+
     const body = await request.json();
     const {
       brief,

@@ -41,9 +41,11 @@ export async function GET(
 
   const { data: posts, error: postsError } = await q.order('scheduled_at', { ascending: true, nullsFirst: false });
 
-  // Ne pas masquer une erreur (ex. colonne manquante) derrière une liste vide.
+  // Ne pas masquer une erreur (ex. colonne manquante) derrière une liste vide,
+  // mais ne pas divulguer le détail SQL au client public (point sécurité 14).
   if (postsError) {
-    return NextResponse.json({ error: `Erreur de chargement des posts : ${postsError.message}` }, { status: 500 });
+    console.error('[api/preview] erreur chargement posts:', postsError.message);
+    return NextResponse.json({ error: 'Erreur de chargement des publications.' }, { status: 500 });
   }
 
   return NextResponse.json({
