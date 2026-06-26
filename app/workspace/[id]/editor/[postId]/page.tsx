@@ -3097,7 +3097,7 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
                   ref={el => { slideContainerRefs.current[idx] = el; }}
                   style={{ flexShrink: 0, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
                   <div style={{ marginBottom: 8, fontSize: 11, color: 'var(--ink-3)', fontWeight: 700, fontFamily: 'var(--mono)', letterSpacing: '.04em' }}>{idx + 1}</div>
-                  <div style={{ width: stageW * zoom, height: stageH * zoom, position: 'relative', borderRadius: Math.round(18 * zoom), boxShadow: isActive ? '0 22px 50px -24px rgba(13,15,10,.45)' : '0 8px 22px -10px rgba(13,15,10,.22)', outline: isActive ? '2.5px solid var(--mint)' : '2px solid transparent', flexShrink: 0 }}>
+                  <div style={{ width: stageW * zoom, height: stageH * zoom, position: 'relative', borderRadius: Math.round(18 * zoom), boxShadow: isActive ? '0 22px 50px -24px rgba(13,15,10,.45)' : '0 8px 22px -10px rgba(13,15,10,.22)', flexShrink: 0 }}>
                   {isActive ? (
                     <>
                     <div onMouseDown={e => e.stopPropagation()} style={{ position: 'absolute', top: 0, left: 0, width: stageW, height: stageH, transform: `scale(${zoom})`, transformOrigin: 'top left', borderRadius: 18 }}>

@@ -371,7 +371,7 @@ export default function WorkspacePage() {
 
     const { data: dbPosts } = await supabase
       .from("posts")
-      .select("id, photo_url, exported_image_url, brief, description, texte_visuel, status, created_at, thumbnail_url")
+      .select("id, photo_url, exported_image_url, brief, description, texte_visuel, status, created_at, thumbnail_url, template_id, post_type")
       .eq("workspace_id", id)
       .order("created_at", { ascending: false });
 
@@ -387,6 +387,8 @@ export default function WorkspacePage() {
         status: (p.status === "generated" ? "generated" : (p.status === "validated" || p.status === "scheduled" || p.status === "published") ? "validated" : "idle") as PostStatus,
         created_at: p.created_at,
         thumbnail_url: p.thumbnail_url ?? null,
+        templateId: p.template_id ?? undefined,
+        post_type: p.post_type ?? undefined,
       })));
     }
 
@@ -616,9 +618,9 @@ export default function WorkspacePage() {
             ...(editorJson ? { editor_json: editorJson } : {}),
           }).eq("id", dbId);
         }
-        setPosts((prev) => prev.map((p) => p.localId === item.localId ? { ...p, dbId, photo_url: pUrl, texte_visuel, description, status: "generated", error: undefined } : p));
+        setPosts((prev) => prev.map((p) => p.localId === item.localId ? { ...p, dbId, photo_url: pUrl, texte_visuel, description, status: "generated", templateId: item.templateId ?? p.templateId, error: undefined } : p));
       } else {
-        const errMsg = data?.error ? (typeof data.error === "string" ? data.error : JSON.stringify(data.error)) : `Erreur ${res.status}`;
+        const errMsg = (typeof data?.error === "string" ? data.error : data?.error?.message) || "La génération a échoué. Réessayez dans un instant.";
         setPosts((prev) => prev.map((p) => (p.localId === item.localId ? { ...p, status: "idle", error: errMsg } : p)));
       }
     } catch {
