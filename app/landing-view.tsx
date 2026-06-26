@@ -565,7 +565,7 @@ function Steps() {
       <div className="wrap">
         <div style={{ maxWidth: 840 }}>
           <h2 className="display reveal" style={{ fontSize: 'clamp(36px, 5.4vw, 76px)' }}>
-            De la photo au post publié,<br /><span className="it-serif acid-fill">sans changer d&apos;outil.</span>
+            Du contenu brut au post publié,<br /><span className="it-serif acid-fill">sans changer d&apos;outil.</span>
           </h2>
           <p className="lead reveal d1" style={{ marginTop: 24, maxWidth: 660 }}>
             KLIP réunit toute la post-production de vos réseaux : importez vos prises de vue, composez vos visuels, laissez l&apos;IA écrire, programmez. Pour chaque client, sans jamais quitter l&apos;outil.
@@ -716,7 +716,7 @@ function Showcase() {
           <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 28, flexWrap: 'wrap', marginBottom: 26 }}>
             <div style={{ maxWidth: 560 }}>
               <span className="sho-kicker">01 — L&apos;éditeur visuel</span>
-              <h3 className="display" style={{ fontSize: 'clamp(28px,3.4vw,46px)', color: 'var(--cream)', marginTop: 14 }}>Un studio de création, pas un simple cadre</h3>
+              <h3 className="display" style={{ fontSize: 'clamp(28px,3.4vw,46px)', color: 'var(--cream)', marginTop: 14 }}>La charte de chaque client, appliquée d&apos;un clic</h3>
             </div>
             <p style={{ color: 'var(--cream-2)', fontSize: 16, lineHeight: 1.6, maxWidth: 380 }}>
               Sélectionnez un texte et tout s&apos;ouvre — police, taille, couleurs de la charte, effets, animations. La même puissance que Canva ou la suite Adobe, déjà calée sur votre client.
@@ -837,10 +837,10 @@ function Features() {
 
 /* ─── Testimonials ───────────────────────────────────────────────────────── */
 function Testimonials() {
-  const big = { q: 'On est passé de quatre outils à un seul. Le lundi matin n’a plus rien à voir — et on a pris trois clients de plus sans embaucher.', a: 'Camille R.', r: 'Directrice de création · Studio Klein' };
+  const big = { q: 'Avant, ma prod tournait sur Canva, un Drive, des allers-retours par mail et un tableur de planning. Là tout est au même endroit. J’ai récupéré mes vendredis après-midi.', a: 'Camille R.', r: 'Directrice de création · Studio Klein' };
   const small = [
-    { q: 'La voix de marque par client, c’est ce qui change tout. L’IA ne déborde jamais du cadre.', a: 'Yanis B.', r: 'Social media manager' },
-    { q: 'Je gère six comptes sans jongler entre dix onglets. Mes clients valident plus vite.', a: 'Léa M.', r: 'Freelance · contenu de marque' },
+    { q: 'L’IA reprend le ton exact de chaque marque. Je corrige deux ou trois mots au lieu de tout réécrire.', a: 'Yanis B.', r: 'Social media manager' },
+    { q: 'Mes clients valident depuis leur téléphone, sans créer de compte. Fini les captures d’écran sur WhatsApp.', a: 'Léa M.', r: 'Freelance · contenu de marque' },
   ];
   return (
     <section className="section on-forest" style={{ overflow: 'hidden' }}>
