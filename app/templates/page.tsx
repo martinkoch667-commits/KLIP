@@ -11,6 +11,8 @@ interface WsCard {
   name: string;
   primary_color: string | null;
   instagram_username: string | null;
+  banner_url: string | null;
+  logo_url: string | null;
   templateCount: number;
 }
 
@@ -37,18 +39,21 @@ function ClientKitCard({ ws, color, index }: { ws: WsCard; color: string; index:
         onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = 'var(--shadow-pop)'; }}
         onMouseLeave={e => { e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = ''; }}
       >
-        {/* brand band */}
-        <div style={{ height: 70, background: color, position: 'relative' }} />
+        {/* brand band — bannière du client si définie, sinon couleur de charte */}
+        <div style={{ height: 80, background: color, backgroundImage: ws.banner_url ? `url(${ws.banner_url})` : undefined, backgroundSize: 'cover', backgroundPosition: 'center', position: 'relative' }} />
         <div style={{ padding: '0 18px 18px' }}>
           {/* avatar overlap + name */}
           <div style={{ display: 'flex', alignItems: 'flex-end', gap: 12, marginBottom: 14 }}>
             <div style={{
-              width: 46, height: 46, borderRadius: 13, background: color,
+              width: 46, height: 46, borderRadius: 13, background: ws.logo_url ? '#fff' : color,
               display: 'grid', placeItems: 'center', fontSize: 13, fontWeight: 800,
-              color: '#fff', fontFamily: 'var(--mono)', flexShrink: 0,
+              color: '#fff', fontFamily: 'var(--mono)', flexShrink: 0, overflow: 'hidden',
               marginTop: -22, boxShadow: '0 0 0 3px var(--white)',
             }}>
-              {initials}
+              {ws.logo_url
+                // eslint-disable-next-line @next/next/no-img-element
+                ? <img src={ws.logo_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'contain', padding: 4 }} />
+                : initials}
             </div>
             <div style={{ paddingBottom: 2, minWidth: 0, flex: 1 }}>
               <div className="h-title trunc" style={{ fontSize: 16 }}>{ws.name}</div>
@@ -103,7 +108,7 @@ export default function TemplatesPage() {
 
       const { data: ws } = await supabase
         .from("workspaces")
-        .select("id, name, primary_color, instagram_username")
+        .select("id, name, primary_color, instagram_username, banner_url, logo_url")
         .order("created_at");
 
       if (!ws) { setLoading(false); return; }

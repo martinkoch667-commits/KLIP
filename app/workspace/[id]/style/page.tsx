@@ -188,9 +188,13 @@ export default function StyleTemplatePage() {
   const logoDarkRef  = useRef<HTMLInputElement>(null);
   const assetsRef    = useRef<HTMLInputElement>(null);
   const brandIconRef = useRef<HTMLInputElement>(null);
+  const bannerRef    = useRef<HTMLInputElement>(null);
   const [logoFile, setLogoFile]               = useState<File | null>(null);
   const [logoPreview, setLogoPreview]         = useState<string | null>(null);
   const [logoUrl, setLogoUrl]                 = useState<string | null>(null);
+  const [bannerFile, setBannerFile]           = useState<File | null>(null);
+  const [bannerPreview, setBannerPreview]     = useState<string | null>(null);
+  const [bannerUrl, setBannerUrl]             = useState<string | null>(null);
   const [logoDarkFile, setLogoDarkFile]       = useState<File | null>(null);
   const [logoDarkPreview, setLogoDarkPreview] = useState<string | null>(null);
   const [logoDarkUrl, setLogoDarkUrl]         = useState<string | null>(null);
@@ -240,6 +244,8 @@ export default function StyleTemplatePage() {
         setColorAccent(data.accent_color ?? "#C8F135");
         setLogoUrl(data.logo_url ?? null);
         setLogoPreview(data.logo_url ?? null);
+        setBannerUrl(data.banner_url ?? null);
+        setBannerPreview(data.banner_url ?? null);
         setLogoDarkUrl(data.logo_dark_url ?? null);
         setLogoDarkPreview(data.logo_dark_url ?? null);
         setBrandIconUrl(data.brand_icon_url ?? null);
@@ -355,9 +361,11 @@ export default function StyleTemplatePage() {
       let finalFontPrimaryUrl: string | null = null;
       let finalFontSecondaryUrl: string | null = null;
 
+      let finalBannerUrl = bannerUrl;
       if (logoFile)      finalLogoUrl      = await uploadFile(logoFile,      "brand-assets");
       if (logoDarkFile)  finalLogoDarkUrl  = await uploadFile(logoDarkFile,  "brand-assets");
       if (brandIconFile) finalBrandIconUrl = await uploadFile(brandIconFile, "brand-assets");
+      if (bannerFile)    finalBannerUrl    = await uploadFile(bannerFile,    "brand-assets");
 
       const newAssetUrls: string[] = [];
       for (const f of assetFiles) { const u = await uploadFile(f, "brand-assets"); if (u) newAssetUrls.push(u); }
@@ -385,6 +393,7 @@ export default function StyleTemplatePage() {
         secondary_color: colorSecondary,
         accent_color:    colorAccent,
         logo_url:        finalLogoUrl,
+        banner_url:      finalBannerUrl,
         logo_dark_url:   finalLogoDarkUrl,
         brand_assets:    [...existingAssets, ...newAssetUrls],
         brand_icon_url:  finalBrandIconUrl,
@@ -399,6 +408,7 @@ export default function StyleTemplatePage() {
       // Sync state
       setWorkspaceName(name.trim() || workspaceName);
       if (finalLogoUrl !== logoUrl)             { setLogoUrl(finalLogoUrl); setLogoPreview(finalLogoUrl); setLogoFile(null); }
+      if (finalBannerUrl !== bannerUrl)         { setBannerUrl(finalBannerUrl); setBannerPreview(finalBannerUrl); setBannerFile(null); }
       if (finalLogoDarkUrl !== logoDarkUrl)     { setLogoDarkUrl(finalLogoDarkUrl); setLogoDarkPreview(finalLogoDarkUrl); setLogoDarkFile(null); }
       if (finalBrandIconUrl !== brandIconUrl)   { setBrandIconUrl(finalBrandIconUrl); setBrandIconPreview(finalBrandIconUrl); setBrandIconFile(null); }
       if (newAssetUrls.length) { setExistingAssets(p => [...p, ...newAssetUrls]); setAssetFiles([]); setAssetPreviews([]); }
@@ -643,6 +653,14 @@ export default function StyleTemplatePage() {
                         onRemove={() => { setLogoDarkFile(null); setLogoDarkPreview(logoDarkUrl); }} />
                       <input ref={logoDarkRef} type="file" accept=".png,.svg,.jpg,.jpeg" style={{ display: "none" }}
                         onChange={e => { const f = e.target.files?.[0]; if (f) { setLogoDarkFile(f); setLogoDarkPreview(URL.createObjectURL(f)); } }} />
+
+                      <div style={{ gridColumn: "1 / -1" }}>
+                        <UploadZone label="Bannière du client" hint="Image large (ex. 1200×300) affichée en tête du client" preview={bannerPreview} dark={false}
+                          onClick={() => bannerRef.current?.click()}
+                          onRemove={() => { setBannerFile(null); setBannerPreview(bannerUrl); }} />
+                        <input ref={bannerRef} type="file" accept=".png,.jpg,.jpeg,.webp" style={{ display: "none" }}
+                          onChange={e => { const f = e.target.files?.[0]; if (f) { setBannerFile(f); setBannerPreview(URL.createObjectURL(f)); } }} />
+                      </div>
                     </div>
 
                     {/* Additional assets */}
