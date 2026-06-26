@@ -80,6 +80,10 @@ function buildScheduledAt(dateStr: string, timeStr: string): string | null {
   const d = new Date(`${dateStr}T${timeStr || "09:00"}:00`);
   return isNaN(d.getTime()) ? null : d.toISOString();
 }
+// Ratio d'affichage selon le format du post (story/reel = vertical 9:16).
+function aspectForType(t?: string | null): string {
+  return t === "story" || t === "reel" ? "9 / 16" : "4 / 5";
+}
 // Month view grid: Mon-based, pads with nulls
 function getMonthGrid(year: number, month: number): (Date | null)[] {
   const first = new Date(year, month, 1);
@@ -1034,7 +1038,7 @@ function PlanningContent() {
 
           <div style={{ flex: 1, padding: "16px 20px", display: "flex", flexDirection: "column", gap: 16 }}>
             {(selectedPost.exported_image_url || selectedPost.thumbnail_url || selectedPost.photo_url) && (
-              <div style={{ position: "relative", width: "100%", aspectRatio: "4/5", borderRadius: "var(--r)", overflow: "hidden" }}>
+              <div style={{ position: "relative", width: "100%", maxWidth: (selectedPost.post_type === "story" || selectedPost.post_type === "reel") ? 260 : "100%", margin: "0 auto", aspectRatio: aspectForType(selectedPost.post_type), borderRadius: "var(--r)", overflow: "hidden", background: "#000" }}>
                 {selectedPost.exported_image_url ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img src={selectedPost.exported_image_url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />

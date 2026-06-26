@@ -382,7 +382,7 @@ export default function PreviewPage() {
               {img && (
                 <div style={{ position: 'relative' }}>
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={img} alt="" className="cw-modal-img" />
+                  <img src={img} alt="" className="cw-modal-img" style={{ aspectRatio: selected.post_type === 'story' || selected.post_type === 'reel' ? '9 / 16' : '4 / 5' }} />
                   {selected.texte_visuel && (
                     <div style={{ position: 'absolute', bottom: 14, left: 14, right: 14, background: 'rgba(0,0,0,.55)', borderRadius: 10, padding: '8px 12px', backdropFilter: 'blur(4px)' }}>
                       <p style={{ color: '#fff', fontSize: 13, fontWeight: 600, margin: 0, lineHeight: 1.4 }}>{selected.texte_visuel}</p>
