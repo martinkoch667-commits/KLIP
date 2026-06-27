@@ -56,15 +56,18 @@ export async function GET(request: NextRequest) {
     }
 
     const contentType = res.headers.get("content-type") ?? "image/jpeg";
-    // N'autorise que des images : empêche d'utiliser le proxy pour relayer du contenu arbitraire.
-    if (!contentType.startsWith("image/")) {
+    // Empêche le proxy de relayer du contenu web (html/json/script) — mais tolère les images
+    // servies sans bon content-type (ex. Supabase qui renvoie application/octet-stream).
+    if (/text\/|html|json|javascript|xml/i.test(contentType)) {
       return new NextResponse("Contenu non autorisé", { status: 415 });
     }
     const buffer = await res.arrayBuffer();
+    // Si le content-type est absent/générique, on force un type image neutre pour l'affichage.
+    const safeType = contentType.startsWith("image/") ? contentType : "image/jpeg";
 
     return new NextResponse(buffer, {
       headers: {
-        "Content-Type": contentType,
+        "Content-Type": safeType,
         // Instagram media_url expire after a few hours — don't cache longer than 1h
         "Cache-Control": "public, max-age=3600, stale-while-revalidate=60",
         "Access-Control-Allow-Origin": "*",

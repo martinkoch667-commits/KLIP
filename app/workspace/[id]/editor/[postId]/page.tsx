@@ -1665,10 +1665,18 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
     setLoadError(null);
     const load = async () => {
       try {
-        const [{ data: p, error: postError }, { data: w }] = await Promise.all([
+        let [{ data: p, error: postError }, { data: w }] = await Promise.all([
           supabase.from('posts').select('*').eq('id', postId).maybeSingle(),
           supabase.from('workspaces').select('*').eq('id', workspaceId).maybeSingle(),
         ]);
+        // Au refresh, la session peut ne pas être prête : si le post revient vide sans erreur,
+        // on réessaie une fois (sinon on afficherait un canvas vide « déconnecté »).
+        if (!p && !postError) {
+          await new Promise(r => setTimeout(r, 600));
+          const retry = await supabase.from('posts').select('*').eq('id', postId).maybeSingle();
+          p = retry.data; postError = retry.error;
+          if (!w) { const wr = await supabase.from('workspaces').select('*').eq('id', workspaceId).maybeSingle(); w = wr.data; }
+        }
         if (postError) throw postError;
         if (p?.template_id) setPostTemplateId(p.template_id);
         // Set canvas format from post_type (template will override below if applicable)
