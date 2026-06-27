@@ -51,9 +51,13 @@ export async function POST(request: NextRequest) {
       '- shadow (bool) : ombre portée de lisibilité',
       'INTERDIT : changer la police ou la COULEUR du texte (charte). Le scrim/ombre sont neutres (noir), gérés côté app.',
       '',
-      'Si la composition est déjà excellente, renvoie ok=true sans issues. Sinon corrige TOUT ce qui peut être amélioré.',
+      'DÉGRADÉ GLOBAL (très utile quand le texte est sur une zone CLAIRE/chargée, ex. blanc sur blanc) :',
+      'tu peux assombrir une bande de l\'image avec un dégradé noir dégressif derrière la zone de texte.',
+      'Renvoie alors "scrim": { "position": "bottom"|"top", "opacity": 0-100 }. Mets "none" si inutile.',
+      '',
+      'Si la composition est déjà excellente, renvoie ok=true sans issues ni scrim. Sinon corrige TOUT ce qui peut être amélioré.',
       'Réponds UNIQUEMENT avec ce JSON, rien d\'autre :',
-      '{ "ok": true|false, "issues": [ { "id": "<id calque>", "problem": "...", "fix": { "fontSize"?: number, "x"?: number, "y"?: number, "align"?: "left|center|right", "text"?: "...", "scrim"?: true, "scrimOpacity"?: number, "shadow"?: true } } ] }',
+      '{ "ok": true|false, "scrim": { "position": "bottom"|"top"|"none", "opacity": number }, "issues": [ { "id": "<id calque>", "problem": "...", "fix": { "fontSize"?: number, "x"?: number, "y"?: number, "align"?: "left|center|right", "text"?: "...", "scrim"?: true, "scrimOpacity"?: number, "shadow"?: true } } ] }',
     ].join('\n');
 
     const response = await fetch('https://api.anthropic.com/v1/messages', {
@@ -77,13 +81,17 @@ export async function POST(request: NextRequest) {
     }
 
     const raw: string = data.content?.[0]?.text ?? '';
-    let result: { ok: boolean; issues: unknown[] } = { ok: true, issues: [] };
+    let result: { ok: boolean; issues: unknown[]; scrim?: unknown } = { ok: true, issues: [] };
     try {
       const jm = raw.match(/\{[\s\S]*\}/);
       if (jm) result = JSON.parse(jm[0]);
     } catch { /* garde le défaut ok=true */ }
 
-    return NextResponse.json({ ok: !!result.ok, issues: Array.isArray(result.issues) ? result.issues : [] });
+    return NextResponse.json({
+      ok: !!result.ok,
+      issues: Array.isArray(result.issues) ? result.issues : [],
+      scrim: result.scrim ?? null,
+    });
   } catch (e) {
     console.error('[visual-qa] error:', e);
     return NextResponse.json({ error: 'Erreur analyse' }, { status: 500 });

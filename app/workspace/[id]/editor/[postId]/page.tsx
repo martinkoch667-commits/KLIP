@@ -74,7 +74,7 @@ interface TextEl extends BaseEl {
   echoOffset?: number; // default 8
   echoFade?: boolean; // default true
 }
-interface RectEl extends BaseEl { type: 'rect'; width: number; height: number; fill: string; stroke: string; strokeWidth: number; cornerRadius: number; }
+interface RectEl extends BaseEl { type: 'rect'; width: number; height: number; fill: string; stroke: string; strokeWidth: number; cornerRadius: number; scrim?: 'bottom' | 'top'; }
 interface CircleEl extends BaseEl { type: 'circle'; radius: number; fill: string; stroke: string; strokeWidth: number; }
 interface StarEl extends BaseEl { type: 'star'; numPoints: number; innerRadius: number; outerRadius: number; fill: string; stroke: string; strokeWidth: number; }
 interface AnchorPoint { x: number; y: number; cpIn?: { x: number; y: number }; cpOut?: { x: number; y: number }; }
@@ -2295,13 +2295,26 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
         const data = await res.json();
         if (!res.ok) { setQaMsg(data?.error ?? 'Analyse échouée'); break; }
         const issues = Array.isArray(data.issues) ? data.issues : [];
-        if (data.ok || issues.length === 0) { setQaMsg(applied ? `Corrigé (${applied}) ✓` : 'Rendu validé ✓'); break; }
+        const scrimPos = data?.scrim?.position;
+        const wantScrim = scrimPos === 'bottom' || scrimPos === 'top';
+        const hasScrimEl = elementsRef.current.some(e => e.id === 'scrim-overlay');
+        const scrimChange = wantScrim ? !hasScrimEl : (scrimPos === 'none' && hasScrimEl);
+        if ((data.ok || issues.length === 0) && !scrimChange) { setQaMsg(applied ? `Corrigé (${applied}) ✓` : 'Rendu validé ✓'); break; }
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const fixById = new Map<string, any>(issues.filter((i: any) => i?.id && i?.fix).map((i: any) => [i.id, i.fix]));
-        const newEls = elementsRef.current.map(e => fixById.has(e.id) ? { ...e, ...sanitizeFix(e, fixById.get(e.id)) } as CanvasEl : e);
+        let newEls = elementsRef.current.map(e => fixById.has(e.id) ? { ...e, ...sanitizeFix(e, fixById.get(e.id)) } as CanvasEl : e);
+        // Dégradé global (scrim) derrière la zone de texte, pour la lisibilité sur fond clair/chargé.
+        if (wantScrim) {
+          const op = Math.max(20, Math.min(typeof data.scrim?.opacity === 'number' ? data.scrim.opacity : 65, 80));
+          const scrimEl = { id: 'scrim-overlay', type: 'rect', x: 0, y: 0, rotation: 0, opacity: op, width: stageW, height: stageH, fill: '#000000', stroke: '', strokeWidth: 0, cornerRadius: 0, scrim: scrimPos } as CanvasEl;
+          newEls = newEls.filter(e => e.id !== 'scrim-overlay');
+          newEls.unshift(scrimEl); // derrière les autres calques, au-dessus de la photo
+        } else if (scrimPos === 'none') {
+          newEls = newEls.filter(e => e.id !== 'scrim-overlay');
+        }
         applyElements(newEls);
-        applied += fixById.size;
-        setQaMsg(`Correction de ${fixById.size} défaut(s)…`);
+        applied += fixById.size + (scrimChange ? 1 : 0);
+        setQaMsg(`Optimisation de la composition…`);
         await wait(250);
       }
     } catch {
@@ -3278,14 +3291,25 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
                       onDragEnd={(x, y) => handleElDragEnd(el.id, x, y)}
                       isCropping={cropId === el.id} />
                   );
-                  if (el.type === 'rect') return (
-                    <Rect key={el.id} id={el.id} x={el.x} y={el.y} width={el.width} height={el.height}
-                      fill={el.fill} stroke={el.stroke} strokeWidth={el.strokeWidth}
-                      cornerRadius={el.cornerRadius} rotation={el.rotation} opacity={el.opacity / 100} draggable
-                      onClick={e => handleElClick(el.id, e.evt.shiftKey)} onTap={() => handleElClick(el.id, false)}
-                      onDragStart={() => handleElDragStart(el.id)}
-                      onDragEnd={e => handleElDragEnd(el.id, e.target.x(), e.target.y())} />
-                  );
+                  if (el.type === 'rect') {
+                    const scrimProps = el.scrim
+                      ? {
+                          fillLinearGradientStartPoint: { x: 0, y: 0 },
+                          fillLinearGradientEndPoint: { x: 0, y: el.height },
+                          fillLinearGradientColorStops: el.scrim === 'top'
+                            ? [0, '#000000', 0.5, 'rgba(0,0,0,0)', 1, 'rgba(0,0,0,0)']
+                            : [0, 'rgba(0,0,0,0)', 0.5, 'rgba(0,0,0,0)', 1, '#000000'],
+                        }
+                      : { fill: el.fill };
+                    return (
+                      <Rect key={el.id} id={el.id} x={el.x} y={el.y} width={el.width} height={el.height}
+                        {...scrimProps} stroke={el.stroke} strokeWidth={el.strokeWidth}
+                        cornerRadius={el.cornerRadius} rotation={el.rotation} opacity={el.opacity / 100} draggable
+                        onClick={e => handleElClick(el.id, e.evt.shiftKey)} onTap={() => handleElClick(el.id, false)}
+                        onDragStart={() => handleElDragStart(el.id)}
+                        onDragEnd={e => handleElDragEnd(el.id, e.target.x(), e.target.y())} />
+                    );
+                  }
                   if (el.type === 'circle') return (
                     <Circle key={el.id} id={el.id} x={el.x} y={el.y} radius={el.radius}
                       fill={el.fill} stroke={el.stroke} strokeWidth={el.strokeWidth}
