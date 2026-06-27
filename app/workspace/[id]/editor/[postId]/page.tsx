@@ -2249,10 +2249,32 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const sanitizeFix = (el: any, fix: any) => {
       const out: Record<string, unknown> = {};
+      // Taille : on n'agrandit jamais au-delà du design.
       if (typeof fix?.fontSize === 'number') out.fontSize = Math.max(10, Math.min(Math.round(fix.fontSize), el.fontSize));
-      if (typeof fix?.x === 'number') out.x = Math.round(fix.x);
-      if (typeof fix?.y === 'number') out.y = Math.round(fix.y);
+      // Position : clampée dans le cadre.
+      if (typeof fix?.x === 'number') out.x = Math.max(0, Math.min(Math.round(fix.x), stageW - 20));
+      if (typeof fix?.y === 'number') out.y = Math.max(0, Math.min(Math.round(fix.y), stageH - 20));
+      if (fix?.align === 'left' || fix?.align === 'center' || fix?.align === 'right') out.align = fix.align;
       if (typeof fix?.text === 'string' && fix.text.trim() && fix.text.length < (el.text?.length ?? 0)) out.text = fix.text.trim();
+      // Voile (scrim) de lisibilité : fond NOIR neutre derrière le texte — jamais la couleur du texte.
+      if (fix?.scrim === true) {
+        out.hasBg = true;
+        out.bgColor = '#000000';
+        const op = typeof fix?.scrimOpacity === 'number' ? fix.scrimOpacity : 45;
+        out.bgOpacity = Math.max(20, Math.min(op, 70));
+        out.cornerRadius = el.cornerRadius ?? 6;
+        if (!el.paddingH) out.paddingH = 18;
+        if (!el.paddingV) out.paddingV = 10;
+      }
+      // Ombre de lisibilité : ombre sombre douce.
+      if (fix?.shadow === true) {
+        out.shadowEnabled = true;
+        out.shadowColor = '#000000';
+        out.shadowOpacity = 70;
+        out.shadowBlur = 8;
+        out.shadowOffsetX = 0;
+        out.shadowOffsetY = 2;
+      }
       return out;
     };
     try {

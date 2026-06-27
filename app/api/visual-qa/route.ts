@@ -32,21 +32,28 @@ export async function POST(request: NextRequest) {
     ).join('\n');
 
     const prompt = [
-      `Tu es un directeur artistique. Voici le RENDU FINAL d'un post (cadre ${stageW}×${stageH} px).`,
+      `Tu es directeur artistique senior. Voici le RENDU FINAL d'un post (cadre ${stageW}×${stageH} px, origine en haut-gauche).`,
       'Calques texte présents :',
       layerLines || '(aucun)',
       '',
-      'Analyse l\'IMAGE et repère UNIQUEMENT les défauts objectifs :',
-      '- texte coupé / qui déborde du cadre',
-      '- texte qui en chevauche un autre',
-      '- texte trop petit/illisible ou écrasé',
-      '- texte qui sort de sa zone visible',
+      'Évalue la COMPOSITION comme un graphiste pro et corrige pour un visuel optimal :',
+      '- Placement : le texte est-il dans une zone CALME de l\'image (pas sur le visage/sujet/zone chargée) ? Marges respectées (ne pas coller aux bords) ?',
+      '- Lisibilité : contraste suffisant avec le fond ? Sinon, ajoute un voile sombre (scrim) OU une ombre derrière le texte.',
+      '- Hiérarchie : le titre doit dominer, les éléments alignés entre eux, espacés proprement (pas de chevauchement, pas d\'entassement).',
+      '- Équilibre : la zone de texte forme un bloc cohérent, bien ancré (souvent bas ou haut), pas flottant au hasard.',
       '',
-      'Pour CHAQUE défaut, propose une correction MINIMALE parmi : réduire fontSize, déplacer (x/y), ou raccourcir le texte (garde le sens).',
-      'Ne change JAMAIS la police ni la couleur. Si tout est bon, renvoie ok=true sans issues.',
+      'Leviers de correction AUTORISÉS (par calque) :',
+      '- fontSize (number) : ajuster la taille',
+      '- x, y (number) : repositionner dans une meilleure zone / aligner / respecter les marges',
+      '- align ("left"|"center"|"right")',
+      '- text (string) : raccourcir si trop long (garder le sens)',
+      '- scrim (bool) + scrimOpacity (0-100) : voile SOMBRE derrière ce texte pour la lisibilité',
+      '- shadow (bool) : ombre portée de lisibilité',
+      'INTERDIT : changer la police ou la COULEUR du texte (charte). Le scrim/ombre sont neutres (noir), gérés côté app.',
       '',
+      'Si la composition est déjà excellente, renvoie ok=true sans issues. Sinon corrige TOUT ce qui peut être amélioré.',
       'Réponds UNIQUEMENT avec ce JSON, rien d\'autre :',
-      '{ "ok": true|false, "issues": [ { "id": "<id calque>", "problem": "...", "fix": { "fontSize"?: number, "x"?: number, "y"?: number, "text"?: "..." } } ] }',
+      '{ "ok": true|false, "issues": [ { "id": "<id calque>", "problem": "...", "fix": { "fontSize"?: number, "x"?: number, "y"?: number, "align"?: "left|center|right", "text"?: "...", "scrim"?: true, "scrimOpacity"?: number, "shadow"?: true } } ] }',
     ].join('\n');
 
     const response = await fetch('https://api.anthropic.com/v1/messages', {
