@@ -1523,6 +1523,8 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
   };
 
   const [saving, setSaving] = useState(false);
+  const [qaBusy, setQaBusy] = useState(false);
+  const [qaMsg, setQaMsg]   = useState<string | null>(null);
   const [dataLoading, setDataLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
 
@@ -2234,6 +2236,61 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
     }, 80);
   };
 
+  // ── Auto-correction visuelle par IA (Option A) ────────────────────────────
+  // Capture le rendu → Claude vision repère les défauts → applique des corrections
+  // bornées (taille / position / texte raccourci, jamais police ni couleur) → reboucle.
+  const runVisualQA = async () => {
+    if (!stageRef.current || qaBusy) return;
+    setQaBusy(true);
+    const prevSel = selectedId;
+    setSelectedId(null);
+    const nextFrame = () => new Promise<void>(r => requestAnimationFrame(() => r()));
+    const wait = (ms: number) => new Promise<void>(r => setTimeout(r, ms));
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const sanitizeFix = (el: any, fix: any) => {
+      const out: Record<string, unknown> = {};
+      if (typeof fix?.fontSize === 'number') out.fontSize = Math.max(10, Math.min(Math.round(fix.fontSize), el.fontSize));
+      if (typeof fix?.x === 'number') out.x = Math.round(fix.x);
+      if (typeof fix?.y === 'number') out.y = Math.round(fix.y);
+      if (typeof fix?.text === 'string' && fix.text.trim() && fix.text.length < (el.text?.length ?? 0)) out.text = fix.text.trim();
+      return out;
+    };
+    try {
+      let applied = 0;
+      for (let pass = 0; pass < 2; pass++) {
+        await nextFrame(); await wait(120);
+        const image = stageRef.current?.toDataURL({ pixelRatio: 1 });
+        if (!image) break;
+        const layers = elementsRef.current
+          .filter(e => e.type === 'text')
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          .map((e: any) => ({ id: e.id, role: e.role, text: e.text, fontSize: e.fontSize, x: Math.round(e.x), y: Math.round(e.y), width: e.width }));
+        setQaMsg(pass === 0 ? 'Analyse du rendu…' : 'Nouvelle vérification…');
+        const res = await fetch('/api/visual-qa', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ image, layers, stageW, stageH }),
+        });
+        const data = await res.json();
+        if (!res.ok) { setQaMsg(data?.error ?? 'Analyse échouée'); break; }
+        const issues = Array.isArray(data.issues) ? data.issues : [];
+        if (data.ok || issues.length === 0) { setQaMsg(applied ? `Corrigé (${applied}) ✓` : 'Rendu validé ✓'); break; }
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const fixById = new Map<string, any>(issues.filter((i: any) => i?.id && i?.fix).map((i: any) => [i.id, i.fix]));
+        const newEls = elementsRef.current.map(e => fixById.has(e.id) ? { ...e, ...sanitizeFix(e, fixById.get(e.id)) } as CanvasEl : e);
+        applyElements(newEls);
+        applied += fixById.size;
+        setQaMsg(`Correction de ${fixById.size} défaut(s)…`);
+        await wait(250);
+      }
+    } catch {
+      setQaMsg('Erreur pendant l\'analyse');
+    } finally {
+      setSelectedId(prevSel);
+      setQaBusy(false);
+      setTimeout(() => setQaMsg(null), 2800);
+    }
+  };
+
   const deletePost = async () => {
     if (!confirm("Supprimer ce post ? Cette action est irréversible.")) return;
     await supabase.from('posts').delete().eq('id', postId);
@@ -2687,6 +2744,14 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
               </button>
             ))}
           </div>
+          {qaMsg && (
+            <span className="ed-hide-sm" style={{ fontSize: 12, fontWeight: 600, color: 'var(--ink-2)', whiteSpace: 'nowrap' }}>{qaMsg}</span>
+          )}
+          <button onClick={runVisualQA} disabled={qaBusy} className="btn btn-sm btn-ghost" title="L'IA analyse le rendu et corrige les défauts visuels"
+            style={{ height: 36, opacity: qaBusy ? 0.6 : 1, cursor: qaBusy ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 3l1.9 5.8L20 10l-5.8 1.9L12 18l-1.9-5.8L4 10l5.8-1.2z"/></svg>
+            <span className="ed-hide-sm">{qaBusy ? 'Analyse…' : 'Vérifier le rendu'}</span>
+          </button>
           <button onClick={exportPNG} className="btn btn-sm btn-ghost" style={{ height: 36 }}>Aperçu</button>
           <button onClick={handleSave} disabled={saving} className="btn btn-sm btn-primary"
             style={{ height: 36, opacity: saving ? 0.6 : 1, cursor: saving ? 'not-allowed' : 'pointer' }}>
