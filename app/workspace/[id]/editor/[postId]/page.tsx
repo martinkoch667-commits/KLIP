@@ -3246,7 +3246,7 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
                     const pV = el.paddingV ?? el.padding;
                     const measuredW = measureTextWidth(el.text, el.fontSize, el.fontFamily, el.fontStyle);
                     const rawW = el.width ?? (measuredW + pH * 2);
-                    const blockW = Math.min(Math.max(rawW, 80), stageW - 40);
+                    const blockW = Math.min(Math.max(rawW, 80), Math.max(80, stageW - (el.x ?? 0) - 20));
                     const textAreaW = Math.max(1, blockW - pH * 2);
                     // Dynamic blockH: account for text wrapping and manual line breaks
                     const allLines = (el.uppercase ? el.text.toUpperCase() : el.text).split('\n');
@@ -3515,7 +3515,7 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
               if (!tel || tel.type !== 'text') return null;
               const pV = Number(tel.paddingV ?? tel.padding ?? 10);
               const pH = Number(tel.paddingH ?? tel.padding ?? 10);
-              const blockW = Math.min(Math.max(tel.width ?? 200, 80), stageW - 40);
+              const blockW = Math.min(Math.max(tel.width ?? 200, 80), Math.max(80, stageW - (tel.x ?? 0) - 20));
               const blockH = tel.fontSize + pV * 2;
               return (
                 <textarea
