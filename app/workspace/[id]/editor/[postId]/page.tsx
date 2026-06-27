@@ -35,6 +35,9 @@ interface TextEl extends BaseEl {
   hasBg: boolean; bgColor: string; bgOpacity: number; cornerRadius: number;
   padding: number; paddingH: number; paddingV: number;
   role?: string;
+  maxLines?: number;
+  minFontSize?: number;
+  maxFontSize?: number;
   lineHeight?: number;
   letterSpacing?: number;
   uppercase?: boolean;
@@ -138,6 +141,60 @@ function measureTextWidth(text: string, fontSize: number, fontFamily: string, fo
   if (!ctx) return text.length * fontSize * 0.6;
   ctx.font = `${fontStyle} ${fontSize}px ${fontFamily}`;
   return ctx.measureText(text).width;
+}
+
+// ─── Auto-fit (Phase 2) ──────────────────────────────────────────────────────
+// Nombre de lignes autorisé par défaut selon le rôle du slot.
+function roleMaxLines(role?: string): number {
+  switch (role) {
+    case 'titre':       return 2;
+    case 'sous-titre':  return 2;
+    case 'accroche':    return 2;
+    case 'cta':         return 1;
+    case 'tag':         return 1;
+    case 'prix':        return 1;
+    case 'corps':       return 6;
+    default:            return 3;
+  }
+}
+// Compte de lignes (wrap approx. cohérent avec le rendu) pour une taille donnée.
+function countLines(text: string, fontSize: number, font: string, fontStyle: string, areaW: number): number {
+  const manual = text.split('\n');
+  let lines = 0;
+  for (const ln of manual) {
+    const w = measureTextWidth(ln || ' ', fontSize, font, fontStyle);
+    lines += Math.max(1, Math.ceil(w / Math.max(1, areaW)));
+  }
+  return lines;
+}
+// Calcule la taille de police qui fait tenir le texte dans sa largeur + maxLines.
+// Ne change QUE la taille (jamais police ni couleur). Ne fait que réduire (max = taille du design).
+function autoFitFontSize(el: TextEl): number {
+  if (!el.text || !el.width || !el.role) return el.fontSize;
+  const maxFs = el.maxFontSize ?? el.fontSize;
+  const minFs = el.minFontSize ?? Math.max(12, Math.round(el.fontSize * 0.5));
+  const maxLines = el.maxLines ?? roleMaxLines(el.role);
+  const pH = el.paddingH ?? el.padding ?? 0;
+  const areaW = Math.max(1, el.width - pH * 2);
+  const txt = el.uppercase ? el.text.toUpperCase() : el.text;
+  const fits = (fs: number) => countLines(txt, fs, el.fontFamily, el.fontStyle, areaW) <= maxLines;
+  if (fits(maxFs)) return maxFs;           // tient déjà à la taille du design
+  let lo = minFs, hi = maxFs, best = minFs;
+  while (lo <= hi) {
+    const mid = Math.floor((lo + hi) / 2);
+    if (fits(mid)) { best = mid; lo = mid + 1; } else { hi = mid - 1; }
+  }
+  return best;
+}
+// Applique l'auto-fit à tous les calques texte (slots) d'une liste d'éléments.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function applyAutoFit(elements: any[]): any[] {
+  if (!Array.isArray(elements)) return elements;
+  return elements.map(el => {
+    if (el?.type !== 'text' || !el.role) return el;
+    const fs = autoFitFontSize(el as TextEl);
+    return fs !== el.fontSize ? { ...el, fontSize: fs } : el;
+  });
 }
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
@@ -1664,6 +1721,8 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
         } else {
           initSlides = [{ id: 'slide-1', elements: [defaultEl], proxyUrl: photoProxyUrl }];
         }
+        // Auto-fit (Phase 2) : ajuste la taille des slots pour que le texte généré tienne toujours.
+        initSlides = initSlides.map(s => ({ ...s, elements: applyAutoFit(s.elements) }));
         setSlides(initSlides);
         slidesRef.current = initSlides;
         const first = initSlides[0];
