@@ -42,9 +42,12 @@ export async function POST(request: NextRequest) {
       '- Hiérarchie : le titre doit dominer, les éléments alignés entre eux, espacés proprement (pas de chevauchement, pas d\'entassement).',
       '- Équilibre : la zone de texte forme un bloc cohérent, bien ancré (souvent bas ou haut), pas flottant au hasard.',
       '',
+      'IMPORTANT : deux textes ne doivent JAMAIS se chevaucher. S\'ils se touchent, espace-les (y) ou réduis la taille.',
+      '',
       'Leviers de correction AUTORISÉS (par calque) :',
       '- fontSize (number) : ajuster la taille',
-      '- x, y (number) : repositionner dans une meilleure zone / aligner / respecter les marges',
+      '- x, y (number) : repositionner dans une meilleure zone / aligner / respecter les marges / éviter le chevauchement',
+      '- width (number) : étirer/réduire la largeur de la zone de texte',
       '- align ("left"|"center"|"right")',
       '- text (string) : raccourcir si trop long (garder le sens)',
       '- scrim (bool) + scrimOpacity (0-100) : voile SOMBRE derrière ce texte pour la lisibilité',
@@ -57,7 +60,7 @@ export async function POST(request: NextRequest) {
       '',
       'Si la composition est déjà excellente, renvoie ok=true sans issues ni scrim. Sinon corrige TOUT ce qui peut être amélioré.',
       'Réponds UNIQUEMENT avec ce JSON, rien d\'autre :',
-      '{ "ok": true|false, "scrim": { "position": "bottom"|"top"|"none", "opacity": number }, "issues": [ { "id": "<id calque>", "problem": "...", "fix": { "fontSize"?: number, "x"?: number, "y"?: number, "align"?: "left|center|right", "text"?: "...", "scrim"?: true, "scrimOpacity"?: number, "shadow"?: true } } ] }',
+      '{ "ok": true|false, "scrim": { "position": "bottom"|"top"|"none", "opacity": number }, "issues": [ { "id": "<id calque>", "problem": "...", "fix": { "fontSize"?: number, "x"?: number, "y"?: number, "width"?: number, "align"?: "left|center|right", "text"?: "...", "scrim"?: true, "scrimOpacity"?: number, "shadow"?: true } } ] }',
     ].join('\n');
 
     const response = await fetch('https://api.anthropic.com/v1/messages', {

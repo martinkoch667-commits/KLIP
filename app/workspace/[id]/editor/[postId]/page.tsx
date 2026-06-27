@@ -197,6 +197,54 @@ function applyAutoFit(elements: any[]): any[] {
   });
 }
 
+// Re-layout complet des slots texte pour un format donné :
+// 1) clamp largeur dans le cadre  2) auto-fit taille  3) anti-chevauchement vertical
+// 4) remontée du bloc s'il dépasse le bas. Tourne au chargement ET au changement de format.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function relayoutText(elements: any[], stageW: number, stageH: number): any[] {
+  if (!Array.isArray(elements)) return elements;
+  const margin = 16, gap = 8;
+  // 1 + 2 : clamp largeur + auto-fit (slots uniquement)
+  const els = elements.map(el => {
+    if (el?.type !== 'text' || !el.role) return el;
+    const x = Math.max(0, Math.min(el.x ?? 0, stageW - 60));
+    const maxW = Math.max(60, stageW - x - margin);
+    const width = Math.min(el.width ?? maxW, maxW);
+    const withW = { ...el, x, width };
+    return { ...withW, fontSize: autoFitFontSize(withW as TextEl) };
+  });
+  // 3 : anti-chevauchement (slots, par ordre vertical)
+  const order = els
+    .map((e, i) => ({ e, i }))
+    .filter(o => o.e?.type === 'text' && o.e.role)
+    .sort((a, b) => (a.e.y ?? 0) - (b.e.y ?? 0));
+  const heightOf = (e: TextEl) => {
+    const pH = e.paddingH ?? e.padding ?? 0;
+    const pV = e.paddingV ?? e.padding ?? 0;
+    const areaW = Math.max(1, (e.width ?? stageW) - pH * 2);
+    const txt = e.uppercase ? (e.text || '').toUpperCase() : (e.text || '');
+    const lines = countLines(txt, e.fontSize, e.fontFamily, e.fontStyle, areaW);
+    return lines * e.fontSize * (e.lineHeight ?? 1.2) + pV * 2;
+  };
+  let prevBottom = -Infinity;
+  for (const { e, i } of order) {
+    const h = heightOf(e as TextEl);
+    let y = e.y ?? 0;
+    if (y < prevBottom + gap) { y = Math.round(prevBottom + gap); els[i] = { ...els[i], y }; }
+    prevBottom = y + h;
+  }
+  // 4 : si la pile dépasse le bas, on la remonte (sans sortir par le haut)
+  const bottomLimit = stageH - margin;
+  if (prevBottom > bottomLimit && order.length) {
+    const topY = els[order[0].i].y ?? 0;
+    const shift = Math.min(prevBottom - bottomLimit, Math.max(0, topY - margin));
+    if (shift > 0) for (const { i } of order) els[i] = { ...els[i], y: Math.round((els[i].y ?? 0) - shift) };
+  }
+  return els;
+}
+
+const PT_FORMAT_MAP: Record<string, string> = { post: 'ig-portrait', reel: 'ig-story', story: 'ig-story', carrousel: 'ig-square' };
+
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
 // Bug 3 fix: object-fit cover behavior + drag-to-reposition
@@ -1723,8 +1771,9 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
         } else {
           initSlides = [{ id: 'slide-1', elements: [defaultEl], proxyUrl: photoProxyUrl }];
         }
-        // Auto-fit (Phase 2) : ajuste la taille des slots pour que le texte généré tienne toujours.
-        initSlides = initSlides.map(s => ({ ...s, elements: applyAutoFit(s.elements) }));
+        // Re-layout (Phase 2) : auto-fit + anti-chevauchement pour le format du post.
+        const loadFmt = FORMATS.find(f => f.id === (p?.post_type && PT_FORMAT_MAP[p.post_type] ? PT_FORMAT_MAP[p.post_type] : 'ig-portrait')) ?? FORMATS[0];
+        initSlides = initSlides.map(s => ({ ...s, elements: relayoutText(s.elements, loadFmt.w, loadFmt.h) }));
         setSlides(initSlides);
         slidesRef.current = initSlides;
         const first = initSlides[0];
@@ -2254,6 +2303,11 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
       // Position : clampée dans le cadre.
       if (typeof fix?.x === 'number') out.x = Math.max(0, Math.min(Math.round(fix.x), stageW - 20));
       if (typeof fix?.y === 'number') out.y = Math.max(0, Math.min(Math.round(fix.y), stageH - 20));
+      // Étirement de la zone (largeur) — borné au cadre.
+      if (typeof fix?.width === 'number') {
+        const x = typeof out.x === 'number' ? out.x as number : (el.x ?? 0);
+        out.width = Math.max(60, Math.min(Math.round(fix.width), stageW - x - 12));
+      }
       if (fix?.align === 'left' || fix?.align === 'center' || fix?.align === 'right') out.align = fix.align;
       if (typeof fix?.text === 'string' && fix.text.trim() && fix.text.length < (el.text?.length ?? 0)) out.text = fix.text.trim();
       // Voile (scrim) de lisibilité : fond NOIR neutre derrière le texte — jamais la couleur du texte.
@@ -2423,14 +2477,15 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
     const newFmt = FORMATS.find(f => f.id === newFormatId) ?? FORMATS[0];
     setPostType(newType);
     setFormatId(newFormatId);
-    // Constrain element positions within new canvas bounds
+    // Réadapte le texte au nouveau format : clamp + auto-fit + anti-chevauchement.
     const clamped = elementsRef.current.map(el => ({
       ...el,
       x: Math.min(el.x, newFmt.w - 20),
       y: Math.min(el.y, newFmt.h - 20),
     }));
-    setElements(clamped);
-    elementsRef.current = clamped;
+    const relaid = relayoutText(clamped, newFmt.w, newFmt.h);
+    setElements(relaid);
+    elementsRef.current = relaid;
     await supabase.from('posts').update({ post_type: newType }).eq('id', postId);
   };
 
@@ -2680,8 +2735,9 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
                   setPostType(pendingStoryType);
                   setFormatId(newFormatId);
                   const clamped = elementsRef.current.map(el => ({ ...el, x: Math.min(el.x, newFmt.w - 20), y: Math.min(el.y, newFmt.h - 20) }));
-                  setElements(clamped);
-                  elementsRef.current = clamped;
+                  const relaid = relayoutText(clamped, newFmt.w, newFmt.h);
+                  setElements(relaid);
+                  elementsRef.current = relaid;
                   await supabase.from('posts').update({ post_type: pendingStoryType }).eq('id', postId);
                 }
                 setPendingStoryType(null);
