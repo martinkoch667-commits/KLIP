@@ -169,20 +169,29 @@ export async function POST(request: NextRequest) {
       if (ws.description_style)  lines.push(`Style rédactionnel : ${ws.description_style}`);
     }
 
+    // Contraintes par slot (Phase 1) : maxChars/maxLines dérivés de la géométrie de la zone.
+    const zoneConstraints = new Map<string, { role: string; roleLabel: string; maxChars: number; maxLines: number }>();
+    activeZones.forEach(z => {
+      const safeW = Math.max(z.width ?? 200, 1);
+      const safeH = Math.max(z.height ?? z.fontSize * 2, 1);
+      const safeF = Math.max(z.fontSize ?? 24, 1);
+      const charsPerLine = Math.max(3, Math.floor(safeW / (safeF * 0.55)));
+      const maxLines     = Math.max(1, Math.round(safeH / (safeF * 1.25)));
+      const maxChars     = Math.max(5, charsPerLine * maxLines);
+      zoneConstraints.set(z.id, { role: z.role!, roleLabel: ROLE_LABELS[z.role!] ?? z.role!, maxChars, maxLines });
+    });
+
     if (hasZoneMode) {
       lines.push('');
-      lines.push('── ZONES DU TEMPLATE ─────────────────────────────────────────');
-      lines.push('Ce visuel utilise un template avec ces zones de texte à remplir :');
+      lines.push('── ZONES DU TEMPLATE (contraintes STRICTES) ──────────────────');
+      lines.push('Ce visuel utilise un template. Chaque zone a une limite à NE JAMAIS dépasser :');
       activeZones.forEach(z => {
-        const roleLabel = ROLE_LABELS[z.role!] ?? z.role;
-        const safeW = Math.max(z.width ?? 200, 1);
-        const safeH = Math.max(z.height ?? z.fontSize * 2, 1);
-        const safeF = Math.max(z.fontSize ?? 24, 1);
-        const maxChars = Math.max(5, Math.floor((safeW / (safeF * 0.55)) * (safeH / (safeF * 1.3))));
-        lines.push(`- "${roleLabel}" (id: ${z.id}) : maximum ${maxChars} caractères`);
+        const c = zoneConstraints.get(z.id)!;
+        const lineHint = c.maxLines === 1 ? '1 ligne' : `${c.maxLines} lignes max`;
+        lines.push(`- "${c.roleLabel}" (id: ${z.id}) : ≤ ${c.maxChars} caractères, ${lineHint}.`);
       });
       lines.push('');
-      lines.push('Répartis le contenu de façon cohérente — chaque zone doit avoir du sens isolément ET ensemble.');
+      lines.push('Le texte DOIT tenir dans ces limites. Sois concis et percutant. Répartis le contenu de façon cohérente — chaque zone doit avoir du sens isolément ET ensemble.');
     } else if (hasRoles) {
       lines.push('');
       lines.push(`Blocs visuels présents : ${roleKeys.join(', ')}`);
@@ -224,30 +233,32 @@ export async function POST(request: NextRequest) {
     // ─── 5. Call Claude ───────────────────────────────────────────────────────
     console.log(`[generate-description] workspace="${ws.name}" sector="${ws.sector}" tone="${ws.tone}" hasImage=${hasImage} hasZones=${hasZoneMode}`);
 
-    const response = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': apiKey,
-        'anthropic-version': '2023-06-01',
-      },
-      body: JSON.stringify({
-        model: 'claude-opus-4-5',
-        max_tokens: hasZoneMode ? 800 : hasRoles ? 600 : 400,
-        temperature: 0.9,
-        system: systemPrompt,
-        messages: [{ role: 'user', content }],
-      }),
-    });
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const callClaude = async (messages: any[]): Promise<string> => {
+      const response = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': apiKey,
+          'anthropic-version': '2023-06-01',
+        },
+        body: JSON.stringify({
+          model: 'claude-opus-4-5',
+          max_tokens: hasZoneMode ? 800 : hasRoles ? 600 : 400,
+          temperature: 0.9,
+          system: systemPrompt,
+          messages,
+        }),
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        console.error('[generate-description] API error:', data);
+        throw new Error(typeof data?.error === 'string' ? data.error : (data?.error?.message || 'Erreur API'));
+      }
+      return (data.content?.[0]?.text ?? '') as string;
+    };
 
-    const data = await response.json();
-
-    if (!response.ok) {
-      console.error('[generate-description] API error:', data);
-      return NextResponse.json({ error: data }, { status: 500 });
-    }
-
-    const rawText: string = data.content?.[0]?.text ?? '';
+    const rawText: string = await callClaude([{ role: 'user', content }]);
 
     // ─── 6. Parse JSON response ───────────────────────────────────────────────
     let texte_visuel = '';
@@ -268,6 +279,55 @@ export async function POST(request: NextRequest) {
       }
     } catch {
       description = rawText;
+    }
+
+    // ─── 6bis. Validation des contraintes de slot (Phase 1) ───────────────────
+    // Si une zone dépasse sa limite : 1 re-prompt ciblé, puis troncature propre.
+    const cleanTruncate = (s: string, max: number): string => {
+      if (s.length <= max) return s;
+      const cut = s.slice(0, max);
+      const lastSpace = cut.lastIndexOf(' ');
+      return (lastSpace > max * 0.6 ? cut.slice(0, lastSpace) : cut).trimEnd();
+    };
+
+    if (hasZoneMode && zoneBlocks && zoneConstraints.size > 0) {
+      const violations = () => Object.entries(zoneBlocks!)
+        .filter(([id, txt]) => { const c = zoneConstraints.get(id); return c && typeof txt === 'string' && txt.length > c.maxChars; })
+        .map(([id, txt]) => ({ id, len: (txt as string).length, max: zoneConstraints.get(id)!.maxChars, label: zoneConstraints.get(id)!.roleLabel }));
+
+      let bad = violations();
+      if (bad.length > 0) {
+        // Re-prompt ciblé : on ne redemande QUE les zones trop longues.
+        try {
+          const fixLines = bad.map(v => `- "${v.label}" (id: ${v.id}) : actuellement ${v.len} caractères, raccourcis à ≤ ${v.max} caractères en gardant le sens.`);
+          const fixPrompt = [
+            'Les zones suivantes dépassent leur limite de caractères :',
+            ...fixLines,
+            '',
+            'Renvoie UNIQUEMENT ce JSON (rien d\'autre), avec les versions raccourcies :',
+            `{ "zone_blocks": { ${bad.map(v => `"${v.id}": "..."`).join(', ')} } }`,
+          ].join('\n');
+          const fixRaw = await callClaude([
+            { role: 'user', content },
+            { role: 'assistant', content: rawText },
+            { role: 'user', content: fixPrompt },
+          ]);
+          const m = fixRaw.match(/\{[\s\S]*\}/);
+          if (m) {
+            const fixed = JSON.parse(m[0]);
+            const fb = fixed.zone_blocks ?? fixed;
+            if (fb && typeof fb === 'object') {
+              for (const v of bad) if (typeof fb[v.id] === 'string') zoneBlocks[v.id] = fb[v.id].trim();
+            }
+          }
+        } catch (e) {
+          console.warn('[generate-description] re-prompt échoué, troncature appliquée:', e);
+        }
+        // Filet de sécurité : troncature propre pour tout ce qui dépasse encore.
+        bad = violations();
+        for (const v of bad) zoneBlocks[v.id] = cleanTruncate(zoneBlocks[v.id] as string, v.max);
+        if (bad.length) console.log(`[generate-description] ${bad.length} zone(s) tronquée(s) après re-prompt`);
+      }
     }
 
     console.log(`[generate-description] done — texte_visuel="${texte_visuel.slice(0, 40)}" desc_len=${description.length}`);
