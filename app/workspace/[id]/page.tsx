@@ -1089,10 +1089,10 @@ export default function WorkspacePage() {
                   </div>
                 ) : (
                   <div className="ws-posts-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 16 }}>
-                    {posts.map((post) => {
+                    {posts.map((post, pIdx) => {
                       const isGenerated = post.status === "generated" || post.status === "validating" || post.status === "validated";
                       return (
-                        <div key={post.localId} className="card" style={{ overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+                        <div key={post.localId} className="card klip-card-in" style={{ overflow: 'hidden', display: 'flex', flexDirection: 'column', animationDelay: `${Math.min(pIdx, 8) * 55}ms` }}>
                           {/* Photo / Video preview */}
                           <div style={{ padding: 8 }}>
                             <div style={{ position: 'relative', aspectRatio: '4/5', borderRadius: 11, overflow: 'hidden', background: '#000' }}>
