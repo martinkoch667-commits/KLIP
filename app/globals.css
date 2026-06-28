@@ -667,3 +667,10 @@ input.ed-range::-moz-range-thumb {
     .mob-drawer { padding-bottom: env(safe-area-inset-bottom); }
   }
 }
+
+/* Topbar éditeur : à partir de 1280px, on masque les libellés des boutons IA et le hint central
+   pour éviter que la barre ne déborde (icônes seules, tout reste accessible). */
+@media (max-width: 1280px) {
+  .ed-hide-md { display: none !important; }
+  .ed-topbar-center { display: none !important; }
+}

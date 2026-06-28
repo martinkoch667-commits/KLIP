@@ -1576,6 +1576,9 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [aiVariants, setAiVariants] = useState<any[]>([]);
   const [aiVariantIdx, setAiVariantIdx] = useState(0);
+  const [aiBuilding, setAiBuilding] = useState(false);          // overlay "l'IA construit le visuel"
+  const [autoComposeReady, setAutoComposeReady] = useState(false);
+  const autoComposeDoneRef = useRef(false);
   const [dataLoading, setDataLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
 
@@ -1686,6 +1689,8 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
         const PT_FORMAT: Record<string, string> = { post: 'ig-portrait', reel: 'ig-story', story: 'ig-story', carrousel: 'ig-square' };
         if (p?.post_type && PT_FORMAT[p.post_type]) { setFormatId(PT_FORMAT[p.post_type]); setPostType(p.post_type as 'post' | 'reel' | 'story' | 'carrousel'); }
         if (p?.photo_url) { setPostPhotoUrl(p.photo_url); }
+        // Post vierge (jamais édité, pas de template) + une photo -> l'IA composera automatiquement à l'ouverture.
+        setAutoComposeReady(!p?.editor_json && !p?.template_id && !!p?.photo_url);
         if (w) {
           setWorkspaceName(w.name || '');
           setWorkspaceData(w);
@@ -2497,8 +2502,9 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
   };
 
   // Compose : récupère l'univers du client + posts validés, demande 3 variantes, applique la 1re, puis QA.
-  const composeWithAI = async () => {
+  const composeWithAI = async (opts?: { chainQA?: boolean }) => {
     if (qaBusy) return;
+    const chainQA = opts?.chainQA !== false;
     setQaBusy(true); setQaMsg('Composition IA…');
     let success = false;
     try {
@@ -2548,21 +2554,32 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
       setQaMsg('Erreur composition');
     } finally {
       setQaBusy(false);
-      if (success) setTimeout(() => { runVisualQA(); }, 450); // one-click : enchaîne l'audit visuel
+      if (success && chainQA) setTimeout(() => { runVisualQA(); }, 450); // one-click : enchaîne l'audit visuel
       else setTimeout(() => setQaMsg(null), 2800);
     }
   };
 
-  // Cycle entre les variantes proposées par l'IA.
-  const cycleVariant = async () => {
-    if (qaBusy || aiVariants.length < 2) return;
-    const next = (aiVariantIdx + 1) % aiVariants.length;
-    setAiVariantIdx(next);
-    setQaBusy(true); setQaMsg(`Variante ${next + 1}/${aiVariants.length}…`);
-    try { await materializeLayout(aiVariants[next]); setQaMsg(`Variante ${next + 1}/${aiVariants.length} ✓`); }
+  // Sélectionne une variante précise (pastilles 1·2·3).
+  const selectVariant = async (idx: number) => {
+    if (qaBusy || idx < 0 || idx >= aiVariants.length || idx === aiVariantIdx) return;
+    setAiVariantIdx(idx);
+    setQaBusy(true); setQaMsg(`Variante ${idx + 1}/${aiVariants.length}…`);
+    try { await materializeLayout(aiVariants[idx]); setQaMsg(`Variante ${idx + 1} ✓`); }
     catch { setQaMsg('Erreur variante'); }
-    finally { setQaBusy(false); setTimeout(() => setQaMsg(null), 2200); }
+    finally { setQaBusy(false); setTimeout(() => setQaMsg(null), 2000); }
   };
+
+  // Auto-composition à l'ouverture d'un post vierge, avec overlay de chargement.
+  useEffect(() => {
+    if (dataLoading || autoComposeDoneRef.current || !autoComposeReady) return;
+    autoComposeDoneRef.current = true;
+    (async () => {
+      setAiBuilding(true);
+      try { await composeWithAI({ chainQA: false }); } catch { /* noop */ }
+      setAiBuilding(false);
+    })();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dataLoading, autoComposeReady]);
 
   const deletePost = async () => {
     if (!confirm("Supprimer ce post ? Cette action est irréversible.")) return;
@@ -3019,25 +3036,27 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
               </button>
             ))}
           </div>
-          {qaMsg && (
-            <span className="ed-hide-sm" style={{ fontSize: 12, fontWeight: 600, color: 'var(--ink-2)', whiteSpace: 'nowrap' }}>{qaMsg}</span>
-          )}
-          <button onClick={composeWithAI} disabled={qaBusy} className="btn btn-sm btn-ghost" title="L'IA compose la mise en page à partir de la photo et de la charte"
-            style={{ height: 36, opacity: qaBusy ? 0.6 : 1, cursor: qaBusy ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}>
+          <button onClick={() => composeWithAI()} disabled={qaBusy} className="btn btn-sm btn-ghost" title="L'IA compose la mise en page à partir de la photo et de la charte"
+            style={{ height: 36, opacity: qaBusy ? 0.6 : 1, cursor: qaBusy ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9.5 3l1.6 4.9L16 9.5l-4.9 1.6L9.5 16l-1.6-4.9L3 9.5l4.9-1.6z"/><path d="M18 14l.8 2.5L21 17l-2.2.8L18 20l-.8-2.2L15 17l2.2-.5z"/></svg>
-            <span className="ed-hide-sm">{qaBusy ? '…' : 'Composer (IA)'}</span>
+            <span className="ed-hide-md">{aiVariants.length ? 'Recomposer' : 'Composer (IA)'}</span>
           </button>
           {aiVariants.length > 1 && (
-            <button onClick={cycleVariant} disabled={qaBusy} className="btn btn-sm btn-ghost" title="Voir une autre proposition de l'IA"
-              style={{ height: 36, opacity: qaBusy ? 0.6 : 1, cursor: qaBusy ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12a9 9 0 0 1 15-6.7L21 8M21 3v5h-5M21 12a9 9 0 0 1-15 6.7L3 16M3 21v-5h5"/></svg>
-              <span className="ed-hide-sm">Variante {aiVariantIdx + 1}/{aiVariants.length}</span>
-            </button>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 3, padding: '3px', background: 'var(--sunk)', borderRadius: 9, border: '1px solid var(--line)', flexShrink: 0 }} title="Choisir une proposition de l'IA">
+              {aiVariants.map((_, i) => (
+                <button key={i} onClick={() => selectVariant(i)} disabled={qaBusy}
+                  style={{ width: 26, height: 26, borderRadius: 6, border: 'none', cursor: qaBusy ? 'not-allowed' : 'pointer', fontSize: 12, fontWeight: 800, fontFamily: 'var(--sans)',
+                    background: i === aiVariantIdx ? 'var(--canvas)' : 'transparent', color: i === aiVariantIdx ? 'var(--ink)' : 'var(--ink-3)',
+                    boxShadow: i === aiVariantIdx ? '0 1px 3px rgba(13,15,10,.1)' : 'none' }}>
+                  {i + 1}
+                </button>
+              ))}
+            </div>
           )}
           <button onClick={runVisualQA} disabled={qaBusy} className="btn btn-sm btn-ghost" title="L'IA analyse le rendu et corrige les défauts visuels"
-            style={{ height: 36, opacity: qaBusy ? 0.6 : 1, cursor: qaBusy ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}>
+            style={{ height: 36, opacity: qaBusy ? 0.6 : 1, cursor: qaBusy ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 3l1.9 5.8L20 10l-5.8 1.9L12 18l-1.9-5.8L4 10l5.8-1.2z"/></svg>
-            <span className="ed-hide-sm">{qaBusy ? 'Analyse…' : 'Vérifier le rendu'}</span>
+            <span className="ed-hide-md">{qaBusy ? 'Analyse…' : 'Vérifier'}</span>
           </button>
           <button onClick={exportPNG} className="btn btn-sm btn-ghost" style={{ height: 36 }}>Aperçu</button>
           <button onClick={handleSave} disabled={saving} className="btn btn-sm btn-primary"
@@ -3498,6 +3517,16 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
 
         {/* ── CANVAS WORKSPACE ── */}
         <div className="ed-canvas-area" style={{ flex: 1, minWidth: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column', background: 'radial-gradient(120% 80% at 50% -10%, #FBFAF4, #ECEBE1 70%)', position: 'relative' }}>
+          {(aiBuilding || qaBusy) && (
+            <div style={{ position: 'absolute', inset: 0, zIndex: 40, background: 'rgba(247,246,243,.72)', backdropFilter: 'blur(3px)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 16, cursor: 'wait' }}>
+              <div style={{ width: 42, height: 42, borderRadius: '50%', border: '3px solid rgba(13,15,10,.12)', borderTopColor: 'var(--mint, #2FD79B)', animation: 'klipspin .8s linear infinite' }} />
+              <div style={{ textAlign: 'center' }}>
+                <div style={{ fontFamily: 'var(--display, sans-serif)', fontWeight: 800, fontSize: 16, color: 'var(--ink)' }}>L&apos;IA Klip construit le visuel…</div>
+                <div style={{ fontSize: 12.5, color: 'var(--ink-3)', marginTop: 3 }}>{qaMsg || 'Un instant, ne cliquez pas — composition en cours.'}</div>
+              </div>
+              <style>{`@keyframes klipspin{to{transform:rotate(360deg)}}`}</style>
+            </div>
+          )}
           <div ref={canvasAreaRef}
           onMouseDown={() => { setSelectedId(null); setSelectedIds([]); setEditingId(null); setBgCropMode(false); setBgImageSelected(false); }}
           style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', overflowY: 'auto', padding: '40px 28px', gap: 40 }}>
