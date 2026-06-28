@@ -674,3 +674,17 @@ input.ed-range::-moz-range-thumb {
   .ed-hide-md { display: none !important; }
   .ed-topbar-center { display: none !important; }
 }
+
+/* Boutons IA de l'éditeur — accent menthe (ADN Klip) + transitions douces */
+.ed-ai-btn {
+  background: linear-gradient(180deg, rgba(52,224,161,.14), rgba(47,215,155,.08));
+  color: #0C2A1D;
+  box-shadow: inset 0 0 0 1px rgba(47,215,155,.42);
+  transition: transform .14s cubic-bezier(.2,.7,.3,1), box-shadow .18s, background .18s;
+}
+.ed-ai-btn svg { color: #16A36F; }
+.ed-ai-btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+  background: linear-gradient(180deg, rgba(52,224,161,.22), rgba(47,215,155,.12));
+  box-shadow: inset 0 0 0 1px rgba(47,215,155,.6), 0 6px 16px -8px rgba(47,215,155,.6);
+}

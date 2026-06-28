@@ -3049,7 +3049,7 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
               </button>
             ))}
           </div>
-          <button onClick={() => composeWithAI()} disabled={qaBusy} className="btn btn-sm btn-ghost" title="L'IA compose la mise en page à partir de la photo et de la charte"
+          <button onClick={() => composeWithAI()} disabled={qaBusy} className="btn btn-sm ed-ai-btn" title="L'IA compose la mise en page à partir de la photo et de la charte"
             style={{ height: 36, opacity: qaBusy ? 0.6 : 1, cursor: qaBusy ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9.5 3l1.6 4.9L16 9.5l-4.9 1.6L9.5 16l-1.6-4.9L3 9.5l4.9-1.6z"/><path d="M18 14l.8 2.5L21 17l-2.2.8L18 20l-.8-2.2L15 17l2.2-.5z"/></svg>
             <span className="ed-hide-md">{aiVariants.length ? 'Recomposer' : 'Composer (IA)'}</span>
@@ -3066,7 +3066,7 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
               ))}
             </div>
           )}
-          <button onClick={runVisualQA} disabled={qaBusy} className="btn btn-sm btn-ghost" title="L'IA analyse le rendu et corrige les défauts visuels"
+          <button onClick={runVisualQA} disabled={qaBusy} className="btn btn-sm ed-ai-btn" title="L'IA analyse le rendu et corrige les défauts visuels"
             style={{ height: 36, opacity: qaBusy ? 0.6 : 1, cursor: qaBusy ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 3l1.9 5.8L20 10l-5.8 1.9L12 18l-1.9-5.8L4 10l5.8-1.2z"/></svg>
             <span className="ed-hide-md">{qaBusy ? 'Analyse…' : 'Vérifier'}</span>
@@ -3531,13 +3531,23 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
         {/* ── CANVAS WORKSPACE ── */}
         <div className="ed-canvas-area" style={{ flex: 1, minWidth: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column', background: 'radial-gradient(120% 80% at 50% -10%, #FBFAF4, #ECEBE1 70%)', position: 'relative' }}>
           {(aiBuilding || qaBusy) && (
-            <div style={{ position: 'absolute', inset: 0, zIndex: 40, background: 'rgba(247,246,243,.72)', backdropFilter: 'blur(3px)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 16, cursor: 'wait' }}>
-              <div style={{ width: 42, height: 42, borderRadius: '50%', border: '3px solid rgba(13,15,10,.12)', borderTopColor: 'var(--mint, #2FD79B)', animation: 'klipspin .8s linear infinite' }} />
-              <div style={{ textAlign: 'center' }}>
-                <div style={{ fontFamily: 'var(--display, sans-serif)', fontWeight: 800, fontSize: 16, color: 'var(--ink)' }}>L&apos;IA Klip construit le visuel…</div>
-                <div style={{ fontSize: 12.5, color: 'var(--ink-3)', marginTop: 3 }}>{qaMsg || 'Un instant, ne cliquez pas — composition en cours.'}</div>
+            <div style={{ position: 'absolute', inset: 0, zIndex: 40, background: 'radial-gradient(120% 90% at 50% 30%, rgba(8,32,22,.90), rgba(6,18,10,.95))', backdropFilter: 'blur(6px)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 22, cursor: 'wait' }}>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/logo-klip-mint.png" alt="Klip" style={{ height: 34, width: 'auto', opacity: 0.96, animation: 'klipPulse 1.8s ease-in-out infinite' }} />
+              {/* Barres animées (ADN Klip) */}
+              <div style={{ display: 'flex', alignItems: 'flex-end', gap: 5, height: 30 }}>
+                {[0, 1, 2, 3, 4].map(i => (
+                  <span key={i} style={{ width: 5, borderRadius: 3, background: 'linear-gradient(180deg,#34E0A1,#2FD79B)', animation: `klipBar 1s ease-in-out ${i * 0.12}s infinite` }} />
+                ))}
               </div>
-              <style>{`@keyframes klipspin{to{transform:rotate(360deg)}}`}</style>
+              <div style={{ textAlign: 'center' }}>
+                <div style={{ fontFamily: 'var(--display, sans-serif)', fontWeight: 800, fontSize: 16.5, color: '#F4F3EC', letterSpacing: '-0.01em' }}>L&apos;IA Klip compose votre visuel</div>
+                <div style={{ fontSize: 12.5, color: 'rgba(244,243,236,.6)', marginTop: 5 }}>{qaMsg || 'Un instant — ne cliquez pas, composition en cours.'}</div>
+              </div>
+              <style>{`
+                @keyframes klipBar { 0%,100%{height:8px;opacity:.55} 50%{height:30px;opacity:1} }
+                @keyframes klipPulse { 0%,100%{opacity:.6;transform:scale(.98)} 50%{opacity:1;transform:scale(1)} }
+              `}</style>
             </div>
           )}
           <div ref={canvasAreaRef}
