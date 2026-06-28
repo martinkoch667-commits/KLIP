@@ -2388,6 +2388,67 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
     }
   };
 
+  // ── Composition IA (directeur artistique) ─────────────────────────────────
+  // L'IA analyse la photo + la charte et compose la mise en page (placement, hiérarchie,
+  // lisibilité), même sans template. Couleurs limitées à la charte, polices = marque.
+  const composeWithAI = async () => {
+    if (qaBusy) return;
+    setQaBusy(true); setQaMsg('Composition IA…');
+    try {
+      const texts = elementsRef.current
+        .filter(e => e.type === 'text')
+        .map(e => (e as TextEl).text)
+        .filter(t => t && t.trim() && t !== 'VOTRE TEXTE');
+      const res = await fetch('/api/compose-layout', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          imageUrl: postPhotoUrl,
+          format: { w: stageW, h: stageH },
+          brand: { primary: workspaceData?.primary_color, secondary: workspaceData?.secondary_color, accent: workspaceData?.accent_color, logo: !!workspaceData?.logo_url },
+          blocks: texts,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.layout) { setQaMsg(data?.error ?? 'Composition échouée'); return; }
+      const L = data.layout;
+      const displayFont = workspaceData?.font_family || 'Archivo';
+      const bodyFont = workspaceData?.font_secondary || displayFont;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const resolveColor = (c: any) => c === 'primary' ? (workspaceData?.primary_color || '#FFFFFF') : c === 'secondary' ? (workspaceData?.secondary_color || '#FFFFFF') : c === 'accent' ? (workspaceData?.accent_color || '#FFFFFF') : c === 'black' ? '#14160F' : '#FFFFFF';
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const newTextEls: CanvasEl[] = (Array.isArray(L.blocks) ? L.blocks : []).filter((b: any) => b?.text).map((b: any) => ({
+        id: newId(), type: 'text', text: String(b.text),
+        x: Math.max(0, Math.round(((b.xPct ?? 8) / 100) * stageW)),
+        y: Math.max(0, Math.round(((b.yPct ?? 70) / 100) * stageH)),
+        width: Math.round((Math.min(Math.max(b.widthPct ?? 80, 10), 100) / 100) * stageW),
+        rotation: 0, opacity: 100,
+        fontSize: Math.max(12, Math.round(((b.fontPct ?? 7) / 100) * stageH)),
+        fontFamily: b.role === 'sous-titre' ? bodyFont : displayFont,
+        fontStyle: b.role === 'sous-titre' ? 'normal' : 'bold', textDecoration: '',
+        fill: resolveColor(b.color), align: ['left', 'center', 'right'].includes(b.align) ? b.align : 'left',
+        hasBg: false, bgColor: '#000000', bgOpacity: 80, cornerRadius: 6, padding: 16, paddingH: 16, paddingV: 10,
+        role: b.role || 'titre', uppercase: !!b.uppercase,
+        ...(b.shadow ? { shadowEnabled: true, shadowColor: '#000000', shadowOpacity: 70, shadowBlur: 8, shadowOffsetX: 0, shadowOffsetY: 2 } : {}),
+      } as CanvasEl));
+      const extras: CanvasEl[] = [];
+      if (L.scrim && (L.scrim.position === 'bottom' || L.scrim.position === 'top')) {
+        const op = Math.max(20, Math.min(typeof L.scrim.opacity === 'number' ? L.scrim.opacity : 60, 80));
+        extras.push({ id: 'scrim-overlay', type: 'rect', x: 0, y: 0, rotation: 0, opacity: op, width: stageW, height: stageH, fill: '#000000', stroke: '', strokeWidth: 0, cornerRadius: 0, scrim: L.scrim.position } as CanvasEl);
+      }
+      // On garde les images existantes (ex. logo placé), on remplace texte + ancien scrim.
+      const kept = elementsRef.current.filter(e => e.type !== 'text' && e.id !== 'scrim-overlay');
+      const combined = [...extras, ...kept, ...newTextEls];
+      const relaid = relayoutText(combined, stageW, stageH);
+      applyElements(relaid);
+      setQaMsg('Composé ✓');
+    } catch {
+      setQaMsg('Erreur composition');
+    } finally {
+      setQaBusy(false);
+      setTimeout(() => setQaMsg(null), 2800);
+    }
+  };
+
   const deletePost = async () => {
     if (!confirm("Supprimer ce post ? Cette action est irréversible.")) return;
     await supabase.from('posts').delete().eq('id', postId);
@@ -2846,6 +2907,11 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
           {qaMsg && (
             <span className="ed-hide-sm" style={{ fontSize: 12, fontWeight: 600, color: 'var(--ink-2)', whiteSpace: 'nowrap' }}>{qaMsg}</span>
           )}
+          <button onClick={composeWithAI} disabled={qaBusy} className="btn btn-sm btn-ghost" title="L'IA compose la mise en page à partir de la photo et de la charte"
+            style={{ height: 36, opacity: qaBusy ? 0.6 : 1, cursor: qaBusy ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9.5 3l1.6 4.9L16 9.5l-4.9 1.6L9.5 16l-1.6-4.9L3 9.5l4.9-1.6z"/><path d="M18 14l.8 2.5L21 17l-2.2.8L18 20l-.8-2.2L15 17l2.2-.5z"/></svg>
+            <span className="ed-hide-sm">{qaBusy ? '…' : 'Composer (IA)'}</span>
+          </button>
           <button onClick={runVisualQA} disabled={qaBusy} className="btn btn-sm btn-ghost" title="L'IA analyse le rendu et corrige les défauts visuels"
             style={{ height: 36, opacity: qaBusy ? 0.6 : 1, cursor: qaBusy ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 3l1.9 5.8L20 10l-5.8 1.9L12 18l-1.9-5.8L4 10l5.8-1.2z"/></svg>
