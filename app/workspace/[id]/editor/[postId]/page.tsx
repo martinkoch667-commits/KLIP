@@ -2463,8 +2463,9 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
       id: `ai-accent-${i}`, type: 'rect',
       x: Math.max(0, Math.round(((a.xPct ?? 8) / 100) * stageW)),
       y: Math.max(0, Math.round(((a.yPct ?? 60) / 100) * stageH)),
-      width: Math.max(6, Math.round((Math.min(Math.max(a.widthPct ?? 20, 2), 100) / 100) * stageW)),
-      height: Math.max(3, Math.round((Math.min(Math.max(a.heightPct ?? (a.type === 'underline' ? 0.8 : 2), 0.3), 20) / 100) * stageH)),
+      width: Math.max(6, Math.round((Math.min(Math.max(a.widthPct ?? 20, 2), 60) / 100) * stageW)),
+      // Accents = traits FINS uniquement (jamais un pavé) : hauteur plafonnée à ~1.2% du cadre.
+      height: Math.max(2, Math.round((Math.min(a.heightPct ?? (a.type === 'underline' ? 0.6 : 1), 1.2) / 100) * stageH)),
       rotation: 0, opacity: 100, fill: resolveColor(a.color), stroke: '', strokeWidth: 0, cornerRadius: 2,
     } as CanvasEl));
     // Logo (ratio réel préservé)
