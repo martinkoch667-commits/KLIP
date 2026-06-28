@@ -347,6 +347,7 @@ export default function WorkspacePage() {
 
   const [postContexts, setPostContexts] = useState<Record<string, string>>({});
   const [refinePrompts, setRefinePrompts] = useState<Record<string, string>>({});
+  const [photoHasText, setPhotoHasText] = useState<Record<string, boolean>>({}); // la photo contient déjà du texte -> l'IA n'ajoute pas de titre visuel
   const [refiningIds, setRefiningIds] = useState<Set<string>>(new Set());
 
   // ── Thumbnail picker ─────────────────────────────────────────────────────
@@ -536,6 +537,8 @@ export default function WorkspacePage() {
           workspaceId: id,
           // Context textarea for this specific post
           context: postContexts[item.localId] ?? '',
+          // La photo contient déjà du texte -> ne pas générer de texte sur le visuel
+          imageHasText: !!photoHasText[item.localId],
           // Brand identity (fallback if server fetch fails)
           workspaceName: workspace?.name ?? undefined,
           sector: workspace?.sector ?? undefined,
@@ -1134,7 +1137,8 @@ export default function WorkspacePage() {
                                   </div>
                                 ) : (
                                   <button onClick={e => { e.stopPropagation(); setTypeMenuPost(post.localId); }}
-                                    style={{ background: POST_TYPE_CFG[post.post_type ?? 'post'].color, color: '#fff', fontSize: 11, fontWeight: 600, padding: '2px 6px 2px 8px', borderRadius: 4, border: 'none', cursor: 'pointer', fontFamily: 'var(--sans)', display: 'flex', alignItems: 'center', gap: 3 }}>
+                                    style={{ background: 'rgba(0,0,0,.55)', backdropFilter: 'blur(6px)', color: '#fff', fontSize: 11, fontWeight: 700, padding: '4px 9px 4px 8px', borderRadius: 99, border: 'none', cursor: 'pointer', fontFamily: 'var(--sans)', display: 'flex', alignItems: 'center', gap: 5 }}>
+                                    <span style={{ width: 7, height: 7, borderRadius: '50%', background: POST_TYPE_CFG[post.post_type ?? 'post'].color, flexShrink: 0 }} />
                                     {POST_TYPE_CFG[post.post_type ?? 'post'].label}
                                     <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6"/></svg>
                                   </button>
@@ -1211,6 +1215,20 @@ export default function WorkspacePage() {
                                     style={{ resize: 'none', fontSize: 12.5 }}
                                   />
                                 </div>
+                                {/* Toggle : la photo contient-elle déjà du texte ? */}
+                                {!post.isVideo && (
+                                  <button type="button"
+                                    onClick={() => setPhotoHasText(prev => ({ ...prev, [post.localId]: !prev[post.localId] }))}
+                                    style={{ display: 'flex', alignItems: 'center', gap: 10, width: '100%', textAlign: 'left', background: photoHasText[post.localId] ? 'color-mix(in srgb, var(--mint, #2FD79B) 12%, var(--card))' : 'var(--sunk)', border: `1px solid ${photoHasText[post.localId] ? 'var(--mint, #2FD79B)' : 'var(--line)'}`, borderRadius: 10, padding: '8px 11px', cursor: 'pointer', transition: 'all .15s' }}>
+                                    <span style={{ width: 34, height: 20, borderRadius: 99, background: photoHasText[post.localId] ? 'var(--mint, #2FD79B)' : 'var(--line-2, #d9d8cc)', position: 'relative', flexShrink: 0, transition: 'background .18s' }}>
+                                      <span style={{ position: 'absolute', top: 2, left: photoHasText[post.localId] ? 16 : 2, width: 16, height: 16, borderRadius: '50%', background: '#fff', boxShadow: '0 1px 3px rgba(0,0,0,.25)', transition: 'left .18s cubic-bezier(.2,.7,.3,1)' }} />
+                                    </span>
+                                    <span style={{ flex: 1 }}>
+                                      <span style={{ display: 'block', fontSize: 12.5, fontWeight: 700, color: 'var(--ink)' }}>La photo contient déjà du texte</span>
+                                      <span style={{ display: 'block', fontSize: 11, color: 'var(--ink-3)', lineHeight: 1.3 }}>Si activé, l&apos;IA n&apos;ajoute pas de titre sur le visuel — juste la légende.</span>
+                                    </span>
+                                  </button>
+                                )}
                                 <button
                                   onClick={() => generateOne(post)}
                                   disabled={!post.brief.trim() || post.status === "generating"}
@@ -1223,21 +1241,27 @@ export default function WorkspacePage() {
                             ) : (
                               <>
                                 {post.texte_visuel && (
-                                  <div style={{ borderRadius: 'var(--r-s)', background: 'var(--sunk)', padding: '10px 12px' }}>
-                                    <p className="label" style={{ marginBottom: 4 }}>Texte visuel</p>
+                                  <div style={{ borderRadius: 12, background: 'linear-gradient(180deg, var(--card), color-mix(in srgb, var(--mint, #2FD79B) 5%, var(--card)))', border: '1px solid var(--line-2)', borderLeft: '3px solid var(--mint, #2FD79B)', padding: '11px 13px' }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
+                                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#16A36F" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 7V5h16v2M9 5v14M7 19h4"/></svg>
+                                      <span className="label" style={{ margin: 0, color: '#16A36F' }}>Texte sur le visuel</span>
+                                    </div>
                                     <textarea
                                       value={post.texte_visuel}
                                       onChange={(e) => setPosts((prev) => prev.map((p) => p.localId === post.localId ? { ...p, texte_visuel: e.target.value } : p))}
                                       rows={2}
                                       className="input"
-                                      style={{ resize: 'none', fontSize: 13.5, fontWeight: 700, color: 'var(--ink)', background: 'transparent', border: 'none', padding: 0, outline: 'none', width: '100%', lineHeight: 1.3, boxShadow: 'none' }}
+                                      style={{ resize: 'none', fontSize: 15, fontWeight: 800, fontFamily: 'var(--display, var(--sans))', letterSpacing: '-0.01em', color: 'var(--ink)', background: 'transparent', border: 'none', padding: 0, outline: 'none', width: '100%', lineHeight: 1.25, boxShadow: 'none' }}
                                     />
                                   </div>
                                 )}
 
                                 {post.description && (
                                   <div>
-                                    <p className="label" style={{ marginBottom: 6 }}>Description Instagram</p>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
+                                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--ink-3)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="2" width="20" height="20" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="1"/></svg>
+                                      <span className="label" style={{ margin: 0 }}>Légende Instagram</span>
+                                    </div>
                                     <textarea
                                       value={post.description}
                                       onChange={(e) => setPosts((prev) => prev.map((p) => p.localId === post.localId ? { ...p, description: e.target.value } : p))}

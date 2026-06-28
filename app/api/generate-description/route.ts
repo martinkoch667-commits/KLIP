@@ -80,6 +80,8 @@ export async function POST(request: NextRequest) {
       descriptionStyle,
       // Post context (new textarea field)
       context,
+      // La photo contient déjà du texte -> pas de texte visuel généré
+      imageHasText,
       // Template zones
       textRoles,
       templateZones,
@@ -155,6 +157,11 @@ export async function POST(request: NextRequest) {
     const lines: string[] = [];
 
     lines.push(`CONTEXTE DU POST : ${contextText || 'Aucun contexte fourni'}`);
+
+    if (imageHasText) {
+      lines.push('');
+      lines.push('IMPORTANT : la photo contient DÉJÀ son texte/visuel. NE génère AUCUN texte à incruster (texte_visuel vide, pas de zone_blocks). Génère UNIQUEMENT la légende Instagram (description).');
+    }
 
     if (approvedCaptions && Array.isArray(approvedCaptions) && approvedCaptions.length > 0) {
       lines.push('');
@@ -329,6 +336,9 @@ export async function POST(request: NextRequest) {
         if (bad.length) console.log(`[generate-description] ${bad.length} zone(s) tronquée(s) après re-prompt`);
       }
     }
+
+    // Photo avec texte déjà incrusté : on ne renvoie aucun texte visuel.
+    if (imageHasText) { texte_visuel = ''; blocks = null; zoneBlocks = null; }
 
     console.log(`[generate-description] done — texte_visuel="${texte_visuel.slice(0, 40)}" desc_len=${description.length}`);
 
