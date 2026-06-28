@@ -203,7 +203,7 @@ function applyAutoFit(elements: any[]): any[] {
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function relayoutText(elements: any[], stageW: number, stageH: number): any[] {
   if (!Array.isArray(elements)) return elements;
-  const margin = 16, gap = 8;
+  const margin = 26, gap = 10;
   // 1 + 2 : clamp largeur + auto-fit (slots uniquement)
   const els = elements.map(el => {
     if (el?.type !== 'text' || !el.role) return el;
@@ -2331,14 +2331,14 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
         if (!el.paddingH) out.paddingH = 18;
         if (!el.paddingV) out.paddingV = 10;
       }
-      // Ombre de lisibilité : ombre sombre douce.
-      if (fix?.shadow === true) {
-        out.shadowEnabled = true;
-        out.shadowColor = '#000000';
-        out.shadowOpacity = 70;
-        out.shadowBlur = 8;
-        out.shadowOffsetX = 0;
-        out.shadowOffsetY = 2;
+      // Ombre de lisibilité : ombre sombre douce — seulement sur texte CLAIR (sinon moche).
+      const fillNow = (out.fill as string) ?? el.fill ?? '#FFFFFF';
+      const isLight = (() => { const m = /^#?([0-9a-f]{6})$/i.exec(fillNow); if (!m) return true; const n = parseInt(m[1], 16); return (0.2126 * ((n >> 16) & 255) + 0.7152 * ((n >> 8) & 255) + 0.0722 * (n & 255)) / 255 > 0.5; })();
+      if (fix?.shadow === true && isLight) {
+        out.shadowEnabled = true; out.shadowColor = '#000000'; out.shadowOpacity = 70; out.shadowBlur = 8; out.shadowOffsetX = 0; out.shadowOffsetY = 2;
+      } else if (fix?.shadow === false || (!isLight && el.shadowEnabled)) {
+        // Retire une ombre inutile/moche (notamment sur texte foncé).
+        out.shadowEnabled = false;
       }
       return out;
     };
@@ -2435,12 +2435,16 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const newTextEls: CanvasEl[] = (Array.isArray(L?.blocks) ? L.blocks : []).filter((b: any) => b?.text).map((b: any) => {
       let fill = resolveColor(b.color);
-      let shadow = !!b.shadow;
+      let shadow = false;
       if (sampler) {
         const bgLum = sampler(b.xPct ?? 8, b.yPct ?? 70, b.widthPct ?? 80, Math.min(40, (b.fontPct ?? 7) * 2.4));
         if (Math.abs(bgLum - hexLum(fill)) < 0.4) fill = bgLum > 0.5 ? '#14160F' : '#FFFFFF'; // contraste faible -> noir/blanc
-        if (bgLum > 0.62 && hexLum(fill) > 0.5) { shadow = true; forceScrim = true; }
-        if (bgLum > 0.55) shadow = true;
+        const lightText = hexLum(fill) > 0.5;
+        // Ombre UNIQUEMENT texte clair sur fond clair/chargé. Jamais d'ombre sur du texte foncé (= moche).
+        shadow = lightText && bgLum > 0.55;
+        if (lightText && bgLum > 0.62) forceScrim = true;
+      } else {
+        shadow = hexLum(fill) > 0.5 && !!b.shadow; // sans analyse : ombre seulement si le texte est clair
       }
       return {
         id: newId(), type: 'text', text: String(b.text),
