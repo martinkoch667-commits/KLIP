@@ -2398,7 +2398,7 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
 
   // ── Composition IA (directeur artistique) ─────────────────────────────────
   // Luminosité moyenne d'une zone de la photo (0=sombre, 1=clair) — pour la couleur intelligente.
-  const buildLumaSampler = (url: string) => new Promise<((xp: number, yp: number, wp: number, hp: number) => number) | null>(resolve => {
+  const buildLumaSampler = (url: string) => new Promise<((xp: number, yp: number, wp: number, hp: number) => { mean: number; std: number }) | null>(resolve => {
     try {
       const img = new Image(); img.crossOrigin = 'anonymous';
       img.onload = () => {
@@ -2411,10 +2411,11 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
             try {
               const x = Math.max(0, Math.floor(xp / 100 * W)), y = Math.max(0, Math.floor(yp / 100 * H));
               const w = Math.min(W - x, Math.max(1, Math.floor(wp / 100 * W))), h = Math.min(H - y, Math.max(1, Math.floor(hp / 100 * H)));
-              const d = ctx.getImageData(x, y, w, h).data; let s = 0, n = 0;
-              for (let i = 0; i < d.length; i += 4) { s += 0.2126 * d[i] + 0.7152 * d[i + 1] + 0.0722 * d[i + 2]; n++; }
-              return n ? (s / n) / 255 : 0.5;
-            } catch { return 0.5; }
+              const d = ctx.getImageData(x, y, w, h).data; let s = 0, s2 = 0, n = 0;
+              for (let i = 0; i < d.length; i += 4) { const l = (0.2126 * d[i] + 0.7152 * d[i + 1] + 0.0722 * d[i + 2]) / 255; s += l; s2 += l * l; n++; }
+              if (!n) return { mean: 0.5, std: 0.2 };
+              const mean = s / n; return { mean, std: Math.sqrt(Math.max(0, s2 / n - mean * mean)) };
+            } catch { return { mean: 0.5, std: 0.2 }; }
           });
         } catch { resolve(null); }
       };
@@ -2442,14 +2443,20 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
       let fill = resolveColor(b.color);
       let shadow = false;
       if (sampler) {
-        const bgLum = sampler(b.xPct ?? 8, b.yPct ?? 70, b.widthPct ?? 80, Math.min(40, (b.fontPct ?? 7) * 2.4));
-        if (Math.abs(bgLum - hexLum(fill)) < 0.4) fill = bgLum > 0.5 ? '#14160F' : '#FFFFFF'; // contraste faible -> noir/blanc
-        const lightText = hexLum(fill) > 0.5;
-        // Ombre UNIQUEMENT texte clair sur fond clair/chargé. Jamais d'ombre sur du texte foncé (= moche).
-        shadow = lightText && bgLum > 0.55;
-        if (lightText && bgLum > 0.62) forceScrim = true;
+        const { mean, std } = sampler(b.xPct ?? 8, b.yPct ?? 70, b.widthPct ?? 80, Math.min(45, (b.fontPct ?? 7) * 2.6));
+        const busy = std > 0.17;                 // zone chargée (mélange clair/sombre) = risque d'illisibilité
+        const fillLum = hexLum(fill);
+        const contrastOK = !busy && Math.abs(mean - fillLum) > 0.45;
+        if (busy) {
+          // Fond chargé : on ne parie pas sur la couleur du texte -> blanc + voile dégradé + ombre (lisible à coup sûr).
+          fill = '#FFFFFF'; shadow = true; forceScrim = true;
+        } else if (!contrastOK) {
+          fill = mean > 0.5 ? '#14160F' : '#FFFFFF';     // fond uni : noir sur clair, blanc sur sombre
+          shadow = fill === '#FFFFFF' && mean > 0.5;
+        }
+        // sinon : la couleur choisie par l'IA a un bon contraste, on la garde telle quelle.
       } else {
-        shadow = hexLum(fill) > 0.5 && !!b.shadow; // sans analyse : ombre seulement si le texte est clair
+        shadow = hexLum(fill) > 0.5 && !!b.shadow;
       }
       return {
         id: newId(), type: 'text', text: String(b.text),
