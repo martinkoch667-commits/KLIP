@@ -2399,6 +2399,33 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
         .filter(e => e.type === 'text')
         .map(e => (e as TextEl).text)
         .filter(t => t && t.trim() && t !== 'VOTRE TEXTE');
+      // ADN visuel du client : on résume la STRUCTURE des templates existants
+      // (placement, casse, alignement, tailles relatives) pour que l'IA reste dans son univers.
+      const FMT_DIMS: Record<string, [number, number]> = { 'ig-portrait': [448, 560], 'ig-square': [560, 560], 'ig-story': [315, 560], 'facebook': [560, 294] };
+      let styleRef: unknown[] = [];
+      try {
+        const { data: tpls } = await supabase
+          .from('post_templates')
+          .select('name, format_id, background_style, text_zones')
+          .eq('workspace_id', workspaceId)
+          .limit(6);
+        styleRef = (tpls ?? []).map(t => {
+          const [fw, fh] = FMT_DIMS[t.format_id as string] ?? [448, 560];
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const zones: any[] = Array.isArray(t.text_zones) ? t.text_zones : [];
+          const blocks = zones.filter(z => z?.type === 'text' && z.role).map(z => ({
+            role: z.role,
+            xPct: Math.round(((z.x ?? 0) / fw) * 100),
+            yPct: Math.round(((z.y ?? 0) / fh) * 100),
+            wPct: Math.round(((z.width ?? fw) / fw) * 100),
+            fontPct: Math.round(((z.fontSize ?? 24) / fh) * 100),
+            align: z.align ?? 'left',
+            upper: !!z.uppercase,
+          }));
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          return { name: t.name, bg: (t.background_style as any)?.type ?? 'none', blocks };
+        }).filter(s => s.blocks.length > 0).slice(0, 4);
+      } catch { /* pas de templates : on compose librement */ }
       const res = await fetch('/api/compose-layout', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -2406,6 +2433,7 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
           format: { w: stageW, h: stageH },
           brand: { primary: workspaceData?.primary_color, secondary: workspaceData?.secondary_color, accent: workspaceData?.accent_color, logo: !!workspaceData?.logo_url },
           blocks: texts,
+          styleRef,
         }),
       });
       const data = await res.json();

@@ -16,7 +16,7 @@ export async function POST(request: NextRequest) {
     const apiKey = process.env.ANTHROPIC_API_KEY;
     if (!apiKey) return NextResponse.json({ error: 'Clé API manquante' }, { status: 500 });
 
-    const { imageUrl, format, brand, blocks } = await request.json();
+    const { imageUrl, format, brand, blocks, styleRef } = await request.json();
     const fmt = format ?? { w: 1080, h: 1350 };
     const palette = [
       brand?.primary && `primary=${brand.primary}`,
@@ -38,9 +38,21 @@ export async function POST(request: NextRequest) {
         ? `Textes à placer (garde-les, ne réinvente pas) :\n${textList.map((t, i) => `${i + 1}. "${t}"`).join('\n')}`
         : `Aucun texte fourni : propose un titre court (≤ 6 mots) cohérent avec la photo et un éventuel sous-titre.`,
       '',
-      'ANALYSE la photo : où est le sujet ? quelles zones sont CALMES et homogènes (pour poser le texte sans gêner) ? zones claires/sombres (pour le contraste) ?',
-      'COMPOSE comme un pro : hiérarchie claire (titre dominant), texte dans une zone calme, marges respectées (jamais collé aux bords), AUCUN chevauchement, équilibre visuel.',
-      'LISIBILITÉ : si le fond sous le texte est clair/chargé, ajoute un dégradé sombre (scrim) ou une ombre.',
+      Array.isArray(styleRef) && styleRef.length > 0
+        ? [
+            '── UNIVERS DU CLIENT (templates existants — pour la CONTINUITÉ, surtout PAS de copie) ──',
+            JSON.stringify(styleRef),
+            'Étudie ses habitudes : où le titre est-il ancré ? casse (majuscules ?), alignement, contrastes de taille, usage des couleurs, type de fond.',
+            'Reste fidèle à cet ADN visuel pour que le post s\'intègre à la série du client — MAIS crée une composition NEUVE et propre à CETTE photo. N\'imite pas les positions au pixel : capture l\'esprit, pas la lettre.',
+            '',
+          ].join('\n')
+        : '',
+      'Procède comme un vrai DA, avec esprit critique :',
+      '1) ANALYSE la photo — sujet, point focal, zones CALMES/homogènes (pour poser le texte), zones claires/sombres (contraste), ambiance.',
+      '2) CHOISIS un parti pris créatif fort et cohérent avec l\'univers du client (ex. titre ancré bas-gauche, énorme, uppercase ; ou centré aéré).',
+      '3) COMPOSE : hiérarchie nette (titre dominant), texte dans une zone calme, marges respectées (jamais collé aux bords), AUCUN chevauchement, équilibre, contrastes de taille assumés.',
+      '4) LISIBILITÉ : si le fond sous le texte est clair/chargé, ajoute un dégradé sombre (scrim) ou une ombre — c\'est non négociable.',
+      'Sois créatif et audacieux, pas générique. Mais reste lisible et pro.',
       '',
       'Réponds UNIQUEMENT avec ce JSON, rien d\'autre :',
       '{',
@@ -60,7 +72,7 @@ export async function POST(request: NextRequest) {
     const response = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'x-api-key': apiKey, 'anthropic-version': '2023-06-01' },
-      body: JSON.stringify({ model: 'claude-opus-4-5', max_tokens: 1100, temperature: 0.6, messages: [{ role: 'user', content }] }),
+      body: JSON.stringify({ model: 'claude-opus-4-5', max_tokens: 1100, temperature: 0.8, messages: [{ role: 'user', content }] }),
     });
     const data = await response.json();
     if (!response.ok) {
