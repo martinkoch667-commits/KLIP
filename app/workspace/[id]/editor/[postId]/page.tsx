@@ -1573,6 +1573,9 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
   const [saving, setSaving] = useState(false);
   const [qaBusy, setQaBusy] = useState(false);
   const [qaMsg, setQaMsg]   = useState<string | null>(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [aiVariants, setAiVariants] = useState<any[]>([]);
+  const [aiVariantIdx, setAiVariantIdx] = useState(0);
   const [dataLoading, setDataLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
 
@@ -2389,62 +2392,57 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
   };
 
   // ── Composition IA (directeur artistique) ─────────────────────────────────
-  // L'IA analyse la photo + la charte et compose la mise en page (placement, hiérarchie,
-  // lisibilité), même sans template. Couleurs limitées à la charte, polices = marque.
-  const composeWithAI = async () => {
-    if (qaBusy) return;
-    setQaBusy(true); setQaMsg('Composition IA…');
+  // Luminosité moyenne d'une zone de la photo (0=sombre, 1=clair) — pour la couleur intelligente.
+  const buildLumaSampler = (url: string) => new Promise<((xp: number, yp: number, wp: number, hp: number) => number) | null>(resolve => {
     try {
-      const texts = elementsRef.current
-        .filter(e => e.type === 'text')
-        .map(e => (e as TextEl).text)
-        .filter(t => t && t.trim() && t !== 'VOTRE TEXTE');
-      // ADN visuel du client : on résume la STRUCTURE des templates existants
-      // (placement, casse, alignement, tailles relatives) pour que l'IA reste dans son univers.
-      const FMT_DIMS: Record<string, [number, number]> = { 'ig-portrait': [448, 560], 'ig-square': [560, 560], 'ig-story': [315, 560], 'facebook': [560, 294] };
-      let styleRef: unknown[] = [];
-      try {
-        const { data: tpls } = await supabase
-          .from('post_templates')
-          .select('name, format_id, background_style, text_zones')
-          .eq('workspace_id', workspaceId)
-          .limit(6);
-        styleRef = (tpls ?? []).map(t => {
-          const [fw, fh] = FMT_DIMS[t.format_id as string] ?? [448, 560];
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const zones: any[] = Array.isArray(t.text_zones) ? t.text_zones : [];
-          const blocks = zones.filter(z => z?.type === 'text' && z.role).map(z => ({
-            role: z.role,
-            xPct: Math.round(((z.x ?? 0) / fw) * 100),
-            yPct: Math.round(((z.y ?? 0) / fh) * 100),
-            wPct: Math.round(((z.width ?? fw) / fw) * 100),
-            fontPct: Math.round(((z.fontSize ?? 24) / fh) * 100),
-            align: z.align ?? 'left',
-            upper: !!z.uppercase,
-          }));
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          return { name: t.name, bg: (t.background_style as any)?.type ?? 'none', blocks };
-        }).filter(s => s.blocks.length > 0).slice(0, 4);
-      } catch { /* pas de templates : on compose librement */ }
-      const res = await fetch('/api/compose-layout', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          imageUrl: postPhotoUrl,
-          format: { w: stageW, h: stageH },
-          brand: { primary: workspaceData?.primary_color, secondary: workspaceData?.secondary_color, accent: workspaceData?.accent_color, logo: !!workspaceData?.logo_url },
-          blocks: texts,
-          styleRef,
-        }),
-      });
-      const data = await res.json();
-      if (!res.ok || !data.layout) { setQaMsg(data?.error ?? 'Composition échouée'); return; }
-      const L = data.layout;
-      const displayFont = workspaceData?.font_family || 'Archivo';
-      const bodyFont = workspaceData?.font_secondary || displayFont;
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const resolveColor = (c: any) => c === 'primary' ? (workspaceData?.primary_color || '#FFFFFF') : c === 'secondary' ? (workspaceData?.secondary_color || '#FFFFFF') : c === 'accent' ? (workspaceData?.accent_color || '#FFFFFF') : c === 'black' ? '#14160F' : '#FFFFFF';
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const newTextEls: CanvasEl[] = (Array.isArray(L.blocks) ? L.blocks : []).filter((b: any) => b?.text).map((b: any) => ({
+      const img = new Image(); img.crossOrigin = 'anonymous';
+      img.onload = () => {
+        try {
+          const W = 160, H = Math.max(1, Math.round(W * img.height / Math.max(1, img.width)));
+          const c = document.createElement('canvas'); c.width = W; c.height = H;
+          const ctx = c.getContext('2d'); if (!ctx) { resolve(null); return; }
+          ctx.drawImage(img, 0, 0, W, H);
+          resolve((xp, yp, wp, hp) => {
+            try {
+              const x = Math.max(0, Math.floor(xp / 100 * W)), y = Math.max(0, Math.floor(yp / 100 * H));
+              const w = Math.min(W - x, Math.max(1, Math.floor(wp / 100 * W))), h = Math.min(H - y, Math.max(1, Math.floor(hp / 100 * H)));
+              const d = ctx.getImageData(x, y, w, h).data; let s = 0, n = 0;
+              for (let i = 0; i < d.length; i += 4) { s += 0.2126 * d[i] + 0.7152 * d[i + 1] + 0.0722 * d[i + 2]; n++; }
+              return n ? (s / n) / 255 : 0.5;
+            } catch { return 0.5; }
+          });
+        } catch { resolve(null); }
+      };
+      img.onerror = () => resolve(null);
+      img.src = url;
+    } catch { resolve(null); }
+  });
+  const hexLum = (hex: string): number => {
+    const m = /^#?([0-9a-f]{6})$/i.exec(hex || ''); if (!m) return 1;
+    const n = parseInt(m[1], 16); return (0.2126 * ((n >> 16) & 255) + 0.7152 * ((n >> 8) & 255) + 0.0722 * (n & 255)) / 255;
+  };
+
+  // Matérialise une variante de layout : couleur intelligente (contraste réel), accents, logo, scrim.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const materializeLayout = async (L: any) => {
+    const displayFont = workspaceData?.font_family || 'Archivo';
+    const bodyFont = workspaceData?.font_secondary || displayFont;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const resolveColor = (c: any) => c === 'primary' ? (workspaceData?.primary_color || '#FFFFFF') : c === 'secondary' ? (workspaceData?.secondary_color || '#FFFFFF') : c === 'accent' ? (workspaceData?.accent_color || '#C8F135') : c === 'black' ? '#14160F' : '#FFFFFF';
+    let sampler: ((xp: number, yp: number, wp: number, hp: number) => number) | null = null;
+    if (postPhotoUrl) { try { sampler = await buildLumaSampler(`/api/proxy-image?url=${encodeURIComponent(postPhotoUrl)}`); } catch { /* noop */ } }
+    let forceScrim = false;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const newTextEls: CanvasEl[] = (Array.isArray(L?.blocks) ? L.blocks : []).filter((b: any) => b?.text).map((b: any) => {
+      let fill = resolveColor(b.color);
+      let shadow = !!b.shadow;
+      if (sampler) {
+        const bgLum = sampler(b.xPct ?? 8, b.yPct ?? 70, b.widthPct ?? 80, Math.min(40, (b.fontPct ?? 7) * 2.4));
+        if (Math.abs(bgLum - hexLum(fill)) < 0.4) fill = bgLum > 0.5 ? '#14160F' : '#FFFFFF'; // contraste faible -> noir/blanc
+        if (bgLum > 0.62 && hexLum(fill) > 0.5) { shadow = true; forceScrim = true; }
+        if (bgLum > 0.55) shadow = true;
+      }
+      return {
         id: newId(), type: 'text', text: String(b.text),
         x: Math.max(0, Math.round(((b.xPct ?? 8) / 100) * stageW)),
         y: Math.max(0, Math.round(((b.yPct ?? 70) / 100) * stageH)),
@@ -2453,28 +2451,112 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
         fontSize: Math.max(12, Math.round(((b.fontPct ?? 7) / 100) * stageH)),
         fontFamily: b.role === 'sous-titre' ? bodyFont : displayFont,
         fontStyle: b.role === 'sous-titre' ? 'normal' : 'bold', textDecoration: '',
-        fill: resolveColor(b.color), align: ['left', 'center', 'right'].includes(b.align) ? b.align : 'left',
+        fill, align: ['left', 'center', 'right'].includes(b.align) ? b.align : 'left',
         hasBg: false, bgColor: '#000000', bgOpacity: 80, cornerRadius: 6, padding: 16, paddingH: 16, paddingV: 10,
         role: b.role || 'titre', uppercase: !!b.uppercase,
-        ...(b.shadow ? { shadowEnabled: true, shadowColor: '#000000', shadowOpacity: 70, shadowBlur: 8, shadowOffsetX: 0, shadowOffsetY: 2 } : {}),
-      } as CanvasEl));
-      const extras: CanvasEl[] = [];
-      if (L.scrim && (L.scrim.position === 'bottom' || L.scrim.position === 'top')) {
-        const op = Math.max(20, Math.min(typeof L.scrim.opacity === 'number' ? L.scrim.opacity : 60, 80));
-        extras.push({ id: 'scrim-overlay', type: 'rect', x: 0, y: 0, rotation: 0, opacity: op, width: stageW, height: stageH, fill: '#000000', stroke: '', strokeWidth: 0, cornerRadius: 0, scrim: L.scrim.position } as CanvasEl);
-      }
-      // On garde les images existantes (ex. logo placé), on remplace texte + ancien scrim.
-      const kept = elementsRef.current.filter(e => e.type !== 'text' && e.id !== 'scrim-overlay');
-      const combined = [...extras, ...kept, ...newTextEls];
-      const relaid = relayoutText(combined, stageW, stageH);
-      applyElements(relaid);
-      setQaMsg('Composé ✓');
+        ...(shadow ? { shadowEnabled: true, shadowColor: '#000000', shadowOpacity: 70, shadowBlur: 8, shadowOffsetX: 0, shadowOffsetY: 2 } : {}),
+      } as CanvasEl;
+    });
+    // Accents de marque (barres / soulignements)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const accentEls: CanvasEl[] = (Array.isArray(L?.accents) ? L.accents : []).filter((a: any) => a?.type).map((a: any, i: number) => ({
+      id: `ai-accent-${i}`, type: 'rect',
+      x: Math.max(0, Math.round(((a.xPct ?? 8) / 100) * stageW)),
+      y: Math.max(0, Math.round(((a.yPct ?? 60) / 100) * stageH)),
+      width: Math.max(6, Math.round((Math.min(Math.max(a.widthPct ?? 20, 2), 100) / 100) * stageW)),
+      height: Math.max(3, Math.round((Math.min(Math.max(a.heightPct ?? (a.type === 'underline' ? 0.8 : 2), 0.3), 20) / 100) * stageH)),
+      rotation: 0, opacity: 100, fill: resolveColor(a.color), stroke: '', strokeWidth: 0, cornerRadius: 2,
+    } as CanvasEl));
+    // Logo (ratio réel préservé)
+    const logoEls: CanvasEl[] = [];
+    if (L?.logo?.show && workspaceData?.logo_url) {
+      const logoSrc = `/api/proxy-image?url=${encodeURIComponent(workspaceData.logo_url)}`;
+      const ratio = await new Promise<number>(res => { const i = new Image(); i.onload = () => res(i.naturalWidth / Math.max(1, i.naturalHeight)); i.onerror = () => res(3); i.src = logoSrc; });
+      const w = Math.round((Math.min(Math.max(L.logo.widthPct ?? 18, 5), 50) / 100) * stageW);
+      logoEls.push({ id: 'ai-logo', type: 'image', src: logoSrc,
+        x: Math.max(0, Math.round(((L.logo.xPct ?? 6) / 100) * stageW)), y: Math.max(0, Math.round(((L.logo.yPct ?? 6) / 100) * stageH)),
+        width: w, height: Math.max(8, Math.round(w / Math.max(0.2, ratio))), rotation: 0, opacity: 100 } as CanvasEl);
+    }
+    // Scrim global
+    const extras: CanvasEl[] = [];
+    const scrimPos = L?.scrim?.position;
+    if (scrimPos === 'bottom' || scrimPos === 'top' || forceScrim) {
+      const pos = (scrimPos === 'bottom' || scrimPos === 'top') ? scrimPos : 'bottom';
+      const op = Math.max(25, Math.min(typeof L?.scrim?.opacity === 'number' ? L.scrim.opacity : 60, 80));
+      extras.push({ id: 'scrim-overlay', type: 'rect', x: 0, y: 0, rotation: 0, opacity: op, width: stageW, height: stageH, fill: '#000000', stroke: '', strokeWidth: 0, cornerRadius: 0, scrim: pos } as CanvasEl);
+    }
+    // On retire les anciens éléments générés par l'IA (texte, scrim, accents, logo), on garde le reste.
+    const keptImgs = elementsRef.current.filter(e => e.type !== 'text' && e.id !== 'scrim-overlay' && !e.id.startsWith('ai-accent') && e.id !== 'ai-logo');
+    const combined = [...extras, ...keptImgs, ...accentEls, ...logoEls, ...newTextEls];
+    applyElements(relayoutText(combined, stageW, stageH));
+  };
+
+  // Compose : récupère l'univers du client + posts validés, demande 3 variantes, applique la 1re, puis QA.
+  const composeWithAI = async () => {
+    if (qaBusy) return;
+    setQaBusy(true); setQaMsg('Composition IA…');
+    let success = false;
+    try {
+      const texts = elementsRef.current.filter(e => e.type === 'text').map(e => (e as TextEl).text).filter(t => t && t.trim() && t !== 'VOTRE TEXTE');
+      const FMT_DIMS: Record<string, [number, number]> = { 'ig-portrait': [448, 560], 'ig-square': [560, 560], 'ig-story': [315, 560], 'facebook': [560, 294] };
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const summarizeZones = (zones: any[], fw: number, fh: number) => zones.filter(z => z?.type === 'text' && z.role).map(z => ({
+        role: z.role, xPct: Math.round(((z.x ?? 0) / fw) * 100), yPct: Math.round(((z.y ?? 0) / fh) * 100),
+        wPct: Math.round(((z.width ?? fw) / fw) * 100), fontPct: Math.round(((z.fontSize ?? 24) / fh) * 100), align: z.align ?? 'left', upper: !!z.uppercase,
+      }));
+      let styleRef: unknown[] = [];
+      let approvedRef: unknown[] = [];
+      try {
+        const [{ data: tpls }, { data: approved }] = await Promise.all([
+          supabase.from('post_templates').select('name, format_id, background_style, text_zones').eq('workspace_id', workspaceId).limit(6),
+          supabase.from('posts').select('post_type, editor_json').eq('workspace_id', workspaceId).eq('approved_by_client', true).limit(4),
+        ]);
+        styleRef = (tpls ?? []).map(t => {
+          const [fw, fh] = FMT_DIMS[t.format_id as string] ?? [448, 560];
+          return { name: t.name, bg: (t.background_style as { type?: string } | null)?.type ?? 'none', blocks: summarizeZones(Array.isArray(t.text_zones) ? t.text_zones : [], fw, fh) };
+        }).filter(s => s.blocks.length > 0).slice(0, 4);
+        approvedRef = (approved ?? []).map(p => {
+          const [fw, fh] = FMT_DIMS[(p.post_type as string) ? PT_FORMAT_MAP[p.post_type as string] : 'ig-portrait'] ?? [448, 560];
+          let blocks: unknown[] = [];
+          try { const j = JSON.parse(p.editor_json as string); const els = j?.slides?.[0]?.elements ?? []; blocks = summarizeZones(els, fw, fh); } catch { /* noop */ }
+          return { blocks };
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        }).filter((s: any) => s.blocks.length > 0).slice(0, 3);
+      } catch { /* compose librement */ }
+
+      const res = await fetch('/api/compose-layout', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          imageUrl: postPhotoUrl, format: { w: stageW, h: stageH },
+          brand: { primary: workspaceData?.primary_color, secondary: workspaceData?.secondary_color, accent: workspaceData?.accent_color, logo: !!workspaceData?.logo_url },
+          blocks: texts, styleRef, approvedRef,
+        }),
+      });
+      const data = await res.json();
+      const layouts = Array.isArray(data.layouts) ? data.layouts : [];
+      if (!res.ok || layouts.length === 0) { setQaMsg(data?.error ?? 'Composition échouée'); return; }
+      setAiVariants(layouts); setAiVariantIdx(0);
+      await materializeLayout(layouts[0]);
+      setQaMsg(layouts.length > 1 ? `Composé ✓ (1/${layouts.length})` : 'Composé ✓');
+      success = true;
     } catch {
       setQaMsg('Erreur composition');
     } finally {
       setQaBusy(false);
-      setTimeout(() => setQaMsg(null), 2800);
+      if (success) setTimeout(() => { runVisualQA(); }, 450); // one-click : enchaîne l'audit visuel
+      else setTimeout(() => setQaMsg(null), 2800);
     }
+  };
+
+  // Cycle entre les variantes proposées par l'IA.
+  const cycleVariant = async () => {
+    if (qaBusy || aiVariants.length < 2) return;
+    const next = (aiVariantIdx + 1) % aiVariants.length;
+    setAiVariantIdx(next);
+    setQaBusy(true); setQaMsg(`Variante ${next + 1}/${aiVariants.length}…`);
+    try { await materializeLayout(aiVariants[next]); setQaMsg(`Variante ${next + 1}/${aiVariants.length} ✓`); }
+    catch { setQaMsg('Erreur variante'); }
+    finally { setQaBusy(false); setTimeout(() => setQaMsg(null), 2200); }
   };
 
   const deletePost = async () => {
@@ -2940,6 +3022,13 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9.5 3l1.6 4.9L16 9.5l-4.9 1.6L9.5 16l-1.6-4.9L3 9.5l4.9-1.6z"/><path d="M18 14l.8 2.5L21 17l-2.2.8L18 20l-.8-2.2L15 17l2.2-.5z"/></svg>
             <span className="ed-hide-sm">{qaBusy ? '…' : 'Composer (IA)'}</span>
           </button>
+          {aiVariants.length > 1 && (
+            <button onClick={cycleVariant} disabled={qaBusy} className="btn btn-sm btn-ghost" title="Voir une autre proposition de l'IA"
+              style={{ height: 36, opacity: qaBusy ? 0.6 : 1, cursor: qaBusy ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12a9 9 0 0 1 15-6.7L21 8M21 3v5h-5M21 12a9 9 0 0 1-15 6.7L3 16M3 21v-5h5"/></svg>
+              <span className="ed-hide-sm">Variante {aiVariantIdx + 1}/{aiVariants.length}</span>
+            </button>
+          )}
           <button onClick={runVisualQA} disabled={qaBusy} className="btn btn-sm btn-ghost" title="L'IA analyse le rendu et corrige les défauts visuels"
             style={{ height: 36, opacity: qaBusy ? 0.6 : 1, cursor: qaBusy ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 3l1.9 5.8L20 10l-5.8 1.9L12 18l-1.9-5.8L4 10l5.8-1.2z"/></svg>

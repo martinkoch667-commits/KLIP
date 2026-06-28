@@ -16,7 +16,7 @@ export async function POST(request: NextRequest) {
     const apiKey = process.env.ANTHROPIC_API_KEY;
     if (!apiKey) return NextResponse.json({ error: 'Clé API manquante' }, { status: 500 });
 
-    const { imageUrl, format, brand, blocks, styleRef } = await request.json();
+    const { imageUrl, format, brand, blocks, styleRef, approvedRef } = await request.json();
     const fmt = format ?? { w: 1080, h: 1350 };
     const palette = [
       brand?.primary && `primary=${brand.primary}`,
@@ -47,6 +47,14 @@ export async function POST(request: NextRequest) {
             '',
           ].join('\n')
         : '',
+      Array.isArray(approvedRef) && approvedRef.length > 0
+        ? [
+            '── POSTS DÉJÀ VALIDÉS PAR LE CLIENT (ce qui lui plaît — privilégie ce style) ──',
+            JSON.stringify(approvedRef),
+            'Ces compositions ont été approuvées : inspire-toi de ce qui marche (placement, casse, densité) pour maximiser les chances de validation.',
+            '',
+          ].join('\n')
+        : '',
       'Procède comme un vrai DA, avec esprit critique :',
       '1) ANALYSE la photo — sujet, point focal, zones CALMES/homogènes (pour poser le texte), zones claires/sombres (contraste), ambiance.',
       '2) CHOISIS un parti pris créatif fort et cohérent avec l\'univers du client (ex. titre ancré bas-gauche, énorme, uppercase ; ou centré aéré).',
@@ -54,13 +62,19 @@ export async function POST(request: NextRequest) {
       '4) LISIBILITÉ : si le fond sous le texte est clair/chargé, ajoute un dégradé sombre (scrim) ou une ombre — c\'est non négociable.',
       'Sois créatif et audacieux, pas générique. Mais reste lisible et pro.',
       '',
+      'Propose 3 VARIANTES de composition DISTINCTES (partis pris différents), de la meilleure à la moins bonne.',
+      'Tu peux aussi poser de petits éléments de marque (barre/soulignement d\'accent, dans une couleur de charte) et le logo.',
+      '',
       'Réponds UNIQUEMENT avec ce JSON, rien d\'autre :',
-      '{',
-      '  "blocks": [ { "text": "...", "role": "titre"|"sous-titre"|"cta", "xPct": number, "yPct": number, "widthPct": number, "fontPct": number, "align": "left"|"center"|"right", "color": "primary"|"secondary"|"accent"|"white"|"black", "uppercase": boolean, "shadow": boolean } ],',
-      '  "scrim": { "position": "bottom"|"top"|"none", "opacity": number },',
-      '  "logo": { "show": boolean, "xPct": number, "yPct": number, "widthPct": number }',
-      '}',
-      'fontPct = hauteur de police en % de la hauteur du cadre (titre ~7-12, sous-titre ~4-6, cta ~3.5-5).',
+      '{ "layouts": [',
+      '  {',
+      '    "blocks": [ { "text": "...", "role": "titre"|"sous-titre"|"cta", "xPct": number, "yPct": number, "widthPct": number, "fontPct": number, "align": "left"|"center"|"right", "color": "primary"|"secondary"|"accent"|"white"|"black", "uppercase": boolean, "shadow": boolean } ],',
+      '    "accents": [ { "type": "bar"|"underline", "color": "primary"|"secondary"|"accent", "xPct": number, "yPct": number, "widthPct": number, "heightPct": number } ],',
+      '    "scrim": { "position": "bottom"|"top"|"none", "opacity": number },',
+      '    "logo": { "show": boolean, "xPct": number, "yPct": number, "widthPct": number }',
+      '  }',
+      '] }',
+      'fontPct = hauteur de police en % de la hauteur du cadre (titre ~7-12, sous-titre ~4-6, cta ~3.5-5). "accents" peut être [] si inutile.',
     ].join('\n');
 
     const hasImage = typeof imageUrl === 'string' && imageUrl.startsWith('http');
@@ -72,7 +86,7 @@ export async function POST(request: NextRequest) {
     const response = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'x-api-key': apiKey, 'anthropic-version': '2023-06-01' },
-      body: JSON.stringify({ model: 'claude-opus-4-5', max_tokens: 1100, temperature: 0.8, messages: [{ role: 'user', content }] }),
+      body: JSON.stringify({ model: 'claude-opus-4-5', max_tokens: 2600, temperature: 0.8, messages: [{ role: 'user', content }] }),
     });
     const data = await response.json();
     if (!response.ok) {
@@ -80,11 +94,15 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Composition échouée' }, { status: 500 });
     }
     const raw: string = data.content?.[0]?.text ?? '';
-    let layout: unknown = null;
-    try { const jm = raw.match(/\{[\s\S]*\}/); if (jm) layout = JSON.parse(jm[0]); } catch { /* noop */ }
-    if (!layout) return NextResponse.json({ error: 'Réponse IA illisible' }, { status: 502 });
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let parsed: any = null;
+    try { const jm = raw.match(/\{[\s\S]*\}/); if (jm) parsed = JSON.parse(jm[0]); } catch { /* noop */ }
+    if (!parsed) return NextResponse.json({ error: 'Réponse IA illisible' }, { status: 502 });
+    // Tolère soit { layouts: [...] } soit un layout unique (compat).
+    const layouts = Array.isArray(parsed.layouts) ? parsed.layouts : (parsed.blocks ? [parsed] : []);
+    if (layouts.length === 0) return NextResponse.json({ error: 'Aucune composition' }, { status: 502 });
 
-    return NextResponse.json({ layout });
+    return NextResponse.json({ layouts });
   } catch (e) {
     console.error('[compose-layout] error:', e);
     return NextResponse.json({ error: 'Erreur composition' }, { status: 500 });
