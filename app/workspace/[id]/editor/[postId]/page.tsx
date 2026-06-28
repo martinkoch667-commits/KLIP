@@ -2340,7 +2340,7 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
       const fillNow = (out.fill as string) ?? el.fill ?? '#FFFFFF';
       const isLight = (() => { const m = /^#?([0-9a-f]{6})$/i.exec(fillNow); if (!m) return true; const n = parseInt(m[1], 16); return (0.2126 * ((n >> 16) & 255) + 0.7152 * ((n >> 8) & 255) + 0.0722 * (n & 255)) / 255 > 0.5; })();
       if (fix?.shadow === true && isLight) {
-        out.shadowEnabled = true; out.shadowColor = '#000000'; out.shadowOpacity = 70; out.shadowBlur = 8; out.shadowOffsetX = 0; out.shadowOffsetY = 2;
+        out.shadowEnabled = true; out.shadowColor = '#000000'; out.shadowOpacity = 38; out.shadowBlur = 12; out.shadowOffsetX = 0; out.shadowOffsetY = 0;
       } else if (fix?.shadow === false || (!isLight && el.shadowEnabled)) {
         // Retire une ombre inutile/moche (notamment sur texte foncé).
         out.shadowEnabled = false;
@@ -2458,19 +2458,25 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
       } else {
         shadow = hexLum(fill) > 0.5 && !!b.shadow;
       }
+      const align = ['left', 'center', 'right'].includes(b.align) ? b.align : 'left';
+      const width = Math.round((Math.min(Math.max(b.widthPct ?? 80, 10), 100) / 100) * stageW);
+      // Vrai centrage : un bloc centré est réellement centré dans le cadre (sinon ça paraît "de travers").
+      const x = align === 'center'
+        ? Math.round((stageW - width) / 2)
+        : Math.max(0, Math.round(((b.xPct ?? 8) / 100) * stageW));
       return {
         id: newId(), type: 'text', text: String(b.text),
-        x: Math.max(0, Math.round(((b.xPct ?? 8) / 100) * stageW)),
-        y: Math.max(0, Math.round(((b.yPct ?? 70) / 100) * stageH)),
-        width: Math.round((Math.min(Math.max(b.widthPct ?? 80, 10), 100) / 100) * stageW),
+        x, y: Math.max(0, Math.round(((b.yPct ?? 70) / 100) * stageH)),
+        width,
         rotation: 0, opacity: 100,
         fontSize: Math.max(12, Math.round(((b.fontPct ?? 7) / 100) * stageH)),
         fontFamily: b.role === 'sous-titre' ? bodyFont : displayFont,
         fontStyle: b.role === 'sous-titre' ? 'normal' : 'bold', textDecoration: '',
-        fill, align: ['left', 'center', 'right'].includes(b.align) ? b.align : 'left',
+        fill, align,
         hasBg: false, bgColor: '#000000', bgOpacity: 80, cornerRadius: 6, padding: 16, paddingH: 16, paddingV: 10,
         role: b.role || 'titre', uppercase: !!b.uppercase,
-        ...(shadow ? { shadowEnabled: true, shadowColor: '#000000', shadowOpacity: 70, shadowBlur: 8, shadowOffsetX: 0, shadowOffsetY: 2 } : {}),
+        // Ombre = halo doux de lisibilité (offset 0, flou large, faible opacité), JAMAIS une ombre portée lourde.
+        ...(shadow ? { shadowEnabled: true, shadowColor: '#000000', shadowOpacity: 38, shadowBlur: 12, shadowOffsetX: 0, shadowOffsetY: 0 } : {}),
       } as CanvasEl;
     });
     // Accents de marque (barres / soulignements)
@@ -2499,7 +2505,7 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
     const scrimPos = L?.scrim?.position;
     if (scrimPos === 'bottom' || scrimPos === 'top' || forceScrim) {
       const pos = (scrimPos === 'bottom' || scrimPos === 'top') ? scrimPos : 'bottom';
-      const op = Math.max(25, Math.min(typeof L?.scrim?.opacity === 'number' ? L.scrim.opacity : 60, 80));
+      const op = Math.max(22, Math.min(typeof L?.scrim?.opacity === 'number' ? L.scrim.opacity : 50, 65));
       extras.push({ id: 'scrim-overlay', type: 'rect', x: 0, y: 0, rotation: 0, opacity: op, width: stageW, height: stageH, fill: '#000000', stroke: '', strokeWidth: 0, cornerRadius: 0, scrim: pos } as CanvasEl);
     }
     // On retire les anciens éléments générés par l'IA (texte, scrim, accents, logo), on garde le reste.
