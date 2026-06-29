@@ -360,7 +360,7 @@ function SplitText({ lines, className = '', stagger = 22, style }: { lines: (Run
 }
 
 /* ─── Nav ────────────────────────────────────────────────────────────────── */
-function Nav() {
+function Nav({ prelaunch = false }: { prelaunch?: boolean }) {
   const [solid, setSolid] = useState(false);
   const [open, setOpen] = useState(false);
   useEffect(() => {
@@ -379,7 +379,9 @@ function Nav() {
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
             <Link href="/login" className="nav-login" style={{ fontFamily: 'var(--mono)', fontSize: 13.5, fontWeight: 700, color: solid ? 'var(--ink)' : 'var(--cream)' }}>Connexion</Link>
-            <Link href="/register" className="btn btn-acid btn-sm">Essai gratuit</Link>
+            {prelaunch
+              ? <a href="#waitlist" className="btn btn-acid btn-sm">Liste d&apos;attente</a>
+              : <Link href="/register" className="btn btn-acid btn-sm">Essai gratuit</Link>}
             <button className="v2-mob-btn" onClick={() => setOpen(true)} aria-label="Menu" style={{ background: solid ? 'rgba(10,12,7,.08)' : 'rgba(240,239,228,.15)', color: solid ? 'var(--ink)' : 'var(--cream)' }}>
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><path d="M3 12h18M3 6h18M3 18h18"/></svg>
             </button>
@@ -398,7 +400,9 @@ function Nav() {
           {links.map(([t, h]) => <a key={h} href={h} className="v2-mob-link" onClick={() => setOpen(false)}>{t}</a>)}
         </nav>
         <div style={{ marginTop: 'auto', display: 'flex', flexDirection: 'column', gap: 12 }}>
-          <Link href="/register" className="btn btn-acid" style={{ justifyContent: 'center' }} onClick={() => setOpen(false)}>Essai gratuit</Link>
+          {prelaunch
+            ? <a href="#waitlist" className="btn btn-acid" style={{ justifyContent: 'center' }} onClick={() => setOpen(false)}>Liste d&apos;attente</a>
+            : <Link href="/register" className="btn btn-acid" style={{ justifyContent: 'center' }} onClick={() => setOpen(false)}>Essai gratuit</Link>}
           <Link href="/login" className="btn btn-ghost" style={{ justifyContent: 'center', color: '#F0EFE4', boxShadow: 'inset 0 0 0 1.6px rgba(240,239,228,.3)' }} onClick={() => setOpen(false)}>Connexion</Link>
         </div>
       </div>
@@ -441,7 +445,7 @@ function HeroSocialProof() {
 }
 
 /* ─── Hero ───────────────────────────────────────────────────────────────── */
-function Hero() {
+function Hero({ prelaunch = false }: { prelaunch?: boolean }) {
   const peek = useParallax(0.06);
   const f1 = useParallax(-0.14), f2 = useParallax(0.18), f3 = useParallax(0.1), f4 = useParallax(-0.12);
   const lines: (Run[])[] = [[{ t: 'Tous vos clients.' }], [{ t: 'Un seul ' }, { t: 'outil.', cls: 'it-serif accent-lit' }]];
@@ -470,7 +474,9 @@ function Hero() {
         <HeroSocialProof />
 
         <div className="reveal d3 hero-cta" style={{ display: 'flex', gap: 14, justifyContent: 'center', marginTop: 34, flexWrap: 'wrap' }}>
-          <Link href="/register" className="btn btn-acid">Essayer gratuitement <span className="arr"><Icon name="arrowUR" size={18} /></span></Link>
+          {prelaunch
+            ? <a href="#waitlist" className="btn btn-acid">Rejoindre la liste d&apos;attente <span className="arr"><Icon name="arrowUR" size={18} /></span></a>
+            : <Link href="/register" className="btn btn-acid">Essayer gratuitement <span className="arr"><Icon name="arrowUR" size={18} /></span></Link>}
           <a href="#apercu" className="btn btn-ghost">Voir KLIP en action</a>
         </div>
 
@@ -904,7 +910,7 @@ async function startCheckout(plan: 'studio' | 'agence', period: 'monthly' | 'yea
 }
 
 /* ─── Pricing ────────────────────────────────────────────────────────────── */
-function Pricing() {
+function Pricing({ prelaunch = false }: { prelaunch?: boolean }) {
   const [period, setPeriod] = useState<'monthly' | 'yearly'>('monthly');
   const [busy, setBusy] = useState<string | null>(null);
   const tiers = [
@@ -948,9 +954,15 @@ function Pricing() {
                 {period === 'yearly' ? `soit ${t.yearly * 12}€ facturés par an` : 'facturé chaque mois'}
               </div>
               <div className="chip" style={{ marginBottom: 24, background: t.pop ? 'var(--forest-2)' : 'var(--paper-3)', color: t.pop ? 'var(--cream-2)' : 'var(--ink-2)', boxShadow: 'inset 0 0 0 1px var(--line)' }}>{t.clients}</div>
-              <button onClick={() => onChoose(t.plan)} disabled={busy !== null} className={`btn ${t.pop ? 'btn-acid' : 'btn-ghost'}`} style={{ width: '100%', justifyContent: 'center', marginBottom: 26 }}>
-                {busy === t.plan ? 'Redirection…' : 'Essai 7 jours gratuit'}
-              </button>
+              {prelaunch ? (
+                <a href="#waitlist" className={`btn ${t.pop ? 'btn-acid' : 'btn-ghost'}`} style={{ width: '100%', justifyContent: 'center', marginBottom: 26 }}>
+                  Rejoindre la liste d&apos;attente
+                </a>
+              ) : (
+                <button onClick={() => onChoose(t.plan)} disabled={busy !== null} className={`btn ${t.pop ? 'btn-acid' : 'btn-ghost'}`} style={{ width: '100%', justifyContent: 'center', marginBottom: 26 }}>
+                  {busy === t.plan ? 'Redirection…' : 'Essai 7 jours gratuit'}
+                </button>
+              )}
               <ul style={{ listStyle: 'none', display: 'flex', flexDirection: 'column', gap: 12 }}>
                 {t.feats.map((f, j) => {
                   const head = j === 0 && f.endsWith(':');
@@ -1009,6 +1021,72 @@ function FAQ() {
             })}
           </div>
         </div>
+      </div>
+    </section>
+  );
+}
+
+/* ─── Waitlist (pré-ouverture) ───────────────────────────────────────────── */
+function WaitlistSection() {
+  const [email, setEmail] = useState('');
+  const [name, setName] = useState('');
+  const [instagram, setInstagram] = useState('');
+  const [company, setCompany] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [done, setDone] = useState(false);
+  const [error, setError] = useState('');
+
+  async function submit(e: React.FormEvent) {
+    e.preventDefault();
+    setError('');
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) { setError('Entrez un email valide.'); return; }
+    setBusy(true);
+    try {
+      const source = typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('ref') || 'landing' : 'landing';
+      const res = await fetch('/api/waitlist', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email, name, instagram, company, source }) });
+      if (res.ok) setDone(true);
+      else { const d = await res.json(); setError(d?.error || 'Inscription impossible.'); }
+    } catch { setError('Une erreur est survenue.'); }
+    setBusy(false);
+  }
+
+  const inp: React.CSSProperties = { width: '100%', padding: '14px 16px', borderRadius: 12, fontSize: 15, background: 'var(--forest-2)', border: '1px solid var(--cream-4)', color: 'var(--cream)', outline: 'none', fontFamily: 'var(--grotesk, var(--mono))', boxSizing: 'border-box' };
+
+  return (
+    <section id="waitlist" className="section" style={{ background: 'var(--forest)', color: 'var(--cream)' }}>
+      <div className="wrap" style={{ maxWidth: 620, margin: '0 auto', textAlign: 'center' }}>
+        {!done ? (
+          <>
+            <span className="chip reveal" style={{ background: 'var(--acid)', color: 'var(--acid-ink)', fontFamily: 'var(--mono)', fontWeight: 800, letterSpacing: '.1em', textTransform: 'uppercase', fontSize: 11.5 }}>Pré-ouverture · accès anticipé</span>
+            <h2 className="display reveal d1" style={{ fontSize: 'clamp(34px, 5.4vw, 64px)', marginTop: 18 }}>
+              Soyez les <span className="it-serif acid-fill">premiers sur Klip.</span>
+            </h2>
+            <p className="lead reveal d2" style={{ marginTop: 18, color: 'var(--cream-2)' }}>
+              Klip ouvre bientôt. Inscrivez-vous pour un <strong style={{ color: 'var(--cream)' }}>accès prioritaire</strong>, un <strong style={{ color: 'var(--cream)' }}>tarif fondateur</strong> et un <strong style={{ color: 'var(--cream)' }}>onboarding offert</strong>.
+            </p>
+            <form onSubmit={submit} className="reveal d2" style={{ display: 'flex', flexDirection: 'column', gap: 11, marginTop: 30, textAlign: 'left' }}>
+              <input style={inp} type="email" required placeholder="Votre email *" value={email} onChange={e => setEmail(e.target.value)} />
+              <div className="wl-row" style={{ display: 'flex', gap: 11 }}>
+                <input style={inp} placeholder="Prénom / nom" value={name} onChange={e => setName(e.target.value)} />
+                <input style={inp} placeholder="@instagram" value={instagram} onChange={e => setInstagram(e.target.value)} />
+              </div>
+              <input style={inp} placeholder="Agence, freelance, combien de clients ?" value={company} onChange={e => setCompany(e.target.value)} />
+              {error && <p style={{ color: '#FCA5A5', fontSize: 13, margin: '2px 0 0' }}>{error}</p>}
+              <button type="submit" disabled={busy} className="btn btn-acid" style={{ justifyContent: 'center', marginTop: 6, opacity: busy ? 0.7 : 1 }}>
+                {busy ? 'Inscription…' : "Je veux l'accès anticipé"} <span className="arr"><Icon name="arrowUR" size={18} /></span>
+              </button>
+              <p style={{ fontSize: 12, color: 'var(--cream-3)', textAlign: 'center', margin: '4px 0 0' }}>Aucun spam. Juste un email le jour de l&apos;ouverture.</p>
+            </form>
+          </>
+        ) : (
+          <div className="reveal" style={{ paddingTop: 10 }}>
+            <div style={{ width: 64, height: 64, borderRadius: '50%', background: 'rgba(200,241,53,.16)', display: 'grid', placeItems: 'center', margin: '0 auto 22px' }}>
+              <Icon name="check" size={30} style={{ color: 'var(--acid)' }} />
+            </div>
+            <h2 className="display" style={{ fontSize: 'clamp(30px,4.6vw,52px)' }}>Vous êtes sur la liste !</h2>
+            <p className="lead" style={{ marginTop: 16, color: 'var(--cream-2)' }}>Merci 🙌 On vous prévient par email <strong style={{ color: 'var(--cream)' }}>dès l&apos;ouverture de Klip</strong>, avec vos avantages d&apos;accès anticipé.</p>
+          </div>
+        )}
       </div>
     </section>
   );
@@ -1182,11 +1260,12 @@ function Comparison() {
   );
 }
 
-export default function LandingPage() {
+export default function LandingPage({ prelaunch = false }: { prelaunch?: boolean }) {
   const supabase = createClientComponentClient();
   const router = useRouter();
 
   useEffect(() => {
+    if (prelaunch) return; // en pré-ouverture, on ne redirige pas les visiteurs
     supabase.auth.getSession().then(({ data: { session } }) => { if (session) router.push('/dashboard'); });
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -1204,17 +1283,17 @@ export default function LandingPage() {
   return (
     <div className="v2">
       <style dangerouslySetInnerHTML={{ __html: V2_CSS }} />
-      <Nav />
-      <Hero />
+      <Nav prelaunch={prelaunch} />
+      <Hero prelaunch={prelaunch} />
       <Comparison />
       <Probleme />
       <Steps />
       <Showcase />
       <Features />
       <Testimonials />
-      <Pricing />
+      <Pricing prelaunch={prelaunch} />
       <FAQ />
-      <FinalCTA />
+      {prelaunch ? <WaitlistSection /> : <FinalCTA />}
       <Footer />
     </div>
   );

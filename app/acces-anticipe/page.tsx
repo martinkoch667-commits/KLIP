@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import EarlyAccessView from "./early-access-view";
+import LandingView from "../landing-view";
 
 const SITE = "https://getklip.fr";
 
@@ -16,5 +16,5 @@ export const metadata: Metadata = {
 };
 
 export default function Page() {
-  return <EarlyAccessView />;
+  return <LandingView prelaunch />;
 }
