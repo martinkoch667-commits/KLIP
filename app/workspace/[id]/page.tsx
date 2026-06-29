@@ -20,6 +20,22 @@ const POST_TYPE_CFG: Record<PostType, { label: string; color: string; bg: string
   carrousel: { label: "Carrousel",    color: "#F7A94F", bg: "#F7A94F15", format: "1080×1080 px" },
 };
 
+// Modèles éditoriaux (angle de contenu) proposés avant génération.
+const EDITORIAL_MODELS: { id: string; label: string; color: string; hint: string }[] = [
+  { id: 'citation',  label: 'Citation',  color: '#14160F', hint: 'une phrase forte / punchline qui marque' },
+  { id: 'annonce',   label: 'Annonce',   color: '#2FD79B', hint: 'une annonce claire (nouveauté, ouverture, info)' },
+  { id: 'produit',   label: 'Produit',   color: '#C8732B', hint: 'mise en avant d’un produit / plat / offre' },
+  { id: 'evenement', label: 'Événement', color: '#4F8EF7', hint: 'un événement (date, lieu, invitation)' },
+  { id: 'minimal',   label: 'Minimal',   color: '#8B8E7F', hint: 'épuré, sobre, peu de texte' },
+];
+// Voix (ton) sélectionnable par post — surcharge le ton de la charte.
+const POST_VOICES: { id: string; label: string }[] = [
+  { id: 'Chic et premium',       label: 'Chic' },
+  { id: 'Punchy et direct',      label: 'Punchy' },
+  { id: 'Minimaliste et sobre',  label: 'Minimal' },
+  { id: 'Doux et chaleureux',    label: 'Doux' },
+];
+
 interface PostItem {
   localId: string;
   dbId?: string;
@@ -348,6 +364,8 @@ export default function WorkspacePage() {
   const [postContexts, setPostContexts] = useState<Record<string, string>>({});
   const [refinePrompts, setRefinePrompts] = useState<Record<string, string>>({});
   const [photoHasText, setPhotoHasText] = useState<Record<string, boolean>>({}); // la photo contient déjà du texte -> l'IA n'ajoute pas de titre visuel
+  const [editorialModel, setEditorialModel] = useState<Record<string, string>>({}); // angle éditorial choisi par post
+  const [postVoice, setPostVoice] = useState<Record<string, string>>({});           // ton choisi par post (surcharge la charte)
   const [refiningIds, setRefiningIds] = useState<Set<string>>(new Set());
 
   // ── Thumbnail picker ─────────────────────────────────────────────────────
@@ -535,14 +553,17 @@ export default function WorkspacePage() {
           photoUrl,
           // Server-side workspace fetch (preferred)
           workspaceId: id,
-          // Context textarea for this specific post
-          context: postContexts[item.localId] ?? '',
+          // Context textarea for this specific post (+ angle éditorial choisi)
+          context: [
+            editorialModel[item.localId] ? `Angle éditorial : ${EDITORIAL_MODELS.find(m => m.id === editorialModel[item.localId])?.hint ?? ''}` : '',
+            postContexts[item.localId] ?? '',
+          ].filter(Boolean).join('\n'),
           // La photo contient déjà du texte -> ne pas générer de texte sur le visuel
           imageHasText: !!photoHasText[item.localId],
           // Brand identity (fallback if server fetch fails)
           workspaceName: workspace?.name ?? undefined,
           sector: workspace?.sector ?? undefined,
-          tone: workspace?.tone ?? undefined,
+          tone: postVoice[item.localId] || workspace?.tone || undefined,
           companyDescription: workspace?.company_description ?? undefined,
           brandVoicePrompt: workspace?.brand_voice_prompt ?? undefined,
           // Voice rules
@@ -727,6 +748,23 @@ export default function WorkspacePage() {
       }
     } catch { /* silent */ }
     setThumbUploadingIds(prev => { const s = new Set(prev); s.delete(post.localId); return s; });
+  }
+
+  // ── Remplacer la photo d'un post ────────────────────────────────────────────
+  async function replacePhoto(post: PostItem, file: File) {
+    if (file.size > 10 * 1024 * 1024) { alert('Fichier trop volumineux (max 10 MB)'); return; }
+    const preview = URL.createObjectURL(file);
+    // Aperçu immédiat
+    setPosts(prev => prev.map(p => p.localId === post.localId ? { ...p, photo_url: preview, exported_image_url: null } : p));
+    try {
+      const path = `photos/${id}/${post.dbId ?? post.localId}-${Date.now()}.${file.name.split('.').pop() || 'jpg'}`;
+      const { error } = await supabase.storage.from('photos').upload(path, file, { upsert: true, contentType: file.type });
+      if (error) return;
+      const { data: urlData } = supabase.storage.from('photos').getPublicUrl(path);
+      const url = urlData.publicUrl;
+      if (post.dbId) await supabase.from('posts').update({ photo_url: url, exported_image_url: null }).eq('id', post.dbId);
+      setPosts(prev => prev.map(p => p.localId === post.localId ? { ...p, photo_url: url, file, exported_image_url: null } : p));
+    } catch { /* silent */ }
   }
 
   // ── Validate ──────────────────────────────────────────────────────────────
@@ -1095,59 +1133,73 @@ export default function WorkspacePage() {
                     {posts.map((post, pIdx) => {
                       const isGenerated = post.status === "generated" || post.status === "validating" || post.status === "validated";
                       return (
-                        <div key={post.localId} className="card klip-card-in" style={{ overflow: 'hidden', display: 'flex', flexDirection: 'column', animationDelay: `${Math.min(pIdx, 8) * 55}ms` }}>
-                          {/* Photo / Video preview */}
-                          <div style={{ padding: 8 }}>
-                            <div style={{ position: 'relative', aspectRatio: '4/5', borderRadius: 11, overflow: 'hidden', background: '#000' }}>
+                        <div key={post.localId} className="card klip-card-in ws-post-card" style={{ overflow: 'hidden', display: 'flex', animationDelay: `${Math.min(pIdx, 8) * 55}ms` }}>
+                          {/* ── Colonne gauche : visuel + type + remplacer ── */}
+                          <div className="ws-post-left" style={{ flexShrink: 0, width: 300, background: 'var(--canvas)', borderRight: '1px solid var(--line-2)', padding: 14, display: 'flex', flexDirection: 'column', gap: 10 }}>
+                            <div style={{ position: 'relative', aspectRatio: '4/5', borderRadius: 13, overflow: 'hidden', background: '#000' }}>
                               {post.isVideo ? (
-                                <video
-                                  src={post.photo_url}
-                                  controls
-                                  style={{ width: '100%', height: '100%', objectFit: 'contain', display: 'block' }}
-                                />
+                                <video src={post.photo_url} controls style={{ width: '100%', height: '100%', objectFit: 'contain', display: 'block' }} />
                               ) : (
                                 // eslint-disable-next-line @next/next/no-img-element
                                 <img src={post.exported_image_url || post.photo_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                               )}
-                              {/* Status + Video badge */}
+                              {/* Nom du client (overlay) + badge vidéo */}
                               <div style={{ position: 'absolute', top: 8, left: 8, display: 'flex', gap: 5 }}>
-                                <StatusChip status={post.status} />
+                                <span style={{ background: 'rgba(0,0,0,.5)', backdropFilter: 'blur(6px)', color: '#fff', fontSize: 10, fontWeight: 800, padding: '4px 9px', borderRadius: 99, fontFamily: 'var(--mono)', letterSpacing: '.06em', textTransform: 'uppercase', maxWidth: 150, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                  {workspace?.instagram_username || workspace?.name || 'Client'}
+                                </span>
                                 {post.isVideo && (
-                                  <span style={{ background: 'rgba(0,0,0,.7)', color: '#fff', fontSize: 9.5, fontWeight: 700, padding: '3px 7px', borderRadius: 99, fontFamily: 'var(--mono)', backdropFilter: 'blur(4px)', letterSpacing: '.05em' }}>
-                                    ▶ VIDÉO
-                                  </span>
+                                  <span style={{ background: 'rgba(0,0,0,.7)', color: '#fff', fontSize: 9.5, fontWeight: 700, padding: '3px 7px', borderRadius: 99, fontFamily: 'var(--mono)', backdropFilter: 'blur(4px)', letterSpacing: '.05em' }}>▶ VIDÉO</span>
                                 )}
                               </div>
-                              <button
-                                onClick={() => removePost(post)}
-                                style={{ position: 'absolute', top: 8, right: 8, width: 26, height: 26, borderRadius: '50%', background: 'rgba(0,0,0,.55)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', border: 'none', cursor: 'pointer', backdropFilter: 'blur(4px)' }}
-                              >
+                              <button onClick={() => removePost(post)}
+                                style={{ position: 'absolute', top: 8, right: 8, width: 28, height: 28, borderRadius: '50%', background: 'rgba(0,0,0,.55)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', border: 'none', cursor: 'pointer', backdropFilter: 'blur(4px)' }}>
                                 <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M1 1l8 8M9 1L1 9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>
                               </button>
-                              {/* Post type badge — cliquable */}
-                              <div style={{ position: 'absolute', bottom: 8, right: 8 }}>
-                                {typeMenuPost === post.localId ? (
-                                  <div style={{ display: 'flex', flexDirection: 'column', gap: 3, background: 'rgba(0,0,0,.82)', borderRadius: 7, padding: '5px 5px', backdropFilter: 'blur(6px)' }}>
-                                    {(Object.entries(POST_TYPE_CFG) as [PostType, typeof POST_TYPE_CFG[PostType]][]).map(([tid, cfg]) => (
-                                      <button key={tid} onClick={e => { e.stopPropagation(); updatePostType(post.localId, tid); }}
-                                        style={{ display: 'flex', alignItems: 'center', gap: 5, background: (post.post_type ?? 'post') === tid ? cfg.color : 'transparent', border: 'none', borderRadius: 4, padding: '3px 7px', cursor: 'pointer', color: '#fff', fontSize: 10.5, fontWeight: 700, fontFamily: 'var(--sans)', whiteSpace: 'nowrap' }}>
-                                        {cfg.label}
-                                      </button>
-                                    ))}
-                                  </div>
-                                ) : (
-                                  <button onClick={e => { e.stopPropagation(); setTypeMenuPost(post.localId); }}
-                                    style={{ background: 'rgba(0,0,0,.55)', backdropFilter: 'blur(6px)', color: '#fff', fontSize: 11, fontWeight: 700, padding: '4px 9px 4px 8px', borderRadius: 99, border: 'none', cursor: 'pointer', fontFamily: 'var(--sans)', display: 'flex', alignItems: 'center', gap: 5 }}>
-                                    <span style={{ width: 7, height: 7, borderRadius: '50%', background: POST_TYPE_CFG[post.post_type ?? 'post'].color, flexShrink: 0 }} />
-                                    {POST_TYPE_CFG[post.post_type ?? 'post'].label}
-                                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6"/></svg>
-                                  </button>
-                                )}
-                              </div>
                             </div>
+                            {/* Type de publication */}
+                            <div className="ws-type-pills" style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
+                              {(['post', 'reel', 'carrousel', 'story'] as PostType[]).map(t => {
+                                const active = (post.post_type ?? 'post') === t;
+                                return (
+                                  <button key={t} onClick={() => updatePostType(post.localId, t)}
+                                    style={{ flex: '1 1 auto', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5, padding: '7px 6px', borderRadius: 9, cursor: 'pointer', fontSize: 11, fontWeight: 700, fontFamily: 'var(--sans)',
+                                      border: active ? '1.5px solid var(--ink)' : '1px solid var(--line)', background: active ? 'var(--ink)' : 'var(--card)', color: active ? 'var(--paper)' : 'var(--ink-2)', transition: 'all .14s' }}>
+                                    <span style={{ width: 6, height: 6, borderRadius: '50%', background: POST_TYPE_CFG[t].color, flexShrink: 0 }} />
+                                    {POST_TYPE_CFG[t].label}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                            {/* Remplacer la photo */}
+                            {!post.isVideo && (
+                              <label className="btn btn-ghost btn-sm" style={{ width: '100%', justifyContent: 'center', cursor: 'pointer' }}>
+                                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                                Remplacer la photo
+                                <input type="file" accept="image/jpeg,image/png,image/webp" style={{ display: 'none' }}
+                                  onChange={e => { const f = e.target.files?.[0]; if (f) replacePhoto(post, f); }} />
+                              </label>
+                            )}
                           </div>
 
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: 10, padding: '4px 14px 14px' }}>
+                          {/* ── Colonne droite : contrôles ── */}
+                          <div className="ws-post-right" style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
+                            {/* En-tête compte */}
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '14px 18px 0' }}>
+                              <span style={{ width: 34, height: 34, borderRadius: 9, background: 'var(--forest)', display: 'grid', placeItems: 'center', color: 'var(--mint)', fontWeight: 800, fontSize: 12, fontFamily: 'var(--mono)', flexShrink: 0, overflow: 'hidden' }}>
+                                {workspace?.logo_url
+                                  // eslint-disable-next-line @next/next/no-img-element
+                                  ? <img src={workspace.logo_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                  : (workspace?.name ?? 'C').slice(0, 2).toUpperCase()}
+                              </span>
+                              <div style={{ flex: 1, minWidth: 0 }}>
+                                <div style={{ fontWeight: 800, fontSize: 14.5, fontFamily: 'var(--display)', letterSpacing: '-0.01em', color: 'var(--ink)', lineHeight: 1.1 }}>{workspace?.name}</div>
+                                {workspace?.instagram_username && <div style={{ fontSize: 12, color: 'var(--ink-3)', fontWeight: 600 }}>@{workspace.instagram_username}</div>}
+                              </div>
+                              <StatusChip status={post.status} />
+                            </div>
+
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: 12, padding: '12px 18px 16px' }}>
                             {/* Error */}
                             {post.error && (
                               <p style={{ fontSize: 12, color: 'var(--warn)', background: 'var(--warn-soft)', borderRadius: 'var(--r-s)', padding: '6px 10px' }}>{post.error}</p>
@@ -1155,6 +1207,29 @@ export default function WorkspacePage() {
 
                             {!isGenerated ? (
                               <>
+                                {/* ── Modèle éditorial (angle de contenu) ── */}
+                                <div>
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
+                                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--ink-3)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
+                                    <span className="label" style={{ margin: 0 }}>Modèle éditorial</span>
+                                  </div>
+                                  <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap' }}>
+                                    {EDITORIAL_MODELS.map(m => {
+                                      const active = editorialModel[post.localId] === m.id;
+                                      const lightBg = m.id === 'annonce' || m.id === 'minimal';
+                                      return (
+                                        <button key={m.id} onClick={() => setEditorialModel(prev => ({ ...prev, [post.localId]: prev[post.localId] === m.id ? '' : m.id }))}
+                                          style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '7px 13px', borderRadius: 99, cursor: 'pointer', fontSize: 12.5, fontWeight: 700, fontFamily: 'var(--sans)', transition: 'all .14s',
+                                            border: active ? `1.5px solid ${m.color}` : '1px solid var(--line)',
+                                            background: active ? m.color : 'var(--card)',
+                                            color: active ? (lightBg ? '#06281C' : '#fff') : 'var(--ink-2)' }}>
+                                          <span style={{ width: 8, height: 8, borderRadius: '50%', background: active ? (lightBg ? '#06281C' : '#fff') : m.color, flexShrink: 0 }} />
+                                          {m.label}
+                                        </button>
+                                      );
+                                    })}
+                                  </div>
+                                </div>
                                 {/* ── Template selector (before generation) ── */}
                                 {!post.isVideo && templates.length > 0 && (() => {
                                   const activeTpl = post.templateId ? templates.find(t => t.id === post.templateId) : null;
@@ -1191,17 +1266,23 @@ export default function WorkspacePage() {
                                     </button>
                                   );
                                 })()}
-                                <textarea
-                                  value={post.brief}
-                                  onChange={(e) => updateBrief(post.localId, e.target.value)}
-                                  onBlur={() => saveBrief(post)}
-                                  placeholder="Infos spécifiques : produit, message clé, promotion..."
-                                  rows={3}
-                                  className="input"
-                                  style={{ resize: 'none' }}
-                                />
-                                <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-                                  <VoiceButton value={post.brief} onChange={(v) => updateBrief(post.localId, v)} />
+                                <div>
+                                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
+                                    <span className="label" style={{ margin: 0, display: 'flex', alignItems: 'center', gap: 5 }}>
+                                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+                                      Brief
+                                    </span>
+                                    <VoiceButton value={post.brief} onChange={(v) => updateBrief(post.localId, v)} />
+                                  </div>
+                                  <textarea
+                                    value={post.brief}
+                                    onChange={(e) => updateBrief(post.localId, e.target.value)}
+                                    onBlur={() => saveBrief(post)}
+                                    placeholder="Infos spécifiques : produit, message clé, promotion..."
+                                    rows={3}
+                                    className="input"
+                                    style={{ resize: 'none' }}
+                                  />
                                 </div>
                                 <div>
                                   <p className="label" style={{ marginBottom: 4 }}>CONTEXTE DU POST (optionnel)</p>
@@ -1214,6 +1295,22 @@ export default function WorkspacePage() {
                                     className="input"
                                     style={{ resize: 'none', fontSize: 12.5 }}
                                   />
+                                </div>
+                                {/* ── Voix (ton) ── */}
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                                  <span className="label" style={{ margin: 0 }}>Voix</span>
+                                  <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                                    {POST_VOICES.map(v => {
+                                      const active = postVoice[post.localId] === v.id;
+                                      return (
+                                        <button key={v.id} onClick={() => setPostVoice(prev => ({ ...prev, [post.localId]: prev[post.localId] === v.id ? '' : v.id }))}
+                                          style={{ padding: '6px 13px', borderRadius: 99, cursor: 'pointer', fontSize: 12, fontWeight: 700, fontFamily: 'var(--sans)', transition: 'all .14s',
+                                            border: active ? '1.5px solid var(--ink)' : '1px solid var(--line)', background: active ? 'var(--ink)' : 'var(--card)', color: active ? 'var(--paper)' : 'var(--ink-2)' }}>
+                                          {v.label}
+                                        </button>
+                                      );
+                                    })}
+                                  </div>
                                 </div>
                                 {/* Toggle : la photo contient-elle déjà du texte ? */}
                                 {!post.isVideo && (
@@ -1235,7 +1332,7 @@ export default function WorkspacePage() {
                                   className="btn btn-primary"
                                   style={{ width: '100%', opacity: (!post.brief.trim() || post.status === "generating") ? 0.45 : 1 }}
                                 >
-                                  {post.status === "generating" ? <><Spinner /> Génération…</> : <><IconSpark /> Générer</>}
+                                  {post.status === "generating" ? <><Spinner /> Génération…</> : <><IconSpark /> Générer le post</>}
                                 </button>
                               </>
                             ) : (
@@ -1466,6 +1563,7 @@ export default function WorkspacePage() {
                                 </div>
                               </>
                             )}
+                          </div>
                           </div>
                         </div>
                       );
