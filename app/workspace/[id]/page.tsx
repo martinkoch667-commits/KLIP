@@ -1129,7 +1129,7 @@ export default function WorkspacePage() {
                     Aucune photo — commence par sélectionner des images ci-dessus.
                   </div>
                 ) : (
-                  <div className="ws-posts-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 16 }}>
+                  <div className="ws-posts-grid" style={{ display: 'flex', flexDirection: 'column', gap: 16, maxWidth: 880, margin: '0 auto' }}>
                     {posts.map((post, pIdx) => {
                       const isGenerated = post.status === "generated" || post.status === "validating" || post.status === "validated";
                       return (
