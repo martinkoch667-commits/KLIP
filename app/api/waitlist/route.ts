@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { sendEmail, emails } from '@/lib/email';
+
+export const runtime = 'nodejs';
 
 // POST /api/waitlist — inscription à la liste d'attente / accès anticipé.
 export async function POST(request: NextRequest) {
@@ -28,6 +31,12 @@ export async function POST(request: NextRequest) {
     if (error && error.code !== '23505') {
       console.error('[waitlist] insert error:', error.message);
       return NextResponse.json({ error: 'Inscription impossible, réessayez.' }, { status: 500 });
+    }
+
+    // Email de confirmation (uniquement pour une nouvelle inscription).
+    if (!error) {
+      const tpl = emails.waitlistConfirm();
+      sendEmail(cleanEmail, tpl.subject, tpl.html).catch(() => {});
     }
 
     return NextResponse.json({ ok: true });

@@ -76,6 +76,25 @@ export const emails = {
       { label: "Reprendre avec une offre", href: `${APP_URL}/abonnement` }
     ),
   }),
+  waitlistConfirm: () => ({
+    subject: "C'est noté — vous êtes sur la liste d'accès anticipé Klip 🎉",
+    html: shell(
+      "Vous êtes bien inscrit·e !",
+      `Merci d'avoir rejoint la <strong>liste d'accès anticipé de Klip</strong>.<br/><br/>
+       On vous prévient <strong>par email dès l'ouverture</strong>, avant tout le monde — avec vos avantages réservés aux premiers : <strong>accès prioritaire</strong>, <strong>tarif fondateur</strong> et <strong>onboarding offert</strong>.<br/><br/>
+       À très vite 👋`
+    ),
+  }),
+  launch: () => ({
+    subject: "🚀 Klip est ouvert — votre accès anticipé est prêt",
+    html: shell(
+      "Ça y est, Klip ouvre ses portes !",
+      `Vous étiez sur la liste d'accès anticipé : <strong>bienvenue parmi les premiers</strong>.<br/><br/>
+       Gérez l'Instagram de tous vos clients au même endroit — création de visuels, IA, calendrier, validation client, publication.<br/><br/>
+       Vos <strong>avantages d'accès anticipé</strong> (tarif fondateur + onboarding offert) vous attendent. Cliquez ci-dessous pour créer votre compte.`,
+      { label: "Activer mon accès anticipé", href: `${APP_URL}/register` }
+    ),
+  }),
   paymentConfirmed: (planLabel: string) => ({
     subject: "Votre abonnement KLIP est actif ✓",
     html: shell(
