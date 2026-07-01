@@ -27,7 +27,8 @@ export async function GET(request: NextRequest) {
     }
   } catch (e) { waitlistCount = `ERREUR: ${e instanceof Error ? e.message : e}`; }
 
-  const base = { resendKeySet, emailFrom, cronSecretSet, appUrl, waitlistCount };
+  const buildMarker = "DEPLOY-CHECK-7A3F";
+  const base = { buildMarker, resendKeySet, emailFrom, cronSecretSet, appUrl, waitlistCount };
 
   if (!test) {
     return NextResponse.json({
