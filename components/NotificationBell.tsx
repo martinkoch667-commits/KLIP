@@ -73,6 +73,7 @@ export default function NotificationBell() {
   const [unreadCount, setUnreadCount]  = useState(0);
   const [userId, setUserId]            = useState<string | null>(null);
   const [loading, setLoading]          = useState(true);
+  const [errorMsg, setErrorMsg]        = useState<string | null>(null);
   const dropRef = useRef<HTMLDivElement>(null);
 
   // ── Auth ──────────────────────────────────────────────────────────────────
@@ -84,12 +85,25 @@ export default function NotificationBell() {
 
   // ── Fetch notifications ───────────────────────────────────────────────────
   const fetchNotifications = useCallback(async () => {
-    const res = await fetch('/api/notifications');
-    if (!res.ok) return;
-    const { notifications: data } = await res.json();
-    setNotifications(data);
-    setUnreadCount(data.filter((n: Notification) => !n.read).length);
-    setLoading(false);
+    try {
+      const res = await fetch('/api/notifications');
+      if (!res.ok) {
+        let detail = '';
+        try { const j = await res.json(); detail = j?.error ? ` — ${j.error}` : ''; } catch { /* ignore */ }
+        setErrorMsg(`Erreur ${res.status}${detail}`);
+        setNotifications([]);
+        return;
+      }
+      const { notifications: data } = await res.json();
+      const list: Notification[] = Array.isArray(data) ? data : [];
+      setNotifications(list);
+      setUnreadCount(list.filter((n) => !n.read).length);
+      setErrorMsg(null);
+    } catch (e) {
+      setErrorMsg(e instanceof Error ? e.message : 'Erreur réseau');
+    } finally {
+      setLoading(false); // ne reste JAMAIS bloqué sur "Chargement…"
+    }
   }, []);
 
   useEffect(() => { fetchNotifications(); }, [fetchNotifications]);
@@ -204,6 +218,8 @@ export default function NotificationBell() {
           <div style={{ overflowY: 'auto', maxHeight: 480 }}>
             {loading ? (
               <div style={{ padding: '24px 16px', textAlign: 'center', color: 'var(--ink-3)', fontSize: 13 }}>Chargement…</div>
+            ) : errorMsg ? (
+              <div style={{ padding: '24px 16px', textAlign: 'center', color: 'var(--warn)', fontSize: 12.5, lineHeight: 1.5 }}>Impossible de charger les notifications.<br /><span style={{ color: 'var(--ink-3)' }}>{errorMsg}</span></div>
             ) : notifications.length === 0 ? (
               <div style={{ padding: '40px 16px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10, color: 'var(--ink-3)' }}>
                 <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" style={{ opacity: .45 }}>
