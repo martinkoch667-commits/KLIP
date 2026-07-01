@@ -32,19 +32,29 @@ export async function sendEmail(to: string, subject: string, html: string): Prom
 
 /* ── Gabarit commun ──────────────────────────────────────────────────────── */
 function shell(title: string, bodyHtml: string, cta?: { label: string; href: string }): string {
+  const LOGO = `${APP_URL}/logo-klip-mint.png`;
   return `
-  <div style="background:#F2F0E6;padding:32px 0;font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;">
-    <div style="max-width:520px;margin:0 auto;background:#fff;border-radius:18px;overflow:hidden;border:1px solid rgba(10,12,7,.08);">
-      <div style="background:#062018;padding:24px 32px;">
-        <span style="color:#F0EFE4;font-weight:800;font-size:22px;letter-spacing:-.03em;">Kl<span style="color:#34E0A1;">ip</span></span>
+  <div style="background:#0C2A1D;padding:40px 16px;font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;">
+    <div style="max-width:540px;margin:0 auto;">
+      <!-- Header -->
+      <div style="text-align:center;padding:8px 0 26px;">
+        <img src="${LOGO}" alt="Klip" height="30" style="height:30px;width:auto;display:inline-block;" />
       </div>
-      <div style="padding:32px;">
-        <h1 style="margin:0 0 16px;font-size:22px;color:#0A0C07;letter-spacing:-.02em;">${title}</h1>
-        <div style="font-size:15px;line-height:1.65;color:#4E5247;">${bodyHtml}</div>
-        ${cta ? `<a href="${cta.href}" style="display:inline-block;margin-top:24px;background:#2FD79B;color:#06281C;font-weight:800;font-size:15px;text-decoration:none;padding:13px 24px;border-radius:999px;">${cta.label}</a>` : ""}
+      <!-- Card -->
+      <div style="background:#ffffff;border-radius:22px;overflow:hidden;box-shadow:0 30px 60px -30px rgba(0,0,0,.5);">
+        <div style="height:6px;background:linear-gradient(90deg,#34E0A1,#2FD79B,#C8F135);"></div>
+        <div style="padding:36px 34px 30px;">
+          <h1 style="margin:0 0 18px;font-size:25px;line-height:1.15;color:#0A0C07;letter-spacing:-.03em;font-weight:800;">${title}</h1>
+          <div style="font-size:15.5px;line-height:1.7;color:#4E5247;">${bodyHtml}</div>
+          ${cta ? `<div style="margin-top:28px;"><a href="${cta.href}" style="display:inline-block;background:#2FD79B;color:#06281C;font-weight:800;font-size:15px;text-decoration:none;padding:15px 28px;border-radius:999px;">${cta.label} &nbsp;→</a></div>` : ""}
+        </div>
+        <div style="padding:20px 34px;border-top:1px solid rgba(10,12,7,.07);font-size:12.5px;color:#888B7C;">
+          KLIP — l'outil tout-en-un pour gérer l'Instagram de tous vos clients.
+        </div>
       </div>
-      <div style="padding:18px 32px;border-top:1px solid rgba(10,12,7,.08);font-size:12px;color:#888B7C;">
-        KLIP — le studio social de tous vos clients.
+      <!-- Footer -->
+      <div style="text-align:center;padding:22px 0 4px;font-size:12px;color:rgba(238,237,227,.5);">
+        Vous recevez cet email car vous êtes inscrit·e sur Klip · <a href="${APP_URL}" style="color:#34E0A1;text-decoration:none;">getklip.fr</a>
       </div>
     </div>
   </div>`;

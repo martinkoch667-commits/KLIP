@@ -1035,6 +1035,11 @@ function WaitlistSection() {
   const [busy, setBusy] = useState(false);
   const [done, setDone] = useState(false);
   const [error, setError] = useState('');
+  const rootRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (done) rootRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }, [done]);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -1054,7 +1059,7 @@ function WaitlistSection() {
 
   return (
     <section id="waitlist" className="section" style={{ background: 'var(--forest)', color: 'var(--cream)' }}>
-      <div className="wrap" style={{ maxWidth: 620, margin: '0 auto', textAlign: 'center' }}>
+      <div ref={rootRef} className="wrap" style={{ maxWidth: 620, margin: '0 auto', textAlign: 'center' }}>
         {!done ? (
           <>
             <span className="chip" style={{ background: 'var(--acid)', color: 'var(--acid-ink)', fontFamily: 'var(--mono)', fontWeight: 800, letterSpacing: '.1em', textTransform: 'uppercase', fontSize: 11.5 }}>Pré-ouverture · accès anticipé</span>
