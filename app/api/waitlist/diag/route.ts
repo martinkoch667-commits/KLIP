@@ -37,7 +37,11 @@ export async function GET(request: NextRequest) {
     });
   }
 
-  // Test d'envoi réel — on capture la réponse brute de Resend.
+  // Test d'envoi réel — protégé par le secret (évite tout abus/spam).
+  const secret = url.searchParams.get('secret') || request.headers.get('x-launch-secret');
+  if (!process.env.CRON_SECRET || secret !== process.env.CRON_SECRET) {
+    return NextResponse.json({ ...base, testSend: 'PROTÉGÉ — ajoute &secret=TON_CRON_SECRET pour lancer un test.' }, { status: 401 });
+  }
   if (!resendKeySet) {
     return NextResponse.json({ ...base, testSend: 'IMPOSSIBLE — RESEND_API_KEY manquante dans Vercel.' });
   }
