@@ -157,7 +157,8 @@ export default function NotificationBell() {
     if (!n.read) await markRead(n.id);
     setOpen(false);
     if (n.post_id && n.workspace_id) {
-      router.push(`/workspace/${n.workspace_id}/editor/${n.post_id}`);
+      // On ouvre le post dans le CALENDRIER (pas l'éditeur direct).
+      router.push(`/workspace/${n.workspace_id}/planning?post=${n.post_id}`);
     }
   }, [markRead, router]);
 
