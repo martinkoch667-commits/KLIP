@@ -55,14 +55,23 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  // ── Session Checkout (abonnement + essai 7 jours) ──────────────────────
+  // ── Essai 7 jours UNE SEULE FOIS ───────────────────────────────────────
+  // Si ce client a DÉJÀ eu un abonnement (même annulé/expiré), pas de nouvel essai.
+  let hadSubscriptionBefore = false;
+  try {
+    const existing = await stripe.subscriptions.list({ customer: customerId, status: "all", limit: 1 });
+    hadSubscriptionBefore = existing.data.length > 0;
+  } catch { /* en cas d'erreur on ne bloque pas la création */ }
+
+  // ── Session Checkout (abonnement ; essai seulement à la 1re fois) ───────
   try {
     const checkout = await stripe.checkout.sessions.create({
       mode: "subscription",
       customer: customerId,
       line_items: [{ price, quantity: 1 }],
       subscription_data: {
-        trial_period_days: 7,
+        // Essai uniquement pour un tout nouveau client (jamais d'abonnement auparavant).
+        ...(hadSubscriptionBefore ? {} : { trial_period_days: 7 }),
         metadata: { user_id: userId, plan, period },
       },
       allow_promotion_codes: true,
