@@ -33,11 +33,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Inscription impossible, réessayez.' }, { status: 500 });
     }
 
-    // Email de confirmation (uniquement pour une nouvelle inscription).
-    if (!error) {
-      const tpl = emails.waitlistConfirm();
-      sendEmail(cleanEmail, tpl.subject, tpl.html).catch(() => {});
-    }
+    // Email de confirmation (nouvelle inscription OU ré-inscription d'un email déjà présent).
+    const tpl = emails.waitlistConfirm();
+    sendEmail(cleanEmail, tpl.subject, tpl.html).catch(() => {});
 
     return NextResponse.json({ ok: true });
   } catch {

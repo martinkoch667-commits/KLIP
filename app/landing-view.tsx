@@ -1057,14 +1057,14 @@ function WaitlistSection() {
       <div className="wrap" style={{ maxWidth: 620, margin: '0 auto', textAlign: 'center' }}>
         {!done ? (
           <>
-            <span className="chip reveal" style={{ background: 'var(--acid)', color: 'var(--acid-ink)', fontFamily: 'var(--mono)', fontWeight: 800, letterSpacing: '.1em', textTransform: 'uppercase', fontSize: 11.5 }}>Pré-ouverture · accès anticipé</span>
-            <h2 className="display reveal d1" style={{ fontSize: 'clamp(34px, 5.4vw, 64px)', marginTop: 18 }}>
+            <span className="chip" style={{ background: 'var(--acid)', color: 'var(--acid-ink)', fontFamily: 'var(--mono)', fontWeight: 800, letterSpacing: '.1em', textTransform: 'uppercase', fontSize: 11.5 }}>Pré-ouverture · accès anticipé</span>
+            <h2 className="display" style={{ fontSize: 'clamp(34px, 5.4vw, 64px)', marginTop: 18 }}>
               Soyez les <span className="it-serif acid-fill">premiers sur Klip.</span>
             </h2>
-            <p className="lead reveal d2" style={{ marginTop: 18, color: 'var(--cream-2)' }}>
+            <p className="lead" style={{ marginTop: 18, color: 'var(--cream-2)' }}>
               Klip ouvre bientôt. Inscrivez-vous pour un <strong style={{ color: 'var(--cream)' }}>accès prioritaire</strong>, un <strong style={{ color: 'var(--cream)' }}>tarif fondateur</strong> et un <strong style={{ color: 'var(--cream)' }}>onboarding offert</strong>.
             </p>
-            <form onSubmit={submit} className="reveal d2" style={{ display: 'flex', flexDirection: 'column', gap: 11, marginTop: 30, textAlign: 'left' }}>
+            <form onSubmit={submit} style={{ display: 'flex', flexDirection: 'column', gap: 11, marginTop: 30, textAlign: 'left' }}>
               <input style={inp} type="email" required placeholder="Votre email *" value={email} onChange={e => setEmail(e.target.value)} />
               <div className="wl-row" style={{ display: 'flex', gap: 11 }}>
                 <input style={inp} placeholder="Prénom / nom" value={name} onChange={e => setName(e.target.value)} />
@@ -1079,7 +1079,7 @@ function WaitlistSection() {
             </form>
           </>
         ) : (
-          <div className="reveal" style={{ paddingTop: 10 }}>
+          <div style={{ paddingTop: 10 }}>
             <div style={{ width: 64, height: 64, borderRadius: '50%', background: 'rgba(200,241,53,.16)', display: 'grid', placeItems: 'center', margin: '0 auto 22px' }}>
               <Icon name="check" size={30} style={{ color: 'var(--acid)' }} />
             </div>
