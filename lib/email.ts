@@ -86,6 +86,23 @@ export const emails = {
       { label: "Reprendre avec une offre", href: `${APP_URL}/abonnement` }
     ),
   }),
+  clientApproved: (postLabel: string, clientName?: string) => ({
+    subject: `✅ ${clientName || 'Votre client'} a approuvé un post`,
+    html: shell(
+      "Post approuvé par le client 🎉",
+      `Bonne nouvelle : <strong>${clientName || 'votre client'}</strong> vient d'approuver le post <strong>« ${postLabel} »</strong>.<br/><br/>Il est prêt à être programmé/publié.`,
+      { label: "Voir le calendrier", href: `${APP_URL}/calendar` }
+    ),
+  }),
+  clientRevision: (postLabel: string, comment: string, clientName?: string) => ({
+    subject: `✍️ ${clientName || 'Votre client'} demande une modification`,
+    html: shell(
+      "Modification demandée par le client",
+      `<strong>${clientName || 'Votre client'}</strong> a demandé une modification sur <strong>« ${postLabel} »</strong> :<br/><br/>
+       <span style="display:block;background:#FEF3C7;border-left:3px solid #F59E0B;border-radius:8px;padding:12px 14px;color:#92400E;font-style:italic;">${comment}</span>`,
+      { label: "Voir le post", href: `${APP_URL}/calendar` }
+    ),
+  }),
   waitlistConfirm: () => ({
     subject: "C'est noté — vous êtes sur la liste d'accès anticipé Klip 🎉",
     html: shell(

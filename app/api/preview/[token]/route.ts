@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { createNotification } from '@/lib/notifications';
+import { sendEmail, emails } from '@/lib/email';
 
 function db() {
   return createClient(
@@ -113,6 +114,23 @@ export async function PATCH(
     }
   } else {
     return NextResponse.json({ error: 'Action inconnue' }, { status: 400 });
+  }
+
+  // ── Email au propriétaire du compte (best-effort) ──────────────────────────
+  if (ownerId) {
+    try {
+      const { data: u } = await db().auth.admin.getUserById(ownerId);
+      const ownerEmail = u?.user?.email;
+      if (ownerEmail) {
+        const clientName: string | undefined = ws?.name ?? undefined;
+        const tpl = action === 'approve'
+          ? emails.clientApproved(postLabel, clientName)
+          : emails.clientRevision(postLabel, (comment ?? '').trim(), clientName);
+        await sendEmail(ownerEmail, tpl.subject, tpl.html);
+      }
+    } catch (e) {
+      console.warn('[preview] email owner échoué:', e instanceof Error ? e.message : e);
+    }
   }
 
   return NextResponse.json({ success: true });

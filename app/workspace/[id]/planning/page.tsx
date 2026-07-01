@@ -30,6 +30,9 @@ interface Post {
   tagged_users?: string[] | null;
   music_note?: string | null;
   thumbnail_url?: string | null;
+  approved_by_client?: boolean | null;
+  client_comment?: string | null;
+  client_reviewed_at?: string | null;
 }
 
 interface Workspace {
@@ -364,7 +367,7 @@ function PlanningContent() {
     const [{ data: ws }, { data: postsData }] = await Promise.all([
       supabase.from("workspaces").select("id, name, primary_color, secondary_color, font_family, instagram_account_id, instagram_username, facebook_page_id").eq("id", id).single(),
       supabase.from("posts")
-        .select("id, photo_url, exported_image_url, texte_visuel, description, status, scheduled_at, brief, post_type, target_platforms, tagged_users, music_note, thumbnail_url")
+        .select("id, photo_url, exported_image_url, texte_visuel, description, status, scheduled_at, brief, post_type, target_platforms, tagged_users, music_note, thumbnail_url, approved_by_client, client_comment, client_reviewed_at")
         .eq("workspace_id", id)
         .in("status", ["generated", "validated", "scheduled", "published"])
         .order("scheduled_at", { ascending: true }),
@@ -858,6 +861,11 @@ function PlanningContent() {
                                 {isPub ? "Publié" : formatTime(post.scheduled_at)}
                               </div>
                             </div>
+                            {(post.approved_by_client || post.client_comment) && (
+                              <span title={post.approved_by_client ? "Validé par le client" : "Modification demandée"} style={{ flexShrink: 0, width: 16, height: 16, borderRadius: "50%", display: "grid", placeItems: "center", background: post.approved_by_client ? "var(--mint-2)" : "#F59E0B", color: "#fff", fontSize: 10, fontWeight: 900, marginRight: 2 }}>
+                                {post.approved_by_client ? "✓" : "!"}
+                              </span>
+                            )}
                           </div>
                         );
                       })}
@@ -1053,6 +1061,20 @@ function PlanningContent() {
                     )}
                   </>
                 )}
+              </div>
+            )}
+
+            {/* Retour du client (validation ou demande de modif) */}
+            {selectedPost.approved_by_client && (
+              <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 12px", borderRadius: 10, background: "rgba(47,215,155,.12)", border: "1px solid var(--mint-2)" }}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--mint-2)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5" /></svg>
+                <span style={{ fontSize: 13, fontWeight: 700, color: "var(--mint-2)" }}>Validé par le client</span>
+              </div>
+            )}
+            {!selectedPost.approved_by_client && selectedPost.client_comment && (
+              <div style={{ padding: "10px 12px", borderRadius: 10, background: "#FEF3C7", border: "1px solid #FCD34D" }}>
+                <div style={{ fontSize: 10.5, fontWeight: 800, color: "#B45309", textTransform: "uppercase", letterSpacing: ".06em", marginBottom: 4 }}>Modification demandée par le client</div>
+                <div style={{ fontSize: 13, color: "#92400E", lineHeight: 1.5 }}>{selectedPost.client_comment}</div>
               </div>
             )}
 
