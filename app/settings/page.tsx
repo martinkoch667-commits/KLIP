@@ -200,11 +200,11 @@ function ProfileTab({ supabase, userId, email, meta }: { supabase: any; userId: 
         <div className="st-grid2" style={{ marginBottom: 16 }}>
           <div>
             <label className="st-label">Prénom</label>
-            <input className="st-input" type="text" value={firstName} onChange={e => setFirstName(e.target.value)} placeholder="Martin" />
+            <input className="st-input" type="text" value={firstName} onChange={e => setFirstName(e.target.value)} placeholder="Votre prénom" />
           </div>
           <div>
             <label className="st-label">Nom</label>
-            <input className="st-input" type="text" value={lastName} onChange={e => setLastName(e.target.value)} placeholder="Koch" />
+            <input className="st-input" type="text" value={lastName} onChange={e => setLastName(e.target.value)} placeholder="Votre nom" />
           </div>
         </div>
         <div style={{ marginBottom: 16 }}>
@@ -215,11 +215,11 @@ function ProfileTab({ supabase, userId, email, meta }: { supabase: any; userId: 
         <div className="st-grid2">
           <div>
             <label className="st-label">Poste / rôle</label>
-            <input className="st-input" type="text" value={jobTitle} onChange={e => setJobTitle(e.target.value)} placeholder="Community Manager" />
+            <input className="st-input" type="text" value={jobTitle} onChange={e => setJobTitle(e.target.value)} placeholder="Ex : Community manager" />
           </div>
           <div>
             <label className="st-label">Agence / entreprise</label>
-            <input className="st-input" type="text" value={company} onChange={e => setCompany(e.target.value)} placeholder="Studio Klip" />
+            <input className="st-input" type="text" value={company} onChange={e => setCompany(e.target.value)} placeholder="Ex : votre agence" />
           </div>
         </div>
         <div style={{ marginTop: 20, display: "flex", justifyContent: "flex-end" }}>
