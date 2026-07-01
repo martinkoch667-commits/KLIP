@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useParams, useSearchParams } from "next/navigation";
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
 import Sidebar from "@/components/Sidebar";
+import NotificationBell from "@/components/NotificationBell";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -212,11 +213,14 @@ function CalendarRail({ posts, weekDays, chipColor, workspaceId }: {
 }) {
   const weekPosts  = posts.filter(p => p.scheduled_at && weekDays.some(d => isSameDay(new Date(p.scheduled_at!), d)));
   const byStatus = (s: string) => weekPosts.filter(p => p.status === s).length;
+  // Validation client (tous les posts du client, pas seulement la semaine)
+  const approvedCount = posts.filter(p => p.approved_by_client).length;
+  const pendingCount = posts.filter(p => !p.approved_by_client && !p.client_comment && ["scheduled", "validated", "generated"].includes(p.status)).length;
   const stats = [
-    { label: "Planifiés",  n: byStatus("scheduled"), tone: "mint" },
-    { label: "À valider",  n: byStatus("generated") + byStatus("validated"), tone: "warn" },
-    { label: "Brouillons", n: byStatus("draft"),     tone: "ink" },
-    { label: "Publiés",    n: byStatus("published"), tone: "mint" },
+    { label: "Planifiés",       n: byStatus("scheduled"), tone: "mint" },
+    { label: "Validés client",  n: approvedCount,          tone: "mint" },
+    { label: "En attente",      n: pendingCount,           tone: "warn" },
+    { label: "Publiés",         n: byStatus("published"),  tone: "mint" },
   ];
   const toFinish = posts.filter(p => p.status === "generated" || p.status === "validated").slice(0, 5);
 
@@ -649,6 +653,7 @@ function PlanningContent() {
           )}
 
           <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 10 }}>
+            <NotificationBell />
             <button onClick={() => setShareOpen(true)} className="btn btn-ghost btn-sm" style={{ gap: 6 }}>
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="M8.6 13.5l6.8 4M15.4 6.5l-6.8 4"/></svg>
               Partager pour validation
@@ -679,8 +684,8 @@ function PlanningContent() {
           label={calView === "week" ? DAY_NAMES[weekStart.getDay() === 0 ? 6 : weekStart.getDay() - 1] : MONTH_NAMES[monthDate.getMonth()]}
         />
 
-        {/* ─── CONTENUS PROGRAMMÉS ─────────────────────────────────────────── */}
-        {(() => {
+        {/* Section « À publier » retirée (redondante avec le calendrier ci-dessous) */}
+        {false && (() => {
           const scheduled = posts.filter(p => p.scheduled_at && (p.status === "scheduled" || p.status === "published")).sort((a, b) => new Date(a.scheduled_at!).getTime() - new Date(b.scheduled_at!).getTime());
           return (
             <div style={{ flexShrink: 0, borderBottom: "1px solid var(--line)", background: "var(--white)", padding: "14px 26px 16px" }}>
