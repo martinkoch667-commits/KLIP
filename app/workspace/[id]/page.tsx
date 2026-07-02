@@ -408,6 +408,7 @@ export default function WorkspacePage() {
         thumbnail_url: p.thumbnail_url ?? null,
         templateId: p.template_id ?? undefined,
         post_type: p.post_type ?? undefined,
+        isVideo: /\.(mp4|mov|webm)(\?|$)/i.test(p.photo_url ?? ""),
       })));
     }
 
@@ -804,8 +805,8 @@ export default function WorkspacePage() {
         }).eq("id", dbId);
       }
       setPosts((prev) => prev.map((p) => p.localId === item.localId ? { ...p, dbId, photo_url: pUrl, status: "validated" } : p));
-      // Video posts go straight to planning — no visual editor
-      if (dbId) window.location.href = item.isVideo ? `/workspace/${id}/planning?post=${dbId}` : `/workspace/${id}/editor/${dbId}`;
+      // Video posts go to the Montage vidéo editor
+      if (dbId) window.location.href = item.isVideo ? `/workspace/${id}/montage/${dbId}` : `/workspace/${id}/editor/${dbId}`;
     } catch {
       setPosts((prev) => prev.map((p) => (p.localId === item.localId ? { ...p, status: "generated" } : p)));
     }
@@ -1512,21 +1513,21 @@ export default function WorkspacePage() {
 
                                 <div style={{ display: 'flex', gap: 7, marginTop: 2 }}>
                                   {post.isVideo ? (
-                                    /* Video: no visual editor — go straight to planning */
+                                    /* Video: goes to the Montage vidéo editor */
                                     <>
                                       {post.status !== "validated" && (
                                         <button
                                           onClick={() => validatePost(post)}
                                           disabled={post.status === "validating"}
-                                          className="btn btn-primary"
+                                          className="btn btn-dark"
                                           style={{ flex: 1, opacity: post.status === "validating" ? 0.5 : 1 }}
                                         >
-                                          {post.status === "validating" ? <><Spinner /> Sauvegarde…</> : <><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg> Programmer ce Reel</>}
+                                          {post.status === "validating" ? <><Spinner /> Sauvegarde…</> : <><IconEdit /> Monter la vidéo</>}
                                         </button>
                                       )}
                                       {post.status === "validated" && post.dbId && (
-                                        <Link href={`/workspace/${id}/planning?post=${post.dbId}`} className="btn btn-primary" style={{ flex: 1, textAlign: 'center' }}>
-                                          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg> Voir dans le planning
+                                        <Link href={`/workspace/${id}/montage/${post.dbId}`} className="btn btn-dark" style={{ flex: 1, textAlign: 'center' }}>
+                                          <IconEdit /> Ouvrir le montage
                                         </Link>
                                       )}
                                       {post.status === "generated" && (
