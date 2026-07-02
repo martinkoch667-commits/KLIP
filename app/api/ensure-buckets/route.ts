@@ -32,6 +32,11 @@ const BUCKETS: { id: string; public: boolean; allowedMimeTypes: string[] }[] = [
     public: true,
     allowedMimeTypes: ['video/mp4', 'video/quicktime', 'video/webm'],
   },
+  {
+    id: 'audio',
+    public: true,
+    allowedMimeTypes: ['audio/mpeg', 'audio/mp3', 'audio/wav', 'audio/x-m4a', 'audio/mp4', 'audio/webm', 'audio/ogg'],
+  },
 ];
 
 export async function POST() {
