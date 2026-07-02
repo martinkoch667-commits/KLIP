@@ -799,6 +799,7 @@ export default function WorkspacePage() {
         if (post) dbId = post.id;
       } else {
         await supabase.from("posts").update({
+          photo_url: pUrl,
           description: item.description, texte_visuel: item.texte_visuel,
           status: "validated",
           ...(templateId !== undefined ? { template_id: templateId ?? null } : {}),

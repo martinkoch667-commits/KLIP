@@ -17,6 +17,21 @@ const BUCKETS: { id: string; public: boolean; allowedMimeTypes: string[] }[] = [
       'application/x-font-otf',
     ],
   },
+  {
+    id: 'photos',
+    public: true,
+    allowedMimeTypes: ['image/png', 'image/jpeg', 'image/webp', 'image/gif'],
+  },
+  {
+    id: 'exports',
+    public: true,
+    allowedMimeTypes: ['image/png', 'image/jpeg'],
+  },
+  {
+    id: 'videos',
+    public: true,
+    allowedMimeTypes: ['video/mp4', 'video/quicktime', 'video/webm'],
+  },
 ];
 
 export async function POST() {
