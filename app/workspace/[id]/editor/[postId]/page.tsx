@@ -12,6 +12,7 @@ import {
   Text,
 } from 'react-konva';
 import useImage from 'use-image';
+import Konva from 'konva';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import ColorPicker from '@/components/ColorPicker';
 import SelectionOverlay from '@/components/SelectionOverlay';
@@ -79,7 +80,9 @@ interface CircleEl extends BaseEl { type: 'circle'; radius: number; fill: string
 interface StarEl extends BaseEl { type: 'star'; numPoints: number; innerRadius: number; outerRadius: number; fill: string; stroke: string; strokeWidth: number; }
 interface AnchorPoint { x: number; y: number; cpIn?: { x: number; y: number }; cpOut?: { x: number; y: number }; }
 interface VectorEl extends BaseEl { type: 'vector'; shape: 'rectangle'|'circle'|'triangle'|'star'|'pill'|'arrow'|'diamond'|'hexagon'|'custom'; width: number; height: number; fill: string; fillType?: 'color'|'none'|'image'; stroke: string; strokeWidth: number; points?: AnchorPoint[]; closed?: boolean; imageSrc?: string; imageOffsetX?: number; imageOffsetY?: number; }
-interface ImageEl extends BaseEl { type: 'image'; src: string; width: number; height: number; cropX?: number; cropY?: number; naturalW?: number; naturalH?: number; }
+interface ImageEl extends BaseEl { type: 'image'; src: string; width: number; height: number; cropX?: number; cropY?: number; naturalW?: number; naturalH?: number;
+  // Ajustements colorimétriques (chacun -100..100, 0 = neutre ; flou 0..100)
+  adjBrightness?: number; adjContrast?: number; adjSaturation?: number; adjWarmth?: number; adjTint?: number; adjBlur?: number; }
 type CanvasEl = TextEl | RectEl | CircleEl | StarEl | VectorEl | ImageEl;
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -293,11 +296,42 @@ function BgImage({ src, w, h, offsetX = 0, offsetY = 0, draggable = false, onDra
   );
 }
 
+// Filtre colorimétrique personnalisé (un seul passage : luminosité, contraste, chaleur, teinte, saturation)
+// Lit les réglages depuis les attributs du nœud Konva (adjBrightness, adjContrast, …).
+function AdjustFilter(this: Konva.Node, imageData: ImageData) {
+  const d = imageData.data;
+  const bright = (Number(this.getAttr('adjBrightness')) || 0) / 100;   // -1..1
+  const contrastV = Number(this.getAttr('adjContrast')) || 0;          // -100..100
+  const sat = 1 + (Number(this.getAttr('adjSaturation')) || 0) / 100;  // 0..2
+  const warmth = (Number(this.getAttr('adjWarmth')) || 0) / 100;       // -1..1
+  const tint = (Number(this.getAttr('adjTint')) || 0) / 100;           // -1..1
+  const cf = (259 * (contrastV + 255)) / (255 * (259 - contrastV));    // facteur de contraste
+  const brightAdd = bright * 255;
+  const warmR = warmth * 42, warmB = -warmth * 42, tintG = tint * 42;
+  const clamp = (v: number) => (v < 0 ? 0 : v > 255 ? 255 : v);
+  for (let i = 0; i < d.length; i += 4) {
+    let r = d[i], g = d[i + 1], b = d[i + 2];
+    r += brightAdd; g += brightAdd; b += brightAdd;
+    r = cf * (r - 128) + 128; g = cf * (g - 128) + 128; b = cf * (b - 128) + 128;
+    r += warmR; b += warmB; g += tintG;
+    const gray = 0.299 * r + 0.587 * g + 0.114 * b;
+    r = gray + sat * (r - gray); g = gray + sat * (g - gray); b = gray + sat * (b - gray);
+    d[i] = clamp(r); d[i + 1] = clamp(g); d[i + 2] = clamp(b);
+  }
+}
+const ADJ_FILTERS = [AdjustFilter, Konva.Filters.Blur];
+
+function imageHasAdjustments(el: ImageEl): boolean {
+  return !!(el.adjBrightness || el.adjContrast || el.adjSaturation || el.adjWarmth || el.adjTint || el.adjBlur);
+}
+
 function ImgNode({ el, onSelect, onChange, onDragStart, onDragEnd, isCropping }: {
   el: ImageEl; onSelect: (shiftKey: boolean) => void; onChange: (u: Partial<ImageEl>) => void;
   onDragStart?: () => void; onDragEnd?: (x: number, y: number) => void; isCropping?: boolean;
 }) {
   const [img] = useImage(el.src, 'anonymous');
+  const imgRef = useRef<Konva.Image>(null);
+  const hasAdj = imageHasAdjustments(el);
 
   // Store natural dimensions once the image is loaded
   useEffect(() => {
@@ -306,6 +340,20 @@ function ImgNode({ el, onSelect, onChange, onDragStart, onDragEnd, isCropping }:
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [img]);
+
+  // (Re)met en cache le nœud pour appliquer/rafraîchir les filtres colorimétriques
+  useEffect(() => {
+    const node = imgRef.current;
+    if (!node) return;
+    if (hasAdj && img) {
+      try { node.cache(); node.getLayer()?.batchDraw(); }
+      catch { /* image cross-origin non autorisée : on ignore le filtre */ }
+    } else {
+      node.clearCache();
+      node.getLayer()?.batchDraw();
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [img, hasAdj, el.adjBrightness, el.adjContrast, el.adjSaturation, el.adjWarmth, el.adjTint, el.adjBlur, el.width, el.height]);
 
   const natW = el.naturalW ?? (img?.naturalWidth || el.width);
   const natH = el.naturalH ?? (img?.naturalHeight || el.height);
@@ -330,9 +378,17 @@ function ImgNode({ el, onSelect, onChange, onDragStart, onDragEnd, isCropping }:
       onDragEnd={!isCropping ? (e => onDragEnd?.(e.target.x(), e.target.y())) : undefined}
     >
       <KonvaImage
+        ref={imgRef}
         image={img}
         x={cropX} y={cropY}
         width={scaledW} height={scaledH}
+        filters={hasAdj ? ADJ_FILTERS : undefined}
+        adjBrightness={el.adjBrightness || 0}
+        adjContrast={el.adjContrast || 0}
+        adjSaturation={el.adjSaturation || 0}
+        adjWarmth={el.adjWarmth || 0}
+        adjTint={el.adjTint || 0}
+        blurRadius={el.adjBlur || 0}
         draggable={isCropping}
         onDragMove={isCropping ? (e => {
           const nx = Math.min(0, Math.max(frameW - scaledW, e.target.x()));
@@ -785,10 +841,12 @@ interface CtxToolbarProps {
   onCrop?: () => void;
   onSetBg?: () => void;
   onMaskPhoto?: () => void;
+  onRemoveBg?: () => void;
+  bgRemoving?: boolean;
   onLayerAction: (action: 'front' | 'forward' | 'backward' | 'back') => void;
 }
 
-function EditorContextToolbar({ sel, allFonts, brandColors, stageW, stageH, onUpdate, onAlign, onDuplicate, onDelete, onCrop, onSetBg, onMaskPhoto, onLayerAction }: CtxToolbarProps) {
+function EditorContextToolbar({ sel, allFonts, brandColors, stageW, stageH, onUpdate, onAlign, onDuplicate, onDelete, onCrop, onSetBg, onMaskPhoto, onRemoveBg, bgRemoving, onLayerAction }: CtxToolbarProps) {
   const [pop, setPop] = React.useState<string | null>(null);
   const u = (patch: Partial<CanvasEl>) => onUpdate(patch);
   const isText = sel.type === 'text';
@@ -1165,10 +1223,54 @@ function EditorContextToolbar({ sel, allFonts, brandColors, stageW, stageH, onUp
       )}
 
       {/* IMAGE controls */}
-      {isImage && <>
-        {onSetBg && <button onClick={onSetBg} className="btn btn-ghost btn-sm" style={{ height: 30, flexShrink: 0 }}>En fond</button>}
-        {onCrop && <button onClick={onCrop} className="btn btn-ghost btn-sm" style={{ height: 30, flexShrink: 0 }}>Recadrer</button>}
-      </>}
+      {isImage && (() => {
+        const imgSel = sel as ImageEl;
+        // Retourne du JSX inline (appel de fonction, pas un composant) pour garder le même
+        // nœud DOM entre les rendus → le glissement du slider ne se casse pas.
+        const adjRow = (label: string, k: 'adjBrightness' | 'adjContrast' | 'adjSaturation' | 'adjWarmth' | 'adjTint' | 'adjBlur', min: number, max: number, unit = '') => {
+          const val = (imgSel[k] as number) || 0;
+          return (
+            <div key={k} style={{ marginBottom: 8 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 5 }}>
+                <span className="label" style={{ marginBottom: 0 }}>{label}</span>
+                <span style={{ fontFamily: 'var(--mono)', fontWeight: 800, fontSize: 11, color: 'var(--ink-2)' }}>{val > 0 && min < 0 ? '+' : ''}{val}{unit}</span>
+              </div>
+              <input type="range" min={min} max={max} step={1} value={val}
+                onChange={e => u({ [k]: parseInt(e.target.value) } as Partial<ImageEl>)} className="ed-range" style={{ width: '100%' }} />
+            </div>
+          );
+        };
+        return <>
+          {onSetBg && <button onClick={onSetBg} className="btn btn-ghost btn-sm" style={{ height: 30, flexShrink: 0 }}>En fond</button>}
+          {onCrop && <button onClick={onCrop} className="btn btn-ghost btn-sm" style={{ height: 30, flexShrink: 0 }}>Recadrer</button>}
+          {onRemoveBg && (
+            <button onClick={onRemoveBg} disabled={bgRemoving} className="btn btn-ghost btn-sm" style={{ height: 30, flexShrink: 0, opacity: bgRemoving ? 0.6 : 1 }}>
+              {bgRemoving ? 'Détourage…' : 'Détourer'}
+            </button>
+          )}
+          <div style={{ position: 'relative' }}>
+            <TextBtn on={pop === 'adjust'} onClick={() => setPop(p => p === 'adjust' ? null : 'adjust')}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round"><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="18" x2="20" y2="18"/><circle cx="9" cy="6" r="2.4" fill="var(--paper)"/><circle cx="15" cy="12" r="2.4" fill="var(--paper)"/><circle cx="8" cy="18" r="2.4" fill="var(--paper)"/></svg>
+              Ajuster
+            </TextBtn>
+            {pop === 'adjust' && (
+              <div style={{ ...popStyle, minWidth: 244 }}>
+                <span className="label" style={{ display: 'block', marginBottom: 8 }}>Lumière</span>
+                {adjRow('Luminosité', 'adjBrightness', -100, 100)}
+                {adjRow('Contraste', 'adjContrast', -100, 100)}
+                <span className="label" style={{ display: 'block', margin: '12px 0 8px' }}>Couleur</span>
+                {adjRow('Saturation', 'adjSaturation', -100, 100)}
+                {adjRow('Chaleur', 'adjWarmth', -100, 100)}
+                {adjRow('Teinte', 'adjTint', -100, 100)}
+                <span className="label" style={{ display: 'block', margin: '12px 0 8px' }}>Effet</span>
+                {adjRow('Flou', 'adjBlur', 0, 40, 'px')}
+                <button onClick={() => u({ adjBrightness: 0, adjContrast: 0, adjSaturation: 0, adjWarmth: 0, adjTint: 0, adjBlur: 0 } as Partial<ImageEl>)}
+                  className="btn btn-ghost btn-sm" style={{ width: '100%', justifyContent: 'center', marginTop: 10 }}>Réinitialiser</button>
+              </div>
+            )}
+          </div>
+        </>;
+      })()}
 
       <Div />
 
@@ -1373,6 +1475,7 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
   }
   const [cropId, setCropId] = useState<string | null>(null);
   const [maskCropId, setMaskCropId] = useState<string | null>(null);
+  const [bgRemovingId, setBgRemovingId] = useState<string | null>(null);
   const maskPhotoInputRef = useRef<HTMLInputElement>(null);
 
   const [proxyUrl, setProxyUrl] = useState<string>('');
@@ -2141,6 +2244,40 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
   const showEditorToast = (msg: string) => {
     setEditorToast(msg);
     setTimeout(() => setEditorToast(null), 4000);
+  };
+
+  // Détourage / suppression d'arrière-plan (100% côté client, sans clé API)
+  const removeBgFromImage = async (el: ImageEl) => {
+    if (bgRemovingId) return;
+    setBgRemovingId(el.id);
+    showEditorToast('Détourage en cours… (le modèle se télécharge à la 1re utilisation)');
+    try {
+      let blob: Blob;
+      try {
+        const resp = await fetch(el.src);
+        if (!resp.ok) throw new Error('fetch');
+        blob = await resp.blob();
+      } catch {
+        const resp = await fetch(`/api/proxy-image?url=${encodeURIComponent(el.src)}`);
+        blob = await resp.blob();
+      }
+      // Chargé depuis un CDN (webpackIgnore) : évite de bundler onnxruntime, dont le backend
+      // Node casse le build. Le modèle IA est téléchargé depuis le CDN static d'imgly au 1er usage.
+      // @ts-expect-error import CDN dynamique sans types
+      const mod = await import(/* webpackIgnore: true */ 'https://esm.sh/@imgly/background-removal@1.7.0');
+      const removeBackground = mod.removeBackground || mod.default?.removeBackground || mod.default;
+      const outBlob: Blob = await removeBackground(blob);
+      const path = `${workspaceId}/${postId}-cutout-${Date.now()}.png`;
+      const { error } = await supabase.storage.from('photos').upload(path, outBlob, { upsert: true, contentType: 'image/png' });
+      if (error) { showEditorToast("Échec de l'upload : " + error.message); return; }
+      const { data: urlData } = supabase.storage.from('photos').getPublicUrl(path);
+      updateEl(el.id, { src: urlData.publicUrl, naturalW: undefined, naturalH: undefined, cropX: undefined, cropY: undefined } as Partial<ImageEl>);
+      showEditorToast('Arrière-plan supprimé ✓');
+    } catch (e) {
+      showEditorToast('Détourage impossible : ' + (e instanceof Error ? e.message : 'erreur'));
+    } finally {
+      setBgRemovingId(null);
+    }
   };
 
   const handleFileDrop = (file: File) => {
@@ -3024,6 +3161,8 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
               onCrop={selectedEl.type === 'image' ? () => setCropId(selectedEl.id) : undefined}
               onSetBg={selectedEl.type === 'image' ? () => setProxyUrl((selectedEl as ImageEl).src) : undefined}
               onMaskPhoto={selectedEl.type === 'vector' ? () => maskPhotoInputRef.current?.click() : undefined}
+              onRemoveBg={selectedEl.type === 'image' ? () => removeBgFromImage(selectedEl as ImageEl) : undefined}
+              bgRemoving={bgRemovingId === selectedEl.id}
               onLayerAction={layerAction}
             />
           ) : (
@@ -3095,6 +3234,8 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
             onCrop={selectedEl.type === 'image' ? () => setCropId(selectedEl.id) : undefined}
             onSetBg={selectedEl.type === 'image' ? () => setProxyUrl((selectedEl as ImageEl).src) : undefined}
             onMaskPhoto={selectedEl.type === 'vector' ? () => maskPhotoInputRef.current?.click() : undefined}
+            onRemoveBg={selectedEl.type === 'image' ? () => removeBgFromImage(selectedEl as ImageEl) : undefined}
+            bgRemoving={bgRemovingId === selectedEl.id}
             onLayerAction={layerAction}
           />
         </div>
