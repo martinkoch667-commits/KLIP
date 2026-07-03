@@ -7,6 +7,113 @@ import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
 import Sidebar from "@/components/Sidebar";
 import NotificationBell from "@/components/NotificationBell";
 
+// ─── Sélecteur de musique (recherche catalogue réel + extrait audio) ──────────
+type Song = { id: string; title: string; artist: string; artwork: string; preview: string };
+
+function MusicPicker({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const [q, setQ] = useState(value);
+  const [results, setResults] = useState<Song[]>([]);
+  const [open, setOpen] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [playingId, setPlayingId] = useState<string | null>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const boxRef = useRef<HTMLDivElement | null>(null);
+  const debRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Resynchronise quand on change de post sélectionné
+  useEffect(() => { setQ(value); }, [value]);
+
+  // Ferme le menu au clic extérieur + coupe l'extrait au démontage
+  useEffect(() => {
+    const h = (e: MouseEvent) => { if (boxRef.current && !boxRef.current.contains(e.target as Node)) setOpen(false); };
+    document.addEventListener("mousedown", h);
+    return () => { document.removeEventListener("mousedown", h); audioRef.current?.pause(); };
+  }, []);
+
+  const runSearch = (term: string) => {
+    if (debRef.current) clearTimeout(debRef.current);
+    debRef.current = setTimeout(async () => {
+      if (!term.trim()) { setResults([]); return; }
+      setLoading(true);
+      try {
+        const r = await fetch(`/api/song-search?q=${encodeURIComponent(term)}`);
+        const d = await r.json();
+        setResults(Array.isArray(d.songs) ? d.songs : []);
+        setOpen(true);
+      } catch { setResults([]); }
+      setLoading(false);
+    }, 350);
+  };
+
+  const onType = (v: string) => { setQ(v); onChange(v); runSearch(v); };
+
+  const pick = (s: Song) => {
+    const label = `${s.title} — ${s.artist}`;
+    setQ(label); onChange(label); setOpen(false);
+    audioRef.current?.pause(); setPlayingId(null);
+  };
+
+  const togglePreview = (s: Song, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!s.preview) return;
+    if (playingId === s.id) { audioRef.current?.pause(); setPlayingId(null); return; }
+    audioRef.current?.pause();
+    const a = new Audio(s.preview); a.volume = 0.85; audioRef.current = a;
+    a.play().catch(() => {}); setPlayingId(s.id);
+    a.onended = () => setPlayingId(null);
+  };
+
+  return (
+    <div ref={boxRef} style={{ position: "relative" }}>
+      <div style={{ position: "relative" }}>
+        <input
+          type="text" value={q} placeholder="Rechercher un titre, un artiste…"
+          className="input" style={{ fontSize: 12.5, paddingLeft: 30 }}
+          onChange={e => onType(e.target.value)}
+          onFocus={() => { if (results.length) setOpen(true); }}
+        />
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"
+          style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", color: "var(--ink-3)", pointerEvents: "none" }}>
+          <path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/>
+        </svg>
+        {loading && (
+          <span style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", width: 13, height: 13, border: "2px solid var(--line)", borderTopColor: "var(--ink-3)", borderRadius: "50%", animation: "spin .7s linear infinite" }} />
+        )}
+      </div>
+
+      {open && results.length > 0 && (
+        <div style={{ position: "absolute", top: "calc(100% + 4px)", left: 0, right: 0, zIndex: 40, background: "var(--paper)", border: "1px solid var(--line)", borderRadius: "var(--r)", boxShadow: "var(--shadow-pop, 0 12px 32px -12px rgba(0,0,0,.25))", maxHeight: 288, overflowY: "auto", padding: 4 }}>
+          {results.map(s => (
+            <div key={s.id} onClick={() => pick(s)}
+              style={{ display: "flex", alignItems: "center", gap: 10, padding: "6px 8px", borderRadius: 8, cursor: "pointer" }}
+              onMouseEnter={e => (e.currentTarget.style.background = "var(--sunk)")}
+              onMouseLeave={e => (e.currentTarget.style.background = "transparent")}>
+              <div style={{ position: "relative", width: 38, height: 38, flexShrink: 0, borderRadius: 6, overflow: "hidden", background: "var(--sunk)" }}>
+                {s.artwork && <img src={s.artwork} alt="" width={38} height={38} style={{ objectFit: "cover", display: "block" }} />}
+                {s.preview && (
+                  <button onClick={e => togglePreview(s, e)} title={playingId === s.id ? "Pause" : "Écouter"}
+                    style={{ position: "absolute", inset: 0, display: "grid", placeItems: "center", border: "none", cursor: "pointer", background: "rgba(0,0,0,.38)", color: "#fff" }}>
+                    {playingId === s.id
+                      ? <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/></svg>
+                      : <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M7 5l12 7-12 7V5z"/></svg>}
+                  </button>
+                )}
+              </div>
+              <div style={{ minWidth: 0, flex: 1 }}>
+                <div style={{ fontSize: 12.5, fontWeight: 700, color: "var(--ink)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{s.title}</div>
+                <div style={{ fontSize: 11.5, color: "var(--ink-3)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{s.artist}</div>
+              </div>
+            </div>
+          ))}
+          <div style={{ fontSize: 10.5, color: "var(--ink-3)", padding: "6px 8px 3px", lineHeight: 1.4 }}>
+            Le son sera à ajouter dans Instagram à la publication (catalogue IG non accessible par API).
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 type PostType = "post" | "reel" | "story";
@@ -1135,20 +1242,7 @@ function PlanningContent() {
             {/* ── Note musicale (affichage seul si rempli, éditable) ── */}
             <div>
               <label className="label" style={{ display: "block", marginBottom: 6 }}>Note musicale</label>
-              <div style={{ position: "relative" }}>
-                <input
-                  type="text"
-                  value={panelMusicNote}
-                  onChange={e => setPanelMusicNote(e.target.value)}
-                  placeholder="Titre — Artiste"
-                  className="input"
-                  style={{ fontSize: 12.5, paddingLeft: 30 }}
-                />
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"
-                  style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", color: "var(--ink-3)", pointerEvents: "none" }}>
-                  <path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/>
-                </svg>
-              </div>
+              <MusicPicker value={panelMusicNote} onChange={setPanelMusicNote} />
             </div>
 
             {/* ── Publier sur ── */}
