@@ -1,21 +1,31 @@
 import { NextRequest, NextResponse } from "next/server";
 
 // ─── /api/transcribe ────────────────────────────────────────────────────────
-// Transcription IA (sous-titres auto) via l'API OpenAI Whisper.
+// Transcription IA (sous-titres auto) via une API Whisper.
 // Reçoit { url } (URL publique Storage d'un clip vidéo/audio), télécharge le
 // fichier, l'envoie à Whisper avec des timestamps par segment, renvoie
 // [{ start, end, text }].
 //
-// Nécessite la variable d'env OPENAI_API_KEY. Si absente, renvoie 501 avec un
-// message clair — le bouton "Générer automatiquement" du panneau Sous-titres
-// affiche alors une explication plutôt qu'une erreur muette.
+// Providers supportés (par ordre de priorité) :
+//   1. GROQ_API_KEY   → Groq (Whisper large-v3-turbo, palier GRATUIT généreux)
+//   2. OPENAI_API_KEY → OpenAI (whisper-1)
+// Si aucune clé n'est configurée, renvoie 501 avec un message clair — le bouton
+// "Générer automatiquement" affiche alors une explication plutôt qu'une erreur muette.
 
 export async function POST(req: NextRequest) {
   try {
-    const apiKey = process.env.OPENAI_API_KEY;
-    if (!apiKey) {
+    const groqKey = process.env.GROQ_API_KEY;
+    const openaiKey = process.env.OPENAI_API_KEY;
+    // Groq d'abord (gratuit), sinon OpenAI. Endpoint compatible OpenAI dans les deux cas.
+    const provider = groqKey
+      ? { key: groqKey, endpoint: "https://api.groq.com/openai/v1/audio/transcriptions", model: "whisper-large-v3-turbo" }
+      : openaiKey
+        ? { key: openaiKey, endpoint: "https://api.openai.com/v1/audio/transcriptions", model: "whisper-1" }
+        : null;
+
+    if (!provider) {
       return NextResponse.json(
-        { ok: false, error: "missing_api_key", message: "OPENAI_API_KEY n'est pas configurée sur le serveur." },
+        { ok: false, error: "missing_api_key", message: "Aucune clé de transcription configurée sur le serveur (GROQ_API_KEY ou OPENAI_API_KEY)." },
         { status: 501 },
       );
     }
@@ -36,13 +46,13 @@ export async function POST(req: NextRequest) {
 
     const form = new FormData();
     form.append("file", mediaBlob, `clip.${ext}`);
-    form.append("model", "whisper-1");
+    form.append("model", provider.model);
     form.append("response_format", "verbose_json");
     form.append("timestamp_granularities[]", "segment");
 
-    const whisperRes = await fetch("https://api.openai.com/v1/audio/transcriptions", {
+    const whisperRes = await fetch(provider.endpoint, {
       method: "POST",
-      headers: { Authorization: `Bearer ${apiKey}` },
+      headers: { Authorization: `Bearer ${provider.key}` },
       body: form,
     });
 
