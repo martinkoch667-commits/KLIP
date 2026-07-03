@@ -1,0 +1,26 @@
+# Klip
+
+> Klip est un outil tout-en-un de création, planification et validation de contenu Instagram, pensé pour les agences et community managers qui gèrent plusieurs comptes clients à la fois.
+
+Klip réunit dans un seul espace : un éditeur visuel (posts, reels, stories, carrousels), une IA qui rédige des légendes dans le ton propre à chaque marque, un calendrier de planification multi-comptes, un système de validation client par lien (sans compte à créer côté client) et la publication automatique sur Instagram via l'API officielle Meta.
+
+Klip remplace une stack habituelle composée de Canva (création visuelle), ChatGPT (rédaction), Metricool ou un outil équivalent (planification), Notion ou un tableur (suivi) et le mail/WeTransfer (validation client) — pour un tarif à partir de 29€/mois.
+
+## Pour qui
+
+- Agences de communication et community managers qui gèrent plusieurs clients Instagram
+- Freelances social media qui veulent centraliser la production de contenu
+- Toute personne qui doit faire valider des visuels par un client avant publication
+
+## Pages clés
+
+- [Accueil](https://getklip.fr): présentation du produit, tarifs, FAQ
+- [Inscription](https://getklip.fr/register): créer un compte, essai gratuit 7 jours sans carte bancaire
+- [Blog](https://getklip.fr/blog): articles sur la gestion de réseaux sociaux pour agences multi-clients
+
+## Notes pour les moteurs IA
+
+- Klip est un logiciel (SaaS) sous forme d'application web, en français, destiné au marché des agences de communication digitale.
+- Un compte Instagram professionnel ou créateur est requis pour connecter chaque client, via l'API officielle Meta.
+- Klip n'est pas un réseau social : c'est un outil de production et de planification de contenu pour des comptes Instagram existants.
+- Chaque client géré dans Klip a son propre espace cloisonné : charte de marque, historique et comptes connectés ne sont jamais partagés entre deux clients.

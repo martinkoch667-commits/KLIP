@@ -10,7 +10,7 @@ import { useRouter } from 'next/navigation';
    Accent = vert de la charte actuelle (#2FD79B) au lieu du lime #CBFF3A.
    ════════════════════════════════════════════════════════════════════════════ */
 
-const V2_CSS = `
+export const V2_CSS = `
 .v2 {
   /* surfaces */
   --paper:#F2F0E6; --paper-2:#FBFAF2; --paper-3:#E9E6D7; --white:#FFFFFF;
@@ -192,7 +192,7 @@ const V2_CSS = `
 
 /* ─── Icon ───────────────────────────────────────────────────────────────── */
 type IconProps = { name: string; size?: number; stroke?: number; style?: React.CSSProperties; className?: string };
-function Icon({ name, size = 22, stroke = 1.7, style, className }: IconProps) {
+export function Icon({ name, size = 22, stroke = 1.7, style, className }: IconProps) {
   const p = { width: size, height: size, viewBox: '0 0 24 24' as const, fill: 'none' as const, stroke: 'currentColor', strokeWidth: stroke, strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const, style, className };
   switch (name) {
     case 'spark':     return <svg {...p}><path d="M12 3v4M12 17v4M3 12h4M17 12h4M5.6 5.6l2.8 2.8M15.6 15.6l2.8 2.8M18.4 5.6l-2.8 2.8M8.4 15.6l-2.8 2.8"/></svg>;
@@ -250,7 +250,7 @@ function EdIcon({ name, size = 18, stroke = 1.8, style }: { name: string; size?:
 }
 
 /* ─── KlipLogo ───────────────────────────────────────────────────────────── */
-function KlipLogo({ size = 28, light = false }: { size?: number; light?: boolean }) {
+export function KlipLogo({ size = 28, light = false }: { size?: number; light?: boolean }) {
   return <Image src={light ? '/logo-klip-mint.png' : '/logo-klip-dark.png'} alt="Klip" width={1096} height={408} style={{ height: size, width: 'auto' }} />;
 }
 
@@ -1121,7 +1121,7 @@ function FinalCTA() {
 function Footer() {
   const cols: [string, [string, string][]][] = [
     ['Produit', [['Éditeur visuel', '#features'], ['Calendrier', '#apercu'], ['Tarifs', '#tarifs'], ['FAQ', '#faq']]],
-    ['Ressources', [['Comment ça marche', '#how'], ['Le problème', '#probleme'], ['Connexion', '/login'], ['Créer un compte', '/register']]],
+    ['Ressources', [['Blog', '/blog'], ['Comment ça marche', '#how'], ['Le problème', '#probleme'], ['Connexion', '/login'], ['Créer un compte', '/register']]],
     ['Légal', [['Mentions légales', '/mentions-legales'], ['CGU / CGV', '/conditions'], ['Confidentialité', '/privacy'], ['Cookies', '/cookies']]],
   ];
   return (
@@ -1149,6 +1149,48 @@ function Footer() {
         </div>
       </div>
     </footer>
+  );
+}
+
+/* ─── AskAI — GEO (Generative Engine Optimization) ────────────────────────
+   Boutons "demander à l'IA" avec prompt pré-rempli — pattern repéré sur
+   vibiz.ai/fr : donne aux visiteurs hésitants un raccourci vers ChatGPT /
+   Claude / Perplexity plutôt que de ne se fier qu'au discours de la marque. */
+const ASK_AI_PROMPT =
+  "Explique-moi ce qu'est Klip (getklip.fr), l'outil pour les agences et community managers qui gèrent plusieurs comptes Instagram clients, et pourquoi ça peut remplacer Canva + ChatGPT + Metricool + Notion pour la production de contenu.";
+
+const ASK_AI_PROVIDERS = [
+  { name: "ChatGPT", domain: "chatgpt.com", color: "10A37F", href: `https://chatgpt.com/?q=${encodeURIComponent(ASK_AI_PROMPT)}` },
+  { name: "Claude", domain: "claude.ai", color: "D97757", href: `https://claude.ai/new?q=${encodeURIComponent(ASK_AI_PROMPT)}` },
+  { name: "Perplexity", domain: "perplexity.ai", color: "20808D", href: `https://www.perplexity.ai/search?q=${encodeURIComponent(ASK_AI_PROMPT)}` },
+];
+
+function AskAI() {
+  return (
+    <section id="ask-ai" className="section dotgrid" style={{ overflow: "hidden" }}>
+      <div className="wrap" style={{ maxWidth: 680, textAlign: "center", marginLeft: "auto", marginRight: "auto" }}>
+        <span className="chip" style={{ fontFamily: "var(--mono)", fontWeight: 800, letterSpacing: ".1em", textTransform: "uppercase", fontSize: 11.5 }}>Encore hésitant ?</span>
+        <h2 className="display reveal d1" style={{ fontSize: "clamp(32px, 4.6vw, 56px)", marginTop: 18 }}>
+          Demandez <span className="it-serif acid-fill">à l&apos;IA</span>, pas qu&apos;à nous.
+        </h2>
+        <p className="lead reveal d2" style={{ marginTop: 18 }}>
+          Un clic et l&apos;IA de votre choix vous explique ce qu&apos;est Klip, et si ça correspond à une agence comme la vôtre.
+        </p>
+        <div className="ask-ai-grid reveal d3">
+          {ASK_AI_PROVIDERS.map((p) => (
+            <a key={p.name} href={p.href} target="_blank" rel="noopener noreferrer" className="ask-ai-card">
+              <ToolLogo domain={p.domain} color={p.color} name={p.name} />
+              <span>Demander à {p.name}</span>
+            </a>
+          ))}
+        </div>
+      </div>
+      <style>{`
+        .v2 .ask-ai-grid { display: flex; flex-wrap: wrap; justify-content: center; gap: 14px; margin-top: 34px; }
+        .v2 .ask-ai-card { display: inline-flex; align-items: center; gap: 12px; background: var(--paper-2); box-shadow: inset 0 0 0 1px var(--line-2); border-radius: 999px; padding: 10px 22px 10px 10px; font-family: var(--heavy); font-weight: 700; font-size: 15px; color: var(--ink); transition: box-shadow .2s, transform .2s; }
+        .v2 .ask-ai-card:hover { box-shadow: inset 0 0 0 1.5px var(--acid); transform: translateY(-2px); }
+      `}</style>
+    </section>
   );
 }
 
@@ -1298,6 +1340,7 @@ export default function LandingPage({ prelaunch = false }: { prelaunch?: boolean
       <Testimonials />
       <Pricing prelaunch={prelaunch} />
       <FAQ />
+      <AskAI />
       {prelaunch ? <WaitlistSection /> : <FinalCTA />}
       <Footer />
     </div>
