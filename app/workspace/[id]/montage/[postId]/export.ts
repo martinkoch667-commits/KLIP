@@ -269,8 +269,11 @@ export async function renderExport(project: ExportProject, onProgress: (p: numbe
         });
         await video.play();
         await new Promise<void>((resolve) => {
-          const frame = () => {
-            if (video.paused || video.currentTime >= c.trimEnd || video.ended) { resolve(); return; }
+          // setInterval (pas requestAnimationFrame) : rAF est suspendu/throttlé par le
+          // navigateur quand l'onglet n'a pas le focus (ex. export lancé en tâche de fond),
+          // ce qui gèle le rendu — setInterval continue de tourner de façon fiable.
+          const iv = setInterval(() => {
+            if (video.paused || video.currentTime >= c.trimEnd || video.ended) { clearInterval(iv); resolve(); return; }
             const localT = (video.currentTime - c.trimStart) / c.speed;
             const globalT = c.start + localT;
             drawMediaFrame(ctx, video, c, localT, i === 0);
@@ -278,27 +281,23 @@ export async function renderExport(project: ExportProject, onProgress: (p: numbe
             drawTitles(ctx, project.titles, globalT);
             drawStickers(ctx, project.stickers, stickerImages, globalT);
             if (project.showProgressBar) drawProgressBar(ctx, globalT, total);
-            requestAnimationFrame(frame);
-          };
-          frame();
+          }, 1000 / FPS);
         });
         video.pause();
       } else {
         const img = await loadImage(c.src);
         const segStart = performance.now();
         await new Promise<void>((resolve) => {
-          const frame = () => {
+          const iv = setInterval(() => {
             const localT = (performance.now() - segStart) / 1000;
-            if (localT >= c.dur) { resolve(); return; }
+            if (localT >= c.dur) { clearInterval(iv); resolve(); return; }
             const globalT = c.start + localT;
             drawMediaFrame(ctx, img, c, localT, i === 0);
             drawCaptions(ctx, project.captions, project.subStyleId, globalT);
             drawTitles(ctx, project.titles, globalT);
             drawStickers(ctx, project.stickers, stickerImages, globalT);
             if (project.showProgressBar) drawProgressBar(ctx, globalT, total);
-            requestAnimationFrame(frame);
-          };
-          frame();
+          }, 1000 / FPS);
         });
       }
     }
