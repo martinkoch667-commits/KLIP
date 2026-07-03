@@ -24,9 +24,12 @@ export async function POST(req: NextRequest) {
         : null;
 
     if (!provider) {
+      // État attendu (feature non configurée) : on renvoie 200 pour éviter une
+      // erreur "Failed to load resource" rouge dans la console — le client lit
+      // { ok:false } et affiche un toast explicatif.
       return NextResponse.json(
-        { ok: false, error: "missing_api_key", message: "Aucune clé de transcription configurée sur le serveur (GROQ_API_KEY ou OPENAI_API_KEY)." },
-        { status: 501 },
+        { ok: false, error: "missing_api_key", message: "Sous-titres auto indisponibles : aucune clé de transcription (GROQ_API_KEY ou OPENAI_API_KEY) n'est configurée sur le serveur." },
+        { status: 200 },
       );
     }
 
