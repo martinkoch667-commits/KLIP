@@ -109,6 +109,7 @@ export default function MontagePage() {
   const [exportProgress, setExportProgress] = useState(0);
   const [toastMsg, setToastMsg] = useState<string | null>(null);
   const [pps, setPps] = useState(40);
+  const [histTick, setHistTick] = useState(0);
 
   const [time, setTime] = useState(0);
   const [playing, setPlaying] = useState(false);
@@ -122,6 +123,9 @@ export default function MontagePage() {
   const dragOverlayRef = useRef<{ type: "title" | "sticker"; id: string } | null>(null);
   const voRecorderRef = useRef<MediaRecorder | null>(null);
   const voChunksRef = useRef<Blob[]>([]);
+  const rulerRef = useRef<HTMLDivElement>(null);
+  const scrubbingRulerRef = useRef(false);
+  const trimRef = useRef<{ id: string; edge: "start" | "end"; startX: number; t0start: number; t0end: number; kind: "video" | "photo"; srcDur: number; speed: number } | null>(null);
 
   function toast(msg: string) {
     setToastMsg(msg);
@@ -177,6 +181,75 @@ export default function MontagePage() {
     }, 700);
     return () => { if (saveTimer.current) clearTimeout(saveTimer.current); };
   }, [clips, captions, subStyleId, titles, stickers, audioTracks, showProgressBar, exportUrl, loading, postId, supabase]);
+
+  // ── Historique undo/redo ────────────────────────────────────────────────────
+  type Snapshot = Pick<MontageProject, "clips" | "captions" | "subStyleId" | "titles" | "stickers" | "audioTracks" | "showProgressBar">;
+  const historyRef = useRef<{ past: Snapshot[]; future: Snapshot[] }>({ past: [], future: [] });
+  const lastSnapRef = useRef<Snapshot | null>(null);
+  const applyingHistoryRef = useRef(false);
+  const histDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pendingRef = useRef<{ prev: Snapshot; snap: Snapshot } | null>(null);
+
+  const commitPending = useCallback(() => {
+    if (histDebounceRef.current) { clearTimeout(histDebounceRef.current); histDebounceRef.current = null; }
+    const p = pendingRef.current;
+    if (!p) return;
+    pendingRef.current = null;
+    historyRef.current.past.push(p.prev);
+    if (historyRef.current.past.length > 100) historyRef.current.past.shift();
+    historyRef.current.future = [];
+    lastSnapRef.current = p.snap;
+    setHistTick((t) => t + 1);
+  }, []);
+
+  // Enregistre un point d'historique après stabilisation (450ms) : un drag continu
+  // (rognage, déplacement d'un overlay, slider) ne crée ainsi qu'une seule étape d'annulation.
+  useEffect(() => {
+    if (loading) return;
+    const snap: Snapshot = { clips, captions, subStyleId, titles, stickers, audioTracks, showProgressBar };
+    if (applyingHistoryRef.current) {
+      applyingHistoryRef.current = false;
+      if (histDebounceRef.current) { clearTimeout(histDebounceRef.current); histDebounceRef.current = null; }
+      pendingRef.current = null;
+      lastSnapRef.current = snap;
+      return;
+    }
+    if (lastSnapRef.current === null) { lastSnapRef.current = snap; return; }
+    pendingRef.current = { prev: pendingRef.current?.prev ?? lastSnapRef.current, snap };
+    if (histDebounceRef.current) clearTimeout(histDebounceRef.current);
+    histDebounceRef.current = setTimeout(commitPending, 450);
+  }, [clips, captions, subStyleId, titles, stickers, audioTracks, showProgressBar, loading, commitPending]);
+
+  const applySnapshot = useCallback((s: Snapshot) => {
+    applyingHistoryRef.current = true;
+    setClips(s.clips); setCaptions(s.captions); setSubStyleId(s.subStyleId);
+    setTitles(s.titles); setStickers(s.stickers); setAudioTracks(s.audioTracks);
+    setShowProgressBar(s.showProgressBar);
+  }, []);
+
+  const undo = useCallback(() => {
+    commitPending();
+    const h = historyRef.current;
+    if (!h.past.length || !lastSnapRef.current) return;
+    const prev = h.past.pop()!;
+    h.future.push(lastSnapRef.current);
+    applySnapshot(prev);
+    setHistTick((t) => t + 1);
+  }, [applySnapshot, commitPending]);
+
+  const redo = useCallback(() => {
+    commitPending();
+    const h = historyRef.current;
+    if (!h.future.length || !lastSnapRef.current) return;
+    const next = h.future.pop()!;
+    h.past.push(lastSnapRef.current);
+    applySnapshot(next);
+    setHistTick((t) => t + 1);
+  }, [applySnapshot, commitPending]);
+
+  const canUndo = historyRef.current.past.length > 0;
+  const canRedo = historyRef.current.future.length > 0;
+  void histTick; // force le recalcul de canUndo/canRedo à chaque mutation d'historique
 
   // ── Temps cumulés des clips ─────────────────────────────────────────────────
   const clipStarts = useMemo(() => {
@@ -497,6 +570,80 @@ export default function MontagePage() {
     }
   }
 
+  // ── Raccourcis clavier (type CapCut) ────────────────────────────────────────
+  function deleteSelected() {
+    if (selectedTitleId) { removeTitle(selectedTitleId); return; }
+    if (selectedStickerId) { removeSticker(selectedStickerId); return; }
+    if (selectedClipId) removeClip(selectedClipId);
+  }
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      const el = e.target as HTMLElement;
+      const typing = el && (el.tagName === "INPUT" || el.tagName === "TEXTAREA" || el.isContentEditable);
+      if (typing) return;
+      const meta = e.metaKey || e.ctrlKey;
+      if (meta && e.key.toLowerCase() === "z") {
+        e.preventDefault();
+        if (e.shiftKey) redo(); else undo();
+        return;
+      }
+      if (meta && e.key.toLowerCase() === "y") { e.preventDefault(); redo(); return; }
+      if (e.key === " ") { e.preventDefault(); togglePlay(); return; }
+      if ((e.key === "Delete" || e.key === "Backspace")) { e.preventDefault(); deleteSelected(); return; }
+      if (e.key.toLowerCase() === "s" && !meta) { e.preventDefault(); splitAtPlayhead(); return; }
+      if (e.key === "ArrowLeft") { e.preventDefault(); seek(time - (e.shiftKey ? 1 : 0.1)); return; }
+      if (e.key === "ArrowRight") { e.preventDefault(); seek(time + (e.shiftKey ? 1 : 0.1)); return; }
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [undo, redo, time, total, clipStarts, selectedClipId, selectedTitleId, selectedStickerId, playing, selectedClip]);
+
+  // ── Trim (poignées) & scrub sur la règle ────────────────────────────────────
+  function startTrim(e: React.PointerEvent, c: (typeof clipStarts)[number], edge: "start" | "end") {
+    e.stopPropagation();
+    e.preventDefault();
+    (e.target as HTMLElement).setPointerCapture(e.pointerId);
+    trimRef.current = { id: c.id, edge, startX: e.clientX, t0start: c.trimStart, t0end: c.trimEnd, kind: c.kind, srcDur: c.srcDur, speed: c.speed };
+    setSelectedClipId(c.id);
+  }
+  function onTrimMove(e: React.PointerEvent) {
+    const d = trimRef.current;
+    if (!d) return;
+    const deltaSrc = ((e.clientX - d.startX) / pps) * (d.kind === "video" ? d.speed : 1);
+    if (d.edge === "start") {
+      const ns = Math.max(0, Math.min(d.t0end - 0.3, d.t0start + deltaSrc));
+      updateClip(d.id, { trimStart: ns });
+    } else {
+      const cap = d.kind === "video" ? d.srcDur : 15;
+      const ne = Math.max(d.t0start + 0.3, Math.min(cap, d.t0end + deltaSrc));
+      updateClip(d.id, { trimEnd: ne });
+    }
+  }
+  function endTrim(e: React.PointerEvent) {
+    if (trimRef.current) {
+      try { (e.target as HTMLElement).releasePointerCapture(e.pointerId); } catch {}
+      trimRef.current = null;
+    }
+  }
+  function rulerSeek(clientX: number) {
+    const r = rulerRef.current?.getBoundingClientRect();
+    if (!r) return;
+    seek(Math.max(0, (clientX - r.left) / pps));
+  }
+  function onRulerDown(e: React.PointerEvent) {
+    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+    scrubbingRulerRef.current = true;
+    rulerSeek(e.clientX);
+  }
+  function onRulerMove(e: React.PointerEvent) {
+    if (scrubbingRulerRef.current) rulerSeek(e.clientX);
+  }
+  function onRulerUp(e: React.PointerEvent) {
+    scrubbingRulerRef.current = false;
+    try { (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId); } catch {}
+  }
+
   const ctx: MontageCtx = {
     clips, selectedClip, captions, subStyleId, titles, stickers, audioTracks, showProgressBar,
     time, total, logoUrl, uploadingAudio, transcribing, isRecordingVO,
@@ -536,8 +683,8 @@ export default function MontagePage() {
         </a>
         <span style={{ width: 1, height: 24, background: "var(--line)", flexShrink: 0 }} />
         <div style={{ display: "flex", gap: 2 }}>
-          <button className="mz-hbtn" title="Annuler (bientôt)" disabled><VIcon name="undo" size={17} /></button>
-          <button className="mz-hbtn" title="Rétablir (bientôt)" disabled><VIcon name="redo" size={17} /></button>
+          <button className="mz-hbtn" title="Annuler (⌘Z)" disabled={!canUndo} onClick={undo}><VIcon name="undo" size={17} /></button>
+          <button className="mz-hbtn" title="Rétablir (⌘⇧Z)" disabled={!canRedo} onClick={redo}><VIcon name="redo" size={17} /></button>
         </div>
         <span style={{ width: 1, height: 24, background: "var(--line)", flexShrink: 0 }} />
         <div style={{ display: "flex", alignItems: "center", gap: 9, minWidth: 0 }}>
@@ -739,7 +886,14 @@ export default function MontagePage() {
         </div>
         <div className="a-tl-scroll">
           <div className="a-tl-inner" style={{ width: 92 + trackW + 30 }}>
-            <div className="a-ruler" style={{ marginLeft: 92, width: trackW }}>
+            <div
+              className="a-ruler"
+              ref={rulerRef}
+              style={{ marginLeft: 92, width: trackW, cursor: "pointer" }}
+              onPointerDown={onRulerDown}
+              onPointerMove={onRulerMove}
+              onPointerUp={onRulerUp}
+            >
               {ticks.map((s) => (
                 <div key={s} className="a-tick" style={{ left: s * pps }}><span>{fmt(s).slice(0, -2)}</span></div>
               ))}
@@ -765,6 +919,14 @@ export default function MontagePage() {
                       <span className="a-clip-badge"><VIcon name={c.kind === "photo" ? "image" : "video"} size={10} /></span>
                       <span className="a-clip-dur">{c.dur.toFixed(1)}s</span>
                       <span className="a-clip-lbl">{c.name}</span>
+                      {selectedClipId === c.id && (
+                        <>
+                          {c.kind === "video" && (
+                            <div className="a-trim a-trim-l" draggable={false} onDragStart={(e) => e.preventDefault()} onClick={(e) => e.stopPropagation()} onPointerDown={(e) => startTrim(e, c, "start")} onPointerMove={onTrimMove} onPointerUp={endTrim} title="Rogner le début" />
+                          )}
+                          <div className="a-trim a-trim-r" draggable={false} onDragStart={(e) => e.preventDefault()} onClick={(e) => e.stopPropagation()} onPointerDown={(e) => startTrim(e, c, "end")} onPointerMove={onTrimMove} onPointerUp={endTrim} title={c.kind === "photo" ? "Durée du plan" : "Rogner la fin"} />
+                        </>
+                      )}
                     </div>
                     {i < clipStarts.length - 1 && (
                       <button

@@ -707,8 +707,44 @@ input.ed-range::-moz-range-thumb {
    ============================================================================ */
 :root { --ease: cubic-bezier(.2,.7,.3,1); }
 
+/* ── Thème SOMBRE type CapCut — scopé au module montage (n'affecte pas le reste de l'app)
+   On redéfinit les tokens KLIP sous .a-root : tout le module bascule en sombre
+   automatiquement (presque tout utilise var(--...)). ─────────────────────────── */
+.a-root {
+  --paper:   #0C0D0F;
+  --canvas:  #0C0D0F;
+  --white:   #17181C;   /* surfaces / panneaux */
+  --card:    #17181C;
+  --sunk:    #202127;   /* wells, inputs, pistes */
+  --forest:  #10261C;   /* cartes accent sombres */
+  --forest-2:#143122;
+  --forest-3:#184028;
+  --ink:     #F1F1F3;   /* texte principal */
+  --ink-2:   #A6A8B0;   /* texte secondaire */
+  --ink-3:   #6C6E77;   /* texte tertiaire */
+  --line:    rgba(255,255,255,.085);
+  --line-2:  rgba(255,255,255,.05);
+  --mint-soft: rgba(47,215,155,.15);
+  --shadow-card:  0 1px 2px rgba(0,0,0,.5);
+  --shadow-pop:   0 16px 40px -16px rgba(0,0,0,.7), 0 2px 8px rgba(0,0,0,.5);
+  --shadow-float: 0 22px 50px -20px rgba(0,0,0,.8);
+  --mz-elev: #2A2C33;   /* éléments survolés / segments actifs */
+  color: var(--ink);
+}
+/* scrollbars claires sur fond sombre (uniquement dans le montage) */
+.a-root *::-webkit-scrollbar-thumb { background: rgba(255,255,255,.14); }
+.a-root *::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,.24); }
+/* champs & boutons sombres */
+.a-root .input { background: var(--sunk); color: var(--ink); box-shadow: inset 0 0 0 1px var(--line); }
+.a-root .input:focus { box-shadow: inset 0 0 0 1.5px var(--mint-2); }
+.a-root .btn-dark { background: var(--mz-elev); color: var(--ink); box-shadow: inset 0 0 0 1px var(--line-2); }
+.a-root .btn-dark:hover:not(:disabled) { background: #33353d; }
+.a-root .btn-ghost { color: var(--ink-2); box-shadow: inset 0 0 0 1px var(--line); }
+.a-root .btn-ghost:hover:not(:disabled) { color: var(--ink); background: rgba(255,255,255,.05); box-shadow: inset 0 0 0 1px var(--line-2); }
+.a-root .chip { background: var(--sunk); color: var(--ink-2); }
+
 .mz-hbtn { width: 34px; height: 34px; border-radius: 9px; display: grid; place-items: center; color: var(--ink-2); transition: background .12s; flex-shrink: 0; }
-.mz-hbtn:hover { background: rgba(13,15,10,.07); color: var(--ink); }
+.mz-hbtn:hover { background: rgba(255,255,255,.08); color: var(--ink); }
 .mz-hbtn:disabled { opacity: .35; pointer-events: none; }
 .mz-sec-label { font-family: var(--mono); font-weight: 800; font-size: 10.5px; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-3); }
 
@@ -726,7 +762,7 @@ input.ed-range::-moz-range-thumb {
 /* playback scrubber */
 .mz-playbar { display: flex; align-items: center; gap: 14px; padding: 10px 18px; flex-shrink: 0; }
 .mz-play { width: 42px; height: 42px; border-radius: 50%; display: grid; place-items: center; background: var(--ink); color: var(--paper); flex-shrink: 0; transition: transform .12s, background .15s; border: none; cursor: pointer; }
-.mz-play:hover { background: #000; transform: scale(1.04); }
+.mz-play:hover { background: #fff; transform: scale(1.04); }
 .mz-time { font-family: var(--mono); font-weight: 800; font-size: 12px; color: var(--ink-2); font-variant-numeric: tabular-nums; white-space: nowrap; }
 .mz-scrub { flex: 1; height: 5px; border-radius: 99px; background: var(--sunk); position: relative; cursor: pointer; }
 .mz-scrub-fill { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 99px; background: linear-gradient(90deg, var(--mint), var(--acid)); }
@@ -748,19 +784,16 @@ input.ed-range::-moz-range-thumb {
 
 .mz-btn-block { width: 100%; justify-content: center; }
 
-/* Direction A — shell */
+/* Direction A — shell (sombre CapCut) */
 .a-root { display: flex; flex-direction: column; height: 100%; overflow: hidden;
-  background: radial-gradient(120% 70% at 50% -8%, #FBFAF4, #ECEBE1 74%); }
+  background: radial-gradient(130% 80% at 50% -10%, #141519, #0A0B0D 72%); }
 .a-main { flex: 1; display: flex; min-height: 0; }
 
-/* tool rail (forest) */
+/* tool rail (charcoal) */
 .a-rail {
   width: 76px; flex-shrink: 0; display: flex; flex-direction: column; align-items: center; padding: 14px 0; gap: 3px;
-  background:
-    radial-gradient(120% 40% at 0% 0%, rgba(47,215,155,.20), transparent 56%),
-    radial-gradient(90% 44% at 100% 100%, rgba(200,241,53,.10), transparent 62%),
-    linear-gradient(180deg, #0E2F20 0%, var(--forest) 46%, #0A2316 100%);
-  border-right: 1px solid rgba(0,0,0,.3); position: relative; z-index: 20; overflow-y: auto;
+  background: linear-gradient(180deg, #17181C 0%, #131418 100%);
+  border-right: 1px solid var(--line); position: relative; z-index: 20; overflow-y: auto;
 }
 .a-mark { width: 40px; height: 40px; border-radius: 12px; display: grid; place-items: center; margin-bottom: 8px; flex-shrink: 0;
   background: rgba(238,237,227,.06); box-shadow: inset 0 0 0 1.5px var(--mint); }
@@ -793,7 +826,7 @@ input.ed-range::-moz-range-thumb {
 .a-tl-bar { height: 46px; flex-shrink: 0; display: flex; align-items: center; gap: 8px; padding: 0 16px; border-bottom: 1px solid var(--line); }
 .a-tl-tool { display: inline-flex; align-items: center; gap: 7px; padding: 7px 12px; border-radius: 8px; font-weight: 700; font-size: 12.5px;
   color: var(--ink-2); box-shadow: inset 0 0 0 1px var(--line); transition: all .13s var(--ease); border: none; background: transparent; cursor: pointer; }
-.a-tl-tool:hover:not(:disabled) { color: var(--ink); box-shadow: inset 0 0 0 1px var(--ink-3); background: rgba(13,15,10,.03); }
+.a-tl-tool:hover:not(:disabled) { color: var(--ink); box-shadow: inset 0 0 0 1px var(--ink-3); background: rgba(255,255,255,.06); }
 .a-tl-tool:disabled { opacity: .35; cursor: not-allowed; }
 
 .a-tl-scroll { flex: 1; overflow-x: auto; overflow-y: hidden; position: relative; }
@@ -813,6 +846,11 @@ input.ed-range::-moz-range-thumb {
 .a-clip:hover { transform: translateY(-1px); }
 .a-clip.on { box-shadow: 0 0 0 2px var(--mint-2), 0 0 0 4px var(--white); }
 .a-clip.dragging { opacity: .5; }
+.a-trim { position: absolute; top: 0; bottom: 0; width: 12px; z-index: 14; cursor: ew-resize; display: flex; align-items: center; justify-content: center; touch-action: none; }
+.a-trim::after { content: ""; width: 4px; height: 22px; border-radius: 3px; background: var(--mint-2); box-shadow: 0 0 0 1px rgba(0,0,0,.35); }
+.a-trim-l { left: 0; }
+.a-trim-r { right: 0; }
+.a-trim:hover::after { background: var(--acid); }
 .a-clip-lbl { position: absolute; left: 7px; bottom: 5px; font-family: var(--mono); font-weight: 800; font-size: 9px; letter-spacing: .03em;
   color: #fff; text-shadow: 0 1px 4px rgba(0,0,0,.6); }
 .a-clip-dur { position: absolute; right: 6px; top: 5px; font-family: var(--mono); font-weight: 700; font-size: 8.5px; color: rgba(255,255,255,.9);
@@ -836,7 +874,7 @@ input.mz-range::-moz-range-thumb { width: 16px; height: 16px; border-radius: 50%
 /* segmented control (vitesse, animation) */
 .mz-seg { display: inline-flex; gap: 3px; padding: 3px; background: var(--sunk); border-radius: 10px; width: 100%; }
 .mz-seg button { flex: 1; padding: 8px; border-radius: 7px; font-weight: 700; font-size: 12.5px; color: var(--ink-2); transition: all .14s var(--ease); border: none; background: transparent; cursor: pointer; }
-.mz-seg button.on { background: var(--white); color: var(--ink); box-shadow: var(--shadow-card); }
+.mz-seg button.on { background: var(--mz-elev); color: var(--ink); box-shadow: var(--shadow-card); }
 
 .mz-grid4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
 
