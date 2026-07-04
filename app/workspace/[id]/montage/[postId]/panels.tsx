@@ -9,7 +9,7 @@ import { VIcon } from "./icons";
 import {
   MontageClip, Caption, TitleEl, StickerEl, AudioTrack,
   FILTERS, TRANSITIONS, SPEEDS, SUB_STYLES, STICKER_GLYPHS, FONT_CHOICES,
-  clipFilterCss, clipTimelineDur, fmtShort,
+  clipFilterCss, clipTimelineDur,
 } from "./constants";
 
 export interface MontageCtx {
@@ -224,17 +224,24 @@ export function CaptionsPanel({ ctx }: { ctx: MontageCtx }) {
         <span className="mz-sec-label">Texte transcrit · {ctx.captions.length}</span>
         <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
           {ctx.captions.map((s) => (
-            <div key={s.id} style={{ display: "flex", gap: 9, padding: "9px 11px", borderRadius: 9, background: "var(--sunk)", alignItems: "flex-start" }}>
-              <span style={{ fontFamily: "var(--mono)", fontWeight: 800, fontSize: 10, color: "var(--ink-3)", flexShrink: 0, paddingTop: 2 }}>{fmtShort(s.start)}</span>
-              <span
-                contentEditable
-                suppressContentEditableWarning
-                style={{ fontSize: 12.5, lineHeight: 1.4, outline: "none", flex: 1 }}
-                onBlur={(e) => ctx.updateCaption(s.id, { text: e.currentTarget.textContent || "" })}
-              >
-                {s.text}
-              </span>
-              <button className="mz-hbtn" style={{ width: 22, height: 22, flexShrink: 0 }} onClick={() => ctx.removeCaption(s.id)}><VIcon name="x" size={12} /></button>
+            <div key={s.id} style={{ display: "flex", flexDirection: "column", gap: 6, padding: "9px 11px", borderRadius: 9, background: "var(--sunk)" }}>
+              <div style={{ display: "flex", gap: 9, alignItems: "flex-start" }}>
+                <span
+                  contentEditable
+                  suppressContentEditableWarning
+                  style={{ fontSize: 12.5, lineHeight: 1.4, outline: "none", flex: 1 }}
+                  onBlur={(e) => ctx.updateCaption(s.id, { text: e.currentTarget.textContent || "" })}
+                >
+                  {s.text}
+                </span>
+                <button className="mz-hbtn" style={{ width: 22, height: 22, flexShrink: 0 }} onClick={() => ctx.removeCaption(s.id)}><VIcon name="x" size={12} /></button>
+              </div>
+              <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                <span style={{ fontFamily: "var(--mono)", fontWeight: 800, fontSize: 9.5, color: "var(--ink-3)" }}>DÉBUT</span>
+                <input type="number" step={0.1} min={0} value={Number(s.start.toFixed(2))} onChange={(e) => ctx.updateCaption(s.id, { start: Math.min(parseFloat(e.target.value) || 0, s.end - 0.1) })} style={{ width: 58, fontFamily: "var(--mono)", fontSize: 11, padding: "3px 6px", borderRadius: 6, border: "1px solid var(--line)", background: "var(--white)" }} />
+                <span style={{ fontFamily: "var(--mono)", fontWeight: 800, fontSize: 9.5, color: "var(--ink-3)" }}>FIN</span>
+                <input type="number" step={0.1} min={0} value={Number(s.end.toFixed(2))} onChange={(e) => ctx.updateCaption(s.id, { end: Math.max(parseFloat(e.target.value) || 0, s.start + 0.1) })} style={{ width: 58, fontFamily: "var(--mono)", fontSize: 11, padding: "3px 6px", borderRadius: 6, border: "1px solid var(--line)", background: "var(--white)" }} />
+              </div>
             </div>
           ))}
           <button className="btn btn-ghost btn-sm" style={{ alignSelf: "flex-start" }} onClick={ctx.addCaption}><VIcon name="plus" size={13} /> Ajouter au curseur</button>
@@ -250,8 +257,27 @@ export function AudioPanel({ ctx }: { ctx: MontageCtx }) {
   const fileRef = useRef<HTMLInputElement>(null);
   const music = ctx.audioTracks.filter((a) => a.kind === "music");
   const vo = ctx.audioTracks.filter((a) => a.kind === "voiceover");
+  const videoClips = ctx.clips.filter((c) => c.kind === "video");
   return (
     <>
+      {videoClips.length > 0 && (
+        <div className="a-section">
+          <span className="mz-sec-label">Son des plans vidéo</span>
+          <div style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 6 }}>
+            {videoClips.map((c) => (
+              <div key={c.id}>
+                <div className="mz-music on" style={{ cursor: "default" }}>
+                  <button className="mz-music-play" style={{ background: (c.vol ?? 1) === 0 ? "var(--ink-3)" : "var(--forest)", border: "none", cursor: "pointer" }} title={(c.vol ?? 1) === 0 ? "Réactiver le son" : "Couper le son"} onClick={() => ctx.updateClip(c.id, { vol: (c.vol ?? 1) === 0 ? 1 : 0 })}>
+                    <VIcon name={(c.vol ?? 1) === 0 ? "mute" : "volume"} size={14} />
+                  </button>
+                  <div style={{ minWidth: 0 }}><div className="mz-music-name trunc">{c.name}</div><div className="mz-music-meta">Son du plan</div></div>
+                </div>
+                <Range label="Volume" value={Math.round((c.vol ?? 1) * 100)} min={0} max={100} unit="%" onChange={(v) => ctx.updateClip(c.id, { vol: v / 100 })} />
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
       <div className="a-section">
         <button className="btn btn-dark mz-btn-block" onClick={ctx.toggleRecordVO}>
           <VIcon name="mic" size={15} /> {ctx.isRecordingVO ? "Arrêter l'enregistrement" : "Enregistrer une voix off"}

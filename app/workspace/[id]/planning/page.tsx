@@ -195,6 +195,14 @@ function buildScheduledAt(dateStr: string, timeStr: string): string | null {
 function aspectForType(t?: string | null): string {
   return t === "story" || t === "reel" ? "9 / 16" : "4 / 5";
 }
+// Détecte une source vidéo (export du monteur .webm, imports .mp4/.mov).
+function isVideoUrl(url?: string | null): boolean {
+  return !!url && /\.(webm|mp4|mov|m4v|quicktime)(\?|$)/i.test(url);
+}
+// Un post vidéo ne peut être que Reel ou Story ; une photo ne peut pas être un Reel.
+function allowedTypesFor(isVideo: boolean): PostType[] {
+  return isVideo ? ["reel", "story"] : ["post", "story"];
+}
 // Month view grid: Mon-based, pads with nulls
 function getMonthGrid(year: number, month: number): (Date | null)[] {
   const first = new Date(year, month, 1);
@@ -514,7 +522,10 @@ function PlanningContent() {
   function selectPost(post: Post) {
     setSelectedPost(post);
     setPanelDesc(post.description ?? "");
-    setPanelPostType((post.post_type as PostType) ?? "post");
+    // Clampe le type au format du média : une vidéo ne peut être que Reel/Story, une photo Post/Story.
+    const allowed = allowedTypesFor(isVideoUrl(post.photo_url));
+    const currentType = (post.post_type as PostType) ?? "post";
+    setPanelPostType(allowed.includes(currentType) ? currentType : allowed[0]);
     const connected = [
       ...(workspace?.instagram_account_id ? ["instagram"] : []),
       ...(workspace?.facebook_page_id ? ["facebook"] : []),
@@ -1159,7 +1170,9 @@ function PlanningContent() {
           <div style={{ flex: 1, padding: "16px 20px", display: "flex", flexDirection: "column", gap: 16 }}>
             {(selectedPost.exported_image_url || selectedPost.thumbnail_url || selectedPost.photo_url) && (
               <div style={{ position: "relative", width: "100%", maxWidth: (selectedPost.post_type === "story" || selectedPost.post_type === "reel") ? 260 : "100%", margin: "0 auto", aspectRatio: aspectForType(selectedPost.post_type), borderRadius: "var(--r)", overflow: "hidden", background: "#000" }}>
-                {selectedPost.exported_image_url ? (
+                {isVideoUrl(selectedPost.photo_url) ? (
+                  <video src={selectedPost.photo_url} controls playsInline style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                ) : selectedPost.exported_image_url ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img src={selectedPost.exported_image_url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
                 ) : (
@@ -1206,18 +1219,31 @@ function PlanningContent() {
               </div>
             </div>
 
-            {/* ── Type de contenu ── */}
-            <div>
-              <label className="label" style={{ display: "block", marginBottom: 8 }}>Type de contenu</label>
-              <div style={{ display: "flex", gap: 6 }}>
-                {(Object.entries(POST_TYPE_CFG) as [PostType, typeof POST_TYPE_CFG[PostType]][]).map(([tid, cfg]) => (
-                  <button key={tid} onClick={() => setPanelPostType(tid)}
-                    style={{ flex: 1, padding: "6px 4px", borderRadius: 7, border: `1.5px solid ${panelPostType === tid ? cfg.color : "var(--line)"}`, background: panelPostType === tid ? cfg.bg : "transparent", color: panelPostType === tid ? cfg.color : "var(--ink-3)", fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "var(--sans)", transition: "all .15s" }}>
-                    {cfg.label}
-                  </button>
-                ))}
-              </div>
-            </div>
+            {/* ── Type de contenu (règles de format : vidéo → Reel/Story, photo → Post/Story) ── */}
+            {(() => {
+              const isVid = isVideoUrl(selectedPost.photo_url);
+              const allowed = allowedTypesFor(isVid);
+              return (
+                <div>
+                  <label className="label" style={{ display: "block", marginBottom: 8 }}>Type de contenu</label>
+                  <div style={{ display: "flex", gap: 6 }}>
+                    {(Object.entries(POST_TYPE_CFG) as [PostType, typeof POST_TYPE_CFG[PostType]][]).map(([tid, cfg]) => {
+                      const ok = allowed.includes(tid);
+                      return (
+                        <button key={tid} disabled={!ok} onClick={() => ok && setPanelPostType(tid)}
+                          title={ok ? undefined : isVid ? "Une vidéo ne peut être qu'un Reel ou une Story" : "Une photo ne peut pas être un Reel"}
+                          style={{ flex: 1, padding: "6px 4px", borderRadius: 7, border: `1.5px solid ${panelPostType === tid ? cfg.color : "var(--line)"}`, background: panelPostType === tid ? cfg.bg : "transparent", color: panelPostType === tid ? cfg.color : "var(--ink-3)", fontSize: 12, fontWeight: 700, cursor: ok ? "pointer" : "not-allowed", opacity: ok ? 1 : 0.4, fontFamily: "var(--sans)", transition: "all .15s" }}>
+                          {cfg.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <span style={{ fontSize: 11, color: "var(--ink-3)", marginTop: 6, display: "block" }}>
+                    {isVid ? "Vidéo : publiable en Reel ou Story." : "Photo : publiable en Post ou Story."}
+                  </span>
+                </div>
+              );
+            })()}
 
             {/* ── Tags Instagram ── */}
             <div>
@@ -1277,12 +1303,14 @@ function PlanningContent() {
             )}
 
             <div style={{ display: "flex", gap: 7 }}>
-              <Link href={`/workspace/${id}/editor/${selectedPost.id}`} className="btn btn-ghost btn-sm" style={{ flex: 1, justifyContent: "center" }}>
-                <IconEdit /> Éditer
+              <Link href={isVideoUrl(selectedPost.photo_url) ? `/workspace/${id}/montage/${selectedPost.id}` : `/workspace/${id}/editor/${selectedPost.id}`} className="btn btn-ghost btn-sm" style={{ flex: 1, justifyContent: "center" }}>
+                <IconEdit /> {isVideoUrl(selectedPost.photo_url) ? "Monter" : "Éditer"}
               </Link>
-              <button onClick={() => { setCanvaPostId(selectedPost.id); setShowCanva(true); }} className="btn btn-dark btn-sm" style={{ flex: 1 }}>
-                <IconSpark /> Canva
-              </button>
+              {!isVideoUrl(selectedPost.photo_url) && (
+                <button onClick={() => { setCanvaPostId(selectedPost.id); setShowCanva(true); }} className="btn btn-dark btn-sm" style={{ flex: 1 }}>
+                  <IconSpark /> Canva
+                </button>
+              )}
             </div>
 
             <button onClick={() => deletePost(selectedPost)} className="btn btn-ghost btn-sm"

@@ -35,6 +35,7 @@ export function VIcon({ name, size = 18 }: { name: string; size?: number }) {
     case "zoomOut": return <svg {...p}><circle cx="11" cy="11" r="7" /><path d="M21 21l-4-4M8 11h6" /></svg>;
     case "volume": return <svg {...p}><path d="M4 9.5v5h3.5L13 19V5L7.5 9.5H4Z" /><path d="M16.5 9a4 4 0 0 1 0 6M19 6.5a7.5 7.5 0 0 1 0 11" opacity=".7" /></svg>;
     case "mute": return <svg {...p}><path d="M4 9.5v5h3.5L13 19V5L7.5 9.5H4Z" /><path d="M17 9.5l4 5M21 9.5l-4 5" /></svg>;
+    case "calendar": return <svg {...p}><rect x="3" y="4.5" width="18" height="16" rx="2.5" /><path d="M3 9h18M8 2.5v4M16 2.5v4" /></svg>;
     case "check": return <svg {...p}><path d="M4 12.5l5 5 11-11" /></svg>;
     case "x": return <svg {...p}><path d="M6 6l12 12M18 6L6 18" /></svg>;
     default: return null;

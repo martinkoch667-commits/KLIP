@@ -124,10 +124,14 @@ function drawCaptions(ctx: CanvasRenderingContext2D, captions: Caption[], subSty
   }
   ctx.textAlign = "left";
   words.forEach((w, i) => {
+    const wordProg = Math.max(0, Math.min(1, progress * words.length - i));
+    const revealed = i <= activeIdx;
+    ctx.globalAlpha = revealed ? 0.35 + 0.65 * wordProg : 0.28;
     ctx.fillStyle = i === activeIdx ? style.hi : style.fg;
     ctx.fillText(w, x, y);
     x += ctx.measureText(w + " ").width;
   });
+  ctx.globalAlpha = 1;
   ctx.shadowBlur = 0;
 }
 
@@ -157,7 +161,7 @@ function drawTitles(ctx: CanvasRenderingContext2D, titles: TitleEl[], t: number)
     ctx.shadowBlur = 10;
     const x = (tt.x / 100) * CANVAS_W, y = (tt.y / 100) * CANVAS_H;
     ctx.translate(x, y);
-    ctx.scale(scale, scale);
+    ctx.scale(scale * (tt.scale ?? 1), scale * (tt.scale ?? 1));
     ctx.fillText(text, 0, 0);
     ctx.restore();
   }
@@ -263,6 +267,7 @@ export async function renderExport(project: ExportProject, onProgress: (p: numbe
           video.src = c.src;
         });
         video.playbackRate = c.speed;
+        videoGain.gain.value = c.vol ?? 1;
         await new Promise<void>((resolve) => {
           video.onseeked = () => resolve();
           video.currentTime = c.trimStart;

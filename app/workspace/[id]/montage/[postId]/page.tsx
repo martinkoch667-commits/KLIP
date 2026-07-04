@@ -7,7 +7,7 @@ import { VIcon } from "./icons";
 import {
   MontageClip, Caption, TitleEl, StickerEl, AudioTrack, MontageProject,
   FILTERS, TRANSITIONS, SUB_STYLES, FONT_CHOICES,
-  fmt, newClipDefaults, clipFilterCss, clipTimelineDur,
+  fmt, newClipDefaults, clipFilterCss, clipTimelineDur, segmentCaptions,
 } from "./constants";
 import { MontageCtx, CutPanel, TextPanel, CaptionsPanel, AudioPanel, TransitionsPanel, FilterPanel, SpeedPanel, StickerPanel, AiPanel } from "./panels";
 import { renderExport } from "./export";
@@ -121,6 +121,7 @@ export default function MontagePage() {
   const stageRef = useRef<HTMLDivElement>(null);
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const dragOverlayRef = useRef<{ type: "title" | "sticker"; id: string } | null>(null);
+  const resizeOverlayRef = useRef<{ type: "title" | "sticker"; id: string; startDist: number; startScale: number; cx: number; cy: number } | null>(null);
   const voRecorderRef = useRef<MediaRecorder | null>(null);
   const voChunksRef = useRef<Blob[]>([]);
   const rulerRef = useRef<HTMLDivElement>(null);
@@ -291,6 +292,14 @@ export default function MontagePage() {
     if (playing) v.play().catch(() => {}); else v.pause();
   }, [playing, activeClip?.id]);
 
+  // ── Synchro vitesse + volume en direct (changement depuis les panneaux) ──────
+  useEffect(() => {
+    const v = videoRef.current;
+    if (!v || !activeClip || activeClip.kind !== "video") return;
+    v.playbackRate = activeClip.speed;
+    v.volume = activeClip.vol ?? 1;
+  }, [activeClip?.id, activeClip?.speed, activeClip?.vol]);
+
   // ── Horloge RAF pour les plans photo (pas de lecture native) ────────────────
   useEffect(() => {
     if (!playing || !activeClip || activeClip.kind !== "photo") return;
@@ -457,9 +466,7 @@ export default function MontagePage() {
         toast(data?.message || "Transcription indisponible (clé API manquante).");
         return;
       }
-      const newCaps: Caption[] = (data.segments || []).map((s: { start: number; end: number; text: string }) => ({
-        id: crypto.randomUUID(), start: s.start, end: s.end, text: (s.text || "").trim(),
-      }));
+      const newCaps: Caption[] = segmentCaptions(data.segments || []);
       setCaptions(newCaps);
       toast(`${newCaps.length} sous-titres générés.`);
     } catch {
@@ -535,7 +542,28 @@ export default function MontagePage() {
     dragOverlayRef.current = { type, id };
     if (type === "title") setSelectedTitleId(id); else setSelectedStickerId(id);
   }
+  function onOverlayResizeDown(e: React.PointerEvent, type: "title" | "sticker", id: string, currentScale: number) {
+    e.stopPropagation();
+    e.preventDefault();
+    const r = stageRef.current?.getBoundingClientRect();
+    if (!r) return;
+    // centre de l'overlay = position (x,y) en % de la scène (les overlays sont centrés dessus)
+    const el = type === "title" ? titles.find((t) => t.id === id) : stickers.find((s) => s.id === id);
+    if (!el) return;
+    const cx = r.left + (el.x / 100) * r.width;
+    const cy = r.top + (el.y / 100) * r.height;
+    const startDist = Math.max(8, Math.hypot(e.clientX - cx, e.clientY - cy));
+    resizeOverlayRef.current = { type, id, startDist, startScale: currentScale, cx, cy };
+    if (type === "title") setSelectedTitleId(id); else setSelectedStickerId(id);
+  }
   function onStagePointerMove(e: React.PointerEvent) {
+    const rz = resizeOverlayRef.current;
+    if (rz) {
+      const dist = Math.hypot(e.clientX - rz.cx, e.clientY - rz.cy);
+      const scale = Math.max(0.4, Math.min(4, rz.startScale * (dist / rz.startDist)));
+      if (rz.type === "title") updateTitle(rz.id, { scale }); else updateSticker(rz.id, { scale });
+      return;
+    }
     const drag = dragOverlayRef.current;
     if (!drag) return;
     const r = stageRef.current?.getBoundingClientRect();
@@ -544,7 +572,7 @@ export default function MontagePage() {
     const y = Math.max(0, Math.min(100, ((e.clientY - r.top) / r.height) * 100));
     if (drag.type === "title") updateTitle(drag.id, { x, y }); else updateSticker(drag.id, { x, y });
   }
-  function onStagePointerUp() { dragOverlayRef.current = null; }
+  function onStagePointerUp() { dragOverlayRef.current = null; resizeOverlayRef.current = null; }
 
   // ── Export réel ──────────────────────────────────────────────────────────
   async function handleExport() {
@@ -697,6 +725,11 @@ export default function MontagePage() {
             <VIcon name="eye" size={15} /> Voir l'export
           </a>
         )}
+        {exportUrl && (
+          <a href={`/workspace/${workspaceId}/planning?post=${postId}`} className="btn btn-sm btn-dark" style={{ gap: 5, textDecoration: "none" }}>
+            <VIcon name="calendar" size={15} /> Planifier
+          </a>
+        )}
         <button className="btn btn-sm btn-primary" disabled={!clips.length || exporting} onClick={handleExport}>
           <VIcon name="export" size={15} /> {exporting ? "Export…" : "Exporter"}
         </button>
@@ -799,7 +832,7 @@ export default function MontagePage() {
                       fontFamily: FONT_CSS[t.font] || FONT_CSS.archivo,
                       fontWeight: FONT_CHOICES.find((f) => f.id === t.font)?.weight || 800,
                       fontStyle: FONT_CHOICES.find((f) => f.id === t.font)?.italic ? "italic" : "normal",
-                      color: t.color, fontSize: 22, textAlign: "center", textShadow: "0 1px 8px rgba(0,0,0,.5)",
+                      color: t.color, fontSize: 22 * (t.scale ?? 1), textAlign: "center", textShadow: "0 1px 8px rgba(0,0,0,.5)",
                       maxWidth: "80%", whiteSpace: "pre-wrap",
                       animation: t.anim === "rise" ? "mzRise .35s var(--ease)" : t.anim === "pop" ? "mzPop .3s var(--ease)" : undefined,
                     }}
@@ -807,6 +840,7 @@ export default function MontagePage() {
                   >
                     {t.anim === "type" ? t.text.slice(0, Math.max(0, Math.min(t.text.length, Math.floor((time - t.start) * 16)))) : t.text}
                     {selectedTitleId === t.id && <button className="mz-ov-del" onPointerDown={(e) => e.stopPropagation()} onClick={() => removeTitle(t.id)}><VIcon name="x" size={11} /></button>}
+                    {selectedTitleId === t.id && <span className="mz-ov-resize" onPointerDown={(e) => onOverlayResizeDown(e, "title", t.id, t.scale ?? 1)} title="Redimensionner" />}
                   </div>
                 ))}
 
@@ -820,6 +854,7 @@ export default function MontagePage() {
                   >
                     {s.isImage ? <img src={s.glyph} alt="" style={{ width: 40 * s.scale, height: 40 * s.scale, objectFit: "contain" }} /> : s.glyph}
                     {selectedStickerId === s.id && <button className="mz-ov-del" onPointerDown={(e) => e.stopPropagation()} onClick={() => removeSticker(s.id)}><VIcon name="x" size={11} /></button>}
+                    {selectedStickerId === s.id && <span className="mz-ov-resize" onPointerDown={(e) => onOverlayResizeDown(e, "sticker", s.id, s.scale)} title="Redimensionner" />}
                   </div>
                 ))}
 
@@ -838,7 +873,25 @@ export default function MontagePage() {
                       {activeCaption.text.split(/\s+/).filter(Boolean).map((w, i, arr) => {
                         const progress = (time - activeCaption.start) / Math.max(0.1, activeCaption.end - activeCaption.start);
                         const activeIdx = Math.min(arr.length - 1, Math.floor(progress * arr.length));
-                        return <span key={i} className="mz-cap-word" style={{ color: i === activeIdx ? capStyle.hi : capStyle.fg }}>{w}{i < arr.length - 1 ? " " : ""}</span>;
+                        // Révélation mot par mot : chaque mot apparaît (fondu + pop) à son tour,
+                        // le mot actif est surligné et légèrement agrandi.
+                        const wordProg = Math.max(0, Math.min(1, progress * arr.length - i));
+                        const revealed = i <= activeIdx;
+                        return (
+                          <span
+                            key={i}
+                            className="mz-cap-word"
+                            style={{
+                              color: i === activeIdx ? capStyle.hi : capStyle.fg,
+                              opacity: revealed ? 0.35 + 0.65 * wordProg : 0.28,
+                              transform: `scale(${i === activeIdx ? 0.9 + 0.1 * wordProg + 0.06 : revealed ? 1 : 0.92})`,
+                              display: "inline-block",
+                              transition: "color .12s, opacity .12s, transform .12s var(--ease)",
+                            }}
+                          >
+                            {w}{i < arr.length - 1 ? "\u00A0" : ""}
+                          </span>
+                        );
                       })}
                     </div>
                   </div>
@@ -945,8 +998,20 @@ export default function MontagePage() {
             <div className="a-lane" style={{ height: 34 }}>
               <div className="a-lane-label"><VIcon name="music" size={13} /> Audio</div>
               <div className="a-lane-track">
+                {/* son embarqué des plans vidéo (cliquable → panneau Audio pour régler le volume) */}
+                {clipStarts.filter((c) => c.kind === "video").map((c) => (
+                  <div
+                    key={"va-" + c.id}
+                    className={"a-wave-bar" + (selectedClipId === c.id ? " on" : "")}
+                    style={{ left: c.start * pps, width: c.dur * pps, top: 2, bottom: 2, background: (c.vol ?? 1) === 0 ? "var(--sunk)" : "linear-gradient(150deg,#1f7a4d,#0c2a1d)", opacity: (c.vol ?? 1) === 0 ? 0.5 : 1, cursor: "pointer" }}
+                    title={`Son de « ${c.name} » — ${Math.round((c.vol ?? 1) * 100)}%`}
+                    onClick={() => { setSelectedClipId(c.id); setTool("audio"); }}
+                  >
+                    <span style={{ position: "absolute", left: 6, top: 4, fontSize: 9.5, fontWeight: 700, color: "#fff", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: "calc(100% - 12px)" }}>{(c.vol ?? 1) === 0 ? "🔇" : "🔊"} {c.name}</span>
+                  </div>
+                ))}
                 {audioTracks.map((a) => (
-                  <div key={a.id} className="a-wave-bar" style={{ left: 92 - 92 + a.offset * pps, width: a.dur * pps, top: 2, bottom: 2 }} title={a.name}>
+                  <div key={a.id} className="a-wave-bar" style={{ left: a.offset * pps, width: a.dur * pps, top: 2, bottom: 2 }} title={a.name}>
                     <span style={{ position: "absolute", left: 6, top: 4, fontSize: 9.5, fontWeight: 700, color: "#fff" }}>{a.kind === "voiceover" ? "🎙" : "🎵"} {a.name}</span>
                   </div>
                 ))}

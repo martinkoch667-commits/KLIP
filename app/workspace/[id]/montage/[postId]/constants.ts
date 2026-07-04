@@ -18,6 +18,7 @@ export interface MontageClip {
   sat: number;           // -50..50
   transitionIn: string;  // TRANSITIONS[].id — transition d'entrée sur ce plan
   transitionDur: number; // durée de la transition (s)
+  vol?: number;          // volume du son embarqué du plan vidéo (0-1, défaut 1)
 }
 
 // Durée effective d'un clip sur la timeline (après rognage + vitesse)
@@ -43,6 +44,7 @@ export interface TitleEl {
   anim: "rise" | "type" | "pop";
   x: number; // % (0-100)
   y: number; // % (0-100)
+  scale?: number; // facteur de taille (défaut 1)
 }
 
 export interface StickerEl {
@@ -127,8 +129,31 @@ export function fmtShort(s: number): string {
   return `${m}:${String(sec).padStart(2, "0")}`;
 }
 
-export function newClipDefaults(): Pick<MontageClip, "speed" | "filterId" | "lum" | "con" | "sat" | "transitionIn" | "transitionDur"> {
-  return { speed: 1, filterId: "none", lum: 0, con: 0, sat: 0, transitionIn: "cut", transitionDur: 0.4 };
+export function newClipDefaults(): Pick<MontageClip, "speed" | "filterId" | "lum" | "con" | "sat" | "transitionIn" | "transitionDur" | "vol"> {
+  return { speed: 1, filterId: "none", lum: 0, con: 0, sat: 0, transitionIn: "cut", transitionDur: 0.4, vol: 1 };
+}
+
+// Redécoupe des segments Whisper en sous-titres courts (max 3-4 mots) façon CapCut :
+// le temps de chaque segment est réparti proportionnellement au nombre de mots, ce
+// qui donne des sous-titres qui s'enchaînent au rythme de la parole.
+const MAX_WORDS_PER_CAPTION = 4;
+export function segmentCaptions(
+  segments: { start: number; end: number; text: string }[],
+): { id: string; start: number; end: number; text: string }[] {
+  const out: { id: string; start: number; end: number; text: string }[] = [];
+  for (const seg of segments) {
+    const words = (seg.text || "").trim().split(/\s+/).filter(Boolean);
+    if (!words.length) continue;
+    const segDur = Math.max(0.001, seg.end - seg.start);
+    const perWord = segDur / words.length;
+    for (let i = 0; i < words.length; i += MAX_WORDS_PER_CAPTION) {
+      const chunk = words.slice(i, i + MAX_WORDS_PER_CAPTION);
+      const start = seg.start + i * perWord;
+      const end = seg.start + Math.min(words.length, i + chunk.length) * perWord;
+      out.push({ id: crypto.randomUUID(), start, end, text: chunk.join(" ") });
+    }
+  }
+  return out;
 }
 
 export function clipFilterCss(c: MontageClip): string {

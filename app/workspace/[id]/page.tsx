@@ -13,12 +13,25 @@ import NotificationBell from "@/components/NotificationBell";
 type PostStatus = "idle" | "generating" | "generated" | "validating" | "validated";
 type PostType   = "post" | "reel" | "story" | "carrousel";
 
+// Formats alignés sur l'éditeur (PT_FORMAT_MAP) : post = portrait 4:5 (1080×1350),
+// carrousel = carré 1:1 (1080×1080), reel/story = vertical 9:16 (1080×1920).
 const POST_TYPE_CFG: Record<PostType, { label: string; color: string; bg: string; format: string }> = {
-  post:      { label: "Publication",  color: "#4F8EF7", bg: "#4F8EF715", format: "1080×1080 px" },
+  post:      { label: "Publication",  color: "#4F8EF7", bg: "#4F8EF715", format: "1080×1350 px" },
   reel:      { label: "Reel",         color: "#A259FF", bg: "#A259FF15", format: "1080×1920 px" },
   story:     { label: "Story",        color: "#FF6B35", bg: "#FF6B3515", format: "1080×1920 px" },
   carrousel: { label: "Carrousel",    color: "#F7A94F", bg: "#F7A94F15", format: "1080×1080 px" },
 };
+
+// Ratio d'affichage réel selon le format (post = 4:5, carrousel = carré, reel/story = 9:16).
+function aspectForPostType(t?: PostType | null): string {
+  if (t === "reel" || t === "story") return "9 / 16";
+  if (t === "carrousel") return "1 / 1";
+  return "4 / 5";
+}
+// Règles de format : une vidéo ne peut être que Reel/Story, une photo Post/Carrousel/Story (pas Reel).
+function allowedPostTypes(isVideo: boolean): PostType[] {
+  return isVideo ? ["reel", "story"] : ["post", "carrousel", "story"];
+}
 
 // Modèles éditoriaux (angle de contenu) proposés avant génération.
 const EDITORIAL_MODELS: { id: string; label: string; color: string; hint: string }[] = [
@@ -483,16 +496,21 @@ export default function WorkspacePage() {
   }
 
   function createPostItemsWithType(files: File[], post_type: PostType) {
-    const newItems: PostItem[] = files.map((file) => ({
-      localId: crypto.randomUUID(),
-      file,
-      isVideo: file.type.startsWith("video/"),
-      photo_url: URL.createObjectURL(file),
-      brief: "", description: "", texte_visuel: "",
-      status: "idle" as PostStatus,
-      templateId: null,
-      post_type,
-    }));
+    const newItems: PostItem[] = files.map((file) => {
+      const isVideo = file.type.startsWith("video/");
+      // Force un type compatible avec le média (vidéo → Reel/Story, photo → Post/Carrousel/Story).
+      const allowed = allowedPostTypes(isVideo);
+      return {
+        localId: crypto.randomUUID(),
+        file,
+        isVideo,
+        photo_url: URL.createObjectURL(file),
+        brief: "", description: "", texte_visuel: "",
+        status: "idle" as PostStatus,
+        templateId: null,
+        post_type: allowed.includes(post_type) ? post_type : allowed[0],
+      };
+    });
     setPosts((prev) => [...newItems, ...prev]);
     setPendingFiles(null);
   }
@@ -1138,7 +1156,7 @@ export default function WorkspacePage() {
                         <div key={post.localId} className="card klip-card-in ws-post-card" style={{ overflow: 'hidden', display: 'flex', animationDelay: `${Math.min(pIdx, 8) * 55}ms` }}>
                           {/* ── Colonne gauche : visuel + type + remplacer ── */}
                           <div className="ws-post-left" style={{ flexShrink: 0, width: 300, background: 'var(--canvas)', borderRight: '1px solid var(--line-2)', padding: 14, display: 'flex', flexDirection: 'column', gap: 10 }}>
-                            <div style={{ position: 'relative', aspectRatio: '4/5', borderRadius: 13, overflow: 'hidden', background: '#000' }}>
+                            <div style={{ position: 'relative', aspectRatio: aspectForPostType(post.post_type), borderRadius: 13, overflow: 'hidden', background: '#000' }}>
                               {post.isVideo ? (
                                 <video src={post.photo_url} controls style={{ width: '100%', height: '100%', objectFit: 'contain', display: 'block' }} />
                               ) : (
@@ -1163,9 +1181,11 @@ export default function WorkspacePage() {
                             <div className="ws-type-pills" style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
                               {(['post', 'reel', 'carrousel', 'story'] as PostType[]).map(t => {
                                 const active = (post.post_type ?? 'post') === t;
+                                const ok = allowedPostTypes(!!post.isVideo).includes(t);
                                 return (
-                                  <button key={t} onClick={() => updatePostType(post.localId, t)}
-                                    style={{ flex: '1 1 auto', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5, padding: '7px 6px', borderRadius: 9, cursor: 'pointer', fontSize: 11, fontWeight: 700, fontFamily: 'var(--sans)',
+                                  <button key={t} disabled={!ok} onClick={() => ok && updatePostType(post.localId, t)}
+                                    title={ok ? undefined : post.isVideo ? "Une vidéo ne peut être qu'un Reel ou une Story" : "Une photo ne peut pas être un Reel"}
+                                    style={{ flex: '1 1 auto', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5, padding: '7px 6px', borderRadius: 9, cursor: ok ? 'pointer' : 'not-allowed', opacity: ok ? 1 : 0.4, fontSize: 11, fontWeight: 700, fontFamily: 'var(--sans)',
                                       border: active ? '1.5px solid var(--ink)' : '1px solid var(--line)', background: active ? 'var(--ink)' : 'var(--card)', color: active ? 'var(--paper)' : 'var(--ink-2)', transition: 'all .14s' }}>
                                     <span style={{ width: 6, height: 6, borderRadius: '50%', background: POST_TYPE_CFG[t].color, flexShrink: 0 }} />
                                     {POST_TYPE_CFG[t].label}
@@ -1408,9 +1428,9 @@ export default function WorkspacePage() {
                                       </div>
                                     </div>
 
-                                    {/* Preview thumbnail */}
+                                    {/* Preview thumbnail — couverture au vrai format vertical du Reel (9:16) */}
                                     <div style={{ padding: '10px 12px 0' }}>
-                                      <div style={{ width: '100%', aspectRatio: '16/9', borderRadius: 'var(--r)', overflow: 'hidden', background: '#000', position: 'relative' }}>
+                                      <div style={{ width: '100%', maxWidth: 150, margin: '0 auto', aspectRatio: '9/16', borderRadius: 'var(--r)', overflow: 'hidden', background: '#000', position: 'relative' }}>
                                         {(thumbPreviews[post.localId] || post.thumbnail_url) ? (
                                           // eslint-disable-next-line @next/next/no-img-element
                                           <img src={thumbPreviews[post.localId] || post.thumbnail_url!} alt="Miniature" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
