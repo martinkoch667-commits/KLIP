@@ -178,6 +178,57 @@ export default function StyleTemplatePage() {
   const [wordsAvoid, setWordsAvoid]     = useState("");
   const [captionEx, setCaptionEx]       = useState("");
 
+  // ── Analyse IA du style Instagram ────────────────────────────────────────────
+  interface StyleAnalysis {
+    postsAnalyzed: number;
+    hasStats: boolean;
+    summary: string;
+    strengths: string[];
+    improvements: string[];
+    suggestedDescriptionStyle: string;
+    bestCaption: string;
+  }
+  const [analyzing, setAnalyzing]       = useState(false);
+  const [analysis, setAnalysis]         = useState<StyleAnalysis | null>(null);
+  const [analysisErr, setAnalysisErr]   = useState<string | null>(null);
+  const [styleApplied, setStyleApplied] = useState(false);
+
+  async function runStyleAnalysis() {
+    setAnalyzing(true); setAnalysisErr(null); setAnalysis(null); setStyleApplied(false);
+    try {
+      const res = await fetch("/api/instagram/analyze-style", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ workspaceId: id }),
+      });
+      const data = await res.json();
+      if (!res.ok) { setAnalysisErr(data.error || "Analyse impossible."); return; }
+      setAnalysis(data as StyleAnalysis);
+    } catch {
+      setAnalysisErr("Erreur réseau, réessayez.");
+    } finally {
+      setAnalyzing(false);
+    }
+  }
+
+  async function applyStyleAnalysis() {
+    if (!analysis) return;
+    // Persiste directement : description_style guide la génération et n'est pas
+    // écrasé par la sauvegarde manuelle (qui ne touche que brand_voice_prompt).
+    try {
+      await supabase.from("workspaces").update({
+        description_style: analysis.suggestedDescriptionStyle || null,
+        caption_examples: analysis.bestCaption || null,
+      }).eq("id", id);
+      if (analysis.bestCaption) setCaptionEx(analysis.bestCaption);
+      setStyleApplied(true);
+      setToast("Style appliqué — les prochaines légendes s'en inspireront");
+      setTimeout(() => setToast(null), 2600);
+    } catch {
+      setAnalysisErr("Impossible d'appliquer le style, réessayez.");
+    }
+  }
+
   // ── Couleurs ────────────────────────────────────────────────────────────────
   const [colorPrimary, setColorPrimary]     = useState("#0038FF");
   const [colorSecondary, setColorSecondary] = useState("#FFFFFF");
@@ -590,6 +641,88 @@ export default function StyleTemplatePage() {
                       <label style={labelStyle}>Exemple de caption approuvée</label>
                       <textarea style={{ ...inputStyle, resize: "none", lineHeight: 1.6 }} value={captionEx} onChange={e => setCaptionEx(e.target.value)} placeholder="Collez ici une caption Instagram existante que le client apprécie…" rows={3} />
                     </div>
+                  </div>
+                </SectionCard>
+
+                {/* Section Analyse IA du style Instagram */}
+                <SectionCard title="Analyse IA du style Instagram">
+                  <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                    <p style={{ fontSize: 13, color: "var(--ink-2)", lineHeight: 1.6, margin: 0 }}>
+                      Klip analyse les dernières légendes publiées sur le compte connecté pour comprendre votre ligne éditoriale, souligner vos points forts et proposer des pistes d'amélioration. Vous décidez ensuite d'appliquer ou non ces recommandations.
+                    </p>
+
+                    {!analysis && (
+                      <button type="button" className="btn btn-dark" onClick={runStyleAnalysis} disabled={analyzing} style={{ alignSelf: "flex-start" }}>
+                        {analyzing ? "Analyse en cours…" : "Analyser mon compte Instagram"}
+                      </button>
+                    )}
+
+                    {analysisErr && (
+                      <div style={{ fontSize: 12.5, color: "var(--warn)", background: "var(--warn-soft)", padding: "10px 12px", borderRadius: 10 }}>
+                        {analysisErr}
+                      </div>
+                    )}
+
+                    {analysis && (
+                      <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                        <div style={{ fontSize: 11.5, color: "var(--ink-3)", fontWeight: 600 }}>
+                          {analysis.postsAnalyzed} publication{analysis.postsAnalyzed > 1 ? "s" : ""} analysée{analysis.postsAnalyzed > 1 ? "s" : ""}{analysis.hasStats ? " · engagement pris en compte" : ""}
+                        </div>
+
+                        {analysis.summary && (
+                          <div style={{ background: "var(--sunk)", borderRadius: 12, padding: "14px 16px" }}>
+                            <div style={{ ...labelStyle, marginBottom: 6 }}>Votre ligne éditoriale</div>
+                            <p style={{ fontSize: 13.5, color: "var(--ink)", lineHeight: 1.6, margin: 0 }}>{analysis.summary}</p>
+                          </div>
+                        )}
+
+                        <div className="ws-upload-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+                          {analysis.strengths.length > 0 && (
+                            <div>
+                              <div style={{ ...labelStyle, marginBottom: 8, color: "var(--mint-2)" }}>Points forts</div>
+                              <ul style={{ margin: 0, paddingLeft: 0, listStyle: "none", display: "flex", flexDirection: "column", gap: 8 }}>
+                                {analysis.strengths.map((s, i) => (
+                                  <li key={i} style={{ fontSize: 12.5, color: "var(--ink-2)", lineHeight: 1.5, display: "flex", gap: 8 }}>
+                                    <span style={{ color: "var(--mint-2)", flexShrink: 0 }}>✓</span>{s}
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+                          )}
+                          {analysis.improvements.length > 0 && (
+                            <div>
+                              <div style={{ ...labelStyle, marginBottom: 8, color: "var(--warn)" }}>Pistes d'amélioration</div>
+                              <ul style={{ margin: 0, paddingLeft: 0, listStyle: "none", display: "flex", flexDirection: "column", gap: 8 }}>
+                                {analysis.improvements.map((s, i) => (
+                                  <li key={i} style={{ fontSize: 12.5, color: "var(--ink-2)", lineHeight: 1.5, display: "flex", gap: 8 }}>
+                                    <span style={{ color: "var(--warn)", flexShrink: 0 }}>→</span>{s}
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+                          )}
+                        </div>
+
+                        {analysis.suggestedDescriptionStyle && (
+                          <div style={{ border: "1.5px solid var(--mint)", background: "var(--mint-soft)", borderRadius: 12, padding: "14px 16px" }}>
+                            <div style={{ ...labelStyle, marginBottom: 6, color: "var(--mint-2)" }}>Consignes de style suggérées</div>
+                            <p style={{ fontSize: 13, color: "var(--ink)", lineHeight: 1.6, margin: 0 }}>{analysis.suggestedDescriptionStyle}</p>
+                          </div>
+                        )}
+
+                        <div style={{ display: "flex", flexWrap: "wrap", gap: 10, alignItems: "center" }}>
+                          <button type="button" className="btn btn-primary" onClick={applyStyleAnalysis} disabled={styleApplied}>
+                            {styleApplied ? "Style appliqué ✓" : "Appliquer ce style"}
+                          </button>
+                          <button type="button" className="btn btn-ghost" onClick={() => { setAnalysis(null); setStyleApplied(false); }}>
+                            Garder mon style actuel
+                          </button>
+                          <button type="button" className="btn btn-ghost btn-sm" onClick={runStyleAnalysis} disabled={analyzing} style={{ marginLeft: "auto" }}>
+                            {analyzing ? "…" : "Relancer l'analyse"}
+                          </button>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </SectionCard>
 
