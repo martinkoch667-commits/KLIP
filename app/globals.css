@@ -820,6 +820,18 @@ input.ed-range::-moz-range-thumb {
 
 .a-canvas { flex: 1; min-width: 0; display: flex; flex-direction: column; }
 
+/* poignées de redimensionnement (comme CapCut) */
+.a-hresize { width: 8px; flex-shrink: 0; cursor: ew-resize; display: flex; align-items: center; justify-content: center;
+  background: var(--white); border-right: 1px solid var(--line); position: relative; z-index: 18; }
+.a-hresize:hover, .a-hresize:active { background: rgba(47,215,155,.08); }
+.a-hresize-grip { width: 3px; height: 40px; border-radius: 3px; background: var(--line-2); transition: background .13s var(--ease), height .13s var(--ease); }
+.a-hresize:hover .a-hresize-grip, .a-hresize:active .a-hresize-grip { background: var(--mint-2); height: 60px; }
+.a-vresize { height: 8px; flex-shrink: 0; cursor: ns-resize; display: flex; align-items: center; justify-content: center;
+  background: var(--white); border-top: 1px solid var(--line); position: relative; z-index: 18; }
+.a-vresize:hover, .a-vresize:active { background: rgba(47,215,155,.08); }
+.a-vresize-grip { width: 40px; height: 3px; border-radius: 3px; background: var(--line-2); transition: background .13s var(--ease), width .13s var(--ease); }
+.a-vresize:hover .a-vresize-grip, .a-vresize:active .a-vresize-grip { background: var(--mint-2); width: 60px; }
+
 /* timeline dock */
 .a-timeline { height: 178px; flex-shrink: 0; background: var(--white); border-top: 1px solid var(--line);
   display: flex; flex-direction: column; position: relative; z-index: 15; box-shadow: 0 -10px 30px -20px rgba(13,15,10,.25); }

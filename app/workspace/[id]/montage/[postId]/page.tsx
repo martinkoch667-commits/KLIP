@@ -118,6 +118,34 @@ export default function MontagePage() {
   const [pps, setPps] = useState(40);
   const [histTick, setHistTick] = useState(0);
 
+  // Disposition redimensionnable (persistée) — comme CapCut
+  const [panelW, setPanelW] = useState(312);
+  const [timelineH, setTimelineH] = useState(178);
+  useEffect(() => {
+    try {
+      const w = Number(localStorage.getItem("klip-mz-panelW"));
+      const h = Number(localStorage.getItem("klip-mz-timelineH"));
+      if (w >= 240 && w <= 520) setPanelW(w);
+      if (h >= 120 && h <= 640) setTimelineH(h);
+    } catch {}
+  }, []);
+  const startPanelResize = useCallback((e: React.PointerEvent) => {
+    e.preventDefault();
+    const startX = e.clientX, startW = panelW;
+    const move = (ev: PointerEvent) => setPanelW(Math.max(240, Math.min(520, startW + (ev.clientX - startX))));
+    const up = () => { window.removeEventListener("pointermove", move); window.removeEventListener("pointerup", up); document.body.style.cursor = ""; setPanelW((w) => { try { localStorage.setItem("klip-mz-panelW", String(w)); } catch {} return w; }); };
+    document.body.style.cursor = "ew-resize";
+    window.addEventListener("pointermove", move); window.addEventListener("pointerup", up);
+  }, [panelW]);
+  const startTimelineResize = useCallback((e: React.PointerEvent) => {
+    e.preventDefault();
+    const startY = e.clientY, startH = timelineH;
+    const move = (ev: PointerEvent) => setTimelineH(Math.max(120, Math.min(window.innerHeight - 220, startH + (startY - ev.clientY))));
+    const up = () => { window.removeEventListener("pointermove", move); window.removeEventListener("pointerup", up); document.body.style.cursor = ""; setTimelineH((h) => { try { localStorage.setItem("klip-mz-timelineH", String(h)); } catch {} return h; }); };
+    document.body.style.cursor = "ns-resize";
+    window.addEventListener("pointermove", move); window.addEventListener("pointerup", up);
+  }, [timelineH]);
+
   const [time, setTime] = useState(0);
   const [playing, setPlaying] = useState(false);
 
@@ -787,7 +815,7 @@ export default function MontagePage() {
         </div>
 
         {/* panneau de propriétés */}
-        <div className="a-panel" key={tool}>
+        <div className="a-panel" key={tool} style={{ width: panelW }}>
           <div className="a-panel-head"><span className="a-panel-title">{TOOL_TITLES[tool]}</span></div>
           <div className="a-panel-scroll">
             {tool === "media" && (
@@ -837,6 +865,9 @@ export default function MontagePage() {
             {tool === "ai" && <AiPanel ctx={ctx} />}
           </div>
         </div>
+
+        {/* poignée de redimensionnement du panneau */}
+        <div className="a-hresize" onPointerDown={startPanelResize} title="Redimensionner le panneau"><span className="a-hresize-grip" /></div>
 
         {/* preview + playbar */}
         <div className="a-canvas">
@@ -972,8 +1003,11 @@ export default function MontagePage() {
         </div>
       </div>
 
+      {/* poignée de redimensionnement de la timeline */}
+      <div className="a-vresize" onPointerDown={startTimelineResize} title="Redimensionner la timeline"><span className="a-vresize-grip" /></div>
+
       {/* timeline dock */}
-      <div className="a-timeline">
+      <div className="a-timeline" style={{ height: timelineH }}>
         <div className="a-tl-bar">
           <button className="a-tl-tool" disabled={!selectedClipId} onClick={splitAtPlayhead}><VIcon name="split" size={15} /> Diviser</button>
           <button className="a-tl-tool" disabled={!selectedClipId} onClick={() => selectedClipId && duplicateClip(selectedClipId)}><VIcon name="copy" size={15} /> Dupliquer</button>
@@ -1044,16 +1078,18 @@ export default function MontagePage() {
             <div className="a-lane" style={{ height: 34 }}>
               <div className="a-lane-label"><VIcon name="music" size={13} /> Audio</div>
               <div className="a-lane-track">
-                {/* son embarqué des plans vidéo — clic = sélectionne le plan ; Option/Alt+clic = son seul (n'active pas la piste vidéo) */}
+                {/* son embarqué des plans vidéo — clic = sélectionne la piste audio seule ; Option/Alt+clic = aussi le plan vidéo lié */}
                 {clipStarts.filter((c) => c.kind === "video").map((c) => (
                   <div
                     key={"va-" + c.id}
-                    className={"a-wave-bar" + (selectedClipId === c.id || audioOnlyId === c.id ? " on" : "")}
+                    className={"a-wave-bar" + (audioOnlyId === c.id ? " on" : "")}
                     style={{ left: c.start * pps, width: c.dur * pps, top: 2, bottom: 2, background: (c.vol ?? 1) === 0 ? "var(--sunk)" : "linear-gradient(150deg,#1f7a4d,#0c2a1d)", opacity: (c.vol ?? 1) === 0 ? 0.5 : 1, cursor: "pointer", boxShadow: audioOnlyId === c.id ? "inset 0 0 0 2px var(--acid)" : undefined }}
-                    title={`Son de « ${c.name} » — ${Math.round((c.vol ?? 1) * 100)}% · Option+clic : sélectionner le son seul`}
+                    title={`Son de « ${c.name} » — ${Math.round((c.vol ?? 1) * 100)}% · Option+clic : sélectionner aussi le plan vidéo`}
                     onClick={(e) => {
-                      if (e.altKey) { setAudioOnlyId(c.id); setSelectedClipId(null); setSelectedTitleId(null); setSelectedStickerId(null); }
-                      else { setSelectedClipId(c.id); setAudioOnlyId(null); }
+                      setAudioOnlyId(c.id);
+                      if (e.altKey) { setSelectedClipId(c.id); }
+                      else { setSelectedClipId(null); }
+                      setSelectedTitleId(null); setSelectedStickerId(null);
                       setTool("audio");
                     }}
                   >
