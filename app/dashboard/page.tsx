@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Sidebar from '@/components/Sidebar';
 import OnboardingTour from '@/components/OnboardingTour';
+import OnboardingChecklist from '@/components/OnboardingChecklist';
 import NotificationBell from '@/components/NotificationBell';
 
 // ─── Types ─────────────────────────────────────────────────────────────────
@@ -811,6 +812,7 @@ export default function Dashboard() {
       </div>
 
       <OnboardingTour />
+      <OnboardingChecklist />
     </div>
   );
 }
