@@ -72,6 +72,8 @@ export interface MontageProject {
   clips: MontageClip[];
   captions: Caption[];
   subStyleId: string;
+  subMaxWords?: number;                                       // mots max par sous-titre (défaut 4)
+  rawSegments?: { start: number; end: number; text: string }[]; // segments Whisper bruts (pour re-découper)
   titles: TitleEl[];
   stickers: StickerEl[];
   audioTracks: AudioTrack[];
@@ -99,13 +101,68 @@ export const TRANSITIONS: { id: string; name: string; glyph: string }[] = [
 
 export const SPEEDS = [0.25, 0.5, 1, 1.5, 2];
 
-export const SUB_STYLES: {
-  id: string; name: string; sub: string; bg: string; fg: string; hi: string; weight: number; italic: boolean; pill: boolean;
-}[] = [
-  { id: "karaoke", name: "Karaoké", sub: "Mot par mot", bg: "#0C2A1D", fg: "#EEEDE3", hi: "#C8F135", weight: 800, italic: false, pill: true },
-  { id: "editorial", name: "Éditorial", sub: "Archivo italique", bg: "transparent", fg: "#FFFFFF", hi: "#2FD79B", weight: 800, italic: true, pill: false },
-  { id: "clean", name: "Net", sub: "Bandeau plein", bg: "#FFFFFF", fg: "#14160F", hi: "#1F7A4D", weight: 700, italic: false, pill: false },
-  { id: "mint", name: "Menthe", sub: "Accent KLIP", bg: "rgba(47,215,155,.92)", fg: "#06281C", hi: "#0C2A1D", weight: 800, italic: false, pill: true },
+export interface SubStyle {
+  id: string;
+  name: string;
+  sub: string;
+  bg: string;          // fond de la boîte ("transparent" = texte nu)
+  fg: string;          // couleur du texte
+  hi: string;          // couleur du mot actif (surlignage karaoké)
+  weight: number;      // graisse
+  italic: boolean;
+  pill: boolean;       // coins arrondis pleins (pilule) vs bandeau léger
+  uppercase?: boolean; // MAJUSCULES
+  stroke?: string;     // couleur du contour (outline autour du texte)
+  font?: string;       // fontFamily CSS (défaut : Satoshi / Archivo si italic)
+}
+
+// Bibliothèque de styles de sous-titres façon CapCut — large variété (couleur, contour,
+// pilule, majuscules, polices). Le rendu (aperçu + export) honore tous ces champs.
+export const SUB_STYLES: SubStyle[] = [
+  // — Essentiels —
+  { id: "karaoke",   name: "Karaoké",    sub: "Mot par mot",      bg: "#0C2A1D",             fg: "#EEEDE3", hi: "#C8F135", weight: 800, italic: false, pill: true },
+  { id: "editorial", name: "Éditorial",  sub: "Archivo italique", bg: "transparent",         fg: "#FFFFFF", hi: "#2FD79B", weight: 800, italic: true,  pill: false },
+  { id: "clean",     name: "Net",        sub: "Bandeau blanc",    bg: "#FFFFFF",             fg: "#14160F", hi: "#1F7A4D", weight: 700, italic: false, pill: false },
+  { id: "mint",      name: "Menthe",     sub: "Accent KLIP",      bg: "rgba(47,215,155,.92)",fg: "#06281C", hi: "#0C2A1D", weight: 800, italic: false, pill: true },
+  // — Contour (outline) —
+  { id: "bold-white",name: "Punch",      sub: "Contour noir",     bg: "transparent",         fg: "#FFFFFF", hi: "#FFE14D", weight: 900, italic: false, pill: false, uppercase: true, stroke: "#000000" },
+  { id: "bold-yellow",name: "TikTok",    sub: "Jaune contour",    bg: "transparent",         fg: "#FFE14D", hi: "#FFFFFF", weight: 900, italic: false, pill: false, uppercase: true, stroke: "#000000" },
+  { id: "bold-mint", name: "Néon menthe",sub: "Contour foncé",    bg: "transparent",         fg: "#2FD79B", hi: "#FFFFFF", weight: 900, italic: false, pill: false, uppercase: true, stroke: "#06281C" },
+  { id: "bold-pink", name: "Bubblegum",  sub: "Rose contour",     bg: "transparent",         fg: "#FF5DA2", hi: "#FFFFFF", weight: 900, italic: false, pill: false, uppercase: true, stroke: "#2A0A1B" },
+  { id: "bold-blue", name: "Électrique", sub: "Bleu contour",     bg: "transparent",         fg: "#4DA2FF", hi: "#FFFFFF", weight: 900, italic: false, pill: false, uppercase: true, stroke: "#08203A" },
+  // — Pilules colorées —
+  { id: "pill-black",name: "Pilule noire",sub: "Fond sombre",     bg: "rgba(12,14,10,.9)",   fg: "#FFFFFF", hi: "#C8F135", weight: 800, italic: false, pill: true },
+  { id: "pill-acid", name: "Acide",      sub: "Pilule citron",    bg: "#C8F135",             fg: "#14160F", hi: "#0C2A1D", weight: 800, italic: false, pill: true, uppercase: true },
+  { id: "pill-coral",name: "Corail",     sub: "Pilule chaude",    bg: "#FF6B4A",             fg: "#2A0A03", hi: "#FFFFFF", weight: 800, italic: false, pill: true },
+  { id: "pill-violet",name: "Violet",    sub: "Pilule mauve",     bg: "#7C5CFF",             fg: "#FFFFFF", hi: "#FFE14D", weight: 800, italic: false, pill: true },
+  { id: "pill-forest",name: "Forêt",     sub: "Pilule verte",     bg: "#103A28",             fg: "#EEEDE3", hi: "#2FD79B", weight: 800, italic: false, pill: true },
+  // — Bandeaux pleins —
+  { id: "band-black",name: "Bandeau noir",sub: "Bloc sombre",     bg: "#14160F",             fg: "#FFFFFF", hi: "#C8F135", weight: 700, italic: false, pill: false },
+  { id: "band-cream",name: "Crème",      sub: "Bloc clair",       bg: "#F1F0E8",             fg: "#14160F", hi: "#21B381", weight: 700, italic: false, pill: false },
+  { id: "band-red",  name: "Alerte",     sub: "Bloc rouge",       bg: "#E0332E",             fg: "#FFFFFF", hi: "#FFE14D", weight: 800, italic: false, pill: false, uppercase: true },
+  // — Élégants / éditoriaux —
+  { id: "serif-white",name: "Magazine",  sub: "Serif italique",   bg: "transparent",         fg: "#FFFFFF", hi: "#C8F135", weight: 400, italic: true,  pill: false, font: "'Instrument Serif', serif" },
+  { id: "serif-cream",name: "Vintage",   sub: "Serif crème",      bg: "transparent",         fg: "#F1E9D2", hi: "#E8B14C", weight: 400, italic: true,  pill: false, font: "'Instrument Serif', serif", stroke: "#3A2A10" },
+  { id: "mono-tech", name: "Terminal",   sub: "Mono tech",        bg: "rgba(6,20,14,.86)",   fg: "#2FD79B", hi: "#C8F135", weight: 600, italic: false, pill: false, font: "var(--mono)" },
+  // — Fun / gras —
+  { id: "sunset",    name: "Sunset",     sub: "Orange contour",   bg: "transparent",         fg: "#FFB347", hi: "#FFFFFF", weight: 900, italic: false, pill: false, uppercase: true, stroke: "#3A1A00" },
+  { id: "ocean",     name: "Océan",      sub: "Cyan contour",     bg: "transparent",         fg: "#3FE0E0", hi: "#FFFFFF", weight: 900, italic: false, pill: false, uppercase: true, stroke: "#052A2A" },
+  { id: "gold",      name: "Or",         sub: "Doré luxe",        bg: "transparent",         fg: "#E8B14C", hi: "#FFFFFF", weight: 800, italic: false, pill: false, uppercase: true, stroke: "#2A1C00" },
+  { id: "candy",     name: "Bonbon",     sub: "Pilule rose",      bg: "#FF5DA2",             fg: "#FFFFFF", hi: "#FFE14D", weight: 800, italic: false, pill: true, uppercase: true },
+];
+
+export function subStyleById(id: string): SubStyle {
+  return SUB_STYLES.find((s) => s.id === id) || SUB_STYLES[0];
+}
+
+// Options de longueur de sous-titre (mots max par bloc) proposées à l'utilisateur.
+export const SUB_LENGTHS: { words: number; label: string }[] = [
+  { words: 1, label: "1 mot" },
+  { words: 2, label: "2 mots" },
+  { words: 3, label: "3 mots" },
+  { words: 4, label: "4 mots" },
+  { words: 6, label: "6 mots" },
+  { words: 99, label: "Phrase" },
 ];
 
 export const STICKER_GLYPHS = ["✦", "↗", "🌿", "☕", "◆", "✿", "→", "★", "✷", "∴", "❋", "●"];
@@ -133,21 +190,23 @@ export function newClipDefaults(): Pick<MontageClip, "speed" | "filterId" | "lum
   return { speed: 1, filterId: "none", lum: 0, con: 0, sat: 0, transitionIn: "cut", transitionDur: 0.4, vol: 1 };
 }
 
-// Redécoupe des segments Whisper en sous-titres courts (max 3-4 mots) façon CapCut :
-// le temps de chaque segment est réparti proportionnellement au nombre de mots, ce
-// qui donne des sous-titres qui s'enchaînent au rythme de la parole.
-const MAX_WORDS_PER_CAPTION = 4;
+// Redécoupe des segments Whisper en sous-titres courts façon CapCut : le temps de chaque
+// segment est réparti proportionnellement au nombre de mots, ce qui donne des sous-titres
+// qui s'enchaînent au rythme de la parole. `maxWords` = longueur choisie par l'utilisateur.
+export const DEFAULT_WORDS_PER_CAPTION = 4;
 export function segmentCaptions(
   segments: { start: number; end: number; text: string }[],
+  maxWords: number = DEFAULT_WORDS_PER_CAPTION,
 ): { id: string; start: number; end: number; text: string }[] {
+  const step = Math.max(1, Math.floor(maxWords));
   const out: { id: string; start: number; end: number; text: string }[] = [];
   for (const seg of segments) {
     const words = (seg.text || "").trim().split(/\s+/).filter(Boolean);
     if (!words.length) continue;
     const segDur = Math.max(0.001, seg.end - seg.start);
     const perWord = segDur / words.length;
-    for (let i = 0; i < words.length; i += MAX_WORDS_PER_CAPTION) {
-      const chunk = words.slice(i, i + MAX_WORDS_PER_CAPTION);
+    for (let i = 0; i < words.length; i += step) {
+      const chunk = words.slice(i, i + step);
       const start = seg.start + i * perWord;
       const end = seg.start + Math.min(words.length, i + chunk.length) * perWord;
       out.push({ id: crypto.randomUUID(), start, end, text: chunk.join(" ") });

@@ -6,7 +6,7 @@ import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
 import { VIcon } from "./icons";
 import {
   MontageClip, Caption, TitleEl, StickerEl, AudioTrack, MontageProject,
-  FILTERS, TRANSITIONS, SUB_STYLES, FONT_CHOICES,
+  FILTERS, TRANSITIONS, SUB_STYLES, FONT_CHOICES, SUB_LENGTHS, DEFAULT_WORDS_PER_CAPTION, subStyleById,
   fmt, newClipDefaults, clipFilterCss, clipTimelineDur, segmentCaptions,
 } from "./constants";
 import { MontageCtx, CutPanel, TextPanel, CaptionsPanel, AudioPanel, TransitionsPanel, FilterPanel, SpeedPanel, StickerPanel, AiPanel } from "./panels";
@@ -89,6 +89,8 @@ export default function MontagePage() {
   const [clips, setClips] = useState<MontageClip[]>([]);
   const [captions, setCaptions] = useState<Caption[]>([]);
   const [subStyleId, setSubStyleId] = useState<string>(SUB_STYLES[0].id);
+  const [subMaxWords, setSubMaxWords] = useState<number>(DEFAULT_WORDS_PER_CAPTION);
+  const [rawSegments, setRawSegments] = useState<{ start: number; end: number; text: string }[]>([]);
   const [titles, setTitles] = useState<TitleEl[]>([]);
   const [stickers, setStickers] = useState<StickerEl[]>([]);
   const [audioTracks, setAudioTracks] = useState<AudioTrack[]>([]);
@@ -148,6 +150,8 @@ export default function MontagePage() {
         setClips(proj.clips.map(normalizeClip));
         setCaptions(proj.captions || []);
         setSubStyleId(proj.subStyleId || SUB_STYLES[0].id);
+        setSubMaxWords(proj.subMaxWords || DEFAULT_WORDS_PER_CAPTION);
+        setRawSegments(proj.rawSegments || []);
         setTitles(proj.titles || []);
         setStickers(proj.stickers || []);
         setAudioTracks(proj.audioTracks || []);
@@ -177,11 +181,11 @@ export default function MontagePage() {
     if (loading) return;
     if (saveTimer.current) clearTimeout(saveTimer.current);
     saveTimer.current = setTimeout(() => {
-      const project: MontageProject = { clips, captions, subStyleId, titles, stickers, audioTracks, showProgressBar, exportUrl };
+      const project: MontageProject = { clips, captions, subStyleId, subMaxWords, rawSegments, titles, stickers, audioTracks, showProgressBar, exportUrl };
       supabase.from("posts").update({ montage_json: project }).eq("id", postId).then(() => {});
     }, 700);
     return () => { if (saveTimer.current) clearTimeout(saveTimer.current); };
-  }, [clips, captions, subStyleId, titles, stickers, audioTracks, showProgressBar, exportUrl, loading, postId, supabase]);
+  }, [clips, captions, subStyleId, subMaxWords, rawSegments, titles, stickers, audioTracks, showProgressBar, exportUrl, loading, postId, supabase]);
 
   // ── Historique undo/redo ────────────────────────────────────────────────────
   type Snapshot = Pick<MontageProject, "clips" | "captions" | "subStyleId" | "titles" | "stickers" | "audioTracks" | "showProgressBar">;
@@ -466,7 +470,9 @@ export default function MontagePage() {
         toast(data?.message || "Transcription indisponible (clé API manquante).");
         return;
       }
-      const newCaps: Caption[] = segmentCaptions(data.segments || []);
+      const segs = (data.segments || []) as { start: number; end: number; text: string }[];
+      setRawSegments(segs);
+      const newCaps: Caption[] = segmentCaptions(segs, subMaxWords);
       setCaptions(newCaps);
       toast(`${newCaps.length} sous-titres générés.`);
     } catch {
@@ -474,6 +480,12 @@ export default function MontagePage() {
     } finally {
       setTranscribing(false);
     }
+  }
+
+  // Re-découpe les sous-titres avec une nouvelle longueur (mots/bloc) sans re-transcrire.
+  function setCaptionLength(words: number) {
+    setSubMaxWords(words);
+    if (rawSegments.length) setCaptions(segmentCaptions(rawSegments, words));
   }
 
   // ── Stickers ─────────────────────────────────────────────────────────────
@@ -673,14 +685,15 @@ export default function MontagePage() {
   }
 
   const ctx: MontageCtx = {
-    clips, selectedClip, captions, subStyleId, titles, stickers, audioTracks, showProgressBar,
+    clips, selectedClip, captions, subStyleId, subMaxWords, hasRawSegments: rawSegments.length > 0,
+    titles, stickers, audioTracks, showProgressBar,
     time, total, logoUrl, uploadingAudio, transcribing, isRecordingVO,
     toast, updateClip, splitAtPlayhead,
     duplicateSelected: () => selectedClipId && duplicateClip(selectedClipId),
     removeSelected: () => selectedClipId && removeClip(selectedClipId),
     applyTransitionToAll,
     addTitle, updateTitle, removeTitle,
-    addCaption, updateCaption, removeCaption, setSubStyleId, generateCaptionsAI,
+    addCaption, updateCaption, removeCaption, setSubStyleId, setCaptionLength, generateCaptionsAI,
     addSticker, updateSticker, removeSticker,
     toggleProgressBar, importAudio, removeAudioTrack, setAudioVol, toggleRecordVO,
   };
@@ -692,7 +705,7 @@ export default function MontagePage() {
   const activeTitles = titles.filter((t) => time >= t.start && time <= t.end);
   const activeStickers = stickers.filter((s) => time >= s.start && time <= s.end);
   const activeCaption = captions.find((c) => time >= c.start && time <= c.end);
-  const capStyle = SUB_STYLES.find((s) => s.id === subStyleId) || SUB_STYLES[0];
+  const capStyle = subStyleById(subStyleId);
 
   if (loading) {
     return (
@@ -864,10 +877,13 @@ export default function MontagePage() {
                     <div className="mz-cap-box" style={{
                       background: capStyle.bg, color: capStyle.fg,
                       fontWeight: capStyle.weight, fontStyle: capStyle.italic ? "italic" : "normal",
-                      fontFamily: capStyle.italic ? "var(--display)" : "var(--sans)",
+                      fontFamily: capStyle.font || (capStyle.italic ? "var(--display)" : "var(--sans)"),
                       padding: capStyle.pill ? "6px 16px" : "8px 12px",
                       borderRadius: capStyle.pill ? 99 : 8,
-                      textShadow: capStyle.bg === "transparent" ? "0 1px 8px rgba(0,0,0,.6)" : "none",
+                      textShadow: capStyle.bg === "transparent" && !capStyle.stroke ? "0 1px 8px rgba(0,0,0,.6)" : "none",
+                      textTransform: capStyle.uppercase ? "uppercase" : "none",
+                      WebkitTextStroke: capStyle.stroke ? `2px ${capStyle.stroke}` : undefined,
+                      paintOrder: "stroke fill",
                       fontSize: 15,
                     }}>
                       {activeCaption.text.split(/\s+/).filter(Boolean).map((w, i, arr) => {

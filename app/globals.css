@@ -894,6 +894,11 @@ input.mz-range::-moz-range-thumb { width: 16px; height: 16px; border-radius: 50%
 .mz-substyle-name { font-weight: 700; font-size: 12.5px; }
 .mz-substyle-sub { font-size: 10.5px; color: var(--ink-3); }
 
+/* chips de longueur de sous-titre */
+.mz-chip-btn { padding: 6px 12px; border-radius: 99px; border: none; cursor: pointer; font-size: 12px; font-weight: 700; color: var(--ink-2); background: var(--sunk); box-shadow: inset 0 0 0 1px var(--line); transition: all .14s var(--ease); }
+.mz-chip-btn:hover { box-shadow: inset 0 0 0 1px var(--ink-3); }
+.mz-chip-btn.on { background: var(--mint-2); color: #06281C; box-shadow: none; }
+
 .mz-chips { display: flex; flex-wrap: wrap; gap: 7px; }
 
 /* carte IA (transcription / assistant) */

@@ -91,12 +91,16 @@ function drawCaptions(ctx: CanvasRenderingContext2D, captions: Caption[], subSty
   const cap = captions.find((c) => t >= c.start && t <= c.end);
   if (!cap) return;
   const style = SUB_STYLES.find((s) => s.id === subStyleId) || SUB_STYLES[0];
-  const words = cap.text.split(/\s+/).filter(Boolean);
+  const rawWords = cap.text.split(/\s+/).filter(Boolean);
+  const words = style.uppercase ? rawWords.map((w) => w.toUpperCase()) : rawWords;
   const progress = (t - cap.start) / Math.max(0.1, cap.end - cap.start);
   const activeIdx = Math.min(words.length - 1, Math.floor(progress * words.length));
 
   const fontSize = 34;
-  ctx.font = `${style.weight} ${style.italic ? "italic " : ""}${fontSize}px ${style.italic ? "Georgia, serif" : "system-ui, sans-serif"}`;
+  const fam = style.font
+    ? (/serif/i.test(style.font) ? "Georgia, serif" : /mono/i.test(style.font) ? "ui-monospace, monospace" : "system-ui, sans-serif")
+    : (style.italic ? "Georgia, serif" : "system-ui, sans-serif");
+  ctx.font = `${style.weight} ${style.italic ? "italic " : ""}${fontSize}px ${fam}`;
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
 
@@ -118,15 +122,21 @@ function drawCaptions(ctx: CanvasRenderingContext2D, captions: Caption[], subSty
 
   let x = CANVAS_W / 2 - metrics.width / 2;
   const y = boxY + boxH / 2;
-  if (style.bg === "transparent") {
+  if (style.bg === "transparent" && !style.stroke) {
     ctx.shadowColor = "rgba(0,0,0,.6)";
     ctx.shadowBlur = 8;
   }
   ctx.textAlign = "left";
+  ctx.lineJoin = "round";
+  ctx.lineWidth = 5;
   words.forEach((w, i) => {
     const wordProg = Math.max(0, Math.min(1, progress * words.length - i));
     const revealed = i <= activeIdx;
     ctx.globalAlpha = revealed ? 0.35 + 0.65 * wordProg : 0.28;
+    if (style.stroke) {
+      ctx.strokeStyle = style.stroke;
+      ctx.strokeText(w, x, y);
+    }
     ctx.fillStyle = i === activeIdx ? style.hi : style.fg;
     ctx.fillText(w, x, y);
     x += ctx.measureText(w + " ").width;

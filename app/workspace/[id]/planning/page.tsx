@@ -203,6 +203,16 @@ function isVideoUrl(url?: string | null): boolean {
 function allowedTypesFor(isVideo: boolean): PostType[] {
   return isVideo ? ["reel", "story"] : ["post", "story"];
 }
+// Miniature média : rend une <video> (première image comme poster) pour les sources vidéo,
+// sinon une <img> via le proxy. Évite l'image cassée "?" pour les exports .webm/.mp4.
+function MediaThumb({ raw, style }: { raw?: string | null; style?: React.CSSProperties }) {
+  if (!raw) return null;
+  const base: React.CSSProperties = { width: "100%", height: "100%", objectFit: "cover", display: "block", ...style };
+  if (isVideoUrl(raw)) {
+    return <video src={`${raw}#t=0.1`} muted playsInline preload="metadata" style={base} />;
+  }
+  return <img src={`/api/proxy-image?url=${encodeURIComponent(raw)}`} alt="" style={base} />;
+}
 // Month view grid: Mon-based, pads with nulls
 function getMonthGrid(year: number, month: number): (Date | null)[] {
   const first = new Date(year, month, 1);
@@ -373,14 +383,13 @@ function CalendarRail({ posts, weekDays, chipColor, workspaceId }: {
           <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
             {toFinish.map(p => {
               const rawImg = p.exported_image_url || p.thumbnail_url || p.photo_url;
-              const thumb = rawImg ? `/api/proxy-image?url=${encodeURIComponent(rawImg)}` : null;
               return (
-                <Link key={p.id} href={`/workspace/${workspaceId}/editor/${p.id}`}
+                <Link key={p.id} href={`/workspace/${workspaceId}/${isVideoUrl(p.photo_url) ? "montage" : "editor"}/${p.id}`}
                   style={{ display: "flex", alignItems: "center", gap: 10, padding: 7, borderRadius: 10, textDecoration: "none", boxShadow: "inset 0 0 0 1px var(--line)", transition: "background .14s" }}
                   onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = "var(--sunk)"; }}
                   onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = "transparent"; }}>
                   <div style={{ width: 30, height: 38, borderRadius: 7, background: chipColor, flexShrink: 0, overflow: "hidden" }}>
-                    {thumb && <img src={thumb} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />}
+                    <MediaThumb raw={rawImg} />
                   </div>
                   <div style={{ minWidth: 0, flex: 1 }}>
                     <div style={{ fontWeight: 700, fontSize: 12.5, color: "var(--ink)" }} className="trunc">{p.texte_visuel || p.description?.slice(0, 40) || "Post"}</div>
@@ -820,7 +829,6 @@ function PlanningContent() {
                 <div style={{ display: "flex", gap: 10, overflowX: "auto", paddingBottom: 4 }}>
                   {scheduled.map(post => {
                     const rawImg  = post.exported_image_url || post.thumbnail_url || post.photo_url;
-                    const thumb   = rawImg ? `/api/proxy-image?url=${encodeURIComponent(rawImg)}` : null;
                     const isPub   = post.status === "published";
                     const pType   = (post.post_type as PostType) ?? "post";
                     const ptCfg   = POST_TYPE_CFG[pType];
@@ -830,9 +838,8 @@ function PlanningContent() {
                         style={{ flexShrink: 0, width: 100, borderRadius: 10, overflow: "hidden", cursor: "pointer", border: `2px solid ${isSelected ? chipColor : "var(--line)"}`, background: "var(--canvas)", boxShadow: isSelected ? `0 0 0 2px ${chipColor}30` : "none", transition: "border-color .12s" }}>
                         {/* Thumbnail */}
                         <div style={{ width: "100%", aspectRatio: "1", overflow: "hidden", background: "#000", position: "relative" }}>
-                          {thumb ? (
-                            // eslint-disable-next-line @next/next/no-img-element
-                            <img src={thumb} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                          {rawImg ? (
+                            <MediaThumb raw={rawImg} />
                           ) : (
                             <div style={{ width: "100%", height: "100%", background: chipColor }} />
                           )}
@@ -940,7 +947,6 @@ function PlanningContent() {
                         const isSelected = selectedPost?.id === post.id;
                         const isPub      = post.status === "published";
                         const rawImg     = post.exported_image_url || post.thumbnail_url || post.photo_url;
-                        const thumbSrc   = rawImg ? `/api/proxy-image?url=${encodeURIComponent(rawImg)}` : null;
                         const initials   = (workspace?.name ?? "??").slice(0, 2).toUpperCase();
                         return (
                           <div key={post.id}
@@ -966,9 +972,8 @@ function PlanningContent() {
                           >
                             {/* thumbnail */}
                             <div style={{ width: 30, height: 36, flexShrink: 0, overflow: "hidden", borderRadius: 5, marginLeft: 6 }}>
-                              {thumbSrc ? (
-                                // eslint-disable-next-line @next/next/no-img-element
-                                <img src={thumbSrc} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+                              {rawImg ? (
+                                <MediaThumb raw={rawImg} />
                               ) : (
                                 <div style={{ width: "100%", height: "100%", background: chipColor, display: "grid", placeItems: "center" }}>
                                   <span style={{ fontSize: 8, fontWeight: 800, color: "#fff", fontFamily: "var(--sans)" }}>{initials}</span>
@@ -1009,8 +1014,7 @@ function PlanningContent() {
                     onClick={() => selectPost(post)}
                     style={{ flexShrink: 0, width: 52, height: 64, borderRadius: 8, overflow: "hidden", cursor: "pointer", opacity: draggedId === post.id ? 0.35 : 1, boxShadow: selectedPost?.id === post.id ? `0 0 0 2.5px ${chipColor}` : "0 1px 4px rgba(13,15,10,.12)", userSelect: "none", background: "var(--white)" }}>
                     {(post.exported_image_url || post.thumbnail_url || post.photo_url) ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img src={post.exported_image_url || post.thumbnail_url || post.photo_url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                      <MediaThumb raw={post.exported_image_url || post.thumbnail_url || post.photo_url} />
                     ) : (
                       <div style={{ width: "100%", height: "100%", background: chipColor, display: "grid", placeItems: "center" }}>
                         <span style={{ fontFamily: "var(--sans)", fontSize: 9, fontWeight: 800, color: "#fff", textTransform: "uppercase" }}>Post</span>
@@ -1061,7 +1065,6 @@ function PlanningContent() {
                       <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
                         {dayPosts.slice(0, 3).map(post => {
                           const rawImg  = post.exported_image_url || post.thumbnail_url || post.photo_url;
-                          const thumb   = rawImg ? `/api/proxy-image?url=${encodeURIComponent(rawImg)}` : null;
                           const isPub   = post.status === "published";
                           return (
                           <div key={post.id}
@@ -1082,9 +1085,8 @@ function PlanningContent() {
                             }}>
                             {/* Mini thumb */}
                             <div style={{ width: 16, height: 16, borderRadius: 3, overflow: "hidden", flexShrink: 0, marginLeft: 4, position: "relative" }}>
-                              {thumb ? (
-                                // eslint-disable-next-line @next/next/no-img-element
-                                <img src={thumb} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+                              {rawImg ? (
+                                <MediaThumb raw={rawImg} />
                               ) : (
                                 <div style={{ width: "100%", height: "100%", background: chipColor }} />
                               )}
@@ -1170,7 +1172,9 @@ function PlanningContent() {
           <div style={{ flex: 1, padding: "16px 20px", display: "flex", flexDirection: "column", gap: 16 }}>
             {(selectedPost.exported_image_url || selectedPost.thumbnail_url || selectedPost.photo_url) && (
               <div style={{ position: "relative", width: "100%", maxWidth: (selectedPost.post_type === "story" || selectedPost.post_type === "reel") ? 260 : "100%", margin: "0 auto", aspectRatio: aspectForType(selectedPost.post_type), borderRadius: "var(--r)", overflow: "hidden", background: "#000" }}>
-                {isVideoUrl(selectedPost.photo_url) ? (
+                {isVideoUrl(selectedPost.exported_image_url) ? (
+                  <video src={selectedPost.exported_image_url!} controls playsInline style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                ) : isVideoUrl(selectedPost.photo_url) ? (
                   <video src={selectedPost.photo_url} controls playsInline style={{ width: "100%", height: "100%", objectFit: "cover" }} />
                 ) : selectedPost.exported_image_url ? (
                   // eslint-disable-next-line @next/next/no-img-element

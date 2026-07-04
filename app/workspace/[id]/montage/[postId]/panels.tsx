@@ -8,7 +8,7 @@ import { useRef } from "react";
 import { VIcon } from "./icons";
 import {
   MontageClip, Caption, TitleEl, StickerEl, AudioTrack,
-  FILTERS, TRANSITIONS, SPEEDS, SUB_STYLES, STICKER_GLYPHS, FONT_CHOICES,
+  FILTERS, TRANSITIONS, SPEEDS, SUB_STYLES, SUB_LENGTHS, STICKER_GLYPHS, FONT_CHOICES,
   clipFilterCss, clipTimelineDur,
 } from "./constants";
 
@@ -17,6 +17,8 @@ export interface MontageCtx {
   selectedClip: (MontageClip & { start: number; end: number }) | null;
   captions: Caption[];
   subStyleId: string;
+  subMaxWords: number;
+  hasRawSegments: boolean;
   titles: TitleEl[];
   stickers: StickerEl[];
   audioTracks: AudioTrack[];
@@ -43,6 +45,7 @@ export interface MontageCtx {
   updateCaption: (id: string, patch: Partial<Caption>) => void;
   removeCaption: (id: string) => void;
   setSubStyleId: (id: string) => void;
+  setCaptionLength: (words: number) => void;
   generateCaptionsAI: () => void;
 
   addSticker: (glyph: string, isImage?: boolean) => void;
@@ -206,12 +209,39 @@ export function CaptionsPanel({ ctx }: { ctx: MontageCtx }) {
         </div>
       </div>
       <div className="a-section">
-        <span className="mz-sec-label">Style animé</span>
+        <span className="mz-sec-label">Longueur d'affichage</span>
+        <p style={{ fontSize: 11.5, color: "var(--ink-3)", margin: "0 0 8px" }}>Nombre de mots par sous-titre. {ctx.hasRawSegments ? "Le texte se re-découpe à la volée." : "Appliqué à la prochaine génération IA."}</p>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+          {SUB_LENGTHS.map((l) => (
+            <button
+              key={l.words}
+              className={"mz-chip-btn" + (ctx.subMaxWords === l.words ? " on" : "")}
+              onClick={() => ctx.setCaptionLength(l.words)}
+            >
+              {l.label}
+            </button>
+          ))}
+        </div>
+      </div>
+      <div className="a-section">
+        <span className="mz-sec-label">Style · bibliothèque</span>
         <div className="mz-substyle">
           {SUB_STYLES.map((s) => (
             <button key={s.id} className={"mz-substyle-card" + (ctx.subStyleId === s.id ? " on" : "")} onClick={() => ctx.setSubStyleId(s.id)}>
               <div className="mz-substyle-prev">
-                <span style={{ display: "inline-block", padding: s.pill ? "4px 10px" : "4px 8px", borderRadius: s.pill ? 99 : 6, background: s.bg, color: s.fg, fontFamily: s.italic ? "var(--display)" : "var(--sans)", fontStyle: s.italic ? "italic" : "normal", fontWeight: s.weight, fontSize: 13, textShadow: s.bg === "transparent" ? "0 1px 6px rgba(0,0,0,.6)" : "none" }}>
+                <span style={{
+                  display: "inline-block",
+                  padding: s.pill ? "4px 10px" : "4px 8px",
+                  borderRadius: s.pill ? 99 : 6,
+                  background: s.bg, color: s.fg,
+                  fontFamily: s.font || (s.italic ? "var(--display)" : "var(--sans)"),
+                  fontStyle: s.italic ? "italic" : "normal",
+                  fontWeight: s.weight, fontSize: 13,
+                  textTransform: s.uppercase ? "uppercase" : "none",
+                  WebkitTextStroke: s.stroke ? `1.4px ${s.stroke}` : undefined,
+                  paintOrder: "stroke fill",
+                  textShadow: s.bg === "transparent" && !s.stroke ? "0 1px 6px rgba(0,0,0,.6)" : "none",
+                }}>
                   Auto<span style={{ color: s.hi }}>mne</span>
                 </span>
               </div>
