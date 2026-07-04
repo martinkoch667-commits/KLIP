@@ -942,6 +942,9 @@ input.mz-range::-moz-range-thumb { width: 16px; height: 16px; border-radius: 50%
 
 /* sous-titres burnt-in sur la scène */
 .mz-cap-wrap { position: absolute; left: 12px; right: 12px; bottom: 16px; display: flex; justify-content: center; z-index: 6; pointer-events: none; }
+/* sous-titre déplaçable : positionné par (x,y) au lieu du bandeau bas fixe */
+.mz-cap-move { left: 50%; top: 84%; right: auto; bottom: auto; max-width: 82%; cursor: move; pointer-events: auto; touch-action: none; }
+.mz-cap-move.sel { outline: 1.5px dashed var(--mint); outline-offset: 6px; border-radius: 6px; }
 .mz-cap-box { max-width: 100%; text-align: center; line-height: 1.32; word-break: break-word; }
 .mz-cap-word { transition: color .1s; }
 

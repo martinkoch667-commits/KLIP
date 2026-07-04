@@ -5,8 +5,9 @@ import { useParams } from "next/navigation";
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
 import { VIcon } from "./icons";
 import {
-  MontageClip, Caption, TitleEl, StickerEl, AudioTrack, MontageProject,
-  FILTERS, TRANSITIONS, SUB_STYLES, FONT_CHOICES, SUB_LENGTHS, DEFAULT_WORDS_PER_CAPTION, subStyleById,
+  MontageClip, Caption, TitleEl, StickerEl, AudioTrack, MontageProject, SubCustom,
+  FILTERS, TRANSITIONS, SUB_STYLES, FONT_CHOICES, SUB_LENGTHS, DEFAULT_WORDS_PER_CAPTION, DEFAULT_SUB_POS,
+  subStyleById, effectiveSubStyle,
   fmt, newClipDefaults, clipFilterCss, clipTimelineDur, segmentCaptions,
 } from "./constants";
 import { MontageCtx, CutPanel, TextPanel, CaptionsPanel, AudioPanel, TransitionsPanel, FilterPanel, SpeedPanel, StickerPanel, AiPanel } from "./panels";
@@ -90,7 +91,10 @@ export default function MontagePage() {
   const [captions, setCaptions] = useState<Caption[]>([]);
   const [subStyleId, setSubStyleId] = useState<string>(SUB_STYLES[0].id);
   const [subMaxWords, setSubMaxWords] = useState<number>(DEFAULT_WORDS_PER_CAPTION);
+  const [subPos, setSubPos] = useState<{ x: number; y: number }>(DEFAULT_SUB_POS);
+  const [subCustom, setSubCustom] = useState<SubCustom>({});
   const [rawSegments, setRawSegments] = useState<{ start: number; end: number; text: string }[]>([]);
+  const [subSelected, setSubSelected] = useState(false);
   const [titles, setTitles] = useState<TitleEl[]>([]);
   const [stickers, setStickers] = useState<StickerEl[]>([]);
   const [audioTracks, setAudioTracks] = useState<AudioTrack[]>([]);
@@ -101,6 +105,7 @@ export default function MontagePage() {
   const [selectedClipId, setSelectedClipId] = useState<string | null>(null);
   const [selectedTitleId, setSelectedTitleId] = useState<string | null>(null);
   const [selectedStickerId, setSelectedStickerId] = useState<string | null>(null);
+  const [audioOnlyId, setAudioOnlyId] = useState<string | null>(null); // sélection "audio seul" (Option/Alt+clic)
   const [dragOver, setDragOver] = useState(false);
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
@@ -122,8 +127,8 @@ export default function MontagePage() {
   const scrubRef = useRef<HTMLDivElement>(null);
   const stageRef = useRef<HTMLDivElement>(null);
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const dragOverlayRef = useRef<{ type: "title" | "sticker"; id: string } | null>(null);
-  const resizeOverlayRef = useRef<{ type: "title" | "sticker"; id: string; startDist: number; startScale: number; cx: number; cy: number } | null>(null);
+  const dragOverlayRef = useRef<{ type: "title" | "sticker" | "caption"; id: string } | null>(null);
+  const resizeOverlayRef = useRef<{ type: "title" | "sticker" | "caption"; id: string; startDist: number; startScale: number; cx: number; cy: number } | null>(null);
   const voRecorderRef = useRef<MediaRecorder | null>(null);
   const voChunksRef = useRef<Blob[]>([]);
   const rulerRef = useRef<HTMLDivElement>(null);
@@ -151,6 +156,8 @@ export default function MontagePage() {
         setCaptions(proj.captions || []);
         setSubStyleId(proj.subStyleId || SUB_STYLES[0].id);
         setSubMaxWords(proj.subMaxWords || DEFAULT_WORDS_PER_CAPTION);
+        setSubPos(proj.subPos || DEFAULT_SUB_POS);
+        setSubCustom(proj.subCustom || {});
         setRawSegments(proj.rawSegments || []);
         setTitles(proj.titles || []);
         setStickers(proj.stickers || []);
@@ -181,14 +188,14 @@ export default function MontagePage() {
     if (loading) return;
     if (saveTimer.current) clearTimeout(saveTimer.current);
     saveTimer.current = setTimeout(() => {
-      const project: MontageProject = { clips, captions, subStyleId, subMaxWords, rawSegments, titles, stickers, audioTracks, showProgressBar, exportUrl };
+      const project: MontageProject = { clips, captions, subStyleId, subMaxWords, subPos, subCustom, rawSegments, titles, stickers, audioTracks, showProgressBar, exportUrl };
       supabase.from("posts").update({ montage_json: project }).eq("id", postId).then(() => {});
     }, 700);
     return () => { if (saveTimer.current) clearTimeout(saveTimer.current); };
-  }, [clips, captions, subStyleId, subMaxWords, rawSegments, titles, stickers, audioTracks, showProgressBar, exportUrl, loading, postId, supabase]);
+  }, [clips, captions, subStyleId, subMaxWords, subPos, subCustom, rawSegments, titles, stickers, audioTracks, showProgressBar, exportUrl, loading, postId, supabase]);
 
   // ── Historique undo/redo ────────────────────────────────────────────────────
-  type Snapshot = Pick<MontageProject, "clips" | "captions" | "subStyleId" | "titles" | "stickers" | "audioTracks" | "showProgressBar">;
+  type Snapshot = Required<Pick<MontageProject, "subPos" | "subCustom">> & Pick<MontageProject, "clips" | "captions" | "subStyleId" | "titles" | "stickers" | "audioTracks" | "showProgressBar">;
   const historyRef = useRef<{ past: Snapshot[]; future: Snapshot[] }>({ past: [], future: [] });
   const lastSnapRef = useRef<Snapshot | null>(null);
   const applyingHistoryRef = useRef(false);
@@ -211,7 +218,7 @@ export default function MontagePage() {
   // (rognage, déplacement d'un overlay, slider) ne crée ainsi qu'une seule étape d'annulation.
   useEffect(() => {
     if (loading) return;
-    const snap: Snapshot = { clips, captions, subStyleId, titles, stickers, audioTracks, showProgressBar };
+    const snap: Snapshot = { clips, captions, subStyleId, subPos, subCustom, titles, stickers, audioTracks, showProgressBar };
     if (applyingHistoryRef.current) {
       applyingHistoryRef.current = false;
       if (histDebounceRef.current) { clearTimeout(histDebounceRef.current); histDebounceRef.current = null; }
@@ -223,11 +230,12 @@ export default function MontagePage() {
     pendingRef.current = { prev: pendingRef.current?.prev ?? lastSnapRef.current, snap };
     if (histDebounceRef.current) clearTimeout(histDebounceRef.current);
     histDebounceRef.current = setTimeout(commitPending, 450);
-  }, [clips, captions, subStyleId, titles, stickers, audioTracks, showProgressBar, loading, commitPending]);
+  }, [clips, captions, subStyleId, subPos, subCustom, titles, stickers, audioTracks, showProgressBar, loading, commitPending]);
 
   const applySnapshot = useCallback((s: Snapshot) => {
     applyingHistoryRef.current = true;
     setClips(s.clips); setCaptions(s.captions); setSubStyleId(s.subStyleId);
+    setSubPos(s.subPos || DEFAULT_SUB_POS); setSubCustom(s.subCustom || {});
     setTitles(s.titles); setStickers(s.stickers); setAudioTracks(s.audioTracks);
     setShowProgressBar(s.showProgressBar);
   }, []);
@@ -373,6 +381,7 @@ export default function MontagePage() {
   // ── Actions clip (timeline) ─────────────────────────────────────────────────
   function selectClip(id: string) {
     setSelectedClipId(id);
+    setAudioOnlyId(null);
     const c = clipStarts.find((c) => c.id === id);
     if (c) seek(c.start + 0.05);
   }
@@ -488,6 +497,15 @@ export default function MontagePage() {
     if (rawSegments.length) setCaptions(segmentCaptions(rawSegments, words));
   }
 
+  // Applique un modèle de sous-titres enregistré (style + surcharges + position + longueur).
+  function applySubTemplate(tpl: { styleId: string; custom: SubCustom; pos: { x: number; y: number }; maxWords: number }) {
+    setSubStyleId(tpl.styleId);
+    setSubCustom(tpl.custom || {});
+    setSubPos(tpl.pos || DEFAULT_SUB_POS);
+    setCaptionLength(tpl.maxWords || DEFAULT_WORDS_PER_CAPTION);
+    toast("Modèle de sous-titres appliqué.");
+  }
+
   // ── Stickers ─────────────────────────────────────────────────────────────
   function addSticker(glyph: string, isImage?: boolean) {
     const id = crypto.randomUUID();
@@ -548,32 +566,36 @@ export default function MontagePage() {
     }
   }
 
-  // ── Overlays de scène (drag titres/stickers) ────────────────────────────────
-  function onOverlayPointerDown(e: React.PointerEvent, type: "title" | "sticker", id: string) {
+  // ── Overlays de scène (drag titres/stickers/sous-titres) ────────────────────
+  function onOverlayPointerDown(e: React.PointerEvent, type: "title" | "sticker" | "caption", id: string) {
     e.stopPropagation();
     dragOverlayRef.current = { type, id };
-    if (type === "title") setSelectedTitleId(id); else setSelectedStickerId(id);
+    if (type === "title") { setSelectedTitleId(id); setSubSelected(false); }
+    else if (type === "sticker") { setSelectedStickerId(id); setSubSelected(false); }
+    else setSubSelected(true);
   }
-  function onOverlayResizeDown(e: React.PointerEvent, type: "title" | "sticker", id: string, currentScale: number) {
+  function onOverlayResizeDown(e: React.PointerEvent, type: "title" | "sticker" | "caption", id: string, currentScale: number) {
     e.stopPropagation();
     e.preventDefault();
     const r = stageRef.current?.getBoundingClientRect();
     if (!r) return;
     // centre de l'overlay = position (x,y) en % de la scène (les overlays sont centrés dessus)
-    const el = type === "title" ? titles.find((t) => t.id === id) : stickers.find((s) => s.id === id);
-    if (!el) return;
-    const cx = r.left + (el.x / 100) * r.width;
-    const cy = r.top + (el.y / 100) * r.height;
+    const pos = type === "caption" ? subPos : (type === "title" ? titles.find((t) => t.id === id) : stickers.find((s) => s.id === id));
+    if (!pos) return;
+    const cx = r.left + (pos.x / 100) * r.width;
+    const cy = r.top + (pos.y / 100) * r.height;
     const startDist = Math.max(8, Math.hypot(e.clientX - cx, e.clientY - cy));
     resizeOverlayRef.current = { type, id, startDist, startScale: currentScale, cx, cy };
-    if (type === "title") setSelectedTitleId(id); else setSelectedStickerId(id);
+    if (type === "title") setSelectedTitleId(id); else if (type === "sticker") setSelectedStickerId(id); else setSubSelected(true);
   }
   function onStagePointerMove(e: React.PointerEvent) {
     const rz = resizeOverlayRef.current;
     if (rz) {
       const dist = Math.hypot(e.clientX - rz.cx, e.clientY - rz.cy);
       const scale = Math.max(0.4, Math.min(4, rz.startScale * (dist / rz.startDist)));
-      if (rz.type === "title") updateTitle(rz.id, { scale }); else updateSticker(rz.id, { scale });
+      if (rz.type === "title") updateTitle(rz.id, { scale });
+      else if (rz.type === "sticker") updateSticker(rz.id, { scale });
+      else setSubCustom((c) => ({ ...c, scale: Math.max(0.5, Math.min(2.4, scale)) }));
       return;
     }
     const drag = dragOverlayRef.current;
@@ -582,7 +604,9 @@ export default function MontagePage() {
     if (!r) return;
     const x = Math.max(0, Math.min(100, ((e.clientX - r.left) / r.width) * 100));
     const y = Math.max(0, Math.min(100, ((e.clientY - r.top) / r.height) * 100));
-    if (drag.type === "title") updateTitle(drag.id, { x, y }); else updateSticker(drag.id, { x, y });
+    if (drag.type === "title") updateTitle(drag.id, { x, y });
+    else if (drag.type === "sticker") updateSticker(drag.id, { x, y });
+    else setSubPos({ x, y });
   }
   function onStagePointerUp() { dragOverlayRef.current = null; resizeOverlayRef.current = null; }
 
@@ -592,14 +616,14 @@ export default function MontagePage() {
     setExporting(true);
     setExportProgress(0);
     try {
-      const blob = await renderExport({ clips, captions, subStyleId, titles, stickers, audioTracks, showProgressBar }, (p) => setExportProgress(p));
+      const blob = await renderExport({ clips, captions, subStyleId, subCustom, subPos, titles, stickers, audioTracks, showProgressBar }, (p) => setExportProgress(p));
       const path = `${workspaceId}/${postId}-export-${Date.now()}.webm`;
       const { error } = await supabase.storage.from("videos").upload(path, blob, { upsert: true, contentType: "video/webm" });
       if (error) { toast("Échec de l'upload de l'export : " + error.message); return; }
       const { data: urlData } = supabase.storage.from("videos").getPublicUrl(path);
       setExportUrl(urlData.publicUrl);
       await supabase.from("posts").update({
-        montage_json: { clips, captions, subStyleId, titles, stickers, audioTracks, showProgressBar, exportUrl: urlData.publicUrl },
+        montage_json: { clips, captions, subStyleId, subMaxWords, subPos, subCustom, rawSegments, titles, stickers, audioTracks, showProgressBar, exportUrl: urlData.publicUrl },
         photo_url: urlData.publicUrl,
       }).eq("id", postId);
       toast("Export terminé ✓");
@@ -685,7 +709,7 @@ export default function MontagePage() {
   }
 
   const ctx: MontageCtx = {
-    clips, selectedClip, captions, subStyleId, subMaxWords, hasRawSegments: rawSegments.length > 0,
+    clips, selectedClip, captions, subStyleId, subMaxWords, subCustom, subPos, hasRawSegments: rawSegments.length > 0,
     titles, stickers, audioTracks, showProgressBar,
     time, total, logoUrl, uploadingAudio, transcribing, isRecordingVO,
     toast, updateClip, splitAtPlayhead,
@@ -694,6 +718,7 @@ export default function MontagePage() {
     applyTransitionToAll,
     addTitle, updateTitle, removeTitle,
     addCaption, updateCaption, removeCaption, setSubStyleId, setCaptionLength, generateCaptionsAI,
+    setSubCustom, resetSubCustom: () => setSubCustom({}), applySubTemplate,
     addSticker, updateSticker, removeSticker,
     toggleProgressBar, importAudio, removeAudioTrack, setAudioVol, toggleRecordVO,
   };
@@ -705,7 +730,7 @@ export default function MontagePage() {
   const activeTitles = titles.filter((t) => time >= t.start && time <= t.end);
   const activeStickers = stickers.filter((s) => time >= s.start && time <= s.end);
   const activeCaption = captions.find((c) => time >= c.start && time <= c.end);
-  const capStyle = subStyleById(subStyleId);
+  const capStyle = effectiveSubStyle(subStyleId, subCustom);
 
   if (loading) {
     return (
@@ -871,9 +896,13 @@ export default function MontagePage() {
                   </div>
                 ))}
 
-                {/* sous-titres incrustés */}
+                {/* sous-titres incrustés — déplaçables/redimensionnables */}
                 {activeCaption && (
-                  <div className="mz-cap-wrap">
+                  <div
+                    className={"mz-cap-wrap mz-cap-move" + (subSelected ? " sel" : "")}
+                    style={{ left: subPos.x + "%", top: subPos.y + "%", transform: `translate(-50%,-50%) scale(${capStyle.scale})` }}
+                    onPointerDown={(e) => onOverlayPointerDown(e, "caption", "sub")}
+                  >
                     <div className="mz-cap-box" style={{
                       background: capStyle.bg, color: capStyle.fg,
                       fontWeight: capStyle.weight, fontStyle: capStyle.italic ? "italic" : "normal",
@@ -910,6 +939,7 @@ export default function MontagePage() {
                         );
                       })}
                     </div>
+                    {subSelected && <span className="mz-ov-resize" onPointerDown={(e) => onOverlayResizeDown(e, "caption", "sub", capStyle.scale)} title="Redimensionner" />}
                   </div>
                 )}
 
@@ -1014,14 +1044,18 @@ export default function MontagePage() {
             <div className="a-lane" style={{ height: 34 }}>
               <div className="a-lane-label"><VIcon name="music" size={13} /> Audio</div>
               <div className="a-lane-track">
-                {/* son embarqué des plans vidéo (cliquable → panneau Audio pour régler le volume) */}
+                {/* son embarqué des plans vidéo — clic = sélectionne le plan ; Option/Alt+clic = son seul (n'active pas la piste vidéo) */}
                 {clipStarts.filter((c) => c.kind === "video").map((c) => (
                   <div
                     key={"va-" + c.id}
-                    className={"a-wave-bar" + (selectedClipId === c.id ? " on" : "")}
-                    style={{ left: c.start * pps, width: c.dur * pps, top: 2, bottom: 2, background: (c.vol ?? 1) === 0 ? "var(--sunk)" : "linear-gradient(150deg,#1f7a4d,#0c2a1d)", opacity: (c.vol ?? 1) === 0 ? 0.5 : 1, cursor: "pointer" }}
-                    title={`Son de « ${c.name} » — ${Math.round((c.vol ?? 1) * 100)}%`}
-                    onClick={() => { setSelectedClipId(c.id); setTool("audio"); }}
+                    className={"a-wave-bar" + (selectedClipId === c.id || audioOnlyId === c.id ? " on" : "")}
+                    style={{ left: c.start * pps, width: c.dur * pps, top: 2, bottom: 2, background: (c.vol ?? 1) === 0 ? "var(--sunk)" : "linear-gradient(150deg,#1f7a4d,#0c2a1d)", opacity: (c.vol ?? 1) === 0 ? 0.5 : 1, cursor: "pointer", boxShadow: audioOnlyId === c.id ? "inset 0 0 0 2px var(--acid)" : undefined }}
+                    title={`Son de « ${c.name} » — ${Math.round((c.vol ?? 1) * 100)}% · Option+clic : sélectionner le son seul`}
+                    onClick={(e) => {
+                      if (e.altKey) { setAudioOnlyId(c.id); setSelectedClipId(null); setSelectedTitleId(null); setSelectedStickerId(null); }
+                      else { setSelectedClipId(c.id); setAudioOnlyId(null); }
+                      setTool("audio");
+                    }}
                   >
                     <span style={{ position: "absolute", left: 6, top: 4, fontSize: 9.5, fontWeight: 700, color: "#fff", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: "calc(100% - 12px)" }}>{(c.vol ?? 1) === 0 ? "🔇" : "🔊"} {c.name}</span>
                   </div>

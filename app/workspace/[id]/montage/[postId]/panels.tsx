@@ -4,11 +4,12 @@
 // Reprend la structure de design_handoff_montage_video/design_files/panels.jsx,
 // branché sur de vraies actions (state du projet Montage).
 
-import { useRef } from "react";
+import { useRef, useState } from "react";
 import { VIcon } from "./icons";
 import {
-  MontageClip, Caption, TitleEl, StickerEl, AudioTrack,
+  MontageClip, Caption, TitleEl, StickerEl, AudioTrack, SubCustom, SubTemplate,
   FILTERS, TRANSITIONS, SPEEDS, SUB_STYLES, SUB_LENGTHS, STICKER_GLYPHS, FONT_CHOICES,
+  effectiveSubStyle, loadSubTemplates, saveSubTemplates,
   clipFilterCss, clipTimelineDur,
 } from "./constants";
 
@@ -18,6 +19,8 @@ export interface MontageCtx {
   captions: Caption[];
   subStyleId: string;
   subMaxWords: number;
+  subCustom: SubCustom;
+  subPos: { x: number; y: number };
   hasRawSegments: boolean;
   titles: TitleEl[];
   stickers: StickerEl[];
@@ -46,6 +49,9 @@ export interface MontageCtx {
   removeCaption: (id: string) => void;
   setSubStyleId: (id: string) => void;
   setCaptionLength: (words: number) => void;
+  setSubCustom: (updater: (c: SubCustom) => SubCustom) => void;
+  resetSubCustom: () => void;
+  applySubTemplate: (tpl: { styleId: string; custom: SubCustom; pos: { x: number; y: number }; maxWords: number }) => void;
   generateCaptionsAI: () => void;
 
   addSticker: (glyph: string, isImage?: boolean) => void;
@@ -191,8 +197,41 @@ export function TextPanel({ ctx, selectedTitleId }: { ctx: MontageCtx; selectedT
 
 // ─── Sous-titres ────────────────────────────────────────────────────────────
 
+const SUB_FONTS: { label: string; css: string }[] = [
+  { label: "Satoshi", css: "var(--sans)" },
+  { label: "Archivo", css: "var(--display)" },
+  { label: "Serif", css: "'Instrument Serif', serif" },
+  { label: "Mono", css: "var(--mono)" },
+];
+
+function ColorField({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
+  // color input exige un hex ; on retombe sur noir/blanc pour les valeurs non-hex (rgba/transparent).
+  const hex = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(value) ? value : "#ffffff";
+  return (
+    <label style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, fontSize: 12, color: "var(--ink-2)", fontWeight: 700 }}>
+      {label}
+      <input type="color" value={hex} onChange={(e) => onChange(e.target.value)} style={{ width: 34, height: 26, border: "1px solid var(--line)", borderRadius: 6, background: "var(--white)", padding: 0, cursor: "pointer" }} />
+    </label>
+  );
+}
+
 export function CaptionsPanel({ ctx }: { ctx: MontageCtx }) {
   const hasVideo = ctx.clips.some((c) => c.kind === "video");
+  const eff = effectiveSubStyle(ctx.subStyleId, ctx.subCustom);
+  const [tpls, setTpls] = useState<SubTemplate[]>(() => loadSubTemplates());
+  const [tplName, setTplName] = useState("");
+  const patch = (p: SubCustom) => ctx.setSubCustom((c) => ({ ...c, ...p }));
+  function saveTemplate() {
+    const name = tplName.trim() || `Modèle ${tpls.length + 1}`;
+    const t: SubTemplate = { id: crypto.randomUUID(), name, styleId: ctx.subStyleId, custom: ctx.subCustom, maxWords: ctx.subMaxWords, pos: ctx.subPos };
+    const next = [...tpls, t];
+    setTpls(next); saveSubTemplates(next); setTplName("");
+    ctx.toast("Modèle de sous-titres enregistré.");
+  }
+  function deleteTemplate(id: string) {
+    const next = tpls.filter((t) => t.id !== id);
+    setTpls(next); saveSubTemplates(next);
+  }
   return (
     <>
       <div className="a-section">
@@ -249,6 +288,68 @@ export function CaptionsPanel({ ctx }: { ctx: MontageCtx }) {
             </button>
           ))}
         </div>
+      </div>
+      <div className="a-section">
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
+          <span className="mz-sec-label" style={{ margin: 0 }}>Personnalisation</span>
+          <button className="btn btn-ghost btn-sm" onClick={ctx.resetSubCustom} title="Revenir au style de base"><VIcon name="undo" size={12} /> Réinitialiser</button>
+        </div>
+        <p style={{ fontSize: 11.5, color: "var(--ink-3)", margin: "0 0 10px" }}>Déplacez les sous-titres directement dans l'aperçu (glisser) et redimensionnez-les avec la poignée.</p>
+        <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 12 }}>
+          <ColorField label="Texte" value={eff.fg} onChange={(v) => patch({ fg: v })} />
+          <ColorField label="Mot actif (surlignage)" value={eff.hi} onChange={(v) => patch({ hi: v })} />
+          <label style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, fontSize: 12, color: "var(--ink-2)", fontWeight: 700 }}>
+            Fond
+            <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <button className={"mz-chip-btn" + (eff.bg === "transparent" ? " on" : "")} style={{ padding: "4px 9px", fontSize: 11 }} onClick={() => patch({ bg: eff.bg === "transparent" ? "#0C2A1D" : "transparent" })}>{eff.bg === "transparent" ? "Aucun" : "Plein"}</button>
+              {eff.bg !== "transparent" && <input type="color" value={/^#([0-9a-f]{6})$/i.test(eff.bg) ? eff.bg : "#0c2a1d"} onChange={(e) => patch({ bg: e.target.value })} style={{ width: 34, height: 26, border: "1px solid var(--line)", borderRadius: 6, padding: 0, cursor: "pointer" }} />}
+            </span>
+          </label>
+          <label style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, fontSize: 12, color: "var(--ink-2)", fontWeight: 700 }}>
+            Contour
+            <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <button className={"mz-chip-btn" + (eff.stroke ? " on" : "")} style={{ padding: "4px 9px", fontSize: 11 }} onClick={() => patch({ stroke: eff.stroke ? "" : "#000000" })}>{eff.stroke ? "Oui" : "Non"}</button>
+              {eff.stroke && <input type="color" value={/^#([0-9a-f]{6})$/i.test(eff.stroke) ? eff.stroke : "#000000"} onChange={(e) => patch({ stroke: e.target.value })} style={{ width: 34, height: 26, border: "1px solid var(--line)", borderRadius: 6, padding: 0, cursor: "pointer" }} />}
+            </span>
+          </label>
+        </div>
+        <span className="mz-sec-label" style={{ marginBottom: 6 }}>Typographie</span>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 10 }}>
+          {SUB_FONTS.map((f) => (
+            <button key={f.label} className={"mz-chip-btn" + ((eff.font || "var(--sans)") === f.css ? " on" : "")} style={{ fontFamily: f.css }} onClick={() => patch({ font: f.css })}>{f.label}</button>
+          ))}
+        </div>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 12 }}>
+          <button className={"mz-chip-btn" + (eff.uppercase ? " on" : "")} onClick={() => patch({ uppercase: !eff.uppercase })}>MAJ</button>
+          <button className={"mz-chip-btn" + (eff.weight >= 800 ? " on" : "")} onClick={() => patch({ weight: eff.weight >= 800 ? 600 : 900 })} style={{ fontWeight: 800 }}>Gras</button>
+          <button className={"mz-chip-btn" + (eff.italic ? " on" : "")} onClick={() => patch({ italic: !eff.italic })} style={{ fontStyle: "italic" }}>Italique</button>
+          <button className={"mz-chip-btn" + (eff.pill ? " on" : "")} onClick={() => patch({ pill: !eff.pill })}>Pilule</button>
+        </div>
+        <Range label="Taille" value={eff.scale} min={0.5} max={2.4} step={0.05} onChange={(v) => patch({ scale: v })} fmtv={(v) => `${Math.round(v * 100)}%`} />
+      </div>
+      <div className="a-section">
+        <span className="mz-sec-label">Mes modèles de sous-titres</span>
+        <div style={{ display: "flex", gap: 6, marginBottom: 8 }}>
+          <input className="input" placeholder="Nom du modèle" value={tplName} onChange={(e) => setTplName(e.target.value)} style={{ flex: 1, fontSize: 12.5, padding: "6px 9px" }} />
+          <button className="btn btn-primary btn-sm" onClick={saveTemplate}><VIcon name="plus" size={13} /> Enregistrer</button>
+        </div>
+        {tpls.length === 0 ? (
+          <p style={{ fontSize: 11.5, color: "var(--ink-3)", margin: 0 }}>Enregistrez votre style (couleurs, typo, position, longueur) pour le réutiliser sur d'autres vidéos. Vos modèles apparaissent aussi dans la page Modèles.</p>
+        ) : (
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            {tpls.map((t) => {
+              const te = effectiveSubStyle(t.styleId, t.custom);
+              return (
+                <div key={t.id} style={{ display: "flex", alignItems: "center", gap: 8, padding: "7px 9px", borderRadius: 9, background: "var(--sunk)" }}>
+                  <span style={{ display: "inline-block", padding: te.pill ? "3px 8px" : "3px 6px", borderRadius: te.pill ? 99 : 5, background: te.bg, color: te.fg, fontFamily: te.font || "var(--sans)", fontWeight: te.weight, fontSize: 11, textTransform: te.uppercase ? "uppercase" : "none", WebkitTextStroke: te.stroke ? `1px ${te.stroke}` : undefined, paintOrder: "stroke fill", flexShrink: 0 }}>Aa</span>
+                  <span style={{ flex: 1, fontSize: 12.5, fontWeight: 700, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{t.name}</span>
+                  <button className="btn btn-ghost btn-sm" onClick={() => ctx.applySubTemplate(t)}>Appliquer</button>
+                  <button className="mz-hbtn" style={{ width: 24, height: 24 }} onClick={() => deleteTemplate(t.id)}><VIcon name="trash" size={12} /></button>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
       <div className="a-section">
         <span className="mz-sec-label">Texte transcrit · {ctx.captions.length}</span>

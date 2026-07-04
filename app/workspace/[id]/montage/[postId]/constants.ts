@@ -68,17 +68,73 @@ export interface AudioTrack {
   offset: number; // décalage de départ sur la timeline (s)
 }
 
+// Personnalisation manuelle des sous-titres — surcharge n'importe quel champ du style de base.
+export interface SubCustom {
+  fg?: string;
+  hi?: string;
+  bg?: string;
+  stroke?: string;
+  font?: string;
+  weight?: number;
+  italic?: boolean;
+  uppercase?: boolean;
+  pill?: boolean;
+  scale?: number; // facteur de taille (défaut 1)
+}
+
 export interface MontageProject {
   clips: MontageClip[];
   captions: Caption[];
   subStyleId: string;
   subMaxWords?: number;                                       // mots max par sous-titre (défaut 4)
+  subPos?: { x: number; y: number };                          // position des sous-titres (%), défaut bas-centre
+  subCustom?: SubCustom;                                       // surcharges manuelles (couleurs, typo, taille)
   rawSegments?: { start: number; end: number; text: string }[]; // segments Whisper bruts (pour re-découper)
   titles: TitleEl[];
   stickers: StickerEl[];
   audioTracks: AudioTrack[];
   showProgressBar: boolean;
   exportUrl?: string | null;
+}
+
+export const DEFAULT_SUB_POS = { x: 50, y: 84 };
+
+// Fusionne le style de base (bibliothèque) avec les surcharges manuelles de l'utilisateur.
+export function effectiveSubStyle(styleId: string, custom?: SubCustom): SubStyle & { scale: number } {
+  const base = subStyleById(styleId);
+  return {
+    ...base,
+    fg: custom?.fg ?? base.fg,
+    hi: custom?.hi ?? base.hi,
+    bg: custom?.bg ?? base.bg,
+    stroke: custom?.stroke ?? base.stroke,
+    font: custom?.font ?? base.font,
+    weight: custom?.weight ?? base.weight,
+    italic: custom?.italic ?? base.italic,
+    uppercase: custom?.uppercase ?? base.uppercase,
+    pill: custom?.pill ?? base.pill,
+    scale: custom?.scale ?? 1,
+  };
+}
+
+// Modèles de sous-titres enregistrés par l'utilisateur (persistés en localStorage, partagés
+// entre le monteur et la page Modèles).
+export interface SubTemplate {
+  id: string;
+  name: string;
+  styleId: string;
+  custom: SubCustom;
+  maxWords: number;
+  pos: { x: number; y: number };
+}
+const SUB_TPL_KEY = "klip-sub-templates";
+export function loadSubTemplates(): SubTemplate[] {
+  if (typeof window === "undefined") return [];
+  try { return JSON.parse(localStorage.getItem(SUB_TPL_KEY) || "[]"); } catch { return []; }
+}
+export function saveSubTemplates(list: SubTemplate[]) {
+  if (typeof window === "undefined") return;
+  localStorage.setItem(SUB_TPL_KEY, JSON.stringify(list));
 }
 
 export const FILTERS: { id: string; name: string; css: string }[] = [

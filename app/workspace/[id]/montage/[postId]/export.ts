@@ -10,12 +10,14 @@
 // ce dernier nécessiterait de décoder N vidéos simultanément, hors de portée
 // raisonnable d'un rendu client pour ce lot.
 
-import { MontageClip, Caption, TitleEl, StickerEl, AudioTrack, SUB_STYLES, clipFilterCss, clipTimelineDur } from "./constants";
+import { MontageClip, Caption, TitleEl, StickerEl, AudioTrack, SubCustom, effectiveSubStyle, DEFAULT_SUB_POS, clipFilterCss, clipTimelineDur } from "./constants";
 
 export interface ExportProject {
   clips: MontageClip[];
   captions: Caption[];
   subStyleId: string;
+  subCustom?: SubCustom;
+  subPos?: { x: number; y: number };
   titles: TitleEl[];
   stickers: StickerEl[];
   audioTracks: AudioTrack[];
@@ -87,16 +89,16 @@ function drawMediaFrame(ctx: CanvasRenderingContext2D, media: HTMLVideoElement |
   ctx.restore();
 }
 
-function drawCaptions(ctx: CanvasRenderingContext2D, captions: Caption[], subStyleId: string, t: number) {
+function drawCaptions(ctx: CanvasRenderingContext2D, captions: Caption[], subStyleId: string, subCustom: SubCustom | undefined, subPos: { x: number; y: number } | undefined, t: number) {
   const cap = captions.find((c) => t >= c.start && t <= c.end);
   if (!cap) return;
-  const style = SUB_STYLES.find((s) => s.id === subStyleId) || SUB_STYLES[0];
+  const style = effectiveSubStyle(subStyleId, subCustom);
   const rawWords = cap.text.split(/\s+/).filter(Boolean);
   const words = style.uppercase ? rawWords.map((w) => w.toUpperCase()) : rawWords;
   const progress = (t - cap.start) / Math.max(0.1, cap.end - cap.start);
   const activeIdx = Math.min(words.length - 1, Math.floor(progress * words.length));
 
-  const fontSize = 34;
+  const fontSize = 34 * style.scale;
   const fam = style.font
     ? (/serif/i.test(style.font) ? "Georgia, serif" : /mono/i.test(style.font) ? "ui-monospace, monospace" : "system-ui, sans-serif")
     : (style.italic ? "Georgia, serif" : "system-ui, sans-serif");
@@ -109,8 +111,11 @@ function drawCaptions(ctx: CanvasRenderingContext2D, captions: Caption[], subSty
   const padX = style.pill ? 22 : 16, padY = style.pill ? 12 : 10;
   const boxW = Math.min(CANVAS_W - 60, metrics.width + padX * 2);
   const boxH = fontSize + padY * 2;
-  const boxX = (CANVAS_W - boxW) / 2;
-  const boxY = CANVAS_H - 140 - boxH;
+  const pos = subPos || DEFAULT_SUB_POS;
+  const cxPos = (pos.x / 100) * CANVAS_W;
+  const cyPos = (pos.y / 100) * CANVAS_H;
+  const boxX = Math.max(20, Math.min(CANVAS_W - 20 - boxW, cxPos - boxW / 2));
+  const boxY = Math.max(10, Math.min(CANVAS_H - 10 - boxH, cyPos - boxH / 2));
 
   if (style.bg !== "transparent") {
     ctx.fillStyle = style.bg;
@@ -120,7 +125,7 @@ function drawCaptions(ctx: CanvasRenderingContext2D, captions: Caption[], subSty
     ctx.fill();
   }
 
-  let x = CANVAS_W / 2 - metrics.width / 2;
+  let x = boxX + boxW / 2 - metrics.width / 2;
   const y = boxY + boxH / 2;
   if (style.bg === "transparent" && !style.stroke) {
     ctx.shadowColor = "rgba(0,0,0,.6)";
@@ -292,7 +297,7 @@ export async function renderExport(project: ExportProject, onProgress: (p: numbe
             const localT = (video.currentTime - c.trimStart) / c.speed;
             const globalT = c.start + localT;
             drawMediaFrame(ctx, video, c, localT, i === 0);
-            drawCaptions(ctx, project.captions, project.subStyleId, globalT);
+            drawCaptions(ctx, project.captions, project.subStyleId, project.subCustom, project.subPos, globalT);
             drawTitles(ctx, project.titles, globalT);
             drawStickers(ctx, project.stickers, stickerImages, globalT);
             if (project.showProgressBar) drawProgressBar(ctx, globalT, total);
@@ -308,7 +313,7 @@ export async function renderExport(project: ExportProject, onProgress: (p: numbe
             if (localT >= c.dur) { clearInterval(iv); resolve(); return; }
             const globalT = c.start + localT;
             drawMediaFrame(ctx, img, c, localT, i === 0);
-            drawCaptions(ctx, project.captions, project.subStyleId, globalT);
+            drawCaptions(ctx, project.captions, project.subStyleId, project.subCustom, project.subPos, globalT);
             drawTitles(ctx, project.titles, globalT);
             drawStickers(ctx, project.stickers, stickerImages, globalT);
             if (project.showProgressBar) drawProgressBar(ctx, globalT, total);
