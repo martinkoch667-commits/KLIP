@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Sidebar from "@/components/Sidebar";
 import { resetOnboardingTour } from "@/components/OnboardingTour";
+import { resetOnboardingChecklist } from "@/components/OnboardingChecklist";
 import { useAccountType } from "@/hooks/useAccountType";
 
 type Tab = "profile" | "security" | "notifications" | "appearance" | "publi" | "integrations" | "agency" | "billing" | "help";
@@ -887,14 +888,23 @@ function BillingTab({ accountType }: { accountType: string }) {
 
 // ─── Help Tab ─────────────────────────────────────────────────────────────────
 
-function HelpTab() {
+function HelpTab({ supabase, userId }: { supabase: any; userId: string }) {
   const router = useRouter();
   const [tourReset, setTourReset] = useState(false);
 
-  function handleResetTour() {
-    resetOnboardingTour();
+  async function handleResetTour() {
     setTourReset(true);
-    setTimeout(() => router.push("/dashboard"), 800);
+    // 1) réinitialise les flags locaux (tour + checklist de prise en main)
+    resetOnboardingTour();
+    resetOnboardingChecklist();
+    // 2) réinitialise le flag serveur, sinon le tour se re-marque "terminé" au montage
+    try {
+      await supabase.from("user_settings").upsert(
+        { user_id: userId, onboarding_completed: false, onboarding_completed_at: null },
+        { onConflict: "user_id" },
+      );
+    } catch {}
+    router.push("/dashboard");
   }
 
   const items = [
@@ -1039,7 +1049,7 @@ export default function SettingsPage() {
               {tab === "integrations"  && <IntegrationsTab  supabase={supabase} />}
               {tab === "agency"        && <AgencyTab        supabase={supabase} userId={userId} />}
               {tab === "billing"       && <BillingTab       accountType={accountType} />}
-              {tab === "help"          && <HelpTab />}
+              {tab === "help"          && <HelpTab          supabase={supabase} userId={userId} />}
             </div>
 
           </div>

@@ -267,3 +267,11 @@ export default function OnboardingChecklist() {
     </div>
   );
 }
+
+// ── Helper pour ré-afficher la checklist (ex: depuis les Réglages) ─────────────
+export function resetOnboardingChecklist() {
+  try {
+    localStorage.removeItem(DISMISS_KEY);
+    localStorage.removeItem(COLLAPSE_KEY);
+  } catch {}
+}
