@@ -137,6 +137,8 @@ export default function OnboardingTour({ onComplete }: Props) {
   const close = useCallback(async () => {
     await markDone();
     setVisible(false);
+    // Signale à la checklist de prise en main d'apparaître tout de suite
+    try { window.dispatchEvent(new Event("klip-onboarding-tour-done")); } catch {}
     onComplete?.();
   }, [markDone, onComplete]);
 

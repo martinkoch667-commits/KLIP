@@ -49,27 +49,34 @@ export default function OnboardingChecklist() {
   const [posts, setPosts] = useState<PostRow[]>([]);
 
   // Load progress data — only if the spotlight tour is done and not dismissed
-  useEffect(() => {
-    (async () => {
-      try {
-        if (!localStorage.getItem(TOUR_KEY)) return;   // wait for intro tour first
-        if (localStorage.getItem(DISMISS_KEY)) return;  // user closed it
-        setCollapsed(!!localStorage.getItem(COLLAPSE_KEY));
-      } catch {}
+  const check = useCallback(async () => {
+    try {
+      if (!localStorage.getItem(TOUR_KEY)) return;    // wait for intro tour first
+      if (localStorage.getItem(DISMISS_KEY)) return;  // user closed it
+    } catch { return; }
 
-      try {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (!session) return;
-        const [{ data: ws }, { data: ps }] = await Promise.all([
-          supabase.from("workspaces").select("id, instagram_account_id"),
-          supabase.from("posts").select("status, scheduled_at"),
-        ]);
-        setWorkspaces(ws ?? []);
-        setPosts(ps ?? []);
-        setVisible(true);
-      } catch {}
-    })();
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
+      const [{ data: ws }, { data: ps }] = await Promise.all([
+        supabase.from("workspaces").select("id, instagram_account_id"),
+        supabase.from("posts").select("status, scheduled_at"),
+      ]);
+      setWorkspaces(ws ?? []);
+      setPosts(ps ?? []);
+      try { setCollapsed(!!localStorage.getItem(COLLAPSE_KEY)); } catch {}
+      setVisible(true);
+    } catch {}
   }, [supabase]);
+
+  // Check on mount AND when the intro tour finishes (so it appears immediately
+  // for a brand-new account, without needing a page reload).
+  useEffect(() => {
+    check();
+    const onTourDone = () => check();
+    window.addEventListener("klip-onboarding-tour-done", onTourDone);
+    return () => window.removeEventListener("klip-onboarding-tour-done", onTourDone);
+  }, [check]);
 
   const dismiss = useCallback(() => {
     try { localStorage.setItem(DISMISS_KEY, "1"); } catch {}
