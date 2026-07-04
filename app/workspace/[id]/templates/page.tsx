@@ -14,6 +14,11 @@ import useImage from 'use-image';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import Sidebar from '@/components/Sidebar';
 import ColorPicker from '@/components/ColorPicker';
+import {
+  SUB_STYLES, effectiveSubStyle, loadSubTemplates, saveSubTemplates,
+  DEFAULT_SUB_POS, DEFAULT_WORDS_PER_CAPTION,
+  type SubTemplate, type SubCustom,
+} from '../montage/[postId]/constants';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -487,6 +492,8 @@ export default function TemplatesPage() {
               </div>
             )}
 
+            <SubtitleTemplatesSection workspaceId={workspaceId} />
+
             <style>{`
               .tpl-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
               @media (max-width: 1280px) { .tpl-grid { grid-template-columns: repeat(3, 1fr); } }
@@ -865,6 +872,148 @@ function ZoneInspector({ zone, onChange, onDelete }: { zone: TextZone; onChange:
           </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+// ─── Modèles de sous-titres (vidéo) ───────────────────────────────────────────
+// Partagés avec le monteur via localStorage (clé « klip-sub-templates »). Permet de
+// créer/supprimer ici des modèles réutilisables dans le module Montage.
+
+function SubtitleTemplatesSection({ workspaceId }: { workspaceId: string }) {
+  const [list, setList] = useState<SubTemplate[]>([]);
+  const [creating, setCreating] = useState(false);
+  const [name, setName] = useState('');
+  const [styleId, setStyleId] = useState(SUB_STYLES[0].id);
+  const [custom, setCustom] = useState<SubCustom>({});
+  const [maxWords, setMaxWords] = useState(DEFAULT_WORDS_PER_CAPTION);
+
+  useEffect(() => { setList(loadSubTemplates()); }, []);
+
+  const eff = effectiveSubStyle(styleId, custom);
+  const patch = (p: SubCustom) => setCustom(c => ({ ...c, ...p }));
+
+  function persist(next: SubTemplate[]) { setList(next); saveSubTemplates(next); }
+  function create() {
+    const t: SubTemplate = {
+      id: crypto.randomUUID(),
+      name: name.trim() || `Modèle ${list.length + 1}`,
+      styleId, custom, maxWords, pos: DEFAULT_SUB_POS,
+    };
+    persist([...list, t]);
+    setCreating(false); setName(''); setCustom({}); setStyleId(SUB_STYLES[0].id); setMaxWords(DEFAULT_WORDS_PER_CAPTION);
+  }
+  function remove(id: string) { persist(list.filter(t => t.id !== id)); }
+
+  const colorField = (label: string, value: string, on: (v: string) => void) => (
+    <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, fontSize: 12, color: 'var(--ink-2)', fontWeight: 700 }}>
+      {label}
+      <input type="color" value={/^#([0-9a-f]{6})$/i.test(value) ? value : '#ffffff'} onChange={e => on(e.target.value)} style={{ width: 34, height: 26, border: '1px solid var(--line)', borderRadius: 6, padding: 0, cursor: 'pointer' }} />
+    </label>
+  );
+
+  return (
+    <div style={{ marginTop: 40 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 14, marginBottom: 6, flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', alignItems: 'baseline', gap: 10 }}>
+          <h2 style={{ fontSize: 19, fontWeight: 800, margin: 0 }}>Sous-titres vidéo</h2>
+          <span style={{ color: 'var(--ink-3)', fontWeight: 700, fontSize: 14 }}>{list.length}</span>
+        </div>
+        <button className="btn btn-primary btn-sm" onClick={() => setCreating(v => !v)}>
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12h14"/></svg>
+          {creating ? 'Fermer' : 'Nouveau modèle'}
+        </button>
+      </div>
+      <p style={{ fontSize: 12.5, color: 'var(--ink-3)', margin: '0 0 16px', maxWidth: 620 }}>
+        Créez des styles de sous-titres réutilisables (couleurs, typo, longueur). Ils apparaissent dans le monteur vidéo, section « Sous-titres » → « Mes modèles ».
+      </p>
+
+      {creating && (
+        <div className="card" style={{ padding: 18, marginBottom: 18, display: 'grid', gridTemplateColumns: '260px 1fr', gap: 20 }}>
+          {/* Aperçu */}
+          <div style={{ borderRadius: 'var(--r)', overflow: 'hidden', background: 'linear-gradient(150deg,#2b8d57,#0c2a1d)', minHeight: 150, display: 'grid', placeItems: 'center' }}>
+            <span style={{
+              display: 'inline-block', padding: eff.pill ? '6px 14px' : '5px 10px', borderRadius: eff.pill ? 99 : 7,
+              background: eff.bg, color: eff.fg, fontFamily: eff.font || (eff.italic ? 'var(--display)' : 'var(--sans)'),
+              fontStyle: eff.italic ? 'italic' : 'normal', fontWeight: eff.weight, fontSize: 18,
+              textTransform: eff.uppercase ? 'uppercase' : 'none',
+              WebkitTextStroke: eff.stroke ? `1.6px ${eff.stroke}` : undefined, paintOrder: 'stroke fill',
+              textShadow: eff.bg === 'transparent' && !eff.stroke ? '0 1px 6px rgba(0,0,0,.6)' : 'none',
+            }}>
+              Bonjour <span style={{ color: eff.hi }}>Klip</span>
+            </span>
+          </div>
+          {/* Contrôles */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            <input value={name} onChange={e => setName(e.target.value)} placeholder="Nom du modèle" style={panelInput} />
+            <div>
+              <label style={{ fontSize: 11, color: 'var(--ink-3)', display: 'block', marginBottom: 5, fontWeight: 600 }}>Style de base</label>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                {SUB_STYLES.map(s => (
+                  <button key={s.id} onClick={() => { setStyleId(s.id); setCustom({}); }} style={{
+                    padding: '5px 10px', borderRadius: 99, fontSize: 12, fontWeight: 700, cursor: 'pointer',
+                    border: 'none', background: styleId === s.id ? 'var(--mint-2)' : 'var(--sunk)',
+                    color: styleId === s.id ? '#06281C' : 'var(--ink-2)', boxShadow: styleId === s.id ? 'none' : 'inset 0 0 0 1px var(--line)',
+                  }}>{s.name}</button>
+                ))}
+              </div>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+              {colorField('Texte', eff.fg, v => patch({ fg: v }))}
+              {colorField('Mot actif', eff.hi, v => patch({ hi: v }))}
+            </div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+              <button onClick={() => patch({ bg: eff.bg === 'transparent' ? '#0C2A1D' : 'transparent' })} className="btn btn-ghost btn-sm">{eff.bg === 'transparent' ? 'Fond : aucun' : 'Fond : plein'}</button>
+              <button onClick={() => patch({ uppercase: !eff.uppercase })} className="btn btn-ghost btn-sm" style={{ fontWeight: eff.uppercase ? 800 : 600 }}>MAJ</button>
+              <button onClick={() => patch({ pill: !eff.pill })} className="btn btn-ghost btn-sm">Pilule</button>
+              <button onClick={() => patch({ stroke: eff.stroke ? '' : '#000000' })} className="btn btn-ghost btn-sm">Contour</button>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <label style={{ fontSize: 11, color: 'var(--ink-3)', fontWeight: 600 }}>Longueur</label>
+              {[1, 2, 3, 4, 6].map(w => (
+                <button key={w} onClick={() => setMaxWords(w)} style={{
+                  padding: '4px 9px', borderRadius: 99, fontSize: 11.5, fontWeight: 700, cursor: 'pointer', border: 'none',
+                  background: maxWords === w ? 'var(--mint-2)' : 'var(--sunk)', color: maxWords === w ? '#06281C' : 'var(--ink-2)', boxShadow: maxWords === w ? 'none' : 'inset 0 0 0 1px var(--line)',
+                }}>{w} mot{w > 1 ? 's' : ''}</button>
+              ))}
+            </div>
+            <div style={{ display: 'flex', gap: 8, marginTop: 2 }}>
+              <button className="btn btn-primary btn-sm" onClick={create}>Enregistrer le modèle</button>
+              <button className="btn btn-ghost btn-sm" onClick={() => setCreating(false)}>Annuler</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {list.length === 0 && !creating ? (
+        <div style={{ color: 'var(--ink-3)', fontSize: 13, padding: '20px 0' }}>Aucun modèle de sous-titres pour le moment.</div>
+      ) : (
+        <div className="tpl-grid">
+          {list.map(t => {
+            const te = effectiveSubStyle(t.styleId, t.custom);
+            return (
+              <div key={t.id} className="card" style={{ overflow: 'hidden', padding: 0 }}>
+                <div style={{ height: 120, background: 'linear-gradient(150deg,#2b8d57,#0c2a1d)', display: 'grid', placeItems: 'center' }}>
+                  <span style={{
+                    display: 'inline-block', padding: te.pill ? '5px 12px' : '4px 9px', borderRadius: te.pill ? 99 : 6,
+                    background: te.bg, color: te.fg, fontFamily: te.font || 'var(--sans)', fontWeight: te.weight, fontSize: 15,
+                    fontStyle: te.italic ? 'italic' : 'normal', textTransform: te.uppercase ? 'uppercase' : 'none',
+                    WebkitTextStroke: te.stroke ? `1.3px ${te.stroke}` : undefined, paintOrder: 'stroke fill',
+                    textShadow: te.bg === 'transparent' && !te.stroke ? '0 1px 6px rgba(0,0,0,.6)' : 'none',
+                  }}>Aa <span style={{ color: te.hi }}>Bb</span></span>
+                </div>
+                <div style={{ padding: '10px 12px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                  <div style={{ minWidth: 0 }}>
+                    <div style={{ fontWeight: 700, fontSize: 13, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.name}</div>
+                    <div style={{ fontSize: 11, color: 'var(--ink-3)', fontWeight: 600 }}>{t.maxWords} mot{t.maxWords > 1 ? 's' : ''}/bloc</div>
+                  </div>
+                  <button onClick={() => remove(t.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#DC2626', fontSize: 12, fontWeight: 600, flexShrink: 0 }}>Supprimer</button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }
