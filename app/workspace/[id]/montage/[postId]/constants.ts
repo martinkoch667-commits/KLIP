@@ -27,6 +27,38 @@ export function clipTimelineDur(c: MontageClip): number {
   return c.kind === "video" ? raw / c.speed : raw;
 }
 
+// Plan d'incrustation (PIP) — 2e piste vidéo/photo superposée à la piste principale.
+// Positionné librement dans le temps (offset) et dans l'image (x/y/échelle/rotation/opacité).
+export interface OverlayClip {
+  id: string;
+  kind: ClipKind;
+  name: string;
+  src: string;
+  srcDur: number;      // durée source réelle (vidéo) — pour la photo, plafond éditable
+  trimStart: number;
+  trimEnd: number;
+  offset: number;      // début sur la timeline (s)
+  x: number;           // centre en % (0-100)
+  y: number;           // centre en %
+  scale: number;       // 1 = ~50% de la largeur du cadre
+  rotation: number;    // degrés
+  opacity: number;     // 0-1
+  filterId: string;
+  lum: number;
+  con: number;
+  sat: number;
+  vol?: number;        // volume du son embarqué (0-1)
+}
+
+// Durée effective d'un overlay sur la timeline (rognage, sans vitesse variable)
+export function overlayTimelineDur(o: OverlayClip): number {
+  return Math.max(0, o.trimEnd - o.trimStart);
+}
+
+export function newOverlayDefaults(): Pick<OverlayClip, "x" | "y" | "scale" | "rotation" | "opacity" | "filterId" | "lum" | "con" | "sat" | "vol"> {
+  return { x: 50, y: 40, scale: 1, rotation: 0, opacity: 1, filterId: "none", lum: 0, con: 0, sat: 0, vol: 1 };
+}
+
 export interface Caption {
   id: string;
   start: number;
@@ -84,6 +116,7 @@ export interface SubCustom {
 
 export interface MontageProject {
   clips: MontageClip[];
+  overlays?: OverlayClip[];
   captions: Caption[];
   subStyleId: string;
   subMaxWords?: number;                                       // mots max par sous-titre (défaut 4)
@@ -271,8 +304,14 @@ export function segmentCaptions(
   return out;
 }
 
-export function clipFilterCss(c: MontageClip): string {
-  const preset = FILTERS.find((f) => f.id === c.filterId)?.css ?? "none";
-  const adjust = `brightness(${1 + c.lum / 100}) contrast(${1 + c.con / 100}) saturate(${1 + c.sat / 100})`;
+export function filterCssOf(filterId: string, lum: number, con: number, sat: number): string {
+  const preset = FILTERS.find((f) => f.id === filterId)?.css ?? "none";
+  const adjust = `brightness(${1 + lum / 100}) contrast(${1 + con / 100}) saturate(${1 + sat / 100})`;
   return preset === "none" ? adjust : `${preset} ${adjust}`;
+}
+export function clipFilterCss(c: MontageClip): string {
+  return filterCssOf(c.filterId, c.lum, c.con, c.sat);
+}
+export function overlayFilterCss(o: OverlayClip): string {
+  return filterCssOf(o.filterId, o.lum, o.con, o.sat);
 }

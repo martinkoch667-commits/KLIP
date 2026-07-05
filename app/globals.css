@@ -948,6 +948,11 @@ input.mz-range::-moz-range-thumb { width: 16px; height: 16px; border-radius: 50%
 .mz-ov-del { position: absolute; top: -11px; right: -11px; width: 20px; height: 20px; border-radius: 50%; background: var(--ink); color: #fff; display: grid; place-items: center; border: none; cursor: pointer; font-size: 11px; line-height: 1; }
 .mz-ov-resize { position: absolute; bottom: -11px; right: -11px; width: 18px; height: 18px; border-radius: 50%; background: var(--mint); box-shadow: 0 0 0 2px #fff, 0 1px 4px rgba(0,0,0,.35); cursor: nwse-resize; touch-action: none; }
 
+/* incrustation PIP (2e piste vidéo/photo superposée) */
+.mz-pip { user-select: none; touch-action: none; }
+.mz-pip.sel { outline: 1.5px solid var(--mint); outline-offset: 3px; box-shadow: 0 4px 20px rgba(0,0,0,.4); }
+.mz-pip.sel .mz-ov-del, .mz-pip.sel .mz-ov-resize { display: grid; }
+
 /* barre de progression (habillage) */
 .mz-progressbar-track { position: absolute; left: 10px; right: 10px; bottom: 10px; height: 3px; border-radius: 99px; background: rgba(255,255,255,.25); overflow: hidden; z-index: 5; }
 .mz-progressbar-fill { height: 100%; background: linear-gradient(90deg, var(--mint), var(--acid)); }

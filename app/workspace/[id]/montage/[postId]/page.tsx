@@ -5,21 +5,22 @@ import { useParams } from "next/navigation";
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
 import { VIcon } from "./icons";
 import {
-  MontageClip, Caption, TitleEl, StickerEl, AudioTrack, MontageProject, SubCustom,
+  MontageClip, OverlayClip, Caption, TitleEl, StickerEl, AudioTrack, MontageProject, SubCustom,
   FILTERS, TRANSITIONS, SUB_STYLES, FONT_CHOICES, SUB_LENGTHS, DEFAULT_WORDS_PER_CAPTION, DEFAULT_SUB_POS,
   subStyleById, effectiveSubStyle,
-  fmt, newClipDefaults, clipFilterCss, clipTimelineDur, segmentCaptions,
+  fmt, newClipDefaults, newOverlayDefaults, clipFilterCss, overlayFilterCss, clipTimelineDur, overlayTimelineDur, segmentCaptions,
 } from "./constants";
-import { MontageCtx, CutPanel, TextPanel, CaptionsPanel, AudioPanel, TransitionsPanel, FilterPanel, SpeedPanel, StickerPanel, AiPanel } from "./panels";
+import { MontageCtx, CutPanel, TextPanel, CaptionsPanel, AudioPanel, TransitionsPanel, FilterPanel, SpeedPanel, StickerPanel, OverlayPanel, AiPanel } from "./panels";
 import { renderExport } from "./export";
 
 // ─── Types / rail ───────────────────────────────────────────────────────────
 
-type RailTool = "media" | "cut" | "text" | "captions" | "audio" | "transitions" | "filter" | "speed" | "sticker" | "ai";
+type RailTool = "media" | "cut" | "overlay" | "text" | "captions" | "audio" | "transitions" | "filter" | "speed" | "sticker" | "ai";
 
 const RAIL_TOOLS: [RailTool, string, string][] = [
   ["media", "video", "Média"],
   ["cut", "scissors", "Découper"],
+  ["overlay", "image", "Incrust."],
   ["text", "text", "Texte"],
   ["captions", "captions", "Sous-titres"],
   ["audio", "music", "Audio"],
@@ -30,7 +31,7 @@ const RAIL_TOOLS: [RailTool, string, string][] = [
 ];
 
 const TOOL_TITLES: Record<RailTool, string> = {
-  media: "Média", cut: "Découper", text: "Texte & titres", captions: "Sous-titres",
+  media: "Média", cut: "Découper", overlay: "Incrustation", text: "Texte & titres", captions: "Sous-titres",
   audio: "Audio", transitions: "Transitions", filter: "Filtres", speed: "Vitesse",
   sticker: "Stickers", ai: "Assistant IA",
 };
@@ -88,6 +89,7 @@ export default function MontagePage() {
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
 
   const [clips, setClips] = useState<MontageClip[]>([]);
+  const [overlays, setOverlays] = useState<OverlayClip[]>([]);
   const [captions, setCaptions] = useState<Caption[]>([]);
   const [subStyleId, setSubStyleId] = useState<string>(SUB_STYLES[0].id);
   const [subMaxWords, setSubMaxWords] = useState<number>(DEFAULT_WORDS_PER_CAPTION);
@@ -105,10 +107,12 @@ export default function MontagePage() {
   const [selectedClipId, setSelectedClipId] = useState<string | null>(null);
   const [selectedTitleId, setSelectedTitleId] = useState<string | null>(null);
   const [selectedStickerId, setSelectedStickerId] = useState<string | null>(null);
+  const [selectedOverlayId, setSelectedOverlayId] = useState<string | null>(null);
   const [audioOnlyId, setAudioOnlyId] = useState<string | null>(null); // sélection "audio seul" (Option/Alt+clic)
   const [dragOver, setDragOver] = useState(false);
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [uploadingOverlay, setUploadingOverlay] = useState(false);
   const [uploadingAudio, setUploadingAudio] = useState(false);
   const [transcribing, setTranscribing] = useState(false);
   const [isRecordingVO, setIsRecordingVO] = useState(false);
@@ -150,18 +154,23 @@ export default function MontagePage() {
   const [playing, setPlaying] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const overlayInputRef = useRef<HTMLInputElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const loadedSrcRef = useRef<string | null>(null);
+  const overlayVideoRefs = useRef<Map<string, HTMLVideoElement>>(new Map());
   const scrubRef = useRef<HTMLDivElement>(null);
   const stageRef = useRef<HTMLDivElement>(null);
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const dragOverlayRef = useRef<{ type: "title" | "sticker" | "caption"; id: string } | null>(null);
-  const resizeOverlayRef = useRef<{ type: "title" | "sticker" | "caption"; id: string; startDist: number; startScale: number; cx: number; cy: number } | null>(null);
+  const dragOverlayRef = useRef<{ type: "title" | "sticker" | "caption" | "overlay"; id: string } | null>(null);
+  const resizeOverlayRef = useRef<{ type: "title" | "sticker" | "caption" | "overlay"; id: string; startDist: number; startScale: number; cx: number; cy: number } | null>(null);
   const voRecorderRef = useRef<MediaRecorder | null>(null);
   const voChunksRef = useRef<Blob[]>([]);
   const rulerRef = useRef<HTMLDivElement>(null);
   const scrubbingRulerRef = useRef(false);
   const trimRef = useRef<{ id: string; edge: "start" | "end"; startX: number; t0start: number; t0end: number; kind: "video" | "photo"; srcDur: number; speed: number } | null>(null);
+  const ovDragRef = useRef<{ id: string; startX: number; t0offset: number } | null>(null);
+  const ovTrimRef = useRef<{ id: string; edge: "start" | "end"; startX: number; t0start: number; t0end: number; t0offset: number; srcDur: number; kind: "video" | "photo" } | null>(null);
+  const clipboardRef = useRef<{ type: "clip"; data: MontageClip } | { type: "overlay"; data: OverlayClip } | null>(null);
 
   function toast(msg: string) {
     setToastMsg(msg);
@@ -181,6 +190,7 @@ export default function MontagePage() {
       const proj = post?.montage_json as Partial<MontageProject> | null;
       if (proj?.clips?.length) {
         setClips(proj.clips.map(normalizeClip));
+        setOverlays(proj.overlays || []);
         setCaptions(proj.captions || []);
         setSubStyleId(proj.subStyleId || SUB_STYLES[0].id);
         setSubMaxWords(proj.subMaxWords || DEFAULT_WORDS_PER_CAPTION);
@@ -216,14 +226,14 @@ export default function MontagePage() {
     if (loading) return;
     if (saveTimer.current) clearTimeout(saveTimer.current);
     saveTimer.current = setTimeout(() => {
-      const project: MontageProject = { clips, captions, subStyleId, subMaxWords, subPos, subCustom, rawSegments, titles, stickers, audioTracks, showProgressBar, exportUrl };
+      const project: MontageProject = { clips, overlays, captions, subStyleId, subMaxWords, subPos, subCustom, rawSegments, titles, stickers, audioTracks, showProgressBar, exportUrl };
       supabase.from("posts").update({ montage_json: project }).eq("id", postId).then(() => {});
     }, 700);
     return () => { if (saveTimer.current) clearTimeout(saveTimer.current); };
-  }, [clips, captions, subStyleId, subMaxWords, subPos, subCustom, rawSegments, titles, stickers, audioTracks, showProgressBar, exportUrl, loading, postId, supabase]);
+  }, [clips, overlays, captions, subStyleId, subMaxWords, subPos, subCustom, rawSegments, titles, stickers, audioTracks, showProgressBar, exportUrl, loading, postId, supabase]);
 
   // ── Historique undo/redo ────────────────────────────────────────────────────
-  type Snapshot = Required<Pick<MontageProject, "subPos" | "subCustom">> & Pick<MontageProject, "clips" | "captions" | "subStyleId" | "titles" | "stickers" | "audioTracks" | "showProgressBar">;
+  type Snapshot = Required<Pick<MontageProject, "subPos" | "subCustom" | "overlays">> & Pick<MontageProject, "clips" | "captions" | "subStyleId" | "titles" | "stickers" | "audioTracks" | "showProgressBar">;
   const historyRef = useRef<{ past: Snapshot[]; future: Snapshot[] }>({ past: [], future: [] });
   const lastSnapRef = useRef<Snapshot | null>(null);
   const applyingHistoryRef = useRef(false);
@@ -246,7 +256,7 @@ export default function MontagePage() {
   // (rognage, déplacement d'un overlay, slider) ne crée ainsi qu'une seule étape d'annulation.
   useEffect(() => {
     if (loading) return;
-    const snap: Snapshot = { clips, captions, subStyleId, subPos, subCustom, titles, stickers, audioTracks, showProgressBar };
+    const snap: Snapshot = { clips, overlays, captions, subStyleId, subPos, subCustom, titles, stickers, audioTracks, showProgressBar };
     if (applyingHistoryRef.current) {
       applyingHistoryRef.current = false;
       if (histDebounceRef.current) { clearTimeout(histDebounceRef.current); histDebounceRef.current = null; }
@@ -258,11 +268,11 @@ export default function MontagePage() {
     pendingRef.current = { prev: pendingRef.current?.prev ?? lastSnapRef.current, snap };
     if (histDebounceRef.current) clearTimeout(histDebounceRef.current);
     histDebounceRef.current = setTimeout(commitPending, 450);
-  }, [clips, captions, subStyleId, subPos, subCustom, titles, stickers, audioTracks, showProgressBar, loading, commitPending]);
+  }, [clips, overlays, captions, subStyleId, subPos, subCustom, titles, stickers, audioTracks, showProgressBar, loading, commitPending]);
 
   const applySnapshot = useCallback((s: Snapshot) => {
     applyingHistoryRef.current = true;
-    setClips(s.clips); setCaptions(s.captions); setSubStyleId(s.subStyleId);
+    setClips(s.clips); setOverlays(s.overlays || []); setCaptions(s.captions); setSubStyleId(s.subStyleId);
     setSubPos(s.subPos || DEFAULT_SUB_POS); setSubCustom(s.subCustom || {});
     setTitles(s.titles); setStickers(s.stickers); setAudioTracks(s.audioTracks);
     setShowProgressBar(s.showProgressBar);
@@ -300,6 +310,11 @@ export default function MontagePage() {
   const total = clipStarts.length ? clipStarts[clipStarts.length - 1].end : 0;
   const activeClip = clipStarts.find((c) => time >= c.start && time < c.end) || clipStarts[clipStarts.length - 1];
   const selectedClip = clipStarts.find((c) => c.id === selectedClipId) || null;
+  const selectedOverlay = overlays.find((o) => o.id === selectedOverlayId) || null;
+  const activeOverlays = useMemo(
+    () => overlays.filter((o) => time >= o.offset && time < o.offset + overlayTimelineDur(o)),
+    [overlays, time],
+  );
 
   const seek = useCallback((t: number) => {
     const clamped = Math.max(0, Math.min(total, t));
@@ -410,6 +425,7 @@ export default function MontagePage() {
   function selectClip(id: string) {
     setSelectedClipId(id);
     setAudioOnlyId(null);
+    setSelectedOverlayId(null);
     const c = clipStarts.find((c) => c.id === id);
     if (c) seek(c.start + 0.05);
   }
@@ -594,27 +610,100 @@ export default function MontagePage() {
     }
   }
 
+  // ── Incrustations (PIP : 2e piste vidéo/photo superposée) ───────────────────
+  function addOverlayFiles() { overlayInputRef.current?.click(); }
+  async function importOverlayFiles(files: FileList | File[]) {
+    const arr = Array.from(files).filter((f) => f.type.startsWith("video/") || f.type.startsWith("image/"));
+    if (!arr.length) return;
+    setUploadingOverlay(true);
+    try {
+      for (const file of arr) {
+        const isVideo = file.type.startsWith("video/");
+        const bucket = isVideo ? "videos" : "photos";
+        const ext = file.name.split(".").pop() || (isVideo ? "mp4" : "jpg");
+        const path = `${workspaceId}/${postId}-ov-${crypto.randomUUID()}.${ext}`;
+        const { error } = await supabase.storage.from(bucket).upload(path, file, { upsert: true, contentType: file.type });
+        if (error) continue;
+        const { data: urlData } = supabase.storage.from(bucket).getPublicUrl(path);
+        const dur = isVideo ? await getVideoDuration(urlData.publicUrl) : PHOTO_DEFAULT_DUR;
+        const id = crypto.randomUUID();
+        setOverlays((prev) => [...prev, {
+          id, kind: isVideo ? "video" : "photo", name: file.name, src: urlData.publicUrl,
+          srcDur: isVideo ? dur : 15, trimStart: 0, trimEnd: dur, offset: time,
+          ...newOverlayDefaults(),
+        }]);
+        setSelectedOverlayId(id);
+      }
+    } finally {
+      setUploadingOverlay(false);
+    }
+  }
+  function handleOverlayFileInput(e: React.ChangeEvent<HTMLInputElement>) {
+    if (e.target.files) importOverlayFiles(e.target.files);
+    e.target.value = "";
+  }
+  function updateOverlay(id: string, patch: Partial<OverlayClip>) {
+    setOverlays((prev) => prev.map((o) => (o.id === id ? { ...o, ...patch } : o)));
+  }
+  function removeOverlay(id: string) {
+    setOverlays((prev) => prev.filter((o) => o.id !== id));
+    if (selectedOverlayId === id) setSelectedOverlayId(null);
+  }
+  function duplicateOverlay(id: string) {
+    setOverlays((prev) => {
+      const src = prev.find((o) => o.id === id);
+      if (!src) return prev;
+      const copy = { ...src, id: crypto.randomUUID(), offset: src.offset + 0.3, x: Math.min(100, src.x + 4), y: Math.min(100, src.y + 4) };
+      return [...prev, copy];
+    });
+  }
+  function selectOverlay(id: string) {
+    setSelectedOverlayId(id);
+    setSelectedClipId(null); setSelectedTitleId(null); setSelectedStickerId(null); setSubSelected(false);
+    setTool("overlay");
+    const o = overlays.find((x) => x.id === id);
+    if (o) seek(o.offset + 0.05);
+  }
+
+  // Piste d'incrustation : garde les <video> superposées synchronisées avec le playhead.
+  useEffect(() => {
+    overlayVideoRefs.current.forEach((v, id) => {
+      const o = overlays.find((x) => x.id === id);
+      if (!o || o.kind !== "video") return;
+      const isActive = time >= o.offset && time < o.offset + overlayTimelineDur(o);
+      if (!isActive) { if (!v.paused) v.pause(); return; }
+      v.volume = o.vol ?? 1;
+      const localTime = o.trimStart + (time - o.offset);
+      if (Math.abs(v.currentTime - localTime) > 0.4) v.currentTime = Math.max(0, localTime);
+      if (playing) v.play().catch(() => {}); else if (!v.paused) v.pause();
+    });
+  }, [overlays, time, playing]);
+
   // ── Overlays de scène (drag titres/stickers/sous-titres) ────────────────────
-  function onOverlayPointerDown(e: React.PointerEvent, type: "title" | "sticker" | "caption", id: string) {
+  function onOverlayPointerDown(e: React.PointerEvent, type: "title" | "sticker" | "caption" | "overlay", id: string) {
     e.stopPropagation();
     dragOverlayRef.current = { type, id };
-    if (type === "title") { setSelectedTitleId(id); setSubSelected(false); }
-    else if (type === "sticker") { setSelectedStickerId(id); setSubSelected(false); }
+    if (type === "title") { setSelectedTitleId(id); setSubSelected(false); setSelectedOverlayId(null); }
+    else if (type === "sticker") { setSelectedStickerId(id); setSubSelected(false); setSelectedOverlayId(null); }
+    else if (type === "overlay") { setSelectedOverlayId(id); setSubSelected(false); setSelectedTitleId(null); setSelectedStickerId(null); setTool("overlay"); }
     else setSubSelected(true);
   }
-  function onOverlayResizeDown(e: React.PointerEvent, type: "title" | "sticker" | "caption", id: string, currentScale: number) {
+  function onOverlayResizeDown(e: React.PointerEvent, type: "title" | "sticker" | "caption" | "overlay", id: string, currentScale: number) {
     e.stopPropagation();
     e.preventDefault();
     const r = stageRef.current?.getBoundingClientRect();
     if (!r) return;
     // centre de l'overlay = position (x,y) en % de la scène (les overlays sont centrés dessus)
-    const pos = type === "caption" ? subPos : (type === "title" ? titles.find((t) => t.id === id) : stickers.find((s) => s.id === id));
+    const pos = type === "caption" ? subPos
+      : type === "title" ? titles.find((t) => t.id === id)
+      : type === "overlay" ? overlays.find((o) => o.id === id)
+      : stickers.find((s) => s.id === id);
     if (!pos) return;
     const cx = r.left + (pos.x / 100) * r.width;
     const cy = r.top + (pos.y / 100) * r.height;
     const startDist = Math.max(8, Math.hypot(e.clientX - cx, e.clientY - cy));
     resizeOverlayRef.current = { type, id, startDist, startScale: currentScale, cx, cy };
-    if (type === "title") setSelectedTitleId(id); else if (type === "sticker") setSelectedStickerId(id); else setSubSelected(true);
+    if (type === "title") setSelectedTitleId(id); else if (type === "sticker") setSelectedStickerId(id); else if (type === "overlay") setSelectedOverlayId(id); else setSubSelected(true);
   }
   function onStagePointerMove(e: React.PointerEvent) {
     const rz = resizeOverlayRef.current;
@@ -623,6 +712,7 @@ export default function MontagePage() {
       const scale = Math.max(0.4, Math.min(4, rz.startScale * (dist / rz.startDist)));
       if (rz.type === "title") updateTitle(rz.id, { scale });
       else if (rz.type === "sticker") updateSticker(rz.id, { scale });
+      else if (rz.type === "overlay") updateOverlay(rz.id, { scale: Math.max(0.2, Math.min(2.5, scale)) });
       else setSubCustom((c) => ({ ...c, scale: Math.max(0.5, Math.min(2.4, scale)) }));
       return;
     }
@@ -634,6 +724,7 @@ export default function MontagePage() {
     const y = Math.max(0, Math.min(100, ((e.clientY - r.top) / r.height) * 100));
     if (drag.type === "title") updateTitle(drag.id, { x, y });
     else if (drag.type === "sticker") updateSticker(drag.id, { x, y });
+    else if (drag.type === "overlay") updateOverlay(drag.id, { x, y });
     else setSubPos({ x, y });
   }
   function onStagePointerUp() { dragOverlayRef.current = null; resizeOverlayRef.current = null; }
@@ -644,14 +735,14 @@ export default function MontagePage() {
     setExporting(true);
     setExportProgress(0);
     try {
-      const blob = await renderExport({ clips, captions, subStyleId, subCustom, subPos, titles, stickers, audioTracks, showProgressBar }, (p) => setExportProgress(p));
+      const blob = await renderExport({ clips, overlays, captions, subStyleId, subCustom, subPos, titles, stickers, audioTracks, showProgressBar }, (p) => setExportProgress(p));
       const path = `${workspaceId}/${postId}-export-${Date.now()}.webm`;
       const { error } = await supabase.storage.from("videos").upload(path, blob, { upsert: true, contentType: "video/webm" });
       if (error) { toast("Échec de l'upload de l'export : " + error.message); return; }
       const { data: urlData } = supabase.storage.from("videos").getPublicUrl(path);
       setExportUrl(urlData.publicUrl);
       await supabase.from("posts").update({
-        montage_json: { clips, captions, subStyleId, subMaxWords, subPos, subCustom, rawSegments, titles, stickers, audioTracks, showProgressBar, exportUrl: urlData.publicUrl },
+        montage_json: { clips, overlays, captions, subStyleId, subMaxWords, subPos, subCustom, rawSegments, titles, stickers, audioTracks, showProgressBar, exportUrl: urlData.publicUrl },
         photo_url: urlData.publicUrl,
       }).eq("id", postId);
       toast("Export terminé ✓");
@@ -664,32 +755,78 @@ export default function MontagePage() {
 
   // ── Raccourcis clavier (type CapCut) ────────────────────────────────────────
   function deleteSelected() {
+    if (selectedOverlayId) { removeOverlay(selectedOverlayId); return; }
     if (selectedTitleId) { removeTitle(selectedTitleId); return; }
     if (selectedStickerId) { removeSticker(selectedStickerId); return; }
     if (selectedClipId) removeClip(selectedClipId);
   }
+  function copySelected() {
+    if (selectedOverlayId) {
+      const o = overlays.find((x) => x.id === selectedOverlayId);
+      if (o) { clipboardRef.current = { type: "overlay", data: o }; toast("Incrustation copiée."); }
+      return;
+    }
+    if (selectedClipId) {
+      const c = clips.find((x) => x.id === selectedClipId);
+      if (c) { clipboardRef.current = { type: "clip", data: c }; toast("Plan copié."); }
+    }
+  }
+  function pasteClipboard() {
+    const cb = clipboardRef.current;
+    if (!cb) return;
+    if (cb.type === "overlay") {
+      const id = crypto.randomUUID();
+      const copy = { ...cb.data, id, offset: time, x: Math.min(100, cb.data.x + 4), y: Math.min(100, cb.data.y + 4) };
+      setOverlays((prev) => [...prev, copy]);
+      setSelectedOverlayId(id); setTool("overlay");
+    } else {
+      const id = crypto.randomUUID();
+      const copy = { ...cb.data, id };
+      setClips((prev) => {
+        const idx = selectedClipId ? prev.findIndex((c) => c.id === selectedClipId) : prev.length - 1;
+        const out = [...prev]; out.splice(idx + 1, 0, copy); return out;
+      });
+      setSelectedClipId(id);
+    }
+  }
+  function duplicateSelectedAny() {
+    if (selectedOverlayId) { duplicateOverlay(selectedOverlayId); return; }
+    if (selectedClipId) duplicateClip(selectedClipId);
+  }
+  const FRAME = 1 / 30;
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
       const el = e.target as HTMLElement;
       const typing = el && (el.tagName === "INPUT" || el.tagName === "TEXTAREA" || el.isContentEditable);
       if (typing) return;
       const meta = e.metaKey || e.ctrlKey;
-      if (meta && e.key.toLowerCase() === "z") {
-        e.preventDefault();
-        if (e.shiftKey) redo(); else undo();
-        return;
-      }
-      if (meta && e.key.toLowerCase() === "y") { e.preventDefault(); redo(); return; }
+      const k = e.key.toLowerCase();
+      if (meta && k === "z") { e.preventDefault(); if (e.shiftKey) redo(); else undo(); return; }
+      if (meta && k === "y") { e.preventDefault(); redo(); return; }
+      if (meta && k === "c") { e.preventDefault(); copySelected(); return; }
+      if (meta && k === "v") { e.preventDefault(); pasteClipboard(); return; }
+      if (meta && k === "d") { e.preventDefault(); duplicateSelectedAny(); return; }
+      if (meta && k === "b") { e.preventDefault(); splitAtPlayhead(); return; }
+      if (meta && (k === "=" || k === "+")) { e.preventDefault(); setPps((p) => Math.min(160, Math.round(p * 1.3))); return; }
+      if (meta && k === "-") { e.preventDefault(); setPps((p) => Math.max(10, Math.round(p / 1.3))); return; }
+      if (meta) return; // laisse passer les autres raccourcis système
       if (e.key === " ") { e.preventDefault(); togglePlay(); return; }
-      if ((e.key === "Delete" || e.key === "Backspace")) { e.preventDefault(); deleteSelected(); return; }
-      if (e.key.toLowerCase() === "s" && !meta) { e.preventDefault(); splitAtPlayhead(); return; }
+      if (e.key === "Delete" || e.key === "Backspace") { e.preventDefault(); deleteSelected(); return; }
+      if (k === "s") { e.preventDefault(); splitAtPlayhead(); return; }
+      if (k === "j") { e.preventDefault(); seek(time - 1); return; }
+      if (k === "k") { e.preventDefault(); setPlaying(false); return; }
+      if (k === "l") { e.preventDefault(); seek(time + 1); return; }
+      if (e.key === "Home") { e.preventDefault(); seek(0); return; }
+      if (e.key === "End") { e.preventDefault(); seek(total); return; }
+      if (e.key === ",") { e.preventDefault(); seek(time - FRAME); return; }
+      if (e.key === ".") { e.preventDefault(); seek(time + FRAME); return; }
       if (e.key === "ArrowLeft") { e.preventDefault(); seek(time - (e.shiftKey ? 1 : 0.1)); return; }
       if (e.key === "ArrowRight") { e.preventDefault(); seek(time + (e.shiftKey ? 1 : 0.1)); return; }
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [undo, redo, time, total, clipStarts, selectedClipId, selectedTitleId, selectedStickerId, playing, selectedClip]);
+  }, [undo, redo, time, total, clipStarts, selectedClipId, selectedOverlayId, selectedTitleId, selectedStickerId, playing, selectedClip, overlays, clips]);
 
   // ── Trim (poignées) & scrub sur la règle ────────────────────────────────────
   function startTrim(e: React.PointerEvent, c: (typeof clipStarts)[number], edge: "start" | "end") {
@@ -736,9 +873,67 @@ export default function MontagePage() {
     try { (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId); } catch {}
   }
 
+  // Zoom timeline à la molette (Ctrl/⌘ + molette), comme CapCut / Premiere.
+  function onTimelineWheel(e: React.WheelEvent) {
+    if (!(e.ctrlKey || e.metaKey)) return;
+    e.preventDefault();
+    setPps((p) => Math.max(10, Math.min(160, Math.round(p * (e.deltaY < 0 ? 1.12 : 0.89)))));
+  }
+
+  // Aimantation (magnétisme) : cale une valeur temporelle sur le playhead, les bords
+  // de plans et les extrémités du projet quand on est à ≤ 8 px.
+  function snapTime(t: number): number {
+    const targets = [0, total, time, ...clipStarts.map((c) => c.start), ...clipStarts.map((c) => c.end)];
+    const thresh = 8 / pps;
+    let best = t, bestD = thresh;
+    for (const tg of targets) { const d = Math.abs(tg - t); if (d < bestD) { bestD = d; best = tg; } }
+    return best;
+  }
+
+  // ── Incrustation : déplacement (offset) + rognage sur la timeline ───────────
+  function onOvBarDown(e: React.PointerEvent, o: OverlayClip) {
+    e.stopPropagation();
+    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+    ovDragRef.current = { id: o.id, startX: e.clientX, t0offset: o.offset };
+    setSelectedOverlayId(o.id); setSelectedClipId(null); setTool("overlay");
+  }
+  function onOvBarMove(e: React.PointerEvent) {
+    const d = ovDragRef.current;
+    if (!d) return;
+    const delta = (e.clientX - d.startX) / pps;
+    updateOverlay(d.id, { offset: Math.max(0, snapTime(d.t0offset + delta)) });
+  }
+  function onOvBarUp(e: React.PointerEvent) {
+    if (ovDragRef.current) { try { (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId); } catch {} ovDragRef.current = null; }
+  }
+  function startOvTrim(e: React.PointerEvent, o: OverlayClip, edge: "start" | "end") {
+    e.stopPropagation();
+    (e.target as HTMLElement).setPointerCapture(e.pointerId);
+    ovTrimRef.current = { id: o.id, edge, startX: e.clientX, t0start: o.trimStart, t0end: o.trimEnd, t0offset: o.offset, srcDur: o.srcDur, kind: o.kind };
+    setSelectedOverlayId(o.id); setTool("overlay");
+  }
+  function onOvTrimMove(e: React.PointerEvent) {
+    const d = ovTrimRef.current;
+    if (!d) return;
+    const delta = (e.clientX - d.startX) / pps;
+    if (d.edge === "end") {
+      const cap = d.kind === "video" ? d.srcDur : 15;
+      const ne = Math.max(d.t0start + 0.2, Math.min(cap, d.t0end + delta));
+      updateOverlay(d.id, { trimEnd: ne });
+    } else {
+      // rogner le début : décale trimStart (vidéo) et l'offset temporel pour garder la fin en place
+      const ns = Math.max(0, Math.min(d.t0end - 0.2, d.t0start + delta));
+      updateOverlay(d.id, { trimStart: d.kind === "video" ? ns : 0, offset: Math.max(0, d.t0offset + (ns - d.t0start)) });
+    }
+  }
+  function endOvTrim(e: React.PointerEvent) {
+    if (ovTrimRef.current) { try { (e.target as HTMLElement).releasePointerCapture(e.pointerId); } catch {} ovTrimRef.current = null; }
+  }
+
   const ctx: MontageCtx = {
     clips, selectedClip, captions, subStyleId, subMaxWords, subCustom, subPos, hasRawSegments: rawSegments.length > 0,
     titles, stickers, audioTracks, showProgressBar,
+    overlays, selectedOverlay, uploadingOverlay, addOverlayFiles, updateOverlay, removeOverlay, duplicateOverlay, selectOverlay,
     time, total, logoUrl, uploadingAudio, transcribing, isRecordingVO,
     toast, updateClip, splitAtPlayhead,
     duplicateSelected: () => selectedClipId && duplicateClip(selectedClipId),
@@ -854,6 +1049,12 @@ export default function MontagePage() {
                 </div>
               </>
             )}
+            {tool === "overlay" && (
+              <>
+                <OverlayPanel ctx={ctx} />
+                <input ref={overlayInputRef} type="file" accept="video/mp4,video/quicktime,image/jpeg,image/png" multiple onChange={handleOverlayFileInput} style={{ display: "none" }} />
+              </>
+            )}
             {tool === "cut" && <CutPanel ctx={ctx} />}
             {tool === "text" && <TextPanel ctx={ctx} selectedTitleId={selectedTitleId} />}
             {tool === "captions" && <CaptionsPanel ctx={ctx} />}
@@ -890,6 +1091,40 @@ export default function MontagePage() {
                     <span style={{ fontSize: 13, fontWeight: 600 }}>Importez vos rushes pour commencer</span>
                   </div>
                 )}
+
+                {/* incrustations (PIP) — déplaçables/redimensionnables/pivotables */}
+                {overlays.map((o) => {
+                  const isActive = time >= o.offset && time < o.offset + overlayTimelineDur(o);
+                  const sel = selectedOverlayId === o.id;
+                  return (
+                    <div
+                      key={o.id}
+                      className={"mz-pip" + (sel ? " sel" : "")}
+                      style={{
+                        position: "absolute", left: o.x + "%", top: o.y + "%",
+                        width: 50 * o.scale + "%",
+                        transform: `translate(-50%,-50%) rotate(${o.rotation}deg)`,
+                        opacity: isActive ? o.opacity : 0,
+                        pointerEvents: isActive ? "auto" : "none",
+                        cursor: "move", zIndex: 5,
+                      }}
+                      onPointerDown={(e) => onOverlayPointerDown(e, "overlay", o.id)}
+                    >
+                      {o.kind === "video" ? (
+                        <video
+                          ref={(el) => { if (el) overlayVideoRefs.current.set(o.id, el); else overlayVideoRefs.current.delete(o.id); }}
+                          src={o.src}
+                          playsInline muted={(o.vol ?? 1) === 0}
+                          style={{ width: "100%", display: "block", borderRadius: 6, filter: overlayFilterCss(o) }}
+                        />
+                      ) : (
+                        <img src={o.src} alt="" style={{ width: "100%", display: "block", borderRadius: 6, filter: overlayFilterCss(o) }} />
+                      )}
+                      {sel && <button className="mz-ov-del" onPointerDown={(e) => e.stopPropagation()} onClick={() => removeOverlay(o.id)}><VIcon name="x" size={11} /></button>}
+                      {sel && <span className="mz-ov-resize" onPointerDown={(e) => onOverlayResizeDown(e, "overlay", o.id, o.scale)} title="Redimensionner" />}
+                    </div>
+                  );
+                })}
 
                 {/* titres */}
                 {activeTitles.map((t) => (
@@ -1017,7 +1252,7 @@ export default function MontagePage() {
           <button className="mz-hbtn" onClick={() => setPps((p) => Math.max(10, Math.round(p / 1.3)))}><VIcon name="zoomOut" size={15} /></button>
           <button className="mz-hbtn" onClick={() => setPps((p) => Math.min(160, Math.round(p * 1.3)))}><VIcon name="zoomIn" size={15} /></button>
         </div>
-        <div className="a-tl-scroll">
+        <div className="a-tl-scroll" onWheel={onTimelineWheel}>
           <div className="a-tl-inner" style={{ width: 92 + trackW + 30 }}>
             <div
               className="a-ruler"
@@ -1070,6 +1305,33 @@ export default function MontagePage() {
                       >
                         {TRANSITIONS.find((t) => t.id === clipStarts[i + 1].transitionIn)?.glyph || "▮▮"}
                       </button>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div className="a-lane" style={{ height: 34 }}>
+              <div className="a-lane-label"><VIcon name="image" size={13} /> Incrust.</div>
+              <div className="a-lane-track">
+                {overlays.length === 0 && (
+                  <span style={{ fontSize: 11.5, color: "var(--ink-3)", fontWeight: 600 }}>Ajoutez une incrustation (2e piste) depuis l'outil « Incrust. ».</span>
+                )}
+                {overlays.map((o) => (
+                  <div
+                    key={o.id}
+                    className={"a-chip" + (selectedOverlayId === o.id ? " on" : "")}
+                    style={{ left: o.offset * pps, width: Math.max(24, overlayTimelineDur(o) * pps), top: 2, bottom: 2, cursor: "move", background: o.kind === "video" ? "linear-gradient(150deg,#6d4bd8,#2a1a5e)" : "linear-gradient(150deg,#c8792f,#5e3a1a)" }}
+                    title={o.name}
+                    onPointerDown={(e) => onOvBarDown(e, o)}
+                    onPointerMove={onOvBarMove}
+                    onPointerUp={onOvBarUp}
+                  >
+                    <span style={{ position: "absolute", left: 8, top: 4, fontSize: 9.5, fontWeight: 700, color: "#fff", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: "calc(100% - 16px)" }}>{o.kind === "video" ? "🎬" : "🖼"} {o.name}</span>
+                    {selectedOverlayId === o.id && (
+                      <>
+                        <div className="a-trim a-trim-l" onPointerDown={(e) => startOvTrim(e, o, "start")} onPointerMove={onOvTrimMove} onPointerUp={endOvTrim} title="Rogner le début" />
+                        <div className="a-trim a-trim-r" onPointerDown={(e) => startOvTrim(e, o, "end")} onPointerMove={onOvTrimMove} onPointerUp={endOvTrim} title={o.kind === "photo" ? "Durée" : "Rogner la fin"} />
+                      </>
                     )}
                   </div>
                 ))}

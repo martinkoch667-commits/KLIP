@@ -7,10 +7,10 @@
 import { useRef, useState } from "react";
 import { VIcon } from "./icons";
 import {
-  MontageClip, Caption, TitleEl, StickerEl, AudioTrack, SubCustom, SubTemplate,
+  MontageClip, OverlayClip, Caption, TitleEl, StickerEl, AudioTrack, SubCustom, SubTemplate,
   FILTERS, TRANSITIONS, SPEEDS, SUB_STYLES, SUB_LENGTHS, STICKER_GLYPHS, FONT_CHOICES,
   effectiveSubStyle, loadSubTemplates, saveSubTemplates,
-  clipFilterCss, clipTimelineDur,
+  clipFilterCss, overlayFilterCss, clipTimelineDur, overlayTimelineDur,
 } from "./constants";
 
 export interface MontageCtx {
@@ -63,6 +63,15 @@ export interface MontageCtx {
   removeAudioTrack: (id: string) => void;
   setAudioVol: (id: string, vol: number) => void;
   toggleRecordVO: () => void;
+
+  overlays: OverlayClip[];
+  selectedOverlay: OverlayClip | null;
+  uploadingOverlay: boolean;
+  addOverlayFiles: () => void;
+  updateOverlay: (id: string, patch: Partial<OverlayClip>) => void;
+  removeOverlay: (id: string) => void;
+  duplicateOverlay: (id: string) => void;
+  selectOverlay: (id: string) => void;
 }
 
 // ─── petits composants réutilisables ────────────────────────────────────────
@@ -576,6 +585,90 @@ export function StickerPanel({ ctx }: { ctx: MontageCtx }) {
           </div>
         </div>
       )}
+    </>
+  );
+}
+
+// ─── Incrustation (PIP — 2e piste vidéo/photo) ──────────────────────────────
+
+export function OverlayPanel({ ctx }: { ctx: MontageCtx }) {
+  const o = ctx.selectedOverlay;
+  return (
+    <>
+      <div className="a-section">
+        <button className="btn btn-dark mz-btn-block" disabled={ctx.uploadingOverlay} onClick={ctx.addOverlayFiles}>
+          <VIcon name="upload" size={15} /> {ctx.uploadingOverlay ? "Import en cours…" : "Ajouter une incrustation"}
+        </button>
+        <p style={{ fontSize: 12, color: "var(--ink-3)", lineHeight: 1.45, marginTop: 9 }}>
+          Superposez une vidéo ou une photo au-dessus de la piste principale (effet PIP). Déplacez-la et redimensionnez-la directement dans l&apos;aperçu.
+        </p>
+      </div>
+
+      {ctx.overlays.length > 0 && (
+        <div className="a-section">
+          <span className="mz-sec-label">Incrustations · {ctx.overlays.length}</span>
+          <div className="mz-grid3" style={{ marginTop: 10 }}>
+            {ctx.overlays.map((ov) => (
+              <div key={ov.id} className={"mz-thumb" + (o?.id === ov.id ? " on" : "")} onClick={() => ctx.selectOverlay(ov.id)} style={{ position: "relative" }}>
+                {ov.kind === "photo"
+                  ? <img src={ov.src} alt="" style={{ filter: overlayFilterCss(ov) }} />
+                  : <video src={ov.src} muted preload="metadata" style={{ filter: overlayFilterCss(ov) }} />}
+                <span style={{ position: "absolute", top: 5, left: 5, width: 16, height: 16, borderRadius: 5, background: "rgba(0,0,0,.45)", display: "grid", placeItems: "center", color: "#fff" }}>
+                  <VIcon name={ov.kind === "photo" ? "image" : "video"} size={10} />
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {o ? (
+        <>
+          <div className="a-section">
+            <span className="mz-sec-label">Position & taille</span>
+            <Range label="Taille" value={o.scale} min={0.2} max={2.5} step={0.05} onChange={(v) => ctx.updateOverlay(o.id, { scale: v })} fmtv={(v) => Math.round(v * 100) + "%"} />
+            <Range label="Rotation" value={o.rotation} min={-180} max={180} step={1} unit="°" onChange={(v) => ctx.updateOverlay(o.id, { rotation: v })} />
+            <Range label="Opacité" value={o.opacity} min={0} max={1} step={0.02} onChange={(v) => ctx.updateOverlay(o.id, { opacity: v })} fmtv={(v) => Math.round(v * 100) + "%"} />
+            <Range label="Position X" value={o.x} min={0} max={100} step={1} unit="%" onChange={(v) => ctx.updateOverlay(o.id, { x: v })} />
+            <Range label="Position Y" value={o.y} min={0} max={100} step={1} unit="%" onChange={(v) => ctx.updateOverlay(o.id, { y: v })} />
+          </div>
+
+          <div className="a-section">
+            <span className="mz-sec-label">Temps</span>
+            <Range label="Apparition" value={o.offset} min={0} max={Math.max(o.offset, ctx.total)} step={0.1} unit="s" onChange={(v) => ctx.updateOverlay(o.id, { offset: v })} />
+            {o.kind === "video" ? (
+              <>
+                <Range label="Rognage début" value={o.trimStart} min={0} max={Math.max(0, o.trimEnd - 0.2)} step={0.1} unit="s" onChange={(v) => ctx.updateOverlay(o.id, { trimStart: v })} />
+                <Range label="Rognage fin" value={o.trimEnd} min={o.trimStart + 0.2} max={o.srcDur} step={0.1} unit="s" onChange={(v) => ctx.updateOverlay(o.id, { trimEnd: v })} />
+                <Range label="Volume" value={o.vol ?? 1} min={0} max={1} step={0.02} onChange={(v) => ctx.updateOverlay(o.id, { vol: v })} fmtv={(v) => Math.round(v * 100) + "%"} />
+              </>
+            ) : (
+              <Range label="Durée" value={o.trimEnd} min={1} max={15} step={0.5} unit="s" onChange={(v) => ctx.updateOverlay(o.id, { trimEnd: v })} />
+            )}
+          </div>
+
+          <div className="a-section">
+            <span className="mz-sec-label">Filtre</span>
+            <div className="mz-grid3">
+              {FILTERS.map((f) => (
+                <button key={f.id} className={"mz-thumb" + (o.filterId === f.id ? " on" : "")} style={{ position: "relative", overflow: "hidden" }} onClick={() => ctx.updateOverlay(o.id, { filterId: f.id })}>
+                  {o.kind === "photo" ? <img src={o.src} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", filter: f.css }} /> : <video src={o.src} muted preload="metadata" style={{ width: "100%", height: "100%", objectFit: "cover", filter: f.css }} />}
+                  <span style={{ position: "absolute", bottom: 5, left: 0, right: 0, textAlign: "center", fontFamily: "var(--mono)", fontWeight: 800, fontSize: 9, color: "#fff", textShadow: "0 1px 4px rgba(0,0,0,.7)" }}>{f.name}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="a-section">
+            <div className="mz-ai-list">
+              <button className="btn btn-ghost mz-btn-block" onClick={() => ctx.duplicateOverlay(o.id)}><VIcon name="copy" size={15} /> Dupliquer</button>
+              <button className="btn btn-ghost mz-btn-block" onClick={() => ctx.removeOverlay(o.id)}><VIcon name="trash" size={15} /> Supprimer</button>
+            </div>
+          </div>
+        </>
+      ) : ctx.overlays.length > 0 ? (
+        <div className="a-section"><p style={{ fontSize: 12.5, color: "var(--ink-3)" }}>Sélectionnez une incrustation pour l&apos;éditer.</p></div>
+      ) : null}
     </>
   );
 }

@@ -10,10 +10,11 @@
 // ce dernier nécessiterait de décoder N vidéos simultanément, hors de portée
 // raisonnable d'un rendu client pour ce lot.
 
-import { MontageClip, Caption, TitleEl, StickerEl, AudioTrack, SubCustom, effectiveSubStyle, DEFAULT_SUB_POS, clipFilterCss, clipTimelineDur } from "./constants";
+import { MontageClip, OverlayClip, Caption, TitleEl, StickerEl, AudioTrack, SubCustom, effectiveSubStyle, DEFAULT_SUB_POS, clipFilterCss, overlayFilterCss, clipTimelineDur, overlayTimelineDur } from "./constants";
 
 export interface ExportProject {
   clips: MontageClip[];
+  overlays?: OverlayClip[];
   captions: Caption[];
   subStyleId: string;
   subCustom?: SubCustom;
@@ -202,6 +203,24 @@ function drawStickers(ctx: CanvasRenderingContext2D, stickers: StickerEl[], imag
   }
 }
 
+// Dessine un plan d'incrustation (PIP) à sa position/échelle/rotation/opacité.
+function drawOverlayFrame(ctx: CanvasRenderingContext2D, media: HTMLVideoElement | HTMLImageElement, o: OverlayClip) {
+  const mw = media instanceof HTMLVideoElement ? media.videoWidth : media.naturalWidth;
+  const mh = media instanceof HTMLVideoElement ? media.videoHeight : media.naturalHeight;
+  if (!mw || !mh) return;
+  const targetW = CANVAS_W * 0.5 * o.scale;
+  const targetH = targetW * (mh / mw);
+  const cx = (o.x / 100) * CANVAS_W, cy = (o.y / 100) * CANVAS_H;
+  ctx.save();
+  ctx.globalAlpha = Math.max(0, Math.min(1, o.opacity ?? 1));
+  ctx.filter = overlayFilterCss(o) || "none";
+  ctx.translate(cx, cy);
+  if (o.rotation) ctx.rotate((o.rotation * Math.PI) / 180);
+  ctx.drawImage(media, -targetW / 2, -targetH / 2, targetW, targetH);
+  ctx.restore();
+  ctx.globalAlpha = 1;
+}
+
 function drawProgressBar(ctx: CanvasRenderingContext2D, t: number, total: number) {
   const trackY = CANVAS_H - 24, trackX = 24, trackW = CANVAS_W - 48;
   ctx.fillStyle = "rgba(255,255,255,.28)";
@@ -260,6 +279,45 @@ export async function renderExport(project: ExportProject, onProgress: (p: numbe
     }
   }
 
+  // ── Plans d'incrustation (PIP) : image ou vidéo superposée ────────────────────
+  const overlays = project.overlays || [];
+  const overlayMedia: { o: OverlayClip; video: HTMLVideoElement | null; img: HTMLImageElement | null; active: boolean }[] = [];
+  for (const o of overlays) {
+    if (o.kind === "photo") {
+      let img: HTMLImageElement | null = null;
+      try { img = await loadImage(o.src); } catch { /* image indisponible */ }
+      overlayMedia.push({ o, video: null, img, active: false });
+    } else {
+      const ov = document.createElement("video");
+      ov.crossOrigin = "anonymous"; ov.playsInline = true; ov.muted = false;
+      try {
+        const node = audioCtx.createMediaElementSource(ov);
+        const gain = audioCtx.createGain(); gain.gain.value = o.vol ?? 1;
+        node.connect(gain).connect(dest);
+      } catch { /* audio overlay ignoré */ }
+      await new Promise<void>((res) => { ov.onloadedmetadata = () => res(); ov.onerror = () => res(); ov.src = o.src; });
+      overlayMedia.push({ o, video: ov, img: null, active: false });
+    }
+  }
+  // Met à jour (lecture/seek) puis dessine les overlays actifs au temps t.
+  function drawOverlays(t: number) {
+    for (const m of overlayMedia) {
+      const o = m.o;
+      const start = o.offset, end = o.offset + overlayTimelineDur(o);
+      const isActive = t >= start && t < end;
+      if (m.video) {
+        if (isActive) {
+          const target = o.trimStart + (t - start);
+          if (!m.active) { try { m.video.currentTime = target; } catch {} m.video.play().catch(() => {}); m.active = true; }
+          else if (Math.abs(m.video.currentTime - target) > 0.4) { try { m.video.currentTime = target; } catch {} }
+          drawOverlayFrame(ctx, m.video, o);
+        } else if (m.active) { m.video.pause(); m.active = false; }
+      } else if (m.img && isActive) {
+        drawOverlayFrame(ctx, m.img, o);
+      }
+    }
+  }
+
   const stream = canvas.captureStream(FPS);
   dest.stream.getAudioTracks().forEach((t) => stream.addTrack(t));
 
@@ -297,6 +355,7 @@ export async function renderExport(project: ExportProject, onProgress: (p: numbe
             const localT = (video.currentTime - c.trimStart) / c.speed;
             const globalT = c.start + localT;
             drawMediaFrame(ctx, video, c, localT, i === 0);
+            drawOverlays(globalT);
             drawCaptions(ctx, project.captions, project.subStyleId, project.subCustom, project.subPos, globalT);
             drawTitles(ctx, project.titles, globalT);
             drawStickers(ctx, project.stickers, stickerImages, globalT);
@@ -313,6 +372,7 @@ export async function renderExport(project: ExportProject, onProgress: (p: numbe
             if (localT >= c.dur) { clearInterval(iv); resolve(); return; }
             const globalT = c.start + localT;
             drawMediaFrame(ctx, img, c, localT, i === 0);
+            drawOverlays(globalT);
             drawCaptions(ctx, project.captions, project.subStyleId, project.subCustom, project.subPos, globalT);
             drawTitles(ctx, project.titles, globalT);
             drawStickers(ctx, project.stickers, stickerImages, globalT);
@@ -325,6 +385,7 @@ export async function renderExport(project: ExportProject, onProgress: (p: numbe
     onProgress(1);
     recorder.stop();
     audioEls.forEach(({ el }) => el.pause());
+    overlayMedia.forEach((m) => { if (m.video) m.video.pause(); });
   }
 
   const blob = await stopped;
