@@ -628,20 +628,37 @@ function PlanningContent() {
 
   async function handlePublish() {
     if (!selectedPost) return;
-    const isConnected = !!(workspace?.instagram_account_id || workspace?.instagram_username);
-    if (!isConnected) { setShowIgModal(true); return; }
+    const igConnected = !!workspace?.instagram_account_id;
+    const fbConnected = !!workspace?.facebook_page_id;
+    if (!igConnected && !fbConnected) { setShowIgModal(true); return; }
+    // Cibles = plateformes sélectionnées ET réellement connectées ; sinon on retombe sur ce qui est connecté.
+    let targets = panelPlatforms.filter(p => (p === "instagram" && igConnected) || (p === "facebook" && fbConnected));
+    if (targets.length === 0) targets = [igConnected ? "instagram" : "facebook"];
     setPublishing(true);
     if (panelDesc !== selectedPost.description) {
       await supabase.from("posts").update({ description: panelDesc }).eq("id", selectedPost.id);
     }
-    const res  = await fetch("/api/publish/instagram", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ postId: selectedPost.id, workspaceId: id }) });
-    const data = await res.json();
-    setPublishing(false); setSelectedPost(null);
-    if (res.ok) {
+    const endpoints: Record<string, string> = { instagram: "/api/publish/instagram", facebook: "/api/publish/facebook" };
+    const nameOf = (p: string) => (p === "instagram" ? "Instagram" : "Facebook");
+    const results = await Promise.all(targets.map(async (plat) => {
+      const res  = await fetch(endpoints[plat], { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ postId: selectedPost.id, workspaceId: id }) });
+      const data = await res.json().catch(() => ({}));
+      return { plat, ok: res.ok, error: data?.error as string | undefined };
+    }));
+    setPublishing(false);
+    const ok   = results.filter(r => r.ok).map(r => r.plat);
+    const fail = results.filter(r => !r.ok);
+    if (ok.length) {
       setPosts(prev => prev.map(p => p.id === selectedPost.id ? { ...p, status: "published", description: panelDesc } : p));
-      showToast("Publié sur Instagram");
+    }
+    if (fail.length === 0) {
+      showToast(`Publié sur ${ok.map(nameOf).join(" et ")}`);
+      setSelectedPost(null);
+    } else if (ok.length) {
+      showToast(`Publié sur ${ok.map(nameOf).join(" et ")} — échec ${fail.map(r => nameOf(r.plat)).join(" et ")}`, false);
+      setSelectedPost(null);
     } else {
-      showToast(data?.error === "Compte Instagram non connecté" ? "Erreur — compte non connecté" : `Erreur — ${data?.error ?? "publication échouée"}`, false);
+      showToast(`Erreur — ${fail[0].error ?? "publication échouée"}`, false);
     }
   }
 
