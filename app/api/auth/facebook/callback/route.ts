@@ -1,0 +1,97 @@
+import { NextRequest, NextResponse } from "next/server";
+import { createRouteHandlerClient } from "@supabase/auth-helpers-nextjs";
+import { cookies } from "next/headers";
+
+// Callback du flux Facebook Login (Option A). Récupère la Page Facebook, son
+// jeton de Page (longue durée), et le compte Instagram Business lié s'il existe.
+
+const APP_ID = "991302360155193";
+const REDIRECT_URI = "https://klip-swart.vercel.app/api/auth/facebook/callback";
+const APP_URL = "https://klip-swart.vercel.app";
+const GRAPH_VERSION = "v21.0";
+
+export async function GET(request: NextRequest) {
+  const inv = Math.random().toString(36).slice(2, 8);
+  const { searchParams } = new URL(request.url);
+  const code = searchParams.get("code");
+  const workspaceId = searchParams.get("state");
+  const error = searchParams.get("error");
+
+  const back = (q: string) => NextResponse.redirect(`${APP_URL}/workspace/${workspaceId}/parametres?${q}`);
+
+  if (error || !code || !workspaceId) {
+    return back("error=cancelled");
+  }
+
+  try {
+    // 1) code → jeton utilisateur court
+    const tokenParams = new URLSearchParams({
+      client_id: APP_ID,
+      redirect_uri: REDIRECT_URI,
+      client_secret: process.env.META_APP_SECRET!,
+      code,
+    });
+    const tokenRes = await fetch(
+      `https://graph.facebook.com/${GRAPH_VERSION}/oauth/access_token?${tokenParams.toString()}`
+    );
+    const tokenData = await tokenRes.json();
+    console.log(`[FB CB:${inv}] token status:`, tokenRes.status);
+    if (!tokenData.access_token) {
+      console.error(`[FB CB:${inv}] token error:`, JSON.stringify(tokenData));
+      return back("error=token");
+    }
+
+    // 2) jeton utilisateur court → jeton utilisateur longue durée (~60 j)
+    const longParams = new URLSearchParams({
+      grant_type: "fb_exchange_token",
+      client_id: APP_ID,
+      client_secret: process.env.META_APP_SECRET!,
+      fb_exchange_token: tokenData.access_token,
+    });
+    const longRes = await fetch(
+      `https://graph.facebook.com/${GRAPH_VERSION}/oauth/access_token?${longParams.toString()}`
+    );
+    const longData = await longRes.json();
+    const userToken = (longData.access_token ?? tokenData.access_token) as string;
+
+    // 3) Pages de l'utilisateur (+ IG Business lié). Le jeton de Page dérivé
+    //    d'un jeton utilisateur longue durée n'expire pas.
+    const pagesRes = await fetch(
+      `https://graph.facebook.com/${GRAPH_VERSION}/me/accounts?fields=id,name,access_token,instagram_business_account{id,username}&access_token=${userToken}`
+    );
+    const pagesData = await pagesRes.json();
+    console.log(`[FB CB:${inv}] pages:`, JSON.stringify(pagesData).slice(0, 400));
+
+    const pages = pagesData.data ?? [];
+    if (!pages.length) {
+      return back("error=no_pages");
+    }
+
+    // Choix simple : première Page (v1). Une sélection multi-pages viendra plus tard.
+    const page = pages[0];
+    const igLinked = page.instagram_business_account;
+
+    const supabase = createRouteHandlerClient({ cookies });
+
+    // On ne renseigne QUE les colonnes facebook_* : le flux Instagram Login reste
+    // la source des jetons Instagram (publication via graph.instagram.com). Écraser
+    // instagram_access_token avec un jeton de Page casserait cette publication.
+    // On mémorise l'IG Business lié à la Page dans facebook_ig_business_id pour un
+    // futur module « publier sur IG via Facebook », sans impacter l'existant.
+    const update: Record<string, unknown> = {
+      facebook_page_id: String(page.id),
+      facebook_page_name: page.name ?? String(page.id),
+      facebook_page_access_token: page.access_token,
+      facebook_connected_at: new Date().toISOString(),
+      facebook_ig_business_id: igLinked?.id ? String(igLinked.id) : null,
+    };
+
+    await supabase.from("workspaces").update(update).eq("id", workspaceId);
+
+    console.log(`[FB CB:${inv}] SUCCESS — page « ${page.name} »${igLinked ? ` + IG @${igLinked.username}` : ""}`);
+    return back("connected=true");
+  } catch (err) {
+    console.error(`[FB CB:${inv}] error:`, err);
+    return back("error=unknown");
+  }
+}

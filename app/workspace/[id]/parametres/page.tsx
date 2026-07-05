@@ -21,6 +21,7 @@ interface Workspace {
   instagram_account_id: string | null;
   instagram_username: string | null;
   facebook_page_id: string | null;
+  facebook_page_name: string | null;
 }
 
 function IconInstagram() {
@@ -56,6 +57,7 @@ function ParametresContent() {
   const [workspace, setWorkspace] = useState<Workspace | null>(null);
   const [loading, setLoading] = useState(true);
   const [disconnecting, setDisconnecting] = useState(false);
+  const [disconnectingFb, setDisconnectingFb] = useState(false);
 
   const connected = searchParams.get("connected") === "true";
   const errorKey = searchParams.get("error");
@@ -65,7 +67,7 @@ function ParametresContent() {
     async function load() {
       const { data } = await supabase
         .from("workspaces")
-        .select("id, name, instagram_account_id, instagram_username, facebook_page_id")
+        .select("id, name, instagram_account_id, instagram_username, facebook_page_id, facebook_page_name")
         .eq("id", id)
         .single();
       if (data) setWorkspace(data);
@@ -81,18 +83,35 @@ function ParametresContent() {
       instagram_account_id: null,
       instagram_access_token: null,
       instagram_username: null,
-      facebook_page_id: null,
     }).eq("id", id);
     setWorkspace((prev) => prev ? {
       ...prev,
       instagram_account_id: null,
       instagram_username: null,
-      facebook_page_id: null,
     } : null);
     setDisconnecting(false);
   }
 
+  async function handleDisconnectFacebook() {
+    if (!confirm("Déconnecter la Page Facebook de ce workspace ?")) return;
+    setDisconnectingFb(true);
+    await supabase.from("workspaces").update({
+      facebook_page_id: null,
+      facebook_page_name: null,
+      facebook_page_access_token: null,
+      facebook_ig_business_id: null,
+      facebook_connected_at: null,
+    }).eq("id", id);
+    setWorkspace((prev) => prev ? {
+      ...prev,
+      facebook_page_id: null,
+      facebook_page_name: null,
+    } : null);
+    setDisconnectingFb(false);
+  }
+
   const isInstagramConnected = !!(workspace?.instagram_account_id || workspace?.instagram_username);
+  const isFacebookConnected = !!workspace?.facebook_page_id;
 
   return (
     <main style={{ marginLeft: "var(--sb-w)", flex: 1, overflowY: "auto" }}>
@@ -196,38 +215,41 @@ function ParametresContent() {
                   </span>
                   <div style={{ flex: 1 }}>
                     <div style={{ fontWeight: 700, fontSize: 14, color: "var(--ink)", marginBottom: 2 }}>Facebook</div>
-                    {workspace?.facebook_page_id ? (
+                    {isFacebookConnected ? (
                       <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                         <span className="badge" style={{ background: "var(--mint-soft)", color: "var(--mint-2)", display: "inline-flex", alignItems: "center", gap: 4 }}>
                           <span className="dot" style={{ background: "var(--mint-2)" }} /> Connecté
                         </span>
                         <span style={{ fontSize: 12, color: "var(--ink-3)", fontWeight: 600 }}>
-                          Page {workspace.facebook_page_id}
+                          {workspace?.facebook_page_name ?? `Page ${workspace?.facebook_page_id}`}
                         </span>
                       </div>
-                    ) : isInstagramConnected ? (
-                      <span style={{ fontSize: 12.5, color: "var(--ink-3)" }}>Connecté via Instagram</span>
                     ) : (
                       <span style={{ fontSize: 12.5, color: "var(--ink-3)" }}>Non connecté</span>
                     )}
                   </div>
                   <div style={{ flexShrink: 0 }}>
-                    {!isInstagramConnected ? (
-                      <a href={`/api/auth/meta/connect?workspaceId=${id}`} className="btn btn-sm" style={{ background: "#1877F2", color: "#fff" }}>
+                    {isFacebookConnected ? (
+                      <button
+                        onClick={handleDisconnectFacebook}
+                        disabled={disconnectingFb}
+                        className="btn btn-ghost btn-sm"
+                        style={{ color: "var(--warn)", borderColor: "rgba(200,115,43,.3)", opacity: disconnectingFb ? 0.5 : 1 }}
+                      >
+                        <IconTrash /> {disconnectingFb ? "…" : "Déconnecter"}
+                      </button>
+                    ) : (
+                      <a href={`/api/auth/facebook/connect?workspaceId=${id}`} className="btn btn-sm" style={{ background: "#1877F2", color: "#fff" }}>
                         Connecter Facebook <IconArrow />
                       </a>
-                    ) : (
-                      <span style={{ fontSize: 12, color: "var(--ink-3)", fontWeight: 600, padding: "6px 10px" }}>Actif</span>
                     )}
                   </div>
                 </div>
               </div>
 
-              {!isInstagramConnected && (
-                <p style={{ fontSize: 12, color: "var(--ink-3)", marginTop: 10, lineHeight: 1.5 }}>
-                  La connexion Instagram nécessite un compte Instagram Business lié à une page Facebook.
-                </p>
-              )}
+              <p style={{ fontSize: 12, color: "var(--ink-3)", marginTop: 10, lineHeight: 1.5 }}>
+                Instagram nécessite un compte Business. Facebook connecte votre Page (et l&apos;Instagram lié si présent).
+              </p>
             </section>
 
             {/* ── Section: Informations ── */}
