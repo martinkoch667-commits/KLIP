@@ -12,6 +12,7 @@ const COLLAPSE_KEY = "klip-checklist-collapsed";
 interface WorkspaceRow {
   id: string;
   instagram_account_id?: string | null;
+  description_style?: string | null;
 }
 interface PostRow {
   status: string;
@@ -59,7 +60,7 @@ export default function OnboardingChecklist() {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) return;
       const [{ data: ws }, { data: ps }] = await Promise.all([
-        supabase.from("workspaces").select("id, instagram_account_id"),
+        supabase.from("workspaces").select("id, instagram_account_id, description_style"),
         supabase.from("posts").select("status, scheduled_at"),
       ]);
       setWorkspaces(ws ?? []);
@@ -113,6 +114,14 @@ export default function OnboardingChecklist() {
       done: workspaces.some(w => w.instagram_account_id),
       href: firstWs ? `/workspace/${firstWs}/parametres` : "/workspace/new",
       cta: "Connecter",
+    },
+    {
+      id: "style",
+      title: "Analyser votre style IA",
+      description: "L'IA étudie votre ligne éditoriale Instagram.",
+      done: workspaces.some(w => w.description_style),
+      href: firstWs ? `/workspace/${firstWs}/style` : "/workspace/new",
+      cta: "Analyser",
     },
     {
       id: "post",
