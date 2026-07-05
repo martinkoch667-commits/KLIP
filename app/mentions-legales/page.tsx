@@ -1,4 +1,4 @@
-import { LegalShell, LSection, LDivider, LTodo, lProse, lLink } from "@/components/Legal";
+import { LegalShell, LSection, LDivider, lProse, lLink } from "@/components/Legal";
 
 export const metadata = {
   title: "Mentions légales — Klip",
@@ -19,9 +19,9 @@ export default function MentionsLegales() {
           <p style={{ ...lProse, marginBottom: 6 }}><strong>Martin Koch</strong></p>
           <p style={{ ...lProse, marginBottom: 6 }}>Entrepreneur individuel — micro-entreprise</p>
           <p style={{ ...lProse, marginBottom: 6 }}>SIREN : 931&nbsp;920&nbsp;821</p>
-          <p style={{ ...lProse, marginBottom: 6 }}>Adresse : <LTodo>[ADRESSE POSTALE À COMPLÉTER]</LTodo></p>
+          <p style={{ ...lProse, marginBottom: 6 }}>Adresse : Nothalten, France</p>
           <p style={{ ...lProse, marginBottom: 6 }}>Email : <a href="mailto:getklipsaas@gmail.com" style={lLink}>getklipsaas@gmail.com</a></p>
-          <p style={{ ...lProse, marginBottom: 0 }}>TVA intracommunautaire : <LTodo>[N° TVA OU « Non applicable, art. 293 B du CGI »]</LTodo></p>
+          <p style={{ ...lProse, marginBottom: 0 }}>TVA intracommunautaire : Non applicable, art. 293 B du CGI</p>
         </div>
       </LSection>
 
