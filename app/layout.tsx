@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
+import MetaPixel from "@/components/analytics/MetaPixel";
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://getklip.fr"),
@@ -82,6 +83,7 @@ export default function RootLayout({
         <link href="https://fonts.googleapis.com/css2?family=Archivo:ital,wght@0,400;0,700;0,800;1,700;1,800&display=swap" rel="stylesheet" />
       </head>
       <body className="antialiased">
+        <MetaPixel />
         {children}
       </body>
     </html>
