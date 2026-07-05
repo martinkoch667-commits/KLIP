@@ -1,19 +1,9 @@
 'use client';
 
-import React, { useEffect, useRef, useState } from 'react';
-import { useParams } from 'next/navigation';
-import {
-  Layer,
-  Rect,
-  Stage,
-  Text,
-  Image as KonvaImage,
-  Group,
-} from 'react-konva';
-import useImage from 'use-image';
+import React, { useEffect, useState } from 'react';
+import { useParams, useRouter } from 'next/navigation';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import Sidebar from '@/components/Sidebar';
-import ColorPicker from '@/components/ColorPicker';
 import {
   SUB_STYLES, effectiveSubStyle, loadSubTemplates, saveSubTemplates,
   DEFAULT_SUB_POS, DEFAULT_WORDS_PER_CAPTION,
@@ -33,19 +23,6 @@ interface Workspace {
   font_family: string | null;
 }
 
-interface PostTemplate {
-  id: string;
-  workspace_id: string;
-  name: string;
-  format_id: string;
-  background_style: BgStyle;
-  text_zones: TextZone[];
-  logo_placement: LogoPlacement | null;
-  thumbnail_url: string | null;
-  sort_order: number;
-  created_at: string;
-}
-
 interface BgStyle {
   type: 'gradient' | 'solid';
   color?: string;
@@ -54,25 +31,17 @@ interface BgStyle {
   colorTo?: string;
 }
 
-interface TextZone {
+interface PostTemplate {
   id: string;
-  role: 'titre' | 'sous-titre' | 'accroche' | 'corps' | 'cta' | 'tag' | 'personnalise';
-  x: number;
-  y: number;
-  width: number;
-  fontSize: number;
-  fontFamily: string;
-  fontStyle: string;
-  fill: string;
-  align: 'left' | 'center' | 'right';
-  placeholder: string;
-}
-
-interface LogoPlacement {
-  x: number;
-  y: number;
-  width: number;
-  height: number;
+  workspace_id: string;
+  name: string;
+  format_id: string;
+  background_style: BgStyle;
+  text_zones: any[];
+  logo_placement: { x: number; y: number; width: number; height: number } | null;
+  thumbnail_url: string | null;
+  sort_order: number;
+  created_at: string;
 }
 
 // ─── Format definitions ───────────────────────────────────────────────────────
@@ -84,117 +53,23 @@ const FORMATS = [
   { id: 'facebook',    label: 'Facebook Post',  sub: '1200×630',  w: 420, h: 221 },
 ];
 
-const ROLES: { id: TextZone['role']; label: string; defaultSize: number; defaultStyle: string }[] = [
-  { id: 'titre',        label: 'Titre',        defaultSize: 42, defaultStyle: 'bold' },
-  { id: 'sous-titre',   label: 'Sous-titre',   defaultSize: 22, defaultStyle: 'bold' },
-  { id: 'accroche',     label: 'Accroche',     defaultSize: 18, defaultStyle: 'normal' },
-  { id: 'corps',        label: 'Corps',        defaultSize: 14, defaultStyle: 'normal' },
-  { id: 'cta',          label: 'CTA',          defaultSize: 16, defaultStyle: 'bold' },
-  { id: 'tag',          label: 'Tag / Badge',  defaultSize: 12, defaultStyle: 'bold' },
-  { id: 'personnalise', label: 'Personnalisé', defaultSize: 16, defaultStyle: 'normal' },
-];
-
-const ROLE_COLORS: Record<string, string> = {
-  titre:        '#FFFFFF',
-  'sous-titre': '#E0E0E0',
-  accroche:     '#FFFFFF',
-  corps:        '#CCCCCC',
-  cta:          '#2FD79B',
-  tag:          '#C8F135',
-  personnalise: '#FFFFFF',
-};
-
-function newId() { return `z-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`; }
-
-// ─── Gradient helper for Konva ────────────────────────────────────────────────
-
-function hexToRgb(hex: string): [number, number, number] {
-  const h = hex.replace('#', '');
-  const n = parseInt(h.length === 3 ? h.split('').map(c => c + c).join('') : h, 16);
-  return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
-}
-
-function GradientBg({ bg, w, h }: { bg: BgStyle; w: number; h: number }) {
-  if (bg.type === 'solid') {
-    return <Rect x={0} y={0} width={w} height={h} fill={bg.color ?? '#000'} />;
-  }
-  const angle = ((bg.angle ?? 135) * Math.PI) / 180;
-  const len = Math.sqrt(w * w + h * h);
-  const cx = w / 2, cy = h / 2;
-  const startX = cx - Math.cos(angle) * len / 2;
-  const startY = cy - Math.sin(angle) * len / 2;
-  const endX   = cx + Math.cos(angle) * len / 2;
-  const endY   = cy + Math.sin(angle) * len / 2;
-  const [r1, g1, b1] = hexToRgb(bg.colorFrom ?? '#0038FF');
-  const [r2, g2, b2] = hexToRgb(bg.colorTo   ?? '#FFFFFF');
-  return (
-    <Rect x={0} y={0} width={w} height={h}
-      fillLinearGradientStartPoint={{ x: startX, y: startY }}
-      fillLinearGradientEndPoint={{ x: endX, y: endY }}
-      fillLinearGradientColorStops={[
-        0, `rgb(${r1},${g1},${b1})`,
-        1, `rgb(${r2},${g2},${b2})`,
-      ]}
-    />
-  );
-}
-
-function PhotoPlaceholder({ x, y, w, h }: { x: number; y: number; w: number; h: number }) {
-  return (
-    <Group x={x} y={y}>
-      <Rect width={w} height={h} fill="rgba(255,255,255,0.08)" stroke="rgba(255,255,255,0.25)"
-        strokeWidth={1.5} dash={[6, 4]} cornerRadius={6} />
-      <Text text="PHOTO" width={w} height={h} align="center" verticalAlign="middle"
-        fontSize={12} fontStyle="bold" fill="rgba(255,255,255,0.35)"
-        fontFamily="Inter, sans-serif" listening={false} />
-    </Group>
-  );
-}
-
-function LogoImg({ src, x, y, w, h }: { src: string; x: number; y: number; w: number; h: number }) {
-  const [img] = useImage(src, 'anonymous');
-  if (!img) return null;
-  return <KonvaImage image={img} x={x} y={y} width={w} height={h} />;
-}
-
-// ─── Panel style constants ─────────────────────────────────────────────────────
-
-const panelLabel: React.CSSProperties = {
-  display: 'block', fontSize: 10.5, fontWeight: 700, letterSpacing: '0.1em',
-  textTransform: 'uppercase', color: 'var(--ink-3)', fontFamily: 'var(--display)', marginBottom: 8,
-};
-
 const panelInput: React.CSSProperties = {
   width: '100%', background: 'var(--white)', border: '1px solid var(--line)',
   borderRadius: 'var(--r-s)', padding: '7px 10px', color: 'var(--ink)',
   fontSize: 13.5, outline: 'none', boxSizing: 'border-box', fontFamily: 'var(--sans)',
 };
 
-const panelSection: React.CSSProperties = {
-  padding: '14px 18px', borderBottom: '1px solid var(--line)',
-};
-
 // ─── Main page ────────────────────────────────────────────────────────────────
 
 export default function TemplatesPage() {
   const { id: workspaceId } = useParams<{ id: string }>();
+  const router = useRouter();
   const supabase = createClientComponentClient();
 
   const [workspace, setWorkspace] = useState<Workspace | null>(null);
   const [templates, setTemplates] = useState<PostTemplate[]>([]);
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
   const [formatFilter, setFormatFilter] = useState('all');
-
-  const [editing, setEditing] = useState<PostTemplate | null>(null);
-  const [editorName, setEditorName] = useState('');
-  const [editorFormat, setEditorFormat] = useState('ig-portrait');
-  const [editorBg, setEditorBg] = useState<BgStyle>({ type: 'gradient', angle: 135, colorFrom: '#0038FF', colorTo: '#FFFFFF' });
-  const [editorZones, setEditorZones] = useState<TextZone[]>([]);
-  const [editorLogo, setEditorLogo] = useState<LogoPlacement | null>(null);
-  const [selectedZoneId, setSelectedZoneId] = useState<string | null>(null);
-
-  const stageRef = useRef<any>(null);
 
   useEffect(() => {
     if (!workspaceId) return;
@@ -214,113 +89,16 @@ export default function TemplatesPage() {
     load();
   }, [workspaceId, supabase]);
 
-  const fmt = FORMATS.find(f => f.id === editorFormat) ?? FORMATS[0];
-  const stageW = fmt.w;
-  const stageH = fmt.h;
-
   const filteredTemplates = formatFilter === 'all'
     ? templates
     : templates.filter(t => t.format_id === formatFilter);
 
-  // ── Open ─────────────────────────────────────────────────────────────────────
-
   function openNew() {
-    const bg: BgStyle = {
-      type: 'gradient', angle: 135,
-      colorFrom: workspace?.primary_color ?? '#0038FF',
-      colorTo: workspace?.secondary_color ?? '#FFFFFF',
-    };
-    setEditorName('Nouveau modèle');
-    setEditorFormat('ig-portrait');
-    setEditorBg(bg);
-    setEditorZones([]);
-    setEditorLogo(null);
-    setSelectedZoneId(null);
-    setEditing({ id: '', workspace_id: workspaceId, name: 'Nouveau modèle', format_id: 'ig-portrait', background_style: bg, text_zones: [], logo_placement: null, thumbnail_url: null, sort_order: 0, created_at: '' });
+    router.push(`/workspace/${workspaceId}/template-editor/new`);
   }
 
   function openEdit(tpl: PostTemplate) {
-    setEditorName(tpl.name);
-    setEditorFormat(tpl.format_id);
-    setEditorBg(tpl.background_style);
-    setEditorZones(Array.isArray(tpl.text_zones) ? tpl.text_zones : []);
-    setEditorLogo(tpl.logo_placement ?? null);
-    setSelectedZoneId(null);
-    setEditing(tpl);
-  }
-
-  // ── Zones ─────────────────────────────────────────────────────────────────────
-
-  function addTextZone(role: TextZone['role']) {
-    const cfg = ROLES.find(r => r.id === role)!;
-    const zone: TextZone = {
-      id: newId(), role,
-      x: Math.round(stageW * 0.1),
-      y: Math.round(stageH * 0.1 + editorZones.length * 60),
-      width: Math.round(stageW * 0.8),
-      fontSize: cfg.defaultSize,
-      fontFamily: workspace?.font_family ?? 'Inter',
-      fontStyle: cfg.defaultStyle,
-      fill: ROLE_COLORS[role] ?? '#FFFFFF',
-      align: 'left',
-      placeholder: cfg.label,
-    };
-    setEditorZones(prev => [...prev, zone]);
-    setSelectedZoneId(zone.id);
-  }
-
-  function addLogo() {
-    if (!workspace?.logo_url && !workspace?.logo_dark_url) return;
-    setEditorLogo({ x: 20, y: 20, width: 80, height: 40 });
-  }
-
-  function deleteZone(id: string) {
-    setEditorZones(prev => prev.filter(z => z.id !== id));
-    if (selectedZoneId === id) setSelectedZoneId(null);
-  }
-
-  function updateZone(id: string, patch: Partial<TextZone>) {
-    setEditorZones(prev => prev.map(z => z.id === id ? { ...z, ...patch } : z));
-  }
-
-  // ── Save ──────────────────────────────────────────────────────────────────────
-
-  async function saveTemplate() {
-    if (!editing) return;
-    setSaving(true);
-    let thumbnailUrl: string | null = editing.thumbnail_url ?? null;
-    if (stageRef.current) {
-      try {
-        const dataUrl = stageRef.current.toDataURL({ pixelRatio: 0.5 });
-        const blob = await (await fetch(dataUrl)).blob();
-        const path = `templates/${workspaceId}/${editing.id || newId()}.png`;
-        const { data: storageData } = await supabase.storage.from('photos').upload(path, blob, { upsert: true, contentType: 'image/png' });
-        if (storageData) {
-          const { data: { publicUrl } } = supabase.storage.from('photos').getPublicUrl(path);
-          thumbnailUrl = publicUrl;
-        }
-      } catch { /* ignore thumbnail errors */ }
-    }
-    const payload = {
-      workspace_id: workspaceId, name: editorName, format_id: editorFormat,
-      background_style: editorBg, text_zones: editorZones, logo_placement: editorLogo, thumbnail_url: thumbnailUrl,
-    };
-    try {
-      if (editing.id) {
-        const res = await fetch(`/api/templates/${editing.id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
-        const { template } = await res.json();
-        setTemplates(prev => prev.map(t => t.id === template.id ? template : t));
-      } else {
-        const res = await fetch('/api/templates', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
-        const { template } = await res.json();
-        setTemplates(prev => [...prev, template]);
-      }
-      setEditing(null);
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setSaving(false);
-    }
+    router.push(`/workspace/${workspaceId}/template-editor/${tpl.id}`);
   }
 
   async function deleteTemplate(id: string) {
@@ -328,9 +106,6 @@ export default function TemplatesPage() {
     await fetch(`/api/templates/${id}`, { method: 'DELETE' });
     setTemplates(prev => prev.filter(t => t.id !== id));
   }
-
-  const selectedZone = editorZones.find(z => z.id === selectedZoneId) ?? null;
-  const logoSrc = workspace?.logo_url ?? workspace?.logo_dark_url ?? '';
 
   const primaryColor = workspace?.primary_color ?? '#2FD79B';
   const palette = [workspace?.primary_color, workspace?.secondary_color, workspace?.accent_color].filter(Boolean) as string[];
@@ -501,227 +276,10 @@ export default function TemplatesPage() {
               @media (max-width: 560px)  { .tpl-grid { grid-template-columns: 1fr; } }
               .tpl-card:hover .tpl-hover { opacity: 1 !important; }
               .tpl-card:hover { transform: translateY(-2px); box-shadow: var(--shadow-pop); }
-              @media (max-width: 767px) {
-                .tpl-editor-left { width: 220px !important; }
-                .tpl-canvas-wrap canvas { max-width: calc(100vw - 260px) !important; height: auto !important; }
-              }
-              @media (max-width: 560px) {
-                .tpl-editor-left { display: none !important; }
-                .tpl-canvas-wrap canvas { max-width: calc(100vw - 32px) !important; height: auto !important; }
-              }
             `}</style>
           </div>
         </div>
       </div>
-
-      {/* ── Editor overlay ────────────────────────────────────────────────────────── */}
-      {editing && (
-        <div style={{
-          position: 'fixed', inset: 0, zIndex: 200,
-          display: 'flex', flexDirection: 'column',
-          background: '#0C1A12',
-          fontFamily: 'var(--sans)',
-        }}>
-          {/* Editor topbar */}
-          <div style={{
-            height: 52, background: 'var(--paper)', borderBottom: '1px solid var(--line)',
-            display: 'flex', alignItems: 'center', gap: 10, padding: '0 16px',
-            flexShrink: 0,
-          }}>
-            <button onClick={() => setEditing(null)} style={{
-              display: 'flex', alignItems: 'center', gap: 6, padding: '6px 10px',
-              borderRadius: 'var(--r-s)', background: 'none', border: 'none', cursor: 'pointer',
-              color: 'var(--ink-2)', fontSize: 13, fontWeight: 600, fontFamily: 'var(--sans)',
-            }}>
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
-              Fermer
-            </button>
-            <div style={{ width: 1, height: 20, background: 'var(--line)' }} />
-            <input
-              value={editorName}
-              onChange={e => setEditorName(e.target.value)}
-              style={{
-                flex: 1, maxWidth: 280, background: 'var(--sunk)', border: 'none',
-                borderRadius: 'var(--r-s)', padding: '6px 10px',
-                fontSize: 13.5, fontWeight: 700, color: 'var(--ink)', outline: 'none',
-                fontFamily: 'var(--sans)',
-              }}
-            />
-            <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8 }}>
-              <button onClick={() => setEditing(null)} className="btn btn-ghost btn-sm">Annuler</button>
-              <button onClick={saveTemplate} disabled={saving} className="btn btn-primary btn-sm">
-                {saving ? 'Enregistrement…' : 'Enregistrer'}
-              </button>
-            </div>
-          </div>
-
-          {/* Editor body */}
-          <div style={{ flex: 1, display: 'flex', minHeight: 0 }}>
-            {/* Left panel */}
-            <div className="tpl-editor-left" style={{
-              width: 264, background: 'var(--paper)', borderRight: '1px solid var(--line)',
-              display: 'flex', flexDirection: 'column', overflowY: 'auto', flexShrink: 0,
-            }}>
-              {/* Format */}
-              <div style={panelSection}>
-                <label style={panelLabel}>Format</label>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                  {FORMATS.map(f => (
-                    <button key={f.id} onClick={() => setEditorFormat(f.id)} style={{
-                      background: editorFormat === f.id ? 'var(--mint-soft)' : 'var(--white)',
-                      border: `1.5px solid ${editorFormat === f.id ? 'var(--mint-2)' : 'var(--line)'}`,
-                      borderRadius: 'var(--r-s)', padding: '7px 10px', textAlign: 'left', cursor: 'pointer',
-                      color: editorFormat === f.id ? 'var(--mint-2)' : 'var(--ink-2)',
-                      fontSize: 13, fontWeight: 600, display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                      fontFamily: 'var(--sans)',
-                    }}>
-                      <span>{f.label}</span>
-                      <span style={{ fontSize: 11, opacity: 0.55, fontWeight: 400 }}>{f.sub}</span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Background */}
-              <div style={panelSection}>
-                <label style={panelLabel}>Arrière-plan</label>
-                <div style={{ display: 'flex', gap: 6, marginBottom: 10 }}>
-                  {(['gradient', 'solid'] as const).map(type => (
-                    <button key={type} onClick={() => setEditorBg(b => ({ ...b, type }))} style={{
-                      flex: 1, padding: '6px 0', borderRadius: 'var(--r-s)',
-                      border: `1.5px solid ${editorBg.type === type ? 'var(--mint-2)' : 'var(--line)'}`,
-                      background: editorBg.type === type ? 'var(--mint-soft)' : 'var(--white)',
-                      color: editorBg.type === type ? 'var(--mint-2)' : 'var(--ink-3)',
-                      fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'var(--sans)',
-                    }}>
-                      {type === 'gradient' ? 'Dégradé' : 'Uni'}
-                    </button>
-                  ))}
-                </div>
-                {editorBg.type === 'solid' ? (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <span style={{ fontSize: 12, color: 'var(--ink-3)' }}>Couleur</span>
-                    <ColorPicker value={editorBg.color ?? '#000000'} onChange={c => setEditorBg(b => ({ ...b, color: c }))} />
-                  </div>
-                ) : (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <span style={{ fontSize: 12, color: 'var(--ink-3)', width: 50 }}>Départ</span>
-                      <ColorPicker value={editorBg.colorFrom ?? '#0038FF'} onChange={c => setEditorBg(b => ({ ...b, colorFrom: c }))} />
-                      <span style={{ fontSize: 12, color: 'var(--ink-3)', flex: 1 }}>{editorBg.colorFrom ?? '#0038FF'}</span>
-                    </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <span style={{ fontSize: 12, color: 'var(--ink-3)', width: 50 }}>Fin</span>
-                      <ColorPicker value={editorBg.colorTo ?? '#FFFFFF'} onChange={c => setEditorBg(b => ({ ...b, colorTo: c }))} />
-                      <span style={{ fontSize: 12, color: 'var(--ink-3)', flex: 1 }}>{editorBg.colorTo ?? '#FFFFFF'}</span>
-                    </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <span style={{ fontSize: 12, color: 'var(--ink-3)', width: 50 }}>Angle</span>
-                      <input type="range" min={0} max={360} value={editorBg.angle ?? 135} onChange={e => setEditorBg(b => ({ ...b, angle: Number(e.target.value) }))} style={{ flex: 1 }} />
-                      <span style={{ fontSize: 12, color: 'var(--ink-2)', width: 30, textAlign: 'right' }}>{editorBg.angle ?? 135}°</span>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* Zones de texte */}
-              <div style={panelSection}>
-                <label style={panelLabel}>Zones de texte</label>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-                  {ROLES.map(r => (
-                    <button key={r.id} onClick={() => addTextZone(r.id)} style={{
-                      background: 'var(--white)', border: '1px solid var(--line)',
-                      borderRadius: 'var(--r-s)', padding: '7px 10px', textAlign: 'left',
-                      cursor: 'pointer', color: 'var(--ink-2)', fontSize: 13,
-                      display: 'flex', alignItems: 'center', gap: 8, fontFamily: 'var(--sans)',
-                    }}>
-                      <span style={{ width: 8, height: 8, borderRadius: '50%', background: ROLE_COLORS[r.id], flexShrink: 0 }} />
-                      {r.label}
-                      <span style={{ marginLeft: 'auto', opacity: 0.4, fontSize: 18, lineHeight: 1, color: 'var(--ink)' }}>+</span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Logo */}
-              <div style={panelSection}>
-                <label style={panelLabel}>Logo</label>
-                {editorLogo ? (
-                  <button onClick={() => setEditorLogo(null)} style={{
-                    background: 'rgba(220,38,38,.07)', border: '1.5px solid rgba(220,38,38,.18)',
-                    borderRadius: 'var(--r-s)', padding: '7px 10px', color: '#DC2626',
-                    fontSize: 13, fontWeight: 600, cursor: 'pointer', width: '100%', fontFamily: 'var(--sans)',
-                  }}>
-                    Retirer le logo
-                  </button>
-                ) : (
-                  <button onClick={addLogo} disabled={!workspace?.logo_url && !workspace?.logo_dark_url} style={{
-                    background: 'var(--white)', border: '1px solid var(--line)',
-                    borderRadius: 'var(--r-s)', padding: '7px 10px', color: 'var(--ink-2)',
-                    fontSize: 13, cursor: 'pointer', width: '100%', fontFamily: 'var(--sans)',
-                    opacity: (!workspace?.logo_url && !workspace?.logo_dark_url) ? 0.4 : 1,
-                  }}>
-                    {(!workspace?.logo_url && !workspace?.logo_dark_url) ? 'Aucun logo configuré' : 'Placer le logo'}
-                  </button>
-                )}
-              </div>
-
-              {/* Zone inspector */}
-              {selectedZone && (
-                <ZoneInspector zone={selectedZone} onChange={patch => updateZone(selectedZone.id, patch)} onDelete={() => deleteZone(selectedZone.id)} />
-              )}
-            </div>
-
-            {/* Canvas area */}
-            <div style={{
-              flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center',
-              justifyContent: 'center', gap: 16, padding: 24, overflow: 'auto',
-              background: 'var(--sunk)',
-            }}>
-              <div className="tpl-canvas-wrap" style={{ position: 'relative', display: 'inline-block', boxShadow: '0 8px 40px rgba(0,0,0,0.22)', borderRadius: 8, overflow: 'hidden', maxWidth: '100%' }}>
-                <Stage ref={stageRef} width={stageW} height={stageH} style={{ display: 'block', maxWidth: '100%' }}>
-                  <Layer>
-                    <GradientBg bg={editorBg} w={stageW} h={stageH} />
-                    <PhotoPlaceholder
-                      x={Math.round(stageW * 0.2)} y={Math.round(stageH * 0.25)}
-                      w={Math.round(stageW * 0.6)} h={Math.round(stageH * 0.4)}
-                    />
-                    {editorLogo && logoSrc && (
-                      <LogoImg src={logoSrc} x={editorLogo.x} y={editorLogo.y} w={editorLogo.width} h={editorLogo.height} />
-                    )}
-                    {editorZones.map(zone => (
-                      <Group key={zone.id} x={zone.x} y={zone.y} draggable
-                        onDragEnd={e => updateZone(zone.id, { x: Math.round(e.target.x()), y: Math.round(e.target.y()) })}
-                        onClick={() => setSelectedZoneId(zone.id)}
-                        onTap={() => setSelectedZoneId(zone.id)}
-                      >
-                        {selectedZoneId === zone.id && (
-                          <Rect x={-2} y={-2} width={zone.width + 4} height={zone.fontSize + 12}
-                            fill="transparent" stroke="#2FD79B" strokeWidth={1.5}
-                            dash={[4, 3]} cornerRadius={3} listening={false} />
-                        )}
-                        <Text text={zone.placeholder} fontSize={zone.fontSize} fontFamily={zone.fontFamily}
-                          fontStyle={zone.fontStyle} fill={zone.fill} align={zone.align}
-                          width={zone.width} wrap="word" opacity={0.8} listening={false} />
-                        <Rect x={0} y={-18} width={60} height={14} fill={ROLE_COLORS[zone.role] ?? '#fff'}
-                          cornerRadius={3} opacity={0.15} listening={false} />
-                        <Text x={3} y={-17} text={zone.role} fontSize={9} fontStyle="bold"
-                          fill={ROLE_COLORS[zone.role] ?? '#fff'} listening={false} />
-                      </Group>
-                    ))}
-                  </Layer>
-                </Stage>
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <span className="chip" style={{ background: 'rgba(255,255,255,.07)', color: 'rgba(238,237,227,.5)', fontSize: 12, border: '1px solid rgba(255,255,255,.08)' }}>
-                  {fmt.label}
-                </span>
-                <span style={{ color: 'rgba(238,237,227,.35)', fontSize: 12 }}>{fmt.sub}</span>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
@@ -799,78 +357,6 @@ function MiniPreview({ bg }: { bg: BgStyle }) {
         <div style={{ height: 6, borderRadius: 3, background: 'rgba(255,255,255,0.7)', width: '80%' }} />
         <div style={{ height: 4, borderRadius: 2, background: 'rgba(255,255,255,0.4)', width: '55%' }} />
         <div style={{ height: 3, borderRadius: 2, background: 'rgba(255,255,255,0.25)', width: '90%' }} />
-      </div>
-    </div>
-  );
-}
-
-// ─── Zone inspector ───────────────────────────────────────────────────────────
-
-function ZoneInspector({ zone, onChange, onDelete }: { zone: TextZone; onChange: (patch: Partial<TextZone>) => void; onDelete: () => void }) {
-  return (
-    <div style={{ padding: '14px 18px', borderTop: '1px solid var(--line)' }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-        <span style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--ink-3)', fontFamily: 'var(--display)' }}>Zone sélectionnée</span>
-        <button onClick={onDelete} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#DC2626', fontSize: 12, padding: '2px 6px', fontWeight: 600 }}>
-          Supprimer
-        </button>
-      </div>
-
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-        <div>
-          <label style={{ fontSize: 11, color: 'var(--ink-3)', display: 'block', marginBottom: 3, fontWeight: 600 }}>Texte de référence</label>
-          <input value={zone.placeholder} onChange={e => onChange({ placeholder: e.target.value })} style={panelInput} />
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <label style={{ fontSize: 11, color: 'var(--ink-3)', width: 54, flexShrink: 0, fontWeight: 600 }}>Taille</label>
-          <input type="range" min={8} max={96} value={zone.fontSize} onChange={e => onChange({ fontSize: Number(e.target.value) })} style={{ flex: 1 }} />
-          <span style={{ fontSize: 12, color: 'var(--ink-2)', width: 26, textAlign: 'right', fontWeight: 700 }}>{zone.fontSize}</span>
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <label style={{ fontSize: 11, color: 'var(--ink-3)', width: 54, flexShrink: 0, fontWeight: 600 }}>Largeur</label>
-          <input type="range" min={40} max={560} value={zone.width} onChange={e => onChange({ width: Number(e.target.value) })} style={{ flex: 1 }} />
-          <span style={{ fontSize: 12, color: 'var(--ink-2)', width: 26, textAlign: 'right', fontWeight: 700 }}>{zone.width}</span>
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <label style={{ fontSize: 11, color: 'var(--ink-3)', width: 54, flexShrink: 0, fontWeight: 600 }}>Couleur</label>
-          <ColorPicker value={zone.fill} onChange={c => onChange({ fill: c })} />
-          <span style={{ fontSize: 11, color: 'var(--ink-3)' }}>{zone.fill}</span>
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <label style={{ fontSize: 11, color: 'var(--ink-3)', width: 54, flexShrink: 0, fontWeight: 600 }}>Alignement</label>
-          <div style={{ display: 'flex', gap: 4 }}>
-            {(['left', 'center', 'right'] as const).map(a => (
-              <button key={a} onClick={() => onChange({ align: a })} style={{
-                background: zone.align === a ? 'var(--mint-soft)' : 'var(--white)',
-                border: `1.5px solid ${zone.align === a ? 'var(--mint-2)' : 'var(--line)'}`,
-                borderRadius: 6, padding: '5px 8px', cursor: 'pointer',
-                color: zone.align === a ? 'var(--mint-2)' : 'var(--ink-3)',
-              }}>
-                {a === 'left'
-                  ? <svg width="13" height="11" viewBox="0 0 13 11" fill="currentColor"><rect x="0" y="0" width="13" height="2" rx="1"/><rect x="0" y="4.5" width="8" height="2" rx="1"/><rect x="0" y="9" width="10" height="2" rx="1"/></svg>
-                  : a === 'center'
-                  ? <svg width="13" height="11" viewBox="0 0 13 11" fill="currentColor"><rect x="0" y="0" width="13" height="2" rx="1"/><rect x="2.5" y="4.5" width="8" height="2" rx="1"/><rect x="1.5" y="9" width="10" height="2" rx="1"/></svg>
-                  : <svg width="13" height="11" viewBox="0 0 13 11" fill="currentColor"><rect x="0" y="0" width="13" height="2" rx="1"/><rect x="5" y="4.5" width="8" height="2" rx="1"/><rect x="3" y="9" width="10" height="2" rx="1"/></svg>}
-              </button>
-            ))}
-          </div>
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <label style={{ fontSize: 11, color: 'var(--ink-3)', width: 54, flexShrink: 0, fontWeight: 600 }}>Style</label>
-          <div style={{ display: 'flex', gap: 4 }}>
-            {(['normal', 'bold', 'italic'] as const).map(s => (
-              <button key={s} onClick={() => onChange({ fontStyle: s })} style={{
-                background: zone.fontStyle === s ? 'var(--mint-soft)' : 'var(--white)',
-                border: `1.5px solid ${zone.fontStyle === s ? 'var(--mint-2)' : 'var(--line)'}`,
-                borderRadius: 6, padding: '4px 8px', cursor: 'pointer',
-                color: zone.fontStyle === s ? 'var(--mint-2)' : 'var(--ink-3)',
-                fontSize: 12, fontWeight: 700,
-              }}>
-                {s === 'normal' ? 'N' : s === 'bold' ? 'B' : 'I'}
-              </button>
-            ))}
-          </div>
-        </div>
       </div>
     </div>
   );

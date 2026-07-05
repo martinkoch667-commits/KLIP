@@ -1452,9 +1452,9 @@ function PanelHead({ title, sub, onClose }: { title: string; sub?: string; onClo
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
-export default function EditorPage({ params }: { params: { id: string; postId: string } }) {
-  const workspaceId = params.id;
-  const postId = params.postId;
+export function VisualEditor({ workspaceId, postId, templateId, mode }: { workspaceId: string; postId?: string; templateId?: string; mode: 'post' | 'template' }) {
+  const isTemplate = mode === 'template';
+  const entityId = postId ?? templateId ?? 'new';
 
   const supabase = createClientComponentClient();
   const stageRef = useRef<any>(null);
@@ -1698,6 +1698,7 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
   const [bgImageSelected, setBgImageSelected] = useState(false);
   const [bgOpacity, setBgOpacity] = useState(100);
   const [workspaceName, setWorkspaceName] = useState('');
+  const [templateName, setTemplateName] = useState('Nouveau template');
   const [postPhotoUrl, setPostPhotoUrl] = useState('');
   const [workspaceData, setWorkspaceData] = useState<{
     brand_voice_prompt?: string; company_description?: string;
@@ -1774,26 +1775,36 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
     setLoadError(null);
     const load = async () => {
       try {
-        let [{ data: p, error: postError }, { data: w }] = await Promise.all([
-          supabase.from('posts').select('*').eq('id', postId).maybeSingle(),
-          supabase.from('workspaces').select('*').eq('id', workspaceId).maybeSingle(),
-        ]);
-        // Au refresh, la session peut ne pas être prête : si le post revient vide sans erreur,
-        // on réessaie une fois (sinon on afficherait un canvas vide « déconnecté »).
-        if (!p && !postError) {
-          await new Promise(r => setTimeout(r, 600));
-          const retry = await supabase.from('posts').select('*').eq('id', postId).maybeSingle();
-          p = retry.data; postError = retry.error;
-          if (!w) { const wr = await supabase.from('workspaces').select('*').eq('id', workspaceId).maybeSingle(); w = wr.data; }
+        let p: any = null;
+        let w: any = null;
+        if (isTemplate) {
+          // Mode template : on ne charge pas de post, seulement la charte (workspace).
+          const wr = await supabase.from('workspaces').select('*').eq('id', workspaceId).maybeSingle();
+          w = wr.data;
+        } else {
+          let postError: any;
+          const [pr, wr] = await Promise.all([
+            supabase.from('posts').select('*').eq('id', postId).maybeSingle(),
+            supabase.from('workspaces').select('*').eq('id', workspaceId).maybeSingle(),
+          ]);
+          p = pr.data; postError = pr.error; w = wr.data;
+          // Au refresh, la session peut ne pas être prête : si le post revient vide sans erreur,
+          // on réessaie une fois (sinon on afficherait un canvas vide « déconnecté »).
+          if (!p && !postError) {
+            await new Promise(r => setTimeout(r, 600));
+            const retry = await supabase.from('posts').select('*').eq('id', postId).maybeSingle();
+            p = retry.data; postError = retry.error;
+            if (!w) { const wr2 = await supabase.from('workspaces').select('*').eq('id', workspaceId).maybeSingle(); w = wr2.data; }
+          }
+          if (postError) throw postError;
+          if (p?.template_id) setPostTemplateId(p.template_id);
+          // Set canvas format from post_type (template will override below if applicable)
+          const PT_FORMAT: Record<string, string> = { post: 'ig-portrait', reel: 'ig-story', story: 'ig-story', carrousel: 'ig-square' };
+          if (p?.post_type && PT_FORMAT[p.post_type]) { setFormatId(PT_FORMAT[p.post_type]); setPostType(p.post_type as 'post' | 'reel' | 'story' | 'carrousel'); }
+          if (p?.photo_url) { setPostPhotoUrl(p.photo_url); }
+          // Post vierge (jamais édité, pas de template) + une photo -> l'IA composera automatiquement à l'ouverture.
+          setAutoComposeReady(!p?.editor_json && !p?.template_id && !!p?.photo_url);
         }
-        if (postError) throw postError;
-        if (p?.template_id) setPostTemplateId(p.template_id);
-        // Set canvas format from post_type (template will override below if applicable)
-        const PT_FORMAT: Record<string, string> = { post: 'ig-portrait', reel: 'ig-story', story: 'ig-story', carrousel: 'ig-square' };
-        if (p?.post_type && PT_FORMAT[p.post_type]) { setFormatId(PT_FORMAT[p.post_type]); setPostType(p.post_type as 'post' | 'reel' | 'story' | 'carrousel'); }
-        if (p?.photo_url) { setPostPhotoUrl(p.photo_url); }
-        // Post vierge (jamais édité, pas de template) + une photo -> l'IA composera automatiquement à l'ouverture.
-        setAutoComposeReady(!p?.editor_json && !p?.template_id && !!p?.photo_url);
         if (w) {
           setWorkspaceName(w.name || '');
           setWorkspaceData(w);
@@ -1834,7 +1845,24 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
         };
         const photoProxyUrl = p?.photo_url ? `/api/proxy-image?url=${encodeURIComponent(p.photo_url)}` : '';
         let initSlides: Slide[];
-        if (p?.editor_json) {
+        if (isTemplate) {
+          // Mode template : charge le modèle depuis post_templates (ou vierge si "new").
+          let tpl: any = null;
+          if (templateId && templateId !== 'new') {
+            const { data } = await supabase.from('post_templates').select('*').eq('id', templateId).maybeSingle();
+            tpl = data;
+          }
+          if (tpl) {
+            setTemplateName(tpl.name || 'Nouveau template');
+            if (tpl.format_id && FORMATS.find(f => f.id === tpl.format_id)) setFormatId(tpl.format_id);
+            setBgStyle((tpl.background_style as BgStyle) || { type: 'gradient', colorFrom: '#0038FF', colorTo: '#FFFFFF', angle: 135 });
+            const zones: CanvasEl[] = Array.isArray(tpl.text_zones) ? tpl.text_zones : [];
+            initSlides = [{ id: 'slide-1', elements: zones, proxyUrl: '' }];
+          } else {
+            setBgStyle({ type: 'gradient', colorFrom: '#0038FF', colorTo: '#FFFFFF', angle: 135 });
+            initSlides = [{ id: 'slide-1', elements: [], proxyUrl: '' }];
+          }
+        } else if (p?.editor_json) {
           // Saved state always wins — never re-apply template
           try {
             const parsed = JSON.parse(p.editor_json);
@@ -1891,8 +1919,11 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
           initSlides = [{ id: 'slide-1', elements: [defaultEl], proxyUrl: photoProxyUrl }];
         }
         // Re-layout (Phase 2) : auto-fit + anti-chevauchement pour le format du post.
-        const loadFmt = FORMATS.find(f => f.id === (p?.post_type && PT_FORMAT_MAP[p.post_type] ? PT_FORMAT_MAP[p.post_type] : 'ig-portrait')) ?? FORMATS[0];
-        initSlides = initSlides.map(s => ({ ...s, elements: relayoutText(s.elements, loadFmt.w, loadFmt.h) }));
+        // En mode template, on préserve la mise en page dessinée à la main (pas de relayout).
+        if (!isTemplate) {
+          const loadFmt = FORMATS.find(f => f.id === (p?.post_type && PT_FORMAT_MAP[p.post_type] ? PT_FORMAT_MAP[p.post_type] : 'ig-portrait')) ?? FORMATS[0];
+          initSlides = initSlides.map(s => ({ ...s, elements: relayoutText(s.elements, loadFmt.w, loadFmt.h) }));
+        }
         setSlides(initSlides);
         slidesRef.current = initSlides;
         const first = initSlides[0];
@@ -1922,7 +1953,7 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
       }
     };
     load();
-  }, [postId, workspaceId]);
+  }, [postId, templateId, workspaceId, isTemplate]);
 
   // 5s timeout
   useEffect(() => {
@@ -2102,6 +2133,31 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
     setSelectedId(el.id);
   };
 
+  // Template mode: add a role-tagged text zone (AI-fillable)
+  const addTextRole = (role: string) => {
+    const preset: Record<string, { text: string; fontSize: number; fontStyle: string }> = {
+      accroche: { text: 'ACCROCHE', fontSize: 15, fontStyle: 'bold' },
+      titre: { text: 'TITRE PRINCIPAL', fontSize: 40, fontStyle: 'bold' },
+      'sous-titre': { text: 'Sous-titre', fontSize: 20, fontStyle: 'normal' },
+      corps: { text: 'Corps de texte', fontSize: 15, fontStyle: 'normal' },
+      cta: { text: 'CALL TO ACTION', fontSize: 15, fontStyle: 'bold' },
+      prix: { text: '00€', fontSize: 36, fontStyle: 'bold' },
+    };
+    const p = preset[role] ?? preset.titre;
+    const el: TextEl = { id: newId(), type: 'text', x: 50, y: 100, rotation: 0, opacity: 100, text: p.text, fontSize: p.fontSize, fontFamily: 'Oswald', fontStyle: p.fontStyle, textDecoration: '', fill: '#FFFFFF', align: 'left', width: stageW - 100, hasBg: false, bgColor: '#000000', bgOpacity: 80, cornerRadius: 4, padding: 16, paddingH: 16, paddingV: 10, role };
+    applyElements([...elements, el]);
+    setSelectedId(el.id);
+  };
+
+  // Template mode: add a replaceable photo zone (placeholder swapped by AI/user later)
+  const addPhotoPlaceholder = () => {
+    const w = Math.round(stageW * 0.6), h = Math.round(stageW * 0.6);
+    const el: ImageEl = { id: newId(), type: 'image', src: PHOTO_PLACEHOLDER_SRC, x: Math.round((stageW - w) / 2), y: Math.round((stageH - h) / 2), rotation: 0, opacity: 100, width: w, height: h };
+    applyElements([...elements, el]);
+    setSelectedId(el.id);
+    setTool(null);
+  };
+
   const addRect = () => {
     const el: RectEl = { id: newId(), type: 'rect', x: 100, y: 100, rotation: 0, opacity: 100, width: 200, height: 100, fill: '#B8F028', stroke: '', strokeWidth: 0, cornerRadius: 0 };
     applyElements([...elements, el]);
@@ -2267,7 +2323,7 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
       const mod = await import(/* webpackIgnore: true */ 'https://esm.sh/@imgly/background-removal@1.7.0');
       const removeBackground = mod.removeBackground || mod.default?.removeBackground || mod.default;
       const outBlob: Blob = await removeBackground(blob);
-      const path = `${workspaceId}/${postId}-cutout-${Date.now()}.png`;
+      const path = `${workspaceId}/${entityId}-cutout-${Date.now()}.png`;
       const { error } = await supabase.storage.from('photos').upload(path, outBlob, { upsert: true, contentType: 'image/png' });
       if (error) { showEditorToast("Échec de l'upload : " + error.message); return; }
       const { data: urlData } = supabase.storage.from('photos').getPublicUrl(path);
@@ -2737,7 +2793,53 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
     window.location.href = `/workspace/${workspaceId}`;
   };
 
+  // ── Enregistrement d'un TEMPLATE (mode template) ──────────────────────────
+  const handleSaveTemplate = async () => {
+    if (!stageRef.current) return;
+    setSaving(true);
+    setSelectedId(null);
+    setSelectedIds([]);
+    await new Promise(resolve => setTimeout(resolve, 200));
+    saveCurrentSlide();
+    const els = elementsRef.current;
+    // Miniature du template
+    let thumbnailUrl: string | null = null;
+    try {
+      const dataURL = stageRef.current.toDataURL({ pixelRatio: 1 });
+      const blob = await fetch(dataURL).then(r => r.blob());
+      const fn = `${workspaceId}/templates/${entityId}-${Date.now()}.png`;
+      await supabase.storage.from('photos').upload(fn, blob, { contentType: 'image/png', upsert: true });
+      const { data: ud } = supabase.storage.from('photos').getPublicUrl(fn);
+      thumbnailUrl = ud?.publicUrl || null;
+    } catch {}
+    // logo_placement dérivé d'une image non-placeholder (le logo posé sur le canvas)
+    const logoEl = els.find(e => e.type === 'image' && (e as ImageEl).src !== PHOTO_PLACEHOLDER_SRC) as ImageEl | undefined;
+    const logo_placement = logoEl ? { x: logoEl.x, y: logoEl.y, width: logoEl.width, height: logoEl.height } : null;
+    const body = {
+      workspace_id: workspaceId,
+      name: templateName || 'Nouveau template',
+      format_id: formatId,
+      background_style: bgStyle ?? { type: 'gradient', colorFrom: '#0038FF', colorTo: '#FFFFFF', angle: 135 },
+      text_zones: els,
+      logo_placement,
+      thumbnail_url: thumbnailUrl,
+    };
+    const isNew = !templateId || templateId === 'new';
+    const res = await fetch(isNew ? '/api/templates' : `/api/templates/${templateId}`, {
+      method: isNew ? 'POST' : 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    setSaving(false);
+    if (res.ok) {
+      window.location.href = `/workspace/${workspaceId}/templates`;
+    } else {
+      showEditorToast('Erreur — enregistrement du template échoué');
+    }
+  };
+
   const handleSave = async () => {
+    if (isTemplate) { await handleSaveTemplate(); return; }
     if (!stageRef.current) return;
     setSaving(true);
     setSelectedId(null);
@@ -2754,7 +2856,7 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
     const uploadCurrent = async (idx: number): Promise<string> => {
       const dataURL = stageRef.current!.toDataURL({ pixelRatio: 2 });
       const blob = await fetch(dataURL).then(r => r.blob());
-      const fn = `${workspaceId}/${postId}-slide${idx}-${Date.now()}.png`;
+      const fn = `${workspaceId}/${entityId}-slide${idx}-${Date.now()}.png`;
       await supabase.storage.from('exports').upload(fn, blob, { contentType: 'image/png', upsert: true });
       const { data: ud } = supabase.storage.from('exports').getPublicUrl(fn);
       return ud?.publicUrl || '';
@@ -2794,7 +2896,7 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
     // Export cover (active slide) for calendar / feed previews
     const coverDataURL = stageRef.current.toDataURL({ pixelRatio: 2 });
     const coverBlob = await fetch(coverDataURL).then(r => r.blob());
-    const coverFn = `${workspaceId}/${postId}-${Date.now()}.png`;
+    const coverFn = `${workspaceId}/${entityId}-${Date.now()}.png`;
     await supabase.storage.from('exports').upload(coverFn, coverBlob, { contentType: 'image/png', upsert: true });
     const { data: coverUrl } = supabase.storage.from('exports').getPublicUrl(coverFn);
 
@@ -3117,10 +3219,10 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
               <line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/>
             </svg>
           </button>
-          <a href={`/workspace/${workspaceId}`} className="btn btn-sm btn-ghost"
+          <a href={isTemplate ? `/workspace/${workspaceId}/templates` : `/workspace/${workspaceId}`} className="btn btn-sm btn-ghost"
             style={{ gap: 5, textDecoration: 'none', flexShrink: 0 }}>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 6l-6 6 6 6"/></svg>
-            <span className="ed-hide-sm">Retour</span>
+            <span className="ed-hide-sm">{isTemplate ? 'Templates' : 'Retour'}</span>
           </a>
           <span className="ed-hide-sm" style={{ width: 1, height: 24, background: 'var(--line)', flexShrink: 0 }} />
           <div className="ed-hide-sm" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -3129,9 +3231,14 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
                 {workspaceName ? workspaceName.slice(0,2).toUpperCase() : 'KL'}
               </span>
             </div>
-            <span style={{ fontWeight: 600, fontSize: 13, color: 'var(--ink)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 140 }}>{workspaceName || 'Éditeur'}</span>
+            {isTemplate ? (
+              <input value={templateName} onChange={e => setTemplateName(e.target.value)} placeholder="Nom du template"
+                style={{ fontWeight: 600, fontSize: 13, color: 'var(--ink)', border: '1px solid var(--line)', borderRadius: 'var(--r-s)', padding: '4px 8px', outline: 'none', fontFamily: 'var(--sans)', background: 'var(--sunk)', maxWidth: 180 }} />
+            ) : (
+              <span style={{ fontWeight: 600, fontSize: 13, color: 'var(--ink)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 140 }}>{workspaceName || 'Éditeur'}</span>
+            )}
             <span className="chip" style={{ background: 'var(--sunk)', color: 'var(--ink-2)', fontSize: 10.5 }}>
-              {activeFormat.label}{slides.length > 1 ? ` · ${slides.length} slides` : ''}
+              {isTemplate ? `Template · ${activeFormat.label}` : `${activeFormat.label}${slides.length > 1 ? ` · ${slides.length} slides` : ''}`}
             </span>
           </div>
           <span style={{ width: 1, height: 24, background: 'var(--line)', flexShrink: 0 }} />
@@ -3175,45 +3282,63 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
 
         {/* Right: Type selector + Aperçu + Partager */}
         <div className="ed-topbar-right" style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
-          {/* Post type pills */}
-          <div className="ed-type-pills" style={{ display: 'flex', gap: 2, padding: '3px', background: 'var(--sunk)', borderRadius: 'var(--r-s)', border: '1px solid var(--line)' }}>
-            {(['post', 'reel', 'story', 'carrousel'] as const).map(t => (
-              <button key={t} onClick={() => changePostType(t)}
-                style={{ padding: '3px 9px', borderRadius: 6, border: 'none', cursor: 'pointer', fontSize: 11, fontWeight: 700, fontFamily: 'var(--sans)', transition: 'all .12s',
-                  background: postType === t ? 'var(--canvas)' : 'transparent',
-                  color: postType === t ? 'var(--ink)' : 'var(--ink-3)',
-                  boxShadow: postType === t ? '0 1px 3px rgba(13,15,10,.1)' : 'none',
-                }}>
-                {t === 'post' ? 'Post' : t === 'reel' ? 'Reel' : t === 'story' ? 'Story' : 'Carrousel'}
-              </button>
-            ))}
-          </div>
-          <button onClick={() => composeWithAI()} disabled={qaBusy} className="btn btn-sm ed-ai-btn" title="L'IA compose la mise en page à partir de la photo et de la charte"
-            style={{ height: 36, opacity: qaBusy ? 0.6 : 1, cursor: qaBusy ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9.5 3l1.6 4.9L16 9.5l-4.9 1.6L9.5 16l-1.6-4.9L3 9.5l4.9-1.6z"/><path d="M18 14l.8 2.5L21 17l-2.2.8L18 20l-.8-2.2L15 17l2.2-.5z"/></svg>
-            <span className="ed-hide-md">{aiVariants.length ? 'Recomposer' : 'Composer (IA)'}</span>
-          </button>
-          {aiVariants.length > 1 && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 3, padding: '3px', background: 'var(--sunk)', borderRadius: 9, border: '1px solid var(--line)', flexShrink: 0 }} title="Choisir une proposition de l'IA">
-              {aiVariants.map((_, i) => (
-                <button key={i} onClick={() => selectVariant(i)} disabled={qaBusy}
-                  style={{ width: 26, height: 26, borderRadius: 6, border: 'none', cursor: qaBusy ? 'not-allowed' : 'pointer', fontSize: 12, fontWeight: 800, fontFamily: 'var(--sans)',
-                    background: i === aiVariantIdx ? 'var(--canvas)' : 'transparent', color: i === aiVariantIdx ? 'var(--ink)' : 'var(--ink-3)',
-                    boxShadow: i === aiVariantIdx ? '0 1px 3px rgba(13,15,10,.1)' : 'none' }}>
-                  {i + 1}
+          {isTemplate ? (
+            /* Format pills (template mode) */
+            <div className="ed-type-pills" style={{ display: 'flex', gap: 2, padding: '3px', background: 'var(--sunk)', borderRadius: 'var(--r-s)', border: '1px solid var(--line)' }}>
+              {FORMATS.map(f => (
+                <button key={f.id} onClick={() => setFormatId(f.id)}
+                  style={{ padding: '3px 9px', borderRadius: 6, border: 'none', cursor: 'pointer', fontSize: 11, fontWeight: 700, fontFamily: 'var(--sans)', transition: 'all .12s',
+                    background: formatId === f.id ? 'var(--canvas)' : 'transparent',
+                    color: formatId === f.id ? 'var(--ink)' : 'var(--ink-3)',
+                    boxShadow: formatId === f.id ? '0 1px 3px rgba(13,15,10,.1)' : 'none',
+                  }}>
+                  {f.label}
                 </button>
               ))}
             </div>
+          ) : (
+            <>
+              {/* Post type pills */}
+              <div className="ed-type-pills" style={{ display: 'flex', gap: 2, padding: '3px', background: 'var(--sunk)', borderRadius: 'var(--r-s)', border: '1px solid var(--line)' }}>
+                {(['post', 'reel', 'story', 'carrousel'] as const).map(t => (
+                  <button key={t} onClick={() => changePostType(t)}
+                    style={{ padding: '3px 9px', borderRadius: 6, border: 'none', cursor: 'pointer', fontSize: 11, fontWeight: 700, fontFamily: 'var(--sans)', transition: 'all .12s',
+                      background: postType === t ? 'var(--canvas)' : 'transparent',
+                      color: postType === t ? 'var(--ink)' : 'var(--ink-3)',
+                      boxShadow: postType === t ? '0 1px 3px rgba(13,15,10,.1)' : 'none',
+                    }}>
+                    {t === 'post' ? 'Post' : t === 'reel' ? 'Reel' : t === 'story' ? 'Story' : 'Carrousel'}
+                  </button>
+                ))}
+              </div>
+              <button onClick={() => composeWithAI()} disabled={qaBusy} className="btn btn-sm ed-ai-btn" title="L'IA compose la mise en page à partir de la photo et de la charte"
+                style={{ height: 36, opacity: qaBusy ? 0.6 : 1, cursor: qaBusy ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9.5 3l1.6 4.9L16 9.5l-4.9 1.6L9.5 16l-1.6-4.9L3 9.5l4.9-1.6z"/><path d="M18 14l.8 2.5L21 17l-2.2.8L18 20l-.8-2.2L15 17l2.2-.5z"/></svg>
+                <span className="ed-hide-md">{aiVariants.length ? 'Recomposer' : 'Composer (IA)'}</span>
+              </button>
+              {aiVariants.length > 1 && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 3, padding: '3px', background: 'var(--sunk)', borderRadius: 9, border: '1px solid var(--line)', flexShrink: 0 }} title="Choisir une proposition de l'IA">
+                  {aiVariants.map((_, i) => (
+                    <button key={i} onClick={() => selectVariant(i)} disabled={qaBusy}
+                      style={{ width: 26, height: 26, borderRadius: 6, border: 'none', cursor: qaBusy ? 'not-allowed' : 'pointer', fontSize: 12, fontWeight: 800, fontFamily: 'var(--sans)',
+                        background: i === aiVariantIdx ? 'var(--canvas)' : 'transparent', color: i === aiVariantIdx ? 'var(--ink)' : 'var(--ink-3)',
+                        boxShadow: i === aiVariantIdx ? '0 1px 3px rgba(13,15,10,.1)' : 'none' }}>
+                      {i + 1}
+                    </button>
+                  ))}
+                </div>
+              )}
+              <button onClick={runVisualQA} disabled={qaBusy} className="btn btn-sm ed-ai-btn" title="L'IA analyse le rendu et corrige les défauts visuels"
+                style={{ height: 36, opacity: qaBusy ? 0.6 : 1, cursor: qaBusy ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 3l1.9 5.8L20 10l-5.8 1.9L12 18l-1.9-5.8L4 10l5.8-1.2z"/></svg>
+                <span className="ed-hide-md">{qaBusy ? 'Analyse…' : 'Vérifier'}</span>
+              </button>
+            </>
           )}
-          <button onClick={runVisualQA} disabled={qaBusy} className="btn btn-sm ed-ai-btn" title="L'IA analyse le rendu et corrige les défauts visuels"
-            style={{ height: 36, opacity: qaBusy ? 0.6 : 1, cursor: qaBusy ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 3l1.9 5.8L20 10l-5.8 1.9L12 18l-1.9-5.8L4 10l5.8-1.2z"/></svg>
-            <span className="ed-hide-md">{qaBusy ? 'Analyse…' : 'Vérifier'}</span>
-          </button>
           <button onClick={exportPNG} className="btn btn-sm btn-ghost" style={{ height: 36 }}>Aperçu</button>
           <button onClick={handleSave} disabled={saving} className="btn btn-sm btn-primary"
             style={{ height: 36, opacity: saving ? 0.6 : 1, cursor: saving ? 'not-allowed' : 'pointer' }}>
-            {saving ? 'Sauvegarde…' : 'Publier'}
+            {saving ? 'Sauvegarde…' : isTemplate ? 'Enregistrer' : 'Publier'}
           </button>
         </div>
       </div>
@@ -3435,6 +3560,20 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
                   Ajouter une zone de texte
                 </button>
+                {isTemplate && (
+                  <>
+                    <p style={{ fontSize: 10, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '0.12em', fontFamily: 'var(--mono)', fontWeight: 800, margin: '0 0 8px' }}>Zones par rôle IA</p>
+                    <p style={{ fontSize: 11, color: 'var(--ink-3)', margin: '0 0 8px', lineHeight: 1.4 }}>Ces blocs seront remplis automatiquement par l'IA lors de la génération d'un post.</p>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, marginBottom: 16 }}>
+                      {([['accroche', 'Accroche'], ['titre', 'Titre'], ['sous-titre', 'Sous-titre'], ['corps', 'Corps'], ['cta', 'CTA'], ['prix', 'Prix']] as const).map(([role, label]) => (
+                        <button key={role} onClick={() => addTextRole(role)} className="well"
+                          style={{ padding: '10px 8px', cursor: 'pointer', fontSize: 12, fontWeight: 700, color: 'var(--ink-2)', fontFamily: 'var(--sans)', textAlign: 'center' }}>
+                          {label}
+                        </button>
+                      ))}
+                    </div>
+                  </>
+                )}
                 <p style={{ fontSize: 10, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '0.12em', fontFamily: 'var(--mono)', fontWeight: 800, margin: '0 0 8px' }}>Styles</p>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                   <button onClick={() => applyTemplate({ fontSize: 88, fontFamily: 'Archivo', fontStyle: 'italic bold', fill: workspaceData?.primary_color || '#111' } as Partial<TextEl>)}
@@ -3471,6 +3610,15 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
             {tool === 'photos' && (
               <div style={{ padding: '18px' }}>
                 <PanelHead title="Photos" sub="Pexels · 3M+ photos" onClose={() => setTool(null)} />
+                {isTemplate && (
+                  <>
+                    <button onClick={addPhotoPlaceholder} className="btn btn-dark" style={{ width: '100%', justifyContent: 'center', height: 44, marginBottom: 8, gap: 8, cursor: 'pointer' }}>
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+                      Zone photo remplaçable
+                    </button>
+                    <p style={{ fontSize: 11, color: 'var(--ink-3)', margin: '0 0 14px', lineHeight: 1.4 }}>Emplacement où la photo du post sera insérée automatiquement.</p>
+                  </>
+                )}
                 {/* Import local */}
                 <label className="btn btn-primary" style={{ width: '100%', justifyContent: 'center', height: 44, marginBottom: 14, cursor: 'pointer' }}>
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
@@ -3730,6 +3878,18 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
 
                 {elements.map(el => {
                   if (hiddenIds.has(el.id)) return null;
+                  if (el.type === 'image' && (el as ImageEl).src === PHOTO_PLACEHOLDER_SRC) {
+                    const ph = el as ImageEl;
+                    return (
+                      <Group key={el.id} id={el.id} x={ph.x} y={ph.y} rotation={ph.rotation} opacity={ph.opacity / 100} draggable
+                        onClick={e => handleElClick(el.id, e.evt.shiftKey)} onTap={() => handleElClick(el.id, false)}
+                        onDragStart={() => handleElDragStart(el.id)}
+                        onDragEnd={e => handleElDragEnd(el.id, e.target.x(), e.target.y())}>
+                        <Rect width={ph.width} height={ph.height} fill="rgba(120,120,120,0.12)" stroke="#8B8E7F" strokeWidth={2} dash={[10, 8]} cornerRadius={6} />
+                        <Text width={ph.width} height={ph.height} text={'\uD83D\uDCF7\nPHOTO'} align="center" verticalAlign="middle" fontSize={20} fontStyle="bold" fill="#5A5E50" fontFamily="var(--sans), sans-serif" listening={false} />
+                      </Group>
+                    );
+                  }
                   if (el.type === 'image') return (
                     <ImgNode key={el.id} el={el} onSelect={sk => handleElClick(el.id, sk)} onChange={u => updateEl(el.id, u)}
                       onDragStart={() => handleElDragStart(el.id)}
@@ -4315,4 +4475,8 @@ export default function EditorPage({ params }: { params: { id: string; postId: s
     </div>
     </>
   );
+}
+
+export default function EditorPage({ params }: { params: { id: string; postId: string } }) {
+  return <VisualEditor workspaceId={params.id} postId={params.postId} mode="post" />;
 }

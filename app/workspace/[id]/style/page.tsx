@@ -1,15 +1,12 @@
 "use client";
 
 import { useState, useRef, useEffect, useMemo, CSSProperties } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
-import dynamic from "next/dynamic";
 import Sidebar from "@/components/Sidebar";
 import ColorPicker from "@/components/ColorPicker";
 import NotificationBell from "@/components/NotificationBell";
-import { MiniTemplatePreview, type TemplateDraft, type BgStyle } from "@/components/TemplateEditor";
-
-const TemplateEditor = dynamic(() => import("@/components/TemplateEditor"), { ssr: false });
+import { MiniTemplatePreview, type BgStyle } from "@/components/TemplateEditor";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -158,6 +155,7 @@ function UploadZone({ label, hint, preview, dark, onClick, onRemove }: {
 
 export default function StyleTemplatePage() {
   const { id } = useParams<{ id: string }>();
+  const router = useRouter();
   const supabase = createClientComponentClient();
 
   const [tab, setTab] = useState<Tab>("charte");
@@ -273,7 +271,6 @@ export default function StyleTemplatePage() {
   // ── Templates ───────────────────────────────────────────────────────────────
   const [templates, setTemplates]               = useState<PostTemplate[]>([]);
   const [tplLoading, setTplLoading]             = useState(false);
-  const [editingTpl, setEditingTpl]             = useState<{ id: string; draft: Partial<TemplateDraft> } | null>(null);
   const [deleteId, setDeleteId]                 = useState<string | null>(null);
 
   // ── Load workspace ───────────────────────────────────────────────────────────
@@ -471,31 +468,6 @@ export default function StyleTemplatePage() {
   }
 
   // ── Template save ────────────────────────────────────────────────────────────
-  async function handleTemplateSave(draft: TemplateDraft) {
-    const payload = {
-      workspace_id: id,
-      name: draft.name,
-      format_id: draft.format_id,
-      background_style: draft.background_style,
-      text_zones: draft.text_zones,
-      logo_placement: draft.logo_placement,
-      thumbnail_url: null,
-    };
-    try {
-      if (editingTpl?.id) {
-        const res = await fetch(`/api/templates/${editingTpl.id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
-        const { template } = await res.json();
-        setTemplates(prev => prev.map(t => t.id === template.id ? template : t));
-      } else {
-        const res = await fetch("/api/templates", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
-        const { template } = await res.json();
-        setTemplates(prev => [...prev, template]);
-      }
-      setEditingTpl(null);
-      showToast("Template sauvegardé");
-    } catch (err) { console.error(err); }
-  }
-
   // ── Template delete ──────────────────────────────────────────────────────────
   async function confirmDelete() {
     if (!deleteId) return;
@@ -967,7 +939,7 @@ export default function StyleTemplatePage() {
                     <h2 style={{ fontFamily: "var(--display)", fontWeight: 700, fontSize: 18, color: "var(--ink)", margin: 0 }}>Templates</h2>
                     <p style={{ fontSize: 13, color: "var(--ink-3)", marginTop: 3 }}>{templates.length} modèle{templates.length !== 1 ? "s" : ""} pour {workspaceName}</p>
                   </div>
-                  <button onClick={() => setEditingTpl({ id: "", draft: { name: "Nouveau template", format_id: "ig-portrait", background_style: { type: "gradient", angle: 135, colorFrom: colorPrimary, colorTo: colorSecondary }, text_zones: [], logo_placement: null } })}
+                  <button onClick={() => router.push(`/workspace/${id}/template-editor/new`)}
                     style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 20px", borderRadius: 13, border: "none", background: "var(--mint)", color: "var(--mint-ink)", fontSize: 13.5, fontWeight: 700, cursor: "pointer", fontFamily: "var(--display)" }}>
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
                     Nouveau template
@@ -985,7 +957,7 @@ export default function StyleTemplatePage() {
                       <p style={{ fontSize: 14, fontWeight: 600, color: "var(--ink)", margin: 0 }}>Aucun template pour l&apos;instant</p>
                       <p style={{ fontSize: 13, color: "var(--ink-3)", margin: "4px 0 0" }}>Créez un modèle réutilisable pour accélérer la production</p>
                     </div>
-                    <button onClick={() => setEditingTpl({ id: "", draft: { name: "Nouveau template", format_id: "ig-portrait", background_style: { type: "gradient", angle: 135, colorFrom: colorPrimary, colorTo: colorSecondary }, text_zones: [], logo_placement: null } })}
+                    <button onClick={() => router.push(`/workspace/${id}/template-editor/new`)}
                       style={{ marginTop: 4, padding: "10px 22px", borderRadius: 12, border: "none", background: "var(--mint)", color: "var(--mint-ink)", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>
                       Créer un template
                     </button>
@@ -1013,7 +985,7 @@ export default function StyleTemplatePage() {
                             <p style={{ fontWeight: 700, fontSize: 14, color: "var(--ink)", margin: 0, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{tpl.name}</p>
                             <p style={{ fontSize: 12, color: "var(--ink-3)", margin: "3px 0 0" }}>{fmtLabel} · {zonesCount} élément{zonesCount !== 1 ? "s" : ""}</p>
                             <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
-                              <button onClick={() => setEditingTpl({ id: tpl.id, draft: { name: tpl.name, format_id: tpl.format_id, background_style: tpl.background_style, text_zones: tpl.text_zones as TemplateDraft["text_zones"], logo_placement: tpl.logo_placement } })}
+                              <button onClick={() => router.push(`/workspace/${id}/template-editor/${tpl.id}`)}
                                 style={{ flex: 1, padding: "8px", borderRadius: 9, border: "1px solid var(--line)", background: "var(--white)", cursor: "pointer", fontSize: 12.5, fontWeight: 600, color: "var(--ink)", display: "flex", alignItems: "center", justifyContent: "center", gap: 5 }}>
                                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
                                 Modifier
@@ -1037,20 +1009,6 @@ export default function StyleTemplatePage() {
       </div>
 
       {/* ── Template editor modal ──────────────────────────────────────────────── */}
-      {editingTpl !== null && (
-        <div style={{ position: "fixed", inset: 0, zIndex: 1000, background: "var(--canvas)" }}>
-          <TemplateEditor
-            primaryColor={colorPrimary}
-            secondaryColor={colorSecondary}
-            fontFamily={activeFontPrimary}
-            logoUrl={logoUrl}
-            initialDraft={editingTpl.draft}
-            onSave={handleTemplateSave}
-            onCancel={() => setEditingTpl(null)}
-          />
-        </div>
-      )}
-
       {/* ── Delete confirm dialog ─────────────────────────────────────────────── */}
       {deleteId && (
         <div style={{ position: "fixed", inset: 0, zIndex: 999, background: "rgba(13,15,10,.5)", backdropFilter: "blur(4px)", display: "flex", alignItems: "center", justifyContent: "center" }}>
