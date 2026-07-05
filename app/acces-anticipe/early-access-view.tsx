@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Image from "next/image";
+import { trackLead } from "@/components/analytics/MetaPixel";
 
 const PERKS = [
   { icon: "M5 13l4 4L19 7", title: "Accès prioritaire", desc: "Vous êtes prévenu·e en premier dès l'ouverture, avant tout le monde." },
@@ -29,7 +30,10 @@ export default function EarlyAccessView() {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, name, instagram, company, source }),
       });
-      if (res.ok) setDone(true);
+      if (res.ok) {
+        trackLead({ content_name: "waitlist-acces-anticipe", source });
+        setDone(true);
+      }
       else { const d = await res.json(); setError(d?.error || "Inscription impossible."); }
     } catch { setError("Une erreur est survenue."); }
     setBusy(false);
