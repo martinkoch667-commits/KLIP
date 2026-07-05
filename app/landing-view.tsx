@@ -1186,9 +1186,10 @@ function AskAI() {
         </div>
       </div>
       <style>{`
-        .v2 .ask-ai-grid { display: flex; flex-wrap: wrap; justify-content: center; gap: 14px; margin-top: 34px; }
-        .v2 .ask-ai-card { display: inline-flex; align-items: center; gap: 12px; background: var(--paper-2); box-shadow: inset 0 0 0 1px var(--line-2); border-radius: 999px; padding: 10px 22px 10px 10px; font-family: var(--heavy); font-weight: 700; font-size: 15px; color: var(--ink); transition: box-shadow .2s, transform .2s; }
+        .v2 .ask-ai-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-top: 34px; }
+        .v2 .ask-ai-card { display: inline-flex; align-items: center; justify-content: center; gap: 11px; background: var(--paper-2); box-shadow: inset 0 0 0 1px var(--line-2); border-radius: 16px; padding: 14px 16px; font-family: var(--heavy); font-weight: 700; font-size: 14.5px; color: var(--ink); text-align: center; transition: box-shadow .2s, transform .2s; }
         .v2 .ask-ai-card:hover { box-shadow: inset 0 0 0 1.5px var(--acid); transform: translateY(-2px); }
+        @media (max-width: 620px) { .v2 .ask-ai-grid { grid-template-columns: 1fr; max-width: 340px; margin-left: auto; margin-right: auto; } }
       `}</style>
     </section>
   );
