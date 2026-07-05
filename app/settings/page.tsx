@@ -238,7 +238,7 @@ function ProfileTab({ supabase, userId, email, meta }: { supabase: any; userId: 
             <div style={{ fontWeight: 700, fontSize: 14, color: "var(--ink)", marginBottom: 3 }}>Supprimer mon compte</div>
             <div style={{ fontSize: 12.5, color: "var(--ink-3)" }}>Suppression définitive de votre compte et de toutes vos données.</div>
           </div>
-          <a href="mailto:contact@klip.fr?subject=Suppression%20de%20compte%20Klip" className="st-btn-danger" style={{ textDecoration: "none" }}>
+          <a href="mailto:getklipsaas@gmail.com?subject=Suppression%20de%20compte%20Klip" className="st-btn-danger" style={{ textDecoration: "none" }}>
             Contacter le support
           </a>
         </div>
@@ -924,7 +924,7 @@ function HelpTab({ supabase, userId }: { supabase: any; userId: string }) {
       icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>,
       title: "Nous contacter",
       desc: "Une question ou un problème ? L'équipe Klip répond.",
-      action: <a href="mailto:contact@klip.fr" className="st-btn-ghost" style={{ textDecoration: "none" }}>contact@klip.fr</a>,
+      action: <a href="mailto:getklipsaas@gmail.com" className="st-btn-ghost" style={{ textDecoration: "none" }}>getklipsaas@gmail.com</a>,
     },
   ];
 

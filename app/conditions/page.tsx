@@ -87,7 +87,7 @@ export default function Conditions() {
       <LDivider />
 
       <LSection n="9" title="Contact">
-        <p style={lProse}>Pour toute question relative aux présentes conditions : <a href="mailto:martinkoch667@gmail.com" style={lLink}>martinkoch667@gmail.com</a>.</p>
+        <p style={lProse}>Pour toute question relative aux présentes conditions : <a href="mailto:getklipsaas@gmail.com" style={lLink}>getklipsaas@gmail.com</a>.</p>
       </LSection>
     </LegalShell>
   );

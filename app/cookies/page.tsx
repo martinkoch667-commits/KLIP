@@ -57,7 +57,7 @@ export default function Cookies() {
         <p style={lProse}>
           Questions sur les cookies ou vos données : voir notre{" "}
           <a href="/privacy" style={lLink}>Politique de confidentialité</a> ou écrivez à{" "}
-          <a href="mailto:martinkoch667@gmail.com" style={lLink}>martinkoch667@gmail.com</a>.
+          <a href="mailto:getklipsaas@gmail.com" style={lLink}>getklipsaas@gmail.com</a>.
         </p>
       </LSection>
     </LegalShell>

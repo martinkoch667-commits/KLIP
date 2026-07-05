@@ -138,7 +138,7 @@ export default function PrivacyPolicy() {
             <li style={li}><strong>Right to restriction</strong> — request that we restrict processing of your data</li>
           </ul>
           <p style={prose}>
-            To exercise any of these rights, contact us at <a href="mailto:martinkoch667@gmail.com" style={link}>martinkoch667@gmail.com</a>.
+            To exercise any of these rights, contact us at <a href="mailto:getklipsaas@gmail.com" style={link}>getklipsaas@gmail.com</a>.
             We will respond within 30 days.
           </p>
           <p style={prose}>
@@ -158,7 +158,7 @@ export default function PrivacyPolicy() {
             <li style={li}>Passwords are hashed using bcrypt via Supabase Auth — we never see your plain-text password</li>
             <li style={li}>File storage buckets are access-controlled by authenticated user ID</li>
           </ul>
-          <p style={prose}>Despite our efforts, no method of transmission over the internet is 100% secure. If you discover a security vulnerability please report it to <a href="mailto:martinkoch667@gmail.com" style={link}>martinkoch667@gmail.com</a>.</p>
+          <p style={prose}>Despite our efforts, no method of transmission over the internet is 100% secure. If you discover a security vulnerability please report it to <a href="mailto:getklipsaas@gmail.com" style={link}>getklipsaas@gmail.com</a>.</p>
         </Section>
 
         <Divider />
@@ -169,7 +169,7 @@ export default function PrivacyPolicy() {
             <p style={{ ...prose, marginBottom: 6 }}><strong>Martin Koch</strong></p>
             <p style={{ ...prose, marginBottom: 6 }}>Micro-entreprise — SIREN&nbsp;931920821</p>
             <p style={{ ...prose, marginBottom: 6 }}>
-              Email:&nbsp;<a href="mailto:martinkoch667@gmail.com" style={link}>martinkoch667@gmail.com</a>
+              Email:&nbsp;<a href="mailto:getklipsaas@gmail.com" style={link}>getklipsaas@gmail.com</a>
             </p>
             <p style={{ ...prose, marginBottom: 0 }}>
               Data deletion:&nbsp;

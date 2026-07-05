@@ -94,10 +94,10 @@ export default function DataDeletionPage() {
             <p style={{ fontSize: 13.5, color: "var(--ink-2)", lineHeight: 1.6 }}>
               Envoyez une demande de suppression à{" "}
               <a
-                href="mailto:privacy@klip.app"
+                href="mailto:getklipsaas@gmail.com"
                 style={{ color: "var(--mint-2)", fontWeight: 600, textDecoration: "none" }}
               >
-                privacy@klip.app
+                getklipsaas@gmail.com
               </a>{" "}
               en précisant l'adresse e-mail associée à votre compte. Nous traiterons votre demande
               dans un délai de 30 jours.
@@ -127,10 +127,10 @@ export default function DataDeletionPage() {
             Cette page est requise par Meta dans le cadre de la vérification de l'application Facebook.
             Pour toute question, contactez-nous à{" "}
             <a
-              href="mailto:privacy@klip.app"
+              href="mailto:getklipsaas@gmail.com"
               style={{ color: "var(--ink-2)", textDecoration: "underline" }}
             >
-              privacy@klip.app
+              getklipsaas@gmail.com
             </a>.
           </p>
         </div>

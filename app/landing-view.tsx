@@ -1000,7 +1000,7 @@ function FAQ() {
             <h2 className="display reveal d1" style={{ fontSize: 'clamp(36px, 4.8vw, 64px)', marginTop: 22 }}>
               Les questions <span className="it-serif acid-fill">qu&apos;on nous pose.</span>
             </h2>
-            <p className="lead reveal d2" style={{ marginTop: 22 }}>Une autre en tête ? <a href="mailto:hello@klip.app" style={{ color: 'var(--ink)', textDecoration: 'underline', textDecorationColor: 'var(--acid-2)', textUnderlineOffset: 3 }}>Écrivez-nous.</a></p>
+            <p className="lead reveal d2" style={{ marginTop: 22 }}>Une autre en tête ? <a href="mailto:getklipsaas@gmail.com" style={{ color: 'var(--ink)', textDecoration: 'underline', textDecorationColor: 'var(--acid-2)', textUnderlineOffset: 3 }}>Écrivez-nous.</a></p>
           </div>
           <div style={{ display: 'flex', flexDirection: 'column' }}>
             {items.map((it, i) => {
