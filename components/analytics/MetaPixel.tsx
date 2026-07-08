@@ -1,8 +1,9 @@
 "use client";
 
 import Script from "next/script";
-import { Suspense, useEffect, useRef } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
+import { CONSENT_EVENT, readConsent } from "./consent";
 
 const PIXEL_ID = process.env.NEXT_PUBLIC_FB_PIXEL_ID;
 
@@ -40,13 +41,25 @@ function PageViewTracker() {
 }
 
 export default function MetaPixel() {
-  // Silencieux si aucun pixel n'est configuré (variable absente ou vide).
-  if (!PIXEL_ID) return null;
+  // Consentement RGPD : le Meta Pixel est un traceur publicitaire, il n'est
+  // chargé QU'APRÈS acceptation explicite via le bandeau (ConsentBanner).
+  // On lit le choix stocké au montage, puis on écoute les changements en direct.
+  const [granted, setGranted] = useState(false);
 
-  // TODO consentement RGPD : aucun système de consentement (CMP) détecté dans le
-  // projet. Le Meta Pixel est un traceur publicitaire — avant la mise en prod,
-  // le charger UNIQUEMENT après consentement explicite (bandeau CNIL) et mettre
-  // à jour app/cookies/page.tsx en conséquence.
+  useEffect(() => {
+    setGranted(readConsent() === "granted");
+    const onChange = (e: Event) => {
+      const value = (e as CustomEvent).detail;
+      setGranted(value === "granted");
+    };
+    window.addEventListener(CONSENT_EVENT, onChange);
+    return () => window.removeEventListener(CONSENT_EVENT, onChange);
+  }, []);
+
+  // Silencieux si aucun pixel n'est configuré, ou tant que le consentement
+  // n'a pas été explicitement accordé.
+  if (!PIXEL_ID || !granted) return null;
+
   return (
     <>
       <Script

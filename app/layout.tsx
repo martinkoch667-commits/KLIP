@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import MetaPixel from "@/components/analytics/MetaPixel";
+import ConsentBanner from "@/components/analytics/ConsentBanner";
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://getklip.fr"),
@@ -85,6 +86,7 @@ export default function RootLayout({
       <body className="antialiased">
         <MetaPixel />
         {children}
+        <ConsentBanner />
       </body>
     </html>
   );

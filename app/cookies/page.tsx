@@ -31,7 +31,13 @@ export default function Cookies() {
 
       <LSection n="2" title="Cookies de mesure d'audience & marketing">
         <p style={lProse}>
-          À ce jour, Klip <strong>n&apos;utilise pas</strong> de cookies publicitaires ni de traceurs de profilage. Si des outils de mesure d&apos;audience étaient ajoutés, un bandeau de consentement serait mis en place et cette page mise à jour en conséquence.
+          Klip peut utiliser le <strong>Meta Pixel</strong> (Meta Platforms Ireland Ltd.), un traceur de mesure d&apos;audience qui nous permet de comprendre la performance de nos pages et de nos campagnes. Il enregistre par exemple les visites de page et l&apos;inscription à la liste d&apos;attente.
+        </p>
+        <p style={lProse}>
+          Ce traceur <strong>n&apos;est déposé qu&apos;après votre consentement explicite</strong>, recueilli via le bandeau affiché lors de votre première visite. Tant que vous n&apos;avez pas cliqué sur « Accepter », aucun traceur publicitaire n&apos;est chargé. Vous pouvez refuser sans conséquence sur l&apos;utilisation du service.
+        </p>
+        <p style={lProse}>
+          Pour revenir sur votre choix, effacez les cookies et données de site de votre navigateur pour Klip : le bandeau réapparaîtra à la visite suivante.
         </p>
       </LSection>
 
