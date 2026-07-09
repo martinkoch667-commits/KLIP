@@ -4,11 +4,14 @@
 // (plans rognés/vitesse/filtres, sous-titres, titres, stickers, audio) et
 // produit un fichier .webm téléchargé/uploadé en Storage.
 //
-// Limite connue (documentée) : les transitions entre plans sont rendues comme
-// une animation d'entrée sur le plan entrant (fondu/zoom/glissé/balayage/flou),
-// pas comme un vrai fondu-enchaîné entre deux flux vidéo décodés en parallèle —
-// ce dernier nécessiterait de décoder N vidéos simultanément, hors de portée
-// raisonnable d'un rendu client pour ce lot.
+// Transitions : pour "fade" spécifiquement, un vrai fondu enchaîné multi-flux —
+// le plan sortant continue de jouer/s'animer (au lieu d'être figé sur son dernier
+// frame) pendant que le plan entrant démarre, les deux décodés en parallèle
+// (2 <video> alternées par index de plan + <img> déjà indépendantes pour les
+// photos). Les autres transitions (zoom/glissé/balayage/flou) gardent le
+// comportement précédent : le plan sortant reste figé, le plan entrant s'anime
+// par-dessus — un vrai équivalent pour celles-ci nécessiterait un transform de
+// sortie dédié par type, hors périmètre de ce lot.
 
 import { MontageClip, OverlayClip, Caption, TitleEl, StickerEl, AudioTrack, SubCustom, effectiveSubStyle, DEFAULT_SUB_POS, clipFilterCss, overlayFilterCss, clipTimelineDur, overlayTimelineDur, audioVolumeAt, kenBurnsScale, videoFormatById, exportQualityById } from "./constants";
 
@@ -271,14 +274,24 @@ export async function renderExport(project: ExportProject, onProgress: (p: numbe
   const audioCtx = new AudioCtx();
   const dest = audioCtx.createMediaStreamDestination();
 
-  const video = document.createElement("video");
-  video.crossOrigin = "anonymous";
-  video.playsInline = true;
-  video.muted = false;
-  const videoNode = audioCtx.createMediaElementSource(video);
-  const videoGain = audioCtx.createGain();
-  videoGain.gain.value = 1;
-  videoNode.connect(videoGain).connect(dest);
+  // 2 éléments <video> alternés par index de plan (pair/impair) — indispensable pour
+  // qu'un vrai fondu enchaîné ("fade") puisse décoder 2 plans vidéo consécutifs en
+  // parallèle (le sortant continue de jouer pendant que l'entrant démarre) sans se
+  // marcher dessus (un seul <video> ne peut pas être à 2 endroits de la source à la fois).
+  const videoSlots: HTMLVideoElement[] = [];
+  const videoGains: GainNode[] = [];
+  for (let s = 0; s < 2; s++) {
+    const v = document.createElement("video");
+    v.crossOrigin = "anonymous";
+    v.playsInline = true;
+    v.muted = false;
+    const node = audioCtx.createMediaElementSource(v);
+    const gain = audioCtx.createGain();
+    gain.gain.value = 1;
+    node.connect(gain).connect(dest);
+    videoSlots.push(v);
+    videoGains.push(gain);
+  }
 
   // Note : chaque piste démarre à t=0 de l'export (offset non honoré ici, limite préexistante) —
   // donc el.currentTime correspond directement au temps local de la piste pour le calcul du fondu.
@@ -369,32 +382,106 @@ export async function renderExport(project: ExportProject, onProgress: (p: numbe
     });
   };
 
+  // ── Fondu croisé réel ("fade") : le plan sortant reste "vivant" (élément vidéo
+  // encore en lecture / minuteur photo non réinitialisé) et cohabite avec le plan
+  // entrant pendant transitionDur, avec un fondu enchaîné dessiné à la main (les
+  // deux flux avancent réellement) — cf. commentaire en tête de fichier.
+  type PlayingMedia = { kind: "video" | "photo"; el: HTMLVideoElement | HTMLImageElement; clip: ClipTimed; photoStart: number };
+
+  function localTimeOf(m: PlayingMedia): number {
+    if (m.kind === "video") return ((m.el as HTMLVideoElement).currentTime - m.clip.trimStart) / m.clip.speed;
+    return (performance.now() - m.photoStart) / 1000;
+  }
+  function drawDissolveFrame(m: PlayingMedia, alpha: number) {
+    const media = m.el;
+    const mw = media instanceof HTMLVideoElement ? media.videoWidth : (media as HTMLImageElement).naturalWidth;
+    const mh = media instanceof HTMLVideoElement ? media.videoHeight : (media as HTMLImageElement).naturalHeight;
+    const localT = localTimeOf(m);
+    const kbP = m.clip.dur > 0 ? Math.min(1, Math.max(0, localT / m.clip.dur)) : 0;
+    const kbScale = m.clip.kind === "photo" ? kenBurnsScale(m.clip.kenBurns, kbP) : 1;
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    ctx.filter = clipFilterCss(m.clip) || "none";
+    if (kbScale !== 1) {
+      ctx.translate(CANVAS_W / 2, CANVAS_H / 2);
+      ctx.scale(kbScale, kbScale);
+      ctx.translate(-CANVAS_W / 2, -CANVAS_H / 2);
+    }
+    drawCover(ctx, media, mw, mh, m.clip.focusX, m.clip.focusY);
+    ctx.restore();
+  }
+
+  let prevMedia: PlayingMedia | null = null;
+
   try {
     for (let i = 0; i < clips.length; i++) {
       const c = clips[i];
       onProgress(c.start / total);
+      const next = clips[i + 1];
+      const crossFadeIn = i > 0 && c.transitionIn === "fade" && c.transitionDur > 0 && !!prevMedia;
+      const crossFadeOutDur = next && next.transitionIn === "fade" && next.transitionDur > 0 ? Math.min(next.transitionDur, c.dur) : 0;
+
+      let media: PlayingMedia;
       if (c.kind === "video") {
+        const v = videoSlots[i % 2];
         await new Promise<void>((resolve) => {
-          video.onloadedmetadata = () => resolve();
-          video.src = c.src;
+          v.onloadedmetadata = () => resolve();
+          v.src = c.src;
         });
-        video.playbackRate = c.speed;
-        videoGain.gain.value = c.vol ?? 1;
+        v.playbackRate = c.speed;
+        videoGains[i % 2].gain.value = c.vol ?? 1;
         await new Promise<void>((resolve) => {
-          video.onseeked = () => resolve();
-          video.currentTime = c.trimStart;
+          v.onseeked = () => resolve();
+          v.currentTime = c.trimStart;
         });
-        await video.play();
+        await v.play();
+        media = { kind: "video", el: v, clip: c, photoStart: 0 };
+      } else {
+        const img = await loadImage(c.src);
+        media = { kind: "photo", el: img, clip: c, photoStart: performance.now() };
+      }
+
+      // Fondu enchaîné d'entrée : le plan précédent (toujours en lecture) et celui-ci
+      // cohabitent pendant transitionDur.
+      if (crossFadeIn) {
+        const prevM = prevMedia!;
+        const transDur = c.transitionDur;
+        const overlapStart = performance.now();
+        await new Promise<void>((resolve) => {
+          const iv = setInterval(() => {
+            const elapsed = (performance.now() - overlapStart) / 1000;
+            if (elapsed >= transDur) { clearInterval(iv); resolve(); return; }
+            const p = elapsed / transDur;
+            const globalT = c.start + elapsed;
+            updateAudioFades();
+            ctx.clearRect(0, 0, CANVAS_W, CANVAS_H);
+            drawDissolveFrame(prevM, 1 - p);
+            drawDissolveFrame(media, p);
+            drawOverlays(globalT);
+            drawCaptions(ctx, project.captions, project.subStyleId, project.subCustom, project.subPos, globalT);
+            drawTitles(ctx, project.titles, globalT);
+            drawStickers(ctx, project.stickers, stickerImages, globalT);
+            if (project.showProgressBar) drawProgressBar(ctx, globalT, total);
+          }, 1000 / FPS);
+        });
+        if (prevM.kind === "video") (prevM.el as HTMLVideoElement).pause();
+      }
+
+      // Corps du plan, hors fenêtre(s) de fondu croisé déjà couvertes ci-dessus/ci-dessous.
+      const soloStart = crossFadeIn ? c.transitionDur : 0;
+      const soloEnd = Math.max(soloStart, c.dur - crossFadeOutDur);
+      if (c.kind === "video") {
+        const v = media.el as HTMLVideoElement;
         await new Promise<void>((resolve) => {
           // setInterval (pas requestAnimationFrame) : rAF est suspendu/throttlé par le
           // navigateur quand l'onglet n'a pas le focus (ex. export lancé en tâche de fond),
           // ce qui gèle le rendu — setInterval continue de tourner de façon fiable.
           const iv = setInterval(() => {
-            if (video.paused || video.currentTime >= c.trimEnd || video.ended) { clearInterval(iv); resolve(); return; }
-            const localT = (video.currentTime - c.trimStart) / c.speed;
+            const localT = (v.currentTime - c.trimStart) / c.speed;
+            if (v.paused || localT >= soloEnd || v.ended) { clearInterval(iv); resolve(); return; }
             const globalT = c.start + localT;
             updateAudioFades();
-            drawMediaFrame(ctx, video, c, localT, i === 0);
+            drawMediaFrame(ctx, v, c, localT, i === 0);
             drawOverlays(globalT);
             drawCaptions(ctx, project.captions, project.subStyleId, project.subCustom, project.subPos, globalT);
             drawTitles(ctx, project.titles, globalT);
@@ -403,14 +490,13 @@ export async function renderExport(project: ExportProject, onProgress: (p: numbe
             maybeCaptureThumbnail(i === 0);
           }, 1000 / FPS);
         });
-        video.pause();
+        if (crossFadeOutDur <= 0) v.pause();
       } else {
-        const img = await loadImage(c.src);
-        const segStart = performance.now();
+        const img = media.el as HTMLImageElement;
         await new Promise<void>((resolve) => {
           const iv = setInterval(() => {
-            const localT = (performance.now() - segStart) / 1000;
-            if (localT >= c.dur) { clearInterval(iv); resolve(); return; }
+            const localT = (performance.now() - media.photoStart) / 1000;
+            if (localT >= soloEnd) { clearInterval(iv); resolve(); return; }
             const globalT = c.start + localT;
             updateAudioFades();
             drawMediaFrame(ctx, img, c, localT, i === 0);
@@ -423,7 +509,10 @@ export async function renderExport(project: ExportProject, onProgress: (p: numbe
           }, 1000 / FPS);
         });
       }
+
+      prevMedia = media;
     }
+    if (prevMedia?.kind === "video") (prevMedia.el as HTMLVideoElement).pause();
   } finally {
     onProgress(1);
     recorder.stop();
