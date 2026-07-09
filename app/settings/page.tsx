@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
 import { useRouter } from "next/navigation";
+import { ConnectClaudeModal } from "@/components/ConnectClaudeModal";
 import Link from "next/link";
 import Sidebar from "@/components/Sidebar";
 import { resetOnboardingTour } from "@/components/OnboardingTour";
@@ -663,7 +664,24 @@ function IntegrationsTab({ supabase }: { supabase: any }) {
       </div>
 
       <AnthropicKeyCard />
+      <ClaudeConnectorCard />
     </>
+  );
+}
+
+// ─── Connecteur MCP Claude ("Connecter à Claude") ───────────────────────────────
+
+function ClaudeConnectorCard() {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="st-card">
+      <div className="st-label" style={{ marginBottom: 8 }}>Claude (connecteur)</div>
+      <p style={{ fontSize: 13, lineHeight: 1.55, color: "var(--ink-3)", margin: "0 0 16px" }}>
+        Connectez KLIP à votre Claude personnel pour créer et planifier des posts, ou générer des légendes, directement depuis une conversation Claude.
+      </p>
+      <button onClick={() => setOpen(true)} className="st-btn">Connecter à Claude</button>
+      <ConnectClaudeModal open={open} onClose={() => setOpen(false)} />
+    </div>
   );
 }
 

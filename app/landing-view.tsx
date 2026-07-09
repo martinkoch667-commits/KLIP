@@ -4,6 +4,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import { useRouter } from 'next/navigation';
+import { ConnectClaudePill } from '@/components/ConnectClaudeModal';
 
 /* ════════════════════════════════════════════════════════════════════════════
    KLIP — Landing v2 (magazine) · réplique fidèle de KLIP-5 / "KLIP Landing v2"
@@ -478,6 +479,10 @@ function Hero({ prelaunch = false }: { prelaunch?: boolean }) {
             ? <a href="#waitlist" className="btn btn-acid">Rejoindre la liste d&apos;attente <span className="arr"><Icon name="arrowUR" size={18} /></span></a>
             : <Link href="/register" className="btn btn-acid">Essayer gratuitement <span className="arr"><Icon name="arrowUR" size={18} /></span></Link>}
           <a href="#apercu" className="btn btn-ghost">Voir KLIP en action</a>
+        </div>
+
+        <div className="reveal d3" style={{ display: 'flex', justifyContent: 'center', marginTop: 16 }}>
+          <ConnectClaudePill />
         </div>
 
         {/* product peek */}

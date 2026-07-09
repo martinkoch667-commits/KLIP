@@ -1,13 +1,14 @@
 'use client';
 
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, Suspense } from 'react';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import Sidebar from '@/components/Sidebar';
 import OnboardingTour from '@/components/OnboardingTour';
 import OnboardingChecklist from '@/components/OnboardingChecklist';
 import NotificationBell from '@/components/NotificationBell';
+import { ConnectClaudeModal } from '@/components/ConnectClaudeModal';
 
 // ─── Types ─────────────────────────────────────────────────────────────────
 
@@ -518,6 +519,21 @@ function WorkspaceCard({ workspace, posts, color, index, onOpen }: {
   );
 }
 
+// useSearchParams doit être isolé dans un enfant sous Suspense (sinon Next.js
+// désactive le prérendu statique de toute la page).
+function WelcomeParamWatcher({ onWelcome }: { onWelcome: () => void }) {
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  useEffect(() => {
+    if (searchParams.get('welcome') === 'true') {
+      onWelcome();
+      router.replace('/dashboard');
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
+  return null;
+}
+
 // ─── Page ───────────────────────────────────────────────────────────────────
 
 export default function Dashboard() {
@@ -525,6 +541,7 @@ export default function Dashboard() {
   const router = useRouter();
 
   const [workspaces, setWorkspaces] = useState<WorkspaceRow[]>([]);
+  const [showConnectClaude, setShowConnectClaude] = useState(false);
   const [posts, setPosts] = useState<PostRow[]>([]);
   const [activities, setActivities] = useState<ActivityRow[]>([]);
   const [active, setActive] = useState<string>('all');
@@ -813,6 +830,10 @@ export default function Dashboard() {
 
       <OnboardingTour />
       <OnboardingChecklist />
+      <Suspense fallback={null}>
+        <WelcomeParamWatcher onWelcome={() => setShowConnectClaude(true)} />
+      </Suspense>
+      <ConnectClaudeModal open={showConnectClaude} onClose={() => setShowConnectClaude(false)} />
     </div>
   );
 }
