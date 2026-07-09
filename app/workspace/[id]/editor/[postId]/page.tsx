@@ -289,6 +289,43 @@ function relayoutText(elements: any[], stageW: number, stageH: number): any[] {
 
 const PT_FORMAT_MAP: Record<string, string> = { post: 'ig-portrait', reel: 'ig-story', story: 'ig-story', carrousel: 'ig-square' };
 
+// Magic Resize — reprojette les éléments d'un format vers un autre. Position (x/y)
+// mise à l'échelle indépendamment par axe pour rester proportionnelle au nouveau
+// canevas ; tailles/rayons/police mis à l'échelle uniforme (facteur min des deux
+// axes) pour éviter les distorsions (cercle qui s'ovalise, texte étiré) — les
+// largeurs de texte suivent l'axe X pour occuper une proportion similaire du
+// nouveau canevas, relayoutText() corrige ensuite tout débordement.
+function remapElementsToFormat(elements: CanvasEl[], oldW: number, oldH: number, newW: number, newH: number): CanvasEl[] {
+  const sx = newW / oldW, sy = newH / oldH;
+  const s = Math.min(sx, sy);
+  return elements.map(el => {
+    const x = el.x * sx, y = el.y * sy;
+    if (el.type === 'text') {
+      return { ...el, x, y, width: el.width * sx, fontSize: Math.max(8, Math.round(el.fontSize * s)) };
+    }
+    if (el.type === 'rect' || el.type === 'vector' || el.type === 'image') {
+      return { ...el, x, y, width: el.width * sx, height: el.height * sy };
+    }
+    if (el.type === 'circle') {
+      return { ...el, x, y, radius: el.radius * s };
+    }
+    if (el.type === 'star') {
+      return { ...el, x, y, innerRadius: el.innerRadius * s, outerRadius: el.outerRadius * s };
+    }
+    return el;
+  });
+}
+
+// Formats cibles pour Magic Resize — uniquement les 3 couples post_type/format_id
+// avec un mapping retour propre via PT_FORMAT_MAP (le format 'facebook' n'a pas de
+// post_type associé : un post créé dans ce format se rechargerait à tort en
+// 'ig-portrait', donc on l'exclut volontairement des cibles auto-resize).
+const MAGIC_RESIZE_TARGETS: { postType: 'post' | 'carrousel' | 'reel'; formatId: string }[] = [
+  { postType: 'post', formatId: 'ig-portrait' },
+  { postType: 'carrousel', formatId: 'ig-square' },
+  { postType: 'reel', formatId: 'ig-story' },
+];
+
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
 // Bug 3 fix: object-fit cover behavior + drag-to-reposition
@@ -1860,6 +1897,7 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
   };
 
   const [saving, setSaving] = useState(false);
+  const [resizing, setResizing] = useState(false);
   const [qaBusy, setQaBusy] = useState(false);
   const [qaMsg, setQaMsg]   = useState<string | null>(null);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -3188,6 +3226,63 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
     await supabase.from('posts').update({ post_type: newType }).eq('id', postId);
   };
 
+  // ── Magic Resize — génère des posts séparés adaptés aux 2 autres formats ────
+  // (mapping restreint à ig-portrait/ig-square/ig-story : le format 'facebook'
+  // n'a pas de post_type de retour propre via PT_FORMAT_MAP, cf. remap ci-dessus)
+
+  const magicResize = async () => {
+    if (resizing) return;
+    const targets = MAGIC_RESIZE_TARGETS.filter(t => t.formatId !== formatId);
+    if (!targets.length) { showEditorToast('Aucun autre format à générer.'); return; }
+    const currentElements = elementsRef.current;
+    if (!currentElements.length && !proxyUrl) { showEditorToast('Ajoutez du contenu avant d\'adapter aux formats.'); return; }
+    setResizing(true);
+    try {
+      let natW = 0, natH = 0;
+      if (proxyUrl) {
+        try {
+          const img = new Image();
+          img.crossOrigin = 'anonymous';
+          await new Promise<void>((resolve, reject) => { img.onload = () => resolve(); img.onerror = () => reject(new Error('load')); img.src = proxyUrl; });
+          natW = img.naturalWidth; natH = img.naturalHeight;
+        } catch { /* pas de recadrage de fond possible, on garde 0/0 */ }
+      }
+      const { data: srcPost } = await supabase.from('posts').select('brief, description').eq('id', postId).single();
+      let created = 0;
+      for (const target of targets) {
+        const fmt = FORMATS.find(f => f.id === target.formatId);
+        if (!fmt) continue;
+        const remapped = remapElementsToFormat(currentElements, stageW, stageH, fmt.w, fmt.h);
+        const relaid = relayoutText(remapped, fmt.w, fmt.h);
+        let bgOX = 0, bgOY = 0;
+        if (proxyUrl && natW && natH) {
+          const scale = Math.max(fmt.w / natW, fmt.h / natH);
+          bgOX = (fmt.w - natW * scale) / 2;
+          bgOY = (fmt.h - natH * scale) / 2;
+        }
+        const textEl = relaid.find((e: CanvasEl) => e.type === 'text') as TextEl | undefined;
+        const editorJson = JSON.stringify({
+          version: 2,
+          slides: [{ id: 'slide-1', elements: relaid, proxyUrl, bgOffsetX: bgOX, bgOffsetY: bgOY }],
+        });
+        const { error } = await supabase.from('posts').insert({
+          workspace_id: workspaceId,
+          photo_url: postPhotoUrl,
+          brief: srcPost?.brief ?? '',
+          description: srcPost?.description ?? '',
+          texte_visuel: textEl?.text || '',
+          status: 'validated',
+          post_type: target.postType,
+          editor_json: editorJson,
+        });
+        if (!error) created++;
+      }
+      showEditorToast(created > 0 ? `${created} nouveau${created > 1 ? 'x' : ''} format${created > 1 ? 's' : ''} généré${created > 1 ? 's' : ''} ✓ Retrouvez-les dans le planning.` : 'Échec de la génération des formats.');
+    } finally {
+      setResizing(false);
+    }
+  };
+
   // ── Font upload ───────────────────────────────────────────────────────────
 
   const handleFontUpload = async (file: File): Promise<string> => {
@@ -3592,6 +3687,11 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
                   </div>
                 )}
               </div>
+              <button onClick={magicResize} disabled={resizing} className="btn btn-sm ed-ai-btn" title="Génère automatiquement ce visuel dans les autres formats (posts séparés)"
+                style={{ height: 36, opacity: resizing ? 0.6 : 1, cursor: resizing ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="10" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/></svg>
+                <span className="ed-hide-md">{resizing ? 'Adaptation…' : 'Adapter aux formats'}</span>
+              </button>
             </>
           )}
           <button onClick={exportPNG} className="btn btn-sm btn-ghost" style={{ height: 36 }}>Aperçu</button>

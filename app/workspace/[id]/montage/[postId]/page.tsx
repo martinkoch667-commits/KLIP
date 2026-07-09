@@ -13,6 +13,7 @@ import {
 } from "./constants";
 import { MontageCtx, CutPanel, TextPanel, CaptionsPanel, AudioPanel, TransitionsPanel, FilterPanel, SpeedPanel, StickerPanel, OverlayPanel, AiPanel } from "./panels";
 import { renderExport } from "./export";
+import { transcodeToMp4 } from "@/lib/mp4-transcode";
 
 // ─── Types / rail ───────────────────────────────────────────────────────────
 
@@ -147,6 +148,7 @@ export default function MontagePage() {
   const [isRecordingVO, setIsRecordingVO] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [exportProgress, setExportProgress] = useState(0);
+  const [exportPhase, setExportPhase] = useState<"render" | "transcode">("render");
   const [toastMsg, setToastMsg] = useState<string | null>(null);
   const [pps, setPps] = useState(40);
   const [histTick, setHistTick] = useState(0);
@@ -824,11 +826,29 @@ export default function MontagePage() {
   async function handleExport() {
     if (!clips.length || exporting) return;
     setExporting(true);
+    setExportPhase("render");
     setExportProgress(0);
     try {
-      const { blob, thumbnailBlob } = await renderExport({ clips, overlays, captions, subStyleId, subCustom, subPos, titles, stickers, audioTracks, showProgressBar, formatId, exportQuality }, (p) => setExportProgress(p));
-      const path = `${workspaceId}/${postId}-export-${Date.now()}.webm`;
-      const { error } = await supabase.storage.from("videos").upload(path, blob, { upsert: true, contentType: "video/webm" });
+      const { blob: webmBlob, thumbnailBlob } = await renderExport({ clips, overlays, captions, subStyleId, subCustom, subPos, titles, stickers, audioTracks, showProgressBar, formatId, exportQuality }, (p) => setExportProgress(p));
+
+      // Transcodage en MP4 (H.264/AAC) pour compatibilité universelle — le
+      // rendu brut Canvas/MediaRecorder est en .webm.
+      setExportPhase("transcode");
+      setExportProgress(0);
+      let blob: Blob;
+      let ext = "webm";
+      let contentType = "video/webm";
+      try {
+        blob = await transcodeToMp4(webmBlob, (p) => setExportProgress(p));
+        ext = "mp4";
+        contentType = "video/mp4";
+      } catch (e) {
+        console.warn("[montage] transcodage MP4 échoué, export .webm conservé :", e);
+        blob = webmBlob;
+      }
+
+      const path = `${workspaceId}/${postId}-export-${Date.now()}.${ext}`;
+      const { error } = await supabase.storage.from("videos").upload(path, blob, { upsert: true, contentType });
       if (error) { toast("Échec de l'upload de l'export : " + error.message); return; }
       const { data: urlData } = supabase.storage.from("videos").getPublicUrl(path);
       setExportUrl(urlData.publicUrl);
@@ -1334,7 +1354,7 @@ export default function MontagePage() {
             {exporting && (
               <div className="mz-ai-overlay">
                 <div className="mz-orb"><span className="mz-spark"><VIcon name="sparkles" size={26} /></span></div>
-                <div className="mz-ai-overlay-title">Export en cours…</div>
+                <div className="mz-ai-overlay-title">{exportPhase === "render" ? "Rendu en cours…" : "Conversion MP4…"}</div>
                 <div className="mz-ai-progress"><span style={{ width: Math.round(exportProgress * 100) + "%" }} /></div>
               </div>
             )}
