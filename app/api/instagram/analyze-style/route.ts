@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createRouteHandlerClient } from "@supabase/auth-helpers-nextjs";
 import { cookies } from "next/headers";
+import { getAnthropicApiKeyForUser } from "@/lib/anthropic-key";
 
 export const runtime = "nodejs";
 
@@ -69,7 +70,7 @@ export async function POST(request: NextRequest) {
       })
       .join("\n\n———\n\n");
 
-    const apiKey = process.env.ANTHROPIC_API_KEY;
+    const apiKey = await getAnthropicApiKeyForUser(session.user.id);
     if (!apiKey) {
       return NextResponse.json({ error: "Clé API IA manquante" }, { status: 500 });
     }

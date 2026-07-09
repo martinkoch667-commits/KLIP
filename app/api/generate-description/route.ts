@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
 import { cookies } from 'next/headers';
+import { getAnthropicApiKeyForUser } from '@/lib/anthropic-key';
 
 // ─── Brand-aware system prompt template ────────────────────────────────────────
 const PROMPT_TEMPLATE = `Tu es un copywriter expert en contenu Instagram pour agences de communication premium.
@@ -93,7 +94,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Brief manquant' }, { status: 400 });
     }
 
-    const apiKey = process.env.ANTHROPIC_API_KEY;
+    const apiKey = await getAnthropicApiKeyForUser(session.user.id);
     if (!apiKey) {
       console.error('[generate-description] ANTHROPIC_API_KEY is not set');
       return NextResponse.json({ error: 'Clé API Anthropic manquante' }, { status: 500 });

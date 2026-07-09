@@ -661,7 +661,118 @@ function IntegrationsTab({ supabase }: { supabase: any }) {
           })
         )}
       </div>
+
+      <AnthropicKeyCard />
     </>
+  );
+}
+
+// ─── Clé API Anthropic personnelle (BYOK) ──────────────────────────────────────
+
+function AnthropicKeyCard() {
+  const [status, setStatus] = useState<"loading" | "idle">("loading");
+  const [configured, setConfigured] = useState(false);
+  const [last4, setLast4] = useState<string | null>(null);
+  const [addedAt, setAddedAt] = useState<string | null>(null);
+  const [keyInput, setKeyInput] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    (async () => {
+      const res = await fetch("/api/settings/anthropic-key");
+      if (res.ok) {
+        const data = await res.json();
+        setConfigured(!!data.configured);
+        setLast4(data.last4 ?? null);
+        setAddedAt(data.addedAt ?? null);
+      }
+      setStatus("idle");
+    })();
+  }, []);
+
+  async function handleConnect() {
+    if (!keyInput.trim()) return;
+    setSaving(true);
+    setError(null);
+    const res = await fetch("/api/settings/anthropic-key", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ apiKey: keyInput.trim() }),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      setError(data.error ?? "Échec de la connexion");
+      setSaving(false);
+      return;
+    }
+    setConfigured(true);
+    setLast4(data.last4 ?? null);
+    setAddedAt(new Date().toISOString());
+    setKeyInput("");
+    setSaving(false);
+    setSaved(true);
+    setTimeout(() => setSaved(false), 2500);
+  }
+
+  async function handleDisconnect() {
+    setSaving(true);
+    setError(null);
+    const res = await fetch("/api/settings/anthropic-key", { method: "DELETE" });
+    if (res.ok) {
+      setConfigured(false);
+      setLast4(null);
+      setAddedAt(null);
+    } else {
+      setError("Échec de la déconnexion");
+    }
+    setSaving(false);
+  }
+
+  return (
+    <div className="st-card">
+      <div className="st-label" style={{ marginBottom: 8 }}>Claude (Anthropic)</div>
+      <p style={{ fontSize: 13, lineHeight: 1.55, color: "var(--ink-3)", margin: "0 0 16px" }}>
+        Connectez votre propre clé API Anthropic pour que les générations IA de Klip (descriptions,
+        mise en page, analyse de style) utilisent votre quota personnel, sans limite liée à votre offre.
+      </p>
+
+      {status === "loading" ? (
+        <div style={{ color: "var(--ink-3)", fontSize: 13 }}>Chargement…</div>
+      ) : configured ? (
+        <div style={{ display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap" }}>
+          <span style={{ fontSize: 11, fontWeight: 700, padding: "4px 9px", borderRadius: 99, background: "var(--mint-soft)", color: "var(--mint-2)" }}>
+            Connecté — clé se terminant par ····{last4}
+          </span>
+          {addedAt && (
+            <span style={{ fontSize: 12, color: "var(--ink-3)" }}>
+              depuis le {new Date(addedAt).toLocaleDateString("fr-FR")}
+            </span>
+          )}
+          <button className="st-btn-danger" onClick={handleDisconnect} disabled={saving} style={{ marginLeft: "auto" }}>
+            {saving ? "…" : "Déconnecter"}
+          </button>
+        </div>
+      ) : (
+        <div>
+          <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+            <input
+              className="st-input"
+              type="password"
+              value={keyInput}
+              onChange={e => setKeyInput(e.target.value)}
+              placeholder="sk-ant-…"
+              style={{ flex: "1 1 260px" }}
+            />
+            <button className="st-btn" onClick={handleConnect} disabled={saving || !keyInput.trim()}>
+              {saving ? "Vérification…" : saved ? "Connecté ✓" : "Connecter"}
+            </button>
+          </div>
+          {error && <div style={{ color: "#DC2626", fontSize: 12.5, marginTop: 8 }}>{error}</div>}
+        </div>
+      )}
+    </div>
   );
 }
 

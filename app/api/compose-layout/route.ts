@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
 import { cookies } from 'next/headers';
+import { getAnthropicApiKeyForUser } from '@/lib/anthropic-key';
 
 // POST /api/compose-layout
 // "Directeur artistique IA" — Option 3 : l'IA NE DESSINE PAS de zéro.
@@ -83,7 +84,7 @@ export async function POST(request: NextRequest) {
     const { data: { session } } = await sb.auth.getSession();
     if (!session) return NextResponse.json({ error: 'Non autorisé' }, { status: 401 });
 
-    const apiKey = process.env.ANTHROPIC_API_KEY;
+    const apiKey = await getAnthropicApiKeyForUser(session.user.id);
     if (!apiKey) return NextResponse.json({ error: 'Clé API manquante' }, { status: 500 });
 
     const { imageUrl, format, brand, blocks, styleRef, approvedRef } = await request.json();
