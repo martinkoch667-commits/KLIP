@@ -135,6 +135,18 @@ const FORMATS = [
   { id: 'facebook',    label: 'Facebook Post',   sub: '1200×630',  w: 560, h: 294 },
 ];
 
+// Filtres photo prédéfinis — mêmes 6 presets que le module Montage vidéo (constants.ts
+// FILTERS), réexprimés en réglages adj* (l'éditeur n'a pas de pipeline CSS filter/sepia/
+// hue-rotate natif côté Konva, seulement luminosité/contraste/saturation/chaleur/teinte).
+const PHOTO_FILTER_PRESETS: { id: string; name: string; values: Partial<Record<'adjBrightness' | 'adjContrast' | 'adjSaturation' | 'adjWarmth' | 'adjTint', number>> }[] = [
+  { id: 'none',   name: 'Aucun',      values: {} },
+  { id: 'chaud',  name: 'Chaud',      values: { adjWarmth: 30, adjSaturation: 15, adjContrast: 4 } },
+  { id: 'doux',   name: 'Doux',       values: { adjBrightness: 5, adjContrast: -4, adjSaturation: -8 } },
+  { id: 'froid',  name: 'Froid',      values: { adjWarmth: -25, adjSaturation: 5, adjBrightness: 2 } },
+  { id: 'argent', name: 'Argentique', values: { adjWarmth: 20, adjSaturation: -15, adjContrast: 8 } },
+  { id: 'nb',     name: 'N&B',        values: { adjSaturation: -100, adjContrast: 10 } },
+];
+
 function newId() { return `el-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`; }
 
 function measureTextWidth(text: string, fontSize: number, fontFamily: string, fontStyle = 'bold'): number {
@@ -325,9 +337,9 @@ function imageHasAdjustments(el: ImageEl): boolean {
   return !!(el.adjBrightness || el.adjContrast || el.adjSaturation || el.adjWarmth || el.adjTint || el.adjBlur);
 }
 
-function ImgNode({ el, onSelect, onChange, onDragStart, onDragEnd, isCropping }: {
+function ImgNode({ el, onSelect, onChange, onDragStart, onDragEnd, isCropping, locked }: {
   el: ImageEl; onSelect: (shiftKey: boolean) => void; onChange: (u: Partial<ImageEl>) => void;
-  onDragStart?: () => void; onDragEnd?: (x: number, y: number) => void; isCropping?: boolean;
+  onDragStart?: () => void; onDragEnd?: (x: number, y: number) => void; isCropping?: boolean; locked?: boolean;
 }) {
   const [img] = useImage(el.src, 'anonymous');
   const imgRef = useRef<Konva.Image>(null);
@@ -372,7 +384,7 @@ function ImgNode({ el, onSelect, onChange, onDragStart, onDragEnd, isCropping }:
       rotation={el.rotation}
       opacity={el.opacity / 100}
       clipX={0} clipY={0} clipWidth={frameW} clipHeight={frameH}
-      draggable={!isCropping}
+      draggable={!isCropping && !locked}
       onClick={e => onSelect(e.evt.shiftKey)} onTap={() => onSelect(false)}
       onDragStart={!isCropping ? onDragStart : undefined}
       onDragEnd={!isCropping ? (e => onDragEnd?.(e.target.x(), e.target.y())) : undefined}
@@ -505,11 +517,11 @@ function drawVectorShape(ctx: CanvasRenderingContext2D, shape: Exclude<VectorEl[
   }
 }
 
-function VectorNode({ el, onSelect, onDblClick, onDragStart, onDragEnd, isMaskCrop, onImageOffset }: {
+function VectorNode({ el, onSelect, onDblClick, onDragStart, onDragEnd, isMaskCrop, onImageOffset, locked }: {
   el: VectorEl; onSelect: (shiftKey: boolean) => void;
   onDblClick?: () => void;
   onDragStart?: () => void; onDragEnd?: (x: number, y: number) => void;
-  isMaskCrop?: boolean; onImageOffset?: (x: number, y: number) => void;
+  isMaskCrop?: boolean; onImageOffset?: (x: number, y: number) => void; locked?: boolean;
 }) {
   const [maskImg] = useImage(el.fillType === 'image' && el.imageSrc ? el.imageSrc : '', 'anonymous');
 
@@ -530,7 +542,7 @@ function VectorNode({ el, onSelect, onDblClick, onDragStart, onDragEnd, isMaskCr
       <Group
         x={el.x} y={el.y} rotation={el.rotation} opacity={el.opacity / 100}
         clipFunc={clipFn}
-        draggable={!isMaskCrop}
+        draggable={!isMaskCrop && !locked}
         onClick={e => onSelect(e.evt.shiftKey)} onTap={() => onSelect(false)}
         onDblClick={() => onDblClick?.()}
         onDragStart={!isMaskCrop ? onDragStart : undefined}
@@ -584,7 +596,7 @@ function VectorNode({ el, onSelect, onDblClick, onDragStart, onDragEnd, isMaskCr
       fill={el.fillType === 'none' ? 'rgba(0,0,0,0)' : el.fill}
       stroke={el.stroke}
       strokeWidth={el.strokeWidth}
-      draggable
+      draggable={!locked}
       sceneFunc={draw}
       hitFunc={draw}
       onClick={e => onSelect(e.evt.shiftKey)}
@@ -1255,6 +1267,20 @@ function EditorContextToolbar({ sel, allFonts, brandColors, stageW, stageH, onUp
             </TextBtn>
             {pop === 'adjust' && (
               <div style={{ ...popStyle, minWidth: 244 }}>
+                <span className="label" style={{ display: 'block', marginBottom: 8 }}>Filtres</span>
+                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 12 }}>
+                  {PHOTO_FILTER_PRESETS.map(p => {
+                    const active = PHOTO_FILTER_PRESETS.every(o => o.id !== p.id ? true :
+                      (['adjBrightness', 'adjContrast', 'adjSaturation', 'adjWarmth', 'adjTint'] as const)
+                        .every(k => ((imgSel[k] as number) || 0) === (p.values[k] ?? 0)));
+                    return (
+                      <button key={p.id} onClick={() => u({ adjBrightness: 0, adjContrast: 0, adjSaturation: 0, adjWarmth: 0, adjTint: 0, ...p.values } as Partial<ImageEl>)}
+                        className="btn btn-ghost btn-sm" style={{ height: 28, padding: '0 10px', fontSize: 11.5, background: active ? 'var(--mint-soft)' : undefined, color: active ? 'var(--mint-2)' : undefined, boxShadow: active ? 'inset 0 0 0 1.5px var(--mint-2)' : undefined }}>
+                        {p.name}
+                      </button>
+                    );
+                  })}
+                </div>
                 <span className="label" style={{ display: 'block', marginBottom: 8 }}>Lumière</span>
                 {adjRow('Luminosité', 'adjBrightness', -100, 100)}
                 {adjRow('Contraste', 'adjContrast', -100, 100)}
@@ -1501,6 +1527,7 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [hiddenIds, setHiddenIds] = useState<Set<string>>(new Set());
+  const [lockedIds, setLockedIds] = useState<Set<string>>(new Set());
   const [dragId, setDragId] = useState<string | null>(null);
   const [dragOverId, setDragOverId] = useState<string | null>(null);
 
@@ -1538,6 +1565,7 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
   const multiDragStartRef = useRef<Record<string, { x: number; y: number }>>({});
 
   const handleElClick = (id: string, shiftKey: boolean) => {
+    if (lockedIds.has(id)) return;
     if (shiftKey) {
       setSelectedIds(prev => {
         if (prev.includes(id)) {
@@ -1961,6 +1989,23 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
     const t = setTimeout(() => { setLoadError('Chargement trop long. Réessayez.'); setDataLoading(false); }, 5000);
     return () => clearTimeout(t);
   }, [dataLoading]);
+
+  // ── Auto-save continu (post uniquement — les templates se sauvegardent via
+  // "Enregistrer le modèle") : évite de perdre du travail si l'utilisateur
+  // quitte sans cliquer "Publier". Sauvegarde légère : juste le JSON, pas de
+  // rendu/upload PNG ni de changement de statut (contrairement à handleSave).
+  const autoSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => {
+    if (dataLoading || isTemplate) return;
+    if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current);
+    autoSaveTimer.current = setTimeout(() => {
+      const updated = saveCurrentSlide();
+      setSlides(updated);
+      supabase.from('posts').update({ editor_json: JSON.stringify({ version: 2, slides: updated }) }).eq('id', postId).then(() => {});
+    }, 1500);
+    return () => { if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [elements, slides.length, formatId, postType, dataLoading, isTemplate, postId]);
 
   // ── Crop mode cursor ──────────────────────────────────────────────────────
 
@@ -2479,6 +2524,9 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
 
   const toggleHidden = (id: string) => {
     setHiddenIds(prev => { const s = new Set(prev); s.has(id) ? s.delete(id) : s.add(id); return s; });
+  };
+  const toggleLocked = (id: string) => {
+    setLockedIds(prev => { const s = new Set(prev); s.has(id) ? s.delete(id) : s.add(id); return s; });
   };
 
   // ── Export & save ─────────────────────────────────────────────────────────
@@ -3333,6 +3381,19 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 3l1.9 5.8L20 10l-5.8 1.9L12 18l-1.9-5.8L4 10l5.8-1.2z"/></svg>
                 <span className="ed-hide-md">{qaBusy ? 'Analyse…' : 'Vérifier'}</span>
               </button>
+              <div style={{ position: 'relative' }}>
+                <button onClick={() => generateAI(aiTone)} disabled={aiTyping} className="btn btn-sm ed-ai-btn" title="L'IA régénère la légende du post"
+                  style={{ height: 36, opacity: aiTyping ? 0.6 : 1, cursor: aiTyping ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5z"/></svg>
+                  <span className="ed-hide-md">{aiTyping ? 'Rédaction…' : 'Régénérer la légende'}</span>
+                </button>
+                {(aiTyping || aiCaption) && (
+                  <div style={{ position: 'absolute', top: '110%', right: 0, zIndex: 20, width: 280, maxHeight: 220, overflowY: 'auto', padding: '12px 14px', borderRadius: 10, background: 'var(--canvas)', border: '1px solid var(--line)', boxShadow: '0 12px 30px rgba(13,15,10,.18)' }}>
+                    <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.04em', color: 'var(--ink-3)', marginBottom: 6 }}>Légende générée</div>
+                    <p style={{ fontSize: 13, lineHeight: 1.5, color: 'var(--ink)', whiteSpace: 'pre-wrap', margin: 0 }}>{aiCaption || '…'}</p>
+                  </div>
+                )}
+              </div>
             </>
           )}
           <button onClick={exportPNG} className="btn btn-sm btn-ghost" style={{ height: 36 }}>Aperçu</button>
@@ -3780,15 +3841,35 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
                       ? <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><polygon points="12,3 21,12 12,21 3,12"/></svg>
                       : <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><rect x="3" y="3" width="18" height="18" rx="2"/></svg>;
                     const isSelected = el.id === selectedId;
+                    const isHidden = hiddenIds.has(el.id);
+                    const isLocked = lockedIds.has(el.id);
                     return (
-                      <button key={el.id} onClick={() => { setSelectedId(el.id); }}
-                        style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '7px 10px', borderRadius: 8, border: 'none', cursor: 'pointer', textAlign: 'left', width: '100%', background: isSelected ? 'var(--mint-soft)' : 'transparent', color: isSelected ? 'var(--mint-2)' : 'var(--ink-2)' }}
+                      <div key={el.id} onClick={() => { if (!isLocked) setSelectedId(el.id); }}
+                        style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '5px 6px 5px 10px', borderRadius: 8, cursor: isLocked ? 'default' : 'pointer', width: '100%', background: isSelected ? 'var(--mint-soft)' : 'transparent', color: isSelected ? 'var(--mint-2)' : 'var(--ink-2)', opacity: isHidden ? 0.5 : 1 }}
                         onMouseEnter={e => { if (!isSelected) (e.currentTarget as HTMLElement).style.background = 'var(--sunk)'; }}
                         onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = isSelected ? 'var(--mint-soft)' : 'transparent'; }}>
                         <span style={{ flexShrink: 0, opacity: .7 }}>{icon}</span>
                         <span style={{ flex: 1, fontSize: 12.5, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: isSelected ? 'var(--mint-2)' : 'var(--ink)' }}>{label}</span>
-                        <span style={{ fontSize: 10, color: 'var(--ink-3)', fontFamily: 'var(--mono)', fontWeight: 700, flexShrink: 0 }}>{elements.length - i}</span>
-                      </button>
+                        <span style={{ fontSize: 10, color: 'var(--ink-3)', fontFamily: 'var(--mono)', fontWeight: 700, flexShrink: 0, marginRight: 2 }}>{elements.length - i}</span>
+                        <button title={isHidden ? 'Afficher' : 'Masquer'}
+                          onClick={e => { e.stopPropagation(); toggleHidden(el.id); }}
+                          style={{ width: 26, height: 26, borderRadius: 6, display: 'grid', placeItems: 'center', border: 'none', cursor: 'pointer', background: 'transparent', color: isHidden ? 'var(--ink-3)' : 'var(--ink-2)', flexShrink: 0 }}
+                          onMouseEnter={e => (e.currentTarget.style.background = 'var(--sunk)')}
+                          onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
+                          {isHidden
+                            ? <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M17.94 17.94A10.94 10.94 0 0 1 12 20c-7 0-11-8-11-8a18.5 18.5 0 0 1 5.06-5.94M9.9 4.24A10.94 10.94 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+                            : <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>}
+                        </button>
+                        <button title={isLocked ? 'Déverrouiller' : 'Verrouiller'}
+                          onClick={e => { e.stopPropagation(); toggleLocked(el.id); }}
+                          style={{ width: 26, height: 26, borderRadius: 6, display: 'grid', placeItems: 'center', border: 'none', cursor: 'pointer', background: 'transparent', color: isLocked ? 'var(--ink-3)' : 'var(--mint-2)', flexShrink: 0 }}
+                          onMouseEnter={e => (e.currentTarget.style.background = 'var(--sunk)')}
+                          onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
+                          {isLocked
+                            ? <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                            : <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 9.9-1"/></svg>}
+                        </button>
+                      </div>
                     );
                   })}
                   {/* Fond (background) layer — always last */}
@@ -3881,7 +3962,7 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
                   if (el.type === 'image' && (el as ImageEl).src === PHOTO_PLACEHOLDER_SRC) {
                     const ph = el as ImageEl;
                     return (
-                      <Group key={el.id} id={el.id} x={ph.x} y={ph.y} rotation={ph.rotation} opacity={ph.opacity / 100} draggable
+                      <Group key={el.id} id={el.id} x={ph.x} y={ph.y} rotation={ph.rotation} opacity={ph.opacity / 100} draggable={!lockedIds.has(el.id)}
                         onClick={e => handleElClick(el.id, e.evt.shiftKey)} onTap={() => handleElClick(el.id, false)}
                         onDragStart={() => handleElDragStart(el.id)}
                         onDragEnd={e => handleElDragEnd(el.id, e.target.x(), e.target.y())}>
@@ -3894,7 +3975,7 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
                     <ImgNode key={el.id} el={el} onSelect={sk => handleElClick(el.id, sk)} onChange={u => updateEl(el.id, u)}
                       onDragStart={() => handleElDragStart(el.id)}
                       onDragEnd={(x, y) => handleElDragEnd(el.id, x, y)}
-                      isCropping={cropId === el.id} />
+                      isCropping={cropId === el.id} locked={lockedIds.has(el.id)} />
                   );
                   if (el.type === 'rect') {
                     const scrimProps = el.scrim
@@ -3909,7 +3990,7 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
                     return (
                       <Rect key={el.id} id={el.id} x={el.x} y={el.y} width={el.width} height={el.height}
                         {...scrimProps} stroke={el.stroke} strokeWidth={el.strokeWidth}
-                        cornerRadius={el.cornerRadius} rotation={el.rotation} opacity={el.opacity / 100} draggable
+                        cornerRadius={el.cornerRadius} rotation={el.rotation} opacity={el.opacity / 100} draggable={!lockedIds.has(el.id)}
                         onClick={e => handleElClick(el.id, e.evt.shiftKey)} onTap={() => handleElClick(el.id, false)}
                         onDragStart={() => handleElDragStart(el.id)}
                         onDragEnd={e => handleElDragEnd(el.id, e.target.x(), e.target.y())} />
@@ -3918,7 +3999,7 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
                   if (el.type === 'circle') return (
                     <Circle key={el.id} id={el.id} x={el.x} y={el.y} radius={el.radius}
                       fill={el.fill} stroke={el.stroke} strokeWidth={el.strokeWidth}
-                      rotation={el.rotation} opacity={el.opacity / 100} draggable
+                      rotation={el.rotation} opacity={el.opacity / 100} draggable={!lockedIds.has(el.id)}
                       onClick={e => handleElClick(el.id, e.evt.shiftKey)} onTap={() => handleElClick(el.id, false)}
                       onDragStart={() => handleElDragStart(el.id)}
                       onDragEnd={e => handleElDragEnd(el.id, e.target.x(), e.target.y())} />
@@ -3927,7 +4008,7 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
                     <KonvaStar key={el.id} id={el.id} x={el.x} y={el.y} numPoints={el.numPoints}
                       innerRadius={el.innerRadius} outerRadius={el.outerRadius}
                       fill={el.fill} stroke={el.stroke} strokeWidth={el.strokeWidth}
-                      rotation={el.rotation} opacity={el.opacity / 100} draggable
+                      rotation={el.rotation} opacity={el.opacity / 100} draggable={!lockedIds.has(el.id)}
                       onClick={e => handleElClick(el.id, e.evt.shiftKey)} onTap={() => handleElClick(el.id, false)}
                       onDragStart={() => handleElDragStart(el.id)}
                       onDragEnd={e => handleElDragEnd(el.id, e.target.x(), e.target.y())} />
@@ -3935,6 +4016,7 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
                   if (el.type === 'vector') return (
                     <VectorNode key={el.id} el={el as VectorEl}
                       onSelect={sk => handleElClick(el.id, sk)}
+                      locked={lockedIds.has(el.id)}
                       onDblClick={() => {
                         const v = el as VectorEl;
                         if (v.fillType === 'image' && v.imageSrc) { setMaskCropId(el.id); return; }
@@ -3973,9 +4055,9 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
                     const blockH = Math.max(1, lineCount) * el.fontSize * (el.lineHeight ?? 1.2) + pV * 2;
                     return (
                       <Group key={el.id} id={el.id} x={el.x} y={el.y} rotation={el.rotation} opacity={el.opacity / 100}
-                        draggable
+                        draggable={!lockedIds.has(el.id)}
                         onClick={e => handleElClick(el.id, e.evt.shiftKey)} onTap={() => handleElClick(el.id, false)}
-                        onDblClick={() => { setSelectedId(el.id); setEditingId(el.id); }}
+                        onDblClick={() => { if (!lockedIds.has(el.id)) { setSelectedId(el.id); setEditingId(el.id); } }}
                         onDragStart={() => handleElDragStart(el.id)}
                         onDragEnd={e => handleElDragEnd(el.id, e.target.x(), e.target.y())}>
                         {/* Bug 5 fix: always render Rect for hit detection; transparent when hasBg=false */}

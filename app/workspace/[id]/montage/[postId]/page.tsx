@@ -9,6 +9,7 @@ import {
   FILTERS, TRANSITIONS, SUB_STYLES, FONT_CHOICES, SUB_LENGTHS, DEFAULT_WORDS_PER_CAPTION, DEFAULT_SUB_POS,
   subStyleById, effectiveSubStyle,
   fmt, newClipDefaults, newOverlayDefaults, clipFilterCss, overlayFilterCss, clipTimelineDur, overlayTimelineDur, segmentCaptions,
+  audioVolumeAt, kenBurnsScale,
 } from "./constants";
 import { MontageCtx, CutPanel, TextPanel, CaptionsPanel, AudioPanel, TransitionsPanel, FilterPanel, SpeedPanel, StickerPanel, OverlayPanel, AiPanel } from "./panels";
 import { renderExport } from "./export";
@@ -368,6 +369,63 @@ export default function MontagePage() {
     return () => cancelAnimationFrame(raf);
   }, [playing, activeClip?.id, activeClip?.kind, total]);
 
+  // ── Lecture live des pistes audio (musique/voix off) ────────────────────────
+  // Un <audio> par piste, joué/mis en pause/mixé (fondu) en direct pendant la
+  // lecture — jusqu'ici ces pistes n'étaient audibles qu'à l'export.
+  const audioElsRef = useRef<Record<string, HTMLAudioElement>>({});
+  const timeRef = useRef(time);
+  useEffect(() => { timeRef.current = time; }, [time]);
+  const audioTracksRef = useRef(audioTracks);
+  useEffect(() => { audioTracksRef.current = audioTracks; }, [audioTracks]);
+
+  useEffect(() => {
+    const els = audioElsRef.current;
+    const ids = new Set(audioTracks.map((a) => a.id));
+    Object.keys(els).forEach((id) => { if (!ids.has(id)) { els[id].pause(); delete els[id]; } });
+    audioTracks.forEach((a) => {
+      if (!els[a.id]) { const el = new Audio(a.src); el.preload = "auto"; els[a.id] = el; }
+    });
+  }, [audioTracks]);
+
+  useEffect(() => {
+    if (!playing) {
+      Object.values(audioElsRef.current).forEach((el) => el.pause());
+      return;
+    }
+    let raf = 0;
+    const tick = () => {
+      const t = timeRef.current;
+      for (const a of audioTracksRef.current) {
+        const el = audioElsRef.current[a.id];
+        if (!el) continue;
+        const within = t >= a.offset && t < a.offset + a.dur;
+        if (within) {
+          const local = t - a.offset;
+          if (Math.abs(el.currentTime - local) > 0.3) el.currentTime = local;
+          if (el.paused) el.play().catch(() => {});
+          el.volume = audioVolumeAt(a, local);
+        } else if (!el.paused) {
+          el.pause();
+        }
+      }
+      raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [playing]);
+
+  // ── Seek manuel : resynchronise les pistes audio immédiatement ──────────────
+  useEffect(() => {
+    if (playing) return; // la boucle ci-dessus s'en charge déjà pendant la lecture
+    for (const a of audioTracksRef.current) {
+      const el = audioElsRef.current[a.id];
+      if (!el) continue;
+      const within = time >= a.offset && time < a.offset + a.dur;
+      if (within) { el.currentTime = time - a.offset; el.volume = audioVolumeAt(a, time - a.offset); }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [time]);
+
   function onVideoTimeUpdate(e: React.SyntheticEvent<HTMLVideoElement>) {
     if (!activeClip || activeClip.kind !== "video") return;
     const v = e.currentTarget;
@@ -586,6 +644,9 @@ export default function MontagePage() {
   }
   function setAudioVol(id: string, vol: number) {
     setAudioTracks((prev) => prev.map((a) => (a.id === id ? { ...a, vol } : a)));
+  }
+  function setAudioFade(id: string, kind: "fadeIn" | "fadeOut", seconds: number) {
+    setAudioTracks((prev) => prev.map((a) => (a.id === id ? { ...a, [kind]: seconds } : a)));
   }
   async function toggleRecordVO() {
     if (isRecordingVO) { voRecorderRef.current?.stop(); return; }
@@ -943,7 +1004,7 @@ export default function MontagePage() {
     addCaption, updateCaption, removeCaption, setSubStyleId, setCaptionLength, generateCaptionsAI,
     setSubCustom, resetSubCustom: () => setSubCustom({}), applySubTemplate,
     addSticker, updateSticker, removeSticker,
-    toggleProgressBar, importAudio, removeAudioTrack, setAudioVol, toggleRecordVO,
+    toggleProgressBar, importAudio, removeAudioTrack, setAudioVol, setAudioFade, toggleRecordVO,
   };
 
   const trackW = Math.max(total * pps, 200);
@@ -1084,7 +1145,11 @@ export default function MontagePage() {
                 {activeClip ? (
                   activeClip.kind === "video"
                     ? <video ref={videoRef} onTimeUpdate={onVideoTimeUpdate} onEnded={onVideoEnded} playsInline muted={false} style={{ filter: clipFilterCss(activeClip) }} />
-                    : <img src={activeClip.src} alt="" style={{ filter: clipFilterCss(activeClip) }} />
+                    : <img src={activeClip.src} alt="" style={{
+                        filter: clipFilterCss(activeClip),
+                        transform: `scale(${kenBurnsScale(activeClip.kenBurns, activeClip.dur > 0 ? Math.min(1, Math.max(0, (time - activeClip.start) / activeClip.dur)) : 0)})`,
+                        transformOrigin: "center",
+                      }} />
                 ) : (
                   <div className="mz-vempty">
                     <VIcon name="upload" size={26} />

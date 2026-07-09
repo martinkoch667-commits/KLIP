@@ -19,6 +19,18 @@ export interface MontageClip {
   transitionIn: string;  // TRANSITIONS[].id — transition d'entrée sur ce plan
   transitionDur: number; // durée de la transition (s)
   vol?: number;          // volume du son embarqué du plan vidéo (0-1, défaut 1)
+  kenBurns?: KenBurnsDir; // zoom auto sur les plans photo (kind === "photo" uniquement)
+}
+
+// Zoom automatique (façon CapCut) sur un plan photo statique.
+export type KenBurnsDir = "in" | "out";
+const KEN_BURNS_AMOUNT = 0.12; // amplitude du zoom (12%)
+
+// p: progression 0→1 dans la durée du plan. Retourne l'échelle à appliquer au centre du cadre.
+export function kenBurnsScale(dir: KenBurnsDir | undefined, p: number): number {
+  if (!dir) return 1;
+  const e = Math.max(0, Math.min(1, p));
+  return dir === "in" ? 1 + KEN_BURNS_AMOUNT * e : 1 + KEN_BURNS_AMOUNT * (1 - e);
 }
 
 // Durée effective d'un clip sur la timeline (après rognage + vitesse)
@@ -98,6 +110,17 @@ export interface AudioTrack {
   dur: number;
   vol: number; // 0-1
   offset: number; // décalage de départ sur la timeline (s)
+  fadeIn?: number;  // durée du fondu d'entrée (s), défaut 0
+  fadeOut?: number; // durée du fondu de sortie (s), défaut 0
+}
+
+// Volume effectif d'une piste audio à un instant donné (dans son propre référentiel,
+// localTime = 0 au début de la piste), en appliquant les fondus entrée/sortie.
+export function audioVolumeAt(track: AudioTrack, localTime: number): number {
+  let mult = 1;
+  if (track.fadeIn)  mult = Math.min(mult, Math.max(0, localTime / track.fadeIn));
+  if (track.fadeOut) mult = Math.min(mult, Math.max(0, (track.dur - localTime) / track.fadeOut));
+  return Math.max(0, Math.min(1, track.vol * mult));
 }
 
 // Personnalisation manuelle des sous-titres — surcharge n'importe quel champ du style de base.

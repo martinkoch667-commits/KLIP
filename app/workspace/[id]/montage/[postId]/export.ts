@@ -10,7 +10,7 @@
 // ce dernier nécessiterait de décoder N vidéos simultanément, hors de portée
 // raisonnable d'un rendu client pour ce lot.
 
-import { MontageClip, OverlayClip, Caption, TitleEl, StickerEl, AudioTrack, SubCustom, effectiveSubStyle, DEFAULT_SUB_POS, clipFilterCss, overlayFilterCss, clipTimelineDur, overlayTimelineDur } from "./constants";
+import { MontageClip, OverlayClip, Caption, TitleEl, StickerEl, AudioTrack, SubCustom, effectiveSubStyle, DEFAULT_SUB_POS, clipFilterCss, overlayFilterCss, clipTimelineDur, overlayTimelineDur, audioVolumeAt, kenBurnsScale } from "./constants";
 
 export interface ExportProject {
   clips: MontageClip[];
@@ -73,6 +73,9 @@ function drawMediaFrame(ctx: CanvasRenderingContext2D, media: HTMLVideoElement |
   const mw = media instanceof HTMLVideoElement ? media.videoWidth : media.naturalWidth;
   const mh = media instanceof HTMLVideoElement ? media.videoHeight : media.naturalHeight;
   const tr = transitionState(clip, tIntoClip, isFirst);
+  const kbP = clip.dur > 0 ? Math.min(1, tIntoClip / clip.dur) : 0;
+  const kbScale = clip.kind === "photo" ? kenBurnsScale(clip.kenBurns, kbP) : 1;
+  const scale = tr.scale * kbScale;
   ctx.save();
   ctx.globalAlpha = tr.alpha;
   ctx.filter = [clipFilterCss(clip), tr.extraFilter].filter(Boolean).join(" ") || "none";
@@ -81,9 +84,9 @@ function drawMediaFrame(ctx: CanvasRenderingContext2D, media: HTMLVideoElement |
     ctx.rect(...tr.clipRect);
     ctx.clip();
   }
-  if (tr.scale !== 1 || tr.dx || tr.dy) {
+  if (scale !== 1 || tr.dx || tr.dy) {
     ctx.translate(CANVAS_W / 2 + tr.dx, CANVAS_H / 2 + tr.dy);
-    ctx.scale(tr.scale, tr.scale);
+    ctx.scale(scale, scale);
     ctx.translate(-CANVAS_W / 2, -CANVAS_H / 2);
   }
   drawCover(ctx, media, mw, mh);
@@ -261,6 +264,8 @@ export async function renderExport(project: ExportProject, onProgress: (p: numbe
   videoGain.gain.value = 1;
   videoNode.connect(videoGain).connect(dest);
 
+  // Note : chaque piste démarre à t=0 de l'export (offset non honoré ici, limite préexistante) —
+  // donc el.currentTime correspond directement au temps local de la piste pour le calcul du fondu.
   const audioEls = project.audioTracks.map((t) => {
     const el = document.createElement("audio");
     el.crossOrigin = "anonymous";
@@ -269,8 +274,13 @@ export async function renderExport(project: ExportProject, onProgress: (p: numbe
     const gain = audioCtx.createGain();
     gain.gain.value = t.vol;
     node.connect(gain).connect(dest);
-    return { el, track: t };
+    return { el, gain, track: t };
   });
+  function updateAudioFades() {
+    for (const { el, gain, track } of audioEls) {
+      gain.gain.value = audioVolumeAt(track, el.currentTime);
+    }
+  }
 
   const stickerImages = new Map<string, HTMLImageElement>();
   for (const s of project.stickers) {
@@ -354,6 +364,7 @@ export async function renderExport(project: ExportProject, onProgress: (p: numbe
             if (video.paused || video.currentTime >= c.trimEnd || video.ended) { clearInterval(iv); resolve(); return; }
             const localT = (video.currentTime - c.trimStart) / c.speed;
             const globalT = c.start + localT;
+            updateAudioFades();
             drawMediaFrame(ctx, video, c, localT, i === 0);
             drawOverlays(globalT);
             drawCaptions(ctx, project.captions, project.subStyleId, project.subCustom, project.subPos, globalT);
@@ -371,6 +382,7 @@ export async function renderExport(project: ExportProject, onProgress: (p: numbe
             const localT = (performance.now() - segStart) / 1000;
             if (localT >= c.dur) { clearInterval(iv); resolve(); return; }
             const globalT = c.start + localT;
+            updateAudioFades();
             drawMediaFrame(ctx, img, c, localT, i === 0);
             drawOverlays(globalT);
             drawCaptions(ctx, project.captions, project.subStyleId, project.subCustom, project.subPos, globalT);

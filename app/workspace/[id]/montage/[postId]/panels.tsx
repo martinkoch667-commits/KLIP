@@ -62,6 +62,7 @@ export interface MontageCtx {
   importAudio: (file: File, kind: "music" | "voiceover") => void;
   removeAudioTrack: (id: string) => void;
   setAudioVol: (id: string, vol: number) => void;
+  setAudioFade: (id: string, kind: "fadeIn" | "fadeOut", seconds: number) => void;
   toggleRecordVO: () => void;
 
   overlays: OverlayClip[];
@@ -138,6 +139,16 @@ export function CutPanel({ ctx }: { ctx: MontageCtx }) {
           ) : (
             <Range label="Durée" value={c.trimEnd} min={1} max={15} step={0.5} unit="s" onChange={(v) => ctx.updateClip(c.id, { trimEnd: v })} />
           )}
+        </div>
+      )}
+      {c && c.kind === "photo" && (
+        <div className="a-section">
+          <span className="mz-sec-label">Zoom auto (Ken Burns)</span>
+          <div className="mz-seg">
+            {([[undefined, "Aucun"], ["in", "Zoom avant"], ["out", "Zoom arrière"]] as const).map(([k, l]) => (
+              <button key={l} className={c.kenBurns === k ? "on" : ""} onClick={() => ctx.updateClip(c.id, { kenBurns: k })}>{l}</button>
+            ))}
+          </div>
         </div>
       )}
     </>
@@ -431,6 +442,8 @@ export function AudioPanel({ ctx }: { ctx: MontageCtx }) {
             <button className="mz-hbtn" onClick={() => ctx.removeAudioTrack(a.id)}><VIcon name="trash" size={14} /></button>
           </div>
           <Range label="Volume voix off" value={Math.round(a.vol * 100)} min={0} max={100} unit="%" onChange={(v) => ctx.setAudioVol(a.id, v / 100)} />
+          <Range label="Fondu entrée" value={Math.round((a.fadeIn ?? 0) * 10) / 10} min={0} max={5} step={0.1} unit="s" onChange={(v) => ctx.setAudioFade(a.id, "fadeIn", v)} />
+          <Range label="Fondu sortie" value={Math.round((a.fadeOut ?? 0) * 10) / 10} min={0} max={5} step={0.1} unit="s" onChange={(v) => ctx.setAudioFade(a.id, "fadeOut", v)} />
         </div>
       ))}
       <div className="a-section">
@@ -454,6 +467,8 @@ export function AudioPanel({ ctx }: { ctx: MontageCtx }) {
               <button className="mz-hbtn" onClick={() => ctx.removeAudioTrack(a.id)}><VIcon name="trash" size={14} /></button>
             </div>
             <Range label="Volume musique" value={Math.round(a.vol * 100)} min={0} max={100} unit="%" onChange={(v) => ctx.setAudioVol(a.id, v / 100)} />
+            <Range label="Fondu entrée" value={Math.round((a.fadeIn ?? 0) * 10) / 10} min={0} max={5} step={0.1} unit="s" onChange={(v) => ctx.setAudioFade(a.id, "fadeIn", v)} />
+            <Range label="Fondu sortie" value={Math.round((a.fadeOut ?? 0) * 10) / 10} min={0} max={5} step={0.1} unit="s" onChange={(v) => ctx.setAudioFade(a.id, "fadeOut", v)} />
           </div>
         ))}
       </div>
