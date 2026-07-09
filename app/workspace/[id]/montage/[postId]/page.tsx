@@ -59,6 +59,34 @@ function getAudioDuration(src: string): Promise<number> {
   });
 }
 
+// Capture une image basse résolution (≤320px de large) d'un plan — vidéo (frame à
+// atTime) ou photo — encodée en dataURL JPEG, pour l'envoyer aux endpoints IA
+// (recadrage sujet, montage auto, suggestion musicale). Les sources sont des URLs
+// Supabase Storage publiques, sans souci CORS pour toDataURL() (comme dans export.ts).
+async function grabFrame(src: string, kind: "video" | "photo", atTime = 0, maxW = 320): Promise<string> {
+  if (kind === "video") {
+    const v = document.createElement("video");
+    v.crossOrigin = "anonymous"; v.muted = true; v.preload = "auto"; v.src = src;
+    await new Promise<void>((resolve, reject) => { v.onloadedmetadata = () => resolve(); v.onerror = () => reject(new Error("load")); });
+    await new Promise<void>((resolve) => { v.onseeked = () => resolve(); v.currentTime = Math.max(0, Math.min(atTime, (v.duration || 1) - 0.05)); });
+    const scale = Math.min(1, maxW / (v.videoWidth || maxW));
+    const c = document.createElement("canvas");
+    c.width = Math.max(1, Math.round((v.videoWidth || maxW) * scale));
+    c.height = Math.max(1, Math.round((v.videoHeight || maxW) * scale));
+    c.getContext("2d")!.drawImage(v, 0, 0, c.width, c.height);
+    return c.toDataURL("image/jpeg", 0.82);
+  }
+  const img = new Image();
+  img.crossOrigin = "anonymous"; img.src = src;
+  await new Promise<void>((resolve, reject) => { img.onload = () => resolve(); img.onerror = () => reject(new Error("load")); });
+  const scale = Math.min(1, maxW / (img.naturalWidth || maxW));
+  const c = document.createElement("canvas");
+  c.width = Math.max(1, Math.round((img.naturalWidth || maxW) * scale));
+  c.height = Math.max(1, Math.round((img.naturalHeight || maxW) * scale));
+  c.getContext("2d")!.drawImage(img, 0, 0, c.width, c.height);
+  return c.toDataURL("image/jpeg", 0.82);
+}
+
 const WAVEFORM_SAMPLES = 120;
 // Décode le fichier audio et calcule 120 pics d'amplitude normalisés (0-1) pour
 // l'affichage visuel dans la timeline. Best-effort : renvoie [] si le décodage échoue
@@ -145,6 +173,10 @@ export default function MontagePage() {
   const [uploadingOverlay, setUploadingOverlay] = useState(false);
   const [uploadingAudio, setUploadingAudio] = useState(false);
   const [transcribing, setTranscribing] = useState(false);
+  const [croppingClipId, setCroppingClipId] = useState<string | null>(null);
+  const [assembling, setAssembling] = useState(false);
+  const [suggestingMusic, setSuggestingMusic] = useState(false);
+  const [musicSuggestion, setMusicSuggestion] = useState<string | null>(null);
   const [isRecordingVO, setIsRecordingVO] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [exportProgress, setExportProgress] = useState(0);
@@ -625,6 +657,116 @@ export default function MontagePage() {
     }
   }
 
+  // ── Recadrage IA du sujet (statique, par plan) ──────────────────────────────
+  // Pas de suivi image par image (archi 100% client) : un seul point de recadrage
+  // ("focus") calculé par vision IA sur une frame représentative, appliqué à tout
+  // le plan (objectPosition en aperçu, drawCover biaisé à l'export).
+  async function smartCropClip(clipId: string) {
+    const clip = clips.find((c) => c.id === clipId);
+    if (!clip || croppingClipId) return;
+    setCroppingClipId(clipId);
+    try {
+      const atTime = clip.kind === "video" ? (clip.trimStart + clip.trimEnd) / 2 : 0;
+      const image = await grabFrame(clip.src, clip.kind, atTime);
+      const res = await fetch("/api/montage-ai", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ mode: "smart_crop", image }),
+      });
+      const data = await res.json();
+      if (!res.ok) { toast(data?.error || "Recadrage IA indisponible."); return; }
+      updateClip(clipId, { focusX: data.focusX, focusY: data.focusY });
+      toast("Recadrage appliqué ✓");
+    } catch {
+      toast("Erreur pendant le recadrage IA.");
+    } finally {
+      setCroppingClipId(null);
+    }
+  }
+
+  // ── Montage automatique ──────────────────────────────────────────────────────
+  // Reprend les plans déjà importés (pas de bibliothèque séparée dans ce module —
+  // l'import place directement les plans sur la timeline) et laisse l'IA proposer
+  // un ordre + rognage + Ken Burns + transitions cohérents en un clic.
+  async function autoAssembleAI() {
+    if (assembling) return;
+    if (clips.length < 2) { toast("Importez au moins 2 plans pour un montage automatique."); return; }
+    setAssembling(true);
+    try {
+      const sample = clips.slice(0, 10);
+      const images = (await Promise.all(sample.map(async (c) => {
+        try {
+          const dataUrl = await grabFrame(c.src, c.kind, c.kind === "video" ? Math.min(c.trimStart + 0.5, Math.max(0, c.srcDur - 0.1)) : 0);
+          return { id: c.id, dataUrl };
+        } catch { return null; }
+      }))).filter(Boolean) as { id: string; dataUrl: string }[];
+
+      const res = await fetch("/api/montage-ai", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          mode: "auto_assemble",
+          clips: clips.map((c) => ({ id: c.id, kind: c.kind, name: c.name, srcDur: c.srcDur })),
+          images,
+        }),
+      });
+      const data = await res.json();
+      const plan: { id: string; trimStart?: number; trimEnd?: number; kenBurns?: "in" | "out" | null; transitionIn?: string; transitionDur?: number }[] = data?.plan || [];
+      if (!res.ok || !plan.length) { toast(data?.error || "Montage automatique indisponible."); return; }
+
+      const byId = new Map(clips.map((c) => [c.id, c]));
+      const next: MontageClip[] = [];
+      for (const step of plan) {
+        const base = byId.get(step.id);
+        if (!base) continue;
+        const trimStart = typeof step.trimStart === "number" ? Math.max(0, step.trimStart) : base.trimStart;
+        const trimEndRaw = typeof step.trimEnd === "number" ? Math.min(base.srcDur, step.trimEnd) : base.trimEnd;
+        next.push({
+          ...base,
+          trimStart,
+          trimEnd: trimEndRaw > trimStart ? trimEndRaw : base.trimEnd,
+          kenBurns: base.kind === "photo" && (step.kenBurns === "in" || step.kenBurns === "out") ? step.kenBurns : undefined,
+          transitionIn: TRANSITIONS.some((t) => t.id === step.transitionIn) ? (step.transitionIn as string) : base.transitionIn,
+          transitionDur: typeof step.transitionDur === "number" ? Math.max(0, Math.min(2, step.transitionDur)) : base.transitionDur,
+        });
+      }
+      // Sécurité : un plan non repris par l'IA (id oublié dans sa réponse) n'est jamais perdu.
+      for (const c of clips) if (!next.some((n) => n.id === c.id)) next.push(c);
+      setClips(next);
+      toast("Montage automatique appliqué ✓");
+    } catch {
+      toast("Erreur pendant le montage automatique.");
+    } finally {
+      setAssembling(false);
+    }
+  }
+
+  // ── Suggestion d'ambiance musicale (texte) ──────────────────────────────────
+  // Pas de bibliothèque de musique sous licence commerciale disponible pour l'instant
+  // (Pixabay/Jamendo écartés) : l'IA suggère une AMBIANCE en texte pour guider le choix,
+  // l'utilisateur important toujours son propre fichier via l'onglet Audio existant.
+  async function suggestMusicMoodAI() {
+    if (suggestingMusic) return;
+    if (!clips.length) { toast("Importez au moins un plan."); return; }
+    setSuggestingMusic(true);
+    try {
+      const sample = clips.slice(0, 4);
+      const images = (await Promise.all(sample.map((c) =>
+        grabFrame(c.src, c.kind, c.kind === "video" ? Math.min(c.trimStart + 0.5, Math.max(0, c.srcDur - 0.1)) : 0).catch(() => null)
+      ))).filter(Boolean) as string[];
+
+      const res = await fetch("/api/montage-ai", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ mode: "music_mood", clips: clips.map((c) => ({ kind: c.kind, name: c.name })), images }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.suggestion) { toast(data?.error || "Suggestion indisponible."); return; }
+      setMusicSuggestion(data.suggestion);
+    } catch {
+      toast("Erreur pendant la suggestion musicale.");
+    } finally {
+      setSuggestingMusic(false);
+    }
+  }
+
   // Re-découpe les sous-titres avec une nouvelle longueur (mots/bloc) sans re-transcrire.
   function setCaptionLength(words: number) {
     setSubMaxWords(words);
@@ -1055,6 +1197,7 @@ export default function MontagePage() {
     titles, stickers, audioTracks, showProgressBar,
     overlays, selectedOverlay, uploadingOverlay, addOverlayFiles, updateOverlay, removeOverlay, duplicateOverlay, selectOverlay,
     time, total, logoUrl, uploadingAudio, transcribing, isRecordingVO,
+    croppingClipId, smartCropClip, assembling, autoAssembleAI, suggestingMusic, musicSuggestion, suggestMusicMoodAI,
     toast, updateClip, splitAtPlayhead,
     duplicateSelected: () => selectedClipId && duplicateClip(selectedClipId),
     removeSelected: () => selectedClipId && removeClip(selectedClipId),
@@ -1212,9 +1355,10 @@ export default function MontagePage() {
               <div className="mz-video">
                 {activeClip ? (
                   activeClip.kind === "video"
-                    ? <video ref={videoRef} onTimeUpdate={onVideoTimeUpdate} onEnded={onVideoEnded} playsInline muted={false} style={{ filter: clipFilterCss(activeClip) }} />
+                    ? <video ref={videoRef} onTimeUpdate={onVideoTimeUpdate} onEnded={onVideoEnded} playsInline muted={false} style={{ filter: clipFilterCss(activeClip), objectPosition: `${(activeClip.focusX ?? 0.5) * 100}% ${(activeClip.focusY ?? 0.5) * 100}%` }} />
                     : <img src={activeClip.src} alt="" style={{
                         filter: clipFilterCss(activeClip),
+                        objectPosition: `${(activeClip.focusX ?? 0.5) * 100}% ${(activeClip.focusY ?? 0.5) * 100}%`,
                         transform: `scale(${kenBurnsScale(activeClip.kenBurns, activeClip.dur > 0 ? Math.min(1, Math.max(0, (time - activeClip.start) / activeClip.dur)) : 0)})`,
                         transformOrigin: "center",
                       }} />

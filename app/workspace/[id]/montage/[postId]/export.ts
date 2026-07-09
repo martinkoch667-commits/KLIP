@@ -56,11 +56,13 @@ let CANVAS_W = 720;
 let CANVAS_H = 1280;
 const FPS = 30;
 
-function drawCover(ctx: CanvasRenderingContext2D, media: CanvasImageSource, mw: number, mh: number) {
+function drawCover(ctx: CanvasRenderingContext2D, media: CanvasImageSource, mw: number, mh: number, focusX = 0.5, focusY = 0.5) {
   if (!mw || !mh) return;
   const scale = Math.max(CANVAS_W / mw, CANVAS_H / mh);
   const w = mw * scale, h = mh * scale;
-  const x = (CANVAS_W - w) / 2, y = (CANVAS_H - h) / 2;
+  const minX = CANVAS_W - w, minY = CANVAS_H - h; // bornes "cover" (<= 0)
+  const x = Math.min(0, Math.max(minX, CANVAS_W / 2 - focusX * w));
+  const y = Math.min(0, Math.max(minY, CANVAS_H / 2 - focusY * h));
   ctx.drawImage(media, x, y, w, h);
 }
 
@@ -100,7 +102,7 @@ function drawMediaFrame(ctx: CanvasRenderingContext2D, media: HTMLVideoElement |
     ctx.scale(scale, scale);
     ctx.translate(-CANVAS_W / 2, -CANVAS_H / 2);
   }
-  drawCover(ctx, media, mw, mh);
+  drawCover(ctx, media, mw, mh, clip.focusX, clip.focusY);
   ctx.restore();
 }
 

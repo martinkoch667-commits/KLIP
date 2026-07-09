@@ -32,6 +32,13 @@ export interface MontageCtx {
   uploadingAudio: boolean;
   transcribing: boolean;
   isRecordingVO: boolean;
+  croppingClipId: string | null;
+  smartCropClip: (clipId: string) => void;
+  assembling: boolean;
+  autoAssembleAI: () => void;
+  suggestingMusic: boolean;
+  musicSuggestion: string | null;
+  suggestMusicMoodAI: () => void;
 
   toast: (msg: string) => void;
   updateClip: (id: string, patch: Partial<MontageClip>) => void;
@@ -149,6 +156,22 @@ export function CutPanel({ ctx }: { ctx: MontageCtx }) {
               <button key={l} className={c.kenBurns === k ? "on" : ""} onClick={() => ctx.updateClip(c.id, { kenBurns: k })}>{l}</button>
             ))}
           </div>
+        </div>
+      )}
+      {c && (
+        <div className="a-section">
+          <span className="mz-sec-label">Recadrage IA du sujet</span>
+          <p style={{ fontSize: 11.5, color: "var(--ink-3)", lineHeight: 1.45, marginBottom: 8 }}>
+            L&apos;IA repère le sujet principal et recentre le cadrage "cover" dessus (un seul recadrage pour tout le plan).
+          </p>
+          <button className="btn btn-dark mz-btn-block" disabled={ctx.croppingClipId === c.id} onClick={() => ctx.smartCropClip(c.id)}>
+            <VIcon name="sparkles" size={15} /> {ctx.croppingClipId === c.id ? "Analyse…" : "Recadrer sur le sujet"}
+          </button>
+          {(c.focusX !== undefined || c.focusY !== undefined) && (
+            <button className="btn btn-ghost mz-btn-block" style={{ marginTop: 6 }} onClick={() => ctx.updateClip(c.id, { focusX: undefined, focusY: undefined })}>
+              Réinitialiser le cadrage
+            </button>
+          )}
         </div>
       )}
     </>
@@ -692,8 +715,9 @@ export function OverlayPanel({ ctx }: { ctx: MontageCtx }) {
 
 export function AiPanel({ ctx }: { ctx: MontageCtx }) {
   const hasVideo = ctx.clips.some((c) => c.kind === "video");
+  const hasClips = ctx.clips.length > 0;
   return (
-    <div className="a-section">
+    <div className="a-section" style={{ display: "flex", flexDirection: "column", gap: 12 }}>
       <div className="mz-ai-card">
         <div className="halo-blob" style={{ width: 150, height: 150, right: -40, top: -50, background: "radial-gradient(circle, var(--mint), transparent 70%)", opacity: .5 }} />
         <div style={{ position: "relative", zIndex: 2 }}>
@@ -705,8 +729,40 @@ export function AiPanel({ ctx }: { ctx: MontageCtx }) {
           </button>
         </div>
       </div>
-      <p style={{ fontSize: 11.5, color: "var(--ink-3)", lineHeight: 1.5, marginTop: 12 }}>
-        Montage automatique, suggestion musicale et recadrage IA du sujet arrivent dans un prochain lot.
+
+      <div className="mz-ai-card">
+        <div className="halo-blob" style={{ width: 130, height: 130, right: -30, top: -40, background: "radial-gradient(circle, var(--mint), transparent 70%)", opacity: .4 }} />
+        <div style={{ position: "relative", zIndex: 2 }}>
+          <div className="mz-sec-label" style={{ color: "var(--mint)", marginBottom: 8 }}>Montage automatique</div>
+          <div style={{ fontFamily: "var(--display)", fontWeight: 800, fontStyle: "italic", fontSize: 19, letterSpacing: "-0.02em", marginBottom: 4 }}>Un clic, un montage.</div>
+          <p style={{ fontSize: 12.5, color: "var(--cream-2)", marginBottom: 14, lineHeight: 1.45 }}>Klip réordonne vos plans importés, choisit les meilleurs extraits, le zoom et les transitions.</p>
+          <button className="mz-ai-btn" disabled={ctx.clips.length < 2 || ctx.assembling} onClick={ctx.autoAssembleAI}>
+            <VIcon name="sparkles" size={16} /> {ctx.assembling ? "Montage en cours…" : "Générer le montage"}
+          </button>
+        </div>
+      </div>
+
+      <div className="mz-ai-card">
+        <div className="halo-blob" style={{ width: 130, height: 130, right: -30, top: -40, background: "radial-gradient(circle, var(--mint), transparent 70%)", opacity: .4 }} />
+        <div style={{ position: "relative", zIndex: 2 }}>
+          <div className="mz-sec-label" style={{ color: "var(--mint)", marginBottom: 8 }}>Ambiance musicale</div>
+          <div style={{ fontFamily: "var(--display)", fontWeight: 800, fontStyle: "italic", fontSize: 19, letterSpacing: "-0.02em", marginBottom: 4 }}>Quel style de musique ?</div>
+          <p style={{ fontSize: 12.5, color: "var(--cream-2)", marginBottom: 14, lineHeight: 1.45 }}>
+            Klip n&apos;a pas encore de bibliothèque musicale sous licence — l&apos;IA vous suggère une ambiance, importez ensuite votre propre morceau dans l&apos;onglet Audio.
+          </p>
+          <button className="mz-ai-btn" disabled={!hasClips || ctx.suggestingMusic} onClick={ctx.suggestMusicMoodAI}>
+            <VIcon name="sparkles" size={16} /> {ctx.suggestingMusic ? "Analyse…" : "Suggérer une ambiance"}
+          </button>
+          {ctx.musicSuggestion && (
+            <p style={{ fontSize: 12.5, color: "var(--ink)", lineHeight: 1.5, marginTop: 12, padding: 10, borderRadius: 8, background: "var(--sunk)", border: "1px solid var(--line)" }}>
+              {ctx.musicSuggestion}
+            </p>
+          )}
+        </div>
+      </div>
+
+      <p style={{ fontSize: 11.5, color: "var(--ink-3)", lineHeight: 1.5 }}>
+        Le recadrage IA du sujet se trouve dans l&apos;onglet <strong>Découper</strong>, plan par plan.
       </p>
     </div>
   );
