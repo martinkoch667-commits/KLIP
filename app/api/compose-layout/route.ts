@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
 import { cookies } from 'next/headers';
-import { getAnthropicApiKeyForUser } from '@/lib/anthropic-key';
+import { generateAiText } from '@/lib/ai-text';
 
 // POST /api/compose-layout
 // "Directeur artistique IA" — Option 3 : l'IA NE DESSINE PAS de zéro.
@@ -84,9 +84,6 @@ export async function POST(request: NextRequest) {
     const { data: { session } } = await sb.auth.getSession();
     if (!session) return NextResponse.json({ error: 'Non autorisé' }, { status: 401 });
 
-    const apiKey = await getAnthropicApiKeyForUser(session.user.id);
-    if (!apiKey) return NextResponse.json({ error: 'Clé API manquante' }, { status: 500 });
-
     const { imageUrl, format, brand, blocks, styleRef, approvedRef } = await request.json();
     const fmt = format ?? { w: 1080, h: 1350 };
     const palette = [brand?.primary && `primary=${brand.primary}`, brand?.secondary && `secondary=${brand.secondary}`, brand?.accent && `accent=${brand.accent}`].filter(Boolean).join(', ');
@@ -122,20 +119,21 @@ export async function POST(request: NextRequest) {
     ].filter(Boolean).join('\n');
 
     const hasImage = typeof imageUrl === 'string' && imageUrl.startsWith('http');
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const content: any[] = [];
-    if (hasImage) content.push({ type: 'image', source: { type: 'url', url: imageUrl } });
-    content.push({ type: 'text', text: prompt });
 
-    const response = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'x-api-key': apiKey, 'anthropic-version': '2023-06-01' },
-      body: JSON.stringify({ model: 'claude-opus-4-5', max_tokens: 1800, temperature: 0.7, messages: [{ role: 'user', content }] }),
-    });
-    const data = await response.json();
-    if (!response.ok) { console.error('[compose-layout] API error:', data); return NextResponse.json({ error: 'Composition échouée' }, { status: 500 }); }
+    let raw: string;
+    try {
+      raw = await generateAiText({
+        userId: session.user.id,
+        userText: prompt,
+        images: hasImage ? [imageUrl] : undefined,
+        temperature: 0.7,
+        maxTokens: 1800,
+      });
+    } catch (err) {
+      console.error('[compose-layout] API error:', err);
+      return NextResponse.json({ error: 'Composition échouée' }, { status: 500 });
+    }
 
-    const raw: string = data.content?.[0]?.text ?? '';
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let parsed: any = null;
     try { const jm = raw.match(/\{[\s\S]*\}/); if (jm) parsed = JSON.parse(jm[0]); } catch { /* noop */ }

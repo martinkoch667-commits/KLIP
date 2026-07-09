@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
 import { cookies } from 'next/headers';
-import { getAnthropicApiKeyForUser } from '@/lib/anthropic-key';
+import { generateAiText } from '@/lib/ai-text';
 
 // POST /api/visual-qa
 // Boucle d'auto-correction (Option A) : reçoit le RENDU du post + la liste des calques texte,
@@ -17,15 +17,8 @@ export async function POST(request: NextRequest) {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) return NextResponse.json({ error: 'Non autorisé' }, { status: 401 });
 
-    const apiKey = await getAnthropicApiKeyForUser(session.user.id);
-    if (!apiKey) return NextResponse.json({ error: 'Clé API manquante' }, { status: 500 });
-
     const { image, layers, stageW, stageH } = await request.json();
     if (typeof image !== 'string') return NextResponse.json({ error: 'image requise' }, { status: 400 });
-
-    const m = image.match(/^data:(image\/\w+);base64,([\s\S]+)$/);
-    const mediaType = m?.[1] ?? 'image/png';
-    const b64 = m?.[2] ?? image;
 
     const layerList: Layer[] = Array.isArray(layers) ? layers : [];
     const layerLines = layerList.map(l =>
@@ -74,27 +67,20 @@ export async function POST(request: NextRequest) {
       '{ "ok": true|false, "scrim": { "position": "bottom"|"top"|"none", "opacity": number }, "issues": [ { "id": "<id calque>", "problem": "...", "fix": { "fontSize"?: number, "x"?: number, "y"?: number, "width"?: number, "align"?: "left|center|right", "text"?: "...", "scrim"?: true, "scrimOpacity"?: number, "shadow"?: true } } ] }',
     ].join('\n');
 
-    const response = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'x-api-key': apiKey, 'anthropic-version': '2023-06-01' },
-      body: JSON.stringify({
-        model: 'claude-opus-4-5',
-        max_tokens: 700,
+    let raw: string;
+    try {
+      raw = await generateAiText({
+        userId: session.user.id,
+        userText: prompt,
+        images: [image],
         temperature: 0.2,
-        messages: [{ role: 'user', content: [
-          { type: 'image', source: { type: 'base64', media_type: mediaType, data: b64 } },
-          { type: 'text', text: prompt },
-        ] }],
-      }),
-    });
-
-    const data = await response.json();
-    if (!response.ok) {
-      console.error('[visual-qa] API error:', data);
+        maxTokens: 700,
+      });
+    } catch (err) {
+      console.error('[visual-qa] API error:', err);
       return NextResponse.json({ error: 'Analyse échouée' }, { status: 500 });
     }
 
-    const raw: string = data.content?.[0]?.text ?? '';
     let result: { ok: boolean; issues: unknown[]; scrim?: unknown } = { ok: true, issues: [] };
     try {
       const jm = raw.match(/\{[\s\S]*\}/);

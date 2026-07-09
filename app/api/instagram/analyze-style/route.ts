@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createRouteHandlerClient } from "@supabase/auth-helpers-nextjs";
 import { cookies } from "next/headers";
-import { getAnthropicApiKeyForUser } from "@/lib/anthropic-key";
+import { generateAiText } from "@/lib/ai-text";
 
 export const runtime = "nodejs";
 
@@ -70,11 +70,6 @@ export async function POST(request: NextRequest) {
       })
       .join("\n\n———\n\n");
 
-    const apiKey = await getAnthropicApiKeyForUser(session.user.id);
-    if (!apiKey) {
-      return NextResponse.json({ error: "Clé API IA manquante" }, { status: 500 });
-    }
-
     const hasStats = posts.some((p) => typeof p.like_count === "number");
 
     const system = `Tu es consultant senior en stratégie de contenu Instagram pour des marques premium.
@@ -98,28 +93,20 @@ Réponds UNIQUEMENT avec ce JSON valide, sans rien avant ni après :
   "bestCaption": "recopie ici, à l'identique, la meilleure légende existante parmi celles fournies (celle qui incarne le mieux la marque)"
 }`;
 
-    const res = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-api-key": apiKey,
-        "anthropic-version": "2023-06-01",
-      },
-      body: JSON.stringify({
-        model: "claude-opus-4-5",
-        max_tokens: 1200,
-        temperature: 0.6,
+    let raw: string;
+    try {
+      raw = await generateAiText({
+        userId: session.user.id,
         system,
-        messages: [{ role: "user", content: user }],
-      }),
-    });
-    const data = await res.json();
-    if (!res.ok) {
-      console.error("[analyze-style] API error:", data);
+        userText: user,
+        temperature: 0.6,
+        maxTokens: 1200,
+      });
+    } catch (err) {
+      console.error("[analyze-style] API error:", err);
       return NextResponse.json({ error: "Analyse impossible pour le moment" }, { status: 500 });
     }
 
-    const raw = (data.content?.[0]?.text ?? "") as string;
     let parsed: Record<string, unknown> = {};
     try {
       const m = raw.match(/\{[\s\S]*\}/);

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
 import { cookies } from 'next/headers';
-import { getAnthropicApiKeyForUser } from '@/lib/anthropic-key';
+import { generateAiText } from '@/lib/ai-text';
 
 // ─── Brand-aware system prompt template ────────────────────────────────────────
 const PROMPT_TEMPLATE = `Tu es un copywriter expert en contenu Instagram pour agences de communication premium.
@@ -92,12 +92,6 @@ export async function POST(request: NextRequest) {
 
     if (!brief) {
       return NextResponse.json({ error: 'Brief manquant' }, { status: 400 });
-    }
-
-    const apiKey = await getAnthropicApiKeyForUser(session.user.id);
-    if (!apiKey) {
-      console.error('[generate-description] ANTHROPIC_API_KEY is not set');
-      return NextResponse.json({ error: 'Clé API Anthropic manquante' }, { status: 500 });
     }
 
     // ─── 1. Fetch workspace data from Supabase ────────────────────────────────
@@ -223,50 +217,22 @@ export async function POST(request: NextRequest) {
 
     // ─── 4. Build message content (with optional image) ──────────────────────
     const hasImage = typeof photoUrl === 'string' && photoUrl.startsWith('http');
-    type MessageContent =
-      | { type: 'image'; source: { type: 'url'; url: string } }
-      | { type: 'text'; text: string };
+    const userText = hasImage
+      ? `${userPrompt}\n\nAnalyse ce visuel et génère le contenu parfaitement adapté à cette marque.`
+      : userPrompt;
+    const maxTokens = hasZoneMode ? 800 : hasRoles ? 600 : 400;
 
-    const content: MessageContent[] = [];
-    if (hasImage) {
-      content.push({ type: 'image', source: { type: 'url', url: photoUrl } });
-    }
-    content.push({
-      type: 'text',
-      text: hasImage
-        ? `${userPrompt}\n\nAnalyse ce visuel et génère le contenu parfaitement adapté à cette marque.`
-        : userPrompt,
-    });
-
-    // ─── 5. Call Claude ───────────────────────────────────────────────────────
+    // ─── 5. Call l'IA (Claude si BYOK connecté, sinon Gemini) ─────────────────
     console.log(`[generate-description] workspace="${ws.name}" sector="${ws.sector}" tone="${ws.tone}" hasImage=${hasImage} hasZones=${hasZoneMode}`);
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const callClaude = async (messages: any[]): Promise<string> => {
-      const response = await fetch('https://api.anthropic.com/v1/messages', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-api-key': apiKey,
-          'anthropic-version': '2023-06-01',
-        },
-        body: JSON.stringify({
-          model: 'claude-opus-4-5',
-          max_tokens: hasZoneMode ? 800 : hasRoles ? 600 : 400,
-          temperature: 0.9,
-          system: systemPrompt,
-          messages,
-        }),
-      });
-      const data = await response.json();
-      if (!response.ok) {
-        console.error('[generate-description] API error:', data);
-        throw new Error(typeof data?.error === 'string' ? data.error : (data?.error?.message || 'Erreur API'));
-      }
-      return (data.content?.[0]?.text ?? '') as string;
-    };
-
-    const rawText: string = await callClaude([{ role: 'user', content }]);
+    const rawText: string = await generateAiText({
+      userId: session.user.id,
+      system: systemPrompt,
+      userText,
+      images: hasImage ? [photoUrl] : undefined,
+      temperature: 0.9,
+      maxTokens,
+    });
 
     // ─── 6. Parse JSON response ───────────────────────────────────────────────
     let texte_visuel = '';
@@ -315,11 +281,17 @@ export async function POST(request: NextRequest) {
             'Renvoie UNIQUEMENT ce JSON (rien d\'autre), avec les versions raccourcies :',
             `{ "zone_blocks": { ${bad.map(v => `"${v.id}": "..."`).join(', ')} } }`,
           ].join('\n');
-          const fixRaw = await callClaude([
-            { role: 'user', content },
-            { role: 'assistant', content: rawText },
-            { role: 'user', content: fixPrompt },
-          ]);
+          const fixRaw = await generateAiText({
+            userId: session.user.id,
+            system: systemPrompt,
+            userText: fixPrompt,
+            temperature: 0.9,
+            maxTokens,
+            priorTurns: [
+              { role: 'user', text: userText, images: hasImage ? [photoUrl] : undefined },
+              { role: 'assistant', text: rawText },
+            ],
+          });
           const m = fixRaw.match(/\{[\s\S]*\}/);
           if (m) {
             const fixed = JSON.parse(m[0]);
