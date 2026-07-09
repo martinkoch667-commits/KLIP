@@ -10,7 +10,7 @@
 // ce dernier nécessiterait de décoder N vidéos simultanément, hors de portée
 // raisonnable d'un rendu client pour ce lot.
 
-import { MontageClip, OverlayClip, Caption, TitleEl, StickerEl, AudioTrack, SubCustom, effectiveSubStyle, DEFAULT_SUB_POS, clipFilterCss, overlayFilterCss, clipTimelineDur, overlayTimelineDur, audioVolumeAt, kenBurnsScale } from "./constants";
+import { MontageClip, OverlayClip, Caption, TitleEl, StickerEl, AudioTrack, SubCustom, effectiveSubStyle, DEFAULT_SUB_POS, clipFilterCss, overlayFilterCss, clipTimelineDur, overlayTimelineDur, audioVolumeAt, kenBurnsScale, videoFormatById, exportQualityById } from "./constants";
 
 export interface ExportProject {
   clips: MontageClip[];
@@ -23,6 +23,13 @@ export interface ExportProject {
   stickers: StickerEl[];
   audioTracks: AudioTrack[];
   showProgressBar: boolean;
+  formatId?: string;
+  exportQuality?: string;
+}
+
+export interface ExportResult {
+  blob: Blob;
+  thumbnailBlob: Blob | null;
 }
 
 interface ClipTimed extends MontageClip {
@@ -41,8 +48,12 @@ function withStarts(clips: MontageClip[]): ClipTimed[] {
   });
 }
 
-const CANVAS_W = 720;
-const CANVAS_H = 1280;
+// Dimensions du canvas d'export — fixées au début de renderExport() selon le
+// format choisi (project.formatId). `let` plutôt que des paramètres enfilés
+// dans chaque fonction de dessin ci-dessous, qui les referment toutes en closure ;
+// un seul export tourne à la fois dans l'onglet, donc pas de risque de concurrence.
+let CANVAS_W = 720;
+let CANVAS_H = 1280;
 const FPS = 30;
 
 function drawCover(ctx: CanvasRenderingContext2D, media: CanvasImageSource, mw: number, mh: number) {
@@ -242,7 +253,10 @@ async function loadImage(src: string): Promise<HTMLImageElement> {
   });
 }
 
-export async function renderExport(project: ExportProject, onProgress: (p: number) => void): Promise<Blob> {
+export async function renderExport(project: ExportProject, onProgress: (p: number) => void): Promise<ExportResult> {
+  const fmt = videoFormatById(project.formatId);
+  CANVAS_W = fmt.w; CANVAS_H = fmt.h;
+
   const clips = withStarts(project.clips);
   const total = clips.length ? clips[clips.length - 1].end : 0;
   if (!total) throw new Error("Aucun plan à exporter");
@@ -332,13 +346,26 @@ export async function renderExport(project: ExportProject, onProgress: (p: numbe
   dest.stream.getAudioTracks().forEach((t) => stream.addTrack(t));
 
   const mimeType = MediaRecorder.isTypeSupported("video/webm;codecs=vp9,opus") ? "video/webm;codecs=vp9,opus" : "video/webm;codecs=vp8,opus";
-  const recorder = new MediaRecorder(stream, { mimeType, videoBitsPerSecond: 4_000_000 });
+  const bitrate = exportQualityById(project.exportQuality).bitrate;
+  const recorder = new MediaRecorder(stream, { mimeType, videoBitsPerSecond: bitrate });
   const chunks: Blob[] = [];
   recorder.ondataavailable = (e) => { if (e.data.size) chunks.push(e.data); };
   const stopped = new Promise<Blob>((resolve) => { recorder.onstop = () => resolve(new Blob(chunks, { type: "video/webm" })); });
 
   recorder.start(200);
   audioEls.forEach(({ el }) => { el.currentTime = 0; el.play().catch(() => {}); });
+
+  // Miniature : capture le tout premier frame composé (image + texte/titres) du plan 1.
+  let thumbCaptured = false;
+  let thumbnailBlob: Blob | null = null;
+  let thumbnailPromise: Promise<void> = Promise.resolve();
+  const maybeCaptureThumbnail = (isFirstClip: boolean) => {
+    if (thumbCaptured || !isFirstClip) return;
+    thumbCaptured = true;
+    thumbnailPromise = new Promise<void>((resolve) => {
+      canvas.toBlob((b) => { thumbnailBlob = b; resolve(); }, "image/jpeg", 0.85);
+    });
+  };
 
   try {
     for (let i = 0; i < clips.length; i++) {
@@ -371,6 +398,7 @@ export async function renderExport(project: ExportProject, onProgress: (p: numbe
             drawTitles(ctx, project.titles, globalT);
             drawStickers(ctx, project.stickers, stickerImages, globalT);
             if (project.showProgressBar) drawProgressBar(ctx, globalT, total);
+            maybeCaptureThumbnail(i === 0);
           }, 1000 / FPS);
         });
         video.pause();
@@ -389,6 +417,7 @@ export async function renderExport(project: ExportProject, onProgress: (p: numbe
             drawTitles(ctx, project.titles, globalT);
             drawStickers(ctx, project.stickers, stickerImages, globalT);
             if (project.showProgressBar) drawProgressBar(ctx, globalT, total);
+            maybeCaptureThumbnail(i === 0);
           }, 1000 / FPS);
         });
       }
@@ -402,5 +431,6 @@ export async function renderExport(project: ExportProject, onProgress: (p: numbe
 
   const blob = await stopped;
   await audioCtx.close();
-  return blob;
+  await thumbnailPromise;
+  return { blob, thumbnailBlob };
 }

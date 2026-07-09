@@ -5,6 +5,7 @@ import {
   Group,
   Image as KonvaImage,
   Layer,
+  Line,
   Rect,
   Shape as KonvaShape,
   Stage,
@@ -27,12 +28,15 @@ interface Slide {
   bgOffsetX?: number; // pixel offset of scaled bg image (cover behavior)
   bgOffsetY?: number;
   thumbnail?: string;
+  spanGroupId?: string; // regroupe les slides d'un même visuel "étendu" (panorama continu)
+  spanIndex?: number;   // position (0 = ancre) dans le groupe, pour recalcul futur éventuel
 }
 
 interface BaseEl { id: string; x: number; y: number; rotation: number; opacity: number; }
 interface TextEl extends BaseEl {
   type: 'text'; text: string; fontSize: number; fontFamily: string; fontStyle: string;
   textDecoration: string; fill: string; align: string; width: number;
+  fillType?: 'color' | 'gradient'; fillTo?: string; fillAngle?: number;
   hasBg: boolean; bgColor: string; bgOpacity: number; cornerRadius: number;
   padding: number; paddingH: number; paddingV: number;
   role?: string;
@@ -75,11 +79,11 @@ interface TextEl extends BaseEl {
   echoOffset?: number; // default 8
   echoFade?: boolean; // default true
 }
-interface RectEl extends BaseEl { type: 'rect'; width: number; height: number; fill: string; stroke: string; strokeWidth: number; cornerRadius: number; scrim?: 'bottom' | 'top'; }
-interface CircleEl extends BaseEl { type: 'circle'; radius: number; fill: string; stroke: string; strokeWidth: number; }
-interface StarEl extends BaseEl { type: 'star'; numPoints: number; innerRadius: number; outerRadius: number; fill: string; stroke: string; strokeWidth: number; }
+interface RectEl extends BaseEl { type: 'rect'; width: number; height: number; fill: string; fillType?: 'color' | 'gradient'; fillTo?: string; fillAngle?: number; stroke: string; strokeWidth: number; cornerRadius: number; scrim?: 'bottom' | 'top'; }
+interface CircleEl extends BaseEl { type: 'circle'; radius: number; fill: string; fillType?: 'color' | 'gradient'; fillTo?: string; fillAngle?: number; stroke: string; strokeWidth: number; }
+interface StarEl extends BaseEl { type: 'star'; numPoints: number; innerRadius: number; outerRadius: number; fill: string; fillType?: 'color' | 'gradient'; fillTo?: string; fillAngle?: number; stroke: string; strokeWidth: number; }
 interface AnchorPoint { x: number; y: number; cpIn?: { x: number; y: number }; cpOut?: { x: number; y: number }; }
-interface VectorEl extends BaseEl { type: 'vector'; shape: 'rectangle'|'circle'|'triangle'|'star'|'pill'|'arrow'|'diamond'|'hexagon'|'custom'; width: number; height: number; fill: string; fillType?: 'color'|'none'|'image'; stroke: string; strokeWidth: number; points?: AnchorPoint[]; closed?: boolean; imageSrc?: string; imageOffsetX?: number; imageOffsetY?: number; }
+interface VectorEl extends BaseEl { type: 'vector'; shape: 'rectangle'|'circle'|'triangle'|'star'|'pill'|'arrow'|'diamond'|'hexagon'|'custom'; width: number; height: number; fill: string; fillType?: 'color'|'none'|'image'|'gradient'; fillTo?: string; fillAngle?: number; stroke: string; strokeWidth: number; points?: AnchorPoint[]; closed?: boolean; imageSrc?: string; imageOffsetX?: number; imageOffsetY?: number; }
 interface ImageEl extends BaseEl { type: 'image'; src: string; width: number; height: number; cropX?: number; cropY?: number; naturalW?: number; naturalH?: number;
   // Ajustements colorimétriques (chacun -100..100, 0 = neutre ; flou 0..100)
   adjBrightness?: number; adjContrast?: number; adjSaturation?: number; adjWarmth?: number; adjTint?: number; adjBlur?: number; }
@@ -98,6 +102,31 @@ interface BgStyle {
 }
 
 const PHOTO_PLACEHOLDER_SRC = '__PHOTO_PLACEHOLDER__';
+
+// Props de dégradé linéaire Konva génériques, réutilisables sur n'importe quelle
+// forme (Rect/Circle/Star/Text/KonvaShape) — même géométrie angle->points que
+// BgStyleLayer, appliquée à la boîte englobante locale de l'élément (w×h).
+function gradientFillProps(w: number, h: number, angle: number, colorFrom: string, colorTo: string) {
+  const angleRad = (angle * Math.PI) / 180;
+  const dx = Math.cos(angleRad);
+  const dy = Math.sin(angleRad);
+  return {
+    fillLinearGradientStartPoint: { x: w * Math.max(0, -dx), y: h * Math.max(0, -dy) },
+    fillLinearGradientEndPoint: { x: w * Math.max(0, dx), y: h * Math.max(0, dy) },
+    fillLinearGradientColorStops: [0, colorFrom, 1, colorTo],
+  };
+}
+// Variante pour formes centrées sur leur origine locale (Circle/Star dans Konva).
+function gradientFillPropsCentered(r: number, angle: number, colorFrom: string, colorTo: string) {
+  const angleRad = (angle * Math.PI) / 180;
+  const dx = Math.cos(angleRad) * r;
+  const dy = Math.sin(angleRad) * r;
+  return {
+    fillLinearGradientStartPoint: { x: -dx, y: -dy },
+    fillLinearGradientEndPoint: { x: dx, y: dy },
+    fillLinearGradientColorStops: [0, colorFrom, 1, colorTo],
+  };
+}
 
 function BgStyleLayer({ bgStyle, w, h }: { bgStyle: BgStyle; w: number; h: number }) {
   if (bgStyle.type === 'solid') {
@@ -337,9 +366,9 @@ function imageHasAdjustments(el: ImageEl): boolean {
   return !!(el.adjBrightness || el.adjContrast || el.adjSaturation || el.adjWarmth || el.adjTint || el.adjBlur);
 }
 
-function ImgNode({ el, onSelect, onChange, onDragStart, onDragEnd, isCropping, locked }: {
+function ImgNode({ el, onSelect, onChange, onDragStart, onDragMove, onDragEnd, isCropping, locked }: {
   el: ImageEl; onSelect: (shiftKey: boolean) => void; onChange: (u: Partial<ImageEl>) => void;
-  onDragStart?: () => void; onDragEnd?: (x: number, y: number) => void; isCropping?: boolean; locked?: boolean;
+  onDragStart?: () => void; onDragMove?: (e: Konva.KonvaEventObject<DragEvent>) => void; onDragEnd?: (x: number, y: number) => void; isCropping?: boolean; locked?: boolean;
 }) {
   const [img] = useImage(el.src, 'anonymous');
   const imgRef = useRef<Konva.Image>(null);
@@ -387,6 +416,7 @@ function ImgNode({ el, onSelect, onChange, onDragStart, onDragEnd, isCropping, l
       draggable={!isCropping && !locked}
       onClick={e => onSelect(e.evt.shiftKey)} onTap={() => onSelect(false)}
       onDragStart={!isCropping ? onDragStart : undefined}
+      onDragMove={!isCropping ? onDragMove : undefined}
       onDragEnd={!isCropping ? (e => onDragEnd?.(e.target.x(), e.target.y())) : undefined}
     >
       <KonvaImage
@@ -517,10 +547,10 @@ function drawVectorShape(ctx: CanvasRenderingContext2D, shape: Exclude<VectorEl[
   }
 }
 
-function VectorNode({ el, onSelect, onDblClick, onDragStart, onDragEnd, isMaskCrop, onImageOffset, locked }: {
+function VectorNode({ el, onSelect, onDblClick, onDragStart, onDragMove, onDragEnd, isMaskCrop, onImageOffset, locked }: {
   el: VectorEl; onSelect: (shiftKey: boolean) => void;
   onDblClick?: () => void;
-  onDragStart?: () => void; onDragEnd?: (x: number, y: number) => void;
+  onDragStart?: () => void; onDragMove?: (e: Konva.KonvaEventObject<DragEvent>) => void; onDragEnd?: (x: number, y: number) => void;
   isMaskCrop?: boolean; onImageOffset?: (x: number, y: number) => void; locked?: boolean;
 }) {
   const [maskImg] = useImage(el.fillType === 'image' && el.imageSrc ? el.imageSrc : '', 'anonymous');
@@ -546,6 +576,7 @@ function VectorNode({ el, onSelect, onDblClick, onDragStart, onDragEnd, isMaskCr
         onClick={e => onSelect(e.evt.shiftKey)} onTap={() => onSelect(false)}
         onDblClick={() => onDblClick?.()}
         onDragStart={!isMaskCrop ? onDragStart : undefined}
+        onDragMove={!isMaskCrop ? onDragMove : undefined}
         onDragEnd={!isMaskCrop ? (e => onDragEnd?.(e.target.x(), e.target.y())) : undefined}
       >
         <KonvaImage
@@ -593,7 +624,11 @@ function VectorNode({ el, onSelect, onDblClick, onDragStart, onDragEnd, isMaskCr
       width={el.width} height={el.height}
       rotation={el.rotation}
       opacity={el.opacity / 100}
-      fill={el.fillType === 'none' ? 'rgba(0,0,0,0)' : el.fill}
+      {...(el.fillType === 'none'
+        ? { fill: 'rgba(0,0,0,0)' }
+        : el.fillType === 'gradient'
+        ? gradientFillProps(el.width, el.height, el.fillAngle ?? 90, el.fill, el.fillTo ?? '#ffffff')
+        : { fill: el.fill })}
       stroke={el.stroke}
       strokeWidth={el.strokeWidth}
       draggable={!locked}
@@ -603,6 +638,7 @@ function VectorNode({ el, onSelect, onDblClick, onDragStart, onDragEnd, isMaskCr
       onTap={() => onSelect(false)}
       onDblClick={() => onDblClick?.()}
       onDragStart={onDragStart}
+      onDragMove={onDragMove}
       onDragEnd={e => onDragEnd?.(e.target.x(), e.target.y())}
     />
   );
@@ -910,6 +946,22 @@ function EditorContextToolbar({ sel, allFonts, brandColors, stageW, stageH, onUp
     else if (isVector) u({ fill: c } as Partial<VectorEl>);
     else if (isShape) u({ fill: c } as Partial<RectEl>);
   };
+  const gradSel = (isText || isShape) ? (sel as TextEl | RectEl | CircleEl | StarEl | VectorEl) : null;
+  const setFillType = (ft: 'color' | 'gradient') => {
+    if (textSel) u({ fillType: ft } as Partial<TextEl>);
+    else if (isVector) u({ fillType: ft } as Partial<VectorEl>);
+    else if (isShape) u({ fillType: ft } as Partial<RectEl>);
+  };
+  const setFillTo = (c: string) => {
+    if (textSel) u({ fillTo: c } as Partial<TextEl>);
+    else if (isVector) u({ fillTo: c } as Partial<VectorEl>);
+    else if (isShape) u({ fillTo: c } as Partial<RectEl>);
+  };
+  const setFillAngle = (a: number) => {
+    if (textSel) u({ fillAngle: a } as Partial<TextEl>);
+    else if (isVector) u({ fillAngle: a } as Partial<VectorEl>);
+    else if (isShape) u({ fillAngle: a } as Partial<RectEl>);
+  };
 
   const popStyle: React.CSSProperties = { position: 'absolute', top: 'calc(100% + 8px)', left: 0, background: '#fff', borderRadius: 12, padding: 12, boxShadow: '0 18px 44px -14px rgba(13,15,10,.28), 0 0 0 1px rgba(13,15,10,.06)', zIndex: 100, minWidth: 220 };
 
@@ -1143,6 +1195,44 @@ function EditorContextToolbar({ sel, allFonts, brandColors, stageW, stageH, onUp
         <ColorPicker value={colorVal} onChange={(c: string) => setFill(c)} brandColors={brandColors} />
       )}
 
+      {/* GRADIENT — dégradé sur texte ou forme (rect/circle/star ; vector a son propre sélecteur plus bas) */}
+      {(isText || isShape) && !isVector && gradSel && (
+        <div style={{ position: 'relative' }}>
+          <IBtn title="Dégradé" on={gradSel.fillType === 'gradient'} onClick={() => setPop(p => p === 'grad' ? null : 'grad')}
+            icon={<svg width="15" height="15" viewBox="0 0 24 24" fill="none"><defs><linearGradient id="ed-grad-icon" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="currentColor" stopOpacity="1" /><stop offset="1" stopColor="currentColor" stopOpacity="0.15" /></linearGradient></defs><rect x="3" y="3" width="18" height="18" rx="4" fill="url(#ed-grad-icon)" /></svg>} />
+          {pop === 'grad' && (
+            <div style={{ ...popStyle, minWidth: 220 }}>
+              <div className="label" style={{ marginBottom: 8 }}>Remplissage</div>
+              <div style={{ display: 'flex', gap: 6, marginBottom: 12 }}>
+                {(['color', 'gradient'] as const).map(ft => (
+                  <button key={ft} onClick={() => setFillType(ft)}
+                    style={{ flex: 1, padding: '6px 4px', borderRadius: 7, border: (gradSel.fillType ?? 'color') === ft ? '2px solid var(--mint-2)' : '1.5px solid var(--line)', cursor: 'pointer', background: (gradSel.fillType ?? 'color') === ft ? 'var(--mint-soft)' : 'var(--sunk)', fontSize: 11, fontWeight: 700, color: (gradSel.fillType ?? 'color') === ft ? 'var(--mint-2)' : 'var(--ink-3)' }}>
+                    {ft === 'color' ? 'Couleur unie' : 'Dégradé'}
+                  </button>
+                ))}
+              </div>
+              {gradSel.fillType === 'gradient' && <>
+                <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 12 }}>
+                  <div>
+                    <div style={{ fontSize: 10.5, color: 'var(--ink-3)', marginBottom: 4 }}>Départ</div>
+                    <ColorPicker value={colorVal} onChange={(c: string) => setFill(c)} brandColors={brandColors} />
+                  </div>
+                  <div>
+                    <div style={{ fontSize: 10.5, color: 'var(--ink-3)', marginBottom: 4 }}>Arrivée</div>
+                    <ColorPicker value={gradSel.fillTo ?? '#ffffff'} onChange={(c: string) => setFillTo(c)} brandColors={brandColors} />
+                  </div>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 5 }}>
+                  <span className="label" style={{ marginBottom: 0 }}>Angle</span>
+                  <span style={{ fontFamily: 'var(--mono)', fontWeight: 800, fontSize: 11, color: 'var(--ink-2)' }}>{gradSel.fillAngle ?? 90}°</span>
+                </div>
+                <input type="range" min={0} max={360} step={5} value={gradSel.fillAngle ?? 90} onChange={e => setFillAngle(parseInt(e.target.value))} className="ed-range" style={{ width: '100%' }} />
+              </>}
+            </div>
+          )}
+        </div>
+      )}
+
       {/* TEXT background */}
       {textSel && <>
         <IBtn title={textSel.hasBg ? 'Masquer fond' : 'Fond coloré'} on={textSel.hasBg}
@@ -1198,14 +1288,33 @@ function EditorContextToolbar({ sel, allFonts, brandColors, stageW, stageH, onUp
                 <span className="label" style={{ marginBottom: 0 }}>Remplissage</span>
               </div>
               <div style={{ display: 'flex', gap: 6 }}>
-                {(['color','none','image'] as const).map(ft => (
+                {(['color','gradient','none','image'] as const).map(ft => (
                   <button key={ft}
                     onClick={() => ft === 'image' ? (onMaskPhoto?.(), setPop(null)) : u({ fillType: ft } as Partial<VectorEl>)}
                     style={{ flex: 1, padding: '5px 4px', borderRadius: 7, border: vecSel.fillType === ft ? '2px solid var(--mint-2)' : '1.5px solid var(--line)', cursor: 'pointer', background: vecSel.fillType === ft ? 'var(--mint-soft)' : 'var(--sunk)', fontSize: 10.5, fontWeight: 700, color: vecSel.fillType === ft ? 'var(--mint-2)' : 'var(--ink-3)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 3 }}>
-                    {ft === 'color' ? 'Couleur' : ft === 'none' ? 'Aucun' : <><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>Photo</>}
+                    {ft === 'color' ? 'Couleur' : ft === 'gradient' ? 'Dégradé' : ft === 'none' ? 'Aucun' : <><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>Photo</>}
                   </button>
                 ))}
               </div>
+              {vecSel.fillType === 'gradient' && (
+                <div style={{ marginTop: 10 }}>
+                  <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 10 }}>
+                    <div>
+                      <div style={{ fontSize: 10.5, color: 'var(--ink-3)', marginBottom: 4 }}>Départ</div>
+                      <ColorPicker value={vecSel.fill} onChange={(c: string) => setFill(c)} brandColors={brandColors} />
+                    </div>
+                    <div>
+                      <div style={{ fontSize: 10.5, color: 'var(--ink-3)', marginBottom: 4 }}>Arrivée</div>
+                      <ColorPicker value={vecSel.fillTo ?? '#ffffff'} onChange={(c: string) => setFillTo(c)} brandColors={brandColors} />
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 5 }}>
+                    <span className="label" style={{ marginBottom: 0 }}>Angle</span>
+                    <span style={{ fontFamily: 'var(--mono)', fontWeight: 800, fontSize: 11, color: 'var(--ink-2)' }}>{vecSel.fillAngle ?? 90}°</span>
+                  </div>
+                  <input type="range" min={0} max={360} step={5} value={vecSel.fillAngle ?? 90} onChange={e => setFillAngle(parseInt(e.target.value))} className="ed-range" style={{ width: '100%' }} />
+                </div>
+              )}
               {vecSel.fillType === 'image' && vecSel.imageSrc && (
                 <button onClick={() => { onMaskPhoto?.(); setPop(null); }} style={{ marginTop: 8, width: '100%', padding: '5px', borderRadius: 7, border: '1.5px solid var(--line)', cursor: 'pointer', background: 'var(--sunk)', fontSize: 11, fontWeight: 700, color: 'var(--ink-3)' }}>
                   Changer la photo
@@ -1528,6 +1637,9 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
   const [editingId, setEditingId] = useState<string | null>(null);
   const [hiddenIds, setHiddenIds] = useState<Set<string>>(new Set());
   const [lockedIds, setLockedIds] = useState<Set<string>>(new Set());
+  const [guides, setGuides] = useState<{ v: number | null; h: number | null }>({ v: null, h: null });
+  const [showGrid, setShowGrid] = useState(false);
+  const [extendCount, setExtendCount] = useState(1);
   const [dragId, setDragId] = useState<string | null>(null);
   const [dragOverId, setDragOverId] = useState<string | null>(null);
 
@@ -1598,6 +1710,7 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
 
   const handleElDragEnd = (id: string, x: number, y: number) => {
     setIsKonvaDragging(false);
+    setGuides({ v: null, h: null });
     const ids = selectedIdsRef.current;
     if (ids.length > 1 && multiDragStartRef.current[id]) {
       const start = multiDragStartRef.current[id];
@@ -1678,6 +1791,51 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
     historyRef.current = [[]];
     histIdxRef.current = 0;
     setHistTick(t => t + 1);
+  };
+
+  // ── Carrousel "lié" façon Canva : étend l'image de fond de la slide active sur
+  // les N slides suivantes, avec un décalage horizontal séquentiel — pour un
+  // visuel continu (panorama) qui se découpe naturellement au balayage du
+  // carrousel Instagram. Génération ponctuelle (pas de resynchronisation live
+  // si on redéplace le fond ensuite) ; fonctionne mieux avec une photo large.
+  const extendBgAcrossSlides = async (count: number) => {
+    if (!proxyUrl) { showEditorToast('Ajoutez d\'abord une image de fond à cette slide.'); return; }
+    let natW = 0, natH = 0;
+    try {
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      await new Promise<void>((resolve, reject) => { img.onload = () => resolve(); img.onerror = () => reject(new Error('load')); img.src = proxyUrl; });
+      natW = img.naturalWidth; natH = img.naturalHeight;
+    } catch { showEditorToast('Image introuvable, réessayez.'); return; }
+    if (!natW || !natH) return;
+
+    const scale = Math.max(stageW / natW, stageH / natH);
+    const scaledW = natW * scale;
+    const minOffsetX = stageW - scaledW; // borne la plus négative (clamp "cover")
+    const clamp = (v: number) => Math.min(0, Math.max(minOffsetX, v));
+
+    const groupId = `span-${Date.now()}`;
+    let updated = saveCurrentSlide();
+    const anchorOffsetX = clamp(bgOffsetX);
+    updated = updated.map((s, i) => i === activeSlideIdx ? { ...s, spanGroupId: groupId, spanIndex: 0, bgOffsetX: anchorOffsetX } : s);
+
+    for (let k = 1; k <= count; k++) {
+      const targetIdx = activeSlideIdx + k;
+      const wantedOffsetX = clamp(anchorOffsetX - k * stageW);
+      if (targetIdx < updated.length) {
+        updated[targetIdx] = { ...updated[targetIdx], proxyUrl, bgOffsetX: wantedOffsetX, bgOffsetY, spanGroupId: groupId, spanIndex: k };
+      } else {
+        updated = [...updated, { id: `slide-${Date.now()}-${k}`, elements: [], proxyUrl, bgOffsetX: wantedOffsetX, bgOffsetY, spanGroupId: groupId, spanIndex: k }];
+      }
+    }
+    slidesRef.current = updated;
+    setSlides(updated);
+    setBgOffsetX(anchorOffsetX);
+    if (scaledW < stageW * (count + 1)) {
+      showEditorToast(`Étendu sur ${count + 1} slides — image pas assez large pour un panorama parfait, utilisez une photo plus large pour un meilleur résultat.`);
+    } else {
+      showEditorToast(`Image étendue sur ${count + 1} slides ✓`);
+    }
   };
 
   const removeSlide = (idx: number) => {
@@ -2096,6 +2254,46 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
     const w = 'width' in e ? (e as any).width : 100;
     const h = e.type === 'text' ? (e as TextEl).fontSize + 2 * Number((e as TextEl).paddingV ?? (e as TextEl).padding ?? 10) : ('height' in e ? (e as any).height : 100);
     return { l: e.x, t: e.y, r: e.x + w, b: e.y + h, w, h, cx: e.x + w/2, cy: e.y + h/2 };
+  };
+
+  // ── Guides magnétiques (smart guides) ─────────────────────────────────────
+  // Aligne l'élément en cours de glissement sur les bords/centre du canvas et
+  // sur les bords/centre des autres calques, dans un seuil de quelques px.
+  const SNAP_THRESHOLD = 6;
+  const computeSnap = (el: CanvasEl, candX: number, candY: number) => {
+    const others = elementsRef.current.filter(o => o.id !== el.id && !hiddenIds.has(o.id));
+    const box = getElBox(el);
+    const dx = candX - el.x, dy = candY - el.y;
+    const bl = box.l + dx, br = box.r + dx, bcx = box.cx + dx;
+    const bt = box.t + dy, bb = box.b + dy, bcy = box.cy + dy;
+
+    const vTargets = [0, stageW / 2, stageW, ...others.flatMap(o => { const b = getElBox(o); return [b.l, b.cx, b.r]; })];
+    const hTargets = [0, stageH / 2, stageH, ...others.flatMap(o => { const b = getElBox(o); return [b.t, b.cy, b.b]; })];
+
+    let bestVDelta: number | null = null, vGuide: number | null = null;
+    for (const t of vTargets) {
+      for (const val of [bl, bcx, br]) {
+        const d = t - val;
+        if (Math.abs(d) <= SNAP_THRESHOLD && (bestVDelta === null || Math.abs(d) < Math.abs(bestVDelta))) { bestVDelta = d; vGuide = t; }
+      }
+    }
+    let bestHDelta: number | null = null, hGuide: number | null = null;
+    for (const t of hTargets) {
+      for (const val of [bt, bcy, bb]) {
+        const d = t - val;
+        if (Math.abs(d) <= SNAP_THRESHOLD && (bestHDelta === null || Math.abs(d) < Math.abs(bestHDelta))) { bestHDelta = d; hGuide = t; }
+      }
+    }
+    return { x: candX + (bestVDelta ?? 0), y: candY + (bestHDelta ?? 0), vGuide, hGuide };
+  };
+
+  const handleElDragMove = (id: string, e: Konva.KonvaEventObject<DragEvent>) => {
+    if (selectedIdsRef.current.length > 1) return; // pas de snap individuel pendant un déplacement groupé
+    const el = elementsRef.current.find(x => x.id === id);
+    if (!el) return;
+    const snapped = computeSnap(el, e.target.x(), e.target.y());
+    e.target.position({ x: snapped.x, y: snapped.y });
+    setGuides({ v: snapped.vGuide, h: snapped.hGuide });
   };
 
   const alignEl = (dir: string) => {
@@ -3892,6 +4090,23 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
                     Fond déverrouillé — glissez-le sur le canvas pour le repositionner.
                   </div>
                 )}
+                {postType === 'carrousel' && proxyUrl && (
+                  <div style={{ marginTop: 12, padding: '12px', borderRadius: 9, background: 'var(--sunk)', border: '1px solid var(--line)' }}>
+                    <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--ink)', marginBottom: 4 }}>Carrousel lié</div>
+                    <div style={{ fontSize: 11.5, color: 'var(--ink-3)', lineHeight: 1.4, marginBottom: 10 }}>
+                      Étend ce fond sur les slides suivantes pour un visuel continu (panorama) qui se découpe au balayage. Utilisez une photo large pour un meilleur résultat.
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <span style={{ fontSize: 11.5, color: 'var(--ink-2)' }}>Sur</span>
+                      <input type="number" min={1} max={6} value={extendCount} onChange={e => setExtendCount(Math.min(6, Math.max(1, parseInt(e.target.value) || 1)))}
+                        style={{ width: 44, textAlign: 'center', borderRadius: 6, border: '1px solid var(--line)', padding: '4px 2px', fontSize: 12.5, fontWeight: 700 }} />
+                      <span style={{ fontSize: 11.5, color: 'var(--ink-2)' }}>slide(s) suivante(s)</span>
+                    </div>
+                    <button onClick={() => extendBgAcrossSlides(extendCount)} className="btn btn-sm btn-primary" style={{ width: '100%', justifyContent: 'center', marginTop: 10 }}>
+                      Étendre l&apos;image
+                    </button>
+                  </div>
+                )}
               </div>
             )}
 
@@ -3965,6 +4180,7 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
                       <Group key={el.id} id={el.id} x={ph.x} y={ph.y} rotation={ph.rotation} opacity={ph.opacity / 100} draggable={!lockedIds.has(el.id)}
                         onClick={e => handleElClick(el.id, e.evt.shiftKey)} onTap={() => handleElClick(el.id, false)}
                         onDragStart={() => handleElDragStart(el.id)}
+                        onDragMove={e => handleElDragMove(el.id, e)}
                         onDragEnd={e => handleElDragEnd(el.id, e.target.x(), e.target.y())}>
                         <Rect width={ph.width} height={ph.height} fill="rgba(120,120,120,0.12)" stroke="#8B8E7F" strokeWidth={2} dash={[10, 8]} cornerRadius={6} />
                         <Text width={ph.width} height={ph.height} text={'\uD83D\uDCF7\nPHOTO'} align="center" verticalAlign="middle" fontSize={20} fontStyle="bold" fill="#5A5E50" fontFamily="var(--sans), sans-serif" listening={false} />
@@ -3974,6 +4190,7 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
                   if (el.type === 'image') return (
                     <ImgNode key={el.id} el={el} onSelect={sk => handleElClick(el.id, sk)} onChange={u => updateEl(el.id, u)}
                       onDragStart={() => handleElDragStart(el.id)}
+                      onDragMove={e => handleElDragMove(el.id, e)}
                       onDragEnd={(x, y) => handleElDragEnd(el.id, x, y)}
                       isCropping={cropId === el.id} locked={lockedIds.has(el.id)} />
                   );
@@ -3986,6 +4203,8 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
                             ? [0, '#000000', 0.5, 'rgba(0,0,0,0)', 1, 'rgba(0,0,0,0)']
                             : [0, 'rgba(0,0,0,0)', 0.5, 'rgba(0,0,0,0)', 1, '#000000'],
                         }
+                      : el.fillType === 'gradient'
+                      ? gradientFillProps(el.width, el.height, el.fillAngle ?? 90, el.fill, el.fillTo ?? '#ffffff')
                       : { fill: el.fill };
                     return (
                       <Rect key={el.id} id={el.id} x={el.x} y={el.y} width={el.width} height={el.height}
@@ -3993,24 +4212,29 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
                         cornerRadius={el.cornerRadius} rotation={el.rotation} opacity={el.opacity / 100} draggable={!lockedIds.has(el.id)}
                         onClick={e => handleElClick(el.id, e.evt.shiftKey)} onTap={() => handleElClick(el.id, false)}
                         onDragStart={() => handleElDragStart(el.id)}
+                        onDragMove={e => handleElDragMove(el.id, e)}
                         onDragEnd={e => handleElDragEnd(el.id, e.target.x(), e.target.y())} />
                     );
                   }
                   if (el.type === 'circle') return (
                     <Circle key={el.id} id={el.id} x={el.x} y={el.y} radius={el.radius}
-                      fill={el.fill} stroke={el.stroke} strokeWidth={el.strokeWidth}
+                      {...(el.fillType === 'gradient' ? gradientFillPropsCentered(el.radius, el.fillAngle ?? 90, el.fill, el.fillTo ?? '#ffffff') : { fill: el.fill })}
+                      stroke={el.stroke} strokeWidth={el.strokeWidth}
                       rotation={el.rotation} opacity={el.opacity / 100} draggable={!lockedIds.has(el.id)}
                       onClick={e => handleElClick(el.id, e.evt.shiftKey)} onTap={() => handleElClick(el.id, false)}
                       onDragStart={() => handleElDragStart(el.id)}
+                      onDragMove={e => handleElDragMove(el.id, e)}
                       onDragEnd={e => handleElDragEnd(el.id, e.target.x(), e.target.y())} />
                   );
                   if (el.type === 'star') return (
                     <KonvaStar key={el.id} id={el.id} x={el.x} y={el.y} numPoints={el.numPoints}
                       innerRadius={el.innerRadius} outerRadius={el.outerRadius}
-                      fill={el.fill} stroke={el.stroke} strokeWidth={el.strokeWidth}
+                      {...(el.fillType === 'gradient' ? gradientFillPropsCentered(el.outerRadius, el.fillAngle ?? 90, el.fill, el.fillTo ?? '#ffffff') : { fill: el.fill })}
+                      stroke={el.stroke} strokeWidth={el.strokeWidth}
                       rotation={el.rotation} opacity={el.opacity / 100} draggable={!lockedIds.has(el.id)}
                       onClick={e => handleElClick(el.id, e.evt.shiftKey)} onTap={() => handleElClick(el.id, false)}
                       onDragStart={() => handleElDragStart(el.id)}
+                      onDragMove={e => handleElDragMove(el.id, e)}
                       onDragEnd={e => handleElDragEnd(el.id, e.target.x(), e.target.y())} />
                   );
                   if (el.type === 'vector') return (
@@ -4035,6 +4259,7 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
                         }
                       }}
                       onDragStart={() => handleElDragStart(el.id)}
+                      onDragMove={e => handleElDragMove(el.id, e)}
                       onDragEnd={(x, y) => handleElDragEnd(el.id, x, y)}
                       isMaskCrop={maskCropId === el.id}
                       onImageOffset={(x, y) => updateEl(el.id, { imageOffsetX: x, imageOffsetY: y } as Partial<VectorEl>)} />
@@ -4059,6 +4284,7 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
                         onClick={e => handleElClick(el.id, e.evt.shiftKey)} onTap={() => handleElClick(el.id, false)}
                         onDblClick={() => { if (!lockedIds.has(el.id)) { setSelectedId(el.id); setEditingId(el.id); } }}
                         onDragStart={() => handleElDragStart(el.id)}
+                        onDragMove={e => handleElDragMove(el.id, e)}
                         onDragEnd={e => handleElDragEnd(el.id, e.target.x(), e.target.y())}>
                         {/* Bug 5 fix: always render Rect for hit detection; transparent when hasBg=false */}
                         <Rect x={0} y={0} width={blockW} height={blockH}
@@ -4132,7 +4358,11 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
                           text={el.uppercase ? el.text.toUpperCase() : el.text}
                           fontSize={el.fontSize} fontFamily={el.fontFamily}
                           fontStyle={el.fontStyle} textDecoration={el.textDecoration}
-                          fill={el.hollowEnabled ? 'transparent' : el.fill}
+                          {...(el.hollowEnabled
+                            ? { fill: 'transparent' }
+                            : el.fillType === 'gradient'
+                            ? gradientFillProps(blockW, blockH, el.fillAngle ?? 90, el.fill, el.fillTo ?? '#ffffff')
+                            : { fill: el.fill })}
                           align={el.align} listening={false}
                           lineHeight={el.lineHeight ?? 1.2}
                           letterSpacing={el.letterSpacing ?? 0}
@@ -4151,6 +4381,24 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
                   return null;
                 })}
 
+                {showGrid && (
+                  <>
+                    {Array.from({ length: 9 }).map((_, i) => {
+                      const gx = (stageW * (i + 1)) / 10;
+                      return <Line key={`gv${i}`} points={[gx, 0, gx, stageH]} stroke="rgba(47,215,155,0.16)" strokeWidth={1} listening={false} />;
+                    })}
+                    {Array.from({ length: 9 }).map((_, i) => {
+                      const gy = (stageH * (i + 1)) / 10;
+                      return <Line key={`gh${i}`} points={[0, gy, stageW, gy]} stroke="rgba(47,215,155,0.16)" strokeWidth={1} listening={false} />;
+                    })}
+                  </>
+                )}
+                {guides.v !== null && (
+                  <Line points={[guides.v, 0, guides.v, stageH]} stroke="#FF5DA2" strokeWidth={1} dash={[4, 4]} listening={false} />
+                )}
+                {guides.h !== null && (
+                  <Line points={[0, guides.h, stageW, guides.h]} stroke="#FF5DA2" strokeWidth={1} dash={[4, 4]} listening={false} />
+                )}
               </Layer>
             </Stage>
             </div>{/* end inner overflow:hidden */}
@@ -4482,6 +4730,10 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
               <button onClick={fit} title="Ajuster" className="btn btn-sm btn-ghost btn-icon" style={{ height: 34, width: 34 }}>
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><path d="M8 3H5a2 2 0 0 0-2 2v3M16 3h3a2 2 0 0 1 2 2v3M8 21H5a2 2 0 0 1-2-2v-3M16 21h3a2 2 0 0 0 2-2v-3"/></svg>
               </button>
+              <button onClick={() => setShowGrid(g => !g)} title={showGrid ? 'Masquer la grille' : 'Afficher la grille'} className="btn btn-sm btn-ghost btn-icon"
+                style={{ height: 34, width: 34, background: showGrid ? 'var(--mint-soft)' : undefined, color: showGrid ? 'var(--mint-2)' : undefined }}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="9" y1="3" x2="9" y2="21"/><line x1="15" y1="3" x2="15" y2="21"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="3" y1="15" x2="21" y2="15"/></svg>
+              </button>
             </div>
           </div>
 
@@ -4519,6 +4771,11 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
                       position: 'relative', zIndex: 1,
                       textShadow: slide.thumbnail && !isActive ? '0 1px 3px rgba(0,0,0,.5)' : 'none',
                     }}>{idx + 1}</span>
+                    {slide.spanGroupId && (
+                      <span title="Fait partie d'un carrousel lié" style={{ position: 'absolute', bottom: 3, left: 3, zIndex: 1, width: 14, height: 14, borderRadius: 4, background: 'rgba(0,0,0,.45)', display: 'grid', placeItems: 'center' }}>
+                        <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3" strokeLinecap="round"><path d="M9 17H7A5 5 0 0 1 7 7h2M15 7h2a5 5 0 1 1 0 10h-2M8 12h8"/></svg>
+                      </span>
+                    )}
                   </button>
                   {slides.length > 1 && (
                     <button

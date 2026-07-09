@@ -9,7 +9,7 @@ import {
   FILTERS, TRANSITIONS, SUB_STYLES, FONT_CHOICES, SUB_LENGTHS, DEFAULT_WORDS_PER_CAPTION, DEFAULT_SUB_POS,
   subStyleById, effectiveSubStyle,
   fmt, newClipDefaults, newOverlayDefaults, clipFilterCss, overlayFilterCss, clipTimelineDur, overlayTimelineDur, segmentCaptions,
-  audioVolumeAt, kenBurnsScale,
+  audioVolumeAt, kenBurnsScale, VIDEO_FORMATS, videoFormatById, EXPORT_QUALITIES,
 } from "./constants";
 import { MontageCtx, CutPanel, TextPanel, CaptionsPanel, AudioPanel, TransitionsPanel, FilterPanel, SpeedPanel, StickerPanel, OverlayPanel, AiPanel } from "./panels";
 import { renderExport } from "./export";
@@ -58,6 +58,32 @@ function getAudioDuration(src: string): Promise<number> {
   });
 }
 
+const WAVEFORM_SAMPLES = 120;
+// Décode le fichier audio et calcule 120 pics d'amplitude normalisés (0-1) pour
+// l'affichage visuel dans la timeline. Best-effort : renvoie [] si le décodage échoue
+// (ex. format non supporté) plutôt que de bloquer l'import.
+async function computeWaveform(file: File): Promise<number[]> {
+  try {
+    const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+    const ctx = new AudioCtx();
+    const buf = await ctx.decodeAudioData(await file.arrayBuffer());
+    const data = buf.getChannelData(0);
+    const blockSize = Math.max(1, Math.floor(data.length / WAVEFORM_SAMPLES));
+    const peaks: number[] = [];
+    for (let i = 0; i < WAVEFORM_SAMPLES; i++) {
+      let max = 0;
+      const start = i * blockSize;
+      for (let j = 0; j < blockSize && start + j < data.length; j++) max = Math.max(max, Math.abs(data[start + j]));
+      peaks.push(max);
+    }
+    ctx.close();
+    const peak = Math.max(...peaks, 0.01);
+    return peaks.map(p => Math.min(1, p / peak));
+  } catch {
+    return [];
+  }
+}
+
 const PHOTO_DEFAULT_DUR = 3;
 
 // Migration douce depuis l'ancien format (Lot 1) { id, kind, name, src, dur }
@@ -102,6 +128,8 @@ export default function MontagePage() {
   const [stickers, setStickers] = useState<StickerEl[]>([]);
   const [audioTracks, setAudioTracks] = useState<AudioTrack[]>([]);
   const [showProgressBar, setShowProgressBar] = useState(false);
+  const [formatId, setFormatId] = useState("story");
+  const [exportQuality, setExportQuality] = useState("standard");
   const [exportUrl, setExportUrl] = useState<string | null>(null);
 
   const [tool, setTool] = useState<RailTool>("media");
@@ -203,6 +231,8 @@ export default function MontagePage() {
         setAudioTracks(proj.audioTracks || []);
         setShowProgressBar(!!proj.showProgressBar);
         setExportUrl(proj.exportUrl || null);
+        setFormatId(proj.formatId || "story");
+        setExportQuality(proj.exportQuality || "standard");
       } else if (post?.photo_url) {
         const dur = await getVideoDuration(post.photo_url);
         setClips([{ id: crypto.randomUUID(), kind: "video", name: "Import initial", src: post.photo_url, srcDur: dur, trimStart: 0, trimEnd: dur, ...newClipDefaults() }]);
@@ -227,11 +257,11 @@ export default function MontagePage() {
     if (loading) return;
     if (saveTimer.current) clearTimeout(saveTimer.current);
     saveTimer.current = setTimeout(() => {
-      const project: MontageProject = { clips, overlays, captions, subStyleId, subMaxWords, subPos, subCustom, rawSegments, titles, stickers, audioTracks, showProgressBar, exportUrl };
+      const project: MontageProject = { clips, overlays, captions, subStyleId, subMaxWords, subPos, subCustom, rawSegments, titles, stickers, audioTracks, showProgressBar, exportUrl, formatId, exportQuality };
       supabase.from("posts").update({ montage_json: project }).eq("id", postId).then(() => {});
     }, 700);
     return () => { if (saveTimer.current) clearTimeout(saveTimer.current); };
-  }, [clips, overlays, captions, subStyleId, subMaxWords, subPos, subCustom, rawSegments, titles, stickers, audioTracks, showProgressBar, exportUrl, loading, postId, supabase]);
+  }, [clips, overlays, captions, subStyleId, subMaxWords, subPos, subCustom, rawSegments, titles, stickers, audioTracks, showProgressBar, exportUrl, formatId, exportQuality, loading, postId, supabase]);
 
   // ── Historique undo/redo ────────────────────────────────────────────────────
   type Snapshot = Required<Pick<MontageProject, "subPos" | "subCustom" | "overlays">> & Pick<MontageProject, "clips" | "captions" | "subStyleId" | "titles" | "stickers" | "audioTracks" | "showProgressBar">;
@@ -633,8 +663,8 @@ export default function MontagePage() {
       const { error } = await supabase.storage.from("audio").upload(path, file, { upsert: true, contentType: file.type || "audio/mpeg" });
       if (error) { toast("Échec de l'upload audio : " + error.message); return; }
       const { data: urlData } = supabase.storage.from("audio").getPublicUrl(path);
-      const dur = await getAudioDuration(urlData.publicUrl);
-      setAudioTracks((prev) => [...prev, { id: crypto.randomUUID(), kind, name: file.name, src: urlData.publicUrl, dur, vol: 1, offset: 0 }]);
+      const [dur, waveform] = await Promise.all([getAudioDuration(urlData.publicUrl), computeWaveform(file)]);
+      setAudioTracks((prev) => [...prev, { id: crypto.randomUUID(), kind, name: file.name, src: urlData.publicUrl, dur, vol: 1, offset: 0, waveform }]);
     } finally {
       setUploadingAudio(false);
     }
@@ -796,15 +826,24 @@ export default function MontagePage() {
     setExporting(true);
     setExportProgress(0);
     try {
-      const blob = await renderExport({ clips, overlays, captions, subStyleId, subCustom, subPos, titles, stickers, audioTracks, showProgressBar }, (p) => setExportProgress(p));
+      const { blob, thumbnailBlob } = await renderExport({ clips, overlays, captions, subStyleId, subCustom, subPos, titles, stickers, audioTracks, showProgressBar, formatId, exportQuality }, (p) => setExportProgress(p));
       const path = `${workspaceId}/${postId}-export-${Date.now()}.webm`;
       const { error } = await supabase.storage.from("videos").upload(path, blob, { upsert: true, contentType: "video/webm" });
       if (error) { toast("Échec de l'upload de l'export : " + error.message); return; }
       const { data: urlData } = supabase.storage.from("videos").getPublicUrl(path);
       setExportUrl(urlData.publicUrl);
+
+      let thumbUrl: string | null = null;
+      if (thumbnailBlob) {
+        const thumbPath = `${workspaceId}/${postId}-thumb-${Date.now()}.jpg`;
+        const { error: thumbErr } = await supabase.storage.from("videos").upload(thumbPath, thumbnailBlob, { upsert: true, contentType: "image/jpeg" });
+        if (!thumbErr) thumbUrl = supabase.storage.from("videos").getPublicUrl(thumbPath).data.publicUrl;
+      }
+
       await supabase.from("posts").update({
-        montage_json: { clips, overlays, captions, subStyleId, subMaxWords, subPos, subCustom, rawSegments, titles, stickers, audioTracks, showProgressBar, exportUrl: urlData.publicUrl },
+        montage_json: { clips, overlays, captions, subStyleId, subMaxWords, subPos, subCustom, rawSegments, titles, stickers, audioTracks, showProgressBar, exportUrl: urlData.publicUrl, formatId, exportQuality },
         photo_url: urlData.publicUrl,
+        ...(thumbUrl ? { thumbnail_url: thumbUrl } : {}),
       }).eq("id", postId);
       toast("Export terminé ✓");
     } catch (e) {
@@ -1039,7 +1078,11 @@ export default function MontagePage() {
         <span style={{ width: 1, height: 24, background: "var(--line)", flexShrink: 0 }} />
         <div style={{ display: "flex", alignItems: "center", gap: 9, minWidth: 0 }}>
           <span style={{ fontFamily: "var(--display)", fontWeight: 700, fontSize: 14.5, letterSpacing: "-0.01em" }} className="trunc">{projectName}</span>
-          <span className="chip" style={{ background: "var(--sunk)", color: "var(--ink-2)", flexShrink: 0 }}>9:16</span>
+          <div className="mz-seg" style={{ flexShrink: 0 }} title="Format d'export">
+            {VIDEO_FORMATS.map(f => (
+              <button key={f.id} className={formatId === f.id ? "on" : ""} onClick={() => setFormatId(f.id)}>{f.sub}</button>
+            ))}
+          </div>
         </div>
         <div style={{ flex: 1 }} />
         {exportUrl && (
@@ -1052,6 +1095,10 @@ export default function MontagePage() {
             <VIcon name="calendar" size={15} /> Planifier
           </a>
         )}
+        <select value={exportQuality} onChange={e => setExportQuality(e.target.value)} title="Qualité d'export"
+          style={{ height: 34, borderRadius: 8, border: "1px solid var(--line)", background: "var(--canvas)", color: "var(--ink-2)", fontSize: 12.5, fontWeight: 600, padding: "0 8px" }}>
+          {EXPORT_QUALITIES.map(q => <option key={q.id} value={q.id}>{q.label}</option>)}
+        </select>
         <button className="btn btn-sm btn-primary" disabled={!clips.length || exporting} onClick={handleExport}>
           <VIcon name="export" size={15} /> {exporting ? "Export…" : "Exporter"}
         </button>
@@ -1136,6 +1183,7 @@ export default function MontagePage() {
           <div className="mz-stage">
             <div
               className="mz-phone"
+              style={{ aspectRatio: `${videoFormatById(formatId).w} / ${videoFormatById(formatId).h}` }}
               ref={stageRef}
               onPointerMove={onStagePointerMove}
               onPointerUp={onStagePointerUp}
@@ -1425,6 +1473,15 @@ export default function MontagePage() {
                 ))}
                 {audioTracks.map((a) => (
                   <div key={a.id} className="a-wave-bar" style={{ left: a.offset * pps, width: a.dur * pps, top: 2, bottom: 2 }} title={a.name}>
+                    {a.waveform && a.waveform.length > 0 && (
+                      <svg width="100%" height="100%" preserveAspectRatio="none" style={{ position: "absolute", inset: 0, opacity: 0.55 }}>
+                        {a.waveform.map((p, i) => {
+                          const x = (i / a.waveform!.length) * 100;
+                          const h = Math.max(6, p * 100);
+                          return <rect key={i} x={`${x}%`} y={`${(100 - h) / 2}%`} width={`${100 / a.waveform!.length}%`} height={`${h}%`} fill="#fff" />;
+                        })}
+                      </svg>
+                    )}
                     <span style={{ position: "absolute", left: 6, top: 4, fontSize: 9.5, fontWeight: 700, color: "#fff" }}>{a.kind === "voiceover" ? "🎙" : "🎵"} {a.name}</span>
                   </div>
                 ))}

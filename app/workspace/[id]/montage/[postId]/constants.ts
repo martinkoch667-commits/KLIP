@@ -112,6 +112,7 @@ export interface AudioTrack {
   offset: number; // décalage de départ sur la timeline (s)
   fadeIn?: number;  // durée du fondu d'entrée (s), défaut 0
   fadeOut?: number; // durée du fondu de sortie (s), défaut 0
+  waveform?: number[]; // pics d'amplitude normalisés (0-1), échantillonnés à l'import — pour l'affichage visuel dans la timeline
 }
 
 // Volume effectif d'une piste audio à un instant donné (dans son propre référentiel,
@@ -151,6 +152,28 @@ export interface MontageProject {
   audioTracks: AudioTrack[];
   showProgressBar: boolean;
   exportUrl?: string | null;
+  formatId?: string;    // VIDEO_FORMATS[].id — défaut "story" (9:16) si absent (anciens projets)
+  exportQuality?: string; // EXPORT_QUALITIES[].id — défaut "standard" si absent
+}
+
+export const EXPORT_QUALITIES: { id: string; label: string; bitrate: number }[] = [
+  { id: 'low',      label: 'Légère (rapide)', bitrate: 2_500_000 },
+  { id: 'standard', label: 'Standard',        bitrate: 4_000_000 },
+  { id: 'high',     label: 'Haute qualité',   bitrate: 6_500_000 },
+];
+export function exportQualityById(id: string | undefined) {
+  return EXPORT_QUALITIES.find(q => q.id === id) || EXPORT_QUALITIES[1];
+}
+
+// Formats d'export vidéo — même largeur de base (720px) pour un rendu cohérent,
+// hauteur variable selon le ratio choisi.
+export const VIDEO_FORMATS: { id: string; label: string; sub: string; w: number; h: number }[] = [
+  { id: 'story',    label: 'Story / Reel', sub: '9:16', w: 720, h: 1280 },
+  { id: 'square',   label: 'Carré',        sub: '1:1',  w: 720, h: 720 },
+  { id: 'portrait', label: 'Portrait',     sub: '4:5',  w: 720, h: 900 },
+];
+export function videoFormatById(id: string | undefined): typeof VIDEO_FORMATS[number] {
+  return VIDEO_FORMATS.find(f => f.id === id) || VIDEO_FORMATS[0];
 }
 
 export const DEFAULT_SUB_POS = { x: 50, y: 84 };
