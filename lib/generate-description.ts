@@ -237,19 +237,38 @@ export async function generateDescriptionForUser(params: GenerateDescriptionPara
   let blocks: Record<string, string> | null = null;
   let zoneBlocks: Record<string, string> | null = null;
 
+  // Nettoie les éventuelles clôtures markdown (```json … ```) que certains
+  // modèles (Gemini surtout) ajoutent autour du JSON, avant extraction.
+  const stripFences = (s: string) => s.replace(/```(?:json)?\s*/gi, '').replace(/```/g, '').trim();
+  // Garantit une chaîne propre : si le modèle a double-encodé (une valeur qui
+  // contient elle-même du JSON), on ne laisse jamais du JSON brut en sortie.
+  const coerceStr = (v: unknown): string => {
+    if (typeof v !== 'string') return '';
+    const t = v.trim();
+    return (t.startsWith('{') && t.includes('"texte_visuel"')) ? '' : t;
+  };
+  const cleaned = stripFences(rawText);
+
   try {
-    const jsonMatch = rawText.match(/\{[\s\S]*\}/);
+    const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
     if (jsonMatch) {
       const parsed = JSON.parse(jsonMatch[0]);
-      texte_visuel = (parsed.texte_visuel ?? '').trim();
-      description  = (parsed.description  ?? '').trim();
+      texte_visuel = coerceStr(parsed.texte_visuel);
+      description  = coerceStr(parsed.description);
       if (parsed.blocks      && typeof parsed.blocks      === 'object') blocks      = parsed.blocks;
       if (parsed.zone_blocks && typeof parsed.zone_blocks === 'object') zoneBlocks  = parsed.zone_blocks;
     } else {
-      description = rawText;
+      // Pas de JSON détecté : on garde le texte nettoyé comme légende, mais
+      // jamais du JSON brut (sécurité).
+      description = cleaned.startsWith('{') ? '' : cleaned;
     }
   } catch {
-    description = rawText;
+    // JSON mal formé : ne JAMAIS stocker le brut (qui apparaîtrait comme titre).
+    // On tente une dernière extraction du champ description au regex, sinon vide.
+    const dm = cleaned.match(/"description"\s*:\s*"((?:[^"\\]|\\.)*)"/);
+    description = dm ? dm[1].replace(/\\"/g, '"').replace(/\\n/g, '\n') : '';
+    const tm = cleaned.match(/"texte_visuel"\s*:\s*"((?:[^"\\]|\\.)*)"/);
+    texte_visuel = tm ? tm[1].replace(/\\"/g, '"') : '';
   }
 
   // ─── 6bis. Validation des contraintes de slot (Phase 1) ───────────────────

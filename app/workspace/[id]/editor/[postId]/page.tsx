@@ -3157,19 +3157,22 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
 
     if (isCarousel && totalSlides > 1) {
       const origIdx = activeSlideIdx;
+      // On rend CHAQUE slide avant de la capturer — sans exception. L'ancienne
+      // optimisation (« ne pas re-rendre si i === slide active ») était buguée :
+      // après la 1re itération le stage n'affiche plus la slide active, donc sa
+      // capture reprenait la dernière slide rendue → carrousel avec toutes les
+      // slides identiques.
       for (let i = 0; i < totalSlides; i++) {
-        if (i !== activeSlideIdx) {
-          const s = slidesRef.current[i];
-          setElements(s.elements);
-          elementsRef.current = s.elements;
-          setProxyUrl(s.proxyUrl);
-          proxyUrlRef.current = s.proxyUrl;
-          setBgOffsetX(s.bgOffsetX ?? 0);
-          bgOffsetXRef.current = s.bgOffsetX ?? 0;
-          setBgOffsetY(s.bgOffsetY ?? 0);
-          bgOffsetYRef.current = s.bgOffsetY ?? 0;
-          await new Promise(resolve => setTimeout(resolve, 400));
-        }
+        const s = slidesRef.current[i];
+        setElements(s.elements);
+        elementsRef.current = s.elements;
+        setProxyUrl(s.proxyUrl);
+        proxyUrlRef.current = s.proxyUrl;
+        setBgOffsetX(s.bgOffsetX ?? 0);
+        bgOffsetXRef.current = s.bgOffsetX ?? 0;
+        setBgOffsetY(s.bgOffsetY ?? 0);
+        bgOffsetYRef.current = s.bgOffsetY ?? 0;
+        await new Promise(resolve => setTimeout(resolve, 450));
         const url = await uploadCurrent(i);
         carouselUrls.push(url);
       }
