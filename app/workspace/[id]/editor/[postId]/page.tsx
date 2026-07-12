@@ -1,5 +1,6 @@
 'use client';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { useTranslations } from 'next-intl';
 import {
   Circle,
   Group,
@@ -718,6 +719,7 @@ function ColorRow({ label, value, onChange, brandColors }: { label: string; valu
 }
 
 function UnsplashThumb({ src, onAdd, onBg }: { src: string; onAdd: () => void; onBg: () => void }) {
+  const T = useTranslations('editor');
   const [hovered, setHovered] = useState(false);
   return (
     <div style={{ position: 'relative', aspectRatio: '1', borderRadius: 4, overflow: 'hidden', cursor: 'pointer' }}
@@ -726,8 +728,8 @@ function UnsplashThumb({ src, onAdd, onBg }: { src: string; onAdd: () => void; o
       <img src={src} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
       {hovered && (
         <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', flexDirection: 'column', gap: 4, alignItems: 'center', justifyContent: 'center' }}>
-          <button onClick={onAdd} style={{ padding: '4px 8px', background: 'var(--cream)', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 10, fontWeight: 700 }}>+ Canvas</button>
-          <button onClick={onBg} style={{ padding: '4px 8px', background: 'var(--mint)', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 10, fontWeight: 700, color: 'var(--mint-ink)' }}>Fond</button>
+          <button onClick={onAdd} style={{ padding: '4px 8px', background: 'var(--cream)', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 10, fontWeight: 700 }}>{T('addCanvas')}</button>
+          <button onClick={onBg} style={{ padding: '4px 8px', background: 'var(--mint)', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 10, fontWeight: 700, color: 'var(--mint-ink)' }}>{T('background')}</button>
         </div>
       )}
     </div>
@@ -735,6 +737,7 @@ function UnsplashThumb({ src, onAdd, onBg }: { src: string; onAdd: () => void; o
 }
 
 function TextProperties({ el, onChange, customFonts, onFontUpload, brandColors, brandFontNames }: { el: TextEl; onChange: (u: Partial<TextEl>) => void; customFonts: { name: string; url: string }[]; onFontUpload: (file: File) => Promise<string>; brandColors?: string[]; brandFontNames?: string[] }) {
+  const T = useTranslations('editor');
   const isBold = el.fontStyle.includes('bold');
   const isItalic = el.fontStyle.includes('italic');
   const isUnderline = el.textDecoration === 'underline';
@@ -742,33 +745,33 @@ function TextProperties({ el, onChange, customFonts, onFontUpload, brandColors, 
   const toggleItalic = () => onChange({ fontStyle: isBold ? (isItalic ? 'bold' : 'bold italic') : (isItalic ? 'normal' : 'italic') });
   return (
     <>
-      <PropRow label="Contenu">
+      <PropRow label={T('content')}>
         <textarea value={el.text} onChange={e => onChange({ text: e.target.value })} rows={3}
           style={{ width: '100%', padding: '8px 10px', border: '1px solid var(--line)', borderRadius: 'var(--r-s)', fontSize: 13, resize: 'vertical', boxSizing: 'border-box', fontFamily: 'var(--sans)', outline: 'none', background: 'var(--sunk)', color: 'var(--ink)' }} />
       </PropRow>
-      <PropRow label="Police">
+      <PropRow label={T('font')}>
         <select value={el.fontFamily} onChange={e => onChange({ fontFamily: e.target.value })}
           style={{ width: '100%', padding: '6px 8px', border: '1px solid var(--line)', borderRadius: 'var(--r-s)', fontSize: 13, outline: 'none', background: 'var(--sunk)', color: 'var(--ink)', fontFamily: `"${el.fontFamily}", sans-serif` }}>
           {brandFontNames && brandFontNames.length > 0 && (
-            <optgroup label="Charte de marque">
+            <optgroup label={T('brandKit')}>
               {brandFontNames.map(f => <option key={f} value={f}>{f}</option>)}
             </optgroup>
           )}
           {customFonts.filter(f => !brandFontNames?.includes(f.name)).length > 0 && (
-            <optgroup label="Mes polices">
+            <optgroup label={T('myFonts')}>
               {customFonts.filter(f => !brandFontNames?.includes(f.name)).map(f => <option key={f.name} value={f.name}>{f.name}</option>)}
             </optgroup>
           )}
-          <optgroup label="Google Fonts">
+          <optgroup label={T('googleFonts')}>
             {FONTS.map(f => <option key={f} value={f}>{f}</option>)}
           </optgroup>
         </select>
         <div style={{ marginTop: 12 }}>
           <label style={{ fontSize: 10.5, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '0.08em', fontFamily: 'var(--mono)', fontWeight: 800 }}>
-            Uploader une police
+            {T('uploadFont')}
           </label>
           <label style={{ display: 'block', marginTop: 8, background: 'var(--sunk)', border: '1.5px dashed var(--line)', color: 'var(--ink-2)', padding: '10px', borderRadius: 8, cursor: 'pointer', textAlign: 'center', fontSize: 13 }}>
-            + Uploader .ttf ou .otf
+            {T('uploadFontBtn')}
             <input type="file" accept=".ttf,.otf,.woff,.woff2" style={{ display: 'none' }}
               onChange={async (e) => {
                 const file = e.target.files?.[0];
@@ -780,12 +783,12 @@ function TextProperties({ el, onChange, customFonts, onFontUpload, brandColors, 
           </label>
         </div>
       </PropRow>
-      <PropRow label={`Taille — ${el.fontSize}px`}>
+      <PropRow label={T('sizeVal', { n: el.fontSize })}>
         <input type="range" min={8} max={120} value={el.fontSize} onChange={e => onChange({ fontSize: Number(e.target.value) })} style={{ width: '100%', accentColor: 'var(--mint-2)' }} />
       </PropRow>
-      <PropRow label="Style">
+      <PropRow label={T('styleLabel')}>
         <div style={{ display: 'flex', gap: 6 }}>
-          {[{ label: 'G', title: 'Gras', active: isBold, fn: toggleBold }, { label: 'I', title: 'Italique', active: isItalic, fn: toggleItalic }, { label: 'S', title: 'Souligné', active: isUnderline, fn: () => onChange({ textDecoration: isUnderline ? '' : 'underline' }) }].map(({ label, title, active, fn }) => (
+          {[{ label: 'G', title: T('bold'), active: isBold, fn: toggleBold }, { label: 'I', title: T('italic'), active: isItalic, fn: toggleItalic }, { label: 'S', title: T('underline'), active: isUnderline, fn: () => onChange({ textDecoration: isUnderline ? '' : 'underline' }) }].map(({ label, title, active, fn }) => (
             <button key={label} onClick={fn} title={title}
               style={{ flex: 1, padding: '7px 6px', border: 'none', borderRadius: 'var(--r-s)', cursor: 'pointer', fontWeight: 700, fontSize: 13, background: active ? 'var(--mint)' : 'var(--sunk)', color: active ? 'var(--mint-ink)' : 'var(--ink-2)', boxShadow: active ? 'none' : 'inset 0 0 0 1px var(--line)' }}>
               {label}
@@ -793,7 +796,7 @@ function TextProperties({ el, onChange, customFonts, onFontUpload, brandColors, 
           ))}
         </div>
       </PropRow>
-      <PropRow label="Alignement">
+      <PropRow label={T('alignment')}>
         <div style={{ display: 'flex', gap: 6 }}>
           {(['left', 'center', 'right'] as const).map(a => (
             <button key={a} onClick={() => onChange({ align: a })}
@@ -807,10 +810,10 @@ function TextProperties({ el, onChange, customFonts, onFontUpload, brandColors, 
           ))}
         </div>
       </PropRow>
-      <ColorRow label="Couleur texte" value={el.fill} onChange={v => onChange({ fill: v })} brandColors={brandColors} />
+      <ColorRow label={T('textColor')} value={el.fill} onChange={v => onChange({ fill: v })} brandColors={brandColors} />
       <div style={{ borderTop: '1px solid var(--line)', paddingTop: 12 }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-          <span style={{ fontSize: 10.5, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '0.07em', fontFamily: 'var(--mono)', fontWeight: 800 }}>Fond du bloc</span>
+          <span style={{ fontSize: 10.5, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '0.07em', fontFamily: 'var(--mono)', fontWeight: 800 }}>{T('blockBackground')}</span>
           <div onClick={() => onChange({ hasBg: !el.hasBg })}
             style={{ width: 38, height: 22, borderRadius: 11, background: el.hasBg ? 'var(--mint)' : 'var(--line)', cursor: 'pointer', position: 'relative', transition: 'background 0.2s', flexShrink: 0 }}>
             <span style={{ position: 'absolute', top: 3, left: el.hasBg ? 19 : 3, width: 16, height: 16, borderRadius: '50%', background: 'white', transition: 'left 0.2s', display: 'block', boxShadow: '0 1px 3px rgba(0,0,0,0.4)' }} />
@@ -818,40 +821,40 @@ function TextProperties({ el, onChange, customFonts, onFontUpload, brandColors, 
         </div>
         {el.hasBg && (
           <>
-            <ColorRow label="Couleur fond" value={el.bgColor} onChange={v => onChange({ bgColor: v })} brandColors={brandColors} />
-            <PropRow label={`Opacité — ${el.bgOpacity}%`}>
+            <ColorRow label={T('bgColorLabel')} value={el.bgColor} onChange={v => onChange({ bgColor: v })} brandColors={brandColors} />
+            <PropRow label={T('opacityVal', { n: el.bgOpacity })}>
               <input type="range" min={0} max={100} value={el.bgOpacity} onChange={e => onChange({ bgOpacity: Number(e.target.value) })} style={{ width: '100%', accentColor: 'var(--mint-2)' }} />
             </PropRow>
-            <PropRow label={`Arrondi — ${el.cornerRadius}px`}>
+            <PropRow label={T('roundingVal', { n: el.cornerRadius })}>
               <input type="range" min={0} max={50} value={el.cornerRadius} onChange={e => onChange({ cornerRadius: Number(e.target.value) })} style={{ width: '100%', accentColor: 'var(--mint-2)' }} />
             </PropRow>
-            <PropRow label={`Padding H — ${el.paddingH ?? el.padding}px`}>
+            <PropRow label={T('paddingHVal', { n: el.paddingH ?? el.padding })}>
               <input type="range" min={0} max={40} value={el.paddingH ?? el.padding} onChange={e => onChange({ paddingH: Number(e.target.value) })} style={{ width: '100%', accentColor: 'var(--mint-2)' }} />
             </PropRow>
-            <PropRow label={`Padding V — ${el.paddingV ?? el.padding}px`}>
+            <PropRow label={T('paddingVVal', { n: el.paddingV ?? el.padding })}>
               <input type="range" min={0} max={30} value={el.paddingV ?? el.padding} onChange={e => onChange({ paddingV: Number(e.target.value) })} style={{ width: '100%', accentColor: 'var(--mint-2)' }} />
             </PropRow>
           </>
         )}
       </div>
-      <PropRow label={`Opacité — ${el.opacity}%`}>
+      <PropRow label={T('opacityVal', { n: el.opacity })}>
         <input type="range" min={0} max={100} value={el.opacity} onChange={e => onChange({ opacity: Number(e.target.value) })} style={{ width: '100%', accentColor: 'var(--mint-2)' }} />
       </PropRow>
       {/* 4D — IA role for structured generation */}
-      <PropRow label="Rôle IA">
+      <PropRow label={T('aiRole')}>
         <select value={el.role || ''} onChange={e => onChange({ role: e.target.value || undefined })}
           style={{ width: '100%', padding: '6px 8px', border: '1px solid var(--line)', borderRadius: 'var(--r-s)', fontSize: 13, outline: 'none', background: 'var(--sunk)', color: 'var(--ink)' }}>
-          <option value="">Aucun</option>
-          <option value="accroche">Accroche</option>
-          <option value="titre">Titre principal</option>
-          <option value="sous-titre">Sous-titre</option>
-          <option value="corps">Corps de texte</option>
-          <option value="cta">Call-to-action</option>
-          <option value="prix">Prix / Offre</option>
+          <option value="">{T('none')}</option>
+          <option value="accroche">{T('roleHook')}</option>
+          <option value="titre">{T('roleTitle')}</option>
+          <option value="sous-titre">{T('roleSubtitle')}</option>
+          <option value="corps">{T('roleBody')}</option>
+          <option value="cta">{T('roleCta')}</option>
+          <option value="prix">{T('rolePrice')}</option>
         </select>
         {el.role && (
           <span style={{ fontSize: 10, color: 'var(--mint-2)', marginTop: 4, display: 'block', fontFamily: 'var(--mono)', fontWeight: 700 }}>
-            Ce bloc sera rempli par l'IA lors de la génération
+            {T('aiRoleFillHint')}
           </span>
         )}
       </PropRow>
@@ -860,19 +863,20 @@ function TextProperties({ el, onChange, customFonts, onFontUpload, brandColors, 
 }
 
 function ShapeProperties({ el, onChange, brandColors }: { el: RectEl | CircleEl | StarEl; onChange: (u: Partial<typeof el>) => void; brandColors?: string[] }) {
+  const T = useTranslations('editor');
   return (
     <>
-      <ColorRow label="Couleur" value={el.fill} onChange={v => onChange({ fill: v } as any)} brandColors={brandColors} />
-      <ColorRow label="Bordure" value={el.stroke || '#000000'} onChange={v => onChange({ stroke: v } as any)} brandColors={brandColors} />
-      <PropRow label={`Épaisseur — ${el.strokeWidth}px`}>
+      <ColorRow label={T('color')} value={el.fill} onChange={v => onChange({ fill: v } as any)} brandColors={brandColors} />
+      <ColorRow label={T('borderLabel')} value={el.stroke || '#000000'} onChange={v => onChange({ stroke: v } as any)} brandColors={brandColors} />
+      <PropRow label={T('thicknessVal', { n: el.strokeWidth })}>
         <input type="range" min={0} max={10} value={el.strokeWidth} onChange={e => onChange({ strokeWidth: Number(e.target.value) } as any)} style={{ width: '100%', accentColor: 'var(--mint-2)' }} />
       </PropRow>
       {el.type === 'rect' && (
-        <PropRow label={`Arrondi — ${el.cornerRadius}px`}>
+        <PropRow label={T('roundingVal', { n: el.cornerRadius })}>
           <input type="range" min={0} max={50} value={el.cornerRadius} onChange={e => onChange({ cornerRadius: Number(e.target.value) } as any)} style={{ width: '100%', accentColor: 'var(--mint-2)' }} />
         </PropRow>
       )}
-      <PropRow label={`Opacité — ${el.opacity}%`}>
+      <PropRow label={T('opacityVal', { n: el.opacity })}>
         <input type="range" min={0} max={100} value={el.opacity} onChange={e => onChange({ opacity: Number(e.target.value) } as any)} style={{ width: '100%', accentColor: 'var(--mint-2)' }} />
       </PropRow>
     </>
@@ -880,17 +884,18 @@ function ShapeProperties({ el, onChange, brandColors }: { el: RectEl | CircleEl 
 }
 
 function ImageProperties({ el, onChange, onSetBg, onCrop }: { el: ImageEl; onChange: (u: Partial<ImageEl>) => void; onSetBg: () => void; onCrop?: () => void }) {
+  const T = useTranslations('editor');
   return (
     <>
-      <PropRow label={`Opacité — ${el.opacity}%`}>
+      <PropRow label={T('opacityVal', { n: el.opacity })}>
         <input type="range" min={0} max={100} value={el.opacity} onChange={e => onChange({ opacity: Number(e.target.value) })} style={{ width: '100%', accentColor: 'var(--mint-2)' }} />
       </PropRow>
       <div style={{ display: 'flex', gap: 6, marginBottom: 8 }}>
         <button onClick={onCrop} className="btn btn-ghost btn-sm" style={{ flex: 1, justifyContent: 'center' }}>
-          Recadrer
+          {T('crop')}
         </button>
         <button onClick={onSetBg} className="btn btn-ghost btn-sm" style={{ flex: 1, justifyContent: 'center' }}>
-          En fond
+          {T('asBackground')}
         </button>
       </div>
     </>
@@ -932,6 +937,7 @@ interface CtxToolbarProps {
 }
 
 function EditorContextToolbar({ sel, allFonts, brandColors, stageW, stageH, onUpdate, onAlign, onDuplicate, onDelete, onCrop, onSetBg, onMaskPhoto, onRemoveBg, bgRemoving, onLayerAction }: CtxToolbarProps) {
+  const T = useTranslations('editor');
   const [pop, setPop] = React.useState<string | null>(null);
   const u = (patch: Partial<CanvasEl>) => onUpdate(patch);
   const isText = sel.type === 'text';
@@ -1041,23 +1047,23 @@ function EditorContextToolbar({ sel, allFonts, brandColors, stageW, stageH, onUp
         </div>
         <Div />
         {/* Bold */}
-        <IBtn title="Gras" on={textSel.fontStyle?.includes('bold')}
+        <IBtn title={T('bold')} on={textSel.fontStyle?.includes('bold')}
           onClick={() => u({ fontStyle: textSel.fontStyle?.includes('bold') ? (textSel.fontStyle.includes('italic') ? 'italic' : 'normal') : (textSel.fontStyle?.includes('italic') ? 'bold italic' : 'bold') } as Partial<TextEl>)}
           icon={<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M7 5h6a3.5 3.5 0 0 1 0 7H7zM7 12h7a3.5 3.5 0 0 1 0 7H7z"/></svg>} />
         {/* Italic */}
-        <IBtn title="Italique" on={textSel.fontStyle?.includes('italic')}
+        <IBtn title={T('italic')} on={textSel.fontStyle?.includes('italic')}
           onClick={() => u({ fontStyle: textSel.fontStyle?.includes('italic') ? (textSel.fontStyle.includes('bold') ? 'bold' : 'normal') : (textSel.fontStyle?.includes('bold') ? 'bold italic' : 'italic') } as Partial<TextEl>)}
           icon={<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M11 5h7M6 19h7M14 5l-4 14"/></svg>} />
         {/* Underline */}
-        <IBtn title="Souligné" on={textSel.textDecoration?.includes('underline')}
+        <IBtn title={T('underline')} on={textSel.textDecoration?.includes('underline')}
           onClick={() => toggleDecoration('underline')}
           icon={<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M7 4v7a5 5 0 0 0 10 0V4M5 21h14"/></svg>} />
         {/* Strikethrough */}
-        <IBtn title="Barré" on={textSel.textDecoration?.includes('line-through')}
+        <IBtn title={T('strikethrough')} on={textSel.textDecoration?.includes('line-through')}
           onClick={() => toggleDecoration('line-through')}
           icon={<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M16 4H9a3 3 0 0 0-2.83 4M14 20c-2.8 0-5-1.1-5-4M4 12h16"/></svg>} />
         {/* Case */}
-        <IBtn title={textSel.uppercase ? 'Minuscules' : 'Majuscules'} on={!!textSel.uppercase}
+        <IBtn title={textSel.uppercase ? T('lowercase') : T('uppercaseTitle')} on={!!textSel.uppercase}
           onClick={() => u({ uppercase: !textSel.uppercase } as any)}
           icon={<span style={{ fontWeight: 800, fontSize: 11.5, fontFamily: 'system-ui', lineHeight: 1, letterSpacing: '-0.02em', display: 'flex', alignItems: 'baseline', gap: 0 }}>A<span style={{ fontSize: 9 }}>a</span></span>} />
         <Div />
@@ -1072,14 +1078,14 @@ function EditorContextToolbar({ sel, allFonts, brandColors, stageW, stageH, onUp
           } />
         {/* Spacing (line-height + letter-spacing) */}
         <div style={{ position: 'relative' }}>
-          <IBtn title="Espacement" on={pop === 'spacing'}
+          <IBtn title={T('spacing')} on={pop === 'spacing'}
             onClick={() => setPop(p => p === 'spacing' ? null : 'spacing')}
             icon={<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M8 6h13M8 12h13M8 18h13M3 6v.01M3 12v.01M3 18v.01"/></svg>} />
           {pop === 'spacing' && (
             <div style={{ ...popStyle }}>
-              <SliderRow label="Interligne" value={textSel.lineHeight ?? 1.2} min={0.8} max={3} step={0.05}
+              <SliderRow label={T('lineHeight')} value={textSel.lineHeight ?? 1.2} min={0.8} max={3} step={0.05}
                 fmt={v => v.toFixed(2)} onChange={v => u({ lineHeight: v } as any)} />
-              <SliderRow label="Interlettrage" value={textSel.letterSpacing ?? 0} min={-5} max={30} step={0.5}
+              <SliderRow label={T('letterSpacing')} value={textSel.letterSpacing ?? 0} min={-5} max={30} step={0.5}
                 fmt={v => (v >= 0 ? '+' : '') + v.toFixed(1) + 'px'} onChange={v => u({ letterSpacing: v } as any)} />
             </div>
           )}
@@ -1088,100 +1094,100 @@ function EditorContextToolbar({ sel, allFonts, brandColors, stageW, stageH, onUp
         <div style={{ position: 'relative' }}>
           <TextBtn on={pop === 'effects'} onClick={() => setPop(p => p === 'effects' ? null : 'effects')}>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="3"/><path d="M12 1v3M12 20v3M4.22 4.22l2.12 2.12M17.66 17.66l2.12 2.12M1 12h3M20 12h3M4.22 19.78l2.12-2.12M17.66 6.34l2.12-2.12"/></svg>
-            Effets
+            {T('effect')}
           </TextBtn>
           {pop === 'effects' && (
             <div style={{ ...popStyle, minWidth: 230 }}>
-              <div className="label" style={{ marginBottom: 8 }}>Ombre portée</div>
+              <div className="label" style={{ marginBottom: 8 }}>{T('dropShadow')}</div>
               <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10, cursor: 'pointer' }}>
                 <input type="checkbox" checked={!!textSel.shadowEnabled} onChange={e => u({ shadowEnabled: e.target.checked } as any)}
                   style={{ accentColor: 'var(--mint)', width: 14, height: 14 }} />
-                <span style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--ink-2)' }}>Activer l'ombre</span>
+                <span style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--ink-2)' }}>{T('enableShadow')}</span>
               </label>
               {textSel.shadowEnabled && (<>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-                  <span className="label" style={{ marginBottom: 0 }}>Couleur</span>
+                  <span className="label" style={{ marginBottom: 0 }}>{T('color')}</span>
                   <ColorPicker value={textSel.shadowColor ?? '#000000'} onChange={c => u({ shadowColor: c } as any)} />
                 </div>
-                <SliderRow label="Opacité" value={textSel.shadowOpacity ?? 75} min={0} max={100} step={1}
+                <SliderRow label={T('opacity')} value={textSel.shadowOpacity ?? 75} min={0} max={100} step={1}
                   fmt={v => v + '%'} onChange={v => u({ shadowOpacity: v } as any)} />
-                <SliderRow label="Flou" value={textSel.shadowBlur ?? 5} min={0} max={30} step={1}
+                <SliderRow label={T('blur')} value={textSel.shadowBlur ?? 5} min={0} max={30} step={1}
                   fmt={v => v + 'px'} onChange={v => u({ shadowBlur: v } as any)} />
-                <SliderRow label="Décalage X" value={textSel.shadowOffsetX ?? 2} min={-20} max={20} step={1}
+                <SliderRow label={T('offsetX')} value={textSel.shadowOffsetX ?? 2} min={-20} max={20} step={1}
                   fmt={v => (v >= 0 ? '+' : '') + v + 'px'} onChange={v => u({ shadowOffsetX: v } as any)} />
-                <SliderRow label="Décalage Y" value={textSel.shadowOffsetY ?? 2} min={-20} max={20} step={1}
+                <SliderRow label={T('offsetY')} value={textSel.shadowOffsetY ?? 2} min={-20} max={20} step={1}
                   fmt={v => (v >= 0 ? '+' : '') + v + 'px'} onChange={v => u({ shadowOffsetY: v } as any)} />
               </>)}
-              <div className="label" style={{ margin: '10px 0 8px' }}>Contour texte</div>
+              <div className="label" style={{ margin: '10px 0 8px' }}>{T('textOutline')}</div>
               <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                 <ColorPicker value={textSel.stroke ?? '#000000'} onChange={c => u({ stroke: c } as any)} />
                 <input type="number" min={0} max={20} value={textSel.strokeWidth ?? 0} onChange={e => u({ strokeWidth: parseInt(e.target.value) || 0 } as any)}
                   style={{ width: 44, textAlign: 'center', border: '1.5px solid var(--line)', borderRadius: 6, fontSize: 12, padding: '3px 4px', fontWeight: 700, color: 'var(--ink)', outline: 'none' }} />
-                <span style={{ fontSize: 11, color: 'var(--ink-3)' }}>px épaisseur</span>
+                <span style={{ fontSize: 11, color: 'var(--ink-3)' }}>{T('pxThickness')}</span>
               </div>
               {/* ── Surbrillance ── */}
               <div style={{ borderTop: '1px solid var(--paper)', margin: '10px 0' }} />
-              <div className="label" style={{ marginBottom: 8 }}>Surbrillance</div>
+              <div className="label" style={{ marginBottom: 8 }}>{T('highlight')}</div>
               <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10, cursor: 'pointer' }}>
                 <input type="checkbox" checked={!!textSel.highlightEnabled} onChange={e => u({ highlightEnabled: e.target.checked } as any)}
                   style={{ accentColor: 'var(--mint)', width: 14, height: 14 }} />
-                <span style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--ink-2)' }}>Activer la surbrillance</span>
+                <span style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--ink-2)' }}>{T('enableHighlight')}</span>
               </label>
               <div style={{ opacity: textSel.highlightEnabled ? 1 : 0.4, pointerEvents: textSel.highlightEnabled ? 'auto' : 'none', transition: 'opacity 150ms' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-                  <span className="label" style={{ marginBottom: 0 }}>Couleur</span>
+                  <span className="label" style={{ marginBottom: 0 }}>{T('color')}</span>
                   <ColorPicker value={textSel.highlightColor ?? '#FFFF00'} onChange={c => u({ highlightColor: c } as any)} />
                 </div>
-                <SliderRow label="Opacité" value={textSel.highlightOpacity ?? 80} min={0} max={100} step={1}
+                <SliderRow label={T('opacity')} value={textSel.highlightOpacity ?? 80} min={0} max={100} step={1}
                   fmt={v => v + '%'} onChange={v => u({ highlightOpacity: v } as any)} />
-                <SliderRow label="Arrondi" value={textSel.highlightBorderRadius ?? 4} min={0} max={20} step={1}
+                <SliderRow label={T('rounding')} value={textSel.highlightBorderRadius ?? 4} min={0} max={20} step={1}
                   fmt={v => v + 'px'} onChange={v => u({ highlightBorderRadius: v } as any)} />
-                <SliderRow label="Épaisseur" value={textSel.highlightPadding ?? 8} min={0} max={20} step={1}
+                <SliderRow label={T('thickness')} value={textSel.highlightPadding ?? 8} min={0} max={20} step={1}
                   fmt={v => v + 'px'} onChange={v => u({ highlightPadding: v } as any)} />
               </div>
               {/* ── Lueur ── */}
               <div style={{ borderTop: '1px solid var(--paper)', margin: '10px 0' }} />
-              <div className="label" style={{ marginBottom: 8 }}>Lueur</div>
+              <div className="label" style={{ marginBottom: 8 }}>{T('glow')}</div>
               <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10, cursor: 'pointer' }}>
                 <input type="checkbox" checked={!!textSel.glowEnabled} onChange={e => u({ glowEnabled: e.target.checked } as any)}
                   style={{ accentColor: 'var(--mint)', width: 14, height: 14 }} />
-                <span style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--ink-2)' }}>Activer la lueur</span>
+                <span style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--ink-2)' }}>{T('enableGlow')}</span>
               </label>
               <div style={{ opacity: textSel.glowEnabled ? 1 : 0.4, pointerEvents: textSel.glowEnabled ? 'auto' : 'none', transition: 'opacity 150ms' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-                  <span className="label" style={{ marginBottom: 0 }}>Couleur</span>
+                  <span className="label" style={{ marginBottom: 0 }}>{T('color')}</span>
                   <ColorPicker value={textSel.glowColor ?? '#00FFFF'} onChange={c => u({ glowColor: c } as any)} />
                 </div>
-                <SliderRow label="Intensité" value={textSel.glowIntensity ?? 50} min={0} max={100} step={1}
+                <SliderRow label={T('intensity')} value={textSel.glowIntensity ?? 50} min={0} max={100} step={1}
                   fmt={v => v + '%'} onChange={v => u({ glowIntensity: v } as any)} />
-                <SliderRow label="Taille" value={textSel.glowSize ?? 10} min={1} max={40} step={1}
+                <SliderRow label={T('sizeLabel')} value={textSel.glowSize ?? 10} min={1} max={40} step={1}
                   fmt={v => v + 'px'} onChange={v => u({ glowSize: v } as any)} />
               </div>
               {/* ── Creux ── */}
               <div style={{ borderTop: '1px solid var(--paper)', margin: '10px 0' }} />
-              <div className="label" style={{ marginBottom: 8 }}>Creux</div>
+              <div className="label" style={{ marginBottom: 8 }}>{T('hollow')}</div>
               <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
                 <input type="checkbox" checked={!!textSel.hollowEnabled} onChange={e => u({ hollowEnabled: e.target.checked } as any)}
                   style={{ accentColor: 'var(--mint)', width: 14, height: 14 }} />
-                <span style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--ink-2)' }}>Activer le creux</span>
+                <span style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--ink-2)' }}>{T('enableHollow')}</span>
               </label>
-              <span style={{ fontSize: 11, color: 'var(--ink-3)', marginTop: 5, display: 'block' }}>Utilise les réglages du Contour texte</span>
+              <span style={{ fontSize: 11, color: 'var(--ink-3)', marginTop: 5, display: 'block' }}>{T('hollowHint')}</span>
               {/* ── Élévation ── */}
               <div style={{ borderTop: '1px solid var(--paper)', margin: '10px 0' }} />
-              <div className="label" style={{ marginBottom: 8 }}>Élévation</div>
+              <div className="label" style={{ marginBottom: 8 }}>{T('lift')}</div>
               <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10, cursor: 'pointer' }}>
                 <input type="checkbox" checked={!!textSel.liftEnabled} onChange={e => u({ liftEnabled: e.target.checked } as any)}
                   style={{ accentColor: 'var(--mint)', width: 14, height: 14 }} />
-                <span style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--ink-2)' }}>Activer l'élévation</span>
+                <span style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--ink-2)' }}>{T('enableLift')}</span>
               </label>
               <div style={{ opacity: textSel.liftEnabled ? 1 : 0.4, pointerEvents: textSel.liftEnabled ? 'auto' : 'none', transition: 'opacity 150ms' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-                  <span className="label" style={{ marginBottom: 0 }}>Couleur</span>
+                  <span className="label" style={{ marginBottom: 0 }}>{T('color')}</span>
                   <ColorPicker value={textSel.liftColor ?? '#333333'} onChange={c => u({ liftColor: c } as any)} />
                 </div>
-                <SliderRow label="Profondeur" value={textSel.liftDepth ?? 6} min={1} max={20} step={1}
+                <SliderRow label={T('depth')} value={textSel.liftDepth ?? 6} min={1} max={20} step={1}
                   fmt={v => v + 'px'} onChange={v => u({ liftDepth: v } as any)} />
-                <div className="label" style={{ marginBottom: 6 }}>Direction</div>
+                <div className="label" style={{ marginBottom: 6 }}>{T('direction')}</div>
                 <div style={{ display: 'inline-flex', flexDirection: 'column', gap: 4 }}>
                   {([['tl','t','tr'],['l','·','r'],['bl','b','br']] as const).map((row, ri) => (
                     <div key={ri} style={{ display: 'flex', gap: 4 }}>
@@ -1201,25 +1207,25 @@ function EditorContextToolbar({ sel, allFonts, brandColors, stageW, stageH, onUp
               </div>
               {/* ── Écho ── */}
               <div style={{ borderTop: '1px solid var(--paper)', margin: '10px 0' }} />
-              <div className="label" style={{ marginBottom: 8 }}>Écho</div>
+              <div className="label" style={{ marginBottom: 8 }}>{T('echo')}</div>
               <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10, cursor: 'pointer' }}>
                 <input type="checkbox" checked={!!textSel.echoEnabled} onChange={e => u({ echoEnabled: e.target.checked } as any)}
                   style={{ accentColor: 'var(--mint)', width: 14, height: 14 }} />
-                <span style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--ink-2)' }}>Activer l'écho</span>
+                <span style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--ink-2)' }}>{T('enableEcho')}</span>
               </label>
               <div style={{ opacity: textSel.echoEnabled ? 1 : 0.4, pointerEvents: textSel.echoEnabled ? 'auto' : 'none', transition: 'opacity 150ms' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-                  <span className="label" style={{ marginBottom: 0 }}>Couleur</span>
+                  <span className="label" style={{ marginBottom: 0 }}>{T('color')}</span>
                   <ColorPicker value={textSel.echoColor ?? '#FF69B4'} onChange={c => u({ echoColor: c } as any)} />
                 </div>
-                <SliderRow label="Nombre" value={textSel.echoCount ?? 3} min={1} max={5} step={1}
+                <SliderRow label={T('countLabel')} value={textSel.echoCount ?? 3} min={1} max={5} step={1}
                   fmt={v => String(v)} onChange={v => u({ echoCount: v } as any)} />
-                <SliderRow label="Décalage" value={textSel.echoOffset ?? 8} min={1} max={30} step={1}
+                <SliderRow label={T('offsetLabel')} value={textSel.echoOffset ?? 8} min={1} max={30} step={1}
                   fmt={v => v + 'px'} onChange={v => u({ echoOffset: v } as any)} />
                 <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
                   <input type="checkbox" checked={textSel.echoFade !== false} onChange={e => u({ echoFade: e.target.checked } as any)}
                     style={{ accentColor: 'var(--mint)', width: 14, height: 14 }} />
-                  <span style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--ink-2)' }}>Opacité dégressive</span>
+                  <span style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--ink-2)' }}>{T('fadingOpacity')}</span>
                 </label>
               </div>
             </div>
@@ -1235,11 +1241,11 @@ function EditorContextToolbar({ sel, allFonts, brandColors, stageW, stageH, onUp
       {/* GRADIENT — dégradé sur texte ou forme (rect/circle/star ; vector a son propre sélecteur plus bas) */}
       {(isText || isShape) && !isVector && gradSel && (
         <div style={{ position: 'relative' }}>
-          <IBtn title="Dégradé" on={gradSel.fillType === 'gradient'} onClick={() => setPop(p => p === 'grad' ? null : 'grad')}
+          <IBtn title={T('gradient')} on={gradSel.fillType === 'gradient'} onClick={() => setPop(p => p === 'grad' ? null : 'grad')}
             icon={<svg width="15" height="15" viewBox="0 0 24 24" fill="none"><defs><linearGradient id="ed-grad-icon" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="currentColor" stopOpacity="1" /><stop offset="1" stopColor="currentColor" stopOpacity="0.15" /></linearGradient></defs><rect x="3" y="3" width="18" height="18" rx="4" fill="url(#ed-grad-icon)" /></svg>} />
           {pop === 'grad' && (
             <div style={{ ...popStyle, minWidth: 220 }}>
-              <div className="label" style={{ marginBottom: 8 }}>Remplissage</div>
+              <div className="label" style={{ marginBottom: 8 }}>{T('fill')}</div>
               <div style={{ display: 'flex', gap: 6, marginBottom: 12 }}>
                 {(['color', 'gradient'] as const).map(ft => (
                   <button key={ft} onClick={() => setFillType(ft)}
@@ -1251,16 +1257,16 @@ function EditorContextToolbar({ sel, allFonts, brandColors, stageW, stageH, onUp
               {gradSel.fillType === 'gradient' && <>
                 <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 12 }}>
                   <div>
-                    <div style={{ fontSize: 10.5, color: 'var(--ink-3)', marginBottom: 4 }}>Départ</div>
+                    <div style={{ fontSize: 10.5, color: 'var(--ink-3)', marginBottom: 4 }}>{T('start')}</div>
                     <ColorPicker value={colorVal} onChange={(c: string) => setFill(c)} brandColors={brandColors} />
                   </div>
                   <div>
-                    <div style={{ fontSize: 10.5, color: 'var(--ink-3)', marginBottom: 4 }}>Arrivée</div>
+                    <div style={{ fontSize: 10.5, color: 'var(--ink-3)', marginBottom: 4 }}>{T('end')}</div>
                     <ColorPicker value={gradSel.fillTo ?? '#ffffff'} onChange={(c: string) => setFillTo(c)} brandColors={brandColors} />
                   </div>
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 5 }}>
-                  <span className="label" style={{ marginBottom: 0 }}>Angle</span>
+                  <span className="label" style={{ marginBottom: 0 }}>{T('angle')}</span>
                   <span style={{ fontFamily: 'var(--mono)', fontWeight: 800, fontSize: 11, color: 'var(--ink-2)' }}>{gradSel.fillAngle ?? 90}°</span>
                 </div>
                 <input type="range" min={0} max={360} step={5} value={gradSel.fillAngle ?? 90} onChange={e => setFillAngle(parseInt(e.target.value))} className="ed-range" style={{ width: '100%' }} />
@@ -1277,22 +1283,22 @@ function EditorContextToolbar({ sel, allFonts, brandColors, stageW, stageH, onUp
           icon={<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="M3 9h18"/></svg>} />
         {textSel.hasBg && (
           <div style={{ position: 'relative' }}>
-            <button onClick={() => setPop(p => p === 'bg' ? null : 'bg')} title="Options du fond"
+            <button onClick={() => setPop(p => p === 'bg' ? null : 'bg')} title={T('bgOptions')}
               style={{ width: 32, height: 32, borderRadius: 8, display: 'grid', placeItems: 'center', background: pop === 'bg' ? 'var(--sunk)' : 'transparent', border: 'none', cursor: 'pointer' }}>
               <span style={{ width: 18, height: 18, borderRadius: 5, background: textSel.bgColor, boxShadow: 'inset 0 0 0 1.5px rgba(13,15,10,.2)' }} />
             </button>
             {pop === 'bg' && (
               <div style={{ ...popStyle, left: 'auto', right: 0 }}>
-                <div className="label" style={{ marginBottom: 8 }}>Fond du texte</div>
+                <div className="label" style={{ marginBottom: 8 }}>{T('textBackground')}</div>
                 <ColorPicker value={textSel.bgColor} onChange={(c: string) => u({ bgColor: c } as Partial<TextEl>)} brandColors={brandColors} />
                 <div style={{ marginTop: 10 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 5 }}>
-                    <span className="label" style={{ marginBottom: 0 }}>Opacité fond</span>
+                    <span className="label" style={{ marginBottom: 0 }}>{T('bgOpacity')}</span>
                     <span style={{ fontFamily: 'var(--mono)', fontWeight: 800, fontSize: 11, color: 'var(--ink-2)' }}>{textSel.bgOpacity}%</span>
                   </div>
                   <input type="range" min={0} max={100} step={1} value={textSel.bgOpacity} onChange={e => u({ bgOpacity: parseInt(e.target.value) } as Partial<TextEl>)} className="ed-range" style={{ width: '100%' }} />
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 10, marginBottom: 5 }}>
-                    <span className="label" style={{ marginBottom: 0 }}>Arrondi</span>
+                    <span className="label" style={{ marginBottom: 0 }}>{T('rounding')}</span>
                     <span style={{ fontFamily: 'var(--mono)', fontWeight: 800, fontSize: 11, color: 'var(--ink-2)' }}>{textSel.cornerRadius}px</span>
                   </div>
                   <input type="range" min={0} max={50} step={1} value={textSel.cornerRadius} onChange={e => u({ cornerRadius: parseInt(e.target.value) } as Partial<TextEl>)} className="ed-range" style={{ width: '100%' }} />
@@ -1306,30 +1312,30 @@ function EditorContextToolbar({ sel, allFonts, brandColors, stageW, stageH, onUp
       {/* VECTOR — stroke controls */}
       {vecSel && (
         <div style={{ position: 'relative' }}>
-          <IBtn title="Contour" on={pop === 'vstroke'}
+          <IBtn title={T('outline')} on={pop === 'vstroke'}
             onClick={() => setPop(p => p === 'vstroke' ? null : 'vstroke')}
             icon={<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><rect x="3" y="3" width="18" height="18" rx="3"/></svg>} />
           {pop === 'vstroke' && (
             <div style={{ ...popStyle, minWidth: 220 }}>
-              <div className="label" style={{ marginBottom: 8 }}>Contour</div>
+              <div className="label" style={{ marginBottom: 8 }}>{T('outline')}</div>
               <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 10 }}>
                 <ColorPicker value={vecSel.stroke || '#000000'} onChange={c => u({ stroke: c } as Partial<VectorEl>)} />
-                <span style={{ fontSize: 11, color: 'var(--ink-3)' }}>couleur</span>
+                <span style={{ fontSize: 11, color: 'var(--ink-3)' }}>{T('colorLower')}</span>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 5 }}>
-                <span className="label" style={{ marginBottom: 0 }}>Épaisseur</span>
+                <span className="label" style={{ marginBottom: 0 }}>{T('thickness')}</span>
                 <span style={{ fontFamily: 'var(--mono)', fontWeight: 800, fontSize: 11, color: 'var(--ink-2)' }}>{vecSel.strokeWidth}px</span>
               </div>
               <input type="range" min={0} max={20} step={1} value={vecSel.strokeWidth} onChange={e => u({ strokeWidth: parseInt(e.target.value) } as Partial<VectorEl>)} className="ed-range" style={{ width: '100%' }} />
               <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 10, marginBottom: 5 }}>
-                <span className="label" style={{ marginBottom: 0 }}>Remplissage</span>
+                <span className="label" style={{ marginBottom: 0 }}>{T('fill')}</span>
               </div>
               <div style={{ display: 'flex', gap: 6 }}>
                 {(['color','gradient','none','image'] as const).map(ft => (
                   <button key={ft}
                     onClick={() => ft === 'image' ? (onMaskPhoto?.(), setPop(null)) : u({ fillType: ft } as Partial<VectorEl>)}
                     style={{ flex: 1, padding: '5px 4px', borderRadius: 7, border: vecSel.fillType === ft ? '2px solid var(--mint-2)' : '1.5px solid var(--line)', cursor: 'pointer', background: vecSel.fillType === ft ? 'var(--mint-soft)' : 'var(--sunk)', fontSize: 10.5, fontWeight: 700, color: vecSel.fillType === ft ? 'var(--mint-2)' : 'var(--ink-3)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 3 }}>
-                    {ft === 'color' ? 'Couleur' : ft === 'gradient' ? 'Dégradé' : ft === 'none' ? 'Aucun' : <><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>Photo</>}
+                    {ft === 'color' ? 'Couleur' : ft === 'gradient' ? 'Dégradé' : ft === 'none' ? 'Aucun' : <><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>{T('photo')}</>}
                   </button>
                 ))}
               </div>
@@ -1337,16 +1343,16 @@ function EditorContextToolbar({ sel, allFonts, brandColors, stageW, stageH, onUp
                 <div style={{ marginTop: 10 }}>
                   <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 10 }}>
                     <div>
-                      <div style={{ fontSize: 10.5, color: 'var(--ink-3)', marginBottom: 4 }}>Départ</div>
+                      <div style={{ fontSize: 10.5, color: 'var(--ink-3)', marginBottom: 4 }}>{T('start')}</div>
                       <ColorPicker value={vecSel.fill} onChange={(c: string) => setFill(c)} brandColors={brandColors} />
                     </div>
                     <div>
-                      <div style={{ fontSize: 10.5, color: 'var(--ink-3)', marginBottom: 4 }}>Arrivée</div>
+                      <div style={{ fontSize: 10.5, color: 'var(--ink-3)', marginBottom: 4 }}>{T('end')}</div>
                       <ColorPicker value={vecSel.fillTo ?? '#ffffff'} onChange={(c: string) => setFillTo(c)} brandColors={brandColors} />
                     </div>
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 5 }}>
-                    <span className="label" style={{ marginBottom: 0 }}>Angle</span>
+                    <span className="label" style={{ marginBottom: 0 }}>{T('angle')}</span>
                     <span style={{ fontFamily: 'var(--mono)', fontWeight: 800, fontSize: 11, color: 'var(--ink-2)' }}>{vecSel.fillAngle ?? 90}°</span>
                   </div>
                   <input type="range" min={0} max={360} step={5} value={vecSel.fillAngle ?? 90} onChange={e => setFillAngle(parseInt(e.target.value))} className="ed-range" style={{ width: '100%' }} />
@@ -1365,13 +1371,13 @@ function EditorContextToolbar({ sel, allFonts, brandColors, stageW, stageH, onUp
       {/* SHAPE extra — corner radius for rect */}
       {rectSel && (
         <div style={{ position: 'relative' }}>
-          <IBtn title="Arrondi" on={pop === 'radius'}
+          <IBtn title={T('rounding')} on={pop === 'radius'}
             onClick={() => setPop(p => p === 'radius' ? null : 'radius')}
             icon={<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><rect x="3" y="3" width="18" height="18" rx="4"/></svg>} />
           {pop === 'radius' && (
             <div style={{ ...popStyle }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
-                <span className="label" style={{ marginBottom: 0 }}>Arrondi</span>
+                <span className="label" style={{ marginBottom: 0 }}>{T('rounding')}</span>
                 <span style={{ fontFamily: 'var(--mono)', fontWeight: 800, fontSize: 11, color: 'var(--ink-2)' }}>{rectSel.cornerRadius}px</span>
               </div>
               <input type="range" min={0} max={50} step={1} value={rectSel.cornerRadius} onChange={e => u({ cornerRadius: parseInt(e.target.value) } as Partial<RectEl>)} className="ed-range" style={{ width: '100%' }} />
@@ -1399,8 +1405,8 @@ function EditorContextToolbar({ sel, allFonts, brandColors, stageW, stageH, onUp
           );
         };
         return <>
-          {onSetBg && <button onClick={onSetBg} className="btn btn-ghost btn-sm" style={{ height: 30, flexShrink: 0 }}>En fond</button>}
-          {onCrop && <button onClick={onCrop} className="btn btn-ghost btn-sm" style={{ height: 30, flexShrink: 0 }}>Recadrer</button>}
+          {onSetBg && <button onClick={onSetBg} className="btn btn-ghost btn-sm" style={{ height: 30, flexShrink: 0 }}>{T('asBackground')}</button>}
+          {onCrop && <button onClick={onCrop} className="btn btn-ghost btn-sm" style={{ height: 30, flexShrink: 0 }}>{T('crop')}</button>}
           {onRemoveBg && (
             <button onClick={onRemoveBg} disabled={bgRemoving} className="btn btn-ghost btn-sm" style={{ height: 30, flexShrink: 0, opacity: bgRemoving ? 0.6 : 1 }}>
               {bgRemoving ? 'Détourage…' : 'Détourer'}
@@ -1413,7 +1419,7 @@ function EditorContextToolbar({ sel, allFonts, brandColors, stageW, stageH, onUp
             </TextBtn>
             {pop === 'adjust' && (
               <div style={{ ...popStyle, minWidth: 244 }}>
-                <span className="label" style={{ display: 'block', marginBottom: 8 }}>Filtres</span>
+                <span className="label" style={{ display: 'block', marginBottom: 8 }}>{T('filters')}</span>
                 <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 12 }}>
                   {PHOTO_FILTER_PRESETS.map(p => {
                     const active = PHOTO_FILTER_PRESETS.every(o => o.id !== p.id ? true :
@@ -1427,17 +1433,17 @@ function EditorContextToolbar({ sel, allFonts, brandColors, stageW, stageH, onUp
                     );
                   })}
                 </div>
-                <span className="label" style={{ display: 'block', marginBottom: 8 }}>Lumière</span>
+                <span className="label" style={{ display: 'block', marginBottom: 8 }}>{T('light')}</span>
                 {adjRow('Luminosité', 'adjBrightness', -100, 100)}
                 {adjRow('Contraste', 'adjContrast', -100, 100)}
-                <span className="label" style={{ display: 'block', margin: '12px 0 8px' }}>Couleur</span>
+                <span className="label" style={{ display: 'block', margin: '12px 0 8px' }}>{T('color')}</span>
                 {adjRow('Saturation', 'adjSaturation', -100, 100)}
                 {adjRow('Chaleur', 'adjWarmth', -100, 100)}
                 {adjRow('Teinte', 'adjTint', -100, 100)}
-                <span className="label" style={{ display: 'block', margin: '12px 0 8px' }}>Effet</span>
+                <span className="label" style={{ display: 'block', margin: '12px 0 8px' }}>{T('effect')}</span>
                 {adjRow('Flou', 'adjBlur', 0, 40, 'px')}
                 <button onClick={() => u({ adjBrightness: 0, adjContrast: 0, adjSaturation: 0, adjWarmth: 0, adjTint: 0, adjBlur: 0 } as Partial<ImageEl>)}
-                  className="btn btn-ghost btn-sm" style={{ width: '100%', justifyContent: 'center', marginTop: 10 }}>Réinitialiser</button>
+                  className="btn btn-ghost btn-sm" style={{ width: '100%', justifyContent: 'center', marginTop: 10 }}>{T('reset')}</button>
               </div>
             )}
           </div>
@@ -1454,7 +1460,7 @@ function EditorContextToolbar({ sel, allFonts, brandColors, stageW, stageH, onUp
         {pop === 'opacity' && (
           <div style={{ ...popStyle, left: 'auto', right: 0 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
-              <span className="label" style={{ marginBottom: 0 }}>Opacité</span>
+              <span className="label" style={{ marginBottom: 0 }}>{T('opacity')}</span>
               <span style={{ fontFamily: 'var(--mono)', fontWeight: 800, fontSize: 11, color: 'var(--ink-2)' }}>{sel.opacity}%</span>
             </div>
             <input type="range" min={0} max={100} step={1} value={sel.opacity} onChange={e => u({ opacity: parseInt(e.target.value) } as Partial<CanvasEl>)} className="ed-range" style={{ width: '100%' }} />
@@ -1470,8 +1476,8 @@ function EditorContextToolbar({ sel, allFonts, brandColors, stageW, stageH, onUp
         </TextBtn>
         {pop === 'anim' && (
           <div style={{ ...popStyle, right: 0, left: 'auto', minWidth: 200, textAlign: 'center', padding: '20px 16px' }}>
-            <div style={{ fontWeight: 700, fontSize: 14, color: 'var(--ink)', marginBottom: 6 }}>Bientôt disponible</div>
-            <div style={{ fontSize: 12, color: 'var(--ink-3)', lineHeight: 1.4 }}>Les animations par élément arrivent très bientôt.</div>
+            <div style={{ fontWeight: 700, fontSize: 14, color: 'var(--ink)', marginBottom: 6 }}>{T('comingSoon')}</div>
+            <div style={{ fontSize: 12, color: 'var(--ink-3)', lineHeight: 1.4 }}>{T('animComingSoon')}</div>
           </div>
         )}
       </div>
@@ -1484,7 +1490,7 @@ function EditorContextToolbar({ sel, allFonts, brandColors, stageW, stageH, onUp
         </TextBtn>
         {pop === 'pos' && (
           <div style={{ ...popStyle, right: 0, left: 'auto', minWidth: 210 }}>
-            <div className="label" style={{ marginBottom: 6 }}>Calque</div>
+            <div className="label" style={{ marginBottom: 6 }}>{T('layer')}</div>
             {([['front','Premier plan'],['forward','Avancer'],['backward','Reculer'],['back','Arrière-plan']] as const).map(([id, label]) => (
               <button key={id} onClick={() => { onLayerAction(id); setPop(null); }}
                 style={{ display: 'block', width: '100%', textAlign: 'left', padding: '7px 10px', borderRadius: 7, fontSize: 13, fontWeight: 600, cursor: 'pointer', border: 'none', background: 'transparent', color: 'var(--ink)' }}
@@ -1493,7 +1499,7 @@ function EditorContextToolbar({ sel, allFonts, brandColors, stageW, stageH, onUp
                 {label}
               </button>
             ))}
-            <div className="label" style={{ margin: '10px 0 8px' }}>Aligner sur la page</div>
+            <div className="label" style={{ margin: '10px 0 8px' }}>{T('alignToPage')}</div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 4 }}>
               {[
                 { id: 'left',     title: 'Gauche',                  icon: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M11 5l-7 7 7 7M4 12h16"/></svg> },
@@ -1532,10 +1538,10 @@ function EditorContextToolbar({ sel, allFonts, brandColors, stageW, stageH, onUp
       <Div />
 
       {/* DUPLICATE */}
-      <IBtn title="Dupliquer" onClick={onDuplicate}
+      <IBtn title={T('duplicate')} onClick={onDuplicate}
         icon={<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="11" height="11" rx="2.2"/><path d="M5 15V5a2 2 0 0 1 2-2h8"/></svg>} />
       {/* DELETE */}
-      <IBtn title="Supprimer" danger onClick={onDelete}
+      <IBtn title={T('delete')} danger onClick={onDelete}
         icon={<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M4 7h16M9 7V4.5h6V7M6 7l1 13h10l1-13"/></svg>} />
     </div>
   );
@@ -1550,6 +1556,7 @@ interface PillProps {
 }
 
 function SelectionPill({ elX, elY, elW, onDuplicate, onDelete }: PillProps) {
+  const T = useTranslations('editor');
   const pillW = 260;
   return (
     <div style={{
@@ -1585,14 +1592,14 @@ function SelectionPill({ elX, elY, elW, onDuplicate, onDelete }: PillProps) {
         </button>
         <span style={{ width: 1, height: 18, background: '#E4E3D7', flexShrink: 0 }} />
         {/* Duplicate */}
-        <button onClick={e => { e.stopPropagation(); onDuplicate(); }} title="Dupliquer"
+        <button onClick={e => { e.stopPropagation(); onDuplicate(); }} title={T('duplicate')}
           style={{ width: 30, height: 30, borderRadius: 8, display: 'grid', placeItems: 'center', color: '#3a3d33', background: 'transparent', border: 'none', cursor: 'pointer' }}
           onMouseEnter={e => (e.currentTarget.style.background = '#F1F0E8')}
           onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="11" height="11" rx="2.4"/><path d="M5 15V5a2 2 0 0 1 2-2h8"/></svg>
         </button>
         {/* Delete */}
-        <button onClick={e => { e.stopPropagation(); onDelete(); }} title="Supprimer"
+        <button onClick={e => { e.stopPropagation(); onDelete(); }} title={T('delete')}
           style={{ width: 30, height: 30, borderRadius: 8, display: 'grid', placeItems: 'center', color: '#C4452F', background: 'transparent', border: 'none', cursor: 'pointer' }}
           onMouseEnter={e => (e.currentTarget.style.background = '#F1F0E8')}
           onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
@@ -1606,13 +1613,14 @@ function SelectionPill({ elX, elY, elW, onDuplicate, onDelete }: PillProps) {
 // ─── Panel head (title + optional sub + close button) ─────────────────────────
 
 function PanelHead({ title, sub, onClose }: { title: string; sub?: string; onClose: () => void }) {
+  const T = useTranslations('editor');
   return (
     <div style={{ display: 'flex', alignItems: 'flex-start', marginBottom: 16 }}>
       <div style={{ minWidth: 0 }}>
         <h3 className="h-title" style={{ fontSize: 17 }}>{title}</h3>
         {sub && <div style={{ fontSize: 12.5, color: 'var(--ink-3)', marginTop: 2 }}>{sub}</div>}
       </div>
-      <button onClick={onClose} title="Fermer"
+      <button onClick={onClose} title={T('close')}
         style={{ marginLeft: 'auto', width: 30, height: 30, borderRadius: 8, display: 'grid', placeItems: 'center', color: 'var(--ink-3)', flexShrink: 0, background: 'transparent', border: 'none', cursor: 'pointer' }}
         onMouseEnter={e => (e.currentTarget.style.background = 'var(--sunk)')}
         onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
@@ -1625,6 +1633,7 @@ function PanelHead({ title, sub, onClose }: { title: string; sub?: string; onClo
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export function VisualEditor({ workspaceId, postId, templateId, mode }: { workspaceId: string; postId?: string; templateId?: string; mode: 'post' | 'template' }) {
+  const T = useTranslations('editor');
   const isTemplate = mode === 'template';
   const entityId = postId ?? templateId ?? 'new';
 
@@ -1836,14 +1845,14 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
   // carrousel Instagram. Génération ponctuelle (pas de resynchronisation live
   // si on redéplace le fond ensuite) ; fonctionne mieux avec une photo large.
   const extendBgAcrossSlides = async (count: number) => {
-    if (!proxyUrl) { showEditorToast('Ajoutez d\'abord une image de fond à cette slide.'); return; }
+    if (!proxyUrl) { showEditorToast(T('bgFirstToast')); return; }
     let natW = 0, natH = 0;
     try {
       const img = new Image();
       img.crossOrigin = 'anonymous';
       await new Promise<void>((resolve, reject) => { img.onload = () => resolve(); img.onerror = () => reject(new Error('load')); img.src = proxyUrl; });
       natW = img.naturalWidth; natH = img.naturalHeight;
-    } catch { showEditorToast('Image introuvable, réessayez.'); return; }
+    } catch { showEditorToast(T('imgNotFound')); return; }
     if (!natW || !natH) return;
 
     const scale = Math.max(stageW / natW, stageH / natH);
@@ -1869,9 +1878,9 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
     setSlides(updated);
     setBgOffsetX(anchorOffsetX);
     if (scaledW < stageW * (count + 1)) {
-      showEditorToast(`Étendu sur ${count + 1} slides — image pas assez large pour un panorama parfait, utilisez une photo plus large pour un meilleur résultat.`);
+      showEditorToast(T('spanNotWide', { count: count + 1 }));
     } else {
-      showEditorToast(`Image étendue sur ${count + 1} slides ✓`);
+      showEditorToast(T('spanDone', { count: count + 1 }));
     }
   };
 
@@ -2587,7 +2596,7 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
   const removeBgFromImage = async (el: ImageEl) => {
     if (bgRemovingId) return;
     setBgRemovingId(el.id);
-    showEditorToast('Détourage en cours… (le modèle se télécharge à la 1re utilisation)');
+    showEditorToast(T('cutoutInProgress'));
     try {
       let blob: Blob;
       try {
@@ -2606,12 +2615,12 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
       const outBlob: Blob = await removeBackground(blob);
       const path = `${workspaceId}/${entityId}-cutout-${Date.now()}.png`;
       const { error } = await supabase.storage.from('photos').upload(path, outBlob, { upsert: true, contentType: 'image/png' });
-      if (error) { showEditorToast("Échec de l'upload : " + error.message); return; }
+      if (error) { showEditorToast(T('uploadFailed', { msg: error.message })); return; }
       const { data: urlData } = supabase.storage.from('photos').getPublicUrl(path);
       updateEl(el.id, { src: urlData.publicUrl, naturalW: undefined, naturalH: undefined, cropX: undefined, cropY: undefined } as Partial<ImageEl>);
-      showEditorToast('Arrière-plan supprimé ✓');
+      showEditorToast(T('bgRemoved'));
     } catch (e) {
-      showEditorToast('Détourage impossible : ' + (e instanceof Error ? e.message : 'erreur'));
+      showEditorToast(T('cutoutFailed', { msg: e instanceof Error ? e.message : T('cutoutError') }));
     } finally {
       setBgRemovingId(null);
     }
@@ -2620,7 +2629,7 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
   const handleFileDrop = (file: File) => {
     if (!file.type.startsWith('image/')) return;
     if (postType === 'reel') {
-      showEditorToast('Les Reels Instagram nécessitent une vidéo. Importez un fichier .mp4 ou .mov.');
+      showEditorToast(T('reelNeedsVideo'));
       return;
     }
     const src = URL.createObjectURL(file);
@@ -3118,7 +3127,7 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
     if (res.ok) {
       window.location.href = `/workspace/${workspaceId}/templates`;
     } else {
-      showEditorToast('Erreur — enregistrement du template échoué');
+      showEditorToast(T('templateSaveFailed'));
     }
   };
 
@@ -3233,9 +3242,9 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
   const magicResize = async () => {
     if (resizing) return;
     const targets = MAGIC_RESIZE_TARGETS.filter(t => t.formatId !== formatId);
-    if (!targets.length) { showEditorToast('Aucun autre format à générer.'); return; }
+    if (!targets.length) { showEditorToast(T('noOtherFormat')); return; }
     const currentElements = elementsRef.current;
-    if (!currentElements.length && !proxyUrl) { showEditorToast('Ajoutez du contenu avant d\'adapter aux formats.'); return; }
+    if (!currentElements.length && !proxyUrl) { showEditorToast(T('addContentFirst')); return; }
     setResizing(true);
     try {
       let natW = 0, natH = 0;
@@ -3277,7 +3286,7 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
         });
         if (!error) created++;
       }
-      showEditorToast(created > 0 ? `${created} nouveau${created > 1 ? 'x' : ''} format${created > 1 ? 's' : ''} généré${created > 1 ? 's' : ''} ✓ Retrouvez-les dans le planning.` : 'Échec de la génération des formats.');
+      showEditorToast(created > 0 ? T('formatsGenerated', { count: created }) : T('formatsFailed'));
     } finally {
       setResizing(false);
     }
@@ -3481,7 +3490,7 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
         <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" strokeOpacity="0.25"/>
         <path fill="currentColor" fillOpacity="0.75" d="M4 12a8 8 0 018-8V0C5.4 0 0 5.4 0 12h4z"/>
       </svg>
-      <span style={{ fontSize: 13, color: 'var(--ink-3)', fontFamily: 'var(--sans)' }}>Chargement de l&apos;éditeur…</span>
+      <span style={{ fontSize: 13, color: 'var(--ink-3)', fontFamily: 'var(--sans)' }}>{T('loadingEditor')}</span>
     </div>
   );
 
@@ -3514,12 +3523,12 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
             <div style={{ width: 44, height: 44, borderRadius: 12, background: 'rgba(200,115,43,.12)', display: 'grid', placeItems: 'center', marginBottom: 16 }}>
               <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--warn)" strokeWidth="2" strokeLinecap="round"><path d="M10.3 3.4 2.7 17A2 2 0 0 0 4.4 20h15.2a2 2 0 0 0 1.7-3L13.7 3.4a2 2 0 0 0-3.4 0Z"/><path d="M12 9v4M12 17h.01"/></svg>
             </div>
-            <h3 style={{ fontSize: 16, fontWeight: 800, color: 'var(--ink)', marginBottom: 8 }}>Changer de format ?</h3>
+            <h3 style={{ fontSize: 16, fontWeight: 800, color: 'var(--ink)', marginBottom: 8 }}>{T('changeFormat')}</h3>
             <p style={{ fontSize: 13.5, color: 'var(--ink-2)', lineHeight: 1.55, marginBottom: 22 }}>
               Passer en format Story (9:16) va adapter le cadre de votre visuel. Des éléments peuvent dépasser le cadre et nécessiter des ajustements.
             </p>
             <div style={{ display: 'flex', gap: 10 }}>
-              <button onClick={() => { setShowStoryWarn(false); setPendingStoryType(null); }} className="btn btn-ghost" style={{ flex: 1 }}>Annuler</button>
+              <button onClick={() => { setShowStoryWarn(false); setPendingStoryType(null); }} className="btn btn-ghost" style={{ flex: 1 }}>{T('cancel')}</button>
               <button onClick={async () => {
                 setShowStoryWarn(false);
                 if (pendingStoryType) {
@@ -3535,7 +3544,7 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
                   await supabase.from('posts').update({ post_type: pendingStoryType }).eq('id', postId);
                 }
                 setPendingStoryType(null);
-              }} className="btn btn-primary" style={{ flex: 1 }}>Continuer</button>
+              }} className="btn btn-primary" style={{ flex: 1 }}>{T('continue')}</button>
             </div>
           </div>
         </div>
@@ -3573,7 +3582,7 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
               </span>
             </div>
             {isTemplate ? (
-              <input value={templateName} onChange={e => setTemplateName(e.target.value)} placeholder="Nom du template"
+              <input value={templateName} onChange={e => setTemplateName(e.target.value)} placeholder={T('templateName')}
                 style={{ fontWeight: 600, fontSize: 13, color: 'var(--ink)', border: '1px solid var(--line)', borderRadius: 'var(--r-s)', padding: '4px 8px', outline: 'none', fontFamily: 'var(--sans)', background: 'var(--sunk)', maxWidth: 180 }} />
             ) : (
               <span style={{ fontWeight: 600, fontSize: 13, color: 'var(--ink)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 140 }}>{workspaceName || 'Éditeur'}</span>
@@ -3583,11 +3592,11 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
             </span>
           </div>
           <span style={{ width: 1, height: 24, background: 'var(--line)', flexShrink: 0 }} />
-          <button onClick={undo} disabled={!canUndo} title="Annuler Ctrl+Z" className="ed-hbtn"
+          <button onClick={undo} disabled={!canUndo} title={T('undo')} className="ed-hbtn"
             style={{ opacity: canUndo ? 1 : 0.3 }}>
             <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M9 7L4 12l5 5M4 12h11a5 5 0 0 1 0 10h-1"/></svg>
           </button>
-          <button onClick={redo} disabled={!canRedo} title="Rétablir" className="ed-hbtn"
+          <button onClick={redo} disabled={!canRedo} title={T('redo')} className="ed-hbtn"
             style={{ opacity: canRedo ? 1 : 0.3 }}>
             <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M15 7l5 5-5 5M20 12H9a5 5 0 0 0 0 10h1"/></svg>
           </button>
@@ -3652,13 +3661,13 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
                   </button>
                 ))}
               </div>
-              <button onClick={() => composeWithAI()} disabled={qaBusy} className="btn btn-sm ed-ai-btn" title="L'IA compose la mise en page à partir de la photo et de la charte"
+              <button onClick={() => composeWithAI()} disabled={qaBusy} className="btn btn-sm ed-ai-btn" title={T('aiComposeTip')}
                 style={{ height: 36, opacity: qaBusy ? 0.6 : 1, cursor: qaBusy ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9.5 3l1.6 4.9L16 9.5l-4.9 1.6L9.5 16l-1.6-4.9L3 9.5l4.9-1.6z"/><path d="M18 14l.8 2.5L21 17l-2.2.8L18 20l-.8-2.2L15 17l2.2-.5z"/></svg>
                 <span className="ed-hide-md">{aiVariants.length ? 'Recomposer' : 'Composer (IA)'}</span>
               </button>
               {aiVariants.length > 1 && (
-                <div style={{ display: 'flex', alignItems: 'center', gap: 3, padding: '3px', background: 'var(--sunk)', borderRadius: 9, border: '1px solid var(--line)', flexShrink: 0 }} title="Choisir une proposition de l'IA">
+                <div style={{ display: 'flex', alignItems: 'center', gap: 3, padding: '3px', background: 'var(--sunk)', borderRadius: 9, border: '1px solid var(--line)', flexShrink: 0 }} title={T('aiPickVariant')}>
                   {aiVariants.map((_, i) => (
                     <button key={i} onClick={() => selectVariant(i)} disabled={qaBusy}
                       style={{ width: 26, height: 26, borderRadius: 6, border: 'none', cursor: qaBusy ? 'not-allowed' : 'pointer', fontSize: 12, fontWeight: 800, fontFamily: 'var(--sans)',
@@ -3669,32 +3678,32 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
                   ))}
                 </div>
               )}
-              <button onClick={runVisualQA} disabled={qaBusy} className="btn btn-sm ed-ai-btn" title="L'IA analyse le rendu et corrige les défauts visuels"
+              <button onClick={runVisualQA} disabled={qaBusy} className="btn btn-sm ed-ai-btn" title={T('aiQaTip')}
                 style={{ height: 36, opacity: qaBusy ? 0.6 : 1, cursor: qaBusy ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 3l1.9 5.8L20 10l-5.8 1.9L12 18l-1.9-5.8L4 10l5.8-1.2z"/></svg>
                 <span className="ed-hide-md">{qaBusy ? 'Analyse…' : 'Vérifier'}</span>
               </button>
               <div style={{ position: 'relative' }}>
-                <button onClick={() => generateAI(aiTone)} disabled={aiTyping} className="btn btn-sm ed-ai-btn" title="L'IA régénère la légende du post"
+                <button onClick={() => generateAI(aiTone)} disabled={aiTyping} className="btn btn-sm ed-ai-btn" title={T('aiCaptionTip')}
                   style={{ height: 36, opacity: aiTyping ? 0.6 : 1, cursor: aiTyping ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5z"/></svg>
                   <span className="ed-hide-md">{aiTyping ? 'Rédaction…' : 'Régénérer la légende'}</span>
                 </button>
                 {(aiTyping || aiCaption) && (
                   <div style={{ position: 'absolute', top: '110%', right: 0, zIndex: 20, width: 280, maxHeight: 220, overflowY: 'auto', padding: '12px 14px', borderRadius: 10, background: 'var(--canvas)', border: '1px solid var(--line)', boxShadow: '0 12px 30px rgba(13,15,10,.18)' }}>
-                    <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.04em', color: 'var(--ink-3)', marginBottom: 6 }}>Légende générée</div>
+                    <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.04em', color: 'var(--ink-3)', marginBottom: 6 }}>{T('generatedCaption')}</div>
                     <p style={{ fontSize: 13, lineHeight: 1.5, color: 'var(--ink)', whiteSpace: 'pre-wrap', margin: 0 }}>{aiCaption || '…'}</p>
                   </div>
                 )}
               </div>
-              <button onClick={magicResize} disabled={resizing} className="btn btn-sm ed-ai-btn" title="Génère automatiquement ce visuel dans les autres formats (posts séparés)"
+              <button onClick={magicResize} disabled={resizing} className="btn btn-sm ed-ai-btn" title={T('magicResizeTip')}
                 style={{ height: 36, opacity: resizing ? 0.6 : 1, cursor: resizing ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="10" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/></svg>
                 <span className="ed-hide-md">{resizing ? 'Adaptation…' : 'Adapter aux formats'}</span>
               </button>
             </>
           )}
-          <button onClick={exportPNG} className="btn btn-sm btn-ghost" style={{ height: 36 }}>Aperçu</button>
+          <button onClick={exportPNG} className="btn btn-sm btn-ghost" style={{ height: 36 }}>{T('preview')}</button>
           <button onClick={handleSave} disabled={saving} className="btn btn-sm btn-primary"
             style={{ height: 36, opacity: saving ? 0.6 : 1, cursor: saving ? 'not-allowed' : 'pointer' }}>
             {saving ? 'Sauvegarde…' : isTemplate ? 'Enregistrer' : 'Publier'}
@@ -3748,12 +3757,12 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
             </button>
           ))}
           <div style={{ width: 36, height: 1, background: 'var(--line)', margin: '2px 0' }} />
-          <button onClick={() => { setIsPenMode(p => !p); setTool(null); }} title="Outil Plume — dessiner un tracé libre"
+          <button onClick={() => { setIsPenMode(p => !p); setTool(null); }} title={T('penToolTip')}
             style={{ width: 50, height: 50, borderRadius: 13, border: 'none', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 4, cursor: isPenMode ? 'crosshair' : 'pointer', transition: 'all .14s',
               background: isPenMode ? 'var(--mint-soft)' : 'transparent',
               color: isPenMode ? 'var(--mint-2)' : 'var(--ink-3)' }}>
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M12 19l7-7 3 3-7 7-3-3z"/><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"/><path d="M2 2l7.586 7.586"/><circle cx="11" cy="11" r="2"/></svg>
-            <span style={{ fontFamily: 'var(--mono)', fontWeight: 800, fontSize: 7.5, letterSpacing: '.06em', textTransform: 'uppercase', lineHeight: 1 }}>Plume</span>
+            <span style={{ fontFamily: 'var(--mono)', fontWeight: 800, fontSize: 7.5, letterSpacing: '.06em', textTransform: 'uppercase', lineHeight: 1 }}>{T('penTool')}</span>
           </button>
         </div>
 
@@ -3764,12 +3773,12 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
             {/* DESIGN — Modèles */}
             {tool === 'design' && (
               <div style={{ padding: '18px' }}>
-                <PanelHead title="Modèles" sub={`Mises en page · ${workspaceName}`} onClose={() => setTool(null)} />
+                <PanelHead title={T('templates')} sub={`Mises en page · ${workspaceName}`} onClose={() => setTool(null)} />
                 <div style={{ position: 'relative', marginBottom: 16 }}>
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" style={{ position: 'absolute', left: 12, top: 12, color: 'var(--ink-3)', pointerEvents: 'none' }}><circle cx="11" cy="11" r="7"/><path d="M21 21l-4-4"/></svg>
-                  <input className="input" placeholder="Rechercher un modèle…" style={{ paddingLeft: 36, height: 40, background: 'var(--sunk)', border: 'none' }} />
+                  <input className="input" placeholder={T('searchTemplate')} style={{ paddingLeft: 36, height: 40, background: 'var(--sunk)', border: 'none' }} />
                 </div>
-                <p className="label" style={{ marginBottom: 9 }}>Arrière-plans</p>
+                <p className="label" style={{ marginBottom: 9 }}>{T('backgrounds')}</p>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 9 }}>
                   {([
                     { from: '#2b8d57', to: '#0c2a1d', angle: 150 },
@@ -3795,12 +3804,12 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
             {/* ELEMENTS — Éléments */}
             {tool === 'elements' && (
               <div style={{ padding: '18px' }}>
-                <PanelHead title="Éléments" sub="Formes & blocs de couleur" onClose={() => setTool(null)} />
+                <PanelHead title={T('elements')} sub="Formes & blocs de couleur" onClose={() => setTool(null)} />
                 <div style={{ position: 'relative', marginBottom: 16 }}>
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" style={{ position: 'absolute', left: 12, top: 12, color: 'var(--ink-3)', pointerEvents: 'none' }}><circle cx="11" cy="11" r="7"/><path d="M21 21l-4-4"/></svg>
-                  <input className="input" placeholder="Rechercher un élément…" style={{ paddingLeft: 36, height: 40, background: 'var(--sunk)', border: 'none' }} />
+                  <input className="input" placeholder={T('searchElement')} style={{ paddingLeft: 36, height: 40, background: 'var(--sunk)', border: 'none' }} />
                 </div>
-                <p style={{ fontSize: 10, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '0.12em', fontFamily: 'var(--mono)', fontWeight: 800, margin: '0 0 8px' }}>Formes</p>
+                <p style={{ fontSize: 10, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '0.12em', fontFamily: 'var(--mono)', fontWeight: 800, margin: '0 0 8px' }}>{T('shapes')}</p>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 7, marginBottom: 16 }}>
                   {[
                     { label: 'Carré',    fn: addRect,   preview: <rect x="6" y="6" width="12" height="12" rx="1.5" fill="none" stroke="currentColor" strokeWidth="1.5"/> },
@@ -3817,7 +3826,7 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
                     </button>
                   ))}
                 </div>
-                <p style={{ fontSize: 10, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '0.12em', fontFamily: 'var(--mono)', fontWeight: 800, margin: '0 0 8px 0', marginTop: 16 }}>Formes vectorielles</p>
+                <p style={{ fontSize: 10, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '0.12em', fontFamily: 'var(--mono)', fontWeight: 800, margin: '0 0 8px 0', marginTop: 16 }}>{T('vectorShapes')}</p>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 7, marginBottom: 16 }}>
                   {([
                     { shape: 'rectangle' as const, label: 'Rect', icon: <rect x="4" y="6" width="16" height="12" rx="1" fill="none" stroke="currentColor" strokeWidth="1.6"/> },
@@ -3836,7 +3845,7 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
                     </button>
                   ))}
                 </div>
-                <p style={{ fontSize: 10, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '0.12em', fontFamily: 'var(--mono)', fontWeight: 800, margin: '0 0 8px' }}>Badges</p>
+                <p style={{ fontSize: 10, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '0.12em', fontFamily: 'var(--mono)', fontWeight: 800, margin: '0 0 8px' }}>{T('badges')}</p>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                   {['NOUVEAU', '-20%', 'RÉSA EN BIO'].map(badge => (
                     <button key={badge} onClick={() => { const el: TextEl = { id: newId(), type: 'text', x: 60, y: 60, rotation: 0, opacity: 100, text: badge, fontSize: 32, fontFamily: 'Archivo', fontStyle: 'bold', textDecoration: '', fill: '#fff', align: 'center', width: 220, hasBg: true, bgColor: workspaceData?.primary_color || '#0038FF', bgOpacity: 100, cornerRadius: 8, padding: 16, paddingH: 20, paddingV: 12 }; applyElements([...elements, el]); setSelectedId(el.id); }}
@@ -3847,33 +3856,33 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
                 </div>
 
                 {/* ── Icônes SVG (Iconify) ── */}
-                <p style={{ fontSize: 10, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '0.12em', fontFamily: 'var(--mono)', fontWeight: 800, margin: '20px 0 8px' }}>Icônes & stickers</p>
+                <p style={{ fontSize: 10, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '0.12em', fontFamily: 'var(--mono)', fontWeight: 800, margin: '20px 0 8px' }}>{T('iconsStickers')}</p>
                 <div style={{ display: 'flex', gap: 6, marginBottom: 8 }}>
                   <div style={{ position: 'relative', flex: 1 }}>
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: 'var(--ink-3)', pointerEvents: 'none' }}><circle cx="11" cy="11" r="7"/><path d="M21 21l-4-4"/></svg>
                     <input value={iconQuery} onChange={e => setIconQuery(e.target.value)}
                       onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); fetchIcons(iconQuery); } }}
                       enterKeyHint="search" inputMode="search" autoCapitalize="none" autoCorrect="off"
-                      placeholder="Rechercher une icône…"
+                      placeholder={T('searchIcon')}
                       style={{ width: '100%', padding: '8px 10px 8px 32px', border: '1.5px solid var(--line)', borderRadius: 8, fontSize: 12.5, outline: 'none', fontFamily: 'var(--sans)', background: 'var(--sunk)', color: 'var(--ink)', boxSizing: 'border-box' }} />
                   </div>
-                  <button type="button" onClick={() => fetchIcons(iconQuery)} aria-label="Rechercher"
+                  <button type="button" onClick={() => fetchIcons(iconQuery)} aria-label={T('search')}
                     style={{ flexShrink: 0, width: 40, borderRadius: 8, border: 'none', background: 'var(--mint, #2FD79B)', color: '#06281C', display: 'grid', placeItems: 'center', cursor: 'pointer' }}>
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4-4"/></svg>
                   </button>
                 </div>
                 {/* couleur d'icône */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 10 }}>
-                  <span style={{ fontSize: 10, color: 'var(--ink-3)', fontFamily: 'var(--mono)', fontWeight: 700 }}>Couleur :</span>
+                  <span style={{ fontSize: 10, color: 'var(--ink-3)', fontFamily: 'var(--mono)', fontWeight: 700 }}>{T('colorLabel')}</span>
                   {[['#14160F', 'Noir'], ['#FFFFFF', 'Blanc'], [workspaceData?.primary_color || '#2FD79B', 'Marque']].map(([c]) => (
                     <button key={c} onClick={() => setIconColor(c)} title={c}
                       style={{ width: 22, height: 22, borderRadius: 6, background: c, cursor: 'pointer', border: iconColor === c ? '2px solid var(--mint, #2FD79B)' : '1.5px solid var(--line)', padding: 0 }} />
                   ))}
                 </div>
                 {iconLoading ? (
-                  <p style={{ fontSize: 12, color: 'var(--ink-3)', textAlign: 'center', padding: '12px 0' }}>Chargement…</p>
+                  <p style={{ fontSize: 12, color: 'var(--ink-3)', textAlign: 'center', padding: '12px 0' }}>{T('loading')}</p>
                 ) : iconResults.length === 0 ? (
-                  <p style={{ fontSize: 12, color: 'var(--ink-3)', textAlign: 'center', padding: '12px 0' }}>Aucune icône — essayez un autre mot-clé.</p>
+                  <p style={{ fontSize: 12, color: 'var(--ink-3)', textAlign: 'center', padding: '12px 0' }}>{T('noIcon')}</p>
                 ) : (
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5,1fr)', gap: 6, marginBottom: 8 }}>
                     {iconResults.map(name => (
@@ -3887,7 +3896,7 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
                 )}
 
                 {/* ── Motifs ── */}
-                <p style={{ fontSize: 10, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '0.12em', fontFamily: 'var(--mono)', fontWeight: 800, margin: '16px 0 8px' }}>Motifs</p>
+                <p style={{ fontSize: 10, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '0.12em', fontFamily: 'var(--mono)', fontWeight: 800, margin: '16px 0 8px' }}>{T('patterns')}</p>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 7 }}>
                   {([
                     { label: 'Pois', inner: (c: string) => `<pattern id='a' width='44' height='44' patternUnits='userSpaceOnUse'><circle cx='12' cy='12' r='6' fill='${c}'/></pattern>`, id: 'a' },
@@ -3914,15 +3923,15 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
             {/* TEXT */}
             {tool === 'text' && (
               <div style={{ padding: '18px' }}>
-                <PanelHead title="Texte" onClose={() => setTool(null)} />
+                <PanelHead title={T('text')} onClose={() => setTool(null)} />
                 <button onClick={addText} className="btn btn-dark" style={{ width: '100%', justifyContent: 'center', marginBottom: 16, gap: 8, height: 44 }}>
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
                   Ajouter une zone de texte
                 </button>
                 {isTemplate && (
                   <>
-                    <p style={{ fontSize: 10, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '0.12em', fontFamily: 'var(--mono)', fontWeight: 800, margin: '0 0 8px' }}>Zones par rôle IA</p>
-                    <p style={{ fontSize: 11, color: 'var(--ink-3)', margin: '0 0 8px', lineHeight: 1.4 }}>Ces blocs seront remplis automatiquement par l'IA lors de la génération d'un post.</p>
+                    <p style={{ fontSize: 10, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '0.12em', fontFamily: 'var(--mono)', fontWeight: 800, margin: '0 0 8px' }}>{T('aiRoleZones')}</p>
+                    <p style={{ fontSize: 11, color: 'var(--ink-3)', margin: '0 0 8px', lineHeight: 1.4 }}>{T('aiRoleZonesHint')}</p>
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, marginBottom: 16 }}>
                       {([['accroche', 'Accroche'], ['titre', 'Titre'], ['sous-titre', 'Sous-titre'], ['corps', 'Corps'], ['cta', 'CTA'], ['prix', 'Prix']] as const).map(([role, label]) => (
                         <button key={role} onClick={() => addTextRole(role)} className="well"
@@ -3933,25 +3942,25 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
                     </div>
                   </>
                 )}
-                <p style={{ fontSize: 10, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '0.12em', fontFamily: 'var(--mono)', fontWeight: 800, margin: '0 0 8px' }}>Styles</p>
+                <p style={{ fontSize: 10, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '0.12em', fontFamily: 'var(--mono)', fontWeight: 800, margin: '0 0 8px' }}>{T('styles')}</p>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                   <button onClick={() => applyTemplate({ fontSize: 88, fontFamily: 'Archivo', fontStyle: 'italic bold', fill: workspaceData?.primary_color || '#111' } as Partial<TextEl>)}
                     style={{ padding: '12px 14px', borderRadius: 10, border: '1px solid var(--line)', cursor: 'pointer', background: 'var(--sunk)', textAlign: 'left' }}>
-                    <span style={{ fontFamily: 'Archivo', fontStyle: 'italic', fontWeight: 900, fontSize: 26, color: 'var(--ink)', display: 'block', lineHeight: 1 }}>Titre</span>
+                    <span style={{ fontFamily: 'Archivo', fontStyle: 'italic', fontWeight: 900, fontSize: 26, color: 'var(--ink)', display: 'block', lineHeight: 1 }}>{T('styleTitle')}</span>
                     <span style={{ fontSize: 10, color: 'var(--ink-3)', fontFamily: 'var(--mono)', fontWeight: 700 }}>Archivo Italic · 88px</span>
                   </button>
                   <button onClick={() => applyTemplate({ fontSize: 46, fontFamily: 'Cabinet Grotesk', fontStyle: 'bold', fill: workspaceData?.primary_color || '#111' } as Partial<TextEl>)}
                     style={{ padding: '12px 14px', borderRadius: 10, border: '1px solid var(--line)', cursor: 'pointer', background: 'var(--sunk)', textAlign: 'left' }}>
-                    <span style={{ fontFamily: 'Cabinet Grotesk', fontWeight: 700, fontSize: 20, color: 'var(--ink)', display: 'block', lineHeight: 1 }}>Sous-titre</span>
+                    <span style={{ fontFamily: 'Cabinet Grotesk', fontWeight: 700, fontSize: 20, color: 'var(--ink)', display: 'block', lineHeight: 1 }}>{T('styleSubtitle')}</span>
                     <span style={{ fontSize: 10, color: 'var(--ink-3)', fontFamily: 'var(--mono)', fontWeight: 700 }}>Cabinet Grotesk · 46px</span>
                   </button>
                   <button onClick={() => applyTemplate({ fontSize: 28, fontFamily: 'Satoshi', fontStyle: 'normal', fill: '#333' } as Partial<TextEl>)}
                     style={{ padding: '12px 14px', borderRadius: 10, border: '1px solid var(--line)', cursor: 'pointer', background: 'var(--sunk)', textAlign: 'left' }}>
-                    <span style={{ fontFamily: 'Satoshi', fontWeight: 400, fontSize: 15, color: 'var(--ink-2)', display: 'block', lineHeight: 1.4 }}>Corps de texte</span>
+                    <span style={{ fontFamily: 'Satoshi', fontWeight: 400, fontSize: 15, color: 'var(--ink-2)', display: 'block', lineHeight: 1.4 }}>{T('styleBody')}</span>
                     <span style={{ fontSize: 10, color: 'var(--ink-3)', fontFamily: 'var(--mono)', fontWeight: 700 }}>Satoshi · 28px</span>
                   </button>
                 </div>
-                <p style={{ fontSize: 10, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '0.12em', fontFamily: 'var(--mono)', fontWeight: 800, margin: '16px 0 8px' }}>Layouts IA</p>
+                <p style={{ fontSize: 10, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '0.12em', fontFamily: 'var(--mono)', fontWeight: 800, margin: '16px 0 8px' }}>{T('aiLayouts')}</p>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
                   {LAYOUT_TEMPLATES.map(tpl => (
                     <button key={tpl.label} onClick={() => applyLayoutTemplate(tpl)} className="well"
@@ -3968,14 +3977,14 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
             {/* PHOTOS */}
             {tool === 'photos' && (
               <div style={{ padding: '18px' }}>
-                <PanelHead title="Photos" sub="Pexels · 3M+ photos" onClose={() => setTool(null)} />
+                <PanelHead title={T('photos')} sub="Pexels · 3M+ photos" onClose={() => setTool(null)} />
                 {isTemplate && (
                   <>
                     <button onClick={addPhotoPlaceholder} className="btn btn-dark" style={{ width: '100%', justifyContent: 'center', height: 44, marginBottom: 8, gap: 8, cursor: 'pointer' }}>
                       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
                       Zone photo remplaçable
                     </button>
-                    <p style={{ fontSize: 11, color: 'var(--ink-3)', margin: '0 0 14px', lineHeight: 1.4 }}>Emplacement où la photo du post sera insérée automatiquement.</p>
+                    <p style={{ fontSize: 11, color: 'var(--ink-3)', margin: '0 0 14px', lineHeight: 1.4 }}>{T('photoZoneHint')}</p>
                   </>
                 )}
                 {/* Import local */}
@@ -3992,10 +4001,10 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
                     <input value={pexelsQuery} onChange={e => setPexelsQuery(e.target.value)}
                       onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); fetchPexels(pexelsQuery, 1); } }}
                       enterKeyHint="search" inputMode="search" autoCapitalize="none" autoCorrect="off"
-                      placeholder="Rechercher des photos..."
+                      placeholder={T('searchPhotos')}
                       style={{ width: '100%', padding: '8px 10px 8px 32px', border: '1.5px solid var(--line)', borderRadius: 8, fontSize: 12.5, outline: 'none', fontFamily: 'var(--sans)', background: 'var(--sunk)', color: 'var(--ink)', boxSizing: 'border-box' }} />
                   </div>
-                  <button type="button" onClick={() => fetchPexels(pexelsQuery || 'nature', 1)} aria-label="Rechercher"
+                  <button type="button" onClick={() => fetchPexels(pexelsQuery || 'nature', 1)} aria-label={T('search')}
                     style={{ flexShrink: 0, width: 40, borderRadius: 8, border: 'none', background: 'var(--mint, #2FD79B)', color: '#06281C', display: 'grid', placeItems: 'center', cursor: 'pointer' }}>
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4-4"/></svg>
                   </button>
@@ -4013,7 +4022,7 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
 
                 {/* Results grid */}
                 {pexelsLoading && pexelsPhotos.length === 0 ? (
-                  <div style={{ textAlign: 'center', padding: '24px 0', color: 'var(--ink-3)', fontSize: 13 }}>Chargement…</div>
+                  <div style={{ textAlign: 'center', padding: '24px 0', color: 'var(--ink-3)', fontSize: 13 }}>{T('loading')}</div>
                 ) : pexelsPhotos.length === 0 ? (
                   <div style={{ textAlign: 'center', padding: '24px 0', color: 'var(--ink-3)', fontSize: 13 }}>
                     <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" style={{ marginBottom: 8, display: 'block', margin: '0 auto 8px' }}><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
@@ -4053,8 +4062,8 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
             {/* BRAND — Charte */}
             {tool === 'brand' && (
               <div style={{ padding: '18px' }}>
-                <PanelHead title="Charte de marque" sub={workspaceName} onClose={() => setTool(null)} />
-                <SectionLabel>Couleurs</SectionLabel>
+                <PanelHead title={T('brandKit')} sub={workspaceName} onClose={() => setTool(null)} />
+                <SectionLabel>{T('colors')}</SectionLabel>
                 <div style={{ display: 'flex', gap: 5, marginBottom: 16 }}>
                   {[workspaceData?.primary_color || '#0038FF', workspaceData?.secondary_color || '#FFFFFF', workspaceData?.accent_color].filter(Boolean).map((col, i) => (
                     <div key={i} style={{ flex: 1, cursor: 'pointer' }} title={`Copier ${col}`} onClick={() => { try { navigator.clipboard.writeText(col!); } catch {} }}>
@@ -4064,10 +4073,10 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
                   ))}
                 </div>
                 {brandFontNames.length > 0 && <>
-                  <SectionLabel>Typographie</SectionLabel>
+                  <SectionLabel>{T('typography')}</SectionLabel>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 16 }}>
                     {brandFontNames.map((font, i) => (
-                      <div key={font} title="Ajouter un texte avec cette police"
+                      <div key={font} title={T('addTextWithFont')}
                         onClick={() => { const el: TextEl = { id: newId(), type: 'text', x: 30, y: 60 + i * 60, rotation: 0, opacity: 100, text: font, fontSize: 26, fontFamily: font, fontStyle: 'bold', textDecoration: '', fill: workspaceData?.primary_color || '#000', align: 'left', width: 260, hasBg: false, bgColor: '#000', bgOpacity: 80, cornerRadius: 4, padding: 12, paddingH: 12, paddingV: 8 }; applyElements([...elements, el]); setSelectedId(el.id); }}
                         style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 10px', borderRadius: 6, background: 'var(--sunk)', cursor: 'pointer', border: '1px solid var(--line)' }}>
                         <span style={{ fontFamily: `"${font}", sans-serif`, fontSize: 22, color: 'var(--ink)', lineHeight: 1 }}>Aa</span>
@@ -4077,24 +4086,24 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
                   </div>
                 </>}
                 {(workspaceData?.logo_url || workspaceData?.logo_dark_url) && <>
-                  <SectionLabel>Logo</SectionLabel>
+                  <SectionLabel>{T('logo')}</SectionLabel>
                   <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
                     {workspaceData?.logo_url && (
                       // eslint-disable-next-line @next/next/no-img-element
-                      <img src={workspaceData.logo_url} alt="Logo" title="Ajouter au canvas" style={{ height: 38, maxWidth: 90, objectFit: 'contain', cursor: 'pointer', borderRadius: 5, background: 'var(--white)', padding: 4, border: '1px solid var(--line)' }} onClick={() => addLogoEl(workspaceData.logo_url!)} />
+                      <img src={workspaceData.logo_url} alt="Logo" title={T('addToCanvas')} style={{ height: 38, maxWidth: 90, objectFit: 'contain', cursor: 'pointer', borderRadius: 5, background: 'var(--white)', padding: 4, border: '1px solid var(--line)' }} onClick={() => addLogoEl(workspaceData.logo_url!)} />
                     )}
                     {workspaceData?.logo_dark_url && (
                       // eslint-disable-next-line @next/next/no-img-element
-                      <img src={workspaceData.logo_dark_url} alt="Logo variante" title="Ajouter au canvas (variante sombre)" style={{ height: 38, maxWidth: 90, objectFit: 'contain', cursor: 'pointer', borderRadius: 5, background: '#1A1A1A', padding: 4, border: '1px solid var(--line)' }} onClick={() => addLogoEl(workspaceData.logo_dark_url!)} />
+                      <img src={workspaceData.logo_dark_url} alt="Logo variante" title={T('addToCanvasDark')} style={{ height: 38, maxWidth: 90, objectFit: 'contain', cursor: 'pointer', borderRadius: 5, background: '#1A1A1A', padding: 4, border: '1px solid var(--line)' }} onClick={() => addLogoEl(workspaceData.logo_dark_url!)} />
                     )}
                   </div>
                 </>}
                 {workspaceData?.brand_assets && workspaceData.brand_assets.length > 0 && <>
-                  <SectionLabel>Assets de marque</SectionLabel>
+                  <SectionLabel>{T('brandAssets')}</SectionLabel>
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 5 }}>
                     {workspaceData.brand_assets.map((url, i) => (
                       // eslint-disable-next-line @next/next/no-img-element
-                      <img key={i} src={url} alt="" title="Ajouter au canvas" style={{ aspectRatio: '1', objectFit: 'contain', borderRadius: 6, background: 'var(--sunk)', padding: 4, border: '1px solid var(--line)', cursor: 'pointer', width: '100%', display: 'block' }} onClick={() => addImageEl(url)} />
+                      <img key={i} src={url} alt="" title={T('addToCanvas')} style={{ aspectRatio: '1', objectFit: 'contain', borderRadius: 6, background: 'var(--sunk)', padding: 4, border: '1px solid var(--line)', cursor: 'pointer', width: '100%', display: 'block' }} onClick={() => addImageEl(url)} />
                     ))}
                   </div>
                 </>}
@@ -4104,7 +4113,7 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
             {/* UPLOAD — Importer */}
             {tool === 'upload' && (
               <div style={{ padding: '18px' }}>
-                <PanelHead title="Importer" onClose={() => setTool(null)} />
+                <PanelHead title={T('import')} onClose={() => setTool(null)} />
                 <label className="btn btn-primary" style={{ width: '100%', justifyContent: 'center', height: 44, marginBottom: 14, cursor: 'pointer' }}>
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
                   Choisir un fichier
@@ -4115,8 +4124,8 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
                   onDrop={e => { e.preventDefault(); e.stopPropagation(); const file = e.dataTransfer.files?.[0]; if (file) handleFileDrop(file); }}
                   style={{ border: '1.5px dashed var(--line)', borderRadius: 10, padding: '32px 14px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10, color: 'var(--ink-3)' }}>
                   <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-                  <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink-2)' }}>Glissez vos fichiers ici</span>
-                  <span style={{ fontSize: 11, color: 'var(--ink-3)' }}>PNG, JPG, SVG, WEBP</span>
+                  <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink-2)' }}>{T('dropFilesHere')}</span>
+                  <span style={{ fontSize: 11, color: 'var(--ink-3)' }}>{T('fileFormats')}</span>
                 </div>
               </div>
             )}
@@ -4124,7 +4133,7 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
             {/* CALQUES — Layers panel */}
             {tool === 'calques' && (
               <div style={{ padding: '18px' }}>
-                <PanelHead title="Calques" sub="Ordre et verrouillage" onClose={() => setTool(null)} />
+                <PanelHead title={T('layers')} sub="Ordre et verrouillage" onClose={() => setTool(null)} />
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                   {/* Elements in reverse z-order (top layer first) */}
                   {[...elements].reverse().map((el, i) => {
@@ -4192,15 +4201,15 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
                 )}
                 {postType === 'carrousel' && proxyUrl && (
                   <div style={{ marginTop: 12, padding: '12px', borderRadius: 9, background: 'var(--sunk)', border: '1px solid var(--line)' }}>
-                    <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--ink)', marginBottom: 4 }}>Carrousel lié</div>
+                    <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--ink)', marginBottom: 4 }}>{T('linkedCarousel')}</div>
                     <div style={{ fontSize: 11.5, color: 'var(--ink-3)', lineHeight: 1.4, marginBottom: 10 }}>
                       Étend ce fond sur les slides suivantes pour un visuel continu (panorama) qui se découpe au balayage. Utilisez une photo large pour un meilleur résultat.
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <span style={{ fontSize: 11.5, color: 'var(--ink-2)' }}>Sur</span>
+                      <span style={{ fontSize: 11.5, color: 'var(--ink-2)' }}>{T('on')}</span>
                       <input type="number" min={1} max={6} value={extendCount} onChange={e => setExtendCount(Math.min(6, Math.max(1, parseInt(e.target.value) || 1)))}
                         style={{ width: 44, textAlign: 'center', borderRadius: 6, border: '1px solid var(--line)', padding: '4px 2px', fontSize: 12.5, fontWeight: 700 }} />
-                      <span style={{ fontSize: 11.5, color: 'var(--ink-2)' }}>slide(s) suivante(s)</span>
+                      <span style={{ fontSize: 11.5, color: 'var(--ink-2)' }}>{T('nextSlides')}</span>
                     </div>
                     <button onClick={() => extendBgAcrossSlides(extendCount)} className="btn btn-sm btn-primary" style={{ width: '100%', justifyContent: 'center', marginTop: 10 }}>
                       Étendre l&apos;image
@@ -4226,7 +4235,7 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
                 ))}
               </div>
               <div style={{ textAlign: 'center' }}>
-                <div style={{ fontFamily: 'var(--display, sans-serif)', fontWeight: 800, fontSize: 16.5, color: '#F4F3EC', letterSpacing: '-0.01em' }}>L&apos;IA Klip compose votre visuel</div>
+                <div style={{ fontFamily: 'var(--display, sans-serif)', fontWeight: 800, fontSize: 16.5, color: '#F4F3EC', letterSpacing: '-0.01em' }}>{T('aiComposing')}</div>
                 <div style={{ fontSize: 12.5, color: 'rgba(244,243,236,.6)', marginTop: 5 }}>{qaMsg || 'Un instant — ne cliquez pas, composition en cours.'}</div>
               </div>
               <style>{`
@@ -4585,7 +4594,7 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
             {isPenMode && (
               <div style={{ position: 'absolute', bottom: 14, left: '50%', transform: 'translateX(-50%)', zIndex: 26, background: 'rgba(12,42,29,0.82)', backdropFilter: 'blur(6px)', borderRadius: 10, padding: '7px 14px', display: 'flex', alignItems: 'center', gap: 8, boxShadow: '0 4px 18px rgba(13,15,10,.38)', fontSize: 12, color: 'rgba(238,237,227,0.75)', fontFamily: 'var(--sans)', pointerEvents: 'none', whiteSpace: 'nowrap' }}>
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#2FD79B" strokeWidth="2.2" strokeLinecap="round"><path d="M12 19l7-7 3 3-7 7-3-3z"/><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"/></svg>
-                <span><b style={{ color: '#eeeee0' }}>Clic</b> — ancre &middot; <b style={{ color: '#eeeee0' }}>Clic+glisser</b> — courbe &middot; <b style={{ color: '#eeeee0' }}>Dbl-clic</b> — terminer &middot; <b style={{ color: '#eeeee0' }}>Échap</b> — annuler{penPoints.length >= 3 && <> &middot; <b style={{ color: '#2FD79B' }}>1er point</b> — fermer</>}</span>
+                <span><b style={{ color: '#eeeee0' }}>{T('click')}</b> — ancre &middot; <b style={{ color: '#eeeee0' }}>{T('clickDrag')}</b> — courbe &middot; <b style={{ color: '#eeeee0' }}>{T('dblClick')}</b> — terminer &middot; <b style={{ color: '#eeeee0' }}>{T('escape')}</b> — annuler{penPoints.length >= 3 && <> &middot; <b style={{ color: '#2FD79B' }}>1er point</b> — fermer</>}</span>
               </div>
             )}
 
@@ -4595,11 +4604,11 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
             )}
             {bgImageSelected && (
               <div onMouseDown={e => e.stopPropagation()} style={{ position: 'absolute', top: -50, left: '50%', transform: 'translateX(-50%)', zIndex: 20, background: '#fff', borderRadius: 11, padding: '6px 12px', boxShadow: '0 8px 24px -8px rgba(13,15,10,.3), 0 0 0 1px rgba(13,15,10,.06)', display: 'flex', alignItems: 'center', gap: 10 }}>
-                <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--ink-2)' }}>Opacité fond</span>
+                <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--ink-2)' }}>{T('bgOpacity')}</span>
                 <input type="range" min={10} max={100} value={bgOpacity} onChange={e => setBgOpacity(Number(e.target.value))} style={{ width: 80, accentColor: '#8B5CF6' }} />
                 <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--ink)', minWidth: 28, fontVariantNumeric: 'tabular-nums' }}>{bgOpacity}%</span>
                 <button onClick={() => { setProxyUrl(''); setBgImageSelected(false); }} style={{ width: 22, height: 22, border: 'none', background: 'transparent', cursor: 'pointer', color: 'var(--ink-3)', display: 'grid', placeItems: 'center', borderRadius: 5 }}
-                  title="Supprimer le fond">
+                  title={T('removeBackground')}>
                   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
                 </button>
               </div>
@@ -4827,7 +4836,7 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
               <span style={{ fontFamily: 'var(--mono)', fontWeight: 800, fontSize: 12, width: 42, textAlign: 'center', fontVariantNumeric: 'tabular-nums', color: 'var(--ink-2)' }}>
                 {Math.round(zoom * 100)}%
               </span>
-              <button onClick={fit} title="Ajuster" className="btn btn-sm btn-ghost btn-icon" style={{ height: 34, width: 34 }}>
+              <button onClick={fit} title={T('adjust')} className="btn btn-sm btn-ghost btn-icon" style={{ height: 34, width: 34 }}>
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><path d="M8 3H5a2 2 0 0 0-2 2v3M16 3h3a2 2 0 0 1 2 2v3M8 21H5a2 2 0 0 1-2-2v-3M16 21h3a2 2 0 0 0 2-2v-3"/></svg>
               </button>
               <button onClick={() => setShowGrid(g => !g)} title={showGrid ? 'Masquer la grille' : 'Afficher la grille'} className="btn btn-sm btn-ghost btn-icon"
@@ -4872,7 +4881,7 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
                       textShadow: slide.thumbnail && !isActive ? '0 1px 3px rgba(0,0,0,.5)' : 'none',
                     }}>{idx + 1}</span>
                     {slide.spanGroupId && (
-                      <span title="Fait partie d'un carrousel lié" style={{ position: 'absolute', bottom: 3, left: 3, zIndex: 1, width: 14, height: 14, borderRadius: 4, background: 'rgba(0,0,0,.45)', display: 'grid', placeItems: 'center' }}>
+                      <span title={T('partOfLinkedCarousel')} style={{ position: 'absolute', bottom: 3, left: 3, zIndex: 1, width: 14, height: 14, borderRadius: 4, background: 'rgba(0,0,0,.45)', display: 'grid', placeItems: 'center' }}>
                         <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3" strokeLinecap="round"><path d="M9 17H7A5 5 0 0 1 7 7h2M15 7h2a5 5 0 1 1 0 10h-2M8 12h8"/></svg>
                       </span>
                     )}
