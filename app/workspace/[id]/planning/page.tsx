@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef, Suspense } from "react";
+import { useTranslations, useLocale } from "next-intl";
 import Link from "next/link";
 import { useParams, useSearchParams } from "next/navigation";
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
@@ -11,6 +12,7 @@ import NotificationBell from "@/components/NotificationBell";
 type Song = { id: string; title: string; artist: string; artwork: string; preview: string };
 
 function MusicPicker({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const t = useTranslations('planning');
   const [q, setQ] = useState(value);
   const [results, setResults] = useState<Song[]>([]);
   const [open, setOpen] = useState(false);
@@ -67,7 +69,7 @@ function MusicPicker({ value, onChange }: { value: string; onChange: (v: string)
     <div ref={boxRef} style={{ position: "relative" }}>
       <div style={{ position: "relative" }}>
         <input
-          type="text" value={q} placeholder="Rechercher un titre, un artiste…"
+          type="text" value={q} placeholder={t('musicSearchPh')}
           className="input" style={{ fontSize: 12.5, paddingLeft: 30 }}
           onChange={e => onType(e.target.value)}
           onFocus={() => { if (results.length) setOpen(true); }}
@@ -91,7 +93,7 @@ function MusicPicker({ value, onChange }: { value: string; onChange: (v: string)
               <div style={{ position: "relative", width: 38, height: 38, flexShrink: 0, borderRadius: 6, overflow: "hidden", background: "var(--sunk)" }}>
                 {s.artwork && <img src={s.artwork} alt="" width={38} height={38} style={{ objectFit: "cover", display: "block" }} />}
                 {s.preview && (
-                  <button onClick={e => togglePreview(s, e)} title={playingId === s.id ? "Pause" : "Écouter"}
+                  <button onClick={e => togglePreview(s, e)} title={playingId === s.id ? t('musicPause') : t('musicPlay')}
                     style={{ position: "absolute", inset: 0, display: "grid", placeItems: "center", border: "none", cursor: "pointer", background: "rgba(0,0,0,.38)", color: "#fff" }}>
                     {playingId === s.id
                       ? <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/></svg>
@@ -106,7 +108,7 @@ function MusicPicker({ value, onChange }: { value: string; onChange: (v: string)
             </div>
           ))}
           <div style={{ fontSize: 10.5, color: "var(--ink-3)", padding: "6px 8px 3px", lineHeight: 1.4 }}>
-            Le son sera à ajouter dans Instagram à la publication (catalogue IG non accessible par API).
+            {t('musicApiHint')}
           </div>
         </div>
       )}
@@ -118,10 +120,10 @@ function MusicPicker({ value, onChange }: { value: string; onChange: (v: string)
 
 type PostType = "post" | "reel" | "story";
 
-const POST_TYPE_CFG: Record<PostType, { label: string; color: string; bg: string }> = {
-  post:  { label: "Post",  color: "#4F8EF7", bg: "#4F8EF715" },
-  reel:  { label: "Reel",  color: "#A259FF", bg: "#A259FF15" },
-  story: { label: "Story", color: "#FF6B35", bg: "#FF6B3515" },
+const POST_TYPE_CFG: Record<PostType, { label: string; tKey: string; color: string; bg: string }> = {
+  post:  { label: "Post",  tKey: "ptPost",  color: "#4F8EF7", bg: "#4F8EF715" },
+  reel:  { label: "Reel",  tKey: "ptReel",  color: "#A259FF", bg: "#A259FF15" },
+  story: { label: "Story", tKey: "ptStory", color: "#FF6B35", bg: "#FF6B3515" },
 };
 
 interface Post {
@@ -156,8 +158,6 @@ interface Workspace {
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-const DAY_NAMES    = ["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"];
-const MONTH_NAMES  = ["Janvier","Février","Mars","Avril","Mai","Juin","Juillet","Août","Septembre","Octobre","Novembre","Décembre"];
 const HOUR_H       = 48; // px per hour — 48px gives readable slots with proportional post blocks
 const HOURS        = Array.from({ length: 24 }, (_, i) => i);
 
@@ -180,12 +180,23 @@ function isSameDay(a: Date, b: Date): boolean {
 function toDateInput(date: Date): string {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
 }
-function formatTime(iso: string | null): string {
+function formatTime(iso: string | null, locale = "fr-FR"): string {
   if (!iso) return "";
-  return new Date(iso).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
+  return new Date(iso).toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit" });
 }
-function formatMonthYear(date: Date): string {
-  return date.toLocaleDateString("fr-FR", { month: "long", year: "numeric" });
+function formatMonthYear(date: Date, locale = "fr-FR"): string {
+  return date.toLocaleDateString(locale, { month: "long", year: "numeric" });
+}
+// Noms de mois / jours localisés dérivés de la locale active (via Intl) — évite
+// de maintenir des tableaux traduits à la main pour les dates.
+function localizedMonthNames(locale: string): string[] {
+  const f = new Intl.DateTimeFormat(locale, { month: "long" });
+  return Array.from({ length: 12 }, (_, m) => { const s = f.format(new Date(2021, m, 1)); return s.charAt(0).toUpperCase() + s.slice(1); });
+}
+function localizedDayNamesShort(locale: string): string[] {
+  const f = new Intl.DateTimeFormat(locale, { weekday: "short" });
+  // 1er janvier 2024 = lundi → i=0..6 donne lun..dim.
+  return Array.from({ length: 7 }, (_, i) => { const s = f.format(new Date(2024, 0, 1 + i)); return s.charAt(0).toUpperCase() + s.slice(1); });
 }
 function buildScheduledAt(dateStr: string, timeStr: string): string | null {
   const d = new Date(`${dateStr}T${timeStr || "09:00"}:00`);
@@ -228,17 +239,18 @@ function getMonthGrid(year: number, month: number): (Date | null)[] {
 
 // ─── Status chip ──────────────────────────────────────────────────────────────
 
-const STATUS_CFG: Record<string, { label: string; bg: string; color: string; dot: string }> = {
-  scheduled: { label: "Programmé", bg: "var(--mint-soft)",  color: "var(--mint-2)",  dot: "var(--mint-2)"   },
-  published:  { label: "Publié",    bg: "var(--mint)",       color: "var(--mint-ink)", dot: "var(--mint-ink)" },
-  generated:  { label: "Brouillon", bg: "var(--sunk)",       color: "var(--ink-3)",   dot: "var(--ink-3)"    },
-  validated:  { label: "Brouillon", bg: "var(--sunk)",       color: "var(--ink-3)",   dot: "var(--ink-3)"    },
+const STATUS_CFG: Record<string, { label: string; tKey: string; bg: string; color: string; dot: string }> = {
+  scheduled: { label: "Programmé", tKey: "stScheduled", bg: "var(--mint-soft)",  color: "var(--mint-2)",  dot: "var(--mint-2)"   },
+  published:  { label: "Publié",    tKey: "stPublished", bg: "var(--mint)",       color: "var(--mint-ink)", dot: "var(--mint-ink)" },
+  generated:  { label: "Brouillon", tKey: "stGenerated", bg: "var(--sunk)",       color: "var(--ink-3)",   dot: "var(--ink-3)"    },
+  validated:  { label: "Brouillon", tKey: "stGenerated", bg: "var(--sunk)",       color: "var(--ink-3)",   dot: "var(--ink-3)"    },
 };
 function StatusChip({ status }: { status: string }) {
+  const t = useTranslations('planning');
   const cfg = STATUS_CFG[status] ?? STATUS_CFG.generated;
   return (
     <span className="badge" style={{ background: cfg.bg, color: cfg.color }}>
-      <span className="dot" style={{ background: cfg.dot }} />{cfg.label}
+      <span className="dot" style={{ background: cfg.dot }} />{t(cfg.tKey)}
     </span>
   );
 }
@@ -287,6 +299,7 @@ function heatBg(s: number): string {
 function heatInk(s: number): string { return s >= 72 ? "var(--mint-ink)" : "var(--ink-2)"; }
 
 function BestTimeStrip({ dayOfWeek, label }: { dayOfWeek: number; label: string }) {
+  const t = useTranslations('planning');
   const curve = Array.from({ length: 24 }, (_, h) => ({ h, s: engageScore(dayOfWeek, h) }));
   const peaks = peakHours(dayOfWeek, 3);
   return (
@@ -295,10 +308,10 @@ function BestTimeStrip({ dayOfWeek, label }: { dayOfWeek: number; label: string 
         <span style={{ width: 26, height: 26, borderRadius: 8, background: "var(--mint-soft)", color: "var(--mint-2)", display: "grid", placeItems: "center", flexShrink: 0 }}>
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
         </span>
-        <span className="h-title" style={{ fontSize: 14 }}>Meilleur moment pour publier</span>
+        <span className="h-title" style={{ fontSize: 14 }}>{t('bestTime')}</span>
         <span className="chip" style={{ background: "var(--sunk)", color: "var(--ink-2)", fontSize: 10.5 }}>{label}</span>
         <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 8, fontSize: 11, color: "var(--ink-3)", fontWeight: 600 }}>
-          <span>Engagement</span>
+          <span>{t('engagement')}</span>
           <span style={{ width: 72, height: 7, borderRadius: 99, background: "linear-gradient(90deg, rgba(13,15,10,.09), rgba(47,215,155,.5), var(--mint), var(--acid))", display: "block" }} />
           <span className="tnum">100%</span>
         </div>
@@ -328,7 +341,6 @@ function BestTimeStrip({ dayOfWeek, label }: { dayOfWeek: number; label: string 
 
 // ─── Calendar right rail ──────────────────────────────────────────────────────
 
-const DOW_SHORT = ["Lun","Mar","Mer","Jeu","Ven","Sam","Dim"];
 
 function CalendarRail({ posts, weekDays, chipColor, workspaceId }: {
   posts: Post[];
@@ -336,21 +348,24 @@ function CalendarRail({ posts, weekDays, chipColor, workspaceId }: {
   chipColor: string;
   workspaceId: string;
 }) {
+  const t = useTranslations('planning');
+  const locale = useLocale();
+  const dowShort = localizedDayNamesShort(locale);
   const weekPosts  = posts.filter(p => p.scheduled_at && weekDays.some(d => isSameDay(new Date(p.scheduled_at!), d)));
   const byStatus = (s: string) => weekPosts.filter(p => p.status === s).length;
   // Validation client (tous les posts du client, pas seulement la semaine)
   const approvedCount = posts.filter(p => p.approved_by_client).length;
   const pendingCount = posts.filter(p => !p.approved_by_client && !p.client_comment && ["scheduled", "validated", "generated"].includes(p.status)).length;
   const stats = [
-    { label: "Planifiés",       n: byStatus("scheduled"), tone: "mint" },
-    { label: "Validés client",  n: approvedCount,          tone: "mint" },
-    { label: "En attente",      n: pendingCount,           tone: "warn" },
-    { label: "Publiés",         n: byStatus("published"),  tone: "mint" },
+    { label: t('statScheduled'),      n: byStatus("scheduled"), tone: "mint" },
+    { label: t('statClientApproved'), n: approvedCount,          tone: "mint" },
+    { label: t('statPending'),        n: pendingCount,           tone: "warn" },
+    { label: t('statPublished'),      n: byStatus("published"),  tone: "mint" },
   ];
   const toFinish = posts.filter(p => p.status === "generated" || p.status === "validated").slice(0, 5);
 
   // load per day-of-week
-  const load = DOW_SHORT.map((_, i) => weekPosts.filter(p => {
+  const load = dowShort.map((_, i) => weekPosts.filter(p => {
     const d = new Date(p.scheduled_at!).getDay();
     return (d === 0 ? 6 : d - 1) === i;
   }).length);
@@ -360,7 +375,7 @@ function CalendarRail({ posts, weekDays, chipColor, workspaceId }: {
     <aside className="plan-rail" style={{ width: 288, flexShrink: 0, borderLeft: "1px solid var(--line)", background: "var(--paper)", display: "flex", flexDirection: "column", gap: 0, overflowY: "auto" }}>
       {/* Week overview */}
       <div style={{ padding: 16, borderBottom: "1px solid var(--line)" }}>
-        <div className="label" style={{ marginBottom: 12 }}>Cette semaine</div>
+        <div className="label" style={{ marginBottom: 12 }}>{t('thisWeek')}</div>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
           {stats.map(s => (
             <div key={s.label} className="well" style={{ padding: "11px 13px" }}>
@@ -374,11 +389,11 @@ function CalendarRail({ posts, weekDays, chipColor, workspaceId }: {
       {/* À finaliser */}
       <div style={{ padding: 16, borderBottom: "1px solid var(--line)" }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
-          <h3 className="h-title" style={{ fontSize: 13 }}>À finaliser</h3>
+          <h3 className="h-title" style={{ fontSize: 13 }}>{t('toFinish')}</h3>
           {toFinish.length > 0 && <span className="chip" style={{ background: "var(--warn-soft)", color: "var(--warn)", fontSize: 10.5 }}>{posts.filter(p => p.status === "generated" || p.status === "validated").length}</span>}
         </div>
         {toFinish.length === 0 ? (
-          <div style={{ fontSize: 12.5, color: "var(--ink-3)", padding: "6px 0" }}>Tout est planifié. ✦</div>
+          <div style={{ fontSize: 12.5, color: "var(--ink-3)", padding: "6px 0" }}>{t('allPlanned')}</div>
         ) : (
           <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
             {toFinish.map(p => {
@@ -392,8 +407,8 @@ function CalendarRail({ posts, weekDays, chipColor, workspaceId }: {
                     <MediaThumb raw={rawImg} />
                   </div>
                   <div style={{ minWidth: 0, flex: 1 }}>
-                    <div style={{ fontWeight: 700, fontSize: 12.5, color: "var(--ink)" }} className="trunc">{p.texte_visuel || p.description?.slice(0, 40) || "Post"}</div>
-                    <div style={{ fontSize: 11, color: "var(--ink-3)", fontWeight: 600, marginTop: 2 }}>{STATUS_CFG[p.status]?.label ?? "Brouillon"}</div>
+                    <div style={{ fontWeight: 700, fontSize: 12.5, color: "var(--ink)" }} className="trunc">{p.texte_visuel || p.description?.slice(0, 40) || t('postFallback')}</div>
+                    <div style={{ fontSize: 11, color: "var(--ink-3)", fontWeight: 600, marginTop: 2 }}>{t(STATUS_CFG[p.status]?.tKey ?? 'stGenerated')}</div>
                   </div>
                   <IconChevR />
                 </Link>
@@ -405,9 +420,9 @@ function CalendarRail({ posts, weekDays, chipColor, workspaceId }: {
 
       {/* Charge de la semaine */}
       <div style={{ padding: 16 }}>
-        <h3 className="h-title" style={{ fontSize: 13, marginBottom: 14 }}>Charge de la semaine</h3>
+        <h3 className="h-title" style={{ fontSize: 13, marginBottom: 14 }}>{t('weekLoad')}</h3>
         <div style={{ display: "flex", alignItems: "flex-end", gap: 5, height: 64 }}>
-          {DOW_SHORT.map((d, i) => (
+          {dowShort.map((d, i) => (
             <div key={d} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 5 }}>
               <span className="tnum" style={{ fontSize: 10, fontWeight: 800, color: load[i] ? "var(--ink-2)" : "var(--ink-3)" }}>{load[i] || ""}</span>
               <div style={{ width: "100%", height: `${10 + (load[i] / maxLoad) * 36}px`, borderRadius: "4px 4px 2px 2px", background: load[i] >= maxLoad && maxLoad > 1 ? chipColor : load[i] ? `${chipColor}66` : "var(--sunk)" }} />
@@ -429,6 +444,10 @@ function PlanningContent() {
   const preSelectedId = searchParams.get("post");
   const supabase     = createClientComponentClient();
   const gridRef      = useRef<HTMLDivElement>(null);
+  const t            = useTranslations('planning');
+  const locale       = useLocale();
+  const MONTH_LOC    = localizedMonthNames(locale);
+  const DAY_LOC      = localizedDayNamesShort(locale);
 
   // ── State ─────────────────────────────────────────────────────────────────
   const [workspace,    setWorkspace]    = useState<Workspace | null>(null);
@@ -480,10 +499,10 @@ function PlanningContent() {
       if (res.ok && json.token?.token) {
         setShareLink(`${window.location.origin}/preview/${json.token.token}`);
       } else {
-        setToast({ msg: json.error || "Erreur lors de la génération du lien", ok: false });
+        setToast({ msg: json.error || t('errLinkGen'), ok: false });
       }
     } catch {
-      setToast({ msg: "Erreur réseau", ok: false });
+      setToast({ msg: t('errNetwork'), ok: false });
     }
     setShareBusy(false);
   }
@@ -690,11 +709,11 @@ function PlanningContent() {
         <div style={{ position: "fixed", inset: 0, zIndex: 50, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(13,15,10,.45)" }} onClick={() => setShowIgModal(false)}>
           <div className="card pop-in" style={{ padding: 32, maxWidth: 360, width: "100%", margin: "0 16px" }} onClick={e => e.stopPropagation()}>
             <div style={{ width: 48, height: 48, borderRadius: 14, background: "linear-gradient(135deg,#F58529,#DD2A7B,#8134AF)", display: "grid", placeItems: "center", color: "#fff", marginBottom: 16 }}><IconInstagram /></div>
-            <h2 className="h-title" style={{ fontSize: 18, marginBottom: 8 }}>Instagram non connecté</h2>
-            <p style={{ color: "var(--ink-2)", fontSize: 14, marginBottom: 24, lineHeight: 1.5 }}>Connectez d&apos;abord le compte Instagram de ce client pour publier depuis Klip.</p>
+            <h2 className="h-title" style={{ fontSize: 18, marginBottom: 8 }}>{t('igNotConnected')}</h2>
+            <p style={{ color: "var(--ink-2)", fontSize: 14, marginBottom: 24, lineHeight: 1.5 }}>{t('igConnectHint')}</p>
             <div style={{ display: "flex", gap: 10 }}>
-              <button onClick={() => setShowIgModal(false)} className="btn btn-ghost" style={{ flex: 1 }}>Annuler</button>
-              <Link href={`/workspace/${id}/parametres`} className="btn btn-dark" style={{ flex: 1, textAlign: "center" }}>Connecter Instagram</Link>
+              <button onClick={() => setShowIgModal(false)} className="btn btn-ghost" style={{ flex: 1 }}>{t('cancel')}</button>
+              <Link href={`/workspace/${id}/parametres`} className="btn btn-dark" style={{ flex: 1, textAlign: "center" }}>{t('connectInstagram')}</Link>
             </div>
           </div>
         </div>
@@ -706,11 +725,11 @@ function PlanningContent() {
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 24px", background: "var(--forest)", borderBottom: "1px solid var(--cream-4)" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
               <span style={{ fontFamily: "var(--display)", fontWeight: 900, fontSize: 20, color: "var(--cream)", letterSpacing: "-0.04em" }}>Kl<span style={{ color: "var(--mint)" }}>ip</span></span>
-              <span style={{ color: "var(--cream-3)", fontSize: 14 }}>× Canva Editor</span>
+              <span style={{ color: "var(--cream-3)", fontSize: 14 }}>{t('canvaEditor')}</span>
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
               <label className="btn btn-primary btn-sm" style={{ cursor: "pointer" }}>
-                Uploader le PNG
+                {t('uploadPng')}
                 <input type="file" accept="image/png,image/jpeg" style={{ display: "none" }}
                   onChange={async e => {
                     const file = e.target.files?.[0]; if (!file) return;
@@ -722,7 +741,7 @@ function PlanningContent() {
                   }}
                 />
               </label>
-              <button onClick={() => setShowCanva(false)} className="btn btn-ghost btn-sm" style={{ color: "var(--cream)" }}>Fermer</button>
+              <button onClick={() => setShowCanva(false)} className="btn btn-ghost btn-sm" style={{ color: "var(--cream)" }}>{t('close')}</button>
             </div>
           </div>
           <iframe src="https://www.canva.com/_partnership/embed?action=createDesign&type=InstagramPost&fileType=png&supportDesignButtonErrorPage=false&apiMode=button&embed" style={{ flex: 1, width: "100%", border: "none" }} allow="fullscreen" title="Canva Editor" />
@@ -733,16 +752,16 @@ function PlanningContent() {
       {shareOpen && (
         <div style={{ position: "fixed", inset: 0, zIndex: 60, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(13,15,10,.45)", padding: 16 }} onClick={() => setShareOpen(false)}>
           <div className="card pop-in" style={{ padding: 28, maxWidth: 440, width: "100%" }} onClick={e => e.stopPropagation()}>
-            <h2 className="h-title" style={{ fontSize: 18, marginBottom: 6 }}>Partager pour validation</h2>
+            <h2 className="h-title" style={{ fontSize: 18, marginBottom: 6 }}>{t('shareTitle')}</h2>
             <p style={{ color: "var(--ink-2)", fontSize: 13.5, marginBottom: 20, lineHeight: 1.5 }}>
-              Choisissez la période à envoyer à votre client. Il pourra voir le calendrier, valider chaque post ou demander des modifications — sans créer de compte.
+              {t('shareHint')}
             </p>
             <div style={{ display: "flex", gap: 12, marginBottom: 18 }}>
-              <label style={{ flex: 1, fontSize: 12, fontWeight: 700, color: "var(--ink-2)" }}>Du
+              <label style={{ flex: 1, fontSize: 12, fontWeight: 700, color: "var(--ink-2)" }}>{t('from')}
                 <input type="date" value={shareFrom} onChange={e => setShareFrom(e.target.value)}
                   style={{ width: "100%", marginTop: 5, padding: "9px 11px", borderRadius: 9, border: "1px solid var(--line)", background: "var(--sunk)", color: "var(--ink)", fontFamily: "var(--sans)", outline: "none" }} />
               </label>
-              <label style={{ flex: 1, fontSize: 12, fontWeight: 700, color: "var(--ink-2)" }}>Au
+              <label style={{ flex: 1, fontSize: 12, fontWeight: 700, color: "var(--ink-2)" }}>{t('to')}
                 <input type="date" value={shareTo} min={shareFrom} onChange={e => setShareTo(e.target.value)}
                   style={{ width: "100%", marginTop: 5, padding: "9px 11px", borderRadius: 9, border: "1px solid var(--line)", background: "var(--sunk)", color: "var(--ink)", fontFamily: "var(--sans)", outline: "none" }} />
               </label>
@@ -750,22 +769,22 @@ function PlanningContent() {
 
             {!shareLink ? (
               <button onClick={generateShareLink} disabled={shareBusy} className="btn btn-primary" style={{ width: "100%", justifyContent: "center", background: "#2FD79B", color: "#0D2E1C", fontWeight: 700 }}>
-                {shareBusy ? "Génération…" : "Générer le lien"}
+                {shareBusy ? t('generating') : t('generateLink')}
               </button>
             ) : (
               <>
                 <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
                   <input readOnly value={shareLink} onFocus={e => e.currentTarget.select()}
                     style={{ flex: 1, padding: "9px 11px", borderRadius: 9, border: "1px solid var(--line)", background: "var(--sunk)", color: "var(--ink-2)", fontSize: 12.5, fontFamily: "var(--mono)", outline: "none" }} />
-                  <button onClick={() => { navigator.clipboard.writeText(shareLink); setToast({ msg: "Lien copié !", ok: true }); }} className="btn btn-dark btn-sm">Copier</button>
+                  <button onClick={() => { navigator.clipboard.writeText(shareLink); setToast({ msg: t('linkCopied'), ok: true }); }} className="btn btn-dark btn-sm">{t('copy')}</button>
                 </div>
                 <p style={{ fontSize: 12, color: "var(--ink-3)", lineHeight: 1.5 }}>
-                  Envoyez ce lien à votre client. Vous recevrez une notification pour chaque validation ou commentaire, visible sur chaque post.
+                  {t('shareLinkHint')}
                 </p>
               </>
             )}
 
-            <button onClick={() => { setShareOpen(false); setShareLink(""); }} className="btn btn-ghost btn-sm" style={{ width: "100%", justifyContent: "center", marginTop: 14 }}>Fermer</button>
+            <button onClick={() => { setShareOpen(false); setShareLink(""); }} className="btn btn-ghost btn-sm" style={{ width: "100%", justifyContent: "center", marginTop: 14 }}>{t('close')}</button>
           </div>
         </div>
       )}
@@ -776,7 +795,7 @@ function PlanningContent() {
         {/* Topbar */}
         <header className="topbar">
           <h1 className="h-display" style={{ fontSize: 22, textTransform: "capitalize", whiteSpace: "nowrap" }}>
-            {calView === "week" ? formatMonthYear(weekStart) : `${MONTH_NAMES[monthDate.getMonth()]} ${monthDate.getFullYear()}`}
+            {calView === "week" ? formatMonthYear(weekStart, locale) : `${MONTH_LOC[monthDate.getMonth()]} ${monthDate.getFullYear()}`}
           </h1>
 
           {calView === "week" && (
@@ -793,21 +812,21 @@ function PlanningContent() {
           )}
 
           {!isCurrentWeek && calView === "week" && (
-            <button onClick={() => setWeekStart(getMonday(new Date()))} className="btn btn-sm btn-ghost">Aujourd&apos;hui</button>
+            <button onClick={() => setWeekStart(getMonday(new Date()))} className="btn btn-sm btn-ghost">{t('today')}</button>
           )}
 
           <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 10 }}>
             <NotificationBell />
             <button onClick={() => setShareOpen(true)} className="btn btn-ghost btn-sm" style={{ gap: 6 }}>
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="M8.6 13.5l6.8 4M15.4 6.5l-6.8 4"/></svg>
-              Partager pour validation
+              {t('shareTitle')}
             </button>
-            <Link href={`/workspace/${id}`} className="btn btn-primary btn-sm" style={{ background: "#2FD79B", color: "#0D2E1C", fontWeight: 700, gap: 6 }}><IconPlus /> Nouveau post</Link>
+            <Link href={`/workspace/${id}`} className="btn btn-primary btn-sm" style={{ background: "#2FD79B", color: "#0D2E1C", fontWeight: 700, gap: 6 }}><IconPlus /> {t('newPost')}</Link>
             {/* Segmented toggle */}
             <div className="seg">
               {(["month","week"] as const).map(v => (
                 <button key={v} onClick={() => setCalView(v)} className={calView === v ? "on" : ""}>
-                  {v === "week" ? "Semaine" : "Mois"}
+                  {v === "week" ? t('week') : t('month')}
                 </button>
               ))}
             </div>
@@ -818,14 +837,14 @@ function PlanningContent() {
         {connected && (
           <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 26px", background: "var(--mint-soft)", borderBottom: "1px solid var(--mint-soft)", flexShrink: 0 }}>
             <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="7" stroke="var(--mint-2)" strokeWidth="1.5"/><path d="M5 8l2.5 2.5 4-4" stroke="var(--mint-2)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
-            <p style={{ fontSize: 13, fontWeight: 600, color: "var(--mint-2)" }}>Compte Instagram connecté avec succès.</p>
+            <p style={{ fontSize: 13, fontWeight: 600, color: "var(--mint-2)" }}>{t('igConnectedSuccess')}</p>
           </div>
         )}
 
         {/* ── BestTimeStrip ── */}
         <BestTimeStrip
           dayOfWeek={calView === "week" ? weekStart.getDay() : today.getDay()}
-          label={calView === "week" ? DAY_NAMES[weekStart.getDay() === 0 ? 6 : weekStart.getDay() - 1] : MONTH_NAMES[monthDate.getMonth()]}
+          label={calView === "week" ? DAY_LOC[weekStart.getDay() === 0 ? 6 : weekStart.getDay() - 1] : MONTH_LOC[monthDate.getMonth()]}
         />
 
         {/* Section « À publier » retirée (redondante avec le calendrier ci-dessous) */}
@@ -903,7 +922,7 @@ function PlanningContent() {
                   const isToday = isSameDay(day, today);
                   return (
                     <div key={i} style={{ padding: "11px 14px 10px", borderRight: i < 6 ? `1px solid rgba(13,15,10,.08)` : "none", display: "flex", alignItems: "center", gap: 8 }}>
-                      <span style={{ fontFamily: "var(--display)", fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: ".07em", color: "var(--ink-3)" }}>{DAY_NAMES[i]}</span>
+                      <span style={{ fontFamily: "var(--display)", fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: ".07em", color: "var(--ink-3)" }}>{DAY_LOC[i]}</span>
                       <span style={{ width: 26, height: 26, borderRadius: "50%", display: "grid", placeItems: "center", fontFamily: "'Archivo', var(--sans)", fontWeight: 700, fontSize: 13, transition: "background .12s",
                         background: isToday ? "#2FD79B" : "transparent",
                         color: isToday ? "#0D2E1C" : "var(--ink)" }}>
@@ -1003,7 +1022,7 @@ function PlanningContent() {
                                 {post.texte_visuel || "Post"}
                               </div>
                               <div style={{ fontSize: 10.5, color: isPub ? "var(--mint-2)" : "var(--ink-3)", fontWeight: 700, lineHeight: 1 }}>
-                                {isPub ? "Publié" : formatTime(post.scheduled_at)}
+                                {isPub ? t('stPublished') : formatTime(post.scheduled_at, locale)}
                               </div>
                             </div>
                             {(post.approved_by_client || post.client_comment) && (
@@ -1049,7 +1068,7 @@ function PlanningContent() {
           <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
             {/* Day headers */}
             <div style={{ display: "grid", gridTemplateColumns: "repeat(7,1fr)", borderBottom: `1px solid rgba(13,15,10,.08)`, flexShrink: 0, background: "var(--canvas)" }}>
-              {DAY_NAMES.map(d => (
+              {DAY_LOC.map(d => (
                 <div key={d} style={{ padding: "11px 0 9px", textAlign: "center", fontFamily: "var(--display)", fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: ".07em", color: "var(--ink-3)" }}>{d}</div>
               ))}
             </div>
@@ -1109,7 +1128,7 @@ function PlanningContent() {
                               )}
                             </div>
                             <span style={{ overflow: "hidden", textOverflow: "ellipsis" }}>
-                              {formatTime(post.scheduled_at)} {post.texte_visuel || "Post"}
+                              {formatTime(post.scheduled_at, locale)} {post.texte_visuel || t('postFallback')}
                             </span>
                             {isPub && <span className="dot" style={{ background: "var(--mint-2)", marginLeft: "auto", marginRight: 4 }} />}
                           </div>
@@ -1128,7 +1147,7 @@ function PlanningContent() {
             {/* Unscheduled (month view) */}
             {unscheduled.length > 0 && (
               <div style={{ flexShrink: 0, borderTop: "1px solid var(--line)", padding: "10px 20px", background: "var(--canvas)", display: "flex", gap: 8, overflowX: "auto", alignItems: "center" }}>
-                <span style={{ fontFamily: "var(--mono)", fontSize: 9.5, fontWeight: 800, textTransform: "uppercase", letterSpacing: ".08em", color: "var(--ink-3)", flexShrink: 0 }}>Non programmés — glisse sur une date</span>
+                <span style={{ fontFamily: "var(--mono)", fontSize: 9.5, fontWeight: 800, textTransform: "uppercase", letterSpacing: ".08em", color: "var(--ink-3)", flexShrink: 0 }}>{t('unscheduled')}</span>
                 {unscheduled.map(post => (
                   <div key={post.id} draggable
                     onDragStart={() => setDraggedId(post.id)}
@@ -1140,7 +1159,7 @@ function PlanningContent() {
                       <img src={post.exported_image_url || post.thumbnail_url || post.photo_url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
                     ) : (
                       <div style={{ width: "100%", height: "100%", background: chipColor, display: "grid", placeItems: "center" }}>
-                        <span style={{ fontFamily: "var(--mono)", fontSize: 9, fontWeight: 800, color: "#fff", textTransform: "uppercase" }}>Post</span>
+                        <span style={{ fontFamily: "var(--mono)", fontSize: 9, fontWeight: 800, color: "#fff", textTransform: "uppercase" }}>{t('postFallback')}</span>
                       </div>
                     )}
                   </div>
@@ -1159,9 +1178,9 @@ function PlanningContent() {
         {/* ── Status legend ── */}
         <div style={{ flexShrink: 0, display: "flex", alignItems: "center", gap: 18, padding: "10px 26px", borderTop: "1px solid var(--line)", background: "var(--canvas)", flexWrap: "wrap" }}>
           {([
-            { key: "scheduled", dot: "var(--mint-2)",  label: "Programmé"  },
-            { key: "published", dot: "var(--mint)",    label: "Publié"     },
-            { key: "generated", dot: "var(--ink-3)",   label: "Brouillon"  },
+            { key: "scheduled", dot: "var(--mint-2)",  label: t('stScheduled') },
+            { key: "published", dot: "var(--mint)",    label: t('stPublished') },
+            { key: "generated", dot: "var(--ink-3)",   label: t('legendDraft') },
           ]).map(({ key, dot, label }) => (
             <div key={key} style={{ display: "flex", alignItems: "center", gap: 7, fontSize: 12, color: "var(--ink-2)", fontWeight: 600 }}>
               <span className="dot" style={{ background: dot }} /> {label}
@@ -1169,7 +1188,7 @@ function PlanningContent() {
           ))}
           <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 7, fontSize: 11.5, color: "var(--ink-3)", fontWeight: 600 }}>
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M5 9l4-4 4 4M9 5v14M19 15l-4 4-4-4M15 5v14"/></svg>
-            Glissez un post pour le replanifier
+            {t('dragHint')}
           </div>
         </div>
       </div>
@@ -1182,7 +1201,7 @@ function PlanningContent() {
         <div style={{ position: "fixed", inset: 0, zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(13,15,10,.45)" }} onClick={() => setSelectedPost(null)}>
         <div style={{ width: 420, maxHeight: "90vh", borderRadius: 16, background: "var(--white)", display: "flex", flexDirection: "column", overflowY: "auto", boxShadow: "0 24px 60px -12px rgba(13,15,10,.45), 0 0 0 1px rgba(13,15,10,.06)" }} onClick={e => e.stopPropagation()}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "16px 20px", borderBottom: "1px solid var(--line)" }}>
-            <span className="h-title" style={{ fontSize: 15 }}>Programmer</span>
+            <span className="h-title" style={{ fontSize: 15 }}>{t('schedule')}</span>
             <button onClick={() => setSelectedPost(null)} className="btn btn-ghost btn-icon"><IconClose /></button>
           </div>
 
@@ -1214,28 +1233,28 @@ function PlanningContent() {
             {selectedPost.approved_by_client && (
               <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 12px", borderRadius: 10, background: "rgba(47,215,155,.12)", border: "1px solid var(--mint-2)" }}>
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--mint-2)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5" /></svg>
-                <span style={{ fontSize: 13, fontWeight: 700, color: "var(--mint-2)" }}>Validé par le client</span>
+                <span style={{ fontSize: 13, fontWeight: 700, color: "var(--mint-2)" }}>{t('approvedByClient')}</span>
               </div>
             )}
             {!selectedPost.approved_by_client && selectedPost.client_comment && (
               <div style={{ padding: "10px 12px", borderRadius: 10, background: "#FEF3C7", border: "1px solid #FCD34D" }}>
-                <div style={{ fontSize: 10.5, fontWeight: 800, color: "#B45309", textTransform: "uppercase", letterSpacing: ".06em", marginBottom: 4 }}>Modification demandée par le client</div>
+                <div style={{ fontSize: 10.5, fontWeight: 800, color: "#B45309", textTransform: "uppercase", letterSpacing: ".06em", marginBottom: 4 }}>{t('changeRequested')}</div>
                 <div style={{ fontSize: 13, color: "#92400E", lineHeight: 1.5 }}>{selectedPost.client_comment}</div>
               </div>
             )}
 
             <div>
-              <label className="label" style={{ display: "block", marginBottom: 6 }}>Description Instagram</label>
+              <label className="label" style={{ display: "block", marginBottom: 6 }}>{t('igDescription')}</label>
               <textarea value={panelDesc} onChange={e => setPanelDesc(e.target.value)} rows={4} className="input" style={{ resize: "none", fontSize: 12.5, color: "var(--ink-2)" }} />
             </div>
 
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
               <div>
-                <label className="label" style={{ display: "block", marginBottom: 6 }}>Date</label>
+                <label className="label" style={{ display: "block", marginBottom: 6 }}>{t('date')}</label>
                 <input type="date" value={panelDate} onChange={e => setPanelDate(e.target.value)} className="input" style={{ height: 40, fontSize: 12.5 }} />
               </div>
               <div>
-                <label className="label" style={{ display: "block", marginBottom: 6 }}>Heure</label>
+                <label className="label" style={{ display: "block", marginBottom: 6 }}>{t('time')}</label>
                 <input type="time" value={panelTime} onChange={e => setPanelTime(e.target.value)} className="input" style={{ height: 40, fontSize: 12.5 }} />
               </div>
             </div>
@@ -1246,21 +1265,21 @@ function PlanningContent() {
               const allowed = allowedTypesFor(isVid);
               return (
                 <div>
-                  <label className="label" style={{ display: "block", marginBottom: 8 }}>Type de contenu</label>
+                  <label className="label" style={{ display: "block", marginBottom: 8 }}>{t('contentType')}</label>
                   <div style={{ display: "flex", gap: 6 }}>
                     {(Object.entries(POST_TYPE_CFG) as [PostType, typeof POST_TYPE_CFG[PostType]][]).map(([tid, cfg]) => {
                       const ok = allowed.includes(tid);
                       return (
                         <button key={tid} disabled={!ok} onClick={() => ok && setPanelPostType(tid)}
-                          title={ok ? undefined : isVid ? "Une vidéo ne peut être qu'un Reel ou une Story" : "Une photo ne peut pas être un Reel"}
+                          title={ok ? undefined : isVid ? t('videoTypeTooltip') : t('photoTypeTooltip')}
                           style={{ flex: 1, padding: "6px 4px", borderRadius: 7, border: `1.5px solid ${panelPostType === tid ? cfg.color : "var(--line)"}`, background: panelPostType === tid ? cfg.bg : "transparent", color: panelPostType === tid ? cfg.color : "var(--ink-3)", fontSize: 12, fontWeight: 700, cursor: ok ? "pointer" : "not-allowed", opacity: ok ? 1 : 0.4, fontFamily: "var(--sans)", transition: "all .15s" }}>
-                          {cfg.label}
+                          {t(cfg.tKey)}
                         </button>
                       );
                     })}
                   </div>
                   <span style={{ fontSize: 11, color: "var(--ink-3)", marginTop: 6, display: "block" }}>
-                    {isVid ? "Vidéo : publiable en Reel ou Story." : "Photo : publiable en Post ou Story."}
+                    {isVid ? t('videoTypeHint') : t('photoTypeHint')}
                   </span>
                 </div>
               );
@@ -1268,13 +1287,13 @@ function PlanningContent() {
 
             {/* ── Tags Instagram ── */}
             <div>
-              <label className="label" style={{ display: "block", marginBottom: 6 }}>Personnes taguées</label>
+              <label className="label" style={{ display: "block", marginBottom: 6 }}>{t('taggedPeople')}</label>
               <div style={{ position: "relative" }}>
                 <input
                   type="text"
                   value={panelTaggedUsers}
                   onChange={e => setPanelTaggedUsers(e.target.value)}
-                  placeholder="@username1, @username2…"
+                  placeholder={t('taggedPh')}
                   className="input"
                   style={{ fontSize: 12.5, paddingLeft: 30 }}
                 />
@@ -1283,19 +1302,19 @@ function PlanningContent() {
                   <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
                 </svg>
               </div>
-              <span style={{ fontSize: 11, color: "var(--ink-3)", marginTop: 4, display: "block" }}>Séparez les comptes par une virgule</span>
+              <span style={{ fontSize: 11, color: "var(--ink-3)", marginTop: 4, display: "block" }}>{t('separateComma')}</span>
             </div>
 
             {/* ── Note musicale (affichage seul si rempli, éditable) ── */}
             <div>
-              <label className="label" style={{ display: "block", marginBottom: 6 }}>Note musicale</label>
+              <label className="label" style={{ display: "block", marginBottom: 6 }}>{t('musicNote')}</label>
               <MusicPicker value={panelMusicNote} onChange={setPanelMusicNote} />
             </div>
 
             {/* ── Publier sur ── */}
             {(workspace?.instagram_account_id || workspace?.facebook_page_id) && (
               <div>
-                <label className="label" style={{ display: "block", marginBottom: 8 }}>Publier sur</label>
+                <label className="label" style={{ display: "block", marginBottom: 8 }}>{t('publishOn')}</label>
                 <div style={{ display: "flex", gap: 8 }}>
                   {workspace?.instagram_account_id && (() => {
                     const active = panelPlatforms.includes("instagram");
@@ -1304,7 +1323,7 @@ function PlanningContent() {
                       <button onClick={() => { if (onlyOne) return; setPanelPlatforms(prev => active ? prev.filter(p => p !== "instagram") : [...prev, "instagram"]); }}
                         style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 5, padding: "10px 8px", borderRadius: 10, border: `2px solid ${active ? "#E1306C" : "var(--line)"}`, background: active ? "#E1306C15" : "transparent", cursor: onlyOne ? "default" : "pointer", transition: "all .15s" }}>
                         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={active ? "#E1306C" : "#9CA3AF"} strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.3" cy="6.7" r="1" fill={active ? "#E1306C" : "#9CA3AF"} stroke="none"/></svg>
-                        <span style={{ fontSize: 11, fontWeight: 600, color: active ? "#E1306C" : "#9CA3AF", fontFamily: "var(--sans)" }}>Instagram</span>
+                        <span style={{ fontSize: 11, fontWeight: 600, color: active ? "#E1306C" : "#9CA3AF", fontFamily: "var(--sans)" }}>{t('instagram')}</span>
                       </button>
                     );
                   })()}
@@ -1315,7 +1334,7 @@ function PlanningContent() {
                       <button onClick={() => { if (onlyOne) return; setPanelPlatforms(prev => active ? prev.filter(p => p !== "facebook") : [...prev, "facebook"]); }}
                         style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 5, padding: "10px 8px", borderRadius: 10, border: `2px solid ${active ? "#1877F2" : "var(--line)"}`, background: active ? "#1877F215" : "transparent", cursor: onlyOne ? "default" : "pointer", transition: "all .15s" }}>
                         <svg width="22" height="22" viewBox="0 0 24 24" fill={active ? "#1877F2" : "#9CA3AF"} xmlns="http://www.w3.org/2000/svg"><path d="M24 12.073C24 5.405 18.627 0 12 0S0 5.405 0 12.073C0 18.1 4.388 23.094 10.125 24v-8.437H7.078v-3.49h3.047V9.41c0-3.025 1.792-4.697 4.533-4.697 1.312 0 2.686.236 2.686.236v2.97h-1.513c-1.491 0-1.956.93-1.956 1.883v2.25h3.328l-.532 3.49h-2.796V24C19.612 23.094 24 18.1 24 12.073z"/></svg>
-                        <span style={{ fontSize: 11, fontWeight: 600, color: active ? "#1877F2" : "#9CA3AF", fontFamily: "var(--sans)" }}>Facebook</span>
+                        <span style={{ fontSize: 11, fontWeight: 600, color: active ? "#1877F2" : "#9CA3AF", fontFamily: "var(--sans)" }}>{t('facebook')}</span>
                       </button>
                     );
                   })()}
@@ -1325,11 +1344,11 @@ function PlanningContent() {
 
             <div style={{ display: "flex", gap: 7 }}>
               <Link href={isVideoUrl(selectedPost.photo_url) ? `/workspace/${id}/montage/${selectedPost.id}` : `/workspace/${id}/editor/${selectedPost.id}`} className="btn btn-ghost btn-sm" style={{ flex: 1, justifyContent: "center" }}>
-                <IconEdit /> {isVideoUrl(selectedPost.photo_url) ? "Monter" : "Éditer"}
+                <IconEdit /> {isVideoUrl(selectedPost.photo_url) ? t('montageShort') : t('editShort')}
               </Link>
               {!isVideoUrl(selectedPost.photo_url) && (
                 <button onClick={() => { setCanvaPostId(selectedPost.id); setShowCanva(true); }} className="btn btn-dark btn-sm" style={{ flex: 1 }}>
-                  <IconSpark /> Canva
+                  <IconSpark /> {t('canva')}
                 </button>
               )}
             </div>
@@ -1337,16 +1356,16 @@ function PlanningContent() {
             <button onClick={() => deletePost(selectedPost)} className="btn btn-ghost btn-sm"
               style={{ color: "var(--warn)", borderColor: "rgba(200,115,43,.3)", width: "100%", justifyContent: "center" }}>
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M4 7h16M9 7V4.5h6V7M6 7l1 13h10l1-13"/></svg>
-              Supprimer ce post
+              {t('deletePost')}
             </button>
           </div>
 
           <div style={{ padding: "16px 20px", borderTop: "1px solid var(--line)", display: "flex", flexDirection: "column", gap: 8 }}>
             <button onClick={handleSchedule} disabled={scheduling || !panelDate} className="btn btn-primary" style={{ width: "100%", padding: "12px", opacity: (scheduling || !panelDate) ? 0.5 : 1 }}>
-              <IconCalendar /> {scheduling ? "Programmation…" : "Programmer ce post"}
+              <IconCalendar /> {scheduling ? t('scheduling') : t('schedulePost')}
             </button>
             <button onClick={handlePublish} disabled={publishing} className="btn btn-ghost" style={{ width: "100%", opacity: publishing ? 0.5 : 1 }}>
-              {publishing ? "Publication…" : "Publier maintenant"}
+              {publishing ? t('publishing') : t('publishNow')}
             </button>
           </div>
         </div></div>
