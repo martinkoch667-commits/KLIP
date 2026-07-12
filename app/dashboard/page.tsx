@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState, useRef, Suspense } from 'react';
+import { useTranslations, useLocale } from 'next-intl';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
@@ -111,8 +112,9 @@ function StatTile({ value, label, icon, tone = 'default', sub }: StatTileProps) 
 // ─── PostCard ───────────────────────────────────────────────────────────────
 
 function PostCard({ post, workspaceId, onClick }: { post: PostRow; workspaceId: string; onClick: () => void }) {
+  const t = useTranslations('dashboard');
   const imgUrl = post.exported_image_url || post.photo_url;
-  const statusLabel = post.status === 'generated' ? 'À valider' : post.status === 'validated' ? 'Prêt' : 'Brouillon';
+  const statusLabel = post.status === 'generated' ? t('statusToValidate') : post.status === 'validated' ? t('statusReady') : t('statusDraft');
   const statusBg = post.status === 'generated' ? 'var(--warn-soft)' : post.status === 'validated' ? 'var(--mint-soft)' : 'var(--sunk)';
   const statusColor = post.status === 'generated' ? 'var(--warn)' : post.status === 'validated' ? 'var(--mint-2)' : 'var(--ink-3)';
   return (
@@ -165,6 +167,7 @@ function fmtCount(n?: number) {
 }
 
 function InstagramProfile({ workspaceId }: { workspaceId: string }) {
+  const t = useTranslations('dashboard');
   const [wsInfo, setWsInfo] = useState<{ name: string; connected: boolean; instagram_username?: string } | null>(null);
   const [profile, setProfile] = useState<IGProfile | null>(null);
   const [media, setMedia] = useState<IGMedia[]>([]);
@@ -198,7 +201,7 @@ function InstagramProfile({ workspaceId }: { workspaceId: string }) {
   if (loading) {
     return (
       <div className="card" style={{ padding: 20, display: 'grid', placeItems: 'center', minHeight: 180 }}>
-        <span style={{ color: 'var(--ink-3)', fontSize: 13 }}>Chargement…</span>
+        <span style={{ color: 'var(--ink-3)', fontSize: 13 }}>{t('loading')}</span>
       </div>
     );
   }
@@ -209,10 +212,10 @@ function InstagramProfile({ workspaceId }: { workspaceId: string }) {
         <span style={{ width: 44, height: 44, borderRadius: '50%', background: 'var(--sunk)', display: 'grid', placeItems: 'center', color: 'var(--ink-3)' }}>
           <IconInstagram />
         </span>
-        <p style={{ fontSize: 13, fontWeight: 700, color: 'var(--ink)', margin: 0 }}>Instagram non connecté</p>
-        <p style={{ fontSize: 12, color: 'var(--ink-3)', margin: 0 }}>Connectez un compte pour voir l'aperçu</p>
+        <p style={{ fontSize: 13, fontWeight: 700, color: 'var(--ink)', margin: 0 }}>{t('igNotConnected')}</p>
+        <p style={{ fontSize: 12, color: 'var(--ink-3)', margin: 0 }}>{t('igConnectHint')}</p>
         <Link href={`/workspace/${workspaceId}/parametres`} className="btn btn-dark btn-sm" style={{ marginTop: 4 }}>
-          Connecter Instagram
+          {t('connectInstagram')}
         </Link>
       </div>
     );
@@ -230,7 +233,7 @@ function InstagramProfile({ workspaceId }: { workspaceId: string }) {
           <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--ink)' }}>@{handle}</span>
           <span className="badge" style={{ background: 'var(--mint-soft)', color: 'var(--mint-2)', display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 11 }}>
             <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--mint-2)', flexShrink: 0 }} />
-            Connecté
+            {t('connected')}
           </span>
         </div>
 
@@ -254,9 +257,9 @@ function InstagramProfile({ workspaceId }: { workspaceId: string }) {
           {/* 3 stats */}
           <div style={{ display: 'flex', flex: 1 }}>
             {[
-              { v: fmtCount(profile?.media_count), l: 'Posts' },
-              { v: fmtCount(profile?.followers_count), l: 'Abonnés' },
-              { v: fmtCount(profile?.follows_count), l: 'Abonnements' },
+              { v: fmtCount(profile?.media_count), l: t('posts') },
+              { v: fmtCount(profile?.followers_count), l: t('followers') },
+              { v: fmtCount(profile?.follows_count), l: t('following') },
             ].map(s => (
               <div key={s.l} style={{ flex: 1, textAlign: 'center' }}>
                 <div style={{ fontSize: 14, fontWeight: 800, color: 'var(--ink)' }}>{s.v}</div>
@@ -288,7 +291,7 @@ function InstagramProfile({ workspaceId }: { workspaceId: string }) {
       {/* Grid / placeholder */}
       {tab === 0 ? (
         media.length === 0 ? (
-          <div style={{ padding: '24px 0', textAlign: 'center', color: 'var(--ink-3)', fontSize: 12 }}>Aucun post</div>
+          <div style={{ padding: '24px 0', textAlign: 'center', color: 'var(--ink-3)', fontSize: 12 }}>{t('noPost')}</div>
         ) : (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 2 }}>
             {media.map(m => {
@@ -305,7 +308,7 @@ function InstagramProfile({ workspaceId }: { workspaceId: string }) {
           </div>
         )
       ) : (
-        <div style={{ padding: '28px 0', textAlign: 'center', color: 'var(--ink-3)', fontSize: 12 }}>Bientôt disponible</div>
+        <div style={{ padding: '28px 0', textAlign: 'center', color: 'var(--ink-3)', fontSize: 12 }}>{t('comingSoon')}</div>
       )}
     </div>
   );
@@ -313,37 +316,38 @@ function InstagramProfile({ workspaceId }: { workspaceId: string }) {
 
 // ─── ActivityFeed ───────────────────────────────────────────────────────────
 
-const ACTION_LABELS: Record<string, string> = {
-  post_created:   'a créé le post',
-  post_validated: 'a validé le post',
-  post_published: 'a publié le post',
-  post_deleted:   'a supprimé un post',
-  workspace_created: 'a créé le workspace',
+const ACTION_KEYS: Record<string, string> = {
+  post_created:   'actPostCreated',
+  post_validated: 'actPostValidated',
+  post_published: 'actPostPublished',
+  post_deleted:   'actPostDeleted',
+  workspace_created: 'actWorkspaceCreated',
 };
 
-function timeAgo(dateStr: string): string {
+function timeAgo(dateStr: string, t: (k: string, v?: Record<string, unknown>) => string): string {
   const diff = Date.now() - new Date(dateStr).getTime();
   const m = Math.floor(diff / 60000);
-  if (m < 1) return 'à l\'instant';
-  if (m < 60) return `il y a ${m} min`;
+  if (m < 1) return t('justNow');
+  if (m < 60) return t('minAgo', { m });
   const h = Math.floor(m / 60);
-  if (h < 24) return `il y a ${h}h`;
+  if (h < 24) return t('hoursAgo', { h });
   const d = Math.floor(h / 24);
-  return `il y a ${d}j`;
+  return t('daysAgo', { d });
 }
 
 function ActivityFeed({ activities, workspaces }: { activities: ActivityRow[]; workspaces: WorkspaceRow[] }) {
+  const t = useTranslations('dashboard');
   const wsMap = Object.fromEntries(workspaces.map((w, i) => [w.id, { name: w.name, color: wsColor(i) }]));
   return (
     <div className="card" style={{ padding: 20, flex: 1 }}>
-      <h2 className="h-title" style={{ fontSize: 15, marginBottom: 16 }}>Activité récente</h2>
+      <h2 className="h-title" style={{ fontSize: 15, marginBottom: 16 }}>{t('recentActivity')}</h2>
       {activities.length === 0 ? (
-        <div style={{ color: 'var(--ink-3)', fontSize: 13, textAlign: 'center', padding: '16px 0' }}>Aucune activité pour l'instant</div>
+        <div style={{ color: 'var(--ink-3)', fontSize: 13, textAlign: 'center', padding: '16px 0' }}>{t('noActivity')}</div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
           {activities.map(a => {
             const ws = wsMap[a.workspace_id];
-            const label = ACTION_LABELS[a.action_type] ?? a.action_type;
+            const label = ACTION_KEYS[a.action_type] ? t(ACTION_KEYS[a.action_type]) : a.action_type;
             return (
               <div key={a.id} style={{ display: 'flex', gap: 10 }}>
                 <span style={{ width: 28, height: 28, borderRadius: 8, background: 'var(--mint-soft)', color: 'var(--mint-2)', display: 'grid', placeItems: 'center', flexShrink: 0 }}>
@@ -354,7 +358,7 @@ function ActivityFeed({ activities, workspaces }: { activities: ActivityRow[]; w
                   {label}
                   {a.post_title && <> <b style={{ color: 'var(--ink)' }}>"{a.post_title}"</b></>}
                   <div style={{ fontSize: 11, color: 'var(--ink-3)', marginTop: 2 }}>
-                    {ws?.name ?? 'Client'} · {timeAgo(a.created_at)}
+                    {ws?.name ?? t('clientFallback')} · {timeAgo(a.created_at, t as unknown as (k: string, v?: Record<string, unknown>) => string)}
                   </div>
                 </div>
               </div>
@@ -373,6 +377,7 @@ function ClientSwitcher({ active, workspaces, onChange }: {
   workspaces: WorkspaceRow[];
   onChange: (id: string) => void;
 }) {
+  const t = useTranslations('dashboard');
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
@@ -402,7 +407,7 @@ function ClientSwitcher({ active, workspaces, onChange }: {
             <IconGrid />
           </span>
         )}
-        <span style={{ fontWeight: 700, fontSize: 13 }}>{cur ? cur.name : 'Tous les clients'}</span>
+        <span style={{ fontWeight: 700, fontSize: 13 }}>{cur ? cur.name : t('allClients')}</span>
         <IconChevD />
       </button>
       {open && (
@@ -415,7 +420,7 @@ function ClientSwitcher({ active, workspaces, onChange }: {
             <span style={{ width: 26, height: 26, borderRadius: 7, background: 'var(--ink)', color: 'var(--paper)', display: 'grid', placeItems: 'center', flexShrink: 0 }}>
               <IconGrid />
             </span>
-            <span style={{ fontWeight: 700, fontSize: 13, flex: 1 }}>Tous les clients</span>
+            <span style={{ fontWeight: 700, fontSize: 13, flex: 1 }}>{t('allClients')}</span>
             {active === 'all' && <span style={{ color: 'var(--mint-2)' }}><IconCheck /></span>}
           </button>
           <div style={{ height: 1, background: 'var(--line)', margin: '5px 8px' }} />
@@ -450,6 +455,7 @@ function WorkspaceCard({ workspace, posts, color, index, onOpen }: {
   index: number;
   onOpen: () => void;
 }) {
+  const t = useTranslations('dashboard');
   const wsPosts = posts.filter(p => p.workspace_id === workspace.id);
   const pending = wsPosts.filter(p => p.status === 'generated').length;
   const scheduled = wsPosts.filter(p => p.scheduled_at).length;
@@ -475,7 +481,7 @@ function WorkspaceCard({ workspace, posts, color, index, onOpen }: {
           <div style={{ paddingBottom: 2, minWidth: 0 }}>
             <div className="h-title" style={{ fontSize: 16 }} >{workspace.name}</div>
             <div style={{ fontSize: 12, color: 'var(--ink-3)', fontWeight: 600 }}>
-              {workspace.instagram_username ? `@${workspace.instagram_username}` : 'Instagram non connecté'}
+              {workspace.instagram_username ? `@${workspace.instagram_username}` : t('igNotConnected')}
             </div>
           </div>
         </div>
@@ -502,16 +508,16 @@ function WorkspaceCard({ workspace, posts, color, index, onOpen }: {
         <div style={{ display: 'flex', alignItems: 'center', gap: 14, paddingTop: 14, borderTop: '1px solid var(--line)', marginTop: 'auto' }}>
           <div>
             <span className="num" style={{ fontSize: 18 }}>{scheduled}</span>
-            <span style={{ fontSize: 12, color: 'var(--ink-3)', marginLeft: 4 }}>planifiés</span>
+            <span style={{ fontSize: 12, color: 'var(--ink-3)', marginLeft: 4 }}>{t('scheduledShort')}</span>
           </div>
           {pending > 0 && (
             <div>
               <span className="num" style={{ fontSize: 18, color: 'var(--warn)' }}>{pending}</span>
-              <span style={{ fontSize: 12, color: 'var(--ink-3)', marginLeft: 4 }}>à valider</span>
+              <span style={{ fontSize: 12, color: 'var(--ink-3)', marginLeft: 4 }}>{t('toValidateShort')}</span>
             </div>
           )}
           <button className="btn btn-sm btn-ghost" style={{ marginLeft: 'auto' }} onClick={onOpen}>
-            Ouvrir <IconChevR />
+            {t('open')} <IconChevR />
           </button>
         </div>
       </div>
@@ -539,6 +545,8 @@ function WelcomeParamWatcher({ onWelcome }: { onWelcome: () => void }) {
 export default function Dashboard() {
   const supabase = createClientComponentClient();
   const router = useRouter();
+  const t = useTranslations('dashboard');
+  const locale = useLocale();
 
   const [workspaces, setWorkspaces] = useState<WorkspaceRow[]>([]);
   const [showConnectClaude, setShowConnectClaude] = useState(false);
@@ -601,7 +609,7 @@ export default function Dashboard() {
     </div>
   );
 
-  const today = new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
+  const today = new Date().toLocaleDateString(locale, { weekday: 'long', day: 'numeric', month: 'long' });
   const todayStr = new Date().toISOString().slice(0, 10);
 
   // Filter by active workspace
@@ -637,17 +645,17 @@ export default function Dashboard() {
         <header className="topbar" data-tour="dashboard">
           <ClientSwitcher active={active} workspaces={workspaces} onChange={setActive} />
           <div style={{ width: 1, height: 24, background: 'var(--line)', flexShrink: 0 }} />
-          <span className="h-title" style={{ fontSize: 15, whiteSpace: 'nowrap', color: 'var(--ink-2)' }}>Tableau de bord</span>
+          <span className="h-title" style={{ fontSize: 15, whiteSpace: 'nowrap', color: 'var(--ink-2)' }}>{t('title')}</span>
 
           <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 10 }}>
             <NotificationBell />
             {active !== 'all' ? (
               <Link href={`/workspace/${active}`} className="btn btn-primary">
-                <IconPlus /> Nouveau post
+                <IconPlus /> {t('newPost')}
               </Link>
             ) : (
               <Link href="/workspace/new" className="btn btn-dark">
-                <IconSpark /> Nouveau client
+                <IconSpark /> {t('newClient')}
               </Link>
             )}
           </div>
@@ -664,27 +672,27 @@ export default function Dashboard() {
               <div style={{ position: 'relative', zIndex: 2, display: 'grid', gridTemplateColumns: '1fr auto', gap: 28, alignItems: 'center' }} className="dash-hero">
                 <div>
                   <div className="label" style={{ color: 'var(--mint)', marginBottom: 12 }}>
-                    {today.charAt(0).toUpperCase() + today.slice(1)} · Bonjour {userName}
+                    {today.charAt(0).toUpperCase() + today.slice(1)} · {t('greeting', { name: userName })}
                   </div>
                   <h1 className="h-display" style={{ fontSize: 38, color: 'var(--cream)', maxWidth: 520 }}>
                     {active === 'all'
-                      ? <>Voici l'état de <span className="it" style={{ color: 'var(--mint)' }}>vos marques.</span></>
-                      : <>Espace de <span className="it" style={{ color: 'var(--mint)' }}>{clientName}.</span></>}
+                      ? <>{t('heroAllPre')}<span className="it" style={{ color: 'var(--mint)' }}>{t('heroAllAccent')}</span></>
+                      : <>{t('heroClientPre')}<span className="it" style={{ color: 'var(--mint)' }}>{clientName}.</span></>}
                   </h1>
                   <p style={{ color: 'var(--cream-2)', marginTop: 10, maxWidth: 460, fontSize: 14.5 }}>
                     {pendingPosts > 0
-                      ? <><b style={{ color: 'var(--cream)' }}>{pendingPosts} post{pendingPosts > 1 ? 's' : ''}</b> attendent votre validation · Publications automatiques activées.</>
-                      : <>Tout est sous contrôle · Publications automatiques activées.</>}
+                      ? t('pendingValidation', { count: pendingPosts })
+                      : t('allGood')}
                   </p>
                   <div style={{ display: 'flex', gap: 10, marginTop: 18 }}>
                     {active !== 'all' ? (
-                      <Link href={`/workspace/${active}`} className="btn btn-primary"><IconSpark /> Composer avec l'IA</Link>
+                      <Link href={`/workspace/${active}`} className="btn btn-primary"><IconSpark /> {t('composeAI')}</Link>
                     ) : (
-                      <Link href="/composer" className="btn btn-primary"><IconSpark /> Composer avec l'IA</Link>
+                      <Link href="/composer" className="btn btn-primary"><IconSpark /> {t('composeAI')}</Link>
                     )}
                     {active !== 'all' && (
                       <Link href={`/workspace/${active}/planning`} className="btn" style={{ background: 'var(--cream-4)', color: 'var(--cream)', boxShadow: 'inset 0 0 0 1px var(--cream-3)' }}>
-                        <IconCalendar /> Calendrier
+                        <IconCalendar /> {t('calendar')}
                       </Link>
                     )}
                   </div>
@@ -696,7 +704,7 @@ export default function Dashboard() {
                     <span style={{ width: 24, height: 24, borderRadius: 7, background: 'var(--mint)', color: 'var(--mint-ink)', display: 'grid', placeItems: 'center', flexShrink: 0 }}>
                       <IconBolt />
                     </span>
-                    <span className="label" style={{ color: 'var(--cream)' }}>À publier aujourd'hui</span>
+                    <span className="label" style={{ color: 'var(--cream)' }}>{t('toPublishToday')}</span>
                     <span className="num" style={{ marginLeft: 'auto', fontSize: 18, color: 'var(--acid)' }}>{todayPosts}</span>
                   </div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
@@ -714,10 +722,10 @@ export default function Dashboard() {
                           </div>
                           <span style={{ minWidth: 0, flex: 1 }}>
                             <span style={{ display: 'block', fontWeight: 700, fontSize: 12, color: 'var(--cream)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                              {p.texte_visuel?.slice(0, 28) || 'Post'}
+                              {p.texte_visuel?.slice(0, 28) || t('postFallback')}
                             </span>
                             <span style={{ fontSize: 10.5, color: 'var(--cream-2)', fontWeight: 600 }}>
-                              {ws?.name ?? 'Client'}{p.scheduled_at ? ' · ' + new Date(p.scheduled_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) : ''}
+                              {ws?.name ?? t('clientFallback')}{p.scheduled_at ? ' · ' + new Date(p.scheduled_at).toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' }) : ''}
                             </span>
                           </span>
                         </button>
@@ -725,7 +733,7 @@ export default function Dashboard() {
                     })}
                     {upcoming.length === 0 && (
                       <div style={{ fontSize: 12.5, color: 'var(--cream-2)', textAlign: 'center', padding: '12px 0' }}>
-                        Aucune publication pour l'instant
+                        {t('noUpcoming')}
                       </div>
                     )}
                   </div>
@@ -735,12 +743,12 @@ export default function Dashboard() {
 
             {/* Stat tiles */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 14, marginBottom: 14 }} className="dash-stats">
-              <StatTile value={todayPosts} label="À publier aujourd'hui" icon={<IconBolt />} tone="mint" sub="Auto" />
-              <StatTile value={pendingPosts} label="En attente de validation" icon={<IconClock />} tone="warn" />
-              <StatTile value={scheduledPosts} label="Planifiés" icon={<IconCalendar />} />
+              <StatTile value={todayPosts} label={t('toPublishToday')} icon={<IconBolt />} tone="mint" sub={t('statAuto')} />
+              <StatTile value={pendingPosts} label={t('statPending')} icon={<IconClock />} tone="warn" />
+              <StatTile value={scheduledPosts} label={t('statScheduled')} icon={<IconCalendar />} />
               <StatTile
                 value={active === 'all' ? workspaces.length : 1}
-                label={active === 'all' ? 'Clients actifs' : 'Compte connecté'}
+                label={active === 'all' ? t('statClients') : t('statConnected')}
                 icon={<IconInstagram />}
               />
             </div>
@@ -749,9 +757,9 @@ export default function Dashboard() {
             {active === 'all' && (
               <>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
-                  <h2 className="h-title" style={{ fontSize: 17 }}>Vos clients</h2>
+                  <h2 className="h-title" style={{ fontSize: 17 }}>{t('yourClients')}</h2>
                   <Link href="/workspace/new" className="btn btn-primary">
-                    <IconPlus /> Ajouter un client
+                    <IconPlus /> {t('addClient')}
                   </Link>
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 14, marginBottom: 14 }} className="clients-grid">
@@ -772,7 +780,7 @@ export default function Dashboard() {
                     onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = 'var(--line)'; (e.currentTarget as HTMLElement).style.color = 'var(--ink-3)'; }}
                   >
                     <span style={{ width: 46, height: 46, borderRadius: 13, background: 'var(--sunk)', display: 'grid', placeItems: 'center' }}><IconPlus /></span>
-                    <span style={{ fontWeight: 700, fontSize: 14 }}>Nouvel espace client</span>
+                    <span style={{ fontWeight: 700, fontSize: 14 }}>{t('newClientSpace')}</span>
                   </Link>
                 </div>
 
@@ -788,17 +796,17 @@ export default function Dashboard() {
                 {/* Upcoming posts */}
                 <div className="card" style={{ padding: 22 }}>
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 18 }}>
-                    <h2 className="h-title" style={{ fontSize: 17 }}>Prochaines publications</h2>
+                    <h2 className="h-title" style={{ fontSize: 17 }}>{t('upcomingPublications')}</h2>
                     <Link href={`/workspace/${active}/planning`} className="btn btn-sm btn-ghost">
-                      Tout voir <IconChevR />
+                      {t('viewAll')} <IconChevR />
                     </Link>
                   </div>
                   {upcoming.length === 0 ? (
                     <div style={{ color: 'var(--ink-3)', fontSize: 13, textAlign: 'center', padding: '32px 0' }}>
-                      Aucun post en cours
+                      {t('noPostInProgress')}
                       <div style={{ marginTop: 12 }}>
                         <Link href={`/workspace/${active}`} className="btn btn-primary btn-sm">
-                          <IconPlus /> Créer un post
+                          <IconPlus /> {t('createPost')}
                         </Link>
                       </div>
                     </div>
