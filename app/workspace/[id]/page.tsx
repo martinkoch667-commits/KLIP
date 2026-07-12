@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect, useCallback } from "react";
+import { useTranslations } from "next-intl";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
@@ -15,11 +16,11 @@ type PostType   = "post" | "reel" | "story" | "carrousel";
 
 // Formats alignés sur l'éditeur (PT_FORMAT_MAP) : post = portrait 4:5 (1080×1350),
 // carrousel = carré 1:1 (1080×1080), reel/story = vertical 9:16 (1080×1920).
-const POST_TYPE_CFG: Record<PostType, { label: string; color: string; bg: string; format: string }> = {
-  post:      { label: "Publication",  color: "#4F8EF7", bg: "#4F8EF715", format: "1080×1350 px" },
-  reel:      { label: "Reel",         color: "#A259FF", bg: "#A259FF15", format: "1080×1920 px" },
-  story:     { label: "Story",        color: "#FF6B35", bg: "#FF6B3515", format: "1080×1920 px" },
-  carrousel: { label: "Carrousel",    color: "#F7A94F", bg: "#F7A94F15", format: "1080×1080 px" },
+const POST_TYPE_CFG: Record<PostType, { label: string; tKey: string; color: string; bg: string; format: string }> = {
+  post:      { label: "Publication",  tKey: "ptPost",      color: "#4F8EF7", bg: "#4F8EF715", format: "1080×1350 px" },
+  reel:      { label: "Reel",         tKey: "ptReel",      color: "#A259FF", bg: "#A259FF15", format: "1080×1920 px" },
+  story:     { label: "Story",        tKey: "ptStory",     color: "#FF6B35", bg: "#FF6B3515", format: "1080×1920 px" },
+  carrousel: { label: "Carrousel",    tKey: "ptCarrousel", color: "#F7A94F", bg: "#F7A94F15", format: "1080×1080 px" },
 };
 
 // Ratio d'affichage réel selon le format (post = 4:5, carrousel = carré, reel/story = 9:16).
@@ -34,19 +35,19 @@ function allowedPostTypes(isVideo: boolean): PostType[] {
 }
 
 // Modèles éditoriaux (angle de contenu) proposés avant génération.
-const EDITORIAL_MODELS: { id: string; label: string; color: string; hint: string }[] = [
-  { id: 'citation',  label: 'Citation',  color: '#14160F', hint: 'une phrase forte / punchline qui marque' },
-  { id: 'annonce',   label: 'Annonce',   color: '#2FD79B', hint: 'une annonce claire (nouveauté, ouverture, info)' },
-  { id: 'produit',   label: 'Produit',   color: '#C8732B', hint: 'mise en avant d’un produit / plat / offre' },
-  { id: 'evenement', label: 'Événement', color: '#4F8EF7', hint: 'un événement (date, lieu, invitation)' },
-  { id: 'minimal',   label: 'Minimal',   color: '#8B8E7F', hint: 'épuré, sobre, peu de texte' },
+const EDITORIAL_MODELS: { id: string; label: string; tKey: string; color: string; hint: string }[] = [
+  { id: 'citation',  label: 'Citation',  tKey: 'emCitation',  color: '#14160F', hint: 'une phrase forte / punchline qui marque' },
+  { id: 'annonce',   label: 'Annonce',   tKey: 'emAnnonce',   color: '#2FD79B', hint: 'une annonce claire (nouveauté, ouverture, info)' },
+  { id: 'produit',   label: 'Produit',   tKey: 'emProduit',   color: '#C8732B', hint: 'mise en avant d’un produit / plat / offre' },
+  { id: 'evenement', label: 'Événement', tKey: 'emEvenement', color: '#4F8EF7', hint: 'un événement (date, lieu, invitation)' },
+  { id: 'minimal',   label: 'Minimal',   tKey: 'emMinimal',   color: '#8B8E7F', hint: 'épuré, sobre, peu de texte' },
 ];
 // Voix (ton) sélectionnable par post — surcharge le ton de la charte.
-const POST_VOICES: { id: string; label: string }[] = [
-  { id: 'Chic et premium',       label: 'Chic' },
-  { id: 'Punchy et direct',      label: 'Punchy' },
-  { id: 'Minimaliste et sobre',  label: 'Minimal' },
-  { id: 'Doux et chaleureux',    label: 'Doux' },
+const POST_VOICES: { id: string; label: string; tKey: string }[] = [
+  { id: 'Chic et premium',       label: 'Chic',    tKey: 'voiceChic' },
+  { id: 'Punchy et direct',      label: 'Punchy',  tKey: 'voicePunchy' },
+  { id: 'Minimaliste et sobre',  label: 'Minimal', tKey: 'voiceMinimal' },
+  { id: 'Doux et chaleureux',    label: 'Doux',    tKey: 'voiceDoux' },
 ];
 
 interface PostItem {
@@ -95,19 +96,20 @@ const PHOTO_PLACEHOLDER_SRC_COMPOSER = '__PHOTO_PLACEHOLDER__';
 
 // ─── Status badge ─────────────────────────────────────────────────────────────
 
-const STATUS_CONFIG: Record<PostStatus, { label: string; bg: string; color: string }> = {
-  idle:       { label: "Brouillon",   bg: "var(--sunk)",      color: "var(--ink-3)" },
-  generating: { label: "Génération…", bg: "var(--mint-soft)", color: "var(--mint-2)" },
-  generated:  { label: "Généré",      bg: "var(--mint-soft)", color: "var(--mint-2)" },
-  validating: { label: "Sauvegarde…", bg: "var(--warn-soft)", color: "var(--warn)" },
-  validated:  { label: "Validé",      bg: "var(--mint)",      color: "var(--mint-ink)" },
+const STATUS_CONFIG: Record<PostStatus, { label: string; tKey: string; bg: string; color: string }> = {
+  idle:       { label: "Brouillon",   tKey: "stIdle",       bg: "var(--sunk)",      color: "var(--ink-3)" },
+  generating: { label: "Génération…", tKey: "stGenerating", bg: "var(--mint-soft)", color: "var(--mint-2)" },
+  generated:  { label: "Généré",      tKey: "stGenerated",  bg: "var(--mint-soft)", color: "var(--mint-2)" },
+  validating: { label: "Sauvegarde…", tKey: "stValidating", bg: "var(--warn-soft)", color: "var(--warn)" },
+  validated:  { label: "Validé",      tKey: "stValidated",  bg: "var(--mint)",      color: "var(--mint-ink)" },
 };
 
 function StatusChip({ status }: { status: PostStatus }) {
+  const t = useTranslations('workspace');
   const cfg = STATUS_CONFIG[status] ?? STATUS_CONFIG.idle;
   return (
     <span className="chip" style={{ background: cfg.bg, color: cfg.color }}>
-      {cfg.label}
+      {t(cfg.tKey)}
     </span>
   );
 }
@@ -176,14 +178,15 @@ const TYPE_ICONS: Record<PostType, React.ReactNode> = {
 };
 
 function TypePickerModal({ onConfirm, onClose }: { onConfirm: (type: PostType) => void; onClose: () => void }) {
+  const t = useTranslations('workspace');
   const [selected, setSelected] = useState<PostType>('post');
   return (
     <div style={{ position: 'fixed', inset: 0, zIndex: 9500, background: 'rgba(12,42,29,0.78)', backdropFilter: 'blur(6px)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
       onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
       <div style={{ background: 'var(--paper)', borderRadius: 'var(--r-xl)', border: '1px solid var(--line)', padding: '32px', width: 480, maxWidth: '90vw', boxShadow: '0 24px 64px rgba(12,42,29,.45)' }}>
-        <p style={{ margin: '0 0 8px', fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--ink-3)', fontFamily: 'var(--mono)' }}>Nouveau contenu</p>
-        <h2 style={{ margin: '0 0 6px', fontSize: 20, fontWeight: 800, color: 'var(--ink)', fontFamily: 'var(--display)', lineHeight: 1.2 }}>Quel type de contenu ?</h2>
-        <p style={{ margin: '0 0 24px', fontSize: 13, color: 'var(--ink-2)', lineHeight: 1.5 }}>Choisissez le format — modifiable plus tard dans la fiche ou le planificateur.</p>
+        <p style={{ margin: '0 0 8px', fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--ink-3)', fontFamily: 'var(--mono)' }}>{t('typePickerEyebrow')}</p>
+        <h2 style={{ margin: '0 0 6px', fontSize: 20, fontWeight: 800, color: 'var(--ink)', fontFamily: 'var(--display)', lineHeight: 1.2 }}>{t('typePickerTitle')}</h2>
+        <p style={{ margin: '0 0 24px', fontSize: 13, color: 'var(--ink-2)', lineHeight: 1.5 }}>{t('typePickerHint')}</p>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10, marginBottom: 28 }}>
           {(Object.entries(POST_TYPE_CFG) as [PostType, typeof POST_TYPE_CFG[PostType]][]).map(([id, cfg]) => (
             <button key={id} onClick={() => setSelected(id)}
@@ -201,15 +204,15 @@ function TypePickerModal({ onConfirm, onClose }: { onConfirm: (type: PostType) =
                 {TYPE_ICONS[id as PostType]}
               </span>
               <div style={{ textAlign: 'center' }}>
-                <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--ink)', fontFamily: 'var(--sans)', marginBottom: 4 }}>{cfg.label}</div>
+                <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--ink)', fontFamily: 'var(--sans)', marginBottom: 4 }}>{t(cfg.tKey)}</div>
                 <div style={{ fontSize: 11, color: 'var(--ink-3)', fontFamily: 'var(--mono)' }}>{cfg.format}</div>
               </div>
             </button>
           ))}
         </div>
         <div style={{ display: 'flex', gap: 10 }}>
-          <button onClick={onClose} className="btn btn-ghost" style={{ flex: 1 }}>Annuler</button>
-          <button onClick={() => onConfirm(selected)} className="btn btn-primary" style={{ flex: 2 }}>Continuer</button>
+          <button onClick={onClose} className="btn btn-ghost" style={{ flex: 1 }}>{t('cancel')}</button>
+          <button onClick={() => onConfirm(selected)} className="btn btn-primary" style={{ flex: 2 }}>{t('continue')}</button>
         </div>
       </div>
     </div>
@@ -227,6 +230,7 @@ function TemplatePicker({
   onSelect: (templateId: string | null) => void;
   onClose: () => void;
 }) {
+  const t = useTranslations('workspace');
   return (
     <div
       style={{
@@ -247,9 +251,9 @@ function TemplatePicker({
         {/* Header */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <div>
-            <h2 className="h-title" style={{ fontSize: 18, marginBottom: 4 }}>Choisir un template</h2>
+            <h2 className="h-title" style={{ fontSize: 18, marginBottom: 4 }}>{t('templatePickerTitle')}</h2>
             <p style={{ fontSize: 13, color: 'var(--ink-3)' }}>
-              Le template définit la mise en page, les zones de texte et le fond du visuel.
+              {t('templatePickerHint')}
             </p>
           </div>
           <button
@@ -281,7 +285,7 @@ function TemplatePicker({
               display: 'grid', placeItems: 'center', fontSize: 26, color: 'var(--ink-3)',
             }}>+</div>
             <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--ink-2)', textAlign: 'center' }}>
-              Partir de zéro
+              {t('fromScratch')}
             </span>
           </button>
 
@@ -344,6 +348,7 @@ export default function WorkspacePage() {
   const id = params.id as string;
   const router = useRouter();
   const supabase = createClientComponentClient();
+  const t = useTranslations('workspace');
 
   const [workspace, setWorkspace] = useState<Workspace | null>(null);
   const [posts, setPosts] = useState<PostItem[]>([]);
@@ -752,7 +757,7 @@ export default function WorkspacePage() {
   }
 
   async function handleThumbImport(post: PostItem, file: File) {
-    if (file.size > 5 * 1024 * 1024) { alert('Fichier trop volumineux (max 5 MB)'); return; }
+    if (file.size > 5 * 1024 * 1024) { alert(t('fileTooLarge5')); return; }
     const preview = URL.createObjectURL(file);
     setThumbPreviews(prev => ({ ...prev, [post.localId]: preview }));
     if (!post.dbId) return;
@@ -771,7 +776,7 @@ export default function WorkspacePage() {
 
   // ── Remplacer la photo d'un post ────────────────────────────────────────────
   async function replacePhoto(post: PostItem, file: File) {
-    if (file.size > 10 * 1024 * 1024) { alert('Fichier trop volumineux (max 10 MB)'); return; }
+    if (file.size > 10 * 1024 * 1024) { alert(t('fileTooLarge10')); return; }
     const preview = URL.createObjectURL(file);
     // Aperçu immédiat
     setPosts(prev => prev.map(p => p.localId === post.localId ? { ...p, photo_url: preview, exported_image_url: null } : p));
@@ -929,16 +934,16 @@ export default function WorkspacePage() {
             <div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 <span className="h-title" style={{ fontSize: 15, color: 'var(--ink)' }}>{workspace?.name ?? "…"}</span>
-                <span className="chip" style={{ background: 'var(--mint-soft)', color: 'var(--mint-2)' }}>Actif</span>
+                <span className="chip" style={{ background: 'var(--mint-soft)', color: 'var(--mint-2)' }}>{t('active')}</span>
               </div>
-              <p style={{ fontSize: 12, color: 'var(--ink-3)', marginTop: 1 }}>Workspace client</p>
+              <p style={{ fontSize: 12, color: 'var(--ink-3)', marginTop: 1 }}>{t('clientWorkspace')}</p>
             </div>
           </div>
           <div className="ws-topbar-nav" style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8 }}>
             <NotificationBell />
-            <Link href={`/workspace/${id}/planning`} className="btn btn-ghost btn-sm ws-topbar-link">Planning</Link>
-            <Link href={`/workspace/${id}/results`} className="btn btn-ghost btn-sm ws-topbar-link">Résultats</Link>
-            <Link href={`/workspace/${id}/parametres`} className="btn btn-ghost btn-sm ws-topbar-link">Paramètres</Link>
+            <Link href={`/workspace/${id}/planning`} className="btn btn-ghost btn-sm ws-topbar-link">{t('planning')}</Link>
+            <Link href={`/workspace/${id}/results`} className="btn btn-ghost btn-sm ws-topbar-link">{t('results')}</Link>
+            <Link href={`/workspace/${id}/parametres`} className="btn btn-ghost btn-sm ws-topbar-link">{t('settings')}</Link>
             <button
               onClick={openShare}
               className="btn btn-sm"
@@ -948,7 +953,7 @@ export default function WorkspacePage() {
                 <circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/>
                 <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
               </svg>
-              Partager
+              {t('share')}
             </button>
           </div>
         </header>
@@ -961,7 +966,7 @@ export default function WorkspacePage() {
               onClick={() => setActiveTab(tab)}
               style={{ position: 'relative', padding: '14px 18px', fontSize: 13.5, fontWeight: 600, background: 'none', border: 'none', cursor: 'pointer', color: activeTab === tab ? 'var(--ink)' : 'var(--ink-3)', transition: 'color 0.15s' }}
             >
-              {tab === "produire" ? "Produire" : "Paramètres"}
+              {tab === "produire" ? t('tabProduce') : t('tabSettings')}
               {activeTab === tab && <span style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: 2, background: 'var(--mint)', borderRadius: 2 }} />}
             </button>
           ))}
@@ -980,33 +985,33 @@ export default function WorkspacePage() {
                   <div className="halo-blob" style={{ width: 220, height: 220, right: 180, bottom: -150, background: 'var(--acid)', opacity: .28 }} />
                   <div className="ws-hero-grid" style={{ position: 'relative', zIndex: 2, display: 'grid', gridTemplateColumns: '1fr auto', gap: 28, alignItems: 'center' }}>
                     <div>
-                      <div className="label" style={{ color: 'var(--mint)', marginBottom: 12 }}>Production · {workspace?.name ?? "…"}</div>
+                      <div className="label" style={{ color: 'var(--mint)', marginBottom: 12 }}>{t('production')} · {workspace?.name ?? "…"}</div>
                       <h1 className="h-display" style={{ fontSize: 36, color: 'var(--cream)', maxWidth: 520 }}>
-                        Créez du contenu <span className="it" style={{ color: 'var(--mint)' }}>qui convertit.</span>
+                        {t('heroPre')}<span className="it" style={{ color: 'var(--mint)' }}>{t('heroAccent')}</span>
                       </h1>
                       <p style={{ color: 'var(--cream-2)', marginTop: 10, maxWidth: 460, fontSize: 14.5 }}>
                         {posts.length > 0
-                          ? <><b style={{ color: 'var(--cream)' }}>{posts.filter(p => p.status === 'generated' || p.status === 'validated').length} post{posts.filter(p => p.status === 'generated' || p.status === 'validated').length !== 1 ? 's' : ''}</b> prêts · déposez d'autres photos ou lancez la génération.</>
-                          : <>Déposez vos photos, l'IA rédige chaque description et texte visuel en un clic.</>}
+                          ? t.rich('heroReady', { count: posts.filter(p => p.status === 'generated' || p.status === 'validated').length, b: (c) => <b style={{ color: 'var(--cream)' }}>{c}</b> })
+                          : t('heroEmpty')}
                       </p>
                       <div style={{ display: 'flex', gap: 10, marginTop: 18 }}>
                         <button className="btn btn-primary" onClick={() => fileInputRef.current?.click()}>
-                          <IconUpload /> Ajouter des photos
+                          <IconUpload /> {t('addPhotos')}
                         </button>
                         <button className="btn" style={{ background: 'rgba(238,237,227,.12)', color: 'var(--cream)', boxShadow: 'inset 0 0 0 1px rgba(238,237,227,.2)' }} onClick={() => document.getElementById('ai-gen-card')?.scrollIntoView({ behavior: 'smooth', block: 'center' })}>
-                          <IconSpark /> Générer avec l'IA
+                          <IconSpark /> {t('generateAI')}
                         </button>
                       </div>
                     </div>
                     {/* Session stats panel */}
                     <div style={{ width: 220, borderRadius: 'var(--r-l)', background: 'rgba(238,237,227,.08)', boxShadow: 'inset 0 0 0 1px rgba(238,237,227,.15)', backdropFilter: 'blur(6px)', padding: '16px 18px' }}>
-                      <div className="label" style={{ color: 'var(--cream)', marginBottom: 12 }}>Cette session</div>
+                      <div className="label" style={{ color: 'var(--cream)', marginBottom: 12 }}>{t('thisSession')}</div>
                       <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                         {[
-                          { label: 'Photos importées', n: posts.length },
-                          { label: 'Générés', n: posts.filter(p => p.status === 'generated').length },
-                          { label: 'Validés', n: posts.filter(p => p.status === 'validated').length },
-                          { label: 'En cours', n: posts.filter(p => p.status === 'generating' || p.status === 'validating').length },
+                          { label: t('sessPhotos'), n: posts.length },
+                          { label: t('sessGenerated'), n: posts.filter(p => p.status === 'generated').length },
+                          { label: t('sessValidated'), n: posts.filter(p => p.status === 'validated').length },
+                          { label: t('sessInProgress'), n: posts.filter(p => p.status === 'generating' || p.status === 'validating').length },
                         ].map(({ label, n }) => (
                           <div key={label} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                             <span style={{ fontSize: 12, color: 'var(--cream-2)', fontWeight: 600 }}>{label}</span>
@@ -1040,31 +1045,31 @@ export default function WorkspacePage() {
                     <span style={{ width: 52, height: 52, borderRadius: 15, background: 'var(--ink)', color: 'var(--paper)', display: 'grid', placeItems: 'center', marginBottom: 14 }}>
                       <IconUpload />
                     </span>
-                    <div className="h-title" style={{ fontSize: 15, marginBottom: 6 }}>Déposez photos ou vidéos ici</div>
-                    <div style={{ fontSize: 13, color: 'var(--ink-3)' }}>ou cliquez pour sélectionner · JPG, PNG, MP4, MOV · max 100 MB</div>
+                    <div className="h-title" style={{ fontSize: 15, marginBottom: 6 }}>{t('dropHere')}</div>
+                    <div style={{ fontSize: 13, color: 'var(--ink-3)' }}>{t('dropHint')}</div>
                   </div>
 
                   {/* AI generator */}
                   <div id="ai-gen-card" className="card" style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 12 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <span className="h-title" style={{ fontSize: 15 }}>Générer avec l'IA</span>
-                      <span className="chip" style={{ background: 'var(--mint-soft)', color: 'var(--mint-2)' }}>Klip IA</span>
+                      <span className="h-title" style={{ fontSize: 15 }}>{t('generateAI')}</span>
+                      <span className="chip" style={{ background: 'var(--mint-soft)', color: 'var(--mint-2)' }}>{t('klipAI')}</span>
                     </div>
                     <textarea
                       value={imagePrompt}
                       onChange={e => setImagePrompt(e.target.value)}
-                      placeholder="Ex : bouteille de vin sur table en bois, lumière dorée, ambiance estivale..."
+                      placeholder={t('imgPromptPh')}
                       className="input"
                       style={{ flex: 1, minHeight: 90, resize: 'none', padding: 12 }}
                     />
                     <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                       <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12.5, fontWeight: 600, color: 'var(--ink-2)', cursor: 'pointer', flex: 1 }}>
                         <input type="checkbox" checked={includeStyle} onChange={e => setIncludeStyle(e.target.checked)} style={{ accentColor: 'var(--mint)' }} />
-                        Style de la marque
+                        {t('brandStyle')}
                       </label>
                       <VoiceButton value={imagePrompt} onChange={setImagePrompt} />
                       <label className="btn btn-ghost btn-sm" style={{ cursor: 'pointer' }}>
-                        Image référence
+                        {t('refImage')}
                         <input type="file" accept="image/*" style={{ display: 'none' }}
                           onChange={(e) => {
                             const file = e.target.files?.[0];
@@ -1083,7 +1088,7 @@ export default function WorkspacePage() {
                       className="btn btn-primary"
                       style={{ width: '100%', padding: '11px', opacity: (generatingImage || !imagePrompt.trim()) ? 0.5 : 1 }}
                     >
-                      {generatingImage ? <><Spinner /> Génération…</> : <><IconSpark /> Générer une image</>}
+                      {generatingImage ? <><Spinner /> {t('generating')}</> : <><IconSpark /> {t('generateImage')}</>}
                     </button>
                   </div>
                 </div>
@@ -1091,7 +1096,7 @@ export default function WorkspacePage() {
                 {/* Generated images */}
                 {generatedImages.length > 0 && (
                   <div className="card" style={{ padding: 16, marginBottom: 20 }}>
-                    <div className="label" style={{ marginBottom: 12 }}>Images générées</div>
+                    <div className="label" style={{ marginBottom: 12 }}>{t('generatedImages')}</div>
                     <div className="ws-gen-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10 }}>
                       {generatedImages.map((url, i) => (
                         <div key={i} style={{ position: 'relative', aspectRatio: '4/5', borderRadius: 10, overflow: 'hidden', border: '1px solid var(--line)' }}>
@@ -1102,7 +1107,7 @@ export default function WorkspacePage() {
                             className="btn btn-primary btn-sm"
                             style={{ position: 'absolute', bottom: 8, left: '50%', transform: 'translateX(-50%)', whiteSpace: 'nowrap' }}
                           >
-                            + Utiliser
+                            + {t('use')}
                           </button>
                         </div>
                       ))}
@@ -1113,13 +1118,13 @@ export default function WorkspacePage() {
                 {/* Brief global */}
                 <div className="card" style={{ padding: 22, marginBottom: 20 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
-                    <h2 className="h-title" style={{ fontSize: 16 }}>Brief global</h2>
-                    <span style={{ fontSize: 13, color: 'var(--ink-3)' }}>Consignes appliquées à tous les posts</span>
+                    <h2 className="h-title" style={{ fontSize: 16 }}>{t('globalBrief')}</h2>
+                    <span style={{ fontSize: 13, color: 'var(--ink-3)' }}>{t('globalBriefHint')}</span>
                   </div>
                   <textarea
                     value={globalBrief}
                     onChange={e => setGlobalBrief(e.target.value)}
-                    placeholder="Ex : Semaine du 20 mai. Campagne été. Ton chaleureux et lumineux. Mettre en avant les produits de saison..."
+                    placeholder={t('globalBriefPh')}
                     className="input"
                     style={{ minHeight: 90, resize: 'vertical', lineHeight: 1.6 }}
                   />
@@ -1133,12 +1138,12 @@ export default function WorkspacePage() {
                   <div className="card" style={{ padding: '16px 20px', marginBottom: 20, display: 'flex', alignItems: 'center', gap: 16 }}>
                     <div style={{ flex: 1 }}>
                       <div style={{ fontWeight: 700, fontSize: 14, color: 'var(--ink)' }}>
-                        {postsReadyToGenerate.length} photo{postsReadyToGenerate.length > 1 ? "s" : ""} prête{postsReadyToGenerate.length > 1 ? "s" : ""} à générer
+                        {t('readyToGenerate', { count: postsReadyToGenerate.length })}
                       </div>
-                      <div style={{ fontSize: 12.5, color: 'var(--ink-3)', marginTop: 2 }}>Génère le texte visuel + la description Instagram en un clic</div>
+                      <div style={{ fontSize: 12.5, color: 'var(--ink-3)', marginTop: 2 }}>{t('readyToGenerateHint')}</div>
                     </div>
                     <button onClick={generateAll} disabled={generatingAll} className="btn btn-primary">
-                      {generatingAll ? <><Spinner /> Génération…</> : <><IconSpark /> Tout générer ({postsReadyToGenerate.length})</>}
+                      {generatingAll ? <><Spinner /> {t('generating')}</> : <><IconSpark /> {t('generateAll', { count: postsReadyToGenerate.length })}</>}
                     </button>
                   </div>
                 )}
@@ -1146,7 +1151,7 @@ export default function WorkspacePage() {
                 {/* Photo grid */}
                 {posts.length === 0 ? (
                   <div style={{ textAlign: 'center', padding: '56px 0', color: 'var(--ink-3)', fontSize: 14 }}>
-                    Aucune photo — commence par sélectionner des images ci-dessus.
+                    {t('noPhoto')}
                   </div>
                 ) : (
                   <div className="ws-posts-grid" style={{ display: 'flex', flexDirection: 'column', gap: 16, maxWidth: 880, margin: '0 auto' }}>
@@ -1166,10 +1171,10 @@ export default function WorkspacePage() {
                               {/* Nom du client (overlay) + badge vidéo */}
                               <div style={{ position: 'absolute', top: 8, left: 8, display: 'flex', gap: 5 }}>
                                 <span style={{ background: 'rgba(0,0,0,.5)', backdropFilter: 'blur(6px)', color: '#fff', fontSize: 10, fontWeight: 800, padding: '4px 9px', borderRadius: 99, fontFamily: 'var(--mono)', letterSpacing: '.06em', textTransform: 'uppercase', maxWidth: 150, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                                  {workspace?.instagram_username || workspace?.name || 'Client'}
+                                  {workspace?.instagram_username || workspace?.name || t('clientFallback')}
                                 </span>
                                 {post.isVideo && (
-                                  <span style={{ background: 'rgba(0,0,0,.7)', color: '#fff', fontSize: 9.5, fontWeight: 700, padding: '3px 7px', borderRadius: 99, fontFamily: 'var(--mono)', backdropFilter: 'blur(4px)', letterSpacing: '.05em' }}>▶ VIDÉO</span>
+                                  <span style={{ background: 'rgba(0,0,0,.7)', color: '#fff', fontSize: 9.5, fontWeight: 700, padding: '3px 7px', borderRadius: 99, fontFamily: 'var(--mono)', backdropFilter: 'blur(4px)', letterSpacing: '.05em' }}>▶ {t('videoBadge')}</span>
                                 )}
                               </div>
                               <button onClick={() => removePost(post)}
@@ -1179,16 +1184,16 @@ export default function WorkspacePage() {
                             </div>
                             {/* Type de publication */}
                             <div className="ws-type-pills" style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
-                              {(['post', 'reel', 'carrousel', 'story'] as PostType[]).map(t => {
-                                const active = (post.post_type ?? 'post') === t;
-                                const ok = allowedPostTypes(!!post.isVideo).includes(t);
+                              {(['post', 'reel', 'carrousel', 'story'] as PostType[]).map(pt => {
+                                const active = (post.post_type ?? 'post') === pt;
+                                const ok = allowedPostTypes(!!post.isVideo).includes(pt);
                                 return (
-                                  <button key={t} disabled={!ok} onClick={() => ok && updatePostType(post.localId, t)}
-                                    title={ok ? undefined : post.isVideo ? "Une vidéo ne peut être qu'un Reel ou une Story" : "Une photo ne peut pas être un Reel"}
+                                  <button key={pt} disabled={!ok} onClick={() => ok && updatePostType(post.localId, pt)}
+                                    title={ok ? undefined : post.isVideo ? t('videoTypeTooltip') : t('photoTypeTooltip')}
                                     style={{ flex: '1 1 auto', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5, padding: '7px 6px', borderRadius: 9, cursor: ok ? 'pointer' : 'not-allowed', opacity: ok ? 1 : 0.4, fontSize: 11, fontWeight: 700, fontFamily: 'var(--sans)',
                                       border: active ? '1.5px solid var(--ink)' : '1px solid var(--line)', background: active ? 'var(--ink)' : 'var(--card)', color: active ? 'var(--paper)' : 'var(--ink-2)', transition: 'all .14s' }}>
-                                    <span style={{ width: 6, height: 6, borderRadius: '50%', background: POST_TYPE_CFG[t].color, flexShrink: 0 }} />
-                                    {POST_TYPE_CFG[t].label}
+                                    <span style={{ width: 6, height: 6, borderRadius: '50%', background: POST_TYPE_CFG[pt].color, flexShrink: 0 }} />
+                                    {t(POST_TYPE_CFG[pt].tKey)}
                                   </button>
                                 );
                               })}
@@ -1197,7 +1202,7 @@ export default function WorkspacePage() {
                             {!post.isVideo && (
                               <label className="btn btn-ghost btn-sm" style={{ width: '100%', justifyContent: 'center', cursor: 'pointer' }}>
                                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-                                Remplacer la photo
+                                {t('replacePhoto')}
                                 <input type="file" accept="image/jpeg,image/png,image/webp" style={{ display: 'none' }}
                                   onChange={e => { const f = e.target.files?.[0]; if (f) replacePhoto(post, f); }} />
                               </label>
@@ -1233,7 +1238,7 @@ export default function WorkspacePage() {
                                 <div>
                                   <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
                                     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--ink-3)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
-                                    <span className="label" style={{ margin: 0 }}>Modèle éditorial</span>
+                                    <span className="label" style={{ margin: 0 }}>{t('editorialModel')}</span>
                                   </div>
                                   <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap' }}>
                                     {EDITORIAL_MODELS.map(m => {
@@ -1246,7 +1251,7 @@ export default function WorkspacePage() {
                                             background: active ? m.color : 'var(--card)',
                                             color: active ? (lightBg ? '#06281C' : '#fff') : 'var(--ink-2)' }}>
                                           <span style={{ width: 8, height: 8, borderRadius: '50%', background: active ? (lightBg ? '#06281C' : '#fff') : m.color, flexShrink: 0 }} />
-                                          {m.label}
+                                          {t(m.tKey)}
                                         </button>
                                       );
                                     })}
@@ -1276,13 +1281,13 @@ export default function WorkspacePage() {
                                         <>
                                           <span style={{ width: 22, height: 22, borderRadius: 5, background: gradientCss, flexShrink: 0, border: '1px solid rgba(0,0,0,.08)' }} />
                                           <span style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--ink)', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{activeTpl.name}</span>
-                                          <span style={{ fontSize: 11, color: 'var(--mint-2)', fontWeight: 700 }}>Changer</span>
+                                          <span style={{ fontSize: 11, color: 'var(--mint-2)', fontWeight: 700 }}>{t('change')}</span>
                                         </>
                                       ) : (
                                         <>
                                           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" style={{ color: 'var(--ink-3)', flexShrink: 0 }}><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
-                                          <span style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--ink-3)', flex: 1 }}>Choisir un template</span>
-                                          <span style={{ fontSize: 11, color: 'var(--ink-3)' }}>optionnel</span>
+                                          <span style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--ink-3)', flex: 1 }}>{t('chooseTemplate')}</span>
+                                          <span style={{ fontSize: 11, color: 'var(--ink-3)' }}>{t('optional')}</span>
                                         </>
                                       )}
                                     </button>
@@ -1292,7 +1297,7 @@ export default function WorkspacePage() {
                                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
                                     <span className="label" style={{ margin: 0, display: 'flex', alignItems: 'center', gap: 5 }}>
                                       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
-                                      Brief
+                                      {t('brief')}
                                     </span>
                                     <VoiceButton value={post.brief} onChange={(v) => updateBrief(post.localId, v)} />
                                   </div>
@@ -1300,18 +1305,18 @@ export default function WorkspacePage() {
                                     value={post.brief}
                                     onChange={(e) => updateBrief(post.localId, e.target.value)}
                                     onBlur={() => saveBrief(post)}
-                                    placeholder="Infos spécifiques : produit, message clé, promotion..."
+                                    placeholder={t('briefPh')}
                                     rows={3}
                                     className="input"
                                     style={{ resize: 'none' }}
                                   />
                                 </div>
                                 <div>
-                                  <p className="label" style={{ marginBottom: 4 }}>CONTEXTE DU POST (optionnel)</p>
+                                  <p className="label" style={{ marginBottom: 4 }}>{t('postContext')}</p>
                                   <textarea
                                     value={postContexts[post.localId] ?? ''}
                                     onChange={e => setPostContexts(prev => ({ ...prev, [post.localId]: e.target.value }))}
-                                    placeholder="Ex : lancement du menu automne, nouvelle collection, promo flash..."
+                                    placeholder={t('postContextPh')}
                                     maxLength={200}
                                     rows={2}
                                     className="input"
@@ -1320,7 +1325,7 @@ export default function WorkspacePage() {
                                 </div>
                                 {/* ── Voix (ton) ── */}
                                 <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-                                  <span className="label" style={{ margin: 0 }}>Voix</span>
+                                  <span className="label" style={{ margin: 0 }}>{t('voice')}</span>
                                   <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                                     {POST_VOICES.map(v => {
                                       const active = postVoice[post.localId] === v.id;
@@ -1328,7 +1333,7 @@ export default function WorkspacePage() {
                                         <button key={v.id} onClick={() => setPostVoice(prev => ({ ...prev, [post.localId]: prev[post.localId] === v.id ? '' : v.id }))}
                                           style={{ padding: '6px 13px', borderRadius: 99, cursor: 'pointer', fontSize: 12, fontWeight: 700, fontFamily: 'var(--sans)', transition: 'all .14s',
                                             border: active ? '1.5px solid var(--ink)' : '1px solid var(--line)', background: active ? 'var(--ink)' : 'var(--card)', color: active ? 'var(--paper)' : 'var(--ink-2)' }}>
-                                          {v.label}
+                                          {t(v.tKey)}
                                         </button>
                                       );
                                     })}
@@ -1343,8 +1348,8 @@ export default function WorkspacePage() {
                                       <span style={{ position: 'absolute', top: 2, left: photoHasText[post.localId] ? 16 : 2, width: 16, height: 16, borderRadius: '50%', background: '#fff', boxShadow: '0 1px 3px rgba(0,0,0,.25)', transition: 'left .18s cubic-bezier(.2,.7,.3,1)' }} />
                                     </span>
                                     <span style={{ flex: 1 }}>
-                                      <span style={{ display: 'block', fontSize: 12.5, fontWeight: 700, color: 'var(--ink)' }}>La photo contient déjà du texte</span>
-                                      <span style={{ display: 'block', fontSize: 11, color: 'var(--ink-3)', lineHeight: 1.3 }}>Si activé, l&apos;IA n&apos;ajoute pas de titre sur le visuel — juste la légende.</span>
+                                      <span style={{ display: 'block', fontSize: 12.5, fontWeight: 700, color: 'var(--ink)' }}>{t('photoHasText')}</span>
+                                      <span style={{ display: 'block', fontSize: 11, color: 'var(--ink-3)', lineHeight: 1.3 }}>{t('photoHasTextHint')}</span>
                                     </span>
                                   </button>
                                 )}
@@ -1354,7 +1359,7 @@ export default function WorkspacePage() {
                                   className="btn btn-primary"
                                   style={{ width: '100%', opacity: (!post.brief.trim() || post.status === "generating") ? 0.45 : 1 }}
                                 >
-                                  {post.status === "generating" ? <><Spinner /> Génération…</> : <><IconSpark /> Générer le post</>}
+                                  {post.status === "generating" ? <><Spinner /> {t('generating')}</> : <><IconSpark /> {t('generatePost')}</>}
                                 </button>
                               </>
                             ) : (
@@ -1363,7 +1368,7 @@ export default function WorkspacePage() {
                                   <div style={{ borderRadius: 12, background: 'linear-gradient(180deg, var(--card), color-mix(in srgb, var(--mint, #2FD79B) 5%, var(--card)))', border: '1px solid var(--line-2)', borderLeft: '3px solid var(--mint, #2FD79B)', padding: '11px 13px' }}>
                                     <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
                                       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#16A36F" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 7V5h16v2M9 5v14M7 19h4"/></svg>
-                                      <span className="label" style={{ margin: 0, color: '#16A36F' }}>Texte sur le visuel</span>
+                                      <span className="label" style={{ margin: 0, color: '#16A36F' }}>{t('visualText')}</span>
                                     </div>
                                     <textarea
                                       value={post.texte_visuel}
@@ -1379,7 +1384,7 @@ export default function WorkspacePage() {
                                   <div>
                                     <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
                                       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--ink-3)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="2" width="20" height="20" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="1"/></svg>
-                                      <span className="label" style={{ margin: 0 }}>Légende Instagram</span>
+                                      <span className="label" style={{ margin: 0 }}>{t('igCaption')}</span>
                                     </div>
                                     <textarea
                                       value={post.description}
@@ -1393,7 +1398,7 @@ export default function WorkspacePage() {
                                         value={refinePrompts[post.localId] ?? ''}
                                         onChange={e => setRefinePrompts(prev => ({ ...prev, [post.localId]: e.target.value }))}
                                         onKeyDown={e => { if (e.key === 'Enter') refineCaption(post); }}
-                                        placeholder="Ex : rends-le plus court, ajoute un CTA..."
+                                        placeholder={t('refinePh')}
                                         className="input"
                                         style={{ flex: 1, height: 36, fontSize: 12.5, padding: '0 10px', borderRadius: 'var(--r)', border: '1px solid var(--line)' }}
                                         disabled={refiningIds.has(post.localId)}
@@ -1404,7 +1409,7 @@ export default function WorkspacePage() {
                                         className="btn btn-ghost"
                                         style={{ height: 36, flexShrink: 0, color: 'var(--mint-2)', fontWeight: 700, opacity: (!refinePrompts[post.localId]?.trim() || refiningIds.has(post.localId)) ? 0.45 : 1 }}
                                       >
-                                        {refiningIds.has(post.localId) ? '…' : 'Affiner →'}
+                                        {refiningIds.has(post.localId) ? '…' : t('refine')}
                                       </button>
                                     </div>
                                   </div>
@@ -1415,14 +1420,14 @@ export default function WorkspacePage() {
                                   <div style={{ borderRadius: 'var(--r)', border: '1px solid var(--line)', overflow: 'hidden' }}>
                                     {/* Header */}
                                     <div style={{ padding: '8px 12px 0', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                                      <p className="label" style={{ margin: 0 }}>MINIATURE DE COUVERTURE</p>
+                                      <p className="label" style={{ margin: 0 }}>{t('coverThumb')}</p>
                                       <div style={{ display: 'flex', gap: 2, background: 'var(--sunk)', borderRadius: 6, padding: 2 }}>
                                         {(['moment', 'import'] as const).map(tab => (
                                           <button key={tab} onClick={() => setThumbTabs(prev => ({ ...prev, [post.localId]: tab }))}
                                             style={{ padding: '3px 9px', borderRadius: 4, border: 'none', cursor: 'pointer', fontSize: 11, fontWeight: 700, transition: 'all .12s',
                                               background: (thumbTabs[post.localId] ?? 'moment') === tab ? 'var(--canvas)' : 'transparent',
                                               color: (thumbTabs[post.localId] ?? 'moment') === tab ? 'var(--ink)' : 'var(--ink-3)' }}>
-                                            {tab === 'moment' ? 'Choisir un moment' : 'Importer'}
+                                            {tab === 'moment' ? t('chooseMoment') : t('import')}
                                           </button>
                                         ))}
                                       </div>
@@ -1492,17 +1497,17 @@ export default function WorkspacePage() {
                                         <button onClick={() => confirmThumbMoment(post)} disabled={thumbUploadingIds.has(post.localId)}
                                           className="btn btn-primary"
                                           style={{ width: '100%', opacity: thumbUploadingIds.has(post.localId) ? 0.5 : 1 }}>
-                                          {thumbUploadingIds.has(post.localId) ? 'Sauvegarde…' : 'Valider ce moment'}
+                                          {thumbUploadingIds.has(post.localId) ? t('saving') : t('validateMoment')}
                                         </button>
                                       </div>
                                     ) : (
                                       <div style={{ padding: '10px 12px 12px', display: 'flex', flexDirection: 'column', gap: 8 }}>
                                         <p style={{ fontSize: 11.5, color: 'var(--ink-3)', margin: 0, lineHeight: 1.4 }}>
-                                          Format recommandé : 9:16 · JPG ou PNG · max 5 MB
+                                          {t('thumbFormatHint')}
                                         </p>
                                         <label className="btn btn-ghost" style={{ width: '100%', justifyContent: 'center', cursor: 'pointer' }}>
                                           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-                                          Choisir une image
+                                          {t('chooseImage')}
                                           <input type="file" accept="image/jpeg,image/png" style={{ display: 'none' }}
                                             onChange={e => {
                                               const file = e.target.files?.[0];
@@ -1522,10 +1527,10 @@ export default function WorkspacePage() {
                                           />
                                         </label>
                                         {thumbUploadingIds.has(post.localId) && (
-                                          <p style={{ fontSize: 11.5, color: 'var(--mint-2)', textAlign: 'center', margin: 0 }}>Sauvegarde en cours…</p>
+                                          <p style={{ fontSize: 11.5, color: 'var(--mint-2)', textAlign: 'center', margin: 0 }}>{t('savingInProgress')}</p>
                                         )}
                                         <p style={{ fontSize: 11, color: 'var(--ink-3)', margin: 0, lineHeight: 1.4, padding: '6px 8px', background: 'var(--sunk)', borderRadius: 6 }}>
-                                          ℹ️ La miniature sera appliquée automatiquement si Instagram le permet, sinon elle sera visible uniquement dans Klip.
+                                          {t('thumbInfo')}
                                         </p>
                                       </div>
                                     )}
@@ -1543,16 +1548,16 @@ export default function WorkspacePage() {
                                           className="btn btn-dark"
                                           style={{ flex: 1, opacity: post.status === "validating" ? 0.5 : 1 }}
                                         >
-                                          {post.status === "validating" ? <><Spinner /> Sauvegarde…</> : <><IconEdit /> Monter la vidéo</>}
+                                          {post.status === "validating" ? <><Spinner /> {t('saving')}</> : <><IconEdit /> {t('montageVideo')}</>}
                                         </button>
                                       )}
                                       {post.status === "validated" && post.dbId && (
                                         <Link href={`/workspace/${id}/montage/${post.dbId}`} className="btn btn-dark" style={{ flex: 1, textAlign: 'center' }}>
-                                          <IconEdit /> Ouvrir le montage
+                                          <IconEdit /> {t('openMontage')}
                                         </Link>
                                       )}
                                       {post.status === "generated" && (
-                                        <button onClick={() => generateOne(post)} className="btn btn-ghost btn-icon" title="Regénérer la description">
+                                        <button onClick={() => generateOne(post)} className="btn btn-ghost btn-icon" title={t('regenDescription')}>
                                           <IconSpark />
                                         </button>
                                       )}
@@ -1567,16 +1572,16 @@ export default function WorkspacePage() {
                                           className="btn btn-dark"
                                           style={{ flex: 1, opacity: post.status === "validating" ? 0.5 : 1 }}
                                         >
-                                          {post.status === "validating" ? <><Spinner /> Sauvegarde…</> : <><IconEdit /> Éditer le visuel</>}
+                                          {post.status === "validating" ? <><Spinner /> {t('saving')}</> : <><IconEdit /> {t('editVisual')}</>}
                                         </button>
                                       )}
                                       {post.status === "validated" && post.dbId && (
                                         <Link href={`/workspace/${id}/editor/${post.dbId}`} className="btn btn-dark" style={{ flex: 1, textAlign: 'center' }}>
-                                          <IconEdit /> Ouvrir l'éditeur
+                                          <IconEdit /> {t('openEditor')}
                                         </Link>
                                       )}
                                       {post.status === "generated" && (
-                                        <button onClick={() => generateOne(post)} className="btn btn-ghost btn-icon" title="Regénérer">
+                                        <button onClick={() => generateOne(post)} className="btn btn-ghost btn-icon" title={t('regen')}>
                                           <IconSpark />
                                         </button>
                                       )}
@@ -1597,11 +1602,11 @@ export default function WorkspacePage() {
 
             {activeTab === "parametres" && (
               <div className="screen-in" style={{ maxWidth: 520 }}>
-                <h2 className="h-title" style={{ fontSize: 20, marginBottom: 24 }}>Paramètres du workspace</h2>
+                <h2 className="h-title" style={{ fontSize: 20, marginBottom: 24 }}>{t('wsSettings')}</h2>
                 <div className="card" style={{ padding: 24 }}>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
                     <div>
-                      <label className="label" style={{ display: 'block', marginBottom: 7 }}>Nom du client</label>
+                      <label className="label" style={{ display: 'block', marginBottom: 7 }}>{t('clientName')}</label>
                       <input
                         type="text"
                         value={workspaceName}
@@ -1617,10 +1622,10 @@ export default function WorkspacePage() {
                         className="btn btn-primary"
                         style={{ opacity: (savingSettings || !workspaceName.trim()) ? 0.45 : 1 }}
                       >
-                        {savingSettings ? "Enregistrement…" : <><IconCheck /> Enregistrer</>}
+                        {savingSettings ? t('savingSettings') : <><IconCheck /> {t('save')}</>}
                       </button>
                       <Link href={`/workspace/${id}/style`} className="btn btn-ghost">
-                        Style visuel <IconChevR />
+                        {t('visualStyle')} <IconChevR />
                       </Link>
                     </div>
                   </div>
@@ -1677,7 +1682,7 @@ export default function WorkspacePage() {
           fontFamily: 'var(--sans)', fontSize: 13.5, fontWeight: 600,
           zIndex: 9999, whiteSpace: 'nowrap',
         }}>
-          Post supprimé
+          {t('postDeleted')}
           <button
             onClick={undoDelete}
             style={{
@@ -1687,7 +1692,7 @@ export default function WorkspacePage() {
               fontSize: 13, fontWeight: 700, fontFamily: 'var(--sans)',
             }}
           >
-            Annuler
+            {t('undo')}
           </button>
         </div>
       )}
@@ -1702,15 +1707,15 @@ export default function WorkspacePage() {
             {/* Header */}
             <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 }}>
               <div>
-                <h2 className="h-title" style={{ fontSize: 18, marginBottom: 4 }}>Partager le calendrier</h2>
-                <p style={{ fontSize: 13, color: 'var(--ink-3)', lineHeight: 1.5 }}>Envoyez ce lien à votre client pour qu&apos;il consulte et valide les posts sans compte Klip.</p>
+                <h2 className="h-title" style={{ fontSize: 18, marginBottom: 4 }}>{t('shareTitle')}</h2>
+                <p style={{ fontSize: 13, color: 'var(--ink-3)', lineHeight: 1.5 }}>{t('shareHint')}</p>
               </div>
               <button onClick={() => setShareOpen(false)} style={{ width: 30, height: 30, borderRadius: 8, background: 'var(--sunk)', border: '1px solid var(--line)', cursor: 'pointer', fontSize: 18, color: 'var(--ink-3)', display: 'grid', placeItems: 'center', flexShrink: 0 }}>×</button>
             </div>
 
             {/* Link row */}
             {shareLoading ? (
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 44, color: 'var(--ink-3)', fontSize: 13 }}>Génération du lien…</div>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 44, color: 'var(--ink-3)', fontSize: 13 }}>{t('generatingLink')}</div>
             ) : shareToken ? (
               <div style={{ display: 'flex', gap: 8 }}>
                 <input
@@ -1724,11 +1729,11 @@ export default function WorkspacePage() {
                   className="btn btn-sm"
                   style={{ background: shareCopied ? 'var(--mint)' : 'var(--forest)', color: shareCopied ? 'var(--mint-ink)' : 'var(--cream)', border: 'none', fontWeight: 700, whiteSpace: 'nowrap', transition: 'background .2s' }}
                 >
-                  {shareCopied ? 'Copié' : 'Copier'}
+                  {shareCopied ? t('copied') : t('copy')}
                 </button>
               </div>
             ) : (
-              <p style={{ fontSize: 13, color: 'var(--danger)', textAlign: 'center' }}>Erreur lors de la génération du lien.</p>
+              <p style={{ fontSize: 13, color: 'var(--danger)', textAlign: 'center' }}>{t('linkError')}</p>
             )}
 
             {/* Expiry toggle */}
@@ -1752,7 +1757,7 @@ export default function WorkspacePage() {
                     transition: 'left .2s', boxShadow: '0 1px 3px rgba(0,0,0,.25)',
                   }} />
                 </span>
-                <span style={{ fontSize: 13.5, fontWeight: 600, color: 'var(--ink)' }}>Date d&apos;expiration</span>
+                <span style={{ fontSize: 13.5, fontWeight: 600, color: 'var(--ink)' }}>{t('expiryDate')}</span>
               </label>
               {shareExpiryEnabled && (
                 <input
@@ -1777,7 +1782,7 @@ export default function WorkspacePage() {
                   <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/>
                   <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/>
                 </svg>
-                Régénérer le lien
+                {t('regenLink')}
               </button>
               <button
                 onClick={copyShareLink}
@@ -1788,7 +1793,7 @@ export default function WorkspacePage() {
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
                   <rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/>
                 </svg>
-                {shareCopied ? 'Lien copié' : 'Copier le lien'}
+                {shareCopied ? t('linkCopied') : t('copyLink')}
               </button>
             </div>
           </div>
