@@ -1,5 +1,6 @@
 'use client';
 import { useState, useEffect, useRef } from 'react';
+import { useTranslations } from 'next-intl';
 import Link from 'next/link';
 import Image from 'next/image';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
@@ -362,6 +363,7 @@ function SplitText({ lines, className = '', stagger = 22, style }: { lines: (Run
 
 /* ─── Nav ────────────────────────────────────────────────────────────────── */
 function Nav({ prelaunch = false }: { prelaunch?: boolean }) {
+  const t = useTranslations('landing.nav');
   const [solid, setSolid] = useState(false);
   const [open, setOpen] = useState(false);
   useEffect(() => {
@@ -369,7 +371,7 @@ function Nav({ prelaunch = false }: { prelaunch?: boolean }) {
     window.addEventListener('scroll', on, { passive: true });
     return () => window.removeEventListener('scroll', on);
   }, []);
-  const links: [string, string][] = [['Le problème', '#probleme'], ['Comment ça marche', '#how'], ['Le produit', '#apercu'], ['Tarifs', '#tarifs'], ['FAQ', '#faq']];
+  const links: [string, string][] = [[t('problem'), '#probleme'], [t('how'), '#how'], [t('product'), '#apercu'], [t('pricing'), '#tarifs'], [t('faq'), '#faq']];
   return (
     <>
       <nav style={{ position: 'fixed', top: 0, left: 0, right: 0, zIndex: 60, transition: 'background .3s, box-shadow .3s, border-color .3s', background: solid ? 'rgba(242,240,230,.95)' : 'transparent', backdropFilter: solid ? 'saturate(1.3) blur(14px)' : 'none', WebkitBackdropFilter: solid ? 'saturate(1.3) blur(14px)' : 'none', borderBottom: solid ? '1px solid var(--line)' : '1px solid transparent' }}>
@@ -379,10 +381,10 @@ function Nav({ prelaunch = false }: { prelaunch?: boolean }) {
             {links.map(([t, h]) => <a key={h} href={h} className="nav-link" style={{ fontFamily: 'var(--mono)', fontSize: 13.5, fontWeight: 700, letterSpacing: '.01em', color: solid ? 'var(--ink-2)' : 'var(--cream-2)', transition: 'color .15s' }}>{t}</a>)}
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            <Link href="/login" className="nav-login" style={{ fontFamily: 'var(--mono)', fontSize: 13.5, fontWeight: 700, color: solid ? 'var(--ink)' : 'var(--cream)' }}>Connexion</Link>
+            <Link href="/login" className="nav-login" style={{ fontFamily: 'var(--mono)', fontSize: 13.5, fontWeight: 700, color: solid ? 'var(--ink)' : 'var(--cream)' }}>{t('login')}</Link>
             {prelaunch
-              ? <a href="#waitlist" className="btn btn-acid btn-sm">Liste d&apos;attente</a>
-              : <Link href="/register" className="btn btn-acid btn-sm">Essai gratuit</Link>}
+              ? <a href="#waitlist" className="btn btn-acid btn-sm">{t('waitlist')}</a>
+              : <Link href="/register" className="btn btn-acid btn-sm">{t('tryFree')}</Link>}
             <button className="v2-mob-btn" onClick={() => setOpen(true)} aria-label="Menu" style={{ background: solid ? 'rgba(10,12,7,.08)' : 'rgba(240,239,228,.15)', color: solid ? 'var(--ink)' : 'var(--cream)' }}>
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><path d="M3 12h18M3 6h18M3 18h18"/></svg>
             </button>
@@ -402,9 +404,9 @@ function Nav({ prelaunch = false }: { prelaunch?: boolean }) {
         </nav>
         <div style={{ marginTop: 'auto', display: 'flex', flexDirection: 'column', gap: 12 }}>
           {prelaunch
-            ? <a href="#waitlist" className="btn btn-acid" style={{ justifyContent: 'center' }} onClick={() => setOpen(false)}>Liste d&apos;attente</a>
-            : <Link href="/register" className="btn btn-acid" style={{ justifyContent: 'center' }} onClick={() => setOpen(false)}>Essai gratuit</Link>}
-          <Link href="/login" className="btn btn-ghost" style={{ justifyContent: 'center', color: '#F0EFE4', boxShadow: 'inset 0 0 0 1.6px rgba(240,239,228,.3)' }} onClick={() => setOpen(false)}>Connexion</Link>
+            ? <a href="#waitlist" className="btn btn-acid" style={{ justifyContent: 'center' }} onClick={() => setOpen(false)}>{t('waitlist')}</a>
+            : <Link href="/register" className="btn btn-acid" style={{ justifyContent: 'center' }} onClick={() => setOpen(false)}>{t('tryFree')}</Link>}
+          <Link href="/login" className="btn btn-ghost" style={{ justifyContent: 'center', color: '#F0EFE4', boxShadow: 'inset 0 0 0 1.6px rgba(240,239,228,.3)' }} onClick={() => setOpen(false)}>{t('login')}</Link>
         </div>
       </div>
     </>
@@ -427,6 +429,7 @@ const SOCIAL_AVATARS = [
 ];
 
 function HeroSocialProof() {
+  const t = useTranslations('landing.hero');
   return (
     <div className="reveal in hero-proof" style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 11, marginTop: 30 }}>
       <div className="hero-proof-avatars" aria-hidden="true" style={{ display: "flex" }}>
@@ -437,9 +440,9 @@ function HeroSocialProof() {
         ))}
       </div>
       <div className="hero-proof-text" style={{ display: "flex", alignItems: "center", gap: 13, flexWrap: "wrap", justifyContent: "center", textAlign: "center" }}>
-        <span style={{ fontFamily: "var(--sans)", fontWeight: 700, fontSize: 14.5, color: "var(--cream)" }}>{socialProofText}</span>
+        <span style={{ fontFamily: "var(--sans)", fontWeight: 700, fontSize: 14.5, color: "var(--cream)" }}>{t('socialProof')}</span>
         <span className="hero-proof-div" style={{ width: 1, height: 18, background: "var(--line-f)" }} />
-        <span style={{ fontFamily: "var(--sans)", fontWeight: 400, fontSize: 14, color: "var(--cream-3)" }}>7 jours d&apos;essai gratuit</span>
+        <span style={{ fontFamily: "var(--sans)", fontWeight: 400, fontSize: 14, color: "var(--cream-3)" }}>{t('trial7')}</span>
       </div>
     </div>
   );
@@ -447,19 +450,20 @@ function HeroSocialProof() {
 
 /* ─── Hero ───────────────────────────────────────────────────────────────── */
 function Hero({ prelaunch = false }: { prelaunch?: boolean }) {
+  const t = useTranslations('landing.hero');
   const peek = useParallax(0.06);
   const f1 = useParallax(-0.14), f2 = useParallax(0.18), f3 = useParallax(0.1), f4 = useParallax(-0.12);
-  const lines: (Run[])[] = [[{ t: 'Tous vos clients.' }], [{ t: 'Un seul ' }, { t: 'outil.', cls: 'it-serif accent-lit' }]];
-  const flow = [{ ic: 'upload', t: 'Importez' }, { ic: 'image', t: 'Composez & rédigez' }, { ic: 'send', t: 'Programmez & publiez' }];
+  const lines: (Run[])[] = [[{ t: t('title1') }], [{ t: t('title2pre') }, { t: t('title2accent'), cls: 'it-serif accent-lit' }]];
+  const flow = [{ ic: 'upload', t: t('flowImport') }, { ic: 'image', t: t('flowCompose') }, { ic: 'send', t: t('flowSchedule') }];
   return (
     <header id="top" className="section dotgrid on-forest" style={{ paddingTop: 150, paddingBottom: 84, position: 'relative', overflow: 'hidden' }}>
       <div className="wrap" style={{ position: 'relative', zIndex: 2 }}>
         <p className="reveal" style={{ textAlign: 'center', fontFamily: 'var(--mono)', fontWeight: 700, fontSize: 14, letterSpacing: '.04em', color: 'var(--cream-2)', marginBottom: 22, textTransform: 'uppercase' }}>
-          L&apos;outil de post-production de vos réseaux sociaux
+          {t('eyebrow')}
         </p>
         <SplitText lines={lines} className="hero-h1" style={{ textAlign: 'center', fontSize: 'clamp(38px, 6.6vw, 80px)', margin: '0 auto', maxWidth: 1080 }} stagger={22} />
         <p className="lead reveal d1" style={{ textAlign: 'center', maxWidth: 680, margin: '28px auto 0', fontSize: 21 }}>
-          Un seul espace pour gérer le contenu Instagram de <strong style={{ color: 'var(--cream)', fontWeight: 700 }}>tous vos clients</strong> — chaque marque avec sa voix. Fini de jongler entre dix outils et d&apos;y perdre vos soirées.
+          {t('leadPre')}<strong style={{ color: 'var(--cream)', fontWeight: 700 }}>{t('leadStrong')}</strong>{t('leadPost')}
         </p>
         <div className="reveal d2 hero-flow" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, flexWrap: 'wrap', marginTop: 28 }}>
           {flow.map((s, i) => (
@@ -476,9 +480,9 @@ function Hero({ prelaunch = false }: { prelaunch?: boolean }) {
 
         <div className="reveal d3 hero-cta" style={{ display: 'flex', gap: 14, justifyContent: 'center', marginTop: 34, flexWrap: 'wrap' }}>
           {prelaunch
-            ? <a href="#waitlist" className="btn btn-acid">Rejoindre la liste d&apos;attente <span className="arr"><Icon name="arrowUR" size={18} /></span></a>
-            : <Link href="/register" className="btn btn-acid">Essayer gratuitement <span className="arr"><Icon name="arrowUR" size={18} /></span></Link>}
-          <a href="#apercu" className="btn btn-ghost">Voir KLIP en action</a>
+            ? <a href="#waitlist" className="btn btn-acid">{t('ctaWaitlist')} <span className="arr"><Icon name="arrowUR" size={18} /></span></a>
+            : <Link href="/register" className="btn btn-acid">{t('ctaTry')} <span className="arr"><Icon name="arrowUR" size={18} /></span></Link>}
+          <a href="#apercu" className="btn btn-ghost">{t('ctaSee')}</a>
         </div>
 
         <div className="reveal d3" style={{ display: 'flex', justifyContent: 'center', marginTop: 16 }}>
@@ -496,23 +500,23 @@ function Hero({ prelaunch = false }: { prelaunch?: boolean }) {
           </div>
           <div ref={f1} className="hero-float floatA" style={{ position: 'absolute', left: -42, top: '34%', zIndex: 5 }}>
             <div style={{ background: 'var(--acid)', color: 'var(--acid-ink)', padding: '14px 18px', borderRadius: 'var(--radius-s)', boxShadow: '0 24px 50px -22px rgba(47,215,155,.8)', fontFamily: 'var(--mono)', fontWeight: 700, fontSize: 13, maxWidth: 170, lineHeight: 1.4 }}>
-              <div style={{ fontSize: 22, fontWeight: 700, marginBottom: 2 }}>6 clients</div>un seul écran
+              <div style={{ fontSize: 22, fontWeight: 700, marginBottom: 2 }}>{t('floatClients')}</div>{t('floatOneScreen')}
             </div>
           </div>
           <div ref={f2} className="hero-float floatB" style={{ position: 'absolute', right: -36, top: '12%', zIndex: 5 }}>
             <div style={{ background: 'var(--forest)', color: 'var(--cream)', padding: '14px 18px', borderRadius: 'var(--radius-s)', boxShadow: '0 24px 50px -22px rgba(0,0,0,.6)', fontFamily: 'var(--mono)', fontWeight: 700, fontSize: 13, display: 'flex', alignItems: 'center', gap: 10 }}>
-              <Icon name="spark" size={20} style={{ color: 'var(--acid)' }} /><span>Légende IA<br />générée ✓</span>
+              <Icon name="spark" size={20} style={{ color: 'var(--acid)' }} /><span>{t('floatAiCaption')}</span>
             </div>
           </div>
           <div ref={f3} className="hero-float floatB" style={{ position: 'absolute', left: -44, bottom: '13%', zIndex: 5 }}>
             <div style={{ background: 'var(--paper-2)', color: 'var(--ink)', padding: '13px 17px', borderRadius: 'var(--radius-s)', boxShadow: '0 24px 50px -24px rgba(0,0,0,.45)', fontFamily: 'var(--mono)', fontWeight: 700, fontSize: 13, display: 'flex', alignItems: 'center', gap: 11 }}>
               <span style={{ width: 30, height: 30, flex: 'none', display: 'grid', placeItems: 'center', borderRadius: 8, background: 'var(--ink)', color: 'var(--acid)' }}><Icon name="image" size={16} /></span>
-              <span>Éditeur visuel<br /><span style={{ color: 'var(--ink-3)' }}>type Canva / Adobe</span></span>
+              <span>{t('floatVisualEditor')}<br /><span style={{ color: 'var(--ink-3)' }}>{t('floatCanvaAdobe')}</span></span>
             </div>
           </div>
           <div ref={f4} className="hero-float floatA" style={{ position: 'absolute', right: -30, bottom: '23%', zIndex: 5 }}>
             <div style={{ background: 'var(--acid)', color: 'var(--acid-ink)', padding: '13px 17px', borderRadius: 'var(--radius-s)', boxShadow: '0 24px 50px -22px rgba(47,215,155,.75)', fontFamily: 'var(--mono)', fontWeight: 700, fontSize: 13, display: 'flex', alignItems: 'center', gap: 10 }}>
-              <Icon name="calendar" size={18} /><span>Programmé<br />Jeu. 18:30 ✓</span>
+              <Icon name="calendar" size={18} /><span>{t('floatScheduled')}<br />{t('floatScheduledTime')}</span>
             </div>
           </div>
         </div>
@@ -523,21 +527,22 @@ function Hero({ prelaunch = false }: { prelaunch?: boolean }) {
 
 /* ─── Probleme ───────────────────────────────────────────────────────────── */
 function Probleme() {
+  const t = useTranslations('landing.problem');
   const pains = [
-    { ic: 'layers', t: 'Quatre outils ouverts', d: 'Canva, Notes, le tableur de planning, l’app Instagram. Vous copiez-collez toute la journée.' },
-    { ic: 'clock', t: 'Des soirées à rattraper', d: 'Le contenu déborde sur vos week-ends. Plus vous prenez de clients, plus vous coulez.' },
-    { ic: 'voice', t: 'Une voix par client, à la main', d: 'Vous gardez le ton de chaque marque en tête. Une erreur, et c’est le client qui le voit.' },
-    { ic: 'chat', t: 'La validation par mail', d: 'Allers-retours interminables, captures d’écran, versions perdues. Le post sort en retard.' },
+    { ic: 'layers', t: t('pain1t'), d: t('pain1d') },
+    { ic: 'clock', t: t('pain2t'), d: t('pain2d') },
+    { ic: 'voice', t: t('pain3t'), d: t('pain3d') },
+    { ic: 'chat', t: t('pain4t'), d: t('pain4d') },
   ];
   return (
     <section id="probleme" className="section on-forest dotgrid" style={{ overflow: 'hidden', borderTop: '1px solid var(--line-f)' }}>
       <div className="wrap" style={{ position: 'relative', zIndex: 2 }}>
         <div style={{ maxWidth: 880 }}>
           <h2 className="display reveal d1" style={{ fontSize: 'clamp(40px, 6.4vw, 90px)', marginTop: 22 }}>
-            Plus vous prenez de clients, <span className="it-serif acid-fill">plus vous ralentissez.</span>
+            {t('title1')}<span className="it-serif acid-fill">{t('titleAccent')}</span>
           </h2>
           <p className="lead reveal d2" style={{ marginTop: 26, maxWidth: 620 }}>
-            Vous ne grandissez plus au rythme de votre talent, mais au rythme de votre logistique. Chaque nouveau client ajoute des heures de manipulation, pas de création.
+            {t('lead')}
           </p>
         </div>
         <div className="grid-2" style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 16, marginTop: 56 }}>
@@ -552,9 +557,9 @@ function Probleme() {
           ))}
         </div>
         <div className="reveal d2 stat-bar" style={{ marginTop: 28, padding: '34px 38px', display: 'flex', alignItems: 'center', gap: 28, flexWrap: 'wrap', background: 'var(--acid)', color: 'var(--acid-ink)', borderRadius: 'var(--radius)' }}>
-          <span style={{ fontFamily: 'var(--heavy)', fontWeight: 900, fontSize: 'clamp(46px, 6vw, 76px)', letterSpacing: '-0.04em', lineHeight: 1 }}>−11h</span>
+          <span style={{ fontFamily: 'var(--heavy)', fontWeight: 900, fontSize: 'clamp(46px, 6vw, 76px)', letterSpacing: '-0.04em', lineHeight: 1 }}>{t('statNum')}</span>
           <span style={{ fontFamily: 'var(--mono)', fontWeight: 700, fontSize: 16, maxWidth: 420, lineHeight: 1.5 }}>
-            par semaine et par gestionnaire, englouties à jongler entre les outils plutôt qu&apos;à créer. C&apos;est un client de plus que vous ne prenez pas.
+            {t('statText')}
           </span>
         </div>
       </div>
@@ -564,22 +569,23 @@ function Probleme() {
 
 /* ─── Steps ──────────────────────────────────────────────────────────────── */
 function Steps() {
+  const t = useTranslations('landing.steps');
   const peek = useParallax(0.06);
   const steps = [
-    { n: '01', ic: 'upload', t: 'Importez vos médias', d: 'Déposez les photos et vidéos d’un client — tout votre matériel réuni au même endroit.' },
-    { n: '02', ic: 'image', t: 'Composez & retouchez', d: 'Créez vos visuels ou retravaillez vos imports dans l’éditeur intégré, type Canva. La charte du client est déjà appliquée.' },
-    { n: '03', ic: 'wand', t: 'Rédigez avec l’IA', d: 'Légendes, descriptions et hashtags générés depuis l’image et la voix de marque du client.' },
-    { n: '04', ic: 'send', t: 'Programmez & publiez', d: 'Calez sur le calendrier, faites valider, KLIP publie sur Instagram — pour chacun de vos clients.' },
+    { n: '01', ic: 'upload', t: t('s1t'), d: t('s1d') },
+    { n: '02', ic: 'image', t: t('s2t'), d: t('s2d') },
+    { n: '03', ic: 'wand', t: t('s3t'), d: t('s3d') },
+    { n: '04', ic: 'send', t: t('s4t'), d: t('s4d') },
   ];
   return (
     <section id="how" className="section">
       <div className="wrap">
         <div style={{ maxWidth: 840 }}>
           <h2 className="display reveal" style={{ fontSize: 'clamp(36px, 5.4vw, 76px)' }}>
-            Du contenu brut au post publié,<br /><span className="it-serif acid-fill">sans changer d&apos;outil.</span>
+            {t('title1')}<br /><span className="it-serif acid-fill">{t('titleAccent')}</span>
           </h2>
           <p className="lead reveal d1" style={{ marginTop: 24, maxWidth: 660 }}>
-            KLIP réunit toute la post-production de vos réseaux : importez vos prises de vue, composez vos visuels, laissez l&apos;IA écrire, programmez. Pour chaque client, sans jamais quitter l&apos;outil.
+            {t('lead')}
           </p>
         </div>
         <div className="grid-2" style={{ display: 'grid', gridTemplateColumns: '1fr 1.04fr', gap: 56, marginTop: 54, alignItems: 'center' }}>
@@ -707,30 +713,31 @@ function EditorUI() {
 
 /* ─── Showcase ───────────────────────────────────────────────────────────── */
 function Showcase() {
+  const t = useTranslations('landing.showcase');
   const a = useParallax(0.06), b = useParallax(0.09);
   const shots = [
-    { ref: a, img: '/klip-media/calendar.png', t: 'Calendrier éditorial', d: 'Tous les posts de tous vos clients sur une seule grille. Glissez pour replanifier, repérez les trous, gardez le rythme — sans tableur.', tags: ['Glisser-déposer', 'Vue mois / semaine', 'Multi-clients'] },
-    { ref: b, img: '/klip-media/queue.png', t: 'File de publication', d: 'Vos comptes Instagram connectés. Vous validez, KLIP publie au créneau prévu — plus besoin de rouvrir l’app ni de poster à la main.', tags: ['Auto-publication', 'Validation client', 'Créneaux'] },
+    { ref: a, img: '/klip-media/calendar.png', t: t('calTitle'), d: t('calDesc'), tags: [t('calTag1'), t('calTag2'), t('calTag3')] },
+    { ref: b, img: '/klip-media/queue.png', t: t('queueTitle'), d: t('queueDesc'), tags: [t('queueTag1'), t('queueTag2'), t('queueTag3')] },
   ];
   return (
     <section id="apercu" className="section on-forest" style={{ overflow: 'hidden' }}>
       <div className="wrap">
         <div style={{ maxWidth: 820 }}>
           <h2 className="display reveal" style={{ fontSize: 'clamp(38px, 5.6vw, 78px)' }}>
-            Une interface qui <span className="it-serif acid-fill">respire.</span>
+            {t('title1')}<span className="it-serif acid-fill">{t('titleAccent')}</span>
           </h2>
           <p className="lead reveal d2" style={{ marginTop: 24, maxWidth: 580 }}>
-            Pensée pour gérer six marques sans jamais les mélanger. Voilà à quoi ressemble une journée de travail sans friction.
+            {t('lead')}
           </p>
         </div>
         <div className="reveal" style={{ marginTop: 64 }}>
           <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 28, flexWrap: 'wrap', marginBottom: 26 }}>
             <div style={{ maxWidth: 560 }}>
-              <span className="sho-kicker">01 — L&apos;éditeur visuel</span>
-              <h3 className="display" style={{ fontSize: 'clamp(28px,3.4vw,46px)', color: 'var(--cream)', marginTop: 14 }}>La charte de chaque client, appliquée d&apos;un clic</h3>
+              <span className="sho-kicker">{t('editorKicker')}</span>
+              <h3 className="display" style={{ fontSize: 'clamp(28px,3.4vw,46px)', color: 'var(--cream)', marginTop: 14 }}>{t('editorTitle')}</h3>
             </div>
             <p style={{ color: 'var(--cream-2)', fontSize: 16, lineHeight: 1.6, maxWidth: 380 }}>
-              Sélectionnez un texte et tout s&apos;ouvre — police, taille, couleurs de la charte, effets, animations. La même puissance que Canva ou la suite Adobe, déjà calée sur votre client.
+              {t('editorText')}
             </p>
           </div>
           <ScaleToFit designWidth={920}><EditorUI /></ScaleToFit>
@@ -793,7 +800,8 @@ function EditorMock() {
 
 /* ─── Features ───────────────────────────────────────────────────────────── */
 function Features() {
-  const tags = ['Charte par client', 'Glisser-déposer', 'Calé au pixel'];
+  const t = useTranslations('landing.features');
+  const tags = [t('tag1'), t('tag2'), t('tag3')];
   const F = ({ ic, t, d, tone }: { ic: string; t: string; d: string; tone?: 'acid' | 'forest' }) => {
     const isAcid = tone === 'acid', isForest = tone === 'forest';
     return (
@@ -811,17 +819,17 @@ function Features() {
       <div className="wrap">
         <div style={{ maxWidth: 820 }}>
           <h2 className="display reveal" style={{ fontSize: 'clamp(38px, 5.6vw, 78px)' }}>
-            Ce qu&apos;il fallait dix outils pour faire,<br /><span className="it-serif acid-fill">KLIP le fait d&apos;un trait.</span>
+            {t('title1')}<br /><span className="it-serif acid-fill">{t('titleAccent')}</span>
           </h2>
         </div>
         <div className="reveal feat-hero" style={{ display: 'grid', gridTemplateColumns: '1fr 1.12fr', gap: 0, marginTop: 52, background: 'var(--forest)', color: 'var(--cream)', borderRadius: 'var(--radius)', overflow: 'hidden', boxShadow: '0 50px 100px -55px rgba(6,32,24,.8)' }}>
           <div style={{ padding: 'clamp(32px, 3.6vw, 52px)', display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 20 }}>
             <span style={{ alignSelf: 'flex-start', display: 'inline-flex', alignItems: 'center', gap: 8, background: 'var(--acid)', color: 'var(--acid-ink)', fontFamily: 'var(--mono)', fontWeight: 700, fontSize: 12, letterSpacing: '.08em', textTransform: 'uppercase', padding: '8px 13px', borderRadius: 999 }}>
-              <Icon name="spark" size={14} /> Atout phare
+              <Icon name="spark" size={14} /> {t('badge')}
             </span>
-            <h3 className="display" style={{ fontSize: 'clamp(36px, 4.4vw, 62px)' }}>Éditeur visuel</h3>
+            <h3 className="display" style={{ fontSize: 'clamp(36px, 4.4vw, 62px)' }}>{t('mainTitle')}</h3>
             <p style={{ color: 'var(--cream-2)', fontSize: 17.5, lineHeight: 1.6, maxWidth: 440 }}>
-              La charte de chaque client — couleurs, typo, logo — appliquée d&apos;un clic. Vous glissez le texte, c&apos;est calé au pixel. Plus aucun logiciel de design à ouvrir.
+              {t('mainText')}
             </p>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 9 }}>
               {tags.map((t, i) => (
@@ -836,10 +844,10 @@ function Features() {
           </div>
         </div>
         <div className="bento" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(238px, 1fr))', gap: 16, marginTop: 16 }}>
-          <F ic="voice" t="Voix de marque" d="Ton, style, mots interdits. Chaque génération respecte l&rsquo;ADN du client." tone="acid" />
-          <F ic="wand" t="Descriptions IA" d="Légendes et hashtags générés depuis la photo et le contexte de la marque." />
-          <F ic="layers" t="Un espace par client" d="Charte, historique, comptes connectés — cloisonnés, jamais mélangés." />
-          <F ic="instagram" t="Publication directe" d="Connexion compte pro. Programmez, validez, KLIP publie au créneau." tone="forest" />
+          <F ic="voice" t={t('f1t')} d={t('f1d')} tone="acid" />
+          <F ic="wand" t={t('f2t')} d={t('f2d')} />
+          <F ic="layers" t={t('f3t')} d={t('f3d')} />
+          <F ic="instagram" t={t('f4t')} d={t('f4d')} tone="forest" />
         </div>
       </div>
     </section>
@@ -848,17 +856,18 @@ function Features() {
 
 /* ─── Testimonials ───────────────────────────────────────────────────────── */
 function Testimonials() {
-  const big = { q: 'Avant, ma prod tournait sur Canva, un Drive, des allers-retours par mail et un tableur de planning. Là tout est au même endroit. J’ai récupéré mes vendredis après-midi.', a: 'Camille R.', r: 'Directrice de création · Studio Klein' };
+  const t = useTranslations('landing.testimonials');
+  const big = { q: t('bigQ'), a: t('bigA'), r: t('bigR') };
   const small = [
-    { q: 'L’IA reprend le ton exact de chaque marque. Je corrige deux ou trois mots au lieu de tout réécrire.', a: 'Yanis B.', r: 'Social media manager' },
-    { q: 'Mes clients valident depuis leur téléphone, sans créer de compte. Fini les captures d’écran sur WhatsApp.', a: 'Léa M.', r: 'Freelance · contenu de marque' },
+    { q: t('s1q'), a: t('s1a'), r: t('s1r') },
+    { q: t('s2q'), a: t('s2a'), r: t('s2r') },
   ];
   return (
     <section className="section on-forest" style={{ overflow: 'hidden' }}>
       <div className="wrap">
         <div style={{ maxWidth: 700 }}>
           <h2 className="display reveal d1" style={{ fontSize: 'clamp(38px, 5.6vw, 78px)', marginTop: 22 }}>
-            Le calme, <span className="it-serif acid-fill">retrouvé.</span>
+            {t('title1')}<span className="it-serif acid-fill">{t('titleAccent')}</span>
           </h2>
         </div>
         <div className="testi-grid" style={{ display: 'grid', gridTemplateColumns: '1.25fr 1fr', gap: 16, marginTop: 52 }}>
@@ -916,11 +925,12 @@ async function startCheckout(plan: 'studio' | 'agence', period: 'monthly' | 'yea
 
 /* ─── Pricing ────────────────────────────────────────────────────────────── */
 function Pricing({ prelaunch = false }: { prelaunch?: boolean }) {
+  const tp = useTranslations('landing.pricing');
   const [period, setPeriod] = useState<'monthly' | 'yearly'>('monthly');
   const [busy, setBusy] = useState<string | null>(null);
   const tiers = [
-    { name: 'Studio', plan: 'studio' as const, monthly: 29, yearly: 24, tag: 'Freelances & community managers', clients: 'Jusqu’à 3 clients', feats: ['Éditeur visuel complet', 'Descriptions IA illimitées', 'Calendrier éditorial', 'Publication Instagram & Facebook', '1 utilisateur'], pop: false },
-    { name: 'Agence', plan: 'agence' as const, monthly: 96, yearly: 80, tag: 'Agences & studios de communication', clients: 'Jusqu’à 10 clients', feats: ['Tout Studio, plus :', 'Jusqu’à 5 membres d’équipe', 'Workflow de validation client', 'Rôles Manager & Créa', 'Création en lot'], pop: true },
+    { name: 'Studio', plan: 'studio' as const, monthly: 29, yearly: 24, tag: tp('studioTag'), clients: tp('studioClients'), feats: [tp('studioF1'), tp('studioF2'), tp('studioF3'), tp('studioF4'), tp('studioF5')], pop: false },
+    { name: 'Agence', plan: 'agence' as const, monthly: 96, yearly: 80, tag: tp('agencyTag'), clients: tp('agencyClients'), feats: [tp('agencyF1'), tp('agencyF2'), tp('agencyF3'), tp('agencyF4'), tp('agencyF5')], pop: true },
   ];
   async function onChoose(plan: 'studio' | 'agence') { setBusy(plan); await startCheckout(plan, period); setBusy(null); }
 
@@ -929,16 +939,16 @@ function Pricing({ prelaunch = false }: { prelaunch?: boolean }) {
       <div className="wrap" style={{ position: 'relative', zIndex: 2 }}>
         <div style={{ textAlign: 'center', maxWidth: 720, margin: '0 auto' }}>
           <h2 className="display reveal d1" style={{ fontSize: 'clamp(38px, 5.6vw, 78px)', marginTop: 22 }}>
-            Un prix qui grandit <span className="it-serif acid-fill">avec vous.</span>
+            {tp('title1')}<span className="it-serif acid-fill">{tp('titleAccent')}</span>
           </h2>
-          <p className="lead reveal d2" style={{ marginTop: 22 }}>7 jours d&apos;essai gratuit. Vous changez d&apos;offre quand vous voulez.</p>
+          <p className="lead reveal d2" style={{ marginTop: 22 }}>{tp('lead')}</p>
           {/* Toggle Mensuel / Annuel */}
           <div className="reveal d2" style={{ display: 'inline-flex', alignItems: 'center', gap: 4, marginTop: 26, padding: 5, borderRadius: 999, background: 'var(--paper-2)', boxShadow: 'inset 0 0 0 1px var(--line)' }}>
-            {([['monthly', 'Mensuel'], ['yearly', 'Annuel']] as const).map(([p, label]) => (
+            {([['monthly', tp('monthly')], ['yearly', tp('yearly')]] as const).map(([p, label]) => (
               <button key={p} onClick={() => setPeriod(p)}
                 style={{ padding: '9px 18px', borderRadius: 999, fontFamily: 'var(--mono)', fontWeight: 700, fontSize: 14, border: 'none', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 8,
                   background: period === p ? 'var(--ink)' : 'transparent', color: period === p ? 'var(--paper)' : 'var(--ink-2)' }}>
-                {label}{p === 'yearly' && <span style={{ fontSize: 11, padding: '2px 7px', borderRadius: 999, background: 'var(--acid)', color: 'var(--acid-ink)' }}>2 mois offerts</span>}
+                {label}{p === 'yearly' && <span style={{ fontSize: 11, padding: '2px 7px', borderRadius: 999, background: 'var(--acid)', color: 'var(--acid-ink)' }}>{tp('save2mo')}</span>}
               </button>
             ))}
           </div>
@@ -948,24 +958,24 @@ function Pricing({ prelaunch = false }: { prelaunch?: boolean }) {
             const shown = period === 'yearly' ? t.yearly : t.monthly;
             return (
             <div key={i} className={`reveal d${i + 1}`} style={{ position: 'relative', background: t.pop ? 'var(--forest)' : 'var(--paper-2)', color: t.pop ? 'var(--cream)' : 'var(--ink)', borderRadius: 'var(--radius)', padding: '34px 32px', border: t.pop ? 'none' : '1px solid var(--line)', boxShadow: t.pop ? '0 40px 80px -40px rgba(6,32,24,.6)' : 'none', transform: t.pop ? 'translateY(-14px)' : 'none' }}>
-              {t.pop && <span style={{ position: 'absolute', top: -13, right: 26, background: 'var(--acid)', color: 'var(--acid-ink)', fontFamily: 'var(--mono)', fontWeight: 700, fontSize: 11.5, letterSpacing: '.08em', textTransform: 'uppercase', padding: '6px 12px', borderRadius: 999 }}>Le plus choisi</span>}
+              {t.pop && <span style={{ position: 'absolute', top: -13, right: 26, background: 'var(--acid)', color: 'var(--acid-ink)', fontFamily: 'var(--mono)', fontWeight: 700, fontSize: 11.5, letterSpacing: '.08em', textTransform: 'uppercase', padding: '6px 12px', borderRadius: 999 }}>{tp('popular')}</span>}
               <h3 style={{ fontFamily: 'var(--heavy)', fontWeight: 800, fontSize: 22, textTransform: 'uppercase', letterSpacing: '-0.01em', margin: 0 }}>{t.name}</h3>
               <div style={{ fontFamily: 'var(--mono)', fontSize: 13, color: t.pop ? 'var(--cream-3)' : 'var(--ink-3)', marginTop: 4 }}>{t.tag}</div>
               <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, margin: '22px 0 2px' }}>
                 <span style={{ fontFamily: 'var(--heavy)', fontWeight: 900, fontSize: 58, letterSpacing: '-0.04em', lineHeight: 1 }}>{shown}€</span>
-                <span style={{ fontFamily: 'var(--mono)', fontSize: 13, color: t.pop ? 'var(--cream-2)' : 'var(--ink-3)' }}>/mois</span>
+                <span style={{ fontFamily: 'var(--mono)', fontSize: 13, color: t.pop ? 'var(--cream-2)' : 'var(--ink-3)' }}>{tp('perMonth')}</span>
               </div>
               <div style={{ fontFamily: 'var(--mono)', fontSize: 11.5, color: t.pop ? 'var(--cream-3)' : 'var(--ink-3)', marginBottom: 18, minHeight: 16 }}>
-                {period === 'yearly' ? `soit ${t.yearly * 12}€ facturés par an` : 'facturé chaque mois'}
+                {period === 'yearly' ? tp('billedYear', { total: t.yearly * 12 }) : tp('billedMonth')}
               </div>
               <div className="chip" style={{ marginBottom: 24, background: t.pop ? 'var(--forest-2)' : 'var(--paper-3)', color: t.pop ? 'var(--cream-2)' : 'var(--ink-2)', boxShadow: 'inset 0 0 0 1px var(--line)' }}>{t.clients}</div>
               {prelaunch ? (
                 <a href="#waitlist" className={`btn ${t.pop ? 'btn-acid' : 'btn-ghost'}`} style={{ width: '100%', justifyContent: 'center', marginBottom: 26 }}>
-                  Rejoindre la liste d&apos;attente
+                  {tp('ctaWaitlist')}
                 </a>
               ) : (
                 <button onClick={() => onChoose(t.plan)} disabled={busy !== null} className={`btn ${t.pop ? 'btn-acid' : 'btn-ghost'}`} style={{ width: '100%', justifyContent: 'center', marginBottom: 26 }}>
-                  {busy === t.plan ? 'Redirection…' : 'Essai 7 jours gratuit'}
+                  {busy === t.plan ? tp('redirecting') : tp('ctaTrial')}
                 </button>
               )}
               <ul style={{ listStyle: 'none', display: 'flex', flexDirection: 'column', gap: 12 }}>
@@ -989,12 +999,13 @@ function Pricing({ prelaunch = false }: { prelaunch?: boolean }) {
 
 /* ─── FAQ ────────────────────────────────────────────────────────────────── */
 function FAQ() {
+  const t = useTranslations('landing.faq');
   const items = [
-    { q: 'Faut-il déjà avoir un compte Instagram pro ?', a: 'Oui. KLIP se connecte à un compte Instagram professionnel ou créateur via l’API officielle. La connexion prend deux minutes, par client.' },
-    { q: 'L’IA respecte-t-elle vraiment la voix de chaque marque ?', a: 'Vous définissez le ton, le style et les mots interdits de chaque client une fois. Chaque génération s’appuie sur cette voix — vous gardez la main et peaufinez d’un clic.' },
-    { q: 'Mes clients peuvent-ils valider sans compte KLIP ?', a: 'Oui. Vous envoyez un lien de validation : le client approuve ou commente directement, sans rien installer. Fini les allers-retours par mail.' },
-    { q: 'Mes données clients sont-elles cloisonnées ?', a: 'Chaque client a son espace : charte, historique, comptes connectés. Rien n’est mélangé entre deux marques, jamais.' },
-    { q: 'Puis-je changer d’offre en cours de route ?', a: 'À tout moment, sans engagement. Vous montez d’un palier quand vous prenez plus de clients, et redescendez si besoin.' },
+    { q: t('q1'), a: t('a1') },
+    { q: t('q2'), a: t('a2') },
+    { q: t('q3'), a: t('a3') },
+    { q: t('q4'), a: t('a4') },
+    { q: t('q5'), a: t('a5') },
   ];
   const [open, setOpen] = useState(0);
   return (
@@ -1003,9 +1014,9 @@ function FAQ() {
         <div className="grid-2" style={{ display: 'grid', gridTemplateColumns: '0.85fr 1.15fr', gap: 56, alignItems: 'start' }}>
           <div>
             <h2 className="display reveal d1" style={{ fontSize: 'clamp(36px, 4.8vw, 64px)', marginTop: 22 }}>
-              Les questions <span className="it-serif acid-fill">qu&apos;on nous pose.</span>
+              {t('title1')}<span className="it-serif acid-fill">{t('titleAccent')}</span>
             </h2>
-            <p className="lead reveal d2" style={{ marginTop: 22 }}>Une autre en tête ? <a href="mailto:getklipsaas@gmail.com" style={{ color: 'var(--ink)', textDecoration: 'underline', textDecorationColor: 'var(--acid-2)', textUnderlineOffset: 3 }}>Écrivez-nous.</a></p>
+            <p className="lead reveal d2" style={{ marginTop: 22 }}>{t('another')} <a href="mailto:getklipsaas@gmail.com" style={{ color: 'var(--ink)', textDecoration: 'underline', textDecorationColor: 'var(--acid-2)', textUnderlineOffset: 3 }}>{t('writeUs')}</a></p>
           </div>
           <div style={{ display: 'flex', flexDirection: 'column' }}>
             {items.map((it, i) => {
@@ -1033,6 +1044,7 @@ function FAQ() {
 
 /* ─── Waitlist (pré-ouverture) ───────────────────────────────────────────── */
 function WaitlistSection() {
+  const t = useTranslations('landing.waitlist');
   const [email, setEmail] = useState('');
   const [name, setName] = useState('');
   const [instagram, setInstagram] = useState('');
@@ -1049,14 +1061,14 @@ function WaitlistSection() {
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     setError('');
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) { setError('Entrez un email valide.'); return; }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) { setError(t('errEmail')); return; }
     setBusy(true);
     try {
       const source = typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('ref') || 'landing' : 'landing';
       const res = await fetch('/api/waitlist', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email, name, instagram, company, source }) });
       if (res.ok) setDone(true);
-      else { const d = await res.json(); setError(d?.error || 'Inscription impossible.'); }
-    } catch { setError('Une erreur est survenue.'); }
+      else { const d = await res.json(); setError(d?.error || t('errSignup')); }
+    } catch { setError(t('errGeneric')); }
     setBusy(false);
   }
 
@@ -1067,25 +1079,25 @@ function WaitlistSection() {
       <div ref={rootRef} className="wrap" style={{ maxWidth: 620, margin: '0 auto', textAlign: 'center' }}>
         {!done ? (
           <>
-            <span className="chip" style={{ background: 'var(--acid)', color: 'var(--acid-ink)', fontFamily: 'var(--mono)', fontWeight: 800, letterSpacing: '.1em', textTransform: 'uppercase', fontSize: 11.5 }}>Pré-ouverture · accès anticipé</span>
+            <span className="chip" style={{ background: 'var(--acid)', color: 'var(--acid-ink)', fontFamily: 'var(--mono)', fontWeight: 800, letterSpacing: '.1em', textTransform: 'uppercase', fontSize: 11.5 }}>{t('badge')}</span>
             <h2 className="display" style={{ fontSize: 'clamp(34px, 5.4vw, 64px)', marginTop: 18 }}>
-              Soyez les <span className="it-serif acid-fill">premiers sur Klip.</span>
+              {t('title1')}<span className="it-serif acid-fill">{t('titleAccent')}</span>
             </h2>
             <p className="lead" style={{ marginTop: 18, color: 'var(--cream-2)' }}>
-              Klip ouvre bientôt. Inscrivez-vous pour un <strong style={{ color: 'var(--cream)' }}>accès prioritaire</strong>, un <strong style={{ color: 'var(--cream)' }}>tarif fondateur</strong> et un <strong style={{ color: 'var(--cream)' }}>onboarding offert</strong>.
+              {t('leadPre')}<strong style={{ color: 'var(--cream)' }}>{t('leadB1')}</strong>{t('leadMid1')}<strong style={{ color: 'var(--cream)' }}>{t('leadB2')}</strong>{t('leadMid2')}<strong style={{ color: 'var(--cream)' }}>{t('leadB3')}</strong>{t('leadPost')}
             </p>
             <form onSubmit={submit} style={{ display: 'flex', flexDirection: 'column', gap: 11, marginTop: 30, textAlign: 'left' }}>
-              <input style={inp} type="email" required placeholder="Votre email *" value={email} onChange={e => setEmail(e.target.value)} />
+              <input style={inp} type="email" required placeholder={t('emailPh')} value={email} onChange={e => setEmail(e.target.value)} />
               <div className="wl-row" style={{ display: 'flex', gap: 11 }}>
-                <input style={inp} placeholder="Prénom / nom" value={name} onChange={e => setName(e.target.value)} />
-                <input style={inp} placeholder="@instagram" value={instagram} onChange={e => setInstagram(e.target.value)} />
+                <input style={inp} placeholder={t('namePh')} value={name} onChange={e => setName(e.target.value)} />
+                <input style={inp} placeholder={t('igPh')} value={instagram} onChange={e => setInstagram(e.target.value)} />
               </div>
-              <input style={inp} placeholder="Agence, freelance, combien de clients ?" value={company} onChange={e => setCompany(e.target.value)} />
+              <input style={inp} placeholder={t('companyPh')} value={company} onChange={e => setCompany(e.target.value)} />
               {error && <p style={{ color: '#FCA5A5', fontSize: 13, margin: '2px 0 0' }}>{error}</p>}
               <button type="submit" disabled={busy} className="btn btn-acid" style={{ justifyContent: 'center', marginTop: 6, opacity: busy ? 0.7 : 1 }}>
-                {busy ? 'Inscription…' : "Je veux l'accès anticipé"} <span className="arr"><Icon name="arrowUR" size={18} /></span>
+                {busy ? t('submitting') : t('submit')} <span className="arr"><Icon name="arrowUR" size={18} /></span>
               </button>
-              <p style={{ fontSize: 12, color: 'var(--cream-3)', textAlign: 'center', margin: '4px 0 0' }}>Aucun spam. Juste un email le jour de l&apos;ouverture.</p>
+              <p style={{ fontSize: 12, color: 'var(--cream-3)', textAlign: 'center', margin: '4px 0 0' }}>{t('noSpam')}</p>
             </form>
           </>
         ) : (
@@ -1093,8 +1105,8 @@ function WaitlistSection() {
             <div style={{ width: 64, height: 64, borderRadius: '50%', background: 'rgba(200,241,53,.16)', display: 'grid', placeItems: 'center', margin: '0 auto 22px' }}>
               <Icon name="check" size={30} style={{ color: 'var(--acid)' }} />
             </div>
-            <h2 className="display" style={{ fontSize: 'clamp(30px,4.6vw,52px)' }}>Vous êtes sur la liste !</h2>
-            <p className="lead" style={{ marginTop: 16, color: 'var(--cream-2)' }}>Merci 🙌 On vous prévient par email <strong style={{ color: 'var(--cream)' }}>dès l&apos;ouverture de Klip</strong>, avec vos avantages d&apos;accès anticipé.</p>
+            <h2 className="display" style={{ fontSize: 'clamp(30px,4.6vw,52px)' }}>{t('doneTitle')}</h2>
+            <p className="lead" style={{ marginTop: 16, color: 'var(--cream-2)' }}>{t('donePre')}<strong style={{ color: 'var(--cream)' }}>{t('doneStrong')}</strong>{t('donePost')}</p>
           </div>
         )}
       </div>
@@ -1104,18 +1116,19 @@ function WaitlistSection() {
 
 /* ─── FinalCTA ───────────────────────────────────────────────────────────── */
 function FinalCTA() {
+  const t = useTranslations('landing.finalCta');
   return (
     <section className="section on-forest dotgrid" style={{ overflow: 'hidden', textAlign: 'center' }}>
       <div className="wrap" style={{ position: 'relative', zIndex: 2 }}>
         <h2 className="display reveal d1" style={{ fontSize: 'clamp(46px, 8vw, 116px)', maxWidth: 1000, margin: '0 auto' }}>
-          Créez plus, <span className="it-serif acid-fill">jonglez moins.</span>
+          {t('title1')}<span className="it-serif acid-fill">{t('titleAccent')}</span>
         </h2>
         <p className="lead reveal d2" style={{ maxWidth: 560, margin: '26px auto 0', fontSize: 20 }}>
-          Un seul outil pour tous vos clients. Essayez KLIP gratuitement pendant 7 jours — sans carte bancaire.
+          {t('lead')}
         </p>
         <div className="reveal d3 final-cta" style={{ display: 'flex', gap: 14, justifyContent: 'center', marginTop: 40, flexWrap: 'wrap' }}>
-          <Link href="/register" className="btn btn-acid">Démarrer gratuitement <span className="arr"><Icon name="arrowUR" size={18} /></span></Link>
-          <a href="#apercu" className="btn btn-ghost">Revoir le produit</a>
+          <Link href="/register" className="btn btn-acid">{t('ctaStart')} <span className="arr"><Icon name="arrowUR" size={18} /></span></Link>
+          <a href="#apercu" className="btn btn-ghost">{t('ctaSee')}</a>
         </div>
       </div>
     </section>
@@ -1124,10 +1137,11 @@ function FinalCTA() {
 
 /* ─── Footer ─────────────────────────────────────────────────────────────── */
 function Footer() {
+  const t = useTranslations('landing.footer');
   const cols: [string, [string, string][]][] = [
-    ['Produit', [['Éditeur visuel', '#features'], ['Calendrier', '#apercu'], ['Tarifs', '#tarifs'], ['FAQ', '#faq']]],
-    ['Ressources', [['Blog', '/blog'], ['Comment ça marche', '#how'], ['Le problème', '#probleme'], ['Connexion', '/login'], ['Créer un compte', '/register']]],
-    ['Légal', [['Mentions légales', '/mentions-legales'], ['CGU / CGV', '/conditions'], ['Confidentialité', '/privacy'], ['Cookies', '/cookies']]],
+    [t('product'), [[t('visualEditor'), '#features'], [t('calendar'), '#apercu'], [t('pricing'), '#tarifs'], [t('faq'), '#faq']]],
+    [t('resources'), [[t('blog'), '/blog'], [t('how'), '#how'], [t('problem'), '#probleme'], [t('login'), '/login'], [t('register'), '/register']]],
+    [t('legal'), [[t('legalNotice'), '/mentions-legales'], [t('terms'), '/conditions'], [t('privacy'), '/privacy'], [t('cookies'), '/cookies']]],
   ];
   return (
     <footer className="on-forest" style={{ paddingTop: 72, paddingBottom: 40, borderTop: '1px solid var(--line-f)' }}>
@@ -1136,7 +1150,7 @@ function Footer() {
           <div>
             <KlipLogo size={30} light />
             <p style={{ color: 'var(--cream-2)', fontSize: 15, lineHeight: 1.6, marginTop: 18, maxWidth: 280 }}>
-              Le studio social de tous vos clients. Toutes vos marques, un seul espace.
+              {t('tagline')}
             </p>
           </div>
           {cols.map(([h, links], i) => (
@@ -1149,8 +1163,8 @@ function Footer() {
           ))}
         </div>
         <div style={{ marginTop: 56, paddingTop: 26, borderTop: '1px solid var(--line-f)', display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: 14, fontFamily: 'var(--mono)', fontSize: 13, color: 'var(--cream-3)' }}>
-          <span>© 2026 KLIP — Tous droits réservés.</span>
-          <span>Conçu pour tous ceux qui gèrent plusieurs marques.</span>
+          <span>{t('copyright')}</span>
+          <span>{t('madeFor')}</span>
         </div>
       </div>
     </footer>
@@ -1171,21 +1185,22 @@ const ASK_AI_PROVIDERS = [
 ];
 
 function AskAI() {
+  const t = useTranslations('landing.askAI');
   return (
     <section id="ask-ai" className="section dotgrid" style={{ overflow: "hidden" }}>
       <div className="wrap" style={{ maxWidth: 680, textAlign: "center", marginLeft: "auto", marginRight: "auto" }}>
-        <span className="chip" style={{ fontFamily: "var(--mono)", fontWeight: 800, letterSpacing: ".1em", textTransform: "uppercase", fontSize: 11.5 }}>Encore hésitant ?</span>
+        <span className="chip" style={{ fontFamily: "var(--mono)", fontWeight: 800, letterSpacing: ".1em", textTransform: "uppercase", fontSize: 11.5 }}>{t('badge')}</span>
         <h2 className="display reveal d1" style={{ fontSize: "clamp(32px, 4.6vw, 56px)", marginTop: 18 }}>
-          Demandez <span className="it-serif acid-fill">à l&apos;IA</span>, pas qu&apos;à nous.
+          {t('title1')}<span className="it-serif acid-fill">{t('titleAccent')}</span>{t('title2')}
         </h2>
         <p className="lead reveal d2" style={{ marginTop: 18 }}>
-          Un clic et l&apos;IA de votre choix vous explique ce qu&apos;est Klip, et si ça correspond à une agence comme la vôtre.
+          {t('lead')}
         </p>
         <div className="ask-ai-grid reveal d3">
           {ASK_AI_PROVIDERS.map((p) => (
             <a key={p.name} href={p.href} target="_blank" rel="noopener noreferrer" className="ask-ai-card">
               <ToolLogo domain={p.domain} color={p.color} name={p.name} />
-              <span>Demander à {p.name}</span>
+              <span>{t('ask', { name: p.name })}</span>
             </a>
           ))}
         </div>
@@ -1231,52 +1246,54 @@ function ToolLogo({ domain, color, name }: { domain: string; color: string; name
 }
 
 function Comparison() {
+  const t = useTranslations('landing.comparison');
+  const useLabels: Record<string, string> = { Canva: t('useCanva'), ChatGPT: t('useChatgpt'), Metricool: t('useMetricool'), Notion: t('useNotion'), WeTransfer: t('useWetransfer') };
   return (
     <section id="comparatif" className="section">
       <div className="wrap">
         <div style={{ maxWidth: 820, marginBottom: 44, textAlign: "center", marginLeft: "auto", marginRight: "auto" }}>
           <h2 className="display reveal" style={{ fontSize: "clamp(36px, 5.2vw, 72px)" }}>
-            Un seul outil. <span className="it-serif acid-fill">À la place de cinq.</span>
+            {t('title1')}<span className="it-serif acid-fill">{t('titleAccent')}</span>
           </h2>
           <p className="lead reveal d1" style={{ marginTop: 22, maxWidth: 620, marginLeft: "auto", marginRight: "auto" }}>
-            Arrêtez de payer et de jongler entre cinq abonnements. Klip réunit toute votre production de contenu.
+            {t('lead')}
           </p>
         </div>
 
         {/* Grille de logos (la stack actuelle, prix barrés) */}
-        <p className="cmp-eyebrow reveal">Votre stack actuelle</p>
+        <p className="cmp-eyebrow reveal">{t('yourStack')}</p>
         <div className="cmp-logos reveal">
-          {STACK_TOOLS.map((t) => (
-            <div key={t.name} className="cmp-logo-card">
-              <ToolLogo domain={t.domain} color={t.color} name={t.name} />
-              <span className="cmp-logo-name">{t.name}</span>
-              <span className="cmp-logo-use">{t.use}</span>
-              <span className="cmp-logo-cost">~{t.cost}€<span>/mois</span></span>
+          {STACK_TOOLS.map((tool) => (
+            <div key={tool.name} className="cmp-logo-card">
+              <ToolLogo domain={tool.domain} color={tool.color} name={tool.name} />
+              <span className="cmp-logo-name">{tool.name}</span>
+              <span className="cmp-logo-use">{useLabels[tool.name] ?? tool.use}</span>
+              <span className="cmp-logo-cost">~{tool.cost}€<span>{t('perMonth')}</span></span>
             </div>
           ))}
         </div>
 
         <p className="cmp-today reveal d1">
-          Aujourd&apos;hui : <strong>~{STACK_TOTAL}€/mois</strong> pour 5 abonnements à jongler
+          {t('today', { total: STACK_TOTAL })}
         </p>
 
         <div className="cmp-arrow reveal d1" aria-hidden="true"><span><Icon name="arrow" size={24} /></span></div>
 
         {/* Bloc Klip */}
         <div className="cmp-klip reveal d2">
-          <span className="cmp-klip-badge"><Icon name="spark" size={14} /> Avec Klip</span>
-          <p className="cmp-klip-lead">Tout ça réuni, à partir de</p>
+          <span className="cmp-klip-badge"><Icon name="spark" size={14} /> {t('withKlip')}</span>
+          <p className="cmp-klip-lead">{t('allInOne')}</p>
           <div className="cmp-klip-price">
             <span className="cmp-klip-num">{KLIP_PRICE}€</span>
-            <span className="cmp-klip-per">/mois</span>
+            <span className="cmp-klip-per">{t('perMonth')}</span>
           </div>
-          <p className="cmp-klip-vs">au lieu de ~{STACK_TOTAL}€/mois pour cinq outils séparés</p>
+          <p className="cmp-klip-vs">{t('insteadOf', { total: STACK_TOTAL })}</p>
           <Link href="/register" className="btn btn-acid" style={{ marginTop: 24, justifyContent: "center" }}>
-            Essayer gratuitement <span className="arr"><Icon name="arrowUR" size={18} /></span>
+            {t('ctaTry')} <span className="arr"><Icon name="arrowUR" size={18} /></span>
           </Link>
         </div>
 
-        <p className="cmp-note reveal">Tarifs moyens constatés, donnés à titre indicatif.</p>
+        <p className="cmp-note reveal">{t('note')}</p>
       </div>
 
       <style>{`

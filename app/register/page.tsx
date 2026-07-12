@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useTranslations } from "next-intl";
 import Link from "next/link";
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
 
@@ -48,6 +49,7 @@ function GoogleIcon() {
 }
 
 export default function RegisterPage() {
+  const t = useTranslations("auth");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -105,11 +107,11 @@ export default function RegisterPage() {
               <path d="M20 6 9 17l-5-5"/>
             </svg>
           </div>
-          <h1 className="auth-title" style={{ marginBottom: 12 }}>Vérifiez votre email</h1>
+          <h1 className="auth-title" style={{ marginBottom: 12 }}>{t("verifyEmailTitle")}</h1>
           <p style={{ fontSize: 14, color: "rgba(20,22,15,.6)", lineHeight: 1.6 }}>
-            Un lien de confirmation a été envoyé à{" "}
+            {t("verifyEmailBody1")}{" "}
             <strong style={{ color: "var(--forest)" }}>{email}</strong>.
-            <br />Cliquez sur le lien pour activer votre compte.
+            <br />{t("verifyEmailBody2")}
           </p>
         </div>
       </main>
@@ -121,44 +123,44 @@ export default function RegisterPage() {
       <style dangerouslySetInnerHTML={{ __html: AUTH_CSS }} />
       <div className="auth-card">
         <img src="/logo-klip-dark.png" alt="Klip" className="auth-logo" />
-        <h1 className="auth-title">Créer un compte</h1>
+        <h1 className="auth-title">{t("registerTitle")}</h1>
         <p className="auth-sub">
-          Déjà un compte ?{" "}
-          <Link href="/login" className="auth-link">Se connecter</Link>
+          {t("haveAccount")}{" "}
+          <Link href="/login" className="auth-link">{t("signIn")}</Link>
         </p>
 
         <form onSubmit={handleRegister} style={{ display: "flex", flexDirection: "column", gap: 18 }}>
           <div>
-            <label htmlFor="email" className="auth-label">Email</label>
+            <label htmlFor="email" className="auth-label">{t("emailLabel")}</label>
             <input
               id="email" type="email" required autoComplete="email"
               value={email} onChange={e => setEmail(e.target.value)}
-              placeholder="vous@agence.com" className="auth-input"
+              placeholder={t("emailPlaceholder")} className="auth-input"
             />
           </div>
           <div>
-            <label htmlFor="password" className="auth-label">Mot de passe</label>
+            <label htmlFor="password" className="auth-label">{t("passwordLabel")}</label>
             <input
               id="password" type="password" required autoComplete="new-password"
               minLength={8} value={password} onChange={e => setPassword(e.target.value)}
-              placeholder="8 caractères minimum" className="auth-input"
+              placeholder={t("passwordPlaceholder")} className="auth-input"
             />
           </div>
           {error && <p className="auth-error">{error}</p>}
           <button type="submit" disabled={loading} className="auth-btn">
-            {loading ? "Création…" : "Créer mon compte"}
+            {loading ? t("creating") : t("createMyAccount")}
           </button>
         </form>
 
         <div className="auth-sep">
           <div className="auth-sep-line" />
-          <span className="auth-sep-text">OU</span>
+          <span className="auth-sep-text">{t("or")}</span>
           <div className="auth-sep-line" />
         </div>
 
         <button onClick={handleGoogleSignIn} disabled={googleLoading} className="auth-google">
           <GoogleIcon />
-          {googleLoading ? "Redirection…" : "Continuer avec Google"}
+          {googleLoading ? t("redirecting") : t("continueGoogle")}
         </button>
       </div>
     </main>

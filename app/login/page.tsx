@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, Suspense } from "react";
+import { useTranslations } from "next-intl";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
@@ -50,6 +51,7 @@ function GoogleIcon() {
 }
 
 function LoginForm() {
+  const t = useTranslations("auth");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -65,7 +67,7 @@ function LoginForm() {
     setLoading(true);
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) {
-      setError(error.message === "Invalid login credentials" ? "Email ou mot de passe incorrect." : error.message);
+      setError(error.message === "Invalid login credentials" ? t("signInError") : error.message);
       setLoading(false);
       return;
     }
@@ -91,38 +93,51 @@ function LoginForm() {
     <>
       <form onSubmit={handleLogin} style={{ display: "flex", flexDirection: "column", gap: 18 }}>
         <div>
-          <label htmlFor="email" className="auth-label">Email</label>
+          <label htmlFor="email" className="auth-label">{t("emailLabel")}</label>
           <input
             id="email" type="email" required autoComplete="email"
             value={email} onChange={e => setEmail(e.target.value)}
-            placeholder="vous@agence.com" className="auth-input"
+            placeholder={t("emailPlaceholder")} className="auth-input"
           />
         </div>
         <div>
-          <label htmlFor="password" className="auth-label">Mot de passe</label>
+          <label htmlFor="password" className="auth-label">{t("passwordLabel")}</label>
           <input
             id="password" type="password" required autoComplete="current-password"
             value={password} onChange={e => setPassword(e.target.value)}
             placeholder="••••••••" className="auth-input"
           />
-          <Link href="/mot-de-passe-oublie" className="auth-forgot">Mot de passe oublié ?</Link>
+          <Link href="/mot-de-passe-oublie" className="auth-forgot">{t("forgotPassword")}</Link>
         </div>
         {error && <p className="auth-error">{error}</p>}
         <button type="submit" disabled={loading} className="auth-btn">
-          {loading ? "Connexion…" : "Se connecter"}
+          {loading ? t("signingIn") : t("signIn")}
         </button>
       </form>
 
       <div className="auth-sep">
         <div className="auth-sep-line" />
-        <span className="auth-sep-text">OU</span>
+        <span className="auth-sep-text">{t("or")}</span>
         <div className="auth-sep-line" />
       </div>
 
       <button onClick={handleGoogleSignIn} disabled={googleLoading} className="auth-google">
         <GoogleIcon />
-        {googleLoading ? "Redirection…" : "Continuer avec Google"}
+        {googleLoading ? t("redirecting") : t("continueGoogle")}
       </button>
+    </>
+  );
+}
+
+function LoginHeader() {
+  const t = useTranslations("auth");
+  return (
+    <>
+      <h1 className="auth-title">{t("loginTitle")}</h1>
+      <p className="auth-sub">
+        {t("noAccount")}{" "}
+        <Link href="/register" className="auth-link">{t("createAccount")}</Link>
+      </p>
     </>
   );
 }
@@ -135,11 +150,7 @@ export default function LoginPage() {
         <Link href="/" style={{ display: 'block', textAlign: 'center' }}>
           <img src="/logo-klip-dark.png" alt="Klip" className="auth-logo" />
         </Link>
-        <h1 className="auth-title">Connexion</h1>
-        <p className="auth-sub">
-          Pas encore de compte ?{" "}
-          <Link href="/register" className="auth-link">Créer un compte</Link>
-        </p>
+        <LoginHeader />
         <Suspense fallback={<div style={{ height: 200 }} />}>
           <LoginForm />
         </Suspense>
