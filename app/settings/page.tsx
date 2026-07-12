@@ -1093,12 +1093,12 @@ const TABS: { id: Tab; label: string; agencyOnly?: boolean; hidden?: boolean }[]
   { id: "profile",       label: "Mon compte" },
   { id: "security",      label: "Sécurité" },
   { id: "notifications", label: "Notifications" },
+  { id: "appearance",    label: "Apparence" },
   { id: "publi",         label: "Publication" },
   { id: "integrations",  label: "Comptes sociaux" },
   { id: "agency",        label: "Mon équipe", agencyOnly: true },
   { id: "billing",       label: "Facturation" },
   { id: "help",          label: "Aide & Tutoriel" },
-  { id: "appearance",    label: "Apparence", hidden: true },
 ];
 
 const TAB_ICONS: Record<Tab, React.ReactNode> = {
