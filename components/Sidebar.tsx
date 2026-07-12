@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useTranslations } from "next-intl";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
@@ -52,6 +53,7 @@ export default function Sidebar({ workspaces: _w, userName: _u, activeWorkspaceI
   const pathname = usePathname();
   const router = useRouter();
   const supabase = createClientComponentClient();
+  const t = useTranslations("nav");
   const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
   const [userEmail, setUserEmail] = useState<string>("");
   const [pendingCount, setPendingCount] = useState(0);
@@ -89,7 +91,7 @@ export default function Sidebar({ workspaces: _w, userName: _u, activeWorkspaceI
     router.refresh();
   }
 
-  const displayName = userEmail.split("@")[0] ?? "Utilisateur";
+  const displayName = userEmail.split("@")[0] ?? "";
   const initials = displayName.slice(0, 2).toUpperCase();
 
   // Nav item active states
@@ -101,7 +103,7 @@ export default function Sidebar({ workspaces: _w, userName: _u, activeWorkspaceI
 
   const navItems = [
     {
-      label: "Tableau de bord",
+      label: t("dashboard"),
       icon: <IconGrid />,
       href: "/dashboard",
       active: isDashboard,
@@ -109,7 +111,7 @@ export default function Sidebar({ workspaces: _w, userName: _u, activeWorkspaceI
       tourId: "dashboard",
     },
     {
-      label: "Calendrier",
+      label: t("calendar"),
       icon: <IconCalendar />,
       href: activeId ? `/workspace/${activeId}/planning` : "/calendar",
       active: isCalendar,
@@ -117,7 +119,7 @@ export default function Sidebar({ workspaces: _w, userName: _u, activeWorkspaceI
       tourId: "calendar",
     },
     {
-      label: "Composer",
+      label: t("composer"),
       icon: <IconEdit />,
       href: activeId ? `/workspace/${activeId}` : "/composer",
       active: isComposer,
@@ -125,7 +127,7 @@ export default function Sidebar({ workspaces: _w, userName: _u, activeWorkspaceI
       tourId: "composer",
     },
     {
-      label: "Fil de publication",
+      label: t("feed"),
       icon: <IconSend />,
       href: activeId ? `/workspace/${activeId}/results` : "/feed",
       active: isQueue,
@@ -133,7 +135,7 @@ export default function Sidebar({ workspaces: _w, userName: _u, activeWorkspaceI
       tourId: "feed",
     },
     {
-      label: "Templates",
+      label: t("templates"),
       icon: <IconTemplate />,
       href: activeId ? `/workspace/${activeId}/templates` : "/templates",
       active: isTemplates,
@@ -181,13 +183,13 @@ export default function Sidebar({ workspaces: _w, userName: _u, activeWorkspaceI
 
       {/* Clients label */}
       <div data-tour="clients" className="label sb-full" style={{ color: "var(--cream-3)", padding: "0 12px 4px" }}>
-        Vos clients
+        {t("yourClients")}
       </div>
 
       {/* Workspace list */}
       <div style={{ display: "flex", flexDirection: "column", gap: 2, overflowY: "auto", flex: 1, margin: "0 -4px", padding: "0 4px" }}>
         {workspaces.length === 0 && (
-          <p className="sb-full" style={{ padding: "8px 12px", fontSize: 13, color: "var(--cream-3)" }}>Aucun client</p>
+          <p className="sb-full" style={{ padding: "8px 12px", fontSize: 13, color: "var(--cream-3)" }}>{t("noClients")}</p>
         )}
         {workspaces.map((ws, i) => {
           const isActive = ws.id === activeId;
@@ -220,7 +222,7 @@ export default function Sidebar({ workspaces: _w, userName: _u, activeWorkspaceI
         onMouseLeave={e => { e.currentTarget.style.borderColor = "var(--cream-4)"; e.currentTarget.style.color = "var(--cream-3)"; }}
       >
         <IconPlus />
-        <span>Nouveau client</span>
+        <span>{t("newClient")}</span>
       </Link>
 
       {/* Divider */}
@@ -233,7 +235,7 @@ export default function Sidebar({ workspaces: _w, userName: _u, activeWorkspaceI
         style={{ textDecoration: "none" }}
       >
         <span className="nav-ic"><IconSettings /></span>
-        <span className="nav-label">Réglages</span>
+        <span className="nav-label">{t("settings")}</span>
       </Link>
 
       {/* User footer */}
@@ -242,7 +244,7 @@ export default function Sidebar({ workspaces: _w, userName: _u, activeWorkspaceI
         onMouseEnter={e => { e.currentTarget.style.background = "var(--cream-4)"; }}
         onMouseLeave={e => { e.currentTarget.style.background = "transparent"; }}
         onClick={handleLogout}
-        title="Se déconnecter"
+        title={t("logout")}
       >
         <span style={{ width: 26, height: 26, borderRadius: 7, background: "#7B5CF5", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, fontWeight: 800, color: "#fff", fontFamily: "var(--mono)", letterSpacing: "0.02em", flexShrink: 0 }}>
           {initials}

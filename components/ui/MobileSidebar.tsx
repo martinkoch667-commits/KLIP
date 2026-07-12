@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useTranslations } from "next-intl";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
@@ -44,6 +45,7 @@ export default function MobileSidebar() {
   const pathname = usePathname();
   const router = useRouter();
   const supabase = createClientComponentClient();
+  const t = useTranslations("nav");
   const [open, setOpen] = useState(false);
   const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
   const [userEmail, setUserEmail] = useState("");
@@ -88,11 +90,11 @@ export default function MobileSidebar() {
   const initials = displayName.slice(0, 2).toUpperCase();
 
   const navItems = [
-    { label: "Tableau de bord", icon: <IconGrid />, href: "/dashboard", active: isDashboard, badge: 0 },
-    { label: "Calendrier",      icon: <IconCalendar />, href: "/calendar", active: isCalendar, badge: 0 },
-    { label: "Composer",        icon: <IconEdit />, href: "/composer", active: isComposer, badge: 0 },
-    { label: "Fil de publication", icon: <IconSend />, href: "/feed", active: isQueue, badge: pendingCount },
-    { label: "Templates",       icon: <IconTemplate />, href: "/templates", active: isTemplates, badge: 0 },
+    { label: t("dashboard"), icon: <IconGrid />, href: "/dashboard", active: isDashboard, badge: 0 },
+    { label: t("calendar"),      icon: <IconCalendar />, href: "/calendar", active: isCalendar, badge: 0 },
+    { label: t("composer"),        icon: <IconEdit />, href: "/composer", active: isComposer, badge: 0 },
+    { label: t("feed"), icon: <IconSend />, href: "/feed", active: isQueue, badge: pendingCount },
+    { label: t("templates"),       icon: <IconTemplate />, href: "/templates", active: isTemplates, badge: 0 },
   ];
 
   return (
@@ -148,12 +150,12 @@ export default function MobileSidebar() {
         <div style={{ height: 1, background: "var(--cream-4)", margin: "8px 4px" }} />
 
         {/* Clients label */}
-        <div className="label" style={{ color: "var(--cream-3)", padding: "0 12px 4px" }}>Vos clients</div>
+        <div className="label" style={{ color: "var(--cream-3)", padding: "0 12px 4px" }}>{t("yourClients")}</div>
 
         {/* Workspace list */}
         <div style={{ display: "flex", flexDirection: "column", gap: 2, overflowY: "auto", flex: 1 }}>
           {workspaces.length === 0 && (
-            <p style={{ padding: "8px 12px", fontSize: 13, color: "var(--cream-3)" }}>Aucun client</p>
+            <p style={{ padding: "8px 12px", fontSize: 13, color: "var(--cream-3)" }}>{t("noClients")}</p>
           )}
           {workspaces.map((ws, i) => {
             const isActive = ws.id === activeId;
@@ -178,7 +180,7 @@ export default function MobileSidebar() {
         {/* Add workspace */}
         <Link href="/workspace/new" style={{ display: "flex", alignItems: "center", gap: 10, padding: "9px 12px", borderRadius: "var(--r-s)", color: "var(--cream-3)", fontSize: 13, fontWeight: 600, border: "1px dashed var(--cream-4)", textDecoration: "none", marginTop: 4 }}>
           <IconPlus />
-          Nouveau client
+          {t("newClient")}
         </Link>
 
         {/* Divider */}
@@ -187,14 +189,14 @@ export default function MobileSidebar() {
         {/* Settings */}
         <Link href="/settings" className={`nav-item${isSettings ? " active" : ""}`} style={{ textDecoration: "none" }}>
           <span className="nav-ic"><IconSettings /></span>
-          <span style={{ fontWeight: 600, fontSize: 14 }}>Réglages</span>
+          <span style={{ fontWeight: 600, fontSize: 14 }}>{t("settings")}</span>
         </Link>
 
         {/* User footer */}
         <button
           style={{ display: "flex", alignItems: "center", gap: 10, padding: "7px 10px", borderRadius: "var(--r-s)", background: "transparent", border: "none", cursor: "pointer", width: "100%", textAlign: "left", color: "var(--cream)" }}
           onClick={handleLogout}
-          title="Se déconnecter"
+          title={t("logout")}
         >
           <span style={{ width: 26, height: 26, borderRadius: 7, background: "#7B5CF5", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, fontWeight: 800, color: "#fff", fontFamily: "var(--mono)", flexShrink: 0 }}>
             {initials}

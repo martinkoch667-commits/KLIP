@@ -1,0 +1,44 @@
+{
+  "common": {
+    "save": "Salva",
+    "saving": "Salvataggio…",
+    "saved": "Salvato"
+  },
+  "nav": {
+    "dashboard": "Dashboard",
+    "calendar": "Calendario",
+    "composer": "Componi",
+    "feed": "Feed di pubblicazione",
+    "templates": "Modelli",
+    "newClient": "Nuovo cliente",
+    "settings": "Impostazioni",
+    "logout": "Esci",
+    "noClients": "Nessun cliente",
+    "yourClients": "I tuoi clienti"
+  },
+  "settings": {
+    "title": "Impostazioni",
+    "mobileTitle": "Impostazioni",
+    "tabs": {
+      "profile": "Il mio account",
+      "security": "Sicurezza",
+      "notifications": "Notifiche",
+      "publi": "Pubblicazione",
+      "integrations": "Account social",
+      "agency": "Il mio team",
+      "billing": "Fatturazione",
+      "help": "Aiuto e tutorial",
+      "appearance": "Aspetto"
+    },
+    "appearance": {
+      "title": "Aspetto",
+      "subtitle": "Personalizza la visualizzazione secondo le tue preferenze.",
+      "language": "Lingua",
+      "languageHint": "Scegli la lingua dell'interfaccia.",
+      "timezone": "Fuso orario",
+      "timezoneHint": "Usato per la programmazione dei post.",
+      "dateFormat": "Formato data",
+      "timeFormat": "Formato ora"
+    }
+  }
+}

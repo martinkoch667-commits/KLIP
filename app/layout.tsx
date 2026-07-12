@@ -1,7 +1,11 @@
 import type { Metadata, Viewport } from "next";
+import { cookies } from "next/headers";
 import "./globals.css";
 import MetaPixel from "@/components/analytics/MetaPixel";
 import ConsentBanner from "@/components/analytics/ConsentBanner";
+import { I18nProvider } from "@/lib/i18n/I18nProvider";
+import { LOCALE_COOKIE, resolveLocale } from "@/lib/i18n/config";
+import { getMessages } from "@/lib/i18n/messages";
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://getklip.fr"),
@@ -64,8 +68,10 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const locale = resolveLocale(cookies().get(LOCALE_COOKIE)?.value);
+  const messages = getMessages(locale);
   return (
-    <html lang="fr">
+    <html lang={locale}>
       <head>
         {/* Restore saved theme before first paint */}
         <script
@@ -84,9 +90,11 @@ export default function RootLayout({
         <link href="https://fonts.googleapis.com/css2?family=Archivo:ital,wght@0,400;0,700;0,800;1,700;1,800&display=swap" rel="stylesheet" />
       </head>
       <body className="antialiased">
-        <MetaPixel />
-        {children}
-        <ConsentBanner />
+        <I18nProvider locale={locale} messages={messages}>
+          <MetaPixel />
+          {children}
+          <ConsentBanner />
+        </I18nProvider>
       </body>
     </html>
   );

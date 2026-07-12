@@ -1,0 +1,44 @@
+{
+  "common": {
+    "save": "Speichern",
+    "saving": "Wird gespeichert…",
+    "saved": "Gespeichert"
+  },
+  "nav": {
+    "dashboard": "Dashboard",
+    "calendar": "Kalender",
+    "composer": "Erstellen",
+    "feed": "Veröffentlichungs-Feed",
+    "templates": "Vorlagen",
+    "newClient": "Neuer Kunde",
+    "settings": "Einstellungen",
+    "logout": "Abmelden",
+    "noClients": "Keine Kunden",
+    "yourClients": "Ihre Kunden"
+  },
+  "settings": {
+    "title": "Einstellungen",
+    "mobileTitle": "Einstellungen",
+    "tabs": {
+      "profile": "Mein Konto",
+      "security": "Sicherheit",
+      "notifications": "Benachrichtigungen",
+      "publi": "Veröffentlichung",
+      "integrations": "Soziale Konten",
+      "agency": "Mein Team",
+      "billing": "Abrechnung",
+      "help": "Hilfe & Tutorial",
+      "appearance": "Darstellung"
+    },
+    "appearance": {
+      "title": "Darstellung",
+      "subtitle": "Passen Sie die Anzeige an Ihre Vorlieben an.",
+      "language": "Sprache",
+      "languageHint": "Wählen Sie die Sprache der Oberfläche.",
+      "timezone": "Zeitzone",
+      "timezoneHint": "Wird für die Planung von Beiträgen verwendet.",
+      "dateFormat": "Datumsformat",
+      "timeFormat": "Zeitformat"
+    }
+  }
+}

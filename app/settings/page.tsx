@@ -1,9 +1,11 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import { useTranslations } from "next-intl";
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
 import { useRouter } from "next/navigation";
 import { ConnectClaudeModal } from "@/components/ConnectClaudeModal";
+import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import Link from "next/link";
 import Sidebar from "@/components/Sidebar";
 import { resetOnboardingTour } from "@/components/OnboardingTour";
@@ -443,6 +445,8 @@ const TIMEZONES: string[] = (() => {
 })();
 
 function AppearanceTab({ supabase, userId }: { supabase: any; userId: string }) {
+  const t = useTranslations("settings.appearance");
+  const tc = useTranslations("common");
   const [tz, setTz] = useState("Europe/Paris");
   const [dateFormat, setDateFormat] = useState("DD/MM/YYYY");
   const [timeFormat, setTimeFormat] = useState("24h");
@@ -471,28 +475,26 @@ function AppearanceTab({ supabase, userId }: { supabase: any; userId: string }) 
 
   return (
     <>
-      <SectionHeader title="Apparence" sub="Personnalisez l'affichage selon vos préférences." />
+      <SectionHeader title={t("title")} sub={t("subtitle")} />
 
       <div className="st-card">
         <div style={{ marginBottom: 20 }}>
-          <label className="st-label">Langue</label>
-          <select className="st-input st-select" disabled>
-            <option value="fr">Français</option>
-          </select>
-          <div style={{ fontSize: 11, color: "var(--ink-3)", marginTop: 4 }}>D'autres langues seront disponibles prochainement.</div>
+          <label className="st-label">{t("language")}</label>
+          <LanguageSwitcher className="st-input st-select" />
+          <div style={{ fontSize: 11, color: "var(--ink-3)", marginTop: 4 }}>{t("languageHint")}</div>
         </div>
 
         <div style={{ marginBottom: 20 }}>
-          <label className="st-label">Fuseau horaire</label>
+          <label className="st-label">{t("timezone")}</label>
           <select className="st-input st-select" value={tz} onChange={e => setTz(e.target.value)}>
             {TIMEZONES.map(t => <option key={t} value={t}>{t.replace(/_/g, " ")}</option>)}
           </select>
-          <div style={{ fontSize: 11, color: "var(--ink-3)", marginTop: 4 }}>Utilisé pour la programmation des posts.</div>
+          <div style={{ fontSize: 11, color: "var(--ink-3)", marginTop: 4 }}>{t("timezoneHint")}</div>
         </div>
 
         <div className="st-grid2" style={{ marginBottom: 4 }}>
           <div>
-            <div className="st-label" style={{ marginBottom: 10 }}>Format de date</div>
+            <div className="st-label" style={{ marginBottom: 10 }}>{t("dateFormat")}</div>
             {(["DD/MM/YYYY", "MM/DD/YYYY"] as const).map(f => (
               <label key={f} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8, cursor: "pointer", fontSize: 13.5, fontWeight: 500, color: "var(--ink)" }}>
                 <input type="radio" name="date_format" value={f} checked={dateFormat === f} onChange={() => setDateFormat(f)} style={{ accentColor: "var(--mint)" }} />
@@ -501,7 +503,7 @@ function AppearanceTab({ supabase, userId }: { supabase: any; userId: string }) 
             ))}
           </div>
           <div>
-            <div className="st-label" style={{ marginBottom: 10 }}>Format d'heure</div>
+            <div className="st-label" style={{ marginBottom: 10 }}>{t("timeFormat")}</div>
             {[{ v: "24h", l: "24h  (14:30)" }, { v: "12h", l: "12h  (2:30 PM)" }].map(({ v, l }) => (
               <label key={v} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8, cursor: "pointer", fontSize: 13.5, fontWeight: 500, color: "var(--ink)" }}>
                 <input type="radio" name="time_format" value={v} checked={timeFormat === v} onChange={() => setTimeFormat(v)} style={{ accentColor: "var(--mint)" }} />
@@ -513,7 +515,7 @@ function AppearanceTab({ supabase, userId }: { supabase: any; userId: string }) 
 
         <div style={{ marginTop: 20, display: "flex", justifyContent: "flex-end" }}>
           <button className="st-btn" onClick={handleSave} disabled={saving}>
-            {saving ? "Enregistrement…" : saved ? "Enregistré" : "Enregistrer"}
+            {saving ? tc("saving") : saved ? tc("saved") : tc("save")}
           </button>
         </div>
       </div>
@@ -1117,6 +1119,7 @@ export default function SettingsPage() {
   const supabase = createClientComponentClient();
   const router = useRouter();
   const { isAgency } = useAccountType();
+  const t = useTranslations("settings");
   const [tab, setTab] = useState<Tab>("profile");
   const [session, setSession] = useState<any>(null);
   const [accountType, setAccountType] = useState<string>("solo");
@@ -1146,24 +1149,24 @@ export default function SettingsPage() {
       <Sidebar />
       <div className="work">
         <div className="topbar">
-          <h1 style={{ fontSize: 14, fontWeight: 800, margin: 0 }}>Paramètres</h1>
+          <h1 style={{ fontSize: 14, fontWeight: 800, margin: 0 }}>{t("mobileTitle")}</h1>
         </div>
         <div className="scroll">
           <div className="page" style={{ paddingBottom: 0 }}>
             <div style={{ marginBottom: 24 }}>
-              <div className="label" style={{ marginBottom: 8 }}>Votre compte</div>
-              <h1 className="h-display" style={{ fontSize: 32 }}>Réglages</h1>
+              <div className="label" style={{ marginBottom: 8 }}>{t("tabs.profile")}</div>
+              <h1 className="h-display" style={{ fontSize: 32 }}>{t("title")}</h1>
             </div>
           </div>
           <div className="st-layout">
 
             {/* Settings sidebar nav */}
             <nav className="st-nav">
-              <div className="st-nav-label" style={{ marginTop: 4 }}>Mon compte</div>
-              {visibleTabs.map(t => (
-                <button key={t.id} className={`st-tab-btn${tab === t.id ? " on" : ""}`} onClick={() => setTab(t.id)}>
-                  <span style={{ flexShrink: 0, color: tab === t.id ? 'var(--mint-2)' : undefined, opacity: tab === t.id ? 1 : 0.55 }}>{TAB_ICONS[t.id]}</span>
-                  {t.label}
+              <div className="st-nav-label" style={{ marginTop: 4 }}>{t("tabs.profile")}</div>
+              {visibleTabs.map(tb => (
+                <button key={tb.id} className={`st-tab-btn${tab === tb.id ? " on" : ""}`} onClick={() => setTab(tb.id)}>
+                  <span style={{ flexShrink: 0, color: tab === tb.id ? 'var(--mint-2)' : undefined, opacity: tab === tb.id ? 1 : 0.55 }}>{TAB_ICONS[tb.id]}</span>
+                  {t(`tabs.${tb.id}`)}
                 </button>
               ))}
             </nav>

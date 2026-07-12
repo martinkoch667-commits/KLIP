@@ -1,0 +1,44 @@
+{
+  "common": {
+    "save": "Guardar",
+    "saving": "A guardar…",
+    "saved": "Guardado"
+  },
+  "nav": {
+    "dashboard": "Painel",
+    "calendar": "Calendário",
+    "composer": "Compor",
+    "feed": "Feed de publicação",
+    "templates": "Modelos",
+    "newClient": "Novo cliente",
+    "settings": "Definições",
+    "logout": "Terminar sessão",
+    "noClients": "Sem clientes",
+    "yourClients": "Os seus clientes"
+  },
+  "settings": {
+    "title": "Definições",
+    "mobileTitle": "Definições",
+    "tabs": {
+      "profile": "A minha conta",
+      "security": "Segurança",
+      "notifications": "Notificações",
+      "publi": "Publicação",
+      "integrations": "Contas sociais",
+      "agency": "A minha equipa",
+      "billing": "Faturação",
+      "help": "Ajuda e tutorial",
+      "appearance": "Aparência"
+    },
+    "appearance": {
+      "title": "Aparência",
+      "subtitle": "Personalize a apresentação de acordo com as suas preferências.",
+      "language": "Idioma",
+      "languageHint": "Escolha o idioma da interface.",
+      "timezone": "Fuso horário",
+      "timezoneHint": "Usado para o agendamento das publicações.",
+      "dateFormat": "Formato de data",
+      "timeFormat": "Formato de hora"
+    }
+  }
+}
