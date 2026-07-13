@@ -32,6 +32,11 @@ export async function callGeminiText(params: {
     contents: params.contents,
     generationConfig: {
       responseModalities: ['TEXT'],
+      // gemini-2.5-flash est un modèle "thinking" : sur un gros system prompt avec
+      // un maxOutputTokens modeste, la réflexion consomme tout le budget et le
+      // texte revient VIDE ("Réponse IA vide") -> la génération échoue. On coupe
+      // le budget de réflexion pour ces tâches JSON structurées (réponse fiable + rapide).
+      thinkingConfig: { thinkingBudget: 0 },
       ...(params.temperature !== undefined ? { temperature: params.temperature } : {}),
       ...(params.maxOutputTokens !== undefined ? { maxOutputTokens: params.maxOutputTokens } : {}),
     },

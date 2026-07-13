@@ -118,13 +118,27 @@ function MusicPicker({ value, onChange }: { value: string; onChange: (v: string)
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-type PostType = "post" | "reel" | "story";
+type PostType = "post" | "reel" | "story" | "carrousel";
 
 const POST_TYPE_CFG: Record<PostType, { label: string; tKey: string; color: string; bg: string }> = {
   post:  { label: "Post",  tKey: "ptPost",  color: "#4F8EF7", bg: "#4F8EF715" },
   reel:  { label: "Reel",  tKey: "ptReel",  color: "#A259FF", bg: "#A259FF15" },
   story: { label: "Story", tKey: "ptStory", color: "#FF6B35", bg: "#FF6B3515" },
+  carrousel: { label: "Carrousel", tKey: "ptCarrousel", color: "#2FD79B", bg: "#2FD79B15" },
 };
+
+// Extrait toutes les images d'un carrousel depuis editor_json.carousel_urls (fallback = image unique).
+function carouselUrlsOf(post: { editor_json?: string | null; exported_image_url: string | null; thumbnail_url?: string | null; photo_url: string }): string[] {
+  if (post.editor_json) {
+    try {
+      const parsed = JSON.parse(post.editor_json);
+      const urls = parsed?.carousel_urls;
+      if (Array.isArray(urls) && urls.length > 0) return urls.filter((u: unknown): u is string => typeof u === 'string' && !!u);
+    } catch { /* ignore */ }
+  }
+  const single = post.exported_image_url || post.thumbnail_url || post.photo_url;
+  return single ? [single] : [];
+}
 
 interface Post {
   id: string;
@@ -140,6 +154,7 @@ interface Post {
   tagged_users?: string[] | null;
   music_note?: string | null;
   thumbnail_url?: string | null;
+  editor_json?: string | null;
   approved_by_client?: boolean | null;
   client_comment?: string | null;
   client_reviewed_at?: string | null;
@@ -204,7 +219,9 @@ function buildScheduledAt(dateStr: string, timeStr: string): string | null {
 }
 // Ratio d'affichage selon le format du post (story/reel = vertical 9:16).
 function aspectForType(t?: string | null): string {
-  return t === "story" || t === "reel" ? "9 / 16" : "4 / 5";
+  if (t === "story" || t === "reel") return "9 / 16";
+  if (t === "carrousel") return "1 / 1";
+  return "4 / 5";
 }
 // Détecte une source vidéo (export du monteur .webm, imports .mp4/.mov).
 function isVideoUrl(url?: string | null): boolean {
@@ -212,7 +229,7 @@ function isVideoUrl(url?: string | null): boolean {
 }
 // Un post vidéo ne peut être que Reel ou Story ; une photo ne peut pas être un Reel.
 function allowedTypesFor(isVideo: boolean): PostType[] {
-  return isVideo ? ["reel", "story"] : ["post", "story"];
+  return isVideo ? ["reel", "story"] : ["post", "carrousel", "story"];
 }
 // Miniature média : rend une <video> (première image comme poster) pour les sources vidéo,
 // sinon une <img> via le proxy. Évite l'image cassée "?" pour les exports .webm/.mp4.
@@ -514,7 +531,7 @@ function PlanningContent() {
     const [{ data: ws }, { data: postsData }] = await Promise.all([
       supabase.from("workspaces").select("id, name, primary_color, secondary_color, font_family, instagram_account_id, instagram_username, facebook_page_id").eq("id", id).single(),
       supabase.from("posts")
-        .select("id, photo_url, exported_image_url, texte_visuel, description, status, scheduled_at, brief, post_type, target_platforms, tagged_users, music_note, thumbnail_url, approved_by_client, client_comment, client_reviewed_at")
+        .select("id, photo_url, exported_image_url, texte_visuel, description, status, scheduled_at, brief, post_type, target_platforms, tagged_users, music_note, thumbnail_url, editor_json, approved_by_client, client_comment, client_reviewed_at")
         .eq("workspace_id", id)
         .in("status", ["generated", "validated", "scheduled", "published"])
         .order("scheduled_at", { ascending: true }),
@@ -1206,28 +1223,59 @@ function PlanningContent() {
           </div>
 
           <div style={{ flex: 1, padding: "16px 20px", display: "flex", flexDirection: "column", gap: 16 }}>
-            {(selectedPost.exported_image_url || selectedPost.thumbnail_url || selectedPost.photo_url) && (
-              <div style={{ position: "relative", width: "100%", maxWidth: (selectedPost.post_type === "story" || selectedPost.post_type === "reel") ? 260 : "100%", margin: "0 auto", aspectRatio: aspectForType(selectedPost.post_type), borderRadius: "var(--r)", overflow: "hidden", background: "#000" }}>
-                {isVideoUrl(selectedPost.exported_image_url) ? (
-                  <video src={selectedPost.exported_image_url!} controls playsInline style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-                ) : isVideoUrl(selectedPost.photo_url) ? (
-                  <video src={selectedPost.photo_url} controls playsInline style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-                ) : selectedPost.exported_image_url ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={selectedPost.exported_image_url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-                ) : (
-                  <>
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={selectedPost.thumbnail_url || selectedPost.photo_url || ""} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-                    {selectedPost.texte_visuel && (
-                      <div style={{ position: "absolute", bottom: 10, left: 10, right: 10, background: workspace?.primary_color ?? "#0038FF", color: workspace?.secondary_color ?? "#FFFFFF", fontFamily: workspace?.font_family ? `"${workspace.font_family}", sans-serif` : "Oswald, sans-serif", fontWeight: "bold", fontSize: 14, padding: "6px 12px", borderRadius: 4, textTransform: "uppercase", maxWidth: "80%" }}>
-                        {selectedPost.texte_visuel}
-                      </div>
-                    )}
-                  </>
-                )}
-              </div>
-            )}
+            {(() => {
+              const isVid = isVideoUrl(selectedPost.exported_image_url) || isVideoUrl(selectedPost.photo_url);
+              const carouselUrls = carouselUrlsOf(selectedPost);
+              const isCarousel = !isVid && carouselUrls.length > 1;
+              const wrapMaxW = (selectedPost.post_type === "story" || selectedPost.post_type === "reel") ? 260 : "100%";
+              if (isVid) {
+                const vsrc = isVideoUrl(selectedPost.exported_image_url) ? selectedPost.exported_image_url! : selectedPost.photo_url;
+                return (
+                  <div style={{ position: "relative", width: "100%", maxWidth: wrapMaxW, margin: "0 auto", aspectRatio: aspectForType(selectedPost.post_type), borderRadius: "var(--r)", overflow: "hidden", background: "#000" }}>
+                    <video src={vsrc} controls playsInline style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                  </div>
+                );
+              }
+              if (isCarousel) {
+                return (
+                  <div style={{ width: "100%", maxWidth: wrapMaxW, margin: "0 auto" }}>
+                    <div style={{ display: "flex", gap: 8, overflowX: "auto", scrollSnapType: "x mandatory", borderRadius: "var(--r)", WebkitOverflowScrolling: "touch" }}>
+                      {carouselUrls.map((u, i) => (
+                        <div key={i} style={{ position: "relative", flex: "0 0 100%", scrollSnapAlign: "center", aspectRatio: aspectForType(selectedPost.post_type), borderRadius: "var(--r)", overflow: "hidden", background: "#000" }}>
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img src={u} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                          <div style={{ position: "absolute", top: 8, right: 8, background: "rgba(13,15,10,.6)", color: "#fff", fontSize: 11, fontWeight: 700, padding: "2px 8px", borderRadius: 999 }}>{i + 1}/{carouselUrls.length}</div>
+                        </div>
+                      ))}
+                    </div>
+                    <div style={{ display: "flex", justifyContent: "center", gap: 5, marginTop: 8 }}>
+                      {carouselUrls.map((_, i) => (
+                        <span key={i} style={{ width: 6, height: 6, borderRadius: 999, background: i === 0 ? "var(--ink)" : "var(--line)" }} />
+                      ))}
+                    </div>
+                  </div>
+                );
+              }
+              if (!(selectedPost.exported_image_url || selectedPost.thumbnail_url || selectedPost.photo_url)) return null;
+              return (
+                <div style={{ position: "relative", width: "100%", maxWidth: wrapMaxW, margin: "0 auto", aspectRatio: aspectForType(selectedPost.post_type), borderRadius: "var(--r)", overflow: "hidden", background: "#000" }}>
+                  {selectedPost.exported_image_url ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={selectedPost.exported_image_url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                  ) : (
+                    <>
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={selectedPost.thumbnail_url || selectedPost.photo_url || ""} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                      {selectedPost.texte_visuel && (
+                        <div style={{ position: "absolute", bottom: 10, left: 10, right: 10, background: workspace?.primary_color ?? "#0038FF", color: workspace?.secondary_color ?? "#FFFFFF", fontFamily: workspace?.font_family ? `"${workspace.font_family}", sans-serif` : "Oswald, sans-serif", fontWeight: "bold", fontSize: 14, padding: "6px 12px", borderRadius: 4, textTransform: "uppercase", maxWidth: "80%" }}>
+                          {selectedPost.texte_visuel}
+                        </div>
+                      )}
+                    </>
+                  )}
+                </div>
+              );
+            })()}
 
             {/* Retour du client (validation ou demande de modif) */}
             {selectedPost.approved_by_client && (

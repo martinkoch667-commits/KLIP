@@ -1674,9 +1674,16 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
   const [editorToast, setEditorToast] = useState<string | null>(null);
   const [showStoryWarn, setShowStoryWarn] = useState(false);
   const [pendingStoryType, setPendingStoryType] = useState<'post' | 'reel' | 'story' | 'carrousel' | null>(null);
+  // Carrousel continu (panorama à volets liés) : une seule grande toile éditable de
+  // largeur stageW*volets ; les éléments peuvent chevaucher les limites de volets et
+  // sont découpés à l'export en slides Instagram séparées.
+  const [carouselContinuous, setCarouselContinuous] = useState(false);
+  const [contPanels, setContPanels] = useState(2);
   const activeFormat = FORMATS.find(f => f.id === formatId) ?? FORMATS[0];
   const stageW = activeFormat.w;
   const stageH = activeFormat.h;
+  const isContinuous = postType === 'carrousel' && carouselContinuous;
+  const stageWView = isContinuous ? stageW * contPanels : stageW;
   const [elements, setElements] = useState<CanvasEl[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
@@ -1783,7 +1790,8 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
 
   // ── Carousel: save current slide state into slidesRef ────────────────────
   const saveCurrentSlide = () => {
-    const thumbnail = stageRef.current?.toDataURL({ pixelRatio: 0.3 }) ?? undefined;
+    // Aperçu net des slides inactives (0.3 rendait le plan de travail flou en carrousel).
+    const thumbnail = stageRef.current?.toDataURL({ pixelRatio: 1.25 }) ?? undefined;
     const updated = slidesRef.current.map((s, i) =>
       i === activeSlideIdx ? {
         ...s,
@@ -2103,6 +2111,8 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
               initSlides = parsed.slides;
               // Restore bgStyle if embedded in the first slide (set by Composer pre-gen)
               if (parsed.slides[0]?.bgStyle) setBgStyle(parsed.slides[0].bgStyle as BgStyle);
+              // Restore continuous-carousel mode
+              if (parsed.carouselContinuous) { setCarouselContinuous(true); setContPanels(Math.min(6, Math.max(2, parsed.contPanels || 2))); }
             } else {
               const els = Array.isArray(parsed) ? parsed : [defaultEl];
               initSlides = [{ id: 'slide-1', elements: els, proxyUrl: photoProxyUrl }];
@@ -2448,24 +2458,6 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
     setTool(null);
   };
 
-  const addRect = () => {
-    const el: RectEl = { id: newId(), type: 'rect', x: 100, y: 100, rotation: 0, opacity: 100, width: 200, height: 100, fill: '#B8F028', stroke: '', strokeWidth: 0, cornerRadius: 0 };
-    applyElements([...elements, el]);
-    setSelectedId(el.id);
-  };
-
-  const addCircle = () => {
-    const el: CircleEl = { id: newId(), type: 'circle', x: 250, y: 200, rotation: 0, opacity: 100, radius: 80, fill: '#B8F028', stroke: '', strokeWidth: 0 };
-    applyElements([...elements, el]);
-    setSelectedId(el.id);
-  };
-
-  const addStar = () => {
-    const el: StarEl = { id: newId(), type: 'star', x: 250, y: 200, rotation: 0, opacity: 100, numPoints: 5, innerRadius: 40, outerRadius: 80, fill: '#FFD700', stroke: '', strokeWidth: 0 };
-    applyElements([...elements, el]);
-    setSelectedId(el.id);
-  };
-
   const addVector = (shape: VectorEl['shape']) => {
     const defaultFill = workspaceData?.primary_color || '#2FD79B';
     const defaultSize: Record<VectorEl['shape'], [number, number]> = {
@@ -2732,9 +2724,9 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
   const fit = useCallback(() => {
     const ws = canvasAreaRef.current;
     if (!ws) return;
-    const z = Math.min((ws.clientWidth - 120) / stageW, (ws.clientHeight - 80) / stageH);
-    setZoom(Math.max(0.15, Math.min(1.5, +z.toFixed(3))));
-  }, [stageW, stageH]);
+    const z = Math.min((ws.clientWidth - 120) / stageWView, (ws.clientHeight - 80) / stageH);
+    setZoom(Math.max(0.05, Math.min(1.5, +z.toFixed(3))));
+  }, [stageWView, stageH]);
 
   // Auto-fit after data loads and whenever the format (stageW/stageH) changes
   useEffect(() => {
@@ -2921,7 +2913,7 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
     const bodyFont = workspaceData?.font_secondary || displayFont;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const resolveColor = (c: any) => c === 'primary' ? (workspaceData?.primary_color || '#FFFFFF') : c === 'secondary' ? (workspaceData?.secondary_color || '#FFFFFF') : c === 'accent' ? (workspaceData?.accent_color || '#C8F135') : c === 'black' ? '#14160F' : '#FFFFFF';
-    let sampler: ((xp: number, yp: number, wp: number, hp: number) => number) | null = null;
+    let sampler: ((xp: number, yp: number, wp: number, hp: number) => { mean: number; std: number }) | null = null;
     if (postPhotoUrl) { try { sampler = await buildLumaSampler(`/api/proxy-image?url=${encodeURIComponent(postPhotoUrl)}`); } catch { /* noop */ } }
     let forceScrim = false;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -3155,7 +3147,19 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
       return ud?.publicUrl || '';
     };
 
-    if (isCarousel && totalSlides > 1) {
+    if (isCarousel && isContinuous) {
+      // Carrousel continu : la toile large est déjà rendue à l'écran. On la
+      // découpe en `contPanels` régions de stageW via l'export de zone de Konva
+      // (toDataURL {x,y,width,height}) → une slide Instagram par volet.
+      for (let i = 0; i < contPanels; i++) {
+        const dataURL = stageRef.current!.toDataURL({ x: i * stageW, y: 0, width: stageW, height: stageH, pixelRatio: 2 });
+        const blob = await fetch(dataURL).then(r => r.blob());
+        const fn = `${workspaceId}/${entityId}-slide${i}-${Date.now()}.png`;
+        await supabase.storage.from('exports').upload(fn, blob, { contentType: 'image/png', upsert: true });
+        const { data: ud } = supabase.storage.from('exports').getPublicUrl(fn);
+        carouselUrls.push(ud?.publicUrl || '');
+      }
+    } else if (isCarousel && totalSlides > 1) {
       const origIdx = activeSlideIdx;
       // On rend CHAQUE slide avant de la capturer — sans exception. L'ancienne
       // optimisation (« ne pas re-rendre si i === slide active ») était buguée :
@@ -3189,8 +3193,9 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
       await new Promise(resolve => setTimeout(resolve, 300));
     }
 
-    // Export cover (active slide) for calendar / feed previews
-    const coverDataURL = stageRef.current.toDataURL({ pixelRatio: 2 });
+    // Export cover (active slide) for calendar / feed previews.
+    // En continu, on ne capture que le 1er volet (sinon on aurait une image large).
+    const coverDataURL = stageRef.current.toDataURL(isContinuous ? { x: 0, y: 0, width: stageW, height: stageH, pixelRatio: 2 } : { pixelRatio: 2 });
     const coverBlob = await fetch(coverDataURL).then(r => r.blob());
     const coverFn = `${workspaceId}/${entityId}-${Date.now()}.png`;
     await supabase.storage.from('exports').upload(coverFn, coverBlob, { contentType: 'image/png', upsert: true });
@@ -3205,6 +3210,7 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
       editor_json: JSON.stringify({
         version: 2,
         slides: allSlides,
+        ...(isContinuous ? { carouselContinuous: true, contPanels } : {}),
         ...(isCarousel && carouselUrls.length > 0 ? { carousel_urls: carouselUrls } : {}),
       }),
       texte_visuel: textEl?.text || '',
@@ -3605,27 +3611,9 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
           </button>
         </div>
 
-        {/* Center: ContextToolbar (when selected) or hint */}
+        {/* Center: hint (barre contextuelle déplacée en flottant au-dessus du plan de travail) */}
         <div className="ed-topbar-center" style={{ flex: 1, display: 'flex', justifyContent: 'center', minWidth: 0 }}>
-          {selectedEl ? (
-            <EditorContextToolbar
-              sel={selectedEl}
-              allFonts={[...FONTS, ...brandFontNames, ...customFonts.map(f => f.name)]}
-              brandColors={[workspaceData?.primary_color, workspaceData?.secondary_color, workspaceData?.accent_color].filter(Boolean) as string[]}
-              stageW={stageW}
-              stageH={stageH}
-              onUpdate={(patch) => updateEl(selectedEl.id, patch)}
-              onAlign={alignEl}
-              onDuplicate={duplicateEl}
-              onDelete={() => deleteEl(selectedId)}
-              onCrop={selectedEl.type === 'image' ? () => setCropId(selectedEl.id) : undefined}
-              onSetBg={selectedEl.type === 'image' ? () => setProxyUrl((selectedEl as ImageEl).src) : undefined}
-              onMaskPhoto={selectedEl.type === 'vector' ? () => maskPhotoInputRef.current?.click() : undefined}
-              onRemoveBg={selectedEl.type === 'image' ? () => removeBgFromImage(selectedEl as ImageEl) : undefined}
-              bgRemoving={bgRemovingId === selectedEl.id}
-              onLayerAction={layerAction}
-            />
-          ) : (
+          {!selectedEl && (
             <span className="ed-hint-desktop" style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--ink-3)', display: 'flex', alignItems: 'center', gap: 7 }}>
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
               Sélectionnez un calque pour le modifier
@@ -3699,11 +3687,6 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
                   </div>
                 )}
               </div>
-              <button onClick={magicResize} disabled={resizing} className="btn btn-sm ed-ai-btn" title={T('magicResizeTip')}
-                style={{ height: 36, opacity: resizing ? 0.6 : 1, cursor: resizing ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="10" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/></svg>
-                <span className="ed-hide-md">{resizing ? 'Adaptation…' : 'Adapter aux formats'}</span>
-              </button>
             </>
           )}
           <button onClick={exportPNG} className="btn btn-sm btn-ghost" style={{ height: 36 }}>{T('preview')}</button>
@@ -3813,37 +3796,22 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
                   <input className="input" placeholder={T('searchElement')} style={{ paddingLeft: 36, height: 40, background: 'var(--sunk)', border: 'none' }} />
                 </div>
                 <p style={{ fontSize: 10, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '0.12em', fontFamily: 'var(--mono)', fontWeight: 800, margin: '0 0 8px' }}>{T('shapes')}</p>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 7, marginBottom: 16 }}>
-                  {[
-                    { label: 'Carré',    fn: addRect,   preview: <rect x="6" y="6" width="12" height="12" rx="1.5" fill="none" stroke="currentColor" strokeWidth="1.5"/> },
-                    { label: 'Cercle',   fn: addCircle, preview: <circle cx="12" cy="12" r="7" fill="none" stroke="currentColor" strokeWidth="1.5"/> },
-                    { label: 'Pilule',   fn: addRect,   preview: <rect x="4" y="8" width="16" height="8" rx="4" fill="none" stroke="currentColor" strokeWidth="1.5"/> },
-                    { label: 'Triangle', fn: addStar,   preview: <polygon points="12,5 20,19 4,19" fill="none" stroke="currentColor" strokeWidth="1.5"/> },
-                    { label: 'Ligne',    fn: () => addRect(), preview: <line x1="4" y1="12" x2="20" y2="12" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/> },
-                    { label: 'Étoile',   fn: addStar,   preview: <polygon points="12,3 14.5,9 21,9.5 16,14 17.5,21 12,17.5 6.5,21 8,14 3,9.5 9.5,9" fill="none" stroke="currentColor" strokeWidth="1.3"/> },
-                  ].map(({ label, fn, preview }) => (
-                    <button key={label} onClick={fn} className="well"
-                      style={{ aspectRatio: '1', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 5, cursor: 'pointer', borderRadius: 10 }}>
-                      <svg width="24" height="24" viewBox="0 0 24 24" style={{ color: 'var(--ink-2)' }}>{preview}</svg>
-                      <span style={{ fontSize: 9.5, fontFamily: 'var(--mono)', fontWeight: 700, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '.04em' }}>{label}</span>
-                    </button>
-                  ))}
-                </div>
-                <p style={{ fontSize: 10, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '0.12em', fontFamily: 'var(--mono)', fontWeight: 800, margin: '0 0 8px 0', marginTop: 16 }}>{T('vectorShapes')}</p>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 7, marginBottom: 16 }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 8, marginBottom: 18 }}>
                   {([
-                    { shape: 'rectangle' as const, label: 'Rect', icon: <rect x="4" y="6" width="16" height="12" rx="1" fill="none" stroke="currentColor" strokeWidth="1.6"/> },
-                    { shape: 'circle' as const,    label: 'Rond', icon: <circle cx="12" cy="12" r="7" fill="none" stroke="currentColor" strokeWidth="1.6"/> },
-                    { shape: 'triangle' as const,  label: 'Triangle', icon: <polygon points="12,4 21,20 3,20" fill="none" stroke="currentColor" strokeWidth="1.5"/> },
-                    { shape: 'star' as const,      label: 'Étoile', icon: <polygon points="12,3 14.5,9 21,9.5 16,14 17.5,21 12,17.5 6.5,21 8,14 3,9.5 9.5,9" fill="none" stroke="currentColor" strokeWidth="1.3"/> },
-                    { shape: 'pill' as const,      label: 'Pilule', icon: <rect x="3" y="8" width="18" height="8" rx="4" fill="none" stroke="currentColor" strokeWidth="1.6"/> },
-                    { shape: 'arrow' as const,     label: 'Flèche', icon: <><path fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" d="M3 10h12V6l6 6-6 6v-4H3z"/></> },
-                    { shape: 'diamond' as const,   label: 'Losange', icon: <polygon points="12,3 21,12 12,21 3,12" fill="none" stroke="currentColor" strokeWidth="1.5"/> },
-                    { shape: 'hexagon' as const,   label: 'Hexa', icon: <polygon points="12,3 20,7.5 20,16.5 12,21 4,16.5 4,7.5" fill="none" stroke="currentColor" strokeWidth="1.5"/> },
+                    { shape: 'rectangle' as const, label: 'Carré',    icon: <rect x="5" y="5" width="14" height="14" rx="2.5" fill="currentColor"/> },
+                    { shape: 'circle' as const,    label: 'Cercle',   icon: <circle cx="12" cy="12" r="7.5" fill="currentColor"/> },
+                    { shape: 'pill' as const,      label: 'Pilule',   icon: <rect x="3" y="8" width="18" height="8" rx="4" fill="currentColor"/> },
+                    { shape: 'triangle' as const,  label: 'Triangle', icon: <polygon points="12,4 21,20 3,20" fill="currentColor"/> },
+                    { shape: 'star' as const,      label: 'Étoile',   icon: <polygon points="12,3 14.5,9 21,9.5 16,14 17.5,21 12,17.5 6.5,21 8,14 3,9.5 9.5,9" fill="currentColor"/> },
+                    { shape: 'diamond' as const,   label: 'Losange',  icon: <polygon points="12,3 21,12 12,21 3,12" fill="currentColor"/> },
+                    { shape: 'hexagon' as const,   label: 'Hexagone', icon: <polygon points="12,3 20,7.5 20,16.5 12,21 4,16.5 4,7.5" fill="currentColor"/> },
+                    { shape: 'arrow' as const,     label: 'Flèche',   icon: <path fill="currentColor" strokeLinejoin="round" d="M3 10h11V6l7 6-7 6v-4H3z"/> },
                   ]).map(({ shape, label, icon }) => (
-                    <button key={shape} onClick={() => addVector(shape)} className="well"
-                      style={{ aspectRatio: '1', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 4, cursor: 'pointer', borderRadius: 10 }}>
-                      <svg width="24" height="24" viewBox="0 0 24 24" style={{ color: 'var(--ink-2)' }}>{icon}</svg>
+                    <button key={shape} onClick={() => addVector(shape)}
+                      style={{ aspectRatio: '1', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 5, cursor: 'pointer', borderRadius: 12, border: '1px solid var(--line)', background: 'var(--white)', transition: 'all .15s' }}
+                      onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--mint)'; e.currentTarget.style.background = 'var(--sunk)'; }}
+                      onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--line)'; e.currentTarget.style.background = 'var(--white)'; }}>
+                      <svg width="26" height="26" viewBox="0 0 24 24" style={{ color: 'var(--ink)' }}>{icon}</svg>
                       <span style={{ fontSize: 8.5, fontFamily: 'var(--mono)', fontWeight: 700, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '.04em' }}>{label}</span>
                     </button>
                   ))}
@@ -4202,21 +4170,52 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
                     Fond déverrouillé — glissez-le sur le canvas pour le repositionner.
                   </div>
                 )}
-                {postType === 'carrousel' && proxyUrl && (
+                {postType === 'carrousel' && (
                   <div style={{ marginTop: 12, padding: '12px', borderRadius: 9, background: 'var(--sunk)', border: '1px solid var(--line)' }}>
-                    <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--ink)', marginBottom: 4 }}>{T('linkedCarousel')}</div>
-                    <div style={{ fontSize: 11.5, color: 'var(--ink-3)', lineHeight: 1.4, marginBottom: 10 }}>
-                      Étend ce fond sur les slides suivantes pour un visuel continu (panorama) qui se découpe au balayage. Utilisez une photo large pour un meilleur résultat.
+                    <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--ink)', marginBottom: 8 }}>{T('linkedCarousel')}</div>
+                    {/* Bascule Séparé / Continu */}
+                    <div style={{ display: 'flex', gap: 4, background: 'var(--white)', border: '1px solid var(--line)', borderRadius: 8, padding: 3, marginBottom: 10 }}>
+                      {([['separate', 'Séparé'], ['continuous', 'Continu']] as const).map(([mode, label]) => {
+                        const active = (mode === 'continuous') === carouselContinuous;
+                        return (
+                          <button key={mode} onClick={() => setCarouselContinuous(mode === 'continuous')}
+                            style={{ flex: 1, padding: '6px 4px', borderRadius: 6, border: 'none', cursor: 'pointer', fontSize: 12, fontWeight: 700, fontFamily: 'var(--sans)', transition: 'all .15s', background: active ? 'var(--mint)' : 'transparent', color: active ? '#06281C' : 'var(--ink-3)' }}>
+                            {label}
+                          </button>
+                        );
+                      })}
                     </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <span style={{ fontSize: 11.5, color: 'var(--ink-2)' }}>{T('on')}</span>
-                      <input type="number" min={1} max={6} value={extendCount} onChange={e => setExtendCount(Math.min(6, Math.max(1, parseInt(e.target.value) || 1)))}
-                        style={{ width: 44, textAlign: 'center', borderRadius: 6, border: '1px solid var(--line)', padding: '4px 2px', fontSize: 12.5, fontWeight: 700 }} />
-                      <span style={{ fontSize: 11.5, color: 'var(--ink-2)' }}>{T('nextSlides')}</span>
-                    </div>
-                    <button onClick={() => extendBgAcrossSlides(extendCount)} className="btn btn-sm btn-primary" style={{ width: '100%', justifyContent: 'center', marginTop: 10 }}>
-                      Étendre l&apos;image
-                    </button>
+                    {carouselContinuous ? (
+                      <>
+                        <div style={{ fontSize: 11.5, color: 'var(--ink-3)', lineHeight: 1.4, marginBottom: 10 }}>
+                          Une seule grande toile : placez librement textes et éléments, ils peuvent chevaucher les volets. Découpée en {contPanels} slides à la publication.
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <span style={{ fontSize: 11.5, color: 'var(--ink-2)' }}>Volets</span>
+                          <input type="number" min={2} max={6} value={contPanels} onChange={e => setContPanels(Math.min(6, Math.max(2, parseInt(e.target.value) || 2)))}
+                            style={{ width: 44, textAlign: 'center', borderRadius: 6, border: '1px solid var(--line)', padding: '4px 2px', fontSize: 12.5, fontWeight: 700 }} />
+                        </div>
+                      </>
+                    ) : proxyUrl ? (
+                      <>
+                        <div style={{ fontSize: 11.5, color: 'var(--ink-3)', lineHeight: 1.4, marginBottom: 10 }}>
+                          Étend ce fond sur les slides suivantes pour un visuel continu (panorama) qui se découpe au balayage. Utilisez une photo large pour un meilleur résultat.
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <span style={{ fontSize: 11.5, color: 'var(--ink-2)' }}>{T('on')}</span>
+                          <input type="number" min={1} max={6} value={extendCount} onChange={e => setExtendCount(Math.min(6, Math.max(1, parseInt(e.target.value) || 1)))}
+                            style={{ width: 44, textAlign: 'center', borderRadius: 6, border: '1px solid var(--line)', padding: '4px 2px', fontSize: 12.5, fontWeight: 700 }} />
+                          <span style={{ fontSize: 11.5, color: 'var(--ink-2)' }}>{T('nextSlides')}</span>
+                        </div>
+                        <button onClick={() => extendBgAcrossSlides(extendCount)} className="btn btn-sm btn-primary" style={{ width: '100%', justifyContent: 'center', marginTop: 10 }}>
+                          Étendre l&apos;image
+                        </button>
+                      </>
+                    ) : (
+                      <div style={{ fontSize: 11.5, color: 'var(--ink-3)', lineHeight: 1.4 }}>
+                        Ajoutez un fond pour étendre un panorama, ou passez en mode <b>Continu</b> pour une seule toile large.
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
@@ -4226,7 +4225,30 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
         )}
 
         {/* ── CANVAS WORKSPACE ── */}
-        <div className="ed-canvas-area" style={{ flex: 1, minWidth: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column', background: 'radial-gradient(120% 80% at 50% -10%, #FBFAF4, #ECEBE1 70%)', position: 'relative' }}>
+        <div className="ed-canvas-area" style={{ flex: 1, minWidth: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column', background: 'var(--white)', position: 'relative' }}>
+          {/* ── Barre contextuelle flottante (desktop) — centrée sous la topbar, par-dessus le plan de travail ── */}
+          {selectedEl && (
+            <div className="ed-ctx-float" data-stop-deselect onMouseDown={e => e.stopPropagation()}
+              style={{ position: 'absolute', top: 12, left: '50%', transform: 'translateX(-50%)', zIndex: 45, maxWidth: 'calc(100% - 24px)' }}>
+              <EditorContextToolbar
+                sel={selectedEl}
+                allFonts={[...FONTS, ...brandFontNames, ...customFonts.map(f => f.name)]}
+                brandColors={[workspaceData?.primary_color, workspaceData?.secondary_color, workspaceData?.accent_color].filter(Boolean) as string[]}
+                stageW={stageW}
+                stageH={stageH}
+                onUpdate={(patch) => updateEl(selectedEl.id, patch)}
+                onAlign={alignEl}
+                onDuplicate={duplicateEl}
+                onDelete={() => deleteEl(selectedId)}
+                onCrop={selectedEl.type === 'image' ? () => setCropId(selectedEl.id) : undefined}
+                onSetBg={selectedEl.type === 'image' ? () => setProxyUrl((selectedEl as ImageEl).src) : undefined}
+                onMaskPhoto={selectedEl.type === 'vector' ? () => maskPhotoInputRef.current?.click() : undefined}
+                onRemoveBg={selectedEl.type === 'image' ? () => removeBgFromImage(selectedEl as ImageEl) : undefined}
+                bgRemoving={bgRemovingId === selectedEl.id}
+                onLayerAction={layerAction}
+              />
+            </div>
+          )}
           {(aiBuilding || qaBusy) && (
             <div style={{ position: 'absolute', inset: 0, zIndex: 40, background: 'radial-gradient(120% 90% at 50% 30%, rgba(8,32,22,.90), rgba(6,18,10,.95))', backdropFilter: 'blur(6px)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 22, cursor: 'wait' }}>
               {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -4252,30 +4274,32 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
           style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', overflowY: 'auto', padding: '40px 28px', gap: 40 }}>
             {slides.map((slide, idx) => {
               const isActive = idx === activeSlideIdx;
+              // Carrousel continu : une seule toile large — on masque les autres slides.
+              if (isContinuous && !isActive) return null;
               return (
                 <div key={slide.id}
                   ref={el => { slideContainerRefs.current[idx] = el; }}
                   style={{ flexShrink: 0, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                  <div style={{ marginBottom: 8, fontSize: 11, color: 'var(--ink-3)', fontWeight: 700, fontFamily: 'var(--mono)', letterSpacing: '.04em' }}>{idx + 1}</div>
-                  <div style={{ width: stageW * zoom, height: stageH * zoom, position: 'relative', borderRadius: Math.round(18 * zoom), boxShadow: isActive ? '0 22px 50px -24px rgba(13,15,10,.45)' : '0 8px 22px -10px rgba(13,15,10,.22)', flexShrink: 0 }}>
+                  <div style={{ marginBottom: 8, fontSize: 11, color: 'var(--ink-3)', fontWeight: 700, fontFamily: 'var(--mono)', letterSpacing: '.04em', display: isContinuous ? 'none' : 'block' }}>{idx + 1}</div>
+                  <div style={{ width: (isActive && isContinuous ? stageWView : stageW) * zoom, height: stageH * zoom, position: 'relative', borderRadius: Math.round(18 * zoom), boxShadow: isActive ? '0 22px 50px -24px rgba(13,15,10,.45)' : '0 8px 22px -10px rgba(13,15,10,.22)', flexShrink: 0 }}>
                   {isActive ? (
                     <>
-                    <div onMouseDown={e => e.stopPropagation()} style={{ position: 'absolute', top: 0, left: 0, width: stageW, height: stageH, transform: `scale(${zoom})`, transformOrigin: 'top left', borderRadius: 18 }}>
+                    <div onMouseDown={e => e.stopPropagation()} style={{ position: 'absolute', top: 0, left: 0, width: isContinuous ? stageWView : stageW, height: stageH, transform: `scale(${zoom})`, transformOrigin: 'top left', borderRadius: 18 }}>
             {/* Inner div clips only the Stage canvas to preserve border-radius */}
             <div style={{ borderRadius: 18, overflow: 'hidden' }}>
             <Stage
               ref={stageRef}
-              width={stageW} height={stageH}
+              width={stageWView} height={stageH}
               onMouseDown={e => { if (e.target === e.target.getStage()) { if (cropId) { setCropId(null); } else { setSelectedId(null); if (!bgLocked && proxyUrl) setBgCropMode(true); else setBgCropMode(false); } } }}
               style={{ display: 'block' }}
             >
               <Layer>
-                <Rect x={0} y={0} width={stageW} height={stageH} fill="white" listening={false} />
+                <Rect x={0} y={0} width={stageWView} height={stageH} fill="white" listening={false} />
                 {/* Template gradient/solid background — rendered below BgImage */}
-                {bgStyle && <BgStyleLayer bgStyle={bgStyle} w={stageW} h={stageH} />}
+                {bgStyle && <BgStyleLayer bgStyle={bgStyle} w={stageWView} h={stageH} />}
                 {proxyUrl && (
                   <BgImage
-                    src={proxyUrl} w={stageW} h={stageH}
+                    src={proxyUrl} w={stageWView} h={stageH}
                     offsetX={bgOffsetX} offsetY={bgOffsetY}
                     draggable={bgCropMode}
                     onDragEnd={(x, y) => { setBgOffsetX(x); setBgOffsetY(y); }}
@@ -4601,6 +4625,14 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
               </div>
             )}
 
+            {/* Carrousel continu — repères de découpe entre volets (overlay HTML, jamais exporté) */}
+            {isContinuous && Array.from({ length: contPanels }).map((_, i) => (
+              <div key={`cut-${i}`} style={{ position: 'absolute', top: 0, left: i * stageW, width: stageW, height: stageH, pointerEvents: 'none', zIndex: 8,
+                borderRight: i < contPanels - 1 ? '2px dashed rgba(47,215,155,.85)' : 'none' }}>
+                <div style={{ position: 'absolute', top: 12, left: 12, background: 'rgba(12,42,29,.82)', color: '#eeeee0', fontSize: 22, fontWeight: 800, fontFamily: 'var(--mono)', padding: '4px 12px', borderRadius: 8 }}>{i + 1}</div>
+              </div>
+            ))}
+
             {/* BG image selected — selection border + opacity pill */}
             {bgImageSelected && (
               <div onMouseDown={e => e.stopPropagation()} style={{ position: 'absolute', inset: 0, borderRadius: 18, border: '2px solid #8B5CF6', pointerEvents: 'none', zIndex: 10 }} />
@@ -4849,11 +4881,11 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
             </div>
           </div>
 
-          {/* ── SLIDE STRIP ── */}
+          {/* ── SLIDE STRIP ── (masqué en carrousel continu : une seule toile) */}
           <div style={{
             height: 80, flexShrink: 0,
             background: 'var(--canvas)', borderTop: '1px solid var(--line)',
-            display: 'flex', alignItems: 'center',
+            display: isContinuous ? 'none' : 'flex', alignItems: 'center',
             padding: '0 16px', gap: 8,
             overflowX: 'auto',
           }}>
