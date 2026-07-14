@@ -1376,20 +1376,6 @@ function EditorContextToolbar({ sel, allFonts, brandColors, stageW, stageH, onUp
 
       <Div />
 
-      {/* 6 ALIGNMENT BUTTONS — inline (vs canvas when 1 element, vs group when multi) */}
-      {[
-        { id: 'left',     title: 'Aligner à gauche',           icon: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M4 4v16"/><rect x="6" y="7" width="10" height="4" rx="1"/><rect x="6" y="13" width="7" height="4" rx="1"/></svg> },
-        { id: 'center-h', title: 'Centrer horizontalement',    icon: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M12 4v16"/><rect x="5" y="7" width="14" height="4" rx="1"/><rect x="7" y="13" width="10" height="4" rx="1"/></svg> },
-        { id: 'right',    title: 'Aligner à droite',           icon: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M20 4v16"/><rect x="8" y="7" width="10" height="4" rx="1"/><rect x="11" y="13" width="7" height="4" rx="1"/></svg> },
-        { id: 'top',      title: 'Aligner en haut',            icon: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M4 4h16"/><rect x="7" y="6" width="4" height="10" rx="1"/><rect x="13" y="6" width="4" height="7" rx="1"/></svg> },
-        { id: 'center-v', title: 'Centrer verticalement',      icon: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M4 12h16"/><rect x="7" y="5" width="4" height="14" rx="1"/><rect x="13" y="7" width="4" height="10" rx="1"/></svg> },
-        { id: 'bottom',   title: 'Aligner en bas',             icon: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M4 20h16"/><rect x="7" y="8" width="4" height="10" rx="1"/><rect x="13" y="11" width="4" height="7" rx="1"/></svg> },
-      ].map(({ id, title, icon }) => (
-        <IBtn key={id} title={title} onClick={() => onAlign(id)} icon={icon} />
-      ))}
-
-      <Div />
-
       {/* DUPLICATE */}
       <IBtn title={T('duplicate')} onClick={onDuplicate}
         icon={<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="11" height="11" rx="2.2"/><path d="M5 15V5a2 2 0 0 1 2-2h8"/></svg>} />
@@ -1532,20 +1518,22 @@ function EffectsPanel({ sel, onUpdate, brandColors, onClose }: { sel: TextEl; on
 
   return (
     <div style={{ padding: 18 }}>
-      <PanelHead title={T('effect')} sub="Style du texte" onClose={onClose} />
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
+      <PanelHead title={T('effect')} onClose={onClose} />
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
         {presets.map(p => {
           const on = active === p.key;
           return (
             <button key={p.key} onClick={() => u(p.patch)}
-              style={{ display: 'flex', flexDirection: 'column', alignItems: 'stretch', gap: 6, padding: 0, border: 'none', background: 'transparent', cursor: 'pointer' }}>
-              <div style={{ aspectRatio: '1', borderRadius: 10, display: 'grid', placeItems: 'center',
-                background: p.key === 'neon' ? '#14160F' : 'var(--sunk)',
-                border: on ? '2px solid var(--mint-2)' : '1.5px solid var(--line)',
-                boxShadow: on ? '0 0 0 3px var(--mint-soft)' : 'none', transition: 'all .12s' }}>
-                <span style={{ fontFamily: 'var(--display)', fontWeight: 900, fontSize: 22, color: p.key === 'neon' ? '#fff' : '#14160F', lineHeight: 1, ...p.preview }}>Ag</span>
+              style={{ display: 'flex', flexDirection: 'column', alignItems: 'stretch', gap: 7, padding: 0, border: 'none', background: 'transparent', cursor: 'pointer' }}>
+              <div style={{ aspectRatio: '1', borderRadius: 8, display: 'grid', placeItems: 'center',
+                background: p.key === 'neon' ? '#14160F' : '#fff',
+                border: on ? '2px solid var(--mint-2)' : '1px solid var(--line)',
+                boxShadow: on ? '0 0 0 3px var(--mint-soft)' : '0 1px 3px rgba(20,22,15,.07)', transition: 'box-shadow .12s, border-color .12s' }}
+              onMouseEnter={e => { if (!on) e.currentTarget.style.boxShadow = '0 3px 10px rgba(20,22,15,.14)'; }}
+              onMouseLeave={e => { if (!on) e.currentTarget.style.boxShadow = '0 1px 3px rgba(20,22,15,.07)'; }}>
+                <span style={{ fontFamily: 'var(--display)', fontWeight: 900, fontSize: 26, color: p.key === 'neon' ? '#fff' : '#14160F', lineHeight: 1, ...p.preview }}>Ag</span>
               </div>
-              <span style={{ fontSize: 10.5, fontWeight: 700, color: on ? 'var(--mint-2)' : 'var(--ink-2)', textAlign: 'center', lineHeight: 1.15 }}>{p.label}</span>
+              <span style={{ fontSize: 11, fontWeight: 600, color: on ? 'var(--mint-2)' : 'var(--ink-3)', textAlign: 'center', lineHeight: 1.15 }}>{p.label}</span>
             </button>
           );
         })}
@@ -1639,9 +1627,9 @@ function PositionPanel({ sel, stageW, stageH, onUpdate, onAlign, onLayerAction, 
           ['back', 'Arrière-plan', <svg key="d" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="5" y="5" width="12" height="12" rx="2" fill="currentColor" fillOpacity=".18"/><path d="M19 9v10H9"/></svg>],
         ] as const).map(([id, label, icon]) => (
           <button key={id} onClick={() => onLayerAction(id)}
-            style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '9px 10px', borderRadius: 9, border: '1px solid var(--line)', background: 'var(--sunk)', cursor: 'pointer', fontSize: 12.5, fontWeight: 600, color: 'var(--ink)', textAlign: 'left' }}
-            onMouseEnter={e => (e.currentTarget.style.background = 'var(--line)')}
-            onMouseLeave={e => (e.currentTarget.style.background = 'var(--sunk)')}>
+            style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 11px', borderRadius: 8, border: '1px solid var(--line)', background: '#fff', boxShadow: '0 1px 2px rgba(20,22,15,.05)', cursor: 'pointer', fontSize: 12.5, fontWeight: 600, color: 'var(--ink)', textAlign: 'left' }}
+            onMouseEnter={e => (e.currentTarget.style.background = 'var(--sunk)')}
+            onMouseLeave={e => (e.currentTarget.style.background = '#fff')}>
             {icon}<span>{label}</span>
           </button>
         ))}
@@ -1658,9 +1646,9 @@ function PositionPanel({ sel, stageW, stageH, onUpdate, onAlign, onLayerAction, 
           { id: 'bottom',   icon: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M5 13l7 7 7-7M12 20V4"/></svg> },
         ].map(({ id, icon }) => (
           <button key={id} onClick={() => onAlign(id)}
-            style={{ height: 40, borderRadius: 9, display: 'grid', placeItems: 'center', background: 'var(--sunk)', border: '1px solid var(--line)', cursor: 'pointer', color: 'var(--ink)' }}
-            onMouseEnter={e => (e.currentTarget.style.background = 'var(--line)')}
-            onMouseLeave={e => (e.currentTarget.style.background = 'var(--sunk)')}>
+            style={{ height: 42, borderRadius: 8, display: 'grid', placeItems: 'center', background: '#fff', boxShadow: '0 1px 2px rgba(20,22,15,.05)', border: '1px solid var(--line)', cursor: 'pointer', color: 'var(--ink)' }}
+            onMouseEnter={e => (e.currentTarget.style.background = 'var(--sunk)')}
+            onMouseLeave={e => (e.currentTarget.style.background = '#fff')}>
             {icon}
           </button>
         ))}
@@ -4377,13 +4365,13 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
                 <div key={slide.id}
                   ref={el => { slideContainerRefs.current[idx] = el; }}
                   style={{ flexShrink: 0, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                  <div style={{ marginBottom: 8, fontSize: 11, color: 'var(--ink-3)', fontWeight: 700, fontFamily: 'var(--mono)', letterSpacing: '.04em', display: isContinuous ? 'none' : 'block' }}>{idx + 1}</div>
-                  <div style={{ width: (isActive && isContinuous ? stageWView : stageW) * zoom, height: stageH * zoom, position: 'relative', borderRadius: Math.round(18 * zoom), boxShadow: isActive ? '0 22px 50px -24px rgba(13,15,10,.45)' : '0 8px 22px -10px rgba(13,15,10,.22)', flexShrink: 0 }}>
+                  <div style={{ width: (isActive && isContinuous ? stageWView : stageW) * zoom, marginBottom: 8, fontSize: 12, color: 'var(--ink-2)', fontWeight: 700, fontFamily: 'var(--sans)', textAlign: 'left', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{(isTemplate ? (templateName || 'Template') : (workspaceName || 'Sans titre'))}{slides.length > 1 ? ` — Page ${idx + 1}` : ''}</div>
+                  <div style={{ width: (isActive && isContinuous ? stageWView : stageW) * zoom, height: stageH * zoom, position: 'relative', borderRadius: 0, boxShadow: '0 0 0 1px rgba(20,22,15,.08)', flexShrink: 0 }}>
                   {isActive ? (
                     <>
-                    <div onMouseDown={e => e.stopPropagation()} style={{ position: 'absolute', top: 0, left: 0, width: isContinuous ? stageWView : stageW, height: stageH, transform: `scale(${zoom})`, transformOrigin: 'top left', borderRadius: 18 }}>
-            {/* Inner div clips only the Stage canvas to preserve border-radius */}
-            <div style={{ borderRadius: 18, overflow: 'hidden' }}>
+                    <div onMouseDown={e => e.stopPropagation()} style={{ position: 'absolute', top: 0, left: 0, width: isContinuous ? stageWView : stageW, height: stageH, transform: `scale(${zoom})`, transformOrigin: 'top left', borderRadius: 0 }}>
+            {/* Inner div clips only the Stage canvas */}
+            <div style={{ borderRadius: 0, overflow: 'hidden' }}>
             <Stage
               ref={stageRef}
               width={stageWView} height={stageH}
@@ -4731,7 +4719,7 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
 
             {/* BG image selected — selection border + opacity pill */}
             {bgImageSelected && (
-              <div onMouseDown={e => e.stopPropagation()} style={{ position: 'absolute', inset: 0, borderRadius: 18, border: '2px solid #8B5CF6', pointerEvents: 'none', zIndex: 10 }} />
+              <div onMouseDown={e => e.stopPropagation()} style={{ position: 'absolute', inset: 0, borderRadius: 0, border: '2px solid #8B5CF6', pointerEvents: 'none', zIndex: 10 }} />
             )}
             {bgImageSelected && (
               <div onMouseDown={e => e.stopPropagation()} style={{ position: 'absolute', top: -50, left: '50%', transform: 'translateX(-50%)', zIndex: 20, background: '#fff', borderRadius: 11, padding: '6px 12px', boxShadow: '0 8px 24px -8px rgba(13,15,10,.3), 0 0 0 1px rgba(13,15,10,.06)', display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -4896,7 +4884,7 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
                     </>
                   ) : (
                     <div onClick={() => switchSlide(idx)}
-                      style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', borderRadius: Math.round(18 * zoom), overflow: 'hidden', cursor: 'pointer', background: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', borderRadius: 0, overflow: 'hidden', cursor: 'pointer', background: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                       {slide.thumbnail ? (
                         <img src={slide.thumbnail} alt={`Slide ${idx + 1}`} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
                       ) : (
