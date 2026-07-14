@@ -1471,16 +1471,22 @@ function PanelHead({ title, sub, onClose }: { title: string; sub?: string; onClo
 
 // ─── Effets (panneau gauche façon Canva, aperçus visuels) ─────────────────────
 
-// Réglage générique (slider + valeur) pour les panneaux gauche.
+// Réglage générique (slider + stepper façon Canva) pour les panneaux gauche.
 function FxSlider({ label, value, min, max, step, fmt, onChange }: { label: string; value: number; min: number; max: number; step: number; fmt: (v: number) => string; onChange: (v: number) => void }) {
+  const clamp = (v: number) => Math.min(max, Math.max(min, v));
+  const stepBtn: React.CSSProperties = { width: 26, height: 30, display: 'grid', placeItems: 'center', background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--ink-2)', fontSize: 16, lineHeight: 1, fontWeight: 600 };
   return (
-    <div style={{ marginBottom: 10 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 5 }}>
-        <span className="label" style={{ marginBottom: 0 }}>{label}</span>
-        <span style={{ fontFamily: 'var(--mono)', fontWeight: 800, fontSize: 11, color: 'var(--ink-2)' }}>{fmt(value)}</span>
+    <div style={{ marginBottom: 14 }}>
+      <div style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--ink-2)', marginBottom: 8 }}>{label}</div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        <input type="range" min={min} max={max} step={step} value={value}
+          onChange={e => onChange(parseFloat(e.target.value))} className="ed-range" style={{ flex: 1, minWidth: 0 }} />
+        <div style={{ display: 'flex', alignItems: 'center', height: 32, borderRadius: 8, border: '1px solid var(--line)', background: '#fff', flexShrink: 0 }}>
+          <button type="button" onClick={() => onChange(clamp(value - step))} style={stepBtn}>−</button>
+          <span style={{ minWidth: 32, textAlign: 'center', fontFamily: 'var(--mono)', fontWeight: 700, fontSize: 12.5, color: 'var(--ink)' }}>{fmt(value)}</span>
+          <button type="button" onClick={() => onChange(clamp(value + step))} style={stepBtn}>+</button>
+        </div>
       </div>
-      <input type="range" min={min} max={max} step={step} value={value}
-        onChange={e => onChange(parseFloat(e.target.value))} className="ed-range" style={{ width: '100%' }} />
     </div>
   );
 }
@@ -1504,36 +1510,47 @@ function EffectsPanel({ sel, onUpdate, brandColors, onClose }: { sel: TextEl; on
   const u = (patch: Partial<TextEl>) => onUpdate(patch as Partial<CanvasEl>);
   const active = activeEffectKey(sel);
 
+  // Ordre & libellés calqués sur Canva : O. portée · Brillance · Écho / Bordure · Arrière-plan · Élévation / Creux · Néon
   const presets: { key: string; label: string; patch: Partial<TextEl>; preview: React.CSSProperties }[] = [
-    { key: 'none',       label: 'Aucun',        patch: { ...FX_CLEAR }, preview: {} },
-    { key: 'shadow',     label: 'Ombre portée', patch: { ...FX_CLEAR, shadowEnabled: true, shadowColor: '#000000', shadowOpacity: 55, shadowBlur: 6, shadowOffsetX: 4, shadowOffsetY: 4 }, preview: { textShadow: '4px 4px 3px rgba(0,0,0,.45)' } },
-    { key: 'lift',       label: 'Élévation',    patch: { ...FX_CLEAR, liftEnabled: true, liftColor: '#000000', liftDepth: 5, liftDirection: 'br' }, preview: { textShadow: '0 6px 7px rgba(0,0,0,.32)' } },
-    { key: 'hollow',     label: 'Creux',        patch: { ...FX_CLEAR, hollowEnabled: true, stroke: sel.fill || '#14160F', strokeWidth: 2 }, preview: { color: 'transparent', WebkitTextStroke: '1.5px #14160F' } as React.CSSProperties },
-    { key: 'border',     label: 'Bordure',      patch: { ...FX_CLEAR, stroke: '#14160F', strokeWidth: 3 }, preview: { color: '#fff', WebkitTextStroke: '1.5px #14160F' } as React.CSSProperties },
-    { key: 'echo',       label: 'Écho',         patch: { ...FX_CLEAR, echoEnabled: true, echoColor: '#B9A3FF', echoCount: 3, echoOffset: 8, echoFade: true }, preview: { textShadow: '7px 7px 0 rgba(185,163,255,.55), 13px 13px 0 rgba(185,163,255,.28)' } },
-    { key: 'glow',       label: 'Brillance',    patch: { ...FX_CLEAR, glowEnabled: true, glowColor: '#FFD34E', glowIntensity: 70, glowSize: 14 }, preview: { textShadow: '0 0 12px #FFD34E, 0 0 6px #FFD34E' } },
-    { key: 'neon',       label: 'Néon',         patch: { ...FX_CLEAR, glowEnabled: true, glowColor: '#2FD79B', glowIntensity: 100, glowSize: 20, stroke: '#2FD79B', strokeWidth: 1 }, preview: { color: '#2FD79B', textShadow: '0 0 8px #2FD79B, 0 0 16px #2FD79B' } },
+    { key: 'shadow',     label: 'O. portée',    patch: { ...FX_CLEAR, shadowEnabled: true, shadowColor: '#000000', shadowOpacity: 55, shadowBlur: 6, shadowOffsetX: 4, shadowOffsetY: 4 }, preview: { textShadow: '3px 3px 2px rgba(0,0,0,.4)' } },
+    { key: 'glow',       label: 'Brillance',    patch: { ...FX_CLEAR, glowEnabled: true, glowColor: '#FFD34E', glowIntensity: 70, glowSize: 14 }, preview: { textShadow: '0 0 11px #FFD34E, 0 0 5px #FFD34E' } },
+    { key: 'echo',       label: 'Écho',         patch: { ...FX_CLEAR, echoEnabled: true, echoColor: '#B9A3FF', echoCount: 3, echoOffset: 8, echoFade: true }, preview: { textShadow: '6px 6px 0 rgba(185,163,255,.55), 11px 11px 0 rgba(185,163,255,.28)' } },
+    { key: 'border',     label: 'Bordure',      patch: { ...FX_CLEAR, stroke: '#14160F', strokeWidth: 3 }, preview: { color: '#fff', WebkitTextStroke: '1.4px #14160F' } as React.CSSProperties },
     { key: 'background', label: 'Arrière-plan', patch: { ...FX_CLEAR, highlightEnabled: true, highlightColor: '#FFE45C', highlightOpacity: 100, highlightBorderRadius: 4, highlightPadding: 8 }, preview: { background: '#FFE45C', padding: '2px 6px', borderRadius: 4, color: '#14160F' } },
+    { key: 'lift',       label: 'Élévation',    patch: { ...FX_CLEAR, liftEnabled: true, liftColor: '#000000', liftDepth: 5, liftDirection: 'br' }, preview: { textShadow: '0 6px 6px rgba(0,0,0,.3)' } },
+    { key: 'hollow',     label: 'Creux',        patch: { ...FX_CLEAR, hollowEnabled: true, stroke: sel.fill || '#14160F', strokeWidth: 2 }, preview: { color: 'transparent', WebkitTextStroke: '1.4px #14160F' } as React.CSSProperties },
+    { key: 'neon',       label: 'Néon',         patch: { ...FX_CLEAR, glowEnabled: true, glowColor: '#2FD79B', glowIntensity: 100, glowSize: 20, stroke: '#2FD79B', strokeWidth: 1 }, preview: { color: '#2FD79B', textShadow: '0 0 8px #2FD79B, 0 0 16px #2FD79B' } },
   ];
 
   return (
     <div style={{ padding: 18 }}>
-      <PanelHead title={T('effect')} onClose={onClose} />
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
+      {/* En-tête façon Canva : titre + croix de fermeture */}
+      <div style={{ display: 'flex', alignItems: 'center', marginBottom: 18 }}>
+        <h3 className="h-title" style={{ fontSize: 17 }}>{T('effect')}</h3>
+        <button onClick={onClose} title={T('close')}
+          style={{ marginLeft: 'auto', width: 30, height: 30, borderRadius: 8, display: 'grid', placeItems: 'center', color: 'var(--ink-3)', background: 'transparent', border: 'none', cursor: 'pointer' }}
+          onMouseEnter={e => (e.currentTarget.style.background = 'var(--sunk)')}
+          onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>
+        </button>
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '14px 12px' }}>
         {presets.map(p => {
           const on = active === p.key;
+          const dark = p.key === 'neon';
           return (
             <button key={p.key} onClick={() => u(p.patch)}
-              style={{ display: 'flex', flexDirection: 'column', alignItems: 'stretch', gap: 7, padding: 0, border: 'none', background: 'transparent', cursor: 'pointer' }}>
-              <div style={{ aspectRatio: '1', borderRadius: 8, display: 'grid', placeItems: 'center',
-                background: p.key === 'neon' ? '#14160F' : '#fff',
-                border: on ? '2px solid var(--mint-2)' : '1px solid var(--line)',
-                boxShadow: on ? '0 0 0 3px var(--mint-soft)' : '0 1px 3px rgba(20,22,15,.07)', transition: 'box-shadow .12s, border-color .12s' }}
-              onMouseEnter={e => { if (!on) e.currentTarget.style.boxShadow = '0 3px 10px rgba(20,22,15,.14)'; }}
-              onMouseLeave={e => { if (!on) e.currentTarget.style.boxShadow = '0 1px 3px rgba(20,22,15,.07)'; }}>
-                <span style={{ fontFamily: 'var(--display)', fontWeight: 900, fontSize: 26, color: p.key === 'neon' ? '#fff' : '#14160F', lineHeight: 1, ...p.preview }}>Ag</span>
+              style={{ display: 'flex', flexDirection: 'column', alignItems: 'stretch', gap: 8, padding: 0, border: 'none', background: 'transparent', cursor: 'pointer' }}>
+              <div style={{ aspectRatio: '1', borderRadius: 10, display: 'grid', placeItems: 'center',
+                background: dark ? '#14160F' : (on ? 'var(--mint-soft)' : '#fff'),
+                boxShadow: on ? 'inset 0 0 0 2px var(--mint-2)' : 'inset 0 0 0 1px var(--line), 0 1px 3px rgba(20,22,15,.06)',
+                transition: 'box-shadow .12s, background .12s' }}
+              onMouseEnter={e => { if (!on) e.currentTarget.style.boxShadow = 'inset 0 0 0 1px var(--line), 0 3px 10px rgba(20,22,15,.14)'; }}
+              onMouseLeave={e => { if (!on) e.currentTarget.style.boxShadow = 'inset 0 0 0 1px var(--line), 0 1px 3px rgba(20,22,15,.06)'; }}>
+                <span style={{ fontFamily: 'var(--display)', fontWeight: 900, fontSize: 28, color: dark ? '#fff' : '#14160F', lineHeight: 1, ...p.preview }}>Ag</span>
               </div>
-              <span style={{ fontSize: 11, fontWeight: 600, color: on ? 'var(--mint-2)' : 'var(--ink-3)', textAlign: 'center', lineHeight: 1.15 }}>{p.label}</span>
+              <span style={{ fontSize: 11.5, fontWeight: 500, color: on ? 'var(--mint-2)' : 'var(--ink-3)', textAlign: 'center', lineHeight: 1.15 }}>{p.label}</span>
             </button>
           );
         })}
@@ -1541,8 +1558,7 @@ function EffectsPanel({ sel, onUpdate, brandColors, onClose }: { sel: TextEl; on
 
       {/* Réglages fins de l'effet actif */}
       {active !== 'none' && (
-        <div style={{ marginTop: 18, borderTop: '1px solid var(--paper)', paddingTop: 14 }}>
-          <div className="label" style={{ marginBottom: 10 }}>Réglages</div>
+        <div style={{ marginTop: 18, borderTop: '1px solid var(--line)', paddingTop: 16 }}>
 
           {active === 'shadow' && (<>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
@@ -1596,6 +1612,13 @@ function EffectsPanel({ sel, onUpdate, brandColors, onClose }: { sel: TextEl; on
           </>)}
         </div>
       )}
+
+      {active !== 'none' && (
+        <button className="btn btn-dark" onClick={() => u({ ...FX_CLEAR })}
+          style={{ width: '100%', marginTop: 18, justifyContent: 'center' }}>
+          Retirer l&apos;effet
+        </button>
+      )}
     </div>
   );
 }
@@ -1616,7 +1639,15 @@ function PositionPanel({ sel, stageW, stageH, onUpdate, onAlign, onLayerAction, 
 
   return (
     <div style={{ padding: 18 }}>
-      <PanelHead title="Position" onClose={onClose} />
+      <div style={{ display: 'flex', alignItems: 'center', marginBottom: 18 }}>
+        <h3 className="h-title" style={{ fontSize: 17 }}>Position</h3>
+        <button onClick={onClose} title={T('close')}
+          style={{ marginLeft: 'auto', width: 30, height: 30, borderRadius: 8, display: 'grid', placeItems: 'center', color: 'var(--ink-3)', background: 'transparent', border: 'none', cursor: 'pointer' }}
+          onMouseEnter={e => (e.currentTarget.style.background = 'var(--sunk)')}
+          onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>
+        </button>
+      </div>
 
       <div className="label" style={{ marginBottom: 8 }}>Organiser</div>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, marginBottom: 16 }}>
