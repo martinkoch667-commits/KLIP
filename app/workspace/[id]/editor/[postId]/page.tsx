@@ -2752,10 +2752,33 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
 
   // Insère un texte pré-stylisé (combinaison façon Canva) directement sur le plan de travail.
   const addTextPreset = (patch: Partial<TextEl>, text: string) => {
-    const base: TextEl = { id: newId(), type: 'text', x: 60, y: 140, rotation: 0, opacity: 100, text, fontSize: 44, fontFamily: 'Archivo', fontStyle: 'bold', textDecoration: '', fill: '#14160F', align: 'left', width: stageW - 120, hasBg: false, bgColor: '#000000', bgOpacity: 100, cornerRadius: 8, padding: 16, paddingH: 22, paddingV: 14 };
+    const w = Math.round(stageW * 0.82);
+    const base: TextEl = { id: newId(), type: 'text', x: Math.round((stageW - w) / 2), y: 180, rotation: 0, opacity: 100, text, fontSize: 44, fontFamily: 'Archivo Black', fontStyle: 'normal', textDecoration: '', fill: '#14160F', align: 'center', width: w, hasBg: false, bgColor: '#000000', bgOpacity: 100, cornerRadius: 8, padding: 16, paddingH: 22, paddingV: 14 };
     const el: TextEl = { ...base, ...patch, id: base.id, type: 'text', text };
     applyElements([...elements, el]);
     setSelectedId(el.id);
+    setTool(null);
+  };
+
+  // Insère une COMPOSITION de plusieurs zones de texte (jeux de typo façon Canva),
+  // centrée horizontalement, chaque partie décalée verticalement (dy) / horizontalement (dx).
+  const addTextComposition = (parts: { text: string; patch?: Partial<TextEl>; dx?: number; dy: number }[]) => {
+    const cx = Math.round(stageW / 2);
+    const baseY = 190;
+    const els: TextEl[] = parts.map(part => {
+      const merged: TextEl = {
+        id: newId(), type: 'text', text: part.text, x: 0, y: 0, rotation: 0, opacity: 100,
+        fontSize: 44, fontFamily: 'Archivo Black', fontStyle: 'normal', textDecoration: '',
+        fill: '#14160F', align: 'center', width: Math.round(stageW * 0.82),
+        hasBg: false, bgColor: '#000000', bgOpacity: 100, cornerRadius: 8,
+        padding: 16, paddingH: 22, paddingV: 14, ...part.patch,
+      };
+      merged.x = Math.round(cx - merged.width / 2 + (part.dx || 0));
+      merged.y = baseY + part.dy;
+      return merged;
+    });
+    applyElements([...elements, ...els]);
+    setSelectedId(els[0].id);
     setTool(null);
   };
 
@@ -3647,52 +3670,6 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
   ];
 
   // 4D — Multi-block layout templates (inserts several role-tagged text elements)
-  const LAYOUT_TEMPLATES: { label: string; emoji: string; blocks: Partial<TextEl>[] }[] = [
-    {
-      label: 'Promotion',
-      emoji: '%',
-      blocks: [
-        { text: 'OFFRE SPÉCIALE', role: 'accroche', fontSize: 14, y: 50, x: 20, fill: workspaceData?.accent_color || '#C8F135', hasBg: true, bgColor: workspaceData?.primary_color || '#0038FF', bgOpacity: 100, cornerRadius: 4, width: 180, fontStyle: 'bold', paddingH: 12, paddingV: 6 },
-        { text: 'TITRE DE L\'OFFRE', role: 'titre', fontSize: 36, y: 100, x: 20, fill: '#FFFFFF', hasBg: false, fontStyle: 'bold', width: stageW - 40 },
-        { text: '-30% ce weekend', role: 'sous-titre', fontSize: 20, y: 160, x: 20, fill: '#FFFFFF', hasBg: false, fontStyle: 'normal', width: stageW - 40 },
-        { text: 'EN PROFITER', role: 'cta', fontSize: 14, y: stageH - 80, x: 20, fill: workspaceData?.primary_color || '#000', hasBg: true, bgColor: workspaceData?.accent_color || '#C8F135', bgOpacity: 100, cornerRadius: 4, width: 200, fontStyle: 'bold', paddingH: 14, paddingV: 8 },
-      ],
-    },
-    {
-      label: 'Événement',
-      emoji: 'E',
-      blocks: [
-        { text: 'C\'EST CE SAMEDI', role: 'accroche', fontSize: 13, y: 50, x: 20, fill: workspaceData?.accent_color || '#C8F135', hasBg: false, fontStyle: 'bold', width: stageW - 40 },
-        { text: 'NOM DE L\'ÉVÉNEMENT', role: 'titre', fontSize: 34, y: 90, x: 20, fill: '#FFFFFF', hasBg: false, fontStyle: 'bold', width: stageW - 40 },
-        { text: 'Date · Lieu · Infos', role: 'corps', fontSize: 15, y: 160, x: 20, fill: 'rgba(255,255,255,0.75)', hasBg: false, fontStyle: 'normal', width: stageW - 40 },
-        { text: 'RÉSERVER', role: 'cta', fontSize: 14, y: stageH - 80, x: 20, fill: workspaceData?.primary_color || '#000', hasBg: true, bgColor: '#FFFFFF', bgOpacity: 95, cornerRadius: 4, width: 160, fontStyle: 'bold', paddingH: 14, paddingV: 8 },
-      ],
-    },
-    {
-      label: 'Produit',
-      emoji: '↗',
-      blocks: [
-        { text: 'NOUVEAUTÉ', role: 'accroche', fontSize: 13, y: 50, x: 20, fill: '#FFFFFF', hasBg: true, bgColor: workspaceData?.primary_color || '#0038FF', bgOpacity: 100, cornerRadius: 4, width: 140, fontStyle: 'bold', paddingH: 12, paddingV: 6 },
-        { text: 'NOM DU PRODUIT', role: 'titre', fontSize: 34, y: 100, x: 20, fill: '#FFFFFF', hasBg: false, fontStyle: 'bold', width: stageW - 40 },
-        { text: 'Description courte', role: 'sous-titre', fontSize: 16, y: 160, x: 20, fill: 'rgba(255,255,255,0.8)', hasBg: false, fontStyle: 'normal', width: stageW - 40 },
-        { text: '49,90 €', role: 'prix', fontSize: 28, y: stageH - 90, x: 20, fill: '#FFFFFF', hasBg: false, fontStyle: 'bold', width: 200 },
-      ],
-    },
-  ];
-
-  const applyLayoutTemplate = (tpl: typeof LAYOUT_TEMPLATES[0]) => {
-    const base: Partial<TextEl> = {
-      type: 'text', rotation: 0, opacity: 100, fontFamily: workspaceData?.font_family || 'Oswald',
-      textDecoration: '', align: 'left', padding: 12, paddingH: 12, paddingV: 8,
-      hasBg: false, bgColor: '#000', bgOpacity: 80, cornerRadius: 4, fill: '#fff',
-      fontSize: 28, width: stageW - 40,
-    };
-    const newEls: TextEl[] = tpl.blocks.map(b => ({ ...base, ...b, id: newId() } as TextEl));
-    const firstId = newEls[0]?.id;
-    applyElements([...elements, ...newEls]);
-    if (firstId) setSelectedId(firstId);
-  };
-
   // ── AI generation ─────────────────────────────────────────────────────────
 
   const generateAI = async (tone: string) => {
@@ -4088,7 +4065,7 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
             { id: 'elements', label: 'Éléments', icon: <svg width="25" height="25" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><circle cx="7" cy="8" r="3.4"/><rect x="12.5" y="4.6" width="7" height="7" rx="1.7"/><path d="M8 14.2l4.2 6.2H3.8l4.2-6.2z"/></svg> },
             { id: 'text',     label: 'Texte',    icon: <svg width="25" height="25" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><polyline points="5 6.5 5 4 19 4 19 6.5"/><line x1="12" y1="4" x2="12" y2="20"/><line x1="9" y1="20" x2="15" y2="20"/></svg> },
             { id: 'photos',   label: 'Photos',   icon: <svg width="25" height="25" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2.5"/><circle cx="8.5" cy="8.5" r="1.6"/><path d="M21 15l-5-5L5 21"/></svg> },
-            { id: 'brand',    label: 'Charte',   icon: <svg width="25" height="25" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="4"/><circle cx="12" cy="4" r="1.6"/><circle cx="19.5" cy="16" r="1.6"/><circle cx="4.5" cy="16" r="1.6"/></svg> },
+            { id: 'brand',    label: 'Charte',   icon: <svg width="25" height="25" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><path d="M12 3a9 9 0 0 0 0 18 2.4 2.4 0 0 0 2-3.7 1.4 1.4 0 0 1 1.2-2.2H17a4 4 0 0 0 4-4c0-4.4-4-8.1-9-8.1z"/><circle cx="7.5" cy="11" r="1.1" fill="currentColor" stroke="none"/><circle cx="12" cy="7.8" r="1.1" fill="currentColor" stroke="none"/><circle cx="16.3" cy="11" r="1.1" fill="currentColor" stroke="none"/></svg> },
             { id: 'upload',   label: 'Importer', icon: <svg width="25" height="25" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><path d="M12 15V3"/><path d="M8 7l4-4 4 4"/><path d="M4 15v4a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-4"/></svg> },
             { id: 'calques',  label: 'Calques',  icon: <svg width="25" height="25" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg> },
           ] as const).map(({ id, label, icon }) => (
@@ -4287,22 +4264,89 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
                   Ajouter une zone de texte
                 </button>
 
-                {/* ── COMBINAISONS DE TEXTE — cliquez pour ajouter du texte déjà stylisé ── */}
+                {/* ── COMBINAISONS DE TEXTE — jeux de typo façon Canva, cliquez pour ajouter ── */}
                 <p style={{ fontSize: 10, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '0.12em', fontFamily: 'var(--mono)', fontWeight: 800, margin: '0 0 8px' }}>Combinaisons de texte</p>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 18 }}>
                   {([
-                    { text: 'GRANDE\nOUVERTURE', patch: { fontFamily: 'Archivo', fontStyle: 'italic bold', fontSize: 64, fill: '#14160F', uppercase: true, lineHeight: 0.95, letterSpacing: -1, align: 'center' }, prev: { fontFamily: 'Archivo', fontStyle: 'italic', fontWeight: 900, fontSize: 22, color: 'var(--ink)', lineHeight: 0.95, textAlign: 'center' as const } },
-                    { text: '-30%', patch: { fontFamily: 'Archivo', fontStyle: 'bold', fontSize: 56, fill: '#FFFFFF', hasBg: true, bgColor: '#2FD79B', bgOpacity: 100, cornerRadius: 12, align: 'center' }, prev: { fontFamily: 'Archivo', fontWeight: 800, fontSize: 20, color: '#FFFFFF', background: '#2FD79B', padding: '6px 14px', borderRadius: 8 } },
-                    { text: 'Nouveau', patch: { fontFamily: 'Cabinet Grotesk', fontStyle: 'bold', fontSize: 40, fill: '#14160F', highlightEnabled: true, highlightColor: '#C8F135', highlightOpacity: 100, highlightBorderRadius: 4, highlightPadding: 8 }, prev: { fontFamily: 'Cabinet Grotesk', fontWeight: 700, fontSize: 19, color: '#14160F', background: '#C8F135', padding: '3px 8px', borderRadius: 4 } },
-                    { text: 'ÉDITION\nLIMITÉE', patch: { fontFamily: 'Archivo', fontStyle: 'bold', fontSize: 46, fill: 'transparent', stroke: '#14160F', strokeWidth: 2, uppercase: true, lineHeight: 1, align: 'center' }, prev: { fontFamily: 'Archivo', fontWeight: 900, fontSize: 20, color: 'transparent', WebkitTextStroke: '1px var(--ink)', lineHeight: 1, textAlign: 'center' as const } },
-                    { text: 'Just do it.', patch: { fontFamily: 'Archivo', fontStyle: 'italic bold', fontSize: 50, fill: '#2FD79B', glowEnabled: true, glowColor: '#2FD79B', glowIntensity: 70, glowSize: 16, align: 'center' }, prev: { fontFamily: 'Archivo', fontStyle: 'italic', fontWeight: 800, fontSize: 20, color: '#2FD79B', textShadow: '0 0 10px #2FD79B', textAlign: 'center' as const } },
-                    { text: '« Le meilleur\ncafé de la ville »', patch: { fontFamily: 'Cabinet Grotesk', fontStyle: 'italic', fontSize: 30, fill: '#14160F', lineHeight: 1.3, align: 'center' }, prev: { fontFamily: 'Cabinet Grotesk', fontStyle: 'italic', fontWeight: 500, fontSize: 15, color: 'var(--ink-2)', lineHeight: 1.3, textAlign: 'center' as const } },
-                  ] as const).map((p, i) => (
-                    <button key={i} onClick={() => addTextPreset(p.patch as Partial<TextEl>, p.text)}
-                      style={{ minHeight: 68, padding: '12px 14px', borderRadius: 12, border: '1px solid var(--line)', cursor: 'pointer', background: 'var(--white)', display: 'grid', placeItems: 'center', transition: 'all .14s', overflow: 'hidden' }}
+                    // — Composition : titre + tagline surlignés (façon éditorial dynamique) —
+                    { apply: () => addTextComposition([
+                        { text: 'GRANDE', dy: 0, patch: { fontFamily: 'Archivo Black', fontSize: 118, fill: '#0C2A1D', uppercase: true, letterSpacing: -3, lineHeight: 0.86, width: 760 } },
+                        { text: 'OUVERTURE', dy: 96, dx: 40, patch: { fontFamily: 'Archivo Black', fontSize: 40, fill: '#0C2A1D', uppercase: true, letterSpacing: 1, highlightEnabled: true, highlightColor: '#C8F135', highlightOpacity: 100, highlightBorderRadius: 3, highlightPadding: 10, width: 520 } },
+                        { text: 'CE SAMEDI', dy: 170, dx: -30, patch: { fontFamily: 'Archivo Black', fontSize: 30, fill: '#0C2A1D', uppercase: true, letterSpacing: 1, highlightEnabled: true, highlightColor: '#C8F135', highlightOpacity: 100, highlightBorderRadius: 3, highlightPadding: 9, width: 420 } },
+                      ]),
+                      preview: <div style={{ textAlign: 'center', lineHeight: 1 }}>
+                        <div style={{ fontFamily: 'Archivo Black', fontSize: 26, color: 'var(--forest)', letterSpacing: -1, lineHeight: 0.85 }}>GRANDE</div>
+                        <div style={{ display: 'inline-block', fontFamily: 'Archivo Black', fontSize: 12, color: 'var(--forest)', background: 'var(--acid)', padding: '2px 6px', borderRadius: 3, marginTop: 5, transform: 'translateX(8px)' }}>OUVERTURE</div>
+                        <div style={{ display: 'inline-block', fontFamily: 'Archivo Black', fontSize: 10, color: 'var(--forest)', background: 'var(--acid)', padding: '2px 6px', borderRadius: 3, marginTop: 4, transform: 'translateX(-6px)' }}>CE SAMEDI</div>
+                      </div> },
+                    // — Big number promo (label + chiffre dégradé + sous-ligne) —
+                    { apply: () => addTextComposition([
+                        { text: "JUSQU'À", dy: 0, patch: { fontFamily: 'Space Grotesk', fontStyle: 'bold', fontSize: 30, fill: '#5A5E50', uppercase: true, letterSpacing: 8, width: 500 } },
+                        { text: '-70%', dy: 40, patch: { fontFamily: 'Archivo Black', fontSize: 200, fillType: 'gradient', fill: '#2FD79B', fillTo: '#0C2A1D', fillAngle: 120, letterSpacing: -6, lineHeight: 0.9, width: 760 } },
+                        { text: 'SUR TOUTE LA BOUTIQUE', dy: 240, patch: { fontFamily: 'Space Grotesk', fontStyle: 'bold', fontSize: 26, fill: '#14160F', uppercase: true, letterSpacing: 3, width: 620 } },
+                      ]),
+                      preview: <div style={{ textAlign: 'center', lineHeight: 1 }}>
+                        <div style={{ fontFamily: 'Space Grotesk', fontWeight: 700, fontSize: 9, color: 'var(--ink-3)', letterSpacing: 3 }}>JUSQU&apos;À</div>
+                        <div style={{ fontFamily: 'Archivo Black', fontSize: 40, letterSpacing: -2, lineHeight: 0.95, background: 'linear-gradient(120deg,#2FD79B,#0C2A1D)', WebkitBackgroundClip: 'text', backgroundClip: 'text', color: 'transparent' }}>-70%</div>
+                        <div style={{ fontFamily: 'Space Grotesk', fontWeight: 700, fontSize: 8, color: 'var(--ink)', letterSpacing: 1.5, marginTop: 2 }}>SUR TOUTE LA BOUTIQUE</div>
+                      </div> },
+                    // — PARTY PEOPLE : relief (lift) menthe —
+                    { apply: () => addTextPreset({ fontFamily: 'Archivo Black', fontSize: 132, fill: '#2FD79B', uppercase: true, lineHeight: 0.82, letterSpacing: -3, liftEnabled: true, liftColor: '#0C2A1D', liftDepth: 10, liftDirection: 'br', align: 'center', width: 780 }, 'PARTY\nPEOPLE'),
+                      preview: <div style={{ fontFamily: 'Archivo Black', fontSize: 28, color: '#2FD79B', textAlign: 'center', lineHeight: 0.82, letterSpacing: -1, textShadow: '2px 2px 0 #0C2A1D, 3px 3px 0 #0C2A1D' }}>PARTY<br/>PEOPLE</div> },
+                    // — SOLDES : dégradé plein —
+                    { apply: () => addTextPreset({ fontFamily: 'Archivo Black', fontSize: 150, fillType: 'gradient', fill: '#C8F135', fillTo: '#21B381', fillAngle: 135, uppercase: true, letterSpacing: -4, align: 'center', width: 780 }, 'SOLDES'),
+                      preview: <div style={{ fontFamily: 'Archivo Black', fontSize: 40, letterSpacing: -2, background: 'linear-gradient(135deg,#C8F135,#21B381)', WebkitBackgroundClip: 'text', backgroundClip: 'text', color: 'transparent' }}>SOLDES</div> },
+                    // — -30% : badge menthe —
+                    { apply: () => addTextPreset({ fontFamily: 'Archivo Black', fontSize: 96, fill: '#FFFFFF', hasBg: true, bgColor: '#2FD79B', bgOpacity: 100, cornerRadius: 18, paddingH: 34, paddingV: 18, align: 'center', width: 420 }, '-30%'),
+                      preview: <span style={{ fontFamily: 'Archivo Black', fontSize: 26, color: '#FFFFFF', background: '#2FD79B', padding: '7px 16px', borderRadius: 10 }}>-30%</span> },
+                    // — GREEN LIT : dégradé + relief —
+                    { apply: () => addTextComposition([
+                        { text: 'GREEN', dy: 0, patch: { fontFamily: 'Archivo Black', fontSize: 118, fillType: 'gradient', fill: '#C8F135', fillTo: '#21B381', fillAngle: 120, uppercase: true, letterSpacing: -3, lineHeight: 0.82, liftEnabled: true, liftColor: '#0C2A1D', liftDepth: 7, width: 700 } },
+                        { text: 'LIT', dy: 96, patch: { fontFamily: 'Archivo Black', fontSize: 118, fillType: 'gradient', fill: '#C8F135', fillTo: '#21B381', fillAngle: 120, uppercase: true, letterSpacing: -3, lineHeight: 0.82, liftEnabled: true, liftColor: '#0C2A1D', liftDepth: 7, width: 700 } },
+                      ]),
+                      preview: <div style={{ fontFamily: 'Archivo Black', fontSize: 30, textAlign: 'center', lineHeight: 0.82, letterSpacing: -1, background: 'linear-gradient(120deg,#C8F135,#21B381)', WebkitBackgroundClip: 'text', backgroundClip: 'text', color: 'transparent', filter: 'drop-shadow(2px 2px 0 #0C2A1D)' }}>GREEN<br/>LIT</div> },
+                    // — Nouveau : surlignage acide —
+                    { apply: () => addTextPreset({ fontFamily: 'Space Grotesk', fontStyle: 'bold', fontSize: 64, fill: '#14160F', highlightEnabled: true, highlightColor: '#C8F135', highlightOpacity: 100, highlightBorderRadius: 5, highlightPadding: 12, align: 'center', width: 520 }, 'Nouveau'),
+                      preview: <span style={{ fontFamily: 'Space Grotesk', fontWeight: 700, fontSize: 22, color: '#14160F', background: '#C8F135', padding: '3px 9px', borderRadius: 4 }}>Nouveau</span> },
+                    // — NEW PRODUCT ALERT : 2 badges inclinés —
+                    { apply: () => addTextComposition([
+                        { text: 'NOUVEAU', dy: 0, dx: -30, patch: { fontFamily: 'Archivo Black', fontSize: 56, fill: '#0C2A1D', uppercase: true, rotation: -5, highlightEnabled: true, highlightColor: '#C8F135', highlightOpacity: 100, highlightBorderRadius: 6, highlightPadding: 14, width: 460 } },
+                        { text: 'EN STOCK !', dy: 90, dx: 40, patch: { fontFamily: 'Archivo Black', fontSize: 56, fill: '#FFFFFF', uppercase: true, rotation: 4, highlightEnabled: true, highlightColor: '#2FD79B', highlightOpacity: 100, highlightBorderRadius: 6, highlightPadding: 14, width: 460 } },
+                      ]),
+                      preview: <div style={{ textAlign: 'center', lineHeight: 1.5 }}>
+                        <div><span style={{ display: 'inline-block', fontFamily: 'Archivo Black', fontSize: 13, color: '#0C2A1D', background: '#C8F135', padding: '3px 8px', borderRadius: 4, transform: 'rotate(-5deg)' }}>NOUVEAU</span></div>
+                        <div><span style={{ display: 'inline-block', fontFamily: 'Archivo Black', fontSize: 13, color: '#FFFFFF', background: '#2FD79B', padding: '3px 8px', borderRadius: 4, transform: 'rotate(4deg)', marginTop: 4 }}>EN STOCK !</span></div>
+                      </div> },
+                    // — ÉDITION LIMITÉE : contour (hollow) —
+                    { apply: () => addTextPreset({ fontFamily: 'Archivo Black', fontSize: 84, fill: 'transparent', stroke: '#14160F', strokeWidth: 3, uppercase: true, lineHeight: 0.9, letterSpacing: -1, align: 'center', width: 780 }, 'ÉDITION\nLIMITÉE'),
+                      preview: <div style={{ fontFamily: 'Archivo Black', fontSize: 26, color: 'transparent', WebkitTextStroke: '1.2px var(--ink)', lineHeight: 0.9, textAlign: 'center' }}>ÉDITION<br/>LIMITÉE</div> },
+                    // — Fresh : italique dégradé contouré —
+                    { apply: () => addTextPreset({ fontFamily: 'Archivo Black', fontStyle: 'italic', fontSize: 140, fill: '#C8F135', stroke: '#0C2A1D', strokeWidth: 4, letterSpacing: -3, align: 'center', width: 700 }, 'Fresh'),
+                      preview: <span style={{ fontFamily: 'Archivo Black', fontStyle: 'italic', fontSize: 38, color: '#C8F135', WebkitTextStroke: '1.4px #0C2A1D', letterSpacing: -1 }}>Fresh</span> },
+                    // — Just do it. : glow menthe —
+                    { apply: () => addTextPreset({ fontFamily: 'Archivo Black', fontStyle: 'italic', fontSize: 92, fill: '#2FD79B', glowEnabled: true, glowColor: '#2FD79B', glowIntensity: 75, glowSize: 22, letterSpacing: -2, align: 'center', width: 700 }, 'Just do it.'),
+                      preview: <span style={{ fontFamily: 'Archivo Black', fontStyle: 'italic', fontSize: 26, color: '#2FD79B', textShadow: '0 0 14px #2FD79B', letterSpacing: -1 }}>Just do it.</span> },
+                    // — SUMMER : écho —
+                    { apply: () => addTextPreset({ fontFamily: 'Archivo Black', fontSize: 120, fill: '#2FD79B', uppercase: true, letterSpacing: -3, echoEnabled: true, echoColor: '#0C2A1D', echoCount: 3, echoOffset: 12, align: 'center', width: 780 }, 'SUMMER'),
+                      preview: <span style={{ fontFamily: 'Archivo Black', fontSize: 30, color: '#2FD79B', letterSpacing: -1, textShadow: '4px 4px 0 rgba(12,42,29,.5), 8px 8px 0 rgba(12,42,29,.25)' }}>SUMMER</span> },
+                    // — MEMENTO : éditorial élégant lettré —
+                    { apply: () => addTextComposition([
+                        { text: 'MEMENTO', dy: 0, patch: { fontFamily: 'Playfair Display', fontSize: 96, fill: '#14160F', uppercase: true, letterSpacing: 12, width: 780 } },
+                        { text: 'DÉGUSTER · PARTAGER · SAVOURER', dy: 92, patch: { fontFamily: 'Space Grotesk', fontStyle: 'bold', fontSize: 22, fill: '#21B381', uppercase: true, letterSpacing: 4, width: 700 } },
+                      ]),
+                      preview: <div style={{ textAlign: 'center', lineHeight: 1 }}>
+                        <div style={{ fontFamily: 'Playfair Display', fontSize: 24, color: 'var(--ink)', letterSpacing: 4 }}>MEMENTO</div>
+                        <div style={{ fontFamily: 'Space Grotesk', fontWeight: 700, fontSize: 7.5, color: 'var(--mint-2)', letterSpacing: 1.5, marginTop: 5 }}>DÉGUSTER · PARTAGER · SAVOURER</div>
+                      </div> },
+                    // — Citation élégante —
+                    { apply: () => addTextPreset({ fontFamily: 'Playfair Display', fontStyle: 'italic', fontSize: 52, fill: '#14160F', lineHeight: 1.25, align: 'center', width: 640 }, '« Le meilleur\ncafé de la ville »'),
+                      preview: <span style={{ fontFamily: 'Playfair Display', fontStyle: 'italic', fontSize: 17, color: 'var(--ink-2)', lineHeight: 1.25, textAlign: 'center', display: 'block' }}>« Le meilleur<br/>café de la ville »</span> },
+                  ] as { apply: () => void; preview: React.ReactNode }[]).map((c, i) => (
+                    <button key={i} onClick={c.apply}
+                      style={{ minHeight: 78, padding: '14px', borderRadius: 12, border: '1px solid var(--line)', cursor: 'pointer', background: 'var(--white)', display: 'grid', placeItems: 'center', transition: 'all .14s', overflow: 'hidden' }}
                       onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--mint)'; e.currentTarget.style.background = 'var(--sunk)'; }}
                       onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--line)'; e.currentTarget.style.background = 'var(--white)'; }}>
-                      <span style={{ display: 'block', whiteSpace: 'pre-line', ...p.prev }}>{p.text}</span>
+                      {c.preview}
                     </button>
                   ))}
                 </div>
@@ -4323,32 +4367,21 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
                 )}
                 <p style={{ fontSize: 10, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '0.12em', fontFamily: 'var(--mono)', fontWeight: 800, margin: '0 0 8px' }}>{T('styles')}</p>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                  <button onClick={() => applyTemplate({ fontSize: 88, fontFamily: 'Archivo', fontStyle: 'italic bold', fill: workspaceData?.primary_color || '#111' } as Partial<TextEl>)}
-                    style={{ padding: '12px 14px', borderRadius: 10, border: '1px solid var(--line)', cursor: 'pointer', background: 'var(--white)', textAlign: 'left' }}>
-                    <span style={{ fontFamily: 'Archivo', fontStyle: 'italic', fontWeight: 900, fontSize: 26, color: 'var(--ink)', display: 'block', lineHeight: 1 }}>{T('styleTitle')}</span>
-                    <span style={{ fontSize: 10, color: 'var(--ink-3)', fontFamily: 'var(--mono)', fontWeight: 700 }}>Archivo Italic · 88px</span>
+                  <button onClick={() => applyTemplate({ fontSize: 96, fontFamily: 'Archivo Black', fontStyle: 'normal', uppercase: true, letterSpacing: -2, lineHeight: 0.92, fill: workspaceData?.primary_color || '#14160F' } as Partial<TextEl>)}
+                    style={{ padding: '14px', borderRadius: 10, border: '1px solid var(--line)', cursor: 'pointer', background: 'var(--white)', textAlign: 'left' }}>
+                    <span style={{ fontFamily: 'Archivo Black', fontSize: 26, color: 'var(--ink)', display: 'block', lineHeight: 0.92, textTransform: 'uppercase', letterSpacing: -1 }}>{T('styleTitle')}</span>
+                    <span style={{ fontSize: 10, color: 'var(--ink-3)', fontFamily: 'var(--mono)', fontWeight: 700 }}>Archivo Black · 96px</span>
                   </button>
-                  <button onClick={() => applyTemplate({ fontSize: 46, fontFamily: 'Cabinet Grotesk', fontStyle: 'bold', fill: workspaceData?.primary_color || '#111' } as Partial<TextEl>)}
-                    style={{ padding: '12px 14px', borderRadius: 10, border: '1px solid var(--line)', cursor: 'pointer', background: 'var(--white)', textAlign: 'left' }}>
-                    <span style={{ fontFamily: 'Cabinet Grotesk', fontWeight: 700, fontSize: 20, color: 'var(--ink)', display: 'block', lineHeight: 1 }}>{T('styleSubtitle')}</span>
-                    <span style={{ fontSize: 10, color: 'var(--ink-3)', fontFamily: 'var(--mono)', fontWeight: 700 }}>Cabinet Grotesk · 46px</span>
+                  <button onClick={() => applyTemplate({ fontSize: 44, fontFamily: 'Space Grotesk', fontStyle: 'bold', letterSpacing: -0.5, fill: workspaceData?.primary_color || '#14160F' } as Partial<TextEl>)}
+                    style={{ padding: '14px', borderRadius: 10, border: '1px solid var(--line)', cursor: 'pointer', background: 'var(--white)', textAlign: 'left' }}>
+                    <span style={{ fontFamily: 'Space Grotesk', fontWeight: 700, fontSize: 21, color: 'var(--ink)', display: 'block', lineHeight: 1, letterSpacing: -0.4 }}>{T('styleSubtitle')}</span>
+                    <span style={{ fontSize: 10, color: 'var(--ink-3)', fontFamily: 'var(--mono)', fontWeight: 700 }}>Space Grotesk · 44px</span>
                   </button>
-                  <button onClick={() => applyTemplate({ fontSize: 28, fontFamily: 'Satoshi', fontStyle: 'normal', fill: '#333' } as Partial<TextEl>)}
-                    style={{ padding: '12px 14px', borderRadius: 10, border: '1px solid var(--line)', cursor: 'pointer', background: 'var(--white)', textAlign: 'left' }}>
-                    <span style={{ fontFamily: 'Satoshi', fontWeight: 400, fontSize: 15, color: 'var(--ink-2)', display: 'block', lineHeight: 1.4 }}>{T('styleBody')}</span>
-                    <span style={{ fontSize: 10, color: 'var(--ink-3)', fontFamily: 'var(--mono)', fontWeight: 700 }}>Satoshi · 28px</span>
+                  <button onClick={() => applyTemplate({ fontSize: 26, fontFamily: 'Satoshi', fontStyle: 'normal', lineHeight: 1.5, fill: '#14160F' } as Partial<TextEl>)}
+                    style={{ padding: '14px', borderRadius: 10, border: '1px solid var(--line)', cursor: 'pointer', background: 'var(--white)', textAlign: 'left' }}>
+                    <span style={{ fontFamily: 'Satoshi', fontWeight: 400, fontSize: 15, color: 'var(--ink-2)', display: 'block', lineHeight: 1.5 }}>{T('styleBody')}</span>
+                    <span style={{ fontSize: 10, color: 'var(--ink-3)', fontFamily: 'var(--mono)', fontWeight: 700 }}>Satoshi · 26px</span>
                   </button>
-                </div>
-                <p style={{ fontSize: 10, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '0.12em', fontFamily: 'var(--mono)', fontWeight: 800, margin: '16px 0 8px' }}>{T('aiLayouts')}</p>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
-                  {LAYOUT_TEMPLATES.map(tpl => (
-                    <button key={tpl.label} onClick={() => applyLayoutTemplate(tpl)} className="well"
-                      style={{ width: '100%', padding: '9px 12px', cursor: 'pointer', fontSize: 12, textAlign: 'left', color: 'var(--ink-2)', fontFamily: 'var(--sans)', display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <span style={{ fontSize: 14 }}>{tpl.emoji}</span>
-                      <span>{tpl.label}</span>
-                      <span style={{ marginLeft: 'auto', fontSize: 9, color: 'var(--mint-2)', fontFamily: 'var(--mono)', fontWeight: 700, background: 'var(--mint-soft)', padding: '2px 5px', borderRadius: 4 }}>{tpl.blocks.length} blocs</span>
-                    </button>
-                  ))}
                 </div>
               </div>
             )}
