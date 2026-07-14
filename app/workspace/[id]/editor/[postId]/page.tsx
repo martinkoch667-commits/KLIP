@@ -2750,6 +2750,15 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
     setSelectedId(el.id);
   };
 
+  // Insère un texte pré-stylisé (combinaison façon Canva) directement sur le plan de travail.
+  const addTextPreset = (patch: Partial<TextEl>, text: string) => {
+    const base: TextEl = { id: newId(), type: 'text', x: 60, y: 140, rotation: 0, opacity: 100, text, fontSize: 44, fontFamily: 'Archivo', fontStyle: 'bold', textDecoration: '', fill: '#14160F', align: 'left', width: stageW - 120, hasBg: false, bgColor: '#000000', bgOpacity: 100, cornerRadius: 8, padding: 16, paddingH: 22, paddingV: 14 };
+    const el: TextEl = { ...base, ...patch, id: base.id, type: 'text', text };
+    applyElements([...elements, el]);
+    setSelectedId(el.id);
+    setTool(null);
+  };
+
   // Template mode: add a replaceable photo zone (placeholder swapped by AI/user later)
   const addPhotoPlaceholder = () => {
     const w = Math.round(stageW * 0.6), h = Math.round(stageW * 0.6);
@@ -4080,15 +4089,15 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
             { id: 'text',     label: 'Texte',    icon: <svg width="25" height="25" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><polyline points="5 6.5 5 4 19 4 19 6.5"/><line x1="12" y1="4" x2="12" y2="20"/><line x1="9" y1="20" x2="15" y2="20"/></svg> },
             { id: 'photos',   label: 'Photos',   icon: <svg width="25" height="25" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2.5"/><circle cx="8.5" cy="8.5" r="1.6"/><path d="M21 15l-5-5L5 21"/></svg> },
             { id: 'brand',    label: 'Charte',   icon: <svg width="25" height="25" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="4"/><circle cx="12" cy="4" r="1.6"/><circle cx="19.5" cy="16" r="1.6"/><circle cx="4.5" cy="16" r="1.6"/></svg> },
-            { id: 'upload',   label: 'Importer', icon: <svg width="25" height="25" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><path d="M12 13V4"/><path d="M8.5 7.5 12 4l3.5 3.5"/><path d="M20 17.5A4.5 4.5 0 0 0 18 9h-1.3A7 7 0 1 0 5 15.4"/></svg> },
+            { id: 'upload',   label: 'Importer', icon: <svg width="25" height="25" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><path d="M12 15V3"/><path d="M8 7l4-4 4 4"/><path d="M4 15v4a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-4"/></svg> },
             { id: 'calques',  label: 'Calques',  icon: <svg width="25" height="25" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg> },
           ] as const).map(({ id, label, icon }) => (
             <button key={id} onClick={() => { setTool(tool === id ? null : id); setFxPanel(null); if (isPenMode) cancelPenMode(); }} title={label}
               style={{ width: 62, height: 62, borderRadius: 14, border: 'none', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 6, cursor: 'pointer', transition: 'all .14s',
                 background: tool === id ? 'var(--mint-soft)' : 'transparent',
                 boxShadow: tool === id ? 'inset 0 0 0 1.5px color-mix(in srgb, var(--mint-2) 55%, transparent)' : 'none',
-                color: tool === id ? 'var(--mint-2)' : 'var(--ink)' }}
-              onMouseEnter={e => { if (tool !== id) e.currentTarget.style.background = 'var(--sunk)'; }}
+                color: tool === id ? 'var(--mint-2)' : 'color-mix(in srgb, var(--ink) 70%, var(--white))' }}
+              onMouseEnter={e => { if (tool !== id) e.currentTarget.style.background = 'color-mix(in srgb, var(--ink) 6%, var(--white))'; }}
               onMouseLeave={e => { if (tool !== id) e.currentTarget.style.background = 'transparent'; }}>
               {icon}
               <span style={{ fontFamily: 'var(--sans)', fontWeight: tool === id ? 700 : 600, fontSize: 11, letterSpacing: 0, lineHeight: 1 }}>{label}</span>
@@ -4099,8 +4108,8 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
             style={{ width: 62, height: 62, borderRadius: 14, border: 'none', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 6, cursor: isPenMode ? 'crosshair' : 'pointer', transition: 'all .14s',
               background: isPenMode ? 'var(--mint-soft)' : 'transparent',
               boxShadow: isPenMode ? 'inset 0 0 0 1.5px color-mix(in srgb, var(--mint-2) 55%, transparent)' : 'none',
-              color: isPenMode ? 'var(--mint-2)' : 'var(--ink)' }}
-            onMouseEnter={e => { if (!isPenMode) e.currentTarget.style.background = 'var(--sunk)'; }}
+              color: isPenMode ? 'var(--mint-2)' : 'color-mix(in srgb, var(--ink) 70%, var(--white))' }}
+            onMouseEnter={e => { if (!isPenMode) e.currentTarget.style.background = 'color-mix(in srgb, var(--ink) 6%, var(--white))'; }}
             onMouseLeave={e => { if (!isPenMode) e.currentTarget.style.background = 'transparent'; }}>
             <svg width="25" height="25" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><path d="M12 19l7-7 3 3-7 7-3-3z"/><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"/><path d="M2 2l7.586 7.586"/><circle cx="11" cy="11" r="2"/></svg>
             <span style={{ fontFamily: 'var(--sans)', fontWeight: isPenMode ? 700 : 600, fontSize: 11, letterSpacing: 0, lineHeight: 1 }}>{T('penTool')}</span>
@@ -4277,6 +4286,27 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
                   Ajouter une zone de texte
                 </button>
+
+                {/* ── COMBINAISONS DE TEXTE — cliquez pour ajouter du texte déjà stylisé ── */}
+                <p style={{ fontSize: 10, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '0.12em', fontFamily: 'var(--mono)', fontWeight: 800, margin: '0 0 8px' }}>Combinaisons de texte</p>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 18 }}>
+                  {([
+                    { text: 'GRANDE\nOUVERTURE', patch: { fontFamily: 'Archivo', fontStyle: 'italic bold', fontSize: 64, fill: '#14160F', uppercase: true, lineHeight: 0.95, letterSpacing: -1, align: 'center' }, prev: { fontFamily: 'Archivo', fontStyle: 'italic', fontWeight: 900, fontSize: 22, color: 'var(--ink)', lineHeight: 0.95, textAlign: 'center' as const } },
+                    { text: '-30%', patch: { fontFamily: 'Archivo', fontStyle: 'bold', fontSize: 56, fill: '#FFFFFF', hasBg: true, bgColor: '#2FD79B', bgOpacity: 100, cornerRadius: 12, align: 'center' }, prev: { fontFamily: 'Archivo', fontWeight: 800, fontSize: 20, color: '#FFFFFF', background: '#2FD79B', padding: '6px 14px', borderRadius: 8 } },
+                    { text: 'Nouveau', patch: { fontFamily: 'Cabinet Grotesk', fontStyle: 'bold', fontSize: 40, fill: '#14160F', highlightEnabled: true, highlightColor: '#C8F135', highlightOpacity: 100, highlightBorderRadius: 4, highlightPadding: 8 }, prev: { fontFamily: 'Cabinet Grotesk', fontWeight: 700, fontSize: 19, color: '#14160F', background: '#C8F135', padding: '3px 8px', borderRadius: 4 } },
+                    { text: 'ÉDITION\nLIMITÉE', patch: { fontFamily: 'Archivo', fontStyle: 'bold', fontSize: 46, fill: 'transparent', stroke: '#14160F', strokeWidth: 2, uppercase: true, lineHeight: 1, align: 'center' }, prev: { fontFamily: 'Archivo', fontWeight: 900, fontSize: 20, color: 'transparent', WebkitTextStroke: '1px var(--ink)', lineHeight: 1, textAlign: 'center' as const } },
+                    { text: 'Just do it.', patch: { fontFamily: 'Archivo', fontStyle: 'italic bold', fontSize: 50, fill: '#2FD79B', glowEnabled: true, glowColor: '#2FD79B', glowIntensity: 70, glowSize: 16, align: 'center' }, prev: { fontFamily: 'Archivo', fontStyle: 'italic', fontWeight: 800, fontSize: 20, color: '#2FD79B', textShadow: '0 0 10px #2FD79B', textAlign: 'center' as const } },
+                    { text: '« Le meilleur\ncafé de la ville »', patch: { fontFamily: 'Cabinet Grotesk', fontStyle: 'italic', fontSize: 30, fill: '#14160F', lineHeight: 1.3, align: 'center' }, prev: { fontFamily: 'Cabinet Grotesk', fontStyle: 'italic', fontWeight: 500, fontSize: 15, color: 'var(--ink-2)', lineHeight: 1.3, textAlign: 'center' as const } },
+                  ] as const).map((p, i) => (
+                    <button key={i} onClick={() => addTextPreset(p.patch as Partial<TextEl>, p.text)}
+                      style={{ minHeight: 68, padding: '12px 14px', borderRadius: 12, border: '1px solid var(--line)', cursor: 'pointer', background: 'var(--white)', display: 'grid', placeItems: 'center', transition: 'all .14s', overflow: 'hidden' }}
+                      onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--mint)'; e.currentTarget.style.background = 'var(--sunk)'; }}
+                      onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--line)'; e.currentTarget.style.background = 'var(--white)'; }}>
+                      <span style={{ display: 'block', whiteSpace: 'pre-line', ...p.prev }}>{p.text}</span>
+                    </button>
+                  ))}
+                </div>
+
                 {isTemplate && (
                   <>
                     <p style={{ fontSize: 10, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '0.12em', fontFamily: 'var(--mono)', fontWeight: 800, margin: '0 0 8px' }}>{T('aiRoleZones')}</p>
