@@ -1664,6 +1664,72 @@ function LayerThumb({ el }: { el: CanvasEl }) {
   return <span style={{ display: 'block', width: 40, height: 26, background: fill, borderRadius: round }} />;
 }
 
+// Liste de calques visuelle (miniatures + drag-to-reorder) façon Canva — partagée
+// entre l'onglet Position › Calques et l'onglet Calques de la barre d'outils.
+function RailLayerList({ elements, selectedId, hiddenIds, lockedIds, onSelect, onReorder, onToggleHidden, onToggleLocked }: {
+  elements: CanvasEl[]; selectedId: string | null; hiddenIds: Set<string>; lockedIds: Set<string>;
+  onSelect: (id: string) => void; onReorder: (frontToBackIds: string[]) => void;
+  onToggleHidden: (id: string) => void; onToggleLocked: (id: string) => void;
+}) {
+  const [dragId, setDragId] = useState<string | null>(null);
+  const [overId, setOverId] = useState<string | null>(null);
+  const order = [...elements].reverse(); // avant → arrière (haut de la liste = premier plan)
+  const drop = (targetId: string) => {
+    if (!dragId || dragId === targetId) { setDragId(null); setOverId(null); return; }
+    const ids = order.map(o => o.id);
+    const from = ids.indexOf(dragId), to = ids.indexOf(targetId);
+    if (from < 0 || to < 0) { setDragId(null); setOverId(null); return; }
+    const next = [...ids]; next.splice(from, 1); next.splice(to, 0, dragId);
+    onReorder(next);
+    setDragId(null); setOverId(null);
+  };
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+      {order.map((el) => {
+        const isSel = el.id === selectedId;
+        const isOver = el.id === overId && dragId !== el.id;
+        const isHidden = hiddenIds.has(el.id);
+        const isLocked = lockedIds.has(el.id);
+        return (
+          <div key={el.id} draggable={!isLocked}
+            onDragStart={() => setDragId(el.id)}
+            onDragOver={e => { e.preventDefault(); if (overId !== el.id) setOverId(el.id); }}
+            onDragEnd={() => { setDragId(null); setOverId(null); }}
+            onDrop={e => { e.preventDefault(); drop(el.id); }}
+            onClick={() => { if (!isLocked) onSelect(el.id); }}
+            style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '4px 8px 4px 6px', height: 56, borderRadius: 10, cursor: isLocked ? 'default' : 'pointer', background: isSel ? 'var(--mint-soft)' : 'var(--sunk)', boxShadow: isSel ? 'inset 0 0 0 2px var(--mint-2)' : isOver ? 'inset 0 0 0 2px var(--ink-3)' : 'none', opacity: dragId === el.id ? .4 : isHidden ? .5 : 1, transition: 'box-shadow .12s' }}>
+            <span style={{ flexShrink: 0, color: 'var(--ink-3)', cursor: isLocked ? 'default' : 'grab', display: 'grid' }} title="Glisser pour réordonner">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><circle cx="9" cy="6" r="1.6"/><circle cx="15" cy="6" r="1.6"/><circle cx="9" cy="12" r="1.6"/><circle cx="15" cy="12" r="1.6"/><circle cx="9" cy="18" r="1.6"/><circle cx="15" cy="18" r="1.6"/></svg>
+            </span>
+            <div style={{ flex: 1, minWidth: 0, height: '100%', display: 'grid', placeItems: 'center', overflow: 'hidden' }}>
+              <LayerThumb el={el} />
+            </div>
+            <button title={isHidden ? 'Afficher' : 'Masquer'} onClick={e => { e.stopPropagation(); onToggleHidden(el.id); }}
+              style={{ width: 26, height: 26, borderRadius: 6, display: 'grid', placeItems: 'center', border: 'none', cursor: 'pointer', background: 'transparent', color: isHidden ? 'var(--ink-3)' : 'var(--ink-2)', flexShrink: 0 }}
+              onMouseEnter={e => (e.currentTarget.style.background = 'color-mix(in srgb, var(--ink) 8%, transparent)')}
+              onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
+              {isHidden
+                ? <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M17.94 17.94A10.94 10.94 0 0 1 12 20c-7 0-11-8-11-8a18.5 18.5 0 0 1 5.06-5.94M9.9 4.24A10.94 10.94 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+                : <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>}
+            </button>
+            <button title={isLocked ? 'Déverrouiller' : 'Verrouiller'} onClick={e => { e.stopPropagation(); onToggleLocked(el.id); }}
+              style={{ width: 26, height: 26, borderRadius: 6, display: 'grid', placeItems: 'center', border: 'none', cursor: 'pointer', background: 'transparent', color: isLocked ? 'var(--ink-3)' : 'var(--mint-2)', flexShrink: 0 }}
+              onMouseEnter={e => (e.currentTarget.style.background = 'color-mix(in srgb, var(--ink) 8%, transparent)')}
+              onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
+              {isLocked
+                ? <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                : <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 9.9-1"/></svg>}
+            </button>
+          </div>
+        );
+      })}
+      {order.length === 0 && (
+        <div style={{ padding: '24px 8px', textAlign: 'center', fontSize: 12.5, color: 'var(--ink-3)' }}>Aucun calque pour le moment.</div>
+      )}
+    </div>
+  );
+}
+
 function PositionPanel({ sel, stageW, stageH, elements, selectedId, onUpdate, onAlign, onLayerAction, onSelect, onReorderLayers, onClose }: { sel: CanvasEl; stageW: number; stageH: number; elements: CanvasEl[]; selectedId: string | null; onUpdate: (patch: Partial<CanvasEl>) => void; onAlign: (dir: string) => void; onLayerAction: (a: 'front' | 'forward' | 'backward' | 'back') => void; onSelect: (id: string) => void; onReorderLayers: (frontToBackIds: string[]) => void; onClose: () => void }) {
   const T = useTranslations('editor');
   const u = (patch: Partial<CanvasEl>) => onUpdate(patch);
@@ -4007,31 +4073,37 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
       <div className="ed-body" style={{ flex: 1, display: 'flex', minHeight: 0 }}>
 
         {/* ── TOOL RAIL (68px) ── */}
-        <div data-stop-deselect className="ed-rail" style={{ width: 68, background: 'var(--white)', display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '12px 0', gap: 4, flexShrink: 0 }}>
+        <div data-stop-deselect className="ed-rail" style={{ width: 76, background: 'var(--white)', display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '10px 0', gap: 2, flexShrink: 0 }}>
           {([
-            { id: 'design',   label: 'Modèles',  icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg> },
-            { id: 'elements', label: 'Éléments', icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="8" height="8" rx="1.5"/><circle cx="17" cy="7" r="4"/><polygon points="12 22 3 15.5 21 15.5 12 22"/></svg> },
-            { id: 'text',     label: 'Texte',    icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><polyline points="4 7 4 4 20 4 20 7"/><line x1="9" y1="20" x2="15" y2="20"/><line x1="12" y1="4" x2="12" y2="20"/></svg> },
-            { id: 'photos',   label: 'Photos',   icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg> },
-            { id: 'brand',    label: 'Charte',   icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="4"/><circle cx="12" cy="4" r="1.5"/><circle cx="19.5" cy="16" r="1.5"/><circle cx="4.5" cy="16" r="1.5"/></svg> },
-            { id: 'upload',   label: 'Importer', icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg> },
-            { id: 'calques',  label: 'Calques',  icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg> },
+            { id: 'design',   label: 'Modèles',  icon: <svg width="25" height="25" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="16" rx="2.5"/><line x1="9" y1="4" x2="9" y2="20"/></svg> },
+            { id: 'elements', label: 'Éléments', icon: <svg width="25" height="25" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><circle cx="7" cy="8" r="3.4"/><rect x="12.5" y="4.6" width="7" height="7" rx="1.7"/><path d="M8 14.2l4.2 6.2H3.8l4.2-6.2z"/></svg> },
+            { id: 'text',     label: 'Texte',    icon: <svg width="25" height="25" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><polyline points="5 6.5 5 4 19 4 19 6.5"/><line x1="12" y1="4" x2="12" y2="20"/><line x1="9" y1="20" x2="15" y2="20"/></svg> },
+            { id: 'photos',   label: 'Photos',   icon: <svg width="25" height="25" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2.5"/><circle cx="8.5" cy="8.5" r="1.6"/><path d="M21 15l-5-5L5 21"/></svg> },
+            { id: 'brand',    label: 'Charte',   icon: <svg width="25" height="25" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="4"/><circle cx="12" cy="4" r="1.6"/><circle cx="19.5" cy="16" r="1.6"/><circle cx="4.5" cy="16" r="1.6"/></svg> },
+            { id: 'upload',   label: 'Importer', icon: <svg width="25" height="25" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><path d="M12 13V4"/><path d="M8.5 7.5 12 4l3.5 3.5"/><path d="M20 17.5A4.5 4.5 0 0 0 18 9h-1.3A7 7 0 1 0 5 15.4"/></svg> },
+            { id: 'calques',  label: 'Calques',  icon: <svg width="25" height="25" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg> },
           ] as const).map(({ id, label, icon }) => (
             <button key={id} onClick={() => { setTool(tool === id ? null : id); setFxPanel(null); if (isPenMode) cancelPenMode(); }} title={label}
-              style={{ width: 50, height: 50, borderRadius: 13, border: 'none', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 4, cursor: 'pointer', transition: 'all .14s',
+              style={{ width: 62, height: 62, borderRadius: 14, border: 'none', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 6, cursor: 'pointer', transition: 'all .14s',
                 background: tool === id ? 'var(--mint-soft)' : 'transparent',
-                color: tool === id ? 'var(--mint-2)' : 'var(--ink-3)' }}>
+                boxShadow: tool === id ? 'inset 0 0 0 1.5px color-mix(in srgb, var(--mint-2) 55%, transparent)' : 'none',
+                color: tool === id ? 'var(--mint-2)' : 'var(--ink)' }}
+              onMouseEnter={e => { if (tool !== id) e.currentTarget.style.background = 'var(--sunk)'; }}
+              onMouseLeave={e => { if (tool !== id) e.currentTarget.style.background = 'transparent'; }}>
               {icon}
-              <span style={{ fontFamily: 'var(--mono)', fontWeight: 800, fontSize: 7.5, letterSpacing: '.06em', textTransform: 'uppercase', lineHeight: 1 }}>{label}</span>
+              <span style={{ fontFamily: 'var(--sans)', fontWeight: tool === id ? 700 : 600, fontSize: 11, letterSpacing: 0, lineHeight: 1 }}>{label}</span>
             </button>
           ))}
-          <div style={{ width: 28, height: 1, background: 'var(--sunk)', margin: '2px 0' }} />
+          <div style={{ width: 32, height: 1, background: 'var(--sunk)', margin: '4px 0' }} />
           <button onClick={() => { setIsPenMode(p => !p); setTool(null); }} title={T('penToolTip')}
-            style={{ width: 50, height: 50, borderRadius: 13, border: 'none', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 4, cursor: isPenMode ? 'crosshair' : 'pointer', transition: 'all .14s',
+            style={{ width: 62, height: 62, borderRadius: 14, border: 'none', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 6, cursor: isPenMode ? 'crosshair' : 'pointer', transition: 'all .14s',
               background: isPenMode ? 'var(--mint-soft)' : 'transparent',
-              color: isPenMode ? 'var(--mint-2)' : 'var(--ink-3)' }}>
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M12 19l7-7 3 3-7 7-3-3z"/><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"/><path d="M2 2l7.586 7.586"/><circle cx="11" cy="11" r="2"/></svg>
-            <span style={{ fontFamily: 'var(--mono)', fontWeight: 800, fontSize: 7.5, letterSpacing: '.06em', textTransform: 'uppercase', lineHeight: 1 }}>{T('penTool')}</span>
+              boxShadow: isPenMode ? 'inset 0 0 0 1.5px color-mix(in srgb, var(--mint-2) 55%, transparent)' : 'none',
+              color: isPenMode ? 'var(--mint-2)' : 'var(--ink)' }}
+            onMouseEnter={e => { if (!isPenMode) e.currentTarget.style.background = 'var(--sunk)'; }}
+            onMouseLeave={e => { if (!isPenMode) e.currentTarget.style.background = 'transparent'; }}>
+            <svg width="25" height="25" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><path d="M12 19l7-7 3 3-7 7-3-3z"/><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"/><path d="M2 2l7.586 7.586"/><circle cx="11" cy="11" r="2"/></svg>
+            <span style={{ fontFamily: 'var(--sans)', fontWeight: isPenMode ? 700 : 600, fontSize: 11, letterSpacing: 0, lineHeight: 1 }}>{T('penTool')}</span>
           </button>
         </div>
 
@@ -4076,8 +4148,31 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
                 <PanelHead title={T('elements')} sub="Formes & blocs de couleur" onClose={() => setTool(null)} />
                 <div style={{ position: 'relative', marginBottom: 16 }}>
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" style={{ position: 'absolute', left: 12, top: 12, color: 'var(--ink-3)', pointerEvents: 'none' }}><circle cx="11" cy="11" r="7"/><path d="M21 21l-4-4"/></svg>
-                  <input className="input" placeholder={T('searchElement')} style={{ paddingLeft: 36, height: 40, background: 'var(--sunk)', border: 'none' }} />
+                  <input className="input" placeholder={T('searchElement')} value={iconQuery} onChange={e => setIconQuery(e.target.value)}
+                    onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); fetchIcons(iconQuery); } }}
+                    style={{ paddingLeft: 36, height: 40, background: 'var(--sunk)', border: 'none' }} />
                 </div>
+
+                {/* ── Parcourir par catégorie (tuiles colorées façon Canva) ── */}
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 8, marginBottom: 18 }}>
+                  {([
+                    { label: 'Formes',   q: 'shape',        grad: 'linear-gradient(135deg, var(--mint), var(--mint-2))',      fg: '#06281C', glyph: <><rect x="4" y="4" width="7" height="7" rx="1.6"/><circle cx="17" cy="7.5" r="3.6"/><polygon points="8 22 3 15 13 15"/></> },
+                    { label: 'Flèches',  q: 'arrow',        grad: 'linear-gradient(135deg, var(--acid), var(--mint))',        fg: '#06281C', glyph: <path d="M4 12h13M12 6l6 6-6 6"/> },
+                    { label: 'Icônes',   q: 'star',         grad: 'linear-gradient(135deg, var(--mint-2), var(--forest-2))',  fg: '#FFFFFF', glyph: <polygon points="12 3 14.6 9 21 9.4 16 13.8 17.6 20 12 16.6 6.4 20 8 13.8 3 9.4 9.4 9"/> },
+                    { label: 'Illustrations', q: 'illustration', grad: 'linear-gradient(135deg, var(--forest-3), var(--forest))', fg: '#FFFFFF', glyph: <><rect x="3" y="4" width="18" height="14" rx="2"/><circle cx="8" cy="9" r="1.6"/><path d="M3 16l5-4 4 3 3-2 6 5"/></> },
+                    { label: 'Cadres',   q: 'frame',        grad: 'linear-gradient(135deg, var(--forest), var(--forest-3))',  fg: '#FFFFFF', glyph: <><rect x="3" y="3" width="18" height="18" rx="1.5"/><rect x="7" y="7" width="10" height="10" rx="1"/></> },
+                    { label: 'Stickers', q: 'sticker',      grad: 'linear-gradient(135deg, var(--acid), var(--mint-2))',      fg: '#06281C', glyph: <><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h8l6-6V5a2 2 0 0 0-2-2z"/><path d="M14 21v-4a2 2 0 0 1 2-2h4"/></> },
+                  ]).map(({ label, q, grad, fg, glyph }) => (
+                    <button key={label} onClick={() => { setIconQuery(q); fetchIcons(q); }} title={label}
+                      style={{ position: 'relative', aspectRatio: '1', borderRadius: 14, border: 'none', cursor: 'pointer', background: grad, color: fg, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 6, overflow: 'hidden', boxShadow: '0 2px 8px color-mix(in srgb, var(--forest) 14%, transparent)', transition: 'transform .12s' }}
+                      onMouseEnter={e => (e.currentTarget.style.transform = 'translateY(-2px)')}
+                      onMouseLeave={e => (e.currentTarget.style.transform = 'translateY(0)')}>
+                      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">{glyph}</svg>
+                      <span style={{ fontSize: 10.5, fontFamily: 'var(--sans)', fontWeight: 700, letterSpacing: 0 }}>{label}</span>
+                    </button>
+                  ))}
+                </div>
+
                 <p style={{ fontSize: 10, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '0.12em', fontFamily: 'var(--mono)', fontWeight: 800, margin: '0 0 8px' }}>{T('shapes')}</p>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 8, marginBottom: 18 }}>
                   {([
@@ -4388,51 +4483,17 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
             {tool === 'calques' && (
               <div style={{ padding: '18px' }}>
                 <PanelHead title={T('layers')} sub="Ordre et verrouillage" onClose={() => setTool(null)} />
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                  {/* Elements in reverse z-order (top layer first) */}
-                  {[...elements].reverse().map((el, i) => {
-                    const label = layerName(el);
-                    const icon = el.type === 'text'
-                      ? <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><polyline points="4 7 4 4 20 4 20 7"/><line x1="9" y1="20" x2="15" y2="20"/><line x1="12" y1="4" x2="12" y2="20"/></svg>
-                      : el.type === 'image'
-                      ? <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
-                      : el.type === 'circle'
-                      ? <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="9"/></svg>
-                      : el.type === 'vector'
-                      ? <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><polygon points="12,3 21,12 12,21 3,12"/></svg>
-                      : <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><rect x="3" y="3" width="18" height="18" rx="2"/></svg>;
-                    const isSelected = el.id === selectedId;
-                    const isHidden = hiddenIds.has(el.id);
-                    const isLocked = lockedIds.has(el.id);
-                    return (
-                      <div key={el.id} onClick={() => { if (!isLocked) setSelectedId(el.id); }}
-                        style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '5px 6px 5px 10px', borderRadius: 8, cursor: isLocked ? 'default' : 'pointer', width: '100%', background: isSelected ? 'var(--mint-soft)' : 'transparent', color: isSelected ? 'var(--mint-2)' : 'var(--ink-2)', opacity: isHidden ? 0.5 : 1 }}
-                        onMouseEnter={e => { if (!isSelected) (e.currentTarget as HTMLElement).style.background = 'var(--sunk)'; }}
-                        onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = isSelected ? 'var(--mint-soft)' : 'transparent'; }}>
-                        <span style={{ flexShrink: 0, opacity: .7 }}>{icon}</span>
-                        <span style={{ flex: 1, fontSize: 12.5, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: isSelected ? 'var(--mint-2)' : 'var(--ink)' }}>{label}</span>
-                        <span style={{ fontSize: 10, color: 'var(--ink-3)', fontFamily: 'var(--mono)', fontWeight: 700, flexShrink: 0, marginRight: 2 }}>{elements.length - i}</span>
-                        <button title={isHidden ? 'Afficher' : 'Masquer'}
-                          onClick={e => { e.stopPropagation(); toggleHidden(el.id); }}
-                          style={{ width: 26, height: 26, borderRadius: 6, display: 'grid', placeItems: 'center', border: 'none', cursor: 'pointer', background: 'transparent', color: isHidden ? 'var(--ink-3)' : 'var(--ink-2)', flexShrink: 0 }}
-                          onMouseEnter={e => (e.currentTarget.style.background = 'var(--sunk)')}
-                          onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
-                          {isHidden
-                            ? <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M17.94 17.94A10.94 10.94 0 0 1 12 20c-7 0-11-8-11-8a18.5 18.5 0 0 1 5.06-5.94M9.9 4.24A10.94 10.94 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
-                            : <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>}
-                        </button>
-                        <button title={isLocked ? 'Déverrouiller' : 'Verrouiller'}
-                          onClick={e => { e.stopPropagation(); toggleLocked(el.id); }}
-                          style={{ width: 26, height: 26, borderRadius: 6, display: 'grid', placeItems: 'center', border: 'none', cursor: 'pointer', background: 'transparent', color: isLocked ? 'var(--ink-3)' : 'var(--mint-2)', flexShrink: 0 }}
-                          onMouseEnter={e => (e.currentTarget.style.background = 'var(--sunk)')}
-                          onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
-                          {isLocked
-                            ? <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-                            : <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 9.9-1"/></svg>}
-                        </button>
-                      </div>
-                    );
-                  })}
+                <RailLayerList
+                  elements={elements}
+                  selectedId={selectedId}
+                  hiddenIds={hiddenIds}
+                  lockedIds={lockedIds}
+                  onSelect={id => setSelectedId(id)}
+                  onReorder={reorderLayers}
+                  onToggleHidden={toggleHidden}
+                  onToggleLocked={toggleLocked}
+                />
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 2, marginTop: 6 }}>
                   {/* Fond (background) layer — always last */}
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '7px 10px', borderRadius: 8, borderTop: elements.length > 0 ? '1px solid var(--line)' : 'none', marginTop: elements.length > 0 ? 6 : 0 }}>
                     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>
@@ -4747,11 +4808,17 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
                         onDragStart={() => handleElDragStart(el.id)}
                         onDragMove={e => handleElDragMove(el.id, e)}
                         onDragEnd={e => handleElDragEnd(el.id, e.target.x(), e.target.y())}>
-                        {/* Bug 5 fix: always render Rect for hit detection; transparent when hasBg=false */}
+                        {/* Bug 5 fix: always keep Rect clickable via hitFunc; fully invisible when hasBg=false (no faint opacity box on visuals) */}
                         <Rect x={0} y={0} width={blockW} height={blockH}
-                          fill={el.hasBg ? el.bgColor : 'rgba(0,0,0,0.01)'}
+                          fill={el.hasBg ? el.bgColor : undefined}
                           opacity={el.hasBg ? el.bgOpacity / 100 : 1}
                           cornerRadius={el.hasBg ? el.cornerRadius : 0}
+                          hitFunc={(ctx, shape) => {
+                            ctx.beginPath();
+                            ctx.rect(0, 0, blockW, blockH);
+                            ctx.closePath();
+                            ctx.fillStrokeShape(shape);
+                          }}
                         />
                         {/* Surbrillance — highlight rect behind text */}
                         {el.highlightEnabled && (() => {
