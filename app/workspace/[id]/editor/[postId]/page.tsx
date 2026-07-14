@@ -19,6 +19,7 @@ import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import ColorPicker from '@/components/ColorPicker';
 import SelectionOverlay from '@/components/SelectionOverlay';
 import Sidebar from '@/components/Sidebar';
+import { TEXT_TEMPLATES, TT_CATS, TT_REF_W, TextTemplateThumb, type TextTemplate } from './textTemplates';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -2200,6 +2201,10 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
   const [tool, setTool] = useState<'design'|'elements'|'text'|'photos'|'brand'|'upload'|'calques'|null>(null);
   // Panneau gauche contextuel (Effet / Position) ouvert depuis la barre de modification.
   const [fxPanel, setFxPanel] = useState<'effects'|'position'|null>(null);
+  // Bibliothèque de combinaisons de texte (modale "Voir plus").
+  const [textLibOpen, setTextLibOpen] = useState(false);
+  const [textLibCat, setTextLibCat] = useState<string>('Tous');
+  const [textLibQuery, setTextLibQuery] = useState('');
   const openFxPanel = (p: 'effects'|'position') => { setFxPanel(cur => cur === p ? null : p); setTool(null); };
   const [bgLocked, setBgLocked] = useState(true);
   const [bgImageSelected, setBgImageSelected] = useState(false);
@@ -2750,36 +2755,43 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
     setSelectedId(el.id);
   };
 
-  // Insère un texte pré-stylisé (combinaison façon Canva) directement sur le plan de travail.
-  const addTextPreset = (patch: Partial<TextEl>, text: string) => {
-    const w = Math.round(stageW * 0.82);
-    const base: TextEl = { id: newId(), type: 'text', x: Math.round((stageW - w) / 2), y: 180, rotation: 0, opacity: 100, text, fontSize: 44, fontFamily: 'Archivo Black', fontStyle: 'normal', textDecoration: '', fill: '#14160F', align: 'center', width: w, hasBg: false, bgColor: '#000000', bgOpacity: 100, cornerRadius: 8, padding: 16, paddingH: 22, paddingV: 14 };
-    const el: TextEl = { ...base, ...patch, id: base.id, type: 'text', text };
-    applyElements([...elements, el]);
-    setSelectedId(el.id);
-    setTool(null);
-  };
-
-  // Insère une COMPOSITION de plusieurs zones de texte (jeux de typo façon Canva),
-  // centrée horizontalement, chaque partie décalée verticalement (dy) / horizontalement (dx).
-  const addTextComposition = (parts: { text: string; patch?: Partial<TextEl>; dx?: number; dy: number }[]) => {
+  // Insère un template de la bibliothèque (authoré sur 1080px) en le MISE À
+  // L'ÉCHELLE du format réel du document (facteur = stageW / TT_REF_W) pour qu'il
+  // s'adapte bien et ne déborde pas, quel que soit le format.
+  const applyTextTemplate = (tpl: TextTemplate) => {
+    const f = stageW / TT_REF_W;
     const cx = Math.round(stageW / 2);
-    const baseY = 190;
-    const els: TextEl[] = parts.map(part => {
-      const merged: TextEl = {
-        id: newId(), type: 'text', text: part.text, x: 0, y: 0, rotation: 0, opacity: 100,
-        fontSize: 44, fontFamily: 'Archivo Black', fontStyle: 'normal', textDecoration: '',
-        fill: '#14160F', align: 'center', width: Math.round(stageW * 0.82),
-        hasBg: false, bgColor: '#000000', bgOpacity: 100, cornerRadius: 8,
-        padding: 16, paddingH: 22, paddingV: 14, ...part.patch,
+    const baseY = Math.round(stageH * 0.18);
+    const sc = (v: number | undefined, d = 0) => Math.round(((v ?? d) * f) * 100) / 100;
+    const els: TextEl[] = tpl.parts.map(part => {
+      const p = part.patch || {};
+      const width = Math.round((p.width ?? 900) * f);
+      const el: TextEl = {
+        id: newId(), type: 'text', text: part.text, x: 0, y: 0, rotation: p.rotation ?? 0, opacity: 100,
+        fontSize: Math.max(8, Math.round((p.fontSize ?? 44) * f)), fontFamily: p.fontFamily ?? 'Archivo Black',
+        fontStyle: p.fontStyle ?? 'normal', textDecoration: '', fill: p.fill ?? '#14160F',
+        align: p.align ?? 'center', width,
+        hasBg: p.hasBg ?? false, bgColor: p.bgColor ?? '#000000', bgOpacity: p.bgOpacity ?? 100,
+        cornerRadius: sc(p.cornerRadius, 8), padding: 16, paddingH: sc(p.paddingH, 22), paddingV: sc(p.paddingV, 14),
+        ...(p.fillType ? { fillType: p.fillType, fillTo: p.fillTo, fillAngle: p.fillAngle } : {}),
+        ...(p.uppercase ? { uppercase: true } : {}),
+        ...(p.lineHeight != null ? { lineHeight: p.lineHeight } : {}),
+        ...(p.letterSpacing != null ? { letterSpacing: sc(p.letterSpacing) } : {}),
+        ...(p.stroke ? { stroke: p.stroke, strokeWidth: sc(p.strokeWidth, 2) } : {}),
+        ...(p.highlightEnabled ? { highlightEnabled: true, highlightColor: p.highlightColor, highlightOpacity: p.highlightOpacity ?? 100, highlightBorderRadius: sc(p.highlightBorderRadius, 4), highlightPadding: sc(p.highlightPadding, 8) } : {}),
+        ...(p.glowEnabled ? { glowEnabled: true, glowColor: p.glowColor, glowIntensity: p.glowIntensity ?? 60, glowSize: sc(p.glowSize, 10) } : {}),
+        ...(p.liftEnabled ? { liftEnabled: true, liftColor: p.liftColor, liftDepth: sc(p.liftDepth, 6), liftDirection: p.liftDirection ?? 'br' } : {}),
+        ...(p.echoEnabled ? { echoEnabled: true, echoColor: p.echoColor, echoCount: p.echoCount ?? 3, echoOffset: sc(p.echoOffset, 8), echoFade: p.echoFade } : {}),
+        ...(p.shadowEnabled ? { shadowEnabled: true, shadowColor: p.shadowColor, shadowOffsetX: sc(p.shadowOffsetX, 4), shadowOffsetY: sc(p.shadowOffsetY, 4), shadowBlur: sc(p.shadowBlur, 0), shadowOpacity: p.shadowOpacity ?? 75 } : {}),
       };
-      merged.x = Math.round(cx - merged.width / 2 + (part.dx || 0));
-      merged.y = baseY + part.dy;
-      return merged;
+      el.x = Math.round(cx - width / 2 + (part.dx ?? 0) * f);
+      el.y = Math.round(baseY + part.dy * f);
+      return el;
     });
     applyElements([...elements, ...els]);
     setSelectedId(els[0].id);
     setTool(null);
+    setTextLibOpen(false);
   };
 
   // Template mode: add a replaceable photo zone (placeholder swapped by AI/user later)
@@ -4266,90 +4278,21 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
 
                 {/* ── COMBINAISONS DE TEXTE — jeux de typo façon Canva, cliquez pour ajouter ── */}
                 <p style={{ fontSize: 10, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '0.12em', fontFamily: 'var(--mono)', fontWeight: 800, margin: '0 0 8px' }}>Combinaisons de texte</p>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 18 }}>
-                  {([
-                    // — Composition : titre + tagline surlignés (façon éditorial dynamique) —
-                    { apply: () => addTextComposition([
-                        { text: 'GRANDE', dy: 0, patch: { fontFamily: 'Archivo Black', fontSize: 118, fill: '#0C2A1D', uppercase: true, letterSpacing: -3, lineHeight: 0.86, width: 760 } },
-                        { text: 'OUVERTURE', dy: 96, dx: 40, patch: { fontFamily: 'Archivo Black', fontSize: 40, fill: '#0C2A1D', uppercase: true, letterSpacing: 1, highlightEnabled: true, highlightColor: '#C8F135', highlightOpacity: 100, highlightBorderRadius: 3, highlightPadding: 10, width: 520 } },
-                        { text: 'CE SAMEDI', dy: 170, dx: -30, patch: { fontFamily: 'Archivo Black', fontSize: 30, fill: '#0C2A1D', uppercase: true, letterSpacing: 1, highlightEnabled: true, highlightColor: '#C8F135', highlightOpacity: 100, highlightBorderRadius: 3, highlightPadding: 9, width: 420 } },
-                      ]),
-                      preview: <div style={{ textAlign: 'center', lineHeight: 1 }}>
-                        <div style={{ fontFamily: 'Archivo Black', fontSize: 26, color: 'var(--forest)', letterSpacing: -1, lineHeight: 0.85 }}>GRANDE</div>
-                        <div style={{ display: 'inline-block', fontFamily: 'Archivo Black', fontSize: 12, color: 'var(--forest)', background: 'var(--acid)', padding: '2px 6px', borderRadius: 3, marginTop: 5, transform: 'translateX(8px)' }}>OUVERTURE</div>
-                        <div style={{ display: 'inline-block', fontFamily: 'Archivo Black', fontSize: 10, color: 'var(--forest)', background: 'var(--acid)', padding: '2px 6px', borderRadius: 3, marginTop: 4, transform: 'translateX(-6px)' }}>CE SAMEDI</div>
-                      </div> },
-                    // — Big number promo (label + chiffre dégradé + sous-ligne) —
-                    { apply: () => addTextComposition([
-                        { text: "JUSQU'À", dy: 0, patch: { fontFamily: 'Space Grotesk', fontStyle: 'bold', fontSize: 30, fill: '#5A5E50', uppercase: true, letterSpacing: 8, width: 500 } },
-                        { text: '-70%', dy: 40, patch: { fontFamily: 'Archivo Black', fontSize: 200, fillType: 'gradient', fill: '#2FD79B', fillTo: '#0C2A1D', fillAngle: 120, letterSpacing: -6, lineHeight: 0.9, width: 760 } },
-                        { text: 'SUR TOUTE LA BOUTIQUE', dy: 240, patch: { fontFamily: 'Space Grotesk', fontStyle: 'bold', fontSize: 26, fill: '#14160F', uppercase: true, letterSpacing: 3, width: 620 } },
-                      ]),
-                      preview: <div style={{ textAlign: 'center', lineHeight: 1 }}>
-                        <div style={{ fontFamily: 'Space Grotesk', fontWeight: 700, fontSize: 9, color: 'var(--ink-3)', letterSpacing: 3 }}>JUSQU&apos;À</div>
-                        <div style={{ fontFamily: 'Archivo Black', fontSize: 40, letterSpacing: -2, lineHeight: 0.95, background: 'linear-gradient(120deg,#2FD79B,#0C2A1D)', WebkitBackgroundClip: 'text', backgroundClip: 'text', color: 'transparent' }}>-70%</div>
-                        <div style={{ fontFamily: 'Space Grotesk', fontWeight: 700, fontSize: 8, color: 'var(--ink)', letterSpacing: 1.5, marginTop: 2 }}>SUR TOUTE LA BOUTIQUE</div>
-                      </div> },
-                    // — PARTY PEOPLE : relief (lift) menthe —
-                    { apply: () => addTextPreset({ fontFamily: 'Archivo Black', fontSize: 132, fill: '#2FD79B', uppercase: true, lineHeight: 0.82, letterSpacing: -3, liftEnabled: true, liftColor: '#0C2A1D', liftDepth: 10, liftDirection: 'br', align: 'center', width: 780 }, 'PARTY\nPEOPLE'),
-                      preview: <div style={{ fontFamily: 'Archivo Black', fontSize: 28, color: '#2FD79B', textAlign: 'center', lineHeight: 0.82, letterSpacing: -1, textShadow: '2px 2px 0 #0C2A1D, 3px 3px 0 #0C2A1D' }}>PARTY<br/>PEOPLE</div> },
-                    // — SOLDES : dégradé plein —
-                    { apply: () => addTextPreset({ fontFamily: 'Archivo Black', fontSize: 150, fillType: 'gradient', fill: '#C8F135', fillTo: '#21B381', fillAngle: 135, uppercase: true, letterSpacing: -4, align: 'center', width: 780 }, 'SOLDES'),
-                      preview: <div style={{ fontFamily: 'Archivo Black', fontSize: 40, letterSpacing: -2, background: 'linear-gradient(135deg,#C8F135,#21B381)', WebkitBackgroundClip: 'text', backgroundClip: 'text', color: 'transparent' }}>SOLDES</div> },
-                    // — -30% : badge menthe —
-                    { apply: () => addTextPreset({ fontFamily: 'Archivo Black', fontSize: 96, fill: '#FFFFFF', hasBg: true, bgColor: '#2FD79B', bgOpacity: 100, cornerRadius: 18, paddingH: 34, paddingV: 18, align: 'center', width: 420 }, '-30%'),
-                      preview: <span style={{ fontFamily: 'Archivo Black', fontSize: 26, color: '#FFFFFF', background: '#2FD79B', padding: '7px 16px', borderRadius: 10 }}>-30%</span> },
-                    // — GREEN LIT : dégradé + relief —
-                    { apply: () => addTextComposition([
-                        { text: 'GREEN', dy: 0, patch: { fontFamily: 'Archivo Black', fontSize: 118, fillType: 'gradient', fill: '#C8F135', fillTo: '#21B381', fillAngle: 120, uppercase: true, letterSpacing: -3, lineHeight: 0.82, liftEnabled: true, liftColor: '#0C2A1D', liftDepth: 7, width: 700 } },
-                        { text: 'LIT', dy: 96, patch: { fontFamily: 'Archivo Black', fontSize: 118, fillType: 'gradient', fill: '#C8F135', fillTo: '#21B381', fillAngle: 120, uppercase: true, letterSpacing: -3, lineHeight: 0.82, liftEnabled: true, liftColor: '#0C2A1D', liftDepth: 7, width: 700 } },
-                      ]),
-                      preview: <div style={{ fontFamily: 'Archivo Black', fontSize: 30, textAlign: 'center', lineHeight: 0.82, letterSpacing: -1, background: 'linear-gradient(120deg,#C8F135,#21B381)', WebkitBackgroundClip: 'text', backgroundClip: 'text', color: 'transparent', filter: 'drop-shadow(2px 2px 0 #0C2A1D)' }}>GREEN<br/>LIT</div> },
-                    // — Nouveau : surlignage acide —
-                    { apply: () => addTextPreset({ fontFamily: 'Space Grotesk', fontStyle: 'bold', fontSize: 64, fill: '#14160F', highlightEnabled: true, highlightColor: '#C8F135', highlightOpacity: 100, highlightBorderRadius: 5, highlightPadding: 12, align: 'center', width: 520 }, 'Nouveau'),
-                      preview: <span style={{ fontFamily: 'Space Grotesk', fontWeight: 700, fontSize: 22, color: '#14160F', background: '#C8F135', padding: '3px 9px', borderRadius: 4 }}>Nouveau</span> },
-                    // — NEW PRODUCT ALERT : 2 badges inclinés —
-                    { apply: () => addTextComposition([
-                        { text: 'NOUVEAU', dy: 0, dx: -30, patch: { fontFamily: 'Archivo Black', fontSize: 56, fill: '#0C2A1D', uppercase: true, rotation: -5, highlightEnabled: true, highlightColor: '#C8F135', highlightOpacity: 100, highlightBorderRadius: 6, highlightPadding: 14, width: 460 } },
-                        { text: 'EN STOCK !', dy: 90, dx: 40, patch: { fontFamily: 'Archivo Black', fontSize: 56, fill: '#FFFFFF', uppercase: true, rotation: 4, highlightEnabled: true, highlightColor: '#2FD79B', highlightOpacity: 100, highlightBorderRadius: 6, highlightPadding: 14, width: 460 } },
-                      ]),
-                      preview: <div style={{ textAlign: 'center', lineHeight: 1.5 }}>
-                        <div><span style={{ display: 'inline-block', fontFamily: 'Archivo Black', fontSize: 13, color: '#0C2A1D', background: '#C8F135', padding: '3px 8px', borderRadius: 4, transform: 'rotate(-5deg)' }}>NOUVEAU</span></div>
-                        <div><span style={{ display: 'inline-block', fontFamily: 'Archivo Black', fontSize: 13, color: '#FFFFFF', background: '#2FD79B', padding: '3px 8px', borderRadius: 4, transform: 'rotate(4deg)', marginTop: 4 }}>EN STOCK !</span></div>
-                      </div> },
-                    // — ÉDITION LIMITÉE : contour (hollow) —
-                    { apply: () => addTextPreset({ fontFamily: 'Archivo Black', fontSize: 84, fill: 'transparent', stroke: '#14160F', strokeWidth: 3, uppercase: true, lineHeight: 0.9, letterSpacing: -1, align: 'center', width: 780 }, 'ÉDITION\nLIMITÉE'),
-                      preview: <div style={{ fontFamily: 'Archivo Black', fontSize: 26, color: 'transparent', WebkitTextStroke: '1.2px var(--ink)', lineHeight: 0.9, textAlign: 'center' }}>ÉDITION<br/>LIMITÉE</div> },
-                    // — Fresh : italique dégradé contouré —
-                    { apply: () => addTextPreset({ fontFamily: 'Archivo Black', fontStyle: 'italic', fontSize: 140, fill: '#C8F135', stroke: '#0C2A1D', strokeWidth: 4, letterSpacing: -3, align: 'center', width: 700 }, 'Fresh'),
-                      preview: <span style={{ fontFamily: 'Archivo Black', fontStyle: 'italic', fontSize: 38, color: '#C8F135', WebkitTextStroke: '1.4px #0C2A1D', letterSpacing: -1 }}>Fresh</span> },
-                    // — Just do it. : glow menthe —
-                    { apply: () => addTextPreset({ fontFamily: 'Archivo Black', fontStyle: 'italic', fontSize: 92, fill: '#2FD79B', glowEnabled: true, glowColor: '#2FD79B', glowIntensity: 75, glowSize: 22, letterSpacing: -2, align: 'center', width: 700 }, 'Just do it.'),
-                      preview: <span style={{ fontFamily: 'Archivo Black', fontStyle: 'italic', fontSize: 26, color: '#2FD79B', textShadow: '0 0 14px #2FD79B', letterSpacing: -1 }}>Just do it.</span> },
-                    // — SUMMER : écho —
-                    { apply: () => addTextPreset({ fontFamily: 'Archivo Black', fontSize: 120, fill: '#2FD79B', uppercase: true, letterSpacing: -3, echoEnabled: true, echoColor: '#0C2A1D', echoCount: 3, echoOffset: 12, align: 'center', width: 780 }, 'SUMMER'),
-                      preview: <span style={{ fontFamily: 'Archivo Black', fontSize: 30, color: '#2FD79B', letterSpacing: -1, textShadow: '4px 4px 0 rgba(12,42,29,.5), 8px 8px 0 rgba(12,42,29,.25)' }}>SUMMER</span> },
-                    // — MEMENTO : éditorial élégant lettré —
-                    { apply: () => addTextComposition([
-                        { text: 'MEMENTO', dy: 0, patch: { fontFamily: 'Playfair Display', fontSize: 96, fill: '#14160F', uppercase: true, letterSpacing: 12, width: 780 } },
-                        { text: 'DÉGUSTER · PARTAGER · SAVOURER', dy: 92, patch: { fontFamily: 'Space Grotesk', fontStyle: 'bold', fontSize: 22, fill: '#21B381', uppercase: true, letterSpacing: 4, width: 700 } },
-                      ]),
-                      preview: <div style={{ textAlign: 'center', lineHeight: 1 }}>
-                        <div style={{ fontFamily: 'Playfair Display', fontSize: 24, color: 'var(--ink)', letterSpacing: 4 }}>MEMENTO</div>
-                        <div style={{ fontFamily: 'Space Grotesk', fontWeight: 700, fontSize: 7.5, color: 'var(--mint-2)', letterSpacing: 1.5, marginTop: 5 }}>DÉGUSTER · PARTAGER · SAVOURER</div>
-                      </div> },
-                    // — Citation élégante —
-                    { apply: () => addTextPreset({ fontFamily: 'Playfair Display', fontStyle: 'italic', fontSize: 52, fill: '#14160F', lineHeight: 1.25, align: 'center', width: 640 }, '« Le meilleur\ncafé de la ville »'),
-                      preview: <span style={{ fontFamily: 'Playfair Display', fontStyle: 'italic', fontSize: 17, color: 'var(--ink-2)', lineHeight: 1.25, textAlign: 'center', display: 'block' }}>« Le meilleur<br/>café de la ville »</span> },
-                  ] as { apply: () => void; preview: React.ReactNode }[]).map((c, i) => (
-                    <button key={i} onClick={c.apply}
-                      style={{ minHeight: 78, padding: '14px', borderRadius: 12, border: '1px solid var(--line)', cursor: 'pointer', background: 'var(--white)', display: 'grid', placeItems: 'center', transition: 'all .14s', overflow: 'hidden' }}
-                      onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--mint)'; e.currentTarget.style.background = 'var(--sunk)'; }}
-                      onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--line)'; e.currentTarget.style.background = 'var(--white)'; }}>
-                      {c.preview}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 10 }}>
+                  {TEXT_TEMPLATES.slice(0, 8).map(tpl => (
+                    <button key={tpl.id} onClick={() => applyTextTemplate(tpl)} title={tpl.cat}
+                      style={{ height: 90, padding: '10px 8px', borderRadius: 12, border: '1px solid var(--line)', cursor: 'pointer', background: tpl.dark ? '#1B1D18' : 'var(--white)', display: 'grid', placeItems: 'center', transition: 'all .14s', overflow: 'hidden' }}
+                      onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--mint)'; e.currentTarget.style.transform = 'translateY(-2px)'; }}
+                      onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--line)'; e.currentTarget.style.transform = 'none'; }}>
+                      <TextTemplateThumb tpl={tpl} w={150} />
                     </button>
                   ))}
                 </div>
+                <button onClick={() => { setTextLibCat('Tous'); setTextLibQuery(''); setTextLibOpen(true); }} className="btn btn-ghost btn-sm"
+                  style={{ width: '100%', justifyContent: 'center', marginBottom: 18, height: 40, gap: 6 }}>
+                  Voir toute la bibliothèque
+                  <span style={{ fontSize: 11, color: 'var(--ink-3)', fontFamily: 'var(--mono)', fontWeight: 700 }}>({TEXT_TEMPLATES.length})</span>
+                </button>
 
                 {isTemplate && (
                   <>
@@ -5412,6 +5355,79 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
       <input ref={fileInputRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={handleFileUpload} />
       <input ref={maskPhotoInputRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={handleMaskPhotoUpload} />
     </div>
+
+    {/* ── BIBLIOTHÈQUE DE TEXTES — modale plein écran regroupant TOUS les templates ── */}
+    {textLibOpen && (() => {
+      const q = textLibQuery.trim().toLowerCase();
+      const filtered = TEXT_TEMPLATES.filter(tpl => {
+        if (textLibCat !== 'Tous' && tpl.cat !== textLibCat) return false;
+        if (!q) return true;
+        return tpl.cat.toLowerCase().includes(q) || tpl.parts.some(p => p.text.toLowerCase().includes(q));
+      });
+      return (
+        <div
+          onClick={() => setTextLibOpen(false)}
+          style={{ position: 'fixed', inset: 0, zIndex: 3000, background: 'color-mix(in srgb, var(--ink) 55%, transparent)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '4vh 3vw', backdropFilter: 'blur(3px)' }}
+        >
+          <div
+            onClick={e => e.stopPropagation()}
+            style={{ width: 'min(1180px, 96vw)', height: 'min(880px, 92vh)', background: 'var(--paper)', borderRadius: 'var(--r-xl)', boxShadow: '0 24px 80px rgba(0,0,0,0.32)', display: 'flex', flexDirection: 'column', overflow: 'hidden', border: '1px solid var(--line)' }}
+          >
+            {/* Header */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '18px 22px', borderBottom: '1px solid var(--line)', flexShrink: 0 }}>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <h2 style={{ margin: 0, fontSize: 20, fontFamily: 'var(--display)', fontWeight: 800, color: 'var(--ink)', letterSpacing: '-0.01em' }}>Bibliothèque de textes</h2>
+                <p style={{ margin: '2px 0 0', fontSize: 12, color: 'var(--ink-3)' }}>{filtered.length} modèle{filtered.length > 1 ? 's' : ''} · cliquez pour ajouter au plan de travail</p>
+              </div>
+              <div style={{ position: 'relative', width: 260 }}>
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--ink-3)" strokeWidth="2" strokeLinecap="round" style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }}><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                <input value={textLibQuery} onChange={e => setTextLibQuery(e.target.value)} placeholder="Rechercher…" className="input"
+                  style={{ width: '100%', paddingLeft: 34, height: 38 }} />
+              </div>
+              <button onClick={() => setTextLibOpen(false)} className="btn-icon" title="Fermer"
+                style={{ flexShrink: 0, width: 38, height: 38 }}>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+              </button>
+            </div>
+
+            {/* Category chips */}
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, padding: '12px 22px', borderBottom: '1px solid var(--line)', flexShrink: 0 }}>
+              {(['Tous', ...TT_CATS] as string[]).map(cat => {
+                const active = textLibCat === cat;
+                return (
+                  <button key={cat} onClick={() => setTextLibCat(cat)}
+                    style={{ padding: '6px 14px', borderRadius: 999, cursor: 'pointer', fontSize: 12.5, fontWeight: 700, fontFamily: 'var(--sans)', transition: 'all .12s',
+                      border: active ? '1px solid var(--mint-2)' : '1px solid var(--line)',
+                      background: active ? 'var(--mint)' : 'var(--white)',
+                      color: active ? 'var(--forest)' : 'var(--ink-2)' }}>
+                    {cat}
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Grid */}
+            <div style={{ flex: 1, overflowY: 'auto', padding: 22 }}>
+              {filtered.length === 0 ? (
+                <div style={{ display: 'grid', placeItems: 'center', height: '100%', color: 'var(--ink-3)', fontSize: 14 }}>Aucun modèle ne correspond.</div>
+              ) : (
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 12 }}>
+                  {filtered.map(tpl => (
+                    <button key={tpl.id} onClick={() => applyTextTemplate(tpl)} title={tpl.cat}
+                      style={{ position: 'relative', height: 168, padding: '16px 12px', borderRadius: 14, border: '1px solid var(--line)', cursor: 'pointer', background: tpl.dark ? '#1B1D18' : 'var(--white)', display: 'grid', placeItems: 'center', transition: 'all .14s', overflow: 'hidden' }}
+                      onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--mint)'; e.currentTarget.style.transform = 'translateY(-3px)'; e.currentTarget.style.boxShadow = '0 10px 26px rgba(0,0,0,0.10)'; }}
+                      onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--line)'; e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = 'none'; }}>
+                      <TextTemplateThumb tpl={tpl} w={230} />
+                      <span style={{ position: 'absolute', bottom: 8, left: 8, fontSize: 9.5, textTransform: 'uppercase', letterSpacing: '0.1em', fontFamily: 'var(--mono)', fontWeight: 800, color: tpl.dark ? 'rgba(255,255,255,0.5)' : 'var(--ink-3)' }}>{tpl.cat}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      );
+    })()}
     </>
   );
 }
