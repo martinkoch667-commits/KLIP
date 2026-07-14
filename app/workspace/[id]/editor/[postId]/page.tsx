@@ -1390,21 +1390,30 @@ function EditorContextToolbar({ sel, allFonts, brandColors, stageW, stageH, onUp
 
 interface PillProps {
   elX: number; elY: number; elW: number;
+  zoom: number;
   onDuplicate: () => void;
   onDelete: () => void;
 }
 
-function SelectionPill({ elX, elY, elW, onDuplicate, onDelete }: PillProps) {
+function SelectionPill({ elX, elY, elW, zoom, onDuplicate, onDelete }: PillProps) {
   const T = useTranslations('editor');
   const pillW = 260;
+  // La couche d'overlay est mise à l'échelle par `zoom` : on contre-scale la barre
+  // pour qu'elle garde une taille constante à l'écran (façon Canva).
   return (
     <div style={{
       position: 'absolute',
-      left: elX + elW / 2 - pillW / 2,
-      top: elY - 58,
-      width: pillW,
+      left: elX + elW / 2,
+      top: elY - 12 / zoom,
+      width: 0,
+      height: 0,
       zIndex: 55,
       pointerEvents: 'auto',
+    }}>
+    <div style={{
+      position: 'absolute', left: 0, top: 0, width: pillW,
+      transform: `translate(-50%, -100%) scale(${1 / zoom})`,
+      transformOrigin: 'center bottom',
     }}>
       <div className="pop-in" style={{
         display: 'flex', alignItems: 'center', gap: 2,
@@ -1445,6 +1454,7 @@ function SelectionPill({ elX, elY, elW, onDuplicate, onDelete }: PillProps) {
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M4 7h16M9 7V4.5h6V7M6 7l1 13h10l1-13"/></svg>
         </button>
       </div>
+    </div>
     </div>
   );
 }
@@ -2500,6 +2510,22 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // ── Copier / Coller + menu contextuel (clic droit, façon Canva) ──────────
+  const clipboardRef = useRef<CanvasEl | null>(null);
+  const [ctxMenu, setCtxMenu] = useState<{ x: number; y: number; id: string } | null>(null);
+  const copyEl = useCallback((id?: string | null) => {
+    const target = id ?? selectedIdRef.current;
+    const el = elementsRef.current.find(e => e.id === target);
+    if (el) clipboardRef.current = { ...el };
+  }, []);
+  const pasteEl = useCallback(() => {
+    const el = clipboardRef.current;
+    if (!el) return;
+    const dup = { ...el, id: newId(), x: el.x + 24, y: el.y + 24 } as CanvasEl;
+    applyElements([...elementsRef.current, dup]);
+    setSelectedId(dup.id);
+  }, []);
+
   // ── Alignment (single vs canvas; multi vs group bounding box) ────────────
 
   const getElBox = (e: CanvasEl) => {
@@ -2627,10 +2653,12 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
       if ((e.metaKey || e.ctrlKey) && e.key === 'z' && !e.shiftKey) { e.preventDefault(); undo(); }
       if ((e.metaKey || e.ctrlKey) && (e.key === 'y' || (e.key === 'z' && e.shiftKey))) { e.preventDefault(); redo(); }
       if ((e.metaKey || e.ctrlKey) && e.key === 'd') { e.preventDefault(); duplicateEl(); }
+      if ((e.metaKey || e.ctrlKey) && e.key === 'c') { copyEl(); }
+      if ((e.metaKey || e.ctrlKey) && e.key === 'v') { e.preventDefault(); pasteEl(); }
     };
     document.addEventListener('keydown', handler);
     return () => document.removeEventListener('keydown', handler);
-  }, [deleteEl, undo, redo, duplicateEl]);
+  }, [deleteEl, undo, redo, duplicateEl, copyEl, pasteEl]);
 
   // ── Add elements ──────────────────────────────────────────────────────────
 
@@ -3725,6 +3753,45 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
     <>
       {sidebarOpen && <Sidebar />}
 
+      {/* ── Menu contextuel (clic droit sur un élément, façon Canva) ── */}
+      {ctxMenu && (() => {
+        const el = elements.find(e => e.id === ctxMenu.id);
+        if (!el) return null;
+        const locked = lockedIds.has(el.id);
+        const close = () => setCtxMenu(null);
+        const item = (label: string, shortcut: string, onClick: () => void, danger?: boolean) => (
+          <button key={label} onClick={() => { onClick(); close(); }}
+            style={{ display: 'flex', alignItems: 'center', gap: 12, width: '100%', padding: '8px 14px', border: 'none', background: 'transparent', cursor: 'pointer', fontSize: 13, fontWeight: 500, color: danger ? '#C4452F' : 'var(--ink)', textAlign: 'left', whiteSpace: 'nowrap' }}
+            onMouseEnter={e => (e.currentTarget.style.background = 'var(--sunk)')}
+            onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
+            <span style={{ flex: 1 }}>{label}</span>
+            {shortcut && <span style={{ fontSize: 11.5, color: 'var(--ink-3)', fontFamily: 'var(--mono)' }}>{shortcut}</span>}
+          </button>
+        );
+        const sep = (k: string) => <div key={k} style={{ height: 1, background: 'var(--line)', margin: '5px 0' }} />;
+        const MENU_W = 232;
+        const left = Math.min(ctxMenu.x, window.innerWidth - MENU_W - 8);
+        const top = Math.min(ctxMenu.y, window.innerHeight - 380);
+        return (
+          <div style={{ position: 'fixed', inset: 0, zIndex: 300 }} onMouseDown={close} onContextMenu={e => { e.preventDefault(); close(); }}>
+            <div className="pop-in" onMouseDown={e => e.stopPropagation()}
+              style={{ position: 'fixed', left, top: Math.max(8, top), width: MENU_W, background: '#fff', borderRadius: 12, padding: '6px 0', boxShadow: '0 16px 44px -12px rgba(13,15,10,.4), 0 0 0 1px rgba(13,15,10,.06)' }}>
+              {item('Copier', 'Ctrl+C', () => copyEl(el.id))}
+              {item('Coller', 'Ctrl+V', () => pasteEl())}
+              {item('Dupliquer', 'Ctrl+D', () => { setSelectedId(el.id); duplicateEl(); })}
+              {item('Supprimer', 'Suppr', () => deleteEl(el.id), true)}
+              {sep('s1')}
+              {item('Vers l\u2019avant', '', () => { setSelectedId(el.id); layerAction('forward'); })}
+              {item('Vers l\u2019arrière', '', () => { setSelectedId(el.id); layerAction('backward'); })}
+              {item('Mettre au premier plan', '', () => { setSelectedId(el.id); layerAction('front'); })}
+              {item('Mettre à l\u2019arrière-plan', '', () => { setSelectedId(el.id); layerAction('back'); })}
+              {sep('s2')}
+              {item(locked ? 'Déverrouiller' : 'Verrouiller', '', () => toggleLocked(el.id))}
+            </div>
+          </div>
+        );
+      })()}
+
       {/* ── Editor toast ── */}
       {editorToast && (
         <div style={{ position: 'fixed', bottom: 24, left: '50%', transform: 'translateX(-50%)', zIndex: 200, padding: '11px 22px', borderRadius: 99, fontWeight: 700, fontSize: 13, background: 'var(--warn)', color: '#fff', boxShadow: '0 8px 24px rgba(13,15,10,.3)', whiteSpace: 'nowrap', pointerEvents: 'none' }}>
@@ -4470,7 +4537,7 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
         )}
 
         {/* ── CANVAS WORKSPACE ── */}
-        <div className="ed-canvas-area" style={{ flex: 1, minWidth: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column', background: 'var(--canvas)', position: 'relative' }}>
+        <div className="ed-canvas-area" style={{ flex: 1, minWidth: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column', background: 'var(--white)', position: 'relative' }}>
           {/* ── Barre contextuelle flottante (desktop) — centrée sous la topbar, par-dessus le plan de travail ── */}
           {selectedEl && (
             <div className="ed-ctx-float" data-stop-deselect onMouseDown={e => e.stopPropagation()}
@@ -4518,7 +4585,7 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
           )}
           <div ref={canvasAreaRef}
           onMouseDown={() => { setSelectedId(null); setSelectedIds([]); setEditingId(null); setBgCropMode(false); setBgImageSelected(false); }}
-          style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', overflowY: 'auto', padding: '40px 28px', gap: 40 }}>
+          style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'safe center', overflow: 'auto', padding: '40px 28px', gap: 40 }}>
             {slides.map((slide, idx) => {
               const isActive = idx === activeSlideIdx;
               // Carrousel continu : une seule toile large — on masque les autres slides.
@@ -4538,6 +4605,18 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
               ref={stageRef}
               width={stageWView} height={stageH}
               onMouseDown={e => { if (e.target === e.target.getStage()) { if (cropId) { setCropId(null); } else { setSelectedId(null); if (!bgLocked && proxyUrl) setBgCropMode(true); else setBgCropMode(false); } } }}
+              onContextMenu={(e: any) => {
+                e.evt.preventDefault();
+                let node: any = e.target;
+                while (node && node.getParent && (!node.id || !node.id())) node = node.getParent();
+                const id = node && node.id ? node.id() : '';
+                if (id && elementsRef.current.some(el => el.id === id) && !lockedIds.has(id)) {
+                  setSelectedId(id);
+                  setCtxMenu({ x: e.evt.clientX, y: e.evt.clientY, id });
+                } else {
+                  setCtxMenu(null);
+                }
+              }}
               style={{ display: 'block' }}
             >
               <Layer>
@@ -4941,6 +5020,7 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
                   elX={selectedEl.x}
                   elY={selectedEl.y}
                   elW={('width' in selectedEl ? (selectedEl as any).width : ('radius' in selectedEl ? (selectedEl as any).radius * 2 : ('outerRadius' in selectedEl ? (selectedEl as any).outerRadius * 2 : 100))) ?? 100}
+                  zoom={zoom}
                   onDuplicate={duplicateEl}
                   onDelete={() => deleteEl(selectedId)}
                 />
