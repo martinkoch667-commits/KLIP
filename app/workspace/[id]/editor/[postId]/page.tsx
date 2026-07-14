@@ -1632,22 +1632,84 @@ function EffectsPanel({ sel, onUpdate, brandColors, onClose }: { sel: TextEl; on
 
 // ─── Position (panneau gauche : organiser + aligner + avancé) ──────────────────
 
-function PositionPanel({ sel, stageW, stageH, onUpdate, onAlign, onLayerAction, onClose }: { sel: CanvasEl; stageW: number; stageH: number; onUpdate: (patch: Partial<CanvasEl>) => void; onAlign: (dir: string) => void; onLayerAction: (a: 'front' | 'forward' | 'backward' | 'back') => void; onClose: () => void }) {
+// Aperçu miniature d'un calque pour l'onglet « Calques » (façon Canva).
+function LayerThumb({ el }: { el: CanvasEl }) {
+  if (el.type === 'text') {
+    return (
+      <span style={{ maxWidth: '90%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontFamily: el.fontFamily, fontWeight: 700, fontSize: 13, color: el.fill || 'var(--ink)', textTransform: el.uppercase ? 'uppercase' : 'none' }}>
+        {(el.text || 'Texte').trim() || 'Texte'}
+      </span>
+    );
+  }
+  if (el.type === 'image') {
+    // eslint-disable-next-line @next/next/no-img-element
+    return <img src={el.src} alt="" style={{ height: 34, maxWidth: '90%', objectFit: 'contain', borderRadius: 4 }} />;
+  }
+  if (el.type === 'vector' && el.imageSrc) {
+    // eslint-disable-next-line @next/next/no-img-element
+    return <img src={el.imageSrc} alt="" style={{ height: 34, maxWidth: '90%', objectFit: 'contain', borderRadius: 4 }} />;
+  }
+  const fill = (el as { fill?: string }).fill || 'var(--ink-3)';
+  const round = el.type === 'circle' ? '50%' : el.type === 'vector' && el.shape === 'pill' ? 999 : 6;
+  return <span style={{ display: 'block', width: 40, height: 26, background: fill, borderRadius: round }} />;
+}
+
+function PositionPanel({ sel, stageW, stageH, elements, selectedId, onUpdate, onAlign, onLayerAction, onSelect, onReorderLayers, onClose }: { sel: CanvasEl; stageW: number; stageH: number; elements: CanvasEl[]; selectedId: string | null; onUpdate: (patch: Partial<CanvasEl>) => void; onAlign: (dir: string) => void; onLayerAction: (a: 'front' | 'forward' | 'backward' | 'back') => void; onSelect: (id: string) => void; onReorderLayers: (frontToBackIds: string[]) => void; onClose: () => void }) {
   const T = useTranslations('editor');
   const u = (patch: Partial<CanvasEl>) => onUpdate(patch);
-  const hasW = 'width' in sel;
-  const NumRow = ({ label, value, onChange }: { label: string; value: number; onChange: (v: number) => void }) => (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-      <span style={{ width: 22, fontSize: 12, fontWeight: 700, color: 'var(--ink-3)' }}>{label}</span>
-      <input type="number" value={Math.round(value)} onChange={e => onChange(parseFloat(e.target.value) || 0)}
-        style={{ flex: 1, padding: '7px 9px', border: '1.5px solid var(--line)', borderRadius: 8, fontSize: 13, fontWeight: 700, color: 'var(--ink)', outline: 'none', background: 'var(--white)', width: '100%', boxSizing: 'border-box' }} />
+  const [tab, setTab] = useState<'organiser' | 'calques'>('organiser');
+  const [lock, setLock] = useState(false);
+  const [dragId, setDragId] = useState<string | null>(null);
+  const [overId, setOverId] = useState<string | null>(null);
+
+  // Dimensions (largeur/hauteur) dérivées selon le type d'élément.
+  const w = 'width' in sel ? (sel as { width: number }).width
+    : sel.type === 'circle' ? (sel as CircleEl).radius * 2
+    : sel.type === 'star' ? (sel as StarEl).outerRadius * 2 : undefined;
+  const h = 'height' in sel ? (sel as { height: number }).height
+    : sel.type === 'circle' ? (sel as CircleEl).radius * 2
+    : sel.type === 'star' ? (sel as StarEl).outerRadius * 2 : undefined;
+  const setW = (v: number) => {
+    v = Math.max(4, v);
+    if (sel.type === 'circle') return u({ radius: v / 2 } as Partial<CanvasEl>);
+    if (sel.type === 'star') return u({ outerRadius: v / 2, innerRadius: v / 2 * ((sel as StarEl).innerRadius / (sel as StarEl).outerRadius) } as Partial<CanvasEl>);
+    if (lock && w && h) return u({ width: v, height: Math.round(v * h / w) } as Partial<CanvasEl>);
+    return u({ width: v } as Partial<CanvasEl>);
+  };
+  const setH = (v: number) => {
+    v = Math.max(4, v);
+    if (sel.type === 'circle') return u({ radius: v / 2 } as Partial<CanvasEl>);
+    if (sel.type === 'star') return u({ outerRadius: v / 2, innerRadius: v / 2 * ((sel as StarEl).innerRadius / (sel as StarEl).outerRadius) } as Partial<CanvasEl>);
+    if (lock && w && h) return u({ height: v, width: Math.round(v * w / h) } as Partial<CanvasEl>);
+    return u({ height: v } as Partial<CanvasEl>);
+  };
+
+  const Field = ({ label, value, unit, disabled, onChange }: { label: string; value?: number; unit?: string; disabled?: boolean; onChange?: (v: number) => void }) => (
+    <div>
+      <div style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--ink-3)', marginBottom: 5 }}>{label}</div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '8px 10px', border: '1px solid var(--line)', borderRadius: 8, background: disabled ? 'var(--sunk)' : 'var(--white)', opacity: disabled ? .6 : 1 }}>
+        <input type="number" disabled={disabled} value={value === undefined ? '' : Math.round(value)} onChange={e => onChange?.(parseFloat(e.target.value) || 0)}
+          style={{ flex: 1, minWidth: 0, border: 'none', outline: 'none', background: 'transparent', fontSize: 13, fontWeight: 700, color: 'var(--ink)', fontFamily: 'var(--mono)' }} />
+        {unit && <span style={{ fontSize: 11.5, color: 'var(--ink-3)', fontWeight: 600 }}>{unit}</span>}
+      </div>
     </div>
   );
 
+  const order = [...elements].reverse(); // avant → arrière (haut de la liste = premier plan)
+  const drop = (targetId: string) => {
+    if (!dragId || dragId === targetId) { setDragId(null); setOverId(null); return; }
+    const ids = order.map(o => o.id);
+    const from = ids.indexOf(dragId), to = ids.indexOf(targetId);
+    if (from < 0 || to < 0) { setDragId(null); setOverId(null); return; }
+    const next = [...ids]; next.splice(from, 1); next.splice(to, 0, dragId);
+    onReorderLayers(next);
+    setDragId(null); setOverId(null);
+  };
+
   return (
-    <div style={{ padding: 18 }}>
-      <div style={{ display: 'flex', alignItems: 'center', marginBottom: 18 }}>
-        <h3 className="h-title" style={{ fontSize: 17 }}>Position</h3>
+    <div style={{ padding: 18, display: 'flex', flexDirection: 'column', minHeight: '100%' }}>
+      <div style={{ display: 'flex', alignItems: 'center', marginBottom: 14 }}>
+        <h3 className="h-title" style={{ fontSize: 18 }}>Position</h3>
         <button onClick={onClose} title={T('close')}
           style={{ marginLeft: 'auto', width: 30, height: 30, borderRadius: 8, display: 'grid', placeItems: 'center', color: 'var(--ink-3)', background: 'transparent', border: 'none', cursor: 'pointer' }}
           onMouseEnter={e => (e.currentTarget.style.background = 'var(--sunk)')}
@@ -1656,49 +1718,101 @@ function PositionPanel({ sel, stageW, stageH, onUpdate, onAlign, onLayerAction, 
         </button>
       </div>
 
-      <div className="label" style={{ marginBottom: 8 }}>Organiser</div>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, marginBottom: 16 }}>
-        {([
-          ['front', 'Premier plan', <svg key="a" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="7" y="7" width="12" height="12" rx="2" fill="currentColor" fillOpacity=".18"/><path d="M5 15V5h10"/></svg>],
-          ['forward', 'Avancer', <svg key="b" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M12 19V5M5 12l7-7 7 7"/></svg>],
-          ['backward', 'Reculer', <svg key="c" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12l7 7 7-7"/></svg>],
-          ['back', 'Arrière-plan', <svg key="d" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="5" y="5" width="12" height="12" rx="2" fill="currentColor" fillOpacity=".18"/><path d="M19 9v10H9"/></svg>],
-        ] as const).map(([id, label, icon]) => (
-          <button key={id} onClick={() => onLayerAction(id)}
-            style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 11px', borderRadius: 8, border: '1px solid var(--line)', background: '#fff', boxShadow: '0 1px 2px rgba(20,22,15,.05)', cursor: 'pointer', fontSize: 12.5, fontWeight: 600, color: 'var(--ink)', textAlign: 'left' }}
-            onMouseEnter={e => (e.currentTarget.style.background = 'var(--sunk)')}
-            onMouseLeave={e => (e.currentTarget.style.background = '#fff')}>
-            {icon}<span>{label}</span>
+      {/* Onglets Organiser | Calques */}
+      <div style={{ display: 'flex', marginBottom: 18, position: 'relative' }}>
+        {([['organiser', 'Organiser'], ['calques', 'Calques']] as const).map(([id, label]) => (
+          <button key={id} onClick={() => setTab(id)}
+            style={{ flex: 1, padding: '9px 0 11px', border: 'none', background: 'transparent', cursor: 'pointer', fontSize: 14, fontWeight: tab === id ? 800 : 600, color: tab === id ? 'var(--ink)' : 'var(--ink-3)', borderBottom: tab === id ? '2.5px solid var(--mint-2)' : '2.5px solid var(--line)', transition: 'color .15s' }}>
+            {label}
           </button>
         ))}
       </div>
 
-      <div className="label" style={{ marginBottom: 8 }}>{T('alignToPage')}</div>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 6, marginBottom: 16 }}>
-        {[
-          { id: 'left',     icon: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M11 5l-7 7 7 7M4 12h16"/></svg> },
-          { id: 'center-h', icon: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M12 4v16M5 9l7-7 7 7M5 15l7 7 7-7"/></svg> },
-          { id: 'right',    icon: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M13 5l7 7-7 7M20 12H4"/></svg> },
-          { id: 'top',      icon: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M5 11l7-7 7 7M12 4v16"/></svg> },
-          { id: 'center-v', icon: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M4 12h16M9 5l-7 7 7 7M15 5l7 7-7 7"/></svg> },
-          { id: 'bottom',   icon: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M5 13l7 7 7-7M12 20V4"/></svg> },
-        ].map(({ id, icon }) => (
-          <button key={id} onClick={() => onAlign(id)}
-            style={{ height: 42, borderRadius: 8, display: 'grid', placeItems: 'center', background: '#fff', boxShadow: '0 1px 2px rgba(20,22,15,.05)', border: '1px solid var(--line)', cursor: 'pointer', color: 'var(--ink)' }}
-            onMouseEnter={e => (e.currentTarget.style.background = 'var(--sunk)')}
-            onMouseLeave={e => (e.currentTarget.style.background = '#fff')}>
-            {icon}
-          </button>
-        ))}
-      </div>
+      {tab === 'organiser' ? (
+        <>
+          <div className="label" style={{ marginBottom: 8 }}>Organiser</div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 18 }}>
+            {([
+              ['forward', 'Avant', <svg key="a" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><path d="M12 3l7 4-7 4-7-4 7-4z"/><path d="M5 12l7 4 7-4"/></svg>],
+              ['backward', 'Arrière', <svg key="b" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><path d="M12 13l7 4-7 4-7-4 7-4z"/><path d="M5 8l7 4 7-4"/></svg>],
+              ['front', 'Avant-plan', <svg key="c" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><rect x="8" y="3" width="9" height="9" rx="1.5" fill="currentColor" fillOpacity=".16"/><path d="M13 16H5a1 1 0 0 1-1-1V8"/></svg>],
+              ['back', 'Arrière-plan', <svg key="d" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><rect x="4" y="9" width="9" height="9" rx="1.5" fill="currentColor" fillOpacity=".16"/><path d="M9 5h8a1 1 0 0 1 1 1v8"/></svg>],
+            ] as const).map(([id, label, icon]) => (
+              <button key={id} onClick={() => onLayerAction(id)}
+                style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 13px', borderRadius: 10, border: '1px solid var(--line)', background: 'var(--white)', cursor: 'pointer', fontSize: 13.5, fontWeight: 600, color: 'var(--ink)', textAlign: 'left' }}
+                onMouseEnter={e => (e.currentTarget.style.background = 'var(--sunk)')}
+                onMouseLeave={e => (e.currentTarget.style.background = 'var(--white)')}>
+                {icon}<span>{label}</span>
+              </button>
+            ))}
+          </div>
 
-      <div className="label" style={{ marginBottom: 8 }}>Avancé</div>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-        <NumRow label="X" value={sel.x} onChange={v => u({ x: v })} />
-        <NumRow label="Y" value={sel.y} onChange={v => u({ y: v })} />
-        {hasW && <NumRow label="L" value={(sel as { width: number }).width} onChange={v => u({ width: Math.max(20, v) } as Partial<CanvasEl>)} />}
-        <NumRow label="↻" value={sel.rotation} onChange={v => u({ rotation: v })} />
-      </div>
+          <div className="label" style={{ marginBottom: 8 }}>{T('alignToPage')}</div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 18 }}>
+            {([
+              ['top', 'Haut', <svg key="1" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><path d="M4 4h16"/><rect x="9" y="8" width="6" height="12" rx="1"/></svg>],
+              ['left', 'Gauche', <svg key="2" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><path d="M4 4v16"/><rect x="8" y="9" width="12" height="6" rx="1"/></svg>],
+              ['center-v', 'Centre', <svg key="3" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><path d="M4 12h16"/><rect x="9" y="6" width="6" height="12" rx="1"/></svg>],
+              ['center-h', 'Centre', <svg key="4" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><path d="M12 4v16"/><rect x="6" y="9" width="12" height="6" rx="1"/></svg>],
+              ['bottom', 'Bas', <svg key="5" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><path d="M4 20h16"/><rect x="9" y="4" width="6" height="12" rx="1"/></svg>],
+              ['right', 'Droite', <svg key="6" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><path d="M20 4v16"/><rect x="4" y="9" width="12" height="6" rx="1"/></svg>],
+            ] as const).map(([id, label, icon]) => (
+              <button key={id} onClick={() => onAlign(id)}
+                style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 13px', borderRadius: 10, border: '1px solid var(--line)', background: 'var(--white)', cursor: 'pointer', fontSize: 13.5, fontWeight: 600, color: 'var(--ink)', textAlign: 'left' }}
+                onMouseEnter={e => (e.currentTarget.style.background = 'var(--sunk)')}
+                onMouseLeave={e => (e.currentTarget.style.background = 'var(--white)')}>
+                {icon}<span>{label}</span>
+              </button>
+            ))}
+          </div>
+
+          <div className="label" style={{ marginBottom: 8 }}>Avancé</div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8, marginBottom: 8 }}>
+            {Field({ label: 'Largeur', value: w, unit: 'px', onChange: setW })}
+            {Field({ label: 'Hauteur', value: h, unit: 'px', disabled: sel.type === 'text', onChange: setH })}
+            <div>
+              <div style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--ink-3)', marginBottom: 5 }}>Ratio</div>
+              <button onClick={() => setLock(l => !l)} title={lock ? 'Ratio verrouillé' : 'Verrouiller le ratio'}
+                style={{ width: '100%', height: 37, display: 'grid', placeItems: 'center', border: '1px solid var(--line)', borderRadius: 8, cursor: 'pointer', background: lock ? 'var(--mint-soft)' : 'var(--white)', color: lock ? 'var(--mint-2)' : 'var(--ink-2)' }}>
+                {lock
+                  ? <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>
+                  : <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 7.9-1"/></svg>}
+              </button>
+            </div>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
+            {Field({ label: 'X', value: sel.x, unit: 'px', onChange: v => u({ x: v }) })}
+            {Field({ label: 'Y', value: sel.y, unit: 'px', onChange: v => u({ y: v }) })}
+            {Field({ label: 'Pivoter', value: sel.rotation, unit: '°', onChange: v => u({ rotation: v }) })}
+          </div>
+        </>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+          {order.map((el) => {
+            const isSel = el.id === selectedId;
+            const isOver = el.id === overId && dragId !== el.id;
+            return (
+              <div key={el.id} draggable
+                onDragStart={() => setDragId(el.id)}
+                onDragOver={e => { e.preventDefault(); if (overId !== el.id) setOverId(el.id); }}
+                onDragEnd={() => { setDragId(null); setOverId(null); }}
+                onDrop={e => { e.preventDefault(); drop(el.id); }}
+                onClick={() => onSelect(el.id)}
+                style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '4px 10px 4px 6px', height: 56, borderRadius: 10, cursor: 'pointer', background: isSel ? 'var(--mint-soft)' : 'var(--sunk)', boxShadow: isSel ? 'inset 0 0 0 2px var(--mint-2)' : isOver ? 'inset 0 0 0 2px var(--ink-3)' : 'none', opacity: dragId === el.id ? .4 : 1, transition: 'box-shadow .12s' }}>
+                <span style={{ flexShrink: 0, color: 'var(--ink-3)', cursor: 'grab', display: 'grid' }} title="Glisser pour réordonner">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><circle cx="9" cy="6" r="1.6"/><circle cx="15" cy="6" r="1.6"/><circle cx="9" cy="12" r="1.6"/><circle cx="15" cy="12" r="1.6"/><circle cx="9" cy="18" r="1.6"/><circle cx="15" cy="18" r="1.6"/></svg>
+                </span>
+                <div style={{ flex: 1, minWidth: 0, height: '100%', display: 'grid', placeItems: 'center', overflow: 'hidden' }}>
+                  <LayerThumb el={el} />
+                </div>
+              </div>
+            );
+          })}
+          {order.length === 0 && (
+            <div style={{ padding: '24px 8px', textAlign: 'center', fontSize: 12.5, color: 'var(--ink-3)' }}>Aucun calque pour le moment.</div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
@@ -2334,6 +2448,13 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
     else if (action === 'backward') arr.splice(Math.max(0, idx - 1), 0, el);
     else arr.unshift(el);
     applyElements(arr);
+  };
+
+  // Réordonne toute la pile depuis la liste des calques (ordre avant→arrière).
+  const reorderLayers = (frontToBackIds: string[]) => {
+    const map = new Map(elementsRef.current.map(e => [e.id, e]));
+    const arr = [...frontToBackIds].reverse().map(id => map.get(id)).filter(Boolean) as CanvasEl[];
+    if (arr.length === elementsRef.current.length) applyElements(arr);
   };
 
   const updateEl = useCallback((id: string, updates: Partial<CanvasEl>) => {
@@ -4335,9 +4456,13 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
                 sel={selectedEl}
                 stageW={stageW}
                 stageH={stageH}
+                elements={elements}
+                selectedId={selectedId}
                 onUpdate={(patch) => updateEl(selectedEl.id, patch)}
                 onAlign={alignEl}
                 onLayerAction={layerAction}
+                onSelect={(id) => setSelectedId(id)}
+                onReorderLayers={reorderLayers}
                 onClose={() => setFxPanel(null)}
               />
             )}
