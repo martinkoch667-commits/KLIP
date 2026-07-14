@@ -1986,6 +1986,8 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
   const [stickerCat, setStickerCat] = useState<string>('Tous');
   const [stickerLibOpen, setStickerLibOpen] = useState(false);
   const [stickerLibQuery, setStickerLibQuery] = useState('');
+  const [stickerLibPhotos, setStickerLibPhotos] = useState<{ id: number; thumb: string; full: string; alt: string }[]>([]);
+  const [stickerLibPhotoLoading, setStickerLibPhotoLoading] = useState(false);
 
   const elementsRef = useRef<CanvasEl[]>([]);
   const selectedIdRef = useRef<string | null>(null);
@@ -3043,6 +3045,26 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
   };
 
   useEffect(() => { fetchPexels('lifestyle'); }, []);
+
+  // ── Photos réelles dans la bibliothèque de stickers (recherche) ─────────
+  // Ex : « clavier » → illustrations maison + photos Pexels de clavier.
+  useEffect(() => {
+    const q = stickerLibQuery.trim();
+    if (!stickerLibOpen || q.length < 2) { setStickerLibPhotos([]); return; }
+    let cancelled = false;
+    setStickerLibPhotoLoading(true);
+    const t = setTimeout(async () => {
+      try {
+        const res = await fetch(`/api/pexels?query=${encodeURIComponent(q)}&page=1`);
+        const data = await res.json();
+        if (cancelled) return;
+        const photos = (data.photos ?? []).slice(0, 18).map((p: { id: number; src: { medium: string; large: string }; alt: string }) => ({ id: p.id, thumb: p.src.medium, full: p.src.large, alt: p.alt || q }));
+        setStickerLibPhotos(photos);
+      } catch { if (!cancelled) setStickerLibPhotos([]); }
+      if (!cancelled) setStickerLibPhotoLoading(false);
+    }, 380);
+    return () => { cancelled = true; clearTimeout(t); };
+  }, [stickerLibQuery, stickerLibOpen]);
 
   // ── Icônes SVG (Iconify) ────────────────────────────────────────────────
   const fetchIcons = async (q: string) => {
@@ -5526,23 +5548,72 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
               </div>
             </div>
 
-            {/* Grille */}
+            {/* Grille — groupée par collection (sous-catégorie) façon Canva */}
             <div style={{ flex: 1, overflowY: 'auto', padding: 22 }}>
-              {filtered.length === 0 ? (
-                <div style={{ display: 'grid', placeItems: 'center', height: '100%', color: 'var(--ink-3)', fontSize: 14 }}>Aucun sticker ne correspond.</div>
-              ) : (
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))', gap: 12 }}>
-                  {filtered.map(s => (
-                    <button key={s.id} onClick={() => { addSticker(s); setStickerLibOpen(false); }} title={s.name}
-                      style={{ aspectRatio: '1', borderRadius: 14, border: '1px solid var(--line)', background: s.recolor && stickerColor === '#FFFFFF' ? '#3a3f36' : 'var(--white)', cursor: 'pointer', display: 'grid', placeItems: 'center', padding: 16, transition: 'all .14s' }}
-                      onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--mint)'; e.currentTarget.style.transform = 'translateY(-3px)'; e.currentTarget.style.boxShadow = '0 10px 26px rgba(0,0,0,0.10)'; }}
-                      onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--line)'; e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = 'none'; }}>
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={stickerDataUri(s, stickerColor)} alt={s.name} style={{ width: '100%', height: '100%', objectFit: 'contain', display: 'block' }} />
-                    </button>
-                  ))}
+              {filtered.length === 0 && stickerLibPhotos.length === 0 && !stickerLibPhotoLoading ? (
+                <div style={{ display: 'grid', placeItems: 'center', height: '100%', color: 'var(--ink-3)', fontSize: 14 }}>Aucun résultat.</div>
+              ) : (<>
+              {filtered.length > 0 && (() => {
+                const cell = (s: Sticker) => (
+                  <button key={s.id} onClick={() => { addSticker(s); setStickerLibOpen(false); }} title={s.name}
+                    style={{ aspectRatio: '1', borderRadius: 14, border: '1px solid var(--line)', background: s.recolor && stickerColor === '#FFFFFF' ? '#3a3f36' : 'var(--white)', cursor: 'pointer', display: 'grid', placeItems: 'center', padding: 16, transition: 'all .14s' }}
+                    onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--mint)'; e.currentTarget.style.transform = 'translateY(-3px)'; e.currentTarget.style.boxShadow = '0 10px 26px rgba(0,0,0,0.10)'; }}
+                    onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--line)'; e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = 'none'; }}>
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={stickerDataUri(s, stickerColor)} alt={s.name} style={{ width: '100%', height: '100%', objectFit: 'contain', display: 'block' }} />
+                  </button>
+                );
+                // Regroupe par collection (sub). Ordre des collections = ordre d'apparition.
+                const groups: { key: string; items: Sticker[] }[] = [];
+                const idx: Record<string, number> = {};
+                for (const s of filtered) {
+                  const key = s.sub || s.cat;
+                  if (idx[key] === undefined) { idx[key] = groups.length; groups.push({ key, items: [] }); }
+                  groups[idx[key]].items.push(s);
+                }
+                // Une seule collection → pas d'en-tête (grille simple).
+                if (groups.length <= 1) {
+                  return <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))', gap: 12 }}>{filtered.map(cell)}</div>;
+                }
+                return (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 26 }}>
+                    {groups.map(g => (
+                      <div key={g.key}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+                          <h3 style={{ margin: 0, fontSize: 14, fontWeight: 800, fontFamily: 'var(--sans)', color: 'var(--ink)' }}>{g.key}</h3>
+                          <span style={{ fontSize: 11, color: 'var(--ink-3)', fontFamily: 'var(--mono)', fontWeight: 700 }}>{g.items.length}</span>
+                        </div>
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))', gap: 12 }}>{g.items.map(cell)}</div>
+                      </div>
+                    ))}
+                  </div>
+                );
+              })()}
+              {/* Photos réelles (Pexels) — illustrations + photos pour une même recherche */}
+              {(stickerLibPhotoLoading || stickerLibPhotos.length > 0) && (
+                <div style={{ marginTop: filtered.length > 0 ? 30 : 0 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+                    <h3 style={{ margin: 0, fontSize: 14, fontWeight: 800, fontFamily: 'var(--sans)', color: 'var(--ink)' }}>Photos</h3>
+                    <span style={{ fontSize: 11, color: 'var(--ink-3)', fontFamily: 'var(--mono)', fontWeight: 700 }}>{stickerLibPhotoLoading ? '…' : stickerLibPhotos.length}</span>
+                  </div>
+                  {stickerLibPhotos.length === 0 ? (
+                    <div style={{ color: 'var(--ink-3)', fontSize: 13, padding: '10px 0' }}>Recherche de photos…</div>
+                  ) : (
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', gap: 12 }}>
+                      {stickerLibPhotos.map(p => (
+                        <button key={p.id} onClick={() => { addImageEl(`/api/proxy-image?url=${encodeURIComponent(p.full)}`); setStickerLibOpen(false); }} title={p.alt}
+                          style={{ aspectRatio: '1', borderRadius: 14, border: '1px solid var(--line)', background: 'var(--sunk)', cursor: 'pointer', overflow: 'hidden', padding: 0, transition: 'all .14s' }}
+                          onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--mint)'; e.currentTarget.style.transform = 'translateY(-3px)'; e.currentTarget.style.boxShadow = '0 10px 26px rgba(0,0,0,0.10)'; }}
+                          onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--line)'; e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = 'none'; }}>
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img src={p.thumb} alt={p.alt} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
               )}
+              </>)}
             </div>
           </div>
         </div>

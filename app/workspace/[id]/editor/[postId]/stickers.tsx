@@ -25,9 +25,10 @@ export function mix(hex: string, amt: number): string {
 
 const svg = (inner: string) => `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 200'>${inner}</svg>`;
 
-export const STICKER_CATS = ['Formes', 'Déco', 'Food', 'Animaux', 'Nature', 'Rétro', 'Objets', 'Fun'] as const;
+export const STICKER_CATS = ['Formes', 'Symboles', 'Déco', 'Food', 'Animaux', 'Nature', 'Ameublement', 'Tech', 'Voyage', 'Météo', 'Business', 'Rétro', 'Objets', 'Fun'] as const;
 
-export interface Sticker { id: string; name: string; cat: string; recolor?: boolean; build: (c: string) => string; }
+// `sub` = collection/sous-catégorie (façon Canva : sections « Afficher tout » dans une catégorie).
+export interface Sticker { id: string; name: string; cat: string; sub?: string; recolor?: boolean; build: (c: string) => string; }
 
 export const STICKERS: Sticker[] = [
   // ═════════ RECOLORABLES — FORMES ═════════
@@ -255,6 +256,152 @@ export const STICKERS: Sticker[] = [
     `<polygon points='114,14 44,112 92,112 82,190 160,84 106,84' fill='#FFD400'/><polygon points='108,40 68,104 96,104 90,150 132,92 100,92' fill='#FFB020'/>`) },
   { id: 'fun-peace', name: 'Peace', cat: 'Fun', build: () => svg(
     `<circle cx='100' cy='100' r='80' fill='#2FBF71'/><circle cx='100' cy='100' r='72' fill='none' stroke='#FDF6EE' stroke-width='10'/><g stroke='#FDF6EE' stroke-width='10'><line x1='100' y1='28' x2='100' y2='172'/><line x1='100' y1='100' x2='150' y2='150'/><line x1='100' y1='100' x2='50' y2='150'/></g>`) },
+
+  // ═════════ RECOLORABLES — SYMBOLES (signes) ═════════
+  { id: 'sym-check', name: 'Coche', cat: 'Symboles', sub: 'Signes', recolor: true, build: c => svg(
+    `<path d='M40 108 l38 40 l82 -96' stroke='${c}' stroke-width='22' fill='none' stroke-linecap='round' stroke-linejoin='round'/>`) },
+  { id: 'sym-cross', name: 'Croix', cat: 'Symboles', sub: 'Signes', recolor: true, build: c => svg(
+    `<path d='M52 52 l96 96 M148 52 l-96 96' stroke='${c}' stroke-width='22' fill='none' stroke-linecap='round'/>`) },
+  { id: 'sym-info', name: 'Info', cat: 'Symboles', sub: 'Signes', recolor: true, build: c => svg(
+    `<circle cx='100' cy='100' r='80' fill='${c}'/><circle cx='100' cy='66' r='11' fill='${WHITE}'/><rect x='89' y='90' width='22' height='56' rx='8' fill='${WHITE}'/>`) },
+  { id: 'sym-warning', name: 'Attention', cat: 'Symboles', sub: 'Signes', recolor: true, build: c => svg(
+    `<path d='M100 26 L182 168 H18 Z' fill='${c}'/><rect x='90' y='76' width='20' height='52' rx='8' fill='${WHITE}'/><circle cx='100' cy='144' r='11' fill='${WHITE}'/>`) },
+  { id: 'sym-play', name: 'Lecture', cat: 'Symboles', sub: 'Signes', recolor: true, build: c => svg(
+    `<circle cx='100' cy='100' r='80' fill='${c}'/><polygon points='82,66 82,134 140,100' fill='${WHITE}'/>`) },
+  { id: 'sym-search', name: 'Loupe', cat: 'Symboles', sub: 'Signes', recolor: true, build: c => svg(
+    `<circle cx='88' cy='88' r='44' fill='none' stroke='${c}' stroke-width='16'/><line x1='120' y1='120' x2='168' y2='168' stroke='${c}' stroke-width='18' stroke-linecap='round'/>`) },
+  { id: 'sym-lock', name: 'Cadenas', cat: 'Symboles', sub: 'Signes', recolor: true, build: c => svg(
+    `<path d='M70 90 v-14 a30 30 0 0 1 60 0 v14' fill='none' stroke='${c}' stroke-width='14'/><rect x='52' y='88' width='96' height='82' rx='14' fill='${c}'/><circle cx='100' cy='122' r='11' fill='${WHITE}'/><rect x='94' y='126' width='12' height='26' rx='4' fill='${WHITE}'/>`) },
+  { id: 'sym-wifi', name: 'Wifi', cat: 'Symboles', sub: 'Signes', recolor: true, build: c => svg(
+    `<g fill='none' stroke='${c}' stroke-width='15' stroke-linecap='round'><path d='M44 88 a80 80 0 0 1 112 0'/><path d='M66 112 a48 48 0 0 1 68 0'/></g><circle cx='100' cy='150' r='12' fill='${c}'/>`) },
+  { id: 'sym-star-out', name: 'Étoile ligne', cat: 'Symboles', sub: 'Signes', recolor: true, build: c => svg(
+    `<polygon points='100,20 121,74 179,78 135,116 149,174 100,142 51,174 65,116 21,78 79,74' fill='none' stroke='${c}' stroke-width='14' stroke-linejoin='round'/>`) },
+  { id: 'sym-bookmark', name: 'Marque-page', cat: 'Symboles', sub: 'Signes', recolor: true, build: c => svg(
+    `<path d='M56 30 h88 v152 l-44 -34 l-44 34 Z' fill='${c}'/>`) },
+  { id: 'sym-hashtag', name: 'Hashtag', cat: 'Symboles', sub: 'Signes', recolor: true, build: c => svg(
+    `<g stroke='${c}' stroke-width='16' stroke-linecap='round'><line x1='72' y1='34' x2='56' y2='166'/><line x1='144' y1='34' x2='128' y2='166'/><line x1='36' y1='76' x2='168' y2='76'/><line x1='32' y1='124' x2='164' y2='124'/></g>`) },
+  { id: 'sym-at', name: 'Arobase', cat: 'Symboles', sub: 'Signes', recolor: true, build: c => svg(
+    `<circle cx='100' cy='100' r='28' fill='none' stroke='${c}' stroke-width='14'/><path d='M128 100 v14 a20 20 0 0 0 40 0 a68 68 0 1 0 -30 56' fill='none' stroke='${c}' stroke-width='14' stroke-linecap='round'/>`) },
+
+  // ═════════ MULTICOLORE — AMEUBLEMENT ═════════
+  { id: 'furn-chair', name: 'Chaise', cat: 'Ameublement', sub: 'Sièges', build: () => svg(
+    `<rect x='54' y='44' width='92' height='70' rx='12' fill='#E8825A'/><rect x='60' y='52' width='80' height='54' rx='8' fill='#F29B77'/><rect x='50' y='110' width='100' height='20' rx='6' fill='#C96A44'/><rect x='56' y='130' width='12' height='42' rx='4' fill='#8B5E3C'/><rect x='132' y='130' width='12' height='42' rx='4' fill='#8B5E3C'/>`) },
+  { id: 'furn-sofa', name: 'Canapé', cat: 'Ameublement', sub: 'Sièges', build: () => svg(
+    `<rect x='34' y='66' width='132' height='46' rx='14' fill='#5E90A0'/><rect x='24' y='90' width='26' height='58' rx='12' fill='#5E90A0'/><rect x='150' y='90' width='26' height='58' rx='12' fill='#5E90A0'/><rect x='44' y='96' width='112' height='46' rx='10' fill='#4E7C8A'/><rect x='50' y='100' width='50' height='40' rx='8' fill='#6AA0B0'/><rect x='102' y='100' width='50' height='40' rx='8' fill='#6AA0B0'/><rect x='42' y='142' width='10' height='20' rx='3' fill='#3A5A64'/><rect x='148' y='142' width='10' height='20' rx='3' fill='#3A5A64'/>`) },
+  { id: 'furn-armchair', name: 'Fauteuil', cat: 'Ameublement', sub: 'Sièges', build: () => svg(
+    `<rect x='64' y='60' width='72' height='46' rx='14' fill='#E8825A'/><rect x='48' y='86' width='24' height='56' rx='11' fill='#E8825A'/><rect x='128' y='86' width='24' height='56' rx='11' fill='#E8825A'/><rect x='60' y='96' width='80' height='46' rx='10' fill='#C96A44'/><rect x='64' y='138' width='10' height='22' rx='3' fill='#8B5E3C'/><rect x='126' y='138' width='10' height='22' rx='3' fill='#8B5E3C'/>`) },
+  { id: 'furn-table', name: 'Table', cat: 'Ameublement', sub: 'Meubles', build: () => svg(
+    `<rect x='34' y='72' width='132' height='16' rx='4' fill='#B07A44'/><rect x='48' y='88' width='12' height='76' rx='3' fill='#8B5E3C'/><rect x='140' y='88' width='12' height='76' rx='3' fill='#8B5E3C'/>`) },
+  { id: 'furn-bed', name: 'Lit', cat: 'Ameublement', sub: 'Meubles', build: () => svg(
+    `<rect x='28' y='58' width='16' height='74' rx='4' fill='#8B5E3C'/><rect x='156' y='72' width='16' height='60' rx='4' fill='#8B5E3C'/><rect x='36' y='58' width='120' height='34' rx='8' fill='#A8C0CE'/><rect x='30' y='90' width='140' height='40' rx='8' fill='#8FA9B8'/><rect x='42' y='72' width='42' height='24' rx='9' fill='#FFFFFF'/>`) },
+  { id: 'furn-shelf', name: 'Étagère', cat: 'Ameublement', sub: 'Meubles', build: () => svg(
+    `<rect x='40' y='42' width='120' height='11' rx='3' fill='#B07A44'/><rect x='40' y='96' width='120' height='11' rx='3' fill='#B07A44'/><rect x='40' y='150' width='120' height='11' rx='3' fill='#B07A44'/><rect x='52' y='58' width='11' height='38' fill='#EF476F'/><rect x='65' y='54' width='11' height='42' fill='#4EA8FF'/><rect x='78' y='60' width='11' height='36' fill='#FFB020'/><rect x='120' y='112' width='11' height='38' fill='#2FBF71'/><rect x='133' y='108' width='11' height='42' fill='#9B5DE5'/>`) },
+  { id: 'furn-lamp', name: 'Lampe', cat: 'Ameublement', sub: 'Déco maison', build: () => svg(
+    `<polygon points='70,52 130,52 150,104 50,104' fill='#F2C14E'/><polygon points='70,52 130,52 138,74 62,74' fill='#F7D178'/><rect x='96' y='104' width='8' height='64' fill='#9AA0A6'/><rect x='72' y='166' width='56' height='12' rx='5' fill='#5A6472'/>`) },
+  { id: 'furn-plant', name: 'Plante', cat: 'Ameublement', sub: 'Déco maison', build: () => svg(
+    `<ellipse cx='100' cy='84' rx='16' ry='42' fill='#3E8E5A'/><ellipse cx='72' cy='98' rx='14' ry='34' fill='#4CA36A' transform='rotate(-28 72 98)'/><ellipse cx='128' cy='98' rx='14' ry='34' fill='#4CA36A' transform='rotate(28 128 98)'/><path d='M72 128 h56 l-8 46 h-40 Z' fill='#D9762B'/><rect x='66' y='118' width='68' height='14' rx='4' fill='#E88B3F'/>`) },
+  { id: 'furn-frame', name: 'Cadre', cat: 'Ameublement', sub: 'Déco maison', build: () => svg(
+    `<rect x='48' y='36' width='104' height='128' rx='6' fill='#B07A44'/><rect x='62' y='50' width='76' height='100' rx='3' fill='#EDE7DA'/><circle cx='120' cy='78' r='11' fill='#FFC93C'/><polygon points='62,150 92,108 116,150' fill='#5A8A6B'/><polygon points='104,150 128,120 138,150' fill='#3E6B54'/>`) },
+  { id: 'furn-rug', name: 'Tapis', cat: 'Ameublement', sub: 'Déco maison', build: () => svg(
+    `<rect x='36' y='70' width='128' height='84' rx='8' fill='#C1445E'/><rect x='48' y='82' width='104' height='60' rx='4' fill='none' stroke='#F2D3DA' stroke-width='4'/><circle cx='100' cy='112' r='16' fill='#F2D3DA'/><g stroke='#C1445E' stroke-width='4'><line x1='40' y1='158' x2='40' y2='168'/><line x1='60' y1='158' x2='60' y2='168'/><line x1='80' y1='158' x2='80' y2='168'/><line x1='100' y1='158' x2='100' y2='168'/><line x1='120' y1='158' x2='120' y2='168'/><line x1='140' y1='158' x2='140' y2='168'/><line x1='160' y1='158' x2='160' y2='168'/></g>`) },
+  { id: 'furn-clock', name: 'Horloge', cat: 'Ameublement', sub: 'Déco maison', build: () => svg(
+    `<circle cx='100' cy='100' r='68' fill='#EDE7DA'/><circle cx='100' cy='100' r='68' fill='none' stroke='#3A4A5A' stroke-width='8'/><line x1='100' y1='100' x2='100' y2='58' stroke='#14160F' stroke-width='6' stroke-linecap='round'/><line x1='100' y1='100' x2='134' y2='112' stroke='#14160F' stroke-width='6' stroke-linecap='round'/><circle cx='100' cy='100' r='6' fill='#EF476F'/>`) },
+  { id: 'furn-mirror', name: 'Miroir', cat: 'Ameublement', sub: 'Déco maison', build: () => svg(
+    `<ellipse cx='100' cy='100' rx='52' ry='68' fill='#CFE3EA'/><ellipse cx='100' cy='100' rx='52' ry='68' fill='none' stroke='#C99A2E' stroke-width='10'/><path d='M78 68 q-8 22 0 46' stroke='#FFFFFF' stroke-width='6' fill='none' stroke-linecap='round'/>`) },
+
+  // ═════════ MULTICOLORE — TECH (appareils) ═════════
+  { id: 'tech-laptop', name: 'Ordinateur portable', cat: 'Tech', sub: 'Appareils', build: () => svg(
+    `<rect x='50' y='50' width='100' height='66' rx='6' fill='#3A4A5A'/><rect x='58' y='58' width='84' height='50' rx='2' fill='#4EA8FF'/><path d='M38 116 h124 l10 22 h-144 Z' fill='#9AA0A6'/><rect x='84' y='116' width='32' height='7' rx='3' fill='#7A828C'/>`) },
+  { id: 'tech-keyboard', name: 'Clavier', cat: 'Tech', sub: 'Appareils', build: () => {
+    let keys = '';
+    for (let r = 0; r < 3; r++) for (let cc = 0; cc < 8; cc++) keys += `<rect x='${40 + cc * 15}' y='${82 + r * 13}' width='11' height='9' rx='2' fill='#CFD6DD'/>`;
+    keys += `<rect x='72' y='121' width='56' height='9' rx='2' fill='#CFD6DD'/>`;
+    return svg(`<rect x='28' y='72' width='144' height='64' rx='10' fill='#3A4A5A'/>${keys}`);
+  } },
+  { id: 'tech-mouse', name: 'Souris', cat: 'Tech', sub: 'Appareils', build: () => svg(
+    `<rect x='72' y='56' width='56' height='96' rx='28' fill='#CFD6DD'/><rect x='72' y='56' width='56' height='96' rx='28' fill='none' stroke='#9AA0A6' stroke-width='3'/><line x1='100' y1='58' x2='100' y2='96' stroke='#9AA0A6' stroke-width='3'/><rect x='96' y='70' width='8' height='16' rx='4' fill='#4EA8FF'/>`) },
+  { id: 'tech-headphones', name: 'Casque', cat: 'Tech', sub: 'Appareils', build: () => svg(
+    `<path d='M44 112 a56 56 0 0 1 112 0' fill='none' stroke='#3A4A5A' stroke-width='12'/><rect x='34' y='106' width='26' height='48' rx='11' fill='#EF476F'/><rect x='140' y='106' width='26' height='48' rx='11' fill='#EF476F'/>`) },
+  { id: 'tech-tv', name: 'Télévision', cat: 'Tech', sub: 'Appareils', build: () => svg(
+    `<rect x='34' y='46' width='132' height='84' rx='8' fill='#2A2E38'/><rect x='42' y='54' width='116' height='68' rx='3' fill='#4EA8FF'/><rect x='86' y='130' width='28' height='10' fill='#5A6472'/><rect x='66' y='140' width='68' height='9' rx='4' fill='#3A4A5A'/>`) },
+  { id: 'tech-watch', name: 'Montre', cat: 'Tech', sub: 'Appareils', build: () => svg(
+    `<rect x='80' y='28' width='40' height='32' rx='6' fill='#3A4A5A'/><rect x='80' y='140' width='40' height='32' rx='6' fill='#3A4A5A'/><rect x='64' y='58' width='72' height='84' rx='18' fill='#2A2E38'/><rect x='72' y='66' width='56' height='68' rx='10' fill='#22C3E6'/>`) },
+  { id: 'tech-gamepad', name: 'Manette', cat: 'Tech', sub: 'Appareils', build: () => svg(
+    `<path d='M52 86 h96 a34 34 0 0 1 30 46 a20 20 0 0 1 -38 2 l-6 -14 h-68 l-6 14 a20 20 0 0 1 -38 -2 a34 34 0 0 1 30 -46 Z' fill='#3A4A5A'/><rect x='62' y='102' width='10' height='30' rx='3' fill='#CFD6DD'/><rect x='52' y='112' width='30' height='10' rx='3' fill='#CFD6DD'/><circle cx='128' cy='108' r='7' fill='#EF476F'/><circle cx='146' cy='122' r='7' fill='#FFD400'/>`) },
+  { id: 'tech-printer', name: 'Imprimante', cat: 'Tech', sub: 'Appareils', build: () => svg(
+    `<rect x='58' y='40' width='84' height='40' rx='4' fill='#EDE7DA'/><rect x='40' y='76' width='120' height='56' rx='8' fill='#9AA0A6'/><rect x='58' y='128' width='84' height='30' rx='4' fill='#EDE7DA'/><rect x='118' y='90' width='26' height='8' rx='4' fill='#2FBF71'/><circle cx='60' cy='94' r='5' fill='#EF476F'/>`) },
+  { id: 'tech-camera-dev', name: 'Caméra', cat: 'Tech', sub: 'Appareils', build: () => svg(
+    `<rect x='34' y='74' width='120' height='74' rx='10' fill='#2A2E38'/><polygon points='154,90 184,74 184,148 154,132' fill='#3A4A5A'/><circle cx='84' cy='111' r='24' fill='#4EA8FF'/><circle cx='84' cy='111' r='12' fill='#14343E'/><circle cx='130' cy='92' r='6' fill='#EF476F'/>`) },
+
+  // ═════════ MULTICOLORE — VOYAGE ═════════
+  { id: 'trav-plane', name: 'Avion', cat: 'Voyage', sub: 'Voyage', build: () => svg(
+    `<path d='M100 22 l12 62 l62 30 v14 l-62 -14 l-6 42 l18 14 v10 l-24 -8 l-24 8 v-10 l18 -14 l-6 -42 l-62 14 v-14 l62 -30 Z' fill='#4EA8FF'/>`) },
+  { id: 'trav-suitcase', name: 'Valise', cat: 'Voyage', sub: 'Voyage', build: () => svg(
+    `<rect x='78' y='52' width='44' height='24' rx='6' fill='none' stroke='#8B2E42' stroke-width='8'/><rect x='48' y='72' width='104' height='86' rx='10' fill='#C1445E'/><rect x='48' y='96' width='104' height='10' fill='#8B2E42'/><rect x='70' y='118' width='8' height='22' rx='3' fill='#F2D3DA'/><rect x='122' y='118' width='8' height='22' rx='3' fill='#F2D3DA'/>`) },
+  { id: 'trav-compass', name: 'Boussole', cat: 'Voyage', sub: 'Voyage', build: () => svg(
+    `<circle cx='100' cy='100' r='68' fill='#EDE7DA'/><circle cx='100' cy='100' r='68' fill='none' stroke='#3A4A5A' stroke-width='8'/><polygon points='100,50 116,100 100,90 84,100' fill='#EF476F'/><polygon points='100,150 116,100 100,110 84,100' fill='#CFD6DD'/><circle cx='100' cy='100' r='7' fill='#3A4A5A'/>`) },
+  { id: 'trav-map', name: 'Carte', cat: 'Voyage', sub: 'Voyage', build: () => svg(
+    `<path d='M40 60 l40 -12 l40 12 l40 -12 v92 l-40 12 l-40 -12 l-40 12 Z' fill='#CDE6C4'/><path d='M80 48 v92 M120 60 v92' stroke='#8FB98A' stroke-width='3'/><path d='M50 92 q30 20 60 -6 t38 4' fill='none' stroke='#4EA8FF' stroke-width='4'/><circle cx='128' cy='86' r='9' fill='#EF476F'/><polygon points='120,90 136,90 128,108' fill='#EF476F'/>`) },
+  { id: 'trav-balloon', name: 'Montgolfière', cat: 'Voyage', sub: 'Voyage', build: () => svg(
+    `<path d='M60 96 a40 46 0 1 1 80 0 c0 20 -18 34 -40 40 c-22 -6 -40 -20 -40 -40 Z' fill='#EF476F'/><path d='M100 50 v88' stroke='#FFD400' stroke-width='8'/><path d='M76 60 q-2 40 0 74' stroke='#FFFFFF' stroke-width='6' fill='none'/><path d='M124 60 q2 40 0 74' stroke='#FFFFFF' stroke-width='6' fill='none'/><rect x='86' y='150' width='28' height='22' rx='4' fill='#8B5E3C'/><path d='M84 138 l4 12 M116 138 l-4 12' stroke='#9AA0A6' stroke-width='2'/>`) },
+  { id: 'trav-ticket', name: 'Billet', cat: 'Voyage', sub: 'Voyage', build: () => svg(
+    `<path d='M36 76 h128 v18 a10 10 0 0 0 0 20 v18 h-128 v-18 a10 10 0 0 0 0 -20 Z' fill='#FFB020'/><line x1='120' y1='80' x2='120' y2='146' stroke='#FDF6EE' stroke-width='4' stroke-dasharray='6 6'/><circle cx='72' cy='104' r='11' fill='#FDF6EE'/><rect x='54' y='126' width='40' height='6' rx='3' fill='#FDF6EE'/>`) },
+
+  // ═════════ MULTICOLORE — MÉTÉO ═════════
+  { id: 'weat-rain', name: 'Pluie', cat: 'Météo', sub: 'Météo', build: () => svg(
+    `<g fill='#9AB4C4'><circle cx='74' cy='84' r='26'/><circle cx='112' cy='70' r='34'/><circle cx='142' cy='90' r='24'/><rect x='72' y='84' width='72' height='30' rx='10'/></g><g stroke='#4EA8FF' stroke-width='7' stroke-linecap='round'><line x1='80' y1='128' x2='72' y2='150'/><line x1='108' y1='128' x2='100' y2='150'/><line x1='136' y1='128' x2='128' y2='150'/></g>`) },
+  { id: 'weat-snow', name: 'Neige', cat: 'Météo', sub: 'Météo', build: () => svg(
+    `<g fill='#B7C7D2'><circle cx='74' cy='84' r='26'/><circle cx='112' cy='70' r='34'/><circle cx='142' cy='90' r='24'/><rect x='72' y='84' width='72' height='30' rx='10'/></g><g fill='#EAF4FB'><circle cx='78' cy='140' r='7'/><circle cx='110' cy='150' r='7'/><circle cx='140' cy='138' r='7'/></g>`) },
+  { id: 'weat-storm', name: 'Orage', cat: 'Météo', sub: 'Météo', build: () => svg(
+    `<g fill='#5A6472'><circle cx='74' cy='80' r='26'/><circle cx='112' cy='66' r='34'/><circle cx='142' cy='86' r='24'/><rect x='72' y='80' width='72' height='30' rx='10'/></g><polygon points='108,108 82,150 104,150 96,182 132,132 106,132' fill='#FFD400'/>`) },
+  { id: 'weat-partly', name: 'Éclaircies', cat: 'Météo', sub: 'Météo', build: () => svg(
+    `<g stroke='#FFC93C' stroke-width='6' stroke-linecap='round'><line x1='78' y1='26' x2='78' y2='40'/><line x1='40' y1='68' x2='28' y2='68'/><line x1='48' y1='40' x2='40' y2='32'/><line x1='108' y1='40' x2='116' y2='32'/></g><circle cx='78' cy='68' r='26' fill='#FFC93C'/><g fill='#EDF2F5'><circle cx='96' cy='120' r='28'/><circle cx='134' cy='106' r='34'/><circle cx='160' cy='124' r='22'/><rect x='94' y='120' width='68' height='30' rx='10'/></g>`) },
+  { id: 'weat-wind', name: 'Vent', cat: 'Météo', sub: 'Météo', build: () => svg(
+    `<g stroke='#8FB0C0' stroke-width='9' fill='none' stroke-linecap='round'><path d='M30 76 h84 a18 18 0 1 0 -18 -18'/><path d='M30 108 h108 a18 18 0 1 1 -18 18'/><path d='M30 140 h64 a16 16 0 1 1 -16 16'/></g>`) },
+  { id: 'weat-sun', name: 'Grand soleil', cat: 'Météo', sub: 'Météo', build: () => {
+    let rays = '';
+    for (let i = 0; i < 8; i++) { const a = i * 45 * Math.PI / 180; rays += `<line x1='${(100 + 52 * Math.cos(a)).toFixed(1)}' y1='${(100 + 52 * Math.sin(a)).toFixed(1)}' x2='${(100 + 78 * Math.cos(a)).toFixed(1)}' y2='${(100 + 78 * Math.sin(a)).toFixed(1)}' stroke='#FFB020' stroke-width='11' stroke-linecap='round'/>`; }
+    return svg(`${rays}<circle cx='100' cy='100' r='40' fill='#FFC93C'/>`);
+  } },
+
+  // ═════════ MULTICOLORE — BUSINESS (bureau) ═════════
+  { id: 'biz-chart', name: 'Graphique', cat: 'Business', sub: 'Bureau', build: () => svg(
+    `<rect x='36' y='36' width='128' height='128' rx='10' fill='#FFFFFF' stroke='#E3E0D5' stroke-width='3'/><rect x='54' y='104' width='18' height='40' fill='#4EA8FF'/><rect x='90' y='80' width='18' height='64' fill='#2FBF71'/><rect x='126' y='60' width='18' height='84' fill='#FFB020'/>`) },
+  { id: 'biz-linechart', name: 'Courbe', cat: 'Business', sub: 'Bureau', build: () => svg(
+    `<rect x='36' y='36' width='128' height='128' rx='10' fill='#FFFFFF' stroke='#E3E0D5' stroke-width='3'/><polyline points='56,130 84,98 108,116 148,64' fill='none' stroke='#EF476F' stroke-width='6' stroke-linecap='round' stroke-linejoin='round'/><circle cx='148' cy='64' r='7' fill='#EF476F'/>`) },
+  { id: 'biz-folder', name: 'Dossier', cat: 'Business', sub: 'Bureau', build: () => svg(
+    `<path d='M34 62 h44 l12 16 h76 a8 8 0 0 1 8 8 v66 a8 8 0 0 1 -8 8 h-132 a8 8 0 0 1 -8 -8 v-82 a8 8 0 0 1 8 -8 Z' fill='#E0A02E'/><rect x='30' y='88' width='140' height='62' rx='8' fill='#FFC93C'/>`) },
+  { id: 'biz-calendar', name: 'Calendrier', cat: 'Business', sub: 'Bureau', build: () => {
+    let dots = '';
+    for (let r = 0; r < 3; r++) for (let cc = 0; cc < 4; cc++) dots += `<circle cx='${64 + cc * 24}' cy='${102 + r * 20}' r='5' fill='#9AA0A6'/>`;
+    return svg(`<rect x='40' y='52' width='120' height='108' rx='10' fill='#FFFFFF' stroke='#E3E0D5' stroke-width='3'/><rect x='40' y='52' width='120' height='28' rx='10' fill='#EF476F'/><rect x='64' y='40' width='10' height='24' rx='4' fill='#B0324A'/><rect x='126' y='40' width='10' height='24' rx='4' fill='#B0324A'/>${dots}`);
+  } },
+  { id: 'biz-envelope', name: 'Enveloppe', cat: 'Business', sub: 'Bureau', build: () => svg(
+    `<rect x='36' y='60' width='128' height='84' rx='8' fill='#4EA8FF'/><path d='M36 66 l64 46 l64 -46' fill='none' stroke='#FFFFFF' stroke-width='6'/>`) },
+  { id: 'biz-briefcase', name: 'Mallette', cat: 'Business', sub: 'Bureau', build: () => svg(
+    `<rect x='78' y='52' width='44' height='26' rx='8' fill='none' stroke='#8B5E3C' stroke-width='8'/><rect x='36' y='74' width='128' height='82' rx='10' fill='#8B5E3C'/><rect x='36' y='74' width='128' height='30' fill='#7A4E2E'/><rect x='92' y='104' width='16' height='16' rx='3' fill='#C99A2E'/>`) },
+  { id: 'biz-target', name: 'Cible', cat: 'Business', sub: 'Bureau', build: () => svg(
+    `<circle cx='100' cy='100' r='70' fill='#EF476F'/><circle cx='100' cy='100' r='50' fill='#FDF6EE'/><circle cx='100' cy='100' r='30' fill='#EF476F'/><circle cx='100' cy='100' r='12' fill='#FDF6EE'/>`) },
+  { id: 'biz-coin', name: 'Pièce', cat: 'Business', sub: 'Bureau', build: () => svg(
+    `<circle cx='100' cy='100' r='58' fill='#E0B54A'/><circle cx='100' cy='100' r='44' fill='#F2CD6B'/><path d='M100 66 v68 M84 80 a16 13 0 0 1 32 0 M84 122 a16 13 0 0 0 32 0 M84 100 h32' stroke='#C99A2E' stroke-width='6' fill='none' stroke-linecap='round'/>`) },
+  { id: 'biz-clip', name: 'Trombone', cat: 'Business', sub: 'Bureau', build: () => svg(
+    `<path d='M118 40 a26 26 0 0 1 26 26 v76 a34 34 0 0 1 -68 0 v-70 a18 18 0 0 1 36 0 v58 a8 8 0 0 1 -16 0 v-52' fill='none' stroke='#5A6472' stroke-width='12' stroke-linecap='round'/>`) },
+  { id: 'biz-pin', name: 'Punaise', cat: 'Business', sub: 'Bureau', build: () => svg(
+    `<path d='M100 30 l30 30 l-14 8 l4 40 l-40 0 l4 -40 l-14 -8 Z' fill='#EF476F'/><rect x='96' y='108' width='8' height='60' rx='4' fill='#B0324A'/>`) },
+
+  // ═════════ MULTICOLORE — FORMES / FRAMES À CLIPPER ═════════
+  { id: 'frame-blob', name: 'Cadre blob', cat: 'Formes', sub: 'Cadres', build: () => svg(
+    `<path d='M43 63 C 33 33 73 16 106 27 C 150 42 186 47 176 96 C 168 138 148 182 99 176 C 56 171 21 149 27 110 C 30 87 50 90 43 63 Z' fill='none' stroke='#14160F' stroke-width='10'/>`) },
+  { id: 'frame-flower', name: 'Cadre fleur', cat: 'Formes', sub: 'Cadres', build: () => {
+    let petals = `<g fill='none' stroke='#14160F' stroke-width='9'>`;
+    for (let i = 0; i < 8; i++) petals += `<ellipse cx='100' cy='48' rx='24' ry='44' transform='rotate(${i * 45} 100 100)'/>`;
+    petals += `</g>`;
+    return svg(petals);
+  } },
+  { id: 'frame-heart', name: 'Cadre cœur', cat: 'Formes', sub: 'Cadres', build: () => svg(
+    `<path d='M100 178 C 42 132 22 98 22 70 C 22 44 44 28 66 28 C 83 28 95 40 100 54 C 105 40 117 28 134 28 C 156 28 178 44 178 70 C 178 98 158 132 100 178 Z' fill='none' stroke='#14160F' stroke-width='10'/>`) },
+  { id: 'frame-hex', name: 'Cadre hexagone', cat: 'Formes', sub: 'Cadres', build: () => svg(
+    `<polygon points='100,20 168,60 168,140 100,180 32,140 32,60' fill='none' stroke='#14160F' stroke-width='10' stroke-linejoin='round'/>`) },
 ];
 
 export function stickerDataUri(s: Sticker, color: string): string {
