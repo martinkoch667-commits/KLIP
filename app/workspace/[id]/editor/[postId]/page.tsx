@@ -2824,6 +2824,25 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
     setTool(null);
   };
 
+  // Cadre photo (pattern) : forme vide posée sur le plan de travail dans laquelle
+  // on clippe une image (via le bouton Photo de la barre, ou double-clic pour recadrer).
+  const addFrame = (shape: VectorEl['shape']) => {
+    const base = Math.round(stageW * 0.44);
+    const sizes: Record<VectorEl['shape'], [number, number]> = {
+      rectangle: [base, Math.round(base * 0.72)], circle: [base, base], triangle: [base, Math.round(base * 0.9)],
+      star: [base, base], pill: [base, Math.round(base * 0.52)], arrow: [base, Math.round(base * 0.6)],
+      diamond: [Math.round(base * 0.86), base], hexagon: [base, base], custom: [base, base],
+    };
+    const [w, h] = sizes[shape];
+    const el: VectorEl = { id: newId(), type: 'vector', shape, x: Math.round((stageW - w) / 2), y: Math.round((stageH - h) / 2), rotation: 0, opacity: 100, width: w, height: h, fill: '#E6E4DA', fillType: 'color', stroke: workspaceData?.primary_color || '#2FD79B', strokeWidth: 3 };
+    applyElements([...elements, el]);
+    setSelectedId(el.id);
+    selectedIdRef.current = el.id;
+    setTool(null);
+    // Ouvre directement le sélecteur de photo pour remplir le cadre.
+    setTimeout(() => maskPhotoInputRef.current?.click(), 60);
+  };
+
   // ── Pen tool handlers ─────────────────────────────────────────────────────
 
   const cancelPenMode = () => {
@@ -4225,6 +4244,30 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
                       onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--line)'; e.currentTarget.style.background = 'var(--white)'; }}>
                       <svg width="26" height="26" viewBox="0 0 24 24" style={{ color: 'var(--ink)' }}>{icon}</svg>
                       <span style={{ fontSize: 8.5, fontFamily: 'var(--mono)', fontWeight: 700, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '.04em' }}>{label}</span>
+                    </button>
+                  ))}
+                </div>
+                {/* ── Cadres photo (patterns) : forme vide → on clippe une image dedans ── */}
+                <p style={{ fontSize: 10, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '0.12em', fontFamily: 'var(--mono)', fontWeight: 800, margin: '0 0 3px' }}>Cadres photo</p>
+                <p style={{ fontSize: 10.5, color: 'var(--ink-3)', margin: '0 0 8px', lineHeight: 1.35 }}>Pose une forme, choisis ta photo : elle se clippe dedans. Double-clic pour recadrer.</p>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 8, marginBottom: 18 }}>
+                  {([
+                    { shape: 'rectangle' as const, label: 'Carré',    icon: <rect x="4" y="4" width="16" height="16" rx="2.5" /> },
+                    { shape: 'circle' as const,    label: 'Rond',     icon: <circle cx="12" cy="12" r="8" /> },
+                    { shape: 'pill' as const,      label: 'Pilule',   icon: <rect x="3" y="7" width="18" height="10" rx="5" /> },
+                    { shape: 'triangle' as const,  label: 'Triangle', icon: <polygon points="12,4 21,20 3,20" /> },
+                    { shape: 'star' as const,      label: 'Étoile',   icon: <polygon points="12,3 14.5,9 21,9.5 16,14 17.5,21 12,17.5 6.5,21 8,14 3,9.5 9.5,9" /> },
+                    { shape: 'diamond' as const,   label: 'Losange',  icon: <polygon points="12,3 21,12 12,21 3,12" /> },
+                    { shape: 'hexagon' as const,   label: 'Hexagone', icon: <polygon points="12,3 20,7.5 20,16.5 12,21 4,16.5 4,7.5" /> },
+                    { shape: 'arrow' as const,     label: 'Flèche',   icon: <path strokeLinejoin="round" d="M3 10h11V6l7 6-7 6v-4H3z" /> },
+                  ]).map(({ shape, label, icon }) => (
+                    <button key={shape} onClick={() => addFrame(shape)} title={`Cadre ${label}`}
+                      style={{ aspectRatio: '1', position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 5, cursor: 'pointer', borderRadius: 12, border: '1px solid var(--line)', background: 'var(--white)', transition: 'all .15s' }}
+                      onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--mint)'; e.currentTarget.style.background = 'var(--sunk)'; }}
+                      onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--line)'; e.currentTarget.style.background = 'var(--white)'; }}>
+                      <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="var(--ink-2)" strokeWidth="1.8">{icon}</svg>
+                      <span style={{ fontSize: 8.5, fontFamily: 'var(--mono)', fontWeight: 700, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '.04em' }}>{label}</span>
+                      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="var(--mint-2)" strokeWidth="3" strokeLinecap="round" style={{ position: 'absolute', top: 6, right: 6 }}><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
                     </button>
                   ))}
                 </div>
