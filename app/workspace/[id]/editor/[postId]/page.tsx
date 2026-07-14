@@ -1984,6 +1984,8 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
   const [iconColor, setIconColor] = useState('#14160F');
   const [stickerColor, setStickerColor] = useState('#2FD79B');
   const [stickerCat, setStickerCat] = useState<string>('Tous');
+  const [stickerLibOpen, setStickerLibOpen] = useState(false);
+  const [stickerLibQuery, setStickerLibQuery] = useState('');
 
   const elementsRef = useRef<CanvasEl[]>([]);
   const selectedIdRef = useRef<string | null>(null);
@@ -4204,32 +4206,19 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
                     </button>
                   ))}
                 </div>
-                {/* ── Stickers / illustrations maison recolorables ── */}
+                {/* ── Stickers / illustrations maison ── */}
                 <p style={{ fontSize: 10, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '0.12em', fontFamily: 'var(--mono)', fontWeight: 800, margin: '0 0 8px' }}>Stickers</p>
-                {/* palette recolorable */}
+                {/* palette recolorable (agit sur les stickers recolorables) */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', marginBottom: 9 }}>
                   {[workspaceData?.primary_color || '#2FD79B', '#0C2A1D', '#C8F135', '#FF5A3C', '#FFD400', '#0038FF', '#9B5DE5', '#F15BB5', '#14160F', '#FFFFFF'].map(c => (
                     <button key={c} onClick={() => setStickerColor(c)} title={c}
                       style={{ width: 22, height: 22, borderRadius: '50%', background: c, cursor: 'pointer', border: stickerColor === c ? '2px solid var(--mint)' : '1.5px solid var(--line)', padding: 0, boxShadow: c === '#FFFFFF' ? 'inset 0 0 0 1px var(--line)' : 'none' }} />
                   ))}
                 </div>
-                {/* filtres catégories */}
-                <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', marginBottom: 9 }}>
-                  {(['Tous', ...STICKER_CATS] as string[]).map(cat => {
-                    const active = stickerCat === cat;
-                    return (
-                      <button key={cat} onClick={() => setStickerCat(cat)}
-                        style={{ padding: '4px 10px', borderRadius: 999, cursor: 'pointer', fontSize: 11, fontWeight: 700, fontFamily: 'var(--sans)', transition: 'all .12s',
-                          border: active ? '1px solid var(--mint-2)' : '1px solid var(--line)', background: active ? 'var(--mint)' : 'var(--white)', color: active ? 'var(--forest)' : 'var(--ink-2)' }}>
-                        {cat}
-                      </button>
-                    );
-                  })}
-                </div>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 6, marginBottom: 18 }}>
-                  {STICKERS.filter(s => stickerCat === 'Tous' || s.cat === stickerCat).map(s => (
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 6, marginBottom: 10 }}>
+                  {STICKERS.slice(0, 12).map(s => (
                     <button key={s.id} onClick={() => addSticker(s)} title={s.name}
-                      style={{ aspectRatio: '1', borderRadius: 10, border: '1px solid var(--line)', background: stickerColor === '#FFFFFF' ? '#3a3f36' : 'var(--sunk)', cursor: 'pointer', display: 'grid', placeItems: 'center', padding: 7, transition: 'all .14s' }}
+                      style={{ aspectRatio: '1', borderRadius: 10, border: '1px solid var(--line)', background: s.recolor && stickerColor === '#FFFFFF' ? '#3a3f36' : 'var(--sunk)', cursor: 'pointer', display: 'grid', placeItems: 'center', padding: 7, transition: 'all .14s' }}
                       onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--mint)'; e.currentTarget.style.transform = 'translateY(-2px)'; }}
                       onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--line)'; e.currentTarget.style.transform = 'none'; }}>
                       {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -4237,6 +4226,11 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
                     </button>
                   ))}
                 </div>
+                <button onClick={() => { setStickerCat('Tous'); setStickerLibQuery(''); setStickerLibOpen(true); }} className="btn btn-ghost btn-sm"
+                  style={{ width: '100%', justifyContent: 'center', marginBottom: 18, height: 40, gap: 6 }}>
+                  Voir toute la bibliothèque
+                  <span style={{ fontSize: 11, color: 'var(--ink-3)', fontFamily: 'var(--mono)', fontWeight: 700 }}>({STICKERS.length})</span>
+                </button>
 
                 <p style={{ fontSize: 10, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '0.12em', fontFamily: 'var(--mono)', fontWeight: 800, margin: '0 0 8px' }}>{T('badges')}</p>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
@@ -5465,6 +5459,86 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
                       onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--line)'; e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = 'none'; }}>
                       <TextTemplateThumb tpl={tpl} w={230} />
                       <span style={{ position: 'absolute', bottom: 8, left: 8, fontSize: 9.5, textTransform: 'uppercase', letterSpacing: '0.1em', fontFamily: 'var(--mono)', fontWeight: 800, color: tpl.dark ? 'rgba(255,255,255,0.5)' : 'var(--ink-3)' }}>{tpl.cat}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      );
+    })()}
+
+    {/* ── BIBLIOTHÈQUE DE STICKERS — modale plein écran, toutes les illustrations ── */}
+    {stickerLibOpen && (() => {
+      const q = stickerLibQuery.trim().toLowerCase();
+      const filtered = STICKERS.filter(s => {
+        if (stickerCat !== 'Tous' && s.cat !== stickerCat) return false;
+        if (!q) return true;
+        return s.name.toLowerCase().includes(q) || s.cat.toLowerCase().includes(q);
+      });
+      return (
+        <div
+          onClick={() => setStickerLibOpen(false)}
+          style={{ position: 'fixed', inset: 0, zIndex: 3000, background: 'color-mix(in srgb, var(--ink) 55%, transparent)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '4vh 3vw', backdropFilter: 'blur(3px)' }}
+        >
+          <div
+            onClick={e => e.stopPropagation()}
+            style={{ width: 'min(1180px, 96vw)', height: 'min(880px, 92vh)', background: 'var(--paper)', borderRadius: 'var(--r-xl)', boxShadow: '0 24px 80px rgba(0,0,0,0.32)', display: 'flex', flexDirection: 'column', overflow: 'hidden', border: '1px solid var(--line)' }}
+          >
+            {/* Header */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '18px 22px', borderBottom: '1px solid var(--line)', flexShrink: 0 }}>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <h2 style={{ margin: 0, fontSize: 20, fontFamily: 'var(--display)', fontWeight: 800, color: 'var(--ink)', letterSpacing: '-0.01em' }}>Bibliothèque d&apos;illustrations</h2>
+                <p style={{ margin: '2px 0 0', fontSize: 12, color: 'var(--ink-3)' }}>{filtered.length} sticker{filtered.length > 1 ? 's' : ''} · la palette recolore les stickers recolorables</p>
+              </div>
+              <div style={{ position: 'relative', width: 240 }}>
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--ink-3)" strokeWidth="2" strokeLinecap="round" style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }}><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                <input value={stickerLibQuery} onChange={e => setStickerLibQuery(e.target.value)} placeholder="Rechercher…" className="input"
+                  style={{ width: '100%', paddingLeft: 34, height: 38 }} />
+              </div>
+              <button onClick={() => setStickerLibOpen(false)} className="btn-icon" title="Fermer"
+                style={{ flexShrink: 0, width: 38, height: 38 }}>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+              </button>
+            </div>
+
+            {/* Palette recolorable + filtres */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap', padding: '12px 22px', borderBottom: '1px solid var(--line)', flexShrink: 0 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <span style={{ fontSize: 10, color: 'var(--ink-3)', fontFamily: 'var(--mono)', fontWeight: 700 }}>COULEUR</span>
+                {[workspaceData?.primary_color || '#2FD79B', '#0C2A1D', '#C8F135', '#FF5A3C', '#FFD400', '#0038FF', '#9B5DE5', '#F15BB5', '#14160F', '#FFFFFF'].map(c => (
+                  <button key={c} onClick={() => setStickerColor(c)} title={c}
+                    style={{ width: 20, height: 20, borderRadius: '50%', background: c, cursor: 'pointer', border: stickerColor === c ? '2px solid var(--mint)' : '1.5px solid var(--line)', padding: 0, boxShadow: c === '#FFFFFF' ? 'inset 0 0 0 1px var(--line)' : 'none' }} />
+                ))}
+              </div>
+              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                {(['Tous', ...STICKER_CATS] as string[]).map(cat => {
+                  const active = stickerCat === cat;
+                  return (
+                    <button key={cat} onClick={() => setStickerCat(cat)}
+                      style={{ padding: '6px 13px', borderRadius: 999, cursor: 'pointer', fontSize: 12, fontWeight: 700, fontFamily: 'var(--sans)', transition: 'all .12s',
+                        border: active ? '1px solid var(--mint-2)' : '1px solid var(--line)', background: active ? 'var(--mint)' : 'var(--white)', color: active ? 'var(--forest)' : 'var(--ink-2)' }}>
+                      {cat}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Grille */}
+            <div style={{ flex: 1, overflowY: 'auto', padding: 22 }}>
+              {filtered.length === 0 ? (
+                <div style={{ display: 'grid', placeItems: 'center', height: '100%', color: 'var(--ink-3)', fontSize: 14 }}>Aucun sticker ne correspond.</div>
+              ) : (
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))', gap: 12 }}>
+                  {filtered.map(s => (
+                    <button key={s.id} onClick={() => { addSticker(s); setStickerLibOpen(false); }} title={s.name}
+                      style={{ aspectRatio: '1', borderRadius: 14, border: '1px solid var(--line)', background: s.recolor && stickerColor === '#FFFFFF' ? '#3a3f36' : 'var(--white)', cursor: 'pointer', display: 'grid', placeItems: 'center', padding: 16, transition: 'all .14s' }}
+                      onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--mint)'; e.currentTarget.style.transform = 'translateY(-3px)'; e.currentTarget.style.boxShadow = '0 10px 26px rgba(0,0,0,0.10)'; }}
+                      onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--line)'; e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = 'none'; }}>
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={stickerDataUri(s, stickerColor)} alt={s.name} style={{ width: '100%', height: '100%', objectFit: 'contain', display: 'block' }} />
                     </button>
                   ))}
                 </div>
