@@ -202,15 +202,35 @@ function roleMaxLines(role?: string): number {
     default:            return 3;
   }
 }
-// Compte de lignes (wrap approx. cohérent avec le rendu) pour une taille donnée.
+// Compte de lignes en SIMULANT le retour à la ligne par mots de Konva (wrap="word").
+// L'ancienne estimation ceil(largeurTotale/areaW) était un MINORANT : Konva coupe aux
+// mots, donc peut produire PLUS de lignes (ex. "NOUVELLE COCCINELLE" -> 2 lignes) et le
+// bloc/hitbox se retrouvait trop court -> lignes basses non cliquables. On reproduit ici
+// l'algorithme glouton de Konva pour obtenir la hauteur réelle.
 function countLines(text: string, fontSize: number, font: string, fontStyle: string, areaW: number): number {
-  const manual = text.split('\n');
+  const w = Math.max(1, areaW);
+  const spaceW = measureTextWidth(' ', fontSize, font, fontStyle);
   let lines = 0;
-  for (const ln of manual) {
-    const w = measureTextWidth(ln || ' ', fontSize, font, fontStyle);
-    lines += Math.max(1, Math.ceil(w / Math.max(1, areaW)));
+  for (const para of text.split('\n')) {
+    const words = para.split(' ');
+    let lineW = 0;
+    let paraLines = 1;
+    for (const word of words) {
+      const wordW = measureTextWidth(word, fontSize, font, fontStyle);
+      if (wordW > w) {
+        // Mot plus large que la zone : Konva le coupe par caractères.
+        if (lineW > 0) { paraLines++; lineW = 0; }
+        paraLines += Math.ceil(wordW / w) - 1;
+        lineW = wordW % w;
+        continue;
+      }
+      const add = lineW === 0 ? wordW : lineW + spaceW + wordW;
+      if (add > w && lineW > 0) { paraLines++; lineW = wordW; }
+      else { lineW = add; }
+    }
+    lines += paraLines;
   }
-  return lines;
+  return Math.max(1, lines);
 }
 // Calcule la taille de police qui fait tenir le texte dans sa largeur + maxLines.
 // Ne change QUE la taille (jamais police ni couleur). Ne fait que réduire (max = taille du design).
@@ -934,9 +954,11 @@ interface CtxToolbarProps {
   onRemoveBg?: () => void;
   bgRemoving?: boolean;
   onLayerAction: (action: 'front' | 'forward' | 'backward' | 'back') => void;
+  onOpenFx?: (p: 'effects' | 'position') => void;
+  fxPanel?: 'effects' | 'position' | null;
 }
 
-function EditorContextToolbar({ sel, allFonts, brandColors, stageW, stageH, onUpdate, onAlign, onDuplicate, onDelete, onCrop, onSetBg, onMaskPhoto, onRemoveBg, bgRemoving, onLayerAction }: CtxToolbarProps) {
+function EditorContextToolbar({ sel, allFonts, brandColors, stageW, stageH, onUpdate, onAlign, onDuplicate, onDelete, onCrop, onSetBg, onMaskPhoto, onRemoveBg, bgRemoving, onLayerAction, onOpenFx, fxPanel }: CtxToolbarProps) {
   const T = useTranslations('editor');
   const [pop, setPop] = React.useState<string | null>(null);
   const u = (patch: Partial<CanvasEl>) => onUpdate(patch);
@@ -951,7 +973,7 @@ function EditorContextToolbar({ sel, allFonts, brandColors, stageW, stageH, onUp
   const Div = () => <span style={{ width: 1, height: 22, background: 'var(--line)', margin: '0 4px', flexShrink: 0 }} />;
   const IBtn = ({ icon, on, title, onClick, danger }: { icon: React.ReactNode; on?: boolean; title: string; onClick: () => void; danger?: boolean }) => (
     <button title={title} onClick={onClick}
-      style={{ width: 32, height: 32, borderRadius: 8, display: 'grid', placeItems: 'center', flexShrink: 0, border: 'none', cursor: 'pointer', transition: 'background .1s',
+      style={{ width: 36, height: 36, borderRadius: 9, display: 'grid', placeItems: 'center', flexShrink: 0, border: 'none', cursor: 'pointer', transition: 'background .1s',
         color: danger ? '#C4452F' : on ? 'var(--mint-2)' : 'var(--ink)',
         background: on ? 'var(--mint-soft)' : 'transparent' }}
       onMouseEnter={e => { if (!on && !danger) (e.currentTarget as HTMLElement).style.background = 'var(--sunk)'; }}
@@ -961,9 +983,9 @@ function EditorContextToolbar({ sel, allFonts, brandColors, stageW, stageH, onUp
   );
   const TextBtn = ({ on, onClick, children }: { on?: boolean; onClick: () => void; children: React.ReactNode }) => (
     <button onClick={onClick}
-      style={{ height: 32, padding: '0 9px', borderRadius: 8, display: 'flex', alignItems: 'center', gap: 5, border: 'none', cursor: 'pointer', fontSize: 12.5, fontWeight: 600, flexShrink: 0, background: on ? 'var(--sunk)' : 'transparent', color: 'var(--ink)' }}
-      onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'var(--sunk)'; }}
-      onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = on ? 'var(--sunk)' : 'transparent'; }}>
+      style={{ height: 36, padding: '0 11px', borderRadius: 9, display: 'flex', alignItems: 'center', gap: 6, border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: 600, flexShrink: 0, background: on ? 'var(--mint-soft)' : 'transparent', color: on ? 'var(--mint-2)' : 'var(--ink)' }}
+      onMouseEnter={e => { if (!on) (e.currentTarget as HTMLElement).style.background = 'var(--sunk)'; }}
+      onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = on ? 'var(--mint-soft)' : 'transparent'; }}>
       {children}
     </button>
   );
@@ -1009,7 +1031,7 @@ function EditorContextToolbar({ sel, allFonts, brandColors, stageW, stageH, onUp
   const popStyle: React.CSSProperties = { position: 'absolute', top: 'calc(100% + 8px)', left: 0, background: '#fff', borderRadius: 12, padding: 12, boxShadow: '0 18px 44px -14px rgba(13,15,10,.28), 0 0 0 1px rgba(13,15,10,.06)', zIndex: 100, minWidth: 220 };
 
   return (
-    <div className="pop-in" style={{ display: 'flex', alignItems: 'center', gap: 2, background: '#fff', borderRadius: 12, padding: '5px 8px', boxShadow: '0 8px 26px -10px rgba(13,15,10,.2), 0 0 0 1px rgba(13,15,10,.06)', overflow: 'visible', position: 'relative' }}>
+    <div className="pop-in" style={{ display: 'flex', alignItems: 'center', gap: 4, background: '#fff', borderRadius: 14, padding: '7px 12px', boxShadow: '0 8px 26px -10px rgba(13,15,10,.2), 0 0 0 1px rgba(13,15,10,.06)', overflow: 'visible', position: 'relative' }}>
 
       {/* TEXT controls */}
       {textSel && <>
@@ -1090,147 +1112,11 @@ function EditorContextToolbar({ sel, allFonts, brandColors, stageW, stageH, onUp
             </div>
           )}
         </div>
-        {/* Effets (shadow + text stroke) */}
-        <div style={{ position: 'relative' }}>
-          <TextBtn on={pop === 'effects'} onClick={() => setPop(p => p === 'effects' ? null : 'effects')}>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="3"/><path d="M12 1v3M12 20v3M4.22 4.22l2.12 2.12M17.66 17.66l2.12 2.12M1 12h3M20 12h3M4.22 19.78l2.12-2.12M17.66 6.34l2.12-2.12"/></svg>
-            {T('effect')}
-          </TextBtn>
-          {pop === 'effects' && (
-            <div style={{ ...popStyle, minWidth: 230 }}>
-              <div className="label" style={{ marginBottom: 8 }}>{T('dropShadow')}</div>
-              <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10, cursor: 'pointer' }}>
-                <input type="checkbox" checked={!!textSel.shadowEnabled} onChange={e => u({ shadowEnabled: e.target.checked } as any)}
-                  style={{ accentColor: 'var(--mint)', width: 14, height: 14 }} />
-                <span style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--ink-2)' }}>{T('enableShadow')}</span>
-              </label>
-              {textSel.shadowEnabled && (<>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-                  <span className="label" style={{ marginBottom: 0 }}>{T('color')}</span>
-                  <ColorPicker value={textSel.shadowColor ?? '#000000'} onChange={c => u({ shadowColor: c } as any)} />
-                </div>
-                <SliderRow label={T('opacity')} value={textSel.shadowOpacity ?? 75} min={0} max={100} step={1}
-                  fmt={v => v + '%'} onChange={v => u({ shadowOpacity: v } as any)} />
-                <SliderRow label={T('blur')} value={textSel.shadowBlur ?? 5} min={0} max={30} step={1}
-                  fmt={v => v + 'px'} onChange={v => u({ shadowBlur: v } as any)} />
-                <SliderRow label={T('offsetX')} value={textSel.shadowOffsetX ?? 2} min={-20} max={20} step={1}
-                  fmt={v => (v >= 0 ? '+' : '') + v + 'px'} onChange={v => u({ shadowOffsetX: v } as any)} />
-                <SliderRow label={T('offsetY')} value={textSel.shadowOffsetY ?? 2} min={-20} max={20} step={1}
-                  fmt={v => (v >= 0 ? '+' : '') + v + 'px'} onChange={v => u({ shadowOffsetY: v } as any)} />
-              </>)}
-              <div className="label" style={{ margin: '10px 0 8px' }}>{T('textOutline')}</div>
-              <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                <ColorPicker value={textSel.stroke ?? '#000000'} onChange={c => u({ stroke: c } as any)} />
-                <input type="number" min={0} max={20} value={textSel.strokeWidth ?? 0} onChange={e => u({ strokeWidth: parseInt(e.target.value) || 0 } as any)}
-                  style={{ width: 44, textAlign: 'center', border: '1.5px solid var(--line)', borderRadius: 6, fontSize: 12, padding: '3px 4px', fontWeight: 700, color: 'var(--ink)', outline: 'none' }} />
-                <span style={{ fontSize: 11, color: 'var(--ink-3)' }}>{T('pxThickness')}</span>
-              </div>
-              {/* ── Surbrillance ── */}
-              <div style={{ borderTop: '1px solid var(--paper)', margin: '10px 0' }} />
-              <div className="label" style={{ marginBottom: 8 }}>{T('highlight')}</div>
-              <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10, cursor: 'pointer' }}>
-                <input type="checkbox" checked={!!textSel.highlightEnabled} onChange={e => u({ highlightEnabled: e.target.checked } as any)}
-                  style={{ accentColor: 'var(--mint)', width: 14, height: 14 }} />
-                <span style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--ink-2)' }}>{T('enableHighlight')}</span>
-              </label>
-              <div style={{ opacity: textSel.highlightEnabled ? 1 : 0.4, pointerEvents: textSel.highlightEnabled ? 'auto' : 'none', transition: 'opacity 150ms' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-                  <span className="label" style={{ marginBottom: 0 }}>{T('color')}</span>
-                  <ColorPicker value={textSel.highlightColor ?? '#FFFF00'} onChange={c => u({ highlightColor: c } as any)} />
-                </div>
-                <SliderRow label={T('opacity')} value={textSel.highlightOpacity ?? 80} min={0} max={100} step={1}
-                  fmt={v => v + '%'} onChange={v => u({ highlightOpacity: v } as any)} />
-                <SliderRow label={T('rounding')} value={textSel.highlightBorderRadius ?? 4} min={0} max={20} step={1}
-                  fmt={v => v + 'px'} onChange={v => u({ highlightBorderRadius: v } as any)} />
-                <SliderRow label={T('thickness')} value={textSel.highlightPadding ?? 8} min={0} max={20} step={1}
-                  fmt={v => v + 'px'} onChange={v => u({ highlightPadding: v } as any)} />
-              </div>
-              {/* ── Lueur ── */}
-              <div style={{ borderTop: '1px solid var(--paper)', margin: '10px 0' }} />
-              <div className="label" style={{ marginBottom: 8 }}>{T('glow')}</div>
-              <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10, cursor: 'pointer' }}>
-                <input type="checkbox" checked={!!textSel.glowEnabled} onChange={e => u({ glowEnabled: e.target.checked } as any)}
-                  style={{ accentColor: 'var(--mint)', width: 14, height: 14 }} />
-                <span style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--ink-2)' }}>{T('enableGlow')}</span>
-              </label>
-              <div style={{ opacity: textSel.glowEnabled ? 1 : 0.4, pointerEvents: textSel.glowEnabled ? 'auto' : 'none', transition: 'opacity 150ms' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-                  <span className="label" style={{ marginBottom: 0 }}>{T('color')}</span>
-                  <ColorPicker value={textSel.glowColor ?? '#00FFFF'} onChange={c => u({ glowColor: c } as any)} />
-                </div>
-                <SliderRow label={T('intensity')} value={textSel.glowIntensity ?? 50} min={0} max={100} step={1}
-                  fmt={v => v + '%'} onChange={v => u({ glowIntensity: v } as any)} />
-                <SliderRow label={T('sizeLabel')} value={textSel.glowSize ?? 10} min={1} max={40} step={1}
-                  fmt={v => v + 'px'} onChange={v => u({ glowSize: v } as any)} />
-              </div>
-              {/* ── Creux ── */}
-              <div style={{ borderTop: '1px solid var(--paper)', margin: '10px 0' }} />
-              <div className="label" style={{ marginBottom: 8 }}>{T('hollow')}</div>
-              <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
-                <input type="checkbox" checked={!!textSel.hollowEnabled} onChange={e => u({ hollowEnabled: e.target.checked } as any)}
-                  style={{ accentColor: 'var(--mint)', width: 14, height: 14 }} />
-                <span style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--ink-2)' }}>{T('enableHollow')}</span>
-              </label>
-              <span style={{ fontSize: 11, color: 'var(--ink-3)', marginTop: 5, display: 'block' }}>{T('hollowHint')}</span>
-              {/* ── Élévation ── */}
-              <div style={{ borderTop: '1px solid var(--paper)', margin: '10px 0' }} />
-              <div className="label" style={{ marginBottom: 8 }}>{T('lift')}</div>
-              <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10, cursor: 'pointer' }}>
-                <input type="checkbox" checked={!!textSel.liftEnabled} onChange={e => u({ liftEnabled: e.target.checked } as any)}
-                  style={{ accentColor: 'var(--mint)', width: 14, height: 14 }} />
-                <span style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--ink-2)' }}>{T('enableLift')}</span>
-              </label>
-              <div style={{ opacity: textSel.liftEnabled ? 1 : 0.4, pointerEvents: textSel.liftEnabled ? 'auto' : 'none', transition: 'opacity 150ms' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-                  <span className="label" style={{ marginBottom: 0 }}>{T('color')}</span>
-                  <ColorPicker value={textSel.liftColor ?? '#333333'} onChange={c => u({ liftColor: c } as any)} />
-                </div>
-                <SliderRow label={T('depth')} value={textSel.liftDepth ?? 6} min={1} max={20} step={1}
-                  fmt={v => v + 'px'} onChange={v => u({ liftDepth: v } as any)} />
-                <div className="label" style={{ marginBottom: 6 }}>{T('direction')}</div>
-                <div style={{ display: 'inline-flex', flexDirection: 'column', gap: 4 }}>
-                  {([['tl','t','tr'],['l','·','r'],['bl','b','br']] as const).map((row, ri) => (
-                    <div key={ri} style={{ display: 'flex', gap: 4 }}>
-                      {row.map(d => {
-                        const arrows: Record<string,string> = { tl:'↖',t:'↑',tr:'↗',l:'←','·':'·',r:'→',bl:'↙',b:'↓',br:'↘' };
-                        const active = (textSel.liftDirection ?? 'br') === d;
-                        return (
-                          <button key={d} onClick={() => d !== '·' && u({ liftDirection: d } as any)}
-                            style={{ width: 28, height: 28, borderRadius: 6, border: '1.5px solid var(--line)', background: active ? 'var(--ink)' : 'var(--sunk)', color: active ? '#fff' : 'var(--ink-2)', cursor: d !== '·' ? 'pointer' : 'default', fontSize: 13, fontWeight: 700, display: 'grid', placeItems: 'center' }}>
-                            {arrows[d]}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  ))}
-                </div>
-              </div>
-              {/* ── Écho ── */}
-              <div style={{ borderTop: '1px solid var(--paper)', margin: '10px 0' }} />
-              <div className="label" style={{ marginBottom: 8 }}>{T('echo')}</div>
-              <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10, cursor: 'pointer' }}>
-                <input type="checkbox" checked={!!textSel.echoEnabled} onChange={e => u({ echoEnabled: e.target.checked } as any)}
-                  style={{ accentColor: 'var(--mint)', width: 14, height: 14 }} />
-                <span style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--ink-2)' }}>{T('enableEcho')}</span>
-              </label>
-              <div style={{ opacity: textSel.echoEnabled ? 1 : 0.4, pointerEvents: textSel.echoEnabled ? 'auto' : 'none', transition: 'opacity 150ms' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-                  <span className="label" style={{ marginBottom: 0 }}>{T('color')}</span>
-                  <ColorPicker value={textSel.echoColor ?? '#FF69B4'} onChange={c => u({ echoColor: c } as any)} />
-                </div>
-                <SliderRow label={T('countLabel')} value={textSel.echoCount ?? 3} min={1} max={5} step={1}
-                  fmt={v => String(v)} onChange={v => u({ echoCount: v } as any)} />
-                <SliderRow label={T('offsetLabel')} value={textSel.echoOffset ?? 8} min={1} max={30} step={1}
-                  fmt={v => v + 'px'} onChange={v => u({ echoOffset: v } as any)} />
-                <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
-                  <input type="checkbox" checked={textSel.echoFade !== false} onChange={e => u({ echoFade: e.target.checked } as any)}
-                    style={{ accentColor: 'var(--mint)', width: 14, height: 14 }} />
-                  <span style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--ink-2)' }}>{T('fadingOpacity')}</span>
-                </label>
-              </div>
-            </div>
-          )}
-        </div>
+        {/* Effets → ouvre le panneau gauche (aperçus façon Canva) */}
+        <TextBtn on={fxPanel === 'effects'} onClick={() => onOpenFx?.('effects')}>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="3"/><path d="M12 1v3M12 20v3M4.22 4.22l2.12 2.12M17.66 17.66l2.12 2.12M1 12h3M20 12h3M4.22 19.78l2.12-2.12M17.66 6.34l2.12-2.12"/></svg>
+          {T('effect')}
+        </TextBtn>
       </>}
 
       {/* COLOR — text fill or shape fill */}
@@ -1482,44 +1368,11 @@ function EditorContextToolbar({ sel, allFonts, brandColors, stageW, stageH, onUp
         )}
       </div>
 
-      {/* Position (layer order + canvas alignment) */}
-      <div style={{ position: 'relative' }}>
-        <TextBtn on={pop === 'pos'} onClick={() => setPop(p => p === 'pos' ? null : 'pos')}>
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
-          Position
-        </TextBtn>
-        {pop === 'pos' && (
-          <div style={{ ...popStyle, right: 0, left: 'auto', minWidth: 210 }}>
-            <div className="label" style={{ marginBottom: 6 }}>{T('layer')}</div>
-            {([['front','Premier plan'],['forward','Avancer'],['backward','Reculer'],['back','Arrière-plan']] as const).map(([id, label]) => (
-              <button key={id} onClick={() => { onLayerAction(id); setPop(null); }}
-                style={{ display: 'block', width: '100%', textAlign: 'left', padding: '7px 10px', borderRadius: 7, fontSize: 13, fontWeight: 600, cursor: 'pointer', border: 'none', background: 'transparent', color: 'var(--ink)' }}
-                onMouseEnter={e => (e.currentTarget.style.background = 'var(--sunk)')}
-                onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
-                {label}
-              </button>
-            ))}
-            <div className="label" style={{ margin: '10px 0 8px' }}>{T('alignToPage')}</div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 4 }}>
-              {[
-                { id: 'left',     title: 'Gauche',                  icon: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M11 5l-7 7 7 7M4 12h16"/></svg> },
-                { id: 'center-h', title: 'Centrer horiz.',          icon: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M12 4v16M5 9l7-7 7 7M5 15l7 7 7-7"/></svg> },
-                { id: 'right',    title: 'Droite',                   icon: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M13 5l7 7-7 7M20 12H4"/></svg> },
-                { id: 'top',      title: 'Haut',                     icon: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M5 11l7-7 7 7M12 4v16"/></svg> },
-                { id: 'center-v', title: 'Centrer vert.',            icon: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M4 12h16M9 5l-7 7 7 7M15 5l7 7-7 7"/></svg> },
-                { id: 'bottom',   title: 'Bas',                      icon: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M5 13l7 7 7-7M12 20V4"/></svg> },
-              ].map(({ id, title, icon }) => (
-                <button key={id} title={title} onClick={() => { onAlign(id); setPop(null); }}
-                  style={{ height: 34, borderRadius: 7, display: 'grid', placeItems: 'center', background: 'var(--sunk)', border: 'none', cursor: 'pointer', color: 'var(--ink)' }}
-                  onMouseEnter={e => (e.currentTarget.style.background = 'var(--line)')}
-                  onMouseLeave={e => (e.currentTarget.style.background = 'var(--sunk)')}>
-                  {icon}
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
-      </div>
+      {/* Position → ouvre le panneau gauche (organiser + aligner + avancé) */}
+      <TextBtn on={fxPanel === 'position'} onClick={() => onOpenFx?.('position')}>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+        Position
+      </TextBtn>
 
       <Div />
 
@@ -1626,6 +1479,200 @@ function PanelHead({ title, sub, onClose }: { title: string; sub?: string; onClo
         onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M15 6l-6 6 6 6"/></svg>
       </button>
+    </div>
+  );
+}
+
+// ─── Effets (panneau gauche façon Canva, aperçus visuels) ─────────────────────
+
+// Réglage générique (slider + valeur) pour les panneaux gauche.
+function FxSlider({ label, value, min, max, step, fmt, onChange }: { label: string; value: number; min: number; max: number; step: number; fmt: (v: number) => string; onChange: (v: number) => void }) {
+  return (
+    <div style={{ marginBottom: 10 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 5 }}>
+        <span className="label" style={{ marginBottom: 0 }}>{label}</span>
+        <span style={{ fontFamily: 'var(--mono)', fontWeight: 800, fontSize: 11, color: 'var(--ink-2)' }}>{fmt(value)}</span>
+      </div>
+      <input type="range" min={min} max={max} step={step} value={value}
+        onChange={e => onChange(parseFloat(e.target.value))} className="ed-range" style={{ width: '100%' }} />
+    </div>
+  );
+}
+
+// Les effets sont EXCLUSIFS (comme Canva) : appliquer un effet réinitialise les autres.
+const FX_CLEAR = { shadowEnabled: false, glowEnabled: false, hollowEnabled: false, liftEnabled: false, echoEnabled: false, highlightEnabled: false, strokeWidth: 0 } as Partial<TextEl>;
+
+function activeEffectKey(el: TextEl): string {
+  if (el.highlightEnabled) return 'background';
+  if (el.hollowEnabled) return 'hollow';
+  if (el.liftEnabled) return 'lift';
+  if (el.echoEnabled) return 'echo';
+  if (el.glowEnabled) return (el.strokeWidth ?? 0) > 0 && (el.glowIntensity ?? 0) >= 90 ? 'neon' : 'glow';
+  if (el.shadowEnabled) return 'shadow';
+  if ((el.strokeWidth ?? 0) > 0) return 'border';
+  return 'none';
+}
+
+function EffectsPanel({ sel, onUpdate, brandColors, onClose }: { sel: TextEl; onUpdate: (patch: Partial<CanvasEl>) => void; brandColors: string[]; onClose: () => void }) {
+  const T = useTranslations('editor');
+  const u = (patch: Partial<TextEl>) => onUpdate(patch as Partial<CanvasEl>);
+  const active = activeEffectKey(sel);
+
+  const presets: { key: string; label: string; patch: Partial<TextEl>; preview: React.CSSProperties }[] = [
+    { key: 'none',       label: 'Aucun',        patch: { ...FX_CLEAR }, preview: {} },
+    { key: 'shadow',     label: 'Ombre portée', patch: { ...FX_CLEAR, shadowEnabled: true, shadowColor: '#000000', shadowOpacity: 55, shadowBlur: 6, shadowOffsetX: 4, shadowOffsetY: 4 }, preview: { textShadow: '4px 4px 3px rgba(0,0,0,.45)' } },
+    { key: 'lift',       label: 'Élévation',    patch: { ...FX_CLEAR, liftEnabled: true, liftColor: '#000000', liftDepth: 5, liftDirection: 'br' }, preview: { textShadow: '0 6px 7px rgba(0,0,0,.32)' } },
+    { key: 'hollow',     label: 'Creux',        patch: { ...FX_CLEAR, hollowEnabled: true, stroke: sel.fill || '#14160F', strokeWidth: 2 }, preview: { color: 'transparent', WebkitTextStroke: '1.5px #14160F' } as React.CSSProperties },
+    { key: 'border',     label: 'Bordure',      patch: { ...FX_CLEAR, stroke: '#14160F', strokeWidth: 3 }, preview: { color: '#fff', WebkitTextStroke: '1.5px #14160F' } as React.CSSProperties },
+    { key: 'echo',       label: 'Écho',         patch: { ...FX_CLEAR, echoEnabled: true, echoColor: '#B9A3FF', echoCount: 3, echoOffset: 8, echoFade: true }, preview: { textShadow: '7px 7px 0 rgba(185,163,255,.55), 13px 13px 0 rgba(185,163,255,.28)' } },
+    { key: 'glow',       label: 'Brillance',    patch: { ...FX_CLEAR, glowEnabled: true, glowColor: '#FFD34E', glowIntensity: 70, glowSize: 14 }, preview: { textShadow: '0 0 12px #FFD34E, 0 0 6px #FFD34E' } },
+    { key: 'neon',       label: 'Néon',         patch: { ...FX_CLEAR, glowEnabled: true, glowColor: '#2FD79B', glowIntensity: 100, glowSize: 20, stroke: '#2FD79B', strokeWidth: 1 }, preview: { color: '#2FD79B', textShadow: '0 0 8px #2FD79B, 0 0 16px #2FD79B' } },
+    { key: 'background', label: 'Arrière-plan', patch: { ...FX_CLEAR, highlightEnabled: true, highlightColor: '#FFE45C', highlightOpacity: 100, highlightBorderRadius: 4, highlightPadding: 8 }, preview: { background: '#FFE45C', padding: '2px 6px', borderRadius: 4, color: '#14160F' } },
+  ];
+
+  return (
+    <div style={{ padding: 18 }}>
+      <PanelHead title={T('effect')} sub="Style du texte" onClose={onClose} />
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
+        {presets.map(p => {
+          const on = active === p.key;
+          return (
+            <button key={p.key} onClick={() => u(p.patch)}
+              style={{ display: 'flex', flexDirection: 'column', alignItems: 'stretch', gap: 6, padding: 0, border: 'none', background: 'transparent', cursor: 'pointer' }}>
+              <div style={{ aspectRatio: '1', borderRadius: 10, display: 'grid', placeItems: 'center',
+                background: p.key === 'neon' ? '#14160F' : 'var(--sunk)',
+                border: on ? '2px solid var(--mint-2)' : '1.5px solid var(--line)',
+                boxShadow: on ? '0 0 0 3px var(--mint-soft)' : 'none', transition: 'all .12s' }}>
+                <span style={{ fontFamily: 'var(--display)', fontWeight: 900, fontSize: 22, color: p.key === 'neon' ? '#fff' : '#14160F', lineHeight: 1, ...p.preview }}>Ag</span>
+              </div>
+              <span style={{ fontSize: 10.5, fontWeight: 700, color: on ? 'var(--mint-2)' : 'var(--ink-2)', textAlign: 'center', lineHeight: 1.15 }}>{p.label}</span>
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Réglages fins de l'effet actif */}
+      {active !== 'none' && (
+        <div style={{ marginTop: 18, borderTop: '1px solid var(--paper)', paddingTop: 14 }}>
+          <div className="label" style={{ marginBottom: 10 }}>Réglages</div>
+
+          {active === 'shadow' && (<>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+              <span className="label" style={{ marginBottom: 0 }}>{T('color')}</span>
+              <ColorPicker value={sel.shadowColor ?? '#000000'} onChange={c => u({ shadowColor: c })} brandColors={brandColors} />
+            </div>
+            <FxSlider label={T('opacity')} value={sel.shadowOpacity ?? 55} min={0} max={100} step={1} fmt={v => v + '%'} onChange={v => u({ shadowOpacity: v })} />
+            <FxSlider label={T('blur')} value={sel.shadowBlur ?? 6} min={0} max={30} step={1} fmt={v => v + 'px'} onChange={v => u({ shadowBlur: v })} />
+            <FxSlider label={T('offsetX')} value={sel.shadowOffsetX ?? 4} min={-20} max={20} step={1} fmt={v => (v >= 0 ? '+' : '') + v} onChange={v => u({ shadowOffsetX: v })} />
+            <FxSlider label={T('offsetY')} value={sel.shadowOffsetY ?? 4} min={-20} max={20} step={1} fmt={v => (v >= 0 ? '+' : '') + v} onChange={v => u({ shadowOffsetY: v })} />
+          </>)}
+
+          {active === 'lift' && (
+            <FxSlider label={T('depth')} value={sel.liftDepth ?? 5} min={1} max={20} step={1} fmt={v => v + 'px'} onChange={v => u({ liftDepth: v })} />
+          )}
+
+          {(active === 'hollow' || active === 'border') && (<>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+              <span className="label" style={{ marginBottom: 0 }}>{T('color')}</span>
+              <ColorPicker value={sel.stroke ?? '#14160F'} onChange={c => u({ stroke: c })} brandColors={brandColors} />
+            </div>
+            <FxSlider label={T('thickness')} value={sel.strokeWidth ?? 2} min={1} max={20} step={1} fmt={v => v + 'px'} onChange={v => u({ strokeWidth: v })} />
+          </>)}
+
+          {active === 'echo' && (<>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+              <span className="label" style={{ marginBottom: 0 }}>{T('color')}</span>
+              <ColorPicker value={sel.echoColor ?? '#B9A3FF'} onChange={c => u({ echoColor: c })} brandColors={brandColors} />
+            </div>
+            <FxSlider label={T('countLabel')} value={sel.echoCount ?? 3} min={1} max={5} step={1} fmt={v => String(v)} onChange={v => u({ echoCount: v })} />
+            <FxSlider label={T('offsetLabel')} value={sel.echoOffset ?? 8} min={1} max={30} step={1} fmt={v => v + 'px'} onChange={v => u({ echoOffset: v })} />
+          </>)}
+
+          {(active === 'glow' || active === 'neon') && (<>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+              <span className="label" style={{ marginBottom: 0 }}>{T('color')}</span>
+              <ColorPicker value={sel.glowColor ?? '#FFD34E'} onChange={c => u({ glowColor: c })} brandColors={brandColors} />
+            </div>
+            <FxSlider label={T('intensity')} value={sel.glowIntensity ?? 70} min={0} max={100} step={1} fmt={v => v + '%'} onChange={v => u({ glowIntensity: v })} />
+            <FxSlider label={T('sizeLabel')} value={sel.glowSize ?? 14} min={1} max={40} step={1} fmt={v => v + 'px'} onChange={v => u({ glowSize: v })} />
+          </>)}
+
+          {active === 'background' && (<>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+              <span className="label" style={{ marginBottom: 0 }}>{T('color')}</span>
+              <ColorPicker value={sel.highlightColor ?? '#FFE45C'} onChange={c => u({ highlightColor: c })} brandColors={brandColors} />
+            </div>
+            <FxSlider label={T('opacity')} value={sel.highlightOpacity ?? 100} min={0} max={100} step={1} fmt={v => v + '%'} onChange={v => u({ highlightOpacity: v })} />
+            <FxSlider label={T('rounding')} value={sel.highlightBorderRadius ?? 4} min={0} max={20} step={1} fmt={v => v + 'px'} onChange={v => u({ highlightBorderRadius: v })} />
+            <FxSlider label={T('thickness')} value={sel.highlightPadding ?? 8} min={0} max={20} step={1} fmt={v => v + 'px'} onChange={v => u({ highlightPadding: v })} />
+          </>)}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Position (panneau gauche : organiser + aligner + avancé) ──────────────────
+
+function PositionPanel({ sel, stageW, stageH, onUpdate, onAlign, onLayerAction, onClose }: { sel: CanvasEl; stageW: number; stageH: number; onUpdate: (patch: Partial<CanvasEl>) => void; onAlign: (dir: string) => void; onLayerAction: (a: 'front' | 'forward' | 'backward' | 'back') => void; onClose: () => void }) {
+  const T = useTranslations('editor');
+  const u = (patch: Partial<CanvasEl>) => onUpdate(patch);
+  const hasW = 'width' in sel;
+  const NumRow = ({ label, value, onChange }: { label: string; value: number; onChange: (v: number) => void }) => (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+      <span style={{ width: 22, fontSize: 12, fontWeight: 700, color: 'var(--ink-3)' }}>{label}</span>
+      <input type="number" value={Math.round(value)} onChange={e => onChange(parseFloat(e.target.value) || 0)}
+        style={{ flex: 1, padding: '7px 9px', border: '1.5px solid var(--line)', borderRadius: 8, fontSize: 13, fontWeight: 700, color: 'var(--ink)', outline: 'none', background: 'var(--sunk)', width: '100%', boxSizing: 'border-box' }} />
+    </div>
+  );
+
+  return (
+    <div style={{ padding: 18 }}>
+      <PanelHead title="Position" onClose={onClose} />
+
+      <div className="label" style={{ marginBottom: 8 }}>Organiser</div>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, marginBottom: 16 }}>
+        {([
+          ['front', 'Premier plan', <svg key="a" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="7" y="7" width="12" height="12" rx="2" fill="currentColor" fillOpacity=".18"/><path d="M5 15V5h10"/></svg>],
+          ['forward', 'Avancer', <svg key="b" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M12 19V5M5 12l7-7 7 7"/></svg>],
+          ['backward', 'Reculer', <svg key="c" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12l7 7 7-7"/></svg>],
+          ['back', 'Arrière-plan', <svg key="d" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="5" y="5" width="12" height="12" rx="2" fill="currentColor" fillOpacity=".18"/><path d="M19 9v10H9"/></svg>],
+        ] as const).map(([id, label, icon]) => (
+          <button key={id} onClick={() => onLayerAction(id)}
+            style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '9px 10px', borderRadius: 9, border: '1px solid var(--line)', background: 'var(--sunk)', cursor: 'pointer', fontSize: 12.5, fontWeight: 600, color: 'var(--ink)', textAlign: 'left' }}
+            onMouseEnter={e => (e.currentTarget.style.background = 'var(--line)')}
+            onMouseLeave={e => (e.currentTarget.style.background = 'var(--sunk)')}>
+            {icon}<span>{label}</span>
+          </button>
+        ))}
+      </div>
+
+      <div className="label" style={{ marginBottom: 8 }}>{T('alignToPage')}</div>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 6, marginBottom: 16 }}>
+        {[
+          { id: 'left',     icon: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M11 5l-7 7 7 7M4 12h16"/></svg> },
+          { id: 'center-h', icon: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M12 4v16M5 9l7-7 7 7M5 15l7 7 7-7"/></svg> },
+          { id: 'right',    icon: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M13 5l7 7-7 7M20 12H4"/></svg> },
+          { id: 'top',      icon: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M5 11l7-7 7 7M12 4v16"/></svg> },
+          { id: 'center-v', icon: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M4 12h16M9 5l-7 7 7 7M15 5l7 7-7 7"/></svg> },
+          { id: 'bottom',   icon: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M5 13l7 7 7-7M12 20V4"/></svg> },
+        ].map(({ id, icon }) => (
+          <button key={id} onClick={() => onAlign(id)}
+            style={{ height: 40, borderRadius: 9, display: 'grid', placeItems: 'center', background: 'var(--sunk)', border: '1px solid var(--line)', cursor: 'pointer', color: 'var(--ink)' }}
+            onMouseEnter={e => (e.currentTarget.style.background = 'var(--line)')}
+            onMouseLeave={e => (e.currentTarget.style.background = 'var(--sunk)')}>
+            {icon}
+          </button>
+        ))}
+      </div>
+
+      <div className="label" style={{ marginBottom: 8 }}>Avancé</div>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+        <NumRow label="X" value={sel.x} onChange={v => u({ x: v })} />
+        <NumRow label="Y" value={sel.y} onChange={v => u({ y: v })} />
+        {hasW && <NumRow label="L" value={(sel as { width: number }).width} onChange={v => u({ width: Math.max(20, v) } as Partial<CanvasEl>)} />}
+        <NumRow label="↻" value={sel.rotation} onChange={v => u({ rotation: v })} />
+      </div>
     </div>
   );
 }
@@ -1935,6 +1982,9 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
 
   // ── UI tool + workspace ───────────────────────────────────────────────────
   const [tool, setTool] = useState<'design'|'elements'|'text'|'photos'|'brand'|'upload'|'calques'|null>(null);
+  // Panneau gauche contextuel (Effet / Position) ouvert depuis la barre de modification.
+  const [fxPanel, setFxPanel] = useState<'effects'|'position'|null>(null);
+  const openFxPanel = (p: 'effects'|'position') => { setFxPanel(cur => cur === p ? null : p); setTool(null); };
   const [bgLocked, setBgLocked] = useState(true);
   const [bgImageSelected, setBgImageSelected] = useState(false);
   const [bgOpacity, setBgOpacity] = useState(100);
@@ -2309,7 +2359,17 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
     if (e.type === 'circle') { const r = (e as CircleEl).radius; return { l: e.x - r, t: e.y - r, r: e.x + r, b: e.y + r, w: r*2, h: r*2, cx: e.x, cy: e.y }; }
     if (e.type === 'star') { const r = (e as StarEl).outerRadius; return { l: e.x - r, t: e.y - r, r: e.x + r, b: e.y + r, w: r*2, h: r*2, cx: e.x, cy: e.y }; }
     const w = 'width' in e ? (e as any).width : 100;
-    const h = e.type === 'text' ? (e as TextEl).fontSize + 2 * Number((e as TextEl).paddingV ?? (e as TextEl).padding ?? 10) : ('height' in e ? (e as any).height : 100);
+    let h: number;
+    if (e.type === 'text') {
+      const t = e as TextEl;
+      const pH = Number(t.paddingH ?? t.padding ?? 10);
+      const pV = Number(t.paddingV ?? t.padding ?? 10);
+      const areaW = Math.max(1, w - pH * 2);
+      const lines = countLines(t.uppercase ? t.text.toUpperCase() : t.text, t.fontSize, t.fontFamily, t.fontStyle, areaW);
+      h = lines * t.fontSize * (t.lineHeight ?? 1.2) + pV * 2;
+    } else {
+      h = 'height' in e ? (e as any).height : 100;
+    }
     return { l: e.x, t: e.y, r: e.x + w, b: e.y + h, w, h, cx: e.x + w/2, cy: e.y + h/2 };
   };
 
@@ -3565,9 +3625,17 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
       <div data-stop-deselect className="ed-topbar" style={{
         minHeight: 60, flexShrink: 0,
         display: 'flex', alignItems: 'center', gap: 12, padding: '11px 18px',
-        borderBottom: '1px solid var(--line)',
-        background: 'color-mix(in srgb, var(--canvas) 80%, transparent)',
-        backdropFilter: 'blur(8px)',
+        borderBottom: '1px solid rgba(255,255,255,.10)',
+        // Bandeau vert dégradé (façon en-tête sombre Canva) — tous les enfants
+        // basculent en clair via ces overrides de tokens (scopés à la topbar).
+        background: 'linear-gradient(115deg, var(--forest) 0%, var(--forest-2) 55%, var(--forest-3) 100%)',
+        ['--ink' as string]: '#F1F0E8',
+        ['--ink-2' as string]: 'rgba(241,240,232,.72)',
+        ['--ink-3' as string]: 'rgba(241,240,232,.52)',
+        ['--line' as string]: 'rgba(255,255,255,.16)',
+        ['--sunk' as string]: 'rgba(255,255,255,.10)',
+        ['--canvas' as string]: 'rgba(255,255,255,.16)',
+        ['--paper' as string]: 'rgba(255,255,255,.10)',
         position: 'relative', zIndex: 30,
       }}>
         {/* Left: burger + back + workspace label + undo/redo */}
@@ -3716,6 +3784,8 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
             onRemoveBg={selectedEl.type === 'image' ? () => removeBgFromImage(selectedEl as ImageEl) : undefined}
             bgRemoving={bgRemovingId === selectedEl.id}
             onLayerAction={layerAction}
+            onOpenFx={openFxPanel}
+            fxPanel={fxPanel}
           />
         </div>
       )}
@@ -3734,7 +3804,7 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
             { id: 'upload',   label: 'Importer', icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg> },
             { id: 'calques',  label: 'Calques',  icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg> },
           ] as const).map(({ id, label, icon }) => (
-            <button key={id} onClick={() => { setTool(tool === id ? null : id); if (isPenMode) cancelPenMode(); }} title={label}
+            <button key={id} onClick={() => { setTool(tool === id ? null : id); setFxPanel(null); if (isPenMode) cancelPenMode(); }} title={label}
               style={{ width: 50, height: 50, borderRadius: 13, border: 'none', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 4, cursor: 'pointer', transition: 'all .14s',
                 background: tool === id ? 'var(--mint-soft)' : 'transparent',
                 color: tool === id ? 'var(--mint-2)' : 'var(--ink-3)' }}>
@@ -4224,6 +4294,31 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
           </div>
         )}
 
+        {/* ── PANNEAU GAUCHE CONTEXTUEL (Effet / Position) ── */}
+        {selectedEl && (fxPanel === 'position' || (fxPanel === 'effects' && selectedEl.type === 'text')) && (
+          <div data-stop-deselect className="pop-in ed-panel" style={{ width: 312, background: 'var(--white)', borderRight: '1px solid var(--line)', overflowY: 'auto', flexShrink: 0, display: 'flex', flexDirection: 'column' }}>
+            {fxPanel === 'effects' && selectedEl.type === 'text' && (
+              <EffectsPanel
+                sel={selectedEl as TextEl}
+                brandColors={[workspaceData?.primary_color, workspaceData?.secondary_color, workspaceData?.accent_color].filter(Boolean) as string[]}
+                onUpdate={(patch) => updateEl(selectedEl.id, patch)}
+                onClose={() => setFxPanel(null)}
+              />
+            )}
+            {fxPanel === 'position' && (
+              <PositionPanel
+                sel={selectedEl}
+                stageW={stageW}
+                stageH={stageH}
+                onUpdate={(patch) => updateEl(selectedEl.id, patch)}
+                onAlign={alignEl}
+                onLayerAction={layerAction}
+                onClose={() => setFxPanel(null)}
+              />
+            )}
+          </div>
+        )}
+
         {/* ── CANVAS WORKSPACE ── */}
         <div className="ed-canvas-area" style={{ flex: 1, minWidth: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column', background: 'var(--white)', position: 'relative' }}>
           {/* ── Barre contextuelle flottante (desktop) — centrée sous la topbar, par-dessus le plan de travail ── */}
@@ -4246,6 +4341,8 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
                 onRemoveBg={selectedEl.type === 'image' ? () => removeBgFromImage(selectedEl as ImageEl) : undefined}
                 bgRemoving={bgRemovingId === selectedEl.id}
                 onLayerAction={layerAction}
+                onOpenFx={openFxPanel}
+                fxPanel={fxPanel}
               />
             </div>
           )}
@@ -4407,12 +4504,11 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
                     const rawW = el.width ?? (measuredW + pH * 2);
                     const blockW = Math.min(Math.max(rawW, 80), Math.max(80, stageW - (el.x ?? 0) - 20));
                     const textAreaW = Math.max(1, blockW - pH * 2);
-                    // Dynamic blockH: account for text wrapping and manual line breaks
-                    const allLines = (el.uppercase ? el.text.toUpperCase() : el.text).split('\n');
-                    const lineCount = allLines.reduce((acc: number, line: string) => {
-                      const lw = measureTextWidth(line || ' ', el.fontSize, el.fontFamily, el.fontStyle);
-                      return acc + Math.max(1, Math.ceil(lw / Math.max(1, textAreaW)));
-                    }, 0);
+                    // Dynamic blockH: word-wrap simulation matching Konva (so hitbox grows with wrapped lines)
+                    const lineCount = countLines(
+                      el.uppercase ? el.text.toUpperCase() : el.text,
+                      el.fontSize, el.fontFamily, el.fontStyle, textAreaW
+                    );
                     const blockH = Math.max(1, lineCount) * el.fontSize * (el.lineHeight ?? 1.2) + pV * 2;
                     return (
                       <Group key={el.id} id={el.id} x={el.x} y={el.y} rotation={el.rotation} opacity={el.opacity / 100}
@@ -4884,7 +4980,7 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
           {/* ── SLIDE STRIP ── (masqué en carrousel continu : une seule toile) */}
           <div style={{
             height: 80, flexShrink: 0,
-            background: 'var(--canvas)', borderTop: '1px solid var(--line)',
+            background: 'var(--white)', borderTop: '1px solid var(--line)',
             display: isContinuous ? 'none' : 'flex', alignItems: 'center',
             padding: '0 16px', gap: 8,
             overflowX: 'auto',

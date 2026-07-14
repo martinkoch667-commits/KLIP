@@ -65,11 +65,29 @@ function getElementBounds(el: AnyEl): Bounds | null {
           const ctx = cvs.getContext('2d');
           if (ctx) {
             ctx.font = `${el.fontStyle ?? 'bold'} ${fontSize}px ${el.fontFamily ?? 'Archivo'}`;
-            const allLines = (el.text ?? '').split('\n');
-            lineCount = allLines.reduce((acc: number, line: string) => {
-              const lw = ctx.measureText(line || ' ').width;
-              return acc + Math.max(1, Math.ceil(lw / Math.max(1, textAreaW)));
-            }, 0);
+            // Simule le retour à la ligne par mots de Konva (wrap="word") pour que la
+            // boîte de sélection colle exactement à la hitbox multi-lignes.
+            const aw = Math.max(1, textAreaW);
+            const spaceW = ctx.measureText(' ').width;
+            let lines = 0;
+            for (const para of (el.text ?? '').split('\n')) {
+              let lineW = 0;
+              let paraLines = 1;
+              for (const word of para.split(' ')) {
+                const wordW = ctx.measureText(word).width;
+                if (wordW > aw) {
+                  if (lineW > 0) { paraLines++; lineW = 0; }
+                  paraLines += Math.ceil(wordW / aw) - 1;
+                  lineW = wordW % aw;
+                  continue;
+                }
+                const add = lineW === 0 ? wordW : lineW + spaceW + wordW;
+                if (add > aw && lineW > 0) { paraLines++; lineW = wordW; }
+                else { lineW = add; }
+              }
+              lines += paraLines;
+            }
+            lineCount = Math.max(1, lines);
           }
         }
       } catch {}
