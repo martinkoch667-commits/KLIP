@@ -767,11 +767,11 @@ function TextProperties({ el, onChange, customFonts, onFontUpload, brandColors, 
     <>
       <PropRow label={T('content')}>
         <textarea value={el.text} onChange={e => onChange({ text: e.target.value })} rows={3}
-          style={{ width: '100%', padding: '8px 10px', border: '1px solid var(--line)', borderRadius: 'var(--r-s)', fontSize: 13, resize: 'vertical', boxSizing: 'border-box', fontFamily: 'var(--sans)', outline: 'none', background: 'var(--sunk)', color: 'var(--ink)' }} />
+          style={{ width: '100%', padding: '8px 10px', border: '1px solid var(--line)', borderRadius: 'var(--r-s)', fontSize: 13, resize: 'vertical', boxSizing: 'border-box', fontFamily: 'var(--sans)', outline: 'none', background: 'var(--white)', color: 'var(--ink)' }} />
       </PropRow>
       <PropRow label={T('font')}>
         <select value={el.fontFamily} onChange={e => onChange({ fontFamily: e.target.value })}
-          style={{ width: '100%', padding: '6px 8px', border: '1px solid var(--line)', borderRadius: 'var(--r-s)', fontSize: 13, outline: 'none', background: 'var(--sunk)', color: 'var(--ink)', fontFamily: `"${el.fontFamily}", sans-serif` }}>
+          style={{ width: '100%', padding: '6px 8px', border: '1px solid var(--line)', borderRadius: 'var(--r-s)', fontSize: 13, outline: 'none', background: 'var(--white)', color: 'var(--ink)', fontFamily: `"${el.fontFamily}", sans-serif` }}>
           {brandFontNames && brandFontNames.length > 0 && (
             <optgroup label={T('brandKit')}>
               {brandFontNames.map(f => <option key={f} value={f}>{f}</option>)}
@@ -863,7 +863,7 @@ function TextProperties({ el, onChange, customFonts, onFontUpload, brandColors, 
       {/* 4D — IA role for structured generation */}
       <PropRow label={T('aiRole')}>
         <select value={el.role || ''} onChange={e => onChange({ role: e.target.value || undefined })}
-          style={{ width: '100%', padding: '6px 8px', border: '1px solid var(--line)', borderRadius: 'var(--r-s)', fontSize: 13, outline: 'none', background: 'var(--sunk)', color: 'var(--ink)' }}>
+          style={{ width: '100%', padding: '6px 8px', border: '1px solid var(--line)', borderRadius: 'var(--r-s)', fontSize: 13, outline: 'none', background: 'var(--white)', color: 'var(--ink)' }}>
           <option value="">{T('none')}</option>
           <option value="accroche">{T('roleHook')}</option>
           <option value="titre">{T('roleTitle')}</option>
@@ -996,7 +996,7 @@ function EditorContextToolbar({ sel, allFonts, brandColors, stageW, stageH, onUp
         <span style={{ fontFamily: 'var(--mono)', fontWeight: 800, fontSize: 11, color: 'var(--ink-2)' }}>{fmt(value)}</span>
       </div>
       <input type="range" min={min} max={max} step={step} value={value}
-        onChange={e => onChange(parseFloat(e.target.value))} className="ed-range" style={{ width: '100%' }} />
+        onChange={e => onChange(parseFloat(e.target.value))} className="ed-range" style={{ width: '100%', ...rangeFill(value, min, max) }} />
     </div>
   );
   const toggleDecoration = (flag: 'underline' | 'line-through') => {
@@ -1155,7 +1155,7 @@ function EditorContextToolbar({ sel, allFonts, brandColors, stageW, stageH, onUp
                   <span className="label" style={{ marginBottom: 0 }}>{T('angle')}</span>
                   <span style={{ fontFamily: 'var(--mono)', fontWeight: 800, fontSize: 11, color: 'var(--ink-2)' }}>{gradSel.fillAngle ?? 90}°</span>
                 </div>
-                <input type="range" min={0} max={360} step={5} value={gradSel.fillAngle ?? 90} onChange={e => setFillAngle(parseInt(e.target.value))} className="ed-range" style={{ width: '100%' }} />
+                <input type="range" min={0} max={360} step={5} value={gradSel.fillAngle ?? 90} onChange={e => setFillAngle(parseInt(e.target.value))} className="ed-range" style={{ width: '100%', ...rangeFill(gradSel.fillAngle ?? 90, 0, 360) }} />
               </>}
             </div>
           )}
@@ -1182,12 +1182,12 @@ function EditorContextToolbar({ sel, allFonts, brandColors, stageW, stageH, onUp
                     <span className="label" style={{ marginBottom: 0 }}>{T('bgOpacity')}</span>
                     <span style={{ fontFamily: 'var(--mono)', fontWeight: 800, fontSize: 11, color: 'var(--ink-2)' }}>{textSel.bgOpacity}%</span>
                   </div>
-                  <input type="range" min={0} max={100} step={1} value={textSel.bgOpacity} onChange={e => u({ bgOpacity: parseInt(e.target.value) } as Partial<TextEl>)} className="ed-range" style={{ width: '100%' }} />
+                  <input type="range" min={0} max={100} step={1} value={textSel.bgOpacity} onChange={e => u({ bgOpacity: parseInt(e.target.value) } as Partial<TextEl>)} className="ed-range" style={{ width: '100%', ...rangeFill(textSel.bgOpacity, 0, 100) }} />
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 10, marginBottom: 5 }}>
                     <span className="label" style={{ marginBottom: 0 }}>{T('rounding')}</span>
                     <span style={{ fontFamily: 'var(--mono)', fontWeight: 800, fontSize: 11, color: 'var(--ink-2)' }}>{textSel.cornerRadius}px</span>
                   </div>
-                  <input type="range" min={0} max={50} step={1} value={textSel.cornerRadius} onChange={e => u({ cornerRadius: parseInt(e.target.value) } as Partial<TextEl>)} className="ed-range" style={{ width: '100%' }} />
+                  <input type="range" min={0} max={50} step={1} value={textSel.cornerRadius} onChange={e => u({ cornerRadius: parseInt(e.target.value) } as Partial<TextEl>)} className="ed-range" style={{ width: '100%', ...rangeFill(textSel.cornerRadius, 0, 50) }} />
                 </div>
               </div>
             )}
@@ -1212,7 +1212,7 @@ function EditorContextToolbar({ sel, allFonts, brandColors, stageW, stageH, onUp
                 <span className="label" style={{ marginBottom: 0 }}>{T('thickness')}</span>
                 <span style={{ fontFamily: 'var(--mono)', fontWeight: 800, fontSize: 11, color: 'var(--ink-2)' }}>{vecSel.strokeWidth}px</span>
               </div>
-              <input type="range" min={0} max={20} step={1} value={vecSel.strokeWidth} onChange={e => u({ strokeWidth: parseInt(e.target.value) } as Partial<VectorEl>)} className="ed-range" style={{ width: '100%' }} />
+              <input type="range" min={0} max={20} step={1} value={vecSel.strokeWidth} onChange={e => u({ strokeWidth: parseInt(e.target.value) } as Partial<VectorEl>)} className="ed-range" style={{ width: '100%', ...rangeFill(vecSel.strokeWidth, 0, 20) }} />
               <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 10, marginBottom: 5 }}>
                 <span className="label" style={{ marginBottom: 0 }}>{T('fill')}</span>
               </div>
@@ -1241,7 +1241,7 @@ function EditorContextToolbar({ sel, allFonts, brandColors, stageW, stageH, onUp
                     <span className="label" style={{ marginBottom: 0 }}>{T('angle')}</span>
                     <span style={{ fontFamily: 'var(--mono)', fontWeight: 800, fontSize: 11, color: 'var(--ink-2)' }}>{vecSel.fillAngle ?? 90}°</span>
                   </div>
-                  <input type="range" min={0} max={360} step={5} value={vecSel.fillAngle ?? 90} onChange={e => setFillAngle(parseInt(e.target.value))} className="ed-range" style={{ width: '100%' }} />
+                  <input type="range" min={0} max={360} step={5} value={vecSel.fillAngle ?? 90} onChange={e => setFillAngle(parseInt(e.target.value))} className="ed-range" style={{ width: '100%', ...rangeFill(vecSel.fillAngle ?? 90, 0, 360) }} />
                 </div>
               )}
               {vecSel.fillType === 'image' && vecSel.imageSrc && (
@@ -1266,7 +1266,7 @@ function EditorContextToolbar({ sel, allFonts, brandColors, stageW, stageH, onUp
                 <span className="label" style={{ marginBottom: 0 }}>{T('rounding')}</span>
                 <span style={{ fontFamily: 'var(--mono)', fontWeight: 800, fontSize: 11, color: 'var(--ink-2)' }}>{rectSel.cornerRadius}px</span>
               </div>
-              <input type="range" min={0} max={50} step={1} value={rectSel.cornerRadius} onChange={e => u({ cornerRadius: parseInt(e.target.value) } as Partial<RectEl>)} className="ed-range" style={{ width: '100%' }} />
+              <input type="range" min={0} max={50} step={1} value={rectSel.cornerRadius} onChange={e => u({ cornerRadius: parseInt(e.target.value) } as Partial<RectEl>)} className="ed-range" style={{ width: '100%', ...rangeFill(rectSel.cornerRadius, 0, 50) }} />
             </div>
           )}
         </div>
@@ -1286,7 +1286,7 @@ function EditorContextToolbar({ sel, allFonts, brandColors, stageW, stageH, onUp
                 <span style={{ fontFamily: 'var(--mono)', fontWeight: 800, fontSize: 11, color: 'var(--ink-2)' }}>{val > 0 && min < 0 ? '+' : ''}{val}{unit}</span>
               </div>
               <input type="range" min={min} max={max} step={1} value={val}
-                onChange={e => u({ [k]: parseInt(e.target.value) } as Partial<ImageEl>)} className="ed-range" style={{ width: '100%' }} />
+                onChange={e => u({ [k]: parseInt(e.target.value) } as Partial<ImageEl>)} className="ed-range" style={{ width: '100%', ...rangeFill(val, min, max) }} />
             </div>
           );
         };
@@ -1349,7 +1349,7 @@ function EditorContextToolbar({ sel, allFonts, brandColors, stageW, stageH, onUp
               <span className="label" style={{ marginBottom: 0 }}>{T('opacity')}</span>
               <span style={{ fontFamily: 'var(--mono)', fontWeight: 800, fontSize: 11, color: 'var(--ink-2)' }}>{sel.opacity}%</span>
             </div>
-            <input type="range" min={0} max={100} step={1} value={sel.opacity} onChange={e => u({ opacity: parseInt(e.target.value) } as Partial<CanvasEl>)} className="ed-range" style={{ width: '100%' }} />
+            <input type="range" min={0} max={100} step={1} value={sel.opacity} onChange={e => u({ opacity: parseInt(e.target.value) } as Partial<CanvasEl>)} className="ed-range" style={{ width: '100%', ...rangeFill(sel.opacity, 0, 100) }} />
           </div>
         )}
       </div>
@@ -1471,6 +1471,12 @@ function PanelHead({ title, sub, onClose }: { title: string; sub?: string; onClo
 
 // ─── Effets (panneau gauche façon Canva, aperçus visuels) ─────────────────────
 
+// Piste de slider remplie en mint jusqu'au curseur (façon Canva).
+function rangeFill(v: number, min: number, max: number): React.CSSProperties {
+  const pct = Math.max(0, Math.min(100, ((v - min) / (max - min)) * 100));
+  return { background: `linear-gradient(to right, var(--mint-2) ${pct}%, var(--sunk) ${pct}%)` };
+}
+
 // Réglage générique (slider + stepper façon Canva) pour les panneaux gauche.
 function FxSlider({ label, value, min, max, step, fmt, onChange }: { label: string; value: number; min: number; max: number; step: number; fmt: (v: number) => string; onChange: (v: number) => void }) {
   const clamp = (v: number) => Math.min(max, Math.max(min, v));
@@ -1480,7 +1486,8 @@ function FxSlider({ label, value, min, max, step, fmt, onChange }: { label: stri
       <div style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--ink-2)', marginBottom: 8 }}>{label}</div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
         <input type="range" min={min} max={max} step={step} value={value}
-          onChange={e => onChange(parseFloat(e.target.value))} className="ed-range" style={{ flex: 1, minWidth: 0 }} />
+          onChange={e => onChange(parseFloat(e.target.value))} className="ed-range"
+          style={{ flex: 1, minWidth: 0, ...rangeFill(value, min, max) }} />
         <div style={{ display: 'flex', alignItems: 'center', height: 32, borderRadius: 8, border: '1px solid var(--line)', background: '#fff', flexShrink: 0 }}>
           <button type="button" onClick={() => onChange(clamp(value - step))} style={stepBtn}>−</button>
           <span style={{ minWidth: 32, textAlign: 'center', fontFamily: 'var(--mono)', fontWeight: 700, fontSize: 12.5, color: 'var(--ink)' }}>{fmt(value)}</span>
@@ -1633,7 +1640,7 @@ function PositionPanel({ sel, stageW, stageH, onUpdate, onAlign, onLayerAction, 
     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
       <span style={{ width: 22, fontSize: 12, fontWeight: 700, color: 'var(--ink-3)' }}>{label}</span>
       <input type="number" value={Math.round(value)} onChange={e => onChange(parseFloat(e.target.value) || 0)}
-        style={{ flex: 1, padding: '7px 9px', border: '1.5px solid var(--line)', borderRadius: 8, fontSize: 13, fontWeight: 700, color: 'var(--ink)', outline: 'none', background: 'var(--sunk)', width: '100%', boxSizing: 'border-box' }} />
+        style={{ flex: 1, padding: '7px 9px', border: '1.5px solid var(--line)', borderRadius: 8, fontSize: 13, fontWeight: 700, color: 'var(--ink)', outline: 'none', background: 'var(--white)', width: '100%', boxSizing: 'border-box' }} />
     </div>
   );
 
@@ -3641,10 +3648,9 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
     <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', fontFamily: 'var(--sans)', background: 'radial-gradient(120% 80% at 50% -10%, #FBFAF4, #ECEBE1 70%)', overflow: 'hidden', marginLeft: sidebarOpen ? 'var(--sb-w)' : 0, transition: 'margin-left 0.2s' }}>
 
       {/* ── TOPBAR ── */}
-      <div data-stop-deselect className="ed-topbar" style={{
+      <div data-stop-deselect className={`ed-topbar${sidebarOpen ? ' ed-narrow' : ''}`} style={{
         minHeight: 60, flexShrink: 0,
         display: 'flex', alignItems: 'center', gap: 12, padding: '11px 18px',
-        borderBottom: '1px solid rgba(255,255,255,.10)',
         // Bandeau vert dégradé (façon en-tête sombre Canva) — tous les enfants
         // basculent en clair via ces overrides de tokens (scopés à la topbar).
         background: 'linear-gradient(115deg, var(--forest) 0%, var(--forest-2) 55%, var(--forest-3) 100%)',
@@ -3813,7 +3819,7 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
       <div className="ed-body" style={{ flex: 1, display: 'flex', minHeight: 0 }}>
 
         {/* ── TOOL RAIL (68px) ── */}
-        <div data-stop-deselect className="ed-rail" style={{ width: 68, background: 'var(--white)', borderRight: '1px solid var(--line)', display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '12px 0', gap: 4, flexShrink: 0 }}>
+        <div data-stop-deselect className="ed-rail" style={{ width: 68, background: 'var(--white)', display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '12px 0', gap: 4, flexShrink: 0 }}>
           {([
             { id: 'design',   label: 'Modèles',  icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg> },
             { id: 'elements', label: 'Éléments', icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="8" height="8" rx="1.5"/><circle cx="17" cy="7" r="4"/><polygon points="12 22 3 15.5 21 15.5 12 22"/></svg> },
@@ -3831,7 +3837,7 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
               <span style={{ fontFamily: 'var(--mono)', fontWeight: 800, fontSize: 7.5, letterSpacing: '.06em', textTransform: 'uppercase', lineHeight: 1 }}>{label}</span>
             </button>
           ))}
-          <div style={{ width: 36, height: 1, background: 'var(--line)', margin: '2px 0' }} />
+          <div style={{ width: 28, height: 1, background: 'var(--sunk)', margin: '2px 0' }} />
           <button onClick={() => { setIsPenMode(p => !p); setTool(null); }} title={T('penToolTip')}
             style={{ width: 50, height: 50, borderRadius: 13, border: 'none', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 4, cursor: isPenMode ? 'crosshair' : 'pointer', transition: 'all .14s',
               background: isPenMode ? 'var(--mint-soft)' : 'transparent',
@@ -3843,7 +3849,7 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
 
         {/* ── TOOL PANEL FLYOUT (312px, conditional) ── */}
         {tool && (
-          <div data-stop-deselect className="pop-in ed-panel" style={{ width: 312, background: 'var(--white)', borderRight: '1px solid var(--line)', overflowY: 'auto', flexShrink: 0, display: 'flex', flexDirection: 'column' }}>
+          <div data-stop-deselect className="pop-in ed-panel" style={{ width: 312, background: 'var(--white)', overflowY: 'auto', flexShrink: 0, display: 'flex', flexDirection: 'column' }}>
 
             {/* DESIGN — Modèles */}
             {tool === 'design' && (
@@ -3851,7 +3857,7 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
                 <PanelHead title={T('templates')} sub={`Mises en page · ${workspaceName}`} onClose={() => setTool(null)} />
                 <div style={{ position: 'relative', marginBottom: 16 }}>
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" style={{ position: 'absolute', left: 12, top: 12, color: 'var(--ink-3)', pointerEvents: 'none' }}><circle cx="11" cy="11" r="7"/><path d="M21 21l-4-4"/></svg>
-                  <input className="input" placeholder={T('searchTemplate')} style={{ paddingLeft: 36, height: 40, background: 'var(--sunk)', border: 'none' }} />
+                  <input className="input" placeholder={T('searchTemplate')} style={{ paddingLeft: 36, height: 40, background: 'var(--white)', border: '1px solid var(--line)' }} />
                 </div>
                 <p className="label" style={{ marginBottom: 9 }}>{T('backgrounds')}</p>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 9 }}>
@@ -3924,7 +3930,7 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
                       onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); fetchIcons(iconQuery); } }}
                       enterKeyHint="search" inputMode="search" autoCapitalize="none" autoCorrect="off"
                       placeholder={T('searchIcon')}
-                      style={{ width: '100%', padding: '8px 10px 8px 32px', border: '1.5px solid var(--line)', borderRadius: 8, fontSize: 12.5, outline: 'none', fontFamily: 'var(--sans)', background: 'var(--sunk)', color: 'var(--ink)', boxSizing: 'border-box' }} />
+                      style={{ width: '100%', padding: '8px 10px 8px 32px', border: '1.5px solid var(--line)', borderRadius: 8, fontSize: 12.5, outline: 'none', fontFamily: 'var(--sans)', background: 'var(--white)', color: 'var(--ink)', boxSizing: 'border-box' }} />
                   </div>
                   <button type="button" onClick={() => fetchIcons(iconQuery)} aria-label={T('search')}
                     style={{ flexShrink: 0, width: 40, borderRadius: 8, border: 'none', background: 'var(--mint, #2FD79B)', color: '#06281C', display: 'grid', placeItems: 'center', cursor: 'pointer' }}>
@@ -4005,17 +4011,17 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
                 <p style={{ fontSize: 10, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '0.12em', fontFamily: 'var(--mono)', fontWeight: 800, margin: '0 0 8px' }}>{T('styles')}</p>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                   <button onClick={() => applyTemplate({ fontSize: 88, fontFamily: 'Archivo', fontStyle: 'italic bold', fill: workspaceData?.primary_color || '#111' } as Partial<TextEl>)}
-                    style={{ padding: '12px 14px', borderRadius: 10, border: '1px solid var(--line)', cursor: 'pointer', background: 'var(--sunk)', textAlign: 'left' }}>
+                    style={{ padding: '12px 14px', borderRadius: 10, border: '1px solid var(--line)', cursor: 'pointer', background: 'var(--white)', textAlign: 'left' }}>
                     <span style={{ fontFamily: 'Archivo', fontStyle: 'italic', fontWeight: 900, fontSize: 26, color: 'var(--ink)', display: 'block', lineHeight: 1 }}>{T('styleTitle')}</span>
                     <span style={{ fontSize: 10, color: 'var(--ink-3)', fontFamily: 'var(--mono)', fontWeight: 700 }}>Archivo Italic · 88px</span>
                   </button>
                   <button onClick={() => applyTemplate({ fontSize: 46, fontFamily: 'Cabinet Grotesk', fontStyle: 'bold', fill: workspaceData?.primary_color || '#111' } as Partial<TextEl>)}
-                    style={{ padding: '12px 14px', borderRadius: 10, border: '1px solid var(--line)', cursor: 'pointer', background: 'var(--sunk)', textAlign: 'left' }}>
+                    style={{ padding: '12px 14px', borderRadius: 10, border: '1px solid var(--line)', cursor: 'pointer', background: 'var(--white)', textAlign: 'left' }}>
                     <span style={{ fontFamily: 'Cabinet Grotesk', fontWeight: 700, fontSize: 20, color: 'var(--ink)', display: 'block', lineHeight: 1 }}>{T('styleSubtitle')}</span>
                     <span style={{ fontSize: 10, color: 'var(--ink-3)', fontFamily: 'var(--mono)', fontWeight: 700 }}>Cabinet Grotesk · 46px</span>
                   </button>
                   <button onClick={() => applyTemplate({ fontSize: 28, fontFamily: 'Satoshi', fontStyle: 'normal', fill: '#333' } as Partial<TextEl>)}
-                    style={{ padding: '12px 14px', borderRadius: 10, border: '1px solid var(--line)', cursor: 'pointer', background: 'var(--sunk)', textAlign: 'left' }}>
+                    style={{ padding: '12px 14px', borderRadius: 10, border: '1px solid var(--line)', cursor: 'pointer', background: 'var(--white)', textAlign: 'left' }}>
                     <span style={{ fontFamily: 'Satoshi', fontWeight: 400, fontSize: 15, color: 'var(--ink-2)', display: 'block', lineHeight: 1.4 }}>{T('styleBody')}</span>
                     <span style={{ fontSize: 10, color: 'var(--ink-3)', fontFamily: 'var(--mono)', fontWeight: 700 }}>Satoshi · 28px</span>
                   </button>
@@ -4062,7 +4068,7 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
                       onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); fetchPexels(pexelsQuery, 1); } }}
                       enterKeyHint="search" inputMode="search" autoCapitalize="none" autoCorrect="off"
                       placeholder={T('searchPhotos')}
-                      style={{ width: '100%', padding: '8px 10px 8px 32px', border: '1.5px solid var(--line)', borderRadius: 8, fontSize: 12.5, outline: 'none', fontFamily: 'var(--sans)', background: 'var(--sunk)', color: 'var(--ink)', boxSizing: 'border-box' }} />
+                      style={{ width: '100%', padding: '8px 10px 8px 32px', border: '1.5px solid var(--line)', borderRadius: 8, fontSize: 12.5, outline: 'none', fontFamily: 'var(--sans)', background: 'var(--white)', color: 'var(--ink)', boxSizing: 'border-box' }} />
                   </div>
                   <button type="button" onClick={() => fetchPexels(pexelsQuery || 'nature', 1)} aria-label={T('search')}
                     style={{ flexShrink: 0, width: 40, borderRadius: 8, border: 'none', background: 'var(--mint, #2FD79B)', color: '#06281C', display: 'grid', placeItems: 'center', cursor: 'pointer' }}>
@@ -4074,7 +4080,7 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, marginBottom: 12 }}>
                   {['Nature', 'Ville', 'Nourriture', 'Mode', 'Architecture'].map(q => (
                     <button key={q} onClick={() => { setPexelsQuery(q); fetchPexels(q, 1); }}
-                      style={{ padding: '4px 10px', borderRadius: 20, border: '1px solid var(--line)', background: pexelsQuery === q ? 'var(--ink)' : 'var(--sunk)', color: pexelsQuery === q ? '#fff' : 'var(--ink-2)', fontSize: 11.5, fontWeight: 600, cursor: 'pointer' }}>
+                      style={{ padding: '4px 10px', borderRadius: 20, border: '1px solid var(--line)', background: pexelsQuery === q ? 'var(--ink)' : 'var(--white)', color: pexelsQuery === q ? '#fff' : 'var(--ink-2)', fontSize: 11.5, fontWeight: 600, cursor: 'pointer' }}>
                       {q}
                     </button>
                   ))}
@@ -4138,7 +4144,7 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
                     {brandFontNames.map((font, i) => (
                       <div key={font} title={T('addTextWithFont')}
                         onClick={() => { const el: TextEl = { id: newId(), type: 'text', x: 30, y: 60 + i * 60, rotation: 0, opacity: 100, text: font, fontSize: 26, fontFamily: font, fontStyle: 'bold', textDecoration: '', fill: workspaceData?.primary_color || '#000', align: 'left', width: 260, hasBg: false, bgColor: '#000', bgOpacity: 80, cornerRadius: 4, padding: 12, paddingH: 12, paddingV: 8 }; applyElements([...elements, el]); setSelectedId(el.id); }}
-                        style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 10px', borderRadius: 6, background: 'var(--sunk)', cursor: 'pointer', border: '1px solid var(--line)' }}>
+                        style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 10px', borderRadius: 6, background: 'var(--white)', cursor: 'pointer', border: '1px solid var(--line)' }}>
                         <span style={{ fontFamily: `"${font}", sans-serif`, fontSize: 22, color: 'var(--ink)', lineHeight: 1 }}>Aa</span>
                         <span style={{ fontSize: 11, color: 'var(--ink-2)', fontWeight: 600 }}>{font}</span>
                       </div>
@@ -4315,7 +4321,7 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
 
         {/* ── PANNEAU GAUCHE CONTEXTUEL (Effet / Position) ── */}
         {selectedEl && (fxPanel === 'position' || (fxPanel === 'effects' && selectedEl.type === 'text')) && (
-          <div data-stop-deselect className="pop-in ed-panel" style={{ width: 312, background: 'var(--white)', borderRight: '1px solid var(--line)', overflowY: 'auto', flexShrink: 0, display: 'flex', flexDirection: 'column' }}>
+          <div data-stop-deselect className="pop-in ed-panel" style={{ width: 312, background: 'var(--white)', overflowY: 'auto', flexShrink: 0, display: 'flex', flexDirection: 'column' }}>
             {fxPanel === 'effects' && selectedEl.type === 'text' && (
               <EffectsPanel
                 sel={selectedEl as TextEl}
@@ -4339,7 +4345,7 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
         )}
 
         {/* ── CANVAS WORKSPACE ── */}
-        <div className="ed-canvas-area" style={{ flex: 1, minWidth: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column', background: 'var(--white)', position: 'relative' }}>
+        <div className="ed-canvas-area" style={{ flex: 1, minWidth: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column', background: 'var(--canvas)', position: 'relative' }}>
           {/* ── Barre contextuelle flottante (desktop) — centrée sous la topbar, par-dessus le plan de travail ── */}
           {selectedEl && (
             <div className="ed-ctx-float" data-stop-deselect onMouseDown={e => e.stopPropagation()}
@@ -4397,7 +4403,7 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
                   ref={el => { slideContainerRefs.current[idx] = el; }}
                   style={{ flexShrink: 0, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
                   <div style={{ width: (isActive && isContinuous ? stageWView : stageW) * zoom, marginBottom: 8, fontSize: 12, color: 'var(--ink-2)', fontWeight: 700, fontFamily: 'var(--sans)', textAlign: 'left', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{(isTemplate ? (templateName || 'Template') : (workspaceName || 'Sans titre'))}{slides.length > 1 ? ` — Page ${idx + 1}` : ''}</div>
-                  <div style={{ width: (isActive && isContinuous ? stageWView : stageW) * zoom, height: stageH * zoom, position: 'relative', borderRadius: 0, boxShadow: '0 0 0 1px rgba(20,22,15,.08)', flexShrink: 0 }}>
+                  <div style={{ width: (isActive && isContinuous ? stageWView : stageW) * zoom, height: stageH * zoom, position: 'relative', borderRadius: 0, flexShrink: 0 }}>
                   {isActive ? (
                     <>
                     <div onMouseDown={e => e.stopPropagation()} style={{ position: 'absolute', top: 0, left: 0, width: isContinuous ? stageWView : stageW, height: stageH, transform: `scale(${zoom})`, transformOrigin: 'top left', borderRadius: 0 }}>
@@ -4959,7 +4965,7 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
           {/* ── ZOOM BAR ── */}
           <div style={{
             height: 50, flexShrink: 0,
-            background: 'var(--white)', borderTop: '1px solid var(--line)',
+            background: 'var(--white)',
             display: 'flex', alignItems: 'center', gap: 14, padding: '0 18px',
           }}>
             <span className="chip" style={{ background: 'var(--sunk)', color: 'var(--ink-2)' }}>
@@ -4979,7 +4985,7 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
               </button>
               <input type="range" min={0.15} max={1.5} step={0.01} value={zoom}
                 onChange={(e) => setZoom(parseFloat(e.target.value))}
-                className="ed-range" style={{ width: 132 }} />
+                className="ed-range" style={{ width: 132, ...rangeFill(zoom, 0.15, 1.5) }} />
               <button onClick={() => setZoom(z => Math.min(1.5, +(z + 0.1).toFixed(2)))} style={{ width: 30, height: 30, borderRadius: 8, display: 'grid', placeItems: 'center', color: 'var(--ink-2)', background: 'transparent', border: 'none', cursor: 'pointer' }}>
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M12 5v14M5 12h14"/></svg>
               </button>
@@ -4999,7 +5005,7 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
           {/* ── SLIDE STRIP ── (masqué en carrousel continu : une seule toile) */}
           <div style={{
             height: 80, flexShrink: 0,
-            background: 'var(--white)', borderTop: '1px solid var(--line)',
+            background: 'var(--white)',
             display: isContinuous ? 'none' : 'flex', alignItems: 'center',
             padding: '0 16px', gap: 8,
             overflowX: 'auto',
