@@ -10,6 +10,11 @@ const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://getklip.fr";
 const REDIRECT_URI = `${APP_URL}/api/auth/facebook/callback`;
 const GRAPH_VERSION = "v21.0";
 
+// FB_APP_SECRET = secret de l'app principale (1998010880798347), distinct de
+// META_APP_SECRET qui est le secret dédié à l'app Instagram (991302360155193,
+// utilisée par /api/auth/meta/*). Les mélanger renvoie "Error validating
+// client secret" côté Facebook.
+
 export async function GET(request: NextRequest) {
   const inv = Math.random().toString(36).slice(2, 8);
   const { searchParams } = new URL(request.url);
@@ -28,7 +33,7 @@ export async function GET(request: NextRequest) {
     const tokenParams = new URLSearchParams({
       client_id: APP_ID,
       redirect_uri: REDIRECT_URI,
-      client_secret: process.env.META_APP_SECRET!,
+      client_secret: process.env.FB_APP_SECRET!,
       code,
     });
     const tokenRes = await fetch(
@@ -45,7 +50,7 @@ export async function GET(request: NextRequest) {
     const longParams = new URLSearchParams({
       grant_type: "fb_exchange_token",
       client_id: APP_ID,
-      client_secret: process.env.META_APP_SECRET!,
+      client_secret: process.env.FB_APP_SECRET!,
       fb_exchange_token: tokenData.access_token,
     });
     const longRes = await fetch(
