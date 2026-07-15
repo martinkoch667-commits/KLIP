@@ -5,7 +5,7 @@ import { cookies } from "next/headers";
 // Callback du flux Facebook Login (Option A). Récupère la Page Facebook, son
 // jeton de Page (longue durée), et le compte Instagram Business lié s'il existe.
 
-const APP_ID = "991302360155193";
+const APP_ID = "1998010880798347";
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://getklip.fr";
 const REDIRECT_URI = `${APP_URL}/api/auth/facebook/callback`;
 const GRAPH_VERSION = "v21.0";

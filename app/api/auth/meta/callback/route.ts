@@ -12,7 +12,7 @@ export async function GET(request: NextRequest) {
   const error = searchParams.get("error");
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://getklip.fr";
   const redirectUri = `${appUrl}/api/auth/meta/callback`;
-  const clientId = "991302360155193";
+  const clientId = "1998010880798347";
 
   // ── Diagnostic block ──────────────────────────────────────────────────────
   console.log('[CB] full URL:', request.url);

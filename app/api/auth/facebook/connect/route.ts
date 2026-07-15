@@ -5,7 +5,7 @@ import { NextRequest, NextResponse } from "next/server";
 // Distinct du flux Instagram Login (/api/auth/meta/connect) qui, lui, ne connecte
 // que l'Instagram sans Page Facebook — on ne le touche pas.
 
-const APP_ID = "991302360155193";
+const APP_ID = "1998010880798347";
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://getklip.fr";
 const REDIRECT_URI = `${APP_URL}/api/auth/facebook/callback`;
 const GRAPH_VERSION = "v21.0";

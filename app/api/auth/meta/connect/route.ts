@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 
-const APP_ID = "991302360155193";
+const APP_ID = "1998010880798347";
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://getklip.fr";
 const REDIRECT_URI = `${APP_URL}/api/auth/meta/callback`;
 
