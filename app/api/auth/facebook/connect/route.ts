@@ -10,16 +10,12 @@ const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://getklip.fr";
 const REDIRECT_URI = `${APP_URL}/api/auth/facebook/callback`;
 const GRAPH_VERSION = "v21.0";
 
-// pages_manage_posts / instagram_content_publish nécessitent l'App Review Meta
-// (Advanced Access) pour fonctionner en production hors rôles de l'app.
-const SCOPES = [
-  "pages_show_list",
-  "pages_manage_posts",
-  "pages_read_engagement",
-  "business_management",
-  "instagram_basic",
-  "instagram_content_publish",
-].join(",");
+// "Facebook Login for Business" exige un config_id (Configuration créée dans
+// Meta for Developers → Facebook Login for Business → Configurations, avec
+// les permissions pages_show_list/pages_manage_posts/pages_read_engagement/
+// business_management) au lieu d'un scope= brut — sinon le dialogue OAuth
+// renvoie un 500 générique côté Facebook.
+const CONFIG_ID = "1687148909161883";
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
@@ -32,7 +28,7 @@ export async function GET(request: NextRequest) {
   const params = new URLSearchParams({
     client_id: APP_ID,
     redirect_uri: REDIRECT_URI,
-    scope: SCOPES,
+    config_id: CONFIG_ID,
     state: workspaceId,
     response_type: "code",
   });
