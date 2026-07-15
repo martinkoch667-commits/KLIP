@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useTranslations } from "next-intl";
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
 import { useRouter } from "next/navigation";
 
@@ -145,23 +146,8 @@ function StarIcon() {
   );
 }
 
-const STUDIO_FEATURES = [
-  "3 comptes clients",
-  "1 profil utilisateur",
-  "Posts illimités",
-  "IA incluse",
-  "Publication Instagram & Facebook",
-];
-
-const AGENCY_FEATURES = [
-  "10 clients inclus",
-  "5 membres inclus",
-  "Workflow de validation",
-  "Rôles Manager / Créa",
-  "Tout ce que Studio inclut",
-];
-
 export default function OnboardingPlanPage() {
+  const t = useTranslations('onboardingPlan');
   const supabase = createClientComponentClient();
   const router = useRouter();
   const [agencyName, setAgencyName] = useState("");
@@ -169,6 +155,9 @@ export default function OnboardingPlanPage() {
   const [loadingStudio, setLoadingStudio] = useState(false);
   const [loadingAgency, setLoadingAgency] = useState(false);
   const [error, setError] = useState("");
+
+  const STUDIO_FEATURES = [t('studioF1'), t('studioF2'), t('studioF3'), t('studioF4'), t('studioF5')];
+  const AGENCY_FEATURES = [t('agencyF1'), t('agencyF2'), t('agencyF3'), t('agencyF4'), t('agencyF5')];
 
   // Pré-sélection de l'offre choisie sur la landing (?plan transmis via register)
   useEffect(() => {
@@ -192,14 +181,14 @@ export default function OnboardingPlanPage() {
       fetch("/api/email/welcome", { method: "POST" }).catch(() => {});
       router.push("/onboarding/survey");
     } catch {
-      setError("Une erreur est survenue. Veuillez réessayer.");
+      setError(t('errorGeneric'));
       setLoadingStudio(false);
     }
   }
 
   async function handleAgency() {
     if (!agencyName.trim()) {
-      setError("Veuillez entrer le nom de votre agence.");
+      setError(t('errorAgencyName'));
       return;
     }
     setError("");
@@ -232,7 +221,7 @@ export default function OnboardingPlanPage() {
       fetch("/api/email/welcome", { method: "POST" }).catch(() => {});
       router.push("/onboarding/survey");
     } catch {
-      setError("Une erreur est survenue. Veuillez réessayer.");
+      setError(t('errorGeneric'));
       setLoadingAgency(false);
     }
   }
@@ -252,16 +241,16 @@ export default function OnboardingPlanPage() {
           img.style.filter = "invert(1) brightness(2)";
         }} />
 
-      <div className="ob-step">Étape 1 sur 2 — Votre compte</div>
+      <div className="ob-step">{t('step1of2')}</div>
 
-      <h1 className="ob-title">Quel type de compte ?</h1>
-      <p className="ob-sub">Choisissez votre plan pour commencer. Modifiable à tout moment.</p>
+      <h1 className="ob-title">{t('title')}</h1>
+      <p className="ob-sub">{t('subtitle')}</p>
 
       <div className="ob-grid">
         {/* STUDIO */}
         <div className="ob-card ob-card-studio">
-          <div className="ob-plan-name">Studio</div>
-          <div className="ob-plan-desc">Freelances & community managers indépendants</div>
+          <div className="ob-plan-name">{t('studioName')}</div>
+          <div className="ob-plan-desc">{t('studioDesc')}</div>
 
           <div className="ob-divider" />
 
@@ -276,20 +265,20 @@ export default function OnboardingPlanPage() {
 
           <div className="ob-price-row">
             <span className="ob-price-big">29€</span>
-            <span className="ob-price-period">&nbsp;/ mois</span>
+            <span className="ob-price-period">&nbsp;{t('perMonth')}</span>
           </div>
-          <div className="ob-price-small">ou 25€/mois en annuel · sans engagement</div>
+          <div className="ob-price-small">{t('studioAnnual')}</div>
 
           <button onClick={handleSolo} disabled={loadingStudio || loadingAgency} className="ob-btn-studio">
-            {loadingStudio ? "Création…" : "Choisir Studio"}
+            {loadingStudio ? t('creating') : t('chooseStudio')}
           </button>
         </div>
 
         {/* AGENCE */}
         <div className="ob-card ob-card-agency">
-          <div className="ob-badge"><StarIcon />Le plus populaire</div>
-          <div className="ob-plan-name">Agence</div>
-          <div className="ob-plan-desc">Agences & studios de communication multi-clients</div>
+          <div className="ob-badge"><StarIcon />{t('mostPopular')}</div>
+          <div className="ob-plan-name">{t('agencyName')}</div>
+          <div className="ob-plan-desc">{t('agencyDesc')}</div>
 
           <div className="ob-divider ob-divider-agency" />
 
@@ -304,28 +293,28 @@ export default function OnboardingPlanPage() {
 
           <div className="ob-price-row">
             <span className="ob-price-big">96€</span>
-            <span className="ob-price-period">&nbsp;/ mois</span>
+            <span className="ob-price-period">&nbsp;{t('perMonth')}</span>
           </div>
-          <div className="ob-price-small">ou 89€/mois en annuel · sans engagement</div>
+          <div className="ob-price-small">{t('agencyAnnual')}</div>
 
           {!agencyExpanded ? (
             <button onClick={() => setAgencyExpanded(true)} disabled={loadingStudio || loadingAgency} className="ob-btn-agency">
-              Choisir Agence
+              {t('chooseAgency')}
             </button>
           ) : (
             <>
-              <label className="ob-agency-label">Nom de votre agence</label>
+              <label className="ob-agency-label">{t('agencyNameLabel')}</label>
               <input
                 type="text"
                 className="ob-agency-input"
-                placeholder="Ex : Studio Créatif"
+                placeholder={t('agencyNamePlaceholder')}
                 value={agencyName}
                 onChange={e => setAgencyName(e.target.value)}
                 autoFocus
                 onKeyDown={e => { if (e.key === "Enter") handleAgency(); }}
               />
               <button onClick={handleAgency} disabled={loadingAgency || loadingStudio || !agencyName.trim()} className="ob-btn-agency">
-                {loadingAgency ? "Création…" : "Confirmer"}
+                {loadingAgency ? t('creating') : t('confirm')}
               </button>
             </>
           )}
@@ -333,7 +322,7 @@ export default function OnboardingPlanPage() {
       </div>
 
       {error && <p className="ob-error" style={{ marginBottom: 12 }}>{error}</p>}
-      <p className="ob-hint">Modifiable depuis les paramètres · Aucun CB requis pour commencer</p>
+      <p className="ob-hint">{t('hint')}</p>
     </div>
   );
 }

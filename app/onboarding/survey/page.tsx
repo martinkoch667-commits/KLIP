@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
 import { useRouter } from "next/navigation";
 
@@ -37,29 +38,19 @@ const SV_CSS = `
   }
 `;
 
-const QUESTIONS = [
-  {
-    q: "Pour combien de clients travaillez-vous ?",
-    choices: ["Pour moi uniquement", "1 à 5 clients", "6 à 15 clients", "Plus de 15 clients"],
-  },
-  {
-    q: "Quelles plateformes utilisez-vous ?",
-    choices: ["Instagram uniquement", "Facebook uniquement", "Instagram + Facebook", "D'autres plateformes"],
-  },
-  {
-    q: "À quelle fréquence publiez-vous ?",
-    choices: ["Moins de 3 fois / semaine", "3 à 7 fois / semaine", "1 à 2 fois / jour", "Plusieurs fois par jour"],
-  },
-  {
-    q: "Quel est votre principal défi ?",
-    choices: ["Créer du contenu rapidement", "Planifier et programmer", "Collaborer en équipe", "Faire valider par les clients"],
-  },
-];
-
 export default function SurveyPage() {
+  const t = useTranslations('onboardingSurvey');
   const supabase = createClientComponentClient();
   const router = useRouter();
   const [step, setStep] = useState(0);
+
+  const QUESTIONS = [
+    { q: t('q1'), choices: [t('q1c1'), t('q1c2'), t('q1c3'), t('q1c4')] },
+    { q: t('q2'), choices: [t('q2c1'), t('q2c2'), t('q2c3'), t('q2c4')] },
+    { q: t('q3'), choices: [t('q3c1'), t('q3c2'), t('q3c3'), t('q3c4')] },
+    { q: t('q4'), choices: [t('q4c1'), t('q4c2'), t('q4c3'), t('q4c4')] },
+  ];
+
   const [answers, setAnswers] = useState<(string | null)[]>(Array(QUESTIONS.length).fill(null));
   const [saving, setSaving] = useState(false);
 
@@ -115,7 +106,7 @@ export default function SurveyPage() {
           ))}
         </div>
 
-        <div className="sv-step">Question {step + 1} sur {QUESTIONS.length}</div>
+        <div className="sv-step">{t('questionOf', { step: step + 1, total: QUESTIONS.length })}</div>
         <div className="sv-question">{current.q}</div>
 
         <div className="sv-choices">
@@ -139,10 +130,10 @@ export default function SurveyPage() {
 
         <div className="sv-row">
           <button className="sv-skip" onClick={skip} disabled={saving}>
-            Passer
+            {t('skip')}
           </button>
           <button className="sv-btn" onClick={advance} disabled={!selected || saving}>
-            {isLast ? (saving ? "Chargement…" : "Terminer") : "Suivant"}
+            {isLast ? (saving ? t('loading') : t('finish')) : t('next')}
           </button>
         </div>
       </div>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect, useMemo, CSSProperties, Fragment } from "react";
+import { useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
@@ -29,18 +30,24 @@ const FALLBACK_FONTS: GFont[] = [
 
 // ─── Other constants ──────────────────────────────────────────────────────────
 
-const SECTORS = ["Restaurant", "Café", "Retail", "Mode", "Beauté", "Sport", "Tech", "Autre"];
+// Ces valeurs (nom du secteur, ton) sont sauvegardées en base et utilisées dans
+// le prompt IA — on garde donc les libellés français comme identifiants internes
+// stables, et on affiche leur traduction via les clés *Key ci-dessous.
+const SECTOR_KEYS = [
+  ["Restaurant", "sectorRestaurant"], ["Café", "sectorCafe"], ["Retail", "sectorRetail"],
+  ["Mode", "sectorMode"], ["Beauté", "sectorBeaute"], ["Sport", "sectorSport"],
+  ["Tech", "sectorTech"], ["Autre", "sectorAutre"],
+] as const;
 
-const TONES = [
-  { value: "Chic",       desc: "Élégant, raffiné, haut de gamme" },
-  { value: "Punchy",     desc: "Direct, percutant, accrocheur" },
-  { value: "Minimal",    desc: "Épuré, sobre, essentiel" },
-  { value: "Chaleureux", desc: "Proche, humain, convivial" },
-  { value: "Direct",     desc: "Clair, sans détour, efficace" },
-  { value: "Doux",       desc: "Délicat, rassurant, bienveillant" },
-];
+const TONE_KEYS = [
+  ["Chic", "toneChicLabel", "toneChicDesc"],
+  ["Punchy", "tonePunchyLabel", "tonePunchyDesc"],
+  ["Minimal", "toneMinimalLabel", "toneMinimalDesc"],
+  ["Chaleureux", "toneChaleureuxLabel", "toneChaleureuxDesc"],
+  ["Direct", "toneDirectLabel", "toneDirectDesc"],
+  ["Doux", "toneDouxLabel", "toneDouxDesc"],
+] as const;
 
-const STEP_LABELS = ["Infos de base", "Voix de marque", "Identité visuelle", "Typographie", "Templates"];
 const FONT_LIST_LIMIT = 100; // shown by default (top 100 by popularity)
 
 // ─── Module-level font loader (avoids duplicate <link> tags) ──────────────────
@@ -75,6 +82,7 @@ const labelStyle: CSSProperties = {
 function FontRow({
   family, selected, onSelect,
 }: { family: string; selected: boolean; onSelect: () => void }) {
+  const t = useTranslations('workspaceNew');
   const ref = useRef<HTMLButtonElement>(null);
   const loaded = useRef(false);
 
@@ -112,7 +120,7 @@ function FontRow({
           fontFamily: `"${family}", sans-serif`, fontSize: 18, lineHeight: 1.25,
           color: selected ? "var(--mint-2)" : "var(--ink)", display: "block",
         }}>
-          Bonjour, voici votre marque
+          {t('previewHeading')}
         </span>
         <span style={{
           fontSize: 11, color: selected ? "var(--mint-2)" : "var(--ink-3)",
@@ -133,8 +141,13 @@ function FontRow({
 // ─── Main page ────────────────────────────────────────────────────────────────
 
 export default function NewWorkspacePage() {
+  const t = useTranslations('workspaceNew');
   const router = useRouter();
   const supabase = createClientComponentClient();
+
+  const STEP_LABELS = [t('step1'), t('step2'), t('step3'), t('step4'), t('step5')];
+  const SECTORS = SECTOR_KEYS.map(([value, key]) => ({ value, label: t(key) }));
+  const TONES = TONE_KEYS.map(([value, labelKey, descKey]) => ({ value, label: t(labelKey), desc: t(descKey) }));
 
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
@@ -345,7 +358,7 @@ export default function NewWorkspacePage() {
       const json = await res.json();
       if (!res.ok || !json.workspace) {
         console.error("[createWorkspace] API error:", json);
-        throw new Error(json.error || json.hint || "Workspace non créé — voir logs Vercel");
+        throw new Error(json.error || json.hint || t('errorApiFallback'));
       }
       const data = json.workspace;
 
@@ -372,7 +385,7 @@ export default function NewWorkspacePage() {
 
       router.push(`/workspace/${data.id}`);
     } catch (e: unknown) {
-      const msg = e instanceof Error ? e.message : "Erreur lors de la création.";
+      const msg = e instanceof Error ? e.message : t('errorGeneric');
       console.error("[createWorkspace] caught:", e);
       setError(msg);
     }
@@ -471,47 +484,47 @@ export default function NewWorkspacePage() {
               <div key="step1" className="screen-in" style={{ display: "flex", flexDirection: "column", gap: 24 }}>
                 <div>
                   <h1 className="ws-new-step-title" style={{ fontFamily: "var(--display)", fontWeight: 800, fontSize: 30, color: "var(--ink)", letterSpacing: "-0.02em", marginBottom: 8 }}>
-                    Infos de base
+                    {t('step1Title')}
                   </h1>
                   <p style={{ fontSize: 14, color: "var(--ink-2)" }}>
-                    Présentez-nous votre client en quelques mots.
+                    {t('step1Subtitle')}
                   </p>
                 </div>
 
                 <div>
-                  <label style={labelStyle}>Nom du client *</label>
+                  <label style={labelStyle}>{t('clientNameLabel')}</label>
                   <input
                     style={inputStyle}
                     value={name}
                     onChange={e => setName(e.target.value)}
-                    placeholder="Ex: Café Lumière, Studio Nova..."
+                    placeholder={t('clientNamePlaceholder')}
                     autoFocus
                   />
                 </div>
 
                 <div>
-                  <label style={labelStyle}>Secteur d'activité</label>
+                  <label style={labelStyle}>{t('sectorLabel')}</label>
                   <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
                     {SECTORS.map(s => (
                       <button
-                        key={s} type="button"
-                        onClick={() => setSector(sector === s ? "" : s)}
+                        key={s.value} type="button"
+                        onClick={() => setSector(sector === s.value ? "" : s.value)}
                         style={{
                           padding: "8px 18px", borderRadius: 20, fontSize: 13, fontWeight: 600,
                           border: "1.5px solid", cursor: "pointer", transition: "all 0.12s",
-                          background: sector === s ? "var(--mint)" : "var(--white)",
-                          borderColor: sector === s ? "var(--mint)" : "rgba(13,15,10,.12)",
-                          color: sector === s ? "var(--mint-ink)" : "var(--ink-2)",
+                          background: sector === s.value ? "var(--mint)" : "var(--white)",
+                          borderColor: sector === s.value ? "var(--mint)" : "rgba(13,15,10,.12)",
+                          color: sector === s.value ? "var(--mint-ink)" : "var(--ink-2)",
                         }}
                       >
-                        {s}
+                        {s.label}
                       </button>
                     ))}
                   </div>
                 </div>
 
                 <div>
-                  <label style={labelStyle}>Handle Instagram <OptLabel /></label>
+                  <label style={labelStyle}>{t('igHandleLabel')} <OptLabel /></label>
                   <div style={{ position: "relative" }}>
                     <span className="ws-new-at" style={{
                       position: "absolute", left: 16, top: "50%", transform: "translateY(-50%)",
@@ -527,12 +540,12 @@ export default function NewWorkspacePage() {
                 </div>
 
                 <div>
-                  <label style={labelStyle}>Description de la marque</label>
+                  <label style={labelStyle}>{t('brandDescLabel')}</label>
                   <textarea
                     style={{ ...inputStyle, resize: "none", minHeight: 90, lineHeight: 1.6 }}
                     value={brandDescription}
                     onChange={e => setBrandDescription(e.target.value)}
-                    placeholder="Ex: Café de spécialité dans le quartier des arts, connu pour son ambiance chaleureuse et ses recettes maison..."
+                    placeholder={t('brandDescPlaceholder')}
                     rows={4}
                   />
                 </div>
@@ -544,22 +557,22 @@ export default function NewWorkspacePage() {
               <div key="step2" className="screen-in" style={{ display: "flex", flexDirection: "column", gap: 28 }}>
                 <div>
                   <h1 className="ws-new-step-title" style={{ fontFamily: "var(--display)", fontWeight: 800, fontSize: 30, color: "var(--ink)", letterSpacing: "-0.02em", marginBottom: 8 }}>
-                    Voix de marque
+                    {t('step2Title')}
                   </h1>
                   <p style={{ fontSize: 14, color: "var(--ink-2)" }}>
-                    Comment cette marque parle à son audience ?
+                    {t('step2Subtitle')}
                   </p>
                 </div>
 
                 <div>
-                  <label style={labelStyle}>Ton de communication</label>
+                  <label style={labelStyle}>{t('toneLabel')}</label>
                   <div className="ws-new-3col" style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
-                    {TONES.map(t => {
-                      const active = tone === t.value;
+                    {TONES.map(tn => {
+                      const active = tone === tn.value;
                       return (
                         <button
-                          key={t.value} type="button"
-                          onClick={() => setTone(tone === t.value ? "" : t.value)}
+                          key={tn.value} type="button"
+                          onClick={() => setTone(tone === tn.value ? "" : tn.value)}
                           style={{
                             padding: "14px 14px", borderRadius: 13, textAlign: "left",
                             border: `1.5px solid ${active ? "var(--mint)" : "rgba(13,15,10,.10)"}`,
@@ -568,10 +581,10 @@ export default function NewWorkspacePage() {
                           }}
                         >
                           <div style={{ fontWeight: 700, fontSize: 14, color: active ? "var(--mint-2)" : "var(--ink)", marginBottom: 4 }}>
-                            {t.value}
+                            {tn.label}
                           </div>
                           <div style={{ fontSize: 12, color: "var(--ink-3)", lineHeight: 1.4 }}>
-                            {t.desc}
+                            {tn.desc}
                           </div>
                         </button>
                       );
@@ -581,38 +594,38 @@ export default function NewWorkspacePage() {
 
                 <div className="ws-upload-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
                   <div>
-                    <label style={labelStyle}>Mots à utiliser souvent <OptLabel /></label>
+                    <label style={labelStyle}>{t('wordsUseLabel')} <OptLabel /></label>
                     <input
                       style={inputStyle}
                       value={wordsToUse}
                       onChange={e => setWordsToUse(e.target.value)}
-                      placeholder="artisanal, local, saison..."
+                      placeholder={t('wordsUsePlaceholder')}
                     />
                     <span style={{ fontSize: 11, color: "var(--ink-3)", marginTop: 5, display: "block" }}>
-                      Séparés par des virgules
+                      {t('commaSeparated')}
                     </span>
                   </div>
                   <div>
-                    <label style={labelStyle}>Mots à ne jamais utiliser <OptLabel /></label>
+                    <label style={labelStyle}>{t('wordsAvoidLabel')} <OptLabel /></label>
                     <input
                       style={inputStyle}
                       value={wordsToAvoid}
                       onChange={e => setWordsToAvoid(e.target.value)}
-                      placeholder="pas cher, promo, discount..."
+                      placeholder={t('wordsAvoidPlaceholder')}
                     />
                     <span style={{ fontSize: 11, color: "var(--ink-3)", marginTop: 5, display: "block" }}>
-                      Séparés par des virgules
+                      {t('commaSeparated')}
                     </span>
                   </div>
                 </div>
 
                 <div>
-                  <label style={labelStyle}>Exemple de caption qu'ils aiment <OptLabel /></label>
+                  <label style={labelStyle}>{t('captionExampleLabel')} <OptLabel /></label>
                   <textarea
                     style={{ ...inputStyle, resize: "none", lineHeight: 1.6 }}
                     value={captionExample}
                     onChange={e => setCaptionExample(e.target.value)}
-                    placeholder="Collez ici une caption Instagram existante que le client apprécie — l'IA s'en inspirera..."
+                    placeholder={t('captionExamplePlaceholder')}
                     rows={4}
                   />
                 </div>
@@ -624,21 +637,21 @@ export default function NewWorkspacePage() {
               <div key="step3" className="screen-in" style={{ display: "flex", flexDirection: "column", gap: 28 }}>
                 <div>
                   <h1 className="ws-new-step-title" style={{ fontFamily: "var(--display)", fontWeight: 800, fontSize: 30, color: "var(--ink)", letterSpacing: "-0.02em", marginBottom: 8 }}>
-                    Identité visuelle
+                    {t('step3Title')}
                   </h1>
                   <p style={{ fontSize: 14, color: "var(--ink-2)" }}>
-                    Couleurs, logos et assets graphiques de la marque.
+                    {t('step3Subtitle')}
                   </p>
                 </div>
 
                 {/* Colors */}
                 <div>
-                  <label style={labelStyle}>Couleurs de marque</label>
+                  <label style={labelStyle}>{t('brandColorsLabel')}</label>
                   <div className="ws-new-3col" style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12 }}>
                     {[
-                      { label: "Principale", value: primaryColor, onChange: setPrimaryColor },
-                      { label: "Secondaire", value: secondaryColor, onChange: setSecondaryColor },
-                      { label: "Accent", value: accentColor, onChange: setAccentColor },
+                      { label: t('colorPrimary'), value: primaryColor, onChange: setPrimaryColor },
+                      { label: t('colorSecondary'), value: secondaryColor, onChange: setSecondaryColor },
+                      { label: t('colorAccent'), value: accentColor, onChange: setAccentColor },
                     ].map(col => (
                       <div key={col.label} className="card" style={{ padding: "14px 16px" }}>
                         <span style={{ ...labelStyle, marginBottom: 12, display: "block" }}>{col.label}</span>
@@ -659,8 +672,8 @@ export default function NewWorkspacePage() {
 
                 {/* Brand icon */}
                 <div>
-                  <label style={labelStyle}>Icône de marque <OptLabel /></label>
-                  <p style={{ fontSize: 12, color: "var(--ink-3)", marginBottom: 10 }}>Image carrée (PNG/JPG/SVG) affichée dans la sidebar à la place des initiales.</p>
+                  <label style={labelStyle}>{t('brandIconLabel')} <OptLabel /></label>
+                  <p style={{ fontSize: 12, color: "var(--ink-3)", marginBottom: 10 }}>{t('brandIconHint')}</p>
                   <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
                     <div style={{ width: 64, height: 64, borderRadius: 12, border: "1.5px dashed var(--line)", background: "var(--sunk)", overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
                       {brandIconPreview
@@ -671,10 +684,10 @@ export default function NewWorkspacePage() {
                     </div>
                     <div style={{ display: "flex", gap: 8 }}>
                       <button type="button" onClick={() => brandIconRef.current?.click()} className="btn btn-ghost btn-sm">
-                        {brandIconPreview ? "Remplacer" : "Choisir une image"}
+                        {brandIconPreview ? t('replace') : t('chooseImage')}
                       </button>
                       {brandIconPreview && (
-                        <button type="button" onClick={() => { setBrandIconFile(null); setBrandIconPreview(null); }} className="btn btn-ghost btn-sm" style={{ color: "var(--warn)" }}>Supprimer</button>
+                        <button type="button" onClick={() => { setBrandIconFile(null); setBrandIconPreview(null); }} className="btn btn-ghost btn-sm" style={{ color: "var(--warn)" }}>{t('remove')}</button>
                       )}
                     </div>
                   </div>
@@ -685,11 +698,11 @@ export default function NewWorkspacePage() {
 
                 {/* Logos */}
                 <div>
-                  <label style={labelStyle}>Logos</label>
+                  <label style={labelStyle}>{t('logosLabel')}</label>
                   <div className="ws-upload-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
                     <UploadZone
-                      label="Logo principal"
-                      hint="PNG, SVG recommandé"
+                      label={t('logoMainLabel')}
+                      hint={t('logoMainHint')}
                       preview={logoPreview}
                       dark={false}
                       onClick={() => logoRef.current?.click()}
@@ -700,8 +713,8 @@ export default function NewWorkspacePage() {
                     />
 
                     <UploadZone
-                      label={<>Logo variante <OptLabel /></>}
-                      hint="Blanc ou noir sur fond inversé"
+                      label={<>{t('logoVariantLabel')} <OptLabel /></>}
+                      hint={t('logoVariantHint')}
                       preview={logoDarkPreview}
                       dark={true}
                       onClick={() => logoDarkRef.current?.click()}
@@ -717,13 +730,13 @@ export default function NewWorkspacePage() {
                 <div>
                   <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
                     <label style={{ ...labelStyle, marginBottom: 0 }}>
-                      Assets supplémentaires <OptLabel />{" "}
+                      {t('extraAssetsLabel')} <OptLabel />{" "}
                       <span style={{ fontWeight: 400, textTransform: "none", letterSpacing: 0, color: "var(--ink-3)" }}>— {assetFiles.length}/5</span>
                     </label>
                     {assetFiles.length < 5 && (
                       <button type="button" onClick={() => assetsRef.current?.click()}
                         style={{ fontSize: 12, fontWeight: 700, color: "var(--mint-2)", background: "none", border: "none", cursor: "pointer" }}>
-                        + Ajouter
+                        + {t('add')}
                       </button>
                     )}
                   </div>
@@ -762,7 +775,7 @@ export default function NewWorkspacePage() {
                       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
                         <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/>
                       </svg>
-                      Icônes, textures, éléments graphiques... (PNG, SVG)
+                      {t('extraAssetsHint')}
                     </div>
                   )}
                 </div>
@@ -774,19 +787,19 @@ export default function NewWorkspacePage() {
               <div key="step4" className="screen-in" style={{ display: "flex", flexDirection: "column", gap: 32 }}>
                 <div>
                   <h1 className="ws-new-step-title" style={{ fontFamily: "var(--display)", fontWeight: 800, fontSize: 30, color: "var(--ink)", letterSpacing: "-0.02em", marginBottom: 8 }}>
-                    Typographie
+                    {t('step4Title')}
                   </h1>
                   <p style={{ fontSize: 14, color: "var(--ink-2)" }}>
-                    Les polices utilisées dans les visuels de ce client.{" "}
+                    {t('step4Subtitle')}{" "}
                     {googleFonts.length > 0 && (
-                      <span style={{ color: "var(--ink-3)" }}>{googleFonts.length.toLocaleString()} polices disponibles.</span>
+                      <span style={{ color: "var(--ink-3)" }}>{t('fontsAvailable', { count: googleFonts.length })}</span>
                     )}
                   </p>
                 </div>
 
                 {/* ── Police principale ─────────────────────────────────── */}
                 <div>
-                  <label style={labelStyle}>Police principale</label>
+                  <label style={labelStyle}>{t('primaryFontLabel')}</label>
 
                   {/* Custom font banner */}
                   {customPrimary && (
@@ -797,7 +810,7 @@ export default function NewWorkspacePage() {
                     }}>
                       <div>
                         <span style={{ fontSize: 12, fontWeight: 700, color: "var(--mint-2)", display: "block" }}>
-                          Police custom active
+                          {t('customFontActive')}
                         </span>
                         <span style={{ fontFamily: `"${customPrimary.family}", sans-serif`, fontSize: 16, color: "var(--ink)" }}>
                           {customPrimary.family}
@@ -806,7 +819,7 @@ export default function NewWorkspacePage() {
                       <button type="button"
                         onClick={() => setCustomPrimary(null)}
                         style={{ fontSize: 12, fontWeight: 700, color: "var(--ink-3)", background: "none", border: "none", cursor: "pointer", padding: "4px 8px" }}>
-                        × Retirer
+                        {t('removeFont')}
                       </button>
                     </div>
                   )}
@@ -816,7 +829,7 @@ export default function NewWorkspacePage() {
                     style={{ ...inputStyle, marginBottom: 6 }}
                     value={fontSearch}
                     onChange={e => setFontSearch(e.target.value)}
-                    placeholder="Rechercher une police Google Fonts..."
+                    placeholder={t('searchFontPlaceholder')}
                     autoFocus
                   />
 
@@ -828,11 +841,11 @@ export default function NewWorkspacePage() {
                   }}>
                     {fontsLoading ? (
                       <div style={{ padding: "18px 16px", fontSize: 13, color: "var(--ink-3)", textAlign: "center" }}>
-                        Chargement du catalogue...
+                        {t('loadingCatalog')}
                       </div>
                     ) : filteredFonts.length === 0 ? (
                       <div style={{ padding: "16px 14px", fontSize: 13, color: "var(--ink-3)" }}>
-                        Aucune police trouvée
+                        {t('noFontFound')}
                       </div>
                     ) : (
                       <>
@@ -846,7 +859,7 @@ export default function NewWorkspacePage() {
                         ))}
                         {!fontSearch && googleFonts.length > FONT_LIST_LIMIT && (
                           <div style={{ padding: "10px 16px", fontSize: 12, color: "var(--ink-3)", borderTop: "1px solid rgba(13,15,10,.05)", textAlign: "center" }}>
-                            + {(googleFonts.length - FONT_LIST_LIMIT).toLocaleString()} autres — affiner avec la recherche
+                            {t('moreOthersSearch', { count: googleFonts.length - FONT_LIST_LIMIT })}
                           </div>
                         )}
                       </>
@@ -856,7 +869,7 @@ export default function NewWorkspacePage() {
                   {/* Divider */}
                   <div style={{ display: "flex", alignItems: "center", gap: 10, margin: "14px 0" }}>
                     <div style={{ flex: 1, height: 1, background: "var(--line-2)" }} />
-                    <span style={{ fontSize: 12, color: "var(--ink-3)", fontFamily: "var(--mono)" }}>ou</span>
+                    <span style={{ fontSize: 12, color: "var(--ink-3)", fontFamily: "var(--mono)" }}>{t('or')}</span>
                     <div style={{ flex: 1, height: 1, background: "var(--line-2)" }} />
                   </div>
 
@@ -876,7 +889,7 @@ export default function NewWorkspacePage() {
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                       <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/>
                     </svg>
-                    Uploader une police custom (.ttf, .otf, .woff, .woff2)
+                    {t('uploadCustomFont')}
                   </button>
                   <input ref={customPrimaryRef} type="file" accept=".ttf,.otf,.woff,.woff2" style={{ display: "none" }}
                     onChange={e => { const f = e.target.files?.[0]; if (f) handleCustomFont(f, "primary"); e.target.value = ""; }}
@@ -886,20 +899,20 @@ export default function NewWorkspacePage() {
                 {/* ── Live preview card ─────────────────────────────────── */}
                 <div className="card" style={{ padding: "24px 28px" }}>
                   <span style={{ ...labelStyle, display: "block", marginBottom: 16 }}>
-                    Aperçu — {customPrimary ? customPrimary.family : fontPrimary}
+                    {t('previewLabel', { font: customPrimary ? customPrimary.family : fontPrimary })}
                   </span>
                   <p style={{
                     fontFamily: `"${activeFontPrimary}", sans-serif`,
                     fontSize: 32, fontWeight: 700, color: "var(--ink)",
                     lineHeight: 1.15, margin: 0,
                   }}>
-                    Bonjour, voici votre marque
+                    {t('previewHeading')}
                   </p>
                   <p style={{
                     fontFamily: `"${activeFontPrimary}", sans-serif`,
                     fontSize: 14, color: "var(--ink-2)", margin: "12px 0 0", lineHeight: 1.6,
                   }}>
-                    Texte courant — corps de texte en taille normale
+                    {t('previewBody')}
                   </p>
                   {activeFontSecondary && (
                     <p style={{
@@ -907,14 +920,14 @@ export default function NewWorkspacePage() {
                       fontSize: 14, color: "var(--ink-3)", margin: "8px 0 0", lineHeight: 1.6,
                       borderTop: "1px solid var(--line-2)", paddingTop: 8,
                     }}>
-                      Police secondaire : {activeFontSecondary}
+                      {t('secondaryFontPreview', { font: activeFontSecondary })}
                     </p>
                   )}
                 </div>
 
                 {/* ── Police secondaire ─────────────────────────────────── */}
                 <div>
-                  <label style={labelStyle}>Police secondaire <OptLabel /></label>
+                  <label style={labelStyle}>{t('secondaryFontLabel')} <OptLabel /></label>
 
                   {/* Custom secondary banner */}
                   {customSecondary && (
@@ -924,14 +937,14 @@ export default function NewWorkspacePage() {
                       background: "var(--mint-soft)", border: "1px solid var(--mint)",
                     }}>
                       <div>
-                        <span style={{ fontSize: 12, fontWeight: 700, color: "var(--mint-2)", display: "block" }}>Police custom</span>
+                        <span style={{ fontSize: 12, fontWeight: 700, color: "var(--mint-2)", display: "block" }}>{t('customFontLabel')}</span>
                         <span style={{ fontFamily: `"${customSecondary.family}", sans-serif`, fontSize: 16, color: "var(--ink)" }}>
                           {customSecondary.family}
                         </span>
                       </div>
                       <button type="button" onClick={() => setCustomSecondary(null)}
                         style={{ fontSize: 12, fontWeight: 700, color: "var(--ink-3)", background: "none", border: "none", cursor: "pointer", padding: "4px 8px" }}>
-                        × Retirer
+                        {t('removeFont')}
                       </button>
                     </div>
                   )}
@@ -941,7 +954,7 @@ export default function NewWorkspacePage() {
                     style={{ ...inputStyle, marginBottom: 6 }}
                     value={fontSearchSecondary}
                     onChange={e => setFontSearchSecondary(e.target.value)}
-                    placeholder="Rechercher une police secondaire..."
+                    placeholder={t('searchSecondaryFontPlaceholder')}
                   />
 
                   {/* Font list */}
@@ -959,7 +972,7 @@ export default function NewWorkspacePage() {
                         cursor: "pointer", fontSize: 13, fontWeight: 600,
                         color: !fontSecondary && !customSecondary ? "var(--mint-2)" : "var(--ink-3)",
                       }}>
-                      Aucune
+                      {t('none')}
                     </button>
                     {filteredFontsSecondary.map(font => (
                       <FontRow
@@ -971,7 +984,7 @@ export default function NewWorkspacePage() {
                     ))}
                     {!fontSearchSecondary && googleFonts.length > FONT_LIST_LIMIT && (
                       <div style={{ padding: "10px 16px", fontSize: 12, color: "var(--ink-3)", textAlign: "center" }}>
-                        + {(googleFonts.length - FONT_LIST_LIMIT).toLocaleString()} autres — rechercher pour affiner
+                        {t('moreOthersRefine', { count: googleFonts.length - FONT_LIST_LIMIT })}
                       </div>
                     )}
                   </div>
@@ -979,7 +992,7 @@ export default function NewWorkspacePage() {
                   {/* Custom secondary upload */}
                   <div style={{ display: "flex", alignItems: "center", gap: 10, margin: "14px 0" }}>
                     <div style={{ flex: 1, height: 1, background: "var(--line-2)" }} />
-                    <span style={{ fontSize: 12, color: "var(--ink-3)", fontFamily: "var(--mono)" }}>ou</span>
+                    <span style={{ fontSize: 12, color: "var(--ink-3)", fontFamily: "var(--mono)" }}>{t('or')}</span>
                     <div style={{ flex: 1, height: 1, background: "var(--line-2)" }} />
                   </div>
                   <button type="button"
@@ -997,7 +1010,7 @@ export default function NewWorkspacePage() {
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                       <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/>
                     </svg>
-                    Uploader une police custom (.ttf, .otf, .woff, .woff2)
+                    {t('uploadCustomFont')}
                   </button>
                   <input ref={customSecondaryRef} type="file" accept=".ttf,.otf,.woff,.woff2" style={{ display: "none" }}
                     onChange={e => { const f = e.target.files?.[0]; if (f) handleCustomFont(f, "secondary"); e.target.value = ""; }}
@@ -1021,11 +1034,11 @@ export default function NewWorkspacePage() {
               <div key="step5" className="screen-in" style={{ display: "flex", flexDirection: "column", gap: 28 }}>
                 <div>
                   <h1 className="ws-new-step-title" style={{ fontFamily: "var(--display)", fontWeight: 800, fontSize: 30, color: "var(--ink)", letterSpacing: "-0.02em", marginBottom: 8 }}>
-                    Templates
+                    {t('step5Title')}
                   </h1>
                   <p style={{ fontSize: 14, color: "var(--ink-2)" }}>
-                    Créez les mises en page visuelles réutilisables pour {name || "ce client"}.{" "}
-                    <span style={{ color: "var(--ink-3)" }}>Cette étape est optionnelle.</span>
+                    {t('step5Subtitle', { name: name || t('thisClientFallback') })}{" "}
+                    <span style={{ color: "var(--ink-3)" }}>{t('optionalStep')}</span>
                   </p>
                 </div>
 
@@ -1045,7 +1058,7 @@ export default function NewWorkspacePage() {
                           <button
                             onClick={e => { e.stopPropagation(); setPendingTemplates(prev => prev.filter((_, j) => j !== i)); }}
                             style={{ position: "absolute", top: 6, right: 6, width: 20, height: 20, borderRadius: "50%", background: "rgba(0,0,0,.55)", border: "none", cursor: "pointer", color: "#fff", fontSize: 12, display: "grid", placeItems: "center" }}
-                            title="Supprimer"
+                            title={t('remove')}
                           >×</button>
                         </div>
                       ))}
@@ -1065,11 +1078,11 @@ export default function NewWorkspacePage() {
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
                           <path d="M12 5v14M5 12h14"/>
                         </svg>
-                        <span style={{ fontSize: 12, fontWeight: 600 }}>Ajouter</span>
+                        <span style={{ fontSize: 12, fontWeight: 600 }}>{t('add')}</span>
                       </button>
                     </div>
                     <p style={{ fontSize: 12, color: "var(--ink-3)", margin: 0 }}>
-                      {pendingTemplates.length} template{pendingTemplates.length > 1 ? "s" : ""} — ils seront sauvegardés avec l'espace client.
+                      {t('templatesSavedNote', { count: pendingTemplates.length })}
                     </p>
                   </div>
                 ) : (
@@ -1082,10 +1095,10 @@ export default function NewWorkspacePage() {
                     </div>
                     <div>
                       <p style={{ fontSize: 15, fontWeight: 700, color: "var(--ink)", margin: "0 0 4px" }}>
-                        Aucun template pour l'instant
+                        {t('noTemplateYet')}
                       </p>
                       <p style={{ fontSize: 13, color: "var(--ink-3)", margin: 0 }}>
-                        Créez des mises en page réutilisables avec les couleurs de la marque.
+                        {t('noTemplateHint')}
                       </p>
                     </div>
                     <button
@@ -1096,7 +1109,7 @@ export default function NewWorkspacePage() {
                         cursor: "pointer", fontFamily: "var(--display)", transition: "opacity 0.15s",
                       }}
                     >
-                      Créer un template
+                      {t('createTemplate')}
                     </button>
                   </div>
                 )}
@@ -1122,7 +1135,7 @@ export default function NewWorkspacePage() {
             initialDraft={editingTemplateIndex !== null ? pendingTemplates[editingTemplateIndex] : undefined}
             onSave={draft => {
               if (editingTemplateIndex !== null) {
-                setPendingTemplates(prev => prev.map((t, i) => i === editingTemplateIndex ? draft : t));
+                setPendingTemplates(prev => prev.map((tpl, i) => i === editingTemplateIndex ? draft : tpl));
               } else {
                 setPendingTemplates(prev => [...prev, draft]);
               }
@@ -1152,7 +1165,7 @@ export default function NewWorkspacePage() {
                   border: "1px solid rgba(13,15,10,.12)", color: "var(--ink-2)",
                   fontSize: 13, fontWeight: 600, cursor: "pointer",
                 }}>
-                Retour
+                {t('back')}
               </button>
             )}
           </div>
@@ -1166,7 +1179,7 @@ export default function NewWorkspacePage() {
             {step === 5 && pendingTemplates.length === 0 && (
               <button type="button" onClick={createWorkspace} disabled={loading}
                 style={{ padding: "8px 16px", borderRadius: 10, background: "transparent", border: "none", color: "var(--ink-3)", fontSize: 13, fontWeight: 600, cursor: "pointer", textDecoration: "underline" }}>
-                Passer cette étape
+                {t('skipStep')}
               </button>
             )}
 
@@ -1182,7 +1195,7 @@ export default function NewWorkspacePage() {
                   cursor: canContinue ? "pointer" : "not-allowed",
                   fontFamily: "var(--display)", transition: "all 0.15s",
                 }}>
-                Continuer
+                {t('continueBtn')}
               </button>
             ) : (
               <button type="button" onClick={createWorkspace} disabled={loading}
@@ -1195,7 +1208,7 @@ export default function NewWorkspacePage() {
                   fontFamily: "var(--display)", transition: "all 0.15s",
                   opacity: loading ? 0.7 : 1,
                 }}>
-                {loading ? "Création en cours…" : "Créer l'espace client"}
+                {loading ? t('creating') : t('createWorkspaceBtn')}
               </button>
             )}
           </div>
@@ -1216,7 +1229,7 @@ export default function NewWorkspacePage() {
               boxShadow: "0 2px 8px rgba(13,15,10,.08)",
             }}
           >
-            Retour
+            {t('back')}
           </button>
         )}
 
