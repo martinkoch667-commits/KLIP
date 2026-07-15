@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef } from "react";
+import { useTranslations } from "next-intl";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import Sidebar from "@/components/Sidebar";
@@ -13,6 +14,7 @@ const MOCK_CLIENTS: Record<string, { name: string; initials: string }> = {
 };
 
 export default function EditorPage() {
+  const t = useTranslations('workspaceEditor');
   const params = useParams();
   const id = params.id as string;
   const client = MOCK_CLIENTS[id] ?? { name: id, initials: id.slice(0, 2).toUpperCase() };
@@ -34,9 +36,9 @@ export default function EditorPage() {
     setGenerating(true);
     await new Promise((r) => setTimeout(r, 1200));
     const samples = [
-      `Découvrez nos offres exceptionnelles cette semaine chez ${client.name} ! Des promotions incroyables vous attendent en magasin. Ne manquez pas cette opportunité unique de faire de bonnes affaires. #Promo #BonPlan`,
-      `Nouveau produit disponible dès maintenant chez ${client.name}. Venez le découvrir en boutique et profitez d'une expérience unique. Nous vous attendons ! #Nouveauté #Qualité`,
-      `Chez ${client.name}, votre satisfaction est notre priorité. Retrouvez toute notre sélection et laissez-vous surprendre. À très vite ! #ServiceClient #Excellence`,
+      t('sample1', { client: client.name }),
+      t('sample2', { client: client.name }),
+      t('sample3', { client: client.name }),
     ];
     setDescription(samples[Math.floor(Math.random() * samples.length)]);
     setGenerating(false);
@@ -60,7 +62,7 @@ export default function EditorPage() {
               {client.name}
             </Link>
             <span className="text-[#DDD]">/</span>
-            <span className="text-sm font-inter font-medium text-black">Éditeur visuel</span>
+            <span className="text-sm font-inter font-medium text-black">{t('editorTitle')}</span>
           </div>
           <div className="w-8 h-8 rounded-full bg-black flex items-center justify-center shrink-0">
             <span className="text-xs font-syne font-bold text-white">MK</span>
@@ -102,7 +104,7 @@ export default function EditorPage() {
                     onClick={(e) => { e.stopPropagation(); fileInputRef.current?.click(); }}
                     className="absolute top-2 right-2 px-2.5 py-1 rounded bg-black/60 text-white text-xs font-inter hover:bg-black/80 transition-colors"
                   >
-                    Changer
+                    {t('changeBtn')}
                   </button>
                 </>
               ) : (
@@ -112,7 +114,7 @@ export default function EditorPage() {
                     <circle cx="12" cy="16" r="4" stroke="#CCCCCC" strokeWidth="1.5"/>
                     <path d="M2 26l8-8 6 6 5-5 10 9" stroke="#CCCCCC" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
                   </svg>
-                  <p className="text-sm font-inter text-[#AAA]">Clique pour importer une photo</p>
+                  <p className="text-sm font-inter text-[#AAA]">{t('clickToUploadPhoto')}</p>
                 </div>
               )}
             </div>
@@ -126,7 +128,7 @@ export default function EditorPage() {
             />
 
             <p className="text-xs font-inter text-[#AAA] text-center">
-              Format carré recommandé · 1080 × 1080 px
+              {t('squareFormatHint')}
             </p>
           </div>
 
@@ -134,19 +136,19 @@ export default function EditorPage() {
           <div className="flex-1 flex flex-col overflow-y-auto">
             <div className="flex-1 p-8 space-y-6">
               <div>
-                <h2 className="font-syne font-bold text-base text-black mb-5">Contenu du visuel</h2>
+                <h2 className="font-syne font-bold text-base text-black mb-5">{t('contentTitle')}</h2>
 
                 {/* Texte principal */}
                 <div className="space-y-4">
                   <div>
                     <label className="block mb-1.5 text-xs font-inter font-medium text-[#888] uppercase tracking-wider">
-                      Texte principal
+                      {t('mainTextLabel')}
                     </label>
                     <input
                       type="text"
                       value={mainText}
                       onChange={(e) => setMainText(e.target.value)}
-                      placeholder="Ex. Soldes d'été — jusqu'à -50%"
+                      placeholder={t('mainTextPlaceholder')}
                       className="w-full bg-[#F5F5F5] border border-[#E0E0E0] rounded px-3.5 py-2.5 text-sm font-inter text-black placeholder-[#BBB] focus:border-black outline-none transition-colors"
                     />
                   </div>
@@ -154,13 +156,13 @@ export default function EditorPage() {
                   {/* Sous-titre */}
                   <div>
                     <label className="block mb-1.5 text-xs font-inter font-medium text-[#888] uppercase tracking-wider">
-                      Sous-titre
+                      {t('subtitleLabel')}
                     </label>
                     <input
                       type="text"
                       value={subtitle}
                       onChange={(e) => setSubtitle(e.target.value)}
-                      placeholder="Ex. Offre valable jusqu'au 31 juillet"
+                      placeholder={t('subtitlePlaceholder')}
                       className="w-full bg-[#F5F5F5] border border-[#E0E0E0] rounded px-3.5 py-2.5 text-sm font-inter text-black placeholder-[#BBB] focus:border-black outline-none transition-colors"
                     />
                   </div>
@@ -169,7 +171,7 @@ export default function EditorPage() {
                   <div>
                     <div className="flex items-center justify-between mb-1.5">
                       <label className="text-xs font-inter font-medium text-[#888] uppercase tracking-wider">
-                        Position du texte
+                        {t('textPositionLabel')}
                       </label>
                       <span className="text-xs font-inter text-[#888]">{textPosition}%</span>
                     </div>
@@ -182,8 +184,8 @@ export default function EditorPage() {
                       className="w-full accent-black h-1 rounded"
                     />
                     <div className="flex justify-between mt-1">
-                      <span className="text-xs font-inter text-[#CCC]">Haut</span>
-                      <span className="text-xs font-inter text-[#CCC]">Bas</span>
+                      <span className="text-xs font-inter text-[#CCC]">{t('top')}</span>
+                      <span className="text-xs font-inter text-[#CCC]">{t('bottom')}</span>
                     </div>
                   </div>
                 </div>
@@ -195,7 +197,7 @@ export default function EditorPage() {
               {/* Description générée */}
               <div>
                 <div className="flex items-center justify-between mb-3">
-                  <h2 className="font-syne font-bold text-base text-black">Description</h2>
+                  <h2 className="font-syne font-bold text-base text-black">{t('descriptionTitle')}</h2>
                   <button
                     onClick={generateDescription}
                     disabled={generating}
@@ -206,14 +208,14 @@ export default function EditorPage() {
                         <svg className="animate-spin" width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true">
                           <circle cx="6" cy="6" r="4" stroke="currentColor" strokeWidth="1.5" strokeDasharray="6 6"/>
                         </svg>
-                        Génération…
+                        {t('generating')}
                       </>
                     ) : (
                       <>
                         <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true">
                           <path d="M6 1l1.2 3.6L11 6 7.2 7.4 6 11 4.8 7.4 1 6l3.8-1.4L6 1z" stroke="currentColor" strokeWidth="1" strokeLinejoin="round"/>
                         </svg>
-                        Générer la description
+                        {t('generateBtn')}
                       </>
                     )}
                   </button>
@@ -222,7 +224,7 @@ export default function EditorPage() {
                 <textarea
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
-                  placeholder="La description générée apparaîtra ici. Cliquez sur « Générer » pour créer automatiquement une légende adaptée au style du client."
+                  placeholder={t('descriptionPlaceholder')}
                   rows={5}
                   className="w-full bg-[#F5F5F5] border border-[#E0E0E0] rounded px-3.5 py-3 text-sm font-inter text-black placeholder-[#BBB] focus:border-black outline-none transition-colors resize-none"
                 />
@@ -233,13 +235,13 @@ export default function EditorPage() {
                 {description && (
                   <div className="flex items-center justify-between mt-2">
                     <span className="text-xs font-inter text-[#AAA]">
-                      {description.length} caractères
+                      {t('charactersCount', { count: description.length })}
                     </span>
                     <button
                       onClick={() => navigator.clipboard.writeText(description)}
                       className="text-xs font-inter text-[#888] hover:text-black transition-colors"
                     >
-                      Copier
+                      {t('copyBtn')}
                     </button>
                   </div>
                 )}
@@ -249,10 +251,10 @@ export default function EditorPage() {
             {/* Bottom action bar */}
             <div className="border-t border-[#E0E0E0] px-8 py-4 flex items-center gap-3 bg-white">
               <button className="flex-1 py-2.5 rounded bg-black text-white text-sm font-inter font-bold hover:bg-black/80 transition-colors">
-                Planifier ce post
+                {t('schedulePostBtn')}
               </button>
               <button className="px-5 py-2.5 rounded border border-[#E0E0E0] bg-[#F5F5F5] text-black text-sm font-inter font-medium hover:border-black transition-colors">
-                Enregistrer en brouillon
+                {t('saveDraftBtn')}
               </button>
             </div>
           </div>

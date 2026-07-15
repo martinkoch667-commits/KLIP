@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, CSSProperties } from "react";
+import { useTranslations } from "next-intl";
 import Link from "next/link";
 import Sidebar from "@/components/Sidebar";
 import ColorPicker from "@/components/ColorPicker";
@@ -29,19 +30,19 @@ interface StyleState {
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-const BLOCK_POSITIONS: { value: BlockPosition; label: string }[] = [
-  { value: "top-left", label: "Haut gauche" },
-  { value: "top-right", label: "Haut droite" },
-  { value: "center", label: "Centre" },
-  { value: "bottom-left", label: "Bas gauche" },
-  { value: "bottom-right", label: "Bas droite" },
+const BLOCK_POSITION_KEYS: { value: BlockPosition; key: string }[] = [
+  { value: "top-left", key: "posTopLeft" },
+  { value: "top-right", key: "posTopRight" },
+  { value: "center", key: "posCenter" },
+  { value: "bottom-left", key: "posBottomLeft" },
+  { value: "bottom-right", key: "posBottomRight" },
 ];
 
-const LOGO_POSITIONS: { value: LogoPosition; label: string }[] = [
-  { value: "bottom-right", label: "Bas droite" },
-  { value: "bottom-left", label: "Bas gauche" },
-  { value: "top-right", label: "Haut droite" },
-  { value: "top-left", label: "Haut gauche" },
+const LOGO_POSITION_KEYS: { value: LogoPosition; key: string }[] = [
+  { value: "bottom-right", key: "posBottomRight" },
+  { value: "bottom-left", key: "posBottomLeft" },
+  { value: "top-right", key: "posTopRight" },
+  { value: "top-left", key: "posTopLeft" },
 ];
 
 const FONTS: Font[] = ["Inter", "Syne", "Montserrat", "Oswald", "Anton"];
@@ -197,6 +198,7 @@ function ColorField({ label, value, onChange, opacity, onOpacityChange }: {
 // ─── Main page ────────────────────────────────────────────────────────────────
 
 export default function StyleEditorPage() {
+  const t = useTranslations('workspaceNewStyle');
   const [s, setS] = useState<StyleState>(INITIAL);
   const logoInputRef = useRef<HTMLInputElement>(null);
 
@@ -248,10 +250,10 @@ export default function StyleEditorPage() {
               <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
                 <path d="M9 2L4 7l5 5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/>
               </svg>
-              Nouveau client
+              {t('backLabel')}
             </Link>
             <span style={{ color: "var(--line)", fontSize: 16 }}>/</span>
-            <span style={{ fontSize: 13, fontWeight: 600, color: "var(--ink)" }}>Style visuel</span>
+            <span style={{ fontSize: 13, fontWeight: 600, color: "var(--ink)" }}>{t('pageTitle')}</span>
           </div>
         </header>
 
@@ -262,28 +264,28 @@ export default function StyleEditorPage() {
           <div style={{ width: "45%", borderRight: "1px solid var(--line-2)", display: "flex", flexDirection: "column", overflowY: "auto", flexShrink: 0 }}>
             <div style={{ padding: "28px 28px 0", flex: 1 }}>
               <h2 style={{ fontFamily: "var(--display)", fontWeight: 800, fontSize: 22, color: "var(--ink)", marginBottom: 28, letterSpacing: "-0.02em" }}>
-                Style visuel
+                {t('pageTitle')}
               </h2>
 
               <div style={{ display: "flex", flexDirection: "column", gap: 28 }}>
 
                 {/* Section Texte */}
                 <section>
-                  <SectionTitle>Texte</SectionTitle>
+                  <SectionTitle>{t('sectionTexte')}</SectionTitle>
                   <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
                     <div>
-                      <span style={labelStyle}>Contenu du bloc</span>
+                      <span style={labelStyle}>{t('blockContentLabel')}</span>
                       <textarea
                         value={s.text}
                         onChange={(e) => set("text", e.target.value)}
-                        placeholder="DU 6 AU 9 MAI, SUPER OFFRES"
+                        placeholder={t('blockContentPlaceholder')}
                         rows={2}
                         style={{ ...inputStyle, resize: "none" }}
                       />
                     </div>
 
                     <div>
-                      <span style={labelStyle}>Typographie</span>
+                      <span style={labelStyle}>{t('typographyLabel')}</span>
                       <select
                         value={s.font}
                         onChange={(e) => set("font", e.target.value as Font)}
@@ -294,7 +296,7 @@ export default function StyleEditorPage() {
                     </div>
 
                     <SliderField
-                      label="Taille du texte"
+                      label={t('textSizeLabel')}
                       value={s.fontSize} min={16} max={80} unit="px"
                       onChange={(v) => set("fontSize", v)}
                     />
@@ -302,11 +304,11 @@ export default function StyleEditorPage() {
                     <div style={{ display: "flex", alignItems: "center", gap: 24 }}>
                       <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                         <Toggle value={s.uppercase} onChange={(v) => set("uppercase", v)} />
-                        <span style={{ fontSize: 13, color: "var(--ink)", fontWeight: 600 }}>Majuscules</span>
+                        <span style={{ fontSize: 13, color: "var(--ink)", fontWeight: 600 }}>{t('uppercaseLabel')}</span>
                       </div>
                       <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                         <Toggle value={s.bold} onChange={(v) => set("bold", v)} />
-                        <span style={{ fontSize: 13, color: "var(--ink)", fontWeight: 600 }}>Gras</span>
+                        <span style={{ fontSize: 13, color: "var(--ink)", fontWeight: 600 }}>{t('boldLabel')}</span>
                       </div>
                     </div>
                   </div>
@@ -314,37 +316,37 @@ export default function StyleEditorPage() {
 
                 {/* Section Bloc texte */}
                 <section>
-                  <SectionTitle>Bloc texte</SectionTitle>
+                  <SectionTitle>{t('sectionBlock')}</SectionTitle>
                   <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
                     <div className="ws-upload-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
                       <ColorField
-                        label="Couleur du fond"
+                        label={t('bgColorLabel')}
                         value={s.blockBg}
                         onChange={(v) => set("blockBg", v)}
                         opacity={s.blockOpacity}
                         onOpacityChange={(v) => set("blockOpacity", v)}
                       />
                       <ColorField
-                        label="Couleur du texte"
+                        label={t('textColorLabel')}
                         value={s.blockTextColor}
                         onChange={(v) => set("blockTextColor", v)}
                       />
                     </div>
 
                     <SliderField
-                      label="Arrondi des coins"
+                      label={t('radiusLabel')}
                       value={s.blockRadius} min={0} max={20} unit="px"
                       onChange={(v) => set("blockRadius", v)}
                     />
 
                     <div>
-                      <span style={labelStyle}>Position du bloc</span>
+                      <span style={labelStyle}>{t('blockPositionLabel')}</span>
                       <select
                         value={s.blockPosition}
                         onChange={(e) => set("blockPosition", e.target.value as BlockPosition)}
                         style={selectStyle}
                       >
-                        {BLOCK_POSITIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+                        {BLOCK_POSITION_KEYS.map((o) => <option key={o.value} value={o.value}>{t(o.key)}</option>)}
                       </select>
                     </div>
                   </div>
@@ -352,10 +354,10 @@ export default function StyleEditorPage() {
 
                 {/* Section Logo */}
                 <section>
-                  <SectionTitle>Logo</SectionTitle>
+                  <SectionTitle>{t('sectionLogo')}</SectionTitle>
                   <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
                     <div>
-                      <span style={labelStyle}>Logo client</span>
+                      <span style={labelStyle}>{t('clientLogoLabel')}</span>
                       <div
                         onClick={() => logoInputRef.current?.click()}
                         style={{ display: "flex", alignItems: "center", gap: 14, cursor: "pointer" }}
@@ -375,7 +377,7 @@ export default function StyleEditorPage() {
                           )}
                         </div>
                         <span style={{ fontSize: 13, color: "var(--ink-2)", fontWeight: 600 }}>
-                          {s.logoUrl ? "Changer le logo" : "Uploader un logo"}
+                          {s.logoUrl ? t('changeLogo') : t('uploadLogo')}
                         </span>
                       </div>
                       <input
@@ -387,18 +389,18 @@ export default function StyleEditorPage() {
                     </div>
 
                     <div>
-                      <span style={labelStyle}>Position du logo</span>
+                      <span style={labelStyle}>{t('logoPositionLabel')}</span>
                       <select
                         value={s.logoPosition}
                         onChange={(e) => set("logoPosition", e.target.value as LogoPosition)}
                         style={selectStyle}
                       >
-                        {LOGO_POSITIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+                        {LOGO_POSITION_KEYS.map((o) => <option key={o.value} value={o.value}>{t(o.key)}</option>)}
                       </select>
                     </div>
 
                     <SliderField
-                      label="Taille du logo"
+                      label={t('logoSizeLabel')}
                       value={s.logoSize} min={40} max={120} unit="px"
                       onChange={(v) => set("logoSize", v)}
                     />
@@ -420,7 +422,7 @@ export default function StyleEditorPage() {
                 onMouseEnter={e => { e.currentTarget.style.background = "var(--mint-2)"; }}
                 onMouseLeave={e => { e.currentTarget.style.background = "var(--mint)"; }}
               >
-                Sauvegarder ce style
+                {t('saveStyleBtn')}
               </button>
             </div>
           </div>
@@ -428,7 +430,7 @@ export default function StyleEditorPage() {
           {/* Right panel — Preview */}
           <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", background: "var(--sunk)", padding: 32, overflow: "auto" }}>
             <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 16 }}>
-              <span style={labelStyle}>Aperçu — 1:1 Instagram</span>
+              <span style={labelStyle}>{t('previewLabel')}</span>
 
               <div style={{ position: "relative", overflow: "hidden", width: 520, height: 520, flexShrink: 0, borderRadius: "var(--r)", boxShadow: "var(--shadow-pop)" }}>
                 {/* Background placeholder */}
@@ -443,7 +445,7 @@ export default function StyleEditorPage() {
                       <circle cx="14" cy="18" r="4" stroke="#AAAAAA" strokeWidth="1.5"/>
                       <path d="M2 30l10-10 7 7 6-6 13 12" stroke="#AAAAAA" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
                     </svg>
-                    <span style={{ fontSize: 13, color: "#AAAAAA" }}>Ta photo ici</span>
+                    <span style={{ fontSize: 13, color: "#AAAAAA" }}>{t('yourPhotoHere')}</span>
                   </div>
                 </div>
 
@@ -474,9 +476,9 @@ export default function StyleEditorPage() {
               {/* Info bar */}
               <div style={{ display: "flex", alignItems: "center", gap: 20 }}>
                 {[
-                  { label: "Police", value: s.font },
-                  { label: "Taille", value: `${s.fontSize}px` },
-                  { label: "Position", value: BLOCK_POSITIONS.find(p => p.value === s.blockPosition)?.label },
+                  { label: t('infoFont'), value: s.font },
+                  { label: t('infoSize'), value: `${s.fontSize}px` },
+                  { label: t('infoPosition'), value: BLOCK_POSITION_KEYS.find(p => p.value === s.blockPosition)?.key ? t(BLOCK_POSITION_KEYS.find(p => p.value === s.blockPosition)!.key) : undefined },
                 ].map(item => (
                   <span key={item.label} style={{ fontSize: 12, color: "var(--ink-3)" }}>
                     {item.label} : <span style={{ color: "var(--ink)", fontWeight: 600 }}>{item.value}</span>
