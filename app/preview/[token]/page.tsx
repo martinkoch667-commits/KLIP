@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
+import { useTranslations, useLocale } from 'next-intl';
 import { useParams } from 'next/navigation';
 import Image from 'next/image';
 
@@ -21,13 +22,20 @@ interface Post {
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-const MONTH_FR = ['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre'];
-const DAY_FR   = ['Lu','Ma','Me','Je','Ve','Sa','Di'];
+// Noms de mois / jours localisés dérivés de la locale active (via Intl).
+function localizedMonthNames(locale: string): string[] {
+  const f = new Intl.DateTimeFormat(locale, { month: 'long' });
+  return Array.from({ length: 12 }, (_, m) => { const s = f.format(new Date(2021, m, 1)); return s.charAt(0).toUpperCase() + s.slice(1); });
+}
+function localizedDayNamesShort(locale: string): string[] {
+  const f = new Intl.DateTimeFormat(locale, { weekday: 'short' });
+  return Array.from({ length: 7 }, (_, i) => { const s = f.format(new Date(2024, 0, 1 + i)); return s.charAt(0).toUpperCase() + s.slice(1); });
+}
 
-function fmtDate(iso: string) {
+function fmtDate(iso: string, locale: string) {
   const d = new Date(iso);
-  return d.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' }) + ' à ' +
-    d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+  return d.toLocaleDateString(locale, { weekday: 'long', day: 'numeric', month: 'long' }) + ' ' +
+    d.toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' });
 }
 
 function calendarDays(year: number, month: number): (number | null)[] {
@@ -39,12 +47,12 @@ function calendarDays(year: number, month: number): (number | null)[] {
   return cells;
 }
 
-function statusChip(post: Post) {
-  if (post.approved_by_client)    return { label: 'Approuvé',      bg: 'rgba(47,215,155,.15)', color: '#2FD79B' };
-  if (post.client_comment)        return { label: 'Modif. demandée',  bg: '#FEF3C7',              color: '#D97706' };
-  if (post.status === 'published') return { label: 'Publié',           bg: '#DCFCE7',              color: '#16A34A' };
-  if (post.status === 'scheduled') return { label: 'Planifié',         bg: 'rgba(79,142,247,.12)', color: '#4F8EF7' };
-  return { label: 'Brouillon', bg: 'var(--sunk)', color: 'var(--ink-3)' };
+function statusChip(post: Post, t: (key: string) => string) {
+  if (post.approved_by_client)     return { label: t('statusApproved'),      bg: 'rgba(47,215,155,.15)', color: '#2FD79B' };
+  if (post.client_comment)         return { label: t('statusModifRequested'),  bg: '#FEF3C7',              color: '#D97706' };
+  if (post.status === 'published') return { label: t('statusPublished'),           bg: '#DCFCE7',              color: '#16A34A' };
+  if (post.status === 'scheduled') return { label: t('statusScheduled'),         bg: 'rgba(79,142,247,.12)', color: '#4F8EF7' };
+  return { label: t('statusDraft'), bg: 'var(--sunk)', color: 'var(--ink-3)' };
 }
 
 function postColor(post: Post): string {
@@ -137,6 +145,8 @@ const CW_CSS = `
 // ─── Main ─────────────────────────────────────────────────────────────────────
 
 export default function PreviewPage() {
+  const t = useTranslations('preview');
+  const locale = useLocale();
   const { token } = useParams<{ token: string }>();
 
   const [loading, setLoading]       = useState(true);
@@ -150,6 +160,9 @@ export default function PreviewPage() {
   const [year, setYear]   = useState(today.getFullYear());
   const [month, setMonth] = useState(today.getMonth());
 
+  const MONTH_NAMES = localizedMonthNames(locale);
+  const DAY_NAMES = localizedDayNamesShort(locale);
+
   // Post detail modal
   const [selected, setSelected]   = useState<Post | null>(null);
   const [commenting, setCommenting] = useState(false);
@@ -162,7 +175,7 @@ export default function PreviewPage() {
     fetch(`/api/preview/${token}`)
       .then(async r => {
         const d = await r.json();
-        if (!r.ok) { setError(d.error ?? 'Erreur'); return; }
+        if (!r.ok) { setError(d.error ?? t('errorGeneric')); return; }
         setWorkspace(d.workspace);
         setPosts(d.posts);
         setTokenMeta(d.tokenMeta);
@@ -173,8 +186,9 @@ export default function PreviewPage() {
           setMonth(df.getMonth());
         }
       })
-      .catch(() => setError('Impossible de charger la page'))
+      .catch(() => setError(t('errorLoadFailed')))
       .finally(() => setLoading(false));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token]);
 
   const prevMonth = () => { if (month === 0) { setYear(y => y - 1); setMonth(11); } else setMonth(m => m - 1); };
@@ -223,7 +237,7 @@ export default function PreviewPage() {
     <div style={{ minHeight: '100vh', background: '#F5F4F1', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
       <div style={{ textAlign: 'center', color: '#6b7280' }}>
         <div style={{ width: 36, height: 36, border: '3px solid #e5e7eb', borderTopColor: '#2FD79B', borderRadius: '50%', animation: 'spin 0.8s linear infinite', margin: '0 auto 16px' }} />
-        Chargement…
+        {t('loading')}
       </div>
       <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
     </div>
@@ -235,10 +249,10 @@ export default function PreviewPage() {
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#DC2626" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
       </div>
       <div style={{ textAlign: 'center' }}>
-        <p style={{ fontWeight: 700, fontSize: 18, color: '#111', margin: 0 }}>Ce lien n&apos;est plus valide</p>
+        <p style={{ fontWeight: 700, fontSize: 18, color: '#111', margin: 0 }}>{t('linkInvalidTitle')}</p>
         <p style={{ fontSize: 14, color: '#6b7280', marginTop: 6 }}>{error}</p>
       </div>
-      <p style={{ fontSize: 12, color: '#9ca3af', marginTop: 8 }}>Propulsé par <strong>Klip</strong></p>
+      <p style={{ fontSize: 12, color: '#9ca3af', marginTop: 8 }}>{t('poweredBy')} <strong>Klip</strong></p>
     </div>
   );
 
@@ -251,14 +265,14 @@ export default function PreviewPage() {
       {/* ── Header ────────────────────────────────────────────────────────── */}
       <header className="cw-header">
         <KlipLogo />
-        <span className="cw-header-title">{workspace?.name ?? 'Programmation'}</span>
-        <span className="cw-badge">Vue client</span>
+        <span className="cw-header-title">{workspace?.name ?? t('headerFallback')}</span>
+        <span className="cw-badge">{t('clientView')}</span>
       </header>
 
       {(tokenMeta?.date_from || tokenMeta?.date_to) && (
         <div className="cw-period">
-          Période à valider · {tokenMeta?.date_from ? new Date(tokenMeta.date_from).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' }) : '…'}
-          {' → '}{tokenMeta?.date_to ? new Date(tokenMeta.date_to).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' }) : '…'}
+          {t('periodToValidate')} {tokenMeta?.date_from ? new Date(tokenMeta.date_from).toLocaleDateString(locale, { day: 'numeric', month: 'long' }) : '…'}
+          {' → '}{tokenMeta?.date_to ? new Date(tokenMeta.date_to).toLocaleDateString(locale, { day: 'numeric', month: 'long', year: 'numeric' }) : '…'}
         </div>
       )}
 
@@ -268,33 +282,33 @@ export default function PreviewPage() {
         {/* Intro + progression */}
         <div className="cw-intro">
           <div>
-            <h1 className="cw-intro-title">Validez vos prochaines publications</h1>
-            <p className="cw-intro-sub">Cliquez sur une publication pour l’approuver ou demander une modification.</p>
+            <h1 className="cw-intro-title">{t('introTitle')}</h1>
+            <p className="cw-intro-sub">{t('introSub')}</p>
           </div>
           {posts.length > 0 && (
             <div className="cw-progress">
               <span className="cw-progress-num">{posts.filter(p => p.approved_by_client || p.client_comment).length}<small>/{posts.length}</small></span>
-              <span className="cw-progress-label">traitées</span>
+              <span className="cw-progress-label">{t('processedCount')}</span>
             </div>
           )}
         </div>
 
         {/* Month nav */}
         <div className="cw-nav">
-          <button className="cw-nav-btn" onClick={prevMonth} aria-label="Mois précédent">
+          <button className="cw-nav-btn" onClick={prevMonth} aria-label={t('prevMonthAria')}>
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 6l-6 6 6 6"/></svg>
           </button>
-          <span className="cw-month">{MONTH_FR[month]} {year}</span>
-          <button className="cw-nav-btn" onClick={nextMonth} aria-label="Mois suivant">
+          <span className="cw-month">{MONTH_NAMES[month]} {year}</span>
+          <button className="cw-nav-btn" onClick={nextMonth} aria-label={t('nextMonthAria')}>
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 6l6 6-6 6"/></svg>
           </button>
-          <button className="cw-today-btn" onClick={goToday}>Aujourd’hui</button>
-          <span className="cw-count">{posts.length} publication{posts.length !== 1 ? 's' : ''}</span>
+          <button className="cw-today-btn" onClick={goToday}>{t('today')}</button>
+          <span className="cw-count">{t('publicationsCount', { count: posts.length })}</span>
         </div>
 
         {/* Day headers */}
         <div className="cw-dows">
-          {DAY_FR.map(d => <div key={d} className="cw-dow">{d}</div>)}
+          {DAY_NAMES.map(d => <div key={d} className="cw-dow">{d}</div>)}
         </div>
 
         {/* Calendar grid */}
@@ -309,7 +323,7 @@ export default function PreviewPage() {
                 <span className={`cw-daynum${isToday ? ' cw-daynum--today' : ''}`}>{day}</span>
                 {dayPosts.map(p => {
                   const img  = p.exported_image_url || p.photo_url;
-                  const time = p.scheduled_at ? new Date(p.scheduled_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) : '';
+                  const time = p.scheduled_at ? new Date(p.scheduled_at).toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' }) : '';
                   return (
                     <button key={p.id} className="cw-chip"
                       onClick={() => { setSelected(p); setCommenting(false); setComment(''); setActionDone(null); }}>
@@ -333,10 +347,10 @@ export default function PreviewPage() {
         {/* Legend */}
         <div className="cw-legend">
           {[
-            { color: '#4F8EF7', label: 'Planifié' },
-            { color: '#2FD79B', label: 'Approuvé' },
-            { color: '#D97706', label: 'Modification demandée' },
-            { color: '#16A34A', label: 'Publié' },
+            { color: '#4F8EF7', label: t('legendScheduled') },
+            { color: '#2FD79B', label: t('legendApproved') },
+            { color: '#D97706', label: t('legendModifRequested') },
+            { color: '#16A34A', label: t('legendPublished') },
           ].map(item => (
             <div key={item.label} className="cw-legend-item">
               <span className="cw-legend-dot" style={{ background: item.color }} />
@@ -348,16 +362,16 @@ export default function PreviewPage() {
 
       {/* ── Footer ────────────────────────────────────────────────────────── */}
       <footer className="cw-footer">
-        Propulsé par <strong style={{ color: '#6b7280' }}>Klip</strong>
+        {t('poweredBy')} <strong style={{ color: '#6b7280' }}>Klip</strong>
         {tokenMeta && (
-          <span> · Lien généré le {new Date(tokenMeta.created_at).toLocaleDateString('fr-FR')}</span>
+          <span> {t('linkGeneratedOn', { date: new Date(tokenMeta.created_at).toLocaleDateString(locale) })}</span>
         )}
       </footer>
 
       {/* ── Fiche post (façon publication Instagram) ───────────────────────── */}
       {selected && (() => {
         const img = selected.exported_image_url || selected.photo_url;
-        const handle = workspace?.instagram_username ? `@${workspace.instagram_username}` : 'Publication proposée';
+        const handle = workspace?.instagram_username ? `@${workspace.instagram_username}` : t('publicationProposedFallback');
         const avatarInitials = (workspace?.name ?? 'C').trim().slice(0, 2).toUpperCase();
         const canAct = !selected.approved_by_client && !actionDone && (selected.status === 'scheduled' || selected.status === 'draft' || selected.status === 'idle');
         return (
@@ -373,7 +387,7 @@ export default function PreviewPage() {
                   <div className="cw-acct-name">{workspace?.name}</div>
                   <div className="cw-acct-sub">{handle}</div>
                 </div>
-                <button className="cw-modal-close" onClick={() => setSelected(null)} aria-label="Fermer">
+                <button className="cw-modal-close" onClick={() => setSelected(null)} aria-label={t('closeAria')}>
                   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
                 </button>
               </div>
@@ -395,7 +409,7 @@ export default function PreviewPage() {
               <div className="cw-modal-body">
                 {/* Status chip */}
                 <div style={{ marginBottom: 12 }}>
-                  {(() => { const s = statusChip(selected); return <span style={{ padding: '5px 11px', borderRadius: 99, background: s.bg, color: s.color, fontSize: 12, fontWeight: 700 }}>{s.label}</span>; })()}
+                  {(() => { const s = statusChip(selected, t); return <span style={{ padding: '5px 11px', borderRadius: 99, background: s.bg, color: s.color, fontSize: 12, fontWeight: 700 }}>{s.label}</span>; })()}
                 </div>
 
                 {selected.title && <h3 style={{ fontFamily: 'var(--display, sans-serif)', fontWeight: 800, fontSize: 17, color: '#0D0F0A', margin: '0 0 8px', lineHeight: 1.3 }}>{selected.title}</h3>}
@@ -405,14 +419,14 @@ export default function PreviewPage() {
                 {selected.scheduled_at && (
                   <div className="cw-meta-row">
                     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#16A36F" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
-                    <span className="cw-meta-txt">Publication prévue le {fmtDate(selected.scheduled_at)}</span>
+                    <span className="cw-meta-txt">{t('scheduledFor', { date: fmtDate(selected.scheduled_at, locale) })}</span>
                   </div>
                 )}
 
                 {/* Existing comment */}
                 {selected.client_comment && (
                   <div style={{ padding: '11px 13px', borderRadius: 12, background: '#FEF3C7', border: '1px solid #FCD34D', marginBottom: 14 }}>
-                    <p style={{ fontSize: 10.5, fontWeight: 800, color: '#B45309', margin: '0 0 4px', textTransform: 'uppercase', letterSpacing: '.06em' }}>Votre demande de modification</p>
+                    <p style={{ fontSize: 10.5, fontWeight: 800, color: '#B45309', margin: '0 0 4px', textTransform: 'uppercase', letterSpacing: '.06em' }}>{t('yourModifRequestLabel')}</p>
                     <p style={{ fontSize: 13, color: '#92400E', margin: 0, lineHeight: 1.5 }}>{selected.client_comment}</p>
                   </div>
                 )}
@@ -421,12 +435,12 @@ export default function PreviewPage() {
                 {(actionDone === 'approved' || selected.approved_by_client) && (
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '13px', borderRadius: 12, background: 'rgba(47,215,155,.14)', border: '1px solid #2FD79B' }}>
                     <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#0C7A52" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
-                    <span style={{ fontSize: 14, fontWeight: 700, color: '#0C7A52' }}>Publication approuvée — merci !</span>
+                    <span style={{ fontSize: 14, fontWeight: 700, color: '#0C7A52' }}>{t('approvedFeedback')}</span>
                   </div>
                 )}
                 {actionDone === 'commented' && (
                   <div style={{ textAlign: 'center', padding: '13px', borderRadius: 12, background: '#FEF3C7', border: '1px solid #FCD34D' }}>
-                    <span style={{ fontSize: 14, fontWeight: 700, color: '#B45309' }}>Demande envoyée à l’agence ✓</span>
+                    <span style={{ fontSize: 14, fontWeight: 700, color: '#B45309' }}>{t('commentedFeedback')}</span>
                   </div>
                 )}
 
@@ -437,20 +451,20 @@ export default function PreviewPage() {
                       <div style={{ display: 'flex', gap: 10 }}>
                         <button className="cw-btn cw-btn-approve" onClick={handleApprove} disabled={actionLoading} style={{ opacity: actionLoading ? 0.7 : 1 }}>
                           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
-                          Approuver
+                          {t('approveBtn')}
                         </button>
                         <button className="cw-btn cw-btn-modify" onClick={() => setCommenting(true)}>
                           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
-                          Demander une modif.
+                          {t('requestModifBtn')}
                         </button>
                       </div>
                     ) : (
                       <>
-                        <textarea className="cw-textarea" value={comment} onChange={e => setComment(e.target.value)} placeholder="Décrivez la modification souhaitée (texte, visuel, date…)" rows={3} autoFocus />
+                        <textarea className="cw-textarea" value={comment} onChange={e => setComment(e.target.value)} placeholder={t('modifPlaceholder')} rows={3} autoFocus />
                         <div style={{ display: 'flex', gap: 8 }}>
-                          <button onClick={() => setCommenting(false)} style={{ flex: 1, padding: '11px', borderRadius: 10, border: '1px solid rgba(13,15,10,.12)', background: '#f7f6f3', cursor: 'pointer', fontSize: 13.5, fontWeight: 600, color: '#6b7280' }}>Annuler</button>
+                          <button onClick={() => setCommenting(false)} style={{ flex: 1, padding: '11px', borderRadius: 10, border: '1px solid rgba(13,15,10,.12)', background: '#f7f6f3', cursor: 'pointer', fontSize: 13.5, fontWeight: 600, color: '#6b7280' }}>{t('cancel')}</button>
                           <button onClick={handleComment} disabled={!comment.trim() || actionLoading} style={{ flex: 2, padding: '11px', borderRadius: 10, border: 'none', background: '#0C2A1D', color: '#fff', fontWeight: 700, fontSize: 13.5, cursor: (!comment.trim() || actionLoading) ? 'not-allowed' : 'pointer', opacity: (!comment.trim() || actionLoading) ? 0.6 : 1 }}>
-                            Envoyer la demande
+                            {t('sendRequest')}
                           </button>
                         </div>
                       </>
