@@ -6,8 +6,8 @@ import { cookies } from "next/headers";
 // jeton de Page (longue durée), et le compte Instagram Business lié s'il existe.
 
 const APP_ID = "991302360155193";
-const REDIRECT_URI = "https://klip-swart.vercel.app/api/auth/facebook/callback";
-const APP_URL = "https://klip-swart.vercel.app";
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://getklip.fr";
+const REDIRECT_URI = `${APP_URL}/api/auth/facebook/callback`;
 const GRAPH_VERSION = "v21.0";
 
 export async function GET(request: NextRequest) {
@@ -86,7 +86,15 @@ export async function GET(request: NextRequest) {
       facebook_ig_business_id: igLinked?.id ? String(igLinked.id) : null,
     };
 
-    await supabase.from("workspaces").update(update).eq("id", workspaceId);
+    const { data: updated, error: updateError } = await supabase.from("workspaces").update(update).eq("id", workspaceId).select("id");
+
+    // Voir commentaire équivalent dans /api/auth/meta/callback : sans session
+    // valide (auth.uid()) au moment du callback, RLS bloque l'update sans
+    // lever d'erreur — il faut vérifier explicitement qu'une ligne a été touchée.
+    if (updateError || !updated || updated.length === 0) {
+      console.error(`[FB CB:${inv}] update failed — error:`, updateError, "rows:", updated?.length ?? 0);
+      return back("error=save_failed");
+    }
 
     console.log(`[FB CB:${inv}] SUCCESS — page « ${page.name} »${igLinked ? ` + IG @${igLinked.username}` : ""}`);
     return back("connected=true");

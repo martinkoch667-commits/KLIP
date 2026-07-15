@@ -56,6 +56,7 @@ function ParametresContent() {
   const ERROR_MESSAGES: Record<string, string> = {
     cancelled: t('errorCancelled'), token: t('errorToken'),
     no_pages: t('errorNoPages'), no_instagram: t('errorNoInstagram'), unknown: t('errorUnknown'),
+    save_failed: t('errorSaveFailed'),
   };
 
   const connected = searchParams.get("connected") === "true";

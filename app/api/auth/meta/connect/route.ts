@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 
 const APP_ID = "991302360155193";
-const REDIRECT_URI = "https://klip-swart.vercel.app/api/auth/meta/callback";
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://getklip.fr";
+const REDIRECT_URI = `${APP_URL}/api/auth/meta/callback`;
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);

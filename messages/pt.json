@@ -983,6 +983,7 @@
     "errorNoPages": "Nenhuma página do Facebook encontrada. Verifique as suas permissões.",
     "errorNoInstagram": "Nenhuma conta do Instagram Business associada às suas páginas do Facebook.",
     "errorUnknown": "Ocorreu um erro durante a ligação.",
+    "errorSaveFailed": "A conexão falhou: sua sessão havia expirado no momento da validação. Faça login novamente no Klip e tente de novo.",
     "socialTitle": "Redes sociais",
     "socialSubtitle": "Ligue as suas contas para publicar diretamente a partir da Klip.",
     "instagram": "Instagram",

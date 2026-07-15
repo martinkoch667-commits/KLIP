@@ -983,6 +983,7 @@
     "errorNoPages": "Keine Facebook-Seite gefunden. Überprüfe deine Berechtigungen.",
     "errorNoInstagram": "Kein Instagram-Business-Konto mit deinen Facebook-Seiten verknüpft.",
     "errorUnknown": "Bei der Verbindung ist ein Fehler aufgetreten.",
+    "errorSaveFailed": "Die Verbindung ist fehlgeschlagen: Deine Sitzung war zum Zeitpunkt der Bestätigung abgelaufen. Melde dich erneut bei Klip an und versuche es noch einmal.",
     "socialTitle": "Soziale Netzwerke",
     "socialSubtitle": "Verbinde deine Konten, um direkt aus Klip zu veröffentlichen.",
     "instagram": "Instagram",

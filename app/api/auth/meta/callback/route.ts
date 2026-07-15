@@ -10,8 +10,8 @@ export async function GET(request: NextRequest) {
   const code = searchParams.get("code");
   const workspaceId = searchParams.get("state");
   const error = searchParams.get("error");
-  const appUrl = "https://klip-swart.vercel.app";
-  const redirectUri = "https://klip-swart.vercel.app/api/auth/meta/callback";
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://getklip.fr";
+  const redirectUri = `${appUrl}/api/auth/meta/callback`;
   const clientId = "991302360155193";
 
   // ── Diagnostic block ──────────────────────────────────────────────────────
@@ -88,12 +88,22 @@ export async function GET(request: NextRequest) {
     console.log('[CB] Token type:', typeof accessToken);
     console.log('[CB] Token length:', accessToken?.length);
 
-    await supabase.from("workspaces").update({
+    const { data: updated, error: updateError } = await supabase.from("workspaces").update({
       instagram_account_id: String(igUserId),
       instagram_access_token: accessToken.trim(),
       instagram_username: igDetails.username ?? igDetails.name ?? String(igUserId),
       instagram_connected_at: new Date().toISOString(),
-    }).eq("id", workspaceId);
+    }).eq("id", workspaceId).select("id");
+
+    // RLS exige auth.uid() = user_id : si la session n'était pas présente/valide
+    // au moment du callback (ex. redirection OAuth arrivée sur un autre domaine
+    // que celui où l'utilisateur est connecté), l'update ne touche 0 ligne sans
+    // lever d'erreur — il faut le détecter explicitement, sinon on affiche un
+    // faux "connecté" alors que rien n'a été enregistré.
+    if (updateError || !updated || updated.length === 0) {
+      console.error(`[CB:${inv}] update failed — error:`, updateError, "rows:", updated?.length ?? 0);
+      return NextResponse.redirect(`${appUrl}/workspace/${workspaceId}/parametres?error=save_failed`);
+    }
 
     console.log(`[CB:${inv}] SUCCESS — connected @${igDetails.username}`);
     return NextResponse.redirect(`${appUrl}/workspace/${workspaceId}/planning?connected=true`);

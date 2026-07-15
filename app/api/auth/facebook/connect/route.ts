@@ -6,7 +6,8 @@ import { NextRequest, NextResponse } from "next/server";
 // que l'Instagram sans Page Facebook — on ne le touche pas.
 
 const APP_ID = "991302360155193";
-const REDIRECT_URI = "https://klip-swart.vercel.app/api/auth/facebook/callback";
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://getklip.fr";
+const REDIRECT_URI = `${APP_URL}/api/auth/facebook/callback`;
 const GRAPH_VERSION = "v21.0";
 
 // pages_manage_posts / instagram_content_publish nécessitent l'App Review Meta
