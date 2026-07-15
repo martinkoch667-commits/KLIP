@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect, useMemo, useCallback } from "react";
+import { useTranslations } from "next-intl";
 import { useParams } from "next/navigation";
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
 import { VIcon } from "./icons";
@@ -19,23 +20,23 @@ import { transcodeToMp4 } from "@/lib/mp4-transcode";
 
 type RailTool = "media" | "cut" | "overlay" | "text" | "captions" | "audio" | "transitions" | "filter" | "speed" | "sticker" | "ai";
 
-const RAIL_TOOLS: [RailTool, string, string][] = [
-  ["media", "video", "Média"],
-  ["cut", "scissors", "Découper"],
-  ["overlay", "image", "Incrust."],
-  ["text", "text", "Texte"],
-  ["captions", "captions", "Sous-titres"],
-  ["audio", "music", "Audio"],
-  ["transitions", "transition", "Transit."],
-  ["filter", "filter", "Filtres"],
-  ["speed", "speed", "Vitesse"],
-  ["sticker", "sticker", "Stickers"],
+const RAIL_TOOL_KEYS: [RailTool, string, string][] = [
+  ["media", "video", "railMedia"],
+  ["cut", "scissors", "railCut"],
+  ["overlay", "image", "railOverlay"],
+  ["text", "text", "railText"],
+  ["captions", "captions", "railCaptions"],
+  ["audio", "music", "railAudio"],
+  ["transitions", "transition", "railTransitions"],
+  ["filter", "filter", "railFilter"],
+  ["speed", "speed", "railSpeed"],
+  ["sticker", "sticker", "railSticker"],
 ];
 
-const TOOL_TITLES: Record<RailTool, string> = {
-  media: "Média", cut: "Découper", overlay: "Incrustation", text: "Texte & titres", captions: "Sous-titres",
-  audio: "Audio", transitions: "Transitions", filter: "Filtres", speed: "Vitesse",
-  sticker: "Stickers", ai: "Assistant IA",
+const TOOL_TITLE_KEYS: Record<RailTool, string> = {
+  media: "panelTitleMedia", cut: "panelTitleCut", overlay: "panelTitleOverlay", text: "panelTitleText", captions: "panelTitleCaptions",
+  audio: "panelTitleAudio", transitions: "panelTitleTransitions", filter: "panelTitleFilter", speed: "panelTitleSpeed",
+  sticker: "panelTitleSticker", ai: "panelTitleAi",
 };
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
@@ -135,13 +136,19 @@ const FONT_CSS: Record<string, string> = {
 // ─── Page ───────────────────────────────────────────────────────────────────
 
 export default function MontagePage() {
+  const t = useTranslations('montage');
+  const tc = useTranslations('montageConstants');
+  const RAIL_TOOLS = RAIL_TOOL_KEYS.map(([id, icon, key]) => [id, icon, t(key)] as [RailTool, string, string]);
+  const TOOL_TITLES: Record<RailTool, string> = Object.fromEntries(
+    Object.entries(TOOL_TITLE_KEYS).map(([id, key]) => [id, t(key)])
+  ) as Record<RailTool, string>;
   const params = useParams();
   const workspaceId = params.id as string;
   const postId = params.postId as string;
   const supabase = createClientComponentClient();
 
   const [loading, setLoading] = useState(true);
-  const [projectName, setProjectName] = useState("Reel vidéo");
+  const [projectName, setProjectName] = useState(t('defaultProjectName'));
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
 
   const [clips, setClips] = useState<MontageClip[]>([]);
@@ -269,7 +276,7 @@ export default function MontagePage() {
         setExportQuality(proj.exportQuality || "standard");
       } else if (post?.photo_url) {
         const dur = await getVideoDuration(post.photo_url);
-        setClips([{ id: crypto.randomUUID(), kind: "video", name: "Import initial", src: post.photo_url, srcDur: dur, trimStart: 0, trimEnd: dur, ...newClipDefaults() }]);
+        setClips([{ id: crypto.randomUUID(), kind: "video", name: t('initialImportName'), src: post.photo_url, srcDur: dur, trimStart: 0, trimEnd: dur, ...newClipDefaults() }]);
       }
       setLoading(false);
     })();
@@ -586,7 +593,7 @@ export default function MontagePage() {
     if (!c) return;
     const localSplit = c.kind === "video" ? c.trimStart + (time - c.start) * c.speed : time - c.start;
     if (localSplit <= c.trimStart + 0.15 || localSplit >= c.trimEnd - 0.15) {
-      toast("Déplacez le curseur à l'intérieur du plan pour diviser.");
+      toast(t('toastMovePlayhead'));
       return;
     }
     setClips((prev) => {
@@ -601,14 +608,14 @@ export default function MontagePage() {
   }
   function applyTransitionToAll(transitionIn: string, dur: number) {
     setClips((prev) => prev.map((c) => ({ ...c, transitionIn, transitionDur: dur })));
-    toast("Transition appliquée à tous les plans.");
+    toast(t('toastTransitionAppliedAll'));
   }
 
   // ── Titres ───────────────────────────────────────────────────────────────
   function addTitle() {
     const id = crypto.randomUUID();
     const start = time, end = Math.min(total || time + 3, time + 3);
-    setTitles((prev) => [...prev, { id, start, end, text: "Nouveau titre", font: "archivo", color: "#FFFFFF", anim: "rise", x: 50, y: 78 }]);
+    setTitles((prev) => [...prev, { id, start, end, text: t('newTitleDefault'), font: "archivo", color: "#FFFFFF", anim: "rise", x: 50, y: 78 }]);
     setSelectedTitleId(id);
   }
   function updateTitle(id: string, patch: Partial<TitleEl>) {
@@ -623,7 +630,7 @@ export default function MontagePage() {
   function addCaption() {
     const id = crypto.randomUUID();
     const start = time, end = Math.min(total || time + 1.5, time + 1.5);
-    setCaptions((prev) => [...prev, { id, start, end, text: "Nouveau sous-titre" }].sort((a, b) => a.start - b.start));
+    setCaptions((prev) => [...prev, { id, start, end, text: t('newCaptionDefault') }].sort((a, b) => a.start - b.start));
   }
   function updateCaption(id: string, patch: Partial<Caption>) {
     setCaptions((prev) => prev.map((c) => (c.id === id ? { ...c, ...patch } : c)));
@@ -642,16 +649,16 @@ export default function MontagePage() {
       });
       const data = await res.json();
       if (!res.ok || !data.ok) {
-        toast(data?.message || "Transcription indisponible (clé API manquante).");
+        toast(data?.message || t('toastTranscriptionUnavailable'));
         return;
       }
       const segs = (data.segments || []) as { start: number; end: number; text: string }[];
       setRawSegments(segs);
       const newCaps: Caption[] = segmentCaptions(segs, subMaxWords);
       setCaptions(newCaps);
-      toast(`${newCaps.length} sous-titres générés.`);
+      toast(t('toastCaptionsGenerated', { count: newCaps.length }));
     } catch {
-      toast("Erreur pendant la transcription.");
+      toast(t('toastTranscriptionError'));
     } finally {
       setTranscribing(false);
     }
@@ -673,11 +680,11 @@ export default function MontagePage() {
         body: JSON.stringify({ mode: "smart_crop", image }),
       });
       const data = await res.json();
-      if (!res.ok) { toast(data?.error || "Recadrage IA indisponible."); return; }
+      if (!res.ok) { toast(data?.error || t('toastCropUnavailable')); return; }
       updateClip(clipId, { focusX: data.focusX, focusY: data.focusY });
-      toast("Recadrage appliqué ✓");
+      toast(t('toastCropApplied'));
     } catch {
-      toast("Erreur pendant le recadrage IA.");
+      toast(t('toastCropError'));
     } finally {
       setCroppingClipId(null);
     }
@@ -689,7 +696,7 @@ export default function MontagePage() {
   // un ordre + rognage + Ken Burns + transitions cohérents en un clic.
   async function autoAssembleAI() {
     if (assembling) return;
-    if (clips.length < 2) { toast("Importez au moins 2 plans pour un montage automatique."); return; }
+    if (clips.length < 2) { toast(t('toastNeedTwoClips')); return; }
     setAssembling(true);
     try {
       const sample = clips.slice(0, 10);
@@ -710,7 +717,7 @@ export default function MontagePage() {
       });
       const data = await res.json();
       const plan: { id: string; trimStart?: number; trimEnd?: number; kenBurns?: "in" | "out" | null; transitionIn?: string; transitionDur?: number }[] = data?.plan || [];
-      if (!res.ok || !plan.length) { toast(data?.error || "Montage automatique indisponible."); return; }
+      if (!res.ok || !plan.length) { toast(data?.error || t('toastAssemblyUnavailable')); return; }
 
       const byId = new Map(clips.map((c) => [c.id, c]));
       const next: MontageClip[] = [];
@@ -724,16 +731,16 @@ export default function MontagePage() {
           trimStart,
           trimEnd: trimEndRaw > trimStart ? trimEndRaw : base.trimEnd,
           kenBurns: base.kind === "photo" && (step.kenBurns === "in" || step.kenBurns === "out") ? step.kenBurns : undefined,
-          transitionIn: TRANSITIONS.some((t) => t.id === step.transitionIn) ? (step.transitionIn as string) : base.transitionIn,
+          transitionIn: TRANSITIONS.some((tr) => tr.id === step.transitionIn) ? (step.transitionIn as string) : base.transitionIn,
           transitionDur: typeof step.transitionDur === "number" ? Math.max(0, Math.min(2, step.transitionDur)) : base.transitionDur,
         });
       }
       // Sécurité : un plan non repris par l'IA (id oublié dans sa réponse) n'est jamais perdu.
       for (const c of clips) if (!next.some((n) => n.id === c.id)) next.push(c);
       setClips(next);
-      toast("Montage automatique appliqué ✓");
+      toast(t('toastAssemblyApplied'));
     } catch {
-      toast("Erreur pendant le montage automatique.");
+      toast(t('toastAssemblyError'));
     } finally {
       setAssembling(false);
     }
@@ -745,7 +752,7 @@ export default function MontagePage() {
   // l'utilisateur important toujours son propre fichier via l'onglet Audio existant.
   async function suggestMusicMoodAI() {
     if (suggestingMusic) return;
-    if (!clips.length) { toast("Importez au moins un plan."); return; }
+    if (!clips.length) { toast(t('toastNeedOneClip')); return; }
     setSuggestingMusic(true);
     try {
       const sample = clips.slice(0, 4);
@@ -758,10 +765,10 @@ export default function MontagePage() {
         body: JSON.stringify({ mode: "music_mood", clips: clips.map((c) => ({ kind: c.kind, name: c.name })), images }),
       });
       const data = await res.json();
-      if (!res.ok || !data.suggestion) { toast(data?.error || "Suggestion indisponible."); return; }
+      if (!res.ok || !data.suggestion) { toast(data?.error || t('toastMusicSuggestionUnavailable')); return; }
       setMusicSuggestion(data.suggestion);
     } catch {
-      toast("Erreur pendant la suggestion musicale.");
+      toast(t('toastMusicSuggestionError'));
     } finally {
       setSuggestingMusic(false);
     }
@@ -779,7 +786,7 @@ export default function MontagePage() {
     setSubCustom(tpl.custom || {});
     setSubPos(tpl.pos || DEFAULT_SUB_POS);
     setCaptionLength(tpl.maxWords || DEFAULT_WORDS_PER_CAPTION);
-    toast("Modèle de sous-titres appliqué.");
+    toast(t('toastSubTemplateApplied'));
   }
 
   // ── Stickers ─────────────────────────────────────────────────────────────
@@ -805,7 +812,7 @@ export default function MontagePage() {
       const ext = file.name.split(".").pop() || "mp3";
       const path = `${workspaceId}/${postId}-${crypto.randomUUID()}.${ext}`;
       const { error } = await supabase.storage.from("audio").upload(path, file, { upsert: true, contentType: file.type || "audio/mpeg" });
-      if (error) { toast("Échec de l'upload audio : " + error.message); return; }
+      if (error) { toast(t('toastAudioUploadFailed', { msg: error.message })); return; }
       const { data: urlData } = supabase.storage.from("audio").getPublicUrl(path);
       const [dur, waveform] = await Promise.all([getAudioDuration(urlData.publicUrl), computeWaveform(file)]);
       setAudioTracks((prev) => [...prev, { id: crypto.randomUUID(), kind, name: file.name, src: urlData.publicUrl, dur, vol: 1, offset: 0, waveform }]);
@@ -841,7 +848,7 @@ export default function MontagePage() {
       rec.start();
       setIsRecordingVO(true);
     } catch {
-      toast("Micro indisponible ou accès refusé.");
+      toast(t('toastMicUnavailable'));
     }
   }
 
@@ -991,7 +998,7 @@ export default function MontagePage() {
 
       const path = `${workspaceId}/${postId}-export-${Date.now()}.${ext}`;
       const { error } = await supabase.storage.from("videos").upload(path, blob, { upsert: true, contentType });
-      if (error) { toast("Échec de l'upload de l'export : " + error.message); return; }
+      if (error) { toast(t('toastExportUploadFailed', { msg: error.message })); return; }
       const { data: urlData } = supabase.storage.from("videos").getPublicUrl(path);
       setExportUrl(urlData.publicUrl);
 
@@ -1007,9 +1014,9 @@ export default function MontagePage() {
         photo_url: urlData.publicUrl,
         ...(thumbUrl ? { thumbnail_url: thumbUrl } : {}),
       }).eq("id", postId);
-      toast("Export terminé ✓");
+      toast(t('toastExportDone'));
     } catch (e) {
-      toast("Erreur pendant l'export : " + (e instanceof Error ? e.message : "inconnue"));
+      toast(t('toastExportError', { msg: e instanceof Error ? e.message : t('toastUnknownError') }));
     } finally {
       setExporting(false);
     }
@@ -1025,12 +1032,12 @@ export default function MontagePage() {
   function copySelected() {
     if (selectedOverlayId) {
       const o = overlays.find((x) => x.id === selectedOverlayId);
-      if (o) { clipboardRef.current = { type: "overlay", data: o }; toast("Incrustation copiée."); }
+      if (o) { clipboardRef.current = { type: "overlay", data: o }; toast(t('toastOverlayCopied')); }
       return;
     }
     if (selectedClipId) {
       const c = clips.find((x) => x.id === selectedClipId);
-      if (c) { clipboardRef.current = { type: "clip", data: c }; toast("Plan copié."); }
+      if (c) { clipboardRef.current = { type: "clip", data: c }; toast(t('toastClipCopied')); }
     }
   }
   function pasteClipboard() {
@@ -1221,7 +1228,7 @@ export default function MontagePage() {
   if (loading) {
     return (
       <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100vh", background: "var(--canvas)" }}>
-        <span style={{ fontSize: 13, color: "var(--ink-3)", fontWeight: 600 }}>Chargement du montage…</span>
+        <span style={{ fontSize: 13, color: "var(--ink-3)", fontWeight: 600 }}>{t('loadingMontage')}</span>
       </div>
     );
   }
@@ -1231,17 +1238,17 @@ export default function MontagePage() {
       {/* topbar */}
       <div className="ed-topbar" style={{ height: 58, flexShrink: 0, display: "flex", alignItems: "center", gap: 12, padding: "0 16px", borderBottom: "1px solid var(--line)", background: "color-mix(in srgb, var(--canvas) 72%, transparent)", backdropFilter: "blur(10px)", position: "relative", zIndex: 30 }}>
         <a href={`/workspace/${workspaceId}`} className="btn btn-sm btn-ghost" style={{ gap: 5, textDecoration: "none", flexShrink: 0 }}>
-          <VIcon name="chevL" size={15} /> Composer
+          <VIcon name="chevL" size={15} /> {t('composeBack')}
         </a>
         <span style={{ width: 1, height: 24, background: "var(--line)", flexShrink: 0 }} />
         <div style={{ display: "flex", gap: 2 }}>
-          <button className="mz-hbtn" title="Annuler (⌘Z)" disabled={!canUndo} onClick={undo}><VIcon name="undo" size={17} /></button>
-          <button className="mz-hbtn" title="Rétablir (⌘⇧Z)" disabled={!canRedo} onClick={redo}><VIcon name="redo" size={17} /></button>
+          <button className="mz-hbtn" title={t('undoTitle')} disabled={!canUndo} onClick={undo}><VIcon name="undo" size={17} /></button>
+          <button className="mz-hbtn" title={t('redoTitle')} disabled={!canRedo} onClick={redo}><VIcon name="redo" size={17} /></button>
         </div>
         <span style={{ width: 1, height: 24, background: "var(--line)", flexShrink: 0 }} />
         <div style={{ display: "flex", alignItems: "center", gap: 9, minWidth: 0 }}>
           <span style={{ fontFamily: "var(--display)", fontWeight: 700, fontSize: 14.5, letterSpacing: "-0.01em" }} className="trunc">{projectName}</span>
-          <div className="mz-seg" style={{ flexShrink: 0 }} title="Format d'export">
+          <div className="mz-seg" style={{ flexShrink: 0 }} title={t('exportFormatTitle')}>
             {VIDEO_FORMATS.map(f => (
               <button key={f.id} className={formatId === f.id ? "on" : ""} onClick={() => setFormatId(f.id)}>{f.sub}</button>
             ))}
@@ -1250,20 +1257,20 @@ export default function MontagePage() {
         <div style={{ flex: 1 }} />
         {exportUrl && (
           <a href={exportUrl} target="_blank" rel="noreferrer" className="btn btn-sm btn-ghost" style={{ gap: 5, textDecoration: "none" }}>
-            <VIcon name="eye" size={15} /> Voir l'export
+            <VIcon name="eye" size={15} /> {t('viewExport')}
           </a>
         )}
         {exportUrl && (
           <a href={`/workspace/${workspaceId}/planning?post=${postId}`} className="btn btn-sm btn-dark" style={{ gap: 5, textDecoration: "none" }}>
-            <VIcon name="calendar" size={15} /> Planifier
+            <VIcon name="calendar" size={15} /> {t('schedule')}
           </a>
         )}
-        <select value={exportQuality} onChange={e => setExportQuality(e.target.value)} title="Qualité d'export"
+        <select value={exportQuality} onChange={e => setExportQuality(e.target.value)} title={t('exportQualityTitle')}
           style={{ height: 34, borderRadius: 8, border: "1px solid var(--line)", background: "var(--canvas)", color: "var(--ink-2)", fontSize: 12.5, fontWeight: 600, padding: "0 8px" }}>
-          {EXPORT_QUALITIES.map(q => <option key={q.id} value={q.id}>{q.label}</option>)}
+          {EXPORT_QUALITIES.map(q => <option key={q.id} value={q.id}>{tc(`exportQuality.${q.id}`)}</option>)}
         </select>
         <button className="btn btn-sm btn-primary" disabled={!clips.length || exporting} onClick={handleExport}>
-          <VIcon name="export" size={15} /> {exporting ? "Export…" : "Exporter"}
+          <VIcon name="export" size={15} /> {exporting ? t('exportingShort') : t('exportBtn')}
         </button>
       </div>
 
@@ -1276,7 +1283,7 @@ export default function MontagePage() {
             </button>
           ))}
           <button className={"a-railbtn" + (tool === "ai" ? " on" : "")} onClick={() => setTool("ai")} style={{ marginTop: "auto" }}>
-            <VIcon name="sparkles" size={20} /><span className="a-railcap">IA</span>
+            <VIcon name="sparkles" size={20} /><span className="a-railcap">{t('railAi')}</span>
           </button>
         </div>
 
@@ -1295,13 +1302,13 @@ export default function MontagePage() {
                     onDrop={handleDrop}
                   >
                     <VIcon name="upload" size={22} />
-                    <span className="mz-import-t">{uploading ? "Import en cours…" : "Importer vidéos & photos"}</span>
-                    <span className="mz-import-s">Glissez vos rushes · MP4, MOV, JPG</span>
+                    <span className="mz-import-t">{uploading ? t('importingAudio') : t('importMediaCta')}</span>
+                    <span className="mz-import-s">{t('dragRushesHint')}</span>
                   </div>
                   <input ref={fileInputRef} type="file" accept="video/mp4,video/quicktime,image/jpeg,image/png" multiple onChange={handleFileInput} style={{ display: "none" }} />
                 </div>
                 <div className="a-section">
-                  <span className="mz-sec-label">Plans du projet · {clips.length}</span>
+                  <span className="mz-sec-label">{t('projectClipsTitle', { count: clips.length })}</span>
                   <div className="mz-grid3" style={{ marginTop: 10 }}>
                     {clipStarts.map((c) => (
                       <div key={c.id} className={"mz-thumb" + (selectedClipId === c.id ? " on" : "")} onClick={() => selectClip(c.id)}>
@@ -1315,8 +1322,8 @@ export default function MontagePage() {
                   </div>
                 </div>
                 <div className="a-section">
-                  <span className="mz-sec-label">Incrustation photo</span>
-                  <p style={{ fontSize: 12.5, color: "var(--ink-3)", lineHeight: 1.45, marginTop: 8 }}>Les photos s'insèrent comme des plans fixes de {PHOTO_DEFAULT_DUR}s — durée réglable dans « Découper », filtres et transitions identiques aux vidéos.</p>
+                  <span className="mz-sec-label">{t('photoOverlayTitle')}</span>
+                  <p style={{ fontSize: 12.5, color: "var(--ink-3)", lineHeight: 1.45, marginTop: 8 }}>{t('photoOverlayDesc', { dur: PHOTO_DEFAULT_DUR })}</p>
                 </div>
               </>
             )}
@@ -1339,7 +1346,7 @@ export default function MontagePage() {
         </div>
 
         {/* poignée de redimensionnement du panneau */}
-        <div className="a-hresize" onPointerDown={startPanelResize} title="Redimensionner le panneau"><span className="a-hresize-grip" /></div>
+        <div className="a-hresize" onPointerDown={startPanelResize} title={t('resizePanelTitle')}><span className="a-hresize-grip" /></div>
 
         {/* preview + playbar */}
         <div className="a-canvas">
@@ -1365,7 +1372,7 @@ export default function MontagePage() {
                 ) : (
                   <div className="mz-vempty">
                     <VIcon name="upload" size={26} />
-                    <span style={{ fontSize: 13, fontWeight: 600 }}>Importez vos rushes pour commencer</span>
+                    <span style={{ fontSize: 13, fontWeight: 600 }}>{t('importRushesEmpty')}</span>
                   </div>
                 )}
 
@@ -1398,30 +1405,30 @@ export default function MontagePage() {
                         <img src={o.src} alt="" style={{ width: "100%", display: "block", borderRadius: 6, filter: overlayFilterCss(o) }} />
                       )}
                       {sel && <button className="mz-ov-del" onPointerDown={(e) => e.stopPropagation()} onClick={() => removeOverlay(o.id)}><VIcon name="x" size={11} /></button>}
-                      {sel && <span className="mz-ov-resize" onPointerDown={(e) => onOverlayResizeDown(e, "overlay", o.id, o.scale)} title="Redimensionner" />}
+                      {sel && <span className="mz-ov-resize" onPointerDown={(e) => onOverlayResizeDown(e, "overlay", o.id, o.scale)} title={t('resizeTitle')} />}
                     </div>
                   );
                 })}
 
                 {/* titres */}
-                {activeTitles.map((t) => (
+                {activeTitles.map((ti) => (
                   <div
-                    key={t.id}
-                    className={"mz-ov-item" + (selectedTitleId === t.id ? " sel" : "")}
+                    key={ti.id}
+                    className={"mz-ov-item" + (selectedTitleId === ti.id ? " sel" : "")}
                     style={{
-                      left: t.x + "%", top: t.y + "%",
-                      fontFamily: FONT_CSS[t.font] || FONT_CSS.archivo,
-                      fontWeight: FONT_CHOICES.find((f) => f.id === t.font)?.weight || 800,
-                      fontStyle: FONT_CHOICES.find((f) => f.id === t.font)?.italic ? "italic" : "normal",
-                      color: t.color, fontSize: 22 * (t.scale ?? 1), textAlign: "center", textShadow: "0 1px 8px rgba(0,0,0,.5)",
+                      left: ti.x + "%", top: ti.y + "%",
+                      fontFamily: FONT_CSS[ti.font] || FONT_CSS.archivo,
+                      fontWeight: FONT_CHOICES.find((f) => f.id === ti.font)?.weight || 800,
+                      fontStyle: FONT_CHOICES.find((f) => f.id === ti.font)?.italic ? "italic" : "normal",
+                      color: ti.color, fontSize: 22 * (ti.scale ?? 1), textAlign: "center", textShadow: "0 1px 8px rgba(0,0,0,.5)",
                       maxWidth: "80%", whiteSpace: "pre-wrap",
-                      animation: t.anim === "rise" ? "mzRise .35s var(--ease)" : t.anim === "pop" ? "mzPop .3s var(--ease)" : undefined,
+                      animation: ti.anim === "rise" ? "mzRise .35s var(--ease)" : ti.anim === "pop" ? "mzPop .3s var(--ease)" : undefined,
                     }}
-                    onPointerDown={(e) => onOverlayPointerDown(e, "title", t.id)}
+                    onPointerDown={(e) => onOverlayPointerDown(e, "title", ti.id)}
                   >
-                    {t.anim === "type" ? t.text.slice(0, Math.max(0, Math.min(t.text.length, Math.floor((time - t.start) * 16)))) : t.text}
-                    {selectedTitleId === t.id && <button className="mz-ov-del" onPointerDown={(e) => e.stopPropagation()} onClick={() => removeTitle(t.id)}><VIcon name="x" size={11} /></button>}
-                    {selectedTitleId === t.id && <span className="mz-ov-resize" onPointerDown={(e) => onOverlayResizeDown(e, "title", t.id, t.scale ?? 1)} title="Redimensionner" />}
+                    {ti.anim === "type" ? ti.text.slice(0, Math.max(0, Math.min(ti.text.length, Math.floor((time - ti.start) * 16)))) : ti.text}
+                    {selectedTitleId === ti.id && <button className="mz-ov-del" onPointerDown={(e) => e.stopPropagation()} onClick={() => removeTitle(ti.id)}><VIcon name="x" size={11} /></button>}
+                    {selectedTitleId === ti.id && <span className="mz-ov-resize" onPointerDown={(e) => onOverlayResizeDown(e, "title", ti.id, ti.scale ?? 1)} title={t('resizeTitle')} />}
                   </div>
                 ))}
 
@@ -1435,7 +1442,7 @@ export default function MontagePage() {
                   >
                     {s.isImage ? <img src={s.glyph} alt="" style={{ width: 40 * s.scale, height: 40 * s.scale, objectFit: "contain" }} /> : s.glyph}
                     {selectedStickerId === s.id && <button className="mz-ov-del" onPointerDown={(e) => e.stopPropagation()} onClick={() => removeSticker(s.id)}><VIcon name="x" size={11} /></button>}
-                    {selectedStickerId === s.id && <span className="mz-ov-resize" onPointerDown={(e) => onOverlayResizeDown(e, "sticker", s.id, s.scale)} title="Redimensionner" />}
+                    {selectedStickerId === s.id && <span className="mz-ov-resize" onPointerDown={(e) => onOverlayResizeDown(e, "sticker", s.id, s.scale)} title={t('resizeTitle')} />}
                   </div>
                 ))}
 
@@ -1482,7 +1489,7 @@ export default function MontagePage() {
                         );
                       })}
                     </div>
-                    {subSelected && <span className="mz-ov-resize" onPointerDown={(e) => onOverlayResizeDown(e, "caption", "sub", capStyle.scale)} title="Redimensionner" />}
+                    {subSelected && <span className="mz-ov-resize" onPointerDown={(e) => onOverlayResizeDown(e, "caption", "sub", capStyle.scale)} title={t('resizeTitle')} />}
                   </div>
                 )}
 
@@ -1498,7 +1505,7 @@ export default function MontagePage() {
             {exporting && (
               <div className="mz-ai-overlay">
                 <div className="mz-orb"><span className="mz-spark"><VIcon name="sparkles" size={26} /></span></div>
-                <div className="mz-ai-overlay-title">{exportPhase === "render" ? "Rendu en cours…" : "Conversion MP4…"}</div>
+                <div className="mz-ai-overlay-title">{exportPhase === "render" ? t('renderingInProgress') : t('convertingMp4')}</div>
                 <div className="mz-ai-progress"><span style={{ width: Math.round(exportProgress * 100) + "%" }} /></div>
               </div>
             )}
@@ -1516,16 +1523,16 @@ export default function MontagePage() {
       </div>
 
       {/* poignée de redimensionnement de la timeline */}
-      <div className="a-vresize" onPointerDown={startTimelineResize} title="Redimensionner la timeline"><span className="a-vresize-grip" /></div>
+      <div className="a-vresize" onPointerDown={startTimelineResize} title={t('resizeTimelineTitle')}><span className="a-vresize-grip" /></div>
 
       {/* timeline dock */}
       <div className="a-timeline" style={{ height: timelineH }}>
         <div className="a-tl-bar">
-          <button className="a-tl-tool" disabled={!selectedClipId} onClick={splitAtPlayhead}><VIcon name="split" size={15} /> Diviser</button>
-          <button className="a-tl-tool" disabled={!selectedClipId} onClick={() => selectedClipId && duplicateClip(selectedClipId)}><VIcon name="copy" size={15} /> Dupliquer</button>
-          <button className="a-tl-tool" disabled={!selectedClipId} onClick={() => selectedClipId && removeClip(selectedClipId)}><VIcon name="trash" size={15} /> Supprimer</button>
+          <button className="a-tl-tool" disabled={!selectedClipId} onClick={splitAtPlayhead}><VIcon name="split" size={15} /> {t('splitShort')}</button>
+          <button className="a-tl-tool" disabled={!selectedClipId} onClick={() => selectedClipId && duplicateClip(selectedClipId)}><VIcon name="copy" size={15} /> {t('duplicate')}</button>
+          <button className="a-tl-tool" disabled={!selectedClipId} onClick={() => selectedClipId && removeClip(selectedClipId)}><VIcon name="trash" size={15} /> {t('delete')}</button>
           <div style={{ flex: 1 }} />
-          <span className="mz-sec-label">{clips.length} clip{clips.length > 1 ? "s" : ""} · {fmt(total)}</span>
+          <span className="mz-sec-label">{t('clipsCountTimeline', { count: clips.length, time: fmt(total) })}</span>
           <button className="mz-hbtn" onClick={() => setPps((p) => Math.max(10, Math.round(p / 1.3)))}><VIcon name="zoomOut" size={15} /></button>
           <button className="mz-hbtn" onClick={() => setPps((p) => Math.min(160, Math.round(p * 1.3)))}><VIcon name="zoomIn" size={15} /></button>
         </div>
@@ -1544,10 +1551,10 @@ export default function MontagePage() {
               ))}
             </div>
             <div className="a-lane">
-              <div className="a-lane-label"><VIcon name="video" size={13} /> Vidéo</div>
+              <div className="a-lane-label"><VIcon name="video" size={13} /> {t('labelVideo')}</div>
               <div className="a-lane-track">
                 {clips.length === 0 && (
-                  <span style={{ fontSize: 12, color: "var(--ink-3)", fontWeight: 600 }}>Importez un premier rush pour démarrer l'assemblage.</span>
+                  <span style={{ fontSize: 12, color: "var(--ink-3)", fontWeight: 600 }}>{t('importFirstRush')}</span>
                 )}
                 {clipStarts.map((c, i) => (
                   <div key={c.id} style={{ position: "absolute", left: c.start * pps, display: "flex", alignItems: "center" }}>
@@ -1567,9 +1574,9 @@ export default function MontagePage() {
                       {selectedClipId === c.id && (
                         <>
                           {c.kind === "video" && (
-                            <div className="a-trim a-trim-l" draggable={false} onDragStart={(e) => e.preventDefault()} onClick={(e) => e.stopPropagation()} onPointerDown={(e) => startTrim(e, c, "start")} onPointerMove={onTrimMove} onPointerUp={endTrim} title="Rogner le début" />
+                            <div className="a-trim a-trim-l" draggable={false} onDragStart={(e) => e.preventDefault()} onClick={(e) => e.stopPropagation()} onPointerDown={(e) => startTrim(e, c, "start")} onPointerMove={onTrimMove} onPointerUp={endTrim} title={t('trimStartTitle')} />
                           )}
-                          <div className="a-trim a-trim-r" draggable={false} onDragStart={(e) => e.preventDefault()} onClick={(e) => e.stopPropagation()} onPointerDown={(e) => startTrim(e, c, "end")} onPointerMove={onTrimMove} onPointerUp={endTrim} title={c.kind === "photo" ? "Durée du plan" : "Rogner la fin"} />
+                          <div className="a-trim a-trim-r" draggable={false} onDragStart={(e) => e.preventDefault()} onClick={(e) => e.stopPropagation()} onPointerDown={(e) => startTrim(e, c, "end")} onPointerMove={onTrimMove} onPointerUp={endTrim} title={c.kind === "photo" ? t('clipDurationTitle') : t('trimEndTitle')} />
                         </>
                       )}
                     </div>
@@ -1577,10 +1584,10 @@ export default function MontagePage() {
                       <button
                         className={"a-trans-pill" + (selectedClipId === clipStarts[i + 1].id ? " active" : "")}
                         style={{ position: "absolute", left: c.dur * pps }}
-                        title={TRANSITIONS.find((t) => t.id === clipStarts[i + 1].transitionIn)?.name || "Cut"}
+                        title={TRANSITIONS.find((tr) => tr.id === clipStarts[i + 1].transitionIn) ? tc(`transition.${clipStarts[i + 1].transitionIn}`) : tc('transition.cut')}
                         onClick={() => { selectClip(clipStarts[i + 1].id); setTool("transitions"); }}
                       >
-                        {TRANSITIONS.find((t) => t.id === clipStarts[i + 1].transitionIn)?.glyph || "▮▮"}
+                        {TRANSITIONS.find((tr) => tr.id === clipStarts[i + 1].transitionIn)?.glyph || "▮▮"}
                       </button>
                     )}
                   </div>
@@ -1588,10 +1595,10 @@ export default function MontagePage() {
               </div>
             </div>
             <div className="a-lane" style={{ height: 34 }}>
-              <div className="a-lane-label"><VIcon name="image" size={13} /> Incrust.</div>
+              <div className="a-lane-label"><VIcon name="image" size={13} /> {t('railOverlay')}</div>
               <div className="a-lane-track">
                 {overlays.length === 0 && (
-                  <span style={{ fontSize: 11.5, color: "var(--ink-3)", fontWeight: 600 }}>Ajoutez une incrustation (2e piste) depuis l'outil « Incrust. ».</span>
+                  <span style={{ fontSize: 11.5, color: "var(--ink-3)", fontWeight: 600 }}>{t('addOverlayHint')}</span>
                 )}
                 {overlays.map((o) => (
                   <div
@@ -1606,8 +1613,8 @@ export default function MontagePage() {
                     <span style={{ position: "absolute", left: 8, top: 4, fontSize: 9.5, fontWeight: 700, color: "#fff", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: "calc(100% - 16px)" }}>{o.kind === "video" ? "🎬" : "🖼"} {o.name}</span>
                     {selectedOverlayId === o.id && (
                       <>
-                        <div className="a-trim a-trim-l" onPointerDown={(e) => startOvTrim(e, o, "start")} onPointerMove={onOvTrimMove} onPointerUp={endOvTrim} title="Rogner le début" />
-                        <div className="a-trim a-trim-r" onPointerDown={(e) => startOvTrim(e, o, "end")} onPointerMove={onOvTrimMove} onPointerUp={endOvTrim} title={o.kind === "photo" ? "Durée" : "Rogner la fin"} />
+                        <div className="a-trim a-trim-l" onPointerDown={(e) => startOvTrim(e, o, "start")} onPointerMove={onOvTrimMove} onPointerUp={endOvTrim} title={t('trimStartTitle')} />
+                        <div className="a-trim a-trim-r" onPointerDown={(e) => startOvTrim(e, o, "end")} onPointerMove={onOvTrimMove} onPointerUp={endOvTrim} title={o.kind === "photo" ? t('duration') : t('trimEndTitle')} />
                       </>
                     )}
                   </div>
@@ -1615,7 +1622,7 @@ export default function MontagePage() {
               </div>
             </div>
             <div className="a-lane" style={{ height: 34 }}>
-              <div className="a-lane-label"><VIcon name="music" size={13} /> Audio</div>
+              <div className="a-lane-label"><VIcon name="music" size={13} /> {t('railAudio')}</div>
               <div className="a-lane-track">
                 {/* son embarqué des plans vidéo — clic = sélectionne la piste audio seule ; Option/Alt+clic = aussi le plan vidéo lié */}
                 {clipStarts.filter((c) => c.kind === "video").map((c) => (
@@ -1623,7 +1630,7 @@ export default function MontagePage() {
                     key={"va-" + c.id}
                     className={"a-wave-bar" + (audioOnlyId === c.id ? " on" : "")}
                     style={{ left: c.start * pps, width: c.dur * pps, top: 2, bottom: 2, background: (c.vol ?? 1) === 0 ? "var(--sunk)" : "linear-gradient(150deg,#1f7a4d,#0c2a1d)", opacity: (c.vol ?? 1) === 0 ? 0.5 : 1, cursor: "pointer", boxShadow: audioOnlyId === c.id ? "inset 0 0 0 2px var(--acid)" : undefined }}
-                    title={`Son de « ${c.name} » — ${Math.round((c.vol ?? 1) * 100)}% · Option+clic : sélectionner aussi le plan vidéo`}
+                    title={t('soundOfClip', { name: c.name, percent: Math.round((c.vol ?? 1) * 100) })}
                     onClick={(e) => {
                       setAudioOnlyId(c.id);
                       if (e.altKey) { setSelectedClipId(c.id); }
@@ -1652,7 +1659,7 @@ export default function MontagePage() {
               </div>
             </div>
             <div className="a-lane" style={{ height: 34 }}>
-              <div className="a-lane-label"><VIcon name="captions" size={13} /> S-titres</div>
+              <div className="a-lane-label"><VIcon name="captions" size={13} /> {t('labelSubtitlesShort')}</div>
               <div className="a-lane-track">
                 {captions.map((c) => (
                   <div key={c.id} className="a-chip" style={{ left: c.start * pps, width: Math.max(20, (c.end - c.start) * pps) }} title={c.text} onClick={() => setTool("captions")}>
@@ -1662,11 +1669,11 @@ export default function MontagePage() {
               </div>
             </div>
             <div className="a-lane" style={{ height: 34 }}>
-              <div className="a-lane-label"><VIcon name="text" size={13} /> Texte</div>
+              <div className="a-lane-label"><VIcon name="text" size={13} /> {t('railText')}</div>
               <div className="a-lane-track">
-                {titles.map((t) => (
-                  <div key={t.id} className={"a-chip" + (selectedTitleId === t.id ? " on" : "")} style={{ left: t.start * pps, width: Math.max(20, (t.end - t.start) * pps) }} title={t.text} onClick={() => { setSelectedTitleId(t.id); setTool("text"); }}>
-                    <span style={{ fontSize: 10, fontWeight: 700, color: "#fff", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{t.text}</span>
+                {titles.map((ti) => (
+                  <div key={ti.id} className={"a-chip" + (selectedTitleId === ti.id ? " on" : "")} style={{ left: ti.start * pps, width: Math.max(20, (ti.end - ti.start) * pps) }} title={ti.text} onClick={() => { setSelectedTitleId(ti.id); setTool("text"); }}>
+                    <span style={{ fontSize: 10, fontWeight: 700, color: "#fff", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{ti.text}</span>
                   </div>
                 ))}
               </div>
