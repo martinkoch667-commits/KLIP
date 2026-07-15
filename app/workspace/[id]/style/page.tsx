@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect, useMemo, CSSProperties } from "react";
+import { useTranslations } from "next-intl";
 import { useParams, useRouter } from "next/navigation";
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
 import Sidebar from "@/components/Sidebar";
@@ -21,22 +22,28 @@ interface PostTemplate {
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-const SECTORS = ["Restaurant", "Café", "Retail", "Mode", "Beauté", "Sport", "Tech", "Autre"];
+// Ces valeurs (secteur, ton) sont sauvegardées en base et utilisées dans le prompt
+// IA — on garde les identifiants français, affichés traduits via les clés *Key.
+const SECTOR_KEYS = [
+  ["Restaurant", "sectorRestaurant"], ["Café", "sectorCafe"], ["Retail", "sectorRetail"],
+  ["Mode", "sectorMode"], ["Beauté", "sectorBeaute"], ["Sport", "sectorSport"],
+  ["Tech", "sectorTech"], ["Autre", "sectorAutre"],
+] as const;
 
-const TONES = [
-  { value: "Chic",       desc: "Élégant, raffiné, haut de gamme" },
-  { value: "Punchy",     desc: "Direct, percutant, accrocheur" },
-  { value: "Minimal",    desc: "Épuré, sobre, essentiel" },
-  { value: "Chaleureux", desc: "Proche, humain, convivial" },
-  { value: "Direct",     desc: "Clair, sans détour, efficace" },
-  { value: "Doux",       desc: "Délicat, rassurant, bienveillant" },
-];
+const TONE_KEYS = [
+  ["Chic", "toneChicLabel", "toneChicDesc"],
+  ["Punchy", "tonePunchyLabel", "tonePunchyDesc"],
+  ["Minimal", "toneMinimalLabel", "toneMinimalDesc"],
+  ["Chaleureux", "toneChaleureuxLabel", "toneChaleureuxDesc"],
+  ["Direct", "toneDirectLabel", "toneDirectDesc"],
+  ["Doux", "toneDouxLabel", "toneDouxDesc"],
+] as const;
 
-const FORMATS: Record<string, string> = {
-  "ig-portrait": "Portrait 4:5",
-  "ig-square":   "Carré 1:1",
-  "ig-story":    "Story 9:16",
-  "facebook":    "Facebook Post",
+const FORMAT_KEYS: Record<string, string> = {
+  "ig-portrait": "formatPortraitLabel",
+  "ig-square":   "formatSquareLabel",
+  "ig-story":    "formatStoryLabel",
+  "facebook":    "formatFacebookLabel",
 };
 
 const FALLBACK_FONTS: GFont[] = [
@@ -88,6 +95,7 @@ function SectionCard({ title, children }: { title: string; children: React.React
 }
 
 function FontRow({ family, selected, onSelect }: { family: string; selected: boolean; onSelect: () => void }) {
+  const t = useTranslations('workspaceStyle');
   const ref = useRef<HTMLButtonElement>(null);
   const loaded = useRef(false);
   useEffect(() => {
@@ -109,7 +117,7 @@ function FontRow({ family, selected, onSelect }: { family: string; selected: boo
     }}>
       <div>
         <span style={{ fontFamily: `"${family}", sans-serif`, fontSize: 17, lineHeight: 1.25, color: selected ? "var(--mint-2)" : "var(--ink)", display: "block" }}>
-          Bonjour, voici votre marque
+          {t('previewHeading')}
         </span>
         <span style={{ fontSize: 11, color: selected ? "var(--mint-2)" : "var(--ink-3)", fontFamily: "var(--sans)", fontWeight: 600 }}>{family}</span>
       </div>
@@ -122,6 +130,7 @@ function UploadZone({ label, hint, preview, dark, onClick, onRemove }: {
   label: React.ReactNode; hint: string; preview: string | null;
   dark: boolean; onClick: () => void; onRemove: () => void;
 }) {
+  const t = useTranslations('workspaceStyle');
   return (
     <div>
       <label style={labelStyle}>{label}</label>
@@ -138,7 +147,7 @@ function UploadZone({ label, hint, preview, dark, onClick, onRemove }: {
             <button type="button" onClick={e => { e.stopPropagation(); onRemove(); }}
               style={{ position: "absolute", top: 8, right: 8, width: 22, height: 22, borderRadius: "50%", background: "rgba(0,0,0,.5)", border: "none", cursor: "pointer", color: "#fff", fontSize: 13, display: "grid", placeItems: "center" }}>×</button>
             <button type="button" onClick={onClick}
-              style={{ marginTop: 4, fontSize: 12, color: dark ? "#888" : "var(--ink-3)", fontWeight: 600, background: "none", border: "none", cursor: "pointer", padding: 0 }}>Remplacer</button>
+              style={{ marginTop: 4, fontSize: 12, color: dark ? "#888" : "var(--ink-3)", fontWeight: 600, background: "none", border: "none", cursor: "pointer", padding: 0 }}>{t('replace')}</button>
           </>
         ) : (
           <>
@@ -154,9 +163,14 @@ function UploadZone({ label, hint, preview, dark, onClick, onRemove }: {
 // ─── Main page ────────────────────────────────────────────────────────────────
 
 export default function StyleTemplatePage() {
+  const t = useTranslations('workspaceStyle');
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
   const supabase = createClientComponentClient();
+
+  const SECTORS = SECTOR_KEYS.map(([value, key]) => ({ value, label: t(key) }));
+  const TONES = TONE_KEYS.map(([value, labelKey, descKey]) => ({ value, label: t(labelKey), desc: t(descKey) }));
+  const FORMATS: Record<string, string> = Object.fromEntries(Object.entries(FORMAT_KEYS).map(([id, key]) => [id, t(key)]));
 
   const [tab, setTab] = useState<Tab>("charte");
   const [loading, setLoading] = useState(true);
@@ -200,10 +214,10 @@ export default function StyleTemplatePage() {
         body: JSON.stringify({ workspaceId: id }),
       });
       const data = await res.json();
-      if (!res.ok) { setAnalysisErr(data.error || "Analyse impossible."); return; }
+      if (!res.ok) { setAnalysisErr(data.error || t('analysisImpossible')); return; }
       setAnalysis(data as StyleAnalysis);
     } catch {
-      setAnalysisErr("Erreur réseau, réessayez.");
+      setAnalysisErr(t('networkError'));
     } finally {
       setAnalyzing(false);
     }
@@ -220,10 +234,10 @@ export default function StyleTemplatePage() {
       }).eq("id", id);
       if (analysis.bestCaption) setCaptionEx(analysis.bestCaption);
       setStyleApplied(true);
-      setToast("Style appliqué — les prochaines légendes s'en inspireront");
+      setToast(t('styleAppliedToast'));
       setTimeout(() => setToast(null), 2600);
     } catch {
-      setAnalysisErr("Impossible d'appliquer le style, réessayez.");
+      setAnalysisErr(t('applyStyleError'));
     }
   }
 
@@ -461,7 +475,7 @@ export default function StyleTemplatePage() {
       if (finalBrandIconUrl !== brandIconUrl)   { setBrandIconUrl(finalBrandIconUrl); setBrandIconPreview(finalBrandIconUrl); setBrandIconFile(null); }
       if (newAssetUrls.length) { setExistingAssets(p => [...p, ...newAssetUrls]); setAssetFiles([]); setAssetPreviews([]); }
 
-      showToast("Charte mise à jour");
+      showToast(t('charteUpdatedToast'));
     } finally {
       setSaving(false);
     }
@@ -472,9 +486,9 @@ export default function StyleTemplatePage() {
   async function confirmDelete() {
     if (!deleteId) return;
     await fetch(`/api/templates/${deleteId}`, { method: "DELETE" });
-    setTemplates(prev => prev.filter(t => t.id !== deleteId));
+    setTemplates(prev => prev.filter(tpl => tpl.id !== deleteId));
     setDeleteId(null);
-    showToast("Template supprimé");
+    showToast(t('templateDeletedToast'));
   }
 
   // ─────────────────────────────────────────────────────────────────────────────
@@ -483,7 +497,7 @@ export default function StyleTemplatePage() {
     <div style={{ display: "flex", minHeight: "100vh", background: "var(--canvas)" }}>
       <Sidebar />
       <div style={{ marginLeft: "var(--sb-w)", flex: 1, display: "flex", alignItems: "center", justifyContent: "center", color: "var(--ink-3)" }}>
-        Chargement…
+        {t('loading')}
       </div>
     </div>
   );
@@ -502,7 +516,7 @@ export default function StyleTemplatePage() {
               {workspaceName}
             </a>
             <span style={{ color: "var(--line)", fontSize: 16 }}>/</span>
-            <span style={{ fontSize: 13, fontWeight: 600, color: "var(--ink)" }}>Style & Templates</span>
+            <span style={{ fontSize: 13, fontWeight: 600, color: "var(--ink)" }}>{t('pageTitle')}</span>
           </div>
           <div className="ws-topbar-nav" style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 8 }}>
             <NotificationBell />
@@ -516,22 +530,22 @@ export default function StyleTemplatePage() {
             {/* Page title */}
             <div style={{ marginBottom: 28 }}>
               <h1 style={{ fontFamily: "var(--display)", fontWeight: 800, fontSize: 26, color: "var(--ink)", letterSpacing: "-0.02em", marginBottom: 4 }}>
-                Style & Templates
+                {t('pageTitle')}
               </h1>
-              <p style={{ fontSize: 13.5, color: "var(--ink-2)" }}>Charte de marque et modèles visuels de <strong style={{ color: "var(--ink)" }}>{workspaceName}</strong></p>
+              <p style={{ fontSize: 13.5, color: "var(--ink-2)" }}>{t('pageSubtitle', { name: workspaceName })}</p>
             </div>
 
             {/* Tab selector */}
             <div style={{ display: "inline-flex", background: "var(--sunk)", borderRadius: 10, padding: 3, marginBottom: 28, border: "1px solid var(--line)" }}>
-              {(["charte", "templates"] as Tab[]).map(t => (
-                <button key={t} onClick={() => setTab(t)} style={{
+              {(["charte", "templates"] as Tab[]).map(tabKey => (
+                <button key={tabKey} onClick={() => setTab(tabKey)} style={{
                   padding: "7px 20px", borderRadius: 8, border: "none", cursor: "pointer",
                   fontFamily: "var(--sans)", fontWeight: 500, fontSize: 13.5, transition: "all .15s",
-                  background: tab === t ? "var(--white)" : "transparent",
-                  color: tab === t ? "var(--ink)" : "var(--ink-3)",
-                  boxShadow: tab === t ? "0 1px 4px rgba(13,15,10,.1)" : "none",
+                  background: tab === tabKey ? "var(--white)" : "transparent",
+                  color: tab === tabKey ? "var(--ink)" : "var(--ink-3)",
+                  boxShadow: tab === tabKey ? "0 1px 4px rgba(13,15,10,.1)" : "none",
                 }}>
-                  {t === "charte" ? "Charte de marque" : "Templates"}
+                  {tabKey === "charte" ? t('tabCharte') : t('tabTemplates')}
                 </button>
               ))}
             </div>
@@ -541,57 +555,57 @@ export default function StyleTemplatePage() {
               <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
 
                 {/* Section Identité */}
-                <SectionCard title="Identité">
+                <SectionCard title={t('sectionIdentity')}>
                   <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
                     <div>
-                      <label style={labelStyle}>Nom du client</label>
-                      <input style={inputStyle} value={name} onChange={e => setName(e.target.value)} placeholder="Ex: Café Lumière, Studio Nova…" />
+                      <label style={labelStyle}>{t('clientNameLabel')}</label>
+                      <input style={inputStyle} value={name} onChange={e => setName(e.target.value)} placeholder={t('clientNamePlaceholder')} />
                     </div>
                     <div>
-                      <label style={labelStyle}>Secteur d&apos;activité</label>
+                      <label style={labelStyle}>{t('sectorLabel')}</label>
                       <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
                         {SECTORS.map(s => (
-                          <button key={s} type="button" onClick={() => setSector(sector === s ? "" : s)} style={{
+                          <button key={s.value} type="button" onClick={() => setSector(sector === s.value ? "" : s.value)} style={{
                             padding: "7px 16px", borderRadius: 20, fontSize: 13, fontWeight: 600,
                             border: "1.5px solid", cursor: "pointer", transition: "all .12s",
-                            background: sector === s ? "var(--mint)" : "var(--white)",
-                            borderColor: sector === s ? "var(--mint)" : "var(--line)",
-                            color: sector === s ? "var(--mint-ink)" : "var(--ink-2)",
-                          }}>{s}</button>
+                            background: sector === s.value ? "var(--mint)" : "var(--white)",
+                            borderColor: sector === s.value ? "var(--mint)" : "var(--line)",
+                            color: sector === s.value ? "var(--mint-ink)" : "var(--ink-2)",
+                          }}>{s.label}</button>
                         ))}
                       </div>
                     </div>
                     <div>
-                      <label style={labelStyle}>Handle Instagram</label>
+                      <label style={labelStyle}>{t('igHandleLabel')}</label>
                       <div style={{ position: "relative" }}>
                         <span style={{ position: "absolute", left: 14, top: "50%", transform: "translateY(-50%)", color: "var(--ink-3)", fontWeight: 700, fontSize: 14, pointerEvents: "none" }}>@</span>
                         <input style={{ ...inputStyle, paddingLeft: 30 }} value={instagram} onChange={e => setInstagram(e.target.value.replace(/^@/, ""))} placeholder="nomdubrand" />
                       </div>
                     </div>
                     <div>
-                      <label style={labelStyle}>Description de la marque</label>
-                      <textarea style={{ ...inputStyle, resize: "none", minHeight: 90, lineHeight: 1.6 }} value={brandDesc} onChange={e => setBrandDesc(e.target.value)} placeholder="Ex: Café de spécialité dans le quartier des arts…" rows={3} />
+                      <label style={labelStyle}>{t('brandDescLabel')}</label>
+                      <textarea style={{ ...inputStyle, resize: "none", minHeight: 90, lineHeight: 1.6 }} value={brandDesc} onChange={e => setBrandDesc(e.target.value)} placeholder={t('brandDescPlaceholder')} rows={3} />
                     </div>
                   </div>
                 </SectionCard>
 
                 {/* Section Voix de marque */}
-                <SectionCard title="Voix de marque">
+                <SectionCard title={t('sectionVoice')}>
                   <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
                     <div>
-                      <label style={labelStyle}>Ton de communication</label>
+                      <label style={labelStyle}>{t('toneLabel')}</label>
                       <div className="ws-new-3col" style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
-                        {TONES.map(t => {
-                          const active = tone === t.value;
+                        {TONES.map(tn => {
+                          const active = tone === tn.value;
                           return (
-                            <button key={t.value} type="button" onClick={() => setTone(tone === t.value ? "" : t.value)} style={{
+                            <button key={tn.value} type="button" onClick={() => setTone(tone === tn.value ? "" : tn.value)} style={{
                               padding: "12px 14px", borderRadius: 12, textAlign: "left",
                               border: `1.5px solid ${active ? "var(--mint)" : "var(--line)"}`,
                               background: active ? "var(--mint-soft)" : "var(--white)",
                               cursor: "pointer", transition: "all .15s",
                             }}>
-                              <div style={{ fontWeight: 700, fontSize: 13.5, color: active ? "var(--mint-2)" : "var(--ink)", marginBottom: 3 }}>{t.value}</div>
-                              <div style={{ fontSize: 11.5, color: "var(--ink-3)", lineHeight: 1.4 }}>{t.desc}</div>
+                              <div style={{ fontWeight: 700, fontSize: 13.5, color: active ? "var(--mint-2)" : "var(--ink)", marginBottom: 3 }}>{tn.label}</div>
+                              <div style={{ fontSize: 11.5, color: "var(--ink-3)", lineHeight: 1.4 }}>{tn.desc}</div>
                             </button>
                           );
                         })}
@@ -599,33 +613,33 @@ export default function StyleTemplatePage() {
                     </div>
                     <div className="ws-upload-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
                       <div>
-                        <label style={labelStyle}>Mots à utiliser</label>
-                        <input style={inputStyle} value={wordsUse} onChange={e => setWordsUse(e.target.value)} placeholder="artisanal, local, saison…" />
-                        <span style={{ fontSize: 11, color: "var(--ink-3)", marginTop: 4, display: "block" }}>Séparés par des virgules</span>
+                        <label style={labelStyle}>{t('wordsUseLabel')}</label>
+                        <input style={inputStyle} value={wordsUse} onChange={e => setWordsUse(e.target.value)} placeholder={t('wordsUsePlaceholder')} />
+                        <span style={{ fontSize: 11, color: "var(--ink-3)", marginTop: 4, display: "block" }}>{t('commaSeparated')}</span>
                       </div>
                       <div>
-                        <label style={labelStyle}>Mots interdits</label>
-                        <input style={inputStyle} value={wordsAvoid} onChange={e => setWordsAvoid(e.target.value)} placeholder="pas cher, promo, discount…" />
-                        <span style={{ fontSize: 11, color: "var(--ink-3)", marginTop: 4, display: "block" }}>Séparés par des virgules</span>
+                        <label style={labelStyle}>{t('wordsAvoidLabel')}</label>
+                        <input style={inputStyle} value={wordsAvoid} onChange={e => setWordsAvoid(e.target.value)} placeholder={t('wordsAvoidPlaceholder')} />
+                        <span style={{ fontSize: 11, color: "var(--ink-3)", marginTop: 4, display: "block" }}>{t('commaSeparated')}</span>
                       </div>
                     </div>
                     <div>
-                      <label style={labelStyle}>Exemple de caption approuvée</label>
-                      <textarea style={{ ...inputStyle, resize: "none", lineHeight: 1.6 }} value={captionEx} onChange={e => setCaptionEx(e.target.value)} placeholder="Collez ici une caption Instagram existante que le client apprécie…" rows={3} />
+                      <label style={labelStyle}>{t('captionApprovedLabel')}</label>
+                      <textarea style={{ ...inputStyle, resize: "none", lineHeight: 1.6 }} value={captionEx} onChange={e => setCaptionEx(e.target.value)} placeholder={t('captionApprovedPlaceholder')} rows={3} />
                     </div>
                   </div>
                 </SectionCard>
 
                 {/* Section Analyse IA du style Instagram */}
-                <SectionCard title="Analyse IA du style Instagram">
+                <SectionCard title={t('sectionAiAnalysis')}>
                   <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
                     <p style={{ fontSize: 13, color: "var(--ink-2)", lineHeight: 1.6, margin: 0 }}>
-                      Klip analyse les dernières légendes publiées sur le compte connecté pour comprendre votre ligne éditoriale, souligner vos points forts et proposer des pistes d'amélioration. Vous décidez ensuite d'appliquer ou non ces recommandations.
+                      {t('aiAnalysisDesc')}
                     </p>
 
                     {!analysis && (
                       <button type="button" className="btn btn-dark" onClick={runStyleAnalysis} disabled={analyzing} style={{ alignSelf: "flex-start" }}>
-                        {analyzing ? "Analyse en cours…" : "Analyser mon compte Instagram"}
+                        {analyzing ? t('analyzing') : t('analyzeButton')}
                       </button>
                     )}
 
@@ -638,12 +652,12 @@ export default function StyleTemplatePage() {
                     {analysis && (
                       <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
                         <div style={{ fontSize: 11.5, color: "var(--ink-3)", fontWeight: 600 }}>
-                          {analysis.postsAnalyzed} publication{analysis.postsAnalyzed > 1 ? "s" : ""} analysée{analysis.postsAnalyzed > 1 ? "s" : ""}{analysis.hasStats ? " · engagement pris en compte" : ""}
+                          {t('postsAnalyzed', { count: analysis.postsAnalyzed })}{analysis.hasStats ? ` · ${t('engagementIncluded')}` : ""}
                         </div>
 
                         {analysis.summary && (
                           <div style={{ background: "var(--sunk)", borderRadius: 12, padding: "14px 16px" }}>
-                            <div style={{ ...labelStyle, marginBottom: 6 }}>Votre ligne éditoriale</div>
+                            <div style={{ ...labelStyle, marginBottom: 6 }}>{t('editorialLineLabel')}</div>
                             <p style={{ fontSize: 13.5, color: "var(--ink)", lineHeight: 1.6, margin: 0 }}>{analysis.summary}</p>
                           </div>
                         )}
@@ -651,7 +665,7 @@ export default function StyleTemplatePage() {
                         <div className="ws-upload-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
                           {analysis.strengths.length > 0 && (
                             <div>
-                              <div style={{ ...labelStyle, marginBottom: 8, color: "var(--mint-2)" }}>Points forts</div>
+                              <div style={{ ...labelStyle, marginBottom: 8, color: "var(--mint-2)" }}>{t('strengthsLabel')}</div>
                               <ul style={{ margin: 0, paddingLeft: 0, listStyle: "none", display: "flex", flexDirection: "column", gap: 8 }}>
                                 {analysis.strengths.map((s, i) => (
                                   <li key={i} style={{ fontSize: 12.5, color: "var(--ink-2)", lineHeight: 1.5, display: "flex", gap: 8 }}>
@@ -663,7 +677,7 @@ export default function StyleTemplatePage() {
                           )}
                           {analysis.improvements.length > 0 && (
                             <div>
-                              <div style={{ ...labelStyle, marginBottom: 8, color: "var(--warn)" }}>Pistes d'amélioration</div>
+                              <div style={{ ...labelStyle, marginBottom: 8, color: "var(--warn)" }}>{t('improvementsLabel')}</div>
                               <ul style={{ margin: 0, paddingLeft: 0, listStyle: "none", display: "flex", flexDirection: "column", gap: 8 }}>
                                 {analysis.improvements.map((s, i) => (
                                   <li key={i} style={{ fontSize: 12.5, color: "var(--ink-2)", lineHeight: 1.5, display: "flex", gap: 8 }}>
@@ -677,20 +691,20 @@ export default function StyleTemplatePage() {
 
                         {analysis.suggestedDescriptionStyle && (
                           <div style={{ border: "1.5px solid var(--mint)", background: "var(--mint-soft)", borderRadius: 12, padding: "14px 16px" }}>
-                            <div style={{ ...labelStyle, marginBottom: 6, color: "var(--mint-2)" }}>Consignes de style suggérées</div>
+                            <div style={{ ...labelStyle, marginBottom: 6, color: "var(--mint-2)" }}>{t('suggestedStyleLabel')}</div>
                             <p style={{ fontSize: 13, color: "var(--ink)", lineHeight: 1.6, margin: 0 }}>{analysis.suggestedDescriptionStyle}</p>
                           </div>
                         )}
 
                         <div style={{ display: "flex", flexWrap: "wrap", gap: 10, alignItems: "center" }}>
                           <button type="button" className="btn btn-primary" onClick={applyStyleAnalysis} disabled={styleApplied}>
-                            {styleApplied ? "Style appliqué ✓" : "Appliquer ce style"}
+                            {styleApplied ? t('styleAppliedBtn') : t('applyStyle')}
                           </button>
                           <button type="button" className="btn btn-ghost" onClick={() => { setAnalysis(null); setStyleApplied(false); }}>
-                            Garder mon style actuel
+                            {t('keepCurrentStyle')}
                           </button>
                           <button type="button" className="btn btn-ghost btn-sm" onClick={runStyleAnalysis} disabled={analyzing} style={{ marginLeft: "auto" }}>
-                            {analyzing ? "…" : "Relancer l'analyse"}
+                            {analyzing ? "…" : t('relaunchAnalysis')}
                           </button>
                         </div>
                       </div>
@@ -699,12 +713,12 @@ export default function StyleTemplatePage() {
                 </SectionCard>
 
                 {/* Section Couleurs */}
-                <SectionCard title="Couleurs">
+                <SectionCard title={t('sectionColors')}>
                   <div className="ws-new-3col" style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12 }}>
                     {[
-                      { label: "Principale",  value: colorPrimary,   onChange: setColorPrimary },
-                      { label: "Secondaire",  value: colorSecondary, onChange: setColorSecondary },
-                      { label: "Accent",      value: colorAccent,    onChange: setColorAccent },
+                      { label: t('colorPrimary'),  value: colorPrimary,   onChange: setColorPrimary },
+                      { label: t('colorSecondary'),  value: colorSecondary, onChange: setColorSecondary },
+                      { label: t('colorAccent'),      value: colorAccent,    onChange: setColorAccent },
                     ].map(col => (
                       <div key={col.label} style={{ background: "var(--sunk)", borderRadius: "var(--r-l)", padding: "14px 16px", border: "1px solid var(--line)" }}>
                         <span style={{ ...labelStyle, marginBottom: 12 }}>{col.label}</span>
@@ -719,12 +733,12 @@ export default function StyleTemplatePage() {
                 </SectionCard>
 
                 {/* Section Assets */}
-                <SectionCard title="Assets">
+                <SectionCard title={t('sectionAssets')}>
                   <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
                     {/* Brand icon */}
                     <div>
-                      <label style={labelStyle}>Icône de marque</label>
-                      <p style={{ fontSize: 12, color: "var(--ink-3)", marginBottom: 10 }}>Image carrée affichée dans la sidebar à la place des initiales.</p>
+                      <label style={labelStyle}>{t('brandIconLabel')}</label>
+                      <p style={{ fontSize: 12, color: "var(--ink-3)", marginBottom: 10 }}>{t('brandIconHint')}</p>
                       <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
                         <div style={{ width: 56, height: 56, borderRadius: 12, border: "1.5px dashed var(--line)", background: "var(--sunk)", overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
                           {brandIconPreview
@@ -735,10 +749,10 @@ export default function StyleTemplatePage() {
                         </div>
                         <div style={{ display: "flex", gap: 8 }}>
                           <button type="button" onClick={() => brandIconRef.current?.click()} className="btn btn-ghost btn-sm">
-                            {brandIconPreview ? "Remplacer" : "Choisir"}
+                            {brandIconPreview ? t('replace') : t('choose')}
                           </button>
                           {brandIconPreview && (
-                            <button type="button" onClick={() => { setBrandIconFile(null); setBrandIconPreview(null); setBrandIconUrl(null); }} className="btn btn-ghost btn-sm" style={{ color: "var(--warn)" }}>Supprimer</button>
+                            <button type="button" onClick={() => { setBrandIconFile(null); setBrandIconPreview(null); setBrandIconUrl(null); }} className="btn btn-ghost btn-sm" style={{ color: "var(--warn)" }}>{t('remove')}</button>
                           )}
                         </div>
                       </div>
@@ -747,20 +761,20 @@ export default function StyleTemplatePage() {
                     </div>
 
                     <div className="ws-upload-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-                      <UploadZone label="Logo principal" hint="PNG, SVG recommandé" preview={logoPreview} dark={false}
+                      <UploadZone label={t('logoMainLabel')} hint={t('logoMainHint')} preview={logoPreview} dark={false}
                         onClick={() => logoRef.current?.click()}
                         onRemove={() => { setLogoFile(null); setLogoPreview(logoUrl); }} />
                       <input ref={logoRef} type="file" accept=".png,.svg,.jpg,.jpeg" style={{ display: "none" }}
                         onChange={e => { const f = e.target.files?.[0]; if (f) { setLogoFile(f); setLogoPreview(URL.createObjectURL(f)); } }} />
 
-                      <UploadZone label="Logo variante" hint="Blanc ou noir sur fond inversé" preview={logoDarkPreview} dark={true}
+                      <UploadZone label={t('logoVariantLabel')} hint={t('logoVariantHint')} preview={logoDarkPreview} dark={true}
                         onClick={() => logoDarkRef.current?.click()}
                         onRemove={() => { setLogoDarkFile(null); setLogoDarkPreview(logoDarkUrl); }} />
                       <input ref={logoDarkRef} type="file" accept=".png,.svg,.jpg,.jpeg" style={{ display: "none" }}
                         onChange={e => { const f = e.target.files?.[0]; if (f) { setLogoDarkFile(f); setLogoDarkPreview(URL.createObjectURL(f)); } }} />
 
                       <div style={{ gridColumn: "1 / -1" }}>
-                        <UploadZone label="Bannière du client" hint="Image large (ex. 1200×300) affichée en tête du client" preview={bannerPreview} dark={false}
+                        <UploadZone label={t('bannerLabel')} hint={t('bannerHint')} preview={bannerPreview} dark={false}
                           onClick={() => bannerRef.current?.click()}
                           onRemove={() => { setBannerFile(null); setBannerPreview(bannerUrl); }} />
                         <input ref={bannerRef} type="file" accept=".png,.jpg,.jpeg,.webp" style={{ display: "none" }}
@@ -772,11 +786,11 @@ export default function StyleTemplatePage() {
                     <div>
                       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
                         <label style={{ ...labelStyle, marginBottom: 0 }}>
-                          Assets supplémentaires{" "}
+                          {t('extraAssetsLabel')}{" "}
                           <span style={{ fontWeight: 400, textTransform: "none", letterSpacing: 0 }}>— {existingAssets.length + assetFiles.length}/5</span>
                         </label>
                         {(existingAssets.length + assetFiles.length) < 5 && (
-                          <button type="button" onClick={() => assetsRef.current?.click()} style={{ fontSize: 12, fontWeight: 700, color: "var(--mint-2)", background: "none", border: "none", cursor: "pointer" }}>+ Ajouter</button>
+                          <button type="button" onClick={() => assetsRef.current?.click()} style={{ fontSize: 12, fontWeight: 700, color: "var(--mint-2)", background: "none", border: "none", cursor: "pointer" }}>+ {t('add')}</button>
                         )}
                       </div>
                       <input ref={assetsRef} type="file" accept=".png,.svg,.jpg,.jpeg" multiple style={{ display: "none" }}
@@ -813,7 +827,7 @@ export default function StyleTemplatePage() {
                       ) : (
                         <div onClick={() => assetsRef.current?.click()} style={{ border: "2px dashed var(--line)", borderRadius: "var(--r-l)", padding: 18, background: "var(--white)", cursor: "pointer", textAlign: "center", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, color: "var(--ink-3)", fontSize: 13 }}>
                           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg>
-                          Icônes, textures, éléments graphiques… (PNG, SVG)
+                          {t('extraAssetsHint')}
                         </div>
                       )}
                     </div>
@@ -821,27 +835,27 @@ export default function StyleTemplatePage() {
                 </SectionCard>
 
                 {/* Section Typographie */}
-                <SectionCard title="Typographie">
+                <SectionCard title={t('sectionTypography')}>
                   <div style={{ display: "flex", flexDirection: "column", gap: 28 }}>
 
                     {/* Police principale */}
                     <div>
-                      <label style={labelStyle}>Police principale</label>
+                      <label style={labelStyle}>{t('primaryFontLabel')}</label>
                       {customPrimary && (
                         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 14px", borderRadius: 10, marginBottom: 10, background: "var(--mint-soft)", border: "1px solid var(--mint)" }}>
                           <div>
-                            <span style={{ fontSize: 12, fontWeight: 700, color: "var(--mint-2)", display: "block" }}>Police custom active</span>
+                            <span style={{ fontSize: 12, fontWeight: 700, color: "var(--mint-2)", display: "block" }}>{t('customFontActive')}</span>
                             <span style={{ fontFamily: `"${customPrimary.family}", sans-serif`, fontSize: 16, color: "var(--ink)" }}>{customPrimary.family}</span>
                           </div>
-                          <button type="button" onClick={() => setCustomPrimary(null)} style={{ fontSize: 12, fontWeight: 700, color: "var(--ink-3)", background: "none", border: "none", cursor: "pointer" }}>× Retirer</button>
+                          <button type="button" onClick={() => setCustomPrimary(null)} style={{ fontSize: 12, fontWeight: 700, color: "var(--ink-3)", background: "none", border: "none", cursor: "pointer" }}>{t('removeFontShort')}</button>
                         </div>
                       )}
-                      <input style={{ ...inputStyle, marginBottom: 6 }} value={fontSearch} onChange={e => setFontSearch(e.target.value)} placeholder="Rechercher une police Google Fonts…" />
+                      <input style={{ ...inputStyle, marginBottom: 6 }} value={fontSearch} onChange={e => setFontSearch(e.target.value)} placeholder={t('searchFontPlaceholder')} />
                       <div style={{ maxHeight: 240, overflowY: "auto", border: "1px solid var(--line)", borderRadius: "var(--r-l)", background: "var(--white)" }}>
                         {fontsLoading ? (
-                          <div style={{ padding: "16px", fontSize: 13, color: "var(--ink-3)", textAlign: "center" }}>Chargement…</div>
+                          <div style={{ padding: "16px", fontSize: 13, color: "var(--ink-3)", textAlign: "center" }}>{t('loading')}</div>
                         ) : filteredFonts.length === 0 ? (
-                          <div style={{ padding: "14px", fontSize: 13, color: "var(--ink-3)" }}>Aucune police trouvée</div>
+                          <div style={{ padding: "14px", fontSize: 13, color: "var(--ink-3)" }}>{t('noFontFound')}</div>
                         ) : filteredFonts.map(font => (
                           <FontRow key={font.family} family={font.family} selected={!customPrimary && fontPrimary === font.family}
                             onSelect={() => { setFontPrimary(font.family); setCustomPrimary(null); }} />
@@ -849,7 +863,7 @@ export default function StyleTemplatePage() {
                       </div>
                       <div style={{ display: "flex", alignItems: "center", gap: 10, margin: "12px 0" }}>
                         <div style={{ flex: 1, height: 1, background: "var(--line)" }} />
-                        <span style={{ fontSize: 11, color: "var(--ink-3)", fontFamily: "var(--mono)" }}>ou</span>
+                        <span style={{ fontSize: 11, color: "var(--ink-3)", fontFamily: "var(--mono)" }}>{t('or')}</span>
                         <div style={{ flex: 1, height: 1, background: "var(--line)" }} />
                       </div>
                       <button type="button" onClick={() => customPrimaryRef.current?.click()} style={{
@@ -859,7 +873,7 @@ export default function StyleTemplatePage() {
                         onMouseEnter={e => { e.currentTarget.style.borderColor = "var(--mint)"; e.currentTarget.style.color = "var(--mint-2)"; }}
                         onMouseLeave={e => { e.currentTarget.style.borderColor = "var(--line)"; e.currentTarget.style.color = "var(--ink-2)"; }}>
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg>
-                        Uploader police custom (.ttf, .otf, .woff, .woff2)
+                        {t('uploadCustomFont')}
                       </button>
                       <input ref={customPrimaryRef} type="file" accept=".ttf,.otf,.woff,.woff2" style={{ display: "none" }}
                         onChange={e => { const f = e.target.files?.[0]; if (f) handleCustomFont(f, "primary"); e.target.value = ""; }} />
@@ -867,17 +881,17 @@ export default function StyleTemplatePage() {
 
                     {/* Police secondaire */}
                     <div>
-                      <label style={labelStyle}>Police secondaire <span style={{ fontWeight: 400, textTransform: "none", letterSpacing: 0, fontSize: 10, color: "var(--ink-3)" }}>(optionnel)</span></label>
+                      <label style={labelStyle}>{t('secondaryFontLabel')} <span style={{ fontWeight: 400, textTransform: "none", letterSpacing: 0, fontSize: 10, color: "var(--ink-3)" }}>{t('optional')}</span></label>
                       {customSecondary && (
                         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 14px", borderRadius: 10, marginBottom: 10, background: "var(--mint-soft)", border: "1px solid var(--mint)" }}>
                           <div>
-                            <span style={{ fontSize: 12, fontWeight: 700, color: "var(--mint-2)", display: "block" }}>Police custom active</span>
+                            <span style={{ fontSize: 12, fontWeight: 700, color: "var(--mint-2)", display: "block" }}>{t('customFontActive')}</span>
                             <span style={{ fontFamily: `"${customSecondary.family}", sans-serif`, fontSize: 16, color: "var(--ink)" }}>{customSecondary.family}</span>
                           </div>
-                          <button type="button" onClick={() => setCustomSecondary(null)} style={{ fontSize: 12, fontWeight: 700, color: "var(--ink-3)", background: "none", border: "none", cursor: "pointer" }}>× Retirer</button>
+                          <button type="button" onClick={() => setCustomSecondary(null)} style={{ fontSize: 12, fontWeight: 700, color: "var(--ink-3)", background: "none", border: "none", cursor: "pointer" }}>{t('removeFontShort')}</button>
                         </div>
                       )}
-                      <input style={{ ...inputStyle, marginBottom: 6 }} value={fontSearchSec} onChange={e => setFontSearchSec(e.target.value)} placeholder="Rechercher une police…" />
+                      <input style={{ ...inputStyle, marginBottom: 6 }} value={fontSearchSec} onChange={e => setFontSearchSec(e.target.value)} placeholder={t('searchSecondaryFontPlaceholder')} />
                       <div style={{ maxHeight: 200, overflowY: "auto", border: "1px solid var(--line)", borderRadius: "var(--r-l)", background: "var(--white)" }}>
                         {filteredFontsSec.map(font => (
                           <FontRow key={font.family} family={font.family} selected={!customSecondary && fontSecondary === font.family}
@@ -891,7 +905,7 @@ export default function StyleTemplatePage() {
                         onMouseEnter={e => { e.currentTarget.style.borderColor = "var(--mint)"; e.currentTarget.style.color = "var(--mint-2)"; }}
                         onMouseLeave={e => { e.currentTarget.style.borderColor = "var(--line)"; e.currentTarget.style.color = "var(--ink-2)"; }}>
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg>
-                        Uploader police custom (.ttf, .otf, .woff, .woff2)
+                        {t('uploadCustomFont')}
                       </button>
                       <input ref={customSecondaryRef} type="file" accept=".ttf,.otf,.woff,.woff2" style={{ display: "none" }}
                         onChange={e => { const f = e.target.files?.[0]; if (f) handleCustomFont(f, "secondary"); e.target.value = ""; }} />
@@ -899,16 +913,16 @@ export default function StyleTemplatePage() {
 
                     {/* Live preview */}
                     <div className="card" style={{ padding: "20px 24px" }}>
-                      <span style={{ ...labelStyle, marginBottom: 12, display: "block" }}>Aperçu — {activeFontPrimary}</span>
+                      <span style={{ ...labelStyle, marginBottom: 12, display: "block" }}>{t('previewLabel', { font: activeFontPrimary })}</span>
                       <p style={{ fontFamily: `"${activeFontPrimary}", sans-serif`, fontSize: 28, fontWeight: 700, color: "var(--ink)", lineHeight: 1.15, margin: 0 }}>
-                        Bonjour, voici votre marque
+                        {t('previewHeading')}
                       </p>
                       <p style={{ fontFamily: `"${activeFontPrimary}", sans-serif`, fontSize: 14, color: "var(--ink-2)", margin: "10px 0 0", lineHeight: 1.6 }}>
-                        Texte courant — corps de texte en taille normale
+                        {t('previewBody')}
                       </p>
                       {activeFontSecondary && (
                         <p style={{ fontFamily: `"${activeFontSecondary}", sans-serif`, fontSize: 14, color: "var(--ink-3)", margin: "8px 0 0", lineHeight: 1.6, borderTop: "1px solid var(--line)", paddingTop: 8 }}>
-                          Police secondaire : {activeFontSecondary}
+                          {t('secondaryFontPreview', { font: activeFontSecondary })}
                         </p>
                       )}
                     </div>
@@ -924,7 +938,7 @@ export default function StyleTemplatePage() {
                     fontSize: 14, fontWeight: 700, cursor: saving ? "not-allowed" : "pointer",
                     fontFamily: "var(--display)", transition: "all .15s",
                   }}>
-                    {saving ? "Sauvegarde…" : "Enregistrer la charte"}
+                    {saving ? t('saving') : t('saveCharte')}
                   </button>
                 </div>
 
@@ -936,30 +950,30 @@ export default function StyleTemplatePage() {
               <div>
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
                   <div>
-                    <h2 style={{ fontFamily: "var(--display)", fontWeight: 700, fontSize: 18, color: "var(--ink)", margin: 0 }}>Templates</h2>
-                    <p style={{ fontSize: 13, color: "var(--ink-3)", marginTop: 3 }}>{templates.length} modèle{templates.length !== 1 ? "s" : ""} pour {workspaceName}</p>
+                    <h2 style={{ fontFamily: "var(--display)", fontWeight: 700, fontSize: 18, color: "var(--ink)", margin: 0 }}>{t('tabTemplates')}</h2>
+                    <p style={{ fontSize: 13, color: "var(--ink-3)", marginTop: 3 }}>{t('templatesForClient', { count: templates.length, name: workspaceName })}</p>
                   </div>
                   <button onClick={() => router.push(`/workspace/${id}/template-editor/new`)}
                     style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 20px", borderRadius: 13, border: "none", background: "var(--mint)", color: "var(--mint-ink)", fontSize: 13.5, fontWeight: 700, cursor: "pointer", fontFamily: "var(--display)" }}>
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-                    Nouveau template
+                    {t('newTemplateBtn')}
                   </button>
                 </div>
 
                 {tplLoading ? (
-                  <div style={{ padding: "48px 0", textAlign: "center", color: "var(--ink-3)", fontSize: 13 }}>Chargement…</div>
+                  <div style={{ padding: "48px 0", textAlign: "center", color: "var(--ink-3)", fontSize: 13 }}>{t('loading')}</div>
                 ) : templates.length === 0 ? (
                   <div style={{ padding: "60px 0", textAlign: "center", display: "flex", flexDirection: "column", alignItems: "center", gap: 12 }}>
                     <div style={{ width: 56, height: 56, borderRadius: 16, background: "var(--sunk)", display: "grid", placeItems: "center" }}>
                       <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--ink-3)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg>
                     </div>
                     <div>
-                      <p style={{ fontSize: 14, fontWeight: 600, color: "var(--ink)", margin: 0 }}>Aucun template pour l&apos;instant</p>
-                      <p style={{ fontSize: 13, color: "var(--ink-3)", margin: "4px 0 0" }}>Créez un modèle réutilisable pour accélérer la production</p>
+                      <p style={{ fontSize: 14, fontWeight: 600, color: "var(--ink)", margin: 0 }}>{t('noTemplateYet')}</p>
+                      <p style={{ fontSize: 13, color: "var(--ink-3)", margin: "4px 0 0" }}>{t('noTemplateHint')}</p>
                     </div>
                     <button onClick={() => router.push(`/workspace/${id}/template-editor/new`)}
                       style={{ marginTop: 4, padding: "10px 22px", borderRadius: 12, border: "none", background: "var(--mint)", color: "var(--mint-ink)", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>
-                      Créer un template
+                      {t('createTemplateBtn')}
                     </button>
                   </div>
                 ) : (
@@ -983,12 +997,12 @@ export default function StyleTemplatePage() {
                           {/* Info */}
                           <div style={{ padding: "14px 16px" }}>
                             <p style={{ fontWeight: 700, fontSize: 14, color: "var(--ink)", margin: 0, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{tpl.name}</p>
-                            <p style={{ fontSize: 12, color: "var(--ink-3)", margin: "3px 0 0" }}>{fmtLabel} · {zonesCount} élément{zonesCount !== 1 ? "s" : ""}</p>
+                            <p style={{ fontSize: 12, color: "var(--ink-3)", margin: "3px 0 0" }}>{fmtLabel} · {t('elementsCount', { count: zonesCount })}</p>
                             <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
                               <button onClick={() => router.push(`/workspace/${id}/template-editor/${tpl.id}`)}
                                 style={{ flex: 1, padding: "8px", borderRadius: 9, border: "1px solid var(--line)", background: "var(--white)", cursor: "pointer", fontSize: 12.5, fontWeight: 600, color: "var(--ink)", display: "flex", alignItems: "center", justifyContent: "center", gap: 5 }}>
                                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-                                Modifier
+                                {t('modify')}
                               </button>
                               <button onClick={() => setDeleteId(tpl.id)}
                                 style={{ padding: "8px 12px", borderRadius: 9, border: "1px solid var(--line)", background: "var(--white)", cursor: "pointer", color: "#EF4444", display: "flex", alignItems: "center" }}>
@@ -1016,11 +1030,11 @@ export default function StyleTemplatePage() {
             <div style={{ width: 48, height: 48, borderRadius: 14, background: "#FEE2E2", display: "grid", placeItems: "center", margin: "0 auto 16px" }}>
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#DC2626" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg>
             </div>
-            <h3 style={{ fontFamily: "var(--display)", fontWeight: 700, fontSize: 17, color: "var(--ink)", margin: "0 0 8px" }}>Supprimer ce template ?</h3>
-            <p style={{ fontSize: 13, color: "var(--ink-3)", margin: "0 0 24px", lineHeight: 1.5 }}>Les posts existants ne seront pas affectés.</p>
+            <h3 style={{ fontFamily: "var(--display)", fontWeight: 700, fontSize: 17, color: "var(--ink)", margin: "0 0 8px" }}>{t('deleteTemplateTitle')}</h3>
+            <p style={{ fontSize: 13, color: "var(--ink-3)", margin: "0 0 24px", lineHeight: 1.5 }}>{t('deleteTemplateDesc')}</p>
             <div style={{ display: "flex", gap: 10 }}>
-              <button onClick={() => setDeleteId(null)} style={{ flex: 1, padding: "10px", borderRadius: 11, border: "1px solid var(--line)", background: "var(--white)", cursor: "pointer", fontSize: 13.5, fontWeight: 600, color: "var(--ink)" }}>Annuler</button>
-              <button onClick={confirmDelete} style={{ flex: 1, padding: "10px", borderRadius: 11, border: "none", background: "#EF4444", color: "#fff", cursor: "pointer", fontSize: 13.5, fontWeight: 700 }}>Supprimer</button>
+              <button onClick={() => setDeleteId(null)} style={{ flex: 1, padding: "10px", borderRadius: 11, border: "1px solid var(--line)", background: "var(--white)", cursor: "pointer", fontSize: 13.5, fontWeight: 600, color: "var(--ink)" }}>{t('cancel')}</button>
+              <button onClick={confirmDelete} style={{ flex: 1, padding: "10px", borderRadius: 11, border: "none", background: "#EF4444", color: "#fff", cursor: "pointer", fontSize: 13.5, fontWeight: 700 }}>{t('delete')}</button>
             </div>
           </div>
         </div>
