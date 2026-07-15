@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 
-const APP_ID = "1998010880798347";
+// ID d'app Instagram dédié (distinct de l'ID principal de l'app Meta,
+// 1998010880798347, qui lui sert au flux Facebook Login). Le endpoint
+// instagram.com/oauth/authorize exige spécifiquement cet ID Instagram —
+// lui passer l'ID principal renvoie "Invalid platform app".
+const APP_ID = "991302360155193";
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://getklip.fr";
 const REDIRECT_URI = `${APP_URL}/api/auth/meta/callback`;
 

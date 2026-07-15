@@ -12,7 +12,9 @@ export async function GET(request: NextRequest) {
   const error = searchParams.get("error");
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://getklip.fr";
   const redirectUri = `${appUrl}/api/auth/meta/callback`;
-  const clientId = "1998010880798347";
+  // Voir commentaire dans meta/connect/route.ts : ID Instagram dédié,
+  // distinct de l'ID principal de l'app (1998010880798347).
+  const clientId = "991302360155193";
 
   // ── Diagnostic block ──────────────────────────────────────────────────────
   console.log('[CB] full URL:', request.url);
