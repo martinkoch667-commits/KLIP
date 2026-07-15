@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { useParams, useRouter } from 'next/navigation';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import Sidebar from '@/components/Sidebar';
@@ -47,11 +48,11 @@ interface PostTemplate {
 // ─── Format definitions ───────────────────────────────────────────────────────
 
 const FORMATS = [
-  { id: 'ig-portrait', label: 'Portrait 4:5', sub: '1080×1350', w: 360, h: 450 },
-  { id: 'ig-square',   label: 'Carré',         sub: '1080×1080', w: 420, h: 420 },
-  { id: 'ig-story',    label: 'Story',          sub: '1080×1920', w: 253, h: 450 },
-  { id: 'facebook',    label: 'Facebook Post',  sub: '1200×630',  w: 420, h: 221 },
-];
+  { id: 'ig-portrait', labelKey: 'formatPortraitFull', sub: '1080×1350', w: 360, h: 450 },
+  { id: 'ig-square',   labelKey: 'formatSquareFull',   sub: '1080×1080', w: 420, h: 420 },
+  { id: 'ig-story',    labelKey: 'formatStoryFull',    sub: '1080×1920', w: 253, h: 450 },
+  { id: 'facebook',    labelKey: 'formatFacebookFull', sub: '1200×630',  w: 420, h: 221 },
+] as const;
 
 const panelInput: React.CSSProperties = {
   width: '100%', background: 'var(--white)', border: '1px solid var(--line)',
@@ -62,6 +63,7 @@ const panelInput: React.CSSProperties = {
 // ─── Main page ────────────────────────────────────────────────────────────────
 
 export default function TemplatesPage() {
+  const t = useTranslations('workspaceTemplates');
   const { id: workspaceId } = useParams<{ id: string }>();
   const router = useRouter();
   const supabase = createClientComponentClient();
@@ -91,7 +93,7 @@ export default function TemplatesPage() {
 
   const filteredTemplates = formatFilter === 'all'
     ? templates
-    : templates.filter(t => t.format_id === formatFilter);
+    : templates.filter(tpl => tpl.format_id === formatFilter);
 
   function openNew() {
     router.push(`/workspace/${workspaceId}/template-editor/new`);
@@ -102,9 +104,9 @@ export default function TemplatesPage() {
   }
 
   async function deleteTemplate(id: string) {
-    if (!confirm('Supprimer ce modèle ?')) return;
+    if (!confirm(t('confirmDeleteTemplate'))) return;
     await fetch(`/api/templates/${id}`, { method: 'DELETE' });
-    setTemplates(prev => prev.filter(t => t.id !== id));
+    setTemplates(prev => prev.filter(tpl => tpl.id !== id));
   }
 
   const primaryColor = workspace?.primary_color ?? '#2FD79B';
@@ -129,11 +131,11 @@ export default function TemplatesPage() {
               {workspace?.name ?? '…'}
             </a>
             <span style={{ color: 'var(--line)', fontSize: 14 }}>/</span>
-            <h1 style={{ fontSize: 14, fontWeight: 800, margin: 0 }}>Modèles</h1>
+            <h1 style={{ fontSize: 14, fontWeight: 800, margin: 0 }}>{t('title')}</h1>
           </div>
           <button onClick={openNew} className="btn btn-primary btn-sm" style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 6 }}>
             <span style={{ fontSize: 16, lineHeight: 1 }}>+</span>
-            Nouveau modèle
+            {t('newTemplate')}
           </button>
         </div>
 
@@ -159,12 +161,12 @@ export default function TemplatesPage() {
                   <div style={{ paddingBottom: 4, flex: 1, minWidth: 0 }}>
                     <h1 className="h-display" style={{ fontSize: 26, margin: 0 }}>{workspace.name}</h1>
                     <div style={{ fontSize: 13, color: 'var(--ink-3)', fontWeight: 600, marginTop: 2 }}>
-                      {templates.length} modèle{templates.length !== 1 ? 's' : ''}
+                      {t('modelsCount', { count: templates.length })}
                     </div>
                   </div>
                   <button onClick={openNew} className="btn btn-ghost btn-sm" style={{ alignSelf: 'flex-end', marginBottom: 2 }}>
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12h14"/></svg>
-                    Nouveau modèle
+                    {t('newTemplate')}
                   </button>
                 </div>
               </div>
@@ -175,7 +177,7 @@ export default function TemplatesPage() {
               <div style={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr', gap: 16, marginBottom: 26 }} className="kit-charte">
                 {/* Palette */}
                 <div className="card" style={{ padding: 22 }}>
-                  <div className="label" style={{ marginBottom: 16 }}>Palette de marque</div>
+                  <div className="label" style={{ marginBottom: 16 }}>{t('paletteTitle')}</div>
                   <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', alignItems: 'flex-start' }}>
                     {palette.length > 0 ? palette.map((col, i) => (
                       <div key={i} style={{ display: 'flex', flexDirection: 'column', gap: 7, alignItems: 'center' }}>
@@ -183,7 +185,7 @@ export default function TemplatesPage() {
                         <span style={{ fontSize: 10, color: 'var(--ink-3)', fontWeight: 700, textTransform: 'uppercase', fontFamily: 'var(--mono)' }}>{col}</span>
                       </div>
                     )) : (
-                      <span style={{ fontSize: 13, color: 'var(--ink-3)' }}>Aucune couleur définie</span>
+                      <span style={{ fontSize: 13, color: 'var(--ink-3)' }}>{t('noColors')}</span>
                     )}
                     <a href={`/workspace/${workspaceId}/parametres`} style={{
                       width: 64, height: 64, borderRadius: 14, border: '1.5px dashed var(--line)',
@@ -193,7 +195,7 @@ export default function TemplatesPage() {
                     }}
                       onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = 'var(--mint-2)'; (e.currentTarget as HTMLElement).style.color = 'var(--mint-2)'; }}
                       onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = 'var(--line)'; (e.currentTarget as HTMLElement).style.color = 'var(--ink-3)'; }}
-                      title="Modifier la charte">
+                      title={t('editPalette')}>
                       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12h14"/></svg>
                     </a>
                   </div>
@@ -201,18 +203,18 @@ export default function TemplatesPage() {
 
                 {/* Typography */}
                 <div className="card" style={{ padding: 22 }}>
-                  <div className="label" style={{ marginBottom: 16 }}>Typographies</div>
+                  <div className="label" style={{ marginBottom: 16 }}>{t('typographyTitle')}</div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
                     <div>
                       <div style={{ fontFamily: workspace.font_family || 'var(--display)', fontWeight: 800, fontSize: 28, letterSpacing: '-0.02em', lineHeight: 1 }}>
-                        Titre
+                        {t('titleSample')}
                       </div>
-                      <div className="label" style={{ marginTop: 6, fontSize: 9.5 }}>Affichage · {workspace.font_family || 'Archivo'} 800</div>
+                      <div className="label" style={{ marginTop: 6, fontSize: 9.5 }}>{t('displayFontLabel', { font: workspace.font_family || 'Archivo' })}</div>
                     </div>
                     <div style={{ height: 1, background: 'var(--line)' }} />
                     <div>
-                      <div style={{ fontFamily: 'var(--sans)', fontWeight: 500, fontSize: 15, color: 'var(--ink-2)' }}>Corps de texte, lisible et net.</div>
-                      <div className="label" style={{ marginTop: 6, fontSize: 9.5 }}>Texte · Satoshi 400–700</div>
+                      <div style={{ fontFamily: 'var(--sans)', fontWeight: 500, fontSize: 15, color: 'var(--ink-2)' }}>{t('bodySample')}</div>
+                      <div className="label" style={{ marginTop: 6, fontSize: 9.5 }}>{t('bodyFontLabel')}</div>
                     </div>
                   </div>
                 </div>
@@ -222,12 +224,12 @@ export default function TemplatesPage() {
             {/* Templates section header */}
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 14, marginBottom: 16, flexWrap: 'wrap' }}>
               <div style={{ display: 'flex', alignItems: 'baseline', gap: 10 }}>
-                <h2 style={{ fontSize: 19, fontWeight: 800, margin: 0 }}>Modèles</h2>
+                <h2 style={{ fontSize: 19, fontWeight: 800, margin: 0 }}>{t('title')}</h2>
                 <span style={{ color: 'var(--ink-3)', fontWeight: 700, fontSize: 14 }}>{filteredTemplates.length}</span>
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 <div style={{ display: 'flex', gap: 2, padding: 3, background: 'var(--sunk)', borderRadius: 'var(--r-s)', border: '1px solid var(--line)' }}>
-                  {[['all', 'Tous'], ['ig-portrait', 'Portrait'], ['ig-square', 'Carré'], ['ig-story', 'Story']].map(([id, label]) => (
+                  {[['all', t('filterAll')], ['ig-portrait', t('formatPortraitShort')], ['ig-square', t('formatSquareShort')], ['ig-story', t('formatStoryShort')]].map(([id, label]) => (
                     <button key={id} onClick={() => setFormatFilter(id)} style={{
                       padding: '5px 10px', borderRadius: 6, fontSize: 12.5, fontWeight: 600,
                       cursor: 'pointer', border: 'none',
@@ -244,7 +246,7 @@ export default function TemplatesPage() {
             </div>
 
             {loading ? (
-              <div style={{ color: 'var(--ink-3)', fontSize: 13, padding: '40px 0' }}>Chargement…</div>
+              <div style={{ color: 'var(--ink-3)', fontSize: 13, padding: '40px 0' }}>{t('loading')}</div>
             ) : (
               <div className="tpl-grid">
                 {/* Create tile */}
@@ -258,7 +260,7 @@ export default function TemplatesPage() {
                   <span style={{ width: 46, height: 46, borderRadius: 13, background: 'var(--sunk)', display: 'grid', placeItems: 'center' }}>
                     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12h14"/></svg>
                   </span>
-                  <span style={{ fontWeight: 700, fontSize: 13.5 }}>Nouveau modèle</span>
+                  <span style={{ fontWeight: 700, fontSize: 13.5 }}>{t('newTemplate')}</span>
                 </button>
 
                 {filteredTemplates.map(tpl => (
@@ -287,6 +289,7 @@ export default function TemplatesPage() {
 // ─── Template card ────────────────────────────────────────────────────────────
 
 function TemplateCard({ tpl, onEdit, onDelete }: { tpl: PostTemplate; onEdit: () => void; onDelete: () => void }) {
+  const t = useTranslations('workspaceTemplates');
   const fmt = FORMATS.find(f => f.id === tpl.format_id) ?? FORMATS[0];
   const aspect = fmt.h / fmt.w;
   const zones = Array.isArray(tpl.text_zones) ? tpl.text_zones : [];
@@ -313,7 +316,7 @@ function TemplateCard({ tpl, onEdit, onDelete }: { tpl: PostTemplate; onEdit: ()
         }}>
           <button className="btn btn-sm btn-primary" style={{ flex: 1 }} onClick={e => { e.stopPropagation(); onEdit(); }}>
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-            Modifier
+            {t('modify')}
           </button>
           <button onClick={e => { e.stopPropagation(); onDelete(); }}
             style={{
@@ -321,7 +324,7 @@ function TemplateCard({ tpl, onEdit, onDelete }: { tpl: PostTemplate; onEdit: ()
               borderRadius: 'var(--r-s)', padding: '6px 9px', cursor: 'pointer',
               display: 'flex', alignItems: 'center',
             }}
-            title="Supprimer">
+            title={t('delete')}>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
               <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
               <path d="M10 11v6M14 11v6M9 6V4h6v2"/>
@@ -335,10 +338,10 @@ function TemplateCard({ tpl, onEdit, onDelete }: { tpl: PostTemplate; onEdit: ()
         <div style={{ flex: 1, minWidth: 0 }}>
           <p style={{ margin: 0, fontWeight: 700, fontSize: 13, color: 'var(--ink)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{tpl.name}</p>
           <p style={{ margin: 0, fontSize: 11, color: 'var(--ink-3)', marginTop: 2 }}>
-            {zones.length} zone{zones.length !== 1 ? 's' : ''}
+            {t('zonesCount', { count: zones.length })}
           </p>
         </div>
-        <span className="chip" style={{ background: 'var(--sunk)', color: 'var(--ink-2)', fontSize: 10.5, flexShrink: 0 }}>{fmt.label}</span>
+        <span className="chip" style={{ background: 'var(--sunk)', color: 'var(--ink-2)', fontSize: 10.5, flexShrink: 0 }}>{t(fmt.labelKey)}</span>
       </div>
     </div>
   );
@@ -367,6 +370,7 @@ function MiniPreview({ bg }: { bg: BgStyle }) {
 // créer/supprimer ici des modèles réutilisables dans le module Montage.
 
 function SubtitleTemplatesSection({ workspaceId }: { workspaceId: string }) {
+  const t = useTranslations('workspaceTemplates');
   const [list, setList] = useState<SubTemplate[]>([]);
   const [creating, setCreating] = useState(false);
   const [name, setName] = useState('');
@@ -381,15 +385,15 @@ function SubtitleTemplatesSection({ workspaceId }: { workspaceId: string }) {
 
   function persist(next: SubTemplate[]) { setList(next); saveSubTemplates(next); }
   function create() {
-    const t: SubTemplate = {
+    const tpl: SubTemplate = {
       id: crypto.randomUUID(),
-      name: name.trim() || `Modèle ${list.length + 1}`,
+      name: name.trim() || t('defaultTemplateName', { n: list.length + 1 }),
       styleId, custom, maxWords, pos: DEFAULT_SUB_POS,
     };
-    persist([...list, t]);
+    persist([...list, tpl]);
     setCreating(false); setName(''); setCustom({}); setStyleId(SUB_STYLES[0].id); setMaxWords(DEFAULT_WORDS_PER_CAPTION);
   }
-  function remove(id: string) { persist(list.filter(t => t.id !== id)); }
+  function remove(id: string) { persist(list.filter(tpl => tpl.id !== id)); }
 
   const colorField = (label: string, value: string, on: (v: string) => void) => (
     <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, fontSize: 12, color: 'var(--ink-2)', fontWeight: 700 }}>
@@ -402,16 +406,16 @@ function SubtitleTemplatesSection({ workspaceId }: { workspaceId: string }) {
     <div style={{ marginTop: 40 }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 14, marginBottom: 6, flexWrap: 'wrap' }}>
         <div style={{ display: 'flex', alignItems: 'baseline', gap: 10 }}>
-          <h2 style={{ fontSize: 19, fontWeight: 800, margin: 0 }}>Sous-titres vidéo</h2>
+          <h2 style={{ fontSize: 19, fontWeight: 800, margin: 0 }}>{t('subtitlesTitle')}</h2>
           <span style={{ color: 'var(--ink-3)', fontWeight: 700, fontSize: 14 }}>{list.length}</span>
         </div>
         <button className="btn btn-primary btn-sm" onClick={() => setCreating(v => !v)}>
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12h14"/></svg>
-          {creating ? 'Fermer' : 'Nouveau modèle'}
+          {creating ? t('close') : t('newTemplate')}
         </button>
       </div>
       <p style={{ fontSize: 12.5, color: 'var(--ink-3)', margin: '0 0 16px', maxWidth: 620 }}>
-        Créez des styles de sous-titres réutilisables (couleurs, typo, longueur). Ils apparaissent dans le monteur vidéo, section « Sous-titres » → « Mes modèles ».
+        {t('subtitlesDesc')}
       </p>
 
       {creating && (
@@ -431,9 +435,9 @@ function SubtitleTemplatesSection({ workspaceId }: { workspaceId: string }) {
           </div>
           {/* Contrôles */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-            <input value={name} onChange={e => setName(e.target.value)} placeholder="Nom du modèle" style={panelInput} />
+            <input value={name} onChange={e => setName(e.target.value)} placeholder={t('namePlaceholder')} style={panelInput} />
             <div>
-              <label style={{ fontSize: 11, color: 'var(--ink-3)', display: 'block', marginBottom: 5, fontWeight: 600 }}>Style de base</label>
+              <label style={{ fontSize: 11, color: 'var(--ink-3)', display: 'block', marginBottom: 5, fontWeight: 600 }}>{t('baseStyleLabel')}</label>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
                 {SUB_STYLES.map(s => (
                   <button key={s.id} onClick={() => { setStyleId(s.id); setCustom({}); }} style={{
@@ -445,40 +449,40 @@ function SubtitleTemplatesSection({ workspaceId }: { workspaceId: string }) {
               </div>
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-              {colorField('Texte', eff.fg, v => patch({ fg: v }))}
-              {colorField('Mot actif', eff.hi, v => patch({ hi: v }))}
+              {colorField(t('textColorLabel'), eff.fg, v => patch({ fg: v }))}
+              {colorField(t('activeWordLabel'), eff.hi, v => patch({ hi: v }))}
             </div>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-              <button onClick={() => patch({ bg: eff.bg === 'transparent' ? '#0C2A1D' : 'transparent' })} className="btn btn-ghost btn-sm">{eff.bg === 'transparent' ? 'Fond : aucun' : 'Fond : plein'}</button>
-              <button onClick={() => patch({ uppercase: !eff.uppercase })} className="btn btn-ghost btn-sm" style={{ fontWeight: eff.uppercase ? 800 : 600 }}>MAJ</button>
-              <button onClick={() => patch({ pill: !eff.pill })} className="btn btn-ghost btn-sm">Pilule</button>
-              <button onClick={() => patch({ stroke: eff.stroke ? '' : '#000000' })} className="btn btn-ghost btn-sm">Contour</button>
+              <button onClick={() => patch({ bg: eff.bg === 'transparent' ? '#0C2A1D' : 'transparent' })} className="btn btn-ghost btn-sm">{eff.bg === 'transparent' ? t('bgNone') : t('bgFull')}</button>
+              <button onClick={() => patch({ uppercase: !eff.uppercase })} className="btn btn-ghost btn-sm" style={{ fontWeight: eff.uppercase ? 800 : 600 }}>{t('uppercaseShort')}</button>
+              <button onClick={() => patch({ pill: !eff.pill })} className="btn btn-ghost btn-sm">{t('pill')}</button>
+              <button onClick={() => patch({ stroke: eff.stroke ? '' : '#000000' })} className="btn btn-ghost btn-sm">{t('outline')}</button>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <label style={{ fontSize: 11, color: 'var(--ink-3)', fontWeight: 600 }}>Longueur</label>
+              <label style={{ fontSize: 11, color: 'var(--ink-3)', fontWeight: 600 }}>{t('lengthLabel')}</label>
               {[1, 2, 3, 4, 6].map(w => (
                 <button key={w} onClick={() => setMaxWords(w)} style={{
                   padding: '4px 9px', borderRadius: 99, fontSize: 11.5, fontWeight: 700, cursor: 'pointer', border: 'none',
                   background: maxWords === w ? 'var(--mint-2)' : 'var(--sunk)', color: maxWords === w ? '#06281C' : 'var(--ink-2)', boxShadow: maxWords === w ? 'none' : 'inset 0 0 0 1px var(--line)',
-                }}>{w} mot{w > 1 ? 's' : ''}</button>
+                }}>{t('wordsCount', { count: w })}</button>
               ))}
             </div>
             <div style={{ display: 'flex', gap: 8, marginTop: 2 }}>
-              <button className="btn btn-primary btn-sm" onClick={create}>Enregistrer le modèle</button>
-              <button className="btn btn-ghost btn-sm" onClick={() => setCreating(false)}>Annuler</button>
+              <button className="btn btn-primary btn-sm" onClick={create}>{t('saveTemplate')}</button>
+              <button className="btn btn-ghost btn-sm" onClick={() => setCreating(false)}>{t('cancel')}</button>
             </div>
           </div>
         </div>
       )}
 
       {list.length === 0 && !creating ? (
-        <div style={{ color: 'var(--ink-3)', fontSize: 13, padding: '20px 0' }}>Aucun modèle de sous-titres pour le moment.</div>
+        <div style={{ color: 'var(--ink-3)', fontSize: 13, padding: '20px 0' }}>{t('noSubtitleTemplates')}</div>
       ) : (
         <div className="tpl-grid">
-          {list.map(t => {
-            const te = effectiveSubStyle(t.styleId, t.custom);
+          {list.map(tpl => {
+            const te = effectiveSubStyle(tpl.styleId, tpl.custom);
             return (
-              <div key={t.id} className="card" style={{ overflow: 'hidden', padding: 0 }}>
+              <div key={tpl.id} className="card" style={{ overflow: 'hidden', padding: 0 }}>
                 <div style={{ height: 120, background: 'linear-gradient(150deg,#2b8d57,#0c2a1d)', display: 'grid', placeItems: 'center' }}>
                   <span style={{
                     display: 'inline-block', padding: te.pill ? '5px 12px' : '4px 9px', borderRadius: te.pill ? 99 : 6,
@@ -490,10 +494,10 @@ function SubtitleTemplatesSection({ workspaceId }: { workspaceId: string }) {
                 </div>
                 <div style={{ padding: '10px 12px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
                   <div style={{ minWidth: 0 }}>
-                    <div style={{ fontWeight: 700, fontSize: 13, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.name}</div>
-                    <div style={{ fontSize: 11, color: 'var(--ink-3)', fontWeight: 600 }}>{t.maxWords} mot{t.maxWords > 1 ? 's' : ''}/bloc</div>
+                    <div style={{ fontWeight: 700, fontSize: 13, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{tpl.name}</div>
+                    <div style={{ fontSize: 11, color: 'var(--ink-3)', fontWeight: 600 }}>{t('wordsPerBlock', { count: tpl.maxWords })}</div>
                   </div>
-                  <button onClick={() => remove(t.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#DC2626', fontSize: 12, fontWeight: 600, flexShrink: 0 }}>Supprimer</button>
+                  <button onClick={() => remove(tpl.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#DC2626', fontSize: 12, fontWeight: 600, flexShrink: 0 }}>{t('delete')}</button>
                 </div>
               </div>
             );
