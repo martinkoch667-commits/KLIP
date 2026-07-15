@@ -1,19 +1,12 @@
 "use client";
 
 import { useState, useEffect, Suspense } from "react";
+import { useTranslations } from "next-intl";
 import Link from "next/link";
 import { useParams, useSearchParams } from "next/navigation";
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
 import Sidebar from "@/components/Sidebar";
 import { resetOnboardingTour } from "@/components/OnboardingTour";
-
-const ERROR_MESSAGES: Record<string, string> = {
-  cancelled:    "Connexion annulée.",
-  token:        "Échec de l'échange de token Meta. Réessayez.",
-  no_pages:     "Aucune page Facebook trouvée. Vérifiez vos permissions.",
-  no_instagram: "Aucun compte Instagram Business lié à vos pages Facebook.",
-  unknown:      "Une erreur est survenue lors de la connexion.",
-};
 
 interface Workspace {
   id: string;
@@ -49,6 +42,7 @@ function IconArrow() {
 }
 
 function ParametresContent() {
+  const t = useTranslations('workspaceSettings');
   const params = useParams();
   const id = params.id as string;
   const searchParams = useSearchParams();
@@ -58,6 +52,11 @@ function ParametresContent() {
   const [loading, setLoading] = useState(true);
   const [disconnecting, setDisconnecting] = useState(false);
   const [disconnectingFb, setDisconnectingFb] = useState(false);
+
+  const ERROR_MESSAGES: Record<string, string> = {
+    cancelled: t('errorCancelled'), token: t('errorToken'),
+    no_pages: t('errorNoPages'), no_instagram: t('errorNoInstagram'), unknown: t('errorUnknown'),
+  };
 
   const connected = searchParams.get("connected") === "true";
   const errorKey = searchParams.get("error");
@@ -77,7 +76,7 @@ function ParametresContent() {
   }, [id, supabase]);
 
   async function handleDisconnect() {
-    if (!confirm("Déconnecter Instagram de ce workspace ?")) return;
+    if (!confirm(t('confirmDisconnectIg'))) return;
     setDisconnecting(true);
     await supabase.from("workspaces").update({
       instagram_account_id: null,
@@ -93,7 +92,7 @@ function ParametresContent() {
   }
 
   async function handleDisconnectFacebook() {
-    if (!confirm("Déconnecter la Page Facebook de ce workspace ?")) return;
+    if (!confirm(t('confirmDisconnectFb'))) return;
     setDisconnectingFb(true);
     await supabase.from("workspaces").update({
       facebook_page_id: null,
@@ -122,12 +121,12 @@ function ParametresContent() {
           <div>
             <div className="label" style={{ marginBottom: 8, display: "flex", alignItems: "center", gap: 8 }}>
               <Link href={`/workspace/${id}`} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--ink-3)", textDecoration: "none", fontSize: 12, fontWeight: 600, fontFamily: "var(--sans)" }}>
-                Retour
+                {t('back')}
               </Link>
               <span style={{ color: "var(--line)" }}>·</span>
               {workspace?.name ?? "…"}
             </div>
-            <h1 className="h-display" style={{ fontSize: 30 }}>Paramètres</h1>
+            <h1 className="h-display" style={{ fontSize: 30 }}>{t('title')}</h1>
           </div>
         </div>
 
@@ -135,7 +134,7 @@ function ParametresContent() {
         {connected && (
           <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "12px 16px", borderRadius: "var(--r-s)", background: "var(--mint-soft)", border: "1px solid rgba(47,215,155,.25)", marginBottom: 20 }}>
             <span style={{ color: "var(--mint-2)", display: "flex" }}><IconCheck /></span>
-            <span style={{ fontSize: 13, color: "var(--mint-2)", fontWeight: 600 }}>Compte Instagram connecté avec succès.</span>
+            <span style={{ fontSize: 13, color: "var(--mint-2)", fontWeight: 600 }}>{t('connectedSuccess')}</span>
           </div>
         )}
 
@@ -149,7 +148,7 @@ function ParametresContent() {
 
         {loading ? (
           <div style={{ display: "flex", alignItems: "center", justifyContent: "center", padding: "80px 0", color: "var(--ink-3)", fontSize: 14 }}>
-            Chargement…
+            {t('loading')}
           </div>
         ) : (
           <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
@@ -157,8 +156,8 @@ function ParametresContent() {
             {/* ── Section: Réseaux sociaux ── */}
             <section>
               <div style={{ marginBottom: 16 }}>
-                <h2 className="h-title" style={{ fontSize: 16, marginBottom: 4 }}>Réseaux sociaux</h2>
-                <p style={{ color: "var(--ink-2)", fontSize: 13 }}>Connectez vos comptes pour publier directement depuis Klip.</p>
+                <h2 className="h-title" style={{ fontSize: 16, marginBottom: 4 }}>{t('socialTitle')}</h2>
+                <p style={{ color: "var(--ink-2)", fontSize: 13 }}>{t('socialSubtitle')}</p>
               </div>
 
               <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
@@ -172,18 +171,18 @@ function ParametresContent() {
                     <IconInstagram />
                   </span>
                   <div style={{ flex: 1 }}>
-                    <div style={{ fontWeight: 700, fontSize: 14, color: "var(--ink)", marginBottom: 2 }}>Instagram</div>
+                    <div style={{ fontWeight: 700, fontSize: 14, color: "var(--ink)", marginBottom: 2 }}>{t('instagram')}</div>
                     {isInstagramConnected ? (
                       <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                         <span className="badge" style={{ background: "var(--mint-soft)", color: "var(--mint-2)", display: "inline-flex", alignItems: "center", gap: 4 }}>
-                          <span className="dot" style={{ background: "var(--mint-2)" }} /> Connecté
+                          <span className="dot" style={{ background: "var(--mint-2)" }} /> {t('connected')}
                         </span>
                         <span style={{ fontSize: 12, color: "var(--ink-3)", fontWeight: 600 }}>
                           @{workspace?.instagram_username ?? workspace?.instagram_account_id}
                         </span>
                       </div>
                     ) : (
-                      <span style={{ fontSize: 12.5, color: "var(--ink-3)" }}>Non connecté</span>
+                      <span style={{ fontSize: 12.5, color: "var(--ink-3)" }}>{t('notConnected')}</span>
                     )}
                   </div>
                   <div style={{ flexShrink: 0 }}>
@@ -194,11 +193,11 @@ function ParametresContent() {
                         className="btn btn-ghost btn-sm"
                         style={{ color: "var(--warn)", borderColor: "rgba(200,115,43,.3)", opacity: disconnecting ? 0.5 : 1 }}
                       >
-                        <IconTrash /> {disconnecting ? "…" : "Déconnecter"}
+                        <IconTrash /> {disconnecting ? "…" : t('disconnect')}
                       </button>
                     ) : (
                       <a href={`/api/auth/meta/connect?workspaceId=${id}`} className="btn btn-dark btn-sm">
-                        Connecter Instagram <IconArrow />
+                        {t('connectInstagram')} <IconArrow />
                       </a>
                     )}
                   </div>
@@ -214,18 +213,18 @@ function ParametresContent() {
                     <IconFacebook />
                   </span>
                   <div style={{ flex: 1 }}>
-                    <div style={{ fontWeight: 700, fontSize: 14, color: "var(--ink)", marginBottom: 2 }}>Facebook</div>
+                    <div style={{ fontWeight: 700, fontSize: 14, color: "var(--ink)", marginBottom: 2 }}>{t('facebook')}</div>
                     {isFacebookConnected ? (
                       <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                         <span className="badge" style={{ background: "var(--mint-soft)", color: "var(--mint-2)", display: "inline-flex", alignItems: "center", gap: 4 }}>
-                          <span className="dot" style={{ background: "var(--mint-2)" }} /> Connecté
+                          <span className="dot" style={{ background: "var(--mint-2)" }} /> {t('connected')}
                         </span>
                         <span style={{ fontSize: 12, color: "var(--ink-3)", fontWeight: 600 }}>
-                          {workspace?.facebook_page_name ?? `Page ${workspace?.facebook_page_id}`}
+                          {workspace?.facebook_page_name ?? t('pageFallback', { id: workspace?.facebook_page_id ?? '' })}
                         </span>
                       </div>
                     ) : (
-                      <span style={{ fontSize: 12.5, color: "var(--ink-3)" }}>Non connecté</span>
+                      <span style={{ fontSize: 12.5, color: "var(--ink-3)" }}>{t('notConnected')}</span>
                     )}
                   </div>
                   <div style={{ flexShrink: 0 }}>
@@ -236,11 +235,11 @@ function ParametresContent() {
                         className="btn btn-ghost btn-sm"
                         style={{ color: "var(--warn)", borderColor: "rgba(200,115,43,.3)", opacity: disconnectingFb ? 0.5 : 1 }}
                       >
-                        <IconTrash /> {disconnectingFb ? "…" : "Déconnecter"}
+                        <IconTrash /> {disconnectingFb ? "…" : t('disconnect')}
                       </button>
                     ) : (
                       <a href={`/api/auth/facebook/connect?workspaceId=${id}`} className="btn btn-sm" style={{ background: "#1877F2", color: "#fff" }}>
-                        Connecter Facebook <IconArrow />
+                        {t('connectFacebook')} <IconArrow />
                       </a>
                     )}
                   </div>
@@ -248,25 +247,25 @@ function ParametresContent() {
               </div>
 
               <p style={{ fontSize: 12, color: "var(--ink-3)", marginTop: 10, lineHeight: 1.5 }}>
-                Instagram nécessite un compte Business. Facebook connecte votre Page (et l&apos;Instagram lié si présent).
+                {t('socialHint')}
               </p>
             </section>
 
             {/* ── Section: Informations ── */}
             <section>
               <div style={{ marginBottom: 16 }}>
-                <h2 className="h-title" style={{ fontSize: 16, marginBottom: 4 }}>Informations</h2>
+                <h2 className="h-title" style={{ fontSize: 16, marginBottom: 4 }}>{t('infoTitle')}</h2>
               </div>
               <div className="card" style={{ padding: "18px 20px", display: "flex", flexDirection: "column", gap: 16 }}>
                 <div>
-                  <div className="label" style={{ marginBottom: 6 }}>Nom du client</div>
+                  <div className="label" style={{ marginBottom: 6 }}>{t('clientNameLabel')}</div>
                   <div style={{ fontSize: 14, fontWeight: 600, color: "var(--ink)", padding: "10px 14px", background: "var(--sunk)", borderRadius: "var(--r-s)" }}>
                     {workspace?.name}
                   </div>
                 </div>
                 <div>
                   <Link href={`/workspace/${id}/style`} className="btn btn-primary btn-sm">
-                    Modifier le style visuel <IconArrow />
+                    {t('editVisualStyle')} <IconArrow />
                   </Link>
                 </div>
               </div>
@@ -275,16 +274,16 @@ function ParametresContent() {
             {/* ── Section: Aide & Tutoriel ── */}
             <section>
               <div style={{ marginBottom: 16 }}>
-                <h2 className="h-title" style={{ fontSize: 16, marginBottom: 4 }}>Aide &amp; Tutoriel</h2>
-                <p style={{ color: "var(--ink-2)", fontSize: 13 }}>Relancez le tutoriel de démarrage à tout moment.</p>
+                <h2 className="h-title" style={{ fontSize: 16, marginBottom: 4 }}>{t('helpTitle')}</h2>
+                <p style={{ color: "var(--ink-2)", fontSize: 13 }}>{t('helpSubtitle')}</p>
               </div>
               <div className="card" style={{ padding: "16px 18px", display: "flex", alignItems: "center", gap: 14 }}>
                 <span style={{ width: 44, height: 44, borderRadius: 12, flexShrink: 0, background: "var(--sunk)", display: "grid", placeItems: "center", color: "var(--ink-2)" }}>
                   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>
                 </span>
                 <div style={{ flex: 1 }}>
-                  <div style={{ fontWeight: 700, fontSize: 14, color: "var(--ink)", marginBottom: 2 }}>Tutoriel de démarrage</div>
-                  <div style={{ fontSize: 12.5, color: "var(--ink-3)" }}>Revoir les fonctionnalités principales de Klip.</div>
+                  <div style={{ fontWeight: 700, fontSize: 14, color: "var(--ink)", marginBottom: 2 }}>{t('tutorialTitle')}</div>
+                  <div style={{ fontSize: 12.5, color: "var(--ink-3)" }}>{t('tutorialDesc')}</div>
                 </div>
                 <button
                   className="btn btn-ghost btn-sm"
@@ -293,7 +292,7 @@ function ParametresContent() {
                     window.location.href = "/dashboard";
                   }}
                 >
-                  Revoir le tutoriel
+                  {t('reviewTutorial')}
                 </button>
               </div>
             </section>
@@ -302,19 +301,19 @@ function ParametresContent() {
             <section>
               <div className="card" style={{ padding: "18px 20px", borderColor: "rgba(200,115,43,.25)" }}>
                 <div style={{ marginBottom: 14 }}>
-                  <h2 className="h-title" style={{ fontSize: 15, marginBottom: 4, color: "var(--warn)" }}>Zone de danger</h2>
-                  <p style={{ fontSize: 13, color: "var(--ink-2)" }}>Ces actions sont irréversibles.</p>
+                  <h2 className="h-title" style={{ fontSize: 15, marginBottom: 4, color: "var(--warn)" }}>{t('dangerZone')}</h2>
+                  <p style={{ fontSize: 13, color: "var(--ink-2)" }}>{t('dangerDesc')}</p>
                 </div>
                 <button
                   className="btn btn-ghost btn-sm"
                   style={{ color: "var(--warn)", borderColor: "rgba(200,115,43,.3)" }}
                   onClick={async () => {
-                    if (!confirm(`Supprimer le workspace "${workspace?.name}" et tous ses posts ?`)) return;
+                    if (!confirm(t('confirmDelete', { name: workspace?.name ?? '' }))) return;
                     await supabase.from("workspaces").delete().eq("id", id);
                     window.location.href = "/dashboard";
                   }}
                 >
-                  <IconTrash /> Supprimer ce workspace
+                  <IconTrash /> {t('deleteWorkspace')}
                 </button>
               </div>
             </section>
@@ -327,12 +326,13 @@ function ParametresContent() {
 }
 
 export default function ParametresPage() {
+  const t = useTranslations('workspaceSettings');
   return (
     <div style={{ display: "flex", minHeight: "100vh", background: "var(--canvas)" }}>
       <Sidebar />
       <Suspense fallback={
         <div style={{ marginLeft: "var(--sb-w)", flex: 1, display: "flex", alignItems: "center", justifyContent: "center", color: "var(--ink-3)", fontSize: 14 }}>
-          Chargement…
+          {t('loading')}
         </div>
       }>
         <ParametresContent />

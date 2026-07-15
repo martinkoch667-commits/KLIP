@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { useTranslations, useLocale } from "next-intl";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
@@ -32,26 +33,17 @@ interface Workspace {
 
 // ─── Status config ────────────────────────────────────────────────────────────
 
-const STATUS_CONFIG: Record<PostStatus, { label: string; className: string }> = {
-  draft:     { label: "Brouillon",  className: "bg-[#F0F0F0] text-[#888]" },
-  generated: { label: "Généré",     className: "bg-blue-50 text-blue-600" },
-  validated: { label: "Validé",     className: "bg-acid text-black" },
-  published: { label: "Publié",     className: "bg-green-50 text-green-700" },
+const STATUS_CLASSNAMES: Record<PostStatus, string> = {
+  draft:     "bg-[#F0F0F0] text-[#888]",
+  generated: "bg-blue-50 text-blue-600",
+  validated: "bg-acid text-black",
+  published: "bg-green-50 text-green-700",
 };
 
-const FILTERS: { key: StatusFilter; label: string }[] = [
-  { key: "all",       label: "Tous" },
-  { key: "draft",     label: "Brouillon" },
-  { key: "generated", label: "Généré" },
-  { key: "validated", label: "Validé" },
-  { key: "published", label: "Publié" },
-];
-
-function StatusBadge({ status }: { status: PostStatus }) {
-  const config = STATUS_CONFIG[status] ?? STATUS_CONFIG.draft;
+function StatusBadge({ status, label }: { status: PostStatus; label: string }) {
   return (
-    <span className={`inline-flex items-center px-2 py-0.5 rounded text-[11px] font-inter font-bold ${config.className}`}>
-      {config.label}
+    <span className={`inline-flex items-center px-2 py-0.5 rounded text-[11px] font-inter font-bold ${STATUS_CLASSNAMES[status] ?? STATUS_CLASSNAMES.draft}`}>
+      {label}
     </span>
   );
 }
@@ -63,9 +55,22 @@ function getInitials(name: string) {
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function HistoriquePage() {
+  const t = useTranslations('workspaceHistory');
+  const locale = useLocale();
   const params = useParams();
   const id = params.id as string;
   const supabase = createClientComponentClient();
+
+  const STATUS_LABELS: Record<PostStatus, string> = {
+    draft: t('statusDraft'), generated: t('statusGenerated'), validated: t('statusValidated'), published: t('statusPublished'),
+  };
+  const FILTERS: { key: StatusFilter; label: string }[] = [
+    { key: "all", label: t('filterAll') },
+    { key: "draft", label: t('statusDraft') },
+    { key: "generated", label: t('statusGenerated') },
+    { key: "validated", label: t('statusValidated') },
+    { key: "published", label: t('statusPublished') },
+  ];
 
   const [workspace, setWorkspace] = useState<Workspace | null>(null);
   const [posts, setPosts] = useState<Post[]>([]);
@@ -126,10 +131,10 @@ export default function HistoriquePage() {
                   {workspace?.name ?? "…"}
                 </h1>
                 <span className="inline-flex items-center px-2 py-0.5 rounded bg-acid text-black text-xs font-inter font-bold">
-                  Actif
+                  {t('active')}
                 </span>
               </div>
-              <p className="text-xs font-inter text-[#888] mt-0.5">Workspace client</p>
+              <p className="text-xs font-inter text-[#888] mt-0.5">{t('subtitle')}</p>
             </div>
           </div>
           <div className="w-8 h-8 rounded-full bg-black flex items-center justify-center shrink-0">
@@ -143,10 +148,10 @@ export default function HistoriquePage() {
             href={`/workspace/${id}`}
             className="relative px-5 py-3.5 text-sm font-inter font-medium text-[#888] hover:text-black transition-colors"
           >
-            Produire
+            {t('navProduce')}
           </Link>
           <div className="relative px-5 py-3.5 text-sm font-inter font-medium text-black">
-            Historique
+            {t('navHistory')}
             <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-acid" />
           </div>
           <Link
@@ -154,7 +159,7 @@ export default function HistoriquePage() {
             className="relative px-5 py-3.5 text-sm font-inter font-medium text-[#888] hover:text-black transition-colors"
             onClick={(e) => { e.preventDefault(); window.location.href = `/workspace/${id}?tab=parametres`; }}
           >
-            Paramètres
+            {t('navSettings')}
           </Link>
         </div>
 
@@ -162,8 +167,8 @@ export default function HistoriquePage() {
           {/* Header */}
           <div className="flex items-center justify-between mb-6">
             <div>
-              <h2 className="font-syne font-extrabold text-xl text-black mb-1">Historique des posts</h2>
-              <p className="text-sm font-inter text-[#888]">{posts.length} post{posts.length !== 1 ? "s" : ""} au total</p>
+              <h2 className="font-syne font-extrabold text-xl text-black mb-1">{t('title')}</h2>
+              <p className="text-sm font-inter text-[#888]">{t('postsTotal', { count: posts.length })}</p>
             </div>
             <Link
               href={`/workspace/${id}`}
@@ -172,19 +177,18 @@ export default function HistoriquePage() {
               <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true">
                 <path d="M6 1v10M1 6h10" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>
               </svg>
-              Nouveau post
+              {t('newPost')}
             </Link>
           </div>
 
           {/* Stats strip */}
           <div className="grid grid-cols-4 gap-3 mb-6">
             {(["draft", "generated", "validated", "published"] as PostStatus[]).map((s) => {
-              const config = STATUS_CONFIG[s];
               const count = countByStatus(s);
               return (
                 <div key={s} className="bg-[#F5F5F5] border border-[#E0E0E0] rounded px-4 py-3">
                   <p className="font-syne font-extrabold text-2xl text-black leading-none mb-1">{count}</p>
-                  <p className="text-xs font-inter text-[#888]">{config.label}</p>
+                  <p className="text-xs font-inter text-[#888]">{STATUS_LABELS[s]}</p>
                 </div>
               );
             })}
@@ -222,11 +226,11 @@ export default function HistoriquePage() {
             </div>
           ) : filtered.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-20 text-center border border-dashed border-[#E0E0E0] rounded">
-              <p className="font-syne font-bold text-base text-black mb-2">Aucun post</p>
+              <p className="font-syne font-bold text-base text-black mb-2">{t('noPost')}</p>
               <p className="text-sm font-inter text-[#888]">
                 {filter === "all"
-                  ? "Commencez par uploader des photos dans l'onglet Produire."
-                  : `Aucun post avec le statut "${STATUS_CONFIG[filter as PostStatus]?.label}".`}
+                  ? t('emptyAll')
+                  : t('emptyFiltered', { status: STATUS_LABELS[filter as PostStatus] })}
               </p>
             </div>
           ) : (
@@ -259,9 +263,9 @@ export default function HistoriquePage() {
                   {/* Content */}
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-2">
-                      <StatusBadge status={post.status} />
+                      <StatusBadge status={post.status} label={STATUS_LABELS[post.status]} />
                       <span className="text-xs font-inter text-[#AAA]">
-                        {new Date(post.created_at).toLocaleDateString("fr-FR", {
+                        {new Date(post.created_at).toLocaleDateString(locale, {
                           day: "numeric",
                           month: "long",
                           year: "numeric",
@@ -271,7 +275,7 @@ export default function HistoriquePage() {
 
                     {post.brief && (
                       <p className="text-xs font-inter text-[#888] mb-2 line-clamp-1">
-                        <span className="font-medium text-[#555]">Brief :</span> {post.brief}
+                        <span className="font-medium text-[#555]">{t('briefLabel')}</span> {post.brief}
                       </p>
                     )}
 
@@ -280,7 +284,7 @@ export default function HistoriquePage() {
                         {post.description}
                       </p>
                     ) : (
-                      <p className="text-sm font-inter text-[#BBB] italic">Pas encore de description générée.</p>
+                      <p className="text-sm font-inter text-[#BBB] italic">{t('noDescriptionYet')}</p>
                     )}
                   </div>
 
@@ -294,7 +298,7 @@ export default function HistoriquePage() {
                         <path d="M2 8.5l1.2-1.2 5.6-5.6 1.2 1.2-5.6 5.6L2 8.5z" stroke="currentColor" strokeWidth="1" strokeLinejoin="round"/>
                         <path d="M7.6 1.7l1.2 1.2" stroke="currentColor" strokeWidth="1" strokeLinecap="round"/>
                       </svg>
-                      Éditer
+                      {t('edit')}
                     </Link>
                   </div>
                 </div>

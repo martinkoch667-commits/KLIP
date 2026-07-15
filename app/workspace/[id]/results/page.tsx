@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useTranslations, useLocale } from "next-intl";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
@@ -41,18 +42,17 @@ function getImageUrl(post: Post): string {
   return post.photo_url || "";
 }
 
-const STATUS_CFG: Record<string, { label: string; bg: string; color: string; dot: string }> = {
-  generated:  { label: "À valider",  bg: "var(--warn-soft)",  color: "var(--warn)",   dot: "var(--warn)" },
-  validated:  { label: "Validé",     bg: "var(--mint-soft)",  color: "var(--mint-2)", dot: "var(--mint-2)" },
-  published:  { label: "Publié",     bg: "var(--mint)",       color: "var(--mint-ink)", dot: "var(--mint-ink)" },
-};
-
-function StatusChip({ status }: { status: string }) {
-  const cfg = STATUS_CFG[status] ?? { label: status, bg: "var(--sunk)", color: "var(--ink-3)", dot: "var(--ink-3)" };
+function StatusChip({ status, label }: { status: string; label: string }) {
+  const cfg: Record<string, { bg: string; color: string; dot: string }> = {
+    generated:  { bg: "var(--warn-soft)",  color: "var(--warn)",   dot: "var(--warn)" },
+    validated:  { bg: "var(--mint-soft)",  color: "var(--mint-2)", dot: "var(--mint-2)" },
+    published:  { bg: "var(--mint)",       color: "var(--mint-ink)", dot: "var(--mint-ink)" },
+  };
+  const c = cfg[status] ?? { bg: "var(--sunk)", color: "var(--ink-3)", dot: "var(--ink-3)" };
   return (
-    <span className="badge" style={{ background: cfg.bg, color: cfg.color, display: "inline-flex", alignItems: "center", gap: 5 }}>
-      <span className="dot" style={{ background: cfg.dot }} />
-      {cfg.label}
+    <span className="badge" style={{ background: c.bg, color: c.color, display: "inline-flex", alignItems: "center", gap: 5 }}>
+      <span className="dot" style={{ background: c.dot }} />
+      {label}
     </span>
   );
 }
@@ -83,10 +83,16 @@ function IconPlus() {
 }
 
 export default function ResultsPage() {
+  const t = useTranslations('workspaceResults');
+  const locale = useLocale();
   const params = useParams();
   const id = params.id as string;
   const router = useRouter();
   const supabase = createClientComponentClient();
+
+  const STATUS_LABELS: Record<string, string> = {
+    generated: t('statusToValidate'), validated: t('statusValidated'), published: t('statusPublished'),
+  };
 
   const [posts, setPosts] = useState<Post[]>([]);
   const [workspace, setWorkspace] = useState<Workspace | null>(null);
@@ -133,7 +139,7 @@ export default function ResultsPage() {
 
   async function deletePost(post: Post) {
     setOpenMenuId(null);
-    if (!confirm("Supprimer ce post ? Cette action est irréversible.")) return;
+    if (!confirm(t('confirmDelete'))) return;
     await supabase.from("posts").delete().eq("id", post.id);
     setPosts((prev) => prev.filter((p) => p.id !== post.id));
   }
@@ -148,7 +154,7 @@ export default function ResultsPage() {
   // Group by date
   const grouped: Record<string, Post[]> = {};
   filteredPosts.forEach((p) => {
-    const date = p.created_at ? new Date(p.created_at).toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" }) : "Sans date";
+    const date = p.created_at ? new Date(p.created_at).toLocaleDateString(locale, { weekday: "long", day: "numeric", month: "long" }) : t('unplanned');
     (grouped[date] ||= []).push(p);
   });
 
@@ -176,15 +182,15 @@ export default function ResultsPage() {
                   onClick={() => router.back()}
                   style={{ background: "none", border: "none", cursor: "pointer", color: "var(--ink-3)", display: "flex", alignItems: "center", gap: 4, padding: 0, fontSize: 12, fontWeight: 600, fontFamily: "var(--sans)" }}
                 >
-                  Retour
+                  {t('back')}
                 </button>
                 <span style={{ color: "var(--line)" }}>·</span>
                 {workspace?.name}
               </div>
-              <h1 className="h-display" style={{ fontSize: 30 }}>File de publication</h1>
+              <h1 className="h-display" style={{ fontSize: 30 }}>{t('title')}</h1>
             </div>
             <Link href={`/workspace/${id}`} className="btn btn-primary btn-sm">
-              <IconPlus /> Nouveau post
+              <IconPlus /> {t('newPost')}
             </Link>
           </div>
 
@@ -195,24 +201,24 @@ export default function ResultsPage() {
             </span>
             <div style={{ flex: 1 }}>
               <div style={{ fontWeight: 700, fontSize: 14.5, display: "flex", alignItems: "center", gap: 8, color: "var(--cream)" }}>
-                {workspace?.name ?? "Compte"} connecté
+                {t('accountConnected', { name: workspace?.name ?? t('accountFallback') })}
                 <span className="badge" style={{ background: "var(--mint)", color: "var(--mint-ink)", display: "inline-flex", alignItems: "center", gap: 4 }}>
-                  <IconCheck /> Actif
+                  <IconCheck /> {t('active')}
                 </span>
               </div>
               <div style={{ fontSize: 12.5, color: "var(--cream-2)", marginTop: 2 }}>
-                Klip publie automatiquement au créneau planifié. Aucune action requise.
+                {t('autoPublishHint')}
               </div>
             </div>
             <Link href={`/workspace/${id}/parametres`} className="btn btn-sm" style={{ background: "rgba(244,243,236,0.12)", color: "var(--cream)", flexShrink: 0 }}>
-              <IconSettings /> Gérer
+              <IconSettings /> {t('manage')}
             </Link>
           </div>
 
           {/* Tabs */}
           <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 20 }}>
             <div className="seg">
-              {([["all", "Tout"], ["pending", "À valider"], ["scheduled", "Planifiés"]] as [string, string][]).map(([k, l]) => (
+              {([["all", t('tabAll')], ["pending", t('tabPending')], ["scheduled", t('tabScheduled')]] as [string, string][]).map(([k, l]) => (
                 <button key={k} className={tab === k ? "on" : ""} onClick={() => setTab(k as typeof tab)}>
                   {l} <span style={{ opacity: 0.55 }}>{counts[k as keyof typeof counts]}</span>
                 </button>
@@ -223,12 +229,12 @@ export default function ResultsPage() {
           {/* Content */}
           {loading ? (
             <div style={{ display: "flex", alignItems: "center", justifyContent: "center", padding: "80px 0", color: "var(--ink-3)" }}>
-              Chargement…
+              {t('loading')}
             </div>
           ) : filteredPosts.length === 0 ? (
             <div className="card" style={{ padding: 40, textAlign: "center", color: "var(--ink-3)" }}>
-              <p style={{ marginBottom: 20, fontSize: 14 }}>Aucun post dans cette file.</p>
-              <Link href={`/workspace/${id}`} className="btn btn-primary">Créer des posts</Link>
+              <p style={{ marginBottom: 20, fontSize: 14 }}>{t('emptyQueue')}</p>
+              <Link href={`/workspace/${id}`} className="btn btn-primary">{t('createPosts')}</Link>
             </div>
           ) : (
             <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
@@ -257,29 +263,29 @@ export default function ResultsPage() {
                           {/* Info */}
                           <div style={{ minWidth: 0, flex: 1 }}>
                             <div style={{ fontWeight: 700, fontSize: 14, lineHeight: 1.25, marginBottom: 4 }} className="trunc">
-                              {post.texte_visuel || "Post sans titre"}
+                              {post.texte_visuel || t('untitledPost')}
                             </div>
                             <div style={{ fontSize: 12.5, color: "var(--ink-2)", lineHeight: 1.3 }} className="trunc">
-                              {post.description || <span style={{ color: "var(--ink-3)" }}>Aucune description</span>}
+                              {post.description || <span style={{ color: "var(--ink-3)" }}>{t('noDescription')}</span>}
                             </div>
                           </div>
 
                           {/* Actions */}
                           <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
-                            <StatusChip status={validated[post.id] ? "validated" : post.status} />
+                            <StatusChip status={validated[post.id] ? "validated" : post.status} label={STATUS_LABELS[validated[post.id] ? "validated" : post.status] ?? post.status} />
                             <a href={`/workspace/${id}/editor/${post.id}`} className="btn btn-ghost btn-sm">
-                              <IconEdit /> Modifier
+                              <IconEdit /> {t('edit')}
                             </a>
                             {isPending && !validated[post.id] && (
                               <button className="btn btn-primary btn-sm" onClick={() => validatePost(post)}>
-                                <IconCheck /> Valider
+                                <IconCheck /> {t('validate')}
                               </button>
                             )}
                             <div style={{ position: "relative" }}>
                               <button
                                 className="btn btn-ghost btn-icon"
                                 onClick={(e) => { e.stopPropagation(); setOpenMenuId(openMenuId === post.id ? null : post.id); }}
-                                title="Actions"
+                                title={t('actions')}
                               >
                                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg>
                               </button>
@@ -294,7 +300,7 @@ export default function ResultsPage() {
                                       onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
                                     >
                                       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M4 7h16M9 7V4.5h6V7M6 7l1 13h10l1-13"/></svg>
-                                      Supprimer
+                                      {t('delete')}
                                     </button>
                                   </div>
                                 </>
