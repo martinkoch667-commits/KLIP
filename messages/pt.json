@@ -1525,5 +1525,57 @@
     "toastOverlayCopied": "Sobreposição copiada.",
     "toastClipCopied": "Plano copiado.",
     "toastCaptionsGenerated": "{count, plural, one {# legenda gerada.} other {# legendas geradas.}}"
+  },
+  "forgotPassword": {
+    "title": "Esqueceu a palavra-passe",
+    "sentMessage": "Se existir uma conta para {email}, vai receber um e-mail com um link para repor a sua palavra-passe. Não se esqueça de verificar o spam.",
+    "backToLogin": "← Voltar à sessão",
+    "subtitle": "Introduza o seu endereço de e-mail: vamos enviar-lhe um link para criar uma nova palavra-passe.",
+    "emailLabel": "E-mail",
+    "sending": "A enviar…",
+    "sendLink": "Enviar o link"
+  },
+  "resetPassword": {
+    "title": "Nova palavra-passe",
+    "checkingLink": "A verificar o link…",
+    "passwordUpdated": "Palavra-passe atualizada ✓ A redirecionar para o seu painel…",
+    "invalidLink": "Este link de reposição é inválido ou expirou. Peça um novo.",
+    "requestNewLink": "Pedir um novo link",
+    "subtitle": "Escolha uma nova palavra-passe para a sua conta.",
+    "newPasswordLabel": "Nova palavra-passe",
+    "confirmLabel": "Confirmar",
+    "updating": "A atualizar…",
+    "updateButton": "Atualizar a palavra-passe",
+    "errorTooShort": "A palavra-passe deve ter pelo menos 8 caracteres.",
+    "errorMismatch": "As duas palavras-passe não coincidem."
+  },
+  "subscription": {
+    "lastStep": "Último passo",
+    "titleActivate": "Ative o seu plano:",
+    "titleChoose": "Escolha o seu plano",
+    "titleStart": "para começar",
+    "subActivate": "Vamos levá-lo diretamente ao pagamento do plano escolhido no registo. Teste gratuito de 7 dias, sem compromisso, cancelável a qualquer momento — só é cobrado no final do teste.",
+    "subChoose": "Ative o seu teste gratuito de 7 dias — sem compromisso, cancelável a qualquer momento. Só é cobrado no final do teste.",
+    "yourChoice": "A sua escolha",
+    "perMonth": "/ mês",
+    "redirecting": "A redirecionar…",
+    "continueWithPlan": "Continuar com {plan} →",
+    "takeInstead": "Escolher {plan} em vez disso",
+    "choosePlan": "Escolher {plan}",
+    "secureNote": "🔒 Pagamento seguro via Stripe · Cartão necessário para ativar o teste · Sem cobrança antes do fim dos 7 dias.",
+    "logout": "Terminar sessão",
+    "stripeOffAlert": "O pagamento online chega muito em breve. Escreva-nos para martinkoch667@gmail.com para ativar já o seu plano.",
+    "genericError": "Ocorreu um erro. Tente novamente.",
+    "featSoloClients": "Até 3 clientes",
+    "featSoloEditor": "Editor visual completo",
+    "featSoloDescriptions": "Descrições de IA ilimitadas",
+    "featSoloPublish": "Publicação no Instagram e Facebook",
+    "featAgencyClients": "Até 10 clientes",
+    "featAgencyMembers": "Até 5 membros da equipa",
+    "featAgencyWorkflow": "Fluxo de validação do cliente",
+    "featAgencyRoles": "Funções Gestor e Criativo"
+  },
+  "checkoutSuccess": {
+    "activating": "A ativar a sua conta…"
   }
 }

@@ -1525,5 +1525,57 @@
     "toastOverlayCopied": "Overlay copied.",
     "toastClipCopied": "Clip copied.",
     "toastCaptionsGenerated": "{count, plural, one {# subtitle generated.} other {# subtitles generated.}}"
+  },
+  "forgotPassword": {
+    "title": "Forgot password",
+    "sentMessage": "If an account exists for {email}, you'll receive an email with a link to reset your password. Don't forget to check your spam folder.",
+    "backToLogin": "← Back to login",
+    "subtitle": "Enter your email address: we'll send you a link to create a new password.",
+    "emailLabel": "Email",
+    "sending": "Sending…",
+    "sendLink": "Send the link"
+  },
+  "resetPassword": {
+    "title": "New password",
+    "checkingLink": "Checking the link…",
+    "passwordUpdated": "Password updated ✓ Redirecting to your dashboard…",
+    "invalidLink": "This reset link is invalid or has expired. Request a new one.",
+    "requestNewLink": "Request a new link",
+    "subtitle": "Choose a new password for your account.",
+    "newPasswordLabel": "New password",
+    "confirmLabel": "Confirm",
+    "updating": "Updating…",
+    "updateButton": "Update password",
+    "errorTooShort": "The password must be at least 8 characters long.",
+    "errorMismatch": "The two passwords do not match."
+  },
+  "subscription": {
+    "lastStep": "Last step",
+    "titleActivate": "Activate your plan:",
+    "titleChoose": "Choose your plan",
+    "titleStart": "to get started",
+    "subActivate": "We'll take you straight to payment for the plan chosen at signup. Free 7-day trial, no commitment, cancel anytime — you're only charged at the end of the trial.",
+    "subChoose": "Activate your free 7-day trial — no commitment, cancel anytime. You're only charged at the end of the trial.",
+    "yourChoice": "Your choice",
+    "perMonth": "/ month",
+    "redirecting": "Redirecting…",
+    "continueWithPlan": "Continue with {plan} →",
+    "takeInstead": "Take {plan} instead",
+    "choosePlan": "Choose {plan}",
+    "secureNote": "🔒 Secure payment by Stripe · Card required to activate the trial · No charge before the 7 days end.",
+    "logout": "Log out",
+    "stripeOffAlert": "Online payment is coming very soon. Email us at martinkoch667@gmail.com to activate your plan right now.",
+    "genericError": "An error occurred. Please try again.",
+    "featSoloClients": "Up to 3 clients",
+    "featSoloEditor": "Full visual editor",
+    "featSoloDescriptions": "Unlimited AI descriptions",
+    "featSoloPublish": "Instagram & Facebook publishing",
+    "featAgencyClients": "Up to 10 clients",
+    "featAgencyMembers": "Up to 5 team members",
+    "featAgencyWorkflow": "Client approval workflow",
+    "featAgencyRoles": "Manager & Creative roles"
+  },
+  "checkoutSuccess": {
+    "activating": "Activating your account…"
   }
 }

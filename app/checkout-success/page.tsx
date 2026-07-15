@@ -1,9 +1,11 @@
 "use client";
 
 import { useEffect } from "react";
+import { useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
 
 export default function CheckoutSuccessPage() {
+  const t = useTranslations('checkoutSuccess');
   const router = useRouter();
 
   useEffect(() => {
@@ -22,7 +24,7 @@ export default function CheckoutSuccessPage() {
     <main style={{ minHeight: "100vh", display: "grid", placeItems: "center", background: "var(--canvas)", fontFamily: "var(--sans)" }}>
       <div style={{ textAlign: "center", color: "var(--ink-2)" }}>
         <div style={{ width: 40, height: 40, margin: "0 auto 16px", borderRadius: "50%", border: "3px solid rgba(47,215,155,.25)", borderTopColor: "#2FD79B", animation: "lp-spin .8s linear infinite" }} />
-        <p style={{ fontWeight: 700 }}>Activation de votre compte…</p>
+        <p style={{ fontWeight: 700 }}>{t('activating')}</p>
         <style>{`@keyframes lp-spin{to{transform:rotate(360deg)}}`}</style>
       </div>
     </main>

@@ -1525,5 +1525,57 @@
     "toastOverlayCopied": "Incrustation copiée.",
     "toastClipCopied": "Plan copié.",
     "toastCaptionsGenerated": "{count, plural, one {# sous-titre généré.} other {# sous-titres générés.}}"
+  },
+  "forgotPassword": {
+    "title": "Mot de passe oublié",
+    "sentMessage": "Si un compte existe pour {email}, vous allez recevoir un e-mail avec un lien pour réinitialiser votre mot de passe. Pensez à vérifier vos spams.",
+    "backToLogin": "← Retour à la connexion",
+    "subtitle": "Entrez votre adresse e-mail : nous vous enverrons un lien pour créer un nouveau mot de passe.",
+    "emailLabel": "Email",
+    "sending": "Envoi…",
+    "sendLink": "Envoyer le lien"
+  },
+  "resetPassword": {
+    "title": "Nouveau mot de passe",
+    "checkingLink": "Vérification du lien…",
+    "passwordUpdated": "Mot de passe mis à jour ✓ Redirection vers votre tableau de bord…",
+    "invalidLink": "Ce lien de réinitialisation est invalide ou a expiré. Redemandez-en un nouveau.",
+    "requestNewLink": "Redemander un lien",
+    "subtitle": "Choisissez un nouveau mot de passe pour votre compte.",
+    "newPasswordLabel": "Nouveau mot de passe",
+    "confirmLabel": "Confirmer",
+    "updating": "Mise à jour…",
+    "updateButton": "Mettre à jour le mot de passe",
+    "errorTooShort": "Le mot de passe doit faire au moins 8 caractères.",
+    "errorMismatch": "Les deux mots de passe ne correspondent pas."
+  },
+  "subscription": {
+    "lastStep": "Dernière étape",
+    "titleActivate": "Activez votre offre :",
+    "titleChoose": "Choisissez votre offre",
+    "titleStart": "pour démarrer",
+    "subActivate": "On vous emmène directement au paiement de l’offre choisie à l’inscription. Essai gratuit de 7 jours, sans engagement, résiliable à tout moment — vous n’êtes débité qu’à la fin de l’essai.",
+    "subChoose": "Activez votre essai gratuit de 7 jours — sans engagement, résiliable à tout moment. Vous n’êtes débité qu’à la fin de l’essai.",
+    "yourChoice": "Votre choix",
+    "perMonth": "/ mois",
+    "redirecting": "Redirection…",
+    "continueWithPlan": "Continuer avec {plan} →",
+    "takeInstead": "Prendre {plan} à la place",
+    "choosePlan": "Choisir {plan}",
+    "secureNote": "🔒 Paiement sécurisé par Stripe · Carte requise pour activer l’essai · Aucun débit avant la fin des 7 jours.",
+    "logout": "Se déconnecter",
+    "stripeOffAlert": "Le paiement en ligne arrive très bientôt. Écrivez-nous à martinkoch667@gmail.com pour activer votre offre dès maintenant.",
+    "genericError": "Une erreur est survenue. Réessayez.",
+    "featSoloClients": "Jusqu’à 3 clients",
+    "featSoloEditor": "Éditeur visuel complet",
+    "featSoloDescriptions": "Descriptions IA illimitées",
+    "featSoloPublish": "Publication Instagram & Facebook",
+    "featAgencyClients": "Jusqu’à 10 clients",
+    "featAgencyMembers": "Jusqu’à 5 membres d’équipe",
+    "featAgencyWorkflow": "Workflow de validation client",
+    "featAgencyRoles": "Rôles Manager & Créa"
+  },
+  "checkoutSuccess": {
+    "activating": "Activation de votre compte…"
   }
 }

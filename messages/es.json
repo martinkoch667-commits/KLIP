@@ -1525,5 +1525,57 @@
     "toastOverlayCopied": "Incrustación copiada.",
     "toastClipCopied": "Plano copiado.",
     "toastCaptionsGenerated": "{count, plural, one {# subtítulo generado.} other {# subtítulos generados.}}"
+  },
+  "forgotPassword": {
+    "title": "Contraseña olvidada",
+    "sentMessage": "Si existe una cuenta para {email}, recibirás un correo con un enlace para restablecer tu contraseña. Recuerda revisar tu carpeta de spam.",
+    "backToLogin": "← Volver al inicio de sesión",
+    "subtitle": "Introduce tu dirección de correo: te enviaremos un enlace para crear una nueva contraseña.",
+    "emailLabel": "Correo electrónico",
+    "sending": "Enviando…",
+    "sendLink": "Enviar el enlace"
+  },
+  "resetPassword": {
+    "title": "Nueva contraseña",
+    "checkingLink": "Comprobando el enlace…",
+    "passwordUpdated": "Contraseña actualizada ✓ Redirigiendo a tu panel…",
+    "invalidLink": "Este enlace de restablecimiento no es válido o ha caducado. Solicita uno nuevo.",
+    "requestNewLink": "Solicitar un nuevo enlace",
+    "subtitle": "Elige una nueva contraseña para tu cuenta.",
+    "newPasswordLabel": "Nueva contraseña",
+    "confirmLabel": "Confirmar",
+    "updating": "Actualizando…",
+    "updateButton": "Actualizar contraseña",
+    "errorTooShort": "La contraseña debe tener al menos 8 caracteres.",
+    "errorMismatch": "Las dos contraseñas no coinciden."
+  },
+  "subscription": {
+    "lastStep": "Último paso",
+    "titleActivate": "Activa tu plan:",
+    "titleChoose": "Elige tu plan",
+    "titleStart": "para empezar",
+    "subActivate": "Te llevamos directamente al pago del plan elegido al registrarte. Prueba gratuita de 7 días, sin compromiso, cancelable en cualquier momento — solo se te cobra al final de la prueba.",
+    "subChoose": "Activa tu prueba gratuita de 7 días — sin compromiso, cancelable en cualquier momento. Solo se te cobra al final de la prueba.",
+    "yourChoice": "Tu elección",
+    "perMonth": "/ mes",
+    "redirecting": "Redirigiendo…",
+    "continueWithPlan": "Continuar con {plan} →",
+    "takeInstead": "Elegir {plan} en su lugar",
+    "choosePlan": "Elegir {plan}",
+    "secureNote": "🔒 Pago seguro con Stripe · Se requiere tarjeta para activar la prueba · Sin cargos antes de que terminen los 7 días.",
+    "logout": "Cerrar sesión",
+    "stripeOffAlert": "El pago en línea llega muy pronto. Escríbenos a martinkoch667@gmail.com para activar tu plan ahora mismo.",
+    "genericError": "Se produjo un error. Inténtalo de nuevo.",
+    "featSoloClients": "Hasta 3 clientes",
+    "featSoloEditor": "Editor visual completo",
+    "featSoloDescriptions": "Descripciones con IA ilimitadas",
+    "featSoloPublish": "Publicación en Instagram y Facebook",
+    "featAgencyClients": "Hasta 10 clientes",
+    "featAgencyMembers": "Hasta 5 miembros del equipo",
+    "featAgencyWorkflow": "Flujo de validación del cliente",
+    "featAgencyRoles": "Roles Manager y Creativo"
+  },
+  "checkoutSuccess": {
+    "activating": "Activando tu cuenta…"
   }
 }

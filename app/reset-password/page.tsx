@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useTranslations } from "next-intl";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
@@ -25,6 +26,7 @@ const AUTH_CSS = `
 `;
 
 export default function ResetPasswordPage() {
+  const t = useTranslations('resetPassword');
   const supabase = createClientComponentClient();
   const router = useRouter();
   const [ready, setReady] = useState(false);
@@ -47,8 +49,8 @@ export default function ResetPasswordPage() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
-    if (password.length < 8) { setError("Le mot de passe doit faire au moins 8 caractères."); return; }
-    if (password !== confirm) { setError("Les deux mots de passe ne correspondent pas."); return; }
+    if (password.length < 8) { setError(t('errorTooShort')); return; }
+    if (password !== confirm) { setError(t('errorMismatch')); return; }
     setLoading(true);
     const { error } = await supabase.auth.updateUser({ password });
     if (error) {
@@ -68,38 +70,38 @@ export default function ResetPasswordPage() {
         <Link href="/" style={{ display: "block", textAlign: "center" }}>
           <img src="/logo-klip-dark.png" alt="Klip" className="auth-logo" />
         </Link>
-        <h1 className="auth-title">Nouveau mot de passe</h1>
+        <h1 className="auth-title">{t('title')}</h1>
 
         {!ready ? (
-          <p className="auth-sub">Vérification du lien…</p>
+          <p className="auth-sub">{t('checkingLink')}</p>
         ) : done ? (
-          <p className="auth-ok">Mot de passe mis à jour ✓ Redirection vers votre tableau de bord…</p>
+          <p className="auth-ok">{t('passwordUpdated')}</p>
         ) : !validSession ? (
           <>
             <p className="auth-sub">
-              Ce lien de réinitialisation est invalide ou a expiré. Redemandez-en un nouveau.
+              {t('invalidLink')}
             </p>
             <Link href="/mot-de-passe-oublie" className="auth-btn" style={{ display: "block", textAlign: "center", textDecoration: "none" }}>
-              Redemander un lien
+              {t('requestNewLink')}
             </Link>
           </>
         ) : (
           <>
-            <p className="auth-sub">Choisissez un nouveau mot de passe pour votre compte.</p>
+            <p className="auth-sub">{t('subtitle')}</p>
             <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: 18 }}>
               <div>
-                <label htmlFor="password" className="auth-label">Nouveau mot de passe</label>
+                <label htmlFor="password" className="auth-label">{t('newPasswordLabel')}</label>
                 <input id="password" type="password" required autoComplete="new-password" value={password}
                   onChange={e => setPassword(e.target.value)} placeholder="••••••••" className="auth-input" />
               </div>
               <div>
-                <label htmlFor="confirm" className="auth-label">Confirmer</label>
+                <label htmlFor="confirm" className="auth-label">{t('confirmLabel')}</label>
                 <input id="confirm" type="password" required autoComplete="new-password" value={confirm}
                   onChange={e => setConfirm(e.target.value)} placeholder="••••••••" className="auth-input" />
               </div>
               {error && <p className="auth-error">{error}</p>}
               <button type="submit" disabled={loading} className="auth-btn">
-                {loading ? "Mise à jour…" : "Mettre à jour le mot de passe"}
+                {loading ? t('updating') : t('updateButton')}
               </button>
             </form>
           </>

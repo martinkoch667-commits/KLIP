@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import Link from "next/link";
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
 
@@ -24,6 +25,7 @@ const AUTH_CSS = `
 `;
 
 export default function ForgotPasswordPage() {
+  const t = useTranslations('forgotPassword');
   const supabase = createClientComponentClient();
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
@@ -53,36 +55,35 @@ export default function ForgotPasswordPage() {
         <Link href="/" style={{ display: "block", textAlign: "center" }}>
           <img src="/logo-klip-dark.png" alt="Klip" className="auth-logo" />
         </Link>
-        <h1 className="auth-title">Mot de passe oublié</h1>
+        <h1 className="auth-title">{t('title')}</h1>
 
         {sent ? (
           <>
             <p className="auth-ok">
-              Si un compte existe pour <strong>{email}</strong>, vous allez recevoir un e-mail
-              avec un lien pour réinitialiser votre mot de passe. Pensez à vérifier vos spams.
+              {t('sentMessage', { email })}
             </p>
             <p className="auth-sub" style={{ marginTop: 20, marginBottom: 0 }}>
-              <Link href="/login" className="auth-link">← Retour à la connexion</Link>
+              <Link href="/login" className="auth-link">{t('backToLogin')}</Link>
             </p>
           </>
         ) : (
           <>
             <p className="auth-sub">
-              Entrez votre adresse e-mail : nous vous enverrons un lien pour créer un nouveau mot de passe.
+              {t('subtitle')}
             </p>
             <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: 18 }}>
               <div>
-                <label htmlFor="email" className="auth-label">Email</label>
+                <label htmlFor="email" className="auth-label">{t('emailLabel')}</label>
                 <input id="email" type="email" required autoComplete="email" value={email}
                   onChange={e => setEmail(e.target.value)} placeholder="vous@agence.com" className="auth-input" />
               </div>
               {error && <p className="auth-error">{error}</p>}
               <button type="submit" disabled={loading} className="auth-btn">
-                {loading ? "Envoi…" : "Envoyer le lien"}
+                {loading ? t('sending') : t('sendLink')}
               </button>
             </form>
             <p className="auth-sub" style={{ marginTop: 20, marginBottom: 0 }}>
-              <Link href="/login" className="auth-link">← Retour à la connexion</Link>
+              <Link href="/login" className="auth-link">{t('backToLogin')}</Link>
             </p>
           </>
         )}

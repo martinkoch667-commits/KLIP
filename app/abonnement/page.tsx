@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useTranslations } from "next-intl";
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
 import { useRouter } from "next/navigation";
 import { PLANS } from "@/lib/plans";
@@ -49,6 +50,7 @@ function Check() {
 }
 
 export default function AbonnementPage() {
+  const t = useTranslations('subscription');
   const supabase = createClientComponentClient();
   const router = useRouter();
   const [email, setEmail] = useState<string | null>(null);
@@ -92,20 +94,20 @@ export default function AbonnementPage() {
         return;
       }
       if (json.code === "STRIPE_OFF") {
-        alert("Le paiement en ligne arrive très bientôt. Écrivez-nous à martinkoch667@gmail.com pour activer votre offre dès maintenant.");
+        alert(t('stripeOffAlert'));
       } else {
-        alert(json.error || "Une erreur est survenue. Réessayez.");
+        alert(json.error || t('genericError'));
       }
     } catch {
-      alert("Une erreur est survenue. Réessayez.");
+      alert(t('genericError'));
     } finally {
       setBusy(null);
     }
   }
 
   const tiers = [
-    { p: PLANS.solo, pop: false, feats: ["Jusqu’à 3 clients", "Éditeur visuel complet", "Descriptions IA illimitées", "Publication Instagram & Facebook"] },
-    { p: PLANS.agency, pop: true, feats: ["Jusqu’à 10 clients", "Jusqu’à 5 membres d’équipe", "Workflow de validation client", "Rôles Manager & Créa"] },
+    { p: PLANS.solo, pop: false, feats: [t('featSoloClients'), t('featSoloEditor'), t('featSoloDescriptions'), t('featSoloPublish')] },
+    { p: PLANS.agency, pop: true, feats: [t('featAgencyClients'), t('featAgencyMembers'), t('featAgencyWorkflow'), t('featAgencyRoles')] },
   ];
 
   return (
@@ -114,11 +116,9 @@ export default function AbonnementPage() {
       <div className="ab-glow" />
       <img src="/logo-klip-mint.png" alt="Klip" className="ab-logo"
         onError={e => { const i = e.target as HTMLImageElement; i.src = "/logo-klip-dark.png"; i.style.filter = "invert(1) brightness(2)"; }} />
-      <span className="ab-badge">Dernière étape</span>
-      <h1 className="ab-title">{chosen ? "Activez votre offre :" : "Choisissez votre offre"}<br />{chosen ? PLANS[chosen].label : "pour démarrer"}</h1>
-      <p className="ab-sub">{chosen
-        ? "On vous emmène directement au paiement de l’offre choisie à l’inscription. Essai gratuit de 7 jours, sans engagement, résiliable à tout moment — vous n’êtes débité qu’à la fin de l’essai."
-        : "Activez votre essai gratuit de 7 jours — sans engagement, résiliable à tout moment. Vous n’êtes débité qu’à la fin de l’essai."}</p>
+      <span className="ab-badge">{t('lastStep')}</span>
+      <h1 className="ab-title">{chosen ? t('titleActivate') : t('titleChoose')}<br />{chosen ? PLANS[chosen].label : t('titleStart')}</h1>
+      <p className="ab-sub">{chosen ? t('subActivate') : t('subChoose')}</p>
 
       <div className="ab-grid">
         {tiers.map(({ p, pop, feats }) => {
@@ -126,21 +126,21 @@ export default function AbonnementPage() {
           const isOther  = chosen !== null && !isChosen;
           return (
             <div key={p.key} className={`ab-card${(isChosen || (pop && !chosen)) ? " pop" : ""}`}>
-              {isChosen && <span className="ab-choice">Votre choix</span>}
+              {isChosen && <span className="ab-choice">{t('yourChoice')}</span>}
               <div className="ab-name">{p.label}</div>
-              <div className="ab-price">{p.priceMonthly}€ <span>/ mois</span></div>
+              <div className="ab-price">{p.priceMonthly}€ <span>{t('perMonth')}</span></div>
               <div style={{ height: 1, background: "rgba(255,255,255,.1)", margin: "16px 0" }} />
               {feats.map(f => <div key={f} className="ab-li"><span className="ab-dot"><Check /></span>{f}</div>)}
               <button className={`ab-btn${isOther ? " ghost" : ""}`} onClick={() => choose(p.key)} disabled={busy !== null}>
-                {busy === p.key ? "Redirection…" : isChosen ? `Continuer avec ${p.label} →` : isOther ? `Prendre ${p.label} à la place` : `Choisir ${p.label}`}
+                {busy === p.key ? t('redirecting') : isChosen ? t('continueWithPlan', { plan: p.label }) : isOther ? t('takeInstead', { plan: p.label }) : t('choosePlan', { plan: p.label })}
               </button>
             </div>
           );
         })}
       </div>
 
-      <p className="ab-note">🔒 Paiement sécurisé par Stripe · Carte requise pour activer l’essai · Aucun débit avant la fin des 7 jours.</p>
-      <button className="ab-logout" onClick={logout}>Se déconnecter{email ? ` (${email})` : ""}</button>
+      <p className="ab-note">{t('secureNote')}</p>
+      <button className="ab-logout" onClick={logout}>{t('logout')}{email ? ` (${email})` : ""}</button>
     </div>
   );
 }

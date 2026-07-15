@@ -1525,5 +1525,57 @@
     "toastOverlayCopied": "Overlay kopiert.",
     "toastClipCopied": "Clip kopiert.",
     "toastCaptionsGenerated": "{count, plural, one {# Untertitel erstellt.} other {# Untertitel erstellt.}}"
+  },
+  "forgotPassword": {
+    "title": "Passwort vergessen",
+    "sentMessage": "Falls ein Konto für {email} existiert, erhältst du eine E-Mail mit einem Link zum Zurücksetzen deines Passworts. Prüfe auch deinen Spam-Ordner.",
+    "backToLogin": "← Zurück zur Anmeldung",
+    "subtitle": "Gib deine E-Mail-Adresse ein: Wir senden dir einen Link, um ein neues Passwort zu erstellen.",
+    "emailLabel": "E-Mail",
+    "sending": "Wird gesendet…",
+    "sendLink": "Link senden"
+  },
+  "resetPassword": {
+    "title": "Neues Passwort",
+    "checkingLink": "Link wird überprüft…",
+    "passwordUpdated": "Passwort aktualisiert ✓ Weiterleitung zu deinem Dashboard…",
+    "invalidLink": "Dieser Reset-Link ist ungültig oder abgelaufen. Fordere einen neuen an.",
+    "requestNewLink": "Neuen Link anfordern",
+    "subtitle": "Wähle ein neues Passwort für dein Konto.",
+    "newPasswordLabel": "Neues Passwort",
+    "confirmLabel": "Bestätigen",
+    "updating": "Wird aktualisiert…",
+    "updateButton": "Passwort aktualisieren",
+    "errorTooShort": "Das Passwort muss mindestens 8 Zeichen lang sein.",
+    "errorMismatch": "Die beiden Passwörter stimmen nicht überein."
+  },
+  "subscription": {
+    "lastStep": "Letzter Schritt",
+    "titleActivate": "Aktiviere deinen Plan:",
+    "titleChoose": "Wähle deinen Plan",
+    "titleStart": "um loszulegen",
+    "subActivate": "Wir bringen dich direkt zur Zahlung des bei der Anmeldung gewählten Plans. Kostenlose 7-tägige Testphase, ohne Vertragsbindung, jederzeit kündbar — du wirst erst am Ende der Testphase belastet.",
+    "subChoose": "Aktiviere deine kostenlose 7-tägige Testphase — ohne Vertragsbindung, jederzeit kündbar. Du wirst erst am Ende der Testphase belastet.",
+    "yourChoice": "Deine Wahl",
+    "perMonth": "/ Monat",
+    "redirecting": "Weiterleitung…",
+    "continueWithPlan": "Weiter mit {plan} →",
+    "takeInstead": "Stattdessen {plan} wählen",
+    "choosePlan": "{plan} wählen",
+    "secureNote": "🔒 Sichere Zahlung über Stripe · Karte zur Aktivierung der Testphase erforderlich · Keine Abbuchung vor Ablauf der 7 Tage.",
+    "logout": "Abmelden",
+    "stripeOffAlert": "Online-Zahlung kommt sehr bald. Schreib uns an martinkoch667@gmail.com, um deinen Plan sofort zu aktivieren.",
+    "genericError": "Ein Fehler ist aufgetreten. Bitte versuche es erneut.",
+    "featSoloClients": "Bis zu 3 Kunden",
+    "featSoloEditor": "Vollständiger visueller Editor",
+    "featSoloDescriptions": "Unbegrenzte KI-Beschreibungen",
+    "featSoloPublish": "Instagram- & Facebook-Veröffentlichung",
+    "featAgencyClients": "Bis zu 10 Kunden",
+    "featAgencyMembers": "Bis zu 5 Teammitglieder",
+    "featAgencyWorkflow": "Kunden-Freigabe-Workflow",
+    "featAgencyRoles": "Manager- & Kreativ-Rollen"
+  },
+  "checkoutSuccess": {
+    "activating": "Dein Konto wird aktiviert…"
   }
 }
