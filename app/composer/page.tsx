@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useTranslations } from "next-intl";
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -15,7 +16,7 @@ interface WsCard {
 }
 
 const WS_COLORS = ["#7B5CF5","#2FD79B","#C8732B","#5A86E8","#DD2A7B","#88B394","#E8A03A","#4A8DD4"];
-const TONES = ['Chic', 'Engagé', 'Fun', 'Pro', 'Poétique', 'Direct'];
+const TONE_KEYS = ['toneChic', 'toneEngaged', 'toneFun', 'tonePro', 'tonePoetic', 'toneDirect'] as const;
 
 function IcSpark() {
   return <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><path d="M12 3l1.6 5.4L19 10l-5.4 1.6L12 17l-1.6-5.4L5 10l5.4-1.6L12 3Z"/></svg>;
@@ -28,7 +29,8 @@ function IcCheck() {
 }
 
 function BatchSteps() {
-  const steps = [['Importer', true, false], ['Générer', false, false], ['Peaufiner', false, false]];
+  const t = useTranslations('composer');
+  const steps = [[t('stepImport'), true, false], [t('stepGenerate'), false, false], [t('stepRefine'), false, false]];
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 22 }}>
       {steps.map(([label, active], i) => (
@@ -50,12 +52,13 @@ function BatchSteps() {
 }
 
 export default function ComposerPage() {
+  const t = useTranslations('composer');
   const supabase = createClientComponentClient();
   const router = useRouter();
   const [workspaces, setWorkspaces] = useState<WsCard[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [tone, setTone] = useState('Chic');
+  const [tone, setTone] = useState<typeof TONE_KEYS[number]>('toneChic');
 
   useEffect(() => {
     (async () => {
@@ -95,9 +98,9 @@ export default function ComposerPage() {
       <Sidebar />
       <div className="work">
         <div className="topbar">
-          <h1 style={{ fontSize: 14, fontWeight: 800, margin: 0 }}>Composer avec l&apos;IA</h1>
+          <h1 style={{ fontSize: 14, fontWeight: 800, margin: 0 }}>{t('title')}</h1>
           <div style={{ marginLeft: "auto" }}>
-            <Link href="/workspace/new" className="btn btn-sm btn-ghost">+ Nouveau client</Link>
+            <Link href="/workspace/new" className="btn btn-sm btn-ghost">+ {t('newClient')}</Link>
           </div>
         </div>
 
@@ -112,12 +115,12 @@ export default function ComposerPage() {
               <div style={{ position: 'absolute', width: 280, height: 280, borderRadius: '50%', right: -60, top: -120, background: 'radial-gradient(circle, var(--mint), transparent 70%)', opacity: .5, filter: 'blur(20px)' }} />
               <div style={{ position: 'absolute', width: 200, height: 200, borderRadius: '50%', right: 160, bottom: -140, background: 'radial-gradient(circle, var(--acid), transparent 70%)', opacity: .35, filter: 'blur(20px)' }} />
               <div style={{ position: 'relative', zIndex: 2 }}>
-                <div className="label" style={{ color: 'var(--mint)', marginBottom: 10 }}>Création de contenu</div>
+                <div className="label" style={{ color: 'var(--mint)', marginBottom: 10 }}>{t('heroLabel')}</div>
                 <h1 className="h-display" style={{ fontSize: 38, color: 'var(--cream)', maxWidth: 600 }}>
-                  Vos photos. <span className="it" style={{ color: 'var(--mint)' }}>Des posts en quelques clics.</span>
+                  {t('heroTitlePre')} <span className="it" style={{ color: 'var(--mint)' }}>{t('heroTitleAccent')}</span>
                 </h1>
                 <p style={{ color: 'var(--cream-2)', marginTop: 10, maxWidth: 520, fontSize: 15 }}>
-                  Choisissez un client, sélectionnez la voix de marque, et laissez Klip générer les descriptions pour vous.
+                  {t('heroSubtitle')}
                 </p>
               </div>
             </div>
@@ -125,19 +128,19 @@ export default function ComposerPage() {
             <BatchSteps />
 
             {loading ? (
-              <div style={{ color: 'var(--ink-3)', fontSize: 13 }}>Chargement…</div>
+              <div style={{ color: 'var(--ink-3)', fontSize: 13 }}>{t('loading')}</div>
             ) : workspaces.length === 0 ? (
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', padding: '80px 20px', gap: 20 }}>
                 <div style={{ width: 76, height: 76, borderRadius: 22, background: 'var(--sunk)', display: 'grid', placeItems: 'center', color: 'var(--ink-3)' }}>
                   <IcUpload />
                 </div>
                 <div>
-                  <h2 className="h-display" style={{ fontSize: 24, marginBottom: 8 }}>Aucun client</h2>
+                  <h2 className="h-display" style={{ fontSize: 24, marginBottom: 8 }}>{t('emptyTitle')}</h2>
                   <p style={{ fontSize: 14, color: 'var(--ink-3)', maxWidth: 340, lineHeight: 1.6, margin: '0 auto' }}>
-                    Créez votre premier espace client pour commencer à générer du contenu avec l&apos;IA.
+                    {t('emptyText')}
                   </p>
                 </div>
-                <Link href="/workspace/new" className="btn btn-primary" style={{ textDecoration: 'none' }}>+ Nouveau client</Link>
+                <Link href="/workspace/new" className="btn btn-primary" style={{ textDecoration: 'none' }}>+ {t('newClient')}</Link>
               </div>
             ) : (
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 300px', gap: 18, alignItems: 'start' }} className="batch-import">
@@ -158,9 +161,9 @@ export default function ComposerPage() {
                       <IcUpload />
                     </span>
                     <div style={{ textAlign: 'center' }}>
-                      <div style={{ fontWeight: 700, fontSize: 16 }}>Ouvrir l&apos;éditeur</div>
+                      <div style={{ fontWeight: 700, fontSize: 16 }}>{t('openEditor')}</div>
                       <div style={{ fontSize: 13, color: 'var(--ink-3)', marginTop: 2 }}>
-                        {selectedId ? `Composer pour ${workspaces.find(w => w.id === selectedId)?.name}` : 'Sélectionnez un client ci-contre'}
+                        {selectedId ? t('composeFor', { name: workspaces.find(w => w.id === selectedId)?.name ?? '' }) : t('selectClientHint')}
                       </div>
                     </div>
                   </button>
@@ -170,7 +173,7 @@ export default function ComposerPage() {
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 16, position: 'sticky', top: 0 }}>
                   {/* Client picker */}
                   <div className="card" style={{ padding: 18 }}>
-                    <div className="label" style={{ marginBottom: 10 }}>Client</div>
+                    <div className="label" style={{ marginBottom: 10 }}>{t('clientLabel')}</div>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                       {workspaces.map((ws, i) => {
                         const color = ws.primary_color || WS_COLORS[i % WS_COLORS.length];
@@ -195,15 +198,15 @@ export default function ComposerPage() {
 
                   {/* Tone selector */}
                   <div className="card" style={{ padding: 18 }}>
-                    <div className="label" style={{ marginBottom: 10 }}>Voix de marque</div>
+                    <div className="label" style={{ marginBottom: 10 }}>{t('toneLabel')}</div>
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 7 }}>
-                      {TONES.map(t => (
-                        <button key={t} onClick={() => setTone(t)} style={{
+                      {TONE_KEYS.map(k => (
+                        <button key={k} onClick={() => setTone(k)} style={{
                           padding: 9, borderRadius: 9, fontWeight: 700, fontSize: 13, transition: 'all .14s', border: 'none', cursor: 'pointer',
-                          background: tone === t ? 'var(--ink)' : 'var(--white)',
-                          color: tone === t ? 'var(--paper)' : 'var(--ink-2)',
-                          boxShadow: tone === t ? 'none' : 'inset 0 0 0 1px var(--line)',
-                        }}>{t}</button>
+                          background: tone === k ? 'var(--ink)' : 'var(--white)',
+                          color: tone === k ? 'var(--paper)' : 'var(--ink-2)',
+                          boxShadow: tone === k ? 'none' : 'inset 0 0 0 1px var(--line)',
+                        }}>{t(k)}</button>
                       ))}
                     </div>
                   </div>
@@ -213,7 +216,7 @@ export default function ComposerPage() {
                     style={{ width: '100%', padding: '13px', fontSize: 14.5, opacity: selectedId ? 1 : .45, pointerEvents: selectedId ? 'auto' : 'none' }}
                     onClick={handleCompose}
                   >
-                    <IcSpark /> Composer avec l&apos;IA
+                    <IcSpark /> {t('composeButton')}
                   </button>
                 </div>
               </div>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useMemo } from "react";
+import { useTranslations, useLocale } from "next-intl";
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -30,7 +31,12 @@ interface Post {
 }
 
 const WS_COLORS = ["#7B5CF5","#2FD79B","#C8732B","#5A86E8","#DD2A7B","#88B394","#E8A03A","#4A8DD4"];
-const DOW = ["Lun","Mar","Mer","Jeu","Ven","Sam","Dim"];
+
+// Noms de jours localisés dérivés de la locale active (via Intl).
+function localizedDayNamesShort(locale: string): string[] {
+  const f = new Intl.DateTimeFormat(locale, { weekday: "short" });
+  return Array.from({ length: 7 }, (_, i) => { const s = f.format(new Date(2024, 0, 1 + i)); return s.charAt(0).toUpperCase() + s.slice(1); });
+}
 
 // ─── Icon component ───────────────────────────────────────────────────────────
 
@@ -93,11 +99,13 @@ function engageScore(iso: string | null): number {
   const h = new Date(iso).getHours();
   return BEST_HOURS[h] ?? 60;
 }
-const scoreTone = (s: number) => s >= 85
-  ? { fg: "var(--mint-2)", bg: "var(--mint-soft)", label: "Créneau idéal" }
-  : s >= 65
-  ? { fg: "var(--ink-2)", bg: "var(--sunk)", label: "Bon créneau" }
-  : { fg: "var(--warn)", bg: "var(--warn-soft)", label: "Créneau faible" };
+function scoreTone(s: number, t: (k: string) => string) {
+  return s >= 85
+    ? { fg: "var(--mint-2)", bg: "var(--mint-soft)", label: t('scoreIdeal') }
+    : s >= 65
+    ? { fg: "var(--ink-2)", bg: "var(--sunk)", label: t('scoreGood') }
+    : { fg: "var(--warn)", bg: "var(--warn-soft)", label: t('scoreWeak') };
+}
 
 // ─── Queue card ───────────────────────────────────────────────────────────────
 
@@ -110,23 +118,25 @@ function QueueCard({
   onEdit: () => void;
   approved: boolean;
 }) {
+  const t = useTranslations('feed');
+  const locale = useLocale();
   const rawImg = post.exported_image_url || post.thumbnail_url || post.photo_url;
   const thumb = rawImg ? `/api/proxy-image?url=${encodeURIComponent(rawImg)}` : null;
   const effectiveStatus = approved ? "scheduled" : post.status;
   const isPending = (post.status === "generated" || post.status === "validated") && !approved;
   const score = engageScore(post.scheduled_at);
-  const st = scoreTone(score);
+  const st = scoreTone(score, t);
 
   const statusColors: Record<string, { bg: string; fg: string; label: string }> = {
-    generated:  { bg: "var(--warn-soft)", fg: "var(--warn)",   label: "À valider" },
-    validated:  { bg: "var(--warn-soft)", fg: "var(--warn)",   label: "À valider" },
-    scheduled:  { bg: "var(--mint-soft)", fg: "var(--mint-2)", label: "Planifié" },
-    published:  { bg: "var(--mint)",      fg: "var(--mint-ink)", label: "Publié" },
+    generated:  { bg: "var(--warn-soft)", fg: "var(--warn)",   label: t('statusToValidate') },
+    validated:  { bg: "var(--warn-soft)", fg: "var(--warn)",   label: t('statusToValidate') },
+    scheduled:  { bg: "var(--mint-soft)", fg: "var(--mint-2)", label: t('statusScheduled') },
+    published:  { bg: "var(--mint)",      fg: "var(--mint-ink)", label: t('statusPublished') },
   };
   const sc = statusColors[effectiveStatus] ?? statusColors.generated;
 
   const timeLabel = post.scheduled_at
-    ? new Date(post.scheduled_at).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })
+    ? new Date(post.scheduled_at).toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit" })
     : "—";
 
   return (
@@ -156,7 +166,7 @@ function QueueCard({
           )}
         </div>
         <div style={{ fontWeight: 700, fontSize: 14, lineHeight: 1.25, marginBottom: 2 }} className="trunc">
-          {post.description?.slice(0, 60) || "(Aucune description)"}
+          {post.description?.slice(0, 60) || t('noDescription')}
         </div>
         {post.description && post.description.length > 60 && (
           <div style={{ fontSize: 12.5, color: "var(--ink-2)", lineHeight: 1.3 }} className="trunc">
@@ -168,9 +178,9 @@ function QueueCard({
       <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
         {isPending ? (
           <>
-            <button className="btn btn-sm btn-ghost" onClick={onEdit}>Voir</button>
+            <button className="btn btn-sm btn-ghost" onClick={onEdit}>{t('view')}</button>
             <button className="btn btn-sm btn-primary" onClick={onApprove} style={{ display: "flex", alignItems: "center", gap: 6 }}>
-              <Icon name="check" size={14} /> Valider
+              <Icon name="check" size={14} /> {t('validate')}
             </button>
           </>
         ) : (
@@ -178,7 +188,7 @@ function QueueCard({
             <span className="dot" style={{ background: sc.fg, opacity: 0.8 }} /> {sc.label}
           </span>
         )}
-        <button className="btn btn-ghost btn-icon" onClick={onEdit} title="Éditer" style={{ display: "grid", placeItems: "center" }}>
+        <button className="btn btn-ghost btn-icon" onClick={onEdit} title={t('edit')} style={{ display: "grid", placeItems: "center" }}>
           <Icon name="dots" size={16} />
         </button>
       </div>
@@ -189,6 +199,8 @@ function QueueCard({
 // ─── Main page ────────────────────────────────────────────────────────────────
 
 export default function FeedPage() {
+  const t = useTranslations('feed');
+  const locale = useLocale();
   const supabase = createClientComponentClient();
   const router = useRouter();
   const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
@@ -199,6 +211,8 @@ export default function FeedPage() {
   const [approved, setApproved] = useState<Record<string, boolean>>({});
   const [toast, setToast] = useState<string | null>(null);
   const { isAgency } = useAccountType();
+
+  const DOW = localizedDayNamesShort(locale);
 
   useEffect(() => {
     (async () => {
@@ -262,12 +276,12 @@ export default function FeedPage() {
       })
       .forEach(p => {
         const day = p.scheduled_at
-          ? new Date(p.scheduled_at).toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" })
-          : "Non planifié";
+          ? new Date(p.scheduled_at).toLocaleDateString(locale, { weekday: "long", day: "numeric", month: "long" })
+          : t('unplanned');
         (g[day] ||= []).push(p);
       });
     return g;
-  }, [filtered]);
+  }, [filtered, locale, t]);
 
   // Next scheduled post
   const next = scope.find(p => p.status === "scheduled" || approved[p.id]);
@@ -289,13 +303,13 @@ export default function FeedPage() {
       const mapped = d === 0 ? 6 : d - 1;
       return mapped === i;
     }).length),
-  [inQueue]);
+  [inQueue, DOW]);
   const maxLoad = Math.max(1, ...load);
 
   async function handleApprove(post: Post) {
     await supabase.from("posts").update({ status: "scheduled" }).eq("id", post.id);
     setApproved(a => ({ ...a, [post.id]: true }));
-    showToast(`Post validé et planifié`);
+    showToast(t('postValidatedToast'));
   }
 
   function handleEdit(post: Post) {
@@ -308,44 +322,44 @@ export default function FeedPage() {
       <div className="work">
         <div className="topbar" style={{ justifyContent: "space-between" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 14, minWidth: 0 }}>
-            <h1 className="feed-tb-title" style={{ fontSize: 14, fontWeight: 800, margin: 0 }}>File de publication</h1>
+            <h1 className="feed-tb-title" style={{ fontSize: 14, fontWeight: 800, margin: 0 }}>{t('title')}</h1>
             {filterWsId !== "all" && (
               <button onClick={() => setFilterWsId("all")} style={{ fontSize: 12, color: "var(--ink-3)", fontWeight: 600, background: "none", border: "none", cursor: "pointer" }}>
-                Tous les clients ×
+                {t('allClientsClear')}
               </button>
             )}
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
             <select value={filterWsId} onChange={e => setFilterWsId(e.target.value)}
               style={{ fontSize: 12, fontWeight: 600, border: "1px solid var(--line)", borderRadius: "var(--r-s)", padding: "5px 10px", background: "var(--sunk)", color: "var(--ink)", outline: "none" }}>
-              <option value="all">Tous les clients</option>
+              <option value="all">{t('allClients')}</option>
               {workspaces.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
             </select>
             <Link href="/composer" className="btn btn-primary btn-sm" style={{ textDecoration: "none", display: "flex", alignItems: "center", gap: 6 }}>
-              <Icon name="compose" size={15} /> Composer
+              <Icon name="compose" size={15} /> {t('compose')}
             </Link>
           </div>
         </div>
 
         <div className="scroll" style={{ padding: "28px 32px 60px" }}>
           {loading ? (
-            <div style={{ textAlign: "center", padding: "80px 0", color: "var(--ink-3)" }}>Chargement…</div>
+            <div style={{ textAlign: "center", padding: "80px 0", color: "var(--ink-3)" }}>{t('loading')}</div>
           ) : (
             <>
               {/* Header */}
               <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", gap: 20, marginBottom: 20, flexWrap: "wrap" }}>
                 <div>
-                  <div className="label" style={{ marginBottom: 8 }}>Publication automatique active</div>
-                  <h1 className="h-display" style={{ fontSize: 30, margin: 0 }}>File de publication</h1>
+                  <div className="label" style={{ marginBottom: 8 }}>{t('autoPublishActive')}</div>
+                  <h1 className="h-display" style={{ fontSize: 30, margin: 0 }}>{t('title')}</h1>
                 </div>
               </div>
 
               {/* Stat tiles */}
               <div className="feed-stats-grid" style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 12, marginBottom: 20 }}>
-                <QStatTile value={counts.all} label="Dans la file" icon="send" />
-                <QStatTile value={counts.pending} label="À valider" icon="clock" tone="warn" />
-                <QStatTile value={counts.scheduled} label="Planifiés" icon="calendar" tone="mint" />
-                <QStatTile value={counts.published} label="Publiés" icon="check" />
+                <QStatTile value={counts.all} label={t('statInQueue')} icon="send" />
+                <QStatTile value={counts.pending} label={t('statPending')} icon="clock" tone="warn" />
+                <QStatTile value={counts.scheduled} label={t('statScheduled')} icon="calendar" tone="mint" />
+                <QStatTile value={counts.published} label={t('statPublished')} icon="check" />
               </div>
 
               <div className="feed-rail-layout" style={{ display: "grid", gridTemplateColumns: "1fr 320px", gap: 20, alignItems: "start" }}>
@@ -362,30 +376,30 @@ export default function FeedPage() {
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ fontWeight: 700, fontSize: 14, display: "flex", alignItems: "center", gap: 8 }}>
                         {connectedCount > 0
-                          ? `${connectedCount} compte${connectedCount > 1 ? "s" : ""} Instagram connecté${connectedCount > 1 ? "s" : ""}`
-                          : "Aucun compte Instagram connecté"}
+                          ? t('igConnectedCount', { count: connectedCount })
+                          : t('igNoneConnected')}
                         {connectedCount > 0 && (
                           <span className="badge" style={{ background: "var(--mint)", color: "var(--mint-ink)", display: "flex", alignItems: "center", gap: 4 }}>
-                            <Icon name="check" size={11} /> Actif
+                            <Icon name="check" size={11} /> {t('active')}
                           </span>
                         )}
                       </div>
                       <div style={{ fontSize: 12.5, color: "var(--cream-2)", marginTop: 2 }}>
                         {connectedCount > 0
-                          ? "Klip publie automatiquement au créneau planifié. Aucune action requise."
-                          : "Connectez un compte Instagram dans les réglages pour activer la publication automatique."}
+                          ? t('igAutoPublishHint')
+                          : t('igConnectHint')}
                       </div>
                     </div>
                     <Link href="/settings" className="btn btn-sm" style={{ background: "var(--cream-4)", color: "var(--cream)", textDecoration: "none", display: "flex", alignItems: "center", gap: 6, boxShadow: "inset 0 0 0 1px var(--cream-3)" }}>
-                      <Icon name="settings" size={14} /> Gérer
+                      <Icon name="settings" size={14} /> {t('manage')}
                     </Link>
                   </div>
 
                   {/* Tabs */}
                   <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16 }}>
                     <div className="seg">
-                      {([["all","Tout"], ["pending","À valider"], ["scheduled","Planifiés"]] as const).map(([k, l]) => (
-                        <button key={k} className={tab === k ? "on" : ""} onClick={() => setTab(k)}>
+                      {([["all", t('tabAll')], ["pending", t('tabPending')], ["scheduled", t('tabScheduled')]] as const).map(([k, l]) => (
+                        <button key={k} className={tab === k ? "on" : ""} onClick={() => setTab(k as "all" | "pending" | "scheduled")}>
                           {l} <span style={{ opacity: 0.55 }}>{k === "all" ? counts.all : k === "pending" ? counts.pending : counts.scheduled}</span>
                         </button>
                       ))}
@@ -395,7 +409,7 @@ export default function FeedPage() {
                   {/* Grouped list */}
                   {Object.keys(grouped).length === 0 ? (
                     <div className="card" style={{ padding: 40, textAlign: "center", color: "var(--ink-3)", fontSize: 14 }}>
-                      Rien dans cette file. ✦
+                      {t('emptyQueue')}
                     </div>
                   ) : (
                     <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
@@ -404,14 +418,14 @@ export default function FeedPage() {
                           <div className="label" style={{ marginBottom: 10, display: "flex", alignItems: "center", gap: 8 }}>
                             <Icon name="calendar" size={13} />
                             <span style={{ textTransform: "capitalize" }}>{day}</span>
-                            <span style={{ color: "var(--ink-3)", fontWeight: 700 }}>· {dayPosts.length} post{dayPosts.length > 1 ? "s" : ""}</span>
+                            <span style={{ color: "var(--ink-3)", fontWeight: 700 }}>· {t('postsCount', { count: dayPosts.length })}</span>
                           </div>
                           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                             {dayPosts.map(p => (
                               <QueueCard
                                 key={p.id}
                                 post={p}
-                                ws={wsMap[p.workspace_id] ?? { name: "Client", color: "#888", initials: "CL" }}
+                                ws={wsMap[p.workspace_id] ?? { name: t('clientFallback'), color: "#888", initials: "CL" }}
                                 approved={!!approved[p.id]}
                                 onApprove={() => handleApprove(p)}
                                 onEdit={() => handleEdit(p)}
@@ -430,7 +444,7 @@ export default function FeedPage() {
                   {next && wsMap[next.workspace_id] && (
                     <div className="card" style={{ overflow: "hidden" }}>
                       <div className="label" style={{ padding: "14px 16px 0", display: "flex", alignItems: "center", gap: 7 }}>
-                        <span className="dot" style={{ background: "var(--mint-2)" }} /> Prochaine publication
+                        <span className="dot" style={{ background: "var(--mint-2)" }} /> {t('nextPublish')}
                       </div>
                       <div style={{ display: "flex", gap: 12, padding: "12px 16px 16px" }}>
                         <button onClick={() => handleEdit(next)} style={{ width: 58, height: 72, borderRadius: 10, background: "var(--sunk)", flexShrink: 0, cursor: "pointer", border: "none", overflow: "hidden", position: "relative" }}>
@@ -440,7 +454,7 @@ export default function FeedPage() {
                         </button>
                         <div style={{ minWidth: 0, flex: 1 }}>
                           <div style={{ fontWeight: 700, fontSize: 13.5, lineHeight: 1.25, marginBottom: 4 }} className="trunc">
-                            {next.description?.slice(0, 50) || "(Post)"}
+                            {next.description?.slice(0, 50) || t('postFallback')}
                           </div>
                           <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 4 }}>
                             <Avatar initials={wsMap[next.workspace_id].initials} color={wsMap[next.workspace_id].color} size={16} />
@@ -448,7 +462,7 @@ export default function FeedPage() {
                           </div>
                           {next.scheduled_at && (
                             <div className="chip" style={{ marginTop: 8, background: "var(--mint-soft)", color: "var(--mint-2)", fontSize: 11, display: "inline-flex", alignItems: "center", gap: 4 }}>
-                              <Icon name="clock" size={11} /> {new Date(next.scheduled_at).toLocaleDateString("fr-FR", { weekday: "short", day: "numeric", month: "short" })} · {new Date(next.scheduled_at).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}
+                              <Icon name="clock" size={11} /> {new Date(next.scheduled_at).toLocaleDateString(locale, { weekday: "short", day: "numeric", month: "short" })} · {new Date(next.scheduled_at).toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit" })}
                             </div>
                           )}
                         </div>
@@ -458,12 +472,12 @@ export default function FeedPage() {
 
                   {/* Auto-publish status */}
                   <div className="card" style={{ padding: 16 }}>
-                    <h3 className="h-title" style={{ fontSize: 14, marginBottom: 12 }}>Publication automatique</h3>
+                    <h3 className="h-title" style={{ fontSize: 14, marginBottom: 12 }}>{t('autoPublishTitle')}</h3>
                     <div style={{ display: "flex", flexDirection: "column", gap: 11 }}>
                       {[
-                        ["Comptes connectés", `${connectedCount}`, "instagram"],
-                        ["Posts planifiés", `${counts.scheduled}`, "bolt"],
-                        ["Échecs de publication", "0", "check"],
+                        [t('connectedAccounts'), `${connectedCount}`, "instagram"],
+                        [t('scheduledPosts'), `${counts.scheduled}`, "bolt"],
+                        [t('publishFailures'), "0", "check"],
                       ].map(([l, v, ic]) => (
                         <div key={l} style={{ display: "flex", alignItems: "center", gap: 10 }}>
                           <span style={{ width: 26, height: 26, borderRadius: 8, background: "var(--sunk)", color: "var(--ink-2)", display: "grid", placeItems: "center", flexShrink: 0 }}>
@@ -479,7 +493,7 @@ export default function FeedPage() {
                   {/* Per-client breakdown */}
                   {byClient.length > 0 && (
                     <div className="card" style={{ padding: 16 }}>
-                      <h3 className="h-title" style={{ fontSize: 14, marginBottom: 12 }}>Par client</h3>
+                      <h3 className="h-title" style={{ fontSize: 14, marginBottom: 12 }}>{t('byClient')}</h3>
                       <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
                         {byClient.map(({ w, n, pend }) => (
                           <div key={w.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "6px 0" }}>
@@ -499,7 +513,7 @@ export default function FeedPage() {
 
                   {/* Week load chart */}
                   <div className="card" style={{ padding: 16 }}>
-                    <h3 className="h-title" style={{ fontSize: 14, marginBottom: 14 }}>Charge de la semaine</h3>
+                    <h3 className="h-title" style={{ fontSize: 14, marginBottom: 14 }}>{t('weekLoad')}</h3>
                     <div style={{ display: "flex", alignItems: "flex-end", gap: 6, height: 70 }}>
                       {DOW.map((d, i) => (
                         <div key={d} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}>

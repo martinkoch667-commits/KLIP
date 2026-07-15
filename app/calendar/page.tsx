@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useTranslations, useLocale } from "next-intl";
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -19,10 +20,18 @@ interface Post {
 }
 
 const WS_COLORS = ["#7B5CF5","#2FD79B","#C8732B","#5A86E8","#DD2A7B","#88B394","#E8A03A","#4A8DD4"];
-const MONTH_NAMES = ["Janvier","Février","Mars","Avril","Mai","Juin","Juillet","Août","Septembre","Octobre","Novembre","Décembre"];
-const DAY_NAMES   = ["Lun","Mar","Mer","Jeu","Ven","Sam","Dim"];
 const POST_TYPE_COLOR: Record<string, string> = { post:"#4F8EF7", reel:"#A259FF", story:"#FF6B35" };
-const POST_TYPE_LABEL: Record<string, string> = { post:"Post", reel:"Reel", story:"Story" };
+
+// Noms de mois / jours localisés dérivés de la locale active (via Intl) — évite
+// de maintenir des tableaux traduits à la main pour les dates.
+function localizedMonthNames(locale: string): string[] {
+  const f = new Intl.DateTimeFormat(locale, { month: "long" });
+  return Array.from({ length: 12 }, (_, m) => { const s = f.format(new Date(2021, m, 1)); return s.charAt(0).toUpperCase() + s.slice(1); });
+}
+function localizedDayNamesShort(locale: string): string[] {
+  const f = new Intl.DateTimeFormat(locale, { weekday: "short" });
+  return Array.from({ length: 7 }, (_, i) => { const s = f.format(new Date(2024, 0, 1 + i)); return s.charAt(0).toUpperCase() + s.slice(1); });
+}
 
 function startOfWeek(d: Date) {
   const dt = new Date(d);
@@ -36,6 +45,8 @@ function toYMD(d: Date) {
 }
 
 export default function CalendarPage() {
+  const t = useTranslations('calendar');
+  const locale = useLocale();
   const supabase = createClientComponentClient();
   const router = useRouter();
   const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
@@ -44,6 +55,10 @@ export default function CalendarPage() {
   const [calView, setCalView] = useState<"week"|"month">("week");
   const [weekStart, setWeekStart] = useState(() => startOfWeek(new Date()));
   const [monthDate, setMonthDate] = useState(() => { const d = new Date(); d.setDate(1); return d; });
+
+  const MONTH_NAMES = localizedMonthNames(locale);
+  const DAY_NAMES = localizedDayNamesShort(locale);
+  const POST_TYPE_LABEL: Record<string, string> = { post: t('typePost'), reel: t('typeReel'), story: t('typeStory') };
 
   useEffect(() => {
     (async () => {
@@ -91,7 +106,7 @@ export default function CalendarPage() {
     const rawImg = p.exported_image_url || p.photo_url;
     const thumb = rawImg ? `/api/proxy-image?url=${encodeURIComponent(rawImg)}` : null;
     const pt = p.post_type ?? "post";
-    const time = p.scheduled_at ? new Date(p.scheduled_at).toLocaleTimeString("fr-FR", { hour:"2-digit", minute:"2-digit" }) : null;
+    const time = p.scheduled_at ? new Date(p.scheduled_at).toLocaleTimeString(locale, { hour:"2-digit", minute:"2-digit" }) : null;
 
     return (
       <Link href={`/workspace/${p.workspace_id}/editor/${p.id}`}
@@ -101,7 +116,7 @@ export default function CalendarPage() {
         )}
         <div style={{ minWidth:0, flex:1 }}>
           <div style={{ display:"flex", alignItems:"center", gap:4, flexWrap:"wrap" }}>
-            <span style={{ fontSize:9, fontWeight:800, color:"#fff", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", maxWidth:compact?60:90 }}>{ws?.name ?? "Client"}</span>
+            <span style={{ fontSize:9, fontWeight:800, color:"#fff", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", maxWidth:compact?60:90 }}>{ws?.name ?? t('clientFallback')}</span>
             <span style={{ fontSize:8, fontWeight:700, color:"rgba(255,255,255,.75)", background:"rgba(0,0,0,.18)", borderRadius:3, padding:"1px 4px", flexShrink:0 }}>
               {POST_TYPE_LABEL[pt] ?? pt}
             </span>
@@ -120,10 +135,10 @@ export default function CalendarPage() {
       <div className="work">
         <div className="topbar" style={{ justifyContent:"space-between" }}>
           <div style={{ display:"flex", alignItems:"center", gap:16 }}>
-            <h1 style={{ fontSize:14, fontWeight:800, margin:0 }}>Calendrier</h1>
+            <h1 style={{ fontSize:14, fontWeight:800, margin:0 }}>{t('title')}</h1>
             <select value={filterWsId} onChange={e => setFilterWsId(e.target.value)}
               style={{ fontSize:12, fontWeight:600, border:"1px solid var(--line)", borderRadius:"var(--r-s)", padding:"5px 10px", background:"var(--sunk)", color:"var(--ink)", outline:"none" }}>
-              <option value="all">Tous les clients</option>
+              <option value="all">{t('allClients')}</option>
               {workspaces.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
             </select>
           </div>
@@ -131,7 +146,7 @@ export default function CalendarPage() {
             <div className="seg">
               {(["week","month"] as const).map(v => (
                 <button key={v} onClick={() => setCalView(v)} className={calView===v?"on":""}>
-                  {v==="week" ? "Semaine" : "Mois"}
+                  {v==="week" ? t('week') : t('month')}
                 </button>
               ))}
             </div>
@@ -147,7 +162,7 @@ export default function CalendarPage() {
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 6l6 6-6 6"/></svg>
             </button>
             <button onClick={() => { setWeekStart(startOfWeek(new Date())); setMonthDate(new Date(new Date().getFullYear(),new Date().getMonth(),1)); }}
-              className="btn btn-ghost btn-sm">Aujourd&apos;hui</button>
+              className="btn btn-ghost btn-sm">{t('today')}</button>
           </div>
         </div>
 
@@ -158,7 +173,7 @@ export default function CalendarPage() {
               <rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/>
             </svg>
             <span style={{ fontSize:13, fontWeight:700, color:"var(--ink-2)" }}>
-              {posts.length} post{posts.length !== 1 ? "s" : ""} ce mois
+              {t('postsThisMonth', { count: posts.length })}
             </span>
           </div>
         </div>
@@ -172,10 +187,10 @@ export default function CalendarPage() {
                 </svg>
               </div>
               <div style={{ flex:1 }}>
-                <h2 style={{ fontFamily:"var(--display)", fontWeight:800, fontSize:18, color:"var(--ink)", marginBottom:4, letterSpacing:"-.01em" }}>Aucun post planifié</h2>
-                <p style={{ fontSize:13, color:"var(--ink-3)", lineHeight:1.5 }}>Commencez à planifier votre contenu. Vos posts apparaîtront sur le calendrier une fois une date attribuée.</p>
+                <h2 style={{ fontFamily:"var(--display)", fontWeight:800, fontSize:18, color:"var(--ink)", marginBottom:4, letterSpacing:"-.01em" }}>{t('emptyTitle')}</h2>
+                <p style={{ fontSize:13, color:"var(--ink-3)", lineHeight:1.5 }}>{t('emptyText')}</p>
               </div>
-              <Link href="/composer" className="btn btn-primary" style={{ textDecoration:"none", flexShrink:0 }}>Créer un post</Link>
+              <Link href="/composer" className="btn btn-primary" style={{ textDecoration:"none", flexShrink:0 }}>{t('createPost')}</Link>
             </div>
           )}
           <div className="cal-outer" style={{ padding:"24px 28px" }}>
