@@ -9,7 +9,12 @@ function formatDate(iso: string, locale: string) {
   return new Date(iso).toLocaleDateString(locale, { day: "numeric", month: "long", year: "numeric" });
 }
 
-export default function BlogIndexView({ posts }: { posts: Post[] }) {
+// `Body` est un composant (une fonction) : ne peut pas transiter dans les
+// props d'un Client Component (Next.js le sérialise et plante au build).
+// Le Server Component parent ne passe donc que les champs texte du post.
+type PostMeta = Omit<Post, "Body">;
+
+export default function BlogIndexView({ posts }: { posts: PostMeta[] }) {
   const t = useTranslations('blog');
   const locale = useLocale();
   return (

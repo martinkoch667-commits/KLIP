@@ -10,5 +10,6 @@ export const metadata: Metadata = {
 };
 
 export default function BlogIndex() {
-  return <BlogIndexView posts={POSTS} />;
+  const posts = POSTS.map(({ Body, ...meta }) => meta);
+  return <BlogIndexView posts={posts} />;
 }

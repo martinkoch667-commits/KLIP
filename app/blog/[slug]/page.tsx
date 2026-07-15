@@ -49,7 +49,9 @@ export default function BlogArticle({ params }: { params: { slug: string } }) {
   return (
     <>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(articleLd) }} />
-      <BlogArticleView post={post} />
+      <BlogArticleView post={{ slug: post.slug, title: post.title, description: post.description, date: post.date, readMinutes: post.readMinutes }}>
+        <post.Body />
+      </BlogArticleView>
     </>
   );
 }

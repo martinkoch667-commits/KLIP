@@ -9,7 +9,14 @@ function formatDate(iso: string, locale: string) {
   return new Date(iso).toLocaleDateString(locale, { day: "numeric", month: "long", year: "numeric" });
 }
 
-export default function BlogArticleView({ post }: { post: Post }) {
+// `post.Body` est un composant (une fonction) : impossible de le faire
+// transiter dans les props d'un Client Component (Next.js le sérialise et
+// plante au build). Le Server Component parent le rend lui-même et nous le
+// passe ici en tant que `children` (un React node, lui, se sérialise sans
+// problème), pendant qu'on ne reçoit que les champs texte du post.
+type ArticleMeta = Omit<Post, "Body">;
+
+export default function BlogArticleView({ post, children }: { post: ArticleMeta; children: React.ReactNode }) {
   const t = useTranslations('blog');
   const locale = useLocale();
   return (
@@ -22,7 +29,7 @@ export default function BlogArticleView({ post }: { post: Post }) {
             {formatDate(post.date, locale)} · {t('minReadLong', { min: post.readMinutes })}
           </p>
           <div style={{ marginTop: 36 }}>
-            <post.Body />
+            {children}
           </div>
         </div>
       </article>
