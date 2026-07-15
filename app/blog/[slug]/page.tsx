@@ -1,8 +1,7 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { notFound } from "next/navigation";
-import { BlogShell } from "../chrome";
 import { POSTS, getPost } from "../posts";
+import BlogArticleView from "./article-view";
 
 const SITE = "https://getklip.fr";
 
@@ -32,10 +31,6 @@ export function generateMetadata({ params }: { params: { slug: string } }): Meta
   };
 }
 
-function formatDate(iso: string) {
-  return new Date(iso).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" });
-}
-
 export default function BlogArticle({ params }: { params: { slug: string } }) {
   const post = getPost(params.slug);
   if (!post) notFound();
@@ -52,20 +47,9 @@ export default function BlogArticle({ params }: { params: { slug: string } }) {
   };
 
   return (
-    <BlogShell>
+    <>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(articleLd) }} />
-      <article className="section" style={{ paddingBottom: 40 }}>
-        <div className="wrap" style={{ maxWidth: 720 }}>
-          <Link href="/blog" style={{ fontFamily: "var(--mono)", fontSize: 13.5, fontWeight: 700, color: "var(--ink-2)" }}>← Blog</Link>
-          <h1 className="display" style={{ fontSize: "clamp(32px, 5vw, 56px)", marginTop: 22 }}>{post.title}</h1>
-          <p style={{ fontFamily: "var(--mono)", fontSize: 13, color: "var(--ink-3)", marginTop: 16 }}>
-            {formatDate(post.date)} · {post.readMinutes} min de lecture
-          </p>
-          <div style={{ marginTop: 36 }}>
-            <post.Body />
-          </div>
-        </div>
-      </article>
-    </BlogShell>
+      <BlogArticleView post={post} />
+    </>
   );
 }

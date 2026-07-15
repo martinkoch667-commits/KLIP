@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useTranslations } from "next-intl";
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -23,6 +24,7 @@ function deriveSwatches(primary: string): string[] {
 }
 
 function ClientKitCard({ ws, color, index }: { ws: WsCard; color: string; index: number }) {
+  const t = useTranslations('templatesTop');
   const initials = ws.name.slice(0, 2).toUpperCase();
   const swatches = deriveSwatches(color).slice(0, 5);
   const placeholders = [
@@ -58,16 +60,16 @@ function ClientKitCard({ ws, color, index }: { ws: WsCard; color: string; index:
             <div style={{ paddingBottom: 2, minWidth: 0, flex: 1 }}>
               <div className="h-title trunc" style={{ fontSize: 16 }}>{ws.name}</div>
               <div style={{ fontSize: 12, color: 'var(--ink-3)', fontWeight: 600 }}>
-                {ws.instagram_username ? `@${ws.instagram_username}` : 'Non connecté'}
+                {ws.instagram_username ? `@${ws.instagram_username}` : t('notConnected')}
               </div>
             </div>
             <span className="chip" style={{ background: 'var(--sunk)', color: 'var(--ink-2)', fontSize: 10.5, flexShrink: 0 }}>
-              {ws.templateCount} modèle{ws.templateCount !== 1 ? 's' : ''}
+              {t('modelsCount', { count: ws.templateCount })}
             </span>
           </div>
 
           {/* palette */}
-          <div className="label" style={{ marginBottom: 7, fontSize: 10 }}>Palette</div>
+          <div className="label" style={{ marginBottom: 7, fontSize: 10 }}>{t('palette')}</div>
           <div style={{ display: 'flex', gap: 5, marginBottom: 14 }}>
             {swatches.map((c, i) => (
               <span key={i} style={{ width: 24, height: 24, borderRadius: 6, background: c, boxShadow: 'inset 0 0 0 1px rgba(13,15,10,.12)' }} />
@@ -86,7 +88,7 @@ function ClientKitCard({ ws, color, index }: { ws: WsCard; color: string; index:
             style={{ width: '100%' }}
             onClick={e => { e.preventDefault(); window.location.href = `/workspace/${ws.id}/templates`; }}
           >
-            Ouvrir la charte
+            {t('openKit')}
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M7 17L17 7M7 7h10v10"/></svg>
           </button>
         </div>
@@ -96,6 +98,7 @@ function ClientKitCard({ ws, color, index }: { ws: WsCard; color: string; index:
 }
 
 export default function TemplatesPage() {
+  const t = useTranslations('templatesTop');
   const supabase = createClientComponentClient();
   const router = useRouter();
   const [workspaces, setWorkspaces] = useState<WsCard[]>([]);
@@ -133,9 +136,9 @@ export default function TemplatesPage() {
       <Sidebar />
       <div className="work">
         <div className="topbar" style={{ justifyContent: "space-between" }}>
-          <h1 style={{ fontSize: 14, fontWeight: 800, margin: 0 }}>Modèles</h1>
+          <h1 style={{ fontSize: 14, fontWeight: 800, margin: 0 }}>{t('title')}</h1>
           <Link href="/workspace/new" className="btn btn-primary btn-sm" style={{ textDecoration: "none" }}>
-            + Nouveau client
+            + {t('newClient')}
           </Link>
         </div>
 
@@ -144,18 +147,18 @@ export default function TemplatesPage() {
             {/* Page header */}
             <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 20, marginBottom: 28, flexWrap: 'wrap' }}>
               <div>
-                <div className="label" style={{ marginBottom: 8 }}>Chartes & modèles · {workspaces.length} client{workspaces.length !== 1 ? 's' : ''}</div>
+                <div className="label" style={{ marginBottom: 8 }}>{t('kitsAndModelsCount', { count: workspaces.length })}</div>
                 <h1 className="h-display" style={{ fontSize: 33 }}>
-                  Modèles par <span className="it" style={{ color: 'var(--mint-2)' }}>client.</span>
+                  {t('titlePre')} <span className="it" style={{ color: 'var(--mint-2)' }}>{t('titleAccent')}</span>
                 </h1>
                 <p style={{ color: 'var(--ink-2)', marginTop: 7, maxWidth: 520 }}>
-                  Chaque client a sa charte et sa bibliothèque de modèles. Ouvrez un compte pour créer ou modifier ses gabarits.
+                  {t('subtitle')}
                 </p>
               </div>
             </div>
 
             {loading ? (
-              <div style={{ color: 'var(--ink-3)', fontSize: 13 }}>Chargement…</div>
+              <div style={{ color: 'var(--ink-3)', fontSize: 13 }}>{t('loading')}</div>
             ) : workspaces.length === 0 ? (
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', padding: '80px 20px', gap: 20 }}>
                 <div style={{ width: 76, height: 76, borderRadius: 22, background: 'var(--sunk)', display: 'grid', placeItems: 'center', color: 'var(--ink-3)' }}>
@@ -164,13 +167,13 @@ export default function TemplatesPage() {
                   </svg>
                 </div>
                 <div>
-                  <h2 className="h-display" style={{ fontSize: 24, marginBottom: 8 }}>Aucun client</h2>
+                  <h2 className="h-display" style={{ fontSize: 24, marginBottom: 8 }}>{t('emptyTitle')}</h2>
                   <p style={{ fontSize: 14, color: 'var(--ink-3)', maxWidth: 340, lineHeight: 1.6, margin: '0 auto' }}>
-                    Créez un espace client pour commencer à construire votre bibliothèque de modèles.
+                    {t('emptyText')}
                   </p>
                 </div>
                 <Link href="/workspace/new" className="btn btn-primary" style={{ textDecoration: 'none' }}>
-                  + Nouveau client
+                  + {t('newClient')}
                 </Link>
               </div>
             ) : (
