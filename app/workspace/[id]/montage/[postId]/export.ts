@@ -310,9 +310,24 @@ export async function renderExport(project: ExportProject, onProgress: (p: numbe
     node.connect(gain).connect(dest);
     return { el, gain, track: t };
   });
-  function updateAudioFades() {
+  // Pilote chaque piste audio selon le temps global de l'export : démarre/seek/pause
+  // au bon moment (offset sur la timeline + srcOffset dans la source pour l'audio détaché),
+  // et applique le volume + fondus. Corrige la limite précédente où les offsets étaient ignorés.
+  function updateAudioAt(globalT: number) {
     for (const { el, gain, track } of audioEls) {
-      gain.gain.value = audioVolumeAt(track, el.currentTime);
+      const start = track.offset;
+      const end = track.offset + track.dur;
+      const within = globalT >= start && globalT < end;
+      if (within) {
+        const local = globalT - start;
+        const srcT = (track.srcOffset ?? 0) + local;
+        if (el.paused) { try { el.currentTime = srcT; } catch {} el.play().catch(() => {}); }
+        else if (Math.abs(el.currentTime - srcT) > 0.35) { try { el.currentTime = srcT; } catch {} }
+        gain.gain.value = audioVolumeAt(track, local);
+      } else {
+        if (!el.paused) el.pause();
+        gain.gain.value = 0;
+      }
     }
   }
 
@@ -375,7 +390,7 @@ export async function renderExport(project: ExportProject, onProgress: (p: numbe
   const stopped = new Promise<Blob>((resolve) => { recorder.onstop = () => resolve(new Blob(chunks, { type: "video/webm" })); });
 
   recorder.start(200);
-  audioEls.forEach(({ el }) => { el.currentTime = 0; el.play().catch(() => {}); });
+  // Les pistes audio sont démarrées/seek/pausées à leur offset par updateAudioAt() dans la boucle.
 
   // Miniature : capture le tout premier frame composé (image + texte/titres) du plan 1.
   let thumbCaptured = false;
@@ -438,7 +453,7 @@ export async function renderExport(project: ExportProject, onProgress: (p: numbe
             const elapsed = (performance.now() - t0) / 1000;
             if (elapsed >= gapBefore) { clearInterval(iv); resolve(); return; }
             const globalT = gapStart + elapsed;
-            updateAudioFades();
+            updateAudioAt(globalT);
             ctx.fillStyle = "#000";
             ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
             drawOverlays(globalT);
@@ -488,7 +503,7 @@ export async function renderExport(project: ExportProject, onProgress: (p: numbe
             if (elapsed >= transDur) { clearInterval(iv); resolve(); return; }
             const p = elapsed / transDur;
             const globalT = c.start + elapsed;
-            updateAudioFades();
+            updateAudioAt(globalT);
             ctx.clearRect(0, 0, CANVAS_W, CANVAS_H);
             drawDissolveFrame(prevM, 1 - p);
             drawDissolveFrame(media, p);
@@ -515,7 +530,7 @@ export async function renderExport(project: ExportProject, onProgress: (p: numbe
             const localT = (v.currentTime - c.trimStart) / c.speed;
             if (v.paused || localT >= soloEnd || v.ended) { clearInterval(iv); resolve(); return; }
             const globalT = c.start + localT;
-            updateAudioFades();
+            updateAudioAt(globalT);
             drawMediaFrame(ctx, v, c, localT, i === 0);
             drawOverlays(globalT);
             drawCaptions(ctx, project.captions, project.subStyleId, project.subCustom, project.subPos, globalT);
@@ -533,7 +548,7 @@ export async function renderExport(project: ExportProject, onProgress: (p: numbe
             const localT = (performance.now() - media.photoStart) / 1000;
             if (localT >= soloEnd) { clearInterval(iv); resolve(); return; }
             const globalT = c.start + localT;
-            updateAudioFades();
+            updateAudioAt(globalT);
             drawMediaFrame(ctx, img, c, localT, i === 0);
             drawOverlays(globalT);
             drawCaptions(ctx, project.captions, project.subStyleId, project.subCustom, project.subPos, globalT);

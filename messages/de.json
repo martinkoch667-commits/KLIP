@@ -1553,7 +1553,12 @@
     "widthPx": "Breite (px)",
     "heightPx": "Höhe (px)",
     "doubleClickToEdit": "Doppelklick zum Bearbeiten",
-    "resetZoomTitle": "Zoom zurücksetzen"
+    "resetZoomTitle": "Zoom zurücksetzen",
+    "contextDetachAudio": "Audio trennen",
+    "copy": "Kopieren",
+    "toastAudioDetached": "Audio auf eine separate Spur getrennt.",
+    "toastAudioAlreadyDetached": "Der Ton dieses Clips ist bereits getrennt.",
+    "toastDetachVideoOnly": "Nur Videoclips haben Ton zum Trennen."
   },
   "forgotPassword": {
     "title": "Passwort vergessen",

@@ -1553,7 +1553,12 @@
     "widthPx": "Larghezza (px)",
     "heightPx": "Altezza (px)",
     "doubleClickToEdit": "Doppio clic per modificare",
-    "resetZoomTitle": "Reimposta zoom"
+    "resetZoomTitle": "Reimposta zoom",
+    "contextDetachAudio": "Stacca l’audio",
+    "copy": "Copia",
+    "toastAudioDetached": "Audio staccato su una traccia separata.",
+    "toastAudioAlreadyDetached": "L’audio di questa clip è già staccato.",
+    "toastDetachVideoOnly": "Solo le clip video hanno un audio da staccare."
   },
   "forgotPassword": {
     "title": "Password dimenticata",

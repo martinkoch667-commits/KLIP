@@ -174,6 +174,7 @@ export default function MontagePage() {
   const [selectedClipId, setSelectedClipId] = useState<string | null>(null);
   const [selectedTitleId, setSelectedTitleId] = useState<string | null>(null);
   const [editingTitleId, setEditingTitleId] = useState<string | null>(null); // titre édité en inline sur la preview (double-clic)
+  const [clipMenu, setClipMenu] = useState<{ x: number; y: number; id: string } | null>(null); // menu contextuel (clic droit) d'un plan
   const [selectedStickerId, setSelectedStickerId] = useState<string | null>(null);
   const [selectedOverlayId, setSelectedOverlayId] = useState<string | null>(null);
   const [audioOnlyId, setAudioOnlyId] = useState<string | null>(null); // sélection "audio seul" (Option/Alt+clic)
@@ -259,6 +260,17 @@ export default function MontagePage() {
     if (toastTimer.current) clearTimeout(toastTimer.current);
     toastTimer.current = setTimeout(() => setToastMsg(null), 3200);
   }
+
+  // ── Menu contextuel d'un plan : fermeture au clic/scroll/échap ──────────────
+  useEffect(() => {
+    if (!clipMenu) return;
+    const close = () => setClipMenu(null);
+    window.addEventListener("click", close);
+    window.addEventListener("scroll", close, true);
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") close(); };
+    window.addEventListener("keydown", onKey);
+    return () => { window.removeEventListener("click", close); window.removeEventListener("scroll", close, true); window.removeEventListener("keydown", onKey); };
+  }, [clipMenu]);
 
   // ── Édition inline d'un titre : focus + sélection à l'entrée en édition ─────
   const titleEditRef = useRef<HTMLSpanElement | null>(null);
@@ -543,7 +555,8 @@ export default function MontagePage() {
         const within = t >= a.offset && t < a.offset + a.dur;
         if (within) {
           const local = t - a.offset;
-          if (Math.abs(el.currentTime - local) > 0.3) el.currentTime = local;
+          const srcT = (a.srcOffset ?? 0) + local; // audio détaché d'un plan rogné : décalage dans la source
+          if (Math.abs(el.currentTime - srcT) > 0.3) el.currentTime = srcT;
           if (el.paused) el.play().catch(() => {});
           el.volume = audioVolumeAt(a, local);
         } else if (!el.paused) {
@@ -563,7 +576,7 @@ export default function MontagePage() {
       const el = audioElsRef.current[a.id];
       if (!el) continue;
       const within = time >= a.offset && time < a.offset + a.dur;
-      if (within) { el.currentTime = time - a.offset; el.volume = audioVolumeAt(a, time - a.offset); }
+      if (within) { el.currentTime = (a.srcOffset ?? 0) + (time - a.offset); el.volume = audioVolumeAt(a, time - a.offset); }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [time]);
@@ -644,6 +657,19 @@ export default function MontagePage() {
       const out = [...prev]; out.splice(idx + 1, 0, copy); return out;
     });
   }
+  // Détache le son d'un plan vidéo → nouvelle piste audio indépendante (façon CapCut « Separate audio »).
+  function detachAudio(id: string) {
+    const c = clipStarts.find((x) => x.id === id);
+    if (!c || c.kind !== "video") { toast(t('toastDetachVideoOnly')); return; }
+    if ((c.vol ?? 1) === 0) { toast(t('toastAudioAlreadyDetached')); return; }
+    setAudioTracks((prev) => [...prev, {
+      id: crypto.randomUUID(), kind: "voiceover", name: c.name,
+      src: c.src, dur: c.dur, vol: c.vol ?? 1, offset: c.start, srcOffset: c.trimStart, track: 0,
+    }]);
+    updateClip(id, { vol: 0 }); // le son passe sur la piste audio → on coupe celui embarqué dans le plan
+    toast(t('toastAudioDetached'));
+  }
+
   function onClipDrop(targetId: string) {
     if (!draggingId || draggingId === targetId) { setDraggingId(null); return; }
     setClips((prev) => {
@@ -1738,6 +1764,7 @@ export default function MontagePage() {
                       onDragOver={(e) => e.preventDefault()}
                       onDrop={() => onClipDrop(c.id)}
                       onClick={() => selectClip(c.id)}
+                      onContextMenu={(e) => { e.preventDefault(); selectClip(c.id); setClipMenu({ x: e.clientX, y: e.clientY, id: c.id }); }}
                     >
                       {c.kind === "photo" && <img src={c.src} alt="" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", filter: clipFilterCss(c) }} />}
                       <span className="a-clip-badge"><VIcon name={c.kind === "photo" ? "image" : "video"} size={10} /></span>
@@ -1903,6 +1930,34 @@ export default function MontagePage() {
           <span style={{ fontSize: 12.5, fontWeight: 600 }}>{toastMsg}</span>
         </div>
       )}
+
+      {/* Menu contextuel d'un plan (clic droit) — façon CapCut */}
+      {clipMenu && (() => {
+        const c = clips.find((x) => x.id === clipMenu.id);
+        const isVideo = c?.kind === "video";
+        const item = (label: string, onClick: () => void, opts?: { disabled?: boolean; danger?: boolean }) => (
+          <button
+            disabled={opts?.disabled}
+            onClick={(e) => { e.stopPropagation(); setClipMenu(null); onClick(); }}
+            style={{ display: "block", width: "100%", textAlign: "left", padding: "8px 14px", background: "transparent", border: "none", cursor: opts?.disabled ? "not-allowed" : "pointer", fontSize: 13, fontWeight: 600, color: opts?.disabled ? "var(--ink-3)" : opts?.danger ? "var(--warn, #c8722b)" : "var(--ink)", opacity: opts?.disabled ? 0.5 : 1 }}
+          >{label}</button>
+        );
+        return (
+          <div
+            onClick={(e) => e.stopPropagation()}
+            onContextMenu={(e) => { e.preventDefault(); }}
+            style={{ position: "fixed", left: Math.min(clipMenu.x, (typeof window !== "undefined" ? window.innerWidth : 9999) - 230), top: clipMenu.y, zIndex: 1000, minWidth: 214, background: "var(--paper, #fff)", border: "1px solid var(--line)", borderRadius: 10, boxShadow: "0 12px 40px rgba(0,0,0,.22)", padding: "6px 0", overflow: "hidden" }}
+          >
+            {item(`🔊  ${t('contextDetachAudio')}`, () => detachAudio(clipMenu.id), { disabled: !isVideo || (c?.vol ?? 1) === 0 })}
+            <div style={{ height: 1, background: "var(--line)", margin: "5px 0" }} />
+            {item(`✂️  ${t('splitAtPlayhead')}`, () => { selectClip(clipMenu.id); splitAtPlayhead(); })}
+            {item(`⧉  ${t('duplicate')}`, () => duplicateClip(clipMenu.id))}
+            {item(`⌘C  ${t('copy')}`, () => { selectClip(clipMenu.id); copySelected(); })}
+            <div style={{ height: 1, background: "var(--line)", margin: "5px 0" }} />
+            {item(`🗑  ${t('delete')}`, () => removeClip(clipMenu.id), { danger: true })}
+          </div>
+        );
+      })()}
     </div>
   );
 }

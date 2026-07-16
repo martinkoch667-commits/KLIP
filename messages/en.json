@@ -1553,7 +1553,12 @@
     "widthPx": "Width (px)",
     "heightPx": "Height (px)",
     "doubleClickToEdit": "Double-click to edit",
-    "resetZoomTitle": "Reset zoom"
+    "resetZoomTitle": "Reset zoom",
+    "contextDetachAudio": "Detach audio",
+    "copy": "Copy",
+    "toastAudioDetached": "Audio detached to a separate track.",
+    "toastAudioAlreadyDetached": "This clip’s audio is already detached.",
+    "toastDetachVideoOnly": "Only video clips have sound to detach."
   },
   "forgotPassword": {
     "title": "Forgot password",

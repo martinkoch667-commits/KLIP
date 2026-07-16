@@ -1553,7 +1553,12 @@
     "widthPx": "Largura (px)",
     "heightPx": "Altura (px)",
     "doubleClickToEdit": "Clique duas vezes para editar",
-    "resetZoomTitle": "Redefinir zoom"
+    "resetZoomTitle": "Redefinir zoom",
+    "contextDetachAudio": "Separar o áudio",
+    "copy": "Copiar",
+    "toastAudioDetached": "Áudio separado numa faixa à parte.",
+    "toastAudioAlreadyDetached": "O áudio deste plano já está separado.",
+    "toastDetachVideoOnly": "Apenas os planos de vídeo têm som para separar."
   },
   "forgotPassword": {
     "title": "Esqueceu a palavra-passe",
