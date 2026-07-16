@@ -165,6 +165,8 @@ export default function MontagePage() {
   const [audioTracks, setAudioTracks] = useState<AudioTrack[]>([]);
   const [showProgressBar, setShowProgressBar] = useState(false);
   const [formatId, setFormatId] = useState("story");
+  const [customW, setCustomW] = useState(1080);
+  const [customH, setCustomH] = useState(1920);
   const [exportQuality, setExportQuality] = useState("standard");
   const [exportUrl, setExportUrl] = useState<string | null>(null);
 
@@ -292,6 +294,8 @@ export default function MontagePage() {
         setShowProgressBar(!!proj.showProgressBar);
         setExportUrl(proj.exportUrl || null);
         setFormatId(proj.formatId || "story");
+        if (proj.customW) setCustomW(proj.customW);
+        if (proj.customH) setCustomH(proj.customH);
         setExportQuality(proj.exportQuality || "standard");
       } else if (post?.photo_url) {
         const dur = await getVideoDuration(post.photo_url);
@@ -317,11 +321,11 @@ export default function MontagePage() {
     if (loading) return;
     if (saveTimer.current) clearTimeout(saveTimer.current);
     saveTimer.current = setTimeout(() => {
-      const project: MontageProject = { clips, overlays, captions, subStyleId, subMaxWords, subPos, subCustom, rawSegments, titles, stickers, audioTracks, showProgressBar, exportUrl, formatId, exportQuality };
+      const project: MontageProject = { clips, overlays, captions, subStyleId, subMaxWords, subPos, subCustom, rawSegments, titles, stickers, audioTracks, showProgressBar, exportUrl, formatId, customW, customH, exportQuality };
       supabase.from("posts").update({ montage_json: project }).eq("id", postId).then(() => {});
     }, 700);
     return () => { if (saveTimer.current) clearTimeout(saveTimer.current); };
-  }, [clips, overlays, captions, subStyleId, subMaxWords, subPos, subCustom, rawSegments, titles, stickers, audioTracks, showProgressBar, exportUrl, formatId, exportQuality, loading, postId, supabase]);
+  }, [clips, overlays, captions, subStyleId, subMaxWords, subPos, subCustom, rawSegments, titles, stickers, audioTracks, showProgressBar, exportUrl, formatId, customW, customH, exportQuality, loading, postId, supabase]);
 
   // ── Historique undo/redo ────────────────────────────────────────────────────
   type Snapshot = Required<Pick<MontageProject, "subPos" | "subCustom" | "overlays">> & Pick<MontageProject, "clips" | "captions" | "subStyleId" | "titles" | "stickers" | "audioTracks" | "showProgressBar">;
@@ -1014,7 +1018,7 @@ export default function MontagePage() {
     setExportPhase("render");
     setExportProgress(0);
     try {
-      const { blob: webmBlob, thumbnailBlob } = await renderExport({ clips, overlays, captions, subStyleId, subCustom, subPos, titles, stickers, audioTracks, showProgressBar, formatId, exportQuality }, (p) => setExportProgress(p));
+      const { blob: webmBlob, thumbnailBlob } = await renderExport({ clips, overlays, captions, subStyleId, subCustom, subPos, titles, stickers, audioTracks, showProgressBar, formatId, customW, customH, exportQuality }, (p) => setExportProgress(p));
 
       // Transcodage en MP4 (H.264/AAC) pour compatibilité universelle — le
       // rendu brut Canvas/MediaRecorder est en .webm.
@@ -1046,7 +1050,7 @@ export default function MontagePage() {
       }
 
       await supabase.from("posts").update({
-        montage_json: { clips, overlays, captions, subStyleId, subMaxWords, subPos, subCustom, rawSegments, titles, stickers, audioTracks, showProgressBar, exportUrl: urlData.publicUrl, formatId, exportQuality },
+        montage_json: { clips, overlays, captions, subStyleId, subMaxWords, subPos, subCustom, rawSegments, titles, stickers, audioTracks, showProgressBar, exportUrl: urlData.publicUrl, formatId, customW, customH, exportQuality },
         photo_url: urlData.publicUrl,
         ...(thumbUrl ? { thumbnail_url: thumbUrl } : {}),
       }).eq("id", postId);
@@ -1298,7 +1302,11 @@ export default function MontagePage() {
 
   // Échelle aperçu = px réels de la preview / largeur du canvas d'export. Le texte
   // est ainsi dimensionné comme à l'export et suit la taille de l'image (et non un px fixe).
-  const previewScale = (stageW || 300) / videoFormatById(formatId).w;
+  // Format effectif : preset ou dimensions personnalisées (px).
+  const activeFmt = formatId === "custom"
+    ? { id: "custom", label: "Perso", sub: `${customW}×${customH}`, w: Math.max(1, customW), h: Math.max(1, customH) }
+    : videoFormatById(formatId);
+  const previewScale = (stageW || 300) / activeFmt.w;
   const activeTitles = titles.filter((t) => time >= t.start && time <= t.end);
   const activeStickers = stickers.filter((s) => time >= s.start && time <= s.end);
   const activeCaption = captions.find((c) => time >= c.start && time <= c.end);
@@ -1331,7 +1339,20 @@ export default function MontagePage() {
             {VIDEO_FORMATS.map(f => (
               <button key={f.id} className={formatId === f.id ? "on" : ""} onClick={() => setFormatId(f.id)}>{f.sub}</button>
             ))}
+            <button className={formatId === "custom" ? "on" : ""} onClick={() => setFormatId("custom")} title={t('customFormatTitle')}>{t('customFormatShort')}</button>
           </div>
+          {formatId === "custom" && (
+            <div style={{ display: "flex", alignItems: "center", gap: 4, flexShrink: 0 }}>
+              <input type="number" min={64} max={4096} value={customW}
+                onChange={e => setCustomW(Math.max(64, Math.min(4096, Math.round(Number(e.target.value) || 0))))}
+                title={t('widthPx')} style={{ width: 58, height: 30, borderRadius: 7, border: "1px solid var(--line)", background: "var(--canvas)", color: "var(--ink-2)", fontSize: 12.5, fontWeight: 600, padding: "0 6px", textAlign: "center" }} />
+              <span style={{ fontSize: 12, color: "var(--ink-3)" }}>×</span>
+              <input type="number" min={64} max={4096} value={customH}
+                onChange={e => setCustomH(Math.max(64, Math.min(4096, Math.round(Number(e.target.value) || 0))))}
+                title={t('heightPx')} style={{ width: 58, height: 30, borderRadius: 7, border: "1px solid var(--line)", background: "var(--canvas)", color: "var(--ink-2)", fontSize: 12.5, fontWeight: 600, padding: "0 6px", textAlign: "center" }} />
+              <span style={{ fontSize: 11, color: "var(--ink-3)", fontWeight: 600 }}>px</span>
+            </div>
+          )}
         </div>
         <div style={{ flex: 1 }} />
         {exportUrl && (
@@ -1442,7 +1463,7 @@ export default function MontagePage() {
           <div className="mz-stage">
             <div
               className="mz-phone"
-              style={{ aspectRatio: `${videoFormatById(formatId).w} / ${videoFormatById(formatId).h}` }}
+              style={{ aspectRatio: `${activeFmt.w} / ${activeFmt.h}` }}
               ref={stageRef}
               onPointerMove={onStagePointerMove}
               onPointerUp={onStagePointerUp}

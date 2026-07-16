@@ -1547,7 +1547,11 @@
     "audioClipsLabel": "Clip sound",
     "addAudioTrack": "Add an audio track",
     "importVideosCta": "Videos",
-    "importPhotosCta": "Photos"
+    "importPhotosCta": "Photos",
+    "customFormatShort": "Custom",
+    "customFormatTitle": "Custom dimensions (px)",
+    "widthPx": "Width (px)",
+    "heightPx": "Height (px)"
   },
   "forgotPassword": {
     "title": "Forgot password",

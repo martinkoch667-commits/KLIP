@@ -157,7 +157,9 @@ export interface MontageProject {
   audioTracks: AudioTrack[];
   showProgressBar: boolean;
   exportUrl?: string | null;
-  formatId?: string;    // VIDEO_FORMATS[].id — défaut "story" (9:16) si absent (anciens projets)
+  formatId?: string;    // VIDEO_FORMATS[].id, ou "custom" — défaut "story" (9:16) si absent (anciens projets)
+  customW?: number;     // largeur px si formatId === "custom"
+  customH?: number;     // hauteur px si formatId === "custom"
   exportQuality?: string; // EXPORT_QUALITIES[].id — défaut "standard" si absent
 }
 
@@ -176,6 +178,7 @@ export const VIDEO_FORMATS: { id: string; label: string; sub: string; w: number;
   { id: 'story',    label: 'Story / Reel', sub: '9:16', w: 720, h: 1280 },
   { id: 'square',   label: 'Carré',        sub: '1:1',  w: 720, h: 720 },
   { id: 'portrait', label: 'Portrait',     sub: '4:5',  w: 720, h: 900 },
+  { id: 'landscape',label: 'Paysage',      sub: '16:9', w: 1280, h: 720 },
 ];
 export function videoFormatById(id: string | undefined): typeof VIDEO_FORMATS[number] {
   return VIDEO_FORMATS.find(f => f.id === id) || VIDEO_FORMATS[0];

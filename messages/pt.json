@@ -1547,7 +1547,11 @@
     "audioClipsLabel": "Som dos planos",
     "addAudioTrack": "Adicionar uma faixa de áudio",
     "importVideosCta": "Vídeos",
-    "importPhotosCta": "Fotos"
+    "importPhotosCta": "Fotos",
+    "customFormatShort": "Perso.",
+    "customFormatTitle": "Dimensões personalizadas (px)",
+    "widthPx": "Largura (px)",
+    "heightPx": "Altura (px)"
   },
   "forgotPassword": {
     "title": "Esqueceu a palavra-passe",

@@ -1547,7 +1547,11 @@
     "audioClipsLabel": "Audio delle clip",
     "addAudioTrack": "Aggiungi una traccia audio",
     "importVideosCta": "Video",
-    "importPhotosCta": "Foto"
+    "importPhotosCta": "Foto",
+    "customFormatShort": "Perso.",
+    "customFormatTitle": "Dimensioni personalizzate (px)",
+    "widthPx": "Larghezza (px)",
+    "heightPx": "Altezza (px)"
   },
   "forgotPassword": {
     "title": "Password dimenticata",

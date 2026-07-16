@@ -27,6 +27,8 @@ export interface ExportProject {
   audioTracks: AudioTrack[];
   showProgressBar: boolean;
   formatId?: string;
+  customW?: number;
+  customH?: number;
   exportQuality?: string;
 }
 
@@ -260,7 +262,9 @@ async function loadImage(src: string): Promise<HTMLImageElement> {
 }
 
 export async function renderExport(project: ExportProject, onProgress: (p: number) => void): Promise<ExportResult> {
-  const fmt = videoFormatById(project.formatId);
+  const fmt = project.formatId === "custom" && project.customW && project.customH
+    ? { w: project.customW, h: project.customH }
+    : videoFormatById(project.formatId);
   CANVAS_W = fmt.w; CANVAS_H = fmt.h;
 
   const clips = withStarts(project.clips);

@@ -1547,7 +1547,11 @@
     "audioClipsLabel": "Son des plans",
     "addAudioTrack": "Ajouter une piste audio",
     "importVideosCta": "Vidéos",
-    "importPhotosCta": "Photos"
+    "importPhotosCta": "Photos",
+    "customFormatShort": "Perso",
+    "customFormatTitle": "Dimensions personnalisées (px)",
+    "widthPx": "Largeur (px)",
+    "heightPx": "Hauteur (px)"
   },
   "forgotPassword": {
     "title": "Mot de passe oublié",
