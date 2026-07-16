@@ -114,6 +114,29 @@ async function computeWaveform(file: File): Promise<number[]> {
   }
 }
 
+// Encode des échantillons mono (Float32, -1..1) en WAV PCM 16 bits.
+function encodeWavMono(samples: Float32Array, sampleRate: number): Blob {
+  const n = samples.length;
+  const view = new DataView(new ArrayBuffer(44 + n * 2));
+  const w = (o: number, s: string) => { for (let i = 0; i < s.length; i++) view.setUint8(o + i, s.charCodeAt(i)); };
+  w(0, "RIFF"); view.setUint32(4, 36 + n * 2, true); w(8, "WAVE"); w(12, "fmt ");
+  view.setUint32(16, 16, true); view.setUint16(20, 1, true); view.setUint16(22, 1, true);
+  view.setUint32(24, sampleRate, true); view.setUint32(28, sampleRate * 2, true);
+  view.setUint16(32, 2, true); view.setUint16(34, 16, true); w(36, "data"); view.setUint32(40, n * 2, true);
+  let off = 44;
+  for (let i = 0; i < n; i++) { const s = Math.max(-1, Math.min(1, samples[i])); view.setInt16(off, s < 0 ? s * 0x8000 : s * 0x7fff, true); off += 2; }
+  return new Blob([view], { type: "audio/wav" });
+}
+// 120 pics normalisés depuis des échantillons (pour l'affichage timeline après traitement).
+function peaksFromSamples(samples: Float32Array): number[] {
+  const N = 120;
+  const block = Math.max(1, Math.floor(samples.length / N));
+  const peaks: number[] = [];
+  for (let i = 0; i < N; i++) { let m = 0; const s = i * block; for (let j = 0; j < block && s + j < samples.length; j++) m = Math.max(m, Math.abs(samples[s + j])); peaks.push(m); }
+  const peak = Math.max(...peaks, 0.01);
+  return peaks.map((p) => Math.min(1, p / peak));
+}
+
 const PHOTO_DEFAULT_DUR = 3;
 
 // Migration douce depuis l'ancien format (Lot 1) { id, kind, name, src, dur }
@@ -187,6 +210,7 @@ export default function MontagePage() {
   const [croppingClipId, setCroppingClipId] = useState<string | null>(null);
   const [assembling, setAssembling] = useState(false);
   const [cuttingSilence, setCuttingSilence] = useState(false);
+  const [processingVoice, setProcessingVoice] = useState<string | null>(null); // id de la piste audio en cours de traitement voix
   const [suggestingMusic, setSuggestingMusic] = useState(false);
   const [musicSuggestion, setMusicSuggestion] = useState<string | null>(null);
   const [isRecordingVO, setIsRecordingVO] = useState(false);
@@ -538,7 +562,9 @@ export default function MontagePage() {
     const ids = new Set(audioTracks.map((a) => a.id));
     Object.keys(els).forEach((id) => { if (!ids.has(id)) { els[id].pause(); delete els[id]; } });
     audioTracks.forEach((a) => {
-      if (!els[a.id]) { const el = new Audio(a.src); el.preload = "auto"; els[a.id] = el; }
+      const ex = els[a.id];
+      if (!ex) { const el = new Audio(a.src); el.preload = "auto"; els[a.id] = el; }
+      else if (ex.src !== a.src) { ex.pause(); const el = new Audio(a.src); el.preload = "auto"; els[a.id] = el; } // src changé (voix traitée)
     });
   }, [audioTracks]);
 
@@ -1038,6 +1064,56 @@ export default function MontagePage() {
   function removeVolKey(id: string, idx: number) {
     setAudioTracks((prev) => prev.map((a) => (a.id === id ? { ...a, volKeys: (a.volKeys || []).filter((_, i) => i !== idx) } : a)));
   }
+
+  // Isole la voix (canal central (L+R)/2 + passe-bande voix) ou la supprime (karaoké,
+  // (L-R)/2). Best-effort DSP côté client — meilleur résultat sur un son stéréo.
+  // Le résultat remplace la source de la piste (WAV encodé + uploadé).
+  async function isolateVoiceOnTrack(id: string, mode: "isolate" | "remove") {
+    if (processingVoice) return;
+    const track = audioTracks.find((a) => a.id === id);
+    if (!track) return;
+    setProcessingVoice(id);
+    try {
+      const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+      const actx = new AudioCtx();
+      const buf = await actx.decodeAudioData(await (await fetch(track.src)).arrayBuffer());
+      await actx.close();
+      const sr = buf.sampleRate, n = buf.length;
+      if (buf.numberOfChannels < 2 && mode === "remove") { toast(t('toastVoiceNeedsStereo')); return; }
+      const L = buf.getChannelData(0);
+      const R = buf.numberOfChannels > 1 ? buf.getChannelData(1) : L;
+      const mixed = new Float32Array(n);
+      if (mode === "remove") for (let i = 0; i < n; i++) mixed[i] = (L[i] - R[i]) * 0.5;
+      else for (let i = 0; i < n; i++) mixed[i] = (L[i] + R[i]) * 0.5;
+
+      let processed = mixed;
+      if (mode === "isolate") {
+        // Passe-bande ~120 Hz–8 kHz pour dégager la voix.
+        const off = new OfflineAudioContext(1, n, sr);
+        const srcBuf = off.createBuffer(1, n, sr); srcBuf.copyToChannel(mixed, 0);
+        const s = off.createBufferSource(); s.buffer = srcBuf;
+        const hp = off.createBiquadFilter(); hp.type = "highpass"; hp.frequency.value = 120;
+        const lp = off.createBiquadFilter(); lp.type = "lowpass"; lp.frequency.value = 8000;
+        s.connect(hp).connect(lp).connect(off.destination); s.start();
+        processed = (await off.startRendering()).getChannelData(0);
+      }
+
+      const wav = encodeWavMono(processed, sr);
+      const path = `${workspaceId}/${postId}-voice-${crypto.randomUUID()}.wav`;
+      const { error } = await supabase.storage.from("audio").upload(path, wav, { upsert: true, contentType: "audio/wav" });
+      if (error) { toast(t('toastVoiceProcessFailed')); return; }
+      const { data: urlData } = supabase.storage.from("audio").getPublicUrl(path);
+      const tag = mode === "isolate" ? t('voiceIsolatedTag') : t('voiceRemovedTag');
+      setAudioTracks((prev) => prev.map((a) => (a.id === id
+        ? { ...a, src: urlData.publicUrl, name: a.name.startsWith(tag) ? a.name : `${tag} · ${a.name}`, waveform: peaksFromSamples(processed) }
+        : a)));
+      toast(mode === "isolate" ? t('toastVoiceIsolated') : t('toastVoiceRemoved'));
+    } catch {
+      toast(t('toastVoiceProcessFailed'));
+    } finally {
+      setProcessingVoice(null);
+    }
+  }
   async function toggleRecordVO() {
     if (isRecordingVO) { voRecorderRef.current?.stop(); return; }
     try {
@@ -1472,6 +1548,7 @@ export default function MontagePage() {
     toggleProgressBar, importAudio, removeAudioTrack, setAudioVol, setAudioFade, toggleRecordVO,
     audioTrackCount, moveAudioTrackRow,
     addVolKey, setVolKey, removeVolKey,
+    processingVoice, isolateVoiceOnTrack,
   };
 
   const trackW = Math.max(total * pps, 200);

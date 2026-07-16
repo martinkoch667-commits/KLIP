@@ -79,6 +79,8 @@ export interface MontageCtx {
   addVolKey: (id: string) => void;
   setVolKey: (id: string, idx: number, v: number) => void;
   removeVolKey: (id: string, idx: number) => void;
+  processingVoice: string | null;
+  isolateVoiceOnTrack: (id: string, mode: "isolate" | "remove") => void;
 
   overlays: OverlayClip[];
   selectedOverlay: OverlayClip | null;
@@ -485,6 +487,26 @@ function VolKeyframes({ track, ctx }: { track: AudioTrack; ctx: MontageCtx }) {
   );
 }
 
+// Isolation / suppression de la voix sur une piste (DSP best-effort).
+function VoiceTools({ track, ctx }: { track: AudioTrack; ctx: MontageCtx }) {
+  const t = useTranslations('montage');
+  const busy = ctx.processingVoice === track.id;
+  return (
+    <div style={{ marginTop: 10 }}>
+      <span className="mz-sec-label">{t('voiceToolsTitle')}</span>
+      <div style={{ display: "flex", gap: 6, marginTop: 6 }}>
+        <button className="btn btn-ghost btn-sm" style={{ flex: 1 }} disabled={!!ctx.processingVoice} onClick={() => ctx.isolateVoiceOnTrack(track.id, "isolate")}>
+          <VIcon name="sparkles" size={13} /> {busy ? t('voiceWorking') : t('voiceIsolate')}
+        </button>
+        <button className="btn btn-ghost btn-sm" style={{ flex: 1 }} disabled={!!ctx.processingVoice} onClick={() => ctx.isolateVoiceOnTrack(track.id, "remove")}>
+          {t('voiceRemove')}
+        </button>
+      </div>
+      <p style={{ fontSize: 11, color: "var(--ink-3)", lineHeight: 1.4, marginTop: 5 }}>{t('voiceToolsHint')}</p>
+    </div>
+  );
+}
+
 export function AudioPanel({ ctx }: { ctx: MontageCtx }) {
   const t = useTranslations('montage');
   const fileRef = useRef<HTMLInputElement>(null);
@@ -525,6 +547,7 @@ export function AudioPanel({ ctx }: { ctx: MontageCtx }) {
           </div>
           <Range label={t('volumeVoiceover')} value={Math.round(a.vol * 100)} min={0} max={200} unit="%" onChange={(v) => ctx.setAudioVol(a.id, v / 100)} />
           <VolKeyframes track={a} ctx={ctx} />
+          <VoiceTools track={a} ctx={ctx} />
           <Range label={t('fadeIn')} value={Math.round((a.fadeIn ?? 0) * 10) / 10} min={0} max={5} step={0.1} unit="s" onChange={(v) => ctx.setAudioFade(a.id, "fadeIn", v)} />
           <Range label={t('fadeOut')} value={Math.round((a.fadeOut ?? 0) * 10) / 10} min={0} max={5} step={0.1} unit="s" onChange={(v) => ctx.setAudioFade(a.id, "fadeOut", v)} />
           {ctx.audioTrackCount > 1 && (
@@ -558,6 +581,7 @@ export function AudioPanel({ ctx }: { ctx: MontageCtx }) {
             </div>
             <Range label={t('volumeMusic')} value={Math.round(a.vol * 100)} min={0} max={200} unit="%" onChange={(v) => ctx.setAudioVol(a.id, v / 100)} />
             <VolKeyframes track={a} ctx={ctx} />
+          <VoiceTools track={a} ctx={ctx} />
             <Range label={t('fadeIn')} value={Math.round((a.fadeIn ?? 0) * 10) / 10} min={0} max={5} step={0.1} unit="s" onChange={(v) => ctx.setAudioFade(a.id, "fadeIn", v)} />
             <Range label={t('fadeOut')} value={Math.round((a.fadeOut ?? 0) * 10) / 10} min={0} max={5} step={0.1} unit="s" onChange={(v) => ctx.setAudioFade(a.id, "fadeOut", v)} />
             {ctx.audioTrackCount > 1 && (

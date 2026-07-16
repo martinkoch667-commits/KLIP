@@ -1582,7 +1582,18 @@
     "toastNoVideoForSilence": "Kein Videoclip zum Analysieren.",
     "toastNoSilenceFound": "Keine deutliche Stille erkannt.",
     "toastSilencesCut": "Stille entfernt.",
-    "toastSilenceError": "Audioanalyse für diesen Clip fehlgeschlagen."
+    "toastSilenceError": "Audioanalyse für diesen Clip fehlgeschlagen.",
+    "voiceToolsTitle": "Stimme (Trennung)",
+    "voiceIsolate": "Stimme isolieren",
+    "voiceRemove": "Stimme entfernen",
+    "voiceWorking": "Verarbeitung…",
+    "voiceToolsHint": "Lokales DSP – bestes Ergebnis bei Stereo-Ton. Ersetzt die Spur.",
+    "voiceIsolatedTag": "Stimme isoliert",
+    "voiceRemovedTag": "Ohne Stimme",
+    "toastVoiceIsolated": "Stimme isoliert.",
+    "toastVoiceRemoved": "Stimme entfernt.",
+    "toastVoiceNeedsStereo": "Stimmentfernung benötigt Stereo-Ton.",
+    "toastVoiceProcessFailed": "Stimmverarbeitung fehlgeschlagen."
   },
   "forgotPassword": {
     "title": "Passwort vergessen",

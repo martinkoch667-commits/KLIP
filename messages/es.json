@@ -1582,7 +1582,18 @@
     "toastNoVideoForSilence": "No hay plano de vídeo que analizar.",
     "toastNoSilenceFound": "No se detectó ningún silencio claro.",
     "toastSilencesCut": "Silencios eliminados.",
-    "toastSilenceError": "No se pudo analizar el audio de este plano."
+    "toastSilenceError": "No se pudo analizar el audio de este plano.",
+    "voiceToolsTitle": "Voz (separación)",
+    "voiceIsolate": "Aislar la voz",
+    "voiceRemove": "Quitar la voz",
+    "voiceWorking": "Procesando…",
+    "voiceToolsHint": "DSP local: mejor resultado con sonido estéreo. Reemplaza la pista.",
+    "voiceIsolatedTag": "Voz aislada",
+    "voiceRemovedTag": "Sin voz",
+    "toastVoiceIsolated": "Voz aislada.",
+    "toastVoiceRemoved": "Voz eliminada.",
+    "toastVoiceNeedsStereo": "Quitar la voz requiere sonido estéreo.",
+    "toastVoiceProcessFailed": "No se pudo procesar la voz."
   },
   "forgotPassword": {
     "title": "Contraseña olvidada",

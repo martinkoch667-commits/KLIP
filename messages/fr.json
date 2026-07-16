@@ -1582,7 +1582,18 @@
     "toastNoVideoForSilence": "Aucun plan vidéo à analyser.",
     "toastNoSilenceFound": "Aucun silence marqué détecté.",
     "toastSilencesCut": "Silences coupés.",
-    "toastSilenceError": "Analyse audio impossible sur ce plan."
+    "toastSilenceError": "Analyse audio impossible sur ce plan.",
+    "voiceToolsTitle": "Voix (séparation)",
+    "voiceIsolate": "Isoler la voix",
+    "voiceRemove": "Enlever la voix",
+    "voiceWorking": "Traitement…",
+    "voiceToolsHint": "Traitement DSP local — meilleur résultat sur un son stéréo. Remplace la piste.",
+    "voiceIsolatedTag": "Voix isolée",
+    "voiceRemovedTag": "Sans voix",
+    "toastVoiceIsolated": "Voix isolée.",
+    "toastVoiceRemoved": "Voix supprimée.",
+    "toastVoiceNeedsStereo": "La suppression de voix nécessite un son stéréo.",
+    "toastVoiceProcessFailed": "Traitement de la voix impossible."
   },
   "forgotPassword": {
     "title": "Mot de passe oublié",
