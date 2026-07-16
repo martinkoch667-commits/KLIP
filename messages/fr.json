@@ -1551,7 +1551,8 @@
     "customFormatShort": "Perso",
     "customFormatTitle": "Dimensions personnalisées (px)",
     "widthPx": "Largeur (px)",
-    "heightPx": "Hauteur (px)"
+    "heightPx": "Hauteur (px)",
+    "doubleClickToEdit": "Double-cliquez pour modifier"
   },
   "forgotPassword": {
     "title": "Mot de passe oublié",

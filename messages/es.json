@@ -1551,7 +1551,8 @@
     "customFormatShort": "Perso.",
     "customFormatTitle": "Dimensiones personalizadas (px)",
     "widthPx": "Ancho (px)",
-    "heightPx": "Alto (px)"
+    "heightPx": "Alto (px)",
+    "doubleClickToEdit": "Doble clic para editar"
   },
   "forgotPassword": {
     "title": "Contraseña olvidada",

@@ -173,6 +173,7 @@ export default function MontagePage() {
   const [tool, setTool] = useState<RailTool>("media");
   const [selectedClipId, setSelectedClipId] = useState<string | null>(null);
   const [selectedTitleId, setSelectedTitleId] = useState<string | null>(null);
+  const [editingTitleId, setEditingTitleId] = useState<string | null>(null); // titre édité en inline sur la preview (double-clic)
   const [selectedStickerId, setSelectedStickerId] = useState<string | null>(null);
   const [selectedOverlayId, setSelectedOverlayId] = useState<string | null>(null);
   const [audioOnlyId, setAudioOnlyId] = useState<string | null>(null); // sélection "audio seul" (Option/Alt+clic)
@@ -257,6 +258,19 @@ export default function MontagePage() {
     if (toastTimer.current) clearTimeout(toastTimer.current);
     toastTimer.current = setTimeout(() => setToastMsg(null), 3200);
   }
+
+  // ── Édition inline d'un titre : focus + sélection à l'entrée en édition ─────
+  const titleEditRef = useRef<HTMLSpanElement | null>(null);
+  useEffect(() => {
+    if (!editingTitleId || !titleEditRef.current) return;
+    const el = titleEditRef.current;
+    el.focus();
+    const range = document.createRange();
+    range.selectNodeContents(el);
+    const sel = window.getSelection();
+    sel?.removeAllRanges();
+    sel?.addRange(range);
+  }, [editingTitleId]);
 
   // ── Mesure de la largeur de la preview (pour figer la taille du texte) ──────
   useEffect(() => {
@@ -1538,11 +1552,26 @@ export default function MontagePage() {
                       maxWidth: "80%", whiteSpace: "pre-wrap",
                       animation: ti.anim === "rise" ? "mzRise .35s var(--ease)" : ti.anim === "pop" ? "mzPop .3s var(--ease)" : undefined,
                     }}
-                    onPointerDown={(e) => onOverlayPointerDown(e, "title", ti.id)}
+                    onPointerDown={(e) => { if (editingTitleId === ti.id) return; onOverlayPointerDown(e, "title", ti.id); }}
+                    onDoubleClick={(e) => { e.stopPropagation(); setPlaying(false); setSelectedTitleId(ti.id); setEditingTitleId(ti.id); }}
+                    title={editingTitleId === ti.id ? undefined : t('doubleClickToEdit')}
                   >
-                    {ti.anim === "type" ? ti.text.slice(0, Math.max(0, Math.min(ti.text.length, Math.floor((time - ti.start) * 16)))) : ti.text}
-                    {selectedTitleId === ti.id && <button className="mz-ov-del" onPointerDown={(e) => e.stopPropagation()} onClick={() => removeTitle(ti.id)}><VIcon name="x" size={11} /></button>}
-                    {selectedTitleId === ti.id && <span className="mz-ov-resize" onPointerDown={(e) => onOverlayResizeDown(e, "title", ti.id, ti.scale ?? 1)} title={t('resizeTitle')} />}
+                    <span
+                      ref={editingTitleId === ti.id ? titleEditRef : undefined}
+                      contentEditable={editingTitleId === ti.id}
+                      suppressContentEditableWarning
+                      spellCheck={false}
+                      style={{ outline: "none", cursor: editingTitleId === ti.id ? "text" : "inherit" }}
+                      onPointerDown={editingTitleId === ti.id ? (e) => e.stopPropagation() : undefined}
+                      onKeyDown={editingTitleId === ti.id ? (e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); (e.currentTarget as HTMLElement).blur(); } } : undefined}
+                      onBlur={editingTitleId === ti.id ? (e) => { const txt = (e.currentTarget.textContent || "").trim(); if (txt) updateTitle(ti.id, { text: txt }); setEditingTitleId(null); } : undefined}
+                    >
+                      {editingTitleId === ti.id
+                        ? ti.text
+                        : (ti.anim === "type" ? ti.text.slice(0, Math.max(0, Math.min(ti.text.length, Math.floor((time - ti.start) * 16)))) : ti.text)}
+                    </span>
+                    {selectedTitleId === ti.id && editingTitleId !== ti.id && <button className="mz-ov-del" onPointerDown={(e) => e.stopPropagation()} onClick={() => removeTitle(ti.id)}><VIcon name="x" size={11} /></button>}
+                    {selectedTitleId === ti.id && editingTitleId !== ti.id && <span className="mz-ov-resize" onPointerDown={(e) => onOverlayResizeDown(e, "title", ti.id, ti.scale ?? 1)} title={t('resizeTitle')} />}
                   </div>
                 ))}
 

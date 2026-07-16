@@ -1551,7 +1551,8 @@
     "customFormatShort": "Custom",
     "customFormatTitle": "Custom dimensions (px)",
     "widthPx": "Width (px)",
-    "heightPx": "Height (px)"
+    "heightPx": "Height (px)",
+    "doubleClickToEdit": "Double-click to edit"
   },
   "forgotPassword": {
     "title": "Forgot password",
