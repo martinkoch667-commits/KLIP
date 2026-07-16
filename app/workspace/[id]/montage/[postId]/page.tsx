@@ -1438,10 +1438,10 @@ export default function MontagePage() {
                           ref={(el) => { if (el) overlayVideoRefs.current.set(o.id, el); else overlayVideoRefs.current.delete(o.id); }}
                           src={o.src}
                           playsInline muted={(o.vol ?? 1) === 0}
-                          style={{ width: "100%", display: "block", borderRadius: 6, filter: overlayFilterCss(o) }}
+                          style={{ width: "100%", display: "block", filter: overlayFilterCss(o) }}
                         />
                       ) : (
-                        <img src={o.src} alt="" style={{ width: "100%", display: "block", borderRadius: 6, filter: overlayFilterCss(o) }} />
+                        <img src={o.src} alt="" style={{ width: "100%", display: "block", filter: overlayFilterCss(o) }} />
                       )}
                       {sel && <button className="mz-ov-del" onPointerDown={(e) => e.stopPropagation()} onClick={() => removeOverlay(o.id)}><VIcon name="x" size={11} /></button>}
                       {sel && <span className="mz-ov-resize" onPointerDown={(e) => onOverlayResizeDown(e, "overlay", o.id, o.scale)} title={t('resizeTitle')} />}
