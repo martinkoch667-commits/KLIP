@@ -42,8 +42,16 @@
 1. ✅ **B** (prompt) — refonte faite. Reste : retirer le champ « style » redondant dans l'éditeur si présent.
 2. ✅ **C** (description vidéo post-montage) — bouton « Générer la description » côté montage +
    `generate-description` accepte des frames multi-images (lit vraiment la vidéo montée).
-3. **D** (sous-titres charte → montage) — à faire.
-4. **A** (propositions de templates de texte) — à faire.
+3. ✅ **D (cœur)** — sous-titres du montage auto-adaptés à la charte (surlignage = `accent_color`)
+   à l'ouverture d'un montage jamais personnalisé (`charterSubDefault`). Reste (option) : panneau
+   dédié dans la charte pour choisir/prévisualiser le style de sous-titres + persistance workspace.
+4. ⏳ **A** (propositions de templates de texte) — **à faire avec test**. Raison : couplé au schéma
+   `post_templates.text_zones` + à l'UI de l'éditeur (`app/workspace/[id]/editor/[postId]`, ~4000 l.).
+   Le moteur existe déjà (`app/api/compose-layout` : bibliothèque de layouts + remplissage à la charte).
+   Plan : (a) route `POST /api/templates/suggest` qui pioche dans la bibliothèque et mappe couleurs/typo
+   de la charte → propositions au format `text_zones` ; (b) après la charte, bouton « Propositions depuis
+   ma charte » dans le sélecteur de templates → prévisualisation + enregistrement dans `post_templates`.
+   → à construire contre le vrai format une fois l'éditeur testable.
 
 ## En attente de Martin
 - [ ] Retour de test sur le montage (24 commits).
