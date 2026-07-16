@@ -119,8 +119,14 @@
 - ✅ **C2** — édition des sous-titres après génération : **déjà présent** (texte éditable,
   timings, ajout/suppression dans le panneau Sous-titres).
 
+- ✅ **B3** — clic droit sur un plan (menu façon CapCut) + **Détacher l'audio** ; + fix des
+  offsets audio à l'export (updateAudioAt) qui étaient ignorés.
+- ✅ **K** — bouton **Publier** (export + status validé + redirection planning) comme l'éditeur
+  visuel ; bouton **Exporter** séparé.
+- ✅ **E** — **keyframes de volume** + volume jusqu'à 200 % (honoré live/export ; boost >100 %
+  appliqué à l'export). Points-clés éditables dans le panneau Audio.
+
 ### Reste à faire (les gros morceaux / nécessitent test ou décision produit)
-- **B3** — lier/détacher audio+vidéo au clic droit (attend le screenshot CapCut).
 - **B5 / B6** — textes & images sur les pistes vidéo ; réordonnancement des lanes.
 - **B1 (suite)** — chevauchement libre total des plans (au-delà du « pousser à droite »).
 - **C1** — fix découpe de sous-titre au milieu d'une phrase (besoin d'un repro précis).
