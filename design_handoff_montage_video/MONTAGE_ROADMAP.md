@@ -130,6 +130,9 @@
   l'auto-assemblage IA existant (ordre/rognage/transitions) et des sous-titres.
 - ✅ **B3 (libellé)** — menu clic droit aligné sur CapCut FR : « Extraire le son » + Couper/Modifier.
 
+- ✅ **F (transitions)** — 6 de plus : glissé haut/bas, zoom arrière, rotation, whip, flash.
+- ✅ **Voix** — isoler / enlever la voix par piste (DSP local best-effort ; vraie séparation IA = backend ML à venir).
+
 ### Reste à faire (les gros morceaux / nécessitent test ou décision produit)
 - **B5 / B6** — textes & images sur les pistes vidéo ; réordonnancement des lanes.
 - **B1 (suite)** — chevauchement libre total des plans (au-delà du « pousser à droite »).
