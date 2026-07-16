@@ -126,6 +126,10 @@
 - ✅ **E** — **keyframes de volume** + volume jusqu'à 200 % (honoré live/export ; boost >100 %
   appliqué à l'export). Points-clés éditables dans le panneau Audio.
 
+- ✅ **J (cœur)** — **couper les silences** (analyse Web Audio, seuil >1 s « doux »), en plus de
+  l'auto-assemblage IA existant (ordre/rognage/transitions) et des sous-titres.
+- ✅ **B3 (libellé)** — menu clic droit aligné sur CapCut FR : « Extraire le son » + Couper/Modifier.
+
 ### Reste à faire (les gros morceaux / nécessitent test ou décision produit)
 - **B5 / B6** — textes & images sur les pistes vidéo ; réordonnancement des lanes.
 - **B1 (suite)** — chevauchement libre total des plans (au-delà du « pousser à droite »).
