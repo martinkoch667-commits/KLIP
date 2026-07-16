@@ -1561,7 +1561,11 @@
     "toastDetachVideoOnly": "Solo le clip video hanno un audio da staccare.",
     "publishBtn": "Pubblica",
     "publishBtnTitle": "Esporta il video e invialo al planner per programmarlo",
-    "toastPublished": "Video pubblicato — vai al planner."
+    "toastPublished": "Video pubblicato — vai al planner.",
+    "volKeysTitle": "Fotogrammi chiave volume",
+    "volKeyAdd": "Aggiungi",
+    "volKeyAddTitle": "Aggiungi un fotogramma chiave al cursore",
+    "volKeysHint": "Aggiungi punti al cursore per variare il volume (es. abbassare la musica sotto una voce)."
   },
   "forgotPassword": {
     "title": "Password dimenticata",

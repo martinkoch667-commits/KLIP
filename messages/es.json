@@ -1561,7 +1561,11 @@
     "toastDetachVideoOnly": "Solo los planos de vídeo tienen sonido que separar.",
     "publishBtn": "Publicar",
     "publishBtnTitle": "Exportar el vídeo y enviarlo al planificador para programarlo",
-    "toastPublished": "Vídeo publicado: vamos al planificador."
+    "toastPublished": "Vídeo publicado: vamos al planificador.",
+    "volKeysTitle": "Fotogramas de volumen",
+    "volKeyAdd": "Añadir",
+    "volKeyAddTitle": "Añadir un fotograma en el cursor",
+    "volKeysHint": "Añade puntos en el cursor para variar el volumen (p. ej. bajar la música bajo una voz)."
   },
   "forgotPassword": {
     "title": "Contraseña olvidada",

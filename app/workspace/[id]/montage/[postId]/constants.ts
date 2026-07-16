@@ -118,16 +118,34 @@ export interface AudioTrack {
   srcOffset?: number; // décalage de départ DANS la source (s) — utilisé par l'audio détaché d'un plan rogné. Défaut 0.
   fadeIn?: number;  // durée du fondu d'entrée (s), défaut 0
   fadeOut?: number; // durée du fondu de sortie (s), défaut 0
+  volKeys?: { t: number; v: number }[]; // points-clés de volume (automation) : t = temps local dans la piste (s), v = volume (0-2). Remplace `vol` quand présent.
   waveform?: number[]; // pics d'amplitude normalisés (0-1), échantillonnés à l'import — pour l'affichage visuel dans la timeline
 }
 
 // Volume effectif d'une piste audio à un instant donné (dans son propre référentiel,
 // localTime = 0 au début de la piste), en appliquant les fondus entrée/sortie.
+// Interpole une courbe de points-clés (triés par t) à l'instant localTime (maintien aux bords).
+function interpVolKeys(keys: { t: number; v: number }[], localTime: number): number {
+  const k = [...keys].sort((a, b) => a.t - b.t);
+  if (k.length === 1 || localTime <= k[0].t) return k[0].v;
+  const last = k[k.length - 1];
+  if (localTime >= last.t) return last.v;
+  for (let i = 0; i < k.length - 1; i++) {
+    const a = k[i], b = k[i + 1];
+    if (localTime >= a.t && localTime <= b.t) {
+      const p = (localTime - a.t) / Math.max(1e-6, b.t - a.t);
+      return a.v + (b.v - a.v) * p;
+    }
+  }
+  return last.v;
+}
 export function audioVolumeAt(track: AudioTrack, localTime: number): number {
+  // Base = courbe de points-clés si définie, sinon le volume fixe de la piste.
+  const base = track.volKeys && track.volKeys.length > 0 ? interpVolKeys(track.volKeys, localTime) : track.vol;
   let mult = 1;
   if (track.fadeIn)  mult = Math.min(mult, Math.max(0, localTime / track.fadeIn));
   if (track.fadeOut) mult = Math.min(mult, Math.max(0, (track.dur - localTime) / track.fadeOut));
-  return Math.max(0, Math.min(1, track.vol * mult));
+  return Math.max(0, Math.min(4, base * mult)); // marge jusqu'à 400 % (l'UI limite à 200 %)
 }
 
 // Personnalisation manuelle des sous-titres — surcharge n'importe quel champ du style de base.

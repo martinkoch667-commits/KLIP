@@ -74,6 +74,9 @@ export interface MontageCtx {
   toggleRecordVO: () => void;
   audioTrackCount: number;
   moveAudioTrackRow: (id: string, dir: 1 | -1) => void;
+  addVolKey: (id: string) => void;
+  setVolKey: (id: string, idx: number, v: number) => void;
+  removeVolKey: (id: string, idx: number) => void;
 
   overlays: OverlayClip[];
   selectedOverlay: OverlayClip | null;
@@ -454,6 +457,32 @@ export function CaptionsPanel({ ctx }: { ctx: MontageCtx }) {
 
 // ─── Audio ──────────────────────────────────────────────────────────────────
 
+// Points-clés de volume (automation) d'une piste audio — ajout au curseur, réglage, suppression.
+function VolKeyframes({ track, ctx }: { track: AudioTrack; ctx: MontageCtx }) {
+  const t = useTranslations('montage');
+  const keys = track.volKeys || [];
+  return (
+    <div style={{ marginTop: 8 }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
+        <span className="mz-sec-label">{t('volKeysTitle')}</span>
+        <button className="btn btn-ghost btn-sm" onClick={() => ctx.addVolKey(track.id)} title={t('volKeyAddTitle')}><VIcon name="plus" size={12} /> {t('volKeyAdd')}</button>
+      </div>
+      {keys.length === 0 ? (
+        <p style={{ fontSize: 11.5, color: "var(--ink-3)", lineHeight: 1.4 }}>{t('volKeysHint')}</p>
+      ) : (
+        keys.map((k, i) => (
+          <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+            <span style={{ fontFamily: "var(--mono)", fontSize: 11, color: "var(--ink-3)", minWidth: 42 }}>{k.t.toFixed(1)}s</span>
+            <input type="range" min={0} max={200} value={Math.round(k.v * 100)} onChange={(e) => ctx.setVolKey(track.id, i, Number(e.target.value) / 100)} style={{ flex: 1 }} />
+            <span style={{ fontFamily: "var(--mono)", fontSize: 11, color: "var(--ink-2)", minWidth: 38, textAlign: "right" }}>{Math.round(k.v * 100)}%</span>
+            <button className="mz-hbtn" style={{ width: 22, height: 22, flexShrink: 0 }} onClick={() => ctx.removeVolKey(track.id, i)}><VIcon name="x" size={11} /></button>
+          </div>
+        ))
+      )}
+    </div>
+  );
+}
+
 export function AudioPanel({ ctx }: { ctx: MontageCtx }) {
   const t = useTranslations('montage');
   const fileRef = useRef<HTMLInputElement>(null);
@@ -492,7 +521,8 @@ export function AudioPanel({ ctx }: { ctx: MontageCtx }) {
             <div style={{ minWidth: 0 }}><div className="mz-music-name trunc">{a.name}</div><div className="mz-music-meta">{t('voiceoverLabel', { dur: a.dur.toFixed(1) })}</div></div>
             <button className="mz-hbtn" onClick={() => ctx.removeAudioTrack(a.id)}><VIcon name="trash" size={14} /></button>
           </div>
-          <Range label={t('volumeVoiceover')} value={Math.round(a.vol * 100)} min={0} max={100} unit="%" onChange={(v) => ctx.setAudioVol(a.id, v / 100)} />
+          <Range label={t('volumeVoiceover')} value={Math.round(a.vol * 100)} min={0} max={200} unit="%" onChange={(v) => ctx.setAudioVol(a.id, v / 100)} />
+          <VolKeyframes track={a} ctx={ctx} />
           <Range label={t('fadeIn')} value={Math.round((a.fadeIn ?? 0) * 10) / 10} min={0} max={5} step={0.1} unit="s" onChange={(v) => ctx.setAudioFade(a.id, "fadeIn", v)} />
           <Range label={t('fadeOut')} value={Math.round((a.fadeOut ?? 0) * 10) / 10} min={0} max={5} step={0.1} unit="s" onChange={(v) => ctx.setAudioFade(a.id, "fadeOut", v)} />
           {ctx.audioTrackCount > 1 && (
@@ -524,7 +554,8 @@ export function AudioPanel({ ctx }: { ctx: MontageCtx }) {
               <div style={{ minWidth: 0 }}><div className="mz-music-name trunc">{a.name}</div><div className="mz-music-meta">{a.dur.toFixed(1)}s</div></div>
               <button className="mz-hbtn" onClick={() => ctx.removeAudioTrack(a.id)}><VIcon name="trash" size={14} /></button>
             </div>
-            <Range label={t('volumeMusic')} value={Math.round(a.vol * 100)} min={0} max={100} unit="%" onChange={(v) => ctx.setAudioVol(a.id, v / 100)} />
+            <Range label={t('volumeMusic')} value={Math.round(a.vol * 100)} min={0} max={200} unit="%" onChange={(v) => ctx.setAudioVol(a.id, v / 100)} />
+            <VolKeyframes track={a} ctx={ctx} />
             <Range label={t('fadeIn')} value={Math.round((a.fadeIn ?? 0) * 10) / 10} min={0} max={5} step={0.1} unit="s" onChange={(v) => ctx.setAudioFade(a.id, "fadeIn", v)} />
             <Range label={t('fadeOut')} value={Math.round((a.fadeOut ?? 0) * 10) / 10} min={0} max={5} step={0.1} unit="s" onChange={(v) => ctx.setAudioFade(a.id, "fadeOut", v)} />
             {ctx.audioTrackCount > 1 && (

@@ -1561,7 +1561,11 @@
     "toastDetachVideoOnly": "Only video clips have sound to detach.",
     "publishBtn": "Publish",
     "publishBtnTitle": "Export the video and send it to the planner to schedule it",
-    "toastPublished": "Video published — heading to the planner."
+    "toastPublished": "Video published — heading to the planner.",
+    "volKeysTitle": "Volume keyframes",
+    "volKeyAdd": "Add",
+    "volKeyAddTitle": "Add a keyframe at the playhead",
+    "volKeysHint": "Add points at the playhead to vary the volume (e.g. duck music under a voice)."
   },
   "forgotPassword": {
     "title": "Forgot password",

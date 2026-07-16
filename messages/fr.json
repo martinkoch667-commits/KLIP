@@ -1561,7 +1561,11 @@
     "toastDetachVideoOnly": "Seuls les plans vidéo ont un son à détacher.",
     "publishBtn": "Publier",
     "publishBtnTitle": "Exporter la vidéo et l’envoyer au planning pour la programmer",
-    "toastPublished": "Vidéo publiée — direction le planning."
+    "toastPublished": "Vidéo publiée — direction le planning.",
+    "volKeysTitle": "Points-clés de volume",
+    "volKeyAdd": "Ajouter",
+    "volKeyAddTitle": "Ajouter un point-clé à la position du curseur",
+    "volKeysHint": "Ajoutez des points au curseur pour faire varier le volume (ex. baisser la musique sous une voix)."
   },
   "forgotPassword": {
     "title": "Mot de passe oublié",

@@ -558,7 +558,7 @@ export default function MontagePage() {
           const srcT = (a.srcOffset ?? 0) + local; // audio détaché d'un plan rogné : décalage dans la source
           if (Math.abs(el.currentTime - srcT) > 0.3) el.currentTime = srcT;
           if (el.paused) el.play().catch(() => {});
-          el.volume = audioVolumeAt(a, local);
+          el.volume = Math.min(1, audioVolumeAt(a, local)); // el.volume ∈ [0,1] ; le boost >100 % est appliqué à l'export
         } else if (!el.paused) {
           el.pause();
         }
@@ -576,7 +576,7 @@ export default function MontagePage() {
       const el = audioElsRef.current[a.id];
       if (!el) continue;
       const within = time >= a.offset && time < a.offset + a.dur;
-      if (within) { el.currentTime = (a.srcOffset ?? 0) + (time - a.offset); el.volume = audioVolumeAt(a, time - a.offset); }
+      if (within) { el.currentTime = (a.srcOffset ?? 0) + (time - a.offset); el.volume = Math.min(1, audioVolumeAt(a, time - a.offset)); }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [time]);
@@ -928,6 +928,27 @@ export default function MontagePage() {
   }
   function setAudioFade(id: string, kind: "fadeIn" | "fadeOut", seconds: number) {
     setAudioTracks((prev) => prev.map((a) => (a.id === id ? { ...a, [kind]: seconds } : a)));
+  }
+  // ── Points-clés de volume (automation) sur une piste audio ──────────────────
+  // Ajoute un point à la position du curseur (temps local dans la piste), avec la
+  // valeur de volume courante à cet instant. Si un point existe déjà là, on l'écrase.
+  function addVolKey(id: string) {
+    setAudioTracks((prev) => prev.map((a) => {
+      if (a.id !== id) return a;
+      const local = Math.max(0, Math.min(a.dur, time - a.offset));
+      const v = a.volKeys && a.volKeys.length ? audioVolumeAt({ ...a, fadeIn: 0, fadeOut: 0 }, local) : a.vol;
+      const keys = [...(a.volKeys || [])];
+      const at = keys.findIndex((k) => Math.abs(k.t - local) < 0.05);
+      if (at >= 0) keys[at] = { t: local, v }; else keys.push({ t: local, v });
+      keys.sort((x, y) => x.t - y.t);
+      return { ...a, volKeys: keys };
+    }));
+  }
+  function setVolKey(id: string, idx: number, v: number) {
+    setAudioTracks((prev) => prev.map((a) => (a.id === id ? { ...a, volKeys: (a.volKeys || []).map((k, i) => (i === idx ? { ...k, v } : k)) } : a)));
+  }
+  function removeVolKey(id: string, idx: number) {
+    setAudioTracks((prev) => prev.map((a) => (a.id === id ? { ...a, volKeys: (a.volKeys || []).filter((_, i) => i !== idx) } : a)));
   }
   async function toggleRecordVO() {
     if (isRecordingVO) { voRecorderRef.current?.stop(); return; }
@@ -1361,6 +1382,7 @@ export default function MontagePage() {
     addSticker, updateSticker, removeSticker,
     toggleProgressBar, importAudio, removeAudioTrack, setAudioVol, setAudioFade, toggleRecordVO,
     audioTrackCount, moveAudioTrackRow,
+    addVolKey, setVolKey, removeVolKey,
   };
 
   const trackW = Math.max(total * pps, 200);
