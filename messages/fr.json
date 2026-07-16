@@ -1536,7 +1536,9 @@
     "toastOverlayCopied": "Incrustation copiée.",
     "toastClipCopied": "Plan copié.",
     "toastCaptionsGenerated": "{count, plural, one {# sous-titre généré.} other {# sous-titres générés.}}",
-    "speedCustom": "Vitesse personnalisée"
+    "speedCustom": "Vitesse personnalisée",
+    "audioClipsLabel": "Son des plans",
+    "addAudioTrack": "Ajouter une piste audio"
   },
   "forgotPassword": {
     "title": "Mot de passe oublié",

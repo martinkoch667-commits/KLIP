@@ -114,6 +114,7 @@ export interface AudioTrack {
   dur: number;
   vol: number; // 0-1
   offset: number; // décalage de départ sur la timeline (s)
+  track?: number; // piste audio d'empilement (0, 1, 2…) — pour organiser des pistes qui se superposent. Défaut 0.
   fadeIn?: number;  // durée du fondu d'entrée (s), défaut 0
   fadeOut?: number; // durée du fondu de sortie (s), défaut 0
   waveform?: number[]; // pics d'amplitude normalisés (0-1), échantillonnés à l'import — pour l'affichage visuel dans la timeline

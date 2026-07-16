@@ -1536,7 +1536,9 @@
     "toastOverlayCopied": "Sobreposição copiada.",
     "toastClipCopied": "Plano copiado.",
     "toastCaptionsGenerated": "{count, plural, one {# legenda gerada.} other {# legendas geradas.}}",
-    "speedCustom": "Velocidade personalizada"
+    "speedCustom": "Velocidade personalizada",
+    "audioClipsLabel": "Som dos planos",
+    "addAudioTrack": "Adicionar uma faixa de áudio"
   },
   "forgotPassword": {
     "title": "Esqueceu a palavra-passe",

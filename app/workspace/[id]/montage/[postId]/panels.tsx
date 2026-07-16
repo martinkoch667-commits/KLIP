@@ -72,6 +72,8 @@ export interface MontageCtx {
   setAudioVol: (id: string, vol: number) => void;
   setAudioFade: (id: string, kind: "fadeIn" | "fadeOut", seconds: number) => void;
   toggleRecordVO: () => void;
+  audioTrackCount: number;
+  moveAudioTrackRow: (id: string, dir: 1 | -1) => void;
 
   overlays: OverlayClip[];
   selectedOverlay: OverlayClip | null;
@@ -493,6 +495,13 @@ export function AudioPanel({ ctx }: { ctx: MontageCtx }) {
           <Range label={t('volumeVoiceover')} value={Math.round(a.vol * 100)} min={0} max={100} unit="%" onChange={(v) => ctx.setAudioVol(a.id, v / 100)} />
           <Range label={t('fadeIn')} value={Math.round((a.fadeIn ?? 0) * 10) / 10} min={0} max={5} step={0.1} unit="s" onChange={(v) => ctx.setAudioFade(a.id, "fadeIn", v)} />
           <Range label={t('fadeOut')} value={Math.round((a.fadeOut ?? 0) * 10) / 10} min={0} max={5} step={0.1} unit="s" onChange={(v) => ctx.setAudioFade(a.id, "fadeOut", v)} />
+          {ctx.audioTrackCount > 1 && (
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 6 }}>
+              <button className="btn btn-ghost" style={{ minWidth: 34, padding: "5px 0" }} disabled={(a.track ?? 0) <= 0} onClick={() => ctx.moveAudioTrackRow(a.id, -1)} title={t('trackDown')}>−</button>
+              <span style={{ flex: 1, textAlign: "center", fontSize: 12.5, fontWeight: 700, color: "var(--ink-2)" }}>{t('videoTrackValue', { n: (a.track ?? 0) + 1, total: ctx.audioTrackCount })}</span>
+              <button className="btn btn-ghost" style={{ minWidth: 34, padding: "5px 0" }} disabled={(a.track ?? 0) >= ctx.audioTrackCount - 1} onClick={() => ctx.moveAudioTrackRow(a.id, 1)} title={t('trackUp')}>+</button>
+            </div>
+          )}
         </div>
       ))}
       <div className="a-section">
@@ -518,6 +527,13 @@ export function AudioPanel({ ctx }: { ctx: MontageCtx }) {
             <Range label={t('volumeMusic')} value={Math.round(a.vol * 100)} min={0} max={100} unit="%" onChange={(v) => ctx.setAudioVol(a.id, v / 100)} />
             <Range label={t('fadeIn')} value={Math.round((a.fadeIn ?? 0) * 10) / 10} min={0} max={5} step={0.1} unit="s" onChange={(v) => ctx.setAudioFade(a.id, "fadeIn", v)} />
             <Range label={t('fadeOut')} value={Math.round((a.fadeOut ?? 0) * 10) / 10} min={0} max={5} step={0.1} unit="s" onChange={(v) => ctx.setAudioFade(a.id, "fadeOut", v)} />
+            {ctx.audioTrackCount > 1 && (
+              <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 6 }}>
+                <button className="btn btn-ghost" style={{ minWidth: 34, padding: "5px 0" }} disabled={(a.track ?? 0) <= 0} onClick={() => ctx.moveAudioTrackRow(a.id, -1)} title={t('trackDown')}>−</button>
+                <span style={{ flex: 1, textAlign: "center", fontSize: 12.5, fontWeight: 700, color: "var(--ink-2)" }}>{t('videoTrackValue', { n: (a.track ?? 0) + 1, total: ctx.audioTrackCount })}</span>
+                <button className="btn btn-ghost" style={{ minWidth: 34, padding: "5px 0" }} disabled={(a.track ?? 0) >= ctx.audioTrackCount - 1} onClick={() => ctx.moveAudioTrackRow(a.id, 1)} title={t('trackUp')}>+</button>
+              </div>
+            )}
           </div>
         ))}
       </div>

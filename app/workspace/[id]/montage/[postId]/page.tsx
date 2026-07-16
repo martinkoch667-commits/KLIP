@@ -192,6 +192,7 @@ export default function MontagePage() {
   const [pps, setPps] = useState(40);
   const [histTick, setHistTick] = useState(0);
   const [extraVideoTracks, setExtraVideoTracks] = useState(0); // pistes vidéo vides ajoutées par l'utilisateur (au-delà des pistes occupées)
+  const [extraAudioTracks, setExtraAudioTracks] = useState(0); // idem pour les pistes audio ajoutées
 
   // Disposition redimensionnable (persistée) — comme CapCut
   const [panelW, setPanelW] = useState(312);
@@ -399,6 +400,9 @@ export default function MontagePage() {
   // pistes vides ajoutées à la main. Toujours au moins une.
   const maxOverlayTrack = useMemo(() => overlays.reduce((m, o) => Math.max(m, o.track ?? 0), 0), [overlays]);
   const videoTrackCount = Math.max(1, maxOverlayTrack + 1) + extraVideoTracks;
+  // Pistes audio ajoutées (musique/voix off). Le son embarqué des plans a sa propre rangée dédiée.
+  const maxAudioTrack = useMemo(() => audioTracks.reduce((m, a) => Math.max(m, a.track ?? 0), 0), [audioTracks]);
+  const audioTrackCount = Math.max(1, maxAudioTrack + 1) + extraAudioTracks;
 
   const seek = useCallback((t: number) => {
     const clamped = Math.max(0, Math.min(total, t));
@@ -1184,6 +1188,13 @@ export default function MontagePage() {
     const next = Math.max(0, Math.min(videoTrackCount - 1, (o.track ?? 0) + dir));
     updateOverlay(id, { track: next });
   }
+  // Déplace une piste audio d'une rangée vers le haut/bas (organisation ; le mixage est inchangé).
+  function moveAudioTrackRow(id: string, dir: 1 | -1) {
+    const a = audioTracks.find((tr) => tr.id === id);
+    if (!a) return;
+    const next = Math.max(0, Math.min(audioTrackCount - 1, (a.track ?? 0) + dir));
+    setAudioTracks((prev) => prev.map((tr) => (tr.id === id ? { ...tr, track: next } : tr)));
+  }
 
   // ── Plan principal : déplacement dans le temps (poignée) = ajuste gapBefore ──
   function onClipBarDown(e: React.PointerEvent, c: { id: string; start: number; gapBefore?: number }) {
@@ -1264,6 +1275,7 @@ export default function MontagePage() {
     setSubCustom, resetSubCustom: () => setSubCustom({}), applySubTemplate,
     addSticker, updateSticker, removeSticker,
     toggleProgressBar, importAudio, removeAudioTrack, setAudioVol, setAudioFade, toggleRecordVO,
+    audioTrackCount, moveAudioTrackRow,
   };
 
   const trackW = Math.max(total * pps, 200);
@@ -1700,7 +1712,7 @@ export default function MontagePage() {
               );
             })}
             <div className="a-lane" style={{ height: 34 }}>
-              <div className="a-lane-label"><VIcon name="music" size={13} /> {t('railAudio')}</div>
+              <div className="a-lane-label"><VIcon name="music" size={13} /> {t('audioClipsLabel')}</div>
               <div className="a-lane-track">
                 {/* son embarqué des plans vidéo — clic = sélectionne la piste audio seule ; Option/Alt+clic = aussi le plan vidéo lié */}
                 {clipStarts.filter((c) => c.kind === "video").map((c) => (
@@ -1720,22 +1732,40 @@ export default function MontagePage() {
                     <span style={{ position: "absolute", left: 6, top: 4, fontSize: 9.5, fontWeight: 700, color: "#fff", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: "calc(100% - 12px)" }}>{(c.vol ?? 1) === 0 ? "🔇" : "🔊"} {c.name}</span>
                   </div>
                 ))}
-                {audioTracks.map((a) => (
-                  <div key={a.id} className="a-wave-bar" style={{ left: a.offset * pps, width: a.dur * pps, top: 2, bottom: 2 }} title={a.name}>
-                    {a.waveform && a.waveform.length > 0 && (
-                      <svg width="100%" height="100%" preserveAspectRatio="none" style={{ position: "absolute", inset: 0, opacity: 0.55 }}>
-                        {a.waveform.map((p, i) => {
-                          const x = (i / a.waveform!.length) * 100;
-                          const h = Math.max(6, p * 100);
-                          return <rect key={i} x={`${x}%`} y={`${(100 - h) / 2}%`} width={`${100 / a.waveform!.length}%`} height={`${h}%`} fill="#fff" />;
-                        })}
-                      </svg>
-                    )}
-                    <span style={{ position: "absolute", left: 6, top: 4, fontSize: 9.5, fontWeight: 700, color: "#fff" }}>{a.kind === "voiceover" ? "🎙" : "🎵"} {a.name}</span>
-                  </div>
-                ))}
               </div>
             </div>
+            {Array.from({ length: audioTrackCount }).map((_, aIdx) => {
+              const atrack = aIdx; // rangée audio (l'ordre n'affecte pas le mixage, uniquement l'organisation)
+              const isFirstA = aIdx === 0;
+              return (
+              <div className="a-lane" style={{ height: 34 }} key={"atrack-" + atrack}>
+                <div className="a-lane-label" style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                  <VIcon name="music" size={13} />
+                  <span className="trunc">{audioTrackCount > 1 ? `${t('railAudio')} ${atrack + 1}` : t('railAudio')}</span>
+                  {isFirstA && (
+                    <button onClick={() => setExtraAudioTracks((n) => n + 1)} title={t('addAudioTrack')}
+                      style={{ marginLeft: "auto", width: 18, height: 18, borderRadius: 5, border: "1px solid var(--line)", background: "var(--canvas)", color: "var(--ink-2)", fontSize: 14, lineHeight: "14px", cursor: "pointer", flexShrink: 0, padding: 0 }}>+</button>
+                  )}
+                </div>
+                <div className="a-lane-track">
+                  {audioTracks.filter((a) => (a.track ?? 0) === atrack).map((a) => (
+                    <div key={a.id} className="a-wave-bar" style={{ left: a.offset * pps, width: a.dur * pps, top: 2, bottom: 2 }} title={a.name}>
+                      {a.waveform && a.waveform.length > 0 && (
+                        <svg width="100%" height="100%" preserveAspectRatio="none" style={{ position: "absolute", inset: 0, opacity: 0.55 }}>
+                          {a.waveform.map((p, i) => {
+                            const x = (i / a.waveform!.length) * 100;
+                            const h = Math.max(6, p * 100);
+                            return <rect key={i} x={`${x}%`} y={`${(100 - h) / 2}%`} width={`${100 / a.waveform!.length}%`} height={`${h}%`} fill="#fff" />;
+                          })}
+                        </svg>
+                      )}
+                      <span style={{ position: "absolute", left: 6, top: 4, fontSize: 9.5, fontWeight: 700, color: "#fff" }}>{a.kind === "voiceover" ? "🎙" : "🎵"} {a.name}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              );
+            })}
             <div className="a-lane" style={{ height: 34 }}>
               <div className="a-lane-label"><VIcon name="captions" size={13} /> {t('labelSubtitlesShort')}</div>
               <div className="a-lane-track">

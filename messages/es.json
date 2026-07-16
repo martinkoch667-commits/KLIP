@@ -1536,7 +1536,9 @@
     "toastOverlayCopied": "Incrustación copiada.",
     "toastClipCopied": "Plano copiado.",
     "toastCaptionsGenerated": "{count, plural, one {# subtítulo generado.} other {# subtítulos generados.}}",
-    "speedCustom": "Velocidad personalizada"
+    "speedCustom": "Velocidad personalizada",
+    "audioClipsLabel": "Sonido de planos",
+    "addAudioTrack": "Añadir una pista de audio"
   },
   "forgotPassword": {
     "title": "Contraseña olvidada",

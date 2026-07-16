@@ -1536,7 +1536,9 @@
     "toastOverlayCopied": "Overlay copied.",
     "toastClipCopied": "Clip copied.",
     "toastCaptionsGenerated": "{count, plural, one {# subtitle generated.} other {# subtitles generated.}}",
-    "speedCustom": "Custom speed"
+    "speedCustom": "Custom speed",
+    "audioClipsLabel": "Clip sound",
+    "addAudioTrack": "Add an audio track"
   },
   "forgotPassword": {
     "title": "Forgot password",

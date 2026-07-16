@@ -1536,7 +1536,9 @@
     "toastOverlayCopied": "Sovrapposizione copiata.",
     "toastClipCopied": "Clip copiata.",
     "toastCaptionsGenerated": "{count, plural, one {# sottotitolo generato.} other {# sottotitoli generati.}}",
-    "speedCustom": "Velocità personalizzata"
+    "speedCustom": "Velocità personalizzata",
+    "audioClipsLabel": "Audio delle clip",
+    "addAudioTrack": "Aggiungi una traccia audio"
   },
   "forgotPassword": {
     "title": "Password dimenticata",
