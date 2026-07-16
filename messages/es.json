@@ -1249,7 +1249,13 @@
       "slide": "Deslizar",
       "zoom": "Zoom",
       "wipe": "Barrido",
-      "blur": "Desenfoque"
+      "blur": "Desenfoque",
+      "slideup": "Deslizar arriba",
+      "slidedown": "Deslizar abajo",
+      "zoomout": "Alejar",
+      "spin": "Rotación",
+      "whip": "Whip",
+      "flash": "Flash"
     },
     "subLength": {
       "one": "1 palabra",

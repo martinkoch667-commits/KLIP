@@ -1249,7 +1249,13 @@
       "slide": "Glissé",
       "zoom": "Zoom",
       "wipe": "Balayage",
-      "blur": "Flou"
+      "blur": "Flou",
+      "slideup": "Glissé haut",
+      "slidedown": "Glissé bas",
+      "zoomout": "Zoom arrière",
+      "spin": "Rotation",
+      "whip": "Whip",
+      "flash": "Flash"
     },
     "subLength": {
       "one": "1 mot",

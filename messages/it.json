@@ -1249,7 +1249,13 @@
       "slide": "Scorrimento",
       "zoom": "Zoom",
       "wipe": "Spazzata",
-      "blur": "Sfocatura"
+      "blur": "Sfocatura",
+      "slideup": "Scorri su",
+      "slidedown": "Scorri giù",
+      "zoomout": "Rimpicciolisci",
+      "spin": "Rotazione",
+      "whip": "Whip",
+      "flash": "Flash"
     },
     "subLength": {
       "one": "1 parola",

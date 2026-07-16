@@ -74,16 +74,22 @@ function drawCover(ctx: CanvasRenderingContext2D, media: CanvasImageSource, mw: 
 
 // entrée transition : renvoie transform/alpha/filtre à appliquer sur le média du plan entrant
 function transitionState(clip: ClipTimed, tIntoClip: number, isFirst: boolean) {
-  const st = { alpha: 1, dx: 0, dy: 0, scale: 1, extraFilter: "", clipRect: null as null | [number, number, number, number] };
+  const st = { alpha: 1, dx: 0, dy: 0, scale: 1, rotate: 0, flash: 0, extraFilter: "", clipRect: null as null | [number, number, number, number] };
   if (isFirst || clip.transitionIn === "cut" || clip.transitionDur <= 0 || tIntoClip >= clip.transitionDur) return st;
   const p = Math.max(0, Math.min(1, tIntoClip / clip.transitionDur));
   const ease = 1 - Math.pow(1 - p, 2);
   switch (clip.transitionIn) {
     case "fade": st.alpha = ease; break;
     case "zoom": st.scale = 1.18 - 0.18 * ease; st.alpha = 0.2 + 0.8 * ease; break;
+    case "zoomout": st.scale = 0.82 + 0.18 * ease; st.alpha = 0.3 + 0.7 * ease; break;
     case "slide": st.dx = (1 - ease) * CANVAS_W * 0.5; st.alpha = 0.3 + 0.7 * ease; break;
+    case "slideup": st.dy = (1 - ease) * CANVAS_H * 0.4; st.alpha = 0.3 + 0.7 * ease; break;
+    case "slidedown": st.dy = -(1 - ease) * CANVAS_H * 0.4; st.alpha = 0.3 + 0.7 * ease; break;
+    case "spin": st.rotate = (1 - ease) * 22; st.scale = 0.85 + 0.15 * ease; st.alpha = ease; break;
     case "wipe": st.clipRect = [0, 0, CANVAS_W * ease, CANVAS_H]; break;
     case "blur": st.extraFilter = `blur(${(1 - ease) * 14}px)`; st.alpha = 0.5 + 0.5 * ease; break;
+    case "whip": st.dx = (1 - ease) * CANVAS_W * 0.6; st.extraFilter = `blur(${(1 - ease) * 12}px)`; st.alpha = 0.4 + 0.6 * ease; break;
+    case "flash": st.flash = 1 - ease; st.alpha = Math.min(1, 0.4 + ease); break;
   }
   return st;
 }
@@ -103,13 +109,22 @@ function drawMediaFrame(ctx: CanvasRenderingContext2D, media: HTMLVideoElement |
     ctx.rect(...tr.clipRect);
     ctx.clip();
   }
-  if (scale !== 1 || tr.dx || tr.dy) {
+  if (scale !== 1 || tr.dx || tr.dy || tr.rotate) {
     ctx.translate(CANVAS_W / 2 + tr.dx, CANVAS_H / 2 + tr.dy);
+    if (tr.rotate) ctx.rotate((tr.rotate * Math.PI) / 180);
     ctx.scale(scale, scale);
     ctx.translate(-CANVAS_W / 2, -CANVAS_H / 2);
   }
   drawCover(ctx, media, mw, mh, clip.focusX, clip.focusY);
   ctx.restore();
+  // Flash blanc (transition "flash") par-dessus le plan entrant.
+  if (tr.flash > 0) {
+    ctx.save();
+    ctx.globalAlpha = Math.max(0, Math.min(1, tr.flash));
+    ctx.fillStyle = "#fff";
+    ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
+    ctx.restore();
+  }
 }
 
 function drawCaptions(ctx: CanvasRenderingContext2D, captions: Caption[], subStyleId: string, subCustom: SubCustom | undefined, subPos: { x: number; y: number } | undefined, t: number) {

@@ -1249,7 +1249,13 @@
       "slide": "Slide",
       "zoom": "Zoom",
       "wipe": "Wipe",
-      "blur": "Blur"
+      "blur": "Blur",
+      "slideup": "Slide up",
+      "slidedown": "Slide down",
+      "zoomout": "Zoom out",
+      "spin": "Spin",
+      "whip": "Whip",
+      "flash": "Flash"
     },
     "subLength": {
       "one": "1 word",

@@ -1249,7 +1249,13 @@
       "slide": "Wischen",
       "zoom": "Zoom",
       "wipe": "Wischblende",
-      "blur": "Weichzeichner"
+      "blur": "Weichzeichner",
+      "slideup": "Nach oben",
+      "slidedown": "Nach unten",
+      "zoomout": "Auszoomen",
+      "spin": "Drehung",
+      "whip": "Whip",
+      "flash": "Blitz"
     },
     "subLength": {
       "one": "1 Wort",

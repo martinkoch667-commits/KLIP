@@ -267,9 +267,15 @@ export const TRANSITIONS: { id: string; name: string; glyph: string }[] = [
   { id: "cut", name: "Cut", glyph: "▮▮" },
   { id: "fade", name: "Fondu", glyph: "◐" },
   { id: "slide", name: "Glissé", glyph: "⇥" },
-  { id: "zoom", name: "Zoom", glyph: "⊕" },
+  { id: "slideup", name: "Glissé haut", glyph: "⇧" },
+  { id: "slidedown", name: "Glissé bas", glyph: "⇩" },
+  { id: "zoom", name: "Zoom avant", glyph: "⊕" },
+  { id: "zoomout", name: "Zoom arrière", glyph: "⊖" },
+  { id: "spin", name: "Rotation", glyph: "↻" },
   { id: "wipe", name: "Balayage", glyph: "◑" },
   { id: "blur", name: "Flou", glyph: "◌" },
+  { id: "whip", name: "Whip", glyph: "⤳" },
+  { id: "flash", name: "Flash", glyph: "✦" },
 ];
 
 export const SPEEDS = [0.25, 0.5, 1, 1.5, 2];
