@@ -27,6 +27,8 @@ export interface ExportProject {
   audioTracks: AudioTrack[];
   showProgressBar: boolean;
   formatId?: string;
+  customW?: number;
+  customH?: number;
   exportQuality?: string;
 }
 
@@ -44,6 +46,7 @@ interface ClipTimed extends MontageClip {
 function withStarts(clips: MontageClip[]): ClipTimed[] {
   let acc = 0;
   return clips.map((c) => {
+    acc += Math.max(0, c.gapBefore ?? 0); // écran noir inséré avant ce plan
     const dur = clipTimelineDur(c);
     const start = acc;
     acc += dur;
@@ -71,16 +74,22 @@ function drawCover(ctx: CanvasRenderingContext2D, media: CanvasImageSource, mw: 
 
 // entrée transition : renvoie transform/alpha/filtre à appliquer sur le média du plan entrant
 function transitionState(clip: ClipTimed, tIntoClip: number, isFirst: boolean) {
-  const st = { alpha: 1, dx: 0, dy: 0, scale: 1, extraFilter: "", clipRect: null as null | [number, number, number, number] };
+  const st = { alpha: 1, dx: 0, dy: 0, scale: 1, rotate: 0, flash: 0, extraFilter: "", clipRect: null as null | [number, number, number, number] };
   if (isFirst || clip.transitionIn === "cut" || clip.transitionDur <= 0 || tIntoClip >= clip.transitionDur) return st;
   const p = Math.max(0, Math.min(1, tIntoClip / clip.transitionDur));
   const ease = 1 - Math.pow(1 - p, 2);
   switch (clip.transitionIn) {
     case "fade": st.alpha = ease; break;
     case "zoom": st.scale = 1.18 - 0.18 * ease; st.alpha = 0.2 + 0.8 * ease; break;
+    case "zoomout": st.scale = 0.82 + 0.18 * ease; st.alpha = 0.3 + 0.7 * ease; break;
     case "slide": st.dx = (1 - ease) * CANVAS_W * 0.5; st.alpha = 0.3 + 0.7 * ease; break;
+    case "slideup": st.dy = (1 - ease) * CANVAS_H * 0.4; st.alpha = 0.3 + 0.7 * ease; break;
+    case "slidedown": st.dy = -(1 - ease) * CANVAS_H * 0.4; st.alpha = 0.3 + 0.7 * ease; break;
+    case "spin": st.rotate = (1 - ease) * 22; st.scale = 0.85 + 0.15 * ease; st.alpha = ease; break;
     case "wipe": st.clipRect = [0, 0, CANVAS_W * ease, CANVAS_H]; break;
     case "blur": st.extraFilter = `blur(${(1 - ease) * 14}px)`; st.alpha = 0.5 + 0.5 * ease; break;
+    case "whip": st.dx = (1 - ease) * CANVAS_W * 0.6; st.extraFilter = `blur(${(1 - ease) * 12}px)`; st.alpha = 0.4 + 0.6 * ease; break;
+    case "flash": st.flash = 1 - ease; st.alpha = Math.min(1, 0.4 + ease); break;
   }
   return st;
 }
@@ -100,13 +109,22 @@ function drawMediaFrame(ctx: CanvasRenderingContext2D, media: HTMLVideoElement |
     ctx.rect(...tr.clipRect);
     ctx.clip();
   }
-  if (scale !== 1 || tr.dx || tr.dy) {
+  if (scale !== 1 || tr.dx || tr.dy || tr.rotate) {
     ctx.translate(CANVAS_W / 2 + tr.dx, CANVAS_H / 2 + tr.dy);
+    if (tr.rotate) ctx.rotate((tr.rotate * Math.PI) / 180);
     ctx.scale(scale, scale);
     ctx.translate(-CANVAS_W / 2, -CANVAS_H / 2);
   }
   drawCover(ctx, media, mw, mh, clip.focusX, clip.focusY);
   ctx.restore();
+  // Flash blanc (transition "flash") par-dessus le plan entrant.
+  if (tr.flash > 0) {
+    ctx.save();
+    ctx.globalAlpha = Math.max(0, Math.min(1, tr.flash));
+    ctx.fillStyle = "#fff";
+    ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
+    ctx.restore();
+  }
 }
 
 function drawCaptions(ctx: CanvasRenderingContext2D, captions: Caption[], subStyleId: string, subCustom: SubCustom | undefined, subPos: { x: number; y: number } | undefined, t: number) {
@@ -259,7 +277,9 @@ async function loadImage(src: string): Promise<HTMLImageElement> {
 }
 
 export async function renderExport(project: ExportProject, onProgress: (p: number) => void): Promise<ExportResult> {
-  const fmt = videoFormatById(project.formatId);
+  const fmt = project.formatId === "custom" && project.customW && project.customH
+    ? { w: project.customW, h: project.customH }
+    : videoFormatById(project.formatId);
   CANVAS_W = fmt.w; CANVAS_H = fmt.h;
 
   const clips = withStarts(project.clips);
@@ -305,9 +325,24 @@ export async function renderExport(project: ExportProject, onProgress: (p: numbe
     node.connect(gain).connect(dest);
     return { el, gain, track: t };
   });
-  function updateAudioFades() {
+  // Pilote chaque piste audio selon le temps global de l'export : démarre/seek/pause
+  // au bon moment (offset sur la timeline + srcOffset dans la source pour l'audio détaché),
+  // et applique le volume + fondus. Corrige la limite précédente où les offsets étaient ignorés.
+  function updateAudioAt(globalT: number) {
     for (const { el, gain, track } of audioEls) {
-      gain.gain.value = audioVolumeAt(track, el.currentTime);
+      const start = track.offset;
+      const end = track.offset + track.dur;
+      const within = globalT >= start && globalT < end;
+      if (within) {
+        const local = globalT - start;
+        const srcT = (track.srcOffset ?? 0) + local;
+        if (el.paused) { try { el.currentTime = srcT; } catch {} el.play().catch(() => {}); }
+        else if (Math.abs(el.currentTime - srcT) > 0.35) { try { el.currentTime = srcT; } catch {} }
+        gain.gain.value = audioVolumeAt(track, local);
+      } else {
+        if (!el.paused) el.pause();
+        gain.gain.value = 0;
+      }
     }
   }
 
@@ -319,7 +354,9 @@ export async function renderExport(project: ExportProject, onProgress: (p: numbe
   }
 
   // ── Plans d'incrustation (PIP) : image ou vidéo superposée ────────────────────
-  const overlays = project.overlays || [];
+  // Triés par piste croissante (stable) → la piste la plus haute est dessinée en
+  // dernier, donc au-dessus (z-order cohérent avec l'aperçu).
+  const overlays = (project.overlays || []).slice().sort((a, b) => (a.track ?? 0) - (b.track ?? 0));
   const overlayMedia: { o: OverlayClip; video: HTMLVideoElement | null; img: HTMLImageElement | null; active: boolean }[] = [];
   for (const o of overlays) {
     if (o.kind === "photo") {
@@ -368,7 +405,7 @@ export async function renderExport(project: ExportProject, onProgress: (p: numbe
   const stopped = new Promise<Blob>((resolve) => { recorder.onstop = () => resolve(new Blob(chunks, { type: "video/webm" })); });
 
   recorder.start(200);
-  audioEls.forEach(({ el }) => { el.currentTime = 0; el.play().catch(() => {}); });
+  // Les pistes audio sont démarrées/seek/pausées à leur offset par updateAudioAt() dans la boucle.
 
   // Miniature : capture le tout premier frame composé (image + texte/titres) du plan 1.
   let thumbCaptured = false;
@@ -418,8 +455,36 @@ export async function renderExport(project: ExportProject, onProgress: (p: numbe
       const c = clips[i];
       onProgress(c.start / total);
       const next = clips[i + 1];
-      const crossFadeIn = i > 0 && c.transitionIn === "fade" && c.transitionDur > 0 && !!prevMedia;
-      const crossFadeOutDur = next && next.transitionIn === "fade" && next.transitionDur > 0 ? Math.min(next.transitionDur, c.dur) : 0;
+      const gapBefore = Math.max(0, c.gapBefore ?? 0);
+
+      // ── Écran noir (trou) avant ce plan ─────────────────────────────────────
+      // Rien à décoder : on remplit le canvas de noir et on compose les pistes
+      // (overlays, sous-titres, titres, stickers, audio) actives pendant le trou.
+      if (gapBefore > 0) {
+        const gapStart = c.start - gapBefore;
+        const t0 = performance.now();
+        await new Promise<void>((resolve) => {
+          const iv = setInterval(() => {
+            const elapsed = (performance.now() - t0) / 1000;
+            if (elapsed >= gapBefore) { clearInterval(iv); resolve(); return; }
+            const globalT = gapStart + elapsed;
+            updateAudioAt(globalT);
+            ctx.fillStyle = "#000";
+            ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
+            drawOverlays(globalT);
+            drawCaptions(ctx, project.captions, project.subStyleId, project.subCustom, project.subPos, globalT);
+            drawTitles(ctx, project.titles, globalT);
+            drawStickers(ctx, project.stickers, stickerImages, globalT);
+            if (project.showProgressBar) drawProgressBar(ctx, globalT, total);
+          }, 1000 / FPS);
+        });
+      }
+
+      // Un fondu enchaîné n'a pas de sens à travers un trou : on le désactive quand ce
+      // plan (entrée) ou le suivant (sortie) est précédé d'un écran noir.
+      const crossFadeIn = i > 0 && c.transitionIn === "fade" && c.transitionDur > 0 && !!prevMedia && gapBefore <= 0;
+      const nextGap = next ? Math.max(0, next.gapBefore ?? 0) : 0;
+      const crossFadeOutDur = next && next.transitionIn === "fade" && next.transitionDur > 0 && nextGap <= 0 ? Math.min(next.transitionDur, c.dur) : 0;
 
       let media: PlayingMedia;
       if (c.kind === "video") {
@@ -453,7 +518,7 @@ export async function renderExport(project: ExportProject, onProgress: (p: numbe
             if (elapsed >= transDur) { clearInterval(iv); resolve(); return; }
             const p = elapsed / transDur;
             const globalT = c.start + elapsed;
-            updateAudioFades();
+            updateAudioAt(globalT);
             ctx.clearRect(0, 0, CANVAS_W, CANVAS_H);
             drawDissolveFrame(prevM, 1 - p);
             drawDissolveFrame(media, p);
@@ -480,7 +545,7 @@ export async function renderExport(project: ExportProject, onProgress: (p: numbe
             const localT = (v.currentTime - c.trimStart) / c.speed;
             if (v.paused || localT >= soloEnd || v.ended) { clearInterval(iv); resolve(); return; }
             const globalT = c.start + localT;
-            updateAudioFades();
+            updateAudioAt(globalT);
             drawMediaFrame(ctx, v, c, localT, i === 0);
             drawOverlays(globalT);
             drawCaptions(ctx, project.captions, project.subStyleId, project.subCustom, project.subPos, globalT);
@@ -498,7 +563,7 @@ export async function renderExport(project: ExportProject, onProgress: (p: numbe
             const localT = (performance.now() - media.photoStart) / 1000;
             if (localT >= soloEnd) { clearInterval(iv); resolve(); return; }
             const globalT = c.start + localT;
-            updateAudioFades();
+            updateAudioAt(globalT);
             drawMediaFrame(ctx, img, c, localT, i === 0);
             drawOverlays(globalT);
             drawCaptions(ctx, project.captions, project.subStyleId, project.subCustom, project.subPos, globalT);

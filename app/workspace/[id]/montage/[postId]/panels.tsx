@@ -37,6 +37,11 @@ export interface MontageCtx {
   smartCropClip: (clipId: string) => void;
   assembling: boolean;
   autoAssembleAI: () => void;
+  cuttingSilence: boolean;
+  cutSilences: () => void;
+  generatingDesc: boolean;
+  videoDescription: string | null;
+  generateVideoDescription: () => void;
   suggestingMusic: boolean;
   musicSuggestion: string | null;
   suggestMusicMoodAI: () => void;
@@ -72,6 +77,13 @@ export interface MontageCtx {
   setAudioVol: (id: string, vol: number) => void;
   setAudioFade: (id: string, kind: "fadeIn" | "fadeOut", seconds: number) => void;
   toggleRecordVO: () => void;
+  audioTrackCount: number;
+  moveAudioTrackRow: (id: string, dir: 1 | -1) => void;
+  addVolKey: (id: string) => void;
+  setVolKey: (id: string, idx: number, v: number) => void;
+  removeVolKey: (id: string, idx: number) => void;
+  processingVoice: string | null;
+  isolateVoiceOnTrack: (id: string, mode: "isolate" | "remove") => void;
 
   overlays: OverlayClip[];
   selectedOverlay: OverlayClip | null;
@@ -81,6 +93,8 @@ export interface MontageCtx {
   removeOverlay: (id: string) => void;
   duplicateOverlay: (id: string) => void;
   selectOverlay: (id: string) => void;
+  videoTrackCount: number;
+  moveOverlayTrack: (id: string, dir: 1 | -1) => void;
 }
 
 // Convertit un id à tirets ("bold-white") en clé camelCase ("boldWhite") pour
@@ -156,6 +170,15 @@ export function CutPanel({ ctx }: { ctx: MontageCtx }) {
           ) : (
             <Range label={t('duration')} value={c.trimEnd} min={1} max={15} step={0.5} unit="s" onChange={(v) => ctx.updateClip(c.id, { trimEnd: v })} />
           )}
+        </div>
+      )}
+      {c && (
+        <div className="a-section">
+          <span className="mz-sec-label">{t('gapBeforeTitle')}</span>
+          <p style={{ fontSize: 11.5, color: "var(--ink-3)", lineHeight: 1.45, marginBottom: 8 }}>
+            {t('gapBeforeHint')}
+          </p>
+          <Range label={t('gapBeforeLabel')} value={c.gapBefore ?? 0} min={0} max={10} step={0.1} unit="s" onChange={(v) => ctx.updateClip(c.id, { gapBefore: v })} />
         </div>
       )}
       {c && c.kind === "photo" && (
@@ -441,6 +464,52 @@ export function CaptionsPanel({ ctx }: { ctx: MontageCtx }) {
 
 // ─── Audio ──────────────────────────────────────────────────────────────────
 
+// Points-clés de volume (automation) d'une piste audio — ajout au curseur, réglage, suppression.
+function VolKeyframes({ track, ctx }: { track: AudioTrack; ctx: MontageCtx }) {
+  const t = useTranslations('montage');
+  const keys = track.volKeys || [];
+  return (
+    <div style={{ marginTop: 8 }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
+        <span className="mz-sec-label">{t('volKeysTitle')}</span>
+        <button className="btn btn-ghost btn-sm" onClick={() => ctx.addVolKey(track.id)} title={t('volKeyAddTitle')}><VIcon name="plus" size={12} /> {t('volKeyAdd')}</button>
+      </div>
+      {keys.length === 0 ? (
+        <p style={{ fontSize: 11.5, color: "var(--ink-3)", lineHeight: 1.4 }}>{t('volKeysHint')}</p>
+      ) : (
+        keys.map((k, i) => (
+          <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+            <span style={{ fontFamily: "var(--mono)", fontSize: 11, color: "var(--ink-3)", minWidth: 42 }}>{k.t.toFixed(1)}s</span>
+            <input type="range" min={0} max={200} value={Math.round(k.v * 100)} onChange={(e) => ctx.setVolKey(track.id, i, Number(e.target.value) / 100)} style={{ flex: 1 }} />
+            <span style={{ fontFamily: "var(--mono)", fontSize: 11, color: "var(--ink-2)", minWidth: 38, textAlign: "right" }}>{Math.round(k.v * 100)}%</span>
+            <button className="mz-hbtn" style={{ width: 22, height: 22, flexShrink: 0 }} onClick={() => ctx.removeVolKey(track.id, i)}><VIcon name="x" size={11} /></button>
+          </div>
+        ))
+      )}
+    </div>
+  );
+}
+
+// Isolation / suppression de la voix sur une piste (DSP best-effort).
+function VoiceTools({ track, ctx }: { track: AudioTrack; ctx: MontageCtx }) {
+  const t = useTranslations('montage');
+  const busy = ctx.processingVoice === track.id;
+  return (
+    <div style={{ marginTop: 10 }}>
+      <span className="mz-sec-label">{t('voiceToolsTitle')}</span>
+      <div style={{ display: "flex", gap: 6, marginTop: 6 }}>
+        <button className="btn btn-ghost btn-sm" style={{ flex: 1 }} disabled={!!ctx.processingVoice} onClick={() => ctx.isolateVoiceOnTrack(track.id, "isolate")}>
+          <VIcon name="sparkles" size={13} /> {busy ? t('voiceWorking') : t('voiceIsolate')}
+        </button>
+        <button className="btn btn-ghost btn-sm" style={{ flex: 1 }} disabled={!!ctx.processingVoice} onClick={() => ctx.isolateVoiceOnTrack(track.id, "remove")}>
+          {t('voiceRemove')}
+        </button>
+      </div>
+      <p style={{ fontSize: 11, color: "var(--ink-3)", lineHeight: 1.4, marginTop: 5 }}>{t('voiceToolsHint')}</p>
+    </div>
+  );
+}
+
 export function AudioPanel({ ctx }: { ctx: MontageCtx }) {
   const t = useTranslations('montage');
   const fileRef = useRef<HTMLInputElement>(null);
@@ -479,9 +548,18 @@ export function AudioPanel({ ctx }: { ctx: MontageCtx }) {
             <div style={{ minWidth: 0 }}><div className="mz-music-name trunc">{a.name}</div><div className="mz-music-meta">{t('voiceoverLabel', { dur: a.dur.toFixed(1) })}</div></div>
             <button className="mz-hbtn" onClick={() => ctx.removeAudioTrack(a.id)}><VIcon name="trash" size={14} /></button>
           </div>
-          <Range label={t('volumeVoiceover')} value={Math.round(a.vol * 100)} min={0} max={100} unit="%" onChange={(v) => ctx.setAudioVol(a.id, v / 100)} />
+          <Range label={t('volumeVoiceover')} value={Math.round(a.vol * 100)} min={0} max={200} unit="%" onChange={(v) => ctx.setAudioVol(a.id, v / 100)} />
+          <VolKeyframes track={a} ctx={ctx} />
+          <VoiceTools track={a} ctx={ctx} />
           <Range label={t('fadeIn')} value={Math.round((a.fadeIn ?? 0) * 10) / 10} min={0} max={5} step={0.1} unit="s" onChange={(v) => ctx.setAudioFade(a.id, "fadeIn", v)} />
           <Range label={t('fadeOut')} value={Math.round((a.fadeOut ?? 0) * 10) / 10} min={0} max={5} step={0.1} unit="s" onChange={(v) => ctx.setAudioFade(a.id, "fadeOut", v)} />
+          {ctx.audioTrackCount > 1 && (
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 6 }}>
+              <button className="btn btn-ghost" style={{ minWidth: 34, padding: "5px 0" }} disabled={(a.track ?? 0) <= 0} onClick={() => ctx.moveAudioTrackRow(a.id, -1)} title={t('trackDown')}>−</button>
+              <span style={{ flex: 1, textAlign: "center", fontSize: 12.5, fontWeight: 700, color: "var(--ink-2)" }}>{t('videoTrackValue', { n: (a.track ?? 0) + 1, total: ctx.audioTrackCount })}</span>
+              <button className="btn btn-ghost" style={{ minWidth: 34, padding: "5px 0" }} disabled={(a.track ?? 0) >= ctx.audioTrackCount - 1} onClick={() => ctx.moveAudioTrackRow(a.id, 1)} title={t('trackUp')}>+</button>
+            </div>
+          )}
         </div>
       ))}
       <div className="a-section">
@@ -504,9 +582,18 @@ export function AudioPanel({ ctx }: { ctx: MontageCtx }) {
               <div style={{ minWidth: 0 }}><div className="mz-music-name trunc">{a.name}</div><div className="mz-music-meta">{a.dur.toFixed(1)}s</div></div>
               <button className="mz-hbtn" onClick={() => ctx.removeAudioTrack(a.id)}><VIcon name="trash" size={14} /></button>
             </div>
-            <Range label={t('volumeMusic')} value={Math.round(a.vol * 100)} min={0} max={100} unit="%" onChange={(v) => ctx.setAudioVol(a.id, v / 100)} />
+            <Range label={t('volumeMusic')} value={Math.round(a.vol * 100)} min={0} max={200} unit="%" onChange={(v) => ctx.setAudioVol(a.id, v / 100)} />
+            <VolKeyframes track={a} ctx={ctx} />
+          <VoiceTools track={a} ctx={ctx} />
             <Range label={t('fadeIn')} value={Math.round((a.fadeIn ?? 0) * 10) / 10} min={0} max={5} step={0.1} unit="s" onChange={(v) => ctx.setAudioFade(a.id, "fadeIn", v)} />
             <Range label={t('fadeOut')} value={Math.round((a.fadeOut ?? 0) * 10) / 10} min={0} max={5} step={0.1} unit="s" onChange={(v) => ctx.setAudioFade(a.id, "fadeOut", v)} />
+            {ctx.audioTrackCount > 1 && (
+              <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 6 }}>
+                <button className="btn btn-ghost" style={{ minWidth: 34, padding: "5px 0" }} disabled={(a.track ?? 0) <= 0} onClick={() => ctx.moveAudioTrackRow(a.id, -1)} title={t('trackDown')}>−</button>
+                <span style={{ flex: 1, textAlign: "center", fontSize: 12.5, fontWeight: 700, color: "var(--ink-2)" }}>{t('videoTrackValue', { n: (a.track ?? 0) + 1, total: ctx.audioTrackCount })}</span>
+                <button className="btn btn-ghost" style={{ minWidth: 34, padding: "5px 0" }} disabled={(a.track ?? 0) >= ctx.audioTrackCount - 1} onClick={() => ctx.moveAudioTrackRow(a.id, 1)} title={t('trackUp')}>+</button>
+              </div>
+            )}
           </div>
         ))}
       </div>
@@ -596,11 +683,16 @@ export function SpeedPanel({ ctx }: { ctx: MontageCtx }) {
         ) : c.kind !== "video" ? (
           <p style={{ fontSize: 12.5, color: "var(--ink-3)" }}>{t('speedVideoOnly')}</p>
         ) : (
-          <div className="mz-seg">
-            {SPEEDS.map((s) => (
-              <button key={s} className={c.speed === s ? "on" : ""} onClick={() => ctx.updateClip(c.id, { speed: s })}>{s}×</button>
-            ))}
-          </div>
+          <>
+            <div className="mz-seg">
+              {SPEEDS.map((s) => (
+                <button key={s} className={c.speed === s ? "on" : ""} onClick={() => ctx.updateClip(c.id, { speed: s })}>{s}×</button>
+              ))}
+            </div>
+            <div style={{ marginTop: 12 }}>
+              <Range label={t('speedCustom')} value={c.speed} min={0.1} max={4} step={0.05} onChange={(v) => ctx.updateClip(c.id, { speed: v })} fmtv={(v) => v.toFixed(2) + "×"} />
+            </div>
+          </>
         )}
       </div>
     </>
@@ -686,6 +778,16 @@ export function OverlayPanel({ ctx }: { ctx: MontageCtx }) {
       {o ? (
         <>
           <div className="a-section">
+            <span className="mz-sec-label">{t('videoTrackTitle')}</span>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+              <button className="btn btn-ghost" style={{ minWidth: 34, padding: "6px 0" }} disabled={(o.track ?? 0) <= 0} onClick={() => ctx.moveOverlayTrack(o.id, -1)} title={t('trackDown')}>−</button>
+              <span style={{ flex: 1, textAlign: "center", fontSize: 13, fontWeight: 700, color: "var(--ink-2)" }}>{t('videoTrackValue', { n: (o.track ?? 0) + 1, total: ctx.videoTrackCount })}</span>
+              <button className="btn btn-ghost" style={{ minWidth: 34, padding: "6px 0" }} disabled={(o.track ?? 0) >= ctx.videoTrackCount - 1} onClick={() => ctx.moveOverlayTrack(o.id, 1)} title={t('trackUp')}>+</button>
+            </div>
+            <p style={{ fontSize: 11.5, color: "var(--ink-3)", lineHeight: 1.45 }}>{t('videoTrackHint')}</p>
+          </div>
+
+          <div className="a-section">
             <span className="mz-sec-label">{t('positionSize')}</span>
             <Range label={t('size')} value={o.scale} min={0.2} max={2.5} step={0.05} onChange={(v) => ctx.updateOverlay(o.id, { scale: v })} fmtv={(v) => Math.round(v * 100) + "%"} />
             <Range label={t('rotation')} value={o.rotation} min={-180} max={180} step={1} unit="°" onChange={(v) => ctx.updateOverlay(o.id, { rotation: v })} />
@@ -763,6 +865,35 @@ export function AiPanel({ ctx }: { ctx: MontageCtx }) {
           <button className="mz-ai-btn" disabled={ctx.clips.length < 2 || ctx.assembling} onClick={ctx.autoAssembleAI}>
             <VIcon name="sparkles" size={16} /> {ctx.assembling ? t('assembling') : t('generateAssembly')}
           </button>
+        </div>
+      </div>
+
+      <div className="mz-ai-card">
+        <div className="halo-blob" style={{ width: 130, height: 130, right: -30, top: -40, background: "radial-gradient(circle, var(--mint), transparent 70%)", opacity: .4 }} />
+        <div style={{ position: "relative", zIndex: 2 }}>
+          <div className="mz-sec-label" style={{ color: "var(--mint)", marginBottom: 8 }}>{t('cutSilenceLabel')}</div>
+          <div style={{ fontFamily: "var(--display)", fontWeight: 800, fontStyle: "italic", fontSize: 19, letterSpacing: "-0.02em", marginBottom: 4 }}>{t('cutSilenceTitle')}</div>
+          <p style={{ fontSize: 12.5, color: "var(--cream-2)", marginBottom: 14, lineHeight: 1.45 }}>{t('cutSilenceDesc')}</p>
+          <button className="mz-ai-btn" disabled={!hasVideo || ctx.cuttingSilence} onClick={ctx.cutSilences}>
+            <VIcon name="scissors" size={16} /> {ctx.cuttingSilence ? t('cutSilenceWorking') : t('cutSilenceBtn')}
+          </button>
+        </div>
+      </div>
+
+      <div className="mz-ai-card">
+        <div className="halo-blob" style={{ width: 130, height: 130, right: -30, top: -40, background: "radial-gradient(circle, var(--mint), transparent 70%)", opacity: .4 }} />
+        <div style={{ position: "relative", zIndex: 2 }}>
+          <div className="mz-sec-label" style={{ color: "var(--mint)", marginBottom: 8 }}>{t('videoDescLabel')}</div>
+          <div style={{ fontFamily: "var(--display)", fontWeight: 800, fontStyle: "italic", fontSize: 19, letterSpacing: "-0.02em", marginBottom: 4 }}>{t('videoDescTitle')}</div>
+          <p style={{ fontSize: 12.5, color: "var(--cream-2)", marginBottom: 14, lineHeight: 1.45 }}>{t('videoDescDesc')}</p>
+          <button className="mz-ai-btn" disabled={!hasClips || ctx.generatingDesc} onClick={ctx.generateVideoDescription}>
+            <VIcon name="sparkles" size={16} /> {ctx.generatingDesc ? t('videoDescWorking') : t('videoDescBtn')}
+          </button>
+          {ctx.videoDescription && (
+            <p style={{ fontSize: 12.5, color: "var(--ink)", lineHeight: 1.5, marginTop: 12, padding: 10, borderRadius: 8, background: "var(--sunk)", border: "1px solid var(--line)", whiteSpace: "pre-wrap" }}>
+              {ctx.videoDescription}
+            </p>
+          )}
         </div>
       </div>
 

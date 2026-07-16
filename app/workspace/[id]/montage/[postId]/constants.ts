@@ -18,6 +18,7 @@ export interface MontageClip {
   sat: number;           // -50..50
   transitionIn: string;  // TRANSITIONS[].id — transition d'entrée sur ce plan
   transitionDur: number; // durée de la transition (s)
+  gapBefore?: number;    // écran noir (s) inséré AVANT ce plan sur la timeline — défaut 0. Permet de laisser du vide en tête de montage ou entre deux plans.
   vol?: number;          // volume du son embarqué du plan vidéo (0-1, défaut 1)
   kenBurns?: KenBurnsDir; // zoom auto sur les plans photo (kind === "photo" uniquement)
   focusX?: number; // point de recadrage "cover" (0-1), défaut 0.5 = centré — posé par le recadrage IA du sujet
@@ -52,6 +53,7 @@ export interface OverlayClip {
   trimStart: number;
   trimEnd: number;
   offset: number;      // début sur la timeline (s)
+  track?: number;      // piste vidéo d'empilement (0 = juste au-dessus du plan principal ; plus haut = au-dessus). Défaut 0.
   x: number;           // centre en % (0-100)
   y: number;           // centre en %
   scale: number;       // 1 = ~50% de la largeur du cadre
@@ -112,18 +114,38 @@ export interface AudioTrack {
   dur: number;
   vol: number; // 0-1
   offset: number; // décalage de départ sur la timeline (s)
+  track?: number; // piste audio d'empilement (0, 1, 2…) — pour organiser des pistes qui se superposent. Défaut 0.
+  srcOffset?: number; // décalage de départ DANS la source (s) — utilisé par l'audio détaché d'un plan rogné. Défaut 0.
   fadeIn?: number;  // durée du fondu d'entrée (s), défaut 0
   fadeOut?: number; // durée du fondu de sortie (s), défaut 0
+  volKeys?: { t: number; v: number }[]; // points-clés de volume (automation) : t = temps local dans la piste (s), v = volume (0-2). Remplace `vol` quand présent.
   waveform?: number[]; // pics d'amplitude normalisés (0-1), échantillonnés à l'import — pour l'affichage visuel dans la timeline
 }
 
 // Volume effectif d'une piste audio à un instant donné (dans son propre référentiel,
 // localTime = 0 au début de la piste), en appliquant les fondus entrée/sortie.
+// Interpole une courbe de points-clés (triés par t) à l'instant localTime (maintien aux bords).
+function interpVolKeys(keys: { t: number; v: number }[], localTime: number): number {
+  const k = [...keys].sort((a, b) => a.t - b.t);
+  if (k.length === 1 || localTime <= k[0].t) return k[0].v;
+  const last = k[k.length - 1];
+  if (localTime >= last.t) return last.v;
+  for (let i = 0; i < k.length - 1; i++) {
+    const a = k[i], b = k[i + 1];
+    if (localTime >= a.t && localTime <= b.t) {
+      const p = (localTime - a.t) / Math.max(1e-6, b.t - a.t);
+      return a.v + (b.v - a.v) * p;
+    }
+  }
+  return last.v;
+}
 export function audioVolumeAt(track: AudioTrack, localTime: number): number {
+  // Base = courbe de points-clés si définie, sinon le volume fixe de la piste.
+  const base = track.volKeys && track.volKeys.length > 0 ? interpVolKeys(track.volKeys, localTime) : track.vol;
   let mult = 1;
   if (track.fadeIn)  mult = Math.min(mult, Math.max(0, localTime / track.fadeIn));
   if (track.fadeOut) mult = Math.min(mult, Math.max(0, (track.dur - localTime) / track.fadeOut));
-  return Math.max(0, Math.min(1, track.vol * mult));
+  return Math.max(0, Math.min(4, base * mult)); // marge jusqu'à 400 % (l'UI limite à 200 %)
 }
 
 // Personnalisation manuelle des sous-titres — surcharge n'importe quel champ du style de base.
@@ -154,7 +176,9 @@ export interface MontageProject {
   audioTracks: AudioTrack[];
   showProgressBar: boolean;
   exportUrl?: string | null;
-  formatId?: string;    // VIDEO_FORMATS[].id — défaut "story" (9:16) si absent (anciens projets)
+  formatId?: string;    // VIDEO_FORMATS[].id, ou "custom" — défaut "story" (9:16) si absent (anciens projets)
+  customW?: number;     // largeur px si formatId === "custom"
+  customH?: number;     // hauteur px si formatId === "custom"
   exportQuality?: string; // EXPORT_QUALITIES[].id — défaut "standard" si absent
 }
 
@@ -173,6 +197,7 @@ export const VIDEO_FORMATS: { id: string; label: string; sub: string; w: number;
   { id: 'story',    label: 'Story / Reel', sub: '9:16', w: 720, h: 1280 },
   { id: 'square',   label: 'Carré',        sub: '1:1',  w: 720, h: 720 },
   { id: 'portrait', label: 'Portrait',     sub: '4:5',  w: 720, h: 900 },
+  { id: 'landscape',label: 'Paysage',      sub: '16:9', w: 1280, h: 720 },
 ];
 export function videoFormatById(id: string | undefined): typeof VIDEO_FORMATS[number] {
   return VIDEO_FORMATS.find(f => f.id === id) || VIDEO_FORMATS[0];
@@ -218,6 +243,10 @@ export function saveSubTemplates(list: SubTemplate[]) {
   localStorage.setItem(SUB_TPL_KEY, JSON.stringify(list));
 }
 
+// Présets colorimétriques. `css` = filtre CSS standard, honoré à l'identique dans
+// l'aperçu (style.filter) ET à l'export (canvas ctx.filter) — ne PAS utiliser de
+// fonctions non supportées par canvas (rester sur brightness/contrast/saturate/
+// sepia/hue-rotate/grayscale/invert/blur). Tout ajout ici se propage partout.
 export const FILTERS: { id: string; name: string; css: string }[] = [
   { id: "none", name: "Aucun", css: "none" },
   { id: "chaud", name: "Chaud", css: "saturate(1.15) sepia(.12) contrast(1.04)" },
@@ -225,15 +254,28 @@ export const FILTERS: { id: string; name: string; css: string }[] = [
   { id: "froid", name: "Froid", css: "saturate(1.05) hue-rotate(-8deg) brightness(1.02)" },
   { id: "argent", name: "Argentique", css: "sepia(.28) saturate(1.1) contrast(1.08)" },
   { id: "nb", name: "N&B", css: "grayscale(1) contrast(1.1)" },
+  { id: "vif", name: "Vif", css: "saturate(1.35) contrast(1.1)" },
+  { id: "cinema", name: "Ciné", css: "contrast(1.12) saturate(1.05) sepia(.08) brightness(.98)" },
+  { id: "vintage", name: "Vintage", css: "sepia(.4) saturate(1.2) contrast(1.05) brightness(1.02)" },
+  { id: "pastel", name: "Pastel", css: "saturate(.8) brightness(1.08) contrast(.92)" },
+  { id: "noir-intense", name: "Noir intense", css: "grayscale(1) contrast(1.35) brightness(.95)" },
+  { id: "nuit", name: "Nuit", css: "saturate(1.1) hue-rotate(-14deg) brightness(.92) contrast(1.06)" },
+  { id: "dore", name: "Doré", css: "sepia(.28) saturate(1.25) brightness(1.05) hue-rotate(-6deg)" },
 ];
 
 export const TRANSITIONS: { id: string; name: string; glyph: string }[] = [
   { id: "cut", name: "Cut", glyph: "▮▮" },
   { id: "fade", name: "Fondu", glyph: "◐" },
   { id: "slide", name: "Glissé", glyph: "⇥" },
-  { id: "zoom", name: "Zoom", glyph: "⊕" },
+  { id: "slideup", name: "Glissé haut", glyph: "⇧" },
+  { id: "slidedown", name: "Glissé bas", glyph: "⇩" },
+  { id: "zoom", name: "Zoom avant", glyph: "⊕" },
+  { id: "zoomout", name: "Zoom arrière", glyph: "⊖" },
+  { id: "spin", name: "Rotation", glyph: "↻" },
   { id: "wipe", name: "Balayage", glyph: "◑" },
   { id: "blur", name: "Flou", glyph: "◌" },
+  { id: "whip", name: "Whip", glyph: "⤳" },
+  { id: "flash", name: "Flash", glyph: "✦" },
 ];
 
 export const SPEEDS = [0.25, 0.5, 1, 1.5, 2];
@@ -302,7 +344,12 @@ export const SUB_LENGTHS: { words: number; label: string }[] = [
   { words: 99, label: "Phrase" },
 ];
 
-export const STICKER_GLYPHS = ["✦", "↗", "🌿", "☕", "◆", "✿", "→", "★", "✷", "∴", "❋", "●"];
+export const STICKER_GLYPHS = [
+  "✦", "↗", "🌿", "☕", "◆", "✿", "→", "★", "✷", "∴", "❋", "●",
+  "🔥", "💧", "⚡", "✨", "💯", "👀", "👍", "🙌", "❤️", "😮", "😂", "🥳",
+  "🎉", "🎬", "📸", "🎵", "🛒", "🏷️", "💸", "⏰", "📍", "✅", "❌", "❓",
+  "➡️", "⬆️", "⬇️", "🔗", "💬", "🤯", "😍", "🤔", "👇", "☝️", "🌟", "🚀",
+];
 
 export const FONT_CHOICES: { id: TitleEl["font"]; name: string; sub: string; css: string; weight: number; italic: boolean }[] = [
   { id: "archivo", name: "Archivo", sub: "Display", css: "var(--display)", weight: 800, italic: true },

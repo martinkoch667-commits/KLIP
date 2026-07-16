@@ -114,6 +114,38 @@ async function computeWaveform(file: File): Promise<number[]> {
   }
 }
 
+// Encode des échantillons mono (Float32, -1..1) en WAV PCM 16 bits.
+function encodeWavMono(samples: Float32Array, sampleRate: number): Blob {
+  const n = samples.length;
+  const view = new DataView(new ArrayBuffer(44 + n * 2));
+  const w = (o: number, s: string) => { for (let i = 0; i < s.length; i++) view.setUint8(o + i, s.charCodeAt(i)); };
+  w(0, "RIFF"); view.setUint32(4, 36 + n * 2, true); w(8, "WAVE"); w(12, "fmt ");
+  view.setUint32(16, 16, true); view.setUint16(20, 1, true); view.setUint16(22, 1, true);
+  view.setUint32(24, sampleRate, true); view.setUint32(28, sampleRate * 2, true);
+  view.setUint16(32, 2, true); view.setUint16(34, 16, true); w(36, "data"); view.setUint32(40, n * 2, true);
+  let off = 44;
+  for (let i = 0; i < n; i++) { const s = Math.max(-1, Math.min(1, samples[i])); view.setInt16(off, s < 0 ? s * 0x8000 : s * 0x7fff, true); off += 2; }
+  return new Blob([view], { type: "audio/wav" });
+}
+// 120 pics normalisés depuis des échantillons (pour l'affichage timeline après traitement).
+function peaksFromSamples(samples: Float32Array): number[] {
+  const N = 120;
+  const block = Math.max(1, Math.floor(samples.length / N));
+  const peaks: number[] = [];
+  for (let i = 0; i < N; i++) { let m = 0; const s = i * block; for (let j = 0; j < block && s + j < samples.length; j++) m = Math.max(m, Math.abs(samples[s + j])); peaks.push(m); }
+  const peak = Math.max(...peaks, 0.01);
+  return peaks.map((p) => Math.min(1, p / peak));
+}
+
+// Style de sous-titres dérivé de la charte du client : surlignage du mot actif dans la
+// couleur d'accent de la marque, sur une base lisible (contour noir, texte blanc).
+// Appliqué par défaut aux montages jamais personnalisés → sous-titres déjà à la charte.
+function charterSubDefault(ws: { accent_color?: string | null } | null | undefined): { styleId: string; custom: SubCustom } | null {
+  const acc = ws?.accent_color;
+  if (!acc || !/^#([0-9a-fA-F]{3,8})$/.test(acc)) return null;
+  return { styleId: "bold-white", custom: { hi: acc } };
+}
+
 const PHOTO_DEFAULT_DUR = 3;
 
 // Migration douce depuis l'ancien format (Lot 1) { id, kind, name, src, dur }
@@ -165,12 +197,16 @@ export default function MontagePage() {
   const [audioTracks, setAudioTracks] = useState<AudioTrack[]>([]);
   const [showProgressBar, setShowProgressBar] = useState(false);
   const [formatId, setFormatId] = useState("story");
+  const [customW, setCustomW] = useState(1080);
+  const [customH, setCustomH] = useState(1920);
   const [exportQuality, setExportQuality] = useState("standard");
   const [exportUrl, setExportUrl] = useState<string | null>(null);
 
   const [tool, setTool] = useState<RailTool>("media");
   const [selectedClipId, setSelectedClipId] = useState<string | null>(null);
   const [selectedTitleId, setSelectedTitleId] = useState<string | null>(null);
+  const [editingTitleId, setEditingTitleId] = useState<string | null>(null); // titre édité en inline sur la preview (double-clic)
+  const [clipMenu, setClipMenu] = useState<{ x: number; y: number; id: string } | null>(null); // menu contextuel (clic droit) d'un plan
   const [selectedStickerId, setSelectedStickerId] = useState<string | null>(null);
   const [selectedOverlayId, setSelectedOverlayId] = useState<string | null>(null);
   const [audioOnlyId, setAudioOnlyId] = useState<string | null>(null); // sélection "audio seul" (Option/Alt+clic)
@@ -182,6 +218,10 @@ export default function MontagePage() {
   const [transcribing, setTranscribing] = useState(false);
   const [croppingClipId, setCroppingClipId] = useState<string | null>(null);
   const [assembling, setAssembling] = useState(false);
+  const [cuttingSilence, setCuttingSilence] = useState(false);
+  const [processingVoice, setProcessingVoice] = useState<string | null>(null); // id de la piste audio en cours de traitement voix
+  const [generatingDesc, setGeneratingDesc] = useState(false);
+  const [videoDescription, setVideoDescription] = useState<string | null>(null);
   const [suggestingMusic, setSuggestingMusic] = useState(false);
   const [musicSuggestion, setMusicSuggestion] = useState<string | null>(null);
   const [isRecordingVO, setIsRecordingVO] = useState(false);
@@ -191,6 +231,8 @@ export default function MontagePage() {
   const [toastMsg, setToastMsg] = useState<string | null>(null);
   const [pps, setPps] = useState(40);
   const [histTick, setHistTick] = useState(0);
+  const [extraVideoTracks, setExtraVideoTracks] = useState(0); // pistes vidéo vides ajoutées par l'utilisateur (au-delà des pistes occupées)
+  const [extraAudioTracks, setExtraAudioTracks] = useState(0); // idem pour les pistes audio ajoutées
 
   // Disposition redimensionnable (persistée) — comme CapCut
   const [panelW, setPanelW] = useState(312);
@@ -222,8 +264,12 @@ export default function MontagePage() {
 
   const [time, setTime] = useState(0);
   const [playing, setPlaying] = useState(false);
+  const [stageW, setStageW] = useState(0); // largeur px réelle de la preview → texte figé à l'échelle de l'image (WYSIWYG avec l'export)
+  const [previewZoom, setPreviewZoom] = useState(1); // zoom de la preview (pincement/molette), 1–5
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const videoInputRef = useRef<HTMLInputElement>(null); // import « vidéos » dédié
+  const photoInputRef = useRef<HTMLInputElement>(null); // import « photos » dédié
   const overlayInputRef = useRef<HTMLInputElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const loadedSrcRef = useRef<string | null>(null);
@@ -239,6 +285,9 @@ export default function MontagePage() {
   const scrubbingRulerRef = useRef(false);
   const trimRef = useRef<{ id: string; edge: "start" | "end"; startX: number; t0start: number; t0end: number; kind: "video" | "photo"; srcDur: number; speed: number } | null>(null);
   const ovDragRef = useRef<{ id: string; startX: number; t0offset: number } | null>(null);
+  // Déplacement d'un plan dans le temps (ajuste gapBefore = écran noir devant lui).
+  // anchor = fin du plan précédent (point fixe pendant le drag) ; playAt = curseur figé au down.
+  const clipDragRef = useRef<{ id: string; startX: number; t0gap: number; anchor: number; playAt: number; moved: boolean } | null>(null);
   const ovTrimRef = useRef<{ id: string; edge: "start" | "end"; startX: number; t0start: number; t0end: number; t0offset: number; srcDur: number; kind: "video" | "photo" } | null>(null);
   const clipboardRef = useRef<{ type: "clip"; data: MontageClip } | { type: "overlay"; data: OverlayClip } | null>(null);
 
@@ -248,24 +297,81 @@ export default function MontagePage() {
     toastTimer.current = setTimeout(() => setToastMsg(null), 3200);
   }
 
+  // ── Menu contextuel d'un plan : fermeture au clic/scroll/échap ──────────────
+  useEffect(() => {
+    if (!clipMenu) return;
+    const close = () => setClipMenu(null);
+    window.addEventListener("click", close);
+    window.addEventListener("scroll", close, true);
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") close(); };
+    window.addEventListener("keydown", onKey);
+    return () => { window.removeEventListener("click", close); window.removeEventListener("scroll", close, true); window.removeEventListener("keydown", onKey); };
+  }, [clipMenu]);
+
+  // ── Édition inline d'un titre : focus + sélection à l'entrée en édition ─────
+  const titleEditRef = useRef<HTMLSpanElement | null>(null);
+  useEffect(() => {
+    if (!editingTitleId || !titleEditRef.current) return;
+    const el = titleEditRef.current;
+    el.focus();
+    const range = document.createRange();
+    range.selectNodeContents(el);
+    const sel = window.getSelection();
+    sel?.removeAllRanges();
+    sel?.addRange(range);
+  }, [editingTitleId]);
+
+  // ── Mesure de la largeur de la preview (pour figer la taille du texte) ──────
+  // On lit contentRect (taille de mise en page, hors transform) pour que le zoom
+  // du canvas (previewZoom, ci-dessous) ne fausse pas le dimensionnement du texte.
+  useEffect(() => {
+    const el = stageRef.current;
+    if (!el) return;
+    setStageW(el.getBoundingClientRect().width);
+    const ro = new ResizeObserver((entries) => {
+      const w = entries[0]?.contentRect.width;
+      if (w) setStageW(w);
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [loading]);
+
+  // ── Zoom de la preview au pincement / molette+Ctrl — sans zoomer la page ────
+  // Listener natif non-passif : indispensable pour pouvoir preventDefault() le
+  // zoom de page du navigateur (le trackpad envoie ctrlKey lors d'un pincement).
+  useEffect(() => {
+    const el = stageRef.current;
+    if (!el) return;
+    const onWheel = (e: WheelEvent) => {
+      if (!e.ctrlKey && !e.metaKey) return;
+      e.preventDefault();
+      setPreviewZoom((z) => Math.max(1, Math.min(5, z - e.deltaY * 0.01)));
+    };
+    el.addEventListener("wheel", onWheel, { passive: false });
+    return () => el.removeEventListener("wheel", onWheel);
+  }, [loading]);
+
   // ── Load project ──────────────────────────────────────────────────────────
   useEffect(() => {
     (async () => {
       const [{ data: post }, { data: ws }] = await Promise.all([
         supabase.from("posts").select("montage_json, brief, photo_url").eq("id", postId).single(),
-        supabase.from("workspaces").select("logo_url").eq("id", workspaceId).single(),
+        supabase.from("workspaces").select("logo_url, accent_color").eq("id", workspaceId).single(),
       ]);
       if (post?.brief) setProjectName(post.brief);
       if (ws?.logo_url) setLogoUrl(ws.logo_url);
+      const charterSub = charterSubDefault(ws); // sous-titres à la charte (surlignage = accent)
       const proj = post?.montage_json as Partial<MontageProject> | null;
       if (proj?.clips?.length) {
         setClips(proj.clips.map(normalizeClip));
         setOverlays(proj.overlays || []);
         setCaptions(proj.captions || []);
-        setSubStyleId(proj.subStyleId || SUB_STYLES[0].id);
+        // Montage jamais personnalisé côté sous-titres → on applique le style de la charte.
+        const subUntouched = !proj.subStyleId && (!proj.subCustom || Object.keys(proj.subCustom).length === 0);
+        setSubStyleId(subUntouched && charterSub ? charterSub.styleId : (proj.subStyleId || SUB_STYLES[0].id));
         setSubMaxWords(proj.subMaxWords || DEFAULT_WORDS_PER_CAPTION);
         setSubPos(proj.subPos || DEFAULT_SUB_POS);
-        setSubCustom(proj.subCustom || {});
+        setSubCustom(subUntouched && charterSub ? charterSub.custom : (proj.subCustom || {}));
         setRawSegments(proj.rawSegments || []);
         setTitles(proj.titles || []);
         setStickers(proj.stickers || []);
@@ -273,10 +379,15 @@ export default function MontagePage() {
         setShowProgressBar(!!proj.showProgressBar);
         setExportUrl(proj.exportUrl || null);
         setFormatId(proj.formatId || "story");
+        if (proj.customW) setCustomW(proj.customW);
+        if (proj.customH) setCustomH(proj.customH);
         setExportQuality(proj.exportQuality || "standard");
       } else if (post?.photo_url) {
         const dur = await getVideoDuration(post.photo_url);
         setClips([{ id: crypto.randomUUID(), kind: "video", name: t('initialImportName'), src: post.photo_url, srcDur: dur, trimStart: 0, trimEnd: dur, ...newClipDefaults() }]);
+        if (charterSub) { setSubStyleId(charterSub.styleId); setSubCustom(charterSub.custom); }
+      } else if (charterSub) {
+        setSubStyleId(charterSub.styleId); setSubCustom(charterSub.custom);
       }
       setLoading(false);
     })();
@@ -298,11 +409,11 @@ export default function MontagePage() {
     if (loading) return;
     if (saveTimer.current) clearTimeout(saveTimer.current);
     saveTimer.current = setTimeout(() => {
-      const project: MontageProject = { clips, overlays, captions, subStyleId, subMaxWords, subPos, subCustom, rawSegments, titles, stickers, audioTracks, showProgressBar, exportUrl, formatId, exportQuality };
+      const project: MontageProject = { clips, overlays, captions, subStyleId, subMaxWords, subPos, subCustom, rawSegments, titles, stickers, audioTracks, showProgressBar, exportUrl, formatId, customW, customH, exportQuality };
       supabase.from("posts").update({ montage_json: project }).eq("id", postId).then(() => {});
     }, 700);
     return () => { if (saveTimer.current) clearTimeout(saveTimer.current); };
-  }, [clips, overlays, captions, subStyleId, subMaxWords, subPos, subCustom, rawSegments, titles, stickers, audioTracks, showProgressBar, exportUrl, formatId, exportQuality, loading, postId, supabase]);
+  }, [clips, overlays, captions, subStyleId, subMaxWords, subPos, subCustom, rawSegments, titles, stickers, audioTracks, showProgressBar, exportUrl, formatId, customW, customH, exportQuality, loading, postId, supabase]);
 
   // ── Historique undo/redo ────────────────────────────────────────────────────
   type Snapshot = Required<Pick<MontageProject, "subPos" | "subCustom" | "overlays">> & Pick<MontageProject, "clips" | "captions" | "subStyleId" | "titles" | "stickers" | "audioTracks" | "showProgressBar">;
@@ -377,21 +488,32 @@ export default function MontagePage() {
   // ── Temps cumulés des clips ─────────────────────────────────────────────────
   const clipStarts = useMemo(() => {
     let acc = 0;
-    return clips.map((c) => { const start = acc; const dur = clipTimelineDur(c); acc += dur; return { ...c, start, end: acc, dur }; });
+    return clips.map((c) => { acc += Math.max(0, c.gapBefore ?? 0); const start = acc; const dur = clipTimelineDur(c); acc += dur; return { ...c, start, end: acc, dur }; });
   }, [clips]);
   const total = clipStarts.length ? clipStarts[clipStarts.length - 1].end : 0;
-  const activeClip = clipStarts.find((c) => time >= c.start && time < c.end) || clipStarts[clipStarts.length - 1];
+  // Plan couvrant l'instant courant. Dans un « trou » (écran noir avant un plan) → null,
+  // pour que la preview affiche du noir plutôt que de figer le plan précédent. En toute fin
+  // de timeline (time >= total), on garde le dernier plan affiché.
+  const coveringClip = clipStarts.find((c) => time >= c.start && time < c.end);
+  const activeClip = coveringClip || (clipStarts.length && time >= total ? clipStarts[clipStarts.length - 1] : null);
   const selectedClip = clipStarts.find((c) => c.id === selectedClipId) || null;
   const selectedOverlay = overlays.find((o) => o.id === selectedOverlayId) || null;
   const activeOverlays = useMemo(
     () => overlays.filter((o) => time >= o.offset && time < o.offset + overlayTimelineDur(o)),
     [overlays, time],
   );
+  // Pistes vidéo empilables : autant que la piste la plus haute occupée (+1), plus les
+  // pistes vides ajoutées à la main. Toujours au moins une.
+  const maxOverlayTrack = useMemo(() => overlays.reduce((m, o) => Math.max(m, o.track ?? 0), 0), [overlays]);
+  const videoTrackCount = Math.max(1, maxOverlayTrack + 1) + extraVideoTracks;
+  // Pistes audio ajoutées (musique/voix off). Le son embarqué des plans a sa propre rangée dédiée.
+  const maxAudioTrack = useMemo(() => audioTracks.reduce((m, a) => Math.max(m, a.track ?? 0), 0), [audioTracks]);
+  const audioTrackCount = Math.max(1, maxAudioTrack + 1) + extraAudioTracks;
 
   const seek = useCallback((t: number) => {
     const clamped = Math.max(0, Math.min(total, t));
     setTime(clamped);
-    const c = clipStarts.find((c) => clamped >= c.start && clamped < c.end) || clipStarts[clipStarts.length - 1];
+    const c = clipStarts.find((c) => clamped >= c.start && clamped < c.end); // null dans un trou (écran noir)
     if (c && c.kind === "video" && videoRef.current && loadedSrcRef.current === c.src) {
       videoRef.current.currentTime = c.trimStart + (clamped - c.start) * c.speed;
     }
@@ -427,9 +549,12 @@ export default function MontagePage() {
     v.volume = activeClip.vol ?? 1;
   }, [activeClip?.id, activeClip?.speed, activeClip?.vol]);
 
-  // ── Horloge RAF pour les plans photo (pas de lecture native) ────────────────
+  // ── Horloge RAF pour les plans photo ET les trous (écran noir) ──────────────
+  // Pas de lecture native pour avancer le temps : ni sur une photo, ni dans un « trou »
+  // (aucun plan actif). Cette horloge fait défiler la timeline dans ces deux cas.
   useEffect(() => {
-    if (!playing || !activeClip || activeClip.kind !== "photo") return;
+    if (!playing) return;
+    if (activeClip && activeClip.kind !== "photo") return; // un plan vidéo pilote lui-même l'horloge
     let raf = 0; let last = performance.now();
     const tick = (now: number) => {
       const dt = (now - last) / 1000; last = now;
@@ -454,7 +579,9 @@ export default function MontagePage() {
     const ids = new Set(audioTracks.map((a) => a.id));
     Object.keys(els).forEach((id) => { if (!ids.has(id)) { els[id].pause(); delete els[id]; } });
     audioTracks.forEach((a) => {
-      if (!els[a.id]) { const el = new Audio(a.src); el.preload = "auto"; els[a.id] = el; }
+      const ex = els[a.id];
+      if (!ex) { const el = new Audio(a.src); el.preload = "auto"; els[a.id] = el; }
+      else if (ex.src !== a.src) { ex.pause(); const el = new Audio(a.src); el.preload = "auto"; els[a.id] = el; } // src changé (voix traitée)
     });
   }, [audioTracks]);
 
@@ -472,9 +599,10 @@ export default function MontagePage() {
         const within = t >= a.offset && t < a.offset + a.dur;
         if (within) {
           const local = t - a.offset;
-          if (Math.abs(el.currentTime - local) > 0.3) el.currentTime = local;
+          const srcT = (a.srcOffset ?? 0) + local; // audio détaché d'un plan rogné : décalage dans la source
+          if (Math.abs(el.currentTime - srcT) > 0.3) el.currentTime = srcT;
           if (el.paused) el.play().catch(() => {});
-          el.volume = audioVolumeAt(a, local);
+          el.volume = Math.min(1, audioVolumeAt(a, local)); // el.volume ∈ [0,1] ; le boost >100 % est appliqué à l'export
         } else if (!el.paused) {
           el.pause();
         }
@@ -492,7 +620,7 @@ export default function MontagePage() {
       const el = audioElsRef.current[a.id];
       if (!el) continue;
       const within = time >= a.offset && time < a.offset + a.dur;
-      if (within) { el.currentTime = time - a.offset; el.volume = audioVolumeAt(a, time - a.offset); }
+      if (within) { el.currentTime = (a.srcOffset ?? 0) + (time - a.offset); el.volume = Math.min(1, audioVolumeAt(a, time - a.offset)); }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [time]);
@@ -507,8 +635,11 @@ export default function MontagePage() {
   function onVideoEnded() {
     if (!activeClip) return;
     const idx = clipStarts.findIndex((c) => c.id === activeClip.id);
-    if (idx >= 0 && idx < clipStarts.length - 1) setTime(clipStarts[idx + 1].start + 0.001);
-    else { setTime(0); setPlaying(false); }
+    if (idx >= 0 && idx < clipStarts.length - 1) {
+      // Avance jusqu'à la fin du plan : s'il y a un trou (écran noir) avant le suivant,
+      // l'horloge RAF le traversera ; sinon on est déjà au début du plan suivant.
+      setTime(activeClip.end + 0.001);
+    } else { setTime(0); setPlaying(false); }
   }
 
   function togglePlay() { setPlaying((p) => !p); }
@@ -570,6 +701,19 @@ export default function MontagePage() {
       const out = [...prev]; out.splice(idx + 1, 0, copy); return out;
     });
   }
+  // Détache le son d'un plan vidéo → nouvelle piste audio indépendante (façon CapCut « Separate audio »).
+  function detachAudio(id: string) {
+    const c = clipStarts.find((x) => x.id === id);
+    if (!c || c.kind !== "video") { toast(t('toastDetachVideoOnly')); return; }
+    if ((c.vol ?? 1) === 0) { toast(t('toastAudioAlreadyDetached')); return; }
+    setAudioTracks((prev) => [...prev, {
+      id: crypto.randomUUID(), kind: "voiceover", name: c.name,
+      src: c.src, dur: c.dur, vol: c.vol ?? 1, offset: c.start, srcOffset: c.trimStart, track: 0,
+    }]);
+    updateClip(id, { vol: 0 }); // le son passe sur la piste audio → on coupe celui embarqué dans le plan
+    toast(t('toastAudioDetached'));
+  }
+
   function onClipDrop(targetId: string) {
     if (!draggingId || draggingId === targetId) { setDraggingId(null); return; }
     setClips((prev) => {
@@ -694,6 +838,125 @@ export default function MontagePage() {
   // Reprend les plans déjà importés (pas de bibliothèque séparée dans ce module —
   // l'import place directement les plans sur la timeline) et laisse l'IA proposer
   // un ordre + rognage + Ken Burns + transitions cohérents en un clic.
+  // Détecte les segments « parlés » d'une source audio/vidéo : RMS par fenêtres de 30 ms,
+  // seuil relatif, on fusionne les courts silences et on coupe ceux ≥ minSilenceSec.
+  // Renvoie des segments [start,end] en secondes dans le référentiel de la source.
+  async function detectSpeechSegments(src: string, minSilenceSec = 1.0, padSec = 0.12): Promise<{ start: number; end: number }[] | null> {
+    try {
+      const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+      const actx = new AudioCtx();
+      const buf = await actx.decodeAudioData(await (await fetch(src)).arrayBuffer());
+      const data = buf.getChannelData(0);
+      const sr = buf.sampleRate;
+      const win = Math.max(1, Math.floor(sr * 0.03));
+      const nWin = Math.floor(data.length / win);
+      const rms = new Array<number>(nWin);
+      let maxR = 0;
+      for (let i = 0; i < nWin; i++) {
+        let s = 0; const off = i * win;
+        for (let j = 0; j < win; j++) { const v = data[off + j]; s += v * v; }
+        const r = Math.sqrt(s / win); rms[i] = r; if (r > maxR) maxR = r;
+      }
+      await actx.close();
+      if (maxR <= 0) return null;
+      const thresh = Math.max(0.008, maxR * 0.08);
+      const winSec = win / sr;
+      const minSilWin = Math.ceil(minSilenceSec / winSec);
+      const voiced = rms.map((r) => r >= thresh);
+      const segs: { start: number; end: number }[] = [];
+      let i = 0;
+      while (i < nWin) {
+        if (!voiced[i]) { i++; continue; }
+        let j = i;
+        while (j < nWin) {
+          if (voiced[j]) { j++; continue; }
+          let k = j; while (k < nWin && !voiced[k]) k++;
+          if (k - j >= minSilWin) break; // silence long → fin du segment
+          j = k;                         // silence court → on fusionne
+        }
+        segs.push({ start: Math.max(0, i * winSec - padSec), end: Math.min(buf.duration, j * winSec + padSec) });
+        i = j;
+      }
+      const merged: { start: number; end: number }[] = [];
+      for (const s of segs) {
+        const last = merged[merged.length - 1];
+        if (last && s.start <= last.end) last.end = Math.max(last.end, s.end);
+        else merged.push({ ...s });
+      }
+      return merged;
+    } catch { return null; }
+  }
+
+  // Coupe les silences des plans vidéo (le plan sélectionné, sinon tous) : remplace
+  // chaque plan par des sous-plans ne couvrant que les segments parlés.
+  async function cutSilences() {
+    if (cuttingSilence) return;
+    const targets = selectedClipId
+      ? clips.filter((c) => c.id === selectedClipId && c.kind === "video")
+      : clips.filter((c) => c.kind === "video");
+    if (!targets.length) { toast(t('toastNoVideoForSilence')); return; }
+    setCuttingSilence(true);
+    try {
+      const ids = new Set(targets.map((c) => c.id));
+      const next: MontageClip[] = [];
+      let changed = false;
+      for (const c of clips) {
+        if (!ids.has(c.id)) { next.push(c); continue; }
+        const segs = await detectSpeechSegments(c.src, 1.0);
+        if (!segs || !segs.length) { next.push(c); continue; }
+        const within = segs
+          .map((s) => ({ start: Math.max(s.start, c.trimStart), end: Math.min(s.end, c.trimEnd) }))
+          .filter((s) => s.end - s.start > 0.2);
+        if (!within.length) { next.push(c); continue; }
+        // Un seul segment couvrant tout le plan → rien à couper.
+        if (within.length === 1 && within[0].start <= c.trimStart + 0.15 && within[0].end >= c.trimEnd - 0.15) { next.push(c); continue; }
+        changed = true;
+        within.forEach((s, idx) => {
+          next.push({ ...c, id: crypto.randomUUID(), trimStart: s.start, trimEnd: s.end, gapBefore: idx === 0 ? c.gapBefore : 0 });
+        });
+      }
+      if (!changed) { toast(t('toastNoSilenceFound')); return; }
+      setClips(next);
+      toast(t('toastSilencesCut'));
+    } catch {
+      toast(t('toastSilenceError'));
+    } finally {
+      setCuttingSilence(false);
+    }
+  }
+
+  // Génère la légende APRÈS le montage : échantillonne des frames de la vidéo montée
+  // et les envoie à la génération (qui applique la charte du workspace). La description
+  // vidéo est ainsi basée sur ce qui se passe réellement à l'écran.
+  async function generateVideoDescription() {
+    if (generatingDesc || !clipStarts.length) return;
+    setGeneratingDesc(true);
+    try {
+      const vids = clipStarts;
+      const picks = vids.length <= 6 ? vids : Array.from({ length: 6 }, (_, i) => vids[Math.floor((i * (vids.length - 1)) / 5)]);
+      const frames = (await Promise.all(picks.map(async (c) => {
+        try {
+          const at = c.kind === "video" ? c.trimStart + Math.min(0.5, (c.trimEnd - c.trimStart) / 2) : 0;
+          return await grabFrame(c.src, c.kind, at, 384);
+        } catch { return null; }
+      }))).filter(Boolean) as string[];
+      if (!frames.length) { toast(t('toastDescNoFrames')); return; }
+      const res = await fetch("/api/generate-description", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ brief: projectName, frames, workspaceId }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.description) { toast(data?.error || t('toastDescFailed')); return; }
+      setVideoDescription(data.description);
+      await supabase.from("posts").update({ caption_final: data.description }).eq("id", postId);
+      toast(t('toastDescDone'));
+    } catch {
+      toast(t('toastDescFailed'));
+    } finally {
+      setGeneratingDesc(false);
+    }
+  }
+
   async function autoAssembleAI() {
     if (assembling) return;
     if (clips.length < 2) { toast(t('toastNeedTwoClips')); return; }
@@ -828,6 +1091,77 @@ export default function MontagePage() {
   }
   function setAudioFade(id: string, kind: "fadeIn" | "fadeOut", seconds: number) {
     setAudioTracks((prev) => prev.map((a) => (a.id === id ? { ...a, [kind]: seconds } : a)));
+  }
+  // ── Points-clés de volume (automation) sur une piste audio ──────────────────
+  // Ajoute un point à la position du curseur (temps local dans la piste), avec la
+  // valeur de volume courante à cet instant. Si un point existe déjà là, on l'écrase.
+  function addVolKey(id: string) {
+    setAudioTracks((prev) => prev.map((a) => {
+      if (a.id !== id) return a;
+      const local = Math.max(0, Math.min(a.dur, time - a.offset));
+      const v = a.volKeys && a.volKeys.length ? audioVolumeAt({ ...a, fadeIn: 0, fadeOut: 0 }, local) : a.vol;
+      const keys = [...(a.volKeys || [])];
+      const at = keys.findIndex((k) => Math.abs(k.t - local) < 0.05);
+      if (at >= 0) keys[at] = { t: local, v }; else keys.push({ t: local, v });
+      keys.sort((x, y) => x.t - y.t);
+      return { ...a, volKeys: keys };
+    }));
+  }
+  function setVolKey(id: string, idx: number, v: number) {
+    setAudioTracks((prev) => prev.map((a) => (a.id === id ? { ...a, volKeys: (a.volKeys || []).map((k, i) => (i === idx ? { ...k, v } : k)) } : a)));
+  }
+  function removeVolKey(id: string, idx: number) {
+    setAudioTracks((prev) => prev.map((a) => (a.id === id ? { ...a, volKeys: (a.volKeys || []).filter((_, i) => i !== idx) } : a)));
+  }
+
+  // Isole la voix (canal central (L+R)/2 + passe-bande voix) ou la supprime (karaoké,
+  // (L-R)/2). Best-effort DSP côté client — meilleur résultat sur un son stéréo.
+  // Le résultat remplace la source de la piste (WAV encodé + uploadé).
+  async function isolateVoiceOnTrack(id: string, mode: "isolate" | "remove") {
+    if (processingVoice) return;
+    const track = audioTracks.find((a) => a.id === id);
+    if (!track) return;
+    setProcessingVoice(id);
+    try {
+      const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+      const actx = new AudioCtx();
+      const buf = await actx.decodeAudioData(await (await fetch(track.src)).arrayBuffer());
+      await actx.close();
+      const sr = buf.sampleRate, n = buf.length;
+      if (buf.numberOfChannels < 2 && mode === "remove") { toast(t('toastVoiceNeedsStereo')); return; }
+      const L = buf.getChannelData(0);
+      const R = buf.numberOfChannels > 1 ? buf.getChannelData(1) : L;
+      const mixed = new Float32Array(n);
+      if (mode === "remove") for (let i = 0; i < n; i++) mixed[i] = (L[i] - R[i]) * 0.5;
+      else for (let i = 0; i < n; i++) mixed[i] = (L[i] + R[i]) * 0.5;
+
+      let processed = mixed;
+      if (mode === "isolate") {
+        // Passe-bande ~120 Hz–8 kHz pour dégager la voix.
+        const off = new OfflineAudioContext(1, n, sr);
+        const srcBuf = off.createBuffer(1, n, sr); srcBuf.copyToChannel(mixed, 0);
+        const s = off.createBufferSource(); s.buffer = srcBuf;
+        const hp = off.createBiquadFilter(); hp.type = "highpass"; hp.frequency.value = 120;
+        const lp = off.createBiquadFilter(); lp.type = "lowpass"; lp.frequency.value = 8000;
+        s.connect(hp).connect(lp).connect(off.destination); s.start();
+        processed = (await off.startRendering()).getChannelData(0);
+      }
+
+      const wav = encodeWavMono(processed, sr);
+      const path = `${workspaceId}/${postId}-voice-${crypto.randomUUID()}.wav`;
+      const { error } = await supabase.storage.from("audio").upload(path, wav, { upsert: true, contentType: "audio/wav" });
+      if (error) { toast(t('toastVoiceProcessFailed')); return; }
+      const { data: urlData } = supabase.storage.from("audio").getPublicUrl(path);
+      const tag = mode === "isolate" ? t('voiceIsolatedTag') : t('voiceRemovedTag');
+      setAudioTracks((prev) => prev.map((a) => (a.id === id
+        ? { ...a, src: urlData.publicUrl, name: a.name.startsWith(tag) ? a.name : `${tag} · ${a.name}`, waveform: peaksFromSamples(processed) }
+        : a)));
+      toast(mode === "isolate" ? t('toastVoiceIsolated') : t('toastVoiceRemoved'));
+    } catch {
+      toast(t('toastVoiceProcessFailed'));
+    } finally {
+      setProcessingVoice(null);
+    }
   }
   async function toggleRecordVO() {
     if (isRecordingVO) { voRecorderRef.current?.stop(); return; }
@@ -972,13 +1306,15 @@ export default function MontagePage() {
   function onStagePointerUp() { dragOverlayRef.current = null; resizeOverlayRef.current = null; }
 
   // ── Export réel ──────────────────────────────────────────────────────────
-  async function handleExport() {
+  // publish=true : marque le post « validé » et redirige vers le planning (comme le
+  // bouton « Publier » de l'éditeur visuel). publish=false : produit juste le fichier.
+  async function handleExport(publish = false) {
     if (!clips.length || exporting) return;
     setExporting(true);
     setExportPhase("render");
     setExportProgress(0);
     try {
-      const { blob: webmBlob, thumbnailBlob } = await renderExport({ clips, overlays, captions, subStyleId, subCustom, subPos, titles, stickers, audioTracks, showProgressBar, formatId, exportQuality }, (p) => setExportProgress(p));
+      const { blob: webmBlob, thumbnailBlob } = await renderExport({ clips, overlays, captions, subStyleId, subCustom, subPos, titles, stickers, audioTracks, showProgressBar, formatId, customW, customH, exportQuality }, (p) => setExportProgress(p));
 
       // Transcodage en MP4 (H.264/AAC) pour compatibilité universelle — le
       // rendu brut Canvas/MediaRecorder est en .webm.
@@ -1010,11 +1346,16 @@ export default function MontagePage() {
       }
 
       await supabase.from("posts").update({
-        montage_json: { clips, overlays, captions, subStyleId, subMaxWords, subPos, subCustom, rawSegments, titles, stickers, audioTracks, showProgressBar, exportUrl: urlData.publicUrl, formatId, exportQuality },
+        montage_json: { clips, overlays, captions, subStyleId, subMaxWords, subPos, subCustom, rawSegments, titles, stickers, audioTracks, showProgressBar, exportUrl: urlData.publicUrl, formatId, customW, customH, exportQuality },
         photo_url: urlData.publicUrl,
         ...(thumbUrl ? { thumbnail_url: thumbUrl } : {}),
+        ...(publish ? { status: "validated" } : {}),
       }).eq("id", postId);
-      toast(t('toastExportDone'));
+      toast(publish ? t('toastPublished') : t('toastExportDone'));
+      if (publish) {
+        // Comme l'éditeur visuel : on file vers le planning pour programmer la publication.
+        window.location.href = `/workspace/${workspaceId}/planning?post=${postId}`;
+      }
     } catch (e) {
       toast(t('toastExportError', { msg: e instanceof Error ? e.message : t('toastUnknownError') }));
     } finally {
@@ -1159,6 +1500,44 @@ export default function MontagePage() {
     return best;
   }
 
+  // Déplace une incrustation d'une piste vers le haut/bas (z-order). Bornée aux pistes visibles.
+  function moveOverlayTrack(id: string, dir: 1 | -1) {
+    const o = overlays.find((ov) => ov.id === id);
+    if (!o) return;
+    const next = Math.max(0, Math.min(videoTrackCount - 1, (o.track ?? 0) + dir));
+    updateOverlay(id, { track: next });
+  }
+  // Déplace une piste audio d'une rangée vers le haut/bas (organisation ; le mixage est inchangé).
+  function moveAudioTrackRow(id: string, dir: 1 | -1) {
+    const a = audioTracks.find((tr) => tr.id === id);
+    if (!a) return;
+    const next = Math.max(0, Math.min(audioTrackCount - 1, (a.track ?? 0) + dir));
+    setAudioTracks((prev) => prev.map((tr) => (tr.id === id ? { ...tr, track: next } : tr)));
+  }
+
+  // ── Plan principal : déplacement dans le temps (poignée) = ajuste gapBefore ──
+  function onClipBarDown(e: React.PointerEvent, c: { id: string; start: number; gapBefore?: number }) {
+    e.stopPropagation();
+    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+    const t0gap = Math.max(0, c.gapBefore ?? 0);
+    clipDragRef.current = { id: c.id, startX: e.clientX, t0gap, anchor: c.start - t0gap, playAt: time, moved: false };
+  }
+  function onClipBarMove(e: React.PointerEvent) {
+    const d = clipDragRef.current;
+    if (!d) return;
+    const deltaPx = e.clientX - d.startX;
+    if (!d.moved && Math.abs(deltaPx) < 4) return; // seuil : un simple clic ne déplace rien
+    d.moved = true;
+    let newStart = d.anchor + d.t0gap + deltaPx / pps;
+    const th = 8 / pps;
+    if (Math.abs(newStart - d.anchor) < th) newStart = d.anchor;      // colle au plan précédent (trou = 0)
+    else if (Math.abs(newStart - d.playAt) < th) newStart = d.playAt; // colle au curseur de lecture
+    updateClip(d.id, { gapBefore: Math.max(0, newStart - d.anchor) });
+  }
+  function onClipBarUp(e: React.PointerEvent) {
+    if (clipDragRef.current) { try { (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId); } catch {} clipDragRef.current = null; }
+  }
+
   // ── Incrustation : déplacement (offset) + rognage sur la timeline ───────────
   function onOvBarDown(e: React.PointerEvent, o: OverlayClip) {
     e.stopPropagation();
@@ -1203,8 +1582,11 @@ export default function MontagePage() {
     clips, selectedClip, captions, subStyleId, subMaxWords, subCustom, subPos, hasRawSegments: rawSegments.length > 0,
     titles, stickers, audioTracks, showProgressBar,
     overlays, selectedOverlay, uploadingOverlay, addOverlayFiles, updateOverlay, removeOverlay, duplicateOverlay, selectOverlay,
+    videoTrackCount, moveOverlayTrack,
     time, total, logoUrl, uploadingAudio, transcribing, isRecordingVO,
     croppingClipId, smartCropClip, assembling, autoAssembleAI, suggestingMusic, musicSuggestion, suggestMusicMoodAI,
+    cuttingSilence, cutSilences,
+    generatingDesc, videoDescription, generateVideoDescription,
     toast, updateClip, splitAtPlayhead,
     duplicateSelected: () => selectedClipId && duplicateClip(selectedClipId),
     removeSelected: () => selectedClipId && removeClip(selectedClipId),
@@ -1214,12 +1596,22 @@ export default function MontagePage() {
     setSubCustom, resetSubCustom: () => setSubCustom({}), applySubTemplate,
     addSticker, updateSticker, removeSticker,
     toggleProgressBar, importAudio, removeAudioTrack, setAudioVol, setAudioFade, toggleRecordVO,
+    audioTrackCount, moveAudioTrackRow,
+    addVolKey, setVolKey, removeVolKey,
+    processingVoice, isolateVoiceOnTrack,
   };
 
   const trackW = Math.max(total * pps, 200);
   const ticks: number[] = [];
   for (let s = 0; s <= total; s += 2) ticks.push(s);
 
+  // Échelle aperçu = px réels de la preview / largeur du canvas d'export. Le texte
+  // est ainsi dimensionné comme à l'export et suit la taille de l'image (et non un px fixe).
+  // Format effectif : preset ou dimensions personnalisées (px).
+  const activeFmt = formatId === "custom"
+    ? { id: "custom", label: "Perso", sub: `${customW}×${customH}`, w: Math.max(1, customW), h: Math.max(1, customH) }
+    : videoFormatById(formatId);
+  const previewScale = (stageW || 300) / activeFmt.w;
   const activeTitles = titles.filter((t) => time >= t.start && time <= t.end);
   const activeStickers = stickers.filter((s) => time >= s.start && time <= s.end);
   const activeCaption = captions.find((c) => time >= c.start && time <= c.end);
@@ -1252,7 +1644,20 @@ export default function MontagePage() {
             {VIDEO_FORMATS.map(f => (
               <button key={f.id} className={formatId === f.id ? "on" : ""} onClick={() => setFormatId(f.id)}>{f.sub}</button>
             ))}
+            <button className={formatId === "custom" ? "on" : ""} onClick={() => setFormatId("custom")} title={t('customFormatTitle')}>{t('customFormatShort')}</button>
           </div>
+          {formatId === "custom" && (
+            <div style={{ display: "flex", alignItems: "center", gap: 4, flexShrink: 0 }}>
+              <input type="number" min={64} max={4096} value={customW}
+                onChange={e => setCustomW(Math.max(64, Math.min(4096, Math.round(Number(e.target.value) || 0))))}
+                title={t('widthPx')} style={{ width: 58, height: 30, borderRadius: 7, border: "1px solid var(--line)", background: "var(--canvas)", color: "var(--ink-2)", fontSize: 12.5, fontWeight: 600, padding: "0 6px", textAlign: "center" }} />
+              <span style={{ fontSize: 12, color: "var(--ink-3)" }}>×</span>
+              <input type="number" min={64} max={4096} value={customH}
+                onChange={e => setCustomH(Math.max(64, Math.min(4096, Math.round(Number(e.target.value) || 0))))}
+                title={t('heightPx')} style={{ width: 58, height: 30, borderRadius: 7, border: "1px solid var(--line)", background: "var(--canvas)", color: "var(--ink-2)", fontSize: 12.5, fontWeight: 600, padding: "0 6px", textAlign: "center" }} />
+              <span style={{ fontSize: 11, color: "var(--ink-3)", fontWeight: 600 }}>px</span>
+            </div>
+          )}
         </div>
         <div style={{ flex: 1 }} />
         {exportUrl && (
@@ -1269,8 +1674,11 @@ export default function MontagePage() {
           style={{ height: 34, borderRadius: 8, border: "1px solid var(--line)", background: "var(--canvas)", color: "var(--ink-2)", fontSize: 12.5, fontWeight: 600, padding: "0 8px" }}>
           {EXPORT_QUALITIES.map(q => <option key={q.id} value={q.id}>{tc(`exportQuality.${q.id}`)}</option>)}
         </select>
-        <button className="btn btn-sm btn-primary" disabled={!clips.length || exporting} onClick={handleExport}>
+        <button className="btn btn-sm btn-ghost" disabled={!clips.length || exporting} onClick={() => handleExport(false)}>
           <VIcon name="export" size={15} /> {exporting ? t('exportingShort') : t('exportBtn')}
+        </button>
+        <button className="btn btn-sm btn-primary" disabled={!clips.length || exporting} onClick={() => handleExport(true)} title={t('publishBtnTitle')}>
+          <VIcon name="check" size={15} /> {t('publishBtn')}
         </button>
       </div>
 
@@ -1306,6 +1714,16 @@ export default function MontagePage() {
                     <span className="mz-import-s">{t('dragRushesHint')}</span>
                   </div>
                   <input ref={fileInputRef} type="file" accept="video/mp4,video/quicktime,image/jpeg,image/png" multiple onChange={handleFileInput} style={{ display: "none" }} />
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginTop: 10 }}>
+                    <button className="btn btn-dark" style={{ justifyContent: "center", gap: 6 }} disabled={uploading} onClick={() => videoInputRef.current?.click()}>
+                      <VIcon name="video" size={15} /> {t('importVideosCta')}
+                    </button>
+                    <button className="btn btn-ghost" style={{ justifyContent: "center", gap: 6 }} disabled={uploading} onClick={() => photoInputRef.current?.click()}>
+                      <VIcon name="image" size={15} /> {t('importPhotosCta')}
+                    </button>
+                  </div>
+                  <input ref={videoInputRef} type="file" accept="video/mp4,video/quicktime" multiple onChange={handleFileInput} style={{ display: "none" }} />
+                  <input ref={photoInputRef} type="file" accept="image/jpeg,image/png" multiple onChange={handleFileInput} style={{ display: "none" }} />
                 </div>
                 <div className="a-section">
                   <span className="mz-sec-label">{t('projectClipsTitle', { count: clips.length })}</span>
@@ -1351,9 +1769,18 @@ export default function MontagePage() {
         {/* preview + playbar */}
         <div className="a-canvas">
           <div className="mz-stage">
+            {previewZoom !== 1 && (
+              <button
+                onClick={() => setPreviewZoom(1)}
+                title={t('resetZoomTitle')}
+                style={{ position: "absolute", top: 12, right: 12, zIndex: 10, height: 28, padding: "0 10px", borderRadius: 8, border: "1px solid var(--line)", background: "rgba(0,0,0,.55)", color: "#fff", fontSize: 11.5, fontWeight: 700, cursor: "pointer" }}
+              >
+                {Math.round(previewZoom * 100)}% · 1:1
+              </button>
+            )}
             <div
               className="mz-phone"
-              style={{ aspectRatio: `${videoFormatById(formatId).w} / ${videoFormatById(formatId).h}` }}
+              style={{ aspectRatio: `${activeFmt.w} / ${activeFmt.h}`, transform: previewZoom !== 1 ? `scale(${previewZoom})` : undefined }}
               ref={stageRef}
               onPointerMove={onStagePointerMove}
               onPointerUp={onStagePointerUp}
@@ -1369,15 +1796,19 @@ export default function MontagePage() {
                         transform: `scale(${kenBurnsScale(activeClip.kenBurns, activeClip.dur > 0 ? Math.min(1, Math.max(0, (time - activeClip.start) / activeClip.dur)) : 0)})`,
                         transformOrigin: "center",
                       }} />
-                ) : (
+                ) : clips.length === 0 ? (
                   <div className="mz-vempty">
                     <VIcon name="upload" size={26} />
                     <span style={{ fontSize: 13, fontWeight: 600 }}>{t('importRushesEmpty')}</span>
                   </div>
+                ) : (
+                  // Des plans existent mais l'instant courant tombe dans un trou → écran noir.
+                  null
                 )}
 
-                {/* incrustations (PIP) — déplaçables/redimensionnables/pivotables */}
-                {overlays.map((o) => {
+                {/* incrustations (PIP) — déplaçables/redimensionnables/pivotables.
+                    Triées par piste croissante : l'ordre du DOM fait le z-order (piste haute = au-dessus). */}
+                {[...overlays].sort((a, b) => (a.track ?? 0) - (b.track ?? 0)).map((o) => {
                   const isActive = time >= o.offset && time < o.offset + overlayTimelineDur(o);
                   const sel = selectedOverlayId === o.id;
                   return (
@@ -1399,10 +1830,10 @@ export default function MontagePage() {
                           ref={(el) => { if (el) overlayVideoRefs.current.set(o.id, el); else overlayVideoRefs.current.delete(o.id); }}
                           src={o.src}
                           playsInline muted={(o.vol ?? 1) === 0}
-                          style={{ width: "100%", display: "block", borderRadius: 6, filter: overlayFilterCss(o) }}
+                          style={{ width: "100%", display: "block", filter: overlayFilterCss(o) }}
                         />
                       ) : (
-                        <img src={o.src} alt="" style={{ width: "100%", display: "block", borderRadius: 6, filter: overlayFilterCss(o) }} />
+                        <img src={o.src} alt="" style={{ width: "100%", display: "block", filter: overlayFilterCss(o) }} />
                       )}
                       {sel && <button className="mz-ov-del" onPointerDown={(e) => e.stopPropagation()} onClick={() => removeOverlay(o.id)}><VIcon name="x" size={11} /></button>}
                       {sel && <span className="mz-ov-resize" onPointerDown={(e) => onOverlayResizeDown(e, "overlay", o.id, o.scale)} title={t('resizeTitle')} />}
@@ -1420,15 +1851,30 @@ export default function MontagePage() {
                       fontFamily: FONT_CSS[ti.font] || FONT_CSS.archivo,
                       fontWeight: FONT_CHOICES.find((f) => f.id === ti.font)?.weight || 800,
                       fontStyle: FONT_CHOICES.find((f) => f.id === ti.font)?.italic ? "italic" : "normal",
-                      color: ti.color, fontSize: 22 * (ti.scale ?? 1), textAlign: "center", textShadow: "0 1px 8px rgba(0,0,0,.5)",
+                      color: ti.color, fontSize: 40 * (ti.scale ?? 1) * previewScale, textAlign: "center", textShadow: "0 1px 8px rgba(0,0,0,.5)",
                       maxWidth: "80%", whiteSpace: "pre-wrap",
                       animation: ti.anim === "rise" ? "mzRise .35s var(--ease)" : ti.anim === "pop" ? "mzPop .3s var(--ease)" : undefined,
                     }}
-                    onPointerDown={(e) => onOverlayPointerDown(e, "title", ti.id)}
+                    onPointerDown={(e) => { if (editingTitleId === ti.id) return; onOverlayPointerDown(e, "title", ti.id); }}
+                    onDoubleClick={(e) => { e.stopPropagation(); setPlaying(false); setSelectedTitleId(ti.id); setEditingTitleId(ti.id); }}
+                    title={editingTitleId === ti.id ? undefined : t('doubleClickToEdit')}
                   >
-                    {ti.anim === "type" ? ti.text.slice(0, Math.max(0, Math.min(ti.text.length, Math.floor((time - ti.start) * 16)))) : ti.text}
-                    {selectedTitleId === ti.id && <button className="mz-ov-del" onPointerDown={(e) => e.stopPropagation()} onClick={() => removeTitle(ti.id)}><VIcon name="x" size={11} /></button>}
-                    {selectedTitleId === ti.id && <span className="mz-ov-resize" onPointerDown={(e) => onOverlayResizeDown(e, "title", ti.id, ti.scale ?? 1)} title={t('resizeTitle')} />}
+                    <span
+                      ref={editingTitleId === ti.id ? titleEditRef : undefined}
+                      contentEditable={editingTitleId === ti.id}
+                      suppressContentEditableWarning
+                      spellCheck={false}
+                      style={{ outline: "none", cursor: editingTitleId === ti.id ? "text" : "inherit" }}
+                      onPointerDown={editingTitleId === ti.id ? (e) => e.stopPropagation() : undefined}
+                      onKeyDown={editingTitleId === ti.id ? (e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); (e.currentTarget as HTMLElement).blur(); } } : undefined}
+                      onBlur={editingTitleId === ti.id ? (e) => { const txt = (e.currentTarget.textContent || "").trim(); if (txt) updateTitle(ti.id, { text: txt }); setEditingTitleId(null); } : undefined}
+                    >
+                      {editingTitleId === ti.id
+                        ? ti.text
+                        : (ti.anim === "type" ? ti.text.slice(0, Math.max(0, Math.min(ti.text.length, Math.floor((time - ti.start) * 16)))) : ti.text)}
+                    </span>
+                    {selectedTitleId === ti.id && editingTitleId !== ti.id && <button className="mz-ov-del" onPointerDown={(e) => e.stopPropagation()} onClick={() => removeTitle(ti.id)}><VIcon name="x" size={11} /></button>}
+                    {selectedTitleId === ti.id && editingTitleId !== ti.id && <span className="mz-ov-resize" onPointerDown={(e) => onOverlayResizeDown(e, "title", ti.id, ti.scale ?? 1)} title={t('resizeTitle')} />}
                   </div>
                 ))}
 
@@ -1463,7 +1909,7 @@ export default function MontagePage() {
                       textTransform: capStyle.uppercase ? "uppercase" : "none",
                       WebkitTextStroke: capStyle.stroke ? `2px ${capStyle.stroke}` : undefined,
                       paintOrder: "stroke fill",
-                      fontSize: 15,
+                      fontSize: 34 * previewScale,
                     }}>
                       {activeCaption.text.split(/\s+/).filter(Boolean).map((w, i, arr) => {
                         const progress = (time - activeCaption.start) / Math.max(0.1, activeCaption.end - activeCaption.start);
@@ -1566,6 +2012,7 @@ export default function MontagePage() {
                       onDragOver={(e) => e.preventDefault()}
                       onDrop={() => onClipDrop(c.id)}
                       onClick={() => selectClip(c.id)}
+                      onContextMenu={(e) => { e.preventDefault(); selectClip(c.id); setClipMenu({ x: e.clientX, y: e.clientY, id: c.id }); }}
                     >
                       {c.kind === "photo" && <img src={c.src} alt="" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", filter: clipFilterCss(c) }} />}
                       <span className="a-clip-badge"><VIcon name={c.kind === "photo" ? "image" : "video"} size={10} /></span>
@@ -1573,6 +2020,16 @@ export default function MontagePage() {
                       <span className="a-clip-lbl">{c.name}</span>
                       {selectedClipId === c.id && (
                         <>
+                          <div
+                            draggable={false}
+                            onDragStart={(e) => e.preventDefault()}
+                            onClick={(e) => e.stopPropagation()}
+                            onPointerDown={(e) => onClipBarDown(e, c)}
+                            onPointerMove={onClipBarMove}
+                            onPointerUp={onClipBarUp}
+                            title={t('moveInTimeTitle')}
+                            style={{ position: "absolute", top: 3, left: "50%", transform: "translateX(-50%)", width: 28, height: 9, borderRadius: 5, background: "rgba(255,255,255,.55)", cursor: "ew-resize", zIndex: 4, touchAction: "none" }}
+                          />
                           {c.kind === "video" && (
                             <div className="a-trim a-trim-l" draggable={false} onDragStart={(e) => e.preventDefault()} onClick={(e) => e.stopPropagation()} onPointerDown={(e) => startTrim(e, c, "start")} onPointerMove={onTrimMove} onPointerUp={endTrim} title={t('trimStartTitle')} />
                           )}
@@ -1594,35 +2051,49 @@ export default function MontagePage() {
                 ))}
               </div>
             </div>
-            <div className="a-lane" style={{ height: 34 }}>
-              <div className="a-lane-label"><VIcon name="image" size={13} /> {t('railOverlay')}</div>
-              <div className="a-lane-track">
-                {overlays.length === 0 && (
-                  <span style={{ fontSize: 11.5, color: "var(--ink-3)", fontWeight: 600 }}>{t('addOverlayHint')}</span>
-                )}
-                {overlays.map((o) => (
-                  <div
-                    key={o.id}
-                    className={"a-chip" + (selectedOverlayId === o.id ? " on" : "")}
-                    style={{ left: o.offset * pps, width: Math.max(24, overlayTimelineDur(o) * pps), top: 2, bottom: 2, cursor: "move", background: o.kind === "video" ? "linear-gradient(150deg,#6d4bd8,#2a1a5e)" : "linear-gradient(150deg,#c8792f,#5e3a1a)" }}
-                    title={o.name}
-                    onPointerDown={(e) => onOvBarDown(e, o)}
-                    onPointerMove={onOvBarMove}
-                    onPointerUp={onOvBarUp}
-                  >
-                    <span style={{ position: "absolute", left: 8, top: 4, fontSize: 9.5, fontWeight: 700, color: "#fff", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: "calc(100% - 16px)" }}>{o.kind === "video" ? "🎬" : "🖼"} {o.name}</span>
-                    {selectedOverlayId === o.id && (
-                      <>
-                        <div className="a-trim a-trim-l" onPointerDown={(e) => startOvTrim(e, o, "start")} onPointerMove={onOvTrimMove} onPointerUp={endOvTrim} title={t('trimStartTitle')} />
-                        <div className="a-trim a-trim-r" onPointerDown={(e) => startOvTrim(e, o, "end")} onPointerMove={onOvTrimMove} onPointerUp={endOvTrim} title={o.kind === "photo" ? t('duration') : t('trimEndTitle')} />
-                      </>
-                    )}
-                  </div>
-                ))}
+            {Array.from({ length: videoTrackCount }).map((_, idx) => {
+              const track = videoTrackCount - 1 - idx; // le haut de la timeline = la piste la plus haute (au-dessus)
+              const isTop = idx === 0;
+              const laneOverlays = overlays.filter((o) => (o.track ?? 0) === track);
+              return (
+              <div className="a-lane" style={{ height: 34 }} key={"vtrack-" + track}>
+                <div className="a-lane-label" style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                  <VIcon name="image" size={13} />
+                  <span className="trunc">{videoTrackCount > 1 ? `${t('railOverlay')} ${track + 1}` : t('railOverlay')}</span>
+                  {isTop && (
+                    <button onClick={() => setExtraVideoTracks((n) => n + 1)} title={t('addVideoTrack')}
+                      style={{ marginLeft: "auto", width: 18, height: 18, borderRadius: 5, border: "1px solid var(--line)", background: "var(--canvas)", color: "var(--ink-2)", fontSize: 14, lineHeight: "14px", cursor: "pointer", flexShrink: 0, padding: 0 }}>+</button>
+                  )}
+                </div>
+                <div className="a-lane-track">
+                  {overlays.length === 0 && isTop && (
+                    <span style={{ fontSize: 11.5, color: "var(--ink-3)", fontWeight: 600 }}>{t('addOverlayHint')}</span>
+                  )}
+                  {laneOverlays.map((o) => (
+                    <div
+                      key={o.id}
+                      className={"a-chip" + (selectedOverlayId === o.id ? " on" : "")}
+                      style={{ left: o.offset * pps, width: Math.max(24, overlayTimelineDur(o) * pps), top: 2, bottom: 2, cursor: "move", background: o.kind === "video" ? "linear-gradient(150deg,#6d4bd8,#2a1a5e)" : "linear-gradient(150deg,#c8792f,#5e3a1a)" }}
+                      title={o.name}
+                      onPointerDown={(e) => onOvBarDown(e, o)}
+                      onPointerMove={onOvBarMove}
+                      onPointerUp={onOvBarUp}
+                    >
+                      <span style={{ position: "absolute", left: 8, top: 4, fontSize: 9.5, fontWeight: 700, color: "#fff", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: "calc(100% - 16px)" }}>{o.kind === "video" ? "🎬" : "🖼"} {o.name}</span>
+                      {selectedOverlayId === o.id && (
+                        <>
+                          <div className="a-trim a-trim-l" onPointerDown={(e) => startOvTrim(e, o, "start")} onPointerMove={onOvTrimMove} onPointerUp={endOvTrim} title={t('trimStartTitle')} />
+                          <div className="a-trim a-trim-r" onPointerDown={(e) => startOvTrim(e, o, "end")} onPointerMove={onOvTrimMove} onPointerUp={endOvTrim} title={o.kind === "photo" ? t('duration') : t('trimEndTitle')} />
+                        </>
+                      )}
+                    </div>
+                  ))}
+                </div>
               </div>
-            </div>
+              );
+            })}
             <div className="a-lane" style={{ height: 34 }}>
-              <div className="a-lane-label"><VIcon name="music" size={13} /> {t('railAudio')}</div>
+              <div className="a-lane-label"><VIcon name="music" size={13} /> {t('audioClipsLabel')}</div>
               <div className="a-lane-track">
                 {/* son embarqué des plans vidéo — clic = sélectionne la piste audio seule ; Option/Alt+clic = aussi le plan vidéo lié */}
                 {clipStarts.filter((c) => c.kind === "video").map((c) => (
@@ -1642,22 +2113,40 @@ export default function MontagePage() {
                     <span style={{ position: "absolute", left: 6, top: 4, fontSize: 9.5, fontWeight: 700, color: "#fff", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: "calc(100% - 12px)" }}>{(c.vol ?? 1) === 0 ? "🔇" : "🔊"} {c.name}</span>
                   </div>
                 ))}
-                {audioTracks.map((a) => (
-                  <div key={a.id} className="a-wave-bar" style={{ left: a.offset * pps, width: a.dur * pps, top: 2, bottom: 2 }} title={a.name}>
-                    {a.waveform && a.waveform.length > 0 && (
-                      <svg width="100%" height="100%" preserveAspectRatio="none" style={{ position: "absolute", inset: 0, opacity: 0.55 }}>
-                        {a.waveform.map((p, i) => {
-                          const x = (i / a.waveform!.length) * 100;
-                          const h = Math.max(6, p * 100);
-                          return <rect key={i} x={`${x}%`} y={`${(100 - h) / 2}%`} width={`${100 / a.waveform!.length}%`} height={`${h}%`} fill="#fff" />;
-                        })}
-                      </svg>
-                    )}
-                    <span style={{ position: "absolute", left: 6, top: 4, fontSize: 9.5, fontWeight: 700, color: "#fff" }}>{a.kind === "voiceover" ? "🎙" : "🎵"} {a.name}</span>
-                  </div>
-                ))}
               </div>
             </div>
+            {Array.from({ length: audioTrackCount }).map((_, aIdx) => {
+              const atrack = aIdx; // rangée audio (l'ordre n'affecte pas le mixage, uniquement l'organisation)
+              const isFirstA = aIdx === 0;
+              return (
+              <div className="a-lane" style={{ height: 34 }} key={"atrack-" + atrack}>
+                <div className="a-lane-label" style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                  <VIcon name="music" size={13} />
+                  <span className="trunc">{audioTrackCount > 1 ? `${t('railAudio')} ${atrack + 1}` : t('railAudio')}</span>
+                  {isFirstA && (
+                    <button onClick={() => setExtraAudioTracks((n) => n + 1)} title={t('addAudioTrack')}
+                      style={{ marginLeft: "auto", width: 18, height: 18, borderRadius: 5, border: "1px solid var(--line)", background: "var(--canvas)", color: "var(--ink-2)", fontSize: 14, lineHeight: "14px", cursor: "pointer", flexShrink: 0, padding: 0 }}>+</button>
+                  )}
+                </div>
+                <div className="a-lane-track">
+                  {audioTracks.filter((a) => (a.track ?? 0) === atrack).map((a) => (
+                    <div key={a.id} className="a-wave-bar" style={{ left: a.offset * pps, width: a.dur * pps, top: 2, bottom: 2 }} title={a.name}>
+                      {a.waveform && a.waveform.length > 0 && (
+                        <svg width="100%" height="100%" preserveAspectRatio="none" style={{ position: "absolute", inset: 0, opacity: 0.55 }}>
+                          {a.waveform.map((p, i) => {
+                            const x = (i / a.waveform!.length) * 100;
+                            const h = Math.max(6, p * 100);
+                            return <rect key={i} x={`${x}%`} y={`${(100 - h) / 2}%`} width={`${100 / a.waveform!.length}%`} height={`${h}%`} fill="#fff" />;
+                          })}
+                        </svg>
+                      )}
+                      <span style={{ position: "absolute", left: 6, top: 4, fontSize: 9.5, fontWeight: 700, color: "#fff" }}>{a.kind === "voiceover" ? "🎙" : "🎵"} {a.name}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              );
+            })}
             <div className="a-lane" style={{ height: 34 }}>
               <div className="a-lane-label"><VIcon name="captions" size={13} /> {t('labelSubtitlesShort')}</div>
               <div className="a-lane-track">
@@ -1689,6 +2178,36 @@ export default function MontagePage() {
           <span style={{ fontSize: 12.5, fontWeight: 600 }}>{toastMsg}</span>
         </div>
       )}
+
+      {/* Menu contextuel d'un plan (clic droit) — façon CapCut */}
+      {clipMenu && (() => {
+        const c = clips.find((x) => x.id === clipMenu.id);
+        const isVideo = c?.kind === "video";
+        const item = (label: string, onClick: () => void, opts?: { disabled?: boolean; danger?: boolean }) => (
+          <button
+            disabled={opts?.disabled}
+            onClick={(e) => { e.stopPropagation(); setClipMenu(null); onClick(); }}
+            style={{ display: "block", width: "100%", textAlign: "left", padding: "8px 14px", background: "transparent", border: "none", cursor: opts?.disabled ? "not-allowed" : "pointer", fontSize: 13, fontWeight: 600, color: opts?.disabled ? "var(--ink-3)" : opts?.danger ? "var(--warn, #c8722b)" : "var(--ink)", opacity: opts?.disabled ? 0.5 : 1 }}
+          >{label}</button>
+        );
+        return (
+          <div
+            onClick={(e) => e.stopPropagation()}
+            onContextMenu={(e) => { e.preventDefault(); }}
+            style={{ position: "fixed", left: Math.min(clipMenu.x, (typeof window !== "undefined" ? window.innerWidth : 9999) - 230), top: clipMenu.y, zIndex: 1000, minWidth: 214, background: "var(--paper, #fff)", border: "1px solid var(--line)", borderRadius: 10, boxShadow: "0 12px 40px rgba(0,0,0,.22)", padding: "6px 0", overflow: "hidden" }}
+          >
+            {item(`⌘C  ${t('copy')}`, () => { selectClip(clipMenu.id); copySelected(); })}
+            {item(`⌘X  ${t('cut')}`, () => { selectClip(clipMenu.id); copySelected(); removeClip(clipMenu.id); })}
+            <div style={{ height: 1, background: "var(--line)", margin: "5px 0" }} />
+            {item(`✎  ${t('contextEdit')}`, () => { selectClip(clipMenu.id); setTool("cut"); })}
+            {item(`✂️  ${t('splitAtPlayhead')}`, () => { selectClip(clipMenu.id); splitAtPlayhead(); })}
+            {item(`🔊  ${t('contextDetachAudio')}`, () => detachAudio(clipMenu.id), { disabled: !isVideo || (c?.vol ?? 1) === 0 })}
+            {item(`⧉  ${t('duplicate')}`, () => duplicateClip(clipMenu.id))}
+            <div style={{ height: 1, background: "var(--line)", margin: "5px 0" }} />
+            {item(`🗑  ${t('delete')}`, () => removeClip(clipMenu.id), { danger: true })}
+          </div>
+        );
+      })()}
     </div>
   );
 }
