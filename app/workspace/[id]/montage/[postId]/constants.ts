@@ -316,7 +316,12 @@ export const SUB_LENGTHS: { words: number; label: string }[] = [
   { words: 99, label: "Phrase" },
 ];
 
-export const STICKER_GLYPHS = ["✦", "↗", "🌿", "☕", "◆", "✿", "→", "★", "✷", "∴", "❋", "●"];
+export const STICKER_GLYPHS = [
+  "✦", "↗", "🌿", "☕", "◆", "✿", "→", "★", "✷", "∴", "❋", "●",
+  "🔥", "💧", "⚡", "✨", "💯", "👀", "👍", "🙌", "❤️", "😮", "😂", "🥳",
+  "🎉", "🎬", "📸", "🎵", "🛒", "🏷️", "💸", "⏰", "📍", "✅", "❌", "❓",
+  "➡️", "⬆️", "⬇️", "🔗", "💬", "🤯", "😍", "🤔", "👇", "☝️", "🌟", "🚀",
+];
 
 export const FONT_CHOICES: { id: TitleEl["font"]; name: string; sub: string; css: string; weight: number; italic: boolean }[] = [
   { id: "archivo", name: "Archivo", sub: "Display", css: "var(--display)", weight: 800, italic: true },
