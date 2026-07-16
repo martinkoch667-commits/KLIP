@@ -53,6 +53,7 @@ export interface OverlayClip {
   trimStart: number;
   trimEnd: number;
   offset: number;      // début sur la timeline (s)
+  track?: number;      // piste vidéo d'empilement (0 = juste au-dessus du plan principal ; plus haut = au-dessus). Défaut 0.
   x: number;           // centre en % (0-100)
   y: number;           // centre en %
   scale: number;       // 1 = ~50% de la largeur du cadre

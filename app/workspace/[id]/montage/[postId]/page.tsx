@@ -191,6 +191,7 @@ export default function MontagePage() {
   const [toastMsg, setToastMsg] = useState<string | null>(null);
   const [pps, setPps] = useState(40);
   const [histTick, setHistTick] = useState(0);
+  const [extraVideoTracks, setExtraVideoTracks] = useState(0); // pistes vidéo vides ajoutées par l'utilisateur (au-delà des pistes occupées)
 
   // Disposition redimensionnable (persistée) — comme CapCut
   const [panelW, setPanelW] = useState(312);
@@ -394,6 +395,10 @@ export default function MontagePage() {
     () => overlays.filter((o) => time >= o.offset && time < o.offset + overlayTimelineDur(o)),
     [overlays, time],
   );
+  // Pistes vidéo empilables : autant que la piste la plus haute occupée (+1), plus les
+  // pistes vides ajoutées à la main. Toujours au moins une.
+  const maxOverlayTrack = useMemo(() => overlays.reduce((m, o) => Math.max(m, o.track ?? 0), 0), [overlays]);
+  const videoTrackCount = Math.max(1, maxOverlayTrack + 1) + extraVideoTracks;
 
   const seek = useCallback((t: number) => {
     const clamped = Math.max(0, Math.min(total, t));
@@ -1172,6 +1177,14 @@ export default function MontagePage() {
     return best;
   }
 
+  // Déplace une incrustation d'une piste vers le haut/bas (z-order). Bornée aux pistes visibles.
+  function moveOverlayTrack(id: string, dir: 1 | -1) {
+    const o = overlays.find((ov) => ov.id === id);
+    if (!o) return;
+    const next = Math.max(0, Math.min(videoTrackCount - 1, (o.track ?? 0) + dir));
+    updateOverlay(id, { track: next });
+  }
+
   // ── Plan principal : déplacement dans le temps (poignée) = ajuste gapBefore ──
   function onClipBarDown(e: React.PointerEvent, c: { id: string; start: number; gapBefore?: number }) {
     e.stopPropagation();
@@ -1239,6 +1252,7 @@ export default function MontagePage() {
     clips, selectedClip, captions, subStyleId, subMaxWords, subCustom, subPos, hasRawSegments: rawSegments.length > 0,
     titles, stickers, audioTracks, showProgressBar,
     overlays, selectedOverlay, uploadingOverlay, addOverlayFiles, updateOverlay, removeOverlay, duplicateOverlay, selectOverlay,
+    videoTrackCount, moveOverlayTrack,
     time, total, logoUrl, uploadingAudio, transcribing, isRecordingVO,
     croppingClipId, smartCropClip, assembling, autoAssembleAI, suggestingMusic, musicSuggestion, suggestMusicMoodAI,
     toast, updateClip, splitAtPlayhead,
@@ -1415,8 +1429,9 @@ export default function MontagePage() {
                   null
                 )}
 
-                {/* incrustations (PIP) — déplaçables/redimensionnables/pivotables */}
-                {overlays.map((o) => {
+                {/* incrustations (PIP) — déplaçables/redimensionnables/pivotables.
+                    Triées par piste croissante : l'ordre du DOM fait le z-order (piste haute = au-dessus). */}
+                {[...overlays].sort((a, b) => (a.track ?? 0) - (b.track ?? 0)).map((o) => {
                   const isActive = time >= o.offset && time < o.offset + overlayTimelineDur(o);
                   const sel = selectedOverlayId === o.id;
                   return (
@@ -1643,33 +1658,47 @@ export default function MontagePage() {
                 ))}
               </div>
             </div>
-            <div className="a-lane" style={{ height: 34 }}>
-              <div className="a-lane-label"><VIcon name="image" size={13} /> {t('railOverlay')}</div>
-              <div className="a-lane-track">
-                {overlays.length === 0 && (
-                  <span style={{ fontSize: 11.5, color: "var(--ink-3)", fontWeight: 600 }}>{t('addOverlayHint')}</span>
-                )}
-                {overlays.map((o) => (
-                  <div
-                    key={o.id}
-                    className={"a-chip" + (selectedOverlayId === o.id ? " on" : "")}
-                    style={{ left: o.offset * pps, width: Math.max(24, overlayTimelineDur(o) * pps), top: 2, bottom: 2, cursor: "move", background: o.kind === "video" ? "linear-gradient(150deg,#6d4bd8,#2a1a5e)" : "linear-gradient(150deg,#c8792f,#5e3a1a)" }}
-                    title={o.name}
-                    onPointerDown={(e) => onOvBarDown(e, o)}
-                    onPointerMove={onOvBarMove}
-                    onPointerUp={onOvBarUp}
-                  >
-                    <span style={{ position: "absolute", left: 8, top: 4, fontSize: 9.5, fontWeight: 700, color: "#fff", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: "calc(100% - 16px)" }}>{o.kind === "video" ? "🎬" : "🖼"} {o.name}</span>
-                    {selectedOverlayId === o.id && (
-                      <>
-                        <div className="a-trim a-trim-l" onPointerDown={(e) => startOvTrim(e, o, "start")} onPointerMove={onOvTrimMove} onPointerUp={endOvTrim} title={t('trimStartTitle')} />
-                        <div className="a-trim a-trim-r" onPointerDown={(e) => startOvTrim(e, o, "end")} onPointerMove={onOvTrimMove} onPointerUp={endOvTrim} title={o.kind === "photo" ? t('duration') : t('trimEndTitle')} />
-                      </>
-                    )}
-                  </div>
-                ))}
+            {Array.from({ length: videoTrackCount }).map((_, idx) => {
+              const track = videoTrackCount - 1 - idx; // le haut de la timeline = la piste la plus haute (au-dessus)
+              const isTop = idx === 0;
+              const laneOverlays = overlays.filter((o) => (o.track ?? 0) === track);
+              return (
+              <div className="a-lane" style={{ height: 34 }} key={"vtrack-" + track}>
+                <div className="a-lane-label" style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                  <VIcon name="image" size={13} />
+                  <span className="trunc">{videoTrackCount > 1 ? `${t('railOverlay')} ${track + 1}` : t('railOverlay')}</span>
+                  {isTop && (
+                    <button onClick={() => setExtraVideoTracks((n) => n + 1)} title={t('addVideoTrack')}
+                      style={{ marginLeft: "auto", width: 18, height: 18, borderRadius: 5, border: "1px solid var(--line)", background: "var(--canvas)", color: "var(--ink-2)", fontSize: 14, lineHeight: "14px", cursor: "pointer", flexShrink: 0, padding: 0 }}>+</button>
+                  )}
+                </div>
+                <div className="a-lane-track">
+                  {overlays.length === 0 && isTop && (
+                    <span style={{ fontSize: 11.5, color: "var(--ink-3)", fontWeight: 600 }}>{t('addOverlayHint')}</span>
+                  )}
+                  {laneOverlays.map((o) => (
+                    <div
+                      key={o.id}
+                      className={"a-chip" + (selectedOverlayId === o.id ? " on" : "")}
+                      style={{ left: o.offset * pps, width: Math.max(24, overlayTimelineDur(o) * pps), top: 2, bottom: 2, cursor: "move", background: o.kind === "video" ? "linear-gradient(150deg,#6d4bd8,#2a1a5e)" : "linear-gradient(150deg,#c8792f,#5e3a1a)" }}
+                      title={o.name}
+                      onPointerDown={(e) => onOvBarDown(e, o)}
+                      onPointerMove={onOvBarMove}
+                      onPointerUp={onOvBarUp}
+                    >
+                      <span style={{ position: "absolute", left: 8, top: 4, fontSize: 9.5, fontWeight: 700, color: "#fff", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: "calc(100% - 16px)" }}>{o.kind === "video" ? "🎬" : "🖼"} {o.name}</span>
+                      {selectedOverlayId === o.id && (
+                        <>
+                          <div className="a-trim a-trim-l" onPointerDown={(e) => startOvTrim(e, o, "start")} onPointerMove={onOvTrimMove} onPointerUp={endOvTrim} title={t('trimStartTitle')} />
+                          <div className="a-trim a-trim-r" onPointerDown={(e) => startOvTrim(e, o, "end")} onPointerMove={onOvTrimMove} onPointerUp={endOvTrim} title={o.kind === "photo" ? t('duration') : t('trimEndTitle')} />
+                        </>
+                      )}
+                    </div>
+                  ))}
+                </div>
               </div>
-            </div>
+              );
+            })}
             <div className="a-lane" style={{ height: 34 }}>
               <div className="a-lane-label"><VIcon name="music" size={13} /> {t('railAudio')}</div>
               <div className="a-lane-track">

@@ -320,7 +320,9 @@ export async function renderExport(project: ExportProject, onProgress: (p: numbe
   }
 
   // ── Plans d'incrustation (PIP) : image ou vidéo superposée ────────────────────
-  const overlays = project.overlays || [];
+  // Triés par piste croissante (stable) → la piste la plus haute est dessinée en
+  // dernier, donc au-dessus (z-order cohérent avec l'aperçu).
+  const overlays = (project.overlays || []).slice().sort((a, b) => (a.track ?? 0) - (b.track ?? 0));
   const overlayMedia: { o: OverlayClip; video: HTMLVideoElement | null; img: HTMLImageElement | null; active: boolean }[] = [];
   for (const o of overlays) {
     if (o.kind === "photo") {

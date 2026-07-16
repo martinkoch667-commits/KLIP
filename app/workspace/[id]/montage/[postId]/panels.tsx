@@ -81,6 +81,8 @@ export interface MontageCtx {
   removeOverlay: (id: string) => void;
   duplicateOverlay: (id: string) => void;
   selectOverlay: (id: string) => void;
+  videoTrackCount: number;
+  moveOverlayTrack: (id: string, dir: 1 | -1) => void;
 }
 
 // Convertit un id à tirets ("bold-white") en clé camelCase ("boldWhite") pour
@@ -694,6 +696,16 @@ export function OverlayPanel({ ctx }: { ctx: MontageCtx }) {
 
       {o ? (
         <>
+          <div className="a-section">
+            <span className="mz-sec-label">{t('videoTrackTitle')}</span>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+              <button className="btn btn-ghost" style={{ minWidth: 34, padding: "6px 0" }} disabled={(o.track ?? 0) <= 0} onClick={() => ctx.moveOverlayTrack(o.id, -1)} title={t('trackDown')}>−</button>
+              <span style={{ flex: 1, textAlign: "center", fontSize: 13, fontWeight: 700, color: "var(--ink-2)" }}>{t('videoTrackValue', { n: (o.track ?? 0) + 1, total: ctx.videoTrackCount })}</span>
+              <button className="btn btn-ghost" style={{ minWidth: 34, padding: "6px 0" }} disabled={(o.track ?? 0) >= ctx.videoTrackCount - 1} onClick={() => ctx.moveOverlayTrack(o.id, 1)} title={t('trackUp')}>+</button>
+            </div>
+            <p style={{ fontSize: 11.5, color: "var(--ink-3)", lineHeight: 1.45 }}>{t('videoTrackHint')}</p>
+          </div>
+
           <div className="a-section">
             <span className="mz-sec-label">{t('positionSize')}</span>
             <Range label={t('size')} value={o.scale} min={0.2} max={2.5} step={0.05} onChange={(v) => ctx.updateOverlay(o.id, { scale: v })} fmtv={(v) => Math.round(v * 100) + "%"} />
