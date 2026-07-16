@@ -226,6 +226,8 @@ export default function MontagePage() {
   const [playing, setPlaying] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const videoInputRef = useRef<HTMLInputElement>(null); // import « vidéos » dédié
+  const photoInputRef = useRef<HTMLInputElement>(null); // import « photos » dédié
   const overlayInputRef = useRef<HTMLInputElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const loadedSrcRef = useRef<string | null>(null);
@@ -1368,6 +1370,16 @@ export default function MontagePage() {
                     <span className="mz-import-s">{t('dragRushesHint')}</span>
                   </div>
                   <input ref={fileInputRef} type="file" accept="video/mp4,video/quicktime,image/jpeg,image/png" multiple onChange={handleFileInput} style={{ display: "none" }} />
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginTop: 10 }}>
+                    <button className="btn btn-dark" style={{ justifyContent: "center", gap: 6 }} disabled={uploading} onClick={() => videoInputRef.current?.click()}>
+                      <VIcon name="video" size={15} /> {t('importVideosCta')}
+                    </button>
+                    <button className="btn btn-ghost" style={{ justifyContent: "center", gap: 6 }} disabled={uploading} onClick={() => photoInputRef.current?.click()}>
+                      <VIcon name="image" size={15} /> {t('importPhotosCta')}
+                    </button>
+                  </div>
+                  <input ref={videoInputRef} type="file" accept="video/mp4,video/quicktime" multiple onChange={handleFileInput} style={{ display: "none" }} />
+                  <input ref={photoInputRef} type="file" accept="image/jpeg,image/png" multiple onChange={handleFileInput} style={{ display: "none" }} />
                 </div>
                 <div className="a-section">
                   <span className="mz-sec-label">{t('projectClipsTitle', { count: clips.length })}</span>

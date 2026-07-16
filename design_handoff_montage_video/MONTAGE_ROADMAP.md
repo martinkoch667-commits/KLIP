@@ -99,4 +99,17 @@
 
 ## En attente de Martin
 - [ ] Screenshot du menu clic droit CapCut (pour B3 et les actions contextuelles).
-- [ ] Priorités / ordre souhaité.
+- [ ] Test dans l'app des lots déjà livrés.
+
+## Journal d'avancement
+- ✅ **B (trous)** — écran noir en tête / entre les plans (`gapBefore`) : modèle + lecture
+  + preview + export. Réglage par slider (Découpe) et par **poignée de déplacement** au drag.
+- ✅ **B4 (pistes vidéo)** — incrustations empilables multi-pistes, z-order en preview+export,
+  bouton « + piste », stepper de piste dans le panneau Incrustation.
+- ✅ **B4 (pistes audio)** — rangée « son des plans » + N pistes audio empilées, bouton « + »,
+  stepper monter/descendre par piste. Mixage inchangé.
+- ✅ **G1** — curseur de vitesse continu (0.10×–4×) en plus des paliers.
+- ✅ **H1** — preview sans coins arrondis ni cadre « téléphone » (+ PIP).
+- ✅ **A1** — boutons d'import séparés Vidéos / Photos (la zone de drag accepte toujours les deux).
+- ⏳ Reste : B1 (chevauchement libre total), B3, B5, B6, A2 (déjà ~ok : import multiple posé
+  bout à bout), C, D, E, F, G (paliers→ok), H2/H3/H4, I, J, K.

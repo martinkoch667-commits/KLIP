@@ -1538,7 +1538,9 @@
     "toastCaptionsGenerated": "{count, plural, one {# legenda gerada.} other {# legendas geradas.}}",
     "speedCustom": "Velocidade personalizada",
     "audioClipsLabel": "Som dos planos",
-    "addAudioTrack": "Adicionar uma faixa de áudio"
+    "addAudioTrack": "Adicionar uma faixa de áudio",
+    "importVideosCta": "Vídeos",
+    "importPhotosCta": "Fotos"
   },
   "forgotPassword": {
     "title": "Esqueceu a palavra-passe",

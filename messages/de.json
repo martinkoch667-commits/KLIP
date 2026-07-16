@@ -1538,7 +1538,9 @@
     "toastCaptionsGenerated": "{count, plural, one {# Untertitel erstellt.} other {# Untertitel erstellt.}}",
     "speedCustom": "Eigene Geschwindigkeit",
     "audioClipsLabel": "Clip-Ton",
-    "addAudioTrack": "Audiospur hinzufügen"
+    "addAudioTrack": "Audiospur hinzufügen",
+    "importVideosCta": "Videos",
+    "importPhotosCta": "Fotos"
   },
   "forgotPassword": {
     "title": "Passwort vergessen",

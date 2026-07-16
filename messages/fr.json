@@ -1538,7 +1538,9 @@
     "toastCaptionsGenerated": "{count, plural, one {# sous-titre généré.} other {# sous-titres générés.}}",
     "speedCustom": "Vitesse personnalisée",
     "audioClipsLabel": "Son des plans",
-    "addAudioTrack": "Ajouter une piste audio"
+    "addAudioTrack": "Ajouter une piste audio",
+    "importVideosCta": "Vidéos",
+    "importPhotosCta": "Photos"
   },
   "forgotPassword": {
     "title": "Mot de passe oublié",
