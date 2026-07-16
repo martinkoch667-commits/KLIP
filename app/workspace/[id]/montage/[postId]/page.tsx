@@ -137,6 +137,15 @@ function peaksFromSamples(samples: Float32Array): number[] {
   return peaks.map((p) => Math.min(1, p / peak));
 }
 
+// Style de sous-titres dérivé de la charte du client : surlignage du mot actif dans la
+// couleur d'accent de la marque, sur une base lisible (contour noir, texte blanc).
+// Appliqué par défaut aux montages jamais personnalisés → sous-titres déjà à la charte.
+function charterSubDefault(ws: { accent_color?: string | null } | null | undefined): { styleId: string; custom: SubCustom } | null {
+  const acc = ws?.accent_color;
+  if (!acc || !/^#([0-9a-fA-F]{3,8})$/.test(acc)) return null;
+  return { styleId: "bold-white", custom: { hi: acc } };
+}
+
 const PHOTO_DEFAULT_DUR = 3;
 
 // Migration douce depuis l'ancien format (Lot 1) { id, kind, name, src, dur }
@@ -347,19 +356,22 @@ export default function MontagePage() {
     (async () => {
       const [{ data: post }, { data: ws }] = await Promise.all([
         supabase.from("posts").select("montage_json, brief, photo_url").eq("id", postId).single(),
-        supabase.from("workspaces").select("logo_url").eq("id", workspaceId).single(),
+        supabase.from("workspaces").select("logo_url, accent_color").eq("id", workspaceId).single(),
       ]);
       if (post?.brief) setProjectName(post.brief);
       if (ws?.logo_url) setLogoUrl(ws.logo_url);
+      const charterSub = charterSubDefault(ws); // sous-titres à la charte (surlignage = accent)
       const proj = post?.montage_json as Partial<MontageProject> | null;
       if (proj?.clips?.length) {
         setClips(proj.clips.map(normalizeClip));
         setOverlays(proj.overlays || []);
         setCaptions(proj.captions || []);
-        setSubStyleId(proj.subStyleId || SUB_STYLES[0].id);
+        // Montage jamais personnalisé côté sous-titres → on applique le style de la charte.
+        const subUntouched = !proj.subStyleId && (!proj.subCustom || Object.keys(proj.subCustom).length === 0);
+        setSubStyleId(subUntouched && charterSub ? charterSub.styleId : (proj.subStyleId || SUB_STYLES[0].id));
         setSubMaxWords(proj.subMaxWords || DEFAULT_WORDS_PER_CAPTION);
         setSubPos(proj.subPos || DEFAULT_SUB_POS);
-        setSubCustom(proj.subCustom || {});
+        setSubCustom(subUntouched && charterSub ? charterSub.custom : (proj.subCustom || {}));
         setRawSegments(proj.rawSegments || []);
         setTitles(proj.titles || []);
         setStickers(proj.stickers || []);
@@ -373,6 +385,9 @@ export default function MontagePage() {
       } else if (post?.photo_url) {
         const dur = await getVideoDuration(post.photo_url);
         setClips([{ id: crypto.randomUUID(), kind: "video", name: t('initialImportName'), src: post.photo_url, srcDur: dur, trimStart: 0, trimEnd: dur, ...newClipDefaults() }]);
+        if (charterSub) { setSubStyleId(charterSub.styleId); setSubCustom(charterSub.custom); }
+      } else if (charterSub) {
+        setSubStyleId(charterSub.styleId); setSubCustom(charterSub.custom);
       }
       setLoading(false);
     })();
