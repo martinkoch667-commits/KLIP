@@ -1593,7 +1593,15 @@
     "toastVoiceIsolated": "Voz aislada.",
     "toastVoiceRemoved": "Voz eliminada.",
     "toastVoiceNeedsStereo": "Quitar la voz requiere sonido estéreo.",
-    "toastVoiceProcessFailed": "No se pudo procesar la voz."
+    "toastVoiceProcessFailed": "No se pudo procesar la voz.",
+    "videoDescLabel": "Leyenda IA",
+    "videoDescTitle": "Describir el vídeo montado",
+    "videoDescDesc": "Analiza imágenes de tu vídeo montado y redacta la leyenda según la marca del cliente.",
+    "videoDescBtn": "Generar la descripción",
+    "videoDescWorking": "Analizando el vídeo…",
+    "toastDescNoFrames": "No se pudieron capturar imágenes.",
+    "toastDescFailed": "No se pudo generar la descripción.",
+    "toastDescDone": "Descripción generada (guardada en el post)."
   },
   "forgotPassword": {
     "title": "Contraseña olvidada",

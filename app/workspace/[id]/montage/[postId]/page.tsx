@@ -211,6 +211,8 @@ export default function MontagePage() {
   const [assembling, setAssembling] = useState(false);
   const [cuttingSilence, setCuttingSilence] = useState(false);
   const [processingVoice, setProcessingVoice] = useState<string | null>(null); // id de la piste audio en cours de traitement voix
+  const [generatingDesc, setGeneratingDesc] = useState(false);
+  const [videoDescription, setVideoDescription] = useState<string | null>(null);
   const [suggestingMusic, setSuggestingMusic] = useState(false);
   const [musicSuggestion, setMusicSuggestion] = useState<string | null>(null);
   const [isRecordingVO, setIsRecordingVO] = useState(false);
@@ -908,6 +910,38 @@ export default function MontagePage() {
     }
   }
 
+  // Génère la légende APRÈS le montage : échantillonne des frames de la vidéo montée
+  // et les envoie à la génération (qui applique la charte du workspace). La description
+  // vidéo est ainsi basée sur ce qui se passe réellement à l'écran.
+  async function generateVideoDescription() {
+    if (generatingDesc || !clipStarts.length) return;
+    setGeneratingDesc(true);
+    try {
+      const vids = clipStarts;
+      const picks = vids.length <= 6 ? vids : Array.from({ length: 6 }, (_, i) => vids[Math.floor((i * (vids.length - 1)) / 5)]);
+      const frames = (await Promise.all(picks.map(async (c) => {
+        try {
+          const at = c.kind === "video" ? c.trimStart + Math.min(0.5, (c.trimEnd - c.trimStart) / 2) : 0;
+          return await grabFrame(c.src, c.kind, at, 384);
+        } catch { return null; }
+      }))).filter(Boolean) as string[];
+      if (!frames.length) { toast(t('toastDescNoFrames')); return; }
+      const res = await fetch("/api/generate-description", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ brief: projectName, frames, workspaceId }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.description) { toast(data?.error || t('toastDescFailed')); return; }
+      setVideoDescription(data.description);
+      await supabase.from("posts").update({ caption_final: data.description }).eq("id", postId);
+      toast(t('toastDescDone'));
+    } catch {
+      toast(t('toastDescFailed'));
+    } finally {
+      setGeneratingDesc(false);
+    }
+  }
+
   async function autoAssembleAI() {
     if (assembling) return;
     if (clips.length < 2) { toast(t('toastNeedTwoClips')); return; }
@@ -1537,6 +1571,7 @@ export default function MontagePage() {
     time, total, logoUrl, uploadingAudio, transcribing, isRecordingVO,
     croppingClipId, smartCropClip, assembling, autoAssembleAI, suggestingMusic, musicSuggestion, suggestMusicMoodAI,
     cuttingSilence, cutSilences,
+    generatingDesc, videoDescription, generateVideoDescription,
     toast, updateClip, splitAtPlayhead,
     duplicateSelected: () => selectedClipId && duplicateClip(selectedClipId),
     removeSelected: () => selectedClipId && removeClip(selectedClipId),

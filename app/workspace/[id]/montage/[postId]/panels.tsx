@@ -39,6 +39,9 @@ export interface MontageCtx {
   autoAssembleAI: () => void;
   cuttingSilence: boolean;
   cutSilences: () => void;
+  generatingDesc: boolean;
+  videoDescription: string | null;
+  generateVideoDescription: () => void;
   suggestingMusic: boolean;
   musicSuggestion: string | null;
   suggestMusicMoodAI: () => void;
@@ -874,6 +877,23 @@ export function AiPanel({ ctx }: { ctx: MontageCtx }) {
           <button className="mz-ai-btn" disabled={!hasVideo || ctx.cuttingSilence} onClick={ctx.cutSilences}>
             <VIcon name="scissors" size={16} /> {ctx.cuttingSilence ? t('cutSilenceWorking') : t('cutSilenceBtn')}
           </button>
+        </div>
+      </div>
+
+      <div className="mz-ai-card">
+        <div className="halo-blob" style={{ width: 130, height: 130, right: -30, top: -40, background: "radial-gradient(circle, var(--mint), transparent 70%)", opacity: .4 }} />
+        <div style={{ position: "relative", zIndex: 2 }}>
+          <div className="mz-sec-label" style={{ color: "var(--mint)", marginBottom: 8 }}>{t('videoDescLabel')}</div>
+          <div style={{ fontFamily: "var(--display)", fontWeight: 800, fontStyle: "italic", fontSize: 19, letterSpacing: "-0.02em", marginBottom: 4 }}>{t('videoDescTitle')}</div>
+          <p style={{ fontSize: 12.5, color: "var(--cream-2)", marginBottom: 14, lineHeight: 1.45 }}>{t('videoDescDesc')}</p>
+          <button className="mz-ai-btn" disabled={!hasClips || ctx.generatingDesc} onClick={ctx.generateVideoDescription}>
+            <VIcon name="sparkles" size={16} /> {ctx.generatingDesc ? t('videoDescWorking') : t('videoDescBtn')}
+          </button>
+          {ctx.videoDescription && (
+            <p style={{ fontSize: 12.5, color: "var(--ink)", lineHeight: 1.5, marginTop: 12, padding: 10, borderRadius: 8, background: "var(--sunk)", border: "1px solid var(--line)", whiteSpace: "pre-wrap" }}>
+              {ctx.videoDescription}
+            </p>
+          )}
         </div>
       </div>
 

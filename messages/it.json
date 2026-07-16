@@ -1593,7 +1593,15 @@
     "toastVoiceIsolated": "Voce isolata.",
     "toastVoiceRemoved": "Voce rimossa.",
     "toastVoiceNeedsStereo": "La rimozione della voce richiede audio stereo.",
-    "toastVoiceProcessFailed": "Elaborazione della voce non riuscita."
+    "toastVoiceProcessFailed": "Elaborazione della voce non riuscita.",
+    "videoDescLabel": "Didascalia IA",
+    "videoDescTitle": "Descrivi il video montato",
+    "videoDescDesc": "Analizza immagini del tuo video montato e scrive la didascalia secondo il brand del cliente.",
+    "videoDescBtn": "Genera la descrizione",
+    "videoDescWorking": "Analisi del video…",
+    "toastDescNoFrames": "Impossibile catturare immagini.",
+    "toastDescFailed": "Generazione della descrizione non riuscita.",
+    "toastDescDone": "Descrizione generata (salvata sul post)."
   },
   "forgotPassword": {
     "title": "Password dimenticata",

@@ -1593,7 +1593,15 @@
     "toastVoiceIsolated": "Voice isolated.",
     "toastVoiceRemoved": "Voice removed.",
     "toastVoiceNeedsStereo": "Voice removal needs stereo sound.",
-    "toastVoiceProcessFailed": "Voice processing failed."
+    "toastVoiceProcessFailed": "Voice processing failed.",
+    "videoDescLabel": "AI caption",
+    "videoDescTitle": "Describe the edited video",
+    "videoDescDesc": "Analyzes frames of your edited video and writes the caption from the client's brand.",
+    "videoDescBtn": "Generate description",
+    "videoDescWorking": "Analyzing video…",
+    "toastDescNoFrames": "Could not capture frames.",
+    "toastDescFailed": "Description generation failed.",
+    "toastDescDone": "Description generated (saved to the post)."
   },
   "forgotPassword": {
     "title": "Forgot password",

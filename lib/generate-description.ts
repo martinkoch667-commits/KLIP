@@ -60,6 +60,7 @@ export interface GenerateDescriptionParams {
   userId: string;
   brief: string;
   photoUrl?: string;
+  frames?: string[]; // images (dataURL) échantillonnées d'une VIDÉO montée — analyse multi-frames
   workspaceId?: string;
   workspaceName?: string;
   sector?: string;
@@ -213,10 +214,17 @@ export async function generateDescriptionForUser(params: GenerateDescriptionPara
 
   const userPrompt = lines.join('\n');
 
-  // ─── 4. Build message content (with optional image) ──────────────────────
-  const hasImage = typeof photoUrl === 'string' && photoUrl.startsWith('http');
+  // ─── 4. Build message content (with optional image(s)) ───────────────────
+  // Frames d'une vidéo montée (dataURL) prioritaires sur photoUrl : analyse multi-frames.
+  const frames = Array.isArray(params.frames) ? params.frames.filter((f) => typeof f === 'string' && f.startsWith('data:')) : [];
+  const hasHttpPhoto = typeof photoUrl === 'string' && photoUrl.startsWith('http');
+  const images = frames.length ? frames : (hasHttpPhoto ? [photoUrl!] : []);
+  const hasImage = images.length > 0;
+  const isVideo = frames.length > 0;
   const userText = hasImage
-    ? `${userPrompt}\n\nAnalyse ce visuel et génère le contenu parfaitement adapté à cette marque.`
+    ? `${userPrompt}\n\n${isVideo
+        ? "Ces images sont des instants clés de la VIDÉO MONTÉE, dans l'ordre chronologique. Comprends ce qui s'y passe (sujet, ambiance, déroulé) et écris une légende parfaitement adaptée à cette marque et à cette vidéo."
+        : 'Analyse ce visuel et génère le contenu parfaitement adapté à cette marque.'}`
     : userPrompt;
   const maxTokens = hasZoneMode ? 800 : hasRoles ? 600 : 400;
 
@@ -227,7 +235,7 @@ export async function generateDescriptionForUser(params: GenerateDescriptionPara
     userId,
     system: systemPrompt,
     userText,
-    images: hasImage ? [photoUrl!] : undefined,
+    images: hasImage ? images : undefined,
     temperature: 0.9,
     maxTokens,
   });
@@ -303,7 +311,7 @@ export async function generateDescriptionForUser(params: GenerateDescriptionPara
           temperature: 0.9,
           maxTokens,
           priorTurns: [
-            { role: 'user', text: userText, images: hasImage ? [photoUrl!] : undefined },
+            { role: 'user', text: userText, images: hasImage ? images : undefined },
             { role: 'assistant', text: rawText },
           ],
         });

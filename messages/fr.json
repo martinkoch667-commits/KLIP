@@ -1593,7 +1593,15 @@
     "toastVoiceIsolated": "Voix isolée.",
     "toastVoiceRemoved": "Voix supprimée.",
     "toastVoiceNeedsStereo": "La suppression de voix nécessite un son stéréo.",
-    "toastVoiceProcessFailed": "Traitement de la voix impossible."
+    "toastVoiceProcessFailed": "Traitement de la voix impossible.",
+    "videoDescLabel": "Légende IA",
+    "videoDescTitle": "Décrire la vidéo montée",
+    "videoDescDesc": "Analyse des images de ta vidéo montée et rédige la légende selon la charte du client.",
+    "videoDescBtn": "Générer la description",
+    "videoDescWorking": "Analyse de la vidéo…",
+    "toastDescNoFrames": "Impossible de capturer des images.",
+    "toastDescFailed": "Génération de la description impossible.",
+    "toastDescDone": "Description générée (enregistrée sur le post)."
   },
   "forgotPassword": {
     "title": "Mot de passe oublié",
