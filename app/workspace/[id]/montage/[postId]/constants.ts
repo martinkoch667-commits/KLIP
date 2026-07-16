@@ -221,6 +221,10 @@ export function saveSubTemplates(list: SubTemplate[]) {
   localStorage.setItem(SUB_TPL_KEY, JSON.stringify(list));
 }
 
+// Présets colorimétriques. `css` = filtre CSS standard, honoré à l'identique dans
+// l'aperçu (style.filter) ET à l'export (canvas ctx.filter) — ne PAS utiliser de
+// fonctions non supportées par canvas (rester sur brightness/contrast/saturate/
+// sepia/hue-rotate/grayscale/invert/blur). Tout ajout ici se propage partout.
 export const FILTERS: { id: string; name: string; css: string }[] = [
   { id: "none", name: "Aucun", css: "none" },
   { id: "chaud", name: "Chaud", css: "saturate(1.15) sepia(.12) contrast(1.04)" },
@@ -228,6 +232,13 @@ export const FILTERS: { id: string; name: string; css: string }[] = [
   { id: "froid", name: "Froid", css: "saturate(1.05) hue-rotate(-8deg) brightness(1.02)" },
   { id: "argent", name: "Argentique", css: "sepia(.28) saturate(1.1) contrast(1.08)" },
   { id: "nb", name: "N&B", css: "grayscale(1) contrast(1.1)" },
+  { id: "vif", name: "Vif", css: "saturate(1.35) contrast(1.1)" },
+  { id: "cinema", name: "Ciné", css: "contrast(1.12) saturate(1.05) sepia(.08) brightness(.98)" },
+  { id: "vintage", name: "Vintage", css: "sepia(.4) saturate(1.2) contrast(1.05) brightness(1.02)" },
+  { id: "pastel", name: "Pastel", css: "saturate(.8) brightness(1.08) contrast(.92)" },
+  { id: "noir-intense", name: "Noir intense", css: "grayscale(1) contrast(1.35) brightness(.95)" },
+  { id: "nuit", name: "Nuit", css: "saturate(1.1) hue-rotate(-14deg) brightness(.92) contrast(1.06)" },
+  { id: "dore", name: "Doré", css: "sepia(.28) saturate(1.25) brightness(1.05) hue-rotate(-6deg)" },
 ];
 
 export const TRANSITIONS: { id: string; name: string; glyph: string }[] = [

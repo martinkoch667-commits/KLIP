@@ -1234,7 +1234,14 @@
       "doux": "Soft",
       "froid": "Cool",
       "argent": "Vintage film",
-      "nb": "B&W"
+      "nb": "B&W",
+      "vif": "Vivid",
+      "cinema": "Cine",
+      "vintage": "Vintage",
+      "pastel": "Pastel",
+      "noir-intense": "Deep B&W",
+      "nuit": "Night",
+      "dore": "Golden"
     },
     "transition": {
       "cut": "Cut",

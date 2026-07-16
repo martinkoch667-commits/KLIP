@@ -1234,7 +1234,14 @@
       "doux": "Suave",
       "froid": "Frío",
       "argent": "Analógico",
-      "nb": "B&N"
+      "nb": "B&N",
+      "vif": "Vívido",
+      "cinema": "Cine",
+      "vintage": "Vintage",
+      "pastel": "Pastel",
+      "noir-intense": "B&N intenso",
+      "nuit": "Noche",
+      "dore": "Dorado"
     },
     "transition": {
       "cut": "Corte",

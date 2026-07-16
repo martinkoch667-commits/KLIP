@@ -1234,7 +1234,14 @@
       "doux": "Sanft",
       "froid": "Kühl",
       "argent": "Analog",
-      "nb": "S/W"
+      "nb": "S/W",
+      "vif": "Kräftig",
+      "cinema": "Kino",
+      "vintage": "Vintage",
+      "pastel": "Pastell",
+      "noir-intense": "Tiefes S/W",
+      "nuit": "Nacht",
+      "dore": "Golden"
     },
     "transition": {
       "cut": "Schnitt",

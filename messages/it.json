@@ -1234,7 +1234,14 @@
       "doux": "Morbido",
       "froid": "Freddo",
       "argent": "Pellicola",
-      "nb": "B&N"
+      "nb": "B&N",
+      "vif": "Vivido",
+      "cinema": "Cine",
+      "vintage": "Vintage",
+      "pastel": "Pastello",
+      "noir-intense": "B&N intenso",
+      "nuit": "Notte",
+      "dore": "Dorato"
     },
     "transition": {
       "cut": "Cut",

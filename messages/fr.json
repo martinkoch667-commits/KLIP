@@ -1234,7 +1234,14 @@
       "doux": "Doux",
       "froid": "Froid",
       "argent": "Argentique",
-      "nb": "N&B"
+      "nb": "N&B",
+      "vif": "Vif",
+      "cinema": "Ciné",
+      "vintage": "Vintage",
+      "pastel": "Pastel",
+      "noir-intense": "Noir intense",
+      "nuit": "Nuit",
+      "dore": "Doré"
     },
     "transition": {
       "cut": "Cut",
