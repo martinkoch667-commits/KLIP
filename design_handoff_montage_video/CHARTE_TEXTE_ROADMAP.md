@@ -39,10 +39,11 @@
 - Part d'un template existant adapté, ou d'un template créé exprès pour le client.
 
 ## Ordre proposé
-1. **B** (prompt) — fait / à affiner. Puis retirer le champ « style » redondant dans l'éditeur si présent.
-2. **D** (sous-titres charte → montage) — cohérent avec le travail montage récent.
-3. **A** (propositions de templates de texte).
-4. **C** (description vidéo post-montage + lecture multi-frames).
+1. ✅ **B** (prompt) — refonte faite. Reste : retirer le champ « style » redondant dans l'éditeur si présent.
+2. ✅ **C** (description vidéo post-montage) — bouton « Générer la description » côté montage +
+   `generate-description` accepte des frames multi-images (lit vraiment la vidéo montée).
+3. **D** (sous-titres charte → montage) — à faire.
+4. **A** (propositions de templates de texte) — à faire.
 
 ## En attente de Martin
 - [ ] Retour de test sur le montage (24 commits).
