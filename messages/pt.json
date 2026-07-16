@@ -1567,7 +1567,16 @@
     "volKeyAddTitle": "Adicionar um fotograma-chave no cursor",
     "volKeysHint": "Adicione pontos no cursor para variar o volume (ex. baixar a música sob uma voz).",
     "cut": "Cortar",
-    "contextEdit": "Modificar"
+    "contextEdit": "Modificar",
+    "cutSilenceLabel": "Montagem auto",
+    "cutSilenceTitle": "Cortar os silêncios",
+    "cutSilenceDesc": "Analisa o som dos planos de vídeo e remove os vazios para manter apenas a fala.",
+    "cutSilenceBtn": "Cortar os silêncios",
+    "cutSilenceWorking": "Analisando o som…",
+    "toastNoVideoForSilence": "Nenhum plano de vídeo para analisar.",
+    "toastNoSilenceFound": "Nenhum silêncio nítido detetado.",
+    "toastSilencesCut": "Silêncios removidos.",
+    "toastSilenceError": "Falha na análise de áudio deste plano."
   },
   "forgotPassword": {
     "title": "Esqueceu a palavra-passe",

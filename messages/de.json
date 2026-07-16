@@ -1567,7 +1567,16 @@
     "volKeyAddTitle": "Keyframe an der Abspielposition hinzufügen",
     "volKeysHint": "Punkte an der Abspielposition hinzufügen, um die Lautstärke zu variieren (z. B. Musik unter einer Stimme absenken).",
     "cut": "Ausschneiden",
-    "contextEdit": "Bearbeiten"
+    "contextEdit": "Bearbeiten",
+    "cutSilenceLabel": "Auto-Schnitt",
+    "cutSilenceTitle": "Stille entfernen",
+    "cutSilenceDesc": "Analysiert den Ton der Videoclips und entfernt Pausen, um nur Sprache zu behalten.",
+    "cutSilenceBtn": "Stille entfernen",
+    "cutSilenceWorking": "Ton wird analysiert…",
+    "toastNoVideoForSilence": "Kein Videoclip zum Analysieren.",
+    "toastNoSilenceFound": "Keine deutliche Stille erkannt.",
+    "toastSilencesCut": "Stille entfernt.",
+    "toastSilenceError": "Audioanalyse für diesen Clip fehlgeschlagen."
   },
   "forgotPassword": {
     "title": "Passwort vergessen",

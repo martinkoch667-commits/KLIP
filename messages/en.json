@@ -1567,7 +1567,16 @@
     "volKeyAddTitle": "Add a keyframe at the playhead",
     "volKeysHint": "Add points at the playhead to vary the volume (e.g. duck music under a voice).",
     "cut": "Cut",
-    "contextEdit": "Edit"
+    "contextEdit": "Edit",
+    "cutSilenceLabel": "Auto edit",
+    "cutSilenceTitle": "Cut silences",
+    "cutSilenceDesc": "Analyzes the video clips' sound and removes gaps to keep only speech.",
+    "cutSilenceBtn": "Cut silences",
+    "cutSilenceWorking": "Analyzing sound…",
+    "toastNoVideoForSilence": "No video clip to analyze.",
+    "toastNoSilenceFound": "No clear silence detected.",
+    "toastSilencesCut": "Silences removed.",
+    "toastSilenceError": "Audio analysis failed for this clip."
   },
   "forgotPassword": {
     "title": "Forgot password",

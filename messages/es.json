@@ -1567,7 +1567,16 @@
     "volKeyAddTitle": "Añadir un fotograma en el cursor",
     "volKeysHint": "Añade puntos en el cursor para variar el volumen (p. ej. bajar la música bajo una voz).",
     "cut": "Cortar",
-    "contextEdit": "Modificar"
+    "contextEdit": "Modificar",
+    "cutSilenceLabel": "Montaje auto",
+    "cutSilenceTitle": "Cortar los silencios",
+    "cutSilenceDesc": "Analiza el sonido de los planos y elimina los blancos para dejar solo la voz.",
+    "cutSilenceBtn": "Cortar los silencios",
+    "cutSilenceWorking": "Analizando el sonido…",
+    "toastNoVideoForSilence": "No hay plano de vídeo que analizar.",
+    "toastNoSilenceFound": "No se detectó ningún silencio claro.",
+    "toastSilencesCut": "Silencios eliminados.",
+    "toastSilenceError": "No se pudo analizar el audio de este plano."
   },
   "forgotPassword": {
     "title": "Contraseña olvidada",

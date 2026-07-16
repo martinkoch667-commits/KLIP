@@ -1567,7 +1567,16 @@
     "volKeyAddTitle": "Ajouter un point-clé à la position du curseur",
     "volKeysHint": "Ajoutez des points au curseur pour faire varier le volume (ex. baisser la musique sous une voix).",
     "cut": "Couper",
-    "contextEdit": "Modifier"
+    "contextEdit": "Modifier",
+    "cutSilenceLabel": "Montage auto",
+    "cutSilenceTitle": "Couper les silences",
+    "cutSilenceDesc": "Analyse le son des plans vidéo et retire les blancs pour ne garder que la parole.",
+    "cutSilenceBtn": "Couper les silences",
+    "cutSilenceWorking": "Analyse du son…",
+    "toastNoVideoForSilence": "Aucun plan vidéo à analyser.",
+    "toastNoSilenceFound": "Aucun silence marqué détecté.",
+    "toastSilencesCut": "Silences coupés.",
+    "toastSilenceError": "Analyse audio impossible sur ce plan."
   },
   "forgotPassword": {
     "title": "Mot de passe oublié",

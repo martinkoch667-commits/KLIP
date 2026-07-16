@@ -186,6 +186,7 @@ export default function MontagePage() {
   const [transcribing, setTranscribing] = useState(false);
   const [croppingClipId, setCroppingClipId] = useState<string | null>(null);
   const [assembling, setAssembling] = useState(false);
+  const [cuttingSilence, setCuttingSilence] = useState(false);
   const [suggestingMusic, setSuggestingMusic] = useState(false);
   const [musicSuggestion, setMusicSuggestion] = useState<string | null>(null);
   const [isRecordingVO, setIsRecordingVO] = useState(false);
@@ -794,6 +795,93 @@ export default function MontagePage() {
   // Reprend les plans déjà importés (pas de bibliothèque séparée dans ce module —
   // l'import place directement les plans sur la timeline) et laisse l'IA proposer
   // un ordre + rognage + Ken Burns + transitions cohérents en un clic.
+  // Détecte les segments « parlés » d'une source audio/vidéo : RMS par fenêtres de 30 ms,
+  // seuil relatif, on fusionne les courts silences et on coupe ceux ≥ minSilenceSec.
+  // Renvoie des segments [start,end] en secondes dans le référentiel de la source.
+  async function detectSpeechSegments(src: string, minSilenceSec = 1.0, padSec = 0.12): Promise<{ start: number; end: number }[] | null> {
+    try {
+      const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+      const actx = new AudioCtx();
+      const buf = await actx.decodeAudioData(await (await fetch(src)).arrayBuffer());
+      const data = buf.getChannelData(0);
+      const sr = buf.sampleRate;
+      const win = Math.max(1, Math.floor(sr * 0.03));
+      const nWin = Math.floor(data.length / win);
+      const rms = new Array<number>(nWin);
+      let maxR = 0;
+      for (let i = 0; i < nWin; i++) {
+        let s = 0; const off = i * win;
+        for (let j = 0; j < win; j++) { const v = data[off + j]; s += v * v; }
+        const r = Math.sqrt(s / win); rms[i] = r; if (r > maxR) maxR = r;
+      }
+      await actx.close();
+      if (maxR <= 0) return null;
+      const thresh = Math.max(0.008, maxR * 0.08);
+      const winSec = win / sr;
+      const minSilWin = Math.ceil(minSilenceSec / winSec);
+      const voiced = rms.map((r) => r >= thresh);
+      const segs: { start: number; end: number }[] = [];
+      let i = 0;
+      while (i < nWin) {
+        if (!voiced[i]) { i++; continue; }
+        let j = i;
+        while (j < nWin) {
+          if (voiced[j]) { j++; continue; }
+          let k = j; while (k < nWin && !voiced[k]) k++;
+          if (k - j >= minSilWin) break; // silence long → fin du segment
+          j = k;                         // silence court → on fusionne
+        }
+        segs.push({ start: Math.max(0, i * winSec - padSec), end: Math.min(buf.duration, j * winSec + padSec) });
+        i = j;
+      }
+      const merged: { start: number; end: number }[] = [];
+      for (const s of segs) {
+        const last = merged[merged.length - 1];
+        if (last && s.start <= last.end) last.end = Math.max(last.end, s.end);
+        else merged.push({ ...s });
+      }
+      return merged;
+    } catch { return null; }
+  }
+
+  // Coupe les silences des plans vidéo (le plan sélectionné, sinon tous) : remplace
+  // chaque plan par des sous-plans ne couvrant que les segments parlés.
+  async function cutSilences() {
+    if (cuttingSilence) return;
+    const targets = selectedClipId
+      ? clips.filter((c) => c.id === selectedClipId && c.kind === "video")
+      : clips.filter((c) => c.kind === "video");
+    if (!targets.length) { toast(t('toastNoVideoForSilence')); return; }
+    setCuttingSilence(true);
+    try {
+      const ids = new Set(targets.map((c) => c.id));
+      const next: MontageClip[] = [];
+      let changed = false;
+      for (const c of clips) {
+        if (!ids.has(c.id)) { next.push(c); continue; }
+        const segs = await detectSpeechSegments(c.src, 1.0);
+        if (!segs || !segs.length) { next.push(c); continue; }
+        const within = segs
+          .map((s) => ({ start: Math.max(s.start, c.trimStart), end: Math.min(s.end, c.trimEnd) }))
+          .filter((s) => s.end - s.start > 0.2);
+        if (!within.length) { next.push(c); continue; }
+        // Un seul segment couvrant tout le plan → rien à couper.
+        if (within.length === 1 && within[0].start <= c.trimStart + 0.15 && within[0].end >= c.trimEnd - 0.15) { next.push(c); continue; }
+        changed = true;
+        within.forEach((s, idx) => {
+          next.push({ ...c, id: crypto.randomUUID(), trimStart: s.start, trimEnd: s.end, gapBefore: idx === 0 ? c.gapBefore : 0 });
+        });
+      }
+      if (!changed) { toast(t('toastNoSilenceFound')); return; }
+      setClips(next);
+      toast(t('toastSilencesCut'));
+    } catch {
+      toast(t('toastSilenceError'));
+    } finally {
+      setCuttingSilence(false);
+    }
+  }
+
   async function autoAssembleAI() {
     if (assembling) return;
     if (clips.length < 2) { toast(t('toastNeedTwoClips')); return; }
@@ -1372,6 +1460,7 @@ export default function MontagePage() {
     videoTrackCount, moveOverlayTrack,
     time, total, logoUrl, uploadingAudio, transcribing, isRecordingVO,
     croppingClipId, smartCropClip, assembling, autoAssembleAI, suggestingMusic, musicSuggestion, suggestMusicMoodAI,
+    cuttingSilence, cutSilences,
     toast, updateClip, splitAtPlayhead,
     duplicateSelected: () => selectedClipId && duplicateClip(selectedClipId),
     removeSelected: () => selectedClipId && removeClip(selectedClipId),

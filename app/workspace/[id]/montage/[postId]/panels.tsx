@@ -37,6 +37,8 @@ export interface MontageCtx {
   smartCropClip: (clipId: string) => void;
   assembling: boolean;
   autoAssembleAI: () => void;
+  cuttingSilence: boolean;
+  cutSilences: () => void;
   suggestingMusic: boolean;
   musicSuggestion: string | null;
   suggestMusicMoodAI: () => void;
@@ -835,6 +837,18 @@ export function AiPanel({ ctx }: { ctx: MontageCtx }) {
           <p style={{ fontSize: 12.5, color: "var(--cream-2)", marginBottom: 14, lineHeight: 1.45 }}>{t('autoAssemblyDesc')}</p>
           <button className="mz-ai-btn" disabled={ctx.clips.length < 2 || ctx.assembling} onClick={ctx.autoAssembleAI}>
             <VIcon name="sparkles" size={16} /> {ctx.assembling ? t('assembling') : t('generateAssembly')}
+          </button>
+        </div>
+      </div>
+
+      <div className="mz-ai-card">
+        <div className="halo-blob" style={{ width: 130, height: 130, right: -30, top: -40, background: "radial-gradient(circle, var(--mint), transparent 70%)", opacity: .4 }} />
+        <div style={{ position: "relative", zIndex: 2 }}>
+          <div className="mz-sec-label" style={{ color: "var(--mint)", marginBottom: 8 }}>{t('cutSilenceLabel')}</div>
+          <div style={{ fontFamily: "var(--display)", fontWeight: 800, fontStyle: "italic", fontSize: 19, letterSpacing: "-0.02em", marginBottom: 4 }}>{t('cutSilenceTitle')}</div>
+          <p style={{ fontSize: 12.5, color: "var(--cream-2)", marginBottom: 14, lineHeight: 1.45 }}>{t('cutSilenceDesc')}</p>
+          <button className="mz-ai-btn" disabled={!hasVideo || ctx.cuttingSilence} onClick={ctx.cutSilences}>
+            <VIcon name="scissors" size={16} /> {ctx.cuttingSilence ? t('cutSilenceWorking') : t('cutSilenceBtn')}
           </button>
         </div>
       </div>
