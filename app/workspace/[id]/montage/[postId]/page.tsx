@@ -228,6 +228,7 @@ export default function MontagePage() {
   const [time, setTime] = useState(0);
   const [playing, setPlaying] = useState(false);
   const [stageW, setStageW] = useState(0); // largeur px réelle de la preview → texte figé à l'échelle de l'image (WYSIWYG avec l'export)
+  const [previewZoom, setPreviewZoom] = useState(1); // zoom de la preview (pincement/molette), 1–5
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const videoInputRef = useRef<HTMLInputElement>(null); // import « vidéos » dédié
@@ -273,14 +274,33 @@ export default function MontagePage() {
   }, [editingTitleId]);
 
   // ── Mesure de la largeur de la preview (pour figer la taille du texte) ──────
+  // On lit contentRect (taille de mise en page, hors transform) pour que le zoom
+  // du canvas (previewZoom, ci-dessous) ne fausse pas le dimensionnement du texte.
   useEffect(() => {
     const el = stageRef.current;
     if (!el) return;
-    const update = () => setStageW(el.getBoundingClientRect().width);
-    update();
-    const ro = new ResizeObserver(update);
+    setStageW(el.getBoundingClientRect().width);
+    const ro = new ResizeObserver((entries) => {
+      const w = entries[0]?.contentRect.width;
+      if (w) setStageW(w);
+    });
     ro.observe(el);
     return () => ro.disconnect();
+  }, [loading]);
+
+  // ── Zoom de la preview au pincement / molette+Ctrl — sans zoomer la page ────
+  // Listener natif non-passif : indispensable pour pouvoir preventDefault() le
+  // zoom de page du navigateur (le trackpad envoie ctrlKey lors d'un pincement).
+  useEffect(() => {
+    const el = stageRef.current;
+    if (!el) return;
+    const onWheel = (e: WheelEvent) => {
+      if (!e.ctrlKey && !e.metaKey) return;
+      e.preventDefault();
+      setPreviewZoom((z) => Math.max(1, Math.min(5, z - e.deltaY * 0.01)));
+    };
+    el.addEventListener("wheel", onWheel, { passive: false });
+    return () => el.removeEventListener("wheel", onWheel);
   }, [loading]);
 
   // ── Load project ──────────────────────────────────────────────────────────
@@ -1475,9 +1495,18 @@ export default function MontagePage() {
         {/* preview + playbar */}
         <div className="a-canvas">
           <div className="mz-stage">
+            {previewZoom !== 1 && (
+              <button
+                onClick={() => setPreviewZoom(1)}
+                title={t('resetZoomTitle')}
+                style={{ position: "absolute", top: 12, right: 12, zIndex: 10, height: 28, padding: "0 10px", borderRadius: 8, border: "1px solid var(--line)", background: "rgba(0,0,0,.55)", color: "#fff", fontSize: 11.5, fontWeight: 700, cursor: "pointer" }}
+              >
+                {Math.round(previewZoom * 100)}% · 1:1
+              </button>
+            )}
             <div
               className="mz-phone"
-              style={{ aspectRatio: `${activeFmt.w} / ${activeFmt.h}` }}
+              style={{ aspectRatio: `${activeFmt.w} / ${activeFmt.h}`, transform: previewZoom !== 1 ? `scale(${previewZoom})` : undefined }}
               ref={stageRef}
               onPointerMove={onStagePointerMove}
               onPointerUp={onStagePointerUp}

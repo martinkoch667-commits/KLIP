@@ -1552,7 +1552,8 @@
     "customFormatTitle": "Dimensioni personalizzate (px)",
     "widthPx": "Larghezza (px)",
     "heightPx": "Altezza (px)",
-    "doubleClickToEdit": "Doppio clic per modificare"
+    "doubleClickToEdit": "Doppio clic per modificare",
+    "resetZoomTitle": "Reimposta zoom"
   },
   "forgotPassword": {
     "title": "Password dimenticata",

@@ -1552,7 +1552,8 @@
     "customFormatTitle": "Dimensiones personalizadas (px)",
     "widthPx": "Ancho (px)",
     "heightPx": "Alto (px)",
-    "doubleClickToEdit": "Doble clic para editar"
+    "doubleClickToEdit": "Doble clic para editar",
+    "resetZoomTitle": "Restablecer zoom"
   },
   "forgotPassword": {
     "title": "Contraseña olvidada",
