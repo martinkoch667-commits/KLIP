@@ -1497,6 +1497,7 @@
     "addOverlayHint": "Füge ein Overlay (2. Spur) über das Werkzeug „Overlay“ hinzu.",
     "soundOfClip": "Ton von „{name}“ — {percent}% · Option+Klick: auch den Videoclip auswählen",
     "trimStartTitle": "Anfang trimmen",
+    "moveInTimeTitle": "Zeitlich verschieben (ziehen)",
     "trimEndTitle": "Ende trimmen",
     "clipDurationTitle": "Clip-Dauer",
     "labelVideo": "Video",

@@ -1497,6 +1497,7 @@
     "addOverlayHint": "Añade una incrustación (2ª pista) desde la herramienta «Incrust.».",
     "soundOfClip": "Sonido de «{name}» — {percent}% · Opción+clic: seleccionar también el plano de vídeo",
     "trimStartTitle": "Recortar el inicio",
+    "moveInTimeTitle": "Mover en el tiempo (arrastrar)",
     "trimEndTitle": "Recortar el final",
     "clipDurationTitle": "Duración del plano",
     "labelVideo": "Vídeo",

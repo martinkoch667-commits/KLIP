@@ -1497,6 +1497,7 @@
     "addOverlayHint": "Aggiungi una sovrapposizione (2ª traccia) dallo strumento «Sovrapp.».",
     "soundOfClip": "Audio di «{name}» — {percent}% · Opzione+clic: seleziona anche la clip video",
     "trimStartTitle": "Taglia l’inizio",
+    "moveInTimeTitle": "Sposta nel tempo (trascina)",
     "trimEndTitle": "Taglia la fine",
     "clipDurationTitle": "Durata della clip",
     "labelVideo": "Video",

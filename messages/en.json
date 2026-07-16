@@ -1497,6 +1497,7 @@
     "addOverlayHint": "Add an overlay (2nd track) from the \"Overlay\" tool.",
     "soundOfClip": "Sound of \"{name}\" — {percent}% · Option+click: also select the video clip",
     "trimStartTitle": "Trim the start",
+    "moveInTimeTitle": "Move in time (drag)",
     "trimEndTitle": "Trim the end",
     "clipDurationTitle": "Clip duration",
     "labelVideo": "Video",

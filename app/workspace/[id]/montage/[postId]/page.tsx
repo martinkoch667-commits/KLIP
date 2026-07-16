@@ -239,6 +239,9 @@ export default function MontagePage() {
   const scrubbingRulerRef = useRef(false);
   const trimRef = useRef<{ id: string; edge: "start" | "end"; startX: number; t0start: number; t0end: number; kind: "video" | "photo"; srcDur: number; speed: number } | null>(null);
   const ovDragRef = useRef<{ id: string; startX: number; t0offset: number } | null>(null);
+  // Déplacement d'un plan dans le temps (ajuste gapBefore = écran noir devant lui).
+  // anchor = fin du plan précédent (point fixe pendant le drag) ; playAt = curseur figé au down.
+  const clipDragRef = useRef<{ id: string; startX: number; t0gap: number; anchor: number; playAt: number; moved: boolean } | null>(null);
   const ovTrimRef = useRef<{ id: string; edge: "start" | "end"; startX: number; t0start: number; t0end: number; t0offset: number; srcDur: number; kind: "video" | "photo" } | null>(null);
   const clipboardRef = useRef<{ type: "clip"; data: MontageClip } | { type: "overlay"; data: OverlayClip } | null>(null);
 
@@ -1169,6 +1172,29 @@ export default function MontagePage() {
     return best;
   }
 
+  // ── Plan principal : déplacement dans le temps (poignée) = ajuste gapBefore ──
+  function onClipBarDown(e: React.PointerEvent, c: { id: string; start: number; gapBefore?: number }) {
+    e.stopPropagation();
+    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+    const t0gap = Math.max(0, c.gapBefore ?? 0);
+    clipDragRef.current = { id: c.id, startX: e.clientX, t0gap, anchor: c.start - t0gap, playAt: time, moved: false };
+  }
+  function onClipBarMove(e: React.PointerEvent) {
+    const d = clipDragRef.current;
+    if (!d) return;
+    const deltaPx = e.clientX - d.startX;
+    if (!d.moved && Math.abs(deltaPx) < 4) return; // seuil : un simple clic ne déplace rien
+    d.moved = true;
+    let newStart = d.anchor + d.t0gap + deltaPx / pps;
+    const th = 8 / pps;
+    if (Math.abs(newStart - d.anchor) < th) newStart = d.anchor;      // colle au plan précédent (trou = 0)
+    else if (Math.abs(newStart - d.playAt) < th) newStart = d.playAt; // colle au curseur de lecture
+    updateClip(d.id, { gapBefore: Math.max(0, newStart - d.anchor) });
+  }
+  function onClipBarUp(e: React.PointerEvent) {
+    if (clipDragRef.current) { try { (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId); } catch {} clipDragRef.current = null; }
+  }
+
   // ── Incrustation : déplacement (offset) + rognage sur la timeline ───────────
   function onOvBarDown(e: React.PointerEvent, o: OverlayClip) {
     e.stopPropagation();
@@ -1586,6 +1612,16 @@ export default function MontagePage() {
                       <span className="a-clip-lbl">{c.name}</span>
                       {selectedClipId === c.id && (
                         <>
+                          <div
+                            draggable={false}
+                            onDragStart={(e) => e.preventDefault()}
+                            onClick={(e) => e.stopPropagation()}
+                            onPointerDown={(e) => onClipBarDown(e, c)}
+                            onPointerMove={onClipBarMove}
+                            onPointerUp={onClipBarUp}
+                            title={t('moveInTimeTitle')}
+                            style={{ position: "absolute", top: 3, left: "50%", transform: "translateX(-50%)", width: 28, height: 9, borderRadius: 5, background: "rgba(255,255,255,.55)", cursor: "ew-resize", zIndex: 4, touchAction: "none" }}
+                          />
                           {c.kind === "video" && (
                             <div className="a-trim a-trim-l" draggable={false} onDragStart={(e) => e.preventDefault()} onClick={(e) => e.stopPropagation()} onPointerDown={(e) => startTrim(e, c, "start")} onPointerMove={onTrimMove} onPointerUp={endTrim} title={t('trimStartTitle')} />
                           )}

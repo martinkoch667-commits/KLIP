@@ -1497,6 +1497,7 @@
     "addOverlayHint": "Adicione uma sobreposição (2.ª faixa) a partir da ferramenta «Sobrep.».",
     "soundOfClip": "Som de «{name}» — {percent}% · Opção+clique: selecionar também o plano de vídeo",
     "trimStartTitle": "Cortar o início",
+    "moveInTimeTitle": "Mover no tempo (arrastar)",
     "trimEndTitle": "Cortar o fim",
     "clipDurationTitle": "Duração do plano",
     "labelVideo": "Vídeo",
