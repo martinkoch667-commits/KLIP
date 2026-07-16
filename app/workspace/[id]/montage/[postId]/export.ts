@@ -44,6 +44,7 @@ interface ClipTimed extends MontageClip {
 function withStarts(clips: MontageClip[]): ClipTimed[] {
   let acc = 0;
   return clips.map((c) => {
+    acc += Math.max(0, c.gapBefore ?? 0); // écran noir inséré avant ce plan
     const dur = clipTimelineDur(c);
     const start = acc;
     acc += dur;
@@ -418,8 +419,36 @@ export async function renderExport(project: ExportProject, onProgress: (p: numbe
       const c = clips[i];
       onProgress(c.start / total);
       const next = clips[i + 1];
-      const crossFadeIn = i > 0 && c.transitionIn === "fade" && c.transitionDur > 0 && !!prevMedia;
-      const crossFadeOutDur = next && next.transitionIn === "fade" && next.transitionDur > 0 ? Math.min(next.transitionDur, c.dur) : 0;
+      const gapBefore = Math.max(0, c.gapBefore ?? 0);
+
+      // ── Écran noir (trou) avant ce plan ─────────────────────────────────────
+      // Rien à décoder : on remplit le canvas de noir et on compose les pistes
+      // (overlays, sous-titres, titres, stickers, audio) actives pendant le trou.
+      if (gapBefore > 0) {
+        const gapStart = c.start - gapBefore;
+        const t0 = performance.now();
+        await new Promise<void>((resolve) => {
+          const iv = setInterval(() => {
+            const elapsed = (performance.now() - t0) / 1000;
+            if (elapsed >= gapBefore) { clearInterval(iv); resolve(); return; }
+            const globalT = gapStart + elapsed;
+            updateAudioFades();
+            ctx.fillStyle = "#000";
+            ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
+            drawOverlays(globalT);
+            drawCaptions(ctx, project.captions, project.subStyleId, project.subCustom, project.subPos, globalT);
+            drawTitles(ctx, project.titles, globalT);
+            drawStickers(ctx, project.stickers, stickerImages, globalT);
+            if (project.showProgressBar) drawProgressBar(ctx, globalT, total);
+          }, 1000 / FPS);
+        });
+      }
+
+      // Un fondu enchaîné n'a pas de sens à travers un trou : on le désactive quand ce
+      // plan (entrée) ou le suivant (sortie) est précédé d'un écran noir.
+      const crossFadeIn = i > 0 && c.transitionIn === "fade" && c.transitionDur > 0 && !!prevMedia && gapBefore <= 0;
+      const nextGap = next ? Math.max(0, next.gapBefore ?? 0) : 0;
+      const crossFadeOutDur = next && next.transitionIn === "fade" && next.transitionDur > 0 && nextGap <= 0 ? Math.min(next.transitionDur, c.dur) : 0;
 
       let media: PlayingMedia;
       if (c.kind === "video") {

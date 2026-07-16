@@ -158,6 +158,15 @@ export function CutPanel({ ctx }: { ctx: MontageCtx }) {
           )}
         </div>
       )}
+      {c && (
+        <div className="a-section">
+          <span className="mz-sec-label">{t('gapBeforeTitle')}</span>
+          <p style={{ fontSize: 11.5, color: "var(--ink-3)", lineHeight: 1.45, marginBottom: 8 }}>
+            {t('gapBeforeHint')}
+          </p>
+          <Range label={t('gapBeforeLabel')} value={c.gapBefore ?? 0} min={0} max={10} step={0.1} unit="s" onChange={(v) => ctx.updateClip(c.id, { gapBefore: v })} />
+        </div>
+      )}
       {c && c.kind === "photo" && (
         <div className="a-section">
           <span className="mz-sec-label">{t('kenBurnsTitle')}</span>

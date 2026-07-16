@@ -18,6 +18,7 @@ export interface MontageClip {
   sat: number;           // -50..50
   transitionIn: string;  // TRANSITIONS[].id — transition d'entrée sur ce plan
   transitionDur: number; // durée de la transition (s)
+  gapBefore?: number;    // écran noir (s) inséré AVANT ce plan sur la timeline — défaut 0. Permet de laisser du vide en tête de montage ou entre deux plans.
   vol?: number;          // volume du son embarqué du plan vidéo (0-1, défaut 1)
   kenBurns?: KenBurnsDir; // zoom auto sur les plans photo (kind === "photo" uniquement)
   focusX?: number; // point de recadrage "cover" (0-1), défaut 0.5 = centré — posé par le recadrage IA du sujet

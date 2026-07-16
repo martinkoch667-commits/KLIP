@@ -377,10 +377,14 @@ export default function MontagePage() {
   // ── Temps cumulés des clips ─────────────────────────────────────────────────
   const clipStarts = useMemo(() => {
     let acc = 0;
-    return clips.map((c) => { const start = acc; const dur = clipTimelineDur(c); acc += dur; return { ...c, start, end: acc, dur }; });
+    return clips.map((c) => { acc += Math.max(0, c.gapBefore ?? 0); const start = acc; const dur = clipTimelineDur(c); acc += dur; return { ...c, start, end: acc, dur }; });
   }, [clips]);
   const total = clipStarts.length ? clipStarts[clipStarts.length - 1].end : 0;
-  const activeClip = clipStarts.find((c) => time >= c.start && time < c.end) || clipStarts[clipStarts.length - 1];
+  // Plan couvrant l'instant courant. Dans un « trou » (écran noir avant un plan) → null,
+  // pour que la preview affiche du noir plutôt que de figer le plan précédent. En toute fin
+  // de timeline (time >= total), on garde le dernier plan affiché.
+  const coveringClip = clipStarts.find((c) => time >= c.start && time < c.end);
+  const activeClip = coveringClip || (clipStarts.length && time >= total ? clipStarts[clipStarts.length - 1] : null);
   const selectedClip = clipStarts.find((c) => c.id === selectedClipId) || null;
   const selectedOverlay = overlays.find((o) => o.id === selectedOverlayId) || null;
   const activeOverlays = useMemo(
@@ -391,7 +395,7 @@ export default function MontagePage() {
   const seek = useCallback((t: number) => {
     const clamped = Math.max(0, Math.min(total, t));
     setTime(clamped);
-    const c = clipStarts.find((c) => clamped >= c.start && clamped < c.end) || clipStarts[clipStarts.length - 1];
+    const c = clipStarts.find((c) => clamped >= c.start && clamped < c.end); // null dans un trou (écran noir)
     if (c && c.kind === "video" && videoRef.current && loadedSrcRef.current === c.src) {
       videoRef.current.currentTime = c.trimStart + (clamped - c.start) * c.speed;
     }
@@ -427,9 +431,12 @@ export default function MontagePage() {
     v.volume = activeClip.vol ?? 1;
   }, [activeClip?.id, activeClip?.speed, activeClip?.vol]);
 
-  // ── Horloge RAF pour les plans photo (pas de lecture native) ────────────────
+  // ── Horloge RAF pour les plans photo ET les trous (écran noir) ──────────────
+  // Pas de lecture native pour avancer le temps : ni sur une photo, ni dans un « trou »
+  // (aucun plan actif). Cette horloge fait défiler la timeline dans ces deux cas.
   useEffect(() => {
-    if (!playing || !activeClip || activeClip.kind !== "photo") return;
+    if (!playing) return;
+    if (activeClip && activeClip.kind !== "photo") return; // un plan vidéo pilote lui-même l'horloge
     let raf = 0; let last = performance.now();
     const tick = (now: number) => {
       const dt = (now - last) / 1000; last = now;
@@ -507,8 +514,11 @@ export default function MontagePage() {
   function onVideoEnded() {
     if (!activeClip) return;
     const idx = clipStarts.findIndex((c) => c.id === activeClip.id);
-    if (idx >= 0 && idx < clipStarts.length - 1) setTime(clipStarts[idx + 1].start + 0.001);
-    else { setTime(0); setPlaying(false); }
+    if (idx >= 0 && idx < clipStarts.length - 1) {
+      // Avance jusqu'à la fin du plan : s'il y a un trou (écran noir) avant le suivant,
+      // l'horloge RAF le traversera ; sinon on est déjà au début du plan suivant.
+      setTime(activeClip.end + 0.001);
+    } else { setTime(0); setPlaying(false); }
   }
 
   function togglePlay() { setPlaying((p) => !p); }
@@ -1369,11 +1379,14 @@ export default function MontagePage() {
                         transform: `scale(${kenBurnsScale(activeClip.kenBurns, activeClip.dur > 0 ? Math.min(1, Math.max(0, (time - activeClip.start) / activeClip.dur)) : 0)})`,
                         transformOrigin: "center",
                       }} />
-                ) : (
+                ) : clips.length === 0 ? (
                   <div className="mz-vempty">
                     <VIcon name="upload" size={26} />
                     <span style={{ fontSize: 13, fontWeight: 600 }}>{t('importRushesEmpty')}</span>
                   </div>
+                ) : (
+                  // Des plans existent mais l'instant courant tombe dans un trou → écran noir.
+                  null
                 )}
 
                 {/* incrustations (PIP) — déplaçables/redimensionnables/pivotables */}
