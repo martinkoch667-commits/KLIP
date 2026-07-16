@@ -224,6 +224,7 @@ export default function MontagePage() {
 
   const [time, setTime] = useState(0);
   const [playing, setPlaying] = useState(false);
+  const [stageW, setStageW] = useState(0); // largeur px réelle de la preview → texte figé à l'échelle de l'image (WYSIWYG avec l'export)
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const videoInputRef = useRef<HTMLInputElement>(null); // import « vidéos » dédié
@@ -254,6 +255,17 @@ export default function MontagePage() {
     if (toastTimer.current) clearTimeout(toastTimer.current);
     toastTimer.current = setTimeout(() => setToastMsg(null), 3200);
   }
+
+  // ── Mesure de la largeur de la preview (pour figer la taille du texte) ──────
+  useEffect(() => {
+    const el = stageRef.current;
+    if (!el) return;
+    const update = () => setStageW(el.getBoundingClientRect().width);
+    update();
+    const ro = new ResizeObserver(update);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [loading]);
 
   // ── Load project ──────────────────────────────────────────────────────────
   useEffect(() => {
@@ -1284,6 +1296,9 @@ export default function MontagePage() {
   const ticks: number[] = [];
   for (let s = 0; s <= total; s += 2) ticks.push(s);
 
+  // Échelle aperçu = px réels de la preview / largeur du canvas d'export. Le texte
+  // est ainsi dimensionné comme à l'export et suit la taille de l'image (et non un px fixe).
+  const previewScale = (stageW || 300) / videoFormatById(formatId).w;
   const activeTitles = titles.filter((t) => time >= t.start && time <= t.end);
   const activeStickers = stickers.filter((s) => time >= s.start && time <= s.end);
   const activeCaption = captions.find((c) => time >= c.start && time <= c.end);
@@ -1498,7 +1513,7 @@ export default function MontagePage() {
                       fontFamily: FONT_CSS[ti.font] || FONT_CSS.archivo,
                       fontWeight: FONT_CHOICES.find((f) => f.id === ti.font)?.weight || 800,
                       fontStyle: FONT_CHOICES.find((f) => f.id === ti.font)?.italic ? "italic" : "normal",
-                      color: ti.color, fontSize: 22 * (ti.scale ?? 1), textAlign: "center", textShadow: "0 1px 8px rgba(0,0,0,.5)",
+                      color: ti.color, fontSize: 40 * (ti.scale ?? 1) * previewScale, textAlign: "center", textShadow: "0 1px 8px rgba(0,0,0,.5)",
                       maxWidth: "80%", whiteSpace: "pre-wrap",
                       animation: ti.anim === "rise" ? "mzRise .35s var(--ease)" : ti.anim === "pop" ? "mzPop .3s var(--ease)" : undefined,
                     }}
@@ -1541,7 +1556,7 @@ export default function MontagePage() {
                       textTransform: capStyle.uppercase ? "uppercase" : "none",
                       WebkitTextStroke: capStyle.stroke ? `2px ${capStyle.stroke}` : undefined,
                       paintOrder: "stroke fill",
-                      fontSize: 15,
+                      fontSize: 34 * previewScale,
                     }}>
                       {activeCaption.text.split(/\s+/).filter(Boolean).map((w, i, arr) => {
                         const progress = (time - activeCaption.start) / Math.max(0.1, activeCaption.end - activeCaption.start);
