@@ -1558,7 +1558,10 @@
     "copy": "Copy",
     "toastAudioDetached": "Audio detached to a separate track.",
     "toastAudioAlreadyDetached": "This clip’s audio is already detached.",
-    "toastDetachVideoOnly": "Only video clips have sound to detach."
+    "toastDetachVideoOnly": "Only video clips have sound to detach.",
+    "publishBtn": "Publish",
+    "publishBtnTitle": "Export the video and send it to the planner to schedule it",
+    "toastPublished": "Video published — heading to the planner."
   },
   "forgotPassword": {
     "title": "Forgot password",

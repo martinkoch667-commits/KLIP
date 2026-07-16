@@ -1558,7 +1558,10 @@
     "copy": "Copia",
     "toastAudioDetached": "Audio staccato su una traccia separata.",
     "toastAudioAlreadyDetached": "L’audio di questa clip è già staccato.",
-    "toastDetachVideoOnly": "Solo le clip video hanno un audio da staccare."
+    "toastDetachVideoOnly": "Solo le clip video hanno un audio da staccare.",
+    "publishBtn": "Pubblica",
+    "publishBtnTitle": "Esporta il video e invialo al planner per programmarlo",
+    "toastPublished": "Video pubblicato — vai al planner."
   },
   "forgotPassword": {
     "title": "Password dimenticata",

@@ -1558,7 +1558,10 @@
     "copy": "Copiar",
     "toastAudioDetached": "Audio separado en una pista aparte.",
     "toastAudioAlreadyDetached": "El audio de este plano ya está separado.",
-    "toastDetachVideoOnly": "Solo los planos de vídeo tienen sonido que separar."
+    "toastDetachVideoOnly": "Solo los planos de vídeo tienen sonido que separar.",
+    "publishBtn": "Publicar",
+    "publishBtnTitle": "Exportar el vídeo y enviarlo al planificador para programarlo",
+    "toastPublished": "Vídeo publicado: vamos al planificador."
   },
   "forgotPassword": {
     "title": "Contraseña olvidada",

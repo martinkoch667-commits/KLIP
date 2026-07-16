@@ -1558,7 +1558,10 @@
     "copy": "Kopieren",
     "toastAudioDetached": "Audio auf eine separate Spur getrennt.",
     "toastAudioAlreadyDetached": "Der Ton dieses Clips ist bereits getrennt.",
-    "toastDetachVideoOnly": "Nur Videoclips haben Ton zum Trennen."
+    "toastDetachVideoOnly": "Nur Videoclips haben Ton zum Trennen.",
+    "publishBtn": "Veröffentlichen",
+    "publishBtnTitle": "Video exportieren und zur Planung senden",
+    "toastPublished": "Video veröffentlicht – weiter zur Planung."
   },
   "forgotPassword": {
     "title": "Passwort vergessen",

@@ -1072,7 +1072,9 @@ export default function MontagePage() {
   function onStagePointerUp() { dragOverlayRef.current = null; resizeOverlayRef.current = null; }
 
   // ── Export réel ──────────────────────────────────────────────────────────
-  async function handleExport() {
+  // publish=true : marque le post « validé » et redirige vers le planning (comme le
+  // bouton « Publier » de l'éditeur visuel). publish=false : produit juste le fichier.
+  async function handleExport(publish = false) {
     if (!clips.length || exporting) return;
     setExporting(true);
     setExportPhase("render");
@@ -1113,8 +1115,13 @@ export default function MontagePage() {
         montage_json: { clips, overlays, captions, subStyleId, subMaxWords, subPos, subCustom, rawSegments, titles, stickers, audioTracks, showProgressBar, exportUrl: urlData.publicUrl, formatId, customW, customH, exportQuality },
         photo_url: urlData.publicUrl,
         ...(thumbUrl ? { thumbnail_url: thumbUrl } : {}),
+        ...(publish ? { status: "validated" } : {}),
       }).eq("id", postId);
-      toast(t('toastExportDone'));
+      toast(publish ? t('toastPublished') : t('toastExportDone'));
+      if (publish) {
+        // Comme l'éditeur visuel : on file vers le planning pour programmer la publication.
+        window.location.href = `/workspace/${workspaceId}/planning?post=${postId}`;
+      }
     } catch (e) {
       toast(t('toastExportError', { msg: e instanceof Error ? e.message : t('toastUnknownError') }));
     } finally {
@@ -1429,8 +1436,11 @@ export default function MontagePage() {
           style={{ height: 34, borderRadius: 8, border: "1px solid var(--line)", background: "var(--canvas)", color: "var(--ink-2)", fontSize: 12.5, fontWeight: 600, padding: "0 8px" }}>
           {EXPORT_QUALITIES.map(q => <option key={q.id} value={q.id}>{tc(`exportQuality.${q.id}`)}</option>)}
         </select>
-        <button className="btn btn-sm btn-primary" disabled={!clips.length || exporting} onClick={handleExport}>
+        <button className="btn btn-sm btn-ghost" disabled={!clips.length || exporting} onClick={() => handleExport(false)}>
           <VIcon name="export" size={15} /> {exporting ? t('exportingShort') : t('exportBtn')}
+        </button>
+        <button className="btn btn-sm btn-primary" disabled={!clips.length || exporting} onClick={() => handleExport(true)} title={t('publishBtnTitle')}>
+          <VIcon name="check" size={15} /> {t('publishBtn')}
         </button>
       </div>
 

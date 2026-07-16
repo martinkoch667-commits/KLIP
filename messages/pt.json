@@ -1558,7 +1558,10 @@
     "copy": "Copiar",
     "toastAudioDetached": "Áudio separado numa faixa à parte.",
     "toastAudioAlreadyDetached": "O áudio deste plano já está separado.",
-    "toastDetachVideoOnly": "Apenas os planos de vídeo têm som para separar."
+    "toastDetachVideoOnly": "Apenas os planos de vídeo têm som para separar.",
+    "publishBtn": "Publicar",
+    "publishBtnTitle": "Exportar o vídeo e enviá-lo ao planejador para agendar",
+    "toastPublished": "Vídeo publicado — indo para o planejador."
   },
   "forgotPassword": {
     "title": "Esqueceu a palavra-passe",

@@ -1558,7 +1558,10 @@
     "copy": "Copier",
     "toastAudioDetached": "Audio détaché sur une piste séparée.",
     "toastAudioAlreadyDetached": "L’audio de ce plan est déjà détaché.",
-    "toastDetachVideoOnly": "Seuls les plans vidéo ont un son à détacher."
+    "toastDetachVideoOnly": "Seuls les plans vidéo ont un son à détacher.",
+    "publishBtn": "Publier",
+    "publishBtnTitle": "Exporter la vidéo et l’envoyer au planning pour la programmer",
+    "toastPublished": "Vidéo publiée — direction le planning."
   },
   "forgotPassword": {
     "title": "Mot de passe oublié",
