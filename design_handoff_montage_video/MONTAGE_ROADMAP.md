@@ -111,5 +111,23 @@
 - ✅ **G1** — curseur de vitesse continu (0.10×–4×) en plus des paliers.
 - ✅ **H1** — preview sans coins arrondis ni cadre « téléphone » (+ PIP).
 - ✅ **A1** — boutons d'import séparés Vidéos / Photos (la zone de drag accepte toujours les deux).
-- ⏳ Reste : B1 (chevauchement libre total), B3, B5, B6, A2 (déjà ~ok : import multiple posé
-  bout à bout), C, D, E, F, G (paliers→ok), H2/H3/H4, I, J, K.
+- ✅ **F (présets)** — 7 filtres/colorimétrie en plus + bibliothèque de stickers (48).
+- ✅ **D2** — taille du texte figée à l'échelle de l'image (WYSIWYG avec l'export).
+- ✅ **I** — format paysage 16:9 + dimensions personnalisées en pixels.
+- ✅ **D3** — édition du texte en double-cliquant directement sur la preview.
+- ✅ **H4** — zoom preview au pincement/molette sans zoomer la page (pan à ajouter).
+- ✅ **C2** — édition des sous-titres après génération : **déjà présent** (texte éditable,
+  timings, ajout/suppression dans le panneau Sous-titres).
+
+### Reste à faire (les gros morceaux / nécessitent test ou décision produit)
+- **B3** — lier/détacher audio+vidéo au clic droit (attend le screenshot CapCut).
+- **B5 / B6** — textes & images sur les pistes vidéo ; réordonnancement des lanes.
+- **B1 (suite)** — chevauchement libre total des plans (au-delà du « pousser à droite »).
+- **C1** — fix découpe de sous-titre au milieu d'une phrase (besoin d'un repro précis).
+- **C3** — transcription plus précise (choix du modèle) · **C4** — style sous-titres = éditeur visuel.
+- **D1** — mêmes propriétés de texte que l'éditeur visuel (interface partagée).
+- **E** — audio : volume > 100 % + **keyframes** de volume (nécessite WebAudio en lecture live).
+- **F (suite)** — **LUTs** importables + créer ses LUTs ; plus de transitions.
+- **G** — ✅ curseur continu fait ; **H1/H2/H3** — H1 ✅, reste resize média au double-clic + manip. objets.
+- **J** — montage automatique IA (silences → coupe, sous-titres charte, dynamisation). Gros, backend.
+- **K** — export/programmation + flux « Publier » comme l'éditeur visuel.
