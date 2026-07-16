@@ -1535,7 +1535,8 @@
     "toastUnknownError": "desconhecido",
     "toastOverlayCopied": "Sobreposição copiada.",
     "toastClipCopied": "Plano copiado.",
-    "toastCaptionsGenerated": "{count, plural, one {# legenda gerada.} other {# legendas geradas.}}"
+    "toastCaptionsGenerated": "{count, plural, one {# legenda gerada.} other {# legendas geradas.}}",
+    "speedCustom": "Velocidade personalizada"
   },
   "forgotPassword": {
     "title": "Esqueceu a palavra-passe",

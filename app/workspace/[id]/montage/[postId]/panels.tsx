@@ -607,11 +607,16 @@ export function SpeedPanel({ ctx }: { ctx: MontageCtx }) {
         ) : c.kind !== "video" ? (
           <p style={{ fontSize: 12.5, color: "var(--ink-3)" }}>{t('speedVideoOnly')}</p>
         ) : (
-          <div className="mz-seg">
-            {SPEEDS.map((s) => (
-              <button key={s} className={c.speed === s ? "on" : ""} onClick={() => ctx.updateClip(c.id, { speed: s })}>{s}×</button>
-            ))}
-          </div>
+          <>
+            <div className="mz-seg">
+              {SPEEDS.map((s) => (
+                <button key={s} className={c.speed === s ? "on" : ""} onClick={() => ctx.updateClip(c.id, { speed: s })}>{s}×</button>
+              ))}
+            </div>
+            <div style={{ marginTop: 12 }}>
+              <Range label={t('speedCustom')} value={c.speed} min={0.1} max={4} step={0.05} onChange={(v) => ctx.updateClip(c.id, { speed: v })} fmtv={(v) => v.toFixed(2) + "×"} />
+            </div>
+          </>
         )}
       </div>
     </>

@@ -1535,7 +1535,8 @@
     "toastUnknownError": "desconocido",
     "toastOverlayCopied": "Incrustación copiada.",
     "toastClipCopied": "Plano copiado.",
-    "toastCaptionsGenerated": "{count, plural, one {# subtítulo generado.} other {# subtítulos generados.}}"
+    "toastCaptionsGenerated": "{count, plural, one {# subtítulo generado.} other {# subtítulos generados.}}",
+    "speedCustom": "Velocidad personalizada"
   },
   "forgotPassword": {
     "title": "Contraseña olvidada",

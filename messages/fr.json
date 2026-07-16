@@ -1535,7 +1535,8 @@
     "toastUnknownError": "inconnue",
     "toastOverlayCopied": "Incrustation copiée.",
     "toastClipCopied": "Plan copié.",
-    "toastCaptionsGenerated": "{count, plural, one {# sous-titre généré.} other {# sous-titres générés.}}"
+    "toastCaptionsGenerated": "{count, plural, one {# sous-titre généré.} other {# sous-titres générés.}}",
+    "speedCustom": "Vitesse personnalisée"
   },
   "forgotPassword": {
     "title": "Mot de passe oublié",

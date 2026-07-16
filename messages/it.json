@@ -1535,7 +1535,8 @@
     "toastUnknownError": "sconosciuto",
     "toastOverlayCopied": "Sovrapposizione copiata.",
     "toastClipCopied": "Clip copiata.",
-    "toastCaptionsGenerated": "{count, plural, one {# sottotitolo generato.} other {# sottotitoli generati.}}"
+    "toastCaptionsGenerated": "{count, plural, one {# sottotitolo generato.} other {# sottotitoli generati.}}",
+    "speedCustom": "Velocità personalizzata"
   },
   "forgotPassword": {
     "title": "Password dimenticata",
