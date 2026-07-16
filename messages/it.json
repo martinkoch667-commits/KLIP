@@ -1554,7 +1554,7 @@
     "heightPx": "Altezza (px)",
     "doubleClickToEdit": "Doppio clic per modificare",
     "resetZoomTitle": "Reimposta zoom",
-    "contextDetachAudio": "Stacca l’audio",
+    "contextDetachAudio": "Estrai l’audio",
     "copy": "Copia",
     "toastAudioDetached": "Audio staccato su una traccia separata.",
     "toastAudioAlreadyDetached": "L’audio di questa clip è già staccato.",
@@ -1565,7 +1565,9 @@
     "volKeysTitle": "Fotogrammi chiave volume",
     "volKeyAdd": "Aggiungi",
     "volKeyAddTitle": "Aggiungi un fotogramma chiave al cursore",
-    "volKeysHint": "Aggiungi punti al cursore per variare il volume (es. abbassare la musica sotto una voce)."
+    "volKeysHint": "Aggiungi punti al cursore per variare il volume (es. abbassare la musica sotto una voce).",
+    "cut": "Taglia",
+    "contextEdit": "Modifica"
   },
   "forgotPassword": {
     "title": "Password dimenticata",

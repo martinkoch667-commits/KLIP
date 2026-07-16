@@ -1554,7 +1554,7 @@
     "heightPx": "Height (px)",
     "doubleClickToEdit": "Double-click to edit",
     "resetZoomTitle": "Reset zoom",
-    "contextDetachAudio": "Detach audio",
+    "contextDetachAudio": "Separate audio",
     "copy": "Copy",
     "toastAudioDetached": "Audio detached to a separate track.",
     "toastAudioAlreadyDetached": "This clip’s audio is already detached.",
@@ -1565,7 +1565,9 @@
     "volKeysTitle": "Volume keyframes",
     "volKeyAdd": "Add",
     "volKeyAddTitle": "Add a keyframe at the playhead",
-    "volKeysHint": "Add points at the playhead to vary the volume (e.g. duck music under a voice)."
+    "volKeysHint": "Add points at the playhead to vary the volume (e.g. duck music under a voice).",
+    "cut": "Cut",
+    "contextEdit": "Edit"
   },
   "forgotPassword": {
     "title": "Forgot password",

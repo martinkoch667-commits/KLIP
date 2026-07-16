@@ -1980,11 +1980,13 @@ export default function MontagePage() {
             onContextMenu={(e) => { e.preventDefault(); }}
             style={{ position: "fixed", left: Math.min(clipMenu.x, (typeof window !== "undefined" ? window.innerWidth : 9999) - 230), top: clipMenu.y, zIndex: 1000, minWidth: 214, background: "var(--paper, #fff)", border: "1px solid var(--line)", borderRadius: 10, boxShadow: "0 12px 40px rgba(0,0,0,.22)", padding: "6px 0", overflow: "hidden" }}
           >
-            {item(`🔊  ${t('contextDetachAudio')}`, () => detachAudio(clipMenu.id), { disabled: !isVideo || (c?.vol ?? 1) === 0 })}
-            <div style={{ height: 1, background: "var(--line)", margin: "5px 0" }} />
-            {item(`✂️  ${t('splitAtPlayhead')}`, () => { selectClip(clipMenu.id); splitAtPlayhead(); })}
-            {item(`⧉  ${t('duplicate')}`, () => duplicateClip(clipMenu.id))}
             {item(`⌘C  ${t('copy')}`, () => { selectClip(clipMenu.id); copySelected(); })}
+            {item(`⌘X  ${t('cut')}`, () => { selectClip(clipMenu.id); copySelected(); removeClip(clipMenu.id); })}
+            <div style={{ height: 1, background: "var(--line)", margin: "5px 0" }} />
+            {item(`✎  ${t('contextEdit')}`, () => { selectClip(clipMenu.id); setTool("cut"); })}
+            {item(`✂️  ${t('splitAtPlayhead')}`, () => { selectClip(clipMenu.id); splitAtPlayhead(); })}
+            {item(`🔊  ${t('contextDetachAudio')}`, () => detachAudio(clipMenu.id), { disabled: !isVideo || (c?.vol ?? 1) === 0 })}
+            {item(`⧉  ${t('duplicate')}`, () => duplicateClip(clipMenu.id))}
             <div style={{ height: 1, background: "var(--line)", margin: "5px 0" }} />
             {item(`🗑  ${t('delete')}`, () => removeClip(clipMenu.id), { danger: true })}
           </div>
