@@ -1996,7 +1996,7 @@ export default function MontagePage() {
                 <div key={s} className="a-tick" style={{ left: s * pps }}><span>{fmt(s).slice(0, -2)}</span></div>
               ))}
             </div>
-            <div className="a-lane">
+            <div className="a-lane" style={{ order: 4 }}>
               <div className="a-lane-label"><VIcon name="video" size={13} /> {t('labelVideo')}</div>
               <div className="a-lane-track">
                 {clips.length === 0 && (
@@ -2056,7 +2056,7 @@ export default function MontagePage() {
               const isTop = idx === 0;
               const laneOverlays = overlays.filter((o) => (o.track ?? 0) === track);
               return (
-              <div className="a-lane" style={{ height: 34 }} key={"vtrack-" + track}>
+              <div className="a-lane" style={{ height: 34, order: 3 }} key={"vtrack-" + track}>
                 <div className="a-lane-label" style={{ display: "flex", alignItems: "center", gap: 4 }}>
                   <VIcon name="image" size={13} />
                   <span className="trunc">{videoTrackCount > 1 ? `${t('railOverlay')} ${track + 1}` : t('railOverlay')}</span>
@@ -2092,7 +2092,7 @@ export default function MontagePage() {
               </div>
               );
             })}
-            <div className="a-lane" style={{ height: 34 }}>
+            <div className="a-lane" style={{ height: 34, order: 5 }}>
               <div className="a-lane-label"><VIcon name="music" size={13} /> {t('audioClipsLabel')}</div>
               <div className="a-lane-track">
                 {/* son embarqué des plans vidéo — clic = sélectionne la piste audio seule ; Option/Alt+clic = aussi le plan vidéo lié */}
@@ -2119,7 +2119,7 @@ export default function MontagePage() {
               const atrack = aIdx; // rangée audio (l'ordre n'affecte pas le mixage, uniquement l'organisation)
               const isFirstA = aIdx === 0;
               return (
-              <div className="a-lane" style={{ height: 34 }} key={"atrack-" + atrack}>
+              <div className="a-lane" style={{ height: 34, order: 6 }} key={"atrack-" + atrack}>
                 <div className="a-lane-label" style={{ display: "flex", alignItems: "center", gap: 4 }}>
                   <VIcon name="music" size={13} />
                   <span className="trunc">{audioTrackCount > 1 ? `${t('railAudio')} ${atrack + 1}` : t('railAudio')}</span>
@@ -2147,7 +2147,7 @@ export default function MontagePage() {
               </div>
               );
             })}
-            <div className="a-lane" style={{ height: 34 }}>
+            <div className="a-lane" style={{ height: 34, order: 1 }}>
               <div className="a-lane-label"><VIcon name="captions" size={13} /> {t('labelSubtitlesShort')}</div>
               <div className="a-lane-track">
                 {captions.map((c) => (
@@ -2157,7 +2157,7 @@ export default function MontagePage() {
                 ))}
               </div>
             </div>
-            <div className="a-lane" style={{ height: 34 }}>
+            <div className="a-lane" style={{ height: 34, order: 2 }}>
               <div className="a-lane-label"><VIcon name="text" size={13} /> {t('railText')}</div>
               <div className="a-lane-track">
                 {titles.map((ti) => (

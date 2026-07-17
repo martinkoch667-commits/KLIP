@@ -862,7 +862,9 @@ input.ed-range::-moz-range-thumb {
 .a-tl-tool:disabled { opacity: .35; cursor: not-allowed; }
 
 .a-tl-scroll { flex: 1; overflow-x: auto; overflow-y: hidden; position: relative; }
-.a-tl-inner { position: relative; min-width: 100%; padding: 8px 0 10px; }
+.a-tl-inner { position: relative; min-width: 100%; padding: 8px 0 10px; display: flex; flex-direction: column; }
+/* La règle a-ruler reste order 0 (en haut) ; les pistes reçoivent un `order` inline
+   (CAP-1) pour la hiérarchie CapCut : sous-titres → texte → overlays → vidéo → audio. */
 
 .a-ruler { height: 20px; position: relative; margin: 0 0 6px; border-bottom: 1px solid var(--line-2); }
 .a-tick { position: absolute; top: 0; bottom: 0; border-left: 1px solid var(--line); }
