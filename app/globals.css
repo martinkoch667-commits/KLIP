@@ -878,21 +878,13 @@ input.ed-range::-moz-range-thumb {
 .a-lane-track { flex: 1; height: 100%; display: flex; align-items: center; gap: 3px; position: relative;
   background: color-mix(in srgb, var(--sunk) 45%, transparent); border-radius: 7px;
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--line) 45%, transparent); transition: box-shadow .12s var(--ease), background .12s var(--ease); }
-/* Piste survolée pendant un glisser-déposer : surlignage doux (pas d'outline brut). */
-.a-lane-track.drop-hot { background: color-mix(in srgb, var(--mint-2) 15%, var(--sunk)); box-shadow: inset 0 0 0 2px var(--mint-2); }
-/* Bande « nouvelle piste » (apparaît pendant un glissement, tout en haut). */
-.a-tl-newtrack { flex: 1; height: 100%; display: flex; align-items: center; justify-content: center;
-  border: 1.5px dashed var(--line-2, var(--line)); border-radius: 9px; background: transparent; transition: all .12s var(--ease); }
-.a-tl-newtrack span { font-family: var(--mono); font-weight: 800; font-size: 10px; letter-spacing: .04em; text-transform: uppercase; color: var(--ink-3); }
-.a-tl-newtrack.drop-hot { border-color: var(--mint-2); background: color-mix(in srgb, var(--mint-2) 12%, transparent); }
-.a-tl-newtrack.drop-hot span { color: var(--mint-2); }
-
-/* Fantôme du plan pendant un glisser-déposer (suit le curseur, façon CapCut). */
-.a-tl-ghost { position: fixed; z-index: 2000; height: 30px; border-radius: 8px; pointer-events: none;
-  display: flex; align-items: center; padding: 0 9px; overflow: hidden; opacity: .82;
-  box-shadow: 0 10px 26px rgba(0,0,0,.28), inset 0 0 0 1px rgba(255,255,255,.35); }
-.a-tl-ghost span { font-family: var(--mono); font-weight: 800; font-size: 9.5px; letter-spacing: .02em; color: #fff;
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-shadow: 0 1px 3px rgba(0,0,0,.5); }
+/* Piste ciblée pendant un glisser-déposer : repère TRÈS discret (fin liseré neutre,
+   pas de gros aplat vert). */
+.a-lane-track.drop-hot { box-shadow: inset 0 0 0 1.5px var(--line-2, var(--line)); }
+/* Fine ligne « nouvelle piste » (apparaît pendant un glissement, tout en haut) — discrète. */
+.a-tl-newtrack { flex: 1; height: 100%; border: 1px dashed color-mix(in srgb, var(--line-2, var(--line)) 70%, transparent);
+  border-radius: 7px; background: transparent; transition: border-color .12s var(--ease); }
+.a-tl-newtrack.drop-hot { border-color: var(--ink-3); border-style: dashed; }
 
 .a-clip { height: 46px; border-radius: 9px; position: relative; overflow: hidden; cursor: grab; flex-shrink: 0;
   box-shadow: inset 0 0 0 1px rgba(255,255,255,.14); transition: box-shadow .14s var(--ease), transform .12s; background-size: cover; background-position: center; }
