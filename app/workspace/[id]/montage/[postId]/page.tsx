@@ -360,15 +360,20 @@ export default function MontagePage() {
   // les zones qui ont leur propre zoom (timeline, preview) le gèrent quand même.
   // Safari émet aussi des « gesture events » → on les bloque également.
   useEffect(() => {
+    // Capture phase + non passif = on intercepte le pincement AVANT tout le reste, ce qui
+    // rend le blocage fiable (sinon la page zoomait « des fois »).
     const blockWheelZoom = (e: WheelEvent) => { if (e.ctrlKey || e.metaKey) e.preventDefault(); };
     const blockGesture = (e: Event) => e.preventDefault();
-    document.addEventListener("wheel", blockWheelZoom, { passive: false });
-    document.addEventListener("gesturestart", blockGesture);
-    document.addEventListener("gesturechange", blockGesture);
+    const opts = { passive: false, capture: true } as AddEventListenerOptions;
+    window.addEventListener("wheel", blockWheelZoom, opts);
+    document.addEventListener("gesturestart", blockGesture, opts);
+    document.addEventListener("gesturechange", blockGesture, opts);
+    document.addEventListener("gestureend", blockGesture, opts);
     return () => {
-      document.removeEventListener("wheel", blockWheelZoom);
-      document.removeEventListener("gesturestart", blockGesture);
-      document.removeEventListener("gesturechange", blockGesture);
+      window.removeEventListener("wheel", blockWheelZoom, opts);
+      document.removeEventListener("gesturestart", blockGesture, opts);
+      document.removeEventListener("gesturechange", blockGesture, opts);
+      document.removeEventListener("gestureend", blockGesture, opts);
     };
   }, []);
 
@@ -381,7 +386,7 @@ export default function MontagePage() {
     const onWheel = (e: WheelEvent) => {
       if (!e.ctrlKey && !e.metaKey) return;
       e.preventDefault();
-      setPreviewZoom((z) => Math.max(1, Math.min(5, z - e.deltaY * 0.01)));
+      setPreviewZoom((z) => Math.max(1, Math.min(5, z - e.deltaY * 0.006)));
     };
     el.addEventListener("wheel", onWheel, { passive: false });
     return () => el.removeEventListener("wheel", onWheel);
@@ -1581,7 +1586,10 @@ export default function MontagePage() {
     const onWheelNative = (e: WheelEvent) => {
       if (e.ctrlKey || e.metaKey) {
         e.preventDefault(); // empêche le zoom de la page (pincement trackpad)
-        const factor = e.deltaY < 0 ? 1.12 : 0.89;
+        // Facteur PROPORTIONNEL à l'ampleur du pincement (et non un gros pas fixe par
+        // événement) → beaucoup moins sensible : le trackpad envoie plein de petits
+        // événements, chacun ne zoome donc qu'un tout petit peu. Borné pour rester doux.
+        const factor = Math.min(1.25, Math.max(0.8, Math.exp(-e.deltaY * 0.0016)));
         setPps((p) => {
           const np = Math.max(10, Math.min(220, Math.round(p * factor)));
           if (np !== p) {
