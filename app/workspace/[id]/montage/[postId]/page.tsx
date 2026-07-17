@@ -305,6 +305,7 @@ export default function MontagePage() {
   // d'une nouvelle piste vidéo en montant tout en haut). Piloté au pointeur, sans
   // drag HTML5 (fini le fantôme moche du navigateur).
   const tlDragRef = useRef<{ id: string; kind: "clip" | "overlay"; startX: number; startY: number; grabDx: number; widthPx: number; moved: boolean } | null>(null);
+  const tlInnerRef = useRef<HTMLDivElement>(null);
 
   function toast(msg: string) {
     setToastMsg(msg);
@@ -1563,6 +1564,22 @@ export default function MontagePage() {
     const lane = el?.closest?.("[data-tllane]") as HTMLElement | null;
     return lane?.dataset.tllane ?? null;
   }
+  // Cible de dépôt sous le curseur. La zone « nouvelle piste » n'existe PAS dans le
+  // flux (aucun décalage quand on déplace un plan horizontalement) : on la détecte
+  // uniquement par la géométrie — quand le curseur passe au-dessus du haut du groupe
+  // vidéo, c'est-à-dire dans la zone vide au-dessus des pistes existantes.
+  function dropTargetAt(clientX: number, clientY: number): string | null {
+    const inner = tlInnerRef.current;
+    if (inner) {
+      const els = Array.from(inner.querySelectorAll<HTMLElement>("[data-tllane]"))
+        .filter((e) => { const l = e.dataset.tllane; return l === "video" || /^v\d+$/.test(l || ""); });
+      if (els.length) {
+        const topY = Math.min(...els.map((e) => e.getBoundingClientRect().top));
+        if (clientY < topY - 2) return "new"; // au-dessus des pistes → nouvelle piste
+      }
+    }
+    return laneUnder(clientX, clientY);
+  }
   // Instant temporel du bord gauche du plan lâché (le point saisi reste sous le curseur).
   function dropTimeAt(clientX: number, grabDx: number): number {
     const r = rulerRef.current?.getBoundingClientRect();
@@ -1588,7 +1605,7 @@ export default function MontagePage() {
       d.moved = true;
     }
     setDragActive(true);
-    setDropLane(laneUnder(e.clientX, e.clientY));
+    setDropLane(dropTargetAt(e.clientX, e.clientY));
   }
   function onTlDragUp(e: React.PointerEvent) {
     const d = tlDragRef.current;
@@ -1596,7 +1613,7 @@ export default function MontagePage() {
     setDragActive(false); setDropLane(null);
     try { (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId); } catch {}
     if (!d || !d.moved) return; // simple clic → sélection déjà faite au down
-    const lane = laneUnder(e.clientX, e.clientY);
+    const lane = dropTargetAt(e.clientX, e.clientY);
     const dropT = dropTimeAt(e.clientX, d.grabDx);
     const dup = e.altKey;
     if (d.kind === "clip") {
@@ -2057,6 +2074,7 @@ export default function MontagePage() {
         <div className="a-tl-scroll" onWheel={onTimelineWheel}>
           <div
             className="a-tl-inner"
+            ref={tlInnerRef}
             style={{ width: 92 + trackW + 30 }}
           >
             <div
@@ -2071,7 +2089,7 @@ export default function MontagePage() {
                 <div key={s} className="a-tick" style={{ left: s * pps }}><span>{fmt(s).slice(0, -2)}</span></div>
               ))}
             </div>
-            <div className="a-lane" style={{ order: 4 }} data-tllane="video">
+            <div className={"a-lane" + (videoTrackCount === 0 && dropLane === "new" ? " nt-hint" : "")} style={{ order: 4 }} data-tllane="video">
               <div className="a-lane-label"><VIcon name="video" size={13} /> {`${t('labelVideo')} 1`}</div>
               <div className={"a-lane-track" + (dropLane === "video" && dragActive ? " drop-hot" : "")}>
                 {clips.length === 0 && (
@@ -2114,20 +2132,12 @@ export default function MontagePage() {
                 ))}
               </div>
             </div>
-            {/* Fine ligne « nouvelle piste » : n'apparaît que pendant un glissement.
-                Déposer un plan ici (tout en haut) crée une piste au-dessus. Discret. */}
-            {dragActive && (
-              <div className="a-lane" data-tllane="new" style={{ height: 20, order: 3 }}>
-                <div className="a-lane-label" style={{ opacity: 0.4, fontSize: 13, justifyContent: "center", paddingLeft: 0 }}>＋</div>
-                <div className={"a-tl-newtrack" + (dropLane === "new" ? " drop-hot" : "")} />
-              </div>
-            )}
             {Array.from({ length: videoTrackCount }).map((_, idx) => {
               const track = videoTrackCount - 1 - idx; // le haut de la timeline = la piste la plus haute (au-dessus)
               const isTop = idx === 0;
               const laneOverlays = overlays.filter((o) => (o.track ?? 0) === track);
               return (
-              <div className="a-lane" style={{ height: 34, order: 3 }} data-tllane={`v${track}`} key={"vtrack-" + track}>
+              <div className={"a-lane" + (isTop && dropLane === "new" ? " nt-hint" : "")} style={{ height: 34, order: 3 }} data-tllane={`v${track}`} key={"vtrack-" + track}>
                 <div className="a-lane-label" style={{ display: "flex", alignItems: "center", gap: 4 }}>
                   <VIcon name="video" size={13} />
                   <span className="trunc">{`${t('labelVideo')} ${track + 2}`}</span>

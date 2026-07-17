@@ -881,10 +881,13 @@ input.ed-range::-moz-range-thumb {
 /* Piste ciblée pendant un glisser-déposer : repère TRÈS discret (fin liseré neutre,
    pas de gros aplat vert). */
 .a-lane-track.drop-hot { box-shadow: inset 0 0 0 1.5px var(--line-2, var(--line)); }
-/* Fine ligne « nouvelle piste » (apparaît pendant un glissement, tout en haut) — discrète. */
-.a-tl-newtrack { flex: 1; height: 100%; border: 1px dashed color-mix(in srgb, var(--line-2, var(--line)) 70%, transparent);
-  border-radius: 7px; background: transparent; transition: border-color .12s var(--ease); }
-.a-tl-newtrack.drop-hot { border-color: var(--ink-3); border-style: dashed; }
+/* Indicateur « nouvelle piste » : fine ligne posée AU-DESSUS de la piste du haut,
+   en absolu → aucun décalage de la mise en page (rien ne se réinsère dans le flux).
+   N'apparaît que quand le curseur monte dans la zone vide au-dessus des pistes. */
+.a-lane.nt-hint::before { content: ""; position: absolute; top: -4px; left: 92px; right: 4px; height: 2.5px;
+  border-radius: 2px; background: var(--ink-3); opacity: .85; }
+.a-lane.nt-hint::after { content: "＋"; position: absolute; top: -13px; left: 92px; font-size: 13px; font-weight: 800;
+  color: var(--ink-3); line-height: 1; }
 
 .a-clip { height: 46px; border-radius: 9px; position: relative; overflow: hidden; cursor: grab; flex-shrink: 0;
   box-shadow: inset 0 0 0 1px rgba(255,255,255,.14); transition: box-shadow .14s var(--ease), transform .12s; background-size: cover; background-position: center; }
