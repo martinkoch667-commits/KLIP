@@ -30,6 +30,33 @@ export interface TextTemplate { id: string; cat: string; dark?: boolean; parts: 
 
 export const TT_CATS = ['Promo', 'Événement', 'Titre', 'Citation', 'Fun', 'Rétro', 'Élégant', 'Néon', 'Minimal', 'Gras'] as const;
 
+// ── Adaptation d'un template à la charte du client ───────────────────────────
+// Recolore chaque partie sur la palette de marque (texte → primaire, emphase/
+// surlignage/fond → accent) et applique la police de marque, sans toucher à la
+// structure/mise en page du template. Les champs absents dans la charte sont
+// laissés tels quels. Utilisé par le bouton « À ma charte » du panneau Texte.
+export interface BrandKit { primary?: string | null; secondary?: string | null; accent?: string | null; font?: string | null; }
+export function adaptTemplateToCharter(tpl: TextTemplate, brand: BrandKit): TextTemplate {
+  const P = brand.primary || undefined;
+  const A = brand.accent || undefined;
+  const F = brand.font || undefined;
+  const recolor = (patch?: TTPatch): TTPatch | undefined => {
+    if (!patch) return F ? { fontFamily: F } : patch;
+    const q: TTPatch = { ...patch };
+    if (F) q.fontFamily = F;
+    if (P && q.fill && q.fill !== 'transparent') q.fill = P;
+    if (q.fillType === 'gradient') { if (P) q.fill = P; if (A) q.fillTo = A; }
+    if (A && q.highlightEnabled && q.highlightColor) q.highlightColor = A;
+    if (A && q.hasBg && q.bgColor) q.bgColor = A;
+    if (P && q.stroke) q.stroke = P;
+    if (A && q.glowColor) q.glowColor = A;
+    if (A && q.echoColor) q.echoColor = A;
+    if (P && q.liftColor) q.liftColor = P;
+    return q;
+  };
+  return { ...tpl, parts: tpl.parts.map(pt => ({ ...pt, patch: recolor(pt.patch) })) };
+}
+
 // ── Style CSS approximatif d'un patch pour l'aperçu (miniature) ──────────────
 export function ttPreviewStyle(p: TTPatch = {}, k: number): React.CSSProperties {
   const st = (p.fontStyle || '');
