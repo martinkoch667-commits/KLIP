@@ -1553,31 +1553,35 @@ export default function MontagePage() {
     try { (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId); } catch {}
   }
 
-  // Zoom timeline à la molette (Ctrl/⌘ + molette), comme CapCut / Premiere.
-  function onTimelineWheel(e: React.WheelEvent) {
+  // Zoom timeline via pincement trackpad Mac / Ctrl-⌘+molette, ANCRÉ sur le curseur.
+  // IMPORTANT : le listener React onWheel est « passif » → preventDefault() y est ignoré,
+  // donc c'est la PAGE qui zoome. On attache donc un listener natif NON passif pour bloquer
+  // le zoom de la page et zoomer la timeline à la place.
+  useEffect(() => {
     const scroller = tlScrollRef.current;
-    // Pincement trackpad (ctrl) ou Cmd/Ctrl + molette → zoom, ANCRÉ sur le curseur :
-    // l'instant sous la souris reste sous la souris (zoom précis, comme CapCut/Premiere).
-    if (e.ctrlKey || e.metaKey) {
-      e.preventDefault();
-      const factor = e.deltaY < 0 ? 1.12 : 0.89;
-      setPps((p) => {
-        const np = Math.max(10, Math.min(220, Math.round(p * factor)));
-        if (scroller && np !== p) {
-          const rect = scroller.getBoundingClientRect();
-          const xInContent = e.clientX - rect.left + scroller.scrollLeft - 92; // 92 = largeur label
-          const tAtCursor = xInContent / p;
-          requestAnimationFrame(() => { scroller.scrollLeft = Math.max(0, tAtCursor * np - (e.clientX - rect.left - 92)); });
-        }
-        return np;
-      });
-      return;
-    }
-    // Molette verticale simple (souris) → défilement horizontal de la timeline.
-    if (scroller && Math.abs(e.deltaY) > Math.abs(e.deltaX)) {
-      scroller.scrollLeft += e.deltaY;
-    }
-  }
+    if (!scroller) return;
+    const onWheelNative = (e: WheelEvent) => {
+      if (e.ctrlKey || e.metaKey) {
+        e.preventDefault(); // empêche le zoom de la page (pincement trackpad)
+        const factor = e.deltaY < 0 ? 1.12 : 0.89;
+        setPps((p) => {
+          const np = Math.max(10, Math.min(220, Math.round(p * factor)));
+          if (np !== p) {
+            const rect = scroller.getBoundingClientRect();
+            const xInContent = e.clientX - rect.left + scroller.scrollLeft - 92; // 92 = largeur label
+            const tAtCursor = xInContent / p;
+            requestAnimationFrame(() => { scroller.scrollLeft = Math.max(0, tAtCursor * np - (e.clientX - rect.left - 92)); });
+          }
+          return np;
+        });
+      } else if (Math.abs(e.deltaY) > Math.abs(e.deltaX)) {
+        // molette verticale simple → défilement horizontal de la timeline
+        scroller.scrollLeft += e.deltaY;
+      }
+    };
+    scroller.addEventListener("wheel", onWheelNative, { passive: false });
+    return () => scroller.removeEventListener("wheel", onWheelNative);
+  }, [loading]);
 
   // Aimantation (magnétisme) : cale une valeur temporelle sur le playhead, les bords
   // de plans et les extrémités du projet quand on est à ≤ 8 px.
@@ -2132,7 +2136,7 @@ export default function MontagePage() {
           <button className="mz-hbtn" onClick={() => setPps((p) => Math.max(10, Math.round(p / 1.3)))}><VIcon name="zoomOut" size={15} /></button>
           <button className="mz-hbtn" onClick={() => setPps((p) => Math.min(160, Math.round(p * 1.3)))}><VIcon name="zoomIn" size={15} /></button>
         </div>
-        <div className="a-tl-scroll" ref={tlScrollRef} onWheel={onTimelineWheel}>
+        <div className="a-tl-scroll" ref={tlScrollRef}>
           <div
             className="a-tl-inner"
             ref={tlInnerRef}
