@@ -221,8 +221,9 @@ export default function MontagePage() {
   const [selectedOverlayId, setSelectedOverlayId] = useState<string | null>(null);
   const [audioOnlyId, setAudioOnlyId] = useState<string | null>(null); // sélection "audio seul" (Option/Alt+clic)
   const [dragOver, setDragOver] = useState(false);
-  // Fantôme du plan en cours de glissement + piste survolée (surlignage de dépôt).
-  const [tlGhost, setTlGhost] = useState<{ x: number; y: number; w: number; label: string; color: string } | null>(null);
+  // Glissement en cours (repère discret) + piste survolée pour le dépôt. Pas de
+  // fantôme flottant : on garde une interaction simple et épurée, façon CapCut.
+  const [dragActive, setDragActive] = useState(false);
   const [dropLane, setDropLane] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const [uploadingOverlay, setUploadingOverlay] = useState(false);
@@ -1586,17 +1587,13 @@ export default function MontagePage() {
       if (Math.abs(dx) < 4 && Math.abs(dy) < 4) return; // seuil : un simple clic ne glisse pas
       d.moved = true;
     }
+    setDragActive(true);
     setDropLane(laneUnder(e.clientX, e.clientY));
-    const src: any = d.kind === "clip" ? clipStarts.find((c) => c.id === d.id) : overlays.find((o) => o.id === d.id);
-    const label = src ? `${src.kind === "photo" ? "🖼" : "🎬"} ${src.name}` : "";
-    // Même code couleur partout : vidéo = vert (comme la piste principale), photo = orange.
-    const color = src?.kind === "photo" ? "linear-gradient(150deg,#c8792f,#5e3a1a)" : "linear-gradient(150deg,#2b8d57,#0c2a1d)";
-    setTlGhost({ x: e.clientX - d.grabDx, y: e.clientY - 14, w: d.widthPx, label, color });
   }
   function onTlDragUp(e: React.PointerEvent) {
     const d = tlDragRef.current;
     tlDragRef.current = null;
-    setTlGhost(null); setDropLane(null);
+    setDragActive(false); setDropLane(null);
     try { (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId); } catch {}
     if (!d || !d.moved) return; // simple clic → sélection déjà faite au down
     const lane = laneUnder(e.clientX, e.clientY);
@@ -2076,15 +2073,15 @@ export default function MontagePage() {
             </div>
             <div className="a-lane" style={{ order: 4 }} data-tllane="video">
               <div className="a-lane-label"><VIcon name="video" size={13} /> {`${t('labelVideo')} 1`}</div>
-              <div className={"a-lane-track" + (dropLane === "video" && tlGhost ? " drop-hot" : "")}>
+              <div className={"a-lane-track" + (dropLane === "video" && dragActive ? " drop-hot" : "")}>
                 {clips.length === 0 && (
                   <span style={{ fontSize: 12, color: "var(--ink-3)", fontWeight: 600 }}>{t('importFirstRush')}</span>
                 )}
                 {clipStarts.map((c, i) => (
                   <div key={c.id} style={{ position: "absolute", left: c.start * pps, display: "flex", alignItems: "center" }}>
                     <div
-                      className={"a-clip" + (selectedClipId === c.id ? " on" : "") + (tlGhost && tlDragRef.current?.id === c.id ? " dragging" : "")}
-                      style={{ width: c.dur * pps, background: c.kind === "video" ? "linear-gradient(150deg,#2b8d57,#0c2a1d)" : undefined, position: "static", cursor: "grab", touchAction: "none", opacity: tlGhost && tlDragRef.current?.id === c.id ? 0.4 : 1 }}
+                      className={"a-clip" + (selectedClipId === c.id ? " on" : "") + (dragActive && tlDragRef.current?.id === c.id ? " dragging" : "")}
+                      style={{ width: c.dur * pps, background: c.kind === "video" ? "linear-gradient(150deg,#2b8d57,#0c2a1d)" : undefined, position: "static", cursor: "grab", touchAction: "none", opacity: dragActive && tlDragRef.current?.id === c.id ? 0.4 : 1 }}
                       onPointerDown={(e) => startTlDrag(e, c.id, "clip")}
                       onPointerMove={onTlDragMove}
                       onPointerUp={onTlDragUp}
@@ -2117,14 +2114,12 @@ export default function MontagePage() {
                 ))}
               </div>
             </div>
-            {/* Bande « nouvelle piste » : n'apparaît que pendant un glissement. Déposer un
-                plan ici (tout en haut) crée une piste vidéo au-dessus de toutes les autres. */}
-            {tlGhost && (
-              <div className="a-lane" data-tllane="new" style={{ height: 26, order: 3 }}>
-                <div className="a-lane-label" style={{ opacity: 0.5, fontSize: 15, justifyContent: "center", paddingLeft: 0 }}>＋</div>
-                <div className={"a-tl-newtrack" + (dropLane === "new" ? " drop-hot" : "")}>
-                  <span>⬆ {t('dropNewTrack')}</span>
-                </div>
+            {/* Fine ligne « nouvelle piste » : n'apparaît que pendant un glissement.
+                Déposer un plan ici (tout en haut) crée une piste au-dessus. Discret. */}
+            {dragActive && (
+              <div className="a-lane" data-tllane="new" style={{ height: 20, order: 3 }}>
+                <div className="a-lane-label" style={{ opacity: 0.4, fontSize: 13, justifyContent: "center", paddingLeft: 0 }}>＋</div>
+                <div className={"a-tl-newtrack" + (dropLane === "new" ? " drop-hot" : "")} />
               </div>
             )}
             {Array.from({ length: videoTrackCount }).map((_, idx) => {
@@ -2141,7 +2136,7 @@ export default function MontagePage() {
                       style={{ marginLeft: "auto", width: 18, height: 18, borderRadius: 5, border: "1px solid var(--line)", background: "var(--canvas)", color: "var(--ink-2)", fontSize: 14, lineHeight: "14px", cursor: "pointer", flexShrink: 0, padding: 0 }}>+</button>
                   )}
                 </div>
-                <div className={"a-lane-track" + (dropLane === `v${track}` && tlGhost ? " drop-hot" : "")}>
+                <div className={"a-lane-track" + (dropLane === `v${track}` && dragActive ? " drop-hot" : "")}>
                   {overlays.length === 0 && isTop && (
                     <span style={{ fontSize: 11.5, color: "var(--ink-3)", fontWeight: 600 }}>{t('addOverlayHint')}</span>
                   )}
@@ -2149,7 +2144,7 @@ export default function MontagePage() {
                     <div
                       key={o.id}
                       className={"a-chip" + (selectedOverlayId === o.id ? " on" : "")}
-                      style={{ left: o.offset * pps, width: Math.max(24, overlayTimelineDur(o) * pps), top: 2, bottom: 2, cursor: "grab", touchAction: "none", opacity: tlGhost && tlDragRef.current?.id === o.id ? 0.4 : 1, background: o.kind === "video" ? "linear-gradient(150deg,#2b8d57,#0c2a1d)" : "linear-gradient(150deg,#c8792f,#5e3a1a)" }}
+                      style={{ left: o.offset * pps, width: Math.max(24, overlayTimelineDur(o) * pps), top: 2, bottom: 2, cursor: "grab", touchAction: "none", opacity: dragActive && tlDragRef.current?.id === o.id ? 0.4 : 1, background: o.kind === "video" ? "linear-gradient(150deg,#2b8d57,#0c2a1d)" : "linear-gradient(150deg,#c8792f,#5e3a1a)" }}
                       title={o.name}
                       onPointerDown={(e) => startTlDrag(e, o.id, "overlay")}
                       onPointerMove={onTlDragMove}
@@ -2251,13 +2246,6 @@ export default function MontagePage() {
           </div>
         </div>
       </div>
-
-      {/* Fantôme du plan pendant un glissement — suit le curseur (façon CapCut). */}
-      {tlGhost && (
-        <div className="a-tl-ghost" style={{ left: tlGhost.x, top: tlGhost.y, width: Math.max(44, tlGhost.w), background: tlGhost.color }}>
-          <span>{tlGhost.label}</span>
-        </div>
-      )}
 
       {toastMsg && (
         <div className="mz-toast">
