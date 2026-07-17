@@ -766,6 +766,33 @@ export default function MontagePage() {
     toast(t('toastNewVideoTrack'));
   }
 
+  // Ramène une incrustation sur la piste vidéo principale (façon CapCut : glisser un plan
+  // vers le bas). L'incrustation redevient un plan de la séquence principale, inséré à
+  // l'instant du dépôt (les plans suivants se décalent, comme un « ripple »).
+  function overlayToClip(overlayId: string, dropTime: number) {
+    const o = overlays.find((x) => x.id === overlayId);
+    if (!o) return;
+    const clip: MontageClip = {
+      id: crypto.randomUUID(), kind: o.kind, name: o.name, src: o.src,
+      srcDur: o.srcDur, trimStart: o.trimStart, trimEnd: o.trimEnd,
+      speed: 1, filterId: o.filterId, lum: o.lum, con: o.con, sat: o.sat,
+      transitionIn: "cut", transitionDur: 0.4, vol: o.vol ?? 1,
+    };
+    setClips((prev) => {
+      let acc = 0;
+      const ws = prev.map((c) => { acc += Math.max(0, c.gapBefore ?? 0); const s = acc; acc += clipTimelineDur(c); return { start: s, end: acc }; });
+      let idx = ws.findIndex((w) => w.start >= dropTime);
+      if (idx < 0) idx = prev.length; // au-delà de tout → à la fin
+      const prevEnd = idx > 0 ? ws[idx - 1].end : 0;
+      clip.gapBefore = Math.max(0, dropTime - prevEnd);
+      const copy = [...prev];
+      copy.splice(idx, 0, clip);
+      return copy;
+    });
+    setOverlays((prev) => prev.filter((x) => x.id !== overlayId));
+    setSelectedOverlayId(null); setSelectedClipId(clip.id); setTool("cut");
+  }
+
   function updateClip(id: string, patch: Partial<MontageClip>) {
     setClips((prev) => prev.map((c) => (c.id === id ? { ...c, ...patch } : c)));
   }
@@ -1666,7 +1693,9 @@ export default function MontagePage() {
       if (!o) return;
       if (lane === "new") {
         updateOverlay(d.id, { offset: dropT, track: videoTrackCount });
-      } else if (lane && lane !== "video" && lane.startsWith("v")) {
+      } else if (lane === "video") {
+        overlayToClip(d.id, dropT); // redescendue sur la piste principale → redevient un plan
+      } else if (lane && lane.startsWith("v")) {
         updateOverlay(d.id, { offset: dropT, track: parseInt(lane.slice(1), 10) || 0 });
       } else {
         updateOverlay(d.id, { offset: dropT }); // garde sa piste, déplacement temporel seul
