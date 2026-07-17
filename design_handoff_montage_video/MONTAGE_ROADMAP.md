@@ -144,3 +144,49 @@
 - **G** — ✅ curseur continu fait ; **H1/H2/H3** — H1 ✅, reste resize média au double-clic + manip. objets.
 - **J** — montage automatique IA (silences → coupe, sous-titres charte, dynamisation). Gros, backend.
 - **K** — export/programmation + flux « Publier » comme l'éditeur visuel.
+
+## Chantier « Alignement CapCut » (brief Martin 2026-07-17, 2 screens CapCut)
+> Objectif : recomposer le monteur pour qu'il **ressemble/fonctionne comme CapCut** afin que
+> l'utilisateur ne soit pas perdu, **en gardant la DA Klip**. Gros chantier très visuel → à faire
+> par incréments vérifiables (pas de big-bang à l'aveugle sur la prod).
+
+### CAP-1 — Ordre des pistes (hiérarchie timeline)
+De **bas en haut** : **audio (son)** → **vidéo (plans)** → **vidéo + objets (incrustations)** →
+**texte** → **sous-titres** (tout en haut). Le son détaché d'un plan va sur la piste audio du bas.
+(Refonte de l'ordre des lanes + probablement structure/CSS de `.a-tl-inner`.)
+
+### CAP-2 — Empilement de pistes au drag (façon vrai monteur)
+- **Option/Alt + glisser** un plan, ou **glisser un plan vers le haut/bas** au-delà de la dernière
+  piste → **crée une nouvelle piste vidéo** (et duplique l'image dans ce cas Option+drag).
+- But : empiler des vidéos comme dans un vrai logiciel, sans passer par un stepper.
+
+### CAP-3 — Barre d'outils complète (parité CapCut)
+Ajouter/aligner les outils : Media, Audio, Text, Stickers, **Effects**, Transitions, Captions,
+Filters, **Adjustment** (colorimétrie), Speed… (revoir l'ordre + libellés façon CapCut).
+
+### CAP-4 — Menu clic droit complet + adapté par type d'élément
+Menu CapCut (clip vidéo) à répliquer (ce qui a du sens chez nous) :
+Copier, Couper, **Copier les attributs**, **Coller les attributs**, Supprimer, **Modifier ›**,
+Division de scènes, Transcription, **Isoler la voix ›**, **Extraire le son (⇧⌥S)**,
+Synchroniser vidéo/audio, Créer un clip combiné (sous-projet), Créer multi-caméra,
+Enregistrer le préréglage, Grouper/Séparer, **Exporter les plans sélectionnés**,
+**Désactiver le plan (V)**, **Remplacer le plan**, Lien média, Ouvrir l'emplacement,
+Modifier les effets, Vitesse variable, Intervalle ›, Rendu ›.
+→ **Adapter selon l'élément** : menu différent pour un plan vidéo / un audio seul / un texte /
+une incrustation / un sous-titre (n'afficher que ce qui a du sens).
+
+### CAP-5 — Poignées de sélection = éditeur visuel
+Quand on sélectionne un objet (texte, sticker, incrustation) sur la preview du montage, les
+**poignées / l'animation de sélection doivent être IDENTIQUES** à celles de l'éditeur visuel
+(Canva-like) → cohérence dans tout le logiciel. (Aujourd'hui elles diffèrent.)
+
+### CAP-6 — Panneau de propriétés façon CapCut
+Panneau droit à onglets quand un plan est sélectionné : Video / Audio / Speed / Animation /
+Tracking / Adjust… avec Transform (Scale, Position, Rotate, alignement, Blend). Recomposer la
+disposition (fenêtres redimensionnables — déjà partiellement en place) façon CapCut.
+
+### Méthode (important)
+- Grand chantier **visuel** → **incréments** livrés un par un, **testés par Martin sur getklip**
+  après chaque merge. **Pas** de refonte massive à l'aveugle sur la prod (risque de casser le live).
+- Ordre proposé : CAP-1 (ordre pistes) → CAP-4 (clic droit par type + extraire le son en ⇧⌥S) →
+  CAP-2 (drag pour empiler) → CAP-3 (barre d'outils) → CAP-5 (poignées) → CAP-6 (panneau).
