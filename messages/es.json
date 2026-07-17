@@ -1601,7 +1601,9 @@
     "videoDescWorking": "Analizando el vídeo…",
     "toastDescNoFrames": "No se pudieron capturar imágenes.",
     "toastDescFailed": "No se pudo generar la descripción.",
-    "toastDescDone": "Descripción generada (guardada en el post)."
+    "toastDescDone": "Descripción generada (guardada en el post).",
+    "dropNewTrack": "Soltar aquí → nueva pista de vídeo (Alt = duplicar)",
+    "toastNewVideoTrack": "Nueva pista de vídeo creada."
   },
   "forgotPassword": {
     "title": "Contraseña olvidada",

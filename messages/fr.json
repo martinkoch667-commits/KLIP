@@ -1601,7 +1601,9 @@
     "videoDescWorking": "Analyse de la vidéo…",
     "toastDescNoFrames": "Impossible de capturer des images.",
     "toastDescFailed": "Génération de la description impossible.",
-    "toastDescDone": "Description générée (enregistrée sur le post)."
+    "toastDescDone": "Description générée (enregistrée sur le post).",
+    "dropNewTrack": "Déposer ici → nouvelle piste vidéo (Alt = dupliquer)",
+    "toastNewVideoTrack": "Nouvelle piste vidéo créée."
   },
   "forgotPassword": {
     "title": "Mot de passe oublié",

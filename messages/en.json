@@ -1601,7 +1601,9 @@
     "videoDescWorking": "Analyzing video…",
     "toastDescNoFrames": "Could not capture frames.",
     "toastDescFailed": "Description generation failed.",
-    "toastDescDone": "Description generated (saved to the post)."
+    "toastDescDone": "Description generated (saved to the post).",
+    "dropNewTrack": "Drop here → new video track (Alt = duplicate)",
+    "toastNewVideoTrack": "New video track created."
   },
   "forgotPassword": {
     "title": "Forgot password",
