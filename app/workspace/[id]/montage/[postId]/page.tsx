@@ -717,6 +717,26 @@ export default function MontagePage() {
     toast(t('toastAudioDetached'));
   }
 
+  // CAP-2 — « empiler » : un plan glissé vers le haut devient une piste vidéo au-dessus
+  // (une incrustation plein cadre sur une nouvelle piste, à la position temporelle du plan).
+  // duplicate=true (Alt) : garde le plan d'origine ; sinon il est déplacé.
+  function clipToOverlayTrack(clipId: string, duplicate: boolean) {
+    const c = clipStarts.find((x) => x.id === clipId);
+    if (!c) return;
+    const track = overlays.length ? maxOverlayTrack + 1 : 0;
+    const ov: OverlayClip = {
+      id: crypto.randomUUID(), kind: c.kind, name: c.name, src: c.src,
+      srcDur: c.srcDur, trimStart: c.trimStart, trimEnd: c.trimEnd,
+      offset: c.start, track,
+      x: 50, y: 50, scale: 2, rotation: 0, opacity: 1,
+      filterId: c.filterId, lum: c.lum, con: c.con, sat: c.sat, vol: c.vol ?? 1,
+    };
+    setOverlays((prev) => [...prev, ov]);
+    if (!duplicate) removeClip(clipId);
+    setSelectedOverlayId(ov.id); setSelectedClipId(null); setTool("overlay");
+    toast(t('toastNewVideoTrack'));
+  }
+
   function onClipDrop(targetId: string) {
     if (!draggingId || draggingId === targetId) { setDraggingId(null); return; }
     setClips((prev) => {
@@ -1989,6 +2009,15 @@ export default function MontagePage() {
         </div>
         <div className="a-tl-scroll" onWheel={onTimelineWheel}>
           <div className="a-tl-inner" style={{ width: 92 + trackW + 30 }}>
+            {draggingId && (
+              <div
+                onDragOver={(e) => e.preventDefault()}
+                onDrop={(e) => { e.preventDefault(); const alt = e.altKey; const id = draggingId; setDraggingId(null); if (id) clipToOverlayTrack(id, alt); }}
+                style={{ order: -1, height: 30, marginLeft: 92, marginBottom: 6, width: trackW, borderRadius: 8, border: "2px dashed var(--mint-2)", background: "rgba(47,215,155,.12)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11.5, fontWeight: 700, color: "var(--mint-2)", pointerEvents: "auto" }}
+              >
+                ⬆ {t('dropNewTrack')}
+              </div>
+            )}
             <div
               className="a-ruler"
               ref={rulerRef}

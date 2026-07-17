@@ -1601,7 +1601,9 @@
     "videoDescWorking": "Analisi del video…",
     "toastDescNoFrames": "Impossibile catturare immagini.",
     "toastDescFailed": "Generazione della descrizione non riuscita.",
-    "toastDescDone": "Descrizione generata (salvata sul post)."
+    "toastDescDone": "Descrizione generata (salvata sul post).",
+    "dropNewTrack": "Rilascia qui → nuova traccia video (Alt = duplica)",
+    "toastNewVideoTrack": "Nuova traccia video creata."
   },
   "forgotPassword": {
     "title": "Password dimenticata",

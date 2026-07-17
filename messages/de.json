@@ -1601,7 +1601,9 @@
     "videoDescWorking": "Video wird analysiert…",
     "toastDescNoFrames": "Bilder konnten nicht erfasst werden.",
     "toastDescFailed": "Beschreibungserstellung fehlgeschlagen.",
-    "toastDescDone": "Beschreibung erstellt (im Post gespeichert)."
+    "toastDescDone": "Beschreibung erstellt (im Post gespeichert).",
+    "dropNewTrack": "Hier ablegen → neue Videospur (Alt = duplizieren)",
+    "toastNewVideoTrack": "Neue Videospur erstellt."
   },
   "forgotPassword": {
     "title": "Passwort vergessen",
