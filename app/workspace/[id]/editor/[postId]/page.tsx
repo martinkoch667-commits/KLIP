@@ -19,7 +19,7 @@ import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import ColorPicker from '@/components/ColorPicker';
 import SelectionOverlay from '@/components/SelectionOverlay';
 import Sidebar from '@/components/Sidebar';
-import { TEXT_TEMPLATES, TT_CATS, TT_REF_W, TextTemplateThumb, type TextTemplate } from './textTemplates';
+import { TEXT_TEMPLATES, TT_CATS, TT_REF_W, TextTemplateThumb, adaptTemplateToCharter, type BrandKit, type TextTemplate } from './textTemplates';
 import { STICKERS, STICKER_CATS, stickerDataUri, type Sticker } from './stickers';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -2212,6 +2212,7 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
   const [textLibOpen, setTextLibOpen] = useState(false);
   const [textLibCat, setTextLibCat] = useState<string>('Tous');
   const [textLibQuery, setTextLibQuery] = useState('');
+  const [ttCharter, setTtCharter] = useState(false); // « À ma charte » : recolore les templates de texte sur la palette de marque
   const openFxPanel = (p: 'effects'|'position') => { setFxPanel(cur => cur === p ? null : p); setTool(null); };
   const [bgLocked, setBgLocked] = useState(true);
   const [bgImageSelected, setBgImageSelected] = useState(false);
@@ -4382,17 +4383,39 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
                 </button>
 
                 {/* ── COMBINAISONS DE TEXTE — jeux de typo façon Canva, cliquez pour ajouter ── */}
-                <p style={{ fontSize: 10, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '0.12em', fontFamily: 'var(--mono)', fontWeight: 800, margin: '0 0 8px' }}>Combinaisons de texte</p>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 10 }}>
-                  {TEXT_TEMPLATES.slice(0, 8).map(tpl => (
-                    <button key={tpl.id} onClick={() => applyTextTemplate(tpl)} title={tpl.cat}
-                      style={{ height: 90, padding: '10px 8px', borderRadius: 12, border: '1px solid var(--line)', cursor: 'pointer', background: tpl.dark ? '#1B1D18' : 'var(--white)', display: 'grid', placeItems: 'center', transition: 'all .14s', overflow: 'hidden' }}
-                      onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--mint)'; e.currentTarget.style.transform = 'translateY(-2px)'; }}
-                      onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--line)'; e.currentTarget.style.transform = 'none'; }}>
-                      <TextTemplateThumb tpl={tpl} w={150} />
-                    </button>
-                  ))}
-                </div>
+                {(() => {
+                  const brandKit: BrandKit = { primary: workspaceData?.primary_color, secondary: workspaceData?.secondary_color, accent: workspaceData?.accent_color, font: workspaceData?.font_family };
+                  const hasCharter = !!(brandKit.primary || brandKit.accent);
+                  const useCharter = ttCharter && hasCharter;
+                  const show = (tpl: TextTemplate) => useCharter ? adaptTemplateToCharter(tpl, brandKit) : tpl;
+                  return (
+                    <>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, margin: '0 0 8px' }}>
+                        <p style={{ fontSize: 10, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '0.12em', fontFamily: 'var(--mono)', fontWeight: 800, margin: 0 }}>Combinaisons de texte</p>
+                        {hasCharter && (
+                          <button onClick={() => setTtCharter(v => !v)} title="Adapter les templates à la charte du client"
+                            style={{ fontSize: 10.5, fontWeight: 700, padding: '4px 9px', borderRadius: 999, cursor: 'pointer', border: '1px solid ' + (useCharter ? 'var(--mint)' : 'var(--line)'), background: useCharter ? 'var(--mint)' : 'transparent', color: useCharter ? '#06281C' : 'var(--ink-2)', display: 'flex', alignItems: 'center', gap: 5 }}>
+                            <span style={{ width: 8, height: 8, borderRadius: 2, background: brandKit.accent || brandKit.primary || '#C8F135', display: 'inline-block' }} />
+                            À ma charte
+                          </button>
+                        )}
+                      </div>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 10 }}>
+                        {TEXT_TEMPLATES.slice(0, 8).map(tpl => {
+                          const shown = show(tpl);
+                          return (
+                            <button key={tpl.id} onClick={() => applyTextTemplate(shown)} title={tpl.cat}
+                              style={{ height: 90, padding: '10px 8px', borderRadius: 12, border: '1px solid var(--line)', cursor: 'pointer', background: tpl.dark ? '#1B1D18' : 'var(--white)', display: 'grid', placeItems: 'center', transition: 'all .14s', overflow: 'hidden' }}
+                              onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--mint)'; e.currentTarget.style.transform = 'translateY(-2px)'; }}
+                              onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--line)'; e.currentTarget.style.transform = 'none'; }}>
+                              <TextTemplateThumb tpl={shown} w={150} />
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </>
+                  );
+                })()}
                 <button onClick={() => { setTextLibCat('Tous'); setTextLibQuery(''); setTextLibOpen(true); }} className="btn btn-ghost btn-sm"
                   style={{ width: '100%', justifyContent: 'center', marginBottom: 18, height: 40, gap: 6 }}>
                   Voir toute la bibliothèque
@@ -5469,6 +5492,10 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
         if (!q) return true;
         return tpl.cat.toLowerCase().includes(q) || tpl.parts.some(p => p.text.toLowerCase().includes(q));
       });
+      const brandKit: BrandKit = { primary: workspaceData?.primary_color, secondary: workspaceData?.secondary_color, accent: workspaceData?.accent_color, font: workspaceData?.font_family };
+      const hasCharter = !!(brandKit.primary || brandKit.accent);
+      const useCharter = ttCharter && hasCharter;
+      const show = (tpl: TextTemplate) => useCharter ? adaptTemplateToCharter(tpl, brandKit) : tpl;
       return (
         <div
           onClick={() => setTextLibOpen(false)}
@@ -5489,6 +5516,13 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
                 <input value={textLibQuery} onChange={e => setTextLibQuery(e.target.value)} placeholder="Rechercher…" className="input"
                   style={{ width: '100%', paddingLeft: 34, height: 38 }} />
               </div>
+              {hasCharter && (
+                <button onClick={() => setTtCharter(v => !v)} title="Adapter les templates à la charte du client"
+                  style={{ flexShrink: 0, height: 38, padding: '0 14px', borderRadius: 999, cursor: 'pointer', fontSize: 12.5, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 7, border: '1px solid ' + (useCharter ? 'var(--mint-2)' : 'var(--line)'), background: useCharter ? 'var(--mint)' : 'var(--white)', color: useCharter ? 'var(--forest)' : 'var(--ink-2)' }}>
+                  <span style={{ width: 10, height: 10, borderRadius: 3, background: brandKit.accent || brandKit.primary || '#C8F135', display: 'inline-block' }} />
+                  À ma charte
+                </button>
+              )}
               <button onClick={() => setTextLibOpen(false)} className="btn-icon" title="Fermer"
                 style={{ flexShrink: 0, width: 38, height: 38 }}>
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
@@ -5517,15 +5551,18 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
                 <div style={{ display: 'grid', placeItems: 'center', height: '100%', color: 'var(--ink-3)', fontSize: 14 }}>Aucun modèle ne correspond.</div>
               ) : (
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 12 }}>
-                  {filtered.map(tpl => (
-                    <button key={tpl.id} onClick={() => applyTextTemplate(tpl)} title={tpl.cat}
+                  {filtered.map(tpl => {
+                    const shown = show(tpl);
+                    return (
+                    <button key={tpl.id} onClick={() => applyTextTemplate(shown)} title={tpl.cat}
                       style={{ position: 'relative', height: 168, padding: '16px 12px', borderRadius: 14, border: '1px solid var(--line)', cursor: 'pointer', background: tpl.dark ? '#1B1D18' : 'var(--white)', display: 'grid', placeItems: 'center', transition: 'all .14s', overflow: 'hidden' }}
                       onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--mint)'; e.currentTarget.style.transform = 'translateY(-3px)'; e.currentTarget.style.boxShadow = '0 10px 26px rgba(0,0,0,0.10)'; }}
                       onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--line)'; e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = 'none'; }}>
-                      <TextTemplateThumb tpl={tpl} w={230} />
+                      <TextTemplateThumb tpl={shown} w={230} />
                       <span style={{ position: 'absolute', bottom: 8, left: 8, fontSize: 9.5, textTransform: 'uppercase', letterSpacing: '0.1em', fontFamily: 'var(--mono)', fontWeight: 800, color: tpl.dark ? 'rgba(255,255,255,0.5)' : 'var(--ink-3)' }}>{tpl.cat}</span>
                     </button>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </div>
