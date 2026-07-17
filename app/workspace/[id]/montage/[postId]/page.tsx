@@ -304,8 +304,9 @@ export default function MontagePage() {
   // piste sous le curseur (déplacement temporel, changement de piste, ou création
   // d'une nouvelle piste vidéo en montant tout en haut). Piloté au pointeur, sans
   // drag HTML5 (fini le fantôme moche du navigateur).
-  const tlDragRef = useRef<{ id: string; kind: "clip" | "overlay"; startX: number; startY: number; grabDx: number; widthPx: number; moved: boolean } | null>(null);
+  const tlDragRef = useRef<{ id: string; kind: "clip" | "overlay"; startX: number; startY: number; grabDx: number; widthPx: number; moved: boolean; anchor: number } | null>(null);
   const tlInnerRef = useRef<HTMLDivElement>(null);
+  const tlScrollRef = useRef<HTMLDivElement>(null);
 
   function toast(msg: string) {
     setToastMsg(msg);
@@ -1526,9 +1527,28 @@ export default function MontagePage() {
 
   // Zoom timeline à la molette (Ctrl/⌘ + molette), comme CapCut / Premiere.
   function onTimelineWheel(e: React.WheelEvent) {
-    if (!(e.ctrlKey || e.metaKey)) return;
-    e.preventDefault();
-    setPps((p) => Math.max(10, Math.min(160, Math.round(p * (e.deltaY < 0 ? 1.12 : 0.89)))));
+    const scroller = tlScrollRef.current;
+    // Pincement trackpad (ctrl) ou Cmd/Ctrl + molette → zoom, ANCRÉ sur le curseur :
+    // l'instant sous la souris reste sous la souris (zoom précis, comme CapCut/Premiere).
+    if (e.ctrlKey || e.metaKey) {
+      e.preventDefault();
+      const factor = e.deltaY < 0 ? 1.12 : 0.89;
+      setPps((p) => {
+        const np = Math.max(10, Math.min(220, Math.round(p * factor)));
+        if (scroller && np !== p) {
+          const rect = scroller.getBoundingClientRect();
+          const xInContent = e.clientX - rect.left + scroller.scrollLeft - 92; // 92 = largeur label
+          const tAtCursor = xInContent / p;
+          requestAnimationFrame(() => { scroller.scrollLeft = Math.max(0, tAtCursor * np - (e.clientX - rect.left - 92)); });
+        }
+        return np;
+      });
+      return;
+    }
+    // Molette verticale simple (souris) → défilement horizontal de la timeline.
+    if (scroller && Math.abs(e.deltaY) > Math.abs(e.deltaX)) {
+      scroller.scrollLeft += e.deltaY;
+    }
   }
 
   // Aimantation (magnétisme) : cale une valeur temporelle sur le playhead, les bords
@@ -1575,7 +1595,10 @@ export default function MontagePage() {
         .filter((e) => { const l = e.dataset.tllane; return l === "video" || /^v\d+$/.test(l || ""); });
       if (els.length) {
         const topY = Math.min(...els.map((e) => e.getBoundingClientRect().top));
-        if (clientY < topY - 2) return "new"; // au-dessus des pistes → nouvelle piste
+        // Zone morte : il faut monter FRANCHEMENT au-dessus des pistes (≥ 16 px) pour
+        // déclencher « nouvelle piste ». Un simple glissement horizontal (même avec un
+        // léger tremblement vertical) ne déclenche donc rien.
+        if (clientY < topY - 16) return "new";
       }
     }
     return laneUnder(clientX, clientY);
@@ -1589,7 +1612,11 @@ export default function MontagePage() {
   function startTlDrag(e: React.PointerEvent, id: string, kind: "clip" | "overlay") {
     e.stopPropagation();
     const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-    tlDragRef.current = { id, kind, startX: e.clientX, startY: e.clientY, grabDx: e.clientX - rect.left, widthPx: rect.width, moved: false };
+    // anchor (plans) = fin du plan précédent = point fixe pour recalculer le trou (gapBefore)
+    // pendant le glissement live.
+    let anchor = 0;
+    if (kind === "clip") { const c = clipStarts.find((x) => x.id === id); if (c) anchor = c.start - Math.max(0, c.gapBefore ?? 0); }
+    tlDragRef.current = { id, kind, startX: e.clientX, startY: e.clientY, grabDx: e.clientX - rect.left, widthPx: rect.width, moved: false, anchor };
     try { (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId); } catch {}
     // Sélection immédiate au clic (sans déplacer le curseur de lecture — on garde le playhead
     // stable pendant qu'on attrape le plan, comme CapCut).
@@ -1606,6 +1633,12 @@ export default function MontagePage() {
     }
     setDragActive(true);
     setDropLane(dropTargetAt(e.clientX, e.clientY));
+    // Déplacement horizontal LIVE (dans le temps) — on voit le plan glisser en direct.
+    // Le changement de PISTE (conversion / nouvelle piste) reste au relâchement, pour ne
+    // pas démonter l'élément capturé au pointeur en plein glissement.
+    const dropT = dropTimeAt(e.clientX, d.grabDx);
+    if (d.kind === "clip") updateClip(d.id, { gapBefore: Math.max(0, dropT - d.anchor) });
+    else updateOverlay(d.id, { offset: dropT });
   }
   function onTlDragUp(e: React.PointerEvent) {
     const d = tlDragRef.current;
@@ -1618,12 +1651,7 @@ export default function MontagePage() {
     const dup = e.altKey;
     if (d.kind === "clip") {
       if (!lane || lane === "video" || lane === "audio" || lane === "captions" || lane === "text") {
-        // reste sur la piste vidéo principale → repositionne dans le temps (trou avant le plan)
-        const cs = clipStarts.find((c) => c.id === d.id);
-        if (cs) {
-          const prevEnd = cs.start - Math.max(0, cs.gapBefore ?? 0);
-          updateClip(d.id, { gapBefore: Math.max(0, dropT - prevEnd) });
-        }
+        // reste sur la piste vidéo principale → position déjà appliquée en live, rien à faire
       } else if (lane === "new") {
         clipToOverlayTrack(d.id, dup, dropT, videoTrackCount); // nouvelle piste au-dessus de tout
       } else if (lane.startsWith("v")) {
@@ -2071,7 +2099,7 @@ export default function MontagePage() {
           <button className="mz-hbtn" onClick={() => setPps((p) => Math.max(10, Math.round(p / 1.3)))}><VIcon name="zoomOut" size={15} /></button>
           <button className="mz-hbtn" onClick={() => setPps((p) => Math.min(160, Math.round(p * 1.3)))}><VIcon name="zoomIn" size={15} /></button>
         </div>
-        <div className="a-tl-scroll" onWheel={onTimelineWheel}>
+        <div className="a-tl-scroll" ref={tlScrollRef} onWheel={onTimelineWheel}>
           <div
             className="a-tl-inner"
             ref={tlInnerRef}
@@ -2091,7 +2119,7 @@ export default function MontagePage() {
             </div>
             <div className={"a-lane" + (videoTrackCount === 0 && dropLane === "new" ? " nt-hint" : "")} style={{ order: 4 }} data-tllane="video">
               <div className="a-lane-label"><VIcon name="video" size={13} /> {`${t('labelVideo')} 1`}</div>
-              <div className={"a-lane-track" + (dropLane === "video" && dragActive ? " drop-hot" : "")}>
+              <div className="a-lane-track">
                 {clips.length === 0 && (
                   <span style={{ fontSize: 12, color: "var(--ink-3)", fontWeight: 600 }}>{t('importFirstRush')}</span>
                 )}
@@ -2099,7 +2127,7 @@ export default function MontagePage() {
                   <div key={c.id} style={{ position: "absolute", left: c.start * pps, display: "flex", alignItems: "center" }}>
                     <div
                       className={"a-clip" + (selectedClipId === c.id ? " on" : "") + (dragActive && tlDragRef.current?.id === c.id ? " dragging" : "")}
-                      style={{ width: c.dur * pps, background: c.kind === "video" ? "linear-gradient(150deg,#2b8d57,#0c2a1d)" : undefined, position: "static", cursor: "grab", touchAction: "none", opacity: dragActive && tlDragRef.current?.id === c.id ? 0.4 : 1 }}
+                      style={{ width: c.dur * pps, background: c.kind === "video" ? "linear-gradient(150deg,#2b8d57,#0c2a1d)" : undefined, position: "static", cursor: dragActive && tlDragRef.current?.id === c.id ? "grabbing" : "grab", touchAction: "none", zIndex: dragActive && tlDragRef.current?.id === c.id ? 20 : undefined }}
                       onPointerDown={(e) => startTlDrag(e, c.id, "clip")}
                       onPointerMove={onTlDragMove}
                       onPointerUp={onTlDragUp}
@@ -2154,7 +2182,7 @@ export default function MontagePage() {
                     <div
                       key={o.id}
                       className={"a-chip" + (selectedOverlayId === o.id ? " on" : "")}
-                      style={{ left: o.offset * pps, width: Math.max(24, overlayTimelineDur(o) * pps), top: 2, bottom: 2, cursor: "grab", touchAction: "none", opacity: dragActive && tlDragRef.current?.id === o.id ? 0.4 : 1, background: o.kind === "video" ? "linear-gradient(150deg,#2b8d57,#0c2a1d)" : "linear-gradient(150deg,#c8792f,#5e3a1a)" }}
+                      style={{ left: o.offset * pps, width: Math.max(24, overlayTimelineDur(o) * pps), top: 2, bottom: 2, cursor: dragActive && tlDragRef.current?.id === o.id ? "grabbing" : "grab", touchAction: "none", zIndex: dragActive && tlDragRef.current?.id === o.id ? 20 : undefined, background: o.kind === "video" ? "linear-gradient(150deg,#2b8d57,#0c2a1d)" : "linear-gradient(150deg,#c8792f,#5e3a1a)" }}
                       title={o.name}
                       onPointerDown={(e) => startTlDrag(e, o.id, "overlay")}
                       onPointerMove={onTlDragMove}
