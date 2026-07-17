@@ -29,6 +29,25 @@ export const metadata: Metadata = {
 
 const SITE = "https://getklip.fr";
 
+const organizationLd = {
+  "@context": "https://schema.org",
+  "@type": "Organization",
+  name: "Klip",
+  url: SITE,
+  logo: `${SITE}/logo-klip-dark.png`,
+  description:
+    "Klip est le studio social tout-en-un pour agences et community managers : éditeur visuel, légendes IA, éditeur de montage vidéo, calendrier et publication automatique Instagram.",
+};
+
+const websiteLd = {
+  "@context": "https://schema.org",
+  "@type": "WebSite",
+  name: "Klip",
+  url: SITE,
+  inLanguage: ["fr", "en"],
+  publisher: { "@type": "Organization", name: "Klip", url: SITE },
+};
+
 const softwareLd = {
   "@context": "https://schema.org",
   "@type": "SoftwareApplication",
@@ -39,9 +58,18 @@ const softwareLd = {
   inLanguage: "fr",
   description:
     "Outil tout-en-un de création et planification de contenu Instagram pour agences de communication : éditeur visuel, descriptions IA, calendrier, validation client et publication automatique.",
+  featureList: [
+    "Éditeur visuel de posts et carrousels",
+    "Génération de légendes par IA à la charte du client",
+    "Éditeur de montage vidéo (sous-titres, transitions, montage auto)",
+    "Calendrier éditorial et planification",
+    "Validation client par lien, sans compte",
+    "Publication automatique Instagram",
+    "Gestion multi-clients cloisonnée",
+  ],
   offers: [
-    { "@type": "Offer", name: "Studio", price: "29.00", priceCurrency: "EUR" },
-    { "@type": "Offer", name: "Agence", price: "96.00", priceCurrency: "EUR" },
+    { "@type": "Offer", name: "Studio", price: "29.00", priceCurrency: "EUR", category: "subscription" },
+    { "@type": "Offer", name: "Agence", price: "96.00", priceCurrency: "EUR", category: "subscription" },
   ],
 };
 
@@ -67,6 +95,8 @@ const faqLd = {
 export default function Page() {
   return (
     <>
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationLd) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(websiteLd) }} />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(softwareLd) }} />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(faqLd) }} />
       <LandingView />
