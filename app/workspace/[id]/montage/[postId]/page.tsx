@@ -354,6 +354,24 @@ export default function MontagePage() {
     return () => ro.disconnect();
   }, [loading]);
 
+  // ── Bloque TOTALEMENT le zoom de page du navigateur sur l'éditeur ───────────
+  // Un pincement trackpad (ou Ctrl/⌘+molette) n'importe où sur la page de montage ne
+  // doit JAMAIS zoomer la page web. On intercepte au niveau du document (non passif) :
+  // les zones qui ont leur propre zoom (timeline, preview) le gèrent quand même.
+  // Safari émet aussi des « gesture events » → on les bloque également.
+  useEffect(() => {
+    const blockWheelZoom = (e: WheelEvent) => { if (e.ctrlKey || e.metaKey) e.preventDefault(); };
+    const blockGesture = (e: Event) => e.preventDefault();
+    document.addEventListener("wheel", blockWheelZoom, { passive: false });
+    document.addEventListener("gesturestart", blockGesture);
+    document.addEventListener("gesturechange", blockGesture);
+    return () => {
+      document.removeEventListener("wheel", blockWheelZoom);
+      document.removeEventListener("gesturestart", blockGesture);
+      document.removeEventListener("gesturechange", blockGesture);
+    };
+  }, []);
+
   // ── Zoom de la preview au pincement / molette+Ctrl — sans zoomer la page ────
   // Listener natif non-passif : indispensable pour pouvoir preventDefault() le
   // zoom de page du navigateur (le trackpad envoie ctrlKey lors d'un pincement).
