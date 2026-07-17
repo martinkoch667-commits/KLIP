@@ -720,14 +720,14 @@ export default function MontagePage() {
   // CAP-2 — « empiler » : un plan glissé vers le haut devient une piste vidéo au-dessus
   // (une incrustation plein cadre sur une nouvelle piste, à la position temporelle du plan).
   // duplicate=true (Alt) : garde le plan d'origine ; sinon il est déplacé.
-  function clipToOverlayTrack(clipId: string, duplicate: boolean) {
+  function clipToOverlayTrack(clipId: string, duplicate: boolean, offset?: number) {
     const c = clipStarts.find((x) => x.id === clipId);
     if (!c) return;
     const track = overlays.length ? maxOverlayTrack + 1 : 0;
     const ov: OverlayClip = {
       id: crypto.randomUUID(), kind: c.kind, name: c.name, src: c.src,
       srcDur: c.srcDur, trimStart: c.trimStart, trimEnd: c.trimEnd,
-      offset: c.start, track,
+      offset: Math.max(0, offset ?? c.start), track,
       x: 50, y: 50, scale: 2, rotation: 0, opacity: 1,
       filterId: c.filterId, lum: c.lum, con: c.con, sat: c.sat, vol: c.vol ?? 1,
     };
@@ -2008,13 +2008,24 @@ export default function MontagePage() {
           <button className="mz-hbtn" onClick={() => setPps((p) => Math.min(160, Math.round(p * 1.3)))}><VIcon name="zoomIn" size={15} /></button>
         </div>
         <div className="a-tl-scroll" onWheel={onTimelineWheel}>
-          <div className="a-tl-inner" style={{ width: 92 + trackW + 30 }}>
+          <div
+            className="a-tl-inner"
+            style={{ width: 92 + trackW + 30, outline: draggingId ? "2px dashed var(--mint-2)" : undefined, outlineOffset: -2 }}
+            onDragOver={(e) => { if (draggingId) e.preventDefault(); }}
+            onDrop={(e) => {
+              // Déposé dans une zone vide de la timeline (pas sur un plan) → nouvelle piste
+              // vidéo au-dessus, positionnée à l'endroit du dépôt (Alt = dupliquer).
+              if (!draggingId) return;
+              e.preventDefault();
+              const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+              const offset = Math.max(0, snapTime((e.clientX - rect.left - 92) / pps));
+              const id = draggingId, alt = e.altKey;
+              setDraggingId(null);
+              clipToOverlayTrack(id, alt, offset);
+            }}
+          >
             {draggingId && (
-              <div
-                onDragOver={(e) => e.preventDefault()}
-                onDrop={(e) => { e.preventDefault(); const alt = e.altKey; const id = draggingId; setDraggingId(null); if (id) clipToOverlayTrack(id, alt); }}
-                style={{ order: -1, height: 30, marginLeft: 92, marginBottom: 6, width: trackW, borderRadius: 8, border: "2px dashed var(--mint-2)", background: "rgba(47,215,155,.12)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11.5, fontWeight: 700, color: "var(--mint-2)", pointerEvents: "auto" }}
-              >
+              <div style={{ order: -1, marginLeft: 92, marginBottom: 4, width: trackW, fontSize: 11, fontWeight: 700, color: "var(--mint-2)", textAlign: "center" }}>
                 ⬆ {t('dropNewTrack')}
               </div>
             )}
@@ -2044,7 +2055,7 @@ export default function MontagePage() {
                       draggable
                       onDragStart={() => setDraggingId(c.id)}
                       onDragOver={(e) => e.preventDefault()}
-                      onDrop={() => onClipDrop(c.id)}
+                      onDrop={(e) => { e.stopPropagation(); onClipDrop(c.id); }}
                       onClick={() => selectClip(c.id)}
                       onContextMenu={(e) => { e.preventDefault(); selectClip(c.id); setClipMenu({ x: e.clientX, y: e.clientY, id: c.id, kind: "clip" }); }}
                     >
