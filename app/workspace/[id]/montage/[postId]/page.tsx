@@ -2244,7 +2244,7 @@ export default function MontagePage() {
           <div
             onClick={(e) => e.stopPropagation()}
             onContextMenu={(e) => { e.preventDefault(); }}
-            style={{ position: "fixed", left: Math.min(clipMenu.x, (typeof window !== "undefined" ? window.innerWidth : 9999) - 230), top: clipMenu.y, zIndex: 1000, minWidth: 214, background: "var(--paper, #fff)", border: "1px solid var(--line)", borderRadius: 10, boxShadow: "0 12px 40px rgba(0,0,0,.22)", padding: "6px 0", overflow: "hidden" }}
+            style={{ position: "fixed", left: Math.min(clipMenu.x, (typeof window !== "undefined" ? window.innerWidth : 9999) - 230), top: Math.max(8, Math.min(clipMenu.y, (typeof window !== "undefined" ? window.innerHeight : 9999) - (rows.length * 34 + 20))), zIndex: 1000, minWidth: 214, background: "var(--paper, #fff)", border: "1px solid var(--line)", borderRadius: 10, boxShadow: "0 12px 40px rgba(0,0,0,.22)", padding: "6px 0", overflow: "hidden" }}
           >
             {rows}
           </div>
