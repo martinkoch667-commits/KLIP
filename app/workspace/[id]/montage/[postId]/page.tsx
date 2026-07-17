@@ -221,9 +221,10 @@ export default function MontagePage() {
   const [selectedOverlayId, setSelectedOverlayId] = useState<string | null>(null);
   const [audioOnlyId, setAudioOnlyId] = useState<string | null>(null); // sélection "audio seul" (Option/Alt+clic)
   const [dragOver, setDragOver] = useState(false);
-  // Glissement en cours (repère discret) + piste survolée pour le dépôt. Pas de
-  // fantôme flottant : on garde une interaction simple et épurée, façon CapCut.
+  // Glissement en cours : le plan suit le curseur « comme dans la main » (copie fidèle
+  // flottante = tlGhost) + piste survolée pour le dépôt (dropLane).
   const [dragActive, setDragActive] = useState(false);
+  const [tlGhost, setTlGhost] = useState<{ x: number; y: number; w: number; id: string; kind: "clip" | "overlay" } | null>(null);
   const [dropLane, setDropLane] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const [uploadingOverlay, setUploadingOverlay] = useState(false);
@@ -304,7 +305,7 @@ export default function MontagePage() {
   // piste sous le curseur (déplacement temporel, changement de piste, ou création
   // d'une nouvelle piste vidéo en montant tout en haut). Piloté au pointeur, sans
   // drag HTML5 (fini le fantôme moche du navigateur).
-  const tlDragRef = useRef<{ id: string; kind: "clip" | "overlay"; startX: number; startY: number; grabDx: number; widthPx: number; moved: boolean; anchor: number } | null>(null);
+  const tlDragRef = useRef<{ id: string; kind: "clip" | "overlay"; startX: number; startY: number; grabDx: number; grabDy: number; widthPx: number; moved: boolean; anchor: number } | null>(null);
   const tlInnerRef = useRef<HTMLDivElement>(null);
   const tlScrollRef = useRef<HTMLDivElement>(null);
 
@@ -1616,7 +1617,7 @@ export default function MontagePage() {
     // pendant le glissement live.
     let anchor = 0;
     if (kind === "clip") { const c = clipStarts.find((x) => x.id === id); if (c) anchor = c.start - Math.max(0, c.gapBefore ?? 0); }
-    tlDragRef.current = { id, kind, startX: e.clientX, startY: e.clientY, grabDx: e.clientX - rect.left, widthPx: rect.width, moved: false, anchor };
+    tlDragRef.current = { id, kind, startX: e.clientX, startY: e.clientY, grabDx: e.clientX - rect.left, grabDy: e.clientY - rect.top, widthPx: rect.width, moved: false, anchor };
     try { (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId); } catch {}
     // Sélection immédiate au clic (sans déplacer le curseur de lecture — on garde le playhead
     // stable pendant qu'on attrape le plan, comme CapCut).
@@ -1633,17 +1634,19 @@ export default function MontagePage() {
     }
     setDragActive(true);
     setDropLane(dropTargetAt(e.clientX, e.clientY));
-    // Déplacement horizontal LIVE (dans le temps) — on voit le plan glisser en direct.
-    // Le changement de PISTE (conversion / nouvelle piste) reste au relâchement, pour ne
-    // pas démonter l'élément capturé au pointeur en plein glissement.
+    // Copie fidèle flottante « dans la main » : suit le curseur en X (aimanté sur le temps
+    // via snapTime) ET en Y (libre → le plan se soulève quand on monte vers une autre piste).
+    // Le vrai élément reste en place (estompé) ; on commet la position/piste au relâchement,
+    // pour ne pas démonter l'élément capturé au pointeur en plein glissement.
     const dropT = dropTimeAt(e.clientX, d.grabDx);
-    if (d.kind === "clip") updateClip(d.id, { gapBefore: Math.max(0, dropT - d.anchor) });
-    else updateOverlay(d.id, { offset: dropT });
+    const r = rulerRef.current?.getBoundingClientRect();
+    const gx = r ? r.left + dropT * pps : e.clientX - d.grabDx;
+    setTlGhost({ x: gx, y: e.clientY - d.grabDy, w: d.widthPx, id: d.id, kind: d.kind });
   }
   function onTlDragUp(e: React.PointerEvent) {
     const d = tlDragRef.current;
     tlDragRef.current = null;
-    setDragActive(false); setDropLane(null);
+    setDragActive(false); setDropLane(null); setTlGhost(null);
     try { (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId); } catch {}
     if (!d || !d.moved) return; // simple clic → sélection déjà faite au down
     const lane = dropTargetAt(e.clientX, e.clientY);
@@ -1651,7 +1654,8 @@ export default function MontagePage() {
     const dup = e.altKey;
     if (d.kind === "clip") {
       if (!lane || lane === "video" || lane === "audio" || lane === "captions" || lane === "text") {
-        // reste sur la piste vidéo principale → position déjà appliquée en live, rien à faire
+        // reste sur la piste vidéo principale → applique la nouvelle position (trou avant le plan)
+        updateClip(d.id, { gapBefore: Math.max(0, dropT - d.anchor) });
       } else if (lane === "new") {
         clipToOverlayTrack(d.id, dup, dropT, videoTrackCount); // nouvelle piste au-dessus de tout
       } else if (lane.startsWith("v")) {
@@ -2126,8 +2130,8 @@ export default function MontagePage() {
                 {clipStarts.map((c, i) => (
                   <div key={c.id} style={{ position: "absolute", left: c.start * pps, display: "flex", alignItems: "center" }}>
                     <div
-                      className={"a-clip" + (selectedClipId === c.id ? " on" : "") + (dragActive && tlDragRef.current?.id === c.id ? " dragging" : "")}
-                      style={{ width: c.dur * pps, background: c.kind === "video" ? "linear-gradient(150deg,#2b8d57,#0c2a1d)" : undefined, position: "static", cursor: dragActive && tlDragRef.current?.id === c.id ? "grabbing" : "grab", touchAction: "none", zIndex: dragActive && tlDragRef.current?.id === c.id ? 20 : undefined }}
+                      className={"a-clip" + (selectedClipId === c.id ? " on" : "")}
+                      style={{ width: c.dur * pps, background: c.kind === "video" ? "linear-gradient(150deg,#2b8d57,#0c2a1d)" : undefined, position: "static", cursor: tlGhost?.id === c.id ? "grabbing" : "grab", touchAction: "none", opacity: tlGhost?.id === c.id ? 0.3 : 1 }}
                       onPointerDown={(e) => startTlDrag(e, c.id, "clip")}
                       onPointerMove={onTlDragMove}
                       onPointerUp={onTlDragUp}
@@ -2182,7 +2186,7 @@ export default function MontagePage() {
                     <div
                       key={o.id}
                       className={"a-chip" + (selectedOverlayId === o.id ? " on" : "")}
-                      style={{ left: o.offset * pps, width: Math.max(24, overlayTimelineDur(o) * pps), top: 2, bottom: 2, cursor: dragActive && tlDragRef.current?.id === o.id ? "grabbing" : "grab", touchAction: "none", zIndex: dragActive && tlDragRef.current?.id === o.id ? 20 : undefined, background: o.kind === "video" ? "linear-gradient(150deg,#2b8d57,#0c2a1d)" : "linear-gradient(150deg,#c8792f,#5e3a1a)" }}
+                      style={{ left: o.offset * pps, width: Math.max(24, overlayTimelineDur(o) * pps), top: 2, bottom: 2, cursor: tlGhost?.id === o.id ? "grabbing" : "grab", touchAction: "none", opacity: tlGhost?.id === o.id ? 0.3 : 1, background: o.kind === "video" ? "linear-gradient(150deg,#2b8d57,#0c2a1d)" : "linear-gradient(150deg,#c8792f,#5e3a1a)" }}
                       title={o.name}
                       onPointerDown={(e) => startTlDrag(e, o.id, "overlay")}
                       onPointerMove={onTlDragMove}
@@ -2284,6 +2288,24 @@ export default function MontagePage() {
           </div>
         </div>
       </div>
+
+      {/* Copie fidèle du plan « dans la main » pendant le glissement — suit le curseur
+          en X (aimanté) et en Y (libre). Affiche le vrai contenu (vignette / vidéo). */}
+      {tlGhost && (() => {
+        const gi = tlGhost.kind === "clip" ? clipStarts.find((c) => c.id === tlGhost.id) : overlays.find((o) => o.id === tlGhost.id);
+        if (!gi) return null;
+        const isPhoto = gi.kind === "photo";
+        const bg = isPhoto ? "linear-gradient(150deg,#c8792f,#5e3a1a)" : "linear-gradient(150deg,#2b8d57,#0c2a1d)";
+        return (
+          <div className="a-tl-ghost" style={{ left: tlGhost.x, top: tlGhost.y, width: Math.max(28, tlGhost.w), background: bg }}>
+            {isPhoto && (gi as { src?: string }).src && (
+              <img src={(gi as { src?: string }).src} alt="" draggable={false} style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", opacity: .9 }} />
+            )}
+            <span className="a-tl-ghost-ic"><VIcon name={isPhoto ? "image" : "video"} size={10} /></span>
+            <span className="a-tl-ghost-lbl">{gi.name}</span>
+          </div>
+        );
+      })()}
 
       {toastMsg && (
         <div className="mz-toast">

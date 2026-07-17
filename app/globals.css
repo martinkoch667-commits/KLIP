@@ -889,6 +889,17 @@ input.ed-range::-moz-range-thumb {
 .a-lane.nt-hint::after { content: "＋"; position: absolute; top: -13px; left: 92px; font-size: 13px; font-weight: 800;
   color: var(--ink-3); line-height: 1; }
 
+/* Copie fidèle du plan « dans la main » pendant un glisser-déposer : suit le curseur,
+   montre le vrai contenu, légèrement soulevée (ombre douce), sans surcharge. */
+.a-tl-ghost { position: fixed; z-index: 2000; height: 34px; border-radius: 8px; pointer-events: none; overflow: hidden;
+  display: flex; align-items: center; padding: 0 8px; opacity: .96; transform: scale(1.03);
+  box-shadow: 0 10px 22px rgba(0,0,0,.32), inset 0 0 0 1.5px var(--mint-2); }
+.a-tl-ghost-ic { position: absolute; left: 6px; top: 5px; width: 16px; height: 16px; border-radius: 5px;
+  background: rgba(0,0,0,.42); display: grid; place-items: center; color: #fff; }
+.a-tl-ghost-lbl { position: absolute; left: 7px; bottom: 5px; font-family: var(--mono); font-weight: 800; font-size: 9px;
+  letter-spacing: .03em; color: #fff; text-shadow: 0 1px 4px rgba(0,0,0,.6); max-width: calc(100% - 14px);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
 .a-clip { height: 46px; border-radius: 9px; position: relative; overflow: hidden; cursor: grab; flex-shrink: 0;
   box-shadow: inset 0 0 0 1px rgba(255,255,255,.14); transition: box-shadow .14s var(--ease), transform .12s; background-size: cover; background-position: center; }
 .a-clip:hover { transform: translateY(-1px); }
