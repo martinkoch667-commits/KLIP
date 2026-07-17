@@ -2236,7 +2236,7 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
   // ── AI caption ───────────────────────────────────────────────────────────
   const [aiCaption, setAiCaption] = useState('');
   const [aiTyping, setAiTyping] = useState(false);
-  const [aiTone, setAiTone] = useState<'Chic'|'Punchy'|'Minimal'|'Doux'>('Chic');
+  // (Ancien ton forcé « Chic » retiré : le ton vient désormais toujours de la charte du client.)
   const aiTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const [postContext, setPostContext] = useState('');        // 5B — contexte du post
   const [captionEdited, setCaptionEdited] = useState(false); // 5C — brand memory
@@ -3740,7 +3740,7 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
   // 4D — Multi-block layout templates (inserts several role-tagged text elements)
   // ── AI generation ─────────────────────────────────────────────────────────
 
-  const generateAI = async (tone: string) => {
+  const generateAI = async () => {
     if (aiTimerRef.current) clearInterval(aiTimerRef.current);
     setAiTyping(true); setAiCaption(''); setCaptionEdited(false);
     try {
@@ -3783,12 +3783,11 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          brief: `Post ${tone.toLowerCase()} pour ${workspaceName}`,
+          brief: `Post Instagram pour ${workspaceName}`,
           photoUrl: postPhotoUrl,
           workspaceName,
-          // Brand identity
+          // Brand identity — le ton vient TOUJOURS de la charte (plus de ton forcé côté UI)
           sector: workspaceData?.sector,
-          tone,
           brandTone: workspaceData?.tone,
           companyDescription: workspaceData?.company_description,
           // Voice rules
@@ -4076,7 +4075,7 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
                 <span className="ed-hide-md">{qaBusy ? 'Analyse…' : 'Vérifier'}</span>
               </button>
               <div style={{ position: 'relative' }}>
-                <button onClick={() => generateAI(aiTone)} disabled={aiTyping} className="btn btn-sm ed-ai-btn" title={T('aiCaptionTip')}
+                <button onClick={() => generateAI()} disabled={aiTyping} className="btn btn-sm ed-ai-btn" title={T('aiCaptionTip')}
                   style={{ height: 36, opacity: aiTyping ? 0.6 : 1, cursor: aiTyping ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5z"/></svg>
                   <span className="ed-hide-md">{aiTyping ? 'Rédaction…' : 'Régénérer la légende'}</span>
