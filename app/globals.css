@@ -809,37 +809,29 @@ input.ed-range::-moz-range-thumb {
   background: radial-gradient(130% 80% at 50% -10%, #141519, #0A0B0D 72%); }
 .a-main { flex: 1; display: flex; min-height: 0; }
 
-/* colonne de gauche = onglets (en haut) + bibliothèque/propriétés (dessous),
-   façon CapCut / Canva : la barre d'onglets horizontale est la signature visuelle. */
-.a-leftcol { flex-shrink: 0; min-width: 0; display: flex; flex-direction: column;
-  background: var(--white); border-right: 1px solid var(--line); overflow: hidden; }
-
-/* barre d'onglets horizontale (charcoal) */
+/* tool rail (charcoal) */
 .a-rail {
-  width: 100%; flex-shrink: 0; display: flex; flex-direction: row; align-items: stretch; padding: 5px 6px 0; gap: 1px;
+  width: 76px; flex-shrink: 0; display: flex; flex-direction: column; align-items: center; padding: 14px 0; gap: 3px;
   background: linear-gradient(180deg, #17181C 0%, #131418 100%);
-  border-bottom: 1px solid var(--line); position: relative; z-index: 20; overflow-x: auto; overflow-y: hidden;
-  scrollbar-width: none;
+  border-right: 1px solid var(--line); position: relative; z-index: 20; overflow-y: auto;
 }
-.a-rail::-webkit-scrollbar { height: 0; width: 0; }
 .a-mark { width: 40px; height: 40px; border-radius: 12px; display: grid; place-items: center; margin-bottom: 8px; flex-shrink: 0;
   background: rgba(238,237,227,.06); box-shadow: inset 0 0 0 1.5px var(--mint); }
 .a-rdiv { width: 32px; height: 1px; background: var(--cream-4); margin: 4px 0 8px; flex-shrink: 0; }
 .a-railbtn {
-  min-width: 54px; padding: 8px 9px 9px; border-radius: 9px 9px 0 0; display: flex; flex-direction: column; align-items: center; gap: 4px;
+  width: 60px; padding: 9px 0; border-radius: 13px; display: flex; flex-direction: column; align-items: center; gap: 5px;
   color: var(--cream-2); position: relative; transition: background .14s var(--ease), color .14s var(--ease); flex-shrink: 0; border: none; background: transparent; cursor: pointer;
 }
-.a-railbtn:hover { background: rgba(238,237,227,.06); color: var(--cream); }
-.a-railbtn.on { background: transparent; color: var(--acid); }
-/* onglet actif : soulignement bas (comme CapCut), plus de barre latérale */
-.a-railbtn.on::before { content: ""; position: absolute; left: 9px; right: 9px; bottom: 0; top: auto; transform: none;
-  height: 2.5px; width: auto; border-radius: 2px 2px 0 0; background: var(--acid); box-shadow: 0 0 10px rgba(200,241,53,.5); }
-.a-railcap { font-family: var(--mono); font-weight: 800; font-size: 9px; letter-spacing: .03em; text-transform: uppercase; white-space: nowrap; }
+.a-railbtn:hover { background: var(--cream-4); color: var(--cream); }
+.a-railbtn.on { background: rgba(238,237,227,.10); color: var(--acid); }
+.a-railbtn.on::before { content: ""; position: absolute; left: -9px; top: 50%; transform: translateY(-50%);
+  width: 3px; height: 26px; border-radius: 0 3px 3px 0; background: var(--acid); box-shadow: 0 0 10px rgba(200,241,53,.55); }
+.a-railcap { font-family: var(--mono); font-weight: 800; font-size: 9px; letter-spacing: .03em; text-transform: uppercase; }
 
 /* property panel */
-.a-panel { flex: 1; min-height: 0; width: auto; background: var(--white);
-  display: flex; flex-direction: column; overflow: hidden; animation: aPanelIn .22s var(--ease); }
-@keyframes aPanelIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+.a-panel { width: 312px; flex-shrink: 0; background: var(--white); border-right: 1px solid var(--line);
+  display: flex; flex-direction: column; overflow: hidden; animation: aPanelIn .26s var(--ease); }
+@keyframes aPanelIn { from { opacity: 0; transform: translateX(-10px); } to { opacity: 1; transform: none; } }
 .a-panel-head { display: flex; align-items: center; justify-content: space-between; padding: 16px 18px 12px; }
 .a-panel-title { font-family: var(--display); font-weight: 800; font-size: 18px; letter-spacing: -0.02em; }
 .a-panel-scroll { overflow-y: auto; padding: 0 18px 20px; flex: 1; }
@@ -1037,5 +1029,9 @@ input.mz-range::-moz-range-thumb { width: 16px; height: 16px; border-radius: 50%
 @keyframes mzPop { 0% { opacity: 0; transform: translate(-50%, -50%) scale(.7); } 60% { opacity: 1; transform: translate(-50%, -50%) scale(1.08); } 100% { transform: translate(-50%, -50%) scale(1); } }
 
 @media (max-width: 1280px) {
-  .a-railbtn { min-width: 46px; padding-left: 6px; padding-right: 6px; }
+  .a-railcap { display: none; }
+  .a-rail { width: 60px; } .a-railbtn { width: 46px; }
+}
+@media (max-width: 1080px) {
+  .a-panel { width: 264px; }
 }
