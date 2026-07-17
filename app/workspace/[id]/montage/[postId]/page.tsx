@@ -502,13 +502,15 @@ export default function MontagePage() {
     () => overlays.filter((o) => time >= o.offset && time < o.offset + overlayTimelineDur(o)),
     [overlays, time],
   );
-  // Pistes vidéo empilables : autant que la piste la plus haute occupée (+1), plus les
-  // pistes vides ajoutées à la main. Toujours au moins une.
+  // Pistes vidéo empilables : par défaut AUCUNE piste overlay vide (juste la piste vidéo
+  // principale). Une rangée n'apparaît qu'avec du contenu (une incrustation) ou quand
+  // l'utilisateur en crée une (extraVideoTracks) — façon CapCut, on empile à la demande.
   const maxOverlayTrack = useMemo(() => overlays.reduce((m, o) => Math.max(m, o.track ?? 0), 0), [overlays]);
-  const videoTrackCount = Math.max(1, maxOverlayTrack + 1) + extraVideoTracks;
-  // Pistes audio ajoutées (musique/voix off). Le son embarqué des plans a sa propre rangée dédiée.
+  const videoTrackCount = (overlays.length ? maxOverlayTrack + 1 : 0) + extraVideoTracks;
+  // Pistes audio ajoutées (musique/voix off) : idem, aucune rangée vide par défaut. Le son
+  // embarqué des plans a sa propre rangée dédiée (« son des plans »).
   const maxAudioTrack = useMemo(() => audioTracks.reduce((m, a) => Math.max(m, a.track ?? 0), 0), [audioTracks]);
-  const audioTrackCount = Math.max(1, maxAudioTrack + 1) + extraAudioTracks;
+  const audioTrackCount = (audioTracks.length ? maxAudioTrack + 1 : 0) + extraAudioTracks;
 
   const seek = useCallback((t: number) => {
     const clamped = Math.max(0, Math.min(total, t));
