@@ -46,8 +46,17 @@ function getVideoDuration(src: string): Promise<number> {
     const v = document.createElement("video");
     v.preload = "metadata";
     v.src = src;
-    v.onloadedmetadata = () => resolve(v.duration && isFinite(v.duration) ? v.duration : 4);
-    v.onerror = () => resolve(4);
+    let done = false;
+    const finish = (d: number) => { if (done) return; done = true; resolve(d && isFinite(d) && d > 0 ? d : 4); };
+    v.onloadedmetadata = () => {
+      // Chrome renvoie souvent duration = Infinity pour un fichier fraîchement uploadé :
+      // on force le calcul de la vraie durée en cherchant très loin dans la vidéo.
+      if (v.duration && isFinite(v.duration)) { finish(v.duration); return; }
+      v.currentTime = 1e101;
+      v.ontimeupdate = () => { v.ontimeupdate = null; v.currentTime = 0; finish(v.duration); };
+    };
+    v.onerror = () => finish(4);
+    setTimeout(() => finish(v.duration), 4000); // garde-fou : ne jamais rester bloqué
   });
 }
 function getAudioDuration(src: string): Promise<number> {
@@ -1481,7 +1490,10 @@ export default function MontagePage() {
       const ns = Math.max(0, Math.min(d.t0end - 0.3, d.t0start + deltaSrc));
       updateClip(d.id, { trimStart: ns });
     } else {
-      const cap = d.kind === "video" ? d.srcDur : 15;
+      // Plafond = longueur réelle de la source (vidéo) — on ne peut jamais étirer un plan
+      // au-delà de son métrage. Garde-fou si srcDur est corrompu (Infinity/NaN) : on
+      // interdit toute extension au lieu de laisser étirer à l'infini.
+      const cap = d.kind === "video" ? (isFinite(d.srcDur) && d.srcDur > 0 ? d.srcDur : d.t0end) : 15;
       const ne = Math.max(d.t0start + 0.3, Math.min(cap, d.t0end + deltaSrc));
       updateClip(d.id, { trimEnd: ne });
     }
@@ -1577,7 +1589,8 @@ export default function MontagePage() {
     setDropLane(laneUnder(e.clientX, e.clientY));
     const src: any = d.kind === "clip" ? clipStarts.find((c) => c.id === d.id) : overlays.find((o) => o.id === d.id);
     const label = src ? `${src.kind === "photo" ? "🖼" : "🎬"} ${src.name}` : "";
-    const color = d.kind === "clip" ? "linear-gradient(150deg,#2b8d57,#0c2a1d)" : "linear-gradient(150deg,#6d4bd8,#2a1a5e)";
+    // Même code couleur partout : vidéo = vert (comme la piste principale), photo = orange.
+    const color = src?.kind === "photo" ? "linear-gradient(150deg,#c8792f,#5e3a1a)" : "linear-gradient(150deg,#2b8d57,#0c2a1d)";
     setTlGhost({ x: e.clientX - d.grabDx, y: e.clientY - 14, w: d.widthPx, label, color });
   }
   function onTlDragUp(e: React.PointerEvent) {
@@ -1625,7 +1638,9 @@ export default function MontagePage() {
     if (!d) return;
     const delta = (e.clientX - d.startX) / pps;
     if (d.edge === "end") {
-      const cap = d.kind === "video" ? d.srcDur : 15;
+      // Plafond = longueur réelle de la source (jamais au-delà du métrage). Garde-fou
+      // anti-Infinity/NaN pour ne pas pouvoir étirer une incrustation vidéo à l'infini.
+      const cap = d.kind === "video" ? (isFinite(d.srcDur) && d.srcDur > 0 ? d.srcDur : d.t0end) : 15;
       const ne = Math.max(d.t0start + 0.2, Math.min(cap, d.t0end + delta));
       updateOverlay(d.id, { trimEnd: ne });
     } else {
@@ -2134,7 +2149,7 @@ export default function MontagePage() {
                     <div
                       key={o.id}
                       className={"a-chip" + (selectedOverlayId === o.id ? " on" : "")}
-                      style={{ left: o.offset * pps, width: Math.max(24, overlayTimelineDur(o) * pps), top: 2, bottom: 2, cursor: "grab", touchAction: "none", opacity: tlGhost && tlDragRef.current?.id === o.id ? 0.4 : 1, background: o.kind === "video" ? "linear-gradient(150deg,#6d4bd8,#2a1a5e)" : "linear-gradient(150deg,#c8792f,#5e3a1a)" }}
+                      style={{ left: o.offset * pps, width: Math.max(24, overlayTimelineDur(o) * pps), top: 2, bottom: 2, cursor: "grab", touchAction: "none", opacity: tlGhost && tlDragRef.current?.id === o.id ? 0.4 : 1, background: o.kind === "video" ? "linear-gradient(150deg,#2b8d57,#0c2a1d)" : "linear-gradient(150deg,#c8792f,#5e3a1a)" }}
                       title={o.name}
                       onPointerDown={(e) => startTlDrag(e, o.id, "overlay")}
                       onPointerMove={onTlDragMove}
