@@ -212,7 +212,9 @@ export default function MontagePage() {
   const [selectedOverlayId, setSelectedOverlayId] = useState<string | null>(null);
   const [audioOnlyId, setAudioOnlyId] = useState<string | null>(null); // sélection "audio seul" (Option/Alt+clic)
   const [dragOver, setDragOver] = useState(false);
-  const [draggingId, setDraggingId] = useState<string | null>(null);
+  // Fantôme du plan en cours de glissement + piste survolée (surlignage de dépôt).
+  const [tlGhost, setTlGhost] = useState<{ x: number; y: number; w: number; label: string; color: string } | null>(null);
+  const [dropLane, setDropLane] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const [uploadingOverlay, setUploadingOverlay] = useState(false);
   const [uploadingAudio, setUploadingAudio] = useState(false);
@@ -285,12 +287,14 @@ export default function MontagePage() {
   const rulerRef = useRef<HTMLDivElement>(null);
   const scrubbingRulerRef = useRef(false);
   const trimRef = useRef<{ id: string; edge: "start" | "end"; startX: number; t0start: number; t0end: number; kind: "video" | "photo"; srcDur: number; speed: number } | null>(null);
-  const ovDragRef = useRef<{ id: string; startX: number; t0offset: number } | null>(null);
-  // Déplacement d'un plan dans le temps (ajuste gapBefore = écran noir devant lui).
-  // anchor = fin du plan précédent (point fixe pendant le drag) ; playAt = curseur figé au down.
-  const clipDragRef = useRef<{ id: string; startX: number; t0gap: number; anchor: number; playAt: number; moved: boolean } | null>(null);
   const ovTrimRef = useRef<{ id: string; edge: "start" | "end"; startX: number; t0start: number; t0end: number; t0offset: number; srcDur: number; kind: "video" | "photo" } | null>(null);
   const clipboardRef = useRef<{ type: "clip"; data: MontageClip } | { type: "overlay"; data: OverlayClip } | null>(null);
+  // Glisser-déposer libre façon CapCut : on attrape le corps d'un plan / d'une
+  // incrustation, il suit le curseur (fantôme), et au lâcher il atterrit sur la
+  // piste sous le curseur (déplacement temporel, changement de piste, ou création
+  // d'une nouvelle piste vidéo en montant tout en haut). Piloté au pointeur, sans
+  // drag HTML5 (fini le fantôme moche du navigateur).
+  const tlDragRef = useRef<{ id: string; kind: "clip" | "overlay"; startX: number; startY: number; grabDx: number; widthPx: number; moved: boolean } | null>(null);
 
   function toast(msg: string) {
     setToastMsg(msg);
@@ -720,10 +724,10 @@ export default function MontagePage() {
   // CAP-2 — « empiler » : un plan glissé vers le haut devient une piste vidéo au-dessus
   // (une incrustation plein cadre sur une nouvelle piste, à la position temporelle du plan).
   // duplicate=true (Alt) : garde le plan d'origine ; sinon il est déplacé.
-  function clipToOverlayTrack(clipId: string, duplicate: boolean, offset?: number) {
+  function clipToOverlayTrack(clipId: string, duplicate: boolean, offset?: number, targetTrack?: number) {
     const c = clipStarts.find((x) => x.id === clipId);
     if (!c) return;
-    const track = overlays.length ? maxOverlayTrack + 1 : 0;
+    const track = targetTrack ?? (overlays.length ? maxOverlayTrack + 1 : 0);
     const ov: OverlayClip = {
       id: crypto.randomUUID(), kind: c.kind, name: c.name, src: c.src,
       srcDur: c.srcDur, trimStart: c.trimStart, trimEnd: c.trimEnd,
@@ -735,20 +739,6 @@ export default function MontagePage() {
     if (!duplicate) removeClip(clipId);
     setSelectedOverlayId(ov.id); setSelectedClipId(null); setTool("overlay");
     toast(t('toastNewVideoTrack'));
-  }
-
-  function onClipDrop(targetId: string) {
-    if (!draggingId || draggingId === targetId) { setDraggingId(null); return; }
-    setClips((prev) => {
-      const from = prev.findIndex((c) => c.id === draggingId);
-      const to = prev.findIndex((c) => c.id === targetId);
-      if (from < 0 || to < 0) return prev;
-      const copy = [...prev];
-      const [item] = copy.splice(from, 1);
-      copy.splice(to, 0, item);
-      return copy;
-    });
-    setDraggingId(null);
   }
 
   function updateClip(id: string, patch: Partial<MontageClip>) {
@@ -1540,44 +1530,77 @@ export default function MontagePage() {
     setAudioTracks((prev) => prev.map((tr) => (tr.id === id ? { ...tr, track: next } : tr)));
   }
 
-  // ── Plan principal : déplacement dans le temps (poignée) = ajuste gapBefore ──
-  function onClipBarDown(e: React.PointerEvent, c: { id: string; start: number; gapBefore?: number }) {
+  // ── Glisser-déposer libre (unifié plans + incrustations), façon CapCut ───────
+  // Renvoie l'identifiant de la piste (data-tllane) située sous le curseur.
+  function laneUnder(clientX: number, clientY: number): string | null {
+    if (typeof document === "undefined") return null;
+    const el = document.elementFromPoint(clientX, clientY) as HTMLElement | null;
+    const lane = el?.closest?.("[data-tllane]") as HTMLElement | null;
+    return lane?.dataset.tllane ?? null;
+  }
+  // Instant temporel du bord gauche du plan lâché (le point saisi reste sous le curseur).
+  function dropTimeAt(clientX: number, grabDx: number): number {
+    const r = rulerRef.current?.getBoundingClientRect();
+    if (!r) return 0;
+    return Math.max(0, snapTime((clientX - grabDx - r.left) / pps));
+  }
+  function startTlDrag(e: React.PointerEvent, id: string, kind: "clip" | "overlay") {
     e.stopPropagation();
-    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
-    const t0gap = Math.max(0, c.gapBefore ?? 0);
-    clipDragRef.current = { id: c.id, startX: e.clientX, t0gap, anchor: c.start - t0gap, playAt: time, moved: false };
+    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    tlDragRef.current = { id, kind, startX: e.clientX, startY: e.clientY, grabDx: e.clientX - rect.left, widthPx: rect.width, moved: false };
+    try { (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId); } catch {}
+    // Sélection immédiate au clic (sans déplacer le curseur de lecture — on garde le playhead
+    // stable pendant qu'on attrape le plan, comme CapCut).
+    if (kind === "clip") { setSelectedClipId(id); setAudioOnlyId(null); setSelectedOverlayId(null); setSelectedTitleId(null); setSelectedStickerId(null); }
+    else { setSelectedOverlayId(id); setSelectedClipId(null); setSelectedTitleId(null); setSelectedStickerId(null); setSubSelected(false); setTool("overlay"); }
   }
-  function onClipBarMove(e: React.PointerEvent) {
-    const d = clipDragRef.current;
+  function onTlDragMove(e: React.PointerEvent) {
+    const d = tlDragRef.current;
     if (!d) return;
-    const deltaPx = e.clientX - d.startX;
-    if (!d.moved && Math.abs(deltaPx) < 4) return; // seuil : un simple clic ne déplace rien
-    d.moved = true;
-    let newStart = d.anchor + d.t0gap + deltaPx / pps;
-    const th = 8 / pps;
-    if (Math.abs(newStart - d.anchor) < th) newStart = d.anchor;      // colle au plan précédent (trou = 0)
-    else if (Math.abs(newStart - d.playAt) < th) newStart = d.playAt; // colle au curseur de lecture
-    updateClip(d.id, { gapBefore: Math.max(0, newStart - d.anchor) });
+    const dx = e.clientX - d.startX, dy = e.clientY - d.startY;
+    if (!d.moved) {
+      if (Math.abs(dx) < 4 && Math.abs(dy) < 4) return; // seuil : un simple clic ne glisse pas
+      d.moved = true;
+    }
+    setDropLane(laneUnder(e.clientX, e.clientY));
+    const src: any = d.kind === "clip" ? clipStarts.find((c) => c.id === d.id) : overlays.find((o) => o.id === d.id);
+    const label = src ? `${src.kind === "photo" ? "🖼" : "🎬"} ${src.name}` : "";
+    const color = d.kind === "clip" ? "linear-gradient(150deg,#2b8d57,#0c2a1d)" : "linear-gradient(150deg,#6d4bd8,#2a1a5e)";
+    setTlGhost({ x: e.clientX - d.grabDx, y: e.clientY - 14, w: d.widthPx, label, color });
   }
-  function onClipBarUp(e: React.PointerEvent) {
-    if (clipDragRef.current) { try { (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId); } catch {} clipDragRef.current = null; }
-  }
-
-  // ── Incrustation : déplacement (offset) + rognage sur la timeline ───────────
-  function onOvBarDown(e: React.PointerEvent, o: OverlayClip) {
-    e.stopPropagation();
-    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
-    ovDragRef.current = { id: o.id, startX: e.clientX, t0offset: o.offset };
-    setSelectedOverlayId(o.id); setSelectedClipId(null); setTool("overlay");
-  }
-  function onOvBarMove(e: React.PointerEvent) {
-    const d = ovDragRef.current;
-    if (!d) return;
-    const delta = (e.clientX - d.startX) / pps;
-    updateOverlay(d.id, { offset: Math.max(0, snapTime(d.t0offset + delta)) });
-  }
-  function onOvBarUp(e: React.PointerEvent) {
-    if (ovDragRef.current) { try { (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId); } catch {} ovDragRef.current = null; }
+  function onTlDragUp(e: React.PointerEvent) {
+    const d = tlDragRef.current;
+    tlDragRef.current = null;
+    setTlGhost(null); setDropLane(null);
+    try { (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId); } catch {}
+    if (!d || !d.moved) return; // simple clic → sélection déjà faite au down
+    const lane = laneUnder(e.clientX, e.clientY);
+    const dropT = dropTimeAt(e.clientX, d.grabDx);
+    const dup = e.altKey;
+    if (d.kind === "clip") {
+      if (!lane || lane === "video" || lane === "audio" || lane === "captions" || lane === "text") {
+        // reste sur la piste vidéo principale → repositionne dans le temps (trou avant le plan)
+        const cs = clipStarts.find((c) => c.id === d.id);
+        if (cs) {
+          const prevEnd = cs.start - Math.max(0, cs.gapBefore ?? 0);
+          updateClip(d.id, { gapBefore: Math.max(0, dropT - prevEnd) });
+        }
+      } else if (lane === "new") {
+        clipToOverlayTrack(d.id, dup, dropT, videoTrackCount); // nouvelle piste au-dessus de tout
+      } else if (lane.startsWith("v")) {
+        clipToOverlayTrack(d.id, dup, dropT, parseInt(lane.slice(1), 10) || 0);
+      }
+    } else {
+      const o = overlays.find((x) => x.id === d.id);
+      if (!o) return;
+      if (lane === "new") {
+        updateOverlay(d.id, { offset: dropT, track: videoTrackCount });
+      } else if (lane && lane !== "video" && lane.startsWith("v")) {
+        updateOverlay(d.id, { offset: dropT, track: parseInt(lane.slice(1), 10) || 0 });
+      } else {
+        updateOverlay(d.id, { offset: dropT }); // garde sa piste, déplacement temporel seul
+      }
+    }
   }
   function startOvTrim(e: React.PointerEvent, o: OverlayClip, edge: "start" | "end") {
     e.stopPropagation();
@@ -2010,25 +2033,8 @@ export default function MontagePage() {
         <div className="a-tl-scroll" onWheel={onTimelineWheel}>
           <div
             className="a-tl-inner"
-            style={{ width: 92 + trackW + 30, outline: draggingId ? "2px dashed var(--mint-2)" : undefined, outlineOffset: -2 }}
-            onDragOver={(e) => { if (draggingId) e.preventDefault(); }}
-            onDrop={(e) => {
-              // Déposé dans une zone vide de la timeline (pas sur un plan) → nouvelle piste
-              // vidéo au-dessus, positionnée à l'endroit du dépôt (Alt = dupliquer).
-              if (!draggingId) return;
-              e.preventDefault();
-              const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-              const offset = Math.max(0, snapTime((e.clientX - rect.left - 92) / pps));
-              const id = draggingId, alt = e.altKey;
-              setDraggingId(null);
-              clipToOverlayTrack(id, alt, offset);
-            }}
+            style={{ width: 92 + trackW + 30, outline: tlGhost ? "2px dashed var(--mint-2)" : undefined, outlineOffset: -2 }}
           >
-            {draggingId && (
-              <div style={{ order: -1, marginLeft: 92, marginBottom: 4, width: trackW, fontSize: 11, fontWeight: 700, color: "var(--mint-2)", textAlign: "center" }}>
-                ⬆ {t('dropNewTrack')}
-              </div>
-            )}
             <div
               className="a-ruler"
               ref={rulerRef}
@@ -2041,7 +2047,7 @@ export default function MontagePage() {
                 <div key={s} className="a-tick" style={{ left: s * pps }}><span>{fmt(s).slice(0, -2)}</span></div>
               ))}
             </div>
-            <div className="a-lane" style={{ order: 4 }}>
+            <div className="a-lane" style={{ order: 4, outline: dropLane === "video" && tlGhost ? "2px solid var(--mint-2)" : undefined, outlineOffset: -2, borderRadius: 8 }} data-tllane="video">
               <div className="a-lane-label"><VIcon name="video" size={13} /> {t('labelVideo')}</div>
               <div className="a-lane-track">
                 {clips.length === 0 && (
@@ -2050,31 +2056,19 @@ export default function MontagePage() {
                 {clipStarts.map((c, i) => (
                   <div key={c.id} style={{ position: "absolute", left: c.start * pps, display: "flex", alignItems: "center" }}>
                     <div
-                      className={"a-clip" + (selectedClipId === c.id ? " on" : "") + (draggingId === c.id ? " dragging" : "")}
-                      style={{ width: c.dur * pps, background: c.kind === "video" ? "linear-gradient(150deg,#2b8d57,#0c2a1d)" : undefined, position: "static" }}
-                      draggable
-                      onDragStart={() => setDraggingId(c.id)}
-                      onDragOver={(e) => e.preventDefault()}
-                      onDrop={(e) => { e.stopPropagation(); onClipDrop(c.id); }}
-                      onClick={() => selectClip(c.id)}
+                      className={"a-clip" + (selectedClipId === c.id ? " on" : "") + (tlGhost && tlDragRef.current?.id === c.id ? " dragging" : "")}
+                      style={{ width: c.dur * pps, background: c.kind === "video" ? "linear-gradient(150deg,#2b8d57,#0c2a1d)" : undefined, position: "static", cursor: "grab", touchAction: "none", opacity: tlGhost && tlDragRef.current?.id === c.id ? 0.4 : 1 }}
+                      onPointerDown={(e) => startTlDrag(e, c.id, "clip")}
+                      onPointerMove={onTlDragMove}
+                      onPointerUp={onTlDragUp}
                       onContextMenu={(e) => { e.preventDefault(); selectClip(c.id); setClipMenu({ x: e.clientX, y: e.clientY, id: c.id, kind: "clip" }); }}
                     >
-                      {c.kind === "photo" && <img src={c.src} alt="" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", filter: clipFilterCss(c) }} />}
+                      {c.kind === "photo" && <img src={c.src} alt="" draggable={false} style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", filter: clipFilterCss(c) }} />}
                       <span className="a-clip-badge"><VIcon name={c.kind === "photo" ? "image" : "video"} size={10} /></span>
                       <span className="a-clip-dur">{c.dur.toFixed(1)}s</span>
                       <span className="a-clip-lbl">{c.name}</span>
                       {selectedClipId === c.id && (
                         <>
-                          <div
-                            draggable={false}
-                            onDragStart={(e) => e.preventDefault()}
-                            onClick={(e) => e.stopPropagation()}
-                            onPointerDown={(e) => onClipBarDown(e, c)}
-                            onPointerMove={onClipBarMove}
-                            onPointerUp={onClipBarUp}
-                            title={t('moveInTimeTitle')}
-                            style={{ position: "absolute", top: 3, left: "50%", transform: "translateX(-50%)", width: 28, height: 9, borderRadius: 5, background: "rgba(255,255,255,.55)", cursor: "ew-resize", zIndex: 4, touchAction: "none" }}
-                          />
                           {c.kind === "video" && (
                             <div className="a-trim a-trim-l" draggable={false} onDragStart={(e) => e.preventDefault()} onClick={(e) => e.stopPropagation()} onPointerDown={(e) => startTrim(e, c, "start")} onPointerMove={onTrimMove} onPointerUp={endTrim} title={t('trimStartTitle')} />
                           )}
@@ -2096,12 +2090,22 @@ export default function MontagePage() {
                 ))}
               </div>
             </div>
+            {/* Bande « nouvelle piste » : n'apparaît que pendant un glissement. Déposer un
+                plan ici (tout en haut) crée une piste vidéo au-dessus de toutes les autres. */}
+            {tlGhost && (
+              <div className="a-lane" data-tllane="new" style={{ height: 30, order: 3 }}>
+                <div className="a-lane-label" style={{ opacity: 0.6, fontSize: 16, textAlign: "center", justifyContent: "center" }}>＋</div>
+                <div className="a-lane-track" style={{ display: "flex", alignItems: "center", justifyContent: "center", border: dropLane === "new" ? "2px dashed var(--mint-2)" : "2px dashed var(--line)", borderRadius: 8, background: dropLane === "new" ? "rgba(70,200,140,.14)" : "transparent" }}>
+                  <span style={{ fontSize: 11, fontWeight: 700, color: dropLane === "new" ? "var(--mint-2)" : "var(--ink-3)" }}>⬆ {t('dropNewTrack')}</span>
+                </div>
+              </div>
+            )}
             {Array.from({ length: videoTrackCount }).map((_, idx) => {
               const track = videoTrackCount - 1 - idx; // le haut de la timeline = la piste la plus haute (au-dessus)
               const isTop = idx === 0;
               const laneOverlays = overlays.filter((o) => (o.track ?? 0) === track);
               return (
-              <div className="a-lane" style={{ height: 34, order: 3 }} key={"vtrack-" + track}>
+              <div className="a-lane" style={{ height: 34, order: 3, outline: dropLane === `v${track}` && tlGhost ? "2px solid var(--mint-2)" : undefined, outlineOffset: -2, borderRadius: 8 }} data-tllane={`v${track}`} key={"vtrack-" + track}>
                 <div className="a-lane-label" style={{ display: "flex", alignItems: "center", gap: 4 }}>
                   <VIcon name="image" size={13} />
                   <span className="trunc">{videoTrackCount > 1 ? `${t('railOverlay')} ${track + 1}` : t('railOverlay')}</span>
@@ -2118,11 +2122,11 @@ export default function MontagePage() {
                     <div
                       key={o.id}
                       className={"a-chip" + (selectedOverlayId === o.id ? " on" : "")}
-                      style={{ left: o.offset * pps, width: Math.max(24, overlayTimelineDur(o) * pps), top: 2, bottom: 2, cursor: "move", background: o.kind === "video" ? "linear-gradient(150deg,#6d4bd8,#2a1a5e)" : "linear-gradient(150deg,#c8792f,#5e3a1a)" }}
+                      style={{ left: o.offset * pps, width: Math.max(24, overlayTimelineDur(o) * pps), top: 2, bottom: 2, cursor: "grab", touchAction: "none", opacity: tlGhost && tlDragRef.current?.id === o.id ? 0.4 : 1, background: o.kind === "video" ? "linear-gradient(150deg,#6d4bd8,#2a1a5e)" : "linear-gradient(150deg,#c8792f,#5e3a1a)" }}
                       title={o.name}
-                      onPointerDown={(e) => onOvBarDown(e, o)}
-                      onPointerMove={onOvBarMove}
-                      onPointerUp={onOvBarUp}
+                      onPointerDown={(e) => startTlDrag(e, o.id, "overlay")}
+                      onPointerMove={onTlDragMove}
+                      onPointerUp={onTlDragUp}
                       onContextMenu={(e) => { e.preventDefault(); selectOverlay(o.id); setClipMenu({ x: e.clientX, y: e.clientY, id: o.id, kind: "overlay" }); }}
                     >
                       <span style={{ position: "absolute", left: 8, top: 4, fontSize: 9.5, fontWeight: 700, color: "#fff", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: "calc(100% - 16px)" }}>{o.kind === "video" ? "🎬" : "🖼"} {o.name}</span>
@@ -2220,6 +2224,20 @@ export default function MontagePage() {
           </div>
         </div>
       </div>
+
+      {/* Fantôme du plan pendant un glissement — suit le curseur (façon CapCut). */}
+      {tlGhost && (
+        <div
+          style={{
+            position: "fixed", left: tlGhost.x, top: tlGhost.y, width: Math.max(40, tlGhost.w), height: 30,
+            background: tlGhost.color, borderRadius: 6, zIndex: 2000, pointerEvents: "none",
+            boxShadow: "0 8px 24px rgba(0,0,0,.35)", border: "1.5px solid rgba(255,255,255,.55)",
+            display: "flex", alignItems: "center", padding: "0 8px", overflow: "hidden", opacity: 0.92,
+          }}
+        >
+          <span style={{ fontSize: 10.5, fontWeight: 700, color: "#fff", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{tlGhost.label}</span>
+        </div>
+      )}
 
       {toastMsg && (
         <div className="mz-toast">
