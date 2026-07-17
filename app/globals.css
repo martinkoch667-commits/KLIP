@@ -870,10 +870,27 @@ input.ed-range::-moz-range-thumb {
 .a-tick { position: absolute; top: 0; bottom: 0; border-left: 1px solid var(--line); }
 .a-tick span { position: absolute; top: 2px; left: 4px; font-family: var(--mono); font-weight: 700; font-size: 9px; color: var(--ink-3); }
 
-.a-lane { display: flex; align-items: center; gap: 0; height: 52px; margin-bottom: 6px; position: relative; }
+.a-lane { display: flex; align-items: center; gap: 0; height: 52px; margin-bottom: 7px; position: relative; }
 .a-lane-label { width: 92px; flex-shrink: 0; display: flex; align-items: center; gap: 7px; padding-left: 14px;
   font-family: var(--mono); font-weight: 800; font-size: 10px; letter-spacing: .04em; text-transform: uppercase; color: var(--ink-3); }
-.a-lane-track { flex: 1; height: 100%; display: flex; align-items: center; gap: 3px; position: relative; }
+/* Chaque piste est un « étage » nettement séparé (façon CapCut) : fond creusé + liseré. */
+.a-lane-track { flex: 1; height: 100%; display: flex; align-items: center; gap: 3px; position: relative;
+  background: var(--sunk); border-radius: 9px; box-shadow: inset 0 0 0 1px var(--line); transition: box-shadow .12s var(--ease), background .12s var(--ease); }
+/* Piste survolée pendant un glisser-déposer : surlignage doux (pas d'outline brut). */
+.a-lane-track.drop-hot { background: color-mix(in srgb, var(--mint-2) 15%, var(--sunk)); box-shadow: inset 0 0 0 2px var(--mint-2); }
+/* Bande « nouvelle piste » (apparaît pendant un glissement, tout en haut). */
+.a-tl-newtrack { flex: 1; height: 100%; display: flex; align-items: center; justify-content: center;
+  border: 1.5px dashed var(--line-2, var(--line)); border-radius: 9px; background: transparent; transition: all .12s var(--ease); }
+.a-tl-newtrack span { font-family: var(--mono); font-weight: 800; font-size: 10px; letter-spacing: .04em; text-transform: uppercase; color: var(--ink-3); }
+.a-tl-newtrack.drop-hot { border-color: var(--mint-2); background: color-mix(in srgb, var(--mint-2) 12%, transparent); }
+.a-tl-newtrack.drop-hot span { color: var(--mint-2); }
+
+/* Fantôme du plan pendant un glisser-déposer (suit le curseur, façon CapCut). */
+.a-tl-ghost { position: fixed; z-index: 2000; height: 30px; border-radius: 8px; pointer-events: none;
+  display: flex; align-items: center; padding: 0 9px; overflow: hidden; opacity: .82;
+  box-shadow: 0 10px 26px rgba(0,0,0,.28), inset 0 0 0 1px rgba(255,255,255,.35); }
+.a-tl-ghost span { font-family: var(--mono); font-weight: 800; font-size: 9.5px; letter-spacing: .02em; color: #fff;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-shadow: 0 1px 3px rgba(0,0,0,.5); }
 
 .a-clip { height: 46px; border-radius: 9px; position: relative; overflow: hidden; cursor: grab; flex-shrink: 0;
   box-shadow: inset 0 0 0 1px rgba(255,255,255,.14); transition: box-shadow .14s var(--ease), transform .12s; background-size: cover; background-position: center; }

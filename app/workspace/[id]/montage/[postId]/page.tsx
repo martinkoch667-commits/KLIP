@@ -495,7 +495,19 @@ export default function MontagePage() {
     let acc = 0;
     return clips.map((c) => { acc += Math.max(0, c.gapBefore ?? 0); const start = acc; const dur = clipTimelineDur(c); acc += dur; return { ...c, start, end: acc, dur }; });
   }, [clips]);
-  const total = clipStarts.length ? clipStarts[clipStarts.length - 1].end : 0;
+  const clipsEnd = clipStarts.length ? clipStarts[clipStarts.length - 1].end : 0;
+  // Fin réelle du projet = dernière frame de TOUT ce qui est posé sur la timeline
+  // (plans, incrustations vidéo/photo, sons, textes, sous-titres) — pas seulement la
+  // piste vidéo principale. Sinon une incrustation qui dépasse la fin des plans serait
+  // tronquée à la lecture, à l'export et sur la règle temporelle.
+  const total = useMemo(() => {
+    let end = clipsEnd;
+    for (const o of overlays) end = Math.max(end, o.offset + overlayTimelineDur(o));
+    for (const a of audioTracks) end = Math.max(end, (a.offset ?? 0) + a.dur);
+    for (const ti of titles) end = Math.max(end, ti.end);
+    for (const c of captions) end = Math.max(end, c.end);
+    return end;
+  }, [clipsEnd, overlays, audioTracks, titles, captions]);
   // Plan couvrant l'instant courant. Dans un « trou » (écran noir avant un plan) → null,
   // pour que la preview affiche du noir plutôt que de figer le plan précédent. En toute fin
   // de timeline (time >= total), on garde le dernier plan affiché.
@@ -2033,7 +2045,7 @@ export default function MontagePage() {
         <div className="a-tl-scroll" onWheel={onTimelineWheel}>
           <div
             className="a-tl-inner"
-            style={{ width: 92 + trackW + 30, outline: tlGhost ? "2px dashed var(--mint-2)" : undefined, outlineOffset: -2 }}
+            style={{ width: 92 + trackW + 30 }}
           >
             <div
               className="a-ruler"
@@ -2047,9 +2059,9 @@ export default function MontagePage() {
                 <div key={s} className="a-tick" style={{ left: s * pps }}><span>{fmt(s).slice(0, -2)}</span></div>
               ))}
             </div>
-            <div className="a-lane" style={{ order: 4, outline: dropLane === "video" && tlGhost ? "2px solid var(--mint-2)" : undefined, outlineOffset: -2, borderRadius: 8 }} data-tllane="video">
-              <div className="a-lane-label"><VIcon name="video" size={13} /> {t('labelVideo')}</div>
-              <div className="a-lane-track">
+            <div className="a-lane" style={{ order: 4 }} data-tllane="video">
+              <div className="a-lane-label"><VIcon name="video" size={13} /> {`${t('labelVideo')} 1`}</div>
+              <div className={"a-lane-track" + (dropLane === "video" && tlGhost ? " drop-hot" : "")}>
                 {clips.length === 0 && (
                   <span style={{ fontSize: 12, color: "var(--ink-3)", fontWeight: 600 }}>{t('importFirstRush')}</span>
                 )}
@@ -2093,10 +2105,10 @@ export default function MontagePage() {
             {/* Bande « nouvelle piste » : n'apparaît que pendant un glissement. Déposer un
                 plan ici (tout en haut) crée une piste vidéo au-dessus de toutes les autres. */}
             {tlGhost && (
-              <div className="a-lane" data-tllane="new" style={{ height: 30, order: 3 }}>
-                <div className="a-lane-label" style={{ opacity: 0.6, fontSize: 16, textAlign: "center", justifyContent: "center" }}>＋</div>
-                <div className="a-lane-track" style={{ display: "flex", alignItems: "center", justifyContent: "center", border: dropLane === "new" ? "2px dashed var(--mint-2)" : "2px dashed var(--line)", borderRadius: 8, background: dropLane === "new" ? "rgba(70,200,140,.14)" : "transparent" }}>
-                  <span style={{ fontSize: 11, fontWeight: 700, color: dropLane === "new" ? "var(--mint-2)" : "var(--ink-3)" }}>⬆ {t('dropNewTrack')}</span>
+              <div className="a-lane" data-tllane="new" style={{ height: 26, order: 3 }}>
+                <div className="a-lane-label" style={{ opacity: 0.5, fontSize: 15, justifyContent: "center", paddingLeft: 0 }}>＋</div>
+                <div className={"a-tl-newtrack" + (dropLane === "new" ? " drop-hot" : "")}>
+                  <span>⬆ {t('dropNewTrack')}</span>
                 </div>
               </div>
             )}
@@ -2105,16 +2117,16 @@ export default function MontagePage() {
               const isTop = idx === 0;
               const laneOverlays = overlays.filter((o) => (o.track ?? 0) === track);
               return (
-              <div className="a-lane" style={{ height: 34, order: 3, outline: dropLane === `v${track}` && tlGhost ? "2px solid var(--mint-2)" : undefined, outlineOffset: -2, borderRadius: 8 }} data-tllane={`v${track}`} key={"vtrack-" + track}>
+              <div className="a-lane" style={{ height: 34, order: 3 }} data-tllane={`v${track}`} key={"vtrack-" + track}>
                 <div className="a-lane-label" style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                  <VIcon name="image" size={13} />
-                  <span className="trunc">{videoTrackCount > 1 ? `${t('railOverlay')} ${track + 1}` : t('railOverlay')}</span>
+                  <VIcon name="video" size={13} />
+                  <span className="trunc">{`${t('labelVideo')} ${track + 2}`}</span>
                   {isTop && (
                     <button onClick={() => setExtraVideoTracks((n) => n + 1)} title={t('addVideoTrack')}
                       style={{ marginLeft: "auto", width: 18, height: 18, borderRadius: 5, border: "1px solid var(--line)", background: "var(--canvas)", color: "var(--ink-2)", fontSize: 14, lineHeight: "14px", cursor: "pointer", flexShrink: 0, padding: 0 }}>+</button>
                   )}
                 </div>
-                <div className="a-lane-track">
+                <div className={"a-lane-track" + (dropLane === `v${track}` && tlGhost ? " drop-hot" : "")}>
                   {overlays.length === 0 && isTop && (
                     <span style={{ fontSize: 11.5, color: "var(--ink-3)", fontWeight: 600 }}>{t('addOverlayHint')}</span>
                   )}
@@ -2227,15 +2239,8 @@ export default function MontagePage() {
 
       {/* Fantôme du plan pendant un glissement — suit le curseur (façon CapCut). */}
       {tlGhost && (
-        <div
-          style={{
-            position: "fixed", left: tlGhost.x, top: tlGhost.y, width: Math.max(40, tlGhost.w), height: 30,
-            background: tlGhost.color, borderRadius: 6, zIndex: 2000, pointerEvents: "none",
-            boxShadow: "0 8px 24px rgba(0,0,0,.35)", border: "1.5px solid rgba(255,255,255,.55)",
-            display: "flex", alignItems: "center", padding: "0 8px", overflow: "hidden", opacity: 0.92,
-          }}
-        >
-          <span style={{ fontSize: 10.5, fontWeight: 700, color: "#fff", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{tlGhost.label}</span>
+        <div className="a-tl-ghost" style={{ left: tlGhost.x, top: tlGhost.y, width: Math.max(44, tlGhost.w), background: tlGhost.color }}>
+          <span>{tlGhost.label}</span>
         </div>
       )}
 
