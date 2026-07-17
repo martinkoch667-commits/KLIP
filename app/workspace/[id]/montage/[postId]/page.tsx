@@ -20,17 +20,19 @@ import { transcodeToMp4 } from "@/lib/mp4-transcode";
 
 type RailTool = "media" | "cut" | "overlay" | "text" | "captions" | "audio" | "transitions" | "filter" | "speed" | "sticker" | "ai";
 
+// Ordre calqué sur CapCut / Canva pour que les utilisateurs s'y retrouvent :
+// Média, Audio, Texte, Stickers, puis les outils de plan / effets.
 const RAIL_TOOL_KEYS: [RailTool, string, string][] = [
   ["media", "video", "railMedia"],
-  ["cut", "scissors", "railCut"],
-  ["overlay", "image", "railOverlay"],
-  ["text", "text", "railText"],
-  ["captions", "captions", "railCaptions"],
   ["audio", "music", "railAudio"],
+  ["text", "text", "railText"],
+  ["sticker", "sticker", "railSticker"],
+  ["captions", "captions", "railCaptions"],
+  ["overlay", "image", "railOverlay"],
   ["transitions", "transition", "railTransitions"],
   ["filter", "filter", "railFilter"],
+  ["cut", "scissors", "railCut"],
   ["speed", "speed", "railSpeed"],
-  ["sticker", "sticker", "railSticker"],
 ];
 
 const TOOL_TITLE_KEYS: Record<RailTool, string> = {
@@ -1758,22 +1760,27 @@ export default function MontagePage() {
       </div>
 
       <div className="a-main">
-        {/* rail */}
-        <div className="a-rail">
-          {RAIL_TOOLS.map(([k, ic, lbl]) => (
-            <button key={k} className={"a-railbtn" + (tool === k ? " on" : "")} onClick={() => setTool(k)}>
-              <VIcon name={ic} size={20} /><span className="a-railcap">{lbl}</span>
+        {/* colonne de gauche : barre d'onglets horizontale (façon CapCut/Canva) + panneau */}
+        <div className="a-leftcol" style={{ width: panelW }}>
+          {/* onglets d'outils */}
+          <div
+            className="a-rail"
+            onWheel={(e) => { const el = e.currentTarget; if (el.scrollWidth > el.clientWidth && e.deltaY !== 0) { el.scrollLeft += e.deltaY; } }}
+          >
+            {RAIL_TOOLS.map(([k, ic, lbl]) => (
+              <button key={k} className={"a-railbtn" + (tool === k ? " on" : "")} onClick={() => setTool(k)}>
+                <VIcon name={ic} size={19} /><span className="a-railcap">{lbl}</span>
+              </button>
+            ))}
+            <button className={"a-railbtn" + (tool === "ai" ? " on" : "")} onClick={() => setTool("ai")} style={{ marginLeft: "auto" }}>
+              <VIcon name="sparkles" size={19} /><span className="a-railcap">{t('railAi')}</span>
             </button>
-          ))}
-          <button className={"a-railbtn" + (tool === "ai" ? " on" : "")} onClick={() => setTool("ai")} style={{ marginTop: "auto" }}>
-            <VIcon name="sparkles" size={20} /><span className="a-railcap">{t('railAi')}</span>
-          </button>
-        </div>
+          </div>
 
-        {/* panneau de propriétés */}
-        <div className="a-panel" key={tool} style={{ width: panelW }}>
-          <div className="a-panel-head"><span className="a-panel-title">{TOOL_TITLES[tool]}</span></div>
-          <div className="a-panel-scroll">
+          {/* panneau de bibliothèque / propriétés */}
+          <div className="a-panel" key={tool}>
+            <div className="a-panel-head"><span className="a-panel-title">{TOOL_TITLES[tool]}</span></div>
+            <div className="a-panel-scroll">
             {tool === "media" && (
               <>
                 <div className="a-section">
@@ -1835,10 +1842,11 @@ export default function MontagePage() {
             {tool === "speed" && <SpeedPanel ctx={ctx} />}
             {tool === "sticker" && <StickerPanel ctx={ctx} />}
             {tool === "ai" && <AiPanel ctx={ctx} />}
+            </div>
           </div>
         </div>
 
-        {/* poignée de redimensionnement du panneau */}
+        {/* poignée de redimensionnement de la colonne de gauche */}
         <div className="a-hresize" onPointerDown={startPanelResize} title={t('resizePanelTitle')}><span className="a-hresize-grip" /></div>
 
         {/* preview + playbar */}
