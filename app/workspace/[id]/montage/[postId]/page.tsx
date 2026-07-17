@@ -206,7 +206,8 @@ export default function MontagePage() {
   const [selectedClipId, setSelectedClipId] = useState<string | null>(null);
   const [selectedTitleId, setSelectedTitleId] = useState<string | null>(null);
   const [editingTitleId, setEditingTitleId] = useState<string | null>(null); // titre édité en inline sur la preview (double-clic)
-  const [clipMenu, setClipMenu] = useState<{ x: number; y: number; id: string } | null>(null); // menu contextuel (clic droit) d'un plan
+  // Menu contextuel (clic droit), adapté au type d'élément visé (façon CapCut).
+  const [clipMenu, setClipMenu] = useState<{ x: number; y: number; id: string; kind: "clip" | "overlay" | "audio" | "title" | "caption" } | null>(null);
   const [selectedStickerId, setSelectedStickerId] = useState<string | null>(null);
   const [selectedOverlayId, setSelectedOverlayId] = useState<string | null>(null);
   const [audioOnlyId, setAudioOnlyId] = useState<string | null>(null); // sélection "audio seul" (Option/Alt+clic)
@@ -1422,6 +1423,8 @@ export default function MontagePage() {
       if (meta && (k === "=" || k === "+")) { e.preventDefault(); setPps((p) => Math.min(160, Math.round(p * 1.3))); return; }
       if (meta && k === "-") { e.preventDefault(); setPps((p) => Math.max(10, Math.round(p / 1.3))); return; }
       if (meta) return; // laisse passer les autres raccourcis système
+      if (e.altKey && e.shiftKey && k === "s") { e.preventDefault(); if (selectedClipId) detachAudio(selectedClipId); return; } // ⇧⌥S : extraire le son (CapCut)
+      if (e.altKey) return; // autres combos Option laissées au système
       if (e.key === " ") { e.preventDefault(); togglePlay(); return; }
       if (e.key === "Delete" || e.key === "Backspace") { e.preventDefault(); deleteSelected(); return; }
       if (k === "s") { e.preventDefault(); splitAtPlayhead(); return; }
@@ -2014,7 +2017,7 @@ export default function MontagePage() {
                       onDragOver={(e) => e.preventDefault()}
                       onDrop={() => onClipDrop(c.id)}
                       onClick={() => selectClip(c.id)}
-                      onContextMenu={(e) => { e.preventDefault(); selectClip(c.id); setClipMenu({ x: e.clientX, y: e.clientY, id: c.id }); }}
+                      onContextMenu={(e) => { e.preventDefault(); selectClip(c.id); setClipMenu({ x: e.clientX, y: e.clientY, id: c.id, kind: "clip" }); }}
                     >
                       {c.kind === "photo" && <img src={c.src} alt="" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", filter: clipFilterCss(c) }} />}
                       <span className="a-clip-badge"><VIcon name={c.kind === "photo" ? "image" : "video"} size={10} /></span>
@@ -2080,6 +2083,7 @@ export default function MontagePage() {
                       onPointerDown={(e) => onOvBarDown(e, o)}
                       onPointerMove={onOvBarMove}
                       onPointerUp={onOvBarUp}
+                      onContextMenu={(e) => { e.preventDefault(); selectOverlay(o.id); setClipMenu({ x: e.clientX, y: e.clientY, id: o.id, kind: "overlay" }); }}
                     >
                       <span style={{ position: "absolute", left: 8, top: 4, fontSize: 9.5, fontWeight: 700, color: "#fff", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: "calc(100% - 16px)" }}>{o.kind === "video" ? "🎬" : "🖼"} {o.name}</span>
                       {selectedOverlayId === o.id && (
@@ -2132,7 +2136,8 @@ export default function MontagePage() {
                 </div>
                 <div className="a-lane-track">
                   {audioTracks.filter((a) => (a.track ?? 0) === atrack).map((a) => (
-                    <div key={a.id} className="a-wave-bar" style={{ left: a.offset * pps, width: a.dur * pps, top: 2, bottom: 2 }} title={a.name}>
+                    <div key={a.id} className="a-wave-bar" style={{ left: a.offset * pps, width: a.dur * pps, top: 2, bottom: 2 }} title={a.name}
+                      onContextMenu={(e) => { e.preventDefault(); setTool("audio"); setClipMenu({ x: e.clientX, y: e.clientY, id: a.id, kind: "audio" }); }}>
                       {a.waveform && a.waveform.length > 0 && (
                         <svg width="100%" height="100%" preserveAspectRatio="none" style={{ position: "absolute", inset: 0, opacity: 0.55 }}>
                           {a.waveform.map((p, i) => {
@@ -2153,7 +2158,8 @@ export default function MontagePage() {
               <div className="a-lane-label"><VIcon name="captions" size={13} /> {t('labelSubtitlesShort')}</div>
               <div className="a-lane-track">
                 {captions.map((c) => (
-                  <div key={c.id} className="a-chip" style={{ left: c.start * pps, width: Math.max(20, (c.end - c.start) * pps) }} title={c.text} onClick={() => setTool("captions")}>
+                  <div key={c.id} className="a-chip" style={{ left: c.start * pps, width: Math.max(20, (c.end - c.start) * pps) }} title={c.text} onClick={() => setTool("captions")}
+                    onContextMenu={(e) => { e.preventDefault(); setClipMenu({ x: e.clientX, y: e.clientY, id: c.id, kind: "caption" }); }}>
                     <span style={{ fontSize: 10, fontWeight: 700, color: "#fff", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.text}</span>
                   </div>
                 ))}
@@ -2163,7 +2169,8 @@ export default function MontagePage() {
               <div className="a-lane-label"><VIcon name="text" size={13} /> {t('railText')}</div>
               <div className="a-lane-track">
                 {titles.map((ti) => (
-                  <div key={ti.id} className={"a-chip" + (selectedTitleId === ti.id ? " on" : "")} style={{ left: ti.start * pps, width: Math.max(20, (ti.end - ti.start) * pps) }} title={ti.text} onClick={() => { setSelectedTitleId(ti.id); setTool("text"); }}>
+                  <div key={ti.id} className={"a-chip" + (selectedTitleId === ti.id ? " on" : "")} style={{ left: ti.start * pps, width: Math.max(20, (ti.end - ti.start) * pps) }} title={ti.text} onClick={() => { setSelectedTitleId(ti.id); setTool("text"); }}
+                    onContextMenu={(e) => { e.preventDefault(); setSelectedTitleId(ti.id); setClipMenu({ x: e.clientX, y: e.clientY, id: ti.id, kind: "title" }); }}>
                     <span style={{ fontSize: 10, fontWeight: 700, color: "#fff", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{ti.text}</span>
                   </div>
                 ))}
@@ -2183,30 +2190,63 @@ export default function MontagePage() {
 
       {/* Menu contextuel d'un plan (clic droit) — façon CapCut */}
       {clipMenu && (() => {
-        const c = clips.find((x) => x.id === clipMenu.id);
-        const isVideo = c?.kind === "video";
-        const item = (label: string, onClick: () => void, opts?: { disabled?: boolean; danger?: boolean }) => (
+        const id = clipMenu.id, K = clipMenu.kind;
+        const item = (key: string, label: string, onClick: () => void, opts?: { disabled?: boolean; danger?: boolean }) => (
           <button
+            key={key}
             disabled={opts?.disabled}
             onClick={(e) => { e.stopPropagation(); setClipMenu(null); onClick(); }}
             style={{ display: "block", width: "100%", textAlign: "left", padding: "8px 14px", background: "transparent", border: "none", cursor: opts?.disabled ? "not-allowed" : "pointer", fontSize: 13, fontWeight: 600, color: opts?.disabled ? "var(--ink-3)" : opts?.danger ? "var(--warn, #c8722b)" : "var(--ink)", opacity: opts?.disabled ? 0.5 : 1 }}
           >{label}</button>
         );
+        const sep = (key: string) => <div key={key} style={{ height: 1, background: "var(--line)", margin: "5px 0" }} />;
+        const rows: React.ReactNode[] = [];
+        if (K === "clip") {
+          const c = clips.find((x) => x.id === id);
+          const isVideo = c?.kind === "video";
+          rows.push(item("copy", `⌘C  ${t('copy')}`, () => { selectClip(id); copySelected(); }));
+          rows.push(item("cut", `⌘X  ${t('cut')}`, () => { selectClip(id); copySelected(); removeClip(id); }));
+          rows.push(sep("s1"));
+          rows.push(item("edit", `✎  ${t('contextEdit')}`, () => { selectClip(id); setTool("cut"); }));
+          rows.push(item("split", `✂️  ${t('splitAtPlayhead')}`, () => { selectClip(id); splitAtPlayhead(); }));
+          rows.push(item("detach", `🔊  ${t('contextDetachAudio')}   ⇧⌥S`, () => detachAudio(id), { disabled: !isVideo || (c?.vol ?? 1) === 0 }));
+          rows.push(item("dup", `⧉  ${t('duplicate')}`, () => duplicateClip(id)));
+          rows.push(sep("s2"));
+          rows.push(item("del", `🗑  ${t('delete')}`, () => removeClip(id), { danger: true }));
+        } else if (K === "overlay") {
+          const o = overlays.find((x) => x.id === id);
+          const isVideo = o?.kind === "video";
+          rows.push(item("edit", `✎  ${t('contextEdit')}`, () => selectOverlay(id)));
+          rows.push(item("dup", `⧉  ${t('duplicate')}`, () => duplicateOverlay(id)));
+          rows.push(item("up", `⬆  ${t('trackUp')}`, () => moveOverlayTrack(id, 1)));
+          rows.push(item("down", `⬇  ${t('trackDown')}`, () => moveOverlayTrack(id, -1)));
+          if (isVideo) { rows.push(sep("s1")); rows.push(item("detach", `🔊  ${t('contextDetachAudio')}`, () => { /* overlay audio détaché : à venir */ selectOverlay(id); setTool("audio"); })); }
+          rows.push(sep("s2"));
+          rows.push(item("del", `🗑  ${t('delete')}`, () => removeOverlay(id), { danger: true }));
+        } else if (K === "audio") {
+          rows.push(item("edit", `✎  ${t('contextEdit')}`, () => setTool("audio")));
+          rows.push(item("iso", `🎙  ${t('voiceIsolate')}`, () => isolateVoiceOnTrack(id, "isolate"), { disabled: !!processingVoice }));
+          rows.push(item("rem", `🔇  ${t('voiceRemove')}`, () => isolateVoiceOnTrack(id, "remove"), { disabled: !!processingVoice }));
+          rows.push(item("up", `⬆  ${t('trackUp')}`, () => moveAudioTrackRow(id, 1)));
+          rows.push(item("down", `⬇  ${t('trackDown')}`, () => moveAudioTrackRow(id, -1)));
+          rows.push(sep("s1"));
+          rows.push(item("del", `🗑  ${t('delete')}`, () => removeAudioTrack(id), { danger: true }));
+        } else if (K === "title") {
+          rows.push(item("edit", `✎  ${t('contextEdit')}`, () => { setSelectedTitleId(id); setTool("text"); }));
+          rows.push(sep("s1"));
+          rows.push(item("del", `🗑  ${t('delete')}`, () => removeTitle(id), { danger: true }));
+        } else if (K === "caption") {
+          rows.push(item("edit", `✎  ${t('contextEdit')}`, () => setTool("captions")));
+          rows.push(sep("s1"));
+          rows.push(item("del", `🗑  ${t('delete')}`, () => removeCaption(id), { danger: true }));
+        }
         return (
           <div
             onClick={(e) => e.stopPropagation()}
             onContextMenu={(e) => { e.preventDefault(); }}
             style={{ position: "fixed", left: Math.min(clipMenu.x, (typeof window !== "undefined" ? window.innerWidth : 9999) - 230), top: clipMenu.y, zIndex: 1000, minWidth: 214, background: "var(--paper, #fff)", border: "1px solid var(--line)", borderRadius: 10, boxShadow: "0 12px 40px rgba(0,0,0,.22)", padding: "6px 0", overflow: "hidden" }}
           >
-            {item(`⌘C  ${t('copy')}`, () => { selectClip(clipMenu.id); copySelected(); })}
-            {item(`⌘X  ${t('cut')}`, () => { selectClip(clipMenu.id); copySelected(); removeClip(clipMenu.id); })}
-            <div style={{ height: 1, background: "var(--line)", margin: "5px 0" }} />
-            {item(`✎  ${t('contextEdit')}`, () => { selectClip(clipMenu.id); setTool("cut"); })}
-            {item(`✂️  ${t('splitAtPlayhead')}`, () => { selectClip(clipMenu.id); splitAtPlayhead(); })}
-            {item(`🔊  ${t('contextDetachAudio')}`, () => detachAudio(clipMenu.id), { disabled: !isVideo || (c?.vol ?? 1) === 0 })}
-            {item(`⧉  ${t('duplicate')}`, () => duplicateClip(clipMenu.id))}
-            <div style={{ height: 1, background: "var(--line)", margin: "5px 0" }} />
-            {item(`🗑  ${t('delete')}`, () => removeClip(clipMenu.id), { danger: true })}
+            {rows}
           </div>
         );
       })()}
