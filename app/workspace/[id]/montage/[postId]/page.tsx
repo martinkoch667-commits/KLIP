@@ -147,6 +147,31 @@ async function computeWaveform(file: File): Promise<number[]> {
   }
 }
 
+// Comme computeWaveform mais depuis une URL (son embarqué d'un plan vidéo) : on
+// télécharge la source et on décode sa piste audio. Best-effort → [] si échec.
+async function computeWaveformFromUrl(src: string): Promise<number[]> {
+  try {
+    const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+    const ctx = new AudioCtx();
+    const ab = await (await fetch(src)).arrayBuffer();
+    const buf = await ctx.decodeAudioData(ab);
+    const data = buf.getChannelData(0);
+    const blockSize = Math.max(1, Math.floor(data.length / WAVEFORM_SAMPLES));
+    const peaks: number[] = [];
+    for (let i = 0; i < WAVEFORM_SAMPLES; i++) {
+      let max = 0;
+      const start = i * blockSize;
+      for (let j = 0; j < blockSize && start + j < data.length; j++) max = Math.max(max, Math.abs(data[start + j]));
+      peaks.push(max);
+    }
+    ctx.close();
+    const peak = Math.max(...peaks, 0.01);
+    return peaks.map((p) => Math.min(1, p / peak));
+  } catch {
+    return [];
+  }
+}
+
 // Encode des échantillons mono (Float32, -1..1) en WAV PCM 16 bits.
 function encodeWavMono(samples: Float32Array, sampleRate: number): Blob {
   const n = samples.length;
@@ -313,27 +338,44 @@ export default function MontagePage() {
   const [previewZoom, setPreviewZoom] = useState(1); // zoom de la preview (pincement/molette), 1–5
   const [strips, setStrips] = useState<Record<string, string>>({}); // bandes-film (aperçu) par id de plan
   const stripReqRef = useRef<Set<string>>(new Set()); // ids déjà demandés (évite les régénérations)
+  const [clipWaves, setClipWaves] = useState<Record<string, number[]>>({}); // spectre audio du son embarqué, par src
+  const waveReqRef = useRef<Set<string>>(new Set());
   // Valeurs de zoom lues au démarrage d'un geste (Safari) — refs pour éviter les closures figées.
   const ppsRef = useRef(pps); ppsRef.current = pps;
   const previewZoomRef = useRef(previewZoom); previewZoomRef.current = previewZoom;
   // Génère les bandes-film (aperçu) des plans vidéo, une seule fois chacune, en tâche de
   // fond et en série (pour ne pas saturer le décodage). Les photos affichent déjà leur image.
   useEffect(() => {
-    let cancelled = false;
+    // Pas d'annulation qui jette les résultats : plusieurs rendus rapprochés (ex. glisser
+    // un plan vers une nouvelle piste = setClips + setOverlays) relançaient l'effet et le
+    // strip de l'incrustation était marqué « demandé » puis annulé → jamais généré. Ici on
+    // laisse chaque génération finir ; stripReqRef évite juste les doublons.
     (async () => {
-      const todo = [...clips, ...overlays].filter((x) => x.kind === "video" && !stripReqRef.current.has(x.id));
-      for (const x of todo) {
+      for (const x of [...clips, ...overlays]) {
+        if (x.kind !== "video" || stripReqRef.current.has(x.id)) continue;
         stripReqRef.current.add(x.id);
         try {
           const s = await makeFilmstrip(x.src, x.trimStart, x.trimEnd);
-          if (cancelled) return;
           setStrips((p) => ({ ...p, [x.id]: s }));
         } catch { stripReqRef.current.delete(x.id); }
-        if (cancelled) return;
       }
     })();
-    return () => { cancelled = true; };
   }, [clips, overlays]);
+  // Spectre audio du son embarqué des plans vidéo (clé = src, mutualisé entre plans du
+  // même fichier), pour se repérer au son sur la timeline. En tâche de fond, mis en cache.
+  useEffect(() => {
+    (async () => {
+      for (const c of clips) {
+        if (c.kind !== "video" || waveReqRef.current.has(c.src)) continue;
+        waveReqRef.current.add(c.src);
+        try {
+          const w = await computeWaveformFromUrl(c.src);
+          if (w.length) setClipWaves((p) => ({ ...p, [c.src]: w }));
+          else waveReqRef.current.delete(c.src);
+        } catch { waveReqRef.current.delete(c.src); }
+      }
+    })();
+  }, [clips]);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const videoInputRef = useRef<HTMLInputElement>(null); // import « vidéos » dédié
@@ -2379,6 +2421,16 @@ export default function MontagePage() {
                       setTool("audio");
                     }}
                   >
+                    {clipWaves[c.src] && clipWaves[c.src].length > 0 && (
+                      <svg width="100%" height="100%" preserveAspectRatio="none" style={{ position: "absolute", inset: 0, opacity: 0.5 }}>
+                        {clipWaves[c.src].map((p, i) => {
+                          const arr = clipWaves[c.src];
+                          const x = (i / arr.length) * 100;
+                          const h = Math.max(6, p * 100);
+                          return <rect key={i} x={`${x}%`} y={`${(100 - h) / 2}%`} width={`${100 / arr.length}%`} height={`${h}%`} fill="#fff" />;
+                        })}
+                      </svg>
+                    )}
                     <span style={{ position: "absolute", left: 6, top: 4, fontSize: 9.5, fontWeight: 700, color: "#fff", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: "calc(100% - 12px)" }}>{(c.vol ?? 1) === 0 ? "🔇" : "🔊"} {c.name}</span>
                   </div>
                 ))}
