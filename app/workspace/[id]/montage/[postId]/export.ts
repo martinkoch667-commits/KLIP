@@ -13,7 +13,7 @@
 // par-dessus — un vrai équivalent pour celles-ci nécessiterait un transform de
 // sortie dédié par type, hors périmètre de ce lot.
 
-import { MontageClip, OverlayClip, Caption, TitleEl, StickerEl, AudioTrack, SubCustom, effectiveSubStyle, DEFAULT_SUB_POS, clipFilterCss, overlayFilterCss, clipTimelineDur, overlayTimelineDur, audioVolumeAt, kenBurnsScale, videoFormatById, exportQualityById } from "./constants";
+import { MontageClip, OverlayClip, Caption, TitleEl, StickerEl, AudioTrack, SubCustom, effectiveSubStyle, DEFAULT_SUB_POS, clipFilterCss, overlayFilterCss, clipTimelineDur, clipAudioGainAt, overlayTimelineDur, audioVolumeAt, kenBurnsScale, videoFormatById, exportQualityById } from "./constants";
 
 export interface ExportProject {
   clips: MontageClip[];
@@ -545,6 +545,7 @@ export async function renderExport(project: ExportProject, onProgress: (p: numbe
             const localT = (v.currentTime - c.trimStart) / c.speed;
             if (v.paused || localT >= soloEnd || v.ended) { clearInterval(iv); resolve(); return; }
             const globalT = c.start + localT;
+            videoGains[i % 2].gain.value = clipAudioGainAt(c, localT); // volume + fondus du son du plan
             updateAudioAt(globalT);
             drawMediaFrame(ctx, v, c, localT, i === 0);
             drawOverlays(globalT);
