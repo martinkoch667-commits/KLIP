@@ -885,6 +885,10 @@ input.ed-range::-moz-range-thumb {
 /* Piste ciblée pendant un glisser-déposer : repère TRÈS discret (fin liseré neutre,
    pas de gros aplat vert). */
 .a-lane-track.drop-hot { box-shadow: inset 0 0 0 1.5px var(--line-2, var(--line)); }
+/* Poignée de redimensionnement individuel d'une piste (bord bas, tirer ↕). */
+.a-lane-vresize { position: absolute; left: 0; right: 0; bottom: -4px; height: 8px; cursor: ns-resize; z-index: 22; touch-action: none; }
+.a-lane-vresize::after { content: ""; position: absolute; left: 92px; right: 4px; top: 3px; height: 2px; border-radius: 2px; background: transparent; transition: background .12s var(--ease); }
+.a-lane-vresize:hover::after { background: var(--mint-2); }
 /* Indicateur « nouvelle piste » : fine ligne posée AU-DESSUS de la piste du haut,
    en absolu → aucun décalage de la mise en page (rien ne se réinsère dans le flux).
    N'apparaît que quand le curseur monte dans la zone vide au-dessus des pistes. */
@@ -1028,7 +1032,7 @@ input.mz-range::-moz-range-thumb { width: 16px; height: 16px; border-radius: 50%
 
 /* incrustation PIP (2e piste vidéo/photo superposée) */
 .mz-pip { user-select: none; touch-action: none; }
-.mz-pip.sel { outline: 1.5px solid var(--mint); outline-offset: 3px; box-shadow: 0 4px 20px rgba(0,0,0,.4); }
+.mz-pip.sel { box-shadow: 0 4px 20px rgba(0,0,0,.4); } /* le cadre violet vient de .mz-pip.sel plus haut */
 .mz-pip.sel .mz-ov-del, .mz-pip.sel .mz-ov-resize { display: grid; }
 
 /* barre de progression (habillage) */
