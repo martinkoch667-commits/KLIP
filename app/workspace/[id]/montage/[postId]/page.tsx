@@ -1036,7 +1036,60 @@ export default function MontagePage() {
     setSelectedClipId(clip.id);
   }
 
+  // Couper en deux au curseur — fonctionne sur N'IMPORTE QUEL élément sélectionné :
+  // plan principal, incrustation (Vidéo 2, 3…), texte, ou piste audio.
   function splitAtPlayhead() {
+    // 1) Incrustation sélectionnée
+    if (selectedOverlayId) {
+      const o = overlays.find((x) => x.id === selectedOverlayId);
+      if (!o) return;
+      const dur = overlayTimelineDur(o);
+      const localT = time - o.offset;
+      if (localT <= 0.15 || localT >= dur - 0.15) { toast(t('toastMovePlayhead')); return; }
+      const splitTrim = o.trimStart + localT;
+      const nid = crypto.randomUUID();
+      setOverlays((prev) => {
+        const idx = prev.findIndex((x) => x.id === o.id);
+        if (idx < 0) return prev;
+        const first = { ...prev[idx], trimEnd: splitTrim };
+        const second = { ...prev[idx], id: nid, trimStart: splitTrim, offset: time };
+        const out = [...prev]; out.splice(idx, 1, first, second); return out;
+      });
+      setSelectedOverlayId(nid);
+      return;
+    }
+    // 2) Texte sélectionné
+    if (selectedTitleId) {
+      const ti = titles.find((x) => x.id === selectedTitleId);
+      if (!ti) return;
+      if (time <= ti.start + 0.1 || time >= ti.end - 0.1) { toast(t('toastMovePlayhead')); return; }
+      const nid = crypto.randomUUID();
+      setTitles((prev) => {
+        const idx = prev.findIndex((x) => x.id === ti.id);
+        if (idx < 0) return prev;
+        const out = [...prev]; out.splice(idx, 1, { ...prev[idx], end: time }, { ...prev[idx], id: nid, start: time }); return out;
+      });
+      setSelectedTitleId(nid);
+      return;
+    }
+    // 3) Piste audio sélectionnée
+    if (selectedAudioId) {
+      const a = audioTracks.find((x) => x.id === selectedAudioId);
+      if (!a) return;
+      const localT = time - a.offset;
+      if (localT <= 0.15 || localT >= a.dur - 0.15) { toast(t('toastMovePlayhead')); return; }
+      const nid = crypto.randomUUID();
+      setAudioTracks((prev) => {
+        const idx = prev.findIndex((x) => x.id === a.id);
+        if (idx < 0) return prev;
+        const first = { ...prev[idx], dur: localT };
+        const second = { ...prev[idx], id: nid, offset: time, srcOffset: (prev[idx].srcOffset ?? 0) + localT, dur: a.dur - localT };
+        const out = [...prev]; out.splice(idx, 1, first, second); return out;
+      });
+      setSelectedAudioId(nid);
+      return;
+    }
+    // 4) Plan principal
     const c = selectedClip;
     if (!c) return;
     const localSplit = c.kind === "video" ? c.trimStart + (time - c.start) * c.speed : time - c.start;
@@ -2116,7 +2169,9 @@ export default function MontagePage() {
     ? { id: "custom", label: "Perso", sub: `${customW}×${customH}`, w: Math.max(1, customW), h: Math.max(1, customH) }
     : videoFormatById(formatId);
   const previewScale = (stageW || 300) / activeFmt.w;
-  const activeTitles = titles.filter((t) => time >= t.start && time <= t.end);
+  // Le texte sélectionné s'affiche TOUJOURS dans l'aperçu (même si le curseur sort de sa
+  // plage) → on peut toujours le voir, le déplacer et l'éditer.
+  const activeTitles = titles.filter((ti) => (time >= ti.start && time <= ti.end) || ti.id === selectedTitleId);
   const activeStickers = stickers.filter((s) => time >= s.start && time <= s.end);
   const activeCaption = captions.find((c) => time >= c.start && time <= c.end);
   const capStyle = effectiveSubStyle(subStyleId, subCustom);
@@ -2478,7 +2533,7 @@ export default function MontagePage() {
       {/* timeline dock */}
       <div className="a-timeline" style={{ height: timelineH }}>
         <div className="a-tl-bar">
-          <button className="a-tl-tool" disabled={!selectedClipId} onClick={splitAtPlayhead}><VIcon name="split" size={15} /> {t('splitShort')}</button>
+          <button className="a-tl-tool" disabled={!(selectedClipId || selectedOverlayId || selectedTitleId || selectedAudioId)} onClick={splitAtPlayhead}><VIcon name="split" size={15} /> {t('splitShort')}</button>
           <button className="a-tl-tool" disabled={!(selectedClipId || selectedOverlayId)} onClick={duplicateSelectedAny}><VIcon name="copy" size={15} /> {t('duplicate')}</button>
           <button className="a-tl-tool" disabled={!(selectedClipId || selectedOverlayId || selectedAudioId || selectedTitleId || selectedStickerId || multiSel.size)} onClick={deleteSelected}><VIcon name="trash" size={15} /> {t('delete')}</button>
           <div style={{ flex: 1 }} />
