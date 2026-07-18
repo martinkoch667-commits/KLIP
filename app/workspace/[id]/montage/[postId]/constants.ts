@@ -20,6 +20,8 @@ export interface MontageClip {
   transitionDur: number; // durée de la transition (s)
   gapBefore?: number;    // écran noir (s) inséré AVANT ce plan sur la timeline — défaut 0. Permet de laisser du vide en tête de montage ou entre deux plans.
   vol?: number;          // volume du son embarqué du plan vidéo (0-1, défaut 1)
+  audioFadeIn?: number;  // fondu d'entrée du son embarqué (s), défaut 0
+  audioFadeOut?: number; // fondu de sortie du son embarqué (s), défaut 0
   kenBurns?: KenBurnsDir; // zoom auto sur les plans photo (kind === "photo" uniquement)
   focusX?: number; // point de recadrage "cover" (0-1), défaut 0.5 = centré — posé par le recadrage IA du sujet
   focusY?: number; // idem, axe vertical
@@ -40,6 +42,17 @@ export function kenBurnsScale(dir: KenBurnsDir | undefined, p: number): number {
 export function clipTimelineDur(c: MontageClip): number {
   const raw = Math.max(0, c.trimEnd - c.trimStart);
   return c.kind === "video" ? raw / c.speed : raw;
+}
+
+// Gain du son embarqué d'un plan à un instant local (0..durée timeline), fondus inclus.
+export function clipAudioGainAt(c: MontageClip, localT: number): number {
+  const base = c.vol ?? 1;
+  const dur = clipTimelineDur(c);
+  const fi = c.audioFadeIn ?? 0, fo = c.audioFadeOut ?? 0;
+  let m = 1;
+  if (fi > 0) m = Math.min(m, localT / fi);
+  if (fo > 0) m = Math.min(m, (dur - localT) / fo);
+  return base * Math.max(0, Math.min(1, m));
 }
 
 // Plan d'incrustation (PIP) — 2e piste vidéo/photo superposée à la piste principale.

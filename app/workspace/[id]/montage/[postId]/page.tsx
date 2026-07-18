@@ -9,7 +9,7 @@ import {
   MontageClip, OverlayClip, Caption, TitleEl, StickerEl, AudioTrack, MontageProject, SubCustom,
   FILTERS, TRANSITIONS, SUB_STYLES, FONT_CHOICES, SUB_LENGTHS, DEFAULT_WORDS_PER_CAPTION, DEFAULT_SUB_POS,
   subStyleById, effectiveSubStyle,
-  fmt, newClipDefaults, newOverlayDefaults, clipFilterCss, overlayFilterCss, clipTimelineDur, overlayTimelineDur, segmentCaptions,
+  fmt, newClipDefaults, newOverlayDefaults, clipFilterCss, overlayFilterCss, clipTimelineDur, clipAudioGainAt, overlayTimelineDur, segmentCaptions,
   audioVolumeAt, kenBurnsScale, VIDEO_FORMATS, videoFormatById, EXPORT_QUALITIES,
 } from "./constants";
 import { MontageCtx, CutPanel, TextPanel, CaptionsPanel, AudioPanel, TransitionsPanel, FilterPanel, SpeedPanel, StickerPanel, OverlayPanel, AiPanel } from "./panels";
@@ -671,6 +671,7 @@ export default function MontagePage() {
   // de timeline (time >= total), on garde le dernier plan affiché.
   const coveringClip = clipStarts.find((c) => time >= c.start && time < c.end);
   const activeClip = coveringClip || (clipStarts.length && time >= total ? clipStarts[clipStarts.length - 1] : null);
+  const activeClipRef = useRef(activeClip); activeClipRef.current = activeClip;
   const selectedClip = clipStarts.find((c) => c.id === selectedClipId) || null;
   const selectedOverlay = overlays.find((o) => o.id === selectedOverlayId) || null;
   const activeOverlays = useMemo(
@@ -770,6 +771,9 @@ export default function MontagePage() {
     let raf = 0;
     const tick = () => {
       const t = timeRef.current;
+      // Fondu du son embarqué du plan actif (en direct dans l'aperçu).
+      const vEl = videoRef.current, ac = activeClipRef.current;
+      if (vEl && ac && ac.kind === "video") vEl.volume = Math.min(1, clipAudioGainAt(ac, t - ac.start));
       for (const a of audioTracksRef.current) {
         const el = audioElsRef.current[a.id];
         if (!el) continue;
@@ -1319,6 +1323,23 @@ export default function MontagePage() {
   }
   function onFadeDragUp(e: React.PointerEvent) {
     if (fadeDragRef.current) { try { (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId); } catch {} fadeDragRef.current = null; }
+  }
+  // Idem pour le son EMBARQUÉ d'un plan vidéo (piste « son des plans »).
+  const clipFadeRef = useRef<{ id: string; kind: "audioFadeIn" | "audioFadeOut"; startX: number; t0: number; dur: number } | null>(null);
+  function startClipFade(e: React.PointerEvent, c: { id: string; dur: number; audioFadeIn?: number; audioFadeOut?: number }, kind: "audioFadeIn" | "audioFadeOut") {
+    e.stopPropagation();
+    try { (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId); } catch {}
+    clipFadeRef.current = { id: c.id, kind, startX: e.clientX, t0: (kind === "audioFadeIn" ? c.audioFadeIn : c.audioFadeOut) ?? 0, dur: c.dur };
+  }
+  function onClipFadeMove(e: React.PointerEvent) {
+    const d = clipFadeRef.current;
+    if (!d) return;
+    const delta = (e.clientX - d.startX) / pps;
+    const sec = Math.max(0, Math.min(d.dur, d.kind === "audioFadeIn" ? d.t0 + delta : d.t0 - delta));
+    updateClip(d.id, { [d.kind]: sec });
+  }
+  function onClipFadeUp(e: React.PointerEvent) {
+    if (clipFadeRef.current) { try { (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId); } catch {} clipFadeRef.current = null; }
   }
   // ── Points-clés de volume (automation) sur une piste audio ──────────────────
   // Ajoute un point à la position du curseur (temps local dans la piste), avec la
@@ -2432,6 +2453,25 @@ export default function MontagePage() {
                       </svg>
                     )}
                     <span style={{ position: "absolute", left: 6, top: 4, fontSize: 9.5, fontWeight: 700, color: "#fff", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: "calc(100% - 12px)" }}>{(c.vol ?? 1) === 0 ? "🔇" : "🔊"} {c.name}</span>
+                    {(c.vol ?? 1) > 0 && (() => {
+                      const w = c.dur * pps, H = 30;
+                      const fi = Math.max(0, Math.min(c.dur, c.audioFadeIn ?? 0)) * pps;
+                      const fo = Math.max(0, Math.min(c.dur, c.audioFadeOut ?? 0)) * pps;
+                      return (
+                        <>
+                          <svg width="100%" height="100%" viewBox={`0 0 ${Math.max(1, w)} ${H}`} preserveAspectRatio="none" style={{ position: "absolute", inset: 0, pointerEvents: "none" }}>
+                            {fi > 0 && <polygon points={`0,${H} ${fi},0 ${fi},${H}`} fill="rgba(0,0,0,.36)" />}
+                            {fo > 0 && <polygon points={`${w},${H} ${w - fo},0 ${w - fo},${H}`} fill="rgba(0,0,0,.36)" />}
+                            {fi > 0 && <line x1="0" y1={H} x2={fi} y2="0" stroke="#fff" strokeWidth="1.5" vectorEffect="non-scaling-stroke" opacity=".95" />}
+                            {fo > 0 && <line x1={w} y1={H} x2={w - fo} y2="0" stroke="#fff" strokeWidth="1.5" vectorEffect="non-scaling-stroke" opacity=".95" />}
+                          </svg>
+                          <span className="a-fade-dot" style={{ left: Math.max(0, fi) - 5 }} title={t('fadeIn')}
+                            onPointerDown={(e) => startClipFade(e, c, "audioFadeIn")} onPointerMove={onClipFadeMove} onPointerUp={onClipFadeUp} />
+                          <span className="a-fade-dot" style={{ left: Math.max(0, w - fo) - 5 }} title={t('fadeOut')}
+                            onPointerDown={(e) => startClipFade(e, c, "audioFadeOut")} onPointerMove={onClipFadeMove} onPointerUp={onClipFadeUp} />
+                        </>
+                      );
+                    })()}
                   </div>
                 ))}
               </div>
