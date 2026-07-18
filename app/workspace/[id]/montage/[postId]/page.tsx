@@ -326,6 +326,9 @@ export default function MontagePage() {
   function onTsUp(e: React.PointerEvent) { if (tsDragRef.current) { try { (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId); } catch {} tsDragRef.current = null; try { localStorage.setItem("klip-mz-trackScale", String(trackScale)); } catch {} } }
   // Hauteur d'une piste : override individuel sinon défaut (34 × échelle globale).
   const laneH = (key: string) => laneHeights[key] ?? Math.round(34 * trackScale);
+  // Hauteur du bloc (plan/texte/audio) : remplit la piste en gardant une petite marge,
+  // pour que le contenu s'adapte à la taille de la piste quand on la redimensionne.
+  const blockH = (key: string) => Math.max(18, laneH(key) - 4);
   const toggleLane = (set: React.Dispatch<React.SetStateAction<Set<string>>>, key: string) =>
     set((prev) => { const n = new Set(prev); if (n.has(key)) n.delete(key); else n.add(key); return n; });
   // Contrôles à gauche d'une piste (verrouiller / masquer / couper le son), façon CapCut.
@@ -428,7 +431,7 @@ export default function MontagePage() {
   const scrubRef = useRef<HTMLDivElement>(null);
   const stageRef = useRef<HTMLDivElement>(null);
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const dragOverlayRef = useRef<{ type: "title" | "sticker" | "caption" | "overlay"; id: string } | null>(null);
+  const dragOverlayRef = useRef<{ type: "title" | "sticker" | "caption" | "overlay"; id: string; startX: number; startY: number; offX: number; offY: number; moved: boolean } | null>(null);
   const resizeOverlayRef = useRef<{ type: "title" | "sticker" | "caption" | "overlay"; id: string; startDist: number; startScale: number; cx: number; cy: number } | null>(null);
   const voRecorderRef = useRef<MediaRecorder | null>(null);
   const voChunksRef = useRef<Blob[]>([]);
@@ -1591,9 +1594,10 @@ export default function MontagePage() {
   const titleDragRef = useRef<{ id: string; startX: number; t0start: number; dur: number; moved: boolean } | null>(null);
   function onTitleBarDown(e: React.PointerEvent, ti: TitleEl) {
     e.stopPropagation();
+    setSelectedTitleId(ti.id); setTool("text");
+    if (lockedLanes.has("text")) return; // piste verrouillée : sélection ok, déplacement bloqué
     try { (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId); } catch {}
     titleDragRef.current = { id: ti.id, startX: e.clientX, t0start: ti.start, dur: ti.end - ti.start, moved: false };
-    setSelectedTitleId(ti.id); setTool("text");
   }
   function onTitleBarMove(e: React.PointerEvent) {
     const d = titleDragRef.current;
@@ -1612,9 +1616,10 @@ export default function MontagePage() {
   const titleTrimRef = useRef<{ id: string; edge: "start" | "end"; startX: number; t0start: number; t0end: number } | null>(null);
   function startTitleTrim(e: React.PointerEvent, ti: TitleEl, edge: "start" | "end") {
     e.stopPropagation();
+    setSelectedTitleId(ti.id);
+    if (lockedLanes.has("text")) return; // piste verrouillée
     try { (e.target as HTMLElement).setPointerCapture(e.pointerId); } catch {}
     titleTrimRef.current = { id: ti.id, edge, startX: e.clientX, t0start: ti.start, t0end: ti.end };
-    setSelectedTitleId(ti.id);
   }
   function onTitleTrimMove(e: React.PointerEvent) {
     const d = titleTrimRef.current; if (!d) return;
@@ -1840,11 +1845,24 @@ export default function MontagePage() {
   // ── Overlays de scène (drag titres/stickers/sous-titres) ────────────────────
   function onOverlayPointerDown(e: React.PointerEvent, type: "title" | "sticker" | "caption" | "overlay", id: string) {
     e.stopPropagation();
-    dragOverlayRef.current = { type, id };
+    e.preventDefault(); // empêche le drag natif de l'image/vidéo qui « avale » le relâchement
     if (type === "title") { setSelectedTitleId(id); setSubSelected(false); setSelectedOverlayId(null); }
     else if (type === "sticker") { setSelectedStickerId(id); setSubSelected(false); setSelectedOverlayId(null); }
     else if (type === "overlay") { setSelectedOverlayId(id); setSubSelected(false); setSelectedTitleId(null); setSelectedStickerId(null); setTool("overlay"); }
     else setSubSelected(true);
+    const laneKey = type === "title" ? "text" : type === "caption" ? "subs" : type === "overlay" ? `v${overlays.find((x) => x.id === id)?.track ?? 0}` : "";
+    if (laneKey && lockedLanes.has(laneKey)) return; // piste verrouillée : sélection ok, déplacement bloqué
+    // position actuelle (centre) de l'élément en % — pour garder le point de préhension
+    const cur = type === "caption" ? subPos
+      : type === "title" ? titles.find((x) => x.id === id)
+      : type === "overlay" ? overlays.find((x) => x.id === id)
+      : stickers.find((x) => x.id === id);
+    const r = stageRef.current?.getBoundingClientRect();
+    let offX = 0, offY = 0;
+    if (cur && r) { offX = cur.x - ((e.clientX - r.left) / r.width) * 100; offY = cur.y - ((e.clientY - r.top) / r.height) * 100; }
+    dragOverlayRef.current = { type, id, startX: e.clientX, startY: e.clientY, offX, offY, moved: false };
+    // capture sur la scène : les pointermove/up reviennent toujours ici, même hors cadre → plus de « suivi fantôme »
+    try { stageRef.current?.setPointerCapture(e.pointerId); } catch {}
   }
   function onOverlayResizeDown(e: React.PointerEvent, type: "title" | "sticker" | "caption" | "overlay", id: string, currentScale: number) {
     e.stopPropagation();
@@ -1876,16 +1894,21 @@ export default function MontagePage() {
     }
     const drag = dragOverlayRef.current;
     if (!drag) return;
+    if (!drag.moved && Math.hypot(e.clientX - drag.startX, e.clientY - drag.startY) < 3) return; // seuil : simple clic ≠ déplacement
+    drag.moved = true;
     const r = stageRef.current?.getBoundingClientRect();
     if (!r) return;
-    const x = Math.max(0, Math.min(100, ((e.clientX - r.left) / r.width) * 100));
-    const y = Math.max(0, Math.min(100, ((e.clientY - r.top) / r.height) * 100));
+    const x = Math.max(0, Math.min(100, ((e.clientX - r.left) / r.width) * 100 + drag.offX));
+    const y = Math.max(0, Math.min(100, ((e.clientY - r.top) / r.height) * 100 + drag.offY));
     if (drag.type === "title") updateTitle(drag.id, { x, y });
     else if (drag.type === "sticker") updateSticker(drag.id, { x, y });
     else if (drag.type === "overlay") updateOverlay(drag.id, { x, y });
     else setSubPos({ x, y });
   }
-  function onStagePointerUp() { dragOverlayRef.current = null; resizeOverlayRef.current = null; }
+  function onStagePointerUp(e?: React.PointerEvent) {
+    if (e) { try { stageRef.current?.releasePointerCapture(e.pointerId); } catch {} }
+    dragOverlayRef.current = null; resizeOverlayRef.current = null;
+  }
 
   // ── Export réel ──────────────────────────────────────────────────────────
   // publish=true : marque le post « validé » et redirige vers le planning (comme le
@@ -2056,9 +2079,10 @@ export default function MontagePage() {
   function startTrim(e: React.PointerEvent, c: (typeof clipStarts)[number], edge: "start" | "end") {
     e.stopPropagation();
     e.preventDefault();
+    setSelectedClipId(c.id);
+    if (lockedLanes.has("video")) return; // piste verrouillée
     (e.target as HTMLElement).setPointerCapture(e.pointerId);
     trimRef.current = { id: c.id, edge, startX: e.clientX, t0start: c.trimStart, t0end: c.trimEnd, kind: c.kind, srcDur: c.srcDur, speed: c.speed, t0gap: Math.max(0, c.gapBefore ?? 0) };
-    setSelectedClipId(c.id);
   }
   function onTrimMove(e: React.PointerEvent) {
     const d = trimRef.current;
@@ -2180,8 +2204,14 @@ export default function MontagePage() {
   function startTlDrag(e: React.PointerEvent, id: string, kind: "clip" | "overlay") {
     e.stopPropagation();
     const laneKey = kind === "clip" ? "video" : `v${overlays.find((o) => o.id === id)?.track ?? 0}`;
-    if (lockedLanes.has(laneKey)) return; // piste verrouillée
-    if (e.shiftKey) { toggleMulti(id); return; } // ⇧+clic → sélection multiple, pas de glissement
+    const locked = lockedLanes.has(laneKey);
+    if (e.shiftKey && !locked) { toggleMulti(id); return; } // ⇧+clic → sélection multiple, pas de glissement
+    // Sélection immédiate au clic (sans déplacer le curseur de lecture — on garde le playhead
+    // stable pendant qu'on attrape le plan, comme CapCut).
+    if (multiSel.size) setMultiSel(new Set());
+    if (kind === "clip") { setSelectedClipId(id); setAudioOnlyId(null); setSelectedOverlayId(null); setSelectedTitleId(null); setSelectedStickerId(null); setSelectedAudioId(null); }
+    else { setSelectedOverlayId(id); setSelectedClipId(null); setSelectedTitleId(null); setSelectedStickerId(null); setSubSelected(false); setSelectedAudioId(null); setTool("overlay"); }
+    if (locked) return; // piste verrouillée : sélection ok, déplacement bloqué
     const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
     // anchor (plans) = fin du plan précédent = point fixe pour recalculer le trou (gapBefore)
     // pendant le glissement live.
@@ -2189,11 +2219,6 @@ export default function MontagePage() {
     if (kind === "clip") { const c = clipStarts.find((x) => x.id === id); if (c) anchor = c.start - Math.max(0, c.gapBefore ?? 0); }
     tlDragRef.current = { id, kind, startX: e.clientX, startY: e.clientY, grabDx: e.clientX - rect.left, grabDy: e.clientY - rect.top, widthPx: rect.width, moved: false, anchor };
     try { (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId); } catch {}
-    // Sélection immédiate au clic (sans déplacer le curseur de lecture — on garde le playhead
-    // stable pendant qu'on attrape le plan, comme CapCut).
-    if (multiSel.size) setMultiSel(new Set());
-    if (kind === "clip") { setSelectedClipId(id); setAudioOnlyId(null); setSelectedOverlayId(null); setSelectedTitleId(null); setSelectedStickerId(null); setSelectedAudioId(null); }
-    else { setSelectedOverlayId(id); setSelectedClipId(null); setSelectedTitleId(null); setSelectedStickerId(null); setSubSelected(false); setSelectedAudioId(null); setTool("overlay"); }
   }
   function onTlDragMove(e: React.PointerEvent) {
     const d = tlDragRef.current;
@@ -2255,9 +2280,10 @@ export default function MontagePage() {
   }
   function startOvTrim(e: React.PointerEvent, o: OverlayClip, edge: "start" | "end") {
     e.stopPropagation();
+    setSelectedOverlayId(o.id); setTool("overlay");
+    if (lockedLanes.has(`v${o.track ?? 0}`)) return; // piste verrouillée
     (e.target as HTMLElement).setPointerCapture(e.pointerId);
     ovTrimRef.current = { id: o.id, edge, startX: e.clientX, t0start: o.trimStart, t0end: o.trimEnd, t0offset: o.offset, srcDur: o.srcDur, kind: o.kind };
-    setSelectedOverlayId(o.id); setTool("overlay");
   }
   function onOvTrimMove(e: React.PointerEvent) {
     const d = ovTrimRef.current;
@@ -2534,11 +2560,11 @@ export default function MontagePage() {
                         <video
                           ref={(el) => { if (el) overlayVideoRefs.current.set(o.id, el); else overlayVideoRefs.current.delete(o.id); }}
                           src={o.src}
-                          playsInline muted={(o.vol ?? 1) === 0}
-                          style={{ width: "100%", display: "block", filter: overlayFilterCss(o) }}
+                          playsInline muted={(o.vol ?? 1) === 0} draggable={false}
+                          style={{ width: "100%", display: "block", filter: overlayFilterCss(o), pointerEvents: "none" }}
                         />
                       ) : (
-                        <img src={o.src} alt="" style={{ width: "100%", display: "block", filter: overlayFilterCss(o) }} />
+                        <img src={o.src} alt="" draggable={false} style={{ width: "100%", display: "block", filter: overlayFilterCss(o), pointerEvents: "none" }} />
                       )}
                       {sel && <button className="mz-ov-del" onPointerDown={(e) => e.stopPropagation()} onClick={() => removeOverlay(o.id)}><VIcon name="x" size={11} /></button>}
                       {sel && <TransformHandles scale={o.scale} onScale={(s) => updateOverlay(o.id, { scale: s })} onRotate={(d) => updateOverlay(o.id, { rotation: d })} />}
@@ -2592,7 +2618,7 @@ export default function MontagePage() {
                     style={{ left: s.x + "%", top: s.y + "%", fontSize: 34 * s.scale, transform: `translate(-50%,-50%) rotate(${s.rotation ?? 0}deg)` }}
                     onPointerDown={(e) => onOverlayPointerDown(e, "sticker", s.id)}
                   >
-                    {s.isImage ? <img src={s.glyph} alt="" style={{ width: 40 * s.scale, height: 40 * s.scale, objectFit: "contain" }} /> : s.glyph}
+                    {s.isImage ? <img src={s.glyph} alt="" draggable={false} style={{ width: 40 * s.scale, height: 40 * s.scale, objectFit: "contain", pointerEvents: "none" }} /> : s.glyph}
                     {selectedStickerId === s.id && <button className="mz-ov-del" onPointerDown={(e) => e.stopPropagation()} onClick={() => removeSticker(s.id)}><VIcon name="x" size={11} /></button>}
                     {selectedStickerId === s.id && <TransformHandles scale={s.scale} onScale={(sc) => updateSticker(s.id, { scale: sc })} onRotate={(d) => updateSticker(s.id, { rotation: d })} />}
                   </div>
@@ -2760,7 +2786,7 @@ export default function MontagePage() {
                     <div
                       data-selid={c.id}
                       className={"a-clip" + (selectedClipId === c.id || multiSel.has(c.id) ? " on" : "")}
-                      style={{ width: c.dur * pps, position: "relative", cursor: tlGhost?.id === c.id ? "grabbing" : "grab", touchAction: "none", opacity: tlGhost?.id === c.id ? 0.3 : 1,
+                      style={{ width: c.dur * pps, height: blockH("video"), position: "relative", cursor: tlGhost?.id === c.id ? "grabbing" : "grab", touchAction: "none", opacity: tlGhost?.id === c.id ? 0.3 : 1,
                         background: c.kind === "video"
                           ? (strips[c.id] ? `linear-gradient(180deg,rgba(0,0,0,.12),rgba(0,0,0,.34)), url("${strips[c.id]}")` : "linear-gradient(150deg,#2b8d57,#0c2a1d)")
                           : undefined,
@@ -2856,7 +2882,7 @@ export default function MontagePage() {
                       key={o.id}
                       data-selid={o.id}
                       className={"a-chip" + (selectedOverlayId === o.id || multiSel.has(o.id) ? " on" : "")}
-                      style={{ left: o.offset * pps, width: Math.max(24, overlayTimelineDur(o) * pps), top: 2, bottom: 2, cursor: tlGhost?.id === o.id ? "grabbing" : "grab", touchAction: "none", opacity: tlGhost?.id === o.id ? 0.3 : 1,
+                      style={{ left: o.offset * pps, width: Math.max(24, overlayTimelineDur(o) * pps), top: 2, height: blockH(`v${o.track ?? 0}`), cursor: tlGhost?.id === o.id ? "grabbing" : "grab", touchAction: "none", opacity: tlGhost?.id === o.id ? 0.3 : 1,
                         background: o.kind === "video"
                           ? (strips[o.id] ? `linear-gradient(180deg,rgba(0,0,0,.15),rgba(0,0,0,.4)), url("${strips[o.id]}")` : "linear-gradient(150deg,#2b8d57,#0c2a1d)")
                           : "linear-gradient(150deg,#c8792f,#5e3a1a)",
@@ -2926,7 +2952,7 @@ export default function MontagePage() {
                 </div>
                 <div className="a-lane-track">
                   {audioTracks.filter((a) => (a.track ?? 0) === atrack).map((a) => (
-                    <div key={a.id} data-selid={a.id} className="a-wave-bar" style={{ left: a.offset * pps, width: a.dur * pps, top: 2, bottom: 2, cursor: "grab", touchAction: "none", boxShadow: selectedAudioId === a.id || multiSel.has(a.id) ? "inset 0 0 0 2px var(--acid)" : undefined }} title={a.name}
+                    <div key={a.id} data-selid={a.id} className="a-wave-bar" style={{ left: a.offset * pps, width: a.dur * pps, top: 2, height: blockH(`a${a.track ?? 0}`), cursor: "grab", touchAction: "none", boxShadow: selectedAudioId === a.id || multiSel.has(a.id) ? "inset 0 0 0 2px var(--acid)" : undefined }} title={a.name}
                       onPointerDown={(e) => onAudioBarDown(e, a)} onPointerMove={onAudioBarMove} onPointerUp={onAudioBarUp}
                       onContextMenu={(e) => { e.preventDefault(); setSelectedAudioId(a.id); setTool("audio"); setClipMenu({ x: e.clientX, y: e.clientY, id: a.id, kind: "audio" }); }}>
                       {a.waveform && a.waveform.length > 0 && (
@@ -2969,7 +2995,7 @@ export default function MontagePage() {
               <div className="a-lane-label" style={{ display: "flex", alignItems: "center", gap: 4 }}><VIcon name="captions" size={13} /> <span className="trunc">{t('labelSubtitlesShort')}</span><LaneControls laneKey="subs" audio /></div>
               <div className="a-lane-track">
                 {captions.map((c) => (
-                  <div key={c.id} className="a-chip" style={{ left: c.start * pps, width: Math.max(20, (c.end - c.start) * pps) }} title={c.text} onClick={() => setTool("captions")}
+                  <div key={c.id} className="a-chip" style={{ left: c.start * pps, width: Math.max(20, (c.end - c.start) * pps), top: 2, height: blockH("subs") }} title={c.text} onClick={() => setTool("captions")}
                     onContextMenu={(e) => { e.preventDefault(); setClipMenu({ x: e.clientX, y: e.clientY, id: c.id, kind: "caption" }); }}>
                     <span style={{ fontSize: 10, fontWeight: 700, color: "#fff", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.text}</span>
                   </div>
@@ -2981,7 +3007,7 @@ export default function MontagePage() {
               <div className="a-lane-label" style={{ display: "flex", alignItems: "center", gap: 4 }}><VIcon name="text" size={13} /> <span className="trunc">{t('railText')}</span><LaneControls laneKey="text" audio /></div>
               <div className="a-lane-track">
                 {titles.map((ti) => (
-                  <div key={ti.id} className={"a-chip" + (selectedTitleId === ti.id ? " on" : "")} style={{ left: ti.start * pps, width: Math.max(20, (ti.end - ti.start) * pps), cursor: "grab", touchAction: "none" }} title={ti.text}
+                  <div key={ti.id} className={"a-chip" + (selectedTitleId === ti.id ? " on" : "")} style={{ left: ti.start * pps, width: Math.max(20, (ti.end - ti.start) * pps), top: 2, height: blockH("text"), cursor: "grab", touchAction: "none" }} title={ti.text}
                     onPointerDown={(e) => onTitleBarDown(e, ti)} onPointerMove={onTitleBarMove} onPointerUp={onTitleBarUp}
                     onContextMenu={(e) => { e.preventDefault(); setSelectedTitleId(ti.id); setClipMenu({ x: e.clientX, y: e.clientY, id: ti.id, kind: "title" }); }}>
                     <span style={{ fontSize: 10, fontWeight: 700, color: "#fff", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{ti.text}</span>
