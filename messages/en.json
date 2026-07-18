@@ -1607,7 +1607,11 @@
     "trackHeightTitle": "Track height (drag ↕)",
     "lockTrack": "Lock track",
     "hideTrack": "Hide track",
-    "muteTrack": "Mute track"
+    "muteTrack": "Mute track",
+    "subsLinked": "Linked",
+    "subsIndividual": "Per caption",
+    "subsLinkedHint": "One style for every caption. Drag them in the preview to place them.",
+    "subsIndividualHint": "Each caption keeps its own style and position. Click a block to edit just that one."
   },
   "forgotPassword": {
     "title": "Forgot password",

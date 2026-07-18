@@ -22,6 +22,10 @@ export interface MontageCtx {
   subMaxWords: number;
   subCustom: SubCustom;
   subPos: { x: number; y: number };
+  linkedSubs: boolean;
+  setLinkedSubs: (v: boolean) => void;
+  selectedCaptionId: string | null;
+  setSelectedCaptionId: (id: string | null) => void;
   hasRawSegments: boolean;
   titles: TitleEl[];
   stickers: StickerEl[];
@@ -370,11 +374,20 @@ export function CaptionsPanel({ ctx }: { ctx: MontageCtx }) {
         </div>
       </div>
       <div className="a-section">
+        {/* Lier / délier : un style commun à tous, ou un style par sous-titre. */}
+        <div style={{ display: "flex", gap: 6, marginBottom: 10, background: "var(--sunk)", borderRadius: 10, padding: 4 }}>
+          <button className={"mz-chip-btn" + (ctx.linkedSubs ? " on" : "")} style={{ flex: 1, justifyContent: "center" }} onClick={() => ctx.setLinkedSubs(true)}>
+            <VIcon name="link" size={13} /> {t('subsLinked')}
+          </button>
+          <button className={"mz-chip-btn" + (!ctx.linkedSubs ? " on" : "")} style={{ flex: 1, justifyContent: "center" }} onClick={() => ctx.setLinkedSubs(false)}>
+            <VIcon name="unlink" size={13} /> {t('subsIndividual')}
+          </button>
+        </div>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
           <span className="mz-sec-label" style={{ margin: 0 }}>{t('customizationTitle')}</span>
           <button className="btn btn-ghost btn-sm" onClick={ctx.resetSubCustom} title={t('resetToBaseStyle')}><VIcon name="undo" size={12} /> {t('reset')}</button>
         </div>
-        <p style={{ fontSize: 11.5, color: "var(--ink-3)", margin: "0 0 10px" }}>{t('dragSubtitlesHint')}</p>
+        <p style={{ fontSize: 11.5, color: "var(--ink-3)", margin: "0 0 10px" }}>{ctx.linkedSubs ? t('subsLinkedHint') : t('subsIndividualHint')}</p>
         <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 12 }}>
           <ColorField label={t('text')} value={eff.fg} onChange={(v) => patch({ fg: v })} />
           <ColorField label={t('activeWord')} value={eff.hi} onChange={(v) => patch({ hi: v })} />

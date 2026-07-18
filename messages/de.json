@@ -1607,7 +1607,11 @@
     "trackHeightTitle": "Spurhöhe (ziehen ↕)",
     "lockTrack": "Spur sperren",
     "hideTrack": "Spur ausblenden",
-    "muteTrack": "Stumm schalten"
+    "muteTrack": "Stumm schalten",
+    "subsLinked": "Verbunden",
+    "subsIndividual": "Pro Untertitel",
+    "subsLinkedHint": "Ein Stil für alle Untertitel. Ziehe sie in der Vorschau zum Platzieren.",
+    "subsIndividualHint": "Jeder Untertitel hat eigenen Stil und Position. Klicke einen Block, um nur diesen zu bearbeiten."
   },
   "forgotPassword": {
     "title": "Passwort vergessen",

@@ -106,6 +106,11 @@ export interface Caption {
   start: number;
   end: number;
   text: string;
+  // Surcharges individuelles (utilisées quand les sous-titres sont « déliés ») :
+  styleId?: string;                 // style propre à ce sous-titre
+  custom?: SubCustom;               // couleurs/typo propres à ce sous-titre
+  x?: number;                       // position X propre (%)
+  y?: number;                       // position Y propre (%)
 }
 
 export interface TitleEl {
@@ -198,6 +203,7 @@ export interface MontageProject {
   subMaxWords?: number;                                       // mots max par sous-titre (défaut 4)
   subPos?: { x: number; y: number };                          // position des sous-titres (%), défaut bas-centre
   subCustom?: SubCustom;                                       // surcharges manuelles (couleurs, typo, taille)
+  linkedSubs?: boolean;                                        // true = tous les sous-titres partagent le style; false = style par sous-titre
   rawSegments?: { start: number; end: number; text: string }[]; // segments Whisper bruts (pour re-découper)
   titles: TitleEl[];
   stickers: StickerEl[];
@@ -326,6 +332,9 @@ export interface SubStyle {
 // Bibliothèque de styles de sous-titres façon CapCut — large variété (couleur, contour,
 // pilule, majuscules, polices). Le rendu (aperçu + export) honore tous ces champs.
 export const SUB_STYLES: SubStyle[] = [
+  // — Défaut minimaliste (aucun template de marque) : texte blanc net, sans fond,
+  //   avec une ombre portée douce → lisible sur n'importe quel fond. —
+  { id: "simple",    name: "Simple",     sub: "Texte net",        bg: "transparent",         fg: "#FFFFFF", hi: "#FFFFFF", weight: 700, italic: false, pill: false },
   // — Essentiels —
   { id: "karaoke",   name: "Karaoké",    sub: "Mot par mot",      bg: "#0C2A1D",             fg: "#EEEDE3", hi: "#C8F135", weight: 800, italic: false, pill: true },
   { id: "editorial", name: "Éditorial",  sub: "Archivo italique", bg: "transparent",         fg: "#FFFFFF", hi: "#2FD79B", weight: 800, italic: true,  pill: false },
@@ -405,7 +414,7 @@ export function newClipDefaults(): Pick<MontageClip, "speed" | "filterId" | "lum
 // Redécoupe des segments Whisper en sous-titres courts façon CapCut : le temps de chaque
 // segment est réparti proportionnellement au nombre de mots, ce qui donne des sous-titres
 // qui s'enchaînent au rythme de la parole. `maxWords` = longueur choisie par l'utilisateur.
-export const DEFAULT_WORDS_PER_CAPTION = 4;
+export const DEFAULT_WORDS_PER_CAPTION = 2;
 export function segmentCaptions(
   segments: { start: number; end: number; text: string }[],
   maxWords: number = DEFAULT_WORDS_PER_CAPTION,

@@ -1607,7 +1607,11 @@
     "trackHeightTitle": "Altezza traccia (trascina ↕)",
     "lockTrack": "Blocca traccia",
     "hideTrack": "Nascondi traccia",
-    "muteTrack": "Muta traccia"
+    "muteTrack": "Muta traccia",
+    "subsLinked": "Collegato",
+    "subsIndividual": "Per sottotitolo",
+    "subsLinkedHint": "Un solo stile per tutti i sottotitoli. Trascinali nell’anteprima per posizionarli.",
+    "subsIndividualHint": "Ogni sottotitolo ha stile e posizione propri. Clicca un blocco per modificarlo da solo."
   },
   "forgotPassword": {
     "title": "Password dimenticata",
