@@ -866,7 +866,11 @@ input.ed-range::-moz-range-thumb {
 /* La règle a-ruler reste order 0 (en haut) ; les pistes reçoivent un `order` inline
    (CAP-1) pour la hiérarchie CapCut : sous-titres → texte → overlays → vidéo → audio. */
 
-.a-ruler { height: 20px; position: relative; margin: 0 0 6px; border-bottom: 1px solid var(--line-2); }
+/* Règle temporelle : reste collée en haut au défilement vertical (la personne voit
+   toujours le temps + le repère, peu importe où elle est dans la timeline). Le
+   box-shadow peint le fond blanc sous la gouttière des labels (92 px à gauche). */
+.a-ruler { height: 20px; position: sticky; top: 0; z-index: 16; margin: 0 0 6px; border-bottom: 1px solid var(--line-2);
+  background: var(--white); box-shadow: -96px 0 0 var(--white); }
 .a-tick { position: absolute; top: 0; bottom: 0; border-left: 1px solid var(--line); }
 .a-tick span { position: absolute; top: 2px; left: 4px; font-family: var(--mono); font-weight: 700; font-size: 9px; color: var(--ink-3); }
 
@@ -932,7 +936,7 @@ input.ed-range::-moz-range-thumb {
   background: rgba(0,0,0,.35); padding: 1px 5px; border-radius: 5px; }
 .a-clip-badge { position: absolute; left: 6px; top: 5px; width: 16px; height: 16px; border-radius: 5px; background: rgba(0,0,0,.42); display: grid; place-items: center; color: #fff; }
 
-.a-playhead { position: absolute; top: 0; bottom: 8px; width: 2px; background: var(--ink); z-index: 12; pointer-events: none; }
+.a-playhead { position: absolute; top: 0; bottom: 8px; width: 2px; background: var(--ink); z-index: 17; pointer-events: none; }
 .a-playhead::before { content: ""; position: absolute; top: -1px; left: 50%; transform: translateX(-50%); width: 11px; height: 11px; border-radius: 3px; background: var(--ink); }
 
 /* ── Lots 2-5 : découpe/vitesse/filtres/transitions/texte/sous-titres/audio/stickers/export ── */
