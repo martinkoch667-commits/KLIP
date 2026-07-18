@@ -1178,15 +1178,40 @@ export default function MontagePage() {
   function removeCaption(id: string) {
     setCaptions((prev) => prev.filter((c) => c.id !== id));
   }
+  // Extrait la piste audio d'un média en WAV mono 16 kHz (format attendu par Whisper).
+  // Une vidéo complète pèse trop lourd pour l'API (« Request Entity Too Large ») : on
+  // n'envoie que le son, ré-échantillonné — quelques centaines de Ko au lieu de plusieurs Mo.
+  async function extractAudio16kMonoWav(src: string): Promise<Blob> {
+    const ab = await (await fetch(src)).arrayBuffer();
+    const AC: typeof AudioContext = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+    const actx = new AC();
+    const decoded = await actx.decodeAudioData(ab.slice(0));
+    try { await actx.close(); } catch {}
+    const rate = 16000;
+    const off = new OfflineAudioContext(1, Math.max(1, Math.ceil(decoded.duration * rate)), rate);
+    const node = off.createBufferSource(); node.buffer = decoded; node.connect(off.destination); node.start();
+    const rendered = await off.startRendering();
+    return encodeWavMono(rendered.getChannelData(0), rate);
+  }
   async function generateCaptionsAI() {
     const videoClip = clips.find((c) => c.kind === "video");
     if (!videoClip) return;
     setTranscribing(true);
     try {
-      const res = await fetch("/api/transcribe", {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ url: videoClip.src }),
-      });
+      let res: Response;
+      try {
+        // Chemin normal : on extrait le son côté client et on n'envoie que le WAV léger.
+        const wav = await extractAudio16kMonoWav(videoClip.src);
+        const form = new FormData();
+        form.append("audio", wav, "audio.wav");
+        res = await fetch("/api/transcribe", { method: "POST", body: form });
+      } catch {
+        // Repli : si l'extraction échoue (CORS…), on laisse le serveur récupérer l'URL.
+        res = await fetch("/api/transcribe", {
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ url: videoClip.src }),
+        });
+      }
       const data = await res.json();
       if (!res.ok || !data.ok) {
         toast(data?.message || t('toastTranscriptionUnavailable'));
@@ -2818,7 +2843,7 @@ export default function MontagePage() {
                       {c.kind === "video" && (c.vol ?? 1) > 0 && clipWaves[c.src] && (
                         <div className="a-clip-wave">
                           <svg width="100%" height="100%" preserveAspectRatio="none">
-                            {clipWaves[c.src].map((p, wi) => { const arr = clipWaves[c.src]; const x = (wi / arr.length) * 100; const h = Math.max(12, p * 100); return <rect key={wi} x={`${x}%`} y={`${(100 - h) / 2}%`} width={`${Math.max(0.6, 100 / arr.length - 0.4)}%`} height={`${h}%`} fill="#3EE3C4" />; })}
+                            {clipWaves[c.src].map((p, wi) => { const arr = clipWaves[c.src]; const x = (wi / arr.length) * 100; const h = Math.max(10, p * 100); return <rect key={wi} x={`${x}%`} y={`${(100 - h) / 2}%`} width={`${100 / arr.length}%`} height={`${h}%`} fill="rgba(255,255,255,.82)" />; })}
                           </svg>
                         </div>
                       )}
@@ -2913,7 +2938,7 @@ export default function MontagePage() {
                       {o.kind === "video" && (o.vol ?? 1) > 0 && clipWaves[o.src] && (
                         <div className="a-clip-wave">
                           <svg width="100%" height="100%" preserveAspectRatio="none">
-                            {clipWaves[o.src].map((p, wi) => { const arr = clipWaves[o.src]; const x = (wi / arr.length) * 100; const h = Math.max(12, p * 100); return <rect key={wi} x={`${x}%`} y={`${(100 - h) / 2}%`} width={`${Math.max(0.6, 100 / arr.length - 0.4)}%`} height={`${h}%`} fill="#3EE3C4" />; })}
+                            {clipWaves[o.src].map((p, wi) => { const arr = clipWaves[o.src]; const x = (wi / arr.length) * 100; const h = Math.max(10, p * 100); return <rect key={wi} x={`${x}%`} y={`${(100 - h) / 2}%`} width={`${100 / arr.length}%`} height={`${h}%`} fill="rgba(255,255,255,.8)" />; })}
                           </svg>
                         </div>
                       )}
