@@ -1604,7 +1604,10 @@
     "toastDescDone": "Descrição gerada (guardada no post).",
     "dropNewTrack": "Solta aqui → nova faixa de vídeo (Alt = duplicar)",
     "toastNewVideoTrack": "Nova faixa de vídeo criada.",
-    "trackHeightTitle": "Altura da faixa (arraste ↕)"
+    "trackHeightTitle": "Altura da faixa (arraste ↕)",
+    "lockTrack": "Bloquear faixa",
+    "hideTrack": "Ocultar faixa",
+    "muteTrack": "Silenciar faixa"
   },
   "forgotPassword": {
     "title": "Esqueceu a palavra-passe",

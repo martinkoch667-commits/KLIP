@@ -1604,7 +1604,10 @@
     "toastDescDone": "Description generated (saved to the post).",
     "dropNewTrack": "Drop here → new video track (Alt = duplicate)",
     "toastNewVideoTrack": "New video track created.",
-    "trackHeightTitle": "Track height (drag ↕)"
+    "trackHeightTitle": "Track height (drag ↕)",
+    "lockTrack": "Lock track",
+    "hideTrack": "Hide track",
+    "muteTrack": "Mute track"
   },
   "forgotPassword": {
     "title": "Forgot password",

@@ -1604,7 +1604,10 @@
     "toastDescDone": "Descrizione generata (salvata sul post).",
     "dropNewTrack": "Rilascia qui → nuova traccia video (Alt = duplica)",
     "toastNewVideoTrack": "Nuova traccia video creata.",
-    "trackHeightTitle": "Altezza traccia (trascina ↕)"
+    "trackHeightTitle": "Altezza traccia (trascina ↕)",
+    "lockTrack": "Blocca traccia",
+    "hideTrack": "Nascondi traccia",
+    "muteTrack": "Muta traccia"
   },
   "forgotPassword": {
     "title": "Password dimenticata",

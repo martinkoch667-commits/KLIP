@@ -306,6 +306,10 @@ export default function MontagePage() {
   const [timelineH, setTimelineH] = useState(178);
   const [trackScale, setTrackScale] = useState(1); // hauteur des pistes (0.7–2.2), façon CapCut
   const [laneHeights, setLaneHeights] = useState<Record<string, number>>({}); // hauteur individuelle par piste (px)
+  const [lockedLanes, setLockedLanes] = useState<Set<string>>(new Set()); // pistes verrouillées (pas d'édition)
+  const [hiddenLanes, setHiddenLanes] = useState<Set<string>>(new Set());  // pistes masquées (invisibles à l'aperçu/export)
+  const [mutedLanes, setMutedLanes] = useState<Set<string>>(new Set());    // pistes muettes
+  const mutedLanesRef = useRef(mutedLanes); mutedLanesRef.current = mutedLanes;
   useEffect(() => {
     try {
       const w = Number(localStorage.getItem("klip-mz-panelW"));
@@ -322,6 +326,19 @@ export default function MontagePage() {
   function onTsUp(e: React.PointerEvent) { if (tsDragRef.current) { try { (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId); } catch {} tsDragRef.current = null; try { localStorage.setItem("klip-mz-trackScale", String(trackScale)); } catch {} } }
   // Hauteur d'une piste : override individuel sinon défaut (34 × échelle globale).
   const laneH = (key: string) => laneHeights[key] ?? Math.round(34 * trackScale);
+  const toggleLane = (set: React.Dispatch<React.SetStateAction<Set<string>>>, key: string) =>
+    set((prev) => { const n = new Set(prev); if (n.has(key)) n.delete(key); else n.add(key); return n; });
+  // Contrôles à gauche d'une piste (verrouiller / masquer / couper le son), façon CapCut.
+  function LaneControls({ laneKey, audio }: { laneKey: string; audio?: boolean }) {
+    const locked = lockedLanes.has(laneKey), hidden = hiddenLanes.has(laneKey), muted = mutedLanes.has(laneKey);
+    return (
+      <span style={{ display: "inline-flex", alignItems: "center", gap: 2, marginLeft: "auto", flexShrink: 0 }} onPointerDown={(e) => e.stopPropagation()}>
+        <button className={"a-lanectl" + (locked ? " on" : "")} title={t('lockTrack')} onClick={() => toggleLane(setLockedLanes, laneKey)}><VIcon name="lock" size={12} /></button>
+        {!audio && <button className={"a-lanectl" + (hidden ? " on" : "")} title={t('hideTrack')} onClick={() => toggleLane(setHiddenLanes, laneKey)}><VIcon name="eye" size={12} /></button>}
+        <button className={"a-lanectl" + (muted ? " on" : "")} title={t('muteTrack')} onClick={() => toggleLane(setMutedLanes, laneKey)}><VIcon name={muted ? "mute" : "volume"} size={12} /></button>
+      </span>
+    );
+  }
   // Poignée fine au bas d'une piste : tirer ↕ pour la redimensionner individuellement.
   function LaneResize({ laneKey }: { laneKey: string }) {
     return (
@@ -816,7 +833,7 @@ export default function MontagePage() {
         if (vEl.paused) vEl.play().catch(() => {});
         if (isFinite(expected) && Math.abs(vEl.currentTime - expected) > 0.3) vEl.currentTime = Math.max(0, expected);
         const g = clipAudioGainAt(ac, t - ac.start);
-        vEl.volume = isFinite(g) ? Math.max(0, Math.min(1, g)) : 0;
+        vEl.volume = mutedLanesRef.current.has("video") ? 0 : (isFinite(g) ? Math.max(0, Math.min(1, g)) : 0);
       }
       for (const a of audioTracksRef.current) {
         const el = audioElsRef.current[a.id];
@@ -827,7 +844,7 @@ export default function MontagePage() {
           const srcT = (a.srcOffset ?? 0) + local; // audio détaché d'un plan rogné : décalage dans la source
           if (Math.abs(el.currentTime - srcT) > 0.3) el.currentTime = srcT;
           if (el.paused) el.play().catch(() => {});
-          el.volume = Math.min(1, audioVolumeAt(a, local)); // el.volume ∈ [0,1] ; le boost >100 % est appliqué à l'export
+          el.volume = mutedLanesRef.current.has(`a${a.track ?? 0}`) ? 0 : Math.min(1, audioVolumeAt(a, local)); // el.volume ∈ [0,1] ; boost >100 % à l'export
         } else if (!el.paused) {
           el.pause();
         }
@@ -1612,6 +1629,7 @@ export default function MontagePage() {
   const audDragRef = useRef<{ id: string; startX: number; t0: number; moved: boolean } | null>(null);
   function onAudioBarDown(e: React.PointerEvent, a: AudioTrack) {
     e.stopPropagation();
+    if (lockedLanes.has(`a${a.track ?? 0}`)) return; // piste verrouillée
     if (e.shiftKey) { toggleMulti(a.id); return; }
     try { (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId); } catch {}
     audDragRef.current = { id: a.id, startX: e.clientX, t0: a.offset, moved: false };
@@ -1812,12 +1830,12 @@ export default function MontagePage() {
       const isActive = time >= o.offset && time < o.offset + overlayTimelineDur(o);
       if (!isActive) { if (!v.paused) v.pause(); return; }
       const g = overlayAudioGainAt(o, time - o.offset);
-      v.volume = isFinite(g) ? Math.max(0, Math.min(1, g)) : 0;
+      v.volume = mutedLanes.has(`v${o.track ?? 0}`) ? 0 : (isFinite(g) ? Math.max(0, Math.min(1, g)) : 0);
       const localTime = o.trimStart + (time - o.offset);
       if (Math.abs(v.currentTime - localTime) > 0.4) v.currentTime = Math.max(0, localTime);
       if (playing) v.play().catch(() => {}); else if (!v.paused) v.pause();
     });
-  }, [overlays, time, playing]);
+  }, [overlays, time, playing, mutedLanes]);
 
   // ── Overlays de scène (drag titres/stickers/sous-titres) ────────────────────
   function onOverlayPointerDown(e: React.PointerEvent, type: "title" | "sticker" | "caption" | "overlay", id: string) {
@@ -1878,7 +1896,15 @@ export default function MontagePage() {
     setExportPhase("render");
     setExportProgress(0);
     try {
-      const { blob: webmBlob, thumbnailBlob } = await renderExport({ clips, overlays, captions, subStyleId, subCustom, subPos, titles, stickers, audioTracks, showProgressBar, formatId, customW, customH, exportQuality }, (p) => setExportProgress(p));
+      // Applique masquer/couper (pistes) à l'export : on retire le contenu masqué et on
+      // coupe le son des pistes muettes AVANT le rendu (sans toucher au moteur d'export).
+      const HL = hiddenLanes, ML = mutedLanes;
+      const exClips = clips.map((c) => ML.has("video") ? { ...c, vol: 0 } : c); // (masquer la piste principale n'est pas appliqué à l'export)
+      const exOverlays = overlays.filter((o) => !HL.has(`v${o.track ?? 0}`)).map((o) => ML.has(`v${o.track ?? 0}`) ? { ...o, vol: 0 } : o);
+      const exAudio = audioTracks.filter((a) => !HL.has(`a${a.track ?? 0}`)).map((a) => ML.has(`a${a.track ?? 0}`) ? { ...a, vol: 0 } : a);
+      const exTitles = HL.has("text") ? [] : titles;
+      const exCaptions = HL.has("subs") ? [] : captions;
+      const { blob: webmBlob, thumbnailBlob } = await renderExport({ clips: exClips, overlays: exOverlays, captions: exCaptions, subStyleId, subCustom, subPos, titles: exTitles, stickers, audioTracks: exAudio, showProgressBar, formatId, customW, customH, exportQuality }, (p) => setExportProgress(p));
 
       // Transcodage en MP4 (H.264/AAC) pour compatibilité universelle — le
       // rendu brut Canvas/MediaRecorder est en .webm.
@@ -2153,6 +2179,8 @@ export default function MontagePage() {
   }
   function startTlDrag(e: React.PointerEvent, id: string, kind: "clip" | "overlay") {
     e.stopPropagation();
+    const laneKey = kind === "clip" ? "video" : `v${overlays.find((o) => o.id === id)?.track ?? 0}`;
+    if (lockedLanes.has(laneKey)) return; // piste verrouillée
     if (e.shiftKey) { toggleMulti(id); return; } // ⇧+clic → sélection multiple, pas de glissement
     const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
     // anchor (plans) = fin du plan précédent = point fixe pour recalculer le trou (gapBefore)
@@ -2287,9 +2315,9 @@ export default function MontagePage() {
   const previewScale = (stageW || 300) / activeFmt.w;
   // Le texte sélectionné s'affiche TOUJOURS dans l'aperçu (même si le curseur sort de sa
   // plage) → on peut toujours le voir, le déplacer et l'éditer.
-  const activeTitles = titles.filter((ti) => (time >= ti.start && time <= ti.end) || ti.id === selectedTitleId);
+  const activeTitles = hiddenLanes.has("text") ? [] : titles.filter((ti) => (time >= ti.start && time <= ti.end) || ti.id === selectedTitleId);
   const activeStickers = stickers.filter((s) => time >= s.start && time <= s.end);
-  const activeCaption = captions.find((c) => time >= c.start && time <= c.end);
+  const activeCaption = hiddenLanes.has("subs") ? undefined : captions.find((c) => time >= c.start && time <= c.end);
   const capStyle = effectiveSubStyle(subStyleId, subCustom);
 
   if (loading) {
@@ -2463,7 +2491,7 @@ export default function MontagePage() {
               onPointerLeave={onStagePointerUp}
             >
               <div className="mz-video">
-                {activeClip ? (
+                {activeClip && !hiddenLanes.has("video") ? (
                   activeClip.kind === "video"
                     ? <video ref={videoRef} onTimeUpdate={onVideoTimeUpdate} onEnded={onVideoEnded} playsInline muted={false} style={{ filter: clipFilterCss(activeClip), objectPosition: `${(activeClip.focusX ?? 0.5) * 100}% ${(activeClip.focusY ?? 0.5) * 100}%` }} />
                     : <img src={activeClip.src} alt="" style={{
@@ -2485,7 +2513,8 @@ export default function MontagePage() {
                 {/* incrustations (PIP) — déplaçables/redimensionnables/pivotables.
                     Triées par piste croissante : l'ordre du DOM fait le z-order (piste haute = au-dessus). */}
                 {[...overlays].sort((a, b) => (a.track ?? 0) - (b.track ?? 0)).map((o) => {
-                  const isActive = time >= o.offset && time < o.offset + overlayTimelineDur(o);
+                  const hidden = hiddenLanes.has(`v${o.track ?? 0}`);
+                  const isActive = time >= o.offset && time < o.offset + overlayTimelineDur(o) && !hidden;
                   const sel = selectedOverlayId === o.id;
                   return (
                     <div
@@ -2721,7 +2750,7 @@ export default function MontagePage() {
             </div>
             <div className={"a-lane" + (videoTrackCount === 0 && dropLane === "new" ? " nt-hint" : "")} style={{ height: laneH("video"), order: 4 }} data-tllane="video">
               <LaneResize laneKey="video" />
-              <div className="a-lane-label"><VIcon name="video" size={13} /> {`${t('labelVideo')} 1`}</div>
+              <div className="a-lane-label" style={{ display: "flex", alignItems: "center", gap: 4 }}><VIcon name="video" size={13} /> <span className="trunc">{`${t('labelVideo')} 1`}</span><LaneControls laneKey="video" /></div>
               <div className="a-lane-track">
                 {clips.length === 0 && (
                   <span style={{ fontSize: 12, color: "var(--ink-3)", fontWeight: 600 }}>{t('importFirstRush')}</span>
@@ -2812,9 +2841,10 @@ export default function MontagePage() {
                 <div className="a-lane-label" style={{ display: "flex", alignItems: "center", gap: 4 }}>
                   <VIcon name="video" size={13} />
                   <span className="trunc">{`${t('labelVideo')} ${track + 2}`}</span>
+                  <LaneControls laneKey={`v${track}`} />
                   {isTop && (
                     <button onClick={() => setExtraVideoTracks((n) => n + 1)} title={t('addVideoTrack')}
-                      style={{ marginLeft: "auto", width: 18, height: 18, borderRadius: 5, border: "1px solid var(--line)", background: "var(--canvas)", color: "var(--ink-2)", fontSize: 14, lineHeight: "14px", cursor: "pointer", flexShrink: 0, padding: 0 }}>+</button>
+                      style={{ width: 18, height: 18, borderRadius: 5, border: "1px solid var(--line)", background: "var(--canvas)", color: "var(--ink-2)", fontSize: 14, lineHeight: "14px", cursor: "pointer", flexShrink: 0, padding: 0 }}>+</button>
                   )}
                 </div>
                 <div className={"a-lane-track" + (dropLane === `v${track}` && dragActive ? " drop-hot" : "")}>
@@ -2888,9 +2918,10 @@ export default function MontagePage() {
                 <div className="a-lane-label" style={{ display: "flex", alignItems: "center", gap: 4 }}>
                   <VIcon name="music" size={13} />
                   <span className="trunc">{audioTrackCount > 1 ? `${t('railAudio')} ${atrack + 1}` : t('railAudio')}</span>
+                  <LaneControls laneKey={`a${atrack}`} audio />
                   {isFirstA && (
                     <button onClick={() => setExtraAudioTracks((n) => n + 1)} title={t('addAudioTrack')}
-                      style={{ marginLeft: "auto", width: 18, height: 18, borderRadius: 5, border: "1px solid var(--line)", background: "var(--canvas)", color: "var(--ink-2)", fontSize: 14, lineHeight: "14px", cursor: "pointer", flexShrink: 0, padding: 0 }}>+</button>
+                      style={{ width: 18, height: 18, borderRadius: 5, border: "1px solid var(--line)", background: "var(--canvas)", color: "var(--ink-2)", fontSize: 14, lineHeight: "14px", cursor: "pointer", flexShrink: 0, padding: 0 }}>+</button>
                   )}
                 </div>
                 <div className="a-lane-track">
@@ -2935,7 +2966,7 @@ export default function MontagePage() {
             })}
             <div className="a-lane" style={{ height: laneH("subs"), order: 1 }}>
               <LaneResize laneKey="subs" />
-              <div className="a-lane-label"><VIcon name="captions" size={13} /> {t('labelSubtitlesShort')}</div>
+              <div className="a-lane-label" style={{ display: "flex", alignItems: "center", gap: 4 }}><VIcon name="captions" size={13} /> <span className="trunc">{t('labelSubtitlesShort')}</span><LaneControls laneKey="subs" audio /></div>
               <div className="a-lane-track">
                 {captions.map((c) => (
                   <div key={c.id} className="a-chip" style={{ left: c.start * pps, width: Math.max(20, (c.end - c.start) * pps) }} title={c.text} onClick={() => setTool("captions")}
@@ -2947,7 +2978,7 @@ export default function MontagePage() {
             </div>
             <div className="a-lane" style={{ height: laneH("text"), order: 2 }}>
               <LaneResize laneKey="text" />
-              <div className="a-lane-label"><VIcon name="text" size={13} /> {t('railText')}</div>
+              <div className="a-lane-label" style={{ display: "flex", alignItems: "center", gap: 4 }}><VIcon name="text" size={13} /> <span className="trunc">{t('railText')}</span><LaneControls laneKey="text" audio /></div>
               <div className="a-lane-track">
                 {titles.map((ti) => (
                   <div key={ti.id} className={"a-chip" + (selectedTitleId === ti.id ? " on" : "")} style={{ left: ti.start * pps, width: Math.max(20, (ti.end - ti.start) * pps), cursor: "grab", touchAction: "none" }} title={ti.text}

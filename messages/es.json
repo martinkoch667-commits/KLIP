@@ -1604,7 +1604,10 @@
     "toastDescDone": "Descripción generada (guardada en el post).",
     "dropNewTrack": "Soltar aquí → nueva pista de vídeo (Alt = duplicar)",
     "toastNewVideoTrack": "Nueva pista de vídeo creada.",
-    "trackHeightTitle": "Altura de pista (arrastrar ↕)"
+    "trackHeightTitle": "Altura de pista (arrastrar ↕)",
+    "lockTrack": "Bloquear pista",
+    "hideTrack": "Ocultar pista",
+    "muteTrack": "Silenciar pista"
   },
   "forgotPassword": {
     "title": "Contraseña olvidada",
