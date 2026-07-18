@@ -33,22 +33,40 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const { url } = await req.json();
-    if (!url || typeof url !== "string") {
-      return NextResponse.json({ ok: false, error: "missing_url" }, { status: 400 });
-    }
+    // Deux modes d'entrée :
+    //  • multipart/form-data avec un champ "audio" → le client a déjà extrait le son
+    //    (WAV léger). C'est le chemin normal : évite d'envoyer une vidéo entière trop
+    //    lourde pour l'API ("Request Entity Too Large").
+    //  • JSON { url } → repli : le serveur télécharge le média et le transmet tel quel.
+    const reqCt = req.headers.get("content-type") || "";
+    let mediaBlob: Blob;
+    let filename = "clip.mp4";
 
-    const mediaRes = await fetch(url);
-    if (!mediaRes.ok) {
-      return NextResponse.json({ ok: false, error: "fetch_media_failed" }, { status: 502 });
+    if (reqCt.includes("multipart/form-data")) {
+      const fd = await req.formData();
+      const audio = fd.get("audio");
+      if (!(audio instanceof Blob)) {
+        return NextResponse.json({ ok: false, error: "missing_audio" }, { status: 400 });
+      }
+      mediaBlob = audio;
+      filename = "audio.wav";
+    } else {
+      const { url } = await req.json();
+      if (!url || typeof url !== "string") {
+        return NextResponse.json({ ok: false, error: "missing_url" }, { status: 400 });
+      }
+      const mediaRes = await fetch(url);
+      if (!mediaRes.ok) {
+        return NextResponse.json({ ok: false, error: "fetch_media_failed" }, { status: 502 });
+      }
+      mediaBlob = await mediaRes.blob();
+      const contentType = mediaRes.headers.get("content-type") || "video/mp4";
+      const ext = contentType.includes("webm") ? "webm" : contentType.includes("quicktime") ? "mov" : "mp4";
+      filename = `clip.${ext}`;
     }
-    const mediaBlob = await mediaRes.blob();
-
-    const contentType = mediaRes.headers.get("content-type") || "video/mp4";
-    const ext = contentType.includes("webm") ? "webm" : contentType.includes("quicktime") ? "mov" : "mp4";
 
     const form = new FormData();
-    form.append("file", mediaBlob, `clip.${ext}`);
+    form.append("file", mediaBlob, filename);
     form.append("model", provider.model);
     form.append("response_format", "verbose_json");
     form.append("timestamp_granularities[]", "segment");

@@ -944,11 +944,10 @@ input.ed-range::-moz-range-thumb {
 .a-clip-dur { position: absolute; right: 6px; top: 5px; font-family: var(--mono); font-weight: 700; font-size: 8.5px; color: rgba(255,255,255,.9);
   background: rgba(0,0,0,.35); padding: 1px 5px; border-radius: 5px; }
 .a-clip-badge { position: absolute; left: 6px; top: 5px; width: 16px; height: 16px; border-radius: 5px; background: rgba(0,0,0,.42); display: grid; place-items: center; color: #fff; }
-/* Spectre audio en bande dédiée au bas du plan (façon CapCut) : fond sombre opaque
-   + barres cyan/menthe, nettement séparé des vignettes vidéo au-dessus. */
-.a-clip-wave { position: absolute; left: 0; right: 0; bottom: 0; height: 32%; min-height: 12px;
-  background: rgba(9,17,13,.82); box-shadow: inset 0 1px 0 rgba(255,255,255,.06); pointer-events: none; z-index: 2; }
-.a-chip .a-clip-wave { height: 38%; }
+/* Spectre audio intégré au bas du plan vidéo (le son fait un avec la vidéo, façon CapCut). */
+.a-clip-wave { position: absolute; left: 0; right: 0; bottom: 0; height: 34%; min-height: 10px;
+  background: linear-gradient(180deg, rgba(10,22,15,.15), rgba(10,22,15,.55)); pointer-events: none; }
+.a-chip .a-clip-wave { height: 42%; }
 .a-clip-fade { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 3; }
 
 .a-playhead { position: absolute; top: 0; bottom: 8px; width: 2px; background: var(--ink); z-index: 17; pointer-events: none; }
