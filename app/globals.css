@@ -1062,6 +1062,13 @@ input.mz-range::-moz-range-thumb { width: 16px; height: 16px; border-radius: 50%
 .a-lane-track .a-chip { position: absolute; height: 30px; top: 11px; border-radius: 8px; display: flex; align-items: center; padding: 0 8px; gap: 5px;
   font-size: 10.5px; font-weight: 700; color: #fff; overflow: hidden; white-space: nowrap; cursor: pointer; }
 .a-lane-track .a-chip.on { box-shadow: 0 0 0 2px var(--mint-2); }
+/* Blocs sous-titres/texte : fond plein + liseré → toujours visibles et séparés,
+   même avant sélection (chaque bloc se distingue nettement de la piste). */
+.a-lane-track .a-chip-cap { background: linear-gradient(150deg, #6D5AE6, #3B2C9E); box-shadow: inset 0 0 0 1px rgba(255,255,255,.16); }
+.a-lane-track .a-chip-cap.on { box-shadow: 0 0 0 2px var(--mint-2), inset 0 0 0 1px rgba(255,255,255,.2); }
+.a-lane-track .a-chip-title { background: linear-gradient(150deg, #2E9BC9, #185C86); box-shadow: inset 0 0 0 1px rgba(255,255,255,.16); }
+.a-lane-track .a-chip-title.on { box-shadow: 0 0 0 2px var(--mint-2), inset 0 0 0 1px rgba(255,255,255,.2); }
+.a-lane-track .a-chip-cap svg, .a-lane-track .a-chip-title svg { flex-shrink: 0; opacity: .9; }
 .a-wave-bar { position: absolute; top: 0; bottom: 0; border-radius: 8px; background: linear-gradient(150deg,#2b8d57,#17492f); overflow: hidden; }
 
 /* toast */

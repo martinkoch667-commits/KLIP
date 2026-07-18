@@ -3153,9 +3153,10 @@ export default function MontagePage() {
               <div className="a-lane-label" style={{ display: "flex", alignItems: "center", gap: 4 }}><VIcon name="captions" size={13} /> <span className="trunc">{t('labelSubtitlesShort')}</span><LaneControls laneKey="subs" audio /></div>
               <div className="a-lane-track">
                 {captions.map((c) => (
-                  <div key={c.id} className={"a-chip" + (selectedCaptionId === c.id ? " on" : "")} style={{ left: c.start * pps, width: Math.max(20, (c.end - c.start) * pps), top: 2, height: blockH("subs"), cursor: "grab", touchAction: "none" }} title={c.text}
+                  <div key={c.id} className={"a-chip a-chip-cap" + (selectedCaptionId === c.id ? " on" : "")} style={{ left: c.start * pps, width: Math.max(20, (c.end - c.start) * pps), top: 2, height: blockH("subs"), cursor: "grab", touchAction: "none" }} title={c.text}
                     onPointerDown={(e) => onCaptionBarDown(e, c)} onPointerMove={onCaptionBarMove} onPointerUp={onCaptionBarUp}
                     onContextMenu={(e) => { e.preventDefault(); setSelectedCaptionId(c.id); setClipMenu({ x: e.clientX, y: e.clientY, id: c.id, kind: "caption" }); }}>
+                    <VIcon name="captions" size={11} />
                     <span style={{ fontSize: 10, fontWeight: 700, color: "#fff", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.text}</span>
                     {selectedCaptionId === c.id && <>
                       <div className="a-trim a-trim-l" onPointerDown={(e) => startCaptionTrim(e, c, "start")} onPointerMove={onCaptionTrimMove} onPointerUp={endCaptionTrim} title={t('trimStartTitle')} />
@@ -3170,9 +3171,10 @@ export default function MontagePage() {
               <div className="a-lane-label" style={{ display: "flex", alignItems: "center", gap: 4 }}><VIcon name="text" size={13} /> <span className="trunc">{t('railText')}</span><LaneControls laneKey="text" audio /></div>
               <div className="a-lane-track">
                 {titles.map((ti) => (
-                  <div key={ti.id} className={"a-chip" + (selectedTitleId === ti.id ? " on" : "")} style={{ left: ti.start * pps, width: Math.max(20, (ti.end - ti.start) * pps), top: 2, height: blockH("text"), cursor: "grab", touchAction: "none" }} title={ti.text}
+                  <div key={ti.id} className={"a-chip a-chip-title" + (selectedTitleId === ti.id ? " on" : "")} style={{ left: ti.start * pps, width: Math.max(20, (ti.end - ti.start) * pps), top: 2, height: blockH("text"), cursor: "grab", touchAction: "none" }} title={ti.text}
                     onPointerDown={(e) => onTitleBarDown(e, ti)} onPointerMove={onTitleBarMove} onPointerUp={onTitleBarUp}
                     onContextMenu={(e) => { e.preventDefault(); setSelectedTitleId(ti.id); setClipMenu({ x: e.clientX, y: e.clientY, id: ti.id, kind: "title" }); }}>
+                    <VIcon name="text" size={11} />
                     <span style={{ fontSize: 10, fontWeight: 700, color: "#fff", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{ti.text}</span>
                     {selectedTitleId === ti.id && <>
                       <div className="a-trim a-trim-l" onPointerDown={(e) => startTitleTrim(e, ti, "start")} onPointerMove={onTitleTrimMove} onPointerUp={endTitleTrim} title={t('trimStartTitle')} />
