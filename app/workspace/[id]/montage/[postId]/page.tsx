@@ -280,6 +280,9 @@ export default function MontagePage() {
   const [playing, setPlaying] = useState(false);
   const [stageW, setStageW] = useState(0); // largeur px réelle de la preview → texte figé à l'échelle de l'image (WYSIWYG avec l'export)
   const [previewZoom, setPreviewZoom] = useState(1); // zoom de la preview (pincement/molette), 1–5
+  // Valeurs de zoom lues au démarrage d'un geste (Safari) — refs pour éviter les closures figées.
+  const ppsRef = useRef(pps); ppsRef.current = pps;
+  const previewZoomRef = useRef(previewZoom); previewZoomRef.current = previewZoom;
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const videoInputRef = useRef<HTMLInputElement>(null); // import « vidéos » dédié
@@ -381,17 +384,38 @@ export default function MontagePage() {
         setPreviewZoom((z) => Math.max(1, Math.min(5, z * factor)));
       }
     };
-    const blockGesture = (e: Event) => e.preventDefault();
+    // Safari/WebKit : le pincement trackpad n'émet PAS de ctrl+wheel mais des « gesture
+    // events » (e.scale = échelle cumulée depuis le début du geste, 1 = neutre). On zoome
+    // dessus la bonne zone, sinon on ne ferait que bloquer la page (→ « rien ne se passe »).
+    let gZone: "tl" | "stage" | null = null, gPps = 40, gPrev = 1;
+    const zoneOf = (target: Node | null) => {
+      const tl = tlScrollRef.current, stage = stageRef.current;
+      if (tl && target && tl.contains(target)) return "tl" as const;
+      if (stage && target && stage.contains(target)) return "stage" as const;
+      return null;
+    };
+    const onGestureStart = (e: Event) => {
+      e.preventDefault();
+      gZone = zoneOf(e.target as Node);
+      gPps = ppsRef.current; gPrev = previewZoomRef.current;
+    };
+    const onGestureChange = (e: Event) => {
+      e.preventDefault();
+      const s = (e as unknown as { scale?: number }).scale || 1;
+      if (gZone === "tl") setPps(Math.max(10, Math.min(220, gPps * s)));
+      else if (gZone === "stage") setPreviewZoom(Math.max(1, Math.min(5, gPrev * s)));
+    };
+    const onGestureEnd = (e: Event) => e.preventDefault();
     const opts = { passive: false, capture: true } as AddEventListenerOptions;
     window.addEventListener("wheel", onWheel, opts);
-    document.addEventListener("gesturestart", blockGesture, opts);
-    document.addEventListener("gesturechange", blockGesture, opts);
-    document.addEventListener("gestureend", blockGesture, opts);
+    document.addEventListener("gesturestart", onGestureStart, opts);
+    document.addEventListener("gesturechange", onGestureChange, opts);
+    document.addEventListener("gestureend", onGestureEnd, opts);
     return () => {
       window.removeEventListener("wheel", onWheel, opts);
-      document.removeEventListener("gesturestart", blockGesture, opts);
-      document.removeEventListener("gesturechange", blockGesture, opts);
-      document.removeEventListener("gestureend", blockGesture, opts);
+      document.removeEventListener("gesturestart", onGestureStart, opts);
+      document.removeEventListener("gesturechange", onGestureChange, opts);
+      document.removeEventListener("gestureend", onGestureEnd, opts);
     };
   }, []);
 
