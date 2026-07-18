@@ -360,37 +360,42 @@ export default function MontagePage() {
   // les zones qui ont leur propre zoom (timeline, preview) le gèrent quand même.
   // Safari émet aussi des « gesture events » → on les bloque également.
   useEffect(() => {
-    // Capture phase + non passif = on intercepte le pincement AVANT tout le reste, ce qui
-    // rend le blocage fiable (sinon la page zoomait « des fois »).
-    const blockWheelZoom = (e: WheelEvent) => { if (e.ctrlKey || e.metaKey) e.preventDefault(); };
+    // UN SEUL point d'entrée pour le pincement/zoom (capture phase + non passif) : on
+    // intercepte AVANT tout le reste → blocage fiable du zoom de page, ET on route le zoom
+    // vers la bonne zone (timeline ou aperçu) selon l'endroit du curseur. Comme c'est ce
+    // même listener qui bloque la page (et ça marche), le zoom part forcément.
+    const onWheel = (e: WheelEvent) => {
+      if (!(e.ctrlKey || e.metaKey)) return; // molette/scroll normal : on ne touche pas
+      e.preventDefault(); // bloque le zoom de la page web
+      const tl = tlScrollRef.current, stage = stageRef.current, target = e.target as Node;
+      const factor = Math.min(1.25, Math.max(0.8, Math.exp(-e.deltaY * 0.01)));
+      if (tl && tl.contains(target)) {
+        setPps((p) => {
+          const np = Math.max(10, Math.min(220, p * factor));
+          const rect = tl.getBoundingClientRect();
+          const tAtCursor = (e.clientX - rect.left + tl.scrollLeft - 92) / p; // 92 = label
+          requestAnimationFrame(() => { tl.scrollLeft = Math.max(0, tAtCursor * np - (e.clientX - rect.left - 92)); });
+          return np;
+        });
+      } else if (stage && stage.contains(target)) {
+        setPreviewZoom((z) => Math.max(1, Math.min(5, z * factor)));
+      }
+    };
     const blockGesture = (e: Event) => e.preventDefault();
     const opts = { passive: false, capture: true } as AddEventListenerOptions;
-    window.addEventListener("wheel", blockWheelZoom, opts);
+    window.addEventListener("wheel", onWheel, opts);
     document.addEventListener("gesturestart", blockGesture, opts);
     document.addEventListener("gesturechange", blockGesture, opts);
     document.addEventListener("gestureend", blockGesture, opts);
     return () => {
-      window.removeEventListener("wheel", blockWheelZoom, opts);
+      window.removeEventListener("wheel", onWheel, opts);
       document.removeEventListener("gesturestart", blockGesture, opts);
       document.removeEventListener("gesturechange", blockGesture, opts);
       document.removeEventListener("gestureend", blockGesture, opts);
     };
   }, []);
 
-  // ── Zoom de la preview au pincement / molette+Ctrl — sans zoomer la page ────
-  // Listener natif non-passif : indispensable pour pouvoir preventDefault() le
-  // zoom de page du navigateur (le trackpad envoie ctrlKey lors d'un pincement).
-  useEffect(() => {
-    const el = stageRef.current;
-    if (!el) return;
-    const onWheel = (e: WheelEvent) => {
-      if (!e.ctrlKey && !e.metaKey) return;
-      e.preventDefault();
-      setPreviewZoom((z) => Math.max(1, Math.min(5, z - e.deltaY * 0.006)));
-    };
-    el.addEventListener("wheel", onWheel, { passive: false });
-    return () => el.removeEventListener("wheel", onWheel);
-  }, [loading]);
+  // (Le zoom de l'aperçu ET de la timeline est géré par l'unique listener global ci-dessus.)
 
   // ── Load project ──────────────────────────────────────────────────────────
   useEffect(() => {
@@ -1576,38 +1581,16 @@ export default function MontagePage() {
     try { (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId); } catch {}
   }
 
-  // Zoom timeline via pincement trackpad Mac / Ctrl-⌘+molette, ANCRÉ sur le curseur.
-  // IMPORTANT : le listener React onWheel est « passif » → preventDefault() y est ignoré,
-  // donc c'est la PAGE qui zoome. On attache donc un listener natif NON passif pour bloquer
-  // le zoom de la page et zoomer la timeline à la place.
+  // Molette verticale simple (sans Ctrl/⌘) sur la timeline → défilement horizontal.
+  // Le ZOOM (avec Ctrl/⌘/pincement) est géré par l'unique listener global plus haut.
   useEffect(() => {
     const scroller = tlScrollRef.current;
     if (!scroller) return;
     const onWheelNative = (e: WheelEvent) => {
-      if (e.ctrlKey || e.metaKey) {
-        e.preventDefault(); // empêche le zoom de la page (pincement trackpad)
-        // Facteur PROPORTIONNEL à l'ampleur du pincement (et non un gros pas fixe par
-        // événement) → beaucoup moins sensible : le trackpad envoie plein de petits
-        // événements, chacun ne zoome donc qu'un tout petit peu. Borné pour rester doux.
-        const factor = Math.min(1.25, Math.max(0.8, Math.exp(-e.deltaY * 0.0016)));
-        setPps((p) => {
-          // pps fractionnaire : les petits pas d'un pincement s'accumulent (sinon
-          // Math.round mangeait chaque micro-incrément → ça ne zoomait plus).
-          const np = Math.max(10, Math.min(220, p * factor));
-          if (np !== p) {
-            const rect = scroller.getBoundingClientRect();
-            const xInContent = e.clientX - rect.left + scroller.scrollLeft - 92; // 92 = largeur label
-            const tAtCursor = xInContent / p;
-            requestAnimationFrame(() => { scroller.scrollLeft = Math.max(0, tAtCursor * np - (e.clientX - rect.left - 92)); });
-          }
-          return np;
-        });
-      } else if (Math.abs(e.deltaY) > Math.abs(e.deltaX)) {
-        // molette verticale simple → défilement horizontal de la timeline
-        scroller.scrollLeft += e.deltaY;
-      }
+      if (e.ctrlKey || e.metaKey) return; // zoom : géré globalement
+      if (Math.abs(e.deltaY) > Math.abs(e.deltaX)) scroller.scrollLeft += e.deltaY;
     };
-    scroller.addEventListener("wheel", onWheelNative, { passive: false });
+    scroller.addEventListener("wheel", onWheelNative, { passive: true });
     return () => scroller.removeEventListener("wheel", onWheelNative);
   }, [loading]);
 
