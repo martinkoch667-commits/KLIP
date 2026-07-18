@@ -884,15 +884,20 @@ export default function MontagePage() {
       const out = [...prev]; out.splice(idx + 1, 0, copy); return out;
     });
   }
-  // Séparer le son (option 1) : le son embarqué reste dans « son des plans » sous la
-  // vidéo, à la même position. On ne crée PLUS de piste dupliquée en bas et on ne coupe
-  // pas le son du plan — on sélectionne simplement le son seul (il est déjà dissocié de
-  // la vidéo côté sélection : cliquer l'un ne sélectionne pas l'autre).
+  // Séparer le son : par défaut le son fait UN avec la vidéo (spectre intégré au plan).
+  // Séparer crée une piste audio indépendante (déplaçable/rognable) et coupe le son
+  // embarqué du plan — comme CapCut « Extract/Detach audio ».
   function detachAudio(id: string) {
     const c = clipStarts.find((x) => x.id === id);
     if (!c || c.kind !== "video") { toast(t('toastDetachVideoOnly')); return; }
-    setAudioOnlyId(id); setSelectedClipId(null); setSelectedTitleId(null); setSelectedStickerId(null); setSelectedOverlayId(null);
-    setTool("audio");
+    if ((c.vol ?? 1) === 0) { toast(t('toastAudioAlreadyDetached')); return; }
+    const aid = crypto.randomUUID();
+    setAudioTracks((prev) => [...prev, {
+      id: aid, kind: "voiceover", name: c.name,
+      src: c.src, dur: c.dur, vol: c.vol ?? 1, offset: c.start, srcOffset: c.trimStart, track: 0,
+      fadeIn: c.audioFadeIn ?? 0, fadeOut: c.audioFadeOut ?? 0,
+    }]);
+    updateClip(id, { vol: 0 }); // le son passe sur la piste audio → on coupe celui embarqué
     toast(t('toastAudioDetached'));
   }
 
@@ -2354,7 +2359,7 @@ export default function MontagePage() {
                   <div key={c.id} style={{ position: "absolute", left: c.start * pps, display: "flex", alignItems: "center" }}>
                     <div
                       className={"a-clip" + (selectedClipId === c.id ? " on" : "")}
-                      style={{ width: c.dur * pps, position: "static", cursor: tlGhost?.id === c.id ? "grabbing" : "grab", touchAction: "none", opacity: tlGhost?.id === c.id ? 0.3 : 1,
+                      style={{ width: c.dur * pps, position: "relative", cursor: tlGhost?.id === c.id ? "grabbing" : "grab", touchAction: "none", opacity: tlGhost?.id === c.id ? 0.3 : 1,
                         background: c.kind === "video"
                           ? (strips[c.id] ? `linear-gradient(180deg,rgba(0,0,0,.12),rgba(0,0,0,.34)), url("${strips[c.id]}")` : "linear-gradient(150deg,#2b8d57,#0c2a1d)")
                           : undefined,
@@ -2365,6 +2370,14 @@ export default function MontagePage() {
                       onContextMenu={(e) => { e.preventDefault(); selectClip(c.id); setClipMenu({ x: e.clientX, y: e.clientY, id: c.id, kind: "clip" }); }}
                     >
                       {c.kind === "photo" && <img src={c.src} alt="" draggable={false} style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", filter: clipFilterCss(c) }} />}
+                      {/* Le son fait UN avec la vidéo : spectre audio intégré en bas du plan (façon CapCut). */}
+                      {c.kind === "video" && (c.vol ?? 1) > 0 && clipWaves[c.src] && (
+                        <div className="a-clip-wave">
+                          <svg width="100%" height="100%" preserveAspectRatio="none">
+                            {clipWaves[c.src].map((p, wi) => { const arr = clipWaves[c.src]; const x = (wi / arr.length) * 100; const h = Math.max(10, p * 100); return <rect key={wi} x={`${x}%`} y={`${(100 - h) / 2}%`} width={`${100 / arr.length}%`} height={`${h}%`} fill="rgba(255,255,255,.82)" />; })}
+                          </svg>
+                        </div>
+                      )}
                       <span className="a-clip-badge"><VIcon name={c.kind === "photo" ? "image" : "video"} size={10} /></span>
                       <span className="a-clip-dur">{c.dur.toFixed(1)}s</span>
                       <span className="a-clip-lbl">{c.name}</span>
@@ -2387,6 +2400,20 @@ export default function MontagePage() {
                         {TRANSITIONS.find((tr) => tr.id === clipStarts[i + 1].transitionIn)?.glyph || "▮▮"}
                       </button>
                     )}
+                    {/* Fondus du son du plan : points blancs à tirer (hors du plan pour ne pas
+                        être rognés par l'overflow ; visibles quand le plan a du son). */}
+                    {c.kind === "video" && (c.vol ?? 1) > 0 && (() => {
+                      const fi = Math.max(0, Math.min(c.dur, c.audioFadeIn ?? 0)) * pps;
+                      const fo = Math.max(0, Math.min(c.dur, c.audioFadeOut ?? 0)) * pps;
+                      return (
+                        <>
+                          <span className="a-fade-dot" style={{ left: Math.max(0, fi) - 5, top: 3 }} title={t('fadeIn')}
+                            onPointerDown={(e) => startClipFade(e, c, "audioFadeIn")} onPointerMove={onClipFadeMove} onPointerUp={onClipFadeUp} />
+                          <span className="a-fade-dot" style={{ left: c.dur * pps - Math.max(0, fo) - 5, top: 3 }} title={t('fadeOut')}
+                            onPointerDown={(e) => startClipFade(e, c, "audioFadeOut")} onPointerMove={onClipFadeMove} onPointerUp={onClipFadeUp} />
+                        </>
+                      );
+                    })()}
                   </div>
                 ))}
               </div>
@@ -2424,6 +2451,13 @@ export default function MontagePage() {
                       onPointerUp={onTlDragUp}
                       onContextMenu={(e) => { e.preventDefault(); selectOverlay(o.id); setClipMenu({ x: e.clientX, y: e.clientY, id: o.id, kind: "overlay" }); }}
                     >
+                      {o.kind === "video" && (o.vol ?? 1) > 0 && clipWaves[o.src] && (
+                        <div className="a-clip-wave">
+                          <svg width="100%" height="100%" preserveAspectRatio="none">
+                            {clipWaves[o.src].map((p, wi) => { const arr = clipWaves[o.src]; const x = (wi / arr.length) * 100; const h = Math.max(10, p * 100); return <rect key={wi} x={`${x}%`} y={`${(100 - h) / 2}%`} width={`${100 / arr.length}%`} height={`${h}%`} fill="rgba(255,255,255,.8)" />; })}
+                          </svg>
+                        </div>
+                      )}
                       <span style={{ position: "absolute", left: 8, top: 4, fontSize: 9.5, fontWeight: 700, color: "#fff", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: "calc(100% - 16px)" }}>{o.kind === "video" ? "🎬" : "🖼"} {o.name}</span>
                       {selectedOverlayId === o.id && (
                         <>
@@ -2437,58 +2471,6 @@ export default function MontagePage() {
               </div>
               );
             })}
-            <div className="a-lane" style={{ height: Math.round(34 * trackScale), order: 5 }}>
-              <div className="a-lane-label"><VIcon name="music" size={13} /> {t('audioClipsLabel')}</div>
-              <div className="a-lane-track">
-                {/* son embarqué des plans vidéo — clic = sélectionne la piste audio seule ; Option/Alt+clic = aussi le plan vidéo lié */}
-                {clipStarts.filter((c) => c.kind === "video").map((c) => (
-                  <div
-                    key={"va-" + c.id}
-                    className={"a-wave-bar" + (audioOnlyId === c.id ? " on" : "")}
-                    style={{ left: c.start * pps, width: c.dur * pps, top: 2, bottom: 2, background: (c.vol ?? 1) === 0 ? "var(--sunk)" : "linear-gradient(150deg,#1f7a4d,#0c2a1d)", opacity: (c.vol ?? 1) === 0 ? 0.5 : 1, cursor: "pointer", boxShadow: audioOnlyId === c.id ? "inset 0 0 0 2px var(--acid)" : undefined }}
-                    title={t('soundOfClip', { name: c.name, percent: Math.round((c.vol ?? 1) * 100) })}
-                    onClick={(e) => {
-                      setAudioOnlyId(c.id);
-                      if (e.altKey) { setSelectedClipId(c.id); }
-                      else { setSelectedClipId(null); }
-                      setSelectedTitleId(null); setSelectedStickerId(null);
-                      setTool("audio");
-                    }}
-                  >
-                    {clipWaves[c.src] && clipWaves[c.src].length > 0 && (
-                      <svg width="100%" height="100%" preserveAspectRatio="none" style={{ position: "absolute", inset: 0, opacity: 0.5 }}>
-                        {clipWaves[c.src].map((p, i) => {
-                          const arr = clipWaves[c.src];
-                          const x = (i / arr.length) * 100;
-                          const h = Math.max(6, p * 100);
-                          return <rect key={i} x={`${x}%`} y={`${(100 - h) / 2}%`} width={`${100 / arr.length}%`} height={`${h}%`} fill="#fff" />;
-                        })}
-                      </svg>
-                    )}
-                    <span style={{ position: "absolute", left: 6, top: 4, fontSize: 9.5, fontWeight: 700, color: "#fff", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: "calc(100% - 12px)" }}>{(c.vol ?? 1) === 0 ? "🔇" : "🔊"} {c.name}</span>
-                    {(c.vol ?? 1) > 0 && (() => {
-                      const w = c.dur * pps, H = 30;
-                      const fi = Math.max(0, Math.min(c.dur, c.audioFadeIn ?? 0)) * pps;
-                      const fo = Math.max(0, Math.min(c.dur, c.audioFadeOut ?? 0)) * pps;
-                      return (
-                        <>
-                          <svg width="100%" height="100%" viewBox={`0 0 ${Math.max(1, w)} ${H}`} preserveAspectRatio="none" style={{ position: "absolute", inset: 0, pointerEvents: "none" }}>
-                            {fi > 0 && <polygon points={`0,${H} ${fi},0 ${fi},${H}`} fill="rgba(0,0,0,.36)" />}
-                            {fo > 0 && <polygon points={`${w},${H} ${w - fo},0 ${w - fo},${H}`} fill="rgba(0,0,0,.36)" />}
-                            {fi > 0 && <line x1="0" y1={H} x2={fi} y2="0" stroke="#fff" strokeWidth="1.5" vectorEffect="non-scaling-stroke" opacity=".95" />}
-                            {fo > 0 && <line x1={w} y1={H} x2={w - fo} y2="0" stroke="#fff" strokeWidth="1.5" vectorEffect="non-scaling-stroke" opacity=".95" />}
-                          </svg>
-                          <span className="a-fade-dot" style={{ left: Math.max(0, fi) - 5 }} title={t('fadeIn')}
-                            onPointerDown={(e) => startClipFade(e, c, "audioFadeIn")} onPointerMove={onClipFadeMove} onPointerUp={onClipFadeUp} />
-                          <span className="a-fade-dot" style={{ left: Math.max(0, w - fo) - 5 }} title={t('fadeOut')}
-                            onPointerDown={(e) => startClipFade(e, c, "audioFadeOut")} onPointerMove={onClipFadeMove} onPointerUp={onClipFadeUp} />
-                        </>
-                      );
-                    })()}
-                  </div>
-                ))}
-              </div>
-            </div>
             {Array.from({ length: audioTrackCount }).map((_, aIdx) => {
               const atrack = aIdx; // rangée audio (l'ordre n'affecte pas le mixage, uniquement l'organisation)
               const isFirstA = aIdx === 0;
@@ -2620,7 +2602,7 @@ export default function MontagePage() {
           rows.push(sep("s1"));
           rows.push(item("edit", t('contextEdit'), () => { selectClip(id); setTool("cut"); }));
           rows.push(item("split", t('splitAtPlayhead'), () => { selectClip(id); splitAtPlayhead(); }, { sc: "⌘B" }));
-          rows.push(item("detach", t('contextDetachAudio'), () => detachAudio(id), { sc: "⇧⌥S", disabled: !isVideo }));
+          rows.push(item("detach", t('contextDetachAudio'), () => detachAudio(id), { sc: "⇧⌥S", disabled: !isVideo || (c?.vol ?? 1) === 0 }));
           rows.push(sep("s2"));
           rows.push(item("dup", t('duplicate'), () => duplicateClip(id), { sc: "⌘D" }));
           rows.push(item("speed", t('railSpeed'), () => { selectClip(id); setTool("speed"); }));
