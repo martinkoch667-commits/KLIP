@@ -269,6 +269,7 @@ export default function MontagePage() {
   const [selectedStickerId, setSelectedStickerId] = useState<string | null>(null);
   const [selectedOverlayId, setSelectedOverlayId] = useState<string | null>(null);
   const [audioOnlyId, setAudioOnlyId] = useState<string | null>(null); // sélection "audio seul" (Option/Alt+clic)
+  const [selectedAudioId, setSelectedAudioId] = useState<string | null>(null); // piste audio sélectionnée (déplacer/supprimer)
   const [dragOver, setDragOver] = useState(false);
   // Glissement en cours : le plan suit le curseur « comme dans la main » (copie fidèle
   // flottante = tlGhost) + piste survolée pour le dépôt (dropLane).
@@ -867,6 +868,7 @@ export default function MontagePage() {
     setSelectedClipId(id);
     setAudioOnlyId(null);
     setSelectedOverlayId(null);
+    setSelectedAudioId(null);
     const c = clipStarts.find((c) => c.id === id);
     if (c) seek(c.start + 0.05);
   }
@@ -896,6 +898,19 @@ export default function MontagePage() {
       fadeIn: c.audioFadeIn ?? 0, fadeOut: c.audioFadeOut ?? 0,
     }]);
     updateClip(id, { vol: 0 }); // le son passe sur la piste audio → on coupe celui embarqué
+    toast(t('toastAudioDetached'));
+  }
+  // Séparer le son d'une incrustation (Vidéo 2, 3…) → piste audio indépendante + coupe
+  // le son de l'incrustation.
+  function detachOverlayAudio(id: string) {
+    const o = overlays.find((x) => x.id === id);
+    if (!o || o.kind !== "video") { toast(t('toastDetachVideoOnly')); return; }
+    if ((o.vol ?? 1) === 0) { toast(t('toastAudioAlreadyDetached')); return; }
+    setAudioTracks((prev) => [...prev, {
+      id: crypto.randomUUID(), kind: "voiceover", name: o.name,
+      src: o.src, dur: overlayTimelineDur(o), vol: o.vol ?? 1, offset: o.offset, srcOffset: o.trimStart, track: 0,
+    }]);
+    updateOverlay(id, { vol: 0 });
     toast(t('toastAudioDetached'));
   }
 
@@ -1345,6 +1360,25 @@ export default function MontagePage() {
   function onClipFadeUp(e: React.PointerEvent) {
     if (clipFadeRef.current) { try { (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId); } catch {} clipFadeRef.current = null; }
   }
+  // Déplacement d'une piste audio dans le temps + sélection (pour la déplacer/supprimer).
+  const audDragRef = useRef<{ id: string; startX: number; t0: number; moved: boolean } | null>(null);
+  function onAudioBarDown(e: React.PointerEvent, a: AudioTrack) {
+    e.stopPropagation();
+    try { (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId); } catch {}
+    audDragRef.current = { id: a.id, startX: e.clientX, t0: a.offset, moved: false };
+    setSelectedAudioId(a.id); setSelectedClipId(null); setSelectedOverlayId(null); setAudioOnlyId(null); setTool("audio");
+  }
+  function onAudioBarMove(e: React.PointerEvent) {
+    const d = audDragRef.current;
+    if (!d) return;
+    if (!d.moved && Math.abs(e.clientX - d.startX) < 4) return;
+    d.moved = true;
+    const off = Math.max(0, snapTime(d.t0 + (e.clientX - d.startX) / pps));
+    setAudioTracks((prev) => prev.map((a) => (a.id === d.id ? { ...a, offset: off } : a)));
+  }
+  function onAudioBarUp(e: React.PointerEvent) {
+    if (audDragRef.current) { try { (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId); } catch {} audDragRef.current = null; }
+  }
   // ── Points-clés de volume (automation) sur une piste audio ──────────────────
   // Ajoute un point à la position du curseur (temps local dans la piste), avec la
   // valeur de volume courante à cet instant. Si un point existe déjà là, on l'écrase.
@@ -1488,7 +1522,7 @@ export default function MontagePage() {
   }
   function selectOverlay(id: string) {
     setSelectedOverlayId(id);
-    setSelectedClipId(null); setSelectedTitleId(null); setSelectedStickerId(null); setSubSelected(false);
+    setSelectedClipId(null); setSelectedTitleId(null); setSelectedStickerId(null); setSubSelected(false); setSelectedAudioId(null);
     setTool("overlay");
     const o = overlays.find((x) => x.id === id);
     if (o) seek(o.offset + 0.05);
@@ -1618,6 +1652,7 @@ export default function MontagePage() {
 
   // ── Raccourcis clavier (type CapCut) ────────────────────────────────────────
   function deleteSelected() {
+    if (selectedAudioId) { removeAudioTrack(selectedAudioId); setSelectedAudioId(null); return; }
     if (selectedOverlayId) { removeOverlay(selectedOverlayId); return; }
     if (selectedTitleId) { removeTitle(selectedTitleId); return; }
     if (selectedStickerId) { removeSticker(selectedStickerId); return; }
@@ -1674,7 +1709,7 @@ export default function MontagePage() {
       if (meta && (k === "=" || k === "+")) { e.preventDefault(); setPps((p) => Math.min(160, Math.round(p * 1.3))); return; }
       if (meta && k === "-") { e.preventDefault(); setPps((p) => Math.max(10, Math.round(p / 1.3))); return; }
       if (meta) return; // laisse passer les autres raccourcis système
-      if (e.altKey && e.shiftKey && k === "s") { e.preventDefault(); if (selectedClipId) detachAudio(selectedClipId); return; } // ⇧⌥S : extraire le son (CapCut)
+      if (e.altKey && e.shiftKey && k === "s") { e.preventDefault(); if (selectedOverlayId) detachOverlayAudio(selectedOverlayId); else if (selectedClipId) detachAudio(selectedClipId); return; } // ⇧⌥S : extraire le son (CapCut)
       if (e.altKey) return; // autres combos Option laissées au système
       if (e.key === " ") { e.preventDefault(); togglePlay(); return; }
       if (e.key === "Delete" || e.key === "Backspace") { e.preventDefault(); deleteSelected(); return; }
@@ -2484,8 +2519,9 @@ export default function MontagePage() {
                 </div>
                 <div className="a-lane-track">
                   {audioTracks.filter((a) => (a.track ?? 0) === atrack).map((a) => (
-                    <div key={a.id} className="a-wave-bar" style={{ left: a.offset * pps, width: a.dur * pps, top: 2, bottom: 2 }} title={a.name}
-                      onContextMenu={(e) => { e.preventDefault(); setTool("audio"); setClipMenu({ x: e.clientX, y: e.clientY, id: a.id, kind: "audio" }); }}>
+                    <div key={a.id} className="a-wave-bar" style={{ left: a.offset * pps, width: a.dur * pps, top: 2, bottom: 2, cursor: "grab", touchAction: "none", boxShadow: selectedAudioId === a.id ? "inset 0 0 0 2px var(--acid)" : undefined }} title={a.name}
+                      onPointerDown={(e) => onAudioBarDown(e, a)} onPointerMove={onAudioBarMove} onPointerUp={onAudioBarUp}
+                      onContextMenu={(e) => { e.preventDefault(); setSelectedAudioId(a.id); setTool("audio"); setClipMenu({ x: e.clientX, y: e.clientY, id: a.id, kind: "audio" }); }}>
                       {a.waveform && a.waveform.length > 0 && (
                         <svg width="100%" height="100%" preserveAspectRatio="none" style={{ position: "absolute", inset: 0, opacity: 0.55 }}>
                           {a.waveform.map((p, i) => {
@@ -2614,7 +2650,7 @@ export default function MontagePage() {
           rows.push(sep("s1"));
           rows.push(item("edit", t('contextEdit'), () => selectOverlay(id)));
           rows.push(item("dup", t('duplicate'), () => duplicateOverlay(id), { sc: "⌘D" }));
-          if (isVideo) rows.push(item("detach", t('contextDetachAudio'), () => { selectOverlay(id); setTool("audio"); }));
+          if (isVideo) rows.push(item("detach", t('contextDetachAudio'), () => detachOverlayAudio(id), { sc: "⇧⌥S", disabled: (o?.vol ?? 1) === 0 }));
           rows.push(sep("s2"));
           rows.push(item("up", t('trackUp'), () => moveOverlayTrack(id, 1)));
           rows.push(item("down", t('trackDown'), () => moveOverlayTrack(id, -1)));
