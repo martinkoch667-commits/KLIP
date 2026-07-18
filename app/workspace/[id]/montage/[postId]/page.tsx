@@ -271,6 +271,8 @@ export default function MontagePage() {
   const [audioOnlyId, setAudioOnlyId] = useState<string | null>(null); // sélection "audio seul" (Option/Alt+clic)
   const [selectedAudioId, setSelectedAudioId] = useState<string | null>(null); // piste audio sélectionnée (déplacer/supprimer)
   const [tlFileOver, setTlFileOver] = useState(false); // survol d'un fichier glissé sur la timeline
+  const [multiSel, setMultiSel] = useState<Set<string>>(new Set()); // sélection multiple (plans/incrustations/audio)
+  const [selRect, setSelRect] = useState<{ x: number; y: number; w: number; h: number } | null>(null); // rectangle de sélection
   const [dragOver, setDragOver] = useState(false);
   // Glissement en cours : le plan suit le curseur « comme dans la main » (copie fidèle
   // flottante = tlGhost) + piste survolée pour le dépôt (dropLane).
@@ -408,6 +410,7 @@ export default function MontagePage() {
   const tlDragRef = useRef<{ id: string; kind: "clip" | "overlay"; startX: number; startY: number; grabDx: number; grabDy: number; widthPx: number; moved: boolean; anchor: number } | null>(null);
   const tlInnerRef = useRef<HTMLDivElement>(null);
   const tlScrollRef = useRef<HTMLDivElement>(null);
+  const selDragRef = useRef<{ startX: number; startY: number; moved: boolean } | null>(null); // rectangle de sélection
 
   function toast(msg: string) {
     setToastMsg(msg);
@@ -1419,8 +1422,10 @@ export default function MontagePage() {
   const audDragRef = useRef<{ id: string; startX: number; t0: number; moved: boolean } | null>(null);
   function onAudioBarDown(e: React.PointerEvent, a: AudioTrack) {
     e.stopPropagation();
+    if (e.shiftKey) { toggleMulti(a.id); return; }
     try { (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId); } catch {}
     audDragRef.current = { id: a.id, startX: e.clientX, t0: a.offset, moved: false };
+    if (multiSel.size) setMultiSel(new Set());
     setSelectedAudioId(a.id); setSelectedClipId(null); setSelectedOverlayId(null); setAudioOnlyId(null); setTool("audio");
   }
   function onAudioBarMove(e: React.PointerEvent) {
@@ -1707,11 +1712,25 @@ export default function MontagePage() {
 
   // ── Raccourcis clavier (type CapCut) ────────────────────────────────────────
   function deleteSelected() {
+    if (multiSel.size > 0) {
+      const ids = multiSel;
+      setClips((prev) => prev.filter((c) => !ids.has(c.id)));
+      setOverlays((prev) => prev.filter((o) => !ids.has(o.id)));
+      setAudioTracks((prev) => prev.filter((a) => !ids.has(a.id)));
+      setMultiSel(new Set());
+      setSelectedClipId(null); setSelectedOverlayId(null); setSelectedAudioId(null);
+      return;
+    }
     if (selectedAudioId) { removeAudioTrack(selectedAudioId); setSelectedAudioId(null); return; }
     if (selectedOverlayId) { removeOverlay(selectedOverlayId); return; }
     if (selectedTitleId) { removeTitle(selectedTitleId); return; }
     if (selectedStickerId) { removeSticker(selectedStickerId); return; }
     if (selectedClipId) removeClip(selectedClipId);
+  }
+  // Bascule un élément dans la sélection multiple (⇧+clic).
+  function toggleMulti(id: string) {
+    setMultiSel((prev) => { const n = new Set(prev); if (n.has(id)) n.delete(id); else n.add(id); return n; });
+    setSelectedClipId(null); setSelectedOverlayId(null); setSelectedAudioId(null);
   }
   function copySelected() {
     if (selectedOverlayId) {
@@ -1908,6 +1927,7 @@ export default function MontagePage() {
   }
   function startTlDrag(e: React.PointerEvent, id: string, kind: "clip" | "overlay") {
     e.stopPropagation();
+    if (e.shiftKey) { toggleMulti(id); return; } // ⇧+clic → sélection multiple, pas de glissement
     const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
     // anchor (plans) = fin du plan précédent = point fixe pour recalculer le trou (gapBefore)
     // pendant le glissement live.
@@ -1917,8 +1937,9 @@ export default function MontagePage() {
     try { (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId); } catch {}
     // Sélection immédiate au clic (sans déplacer le curseur de lecture — on garde le playhead
     // stable pendant qu'on attrape le plan, comme CapCut).
-    if (kind === "clip") { setSelectedClipId(id); setAudioOnlyId(null); setSelectedOverlayId(null); setSelectedTitleId(null); setSelectedStickerId(null); }
-    else { setSelectedOverlayId(id); setSelectedClipId(null); setSelectedTitleId(null); setSelectedStickerId(null); setSubSelected(false); setTool("overlay"); }
+    if (multiSel.size) setMultiSel(new Set());
+    if (kind === "clip") { setSelectedClipId(id); setAudioOnlyId(null); setSelectedOverlayId(null); setSelectedTitleId(null); setSelectedStickerId(null); setSelectedAudioId(null); }
+    else { setSelectedOverlayId(id); setSelectedClipId(null); setSelectedTitleId(null); setSelectedStickerId(null); setSubSelected(false); setSelectedAudioId(null); setTool("overlay"); }
   }
   function onTlDragMove(e: React.PointerEvent) {
     const d = tlDragRef.current;
@@ -2417,17 +2438,37 @@ export default function MontagePage() {
             ref={tlInnerRef}
             style={{ width: 92 + trackW + 30, ["--tscale" as string]: trackScale } as React.CSSProperties}
             onPointerDown={(e) => {
-              // Cliquer/glisser N'IMPORTE OÙ sur la timeline déplace le curseur — sauf sur
-              // un plan/poignée (qui gèrent leur propre interaction) ou la gouttière des labels.
+              // Sur une zone vide : un simple clic déplace le curseur ; un glissement trace
+              // un rectangle de sélection multiple (façon explorateur de fichiers).
               const el = e.target as HTMLElement;
               if (el.closest(".a-clip, .a-chip, .a-wave-bar, .a-trim, .a-fade-dot, .a-lane-label, .a-ruler")) return;
               if (e.clientX - (tlInnerRef.current?.getBoundingClientRect().left ?? 0) < 92) return; // gouttière labels
               try { (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId); } catch {}
-              scrubbingRulerRef.current = true;
-              rulerSeek(e.clientX);
+              selDragRef.current = { startX: e.clientX, startY: e.clientY, moved: false };
             }}
-            onPointerMove={(e) => { if (scrubbingRulerRef.current) rulerSeek(e.clientX); }}
-            onPointerUp={(e) => { if (scrubbingRulerRef.current) { scrubbingRulerRef.current = false; try { (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId); } catch {} } }}
+            onPointerMove={(e) => {
+              const d = selDragRef.current;
+              if (!d) return;
+              if (!d.moved && Math.abs(e.clientX - d.startX) < 4 && Math.abs(e.clientY - d.startY) < 4) return;
+              d.moved = true;
+              const x = Math.min(d.startX, e.clientX), y = Math.min(d.startY, e.clientY);
+              const w = Math.abs(e.clientX - d.startX), h = Math.abs(e.clientY - d.startY);
+              setSelRect({ x, y, w, h });
+              // items intersectés (data-selid)
+              const found = new Set<string>();
+              tlInnerRef.current?.querySelectorAll<HTMLElement>("[data-selid]").forEach((node) => {
+                const r = node.getBoundingClientRect();
+                if (r.right >= x && r.left <= x + w && r.bottom >= y && r.top <= y + h) { const sid = node.dataset.selid; if (sid) found.add(sid); }
+              });
+              setMultiSel(found);
+              setSelectedClipId(null); setSelectedOverlayId(null); setSelectedAudioId(null);
+            }}
+            onPointerUp={(e) => {
+              const d = selDragRef.current; selDragRef.current = null;
+              try { (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId); } catch {}
+              setSelRect(null);
+              if (d && !d.moved) { setMultiSel(new Set()); rulerSeek(e.clientX); } // simple clic → curseur
+            }}
           >
             <div
               className="a-ruler"
@@ -2450,7 +2491,8 @@ export default function MontagePage() {
                 {clipStarts.map((c, i) => (
                   <div key={c.id} style={{ position: "absolute", left: c.start * pps, display: "flex", alignItems: "center" }}>
                     <div
-                      className={"a-clip" + (selectedClipId === c.id ? " on" : "")}
+                      data-selid={c.id}
+                      className={"a-clip" + (selectedClipId === c.id || multiSel.has(c.id) ? " on" : "")}
                       style={{ width: c.dur * pps, position: "relative", cursor: tlGhost?.id === c.id ? "grabbing" : "grab", touchAction: "none", opacity: tlGhost?.id === c.id ? 0.3 : 1,
                         background: c.kind === "video"
                           ? (strips[c.id] ? `linear-gradient(180deg,rgba(0,0,0,.12),rgba(0,0,0,.34)), url("${strips[c.id]}")` : "linear-gradient(150deg,#2b8d57,#0c2a1d)")
@@ -2531,7 +2573,8 @@ export default function MontagePage() {
                   {laneOverlays.map((o) => (
                     <div
                       key={o.id}
-                      className={"a-chip" + (selectedOverlayId === o.id ? " on" : "")}
+                      data-selid={o.id}
+                      className={"a-chip" + (selectedOverlayId === o.id || multiSel.has(o.id) ? " on" : "")}
                       style={{ left: o.offset * pps, width: Math.max(24, overlayTimelineDur(o) * pps), top: 2, bottom: 2, cursor: tlGhost?.id === o.id ? "grabbing" : "grab", touchAction: "none", opacity: tlGhost?.id === o.id ? 0.3 : 1,
                         background: o.kind === "video"
                           ? (strips[o.id] ? `linear-gradient(180deg,rgba(0,0,0,.15),rgba(0,0,0,.4)), url("${strips[o.id]}")` : "linear-gradient(150deg,#2b8d57,#0c2a1d)")
@@ -2578,7 +2621,7 @@ export default function MontagePage() {
                 </div>
                 <div className="a-lane-track">
                   {audioTracks.filter((a) => (a.track ?? 0) === atrack).map((a) => (
-                    <div key={a.id} className="a-wave-bar" style={{ left: a.offset * pps, width: a.dur * pps, top: 2, bottom: 2, cursor: "grab", touchAction: "none", boxShadow: selectedAudioId === a.id ? "inset 0 0 0 2px var(--acid)" : undefined }} title={a.name}
+                    <div key={a.id} data-selid={a.id} className="a-wave-bar" style={{ left: a.offset * pps, width: a.dur * pps, top: 2, bottom: 2, cursor: "grab", touchAction: "none", boxShadow: selectedAudioId === a.id || multiSel.has(a.id) ? "inset 0 0 0 2px var(--acid)" : undefined }} title={a.name}
                       onPointerDown={(e) => onAudioBarDown(e, a)} onPointerMove={onAudioBarMove} onPointerUp={onAudioBarUp}
                       onContextMenu={(e) => { e.preventDefault(); setSelectedAudioId(a.id); setTool("audio"); setClipMenu({ x: e.clientX, y: e.clientY, id: a.id, kind: "audio" }); }}>
                       {a.waveform && a.waveform.length > 0 && (
@@ -2661,6 +2704,11 @@ export default function MontagePage() {
           </div>
         );
       })()}
+
+      {/* Rectangle de sélection multiple (glisser sur une zone vide de la timeline). */}
+      {selRect && (
+        <div style={{ position: "fixed", left: selRect.x, top: selRect.y, width: selRect.w, height: selRect.h, zIndex: 1500, pointerEvents: "none", border: "1.5px solid var(--mint-2)", background: "color-mix(in srgb, var(--mint-2) 14%, transparent)", borderRadius: 3 }} />
+      )}
 
       {toastMsg && (
         <div className="mz-toast">
