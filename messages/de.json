@@ -1603,7 +1603,8 @@
     "toastDescFailed": "Beschreibungserstellung fehlgeschlagen.",
     "toastDescDone": "Beschreibung erstellt (im Post gespeichert).",
     "dropNewTrack": "Hier ablegen → neue Videospur (Alt = duplizieren)",
-    "toastNewVideoTrack": "Neue Videospur erstellt."
+    "toastNewVideoTrack": "Neue Videospur erstellt.",
+    "trackHeightTitle": "Spurhöhe (ziehen ↕)"
   },
   "forgotPassword": {
     "title": "Passwort vergessen",

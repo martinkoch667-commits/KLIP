@@ -1603,7 +1603,8 @@
     "toastDescFailed": "Génération de la description impossible.",
     "toastDescDone": "Description générée (enregistrée sur le post).",
     "dropNewTrack": "Déposer ici → nouvelle piste vidéo (Alt = dupliquer)",
-    "toastNewVideoTrack": "Nouvelle piste vidéo créée."
+    "toastNewVideoTrack": "Nouvelle piste vidéo créée.",
+    "trackHeightTitle": "Hauteur des pistes (glisser ↕)"
   },
   "forgotPassword": {
     "title": "Mot de passe oublié",

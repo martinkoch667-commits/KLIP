@@ -38,6 +38,9 @@ export function VIcon({ name, size = 18 }: { name: string; size?: number }) {
     case "calendar": return <svg {...p}><rect x="3" y="4.5" width="18" height="16" rx="2.5" /><path d="M3 9h18M8 2.5v4M16 2.5v4" /></svg>;
     case "check": return <svg {...p}><path d="M4 12.5l5 5 11-11" /></svg>;
     case "x": return <svg {...p}><path d="M6 6l12 12M18 6L6 18" /></svg>;
+    case "rows": return <svg {...p}><rect x="3.5" y="4.5" width="17" height="6" rx="1.5" /><rect x="3.5" y="13.5" width="17" height="6" rx="1.5" /></svg>;
+    case "lock": return <svg {...p}><rect x="5" y="10.5" width="14" height="9.5" rx="2" /><path d="M8 10.5V8a4 4 0 0 1 8 0v2.5" /></svg>;
+    case "dots": return <svg {...p}><circle cx="5" cy="12" r="1.6" /><circle cx="12" cy="12" r="1.6" /><circle cx="19" cy="12" r="1.6" /></svg>;
     default: return null;
   }
 }

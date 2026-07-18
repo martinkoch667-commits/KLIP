@@ -1603,7 +1603,8 @@
     "toastDescFailed": "Generazione della descrizione non riuscita.",
     "toastDescDone": "Descrizione generata (salvata sul post).",
     "dropNewTrack": "Rilascia qui → nuova traccia video (Alt = duplica)",
-    "toastNewVideoTrack": "Nuova traccia video creata."
+    "toastNewVideoTrack": "Nuova traccia video creata.",
+    "trackHeightTitle": "Altezza traccia (trascina ↕)"
   },
   "forgotPassword": {
     "title": "Password dimenticata",

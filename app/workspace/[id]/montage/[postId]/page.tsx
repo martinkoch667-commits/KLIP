@@ -275,14 +275,21 @@ export default function MontagePage() {
   // Disposition redimensionnable (persistée) — comme CapCut
   const [panelW, setPanelW] = useState(312);
   const [timelineH, setTimelineH] = useState(178);
+  const [trackScale, setTrackScale] = useState(1); // hauteur des pistes (0.7–2.2), façon CapCut
   useEffect(() => {
     try {
       const w = Number(localStorage.getItem("klip-mz-panelW"));
       const h = Number(localStorage.getItem("klip-mz-timelineH"));
+      const ts = Number(localStorage.getItem("klip-mz-trackScale"));
       if (w >= 240 && w <= 520) setPanelW(w);
       if (h >= 120 && h <= 640) setTimelineH(h);
+      if (ts >= 0.7 && ts <= 2.2) setTrackScale(ts);
     } catch {}
   }, []);
+  const tsDragRef = useRef<{ startY: number; s0: number } | null>(null);
+  function onTsDown(e: React.PointerEvent) { e.preventDefault(); try { (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId); } catch {} tsDragRef.current = { startY: e.clientY, s0: trackScale }; }
+  function onTsMove(e: React.PointerEvent) { const d = tsDragRef.current; if (!d) return; setTrackScale(Math.max(0.7, Math.min(2.2, d.s0 - (e.clientY - d.startY) / 140))); }
+  function onTsUp(e: React.PointerEvent) { if (tsDragRef.current) { try { (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId); } catch {} tsDragRef.current = null; try { localStorage.setItem("klip-mz-trackScale", String(trackScale)); } catch {} } }
   const startPanelResize = useCallback((e: React.PointerEvent) => {
     e.preventDefault();
     const startX = e.clientX, startW = panelW;
@@ -1675,6 +1682,9 @@ export default function MontagePage() {
     if (!scroller) return;
     const onWheelNative = (e: WheelEvent) => {
       if (e.ctrlKey || e.metaKey) return; // zoom : géré globalement
+      // Si les pistes débordent en hauteur, on laisse le défilement vertical naturel ;
+      // sinon la molette verticale fait défiler horizontalement (timeline large).
+      if (scroller.scrollHeight > scroller.clientHeight + 1) return;
       if (Math.abs(e.deltaY) > Math.abs(e.deltaX)) scroller.scrollLeft += e.deltaY;
     };
     scroller.addEventListener("wheel", onWheelNative, { passive: true });
@@ -2231,6 +2241,12 @@ export default function MontagePage() {
           <button className="a-tl-tool" disabled={!selectedClipId} onClick={() => selectedClipId && removeClip(selectedClipId)}><VIcon name="trash" size={15} /> {t('delete')}</button>
           <div style={{ flex: 1 }} />
           <span className="mz-sec-label">{t('clipsCountTimeline', { count: clips.length, time: fmt(total) })}</span>
+          {/* Hauteur des pistes : glisser ↕ (façon CapCut). */}
+          <button className="mz-hbtn" title={t('trackHeightTitle')} style={{ cursor: "ns-resize", touchAction: "none" }}
+            onPointerDown={onTsDown} onPointerMove={onTsMove} onPointerUp={onTsUp}
+            onDoubleClick={() => { setTrackScale(1); try { localStorage.setItem("klip-mz-trackScale", "1"); } catch {} }}>
+            <VIcon name="rows" size={15} />
+          </button>
           <button className="mz-hbtn" onClick={() => setPps((p) => Math.max(10, Math.round(p / 1.3)))}><VIcon name="zoomOut" size={15} /></button>
           <button className="mz-hbtn" onClick={() => setPps((p) => Math.min(160, Math.round(p * 1.3)))}><VIcon name="zoomIn" size={15} /></button>
         </div>
@@ -2238,7 +2254,7 @@ export default function MontagePage() {
           <div
             className="a-tl-inner"
             ref={tlInnerRef}
-            style={{ width: 92 + trackW + 30 }}
+            style={{ width: 92 + trackW + 30, ["--tscale" as string]: trackScale } as React.CSSProperties}
           >
             <div
               className="a-ruler"
@@ -2304,7 +2320,7 @@ export default function MontagePage() {
               const isTop = idx === 0;
               const laneOverlays = overlays.filter((o) => (o.track ?? 0) === track);
               return (
-              <div className={"a-lane" + (isTop && dropLane === "new" ? " nt-hint" : "")} style={{ height: 34, order: 3 }} data-tllane={`v${track}`} key={"vtrack-" + track}>
+              <div className={"a-lane" + (isTop && dropLane === "new" ? " nt-hint" : "")} style={{ height: Math.round(34 * trackScale), order: 3 }} data-tllane={`v${track}`} key={"vtrack-" + track}>
                 <div className="a-lane-label" style={{ display: "flex", alignItems: "center", gap: 4 }}>
                   <VIcon name="video" size={13} />
                   <span className="trunc">{`${t('labelVideo')} ${track + 2}`}</span>
@@ -2345,7 +2361,7 @@ export default function MontagePage() {
               </div>
               );
             })}
-            <div className="a-lane" style={{ height: 34, order: 5 }}>
+            <div className="a-lane" style={{ height: Math.round(34 * trackScale), order: 5 }}>
               <div className="a-lane-label"><VIcon name="music" size={13} /> {t('audioClipsLabel')}</div>
               <div className="a-lane-track">
                 {/* son embarqué des plans vidéo — clic = sélectionne la piste audio seule ; Option/Alt+clic = aussi le plan vidéo lié */}
@@ -2372,7 +2388,7 @@ export default function MontagePage() {
               const atrack = aIdx; // rangée audio (l'ordre n'affecte pas le mixage, uniquement l'organisation)
               const isFirstA = aIdx === 0;
               return (
-              <div className="a-lane" style={{ height: 34, order: 6 }} key={"atrack-" + atrack}>
+              <div className="a-lane" style={{ height: Math.round(34 * trackScale), order: 6 }} key={"atrack-" + atrack}>
                 <div className="a-lane-label" style={{ display: "flex", alignItems: "center", gap: 4 }}>
                   <VIcon name="music" size={13} />
                   <span className="trunc">{audioTrackCount > 1 ? `${t('railAudio')} ${atrack + 1}` : t('railAudio')}</span>
@@ -2420,7 +2436,7 @@ export default function MontagePage() {
               </div>
               );
             })}
-            <div className="a-lane" style={{ height: 34, order: 1 }}>
+            <div className="a-lane" style={{ height: Math.round(34 * trackScale), order: 1 }}>
               <div className="a-lane-label"><VIcon name="captions" size={13} /> {t('labelSubtitlesShort')}</div>
               <div className="a-lane-track">
                 {captions.map((c) => (
@@ -2431,7 +2447,7 @@ export default function MontagePage() {
                 ))}
               </div>
             </div>
-            <div className="a-lane" style={{ height: 34, order: 2 }}>
+            <div className="a-lane" style={{ height: Math.round(34 * trackScale), order: 2 }}>
               <div className="a-lane-label"><VIcon name="text" size={13} /> {t('railText')}</div>
               <div className="a-lane-track">
                 {titles.map((ti) => (
