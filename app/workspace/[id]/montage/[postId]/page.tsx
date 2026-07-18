@@ -337,7 +337,7 @@ export default function MontagePage() {
     return (
       <span style={{ display: "inline-flex", alignItems: "center", gap: 2, marginLeft: "auto", flexShrink: 0 }} onPointerDown={(e) => e.stopPropagation()}>
         <button className={"a-lanectl" + (locked ? " on" : "")} title={t('lockTrack')} onClick={() => toggleLane(setLockedLanes, laneKey)}><VIcon name="lock" size={12} /></button>
-        {!audio && <button className={"a-lanectl" + (hidden ? " on" : "")} title={t('hideTrack')} onClick={() => toggleLane(setHiddenLanes, laneKey)}><VIcon name="eye" size={12} /></button>}
+        {!audio && <button className={"a-lanectl" + (hidden ? " on" : "")} title={t('hideTrack')} onClick={() => toggleLane(setHiddenLanes, laneKey)}><VIcon name={hidden ? "eyeOff" : "eye"} size={12} /></button>}
         <button className={"a-lanectl" + (muted ? " on" : "")} title={t('muteTrack')} onClick={() => toggleLane(setMutedLanes, laneKey)}><VIcon name={muted ? "mute" : "volume"} size={12} /></button>
       </span>
     );
@@ -2374,7 +2374,7 @@ export default function MontagePage() {
   return (
     <div className="a-root" style={{ height: "100vh" }}>
       {/* topbar */}
-      <div className="ed-topbar" style={{ height: 58, flexShrink: 0, display: "flex", alignItems: "center", gap: 12, padding: "0 16px", borderBottom: "1px solid var(--line)", background: "color-mix(in srgb, var(--canvas) 72%, transparent)", backdropFilter: "blur(10px)", position: "relative", zIndex: 30 }}>
+      <div className="ed-topbar" style={{ height: 58, flexShrink: 0, display: "flex", alignItems: "center", gap: 12, padding: "0 16px", borderBottom: "1px solid rgba(47,215,155,.14)", background: "radial-gradient(120% 130% at 0% 0%, rgba(47,215,155,.18), transparent 55%), radial-gradient(90% 130% at 100% 0%, rgba(200,241,53,.10), transparent 60%), linear-gradient(90deg, #0E2F20 0%, var(--forest) 50%, #0A2316 100%)", position: "relative", zIndex: 30 }}>
         <a href={`/workspace/${workspaceId}`} className="btn btn-sm btn-ghost" style={{ gap: 5, textDecoration: "none", flexShrink: 0 }}>
           <VIcon name="chevL" size={15} /> {t('composeBack')}
         </a>
@@ -2818,7 +2818,7 @@ export default function MontagePage() {
                       {c.kind === "video" && (c.vol ?? 1) > 0 && clipWaves[c.src] && (
                         <div className="a-clip-wave">
                           <svg width="100%" height="100%" preserveAspectRatio="none">
-                            {clipWaves[c.src].map((p, wi) => { const arr = clipWaves[c.src]; const x = (wi / arr.length) * 100; const h = Math.max(10, p * 100); return <rect key={wi} x={`${x}%`} y={`${(100 - h) / 2}%`} width={`${100 / arr.length}%`} height={`${h}%`} fill="rgba(255,255,255,.82)" />; })}
+                            {clipWaves[c.src].map((p, wi) => { const arr = clipWaves[c.src]; const x = (wi / arr.length) * 100; const h = Math.max(12, p * 100); return <rect key={wi} x={`${x}%`} y={`${(100 - h) / 2}%`} width={`${Math.max(0.6, 100 / arr.length - 0.4)}%`} height={`${h}%`} fill="#3EE3C4" />; })}
                           </svg>
                         </div>
                       )}
@@ -2913,7 +2913,7 @@ export default function MontagePage() {
                       {o.kind === "video" && (o.vol ?? 1) > 0 && clipWaves[o.src] && (
                         <div className="a-clip-wave">
                           <svg width="100%" height="100%" preserveAspectRatio="none">
-                            {clipWaves[o.src].map((p, wi) => { const arr = clipWaves[o.src]; const x = (wi / arr.length) * 100; const h = Math.max(10, p * 100); return <rect key={wi} x={`${x}%`} y={`${(100 - h) / 2}%`} width={`${100 / arr.length}%`} height={`${h}%`} fill="rgba(255,255,255,.8)" />; })}
+                            {clipWaves[o.src].map((p, wi) => { const arr = clipWaves[o.src]; const x = (wi / arr.length) * 100; const h = Math.max(12, p * 100); return <rect key={wi} x={`${x}%`} y={`${(100 - h) / 2}%`} width={`${Math.max(0.6, 100 / arr.length - 0.4)}%`} height={`${h}%`} fill="#3EE3C4" />; })}
                           </svg>
                         </div>
                       )}
