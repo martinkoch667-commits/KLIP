@@ -861,7 +861,7 @@ input.ed-range::-moz-range-thumb {
 .a-tl-tool:hover:not(:disabled) { color: var(--ink); box-shadow: inset 0 0 0 1px var(--ink-3); background: rgba(255,255,255,.06); }
 .a-tl-tool:disabled { opacity: .35; cursor: not-allowed; }
 
-.a-tl-scroll { flex: 1; overflow-x: auto; overflow-y: hidden; position: relative; }
+.a-tl-scroll { flex: 1; overflow-x: auto; overflow-y: auto; position: relative; }
 .a-tl-inner { position: relative; min-width: 100%; padding: 8px 0 10px; display: flex; flex-direction: column; }
 /* La règle a-ruler reste order 0 (en haut) ; les pistes reçoivent un `order` inline
    (CAP-1) pour la hiérarchie CapCut : sous-titres → texte → overlays → vidéo → audio. */
@@ -870,7 +870,7 @@ input.ed-range::-moz-range-thumb {
 .a-tick { position: absolute; top: 0; bottom: 0; border-left: 1px solid var(--line); }
 .a-tick span { position: absolute; top: 2px; left: 4px; font-family: var(--mono); font-weight: 700; font-size: 9px; color: var(--ink-3); }
 
-.a-lane { display: flex; align-items: center; gap: 0; height: 52px; margin-bottom: 7px; position: relative; }
+.a-lane { display: flex; align-items: center; gap: 0; height: calc(52px * var(--tscale, 1)); margin-bottom: 7px; position: relative; }
 .a-lane-label { width: 92px; flex-shrink: 0; display: flex; align-items: center; gap: 7px; padding-left: 14px;
   font-family: var(--mono); font-weight: 800; font-size: 10px; letter-spacing: .04em; text-transform: uppercase; color: var(--ink-3); }
 /* Chaque piste est un « étage » séparé (façon CapCut) : fond légèrement creusé + liseré
@@ -916,7 +916,7 @@ input.ed-range::-moz-range-thumb {
   letter-spacing: .03em; color: #fff; text-shadow: 0 1px 4px rgba(0,0,0,.6); max-width: calc(100% - 14px);
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
-.a-clip { height: 46px; border-radius: 9px; position: relative; overflow: hidden; cursor: grab; flex-shrink: 0;
+.a-clip { height: calc(46px * var(--tscale, 1)); border-radius: 9px; position: relative; overflow: hidden; cursor: grab; flex-shrink: 0;
   box-shadow: inset 0 0 0 1px rgba(255,255,255,.14); transition: box-shadow .14s var(--ease), transform .12s; background-size: cover; background-position: center; }
 .a-clip:hover { transform: translateY(-1px); }
 .a-clip.on { box-shadow: 0 0 0 2px var(--mint-2), 0 0 0 4px var(--white); }

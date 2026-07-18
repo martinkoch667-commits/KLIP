@@ -1603,7 +1603,8 @@
     "toastDescFailed": "Falha ao gerar a descrição.",
     "toastDescDone": "Descrição gerada (guardada no post).",
     "dropNewTrack": "Solta aqui → nova faixa de vídeo (Alt = duplicar)",
-    "toastNewVideoTrack": "Nova faixa de vídeo criada."
+    "toastNewVideoTrack": "Nova faixa de vídeo criada.",
+    "trackHeightTitle": "Altura da faixa (arraste ↕)"
   },
   "forgotPassword": {
     "title": "Esqueceu a palavra-passe",

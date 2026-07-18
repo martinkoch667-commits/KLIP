@@ -1603,7 +1603,8 @@
     "toastDescFailed": "Description generation failed.",
     "toastDescDone": "Description generated (saved to the post).",
     "dropNewTrack": "Drop here → new video track (Alt = duplicate)",
-    "toastNewVideoTrack": "New video track created."
+    "toastNewVideoTrack": "New video track created.",
+    "trackHeightTitle": "Track height (drag ↕)"
   },
   "forgotPassword": {
     "title": "Forgot password",
