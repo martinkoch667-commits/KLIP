@@ -1555,7 +1555,7 @@ export default function MontagePage() {
     e.stopPropagation(); e.preventDefault();
     const c = mzCenterOf(e.currentTarget as HTMLElement); if (!c) return;
     const startDist = Math.hypot(e.clientX - c.cx, e.clientY - c.cy) || 1;
-    const onMove = (ev: PointerEvent) => { const d = Math.hypot(ev.clientX - c.cx, ev.clientY - c.cy); apply(Math.max(0.15, Math.min(12, startScale * d / startDist))); };
+    const onMove = (ev: PointerEvent) => { const d = Math.hypot(ev.clientX - c.cx, ev.clientY - c.cy); apply(Math.max(0.05, startScale * d / startDist)); }; // aucune limite haute d'étirement
     const onUp = () => { window.removeEventListener("pointermove", onMove); window.removeEventListener("pointerup", onUp); };
     window.addEventListener("pointermove", onMove); window.addEventListener("pointerup", onUp);
   }
@@ -1632,6 +1632,22 @@ export default function MontagePage() {
   }
   // Déplacement d'une piste audio dans le temps + sélection (pour la déplacer/supprimer).
   const audDragRef = useRef<{ id: string; startX: number; t0: number; moved: boolean } | null>(null);
+  // Filet de sécurité : dès que le bouton de la souris est relâché (ou le geste annulé)
+  // n'importe où, on solde TOUS les glissements en cours. Évite l'état « souris bloquée »
+  // si un relâchement passe inaperçu (poignée démontée en plein drag, capture perdue…).
+  useEffect(() => {
+    const clearAll = () => {
+      tsDragRef.current = null; dragOverlayRef.current = null; resizeOverlayRef.current = null;
+      trimRef.current = null; ovTrimRef.current = null; tlDragRef.current = null;
+      selDragRef.current = null; fadeDragRef.current = null; clipFadeRef.current = null;
+      ovFadeRef.current = null; titleDragRef.current = null; titleTrimRef.current = null;
+      audDragRef.current = null;
+      setTlGhost(null); setDragActive(false); setDropLane(null); setSelRect(null);
+    };
+    window.addEventListener("pointerup", clearAll);
+    window.addEventListener("pointercancel", clearAll);
+    return () => { window.removeEventListener("pointerup", clearAll); window.removeEventListener("pointercancel", clearAll); };
+  }, []);
   function onAudioBarDown(e: React.PointerEvent, a: AudioTrack) {
     e.stopPropagation();
     if (lockedLanes.has(`a${a.track ?? 0}`)) return; // piste verrouillée
@@ -1815,7 +1831,8 @@ export default function MontagePage() {
     setOverlays((prev) => {
       const src = prev.find((o) => o.id === id);
       if (!src) return prev;
-      const copy = { ...src, id: crypto.randomUUID(), offset: src.offset + 0.3, x: Math.min(100, src.x + 4), y: Math.min(100, src.y + 4) };
+      // La copie se place juste APRÈS l'original (à la suite), pas par-dessus.
+      const copy = { ...src, id: crypto.randomUUID(), offset: src.offset + overlayTimelineDur(src) };
       return [...prev, copy];
     });
   }
@@ -1885,11 +1902,11 @@ export default function MontagePage() {
     const rz = resizeOverlayRef.current;
     if (rz) {
       const dist = Math.hypot(e.clientX - rz.cx, e.clientY - rz.cy);
-      const scale = Math.max(0.4, Math.min(4, rz.startScale * (dist / rz.startDist)));
+      const scale = Math.max(0.05, rz.startScale * (dist / rz.startDist)); // aucune limite haute
       if (rz.type === "title") updateTitle(rz.id, { scale });
       else if (rz.type === "sticker") updateSticker(rz.id, { scale });
-      else if (rz.type === "overlay") updateOverlay(rz.id, { scale: Math.max(0.2, Math.min(2.5, scale)) });
-      else setSubCustom((c) => ({ ...c, scale: Math.max(0.5, Math.min(2.4, scale)) }));
+      else if (rz.type === "overlay") updateOverlay(rz.id, { scale });
+      else setSubCustom((c) => ({ ...c, scale }));
       return;
     }
     const drag = dragOverlayRef.current;
