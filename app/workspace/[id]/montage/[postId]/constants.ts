@@ -119,6 +119,7 @@ export interface TitleEl {
   x: number; // % (0-100)
   y: number; // % (0-100)
   scale?: number; // facteur de taille (défaut 1)
+  rotation?: number; // degrés (défaut 0)
 }
 
 export interface StickerEl {
@@ -130,6 +131,7 @@ export interface StickerEl {
   x: number; // %
   y: number; // %
   scale: number;
+  rotation?: number; // degrés (défaut 0)
 }
 
 export interface AudioTrack {
