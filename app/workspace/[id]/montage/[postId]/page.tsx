@@ -882,16 +882,15 @@ export default function MontagePage() {
       const out = [...prev]; out.splice(idx + 1, 0, copy); return out;
     });
   }
-  // Détache le son d'un plan vidéo → nouvelle piste audio indépendante (façon CapCut « Separate audio »).
+  // Séparer le son (option 1) : le son embarqué reste dans « son des plans » sous la
+  // vidéo, à la même position. On ne crée PLUS de piste dupliquée en bas et on ne coupe
+  // pas le son du plan — on sélectionne simplement le son seul (il est déjà dissocié de
+  // la vidéo côté sélection : cliquer l'un ne sélectionne pas l'autre).
   function detachAudio(id: string) {
     const c = clipStarts.find((x) => x.id === id);
     if (!c || c.kind !== "video") { toast(t('toastDetachVideoOnly')); return; }
-    if ((c.vol ?? 1) === 0) { toast(t('toastAudioAlreadyDetached')); return; }
-    setAudioTracks((prev) => [...prev, {
-      id: crypto.randomUUID(), kind: "voiceover", name: c.name,
-      src: c.src, dur: c.dur, vol: c.vol ?? 1, offset: c.start, srcOffset: c.trimStart, track: 0,
-    }]);
-    updateClip(id, { vol: 0 }); // le son passe sur la piste audio → on coupe celui embarqué dans le plan
+    setAudioOnlyId(id); setSelectedClipId(null); setSelectedTitleId(null); setSelectedStickerId(null); setSelectedOverlayId(null);
+    setTool("audio");
     toast(t('toastAudioDetached'));
   }
 
@@ -2607,7 +2606,7 @@ export default function MontagePage() {
           rows.push(sep("s1"));
           rows.push(item("edit", t('contextEdit'), () => { selectClip(id); setTool("cut"); }));
           rows.push(item("split", t('splitAtPlayhead'), () => { selectClip(id); splitAtPlayhead(); }, { sc: "⌘B" }));
-          rows.push(item("detach", t('contextDetachAudio'), () => detachAudio(id), { sc: "⇧⌥S", disabled: !isVideo || (c?.vol ?? 1) === 0 }));
+          rows.push(item("detach", t('contextDetachAudio'), () => detachAudio(id), { sc: "⇧⌥S", disabled: !isVideo }));
           rows.push(sep("s2"));
           rows.push(item("dup", t('duplicate'), () => duplicateClip(id), { sc: "⌘D" }));
           rows.push(item("speed", t('railSpeed'), () => { selectClip(id); setTool("speed"); }));
