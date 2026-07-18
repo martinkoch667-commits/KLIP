@@ -270,6 +270,7 @@ export default function MontagePage() {
   const [selectedOverlayId, setSelectedOverlayId] = useState<string | null>(null);
   const [audioOnlyId, setAudioOnlyId] = useState<string | null>(null); // sélection "audio seul" (Option/Alt+clic)
   const [selectedAudioId, setSelectedAudioId] = useState<string | null>(null); // piste audio sélectionnée (déplacer/supprimer)
+  const [tlFileOver, setTlFileOver] = useState(false); // survol d'un fichier glissé sur la timeline
   const [dragOver, setDragOver] = useState(false);
   // Glissement en cours : le plan suit le curseur « comme dans la main » (copie fidèle
   // flottante = tlGhost) + piste survolée pour le dépôt (dropLane).
@@ -452,6 +453,15 @@ export default function MontagePage() {
     ro.observe(el);
     return () => ro.disconnect();
   }, [loading]);
+
+  // Empêche le navigateur d'OUVRIR un fichier lâché sur l'éditeur (comportement par défaut
+  // = naviguer vers le fichier). Les zones de dépôt (timeline, panneau média) gèrent l'import.
+  useEffect(() => {
+    const prevent = (e: DragEvent) => { if (e.dataTransfer?.types?.includes("Files")) e.preventDefault(); };
+    window.addEventListener("dragover", prevent);
+    window.addEventListener("drop", prevent);
+    return () => { window.removeEventListener("dragover", prevent); window.removeEventListener("drop", prevent); };
+  }, []);
 
   // ── Bloque TOTALEMENT le zoom de page du navigateur sur l'éditeur ───────────
   // Un pincement trackpad (ou Ctrl/⌘+molette) n'importe où sur la page de montage ne
@@ -861,6 +871,51 @@ export default function MontagePage() {
   function handleDrop(e: React.DragEvent) {
     e.preventDefault(); setDragOver(false);
     if (e.dataTransfer.files?.length) importFiles(e.dataTransfer.files);
+  }
+  // Glisser un fichier DIRECTEMENT sur la timeline (comme un logiciel de montage) : il se
+  // pose à l'endroit du dépôt — sur la piste principale (à l'instant visé) ou sur une piste
+  // vidéo du dessus si on lâche dessus.
+  async function importFilesToTimeline(files: FileList | File[], clientX: number, clientY: number) {
+    const arr = Array.from(files).filter((f) => f.type.startsWith("video/") || f.type.startsWith("image/"));
+    if (!arr.length) return;
+    const r = rulerRef.current?.getBoundingClientRect();
+    let dropT = r ? Math.max(0, snapTime((clientX - r.left) / pps)) : 0;
+    const lane = dropTargetAt(clientX, clientY);
+    setUploading(true);
+    for (const file of arr) {
+      const isVideo = file.type.startsWith("video/");
+      const bucket = isVideo ? "videos" : "photos";
+      const ext = file.name.split(".").pop() || (isVideo ? "mp4" : "jpg");
+      const path = `${workspaceId}/${postId}-${crypto.randomUUID()}.${ext}`;
+      const { error } = await supabase.storage.from(bucket).upload(path, file, { upsert: true, contentType: file.type });
+      if (error) continue;
+      const { data: urlData } = supabase.storage.from(bucket).getPublicUrl(path);
+      const dur = isVideo ? await getVideoDuration(urlData.publicUrl) : PHOTO_DEFAULT_DUR;
+      if (lane && lane !== "video" && (lane === "new" || /^v\d+$/.test(lane))) {
+        const track = lane === "new" ? videoTrackCount : (parseInt(lane.slice(1), 10) || 0);
+        setOverlays((prev) => [...prev, {
+          id: crypto.randomUUID(), kind: isVideo ? "video" : "photo", name: file.name, src: urlData.publicUrl,
+          srcDur: isVideo ? dur : 15, trimStart: 0, trimEnd: dur, offset: dropT, track, ...newOverlayDefaults(),
+        }]);
+      } else {
+        const clip: MontageClip = {
+          id: crypto.randomUUID(), kind: isVideo ? "video" : "photo", name: file.name, src: urlData.publicUrl,
+          srcDur: isVideo ? dur : 15, trimStart: 0, trimEnd: dur, ...newClipDefaults(),
+        };
+        const insertT = dropT;
+        setClips((prev) => {
+          let acc = 0;
+          const ws = prev.map((cc) => { acc += Math.max(0, cc.gapBefore ?? 0); const s = acc; acc += clipTimelineDur(cc); return { start: s, end: acc }; });
+          let idx = ws.findIndex((w) => w.start >= insertT);
+          if (idx < 0) idx = prev.length;
+          const prevEnd = idx > 0 ? ws[idx - 1].end : 0;
+          clip.gapBefore = Math.max(0, insertT - prevEnd);
+          const copy = [...prev]; copy.splice(idx, 0, clip); return copy;
+        });
+      }
+      dropT += dur; // fichiers multiples : posés à la suite
+    }
+    setUploading(false);
   }
 
   // ── Actions clip (timeline) ─────────────────────────────────────────────────
@@ -2352,7 +2407,11 @@ export default function MontagePage() {
           <button className="mz-hbtn" onClick={() => setPps((p) => Math.max(10, Math.round(p / 1.3)))}><VIcon name="zoomOut" size={15} /></button>
           <button className="mz-hbtn" onClick={() => setPps((p) => Math.min(160, Math.round(p * 1.3)))}><VIcon name="zoomIn" size={15} /></button>
         </div>
-        <div className="a-tl-scroll" ref={tlScrollRef}>
+        <div className="a-tl-scroll" ref={tlScrollRef}
+          onDragOver={(e) => { if (e.dataTransfer.types.includes("Files")) { e.preventDefault(); setTlFileOver(true); } }}
+          onDragLeave={(e) => { if (!e.currentTarget.contains(e.relatedTarget as Node)) setTlFileOver(false); }}
+          onDrop={(e) => { e.preventDefault(); setTlFileOver(false); if (e.dataTransfer.files?.length) importFilesToTimeline(e.dataTransfer.files, e.clientX, e.clientY); }}
+          style={{ outline: tlFileOver ? "2px dashed var(--mint-2)" : undefined, outlineOffset: -3 }}>
           <div
             className="a-tl-inner"
             ref={tlInnerRef}
