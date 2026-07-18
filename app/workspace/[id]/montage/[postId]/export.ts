@@ -13,7 +13,7 @@
 // par-dessus — un vrai équivalent pour celles-ci nécessiterait un transform de
 // sortie dédié par type, hors périmètre de ce lot.
 
-import { MontageClip, OverlayClip, Caption, TitleEl, StickerEl, AudioTrack, SubCustom, effectiveSubStyle, DEFAULT_SUB_POS, clipFilterCss, overlayFilterCss, clipTimelineDur, clipAudioGainAt, overlayTimelineDur, audioVolumeAt, kenBurnsScale, videoFormatById, exportQualityById } from "./constants";
+import { MontageClip, OverlayClip, Caption, TitleEl, StickerEl, AudioTrack, SubCustom, effectiveSubStyle, DEFAULT_SUB_POS, clipFilterCss, overlayFilterCss, clipTimelineDur, clipAudioGainAt, overlayTimelineDur, overlayAudioGainAt, audioVolumeAt, kenBurnsScale, videoFormatById, exportQualityById } from "./constants";
 
 export interface ExportProject {
   clips: MontageClip[];
@@ -357,22 +357,23 @@ export async function renderExport(project: ExportProject, onProgress: (p: numbe
   // Triés par piste croissante (stable) → la piste la plus haute est dessinée en
   // dernier, donc au-dessus (z-order cohérent avec l'aperçu).
   const overlays = (project.overlays || []).slice().sort((a, b) => (a.track ?? 0) - (b.track ?? 0));
-  const overlayMedia: { o: OverlayClip; video: HTMLVideoElement | null; img: HTMLImageElement | null; active: boolean }[] = [];
+  const overlayMedia: { o: OverlayClip; video: HTMLVideoElement | null; img: HTMLImageElement | null; active: boolean; gain: GainNode | null }[] = [];
   for (const o of overlays) {
     if (o.kind === "photo") {
       let img: HTMLImageElement | null = null;
       try { img = await loadImage(o.src); } catch { /* image indisponible */ }
-      overlayMedia.push({ o, video: null, img, active: false });
+      overlayMedia.push({ o, video: null, img, active: false, gain: null });
     } else {
       const ov = document.createElement("video");
       ov.crossOrigin = "anonymous"; ov.playsInline = true; ov.muted = false;
+      let gain: GainNode | null = null;
       try {
         const node = audioCtx.createMediaElementSource(ov);
-        const gain = audioCtx.createGain(); gain.gain.value = o.vol ?? 1;
+        gain = audioCtx.createGain(); gain.gain.value = o.vol ?? 1;
         node.connect(gain).connect(dest);
       } catch { /* audio overlay ignoré */ }
       await new Promise<void>((res) => { ov.onloadedmetadata = () => res(); ov.onerror = () => res(); ov.src = o.src; });
-      overlayMedia.push({ o, video: ov, img: null, active: false });
+      overlayMedia.push({ o, video: ov, img: null, active: false, gain });
     }
   }
   // Met à jour (lecture/seek) puis dessine les overlays actifs au temps t.
@@ -386,6 +387,7 @@ export async function renderExport(project: ExportProject, onProgress: (p: numbe
           const target = o.trimStart + (t - start);
           if (!m.active) { try { m.video.currentTime = target; } catch {} m.video.play().catch(() => {}); m.active = true; }
           else if (Math.abs(m.video.currentTime - target) > 0.4) { try { m.video.currentTime = target; } catch {} }
+          if (m.gain) m.gain.gain.value = overlayAudioGainAt(o, t - start); // volume + fondus de l'incrustation
           drawOverlayFrame(ctx, m.video, o);
         } else if (m.active) { m.video.pause(); m.active = false; }
       } else if (m.img && isActive) {

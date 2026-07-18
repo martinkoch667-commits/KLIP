@@ -9,7 +9,7 @@ import {
   MontageClip, OverlayClip, Caption, TitleEl, StickerEl, AudioTrack, MontageProject, SubCustom,
   FILTERS, TRANSITIONS, SUB_STYLES, FONT_CHOICES, SUB_LENGTHS, DEFAULT_WORDS_PER_CAPTION, DEFAULT_SUB_POS,
   subStyleById, effectiveSubStyle,
-  fmt, newClipDefaults, newOverlayDefaults, clipFilterCss, overlayFilterCss, clipTimelineDur, clipAudioGainAt, overlayTimelineDur, segmentCaptions,
+  fmt, newClipDefaults, newOverlayDefaults, clipFilterCss, overlayFilterCss, clipTimelineDur, clipAudioGainAt, overlayTimelineDur, overlayAudioGainAt, segmentCaptions,
   audioVolumeAt, kenBurnsScale, VIDEO_FORMATS, videoFormatById, EXPORT_QUALITIES,
 } from "./constants";
 import { MontageCtx, CutPanel, TextPanel, CaptionsPanel, AudioPanel, TransitionsPanel, FilterPanel, SpeedPanel, StickerPanel, OverlayPanel, AiPanel } from "./panels";
@@ -1049,9 +1049,10 @@ export default function MontagePage() {
   // ── Titres ───────────────────────────────────────────────────────────────
   function addTitle() {
     const id = crypto.randomUUID();
-    const start = time, end = Math.min(total || time + 3, time + 3);
+    const start = time, end = time + 3; // 3 s pleins → toujours visible sous le curseur à l'ajout
     setTitles((prev) => [...prev, { id, start, end, text: t('newTitleDefault'), font: "archivo", color: "#FFFFFF", anim: "rise", x: 50, y: 78 }]);
-    setSelectedTitleId(id);
+    setSelectedTitleId(id); setTool("text");
+    seek(start + 0.05); // s'assure que le curseur est dans la plage du texte (affiché + éditable)
   }
   function updateTitle(id: string, patch: Partial<TitleEl>) {
     setTitles((prev) => prev.map((t) => (t.id === id ? { ...t, ...patch } : t)));
@@ -1418,6 +1419,23 @@ export default function MontagePage() {
   function onClipFadeUp(e: React.PointerEvent) {
     if (clipFadeRef.current) { try { (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId); } catch {} clipFadeRef.current = null; }
   }
+  // Fondu du son d'une incrustation (Vidéo 2, 3…).
+  const ovFadeRef = useRef<{ id: string; kind: "audioFadeIn" | "audioFadeOut"; startX: number; t0: number; dur: number } | null>(null);
+  function startOverlayFade(e: React.PointerEvent, o: OverlayClip, kind: "audioFadeIn" | "audioFadeOut") {
+    e.stopPropagation();
+    try { (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId); } catch {}
+    ovFadeRef.current = { id: o.id, kind, startX: e.clientX, t0: (kind === "audioFadeIn" ? o.audioFadeIn : o.audioFadeOut) ?? 0, dur: overlayTimelineDur(o) };
+  }
+  function onOverlayFadeMove(e: React.PointerEvent) {
+    const d = ovFadeRef.current;
+    if (!d) return;
+    const delta = (e.clientX - d.startX) / pps;
+    const sec = Math.max(0, Math.min(d.dur, d.kind === "audioFadeIn" ? d.t0 + delta : d.t0 - delta));
+    updateOverlay(d.id, { [d.kind]: sec });
+  }
+  function onOverlayFadeUp(e: React.PointerEvent) {
+    if (ovFadeRef.current) { try { (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId); } catch {} ovFadeRef.current = null; }
+  }
   // Déplacement d'une piste audio dans le temps + sélection (pour la déplacer/supprimer).
   const audDragRef = useRef<{ id: string; startX: number; t0: number; moved: boolean } | null>(null);
   function onAudioBarDown(e: React.PointerEvent, a: AudioTrack) {
@@ -1595,7 +1613,8 @@ export default function MontagePage() {
       if (!o || o.kind !== "video") return;
       const isActive = time >= o.offset && time < o.offset + overlayTimelineDur(o);
       if (!isActive) { if (!v.paused) v.pause(); return; }
-      v.volume = o.vol ?? 1;
+      const g = overlayAudioGainAt(o, time - o.offset);
+      v.volume = isFinite(g) ? Math.max(0, Math.min(1, g)) : 0;
       const localTime = o.trimStart + (time - o.offset);
       if (Math.abs(v.currentTime - localTime) > 0.4) v.currentTime = Math.max(0, localTime);
       if (playing) v.play().catch(() => {}); else if (!v.paused) v.pause();
@@ -2415,8 +2434,8 @@ export default function MontagePage() {
       <div className="a-timeline" style={{ height: timelineH }}>
         <div className="a-tl-bar">
           <button className="a-tl-tool" disabled={!selectedClipId} onClick={splitAtPlayhead}><VIcon name="split" size={15} /> {t('splitShort')}</button>
-          <button className="a-tl-tool" disabled={!selectedClipId} onClick={() => selectedClipId && duplicateClip(selectedClipId)}><VIcon name="copy" size={15} /> {t('duplicate')}</button>
-          <button className="a-tl-tool" disabled={!selectedClipId} onClick={() => selectedClipId && removeClip(selectedClipId)}><VIcon name="trash" size={15} /> {t('delete')}</button>
+          <button className="a-tl-tool" disabled={!(selectedClipId || selectedOverlayId)} onClick={duplicateSelectedAny}><VIcon name="copy" size={15} /> {t('duplicate')}</button>
+          <button className="a-tl-tool" disabled={!(selectedClipId || selectedOverlayId || selectedAudioId || selectedTitleId || selectedStickerId || multiSel.size)} onClick={deleteSelected}><VIcon name="trash" size={15} /> {t('delete')}</button>
           <div style={{ flex: 1 }} />
           <span className="mz-sec-label">{t('clipsCountTimeline', { count: clips.length, time: fmt(total) })}</span>
           {/* Hauteur des pistes : glisser ↕ (façon CapCut). */}
@@ -2482,7 +2501,7 @@ export default function MontagePage() {
                 <div key={s} className="a-tick" style={{ left: s * pps }}><span>{fmt(s).slice(0, -2)}</span></div>
               ))}
             </div>
-            <div className={"a-lane" + (videoTrackCount === 0 && dropLane === "new" ? " nt-hint" : "")} style={{ order: 4 }} data-tllane="video">
+            <div className={"a-lane" + (videoTrackCount === 0 && dropLane === "new" ? " nt-hint" : "")} style={{ height: Math.round(34 * trackScale), order: 4 }} data-tllane="video">
               <div className="a-lane-label"><VIcon name="video" size={13} /> {`${t('labelVideo')} 1`}</div>
               <div className="a-lane-track">
                 {clips.length === 0 && (
@@ -2512,6 +2531,18 @@ export default function MontagePage() {
                           </svg>
                         </div>
                       )}
+                      {/* Rampe de fondu du son, dessinée sur le plan (mêmes repères que l'audio). */}
+                      {c.kind === "video" && (c.vol ?? 1) > 0 && ((c.audioFadeIn ?? 0) > 0 || (c.audioFadeOut ?? 0) > 0) && (() => {
+                        const w = c.dur * pps, H = 30;
+                        const fi = Math.max(0, Math.min(c.dur, c.audioFadeIn ?? 0)) * pps;
+                        const fo = Math.max(0, Math.min(c.dur, c.audioFadeOut ?? 0)) * pps;
+                        return (
+                          <svg className="a-clip-fade" viewBox={`0 0 ${Math.max(1, w)} ${H}`} preserveAspectRatio="none">
+                            {fi > 0 && <><polygon points={`0,${H} ${fi},0 ${fi},${H}`} fill="rgba(0,0,0,.4)" /><line x1="0" y1={H} x2={fi} y2="0" stroke="#fff" strokeWidth="1.5" vectorEffect="non-scaling-stroke" opacity=".95" /></>}
+                            {fo > 0 && <><polygon points={`${w},${H} ${w - fo},0 ${w - fo},${H}`} fill="rgba(0,0,0,.4)" /><line x1={w} y1={H} x2={w - fo} y2="0" stroke="#fff" strokeWidth="1.5" vectorEffect="non-scaling-stroke" opacity=".95" /></>}
+                          </svg>
+                        );
+                      })()}
                       <span className="a-clip-badge"><VIcon name={c.kind === "photo" ? "image" : "video"} size={10} /></span>
                       <span className="a-clip-dur">{c.dur.toFixed(1)}s</span>
                       <span className="a-clip-lbl">{c.name}</span>
@@ -2593,11 +2624,33 @@ export default function MontagePage() {
                           </svg>
                         </div>
                       )}
+                      {o.kind === "video" && (o.vol ?? 1) > 0 && ((o.audioFadeIn ?? 0) > 0 || (o.audioFadeOut ?? 0) > 0) && (() => {
+                        const w = Math.max(24, overlayTimelineDur(o) * pps), H = 30;
+                        const fi = Math.max(0, Math.min(overlayTimelineDur(o), o.audioFadeIn ?? 0)) * pps;
+                        const fo = Math.max(0, Math.min(overlayTimelineDur(o), o.audioFadeOut ?? 0)) * pps;
+                        return (
+                          <svg className="a-clip-fade" viewBox={`0 0 ${Math.max(1, w)} ${H}`} preserveAspectRatio="none">
+                            {fi > 0 && <><polygon points={`0,${H} ${fi},0 ${fi},${H}`} fill="rgba(0,0,0,.4)" /><line x1="0" y1={H} x2={fi} y2="0" stroke="#fff" strokeWidth="1.5" vectorEffect="non-scaling-stroke" opacity=".95" /></>}
+                            {fo > 0 && <><polygon points={`${w},${H} ${w - fo},0 ${w - fo},${H}`} fill="rgba(0,0,0,.4)" /><line x1={w} y1={H} x2={w - fo} y2="0" stroke="#fff" strokeWidth="1.5" vectorEffect="non-scaling-stroke" opacity=".95" /></>}
+                          </svg>
+                        );
+                      })()}
                       <span style={{ position: "absolute", left: 8, top: 4, fontSize: 9.5, fontWeight: 700, color: "#fff", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: "calc(100% - 16px)" }}>{o.kind === "video" ? "🎬" : "🖼"} {o.name}</span>
                       {selectedOverlayId === o.id && (
                         <>
                           <div className="a-trim a-trim-l" onPointerDown={(e) => startOvTrim(e, o, "start")} onPointerMove={onOvTrimMove} onPointerUp={endOvTrim} title={t('trimStartTitle')} />
                           <div className="a-trim a-trim-r" onPointerDown={(e) => startOvTrim(e, o, "end")} onPointerMove={onOvTrimMove} onPointerUp={endOvTrim} title={o.kind === "photo" ? t('duration') : t('trimEndTitle')} />
+                          {o.kind === "video" && (o.vol ?? 1) > 0 && (() => {
+                            const fi = Math.max(0, Math.min(overlayTimelineDur(o), o.audioFadeIn ?? 0)) * pps;
+                            const fo = Math.max(0, Math.min(overlayTimelineDur(o), o.audioFadeOut ?? 0)) * pps;
+                            const w = Math.max(24, overlayTimelineDur(o) * pps);
+                            return (
+                              <>
+                                <span className="a-fade-dot" style={{ left: Math.max(0, fi) - 5, top: 2 }} title={t('fadeIn')} onPointerDown={(e) => startOverlayFade(e, o, "audioFadeIn")} onPointerMove={onOverlayFadeMove} onPointerUp={onOverlayFadeUp} />
+                                <span className="a-fade-dot" style={{ left: w - Math.max(0, fo) - 5, top: 2 }} title={t('fadeOut')} onPointerDown={(e) => startOverlayFade(e, o, "audioFadeOut")} onPointerMove={onOverlayFadeMove} onPointerUp={onOverlayFadeUp} />
+                              </>
+                            );
+                          })()}
                         </>
                       )}
                     </div>
@@ -2674,7 +2727,8 @@ export default function MontagePage() {
               <div className="a-lane-label"><VIcon name="text" size={13} /> {t('railText')}</div>
               <div className="a-lane-track">
                 {titles.map((ti) => (
-                  <div key={ti.id} className={"a-chip" + (selectedTitleId === ti.id ? " on" : "")} style={{ left: ti.start * pps, width: Math.max(20, (ti.end - ti.start) * pps) }} title={ti.text} onClick={() => { setSelectedTitleId(ti.id); setTool("text"); }}
+                  <div key={ti.id} className={"a-chip" + (selectedTitleId === ti.id ? " on" : "")} style={{ left: ti.start * pps, width: Math.max(20, (ti.end - ti.start) * pps) }} title={ti.text}
+                    onClick={() => { setSelectedTitleId(ti.id); setTool("text"); if (time < ti.start || time > ti.end) seek(ti.start + 0.05); }}
                     onContextMenu={(e) => { e.preventDefault(); setSelectedTitleId(ti.id); setClipMenu({ x: e.clientX, y: e.clientY, id: ti.id, kind: "title" }); }}>
                     <span style={{ fontSize: 10, fontWeight: 700, color: "#fff", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{ti.text}</span>
                   </div>
