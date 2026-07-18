@@ -399,7 +399,7 @@ export default function MontagePage() {
   const voChunksRef = useRef<Blob[]>([]);
   const rulerRef = useRef<HTMLDivElement>(null);
   const scrubbingRulerRef = useRef(false);
-  const trimRef = useRef<{ id: string; edge: "start" | "end"; startX: number; t0start: number; t0end: number; kind: "video" | "photo"; srcDur: number; speed: number } | null>(null);
+  const trimRef = useRef<{ id: string; edge: "start" | "end"; startX: number; t0start: number; t0end: number; kind: "video" | "photo"; srcDur: number; speed: number; t0gap: number } | null>(null);
   const ovTrimRef = useRef<{ id: string; edge: "start" | "end"; startX: number; t0start: number; t0end: number; t0offset: number; srcDur: number; kind: "video" | "photo" } | null>(null);
   const clipboardRef = useRef<{ type: "clip"; data: MontageClip } | { type: "overlay"; data: OverlayClip } | null>(null);
   // Glisser-déposer libre façon CapCut : on attrape le corps d'un plan / d'une
@@ -1022,6 +1022,19 @@ export default function MontagePage() {
   function updateClip(id: string, patch: Partial<MontageClip>) {
     setClips((prev) => prev.map((c) => (c.id === id ? { ...c, ...patch } : c)));
   }
+  // Insère un plan dans la séquence principale à un instant donné (calcule gapBefore).
+  function insertClipAtTime(clip: MontageClip, insertT: number) {
+    setClips((prev) => {
+      let acc = 0;
+      const ws = prev.map((cc) => { acc += Math.max(0, cc.gapBefore ?? 0); const s = acc; acc += clipTimelineDur(cc); return { start: s, end: acc }; });
+      let idx = ws.findIndex((w) => w.start >= insertT);
+      if (idx < 0) idx = prev.length;
+      const prevEnd = idx > 0 ? ws[idx - 1].end : 0;
+      clip.gapBefore = Math.max(0, insertT - prevEnd);
+      const copy = [...prev]; copy.splice(idx, 0, clip); return copy;
+    });
+    setSelectedClipId(clip.id);
+  }
 
   function splitAtPlayhead() {
     const c = selectedClip;
@@ -1390,6 +1403,9 @@ export default function MontagePage() {
   function startFadeDrag(e: React.PointerEvent, a: { id: string; dur: number; fadeIn?: number; fadeOut?: number }, kind: "fadeIn" | "fadeOut") {
     e.stopPropagation();
     try { (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId); } catch {}
+    // Sélectionne aussi la piste : sinon, cliquer une poignée de fondu (aux extrémités)
+    // ne la sélectionnait pas → « Supprimer » ne marchait pas aux bords.
+    setSelectedAudioId(a.id); setSelectedClipId(null); setSelectedOverlayId(null); if (multiSel.size) setMultiSel(new Set());
     fadeDragRef.current = { id: a.id, kind, startX: e.clientX, t0: (kind === "fadeIn" ? a.fadeIn : a.fadeOut) ?? 0, dur: a.dur };
   }
   function onFadeDragMove(e: React.PointerEvent) {
@@ -1435,6 +1451,27 @@ export default function MontagePage() {
   }
   function onOverlayFadeUp(e: React.PointerEvent) {
     if (ovFadeRef.current) { try { (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId); } catch {} ovFadeRef.current = null; }
+  }
+  // Déplacement d'un texte dans le temps sur la timeline (décale start ET end).
+  const titleDragRef = useRef<{ id: string; startX: number; t0start: number; dur: number; moved: boolean } | null>(null);
+  function onTitleBarDown(e: React.PointerEvent, ti: TitleEl) {
+    e.stopPropagation();
+    try { (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId); } catch {}
+    titleDragRef.current = { id: ti.id, startX: e.clientX, t0start: ti.start, dur: ti.end - ti.start, moved: false };
+    setSelectedTitleId(ti.id); setTool("text");
+  }
+  function onTitleBarMove(e: React.PointerEvent) {
+    const d = titleDragRef.current;
+    if (!d) return;
+    if (!d.moved && Math.abs(e.clientX - d.startX) < 4) return;
+    d.moved = true;
+    const ns = Math.max(0, snapTime(d.t0start + (e.clientX - d.startX) / pps));
+    updateTitle(d.id, { start: ns, end: ns + d.dur });
+  }
+  function onTitleBarUp(e: React.PointerEvent) {
+    const d = titleDragRef.current; titleDragRef.current = null;
+    try { (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId); } catch {}
+    if (d && !d.moved && (time < d.t0start || time > d.t0start + d.dur)) seek(d.t0start + 0.05); // clic simple → recadre le curseur
   }
   // Déplacement d'une piste audio dans le temps + sélection (pour la déplacer/supprimer).
   const audDragRef = useRef<{ id: string; startX: number; t0: number; moved: boolean } | null>(null);
@@ -1827,7 +1864,7 @@ export default function MontagePage() {
     e.stopPropagation();
     e.preventDefault();
     (e.target as HTMLElement).setPointerCapture(e.pointerId);
-    trimRef.current = { id: c.id, edge, startX: e.clientX, t0start: c.trimStart, t0end: c.trimEnd, kind: c.kind, srcDur: c.srcDur, speed: c.speed };
+    trimRef.current = { id: c.id, edge, startX: e.clientX, t0start: c.trimStart, t0end: c.trimEnd, kind: c.kind, srcDur: c.srcDur, speed: c.speed, t0gap: Math.max(0, c.gapBefore ?? 0) };
     setSelectedClipId(c.id);
   }
   function onTrimMove(e: React.PointerEvent) {
@@ -1835,8 +1872,11 @@ export default function MontagePage() {
     if (!d) return;
     const deltaSrc = ((e.clientX - d.startX) / pps) * (d.kind === "video" ? d.speed : 1);
     if (d.edge === "start") {
+      // Rogner/étirer le DÉBUT : le bord gauche bouge et le bord droit reste en place
+      // (on décale gapBefore en conséquence) — comme les incrustations et CapCut.
       const ns = Math.max(0, Math.min(d.t0end - 0.3, d.t0start + deltaSrc));
-      updateClip(d.id, { trimStart: ns });
+      const dtl = (ns - d.t0start) / (d.kind === "video" ? d.speed : 1);
+      updateClip(d.id, { trimStart: ns, gapBefore: Math.max(0, d.t0gap + dtl) });
     } else {
       // Plafond = longueur réelle de la source (vidéo) — on ne peut jamais étirer un plan
       // au-delà de son métrage. Garde-fou si srcDur est corrompu (Infinity/NaN) : on
@@ -1987,11 +2027,15 @@ export default function MontagePage() {
     if (!d || !d.moved) return; // simple clic → sélection déjà faite au down
     const lane = dropTargetAt(e.clientX, e.clientY);
     const dropT = dropTimeAt(e.clientX, d.grabDx);
-    const dup = e.altKey;
+    const dup = e.altKey; // ⌥ (Option) + glisser = dupliquer (façon Mac / CapCut)
     if (d.kind === "clip") {
       if (!lane || lane === "video" || lane === "audio" || lane === "captions" || lane === "text") {
-        // reste sur la piste vidéo principale → applique la nouvelle position (trou avant le plan)
-        updateClip(d.id, { gapBefore: Math.max(0, dropT - d.anchor) });
+        if (dup) {
+          const cs = clips.find((x) => x.id === d.id);
+          if (cs) { const copy: MontageClip = { ...cs, id: crypto.randomUUID(), gapBefore: 0 }; insertClipAtTime(copy, dropT); }
+        } else {
+          updateClip(d.id, { gapBefore: Math.max(0, dropT - d.anchor) }); // reste sur la piste principale → repositionne
+        }
       } else if (lane === "new") {
         clipToOverlayTrack(d.id, dup, dropT, videoTrackCount); // nouvelle piste au-dessus de tout
       } else if (lane.startsWith("v")) {
@@ -2000,14 +2044,15 @@ export default function MontagePage() {
     } else {
       const o = overlays.find((x) => x.id === d.id);
       if (!o) return;
-      if (lane === "new") {
-        updateOverlay(d.id, { offset: dropT, track: videoTrackCount });
+      const track = lane === "new" ? videoTrackCount : (lane && lane !== "video" && lane.startsWith("v") ? parseInt(lane.slice(1), 10) || 0 : (o.track ?? 0));
+      if (dup) {
+        const nid = crypto.randomUUID();
+        setOverlays((prev) => [...prev, { ...o, id: nid, offset: dropT, track }]);
+        setSelectedOverlayId(nid);
       } else if (lane === "video") {
         overlayToClip(d.id, dropT); // redescendue sur la piste principale → redevient un plan
-      } else if (lane && lane.startsWith("v")) {
-        updateOverlay(d.id, { offset: dropT, track: parseInt(lane.slice(1), 10) || 0 });
       } else {
-        updateOverlay(d.id, { offset: dropT }); // garde sa piste, déplacement temporel seul
+        updateOverlay(d.id, { offset: dropT, track });
       }
     }
   }
@@ -2311,7 +2356,7 @@ export default function MontagePage() {
                       fontWeight: FONT_CHOICES.find((f) => f.id === ti.font)?.weight || 800,
                       fontStyle: FONT_CHOICES.find((f) => f.id === ti.font)?.italic ? "italic" : "normal",
                       color: ti.color, fontSize: 40 * (ti.scale ?? 1) * previewScale, textAlign: "center", textShadow: "0 1px 8px rgba(0,0,0,.5)",
-                      maxWidth: "80%", whiteSpace: "pre-wrap",
+                      maxWidth: "80%", whiteSpace: "pre-wrap", zIndex: 8, // au-dessus des incrustations (le texte reste visible/cliquable)
                       animation: ti.anim === "rise" ? "mzRise .35s var(--ease)" : ti.anim === "pop" ? "mzPop .3s var(--ease)" : undefined,
                     }}
                     onPointerDown={(e) => { if (editingTitleId === ti.id) return; onOverlayPointerDown(e, "title", ti.id); }}
@@ -2727,8 +2772,8 @@ export default function MontagePage() {
               <div className="a-lane-label"><VIcon name="text" size={13} /> {t('railText')}</div>
               <div className="a-lane-track">
                 {titles.map((ti) => (
-                  <div key={ti.id} className={"a-chip" + (selectedTitleId === ti.id ? " on" : "")} style={{ left: ti.start * pps, width: Math.max(20, (ti.end - ti.start) * pps) }} title={ti.text}
-                    onClick={() => { setSelectedTitleId(ti.id); setTool("text"); if (time < ti.start || time > ti.end) seek(ti.start + 0.05); }}
+                  <div key={ti.id} className={"a-chip" + (selectedTitleId === ti.id ? " on" : "")} style={{ left: ti.start * pps, width: Math.max(20, (ti.end - ti.start) * pps), cursor: "grab", touchAction: "none" }} title={ti.text}
+                    onPointerDown={(e) => onTitleBarDown(e, ti)} onPointerMove={onTitleBarMove} onPointerUp={onTitleBarUp}
                     onContextMenu={(e) => { e.preventDefault(); setSelectedTitleId(ti.id); setClipMenu({ x: e.clientX, y: e.clientY, id: ti.id, kind: "title" }); }}>
                     <span style={{ fontSize: 10, fontWeight: 700, color: "#fff", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{ti.text}</span>
                   </div>
