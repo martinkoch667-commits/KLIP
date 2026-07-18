@@ -1607,7 +1607,11 @@
     "trackHeightTitle": "Altura de pista (arrastrar ↕)",
     "lockTrack": "Bloquear pista",
     "hideTrack": "Ocultar pista",
-    "muteTrack": "Silenciar pista"
+    "muteTrack": "Silenciar pista",
+    "subsLinked": "Vinculado",
+    "subsIndividual": "Por subtítulo",
+    "subsLinkedHint": "Un solo estilo para todos los subtítulos. Arrástralos en la vista previa para colocarlos.",
+    "subsIndividualHint": "Cada subtítulo tiene su propio estilo y posición. Haz clic en un bloque para editarlo solo."
   },
   "forgotPassword": {
     "title": "Contraseña olvidada",

@@ -22,6 +22,7 @@ export interface ExportProject {
   subStyleId: string;
   subCustom?: SubCustom;
   subPos?: { x: number; y: number };
+  linkedSubs?: boolean;
   titles: TitleEl[];
   stickers: StickerEl[];
   audioTracks: AudioTrack[];
@@ -127,10 +128,11 @@ function drawMediaFrame(ctx: CanvasRenderingContext2D, media: HTMLVideoElement |
   }
 }
 
-function drawCaptions(ctx: CanvasRenderingContext2D, captions: Caption[], subStyleId: string, subCustom: SubCustom | undefined, subPos: { x: number; y: number } | undefined, t: number) {
+function drawCaptions(ctx: CanvasRenderingContext2D, captions: Caption[], subStyleId: string, subCustom: SubCustom | undefined, subPos: { x: number; y: number } | undefined, t: number, linkedSubs: boolean = true) {
   const cap = captions.find((c) => t >= c.start && t <= c.end);
   if (!cap) return;
-  const style = effectiveSubStyle(subStyleId, subCustom);
+  // Sous-titres déliés : chaque bloc honore ses propres surcharges de style/position.
+  const style = linkedSubs ? effectiveSubStyle(subStyleId, subCustom) : effectiveSubStyle(cap.styleId ?? subStyleId, cap.custom ?? {});
   const rawWords = cap.text.split(/\s+/).filter(Boolean);
   const words = style.uppercase ? rawWords.map((w) => w.toUpperCase()) : rawWords;
   const progress = (t - cap.start) / Math.max(0.1, cap.end - cap.start);
@@ -149,7 +151,7 @@ function drawCaptions(ctx: CanvasRenderingContext2D, captions: Caption[], subSty
   const padX = style.pill ? 22 : 16, padY = style.pill ? 12 : 10;
   const boxW = Math.min(CANVAS_W - 60, metrics.width + padX * 2);
   const boxH = fontSize + padY * 2;
-  const pos = subPos || DEFAULT_SUB_POS;
+  const pos = linkedSubs ? (subPos || DEFAULT_SUB_POS) : { x: cap.x ?? (subPos?.x ?? DEFAULT_SUB_POS.x), y: cap.y ?? (subPos?.y ?? DEFAULT_SUB_POS.y) };
   const cxPos = (pos.x / 100) * CANVAS_W;
   const cyPos = (pos.y / 100) * CANVAS_H;
   const boxX = Math.max(20, Math.min(CANVAS_W - 20 - boxW, cxPos - boxW / 2));
@@ -476,7 +478,7 @@ export async function renderExport(project: ExportProject, onProgress: (p: numbe
             ctx.fillStyle = "#000";
             ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
             drawOverlays(globalT);
-            drawCaptions(ctx, project.captions, project.subStyleId, project.subCustom, project.subPos, globalT);
+            drawCaptions(ctx, project.captions, project.subStyleId, project.subCustom, project.subPos, globalT, project.linkedSubs ?? true);
             drawTitles(ctx, project.titles, globalT);
             drawStickers(ctx, project.stickers, stickerImages, globalT);
             if (project.showProgressBar) drawProgressBar(ctx, globalT, total);
@@ -527,7 +529,7 @@ export async function renderExport(project: ExportProject, onProgress: (p: numbe
             drawDissolveFrame(prevM, 1 - p);
             drawDissolveFrame(media, p);
             drawOverlays(globalT);
-            drawCaptions(ctx, project.captions, project.subStyleId, project.subCustom, project.subPos, globalT);
+            drawCaptions(ctx, project.captions, project.subStyleId, project.subCustom, project.subPos, globalT, project.linkedSubs ?? true);
             drawTitles(ctx, project.titles, globalT);
             drawStickers(ctx, project.stickers, stickerImages, globalT);
             if (project.showProgressBar) drawProgressBar(ctx, globalT, total);
@@ -553,7 +555,7 @@ export async function renderExport(project: ExportProject, onProgress: (p: numbe
             updateAudioAt(globalT);
             drawMediaFrame(ctx, v, c, localT, i === 0);
             drawOverlays(globalT);
-            drawCaptions(ctx, project.captions, project.subStyleId, project.subCustom, project.subPos, globalT);
+            drawCaptions(ctx, project.captions, project.subStyleId, project.subCustom, project.subPos, globalT, project.linkedSubs ?? true);
             drawTitles(ctx, project.titles, globalT);
             drawStickers(ctx, project.stickers, stickerImages, globalT);
             if (project.showProgressBar) drawProgressBar(ctx, globalT, total);
@@ -571,7 +573,7 @@ export async function renderExport(project: ExportProject, onProgress: (p: numbe
             updateAudioAt(globalT);
             drawMediaFrame(ctx, img, c, localT, i === 0);
             drawOverlays(globalT);
-            drawCaptions(ctx, project.captions, project.subStyleId, project.subCustom, project.subPos, globalT);
+            drawCaptions(ctx, project.captions, project.subStyleId, project.subCustom, project.subPos, globalT, project.linkedSubs ?? true);
             drawTitles(ctx, project.titles, globalT);
             drawStickers(ctx, project.stickers, stickerImages, globalT);
             if (project.showProgressBar) drawProgressBar(ctx, globalT, total);

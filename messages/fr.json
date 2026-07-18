@@ -1607,7 +1607,11 @@
     "trackHeightTitle": "Hauteur des pistes (glisser ↕)",
     "lockTrack": "Verrouiller la piste",
     "hideTrack": "Masquer la piste",
-    "muteTrack": "Couper le son"
+    "muteTrack": "Couper le son",
+    "subsLinked": "Lié",
+    "subsIndividual": "Par sous-titre",
+    "subsLinkedHint": "Un seul style pour tous les sous-titres. Glisse-les dans l’aperçu pour les placer.",
+    "subsIndividualHint": "Chaque sous-titre a son propre style et sa position. Clique un bloc pour le modifier seul."
   },
   "forgotPassword": {
     "title": "Mot de passe oublié",

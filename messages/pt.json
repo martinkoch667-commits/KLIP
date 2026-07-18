@@ -1607,7 +1607,11 @@
     "trackHeightTitle": "Altura da faixa (arraste ↕)",
     "lockTrack": "Bloquear faixa",
     "hideTrack": "Ocultar faixa",
-    "muteTrack": "Silenciar faixa"
+    "muteTrack": "Silenciar faixa",
+    "subsLinked": "Vinculado",
+    "subsIndividual": "Por legenda",
+    "subsLinkedHint": "Um único estilo para todas as legendas. Arraste-as na pré-visualização para posicioná-las.",
+    "subsIndividualHint": "Cada legenda tem seu próprio estilo e posição. Clique num bloco para editar só ele."
   },
   "forgotPassword": {
     "title": "Esqueceu a palavra-passe",
