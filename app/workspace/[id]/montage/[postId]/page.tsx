@@ -732,18 +732,21 @@ export default function MontagePage() {
   // ── Horloge RAF pour les plans photo ET les trous (écran noir) ──────────────
   // Pas de lecture native pour avancer le temps : ni sur une photo, ni dans un « trou »
   // (aucun plan actif). Cette horloge fait défiler la timeline dans ces deux cas.
+  // Horloge unique et FIABLE : le temps avance toujours par dt réel pendant la lecture
+  // (plans vidéo, photos, trous). La vidéo SUIT cette horloge (synchro plus bas) au lieu
+  // de la piloter — sinon, si la vidéo cale ou que play() est bloqué, le temps restait
+  // figé et un extrait de son tournait en boucle (« oh là oh là »).
   useEffect(() => {
     if (!playing) return;
-    if (activeClip && activeClip.kind !== "photo") return; // un plan vidéo pilote lui-même l'horloge
     let raf = 0; let last = performance.now();
     const tick = (now: number) => {
       const dt = (now - last) / 1000; last = now;
-      setTime((t) => { const n = t + dt; if (n >= total) { setPlaying(false); return 0; } return n; });
+      setTime((t) => { const n = t + dt; if (total > 0 && n >= total) { setPlaying(false); return 0; } return n; });
       raf = requestAnimationFrame(tick);
     };
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
-  }, [playing, activeClip?.id, activeClip?.kind, total]);
+  }, [playing, total]);
 
   // ── Lecture live des pistes audio (musique/voix off) ────────────────────────
   // Un <audio> par piste, joué/mis en pause/mixé (fondu) en direct pendant la
@@ -773,9 +776,16 @@ export default function MontagePage() {
     let raf = 0;
     const tick = () => {
       const t = timeRef.current;
-      // Fondu du son embarqué du plan actif (en direct dans l'aperçu).
+      // La vidéo SUIT l'horloge : on la maintient en lecture et on corrige la dérive
+      // (si elle a calé, été bloquée, ou pris de l'avance/retard). + fondu du son du plan.
       const vEl = videoRef.current, ac = activeClipRef.current;
-      if (vEl && ac && ac.kind === "video") vEl.volume = Math.min(1, clipAudioGainAt(ac, t - ac.start));
+      if (vEl && ac && ac.kind === "video") {
+        const expected = ac.trimStart + (t - ac.start) * ac.speed;
+        if (vEl.paused) vEl.play().catch(() => {});
+        if (isFinite(expected) && Math.abs(vEl.currentTime - expected) > 0.3) vEl.currentTime = Math.max(0, expected);
+        const g = clipAudioGainAt(ac, t - ac.start);
+        vEl.volume = isFinite(g) ? Math.max(0, Math.min(1, g)) : 0;
+      }
       for (const a of audioTracksRef.current) {
         const el = audioElsRef.current[a.id];
         if (!el) continue;
@@ -808,22 +818,10 @@ export default function MontagePage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [time]);
 
-  function onVideoTimeUpdate(e: React.SyntheticEvent<HTMLVideoElement>) {
-    if (!activeClip || activeClip.kind !== "video") return;
-    const v = e.currentTarget;
-    if (v.currentTime >= activeClip.trimEnd - 0.02) { onVideoEnded(); return; }
-    const localTimelineTime = (v.currentTime - activeClip.trimStart) / activeClip.speed;
-    setTime(activeClip.start + Math.max(0, localTimelineTime));
-  }
-  function onVideoEnded() {
-    if (!activeClip) return;
-    const idx = clipStarts.findIndex((c) => c.id === activeClip.id);
-    if (idx >= 0 && idx < clipStarts.length - 1) {
-      // Avance jusqu'à la fin du plan : s'il y a un trou (écran noir) avant le suivant,
-      // l'horloge RAF le traversera ; sinon on est déjà au début du plan suivant.
-      setTime(activeClip.end + 0.001);
-    } else { setTime(0); setPlaying(false); }
-  }
+  // La vidéo ne pilote plus le temps (c'est l'horloge RAF). On garde le handler pour
+  // compat, sans effet secondaire.
+  function onVideoTimeUpdate() { /* le temps est piloté par l'horloge RAF */ }
+  function onVideoEnded() { /* la progression entre plans est gérée par l'horloge */ }
 
   function togglePlay() { setPlaying((p) => !p); }
 
