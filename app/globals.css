@@ -889,6 +889,11 @@ input.ed-range::-moz-range-thumb {
 .a-lane.nt-hint::after { content: "＋"; position: absolute; top: -13px; left: 92px; font-size: 13px; font-weight: 800;
   color: var(--ink-3); line-height: 1; }
 
+/* Poignées de fondu audio (points blancs à tirer vers l'intérieur, façon CapCut). */
+.a-fade-dot { position: absolute; top: -1px; width: 10px; height: 10px; border-radius: 50%; background: #fff;
+  box-shadow: 0 0 0 1.5px rgba(0,0,0,.35), 0 1px 3px rgba(0,0,0,.4); cursor: ew-resize; z-index: 6; touch-action: none; }
+.a-fade-dot:hover { transform: scale(1.15); }
+
 /* Menu contextuel (clic droit) — sobre, façon CapCut, sans emoji. */
 .a-ctx-menu { position: fixed; z-index: 1000; min-width: 220px; background: var(--paper, #fff);
   border: 1px solid var(--line); border-radius: 10px; box-shadow: 0 12px 40px rgba(0,0,0,.22); padding: 6px 0; overflow: hidden; }

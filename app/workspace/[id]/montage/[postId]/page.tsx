@@ -1253,6 +1253,24 @@ export default function MontagePage() {
   function setAudioFade(id: string, kind: "fadeIn" | "fadeOut", seconds: number) {
     setAudioTracks((prev) => prev.map((a) => (a.id === id ? { ...a, [kind]: seconds } : a)));
   }
+  // Poignées de fondu (points blancs façon CapCut) : on tire vers l'intérieur pour que le
+  // son monte / descende progressivement.
+  const fadeDragRef = useRef<{ id: string; kind: "fadeIn" | "fadeOut"; startX: number; t0: number; dur: number } | null>(null);
+  function startFadeDrag(e: React.PointerEvent, a: { id: string; dur: number; fadeIn?: number; fadeOut?: number }, kind: "fadeIn" | "fadeOut") {
+    e.stopPropagation();
+    try { (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId); } catch {}
+    fadeDragRef.current = { id: a.id, kind, startX: e.clientX, t0: (kind === "fadeIn" ? a.fadeIn : a.fadeOut) ?? 0, dur: a.dur };
+  }
+  function onFadeDragMove(e: React.PointerEvent) {
+    const d = fadeDragRef.current;
+    if (!d) return;
+    const delta = (e.clientX - d.startX) / pps;
+    const sec = Math.max(0, Math.min(d.dur, d.kind === "fadeIn" ? d.t0 + delta : d.t0 - delta));
+    setAudioFade(d.id, d.kind, sec);
+  }
+  function onFadeDragUp(e: React.PointerEvent) {
+    if (fadeDragRef.current) { try { (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId); } catch {} fadeDragRef.current = null; }
+  }
   // ── Points-clés de volume (automation) sur une piste audio ──────────────────
   // Ajoute un point à la position du curseur (temps local dans la piste), avec la
   // valeur de volume courante à cet instant. Si un point existe déjà là, on l'écrase.
@@ -2377,6 +2395,25 @@ export default function MontagePage() {
                         </svg>
                       )}
                       <span style={{ position: "absolute", left: 6, top: 4, fontSize: 9.5, fontWeight: 700, color: "#fff" }}>{a.kind === "voiceover" ? "🎙" : "🎵"} {a.name}</span>
+                      {(() => {
+                        const w = a.dur * pps, H = 30;
+                        const fi = Math.max(0, Math.min(a.dur, a.fadeIn ?? 0)) * pps;
+                        const fo = Math.max(0, Math.min(a.dur, a.fadeOut ?? 0)) * pps;
+                        return (
+                          <>
+                            <svg width="100%" height="100%" viewBox={`0 0 ${Math.max(1, w)} ${H}`} preserveAspectRatio="none" style={{ position: "absolute", inset: 0, pointerEvents: "none" }}>
+                              {fi > 0 && <polygon points={`0,${H} ${fi},0 ${fi},${H}`} fill="rgba(0,0,0,.34)" />}
+                              {fo > 0 && <polygon points={`${w},${H} ${w - fo},0 ${w - fo},${H}`} fill="rgba(0,0,0,.34)" />}
+                              {fi > 0 && <line x1="0" y1={H} x2={fi} y2="0" stroke="#fff" strokeWidth="1.5" vectorEffect="non-scaling-stroke" opacity=".95" />}
+                              {fo > 0 && <line x1={w} y1={H} x2={w - fo} y2="0" stroke="#fff" strokeWidth="1.5" vectorEffect="non-scaling-stroke" opacity=".95" />}
+                            </svg>
+                            <span className="a-fade-dot" style={{ left: Math.max(0, fi) - 5 }} title={t('fadeIn')}
+                              onPointerDown={(e) => startFadeDrag(e, a, "fadeIn")} onPointerMove={onFadeDragMove} onPointerUp={onFadeDragUp} />
+                            <span className="a-fade-dot" style={{ left: Math.max(0, w - fo) - 5 }} title={t('fadeOut')}
+                              onPointerDown={(e) => startFadeDrag(e, a, "fadeOut")} onPointerMove={onFadeDragMove} onPointerUp={onFadeDragUp} />
+                          </>
+                        );
+                      })()}
                     </div>
                   ))}
                 </div>
