@@ -350,6 +350,7 @@ export default function MontagePage() {
     // un plan vers une nouvelle piste = setClips + setOverlays) relançaient l'effet et le
     // strip de l'incrustation était marqué « demandé » puis annulé → jamais généré. Ici on
     // laisse chaque génération finir ; stripReqRef évite juste les doublons.
+    if (playing) return; // on ne décode pas de vignettes pendant la lecture (évite les à-coups)
     (async () => {
       for (const x of [...clips, ...overlays]) {
         if (x.kind !== "video" || stripReqRef.current.has(x.id)) continue;
@@ -360,12 +361,13 @@ export default function MontagePage() {
         } catch { stripReqRef.current.delete(x.id); }
       }
     })();
-  }, [clips, overlays]);
+  }, [clips, overlays, playing]);
   // Spectre audio du son embarqué des plans vidéo (clé = src, mutualisé entre plans du
   // même fichier), pour se repérer au son sur la timeline. En tâche de fond, mis en cache.
   useEffect(() => {
+    if (playing) return; // idem : pas de décodage audio pendant la lecture
     (async () => {
-      for (const c of clips) {
+      for (const c of [...clips, ...overlays]) {
         if (c.kind !== "video" || waveReqRef.current.has(c.src)) continue;
         waveReqRef.current.add(c.src);
         try {
@@ -375,7 +377,7 @@ export default function MontagePage() {
         } catch { waveReqRef.current.delete(c.src); }
       }
     })();
-  }, [clips]);
+  }, [clips, overlays, playing]);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const videoInputRef = useRef<HTMLInputElement>(null); // import « vidéos » dédié
@@ -2317,6 +2319,18 @@ export default function MontagePage() {
             className="a-tl-inner"
             ref={tlInnerRef}
             style={{ width: 92 + trackW + 30, ["--tscale" as string]: trackScale } as React.CSSProperties}
+            onPointerDown={(e) => {
+              // Cliquer/glisser N'IMPORTE OÙ sur la timeline déplace le curseur — sauf sur
+              // un plan/poignée (qui gèrent leur propre interaction) ou la gouttière des labels.
+              const el = e.target as HTMLElement;
+              if (el.closest(".a-clip, .a-chip, .a-wave-bar, .a-trim, .a-fade-dot, .a-lane-label, .a-ruler")) return;
+              if (e.clientX - (tlInnerRef.current?.getBoundingClientRect().left ?? 0) < 92) return; // gouttière labels
+              try { (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId); } catch {}
+              scrubbingRulerRef.current = true;
+              rulerSeek(e.clientX);
+            }}
+            onPointerMove={(e) => { if (scrubbingRulerRef.current) rulerSeek(e.clientX); }}
+            onPointerUp={(e) => { if (scrubbingRulerRef.current) { scrubbingRulerRef.current = false; try { (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId); } catch {} } }}
           >
             <div
               className="a-ruler"
