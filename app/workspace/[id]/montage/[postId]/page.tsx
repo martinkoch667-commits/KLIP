@@ -1505,6 +1505,53 @@ export default function MontagePage() {
   function onOverlayFadeUp(e: React.PointerEvent) {
     if (ovFadeRef.current) { try { (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId); } catch {} ovFadeRef.current = null; }
   }
+  // ── Sélection façon éditeur visuel dans l'aperçu : boîte violette + 8 poignées de
+  // redimensionnement (échelle) + poignée de rotation. Modèle du montage = échelle uniforme.
+  function mzCenterOf(node: HTMLElement | null): { cx: number; cy: number } | null {
+    const box = node?.closest(".mz-ov-item, .mz-pip, .mz-cap-box") as HTMLElement | null;
+    if (!box) return null;
+    const r = box.getBoundingClientRect();
+    return { cx: r.left + r.width / 2, cy: r.top + r.height / 2 };
+  }
+  function startTransformResize(e: React.PointerEvent, startScale: number, apply: (s: number) => void) {
+    e.stopPropagation(); e.preventDefault();
+    const c = mzCenterOf(e.currentTarget as HTMLElement); if (!c) return;
+    const startDist = Math.hypot(e.clientX - c.cx, e.clientY - c.cy) || 1;
+    const onMove = (ev: PointerEvent) => { const d = Math.hypot(ev.clientX - c.cx, ev.clientY - c.cy); apply(Math.max(0.15, Math.min(12, startScale * d / startDist))); };
+    const onUp = () => { window.removeEventListener("pointermove", onMove); window.removeEventListener("pointerup", onUp); };
+    window.addEventListener("pointermove", onMove); window.addEventListener("pointerup", onUp);
+  }
+  function startTransformRotate(e: React.PointerEvent, apply: (deg: number) => void) {
+    e.stopPropagation(); e.preventDefault();
+    const c = mzCenterOf(e.currentTarget as HTMLElement); if (!c) return;
+    const onMove = (ev: PointerEvent) => { const a = Math.atan2(ev.clientY - c.cy, ev.clientX - c.cx) * 180 / Math.PI - 90; apply(((Math.round(a) % 360) + 360) % 360); };
+    const onUp = () => { window.removeEventListener("pointermove", onMove); window.removeEventListener("pointerup", onUp); };
+    window.addEventListener("pointermove", onMove); window.addEventListener("pointerup", onUp);
+  }
+  const MZ_HANDLES: { id: string; style: React.CSSProperties }[] = [
+    { id: "tl", style: { left: -6, top: -6, cursor: "nwse-resize" } },
+    { id: "tc", style: { left: "50%", top: -6, transform: "translateX(-50%)", cursor: "ns-resize" } },
+    { id: "tr", style: { right: -6, top: -6, cursor: "nesw-resize" } },
+    { id: "mr", style: { right: -6, top: "50%", transform: "translateY(-50%)", cursor: "ew-resize" } },
+    { id: "br", style: { right: -6, bottom: -6, cursor: "nwse-resize" } },
+    { id: "bc", style: { left: "50%", bottom: -6, transform: "translateX(-50%)", cursor: "ns-resize" } },
+    { id: "bl", style: { left: -6, bottom: -6, cursor: "nesw-resize" } },
+    { id: "ml", style: { left: -6, top: "50%", transform: "translateY(-50%)", cursor: "ew-resize" } },
+  ];
+  function TransformHandles({ scale, onScale, onRotate }: { scale: number; onScale: (s: number) => void; onRotate: (d: number) => void }) {
+    return (
+      <>
+        {MZ_HANDLES.map((h) => (
+          <span key={h.id} className="mz-th" style={h.style}
+            onPointerDown={(e) => startTransformResize(e, scale, onScale)} onClick={(e) => e.stopPropagation()} />
+        ))}
+        <div className="mz-rot-line" />
+        <div className="mz-rot" title={t('resizeTitle')} onPointerDown={(e) => startTransformRotate(e, onRotate)} onClick={(e) => e.stopPropagation()}>
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12a9 9 0 1 1-3-6.7M21 4v4h-4" /></svg>
+        </div>
+      </>
+    );
+  }
   // Déplacement d'un texte dans le temps sur la timeline (décale start ET end).
   const titleDragRef = useRef<{ id: string; startX: number; t0start: number; dur: number; moved: boolean } | null>(null);
   function onTitleBarDown(e: React.PointerEvent, ti: TitleEl) {
@@ -2395,7 +2442,7 @@ export default function MontagePage() {
                         <img src={o.src} alt="" style={{ width: "100%", display: "block", filter: overlayFilterCss(o) }} />
                       )}
                       {sel && <button className="mz-ov-del" onPointerDown={(e) => e.stopPropagation()} onClick={() => removeOverlay(o.id)}><VIcon name="x" size={11} /></button>}
-                      {sel && <span className="mz-ov-resize" onPointerDown={(e) => onOverlayResizeDown(e, "overlay", o.id, o.scale)} title={t('resizeTitle')} />}
+                      {sel && <TransformHandles scale={o.scale} onScale={(s) => updateOverlay(o.id, { scale: s })} onRotate={(d) => updateOverlay(o.id, { rotation: d })} />}
                     </div>
                   );
                 })}
@@ -2412,6 +2459,7 @@ export default function MontagePage() {
                       fontStyle: FONT_CHOICES.find((f) => f.id === ti.font)?.italic ? "italic" : "normal",
                       color: ti.color, fontSize: 40 * (ti.scale ?? 1) * previewScale, textAlign: "center", textShadow: "0 1px 8px rgba(0,0,0,.5)",
                       maxWidth: "80%", whiteSpace: "pre-wrap", zIndex: 8, // au-dessus des incrustations (le texte reste visible/cliquable)
+                      transform: `translate(-50%,-50%) rotate(${ti.rotation ?? 0}deg)`,
                       animation: ti.anim === "rise" ? "mzRise .35s var(--ease)" : ti.anim === "pop" ? "mzPop .3s var(--ease)" : undefined,
                     }}
                     onPointerDown={(e) => { if (editingTitleId === ti.id) return; onOverlayPointerDown(e, "title", ti.id); }}
@@ -2433,7 +2481,7 @@ export default function MontagePage() {
                         : (ti.anim === "type" ? ti.text.slice(0, Math.max(0, Math.min(ti.text.length, Math.floor((time - ti.start) * 16)))) : ti.text)}
                     </span>
                     {selectedTitleId === ti.id && editingTitleId !== ti.id && <button className="mz-ov-del" onPointerDown={(e) => e.stopPropagation()} onClick={() => removeTitle(ti.id)}><VIcon name="x" size={11} /></button>}
-                    {selectedTitleId === ti.id && editingTitleId !== ti.id && <span className="mz-ov-resize" onPointerDown={(e) => onOverlayResizeDown(e, "title", ti.id, ti.scale ?? 1)} title={t('resizeTitle')} />}
+                    {selectedTitleId === ti.id && editingTitleId !== ti.id && <TransformHandles scale={ti.scale ?? 1} onScale={(s) => updateTitle(ti.id, { scale: s })} onRotate={(d) => updateTitle(ti.id, { rotation: d })} />}
                   </div>
                 ))}
 
@@ -2442,12 +2490,12 @@ export default function MontagePage() {
                   <div
                     key={s.id}
                     className={"mz-ov-item" + (selectedStickerId === s.id ? " sel" : "")}
-                    style={{ left: s.x + "%", top: s.y + "%", fontSize: 34 * s.scale, transform: `translate(-50%,-50%) scale(${s.isImage ? 1 : 1})` }}
+                    style={{ left: s.x + "%", top: s.y + "%", fontSize: 34 * s.scale, transform: `translate(-50%,-50%) rotate(${s.rotation ?? 0}deg)` }}
                     onPointerDown={(e) => onOverlayPointerDown(e, "sticker", s.id)}
                   >
                     {s.isImage ? <img src={s.glyph} alt="" style={{ width: 40 * s.scale, height: 40 * s.scale, objectFit: "contain" }} /> : s.glyph}
                     {selectedStickerId === s.id && <button className="mz-ov-del" onPointerDown={(e) => e.stopPropagation()} onClick={() => removeSticker(s.id)}><VIcon name="x" size={11} /></button>}
-                    {selectedStickerId === s.id && <span className="mz-ov-resize" onPointerDown={(e) => onOverlayResizeDown(e, "sticker", s.id, s.scale)} title={t('resizeTitle')} />}
+                    {selectedStickerId === s.id && <TransformHandles scale={s.scale} onScale={(sc) => updateSticker(s.id, { scale: sc })} onRotate={(d) => updateSticker(s.id, { rotation: d })} />}
                   </div>
                 ))}
 

@@ -214,6 +214,7 @@ function drawTitles(ctx: CanvasRenderingContext2D, titles: TitleEl[], t: number)
     ctx.shadowBlur = 10;
     const x = (tt.x / 100) * CANVAS_W, y = (tt.y / 100) * CANVAS_H;
     ctx.translate(x, y);
+    if (tt.rotation) ctx.rotate((tt.rotation * Math.PI) / 180);
     ctx.scale(scale * (tt.scale ?? 1), scale * (tt.scale ?? 1));
     ctx.fillText(text, 0, 0);
     ctx.restore();
@@ -226,6 +227,7 @@ function drawStickers(ctx: CanvasRenderingContext2D, stickers: StickerEl[], imag
     const x = (s.x / 100) * CANVAS_W, y = (s.y / 100) * CANVAS_H;
     ctx.save();
     ctx.translate(x, y);
+    if (s.rotation) ctx.rotate((s.rotation * Math.PI) / 180);
     ctx.scale(s.scale, s.scale);
     if (s.isImage) {
       const img = images.get(s.glyph);
