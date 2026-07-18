@@ -1531,6 +1531,7 @@ export default function MontagePage() {
       if (meta && k === "z") { e.preventDefault(); if (e.shiftKey) redo(); else undo(); return; }
       if (meta && k === "y") { e.preventDefault(); redo(); return; }
       if (meta && k === "c") { e.preventDefault(); copySelected(); return; }
+      if (meta && k === "x") { e.preventDefault(); copySelected(); deleteSelected(); return; }
       if (meta && k === "v") { e.preventDefault(); pasteClipboard(); return; }
       if (meta && k === "d") { e.preventDefault(); duplicateSelectedAny(); return; }
       if (meta && k === "b") { e.preventDefault(); splitAtPlayhead(); return; }
@@ -2385,60 +2386,71 @@ export default function MontagePage() {
       {/* Menu contextuel d'un plan (clic droit) — façon CapCut */}
       {clipMenu && (() => {
         const id = clipMenu.id, K = clipMenu.kind;
-        const item = (key: string, label: string, onClick: () => void, opts?: { disabled?: boolean; danger?: boolean }) => (
+        const item = (key: string, label: string, onClick: () => void, opts?: { disabled?: boolean; danger?: boolean; sc?: string }) => (
           <button
             key={key}
+            className="a-ctx-item"
+            data-danger={opts?.danger ? "1" : undefined}
             disabled={opts?.disabled}
             onClick={(e) => { e.stopPropagation(); setClipMenu(null); onClick(); }}
-            style={{ display: "block", width: "100%", textAlign: "left", padding: "8px 14px", background: "transparent", border: "none", cursor: opts?.disabled ? "not-allowed" : "pointer", fontSize: 13, fontWeight: 600, color: opts?.disabled ? "var(--ink-3)" : opts?.danger ? "var(--warn, #c8722b)" : "var(--ink)", opacity: opts?.disabled ? 0.5 : 1 }}
-          >{label}</button>
+          >
+            <span>{label}</span>
+            {opts?.sc ? <span className="a-ctx-sc">{opts.sc}</span> : null}
+          </button>
         );
-        const sep = (key: string) => <div key={key} style={{ height: 1, background: "var(--line)", margin: "5px 0" }} />;
+        const sep = (key: string) => <div key={key} className="a-ctx-sep" />;
         const rows: React.ReactNode[] = [];
         if (K === "clip") {
           const c = clips.find((x) => x.id === id);
           const isVideo = c?.kind === "video";
-          rows.push(item("copy", `⌘C  ${t('copy')}`, () => { selectClip(id); copySelected(); }));
-          rows.push(item("cut", `⌘X  ${t('cut')}`, () => { selectClip(id); copySelected(); removeClip(id); }));
+          rows.push(item("copy", t('copy'), () => { selectClip(id); copySelected(); }, { sc: "⌘C" }));
+          rows.push(item("cut", t('cut'), () => { selectClip(id); copySelected(); removeClip(id); }, { sc: "⌘X" }));
+          rows.push(item("del1", t('delete'), () => removeClip(id), { sc: "⌫", danger: true }));
           rows.push(sep("s1"));
-          rows.push(item("edit", `✎  ${t('contextEdit')}`, () => { selectClip(id); setTool("cut"); }));
-          rows.push(item("split", `✂️  ${t('splitAtPlayhead')}`, () => { selectClip(id); splitAtPlayhead(); }));
-          rows.push(item("detach", `🔊  ${t('contextDetachAudio')}   ⇧⌥S`, () => detachAudio(id), { disabled: !isVideo || (c?.vol ?? 1) === 0 }));
-          rows.push(item("dup", `⧉  ${t('duplicate')}`, () => duplicateClip(id)));
+          rows.push(item("edit", t('contextEdit'), () => { selectClip(id); setTool("cut"); }));
+          rows.push(item("split", t('splitAtPlayhead'), () => { selectClip(id); splitAtPlayhead(); }, { sc: "⌘B" }));
+          rows.push(item("detach", t('contextDetachAudio'), () => detachAudio(id), { sc: "⇧⌥S", disabled: !isVideo || (c?.vol ?? 1) === 0 }));
           rows.push(sep("s2"));
-          rows.push(item("del", `🗑  ${t('delete')}`, () => removeClip(id), { danger: true }));
+          rows.push(item("dup", t('duplicate'), () => duplicateClip(id), { sc: "⌘D" }));
+          rows.push(item("speed", t('railSpeed'), () => { selectClip(id); setTool("speed"); }));
+          rows.push(item("filter", t('railFilter'), () => { selectClip(id); setTool("filter"); }));
+          rows.push(item("transitions", t('railTransitions'), () => { selectClip(id); setTool("transitions"); }));
         } else if (K === "overlay") {
           const o = overlays.find((x) => x.id === id);
           const isVideo = o?.kind === "video";
-          rows.push(item("edit", `✎  ${t('contextEdit')}`, () => selectOverlay(id)));
-          rows.push(item("dup", `⧉  ${t('duplicate')}`, () => duplicateOverlay(id)));
-          rows.push(item("up", `⬆  ${t('trackUp')}`, () => moveOverlayTrack(id, 1)));
-          rows.push(item("down", `⬇  ${t('trackDown')}`, () => moveOverlayTrack(id, -1)));
-          if (isVideo) { rows.push(sep("s1")); rows.push(item("detach", `🔊  ${t('contextDetachAudio')}`, () => { /* overlay audio détaché : à venir */ selectOverlay(id); setTool("audio"); })); }
+          rows.push(item("copy", t('copy'), () => { selectOverlay(id); copySelected(); }, { sc: "⌘C" }));
+          rows.push(item("del1", t('delete'), () => removeOverlay(id), { sc: "⌫", danger: true }));
+          rows.push(sep("s1"));
+          rows.push(item("edit", t('contextEdit'), () => selectOverlay(id)));
+          rows.push(item("dup", t('duplicate'), () => duplicateOverlay(id), { sc: "⌘D" }));
+          if (isVideo) rows.push(item("detach", t('contextDetachAudio'), () => { selectOverlay(id); setTool("audio"); }));
           rows.push(sep("s2"));
-          rows.push(item("del", `🗑  ${t('delete')}`, () => removeOverlay(id), { danger: true }));
+          rows.push(item("up", t('trackUp'), () => moveOverlayTrack(id, 1)));
+          rows.push(item("down", t('trackDown'), () => moveOverlayTrack(id, -1)));
         } else if (K === "audio") {
-          rows.push(item("edit", `✎  ${t('contextEdit')}`, () => setTool("audio")));
-          rows.push(item("iso", `🎙  ${t('voiceIsolate')}`, () => isolateVoiceOnTrack(id, "isolate"), { disabled: !!processingVoice }));
-          rows.push(item("rem", `🔇  ${t('voiceRemove')}`, () => isolateVoiceOnTrack(id, "remove"), { disabled: !!processingVoice }));
-          rows.push(item("up", `⬆  ${t('trackUp')}`, () => moveAudioTrackRow(id, 1)));
-          rows.push(item("down", `⬇  ${t('trackDown')}`, () => moveAudioTrackRow(id, -1)));
+          rows.push(item("del1", t('delete'), () => removeAudioTrack(id), { sc: "⌫", danger: true }));
+          rows.push(sep("s0"));
+          rows.push(item("edit", t('contextEdit'), () => setTool("audio")));
+          rows.push(item("iso", t('voiceIsolate'), () => isolateVoiceOnTrack(id, "isolate"), { disabled: !!processingVoice }));
+          rows.push(item("rem", t('voiceRemove'), () => isolateVoiceOnTrack(id, "remove"), { disabled: !!processingVoice }));
           rows.push(sep("s1"));
-          rows.push(item("del", `🗑  ${t('delete')}`, () => removeAudioTrack(id), { danger: true }));
+          rows.push(item("up", t('trackUp'), () => moveAudioTrackRow(id, 1)));
+          rows.push(item("down", t('trackDown'), () => moveAudioTrackRow(id, -1)));
         } else if (K === "title") {
-          rows.push(item("edit", `✎  ${t('contextEdit')}`, () => { setSelectedTitleId(id); setTool("text"); }));
+          rows.push(item("edit", t('contextEdit'), () => { setSelectedTitleId(id); setTool("text"); }));
           rows.push(sep("s1"));
-          rows.push(item("del", `🗑  ${t('delete')}`, () => removeTitle(id), { danger: true }));
+          rows.push(item("del", t('delete'), () => removeTitle(id), { sc: "⌫", danger: true }));
         } else if (K === "caption") {
-          rows.push(item("edit", `✎  ${t('contextEdit')}`, () => setTool("captions")));
+          rows.push(item("edit", t('contextEdit'), () => setTool("captions")));
           rows.push(sep("s1"));
-          rows.push(item("del", `🗑  ${t('delete')}`, () => removeCaption(id), { danger: true }));
+          rows.push(item("del", t('delete'), () => removeCaption(id), { sc: "⌫", danger: true }));
         }
         return (
           <div
+            className="a-ctx-menu"
             onClick={(e) => e.stopPropagation()}
             onContextMenu={(e) => { e.preventDefault(); }}
-            style={{ position: "fixed", left: Math.min(clipMenu.x, (typeof window !== "undefined" ? window.innerWidth : 9999) - 230), top: Math.max(8, Math.min(clipMenu.y, (typeof window !== "undefined" ? window.innerHeight : 9999) - (rows.length * 34 + 20))), zIndex: 1000, minWidth: 214, background: "var(--paper, #fff)", border: "1px solid var(--line)", borderRadius: 10, boxShadow: "0 12px 40px rgba(0,0,0,.22)", padding: "6px 0", overflow: "hidden" }}
+            style={{ left: Math.min(clipMenu.x, (typeof window !== "undefined" ? window.innerWidth : 9999) - 240), top: Math.max(8, Math.min(clipMenu.y, (typeof window !== "undefined" ? window.innerHeight : 9999) - (rows.length * 32 + 20))) }}
           >
             {rows}
           </div>
