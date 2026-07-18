@@ -77,11 +77,24 @@ export interface OverlayClip {
   con: number;
   sat: number;
   vol?: number;        // volume du son embarqué (0-1)
+  audioFadeIn?: number;  // fondu d'entrée du son (s)
+  audioFadeOut?: number; // fondu de sortie du son (s)
 }
 
 // Durée effective d'un overlay sur la timeline (rognage, sans vitesse variable)
 export function overlayTimelineDur(o: OverlayClip): number {
   return Math.max(0, o.trimEnd - o.trimStart);
+}
+
+// Gain du son d'une incrustation à un instant local (fondus inclus).
+export function overlayAudioGainAt(o: OverlayClip, localT: number): number {
+  const base = o.vol ?? 1;
+  const dur = overlayTimelineDur(o);
+  const fi = o.audioFadeIn ?? 0, fo = o.audioFadeOut ?? 0;
+  let m = 1;
+  if (fi > 0) m = Math.min(m, localT / fi);
+  if (fo > 0) m = Math.min(m, (dur - localT) / fo);
+  return base * Math.max(0, Math.min(1, m));
 }
 
 export function newOverlayDefaults(): Pick<OverlayClip, "x" | "y" | "scale" | "rotation" | "opacity" | "filterId" | "lum" | "con" | "sat" | "vol"> {
