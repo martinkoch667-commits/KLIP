@@ -305,6 +305,7 @@ export default function MontagePage() {
   const [panelW, setPanelW] = useState(312);
   const [timelineH, setTimelineH] = useState(178);
   const [trackScale, setTrackScale] = useState(1); // hauteur des pistes (0.7–2.2), façon CapCut
+  const [laneHeights, setLaneHeights] = useState<Record<string, number>>({}); // hauteur individuelle par piste (px)
   useEffect(() => {
     try {
       const w = Number(localStorage.getItem("klip-mz-panelW"));
@@ -319,6 +320,23 @@ export default function MontagePage() {
   function onTsDown(e: React.PointerEvent) { e.preventDefault(); try { (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId); } catch {} tsDragRef.current = { startY: e.clientY, s0: trackScale }; }
   function onTsMove(e: React.PointerEvent) { const d = tsDragRef.current; if (!d) return; setTrackScale(Math.max(0.7, Math.min(2.2, d.s0 - (e.clientY - d.startY) / 140))); }
   function onTsUp(e: React.PointerEvent) { if (tsDragRef.current) { try { (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId); } catch {} tsDragRef.current = null; try { localStorage.setItem("klip-mz-trackScale", String(trackScale)); } catch {} } }
+  // Hauteur d'une piste : override individuel sinon défaut (34 × échelle globale).
+  const laneH = (key: string) => laneHeights[key] ?? Math.round(34 * trackScale);
+  // Poignée fine au bas d'une piste : tirer ↕ pour la redimensionner individuellement.
+  function LaneResize({ laneKey }: { laneKey: string }) {
+    return (
+      <div className="a-lane-vresize" title={t('trackHeightTitle')}
+        onPointerDown={(e) => {
+          e.preventDefault(); e.stopPropagation();
+          try { (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId); } catch {}
+          const startY = e.clientY, h0 = laneHeights[laneKey] ?? Math.round(34 * trackScale);
+          const onMove = (ev: PointerEvent) => setLaneHeights((p) => ({ ...p, [laneKey]: Math.max(24, Math.min(240, h0 + (ev.clientY - startY))) }));
+          const onUp = () => { window.removeEventListener("pointermove", onMove); window.removeEventListener("pointerup", onUp); };
+          window.addEventListener("pointermove", onMove); window.addEventListener("pointerup", onUp);
+        }}
+      />
+    );
+  }
   const startPanelResize = useCallback((e: React.PointerEvent) => {
     e.preventDefault();
     const startX = e.clientX, startW = panelW;
@@ -1573,6 +1591,23 @@ export default function MontagePage() {
     try { (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId); } catch {}
     if (d && !d.moved && (time < d.t0start || time > d.t0start + d.dur)) seek(d.t0start + 0.05); // clic simple → recadre le curseur
   }
+  // Rogner la durée d'un texte (poignées gauche/droite) comme une vidéo.
+  const titleTrimRef = useRef<{ id: string; edge: "start" | "end"; startX: number; t0start: number; t0end: number } | null>(null);
+  function startTitleTrim(e: React.PointerEvent, ti: TitleEl, edge: "start" | "end") {
+    e.stopPropagation();
+    try { (e.target as HTMLElement).setPointerCapture(e.pointerId); } catch {}
+    titleTrimRef.current = { id: ti.id, edge, startX: e.clientX, t0start: ti.start, t0end: ti.end };
+    setSelectedTitleId(ti.id);
+  }
+  function onTitleTrimMove(e: React.PointerEvent) {
+    const d = titleTrimRef.current; if (!d) return;
+    const delta = (e.clientX - d.startX) / pps;
+    if (d.edge === "start") updateTitle(d.id, { start: Math.max(0, Math.min(d.t0end - 0.3, snapTime(d.t0start + delta))) });
+    else updateTitle(d.id, { end: Math.max(d.t0start + 0.3, snapTime(d.t0end + delta)) });
+  }
+  function endTitleTrim(e: React.PointerEvent) {
+    if (titleTrimRef.current) { try { (e.target as HTMLElement).releasePointerCapture(e.pointerId); } catch {} titleTrimRef.current = null; }
+  }
   // Déplacement d'une piste audio dans le temps + sélection (pour la déplacer/supprimer).
   const audDragRef = useRef<{ id: string; startX: number; t0: number; moved: boolean } | null>(null);
   function onAudioBarDown(e: React.PointerEvent, a: AudioTrack) {
@@ -1722,6 +1757,32 @@ export default function MontagePage() {
   }
   function updateOverlay(id: string, patch: Partial<OverlayClip>) {
     setOverlays((prev) => prev.map((o) => (o.id === id ? { ...o, ...patch } : o)));
+  }
+  // Superposition sur la même piste : le plan déplacé passe AU-DESSUS et rogne ceux qu'il
+  // recouvre (pas de doublon), façon CapCut. S'il coupe un plan en son milieu, on le scinde.
+  function resolveOverlayOverlaps(movedId: string) {
+    setOverlays((prev) => {
+      const moved = prev.find((o) => o.id === movedId);
+      if (!moved) return prev;
+      const mS = moved.offset, mE = moved.offset + overlayTimelineDur(moved), mT = moved.track ?? 0;
+      const out: OverlayClip[] = [];
+      for (const o of prev) {
+        if (o.id === movedId || (o.track ?? 0) !== mT) { out.push(o); continue; }
+        const oS = o.offset, oE = o.offset + overlayTimelineDur(o);
+        if (oE <= mS + 0.02 || oS >= mE - 0.02) { out.push(o); continue; } // pas de chevauchement
+        if (oS >= mS - 0.02 && oE <= mE + 0.02) continue; // entièrement recouvert → supprimé
+        if (oS < mS && oE > mE) {
+          // recouvert au milieu → scinde en deux (gauche gardée, droite recréée)
+          out.push({ ...o, trimEnd: o.trimStart + (mS - oS) });
+          out.push({ ...o, id: crypto.randomUUID(), offset: mE, trimStart: o.trimStart + (mE - oS) });
+        } else if (oS < mS) {
+          out.push({ ...o, trimEnd: o.trimStart + (mS - oS) }); // rogne la fin
+        } else {
+          out.push({ ...o, offset: mE, trimStart: o.trimStart + (mE - oS) }); // rogne le début
+        }
+      }
+      return out;
+    });
   }
   function removeOverlay(id: string) {
     setOverlays((prev) => prev.filter((o) => o.id !== id));
@@ -1882,6 +1943,12 @@ export default function MontagePage() {
     if (selectedTitleId) { removeTitle(selectedTitleId); return; }
     if (selectedStickerId) { removeSticker(selectedStickerId); return; }
     if (selectedClipId) removeClip(selectedClipId);
+  }
+  // Tout désélectionner (clic dans le vide).
+  function deselectAll() {
+    setSelectedClipId(null); setSelectedOverlayId(null); setSelectedAudioId(null);
+    setSelectedTitleId(null); setSelectedStickerId(null); setSubSelected(false);
+    setAudioOnlyId(null); if (multiSel.size) setMultiSel(new Set());
   }
   // Bascule un élément dans la sélection multiple (⇧+clic).
   function toggleMulti(id: string) {
@@ -2149,10 +2216,12 @@ export default function MontagePage() {
         const nid = crypto.randomUUID();
         setOverlays((prev) => [...prev, { ...o, id: nid, offset: dropT, track }]);
         setSelectedOverlayId(nid);
+        resolveOverlayOverlaps(nid);
       } else if (lane === "video") {
         overlayToClip(d.id, dropT); // redescendue sur la piste principale → redevient un plan
       } else {
         updateOverlay(d.id, { offset: dropT, track });
+        resolveOverlayOverlaps(d.id);
       }
     }
   }
@@ -2388,6 +2457,7 @@ export default function MontagePage() {
               className="mz-phone"
               style={{ aspectRatio: `${activeFmt.w} / ${activeFmt.h}`, transform: previewZoom !== 1 ? `scale(${previewZoom})` : undefined }}
               ref={stageRef}
+              onPointerDown={(e) => { const el = e.target as HTMLElement; if (!el.closest(".mz-ov-item, .mz-pip, .mz-cap-box, .mz-th, .mz-rot, .mz-ov-del")) deselectAll(); }}
               onPointerMove={onStagePointerMove}
               onPointerUp={onStagePointerUp}
               onPointerLeave={onStagePointerUp}
@@ -2634,7 +2704,7 @@ export default function MontagePage() {
               const d = selDragRef.current; selDragRef.current = null;
               try { (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId); } catch {}
               setSelRect(null);
-              if (d && !d.moved) { setMultiSel(new Set()); rulerSeek(e.clientX); } // simple clic → curseur
+              if (d && !d.moved) { deselectAll(); rulerSeek(e.clientX); } // simple clic dans le vide → désélectionne + curseur
             }}
           >
             <div
@@ -2649,7 +2719,8 @@ export default function MontagePage() {
                 <div key={s} className="a-tick" style={{ left: s * pps }}><span>{fmt(s).slice(0, -2)}</span></div>
               ))}
             </div>
-            <div className={"a-lane" + (videoTrackCount === 0 && dropLane === "new" ? " nt-hint" : "")} style={{ height: Math.round(34 * trackScale), order: 4 }} data-tllane="video">
+            <div className={"a-lane" + (videoTrackCount === 0 && dropLane === "new" ? " nt-hint" : "")} style={{ height: laneH("video"), order: 4 }} data-tllane="video">
+              <LaneResize laneKey="video" />
               <div className="a-lane-label"><VIcon name="video" size={13} /> {`${t('labelVideo')} 1`}</div>
               <div className="a-lane-track">
                 {clips.length === 0 && (
@@ -2736,7 +2807,8 @@ export default function MontagePage() {
               const isTop = idx === 0;
               const laneOverlays = overlays.filter((o) => (o.track ?? 0) === track);
               return (
-              <div className={"a-lane" + (isTop && dropLane === "new" ? " nt-hint" : "")} style={{ height: Math.round(34 * trackScale), order: 3 }} data-tllane={`v${track}`} key={"vtrack-" + track}>
+              <div className={"a-lane" + (isTop && dropLane === "new" ? " nt-hint" : "")} style={{ height: laneH(`v${track}`), order: 3 }} data-tllane={`v${track}`} key={"vtrack-" + track}>
+                <LaneResize laneKey={`v${track}`} />
                 <div className="a-lane-label" style={{ display: "flex", alignItems: "center", gap: 4 }}>
                   <VIcon name="video" size={13} />
                   <span className="trunc">{`${t('labelVideo')} ${track + 2}`}</span>
@@ -2811,7 +2883,8 @@ export default function MontagePage() {
               const atrack = aIdx; // rangée audio (l'ordre n'affecte pas le mixage, uniquement l'organisation)
               const isFirstA = aIdx === 0;
               return (
-              <div className="a-lane" style={{ height: Math.round(34 * trackScale), order: 6 }} key={"atrack-" + atrack}>
+              <div className="a-lane" style={{ height: laneH(`a${atrack}`), order: 6 }} key={"atrack-" + atrack}>
+                <LaneResize laneKey={`a${atrack}`} />
                 <div className="a-lane-label" style={{ display: "flex", alignItems: "center", gap: 4 }}>
                   <VIcon name="music" size={13} />
                   <span className="trunc">{audioTrackCount > 1 ? `${t('railAudio')} ${atrack + 1}` : t('railAudio')}</span>
@@ -2860,7 +2933,8 @@ export default function MontagePage() {
               </div>
               );
             })}
-            <div className="a-lane" style={{ height: Math.round(34 * trackScale), order: 1 }}>
+            <div className="a-lane" style={{ height: laneH("subs"), order: 1 }}>
+              <LaneResize laneKey="subs" />
               <div className="a-lane-label"><VIcon name="captions" size={13} /> {t('labelSubtitlesShort')}</div>
               <div className="a-lane-track">
                 {captions.map((c) => (
@@ -2871,7 +2945,8 @@ export default function MontagePage() {
                 ))}
               </div>
             </div>
-            <div className="a-lane" style={{ height: Math.round(34 * trackScale), order: 2 }}>
+            <div className="a-lane" style={{ height: laneH("text"), order: 2 }}>
+              <LaneResize laneKey="text" />
               <div className="a-lane-label"><VIcon name="text" size={13} /> {t('railText')}</div>
               <div className="a-lane-track">
                 {titles.map((ti) => (
@@ -2879,6 +2954,10 @@ export default function MontagePage() {
                     onPointerDown={(e) => onTitleBarDown(e, ti)} onPointerMove={onTitleBarMove} onPointerUp={onTitleBarUp}
                     onContextMenu={(e) => { e.preventDefault(); setSelectedTitleId(ti.id); setClipMenu({ x: e.clientX, y: e.clientY, id: ti.id, kind: "title" }); }}>
                     <span style={{ fontSize: 10, fontWeight: 700, color: "#fff", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{ti.text}</span>
+                    {selectedTitleId === ti.id && <>
+                      <div className="a-trim a-trim-l" onPointerDown={(e) => startTitleTrim(e, ti, "start")} onPointerMove={onTitleTrimMove} onPointerUp={endTitleTrim} title={t('trimStartTitle')} />
+                      <div className="a-trim a-trim-r" onPointerDown={(e) => startTitleTrim(e, ti, "end")} onPointerMove={onTitleTrimMove} onPointerUp={endTitleTrim} title={t('trimEndTitle')} />
+                    </>}
                   </div>
                 ))}
               </div>
