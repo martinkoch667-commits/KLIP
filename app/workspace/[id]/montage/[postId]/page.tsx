@@ -1591,7 +1591,9 @@ export default function MontagePage() {
         // événements, chacun ne zoome donc qu'un tout petit peu. Borné pour rester doux.
         const factor = Math.min(1.25, Math.max(0.8, Math.exp(-e.deltaY * 0.0016)));
         setPps((p) => {
-          const np = Math.max(10, Math.min(220, Math.round(p * factor)));
+          // pps fractionnaire : les petits pas d'un pincement s'accumulent (sinon
+          // Math.round mangeait chaque micro-incrément → ça ne zoomait plus).
+          const np = Math.max(10, Math.min(220, p * factor));
           if (np !== p) {
             const rect = scroller.getBoundingClientRect();
             const xInContent = e.clientX - rect.left + scroller.scrollLeft - 92; // 92 = largeur label
