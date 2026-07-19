@@ -1633,7 +1633,8 @@
     "subsIndividualHint": "Jeder Untertitel hat eigenen Stil und Position. Klicke einen Block, um nur diesen zu bearbeiten.",
     "manualCaptionTitle": "Eigene Untertitel",
     "manualCaptionDesc": "Erstelle eigene Untertitel von Hand: Block an der Abspielposition hinzufügen, Text eingeben, Dauer und Stil festlegen.",
-    "createCaption": "Untertitel erstellen"
+    "createCaption": "Untertitel erstellen",
+    "createSubTemplateDesc": "Passe den Stil oben an, benenne ihn und speichere ihn: So erstellst du deine eigene wiederverwendbare Untertitel-Vorlage."
   },
   "forgotPassword": {
     "title": "Passwort vergessen",

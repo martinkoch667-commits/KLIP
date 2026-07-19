@@ -429,6 +429,7 @@ export function CaptionsPanel({ ctx }: { ctx: MontageCtx }) {
       </div>
       <div className="a-section">
         <span className="mz-sec-label">{t('myTemplatesTitle')}</span>
+        <p style={{ fontSize: 11.5, color: "var(--ink-3)", margin: "0 0 8px" }}>{t('createSubTemplateDesc')}</p>
         <div style={{ display: "flex", gap: 6, marginBottom: 8 }}>
           <input className="input" placeholder={t('templateNamePlaceholder')} value={tplName} onChange={(e) => setTplName(e.target.value)} style={{ flex: 1, fontSize: 12.5, padding: "6px 9px" }} />
           <button className="btn btn-primary btn-sm" onClick={saveTemplate}><VIcon name="plus" size={13} /> {t('save')}</button>
