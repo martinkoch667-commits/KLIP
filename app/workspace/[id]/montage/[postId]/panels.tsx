@@ -332,6 +332,13 @@ export function CaptionsPanel({ ctx }: { ctx: MontageCtx }) {
         </div>
       </div>
       <div className="a-section">
+        <span className="mz-sec-label">{t('manualCaptionTitle')}</span>
+        <p style={{ fontSize: 11.5, color: "var(--ink-3)", margin: "0 0 8px" }}>{t('manualCaptionDesc')}</p>
+        <button className="btn btn-dark btn-sm" style={{ width: "100%", justifyContent: "center" }} onClick={ctx.addCaption}>
+          <VIcon name="plus" size={14} /> {t('createCaption')}
+        </button>
+      </div>
+      <div className="a-section">
         <span className="mz-sec-label">{t('displayLengthTitle')}</span>
         <p style={{ fontSize: 11.5, color: "var(--ink-3)", margin: "0 0 8px" }}>{t('wordsPerCaptionDesc')} {ctx.hasRawSegments ? t('reflowsLive') : t('appliedNextGen')}</p>
         <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>

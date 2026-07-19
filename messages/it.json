@@ -1630,7 +1630,10 @@
     "subsLinked": "Collegato",
     "subsIndividual": "Per sottotitolo",
     "subsLinkedHint": "Un solo stile per tutti i sottotitoli. Trascinali nell’anteprima per posizionarli.",
-    "subsIndividualHint": "Ogni sottotitolo ha stile e posizione propri. Clicca un blocco per modificarlo da solo."
+    "subsIndividualHint": "Ogni sottotitolo ha stile e posizione propri. Clicca un blocco per modificarlo da solo.",
+    "manualCaptionTitle": "Sottotitoli personalizzati",
+    "manualCaptionDesc": "Crea i tuoi sottotitoli a mano: aggiungi un blocco al cursore, scrivi il testo e regola durata e stile.",
+    "createCaption": "Crea un sottotitolo"
   },
   "forgotPassword": {
     "title": "Password dimenticata",
