@@ -97,7 +97,13 @@
       "floatVisualEditor": "Editor visual",
       "floatCanvaAdobe": "estilo Canva / Adobe",
       "floatScheduled": "Programado",
-      "floatScheduledTime": "Jue. 18:30 ✓"
+      "floatScheduledTime": "Jue. 18:30 ✓",
+      "capEditor": "Editor visual",
+      "capMontage": "Edición de vídeo",
+      "capCaptions": "Subtítulos IA",
+      "capSchedule": "Planificación",
+      "capPublish": "Publicación auto",
+      "floatMontage": "Reel montado y subtitulado ✓"
     },
     "problem": {
       "title1": "Cuantos más clientes aceptas, ",
@@ -161,7 +167,9 @@
       "f3t": "Un espacio por cliente",
       "f3d": "Identidad, historial, cuentas conectadas — aislados, nunca mezclados.",
       "f4t": "Publicación directa",
-      "f4d": "Conecta una cuenta pro. Programa, valida, KLIP publica en la franja."
+      "f4d": "Conecta una cuenta pro. Programa, valida, KLIP publica en la franja.",
+      "fMontageT": "Edición de vídeo",
+      "fMontageD": "Corte, subtítulos automáticos, montaje en un clic. Un editor tipo CapCut, dentro de KLIP."
     },
     "testimonials": {
       "title1": "La calma, ",
@@ -203,7 +211,8 @@
       "agencyF2": "Hasta 5 miembros de equipo",
       "agencyF3": "Flujo de validación del cliente",
       "agencyF4": "Roles Manager y Creativo",
-      "agencyF5": "Creación por lotes"
+      "agencyF5": "Creación por lotes",
+      "montageFeat": "Edición de vídeo integrada"
     },
     "faq": {
       "title1": "Las preguntas ",
@@ -219,7 +228,9 @@
       "q4": "¿Los datos de mis clientes están aislados?",
       "a4": "Cada cliente tiene su espacio: identidad, historial, cuentas conectadas. Nada se mezcla entre dos marcas, nunca.",
       "q5": "¿Puedo cambiar de plan sobre la marcha?",
-      "a5": "En cualquier momento, sin compromiso. Subes de nivel cuando aceptas más clientes, y bajas si hace falta."
+      "a5": "En cualquier momento, sin compromiso. Subes de nivel cuando aceptas más clientes, y bajas si hace falta.",
+      "qMontage": "¿La edición de vídeo está incluida?",
+      "aMontage": "Sí, en todos los planes. El editor de vídeo integrado —tipo CapCut— se encarga del corte, los subtítulos automáticos y el montaje en un clic. Sin software ni suscripción adicional."
     },
     "waitlist": {
       "badge": "Preapertura · acceso anticipado",

@@ -97,7 +97,13 @@
       "floatVisualEditor": "Éditeur visuel",
       "floatCanvaAdobe": "type Canva / Adobe",
       "floatScheduled": "Programmé",
-      "floatScheduledTime": "Jeu. 18:30 ✓"
+      "floatScheduledTime": "Jeu. 18:30 ✓",
+      "capEditor": "Éditeur visuel",
+      "capMontage": "Montage vidéo",
+      "capCaptions": "Légendes IA",
+      "capSchedule": "Planification",
+      "capPublish": "Publication auto",
+      "floatMontage": "Reel monté & sous-titré ✓"
     },
     "problem": {
       "title1": "Plus vous prenez de clients, ",
@@ -161,7 +167,9 @@
       "f3t": "Un espace par client",
       "f3d": "Charte, historique, comptes connectés — cloisonnés, jamais mélangés.",
       "f4t": "Publication directe",
-      "f4d": "Connexion compte pro. Programmez, validez, KLIP publie au créneau."
+      "f4d": "Connexion compte pro. Programmez, validez, KLIP publie au créneau.",
+      "fMontageT": "Montage vidéo",
+      "fMontageD": "Coupe, sous-titres automatiques, assemblage en un clic. Un éditeur type CapCut, directement dans KLIP."
     },
     "testimonials": {
       "title1": "Le calme, ",
@@ -203,7 +211,8 @@
       "agencyF2": "Jusqu’à 5 membres d’équipe",
       "agencyF3": "Workflow de validation client",
       "agencyF4": "Rôles Manager & Créa",
-      "agencyF5": "Création en lot"
+      "agencyF5": "Création en lot",
+      "montageFeat": "Montage vidéo intégré"
     },
     "faq": {
       "title1": "Les questions ",
@@ -219,7 +228,9 @@
       "q4": "Mes données clients sont-elles cloisonnées ?",
       "a4": "Chaque client a son espace : charte, historique, comptes connectés. Rien n’est mélangé entre deux marques, jamais.",
       "q5": "Puis-je changer d’offre en cours de route ?",
-      "a5": "À tout moment, sans engagement. Vous montez d’un palier quand vous prenez plus de clients, et redescendez si besoin."
+      "a5": "À tout moment, sans engagement. Vous montez d’un palier quand vous prenez plus de clients, et redescendez si besoin.",
+      "qMontage": "Le montage vidéo est-il inclus ?",
+      "aMontage": "Oui, dans toutes les offres. L’éditeur vidéo intégré — type CapCut — gère la coupe, les sous-titres automatiques et l’assemblage en un clic. Aucun logiciel ni abonnement en plus."
     },
     "waitlist": {
       "badge": "Pré-ouverture · accès anticipé",

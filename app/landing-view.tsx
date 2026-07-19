@@ -454,7 +454,13 @@ function Hero({ prelaunch = false }: { prelaunch?: boolean }) {
   const peek = useParallax(0.06);
   const f1 = useParallax(-0.14), f2 = useParallax(0.18), f3 = useParallax(0.1), f4 = useParallax(-0.12);
   const lines: (Run[])[] = [[{ t: t('title1') }], [{ t: t('title2pre') }, { t: t('title2accent'), cls: 'it-serif accent-lit' }]];
-  const flow = [{ ic: 'upload', t: t('flowImport') }, { ic: 'image', t: t('flowCompose') }, { ic: 'send', t: t('flowSchedule') }];
+  const caps = [
+    { ic: 'image', t: t('capEditor') },
+    { ic: 'play', t: t('capMontage') },
+    { ic: 'wand', t: t('capCaptions') },
+    { ic: 'calendar', t: t('capSchedule') },
+    { ic: 'send', t: t('capPublish') },
+  ];
   return (
     <header id="top" className="section dotgrid on-forest" style={{ paddingTop: 150, paddingBottom: 84, position: 'relative', overflow: 'hidden' }}>
       <div className="wrap" style={{ position: 'relative', zIndex: 2 }}>
@@ -465,13 +471,10 @@ function Hero({ prelaunch = false }: { prelaunch?: boolean }) {
         <p className="lead reveal d1" style={{ textAlign: 'center', maxWidth: 680, margin: '28px auto 0', fontSize: 21 }}>
           {t('leadPre')}<strong style={{ color: 'var(--cream)', fontWeight: 700 }}>{t('leadStrong')}</strong>{t('leadPost')}
         </p>
-        <div className="reveal d2 hero-flow" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, flexWrap: 'wrap', marginTop: 28 }}>
-          {flow.map((s, i) => (
-            <span key={i} className="hero-flow-item" style={{ display: 'inline-flex', alignItems: 'center', gap: 10, justifyContent: 'center' }}>
-              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 9, fontFamily: 'var(--mono)', fontWeight: 700, fontSize: 13.5, color: 'var(--cream)', padding: '10px 16px', borderRadius: 999, background: 'var(--forest-2)', boxShadow: 'inset 0 0 0 1px var(--line-f)' }}>
-                <span style={{ color: 'var(--acid)', display: 'inline-flex' }}><Icon name={s.ic} size={16} /></span>{s.t}
-              </span>
-              {i < flow.length - 1 && <span className="hero-flow-arr" style={{ color: 'var(--cream-3)', display: 'inline-flex' }}><Icon name="arrow" size={18} /></span>}
+        <div className="reveal d2 hero-caps" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, flexWrap: 'wrap', marginTop: 28 }}>
+          {caps.map((s, i) => (
+            <span key={i} className="hero-cap" style={{ display: 'inline-flex', alignItems: 'center', gap: 9, fontFamily: 'var(--mono)', fontWeight: 700, fontSize: 13.5, color: 'var(--cream)', padding: '10px 16px', borderRadius: 999, background: 'var(--forest-2)', boxShadow: 'inset 0 0 0 1px var(--line-f)' }}>
+              <span style={{ color: 'var(--acid)', display: 'inline-flex' }}><Icon name={s.ic} size={16} /></span>{s.t}
             </span>
           ))}
         </div>
@@ -505,7 +508,7 @@ function Hero({ prelaunch = false }: { prelaunch?: boolean }) {
           </div>
           <div ref={f2} className="hero-float floatB" style={{ position: 'absolute', right: -36, top: '12%', zIndex: 5 }}>
             <div style={{ background: 'var(--forest)', color: 'var(--cream)', padding: '14px 18px', borderRadius: 'var(--radius-s)', boxShadow: '0 24px 50px -22px rgba(0,0,0,.6)', fontFamily: 'var(--mono)', fontWeight: 700, fontSize: 13, display: 'flex', alignItems: 'center', gap: 10 }}>
-              <Icon name="spark" size={20} style={{ color: 'var(--acid)' }} /><span>{t('floatAiCaption')}</span>
+              <Icon name="play" size={20} style={{ color: 'var(--acid)' }} /><span>{t('floatMontage')}</span>
             </div>
           </div>
           <div ref={f3} className="hero-float floatB" style={{ position: 'absolute', left: -44, bottom: '13%', zIndex: 5 }}>
@@ -845,9 +848,10 @@ function Features() {
         </div>
         <div className="bento" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(238px, 1fr))', gap: 16, marginTop: 16 }}>
           <F ic="voice" t={t('f1t')} d={t('f1d')} tone="acid" />
+          <F ic="play" t={t('fMontageT')} d={t('fMontageD')} tone="forest" />
           <F ic="wand" t={t('f2t')} d={t('f2d')} />
           <F ic="layers" t={t('f3t')} d={t('f3d')} />
-          <F ic="instagram" t={t('f4t')} d={t('f4d')} tone="forest" />
+          <F ic="instagram" t={t('f4t')} d={t('f4d')} />
         </div>
       </div>
     </section>
@@ -929,8 +933,8 @@ function Pricing({ prelaunch = false }: { prelaunch?: boolean }) {
   const [period, setPeriod] = useState<'monthly' | 'yearly'>('monthly');
   const [busy, setBusy] = useState<string | null>(null);
   const tiers = [
-    { name: 'Studio', plan: 'studio' as const, monthly: 29, yearly: 24, tag: tp('studioTag'), clients: tp('studioClients'), feats: [tp('studioF1'), tp('studioF2'), tp('studioF3'), tp('studioF4'), tp('studioF5')], pop: false },
-    { name: 'Agence', plan: 'agence' as const, monthly: 96, yearly: 80, tag: tp('agencyTag'), clients: tp('agencyClients'), feats: [tp('agencyF1'), tp('agencyF2'), tp('agencyF3'), tp('agencyF4'), tp('agencyF5')], pop: true },
+    { name: 'Studio', plan: 'studio' as const, monthly: 29, yearly: 24, tag: tp('studioTag'), clients: tp('studioClients'), feats: [tp('studioF1'), tp('montageFeat'), tp('studioF2'), tp('studioF3'), tp('studioF4'), tp('studioF5')], pop: false },
+    { name: 'Agence', plan: 'agence' as const, monthly: 96, yearly: 80, tag: tp('agencyTag'), clients: tp('agencyClients'), feats: [tp('agencyF1'), tp('montageFeat'), tp('agencyF2'), tp('agencyF3'), tp('agencyF4'), tp('agencyF5')], pop: true },
   ];
   async function onChoose(plan: 'studio' | 'agence') { setBusy(plan); await startCheckout(plan, period); setBusy(null); }
 
@@ -1002,6 +1006,7 @@ function FAQ() {
   const t = useTranslations('landing.faq');
   const items = [
     { q: t('q1'), a: t('a1') },
+    { q: t('qMontage'), a: t('aMontage') },
     { q: t('q2'), a: t('a2') },
     { q: t('q3'), a: t('a3') },
     { q: t('q4'), a: t('a4') },

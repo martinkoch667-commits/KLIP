@@ -97,7 +97,13 @@
       "floatVisualEditor": "Editor visual",
       "floatCanvaAdobe": "estilo Canva / Adobe",
       "floatScheduled": "Agendado",
-      "floatScheduledTime": "Qui. 18:30 ✓"
+      "floatScheduledTime": "Qui. 18:30 ✓",
+      "capEditor": "Editor visual",
+      "capMontage": "Edição de vídeo",
+      "capCaptions": "Legendas IA",
+      "capSchedule": "Agendamento",
+      "capPublish": "Publicação auto",
+      "floatMontage": "Reel editado e legendado ✓"
     },
     "problem": {
       "title1": "Quantos mais clientes aceita, ",
@@ -161,7 +167,9 @@
       "f3t": "Um espaço por cliente",
       "f3d": "Identidade, histórico, contas ligadas — separados, nunca misturados.",
       "f4t": "Publicação direta",
-      "f4d": "Ligue uma conta pro. Agende, valide, o KLIP publica no horário."
+      "f4d": "Ligue uma conta pro. Agende, valide, o KLIP publica no horário.",
+      "fMontageT": "Edição de vídeo",
+      "fMontageD": "Corte, legendas automáticas, montagem num clique. Um editor estilo CapCut, dentro do KLIP."
     },
     "testimonials": {
       "title1": "A calma, ",
@@ -203,7 +211,8 @@
       "agencyF2": "Até 5 membros de equipa",
       "agencyF3": "Fluxo de validação do cliente",
       "agencyF4": "Perfis Manager e Criativo",
-      "agencyF5": "Criação em lote"
+      "agencyF5": "Criação em lote",
+      "montageFeat": "Edição de vídeo integrada"
     },
     "faq": {
       "title1": "As perguntas ",
@@ -219,7 +228,9 @@
       "q4": "Os dados dos meus clientes estão separados?",
       "a4": "Cada cliente tem o seu espaço: identidade, histórico, contas ligadas. Nada é misturado entre duas marcas, nunca.",
       "q5": "Posso mudar de plano a meio do caminho?",
-      "a5": "A qualquer momento, sem compromisso. Sobe de nível quando aceita mais clientes, e desce se for preciso."
+      "a5": "A qualquer momento, sem compromisso. Sobe de nível quando aceita mais clientes, e desce se for preciso.",
+      "qMontage": "A edição de vídeo está incluída?",
+      "aMontage": "Sim, em todos os planos. O editor de vídeo integrado — estilo CapCut — trata do corte, das legendas automáticas e da montagem num clique. Sem software ou assinatura extra."
     },
     "waitlist": {
       "badge": "Pré-abertura · acesso antecipado",
