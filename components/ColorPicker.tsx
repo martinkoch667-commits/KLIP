@@ -120,17 +120,25 @@ export default function ColorPicker({
     if (open) setRecentColors(getRecent());
   }, [open]);
 
-  // Open popover — compute fixed position
+  // Open popover — compute fixed position (jamais hors écran)
   const handleOpen = () => {
     if (open) { setOpen(false); return; }
     if (trigRef.current) {
       const r = trigRef.current.getBoundingClientRect();
       const popW = 276, popH = onOpacityChange ? 560 : 520;
-      const left = Math.min(r.left, window.innerWidth - popW - 8);
-      const top = r.bottom + 6 + popH > window.innerHeight
-        ? r.top - popH - 6
-        : r.bottom + 6;
-      setPos({ top, left: Math.max(8, left) });
+      const margin = 8;
+      const left = Math.max(margin, Math.min(r.left, window.innerWidth - popW - margin));
+      const spaceBelow = window.innerHeight - r.bottom;
+      const spaceAbove = r.top;
+      // On ouvre en dessous par défaut ; au-dessus seulement s'il n'y a pas la place
+      // en dessous ET qu'il y a plus de place au-dessus.
+      let top = (spaceBelow >= popH + margin || spaceBelow >= spaceAbove)
+        ? r.bottom + 6
+        : r.top - popH - 6;
+      // Bornage strict dans la fenêtre : jamais collé au-dessus du haut de l'écran.
+      top = Math.max(margin, Math.min(top, window.innerHeight - popH - margin));
+      if (top < margin) top = margin; // popup plus haute que la fenêtre → collée en haut, scroll interne
+      setPos({ top, left });
     }
     setOpen(true);
   };
@@ -216,6 +224,7 @@ export default function ColorPicker({
             background: 'var(--white)', border: '1px solid var(--line)',
             borderRadius: 'var(--r)', boxShadow: 'var(--shadow-pop)', padding: 14,
             userSelect: 'none' as const,
+            maxHeight: 'calc(100vh - 16px)', overflowY: 'auto',
           }}
         >
           {/* Brand colors */}
