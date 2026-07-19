@@ -847,7 +847,11 @@ function Features() {
             <EditorMock />
           </div>
         </div>
-        <div className="bento" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(238px, 1fr))', gap: 16, marginTop: 16 }}>
+        <style>{`
+          .v2 .bento { grid-template-columns: repeat(2, minmax(0,1fr)); }
+          @media (min-width: 980px) { .v2 .bento { grid-template-columns: repeat(5, minmax(0,1fr)); } }
+        `}</style>
+        <div className="bento" style={{ display: 'grid', gap: 16, marginTop: 16 }}>
           <F ic="voice" t={t('f1t')} d={t('f1d')} tone="acid" />
           <F ic="play" t={t('fMontageT')} d={t('fMontageD')} tone="forest" />
           <F ic="wand" t={t('f2t')} d={t('f2d')} />
@@ -934,7 +938,7 @@ function Pricing({ prelaunch = false }: { prelaunch?: boolean }) {
   const [period, setPeriod] = useState<'monthly' | 'yearly'>('monthly');
   const [busy, setBusy] = useState<string | null>(null);
   const tiers = [
-    { name: 'Studio', plan: 'studio' as const, monthly: 29, yearly: 24, tag: tp('studioTag'), clients: tp('studioClients'), feats: [tp('studioF1'), tp('montageFeat'), tp('studioF2'), tp('studioF3'), tp('studioF4'), tp('studioF5')], pop: false },
+    { name: 'Studio', plan: 'studio' as const, monthly: 35, yearly: 29, tag: tp('studioTag'), clients: tp('studioClients'), feats: [tp('studioF1'), tp('montageFeat'), tp('studioF2'), tp('studioF3'), tp('studioF4'), tp('studioF5')], pop: false },
     { name: 'Agence', plan: 'agence' as const, monthly: 96, yearly: 80, tag: tp('agencyTag'), clients: tp('agencyClients'), feats: [tp('agencyF1'), tp('montageFeat'), tp('agencyF2'), tp('agencyF3'), tp('agencyF4'), tp('agencyF5')], pop: true },
   ];
   async function onChoose(plan: 'studio' | 'agence') { setBusy(plan); await startCheckout(plan, period); setBusy(null); }
@@ -1177,58 +1181,15 @@ function Footer() {
   );
 }
 
-/* ─── AskAI — GEO (Generative Engine Optimization) ────────────────────────
-   Boutons "demander à l'IA" avec prompt pré-rempli — pattern repéré sur
-   vibiz.ai/fr : donne aux visiteurs hésitants un raccourci vers ChatGPT /
-   Claude / Perplexity plutôt que de ne se fier qu'au discours de la marque. */
-const ASK_AI_PROMPT =
-  "Explique-moi ce qu'est Klip (getklip.fr), l'outil pour les agences et community managers qui gèrent plusieurs comptes Instagram clients, et pourquoi ça peut remplacer Canva + ChatGPT + Metricool + Notion pour la production de contenu.";
-
-const ASK_AI_PROVIDERS = [
-  { name: "ChatGPT", domain: "chatgpt.com", color: "10A37F", href: `https://chatgpt.com/?q=${encodeURIComponent(ASK_AI_PROMPT)}` },
-  { name: "Claude", domain: "claude.ai", color: "D97757", href: `https://claude.ai/new?q=${encodeURIComponent(ASK_AI_PROMPT)}` },
-  { name: "Perplexity", domain: "perplexity.ai", color: "20808D", href: `https://www.perplexity.ai/search?q=${encodeURIComponent(ASK_AI_PROMPT)}` },
-];
-
-function AskAI() {
-  const t = useTranslations('landing.askAI');
-  return (
-    <section id="ask-ai" className="section dotgrid" style={{ overflow: "hidden" }}>
-      <div className="wrap" style={{ maxWidth: 680, textAlign: "center", marginLeft: "auto", marginRight: "auto" }}>
-        <span className="chip" style={{ fontFamily: "var(--mono)", fontWeight: 800, letterSpacing: ".1em", textTransform: "uppercase", fontSize: 11.5 }}>{t('badge')}</span>
-        <h2 className="display reveal d1" style={{ fontSize: "clamp(32px, 4.6vw, 56px)", marginTop: 18 }}>
-          {t('title1')}<span className="it-serif acid-fill">{t('titleAccent')}</span>{t('title2')}
-        </h2>
-        <p className="lead reveal d2" style={{ marginTop: 18 }}>
-          {t('lead')}
-        </p>
-        <div className="ask-ai-grid reveal d3">
-          {ASK_AI_PROVIDERS.map((p) => (
-            <a key={p.name} href={p.href} target="_blank" rel="noopener noreferrer" className="ask-ai-card">
-              <ToolLogo domain={p.domain} color={p.color} name={p.name} />
-              <span>{t('ask', { name: p.name })}</span>
-            </a>
-          ))}
-        </div>
-      </div>
-      <style>{`
-        .v2 .ask-ai-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-top: 34px; }
-        .v2 .ask-ai-card { display: inline-flex; align-items: center; justify-content: center; gap: 11px; background: var(--paper-2); box-shadow: inset 0 0 0 1px var(--line-2); border-radius: 16px; padding: 14px 16px; font-family: var(--heavy); font-weight: 700; font-size: 14.5px; color: var(--ink); text-align: center; transition: box-shadow .2s, transform .2s; }
-        .v2 .ask-ai-card:hover { box-shadow: inset 0 0 0 1.5px var(--acid); transform: translateY(-2px); }
-        @media (max-width: 620px) { .v2 .ask-ai-grid { grid-template-columns: 1fr; max-width: 340px; margin-left: auto; margin-right: auto; } }
-      `}</style>
-    </section>
-  );
-}
-
 /* ─── Page ───────────────────────────────────────────────────────────────── */
 /* ─── SocialProofBar — bandeau crédibilité "early access" ─────────────────── */
 /* ─── Comparatif "Klip remplace votre stack" ─────────────────────────────── */
 // Prix Klip affiché — TODO: ajuster si la grille tarifaire change
-const KLIP_PRICE = 29;
+const KLIP_PRICE = 35;
 // Stack actuelle — logos (favicon de marque) + montants, facilement modifiables ici
 const STACK_TOOLS = [
   { name: "Canva", use: "Créer les visuels", cost: 12, domain: "canva.com", color: "00C4CC" },
+  { name: "CapCut", use: "Monter les vidéos", cost: 13, domain: "capcut.com", color: "111111" },
   { name: "ChatGPT", use: "Écrire les légendes", cost: 23, domain: "chatgpt.com", color: "10A37F" },
   { name: "Metricool", use: "Planifier & publier", cost: 25, domain: "metricool.com", color: "7C5CFF" },
   { name: "Notion", use: "Suivre le planning", cost: 10, domain: "notion.so", color: "111111" },
@@ -1253,7 +1214,7 @@ function ToolLogo({ domain, color, name }: { domain: string; color: string; name
 
 function Comparison() {
   const t = useTranslations('landing.comparison');
-  const useLabels: Record<string, string> = { Canva: t('useCanva'), ChatGPT: t('useChatgpt'), Metricool: t('useMetricool'), Notion: t('useNotion'), WeTransfer: t('useWetransfer') };
+  const useLabels: Record<string, string> = { Canva: t('useCanva'), CapCut: t('useCapcut'), ChatGPT: t('useChatgpt'), Metricool: t('useMetricool'), Notion: t('useNotion'), WeTransfer: t('useWetransfer') };
   return (
     <section id="comparatif" className="section">
       <div className="wrap">
@@ -1289,11 +1250,12 @@ function Comparison() {
         <div className="cmp-klip reveal d2">
           <span className="cmp-klip-badge"><Icon name="spark" size={14} /> {t('withKlip')}</span>
           <p className="cmp-klip-lead">{t('allInOne')}</p>
+          <span className="cmp-klip-from">{t('fromPrice')}</span>
           <div className="cmp-klip-price">
             <span className="cmp-klip-num">{KLIP_PRICE}€</span>
             <span className="cmp-klip-per">{t('perMonth')}</span>
           </div>
-          <p className="cmp-klip-vs">{t('insteadOf', { total: STACK_TOTAL })}</p>
+          <p className="cmp-klip-vs">{t('forClients')} · {t('insteadOf', { total: STACK_TOTAL })}</p>
           <Link href="/register" className="btn btn-acid" style={{ marginTop: 24, justifyContent: "center" }}>
             {t('ctaTry')} <span className="arr"><Icon name="arrowUR" size={18} /></span>
           </Link>
@@ -1328,8 +1290,12 @@ function Comparison() {
 
         .v2 .cmp-note { text-align: center; font-family: var(--sans); font-weight: 400; font-size: 12px; color: var(--ink-3); margin-top: 22px; }
 
+        .v2 .cmp-klip-from { font-family: var(--mono); font-weight: 700; font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--cream-3); margin-top: 16px; }
         @media (min-width: 720px) {
-          .v2 .cmp-logos { grid-template-columns: repeat(5, 1fr); }
+          .v2 .cmp-logos { grid-template-columns: repeat(3, 1fr); }
+        }
+        @media (min-width: 1000px) {
+          .v2 .cmp-logos { grid-template-columns: repeat(6, 1fr); }
         }
       `}</style>
     </section>
@@ -1369,7 +1335,6 @@ export default function LandingPage({ prelaunch = false }: { prelaunch?: boolean
       <Testimonials />
       <Pricing prelaunch={prelaunch} />
       <FAQ />
-      <AskAI />
       {prelaunch ? <WaitlistSection /> : <FinalCTA />}
       <Footer />
     </div>
