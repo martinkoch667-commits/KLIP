@@ -149,7 +149,12 @@
       "queueDesc": "Vos comptes Instagram connectés. Vous validez, KLIP publie au créneau prévu — plus besoin de rouvrir l’app ni de poster à la main.",
       "queueTag1": "Auto-publication",
       "queueTag2": "Validation client",
-      "queueTag3": "Créneaux"
+      "queueTag3": "Créneaux",
+      "montageTitle": "Montage vidéo",
+      "montageDesc": "Un éditeur vidéo type CapCut, intégré : timeline multi-pistes, coupe, sous-titres automatiques, assemblage en un clic. Vos Reels se montent ici, sans exporter ni abonnement en plus.",
+      "montageTag1": "Sous-titres auto",
+      "montageTag2": "Assemblage IA",
+      "montageTag3": "Tous formats"
     },
     "features": {
       "title1": "Ce qu’il fallait dix outils pour faire,",

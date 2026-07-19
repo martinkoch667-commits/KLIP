@@ -149,7 +149,12 @@
       "queueDesc": "I tuoi account Instagram collegati. Tu approvi, KLIP pubblica nella fascia prevista — senza riaprire l’app né pubblicare a mano.",
       "queueTag1": "Pubblicazione automatica",
       "queueTag2": "Approvazione cliente",
-      "queueTag3": "Fasce orarie"
+      "queueTag3": "Fasce orarie",
+      "montageTitle": "Montaggio video",
+      "montageDesc": "Un editor video stile CapCut, integrato: timeline multitraccia, taglio, sottotitoli automatici, montaggio in un clic. I tuoi Reel si montano qui, senza esportare né abbonamenti extra.",
+      "montageTag1": "Sottotitoli auto",
+      "montageTag2": "Montaggio IA",
+      "montageTag3": "Tutti i formati"
     },
     "features": {
       "title1": "Quello che richiedeva dieci strumenti,",

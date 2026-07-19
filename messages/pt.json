@@ -149,7 +149,12 @@
       "queueDesc": "As suas contas de Instagram ligadas. Você valida, o KLIP publica no horário previsto — sem reabrir a app nem publicar à mão.",
       "queueTag1": "Publicação automática",
       "queueTag2": "Validação do cliente",
-      "queueTag3": "Horários"
+      "queueTag3": "Horários",
+      "montageTitle": "Edição de vídeo",
+      "montageDesc": "Um editor de vídeo estilo CapCut, integrado: linha do tempo multipista, corte, legendas automáticas, montagem num clique. Os teus Reels montam-se aqui, sem exportar nem assinatura extra.",
+      "montageTag1": "Legendas auto",
+      "montageTag2": "Montagem IA",
+      "montageTag3": "Todos os formatos"
     },
     "features": {
       "title1": "O que exigia dez ferramentas,",

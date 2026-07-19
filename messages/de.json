@@ -149,7 +149,12 @@
       "queueDesc": "Deine Instagram-Konten verbunden. Du gibst frei, KLIP veröffentlicht zum geplanten Zeitpunkt — kein erneutes Öffnen der App, kein manuelles Posten.",
       "queueTag1": "Auto-Veröffentlichung",
       "queueTag2": "Kundenfreigabe",
-      "queueTag3": "Zeitfenster"
+      "queueTag3": "Zeitfenster",
+      "montageTitle": "Videoschnitt",
+      "montageDesc": "Ein integrierter Video-Editor im CapCut-Stil: Multitrack-Timeline, Schnitt, automatische Untertitel, Zusammenbau per Klick. Deine Reels entstehen direkt hier — ohne Export, ohne Zusatz-Abo.",
+      "montageTag1": "Auto-Untertitel",
+      "montageTag2": "KI-Zusammenbau",
+      "montageTag3": "Alle Formate"
     },
     "features": {
       "title1": "Wofür es zehn Tools brauchte,",

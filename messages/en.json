@@ -149,7 +149,12 @@
       "queueDesc": "Your Instagram accounts connected. You approve, KLIP publishes at the scheduled slot — no need to reopen the app or post by hand.",
       "queueTag1": "Auto-publishing",
       "queueTag2": "Client approval",
-      "queueTag3": "Time slots"
+      "queueTag3": "Time slots",
+      "montageTitle": "Video editing",
+      "montageDesc": "A built-in CapCut-style video editor: multi-track timeline, cutting, automatic captions, one-click assembly. Your Reels are edited right here — no export, no extra subscription.",
+      "montageTag1": "Auto captions",
+      "montageTag2": "AI assembly",
+      "montageTag3": "Every format"
     },
     "features": {
       "title1": "What used to take ten tools,",
