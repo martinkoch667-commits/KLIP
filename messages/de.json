@@ -97,7 +97,13 @@
       "floatVisualEditor": "Visueller Editor",
       "floatCanvaAdobe": "à la Canva / Adobe",
       "floatScheduled": "Geplant",
-      "floatScheduledTime": "Do. 18:30 ✓"
+      "floatScheduledTime": "Do. 18:30 ✓",
+      "capEditor": "Visueller Editor",
+      "capMontage": "Videoschnitt",
+      "capCaptions": "KI-Untertitel",
+      "capSchedule": "Planung",
+      "capPublish": "Auto-Veröffentlichung",
+      "floatMontage": "Reel geschnitten & untertitelt ✓"
     },
     "problem": {
       "title1": "Je mehr Kunden du annimmst, ",
@@ -161,7 +167,9 @@
       "f3t": "Ein Bereich pro Kunde",
       "f3d": "Marken-Kit, Verlauf, verbundene Konten — getrennt, nie vermischt.",
       "f4t": "Direkte Veröffentlichung",
-      "f4d": "Pro-Konto verbinden. Planen, freigeben, KLIP veröffentlicht zum Zeitpunkt."
+      "f4d": "Pro-Konto verbinden. Planen, freigeben, KLIP veröffentlicht zum Zeitpunkt.",
+      "fMontageT": "Videoschnitt",
+      "fMontageD": "Schneiden, automatische Untertitel, Zusammenbau per Klick. Ein CapCut-artiger Editor, direkt in KLIP."
     },
     "testimonials": {
       "title1": "Die Ruhe, ",
@@ -203,7 +211,8 @@
       "agencyF2": "Bis zu 5 Teammitglieder",
       "agencyF3": "Kunden-Freigabe-Workflow",
       "agencyF4": "Rollen Manager & Kreativ",
-      "agencyF5": "Stapelerstellung"
+      "agencyF5": "Stapelerstellung",
+      "montageFeat": "Integrierter Videoschnitt"
     },
     "faq": {
       "title1": "Die Fragen, ",
@@ -219,7 +228,9 @@
       "q4": "Sind meine Kundendaten getrennt?",
       "a4": "Jeder Kunde hat seinen Bereich: Marken-Kit, Verlauf, verbundene Konten. Nichts wird je zwischen zwei Marken vermischt.",
       "q5": "Kann ich den Tarif unterwegs wechseln?",
-      "a5": "Jederzeit, ohne Bindung. Du steigst eine Stufe auf, wenn du mehr Kunden annimmst, und wieder ab, wenn nötig."
+      "a5": "Jederzeit, ohne Bindung. Du steigst eine Stufe auf, wenn du mehr Kunden annimmst, und wieder ab, wenn nötig.",
+      "qMontage": "Ist der Videoschnitt inbegriffen?",
+      "aMontage": "Ja, in allen Tarifen. Der integrierte Video-Editor — im CapCut-Stil — übernimmt Schnitt, automatische Untertitel und Zusammenbau per Klick. Keine zusätzliche Software oder Abo."
     },
     "waitlist": {
       "badge": "Vorstart · früher Zugang",

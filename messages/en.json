@@ -97,7 +97,13 @@
       "floatVisualEditor": "Visual editor",
       "floatCanvaAdobe": "Canva / Adobe style",
       "floatScheduled": "Scheduled",
-      "floatScheduledTime": "Thu. 6:30 PM ✓"
+      "floatScheduledTime": "Thu. 6:30 PM ✓",
+      "capEditor": "Visual editor",
+      "capMontage": "Video editing",
+      "capCaptions": "AI captions",
+      "capSchedule": "Scheduling",
+      "capPublish": "Auto-publish",
+      "floatMontage": "Reel edited & captioned ✓"
     },
     "problem": {
       "title1": "The more clients you take on, ",
@@ -161,7 +167,9 @@
       "f3t": "A space per client",
       "f3d": "Brand kit, history, connected accounts — siloed, never mixed.",
       "f4t": "Direct publishing",
-      "f4d": "Connect a pro account. Schedule, approve, KLIP publishes at the slot."
+      "f4d": "Connect a pro account. Schedule, approve, KLIP publishes at the slot.",
+      "fMontageT": "Video editing",
+      "fMontageD": "Cutting, automatic captions, one-click assembly. A CapCut-style editor, right inside KLIP."
     },
     "testimonials": {
       "title1": "Calm, ",
@@ -203,7 +211,8 @@
       "agencyF2": "Up to 5 team members",
       "agencyF3": "Client approval workflow",
       "agencyF4": "Manager & Creative roles",
-      "agencyF5": "Batch creation"
+      "agencyF5": "Batch creation",
+      "montageFeat": "Built-in video editing"
     },
     "faq": {
       "title1": "The questions ",
@@ -219,7 +228,9 @@
       "q4": "Is my client data siloed?",
       "a4": "Each client has its own space: brand kit, history, connected accounts. Nothing is ever mixed between two brands.",
       "q5": "Can I change plans along the way?",
-      "a5": "Anytime, no commitment. You move up a tier when you take on more clients, and back down if needed."
+      "a5": "Anytime, no commitment. You move up a tier when you take on more clients, and back down if needed.",
+      "qMontage": "Is video editing included?",
+      "aMontage": "Yes, in every plan. The built-in video editor — CapCut-style — handles cutting, automatic captions and one-click assembly. No extra software or subscription."
     },
     "waitlist": {
       "badge": "Pre-launch · early access",
