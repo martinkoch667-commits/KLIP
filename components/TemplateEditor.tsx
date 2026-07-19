@@ -724,7 +724,7 @@ export default function TemplateEditor({
         </div>
 
         {/* ── CANVAS AREA ────────────────────────────────────────────────── */}
-        <div style={{ flex: 1, position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'auto', padding: 28, background: 'radial-gradient(120% 80% at 50% -10%, #FBFAF4, #ECEBE1 70%)', minWidth: stageW + 56 }}>
+        <div style={{ order: 2, flex: 1, position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'auto', padding: 28, background: 'radial-gradient(120% 80% at 50% -10%, #FBFAF4, #ECEBE1 70%)', minWidth: stageW + 56 }}>
           {/* Barre contextuelle flottante — comme l'éditeur visuel */}
           {selectedEl && !isKonvaDragging && (
             <FloatingToolbar el={selectedEl} onChange={u => updateEl(selectedEl.id, u)} onDuplicate={duplicateEl} onDelete={() => deleteEl(selectedEl.id)} brandColors={brandColors} />
@@ -826,8 +826,8 @@ export default function TemplateEditor({
           </div>
         </div>
 
-        {/* ── RIGHT PANEL ────────────────────────────────────────────────── */}
-        <div style={{ width: 300, background: 'var(--white)', borderLeft: '1px solid var(--line)', overflowY: 'auto', flexShrink: 0, display: 'flex', flexDirection: 'column' }}>
+        {/* ── PANNEAU (à gauche, façon flyout de l'éditeur visuel) ─────────── */}
+        <div style={{ order: 1, width: 300, background: 'var(--white)', borderRight: '1px solid var(--line)', overflowY: 'auto', flexShrink: 0, display: 'flex', flexDirection: 'column' }}>
 
           {/* Layers */}
           <div style={{ borderBottom: '1px solid var(--line)', flexShrink: 0 }}>
@@ -1002,6 +1002,14 @@ export default function TemplateEditor({
           )}
 
         </div>
+      </div>
+
+      {/* ── BARRE DU BAS (comme l'éditeur visuel) ───────────────────────────── */}
+      <div style={{ height: 44, flexShrink: 0, background: 'var(--white)', borderTop: '1px solid var(--line)', display: 'flex', alignItems: 'center', gap: 12, padding: '0 16px', zIndex: 10 }}>
+        <span style={{ display: 'flex', alignItems: 'center', gap: 7, fontFamily: 'var(--mono)', fontWeight: 700, fontSize: 11, color: 'var(--ink-2)', background: 'var(--sunk)', padding: '5px 10px', borderRadius: 999 }}>
+          Template · {fmt.label}
+        </span>
+        <span style={{ fontSize: 12, color: 'var(--ink-3)', fontWeight: 600 }}>{elements.length} élément{elements.length !== 1 ? 's' : ''}</span>
       </div>
     </div>
   );
