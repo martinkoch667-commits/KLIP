@@ -583,9 +583,10 @@ export default function TemplateEditor({
 
       {/* ── TOPBAR ─────────────────────────────────────────────────────────── */}
       <div style={{
-        height: 52, background: 'var(--forest)', borderBottom: '1px solid rgba(238,237,227,.08)',
+        minHeight: 60, background: 'linear-gradient(115deg, var(--forest) 0%, var(--forest-2) 55%, var(--forest-3) 100%)',
+        borderBottom: '1px solid rgba(238,237,227,.08)',
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        padding: '0 16px', flexShrink: 0, zIndex: 10,
+        padding: '0 18px', flexShrink: 0, zIndex: 10,
       }}>
         {/* Left: back + name + format badge */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0 }}>
@@ -626,7 +627,7 @@ export default function TemplateEditor({
       <div className="tpl-ed-body" style={{ flex: 1, display: 'flex', minHeight: 0 }}>
 
         {/* ── LEFT TOOL RAIL ─────────────────────────────────────────────── */}
-        <div style={{ width: 68, background: 'var(--canvas)', borderRight: '1px solid var(--line)', display: 'flex', flexDirection: 'column', alignItems: 'center', paddingTop: 10, gap: 2, flexShrink: 0 }}>
+        <div style={{ width: 76, background: 'var(--white)', borderRight: '1px solid var(--line)', display: 'flex', flexDirection: 'column', alignItems: 'center', paddingTop: 10, gap: 2, flexShrink: 0 }}>
           {([
             { id: 'media', label: 'Fond', icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg> },
             { id: 'text',  label: 'Texte',  icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><polyline points="4 7 4 4 20 4 20 7"/><line x1="9" y1="20" x2="15" y2="20"/><line x1="12" y1="4" x2="12" y2="20"/></svg> },
@@ -658,7 +659,7 @@ export default function TemplateEditor({
         </div>
 
         {/* ── CANVAS AREA ────────────────────────────────────────────────── */}
-        <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'auto', padding: 28, background: 'var(--sunk)', minWidth: stageW + 56 }}>
+        <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'auto', padding: 28, background: 'radial-gradient(120% 80% at 50% -10%, #FBFAF4, #ECEBE1 70%)', minWidth: stageW + 56 }}>
           {/* Outer div: no overflow:hidden so handles (-5px) aren't clipped */}
           <div style={{ borderRadius: 18, boxShadow: '0 22px 50px -24px rgba(13,15,10,.55)', flexShrink: 0, position: 'relative' }}>
             {/* Inner div: clips only the Stage for rounded corners */}
