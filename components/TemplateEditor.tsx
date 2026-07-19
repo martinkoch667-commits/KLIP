@@ -324,6 +324,68 @@ function ShapeProperties({ el, onChange, brandColors }: { el: RectEl | CircleEl 
   );
 }
 
+// Barre d'outils contextuelle flottante (façon éditeur visuel) — apparaît en haut
+// du canvas quand un élément est sélectionné.
+function FloatingToolbar({ el, onChange, onDuplicate, onDelete, brandColors }: {
+  el: CanvasEl;
+  onChange: (u: Partial<CanvasEl>) => void;
+  onDuplicate: () => void;
+  onDelete: () => void;
+  brandColors?: string[];
+}) {
+  const isText = el.type === 'text';
+  const t = el as TextEl;
+  const isBold = isText && t.fontStyle.includes('bold');
+  const isItalic = isText && t.fontStyle.includes('italic');
+  const isUnderline = isText && t.textDecoration === 'underline';
+  const toggleBold = () => onChange({ fontStyle: isItalic ? (isBold ? 'italic' : 'bold italic') : (isBold ? 'normal' : 'bold') } as Partial<CanvasEl>);
+  const toggleItalic = () => onChange({ fontStyle: isBold ? (isItalic ? 'bold' : 'bold italic') : (isItalic ? 'normal' : 'italic') } as Partial<CanvasEl>);
+  const btn = (active: boolean): React.CSSProperties => ({ width: 32, height: 32, borderRadius: 8, border: 'none', cursor: 'pointer', display: 'grid', placeItems: 'center', fontWeight: 700, fontSize: 13.5, background: active ? 'var(--mint-soft)' : 'transparent', color: active ? 'var(--mint-2)' : 'var(--ink-2)', flexShrink: 0 });
+  const Sep = () => <span style={{ width: 1, height: 22, background: 'var(--line)', margin: '0 4px', flexShrink: 0 }} />;
+  const alignIcon = (a: string) => a === 'left'
+    ? <svg width="14" height="12" viewBox="0 0 13 11" fill="currentColor"><rect x="0" y="0" width="13" height="2" rx="1"/><rect x="0" y="4.5" width="8" height="2" rx="1"/><rect x="0" y="9" width="10" height="2" rx="1"/></svg>
+    : a === 'center'
+    ? <svg width="14" height="12" viewBox="0 0 13 11" fill="currentColor"><rect x="0" y="0" width="13" height="2" rx="1"/><rect x="2.5" y="4.5" width="8" height="2" rx="1"/><rect x="1.5" y="9" width="10" height="2" rx="1"/></svg>
+    : <svg width="14" height="12" viewBox="0 0 13 11" fill="currentColor"><rect x="0" y="0" width="13" height="2" rx="1"/><rect x="5" y="4.5" width="8" height="2" rx="1"/><rect x="3" y="9" width="10" height="2" rx="1"/></svg>;
+  return (
+    <div style={{ position: 'absolute', top: 12, left: '50%', transform: 'translateX(-50%)', zIndex: 20,
+      display: 'flex', alignItems: 'center', gap: 3, padding: '6px 8px', background: 'var(--white)',
+      borderRadius: 12, boxShadow: '0 12px 30px -12px rgba(13,15,10,.3), 0 0 0 1px var(--line)', maxWidth: 'calc(100% - 24px)', overflowX: 'auto' }}>
+      {isText && (
+        <>
+          <select value={t.fontFamily} onChange={e => onChange({ fontFamily: e.target.value } as Partial<CanvasEl>)}
+            style={{ height: 32, borderRadius: 8, border: 'none', background: 'var(--sunk)', padding: '0 8px', fontSize: 13, fontWeight: 600, color: 'var(--ink)', outline: 'none', cursor: 'pointer', maxWidth: 130, flexShrink: 0, fontFamily: `"${t.fontFamily}", sans-serif` }}>
+            {FONTS.map(f => <option key={f} value={f}>{f}</option>)}
+          </select>
+          <span style={{ display: 'flex', alignItems: 'center', background: 'var(--sunk)', borderRadius: 8, height: 32, flexShrink: 0 }}>
+            <button onClick={() => onChange({ fontSize: Math.max(8, t.fontSize - 1) } as Partial<CanvasEl>)} style={{ width: 26, height: 32, border: 'none', background: 'transparent', cursor: 'pointer', color: 'var(--ink-2)', fontSize: 16 }}>−</button>
+            <span style={{ width: 30, textAlign: 'center', fontWeight: 700, fontSize: 13, fontVariantNumeric: 'tabular-nums' }}>{t.fontSize}</span>
+            <button onClick={() => onChange({ fontSize: Math.min(200, t.fontSize + 1) } as Partial<CanvasEl>)} style={{ width: 26, height: 32, border: 'none', background: 'transparent', cursor: 'pointer', color: 'var(--ink-2)', fontSize: 15 }}>+</button>
+          </span>
+          <Sep />
+          <button onClick={toggleBold} title="Gras" style={{ ...btn(isBold), fontWeight: 800 }}>B</button>
+          <button onClick={toggleItalic} title="Italique" style={{ ...btn(isItalic), fontStyle: 'italic' }}>I</button>
+          <button onClick={() => onChange({ textDecoration: isUnderline ? '' : 'underline' } as Partial<CanvasEl>)} title="Souligné" style={{ ...btn(isUnderline), textDecoration: 'underline' }}>U</button>
+          <Sep />
+          <button onClick={() => onChange({ align: (t.align === 'left' ? 'center' : t.align === 'center' ? 'right' : 'left') } as Partial<CanvasEl>)} title="Alignement" style={btn(false)}>{alignIcon(t.align)}</button>
+          <Sep />
+          <ColorPicker value={t.fill} onChange={v => onChange({ fill: v } as Partial<CanvasEl>)} brandColors={brandColors} />
+        </>
+      )}
+      {!isText && 'fill' in el && (
+        <ColorPicker value={(el as RectEl | CircleEl | StarEl).fill} onChange={v => onChange({ fill: v } as Partial<CanvasEl>)} brandColors={brandColors} />
+      )}
+      <Sep />
+      <button onClick={onDuplicate} title="Dupliquer" style={btn(false)}>
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>
+      </button>
+      <button onClick={onDelete} title="Supprimer" style={{ ...btn(false), color: 'var(--warn)' }}>
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
+      </button>
+    </div>
+  );
+}
+
 function layerName(el: CanvasEl): string {
   if (el.type === 'text') return (el.role ? `[${el.role}] ` : '') + (el.text.slice(0, 16) || 'Texte');
   if (el.type === 'image') return el.src === PHOTO_PLACEHOLDER_SRC ? 'Zone photo' : 'Logo';
@@ -662,7 +724,11 @@ export default function TemplateEditor({
         </div>
 
         {/* ── CANVAS AREA ────────────────────────────────────────────────── */}
-        <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'auto', padding: 28, background: 'radial-gradient(120% 80% at 50% -10%, #FBFAF4, #ECEBE1 70%)', minWidth: stageW + 56 }}>
+        <div style={{ flex: 1, position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'auto', padding: 28, background: 'radial-gradient(120% 80% at 50% -10%, #FBFAF4, #ECEBE1 70%)', minWidth: stageW + 56 }}>
+          {/* Barre contextuelle flottante — comme l'éditeur visuel */}
+          {selectedEl && !isKonvaDragging && (
+            <FloatingToolbar el={selectedEl} onChange={u => updateEl(selectedEl.id, u)} onDuplicate={duplicateEl} onDelete={() => deleteEl(selectedEl.id)} brandColors={brandColors} />
+          )}
           {/* Outer div: no overflow:hidden so handles (-5px) aren't clipped */}
           <div style={{ borderRadius: 18, boxShadow: '0 22px 50px -24px rgba(13,15,10,.55)', flexShrink: 0, position: 'relative' }}>
             {/* Inner div: clips only the Stage for rounded corners */}
