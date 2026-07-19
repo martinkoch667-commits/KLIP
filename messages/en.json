@@ -1633,7 +1633,8 @@
     "subsIndividualHint": "Each caption keeps its own style and position. Click a block to edit just that one.",
     "manualCaptionTitle": "Custom subtitles",
     "manualCaptionDesc": "Create your own subtitles by hand: add a block at the playhead, type your text, set its timing and style.",
-    "createCaption": "Create a subtitle"
+    "createCaption": "Create a subtitle",
+    "createSubTemplateDesc": "Customize the style above, give it a name and save it: you create your own reusable subtitle template for all your edits."
   },
   "forgotPassword": {
     "title": "Forgot password",

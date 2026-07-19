@@ -1633,7 +1633,8 @@
     "subsIndividualHint": "Cada legenda tem seu próprio estilo e posição. Clique num bloco para editar só ele.",
     "manualCaptionTitle": "Legendas personalizadas",
     "manualCaptionDesc": "Cria as tuas próprias legendas à mão: adiciona um bloco no cursor, escreve o texto e ajusta a duração e o estilo.",
-    "createCaption": "Criar uma legenda"
+    "createCaption": "Criar uma legenda",
+    "createSubTemplateDesc": "Personaliza o estilo acima, dá-lhe um nome e guarda-o: crias o teu próprio modelo de legendas reutilizável."
   },
   "forgotPassword": {
     "title": "Esqueceu a palavra-passe",

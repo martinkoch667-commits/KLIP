@@ -1633,7 +1633,8 @@
     "subsIndividualHint": "Ogni sottotitolo ha stile e posizione propri. Clicca un blocco per modificarlo da solo.",
     "manualCaptionTitle": "Sottotitoli personalizzati",
     "manualCaptionDesc": "Crea i tuoi sottotitoli a mano: aggiungi un blocco al cursore, scrivi il testo e regola durata e stile.",
-    "createCaption": "Crea un sottotitolo"
+    "createCaption": "Crea un sottotitolo",
+    "createSubTemplateDesc": "Personalizza lo stile qui sopra, dagli un nome e salvalo: crei il tuo modello di sottotitoli riutilizzabile."
   },
   "forgotPassword": {
     "title": "Password dimenticata",
