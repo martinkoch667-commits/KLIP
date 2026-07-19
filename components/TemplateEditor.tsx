@@ -583,21 +583,21 @@ export default function TemplateEditor({
 
       {/* ── TOPBAR ─────────────────────────────────────────────────────────── */}
       <div style={{
-        minHeight: 60, background: 'linear-gradient(115deg, var(--forest) 0%, var(--forest-2) 55%, var(--forest-3) 100%)',
-        borderBottom: '1px solid rgba(238,237,227,.08)',
+        minHeight: 60, background: 'var(--white)',
+        borderBottom: '1px solid var(--line)',
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
         padding: '0 18px', flexShrink: 0, zIndex: 10,
       }}>
         {/* Left: back + name + format badge */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0 }}>
           <button onClick={onCancel}
-            style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 30, height: 30, borderRadius: 7, boxShadow: 'inset 0 0 0 1px rgba(238,237,227,.2)', color: 'var(--cream-2)', background: 'transparent', border: 'none', cursor: 'pointer', flexShrink: 0 }}><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 18l-6-6 6-6"/></svg></button>
+            style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 30, height: 30, borderRadius: 7, boxShadow: 'inset 0 0 0 1px var(--line)', color: 'var(--ink-2)', background: 'transparent', border: 'none', cursor: 'pointer', flexShrink: 0 }}><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 18l-6-6 6-6"/></svg></button>
           <input
             value={name}
             onChange={e => setName(e.target.value)}
-            style={{ background: 'transparent', border: 'none', outline: 'none', color: 'var(--cream)', fontWeight: 700, fontSize: 14, fontFamily: 'var(--sans)', minWidth: 120, maxWidth: 240 }}
+            style={{ background: 'transparent', border: 'none', outline: 'none', color: 'var(--ink)', fontWeight: 700, fontSize: 14, fontFamily: 'var(--sans)', minWidth: 120, maxWidth: 240 }}
           />
-          <span style={{ fontSize: 11, fontWeight: 700, fontFamily: 'var(--mono)', color: 'var(--cream-2)', background: 'rgba(238,237,227,.1)', padding: '3px 8px', borderRadius: 5, flexShrink: 0 }}>
+          <span style={{ fontSize: 11, fontWeight: 700, fontFamily: 'var(--mono)', color: 'var(--ink-2)', background: 'var(--sunk)', padding: '3px 8px', borderRadius: 5, flexShrink: 0 }}>
             Template · {fmt.label}
           </span>
         </div>
@@ -605,15 +605,15 @@ export default function TemplateEditor({
         {/* Center: undo/redo */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
           <button onClick={undo} disabled={!canUndo} title="Annuler (⌘Z)"
-            style={{ width: 30, height: 30, background: 'transparent', border: 'none', borderRadius: 6, cursor: canUndo ? 'pointer' : 'default', fontSize: 15, color: 'rgba(238,237,227,.55)', opacity: canUndo ? 1 : 0.3, display: 'grid', placeItems: 'center' }}>↩</button>
+            style={{ width: 30, height: 30, background: 'transparent', border: 'none', borderRadius: 6, cursor: canUndo ? 'pointer' : 'default', fontSize: 15, color: 'var(--ink-3)', opacity: canUndo ? 1 : 0.3, display: 'grid', placeItems: 'center' }}>↩</button>
           <button onClick={redo} disabled={!canRedo} title="Rétablir"
-            style={{ width: 30, height: 30, background: 'transparent', border: 'none', borderRadius: 6, cursor: canRedo ? 'pointer' : 'default', fontSize: 15, color: 'rgba(238,237,227,.55)', opacity: canRedo ? 1 : 0.3, display: 'grid', placeItems: 'center' }}>↪</button>
+            style={{ width: 30, height: 30, background: 'transparent', border: 'none', borderRadius: 6, cursor: canRedo ? 'pointer' : 'default', fontSize: 15, color: 'var(--ink-3)', opacity: canRedo ? 1 : 0.3, display: 'grid', placeItems: 'center' }}>↪</button>
         </div>
 
         {/* Right: cancel + save */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <button onClick={onCancel}
-            style={{ padding: '7px 16px', background: 'transparent', border: '1px solid rgba(238,237,227,.2)', borderRadius: 8, color: 'var(--cream-3)', fontSize: 13, cursor: 'pointer', fontWeight: 600 }}>
+            style={{ padding: '7px 16px', background: 'transparent', border: '1px solid var(--line)', borderRadius: 8, color: 'var(--ink-2)', fontSize: 13, cursor: 'pointer', fontWeight: 600 }}>
             Annuler
           </button>
           <button onClick={handleSave}
