@@ -380,7 +380,6 @@ function Nav({ prelaunch = false }: { prelaunch?: boolean }) {
             {links.map(([t, h]) => <a key={h} href={h} className="nav-link" style={{ fontFamily: 'var(--mono)', fontSize: 13.5, fontWeight: 700, letterSpacing: '.01em', color: solid ? 'var(--ink-2)' : 'var(--cream-2)', transition: 'color .15s' }}>{t}</a>)}
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            <Link href="/login" className="nav-login" style={{ fontFamily: 'var(--mono)', fontSize: 13.5, fontWeight: 700, color: solid ? 'var(--ink)' : 'var(--cream)' }}>{t('login')}</Link>
             {prelaunch
               ? <a href="#waitlist" className="btn btn-acid btn-sm">{t('waitlist')}</a>
               : <Link href="/register" className="btn btn-acid btn-sm">{t('tryFree')}</Link>}
@@ -405,7 +404,6 @@ function Nav({ prelaunch = false }: { prelaunch?: boolean }) {
           {prelaunch
             ? <a href="#waitlist" className="btn btn-acid" style={{ justifyContent: 'center' }} onClick={() => setOpen(false)}>{t('waitlist')}</a>
             : <Link href="/register" className="btn btn-acid" style={{ justifyContent: 'center' }} onClick={() => setOpen(false)}>{t('tryFree')}</Link>}
-          <Link href="/login" className="btn btn-ghost" style={{ justifyContent: 'center', color: '#F0EFE4', boxShadow: 'inset 0 0 0 1.6px rgba(240,239,228,.3)' }} onClick={() => setOpen(false)}>{t('login')}</Link>
         </div>
       </div>
     </>
@@ -1125,7 +1123,7 @@ function Footer() {
   const t = useTranslations('landing.footer');
   const cols: [string, [string, string][]][] = [
     [t('product'), [[t('visualEditor'), '#features'], [t('calendar'), '#apercu'], [t('pricing'), '#tarifs'], [t('faq'), '#faq']]],
-    [t('resources'), [[t('blog'), '/blog'], [t('how'), '#how'], [t('problem'), '#probleme'], [t('login'), '/login'], [t('register'), '/register']]],
+    [t('resources'), [[t('blog'), '/blog'], [t('how'), '#how'], [t('problem'), '#probleme']]],
     [t('legal'), [[t('legalNotice'), '/mentions-legales'], [t('terms'), '/conditions'], [t('privacy'), '/privacy'], [t('cookies'), '/cookies']]],
   ];
   return (
