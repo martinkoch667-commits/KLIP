@@ -1630,7 +1630,10 @@
     "subsLinked": "Verbunden",
     "subsIndividual": "Pro Untertitel",
     "subsLinkedHint": "Ein Stil für alle Untertitel. Ziehe sie in der Vorschau zum Platzieren.",
-    "subsIndividualHint": "Jeder Untertitel hat eigenen Stil und Position. Klicke einen Block, um nur diesen zu bearbeiten."
+    "subsIndividualHint": "Jeder Untertitel hat eigenen Stil und Position. Klicke einen Block, um nur diesen zu bearbeiten.",
+    "manualCaptionTitle": "Eigene Untertitel",
+    "manualCaptionDesc": "Erstelle eigene Untertitel von Hand: Block an der Abspielposition hinzufügen, Text eingeben, Dauer und Stil festlegen.",
+    "createCaption": "Untertitel erstellen"
   },
   "forgotPassword": {
     "title": "Passwort vergessen",

@@ -1630,7 +1630,10 @@
     "subsLinked": "Lié",
     "subsIndividual": "Par sous-titre",
     "subsLinkedHint": "Un seul style pour tous les sous-titres. Glisse-les dans l’aperçu pour les placer.",
-    "subsIndividualHint": "Chaque sous-titre a son propre style et sa position. Clique un bloc pour le modifier seul."
+    "subsIndividualHint": "Chaque sous-titre a son propre style et sa position. Clique un bloc pour le modifier seul.",
+    "manualCaptionTitle": "Sous-titres personnalisés",
+    "manualCaptionDesc": "Créez vos propres sous-titres à la main : ajoutez un bloc au curseur, tapez votre texte, réglez sa durée et son style.",
+    "createCaption": "Créer un sous-titre"
   },
   "forgotPassword": {
     "title": "Mot de passe oublié",

@@ -1630,7 +1630,10 @@
     "subsLinked": "Vinculado",
     "subsIndividual": "Por subtítulo",
     "subsLinkedHint": "Un solo estilo para todos los subtítulos. Arrástralos en la vista previa para colocarlos.",
-    "subsIndividualHint": "Cada subtítulo tiene su propio estilo y posición. Haz clic en un bloque para editarlo solo."
+    "subsIndividualHint": "Cada subtítulo tiene su propio estilo y posición. Haz clic en un bloque para editarlo solo.",
+    "manualCaptionTitle": "Subtítulos personalizados",
+    "manualCaptionDesc": "Crea tus propios subtítulos a mano: añade un bloque en el cursor, escribe tu texto y ajusta su duración y estilo.",
+    "createCaption": "Crear un subtítulo"
   },
   "forgotPassword": {
     "title": "Contraseña olvidada",

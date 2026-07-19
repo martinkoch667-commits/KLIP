@@ -1630,7 +1630,10 @@
     "subsLinked": "Linked",
     "subsIndividual": "Per caption",
     "subsLinkedHint": "One style for every caption. Drag them in the preview to place them.",
-    "subsIndividualHint": "Each caption keeps its own style and position. Click a block to edit just that one."
+    "subsIndividualHint": "Each caption keeps its own style and position. Click a block to edit just that one.",
+    "manualCaptionTitle": "Custom subtitles",
+    "manualCaptionDesc": "Create your own subtitles by hand: add a block at the playhead, type your text, set its timing and style.",
+    "createCaption": "Create a subtitle"
   },
   "forgotPassword": {
     "title": "Forgot password",

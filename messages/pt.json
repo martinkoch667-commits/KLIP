@@ -1630,7 +1630,10 @@
     "subsLinked": "Vinculado",
     "subsIndividual": "Por legenda",
     "subsLinkedHint": "Um único estilo para todas as legendas. Arraste-as na pré-visualização para posicioná-las.",
-    "subsIndividualHint": "Cada legenda tem seu próprio estilo e posição. Clique num bloco para editar só ele."
+    "subsIndividualHint": "Cada legenda tem seu próprio estilo e posição. Clique num bloco para editar só ele.",
+    "manualCaptionTitle": "Legendas personalizadas",
+    "manualCaptionDesc": "Cria as tuas próprias legendas à mão: adiciona um bloco no cursor, escreve o texto e ajusta a duração e o estilo.",
+    "createCaption": "Criar uma legenda"
   },
   "forgotPassword": {
     "title": "Esqueceu a palavra-passe",
