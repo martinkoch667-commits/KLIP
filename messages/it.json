@@ -179,13 +179,13 @@
     "testimonials": {
       "title1": "La calma, ",
       "titleAccent": "ritrovata.",
-      "bigQ": "Prima la mia produzione girava tra Canva, un Drive, scambi via email e un foglio di pianificazione. Ora è tutto in un unico posto. Ho recuperato i miei venerdì pomeriggio.",
+      "bigQ": "KLIP mi ha fatto guadagnare un sacco di tempo. Tutto in un unico posto — ho smesso di destreggiarmi tra dieci strumenti.",
       "bigA": "Camille R.",
       "bigR": "Direttrice creativa · Studio Klein",
-      "s1q": "L’IA coglie il tono esatto di ogni brand. Correggo due o tre parole invece di riscrivere tutto.",
+      "s1q": "Con gli strumenti integrati non mi destreggio più tra le linee guida di ogni cliente. È già tutto pronto.",
       "s1a": "Yanis B.",
       "s1r": "Social media manager",
-      "s2q": "I miei clienti approvano dal telefono, senza creare un account. Basta screenshot su WhatsApp.",
+      "s2q": "Uno spazio per cliente cambia tutto: niente si mescola, tutto resta chiaro.",
       "s2a": "Léa M.",
       "s2r": "Freelance · contenuti di brand"
     },
@@ -204,7 +204,7 @@
       "ctaTrial": "Prova gratis di 7 giorni",
       "redirecting": "Reindirizzamento…",
       "studioTag": "Freelance & community manager",
-      "studioClients": "Fino a 3 clienti",
+      "studioClients": "Fino a 6 clienti",
       "studioF1": "Editor visivo completo",
       "studioF2": "Descrizioni IA illimitate",
       "studioF3": "Calendario editoriale",
@@ -315,7 +315,10 @@
       "useChatgpt": "Scrivere le didascalie",
       "useMetricool": "Programmare e pubblicare",
       "useNotion": "Seguire la pianificazione",
-      "useWetransfer": "Approvazione cliente"
+      "useWetransfer": "Approvazione cliente",
+      "useCapcut": "Montare i video",
+      "fromPrice": "A partire da",
+      "forClients": "Per 6 clienti"
     }
   },
   "dashboard": {

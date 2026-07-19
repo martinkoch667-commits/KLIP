@@ -179,13 +179,13 @@
     "testimonials": {
       "title1": "Le calme, ",
       "titleAccent": "retrouvé.",
-      "bigQ": "Avant, ma prod tournait sur Canva, un Drive, des allers-retours par mail et un tableur de planning. Là tout est au même endroit. J’ai récupéré mes vendredis après-midi.",
+      "bigQ": "KLIP mʼa fait gagner un temps fou. Tout est au même endroit — jʼai arrêté de jongler entre dix outils.",
       "bigA": "Camille R.",
       "bigR": "Directrice de création · Studio Klein",
-      "s1q": "L’IA reprend le ton exact de chaque marque. Je corrige deux ou trois mots au lieu de tout réécrire.",
+      "s1q": "Avec les outils intégrés, je ne jongle plus entre les chartes de chaque client. Tout est déjà en place.",
       "s1a": "Yanis B.",
       "s1r": "Social media manager",
-      "s2q": "Mes clients valident depuis leur téléphone, sans créer de compte. Fini les captures d’écran sur WhatsApp.",
+      "s2q": "Un espace par client, ça change tout : rien ne se mélange, tout reste clair.",
       "s2a": "Léa M.",
       "s2r": "Freelance · contenu de marque"
     },
@@ -204,7 +204,7 @@
       "ctaTrial": "Essai 7 jours gratuit",
       "redirecting": "Redirection…",
       "studioTag": "Freelances & community managers",
-      "studioClients": "Jusqu’à 3 clients",
+      "studioClients": "Jusquʼà 6 clients",
       "studioF1": "Éditeur visuel complet",
       "studioF2": "Descriptions IA illimitées",
       "studioF3": "Calendrier éditorial",
@@ -315,7 +315,10 @@
       "useChatgpt": "Écrire les légendes",
       "useMetricool": "Planifier & publier",
       "useNotion": "Suivre le planning",
-      "useWetransfer": "Validation client"
+      "useWetransfer": "Validation client",
+      "useCapcut": "Monter les vidéos",
+      "fromPrice": "À partir de",
+      "forClients": "Pour 6 clients"
     }
   },
   "dashboard": {

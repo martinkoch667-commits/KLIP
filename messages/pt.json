@@ -179,13 +179,13 @@
     "testimonials": {
       "title1": "A calma, ",
       "titleAccent": "recuperada.",
-      "bigQ": "Antes, a minha produção andava entre o Canva, uma Drive, trocas por email e uma folha de planeamento. Agora está tudo no mesmo sítio. Recuperei as minhas sextas-feiras à tarde.",
+      "bigQ": "O KLIP fez-me poupar imenso tempo. Está tudo num só lugar — deixei de fazer malabarismos com dez ferramentas.",
       "bigA": "Camille R.",
       "bigR": "Diretora criativa · Studio Klein",
-      "s1q": "A IA capta o tom exato de cada marca. Corrijo duas ou três palavras em vez de reescrever tudo.",
+      "s1q": "Com as ferramentas integradas já não faço malabarismos com a identidade de cada cliente. Está tudo pronto.",
       "s1a": "Yanis B.",
       "s1r": "Social media manager",
-      "s2q": "Os meus clientes validam pelo telemóvel, sem criar conta. Acabaram as capturas de ecrã no WhatsApp.",
+      "s2q": "Um espaço por cliente muda tudo: nada se mistura, tudo fica claro.",
       "s2a": "Léa M.",
       "s2r": "Freelance · conteúdo de marca"
     },
@@ -204,7 +204,7 @@
       "ctaTrial": "Teste grátis de 7 dias",
       "redirecting": "A redirecionar…",
       "studioTag": "Freelancers e community managers",
-      "studioClients": "Até 3 clientes",
+      "studioClients": "Até 6 clientes",
       "studioF1": "Editor visual completo",
       "studioF2": "Descrições com IA ilimitadas",
       "studioF3": "Calendário editorial",
@@ -315,7 +315,10 @@
       "useChatgpt": "Escrever as legendas",
       "useMetricool": "Agendar e publicar",
       "useNotion": "Acompanhar o planeamento",
-      "useWetransfer": "Validação do cliente"
+      "useWetransfer": "Validação do cliente",
+      "useCapcut": "Montar os vídeos",
+      "fromPrice": "A partir de",
+      "forClients": "Para 6 clientes"
     }
   },
   "dashboard": {

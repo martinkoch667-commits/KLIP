@@ -179,13 +179,13 @@
     "testimonials": {
       "title1": "Calm, ",
       "titleAccent": "restored.",
-      "bigQ": "Before, my production ran across Canva, a Drive, email back-and-forth and a planning spreadsheet. Now it’s all in one place. I got my Friday afternoons back.",
+      "bigQ": "KLIP saved me a ton of time. Everything is in one place — I stopped juggling ten tools.",
       "bigA": "Camille R.",
       "bigR": "Creative director · Studio Klein",
-      "s1q": "The AI picks up the exact tone of each brand. I tweak two or three words instead of rewriting everything.",
+      "s1q": "With the built-in tools, I no longer juggle each client’s brand guidelines. It’s all already set up.",
       "s1a": "Yanis B.",
       "s1r": "Social media manager",
-      "s2q": "My clients approve from their phone, without creating an account. No more screenshots on WhatsApp.",
+      "s2q": "One space per client changes everything: nothing gets mixed up, everything stays clear.",
       "s2a": "Léa M.",
       "s2r": "Freelance · brand content"
     },
@@ -204,7 +204,7 @@
       "ctaTrial": "7-day free trial",
       "redirecting": "Redirecting…",
       "studioTag": "Freelancers & community managers",
-      "studioClients": "Up to 3 clients",
+      "studioClients": "Up to 6 clients",
       "studioF1": "Full visual editor",
       "studioF2": "Unlimited AI descriptions",
       "studioF3": "Editorial calendar",
@@ -315,7 +315,10 @@
       "useChatgpt": "Write the captions",
       "useMetricool": "Schedule & publish",
       "useNotion": "Track the planning",
-      "useWetransfer": "Client approval"
+      "useWetransfer": "Client approval",
+      "useCapcut": "Edit the videos",
+      "fromPrice": "From",
+      "forClients": "For 6 clients"
     }
   },
   "dashboard": {

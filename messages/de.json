@@ -179,13 +179,13 @@
     "testimonials": {
       "title1": "Die Ruhe, ",
       "titleAccent": "wiedergefunden.",
-      "bigQ": "Früher lief meine Produktion über Canva, ein Drive, E-Mail-Hin-und-Her und eine Planungstabelle. Jetzt ist alles an einem Ort. Ich habe meine Freitagnachmittage zurück.",
+      "bigQ": "KLIP hat mir enorm viel Zeit gespart. Alles an einem Ort — ich jongliere nicht mehr mit zehn Tools.",
       "bigA": "Camille R.",
       "bigR": "Kreativdirektorin · Studio Klein",
-      "s1q": "Die KI trifft den exakten Ton jeder Marke. Ich korrigiere zwei, drei Wörter, statt alles neu zu schreiben.",
+      "s1q": "Mit den integrierten Tools jongliere ich nicht mehr mit den Marken-Guidelines jedes Kunden. Alles ist schon eingerichtet.",
       "s1a": "Yanis B.",
       "s1r": "Social-Media-Manager",
-      "s2q": "Meine Kunden geben vom Handy frei, ohne Konto anzulegen. Schluss mit Screenshots auf WhatsApp.",
+      "s2q": "Ein Bereich pro Kunde ändert alles: nichts vermischt sich, alles bleibt klar.",
       "s2a": "Léa M.",
       "s2r": "Freelance · Markeninhalte"
     },
@@ -204,7 +204,7 @@
       "ctaTrial": "7 Tage kostenlos testen",
       "redirecting": "Weiterleitung…",
       "studioTag": "Freelancer & Community-Manager",
-      "studioClients": "Bis zu 3 Kunden",
+      "studioClients": "Bis zu 6 Kunden",
       "studioF1": "Vollständiger visueller Editor",
       "studioF2": "Unbegrenzte KI-Beschreibungen",
       "studioF3": "Redaktionskalender",
@@ -315,7 +315,10 @@
       "useChatgpt": "Bildunterschriften schreiben",
       "useMetricool": "Planen & veröffentlichen",
       "useNotion": "Planung verfolgen",
-      "useWetransfer": "Kundenfreigabe"
+      "useWetransfer": "Kundenfreigabe",
+      "useCapcut": "Videos schneiden",
+      "fromPrice": "Ab",
+      "forClients": "Für 6 Kunden"
     }
   },
   "dashboard": {
