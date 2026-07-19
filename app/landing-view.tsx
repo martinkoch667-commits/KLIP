@@ -717,8 +717,9 @@ function EditorUI() {
 /* ─── Showcase ───────────────────────────────────────────────────────────── */
 function Showcase() {
   const t = useTranslations('landing.showcase');
-  const a = useParallax(0.06), b = useParallax(0.09);
+  const a = useParallax(0.06), b = useParallax(0.09), c = useParallax(0.07);
   const shots = [
+    { ref: c, img: '/klip-media/montage.png', t: t('montageTitle'), d: t('montageDesc'), tags: [t('montageTag1'), t('montageTag2'), t('montageTag3')] },
     { ref: a, img: '/klip-media/calendar.png', t: t('calTitle'), d: t('calDesc'), tags: [t('calTag1'), t('calTag2'), t('calTag3')] },
     { ref: b, img: '/klip-media/queue.png', t: t('queueTitle'), d: t('queueDesc'), tags: [t('queueTag1'), t('queueTag2'), t('queueTag3')] },
   ];
