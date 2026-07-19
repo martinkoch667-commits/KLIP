@@ -5,7 +5,6 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import { useRouter } from 'next/navigation';
-import { ConnectClaudePill } from '@/components/ConnectClaudeModal';
 
 /* ════════════════════════════════════════════════════════════════════════════
    KLIP — Landing v2 (magazine) · réplique fidèle de KLIP-5 / "KLIP Landing v2"
@@ -440,8 +439,6 @@ function HeroSocialProof() {
         ))}
       </div>
       <div className="hero-proof-text" style={{ display: "flex", alignItems: "center", gap: 13, flexWrap: "wrap", justifyContent: "center", textAlign: "center" }}>
-        <span style={{ fontFamily: "var(--sans)", fontWeight: 700, fontSize: 14.5, color: "var(--cream)" }}>{t('socialProof')}</span>
-        <span className="hero-proof-div" style={{ width: 1, height: 18, background: "var(--line-f)" }} />
         <span style={{ fontFamily: "var(--sans)", fontWeight: 400, fontSize: 14, color: "var(--cream-3)" }}>{t('trial7')}</span>
       </div>
     </div>
@@ -467,7 +464,7 @@ function Hero({ prelaunch = false }: { prelaunch?: boolean }) {
         <p className="reveal" style={{ textAlign: 'center', fontFamily: 'var(--mono)', fontWeight: 700, fontSize: 14, letterSpacing: '.04em', color: 'var(--cream-2)', marginBottom: 22, textTransform: 'uppercase' }}>
           {t('eyebrow')}
         </p>
-        <SplitText lines={lines} className="hero-h1" style={{ textAlign: 'center', fontSize: 'clamp(38px, 6.6vw, 80px)', margin: '0 auto', maxWidth: 1080 }} stagger={22} />
+        <SplitText lines={lines} className="hero-h1" style={{ textAlign: 'center', fontSize: 'clamp(46px, 7.6vw, 96px)', margin: '0 auto', maxWidth: 1120 }} stagger={22} />
         <p className="lead reveal d1" style={{ textAlign: 'center', maxWidth: 680, margin: '28px auto 0', fontSize: 21 }}>
           {t('leadPre')}<strong style={{ color: 'var(--cream)', fontWeight: 700 }}>{t('leadStrong')}</strong>{t('leadPost')}
         </p>
@@ -479,18 +476,14 @@ function Hero({ prelaunch = false }: { prelaunch?: boolean }) {
           ))}
         </div>
 
-        <HeroSocialProof />
-
-        <div className="reveal d3 hero-cta" style={{ display: 'flex', gap: 14, justifyContent: 'center', marginTop: 34, flexWrap: 'wrap' }}>
+        <div className="reveal d3 hero-cta" style={{ display: 'flex', gap: 14, justifyContent: 'center', marginTop: 30, flexWrap: 'wrap' }}>
           {prelaunch
             ? <a href="#waitlist" className="btn btn-acid">{t('ctaWaitlist')} <span className="arr"><Icon name="arrowUR" size={18} /></span></a>
             : <Link href="/register" className="btn btn-acid">{t('ctaTry')} <span className="arr"><Icon name="arrowUR" size={18} /></span></Link>}
           <a href="#apercu" className="btn btn-ghost">{t('ctaSee')}</a>
         </div>
 
-        <div className="reveal d3" style={{ display: 'flex', justifyContent: 'center', marginTop: 16 }}>
-          <ConnectClaudePill />
-        </div>
+        <HeroSocialProof />
 
         {/* product peek */}
         <div className="hero-peek" style={{ position: 'relative', maxWidth: 1080, margin: '52px auto 0' }}>
@@ -665,7 +658,7 @@ function EditorUI() {
         </div>
       </div>
       <div style={{ display: 'flex', minHeight: 420 }}>
-        <div className="ed-rail" style={{ width: 70, flexShrink: 0, background: '#fff', borderRight: `1px solid ${E.line}`, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, padding: '12px 0' }}>
+        <div className="lp-ed-rail" style={{ width: 70, flexShrink: 0, background: '#fff', borderRight: `1px solid ${E.line}`, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, padding: '12px 0' }}>
           {rail.map(([ic, label], i) => {
             const on = i === 2;
             return (
@@ -784,15 +777,15 @@ function EditorMock() {
         <span style={{ fontFamily: 'var(--mono)', fontWeight: 700, fontSize: 11, color: 'var(--ink-2)', padding: '5px 9px', borderRadius: 7, boxShadow: 'inset 0 0 0 1px var(--line)' }}>Aa Archivo</span>
         <span style={{ marginLeft: 'auto', fontFamily: 'var(--mono)', fontWeight: 700, fontSize: 11, color: 'var(--ink-3)' }}>● calé au pixel</span>
       </div>
-      <div style={{ position: 'relative', borderRadius: 12, overflow: 'hidden', aspectRatio: '3 / 4', background: 'radial-gradient(130% 130% at 18% 0%, #20a368, #0a2419 72%)', padding: 22, display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+      <div style={{ position: 'relative', borderRadius: 12, overflow: 'hidden', aspectRatio: '3 / 4', background: 'radial-gradient(130% 130% at 18% 0%, #20a368, #0a2419 72%)', padding: 22, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'space-between', textAlign: 'center' }}>
         <span style={{ fontFamily: 'var(--mono)', fontWeight: 700, fontSize: 10, letterSpacing: '.14em', color: 'rgba(255,255,255,.82)' }}>MAISON LOU</span>
-        <div style={{ position: 'relative', alignSelf: 'flex-start', maxWidth: '82%' }}>
+        <div style={{ position: 'relative', alignSelf: 'center', maxWidth: '88%' }}>
           <div style={{ fontFamily: 'var(--heavy)', fontWeight: 900, fontStyle: 'italic', fontSize: 'clamp(20px,2.3vw,30px)', lineHeight: 1, color: '#fff', textTransform: 'uppercase', letterSpacing: '-0.02em' }}>L&apos;été se réserve maintenant</div>
           <div style={{ position: 'absolute', inset: '-11px -13px', border: '1.6px dashed var(--acid)', borderRadius: 4, pointerEvents: 'none' }}>
             {corners.map((c, i) => <span key={i} style={{ position: 'absolute', ...c, width: 9, height: 9, background: 'var(--acid)', border: '1.5px solid #fff', borderRadius: 2 }} />)}
           </div>
         </div>
-        <div style={{ display: 'flex', gap: 6 }}>
+        <div style={{ display: 'flex', gap: 6, justifyContent: 'center', flexWrap: 'wrap' }}>
           {['#terrasse', '#nouvellecarte', '#septembre'].map((h, i) => (
             <span key={i} style={{ fontFamily: 'var(--mono)', fontWeight: 700, fontSize: 10.5, color: 'rgba(255,255,255,.9)', padding: '4px 9px', borderRadius: 999, background: 'rgba(255,255,255,.12)' }}>{h}</span>
           ))}
