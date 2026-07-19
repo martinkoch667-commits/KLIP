@@ -416,28 +416,10 @@ function Nav({ prelaunch = false }: { prelaunch?: boolean }) {
 // TODO: remplacer par le compteur réel d'utilisateurs quand on aura les premiers clients
 // (ex: `+50 community managers utilisent déjà Klip`)
 const socialProofText = "Rejoignez les premiers community managers qui passent à Klip";
-// Photos d'avatars — TODO: remplacer par les vraies photos de tes premiers clients.
-// (placeholders de visages via i.pravatar.cc en attendant)
-const SOCIAL_AVATARS = [
-  "https://i.pravatar.cc/80?img=11",
-  "https://i.pravatar.cc/80?img=32",
-  "https://i.pravatar.cc/80?img=5",
-  "https://i.pravatar.cc/80?img=47",
-  "https://i.pravatar.cc/80?img=12",
-  "https://i.pravatar.cc/80?img=26",
-];
-
 function HeroSocialProof() {
   const t = useTranslations('landing.hero');
   return (
-    <div className="reveal in hero-proof" style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 11, marginTop: 30 }}>
-      <div className="hero-proof-avatars" aria-hidden="true" style={{ display: "flex" }}>
-        {SOCIAL_AVATARS.map((src, i) => (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img key={i} src={src} alt="" width={38} height={38} loading="lazy"
-            style={{ width: 38, height: 38, borderRadius: "50%", border: "2px solid #0C2A1D", marginLeft: i === 0 ? 0 : -11, objectFit: "cover", boxShadow: "0 2px 6px rgba(0,0,0,.35)" }} />
-        ))}
-      </div>
+    <div className="reveal in hero-proof" style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 11, marginTop: 22 }}>
       <div className="hero-proof-text" style={{ display: "flex", alignItems: "center", gap: 13, flexWrap: "wrap", justifyContent: "center", textAlign: "center" }}>
         <span style={{ fontFamily: "var(--sans)", fontWeight: 400, fontSize: 14, color: "var(--cream-3)" }}>{t('trial7')}</span>
       </div>
