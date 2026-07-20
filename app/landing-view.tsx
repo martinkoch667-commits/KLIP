@@ -426,6 +426,46 @@ function HeroSocialProof() {
 }
 
 /* ─── Hero ───────────────────────────────────────────────────────────────── */
+// Champ email en ligne (hero) : on saisit son mail directement en haut de page
+// et on rejoint la liste d'attente en un envoi — email uniquement.
+function WaitlistInline() {
+  const t = useTranslations('landing.waitlist');
+  const th = useTranslations('landing.hero');
+  const [email, setEmail] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [done, setDone] = useState(false);
+  const [error, setError] = useState('');
+  async function submit(e: React.FormEvent) {
+    e.preventDefault();
+    setError('');
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) { setError(t('errEmail')); return; }
+    setBusy(true);
+    try {
+      const source = typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('ref') || 'landing-hero' : 'landing-hero';
+      const res = await fetch('/api/waitlist', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email, source }) });
+      if (res.ok) setDone(true);
+      else { const d = await res.json(); setError(d?.error || t('errSignup')); }
+    } catch { setError(t('errGeneric')); }
+    setBusy(false);
+  }
+  if (done) return (
+    <div className="reveal d3" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 11, marginTop: 30, color: 'var(--cream)' }}>
+      <span style={{ width: 36, height: 36, borderRadius: '50%', background: 'rgba(200,241,53,.16)', display: 'grid', placeItems: 'center', flexShrink: 0 }}><Icon name="check" size={19} style={{ color: 'var(--acid)' }} /></span>
+      <span style={{ fontWeight: 700, fontSize: 16 }}>{t('doneTitle')}</span>
+    </div>
+  );
+  return (
+    <form onSubmit={submit} className="reveal d3 hero-wl" style={{ display: 'flex', gap: 10, justifyContent: 'center', marginTop: 30, flexWrap: 'wrap', maxWidth: 540, marginLeft: 'auto', marginRight: 'auto' }}>
+      <input type="email" required autoComplete="email" placeholder={t('emailPh')} value={email} onChange={e => setEmail(e.target.value)}
+        style={{ flex: 1, minWidth: 230, padding: '15px 18px', borderRadius: 14, fontSize: 16, background: 'var(--forest-2)', border: '1px solid var(--line-f)', color: 'var(--cream)', outline: 'none' }} />
+      <button type="submit" disabled={busy} className="btn btn-acid" style={{ opacity: busy ? 0.7 : 1, flexShrink: 0 }}>
+        {busy ? t('submitting') : th('ctaWaitlist')} <span className="arr"><Icon name="arrowUR" size={18} /></span>
+      </button>
+      {error && <p style={{ width: '100%', color: '#FCA5A5', fontSize: 13, margin: '2px 0 0', textAlign: 'center' }}>{error}</p>}
+    </form>
+  );
+}
+
 function Hero({ prelaunch = false }: { prelaunch?: boolean }) {
   const t = useTranslations('landing.hero');
   const peek = useParallax(0.06);
@@ -456,12 +496,20 @@ function Hero({ prelaunch = false }: { prelaunch?: boolean }) {
           ))}
         </div>
 
-        <div className="reveal d3 hero-cta" style={{ display: 'flex', gap: 14, justifyContent: 'center', marginTop: 30, flexWrap: 'wrap' }}>
-          {prelaunch
-            ? <a href="#waitlist" className="btn btn-acid">{t('ctaWaitlist')} <span className="arr"><Icon name="arrowUR" size={18} /></span></a>
-            : <Link href="/register" className="btn btn-acid">{t('ctaTry')} <span className="arr"><Icon name="arrowUR" size={18} /></span></Link>}
-          <a href="#apercu" className="btn btn-ghost">{t('ctaSee')}</a>
-        </div>
+        {prelaunch ? (
+          <>
+            {/* Saisie du mail directement en haut de page → rejoindre la waitlist en un envoi */}
+            <WaitlistInline />
+            <div className="reveal d3" style={{ display: 'flex', justifyContent: 'center', marginTop: 14 }}>
+              <a href="#apercu" className="btn btn-ghost">{t('ctaSee')}</a>
+            </div>
+          </>
+        ) : (
+          <div className="reveal d3 hero-cta" style={{ display: 'flex', gap: 14, justifyContent: 'center', marginTop: 30, flexWrap: 'wrap' }}>
+            <Link href="/register" className="btn btn-acid">{t('ctaTry')} <span className="arr"><Icon name="arrowUR" size={18} /></span></Link>
+            <a href="#apercu" className="btn btn-ghost">{t('ctaSee')}</a>
+          </div>
+        )}
 
         <HeroSocialProof />
 
@@ -1029,9 +1077,6 @@ function FAQ() {
 function WaitlistSection() {
   const t = useTranslations('landing.waitlist');
   const [email, setEmail] = useState('');
-  const [name, setName] = useState('');
-  const [instagram, setInstagram] = useState('');
-  const [company, setCompany] = useState('');
   const [busy, setBusy] = useState(false);
   const [done, setDone] = useState(false);
   const [error, setError] = useState('');
@@ -1048,7 +1093,7 @@ function WaitlistSection() {
     setBusy(true);
     try {
       const source = typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('ref') || 'landing' : 'landing';
-      const res = await fetch('/api/waitlist', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email, name, instagram, company, source }) });
+      const res = await fetch('/api/waitlist', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email, source }) });
       if (res.ok) setDone(true);
       else { const d = await res.json(); setError(d?.error || t('errSignup')); }
     } catch { setError(t('errGeneric')); }
@@ -1071,11 +1116,6 @@ function WaitlistSection() {
             </p>
             <form onSubmit={submit} style={{ display: 'flex', flexDirection: 'column', gap: 11, marginTop: 30, textAlign: 'left' }}>
               <input style={inp} type="email" required placeholder={t('emailPh')} value={email} onChange={e => setEmail(e.target.value)} />
-              <div className="wl-row" style={{ display: 'flex', gap: 11 }}>
-                <input style={inp} placeholder={t('namePh')} value={name} onChange={e => setName(e.target.value)} />
-                <input style={inp} placeholder={t('igPh')} value={instagram} onChange={e => setInstagram(e.target.value)} />
-              </div>
-              <input style={inp} placeholder={t('companyPh')} value={company} onChange={e => setCompany(e.target.value)} />
               {error && <p style={{ color: '#FCA5A5', fontSize: 13, margin: '2px 0 0' }}>{error}</p>}
               <button type="submit" disabled={busy} className="btn btn-acid" style={{ justifyContent: 'center', marginTop: 6, opacity: busy ? 0.7 : 1 }}>
                 {busy ? t('submitting') : t('submit')} <span className="arr"><Icon name="arrowUR" size={18} /></span>

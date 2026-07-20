@@ -366,10 +366,24 @@ function FloatingToolbar({ el, onChange, onDuplicate, onDelete, brandColors }: {
           <button onClick={toggleBold} title="Gras" style={{ ...btn(isBold), fontWeight: 800 }}>B</button>
           <button onClick={toggleItalic} title="Italique" style={{ ...btn(isItalic), fontStyle: 'italic' }}>I</button>
           <button onClick={() => onChange({ textDecoration: isUnderline ? '' : 'underline' } as Partial<CanvasEl>)} title="Souligné" style={{ ...btn(isUnderline), textDecoration: 'underline' }}>U</button>
+          <button onClick={() => onChange({ textDecoration: t.textDecoration === 'line-through' ? '' : 'line-through' } as Partial<CanvasEl>)} title="Barré" style={{ ...btn(t.textDecoration === 'line-through'), textDecoration: 'line-through' }}>S</button>
           <Sep />
           <button onClick={() => onChange({ align: (t.align === 'left' ? 'center' : t.align === 'center' ? 'right' : 'left') } as Partial<CanvasEl>)} title="Alignement" style={btn(false)}>{alignIcon(t.align)}</button>
           <Sep />
-          <ColorPicker value={t.fill} onChange={v => onChange({ fill: v } as Partial<CanvasEl>)} brandColors={brandColors} />
+          {/* Couleur du texte */}
+          <span title="Couleur du texte" style={{ display: 'inline-flex' }}><ColorPicker value={t.fill} onChange={v => onChange({ fill: v } as Partial<CanvasEl>)} brandColors={brandColors} /></span>
+          {/* Fond du bloc : bouton d'activation + couleur */}
+          <button onClick={() => onChange({ hasBg: !t.hasBg } as Partial<CanvasEl>)} title={t.hasBg ? 'Retirer le fond du bloc' : 'Ajouter un fond au bloc'} style={btn(t.hasBg)}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill={t.hasBg ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="16" rx="3"/></svg>
+          </button>
+          {t.hasBg && <span title="Couleur du fond" style={{ display: 'inline-flex' }}><ColorPicker value={t.bgColor} onChange={v => onChange({ bgColor: v } as Partial<CanvasEl>)} brandColors={brandColors} /></span>}
+          <Sep />
+          {/* Opacité */}
+          <span style={{ display: 'flex', alignItems: 'center', background: 'var(--sunk)', borderRadius: 8, height: 32, flexShrink: 0 }} title="Opacité">
+            <button onClick={() => onChange({ opacity: Math.max(0, t.opacity - 10) } as Partial<CanvasEl>)} style={{ width: 24, height: 32, border: 'none', background: 'transparent', cursor: 'pointer', color: 'var(--ink-2)', fontSize: 16 }}>−</button>
+            <span style={{ width: 38, textAlign: 'center', fontWeight: 700, fontSize: 12, fontVariantNumeric: 'tabular-nums' }}>{t.opacity}%</span>
+            <button onClick={() => onChange({ opacity: Math.min(100, t.opacity + 10) } as Partial<CanvasEl>)} style={{ width: 24, height: 32, border: 'none', background: 'transparent', cursor: 'pointer', color: 'var(--ink-2)', fontSize: 15 }}>+</button>
+          </span>
         </>
       )}
       {!isText && 'fill' in el && (
