@@ -17,9 +17,11 @@ declare global {
 
 // Déclenche un événement standard « Lead » sur une conversion (ex : inscription
 // à la liste d'attente). Silencieux si le pixel n'est pas chargé.
-export function trackLead(params?: Record<string, unknown>) {
+export function trackLead(params?: Record<string, unknown>, eventID?: string) {
   if (typeof window === "undefined" || typeof window.fbq !== "function") return;
-  window.fbq("track", "Lead", params);
+  // L'eventID (partagé avec la Conversions API serveur) permet à Meta de
+  // dédupliquer le Lead reçu deux fois (pixel + CAPI).
+  window.fbq("track", "Lead", params, eventID ? { eventID } : undefined);
 }
 
 // Suit les changements de route côté client (App Router) et renvoie un PageView.

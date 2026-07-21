@@ -28,12 +28,13 @@ export default function EarlyAccessView() {
     setBusy(true);
     try {
       const source = typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("ref") || "direct" : "direct";
+      const eventId = (typeof crypto !== "undefined" && crypto.randomUUID) ? crypto.randomUUID() : String(Date.now());
       const res = await fetch("/api/waitlist", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, name, instagram, company, source }),
+        body: JSON.stringify({ email, name, instagram, company, source, eventId }),
       });
       if (res.ok) {
-        trackLead({ content_name: "waitlist-acces-anticipe", source });
+        trackLead({ content_name: "waitlist-acces-anticipe", source }, eventId);
         setDone(true);
       }
       else { const d = await res.json(); setError(d?.error || t('errorSignupFailed')); }
