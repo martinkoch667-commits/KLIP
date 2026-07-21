@@ -5,6 +5,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import { useRouter } from 'next/navigation';
+import { trackLead } from '@/components/analytics/MetaPixel';
 
 /* ════════════════════════════════════════════════════════════════════════════
    KLIP — Landing v2 (magazine) · réplique fidèle de KLIP-5 / "KLIP Landing v2"
@@ -443,7 +444,7 @@ function WaitlistInline() {
     try {
       const source = typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('ref') || 'landing-hero' : 'landing-hero';
       const res = await fetch('/api/waitlist', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email, source }) });
-      if (res.ok) setDone(true);
+      if (res.ok) { setDone(true); trackLead({ content_name: 'waitlist', source }); } // Lead Meta uniquement sur inscription réussie
       else { const d = await res.json(); setError(d?.error || t('errSignup')); }
     } catch { setError(t('errGeneric')); }
     setBusy(false);
@@ -1094,7 +1095,7 @@ function WaitlistSection() {
     try {
       const source = typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('ref') || 'landing' : 'landing';
       const res = await fetch('/api/waitlist', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email, source }) });
-      if (res.ok) setDone(true);
+      if (res.ok) { setDone(true); trackLead({ content_name: 'waitlist', source }); } // Lead Meta uniquement sur inscription réussie
       else { const d = await res.json(); setError(d?.error || t('errSignup')); }
     } catch { setError(t('errGeneric')); }
     setBusy(false);
