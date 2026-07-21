@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { readConsent, writeConsent } from "./consent";
 
-const PIXEL_ID = process.env.NEXT_PUBLIC_FB_PIXEL_ID;
+const PIXEL_ID = process.env.NEXT_PUBLIC_FB_PIXEL_ID || "1998010880798347";
 
 // Bandeau de consentement CNIL. N'apparaît que si un traceur publicitaire est
 // configuré (Meta Pixel) et tant qu'aucun choix n'a été enregistré. Le pixel
