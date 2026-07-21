@@ -443,8 +443,9 @@ function WaitlistInline() {
     setBusy(true);
     try {
       const source = typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('ref') || 'landing-hero' : 'landing-hero';
-      const res = await fetch('/api/waitlist', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email, source }) });
-      if (res.ok) { setDone(true); trackLead({ content_name: 'waitlist', source }); } // Lead Meta uniquement sur inscription réussie
+      const eventId = (typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID() : String(Date.now());
+      const res = await fetch('/api/waitlist', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email, source, eventId }) });
+      if (res.ok) { setDone(true); trackLead({ content_name: 'waitlist', source }, eventId); } // Lead Meta (pixel + CAPI dédupliqués) sur inscription réussie
       else { const d = await res.json(); setError(d?.error || t('errSignup')); }
     } catch { setError(t('errGeneric')); }
     setBusy(false);
@@ -1094,8 +1095,9 @@ function WaitlistSection() {
     setBusy(true);
     try {
       const source = typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('ref') || 'landing' : 'landing';
-      const res = await fetch('/api/waitlist', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email, source }) });
-      if (res.ok) { setDone(true); trackLead({ content_name: 'waitlist', source }); } // Lead Meta uniquement sur inscription réussie
+      const eventId = (typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID() : String(Date.now());
+      const res = await fetch('/api/waitlist', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email, source, eventId }) });
+      if (res.ok) { setDone(true); trackLead({ content_name: 'waitlist', source }, eventId); } // Lead Meta (pixel + CAPI dédupliqués) sur inscription réussie
       else { const d = await res.json(); setError(d?.error || t('errSignup')); }
     } catch { setError(t('errGeneric')); }
     setBusy(false);

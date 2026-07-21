@@ -1,13 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { sendEmail, emails } from '@/lib/email';
+import { sendLeadEvent } from '@/lib/meta-capi';
 
 export const runtime = 'nodejs';
 
 // POST /api/waitlist — inscription à la liste d'attente / accès anticipé.
 export async function POST(request: NextRequest) {
   try {
-    const { email, name, instagram, company, source } = await request.json();
+    const { email, name, instagram, company, source, eventId } = await request.json();
 
     const cleanEmail = typeof email === 'string' ? email.trim().toLowerCase() : '';
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail)) {
@@ -36,6 +37,17 @@ export async function POST(request: NextRequest) {
     // Email de confirmation (nouvelle inscription OU ré-inscription d'un email déjà présent).
     const tpl = emails.waitlistConfirm();
     sendEmail(cleanEmail, tpl.subject, tpl.html).catch(() => {});
+
+    // Meta Conversions API — Lead côté serveur (dédupliqué avec le pixel via eventId).
+    sendLeadEvent({
+      email: cleanEmail,
+      eventId: typeof eventId === 'string' ? eventId : undefined,
+      eventSourceUrl: request.headers.get('referer') || undefined,
+      clientIp: request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || undefined,
+      userAgent: request.headers.get('user-agent') || undefined,
+      fbp: request.cookies.get('_fbp')?.value,
+      fbc: request.cookies.get('_fbc')?.value,
+    }).catch(() => {});
 
     return NextResponse.json({ ok: true });
   } catch {
