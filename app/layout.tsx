@@ -71,7 +71,7 @@ export default function RootLayout({
   const locale = resolveLocale(cookies().get(LOCALE_COOKIE)?.value);
   const messages = getMessages(locale);
   return (
-    <html lang={locale}>
+    <html lang={locale} suppressHydrationWarning>
       <head>
         {/* Restore saved theme before first paint */}
         <script
