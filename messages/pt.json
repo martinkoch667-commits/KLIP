@@ -154,7 +154,12 @@
       "montageDesc": "Um editor de vídeo estilo CapCut, integrado: linha do tempo multipista, corte, legendas automáticas, montagem num clique. Os teus Reels montam-se aqui, sem exportar nem assinatura extra.",
       "montageTag1": "Legendas auto",
       "montageTag2": "Montagem IA",
-      "montageTag3": "Todos os formatos"
+      "montageTag3": "Todos os formatos",
+      "montTitle": "Edição de vídeo",
+      "montDesc": "Corte, legende e personalize os seus Reels no editor de vídeo integrado. Legendas geradas por IA, sobreposições, exportação pronta a publicar.",
+      "montTag1": "Legendas IA",
+      "montTag2": "Multipista",
+      "montTag3": "Reels & Stories"
     },
     "features": {
       "title1": "O que exigia dez ferramentas,",
@@ -174,7 +179,9 @@
       "f4t": "Publicação direta",
       "f4d": "Ligue uma conta pro. Agende, valide, o KLIP publica no horário.",
       "fMontageT": "Edição de vídeo",
-      "fMontageD": "Corte, legendas automáticas, montagem num clique. Um editor estilo CapCut, dentro do KLIP."
+      "fMontageD": "Corte, legendas automáticas, montagem num clique. Um editor estilo CapCut, dentro do KLIP.",
+      "f5t": "Edição de vídeo",
+      "f5d": "Reels cortados, legendados por IA e exportados — sem sair do KLIP."
     },
     "testimonials": {
       "title1": "A calma, ",
@@ -301,17 +308,18 @@
     },
     "comparison": {
       "title1": "Uma só ferramenta. ",
-      "titleAccent": "Em vez de cinco.",
-      "lead": "Deixe de pagar e de fazer malabarismos com cinco subscrições. O Klip reúne toda a sua produção de conteúdo.",
+      "titleAccent": "Em vez de seis.",
+      "lead": "Pare de fazer malabarismos com seis ferramentas diferentes. O Klip reúne toda a sua produção de conteúdo — e poupa-lhe imenso tempo todas as semanas.",
       "yourStack": "A sua stack atual",
-      "today": "Hoje: ~{total}€/mês por 5 subscrições a gerir",
+      "today": "Hoje: ~{total}€/mês por 6 subscrições a gerir",
       "withKlip": "Com o Klip",
       "allInOne": "Tudo isso reunido, a partir de",
       "perMonth": "/mês",
-      "insteadOf": "em vez de ~{total}€/mês por cinco ferramentas separadas",
+      "insteadOf": "em vez de ~{total}€/mês por seis ferramentas separadas",
       "ctaTry": "Experimentar grátis",
       "note": "Preços médios observados, dados a título indicativo.",
       "useCanva": "Criar os visuais",
+      "useCapcut": "Editar os vídeos",
       "useChatgpt": "Escrever as legendas",
       "useMetricool": "Agendar e publicar",
       "useNotion": "Acompanhar o planeamento",

@@ -154,7 +154,12 @@
       "montageDesc": "Un editor de vídeo tipo CapCut, integrado: línea de tiempo multipista, corte, subtítulos automáticos, montaje en un clic. Tus Reels se editan aquí, sin exportar ni suscripción extra.",
       "montageTag1": "Subtítulos auto",
       "montageTag2": "Montaje IA",
-      "montageTag3": "Todos los formatos"
+      "montageTag3": "Todos los formatos",
+      "montTitle": "Edición de vídeo",
+      "montDesc": "Corta, subtitula y viste tus Reels en el editor de vídeo integrado. Subtítulos generados por IA, superposiciones, exportación lista para publicar.",
+      "montTag1": "Subtítulos IA",
+      "montTag2": "Multipista",
+      "montTag3": "Reels & Stories"
     },
     "features": {
       "title1": "Lo que antes exigía diez herramientas,",
@@ -174,7 +179,9 @@
       "f4t": "Publicación directa",
       "f4d": "Conecta una cuenta pro. Programa, valida, KLIP publica en la franja.",
       "fMontageT": "Edición de vídeo",
-      "fMontageD": "Corte, subtítulos automáticos, montaje en un clic. Un editor tipo CapCut, dentro de KLIP."
+      "fMontageD": "Corte, subtítulos automáticos, montaje en un clic. Un editor tipo CapCut, dentro de KLIP.",
+      "f5t": "Edición de vídeo",
+      "f5d": "Reels cortados, subtitulados por IA y exportados — sin salir de KLIP."
     },
     "testimonials": {
       "title1": "La calma, ",
@@ -301,17 +308,18 @@
     },
     "comparison": {
       "title1": "Una sola herramienta. ",
-      "titleAccent": "En lugar de cinco.",
-      "lead": "Deja de pagar y malabarear cinco suscripciones. Klip reúne toda tu producción de contenido.",
+      "titleAccent": "En lugar de seis.",
+      "lead": "Deja de hacer malabares entre seis herramientas distintas. Klip reúne toda tu producción de contenido — y te ahorra un montón de tiempo cada semana.",
       "yourStack": "Tu stack actual",
-      "today": "Hoy: ~{total}€/mes por 5 suscripciones que malabarear",
+      "today": "Hoy: ~{total}€/mes por 6 suscripciones que malabarear",
       "withKlip": "Con Klip",
       "allInOne": "Todo eso reunido, desde",
       "perMonth": "/mes",
-      "insteadOf": "en lugar de ~{total}€/mes por cinco herramientas separadas",
+      "insteadOf": "en lugar de ~{total}€/mes por seis herramientas separadas",
       "ctaTry": "Probar gratis",
       "note": "Precios medios observados, a título orientativo.",
       "useCanva": "Crear los visuales",
+      "useCapcut": "Editar los vídeos",
       "useChatgpt": "Escribir los pies de foto",
       "useMetricool": "Programar y publicar",
       "useNotion": "Seguir la planificación",

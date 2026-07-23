@@ -154,7 +154,12 @@
       "montageDesc": "Un editor video stile CapCut, integrato: timeline multitraccia, taglio, sottotitoli automatici, montaggio in un clic. I tuoi Reel si montano qui, senza esportare né abbonamenti extra.",
       "montageTag1": "Sottotitoli auto",
       "montageTag2": "Montaggio IA",
-      "montageTag3": "Tutti i formati"
+      "montageTag3": "Tutti i formati",
+      "montTitle": "Montaggio video",
+      "montDesc": "Taglia, sottotitola e arricchisci i tuoi Reel nell'editor video integrato. Sottotitoli generati dall'IA, sovrapposizioni, export pronto da pubblicare.",
+      "montTag1": "Sottotitoli IA",
+      "montTag2": "Multitraccia",
+      "montTag3": "Reel & Stories"
     },
     "features": {
       "title1": "Quello che richiedeva dieci strumenti,",
@@ -174,7 +179,9 @@
       "f4t": "Pubblicazione diretta",
       "f4d": "Collega un account pro. Programma, approva, KLIP pubblica nella fascia.",
       "fMontageT": "Montaggio video",
-      "fMontageD": "Taglio, sottotitoli automatici, montaggio in un clic. Un editor stile CapCut, dentro KLIP."
+      "fMontageD": "Taglio, sottotitoli automatici, montaggio in un clic. Un editor stile CapCut, dentro KLIP.",
+      "f5t": "Montaggio video",
+      "f5d": "Reel tagliati, sottotitolati dall'IA ed esportati — senza uscire da KLIP."
     },
     "testimonials": {
       "title1": "La calma, ",
@@ -301,17 +308,18 @@
     },
     "comparison": {
       "title1": "Un solo strumento. ",
-      "titleAccent": "Al posto di cinque.",
-      "lead": "Smetti di pagare e destreggiarti tra cinque abbonamenti. Klip riunisce tutta la tua produzione di contenuti.",
+      "titleAccent": "Al posto di sei.",
+      "lead": "Smetti di destreggiarti tra sei strumenti diversi. Klip riunisce tutta la tua produzione di contenuti — e ti fa risparmiare un sacco di tempo ogni settimana.",
       "yourStack": "Il tuo stack attuale",
-      "today": "Oggi: ~{total}€/mese per 5 abbonamenti da gestire",
+      "today": "Oggi: ~{total}€/mese per 6 abbonamenti da gestire",
       "withKlip": "Con Klip",
       "allInOne": "Tutto questo riunito, a partire da",
       "perMonth": "/mese",
-      "insteadOf": "invece di ~{total}€/mese per cinque strumenti separati",
+      "insteadOf": "invece di ~{total}€/mese per sei strumenti separati",
       "ctaTry": "Prova gratis",
       "note": "Prezzi medi rilevati, forniti a titolo indicativo.",
       "useCanva": "Creare i visual",
+      "useCapcut": "Montare i video",
       "useChatgpt": "Scrivere le didascalie",
       "useMetricool": "Programmare e pubblicare",
       "useNotion": "Seguire la pianificazione",

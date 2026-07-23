@@ -154,7 +154,12 @@
       "montageDesc": "Ein integrierter Video-Editor im CapCut-Stil: Multitrack-Timeline, Schnitt, automatische Untertitel, Zusammenbau per Klick. Deine Reels entstehen direkt hier — ohne Export, ohne Zusatz-Abo.",
       "montageTag1": "Auto-Untertitel",
       "montageTag2": "KI-Zusammenbau",
-      "montageTag3": "Alle Formate"
+      "montageTag3": "Alle Formate",
+      "montTitle": "Videoschnitt",
+      "montDesc": "Schneiden, untertiteln und gestalten Sie Ihre Reels im integrierten Videoeditor. KI-Untertitel, Overlays, veröffentlichungsfertiger Export.",
+      "montTag1": "KI-Untertitel",
+      "montTag2": "Mehrspurig",
+      "montTag3": "Reels & Stories"
     },
     "features": {
       "title1": "Wofür es zehn Tools brauchte,",
@@ -174,7 +179,9 @@
       "f4t": "Direkte Veröffentlichung",
       "f4d": "Pro-Konto verbinden. Planen, freigeben, KLIP veröffentlicht zum Zeitpunkt.",
       "fMontageT": "Videoschnitt",
-      "fMontageD": "Schneiden, automatische Untertitel, Zusammenbau per Klick. Ein CapCut-artiger Editor, direkt in KLIP."
+      "fMontageD": "Schneiden, automatische Untertitel, Zusammenbau per Klick. Ein CapCut-artiger Editor, direkt in KLIP.",
+      "f5t": "Videoschnitt",
+      "f5d": "Reels geschnitten, per KI untertitelt und exportiert — ohne KLIP zu verlassen."
     },
     "testimonials": {
       "title1": "Die Ruhe, ",
@@ -301,17 +308,18 @@
     },
     "comparison": {
       "title1": "Ein Tool. ",
-      "titleAccent": "Statt fünf.",
-      "lead": "Hör auf, fünf Abos zu bezahlen und zu jonglieren. Klip vereint deine gesamte Content-Produktion.",
+      "titleAccent": "Statt sechs.",
+      "lead": "Hör auf, zwischen sechs verschiedenen Tools zu jonglieren. Klip vereint deine gesamte Content-Produktion — und spart dir jede Woche jede Menge Zeit.",
       "yourStack": "Dein aktueller Stack",
-      "today": "Heute: ~{total}€/Monat für 5 Abos zum Jonglieren",
+      "today": "Heute: ~{total}€/Monat für 6 Abos zum Jonglieren",
       "withKlip": "Mit Klip",
       "allInOne": "All das vereint, ab",
       "perMonth": "/Monat",
-      "insteadOf": "statt ~{total}€/Monat für fünf separate Tools",
+      "insteadOf": "statt ~{total}€/Monat für sechs separate Tools",
       "ctaTry": "Kostenlos testen",
       "note": "Durchschnittlich beobachtete Preise, als grobe Orientierung.",
       "useCanva": "Visuals erstellen",
+      "useCapcut": "Videos schneiden",
       "useChatgpt": "Bildunterschriften schreiben",
       "useMetricool": "Planen & veröffentlichen",
       "useNotion": "Planung verfolgen",

@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import LandingView from "./landing-view";
+import LandingView from "./landing-v3";
 
 export const metadata: Metadata = {
   title: "Klip — L'outil tout-en-un pour agences qui gèrent plusieurs clients Instagram",

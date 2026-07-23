@@ -84,16 +84,21 @@ function Step({ n, title, children }: { n: number; title: string; children: Reac
   );
 }
 
-// Bouton déclencheur pill, utilisé sur la landing page (style clair sur fond forêt).
+// Déclencheur landing : ligne « intégration » discrète (pas un 3e CTA).
+// Communique « KLIP fonctionne aussi avec Claude » — clic ouvre la modale.
 export function ConnectClaudePill() {
   const [open, setOpen] = useState(false);
   return (
     <>
-      <button
-        onClick={() => setOpen(true)}
-        style={{ display: 'inline-flex', alignItems: 'center', gap: 8, background: 'rgba(240,239,228,.1)', color: 'var(--cream, #F0EFE4)', border: '1.5px solid rgba(240,239,228,.25)', borderRadius: 999, padding: '10px 18px', fontFamily: 'var(--mono)', fontWeight: 700, fontSize: 13, cursor: 'pointer' }}
-      >
-        ✳ Connecter à Claude <span style={{ fontSize: 12 }}>→</span>
+      <button onClick={() => setOpen(true)} className="claude-tie" aria-label="Connecter KLIP à Claude">
+        <span className="claude-tie-glyph lp-logo" aria-hidden="true">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="https://www.google.com/s2/favicons?sz=128&domain=claude.ai" alt="" width={26} height={26} />
+        </span>
+        <span className="claude-tie-txt">
+          Fonctionne aussi avec <strong>Claude</strong>
+        </span>
+        <span className="claude-tie-arr" aria-hidden="true">→</span>
       </button>
       <ConnectClaudeModal open={open} onClose={() => setOpen(false)} />
     </>

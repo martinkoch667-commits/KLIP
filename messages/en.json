@@ -154,7 +154,12 @@
       "montageDesc": "A built-in CapCut-style video editor: multi-track timeline, cutting, automatic captions, one-click assembly. Your Reels are edited right here — no export, no extra subscription.",
       "montageTag1": "Auto captions",
       "montageTag2": "AI assembly",
-      "montageTag3": "Every format"
+      "montageTag3": "Every format",
+      "montTitle": "Video editing",
+      "montDesc": "Cut, subtitle and dress up your Reels in the built-in video editor. AI-generated subtitles, overlays, ready-to-publish export.",
+      "montTag1": "AI subtitles",
+      "montTag2": "Multi-track",
+      "montTag3": "Reels & Stories"
     },
     "features": {
       "title1": "What used to take ten tools,",
@@ -174,7 +179,9 @@
       "f4t": "Direct publishing",
       "f4d": "Connect a pro account. Schedule, approve, KLIP publishes at the slot.",
       "fMontageT": "Video editing",
-      "fMontageD": "Cutting, automatic captions, one-click assembly. A CapCut-style editor, right inside KLIP."
+      "fMontageD": "Cutting, automatic captions, one-click assembly. A CapCut-style editor, right inside KLIP.",
+      "f5t": "Video editing",
+      "f5d": "Reels cut, AI-subtitled and exported — without leaving KLIP."
     },
     "testimonials": {
       "title1": "Calm, ",
@@ -301,17 +308,18 @@
     },
     "comparison": {
       "title1": "One tool. ",
-      "titleAccent": "Instead of five.",
-      "lead": "Stop paying for and juggling five subscriptions. Klip brings together your entire content production.",
+      "titleAccent": "Instead of six.",
+      "lead": "Stop juggling six different tools. Klip brings your entire content production together — and saves you a ton of time every week.",
       "yourStack": "Your current stack",
-      "today": "Today: ~{total}€/month for 5 subscriptions to juggle",
+      "today": "Today: ~{total}€/month for 6 subscriptions to juggle",
       "withKlip": "With Klip",
       "allInOne": "All of it together, starting at",
       "perMonth": "/month",
-      "insteadOf": "instead of ~{total}€/month for five separate tools",
+      "insteadOf": "instead of ~{total}€/month for six separate tools",
       "ctaTry": "Try it free",
       "note": "Average observed prices, given as a rough guide.",
       "useCanva": "Create the visuals",
+      "useCapcut": "Edit the videos",
       "useChatgpt": "Write the captions",
       "useMetricool": "Schedule & publish",
       "useNotion": "Track the planning",
