@@ -91,7 +91,7 @@
       "ctaTry": "Try it free",
       "ctaWaitlist": "Join the waitlist",
       "ctaSee": "See KLIP in action",
-      "floatClients": "6 clients",
+      "floatClients": "Your clients",
       "floatOneScreen": "one screen",
       "floatAiCaption": "AI caption generated ✓",
       "floatVisualEditor": "Visual editor",
@@ -136,7 +136,7 @@
     "showcase": {
       "title1": "An interface that ",
       "titleAccent": "breathes.",
-      "lead": "Designed to manage six brands without ever mixing them up. Here’s what a workday without friction looks like.",
+      "lead": "Visual editor, editorial calendar, publishing queue, video editing: the tools you open every day in KLIP.",
       "editorKicker": "01 — The visual editor",
       "editorTitle": "Each client’s brand kit, applied in one click",
       "editorText": "Select some text and it all opens up — font, size, brand colors, effects, animations. The same power as Canva or the Adobe suite, already set to your client.",

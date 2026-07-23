@@ -193,7 +193,8 @@ const V3_CSS = `
 /* ── nav ─────────────────────────────────────────────────────── */
 .v3 .nav-link { font-family:var(--sans); font-size:13.5px; font-weight:700; letter-spacing:.01em; color:var(--ink-2); transition:color .15s, background .15s; padding:8px 12px; border-radius:999px; }
 .v3 .nav-link:hover { color:var(--ink); background:var(--paper-3); }
-.v3 .v3-mob-btn { display:none; align-items:center; justify-content:center; width:42px; height:42px; border-radius:12px; background:rgba(16,19,11,.07); color:var(--ink); }
+/* fond blanc cassé + icône encre : lisible sur le hero forêt comme sur la nav solide */
+.v3 .v3-mob-btn { display:none; align-items:center; justify-content:center; width:42px; height:42px; border-radius:12px; background:var(--cream); color:var(--ink); box-shadow:0 4px 12px -4px rgba(16,19,11,.35), inset 0 0 0 1px var(--line-2); }
 .v3 .v3-mob-menu { position:fixed; inset:0; background:var(--forest); z-index:1000; display:flex; flex-direction:column; padding:22px 26px 42px; transform:translateX(100%); transition:transform .3s cubic-bezier(.16,1,.3,1); }
 .v3 .v3-mob-menu.open { transform:translateX(0); }
 .v3 .v3-mob-link { display:block; font-family:'Archivo',sans-serif; font-weight:800; font-size:30px; text-transform:uppercase; letter-spacing:-.02em; color:#F1F0E5 !important; padding:13px 0; border-bottom:1px solid rgba(241,240,229,.16); }
@@ -240,7 +241,8 @@ const V3_CSS = `
 .v3 .deck-copy { padding:clamp(26px,3vw,46px); display:flex; flex-direction:column; justify-content:center; gap:16px; }
 .v3 .deck-visual { background:var(--paper-3); display:flex; align-items:center; justify-content:flex-start; overflow:hidden; padding:clamp(18px,2.2vw,34px) 0 0 clamp(18px,2.2vw,34px); }
 .v3 .deck-visual > * { border-radius:14px 0 0 0; overflow:hidden; box-shadow:0 0 0 1px var(--line-2), 0 24px 48px -24px rgba(16,19,11,.35); width:100%; }
-.v3 .deck-num { font-family:var(--oaks-x); font-weight:700; font-size:15px; color:var(--mint-2); letter-spacing:.04em; }
+/* numéros 01-04 : pastille au VERT pastel de la charte (le mint était hors DA) */
+.v3 .deck-num { font-family:var(--oaks-x); font-weight:700; font-size:13.5px; letter-spacing:.04em; display:inline-flex; align-self:flex-start; padding:5px 11px 6px; border-radius:9px; background:var(--leaf); color:var(--leaf-ink); }
 
 /* ── responsive ──────────────────────────────────────────────── */
 @media (max-width:960px) {
@@ -290,9 +292,11 @@ const V3_CSS = `
   .v3 .hero-flow-chip { font-size:12px; padding:7px 11px; gap:6px; border-radius:10px; }
 }
 @media (max-width:680px) {
-  .v3 #top { padding-top:92px !important; padding-bottom:44px !important; }
-  .v3 .hero-h1 { font-size:clamp(32px, 9.6vw, 54px) !important; }
-  .v3 .hero-h1 .h-line .t-arch { font-size:clamp(21px, 7.2vw, 40px) !important; } /* "TOUS VOS CLIENTS." tient jusqu'à ~300px */
+  .v3 #top { padding-top:92px !important; padding-bottom:52px !important; }
+  .v3 .hero-h1 { font-size:clamp(36px, 11vw, 58px) !important; }
+  .v3 .hero-h1 .h-line .t-arch { font-size:clamp(24px, 8.6vw, 44px) !important; } /* "TOUS VOS CLIENTS." tient jusqu'à ~300px */
+  /* le bandeau marquee incliné ne doit pas mordre sur la pill Claude */
+  .v3 .mqband { margin-top:-10px; }
   .v3 #top .lead { font-size:15.5px !important; margin-top:14px !important; }
   /* hero compact : les CTA (+ le début du lien Claude) doivent tenir au-dessus
      de la ligne de flottaison */
@@ -307,7 +311,9 @@ const V3_CSS = `
   .v3 .hero-eyes svg { width:58px !important; }
   .v3 span.hero-stk:nth-of-type(1) { top:-36px !important; left:2% !important; }
   .v3 span.hero-eyes { top:auto !important; bottom:6% !important; right:-2px !important; } /* à droite du sticker OUTIL, jamais sur la nav ni le titre */
-  .v3 span.hero-stk:nth-of-type(3) { display:none !important; } /* le cœur tombe sur le lead */
+  /* le cœur descend à gauche des chips du flow (retour Martin) — offset depuis le
+     bas du bloc titre : lead (~4 lignes) + marges + 1re rangée de chips */
+  .v3 span.hero-stk:nth-of-type(3) { bottom:-196px !important; left:2% !important; z-index:4 !important; }
   .v3 .cta-stk svg { width:34px !important; }
   .v3 span.cta-stk:nth-of-type(1) { top:-34px !important; left:-4px !important; }
   .v3 span.cta-stk:nth-of-type(2) { bottom:-26px !important; right:-6px !important; }
@@ -716,13 +722,13 @@ function Hero({ prelaunch = false }: { prelaunch?: boolean }) {
           ))}
         </div>
 
-        <div className="h-intro hero-proof" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 11, marginTop: 30 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 13, flexWrap: 'wrap', justifyContent: 'center', textAlign: 'center' }}>
-            <span style={{ fontFamily: 'var(--sans)', fontWeight: 800, fontSize: 14.5, color: 'var(--cream)' }}>{t('socialProof')}</span>
-            <span style={{ width: 1, height: 18, background: 'var(--line-f)' }} />
-            <span style={{ fontFamily: 'var(--sans)', fontWeight: 500, fontSize: 14, color: 'var(--cream-3)' }}>{t('trial7')}</span>
-          </div>
-        </div>
+        {/* texte fluide (pas de flex) : « 7 jours d'essai » se cale dans la même
+           ligne que la fin de la preuve sociale au lieu de prendre sa propre ligne */}
+        <p className="h-intro hero-proof" style={{ textAlign: 'center', margin: '30px auto 0', maxWidth: 640, fontFamily: 'var(--sans)', fontSize: 14.5, lineHeight: 1.6 }}>
+          <span style={{ fontWeight: 800, color: 'var(--cream)' }}>{t('socialProof')}</span>
+          <span aria-hidden="true" style={{ color: 'var(--cream-3)', fontWeight: 500 }}>{'  ·  '}</span>
+          <span style={{ fontWeight: 500, fontSize: 14, color: 'var(--cream-3)', whiteSpace: 'nowrap' }}>{t('trial7')}</span>
+        </p>
 
         {prelaunch ? (
           <div className="h-intro" style={{ marginTop: 34 }}>
@@ -750,7 +756,7 @@ function Hero({ prelaunch = false }: { prelaunch?: boolean }) {
 function HeroPreview() {
   const t = useTranslations('landing.hero');
   const peek = useParallax(0.055);
-  const f1 = useParallax(-0.13), f2 = useParallax(0.16), f3 = useParallax(0.09), f4 = useParallax(-0.11);
+  const f1 = useParallax(-0.13), f2 = useParallax(0.16), f3 = useParallax(0.09), f4 = useParallax(-0.11), f5 = useParallax(0.13);
   return (
     <section id="apercu-hero" className="section on-forest" style={{ paddingTop: 'clamp(64px,8vw,104px)', paddingBottom: 100, position: 'relative', overflow: 'hidden', borderRadius: '28px 28px 0 0' }}>
       <div className="wrap" style={{ position: 'relative', zIndex: 2 }}>
@@ -786,6 +792,11 @@ function HeroPreview() {
           <div ref={f4} className="hero-float rv-slap in" style={{ position: 'absolute', right: -34, bottom: '24%', zIndex: 5, ['--r' as string]: '-3deg' }}>
             <span className="drag" data-stk><span className="stk-card stk-leaf floatA" style={{ ['--r' as string]: '0deg' }}>
               <Icon name="calendar" size={18} /><span style={{ lineHeight: 1.3 }}>{t('floatScheduled')}<br />{t('floatScheduledTime')}</span>
+            </span></span>
+          </div>
+          <div ref={f5} className="hero-float rv-slap in" style={{ position: 'absolute', right: -46, top: '44%', zIndex: 5, ['--r' as string]: '2.5deg' }}>
+            <span className="drag" data-stk><span className="stk-card stk-forest floatB" style={{ ['--r' as string]: '0deg' }}>
+              <Icon name="scissors" size={17} style={{ color: 'var(--leaf)' }} /><span>{t('floatMontage')}</span>
             </span></span>
           </div>
         </div>
@@ -870,7 +881,10 @@ function Comparison({ prelaunch = false }: { prelaunch?: boolean }) {
               </div>
               <div className="lp-row klip">
                 <span className="lp-eye"><Icon name="eye" size={17} /></span>
-                <span className="lp-logo lp-logo-brand" style={{ background: 'linear-gradient(150deg, #12503A, var(--forest))' }}><KlipLogo size={18} light /></span>
+                <span className="lp-logo">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src="/klip-media/klip-app-icon.png" alt="KLIP" width={44} height={44} />
+                </span>
                 <div style={{ minWidth: 0 }}>
                   <div className="lp-name">KLIP</div>
                   <div className="lp-use">{t('allInOne')} {KLIP_PRICE}€{t('perMonth')}</div>
@@ -1216,10 +1230,11 @@ function Features() {
           </div>
         </div>
         <div className="bento" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(216px, 1fr))', gap: 14, marginTop: 16 }}>
-          <F ic="voice" t={t('f1t')} d={t('f1d')} tone="leaf" />
+          {/* ordre validé par Martin : montage vidéo directement sous l'éditeur visuel */}
+          <F ic="scissors" t={t('f5t')} d={t('f5d')} tone="leaf" />
+          <F ic="voice" t={t('f1t')} d={t('f1d')} />
           <F ic="wand" t={t('f2t')} d={t('f2d')} />
           <F ic="layers" t={t('f3t')} d={t('f3d')} />
-          <F ic="scissors" t={t('f5t')} d={t('f5d')} tone="leaf" />
           <F ic="instagram" t={t('f4t')} d={t('f4d')} tone="forest" />
         </div>
       </div>

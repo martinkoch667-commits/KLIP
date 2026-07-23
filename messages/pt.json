@@ -91,7 +91,7 @@
       "ctaTry": "Experimentar grátis",
       "ctaWaitlist": "Entrar na lista de espera",
       "ctaSee": "Ver o KLIP em ação",
-      "floatClients": "6 clientes",
+      "floatClients": "Os teus clientes",
       "floatOneScreen": "um só ecrã",
       "floatAiCaption": "Legenda IA gerada ✓",
       "floatVisualEditor": "Editor visual",
@@ -136,7 +136,7 @@
     "showcase": {
       "title1": "Uma interface que ",
       "titleAccent": "respira.",
-      "lead": "Pensada para gerir seis marcas sem nunca as misturar. É este o aspeto de um dia de trabalho sem atritos.",
+      "lead": "Editor visual, calendário editorial, fila de publicação, edição de vídeo: as ferramentas que abres todos os dias no KLIP.",
       "editorKicker": "01 — O editor visual",
       "editorTitle": "A identidade de cada cliente, aplicada com um clique",
       "editorText": "Selecione um texto e abre-se tudo — tipo de letra, tamanho, cores da marca, efeitos, animações. A mesma potência que o Canva ou a suite Adobe, já ajustada ao seu cliente.",
