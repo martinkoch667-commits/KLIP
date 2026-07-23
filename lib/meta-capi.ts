@@ -10,7 +10,8 @@
 
 import crypto from "crypto";
 
-const PIXEL_ID = process.env.NEXT_PUBLIC_FB_PIXEL_ID || "1998010880798347";
+// Dataset "KLIP Web" (Meta) — distinct de l'ID d'app Facebook Login (1998010880798347).
+const PIXEL_ID = process.env.NEXT_PUBLIC_FB_PIXEL_ID || "1390029399657000";
 const TOKEN = process.env.META_CAPI_TOKEN;
 const API_VERSION = "v19.0";
 

@@ -3,7 +3,8 @@
 import { useEffect, useState } from "react";
 import { readConsent, writeConsent } from "./consent";
 
-const PIXEL_ID = process.env.NEXT_PUBLIC_FB_PIXEL_ID || "1998010880798347";
+// Dataset "KLIP Web" (Meta) — distinct de l'ID d'app Facebook Login (1998010880798347).
+const PIXEL_ID = process.env.NEXT_PUBLIC_FB_PIXEL_ID || "1390029399657000";
 
 // Bandeau de consentement CNIL. N'apparaît que si un traceur publicitaire est
 // configuré (Meta Pixel) et tant qu'aucun choix n'a été enregistré. Le pixel
