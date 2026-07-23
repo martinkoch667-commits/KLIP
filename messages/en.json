@@ -327,6 +327,21 @@
       "fromPrice": "From",
       "forClients": "For 6 clients",
       "ctaWaitlist": "Join the waitlist"
+    },
+    "claude": {
+      "pill": "Also works with <strong>Claude</strong>",
+      "title": "Connect KLIP to Claude",
+      "lead": "Three steps to hook KLIP up to Claude — then simply ask it to create or schedule a post.",
+      "s1Title": "Open Claude’s settings",
+      "s1Text": "Open the app or go to <strong>claude.ai</strong> and head to <strong>Settings → Connectors</strong>.",
+      "s1Link": "Settings → Connectors",
+      "s2Title": "Add a custom connector",
+      "s2Text": "Name it <strong>KLIP</strong> and paste the URL below.",
+      "copy": "Copy",
+      "copied": "Copied ✓",
+      "s3Title": "Sign in",
+      "s3Text": "Click <strong>Add → Sign in</strong>, log in with your KLIP account, and you’re set. Now ask Claude to create a post or generate a caption.",
+      "close": "Close"
     }
   },
   "dashboard": {

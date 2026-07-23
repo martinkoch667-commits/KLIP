@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import LandingView from "../landing-view";
+import LandingView from "../landing-v3";
 import { I18nProvider } from "@/lib/i18n/I18nProvider";
 import { getMessages } from "@/lib/i18n/messages";
 

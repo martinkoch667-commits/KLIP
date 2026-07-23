@@ -1,28 +1,30 @@
 import type { Metadata } from "next";
 import LandingView from "./landing-v3";
+import { I18nProvider } from "@/lib/i18n/I18nProvider";
+import { getMessages } from "@/lib/i18n/messages";
 
 export const metadata: Metadata = {
-  title: "Klip — L'outil tout-en-un pour agences qui gèrent plusieurs clients Instagram",
+  title: "Klip — The all-in-one tool for agencies managing multiple Instagram clients",
   description:
-    "Création visuelle, descriptions IA, planification et validation client. Klip réunit toute la production de contenu Instagram de vos clients dans un seul outil. Essai gratuit 7 jours.",
+    "Visual creation, AI captions, scheduling and client approval. Klip brings all your clients' Instagram content production into one tool. 7-day free trial.",
   keywords:
-    "outil community manager, gestion réseaux sociaux agence, planification instagram, validation client, plusieurs comptes instagram",
+    "community manager tool, agency social media management, instagram scheduling, client approval, multiple instagram accounts",
   authors: [{ name: "Klip" }],
   alternates: { canonical: "/" },
   openGraph: {
     type: "website",
-    locale: "fr_FR",
+    locale: "en_US",
     url: "https://getklip.fr",
     siteName: "Klip",
-    title: "Klip — Le studio social tout-en-un pour agences",
+    title: "Klip — The all-in-one social studio for agencies",
     description:
-      "Création visuelle, descriptions IA, planification et validation client — tout dans un seul outil.",
+      "Visual creation, AI captions, scheduling and client approval — all in one tool.",
     // image fournie par app/opengraph-image.tsx (route dynamique)
   },
   twitter: {
     card: "summary_large_image",
-    title: "Klip — Le studio social pour agences & community managers",
-    description: "Toute la production de contenu Instagram de vos clients dans un seul outil.",
+    title: "Klip — The social studio for agencies & community managers",
+    description: "All your clients' Instagram content production in one tool.",
   },
   robots: { index: true, follow: true },
 };
@@ -36,7 +38,7 @@ const organizationLd = {
   url: SITE,
   logo: `${SITE}/logo-klip-dark.png`,
   description:
-    "Klip est le studio social tout-en-un pour agences et community managers : éditeur visuel, légendes IA, éditeur de montage vidéo, calendrier et publication automatique Instagram.",
+    "Klip is the all-in-one social studio for agencies and community managers: visual editor, AI captions, video editing, calendar and automatic Instagram publishing.",
 };
 
 const websiteLd = {
@@ -44,7 +46,7 @@ const websiteLd = {
   "@type": "WebSite",
   name: "Klip",
   url: SITE,
-  inLanguage: ["fr", "en"],
+  inLanguage: ["en", "fr"],
   publisher: { "@type": "Organization", name: "Klip", url: SITE },
 };
 
@@ -55,17 +57,17 @@ const softwareLd = {
   applicationCategory: "BusinessApplication",
   operatingSystem: "Web",
   url: SITE,
-  inLanguage: "fr",
+  inLanguage: "en",
   description:
-    "Outil tout-en-un de création et planification de contenu Instagram pour agences de communication : éditeur visuel, descriptions IA, calendrier, validation client et publication automatique.",
+    "All-in-one Instagram content creation and scheduling tool for agencies: visual editor, AI captions, calendar, client approval and automatic publishing.",
   featureList: [
-    "Éditeur visuel de posts et carrousels",
-    "Génération de légendes par IA à la charte du client",
-    "Éditeur de montage vidéo (sous-titres, transitions, montage auto)",
-    "Calendrier éditorial et planification",
-    "Validation client par lien, sans compte",
-    "Publication automatique Instagram",
-    "Gestion multi-clients cloisonnée",
+    "Visual editor for posts and carousels",
+    "AI captions generated in each client's brand voice",
+    "Video editing (subtitles, transitions, auto assembly)",
+    "Editorial calendar and scheduling",
+    "Client approval via link, no account needed",
+    "Automatic Instagram publishing",
+    "Siloed multi-client management",
   ],
   offers: [
     { "@type": "Offer", name: "Studio", price: "35.00", priceCurrency: "EUR", category: "subscription" },
@@ -73,13 +75,13 @@ const softwareLd = {
   ],
 };
 
-// Reprend les questions/réponses réelles de la section FAQ de la landing
+// Reprend les questions/réponses réelles de la section FAQ de la landing (EN)
 const FAQ = [
-  ["Faut-il déjà avoir un compte Instagram pro ?", "Oui. Klip se connecte à un compte Instagram professionnel ou créateur via l’API officielle. La connexion prend deux minutes, par client."],
-  ["L’IA respecte-t-elle vraiment la voix de chaque marque ?", "Vous définissez le ton, le style et les mots interdits de chaque client une fois. Chaque génération s’appuie sur cette voix — vous gardez la main et peaufinez d’un clic."],
-  ["Mes clients peuvent-ils valider sans compte Klip ?", "Oui. Vous envoyez un lien de validation : le client approuve ou commente directement, sans rien installer. Fini les allers-retours par mail."],
-  ["Mes données clients sont-elles cloisonnées ?", "Chaque client a son espace : charte, historique, comptes connectés. Rien n’est mélangé entre deux marques, jamais."],
-  ["Puis-je changer d’offre en cours de route ?", "À tout moment, sans engagement. Vous montez d’un palier quand vous prenez plus de clients, et redescendez si besoin."],
+  ["Do I need to already have a pro Instagram account?", "Yes. KLIP connects to a professional or creator Instagram account via the official API. Connecting takes two minutes, per client."],
+  ["Does the AI really respect each brand’s voice?", "You define the tone, style and banned words for each client once. Every generation draws on that voice — you stay in control and refine in one click."],
+  ["Can my clients approve without a KLIP account?", "Yes. You send an approval link: the client approves or comments directly, with nothing to install. No more email back-and-forth."],
+  ["Is my client data siloed?", "Each client has its own space: brand kit, history, connected accounts. Nothing is ever mixed between two brands."],
+  ["Can I change plans along the way?", "Anytime, no commitment. You move up a tier when you take on more clients, and back down if needed."],
 ];
 
 const faqLd = {
@@ -92,6 +94,10 @@ const faqLd = {
   })),
 };
 
+// La page d'accueil est TOUJOURS en anglais (audience internationale), quel que
+// soit le cookie de langue : provider next-intl forcé en 'en' (le plus proche
+// l'emporte sur celui du layout racine). La version française en mode liste
+// d'attente vit sur /acces-anticipe.
 export default function Page() {
   return (
     <>
@@ -99,7 +105,9 @@ export default function Page() {
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(websiteLd) }} />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(softwareLd) }} />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(faqLd) }} />
-      <LandingView prelaunch />
+      <I18nProvider locale="en" messages={getMessages("en")}>
+        <LandingView />
+      </I18nProvider>
     </>
   );
 }

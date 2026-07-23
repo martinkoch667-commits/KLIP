@@ -327,6 +327,21 @@
       "fromPrice": "A partir de",
       "forClients": "Para 6 clientes",
       "ctaWaitlist": "Entrar na lista de espera"
+    },
+    "claude": {
+      "pill": "Também funciona com <strong>Claude</strong>",
+      "title": "Conectar o KLIP ao Claude",
+      "lead": "Três passos para ligar o KLIP ao Claude — depois é só pedir-lhe para criar ou agendar um post.",
+      "s1Title": "Abre as definições do Claude",
+      "s1Text": "Abre a app ou vai a <strong>claude.ai</strong> e entra em <strong>Definições → Conectores</strong>.",
+      "s1Link": "Definições → Conectores",
+      "s2Title": "Adiciona um conector personalizado",
+      "s2Text": "Chama-lhe <strong>KLIP</strong> e cola o URL abaixo.",
+      "copy": "Copiar",
+      "copied": "Copiado ✓",
+      "s3Title": "Inicia sessão",
+      "s3Text": "Clica <strong>Adicionar → Iniciar sessão</strong>, entra na tua conta KLIP e está feito. Agora pede ao Claude para criar um post ou gerar uma legenda.",
+      "close": "Fechar"
     }
   },
   "dashboard": {
