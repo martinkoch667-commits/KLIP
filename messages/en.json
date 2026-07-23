@@ -324,9 +324,9 @@
       "useMetricool": "Schedule & publish",
       "useNotion": "Track the planning",
       "useWetransfer": "Client approval",
-      "useCapcut": "Edit the videos",
       "fromPrice": "From",
-      "forClients": "For 6 clients"
+      "forClients": "For 6 clients",
+      "ctaWaitlist": "Join the waitlist"
     }
   },
   "dashboard": {

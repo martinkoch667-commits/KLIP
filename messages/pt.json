@@ -319,14 +319,14 @@
       "ctaTry": "Experimentar grátis",
       "note": "Preços médios observados, dados a título indicativo.",
       "useCanva": "Criar os visuais",
-      "useCapcut": "Editar os vídeos",
+      "useCapcut": "Montar os vídeos",
       "useChatgpt": "Escrever as legendas",
       "useMetricool": "Agendar e publicar",
       "useNotion": "Acompanhar o planeamento",
       "useWetransfer": "Validação do cliente",
-      "useCapcut": "Montar os vídeos",
       "fromPrice": "A partir de",
-      "forClients": "Para 6 clientes"
+      "forClients": "Para 6 clientes",
+      "ctaWaitlist": "Entrar na lista de espera"
     }
   },
   "dashboard": {

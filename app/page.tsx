@@ -68,7 +68,7 @@ const softwareLd = {
     "Gestion multi-clients cloisonnée",
   ],
   offers: [
-    { "@type": "Offer", name: "Studio", price: "29.00", priceCurrency: "EUR", category: "subscription" },
+    { "@type": "Offer", name: "Studio", price: "35.00", priceCurrency: "EUR", category: "subscription" },
     { "@type": "Offer", name: "Agence", price: "96.00", priceCurrency: "EUR", category: "subscription" },
   ],
 };

@@ -324,9 +324,9 @@
       "useMetricool": "Planen & veröffentlichen",
       "useNotion": "Planung verfolgen",
       "useWetransfer": "Kundenfreigabe",
-      "useCapcut": "Videos schneiden",
       "fromPrice": "Ab",
-      "forClients": "Für 6 Kunden"
+      "forClients": "Für 6 Kunden",
+      "ctaWaitlist": "Der Warteliste beitreten"
     }
   },
   "dashboard": {

@@ -6,6 +6,7 @@ import Image from 'next/image';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import { useRouter } from 'next/navigation';
 import { ConnectClaudePill } from '@/components/ConnectClaudeModal';
+import { trackLead } from '@/components/analytics/MetaPixel';
 import { gsap } from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import { Draggable } from 'gsap/Draggable';
@@ -580,8 +581,48 @@ function MarqueeBand() {
   );
 }
 
+/* ─── WaitlistInline — formulaire liste d'attente (mode accès anticipé) ──── */
+function WaitlistInline({ source = 'landing-hero' }: { source?: string }) {
+  const t = useTranslations('landing.waitlist');
+  const th = useTranslations('landing.hero');
+  const [email, setEmail] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [done, setDone] = useState(false);
+  const [error, setError] = useState('');
+  async function submit(e: React.FormEvent) {
+    e.preventDefault();
+    setError('');
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) { setError(t('errEmail')); return; }
+    setBusy(true);
+    try {
+      const src = typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('ref') || source : source;
+      const eventId = (typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID() : String(Date.now());
+      const res = await fetch('/api/waitlist', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email, source: src, eventId }) });
+      if (res.ok) { setDone(true); trackLead({ content_name: 'waitlist', source: src }, eventId); } // Lead Meta (pixel + CAPI dédupliqués)
+      else { const d = await res.json(); setError(d?.error || t('errSignup')); }
+    } catch { setError(t('errGeneric')); }
+    setBusy(false);
+  }
+  if (done) return (
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 11, color: 'var(--cream)' }}>
+      <span style={{ width: 36, height: 36, borderRadius: '50%', background: 'rgba(189,242,160,.18)', display: 'grid', placeItems: 'center', flexShrink: 0 }}><Icon name="check" size={19} style={{ color: 'var(--leaf)' }} /></span>
+      <span style={{ fontWeight: 700, fontSize: 16 }}>{t('doneTitle')}</span>
+    </div>
+  );
+  return (
+    <form onSubmit={submit} style={{ display: 'flex', gap: 10, justifyContent: 'center', flexWrap: 'wrap', maxWidth: 540, marginLeft: 'auto', marginRight: 'auto' }}>
+      <input type="email" required autoComplete="email" placeholder={t('emailPh')} value={email} onChange={e => setEmail(e.target.value)}
+        style={{ flex: 1, minWidth: 230, padding: '15px 18px', borderRadius: 999, fontSize: 16, fontFamily: 'var(--sans)', background: 'var(--forest-2)', border: '1px solid var(--line-f)', color: 'var(--cream)', outline: 'none' }} />
+      <button type="submit" disabled={busy} className="btn btn-leaf" style={{ opacity: busy ? 0.7 : 1, flexShrink: 0 }}>
+        {busy ? t('submitting') : th('ctaWaitlist')} <span className="arr"><Icon name="arrowUR" size={18} /></span>
+      </button>
+      {error && <p style={{ width: '100%', color: '#FCA5A5', fontSize: 13, margin: '2px 0 0', textAlign: 'center' }}>{error}</p>}
+    </form>
+  );
+}
+
 /* ─── Nav ────────────────────────────────────────────────────────────────── */
-function Nav() {
+function Nav({ prelaunch = false }: { prelaunch?: boolean }) {
   const t = useTranslations('landing.nav');
   const [solid, setSolid] = useState(false);
   const [open, setOpen] = useState(false);
@@ -601,7 +642,9 @@ function Nav() {
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
             <Link href="/login" className="nav-login" style={{ fontFamily: 'var(--sans)', fontSize: 13.5, fontWeight: 800, color: solid ? 'var(--ink)' : 'var(--cream)' }}>{t('login')}</Link>
-            <Link href="/register" className="btn btn-leaf btn-sm">{t('tryFree')} <span className="arr"><Icon name="arrowUR" size={15} /></span></Link>
+            {prelaunch
+              ? <a href="#waitlist" className="btn btn-leaf btn-sm">{t('waitlist')} <span className="arr"><Icon name="arrowUR" size={15} /></span></a>
+              : <Link href="/register" className="btn btn-leaf btn-sm">{t('tryFree')} <span className="arr"><Icon name="arrowUR" size={15} /></span></Link>}
             <button className="v3-mob-btn" onClick={() => setOpen(true)} aria-label="Menu">
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><path d="M3 12h18M3 6h18M3 18h18"/></svg>
             </button>
@@ -620,7 +663,9 @@ function Nav() {
           {links.map(([label, h]) => <a key={h} href={h} className="v3-mob-link" onClick={() => setOpen(false)}>{label}</a>)}
         </nav>
         <div style={{ marginTop: 'auto', display: 'flex', flexDirection: 'column', gap: 12 }}>
-          <Link href="/register" className="btn btn-leaf" style={{ justifyContent: 'center' }} onClick={() => setOpen(false)}>{t('tryFree')}</Link>
+          {prelaunch
+            ? <a href="#waitlist" className="btn btn-leaf" style={{ justifyContent: 'center' }} onClick={() => setOpen(false)}>{t('waitlist')}</a>
+            : <Link href="/register" className="btn btn-leaf" style={{ justifyContent: 'center' }} onClick={() => setOpen(false)}>{t('tryFree')}</Link>}
           <Link href="/login" className="btn btn-ghost" style={{ justifyContent: 'center', color: '#F1F0E5', boxShadow: 'inset 0 0 0 1.6px rgba(241,240,229,.3)' }} onClick={() => setOpen(false)}>{t('login')}</Link>
         </div>
       </div>
@@ -629,7 +674,7 @@ function Nav() {
 }
 
 /* ─── Hero ───────────────────────────────────────────────────────────────── */
-function Hero() {
+function Hero({ prelaunch = false }: { prelaunch?: boolean }) {
   const t = useTranslations('landing.hero');
   const accent = t('title2accent').replace(/\s*[.。]\s*$/, '');
   const flow = [{ ic: 'upload', t: t('flowImport') }, { ic: 'image', t: t('flowCompose') }, { ic: 'send', t: t('flowSchedule') }];
@@ -679,10 +724,20 @@ function Hero() {
           </div>
         </div>
 
-        <div className="h-intro hero-cta" style={{ display: 'flex', gap: 14, justifyContent: 'center', marginTop: 34, flexWrap: 'wrap' }}>
-          <Link href="/register" className="btn btn-leaf">{t('ctaTry')} <span className="arr"><Icon name="arrowUR" size={18} /></span></Link>
-          <a href="#apercu" className="btn btn-ghost">{t('ctaSee')}</a>
-        </div>
+        {prelaunch ? (
+          <div className="h-intro" style={{ marginTop: 34 }}>
+            {/* accès anticipé : saisie du mail directement dans le hero */}
+            <WaitlistInline />
+            <div style={{ display: 'flex', justifyContent: 'center', marginTop: 12 }}>
+              <a href="#apercu" className="btn btn-ghost btn-sm">{t('ctaSee')}</a>
+            </div>
+          </div>
+        ) : (
+          <div className="h-intro hero-cta" style={{ display: 'flex', gap: 14, justifyContent: 'center', marginTop: 34, flexWrap: 'wrap' }}>
+            <Link href="/register" className="btn btn-leaf">{t('ctaTry')} <span className="arr"><Icon name="arrowUR" size={18} /></span></Link>
+            <a href="#apercu" className="btn btn-ghost">{t('ctaSee')}</a>
+          </div>
+        )}
         <div className="h-intro" style={{ display: 'flex', justifyContent: 'center', marginTop: 16 }}>
           <ConnectClaudePill />
         </div>
@@ -758,7 +813,7 @@ function ToolLogo({ domain, color, name, size = 24 }: { domain: string; color: s
   return <img src={`https://www.google.com/s2/favicons?sz=128&domain=${domain}`} alt={name} width={size} height={size} loading="lazy" onError={() => setErr(true)} style={{ width: size, height: size, objectFit: 'contain' }} />;
 }
 
-function Comparison() {
+function Comparison({ prelaunch = false }: { prelaunch?: boolean }) {
   const t = useTranslations('landing.comparison');
   const useLabels: Record<string, string> = { Canva: t('useCanva'), CapCut: t('useCapcut'), ChatGPT: t('useChatgpt'), Metricool: t('useMetricool'), Notion: t('useNotion'), WeTransfer: t('useWetransfer') };
   const panelRef = useRef<HTMLDivElement>(null);
@@ -798,7 +853,9 @@ function Comparison() {
             </div>
             <p className="rv d3" style={{ fontSize: 14, color: 'var(--ink-3)', marginTop: 8 }}>{t('insteadOf', { total: STACK_TOTAL })}</p>
             <div className="rv d4" style={{ marginTop: 24 }}>
-              <Link href="/register" className="btn btn-leaf">{t('ctaTry')} <span className="arr"><Icon name="arrowUR" size={18} /></span></Link>
+              {prelaunch
+                ? <a href="#waitlist" className="btn btn-leaf">{t('ctaWaitlist')} <span className="arr"><Icon name="arrowUR" size={18} /></span></a>
+                : <Link href="/register" className="btn btn-leaf">{t('ctaTry')} <span className="arr"><Icon name="arrowUR" size={18} /></span></Link>}
             </div>
             <p className="rv d4" style={{ fontSize: 12, color: 'var(--ink-3)', marginTop: 16 }}>{t('note')}</p>
           </div>
@@ -1240,7 +1297,7 @@ async function startCheckout(plan: 'studio' | 'agence', period: 'monthly' | 'yea
 }
 
 /* ─── Pricing ────────────────────────────────────────────────────────────── */
-function Pricing() {
+function Pricing({ prelaunch = false }: { prelaunch?: boolean }) {
   const tp = useTranslations('landing.pricing');
   const [period, setPeriod] = useState<'monthly' | 'yearly'>('monthly');
   const [busy, setBusy] = useState<string | null>(null);
@@ -1284,9 +1341,15 @@ function Pricing() {
                   {period === 'yearly' ? tp('billedYear', { total: t.yearly * 12 }) : tp('billedMonth')}
                 </div>
                 <div className="chip" style={{ marginBottom: 24, background: t.pop ? 'var(--forest-2)' : 'var(--paper-3)', color: t.pop ? 'var(--cream-2)' : 'var(--ink-2)', boxShadow: 'inset 0 0 0 1px var(--line)' }}>{t.clients}</div>
-                <button onClick={() => onChoose(t.plan)} disabled={busy !== null} className={`btn ${t.pop ? 'btn-leaf' : 'btn-ghost'}`} style={{ width: '100%', justifyContent: 'center', marginBottom: 26 }}>
-                  {busy === t.plan ? tp('redirecting') : tp('ctaTrial')}
-                </button>
+                {prelaunch ? (
+                  <a href="#waitlist" className={`btn ${t.pop ? 'btn-leaf' : 'btn-ghost'}`} style={{ width: '100%', justifyContent: 'center', marginBottom: 26 }}>
+                    {tp('ctaWaitlist')}
+                  </a>
+                ) : (
+                  <button onClick={() => onChoose(t.plan)} disabled={busy !== null} className={`btn ${t.pop ? 'btn-leaf' : 'btn-ghost'}`} style={{ width: '100%', justifyContent: 'center', marginBottom: 26 }}>
+                    {busy === t.plan ? tp('redirecting') : tp('ctaTrial')}
+                  </button>
+                )}
                 <ul style={{ listStyle: 'none', display: 'flex', flexDirection: 'column', gap: 12, padding: 0, margin: 0 }}>
                   {t.feats.map((f, j) => {
                     const head = j === 0 && f.endsWith(':');
@@ -1398,10 +1461,10 @@ function AskAI() {
 }
 
 /* ─── FinalCTA ───────────────────────────────────────────────────────────── */
-function FinalCTA() {
+function FinalCTA({ prelaunch = false }: { prelaunch?: boolean }) {
   const t = useTranslations('landing.finalCta');
   return (
-    <section className="section on-forest" style={{ overflow: 'hidden', textAlign: 'center' }}>
+    <section id="waitlist" className="section on-forest" style={{ overflow: 'hidden', textAlign: 'center' }}>
       <div className="wrap" style={{ position: 'relative', zIndex: 2 }}>
         <div className="rv" style={{ position: 'relative', display: 'inline-block', maxWidth: 1000 }}>
           <span className="drag cta-stk" data-stk style={{ position: 'absolute', top: -40, left: -30, zIndex: 3 }}><Stk name="sparkle" size={54} className="spin" /></span>
@@ -1413,10 +1476,16 @@ function FinalCTA() {
           </h2>
         </div>
         <p className="lead rv d2 split-lines" style={{ maxWidth: 560, margin: '26px auto 0', fontSize: 20 }}>{t('lead')}</p>
-        <div className="rv d3 final-cta" style={{ display: 'flex', gap: 14, justifyContent: 'center', marginTop: 40, flexWrap: 'wrap' }}>
-          <Link href="/register" className="btn btn-leaf">{t('ctaStart')} <span className="arr"><Icon name="arrowUR" size={18} /></span></Link>
-          <a href="#apercu" className="btn btn-ghost">{t('ctaSee')}</a>
-        </div>
+        {prelaunch ? (
+          <div className="rv d3" style={{ marginTop: 40 }}>
+            <WaitlistInline source="landing-final" />
+          </div>
+        ) : (
+          <div className="rv d3 final-cta" style={{ display: 'flex', gap: 14, justifyContent: 'center', marginTop: 40, flexWrap: 'wrap' }}>
+            <Link href="/register" className="btn btn-leaf">{t('ctaStart')} <span className="arr"><Icon name="arrowUR" size={18} /></span></Link>
+            <a href="#apercu" className="btn btn-ghost">{t('ctaSee')}</a>
+          </div>
+        )}
       </div>
     </section>
   );
@@ -1457,11 +1526,12 @@ function Footer() {
 }
 
 /* ─── Page ───────────────────────────────────────────────────────────────── */
-export default function LandingV3() {
+export default function LandingV3({ prelaunch = false }: { prelaunch?: boolean }) {
   const supabase = createClientComponentClient();
   const router = useRouter();
 
   useEffect(() => {
+    if (prelaunch) return; // en pré-ouverture, on ne redirige pas les visiteurs connectés
     supabase.auth.getSession().then(({ data: { session } }) => { if (session) router.push('/dashboard'); });
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -1641,20 +1711,20 @@ export default function LandingV3() {
   return (
     <div className="v3">
       <style dangerouslySetInnerHTML={{ __html: V3_CSS }} />
-      <Nav />
-      <Hero />
+      <Nav prelaunch={prelaunch} />
+      <Hero prelaunch={prelaunch} />
       <MarqueeBand />
-      <Comparison />
+      <Comparison prelaunch={prelaunch} />
       <HeroPreview />
       <Probleme />
       <Steps />
       <DeckShowcase />
       <Features />
       <Testimonials />
-      <Pricing />
+      <Pricing prelaunch={prelaunch} />
       <FAQ />
       <AskAI />
-      <FinalCTA />
+      <FinalCTA prelaunch={prelaunch} />
       <Footer />
     </div>
   );

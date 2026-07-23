@@ -324,9 +324,9 @@
       "useMetricool": "Programar y publicar",
       "useNotion": "Seguir la planificación",
       "useWetransfer": "Validación del cliente",
-      "useCapcut": "Editar los vídeos",
       "fromPrice": "Desde",
-      "forClients": "Para 6 clientes"
+      "forClients": "Para 6 clientes",
+      "ctaWaitlist": "Unirme a la lista de espera"
     }
   },
   "dashboard": {
