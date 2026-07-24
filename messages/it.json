@@ -402,6 +402,12 @@
     "open": "Apri"
   },
   "workspace": {
+    "groupHint": "{count} file importati: post separati o un solo montaggio?",
+    "groupSeparate": "Post separati",
+    "groupSeparateDesc": "{count} post, uno per file",
+    "groupMontage": "Un solo montaggio",
+    "groupMontageDesc": "{count} clip in un video da montare",
+    "montageSummary": "Tutti i {count} file diventano clip dello stesso montaggio, nell’ordine di importazione. Potrai tagliarli, riordinarli e aggiungerne altri nell’editor.",
     "typePickerEyebrow": "Nuovo contenuto",
     "typePickerTitle": "Che tipo di contenuto?",
     "typePickerHint": "Scegli il formato — modificabile in seguito nella scheda o nel pianificatore.",

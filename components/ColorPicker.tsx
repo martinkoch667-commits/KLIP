@@ -46,7 +46,7 @@ function hsbToHex(h: number, s: number, b: number): string {
 const PRESETS = [
   '#14160F', '#5A5E50', '#8B8E7F', '#FFFFFF',
   '#F4F3EC', '#ECEBE1', '#0C2A1D', '#2FD79B',
-  '#C8F135', '#C8732B', '#0038FF', '#FF6B6B',
+  '#BDF2A0', '#C8732B', '#0038FF', '#FF6B6B',
 ];
 
 // ── Drag helper ───────────────────────────────────────────────────────────────

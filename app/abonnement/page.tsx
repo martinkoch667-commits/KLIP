@@ -35,7 +35,7 @@ const CSS = `
 .ab-btn{width:100%;padding:13px;margin-top:18px;border-radius:10px;cursor:pointer;border:none;
   font-family:var(--display);font-weight:800;font-size:13px;text-transform:uppercase;letter-spacing:.05em;
   background:var(--mint);color:#0C2A1D;transition:background .15s,box-shadow .15s;}
-.ab-btn:hover{background:#C8F135;box-shadow:0 4px 24px rgba(47,215,155,.3);}
+.ab-btn:hover{background:var(--leaf);box-shadow:0 4px 24px rgba(47,215,155,.3);}
 .ab-btn.ghost{background:rgba(255,255,255,.09);color:rgba(238,237,227,.9);border:1px solid rgba(255,255,255,.18);}
 .ab-note{font-size:12px;color:rgba(238,237,227,.4);text-align:center;max-width:440px;
   position:relative;z-index:1;margin-top:6px;line-height:1.5;}

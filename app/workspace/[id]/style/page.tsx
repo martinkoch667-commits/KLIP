@@ -244,7 +244,7 @@ export default function StyleTemplatePage() {
   // ── Couleurs ────────────────────────────────────────────────────────────────
   const [colorPrimary, setColorPrimary]     = useState("#0038FF");
   const [colorSecondary, setColorSecondary] = useState("#FFFFFF");
-  const [colorAccent, setColorAccent]       = useState("#C8F135");
+  const [colorAccent, setColorAccent]       = useState("#BDF2A0");
 
   // ── Assets ──────────────────────────────────────────────────────────────────
   const logoRef      = useRef<HTMLInputElement>(null);
@@ -303,7 +303,7 @@ export default function StyleTemplatePage() {
         setCaptionEx(data.caption_examples ?? "");
         setColorPrimary(data.primary_color ?? "#0038FF");
         setColorSecondary(data.secondary_color ?? "#FFFFFF");
-        setColorAccent(data.accent_color ?? "#C8F135");
+        setColorAccent(data.accent_color ?? "#BDF2A0");
         setLogoUrl(data.logo_url ?? null);
         setLogoPreview(data.logo_url ?? null);
         setBannerUrl(data.banner_url ?? null);

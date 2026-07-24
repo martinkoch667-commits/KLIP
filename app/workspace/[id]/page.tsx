@@ -34,6 +34,19 @@ function allowedPostTypes(isVideo: boolean): PostType[] {
   return isVideo ? ["reel", "story"] : ["post", "carrousel", "story"];
 }
 
+// Durée d'une vidéo à partir de son URL (métadonnées). Utilisé pour construire les plans
+// d'un montage groupé côté compositeur. Retourne 0 en cas d'échec (le montage recalculera).
+function getVideoDurationSafe(url: string): Promise<number> {
+  return new Promise((resolve) => {
+    const v = document.createElement("video");
+    v.preload = "metadata";
+    const done = (d: number) => { v.removeAttribute("src"); v.load(); resolve(d); };
+    v.onloadedmetadata = () => done(Number.isFinite(v.duration) ? v.duration : 0);
+    v.onerror = () => done(0);
+    v.src = url;
+  });
+}
+
 // Modèles éditoriaux (angle de contenu) proposés avant génération.
 const EDITORIAL_MODELS: { id: string; label: string; tKey: string; color: string; hint: string }[] = [
   { id: 'citation',  label: 'Citation',  tKey: 'emCitation',  color: '#14160F', hint: 'une phrase forte / punchline qui marque' },
@@ -66,6 +79,9 @@ interface PostItem {
   templateId?: string | null;  // template chosen BEFORE generation
   post_type?: PostType;
   thumbnail_url?: string | null;
+  // Montage groupé : plusieurs fichiers réunis dans UN seul post vidéo (plans concaténés).
+  // `file` = 1er plan (couverture) ; `groupedFiles` = tous les plans dans l'ordre.
+  groupedFiles?: File[];
 }
 
 interface Workspace {
@@ -177,42 +193,111 @@ const TYPE_ICONS: Record<PostType, React.ReactNode> = {
   ),
 };
 
-function TypePickerModal({ onConfirm, onClose }: { onConfirm: (type: PostType) => void; onClose: () => void }) {
+// Icônes du choix de regroupement (posts séparés vs montage unique).
+const GROUP_ICONS = {
+  separate: (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/>
+      <rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/>
+    </svg>
+  ),
+  montage: (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 9h20M2 15h20M7 5v14M17 5v14"/>
+    </svg>
+  ),
+};
+
+type ImportMode = 'separate' | 'montage';
+
+function TypePickerModal({ files, onSeparate, onMontage, onClose }: {
+  files: File[];
+  onSeparate: (type: PostType) => void;
+  onMontage: () => void;
+  onClose: () => void;
+}) {
   const t = useTranslations('workspace');
+  const nVideos = files.filter(f => f.type.startsWith('video/')).length;
+  const nPhotos = files.length - nVideos;
+  const multi = files.length >= 2;
+  const allVideos = files.length > 0 && nVideos === files.length;
+  // Défaut malin : tout vidéos → montage groupé ; sinon posts séparés.
+  const [mode, setMode] = useState<ImportMode>(multi && allVideos ? 'montage' : 'separate');
   const [selected, setSelected] = useState<PostType>('post');
+
+  const groupOptions: { id: ImportMode; icon: React.ReactNode; title: string; desc: string }[] = [
+    { id: 'separate', icon: GROUP_ICONS.separate, title: t('groupSeparate'), desc: t('groupSeparateDesc', { count: files.length }) },
+    { id: 'montage',  icon: GROUP_ICONS.montage,  title: t('groupMontage'),  desc: t('groupMontageDesc', { count: files.length }) },
+  ];
+
   return (
     <div style={{ position: 'fixed', inset: 0, zIndex: 9500, background: 'rgba(12,42,29,0.78)', backdropFilter: 'blur(6px)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
       onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
       <div style={{ background: 'var(--paper)', borderRadius: 'var(--r-xl)', border: '1px solid var(--line)', padding: '32px', width: 480, maxWidth: '90vw', boxShadow: '0 24px 64px rgba(12,42,29,.45)' }}>
         <p style={{ margin: '0 0 8px', fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--ink-3)', fontFamily: 'var(--mono)' }}>{t('typePickerEyebrow')}</p>
         <h2 style={{ margin: '0 0 6px', fontSize: 20, fontWeight: 800, color: 'var(--ink)', fontFamily: 'var(--display)', lineHeight: 1.2 }}>{t('typePickerTitle')}</h2>
-        <p style={{ margin: '0 0 24px', fontSize: 13, color: 'var(--ink-2)', lineHeight: 1.5 }}>{t('typePickerHint')}</p>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10, marginBottom: 28 }}>
-          {(Object.entries(POST_TYPE_CFG) as [PostType, typeof POST_TYPE_CFG[PostType]][]).map(([id, cfg]) => (
-            <button key={id} onClick={() => setSelected(id)}
-              style={{
-                padding: '22px 12px 18px',
-                borderRadius: 'var(--r)',
-                border: selected === id ? '2px solid var(--mint-2)' : '1.5px solid var(--line)',
-                background: selected === id ? 'rgba(47,215,155,0.08)' : 'var(--sunk)',
-                cursor: 'pointer',
-                display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12,
-                transition: 'border-color .15s, background .15s',
-                outline: 'none',
-              }}>
-              <span style={{ color: selected === id ? 'var(--mint-2)' : 'var(--ink-2)', display: 'flex' }}>
-                {TYPE_ICONS[id as PostType]}
-              </span>
-              <div style={{ textAlign: 'center' }}>
-                <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--ink)', fontFamily: 'var(--sans)', marginBottom: 4 }}>{t(cfg.tKey)}</div>
-                <div style={{ fontSize: 11, color: 'var(--ink-3)', fontFamily: 'var(--mono)' }}>{cfg.format}</div>
-              </div>
-            </button>
-          ))}
-        </div>
+        <p style={{ margin: '0 0 24px', fontSize: 13, color: 'var(--ink-2)', lineHeight: 1.5 }}>{multi ? t('groupHint', { count: files.length }) : t('typePickerHint')}</p>
+
+        {/* Étape 1 — regroupement (seulement pour plusieurs fichiers) */}
+        {multi && (
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: mode === 'separate' ? 18 : 28 }}>
+            {groupOptions.map((opt) => (
+              <button key={opt.id} onClick={() => setMode(opt.id)}
+                style={{
+                  padding: '16px 14px', borderRadius: 'var(--r)', textAlign: 'left',
+                  border: mode === opt.id ? '2px solid var(--mint-2)' : '1.5px solid var(--line)',
+                  background: mode === opt.id ? 'rgba(47,215,155,0.08)' : 'var(--sunk)',
+                  cursor: 'pointer', display: 'flex', flexDirection: 'column', gap: 8,
+                  transition: 'border-color .15s, background .15s', outline: 'none',
+                }}>
+                <span style={{ color: mode === opt.id ? 'var(--mint-2)' : 'var(--ink-2)', display: 'flex' }}>{opt.icon}</span>
+                <div>
+                  <div style={{ fontSize: 13.5, fontWeight: 700, color: 'var(--ink)', fontFamily: 'var(--sans)', marginBottom: 3 }}>{opt.title}</div>
+                  <div style={{ fontSize: 11.5, color: 'var(--ink-3)', lineHeight: 1.35 }}>{opt.desc}</div>
+                </div>
+              </button>
+            ))}
+          </div>
+        )}
+
+        {/* Étape 2 — type de post (posts séparés uniquement) */}
+        {mode === 'separate' && (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10, marginBottom: 28 }}>
+            {(Object.entries(POST_TYPE_CFG) as [PostType, typeof POST_TYPE_CFG[PostType]][]).map(([id, cfg]) => (
+              <button key={id} onClick={() => setSelected(id)}
+                style={{
+                  padding: '22px 12px 18px',
+                  borderRadius: 'var(--r)',
+                  border: selected === id ? '2px solid var(--mint-2)' : '1.5px solid var(--line)',
+                  background: selected === id ? 'rgba(47,215,155,0.08)' : 'var(--sunk)',
+                  cursor: 'pointer',
+                  display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12,
+                  transition: 'border-color .15s, background .15s',
+                  outline: 'none',
+                }}>
+                <span style={{ color: selected === id ? 'var(--mint-2)' : 'var(--ink-2)', display: 'flex' }}>
+                  {TYPE_ICONS[id as PostType]}
+                </span>
+                <div style={{ textAlign: 'center' }}>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--ink)', fontFamily: 'var(--sans)', marginBottom: 4 }}>{t(cfg.tKey)}</div>
+                  <div style={{ fontSize: 11, color: 'var(--ink-3)', fontFamily: 'var(--mono)' }}>{cfg.format}</div>
+                </div>
+              </button>
+            ))}
+          </div>
+        )}
+
+        {/* Récap montage */}
+        {mode === 'montage' && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '14px 16px', marginBottom: 28, borderRadius: 'var(--r)', background: 'rgba(47,215,155,0.08)', border: '1px solid var(--mint-soft)' }}>
+            <span style={{ color: 'var(--mint-2)', display: 'flex', flexShrink: 0 }}>{GROUP_ICONS.montage}</span>
+            <p style={{ fontSize: 12.5, color: 'var(--ink-2)', lineHeight: 1.45 }}>{t('montageSummary', { count: files.length })}</p>
+          </div>
+        )}
+
         <div style={{ display: 'flex', gap: 10 }}>
           <button onClick={onClose} className="btn btn-ghost" style={{ flex: 1 }}>{t('cancel')}</button>
-          <button onClick={() => onConfirm(selected)} className="btn btn-primary" style={{ flex: 2 }}>{t('continue')}</button>
+          <button onClick={() => mode === 'montage' ? onMontage() : onSeparate(selected)} className="btn btn-primary" style={{ flex: 2 }}>{t('continue')}</button>
         </div>
       </div>
     </div>
@@ -520,6 +605,26 @@ export default function WorkspacePage() {
     setPendingFiles(null);
   }
 
+  // Regroupe plusieurs fichiers en UN SEUL post vidéo (montage) : les plans seront concaténés
+  // dans l'ordre de dépôt à l'ouverture de l'éditeur montage (cf. validatePost → montage_json).
+  function createMontagePostItem(files: File[]) {
+    if (!files.length) return;
+    const cover = files[0];
+    const item: PostItem = {
+      localId: crypto.randomUUID(),
+      file: cover,
+      groupedFiles: files,
+      isVideo: true,
+      photo_url: URL.createObjectURL(cover),
+      brief: "", description: "", texte_visuel: "",
+      status: "idle" as PostStatus,
+      templateId: null,
+      post_type: "reel",
+    };
+    setPosts((prev) => [item, ...prev]);
+    setPendingFiles(null);
+  }
+
   function updatePostType(localId: string, post_type: PostType) {
     setPosts(prev => prev.map(p => p.localId === localId ? { ...p, post_type } : p));
     const post = posts.find(p => p.localId === localId);
@@ -801,7 +906,31 @@ export default function WorkspacePage() {
       if (!user) return;
       let pUrl = item.photo_url;
       let dbId = item.dbId;
-      if (item.file) {
+      // montage_json pré-rempli quand plusieurs fichiers sont réunis en un seul montage.
+      let montageJson: { clips: Record<string, unknown>[]; formatId: string } | undefined;
+
+      if (item.groupedFiles && item.groupedFiles.length > 1) {
+        // ── Montage groupé : on téléverse tous les plans et on construit la timeline ──
+        const clips: Record<string, unknown>[] = [];
+        for (const f of item.groupedFiles) {
+          const isVid = f.type.startsWith("video/");
+          const bucket = isVid ? "videos" : "photos";
+          const ext = f.name.split(".").pop() ?? (isVid ? "mp4" : "jpg");
+          const path = `${id}/${crypto.randomUUID()}.${ext}`;
+          const { error: upErr } = await supabase.storage.from(bucket).upload(path, f, { upsert: true });
+          if (upErr) continue;
+          const url = supabase.storage.from(bucket).getPublicUrl(path).data.publicUrl;
+          const dur = isVid ? (await getVideoDurationSafe(url) || 5) : 3; // fallback 5s si métadonnées illisibles
+          clips.push({
+            id: crypto.randomUUID(), kind: isVid ? "video" : "photo", name: f.name, src: url,
+            srcDur: isVid ? dur : 15, trimStart: 0, trimEnd: dur,
+            // Défauts effet/vitesse — alignés sur newClipDefaults() du module montage. Requis :
+            // normalizeClip renvoie le plan tel quel dès que trimEnd est défini, sans compléter.
+            speed: 1, filterId: "none", lum: 0, con: 0, sat: 0, transitionIn: "cut", transitionDur: 0.4, vol: 1,
+          });
+        }
+        if (clips.length) { pUrl = clips[0].src as string; montageJson = { clips, formatId: "story" }; }
+      } else if (item.file) {
         const ext = item.file.name.split(".").pop() ?? (item.isVideo ? "mp4" : "jpg");
         const path = `${id}/${crypto.randomUUID()}.${ext}`;
         const bucket = item.isVideo ? "videos" : "photos";
@@ -818,6 +947,7 @@ export default function WorkspacePage() {
           status: "validated",
           template_id: templateId ?? null,
           post_type: item.post_type ?? 'post',
+          ...(montageJson ? { montage_json: montageJson } : {}),
         }).select().single();
         if (post) dbId = post.id;
       } else {
@@ -826,6 +956,7 @@ export default function WorkspacePage() {
           description: item.description, texte_visuel: item.texte_visuel,
           status: "validated",
           ...(templateId !== undefined ? { template_id: templateId ?? null } : {}),
+          ...(montageJson ? { montage_json: montageJson } : {}),
         }).eq("id", dbId);
       }
       setPosts((prev) => prev.map((p) => p.localId === item.localId ? { ...p, dbId, photo_url: pUrl, status: "validated" } : p));
@@ -987,7 +1118,7 @@ export default function WorkspacePage() {
                     <div>
                       <div className="label" style={{ color: 'var(--mint)', marginBottom: 12 }}>{t('production')} · {workspace?.name ?? "…"}</div>
                       <h1 className="h-display" style={{ fontSize: 36, color: 'var(--cream)', maxWidth: 520 }}>
-                        {t('heroPre')}<span className="it" style={{ color: 'var(--mint)' }}>{t('heroAccent')}</span>
+                        {t('heroPre')}<span className="acc-hl">{t('heroAccent')}</span>
                       </h1>
                       <p style={{ color: 'var(--cream-2)', marginTop: 10, maxWidth: 460, fontSize: 14.5 }}>
                         {posts.length > 0
@@ -1174,7 +1305,7 @@ export default function WorkspacePage() {
                                   {workspace?.instagram_username || workspace?.name || t('clientFallback')}
                                 </span>
                                 {post.isVideo && (
-                                  <span style={{ background: 'rgba(0,0,0,.7)', color: '#fff', fontSize: 9.5, fontWeight: 700, padding: '3px 7px', borderRadius: 99, fontFamily: 'var(--mono)', backdropFilter: 'blur(4px)', letterSpacing: '.05em' }}>▶ {t('videoBadge')}</span>
+                                  <span style={{ background: 'rgba(0,0,0,.7)', color: '#fff', fontSize: 9.5, fontWeight: 700, padding: '3px 7px', borderRadius: 99, fontFamily: 'var(--mono)', backdropFilter: 'blur(4px)', letterSpacing: '.05em' }}>▶ {post.groupedFiles && post.groupedFiles.length > 1 ? `${t('videoBadge')} · ${post.groupedFiles.length}` : t('videoBadge')}</span>
                                 )}
                               </div>
                               <button onClick={() => removePost(post)}
@@ -1640,7 +1771,9 @@ export default function WorkspacePage() {
       {/* Template picker modal — post-generation (before opening editor) */}
       {pendingFiles && (
         <TypePickerModal
-          onConfirm={type => createPostItemsWithType(pendingFiles, type)}
+          files={pendingFiles}
+          onSeparate={type => createPostItemsWithType(pendingFiles, type)}
+          onMontage={() => createMontagePostItem(pendingFiles)}
           onClose={() => setPendingFiles(null)}
         />
       )}

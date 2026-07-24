@@ -1,6 +1,6 @@
 export const StarDecor = ({
   size = 24,
-  color = '#C8F135',
+  color = '#BDF2A0',
   opacity = 1,
 }: {
   size?: number;

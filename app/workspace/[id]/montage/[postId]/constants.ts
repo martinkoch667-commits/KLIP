@@ -336,7 +336,7 @@ export const SUB_STYLES: SubStyle[] = [
   //   avec une ombre portée douce → lisible sur n'importe quel fond. —
   { id: "simple",    name: "Simple",     sub: "Texte net",        bg: "transparent",         fg: "#FFFFFF", hi: "#FFFFFF", weight: 700, italic: false, pill: false },
   // — Essentiels —
-  { id: "karaoke",   name: "Karaoké",    sub: "Mot par mot",      bg: "#0C2A1D",             fg: "#EEEDE3", hi: "#C8F135", weight: 800, italic: false, pill: true },
+  { id: "karaoke",   name: "Karaoké",    sub: "Mot par mot",      bg: "#0C2A1D",             fg: "#EEEDE3", hi: "#BDF2A0", weight: 800, italic: false, pill: true },
   { id: "editorial", name: "Éditorial",  sub: "Archivo italique", bg: "transparent",         fg: "#FFFFFF", hi: "#2FD79B", weight: 800, italic: true,  pill: false },
   { id: "clean",     name: "Net",        sub: "Bandeau blanc",    bg: "#FFFFFF",             fg: "#14160F", hi: "#1F7A4D", weight: 700, italic: false, pill: false },
   { id: "mint",      name: "Menthe",     sub: "Accent KLIP",      bg: "rgba(47,215,155,.92)",fg: "#06281C", hi: "#0C2A1D", weight: 800, italic: false, pill: true },
@@ -347,19 +347,19 @@ export const SUB_STYLES: SubStyle[] = [
   { id: "bold-pink", name: "Bubblegum",  sub: "Rose contour",     bg: "transparent",         fg: "#FF5DA2", hi: "#FFFFFF", weight: 900, italic: false, pill: false, uppercase: true, stroke: "#2A0A1B" },
   { id: "bold-blue", name: "Électrique", sub: "Bleu contour",     bg: "transparent",         fg: "#4DA2FF", hi: "#FFFFFF", weight: 900, italic: false, pill: false, uppercase: true, stroke: "#08203A" },
   // — Pilules colorées —
-  { id: "pill-black",name: "Pilule noire",sub: "Fond sombre",     bg: "rgba(12,14,10,.9)",   fg: "#FFFFFF", hi: "#C8F135", weight: 800, italic: false, pill: true },
-  { id: "pill-acid", name: "Acide",      sub: "Pilule citron",    bg: "#C8F135",             fg: "#14160F", hi: "#0C2A1D", weight: 800, italic: false, pill: true, uppercase: true },
+  { id: "pill-black",name: "Pilule noire",sub: "Fond sombre",     bg: "rgba(12,14,10,.9)",   fg: "#FFFFFF", hi: "#BDF2A0", weight: 800, italic: false, pill: true },
+  { id: "pill-acid", name: "Acide",      sub: "Pilule citron",    bg: "#BDF2A0",             fg: "#14160F", hi: "#0C2A1D", weight: 800, italic: false, pill: true, uppercase: true },
   { id: "pill-coral",name: "Corail",     sub: "Pilule chaude",    bg: "#FF6B4A",             fg: "#2A0A03", hi: "#FFFFFF", weight: 800, italic: false, pill: true },
   { id: "pill-violet",name: "Violet",    sub: "Pilule mauve",     bg: "#7C5CFF",             fg: "#FFFFFF", hi: "#FFE14D", weight: 800, italic: false, pill: true },
   { id: "pill-forest",name: "Forêt",     sub: "Pilule verte",     bg: "#103A28",             fg: "#EEEDE3", hi: "#2FD79B", weight: 800, italic: false, pill: true },
   // — Bandeaux pleins —
-  { id: "band-black",name: "Bandeau noir",sub: "Bloc sombre",     bg: "#14160F",             fg: "#FFFFFF", hi: "#C8F135", weight: 700, italic: false, pill: false },
+  { id: "band-black",name: "Bandeau noir",sub: "Bloc sombre",     bg: "#14160F",             fg: "#FFFFFF", hi: "#BDF2A0", weight: 700, italic: false, pill: false },
   { id: "band-cream",name: "Crème",      sub: "Bloc clair",       bg: "#F1F0E8",             fg: "#14160F", hi: "#21B381", weight: 700, italic: false, pill: false },
   { id: "band-red",  name: "Alerte",     sub: "Bloc rouge",       bg: "#E0332E",             fg: "#FFFFFF", hi: "#FFE14D", weight: 800, italic: false, pill: false, uppercase: true },
   // — Élégants / éditoriaux —
-  { id: "serif-white",name: "Magazine",  sub: "Serif italique",   bg: "transparent",         fg: "#FFFFFF", hi: "#C8F135", weight: 400, italic: true,  pill: false, font: "'Instrument Serif', serif" },
+  { id: "serif-white",name: "Magazine",  sub: "Serif italique",   bg: "transparent",         fg: "#FFFFFF", hi: "#BDF2A0", weight: 400, italic: true,  pill: false, font: "'Instrument Serif', serif" },
   { id: "serif-cream",name: "Vintage",   sub: "Serif crème",      bg: "transparent",         fg: "#F1E9D2", hi: "#E8B14C", weight: 400, italic: true,  pill: false, font: "'Instrument Serif', serif", stroke: "#3A2A10" },
-  { id: "mono-tech", name: "Terminal",   sub: "Mono tech",        bg: "rgba(6,20,14,.86)",   fg: "#2FD79B", hi: "#C8F135", weight: 600, italic: false, pill: false, font: "var(--mono)" },
+  { id: "mono-tech", name: "Terminal",   sub: "Mono tech",        bg: "rgba(6,20,14,.86)",   fg: "#2FD79B", hi: "#BDF2A0", weight: 600, italic: false, pill: false, font: "var(--mono)" },
   // — Fun / gras —
   { id: "sunset",    name: "Sunset",     sub: "Orange contour",   bg: "transparent",         fg: "#FFB347", hi: "#FFFFFF", weight: 900, italic: false, pill: false, uppercase: true, stroke: "#3A1A00" },
   { id: "ocean",     name: "Océan",      sub: "Cyan contour",     bg: "transparent",         fg: "#3FE0E0", hi: "#FFFFFF", weight: 900, italic: false, pill: false, uppercase: true, stroke: "#052A2A" },

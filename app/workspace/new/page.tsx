@@ -168,7 +168,7 @@ export default function NewWorkspacePage() {
   // Step 3 — Identité visuelle
   const [primaryColor, setPrimaryColor] = useState("#0038FF");
   const [secondaryColor, setSecondaryColor] = useState("#FFFFFF");
-  const [accentColor, setAccentColor] = useState("#C8F135");
+  const [accentColor, setAccentColor] = useState("#BDF2A0");
   const logoRef = useRef<HTMLInputElement>(null);
   const logoDarkRef = useRef<HTMLInputElement>(null);
   const assetsRef = useRef<HTMLInputElement>(null);

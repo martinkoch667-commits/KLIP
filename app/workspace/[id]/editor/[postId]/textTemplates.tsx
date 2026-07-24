@@ -120,7 +120,7 @@ export function TextTemplateThumb({ tpl, w }: { tpl: TextTemplate; w: number }) 
 }
 
 // Raccourcis couleurs (contenu canvas — libre, dans & hors DA KLIP)
-const INK = '#14160F', FOREST = '#0C2A1D', MINT = '#2FD79B', MINT2 = '#21B381', ACID = '#C8F135', WHITE = '#FFFFFF', CREAM = '#F4EDE4';
+const INK = '#14160F', FOREST = '#0C2A1D', MINT = '#2FD79B', MINT2 = '#21B381', ACID = '#BDF2A0', WHITE = '#FFFFFF', CREAM = '#F4EDE4';
 const RED = '#FF3B3B', CORAL = '#FF5A3C', ORANGE = '#FF7A00', YELLOW = '#FFD400', LEMON = '#FEE440';
 const BLUE = '#0038FF', SKY = '#00BBF9', CYAN = '#12E1D4', PURPLE = '#9B5DE5', PINK = '#F15BB5', GOLD = '#C9A227', BROWN = '#8B5E3C';
 

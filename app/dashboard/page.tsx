@@ -676,8 +676,8 @@ export default function Dashboard() {
                   </div>
                   <h1 className="h-display" style={{ fontSize: 38, color: 'var(--cream)', maxWidth: 520 }}>
                     {active === 'all'
-                      ? <>{t('heroAllPre')}<span className="it" style={{ color: 'var(--mint)' }}>{t('heroAllAccent')}</span></>
-                      : <>{t('heroClientPre')}<span className="it" style={{ color: 'var(--mint)' }}>{clientName}.</span></>}
+                      ? <>{t('heroAllPre')}<span className="acc-hl">{t('heroAllAccent')}</span></>
+                      : <>{t('heroClientPre')}<span className="acc-hl">{clientName}.</span></>}
                   </h1>
                   <p style={{ color: 'var(--cream-2)', marginTop: 10, maxWidth: 460, fontSize: 14.5 }}>
                     {pendingPosts > 0

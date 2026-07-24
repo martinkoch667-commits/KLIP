@@ -402,6 +402,12 @@
     "open": "Open"
   },
   "workspace": {
+    "groupHint": "{count} files imported — separate posts or a single montage?",
+    "groupSeparate": "Separate posts",
+    "groupSeparateDesc": "{count} posts, one per file",
+    "groupMontage": "Single montage",
+    "groupMontageDesc": "{count} clips in one video to edit",
+    "montageSummary": "All {count} files become clips of the same montage, in the order dropped. You can trim, reorder and add more in the editor.",
     "typePickerEyebrow": "New content",
     "typePickerTitle": "What type of content?",
     "typePickerHint": "Choose the format — you can change it later in the post or the planner.",

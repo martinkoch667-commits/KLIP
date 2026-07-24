@@ -117,7 +117,7 @@ export default function ComposerPage() {
               <div style={{ position: 'relative', zIndex: 2 }}>
                 <div className="label" style={{ color: 'var(--mint)', marginBottom: 10 }}>{t('heroLabel')}</div>
                 <h1 className="h-display" style={{ fontSize: 38, color: 'var(--cream)', maxWidth: 600 }}>
-                  {t('heroTitlePre')} <span className="it" style={{ color: 'var(--mint)' }}>{t('heroTitleAccent')}</span>
+                  {t('heroTitlePre')} <span className="acc-hl">{t('heroTitleAccent')}</span>
                 </h1>
                 <p style={{ color: 'var(--cream-2)', marginTop: 10, maxWidth: 520, fontSize: 15 }}>
                   {t('heroSubtitle')}

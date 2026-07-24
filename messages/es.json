@@ -402,6 +402,12 @@
     "open": "Abrir"
   },
   "workspace": {
+    "groupHint": "{count} archivos importados: ¿publicaciones separadas o un solo montaje?",
+    "groupSeparate": "Publicaciones separadas",
+    "groupSeparateDesc": "{count} publicaciones, una por archivo",
+    "groupMontage": "Un solo montaje",
+    "groupMontageDesc": "{count} clips en un vídeo para editar",
+    "montageSummary": "Los {count} archivos se convierten en clips del mismo montaje, en el orden de importación. Podrás recortarlos, reordenarlos y añadir más en el editor.",
     "typePickerEyebrow": "Nuevo contenido",
     "typePickerTitle": "¿Qué tipo de contenido?",
     "typePickerHint": "Elige el formato — modificable después en la ficha o en el planificador.",
