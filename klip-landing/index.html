@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>KLIP — Tous vos clients. Un seul outil.</title>
+<meta name="description" content="Le studio social de tous vos clients. Éditeur visuel, calendrier, IA et publication Instagram — toutes vos marques dans un seul espace.">
+<link rel="icon" type="image/png" sizes="32x32" href="assets/images/favicon-32.png">
+
+<!-- Open Graph / partage réseaux -->
+<meta property="og:type" content="website">
+<meta property="og:title" content="KLIP — Tous vos clients. Un seul outil.">
+<meta property="og:description" content="Le studio social de tous vos clients. Toutes vos marques, un seul espace.">
+<meta property="og:image" content="assets/images/dashboard.png">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:ital,wght@0,600;0,700;0,800;0,900;1,800&family=Fraunces:ital,opsz,wght@0,9..144,600;0,9..144,700;1,9..144,600&family=Hanken+Grotesk:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<!-- ════════════ NAV ════════════ -->
+<nav id="nav">
+  <div class="nav-in">
+    <a href="#top" class="logo" aria-label="KLIP">
+      <img class="logo-mint" src="assets/images/logo-mint.png" alt="KLIP">
+      <img class="logo-dark" src="assets/images/logo-dark.png" alt="KLIP">
+    </a>
+    <div class="nav-links">
+      <a href="#probleme" class="nav-link">Le problème</a>
+      <a href="#etapes" class="nav-link">Comment ça marche</a>
+      <a href="#produit" class="nav-link">Le produit</a>
+      <a href="#tarifs" class="nav-link">Tarifs</a>
+      <a href="#faq" class="nav-link">FAQ</a>
+    </div>
+    <div class="nav-right">
+      <a href="#" class="btn btn-ghost btn-sm">Connexion</a>
+      <a href="#tarifs" class="btn btn-leaf btn-sm">Essai gratuit <span class="arr">↗</span></a>
+      <button class="mob-btn" id="mobBtn" aria-label="Menu">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+      </button>
+    </div>
+  </div>
+</nav>
+<div class="mob-menu" id="mobMenu">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px">
+    <img src="assets/images/logo-mint.png" alt="KLIP" style="height:26px;width:auto">
+    <button class="mob-btn" id="mobClose" aria-label="Fermer" style="background:rgba(241,240,229,.12);color:var(--cream)">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>
+    </button>
+  </div>
+  <a href="#probleme" class="mob-link">Le problème</a>
+  <a href="#etapes" class="mob-link">Comment ça marche</a>
+  <a href="#produit" class="mob-link">Le produit</a>
+  <a href="#tarifs" class="mob-link">Tarifs</a>
+  <a href="#faq" class="mob-link">FAQ</a>
+  <a href="#tarifs" class="btn btn-leaf" style="justify-content:center;margin-top:22px">Essai 7 jours gratuit <span class="arr">↗</span></a>
+</div>
+
+<!-- ════════════ HERO ════════════ -->
+<header class="on-forest" id="top">
+  <div class="wrap center">
+    <span class="eyebrow rv">L’outil de post-production de vos réseaux sociaux</span>
+    <h1 class="hero-h1 rv d1" style="margin-top:20px">
+      <span class="line arch">Tous vos clients.</span>
+      <span class="line">Un seul <span class="hl">outil.</span></span>
+    </h1>
+    <p class="lead rv d2" style="max-width:620px;margin:24px auto 0">
+      Un seul espace pour gérer le contenu Instagram de <b style="color:var(--cream)">tous vos clients</b> — chaque marque avec sa voix. Fini de jongler entre dix outils et d’y perdre vos soirées.
+    </p>
+    <div class="hero-flow rv d2">
+      <span class="hero-flow-chip"><span class="ic">▸</span> Importez</span>
+      <span class="hero-flow-arr">→</span>
+      <span class="hero-flow-chip"><span class="ic">▸</span> Composez &amp; rédigez</span>
+      <span class="hero-flow-arr">→</span>
+      <span class="hero-flow-chip"><span class="ic">▸</span> Programmez &amp; publiez</span>
+    </div>
+    <div class="hero-cta rv d3">
+      <a href="#tarifs" class="btn btn-leaf">Essayer gratuitement <span class="arr">↗</span></a>
+      <a href="#produit" class="btn btn-ghost">Voir KLIP en action</a>
+    </div>
+    <div class="hero-proof rv d3">
+      <span class="avatars"><span></span><span style="background:var(--mint)"></span><span style="background:var(--vio)"></span></span>
+      Rejoignez les premiers community managers qui passent à Klip
+    </div>
+
+    <!-- Capture réelle dans un cadre navigateur -->
+    <div class="win rv d4" style="max-width:1000px;margin-left:auto;margin-right:auto">
+      <div class="win-bar">
+        <span class="win-dot"></span><span class="win-dot"></span><span class="win-dot"></span>
+        <span class="win-tab">● KLIP — Éditeur</span>
+        <span style="margin-left:auto;font-size:11px;color:var(--ink-3);font-weight:700">app.getklip.fr</span>
+      </div>
+      <img class="win-shot" src="assets/images/dashboard.png" alt="Tableau de bord KLIP : tous vos clients sur un seul écran">
+    </div>
+  </div>
+</header>
+
+<!-- ════════════ MARQUEE ════════════ -->
+<div class="mqband">
+  <div class="mq" id="mq">
+    <span class="w">Créer <svg class="star" viewBox="0 0 100 100"><path d="M50 4 C56 32 68 44 96 50 C68 56 56 68 50 96 C44 68 32 56 4 50 C32 44 44 32 50 4 Z" fill="currentColor"/></svg></span>
+    <span class="w"><em>Rédiger</em> <svg class="star" viewBox="0 0 100 100"><path d="M50 4 C56 32 68 44 96 50 C68 56 56 68 50 96 C44 68 32 56 4 50 C32 44 44 32 50 4 Z" fill="currentColor"/></svg></span>
+    <span class="w">Planifier <svg class="star" viewBox="0 0 100 100"><path d="M50 4 C56 32 68 44 96 50 C68 56 56 68 50 96 C44 68 32 56 4 50 C32 44 44 32 50 4 Z" fill="currentColor"/></svg></span>
+    <span class="w"><em>Valider</em> <svg class="star" viewBox="0 0 100 100"><path d="M50 4 C56 32 68 44 96 50 C68 56 56 68 50 96 C44 68 32 56 4 50 C32 44 44 32 50 4 Z" fill="currentColor"/></svg></span>
+    <span class="w">Publier <svg class="star" viewBox="0 0 100 100"><path d="M50 4 C56 32 68 44 96 50 C68 56 56 68 50 96 C44 68 32 56 4 50 C32 44 44 32 50 4 Z" fill="currentColor"/></svg></span>
+  </div>
+</div>
+
+<!-- ════════════ PROBLÈME ════════════ -->
+<section class="section" id="probleme">
+  <div class="wrap">
+    <div class="sec-head center">
+      <span class="eyebrow rv">Le problème</span>
+      <h2 class="sec-title rv d1" style="margin-top:14px">Plus vous prenez de clients,<br><span class="acc-hl">plus vous ralentissez.</span></h2>
+      <p class="lead rv d2" style="margin-top:20px">Vous ne grandissez plus au rythme de votre talent, mais au rythme de votre logistique. Chaque nouveau client ajoute des heures de manipulation, pas de création.</p>
+    </div>
+    <div class="grid-4">
+      <div class="pain rv d1"><div class="num">01</div><h4>Quatre outils ouverts</h4><p>Canva, Notes, le tableur de planning, l’app Instagram. Vous copiez-collez toute la journée.</p></div>
+      <div class="pain rv d2"><div class="num">02</div><h4>Des soirées à rattraper</h4><p>Le contenu déborde sur vos week-ends. Plus vous prenez de clients, plus vous coulez.</p></div>
+      <div class="pain rv d3"><div class="num">03</div><h4>Une voix par client, à la main</h4><p>Vous gardez le ton de chaque marque en tête. Une erreur, et c’est le client qui le voit.</p></div>
+      <div class="pain rv d4"><div class="num">04</div><h4>La validation par mail</h4><p>Allers-retours interminables, captures d’écran, versions perdues. Le post sort en retard.</p></div>
+    </div>
+    <div class="stat-bar rv">
+      <span class="stat-num">−11h</span>
+      <p>par semaine et par gestionnaire, englouties à jongler entre les outils plutôt qu’à créer. C’est un client de plus que vous ne prenez pas.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ════════════ ÉTAPES ════════════ -->
+<section class="section" id="etapes" style="background:var(--paper-2)">
+  <div class="wrap">
+    <div class="sec-head center">
+      <span class="eyebrow rv">Comment ça marche</span>
+      <h2 class="sec-title rv d1" style="margin-top:14px">Du contenu brut au post publié,<br><span class="acc-hl">sans changer d’outil.</span></h2>
+      <p class="lead rv d2" style="margin-top:20px">KLIP réunit toute la post-production de vos réseaux : importez vos prises de vue, composez vos visuels, laissez l’IA écrire, programmez. Pour chaque client, sans jamais quitter l’outil.</p>
+    </div>
+    <div class="grid-4">
+      <div class="step rv d1"><span class="n">01</span><h4>Importez vos médias</h4><p>Déposez les photos et vidéos d’un client — tout votre matériel réuni au même endroit.</p></div>
+      <div class="step rv d2"><span class="n">02</span><h4>Composez &amp; retouchez</h4><p>Créez vos visuels ou retravaillez vos imports dans l’éditeur intégré, type Canva. La charte du client est déjà appliquée.</p></div>
+      <div class="step rv d3"><span class="n">03</span><h4>Rédigez avec l’IA</h4><p>Légendes, descriptions et hashtags générés depuis l’image et la voix de marque du client.</p></div>
+      <div class="step rv d4"><span class="n">04</span><h4>Programmez &amp; publiez</h4><p>Calez sur le calendrier, faites valider, KLIP publie sur Instagram — pour chacun de vos clients.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- ════════════ PRODUIT ════════════ -->
+<section class="section" id="produit">
+  <div class="wrap">
+    <div class="sec-head center">
+      <span class="eyebrow rv">Le produit</span>
+      <h2 class="sec-title rv d1" style="margin-top:14px">Une interface qui <span class="acc-hl">respire.</span></h2>
+      <p class="lead rv d2" style="margin-top:20px">Éditeur visuel, calendrier éditorial, file de publication, montage vidéo : voilà les outils que vous ouvrez chaque jour dans KLIP.</p>
+    </div>
+
+    <div class="deck-card rv">
+      <div class="deck-copy">
+        <span class="deck-num">01 — L’éditeur visuel</span>
+        <h3>La charte de chaque client, appliquée d’un clic</h3>
+        <p>Sélectionnez un texte et tout s’ouvre — police, taille, couleurs de la charte, effets, animations. La même puissance que Canva ou la suite Adobe, déjà calée sur votre client.</p>
+        <div class="tags"><span class="chip">Charte par client</span><span class="chip">Glisser-déposer</span><span class="chip">Calé au pixel</span></div>
+      </div>
+      <div class="deck-visual"><img src="assets/images/editeur.png" alt="Éditeur visuel KLIP pour composer un post Instagram aux couleurs du client"></div>
+    </div>
+
+    <div class="deck-card flip rv">
+      <div class="deck-copy">
+        <span class="deck-num">02 — Calendrier éditorial</span>
+        <h3>Calendrier éditorial</h3>
+        <p>Tous les posts de tous vos clients sur une seule grille. Glissez pour replanifier, repérez les trous, gardez le rythme — sans tableur.</p>
+        <div class="tags"><span class="chip">Glisser-déposer</span><span class="chip">Vue mois / semaine</span><span class="chip">Multi-clients</span></div>
+      </div>
+      <div class="deck-visual"><img src="assets/images/calendrier.png" alt="Calendrier éditorial KLIP : tous les posts de tous vos clients"></div>
+    </div>
+
+    <div class="deck-card rv">
+      <div class="deck-copy">
+        <span class="deck-num">03 — File de publication</span>
+        <h3>File de publication</h3>
+        <p>Vos comptes Instagram connectés. Vous validez, KLIP publie au créneau prévu — plus besoin de rouvrir l’app ni de poster à la main.</p>
+        <div class="tags"><span class="chip">Auto-publication</span><span class="chip">Validation client</span><span class="chip">Créneaux</span></div>
+      </div>
+      <div class="deck-visual"><img src="assets/images/publication.png" alt="File de publication KLIP : validation et publication automatique"></div>
+    </div>
+
+    <div class="deck-card flip rv">
+      <div class="deck-copy">
+        <span class="deck-num">04 — Montage vidéo</span>
+        <h3>Montage vidéo</h3>
+        <p>Un éditeur vidéo type CapCut, intégré : timeline multi-pistes, coupe, sous-titres automatiques, assemblage en un clic. Vos Reels se montent ici, sans exporter ni abonnement en plus.</p>
+        <div class="tags"><span class="chip">Sous-titres auto</span><span class="chip">Assemblage IA</span><span class="chip">Tous formats</span></div>
+      </div>
+      <div class="deck-visual"><img src="assets/images/montage.png" alt="Éditeur de montage vidéo KLIP type CapCut, intégré"></div>
+    </div>
+  </div>
+</section>
+
+<!-- ════════════ COMPARATIF ════════════ -->
+<section class="section" style="background:var(--paper-2)">
+  <div class="wrap">
+    <div class="sec-head center">
+      <span class="eyebrow rv">Un seul abonnement</span>
+      <h2 class="sec-title rv d1" style="margin-top:14px">Ce qu’il fallait dix outils pour faire,<br><span class="acc-hl">KLIP le fait d’un trait.</span></h2>
+    </div>
+    <div class="cmp rv">
+      <div class="cmp-row klip">
+        <span class="cmp-logo" style="background:var(--leaf-ink);color:var(--leaf)">K</span>
+        <div><div class="nm">KLIP</div><div class="us">Tout-en-un · 35€/mois</div></div>
+        <span class="cmp-cost">35€</span>
+      </div>
+      <div class="cmp-row"><span class="cmp-logo" style="background:#00C4CC">C</span><div><div class="nm">Canva Pro</div><div class="us">Création de visuels</div></div><span class="cmp-cost strike">~12€</span></div>
+      <div class="cmp-row"><span class="cmp-logo" style="background:#10A37F">AI</span><div><div class="nm">Assistant IA</div><div class="us">Rédaction des légendes</div></div><span class="cmp-cost strike">~20€</span></div>
+      <div class="cmp-row"><span class="cmp-logo" style="background:#111">Cc</span><div><div class="nm">CapCut Pro</div><div class="us">Montage des Reels</div></div><span class="cmp-cost strike">~10€</span></div>
+      <div class="cmp-row"><span class="cmp-logo" style="background:#E1306C">P</span><div><div class="nm">Outil de planning</div><div class="us">Programmation Instagram</div></div><span class="cmp-cost strike">~15€</span></div>
+      <div class="cmp-total"><span>Une pile d’outils</span><span class="cmp-cost strike" style="margin-left:auto">~57€/mois</span></div>
+    </div>
+    <p class="center" style="margin-top:22px;color:var(--ink-3);font-size:13.5px">Coûts indicatifs d’une pile d’outils classique. Avec KLIP, tout est réuni pour 35€/mois.</p>
+  </div>
+</section>
+
+<!-- ════════════ TARIFS ════════════ -->
+<section class="section" id="tarifs">
+  <div class="wrap">
+    <div class="sec-head center">
+      <span class="eyebrow rv">Tarifs</span>
+      <h2 class="sec-title rv d1" style="margin-top:14px">Un prix qui grandit <span class="acc-hl">avec vous.</span></h2>
+      <p class="lead rv d2" style="margin-top:20px">7 jours d’essai gratuit. Vous changez d’offre quand vous voulez.</p>
+    </div>
+    <div class="center rv">
+      <div class="toggle">
+        <button class="on" data-period="monthly">Mensuel</button>
+        <button data-period="yearly">Annuel <span class="save">2 mois offerts</span></button>
+      </div>
+    </div>
+    <div class="price-grid">
+      <div class="plan rv d1">
+        <div class="pname">Studio</div>
+        <div class="ptag">Freelances &amp; community managers</div>
+        <div class="amount"><b><span class="amt" data-m="35" data-y="29">35</span>€</b><span>/mois</span></div>
+        <div class="billed" data-bm="facturé chaque mois" data-by="soit 348€ facturés par an">facturé chaque mois</div>
+        <div class="clients" style="margin-top:20px">Jusqu’à 6 clients</div>
+        <ul>
+          <li><span class="ck">✓</span> Éditeur visuel complet</li>
+          <li><span class="ck">✓</span> Descriptions IA illimitées</li>
+          <li><span class="ck">✓</span> Calendrier éditorial</li>
+          <li><span class="ck">✓</span> Publication Instagram &amp; Facebook</li>
+          <li><span class="ck">✓</span> Montage vidéo intégré</li>
+          <li><span class="ck">✓</span> 1 utilisateur</li>
+        </ul>
+        <a href="#" class="btn btn-ghost" style="width:100%;justify-content:center">Essai 7 jours gratuit</a>
+      </div>
+      <div class="plan pop rv d2">
+        <span class="pop-tag">Le plus choisi</span>
+        <div class="pname">Agence</div>
+        <div class="ptag">Agences &amp; studios de communication</div>
+        <div class="amount"><b><span class="amt" data-m="96" data-y="80">96</span>€</b><span>/mois</span></div>
+        <div class="billed" data-bm="facturé chaque mois" data-by="soit 960€ facturés par an">facturé chaque mois</div>
+        <div class="clients" style="margin-top:20px">Jusqu’à 12 clients</div>
+        <ul>
+          <li><span class="ck">✓</span> Tout Studio, plus :</li>
+          <li><span class="ck">✓</span> Jusqu’à 5 membres d’équipe</li>
+          <li><span class="ck">✓</span> Workflow de validation client</li>
+          <li><span class="ck">✓</span> Rôles Manager &amp; Créa</li>
+          <li><span class="ck">✓</span> Création en lot</li>
+        </ul>
+        <a href="#" class="btn btn-leaf" style="width:100%;justify-content:center">Essai 7 jours gratuit <span class="arr">↗</span></a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ════════════ TÉMOIGNAGES ════════════ -->
+<section class="section on-forest">
+  <div class="wrap">
+    <div class="sec-head center" style="margin-bottom:40px">
+      <span class="eyebrow rv">Témoignages</span>
+      <h2 class="sec-title rv d1" style="margin-top:14px">Le calme, <span class="acc-hl">retrouvé.</span></h2>
+    </div>
+    <div class="big-q rv">
+      <p>« KLIP m’a fait gagner un temps fou. Tout est au même endroit — j’ai arrêté de jongler entre dix outils. »</p>
+      <div class="who"><b>Camille R.</b> · Directrice de création · Studio Klein</div>
+    </div>
+    <div class="testi-grid">
+      <div class="testi rv d1"><p>« Avec les outils intégrés, je ne jongle plus entre les chartes de chaque client. Tout est déjà en place. »</p><div class="who"><b>Yanis B.</b> · Social media manager</div></div>
+      <div class="testi rv d2"><p>« Un espace par client, ça change tout : rien ne se mélange, tout reste clair. »</p><div class="who"><b>Léa M.</b> · Freelance · contenu de marque</div></div>
+    </div>
+  </div>
+</section>
+
+<!-- ════════════ FAQ ════════════ -->
+<section class="section" id="faq">
+  <div class="wrap">
+    <div class="sec-head center">
+      <span class="eyebrow rv">FAQ</span>
+      <h2 class="sec-title rv d1" style="margin-top:14px">Les questions <span class="acc-hl">qu’on nous pose.</span></h2>
+    </div>
+    <div class="faq-list rv">
+      <div class="faq-item"><button class="faq-q">Faut-il déjà avoir un compte Instagram pro ? <span class="pm">+</span></button><div class="faq-a"><p>Oui. KLIP se connecte à un compte Instagram professionnel ou créateur via l’API officielle. La connexion prend deux minutes, par client.</p></div></div>
+      <div class="faq-item"><button class="faq-q">L’IA respecte-t-elle vraiment la voix de chaque marque ? <span class="pm">+</span></button><div class="faq-a"><p>Vous définissez le ton, le style et les mots interdits de chaque client une fois. Chaque génération s’appuie sur cette voix — vous gardez la main et peaufinez d’un clic.</p></div></div>
+      <div class="faq-item"><button class="faq-q">Mes clients peuvent-ils valider sans compte KLIP ? <span class="pm">+</span></button><div class="faq-a"><p>Oui. Vous envoyez un lien de validation : le client approuve ou commente directement, sans rien installer. Fini les allers-retours par mail.</p></div></div>
+      <div class="faq-item"><button class="faq-q">Mes données clients sont-elles cloisonnées ? <span class="pm">+</span></button><div class="faq-a"><p>Chaque client a son espace : charte, historique, comptes connectés. Rien n’est mélangé entre deux marques, jamais.</p></div></div>
+      <div class="faq-item"><button class="faq-q">Puis-je changer d’offre en cours de route ? <span class="pm">+</span></button><div class="faq-a"><p>À tout moment, sans engagement. Vous montez d’un palier quand vous prenez plus de clients, et redescendez si besoin.</p></div></div>
+      <div class="faq-item"><button class="faq-q">Le montage vidéo est-il inclus ? <span class="pm">+</span></button><div class="faq-a"><p>Oui, dans toutes les offres. L’éditeur vidéo intégré — type CapCut — gère la coupe, les sous-titres automatiques et l’assemblage en un clic. Aucun logiciel ni abonnement en plus.</p></div></div>
+    </div>
+    <p class="center" style="margin-top:34px;color:var(--ink-2)">Une autre en tête ? <a href="#" style="color:var(--mint-2);font-weight:800">Écrivez-nous.</a></p>
+  </div>
+</section>
+
+<!-- ════════════ CTA FINAL ════════════ -->
+<section class="section">
+  <div class="wrap">
+    <div class="final on-forest rv">
+      <span class="eyebrow">Prêt·e ?</span>
+      <h2 style="margin-top:14px">Reprenez vos<br><span class="hl">soirées.</span></h2>
+      <p class="lead">Tous vos clients, toutes vos marques, un seul espace. Essayez KLIP gratuitement pendant 7 jours.</p>
+      <div class="hero-cta" style="margin-top:34px">
+        <a href="#tarifs" class="btn btn-leaf">Essayer gratuitement <span class="arr">↗</span></a>
+        <a href="#produit" class="btn btn-ghost">Voir KLIP en action</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ════════════ FOOTER ════════════ -->
+<footer>
+  <div class="wrap">
+    <div class="foot-grid">
+      <div class="foot-col">
+        <span class="foot-logo"><img src="assets/images/logo-mint.png" alt="KLIP"></span>
+        <p class="foot-tag">Le studio social de tous vos clients. Toutes vos marques, un seul espace.</p>
+      </div>
+      <div class="foot-col">
+        <h5>Produit</h5>
+        <a href="#produit">Éditeur visuel</a>
+        <a href="#produit">Calendrier</a>
+        <a href="#tarifs">Tarifs</a>
+        <a href="#faq">FAQ</a>
+      </div>
+      <div class="foot-col">
+        <h5>Ressources</h5>
+        <a href="#">Blog</a>
+        <a href="#etapes">Comment ça marche</a>
+        <a href="#probleme">Le problème</a>
+        <a href="#">Connexion</a>
+      </div>
+      <div class="foot-col">
+        <h5>Légal</h5>
+        <a href="#">Mentions légales</a>
+        <a href="#">CGU / CGV</a>
+        <a href="#">Confidentialité</a>
+        <a href="#">Cookies</a>
+      </div>
+    </div>
+    <div class="foot-bot">
+      <span>© 2026 KLIP — Tous droits réservés.</span>
+      <span>Conçu pour tous ceux qui gèrent plusieurs marques.</span>
+    </div>
+  </div>
+</footer>
+
+<script src="js/main.js"></script>
+</body>
+</html>
