@@ -8,6 +8,7 @@ import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
 import Sidebar from "@/components/Sidebar";
 import VoiceButton from "@/components/VoiceButton";
 import NotificationBell from "@/components/NotificationBell";
+import { Sticker } from "@/components/Stickers";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -1114,6 +1115,9 @@ export default function WorkspacePage() {
                 <div style={{ position: 'relative', borderRadius: 'var(--r-xl)', overflow: 'hidden', padding: '30px 32px', marginBottom: 16, background: 'linear-gradient(120deg, #0A2418 0%, var(--forest) 48%, #103A28 100%)', color: 'var(--cream)' }}>
                   <div className="halo-blob" style={{ width: 300, height: 300, right: -70, top: -150, background: 'var(--mint)', opacity: .42 }} />
                   <div className="halo-blob" style={{ width: 220, height: 220, right: 180, bottom: -150, background: 'var(--acid)', opacity: .28 }} />
+                  {/* stickers décoratifs (coins, derrière le contenu z:2) */}
+                  <Sticker name="bolt" size={40} float="B" style={{ position: 'absolute', top: 16, right: 22, zIndex: 1, ['--r' as string]: '10deg' }} />
+                  <Sticker name="smiley" size={34} float="A" style={{ position: 'absolute', bottom: 16, left: 26, zIndex: 1, ['--r' as string]: '-6deg' }} />
                   <div className="ws-hero-grid" style={{ position: 'relative', zIndex: 2, display: 'grid', gridTemplateColumns: '1fr auto', gap: 28, alignItems: 'center' }}>
                     <div>
                       <div className="label" style={{ color: 'var(--mint)', marginBottom: 12 }}>{t('production')} · {workspace?.name ?? "…"}</div>

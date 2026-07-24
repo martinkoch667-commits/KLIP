@@ -4,11 +4,12 @@ import { useState, Suspense } from "react";
 import { useTranslations } from "next-intl";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
+import { Sticker } from "@/components/Stickers";
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
 
 const AUTH_CSS = `
   .auth-wrap{min-height:100vh;display:flex;align-items:center;justify-content:center;background:var(--canvas);padding:24px;}
-  .auth-card{width:100%;max-width:440px;background:#fff;border-radius:16px;box-shadow:0 8px 32px rgba(0,0,0,.08);padding:40px;}
+  .auth-card{position:relative;width:100%;max-width:440px;background:#fff;border-radius:16px;box-shadow:0 8px 32px rgba(0,0,0,.08);padding:40px;}
   .auth-logo{display:block;height:40px;width:auto;margin:0 auto 32px;}
   .auth-title{font-family:var(--display);font-weight:800;font-size:24px;text-transform:uppercase;color:var(--forest);letter-spacing:-.01em;margin-bottom:6px;}
   .auth-sub{font-size:13px;color:rgba(20,22,15,.6);margin-bottom:28px;}
@@ -147,6 +148,10 @@ export default function LoginPage() {
     <main className="auth-wrap">
       <style dangerouslySetInnerHTML={{ __html: AUTH_CSS }} />
       <div className="auth-card">
+        {/* stickers die-cut qui débordent des coins de la carte */}
+        <Sticker name="sparkle" size={52} float="spin" style={{ position: 'absolute', top: -26, left: -22, zIndex: 3 }} />
+        <Sticker name="eyes" size={60} float="B" style={{ position: 'absolute', top: -30, right: -20, zIndex: 3 }} />
+        <Sticker name="heart" size={46} float="A" style={{ position: 'absolute', bottom: -24, right: -16, zIndex: 3, ['--r' as string]: '8deg' }} />
         <Link href="/" style={{ display: 'block', textAlign: 'center' }}>
           <img src="/logo-klip-dark.png" alt="Klip" className="auth-logo" />
         </Link>

@@ -334,6 +334,18 @@ img { display: block; max-width: 100%; }
 .mark { background: var(--leaf); color: var(--leaf-ink); padding: 0 .12em; border-radius: 5px; box-decoration-break: clone; -webkit-box-decoration-break: clone; }
 /* Mot accent surligné en Oaks dans un titre Archivo — règle typo signature de la DA landing v3. */
 .acc-hl { font-family: var(--oaks); font-weight: 700; text-transform: none; letter-spacing: -.01em; background: var(--leaf); color: var(--leaf-ink); border-radius: 12px; padding: .02em .18em .09em; box-decoration-break: clone; -webkit-box-decoration-break: clone; }
+
+/* ── Stickers décoratifs (die-cut, repris de la landing v3) ──────────────────── */
+.stk { filter: drop-shadow(0 8px 16px rgba(16,19,11,.18)); pointer-events: none; user-select: none; }
+.stk-eyes-pupils { transform-origin: center; animation: stk-blink 4.6s ease-in-out infinite; }
+@keyframes stk-floatA { 0%, 100% { transform: translateY(0) rotate(var(--r, 0deg)); } 50% { transform: translateY(-12px) rotate(calc(var(--r, 0deg) + 3deg)); } }
+@keyframes stk-floatB { 0%, 100% { transform: translateY(0) rotate(var(--r, 0deg)); } 50% { transform: translateY(-8px) rotate(calc(var(--r, 0deg) - 3deg)); } }
+@keyframes stk-spin { to { transform: rotate(360deg); } }
+@keyframes stk-blink { 0%, 42%, 48%, 100% { transform: scaleY(1); } 45% { transform: scaleY(.12); } }
+.stk-floatA { animation: stk-floatA 7s ease-in-out infinite; }
+.stk-floatB { animation: stk-floatB 6s ease-in-out infinite; }
+.stk-spin { animation: stk-spin 16s linear infinite; transform-origin: center; }
+@media (prefers-reduced-motion: reduce) { .stk-floatA, .stk-floatB, .stk-spin, .stk-eyes-pupils { animation: none !important; } }
 .halo-blob { position: absolute; border-radius: 50%; filter: blur(36px); pointer-events: none; }
 .tile-accent { position: relative; overflow: hidden; }
 .tile-accent::after { content: ""; position: absolute; width: 90px; height: 90px; border-radius: 50%; right: -30px; bottom: -34px; background: radial-gradient(circle, var(--mint), transparent 70%); opacity: .16; pointer-events: none; }
