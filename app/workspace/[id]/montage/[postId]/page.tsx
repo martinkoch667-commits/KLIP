@@ -198,10 +198,12 @@ function peaksFromSamples(samples: Float32Array): number[] {
 // Style de sous-titres dérivé de la charte du client : surlignage du mot actif dans la
 // couleur d'accent de la marque, sur une base lisible (contour noir, texte blanc).
 // Appliqué par défaut aux montages jamais personnalisés → sous-titres déjà à la charte.
-function charterSubDefault(ws: { accent_color?: string | null } | null | undefined): { styleId: string; custom: SubCustom } | null {
+function charterSubDefault(ws: { accent_color?: string | null; subtitle_style_id?: string | null } | null | undefined): { styleId: string; custom: SubCustom } | null {
   const acc = ws?.accent_color;
   if (!acc || !/^#([0-9a-fA-F]{3,8})$/.test(acc)) return null;
-  return { styleId: "bold-white", custom: { hi: acc } };
+  // Style choisi à la création du client (template de sous-titres) ; défaut historique = bold-white.
+  const styleId = SUB_STYLES.some((s) => s.id === ws?.subtitle_style_id) ? (ws!.subtitle_style_id as string) : "bold-white";
+  return { styleId, custom: { hi: acc } };
 }
 
 const PHOTO_DEFAULT_DUR = 3;
@@ -576,10 +578,15 @@ export default function MontagePage() {
   // ── Load project ──────────────────────────────────────────────────────────
   useEffect(() => {
     (async () => {
-      const [{ data: post }, { data: ws }] = await Promise.all([
+      const [{ data: post }, wsRes] = await Promise.all([
         supabase.from("posts").select("montage_json, brief, photo_url").eq("id", postId).single(),
-        supabase.from("workspaces").select("logo_url, accent_color").eq("id", workspaceId).single(),
+        supabase.from("workspaces").select("logo_url, accent_color, subtitle_style_id").eq("id", workspaceId).single(),
       ]);
+      // Tolérant : si subtitle_style_id n'est pas encore migré, on relit sans la colonne.
+      let ws = wsRes.data;
+      if (wsRes.error && (wsRes.error.message || "").includes("subtitle_style_id")) {
+        ws = (await supabase.from("workspaces").select("logo_url, accent_color").eq("id", workspaceId).single()).data as typeof ws;
+      }
       if (post?.brief) setProjectName(post.brief);
       if (ws?.logo_url) setLogoUrl(ws.logo_url);
       const charterSub = charterSubDefault(ws); // sous-titres à la charte (surlignage = accent)

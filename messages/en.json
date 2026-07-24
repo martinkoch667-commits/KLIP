@@ -909,6 +909,8 @@
     "step3Title": "Visual identity",
     "step3Subtitle": "Brand colors, logos and graphic assets.",
     "brandColorsLabel": "Brand colors",
+    "subtitleTemplateLabel": "Subtitle template",
+    "subtitleTemplateHint": "The default style for subtitles in your video edits — the highlighted word uses your accent color.",
     "colorPrimary": "Primary",
     "colorSecondary": "Secondary",
     "colorAccent": "Accent",
@@ -1324,6 +1326,7 @@
       "satoshi": "Sans"
     },
     "subStyleName": {
+      "simple": "Simple",
       "karaoke": "Karaoke",
       "editorial": "Editorial",
       "clean": "Clean",
@@ -1350,6 +1353,7 @@
       "candy": "Candy"
     },
     "subStyleSub": {
+      "simple": "Clean text",
       "karaoke": "Word by word",
       "editorial": "Italic Archivo",
       "clean": "White band",

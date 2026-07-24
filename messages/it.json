@@ -909,6 +909,8 @@
     "step3Title": "Identità visiva",
     "step3Subtitle": "Colori, loghi e risorse grafiche del brand.",
     "brandColorsLabel": "Colori del brand",
+    "subtitleTemplateLabel": "Modello di sottotitoli",
+    "subtitleTemplateHint": "Lo stile predefinito dei sottotitoli nei tuoi montaggi video — la parola evidenziata usa il tuo colore d'accento.",
     "colorPrimary": "Principale",
     "colorSecondary": "Secondario",
     "colorAccent": "Accento",
@@ -1324,6 +1326,7 @@
       "satoshi": "Sans"
     },
     "subStyleName": {
+      "simple": "Semplice",
       "karaoke": "Karaoke",
       "editorial": "Editoriale",
       "clean": "Pulito",
@@ -1350,6 +1353,7 @@
       "candy": "Caramella"
     },
     "subStyleSub": {
+      "simple": "Testo pulito",
       "karaoke": "Parola per parola",
       "editorial": "Archivo corsivo",
       "clean": "Fascia bianca",

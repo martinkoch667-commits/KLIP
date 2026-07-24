@@ -11,7 +11,7 @@ alter table workspaces add column if not exists words_to_avoid text;
 -- Note: tone, caption_examples already exist
 
 -- Étape 3 — Identité visuelle
-alter table workspaces add column if not exists accent_color   text default '#C8F135';
+alter table workspaces add column if not exists accent_color   text default '#BDF2A0';
 alter table workspaces add column if not exists logo_dark_url  text;
 alter table workspaces add column if not exists brand_assets   jsonb default '[]'::jsonb;
 -- brand_assets: JSON array of public URLs, max 5

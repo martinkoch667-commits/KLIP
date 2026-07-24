@@ -4,6 +4,24 @@ import { createClient } from "@supabase/supabase-js";
 import { cookies } from "next/headers";
 import { getPlan } from "@/lib/plans";
 
+// Colonnes optionnelles pas forcément migrées : si l'insert échoue parce que la
+// colonne n'existe pas encore (PostgREST PGRST204 / Postgres 42703), on la retire
+// et on réessaie — la création de client ne casse jamais faute de migration.
+const SOFT_COLUMNS = ["subtitle_style_id"] as const;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function insertWorkspace(client: any, payload: Record<string, unknown>) {
+  const p = { ...payload };
+  for (let i = 0; i <= SOFT_COLUMNS.length; i++) {
+    const res = await client.from("workspaces").insert(p).select().single();
+    if (!res.error) return res;
+    const msg = res.error.message || "";
+    const missing = SOFT_COLUMNS.find((c) => c in p && msg.includes(c));
+    if (!missing) return res;
+    delete p[missing];
+  }
+  return await client.from("workspaces").insert(p).select().single();
+}
+
 export async function POST(request: NextRequest) {
   try {
     // ── 1. Auth check ────────────────────────────────────────────────────────
@@ -36,6 +54,7 @@ export async function POST(request: NextRequest) {
       "primary_color", "secondary_color", "accent_color",
       "logo_url", "logo_dark_url", "brand_assets", "brand_icon_url",
       "font_family", "font_primary_url", "font_secondary", "font_secondary_url",
+      "subtitle_style_id",
     ] as const;
     for (const field of optionalFields) {
       if (body[field] !== undefined) payload[field] = body[field];
@@ -70,11 +89,7 @@ export async function POST(request: NextRequest) {
     if (!supabaseUrl || !serviceKey) {
       console.error("[workspace/create] Missing SUPABASE env vars — falling back to user client");
       // Fallback: use user-scoped client (will fail if RLS blocks)
-      const { data, error } = await supabase
-        .from("workspaces")
-        .insert(payload)
-        .select()
-        .single();
+      const { data, error } = await insertWorkspace(supabase, payload);
 
       if (error) {
         console.error("[workspace/create] user-client insert error:", {
@@ -92,11 +107,7 @@ export async function POST(request: NextRequest) {
       auth: { persistSession: false, autoRefreshToken: false },
     });
 
-    const { data, error } = await admin
-      .from("workspaces")
-      .insert(payload)
-      .select()
-      .single();
+    const { data, error } = await insertWorkspace(admin, payload);
 
     if (error) {
       console.error("[workspace/create] admin insert error:", {

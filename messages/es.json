@@ -909,6 +909,8 @@
     "step3Title": "Identidad visual",
     "step3Subtitle": "Colores, logos y recursos gráficos de la marca.",
     "brandColorsLabel": "Colores de marca",
+    "subtitleTemplateLabel": "Plantilla de subtítulos",
+    "subtitleTemplateHint": "El estilo predeterminado de los subtítulos en tus montajes de vídeo — la palabra resaltada usa tu color de acento.",
     "colorPrimary": "Principal",
     "colorSecondary": "Secundario",
     "colorAccent": "Acento",
@@ -1324,6 +1326,7 @@
       "satoshi": "Sans"
     },
     "subStyleName": {
+      "simple": "Simple",
       "karaoke": "Karaoke",
       "editorial": "Editorial",
       "clean": "Limpio",
@@ -1350,6 +1353,7 @@
       "candy": "Caramelo"
     },
     "subStyleSub": {
+      "simple": "Texto limpio",
       "karaoke": "Palabra por palabra",
       "editorial": "Archivo cursiva",
       "clean": "Banda blanca",
