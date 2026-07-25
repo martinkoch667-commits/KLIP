@@ -48,7 +48,10 @@ export function clipTimelineDur(c: MontageClip): number {
 export function clipAudioGainAt(c: MontageClip, localT: number): number {
   const base = c.vol ?? 1;
   const dur = clipTimelineDur(c);
-  const fi = c.audioFadeIn ?? 0, fo = c.audioFadeOut ?? 0;
+  // Le son suit la transition vidéo (comme CapCut) : si aucun fondu audio n'est
+  // réglé à la main, une transition d'entrée entraîne un fondu audio de même durée.
+  const autoFade = c.transitionIn && c.transitionIn !== "cut" ? Math.max(0, c.transitionDur || 0) : 0;
+  const fi = c.audioFadeIn ?? autoFade, fo = c.audioFadeOut ?? 0;
   let m = 1;
   if (fi > 0) m = Math.min(m, localT / fi);
   if (fo > 0) m = Math.min(m, (dur - localT) / fo);
@@ -438,17 +441,32 @@ export const FILTERS: { id: string; name: string; css: string }[] = [
 
 export const TRANSITIONS: { id: string; name: string; glyph: string }[] = [
   { id: "cut", name: "Cut", glyph: "▮▮" },
+  // — Fondus —
   { id: "fade", name: "Fondu", glyph: "◐" },
+  { id: "fadeblack", name: "Fondu au noir", glyph: "◼" },
+  { id: "flash", name: "Flash", glyph: "✦" },
+  // — Glissés —
   { id: "slide", name: "Glissé", glyph: "⇥" },
+  { id: "slideright", name: "Glissé droite", glyph: "⇤" },
   { id: "slideup", name: "Glissé haut", glyph: "⇧" },
   { id: "slidedown", name: "Glissé bas", glyph: "⇩" },
+  // — Zooms —
   { id: "zoom", name: "Zoom avant", glyph: "⊕" },
   { id: "zoomout", name: "Zoom arrière", glyph: "⊖" },
-  { id: "spin", name: "Rotation", glyph: "↻" },
+  { id: "bounce", name: "Rebond", glyph: "◎" },
+  // — Balayages —
   { id: "wipe", name: "Balayage", glyph: "◑" },
+  { id: "wiperight", name: "Balayage ←", glyph: "◐" },
+  { id: "wipeup", name: "Balayage ↑", glyph: "◒" },
+  { id: "wipedown", name: "Balayage ↓", glyph: "◓" },
+  { id: "iris", name: "Iris", glyph: "◉" },
+  // — Dynamiques —
+  { id: "spin", name: "Rotation", glyph: "↻" },
+  { id: "swirl", name: "Tourbillon", glyph: "✺" },
   { id: "blur", name: "Flou", glyph: "◌" },
   { id: "whip", name: "Whip", glyph: "⤳" },
-  { id: "flash", name: "Flash", glyph: "✦" },
+  { id: "shake", name: "Secousse", glyph: "≋" },
+  { id: "glitch", name: "Glitch", glyph: "⌁" },
 ];
 
 export const SPEEDS = [0.25, 0.5, 1, 1.5, 2];

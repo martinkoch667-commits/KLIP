@@ -525,7 +525,10 @@
     "linkCopied": "Lien copié",
     "copyLink": "Copier le lien",
     "fileTooLarge5": "Fichier trop volumineux (max 5 MB)",
-    "fileTooLarge10": "Fichier trop volumineux (max 10 MB)"
+    "fileTooLarge10": "Fichier trop volumineux (max 10 MB)",
+    "videoNotesLabel": "Notes (optionnel)",
+    "videoNotesPh": "Idées, angle, infos utiles — pour plus tard.",
+    "videoCaptionLaterHint": "La légende s’écrit après le montage, quand on sait ce que la vidéo raconte."
   },
   "planning": {
     "bestTime": "Meilleur moment pour publier",
@@ -1333,7 +1336,17 @@
       "zoomout": "Zoom arrière",
       "spin": "Rotation",
       "whip": "Whip",
-      "flash": "Flash"
+      "flash": "Flash",
+      "fadeblack": "Fondu au noir",
+      "slideright": "Glissé droite",
+      "bounce": "Rebond",
+      "wiperight": "Balayage ←",
+      "wipeup": "Balayage ↑",
+      "wipedown": "Balayage ↓",
+      "iris": "Iris",
+      "swirl": "Tourbillon",
+      "shake": "Secousse",
+      "glitch": "Glitch"
     },
     "subLength": {
       "one": "1 mot",
@@ -1695,7 +1708,13 @@
     "manualCaptionTitle": "Sous-titres personnalisés",
     "manualCaptionDesc": "Créez vos propres sous-titres à la main : ajoutez un bloc au curseur, tapez votre texte, réglez sa durée et son style.",
     "createCaption": "Créer un sous-titre",
-    "createSubTemplateDesc": "Personnalisez le style ci-dessus, donnez-lui un nom et enregistrez-le : vous créez votre propre modèle de sous-titre, réutilisable sur tous vos montages."
+    "createSubTemplateDesc": "Personnalisez le style ci-dessus, donnez-lui un nom et enregistrez-le : vous créez votre propre modèle de sous-titre, réutilisable sur tous vos montages.",
+    "captionAi": "Légende IA",
+    "captionAiBusy": "Rédaction…",
+    "captionAiRedo": "Regénérer la légende",
+    "captionAiTitle": "Rédige la légende à partir de la vidéo montée et de la transcription",
+    "toastCaptionDone": "Légende générée ✦",
+    "toastCaptionError": "Génération de la légende impossible"
   },
   "forgotPassword": {
     "title": "Mot de passe oublié",

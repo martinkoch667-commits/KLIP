@@ -525,7 +525,10 @@
     "linkCopied": "Link copied",
     "copyLink": "Copy link",
     "fileTooLarge5": "File too large (max 5 MB)",
-    "fileTooLarge10": "File too large (max 10 MB)"
+    "fileTooLarge10": "File too large (max 10 MB)",
+    "videoNotesLabel": "Notes (optional)",
+    "videoNotesPh": "Ideas, angle, useful info — for later.",
+    "videoCaptionLaterHint": "The caption is written after editing, once we know what the video says."
   },
   "planning": {
     "bestTime": "Best time to post",
@@ -1333,7 +1336,17 @@
       "zoomout": "Zoom out",
       "spin": "Spin",
       "whip": "Whip",
-      "flash": "Flash"
+      "flash": "Flash",
+      "fadeblack": "Fade to black",
+      "slideright": "Slide right",
+      "bounce": "Bounce",
+      "wiperight": "Wipe ←",
+      "wipeup": "Wipe ↑",
+      "wipedown": "Wipe ↓",
+      "iris": "Iris",
+      "swirl": "Swirl",
+      "shake": "Shake",
+      "glitch": "Glitch"
     },
     "subLength": {
       "one": "1 word",
@@ -1695,7 +1708,13 @@
     "manualCaptionTitle": "Custom subtitles",
     "manualCaptionDesc": "Create your own subtitles by hand: add a block at the playhead, type your text, set its timing and style.",
     "createCaption": "Create a subtitle",
-    "createSubTemplateDesc": "Customize the style above, give it a name and save it: you create your own reusable subtitle template for all your edits."
+    "createSubTemplateDesc": "Customize the style above, give it a name and save it: you create your own reusable subtitle template for all your edits.",
+    "captionAi": "AI caption",
+    "captionAiBusy": "Writing…",
+    "captionAiRedo": "Regenerate caption",
+    "captionAiTitle": "Writes the caption from the edited video and its transcript",
+    "toastCaptionDone": "Caption generated ✦",
+    "toastCaptionError": "Could not generate the caption"
   },
   "forgotPassword": {
     "title": "Forgot password",

@@ -525,7 +525,10 @@
     "linkCopied": "Link copiato",
     "copyLink": "Copia il link",
     "fileTooLarge5": "File troppo grande (max 5 MB)",
-    "fileTooLarge10": "File troppo grande (max 10 MB)"
+    "fileTooLarge10": "File troppo grande (max 10 MB)",
+    "videoNotesLabel": "Note (facoltativo)",
+    "videoNotesPh": "Idee, angolo, info utili — per dopo.",
+    "videoCaptionLaterHint": "La didascalia si scrive dopo il montaggio, quando sappiamo cosa racconta il video."
   },
   "planning": {
     "bestTime": "Momento migliore per pubblicare",
@@ -1333,7 +1336,17 @@
       "zoomout": "Rimpicciolisci",
       "spin": "Rotazione",
       "whip": "Whip",
-      "flash": "Flash"
+      "flash": "Flash",
+      "fadeblack": "Dissolvenza al nero",
+      "slideright": "Scorri a destra",
+      "bounce": "Rimbalzo",
+      "wiperight": "Tendina ←",
+      "wipeup": "Tendina ↑",
+      "wipedown": "Tendina ↓",
+      "iris": "Iris",
+      "swirl": "Vortice",
+      "shake": "Scossa",
+      "glitch": "Glitch"
     },
     "subLength": {
       "one": "1 parola",
@@ -1695,7 +1708,13 @@
     "manualCaptionTitle": "Sottotitoli personalizzati",
     "manualCaptionDesc": "Crea i tuoi sottotitoli a mano: aggiungi un blocco al cursore, scrivi il testo e regola durata e stile.",
     "createCaption": "Crea un sottotitolo",
-    "createSubTemplateDesc": "Personalizza lo stile qui sopra, dagli un nome e salvalo: crei il tuo modello di sottotitoli riutilizzabile."
+    "createSubTemplateDesc": "Personalizza lo stile qui sopra, dagli un nome e salvalo: crei il tuo modello di sottotitoli riutilizzabile.",
+    "captionAi": "Didascalia IA",
+    "captionAiBusy": "Scrittura…",
+    "captionAiRedo": "Rigenera didascalia",
+    "captionAiTitle": "Scrive la didascalia dal video montato e dalla trascrizione",
+    "toastCaptionDone": "Didascalia generata ✦",
+    "toastCaptionError": "Impossibile generare la didascalia"
   },
   "forgotPassword": {
     "title": "Password dimenticata",

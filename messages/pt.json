@@ -525,7 +525,10 @@
     "linkCopied": "Link copiado",
     "copyLink": "Copiar o link",
     "fileTooLarge5": "Ficheiro demasiado grande (máx 5 MB)",
-    "fileTooLarge10": "Ficheiro demasiado grande (máx 10 MB)"
+    "fileTooLarge10": "Ficheiro demasiado grande (máx 10 MB)",
+    "videoNotesLabel": "Notas (opcional)",
+    "videoNotesPh": "Ideias, ângulo, informação útil — para depois.",
+    "videoCaptionLaterHint": "A legenda escreve-se após a montagem, quando sabemos o que o vídeo conta."
   },
   "planning": {
     "bestTime": "Melhor momento para publicar",
@@ -1333,7 +1336,17 @@
       "zoomout": "Afastar",
       "spin": "Rotação",
       "whip": "Whip",
-      "flash": "Flash"
+      "flash": "Flash",
+      "fadeblack": "Fundido a preto",
+      "slideright": "Deslizar direita",
+      "bounce": "Ressalto",
+      "wiperight": "Varrimento ←",
+      "wipeup": "Varrimento ↑",
+      "wipedown": "Varrimento ↓",
+      "iris": "Íris",
+      "swirl": "Remoinho",
+      "shake": "Tremor",
+      "glitch": "Glitch"
     },
     "subLength": {
       "one": "1 palavra",
@@ -1695,7 +1708,13 @@
     "manualCaptionTitle": "Legendas personalizadas",
     "manualCaptionDesc": "Cria as tuas próprias legendas à mão: adiciona um bloco no cursor, escreve o texto e ajusta a duração e o estilo.",
     "createCaption": "Criar uma legenda",
-    "createSubTemplateDesc": "Personaliza o estilo acima, dá-lhe um nome e guarda-o: crias o teu próprio modelo de legendas reutilizável."
+    "createSubTemplateDesc": "Personaliza o estilo acima, dá-lhe um nome e guarda-o: crias o teu próprio modelo de legendas reutilizável.",
+    "captionAi": "Legenda IA",
+    "captionAiBusy": "A redigir…",
+    "captionAiRedo": "Regerar legenda",
+    "captionAiTitle": "Escreve a legenda a partir do vídeo montado e da transcrição",
+    "toastCaptionDone": "Legenda gerada ✦",
+    "toastCaptionError": "Não foi possível gerar a legenda"
   },
   "forgotPassword": {
     "title": "Esqueceu a palavra-passe",

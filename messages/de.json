@@ -525,7 +525,10 @@
     "linkCopied": "Link kopiert",
     "copyLink": "Link kopieren",
     "fileTooLarge5": "Datei zu groß (max. 5 MB)",
-    "fileTooLarge10": "Datei zu groß (max. 10 MB)"
+    "fileTooLarge10": "Datei zu groß (max. 10 MB)",
+    "videoNotesLabel": "Notizen (optional)",
+    "videoNotesPh": "Ideen, Blickwinkel, nützliche Infos — für später.",
+    "videoCaptionLaterHint": "Die Caption entsteht nach dem Schnitt, wenn klar ist, was das Video erzählt."
   },
   "planning": {
     "bestTime": "Beste Zeit zum Posten",
@@ -1333,7 +1336,17 @@
       "zoomout": "Auszoomen",
       "spin": "Drehung",
       "whip": "Whip",
-      "flash": "Blitz"
+      "flash": "Blitz",
+      "fadeblack": "Schwarzblende",
+      "slideright": "Nach rechts",
+      "bounce": "Sprung",
+      "wiperight": "Wischen ←",
+      "wipeup": "Wischen ↑",
+      "wipedown": "Wischen ↓",
+      "iris": "Iris",
+      "swirl": "Wirbel",
+      "shake": "Wackeln",
+      "glitch": "Glitch"
     },
     "subLength": {
       "one": "1 Wort",
@@ -1695,7 +1708,13 @@
     "manualCaptionTitle": "Eigene Untertitel",
     "manualCaptionDesc": "Erstelle eigene Untertitel von Hand: Block an der Abspielposition hinzufügen, Text eingeben, Dauer und Stil festlegen.",
     "createCaption": "Untertitel erstellen",
-    "createSubTemplateDesc": "Passe den Stil oben an, benenne ihn und speichere ihn: So erstellst du deine eigene wiederverwendbare Untertitel-Vorlage."
+    "createSubTemplateDesc": "Passe den Stil oben an, benenne ihn und speichere ihn: So erstellst du deine eigene wiederverwendbare Untertitel-Vorlage.",
+    "captionAi": "KI-Caption",
+    "captionAiBusy": "Wird geschrieben…",
+    "captionAiRedo": "Caption neu erzeugen",
+    "captionAiTitle": "Schreibt die Caption aus dem fertigen Video und dessen Transkript",
+    "toastCaptionDone": "Caption erstellt ✦",
+    "toastCaptionError": "Caption konnte nicht erzeugt werden"
   },
   "forgotPassword": {
     "title": "Passwort vergessen",

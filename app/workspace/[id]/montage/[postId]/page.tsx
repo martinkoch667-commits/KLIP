@@ -298,6 +298,9 @@ export default function MontagePage() {
   const [transcribing, setTranscribing] = useState(false);
   const [croppingClipId, setCroppingClipId] = useState<string | null>(null);
   const [assembling, setAssembling] = useState(false);
+  // Légende générée en fin de montage (cf. generateCaptionAI).
+  const [captioning, setCaptioning] = useState(false);
+  const [caption, setCaption] = useState<string | null>(null);
   const [cuttingSilence, setCuttingSilence] = useState(false);
   const [processingVoice, setProcessingVoice] = useState<string | null>(null); // id de la piste audio en cours de traitement voix
   const [generatingDesc, setGeneratingDesc] = useState(false);
@@ -1445,6 +1448,44 @@ export default function MontagePage() {
     }
   }
 
+  // ── Légende : écrite À LA FIN, une fois le montage terminé ──────────────────
+  // Avant montage on ne sait pas ce que la vidéo raconte ; ici on dispose du
+  // rendu réel (frames échantillonnées) et de la transcription (sous-titres).
+  async function generateCaptionAI() {
+    if (captioning || !clips.length) return;
+    setCaptioning(true);
+    try {
+      // 4 images réparties sur la timeline montée + la transcription.
+      const picks = [0.1, 0.35, 0.6, 0.85].map((p) => p * Math.max(0.1, total));
+      const frames = (await Promise.all(picks.map(async (tAt) => {
+        const c = clipStarts.find((cc) => tAt >= cc.start && tAt < cc.end) ?? clipStarts[0];
+        if (!c) return null;
+        try { return await grabFrame(c.src, c.kind, c.kind === "video" ? c.trimStart + Math.max(0, tAt - c.start) : 0); }
+        catch { return null; }
+      }))).filter(Boolean) as string[];
+
+      const spoken = captions.map((c) => c.text).join(" ").trim();
+      const res = await fetch("/api/generate-description", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          brief: projectName || t('defaultProjectName'),
+          frames,
+          workspaceId,
+          context: spoken ? `Transcription de la vidéo : ${spoken.slice(0, 1500)}` : undefined,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data?.description) { toast(data?.error || t('toastCaptionError')); return; }
+      await supabase.from("posts").update({ description: data.description, status: "generated" }).eq("id", postId);
+      setCaption(data.description);
+      toast(t('toastCaptionDone'));
+    } catch {
+      toast(t('toastCaptionError'));
+    } finally {
+      setCaptioning(false);
+    }
+  }
+
   async function autoAssembleAI() {
     if (assembling) return;
     if (clips.length < 2) { toast(t('toastNeedTwoClips')); return; }
@@ -2556,6 +2597,12 @@ export default function MontagePage() {
           <a href={exportUrl} target="_blank" rel="noreferrer" className="btn btn-sm btn-ghost" style={{ gap: 5, textDecoration: "none" }}>
             <VIcon name="eye" size={15} /> {t('viewExport')}
           </a>
+        )}
+        {/* La légende s'écrit ICI, une fois la vidéo montée — pas au compositeur. */}
+        {exportUrl && (
+          <button onClick={generateCaptionAI} disabled={captioning} className="btn btn-sm btn-ghost" style={{ gap: 5 }} title={t('captionAiTitle')}>
+            <VIcon name="sparkles" size={15} /> {captioning ? t('captionAiBusy') : caption ? t('captionAiRedo') : t('captionAi')}
+          </button>
         )}
         {exportUrl && (
           <a href={`/workspace/${workspaceId}/planning?post=${postId}`} className="btn btn-sm btn-dark" style={{ gap: 5, textDecoration: "none" }}>

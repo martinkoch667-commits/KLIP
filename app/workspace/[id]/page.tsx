@@ -785,7 +785,7 @@ export default function WorkspacePage() {
   }
 
   async function generateAll() {
-    const toGenerate = posts.filter((p) => p.brief.trim() && p.status === "idle");
+    const toGenerate = posts.filter((p) => !p.isVideo && p.brief.trim() && p.status === "idle");
     if (!toGenerate.length) return;
     setGeneratingAll(true);
     await Promise.all(toGenerate.map(generateOne));
@@ -1051,7 +1051,9 @@ export default function WorkspacePage() {
   // ── Derived ───────────────────────────────────────────────────────────────
 
   const initials = workspace ? getInitials(workspace.name) : "…";
-  const postsReadyToGenerate = posts.filter((p) => p.brief.trim() && p.status === "idle");
+  // Les vidéos n'entrent PAS dans la génération de texte : la légende s'écrit une fois
+  // le montage terminé (on ne sait pas encore ce que la vidéo raconte avant de la monter).
+  const postsReadyToGenerate = posts.filter((p) => !p.isVideo && p.brief.trim() && p.status === "idle");
 
   return (
     <div style={{ display: 'flex', minHeight: '100vh', background: 'var(--canvas)' }}>
@@ -1434,7 +1436,7 @@ export default function WorkspacePage() {
                                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
                                     <span className="label" style={{ margin: 0, display: 'flex', alignItems: 'center', gap: 5 }}>
                                       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
-                                      {t('brief')}
+                                      {post.isVideo ? t('videoNotesLabel') : t('brief')}
                                     </span>
                                     <VoiceButton value={post.brief} onChange={(v) => updateBrief(post.localId, v)} />
                                   </div>
@@ -1442,11 +1444,18 @@ export default function WorkspacePage() {
                                     value={post.brief}
                                     onChange={(e) => updateBrief(post.localId, e.target.value)}
                                     onBlur={() => saveBrief(post)}
-                                    placeholder={t('briefPh')}
-                                    rows={3}
+                                    placeholder={post.isVideo ? t('videoNotesPh') : t('briefPh')}
+                                    rows={post.isVideo ? 2 : 3}
                                     className="input"
                                     style={{ resize: 'none' }}
                                   />
+                                  {/* La légende d'une vidéo s'écrit APRÈS le montage : avant, on ne sait
+                                      pas encore ce que la vidéo raconte. */}
+                                  {post.isVideo && (
+                                    <p style={{ fontSize: 11.5, color: 'var(--ink-3)', margin: '6px 0 0', lineHeight: 1.45 }}>
+                                      {t('videoCaptionLaterHint')}
+                                    </p>
+                                  )}
                                 </div>
                                 <div>
                                   <p className="label" style={{ marginBottom: 4 }}>{t('postContext')}</p>

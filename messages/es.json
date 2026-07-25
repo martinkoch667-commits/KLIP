@@ -525,7 +525,10 @@
     "linkCopied": "Enlace copiado",
     "copyLink": "Copiar el enlace",
     "fileTooLarge5": "Archivo demasiado grande (máx 5 MB)",
-    "fileTooLarge10": "Archivo demasiado grande (máx 10 MB)"
+    "fileTooLarge10": "Archivo demasiado grande (máx 10 MB)",
+    "videoNotesLabel": "Notas (opcional)",
+    "videoNotesPh": "Ideas, enfoque, información útil — para después.",
+    "videoCaptionLaterHint": "La leyenda se escribe tras el montaje, cuando ya sabemos qué cuenta el vídeo."
   },
   "planning": {
     "bestTime": "Mejor momento para publicar",
@@ -1333,7 +1336,17 @@
       "zoomout": "Alejar",
       "spin": "Rotación",
       "whip": "Whip",
-      "flash": "Flash"
+      "flash": "Flash",
+      "fadeblack": "Fundido a negro",
+      "slideright": "Deslizar derecha",
+      "bounce": "Rebote",
+      "wiperight": "Barrido ←",
+      "wipeup": "Barrido ↑",
+      "wipedown": "Barrido ↓",
+      "iris": "Iris",
+      "swirl": "Remolino",
+      "shake": "Sacudida",
+      "glitch": "Glitch"
     },
     "subLength": {
       "one": "1 palabra",
@@ -1695,7 +1708,13 @@
     "manualCaptionTitle": "Subtítulos personalizados",
     "manualCaptionDesc": "Crea tus propios subtítulos a mano: añade un bloque en el cursor, escribe tu texto y ajusta su duración y estilo.",
     "createCaption": "Crear un subtítulo",
-    "createSubTemplateDesc": "Personaliza el estilo de arriba, dale un nombre y guárdalo: creas tu propia plantilla de subtítulos reutilizable."
+    "createSubTemplateDesc": "Personaliza el estilo de arriba, dale un nombre y guárdalo: creas tu propia plantilla de subtítulos reutilizable.",
+    "captionAi": "Leyenda IA",
+    "captionAiBusy": "Redactando…",
+    "captionAiRedo": "Regenerar leyenda",
+    "captionAiTitle": "Redacta la leyenda a partir del vídeo montado y su transcripción",
+    "toastCaptionDone": "Leyenda generada ✦",
+    "toastCaptionError": "No se pudo generar la leyenda"
   },
   "forgotPassword": {
     "title": "Contraseña olvidada",
