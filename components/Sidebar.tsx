@@ -200,9 +200,9 @@ export default function Sidebar({ workspaces: _w, userName: _u, activeWorkspaceI
             <Link key={ws.id} href={`/workspace/${ws.id}`} className={`nav-item${isActive ? " active" : ""}`} style={{ padding: "7px 10px", textDecoration: "none" }}>
               {logoSrc ? (
                 // eslint-disable-next-line @next/next/no-img-element
-                <img src={logoSrc} alt={ws.name} style={{ width: 26, height: 26, borderRadius: 7, objectFit: "contain", flexShrink: 0, background: "#fff", padding: 3, outline: isActive ? "2px solid var(--mint)" : "none" }} />
+                <img src={logoSrc} alt={ws.name} style={{ width: 26, height: 26, borderRadius: 7, objectFit: "contain", flexShrink: 0, background: "#fff", padding: 3, outline: isActive ? "2px solid var(--leaf)" : "none" }} />
               ) : (
-                <span style={{ width: 26, height: 26, borderRadius: 7, background: isActive ? "var(--mint-ink)" : color, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, fontWeight: 800, color: "#fff", fontFamily: "var(--mono)", letterSpacing: "0.02em", flexShrink: 0 }}>
+                <span style={{ width: 26, height: 26, borderRadius: 7, background: isActive ? "var(--leaf-ink)" : color, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, fontWeight: 800, color: "#fff", fontFamily: "var(--mono)", letterSpacing: "0.02em", flexShrink: 0 }}>
                   {wsInitials}
                 </span>
               )}
@@ -218,7 +218,7 @@ export default function Sidebar({ workspaces: _w, userName: _u, activeWorkspaceI
         href="/workspace/new"
         className="sb-full"
         style={{ display: "flex", alignItems: "center", gap: 10, padding: "9px 12px", borderRadius: "var(--r-s)", color: "var(--cream-3)", fontSize: 13, fontWeight: 600, border: "1px dashed var(--cream-4)", transition: "all 0.15s", textDecoration: "none", marginTop: 4 }}
-        onMouseEnter={e => { e.currentTarget.style.borderColor = "var(--mint)"; e.currentTarget.style.color = "var(--mint)"; }}
+        onMouseEnter={e => { e.currentTarget.style.borderColor = "var(--leaf)"; e.currentTarget.style.color = "var(--leaf)"; }}
         onMouseLeave={e => { e.currentTarget.style.borderColor = "var(--cream-4)"; e.currentTarget.style.color = "var(--cream-3)"; }}
       >
         <IconPlus />

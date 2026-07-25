@@ -258,7 +258,7 @@ export function TextPanel({ ctx, selectedTitleId }: { ctx: MontageCtx; selectedT
           <div className="a-section">
             <span className="mz-sec-label">{t('color')}</span>
             <div className="mz-swrow">
-              {["#FFFFFF", "#0C2A1D", "#2FD79B", "#C8F135", "#1F7A4D", "#14160F"].map((col) => (
+              {["#FFFFFF", "#0C2A1D", "#2FD79B", "#BDF2A0", "#1F7A4D", "#14160F"].map((col) => (
                 <button key={col} className={"mz-sw" + (tt.color === col ? " on" : "")} style={{ background: col }} onClick={() => ctx.updateTitle(tt.id, { color: col })} />
               ))}
             </div>

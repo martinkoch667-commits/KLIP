@@ -8,6 +8,7 @@ import { ConnectClaudeModal } from "@/components/ConnectClaudeModal";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import Link from "next/link";
 import Sidebar from "@/components/Sidebar";
+import { Sticker } from "@/components/Stickers";
 import { resetOnboardingTour } from "@/components/OnboardingTour";
 import { resetOnboardingChecklist } from "@/components/OnboardingChecklist";
 import { useAccountType } from "@/hooks/useAccountType";
@@ -979,6 +980,7 @@ function BillingTab({ accountType }: { accountType: string }) {
       {/* Subscription hero */}
       <div style={{ position: 'relative', borderRadius: 'var(--r-xl)', overflow: 'hidden', padding: '24px 26px', marginBottom: 16, background: 'linear-gradient(120deg,#0A2418,var(--forest) 55%,#103A28)', color: 'var(--cream)' }}>
         <div className="halo-blob" style={{ width: 240, height: 240, right: -60, top: -130, background: 'var(--mint)', opacity: .4 }} />
+        <Sticker name="at" size={38} float="B" style={{ position: 'absolute', top: 14, right: 22, zIndex: 1, ['--r' as string]: '6deg' }} />
         <div style={{ position: 'relative', zIndex: 2, display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 20, flexWrap: 'wrap' }}>
           <div>
             <div className="label" style={{ color: 'var(--mint)', marginBottom: 8 }}>Votre abonnement</div>

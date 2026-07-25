@@ -158,7 +158,7 @@ const HANDLE_BASE: React.CSSProperties = {
   position: 'absolute',
   width: 13, height: 13,
   background: '#FFFFFF',
-  border: '1.5px solid #8B5CF6',
+  border: '1.5px solid var(--vio)',
   borderRadius: '50%',
   boxShadow: '0 1px 3px rgba(13,15,10,.22)',
   pointerEvents: 'auto',
@@ -448,7 +448,7 @@ export default function SelectionOverlay({ el, stageRef, onChange, onDragEnd, zo
       {/* Selection border */}
       <div style={{
         position: 'absolute', inset: 0,
-        border: '2px solid #8B5CF6',
+        border: '2px solid var(--vio)',
         borderRadius: 3,
         boxShadow: '0 0 0 1px rgba(255,255,255,.5)',
         background: 'transparent',
@@ -460,7 +460,7 @@ export default function SelectionOverlay({ el, stageRef, onChange, onDragEnd, zo
         position: 'absolute',
         left: '50%', bottom: -26,
         width: 2, height: 26,
-        background: '#8B5CF6',
+        background: 'var(--vio)',
         transform: 'translateX(-50%)',
         pointerEvents: 'none',
       }} />

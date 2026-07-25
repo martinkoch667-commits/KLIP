@@ -20,7 +20,6 @@ interface Post {
 }
 
 const WS_COLORS = ["#7B5CF5","#2FD79B","#C8732B","#5A86E8","#DD2A7B","#88B394","#E8A03A","#4A8DD4"];
-const POST_TYPE_COLOR: Record<string, string> = { post:"#4F8EF7", reel:"#A259FF", story:"#FF6B35" };
 
 // Noms de mois / jours localisés dérivés de la locale active (via Intl) — évite
 // de maintenir des tableaux traduits à la main pour les dates.

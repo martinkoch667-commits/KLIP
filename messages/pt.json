@@ -402,6 +402,12 @@
     "open": "Abrir"
   },
   "workspace": {
+    "groupHint": "{count} ficheiros importados — posts separados ou uma única montagem?",
+    "groupSeparate": "Posts separados",
+    "groupSeparateDesc": "{count} publicações, uma por ficheiro",
+    "groupMontage": "Uma só montagem",
+    "groupMontageDesc": "{count} clips num vídeo para editar",
+    "montageSummary": "Os {count} ficheiros tornam-se clips da mesma montagem, pela ordem de importação. Poderá cortá-los, reordená-los e adicionar mais no editor.",
     "typePickerEyebrow": "Novo conteúdo",
     "typePickerTitle": "Que tipo de conteúdo?",
     "typePickerHint": "Escolha o formato — pode alterá-lo depois na ficha ou no planeador.",
@@ -903,6 +909,8 @@
     "step3Title": "Identidade visual",
     "step3Subtitle": "Cores, logótipos e recursos gráficos da marca.",
     "brandColorsLabel": "Cores da marca",
+    "subtitleTemplateLabel": "Modelo de legendas",
+    "subtitleTemplateHint": "O estilo predefinido das legendas nas suas montagens de vídeo — a palavra destacada usa a sua cor de destaque.",
     "colorPrimary": "Principal",
     "colorSecondary": "Secundária",
     "colorAccent": "Destaque",
@@ -1318,6 +1326,7 @@
       "satoshi": "Sans"
     },
     "subStyleName": {
+      "simple": "Simples",
       "karaoke": "Karaoke",
       "editorial": "Editorial",
       "clean": "Limpo",
@@ -1344,6 +1353,7 @@
       "candy": "Rebuçado"
     },
     "subStyleSub": {
+      "simple": "Texto limpo",
       "karaoke": "Palavra por palavra",
       "editorial": "Archivo itálico",
       "clean": "Faixa branca",

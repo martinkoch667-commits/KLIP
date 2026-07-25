@@ -3,11 +3,12 @@
 import { useState, useEffect } from "react";
 import { useTranslations } from "next-intl";
 import Link from "next/link";
+import { Sticker } from "@/components/Stickers";
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
 
 const AUTH_CSS = `
   .auth-wrap{min-height:100vh;display:flex;align-items:center;justify-content:center;background:var(--canvas);padding:24px;}
-  .auth-card{width:100%;max-width:440px;background:#fff;border-radius:16px;box-shadow:0 8px 32px rgba(0,0,0,.08);padding:40px;}
+  .auth-card{position:relative;width:100%;max-width:440px;background:#fff;border-radius:16px;box-shadow:0 8px 32px rgba(0,0,0,.08);padding:40px;}
   .auth-logo{display:block;height:40px;width:auto;margin:0 auto 32px;}
   .auth-title{font-family:var(--display);font-weight:800;font-size:24px;text-transform:uppercase;color:var(--forest);letter-spacing:-.01em;margin-bottom:6px;}
   .auth-sub{font-size:13px;color:rgba(20,22,15,.6);margin-bottom:28px;}
@@ -122,6 +123,10 @@ export default function RegisterPage() {
     <main className="auth-wrap">
       <style dangerouslySetInnerHTML={{ __html: AUTH_CSS }} />
       <div className="auth-card">
+        {/* stickers die-cut qui débordent des coins de la carte */}
+        <Sticker name="star" size={50} float="A" style={{ position: 'absolute', top: -26, left: -20, zIndex: 3, ['--r' as string]: '-10deg' }} />
+        <Sticker name="smiley" size={54} float="B" style={{ position: 'absolute', top: -28, right: -20, zIndex: 3, ['--r' as string]: '8deg' }} />
+        <Sticker name="bolt" size={44} float="A" style={{ position: 'absolute', bottom: -22, left: -16, zIndex: 3, ['--r' as string]: '12deg' }} />
         <img src="/logo-klip-dark.png" alt="Klip" className="auth-logo" />
         <h1 className="auth-title">{t("registerTitle")}</h1>
         <p className="auth-sub">

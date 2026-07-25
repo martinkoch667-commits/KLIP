@@ -1431,7 +1431,7 @@ function SelectionPill({ elX, elY, elW, zoom, onDuplicate, onDelete }: PillProps
         }}>
           <span style={{
             width: 19, height: 19, borderRadius: '50%',
-            background: 'conic-gradient(from 120deg,#2FD79B,#C8F135,#2FD79B)',
+            background: 'conic-gradient(from 120deg,#2FD79B,#BDF2A0,#2FD79B)',
             display: 'grid', placeItems: 'center', flexShrink: 0,
           }}>
             <span style={{ width: 13, height: 13, borderRadius: '50%', background: '#fff', display: 'grid', placeItems: 'center' }}>
@@ -3313,7 +3313,7 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
     const displayFont = workspaceData?.font_family || 'Archivo';
     const bodyFont = workspaceData?.font_secondary || displayFont;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const resolveColor = (c: any) => c === 'primary' ? (workspaceData?.primary_color || '#FFFFFF') : c === 'secondary' ? (workspaceData?.secondary_color || '#FFFFFF') : c === 'accent' ? (workspaceData?.accent_color || '#C8F135') : c === 'black' ? '#14160F' : '#FFFFFF';
+    const resolveColor = (c: any) => c === 'primary' ? (workspaceData?.primary_color || '#FFFFFF') : c === 'secondary' ? (workspaceData?.secondary_color || '#FFFFFF') : c === 'accent' ? (workspaceData?.accent_color || '#BDF2A0') : c === 'black' ? '#14160F' : '#FFFFFF';
     let sampler: ((xp: number, yp: number, wp: number, hp: number) => { mean: number; std: number }) | null = null;
     if (postPhotoUrl) { try { sampler = await buildLumaSampler(`/api/proxy-image?url=${encodeURIComponent(postPhotoUrl)}`); } catch { /* noop */ } }
     let forceScrim = false;
@@ -4275,7 +4275,7 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
                 <p style={{ fontSize: 10, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '0.12em', fontFamily: 'var(--mono)', fontWeight: 800, margin: '0 0 8px' }}>Stickers</p>
                 {/* palette recolorable (agit sur les stickers recolorables) */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', marginBottom: 9 }}>
-                  {[workspaceData?.primary_color || '#2FD79B', '#0C2A1D', '#C8F135', '#FF5A3C', '#FFD400', '#0038FF', '#9B5DE5', '#F15BB5', '#14160F', '#FFFFFF'].map(c => (
+                  {[workspaceData?.primary_color || '#2FD79B', '#0C2A1D', '#BDF2A0', '#FF5A3C', '#FFD400', '#0038FF', '#9B5DE5', '#F15BB5', '#14160F', '#FFFFFF'].map(c => (
                     <button key={c} onClick={() => setStickerColor(c)} title={c}
                       style={{ width: 22, height: 22, borderRadius: '50%', background: c, cursor: 'pointer', border: stickerColor === c ? '2px solid var(--mint)' : '1.5px solid var(--line)', padding: 0, boxShadow: c === '#FFFFFF' ? 'inset 0 0 0 1px var(--line)' : 'none' }} />
                   ))}
@@ -4394,7 +4394,7 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
                         {hasCharter && (
                           <button onClick={() => setTtCharter(v => !v)} title="Adapter les templates à la charte du client"
                             style={{ fontSize: 10.5, fontWeight: 700, padding: '4px 9px', borderRadius: 999, cursor: 'pointer', border: '1px solid ' + (useCharter ? 'var(--mint)' : 'var(--line)'), background: useCharter ? 'var(--mint)' : 'transparent', color: useCharter ? '#06281C' : 'var(--ink-2)', display: 'flex', alignItems: 'center', gap: 5 }}>
-                            <span style={{ width: 8, height: 8, borderRadius: 2, background: brandKit.accent || brandKit.primary || '#C8F135', display: 'inline-block' }} />
+                            <span style={{ width: 8, height: 8, borderRadius: 2, background: brandKit.accent || brandKit.primary || '#BDF2A0', display: 'inline-block' }} />
                             À ma charte
                           </button>
                         )}
@@ -5160,12 +5160,12 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
 
             {/* BG image selected — selection border + opacity pill */}
             {bgImageSelected && (
-              <div onMouseDown={e => e.stopPropagation()} style={{ position: 'absolute', inset: 0, borderRadius: 0, border: '2px solid #8B5CF6', pointerEvents: 'none', zIndex: 10 }} />
+              <div onMouseDown={e => e.stopPropagation()} style={{ position: 'absolute', inset: 0, borderRadius: 0, border: '2px solid var(--vio)', pointerEvents: 'none', zIndex: 10 }} />
             )}
             {bgImageSelected && (
               <div onMouseDown={e => e.stopPropagation()} style={{ position: 'absolute', top: -50, left: '50%', transform: 'translateX(-50%)', zIndex: 20, background: '#fff', borderRadius: 11, padding: '6px 12px', boxShadow: '0 8px 24px -8px rgba(13,15,10,.3), 0 0 0 1px rgba(13,15,10,.06)', display: 'flex', alignItems: 'center', gap: 10 }}>
                 <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--ink-2)' }}>{T('bgOpacity')}</span>
-                <input type="range" min={10} max={100} value={bgOpacity} onChange={e => setBgOpacity(Number(e.target.value))} style={{ width: 80, accentColor: '#8B5CF6' }} />
+                <input type="range" min={10} max={100} value={bgOpacity} onChange={e => setBgOpacity(Number(e.target.value))} style={{ width: 80, accentColor: 'var(--vio)' }} />
                 <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--ink)', minWidth: 28, fontVariantNumeric: 'tabular-nums' }}>{bgOpacity}%</span>
                 <button onClick={() => { setProxyUrl(''); setBgImageSelected(false); }} style={{ width: 22, height: 22, border: 'none', background: 'transparent', cursor: 'pointer', color: 'var(--ink-3)', display: 'grid', placeItems: 'center', borderRadius: 5 }}
                   title={T('removeBackground')}>
@@ -5188,7 +5188,7 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
                   position: 'absolute',
                   left: minX - 6, top: minY - 6,
                   width: maxX - minX + 12, height: maxY - minY + 12,
-                  border: '2px dashed #8B5CF6',
+                  border: '2px dashed var(--vio)',
                   borderRadius: 4,
                   pointerEvents: 'none',
                   zIndex: 9,
@@ -5518,7 +5518,7 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
               {hasCharter && (
                 <button onClick={() => setTtCharter(v => !v)} title="Adapter les templates à la charte du client"
                   style={{ flexShrink: 0, height: 38, padding: '0 14px', borderRadius: 999, cursor: 'pointer', fontSize: 12.5, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 7, border: '1px solid ' + (useCharter ? 'var(--mint-2)' : 'var(--line)'), background: useCharter ? 'var(--mint)' : 'var(--white)', color: useCharter ? 'var(--forest)' : 'var(--ink-2)' }}>
-                  <span style={{ width: 10, height: 10, borderRadius: 3, background: brandKit.accent || brandKit.primary || '#C8F135', display: 'inline-block' }} />
+                  <span style={{ width: 10, height: 10, borderRadius: 3, background: brandKit.accent || brandKit.primary || '#BDF2A0', display: 'inline-block' }} />
                   À ma charte
                 </button>
               )}
@@ -5608,7 +5608,7 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
             <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap', padding: '12px 22px', borderBottom: '1px solid var(--line)', flexShrink: 0 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                 <span style={{ fontSize: 10, color: 'var(--ink-3)', fontFamily: 'var(--mono)', fontWeight: 700 }}>COULEUR</span>
-                {[workspaceData?.primary_color || '#2FD79B', '#0C2A1D', '#C8F135', '#FF5A3C', '#FFD400', '#0038FF', '#9B5DE5', '#F15BB5', '#14160F', '#FFFFFF'].map(c => (
+                {[workspaceData?.primary_color || '#2FD79B', '#0C2A1D', '#BDF2A0', '#FF5A3C', '#FFD400', '#0038FF', '#9B5DE5', '#F15BB5', '#14160F', '#FFFFFF'].map(c => (
                   <button key={c} onClick={() => setStickerColor(c)} title={c}
                     style={{ width: 20, height: 20, borderRadius: '50%', background: c, cursor: 'pointer', border: stickerColor === c ? '2px solid var(--mint)' : '1.5px solid var(--line)', padding: 0, boxShadow: c === '#FFFFFF' ? 'inset 0 0 0 1px var(--line)' : 'none' }} />
                 ))}

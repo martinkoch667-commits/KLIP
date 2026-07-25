@@ -47,20 +47,22 @@ function calendarDays(year: number, month: number): (number | null)[] {
   return cells;
 }
 
+// Couleurs de statut alignées sur la DA : mint (validé) / warn (modif) / vert forest
+// (publié) / violet (planifié). Teintes assez foncées pour rester lisibles en texte.
 function statusChip(post: Post, t: (key: string) => string) {
-  if (post.approved_by_client)     return { label: t('statusApproved'),      bg: 'rgba(47,215,155,.15)', color: '#2FD79B' };
-  if (post.client_comment)         return { label: t('statusModifRequested'),  bg: '#FEF3C7',              color: '#D97706' };
-  if (post.status === 'published') return { label: t('statusPublished'),           bg: '#DCFCE7',              color: '#16A34A' };
-  if (post.status === 'scheduled') return { label: t('statusScheduled'),         bg: 'rgba(79,142,247,.12)', color: '#4F8EF7' };
+  if (post.approved_by_client)     return { label: t('statusApproved'),        bg: 'rgba(47,215,155,.15)',  color: '#21B381' };
+  if (post.client_comment)         return { label: t('statusModifRequested'),  bg: 'rgba(200,115,43,.14)',  color: '#C8732B' };
+  if (post.status === 'published') return { label: t('statusPublished'),       bg: 'rgba(31,122,77,.14)',   color: '#1F7A4D' };
+  if (post.status === 'scheduled') return { label: t('statusScheduled'),       bg: 'rgba(102,86,217,.12)',  color: '#6656D9' };
   return { label: t('statusDraft'), bg: 'var(--sunk)', color: 'var(--ink-3)' };
 }
 
 function postColor(post: Post): string {
-  if (post.approved_by_client)    return '#2FD79B';
-  if (post.client_comment)        return '#D97706';
-  if (post.status === 'published') return '#16A34A';
-  if (post.status === 'scheduled') return '#4F8EF7';
-  return '#aaa';
+  if (post.approved_by_client)    return '#21B381';
+  if (post.client_comment)        return '#C8732B';
+  if (post.status === 'published') return '#1F7A4D';
+  if (post.status === 'scheduled') return '#6656D9';
+  return 'var(--ink-3)';
 }
 
 // ─── Logo Klip (blanc) ────────────────────────────────────────────────────────
@@ -71,16 +73,16 @@ function KlipLogo({ size = 26 }: { size?: number }) {
 
 // ─── Styles (page client) ───────────────────────────────────────────────────
 const CW_CSS = `
-.cw-root { min-height:100vh; background:var(--canvas,#F4F3EC); display:flex; flex-direction:column; font-family:var(--sans,system-ui,sans-serif); color:#0D0F0A; }
+.cw-root { min-height:100vh; background:var(--canvas,#F6F5EF); display:flex; flex-direction:column; font-family:var(--sans,system-ui,sans-serif); color:#0D0F0A; }
 .cw-header { position:sticky; top:0; z-index:20; height:60px; background:#0C2A1D; display:flex; align-items:center; gap:14px; padding:0 20px; }
 .cw-header-title { flex:1; text-align:center; font-size:14px; font-weight:600; color:rgba(255,255,255,.92); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-.cw-badge { flex-shrink:0; padding:5px 11px; border-radius:99px; background:rgba(52,224,161,.16); color:#34E0A1; font-size:11.5px; font-weight:700; }
+.cw-badge { flex-shrink:0; padding:5px 11px; border-radius:99px; background:rgba(189,242,160,.18); color:var(--leaf,#BDF2A0); font-size:11.5px; font-weight:700; }
 .cw-period { background:#082016; color:rgba(255,255,255,.82); text-align:center; padding:9px 16px; font-size:12.5px; font-weight:600; }
 .cw-main { flex:1; width:100%; max-width:920px; margin:0 auto; padding:24px 18px 56px; box-sizing:border-box; }
 .cw-intro { display:flex; align-items:center; justify-content:space-between; gap:16px; background:#fff; border:1px solid rgba(13,15,10,.07); border-radius:16px; padding:18px 20px; margin-bottom:22px; box-shadow:0 1px 2px rgba(13,15,10,.04); }
 .cw-intro-title { font-family:var(--display,sans-serif); font-size:19px; font-weight:800; letter-spacing:-.02em; margin:0 0 4px; }
 .cw-intro-sub { font-size:13px; color:#6b7280; margin:0; line-height:1.45; }
-.cw-progress { flex-shrink:0; text-align:center; background:var(--canvas,#F4F3EC); border-radius:12px; padding:8px 18px; }
+.cw-progress { flex-shrink:0; text-align:center; background:var(--canvas,#F6F5EF); border-radius:12px; padding:8px 18px; }
 .cw-progress-num { display:block; font-family:var(--display,sans-serif); font-size:22px; font-weight:800; color:#0C2A1D; line-height:1; }
 .cw-progress-num small { color:#9ca3af; font-weight:700; }
 .cw-progress-label { font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.08em; color:#9ca3af; }
@@ -95,7 +97,7 @@ const CW_CSS = `
 .cw-grid { display:grid; grid-template-columns:repeat(7,1fr); gap:6px; }
 .cw-cell { min-height:104px; background:#fff; border-radius:12px; border:1px solid rgba(13,15,10,.07); padding:7px 6px 6px; display:flex; flex-direction:column; gap:4px; }
 .cw-cell--pad { background:transparent; border:none; min-height:0; }
-.cw-cell--today { border-color:#2FD79B; box-shadow:0 0 0 1px #2FD79B inset; }
+.cw-cell--today { border-color:var(--mint,#2FD79B); box-shadow:0 0 0 1px var(--mint,#2FD79B) inset; }
 .cw-daynum { font-size:11.5px; font-weight:700; color:#9ca3af; padding:0 2px; }
 .cw-daynum--today { color:#16A36F; }
 .cw-chip { position:relative; height:54px; border-radius:9px; border:none; padding:0; cursor:pointer; overflow:hidden; background:#E8E7DD; display:block; width:100%; transition:transform .12s, box-shadow .12s; }
@@ -113,22 +115,22 @@ const CW_CSS = `
 .cw-overlay { position:fixed; inset:0; background:rgba(8,32,22,.55); backdrop-filter:blur(5px); z-index:500; display:flex; align-items:center; justify-content:center; padding:16px; animation:cwFade .15s ease; }
 .cw-modal { background:#fff; border-radius:22px; box-shadow:0 30px 70px rgba(0,0,0,.3); max-width:430px; width:100%; max-height:92vh; overflow-y:auto; animation:cwPop .2s cubic-bezier(.16,1,.3,1); }
 .cw-acct { display:flex; align-items:center; gap:10px; padding:13px 15px; }
-.cw-avatar { width:36px; height:36px; border-radius:50%; background:#0C2A1D; color:#34E0A1; font-weight:800; font-size:13px; display:grid; place-items:center; overflow:hidden; flex-shrink:0; background-size:cover; background-position:center; }
+.cw-avatar { width:36px; height:36px; border-radius:50%; background:var(--forest,#0C2A1D); color:var(--leaf,#BDF2A0); font-weight:800; font-size:13px; display:grid; place-items:center; overflow:hidden; flex-shrink:0; background-size:cover; background-position:center; }
 .cw-acct-name { font-weight:700; font-size:13.5px; color:#0D0F0A; line-height:1.2; }
 .cw-acct-sub { font-size:11.5px; color:#9ca3af; }
 .cw-modal-close { margin-left:auto; width:30px; height:30px; border-radius:50%; border:1px solid rgba(13,15,10,.1); background:#f7f6f3; cursor:pointer; display:grid; place-items:center; color:#6b7280; flex-shrink:0; }
 .cw-modal-img { width:100%; aspect-ratio:4/5; object-fit:cover; background:#0D0F0A; display:block; }
 .cw-modal-body { padding:16px 18px 20px; }
 .cw-modal-cap { font-size:13.5px; color:#1f2937; line-height:1.6; margin:0 0 14px; white-space:pre-wrap; }
-.cw-meta-row { display:flex; align-items:center; gap:7px; padding:9px 12px; border-radius:10px; background:var(--canvas,#F4F3EC); margin-bottom:14px; }
+.cw-meta-row { display:flex; align-items:center; gap:7px; padding:9px 12px; border-radius:10px; background:var(--canvas,#F6F5EF); margin-bottom:14px; }
 .cw-meta-txt { font-size:12.5px; color:#4b5563; font-weight:600; }
-.cw-btn { flex:1; padding:13px; border-radius:12px; border:none; font-weight:700; font-size:14px; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:7px; transition:.12s; }
-.cw-btn-approve { background:#2FD79B; color:#06281C; }
-.cw-btn-approve:hover { background:#28c78d; }
-.cw-btn-modify { background:#fff; color:#0D0F0A; border:1.5px solid rgba(13,15,10,.16); }
+.cw-btn { flex:1; padding:13px; border-radius:999px; border:none; font-weight:700; font-size:14px; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:7px; transition:.12s; }
+.cw-btn-approve { background:var(--leaf,#BDF2A0); color:var(--leaf-ink,#1E3317); }
+.cw-btn-approve:hover { background:#C9F5B2; }
+.cw-btn-modify { background:#fff; color:#0D0F0A; border:1.5px solid rgba(13,15,10,.16); border-radius:999px; }
 .cw-btn-modify:hover { border-color:rgba(13,15,10,.3); }
 .cw-textarea { width:100%; padding:11px 12px; border-radius:10px; border:1.5px solid rgba(13,15,10,.15); font-size:13.5px; color:#0D0F0A; outline:none; resize:none; line-height:1.5; font-family:inherit; box-sizing:border-box; }
-.cw-textarea:focus { border-color:#2FD79B; }
+.cw-textarea:focus { border-color:var(--vio,#6656D9); }
 @keyframes cwFade { from { opacity:0 } to { opacity:1 } }
 @keyframes cwPop { from { opacity:0; transform:translateY(12px) scale(.98) } to { opacity:1; transform:none } }
 @media (max-width:640px) {
@@ -347,10 +349,10 @@ export default function PreviewPage() {
         {/* Legend */}
         <div className="cw-legend">
           {[
-            { color: '#4F8EF7', label: t('legendScheduled') },
-            { color: '#2FD79B', label: t('legendApproved') },
-            { color: '#D97706', label: t('legendModifRequested') },
-            { color: '#16A34A', label: t('legendPublished') },
+            { color: '#6656D9', label: t('legendScheduled') },
+            { color: '#21B381', label: t('legendApproved') },
+            { color: '#C8732B', label: t('legendModifRequested') },
+            { color: '#1F7A4D', label: t('legendPublished') },
           ].map(item => (
             <div key={item.label} className="cw-legend-item">
               <span className="cw-legend-dot" style={{ background: item.color }} />

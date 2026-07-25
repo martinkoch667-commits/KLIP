@@ -10,6 +10,7 @@ import OnboardingTour from '@/components/OnboardingTour';
 import OnboardingChecklist from '@/components/OnboardingChecklist';
 import NotificationBell from '@/components/NotificationBell';
 import { ConnectClaudeModal } from '@/components/ConnectClaudeModal';
+import { Sticker } from '@/components/Stickers';
 
 // ─── Types ─────────────────────────────────────────────────────────────────
 
@@ -669,6 +670,9 @@ export default function Dashboard() {
             <div style={{ position: 'relative', borderRadius: 'var(--r-xl)', overflow: 'hidden', padding: '30px 32px', marginBottom: 16, background: 'linear-gradient(120deg, #0A2418 0%, var(--forest) 48%, #103A28 100%)', color: 'var(--cream)' }}>
               <div className="halo-blob" style={{ width: 300, height: 300, right: -70, top: -150, background: 'var(--mint)', opacity: .42 }} />
               <div className="halo-blob" style={{ width: 220, height: 220, right: 180, bottom: -150, background: 'var(--acid)', opacity: .28 }} />
+              {/* stickers décoratifs (coins, derrière le contenu z:2) */}
+              <Sticker name="sparkle" size={46} float="spin" style={{ position: 'absolute', top: 14, right: 20, zIndex: 1 }} />
+              <Sticker name="star" size={30} float="A" style={{ position: 'absolute', bottom: 16, left: 26, zIndex: 1, ['--r' as string]: '-8deg' }} />
               <div style={{ position: 'relative', zIndex: 2, display: 'grid', gridTemplateColumns: '1fr auto', gap: 28, alignItems: 'center' }} className="dash-hero">
                 <div>
                   <div className="label" style={{ color: 'var(--mint)', marginBottom: 12 }}>
@@ -676,8 +680,8 @@ export default function Dashboard() {
                   </div>
                   <h1 className="h-display" style={{ fontSize: 38, color: 'var(--cream)', maxWidth: 520 }}>
                     {active === 'all'
-                      ? <>{t('heroAllPre')}<span className="it" style={{ color: 'var(--mint)' }}>{t('heroAllAccent')}</span></>
-                      : <>{t('heroClientPre')}<span className="it" style={{ color: 'var(--mint)' }}>{clientName}.</span></>}
+                      ? <>{t('heroAllPre')}<span className="acc-hl">{t('heroAllAccent')}</span></>
+                      : <>{t('heroClientPre')}<span className="acc-hl">{clientName}.</span></>}
                   </h1>
                   <p style={{ color: 'var(--cream-2)', marginTop: 10, maxWidth: 460, fontSize: 14.5 }}>
                     {pendingPosts > 0

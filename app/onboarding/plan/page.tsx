@@ -112,7 +112,7 @@ const OB_CSS = `
     text-transform:uppercase;letter-spacing:.06em;border-radius:10px;cursor:pointer;
     transition:background .15s,box-shadow .15s;
   }
-  .ob-btn-agency:hover:not(:disabled){background:#C8F135;box-shadow:0 4px 24px rgba(47,215,155,.35);}
+  .ob-btn-agency:hover:not(:disabled){background:var(--leaf);box-shadow:0 4px 24px rgba(47,215,155,.35);}
   .ob-btn-agency:disabled{opacity:.5;cursor:not-allowed;}
 
   .ob-error{font-size:13px;color:#ff6b5b;font-weight:600;text-align:center;

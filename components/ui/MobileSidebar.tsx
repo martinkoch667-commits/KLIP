@@ -165,9 +165,9 @@ export default function MobileSidebar() {
               <Link key={ws.id} href={`/workspace/${ws.id}`} className={`nav-item${isActive ? " active" : ""}`} style={{ padding: "7px 10px", textDecoration: "none" }}>
                 {logoSrc ? (
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img src={logoSrc} alt={ws.name} style={{ width: 26, height: 26, borderRadius: 7, objectFit: "contain", flexShrink: 0, background: "#fff", padding: 3, outline: isActive ? "2px solid var(--mint)" : "none" }} />
+                  <img src={logoSrc} alt={ws.name} style={{ width: 26, height: 26, borderRadius: 7, objectFit: "contain", flexShrink: 0, background: "#fff", padding: 3, outline: isActive ? "2px solid var(--leaf)" : "none" }} />
                 ) : (
-                  <span style={{ width: 26, height: 26, borderRadius: 7, background: isActive ? "var(--mint-ink)" : color, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, fontWeight: 800, color: "#fff", fontFamily: "var(--mono)", flexShrink: 0 }}>
+                  <span style={{ width: 26, height: 26, borderRadius: 7, background: isActive ? "var(--leaf-ink)" : color, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, fontWeight: 800, color: "#fff", fontFamily: "var(--mono)", flexShrink: 0 }}>
                     {ws.name.slice(0, 2).toUpperCase()}
                   </span>
                 )}

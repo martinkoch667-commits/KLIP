@@ -149,7 +149,7 @@ export default function TemplatesPage() {
               <div>
                 <div className="label" style={{ marginBottom: 8 }}>{t('kitsAndModelsCount', { count: workspaces.length })}</div>
                 <h1 className="h-display" style={{ fontSize: 33 }}>
-                  {t('titlePre')} <span className="it" style={{ color: 'var(--mint-2)' }}>{t('titleAccent')}</span>
+                  {t('titlePre')} <span className="acc-hl">{t('titleAccent')}</span>
                 </h1>
                 <p style={{ color: 'var(--ink-2)', marginTop: 7, maxWidth: 520 }}>
                   {t('subtitle')}

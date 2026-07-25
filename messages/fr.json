@@ -402,6 +402,12 @@
     "open": "Ouvrir"
   },
   "workspace": {
+    "groupHint": "{count} fichiers importés — en faire des posts séparés ou un seul montage ?",
+    "groupSeparate": "Posts séparés",
+    "groupSeparateDesc": "{count} publications, une par fichier",
+    "groupMontage": "Un seul montage",
+    "groupMontageDesc": "{count} plans dans une vidéo à monter",
+    "montageSummary": "Les {count} fichiers deviennent les plans d’un même montage, concaténés dans l’ordre. Vous pourrez les couper, réordonner et en ajouter dans l’éditeur.",
     "typePickerEyebrow": "Nouveau contenu",
     "typePickerTitle": "Quel type de contenu ?",
     "typePickerHint": "Choisissez le format — modifiable plus tard dans la fiche ou le planificateur.",
@@ -903,6 +909,8 @@
     "step3Title": "Identité visuelle",
     "step3Subtitle": "Couleurs, logos et assets graphiques de la marque.",
     "brandColorsLabel": "Couleurs de marque",
+    "subtitleTemplateLabel": "Template de sous-titres",
+    "subtitleTemplateHint": "Le style par défaut des sous-titres dans vos montages vidéo — le mot surligné prend votre couleur d'accent.",
     "colorPrimary": "Principale",
     "colorSecondary": "Secondaire",
     "colorAccent": "Accent",
@@ -1318,6 +1326,7 @@
       "satoshi": "Sans"
     },
     "subStyleName": {
+      "simple": "Simple",
       "karaoke": "Karaoké",
       "editorial": "Éditorial",
       "clean": "Net",
@@ -1344,6 +1353,7 @@
       "candy": "Bonbon"
     },
     "subStyleSub": {
+      "simple": "Texte net",
       "karaoke": "Mot par mot",
       "editorial": "Archivo italique",
       "clean": "Bandeau blanc",

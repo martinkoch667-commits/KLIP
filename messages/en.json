@@ -402,6 +402,12 @@
     "open": "Open"
   },
   "workspace": {
+    "groupHint": "{count} files imported — separate posts or a single montage?",
+    "groupSeparate": "Separate posts",
+    "groupSeparateDesc": "{count} posts, one per file",
+    "groupMontage": "Single montage",
+    "groupMontageDesc": "{count} clips in one video to edit",
+    "montageSummary": "All {count} files become clips of the same montage, in the order dropped. You can trim, reorder and add more in the editor.",
     "typePickerEyebrow": "New content",
     "typePickerTitle": "What type of content?",
     "typePickerHint": "Choose the format — you can change it later in the post or the planner.",
@@ -903,6 +909,8 @@
     "step3Title": "Visual identity",
     "step3Subtitle": "Brand colors, logos and graphic assets.",
     "brandColorsLabel": "Brand colors",
+    "subtitleTemplateLabel": "Subtitle template",
+    "subtitleTemplateHint": "The default style for subtitles in your video edits — the highlighted word uses your accent color.",
     "colorPrimary": "Primary",
     "colorSecondary": "Secondary",
     "colorAccent": "Accent",
@@ -1318,6 +1326,7 @@
       "satoshi": "Sans"
     },
     "subStyleName": {
+      "simple": "Simple",
       "karaoke": "Karaoke",
       "editorial": "Editorial",
       "clean": "Clean",
@@ -1344,6 +1353,7 @@
       "candy": "Candy"
     },
     "subStyleSub": {
+      "simple": "Clean text",
       "karaoke": "Word by word",
       "editorial": "Italic Archivo",
       "clean": "White band",

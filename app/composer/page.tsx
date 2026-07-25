@@ -6,6 +6,7 @@ import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Sidebar from "@/components/Sidebar";
+import { Sticker } from "@/components/Stickers";
 
 interface WsCard {
   id: string;
@@ -114,10 +115,13 @@ export default function ComposerPage() {
             }}>
               <div style={{ position: 'absolute', width: 280, height: 280, borderRadius: '50%', right: -60, top: -120, background: 'radial-gradient(circle, var(--mint), transparent 70%)', opacity: .5, filter: 'blur(20px)' }} />
               <div style={{ position: 'absolute', width: 200, height: 200, borderRadius: '50%', right: 160, bottom: -140, background: 'radial-gradient(circle, var(--acid), transparent 70%)', opacity: .35, filter: 'blur(20px)' }} />
+              {/* stickers décoratifs (coins, derrière le contenu z:2) */}
+              <Sticker name="sparkle" size={44} float="spin" style={{ position: 'absolute', top: 14, right: 20, zIndex: 1 }} />
+              <Sticker name="heart" size={34} float="A" style={{ position: 'absolute', bottom: 14, left: 24, zIndex: 1, ['--r' as string]: '-8deg' }} />
               <div style={{ position: 'relative', zIndex: 2 }}>
                 <div className="label" style={{ color: 'var(--mint)', marginBottom: 10 }}>{t('heroLabel')}</div>
                 <h1 className="h-display" style={{ fontSize: 38, color: 'var(--cream)', maxWidth: 600 }}>
-                  {t('heroTitlePre')} <span className="it" style={{ color: 'var(--mint)' }}>{t('heroTitleAccent')}</span>
+                  {t('heroTitlePre')} <span className="acc-hl">{t('heroTitleAccent')}</span>
                 </h1>
                 <p style={{ color: 'var(--cream-2)', marginTop: 10, maxWidth: 520, fontSize: 15 }}>
                   {t('heroSubtitle')}
@@ -131,8 +135,10 @@ export default function ComposerPage() {
               <div style={{ color: 'var(--ink-3)', fontSize: 13 }}>{t('loading')}</div>
             ) : workspaces.length === 0 ? (
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', padding: '80px 20px', gap: 20 }}>
-                <div style={{ width: 76, height: 76, borderRadius: 22, background: 'var(--sunk)', display: 'grid', placeItems: 'center', color: 'var(--ink-3)' }}>
+                <div style={{ position: 'relative', width: 76, height: 76, borderRadius: 22, background: 'var(--sunk)', display: 'grid', placeItems: 'center', color: 'var(--ink-3)' }}>
                   <IcUpload />
+                  <Sticker name="sparkle" size={40} float="spin" style={{ position: 'absolute', top: -16, right: -18, zIndex: 2 }} />
+                  <Sticker name="smiley" size={34} float="A" style={{ position: 'absolute', bottom: -14, left: -16, zIndex: 2, ['--r' as string]: '-8deg' }} />
                 </div>
                 <div>
                   <h2 className="h-display" style={{ fontSize: 24, marginBottom: 8 }}>{t('emptyTitle')}</h2>
