@@ -182,7 +182,14 @@ export function audioVolumeAt(track: AudioTrack, localTime: number): number {
 }
 
 // Personnalisation manuelle des sous-titres — surcharge n'importe quel champ du style de base.
+export type CaseMode = "none" | "upper" | "lower" | "title";
+export type SubAlign = "left" | "center" | "right";
+
+// Surcharges de style d'un sous-titre — jeu de paramètres complet (façon CapCut).
+// TOUT champ ajouté ici doit être honoré aux 3 endroits : aperçu montage (DOM),
+// export vidéo (canvas 2D, export.ts drawCaptions) et aperçu de l'assistant client.
 export interface SubCustom {
+  // — Base —
   fg?: string;
   hi?: string;
   bg?: string;
@@ -190,9 +197,33 @@ export interface SubCustom {
   font?: string;
   weight?: number;
   italic?: boolean;
-  uppercase?: boolean;
+  uppercase?: boolean;   // hérité — équivaut à caseMode "upper"
   pill?: boolean;
-  scale?: number; // facteur de taille (défaut 1)
+  scale?: number;        // facteur de taille (défaut 1)
+  // — Typographie —
+  underline?: boolean;
+  caseMode?: CaseMode;   // prime sur `uppercase`
+  letterSpacing?: number; // en em (défaut 0)
+  lineHeight?: number;    // multiplicateur (défaut 1.15)
+  align?: SubAlign;       // alignement du texte (défaut "center")
+  // — Trait (contour) —
+  strokeW?: number;       // épaisseur du contour, en px à taille de base (défaut 2)
+  // — Arrière-plan —
+  bgOpacity?: number;     // 0-1 (défaut 1)
+  radius?: number;        // rayon des coins quand ce n'est pas une pilule (défaut 8)
+  padX?: number;          // marge intérieure horizontale (px, défaut selon pill)
+  padY?: number;
+  // — Ombre —
+  shadowColor?: string;
+  shadowBlur?: number;
+  shadowX?: number;
+  shadowY?: number;
+  // — Lueur (glow) —
+  glowColor?: string;
+  glowBlur?: number;
+  // — Transformer / Mélange —
+  rotation?: number;      // degrés (défaut 0)
+  opacity?: number;       // 0-1 (défaut 1)
 }
 
 export interface MontageProject {
@@ -240,8 +271,34 @@ export function videoFormatById(id: string | undefined): typeof VIDEO_FORMATS[nu
 export const DEFAULT_SUB_POS = { x: 50, y: 84 };
 
 // Fusionne le style de base (bibliothèque) avec les surcharges manuelles de l'utilisateur.
-export function effectiveSubStyle(styleId: string, custom?: SubCustom): SubStyle & { scale: number } {
+// Style entièrement résolu : base + surcharges, tous les champs remplis.
+// C'est CE type que consomment l'aperçu, l'export et les panneaux d'édition.
+export type EffectiveSub = SubStyle & {
+  scale: number;
+  underline: boolean;
+  caseMode: CaseMode;
+  letterSpacing: number;
+  lineHeight: number;
+  align: SubAlign;
+  strokeW: number;
+  bgOpacity: number;
+  radius: number;
+  padX: number;
+  padY: number;
+  shadowColor: string;
+  shadowBlur: number;
+  shadowX: number;
+  shadowY: number;
+  glowColor: string;
+  glowBlur: number;
+  rotation: number;
+  opacity: number;
+};
+
+export function effectiveSubStyle(styleId: string, custom?: SubCustom): EffectiveSub {
   const base = subStyleById(styleId);
+  const pill = custom?.pill ?? base.pill;
+  const uppercase = custom?.uppercase ?? base.uppercase;
   return {
     ...base,
     fg: custom?.fg ?? base.fg,
@@ -251,9 +308,91 @@ export function effectiveSubStyle(styleId: string, custom?: SubCustom): SubStyle
     font: custom?.font ?? base.font,
     weight: custom?.weight ?? base.weight,
     italic: custom?.italic ?? base.italic,
-    uppercase: custom?.uppercase ?? base.uppercase,
-    pill: custom?.pill ?? base.pill,
+    uppercase,
+    pill,
     scale: custom?.scale ?? 1,
+    // Typographie
+    underline: custom?.underline ?? false,
+    // `caseMode` prime ; sinon on retombe sur l'ancien booléen `uppercase`.
+    caseMode: custom?.caseMode ?? (uppercase ? "upper" : "none"),
+    letterSpacing: custom?.letterSpacing ?? 0,
+    lineHeight: custom?.lineHeight ?? 1.15,
+    align: custom?.align ?? "center",
+    // Trait
+    strokeW: custom?.strokeW ?? 2,
+    // Fond
+    bgOpacity: custom?.bgOpacity ?? 1,
+    radius: custom?.radius ?? 8,
+    padX: custom?.padX ?? (pill ? 16 : 12),
+    padY: custom?.padY ?? (pill ? 6 : 8),
+    // Ombre / lueur
+    shadowColor: custom?.shadowColor ?? "",
+    shadowBlur: custom?.shadowBlur ?? 0,
+    shadowX: custom?.shadowX ?? 0,
+    shadowY: custom?.shadowY ?? 0,
+    glowColor: custom?.glowColor ?? "",
+    glowBlur: custom?.glowBlur ?? 0,
+    // Transformer / mélange
+    rotation: custom?.rotation ?? 0,
+    opacity: custom?.opacity ?? 1,
+  };
+}
+
+// Applique la casse choisie (Casse TT / tt / Tt de CapCut).
+export function applySubCase(text: string, mode: CaseMode): string {
+  if (mode === "upper") return text.toUpperCase();
+  if (mode === "lower") return text.toLowerCase();
+  if (mode === "title") return text.replace(/\S+/g, (w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase());
+  return text;
+}
+
+// Convertit une couleur #rrggbb + opacité en rgba() ; laisse passer tel quel
+// "transparent" ou une couleur déjà en rgba().
+export function withAlpha(color: string, alpha: number): string {
+  if (!color || color === "transparent") return "transparent";
+  if (alpha >= 1) return color;
+  const m = /^#?([0-9a-f]{6})$/i.exec(color.trim());
+  if (!m) return color;
+  const n = parseInt(m[1], 16);
+  return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${Math.max(0, Math.min(1, alpha))})`;
+}
+
+// Ombre + lueur combinées, en syntaxe CSS text-shadow (aperçus DOM).
+export function subTextShadowCss(e: EffectiveSub): string {
+  const parts: string[] = [];
+  if (e.glowColor && e.glowBlur > 0) {
+    parts.push(`0 0 ${e.glowBlur}px ${e.glowColor}`, `0 0 ${e.glowBlur * 2}px ${e.glowColor}`);
+  }
+  if (e.shadowColor && (e.shadowBlur > 0 || e.shadowX || e.shadowY)) {
+    parts.push(`${e.shadowX}px ${e.shadowY}px ${e.shadowBlur}px ${e.shadowColor}`);
+  }
+  // Lisibilité par défaut : texte nu sans contour ni ombre → ombre douce.
+  if (!parts.length && e.bg === "transparent" && !e.stroke) parts.push("0 1px 8px rgba(0,0,0,.6)");
+  return parts.join(", ") || "none";
+}
+
+// SOURCE UNIQUE du rendu de la boîte de sous-titre en DOM (aperçu montage +
+// aperçu de l'assistant client). L'export canvas réplique ces mêmes règles.
+export function subtitleBoxCss(e: EffectiveSub, fontSizePx: number): Record<string, string | number | undefined> {
+  const hasBg = e.bg && e.bg !== "transparent";
+  return {
+    background: hasBg ? withAlpha(e.bg, e.bgOpacity) : "transparent",
+    color: e.fg,
+    fontFamily: e.font ? `'${e.font}', var(--sans)` : (e.italic ? "var(--display)" : "var(--sans)"),
+    fontWeight: e.weight,
+    fontStyle: e.italic ? "italic" : "normal",
+    fontSize: fontSizePx,
+    lineHeight: e.lineHeight,
+    letterSpacing: `${e.letterSpacing}em`,
+    textAlign: e.align,
+    textDecorationLine: e.underline ? "underline" : "none",
+    textTransform: "none", // la casse est appliquée sur le texte via applySubCase
+    padding: `${e.padY}px ${e.padX}px`,
+    borderRadius: e.pill ? 999 : e.radius,
+    WebkitTextStroke: e.stroke && e.strokeW > 0 ? `${e.strokeW}px ${e.stroke}` : undefined,
+    paintOrder: "stroke fill",
+    textShadow: subTextShadowCss(e),
+    opacity: e.opacity,
   };
 }
 

@@ -8,8 +8,9 @@ import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
 import Sidebar from "@/components/Sidebar";
 import ColorPicker from "@/components/ColorPicker";
 import {
-  effectiveSubStyle, charterSubPresets, type SubCustom,
+  effectiveSubStyle, charterSubPresets, DEFAULT_SUB_POS, type SubCustom,
 } from "@/app/workspace/[id]/montage/[postId]/constants";
+import SubtitleStyleEditor, { SubtitlePreviewChip } from "@/components/SubtitleStyleEditor";
 import { MiniTemplatePreview, type TemplateDraft } from "@/components/TemplateEditor";
 
 // Dynamically import TemplateEditor (no SSR — requires canvas API)
@@ -201,6 +202,9 @@ export default function NewWorkspacePage() {
   const [subtitleCustom, setSubtitleCustom] = useState<SubCustom>({});
   const [subPresetId, setSubPresetId] = useState<string | null>("charte"); // preset charte actif
   const [subAdvanced, setSubAdvanced] = useState(false); // panneau de personnalisation ouvert
+  // Position des sous-titres dans le cadre (%), réglée au doigt sur l'aperçu vidéo.
+  const [subPos, setSubPos] = useState<{ x: number; y: number }>(DEFAULT_SUB_POS);
+  const subStageRef = useRef<HTMLDivElement>(null);
   const logoRef = useRef<HTMLInputElement>(null);
   const logoDarkRef = useRef<HTMLInputElement>(null);
   const assetsRef = useRef<HTMLInputElement>(null);
@@ -232,11 +236,46 @@ export default function NewWorkspacePage() {
   const activeFontPrimary = customPrimary ? customPrimary.family : fontPrimary;
   const activeFontSecondary = customSecondary ? customSecondary.family : fontSecondary;
 
+  // Libellés de l'éditeur de sous-titres (partagé avec l'éditeur de montage).
+  const tse = useTranslations('subtitleEditor');
+  const subEditorLabels = useMemo(() => ({
+    basic: tse('basic'), font: tse('font'), brandFont: tse('brandFont'), system: tse('system'),
+    serif: tse('serif'), mono: tse('mono'), size: tse('size'), style: tse('style'), case: tse('case'),
+    align: tse('align'), letterSpacing: tse('letterSpacing'), lineHeight: tse('lineHeight'),
+    colors: tse('colors'), text: tse('text'), highlight: tse('highlight'),
+    background: tse('background'), none: tse('none'), opacity: tse('opacity'), radius: tse('radius'), pill: tse('pill'),
+    stroke: tse('stroke'), thickness: tse('thickness'),
+    shadow: tse('shadow'), blur: tse('blur'), offsetX: tse('offsetX'), offsetY: tse('offsetY'),
+    glow: tse('glow'), intensity: tse('intensity'),
+    transform: tse('transform'), rotation: tse('rotation'),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }), []);
+
   // Templates de sous-titres dérivés de la charte (couleurs + police déjà choisies).
   const subPresets = useMemo(
     () => charterSubPresets({ primary: primaryColor, secondary: secondaryColor, accent: accentColor, font: activeFontPrimary }),
     [primaryColor, secondaryColor, accentColor, activeFontPrimary],
   );
+
+  // Glisser le sous-titre dans le cadre d'aperçu pour choisir sa position.
+  function onSubStagePointerDown(e: React.PointerEvent) {
+    const box = subStageRef.current;
+    if (!box) return;
+    e.preventDefault();
+    (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId);
+    const move = (clientX: number, clientY: number) => {
+      const r = box.getBoundingClientRect();
+      setSubPos({
+        x: Math.round(Math.max(6, Math.min(94, ((clientX - r.left) / r.width) * 100))),
+        y: Math.round(Math.max(6, Math.min(94, ((clientY - r.top) / r.height) * 100))),
+      });
+    };
+    move(e.clientX, e.clientY);
+    const onMove = (ev: PointerEvent) => move(ev.clientX, ev.clientY);
+    const onUp = () => { window.removeEventListener("pointermove", onMove); window.removeEventListener("pointerup", onUp); };
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onUp);
+  }
 
   // Applique un preset de la charte (et mémorise lequel est actif).
   function applySubPreset(p: { id: string; styleId: string; custom: SubCustom }) {
@@ -399,6 +438,7 @@ export default function NewWorkspacePage() {
           accent_color: accentColor,
           subtitle_style_id: subtitleStyleId,
           subtitle_custom: subtitleCustom,
+          subtitle_pos: subPos,
           logo_url: logoUrl,
           logo_dark_url: logoDarkUrl,
           brand_assets: assetUrls,
@@ -1135,86 +1175,49 @@ export default function NewWorkspacePage() {
                   </button>
 
                   {subAdvanced && (
-                    <div className="card" style={{ marginTop: 12, padding: 16, display: "flex", flexDirection: "column", gap: 16 }}>
-                      {/* Aperçu en grand */}
-                      <div style={{ borderRadius: 10, background: "linear-gradient(135deg,#242a20,#0b110a)", padding: "22px 16px", display: "grid", placeItems: "center" }}>
-                        <SubChip styleId={subtitleStyleId} custom={subtitleCustom} size={22} />
-                      </div>
-
-                      {/* Couleurs */}
-                      <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12 }}>
-                        {([
-                          ["fg", t('subColorText'),      effectiveSubStyle(subtitleStyleId, subtitleCustom).fg],
-                          ["hi", t('subColorHighlight'), effectiveSubStyle(subtitleStyleId, subtitleCustom).hi],
-                          ["bg", t('subColorBox'),       effectiveSubStyle(subtitleStyleId, subtitleCustom).bg],
-                        ] as const).map(([key, label, val]) => (
-                          <div key={key}>
-                            <span style={{ ...labelStyle, marginBottom: 8 }}>{label}</span>
-                            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                              <ColorPicker
-                                value={val === "transparent" ? "#000000" : val}
-                                onChange={(c) => { setSubPresetId(null); setSubtitleCustom(prev => ({ ...prev, [key]: c })); }}
-                              />
-                              {key === "bg" && (
-                                <button type="button" title={t('subNoBox')}
-                                  onClick={() => { setSubPresetId(null); setSubtitleCustom(prev => ({ ...prev, bg: "transparent" })); }}
-                                  className="btn btn-ghost btn-sm" style={{ padding: "4px 10px", fontSize: 11 }}>
-                                  {t('subNoBox')}
-                                </button>
-                              )}
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-
-                      {/* Options */}
-                      <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-                        {([
-                          ["pill",      t('subOptPill')],
-                          ["uppercase", t('subOptUppercase')],
-                          ["italic",    t('subOptItalic')],
-                        ] as const).map(([key, label]) => {
-                          const on = !!effectiveSubStyle(subtitleStyleId, subtitleCustom)[key];
-                          return (
-                            <button type="button" key={key}
-                              onClick={() => { setSubPresetId(null); setSubtitleCustom(prev => ({ ...prev, [key]: !on })); }}
-                              className={on ? "btn btn-primary btn-sm" : "btn btn-ghost btn-sm"}>
-                              {label}
-                            </button>
-                          );
-                        })}
-                        {/* Contour */}
-                        {(() => {
-                          const on = !!effectiveSubStyle(subtitleStyleId, subtitleCustom).stroke;
-                          return (
-                            <button type="button"
-                              onClick={() => { setSubPresetId(null); setSubtitleCustom(prev => ({ ...prev, stroke: on ? "" : "#000000" })); }}
-                              className={on ? "btn btn-primary btn-sm" : "btn btn-ghost btn-sm"}>
-                              {t('subOptStroke')}
-                            </button>
-                          );
-                        })()}
-                      </div>
-
-                      {/* Graisse */}
+                    <div className="card sub-editor-grid" style={{ marginTop: 12, padding: 16, display: "grid", gridTemplateColumns: "minmax(0,240px) minmax(0,1fr)", gap: 20, alignItems: "start" }}>
+                      {/* Aperçu « comme sur la vidéo » — on juge la lisibilité et on place le texte */}
                       <div>
-                        <span style={{ ...labelStyle, marginBottom: 8 }}>{t('subWeight')}</span>
-                        <div style={{ display: "flex", gap: 6 }}>
-                          {[400, 600, 700, 800, 900].map(w => {
-                            const on = effectiveSubStyle(subtitleStyleId, subtitleCustom).weight === w;
-                            return (
-                              <button type="button" key={w}
-                                onClick={() => { setSubPresetId(null); setSubtitleCustom(prev => ({ ...prev, weight: w })); }}
-                                className={on ? "btn btn-primary btn-sm" : "btn btn-ghost btn-sm"}
-                                style={{ fontWeight: w, minWidth: 46 }}>
-                                {w}
-                              </button>
-                            );
-                          })}
+                        <span style={{ ...labelStyle, marginBottom: 8 }}>{t('subPreviewLabel')}</span>
+                        <div
+                          ref={subStageRef}
+                          onPointerDown={onSubStagePointerDown}
+                          style={{
+                            position: "relative", aspectRatio: "9 / 16", borderRadius: 12, overflow: "hidden",
+                            cursor: "grab", touchAction: "none", userSelect: "none",
+                            background: "linear-gradient(160deg,#3b4a52 0%,#22303a 42%,#131c22 100%)",
+                            boxShadow: "inset 0 0 0 1px rgba(255,255,255,.08)",
+                          }}
+                        >
+                          {/* décor synthétique : simule un plan filmé pour juger le contraste */}
+                          <div style={{ position: "absolute", inset: 0, background: "radial-gradient(60% 40% at 50% 22%, rgba(255,236,190,.28), transparent 70%)" }} />
+                          <div style={{ position: "absolute", left: "50%", top: "34%", transform: "translate(-50%,-50%)", width: "42%", aspectRatio: "1", borderRadius: "50%", background: "rgba(255,255,255,.10)" }} />
+                          <div style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: "34%", background: "linear-gradient(to top, rgba(0,0,0,.55), transparent)" }} />
+
+                          {/* le sous-titre, à sa position réelle */}
+                          <div style={{ position: "absolute", left: subPos.x + "%", top: subPos.y + "%", transform: "translate(-50%,-50%)", maxWidth: "88%", textAlign: "center", pointerEvents: "none" }}>
+                            <SubtitlePreviewChip styleId={subtitleStyleId} custom={subtitleCustom} fontSize={14} />
+                          </div>
+                        </div>
+                        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, marginTop: 8 }}>
+                          <p style={{ fontSize: 11.5, color: "var(--ink-3)", margin: 0, lineHeight: 1.4 }}>{t('subPreviewHint')}</p>
+                          <button type="button" onClick={() => setSubPos(DEFAULT_SUB_POS)} className="btn btn-ghost btn-sm" style={{ flexShrink: 0, fontSize: 11 }}>
+                            {t('subPosReset')}
+                          </button>
                         </div>
                       </div>
 
-                      <p style={{ fontSize: 11.5, color: "var(--ink-3)", margin: 0 }}>{t('subCustomizeNote')}</p>
+                      {/* Tous les réglages — composant partagé avec l'éditeur de montage */}
+                      <div>
+                        <SubtitleStyleEditor
+                          styleId={subtitleStyleId}
+                          custom={subtitleCustom}
+                          onChange={(next) => { setSubPresetId(null); setSubtitleCustom(next); }}
+                          brandFont={activeFontPrimary}
+                          labels={subEditorLabels}
+                        />
+                        <p style={{ fontSize: 11.5, color: "var(--ink-3)", margin: "14px 0 0" }}>{t('subCustomizeNote')}</p>
+                      </div>
                     </div>
                   )}
                 </div>

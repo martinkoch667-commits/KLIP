@@ -11,3 +11,7 @@ alter table workspaces add column if not exists subtitle_style_id text;
 -- même forme que `subCustom` dans montage_json : {fg,hi,bg,stroke,font,weight,
 -- italic,uppercase,pill,scale}. Fusionnée au style de base via effectiveSubStyle().
 alter table workspaces add column if not exists subtitle_custom jsonb;
+
+-- Position par défaut des sous-titres dans le cadre, en % ({x,y}) — réglée au
+-- doigt sur l'aperçu vidéo de l'assistant. Défaut appliqué si absent : {50,84}.
+alter table workspaces add column if not exists subtitle_pos jsonb;

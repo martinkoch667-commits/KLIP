@@ -987,7 +987,10 @@
     "subOptUppercase": "GROSSBUCHSTABEN",
     "subOptItalic": "Kursiv",
     "subOptStroke": "Kontur",
-    "subWeight": "Stärke"
+    "subWeight": "Stärke",
+    "subPreviewLabel": "Vorschau",
+    "subPreviewHint": "Ziehen, um die Untertitel zu platzieren.",
+    "subPosReset": "Zurücksetzen"
   },
   "onboardingSurvey": {
     "q1": "Für wie viele Kunden arbeitest du?",
@@ -2075,5 +2078,37 @@
     "sample1": "Entdecke unsere außergewöhnlichen Angebote diese Woche bei {client}! Unglaubliche Aktionen erwarten dich im Geschäft. Verpasse nicht diese einmalige Gelegenheit für ein gutes Schnäppchen. #Angebot #Deal",
     "sample2": "Neues Produkt jetzt bei {client} erhältlich. Entdecke es im Geschäft und genieße ein einzigartiges Erlebnis. Wir freuen uns auf dich! #Neuheit #Qualität",
     "sample3": "Bei {client} steht deine Zufriedenheit an erster Stelle. Entdecke unsere gesamte Auswahl und lass dich überraschen. Bis bald! #Kundenservice #Exzellenz"
+  },
+  "subtitleEditor": {
+    "basic": "Basis",
+    "font": "Schrift",
+    "brandFont": "Marke",
+    "system": "System",
+    "serif": "Serif",
+    "mono": "Mono",
+    "size": "Größe",
+    "style": "Stil",
+    "case": "Schreibweise",
+    "align": "Ausrichtung",
+    "letterSpacing": "Zeichenabstand",
+    "lineHeight": "Zeilenhöhe",
+    "colors": "Farben",
+    "text": "Text",
+    "highlight": "Hervorgehobenes Wort",
+    "background": "Hintergrund",
+    "none": "Keiner",
+    "opacity": "Deckkraft",
+    "radius": "Eckenradius",
+    "pill": "Pille",
+    "stroke": "Kontur",
+    "thickness": "Stärke",
+    "shadow": "Schatten",
+    "blur": "Weichzeichnen",
+    "offsetX": "Versatz X",
+    "offsetY": "Versatz Y",
+    "glow": "Leuchten",
+    "intensity": "Intensität",
+    "transform": "Transformieren",
+    "rotation": "Drehung"
   }
 }

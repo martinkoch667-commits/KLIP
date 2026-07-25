@@ -8,7 +8,7 @@ import { VIcon } from "./icons";
 import {
   MontageClip, OverlayClip, Caption, TitleEl, StickerEl, AudioTrack, MontageProject, SubCustom,
   FILTERS, TRANSITIONS, SUB_STYLES, FONT_CHOICES, SUB_LENGTHS, DEFAULT_WORDS_PER_CAPTION, DEFAULT_SUB_POS,
-  subStyleById, effectiveSubStyle,
+  subStyleById, effectiveSubStyle, subtitleBoxCss, applySubCase,
   fmt, newClipDefaults, newOverlayDefaults, clipFilterCss, overlayFilterCss, clipTimelineDur, clipAudioGainAt, overlayTimelineDur, overlayAudioGainAt, segmentCaptions,
   audioVolumeAt, kenBurnsScale, VIDEO_FORMATS, videoFormatById, EXPORT_QUALITIES,
 } from "./constants";
@@ -199,16 +199,19 @@ function peaksFromSamples(samples: Float32Array): number[] {
 // couleur d'accent de la marque, sur une base lisible (contour noir, texte blanc).
 // Appliqué par défaut aux montages jamais personnalisés → sous-titres déjà à la charte.
 function charterSubDefault(ws: {
-  accent_color?: string | null; subtitle_style_id?: string | null; subtitle_custom?: SubCustom | null;
-} | null | undefined): { styleId: string; custom: SubCustom } | null {
+  accent_color?: string | null; subtitle_style_id?: string | null;
+  subtitle_custom?: SubCustom | null; subtitle_pos?: { x: number; y: number } | null;
+} | null | undefined): { styleId: string; custom: SubCustom; pos: { x: number; y: number } | null } | null {
   const acc = ws?.accent_color;
   const hasStyle = SUB_STYLES.some((s) => s.id === ws?.subtitle_style_id);
   const custom = ws?.subtitle_custom && typeof ws.subtitle_custom === "object" ? ws.subtitle_custom : null;
+  const p = ws?.subtitle_pos;
+  const pos = p && typeof p === "object" && typeof p.x === "number" && typeof p.y === "number" ? { x: p.x, y: p.y } : null;
   // Rien de configuré ET pas de couleur d'accent exploitable → on laisse le défaut du montage.
-  if (!hasStyle && !custom && (!acc || !/^#([0-9a-fA-F]{3,8})$/.test(acc))) return null;
+  if (!hasStyle && !custom && !pos && (!acc || !/^#([0-9a-fA-F]{3,8})$/.test(acc))) return null;
   const styleId = hasStyle ? (ws!.subtitle_style_id as string) : "bold-white";
   // Le template du client prime ; à défaut, on surligne simplement à la couleur d'accent.
-  return { styleId, custom: custom ?? { hi: acc as string } };
+  return { styleId, custom: custom ?? { hi: acc as string }, pos };
 }
 
 const PHOTO_DEFAULT_DUR = 3;
@@ -585,11 +588,11 @@ export default function MontagePage() {
     (async () => {
       const [{ data: post }, wsRes] = await Promise.all([
         supabase.from("posts").select("montage_json, brief, photo_url").eq("id", postId).single(),
-        supabase.from("workspaces").select("logo_url, accent_color, subtitle_style_id, subtitle_custom").eq("id", workspaceId).single(),
+        supabase.from("workspaces").select("logo_url, accent_color, subtitle_style_id, subtitle_custom, subtitle_pos").eq("id", workspaceId).single(),
       ]);
       // Tolérant : si subtitle_style_id n'est pas encore migré, on relit sans la colonne.
       let ws = wsRes.data;
-      if (wsRes.error && /subtitle_(style_id|custom)/.test(wsRes.error.message || "")) {
+      if (wsRes.error && /subtitle_(style_id|custom|pos)/.test(wsRes.error.message || "")) {
         ws = (await supabase.from("workspaces").select("logo_url, accent_color").eq("id", workspaceId).single()).data as typeof ws;
       }
       if (post?.brief) setProjectName(post.brief);
@@ -604,7 +607,7 @@ export default function MontagePage() {
         const subUntouched = !proj.subStyleId && (!proj.subCustom || Object.keys(proj.subCustom).length === 0);
         setSubStyleId(subUntouched && charterSub ? charterSub.styleId : (proj.subStyleId || SUB_STYLES[0].id));
         setSubMaxWords(proj.subMaxWords || DEFAULT_WORDS_PER_CAPTION);
-        setSubPos(proj.subPos || DEFAULT_SUB_POS);
+        setSubPos(proj.subPos || (subUntouched ? charterSub?.pos : null) || DEFAULT_SUB_POS);
         setSubCustom(subUntouched && charterSub ? charterSub.custom : (proj.subCustom || {}));
         setLinkedSubs(proj.linkedSubs ?? true);
         setRawSegments(proj.rawSegments || []);
@@ -620,9 +623,10 @@ export default function MontagePage() {
       } else if (post?.photo_url) {
         const dur = await getVideoDuration(post.photo_url);
         setClips([{ id: crypto.randomUUID(), kind: "video", name: t('initialImportName'), src: post.photo_url, srcDur: dur, trimStart: 0, trimEnd: dur, ...newClipDefaults() }]);
-        if (charterSub) { setSubStyleId(charterSub.styleId); setSubCustom(charterSub.custom); }
+        if (charterSub) { setSubStyleId(charterSub.styleId); setSubCustom(charterSub.custom); if (charterSub.pos) setSubPos(charterSub.pos); }
       } else if (charterSub) {
         setSubStyleId(charterSub.styleId); setSubCustom(charterSub.custom);
+        if (charterSub.pos) setSubPos(charterSub.pos);
       }
       setLoading(false);
     })();
@@ -2793,17 +2797,11 @@ export default function MontagePage() {
                     title={editingCaptionId === activeCaption.id ? undefined : t('doubleClickToEdit')}
                   >
                     <div className="mz-cap-box" style={{
-                      background: capStyle.bg, color: capStyle.fg,
-                      fontWeight: capStyle.weight, fontStyle: capStyle.italic ? "italic" : "normal",
-                      fontFamily: capStyle.font || (capStyle.italic ? "var(--display)" : "var(--sans)"),
-                      padding: capStyle.pill ? "6px 16px" : "8px 12px",
-                      borderRadius: capStyle.pill ? 99 : 8,
-                      textShadow: capStyle.bg === "transparent" && !capStyle.stroke ? "0 1px 8px rgba(0,0,0,.6)" : "none",
-                      textTransform: capStyle.uppercase ? "uppercase" : "none",
-                      WebkitTextStroke: capStyle.stroke ? `2px ${capStyle.stroke}` : undefined,
-                      paintOrder: "stroke fill",
-                      fontSize: 34 * previewScale,
-                    }}>
+                      // Rendu piloté par la source unique partagée avec l'assistant client
+                      // et répliquée par l'export canvas (cf. subtitleBoxCss / drawCaptions).
+                      ...subtitleBoxCss(capStyle, 34 * previewScale),
+                      transform: capStyle.rotation ? `rotate(${capStyle.rotation}deg)` : undefined,
+                    } as React.CSSProperties}>
                       {editingCaptionId === activeCaption.id ? (
                         <span
                           ref={captionEditRef}
@@ -2832,7 +2830,7 @@ export default function MontagePage() {
                               transition: "color .12s, opacity .12s, transform .12s var(--ease)",
                             }}
                           >
-                            {w}{i < arr.length - 1 ? "\u00A0" : ""}
+                            {applySubCase(w, capStyle.caseMode)}{i < arr.length - 1 ? "\u00A0" : ""}
                           </span>
                         );
                       })}

@@ -987,7 +987,10 @@
     "subOptUppercase": "UPPERCASE",
     "subOptItalic": "Italic",
     "subOptStroke": "Outline",
-    "subWeight": "Weight"
+    "subWeight": "Weight",
+    "subPreviewLabel": "Preview",
+    "subPreviewHint": "Drag to position the subtitles.",
+    "subPosReset": "Reset"
   },
   "onboardingSurvey": {
     "q1": "How many clients do you work for?",
@@ -2075,5 +2078,37 @@
     "sample1": "Discover our exceptional offers this week at {client}! Incredible promotions await you in store. Don't miss this unique opportunity to grab a great deal. #Promo #Deal",
     "sample2": "New product available now at {client}. Come discover it in store and enjoy a unique experience. We're waiting for you! #New #Quality",
     "sample3": "At {client}, your satisfaction is our priority. Browse our full selection and let yourself be surprised. See you soon! #CustomerService #Excellence"
+  },
+  "subtitleEditor": {
+    "basic": "Basic",
+    "font": "Font",
+    "brandFont": "Brand",
+    "system": "System",
+    "serif": "Serif",
+    "mono": "Mono",
+    "size": "Size",
+    "style": "Style",
+    "case": "Case",
+    "align": "Alignment",
+    "letterSpacing": "Letter spacing",
+    "lineHeight": "Line height",
+    "colors": "Colors",
+    "text": "Text",
+    "highlight": "Highlighted word",
+    "background": "Background",
+    "none": "None",
+    "opacity": "Opacity",
+    "radius": "Corner radius",
+    "pill": "Pill",
+    "stroke": "Stroke",
+    "thickness": "Thickness",
+    "shadow": "Shadow",
+    "blur": "Blur",
+    "offsetX": "Offset X",
+    "offsetY": "Offset Y",
+    "glow": "Glow",
+    "intensity": "Intensity",
+    "transform": "Transform",
+    "rotation": "Rotation"
   }
 }

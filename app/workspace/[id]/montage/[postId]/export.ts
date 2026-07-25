@@ -13,7 +13,7 @@
 // par-dessus — un vrai équivalent pour celles-ci nécessiterait un transform de
 // sortie dédié par type, hors périmètre de ce lot.
 
-import { MontageClip, OverlayClip, Caption, TitleEl, StickerEl, AudioTrack, SubCustom, effectiveSubStyle, DEFAULT_SUB_POS, clipFilterCss, overlayFilterCss, clipTimelineDur, clipAudioGainAt, overlayTimelineDur, overlayAudioGainAt, audioVolumeAt, kenBurnsScale, videoFormatById, exportQualityById } from "./constants";
+import { MontageClip, OverlayClip, Caption, TitleEl, StickerEl, AudioTrack, SubCustom, effectiveSubStyle, applySubCase, withAlpha, DEFAULT_SUB_POS, clipFilterCss, overlayFilterCss, clipTimelineDur, clipAudioGainAt, overlayTimelineDur, overlayAudioGainAt, audioVolumeAt, kenBurnsScale, videoFormatById, exportQualityById } from "./constants";
 
 export interface ExportProject {
   clips: MontageClip[];
@@ -134,60 +134,108 @@ function drawCaptions(ctx: CanvasRenderingContext2D, captions: Caption[], subSty
   // Sous-titres déliés : chaque bloc honore ses propres surcharges de style/position.
   const style = linkedSubs ? effectiveSubStyle(subStyleId, subCustom) : effectiveSubStyle(cap.styleId ?? subStyleId, cap.custom ?? {});
   const rawWords = cap.text.split(/\s+/).filter(Boolean);
-  const words = style.uppercase ? rawWords.map((w) => w.toUpperCase()) : rawWords;
+  const words = rawWords.map((w) => applySubCase(w, style.caseMode));
   const progress = (t - cap.start) / Math.max(0.1, cap.end - cap.start);
   const activeIdx = Math.min(words.length - 1, Math.floor(progress * words.length));
 
   const fontSize = 34 * style.scale;
   const fam = style.font
-    ? (/serif/i.test(style.font) ? "Georgia, serif" : /mono/i.test(style.font) ? "ui-monospace, monospace" : "system-ui, sans-serif")
+    ? `'${style.font}', system-ui, sans-serif`
     : (style.italic ? "Georgia, serif" : "system-ui, sans-serif");
-  ctx.font = `${style.weight} ${style.italic ? "italic " : ""}${fontSize}px ${fam}`;
-  ctx.textAlign = "center";
+  ctx.font = `${style.italic ? "italic " : ""}${style.weight} ${fontSize}px ${fam}`;
   ctx.textBaseline = "middle";
+  // Interlettrage (Chrome ≥ 99) — ignoré silencieusement ailleurs.
+  const ctxLS = ctx as CanvasRenderingContext2D & { letterSpacing?: string };
+  const prevLS = ctxLS.letterSpacing;
+  if (style.letterSpacing) ctxLS.letterSpacing = `${style.letterSpacing * fontSize}px`;
 
   const line = words.join(" ");
   const metrics = ctx.measureText(line);
-  const padX = style.pill ? 22 : 16, padY = style.pill ? 12 : 10;
+  const padX = style.padX * style.scale, padY = style.padY * style.scale;
   const boxW = Math.min(CANVAS_W - 60, metrics.width + padX * 2);
-  const boxH = fontSize + padY * 2;
+  const boxH = fontSize * style.lineHeight + padY * 2;
   const pos = linkedSubs ? (subPos || DEFAULT_SUB_POS) : { x: cap.x ?? (subPos?.x ?? DEFAULT_SUB_POS.x), y: cap.y ?? (subPos?.y ?? DEFAULT_SUB_POS.y) };
   const cxPos = (pos.x / 100) * CANVAS_W;
   const cyPos = (pos.y / 100) * CANVAS_H;
   const boxX = Math.max(20, Math.min(CANVAS_W - 20 - boxW, cxPos - boxW / 2));
   const boxY = Math.max(10, Math.min(CANVAS_H - 10 - boxH, cyPos - boxH / 2));
 
+  ctx.save();
+  // Opacité globale + rotation autour du centre de la boîte (« Transformer »).
+  ctx.globalAlpha = style.opacity;
+  if (style.rotation) {
+    ctx.translate(boxX + boxW / 2, boxY + boxH / 2);
+    ctx.rotate((style.rotation * Math.PI) / 180);
+    ctx.translate(-(boxX + boxW / 2), -(boxY + boxH / 2));
+  }
+
   if (style.bg !== "transparent") {
-    ctx.fillStyle = style.bg;
-    const r = style.pill ? boxH / 2 : 8;
+    ctx.fillStyle = withAlpha(style.bg, style.bgOpacity);
+    const r = style.pill ? boxH / 2 : style.radius * style.scale;
     ctx.beginPath();
     ctx.roundRect(boxX, boxY, boxW, boxH, r);
     ctx.fill();
   }
 
-  let x = boxX + boxW / 2 - metrics.width / 2;
+  // Alignement du texte dans la boîte.
+  const innerW = boxW - padX * 2;
+  let x = style.align === "left" ? boxX + padX
+        : style.align === "right" ? boxX + padX + innerW - metrics.width
+        : boxX + boxW / 2 - metrics.width / 2;
   const y = boxY + boxH / 2;
-  if (style.bg === "transparent" && !style.stroke) {
-    ctx.shadowColor = "rgba(0,0,0,.6)";
-    ctx.shadowBlur = 8;
-  }
+
   ctx.textAlign = "left";
   ctx.lineJoin = "round";
-  ctx.lineWidth = 5;
+  ctx.lineWidth = style.strokeW * 2 * style.scale; // strokeText déborde de moitié
+
+  // Ombre / lueur : mêmes réglages que subTextShadowCss côté aperçu.
+  const applyShadow = () => {
+    if (style.glowColor && style.glowBlur > 0) {
+      ctx.shadowColor = style.glowColor;
+      ctx.shadowBlur = style.glowBlur * style.scale;
+      ctx.shadowOffsetX = 0; ctx.shadowOffsetY = 0;
+    } else if (style.shadowColor && (style.shadowBlur > 0 || style.shadowX || style.shadowY)) {
+      ctx.shadowColor = style.shadowColor;
+      ctx.shadowBlur = style.shadowBlur * style.scale;
+      ctx.shadowOffsetX = style.shadowX * style.scale;
+      ctx.shadowOffsetY = style.shadowY * style.scale;
+    } else if (style.bg === "transparent" && !style.stroke) {
+      ctx.shadowColor = "rgba(0,0,0,.6)";
+      ctx.shadowBlur = 8 * style.scale;
+      ctx.shadowOffsetX = 0; ctx.shadowOffsetY = 0;
+    }
+  };
+  const clearShadow = () => { ctx.shadowColor = "transparent"; ctx.shadowBlur = 0; ctx.shadowOffsetX = 0; ctx.shadowOffsetY = 0; };
+
   words.forEach((w, i) => {
     const wordProg = Math.max(0, Math.min(1, progress * words.length - i));
     const revealed = i <= activeIdx;
-    ctx.globalAlpha = revealed ? 0.35 + 0.65 * wordProg : 0.28;
-    if (style.stroke) {
+    ctx.globalAlpha = style.opacity * (revealed ? 0.35 + 0.65 * wordProg : 0.28);
+    const wWidth = ctx.measureText(w).width;
+    applyShadow();
+    if (style.stroke && style.strokeW > 0) {
       ctx.strokeStyle = style.stroke;
       ctx.strokeText(w, x, y);
     }
     ctx.fillStyle = i === activeIdx ? style.hi : style.fg;
     ctx.fillText(w, x, y);
+    clearShadow();
+    // Soulignement (le canvas n'a pas text-decoration).
+    if (style.underline) {
+      const uy = y + fontSize * 0.42;
+      ctx.strokeStyle = i === activeIdx ? style.hi : style.fg;
+      ctx.lineWidth = Math.max(1, fontSize * 0.06);
+      ctx.beginPath();
+      ctx.moveTo(x, uy); ctx.lineTo(x + wWidth, uy); ctx.stroke();
+      ctx.lineWidth = style.strokeW * 2 * style.scale;
+    }
     x += ctx.measureText(w + " ").width;
   });
+
+  ctx.restore();
   ctx.globalAlpha = 1;
-  ctx.shadowBlur = 0;
+  clearShadow();
+  if (style.letterSpacing) ctxLS.letterSpacing = prevLS ?? "0px";
 }
 
 function drawTitles(ctx: CanvasRenderingContext2D, titles: TitleEl[], t: number) {

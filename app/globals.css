@@ -1109,3 +1109,9 @@ input.mz-range::-moz-range-thumb { width: 16px; height: 16px; border-radius: 50%
 @media (max-width: 1080px) {
   .a-panel { width: 264px; }
 }
+
+/* Éditeur de sous-titres (assistant client) : aperçu au-dessus des réglages en étroit. */
+@media (max-width: 900px) {
+  .sub-editor-grid { grid-template-columns: 1fr !important; }
+  .sub-editor-grid > div:first-child { max-width: 240px; }
+}

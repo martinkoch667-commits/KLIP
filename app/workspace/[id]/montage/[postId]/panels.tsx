@@ -7,6 +7,7 @@
 import { useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import { VIcon } from "./icons";
+import SubtitleStyleEditor from "@/components/SubtitleStyleEditor";
 import {
   MontageClip, OverlayClip, Caption, TitleEl, StickerEl, AudioTrack, SubCustom, SubTemplate,
   FILTERS, TRANSITIONS, SPEEDS, SUB_STYLES, SUB_LENGTHS, STICKER_GLYPHS, FONT_CHOICES,
@@ -279,32 +280,13 @@ export function TextPanel({ ctx, selectedTitleId }: { ctx: MontageCtx; selectedT
 
 // ─── Sous-titres ────────────────────────────────────────────────────────────
 
-const SUB_FONTS: { label: string; css: string }[] = [
-  { label: "Satoshi", css: "var(--sans)" },
-  { label: "Archivo", css: "var(--display)" },
-  { label: "Serif", css: "'Instrument Serif', serif" },
-  { label: "Mono", css: "var(--mono)" },
-];
-
-function ColorField({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
-  // color input exige un hex ; on retombe sur noir/blanc pour les valeurs non-hex (rgba/transparent).
-  const hex = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(value) ? value : "#ffffff";
-  return (
-    <label style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, fontSize: 12, color: "var(--ink-2)", fontWeight: 700 }}>
-      {label}
-      <input type="color" value={hex} onChange={(e) => onChange(e.target.value)} style={{ width: 34, height: 26, border: "1px solid var(--line)", borderRadius: 6, background: "var(--white)", padding: 0, cursor: "pointer" }} />
-    </label>
-  );
-}
-
 export function CaptionsPanel({ ctx }: { ctx: MontageCtx }) {
   const t = useTranslations('montage');
   const tc = useTranslations('montageConstants');
+  const tse = useTranslations('subtitleEditor'); // libellés de l'éditeur partagé
   const hasVideo = ctx.clips.some((c) => c.kind === "video");
-  const eff = effectiveSubStyle(ctx.subStyleId, ctx.subCustom);
   const [tpls, setTpls] = useState<SubTemplate[]>(() => loadSubTemplates());
   const [tplName, setTplName] = useState("");
-  const patch = (p: SubCustom) => ctx.setSubCustom((c) => ({ ...c, ...p }));
   function saveTemplate() {
     const name = tplName.trim() || t('defaultTemplateName', { n: tpls.length + 1 });
     const tpl: SubTemplate = { id: crypto.randomUUID(), name, styleId: ctx.subStyleId, custom: ctx.subCustom, maxWords: ctx.subMaxWords, pos: ctx.subPos };
@@ -395,37 +377,25 @@ export function CaptionsPanel({ ctx }: { ctx: MontageCtx }) {
           <button className="btn btn-ghost btn-sm" onClick={ctx.resetSubCustom} title={t('resetToBaseStyle')}><VIcon name="undo" size={12} /> {t('reset')}</button>
         </div>
         <p style={{ fontSize: 11.5, color: "var(--ink-3)", margin: "0 0 10px" }}>{ctx.linkedSubs ? t('subsLinkedHint') : t('subsIndividualHint')}</p>
-        <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 12 }}>
-          <ColorField label={t('text')} value={eff.fg} onChange={(v) => patch({ fg: v })} />
-          <ColorField label={t('activeWord')} value={eff.hi} onChange={(v) => patch({ hi: v })} />
-          <label style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, fontSize: 12, color: "var(--ink-2)", fontWeight: 700 }}>
-            {t('background')}
-            <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <button className={"mz-chip-btn" + (eff.bg === "transparent" ? " on" : "")} style={{ padding: "4px 9px", fontSize: 11 }} onClick={() => patch({ bg: eff.bg === "transparent" ? "#0C2A1D" : "transparent" })}>{eff.bg === "transparent" ? t('none') : t('full')}</button>
-              {eff.bg !== "transparent" && <input type="color" value={/^#([0-9a-f]{6})$/i.test(eff.bg) ? eff.bg : "#0c2a1d"} onChange={(e) => patch({ bg: e.target.value })} style={{ width: 34, height: 26, border: "1px solid var(--line)", borderRadius: 6, padding: 0, cursor: "pointer" }} />}
-            </span>
-          </label>
-          <label style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, fontSize: 12, color: "var(--ink-2)", fontWeight: 700 }}>
-            {t('outline')}
-            <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <button className={"mz-chip-btn" + (eff.stroke ? " on" : "")} style={{ padding: "4px 9px", fontSize: 11 }} onClick={() => patch({ stroke: eff.stroke ? "" : "#000000" })}>{eff.stroke ? t('yes') : t('no')}</button>
-              {eff.stroke && <input type="color" value={/^#([0-9a-f]{6})$/i.test(eff.stroke) ? eff.stroke : "#000000"} onChange={(e) => patch({ stroke: e.target.value })} style={{ width: 34, height: 26, border: "1px solid var(--line)", borderRadius: 6, padding: 0, cursor: "pointer" }} />}
-            </span>
-          </label>
-        </div>
-        <span className="mz-sec-label" style={{ marginBottom: 6 }}>{t('typography')}</span>
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 10 }}>
-          {SUB_FONTS.map((f) => (
-            <button key={f.label} className={"mz-chip-btn" + ((eff.font || "var(--sans)") === f.css ? " on" : "")} style={{ fontFamily: f.css }} onClick={() => patch({ font: f.css })}>{f.label}</button>
-          ))}
-        </div>
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 12 }}>
-          <button className={"mz-chip-btn" + (eff.uppercase ? " on" : "")} onClick={() => patch({ uppercase: !eff.uppercase })}>{t('uppercaseShort')}</button>
-          <button className={"mz-chip-btn" + (eff.weight >= 800 ? " on" : "")} onClick={() => patch({ weight: eff.weight >= 800 ? 600 : 900 })} style={{ fontWeight: 800 }}>{t('bold')}</button>
-          <button className={"mz-chip-btn" + (eff.italic ? " on" : "")} onClick={() => patch({ italic: !eff.italic })} style={{ fontStyle: "italic" }}>{t('italic')}</button>
-          <button className={"mz-chip-btn" + (eff.pill ? " on" : "")} onClick={() => patch({ pill: !eff.pill })}>{t('pill')}</button>
-        </div>
-        <Range label={t('size')} value={eff.scale} min={0.5} max={2.4} step={0.05} onChange={(v) => patch({ scale: v })} fmtv={(v) => `${Math.round(v * 100)}%`} />
+        {/* Réglages complets — MÊME composant que l'assistant « nouveau client »,
+            pour que les deux endroits proposent exactement les mêmes paramètres. */}
+        <SubtitleStyleEditor
+          styleId={ctx.subStyleId}
+          custom={ctx.subCustom}
+          onChange={(next) => ctx.setSubCustom(() => next)}
+          brandFont={null}
+          labels={{
+            basic: tse('basic'), font: tse('font'), brandFont: tse('brandFont'), system: tse('system'),
+            serif: tse('serif'), mono: tse('mono'), size: tse('size'), style: tse('style'), case: tse('case'),
+            align: tse('align'), letterSpacing: tse('letterSpacing'), lineHeight: tse('lineHeight'),
+            colors: tse('colors'), text: tse('text'), highlight: tse('highlight'),
+            background: tse('background'), none: tse('none'), opacity: tse('opacity'), radius: tse('radius'), pill: tse('pill'),
+            stroke: tse('stroke'), thickness: tse('thickness'),
+            shadow: tse('shadow'), blur: tse('blur'), offsetX: tse('offsetX'), offsetY: tse('offsetY'),
+            glow: tse('glow'), intensity: tse('intensity'),
+            transform: tse('transform'), rotation: tse('rotation'),
+          }}
+        />
       </div>
       <div className="a-section">
         <span className="mz-sec-label">{t('myTemplatesTitle')}</span>

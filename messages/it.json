@@ -987,7 +987,10 @@
     "subOptUppercase": "MAIUSCOLO",
     "subOptItalic": "Corsivo",
     "subOptStroke": "Contorno",
-    "subWeight": "Spessore"
+    "subWeight": "Spessore",
+    "subPreviewLabel": "Anteprima",
+    "subPreviewHint": "Trascina per posizionare i sottotitoli.",
+    "subPosReset": "Reimposta"
   },
   "onboardingSurvey": {
     "q1": "Per quanti clienti lavori?",
@@ -2075,5 +2078,37 @@
     "sample1": "Scopri le nostre offerte eccezionali questa settimana da {client}! Promozioni incredibili ti aspettano in negozio. Non perdere questa opportunità unica per fare un buon affare. #Promo #Offerta",
     "sample2": "Nuovo prodotto disponibile ora da {client}. Vieni a scoprirlo in negozio e goditi un'esperienza unica. Ti aspettiamo! #Novità #Qualità",
     "sample3": "Da {client}, la tua soddisfazione è la nostra priorità. Scopri tutta la nostra selezione e lasciati sorprendere. A presto! #ServizioClienti #Eccellenza"
+  },
+  "subtitleEditor": {
+    "basic": "Base",
+    "font": "Font",
+    "brandFont": "Brand",
+    "system": "Sistema",
+    "serif": "Serif",
+    "mono": "Mono",
+    "size": "Dimensione",
+    "style": "Stile",
+    "case": "Maiuscole",
+    "align": "Allineamento",
+    "letterSpacing": "Spaziatura",
+    "lineHeight": "Interlinea",
+    "colors": "Colori",
+    "text": "Testo",
+    "highlight": "Parola evidenziata",
+    "background": "Sfondo",
+    "none": "Nessuno",
+    "opacity": "Opacità",
+    "radius": "Raggio",
+    "pill": "Pillola",
+    "stroke": "Contorno",
+    "thickness": "Spessore",
+    "shadow": "Ombra",
+    "blur": "Sfocatura",
+    "offsetX": "Offset X",
+    "offsetY": "Offset Y",
+    "glow": "Bagliore",
+    "intensity": "Intensità",
+    "transform": "Trasforma",
+    "rotation": "Rotazione"
   }
 }
