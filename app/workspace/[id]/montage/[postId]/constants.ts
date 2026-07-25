@@ -447,3 +447,55 @@ export function clipFilterCss(c: MontageClip): string {
 export function overlayFilterCss(o: OverlayClip): string {
   return filterCssOf(o.filterId, o.lum, o.con, o.sat);
 }
+
+// ─── Templates de sous-titres dérivés de la charte du client ────────────────
+// Plutôt que d'imposer la liste générique SUB_STYLES, on propose des styles
+// construits À PARTIR des couleurs et de la police déjà choisies pour la marque.
+// Utilisé par l'assistant « nouveau client » (étape Templates, une fois les
+// couleurs ET la typographie renseignées) et réutilisable ailleurs.
+
+// Luminance relative (WCAG) — sert à poser un texte lisible sur un fond donné.
+export function readableOn(hex: string): string {
+  const m = /^#?([0-9a-f]{6})$/i.exec((hex || "").trim());
+  if (!m) return "#FFFFFF";
+  const n = parseInt(m[1], 16);
+  const ch = [(n >> 16) & 255, (n >> 8) & 255, n & 255].map((v) => {
+    const s = v / 255;
+    return s <= 0.03928 ? s / 12.92 : Math.pow((s + 0.055) / 1.055, 2.4);
+  });
+  const lum = 0.2126 * ch[0] + 0.7152 * ch[1] + 0.0722 * ch[2];
+  return lum > 0.45 ? "#14160F" : "#FFFFFF";
+}
+
+export interface CharterPreset {
+  id: string;          // clé i18n courte (charterPresetName.<id>)
+  styleId: string;     // style SUB_STYLES servant de base
+  custom: SubCustom;   // surcharges issues de la charte
+}
+
+export interface CharterBrand {
+  primary?: string | null;
+  secondary?: string | null;
+  accent?: string | null;
+  font?: string | null;   // famille de police choisie à l'étape Typographie
+}
+
+// Renvoie une petite sélection de templates cohérents avec la charte.
+export function charterSubPresets(brand: CharterBrand): CharterPreset[] {
+  const accent = brand.accent || "#BDF2A0";
+  const primary = brand.primary || "#0C2A1D";
+  const font = brand.font || undefined;
+  const f = font ? { font } : {};
+  return [
+    // Texte net, mot surligné à la couleur d'accent — le plus polyvalent.
+    { id: "charte",   styleId: "simple",     custom: { ...f, fg: "#FFFFFF", hi: accent, bg: "transparent", weight: 800 } },
+    // Contour noir façon TikTok/Reels, accent sur le mot actif.
+    { id: "contour",  styleId: "bold-white", custom: { ...f, fg: "#FFFFFF", hi: accent, stroke: "#000000", uppercase: true } },
+    // Pilule pleine à la couleur d'accent.
+    { id: "pilule",   styleId: "pill-black", custom: { ...f, bg: accent, fg: readableOn(accent), hi: primary, pill: true } },
+    // Bandeau à la couleur principale de la marque.
+    { id: "bandeau",  styleId: "band-black", custom: { ...f, bg: primary, fg: readableOn(primary), hi: accent } },
+    // Sobre : blanc pur, sans surlignage coloré.
+    { id: "sobre",    styleId: "simple",     custom: { ...f, fg: "#FFFFFF", hi: "#FFFFFF", bg: "transparent", weight: 700 } },
+  ];
+}

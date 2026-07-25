@@ -910,7 +910,7 @@
     "step3Subtitle": "Farben, Logos und grafische Elemente der Marke.",
     "brandColorsLabel": "Markenfarben",
     "subtitleTemplateLabel": "Untertitel-Vorlage",
-    "subtitleTemplateHint": "Der Standardstil für Untertitel in deinen Videomontagen — das hervorgehobene Wort nutzt deine Akzentfarbe.",
+    "subtitleTemplateHint": "Aus den Markenfarben und der Schrift erzeugt. Das hervorgehobene Wort gibt den Rhythmus deiner Videomontagen vor.",
     "colorPrimary": "Primär",
     "colorSecondary": "Sekundär",
     "colorAccent": "Akzent",
@@ -962,7 +962,32 @@
     "creating": "Wird erstellt…",
     "createWorkspaceBtn": "Kundenbereich erstellen",
     "errorGeneric": "Bei der Erstellung ist ein Fehler aufgetreten.",
-    "errorApiFallback": "Workspace nicht erstellt — siehe Vercel-Logs"
+    "errorApiFallback": "Workspace nicht erstellt — siehe Vercel-Logs",
+    "subPresetName": {
+      "charte": "Markengerecht",
+      "contour": "Kontur",
+      "pilule": "Akzent-Pille",
+      "bandeau": "Banner",
+      "sobre": "Schlicht"
+    },
+    "subPresetHint": {
+      "charte": "Akzent auf dem Schlüsselwort",
+      "contour": "Reels-/TikTok-Stil",
+      "pilule": "Hintergrund in Akzentfarbe",
+      "bandeau": "Hintergrund in Primärfarbe",
+      "sobre": "Weiß, ohne Farbe"
+    },
+    "subCustomizeToggle": "Anpassen",
+    "subCustomizeNote": "Dieser Stil gilt standardmäßig für alle Montagen dieses Kunden. Im Editor kannst du ihn weiterhin ändern.",
+    "subColorText": "Text",
+    "subColorHighlight": "Hervorgehobenes Wort",
+    "subColorBox": "Hintergrund",
+    "subNoBox": "Ohne Hintergrund",
+    "subOptPill": "Pille",
+    "subOptUppercase": "GROSSBUCHSTABEN",
+    "subOptItalic": "Kursiv",
+    "subOptStroke": "Kontur",
+    "subWeight": "Stärke"
   },
   "onboardingSurvey": {
     "q1": "Für wie viele Kunden arbeitest du?",

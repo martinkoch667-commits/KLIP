@@ -910,7 +910,7 @@
     "step3Subtitle": "Brand colors, logos and graphic assets.",
     "brandColorsLabel": "Brand colors",
     "subtitleTemplateLabel": "Subtitle template",
-    "subtitleTemplateHint": "The default style for subtitles in your video edits — the highlighted word uses your accent color.",
+    "subtitleTemplateHint": "Generated from the brand colors and font. The highlighted word sets the rhythm in your video edits.",
     "colorPrimary": "Primary",
     "colorSecondary": "Secondary",
     "colorAccent": "Accent",
@@ -962,7 +962,32 @@
     "creating": "Creating…",
     "createWorkspaceBtn": "Create client space",
     "errorGeneric": "An error occurred while creating.",
-    "errorApiFallback": "Workspace not created — check Vercel logs"
+    "errorApiFallback": "Workspace not created — check Vercel logs",
+    "subPresetName": {
+      "charte": "On-brand",
+      "contour": "Outline",
+      "pilule": "Accent pill",
+      "bandeau": "Band",
+      "sobre": "Plain"
+    },
+    "subPresetHint": {
+      "charte": "Accent on the key word",
+      "contour": "Reels / TikTok style",
+      "pilule": "Accent-colored background",
+      "bandeau": "Primary-colored background",
+      "sobre": "White, no color"
+    },
+    "subCustomizeToggle": "Customize",
+    "subCustomizeNote": "This style becomes the default for every edit of this client. You can still adjust it in the montage editor.",
+    "subColorText": "Text",
+    "subColorHighlight": "Highlighted word",
+    "subColorBox": "Background",
+    "subNoBox": "No background",
+    "subOptPill": "Pill",
+    "subOptUppercase": "UPPERCASE",
+    "subOptItalic": "Italic",
+    "subOptStroke": "Outline",
+    "subWeight": "Weight"
   },
   "onboardingSurvey": {
     "q1": "How many clients do you work for?",

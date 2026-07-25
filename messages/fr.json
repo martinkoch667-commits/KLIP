@@ -910,7 +910,7 @@
     "step3Subtitle": "Couleurs, logos et assets graphiques de la marque.",
     "brandColorsLabel": "Couleurs de marque",
     "subtitleTemplateLabel": "Template de sous-titres",
-    "subtitleTemplateHint": "Le style par défaut des sous-titres dans vos montages vidéo — le mot surligné prend votre couleur d'accent.",
+    "subtitleTemplateHint": "Générés à partir des couleurs et de la police de la marque. Le mot surligné marque le rythme dans vos montages vidéo.",
     "colorPrimary": "Principale",
     "colorSecondary": "Secondaire",
     "colorAccent": "Accent",
@@ -962,7 +962,32 @@
     "creating": "Création en cours…",
     "createWorkspaceBtn": "Créer l’espace client",
     "errorGeneric": "Erreur lors de la création.",
-    "errorApiFallback": "Workspace non créé — voir logs Vercel"
+    "errorApiFallback": "Workspace non créé — voir logs Vercel",
+    "subPresetName": {
+      "charte": "À la charte",
+      "contour": "Contour",
+      "pilule": "Pilule accent",
+      "bandeau": "Bandeau",
+      "sobre": "Sobre"
+    },
+    "subPresetHint": {
+      "charte": "Accent sur le mot clé",
+      "contour": "Style Reels / TikTok",
+      "pilule": "Fond couleur d’accent",
+      "bandeau": "Fond couleur principale",
+      "sobre": "Blanc, sans couleur"
+    },
+    "subCustomizeToggle": "Personnaliser",
+    "subCustomizeNote": "Ce style sera appliqué par défaut à tous les montages de ce client. Vous pourrez toujours l’ajuster dans l’éditeur de montage.",
+    "subColorText": "Texte",
+    "subColorHighlight": "Mot surligné",
+    "subColorBox": "Fond",
+    "subNoBox": "Sans fond",
+    "subOptPill": "Pilule",
+    "subOptUppercase": "MAJUSCULES",
+    "subOptItalic": "Italique",
+    "subOptStroke": "Contour",
+    "subWeight": "Graisse"
   },
   "onboardingSurvey": {
     "q1": "Pour combien de clients travaillez-vous ?",

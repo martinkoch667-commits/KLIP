@@ -910,7 +910,7 @@
     "step3Subtitle": "Colores, logos y recursos gráficos de la marca.",
     "brandColorsLabel": "Colores de marca",
     "subtitleTemplateLabel": "Plantilla de subtítulos",
-    "subtitleTemplateHint": "El estilo predeterminado de los subtítulos en tus montajes de vídeo — la palabra resaltada usa tu color de acento.",
+    "subtitleTemplateHint": "Generados a partir de los colores y la tipografía de la marca. La palabra resaltada marca el ritmo en tus montajes.",
     "colorPrimary": "Principal",
     "colorSecondary": "Secundario",
     "colorAccent": "Acento",
@@ -962,7 +962,32 @@
     "creating": "Creando…",
     "createWorkspaceBtn": "Crear espacio de cliente",
     "errorGeneric": "Se produjo un error al crear.",
-    "errorApiFallback": "Workspace no creado — revisa los logs de Vercel"
+    "errorApiFallback": "Workspace no creado — revisa los logs de Vercel",
+    "subPresetName": {
+      "charte": "Según la marca",
+      "contour": "Contorno",
+      "pilule": "Píldora de acento",
+      "bandeau": "Banda",
+      "sobre": "Sobrio"
+    },
+    "subPresetHint": {
+      "charte": "Acento en la palabra clave",
+      "contour": "Estilo Reels / TikTok",
+      "pilule": "Fondo del color de acento",
+      "bandeau": "Fondo del color principal",
+      "sobre": "Blanco, sin color"
+    },
+    "subCustomizeToggle": "Personalizar",
+    "subCustomizeNote": "Este estilo se aplicará por defecto a todos los montajes de este cliente. Podrás ajustarlo en el editor.",
+    "subColorText": "Texto",
+    "subColorHighlight": "Palabra resaltada",
+    "subColorBox": "Fondo",
+    "subNoBox": "Sin fondo",
+    "subOptPill": "Píldora",
+    "subOptUppercase": "MAYÚSCULAS",
+    "subOptItalic": "Cursiva",
+    "subOptStroke": "Contorno",
+    "subWeight": "Grosor"
   },
   "onboardingSurvey": {
     "q1": "¿Para cuántos clientes trabajas?",

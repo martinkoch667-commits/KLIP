@@ -910,7 +910,7 @@
     "step3Subtitle": "Cores, logótipos e recursos gráficos da marca.",
     "brandColorsLabel": "Cores da marca",
     "subtitleTemplateLabel": "Modelo de legendas",
-    "subtitleTemplateHint": "O estilo predefinido das legendas nas suas montagens de vídeo — a palavra destacada usa a sua cor de destaque.",
+    "subtitleTemplateHint": "Gerados a partir das cores e da tipografia da marca. A palavra destacada marca o ritmo nas suas montagens.",
     "colorPrimary": "Principal",
     "colorSecondary": "Secundária",
     "colorAccent": "Destaque",
@@ -962,7 +962,32 @@
     "creating": "A criar…",
     "createWorkspaceBtn": "Criar espaço de cliente",
     "errorGeneric": "Ocorreu um erro ao criar.",
-    "errorApiFallback": "Workspace não criado — verifique os registos do Vercel"
+    "errorApiFallback": "Workspace não criado — verifique os registos do Vercel",
+    "subPresetName": {
+      "charte": "Segundo a marca",
+      "contour": "Contorno",
+      "pilule": "Pílula de destaque",
+      "bandeau": "Faixa",
+      "sobre": "Sóbrio"
+    },
+    "subPresetHint": {
+      "charte": "Destaque na palavra-chave",
+      "contour": "Estilo Reels / TikTok",
+      "pilule": "Fundo na cor de destaque",
+      "bandeau": "Fundo na cor principal",
+      "sobre": "Branco, sem cor"
+    },
+    "subCustomizeToggle": "Personalizar",
+    "subCustomizeNote": "Este estilo será aplicado por defeito a todas as montagens deste cliente. Poderá ajustá-lo no editor.",
+    "subColorText": "Texto",
+    "subColorHighlight": "Palavra destacada",
+    "subColorBox": "Fundo",
+    "subNoBox": "Sem fundo",
+    "subOptPill": "Pílula",
+    "subOptUppercase": "MAIÚSCULAS",
+    "subOptItalic": "Itálico",
+    "subOptStroke": "Contorno",
+    "subWeight": "Espessura"
   },
   "onboardingSurvey": {
     "q1": "Para quantos clientes trabalha?",
