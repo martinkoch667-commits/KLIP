@@ -1714,7 +1714,15 @@
     "captionAiRedo": "Regenerate caption",
     "captionAiTitle": "Writes the caption from the edited video and its transcript",
     "toastCaptionDone": "Caption generated ✦",
-    "toastCaptionError": "Could not generate the caption"
+    "toastCaptionError": "Could not generate the caption",
+    "autoCutLabel": "Pre-edit",
+    "autoCutTitle": "Clean up the rushes",
+    "autoCutDesc": "Analyses the picture and drops black, blurry, blown-out and frozen parts. Keeps the best portion of each shot.",
+    "autoCutBtn": "Clean automatically",
+    "autoCutWorking": "Analysing…",
+    "toastAutoCutNoVideo": "No video clip to analyse.",
+    "toastAutoCutNothing": "Nothing to remove: every shot is usable.",
+    "toastAutoCutDone": "{n} shot(s) cleaned — {s}s removed ✦"
   },
   "forgotPassword": {
     "title": "Forgot password",

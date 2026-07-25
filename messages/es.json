@@ -1714,7 +1714,15 @@
     "captionAiRedo": "Regenerar leyenda",
     "captionAiTitle": "Redacta la leyenda a partir del vídeo montado y su transcripción",
     "toastCaptionDone": "Leyenda generada ✦",
-    "toastCaptionError": "No se pudo generar la leyenda"
+    "toastCaptionError": "No se pudo generar la leyenda",
+    "autoCutLabel": "Premontaje",
+    "autoCutTitle": "Limpiar los brutos",
+    "autoCutDesc": "Analiza la imagen y descarta lo negro, borroso, quemado y congelado. Conserva la mejor parte de cada plano.",
+    "autoCutBtn": "Limpiar automáticamente",
+    "autoCutWorking": "Analizando…",
+    "toastAutoCutNoVideo": "No hay clips de vídeo que analizar.",
+    "toastAutoCutNothing": "Nada que quitar: todos los planos son utilizables.",
+    "toastAutoCutDone": "{n} plano(s) limpiados — {s}s eliminados ✦"
   },
   "forgotPassword": {
     "title": "Contraseña olvidada",

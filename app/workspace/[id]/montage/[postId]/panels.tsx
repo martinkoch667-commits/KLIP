@@ -44,6 +44,10 @@ export interface MontageCtx {
   autoAssembleAI: () => void;
   cuttingSilence: boolean;
   cutSilences: () => void;
+  // Prémontage par analyse d'image (noir / flou / cramé / figé) — sans clé API.
+  autoCutting: boolean;
+  autoCutQuality: () => void;
+  autoCutProgress: { done: number; total: number; name: string } | null;
   generatingDesc: boolean;
   videoDescription: string | null;
   generateVideoDescription: () => void;
@@ -867,6 +871,25 @@ export function AiPanel({ ctx }: { ctx: MontageCtx }) {
           <p style={{ fontSize: 12.5, color: "var(--cream-2)", marginBottom: 14, lineHeight: 1.45 }}>{t('cutSilenceDesc')}</p>
           <button className="mz-ai-btn" disabled={!hasVideo || ctx.cuttingSilence} onClick={ctx.cutSilences}>
             <VIcon name="scissors" size={16} /> {ctx.cuttingSilence ? t('cutSilenceWorking') : t('cutSilenceBtn')}
+          </button>
+        </div>
+      </div>
+
+      {/* Prémontage visuel : écarte le noir, le flou, le cramé et les plans figés.
+          Analyse locale (aucune clé API) — complète la coupe des silences. */}
+      <div className="mz-ai-card">
+        <div className="halo-blob" style={{ width: 130, height: 130, right: -30, top: -40, background: "radial-gradient(circle, var(--mint), transparent 70%)", opacity: .4 }} />
+        <div style={{ position: "relative", zIndex: 2 }}>
+          <div className="mz-sec-label" style={{ color: "var(--mint)", marginBottom: 8 }}>{t('autoCutLabel')}</div>
+          <div style={{ fontFamily: "var(--display)", fontWeight: 800, fontStyle: "italic", fontSize: 19, letterSpacing: "-0.02em", marginBottom: 6 }}>{t('autoCutTitle')}</div>
+          <p style={{ fontSize: 12.5, color: "var(--cream-2)", marginBottom: 14, lineHeight: 1.45 }}>{t('autoCutDesc')}</p>
+          {ctx.autoCutProgress && (
+            <p style={{ fontSize: 11.5, color: "var(--cream-2)", marginBottom: 10 }}>
+              {ctx.autoCutProgress.done}/{ctx.autoCutProgress.total} — {ctx.autoCutProgress.name}
+            </p>
+          )}
+          <button className="mz-ai-btn" disabled={!hasVideo || ctx.autoCutting} onClick={ctx.autoCutQuality}>
+            <VIcon name="scissors" size={16} /> {ctx.autoCutting ? t('autoCutWorking') : t('autoCutBtn')}
           </button>
         </div>
       </div>

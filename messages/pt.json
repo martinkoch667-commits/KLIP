@@ -1714,7 +1714,15 @@
     "captionAiRedo": "Regerar legenda",
     "captionAiTitle": "Escreve a legenda a partir do vídeo montado e da transcrição",
     "toastCaptionDone": "Legenda gerada ✦",
-    "toastCaptionError": "Não foi possível gerar a legenda"
+    "toastCaptionError": "Não foi possível gerar a legenda",
+    "autoCutLabel": "Pré-montagem",
+    "autoCutTitle": "Limpar os brutos",
+    "autoCutDesc": "Analisa a imagem e descarta o preto, desfocado, queimado e congelado. Mantém a melhor parte de cada plano.",
+    "autoCutBtn": "Limpar automaticamente",
+    "autoCutWorking": "A analisar…",
+    "toastAutoCutNoVideo": "Nenhum clipe de vídeo para analisar.",
+    "toastAutoCutNothing": "Nada a remover: todos os planos são utilizáveis.",
+    "toastAutoCutDone": "{n} plano(s) limpos — {s}s removidos ✦"
   },
   "forgotPassword": {
     "title": "Esqueceu a palavra-passe",

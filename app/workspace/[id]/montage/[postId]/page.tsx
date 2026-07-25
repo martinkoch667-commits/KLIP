@@ -9,11 +9,13 @@ import {
   MontageClip, OverlayClip, Caption, TitleEl, StickerEl, AudioTrack, MontageProject, SubCustom,
   FILTERS, TRANSITIONS, SUB_STYLES, FONT_CHOICES, SUB_LENGTHS, DEFAULT_WORDS_PER_CAPTION, DEFAULT_SUB_POS,
   subStyleById, effectiveSubStyle, subtitleBoxCss, applySubCase,
+  // (analyzeClipQuality importé depuis ./autoCut plus bas)
   fmt, newClipDefaults, newOverlayDefaults, clipFilterCss, overlayFilterCss, clipTimelineDur, clipAudioGainAt, overlayTimelineDur, overlayAudioGainAt, segmentCaptions,
   audioVolumeAt, kenBurnsScale, VIDEO_FORMATS, videoFormatById, EXPORT_QUALITIES,
 } from "./constants";
 import { MontageCtx, CutPanel, TextPanel, CaptionsPanel, AudioPanel, TransitionsPanel, FilterPanel, SpeedPanel, StickerPanel, OverlayPanel, AiPanel } from "./panels";
 import { renderExport } from "./export";
+import { analyzeClipQuality } from "./autoCut";
 import { transcodeToMp4 } from "@/lib/mp4-transcode";
 
 // ─── Types / rail ───────────────────────────────────────────────────────────
@@ -301,6 +303,10 @@ export default function MontagePage() {
   // Légende générée en fin de montage (cf. generateCaptionAI).
   const [captioning, setCaptioning] = useState(false);
   const [caption, setCaption] = useState<string | null>(null);
+  // Prémontage par analyse d'image (cf. autoCutQuality).
+  const [autoCutting, setAutoCutting] = useState(false);
+  const [autoCutProgress, setAutoCutProgress] = useState<{ done: number; total: number; name: string } | null>(null);
+  const [autoCutDone, setAutoCutDone] = useState<{ clips: number; seconds: number } | null>(null);
   const [cuttingSilence, setCuttingSilence] = useState(false);
   const [processingVoice, setProcessingVoice] = useState<string | null>(null); // id de la piste audio en cours de traitement voix
   const [generatingDesc, setGeneratingDesc] = useState(false);
@@ -1448,6 +1454,49 @@ export default function MontagePage() {
     }
   }
 
+  // ── Prémontage : coupe les passages inexploitables (analyse d'image) ───────
+  // 100 % local, sans clé API. Complète la découpe « au son » (silences,
+  // hésitations) qui, elle, dépend de la transcription (GROQ_API_KEY).
+  async function autoCutQuality() {
+    const vids = clips.filter((c) => c.kind === "video");
+    if (autoCutting) return;
+    if (!vids.length) { toast(t('toastAutoCutNoVideo')); return; }
+    setAutoCutting(true);
+    setAutoCutDone(null);
+    try {
+      let trimmedCount = 0, savedSec = 0;
+      const next = [...clips];
+      for (let i = 0; i < next.length; i++) {
+        const c = next[i];
+        if (c.kind !== "video") continue;
+        setAutoCutProgress({ done: trimmedCount, total: vids.length, name: c.name });
+        let rep;
+        try { rep = await analyzeClipQuality(c.src, c.trimStart, c.trimEnd); }
+        catch { continue; }
+        if (!rep.keep) continue; // rien d'exploitable détecté → on ne touche pas au plan
+        const start = Math.max(c.trimStart, rep.keep.start);
+        const end = Math.min(c.trimEnd, rep.keep.end);
+        // On n'applique que si le gain est réel (> 0.3 s) et la plage valide.
+        if (end - start > 0.5 && (c.trimEnd - c.trimStart) - (end - start) > 0.3) {
+          savedSec += (c.trimEnd - c.trimStart) - (end - start);
+          next[i] = { ...c, trimStart: start, trimEnd: end };
+          trimmedCount++;
+        }
+      }
+      if (trimmedCount > 0) {
+        // setClips suffit : l'historique enregistre un point d'annulation tout seul.
+        setClips(next);
+        setAutoCutDone({ clips: trimmedCount, seconds: savedSec });
+        toast(t('toastAutoCutDone', { n: trimmedCount, s: savedSec.toFixed(1) }));
+      } else {
+        toast(t('toastAutoCutNothing'));
+      }
+    } finally {
+      setAutoCutting(false);
+      setAutoCutProgress(null);
+    }
+  }
+
   // ── Légende : écrite À LA FIN, une fois le montage terminé ──────────────────
   // Avant montage on ne sait pas ce que la vidéo raconte ; ici on dispose du
   // rendu réel (frames échantillonnées) et de la transcription (sous-titres).
@@ -2513,6 +2562,7 @@ export default function MontagePage() {
     time, total, logoUrl, uploadingAudio, transcribing, isRecordingVO,
     croppingClipId, smartCropClip, assembling, autoAssembleAI, suggestingMusic, musicSuggestion, suggestMusicMoodAI,
     cuttingSilence, cutSilences,
+    autoCutting, autoCutQuality, autoCutProgress,
     generatingDesc, videoDescription, generateVideoDescription,
     toast, updateClip, splitAtPlayhead,
     duplicateSelected: () => selectedClipId && duplicateClip(selectedClipId),

@@ -1714,7 +1714,15 @@
     "captionAiRedo": "Caption neu erzeugen",
     "captionAiTitle": "Schreibt die Caption aus dem fertigen Video und dessen Transkript",
     "toastCaptionDone": "Caption erstellt ✦",
-    "toastCaptionError": "Caption konnte nicht erzeugt werden"
+    "toastCaptionError": "Caption konnte nicht erzeugt werden",
+    "autoCutLabel": "Vorschnitt",
+    "autoCutTitle": "Rohmaterial säubern",
+    "autoCutDesc": "Analysiert das Bild und entfernt Schwarzbild, Unschärfe, Überbelichtung und Standbilder. Behält den besten Teil jeder Einstellung.",
+    "autoCutBtn": "Automatisch säubern",
+    "autoCutWorking": "Analyse…",
+    "toastAutoCutNoVideo": "Keine Videoclips zum Analysieren.",
+    "toastAutoCutNothing": "Nichts zu entfernen: alle Einstellungen sind brauchbar.",
+    "toastAutoCutDone": "{n} Einstellung(en) gesäubert — {s}s entfernt ✦"
   },
   "forgotPassword": {
     "title": "Passwort vergessen",

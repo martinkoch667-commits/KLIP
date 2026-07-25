@@ -1714,7 +1714,15 @@
     "captionAiRedo": "Rigenera didascalia",
     "captionAiTitle": "Scrive la didascalia dal video montato e dalla trascrizione",
     "toastCaptionDone": "Didascalia generata ✦",
-    "toastCaptionError": "Impossibile generare la didascalia"
+    "toastCaptionError": "Impossibile generare la didascalia",
+    "autoCutLabel": "Premontaggio",
+    "autoCutTitle": "Pulire i rushes",
+    "autoCutDesc": "Analizza l’immagine ed elimina nero, sfocato, bruciato e fermo immagine. Tiene la parte migliore di ogni inquadratura.",
+    "autoCutBtn": "Pulisci automaticamente",
+    "autoCutWorking": "Analisi…",
+    "toastAutoCutNoVideo": "Nessuna clip video da analizzare.",
+    "toastAutoCutNothing": "Niente da togliere: tutte le inquadrature sono utilizzabili.",
+    "toastAutoCutDone": "{n} inquadratura/e pulite — {s}s rimossi ✦"
   },
   "forgotPassword": {
     "title": "Password dimenticata",

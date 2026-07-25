@@ -1714,7 +1714,15 @@
     "captionAiRedo": "Regénérer la légende",
     "captionAiTitle": "Rédige la légende à partir de la vidéo montée et de la transcription",
     "toastCaptionDone": "Légende générée ✦",
-    "toastCaptionError": "Génération de la légende impossible"
+    "toastCaptionError": "Génération de la légende impossible",
+    "autoCutLabel": "Prémontage",
+    "autoCutTitle": "Nettoyer les rushes",
+    "autoCutDesc": "Analyse l’image et écarte le noir, le flou, le cramé et les plans figés. Garde la meilleure portion de chaque plan.",
+    "autoCutBtn": "Nettoyer automatiquement",
+    "autoCutWorking": "Analyse…",
+    "toastAutoCutNoVideo": "Aucun plan vidéo à analyser.",
+    "toastAutoCutNothing": "Rien à retirer : tous les plans sont exploitables.",
+    "toastAutoCutDone": "{n} plan(s) nettoyé(s) — {s}s retirées ✦"
   },
   "forgotPassword": {
     "title": "Mot de passe oublié",
