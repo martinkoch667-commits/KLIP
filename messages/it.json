@@ -1722,7 +1722,14 @@
     "autoCutWorking": "Analisi…",
     "toastAutoCutNoVideo": "Nessuna clip video da analizzare.",
     "toastAutoCutNothing": "Niente da togliere: tutte le inquadrature sono utilizzabili.",
-    "toastAutoCutDone": "{n} inquadratura/e pulite — {s}s rimossi ✦"
+    "toastAutoCutDone": "{n} inquadratura/e pulite — {s}s rimossi ✦",
+    "fillersLabel": "Taglio fine",
+    "fillersTitle": "Togliere le esitazioni",
+    "fillersDesc": "Ascolta il video ed elimina gli «ehm», le false partenze e le riprese rifatte — tenendo quella buona.",
+    "fillersBtn": "Pulisci il parlato",
+    "fillersWorking": "In ascolto…",
+    "toastFillersNothing": "Niente da togliere: il parlato è già pulito.",
+    "toastFillersCut": "Parlato pulito — {s}s rimossi ✦"
   },
   "forgotPassword": {
     "title": "Password dimenticata",

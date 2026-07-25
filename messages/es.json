@@ -1722,7 +1722,14 @@
     "autoCutWorking": "Analizando…",
     "toastAutoCutNoVideo": "No hay clips de vídeo que analizar.",
     "toastAutoCutNothing": "Nada que quitar: todos los planos son utilizables.",
-    "toastAutoCutDone": "{n} plano(s) limpiados — {s}s eliminados ✦"
+    "toastAutoCutDone": "{n} plano(s) limpiados — {s}s eliminados ✦",
+    "fillersLabel": "Corte fino",
+    "fillersTitle": "Quitar las dudas",
+    "fillersDesc": "Escucha el vídeo y elimina los «eh», los arranques en falso y las tomas repetidas — conservando la buena.",
+    "fillersBtn": "Limpiar el discurso",
+    "fillersWorking": "Escuchando…",
+    "toastFillersNothing": "Nada que quitar: el discurso ya está limpio.",
+    "toastFillersCut": "Discurso limpiado — {s}s eliminados ✦"
   },
   "forgotPassword": {
     "title": "Contraseña olvidada",

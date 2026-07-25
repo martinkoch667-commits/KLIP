@@ -656,3 +656,103 @@ export function charterSubPresets(brand: CharterBrand): CharterPreset[] {
     { id: "sobre",    styleId: "simple",     custom: { ...f, fg: "#FFFFFF", hi: "#FFFFFF", bg: "transparent", weight: 700 } },
   ];
 }
+
+// ─── État d'une transition d'entrée ─────────────────────────────────────────
+// SOURCE UNIQUE partagée par l'aperçu (DOM/CSS) et l'export (canvas 2D).
+// Les décalages et découpes sont exprimés en FRACTIONS du cadre (0-1) pour être
+// indépendants de la résolution : l'export multiplie par la taille du canvas,
+// l'aperçu les convertit en % / clip-path.
+export interface TransitionState {
+  alpha: number;
+  dx: number;        // fraction de la largeur
+  dy: number;        // fraction de la hauteur
+  scale: number;
+  rotate: number;    // degrés
+  flash: number;     // voile blanc 0-1
+  dark: number;      // voile noir 0-1
+  extraFilter: string;
+  clipRect: [number, number, number, number] | null; // x,y,w,h en fractions
+  clipCircle: [number, number, number] | null;       // cx,cy,r en fractions (r = /diagonale)
+}
+
+export function transitionStateAt(
+  transitionIn: string | undefined,
+  transitionDur: number,
+  tIntoClip: number,
+  isFirst: boolean,
+): TransitionState {
+  const st: TransitionState = {
+    alpha: 1, dx: 0, dy: 0, scale: 1, rotate: 0, flash: 0, dark: 0,
+    extraFilter: "", clipRect: null, clipCircle: null,
+  };
+  if (isFirst || !transitionIn || transitionIn === "cut" || transitionDur <= 0 || tIntoClip >= transitionDur) return st;
+  const p = Math.max(0, Math.min(1, tIntoClip / transitionDur));
+  const ease = 1 - Math.pow(1 - p, 2);
+  switch (transitionIn) {
+    case "fade": st.alpha = ease; break;
+    case "fadeblack": st.dark = 1 - ease; st.alpha = Math.min(1, 0.35 + ease); break;
+    case "flash": st.flash = 1 - ease; st.alpha = Math.min(1, 0.4 + ease); break;
+    case "zoom": st.scale = 1.18 - 0.18 * ease; st.alpha = 0.2 + 0.8 * ease; break;
+    case "zoomout": st.scale = 0.82 + 0.18 * ease; st.alpha = 0.3 + 0.7 * ease; break;
+    case "bounce": {
+      const o = Math.sin(p * Math.PI) * 0.12;
+      st.scale = 0.86 + 0.14 * ease + o; st.alpha = Math.min(1, 0.3 + 1.2 * ease);
+      break;
+    }
+    case "slide": st.dx = (1 - ease) * 0.5; st.alpha = 0.3 + 0.7 * ease; break;
+    case "slideright": st.dx = -(1 - ease) * 0.5; st.alpha = 0.3 + 0.7 * ease; break;
+    case "slideup": st.dy = (1 - ease) * 0.4; st.alpha = 0.3 + 0.7 * ease; break;
+    case "slidedown": st.dy = -(1 - ease) * 0.4; st.alpha = 0.3 + 0.7 * ease; break;
+    case "spin": st.rotate = (1 - ease) * 22; st.scale = 0.85 + 0.15 * ease; st.alpha = ease; break;
+    case "swirl": st.rotate = (1 - ease) * 75; st.scale = 0.7 + 0.3 * ease; st.alpha = ease; break;
+    case "wipe": st.clipRect = [0, 0, ease, 1]; break;
+    case "wiperight": st.clipRect = [1 - ease, 0, ease, 1]; break;
+    case "wipedown": st.clipRect = [0, 0, 1, ease]; break;
+    case "wipeup": st.clipRect = [0, 1 - ease, 1, ease]; break;
+    case "iris": st.clipCircle = [0.5, 0.5, 0.5 * ease]; break;
+    case "blur": st.extraFilter = `blur(${(1 - ease) * 14}px)`; st.alpha = 0.5 + 0.5 * ease; break;
+    case "whip": st.dx = (1 - ease) * 0.6; st.extraFilter = `blur(${(1 - ease) * 12}px)`; st.alpha = 0.4 + 0.6 * ease; break;
+    case "shake": {
+      const amp = (1 - ease) * 0.036;
+      st.dx = Math.sin(p * Math.PI * 7) * amp;
+      st.dy = Math.cos(p * Math.PI * 5) * amp * 0.5;
+      st.alpha = Math.min(1, 0.5 + ease);
+      break;
+    }
+    case "glitch": {
+      const amp = (1 - ease) * 0.047;
+      // pseudo-aléatoire déterministe : même rendu en aperçu et à l'export
+      const r1 = Math.sin(tIntoClip * 977.1) * 43758.5453;
+      const r2 = Math.sin(tIntoClip * 311.7) * 24634.6345;
+      const rnd = (v: number) => v - Math.floor(v);
+      st.dx = (rnd(r1) - 0.5) * amp;
+      st.dy = (rnd(r2) - 0.5) * amp * 0.4;
+      st.extraFilter = `saturate(${1 + (1 - ease) * 2.2}) hue-rotate(${(1 - ease) * 25}deg)`;
+      st.flash = (1 - ease) * (rnd(r1) > 0.65 ? 0.55 : 0);
+      st.alpha = Math.min(1, 0.55 + ease);
+      break;
+    }
+  }
+  return st;
+}
+
+// Traduit un état de transition en styles CSS pour l'aperçu DOM.
+export function transitionCss(st: TransitionState): Record<string, string | number | undefined> {
+  const parts: string[] = [];
+  if (st.dx || st.dy) parts.push(`translate(${st.dx * 100}%, ${st.dy * 100}%)`);
+  if (st.rotate) parts.push(`rotate(${st.rotate}deg)`);
+  if (st.scale !== 1) parts.push(`scale(${st.scale})`);
+  let clipPath: string | undefined;
+  if (st.clipRect) {
+    const [x, y, w, h] = st.clipRect;
+    clipPath = `inset(${y * 100}% ${(1 - x - w) * 100}% ${(1 - y - h) * 100}% ${x * 100}%)`;
+  } else if (st.clipCircle) {
+    const [cx, cy, r] = st.clipCircle;
+    clipPath = `circle(${r * 100}% at ${cx * 100}% ${cy * 100}%)`;
+  }
+  return {
+    opacity: st.alpha,
+    transform: parts.length ? parts.join(" ") : undefined,
+    clipPath,
+  };
+}

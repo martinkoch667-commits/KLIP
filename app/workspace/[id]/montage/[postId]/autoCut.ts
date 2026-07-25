@@ -167,3 +167,103 @@ export function dominantIssue(samples: QualitySample[]): QualitySample["why"] | 
   const top = Object.entries(counts).sort((a, b) => b[1] - a[1])[0];
   return (top?.[0] as QualitySample["why"]) ?? null;
 }
+
+// ─── Découpe sémantique (transcription) ─────────────────────────────────────
+// Repère dans une transcription horodatée au mot ce qu'on retire d'un rush :
+//   • les hésitations   (« euh », « hum », « bah »…)
+//   • les faux départs  (un mot répété immédiatement : « je… je vais »)
+//   • les prises refaites (une même suite de mots redite plus loin → on garde la DERNIÈRE)
+// Nécessite la transcription (GROQ_API_KEY côté serveur, cf. /api/transcribe).
+
+export interface TWord { start: number; end: number; word: string }
+
+export interface SemanticCut {
+  start: number;
+  end: number;
+  reason: "filler" | "stutter" | "retake";
+  text: string;
+}
+
+// Hésitations courantes (fr + en). Comparaison sur le mot normalisé.
+const FILLERS = new Set([
+  "euh", "euuh", "heu", "hum", "hmm", "mmh", "bah", "ben", "bref", "voila", "voilà",
+  "uh", "uhh", "um", "umm", "erm", "hmmm", "like", "sooo",
+]);
+
+const norm = (w: string) => w.toLowerCase().replace(/[.,!?;:…"'’«»]/g, "").trim();
+
+/** Construit la liste des passages à retirer à partir des mots horodatés. */
+export function planSemanticCuts(words: TWord[], opts: { retakes?: boolean } = {}): SemanticCut[] {
+  const cuts: SemanticCut[] = [];
+  const w = words.filter((x) => x.word && x.end > x.start);
+  if (!w.length) return cuts;
+
+  // 1) Hésitations isolées.
+  for (const x of w) {
+    if (FILLERS.has(norm(x.word))) cuts.push({ start: x.start, end: x.end, reason: "filler", text: x.word });
+  }
+
+  // 2) Bégaiements / faux départs : mot identique répété d'affilée (< 1.2 s d'écart)
+  //    → on retire la PREMIÈRE occurrence, on garde la bonne.
+  for (let i = 1; i < w.length; i++) {
+    const a = w[i - 1], b = w[i];
+    if (norm(a.word) && norm(a.word) === norm(b.word) && b.start - a.end < 1.2) {
+      cuts.push({ start: a.start, end: a.end, reason: "stutter", text: a.word });
+    }
+  }
+
+  // 3) Prises refaites : une suite de ≥ 4 mots identique réapparaît plus loin
+  //    → on retire la première (l'orateur s'est repris).
+  if (opts.retakes !== false) {
+    const N = 4;
+    const seen = new Map<string, number>(); // clé → index de début de la 1re occurrence
+    for (let i = 0; i + N <= w.length; i++) {
+      const key = w.slice(i, i + N).map((x) => norm(x.word)).join(" ");
+      if (!key.trim()) continue;
+      const prev = seen.get(key);
+      if (prev !== undefined && i - prev >= N) {
+        // on coupe de la 1re occurrence jusqu'au début de la seconde
+        cuts.push({ start: w[prev].start, end: w[i].start, reason: "retake", text: key });
+        seen.delete(key);
+      } else if (prev === undefined) {
+        seen.set(key, i);
+      }
+    }
+  }
+
+  return mergeCuts(cuts);
+}
+
+/** Fusionne les intervalles qui se chevauchent (triés). */
+export function mergeCuts(cuts: SemanticCut[]): SemanticCut[] {
+  const sorted = [...cuts].sort((a, b) => a.start - b.start);
+  const out: SemanticCut[] = [];
+  for (const c of sorted) {
+    const last = out[out.length - 1];
+    if (last && c.start <= last.end + 0.05) {
+      last.end = Math.max(last.end, c.end);
+      if (last.reason !== c.reason) last.text = `${last.text} + ${c.text}`;
+    } else out.push({ ...c });
+  }
+  return out;
+}
+
+/**
+ * Convertit des passages à retirer en segments À GARDER, dans les bornes [from, to].
+ * Les segments plus courts que `minKeep` sont écartés (bribes inutilisables).
+ */
+export function keepRangesFromCuts(
+  cuts: SemanticCut[], from: number, to: number, minKeep = 0.22, pad = 0.06,
+): { start: number; end: number }[] {
+  const keep: { start: number; end: number }[] = [];
+  let cursor = from;
+  for (const c of cuts) {
+    const cs = Math.max(from, c.start - pad);
+    const ce = Math.min(to, c.end + pad);
+    if (ce <= cursor) continue;
+    if (cs > cursor) keep.push({ start: cursor, end: Math.min(cs, to) });
+    cursor = Math.max(cursor, ce);
+  }
+  if (cursor < to) keep.push({ start: cursor, end: to });
+  return keep.filter((k) => k.end - k.start >= minKeep);
+}

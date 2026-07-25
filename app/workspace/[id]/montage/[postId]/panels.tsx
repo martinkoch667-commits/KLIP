@@ -48,6 +48,9 @@ export interface MontageCtx {
   autoCutting: boolean;
   autoCutQuality: () => void;
   autoCutProgress: { done: number; total: number; name: string } | null;
+  // Découpe fine via transcription (hésitations, faux départs, prises refaites).
+  cuttingFillers: boolean;
+  cutFillers: () => void;
   generatingDesc: boolean;
   videoDescription: string | null;
   generateVideoDescription: () => void;
@@ -890,6 +893,19 @@ export function AiPanel({ ctx }: { ctx: MontageCtx }) {
           )}
           <button className="mz-ai-btn" disabled={!hasVideo || ctx.autoCutting} onClick={ctx.autoCutQuality}>
             <VIcon name="scissors" size={16} /> {ctx.autoCutting ? t('autoCutWorking') : t('autoCutBtn')}
+          </button>
+        </div>
+      </div>
+
+      {/* Découpe fine par transcription : hésitations, faux départs, prises refaites. */}
+      <div className="mz-ai-card">
+        <div className="halo-blob" style={{ width: 130, height: 130, right: -30, top: -40, background: "radial-gradient(circle, var(--mint), transparent 70%)", opacity: .4 }} />
+        <div style={{ position: "relative", zIndex: 2 }}>
+          <div className="mz-sec-label" style={{ color: "var(--mint)", marginBottom: 8 }}>{t('fillersLabel')}</div>
+          <div style={{ fontFamily: "var(--display)", fontWeight: 800, fontStyle: "italic", fontSize: 19, letterSpacing: "-0.02em", marginBottom: 6 }}>{t('fillersTitle')}</div>
+          <p style={{ fontSize: 12.5, color: "var(--cream-2)", marginBottom: 14, lineHeight: 1.45 }}>{t('fillersDesc')}</p>
+          <button className="mz-ai-btn" disabled={!hasVideo || ctx.cuttingFillers} onClick={ctx.cutFillers}>
+            <VIcon name="scissors" size={16} /> {ctx.cuttingFillers ? t('fillersWorking') : t('fillersBtn')}
           </button>
         </div>
       </div>

@@ -70,6 +70,9 @@ export async function POST(req: NextRequest) {
     form.append("model", provider.model);
     form.append("response_format", "verbose_json");
     form.append("timestamp_granularities[]", "segment");
+    // Horodatage au MOT : nécessaire à la découpe fine (hésitations, faux départs,
+    // répétitions). Whisper l'ignore silencieusement s'il ne le supporte pas.
+    form.append("timestamp_granularities[]", "word");
 
     const whisperRes = await fetch(provider.endpoint, {
       method: "POST",
@@ -92,7 +95,16 @@ export async function POST(req: NextRequest) {
       }),
     );
 
-    return NextResponse.json({ ok: true, segments });
+    // Mots horodatés (peut être absent selon le fournisseur/modèle).
+    const words: { start: number; end: number; word: string }[] = (data.words || []).map(
+      (w: { start: number; end: number; word: string }) => ({
+        start: w.start,
+        end: w.end,
+        word: (w.word || "").trim(),
+      }),
+    ).filter((w: { word: string }) => w.word);
+
+    return NextResponse.json({ ok: true, segments, words });
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     console.error("[transcribe] fatal:", msg);

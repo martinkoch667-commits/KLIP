@@ -1722,7 +1722,14 @@
     "autoCutWorking": "Analysing…",
     "toastAutoCutNoVideo": "No video clip to analyse.",
     "toastAutoCutNothing": "Nothing to remove: every shot is usable.",
-    "toastAutoCutDone": "{n} shot(s) cleaned — {s}s removed ✦"
+    "toastAutoCutDone": "{n} shot(s) cleaned — {s}s removed ✦",
+    "fillersLabel": "Fine cut",
+    "fillersTitle": "Remove hesitations",
+    "fillersDesc": "Listens to the video and drops the “ums”, false starts and retakes — keeping the good one.",
+    "fillersBtn": "Clean up speech",
+    "fillersWorking": "Listening…",
+    "toastFillersNothing": "Nothing to remove: the speech is already clean.",
+    "toastFillersCut": "Speech cleaned — {s}s removed ✦"
   },
   "forgotPassword": {
     "title": "Forgot password",

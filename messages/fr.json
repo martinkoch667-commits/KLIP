@@ -1722,7 +1722,14 @@
     "autoCutWorking": "Analyse…",
     "toastAutoCutNoVideo": "Aucun plan vidéo à analyser.",
     "toastAutoCutNothing": "Rien à retirer : tous les plans sont exploitables.",
-    "toastAutoCutDone": "{n} plan(s) nettoyé(s) — {s}s retirées ✦"
+    "toastAutoCutDone": "{n} plan(s) nettoyé(s) — {s}s retirées ✦",
+    "fillersLabel": "Découpe fine",
+    "fillersTitle": "Enlever les hésitations",
+    "fillersDesc": "Écoute la vidéo et retire les « euh », les faux départs et les prises refaites — en gardant la bonne.",
+    "fillersBtn": "Nettoyer le discours",
+    "fillersWorking": "Écoute…",
+    "toastFillersNothing": "Rien à retirer : le discours est déjà propre.",
+    "toastFillersCut": "Discours nettoyé — {s}s retirées ✦"
   },
   "forgotPassword": {
     "title": "Mot de passe oublié",

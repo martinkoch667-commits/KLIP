@@ -1722,7 +1722,14 @@
     "autoCutWorking": "Analyse…",
     "toastAutoCutNoVideo": "Keine Videoclips zum Analysieren.",
     "toastAutoCutNothing": "Nichts zu entfernen: alle Einstellungen sind brauchbar.",
-    "toastAutoCutDone": "{n} Einstellung(en) gesäubert — {s}s entfernt ✦"
+    "toastAutoCutDone": "{n} Einstellung(en) gesäubert — {s}s entfernt ✦",
+    "fillersLabel": "Feinschnitt",
+    "fillersTitle": "Füllwörter entfernen",
+    "fillersDesc": "Hört das Video ab und entfernt „ähs“, Fehlstarts und Wiederholungen — behält die gute Aufnahme.",
+    "fillersBtn": "Sprache säubern",
+    "fillersWorking": "Höre zu…",
+    "toastFillersNothing": "Nichts zu entfernen: die Sprache ist bereits sauber.",
+    "toastFillersCut": "Sprache gesäubert — {s}s entfernt ✦"
   },
   "forgotPassword": {
     "title": "Passwort vergessen",

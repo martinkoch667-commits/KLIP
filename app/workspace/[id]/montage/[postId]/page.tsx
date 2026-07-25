@@ -9,13 +9,14 @@ import {
   MontageClip, OverlayClip, Caption, TitleEl, StickerEl, AudioTrack, MontageProject, SubCustom,
   FILTERS, TRANSITIONS, SUB_STYLES, FONT_CHOICES, SUB_LENGTHS, DEFAULT_WORDS_PER_CAPTION, DEFAULT_SUB_POS,
   subStyleById, effectiveSubStyle, subtitleBoxCss, applySubCase,
+  transitionStateAt, transitionCss,
   // (analyzeClipQuality importé depuis ./autoCut plus bas)
   fmt, newClipDefaults, newOverlayDefaults, clipFilterCss, overlayFilterCss, clipTimelineDur, clipAudioGainAt, overlayTimelineDur, overlayAudioGainAt, segmentCaptions,
   audioVolumeAt, kenBurnsScale, VIDEO_FORMATS, videoFormatById, EXPORT_QUALITIES,
 } from "./constants";
 import { MontageCtx, CutPanel, TextPanel, CaptionsPanel, AudioPanel, TransitionsPanel, FilterPanel, SpeedPanel, StickerPanel, OverlayPanel, AiPanel } from "./panels";
 import { renderExport } from "./export";
-import { analyzeClipQuality } from "./autoCut";
+import { analyzeClipQuality, planSemanticCuts, keepRangesFromCuts, type TWord } from "./autoCut";
 import { transcodeToMp4 } from "@/lib/mp4-transcode";
 
 // ─── Types / rail ───────────────────────────────────────────────────────────
@@ -305,6 +306,7 @@ export default function MontagePage() {
   const [caption, setCaption] = useState<string | null>(null);
   // Prémontage par analyse d'image (cf. autoCutQuality).
   const [autoCutting, setAutoCutting] = useState(false);
+  const [cuttingFillers, setCuttingFillers] = useState(false);
   const [autoCutProgress, setAutoCutProgress] = useState<{ done: number; total: number; name: string } | null>(null);
   const [autoCutDone, setAutoCutDone] = useState<{ clips: number; seconds: number } | null>(null);
   const [cuttingSilence, setCuttingSilence] = useState(false);
@@ -757,6 +759,14 @@ export default function MontagePage() {
   const coveringClip = clipStarts.find((c) => time >= c.start && time < c.end);
   const activeClip = coveringClip || (clipStarts.length && time >= total ? clipStarts[clipStarts.length - 1] : null);
   const activeClipRef = useRef(activeClip); activeClipRef.current = activeClip;
+  // Transition d'entrée du plan courant, calculée avec la MÊME fonction que l'export
+  // → l'aperçu montre enfin les transitions au lieu de les révéler seulement au rendu.
+  const activeTrans = useMemo(() => {
+    if (!activeClip) return null;
+    const isFirst = clipStarts.length > 0 && clipStarts[0].id === activeClip.id;
+    return transitionStateAt(activeClip.transitionIn, activeClip.transitionDur, time - activeClip.start, isFirst);
+  }, [activeClip, clipStarts, time]);
+  const activeTransCss = activeTrans ? transitionCss(activeTrans) : null;
   const selectedClip = clipStarts.find((c) => c.id === selectedClipId) || null;
   const selectedOverlay = overlays.find((o) => o.id === selectedOverlayId) || null;
   const activeOverlays = useMemo(
@@ -1269,6 +1279,69 @@ export default function MontagePage() {
     const rendered = await off.startRendering();
     return encodeWavMono(rendered.getChannelData(0), rate);
   }
+  // Transcrit un plan et renvoie ses mots horodatés (null si indisponible).
+  async function transcribeWords(src: string): Promise<{ words: TWord[]; message?: string } | null> {
+    let res: Response;
+    try {
+      const wav = await extractAudio16kMonoWav(src);
+      const form = new FormData();
+      form.append("audio", wav, "audio.wav");
+      res = await fetch("/api/transcribe", { method: "POST", body: form });
+    } catch {
+      res = await fetch("/api/transcribe", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url: src }),
+      });
+    }
+    const data = await res.json();
+    if (!res.ok || !data.ok) return { words: [], message: data?.message };
+    return { words: (data.words || []) as TWord[] };
+  }
+
+  // ── Découpe fine : hésitations, faux départs, prises refaites ───────────────
+  // Nécessite la transcription (clé côté serveur). Chaque plan est scindé en
+  // segments à garder, dans l'ordre — le reste disparaît de la timeline.
+  async function cutFillers() {
+    if (cuttingFillers) return;
+    const targets = selectedClipId
+      ? clips.filter((c) => c.id === selectedClipId && c.kind === "video")
+      : clips.filter((c) => c.kind === "video");
+    if (!targets.length) { toast(t('toastAutoCutNoVideo')); return; }
+    setCuttingFillers(true);
+    try {
+      const ids = new Set(targets.map((c) => c.id));
+      const next: MontageClip[] = [];
+      let removed = 0, changed = false;
+      for (const c of clips) {
+        if (!ids.has(c.id)) { next.push(c); continue; }
+        const r = await transcribeWords(c.src);
+        if (!r) { next.push(c); continue; }
+        if (!r.words.length) {
+          // Pas de mots horodatés → on ne touche à rien et on explique.
+          next.push(c);
+          if (r.message) toast(r.message);
+          continue;
+        }
+        const cuts = planSemanticCuts(r.words).filter((x) => x.end > c.trimStart && x.start < c.trimEnd);
+        if (!cuts.length) { next.push(c); continue; }
+        const keeps = keepRangesFromCuts(cuts, c.trimStart, c.trimEnd);
+        if (!keeps.length) { next.push(c); continue; }
+        removed += (c.trimEnd - c.trimStart) - keeps.reduce((s, k) => s + (k.end - k.start), 0);
+        changed = true;
+        keeps.forEach((k, idx) => {
+          next.push({ ...c, id: crypto.randomUUID(), trimStart: k.start, trimEnd: k.end, gapBefore: idx === 0 ? c.gapBefore : 0 });
+        });
+      }
+      if (!changed) { toast(t('toastFillersNothing')); return; }
+      setClips(next);
+      toast(t('toastFillersCut', { s: removed.toFixed(1) }));
+    } catch {
+      toast(t('toastTranscriptionError'));
+    } finally {
+      setCuttingFillers(false);
+    }
+  }
+
   async function generateCaptionsAI() {
     const videoClip = clips.find((c) => c.kind === "video");
     if (!videoClip) return;
@@ -2563,6 +2636,7 @@ export default function MontagePage() {
     croppingClipId, smartCropClip, assembling, autoAssembleAI, suggestingMusic, musicSuggestion, suggestMusicMoodAI,
     cuttingSilence, cutSilences,
     autoCutting, autoCutQuality, autoCutProgress,
+    cuttingFillers, cutFillers,
     generatingDesc, videoDescription, generateVideoDescription,
     toast, updateClip, splitAtPlayhead,
     duplicateSelected: () => selectedClipId && duplicateClip(selectedClipId),
@@ -2779,13 +2853,23 @@ export default function MontagePage() {
               <div className="mz-video">
                 {activeClip && !hiddenLanes.has("video") ? (
                   activeClip.kind === "video"
-                    ? <video ref={videoRef} onTimeUpdate={onVideoTimeUpdate} onEnded={onVideoEnded} playsInline muted={false} style={{ filter: clipFilterCss(activeClip), objectPosition: `${(activeClip.focusX ?? 0.5) * 100}% ${(activeClip.focusY ?? 0.5) * 100}%` }} />
-                    : <img src={activeClip.src} alt="" style={{
-                        filter: clipFilterCss(activeClip),
+                    ? <video ref={videoRef} onTimeUpdate={onVideoTimeUpdate} onEnded={onVideoEnded} playsInline muted={false} style={{
+                        filter: [clipFilterCss(activeClip), activeTrans?.extraFilter].filter(Boolean).join(" ") || undefined,
                         objectPosition: `${(activeClip.focusX ?? 0.5) * 100}% ${(activeClip.focusY ?? 0.5) * 100}%`,
-                        transform: `scale(${kenBurnsScale(activeClip.kenBurns, activeClip.dur > 0 ? Math.min(1, Math.max(0, (time - activeClip.start) / activeClip.dur)) : 0)})`,
+                        ...(activeTransCss || {}),
                         transformOrigin: "center",
-                      }} />
+                      } as React.CSSProperties} />
+                    : <img src={activeClip.src} alt="" style={{
+                        filter: [clipFilterCss(activeClip), activeTrans?.extraFilter].filter(Boolean).join(" ") || undefined,
+                        objectPosition: `${(activeClip.focusX ?? 0.5) * 100}% ${(activeClip.focusY ?? 0.5) * 100}%`,
+                        ...(activeTransCss || {}),
+                        // Ken Burns et transition se composent sur le même transform.
+                        transform: [
+                          activeTransCss?.transform,
+                          `scale(${kenBurnsScale(activeClip.kenBurns, activeClip.dur > 0 ? Math.min(1, Math.max(0, (time - activeClip.start) / activeClip.dur)) : 0)})`,
+                        ].filter(Boolean).join(" "),
+                        transformOrigin: "center",
+                      } as React.CSSProperties} />
                 ) : clips.length === 0 ? (
                   <div className="mz-vempty">
                     <VIcon name="upload" size={26} />
@@ -2794,6 +2878,14 @@ export default function MontagePage() {
                 ) : (
                   // Des plans existent mais l'instant courant tombe dans un trou → écran noir.
                   null
+                )}
+
+                {/* Voiles de transition (flash blanc / fondu au noir) — identiques à l'export. */}
+                {activeTrans && activeTrans.flash > 0 && (
+                  <div style={{ position: "absolute", inset: 0, background: "#fff", opacity: activeTrans.flash, pointerEvents: "none", zIndex: 3 }} />
+                )}
+                {activeTrans && activeTrans.dark > 0 && (
+                  <div style={{ position: "absolute", inset: 0, background: "#000", opacity: activeTrans.dark, pointerEvents: "none", zIndex: 3 }} />
                 )}
 
                 {/* incrustations (PIP) — déplaçables/redimensionnables/pivotables.

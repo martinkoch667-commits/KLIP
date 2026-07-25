@@ -13,7 +13,7 @@
 // par-dessus — un vrai équivalent pour celles-ci nécessiterait un transform de
 // sortie dédié par type, hors périmètre de ce lot.
 
-import { MontageClip, OverlayClip, Caption, TitleEl, StickerEl, AudioTrack, SubCustom, effectiveSubStyle, applySubCase, withAlpha, DEFAULT_SUB_POS, clipFilterCss, overlayFilterCss, clipTimelineDur, clipAudioGainAt, overlayTimelineDur, overlayAudioGainAt, audioVolumeAt, kenBurnsScale, videoFormatById, exportQualityById } from "./constants";
+import { MontageClip, OverlayClip, Caption, TitleEl, StickerEl, AudioTrack, SubCustom, effectiveSubStyle, applySubCase, withAlpha, transitionStateAt, DEFAULT_SUB_POS, clipFilterCss, overlayFilterCss, clipTimelineDur, clipAudioGainAt, overlayTimelineDur, overlayAudioGainAt, audioVolumeAt, kenBurnsScale, videoFormatById, exportQualityById } from "./constants";
 
 export interface ExportProject {
   clips: MontageClip[];
@@ -73,67 +73,27 @@ function drawCover(ctx: CanvasRenderingContext2D, media: CanvasImageSource, mw: 
   ctx.drawImage(media, x, y, w, h);
 }
 
-// entrée transition : renvoie transform/alpha/filtre à appliquer sur le média du plan entrant
+// entrée transition : délègue à la SOURCE UNIQUE (constants.ts) puis convertit
+// les fractions en pixels du canvas. L'aperçu utilise exactement le même calcul.
 function transitionState(clip: ClipTimed, tIntoClip: number, isFirst: boolean) {
-  const st = {
-    alpha: 1, dx: 0, dy: 0, scale: 1, rotate: 0, flash: 0, extraFilter: "",
-    clipRect: null as null | [number, number, number, number],
-    clipCircle: null as null | [number, number, number], // iris : cx, cy, rayon
-    dark: 0, // voile noir (fondu au noir)
+  const s = transitionStateAt(clip.transitionIn, clip.transitionDur, tIntoClip, isFirst);
+  const diag = Math.hypot(CANVAS_W, CANVAS_H);
+  return {
+    alpha: s.alpha,
+    dx: s.dx * CANVAS_W,
+    dy: s.dy * CANVAS_H,
+    scale: s.scale,
+    rotate: s.rotate,
+    flash: s.flash,
+    dark: s.dark,
+    extraFilter: s.extraFilter,
+    clipRect: s.clipRect
+      ? ([s.clipRect[0] * CANVAS_W, s.clipRect[1] * CANVAS_H, s.clipRect[2] * CANVAS_W, s.clipRect[3] * CANVAS_H] as [number, number, number, number])
+      : null,
+    clipCircle: s.clipCircle
+      ? ([s.clipCircle[0] * CANVAS_W, s.clipCircle[1] * CANVAS_H, s.clipCircle[2] * diag] as [number, number, number])
+      : null,
   };
-  if (isFirst || clip.transitionIn === "cut" || clip.transitionDur <= 0 || tIntoClip >= clip.transitionDur) return st;
-  const p = Math.max(0, Math.min(1, tIntoClip / clip.transitionDur));
-  const ease = 1 - Math.pow(1 - p, 2);
-  switch (clip.transitionIn) {
-    case "fade": st.alpha = ease; break;
-    case "fadeblack": st.dark = 1 - ease; st.alpha = Math.min(1, 0.35 + ease); break;
-    case "flash": st.flash = 1 - ease; st.alpha = Math.min(1, 0.4 + ease); break;
-    case "zoom": st.scale = 1.18 - 0.18 * ease; st.alpha = 0.2 + 0.8 * ease; break;
-    case "zoomout": st.scale = 0.82 + 0.18 * ease; st.alpha = 0.3 + 0.7 * ease; break;
-    // Rebond : léger dépassement d'échelle avant stabilisation.
-    case "bounce": {
-      const o = Math.sin(p * Math.PI) * 0.12;
-      st.scale = 0.86 + 0.14 * ease + o; st.alpha = Math.min(1, 0.3 + 1.2 * ease);
-      break;
-    }
-    case "slide": st.dx = (1 - ease) * CANVAS_W * 0.5; st.alpha = 0.3 + 0.7 * ease; break;
-    case "slideright": st.dx = -(1 - ease) * CANVAS_W * 0.5; st.alpha = 0.3 + 0.7 * ease; break;
-    case "slideup": st.dy = (1 - ease) * CANVAS_H * 0.4; st.alpha = 0.3 + 0.7 * ease; break;
-    case "slidedown": st.dy = -(1 - ease) * CANVAS_H * 0.4; st.alpha = 0.3 + 0.7 * ease; break;
-    case "spin": st.rotate = (1 - ease) * 22; st.scale = 0.85 + 0.15 * ease; st.alpha = ease; break;
-    case "swirl": st.rotate = (1 - ease) * 75; st.scale = 0.7 + 0.3 * ease; st.alpha = ease; break;
-    case "wipe": st.clipRect = [0, 0, CANVAS_W * ease, CANVAS_H]; break;
-    case "wiperight": st.clipRect = [CANVAS_W * (1 - ease), 0, CANVAS_W * ease, CANVAS_H]; break;
-    case "wipedown": st.clipRect = [0, 0, CANVAS_W, CANVAS_H * ease]; break;
-    case "wipeup": st.clipRect = [0, CANVAS_H * (1 - ease), CANVAS_W, CANVAS_H * ease]; break;
-    // Iris : disque qui s'ouvre depuis le centre (rayon = diagonale à 100 %).
-    case "iris": {
-      const rMax = Math.hypot(CANVAS_W, CANVAS_H) / 2;
-      st.clipCircle = [CANVAS_W / 2, CANVAS_H / 2, rMax * ease];
-      break;
-    }
-    case "blur": st.extraFilter = `blur(${(1 - ease) * 14}px)`; st.alpha = 0.5 + 0.5 * ease; break;
-    case "whip": st.dx = (1 - ease) * CANVAS_W * 0.6; st.extraFilter = `blur(${(1 - ease) * 12}px)`; st.alpha = 0.4 + 0.6 * ease; break;
-    // Secousse : oscillation amortie sur les deux axes.
-    case "shake": {
-      const amp = (1 - ease) * 26;
-      st.dx = Math.sin(p * Math.PI * 7) * amp;
-      st.dy = Math.cos(p * Math.PI * 5) * amp * 0.5;
-      st.alpha = Math.min(1, 0.5 + ease);
-      break;
-    }
-    // Glitch : saccades horizontales + flash bref + saturation.
-    case "glitch": {
-      const amp = (1 - ease) * 34;
-      st.dx = (Math.random() - 0.5) * amp;
-      st.dy = (Math.random() - 0.5) * amp * 0.4;
-      st.extraFilter = `saturate(${1 + (1 - ease) * 2.2}) hue-rotate(${(1 - ease) * 25}deg)`;
-      st.flash = (1 - ease) * (Math.random() > 0.65 ? 0.55 : 0);
-      st.alpha = Math.min(1, 0.55 + ease);
-      break;
-    }
-  }
-  return st;
 }
 
 function drawMediaFrame(ctx: CanvasRenderingContext2D, media: HTMLVideoElement | HTMLImageElement, clip: ClipTimed, tIntoClip: number, isFirst: boolean) {
