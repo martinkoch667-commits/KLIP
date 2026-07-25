@@ -121,10 +121,11 @@ function MusicPicker({ value, onChange }: { value: string; onChange: (v: string)
 type PostType = "post" | "reel" | "story" | "carrousel";
 
 const POST_TYPE_CFG: Record<PostType, { label: string; tKey: string; color: string; bg: string }> = {
-  post:  { label: "Post",  tKey: "ptPost",  color: "#4F8EF7", bg: "#4F8EF715" },
-  reel:  { label: "Reel",  tKey: "ptReel",  color: "#A259FF", bg: "#A259FF15" },
-  story: { label: "Story", tKey: "ptStory", color: "#FF6B35", bg: "#FF6B3515" },
-  carrousel: { label: "Carrousel", tKey: "ptCarrousel", color: "#2FD79B", bg: "#2FD79B15" },
+  // Palette DA — identique au compositeur (vert forest / violet / orange warn / rose).
+  post:  { label: "Post",  tKey: "ptPost",  color: "#1F7A4D", bg: "#1F7A4D15" },
+  reel:  { label: "Reel",  tKey: "ptReel",  color: "#6656D9", bg: "#6656D915" },
+  story: { label: "Story", tKey: "ptStory", color: "#C8732B", bg: "#C8732B15" },
+  carrousel: { label: "Carrousel", tKey: "ptCarrousel", color: "#C2456F", bg: "#C2456F15" },
 };
 
 // Extrait toutes les images d'un carrousel depuis editor_json.carousel_urls (fallback = image unique).
@@ -941,7 +942,7 @@ function PlanningContent() {
                     <div key={i} style={{ padding: "11px 14px 10px", borderRight: i < 6 ? `1px solid rgba(13,15,10,.08)` : "none", display: "flex", alignItems: "center", gap: 8 }}>
                       <span style={{ fontFamily: "var(--display)", fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: ".07em", color: "var(--ink-3)" }}>{DAY_LOC[i]}</span>
                       <span style={{ width: 26, height: 26, borderRadius: "50%", display: "grid", placeItems: "center", fontFamily: "'Archivo', var(--sans)", fontWeight: 700, fontSize: 13, transition: "background .12s",
-                        background: isToday ? "#2FD79B" : "transparent",
+                        background: isToday ? "var(--mint)" : "transparent",
                         color: isToday ? "#0D2E1C" : "var(--ink)" }}>
                         {day.getDate()}
                       </span>
@@ -1109,7 +1110,7 @@ function PlanningContent() {
                       {/* Day number */}
                       <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 4 }}>
                         <span style={{ width: 22, height: 22, borderRadius: "50%", display: "grid", placeItems: "center", fontFamily: "'Archivo', var(--sans)", fontSize: 11, fontWeight: 700,
-                          background: isToday ? "#2FD79B" : "transparent",
+                          background: isToday ? "var(--mint)" : "transparent",
                           color: isToday ? "#0D2E1C" : "var(--ink-3)" }}>
                           {day.getDate()}
                         </span>

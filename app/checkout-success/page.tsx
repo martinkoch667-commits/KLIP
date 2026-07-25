@@ -23,7 +23,7 @@ export default function CheckoutSuccessPage() {
   return (
     <main style={{ minHeight: "100vh", display: "grid", placeItems: "center", background: "var(--canvas)", fontFamily: "var(--sans)" }}>
       <div style={{ textAlign: "center", color: "var(--ink-2)" }}>
-        <div style={{ width: 40, height: 40, margin: "0 auto 16px", borderRadius: "50%", border: "3px solid rgba(47,215,155,.25)", borderTopColor: "#2FD79B", animation: "lp-spin .8s linear infinite" }} />
+        <div style={{ width: 40, height: 40, margin: "0 auto 16px", borderRadius: "50%", border: "3px solid rgba(189,242,160,.35)", borderTopColor: "var(--leaf)", animation: "lp-spin .8s linear infinite" }} />
         <p style={{ fontWeight: 700 }}>{t('activating')}</p>
         <style>{`@keyframes lp-spin{to{transform:rotate(360deg)}}`}</style>
       </div>

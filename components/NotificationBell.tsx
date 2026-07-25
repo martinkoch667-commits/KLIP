@@ -34,7 +34,7 @@ function NotifIcon({ type }: { type: Notification['type'] }) {
     post_published:         { bg: '#DCFCE7', color: '#16A34A' },
     post_failed:            { bg: '#FEE2E2', color: '#DC2626' },
     post_pending_review:    { bg: '#FEF3C7', color: '#D97706' },
-    post_approved:          { bg: 'rgba(47,215,155,.15)', color: '#2FD79B' },
+    post_approved:          { bg: 'rgba(47,215,155,.15)', color: 'var(--mint-2)' },
     post_rejected:          { bg: '#FEF3C7', color: '#D97706' },
     post_revision_requested:{ bg: '#FEF3C7', color: '#D97706' },
   };

@@ -18,10 +18,12 @@ type PostType   = "post" | "reel" | "story" | "carrousel";
 // Formats alignés sur l'éditeur (PT_FORMAT_MAP) : post = portrait 4:5 (1080×1350),
 // carrousel = carré 1:1 (1080×1080), reel/story = vertical 9:16 (1080×1920).
 const POST_TYPE_CFG: Record<PostType, { label: string; tKey: string; color: string; bg: string; format: string }> = {
-  post:      { label: "Publication",  tKey: "ptPost",      color: "#4F8EF7", bg: "#4F8EF715", format: "1080×1350 px" },
-  reel:      { label: "Reel",         tKey: "ptReel",      color: "#A259FF", bg: "#A259FF15", format: "1080×1920 px" },
-  story:     { label: "Story",        tKey: "ptStory",     color: "#FF6B35", bg: "#FF6B3515", format: "1080×1920 px" },
-  carrousel: { label: "Carrousel",    tKey: "ptCarrousel", color: "#F7A94F", bg: "#F7A94F15", format: "1080×1080 px" },
+  // Palette DA : vert forest / violet / orange warn / rose — couleurs de la charte,
+  // assez contrastées pour servir de texte sur leur fond teinté (color + 15 alpha).
+  post:      { label: "Publication",  tKey: "ptPost",      color: "#1F7A4D", bg: "#1F7A4D15", format: "1080×1350 px" },
+  reel:      { label: "Reel",         tKey: "ptReel",      color: "#6656D9", bg: "#6656D915", format: "1080×1920 px" },
+  story:     { label: "Story",        tKey: "ptStory",     color: "#C8732B", bg: "#C8732B15", format: "1080×1920 px" },
+  carrousel: { label: "Carrousel",    tKey: "ptCarrousel", color: "#C2456F", bg: "#C2456F15", format: "1080×1080 px" },
 };
 
 // Ratio d'affichage réel selon le format (post = 4:5, carrousel = carré, reel/story = 9:16).
@@ -53,7 +55,7 @@ const EDITORIAL_MODELS: { id: string; label: string; tKey: string; color: string
   { id: 'citation',  label: 'Citation',  tKey: 'emCitation',  color: '#14160F', hint: 'une phrase forte / punchline qui marque' },
   { id: 'annonce',   label: 'Annonce',   tKey: 'emAnnonce',   color: '#2FD79B', hint: 'une annonce claire (nouveauté, ouverture, info)' },
   { id: 'produit',   label: 'Produit',   tKey: 'emProduit',   color: '#C8732B', hint: 'mise en avant d’un produit / plat / offre' },
-  { id: 'evenement', label: 'Événement', tKey: 'emEvenement', color: '#4F8EF7', hint: 'un événement (date, lieu, invitation)' },
+  { id: 'evenement', label: 'Événement', tKey: 'emEvenement', color: '#6656D9', hint: 'un événement (date, lieu, invitation)' },
   { id: 'minimal',   label: 'Minimal',   tKey: 'emMinimal',   color: '#8B8E7F', hint: 'épuré, sobre, peu de texte' },
 ];
 // Voix (ton) sélectionnable par post — surcharge le ton de la charte.
