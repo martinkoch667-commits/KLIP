@@ -1345,6 +1345,8 @@ export default function WorkspacePage() {
                             {!isGenerated ? (
                               <>
                                 {/* ── Modèle éditorial (angle de contenu) ── */}
+                                {/* Rien de tout ceci pour une vidéo : le texte s'écrit après le montage. */}
+                                {!post.isVideo && (
                                 <div>
                                   <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
                                     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--ink-3)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
@@ -1367,6 +1369,7 @@ export default function WorkspacePage() {
                                     })}
                                   </div>
                                 </div>
+                                )}
                                 {/* ── Template selector (before generation) ── */}
                                 {!post.isVideo && templates.length > 0 && (() => {
                                   const activeTpl = post.templateId ? templates.find(t => t.id === post.templateId) : null;
@@ -1428,6 +1431,7 @@ export default function WorkspacePage() {
                                     </p>
                                   )}
                                 </div>
+                                {!post.isVideo && (
                                 <div>
                                   <p className="label" style={{ marginBottom: 4 }}>{t('postContext')}</p>
                                   <textarea
@@ -1440,7 +1444,9 @@ export default function WorkspacePage() {
                                     style={{ resize: 'none', fontSize: 12.5 }}
                                   />
                                 </div>
+                                )}
                                 {/* ── Voix (ton) ── */}
+                                {!post.isVideo && (
                                 <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
                                   <span className="label" style={{ margin: 0 }}>{t('voice')}</span>
                                   <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
@@ -1456,6 +1462,7 @@ export default function WorkspacePage() {
                                     })}
                                   </div>
                                 </div>
+                                )}
                                 {/* Toggle : la photo contient-elle déjà du texte ? */}
                                 {!post.isVideo && (
                                   <button type="button"
@@ -1470,14 +1477,43 @@ export default function WorkspacePage() {
                                     </span>
                                   </button>
                                 )}
-                                <button
-                                  onClick={() => generateOne(post)}
-                                  disabled={!post.brief.trim() || post.status === "generating"}
-                                  className="btn btn-primary"
-                                  style={{ width: '100%', opacity: (!post.brief.trim() || post.status === "generating") ? 0.45 : 1 }}
-                                >
-                                  {post.status === "generating" ? <><Spinner /> {t('generating')}</> : <><IconSpark /> {t('generatePost')}</>}
-                                </button>
+                                {/* Une vidéo ne se « génère » pas : elle se monte — on propose donc
+                                    directement le montage, avec le prémontage IA en option. */}
+                                {post.isVideo && (
+                                  <>
+                                    <label style={{ display: 'flex', alignItems: 'flex-start', gap: 8, cursor: 'pointer', padding: '9px 11px', borderRadius: 'var(--r-s)', background: 'var(--sunk)' }}>
+                                      <input
+                                        type="checkbox"
+                                        checked={preEdit[post.localId] ?? true}
+                                        onChange={e => setPreEdit(prev => ({ ...prev, [post.localId]: e.target.checked }))}
+                                        style={{ accentColor: 'var(--leaf-ink)', marginTop: 1, flexShrink: 0 }}
+                                      />
+                                      <span style={{ minWidth: 0 }}>
+                                        <span style={{ display: 'block', fontSize: 12.5, fontWeight: 700, color: 'var(--ink)' }}>{t('preEditLabel')}</span>
+                                        <span style={{ display: 'block', fontSize: 11.5, color: 'var(--ink-3)', lineHeight: 1.4 }}>{t('preEditHint')}</span>
+                                      </span>
+                                    </label>
+                                    <button
+                                      onClick={() => validatePost(post)}
+                                      disabled={post.status === "validating"}
+                                      className="btn btn-primary"
+                                      style={{ width: '100%', opacity: post.status === "validating" ? 0.5 : 1 }}
+                                    >
+                                      {post.status === "validating" ? <><Spinner /> {t('saving')}</> : <><IconEdit /> {t('montageVideo')}</>}
+                                    </button>
+                                  </>
+                                )}
+                                {/* Une vidéo ne se « génère » pas : elle se monte. */}
+                                {!post.isVideo && (
+                                  <button
+                                    onClick={() => generateOne(post)}
+                                    disabled={!post.brief.trim() || post.status === "generating"}
+                                    className="btn btn-primary"
+                                    style={{ width: '100%', opacity: (!post.brief.trim() || post.status === "generating") ? 0.45 : 1 }}
+                                  >
+                                    {post.status === "generating" ? <><Spinner /> {t('generating')}</> : <><IconSpark /> {t('generatePost')}</>}
+                                  </button>
+                                )}
                               </>
                             ) : (
                               <>
