@@ -1747,7 +1747,13 @@
     "coverRedo": "Mudar capa",
     "coverAtPlayheadTitle": "Usar a imagem mostrada como capa do Reel",
     "toastCoverSet": "Capa definida ✦",
-    "toastCoverError": "Não foi possível guardar a capa"
+    "toastCoverError": "Não foi possível guardar a capa",
+    "errNoKey": "Transcrição indisponível: nenhuma chave configurada no servidor.",
+    "errTooLarge": "Vídeo demasiado pesado para transcrever ({mb} MB). Divida-o ou reduza a qualidade.",
+    "errRateLimited": "Demasiados pedidos de uma vez — tente daqui a um minuto.",
+    "errProviderDown": "O serviço de transcrição não responde. Tente dentro de momentos.",
+    "errFormat": "Formato de áudio não suportado pela transcrição.",
+    "errFetchMedia": "Não foi possível obter o vídeo do armazenamento."
   },
   "forgotPassword": {
     "title": "Esqueceu a palavra-passe",

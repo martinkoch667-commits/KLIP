@@ -326,6 +326,7 @@ export default function MontagePage() {
   const [exportProgress, setExportProgress] = useState(0);
   const [exportPhase, setExportPhase] = useState<"render" | "transcode">("render");
   const [toastMsg, setToastMsg] = useState<string | null>(null);
+  const [toastKind, setToastKind] = useState<"ok" | "error">("ok");
   const [pps, setPps] = useState(40);
   const [histTick, setHistTick] = useState(0);
   const [extraVideoTracks, setExtraVideoTracks] = useState(0); // pistes vidéo vides ajoutées par l'utilisateur (au-delà des pistes occupées)
@@ -480,8 +481,8 @@ export default function MontagePage() {
   const tlScrollRef = useRef<HTMLDivElement>(null);
   const selDragRef = useRef<{ startX: number; startY: number; moved: boolean } | null>(null); // rectangle de sélection
 
-  function toast(msg: string) {
-    setToastMsg(msg);
+  function toast(msg: string, kind: "ok" | "error" = "ok") {
+    setToastMsg(msg); setToastKind(kind);
     if (toastTimer.current) clearTimeout(toastTimer.current);
     toastTimer.current = setTimeout(() => setToastMsg(null), 3200);
   }
@@ -1298,7 +1299,28 @@ export default function MontagePage() {
   // Extrait la piste audio d'un média en WAV mono 16 kHz (format attendu par Whisper).
   // Une vidéo complète pèse trop lourd pour l'API (« Request Entity Too Large ») : on
   // n'envoie que le son, ré-échantillonné — quelques centaines de Ko au lieu de plusieurs Mo.
-  async function extractAudio16kMonoWav(src: string): Promise<Blob> {
+  // Traduit un code d'erreur de transcription en message lisible. Le serveur ne
+  // renvoie plus de texte brut (on affichait du JSON et du HTML Cloudflare tels quels).
+  function transcribeErrorMsg(data: { error?: string; sizeMb?: number } | null | undefined): string {
+    switch (data?.error) {
+      case "missing_api_key":      return t('errNoKey');
+      case "media_too_large":      return t('errTooLarge', { mb: data?.sizeMb ?? 25 });
+      case "rate_limited":         return t('errRateLimited');
+      case "provider_unavailable": return t('errProviderDown');
+      case "unsupported_format":   return t('errFormat');
+      case "fetch_media_failed":   return t('errFetchMedia');
+      default:                     return t('toastTranscriptionUnavailable');
+    }
+  }
+
+  // ── Transcription d'un média, par TRANCHES ──────────────────────────────────
+  // Une route serverless n'accepte qu'un corps de requête limité (~4,5 Mo). Or un
+  // WAV 16 kHz mono pèse ~1,8 Mo par minute : au-delà de ~2,5 min, l'envoi échouait
+  // avant même d'atteindre Whisper. On découpe donc l'audio en tranches de 100 s
+  // et on recale les horodatages de chaque tranche.
+  const TRANSCRIBE_CHUNK_SEC = 100;
+
+  async function decodeToMono16k(src: string): Promise<Float32Array> {
     const ab = await (await fetch(src)).arrayBuffer();
     const AC: typeof AudioContext = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
     const actx = new AC();
@@ -1307,26 +1329,58 @@ export default function MontagePage() {
     const rate = 16000;
     const off = new OfflineAudioContext(1, Math.max(1, Math.ceil(decoded.duration * rate)), rate);
     const node = off.createBufferSource(); node.buffer = decoded; node.connect(off.destination); node.start();
-    const rendered = await off.startRendering();
-    return encodeWavMono(rendered.getChannelData(0), rate);
+    return (await off.startRendering()).getChannelData(0);
   }
-  // Transcrit un plan et renvoie ses mots horodatés (null si indisponible).
-  async function transcribeWords(src: string): Promise<{ words: TWord[]; message?: string } | null> {
-    let res: Response;
-    try {
-      const wav = await extractAudio16kMonoWav(src);
-      const form = new FormData();
-      form.append("audio", wav, "audio.wav");
-      res = await fetch("/api/transcribe", { method: "POST", body: form });
-    } catch {
-      res = await fetch("/api/transcribe", {
+
+  interface TranscriptResult { segments: { start: number; end: number; text: string }[]; words: TWord[]; error?: string }
+
+  async function transcribeMedia(src: string, onProgress?: (done: number, total: number) => void): Promise<TranscriptResult> {
+    const rate = 16000;
+    let pcm: Float32Array | null = null;
+    try { pcm = await decodeToMono16k(src); } catch { pcm = null; }
+
+    // Repli : décodage impossible (CORS…) → le serveur récupère le média lui-même.
+    if (!pcm) {
+      const res = await fetch("/api/transcribe", {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ url: src }),
       });
+      const data = await res.json().catch(() => null);
+      if (!res.ok || !data?.ok) return { segments: [], words: [], error: transcribeErrorMsg(data) };
+      return { segments: data.segments || [], words: data.words || [] };
     }
-    const data = await res.json();
-    if (!res.ok || !data.ok) return { words: [], message: data?.message };
-    return { words: (data.words || []) as TWord[] };
+
+    const chunkLen = TRANSCRIBE_CHUNK_SEC * rate;
+    const total = Math.max(1, Math.ceil(pcm.length / chunkLen));
+    const segments: { start: number; end: number; text: string }[] = [];
+    const words: TWord[] = [];
+
+    for (let i = 0; i < total; i++) {
+      onProgress?.(i, total);
+      const slice = pcm.subarray(i * chunkLen, Math.min(pcm.length, (i + 1) * chunkLen));
+      if (!slice.length) continue;
+      const offset = (i * chunkLen) / rate; // recalage temporel de la tranche
+      const form = new FormData();
+      form.append("audio", encodeWavMono(slice, rate), "audio.wav");
+      let data: { ok?: boolean; error?: string; sizeMb?: number; segments?: { start: number; end: number; text: string }[]; words?: TWord[] } | null = null;
+      try {
+        const res = await fetch("/api/transcribe", { method: "POST", body: form });
+        data = await res.json().catch(() => null);
+        if (!res.ok || !data?.ok) return { segments, words, error: transcribeErrorMsg(data) };
+      } catch {
+        return { segments, words, error: t('toastTranscriptionError') };
+      }
+      for (const sg of data.segments || []) segments.push({ start: sg.start + offset, end: sg.end + offset, text: sg.text });
+      for (const w of data.words || []) words.push({ start: w.start + offset, end: w.end + offset, word: w.word });
+    }
+    onProgress?.(total, total);
+    return { segments, words };
+  }
+
+  // Mots horodatés d'un plan (liste vide + message si la transcription échoue).
+  async function transcribeWords(src: string): Promise<{ words: TWord[]; error?: string }> {
+    const r = await transcribeMedia(src);
+    return { words: r.words, error: r.error };
   }
 
   // ── Découpe fine : hésitations, faux départs, prises refaites ───────────────
@@ -1337,20 +1391,22 @@ export default function MontagePage() {
     const targets = selectedClipId
       ? clips.filter((c) => c.id === selectedClipId && c.kind === "video")
       : clips.filter((c) => c.kind === "video");
-    if (!targets.length) { toast(t('toastAutoCutNoVideo')); return; }
+    if (!targets.length) { toast(t('toastAutoCutNoVideo'), "error"); return; }
     setCuttingFillers(true);
     try {
       const ids = new Set(targets.map((c) => c.id));
       const next: MontageClip[] = [];
       let removed = 0, changed = false;
+      let failure: string | null = null;
       for (const c of clips) {
         if (!ids.has(c.id)) { next.push(c); continue; }
         const r = await transcribeWords(c.src);
         if (!r) { next.push(c); continue; }
         if (!r.words.length) {
-          // Pas de mots horodatés → on ne touche à rien et on explique.
+          // Transcription indisponible → on ne touche à rien, et surtout on ne
+          // conclut pas « rien à retirer » (message contradictoire après un échec).
           next.push(c);
-          if (r.message) toast(r.message);
+          if (r.error) failure = r.error;
           continue;
         }
         const cuts = planSemanticCuts(r.words).filter((x) => x.end > c.trimStart && x.start < c.trimEnd);
@@ -1363,11 +1419,13 @@ export default function MontagePage() {
           next.push({ ...c, id: crypto.randomUUID(), trimStart: k.start, trimEnd: k.end, gapBefore: idx === 0 ? c.gapBefore : 0 });
         });
       }
+      // Un échec de transcription prime sur « rien à retirer ».
+      if (failure) { toast(failure, "error"); return; }
       if (!changed) { toast(t('toastFillersNothing')); return; }
       setClips(next);
       toast(t('toastFillersCut', { s: removed.toFixed(1) }));
     } catch {
-      toast(t('toastTranscriptionError'));
+      toast(t('toastTranscriptionError'), "error");
     } finally {
       setCuttingFillers(false);
     }
@@ -1378,32 +1436,18 @@ export default function MontagePage() {
     if (!videoClip) return;
     setTranscribing(true);
     try {
-      let res: Response;
-      try {
-        // Chemin normal : on extrait le son côté client et on n'envoie que le WAV léger.
-        const wav = await extractAudio16kMonoWav(videoClip.src);
-        const form = new FormData();
-        form.append("audio", wav, "audio.wav");
-        res = await fetch("/api/transcribe", { method: "POST", body: form });
-      } catch {
-        // Repli : si l'extraction échoue (CORS…), on laisse le serveur récupérer l'URL.
-        res = await fetch("/api/transcribe", {
-          method: "POST", headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ url: videoClip.src }),
-        });
-      }
-      const data = await res.json();
-      if (!res.ok || !data.ok) {
-        toast(data?.message || t('toastTranscriptionUnavailable'));
-        return;
-      }
-      const segs = (data.segments || []) as { start: number; end: number; text: string }[];
+      // Transcription par tranches : fonctionne quelle que soit la durée du plan.
+      const r = await transcribeMedia(videoClip.src);
+      if (r.error && !r.segments.length) { toast(r.error, "error"); return; }
+      if (r.error) toast(r.error, "error"); // transcription partielle : on garde ce qu'on a
+      const segs = r.segments;
+      if (!segs.length) { toast(t('toastTranscriptionError'), "error"); return; }
       setRawSegments(segs);
       const newCaps: Caption[] = segmentCaptions(segs, subMaxWords);
       setCaptions(newCaps);
       toast(t('toastCaptionsGenerated', { count: newCaps.length }));
     } catch {
-      toast(t('toastTranscriptionError'));
+      toast(t('toastTranscriptionError'), "error");
     } finally {
       setTranscribing(false);
     }
@@ -1564,7 +1608,7 @@ export default function MontagePage() {
   async function autoCutQuality() {
     const vids = clips.filter((c) => c.kind === "video");
     if (autoCutting) return;
-    if (!vids.length) { toast(t('toastAutoCutNoVideo')); return; }
+    if (!vids.length) { toast(t('toastAutoCutNoVideo'), "error"); return; }
     setAutoCutting(true);
     setAutoCutDone(null);
     try {
@@ -1574,8 +1618,12 @@ export default function MontagePage() {
         const c = next[i];
         if (c.kind !== "video") continue;
         setAutoCutProgress({ done: trimmedCount, total: vids.length, name: c.name });
+        // On repère d'abord où ça parle (analyse locale, sans clé) pour ne jamais
+        // sacrifier de la parole à cause d'un défaut d'image.
+        let voiced: { start: number; end: number }[] | undefined;
+        try { voiced = (await detectSpeechSegments(c.src, 0.6)) ?? undefined; } catch { voiced = undefined; }
         let rep;
-        try { rep = await analyzeClipQuality(c.src, c.trimStart, c.trimEnd); }
+        try { rep = await analyzeClipQuality(c.src, c.trimStart, c.trimEnd, { voiced }); }
         catch { continue; }
         if (!rep.keep) continue; // rien d'exploitable détecté → on ne touche pas au plan
         const start = Math.max(c.trimStart, rep.keep.start);
@@ -1651,13 +1699,13 @@ export default function MontagePage() {
       const blob = await (await fetch(dataUrl)).blob();
       const path = `${workspaceId}/cover-${postId}-${Date.now()}.jpg`;
       const { error } = await supabase.storage.from("photos").upload(path, blob, { upsert: true, contentType: "image/jpeg" });
-      if (error) { toast(t('toastCoverError')); return; }
+      if (error) { toast(t('toastCoverError'), "error"); return; }
       const url = supabase.storage.from("photos").getPublicUrl(path).data.publicUrl;
       await supabase.from("posts").update({ thumbnail_url: url }).eq("id", postId);
       setCoverUrl(url);
       toast(t('toastCoverSet'));
     } catch {
-      toast(t('toastCoverError'));
+      toast(t('toastCoverError'), "error");
     } finally {
       setSettingCover(false);
     }
@@ -1695,7 +1743,7 @@ export default function MontagePage() {
       setCaption(data.description);
       toast(t('toastCaptionDone'));
     } catch {
-      toast(t('toastCaptionError'));
+      toast(t('toastCaptionError'), "error");
     } finally {
       setCaptioning(false);
     }
@@ -3533,7 +3581,9 @@ export default function MontagePage() {
 
       {toastMsg && (
         <div className="mz-toast">
-          <span className="mz-toast-ic"><VIcon name="check" size={12} /></span>
+          <span className="mz-toast-ic" style={toastKind === "error" ? { background: "var(--warn-soft)", color: "var(--warn)" } : undefined}>
+            <VIcon name={toastKind === "error" ? "alert" : "check"} size={12} />
+          </span>
           <span style={{ fontSize: 12.5, fontWeight: 600 }}>{toastMsg}</span>
         </div>
       )}

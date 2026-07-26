@@ -1747,7 +1747,13 @@
     "coverRedo": "Cover ändern",
     "coverAtPlayheadTitle": "Das angezeigte Bild als Reel-Cover verwenden",
     "toastCoverSet": "Cover gesetzt ✦",
-    "toastCoverError": "Cover konnte nicht gespeichert werden"
+    "toastCoverError": "Cover konnte nicht gespeichert werden",
+    "errNoKey": "Transkription nicht verfügbar: kein Schlüssel auf dem Server konfiguriert.",
+    "errTooLarge": "Video zu groß für die Transkription ({mb} MB). Teile es oder reduziere die Qualität.",
+    "errRateLimited": "Zu viele Anfragen auf einmal – in einer Minute erneut versuchen.",
+    "errProviderDown": "Der Transkriptionsdienst antwortet nicht. Gleich noch einmal versuchen.",
+    "errFormat": "Audioformat wird von der Transkription nicht unterstützt.",
+    "errFetchMedia": "Video konnte nicht aus dem Speicher geladen werden."
   },
   "forgotPassword": {
     "title": "Passwort vergessen",

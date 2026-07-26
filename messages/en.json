@@ -1747,7 +1747,13 @@
     "coverRedo": "Change cover",
     "coverAtPlayheadTitle": "Use the frame on screen as the Reel cover",
     "toastCoverSet": "Cover set ✦",
-    "toastCoverError": "Could not save the cover"
+    "toastCoverError": "Could not save the cover",
+    "errNoKey": "Transcription unavailable: no key configured on the server.",
+    "errTooLarge": "Video too large to transcribe ({mb} MB). Split it or lower its quality.",
+    "errRateLimited": "Too many requests at once — try again in a minute.",
+    "errProviderDown": "The transcription service is not responding. Try again shortly.",
+    "errFormat": "Audio format not supported by transcription.",
+    "errFetchMedia": "Could not fetch the video from storage."
   },
   "forgotPassword": {
     "title": "Forgot password",

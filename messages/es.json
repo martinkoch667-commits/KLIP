@@ -1747,7 +1747,13 @@
     "coverRedo": "Cambiar portada",
     "coverAtPlayheadTitle": "Usa la imagen mostrada como portada del Reel",
     "toastCoverSet": "Portada definida ✦",
-    "toastCoverError": "No se pudo guardar la portada"
+    "toastCoverError": "No se pudo guardar la portada",
+    "errNoKey": "Transcripción no disponible: no hay clave configurada en el servidor.",
+    "errTooLarge": "Vídeo demasiado pesado para transcribir ({mb} MB). Divídelo o baja la calidad.",
+    "errRateLimited": "Demasiadas peticiones a la vez: inténtalo en un minuto.",
+    "errProviderDown": "El servicio de transcripción no responde. Inténtalo en un momento.",
+    "errFormat": "Formato de audio no admitido por la transcripción.",
+    "errFetchMedia": "No se pudo recuperar el vídeo del almacenamiento."
   },
   "forgotPassword": {
     "title": "Contraseña olvidada",

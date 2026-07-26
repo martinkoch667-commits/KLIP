@@ -1747,7 +1747,13 @@
     "coverRedo": "Cambia copertina",
     "coverAtPlayheadTitle": "Usa l’immagine mostrata come copertina del Reel",
     "toastCoverSet": "Copertina impostata ✦",
-    "toastCoverError": "Impossibile salvare la copertina"
+    "toastCoverError": "Impossibile salvare la copertina",
+    "errNoKey": "Trascrizione non disponibile: nessuna chiave configurata sul server.",
+    "errTooLarge": "Video troppo pesante per la trascrizione ({mb} MB). Dividilo o riduci la qualità.",
+    "errRateLimited": "Troppe richieste insieme: riprova tra un minuto.",
+    "errProviderDown": "Il servizio di trascrizione non risponde. Riprova tra poco.",
+    "errFormat": "Formato audio non supportato dalla trascrizione.",
+    "errFetchMedia": "Impossibile recuperare il video dallo storage."
   },
   "forgotPassword": {
     "title": "Password dimenticata",

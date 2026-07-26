@@ -60,9 +60,24 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ ok: false, error: "fetch_media_failed" }, { status: 502 });
       }
       mediaBlob = await mediaRes.blob();
+      // Whisper n'accepte que [flac mp3 mp4 mpeg mpga m4a ogg opus wav webm] et se fie
+      // à l'EXTENSION. Un .mov était donc refusé ; on le présente en .mp4 (même
+      // conteneur ISO-BMFF, ffmpeg côté Whisper le lit sans souci).
       const contentType = mediaRes.headers.get("content-type") || "video/mp4";
-      const ext = contentType.includes("webm") ? "webm" : contentType.includes("quicktime") ? "mov" : "mp4";
+      const ext = contentType.includes("webm") ? "webm"
+        : contentType.includes("ogg") ? "ogg"
+        : contentType.includes("wav") ? "wav"
+        : "mp4";
       filename = `clip.${ext}`;
+    }
+
+    // Garde-fou de taille : au-delà, l'API du fournisseur renvoie un 502 illisible.
+    const MAX_BYTES = 24 * 1024 * 1024;
+    if (mediaBlob.size > MAX_BYTES) {
+      return NextResponse.json({
+        ok: false, error: "media_too_large",
+        sizeMb: Math.round(mediaBlob.size / 1024 / 1024),
+      }, { status: 200 });
     }
 
     const form = new FormData();
@@ -81,9 +96,17 @@ export async function POST(req: NextRequest) {
     });
 
     if (!whisperRes.ok) {
+      // La réponse du fournisseur peut être du JSON, ou du HTML (502 Cloudflare).
+      // On la journalise côté serveur mais on ne la renvoie JAMAIS telle quelle :
+      // elle finissait affichée brute dans un toast. Le client reçoit un code.
       const errText = await whisperRes.text();
-      console.error("[transcribe] Whisper error:", errText);
-      return NextResponse.json({ ok: false, error: "whisper_failed", message: errText }, { status: 502 });
+      console.error("[transcribe] Whisper error:", whisperRes.status, errText.slice(0, 500));
+      const code = whisperRes.status === 429 ? "rate_limited"
+        : whisperRes.status === 413 ? "media_too_large"
+        : whisperRes.status >= 500 ? "provider_unavailable"
+        : /must be one of the following types/i.test(errText) ? "unsupported_format"
+        : "whisper_failed";
+      return NextResponse.json({ ok: false, error: code, status: whisperRes.status }, { status: 200 });
     }
 
     const data = await whisperRes.json();

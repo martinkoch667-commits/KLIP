@@ -82,7 +82,10 @@ export async function analyzeClipQuality(
   src: string,
   from: number,
   to: number,
-  opts: { step?: number; maxSamples?: number; signal?: AbortSignal } = {},
+  // `voiced` : plages où quelqu'un parle (référentiel source). Elles sont
+  // PROTÉGÉES : une image un peu floue pendant que la personne parle reste dans
+  // le montage — on ne coupe jamais la parole pour un défaut d'image.
+  opts: { step?: number; maxSamples?: number; signal?: AbortSignal; voiced?: { start: number; end: number }[] } = {},
 ): Promise<ClipQualityReport> {
   const span = Math.max(0, to - from);
   const step = opts.step ?? Math.max(0.25, Math.min(0.8, span / 40));
@@ -127,11 +130,14 @@ export async function analyzeClipQuality(
     const diff = prevGray ? meanAbsDiff(gray, prevGray) : 1;
     prevGray = gray;
 
+    const speaking = !!opts.voiced?.some((v) => t >= v.start - 0.15 && t <= v.end + 0.15);
     let why: QualitySample["why"] | undefined;
+    // Le noir franc reste éliminé même sur de la parole (rien à voir à l'écran) ;
+    // le flou et l'image figée, eux, sont tolérés tant que ça parle.
     if (lum < DARK_MAX) why = "dark";
-    else if (lum > BRIGHT_MIN) why = "bright";
-    else if (sharp < SHARP_MIN) why = "blurry";
-    else if (samples.length > 0 && diff < FROZEN_MAX) why = "frozen";
+    else if (lum > BRIGHT_MIN && !speaking) why = "bright";
+    else if (sharp < SHARP_MIN && !speaking) why = "blurry";
+    else if (samples.length > 0 && diff < FROZEN_MAX && !speaking) why = "frozen";
 
     samples.push({ t, lum, sharp, diff, ok: !why, why });
   }
@@ -185,9 +191,12 @@ export interface SemanticCut {
 }
 
 // Hésitations courantes (fr + en). Comparaison sur le mot normalisé.
+// UNIQUEMENT des sons d'hésitation, jamais des mots porteurs de sens.
+// « voilà », « bref », « ben », « bah », « like » en faisaient partie et étaient
+// supprimés alors qu'ils appartiennent au discours — d'où des coupes en pleine phrase.
 const FILLERS = new Set([
-  "euh", "euuh", "heu", "hum", "hmm", "mmh", "bah", "ben", "bref", "voila", "voilà",
-  "uh", "uhh", "um", "umm", "erm", "hmmm", "like", "sooo",
+  "euh", "euuh", "euhh", "heu", "heuu", "hum", "humm", "hmm", "hmmm", "mmh", "mmm",
+  "uh", "uhh", "uhm", "um", "umm", "erm", "ehm",
 ]);
 
 const norm = (w: string) => w.toLowerCase().replace(/[.,!?;:…"'’«»]/g, "").trim();
@@ -219,8 +228,8 @@ export function planSemanticCuts(
 
   // 2 bis) Temps morts : tout blanc entre deux mots dépassant `maxGap` est resserré
   //        (on garde `gapKeep` de respiration). C'est ce qui rend le montage vif.
-  const maxGap = opts.maxGap ?? 0.45;
-  const gapKeep = opts.gapKeep ?? 0.14;
+  const maxGap = opts.maxGap ?? 0.6;
+  const gapKeep = opts.gapKeep ?? 0.25;
   for (let i = 1; i < w.length; i++) {
     const gap = w[i].start - w[i - 1].end;
     if (gap > maxGap) {
@@ -269,7 +278,7 @@ export function mergeCuts(cuts: SemanticCut[]): SemanticCut[] {
  * Les segments plus courts que `minKeep` sont écartés (bribes inutilisables).
  */
 export function keepRangesFromCuts(
-  cuts: SemanticCut[], from: number, to: number, minKeep = 0.22, pad = 0.06,
+  cuts: SemanticCut[], from: number, to: number, minKeep = 0.22, pad = 0.12,
 ): { start: number; end: number }[] {
   const keep: { start: number; end: number }[] = [];
   let cursor = from;
