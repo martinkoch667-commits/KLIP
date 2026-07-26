@@ -216,7 +216,7 @@ type ImportMode = 'separate' | 'montage';
 function TypePickerModal({ files, onSeparate, onMontage, onClose }: {
   files: File[];
   onSeparate: (type: PostType) => void;
-  onMontage: () => void;
+  onMontage: (ordered: File[]) => void;
   onClose: () => void;
 }) {
   const t = useTranslations('workspace');
@@ -227,6 +227,16 @@ function TypePickerModal({ files, onSeparate, onMontage, onClose }: {
   // Défaut malin : tout vidéos → montage groupé ; sinon posts séparés.
   const [mode, setMode] = useState<ImportMode>(multi && allVideos ? 'montage' : 'separate');
   const [selected, setSelected] = useState<PostType>('post');
+  // Ordre des plans du futur montage (indices dans `files`), réarrangeable ici.
+  const [order, setOrder] = useState<number[]>(() => files.map((_, i) => i));
+  function moveOrder(i: number, dir: -1 | 1) {
+    setOrder(prev => {
+      const next = [...prev]; const j = i + dir;
+      if (j < 0 || j >= next.length) return prev;
+      [next[i], next[j]] = [next[j], next[i]];
+      return next;
+    });
+  }
 
   const groupOptions: { id: ImportMode; icon: React.ReactNode; title: string; desc: string }[] = [
     { id: 'separate', icon: GROUP_ICONS.separate, title: t('groupSeparate'), desc: t('groupSeparateDesc', { count: files.length }) },
@@ -290,17 +300,40 @@ function TypePickerModal({ files, onSeparate, onMontage, onClose }: {
           </div>
         )}
 
-        {/* Récap montage */}
+        {/* Récap montage + ORDRE DES PLANS : on met les rushes dans le bon ordre
+            AVANT que le montage démarre, sinon tout arrive mélangé. */}
         {mode === 'montage' && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '14px 16px', marginBottom: 28, borderRadius: 'var(--r)', background: 'rgba(47,215,155,0.08)', border: '1px solid var(--mint-soft)' }}>
-            <span style={{ color: 'var(--mint-2)', display: 'flex', flexShrink: 0 }}>{GROUP_ICONS.montage}</span>
-            <p style={{ fontSize: 12.5, color: 'var(--ink-2)', lineHeight: 1.45 }}>{t('montageSummary', { count: files.length })}</p>
+          <div style={{ marginBottom: 28 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '14px 16px', borderRadius: 'var(--r)', background: 'var(--leaf-soft)', border: '1px solid var(--leaf)' }}>
+              <span style={{ color: 'var(--leaf-ink)', display: 'flex', flexShrink: 0 }}>{GROUP_ICONS.montage}</span>
+              <p style={{ fontSize: 12.5, color: 'var(--ink-2)', lineHeight: 1.45 }}>{t('montageSummary', { count: files.length })}</p>
+            </div>
+
+            <p className="label" style={{ margin: '16px 0 8px' }}>{t('orderLabel')}</p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6, maxHeight: 210, overflowY: 'auto' }}>
+              {order.map((fi, i) => (
+                <div key={fi} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 10px', borderRadius: 'var(--r-s)', background: 'var(--sunk)' }}>
+                  <span className="num" style={{ fontSize: 13, width: 18, textAlign: 'center', color: 'var(--ink-3)', flexShrink: 0 }}>{i + 1}</span>
+                  <span style={{ flex: 1, minWidth: 0, fontSize: 12.5, fontWeight: 600, color: 'var(--ink)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {files[fi]?.name}
+                  </span>
+                  <button type="button" disabled={i === 0} onClick={() => moveOrder(i, -1)}
+                    className="btn btn-ghost btn-icon" style={{ padding: 5, opacity: i === 0 ? 0.3 : 1 }} title={t('moveUp')}>
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 19V5M5 12l7-7 7 7"/></svg>
+                  </button>
+                  <button type="button" disabled={i === order.length - 1} onClick={() => moveOrder(i, 1)}
+                    className="btn btn-ghost btn-icon" style={{ padding: 5, opacity: i === order.length - 1 ? 0.3 : 1 }} title={t('moveDown')}>
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12l7 7 7-7"/></svg>
+                  </button>
+                </div>
+              ))}
+            </div>
           </div>
         )}
 
         <div style={{ display: 'flex', gap: 10 }}>
           <button onClick={onClose} className="btn btn-ghost" style={{ flex: 1 }}>{t('cancel')}</button>
-          <button onClick={() => mode === 'montage' ? onMontage() : onSeparate(selected)} className="btn btn-primary" style={{ flex: 2 }}>{t('continue')}</button>
+          <button onClick={() => mode === 'montage' ? onMontage(order.map(i => files[i])) : onSeparate(selected)} className="btn btn-primary" style={{ flex: 2 }}>{t('continue')}</button>
         </div>
       </div>
     </div>
@@ -1686,7 +1719,7 @@ export default function WorkspacePage() {
         <TypePickerModal
           files={pendingFiles}
           onSeparate={type => createPostItemsWithType(pendingFiles, type)}
-          onMontage={() => createMontagePostItem(pendingFiles)}
+          onMontage={(ordered) => createMontagePostItem(ordered)}
           onClose={() => setPendingFiles(null)}
         />
       )}

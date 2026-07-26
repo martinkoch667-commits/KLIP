@@ -530,7 +530,10 @@
     "videoNotesPh": "Idee, angolo, info utili — per dopo.",
     "videoCaptionLaterHint": "La didascalia si scrive dopo il montaggio, quando sappiamo cosa racconta il video.",
     "preEditLabel": "Premontaggio IA",
-    "preEditHint": "Sgrossatura, sottotitoli e transizioni applicati all’apertura."
+    "preEditHint": "Sgrossatura, sottotitoli e transizioni applicati all’apertura.",
+    "orderLabel": "Ordine delle clip",
+    "moveUp": "Su",
+    "moveDown": "Giù"
   },
   "planning": {
     "bestTime": "Momento migliore per pubblicare",
@@ -1753,7 +1756,9 @@
     "errRateLimited": "Troppe richieste insieme: riprova tra un minuto.",
     "errProviderDown": "Il servizio di trascrizione non risponde. Riprova tra poco.",
     "errFormat": "Formato audio non supportato dalla trascrizione.",
-    "errFetchMedia": "Impossibile recuperare il video dallo storage."
+    "errFetchMedia": "Impossibile recuperare il video dallo storage.",
+    "moveClipLeft": "Sposta prima",
+    "moveClipRight": "Sposta dopo"
   },
   "forgotPassword": {
     "title": "Password dimenticata",

@@ -530,7 +530,10 @@
     "videoNotesPh": "Ideas, angle, useful info — for later.",
     "videoCaptionLaterHint": "The caption is written after editing, once we know what the video says.",
     "preEditLabel": "AI pre-edit",
-    "preEditHint": "Rush cleanup, subtitles and transitions applied on opening."
+    "preEditHint": "Rush cleanup, subtitles and transitions applied on opening.",
+    "orderLabel": "Clip order",
+    "moveUp": "Move up",
+    "moveDown": "Move down"
   },
   "planning": {
     "bestTime": "Best time to post",
@@ -1753,7 +1756,9 @@
     "errRateLimited": "Too many requests at once — try again in a minute.",
     "errProviderDown": "The transcription service is not responding. Try again shortly.",
     "errFormat": "Audio format not supported by transcription.",
-    "errFetchMedia": "Could not fetch the video from storage."
+    "errFetchMedia": "Could not fetch the video from storage.",
+    "moveClipLeft": "Move earlier",
+    "moveClipRight": "Move later"
   },
   "forgotPassword": {
     "title": "Forgot password",

@@ -530,7 +530,10 @@
     "videoNotesPh": "Idées, angle, infos utiles — pour plus tard.",
     "videoCaptionLaterHint": "La légende s’écrit après le montage, quand on sait ce que la vidéo raconte.",
     "preEditLabel": "Prémontage IA",
-    "preEditHint": "Dérushage, sous-titres et transitions appliqués à l’ouverture."
+    "preEditHint": "Dérushage, sous-titres et transitions appliqués à l’ouverture.",
+    "orderLabel": "Ordre des plans",
+    "moveUp": "Monter",
+    "moveDown": "Descendre"
   },
   "planning": {
     "bestTime": "Meilleur moment pour publier",
@@ -1753,7 +1756,9 @@
     "errRateLimited": "Trop de demandes d’un coup — réessayez dans une minute.",
     "errProviderDown": "Le service de transcription ne répond pas. Réessayez dans un instant.",
     "errFormat": "Format audio non pris en charge par la transcription.",
-    "errFetchMedia": "Impossible de récupérer la vidéo depuis le stockage."
+    "errFetchMedia": "Impossible de récupérer la vidéo depuis le stockage.",
+    "moveClipLeft": "Déplacer avant",
+    "moveClipRight": "Déplacer après"
   },
   "forgotPassword": {
     "title": "Mot de passe oublié",

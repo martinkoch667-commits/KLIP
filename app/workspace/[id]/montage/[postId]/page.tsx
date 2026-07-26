@@ -456,7 +456,14 @@ export default function MontagePage() {
   const videoInputRef = useRef<HTMLInputElement>(null); // import « vidéos » dédié
   const photoInputRef = useRef<HTMLInputElement>(null); // import « photos » dédié
   const overlayInputRef = useRef<HTMLInputElement>(null);
-  const videoRef = useRef<HTMLVideoElement>(null);
+  // Deux lecteurs qui ALTERNENT : pendant qu'un plan joue, le suivant est déjà
+  // chargé et positionné dans l'autre. Le changement de plan devient instantané
+  // (un seul <video> imposait un rechargement complet à chaque coupe = saccade).
+  const videoARef = useRef<HTMLVideoElement>(null);
+  const videoBRef = useRef<HTMLVideoElement>(null);
+  const videoRef = useRef<HTMLVideoElement | null>(null); // pointe sur l'élément AFFICHÉ
+  const slotSrcRef = useRef<[string | null, string | null]>([null, null]);
+  const [slot, setSlot] = useState<0 | 1>(0);
   const loadedSrcRef = useRef<string | null>(null);
   const overlayVideoRefs = useRef<Map<string, HTMLVideoElement>>(new Map());
   const scrubRef = useRef<HTMLDivElement>(null);
@@ -809,20 +816,49 @@ export default function MontagePage() {
     }
   }, [total, clipStarts]);
 
-  // ── Charge/synchronise le <video> quand le clip actif change ────────────────
+  // ── Bascule sur le lecteur qui contient déjà le plan actif ──────────────────
   useEffect(() => {
-    const v = videoRef.current;
-    if (!v || !activeClip || activeClip.kind !== "video") return;
-    if (loadedSrcRef.current !== activeClip.src) {
-      v.src = activeClip.src;
-      loadedSrcRef.current = activeClip.src;
+    if (!activeClip || activeClip.kind !== "video") return;
+    const els: (HTMLVideoElement | null)[] = [videoARef.current, videoBRef.current];
+    let target: 0 | 1;
+    if (slotSrcRef.current[0] === activeClip.src) target = 0;
+    else if (slotSrcRef.current[1] === activeClip.src) target = 1;
+    else {
+      // Source jamais chargée : on la met dans le lecteur NON affiché pour ne pas
+      // faire clignoter l'image courante.
+      target = slot === 0 ? 1 : 0;
+      const el = els[target];
+      if (el) { el.src = activeClip.src; slotSrcRef.current[target] = activeClip.src; }
     }
+    const v = els[target];
+    if (!v) return;
+    videoRef.current = v;
+    loadedSrcRef.current = activeClip.src;
+    if (target !== slot) setSlot(target);
     v.playbackRate = activeClip.speed;
     const localTime = activeClip.trimStart + (time - activeClip.start) * activeClip.speed;
     if (Math.abs(v.currentTime - localTime) > 0.35) v.currentTime = Math.max(0, localTime);
     if (playing) v.play().catch(() => {});
+    els[target === 0 ? 1 : 0]?.pause(); // l'autre ne doit pas jouer en fond
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeClip?.id]);
+
+  // ── Précharge le plan suivant dans le lecteur libre, déjà positionné ─────────
+  useEffect(() => {
+    if (!nextClipSrc) return;
+    const free = slot === 0 ? 1 : 0;
+    const el = [videoARef.current, videoBRef.current][free];
+    if (!el || slotSrcRef.current[free] === nextClipSrc) return;
+    el.src = nextClipSrc;
+    slotSrcRef.current[free] = nextClipSrc;
+    el.load();
+    // se placer sur le premier instant utile du plan suivant
+    const nc = clipStarts.find((c) => c.src === nextClipSrc);
+    const seekTo = nc ? nc.trimStart : 0;
+    const onMeta = () => { try { el.currentTime = seekTo; } catch {} };
+    el.addEventListener("loadedmetadata", onMeta, { once: true });
+    return () => el.removeEventListener("loadedmetadata", onMeta);
+  }, [nextClipSrc, slot, clipStarts]);
 
   // ── Play/pause : pilote le <video> quand le clip actif est une vidéo ────────
   useEffect(() => {
@@ -1041,6 +1077,22 @@ export default function MontagePage() {
     const c = clipStarts.find((c) => c.id === id);
     if (c) seek(c.start + 0.05);
   }
+  // Déplace un plan dans l'ordre de la timeline (le montage se relit dans l'ordre
+  // des `clips`) — indispensable quand les rushes arrivent mélangés.
+  function moveClipOrder(id: string, dir: -1 | 1) {
+    setClips((prev) => {
+      const i = prev.findIndex((c) => c.id === id);
+      const j = i + dir;
+      if (i < 0 || j < 0 || j >= prev.length) return prev;
+      const next = [...prev];
+      [next[i], next[j]] = [next[j], next[i]];
+      // le vide en tête appartient à la position, pas au plan
+      const g = next[0].gapBefore; next[0] = { ...next[0], gapBefore: prev[0].gapBefore };
+      if (i === 0 || j === 0) next[Math.max(i, j)] = { ...next[Math.max(i, j)], gapBefore: g };
+      return next;
+    });
+  }
+
   function removeClip(id: string) {
     setClips((prev) => prev.filter((c) => c.id !== id));
     if (selectedClipId === id) setSelectedClipId(null);
@@ -3014,12 +3066,28 @@ export default function MontagePage() {
               <div className="mz-video">
                 {activeClip && !hiddenLanes.has("video") ? (
                   activeClip.kind === "video"
-                    ? <video ref={videoRef} onTimeUpdate={onVideoTimeUpdate} onEnded={onVideoEnded} playsInline muted={false} style={{
-                        filter: [clipFilterCss(activeClip), activeTrans?.extraFilter].filter(Boolean).join(" ") || undefined,
-                        objectPosition: `${(activeClip.focusX ?? 0.5) * 100}% ${(activeClip.focusY ?? 0.5) * 100}%`,
-                        ...(activeTransCss || {}),
-                        transformOrigin: "center",
-                      } as React.CSSProperties} />
+                    ? <>
+                        {/* Deux lecteurs superposés : celui du plan courant est visible,
+                            l'autre tient déjà le plan suivant, prêt à prendre le relais. */}
+                        {([videoARef, videoBRef] as const).map((ref, i) => (
+                          <video
+                            key={i}
+                            ref={ref}
+                            onTimeUpdate={i === slot ? onVideoTimeUpdate : undefined}
+                            onEnded={i === slot ? onVideoEnded : undefined}
+                            playsInline
+                            muted={i !== slot}
+                            style={{
+                              filter: [clipFilterCss(activeClip), activeTrans?.extraFilter].filter(Boolean).join(" ") || undefined,
+                              objectPosition: `${(activeClip.focusX ?? 0.5) * 100}% ${(activeClip.focusY ?? 0.5) * 100}%`,
+                              ...(activeTransCss || {}),
+                              transformOrigin: "center",
+                              // le lecteur en attente reste dans le DOM mais invisible
+                              ...(i === slot ? {} : { opacity: 0, pointerEvents: "none" as const, position: "absolute" as const, inset: 0 }),
+                            } as React.CSSProperties}
+                          />
+                        ))}
+                      </>
                     : <img src={activeClip.src} alt="" style={{
                         filter: [clipFilterCss(activeClip), activeTrans?.extraFilter].filter(Boolean).join(" ") || undefined,
                         objectPosition: `${(activeClip.focusX ?? 0.5) * 100}% ${(activeClip.focusY ?? 0.5) * 100}%`,
@@ -3039,12 +3107,6 @@ export default function MontagePage() {
                 ) : (
                   // Des plans existent mais l'instant courant tombe dans un trou → écran noir.
                   null
-                )}
-
-                {/* Préchargement silencieux du plan suivant (jamais affiché). */}
-                {nextClipSrc && (
-                  <video key={nextClipSrc} src={nextClipSrc} preload="auto" muted playsInline
-                    style={{ position: "absolute", width: 1, height: 1, opacity: 0, pointerEvents: "none" }} />
                 )}
 
                 {/* Voiles de transition (flash blanc / fondu au noir) — identiques à l'export. */}
@@ -3617,6 +3679,8 @@ export default function MontagePage() {
           rows.push(item("detach", t('contextDetachAudio'), () => detachAudio(id), { sc: "⇧⌥S", disabled: !isVideo || (c?.vol ?? 1) === 0 }));
           rows.push(sep("s2"));
           rows.push(item("dup", t('duplicate'), () => duplicateClip(id), { sc: "⌘D" }));
+          rows.push(item("mvl", t('moveClipLeft'), () => moveClipOrder(id, -1), { disabled: clips[0]?.id === id }));
+          rows.push(item("mvr", t('moveClipRight'), () => moveClipOrder(id, 1), { disabled: clips[clips.length - 1]?.id === id }));
           rows.push(item("speed", t('railSpeed'), () => { selectClip(id); setTool("speed"); }));
           rows.push(item("filter", t('railFilter'), () => { selectClip(id); setTool("filter"); }));
           rows.push(item("transitions", t('railTransitions'), () => { selectClip(id); setTool("transitions"); }));

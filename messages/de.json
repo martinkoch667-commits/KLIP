@@ -530,7 +530,10 @@
     "videoNotesPh": "Ideen, Blickwinkel, nützliche Infos — für später.",
     "videoCaptionLaterHint": "Die Caption entsteht nach dem Schnitt, wenn klar ist, was das Video erzählt.",
     "preEditLabel": "KI-Vorschnitt",
-    "preEditHint": "Rohschnitt, Untertitel und Übergänge beim Öffnen angewendet."
+    "preEditHint": "Rohschnitt, Untertitel und Übergänge beim Öffnen angewendet.",
+    "orderLabel": "Reihenfolge der Clips",
+    "moveUp": "Nach oben",
+    "moveDown": "Nach unten"
   },
   "planning": {
     "bestTime": "Beste Zeit zum Posten",
@@ -1753,7 +1756,9 @@
     "errRateLimited": "Zu viele Anfragen auf einmal – in einer Minute erneut versuchen.",
     "errProviderDown": "Der Transkriptionsdienst antwortet nicht. Gleich noch einmal versuchen.",
     "errFormat": "Audioformat wird von der Transkription nicht unterstützt.",
-    "errFetchMedia": "Video konnte nicht aus dem Speicher geladen werden."
+    "errFetchMedia": "Video konnte nicht aus dem Speicher geladen werden.",
+    "moveClipLeft": "Nach vorne",
+    "moveClipRight": "Nach hinten"
   },
   "forgotPassword": {
     "title": "Passwort vergessen",

@@ -530,7 +530,10 @@
     "videoNotesPh": "Ideias, ângulo, informação útil — para depois.",
     "videoCaptionLaterHint": "A legenda escreve-se após a montagem, quando sabemos o que o vídeo conta.",
     "preEditLabel": "Pré-montagem IA",
-    "preEditHint": "Limpeza, legendas e transições aplicadas ao abrir."
+    "preEditHint": "Limpeza, legendas e transições aplicadas ao abrir.",
+    "orderLabel": "Ordem dos planos",
+    "moveUp": "Subir",
+    "moveDown": "Descer"
   },
   "planning": {
     "bestTime": "Melhor momento para publicar",
@@ -1753,7 +1756,9 @@
     "errRateLimited": "Demasiados pedidos de uma vez — tente daqui a um minuto.",
     "errProviderDown": "O serviço de transcrição não responde. Tente dentro de momentos.",
     "errFormat": "Formato de áudio não suportado pela transcrição.",
-    "errFetchMedia": "Não foi possível obter o vídeo do armazenamento."
+    "errFetchMedia": "Não foi possível obter o vídeo do armazenamento.",
+    "moveClipLeft": "Mover antes",
+    "moveClipRight": "Mover depois"
   },
   "forgotPassword": {
     "title": "Esqueceu a palavra-passe",
