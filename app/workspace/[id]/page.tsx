@@ -477,7 +477,6 @@ export default function WorkspacePage() {
   const [refiningIds, setRefiningIds] = useState<Set<string>>(new Set());
 
   // ── Thumbnail picker ─────────────────────────────────────────────────────
-  const [thumbTabs, setThumbTabs] = useState<Record<string, 'moment' | 'import'>>({});
   const [thumbTimes, setThumbTimes] = useState<Record<string, number>>({});
   const [thumbDurations, setThumbDurations] = useState<Record<string, number>>({});
   const [thumbPreviews, setThumbPreviews] = useState<Record<string, string>>({});
@@ -847,42 +846,7 @@ export default function WorkspacePage() {
     return canvas.toDataURL('image/jpeg', 0.85);
   }
 
-  async function confirmThumbMoment(post: PostItem) {
-    const dataUrl = captureVideoFrame(post.localId);
-    if (!dataUrl) return;
-    setThumbPreviews(prev => ({ ...prev, [post.localId]: dataUrl }));
-    if (!post.dbId) return;
-    setThumbUploadingIds(prev => new Set(prev).add(post.localId));
-    try {
-      const blob = await (await fetch(dataUrl)).blob();
-      const path = `exports/${id}/thumb-${post.dbId}.jpg`;
-      const { error } = await supabase.storage.from('exports').upload(path, blob, { upsert: true, contentType: 'image/jpeg' });
-      if (!error) {
-        const { data: urlData } = supabase.storage.from('exports').getPublicUrl(path);
-        await supabase.from('posts').update({ thumbnail_url: urlData.publicUrl }).eq('id', post.dbId);
-        setPosts(prev => prev.map(p => p.localId === post.localId ? { ...p, thumbnail_url: urlData.publicUrl } : p));
-      }
-    } catch { /* silent */ }
-    setThumbUploadingIds(prev => { const s = new Set(prev); s.delete(post.localId); return s; });
-  }
 
-  async function handleThumbImport(post: PostItem, file: File) {
-    if (file.size > 5 * 1024 * 1024) { alert(t('fileTooLarge5')); return; }
-    const preview = URL.createObjectURL(file);
-    setThumbPreviews(prev => ({ ...prev, [post.localId]: preview }));
-    if (!post.dbId) return;
-    setThumbUploadingIds(prev => new Set(prev).add(post.localId));
-    try {
-      const path = `exports/${id}/thumb-${post.dbId}.jpg`;
-      const { error } = await supabase.storage.from('exports').upload(path, file, { upsert: true, contentType: file.type });
-      if (!error) {
-        const { data: urlData } = supabase.storage.from('exports').getPublicUrl(path);
-        await supabase.from('posts').update({ thumbnail_url: urlData.publicUrl }).eq('id', post.dbId);
-        setPosts(prev => prev.map(p => p.localId === post.localId ? { ...p, thumbnail_url: urlData.publicUrl } : p));
-      }
-    } catch { /* silent */ }
-    setThumbUploadingIds(prev => { const s = new Set(prev); s.delete(post.localId); return s; });
-  }
 
   // ── Remplacer la photo d'un post ────────────────────────────────────────────
   async function replacePhoto(post: PostItem, file: File) {
@@ -1568,127 +1532,8 @@ export default function WorkspacePage() {
                                   </div>
                                 )}
 
-                                {/* ── Thumbnail picker (Reels only) ── */}
-                                {post.isVideo && (
-                                  <div style={{ borderRadius: 'var(--r)', border: '1px solid var(--line)', overflow: 'hidden' }}>
-                                    {/* Header */}
-                                    <div style={{ padding: '8px 12px 0', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                                      <p className="label" style={{ margin: 0 }}>{t('coverThumb')}</p>
-                                      <div style={{ display: 'flex', gap: 2, background: 'var(--sunk)', borderRadius: 6, padding: 2 }}>
-                                        {(['moment', 'import'] as const).map(tab => (
-                                          <button key={tab} onClick={() => setThumbTabs(prev => ({ ...prev, [post.localId]: tab }))}
-                                            style={{ padding: '3px 9px', borderRadius: 4, border: 'none', cursor: 'pointer', fontSize: 11, fontWeight: 700, transition: 'all .12s',
-                                              background: (thumbTabs[post.localId] ?? 'moment') === tab ? 'var(--canvas)' : 'transparent',
-                                              color: (thumbTabs[post.localId] ?? 'moment') === tab ? 'var(--ink)' : 'var(--ink-3)' }}>
-                                            {tab === 'moment' ? t('chooseMoment') : t('import')}
-                                          </button>
-                                        ))}
-                                      </div>
-                                    </div>
-
-                                    {/* Preview thumbnail — couverture au vrai format vertical du Reel (9:16) */}
-                                    <div style={{ padding: '10px 12px 0' }}>
-                                      <div style={{ width: '100%', maxWidth: 150, margin: '0 auto', aspectRatio: '9/16', borderRadius: 'var(--r)', overflow: 'hidden', background: '#000', position: 'relative' }}>
-                                        {(thumbPreviews[post.localId] || post.thumbnail_url) ? (
-                                          // eslint-disable-next-line @next/next/no-img-element
-                                          <img src={thumbPreviews[post.localId] || post.thumbnail_url!} alt="Miniature" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                                        ) : (
-                                          <div style={{ display: 'grid', placeItems: 'center', height: '100%', color: 'rgba(255,255,255,.35)' }}>
-                                            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.4"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
-                                          </div>
-                                        )}
-                                      </div>
-                                    </div>
-
-                                    {/* Tab content */}
-                                    {(thumbTabs[post.localId] ?? 'moment') === 'moment' ? (
-                                      <div style={{ padding: '10px 12px 12px', display: 'flex', flexDirection: 'column', gap: 8 }}>
-                                        {/* Hidden video + canvas for scrubbing */}
-                                        <video
-                                          ref={el => { videoScrubRefs.current[post.localId] = el; }}
-                                          src={post.photo_url}
-                                          preload="metadata"
-                                          muted
-                                          playsInline
-                                          style={{ display: 'none' }}
-                                          onLoadedMetadata={e => {
-                                            const dur = (e.currentTarget as HTMLVideoElement).duration;
-                                            if (isFinite(dur)) setThumbDurations(prev => ({ ...prev, [post.localId]: dur }));
-                                          }}
-                                        />
-                                        <canvas ref={el => { canvasScrubRefs.current[post.localId] = el; }} style={{ display: 'none' }} />
-
-                                        {/* Slider + timecode */}
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                                          <input type="range" min={0} max={thumbDurations[post.localId] ?? 100}
-                                            step={0.1}
-                                            value={thumbTimes[post.localId] ?? 0}
-                                            onChange={e => {
-                                              const t = parseFloat(e.target.value);
-                                              setThumbTimes(prev => ({ ...prev, [post.localId]: t }));
-                                              const video = videoScrubRefs.current[post.localId];
-                                              if (video) {
-                                                video.currentTime = t;
-                                                video.onseeked = () => {
-                                                  const dataUrl = captureVideoFrame(post.localId);
-                                                  if (dataUrl) setThumbPreviews(prev => ({ ...prev, [post.localId]: dataUrl }));
-                                                };
-                                              }
-                                            }}
-                                            className="ed-range"
-                                            style={{ flex: 1 }}
-                                          />
-                                          <span style={{ fontFamily: 'var(--mono)', fontSize: 11, fontWeight: 700, color: 'var(--ink-3)', minWidth: 32, textAlign: 'right', flexShrink: 0 }}>
-                                            {(() => {
-                                              const t = thumbTimes[post.localId] ?? 0;
-                                              const m = Math.floor(t / 60);
-                                              const s = Math.floor(t % 60);
-                                              return `${m}:${String(s).padStart(2, '0')}`;
-                                            })()}
-                                          </span>
-                                        </div>
-                                        <button onClick={() => confirmThumbMoment(post)} disabled={thumbUploadingIds.has(post.localId)}
-                                          className="btn btn-primary"
-                                          style={{ width: '100%', opacity: thumbUploadingIds.has(post.localId) ? 0.5 : 1 }}>
-                                          {thumbUploadingIds.has(post.localId) ? t('saving') : t('validateMoment')}
-                                        </button>
-                                      </div>
-                                    ) : (
-                                      <div style={{ padding: '10px 12px 12px', display: 'flex', flexDirection: 'column', gap: 8 }}>
-                                        <p style={{ fontSize: 11.5, color: 'var(--ink-3)', margin: 0, lineHeight: 1.4 }}>
-                                          {t('thumbFormatHint')}
-                                        </p>
-                                        <label className="btn btn-ghost" style={{ width: '100%', justifyContent: 'center', cursor: 'pointer' }}>
-                                          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-                                          {t('chooseImage')}
-                                          <input type="file" accept="image/jpeg,image/png" style={{ display: 'none' }}
-                                            onChange={e => {
-                                              const file = e.target.files?.[0];
-                                              if (!file) return;
-                                              const img = new Image();
-                                              const url = URL.createObjectURL(file);
-                                              img.onload = () => {
-                                                const ratio = img.width / img.height;
-                                                if (Math.abs(ratio - 9/16) > 0.15) {
-                                                  // Show warning but allow anyway
-                                                }
-                                                URL.revokeObjectURL(url);
-                                              };
-                                              img.src = url;
-                                              handleThumbImport(post, file);
-                                            }}
-                                          />
-                                        </label>
-                                        {thumbUploadingIds.has(post.localId) && (
-                                          <p style={{ fontSize: 11.5, color: 'var(--mint-2)', textAlign: 'center', margin: 0 }}>{t('savingInProgress')}</p>
-                                        )}
-                                        <p style={{ fontSize: 11, color: 'var(--ink-3)', margin: 0, lineHeight: 1.4, padding: '6px 8px', background: 'var(--sunk)', borderRadius: 6 }}>
-                                          {t('thumbInfo')}
-                                        </p>
-                                      </div>
-                                    )}
-                                  </div>
-                                )}
+                                {/* La couverture se choisit dans l'éditeur de montage, une fois la vidéo montée :
+                                    avant montage, on ne sait pas encore quelle image représente la vidéo. */}
 
                                 <div style={{ display: 'flex', gap: 7, marginTop: 2 }}>
                                   {post.isVideo ? (

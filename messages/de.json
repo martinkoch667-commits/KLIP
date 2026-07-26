@@ -1741,7 +1741,13 @@
     "preEditTitle": "Alles auf einmal",
     "preEditDesc": "Bild- und Sprachbereinigung, Untertitel im Kundenstil und Übergänge. Der Schnitt ist fertig zur Durchsicht.",
     "preEditBtn": "Vorschnitt starten",
-    "preEditLabel": "KI-Vorschnitt"
+    "preEditLabel": "KI-Vorschnitt",
+    "coverAtPlayhead": "Cover",
+    "coverSaving": "Speichern…",
+    "coverRedo": "Cover ändern",
+    "coverAtPlayheadTitle": "Das angezeigte Bild als Reel-Cover verwenden",
+    "toastCoverSet": "Cover gesetzt ✦",
+    "toastCoverError": "Cover konnte nicht gespeichert werden"
   },
   "forgotPassword": {
     "title": "Passwort vergessen",

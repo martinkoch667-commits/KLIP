@@ -307,6 +307,9 @@ export default function MontagePage() {
   // Prémontage par analyse d'image (cf. autoCutQuality).
   const [autoCutting, setAutoCutting] = useState(false);
   const [cuttingFillers, setCuttingFillers] = useState(false);
+  // Couverture (miniature) choisie au playhead, en fin de montage.
+  const [settingCover, setSettingCover] = useState(false);
+  const [coverUrl, setCoverUrl] = useState<string | null>(null);
   // Prémontage IA complet lancé à l'ouverture (?premontage=1).
   const [preEditing, setPreEditing] = useState(false);
   const [preEditStep, setPreEditStep] = useState<string | null>(null);
@@ -1635,6 +1638,31 @@ export default function MontagePage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loading, clips.length]);
 
+  // ── Couverture : choisie À LA FIN, sur l'image affichée ─────────────────────
+  // On capture le frame au playhead : on se place sur le moment voulu, on clique.
+  // (Avant montage, on ne sait pas encore quelle image représente la vidéo.)
+  async function setCoverFromPlayhead() {
+    const c = activeClip;
+    if (settingCover || !c) return;
+    setSettingCover(true);
+    try {
+      const at = c.kind === "video" ? c.trimStart + (time - c.start) * c.speed : 0;
+      const dataUrl = await grabFrame(c.src, c.kind, at, 720);
+      const blob = await (await fetch(dataUrl)).blob();
+      const path = `${workspaceId}/cover-${postId}-${Date.now()}.jpg`;
+      const { error } = await supabase.storage.from("photos").upload(path, blob, { upsert: true, contentType: "image/jpeg" });
+      if (error) { toast(t('toastCoverError')); return; }
+      const url = supabase.storage.from("photos").getPublicUrl(path).data.publicUrl;
+      await supabase.from("posts").update({ thumbnail_url: url }).eq("id", postId);
+      setCoverUrl(url);
+      toast(t('toastCoverSet'));
+    } catch {
+      toast(t('toastCoverError'));
+    } finally {
+      setSettingCover(false);
+    }
+  }
+
   // ── Légende : écrite À LA FIN, une fois le montage terminé ──────────────────
   // Avant montage on ne sait pas ce que la vidéo raconte ; ici on dispose du
   // rendu réel (frames échantillonnées) et de la transcription (sous-titres).
@@ -2788,6 +2816,11 @@ export default function MontagePage() {
             <VIcon name="eye" size={15} /> {t('viewExport')}
           </a>
         )}
+        {/* La couverture se choisit ICI : on se place sur l'image voulue, on clique. */}
+        <button onClick={setCoverFromPlayhead} disabled={settingCover || !activeClip} className="btn btn-sm btn-ghost" style={{ gap: 5 }} title={t('coverAtPlayheadTitle')}>
+          <VIcon name="image" size={15} /> {settingCover ? t('coverSaving') : coverUrl ? t('coverRedo') : t('coverAtPlayhead')}
+        </button>
+
         {/* La légende s'écrit ICI, une fois la vidéo montée — pas au compositeur. */}
         {exportUrl && (
           <button onClick={generateCaptionAI} disabled={captioning} className="btn btn-sm btn-ghost" style={{ gap: 5 }} title={t('captionAiTitle')}>

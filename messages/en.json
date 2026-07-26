@@ -1741,7 +1741,13 @@
     "preEditTitle": "Do it all at once",
     "preEditDesc": "Picture + speech cleanup, subtitles in the client’s style, and transitions. The edit comes back ready to review.",
     "preEditBtn": "Run pre-edit",
-    "preEditLabel": "AI pre-edit"
+    "preEditLabel": "AI pre-edit",
+    "coverAtPlayhead": "Cover",
+    "coverSaving": "Saving…",
+    "coverRedo": "Change cover",
+    "coverAtPlayheadTitle": "Use the frame on screen as the Reel cover",
+    "toastCoverSet": "Cover set ✦",
+    "toastCoverError": "Could not save the cover"
   },
   "forgotPassword": {
     "title": "Forgot password",

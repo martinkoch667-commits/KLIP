@@ -1741,7 +1741,13 @@
     "preEditTitle": "Fazer tudo de uma vez",
     "preEditDesc": "Limpeza de imagem e discurso, legendas com a marca e transições. A montagem fica pronta a rever.",
     "preEditBtn": "Iniciar pré-montagem",
-    "preEditLabel": "Pré-montagem IA"
+    "preEditLabel": "Pré-montagem IA",
+    "coverAtPlayhead": "Capa",
+    "coverSaving": "A guardar…",
+    "coverRedo": "Mudar capa",
+    "coverAtPlayheadTitle": "Usar a imagem mostrada como capa do Reel",
+    "toastCoverSet": "Capa definida ✦",
+    "toastCoverError": "Não foi possível guardar a capa"
   },
   "forgotPassword": {
     "title": "Esqueceu a palavra-passe",

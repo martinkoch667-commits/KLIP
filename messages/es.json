@@ -1741,7 +1741,13 @@
     "preEditTitle": "Hacerlo todo de una vez",
     "preEditDesc": "Limpieza de imagen y discurso, subtítulos según la marca y transiciones. El montaje queda listo para revisar.",
     "preEditBtn": "Lanzar premontaje",
-    "preEditLabel": "Premontaje IA"
+    "preEditLabel": "Premontaje IA",
+    "coverAtPlayhead": "Portada",
+    "coverSaving": "Guardando…",
+    "coverRedo": "Cambiar portada",
+    "coverAtPlayheadTitle": "Usa la imagen mostrada como portada del Reel",
+    "toastCoverSet": "Portada definida ✦",
+    "toastCoverError": "No se pudo guardar la portada"
   },
   "forgotPassword": {
     "title": "Contraseña olvidada",

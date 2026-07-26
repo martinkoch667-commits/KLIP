@@ -1741,7 +1741,13 @@
     "preEditTitle": "Fare tutto in una volta",
     "preEditDesc": "Pulizia immagine e parlato, sottotitoli secondo il brand e transizioni. Il montaggio è pronto da rivedere.",
     "preEditBtn": "Avvia premontaggio",
-    "preEditLabel": "Premontaggio IA"
+    "preEditLabel": "Premontaggio IA",
+    "coverAtPlayhead": "Copertina",
+    "coverSaving": "Salvataggio…",
+    "coverRedo": "Cambia copertina",
+    "coverAtPlayheadTitle": "Usa l’immagine mostrata come copertina del Reel",
+    "toastCoverSet": "Copertina impostata ✦",
+    "toastCoverError": "Impossibile salvare la copertina"
   },
   "forgotPassword": {
     "title": "Password dimenticata",

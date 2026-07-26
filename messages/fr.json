@@ -1741,7 +1741,13 @@
     "preEditTitle": "Tout faire d’un coup",
     "preEditDesc": "Dérushage image + parole, sous-titres à la charte du client, et transitions. Le montage est prêt à relire.",
     "preEditBtn": "Lancer le prémontage",
-    "preEditLabel": "Prémontage IA"
+    "preEditLabel": "Prémontage IA",
+    "coverAtPlayhead": "Couverture",
+    "coverSaving": "Enregistrement…",
+    "coverRedo": "Changer la couverture",
+    "coverAtPlayheadTitle": "Utilise l’image affichée comme couverture du Reel",
+    "toastCoverSet": "Couverture définie ✦",
+    "toastCoverError": "Impossible d’enregistrer la couverture"
   },
   "forgotPassword": {
     "title": "Mot de passe oublié",
