@@ -463,6 +463,9 @@ export default function MontagePage() {
   const videoBRef = useRef<HTMLVideoElement>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null); // pointe sur l'élément AFFICHÉ
   const slotSrcRef = useRef<[string | null, string | null]>([null, null]);
+  // Quel PLAN chaque lecteur est prêt à jouer (déjà positionné sur son trimStart).
+  const slotClipRef = useRef<[string | null, string | null]>([null, null]);
+  const lastSeekRef = useRef(0); // temporisation des recalages de dérive
   const [slot, setSlot] = useState<0 | 1>(0);
   const loadedSrcRef = useRef<string | null>(null);
   const overlayVideoRefs = useRef<Map<string, HTMLVideoElement>>(new Map());
@@ -783,11 +786,11 @@ export default function MontagePage() {
   const activeTransCss = activeTrans ? transitionCss(activeTrans) : null;
   // Plan vidéo suivant : préchargé en sourdine pour que le passage d'un plan à
   // l'autre soit net (sans le temps de chargement qui figeait l'image).
-  const nextClipSrc = useMemo(() => {
+  const nextClip = useMemo(() => {
     if (!activeClip) return null;
     const i = clipStarts.findIndex((c) => c.id === activeClip.id);
     for (let j = i + 1; j < clipStarts.length; j++) {
-      if (clipStarts[j].kind === "video" && clipStarts[j].src !== activeClip.src) return clipStarts[j].src;
+      if (clipStarts[j].kind === "video") return clipStarts[j];
     }
     return null;
   }, [activeClip, clipStarts]);
@@ -821,15 +824,20 @@ export default function MontagePage() {
     if (!activeClip || activeClip.kind !== "video") return;
     const els: (HTMLVideoElement | null)[] = [videoARef.current, videoBRef.current];
     let target: 0 | 1;
-    if (slotSrcRef.current[0] === activeClip.src) target = 0;
-    else if (slotSrcRef.current[1] === activeClip.src) target = 1;
+    // 1) un lecteur est déjà PRÊT pour ce plan (source chargée ET position atteinte)
+    if (slotClipRef.current[0] === activeClip.id) target = 0;
+    else if (slotClipRef.current[1] === activeClip.id) target = 1;
+    // 2) sinon, un lecteur a au moins la bonne source
+    else if (slotSrcRef.current[slot] === activeClip.src) target = slot;
+    else if (slotSrcRef.current[slot === 0 ? 1 : 0] === activeClip.src) target = slot === 0 ? 1 : 0;
     else {
-      // Source jamais chargée : on la met dans le lecteur NON affiché pour ne pas
-      // faire clignoter l'image courante.
+      // 3) source jamais chargée : dans le lecteur NON affiché, pour ne pas faire
+      //    clignoter l'image courante.
       target = slot === 0 ? 1 : 0;
       const el = els[target];
       if (el) { el.src = activeClip.src; slotSrcRef.current[target] = activeClip.src; }
     }
+    slotClipRef.current[target] = activeClip.id;
     const v = els[target];
     if (!v) return;
     videoRef.current = v;
@@ -845,20 +853,29 @@ export default function MontagePage() {
 
   // ── Précharge le plan suivant dans le lecteur libre, déjà positionné ─────────
   useEffect(() => {
-    if (!nextClipSrc) return;
+    if (!nextClip) return;
     const free = slot === 0 ? 1 : 0;
     const el = [videoARef.current, videoBRef.current][free];
-    if (!el || slotSrcRef.current[free] === nextClipSrc) return;
-    el.src = nextClipSrc;
-    slotSrcRef.current[free] = nextClipSrc;
-    el.load();
-    // se placer sur le premier instant utile du plan suivant
-    const nc = clipStarts.find((c) => c.src === nextClipSrc);
-    const seekTo = nc ? nc.trimStart : 0;
-    const onMeta = () => { try { el.currentTime = seekTo; } catch {} };
-    el.addEventListener("loadedmetadata", onMeta, { once: true });
-    return () => el.removeEventListener("loadedmetadata", onMeta);
-  }, [nextClipSrc, slot, clipStarts]);
+    if (!el) return;
+    if (slotClipRef.current[free] === nextClip.id) return; // déjà prêt
+    const seek = () => {
+      try { el.currentTime = Math.max(0, nextClip.trimStart); } catch {}
+      slotClipRef.current[free] = nextClip.id;
+    };
+    if (slotSrcRef.current[free] !== nextClip.src) {
+      // Fichier différent : charger puis se positionner.
+      el.src = nextClip.src;
+      slotSrcRef.current[free] = nextClip.src;
+      el.addEventListener("loadedmetadata", seek, { once: true });
+      el.load();
+      return () => el.removeEventListener("loadedmetadata", seek);
+    }
+    // MÊME fichier (cas courant après dérushage : un rush découpé en segments) :
+    // on avance simplement la tête de lecture du lecteur libre. Le seek a donc
+    // lieu À L'AVANCE, plus à la frontière du plan — c'est ce qui saccadait.
+    el.pause();
+    seek();
+  }, [nextClip, slot]);
 
   // ── Play/pause : pilote le <video> quand le clip actif est une vidéo ────────
   useEffect(() => {
@@ -894,7 +911,10 @@ export default function MontagePage() {
       // l'image restait figée puis rattrapait d'un coup (saccade). On GÈLE donc le
       // temps tant que la vidéo n'est pas prête — la lecture démarre alors nette.
       const vEl = videoRef.current, ac = activeClipRef.current;
-      const notReady = !!(ac && ac.kind === "video" && vEl && (vEl.readyState < 3 || vEl.seeking));
+      // On ne gèle plus pendant un `seeking` : les seeks ont désormais lieu à l'avance
+      // dans le lecteur libre, et geler à chaque frontière de plan saccadait.
+      // On gèle uniquement quand le lecteur n'a AUCUNE image à montrer.
+      const notReady = !!(ac && ac.kind === "video" && vEl && vEl.readyState < 2);
       if (notReady) {
         if (!stalledSince) stalledSince = now;
         // Garde-fou : source illisible → on repart au bout de 3 s plutôt que de rester bloqué.
@@ -935,7 +955,7 @@ export default function MontagePage() {
       return;
     }
     let raf = 0;
-    const tick = () => {
+    const tick = (now: number) => {
       const t = timeRef.current;
       // La vidéo SUIT l'horloge : on la maintient en lecture et on corrige la dérive
       // (si elle a calé, été bloquée, ou pris de l'avance/retard). + fondu du son du plan.
@@ -943,7 +963,13 @@ export default function MontagePage() {
       if (vEl && ac && ac.kind === "video") {
         const expected = ac.trimStart + (t - ac.start) * ac.speed;
         if (vEl.paused) vEl.play().catch(() => {});
-        if (isFinite(expected) && Math.abs(vEl.currentTime - expected) > 0.3) vEl.currentTime = Math.max(0, expected);
+        // Recaler seulement en cas de vraie dérive, et pas plus d'une fois par
+        // demi-seconde : un re-seek en rafale empêche le décodeur de repartir
+        // (l'image restait bloquée sur deux frames en boucle).
+        if (isFinite(expected) && Math.abs(vEl.currentTime - expected) > 0.5 && !vEl.seeking && now - lastSeekRef.current > 500) {
+          lastSeekRef.current = now;
+          vEl.currentTime = Math.max(0, expected);
+        }
         const g = clipAudioGainAt(ac, t - ac.start);
         vEl.volume = mutedLanesRef.current.has("video") ? 0 : (isFinite(g) ? Math.max(0, Math.min(1, g)) : 0);
       }
@@ -1389,7 +1415,14 @@ export default function MontagePage() {
   async function transcribeMedia(src: string, onProgress?: (done: number, total: number) => void): Promise<TranscriptResult> {
     const rate = 16000;
     let pcm: Float32Array | null = null;
-    try { pcm = await decodeToMono16k(src); } catch { pcm = null; }
+    let decodeErr: unknown = null;
+    try { pcm = await decodeToMono16k(src); } catch (e) { decodeErr = e; pcm = null; }
+    if (!pcm) {
+      // Le décodage local a échoué (conteneur illisible par Web Audio, CORS…).
+      // On le journalise : c'est LA cause du repli qui envoie la vidéo entière au
+      // serveur et déclenche « vidéo trop lourde ».
+      console.warn("[transcribe] décodage audio local impossible, repli serveur :", decodeErr);
+    }
 
     // Repli : décodage impossible (CORS…) → le serveur récupère le média lui-même.
     if (!pcm) {
@@ -1484,18 +1517,42 @@ export default function MontagePage() {
   }
 
   async function generateCaptionsAI() {
-    const videoClip = clips.find((c) => c.kind === "video");
-    if (!videoClip) return;
+    const vids = clipStarts.filter((c) => c.kind === "video");
+    if (!vids.length) return;
     setTranscribing(true);
     try {
-      // Transcription par tranches : fonctionne quelle que soit la durée du plan.
-      const r = await transcribeMedia(videoClip.src);
-      if (r.error && !r.segments.length) { toast(r.error, "error"); return; }
-      if (r.error) toast(r.error, "error"); // transcription partielle : on garde ce qu'on a
-      const segs = r.segments;
-      if (!segs.length) { toast(t('toastTranscriptionError'), "error"); return; }
-      setRawSegments(segs);
-      const newCaps: Caption[] = segmentCaptions(segs, subMaxWords);
+      // On transcrit TOUS les plans vidéo (pas seulement le premier), et on convertit
+      // le temps de la SOURCE en temps de la TIMELINE — sinon les sous-titres ne
+      // couvraient que le début et tombaient à côté dès qu'un plan était rogné.
+      const all: { start: number; end: number; text: string }[] = [];
+      let firstError: string | null = null;
+      // Une même source utilisée par plusieurs plans n'est transcrite qu'une fois.
+      const cache = new Map<string, { start: number; end: number; text: string }[]>();
+
+      for (const c of vids) {
+        let segs = cache.get(c.src);
+        if (!segs) {
+          const r = await transcribeMedia(c.src);
+          if (r.error && !r.segments.length) { firstError = firstError ?? r.error; continue; }
+          if (r.error && !firstError) firstError = r.error;
+          segs = r.segments;
+          cache.set(c.src, segs);
+        }
+        for (const sg of segs) {
+          // ne garder que ce qui tombe dans la partie conservée du plan
+          const from = Math.max(sg.start, c.trimStart);
+          const to = Math.min(sg.end, c.trimEnd);
+          if (to - from < 0.08) continue;
+          const toTimeline = (srcT: number) => c.start + (srcT - c.trimStart) / c.speed;
+          all.push({ start: toTimeline(from), end: toTimeline(to), text: sg.text });
+        }
+      }
+
+      if (!all.length) { toast(firstError || t('toastTranscriptionError'), "error"); return; }
+      if (firstError) toast(firstError, "error"); // transcription partielle
+      all.sort((a, b) => a.start - b.start);
+      setRawSegments(all);
+      const newCaps: Caption[] = segmentCaptions(all, subMaxWords);
       setCaptions(newCaps);
       toast(t('toastCaptionsGenerated', { count: newCaps.length }));
     } catch {
@@ -3064,30 +3121,33 @@ export default function MontagePage() {
               onPointerLeave={onStagePointerUp}
             >
               <div className="mz-video">
+                {/* Les DEUX lecteurs restent montés en permanence (même sur un plan
+                    photo) : les démonter réinitialisait la source et le préchargement,
+                    ce qui refaisait saccader le plan vidéo suivant. */}
+                {([videoARef, videoBRef] as const).map((ref, i) => {
+                  const shown = !!activeClip && activeClip.kind === "video" && i === slot && !hiddenLanes.has("video");
+                  return (
+                    <video
+                      key={i}
+                      ref={ref}
+                      onTimeUpdate={shown ? onVideoTimeUpdate : undefined}
+                      onEnded={shown ? onVideoEnded : undefined}
+                      playsInline
+                      muted={!shown}
+                      style={shown
+                        ? ({
+                            filter: [clipFilterCss(activeClip!), activeTrans?.extraFilter].filter(Boolean).join(" ") || undefined,
+                            objectPosition: `${(activeClip!.focusX ?? 0.5) * 100}% ${(activeClip!.focusY ?? 0.5) * 100}%`,
+                            ...(activeTransCss || {}),
+                            transformOrigin: "center",
+                          } as React.CSSProperties)
+                        : { position: "absolute", width: 1, height: 1, opacity: 0, pointerEvents: "none" }}
+                    />
+                  );
+                })}
                 {activeClip && !hiddenLanes.has("video") ? (
                   activeClip.kind === "video"
-                    ? <>
-                        {/* Deux lecteurs superposés : celui du plan courant est visible,
-                            l'autre tient déjà le plan suivant, prêt à prendre le relais. */}
-                        {([videoARef, videoBRef] as const).map((ref, i) => (
-                          <video
-                            key={i}
-                            ref={ref}
-                            onTimeUpdate={i === slot ? onVideoTimeUpdate : undefined}
-                            onEnded={i === slot ? onVideoEnded : undefined}
-                            playsInline
-                            muted={i !== slot}
-                            style={{
-                              filter: [clipFilterCss(activeClip), activeTrans?.extraFilter].filter(Boolean).join(" ") || undefined,
-                              objectPosition: `${(activeClip.focusX ?? 0.5) * 100}% ${(activeClip.focusY ?? 0.5) * 100}%`,
-                              ...(activeTransCss || {}),
-                              transformOrigin: "center",
-                              // le lecteur en attente reste dans le DOM mais invisible
-                              ...(i === slot ? {} : { opacity: 0, pointerEvents: "none" as const, position: "absolute" as const, inset: 0 }),
-                            } as React.CSSProperties}
-                          />
-                        ))}
-                      </>
+                    ? null
                     : <img src={activeClip.src} alt="" style={{
                         filter: [clipFilterCss(activeClip), activeTrans?.extraFilter].filter(Boolean).join(" ") || undefined,
                         objectPosition: `${(activeClip.focusX ?? 0.5) * 100}% ${(activeClip.focusY ?? 0.5) * 100}%`,

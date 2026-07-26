@@ -1752,7 +1752,7 @@
     "toastCoverSet": "Copertina impostata ✦",
     "toastCoverError": "Impossibile salvare la copertina",
     "errNoKey": "Trascrizione non disponibile: nessuna chiave configurata sul server.",
-    "errTooLarge": "Video troppo pesante per la trascrizione ({mb} MB). Dividilo o riduci la qualità.",
+    "errTooLarge": "Trascrizione impossibile: l’audio non è stato estratto nel browser e il video è troppo pesante ({mb} MB). Prova un file MP4.",
     "errRateLimited": "Troppe richieste insieme: riprova tra un minuto.",
     "errProviderDown": "Il servizio di trascrizione non risponde. Riprova tra poco.",
     "errFormat": "Formato audio non supportato dalla trascrizione.",

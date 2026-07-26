@@ -1752,7 +1752,7 @@
     "toastCoverSet": "Capa definida ✦",
     "toastCoverError": "Não foi possível guardar a capa",
     "errNoKey": "Transcrição indisponível: nenhuma chave configurada no servidor.",
-    "errTooLarge": "Vídeo demasiado pesado para transcrever ({mb} MB). Divida-o ou reduza a qualidade.",
+    "errTooLarge": "Transcrição impossível: o áudio não foi extraído no navegador e o vídeo é demasiado pesado ({mb} MB). Tente um ficheiro MP4.",
     "errRateLimited": "Demasiados pedidos de uma vez — tente daqui a um minuto.",
     "errProviderDown": "O serviço de transcrição não responde. Tente dentro de momentos.",
     "errFormat": "Formato de áudio não suportado pela transcrição.",

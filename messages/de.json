@@ -1752,7 +1752,7 @@
     "toastCoverSet": "Cover gesetzt ✦",
     "toastCoverError": "Cover konnte nicht gespeichert werden",
     "errNoKey": "Transkription nicht verfügbar: kein Schlüssel auf dem Server konfiguriert.",
-    "errTooLarge": "Video zu groß für die Transkription ({mb} MB). Teile es oder reduziere die Qualität.",
+    "errTooLarge": "Transkription nicht möglich: Der Ton konnte im Browser nicht extrahiert werden und das Video ist zu groß ({mb} MB). Versuche eine MP4-Datei.",
     "errRateLimited": "Zu viele Anfragen auf einmal – in einer Minute erneut versuchen.",
     "errProviderDown": "Der Transkriptionsdienst antwortet nicht. Gleich noch einmal versuchen.",
     "errFormat": "Audioformat wird von der Transkription nicht unterstützt.",

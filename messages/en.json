@@ -1752,7 +1752,7 @@
     "toastCoverSet": "Cover set ✦",
     "toastCoverError": "Could not save the cover",
     "errNoKey": "Transcription unavailable: no key configured on the server.",
-    "errTooLarge": "Video too large to transcribe ({mb} MB). Split it or lower its quality.",
+    "errTooLarge": "Cannot transcribe: audio could not be extracted in the browser and the video is too large ({mb} MB) to send as is. Try an MP4 file.",
     "errRateLimited": "Too many requests at once — try again in a minute.",
     "errProviderDown": "The transcription service is not responding. Try again shortly.",
     "errFormat": "Audio format not supported by transcription.",

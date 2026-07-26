@@ -1752,7 +1752,7 @@
     "toastCoverSet": "Couverture définie ✦",
     "toastCoverError": "Impossible d’enregistrer la couverture",
     "errNoKey": "Transcription indisponible : aucune clé configurée sur le serveur.",
-    "errTooLarge": "Vidéo trop lourde pour la transcription ({mb} Mo). Découpez-la ou réduisez sa qualité.",
+    "errTooLarge": "Transcription impossible : le son n’a pas pu être extrait dans le navigateur et la vidéo est trop lourde ({mb} Mo) pour être envoyée telle quelle. Essayez un fichier MP4.",
     "errRateLimited": "Trop de demandes d’un coup — réessayez dans une minute.",
     "errProviderDown": "Le service de transcription ne répond pas. Réessayez dans un instant.",
     "errFormat": "Format audio non pris en charge par la transcription.",
