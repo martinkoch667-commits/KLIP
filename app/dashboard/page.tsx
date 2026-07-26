@@ -668,20 +668,21 @@ export default function Dashboard() {
 
             {/* Hero */}
             <div style={{ position: 'relative', borderRadius: 'var(--r-xl)', overflow: 'hidden', padding: '30px 32px', marginBottom: 16, background: 'linear-gradient(120deg, #0A2418 0%, var(--forest) 48%, #103A28 100%)', color: 'var(--cream)' }}>
-              <div className="halo-blob" style={{ width: 300, height: 300, right: -70, top: -150, background: 'var(--mint)', opacity: .42 }} />
+              <div className="halo-blob" style={{ width: 300, height: 300, right: -70, top: -150, background: 'var(--leaf)', opacity: .42 }} />
               <div className="halo-blob" style={{ width: 220, height: 220, right: 180, bottom: -150, background: 'var(--acid)', opacity: .28 }} />
               {/* stickers décoratifs (coins, derrière le contenu z:2) */}
               <Sticker name="sparkle" size={46} float="spin" style={{ position: 'absolute', top: 14, right: 20, zIndex: 1 }} />
-              <Sticker name="star" size={30} float="A" style={{ position: 'absolute', bottom: 16, left: 26, zIndex: 1, ['--r' as string]: '-8deg' }} />
               <div style={{ position: 'relative', zIndex: 2, display: 'grid', gridTemplateColumns: '1fr auto', gap: 28, alignItems: 'center' }} className="dash-hero">
                 <div>
                   <div className="label" style={{ color: 'var(--leaf)', marginBottom: 12 }}>
                     {today.charAt(0).toUpperCase() + today.slice(1)} · {t('greeting', { name: userName })}
                   </div>
-                  <h1 className="h-display" style={{ fontSize: 38, color: 'var(--cream)', maxWidth: 520 }}>
+                  {/* Sticker accolé au titre — en bas à gauche il passait derrière les boutons. */}
+                  <h1 className="h-display" style={{ position: 'relative', fontSize: 38, color: 'var(--cream)', maxWidth: 520 }}>
                     {active === 'all'
                       ? <>{t('heroAllPre')}<span className="acc-hl">{t('heroAllAccent')}</span></>
                       : <>{t('heroClientPre')}<span className="acc-hl">{clientName}.</span></>}
+                    <Sticker name="star" size={30} float="A" style={{ position: 'absolute', top: -12, right: -22, ['--r' as string]: '-8deg' }} />
                   </h1>
                   <p style={{ color: 'var(--cream-2)', marginTop: 10, maxWidth: 460, fontSize: 14.5 }}>
                     {pendingPosts > 0
@@ -705,7 +706,7 @@ export default function Dashboard() {
                 {/* glass panel: today's posts */}
                 <div className="dash-hero-card" style={{ width: 256, borderRadius: 'var(--r-l)', background: 'rgba(238,237,227,.08)', boxShadow: 'inset 0 0 0 1px var(--cream-4)', backdropFilter: 'blur(6px)', padding: 16 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 13 }}>
-                    <span style={{ width: 24, height: 24, borderRadius: 7, background: 'var(--mint)', color: 'var(--mint-ink)', display: 'grid', placeItems: 'center', flexShrink: 0 }}>
+                    <span style={{ width: 24, height: 24, borderRadius: 7, background: 'var(--leaf)', color: 'var(--mint-ink)', display: 'grid', placeItems: 'center', flexShrink: 0 }}>
                       <IconBolt />
                     </span>
                     <span className="label" style={{ color: 'var(--cream)' }}>{t('toPublishToday')}</span>

@@ -109,7 +109,7 @@ export default function CalendarPage() {
 
     return (
       <Link href={`/workspace/${p.workspace_id}/editor/${p.id}`}
-        style={{ display:"flex", alignItems:"center", gap:5, background: ws?.color ?? "var(--mint)", borderRadius:6, padding: compact ? "3px 5px" : "5px 7px", textDecoration:"none", marginBottom:2, overflow:"hidden", boxShadow: compact ? "none" : "0 1px 3px rgba(0,0,0,.15)" }}>
+        style={{ display:"flex", alignItems:"center", gap:5, background: ws?.color ?? "var(--leaf)", borderRadius:6, padding: compact ? "3px 5px" : "5px 7px", textDecoration:"none", marginBottom:2, overflow:"hidden", boxShadow: compact ? "none" : "0 1px 3px rgba(0,0,0,.15)" }}>
         {!compact && thumb && (
           <img src={thumb} alt="" style={{ width:20, height:20, borderRadius:3, objectFit:"cover", flexShrink:0 }}/>
         )}

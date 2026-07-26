@@ -207,7 +207,7 @@ export default function OnboardingTour({ onComplete }: Props) {
         {TOUR_STEPS.map((_, i) => (
           <div key={i} style={{
             width: i === step ? 20 : 6, height: 6, borderRadius: 99,
-            background: i === step ? "var(--mint)" : "rgba(47,215,155,.3)",
+            background: i === step ? "var(--leaf)" : "rgba(47,215,155,.3)",
             transition: "width .2s, background .2s",
           }}/>
         ))}
@@ -233,7 +233,7 @@ export default function OnboardingTour({ onComplete }: Props) {
           </button>
         )}
         <button onClick={next}
-          style={{ padding:"9px 18px", borderRadius:"var(--r-s)", background:"var(--mint)", color:"var(--mint-ink)", border:"none", cursor:"pointer", fontSize:13, fontWeight:800, flex:1 }}>
+          style={{ padding:"9px 18px", borderRadius:"var(--r-s)", background:"var(--leaf)", color:"var(--mint-ink)", border:"none", cursor:"pointer", fontSize:13, fontWeight:800, flex:1 }}>
           {step === TOUR_STEPS.length - 1 ? "Terminer" : "Suivant"}
         </button>
         <button onClick={close}

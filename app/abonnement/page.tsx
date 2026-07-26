@@ -14,7 +14,7 @@ const CSS = `
   background:radial-gradient(circle,rgba(47,215,155,.18),transparent 70%);filter:blur(50px);pointer-events:none;}
 .ab-logo{height:40px;width:auto;margin:0 auto 22px;position:relative;z-index:1;}
 .ab-badge{font-family:var(--mono);font-size:10px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;
-  color:#0C2A1D;background:var(--mint);padding:5px 12px;border-radius:99px;margin-bottom:18px;position:relative;z-index:1;}
+  color:#0C2A1D;background:var(--leaf);padding:5px 12px;border-radius:99px;margin-bottom:18px;position:relative;z-index:1;}
 .ab-title{font-family:var(--display);font-weight:800;font-size:34px;text-transform:uppercase;color:#fff;
   letter-spacing:-.02em;text-align:center;line-height:1.05;margin-bottom:12px;position:relative;z-index:1;}
 .ab-sub{font-size:15px;color:rgba(238,237,227,.55);text-align:center;max-width:440px;margin-bottom:40px;
@@ -34,15 +34,15 @@ const CSS = `
   display:grid;place-items:center;flex-shrink:0;}
 .ab-btn{width:100%;padding:13px;margin-top:18px;border-radius:10px;cursor:pointer;border:none;
   font-family:var(--display);font-weight:800;font-size:13px;text-transform:uppercase;letter-spacing:.05em;
-  background:var(--mint);color:#0C2A1D;transition:background .15s,box-shadow .15s;}
-.ab-btn:hover{background:var(--leaf);box-shadow:0 4px 24px rgba(47,215,155,.3);}
+  background:var(--leaf);color:#0C2A1D;transition:background .15s,box-shadow .15s;}
+.ab-btn:hover{background:#C9F5B2;box-shadow:0 4px 24px rgba(47,215,155,.3);}
 .ab-btn.ghost{background:rgba(255,255,255,.09);color:rgba(238,237,227,.9);border:1px solid rgba(255,255,255,.18);}
 .ab-note{font-size:12px;color:rgba(238,237,227,.4);text-align:center;max-width:440px;
   position:relative;z-index:1;margin-top:6px;line-height:1.5;}
 .ab-logout{margin-top:26px;font-size:13px;color:rgba(238,237,227,.45);text-decoration:underline;
   text-underline-offset:3px;background:none;border:none;cursor:pointer;position:relative;z-index:1;}
 .ab-choice{align-self:flex-start;font-family:var(--mono);font-size:9.5px;font-weight:800;letter-spacing:.12em;
-  text-transform:uppercase;color:#0C2A1D;background:var(--mint);padding:3px 9px;border-radius:99px;margin-bottom:10px;}
+  text-transform:uppercase;color:#0C2A1D;background:var(--leaf);padding:3px 9px;border-radius:99px;margin-bottom:10px;}
 `;
 
 function Check() {

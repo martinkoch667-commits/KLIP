@@ -1089,7 +1089,7 @@ export default function WorkspacePage() {
             <button
               onClick={openShare}
               className="btn btn-sm"
-              style={{ background: 'var(--mint)', color: 'var(--mint-ink)', border: 'none', fontWeight: 700, display: 'flex', alignItems: 'center', gap: 6 }}
+              style={{ background: 'var(--leaf)', color: 'var(--mint-ink)', border: 'none', fontWeight: 700, display: 'flex', alignItems: 'center', gap: 6 }}
             >
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
                 <circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/>
@@ -1109,7 +1109,7 @@ export default function WorkspacePage() {
               style={{ position: 'relative', padding: '14px 18px', fontSize: 13.5, fontWeight: 600, background: 'none', border: 'none', cursor: 'pointer', color: activeTab === tab ? 'var(--ink)' : 'var(--ink-3)', transition: 'color 0.15s' }}
             >
               {tab === "produire" ? t('tabProduce') : t('tabSettings')}
-              {activeTab === tab && <span style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: 2, background: 'var(--mint)', borderRadius: 2 }} />}
+              {activeTab === tab && <span style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: 2, background: 'var(--leaf)', borderRadius: 2 }} />}
             </button>
           ))}
         </div>
@@ -1123,7 +1123,7 @@ export default function WorkspacePage() {
 
                 {/* Hero */}
                 <div style={{ position: 'relative', borderRadius: 'var(--r-xl)', overflow: 'hidden', padding: '30px 32px', marginBottom: 16, background: 'linear-gradient(120deg, #0A2418 0%, var(--forest) 48%, #103A28 100%)', color: 'var(--cream)' }}>
-                  <div className="halo-blob" style={{ width: 300, height: 300, right: -70, top: -150, background: 'var(--mint)', opacity: .42 }} />
+                  <div className="halo-blob" style={{ width: 300, height: 300, right: -70, top: -150, background: 'var(--leaf)', opacity: .42 }} />
                   <div className="halo-blob" style={{ width: 220, height: 220, right: 180, bottom: -150, background: 'var(--acid)', opacity: .28 }} />
                   {/* stickers décoratifs (coins, derrière le contenu z:2) */}
                   <Sticker name="bolt" size={40} float="B" style={{ position: 'absolute', top: 16, right: 22, zIndex: 1, ['--r' as string]: '10deg' }} />
@@ -1852,7 +1852,7 @@ export default function WorkspacePage() {
             onClick={undoDelete}
             style={{
               padding: '4px 12px', borderRadius: 6,
-              background: 'var(--mint)', color: 'var(--mint-ink)',
+              background: 'var(--leaf)', color: 'var(--mint-ink)',
               border: 'none', cursor: 'pointer',
               fontSize: 13, fontWeight: 700, fontFamily: 'var(--sans)',
             }}
@@ -1892,7 +1892,7 @@ export default function WorkspacePage() {
                 <button
                   onClick={copyShareLink}
                   className="btn btn-sm"
-                  style={{ background: shareCopied ? 'var(--mint)' : 'var(--forest)', color: shareCopied ? 'var(--mint-ink)' : 'var(--cream)', border: 'none', fontWeight: 700, whiteSpace: 'nowrap', transition: 'background .2s' }}
+                  style={{ background: shareCopied ? 'var(--leaf)' : 'var(--forest)', color: shareCopied ? 'var(--mint-ink)' : 'var(--cream)', border: 'none', fontWeight: 700, whiteSpace: 'nowrap', transition: 'background .2s' }}
                 >
                   {shareCopied ? t('copied') : t('copy')}
                 </button>
@@ -1913,7 +1913,7 @@ export default function WorkspacePage() {
                   />
                   <span style={{
                     position: 'absolute', inset: 0, borderRadius: 20,
-                    background: shareExpiryEnabled ? 'var(--mint)' : 'var(--line)',
+                    background: shareExpiryEnabled ? 'var(--leaf)' : 'var(--line)',
                     transition: 'background .2s',
                   }} />
                   <span style={{
@@ -1953,7 +1953,7 @@ export default function WorkspacePage() {
                 onClick={copyShareLink}
                 disabled={!shareToken || shareLoading}
                 className="btn btn-sm"
-                style={{ flex: 1, background: 'var(--mint)', color: 'var(--mint-ink)', border: 'none', fontWeight: 700, display: 'flex', gap: 6, alignItems: 'center', justifyContent: 'center' }}
+                style={{ flex: 1, background: 'var(--leaf)', color: 'var(--mint-ink)', border: 'none', fontWeight: 700, display: 'flex', gap: 6, alignItems: 'center', justifyContent: 'center' }}
               >
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
                   <rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/>

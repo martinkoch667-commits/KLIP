@@ -115,13 +115,13 @@ export default function ComposerPage() {
             }}>
               <div style={{ position: 'absolute', width: 280, height: 280, borderRadius: '50%', right: -60, top: -120, background: 'radial-gradient(circle, var(--mint), transparent 70%)', opacity: .5, filter: 'blur(20px)' }} />
               <div style={{ position: 'absolute', width: 200, height: 200, borderRadius: '50%', right: 160, bottom: -140, background: 'radial-gradient(circle, var(--acid), transparent 70%)', opacity: .35, filter: 'blur(20px)' }} />
-              {/* stickers décoratifs (coins, derrière le contenu z:2) */}
               <Sticker name="sparkle" size={44} float="spin" style={{ position: 'absolute', top: 14, right: 20, zIndex: 1 }} />
-              <Sticker name="heart" size={34} float="A" style={{ position: 'absolute', bottom: 14, left: 24, zIndex: 1, ['--r' as string]: '-8deg' }} />
               <div style={{ position: 'relative', zIndex: 2 }}>
                 <div className="label" style={{ color: 'var(--leaf)', marginBottom: 10 }}>{t('heroLabel')}</div>
-                <h1 className="h-display" style={{ fontSize: 38, color: 'var(--cream)', maxWidth: 600 }}>
+                {/* Sticker accolé au titre (et non dans un coin, où il se fait rogner). */}
+                <h1 className="h-display" style={{ position: 'relative', fontSize: 38, color: 'var(--cream)', maxWidth: 600 }}>
                   {t('heroTitlePre')} <span className="acc-hl">{t('heroTitleAccent')}</span>
+                  <Sticker name="heart" size={34} float="A" style={{ position: 'absolute', top: -12, right: -24, ['--r' as string]: '10deg' }} />
                 </h1>
                 <p style={{ color: 'var(--cream-2)', marginTop: 10, maxWidth: 520, fontSize: 15 }}>
                   {t('heroSubtitle')}

@@ -942,7 +942,7 @@ function PlanningContent() {
                     <div key={i} style={{ padding: "11px 14px 10px", borderRight: i < 6 ? `1px solid rgba(13,15,10,.08)` : "none", display: "flex", alignItems: "center", gap: 8 }}>
                       <span style={{ fontFamily: "var(--display)", fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: ".07em", color: "var(--ink-3)" }}>{DAY_LOC[i]}</span>
                       <span style={{ width: 26, height: 26, borderRadius: "50%", display: "grid", placeItems: "center", fontFamily: "'Archivo', var(--sans)", fontWeight: 700, fontSize: 13, transition: "background .12s",
-                        background: isToday ? "var(--mint)" : "transparent",
+                        background: isToday ? "var(--leaf)" : "transparent",
                         color: isToday ? "#0D2E1C" : "var(--ink)" }}>
                         {day.getDate()}
                       </span>
@@ -1110,7 +1110,7 @@ function PlanningContent() {
                       {/* Day number */}
                       <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 4 }}>
                         <span style={{ width: 22, height: 22, borderRadius: "50%", display: "grid", placeItems: "center", fontFamily: "'Archivo', var(--sans)", fontSize: 11, fontWeight: 700,
-                          background: isToday ? "var(--mint)" : "transparent",
+                          background: isToday ? "var(--leaf)" : "transparent",
                           color: isToday ? "#0D2E1C" : "var(--ink-3)" }}>
                           {day.getDate()}
                         </span>

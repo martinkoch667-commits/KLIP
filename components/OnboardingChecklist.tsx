@@ -182,10 +182,10 @@ export default function OnboardingChecklist() {
         }}>
           {/* Header */}
           <div style={{ padding: "18px 18px 14px", position: "relative" }}>
-            <div className="halo-blob" style={{ width: 140, height: 140, right: -40, top: -70, background: "var(--mint)", opacity: .22 }} />
+            <div className="halo-blob" style={{ width: 140, height: 140, right: -40, top: -70, background: "var(--leaf)", opacity: .22 }} />
             <div style={{ position: "relative", zIndex: 2 }}>
               <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
-                <span style={{ width: 26, height: 26, borderRadius: 8, background: "var(--mint)", color: "var(--mint-ink)", display: "grid", placeItems: "center", flexShrink: 0 }}>
+                <span style={{ width: 26, height: 26, borderRadius: 8, background: "var(--leaf)", color: "var(--mint-ink)", display: "grid", placeItems: "center", flexShrink: 0 }}>
                   <IconRocket />
                 </span>
                 <span style={{ fontSize: 14, fontWeight: 800, fontFamily: "var(--display)", color: "var(--cream)" }}>
@@ -229,11 +229,11 @@ export default function OnboardingChecklist() {
                   <span style={{
                     width: 22, height: 22, borderRadius: "50%", flexShrink: 0,
                     display: "grid", placeItems: "center",
-                    background: s.done ? "var(--mint)" : "transparent",
+                    background: s.done ? "var(--leaf)" : "transparent",
                     color: s.done ? "var(--mint-ink)" : "var(--cream-2)",
                     boxShadow: s.done ? "none" : "inset 0 0 0 1.5px var(--cream-4)",
                   }}>
-                    {s.done ? <IconCheck /> : <span style={{ width: 6, height: 6, borderRadius: "50%", background: isNext ? "var(--mint)" : "var(--cream-3)" }} />}
+                    {s.done ? <IconCheck /> : <span style={{ width: 6, height: 6, borderRadius: "50%", background: isNext ? "var(--leaf)" : "var(--cream-3)" }} />}
                   </span>
                   {/* Text */}
                   <div style={{ minWidth: 0, flex: 1 }}>
@@ -252,7 +252,7 @@ export default function OnboardingChecklist() {
                       style={{
                         display: "inline-flex", alignItems: "center", gap: 3, flexShrink: 0,
                         padding: "6px 11px", borderRadius: 8,
-                        background: "var(--mint)", color: "var(--mint-ink)",
+                        background: "var(--leaf)", color: "var(--mint-ink)",
                         fontSize: 12, fontWeight: 800, textDecoration: "none",
                       }}>
                       {s.cta} <IconChevR />
@@ -266,7 +266,7 @@ export default function OnboardingChecklist() {
           {allDone && (
             <div style={{ padding: "0 18px 16px" }}>
               <button onClick={dismiss}
-                style={{ width: "100%", padding: "10px 0", borderRadius: 10, background: "var(--mint)", color: "var(--mint-ink)", border: "none", cursor: "pointer", fontSize: 13, fontWeight: 800 }}>
+                style={{ width: "100%", padding: "10px 0", borderRadius: 10, background: "var(--leaf)", color: "var(--mint-ink)", border: "none", cursor: "pointer", fontSize: 13, fontWeight: 800 }}>
                 Terminer la prise en main
               </button>
             </div>

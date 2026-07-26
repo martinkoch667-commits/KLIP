@@ -202,7 +202,7 @@ export default function ResultsPage() {
             <div style={{ flex: 1 }}>
               <div style={{ fontWeight: 700, fontSize: 14.5, display: "flex", alignItems: "center", gap: 8, color: "var(--cream)" }}>
                 {t('accountConnected', { name: workspace?.name ?? t('accountFallback') })}
-                <span className="badge" style={{ background: "var(--mint)", color: "var(--mint-ink)", display: "inline-flex", alignItems: "center", gap: 4 }}>
+                <span className="badge" style={{ background: "var(--leaf)", color: "var(--mint-ink)", display: "inline-flex", alignItems: "center", gap: 4 }}>
                   <IconCheck /> {t('active')}
                 </span>
               </div>

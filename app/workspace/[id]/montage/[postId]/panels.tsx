@@ -141,7 +141,7 @@ function Range({ label, value, min, max, step = 1, unit = "", onChange, fmtv }: 
 function Toggle({ label, on, onChange }: { label: string; on: boolean; onChange: (v: boolean) => void }) {
   return (
     <button onClick={() => onChange(!on)} style={{ display: "flex", alignItems: "center", gap: 11, width: "100%", padding: "4px 0", marginBottom: 6, border: "none", background: "transparent", cursor: "pointer" }}>
-      <span style={{ width: 38, height: 22, borderRadius: 99, background: on ? "var(--mint)" : "var(--sunk)", boxShadow: on ? "none" : "inset 0 0 0 1px var(--line)", position: "relative", flexShrink: 0, transition: "background .18s" }}>
+      <span style={{ width: 38, height: 22, borderRadius: 99, background: on ? "var(--leaf)" : "var(--sunk)", boxShadow: on ? "none" : "inset 0 0 0 1px var(--line)", position: "relative", flexShrink: 0, transition: "background .18s" }}>
         <span style={{ position: "absolute", top: 2, left: 2, width: 18, height: 18, borderRadius: "50%", background: "#fff", boxShadow: "0 1px 3px rgba(13,15,10,.3)", transform: on ? "translateX(16px)" : "none", transition: "transform .2s var(--ease)" }} />
       </span>
       <span style={{ fontWeight: 600, fontSize: 12.5, color: "var(--ink-2)", textAlign: "left" }}>{label}</span>

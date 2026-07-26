@@ -60,7 +60,7 @@ const OB_CSS = `
 
   .ob-badge{
     display:inline-flex;align-items:center;gap:5px;
-    padding:4px 10px;background:var(--mint);color:#0C2A1D;
+    padding:4px 10px;background:var(--leaf);color:#0C2A1D;
     font-family:var(--mono);font-size:9px;font-weight:800;
     text-transform:uppercase;letter-spacing:.12em;
     border-radius:99px;margin-bottom:18px;align-self:flex-start;
@@ -93,7 +93,7 @@ const OB_CSS = `
     background:rgba(255,255,255,.06);outline:none;transition:border-color .15s,background .15s;
     margin-bottom:12px;}
   .ob-agency-input::placeholder{color:rgba(238,237,227,.25);}
-  .ob-agency-input:focus{border-color:var(--mint);background:rgba(47,215,155,.06);}
+  .ob-agency-input:focus{border-color:var(--leaf);background:rgba(47,215,155,.06);}
 
   .ob-btn-studio{
     width:100%;padding:13px;margin-top:auto;
@@ -107,12 +107,12 @@ const OB_CSS = `
 
   .ob-btn-agency{
     width:100%;padding:13px;margin-top:auto;
-    background:var(--mint);border:none;
+    background:var(--leaf);border:none;
     color:#0C2A1D;font-family:var(--display);font-weight:800;font-size:13px;
     text-transform:uppercase;letter-spacing:.06em;border-radius:10px;cursor:pointer;
     transition:background .15s,box-shadow .15s;
   }
-  .ob-btn-agency:hover:not(:disabled){background:var(--leaf);box-shadow:0 4px 24px rgba(47,215,155,.35);}
+  .ob-btn-agency:hover:not(:disabled){background:#C9F5B2;box-shadow:0 4px 24px rgba(47,215,155,.35);}
   .ob-btn-agency:disabled{opacity:.5;cursor:not-allowed;}
 
   .ob-error{font-size:13px;color:#ff6b5b;font-weight:600;text-align:center;

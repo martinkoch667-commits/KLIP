@@ -252,7 +252,7 @@ function TextProperties({ el, onChange, brandColors, brandFontNames }: {
         <div style={{ display: 'flex', gap: 6 }}>
           {[{ label: 'G', title: 'Gras', active: isBold, fn: toggleBold }, { label: 'I', title: 'Italique', active: isItalic, fn: toggleItalic }, { label: 'S', title: 'Souligné', active: isUnderline, fn: () => onChange({ textDecoration: isUnderline ? '' : 'underline' }) }].map(({ label, title, active, fn }) => (
             <button key={label} onClick={fn} title={title}
-              style={{ flex: 1, padding: '7px 6px', border: 'none', borderRadius: 'var(--r-s)', cursor: 'pointer', fontWeight: 700, fontSize: 13, background: active ? 'var(--mint)' : 'var(--sunk)', color: active ? 'var(--mint-ink)' : 'var(--ink-2)', boxShadow: active ? 'none' : 'inset 0 0 0 1px var(--line)' }}>
+              style={{ flex: 1, padding: '7px 6px', border: 'none', borderRadius: 'var(--r-s)', cursor: 'pointer', fontWeight: 700, fontSize: 13, background: active ? 'var(--leaf)' : 'var(--sunk)', color: active ? 'var(--mint-ink)' : 'var(--ink-2)', boxShadow: active ? 'none' : 'inset 0 0 0 1px var(--line)' }}>
               {label}
             </button>
           ))}
@@ -263,7 +263,7 @@ function TextProperties({ el, onChange, brandColors, brandFontNames }: {
         <div style={{ display: 'flex', gap: 6 }}>
           {(['left', 'center', 'right'] as const).map(a => (
             <button key={a} onClick={() => onChange({ align: a })}
-              style={{ flex: 1, padding: '7px 6px', border: 'none', borderRadius: 'var(--r-s)', cursor: 'pointer', fontSize: 13, background: el.align === a ? 'var(--mint)' : 'var(--sunk)', color: el.align === a ? 'var(--mint-ink)' : 'var(--ink-2)', boxShadow: el.align === a ? 'none' : 'inset 0 0 0 1px var(--line)' }}>
+              style={{ flex: 1, padding: '7px 6px', border: 'none', borderRadius: 'var(--r-s)', cursor: 'pointer', fontSize: 13, background: el.align === a ? 'var(--leaf)' : 'var(--sunk)', color: el.align === a ? 'var(--mint-ink)' : 'var(--ink-2)', boxShadow: el.align === a ? 'none' : 'inset 0 0 0 1px var(--line)' }}>
               {a === 'left'
                 ? <svg width="13" height="11" viewBox="0 0 13 11" fill="currentColor"><rect x="0" y="0" width="13" height="2" rx="1"/><rect x="0" y="4.5" width="8" height="2" rx="1"/><rect x="0" y="9" width="10" height="2" rx="1"/></svg>
                 : a === 'center'
@@ -280,7 +280,7 @@ function TextProperties({ el, onChange, brandColors, brandFontNames }: {
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
           <span style={{ fontSize: 10.5, color: 'var(--ink-3)', textTransform: 'uppercase' as const, letterSpacing: '0.07em', fontFamily: 'var(--mono)', fontWeight: 800 }}>Fond du bloc</span>
           <div onClick={() => onChange({ hasBg: !el.hasBg })}
-            style={{ width: 38, height: 22, borderRadius: 11, background: el.hasBg ? 'var(--mint)' : 'var(--line)', cursor: 'pointer', position: 'relative', transition: 'background 0.2s', flexShrink: 0 }}>
+            style={{ width: 38, height: 22, borderRadius: 11, background: el.hasBg ? 'var(--leaf)' : 'var(--line)', cursor: 'pointer', position: 'relative', transition: 'background 0.2s', flexShrink: 0 }}>
             <span style={{ position: 'absolute', top: 3, left: el.hasBg ? 19 : 3, width: 16, height: 16, borderRadius: '50%', background: 'white', transition: 'left 0.2s', display: 'block', boxShadow: '0 1px 3px rgba(0,0,0,0.4)' }} />
           </div>
         </div>
@@ -693,7 +693,7 @@ export default function TemplateEditor({
             Annuler
           </button>
           <button onClick={handleSave}
-            style={{ padding: '8px 20px', background: 'var(--mint)', border: 'none', borderRadius: 8, color: 'var(--mint-ink)', fontSize: 13, cursor: 'pointer', fontWeight: 700, fontFamily: 'var(--display)' }}>
+            style={{ padding: '8px 20px', background: 'var(--leaf)', border: 'none', borderRadius: 8, color: 'var(--mint-ink)', fontSize: 13, cursor: 'pointer', fontWeight: 700, fontFamily: 'var(--display)' }}>
             Enregistrer
           </button>
         </div>
@@ -728,8 +728,8 @@ export default function TemplateEditor({
             {FORMATS.map(f => (
               <button key={f.id} onClick={() => setFormatId(f.id)} title={f.label}
                 style={{ width: 34, height: 34, borderRadius: 7, border: '1.5px solid', cursor: 'pointer', fontSize: 8, fontFamily: 'var(--mono)', fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0, transition: 'all .12s',
-                  background: formatId === f.id ? 'var(--mint)' : 'var(--white)',
-                  borderColor: formatId === f.id ? 'var(--mint)' : 'var(--line)',
+                  background: formatId === f.id ? 'var(--leaf)' : 'var(--white)',
+                  borderColor: formatId === f.id ? 'var(--leaf)' : 'var(--line)',
                   color: formatId === f.id ? 'var(--mint-ink)' : 'var(--ink-3)' }}>
                 {f.id === 'ig-portrait' ? '4:5' : f.id === 'ig-square' ? '1:1' : f.id === 'ig-story' ? '9:16' : 'FB'}
               </button>

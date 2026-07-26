@@ -751,7 +751,7 @@ function UnsplashThumb({ src, onAdd, onBg }: { src: string; onAdd: () => void; o
       {hovered && (
         <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', flexDirection: 'column', gap: 4, alignItems: 'center', justifyContent: 'center' }}>
           <button onClick={onAdd} style={{ padding: '4px 8px', background: 'var(--cream)', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 10, fontWeight: 700 }}>{T('addCanvas')}</button>
-          <button onClick={onBg} style={{ padding: '4px 8px', background: 'var(--mint)', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 10, fontWeight: 700, color: 'var(--mint-ink)' }}>{T('background')}</button>
+          <button onClick={onBg} style={{ padding: '4px 8px', background: 'var(--leaf)', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 10, fontWeight: 700, color: 'var(--mint-ink)' }}>{T('background')}</button>
         </div>
       )}
     </div>
@@ -812,7 +812,7 @@ function TextProperties({ el, onChange, customFonts, onFontUpload, brandColors, 
         <div style={{ display: 'flex', gap: 6 }}>
           {[{ label: 'G', title: T('bold'), active: isBold, fn: toggleBold }, { label: 'I', title: T('italic'), active: isItalic, fn: toggleItalic }, { label: 'S', title: T('underline'), active: isUnderline, fn: () => onChange({ textDecoration: isUnderline ? '' : 'underline' }) }].map(({ label, title, active, fn }) => (
             <button key={label} onClick={fn} title={title}
-              style={{ flex: 1, padding: '7px 6px', border: 'none', borderRadius: 'var(--r-s)', cursor: 'pointer', fontWeight: 700, fontSize: 13, background: active ? 'var(--mint)' : 'var(--sunk)', color: active ? 'var(--mint-ink)' : 'var(--ink-2)', boxShadow: active ? 'none' : 'inset 0 0 0 1px var(--line)' }}>
+              style={{ flex: 1, padding: '7px 6px', border: 'none', borderRadius: 'var(--r-s)', cursor: 'pointer', fontWeight: 700, fontSize: 13, background: active ? 'var(--leaf)' : 'var(--sunk)', color: active ? 'var(--mint-ink)' : 'var(--ink-2)', boxShadow: active ? 'none' : 'inset 0 0 0 1px var(--line)' }}>
               {label}
             </button>
           ))}
@@ -822,7 +822,7 @@ function TextProperties({ el, onChange, customFonts, onFontUpload, brandColors, 
         <div style={{ display: 'flex', gap: 6 }}>
           {(['left', 'center', 'right'] as const).map(a => (
             <button key={a} onClick={() => onChange({ align: a })}
-              style={{ flex: 1, padding: '7px 6px', border: 'none', borderRadius: 'var(--r-s)', cursor: 'pointer', fontSize: 13, background: el.align === a ? 'var(--mint)' : 'var(--sunk)', color: el.align === a ? 'var(--mint-ink)' : 'var(--ink-2)', boxShadow: el.align === a ? 'none' : 'inset 0 0 0 1px var(--line)' }}>
+              style={{ flex: 1, padding: '7px 6px', border: 'none', borderRadius: 'var(--r-s)', cursor: 'pointer', fontSize: 13, background: el.align === a ? 'var(--leaf)' : 'var(--sunk)', color: el.align === a ? 'var(--mint-ink)' : 'var(--ink-2)', boxShadow: el.align === a ? 'none' : 'inset 0 0 0 1px var(--line)' }}>
               {a === 'left'
                 ? <svg width="13" height="11" viewBox="0 0 13 11" fill="currentColor"><rect x="0" y="0" width="13" height="2" rx="1"/><rect x="0" y="4.5" width="8" height="2" rx="1"/><rect x="0" y="9" width="10" height="2" rx="1"/></svg>
                 : a === 'center'
@@ -837,7 +837,7 @@ function TextProperties({ el, onChange, customFonts, onFontUpload, brandColors, 
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
           <span style={{ fontSize: 10.5, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '0.07em', fontFamily: 'var(--mono)', fontWeight: 800 }}>{T('blockBackground')}</span>
           <div onClick={() => onChange({ hasBg: !el.hasBg })}
-            style={{ width: 38, height: 22, borderRadius: 11, background: el.hasBg ? 'var(--mint)' : 'var(--line)', cursor: 'pointer', position: 'relative', transition: 'background 0.2s', flexShrink: 0 }}>
+            style={{ width: 38, height: 22, borderRadius: 11, background: el.hasBg ? 'var(--leaf)' : 'var(--line)', cursor: 'pointer', position: 'relative', transition: 'background 0.2s', flexShrink: 0 }}>
             <span style={{ position: 'absolute', top: 3, left: el.hasBg ? 19 : 3, width: 16, height: 16, borderRadius: '50%', background: 'white', transition: 'left 0.2s', display: 'block', boxShadow: '0 1px 3px rgba(0,0,0,0.4)' }} />
           </div>
         </div>
@@ -3985,7 +3985,7 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
           </a>
           <span className="ed-hide-sm" style={{ width: 1, height: 24, background: 'var(--line)', flexShrink: 0 }} />
           <div className="ed-hide-sm" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            <div style={{ width: 24, height: 24, borderRadius: 7, background: 'var(--mint)', display: 'grid', placeItems: 'center', flexShrink: 0 }}>
+            <div style={{ width: 24, height: 24, borderRadius: 7, background: 'var(--leaf)', display: 'grid', placeItems: 'center', flexShrink: 0 }}>
               <span style={{ fontFamily: 'var(--display)', fontWeight: 900, fontSize: 10, color: '#06281C', letterSpacing: '-0.02em' }}>
                 {workspaceName ? workspaceName.slice(0,2).toUpperCase() : 'KL'}
               </span>
@@ -4240,7 +4240,7 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
                   ]).map(({ shape, label, icon }) => (
                     <button key={shape} onClick={() => addVector(shape)}
                       style={{ aspectRatio: '1', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 5, cursor: 'pointer', borderRadius: 12, border: '1px solid var(--line)', background: 'var(--white)', transition: 'all .15s' }}
-                      onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--mint)'; e.currentTarget.style.background = 'var(--sunk)'; }}
+                      onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--leaf)'; e.currentTarget.style.background = 'var(--sunk)'; }}
                       onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--line)'; e.currentTarget.style.background = 'var(--white)'; }}>
                       <svg width="26" height="26" viewBox="0 0 24 24" style={{ color: 'var(--ink)' }}>{icon}</svg>
                       <span style={{ fontSize: 8.5, fontFamily: 'var(--mono)', fontWeight: 700, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '.04em' }}>{label}</span>
@@ -4263,7 +4263,7 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
                   ]).map(({ shape, label, icon }) => (
                     <button key={shape} onClick={() => addFrame(shape)} title={`Cadre ${label}`}
                       style={{ aspectRatio: '1', position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 5, cursor: 'pointer', borderRadius: 12, border: '1px solid var(--line)', background: 'var(--white)', transition: 'all .15s' }}
-                      onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--mint)'; e.currentTarget.style.background = 'var(--sunk)'; }}
+                      onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--leaf)'; e.currentTarget.style.background = 'var(--sunk)'; }}
                       onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--line)'; e.currentTarget.style.background = 'var(--white)'; }}>
                       <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="var(--ink-2)" strokeWidth="1.8">{icon}</svg>
                       <span style={{ fontSize: 8.5, fontFamily: 'var(--mono)', fontWeight: 700, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '.04em' }}>{label}</span>
@@ -4277,14 +4277,14 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', marginBottom: 9 }}>
                   {[workspaceData?.primary_color || '#2FD79B', '#0C2A1D', '#BDF2A0', '#FF5A3C', '#FFD400', '#0038FF', '#9B5DE5', '#F15BB5', '#14160F', '#FFFFFF'].map(c => (
                     <button key={c} onClick={() => setStickerColor(c)} title={c}
-                      style={{ width: 22, height: 22, borderRadius: '50%', background: c, cursor: 'pointer', border: stickerColor === c ? '2px solid var(--mint)' : '1.5px solid var(--line)', padding: 0, boxShadow: c === '#FFFFFF' ? 'inset 0 0 0 1px var(--line)' : 'none' }} />
+                      style={{ width: 22, height: 22, borderRadius: '50%', background: c, cursor: 'pointer', border: stickerColor === c ? '2px solid var(--leaf)' : '1.5px solid var(--line)', padding: 0, boxShadow: c === '#FFFFFF' ? 'inset 0 0 0 1px var(--line)' : 'none' }} />
                   ))}
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 6, marginBottom: 10 }}>
                   {STICKERS.slice(0, 12).map(s => (
                     <button key={s.id} onClick={() => addSticker(s)} title={s.name}
                       style={{ aspectRatio: '1', borderRadius: 10, border: '1px solid var(--line)', background: s.recolor && stickerColor === '#FFFFFF' ? '#3a3f36' : 'var(--sunk)', cursor: 'pointer', display: 'grid', placeItems: 'center', padding: 7, transition: 'all .14s' }}
-                      onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--mint)'; e.currentTarget.style.transform = 'translateY(-2px)'; }}
+                      onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--leaf)'; e.currentTarget.style.transform = 'translateY(-2px)'; }}
                       onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--line)'; e.currentTarget.style.transform = 'none'; }}>
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img src={stickerDataUri(s, stickerColor)} alt={s.name} style={{ width: '100%', height: '100%', objectFit: 'contain', display: 'block' }} />
@@ -4393,7 +4393,7 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
                         <p style={{ fontSize: 10, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '0.12em', fontFamily: 'var(--mono)', fontWeight: 800, margin: 0 }}>Combinaisons de texte</p>
                         {hasCharter && (
                           <button onClick={() => setTtCharter(v => !v)} title="Adapter les templates à la charte du client"
-                            style={{ fontSize: 10.5, fontWeight: 700, padding: '4px 9px', borderRadius: 999, cursor: 'pointer', border: '1px solid ' + (useCharter ? 'var(--mint)' : 'var(--line)'), background: useCharter ? 'var(--mint)' : 'transparent', color: useCharter ? '#06281C' : 'var(--ink-2)', display: 'flex', alignItems: 'center', gap: 5 }}>
+                            style={{ fontSize: 10.5, fontWeight: 700, padding: '4px 9px', borderRadius: 999, cursor: 'pointer', border: '1px solid ' + (useCharter ? 'var(--leaf)' : 'var(--line)'), background: useCharter ? 'var(--leaf)' : 'transparent', color: useCharter ? '#06281C' : 'var(--ink-2)', display: 'flex', alignItems: 'center', gap: 5 }}>
                             <span style={{ width: 8, height: 8, borderRadius: 2, background: brandKit.accent || brandKit.primary || '#BDF2A0', display: 'inline-block' }} />
                             À ma charte
                           </button>
@@ -4405,7 +4405,7 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
                           return (
                             <button key={tpl.id} onClick={() => applyTextTemplate(shown)} title={tpl.cat}
                               style={{ height: 90, padding: '10px 8px', borderRadius: 12, border: '1px solid var(--line)', cursor: 'pointer', background: tpl.dark ? '#1B1D18' : 'var(--white)', display: 'grid', placeItems: 'center', transition: 'all .14s', overflow: 'hidden' }}
-                              onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--mint)'; e.currentTarget.style.transform = 'translateY(-2px)'; }}
+                              onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--leaf)'; e.currentTarget.style.transform = 'translateY(-2px)'; }}
                               onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--line)'; e.currentTarget.style.transform = 'none'; }}>
                               <TextTemplateThumb tpl={shown} w={150} />
                             </button>
@@ -4533,7 +4533,7 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
                 {proxyUrl && (
                   <button onClick={() => setBgCropMode(v => !v)}
                     style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', borderRadius: 8, border: 'none', cursor: 'pointer', fontSize: 12, fontWeight: 700, width: '100%', marginTop: 12,
-                      background: bgCropMode ? 'var(--mint)' : 'var(--sunk)', color: bgCropMode ? 'var(--mint-ink)' : 'var(--ink-2)' }}>
+                      background: bgCropMode ? 'var(--leaf)' : 'var(--sunk)', color: bgCropMode ? 'var(--mint-ink)' : 'var(--ink-2)' }}>
                     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>
                     {bgCropMode ? 'Glissez le fond pour recadrer' : 'Recadrer le fond'}
                   </button>
@@ -4656,7 +4656,7 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
                         const active = (mode === 'continuous') === carouselContinuous;
                         return (
                           <button key={mode} onClick={() => setCarouselContinuous(mode === 'continuous')}
-                            style={{ flex: 1, padding: '6px 4px', borderRadius: 6, border: 'none', cursor: 'pointer', fontSize: 12, fontWeight: 700, fontFamily: 'var(--sans)', transition: 'all .15s', background: active ? 'var(--mint)' : 'transparent', color: active ? '#06281C' : 'var(--ink-3)' }}>
+                            style={{ flex: 1, padding: '6px 4px', borderRadius: 6, border: 'none', cursor: 'pointer', fontSize: 12, fontWeight: 700, fontFamily: 'var(--sans)', transition: 'all .15s', background: active ? 'var(--leaf)' : 'transparent', color: active ? '#06281C' : 'var(--ink-3)' }}>
                             {label}
                           </button>
                         );
@@ -5267,7 +5267,7 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
                     fontStyle: tel.fontStyle.includes('italic') ? 'italic' : 'normal',
                     color: tel.fill,
                     background: tel.hasBg ? tel.bgColor : 'transparent',
-                    border: '2px solid var(--mint)',
+                    border: '2px solid var(--leaf)',
                     outline: 'none',
                     resize: 'none',
                     zIndex: 100,
@@ -5348,7 +5348,7 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
             display: 'flex', alignItems: 'center', gap: 8,
             boxShadow: '0 2px 8px rgba(13,15,10,.3)',
             fontFamily: 'var(--mono)', fontWeight: 700, fontSize: 12,
-            color: zoom !== 1 ? 'var(--mint)' : 'rgba(238,237,227,0.55)',
+            color: zoom !== 1 ? 'var(--leaf)' : 'rgba(238,237,227,0.55)',
             pointerEvents: 'auto',
           }}>
             {Math.round(zoom * 100)}%
@@ -5517,7 +5517,7 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
               </div>
               {hasCharter && (
                 <button onClick={() => setTtCharter(v => !v)} title="Adapter les templates à la charte du client"
-                  style={{ flexShrink: 0, height: 38, padding: '0 14px', borderRadius: 999, cursor: 'pointer', fontSize: 12.5, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 7, border: '1px solid ' + (useCharter ? 'var(--mint-2)' : 'var(--line)'), background: useCharter ? 'var(--mint)' : 'var(--white)', color: useCharter ? 'var(--forest)' : 'var(--ink-2)' }}>
+                  style={{ flexShrink: 0, height: 38, padding: '0 14px', borderRadius: 999, cursor: 'pointer', fontSize: 12.5, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 7, border: '1px solid ' + (useCharter ? 'var(--mint-2)' : 'var(--line)'), background: useCharter ? 'var(--leaf)' : 'var(--white)', color: useCharter ? 'var(--forest)' : 'var(--ink-2)' }}>
                   <span style={{ width: 10, height: 10, borderRadius: 3, background: brandKit.accent || brandKit.primary || '#BDF2A0', display: 'inline-block' }} />
                   À ma charte
                 </button>
@@ -5536,7 +5536,7 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
                   <button key={cat} onClick={() => setTextLibCat(cat)}
                     style={{ padding: '6px 14px', borderRadius: 999, cursor: 'pointer', fontSize: 12.5, fontWeight: 700, fontFamily: 'var(--sans)', transition: 'all .12s',
                       border: active ? '1px solid var(--mint-2)' : '1px solid var(--line)',
-                      background: active ? 'var(--mint)' : 'var(--white)',
+                      background: active ? 'var(--leaf)' : 'var(--white)',
                       color: active ? 'var(--forest)' : 'var(--ink-2)' }}>
                     {cat}
                   </button>
@@ -5555,7 +5555,7 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
                     return (
                     <button key={tpl.id} onClick={() => applyTextTemplate(shown)} title={tpl.cat}
                       style={{ position: 'relative', height: 168, padding: '16px 12px', borderRadius: 14, border: '1px solid var(--line)', cursor: 'pointer', background: tpl.dark ? '#1B1D18' : 'var(--white)', display: 'grid', placeItems: 'center', transition: 'all .14s', overflow: 'hidden' }}
-                      onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--mint)'; e.currentTarget.style.transform = 'translateY(-3px)'; e.currentTarget.style.boxShadow = '0 10px 26px rgba(0,0,0,0.10)'; }}
+                      onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--leaf)'; e.currentTarget.style.transform = 'translateY(-3px)'; e.currentTarget.style.boxShadow = '0 10px 26px rgba(0,0,0,0.10)'; }}
                       onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--line)'; e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = 'none'; }}>
                       <TextTemplateThumb tpl={shown} w={230} />
                       <span style={{ position: 'absolute', bottom: 8, left: 8, fontSize: 9.5, textTransform: 'uppercase', letterSpacing: '0.1em', fontFamily: 'var(--mono)', fontWeight: 800, color: tpl.dark ? 'rgba(255,255,255,0.5)' : 'var(--ink-3)' }}>{tpl.cat}</span>
@@ -5610,7 +5610,7 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
                 <span style={{ fontSize: 10, color: 'var(--ink-3)', fontFamily: 'var(--mono)', fontWeight: 700 }}>COULEUR</span>
                 {[workspaceData?.primary_color || '#2FD79B', '#0C2A1D', '#BDF2A0', '#FF5A3C', '#FFD400', '#0038FF', '#9B5DE5', '#F15BB5', '#14160F', '#FFFFFF'].map(c => (
                   <button key={c} onClick={() => setStickerColor(c)} title={c}
-                    style={{ width: 20, height: 20, borderRadius: '50%', background: c, cursor: 'pointer', border: stickerColor === c ? '2px solid var(--mint)' : '1.5px solid var(--line)', padding: 0, boxShadow: c === '#FFFFFF' ? 'inset 0 0 0 1px var(--line)' : 'none' }} />
+                    style={{ width: 20, height: 20, borderRadius: '50%', background: c, cursor: 'pointer', border: stickerColor === c ? '2px solid var(--leaf)' : '1.5px solid var(--line)', padding: 0, boxShadow: c === '#FFFFFF' ? 'inset 0 0 0 1px var(--line)' : 'none' }} />
                 ))}
               </div>
               <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
@@ -5619,7 +5619,7 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
                   return (
                     <button key={cat} onClick={() => setStickerCat(cat)}
                       style={{ padding: '6px 13px', borderRadius: 999, cursor: 'pointer', fontSize: 12, fontWeight: 700, fontFamily: 'var(--sans)', transition: 'all .12s',
-                        border: active ? '1px solid var(--mint-2)' : '1px solid var(--line)', background: active ? 'var(--mint)' : 'var(--white)', color: active ? 'var(--forest)' : 'var(--ink-2)' }}>
+                        border: active ? '1px solid var(--mint-2)' : '1px solid var(--line)', background: active ? 'var(--leaf)' : 'var(--white)', color: active ? 'var(--forest)' : 'var(--ink-2)' }}>
                       {cat}
                     </button>
                   );
@@ -5636,7 +5636,7 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
                 const cell = (s: Sticker) => (
                   <button key={s.id} onClick={() => { addSticker(s); setStickerLibOpen(false); }} title={s.name}
                     style={{ aspectRatio: '1', borderRadius: 14, border: '1px solid var(--line)', background: s.recolor && stickerColor === '#FFFFFF' ? '#3a3f36' : 'var(--white)', cursor: 'pointer', display: 'grid', placeItems: 'center', padding: 16, transition: 'all .14s' }}
-                    onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--mint)'; e.currentTarget.style.transform = 'translateY(-3px)'; e.currentTarget.style.boxShadow = '0 10px 26px rgba(0,0,0,0.10)'; }}
+                    onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--leaf)'; e.currentTarget.style.transform = 'translateY(-3px)'; e.currentTarget.style.boxShadow = '0 10px 26px rgba(0,0,0,0.10)'; }}
                     onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--line)'; e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = 'none'; }}>
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img src={stickerDataUri(s, stickerColor)} alt={s.name} style={{ width: '100%', height: '100%', objectFit: 'contain', display: 'block' }} />
@@ -5682,7 +5682,7 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
                       {stickerLibPhotos.map(p => (
                         <button key={p.id} onClick={() => { addImageEl(`/api/proxy-image?url=${encodeURIComponent(p.full)}`); setStickerLibOpen(false); }} title={p.alt}
                           style={{ aspectRatio: '1', borderRadius: 14, border: '1px solid var(--line)', background: 'var(--sunk)', cursor: 'pointer', overflow: 'hidden', padding: 0, transition: 'all .14s' }}
-                          onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--mint)'; e.currentTarget.style.transform = 'translateY(-3px)'; e.currentTarget.style.boxShadow = '0 10px 26px rgba(0,0,0,0.10)'; }}
+                          onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--leaf)'; e.currentTarget.style.transform = 'translateY(-3px)'; e.currentTarget.style.boxShadow = '0 10px 26px rgba(0,0,0,0.10)'; }}
                           onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--line)'; e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = 'none'; }}>
                           {/* eslint-disable-next-line @next/next/no-img-element */}
                           <img src={p.thumb} alt={p.alt} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />

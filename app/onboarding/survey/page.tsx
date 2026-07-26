@@ -11,13 +11,13 @@ const SV_CSS = `
   .sv-card{background:#fff;border-radius:20px;padding:40px 44px;width:100%;max-width:560px;box-shadow:0 2px 24px rgba(13,15,10,.07);}
   .sv-progress{display:flex;gap:6px;margin-bottom:36px;}
   .sv-bar{height:3px;flex:1;border-radius:99px;background:rgba(20,22,15,.1);transition:background .3s;}
-  .sv-bar.done{background:var(--mint);}
+  .sv-bar.done{background:var(--leaf);}
   .sv-bar.active{background:var(--forest);}
   .sv-step{font-family:var(--sans);font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:rgba(20,22,15,.4);margin-bottom:12px;}
   .sv-question{font-family:var(--display);font-weight:800;font-size:22px;color:var(--forest);letter-spacing:-.02em;line-height:1.2;margin-bottom:28px;}
   .sv-choices{display:flex;flex-direction:column;gap:10px;margin-bottom:32px;}
   .sv-choice{display:flex;align-items:center;gap:14px;padding:14px 18px;border-radius:12px;border:1.5px solid rgba(20,22,15,.12);background:#fff;cursor:pointer;text-align:left;font-family:var(--sans);font-size:14px;font-weight:600;color:var(--ink);transition:border-color .12s,background .12s;}
-  .sv-choice:hover{border-color:var(--mint);background:var(--mint-soft);}
+  .sv-choice:hover{border-color:var(--leaf);background:var(--mint-soft);}
   .sv-choice.selected{border-color:var(--forest);background:rgba(12,42,29,.05);}
   .sv-choice-dot{width:18px;height:18px;border-radius:50%;border:2px solid rgba(20,22,15,.2);flex-shrink:0;display:grid;place-items:center;transition:border-color .12s,background .12s;}
   .sv-choice.selected .sv-choice-dot{border-color:var(--forest);background:var(--forest);}
@@ -25,7 +25,7 @@ const SV_CSS = `
   .sv-skip{font-family:var(--sans);font-size:13px;font-weight:600;color:rgba(20,22,15,.4);background:none;border:none;cursor:pointer;padding:0;transition:color .12s;}
   .sv-skip:hover{color:var(--ink);}
   .sv-btn{padding:12px 28px;background:var(--forest);color:var(--canvas);font-family:var(--display);font-weight:700;font-size:13px;text-transform:uppercase;letter-spacing:.06em;border-radius:8px;border:none;cursor:pointer;transition:background .15s,opacity .15s;}
-  .sv-btn:hover:not(:disabled){background:var(--mint);color:var(--forest);}
+  .sv-btn:hover:not(:disabled){background:var(--leaf);color:var(--forest);}
   .sv-btn:disabled{opacity:.35;cursor:not-allowed;}
   .sv-btn-ghost{padding:12px 28px;background:transparent;color:rgba(20,22,15,.5);font-family:var(--display);font-weight:700;font-size:13px;text-transform:uppercase;letter-spacing:.06em;border-radius:8px;border:1.5px solid rgba(20,22,15,.12);cursor:pointer;transition:border-color .12s,color .12s;}
   .sv-btn-ghost:hover{border-color:var(--ink);color:var(--ink);}

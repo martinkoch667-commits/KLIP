@@ -510,7 +510,7 @@ export default function NewWorkspacePage() {
                     <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6, flexShrink: 0 }}>
                       <div style={{
                         width: 34, height: 34, borderRadius: "50%",
-                        background: done ? "var(--mint)" : active ? "var(--ink)" : "var(--sunk)",
+                        background: done ? "var(--leaf)" : active ? "var(--ink)" : "var(--sunk)",
                         display: "grid", placeItems: "center",
                         fontSize: 13, fontWeight: 800,
                         color: done ? "var(--mint-ink)" : active ? "var(--paper)" : "var(--ink-3)",
@@ -528,7 +528,7 @@ export default function NewWorkspacePage() {
                     {i < 4 && (
                       <div style={{
                         flex: 1, height: 2, marginTop: 16, marginLeft: 8, marginRight: 8,
-                        background: done ? "var(--mint)" : "var(--line-2)",
+                        background: done ? "var(--leaf)" : "var(--line-2)",
                         transition: "background 0.3s",
                       }} />
                     )}
@@ -546,12 +546,12 @@ export default function NewWorkspacePage() {
                 return (
                   <Fragment key={n}>
                     {i > 0 && (
-                      <div style={{ width: 14, height: 2, background: done ? "var(--mint)" : "var(--line)", flexShrink: 0, borderRadius: 2 }} />
+                      <div style={{ width: 14, height: 2, background: done ? "var(--leaf)" : "var(--line)", flexShrink: 0, borderRadius: 2 }} />
                     )}
                     <div style={{ display: "flex", alignItems: "center", gap: active ? 6 : 0 }}>
                       <div style={{
                         width: active ? 36 : 28, height: active ? 36 : 28, borderRadius: "50%",
-                        background: done ? "var(--mint)" : active ? "var(--forest)" : "var(--sunk)",
+                        background: done ? "var(--leaf)" : active ? "var(--forest)" : "var(--sunk)",
                         color: done ? "var(--mint-ink)" : active ? "#fff" : "var(--ink-3)",
                         display: "flex", alignItems: "center", justifyContent: "center",
                         fontSize: 12, fontWeight: 800, flexShrink: 0, transition: "all .2s",
@@ -608,8 +608,8 @@ export default function NewWorkspacePage() {
                         style={{
                           padding: "8px 18px", borderRadius: 20, fontSize: 13, fontWeight: 600,
                           border: "1.5px solid", cursor: "pointer", transition: "all 0.12s",
-                          background: sector === s.value ? "var(--mint)" : "var(--white)",
-                          borderColor: sector === s.value ? "var(--mint)" : "rgba(13,15,10,.12)",
+                          background: sector === s.value ? "var(--leaf)" : "var(--white)",
+                          borderColor: sector === s.value ? "var(--leaf)" : "rgba(13,15,10,.12)",
                           color: sector === s.value ? "var(--mint-ink)" : "var(--ink-2)",
                         }}
                       >
@@ -671,7 +671,7 @@ export default function NewWorkspacePage() {
                           onClick={() => setTone(tone === tn.value ? "" : tn.value)}
                           style={{
                             padding: "14px 14px", borderRadius: 13, textAlign: "left",
-                            border: `1.5px solid ${active ? "var(--mint)" : "rgba(13,15,10,.10)"}`,
+                            border: `1.5px solid ${active ? "var(--leaf)" : "rgba(13,15,10,.10)"}`,
                             background: active ? "var(--mint-soft)" : "var(--white)",
                             cursor: "pointer", transition: "all 0.15s",
                           }}
@@ -902,7 +902,7 @@ export default function NewWorkspacePage() {
                     <div style={{
                       display: "flex", alignItems: "center", justifyContent: "space-between",
                       padding: "10px 14px", borderRadius: 10, marginBottom: 10,
-                      background: "var(--mint-soft)", border: "1px solid var(--mint)",
+                      background: "var(--mint-soft)", border: "1px solid var(--leaf)",
                     }}>
                       <div>
                         <span style={{ fontSize: 12, fontWeight: 700, color: "var(--mint-2)", display: "block" }}>
@@ -979,7 +979,7 @@ export default function NewWorkspacePage() {
                       display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
                       transition: "border-color 0.15s, color 0.15s",
                     }}
-                    onMouseEnter={e => { e.currentTarget.style.borderColor = "var(--mint)"; e.currentTarget.style.color = "var(--mint-2)"; }}
+                    onMouseEnter={e => { e.currentTarget.style.borderColor = "var(--leaf)"; e.currentTarget.style.color = "var(--mint-2)"; }}
                     onMouseLeave={e => { e.currentTarget.style.borderColor = "rgba(13,15,10,.20)"; e.currentTarget.style.color = "var(--ink-2)"; }}
                   >
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -1030,7 +1030,7 @@ export default function NewWorkspacePage() {
                     <div style={{
                       display: "flex", alignItems: "center", justifyContent: "space-between",
                       padding: "10px 14px", borderRadius: 10, marginBottom: 10,
-                      background: "var(--mint-soft)", border: "1px solid var(--mint)",
+                      background: "var(--mint-soft)", border: "1px solid var(--leaf)",
                     }}>
                       <div>
                         <span style={{ fontSize: 12, fontWeight: 700, color: "var(--mint-2)", display: "block" }}>{t('customFontLabel')}</span>
@@ -1100,7 +1100,7 @@ export default function NewWorkspacePage() {
                       display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
                       transition: "border-color 0.15s, color 0.15s",
                     }}
-                    onMouseEnter={e => { e.currentTarget.style.borderColor = "var(--mint)"; e.currentTarget.style.color = "var(--mint-2)"; }}
+                    onMouseEnter={e => { e.currentTarget.style.borderColor = "var(--leaf)"; e.currentTarget.style.color = "var(--mint-2)"; }}
                     onMouseLeave={e => { e.currentTarget.style.borderColor = "rgba(13,15,10,.20)"; e.currentTarget.style.color = "var(--ink-2)"; }}
                   >
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -1252,7 +1252,7 @@ export default function NewWorkspacePage() {
                           justifyContent: "center", gap: 6, color: "var(--ink-3)", fontSize: 13,
                           minHeight: 110, transition: "border-color 0.15s, color 0.15s",
                         }}
-                        onMouseEnter={e => { e.currentTarget.style.borderColor = "var(--mint)"; e.currentTarget.style.color = "var(--mint-2)"; }}
+                        onMouseEnter={e => { e.currentTarget.style.borderColor = "var(--leaf)"; e.currentTarget.style.color = "var(--mint-2)"; }}
                         onMouseLeave={e => { e.currentTarget.style.borderColor = "rgba(13,15,10,.15)"; e.currentTarget.style.color = "var(--ink-3)"; }}
                       >
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
@@ -1368,7 +1368,7 @@ export default function NewWorkspacePage() {
                 className="ws-new-footer-btn"
                 style={{
                   padding: "11px 30px", borderRadius: 13,
-                  background: canContinue ? "var(--mint)" : "var(--sunk)",
+                  background: canContinue ? "var(--leaf)" : "var(--sunk)",
                   border: "none",
                   color: canContinue ? "var(--mint-ink)" : "var(--ink-3)",
                   fontSize: 14, fontWeight: 700,
@@ -1382,7 +1382,7 @@ export default function NewWorkspacePage() {
                 className="ws-new-footer-btn"
                 style={{
                   padding: "11px 30px", borderRadius: 13,
-                  background: "var(--mint)", border: "none",
+                  background: "var(--leaf)", border: "none",
                   color: "var(--mint-ink)", fontSize: 14, fontWeight: 700,
                   cursor: loading ? "default" : "pointer",
                   fontFamily: "var(--display)", transition: "all 0.15s",

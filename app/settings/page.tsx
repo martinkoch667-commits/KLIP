@@ -58,11 +58,11 @@ const ST_CSS = `
 .st-label{display:block;font-family:var(--sans);font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:rgba(20,22,15,.6);margin-bottom:6px;}
 .st-input{width:100%;border:1.5px solid rgba(20,22,15,.15);border-radius:8px;padding:10px 14px;font-family:var(--sans);font-size:14px;color:var(--ink);background:#fff;outline:none;transition:border-color .15s;}
 .st-input::placeholder{color:rgba(20,22,15,.30);}
-.st-input:focus{border-color:var(--mint);}
+.st-input:focus{border-color:var(--vio);}
 .st-input:disabled{background:var(--sunk);color:var(--ink-3);cursor:not-allowed;}
 .st-select{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%238B8E7F' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center;padding-right:36px;cursor:pointer;}
 .st-btn{padding:10px 20px;background:var(--forest);color:var(--canvas);font-family:var(--display);font-weight:700;font-size:12px;text-transform:uppercase;letter-spacing:.08em;border-radius:8px;border:none;cursor:pointer;transition:background .15s,color .15s;white-space:nowrap;}
-.st-btn:hover:not(:disabled){background:var(--mint);color:var(--forest);}
+.st-btn:hover:not(:disabled){background:var(--leaf);color:var(--leaf-ink);}
 .st-btn:disabled{opacity:.5;cursor:not-allowed;}
 .st-btn-ghost{padding:8px 14px;background:transparent;color:var(--ink);font-family:var(--sans);font-weight:600;font-size:12px;border-radius:8px;border:1.5px solid rgba(20,22,15,.15);cursor:pointer;transition:border-color .15s;white-space:nowrap;}
 .st-btn-ghost:hover{border-color:rgba(20,22,15,.30);}
@@ -73,7 +73,7 @@ const ST_CSS = `
 .st-toggle{position:relative;width:40px;height:22px;flex-shrink:0;}
 .st-toggle input{opacity:0;width:0;height:0;position:absolute;}
 .st-slider{position:absolute;inset:0;background:rgba(20,22,15,.15);border-radius:99px;cursor:pointer;transition:background .15s;}
-.st-toggle input:checked+.st-slider{background:var(--mint);}
+.st-toggle input:checked+.st-slider{background:var(--leaf);}
 .st-slider::before{content:'';position:absolute;width:16px;height:16px;left:3px;top:3px;background:#fff;border-radius:50%;transition:transform .15s;box-shadow:0 1px 3px rgba(0,0,0,.15);}
 .st-toggle input:checked+.st-slider::before{transform:translateX(18px);}
 .st-divider{height:1px;background:rgba(20,22,15,.08);margin:20px 0;border:none;}
@@ -101,7 +101,7 @@ function Toggle({ checked, onChange }: { checked: boolean; onChange: (v: boolean
       onClick={() => onChange(!checked)}
       style={{
         width: 42, height: 24, borderRadius: 99, border: 'none', cursor: 'pointer',
-        background: checked ? 'var(--mint)' : 'var(--sunk)',
+        background: checked ? 'var(--leaf)' : 'var(--sunk)',
         position: 'relative', flexShrink: 0,
         transition: 'background .16s',
         boxShadow: checked ? 'none' : 'inset 0 0 0 1px var(--line)',
@@ -979,7 +979,7 @@ function BillingTab({ accountType }: { accountType: string }) {
 
       {/* Subscription hero */}
       <div style={{ position: 'relative', borderRadius: 'var(--r-xl)', overflow: 'hidden', padding: '24px 26px', marginBottom: 16, background: 'linear-gradient(120deg,#0A2418,var(--forest) 55%,#103A28)', color: 'var(--cream)' }}>
-        <div className="halo-blob" style={{ width: 240, height: 240, right: -60, top: -130, background: 'var(--mint)', opacity: .4 }} />
+        <div className="halo-blob" style={{ width: 240, height: 240, right: -60, top: -130, background: 'var(--leaf)', opacity: .4 }} />
         <Sticker name="at" size={38} float="B" style={{ position: 'absolute', top: 14, right: 22, zIndex: 1, ['--r' as string]: '6deg' }} />
         <div style={{ position: 'relative', zIndex: 2, display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 20, flexWrap: 'wrap' }}>
           <div>

@@ -379,7 +379,7 @@ export default function FeedPage() {
                           ? t('igConnectedCount', { count: connectedCount })
                           : t('igNoneConnected')}
                         {connectedCount > 0 && (
-                          <span className="badge" style={{ background: "var(--mint)", color: "var(--mint-ink)", display: "flex", alignItems: "center", gap: 4 }}>
+                          <span className="badge" style={{ background: "var(--leaf)", color: "var(--mint-ink)", display: "flex", alignItems: "center", gap: 4 }}>
                             <Icon name="check" size={11} /> {t('active')}
                           </span>
                         )}
@@ -522,7 +522,7 @@ export default function FeedPage() {
                             width: "100%",
                             height: `${10 + (load[i] / maxLoad) * 40}px`,
                             borderRadius: "5px 5px 3px 3px",
-                            background: load[i] >= maxLoad && maxLoad > 1 ? "var(--mint)" : load[i] ? "rgba(47,215,155,.4)" : "var(--sunk)",
+                            background: load[i] >= maxLoad && maxLoad > 1 ? "var(--leaf)" : load[i] ? "rgba(47,215,155,.4)" : "var(--sunk)",
                           }} />
                           <span className="label" style={{ fontSize: 9 }}>{d}</span>
                         </div>
@@ -545,7 +545,7 @@ export default function FeedPage() {
           display: "flex", alignItems: "center", gap: 10, zIndex: 9999,
           boxShadow: "0 8px 24px rgba(13,15,10,.3)", animation: "screenIn .2s ease",
         }}>
-          <span style={{ width: 20, height: 20, borderRadius: "50%", background: "var(--mint)", color: "var(--mint-ink)", display: "grid", placeItems: "center", flexShrink: 0 }}>
+          <span style={{ width: 20, height: 20, borderRadius: "50%", background: "var(--leaf)", color: "var(--mint-ink)", display: "grid", placeItems: "center", flexShrink: 0 }}>
             <Icon name="check" size={12} />
           </span>
           {toast}

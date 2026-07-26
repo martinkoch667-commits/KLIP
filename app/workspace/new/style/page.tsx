@@ -134,7 +134,7 @@ function Toggle({ value, onChange }: { value: boolean; onChange: (v: boolean) =>
       style={{
         position: "relative", display: "inline-flex", alignItems: "center",
         width: 40, height: 22, borderRadius: 99, cursor: "pointer",
-        background: value ? "var(--mint)" : "var(--line)",
+        background: value ? "var(--leaf)" : "var(--line)",
         border: "none", transition: "background 0.15s", flexShrink: 0,
         padding: 0,
       }}
@@ -415,12 +415,12 @@ export default function StyleEditorPage() {
               <button
                 style={{
                   width: "100%", padding: "12px", borderRadius: 13,
-                  background: "var(--mint)", border: "none", color: "var(--mint-ink)",
+                  background: "var(--leaf)", border: "none", color: "var(--mint-ink)",
                   fontSize: 14, fontWeight: 700, cursor: "pointer", fontFamily: "var(--display)",
                   transition: "background 0.15s",
                 }}
                 onMouseEnter={e => { e.currentTarget.style.background = "var(--mint-2)"; }}
-                onMouseLeave={e => { e.currentTarget.style.background = "var(--mint)"; }}
+                onMouseLeave={e => { e.currentTarget.style.background = "var(--leaf)"; }}
               >
                 {t('saveStyleBtn')}
               </button>

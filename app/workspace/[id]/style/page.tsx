@@ -568,8 +568,8 @@ export default function StyleTemplatePage() {
                           <button key={s.value} type="button" onClick={() => setSector(sector === s.value ? "" : s.value)} style={{
                             padding: "7px 16px", borderRadius: 20, fontSize: 13, fontWeight: 600,
                             border: "1.5px solid", cursor: "pointer", transition: "all .12s",
-                            background: sector === s.value ? "var(--mint)" : "var(--white)",
-                            borderColor: sector === s.value ? "var(--mint)" : "var(--line)",
+                            background: sector === s.value ? "var(--leaf)" : "var(--white)",
+                            borderColor: sector === s.value ? "var(--leaf)" : "var(--line)",
                             color: sector === s.value ? "var(--mint-ink)" : "var(--ink-2)",
                           }}>{s.label}</button>
                         ))}
@@ -600,7 +600,7 @@ export default function StyleTemplatePage() {
                           return (
                             <button key={tn.value} type="button" onClick={() => setTone(tone === tn.value ? "" : tn.value)} style={{
                               padding: "12px 14px", borderRadius: 12, textAlign: "left",
-                              border: `1.5px solid ${active ? "var(--mint)" : "var(--line)"}`,
+                              border: `1.5px solid ${active ? "var(--leaf)" : "var(--line)"}`,
                               background: active ? "var(--mint-soft)" : "var(--white)",
                               cursor: "pointer", transition: "all .15s",
                             }}>
@@ -690,7 +690,7 @@ export default function StyleTemplatePage() {
                         </div>
 
                         {analysis.suggestedDescriptionStyle && (
-                          <div style={{ border: "1.5px solid var(--mint)", background: "var(--mint-soft)", borderRadius: 12, padding: "14px 16px" }}>
+                          <div style={{ border: "1.5px solid var(--leaf)", background: "var(--mint-soft)", borderRadius: 12, padding: "14px 16px" }}>
                             <div style={{ ...labelStyle, marginBottom: 6, color: "var(--mint-2)" }}>{t('suggestedStyleLabel')}</div>
                             <p style={{ fontSize: 13, color: "var(--ink)", lineHeight: 1.6, margin: 0 }}>{analysis.suggestedDescriptionStyle}</p>
                           </div>
@@ -842,7 +842,7 @@ export default function StyleTemplatePage() {
                     <div>
                       <label style={labelStyle}>{t('primaryFontLabel')}</label>
                       {customPrimary && (
-                        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 14px", borderRadius: 10, marginBottom: 10, background: "var(--mint-soft)", border: "1px solid var(--mint)" }}>
+                        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 14px", borderRadius: 10, marginBottom: 10, background: "var(--mint-soft)", border: "1px solid var(--leaf)" }}>
                           <div>
                             <span style={{ fontSize: 12, fontWeight: 700, color: "var(--mint-2)", display: "block" }}>{t('customFontActive')}</span>
                             <span style={{ fontFamily: `"${customPrimary.family}", sans-serif`, fontSize: 16, color: "var(--ink)" }}>{customPrimary.family}</span>
@@ -870,7 +870,7 @@ export default function StyleTemplatePage() {
                         width: "100%", padding: "10px 16px", borderRadius: "var(--r-l)", border: "1.5px dashed var(--line)", background: "transparent",
                         cursor: "pointer", fontSize: 13, color: "var(--ink-2)", fontWeight: 600, display: "flex", alignItems: "center", justifyContent: "center", gap: 8, transition: "all .15s",
                       }}
-                        onMouseEnter={e => { e.currentTarget.style.borderColor = "var(--mint)"; e.currentTarget.style.color = "var(--mint-2)"; }}
+                        onMouseEnter={e => { e.currentTarget.style.borderColor = "var(--leaf)"; e.currentTarget.style.color = "var(--mint-2)"; }}
                         onMouseLeave={e => { e.currentTarget.style.borderColor = "var(--line)"; e.currentTarget.style.color = "var(--ink-2)"; }}>
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg>
                         {t('uploadCustomFont')}
@@ -883,7 +883,7 @@ export default function StyleTemplatePage() {
                     <div>
                       <label style={labelStyle}>{t('secondaryFontLabel')} <span style={{ fontWeight: 400, textTransform: "none", letterSpacing: 0, fontSize: 10, color: "var(--ink-3)" }}>{t('optional')}</span></label>
                       {customSecondary && (
-                        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 14px", borderRadius: 10, marginBottom: 10, background: "var(--mint-soft)", border: "1px solid var(--mint)" }}>
+                        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 14px", borderRadius: 10, marginBottom: 10, background: "var(--mint-soft)", border: "1px solid var(--leaf)" }}>
                           <div>
                             <span style={{ fontSize: 12, fontWeight: 700, color: "var(--mint-2)", display: "block" }}>{t('customFontActive')}</span>
                             <span style={{ fontFamily: `"${customSecondary.family}", sans-serif`, fontSize: 16, color: "var(--ink)" }}>{customSecondary.family}</span>
@@ -902,7 +902,7 @@ export default function StyleTemplatePage() {
                         marginTop: 8, width: "100%", padding: "10px 16px", borderRadius: "var(--r-l)", border: "1.5px dashed var(--line)", background: "transparent",
                         cursor: "pointer", fontSize: 13, color: "var(--ink-2)", fontWeight: 600, display: "flex", alignItems: "center", justifyContent: "center", gap: 8, transition: "all .15s",
                       }}
-                        onMouseEnter={e => { e.currentTarget.style.borderColor = "var(--mint)"; e.currentTarget.style.color = "var(--mint-2)"; }}
+                        onMouseEnter={e => { e.currentTarget.style.borderColor = "var(--leaf)"; e.currentTarget.style.color = "var(--mint-2)"; }}
                         onMouseLeave={e => { e.currentTarget.style.borderColor = "var(--line)"; e.currentTarget.style.color = "var(--ink-2)"; }}>
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg>
                         {t('uploadCustomFont')}
@@ -933,7 +933,7 @@ export default function StyleTemplatePage() {
                 <div style={{ paddingTop: 8 }}>
                   <button onClick={handleSaveCharte} disabled={saving} style={{
                     padding: "13px 32px", borderRadius: 13, border: "none",
-                    background: saving ? "var(--sunk)" : "var(--mint)",
+                    background: saving ? "var(--sunk)" : "var(--leaf)",
                     color: saving ? "var(--ink-3)" : "var(--mint-ink)",
                     fontSize: 14, fontWeight: 700, cursor: saving ? "not-allowed" : "pointer",
                     fontFamily: "var(--display)", transition: "all .15s",
@@ -954,7 +954,7 @@ export default function StyleTemplatePage() {
                     <p style={{ fontSize: 13, color: "var(--ink-3)", marginTop: 3 }}>{t('templatesForClient', { count: templates.length, name: workspaceName })}</p>
                   </div>
                   <button onClick={() => router.push(`/workspace/${id}/template-editor/new`)}
-                    style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 20px", borderRadius: 13, border: "none", background: "var(--mint)", color: "var(--mint-ink)", fontSize: 13.5, fontWeight: 700, cursor: "pointer", fontFamily: "var(--display)" }}>
+                    style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 20px", borderRadius: 13, border: "none", background: "var(--leaf)", color: "var(--mint-ink)", fontSize: 13.5, fontWeight: 700, cursor: "pointer", fontFamily: "var(--display)" }}>
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
                     {t('newTemplateBtn')}
                   </button>
@@ -972,7 +972,7 @@ export default function StyleTemplatePage() {
                       <p style={{ fontSize: 13, color: "var(--ink-3)", margin: "4px 0 0" }}>{t('noTemplateHint')}</p>
                     </div>
                     <button onClick={() => router.push(`/workspace/${id}/template-editor/new`)}
-                      style={{ marginTop: 4, padding: "10px 22px", borderRadius: 12, border: "none", background: "var(--mint)", color: "var(--mint-ink)", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>
+                      style={{ marginTop: 4, padding: "10px 22px", borderRadius: 12, border: "none", background: "var(--leaf)", color: "var(--mint-ink)", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>
                       {t('createTemplateBtn')}
                     </button>
                   </div>
