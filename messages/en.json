@@ -528,7 +528,9 @@
     "fileTooLarge10": "File too large (max 10 MB)",
     "videoNotesLabel": "Notes (optional)",
     "videoNotesPh": "Ideas, angle, useful info — for later.",
-    "videoCaptionLaterHint": "The caption is written after editing, once we know what the video says."
+    "videoCaptionLaterHint": "The caption is written after editing, once we know what the video says.",
+    "preEditLabel": "AI pre-edit",
+    "preEditHint": "Rush cleanup, subtitles and transitions applied on opening."
   },
   "planning": {
     "bestTime": "Best time to post",
@@ -1729,7 +1731,17 @@
     "fillersBtn": "Clean up speech",
     "fillersWorking": "Listening…",
     "toastFillersNothing": "Nothing to remove: the speech is already clean.",
-    "toastFillersCut": "Speech cleaned — {s}s removed ✦"
+    "toastFillersCut": "Speech cleaned — {s}s removed ✦",
+    "preEditRunning": "Pre-edit running",
+    "preStepRushes": "Cleaning rushes…",
+    "preStepSpeech": "Cleaning speech…",
+    "preStepCaptions": "Subtitles…",
+    "preStepTransitions": "Transitions…",
+    "preEditDone": "Pre-edit complete ✦",
+    "preEditTitle": "Do it all at once",
+    "preEditDesc": "Picture + speech cleanup, subtitles in the client’s style, and transitions. The edit comes back ready to review.",
+    "preEditBtn": "Run pre-edit",
+    "preEditLabel": "AI pre-edit"
   },
   "forgotPassword": {
     "title": "Forgot password",

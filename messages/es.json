@@ -528,7 +528,9 @@
     "fileTooLarge10": "Archivo demasiado grande (máx 10 MB)",
     "videoNotesLabel": "Notas (opcional)",
     "videoNotesPh": "Ideas, enfoque, información útil — para después.",
-    "videoCaptionLaterHint": "La leyenda se escribe tras el montaje, cuando ya sabemos qué cuenta el vídeo."
+    "videoCaptionLaterHint": "La leyenda se escribe tras el montaje, cuando ya sabemos qué cuenta el vídeo.",
+    "preEditLabel": "Premontaje IA",
+    "preEditHint": "Limpieza, subtítulos y transiciones aplicados al abrir."
   },
   "planning": {
     "bestTime": "Mejor momento para publicar",
@@ -1729,7 +1731,17 @@
     "fillersBtn": "Limpiar el discurso",
     "fillersWorking": "Escuchando…",
     "toastFillersNothing": "Nada que quitar: el discurso ya está limpio.",
-    "toastFillersCut": "Discurso limpiado — {s}s eliminados ✦"
+    "toastFillersCut": "Discurso limpiado — {s}s eliminados ✦",
+    "preEditRunning": "Premontaje en curso",
+    "preStepRushes": "Limpiando brutos…",
+    "preStepSpeech": "Limpiando discurso…",
+    "preStepCaptions": "Subtítulos…",
+    "preStepTransitions": "Transiciones…",
+    "preEditDone": "Premontaje terminado ✦",
+    "preEditTitle": "Hacerlo todo de una vez",
+    "preEditDesc": "Limpieza de imagen y discurso, subtítulos según la marca y transiciones. El montaje queda listo para revisar.",
+    "preEditBtn": "Lanzar premontaje",
+    "preEditLabel": "Premontaje IA"
   },
   "forgotPassword": {
     "title": "Contraseña olvidada",

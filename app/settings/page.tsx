@@ -634,7 +634,7 @@ function IntegrationsTab({ supabase }: { supabase: any }) {
         ) : workspaces.length === 0 ? (
           <div style={{ textAlign: "center", padding: "24px 0", color: "var(--ink-3)", fontSize: 13 }}>
             Aucun client.{" "}
-            <Link href="/workspace/new" style={{ color: "var(--mint)", fontWeight: 600 }}>Créer un client</Link>
+            <Link href="/workspace/new" style={{ color: "var(--leaf)", fontWeight: 600 }}>Créer un client</Link>
           </div>
         ) : (
           workspaces.map((ws, i) => {
@@ -983,7 +983,7 @@ function BillingTab({ accountType }: { accountType: string }) {
         <Sticker name="at" size={38} float="B" style={{ position: 'absolute', top: 14, right: 22, zIndex: 1, ['--r' as string]: '6deg' }} />
         <div style={{ position: 'relative', zIndex: 2, display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 20, flexWrap: 'wrap' }}>
           <div>
-            <div className="label" style={{ color: 'var(--mint)', marginBottom: 8 }}>Votre abonnement</div>
+            <div className="label" style={{ color: 'var(--leaf)', marginBottom: 8 }}>Votre abonnement</div>
             <h2 className="h-display" style={{ fontSize: 28, color: 'var(--cream)' }}>{plan.name}</h2>
             <p style={{ color: 'var(--cream-2)', marginTop: 6, fontSize: 13.5 }}>{plan.desc}</p>
           </div>

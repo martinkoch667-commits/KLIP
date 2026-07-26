@@ -528,7 +528,9 @@
     "fileTooLarge10": "File troppo grande (max 10 MB)",
     "videoNotesLabel": "Note (facoltativo)",
     "videoNotesPh": "Idee, angolo, info utili — per dopo.",
-    "videoCaptionLaterHint": "La didascalia si scrive dopo il montaggio, quando sappiamo cosa racconta il video."
+    "videoCaptionLaterHint": "La didascalia si scrive dopo il montaggio, quando sappiamo cosa racconta il video.",
+    "preEditLabel": "Premontaggio IA",
+    "preEditHint": "Sgrossatura, sottotitoli e transizioni applicati all’apertura."
   },
   "planning": {
     "bestTime": "Momento migliore per pubblicare",
@@ -1729,7 +1731,17 @@
     "fillersBtn": "Pulisci il parlato",
     "fillersWorking": "In ascolto…",
     "toastFillersNothing": "Niente da togliere: il parlato è già pulito.",
-    "toastFillersCut": "Parlato pulito — {s}s rimossi ✦"
+    "toastFillersCut": "Parlato pulito — {s}s rimossi ✦",
+    "preEditRunning": "Premontaggio in corso",
+    "preStepRushes": "Pulizia rushes…",
+    "preStepSpeech": "Pulizia parlato…",
+    "preStepCaptions": "Sottotitoli…",
+    "preStepTransitions": "Transizioni…",
+    "preEditDone": "Premontaggio completato ✦",
+    "preEditTitle": "Fare tutto in una volta",
+    "preEditDesc": "Pulizia immagine e parlato, sottotitoli secondo il brand e transizioni. Il montaggio è pronto da rivedere.",
+    "preEditBtn": "Avvia premontaggio",
+    "preEditLabel": "Premontaggio IA"
   },
   "forgotPassword": {
     "title": "Password dimenticata",

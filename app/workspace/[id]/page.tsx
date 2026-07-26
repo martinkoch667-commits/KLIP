@@ -458,6 +458,8 @@ export default function WorkspacePage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [pendingFiles, setPendingFiles] = useState<File[] | null>(null);
   const [typeMenuPost, setTypeMenuPost] = useState<string | null>(null);
+  // Prémontage IA à l'ouverture du montage (coché par défaut), par post vidéo.
+  const [preEdit, setPreEdit] = useState<Record<string, boolean>>({});
 
   // ── Share link ────────────────────────────────────────────────────────────
   const [shareOpen, setShareOpen] = useState(false);
@@ -964,7 +966,11 @@ export default function WorkspacePage() {
       }
       setPosts((prev) => prev.map((p) => p.localId === item.localId ? { ...p, dbId, photo_url: pUrl, status: "validated" } : p));
       // Video posts go to the Montage vidéo editor
-      if (dbId) window.location.href = item.isVideo ? `/workspace/${id}/montage/${dbId}` : `/workspace/${id}/editor/${dbId}`;
+      // Le drapeau de prémontage suit jusqu'au montage, qui enchaîne alors tout seul.
+      if (dbId) {
+        const pre = (preEdit[item.localId] ?? true) ? "?premontage=1" : "";
+        window.location.href = item.isVideo ? `/workspace/${id}/montage/${dbId}${pre}` : `/workspace/${id}/editor/${dbId}`;
+      }
     } catch {
       setPosts((prev) => prev.map((p) => (p.localId === item.localId ? { ...p, status: "generated" } : p)));
     }
@@ -1121,12 +1127,13 @@ export default function WorkspacePage() {
                   <div className="halo-blob" style={{ width: 220, height: 220, right: 180, bottom: -150, background: 'var(--acid)', opacity: .28 }} />
                   {/* stickers décoratifs (coins, derrière le contenu z:2) */}
                   <Sticker name="bolt" size={40} float="B" style={{ position: 'absolute', top: 16, right: 22, zIndex: 1, ['--r' as string]: '10deg' }} />
-                  <Sticker name="smiley" size={34} float="A" style={{ position: 'absolute', bottom: 16, left: 26, zIndex: 1, ['--r' as string]: '-6deg' }} />
                   <div className="ws-hero-grid" style={{ position: 'relative', zIndex: 2, display: 'grid', gridTemplateColumns: '1fr auto', gap: 28, alignItems: 'center' }}>
                     <div>
-                      <div className="label" style={{ color: 'var(--mint)', marginBottom: 12 }}>{t('production')} · {workspace?.name ?? "…"}</div>
-                      <h1 className="h-display" style={{ fontSize: 36, color: 'var(--cream)', maxWidth: 520 }}>
+                      <div className="label" style={{ color: 'var(--leaf)', marginBottom: 12 }}>{t('production')} · {workspace?.name ?? "…"}</div>
+                      {/* Sticker accolé au mot surligné (et non derrière un bouton, où il était rogné). */}
+                      <h1 className="h-display" style={{ position: 'relative', fontSize: 36, color: 'var(--cream)', maxWidth: 520 }}>
                         {t('heroPre')}<span className="acc-hl">{t('heroAccent')}</span>
+                        <Sticker name="heart" size={34} float="A" style={{ position: 'absolute', top: -14, right: -26, ['--r' as string]: '12deg' }} />
                       </h1>
                       <p style={{ color: 'var(--cream-2)', marginTop: 10, maxWidth: 460, fontSize: 14.5 }}>
                         {posts.length > 0
@@ -1154,7 +1161,7 @@ export default function WorkspacePage() {
                         ].map(({ label, n }) => (
                           <div key={label} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                             <span style={{ fontSize: 12, color: 'var(--cream-2)', fontWeight: 600 }}>{label}</span>
-                            <span className="num" style={{ fontSize: 18, color: n > 0 ? 'var(--mint)' : 'var(--cream-3)', lineHeight: 1 }}>{n}</span>
+                            <span className="num" style={{ fontSize: 18, color: n > 0 ? 'var(--leaf)' : 'var(--cream-3)', lineHeight: 1 }}>{n}</span>
                           </div>
                         ))}
                       </div>
@@ -1685,29 +1692,39 @@ export default function WorkspacePage() {
 
                                 <div style={{ display: 'flex', gap: 7, marginTop: 2 }}>
                                   {post.isVideo ? (
-                                    /* Video: goes to the Montage vidéo editor */
-                                    <>
+                                    /* Vidéo : direction l'éditeur de montage. Pas de génération de
+                                       texte ici — la légende s'écrit après le montage. */
+                                    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 8 }}>
+                                      {/* Prémontage IA : dérushage + sous-titres + transitions, appliqués
+                                          à l'ouverture pour ne pas avoir à lancer les outils un par un. */}
+                                      <label style={{ display: 'flex', alignItems: 'flex-start', gap: 8, cursor: 'pointer', padding: '8px 10px', borderRadius: 'var(--r-s)', background: 'var(--sunk)' }}>
+                                        <input
+                                          type="checkbox"
+                                          checked={preEdit[post.localId] ?? true}
+                                          onChange={e => setPreEdit(prev => ({ ...prev, [post.localId]: e.target.checked }))}
+                                          style={{ accentColor: 'var(--leaf-ink)', marginTop: 1, flexShrink: 0 }}
+                                        />
+                                        <span style={{ minWidth: 0 }}>
+                                          <span style={{ display: 'block', fontSize: 12.5, fontWeight: 700, color: 'var(--ink)' }}>{t('preEditLabel')}</span>
+                                          <span style={{ display: 'block', fontSize: 11.5, color: 'var(--ink-3)', lineHeight: 1.4 }}>{t('preEditHint')}</span>
+                                        </span>
+                                      </label>
                                       {post.status !== "validated" && (
                                         <button
                                           onClick={() => validatePost(post)}
                                           disabled={post.status === "validating"}
                                           className="btn btn-dark"
-                                          style={{ flex: 1, opacity: post.status === "validating" ? 0.5 : 1 }}
+                                          style={{ opacity: post.status === "validating" ? 0.5 : 1 }}
                                         >
                                           {post.status === "validating" ? <><Spinner /> {t('saving')}</> : <><IconEdit /> {t('montageVideo')}</>}
                                         </button>
                                       )}
                                       {post.status === "validated" && post.dbId && (
-                                        <Link href={`/workspace/${id}/montage/${post.dbId}`} className="btn btn-dark" style={{ flex: 1, textAlign: 'center' }}>
+                                        <Link href={`/workspace/${id}/montage/${post.dbId}${(preEdit[post.localId] ?? true) ? '?premontage=1' : ''}`} className="btn btn-dark" style={{ textAlign: 'center' }}>
                                           <IconEdit /> {t('openMontage')}
                                         </Link>
                                       )}
-                                      {post.status === "generated" && (
-                                        <button onClick={() => generateOne(post)} className="btn btn-ghost btn-icon" title={t('regenDescription')}>
-                                          <IconSpark />
-                                        </button>
-                                      )}
-                                    </>
+                                    </div>
                                   ) : (
                                     /* Photo: standard editor flow */
                                     <>

@@ -528,7 +528,9 @@
     "fileTooLarge10": "Datei zu groß (max. 10 MB)",
     "videoNotesLabel": "Notizen (optional)",
     "videoNotesPh": "Ideen, Blickwinkel, nützliche Infos — für später.",
-    "videoCaptionLaterHint": "Die Caption entsteht nach dem Schnitt, wenn klar ist, was das Video erzählt."
+    "videoCaptionLaterHint": "Die Caption entsteht nach dem Schnitt, wenn klar ist, was das Video erzählt.",
+    "preEditLabel": "KI-Vorschnitt",
+    "preEditHint": "Rohschnitt, Untertitel und Übergänge beim Öffnen angewendet."
   },
   "planning": {
     "bestTime": "Beste Zeit zum Posten",
@@ -1729,7 +1731,17 @@
     "fillersBtn": "Sprache säubern",
     "fillersWorking": "Höre zu…",
     "toastFillersNothing": "Nichts zu entfernen: die Sprache ist bereits sauber.",
-    "toastFillersCut": "Sprache gesäubert — {s}s entfernt ✦"
+    "toastFillersCut": "Sprache gesäubert — {s}s entfernt ✦",
+    "preEditRunning": "Vorschnitt läuft",
+    "preStepRushes": "Rohmaterial säubern…",
+    "preStepSpeech": "Sprache säubern…",
+    "preStepCaptions": "Untertitel…",
+    "preStepTransitions": "Übergänge…",
+    "preEditDone": "Vorschnitt fertig ✦",
+    "preEditTitle": "Alles auf einmal",
+    "preEditDesc": "Bild- und Sprachbereinigung, Untertitel im Kundenstil und Übergänge. Der Schnitt ist fertig zur Durchsicht.",
+    "preEditBtn": "Vorschnitt starten",
+    "preEditLabel": "KI-Vorschnitt"
   },
   "forgotPassword": {
     "title": "Passwort vergessen",

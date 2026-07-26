@@ -180,7 +180,7 @@ export interface TWord { start: number; end: number; word: string }
 export interface SemanticCut {
   start: number;
   end: number;
-  reason: "filler" | "stutter" | "retake";
+  reason: "filler" | "stutter" | "retake" | "gap";
   text: string;
 }
 
@@ -193,7 +193,12 @@ const FILLERS = new Set([
 const norm = (w: string) => w.toLowerCase().replace(/[.,!?;:…"'’«»]/g, "").trim();
 
 /** Construit la liste des passages à retirer à partir des mots horodatés. */
-export function planSemanticCuts(words: TWord[], opts: { retakes?: boolean } = {}): SemanticCut[] {
+export function planSemanticCuts(
+  words: TWord[],
+  // `maxGap` : au-delà de ce blanc entre deux mots, on resserre (rythme plus vif).
+  // `gapKeep` : on laisse ce petit souffle pour que ça ne colle pas.
+  opts: { retakes?: boolean; maxGap?: number; gapKeep?: number } = {},
+): SemanticCut[] {
   const cuts: SemanticCut[] = [];
   const w = words.filter((x) => x.word && x.end > x.start);
   if (!w.length) return cuts;
@@ -209,6 +214,17 @@ export function planSemanticCuts(words: TWord[], opts: { retakes?: boolean } = {
     const a = w[i - 1], b = w[i];
     if (norm(a.word) && norm(a.word) === norm(b.word) && b.start - a.end < 1.2) {
       cuts.push({ start: a.start, end: a.end, reason: "stutter", text: a.word });
+    }
+  }
+
+  // 2 bis) Temps morts : tout blanc entre deux mots dépassant `maxGap` est resserré
+  //        (on garde `gapKeep` de respiration). C'est ce qui rend le montage vif.
+  const maxGap = opts.maxGap ?? 0.45;
+  const gapKeep = opts.gapKeep ?? 0.14;
+  for (let i = 1; i < w.length; i++) {
+    const gap = w[i].start - w[i - 1].end;
+    if (gap > maxGap) {
+      cuts.push({ start: w[i - 1].end + gapKeep, end: w[i].start - gapKeep / 2, reason: "gap", text: `${gap.toFixed(1)}s` });
     }
   }
 

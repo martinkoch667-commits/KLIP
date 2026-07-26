@@ -675,7 +675,7 @@ export default function Dashboard() {
               <Sticker name="star" size={30} float="A" style={{ position: 'absolute', bottom: 16, left: 26, zIndex: 1, ['--r' as string]: '-8deg' }} />
               <div style={{ position: 'relative', zIndex: 2, display: 'grid', gridTemplateColumns: '1fr auto', gap: 28, alignItems: 'center' }} className="dash-hero">
                 <div>
-                  <div className="label" style={{ color: 'var(--mint)', marginBottom: 12 }}>
+                  <div className="label" style={{ color: 'var(--leaf)', marginBottom: 12 }}>
                     {today.charAt(0).toUpperCase() + today.slice(1)} · {t('greeting', { name: userName })}
                   </div>
                   <h1 className="h-display" style={{ fontSize: 38, color: 'var(--cream)', maxWidth: 520 }}>

@@ -307,6 +307,9 @@ export default function MontagePage() {
   // Prémontage par analyse d'image (cf. autoCutQuality).
   const [autoCutting, setAutoCutting] = useState(false);
   const [cuttingFillers, setCuttingFillers] = useState(false);
+  // Prémontage IA complet lancé à l'ouverture (?premontage=1).
+  const [preEditing, setPreEditing] = useState(false);
+  const [preEditStep, setPreEditStep] = useState<string | null>(null);
   const [autoCutProgress, setAutoCutProgress] = useState<{ done: number; total: number; name: string } | null>(null);
   const [autoCutDone, setAutoCutDone] = useState<{ clips: number; seconds: number } | null>(null);
   const [cuttingSilence, setCuttingSilence] = useState(false);
@@ -767,6 +770,16 @@ export default function MontagePage() {
     return transitionStateAt(activeClip.transitionIn, activeClip.transitionDur, time - activeClip.start, isFirst);
   }, [activeClip, clipStarts, time]);
   const activeTransCss = activeTrans ? transitionCss(activeTrans) : null;
+  // Plan vidéo suivant : préchargé en sourdine pour que le passage d'un plan à
+  // l'autre soit net (sans le temps de chargement qui figeait l'image).
+  const nextClipSrc = useMemo(() => {
+    if (!activeClip) return null;
+    const i = clipStarts.findIndex((c) => c.id === activeClip.id);
+    for (let j = i + 1; j < clipStarts.length; j++) {
+      if (clipStarts[j].kind === "video" && clipStarts[j].src !== activeClip.src) return clipStarts[j].src;
+    }
+    return null;
+  }, [activeClip, clipStarts]);
   const selectedClip = clipStarts.find((c) => c.id === selectedClipId) || null;
   const selectedOverlay = overlays.find((o) => o.id === selectedOverlayId) || null;
   const activeOverlays = useMemo(
@@ -832,8 +845,23 @@ export default function MontagePage() {
   useEffect(() => {
     if (!playing) return;
     let raf = 0; let last = performance.now();
+    let stalledSince = 0; // depuis quand on attend la vidéo (ms)
     const tick = (now: number) => {
       const dt = (now - last) / 1000; last = now;
+      // ── Anti-décalage au démarrage / au changement de plan ──────────────────
+      // Quand la source du <video> vient de changer, le navigateur doit charger et
+      // décoder avant de pouvoir jouer. Si l'horloge avançait pendant ce temps,
+      // l'image restait figée puis rattrapait d'un coup (saccade). On GÈLE donc le
+      // temps tant que la vidéo n'est pas prête — la lecture démarre alors nette.
+      const vEl = videoRef.current, ac = activeClipRef.current;
+      const notReady = !!(ac && ac.kind === "video" && vEl && (vEl.readyState < 3 || vEl.seeking));
+      if (notReady) {
+        if (!stalledSince) stalledSince = now;
+        // Garde-fou : source illisible → on repart au bout de 3 s plutôt que de rester bloqué.
+        if (now - stalledSince < 3000) { raf = requestAnimationFrame(tick); return; }
+      } else {
+        stalledSince = 0;
+      }
       setTime((t) => { const n = t + dt; if (total > 0 && n >= total) { setPlaying(false); return 0; } return n; });
       raf = requestAnimationFrame(tick);
     };
@@ -1569,6 +1597,43 @@ export default function MontagePage() {
       setAutoCutProgress(null);
     }
   }
+
+  // ── Prémontage IA complet (?premontage=1) ───────────────────────────────────
+  // Enchaîne automatiquement à l'ouverture ce qu'on lançait outil par outil :
+  // dérushage image → dérushage parole → sous-titres à la charte → transitions.
+  const preRunRef = useRef(false);
+  async function runFullPreEdit() {
+    if (preRunRef.current) return;
+    preRunRef.current = true;
+    setPreEditing(true);
+    try {
+      setPreEditStep(t('preStepRushes'));
+      await autoCutQuality();
+      setPreEditStep(t('preStepSpeech'));
+      await cutFillers();
+      setPreEditStep(t('preStepCaptions'));
+      await generateCaptionsAI();
+      setPreEditStep(t('preStepTransitions'));
+      // Enchaînement plus vif : fondu court entre les plans.
+      applyTransitionToAll("fade", 0.25);
+      toast(t('preEditDone'));
+    } finally {
+      setPreEditing(false);
+      setPreEditStep(null);
+    }
+  }
+
+  // Déclenché une seule fois, après le chargement du projet.
+  useEffect(() => {
+    if (loading || preRunRef.current) return;
+    if (typeof window === "undefined") return;
+    if (new URLSearchParams(window.location.search).get("premontage") !== "1") return;
+    if (!clips.some((c) => c.kind === "video")) return;
+    // on retire le paramètre pour ne pas relancer au rafraîchissement
+    window.history.replaceState({}, "", window.location.pathname);
+    runFullPreEdit();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading, clips.length]);
 
   // ── Légende : écrite À LA FIN, une fois le montage terminé ──────────────────
   // Avant montage on ne sait pas ce que la vidéo raconte ; ici on dispose du
@@ -2637,6 +2702,7 @@ export default function MontagePage() {
     cuttingSilence, cutSilences,
     autoCutting, autoCutQuality, autoCutProgress,
     cuttingFillers, cutFillers,
+    preEditing, preEditStep, runFullPreEdit,
     generatingDesc, videoDescription, generateVideoDescription,
     toast, updateClip, splitAtPlayhead,
     duplicateSelected: () => selectedClipId && duplicateClip(selectedClipId),
@@ -2832,6 +2898,20 @@ export default function MontagePage() {
         {/* preview + playbar */}
         <div className="a-canvas">
           <div className="mz-stage">
+            {/* Prémontage IA en cours : on montre l'étape plutôt qu'un écran figé. */}
+            {preEditing && (
+              <div style={{
+                position: "absolute", inset: 0, zIndex: 40, display: "grid", placeItems: "center",
+                background: "rgba(8,12,8,.72)", backdropFilter: "blur(3px)",
+              }}>
+                <div style={{ textAlign: "center", padding: 20 }}>
+                  <div style={{ fontFamily: "var(--display)", fontWeight: 800, fontStyle: "italic", fontSize: 20, color: "var(--leaf)", marginBottom: 8 }}>
+                    {t('preEditRunning')}
+                  </div>
+                  <div style={{ fontSize: 13, color: "var(--cream-2)" }}>{preEditStep}</div>
+                </div>
+              </div>
+            )}
             {previewZoom !== 1 && (
               <button
                 onClick={() => setPreviewZoom(1)}
@@ -2878,6 +2958,12 @@ export default function MontagePage() {
                 ) : (
                   // Des plans existent mais l'instant courant tombe dans un trou → écran noir.
                   null
+                )}
+
+                {/* Préchargement silencieux du plan suivant (jamais affiché). */}
+                {nextClipSrc && (
+                  <video key={nextClipSrc} src={nextClipSrc} preload="auto" muted playsInline
+                    style={{ position: "absolute", width: 1, height: 1, opacity: 0, pointerEvents: "none" }} />
                 )}
 
                 {/* Voiles de transition (flash blanc / fondu au noir) — identiques à l'export. */}

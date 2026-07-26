@@ -119,7 +119,7 @@ export default function ComposerPage() {
               <Sticker name="sparkle" size={44} float="spin" style={{ position: 'absolute', top: 14, right: 20, zIndex: 1 }} />
               <Sticker name="heart" size={34} float="A" style={{ position: 'absolute', bottom: 14, left: 24, zIndex: 1, ['--r' as string]: '-8deg' }} />
               <div style={{ position: 'relative', zIndex: 2 }}>
-                <div className="label" style={{ color: 'var(--mint)', marginBottom: 10 }}>{t('heroLabel')}</div>
+                <div className="label" style={{ color: 'var(--leaf)', marginBottom: 10 }}>{t('heroLabel')}</div>
                 <h1 className="h-display" style={{ fontSize: 38, color: 'var(--cream)', maxWidth: 600 }}>
                   {t('heroTitlePre')} <span className="acc-hl">{t('heroTitleAccent')}</span>
                 </h1>

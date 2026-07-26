@@ -51,6 +51,10 @@ export interface MontageCtx {
   // Découpe fine via transcription (hésitations, faux départs, prises refaites).
   cuttingFillers: boolean;
   cutFillers: () => void;
+  // Prémontage complet : enchaîne dérushage image + parole, sous-titres, transitions.
+  preEditing: boolean;
+  preEditStep: string | null;
+  runFullPreEdit: () => void;
   generatingDesc: boolean;
   videoDescription: string | null;
   generateVideoDescription: () => void;
@@ -311,7 +315,7 @@ export function CaptionsPanel({ ctx }: { ctx: MontageCtx }) {
         <div className="mz-ai-card">
           <div className="halo-blob" style={{ width: 140, height: 140, right: -40, top: -50, background: "radial-gradient(circle, var(--mint), transparent 70%)", opacity: .5 }} />
           <div style={{ position: "relative", zIndex: 2 }}>
-            <div className="mz-sec-label" style={{ color: "var(--mint)", marginBottom: 8 }}>{t('aiTranscriptionLabel')}</div>
+            <div className="mz-sec-label" style={{ color: "var(--leaf)", marginBottom: 8 }}>{t('aiTranscriptionLabel')}</div>
             <div style={{ fontFamily: "var(--display)", fontWeight: 800, fontStyle: "italic", fontSize: 18, letterSpacing: "-0.02em", marginBottom: 4 }}>{t('autoCaptionsTitle')}</div>
             <p style={{ fontSize: 12, color: "var(--cream-2)", marginBottom: 12, lineHeight: 1.45 }}>{t('autoCaptionsDesc')}</p>
             <button className="mz-ai-btn" disabled={!hasVideo || ctx.transcribing} onClick={ctx.generateCaptionsAI}>
@@ -842,10 +846,24 @@ export function AiPanel({ ctx }: { ctx: MontageCtx }) {
   const hasClips = ctx.clips.length > 0;
   return (
     <div className="a-section" style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+      {/* Outil principal : enchaîne tout. Les cartes suivantes servent à reprendre
+          une étape isolément si le résultat automatique ne convient pas. */}
+      <div className="mz-ai-card" style={{ boxShadow: "inset 0 0 0 1.5px var(--leaf)" }}>
+        <div className="halo-blob" style={{ width: 170, height: 170, right: -40, top: -60, background: "radial-gradient(circle, var(--leaf), transparent 70%)", opacity: .45 }} />
+        <div style={{ position: "relative", zIndex: 2 }}>
+          <div className="mz-sec-label" style={{ color: "var(--leaf)", marginBottom: 8 }}>{t('preEditLabel')}</div>
+          <div style={{ fontFamily: "var(--display)", fontWeight: 800, fontStyle: "italic", fontSize: 20, letterSpacing: "-0.02em", marginBottom: 6 }}>{t('preEditTitle')}</div>
+          <p style={{ fontSize: 12.5, color: "var(--cream-2)", marginBottom: 14, lineHeight: 1.45 }}>{t('preEditDesc')}</p>
+          <button className="mz-ai-btn" disabled={!hasVideo || ctx.preEditing} onClick={ctx.runFullPreEdit}>
+            <VIcon name="sparkles" size={16} /> {ctx.preEditing ? (ctx.preEditStep || t('preEditRunning')) : t('preEditBtn')}
+          </button>
+        </div>
+      </div>
+
       <div className="mz-ai-card">
         <div className="halo-blob" style={{ width: 150, height: 150, right: -40, top: -50, background: "radial-gradient(circle, var(--mint), transparent 70%)", opacity: .5 }} />
         <div style={{ position: "relative", zIndex: 2 }}>
-          <div className="mz-sec-label" style={{ color: "var(--mint)", marginBottom: 8 }}>{t('aiAssistantLabel')}</div>
+          <div className="mz-sec-label" style={{ color: "var(--leaf)", marginBottom: 8 }}>{t('aiAssistantLabel')}</div>
           <div style={{ fontFamily: "var(--display)", fontWeight: 800, fontStyle: "italic", fontSize: 18, letterSpacing: "-0.02em", marginBottom: 4 }}>{t('autoCaptionsTitlePeriod')}</div>
           <p style={{ fontSize: 12.5, color: "var(--cream-2)", marginBottom: 14, lineHeight: 1.45 }}>{t('autoCaptionsDescAlt')}</p>
           <button className="mz-ai-btn" disabled={!hasVideo || ctx.transcribing} onClick={ctx.generateCaptionsAI}>
@@ -854,36 +872,14 @@ export function AiPanel({ ctx }: { ctx: MontageCtx }) {
         </div>
       </div>
 
-      <div className="mz-ai-card">
-        <div className="halo-blob" style={{ width: 130, height: 130, right: -30, top: -40, background: "radial-gradient(circle, var(--mint), transparent 70%)", opacity: .4 }} />
-        <div style={{ position: "relative", zIndex: 2 }}>
-          <div className="mz-sec-label" style={{ color: "var(--mint)", marginBottom: 8 }}>{t('autoAssemblyLabel')}</div>
-          <div style={{ fontFamily: "var(--display)", fontWeight: 800, fontStyle: "italic", fontSize: 19, letterSpacing: "-0.02em", marginBottom: 4 }}>{t('oneClickAssembly')}</div>
-          <p style={{ fontSize: 12.5, color: "var(--cream-2)", marginBottom: 14, lineHeight: 1.45 }}>{t('autoAssemblyDesc')}</p>
-          <button className="mz-ai-btn" disabled={ctx.clips.length < 2 || ctx.assembling} onClick={ctx.autoAssembleAI}>
-            <VIcon name="sparkles" size={16} /> {ctx.assembling ? t('assembling') : t('generateAssembly')}
-          </button>
-        </div>
-      </div>
-
-      <div className="mz-ai-card">
-        <div className="halo-blob" style={{ width: 130, height: 130, right: -30, top: -40, background: "radial-gradient(circle, var(--mint), transparent 70%)", opacity: .4 }} />
-        <div style={{ position: "relative", zIndex: 2 }}>
-          <div className="mz-sec-label" style={{ color: "var(--mint)", marginBottom: 8 }}>{t('cutSilenceLabel')}</div>
-          <div style={{ fontFamily: "var(--display)", fontWeight: 800, fontStyle: "italic", fontSize: 19, letterSpacing: "-0.02em", marginBottom: 4 }}>{t('cutSilenceTitle')}</div>
-          <p style={{ fontSize: 12.5, color: "var(--cream-2)", marginBottom: 14, lineHeight: 1.45 }}>{t('cutSilenceDesc')}</p>
-          <button className="mz-ai-btn" disabled={!hasVideo || ctx.cuttingSilence} onClick={ctx.cutSilences}>
-            <VIcon name="scissors" size={16} /> {ctx.cuttingSilence ? t('cutSilenceWorking') : t('cutSilenceBtn')}
-          </button>
-        </div>
-      </div>
-
+      
+      
       {/* Prémontage visuel : écarte le noir, le flou, le cramé et les plans figés.
           Analyse locale (aucune clé API) — complète la coupe des silences. */}
       <div className="mz-ai-card">
         <div className="halo-blob" style={{ width: 130, height: 130, right: -30, top: -40, background: "radial-gradient(circle, var(--mint), transparent 70%)", opacity: .4 }} />
         <div style={{ position: "relative", zIndex: 2 }}>
-          <div className="mz-sec-label" style={{ color: "var(--mint)", marginBottom: 8 }}>{t('autoCutLabel')}</div>
+          <div className="mz-sec-label" style={{ color: "var(--leaf)", marginBottom: 8 }}>{t('autoCutLabel')}</div>
           <div style={{ fontFamily: "var(--display)", fontWeight: 800, fontStyle: "italic", fontSize: 19, letterSpacing: "-0.02em", marginBottom: 6 }}>{t('autoCutTitle')}</div>
           <p style={{ fontSize: 12.5, color: "var(--cream-2)", marginBottom: 14, lineHeight: 1.45 }}>{t('autoCutDesc')}</p>
           {ctx.autoCutProgress && (
@@ -901,7 +897,7 @@ export function AiPanel({ ctx }: { ctx: MontageCtx }) {
       <div className="mz-ai-card">
         <div className="halo-blob" style={{ width: 130, height: 130, right: -30, top: -40, background: "radial-gradient(circle, var(--mint), transparent 70%)", opacity: .4 }} />
         <div style={{ position: "relative", zIndex: 2 }}>
-          <div className="mz-sec-label" style={{ color: "var(--mint)", marginBottom: 8 }}>{t('fillersLabel')}</div>
+          <div className="mz-sec-label" style={{ color: "var(--leaf)", marginBottom: 8 }}>{t('fillersLabel')}</div>
           <div style={{ fontFamily: "var(--display)", fontWeight: 800, fontStyle: "italic", fontSize: 19, letterSpacing: "-0.02em", marginBottom: 6 }}>{t('fillersTitle')}</div>
           <p style={{ fontSize: 12.5, color: "var(--cream-2)", marginBottom: 14, lineHeight: 1.45 }}>{t('fillersDesc')}</p>
           <button className="mz-ai-btn" disabled={!hasVideo || ctx.cuttingFillers} onClick={ctx.cutFillers}>
@@ -910,27 +906,11 @@ export function AiPanel({ ctx }: { ctx: MontageCtx }) {
         </div>
       </div>
 
+      
       <div className="mz-ai-card">
         <div className="halo-blob" style={{ width: 130, height: 130, right: -30, top: -40, background: "radial-gradient(circle, var(--mint), transparent 70%)", opacity: .4 }} />
         <div style={{ position: "relative", zIndex: 2 }}>
-          <div className="mz-sec-label" style={{ color: "var(--mint)", marginBottom: 8 }}>{t('videoDescLabel')}</div>
-          <div style={{ fontFamily: "var(--display)", fontWeight: 800, fontStyle: "italic", fontSize: 19, letterSpacing: "-0.02em", marginBottom: 4 }}>{t('videoDescTitle')}</div>
-          <p style={{ fontSize: 12.5, color: "var(--cream-2)", marginBottom: 14, lineHeight: 1.45 }}>{t('videoDescDesc')}</p>
-          <button className="mz-ai-btn" disabled={!hasClips || ctx.generatingDesc} onClick={ctx.generateVideoDescription}>
-            <VIcon name="sparkles" size={16} /> {ctx.generatingDesc ? t('videoDescWorking') : t('videoDescBtn')}
-          </button>
-          {ctx.videoDescription && (
-            <p style={{ fontSize: 12.5, color: "var(--ink)", lineHeight: 1.5, marginTop: 12, padding: 10, borderRadius: 8, background: "var(--sunk)", border: "1px solid var(--line)", whiteSpace: "pre-wrap" }}>
-              {ctx.videoDescription}
-            </p>
-          )}
-        </div>
-      </div>
-
-      <div className="mz-ai-card">
-        <div className="halo-blob" style={{ width: 130, height: 130, right: -30, top: -40, background: "radial-gradient(circle, var(--mint), transparent 70%)", opacity: .4 }} />
-        <div style={{ position: "relative", zIndex: 2 }}>
-          <div className="mz-sec-label" style={{ color: "var(--mint)", marginBottom: 8 }}>{t('musicMoodLabel')}</div>
+          <div className="mz-sec-label" style={{ color: "var(--leaf)", marginBottom: 8 }}>{t('musicMoodLabel')}</div>
           <div style={{ fontFamily: "var(--display)", fontWeight: 800, fontStyle: "italic", fontSize: 19, letterSpacing: "-0.02em", marginBottom: 4 }}>{t('whichMusicStyle')}</div>
           <p style={{ fontSize: 12.5, color: "var(--cream-2)", marginBottom: 14, lineHeight: 1.45 }}>
             {t('musicMoodDesc')}

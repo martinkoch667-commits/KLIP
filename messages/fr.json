@@ -528,7 +528,9 @@
     "fileTooLarge10": "Fichier trop volumineux (max 10 MB)",
     "videoNotesLabel": "Notes (optionnel)",
     "videoNotesPh": "Idées, angle, infos utiles — pour plus tard.",
-    "videoCaptionLaterHint": "La légende s’écrit après le montage, quand on sait ce que la vidéo raconte."
+    "videoCaptionLaterHint": "La légende s’écrit après le montage, quand on sait ce que la vidéo raconte.",
+    "preEditLabel": "Prémontage IA",
+    "preEditHint": "Dérushage, sous-titres et transitions appliqués à l’ouverture."
   },
   "planning": {
     "bestTime": "Meilleur moment pour publier",
@@ -1729,7 +1731,17 @@
     "fillersBtn": "Nettoyer le discours",
     "fillersWorking": "Écoute…",
     "toastFillersNothing": "Rien à retirer : le discours est déjà propre.",
-    "toastFillersCut": "Discours nettoyé — {s}s retirées ✦"
+    "toastFillersCut": "Discours nettoyé — {s}s retirées ✦",
+    "preEditRunning": "Prémontage en cours",
+    "preStepRushes": "Nettoyage des rushes…",
+    "preStepSpeech": "Nettoyage du discours…",
+    "preStepCaptions": "Sous-titres…",
+    "preStepTransitions": "Transitions…",
+    "preEditDone": "Prémontage terminé ✦",
+    "preEditTitle": "Tout faire d’un coup",
+    "preEditDesc": "Dérushage image + parole, sous-titres à la charte du client, et transitions. Le montage est prêt à relire.",
+    "preEditBtn": "Lancer le prémontage",
+    "preEditLabel": "Prémontage IA"
   },
   "forgotPassword": {
     "title": "Mot de passe oublié",

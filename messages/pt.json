@@ -528,7 +528,9 @@
     "fileTooLarge10": "Ficheiro demasiado grande (máx 10 MB)",
     "videoNotesLabel": "Notas (opcional)",
     "videoNotesPh": "Ideias, ângulo, informação útil — para depois.",
-    "videoCaptionLaterHint": "A legenda escreve-se após a montagem, quando sabemos o que o vídeo conta."
+    "videoCaptionLaterHint": "A legenda escreve-se após a montagem, quando sabemos o que o vídeo conta.",
+    "preEditLabel": "Pré-montagem IA",
+    "preEditHint": "Limpeza, legendas e transições aplicadas ao abrir."
   },
   "planning": {
     "bestTime": "Melhor momento para publicar",
@@ -1729,7 +1731,17 @@
     "fillersBtn": "Limpar o discurso",
     "fillersWorking": "A ouvir…",
     "toastFillersNothing": "Nada a remover: o discurso já está limpo.",
-    "toastFillersCut": "Discurso limpo — {s}s removidos ✦"
+    "toastFillersCut": "Discurso limpo — {s}s removidos ✦",
+    "preEditRunning": "Pré-montagem em curso",
+    "preStepRushes": "A limpar brutos…",
+    "preStepSpeech": "A limpar discurso…",
+    "preStepCaptions": "Legendas…",
+    "preStepTransitions": "Transições…",
+    "preEditDone": "Pré-montagem concluída ✦",
+    "preEditTitle": "Fazer tudo de uma vez",
+    "preEditDesc": "Limpeza de imagem e discurso, legendas com a marca e transições. A montagem fica pronta a rever.",
+    "preEditBtn": "Iniciar pré-montagem",
+    "preEditLabel": "Pré-montagem IA"
   },
   "forgotPassword": {
     "title": "Esqueceu a palavra-passe",
