@@ -1758,7 +1758,9 @@
     "errFormat": "Format audio non pris en charge par la transcription.",
     "errFetchMedia": "Impossible de récupérer la vidéo depuis le stockage.",
     "moveClipLeft": "Déplacer avant",
-    "moveClipRight": "Déplacer après"
+    "moveClipRight": "Déplacer après",
+    "toastUploadFailed": "« {name} » n’a pas pu être envoyé — plan ignoré.",
+    "toastMediaMissing": "Fichier introuvable pour « {name} ». Réimportez ce plan."
   },
   "forgotPassword": {
     "title": "Mot de passe oublié",

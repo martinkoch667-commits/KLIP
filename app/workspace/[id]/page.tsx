@@ -493,6 +493,10 @@ export default function WorkspacePage() {
   const [typeMenuPost, setTypeMenuPost] = useState<string | null>(null);
   // Prémontage IA à l'ouverture du montage (coché par défaut), par post vidéo.
   const [preEdit, setPreEdit] = useState<Record<string, boolean>>({});
+  // Date du jour figée APRÈS montage : évaluée au rendu, `new Date()` peut différer
+  // entre le HTML du serveur et celui du client → erreur d'hydratation React.
+  const [todayISO, setTodayISO] = useState("");
+  useEffect(() => { setTodayISO(new Date().toISOString().slice(0, 10)); }, []);
 
   // ── Share link ────────────────────────────────────────────────────────────
   const [shareOpen, setShareOpen] = useState(false);
@@ -914,13 +918,16 @@ export default function WorkspacePage() {
       if (item.groupedFiles && item.groupedFiles.length > 1) {
         // ── Montage groupé : on téléverse tous les plans et on construit la timeline ──
         const clips: Record<string, unknown>[] = [];
+        const failed: string[] = [];
         for (const f of item.groupedFiles) {
           const isVid = f.type.startsWith("video/");
           const bucket = isVid ? "videos" : "photos";
           const ext = f.name.split(".").pop() ?? (isVid ? "mp4" : "jpg");
           const path = `${id}/${crypto.randomUUID()}.${ext}`;
           const { error: upErr } = await supabase.storage.from(bucket).upload(path, f, { upsert: true });
-          if (upErr) continue;
+          // Un échec silencieux produisait un montage pointant vers des fichiers
+          // inexistants (lecteur figé, 400 en boucle). On le signale.
+          if (upErr) { failed.push(f.name); continue; }
           const url = supabase.storage.from(bucket).getPublicUrl(path).data.publicUrl;
           const dur = isVid ? (await getVideoDurationSafe(url) || 5) : 3; // fallback 5s si métadonnées illisibles
           clips.push({
@@ -931,7 +938,14 @@ export default function WorkspacePage() {
             speed: 1, filterId: "none", lum: 0, con: 0, sat: 0, transitionIn: "cut", transitionDur: 0.4, vol: 1,
           });
         }
-        if (clips.length) { pUrl = clips[0].src as string; montageJson = { clips, formatId: "story" }; }
+        if (failed.length) {
+          alert(`${failed.length} fichier(s) n'ont pas pu être envoyés et ont été retirés du montage :\n• ${failed.join("\n• ")}`);
+        }
+        if (!clips.length) {
+          setPosts((prev) => prev.map((pp) => (pp.localId === item.localId ? { ...pp, status: "idle", error: "upload" } : pp)));
+          return; // rien n'a pu être envoyé : on ne crée pas un montage vide
+        }
+        pUrl = clips[0].src as string; montageJson = { clips, formatId: "story" };
       } else if (item.file) {
         const ext = item.file.name.split(".").pop() ?? (item.isVideo ? "mp4" : "jpg");
         const path = `${id}/${crypto.randomUUID()}.${ext}`;
@@ -1842,7 +1856,7 @@ export default function WorkspacePage() {
                 <input
                   type="date"
                   value={shareExpiryDate}
-                  min={new Date().toISOString().slice(0, 10)}
+                  min={todayISO}
                   onChange={e => setShareExpiryDate(e.target.value)}
                   style={{ fontFamily: 'var(--sans)', fontSize: 13, padding: '8px 12px', borderRadius: 8, border: '1px solid var(--line)', background: 'var(--sunk)', color: 'var(--ink)', width: '100%' }}
                 />

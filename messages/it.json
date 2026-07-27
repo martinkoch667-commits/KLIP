@@ -1758,7 +1758,9 @@
     "errFormat": "Formato audio non supportato dalla trascrizione.",
     "errFetchMedia": "Impossibile recuperare il video dallo storage.",
     "moveClipLeft": "Sposta prima",
-    "moveClipRight": "Sposta dopo"
+    "moveClipRight": "Sposta dopo",
+    "toastUploadFailed": "«{name}» non è stato caricato — clip ignorata.",
+    "toastMediaMissing": "File mancante per «{name}». Reimporta questa clip."
   },
   "forgotPassword": {
     "title": "Password dimenticata",

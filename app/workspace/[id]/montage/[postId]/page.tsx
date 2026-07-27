@@ -466,6 +466,7 @@ export default function MontagePage() {
   // Quel PLAN chaque lecteur est prêt à jouer (déjà positionné sur son trimStart).
   const slotClipRef = useRef<[string | null, string | null]>([null, null]);
   const lastSeekRef = useRef(0); // temporisation des recalages de dérive
+  const mediaErrRef = useRef<Set<string>>(new Set()); // sources déjà signalées comme illisibles
   const [slot, setSlot] = useState<0 | 1>(0);
   const loadedSrcRef = useRef<string | null>(null);
   const overlayVideoRefs = useRef<Map<string, HTMLVideoElement>>(new Map());
@@ -1029,7 +1030,8 @@ export default function MontagePage() {
       const ext = file.name.split(".").pop() || (isVideo ? "mp4" : "jpg");
       const path = `${workspaceId}/${postId}-${crypto.randomUUID()}.${ext}`;
       const { error } = await supabase.storage.from(bucket).upload(path, file, { upsert: true, contentType: file.type });
-      if (error) continue;
+      // Ne jamais avaler l'échec : un plan sans fichier fige le lecteur.
+      if (error) { toast(t('toastUploadFailed', { name: file.name }), "error"); continue; }
       const { data: urlData } = supabase.storage.from(bucket).getPublicUrl(path);
       const dur = isVideo ? await getVideoDuration(urlData.publicUrl) : PHOTO_DEFAULT_DUR;
       setClips((prev) => [...prev, {
@@ -1064,7 +1066,8 @@ export default function MontagePage() {
       const ext = file.name.split(".").pop() || (isVideo ? "mp4" : "jpg");
       const path = `${workspaceId}/${postId}-${crypto.randomUUID()}.${ext}`;
       const { error } = await supabase.storage.from(bucket).upload(path, file, { upsert: true, contentType: file.type });
-      if (error) continue;
+      // Ne jamais avaler l'échec : un plan sans fichier fige le lecteur.
+      if (error) { toast(t('toastUploadFailed', { name: file.name }), "error"); continue; }
       const { data: urlData } = supabase.storage.from(bucket).getPublicUrl(path);
       const dur = isVideo ? await getVideoDuration(urlData.publicUrl) : PHOTO_DEFAULT_DUR;
       if (lane && lane !== "video" && (lane === "new" || /^v\d+$/.test(lane))) {
@@ -3132,6 +3135,16 @@ export default function MontagePage() {
                       ref={ref}
                       onTimeUpdate={shown ? onVideoTimeUpdate : undefined}
                       onEnded={shown ? onVideoEnded : undefined}
+                      onError={() => {
+                        // Source illisible (fichier absent du stockage, format refusé…).
+                        // Sans ce signal, le lecteur restait figé sans explication.
+                        const ac = activeClipRef.current;
+                        if (!shown || !ac) return;
+                        if (mediaErrRef.current.has(ac.src)) return;
+                        mediaErrRef.current.add(ac.src);
+                        setPlaying(false);
+                        toast(t('toastMediaMissing', { name: ac.name }), "error");
+                      }}
                       playsInline
                       muted={!shown}
                       style={shown

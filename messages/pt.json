@@ -1758,7 +1758,9 @@
     "errFormat": "Formato de áudio não suportado pela transcrição.",
     "errFetchMedia": "Não foi possível obter o vídeo do armazenamento.",
     "moveClipLeft": "Mover antes",
-    "moveClipRight": "Mover depois"
+    "moveClipRight": "Mover depois",
+    "toastUploadFailed": "«{name}» não foi enviado — plano ignorado.",
+    "toastMediaMissing": "Ficheiro em falta para «{name}». Reimporte este plano."
   },
   "forgotPassword": {
     "title": "Esqueceu a palavra-passe",

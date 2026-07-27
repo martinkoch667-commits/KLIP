@@ -9,6 +9,12 @@
       "autoPort": true
     },
     {
+      "name": "klip-prod",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["next", "start", "-p", "3002"],
+      "port": 3002
+    },
+    {
       "name": "bymoment-landing",
       "runtimeExecutable": "npx",
       "runtimeArgs": ["serve", "-l", "3001", "."],

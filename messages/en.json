@@ -1758,7 +1758,9 @@
     "errFormat": "Audio format not supported by transcription.",
     "errFetchMedia": "Could not fetch the video from storage.",
     "moveClipLeft": "Move earlier",
-    "moveClipRight": "Move later"
+    "moveClipRight": "Move later",
+    "toastUploadFailed": "“{name}” could not be uploaded — clip skipped.",
+    "toastMediaMissing": "File missing for “{name}”. Re-import this clip."
   },
   "forgotPassword": {
     "title": "Forgot password",

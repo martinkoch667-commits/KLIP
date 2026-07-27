@@ -1758,7 +1758,9 @@
     "errFormat": "Formato de audio no admitido por la transcripción.",
     "errFetchMedia": "No se pudo recuperar el vídeo del almacenamiento.",
     "moveClipLeft": "Mover antes",
-    "moveClipRight": "Mover después"
+    "moveClipRight": "Mover después",
+    "toastUploadFailed": "«{name}» no se pudo subir — plano omitido.",
+    "toastMediaMissing": "Archivo no encontrado para «{name}». Vuelve a importarlo."
   },
   "forgotPassword": {
     "title": "Contraseña olvidada",

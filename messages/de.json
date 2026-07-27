@@ -1758,7 +1758,9 @@
     "errFormat": "Audioformat wird von der Transkription nicht unterstützt.",
     "errFetchMedia": "Video konnte nicht aus dem Speicher geladen werden.",
     "moveClipLeft": "Nach vorne",
-    "moveClipRight": "Nach hinten"
+    "moveClipRight": "Nach hinten",
+    "toastUploadFailed": "„{name}“ konnte nicht hochgeladen werden – Clip übersprungen.",
+    "toastMediaMissing": "Datei fehlt für „{name}“. Clip erneut importieren."
   },
   "forgotPassword": {
     "title": "Passwort vergessen",
