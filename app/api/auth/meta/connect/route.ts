@@ -22,7 +22,11 @@ export async function GET(request: NextRequest) {
   const params = new URLSearchParams({
     client_id: APP_ID,
     redirect_uri: REDIRECT_URI,
-    scope: "instagram_business_basic,instagram_business_manage_messages,instagram_business_manage_comments,instagram_business_content_publish,instagram_business_manage_insights",
+    // On ne demande QUE les permissions réellement utilisées par le code :
+    // basic (profil + médias) et content_publish (création/publication). Meta
+    // exige une démo vidéo par permission à l'App Review — demander messages,
+    // comments ou insights sans code correspondant fait rejeter la soumission.
+    scope: "instagram_business_basic,instagram_business_content_publish",
     state: workspaceId,
     response_type: "code",
   });
