@@ -536,6 +536,11 @@ input.ed-range::-moz-range-thumb {
   .plan-cal-scroll { overflow-x: auto !important; -webkit-overflow-scrolling: touch; }
   .plan-cal-grid { min-width: 680px; }
 
+  /* Planning — fenêtre de post : l'aperçu du rendu passe SOUS la composition
+     plutôt que de comprimer les deux colonnes sur un écran étroit. */
+  .plan-post-body { grid-template-columns: 1fr !important; overflow-y: auto; }
+  .plan-post-body > aside { border-left: none !important; border-top: 1px solid var(--line); }
+
   /* Workspace topbar — hide nav links on mobile (accessible via sidebar) */
   .ws-topbar-link { display: none !important; }
 
