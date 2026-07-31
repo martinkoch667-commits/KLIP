@@ -21,6 +21,7 @@ import SelectionOverlay from '@/components/SelectionOverlay';
 import Sidebar from '@/components/Sidebar';
 import { TEXT_TEMPLATES, TT_CATS, TT_REF_W, TextTemplateThumb, adaptTemplateToCharter, type BrandKit, type TextTemplate } from './textTemplates';
 import { LAYOUT_TEMPLATES, LAYOUT_CATS, LAYOUT_STYLES, LayoutThumb, adaptLayoutToCharter, type LayoutTemplate } from './layoutTemplates';
+import { registerFontFamily, weightLabel, type FontFamily } from '@/lib/fontFiles';
 import { STICKERS, STICKER_CATS, stickerDataUri, type Sticker } from './stickers';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -956,6 +957,7 @@ function layerName(el: CanvasEl): string {
 interface CtxToolbarProps {
   sel: CanvasEl;
   allFonts: string[];
+  brandFamilies?: FontFamily[];
   brandColors: string[];
   stageW: number;
   stageH: number;
@@ -973,7 +975,7 @@ interface CtxToolbarProps {
   fxPanel?: 'effects' | 'position' | null;
 }
 
-function EditorContextToolbar({ sel, allFonts, brandColors, stageW, stageH, onUpdate, onAlign, onDuplicate, onDelete, onCrop, onSetBg, onMaskPhoto, onRemoveBg, bgRemoving, onLayerAction, onOpenFx, fxPanel }: CtxToolbarProps) {
+function EditorContextToolbar({ sel, allFonts, brandFamilies, brandColors, stageW, stageH, onUpdate, onAlign, onDuplicate, onDelete, onCrop, onSetBg, onMaskPhoto, onRemoveBg, bgRemoving, onLayerAction, onOpenFx, fxPanel }: CtxToolbarProps) {
   const T = useTranslations('editor');
   const [pop, setPop] = React.useState<string | null>(null);
   const u = (patch: Partial<CanvasEl>) => onUpdate(patch);
@@ -1127,6 +1129,26 @@ function EditorContextToolbar({ sel, allFonts, brandColors, stageW, stageH, onUp
             </div>
           )}
         </div>
+        {/* Graisses de la famille : n'apparaît que si la police choisie est une
+            famille de la charte importée avec plusieurs variantes. Konva accepte
+            une graisse numérique dans fontStyle (« italic 700 » = CSS valide). */}
+        {(() => {
+          const fam = brandFamilies?.find(f => f.family === textSel.fontFamily);
+          if (!fam || fam.variants.length < 2) return null;
+          const cur = textSel.fontStyle ?? 'normal';
+          return (
+            <select
+              value={cur}
+              onChange={e => u({ fontStyle: e.target.value } as Partial<TextEl>)}
+              title="Graisse de la famille"
+              style={{ height: 32, borderRadius: 8, border: '1px solid var(--line)', background: 'var(--white)', color: 'var(--ink)', fontSize: 12, fontWeight: 700, fontFamily: 'var(--sans)', padding: '0 8px', cursor: 'pointer', maxWidth: 130 }}>
+              {fam.variants.map(v => {
+                const val = `${v.italic ? 'italic ' : ''}${v.weight}`;
+                return <option key={val} value={val}>{weightLabel(v.weight, v.italic)}</option>;
+              })}
+            </select>
+          );
+        })()}
         {/* Effets → ouvre le panneau gauche (aperçus façon Canva) */}
         <TextBtn on={fxPanel === 'effects'} onClick={() => onOpenFx?.('effects')}>
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="3"/><path d="M12 1v3M12 20v3M4.22 4.22l2.12 2.12M17.66 17.66l2.12 2.12M1 12h3M20 12h3M4.22 19.78l2.12-2.12M17.66 6.34l2.12-2.12"/></svg>
@@ -2457,6 +2479,7 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
   const slideContainerRefs = useRef<(HTMLDivElement | null)[]>([]);
   const [customFonts, setCustomFonts] = useState<{ name: string; url: string }[]>([]);
   const [brandFontNames, setBrandFontNames] = useState<string[]>([]);
+  const [brandFamilies, setBrandFamilies] = useState<FontFamily[]>([]);
 
   // ── UI tool + workspace ───────────────────────────────────────────────────
   const [tool, setTool] = useState<'design'|'elements'|'text'|'photos'|'brand'|'upload'|'calques'|null>(null);
@@ -2484,7 +2507,7 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
     accent_color?: string;
     logo_url?: string | null; logo_dark_url?: string | null;
     brand_assets?: string[] | null;
-    font_family?: string; font_primary_url?: string | null;
+    font_family?: string; font_primary_url?: string | null; brand_fonts?: FontFamily[] | null;
     font_secondary?: string; font_secondary_url?: string | null;
     words_to_use?: string; words_to_avoid?: string;
     tone?: string; sector?: string;
@@ -2628,6 +2651,15 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
               document.head.appendChild(lnk);
             }
           }
+          // Familles complètes de la charte : chaque graisse et chaque italique
+          // est déclarée au navigateur, puis la famille rejoint le sélecteur.
+          const fams = Array.isArray(w.brand_fonts) ? w.brand_fonts : [];
+          for (const fam of fams) {
+            if (!fam?.family || !Array.isArray(fam.variants)) continue;
+            await registerFontFamily(fam);
+            if (!bfNames.includes(fam.family)) bfNames.push(fam.family);
+          }
+          setBrandFamilies(fams);
           if (bfNames.length > 0) setBrandFontNames(bfNames);
         }
         const sw = stageWRef.current;
@@ -4729,6 +4761,7 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
           <EditorContextToolbar
             sel={selectedEl}
             allFonts={[...FONTS, ...brandFontNames, ...customFonts.map(f => f.name)]}
+                brandFamilies={brandFamilies}
             brandColors={[workspaceData?.primary_color, workspaceData?.secondary_color, workspaceData?.accent_color].filter(Boolean) as string[]}
             stageW={stageW}
             stageH={stageH}
@@ -5436,6 +5469,7 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
               <EditorContextToolbar
                 sel={selectedEl}
                 allFonts={[...FONTS, ...brandFontNames, ...customFonts.map(f => f.name)]}
+                brandFamilies={brandFamilies}
                 brandColors={[workspaceData?.primary_color, workspaceData?.secondary_color, workspaceData?.accent_color].filter(Boolean) as string[]}
                 stageW={stageW}
                 stageH={stageH}

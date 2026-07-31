@@ -11,6 +11,7 @@ import {
   effectiveSubStyle, charterSubPresets, DEFAULT_SUB_POS, type SubCustom,
 } from "@/app/workspace/[id]/montage/[postId]/constants";
 import SubtitleStyleEditor, { SubtitlePreviewChip, SubtitlePreviewStage } from "@/components/SubtitleStyleEditor";
+import { parseFontFile, groupFontFiles, weightLabel, type FontFamily } from "@/lib/fontFiles";
 import { MiniTemplatePreview, type TemplateDraft } from "@/components/TemplateEditor";
 
 // Dynamically import TemplateEditor (no SSR — requires canvas API)
@@ -229,6 +230,8 @@ export default function NewWorkspacePage() {
   const customPrimaryRef = useRef<HTMLInputElement>(null);
   const customSecondaryRef = useRef<HTMLInputElement>(null);
   const [customPrimary, setCustomPrimary] = useState<CustomFont | null>(null);
+  // Familles complètes importées (plusieurs fichiers = plusieurs graisses).
+  const [fontFiles, setFontFiles] = useState<File[]>([]);
   const [customSecondary, setCustomSecondary] = useState<CustomFont | null>(null);
 
   // Active font names (custom overrides Google selection)
@@ -316,6 +319,25 @@ export default function NewWorkspacePage() {
 
   // ── Custom font handler ───────────────────────────────────────────────────
 
+  // Import d'une FAMILLE : on accepte plusieurs fichiers d'un coup, on déduit la
+  // graisse et l'italique de chaque nom, et on déclare tout au navigateur pour que
+  // l'aperçu montre les vraies graisses.
+  function handleFontFamilyFiles(files: File[], target: "primary" | "secondary") {
+    if (files.length === 0) return;
+    setFontFiles(prev => [...prev, ...files]);
+    for (const f of files) {
+      const { family, weight, italic } = parseFontFile(f.name);
+      const blobUrl = URL.createObjectURL(f);
+      const style = document.createElement("style");
+      style.textContent = `@font-face { font-family: "${family}"; src: url("${blobUrl}"); font-weight: ${weight}; font-style: ${italic ? "italic" : "normal"}; }`;
+      document.head.appendChild(style);
+    }
+    // Le fichier le plus « régulier » devient le représentant de la famille.
+    const rep = [...files].sort((a, b) =>
+      Math.abs(parseFontFile(a.name).weight - 400) - Math.abs(parseFontFile(b.name).weight - 400))[0];
+    handleCustomFont(rep, target);
+  }
+
   function handleCustomFont(file: File, target: "primary" | "secondary") {
     const family = file.name.replace(/\.[^.]+$/, "").replace(/[-_]+/g, " ").trim();
     const blobUrl = URL.createObjectURL(file);
@@ -391,6 +413,18 @@ export default function NewWorkspacePage() {
         fontSecondaryUrl = await uploadFile(customSecondary.file, "brand-fonts", user.id);
       }
 
+      // Familles complètes : on téléverse CHAQUE variante et on les regroupe.
+      // C'est ce qui permet à l'éditeur de proposer ensuite toutes les graisses.
+      let brandFonts: FontFamily[] = [];
+      if (fontFiles.length > 0) {
+        const uploaded: { name: string; url: string }[] = [];
+        for (const f of fontFiles) {
+          const url = await uploadFile(f, "brand-fonts", user.id);
+          if (url) uploaded.push({ name: f.name, url });
+        }
+        brandFonts = groupFontFiles(uploaded);
+      }
+
       // Legacy brand_voice_prompt for backward compat
       const voiceParts: string[] = [];
       if (tone)                  voiceParts.push(`Ton : ${tone}`);
@@ -430,6 +464,7 @@ export default function NewWorkspacePage() {
           font_primary_url: fontPrimaryUrl,
           font_secondary: activeFontSecondary || null,
           font_secondary_url: fontSecondaryUrl,
+          brand_fonts: brandFonts,
         }),
       });
 
@@ -969,8 +1004,8 @@ export default function NewWorkspacePage() {
                     </svg>
                     {t('uploadCustomFont')}
                   </button>
-                  <input ref={customPrimaryRef} type="file" accept=".ttf,.otf,.woff,.woff2" style={{ display: "none" }}
-                    onChange={e => { const f = e.target.files?.[0]; if (f) handleCustomFont(f, "primary"); e.target.value = ""; }}
+                  <input ref={customPrimaryRef} type="file" accept=".ttf,.otf,.woff,.woff2" multiple style={{ display: "none" }}
+                    onChange={e => { handleFontFamilyFiles(Array.from(e.target.files ?? []), "primary"); e.target.value = ""; }}
                   />
                 </div>
 
@@ -1090,8 +1125,8 @@ export default function NewWorkspacePage() {
                     </svg>
                     {t('uploadCustomFont')}
                   </button>
-                  <input ref={customSecondaryRef} type="file" accept=".ttf,.otf,.woff,.woff2" style={{ display: "none" }}
-                    onChange={e => { const f = e.target.files?.[0]; if (f) handleCustomFont(f, "secondary"); e.target.value = ""; }}
+                  <input ref={customSecondaryRef} type="file" accept=".ttf,.otf,.woff,.woff2" multiple style={{ display: "none" }}
+                    onChange={e => { handleFontFamilyFiles(Array.from(e.target.files ?? []), "secondary"); e.target.value = ""; }}
                   />
                 </div>
 
