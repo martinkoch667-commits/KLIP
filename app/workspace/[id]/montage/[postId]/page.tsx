@@ -217,6 +217,20 @@ function charterSubDefault(ws: {
   return { styleId, custom: custom ?? { hi: acc as string }, pos };
 }
 
+// Positions sur la timeline d'une liste de plans. Fonction PURE : les étapes du
+// prémontage l'appellent sur le résultat de l'étape précédente, sans dépendre de
+// l'état React (qui n'est pas encore à jour quand on enchaîne).
+function computeStarts(list: MontageClip[]) {
+  let acc = 0;
+  return list.map((c) => {
+    acc += Math.max(0, c.gapBefore ?? 0);
+    const start = acc;
+    const dur = clipTimelineDur(c);
+    acc += dur;
+    return { ...c, start, end: acc, dur };
+  });
+}
+
 const PHOTO_DEFAULT_DUR = 3;
 
 // Migration douce depuis l'ancien format (Lot 1) { id, kind, name, src, dur }
@@ -754,10 +768,7 @@ export default function MontagePage() {
   void histTick; // force le recalcul de canUndo/canRedo à chaque mutation d'historique
 
   // ── Temps cumulés des clips ─────────────────────────────────────────────────
-  const clipStarts = useMemo(() => {
-    let acc = 0;
-    return clips.map((c) => { acc += Math.max(0, c.gapBefore ?? 0); const start = acc; const dur = clipTimelineDur(c); acc += dur; return { ...c, start, end: acc, dur }; });
-  }, [clips]);
+  const clipStarts = useMemo(() => computeStarts(clips), [clips]);
   const clipsEnd = clipStarts.length ? clipStarts[clipStarts.length - 1].end : 0;
   // Fin réelle du projet = dernière frame de TOUT ce qui est posé sur la timeline
   // (plans, incrustations vidéo/photo, sons, textes, sous-titres) — pas seulement la
@@ -847,6 +858,9 @@ export default function MontagePage() {
     v.playbackRate = activeClip.speed;
     const localTime = activeClip.trimStart + (time - activeClip.start) * activeClip.speed;
     if (Math.abs(v.currentTime - localTime) > 0.35) v.currentTime = Math.max(0, localTime);
+    // La temporisation anti-rafale ne doit pas retarder le recalage d'un NOUVEAU
+    // plan : sinon l'image restait figée jusqu'à une demi-seconde à chaque coupe.
+    lastSeekRef.current = 0;
     if (playing) v.play().catch(() => {});
     els[target === 0 ? 1 : 0]?.pause(); // l'autre ne doit pas jouer en fond
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -967,9 +981,15 @@ export default function MontagePage() {
         // Recaler seulement en cas de vraie dérive, et pas plus d'une fois par
         // demi-seconde : un re-seek en rafale empêche le décodeur de repartir
         // (l'image restait bloquée sur deux frames en boucle).
-        if (isFinite(expected) && Math.abs(vEl.currentTime - expected) > 0.5 && !vEl.seeking && now - lastSeekRef.current > 500) {
+        const drift = Math.abs(vEl.currentTime - expected);
+        // `ended` : la source a atteint sa fin alors que le plan continue sur la
+        // timeline (trimEnd = durée du fichier) — play() n'y peut rien, il faut
+        // repositionner. On ne temporise pas dans ce cas.
+        const mustRecover = vEl.ended || drift > 1.5;
+        if (isFinite(expected) && !vEl.seeking && (mustRecover || (drift > 0.5 && now - lastSeekRef.current > 500))) {
           lastSeekRef.current = now;
           vEl.currentTime = Math.max(0, expected);
+          if (vEl.paused) vEl.play().catch(() => {});
         }
         const g = clipAudioGainAt(ac, t - ac.start);
         vEl.volume = mutedLanesRef.current.has("video") ? 0 : (isFinite(g) ? Math.max(0, Math.min(1, g)) : 0);
@@ -1474,19 +1494,20 @@ export default function MontagePage() {
   // ── Découpe fine : hésitations, faux départs, prises refaites ───────────────
   // Nécessite la transcription (clé côté serveur). Chaque plan est scindé en
   // segments à garder, dans l'ordre — le reste disparaît de la timeline.
-  async function cutFillers() {
-    if (cuttingFillers) return;
-    const targets = selectedClipId
-      ? clips.filter((c) => c.id === selectedClipId && c.kind === "video")
-      : clips.filter((c) => c.kind === "video");
-    if (!targets.length) { toast(t('toastAutoCutNoVideo'), "error"); return; }
+  async function cutFillers(input?: MontageClip[]): Promise<MontageClip[]> {
+    const base = input ?? clips;
+    if (cuttingFillers) return base;
+    const targets = selectedClipId && !input
+      ? base.filter((c) => c.id === selectedClipId && c.kind === "video")
+      : base.filter((c) => c.kind === "video");
+    if (!targets.length) { toast(t('toastAutoCutNoVideo'), "error"); return base; }
     setCuttingFillers(true);
     try {
       const ids = new Set(targets.map((c) => c.id));
       const next: MontageClip[] = [];
       let removed = 0, changed = false;
       let failure: string | null = null;
-      for (const c of clips) {
+      for (const c of base) {
         if (!ids.has(c.id)) { next.push(c); continue; }
         const r = await transcribeWords(c.src);
         if (!r) { next.push(c); continue; }
@@ -1508,19 +1529,24 @@ export default function MontagePage() {
         });
       }
       // Un échec de transcription prime sur « rien à retirer ».
-      if (failure) { toast(failure, "error"); return; }
-      if (!changed) { toast(t('toastFillersNothing')); return; }
+      if (failure) { toast(failure, "error"); return base; }
+      if (!changed) { toast(t('toastFillersNothing')); return base; }
       setClips(next);
       toast(t('toastFillersCut', { s: removed.toFixed(1) }));
+      return next;
     } catch {
       toast(t('toastTranscriptionError'), "error");
+      return base;
     } finally {
       setCuttingFillers(false);
     }
   }
 
-  async function generateCaptionsAI() {
-    const vids = clipStarts.filter((c) => c.kind === "video");
+  async function generateCaptionsAI(input?: MontageClip[]) {
+    // On calcule les positions à partir des plans FOURNIS : quand le prémontage
+    // enchaîne les étapes, l'état React n'est pas encore à jour et `clipStarts`
+    // décrirait l'ancienne timeline (sous-titres totalement décalés).
+    const vids = computeStarts(input ?? clips).filter((c) => c.kind === "video");
     if (!vids.length) return;
     setTranscribing(true);
     try {
@@ -1717,15 +1743,16 @@ export default function MontagePage() {
   // ── Prémontage : coupe les passages inexploitables (analyse d'image) ───────
   // 100 % local, sans clé API. Complète la découpe « au son » (silences,
   // hésitations) qui, elle, dépend de la transcription (GROQ_API_KEY).
-  async function autoCutQuality() {
-    const vids = clips.filter((c) => c.kind === "video");
-    if (autoCutting) return;
-    if (!vids.length) { toast(t('toastAutoCutNoVideo'), "error"); return; }
+  async function autoCutQuality(input?: MontageClip[]): Promise<MontageClip[]> {
+    const base = input ?? clips;
+    const vids = base.filter((c) => c.kind === "video");
+    if (autoCutting) return base;
+    if (!vids.length) { toast(t('toastAutoCutNoVideo'), "error"); return base; }
     setAutoCutting(true);
     setAutoCutDone(null);
     try {
       let trimmedCount = 0, savedSec = 0;
-      const next = [...clips];
+      const next = [...base];
       for (let i = 0; i < next.length; i++) {
         const c = next[i];
         if (c.kind !== "video") continue;
@@ -1755,6 +1782,7 @@ export default function MontagePage() {
       } else {
         toast(t('toastAutoCutNothing'));
       }
+      return next;
     } finally {
       setAutoCutting(false);
       setAutoCutProgress(null);
@@ -1771,11 +1799,12 @@ export default function MontagePage() {
     setPreEditing(true);
     try {
       setPreEditStep(t('preStepRushes'));
-      await autoCutQuality();
+      let work = await autoCutQuality();
       setPreEditStep(t('preStepSpeech'));
-      await cutFillers();
+      work = await cutFillers(work);
       setPreEditStep(t('preStepCaptions'));
-      await generateCaptionsAI();
+      // on passe les plans RÉELS issus des deux étapes précédentes
+      await generateCaptionsAI(work);
       setPreEditStep(t('preStepTransitions'));
       // Enchaînement plus vif : fondu court entre les plans.
       applyTransitionToAll("fade", 0.25);
@@ -2888,8 +2917,10 @@ export default function MontagePage() {
     time, total, logoUrl, uploadingAudio, transcribing, isRecordingVO,
     croppingClipId, smartCropClip, assembling, autoAssembleAI, suggestingMusic, musicSuggestion, suggestMusicMoodAI,
     cuttingSilence, cutSilences,
-    autoCutting, autoCutQuality, autoCutProgress,
-    cuttingFillers, cutFillers,
+    autoCutting, autoCutProgress,
+    // enveloppés : onClick={fn} passerait l'événement comme liste de plans
+    autoCutQuality: () => { void autoCutQuality(); },
+    cuttingFillers, cutFillers: () => { void cutFillers(); },
     preEditing, preEditStep, runFullPreEdit,
     generatingDesc, videoDescription, generateVideoDescription,
     toast, updateClip, splitAtPlayhead,
@@ -2897,7 +2928,7 @@ export default function MontagePage() {
     removeSelected: () => selectedClipId && removeClip(selectedClipId),
     applyTransitionToAll,
     addTitle, updateTitle, removeTitle,
-    addCaption, updateCaption, removeCaption, setSubStyleId: pickSubStyle, setCaptionLength, generateCaptionsAI,
+    addCaption, updateCaption, removeCaption, setSubStyleId: pickSubStyle, setCaptionLength, generateCaptionsAI: () => { void generateCaptionsAI(); },
     setSubCustom: routedSetSubCustom, resetSubCustom: resetSubCustomRouted, applySubTemplate,
     addSticker, updateSticker, removeSticker,
     toggleProgressBar, importAudio, removeAudioTrack, setAudioVol, setAudioFade, toggleRecordVO,

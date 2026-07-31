@@ -360,11 +360,96 @@ function BestTimeStrip({ dayOfWeek, label }: { dayOfWeek: number; label: string 
 // ─── Calendar right rail ──────────────────────────────────────────────────────
 
 
-function CalendarRail({ posts, weekDays, chipColor, workspaceId }: {
+// ─── Aperçu du feed Instagram ────────────────────────────────────────────────
+// Projection de la grille du profil telle qu'elle sera une fois les posts publiés :
+// le plus récent en haut à gauche, comme sur Instagram. Les stories sont exclues
+// (elles n'apparaissent jamais dans la grille du profil), les reels et carrousels
+// y figurent avec leur pastille.
+function FeedPreview({ posts, workspaceId, handle }: {
+  posts: Post[];
+  workspaceId: string;
+  handle?: string | null;
+}) {
+  const [open, setOpen] = useState(true);
+
+  const feedPosts = posts
+    .filter(p => (p.post_type ?? "post") !== "story")
+    .filter(p => p.scheduled_at || p.status === "published")
+    .sort((a, b) => {
+      const da = a.scheduled_at ? new Date(a.scheduled_at).getTime() : 0;
+      const db = b.scheduled_at ? new Date(b.scheduled_at).getTime() : 0;
+      return db - da; // le plus récent d'abord, comme le profil
+    })
+    .slice(0, 12);
+
+  const upcoming = feedPosts.filter(p => p.status !== "published").length;
+
+  return (
+    <div style={{ padding: 16, borderBottom: "1px solid var(--line)" }}>
+      <button onClick={() => setOpen(o => !o)}
+        style={{ width: "100%", display: "flex", alignItems: "center", gap: 8, padding: 0, background: "transparent", border: "none", cursor: "pointer", marginBottom: open ? 12 : 0 }}>
+        <span style={{ color: "var(--ink-2)", display: "grid" }}><IconInstagram /></span>
+        <span className="label" style={{ margin: 0 }}>Aperçu du feed</span>
+        <span style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 6 }}>
+          {upcoming > 0 && (
+            <span style={{ fontSize: 10.5, fontWeight: 800, color: "var(--mint-2)", background: "var(--mint-soft)", padding: "2px 7px", borderRadius: 99 }}>
+              +{upcoming} à venir
+            </span>
+          )}
+          <span style={{ color: "var(--ink-3)", display: "grid", transform: open ? "rotate(90deg)" : "none", transition: "transform .15s" }}><IconChevR /></span>
+        </span>
+      </button>
+
+      {open && (feedPosts.length === 0 ? (
+        <p style={{ fontSize: 11.5, color: "var(--ink-3)", margin: 0, lineHeight: 1.5 }}>
+          Programme des posts pour voir le feed du compte se construire ici.
+        </p>
+      ) : (
+        <>
+          {handle && (
+            <p style={{ fontSize: 11.5, color: "var(--ink-3)", margin: "0 0 8px", fontWeight: 600 }}>@{handle}</p>
+          )}
+          {/* Gouttière de 2px et vignettes 4:5 : le rendu actuel de la grille Instagram */}
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 2, borderRadius: 6, overflow: "hidden" }}>
+            {feedPosts.map(p => {
+              const urls = carouselUrlsOf(p);
+              const type = (p.post_type ?? "post") as PostType;
+              const isPublished = p.status === "published";
+              return (
+                <Link key={p.id} href={`/workspace/${workspaceId}/editor/${p.id}`}
+                  title={`${POST_TYPE_CFG[type]?.label ?? "Post"}${p.scheduled_at ? ` — ${new Date(p.scheduled_at).toLocaleDateString("fr-FR", { day: "numeric", month: "short" })}` : ""}`}
+                  style={{ position: "relative", aspectRatio: "4 / 5", background: "var(--sunk)", display: "block", overflow: "hidden" }}>
+                  <MediaThumb raw={urls[0]} style={{ opacity: isPublished ? 1 : 0.92 }} />
+                  {/* Les posts pas encore publiés se distinguent par un liseré */}
+                  {!isPublished && (
+                    <span style={{ position: "absolute", inset: 0, border: "1.5px dashed var(--mint-2)", borderRadius: 2, pointerEvents: "none" }} />
+                  )}
+                  {(type === "reel" || type === "carrousel") && (
+                    <span style={{ position: "absolute", top: 4, right: 4, color: "#fff", filter: "drop-shadow(0 1px 2px rgba(0,0,0,.6))", display: "grid" }}>
+                      {type === "reel"
+                        ? <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 3l14 9-14 9V3Z"/></svg>
+                        : <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="8" y="3" width="13" height="13" rx="2"/><path d="M4 8v11a2 2 0 0 0 2 2h11"/></svg>}
+                    </span>
+                  )}
+                </Link>
+              );
+            })}
+          </div>
+          <p style={{ fontSize: 10.5, color: "var(--ink-3)", margin: "8px 0 0", lineHeight: 1.45 }}>
+            En pointillé : les posts à venir. Les stories n&apos;apparaissent pas dans la grille du profil.
+          </p>
+        </>
+      ))}
+    </div>
+  );
+}
+
+function CalendarRail({ posts, weekDays, chipColor, workspaceId, igHandle }: {
   posts: Post[];
   weekDays: Date[];
   chipColor: string;
   workspaceId: string;
+  igHandle?: string | null;
 }) {
   const t = useTranslations('planning');
   const locale = useLocale();
@@ -391,6 +476,8 @@ function CalendarRail({ posts, weekDays, chipColor, workspaceId }: {
 
   return (
     <aside className="plan-rail" style={{ width: 288, flexShrink: 0, borderLeft: "1px solid var(--line)", background: "var(--paper)", display: "flex", flexDirection: "column", gap: 0, overflowY: "auto" }}>
+      <FeedPreview posts={posts} workspaceId={workspaceId} handle={igHandle} />
+
       {/* Week overview */}
       <div style={{ padding: 16, borderBottom: "1px solid var(--line)" }}>
         <div className="label" style={{ marginBottom: 12 }}>{t('thisWeek')}</div>
@@ -1212,7 +1299,7 @@ function PlanningContent() {
       </div>
 
       {/* ── Calendar Rail ─────────────────────────────────────────────────────── */}
-      <CalendarRail posts={posts} weekDays={weekDays} chipColor={chipColor} workspaceId={id} />
+      <CalendarRail posts={posts} weekDays={weekDays} chipColor={chipColor} workspaceId={id} igHandle={workspace?.instagram_username} />
 
       {/* ── Post panel modal ─────────────────────────────────────────────────── */}
       {selectedPost && (
@@ -1330,6 +1417,35 @@ function PlanningContent() {
                   <span style={{ fontSize: 11, color: "var(--ink-3)", marginTop: 6, display: "block" }}>
                     {isVid ? t('videoTypeHint') : t('photoTypeHint')}
                   </span>
+                  {/* Changer de type change le format du visuel : on prévient et on renvoie
+                      vers l'éditeur, qui rouvre le post au nouveau format pour vérification. */}
+                  {(() => {
+                    const originalType = (selectedPost.post_type as PostType) ?? "post";
+                    const fromAspect = aspectForType(originalType);
+                    const toAspect = aspectForType(panelPostType);
+                    if (panelPostType === originalType || fromAspect === toAspect) return null;
+                    const editorHref = isVid
+                      ? `/workspace/${id}/montage/${selectedPost.id}`
+                      : `/workspace/${id}/editor/${selectedPost.id}`;
+                    return (
+                      <div style={{ marginTop: 10, padding: "10px 11px", borderRadius: 9, background: "#C8732B12", border: "1px solid #C8732B40", display: "flex", gap: 9, alignItems: "flex-start" }}>
+                        <span style={{ color: "#C8732B", flexShrink: 0, marginTop: 1, display: "grid" }}>
+                          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/><path d="M12 9v4M12 17h.01"/></svg>
+                        </span>
+                        <div style={{ minWidth: 0 }}>
+                          <p style={{ margin: 0, fontSize: 12, fontWeight: 700, color: "var(--ink)", lineHeight: 1.4 }}>
+                            Le format passe de {fromAspect.replace(/ /g, "")} à {toAspect.replace(/ /g, "")}
+                          </p>
+                          <p style={{ margin: "3px 0 0", fontSize: 11.5, color: "var(--ink-2)", lineHeight: 1.45 }}>
+                            Enregistre, puis rouvre le visuel dans l&apos;éditeur : il s&apos;ouvrira au nouveau format et il te restera à vérifier que le design s&apos;y est bien adapté.
+                          </p>
+                          <Link href={editorHref} className="btn btn-ghost btn-sm" style={{ marginTop: 8, height: 28, fontSize: 11.5 }}>
+                            <IconEdit /> Ouvrir dans l&apos;éditeur
+                          </Link>
+                        </div>
+                      </div>
+                    );
+                  })()}
                 </div>
               );
             })()}

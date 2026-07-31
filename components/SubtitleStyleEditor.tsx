@@ -245,19 +245,251 @@ export default function SubtitleStyleEditor({
 }
 
 // Aperçu d'un sous-titre rendu avec le style résolu (même source que le montage).
-export function SubtitlePreviewChip({ styleId, custom, fontSize = 22, words = ["Vos", "clips"] }: {
+// activeIdx pilote le mot en surbrillance : -1 = aucun (rendu statique), sinon on
+// reproduit la révélation progressive de drawCaptions (export.ts).
+export function SubtitlePreviewChip({ styleId, custom, fontSize = 22, words = ["Vos", "clips"], activeIdx, progress }: {
   styleId: string; custom?: SubCustom; fontSize?: number; words?: string[];
+  activeIdx?: number; progress?: number;
 }) {
   const e = effectiveSubStyle(styleId, custom);
   const css = subtitleBoxCss(e, fontSize) as React.CSSProperties;
+  const animating = typeof activeIdx === "number" && activeIdx >= 0;
   return (
     <span style={{ ...css, display: "inline-block", maxWidth: "100%", transform: e.rotation ? `rotate(${e.rotation}deg)` : undefined }}>
-      {words.map((w, i) => (
-        <React.Fragment key={i}>
-          <span style={{ color: i === 1 ? e.hi : e.fg }}>{applySubCase(w, e.caseMode)}</span>
-          {i < words.length - 1 ? " " : ""}
-        </React.Fragment>
-      ))}
+      {words.map((w, i) => {
+        // Mêmes paliers d'opacité que l'export canvas : mot à venir 0.28,
+        // mot révélé 0.35 → 1 selon sa propre progression.
+        let alpha = 1;
+        let color = i === 1 ? e.hi : e.fg;
+        if (animating) {
+          const wordProg = Math.max(0, Math.min(1, (progress ?? 0) * words.length - i));
+          alpha = i <= activeIdx! ? 0.35 + 0.65 * wordProg : 0.28;
+          color = i === activeIdx ? e.hi : e.fg;
+        }
+        return (
+          <React.Fragment key={i}>
+            <span style={{ color, opacity: alpha }}>{applySubCase(w, e.caseMode)}</span>
+            {i < words.length - 1 ? " " : ""}
+          </React.Fragment>
+        );
+      })}
     </span>
+  );
+}
+
+// ─── Scène d'aperçu ──────────────────────────────────────────────────────────
+// Cadre 9:16 sur une VRAIE image, pour juger la lisibilité du sous-titre comme
+// sur une vidéo. Les fonds viennent de /api/pexels (repli Openverse sans clé) ;
+// on peut aussi déposer une image de son propre rush. Repli sur un décor
+// synthétique si le réseau ne répond pas. Le sous-titre se place à la souris et
+// se rejoue mot à mot avec la même mécanique que l'export.
+
+// Requêtes volontairement COURTES : la banque anonyme (Openverse) renvoie des 403
+// sur les requêtes longues, et refuse les rafales. On charge donc une scène à la
+// fois, à la demande, jamais les trois en parallèle au montage du composant.
+// Requêtes volontairement COURTES et NEUTRES : la banque anonyme (Openverse)
+// renvoie des 403 sur les requêtes longues et refuse les rafales, et son premier
+// résultat n'est pas curé — d'où le bouton « autre image » pour retirer au sort.
+// Les trois scènes couvrent ce qui décide de la lisibilité : clair, sombre, chargé.
+const TEST_SCENES = [
+  { id: 'clair',  q: 'landscape', label: 'Fond clair' },
+  { id: 'sombre', q: 'night',     label: 'Fond sombre' },
+  { id: 'charge', q: 'city',      label: 'Fond chargé' },
+];
+
+const DEMO_PHRASE = "Voilà à quoi ressemblent vos sous-titres";
+
+export function SubtitlePreviewStage({
+  styleId, custom, pos, onPosChange, fontSize = 14, phrase = DEMO_PHRASE, hint,
+}: {
+  styleId: string;
+  custom?: SubCustom;
+  pos: { x: number; y: number };
+  onPosChange: (p: { x: number; y: number }) => void;
+  fontSize?: number;
+  phrase?: string;
+  hint?: string;
+}) {
+  const stageRef = React.useRef<HTMLDivElement>(null);
+  const [scene, setScene] = React.useState(0);
+  // Plusieurs candidats par scène : « autre image » se contente d'avancer l'index,
+  // sans nouvelle requête réseau.
+  const [pool, setPool] = React.useState<string[][]>([[], [], []]);
+  const [pick, setPick] = React.useState<number[]>([0, 0, 0]);
+  const [ownFrame, setOwnFrame] = React.useState<string | null>(null);
+  const fileRef = React.useRef<HTMLInputElement>(null);
+
+  // Lecture animée
+  const [playing, setPlaying] = React.useState(false);
+  const [progress, setProgress] = React.useState(0);
+  const rafRef = React.useRef<number | null>(null);
+
+  const words = React.useMemo(() => phrase.split(/\s+/).filter(Boolean), [phrase]);
+  const DURATION = 2600; // ms — cadence proche d'un bloc de sous-titre réel
+
+  // Charge la scène demandée si on ne l'a pas déjà. Une seule requête à la fois.
+  React.useEffect(() => {
+    if (pool[scene].length > 0) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const r = await fetch(`/api/pexels?query=${encodeURIComponent(TEST_SCENES[scene].q)}&page=1`);
+        if (!r.ok) return;
+        const j = await r.json();
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const list: string[] = (j?.photos ?? [])
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          .map((p: any) => p?.src?.large || p?.src?.medium)
+          .filter((s: unknown): s is string => typeof s === 'string')
+          .slice(0, 8)
+          .map((s: string) => `/api/proxy-image?url=${encodeURIComponent(s)}`);
+        if (!cancelled && list.length) setPool(prev => prev.map((v, i) => (i === scene ? list : v)));
+      } catch { /* on garde le décor de repli */ }
+    })();
+    return () => { cancelled = true; };
+  }, [scene, pool]);
+
+  React.useEffect(() => () => { if (rafRef.current) cancelAnimationFrame(rafRef.current); }, []);
+
+  // requestAnimationFrame est gelé dans un onglet en arrière-plan : sans ça, revenir
+  // sur l'onglet laisserait la lecture figée en plein milieu et le bouton bloqué
+  // sur « Lecture… ». On termine proprement l'animation en partant.
+  React.useEffect(() => {
+    const onHide = () => {
+      if (document.hidden && rafRef.current) {
+        cancelAnimationFrame(rafRef.current);
+        rafRef.current = null;
+        setProgress(1);
+        setPlaying(false);
+      }
+    };
+    document.addEventListener('visibilitychange', onHide);
+    return () => document.removeEventListener('visibilitychange', onHide);
+  }, []);
+
+  const play = () => {
+    if (rafRef.current) cancelAnimationFrame(rafRef.current);
+    const t0 = performance.now();
+    setPlaying(true);
+    const tick = (now: number) => {
+      const p = (now - t0) / DURATION;
+      if (p >= 1) { setProgress(1); setPlaying(false); rafRef.current = null; return; }
+      setProgress(p);
+      rafRef.current = requestAnimationFrame(tick);
+    };
+    rafRef.current = requestAnimationFrame(tick);
+  };
+
+  function onPointerDown(e: React.PointerEvent) {
+    const box = stageRef.current;
+    if (!box) return;
+    e.preventDefault();
+    (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId);
+    const move = (clientX: number, clientY: number) => {
+      const r = box.getBoundingClientRect();
+      onPosChange({
+        x: Math.round(Math.max(6, Math.min(94, ((clientX - r.left) / r.width) * 100))),
+        y: Math.round(Math.max(6, Math.min(94, ((clientY - r.top) / r.height) * 100))),
+      });
+    };
+    move(e.clientX, e.clientY);
+    const onMove = (ev: PointerEvent) => move(ev.clientX, ev.clientY);
+    const onUp = () => { window.removeEventListener("pointermove", onMove); window.removeEventListener("pointerup", onUp); };
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onUp);
+  }
+
+  const sceneList = pool[scene];
+  const bg = ownFrame ?? (sceneList.length ? sceneList[pick[scene] % sceneList.length] : null);
+  const activeIdx = playing || progress > 0
+    ? Math.min(words.length - 1, Math.floor(progress * words.length))
+    : -1;
+
+  return (
+    <div>
+      <div
+        ref={stageRef}
+        onPointerDown={onPointerDown}
+        style={{
+          position: "relative", aspectRatio: "9 / 16", borderRadius: 12, overflow: "hidden",
+          cursor: "grab", touchAction: "none", userSelect: "none",
+          background: "linear-gradient(160deg,#3b4a52 0%,#22303a 42%,#131c22 100%)",
+          boxShadow: "inset 0 0 0 1px rgba(255,255,255,.08)",
+        }}
+      >
+        {bg ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={bg} alt="" draggable={false}
+            style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+        ) : (
+          // Repli si la banque d'images ne répond pas : on garde un décor lisible.
+          <>
+            <div style={{ position: "absolute", inset: 0, background: "radial-gradient(60% 40% at 50% 22%, rgba(255,236,190,.28), transparent 70%)" }} />
+            <div style={{ position: "absolute", left: "50%", top: "34%", transform: "translate(-50%,-50%)", width: "42%", aspectRatio: "1", borderRadius: "50%", background: "rgba(255,255,255,.10)" }} />
+          </>
+        )}
+        <div style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: "34%", background: "linear-gradient(to top, rgba(0,0,0,.45), transparent)" }} />
+
+        <div style={{ position: "absolute", left: pos.x + "%", top: pos.y + "%", transform: "translate(-50%,-50%)", maxWidth: "88%", textAlign: "center", pointerEvents: "none" }}>
+          <SubtitlePreviewChip
+            styleId={styleId} custom={custom} fontSize={fontSize}
+            words={words} activeIdx={activeIdx} progress={progress}
+          />
+        </div>
+
+        <div style={{ position: "absolute", right: 8, bottom: 8, zIndex: 3, display: "flex", gap: 6 }}>
+          {!ownFrame && sceneList.length > 1 && (
+            <button type="button"
+              onClick={e => { e.stopPropagation(); setPick(prev => prev.map((v, i) => (i === scene ? v + 1 : v))); }}
+              onPointerDown={e => e.stopPropagation()}
+              title="Autre image de test"
+              style={{
+                display: "grid", placeItems: "center", width: 28, height: 28,
+                borderRadius: 99, border: "none", cursor: "pointer",
+                background: "rgba(12,42,29,.82)", color: "#EEEDE3",
+              }}>
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-3-6.7M21 4v4h-4"/></svg>
+            </button>
+          )}
+          <button type="button" onClick={e => { e.stopPropagation(); play(); }}
+            onPointerDown={e => e.stopPropagation()}
+            title="Rejouer l'animation"
+            style={{
+              display: "inline-flex", alignItems: "center", gap: 6,
+              padding: "6px 11px", borderRadius: 99, border: "none", cursor: "pointer",
+              background: "rgba(12,42,29,.82)", color: "#EEEDE3",
+              fontSize: 11.5, fontWeight: 800, fontFamily: "var(--sans)",
+            }}>
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M6 4l14 8-14 8V4Z" /></svg>
+            {playing ? "Lecture…" : "Animer"}
+          </button>
+        </div>
+      </div>
+
+      {/* Choix du fond de test : la lisibilité dépend entièrement de l'image */}
+      <div style={{ display: "flex", gap: 5, marginTop: 8, flexWrap: "wrap" }}>
+        {TEST_SCENES.map((s, i) => (
+          <button type="button" key={s.id}
+            onClick={() => { setOwnFrame(null); setScene(i); }}
+            className={!ownFrame && scene === i ? "btn btn-primary btn-sm" : "btn btn-ghost btn-sm"}
+            style={{ fontSize: 11, padding: "4px 9px" }}>
+            {s.label}
+          </button>
+        ))}
+        <button type="button" onClick={() => fileRef.current?.click()}
+          className={ownFrame ? "btn btn-primary btn-sm" : "btn btn-ghost btn-sm"}
+          style={{ fontSize: 11, padding: "4px 9px" }}>
+          Mon image
+        </button>
+        <input ref={fileRef} type="file" accept="image/*" style={{ display: "none" }}
+          onChange={e => {
+            const f = e.target.files?.[0];
+            e.target.value = "";
+            if (f) setOwnFrame(URL.createObjectURL(f));
+          }} />
+      </div>
+
+      {hint && <p style={{ fontSize: 11.5, color: "var(--ink-3)", margin: "8px 0 0", lineHeight: 1.4 }}>{hint}</p>}
+    </div>
   );
 }

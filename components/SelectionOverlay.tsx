@@ -216,6 +216,10 @@ export default function SelectionOverlay({ el, stageRef, onChange, onDragEnd, zo
     const snapOuter   = el.outerRadius ?? 50;
     const snapInner   = el.innerRadius ?? 25;
     const startFontSize = el.fontSize ?? 32;
+    const startPadding  = el.padding;
+    const startPaddingH = el.paddingH;
+    const startPaddingV = el.paddingV;
+    const startLetterSpacing = el.letterSpacing;
     const elType      = el.type;
     const startCustomPts = elType === 'vector' && el.shape === 'custom' && Array.isArray(el.points)
       ? (el.points as Array<{x:number;y:number;cpIn?:{x:number;y:number};cpOut?:{x:number;y:number}}>).map(p => ({ x:p.x, y:p.y, cpIn: p.cpIn ? {...p.cpIn} : undefined, cpOut: p.cpOut ? {...p.cpOut} : undefined }))
@@ -299,21 +303,39 @@ export default function SelectionOverlay({ el, stageRef, onChange, onDragEnd, zo
 
         // ── Text: corner handles scale fontSize proportionally, mid handles width-only ──
         if (elType === 'text') {
-          let nw = startW;
-          let origin = { x: startElX, y: startElY };
-          if (['mr', 'br', 'tr'].includes(handleId)) {
-            nw = startW + ldx;
-          } else if (['ml', 'bl', 'tl'].includes(handleId)) {
-            nw = startW - ldx;
-            origin = shiftOrigin(ldx, 0);
-          }
+          const pullsLeft = ['ml', 'bl', 'tl'].includes(handleId);
+          let nw = pullsLeft ? startW - ldx : startW + ldx;
           nw = Math.max(20, nw);
           const isCornerHandle = ['tl', 'tr', 'bl', 'br'].includes(handleId);
+
           if (isCornerHandle) {
-            const scaleRatio = nw / startW;
-            const newFontSize = Math.max(8, Math.round(startFontSize * scaleRatio));
-            onChangeRef.current({ x: origin.x, y: origin.y, width: nw, fontSize: newFontSize });
+            // Mise à l'échelle homogène : un seul ratio pilote police, largeur,
+            // marges internes et interlettrage. On dérive la largeur de la taille
+            // de police RETENUE (et non l'inverse) : sinon l'arrondi de fontSize
+            // désynchronise les deux et le texte repasse à la ligne en cours de
+            // glissement. Les marges suivent le même ratio, ce qui garde la zone
+            // de texte (largeur - 2*padding) proportionnelle et donc la coupure
+            // de lignes strictement identique.
+            const newFontSize = Math.max(8, Math.round(startFontSize * (nw / startW) * 100) / 100);
+            const r = newFontSize / startFontSize;
+            const lockedW = Math.max(20, startW * r);
+            const lockedH = startH * r;
+            const origin = shiftOrigin(
+              pullsLeft ? startW - lockedW : 0,
+              ['tl', 'tr'].includes(handleId) ? startH - lockedH : 0,
+            );
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const patch: Record<string, any> = {
+              x: origin.x, y: origin.y, width: lockedW, fontSize: newFontSize,
+            };
+            if (startPadding  != null) patch.padding  = startPadding  * r;
+            if (startPaddingH != null) patch.paddingH = startPaddingH * r;
+            if (startPaddingV != null) patch.paddingV = startPaddingV * r;
+            if (startLetterSpacing) patch.letterSpacing = startLetterSpacing * r;
+            onChangeRef.current(patch);
           } else {
+            // Poignées latérales : largeur seule, la police ne bouge pas.
+            const origin = shiftOrigin(pullsLeft ? startW - nw : 0, 0);
             onChangeRef.current({ x: origin.x, y: origin.y, width: nw });
           }
           return;

@@ -10,7 +10,7 @@ import ColorPicker from "@/components/ColorPicker";
 import {
   effectiveSubStyle, charterSubPresets, DEFAULT_SUB_POS, type SubCustom,
 } from "@/app/workspace/[id]/montage/[postId]/constants";
-import SubtitleStyleEditor, { SubtitlePreviewChip } from "@/components/SubtitleStyleEditor";
+import SubtitleStyleEditor, { SubtitlePreviewChip, SubtitlePreviewStage } from "@/components/SubtitleStyleEditor";
 import { MiniTemplatePreview, type TemplateDraft } from "@/components/TemplateEditor";
 
 // Dynamically import TemplateEditor (no SSR — requires canvas API)
@@ -204,7 +204,6 @@ export default function NewWorkspacePage() {
   const [subAdvanced, setSubAdvanced] = useState(false); // panneau de personnalisation ouvert
   // Position des sous-titres dans le cadre (%), réglée au doigt sur l'aperçu vidéo.
   const [subPos, setSubPos] = useState<{ x: number; y: number }>(DEFAULT_SUB_POS);
-  const subStageRef = useRef<HTMLDivElement>(null);
   const logoRef = useRef<HTMLInputElement>(null);
   const logoDarkRef = useRef<HTMLInputElement>(null);
   const assetsRef = useRef<HTMLInputElement>(null);
@@ -257,25 +256,8 @@ export default function NewWorkspacePage() {
     [primaryColor, secondaryColor, accentColor, activeFontPrimary],
   );
 
-  // Glisser le sous-titre dans le cadre d'aperçu pour choisir sa position.
-  function onSubStagePointerDown(e: React.PointerEvent) {
-    const box = subStageRef.current;
-    if (!box) return;
-    e.preventDefault();
-    (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId);
-    const move = (clientX: number, clientY: number) => {
-      const r = box.getBoundingClientRect();
-      setSubPos({
-        x: Math.round(Math.max(6, Math.min(94, ((clientX - r.left) / r.width) * 100))),
-        y: Math.round(Math.max(6, Math.min(94, ((clientY - r.top) / r.height) * 100))),
-      });
-    };
-    move(e.clientX, e.clientY);
-    const onMove = (ev: PointerEvent) => move(ev.clientX, ev.clientY);
-    const onUp = () => { window.removeEventListener("pointermove", onMove); window.removeEventListener("pointerup", onUp); };
-    window.addEventListener("pointermove", onMove);
-    window.addEventListener("pointerup", onUp);
-  }
+  // Le glisser-placer du sous-titre vit désormais dans SubtitlePreviewStage,
+  // partagé avec l'éditeur de montage.
 
   // Applique un preset de la charte (et mémorise lequel est actif).
   function applySubPreset(p: { id: string; styleId: string; custom: SubCustom }) {
@@ -1179,26 +1161,13 @@ export default function NewWorkspacePage() {
                       {/* Aperçu « comme sur la vidéo » — on juge la lisibilité et on place le texte */}
                       <div>
                         <span style={{ ...labelStyle, marginBottom: 8 }}>{t('subPreviewLabel')}</span>
-                        <div
-                          ref={subStageRef}
-                          onPointerDown={onSubStagePointerDown}
-                          style={{
-                            position: "relative", aspectRatio: "9 / 16", borderRadius: 12, overflow: "hidden",
-                            cursor: "grab", touchAction: "none", userSelect: "none",
-                            background: "linear-gradient(160deg,#3b4a52 0%,#22303a 42%,#131c22 100%)",
-                            boxShadow: "inset 0 0 0 1px rgba(255,255,255,.08)",
-                          }}
-                        >
-                          {/* décor synthétique : simule un plan filmé pour juger le contraste */}
-                          <div style={{ position: "absolute", inset: 0, background: "radial-gradient(60% 40% at 50% 22%, rgba(255,236,190,.28), transparent 70%)" }} />
-                          <div style={{ position: "absolute", left: "50%", top: "34%", transform: "translate(-50%,-50%)", width: "42%", aspectRatio: "1", borderRadius: "50%", background: "rgba(255,255,255,.10)" }} />
-                          <div style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: "34%", background: "linear-gradient(to top, rgba(0,0,0,.55), transparent)" }} />
-
-                          {/* le sous-titre, à sa position réelle */}
-                          <div style={{ position: "absolute", left: subPos.x + "%", top: subPos.y + "%", transform: "translate(-50%,-50%)", maxWidth: "88%", textAlign: "center", pointerEvents: "none" }}>
-                            <SubtitlePreviewChip styleId={subtitleStyleId} custom={subtitleCustom} fontSize={14} />
-                          </div>
-                        </div>
+                        <SubtitlePreviewStage
+                          styleId={subtitleStyleId}
+                          custom={subtitleCustom}
+                          pos={subPos}
+                          onPosChange={setSubPos}
+                          fontSize={14}
+                        />
                         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, marginTop: 8 }}>
                           <p style={{ fontSize: 11.5, color: "var(--ink-3)", margin: 0, lineHeight: 1.4 }}>{t('subPreviewHint')}</p>
                           <button type="button" onClick={() => setSubPos(DEFAULT_SUB_POS)} className="btn btn-ghost btn-sm" style={{ flexShrink: 0, fontSize: 11 }}>

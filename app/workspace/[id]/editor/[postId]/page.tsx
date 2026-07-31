@@ -20,6 +20,7 @@ import ColorPicker from '@/components/ColorPicker';
 import SelectionOverlay from '@/components/SelectionOverlay';
 import Sidebar from '@/components/Sidebar';
 import { TEXT_TEMPLATES, TT_CATS, TT_REF_W, TextTemplateThumb, adaptTemplateToCharter, type BrandKit, type TextTemplate } from './textTemplates';
+import { LAYOUT_TEMPLATES, LAYOUT_CATS, LAYOUT_STYLES, LayoutThumb, adaptLayoutToCharter, type LayoutTemplate } from './layoutTemplates';
 import { STICKERS, STICKER_CATS, stickerDataUri, type Sticker } from './stickers';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -209,10 +210,13 @@ function roleMaxLines(role?: string): number {
 // mots, donc peut produire PLUS de lignes (ex. "NOUVELLE COCCINELLE" -> 2 lignes) et le
 // bloc/hitbox se retrouvait trop court -> lignes basses non cliquables. On reproduit ici
 // l'algorithme glouton de Konva pour obtenir la hauteur réelle.
-function countLines(text: string, fontSize: number, font: string, fontStyle: string, areaW: number): number {
+// Renvoie le nombre de lignes ET la largeur de la plus longue, pour pouvoir caler
+// le fond coloré sur l'encombrement réel du texte plutôt que sur la boîte.
+function wrapMetrics(text: string, fontSize: number, font: string, fontStyle: string, areaW: number): { lines: number; maxLineWidth: number } {
   const w = Math.max(1, areaW);
   const spaceW = measureTextWidth(' ', fontSize, font, fontStyle);
   let lines = 0;
+  let maxLineWidth = 0;
   for (const para of text.split('\n')) {
     const words = para.split(' ');
     let lineW = 0;
@@ -223,16 +227,22 @@ function countLines(text: string, fontSize: number, font: string, fontStyle: str
         // Mot plus large que la zone : Konva le coupe par caractères.
         if (lineW > 0) { paraLines++; lineW = 0; }
         paraLines += Math.ceil(wordW / w) - 1;
+        maxLineWidth = w;
         lineW = wordW % w;
         continue;
       }
       const add = lineW === 0 ? wordW : lineW + spaceW + wordW;
-      if (add > w && lineW > 0) { paraLines++; lineW = wordW; }
+      if (add > w && lineW > 0) { maxLineWidth = Math.max(maxLineWidth, lineW); paraLines++; lineW = wordW; }
       else { lineW = add; }
     }
+    maxLineWidth = Math.max(maxLineWidth, lineW);
     lines += paraLines;
   }
-  return Math.max(1, lines);
+  return { lines: Math.max(1, lines), maxLineWidth: Math.min(w, maxLineWidth) };
+}
+
+function countLines(text: string, fontSize: number, font: string, fontStyle: string, areaW: number): number {
+  return wrapMetrics(text, fontSize, font, fontStyle, areaW).lines;
 }
 // Calcule la taille de police qui fait tenir le texte dans sa largeur + maxLines.
 // Ne change QUE la taille (jamais police ni couleur). Ne fait que réduire (max = taille du design).
@@ -740,14 +750,17 @@ function ColorRow({ label, value, onChange, brandColors }: { label: string; valu
   );
 }
 
-function UnsplashThumb({ src, onAdd, onBg }: { src: string; onAdd: () => void; onBg: () => void }) {
+function UnsplashThumb({ src, dragSrc, onAdd, onBg }: { src: string; dragSrc?: string; onAdd: () => void; onBg: () => void }) {
   const T = useTranslations('editor');
   const [hovered, setHovered] = useState(false);
   return (
     <div style={{ position: 'relative', aspectRatio: '1', borderRadius: 4, overflow: 'hidden', cursor: 'pointer' }}
       onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)}>
       {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src={src} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+      <img src={src} alt="" draggable
+        // On glisse la pleine résolution, pas la vignette affichée.
+        onDragStart={e => e.dataTransfer.setData('application/x-klip-image', dragSrc ?? src)}
+        style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
       {hovered && (
         <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', flexDirection: 'column', gap: 4, alignItems: 'center', justifyContent: 'center' }}>
           <button onClick={onAdd} style={{ padding: '4px 8px', background: 'var(--cream)', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 10, fontWeight: 700 }}>{T('addCanvas')}</button>
@@ -1897,6 +1910,190 @@ function PositionPanel({ sel, stageW, stageH, elements, selectedId, onUpdate, on
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
+// ─── Écran de composition IA ─────────────────────────────────────────────────
+// Plein cadre (position fixed) : la barre d'outils de l'éditeur restait visible
+// par-dessus l'ancien calque, qui n'était qu'absolu dans la zone de travail.
+// Parti pris : au lieu d'un dégradé + logo, on MONTRE la composition en train de
+// se faire — une maquette miniature où les blocs se posent un par un. Les motifs
+// viennent tous de la landing : fond crème, cadre de sélection « fourmis » violet,
+// curseur collaboratif étiqueté, cartes flottantes leaf/forest, étoiles.
+const GEN_STEPS: {
+  key: string;
+  label: string;
+  box: React.CSSProperties;   // bloc posé dans la maquette
+  cursor: { x: string; y: string };
+}[] = [
+  { key: 'photo', label: 'On lit votre photo',
+    box: { left: 8, top: 8, right: 8, bottom: 8, borderRadius: 9, background: 'linear-gradient(150deg,#2A4A38,#16301F 60%,#0F2418)' },
+    cursor: { x: '52%', y: '34%' } },
+  { key: 'scrim', label: 'La charte du client s’applique',
+    box: { left: 8, right: 8, bottom: 8, height: 104, borderRadius: 9, background: 'linear-gradient(180deg,rgba(7,33,23,0),rgba(7,33,23,.86))' },
+    cursor: { x: '62%', y: '62%' } },
+  { key: 'title', label: 'Le titre trouve sa place',
+    box: { left: 18, bottom: 62, width: 122, height: 24, borderRadius: 4, background: '#F1F0E5' },
+    cursor: { x: '30%', y: '73%' } },
+  { key: 'sub', label: 'Textes et marges recalés, rien ne déborde',
+    box: { left: 18, bottom: 44, width: 88, height: 10, borderRadius: 3, background: 'rgba(241,240,229,.5)' },
+    cursor: { x: '24%', y: '82%' } },
+  { key: 'cta', label: 'Les couleurs de la marque arrivent',
+    box: { left: 18, bottom: 18, width: 66, height: 20, borderRadius: 999, background: '#BDF2A0' },
+    cursor: { x: '20%', y: '90%' } },
+];
+
+function AiGeneratingOverlay({ title, detail }: { title: string; detail?: string }) {
+  const [step, setStep] = useState(0);
+  useEffect(() => {
+    // Boucle : on rejoue la composition tant que l'IA travaille.
+    const id = setInterval(() => setStep(s => (s + 1) % (GEN_STEPS.length + 2)), 1250);
+    return () => clearInterval(id);
+  }, []);
+
+  const active = Math.min(step, GEN_STEPS.length - 1);
+  const cur = GEN_STEPS[active].cursor;
+
+  return (
+    <div className="klipgen" role="status" aria-live="polite">
+      <div className="klipgen-stage">
+        {/* Étoiles de la charte, posées autour de la scène */}
+        <svg className="klipgen-star klipgen-s1 floatA" width="26" height="26" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 0L14 10L24 12L14 14L12 24L10 14L0 12L10 10Z" fill="#BDF2A0" /></svg>
+        <svg className="klipgen-star klipgen-s2 floatB" width="17" height="17" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 0L14 10L24 12L14 14L12 24L10 14L0 12L10 10Z" fill="#6656D9" /></svg>
+
+        {/* Cartes flottantes — mêmes pastilles que la landing */}
+        <span className="klipgen-card klipgen-card-leaf floatA">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M12 3l1.6 5.4L19 10l-5.4 1.6L12 17l-1.6-5.4L5 10l5.4-1.6L12 3Z"/></svg>
+          Votre charte
+        </span>
+        <span className="klipgen-card klipgen-card-forest floatB">Voix du client</span>
+
+        {/* Maquette miniature : les blocs se posent un par un */}
+        <div className="klipgen-canvas">
+          {GEN_STEPS.map((b, i) => (
+            <span
+              key={b.key}
+              className={`klipgen-block${i <= active && step < GEN_STEPS.length + 2 ? ' in' : ''}`}
+              style={b.box}
+            />
+          ))}
+          {/* Cadre de sélection « fourmis » sur le bloc en cours de pose.
+              Seule la géométrie est reprise : passer tout le style repeindrait
+              aussi le fond du bloc par-dessus la maquette. */}
+          <div className="klipgen-ants" aria-hidden="true" style={{
+            left: GEN_STEPS[active].box.left, top: GEN_STEPS[active].box.top,
+            right: GEN_STEPS[active].box.right, bottom: GEN_STEPS[active].box.bottom,
+            width: GEN_STEPS[active].box.width, height: GEN_STEPS[active].box.height,
+          }}>
+            {/* Le SVG est un élément remplacé : posé directement en absolu avec
+                left+right il garderait sa largeur intrinsèque (300px) au lieu de
+                s'étirer. D'où ce conteneur qui porte la géométrie. */}
+            <svg><rect x="1" y="1" rx="4" /></svg>
+          </div>
+
+          {/* Curseur collaboratif qui vient poser chaque bloc. Placé DANS la
+              maquette : ses coordonnées sont en % du cadre, pas de la scène. */}
+          <div className="klipgen-cur" style={{ left: cur.x, top: cur.y }} aria-hidden="true">
+            <svg width="19" height="19" viewBox="0 0 24 24"><path d="M3.5 2.2 L11 20.5 L13.6 12.6 L21.5 10 Z" fill="#6656D9" stroke="#fff" strokeWidth="1.8" strokeLinejoin="round"/></svg>
+            <span className="klipgen-cur-tag">Klip</span>
+          </div>
+        </div>
+      </div>
+
+      <div className="klipgen-copy">
+        <h2>{title}</h2>
+        <p className="klipgen-step">{detail || GEN_STEPS[active].label}</p>
+        <div className="klipgen-dots" aria-hidden="true">
+          {GEN_STEPS.map((b, i) => (
+            <span key={b.key} className={i <= active ? 'on' : ''} />
+          ))}
+        </div>
+        <p className="klipgen-reassure">Quelques secondes, et le visuel est prêt à retoucher.</p>
+      </div>
+
+      <style>{`
+        .klipgen {
+          position: fixed; inset: 0; z-index: 5000;
+          background: #F1F0E5;
+          display: flex; flex-direction: column; align-items: center; justify-content: center;
+          gap: 34px; cursor: wait; overflow: hidden;
+          font-family: var(--sans), system-ui, sans-serif;
+          /* Trame de points : la texture de fond de la landing */
+          background-image: radial-gradient(rgba(12,42,29,.07) 1px, transparent 1px);
+          background-size: 22px 22px;
+        }
+        .klipgen-stage { position: relative; width: 300px; height: 262px; display: grid; place-items: center; }
+
+        .klipgen-canvas {
+          position: relative; width: 176px; height: 220px;
+          background: #FBFAF4; border-radius: 13px;
+          box-shadow: 0 0 0 1px rgba(12,42,29,.10), 0 26px 50px -22px rgba(16,19,11,.45);
+        }
+        .klipgen-block {
+          position: absolute; display: block;
+          opacity: 0; transform: translateY(7px) scale(.97);
+          transition: opacity .34s ease, transform .34s cubic-bezier(.2,.8,.3,1);
+        }
+        .klipgen-block.in { opacity: 1; transform: none; }
+
+        .klipgen-ants {
+          position: absolute; pointer-events: none;
+          transition: all .34s cubic-bezier(.2,.8,.3,1);
+        }
+        .klipgen-ants svg { width: 100%; height: 100%; display: block; overflow: visible; }
+        .klipgen-ants rect {
+          width: calc(100% - 2px); height: calc(100% - 2px);
+          fill: none; stroke: #6656D9; stroke-width: 2; stroke-dasharray: 8 7;
+          animation: klipgen-ants 1.2s linear infinite;
+        }
+        @keyframes klipgen-ants { to { stroke-dashoffset: -15; } }
+
+        .klipgen-cur {
+          position: absolute; z-index: 8; display: flex; flex-direction: column; align-items: flex-start; gap: 2px;
+          pointer-events: none; filter: drop-shadow(0 6px 14px rgba(16,19,11,.25));
+          transition: left .42s cubic-bezier(.3,.7,.3,1), top .42s cubic-bezier(.3,.7,.3,1);
+        }
+        .klipgen-cur-tag {
+          font-weight: 800; font-size: 11px; color: #fff; background: #6656D9;
+          padding: 3px 9px; border-radius: 999px 999px 999px 4px; margin-left: 13px; white-space: nowrap;
+        }
+
+        .klipgen-card {
+          position: absolute; z-index: 7; display: inline-flex; align-items: center; gap: 7px;
+          border-radius: 12px; padding: 9px 13px; font-weight: 800; font-size: 12.5px;
+          box-shadow: 0 18px 36px -18px rgba(16,19,11,.45);
+        }
+        .klipgen-card-leaf   { background: #BDF2A0; color: #1E3317; top: 2px;  left: -78px;  --r: -7deg; }
+        .klipgen-card-forest { background: #0C2A1D; color: #EEEDE3; bottom: 8px; right: -72px; --r: 6deg; }
+
+        .klipgen-star { position: absolute; z-index: 6; }
+        .klipgen-s1 { top: -6px; right: 6px; --r: 0deg; }
+        .klipgen-s2 { bottom: 44px; left: -6px; --r: 0deg; }
+
+        .floatA { animation: klipgen-floatA 7s ease-in-out infinite; }
+        .floatB { animation: klipgen-floatB 6s ease-in-out infinite; }
+        @keyframes klipgen-floatA { 0%,100% { transform: translateY(0) rotate(var(--r,0deg)); } 50% { transform: translateY(-13px) rotate(calc(var(--r,0deg) + 3deg)); } }
+        @keyframes klipgen-floatB { 0%,100% { transform: translateY(0) rotate(var(--r,0deg)); } 50% { transform: translateY(-9px) rotate(calc(var(--r,0deg) - 3deg)); } }
+
+        .klipgen-copy { position: relative; text-align: center; max-width: 430px; padding: 0 24px; }
+        .klipgen-copy h2 {
+          margin: 0; font-family: var(--display), system-ui, sans-serif; font-weight: 800;
+          font-size: 25px; line-height: 1.2; letter-spacing: -0.02em; color: #14160F; text-wrap: balance;
+        }
+        .klipgen-step { margin: 9px 0 0; font-size: 13.5px; line-height: 1.5; color: #5A5E50; min-height: 20px; }
+        .klipgen-dots { display: flex; gap: 6px; justify-content: center; margin-top: 18px; }
+        .klipgen-dots span {
+          width: 6px; height: 6px; border-radius: 50%; background: rgba(12,42,29,.16);
+          transition: background .3s ease, transform .3s ease;
+        }
+        .klipgen-dots span.on { background: #6656D9; transform: scale(1.25); }
+        .klipgen-reassure { margin: 16px 0 0; font-size: 12.5px; color: #8B8E7F; }
+
+        @media (prefers-reduced-motion: reduce) {
+          .klipgen-ants rect, .floatA, .floatB { animation: none !important; }
+          .klipgen-block, .klipgen-ants, .klipgen-cur { transition: none !important; }
+        }
+      `}</style>
+    </div>
+  );
+}
 export function VisualEditor({ workspaceId, postId, templateId, mode }: { workspaceId: string; postId?: string; templateId?: string; mode: 'post' | 'template' }) {
   const T = useTranslations('editor');
   const isTemplate = mode === 'template';
@@ -1935,6 +2132,9 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
   useEffect(() => { bgOffsetXRef.current = bgOffsetX; }, [bgOffsetX]);
   useEffect(() => { bgOffsetYRef.current = bgOffsetY; }, [bgOffsetY]);
   const [formatId, setFormatId] = useState('ig-portrait');
+  // Renseigné quand le visuel est rouvert dans un format différent de celui où il a
+  // été dessiné : sert à afficher le bandeau « vérifie l'adaptation ».
+  const [formatChangedFrom, setFormatChangedFrom] = useState<{ from: string; to: string } | null>(null);
   const [postType, setPostType] = useState<'post' | 'reel' | 'story' | 'carrousel'>('post');
   const [editorToast, setEditorToast] = useState<string | null>(null);
   const [showStoryWarn, setShowStoryWarn] = useState(false);
@@ -2050,6 +2250,60 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
       updateEl(id, { x, y });
     }
   };
+
+  // ── Sélection par cadre (lasso) ───────────────────────────────────────────
+  // Un cliquer-glisser sur une zone vide trace un rectangle et sélectionne tout
+  // ce qu'il touche. En dessous du seuil de déplacement, on retombe sur le
+  // comportement de simple clic (désélection / passage en recadrage du fond).
+  const MARQUEE_THRESHOLD = 4;
+  const marqueeStartRef = useRef<{ x: number; y: number } | null>(null);
+  const [marquee, setMarquee] = useState<{ x: number; y: number; w: number; h: number } | null>(null);
+  const [isDragOverCanvas, setIsDragOverCanvas] = useState(false);
+
+  const beginMarquee = (stage: Konva.Stage | null) => {
+    const p = stage?.getPointerPosition();
+    if (!p) return;
+    marqueeStartRef.current = { x: p.x, y: p.y };
+    setMarquee(null);
+  };
+
+  const updateMarquee = (stage: Konva.Stage | null) => {
+    const start = marqueeStartRef.current;
+    if (!start) return;
+    const p = stage?.getPointerPosition();
+    if (!p) return;
+    if (Math.abs(p.x - start.x) < MARQUEE_THRESHOLD && Math.abs(p.y - start.y) < MARQUEE_THRESHOLD) return;
+    setMarquee({
+      x: Math.min(start.x, p.x), y: Math.min(start.y, p.y),
+      w: Math.abs(p.x - start.x), h: Math.abs(p.y - start.y),
+    });
+  };
+
+  // Renvoie true si un cadre a été tracé (donc le mouseup n'est pas un simple clic).
+  const endMarquee = (): boolean => {
+    const start = marqueeStartRef.current;
+    marqueeStartRef.current = null;
+    const rect = marquee;
+    setMarquee(null);
+    if (!start || !rect) return false;
+    const hits = elementsRef.current.filter(el => {
+      if (hiddenIds.has(el.id) || lockedIds.has(el.id)) return false;
+      const b = getElBox(el);
+      return b.l < rect.x + rect.w && b.r > rect.x && b.t < rect.y + rect.h && b.b > rect.y;
+    });
+    setSelectedIds(hits.map(h => h.id));
+    setSelectedId(hits.at(-1)?.id ?? null);
+    return true;
+  };
+
+  // Filet de sécurité : relâchement hors du Stage (le curseur sort du canvas).
+  useEffect(() => {
+    if (!marquee) return;
+    const onUp = () => { endMarquee(); };
+    window.addEventListener('mouseup', onUp);
+    return () => window.removeEventListener('mouseup', onUp);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [marquee]);
 
   // ── Carousel slides ───────────────────────────────────────────────────────
   const [slides, setSlides] = useState<Slide[]>([{ id: 'slide-1', elements: [], proxyUrl: '' }]);
@@ -2213,6 +2467,9 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
   const [textLibCat, setTextLibCat] = useState<string>('Tous');
   const [textLibQuery, setTextLibQuery] = useState('');
   const [ttCharter, setTtCharter] = useState(false); // « À ma charte » : recolore les templates de texte sur la palette de marque
+  const [ltCharter, setLtCharter] = useState(true);  // idem pour les mises en page — activé par défaut : le client vient de définir sa charte
+  const [ltCat, setLtCat] = useState<string>('Tous');
+  const [ltStyle, setLtStyle] = useState<string>('Tous');
   const openFxPanel = (p: 'effects'|'position') => { setFxPanel(cur => cur === p ? null : p); setTool(null); };
   const [bgLocked, setBgLocked] = useState(true);
   const [bgImageSelected, setBgImageSelected] = useState(false);
@@ -2270,18 +2527,39 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
     });
   }, []);
 
-  // ── Trackpad / wheel zoom — must be non-passive to preventDefault ─────────
+  // ── Zoom trackpad (pinch) — façon CapCut ─────────────────────────────────
+  // Écouteur sur window (non passif) : tant que l'éditeur est monté, un pincement
+  // NE zoome jamais la page du navigateur, même hors du plan de travail. Le point
+  // sous le curseur reste fixe : on recale le scroll du conteneur après coup.
+  const zoomRef = useRef(zoom);
+  useEffect(() => { zoomRef.current = zoom; }, [zoom]);
+
   useEffect(() => {
-    const el = canvasAreaRef.current;
-    if (!el) return;
     const onWheel = (e: WheelEvent) => {
       if (!e.ctrlKey && !e.metaKey) return;
       e.preventDefault();
-      // deltaY is negative when zooming in (pinch-out / scroll-up)
-      setZoom(z => Math.min(2, Math.max(0.25, z - e.deltaY * 0.001)));
+      const prev = zoomRef.current;
+      // deltaY négatif = pincement vers l'extérieur = agrandir
+      const next = Math.min(3, Math.max(0.15, prev * Math.exp(-e.deltaY * 0.008)));
+      if (next === prev) return;
+      zoomRef.current = next;
+      setZoom(next);
+      const area = canvasAreaRef.current;
+      if (!area) return;
+      const r = area.getBoundingClientRect();
+      const px = e.clientX - r.left;
+      const py = e.clientY - r.top;
+      const k = next / prev;
+      const targetLeft = (area.scrollLeft + px) * k - px;
+      const targetTop = (area.scrollTop + py) * k - py;
+      // Après le re-rendu : le contenu a changé de taille, le scroll peut suivre.
+      requestAnimationFrame(() => {
+        area.scrollLeft = targetLeft;
+        area.scrollTop = targetTop;
+      });
     };
-    el.addEventListener('wheel', onWheel, { passive: false });
-    return () => el.removeEventListener('wheel', onWheel);
+    window.addEventListener('wheel', onWheel, { passive: false });
+    return () => window.removeEventListener('wheel', onWheel);
   }, []);
 
   const stageWRef = useRef(FORMATS[0].w);
@@ -2379,8 +2657,25 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
             const zones: CanvasEl[] = Array.isArray(tpl.text_zones) ? tpl.text_zones : [];
             initSlides = [{ id: 'slide-1', elements: zones, proxyUrl: '' }];
           } else {
+            // Nouveau template : jamais une page blanche. On pose une base de
+            // composition — la zone photo en plein cadre, un titre par-dessus —
+            // pour que le client ait tout de suite quelque chose à déplacer.
             setBgStyle({ type: 'gradient', colorFrom: '#0038FF', colorTo: '#FFFFFF', angle: 135 });
-            initSlides = [{ id: 'slide-1', elements: [], proxyUrl: '' }];
+            const photoZone: ImageEl = {
+              id: 'tpl-photo', type: 'image', src: PHOTO_PLACEHOLDER_SRC,
+              x: 0, y: 0, rotation: 0, opacity: 100, width: sw, height: sh,
+            };
+            const titleZone: TextEl = {
+              ...defaultEl,
+              id: 'tpl-titre',
+              text: 'VOTRE TITRE',
+              role: 'titre',
+              x: 24, y: sh - 132,
+              width: sw - 48,
+              fontSize: 44,
+              align: 'left',
+            };
+            initSlides = [{ id: 'slide-1', elements: [photoZone, titleZone], proxyUrl: '' }];
           }
         } else if (p?.editor_json) {
           // Saved state always wins — never re-apply template
@@ -2388,6 +2683,19 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
             const parsed = JSON.parse(p.editor_json);
             if (parsed && parsed.version === 2 && Array.isArray(parsed.slides)) {
               initSlides = parsed.slides;
+              // Le type du post a pu changer depuis la programmation (post → story…).
+              // Si le visuel a été dessiné dans un autre format, on repositionne les
+              // éléments au prorata du nouveau cadre au lieu de les laisser en place.
+              const savedFmt = parsed.formatId ? FORMATS.find(f => f.id === parsed.formatId) : undefined;
+              const targetFmtId = p?.post_type && PT_FORMAT_MAP[p.post_type] ? PT_FORMAT_MAP[p.post_type] : 'ig-portrait';
+              const targetFmt = FORMATS.find(f => f.id === targetFmtId);
+              if (savedFmt && targetFmt && savedFmt.id !== targetFmt.id) {
+                initSlides = initSlides.map(s => ({
+                  ...s,
+                  elements: remapElementsToFormat(s.elements, savedFmt.w, savedFmt.h, targetFmt.w, targetFmt.h),
+                }));
+                setFormatChangedFrom({ from: savedFmt.label ?? savedFmt.id, to: targetFmt.label ?? targetFmt.id });
+              }
               // Restore bgStyle if embedded in the first slide (set by Composer pre-gen)
               if (parsed.slides[0]?.bgStyle) setBgStyle(parsed.slides[0].bgStyle as BgStyle);
               // Restore continuous-carousel mode
@@ -2495,7 +2803,10 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
     autoSaveTimer.current = setTimeout(() => {
       const updated = saveCurrentSlide();
       setSlides(updated);
-      supabase.from('posts').update({ editor_json: JSON.stringify({ version: 2, slides: updated }) }).eq('id', postId).then(() => {});
+      // formatId est enregistré pour savoir, à la réouverture, sur quel format le
+      // visuel a été dessiné — et donc pouvoir le réadapter si le type du post a
+      // changé entre-temps (ex. passage post → story depuis la programmation).
+      supabase.from('posts').update({ editor_json: JSON.stringify({ version: 2, formatId, slides: updated }) }).eq('id', postId).then(() => {});
     }, 1500);
     return () => { if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -2569,11 +2880,17 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
   }, []);
 
   const deleteEl = useCallback((id?: string | null) => {
-    const target = id ?? selectedIdRef.current;
-    if (!target) return;
-    const newEls = elementsRef.current.filter(e => e.id !== target);
+    // Sans id explicite, on supprime toute la sélection (lasso / shift-clic compris).
+    const targets = id
+      ? [id]
+      : (selectedIdsRef.current.length > 0
+          ? [...selectedIdsRef.current]
+          : (selectedIdRef.current ? [selectedIdRef.current] : []));
+    if (targets.length === 0) return;
+    const newEls = elementsRef.current.filter(e => !targets.includes(e.id));
     applyElements(newEls);
     setSelectedId(null);
+    setSelectedIds([]);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -2590,19 +2907,26 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
   }, []);
 
   // ── Copier / Coller + menu contextuel (clic droit, façon Canva) ──────────
-  const clipboardRef = useRef<CanvasEl | null>(null);
+  // Le presse-papiers interne garde une LISTE : copier une sélection multiple doit
+  // recoller le groupe entier en conservant les positions relatives.
+  const clipboardRef = useRef<CanvasEl[]>([]);
   const [ctxMenu, setCtxMenu] = useState<{ x: number; y: number; id: string } | null>(null);
   const copyEl = useCallback((id?: string | null) => {
-    const target = id ?? selectedIdRef.current;
-    const el = elementsRef.current.find(e => e.id === target);
-    if (el) clipboardRef.current = { ...el };
+    const ids = id
+      ? [id]
+      : (selectedIdsRef.current.length > 0
+          ? selectedIdsRef.current
+          : (selectedIdRef.current ? [selectedIdRef.current] : []));
+    const els = elementsRef.current.filter(e => ids.includes(e.id));
+    if (els.length > 0) clipboardRef.current = els.map(e => ({ ...e }));
   }, []);
   const pasteEl = useCallback(() => {
-    const el = clipboardRef.current;
-    if (!el) return;
-    const dup = { ...el, id: newId(), x: el.x + 24, y: el.y + 24 } as CanvasEl;
-    applyElements([...elementsRef.current, dup]);
-    setSelectedId(dup.id);
+    const els = clipboardRef.current;
+    if (els.length === 0) return;
+    const dups = els.map(e => ({ ...e, id: newId(), x: e.x + 24, y: e.y + 24 }) as CanvasEl);
+    applyElements([...elementsRef.current, ...dups]);
+    setSelectedIds(dups.map(d => d.id));
+    setSelectedId(dups[dups.length - 1].id);
   }, []);
 
   // ── Alignment (single vs canvas; multi vs group bounding box) ────────────
@@ -2657,7 +2981,26 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
   };
 
   const handleElDragMove = (id: string, e: Konva.KonvaEventObject<DragEvent>) => {
-    if (selectedIdsRef.current.length > 1) return; // pas de snap individuel pendant un déplacement groupé
+    const ids = selectedIdsRef.current;
+    if (ids.length > 1) {
+      // Déplacement groupé : Konva ne bouge que le nœud tiré. On applique le même
+      // delta aux autres nœuds sélectionnés à chaque frame (pas de setState ici,
+      // sinon on repositionnerait le nœud tiré sous le curseur). Le commit dans
+      // l'état React se fait au dragEnd.
+      const start = multiDragStartRef.current[id];
+      const stage = e.target.getStage();
+      if (!start || !stage) return;
+      const dx = e.target.x() - start.x;
+      const dy = e.target.y() - start.y;
+      for (const sid of ids) {
+        if (sid === id) continue;
+        const s = multiDragStartRef.current[sid];
+        if (!s) continue;
+        const node = stage.findOne(`#${sid}`);
+        if (node) node.position({ x: s.x + dx, y: s.y + dy });
+      }
+      return; // pas de snap individuel pendant un déplacement groupé
+    }
     const el = elementsRef.current.find(x => x.id === id);
     if (!el) return;
     const snapped = computeSnap(el, e.target.x(), e.target.y());
@@ -2714,6 +3057,87 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
     }
   };
 
+  // ── Redimensionnement groupé ──────────────────────────────────────────────
+  // Mise à l'échelle uniforme de toute la sélection autour du coin opposé à la
+  // poignée tirée. Chaque élément garde sa place relative dans le groupe.
+
+  const scaleSelection = (starts: Record<string, CanvasEl>, ids: string[], s: number, ax: number, ay: number) => {
+    const next = elementsRef.current.map(e => {
+      if (!ids.includes(e.id)) return e;
+      const st = starts[e.id];
+      if (!st) return e;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const out: any = { ...st, x: ax + (st.x - ax) * s, y: ay + (st.y - ay) * s };
+      if (st.type === 'text') {
+        const t = st as TextEl;
+        out.fontSize = Math.max(8, t.fontSize * s);
+        out.width = Math.max(20, (t.width ?? 200) * s);
+        if (t.padding != null) out.padding = t.padding * s;
+        if (t.paddingH != null) out.paddingH = t.paddingH * s;
+        if (t.paddingV != null) out.paddingV = t.paddingV * s;
+        if (t.letterSpacing) out.letterSpacing = t.letterSpacing * s;
+      } else if (st.type === 'circle') {
+        out.radius = Math.max(4, (st as CircleEl).radius * s);
+      } else if (st.type === 'star') {
+        out.outerRadius = Math.max(6, (st as StarEl).outerRadius * s);
+        out.innerRadius = Math.max(3, (st as StarEl).innerRadius * s);
+      } else {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const any = st as any;
+        if (any.width != null) out.width = Math.max(4, any.width * s);
+        if (any.height != null) out.height = Math.max(4, any.height * s);
+        if (any.cropX != null) out.cropX = any.cropX * s;
+        if (any.cropY != null) out.cropY = any.cropY * s;
+        if (st.type === 'vector' && Array.isArray((st as VectorEl).points)) {
+          out.points = (st as VectorEl).points!.map(p => ({
+            x: p.x * s, y: p.y * s,
+            ...(p.cpIn ? { cpIn: { x: p.cpIn.x * s, y: p.cpIn.y * s } } : {}),
+            ...(p.cpOut ? { cpOut: { x: p.cpOut.x * s, y: p.cpOut.y * s } } : {}),
+          }));
+        }
+      }
+      return out as CanvasEl;
+    });
+    setElements(next);
+    elementsRef.current = next;
+  };
+
+  const startGroupResize = (handleId: string, box: { l: number; t: number; r: number; b: number }) =>
+    (ev: React.MouseEvent) => {
+      ev.stopPropagation();
+      ev.preventDefault();
+      const ids = [...selectedIdsRef.current];
+      const starts: Record<string, CanvasEl> = {};
+      for (const id of ids) {
+        const el = elementsRef.current.find(e => e.id === id);
+        if (el) starts[id] = { ...el };
+      }
+      const w0 = Math.max(1, box.r - box.l);
+      const h0 = Math.max(1, box.b - box.t);
+      const ax = handleId.includes('l') ? box.r : box.l;   // coin opposé = point fixe
+      const ay = handleId.includes('t') ? box.b : box.t;
+      const dirX = handleId.includes('l') ? -1 : 1;
+      const dirY = handleId.includes('t') ? -1 : 1;
+      const startX = ev.clientX, startY = ev.clientY;
+      const z = zoom;
+      const onMove = (e: MouseEvent) => {
+        const dx = ((e.clientX - startX) / z) * dirX;
+        const dy = ((e.clientY - startY) / z) * dirY;
+        const s = Math.max(0.05, Math.max((w0 + dx) / w0, (h0 + dy) / h0));
+        scaleSelection(starts, ids, s, ax, ay);
+      };
+      const onUp = () => {
+        window.removeEventListener('mousemove', onMove);
+        window.removeEventListener('mouseup', onUp);
+        const slice = historyRef.current.slice(0, histIdxRef.current + 1);
+        historyRef.current = [...slice, elementsRef.current];
+        histIdxRef.current = historyRef.current.length - 1;
+        setHistTick(t => t + 1);
+      };
+      window.addEventListener('mousemove', onMove);
+      window.addEventListener('mouseup', onUp);
+    };
+
   // ── Keyboard shortcuts ────────────────────────────────────────────────────
 
   useEffect(() => {
@@ -2733,11 +3157,18 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
       if ((e.metaKey || e.ctrlKey) && (e.key === 'y' || (e.key === 'z' && e.shiftKey))) { e.preventDefault(); redo(); }
       if ((e.metaKey || e.ctrlKey) && e.key === 'd') { e.preventDefault(); duplicateEl(); }
       if ((e.metaKey || e.ctrlKey) && e.key === 'c') { copyEl(); }
-      if ((e.metaKey || e.ctrlKey) && e.key === 'v') { e.preventDefault(); pasteEl(); }
+      // Cmd/Ctrl+V est géré par l'écouteur 'paste' (voir plus bas) pour pouvoir
+      // aussi accepter une image venue d'une autre application.
+      if ((e.metaKey || e.ctrlKey) && e.key === 'a') {
+        e.preventDefault();
+        const ids = elementsRef.current.filter(el => !hiddenIds.has(el.id) && !lockedIds.has(el.id)).map(el => el.id);
+        setSelectedIds(ids);
+        setSelectedId(ids.at(-1) ?? null);
+      }
     };
     document.addEventListener('keydown', handler);
     return () => document.removeEventListener('keydown', handler);
-  }, [deleteEl, undo, redo, duplicateEl, copyEl, pasteEl]);
+  }, [deleteEl, undo, redo, duplicateEl, copyEl, pasteEl, hiddenIds, lockedIds]);
 
   // ── Add elements ──────────────────────────────────────────────────────────
 
@@ -2766,6 +3197,62 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
   // Insère un template de la bibliothèque (authoré sur 1080px) en le MISE À
   // L'ÉCHELLE du format réel du document (facteur = stageW / TT_REF_W) pour qu'il
   // s'adapte bien et ne déborde pas, quel que soit le format.
+  // Applique une mise en page complète : elle REMPLACE la composition courante
+  // (c'est le propre d'un modèle), mais passe par l'historique, donc Cmd+Z revient
+  // à l'état d'avant. Les zones photo prennent la photo du post quand il y en a
+  // une ; les emplacements secondaires restent des zones à remplir.
+  const applyLayoutTemplate = (tpl: LayoutTemplate) => {
+    const W = stageW, H = stageH;
+    const k = W / 1080; // pour les grandeurs déjà exprimées en points typo
+    const out: CanvasEl[] = tpl.els.map(el => {
+      if (el.kind === 'photo') {
+        return {
+          id: newId(), type: 'image',
+          src: el.slot === 0 && proxyUrl ? proxyUrl : PHOTO_PLACEHOLDER_SRC,
+          x: Math.round(el.x * W), y: Math.round(el.y * H),
+          width: Math.round(el.w * W), height: Math.round(el.h * H),
+          rotation: el.rotation ?? 0, opacity: el.opacity ?? 100,
+        } as ImageEl;
+      }
+      if (el.kind === 'rect') {
+        return {
+          id: newId(), type: 'rect',
+          x: Math.round(el.x * W), y: Math.round(el.y * H),
+          width: Math.round(el.w * W), height: Math.round(el.h * H),
+          fill: el.fill, stroke: el.stroke ?? '', strokeWidth: el.strokeWidth ?? 0,
+          cornerRadius: Math.round((el.radius ?? 0) * W),
+          rotation: el.rotation ?? 0, opacity: el.opacity ?? 100,
+          ...(el.scrim ? { scrim: el.scrim } : {}),
+        } as RectEl;
+      }
+      const padH = Math.round((el.padH ?? 0) * W);
+      const padV = Math.round((el.padV ?? 0) * H);
+      return {
+        id: newId(), type: 'text',
+        x: Math.round(el.x * W), y: Math.round(el.y * H),
+        width: Math.round(el.w * W),
+        text: el.text,
+        fontSize: Math.max(8, Math.round(el.size * W)),
+        fontFamily: el.font ?? 'Oswald',
+        fontStyle: el.weight === 'bold' ? 'bold' : 'normal',
+        textDecoration: '',
+        fill: el.fill,
+        align: el.align ?? 'left',
+        uppercase: !!el.uppercase,
+        lineHeight: el.lineHeight ?? 1.2,
+        letterSpacing: (el.letterSpacing ?? 0) * k,
+        rotation: el.rotation ?? 0, opacity: el.opacity ?? 100,
+        hasBg: !!el.bg, bgColor: el.bg ?? '#000000', bgOpacity: el.bgOpacity ?? 100,
+        cornerRadius: Math.round((el.radius ?? 0) * W),
+        padding: padH, paddingH: padH, paddingV: padV,
+      } as TextEl;
+    });
+    applyElements(out);
+    setSelectedId(null);
+    setSelectedIds([]);
+    setTool(null);
+  };
+
   const applyTextTemplate = (tpl: TextTemplate) => {
     const f = stageW / TT_REF_W;
     const cx = Math.round(stageW / 2);
@@ -2942,13 +3429,65 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
     setShowUnsplash(false);
   };
 
-  // Add brand logo/asset as a smaller element (no crop mode)
+  // Ajoute un élément de charte (logo, icône, asset) sans recadrage : on lit le
+  // ratio naturel et on l'inscrit ENTIER dans une boîte de 28% de la largeur.
+  // Auparavant la boîte était carrée, donc le rendu « cover » de ImgNode rognait
+  // les côtés de tout asset non carré.
   const addLogoEl = (src: string) => {
-    const id = newId();
-    const size = Math.round(stageW * 0.28);
-    const el: ImageEl = { id, type: 'image', x: 20, y: 20, rotation: 0, opacity: 100, src, width: size, height: size };
-    applyElements([...elements, el]);
-    setSelectedId(id);
+    const box = Math.round(stageW * 0.28);
+    const place = (natW: number, natH: number) => {
+      const ratio = natH / Math.max(1, natW);
+      const w = ratio > 1 ? Math.round(box / ratio) : box;
+      const h = Math.max(1, Math.round(w * ratio));
+      const id = newId();
+      const el: ImageEl = {
+        id, type: 'image', x: 20, y: 20, rotation: 0, opacity: 100, src,
+        width: w, height: h, naturalW: natW, naturalH: natH,
+      };
+      applyElements([...elementsRef.current, el]);
+      setSelectedId(id);
+      setSelectedIds([id]);
+    };
+    const img = new window.Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => place(img.naturalWidth || box, img.naturalHeight || box);
+    img.onerror = () => place(box, box);
+    img.src = src;
+  };
+
+  // Détache l'image de fond pour en faire un objet ordinaire : elle rejoint la pile
+  // de calques (tout au fond) et devient déplaçable, redimensionnable, supprimable
+  // comme n'importe quel élément. Le rendu ne bouge pas au moment de la bascule :
+  // on reprend exactement la géométrie « cover » qu'appliquait BgImage.
+  const detachBgToElement = () => {
+    const src = proxyUrl;
+    if (!src) return;
+    const place = (natW: number, natH: number) => {
+      const w = stageWView, h = stageH;
+      const scale = (natW && natH) ? Math.max(w / natW, h / natH) : 1;
+      const scaledW = natW ? natW * scale : w;
+      const scaledH = natH ? natH * scale : h;
+      const id = newId();
+      const el: ImageEl = {
+        id, type: 'image', rotation: 0, opacity: bgOpacity, src,
+        x: Math.min(0, Math.max(w - scaledW, bgOffsetX)),
+        y: Math.min(0, Math.max(h - scaledH, bgOffsetY)),
+        width: scaledW, height: scaledH,
+        naturalW: natW || undefined, naturalH: natH || undefined,
+      };
+      applyElements([el, ...elementsRef.current]); // en bas de la pile
+      setProxyUrl('');
+      setBgCropMode(false);
+      setBgImageSelected(false);
+      setSelectedId(id);
+      setSelectedIds([id]);
+      showEditorToast('Image libérée du fond : déplaçable comme un objet');
+    };
+    const img = new window.Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => place(img.naturalWidth, img.naturalHeight);
+    img.onerror = () => place(0, 0);
+    img.src = src;
   };
 
   const showEditorToast = (msg: string) => {
@@ -2990,29 +3529,94 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
     }
   };
 
-  const handleFileDrop = (file: File) => {
+  // Insère une image à sa taille naturelle (jamais recadrée), centrée sur le point
+  // demandé — le curseur lors d'un dépôt, le centre du plan de travail sinon.
+  const insertImageAtPoint = (src: string, point?: { x: number; y: number } | null) => {
+    const place = (natW: number, natH: number) => {
+      const maxW = Math.round(stageW * 0.5);
+      const w = Math.min(natW, maxW);
+      const h = Math.round(w * (natH / natW));
+      const cx = point ? point.x : stageW / 2;
+      const cy = point ? point.y : stageH / 2;
+      const id = newId();
+      const el: ImageEl = {
+        id, type: 'image', rotation: 0, opacity: 100, src,
+        x: Math.round(cx - w / 2), y: Math.round(cy - h / 2),
+        width: w, height: h, naturalW: natW, naturalH: natH,
+      };
+      applyElements([...elementsRef.current, el]);
+      setSelectedId(id);
+      setSelectedIds([id]);
+    };
+    const img = new window.Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => place(img.naturalWidth || stageW, img.naturalHeight || stageH);
+    img.onerror = () => place(stageW, stageH);
+    img.src = src;
+  };
+
+  const handleFileDrop = (file: File, point?: { x: number; y: number } | null) => {
     if (!file.type.startsWith('image/')) return;
     if (postType === 'reel') {
       showEditorToast(T('reelNeedsVideo'));
       return;
     }
-    const src = URL.createObjectURL(file);
-    const img = new window.Image();
-    img.onload = () => {
-      const natW = img.naturalWidth || stageW;
-      const natH = img.naturalHeight || stageH;
-      const maxW = Math.round(stageW * 0.5);
-      const w = Math.min(natW, maxW);
-      const h = Math.round(w * (natH / natW));
-      const x = Math.round((stageW - w) / 2);
-      const y = Math.round((stageH - h) / 2);
-      const id = newId();
-      const el: ImageEl = { id, type: 'image', x, y, rotation: 0, opacity: 100, src, width: w, height: h };
-      applyElements([...elementsRef.current, el]);
-      setSelectedId(id);
-    };
-    img.src = src;
+    insertImageAtPoint(URL.createObjectURL(file), point);
   };
+
+  // Coordonnées écran → coordonnées du plan de travail (le conteneur du Stage est
+  // mis à l'échelle en CSS par le zoom, on divise donc par le ratio réel du rect).
+  const clientToStage = (clientX: number, clientY: number) => {
+    const cont = stageRef.current?.container?.();
+    if (!cont) return null;
+    const r = cont.getBoundingClientRect();
+    const sx = r.width / Math.max(1, stageWView);
+    const sy = r.height / Math.max(1, stageH);
+    return { x: (clientX - r.left) / (sx || 1), y: (clientY - r.top) / (sy || 1) };
+  };
+
+  // Dépôt sur le plan de travail : fichier depuis le bureau, ou vignette glissée
+  // depuis un panneau. Sans ce handler, le navigateur ouvrait l'image dans un onglet.
+  const handleCanvasDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragOverCanvas(false);
+    const point = clientToStage(e.clientX, e.clientY);
+    const file = Array.from(e.dataTransfer.files ?? []).find(f => f.type.startsWith('image/'));
+    if (file) { handleFileDrop(file, point); return; }
+    const url = e.dataTransfer.getData('application/x-klip-image')
+      || e.dataTransfer.getData('text/uri-list')
+      || e.dataTransfer.getData('text/plain');
+    const clean = url?.split('\n')[0]?.trim();
+    if (clean && /^(https?:\/\/|\/|data:image)/.test(clean)) {
+      if (postType === 'reel') { showEditorToast(T('reelNeedsVideo')); return; }
+      insertImageAtPoint(clean, point);
+    }
+  };
+
+  // Ref pour que les écouteurs globaux appellent toujours la dernière version
+  // (handleFileDrop capture postType / stageW / stageH).
+  const handleFileDropRef = useRef(handleFileDrop);
+  handleFileDropRef.current = handleFileDrop;
+
+  // Coller une image venue d'une autre app (Finder, navigateur, capture d'écran).
+  useEffect(() => {
+    const onPaste = (e: ClipboardEvent) => {
+      const tag = (e.target as HTMLElement | null)?.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+      const item = Array.from(e.clipboardData?.items ?? []).find(i => i.type.startsWith('image/'));
+      const file = item?.getAsFile();
+      e.preventDefault();
+      // Une image dans le presse-papiers système gagne ; sinon on recolle la
+      // sélection copiée dans l'éditeur. C'est ici (et pas dans le handler
+      // keydown) que Cmd+V est traité : un preventDefault sur la touche
+      // empêcherait justement cet événement de se déclencher.
+      if (file) handleFileDropRef.current(file);
+      else pasteEl();
+    };
+    document.addEventListener('paste', onPaste);
+    return () => document.removeEventListener('paste', onPaste);
+  }, []);
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -3610,6 +4214,7 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
       exported_image_url: isCarousel && carouselUrls.length > 0 ? carouselUrls[0] : (coverUrl?.publicUrl || ''),
       editor_json: JSON.stringify({
         version: 2,
+        formatId,
         slides: allSlides,
         ...(isContinuous ? { carouselContinuous: true, contPanels } : {}),
         ...(isCarousel && carouselUrls.length > 0 ? { carousel_urls: carouselUrls } : {}),
@@ -3918,6 +4523,27 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
         </div>
       )}
 
+      {/* ── Bandeau : visuel rouvert dans un autre format que celui d'origine ── */}
+      {formatChangedFrom && (
+        <div style={{ position: 'fixed', top: 74, left: '50%', transform: 'translateX(-50%)', zIndex: 190, maxWidth: 520, display: 'flex', gap: 11, alignItems: 'flex-start', padding: '12px 14px', borderRadius: 12, background: 'var(--cream, #fff)', border: '1px solid #C8732B55', boxShadow: '0 12px 32px -12px rgba(13,15,10,.35)' }}>
+          <span style={{ color: '#C8732B', flexShrink: 0, marginTop: 1, display: 'grid' }}>
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/><path d="M12 9v4M12 17h.01"/></svg>
+          </span>
+          <div style={{ minWidth: 0, fontFamily: 'var(--sans)' }}>
+            <p style={{ margin: 0, fontSize: 13, fontWeight: 800, color: 'var(--ink)' }}>
+              Format adapté : {formatChangedFrom.from} → {formatChangedFrom.to}
+            </p>
+            <p style={{ margin: '3px 0 0', fontSize: 12.5, color: 'var(--ink-2)', lineHeight: 1.45 }}>
+              Le type de ce post a changé depuis la programmation. Les éléments ont été repositionnés au prorata du nouveau cadre — vérifie que la composition te convient avant d&apos;enregistrer.
+            </p>
+          </div>
+          <button onClick={() => setFormatChangedFrom(null)} title="Fermer"
+            style={{ marginLeft: 'auto', flexShrink: 0, width: 24, height: 24, border: 'none', background: 'transparent', cursor: 'pointer', color: 'var(--ink-3)', display: 'grid', placeItems: 'center', borderRadius: 6 }}>
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
+        </div>
+      )}
+
       {/* ── Story format warning modal ── */}
       {showStoryWarn && (
         <div style={{ position: 'fixed', inset: 0, zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(13,15,10,.45)' }} onClick={() => { setShowStoryWarn(false); setPendingStoryType(null); }}>
@@ -4172,6 +4798,73 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" style={{ position: 'absolute', left: 12, top: 12, color: 'var(--ink-3)', pointerEvents: 'none' }}><circle cx="11" cy="11" r="7"/><path d="M21 21l-4-4"/></svg>
                   <input className="input" placeholder={T('searchTemplate')} style={{ paddingLeft: 36, height: 40, background: 'var(--white)', border: '1px solid var(--line)' }} />
                 </div>
+                {/* ── MISES EN PAGE — compositions complètes, même principe que les
+                       combinaisons de texte : version de base ou version à la charte ── */}
+                {(() => {
+                  const brandKit: BrandKit = { primary: workspaceData?.primary_color, secondary: workspaceData?.secondary_color, accent: workspaceData?.accent_color, font: workspaceData?.font_family };
+                  const hasCharter = !!(brandKit.primary || brandKit.accent);
+                  const useCharter = ltCharter && hasCharter;
+                  const shown = (tpl: LayoutTemplate) => useCharter ? adaptLayoutToCharter(tpl, brandKit) : tpl;
+                  const list = LAYOUT_TEMPLATES
+                    .filter(t => ltStyle === 'Tous' || t.style === ltStyle)
+                    .filter(t => ltCat === 'Tous' || t.cat === ltCat);
+                  return (
+                    <>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, margin: '0 0 8px' }}>
+                        <p className="label" style={{ margin: 0 }}>Mises en page <span style={{ fontFamily: 'var(--mono)', color: 'var(--ink-3)', fontWeight: 700 }}>({list.length})</span></p>
+                        {hasCharter && (
+                          <button onClick={() => setLtCharter(v => !v)} title="Adapter les mises en page à la charte du client"
+                            style={{ fontSize: 10.5, fontWeight: 700, padding: '4px 9px', borderRadius: 999, cursor: 'pointer', border: '1px solid ' + (useCharter ? 'var(--leaf)' : 'var(--line)'), background: useCharter ? 'var(--leaf)' : 'transparent', color: useCharter ? '#06281C' : 'var(--ink-2)', display: 'flex', alignItems: 'center', gap: 5 }}>
+                            <span style={{ width: 8, height: 8, borderRadius: 2, background: brandKit.accent || brandKit.primary || '#BDF2A0', display: 'inline-block' }} />
+                            À ma charte
+                          </button>
+                        )}
+                      </div>
+                      {/* Deux axes de tri : le style (le look) et l'usage (le contenu).
+                          Le style d'abord — c'est ce qui décide si un modèle « va » au client. */}
+                      <div style={{ display: 'flex', gap: 5, overflowX: 'auto', paddingBottom: 7 }}>
+                        {(['Tous', ...LAYOUT_STYLES] as string[]).map(s => (
+                          <button key={s} onClick={() => setLtStyle(s)}
+                            style={{ flexShrink: 0, fontSize: 11, fontWeight: 700, padding: '4px 10px', borderRadius: 999, cursor: 'pointer',
+                              border: '1px solid ' + (ltStyle === s ? 'var(--ink)' : 'var(--line)'),
+                              background: ltStyle === s ? 'var(--ink)' : 'transparent',
+                              color: ltStyle === s ? 'var(--paper)' : 'var(--ink-2)' }}>
+                            {s}
+                          </button>
+                        ))}
+                      </div>
+                      <div style={{ display: 'flex', gap: 5, overflowX: 'auto', paddingBottom: 8, marginBottom: 10 }}>
+                        {(['Tous', ...LAYOUT_CATS] as string[]).map(c => (
+                          <button key={c} onClick={() => setLtCat(c)}
+                            style={{ flexShrink: 0, fontSize: 10.5, fontWeight: 700, padding: '3px 9px', borderRadius: 999, cursor: 'pointer',
+                              border: '1px dashed ' + (ltCat === c ? 'var(--leaf)' : 'var(--line)'),
+                              background: ltCat === c ? 'var(--leaf)' : 'transparent',
+                              color: ltCat === c ? '#06281C' : 'var(--ink-3)' }}>
+                            {c}
+                          </button>
+                        ))}
+                      </div>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 9, marginBottom: 18 }}>
+                        {list.map(tpl => {
+                          const t = shown(tpl);
+                          return (
+                            <button key={tpl.id} onClick={() => applyLayoutTemplate(t)} title={`${tpl.name} · ${tpl.cat}`}
+                              style={{ padding: 0, borderRadius: 11, border: '1px solid var(--line)', cursor: 'pointer', overflow: 'hidden', background: 'var(--white)', transition: 'all .14s', display: 'block' }}
+                              onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--leaf)'; e.currentTarget.style.transform = 'translateY(-2px)'; }}
+                              onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--line)'; e.currentTarget.style.transform = 'none'; }}>
+                              <LayoutThumb tpl={t} w={126} h={158} />
+                              <div style={{ padding: '6px 8px', textAlign: 'left', borderTop: '1px solid var(--line)' }}>
+                                <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--ink)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{tpl.name}</div>
+                                <div style={{ fontSize: 9.5, color: 'var(--ink-3)', fontFamily: 'var(--mono)' }}>{tpl.style}{tpl.photos > 1 ? ` · ${tpl.photos} photos` : ''}</div>
+                              </div>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </>
+                  );
+                })()}
+
                 <p className="label" style={{ marginBottom: 9 }}>{T('backgrounds')}</p>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 9 }}>
                   {([
@@ -4515,6 +5208,7 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
                     {pexelsPhotos.map(photo => (
                       <UnsplashThumb key={photo.id}
                         src={photo.src.medium}
+                        dragSrc={`/api/proxy-image?url=${encodeURIComponent(photo.src.large)}`}
                         onAdd={() => addImageEl(`/api/proxy-image?url=${encodeURIComponent(photo.src.large)}`)}
                         onBg={() => { setProxyUrl(`/api/proxy-image?url=${encodeURIComponent(photo.src.large)}`); setBgOffsetX(0); setBgOffsetY(0); setBgCropMode(false); }} />
                     ))}
@@ -4585,7 +5279,10 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 5 }}>
                     {workspaceData.brand_assets.map((url, i) => (
                       // eslint-disable-next-line @next/next/no-img-element
-                      <img key={i} src={url} alt="" title={T('addToCanvas')} style={{ aspectRatio: '1', objectFit: 'contain', borderRadius: 6, background: 'var(--sunk)', padding: 4, border: '1px solid var(--line)', cursor: 'pointer', width: '100%', display: 'block' }} onClick={() => addImageEl(url)} />
+                      <img key={i} src={url} alt="" title={T('addToCanvas')} draggable
+                        onDragStart={e => e.dataTransfer.setData('application/x-klip-image', url)}
+                        style={{ aspectRatio: '1', objectFit: 'contain', borderRadius: 6, background: 'var(--sunk)', padding: 4, border: '1px solid var(--line)', cursor: 'pointer', width: '100%', display: 'block' }}
+                        onClick={() => addLogoEl(url)} />
                     ))}
                   </div>
                 </>}
@@ -4758,28 +5455,14 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
             </div>
           )}
           {(aiBuilding || qaBusy) && (
-            <div style={{ position: 'absolute', inset: 0, zIndex: 40, background: 'radial-gradient(120% 90% at 50% 30%, rgba(8,32,22,.90), rgba(6,18,10,.95))', backdropFilter: 'blur(6px)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 22, cursor: 'wait' }}>
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src="/logo-klip-mint.png" alt="Klip" style={{ height: 34, width: 'auto', opacity: 0.96, animation: 'klipPulse 1.8s ease-in-out infinite' }} />
-              {/* Barres animées (ADN Klip) */}
-              <div style={{ display: 'flex', alignItems: 'flex-end', gap: 5, height: 30 }}>
-                {[0, 1, 2, 3, 4].map(i => (
-                  <span key={i} style={{ width: 5, borderRadius: 3, background: 'linear-gradient(180deg,#34E0A1,#2FD79B)', animation: `klipBar 1s ease-in-out ${i * 0.12}s infinite` }} />
-                ))}
-              </div>
-              <div style={{ textAlign: 'center' }}>
-                <div style={{ fontFamily: 'var(--display, sans-serif)', fontWeight: 800, fontSize: 16.5, color: '#F4F3EC', letterSpacing: '-0.01em' }}>{T('aiComposing')}</div>
-                <div style={{ fontSize: 12.5, color: 'rgba(244,243,236,.6)', marginTop: 5 }}>{qaMsg || 'Un instant — ne cliquez pas, composition en cours.'}</div>
-              </div>
-              <style>{`
-                @keyframes klipBar { 0%,100%{height:8px;opacity:.55} 50%{height:30px;opacity:1} }
-                @keyframes klipPulse { 0%,100%{opacity:.6;transform:scale(.98)} 50%{opacity:1;transform:scale(1)} }
-              `}</style>
-            </div>
+            <AiGeneratingOverlay title={T('aiComposing')} detail={qaMsg || undefined} />
           )}
           <div ref={canvasAreaRef}
           onMouseDown={() => { setSelectedId(null); setSelectedIds([]); setEditingId(null); setBgCropMode(false); setBgImageSelected(false); }}
-          style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'safe center', overflow: 'auto', padding: '40px 28px', gap: 40 }}>
+          onDragOver={e => { e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; if (!isDragOverCanvas) setIsDragOverCanvas(true); }}
+          onDragLeave={e => { if (e.currentTarget === e.target) setIsDragOverCanvas(false); }}
+          onDrop={handleCanvasDrop}
+          style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'safe center', overflow: 'auto', padding: '40px 28px', gap: 40, outline: isDragOverCanvas ? '2px dashed var(--vio)' : 'none', outlineOffset: -6 }}>
             {slides.map((slide, idx) => {
               const isActive = idx === activeSlideIdx;
               // Carrousel continu : une seule toile large — on masque les autres slides.
@@ -4798,7 +5481,30 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
             <Stage
               ref={stageRef}
               width={stageWView} height={stageH}
-              onMouseDown={e => { if (e.target === e.target.getStage()) { if (cropId) { setCropId(null); } else { setSelectedId(null); if (!bgLocked && proxyUrl) setBgCropMode(true); else setBgCropMode(false); } } }}
+              onMouseDown={e => {
+                // Le lasso démarre sur toute zone « vide » : le Stage nu, mais aussi
+                // l'image de fond, qui est un nœud à l'écoute et masquerait sinon tout
+                // le plan de travail dès qu'une photo est posée.
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                let node: any = e.target;
+                while (node && node.getParent && (!node.id || !node.id())) node = node.getParent();
+                const nodeId = node && node.id ? node.id() : '';
+                const onElement = !!nodeId && elementsRef.current.some(el => el.id === nodeId);
+                if (!onElement) beginMarquee(e.target.getStage());
+              }}
+              onMouseMove={e => updateMarquee(e.target.getStage())}
+              onMouseUp={e => {
+                const wasMarquee = endMarquee();
+                if (wasMarquee) return;
+                // Simple clic sur le vide : comportement d'origine.
+                if (e.target === e.target.getStage()) {
+                  if (cropId) { setCropId(null); }
+                  else {
+                    setSelectedId(null); setSelectedIds([]);
+                    if (!bgLocked && proxyUrl) setBgCropMode(true); else setBgCropMode(false);
+                  }
+                }
+              }}
               onContextMenu={(e: any) => {
                 e.evt.preventDefault();
                 let node: any = e.target;
@@ -4925,14 +5631,29 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
                     const pV = el.paddingV ?? el.padding;
                     const measuredW = measureTextWidth(el.text, el.fontSize, el.fontFamily, el.fontStyle);
                     const rawW = el.width ?? (measuredW + pH * 2);
-                    const blockW = Math.min(Math.max(rawW, 80), Math.max(80, stageW - (el.x ?? 0) - 20));
+                    // Pas de clamp sur le cadre : un bloc déplacé près d'un bord garde sa
+                    // largeur au lieu de se replier. Les marges restent imposées à l'IA par
+                    // relayoutText(), qui s'applique aux slots (role) au chargement/format.
+                    const blockW = Math.max(rawW, 80);
                     const textAreaW = Math.max(1, blockW - pH * 2);
                     // Dynamic blockH: word-wrap simulation matching Konva (so hitbox grows with wrapped lines)
-                    const lineCount = countLines(
+                    const metrics = wrapMetrics(
                       el.uppercase ? el.text.toUpperCase() : el.text,
                       el.fontSize, el.fontFamily, el.fontStyle, textAreaW
                     );
+                    const lineCount = metrics.lines;
                     const blockH = Math.max(1, lineCount) * el.fontSize * (el.lineHeight ?? 1.2) + pV * 2;
+                    // Le fond épouse le texte réellement écrit : élargir la boîte à droite
+                    // ne doit plus étirer l'aplat dans le vide. On le recale ensuite selon
+                    // l'alignement, comme le fait Konva pour les lignes elles-mêmes.
+                    const bgW = Math.min(blockW, metrics.maxLineWidth + pH * 2);
+                    const bgX = el.align === 'center' ? (blockW - bgW) / 2
+                              : el.align === 'right'  ? blockW - bgW
+                              : 0;
+                    // Pendant l'édition, le textarea HTML rend le texte : on masque les
+                    // nœuds Konva pour éviter le doublon superposé. Le Rect de fond, lui,
+                    // reste peint ici (le textarea est transparent).
+                    const isEditing = editingId === el.id;
                     return (
                       <Group key={el.id} id={el.id} x={el.x} y={el.y} rotation={el.rotation} opacity={el.opacity / 100}
                         draggable={!lockedIds.has(el.id)}
@@ -4942,19 +5663,21 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
                         onDragMove={e => handleElDragMove(el.id, e)}
                         onDragEnd={e => handleElDragEnd(el.id, e.target.x(), e.target.y())}>
                         {/* Bug 5 fix: always keep Rect clickable via hitFunc; fully invisible when hasBg=false (no faint opacity box on visuals) */}
-                        <Rect x={0} y={0} width={blockW} height={blockH}
+                        <Rect x={el.hasBg ? bgX : 0} y={0} width={el.hasBg ? bgW : blockW} height={blockH}
                           fill={el.hasBg ? el.bgColor : undefined}
                           opacity={el.hasBg ? el.bgOpacity / 100 : 1}
                           cornerRadius={el.hasBg ? el.cornerRadius : 0}
                           hitFunc={(ctx, shape) => {
+                            // La zone cliquable reste le bloc entier même quand l'aplat est
+                            // plus étroit : coordonnées locales au Rect, donc décalées de bgX.
                             ctx.beginPath();
-                            ctx.rect(0, 0, blockW, blockH);
+                            ctx.rect(el.hasBg ? -bgX : 0, 0, blockW, blockH);
                             ctx.closePath();
                             ctx.fillStrokeShape(shape);
                           }}
                         />
                         {/* Surbrillance — highlight rect behind text */}
-                        {el.highlightEnabled && (() => {
+                        {el.highlightEnabled && !isEditing && (() => {
                           const hp = el.highlightPadding ?? 8;
                           return (
                             <Rect
@@ -4969,7 +5692,7 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
                           );
                         })()}
                         {/* Élévation — lift layers rendered deepest */}
-                        {el.liftEnabled && (() => {
+                        {el.liftEnabled && !isEditing && (() => {
                           const depth = el.liftDepth ?? 6;
                           const dirMap: Record<string,[number,number]> = { tl:[-1,-1],t:[0,-1],tr:[1,-1],l:[-1,0],r:[1,0],bl:[-1,1],b:[0,1],br:[1,1] };
                           const [dx,dy] = dirMap[el.liftDirection ?? 'br'] ?? [1,1];
@@ -4982,7 +5705,7 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
                           ));
                         })()}
                         {/* Écho — echo layers behind main text */}
-                        {el.echoEnabled && (() => {
+                        {el.echoEnabled && !isEditing && (() => {
                           const count = el.echoCount ?? 3;
                           const offset = el.echoOffset ?? 8;
                           const fade = el.echoFade !== false;
@@ -4997,7 +5720,7 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
                           ));
                         })()}
                         {/* Lueur — glow Text clone rendered behind main text */}
-                        {el.glowEnabled && (
+                        {el.glowEnabled && !isEditing && (
                           <Text x={pH} y={pV} width={textAreaW} wrap="word"
                             text={el.uppercase ? el.text.toUpperCase() : el.text}
                             fontSize={el.fontSize} fontFamily={el.fontFamily}
@@ -5015,7 +5738,7 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
                           />
                         )}
                         {/* text wraps within blockW; handles update el.width which drives blockW */}
-                        <Text x={pH} y={pV} width={textAreaW} wrap="word"
+                        <Text x={pH} y={pV} width={textAreaW} wrap="word" visible={!isEditing}
                           text={el.uppercase ? el.text.toUpperCase() : el.text}
                           fontSize={el.fontSize} fontFamily={el.fontFamily}
                           fontStyle={el.fontStyle} textDecoration={el.textDecoration}
@@ -5059,6 +5782,10 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
                 )}
                 {guides.h !== null && (
                   <Line points={[0, guides.h, stageW, guides.h]} stroke="#FF5DA2" strokeWidth={1} dash={[4, 4]} listening={false} />
+                )}
+                {marquee && (
+                  <Rect x={marquee.x} y={marquee.y} width={marquee.w} height={marquee.h}
+                    fill="rgba(124,92,255,0.12)" stroke="#7C5CFF" strokeWidth={1} dash={[5, 4]} listening={false} />
                 )}
               </Layer>
             </Stage>
@@ -5167,35 +5894,84 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
                 <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--ink-2)' }}>{T('bgOpacity')}</span>
                 <input type="range" min={10} max={100} value={bgOpacity} onChange={e => setBgOpacity(Number(e.target.value))} style={{ width: 80, accentColor: 'var(--vio)' }} />
                 <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--ink)', minWidth: 28, fontVariantNumeric: 'tabular-nums' }}>{bgOpacity}%</span>
+                <span style={{ width: 1, height: 18, background: 'var(--line)', flexShrink: 0 }} />
+                <button onClick={detachBgToElement}
+                  title="Sortir l'image du fond pour la manipuler comme un objet"
+                  style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '4px 9px', border: '1px solid var(--line)', background: 'transparent', cursor: 'pointer', color: 'var(--ink-2)', borderRadius: 6, fontSize: 11.5, fontWeight: 700, fontFamily: 'var(--sans)', whiteSpace: 'nowrap' }}>
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 3H5a2 2 0 0 0-2 2v4"/><path d="M15 21h4a2 2 0 0 0 2-2v-4"/><rect x="8" y="8" width="13" height="13" rx="2"/></svg>
+                  Libérer du fond
+                </button>
                 <button onClick={() => { setProxyUrl(''); setBgImageSelected(false); }} style={{ width: 22, height: 22, border: 'none', background: 'transparent', cursor: 'pointer', color: 'var(--ink-3)', display: 'grid', placeItems: 'center', borderRadius: 5 }}
                   title={T('removeBackground')}>
                   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
                 </button>
               </div>
             )}
-            {/* Multi-selection bounding box */}
+            {/* Sélection multiple : contour de chaque objet + cadre de groupe redimensionnable */}
             {selectedIds.length > 1 && !isKonvaDragging && (() => {
               const sels = elements.filter(e => selectedIds.includes(e.id) && !hiddenIds.has(e.id));
               if (sels.length < 2) return null;
-              let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-              for (const e of sels) {
-                const box = getElBox(e);
-                minX = Math.min(minX, box.l); minY = Math.min(minY, box.t);
-                maxX = Math.max(maxX, box.r); maxY = Math.max(maxY, box.b);
-              }
+              const boxes = sels.map(e => ({ id: e.id, box: getElBox(e) }));
+              const minX = Math.min(...boxes.map(b => b.box.l));
+              const minY = Math.min(...boxes.map(b => b.box.t));
+              const maxX = Math.max(...boxes.map(b => b.box.r));
+              const maxY = Math.max(...boxes.map(b => b.box.b));
+              const pad = 6;
+              const groupBox = { l: minX, t: minY, r: maxX, b: maxY };
+              const corners: { id: string; cursor: string; style: React.CSSProperties }[] = [
+                { id: 'tl', cursor: 'nw-resize', style: { left: -6, top: -6 } },
+                { id: 'tr', cursor: 'ne-resize', style: { right: -6, top: -6 } },
+                { id: 'bl', cursor: 'sw-resize', style: { left: -6, bottom: -6 } },
+                { id: 'br', cursor: 'se-resize', style: { right: -6, bottom: -6 } },
+              ];
               return (
-                <div style={{
-                  position: 'absolute',
-                  left: minX - 6, top: minY - 6,
-                  width: maxX - minX + 12, height: maxY - minY + 12,
-                  border: '2px dashed var(--vio)',
-                  borderRadius: 4,
-                  pointerEvents: 'none',
-                  zIndex: 9,
-                }} />
+                <>
+                  {/* Contour léger par objet : on voit lesquels sont pris dans la sélection */}
+                  {boxes.map(b => (
+                    <div key={`selbox-${b.id}`} style={{
+                      position: 'absolute',
+                      left: b.box.l, top: b.box.t,
+                      width: Math.max(1, b.box.r - b.box.l), height: Math.max(1, b.box.b - b.box.t),
+                      border: '1.5px solid var(--vio)',
+                      borderRadius: 2,
+                      opacity: 0.55,
+                      pointerEvents: 'none',
+                      zIndex: 9,
+                    }} />
+                  ))}
+                  {/* Cadre du groupe + poignées d'échelle */}
+                  <div style={{
+                    position: 'absolute',
+                    left: minX - pad, top: minY - pad,
+                    width: maxX - minX + pad * 2, height: maxY - minY + pad * 2,
+                    border: '2px dashed var(--vio)',
+                    borderRadius: 4,
+                    pointerEvents: 'none',
+                    zIndex: 10,
+                  }}>
+                    {corners.map(c => (
+                      <div
+                        key={c.id}
+                        onMouseDown={startGroupResize(c.id, groupBox)}
+                        title="Redimensionner la sélection"
+                        style={{
+                          position: 'absolute',
+                          width: 14, height: 14,
+                          background: '#FFFFFF',
+                          border: '1.5px solid var(--vio)',
+                          borderRadius: 3,
+                          boxShadow: '0 1px 3px rgba(13,15,10,.22)',
+                          cursor: c.cursor,
+                          pointerEvents: 'auto',
+                          ...c.style,
+                        }}
+                      />
+                    ))}
+                  </div>
+                </>
               );
             })()}
-            {selectedEl && !hiddenIds.has(selectedEl.id) && !isKonvaDragging && cropId !== selectedEl.id && maskCropId !== selectedEl.id && (
+            {selectedEl && selectedIds.length <= 1 && !hiddenIds.has(selectedEl.id) && !isKonvaDragging && cropId !== selectedEl.id && maskCropId !== selectedEl.id && (
               <>
                 <SelectionOverlay
                   el={selectedEl}
@@ -5231,8 +6007,15 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
               if (!tel || tel.type !== 'text') return null;
               const pV = Number(tel.paddingV ?? tel.padding ?? 10);
               const pH = Number(tel.paddingH ?? tel.padding ?? 10);
-              const blockW = Math.min(Math.max(tel.width ?? 200, 80), Math.max(80, stageW - (tel.x ?? 0) - 20));
-              const blockH = tel.fontSize + pV * 2;
+              const blockW = Math.max(tel.width ?? 200, 80);
+              // Même hauteur que le bloc Konva : sinon overflow:hidden coupe les lignes
+              // basses dès que le texte passe sur plusieurs lignes.
+              const editLines = countLines(
+                tel.uppercase ? tel.text.toUpperCase() : tel.text,
+                tel.fontSize, tel.fontFamily, tel.fontStyle,
+                Math.max(1, blockW - pH * 2)
+              );
+              const blockH = editLines * tel.fontSize * (tel.lineHeight ?? 1.2) + pV * 2;
               return (
                 <textarea
                   key={editingId}
@@ -5266,8 +6049,12 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
                     fontWeight: tel.fontStyle.includes('bold') ? 'bold' : 'normal',
                     fontStyle: tel.fontStyle.includes('italic') ? 'italic' : 'normal',
                     color: tel.fill,
-                    background: tel.hasBg ? tel.bgColor : 'transparent',
-                    border: '2px solid var(--leaf)',
+                    // Le fond reste peint par le Rect Konva dessous : pas de doublon, et la
+                    // bordure passe en box-shadow pour ne pas décaler le contenu de 2px
+                    // (c'est ce décalage qui donnait l'effet de texte dédoublé).
+                    background: 'transparent',
+                    border: 'none',
+                    boxShadow: '0 0 0 2px var(--leaf)',
                     outline: 'none',
                     resize: 'none',
                     zIndex: 100,
@@ -5388,10 +6175,10 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
               <button onClick={() => setZoom(z => Math.max(0.15, +(z - 0.1).toFixed(2)))} style={{ width: 30, height: 30, borderRadius: 8, display: 'grid', placeItems: 'center', color: 'var(--ink-2)', background: 'transparent', border: 'none', cursor: 'pointer' }}>
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M5 12h14"/></svg>
               </button>
-              <input type="range" min={0.15} max={1.5} step={0.01} value={zoom}
+              <input type="range" min={0.15} max={3} step={0.01} value={zoom}
                 onChange={(e) => setZoom(parseFloat(e.target.value))}
-                className="ed-range" style={{ width: 132, ...rangeFill(zoom, 0.15, 1.5) }} />
-              <button onClick={() => setZoom(z => Math.min(1.5, +(z + 0.1).toFixed(2)))} style={{ width: 30, height: 30, borderRadius: 8, display: 'grid', placeItems: 'center', color: 'var(--ink-2)', background: 'transparent', border: 'none', cursor: 'pointer' }}>
+                className="ed-range" style={{ width: 132, ...rangeFill(zoom, 0.15, 3) }} />
+              <button onClick={() => setZoom(z => Math.min(3, +(z + 0.1).toFixed(2)))} style={{ width: 30, height: 30, borderRadius: 8, display: 'grid', placeItems: 'center', color: 'var(--ink-2)', background: 'transparent', border: 'none', cursor: 'pointer' }}>
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M12 5v14M5 12h14"/></svg>
               </button>
               <span style={{ fontFamily: 'var(--mono)', fontWeight: 800, fontSize: 12, width: 42, textAlign: 'center', fontVariantNumeric: 'tabular-nums', color: 'var(--ink-2)' }}>
