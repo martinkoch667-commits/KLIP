@@ -99,6 +99,8 @@ interface Workspace {
   brand_voice_prompt: string | null;
   description_style: string | null;
   caption_examples: string | null;
+  /** Lu depuis la base et affiché sur les vignettes de post ; il manquait au type. */
+  instagram_username: string | null;
 }
 
 interface PostTemplate {
@@ -526,7 +528,7 @@ export default function WorkspacePage() {
   const loadData = useCallback(async () => {
     const { data: ws } = await supabase
       .from("workspaces")
-      .select("id, name, logo_url, sector, tone, words_to_use, words_to_avoid, company_description, brand_voice_prompt, description_style, caption_examples")
+      .select("id, name, logo_url, sector, tone, words_to_use, words_to_avoid, company_description, brand_voice_prompt, description_style, caption_examples, instagram_username")
       .eq("id", id)
       .single();
 

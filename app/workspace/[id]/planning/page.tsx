@@ -1025,14 +1025,26 @@ function PlanningContent() {
                 <div style={{ borderRight: `1px solid rgba(13,15,10,.08)`, background: "var(--canvas)" }} />
                 {weekDays.map((day, i) => {
                   const isToday = isSameDay(day, today);
+                  const isWeekend = i >= 5;
+                  const n = postsForDay(day).length;
                   return (
-                    <div key={i} style={{ padding: "11px 14px 10px", borderRight: i < 6 ? `1px solid rgba(13,15,10,.08)` : "none", display: "flex", alignItems: "center", gap: 8 }}>
-                      <span style={{ fontFamily: "var(--display)", fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: ".07em", color: "var(--ink-3)" }}>{DAY_LOC[i]}</span>
+                    // En-tête inversé pour le jour courant, grisé pour le week-end :
+                    // on situe la semaine sans avoir à lire les dates.
+                    <div key={i} style={{ padding: "11px 14px 10px", borderRight: i < 6 ? `1px solid rgba(13,15,10,.08)` : "none", display: "flex", alignItems: "center", gap: 8,
+                      background: isToday ? "var(--forest)" : isWeekend ? "rgba(13,15,10,.045)" : "transparent" }}>
+                      <span style={{ fontFamily: "var(--display)", fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: ".07em",
+                        color: isToday ? "var(--cream-2)" : "var(--ink-3)" }}>{DAY_LOC[i]}</span>
                       <span style={{ width: 26, height: 26, borderRadius: "50%", display: "grid", placeItems: "center", fontFamily: "'Archivo', var(--sans)", fontWeight: 700, fontSize: 13, transition: "background .12s",
                         background: isToday ? "var(--leaf)" : "transparent",
                         color: isToday ? "#0D2E1C" : "var(--ink)" }}>
                         {day.getDate()}
                       </span>
+                      {n > 0 && (
+                        <span title={`${n} post${n > 1 ? "s" : ""} programmé${n > 1 ? "s" : ""}`}
+                          style={{ marginLeft: "auto", fontSize: 10.5, fontWeight: 800, fontFamily: "var(--mono)", padding: "2px 6px", borderRadius: 99,
+                            background: isToday ? "rgba(238,237,227,.16)" : "var(--mint-soft)",
+                            color: isToday ? "var(--cream)" : "var(--mint-2)" }}>{n}</span>
+                      )}
                     </div>
                   );
                 })}
@@ -1058,13 +1070,24 @@ function PlanningContent() {
                   return (
                     <div key={dayKey} style={{ position: "relative", borderRight: di < 6 ? `1px solid rgba(13,15,10,.08)` : "none" }}>
 
-                      {/* Hour slots (drop targets + hover) */}
+                      {/* Hour slots (drop targets + hover).
+                          Chaque créneau est teinté par son score d'affluence : les
+                          bonnes heures de publication se repèrent d'un coup d'œil,
+                          sans avoir à lire la bande « meilleurs moments ». Le week-end
+                          est désaturé pour que la semaine ouvrée ressorte. */}
                       {HOURS.map(h => {
                         const isOver = dragOverDay === dayKey && dragOverHour === h;
+                        const dow = day.getDay();
+                        const isWeekend = dow === 0 || dow === 6;
+                        const score = engageScore(dow, h);
+                        // 0 → transparent, 100 → teinte franche ; atténué le week-end.
+                        const heat = Math.max(0, (score - 40) / 60) * (isWeekend ? 0.5 : 1);
                         return (
                           <div key={h}
                             className="cal-slot"
-                            style={{ height: HOUR_H, borderBottom: `1px solid rgba(13,15,10,.06)`, boxSizing: "border-box", background: isOver ? "rgba(47,215,155,.08)" : "transparent", cursor: "pointer", transition: "background .1s" }}
+                            style={{ height: HOUR_H, borderBottom: `1px solid rgba(13,15,10,.06)`, boxSizing: "border-box",
+                              background: isOver ? "rgba(47,215,155,.18)" : `rgba(102,86,217,${(heat * 0.13).toFixed(3)})`,
+                              cursor: "pointer", transition: "background .1s" }}
                             onDragOver={e => { e.preventDefault(); setDragOverDay(dayKey); setDragOverHour(h); }}
                             onDragLeave={() => { setDragOverDay(null); setDragOverHour(null); }}
                             onDrop={() => handleDropOnHour(day, h)}
