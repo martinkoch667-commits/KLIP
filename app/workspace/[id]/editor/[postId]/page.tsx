@@ -1501,10 +1501,10 @@ function SelectionPill({ elX, elY, elW, zoom, onDuplicate, onDelete }: PillProps
 function PanelHead({ title, sub, onClose }: { title: string; sub?: string; onClose: () => void }) {
   const T = useTranslations('editor');
   return (
-    <div style={{ display: 'flex', alignItems: 'flex-start', marginBottom: 16 }}>
+    <div style={{ display: 'flex', alignItems: 'flex-start', marginBottom: 20 }}>
       <div style={{ minWidth: 0 }}>
-        <h3 className="h-title" style={{ fontSize: 17 }}>{title}</h3>
-        {sub && <div style={{ fontSize: 12.5, color: 'var(--ink-3)', marginTop: 2 }}>{sub}</div>}
+        <h3 className="h-title" style={{ fontSize: 20, letterSpacing: '-0.015em' }}>{title}</h3>
+        {sub && <div style={{ fontSize: 13, color: 'var(--ink-3)', marginTop: 4 }}>{sub}</div>}
       </div>
       <button onClick={onClose} title={T('close')}
         style={{ marginLeft: 'auto', width: 30, height: 30, borderRadius: 8, display: 'grid', placeItems: 'center', color: 'var(--ink-3)', flexShrink: 0, background: 'transparent', border: 'none', cursor: 'pointer' }}
@@ -4785,7 +4785,7 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
       <div className="ed-body" style={{ flex: 1, display: 'flex', minHeight: 0 }}>
 
         {/* ── TOOL RAIL (68px) ── */}
-        <div data-stop-deselect className="ed-rail" style={{ width: 88, background: 'var(--white)', display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '10px 0', gap: 6, flexShrink: 0 }}>
+        <div data-stop-deselect className="ed-rail" style={{ width: 88, background: '#F3F4F7', display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '10px 0', gap: 6, flexShrink: 0 }}>
           {([
             { id: 'design',   label: 'Modèles',  icon: <svg width="29" height="29" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="16" rx="2.5"/><line x1="9" y1="4" x2="9" y2="20"/></svg> },
             { id: 'elements', label: 'Éléments', icon: <svg width="29" height="29" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><circle cx="7" cy="8" r="3.4"/><rect x="12.5" y="4.6" width="7" height="7" rx="1.7"/><path d="M8 14.2l4.2 6.2H3.8l4.2-6.2z"/></svg> },
@@ -4821,15 +4821,15 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
 
         {/* ── TOOL PANEL FLYOUT (312px, conditional) ── */}
         {tool && (
-          <div data-stop-deselect className="pop-in ed-panel" style={{ width: 312, background: 'var(--white)', overflowY: 'auto', flexShrink: 0, display: 'flex', flexDirection: 'column' }}>
+          <div data-stop-deselect className="pop-in ed-panel" style={{ width: 360, background: 'var(--white)', overflowY: 'auto', flexShrink: 0, display: 'flex', flexDirection: 'column' }}>
 
             {/* DESIGN — Modèles */}
             {tool === 'design' && (
-              <div style={{ padding: '18px' }}>
+              <div style={{ padding: '22px' }}>
                 <PanelHead title={T('templates')} sub={`Mises en page · ${workspaceName}`} onClose={() => setTool(null)} />
                 <div style={{ position: 'relative', marginBottom: 16 }}>
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" style={{ position: 'absolute', left: 12, top: 12, color: 'var(--ink-3)', pointerEvents: 'none' }}><circle cx="11" cy="11" r="7"/><path d="M21 21l-4-4"/></svg>
-                  <input className="input" placeholder={T('searchTemplate')} style={{ paddingLeft: 36, height: 40, background: 'var(--white)', border: '1px solid var(--line)' }} />
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" style={{ position: 'absolute', left: 14, top: 15, color: 'var(--ink-3)', pointerEvents: 'none' }}><circle cx="11" cy="11" r="7"/><path d="M21 21l-4-4"/></svg>
+                  <input className="input" placeholder={T('searchTemplate')} style={{ paddingLeft: 40, height: 46, fontSize: 14, background: 'var(--sunk)', border: '1px solid transparent', borderRadius: 12 }} />
                 </div>
                 {/* ── MISES EN PAGE — compositions complètes, même principe que les
                        combinaisons de texte : version de base ou version à la charte ── */}
@@ -4858,9 +4858,8 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
                       <div style={{ display: 'flex', gap: 5, overflowX: 'auto', paddingBottom: 7 }}>
                         {(['Tous', ...LAYOUT_STYLES] as string[]).map(s => (
                           <button key={s} onClick={() => setLtStyle(s)}
-                            style={{ flexShrink: 0, fontSize: 11, fontWeight: 700, padding: '4px 10px', borderRadius: 999, cursor: 'pointer',
-                              border: '1px solid ' + (ltStyle === s ? 'var(--ink)' : 'var(--line)'),
-                              background: ltStyle === s ? 'var(--ink)' : 'transparent',
+                            style={{ flexShrink: 0, fontSize: 12.5, fontWeight: 700, padding: '6px 13px', borderRadius: 999, cursor: 'pointer', border: 'none',
+                              background: ltStyle === s ? 'var(--ink)' : 'var(--sunk)',
                               color: ltStyle === s ? 'var(--paper)' : 'var(--ink-2)' }}>
                             {s}
                           </button>
@@ -4869,10 +4868,9 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
                       <div style={{ display: 'flex', gap: 5, overflowX: 'auto', paddingBottom: 8, marginBottom: 10 }}>
                         {(['Tous', ...LAYOUT_CATS] as string[]).map(c => (
                           <button key={c} onClick={() => setLtCat(c)}
-                            style={{ flexShrink: 0, fontSize: 10.5, fontWeight: 700, padding: '3px 9px', borderRadius: 999, cursor: 'pointer',
-                              border: '1px dashed ' + (ltCat === c ? 'var(--leaf)' : 'var(--line)'),
-                              background: ltCat === c ? 'var(--leaf)' : 'transparent',
-                              color: ltCat === c ? '#06281C' : 'var(--ink-3)' }}>
+                            style={{ flexShrink: 0, fontSize: 11.5, fontWeight: 700, padding: '5px 12px', borderRadius: 999, cursor: 'pointer', border: 'none',
+                              background: ltCat === c ? 'var(--mint-soft)' : 'transparent',
+                              color: ltCat === c ? 'var(--mint-2)' : 'var(--ink-3)' }}>
                             {c}
                           </button>
                         ))}
@@ -4882,13 +4880,13 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
                           const t = shown(tpl);
                           return (
                             <button key={tpl.id} onClick={() => applyLayoutTemplate(t)} title={`${tpl.name} · ${tpl.cat}`}
-                              style={{ padding: 0, borderRadius: 11, border: '1px solid var(--line)', cursor: 'pointer', overflow: 'hidden', background: 'var(--white)', transition: 'all .14s', display: 'block' }}
-                              onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--leaf)'; e.currentTarget.style.transform = 'translateY(-2px)'; }}
-                              onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--line)'; e.currentTarget.style.transform = 'none'; }}>
-                              <LayoutThumb tpl={t} w={126} h={158} />
-                              <div style={{ padding: '6px 8px', textAlign: 'left', borderTop: '1px solid var(--line)' }}>
-                                <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--ink)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{tpl.name}</div>
-                                <div style={{ fontSize: 9.5, color: 'var(--ink-3)', fontFamily: 'var(--mono)' }}>{tpl.style}{tpl.photos > 1 ? ` · ${tpl.photos} photos` : ''}</div>
+                              style={{ padding: 0, borderRadius: 12, border: 'none', cursor: 'pointer', overflow: 'hidden', background: 'transparent', transition: 'transform .14s', display: 'block' }}
+                              onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-3px)'; }}
+                              onMouseLeave={e => { e.currentTarget.style.transform = 'none'; }}>
+                              <LayoutThumb tpl={t} w={150} h={188} />
+                              <div style={{ padding: '8px 2px 0', textAlign: 'left' }}>
+                                <div style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--ink)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{tpl.name}</div>
+                                <div style={{ fontSize: 11, color: 'var(--ink-3)' }}>{tpl.style}{tpl.photos > 1 ? ` · ${tpl.photos} photos` : ''}</div>
                               </div>
                             </button>
                           );
@@ -4923,7 +4921,7 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
 
             {/* ELEMENTS — Éléments */}
             {tool === 'elements' && (
-              <div style={{ padding: '18px' }}>
+              <div style={{ padding: '22px' }}>
                 <PanelHead title={T('elements')} sub="Formes & blocs de couleur" onClose={() => setTool(null)} />
                 <div style={{ position: 'relative', marginBottom: 16 }}>
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" style={{ position: 'absolute', left: 12, top: 12, color: 'var(--ink-3)', pointerEvents: 'none' }}><circle cx="11" cy="11" r="7"/><path d="M21 21l-4-4"/></svg>
@@ -5100,7 +5098,7 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
 
             {/* TEXT */}
             {tool === 'text' && (
-              <div style={{ padding: '18px' }}>
+              <div style={{ padding: '22px' }}>
                 <PanelHead title={T('text')} onClose={() => setTool(null)} />
                 <button onClick={addText} className="btn btn-dark" style={{ width: '100%', justifyContent: 'center', marginBottom: 16, gap: 8, height: 44 }}>
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
@@ -5184,7 +5182,7 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
 
             {/* PHOTOS */}
             {tool === 'photos' && (
-              <div style={{ padding: '18px' }}>
+              <div style={{ padding: '22px' }}>
                 <PanelHead title={T('photos')} sub="Pexels · 3M+ photos" onClose={() => setTool(null)} />
                 {isTemplate && (
                   <>
@@ -5270,7 +5268,7 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
 
             {/* BRAND — Charte */}
             {tool === 'brand' && (
-              <div style={{ padding: '18px' }}>
+              <div style={{ padding: '22px' }}>
                 <PanelHead title={T('brandKit')} sub={workspaceName} onClose={() => setTool(null)} />
                 <SectionLabel>{T('colors')}</SectionLabel>
                 <div style={{ display: 'flex', gap: 5, marginBottom: 16 }}>
@@ -5324,7 +5322,7 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
 
             {/* UPLOAD — Importer */}
             {tool === 'upload' && (
-              <div style={{ padding: '18px' }}>
+              <div style={{ padding: '22px' }}>
                 <PanelHead title={T('import')} onClose={() => setTool(null)} />
                 <label className="btn btn-primary" style={{ width: '100%', justifyContent: 'center', height: 44, marginBottom: 14, cursor: 'pointer' }}>
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
@@ -5344,7 +5342,7 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
 
             {/* CALQUES — Layers panel */}
             {tool === 'calques' && (
-              <div style={{ padding: '18px' }}>
+              <div style={{ padding: '22px' }}>
                 <PanelHead title={T('layers')} sub="Ordre et verrouillage" onClose={() => setTool(null)} />
                 <RailLayerList
                   elements={elements}
@@ -5433,7 +5431,7 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
 
         {/* ── PANNEAU GAUCHE CONTEXTUEL (Effet / Position) ── */}
         {selectedEl && (fxPanel === 'position' || (fxPanel === 'effects' && selectedEl.type === 'text')) && (
-          <div data-stop-deselect className="pop-in ed-panel" style={{ width: 312, background: 'var(--white)', overflowY: 'auto', flexShrink: 0, display: 'flex', flexDirection: 'column' }}>
+          <div data-stop-deselect className="pop-in ed-panel" style={{ width: 360, background: 'var(--white)', overflowY: 'auto', flexShrink: 0, display: 'flex', flexDirection: 'column' }}>
             {fxPanel === 'effects' && selectedEl.type === 'text' && (
               <EffectsPanel
                 sel={selectedEl as TextEl}
@@ -6195,8 +6193,7 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
               détacher du plan de travail, désormais gris. */}
           <div style={{
             height: 52, flexShrink: 0,
-            background: 'var(--white)',
-            borderTop: '1px solid var(--line-2)',
+            background: '#F3F4F7',
             display: 'flex', alignItems: 'center', gap: 12, padding: '0 16px',
           }}>
             {/* Page courante + format */}
