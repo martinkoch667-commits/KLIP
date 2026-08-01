@@ -1,5 +1,8 @@
 {
   "voice": {
+    "sticker": "Dillo a voce",
+    "stop": "Fine",
+    "blocked": "Microfono bloccato",
     "dictate": "Detta",
     "listening": "Ti ascolto…",
     "startTitle": "Detta invece di scrivere",

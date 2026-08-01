@@ -1,5 +1,8 @@
 {
   "voice": {
+    "sticker": "Sag es einfach",
+    "stop": "Fertig",
+    "blocked": "Mikro blockiert",
     "dictate": "Diktieren",
     "listening": "Ich höre zu…",
     "startTitle": "Diktieren statt tippen",

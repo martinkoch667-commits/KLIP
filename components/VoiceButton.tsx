@@ -4,6 +4,11 @@
 // est l'un de ses gestes les plus forts, donc il s'affiche en pilule leaf avec
 // libellé, un halo d'appel tant qu'on ne l'a jamais utilisé, puis une capsule
 // violette dont les barres suivent le niveau réel du micro pendant l'écoute.
+//
+// Fiabilité : la reconnaissance tourne en `continuous` et se relance seule tant
+// que l'utilisateur n'a pas cliqué « Terminer » (sinon Chrome coupe au premier
+// silence, et cliquer semblait « ne rien faire »). L'analyseur de niveau, lui,
+// est un bonus : s'il gêne la capture, on le débranche et on repart sans lui.
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
@@ -15,6 +20,9 @@ const USED_KEY = "klip:voice-used";
 const SPEECH_LANG: Record<string, string> = {
   fr: "fr-FR", en: "en-US", es: "es-ES", de: "de-DE", it: "it-IT", pt: "pt-PT",
 };
+
+// Erreurs qui condamnent la session : inutile de relancer, il faut le dire.
+const FATAL = new Set(["not-allowed", "service-not-allowed", "language-not-supported"]);
 
 interface VoiceButtonProps {
   value: string;
@@ -31,23 +39,58 @@ function mmss(total: number) {
   return `${m}:${String(s).padStart(2, "0")}`;
 }
 
+// Petit signal sonore : deux notes montantes au départ, descendantes à l'arrêt.
+// Synthétisé à la volée — aucun fichier à charger, et le clic fait office de
+// geste utilisateur, donc l'AudioContext démarre sans blocage navigateur.
+function chime(up: boolean) {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const Ctx = window.AudioContext || (window as any).webkitAudioContext;
+    if (!Ctx) return;
+    const ctx: AudioContext = new Ctx();
+    const notes = up ? [587.33, 880] : [880, 587.33]; // ré5 → la5
+    notes.forEach((f, i) => {
+      const t0 = ctx.currentTime + i * 0.075;
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = "sine";
+      osc.frequency.setValueAtTime(f, t0);
+      gain.gain.setValueAtTime(0.0001, t0);
+      gain.gain.exponentialRampToValueAtTime(0.13, t0 + 0.012);
+      gain.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.16);
+      osc.connect(gain).connect(ctx.destination);
+      osc.start(t0);
+      osc.stop(t0 + 0.18);
+    });
+    window.setTimeout(() => void ctx.close().catch(() => {}), 500);
+  } catch {
+    /* pas de son, pas grave */
+  }
+}
+
 export default function VoiceButton({ value, onChange, compact = false, hint = false }: VoiceButtonProps) {
   const t = useTranslations("voice");
   const locale = useLocale();
 
   const [supported, setSupported] = useState(false);
   const [recording, setRecording] = useState(false);
-  const [fresh, setFresh] = useState(false);      // jamais dicté sur cet appareil
+  const [blocked, setBlocked] = useState(false);   // micro refusé / indisponible
+  const [fresh, setFresh] = useState(false);       // jamais dicté sur cet appareil
   const [reactive, setReactive] = useState(false); // analyseur audio branché
   const [seconds, setSeconds] = useState(0);
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const recognitionRef = useRef<any>(null);
-  const baseRef = useRef("");                      // valeur au démarrage de la dictée
+  const wantRef = useRef(false);       // l'utilisateur veut dicter (≠ session en cours)
+  const baseRef = useRef("");          // valeur au démarrage de la session courante
+  const valueRef = useRef(value);      // dernière valeur connue du champ
+  const meterOkRef = useRef(true);     // l'analyseur est-il encore le bienvenu ?
+  const strikeRef = useRef(0);         // sessions mortes-nées d'affilée (pas de micro ?)
   const btnRef = useRef<HTMLButtonElement>(null);
   const barsRef = useRef<(HTMLElement | null)[]>([]);
   const meterRef = useRef<{ ctx: AudioContext; stream: MediaStream; raf: number } | null>(null);
-  const wantMeterRef = useRef(false);
+
+  valueRef.current = value;
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -62,7 +105,6 @@ export default function VoiceButton({ value, onChange, compact = false, hint = f
   }, []);
 
   const stopMeter = useCallback(() => {
-    wantMeterRef.current = false;
     const m = meterRef.current;
     meterRef.current = null;
     setReactive(false);
@@ -73,11 +115,11 @@ export default function VoiceButton({ value, onChange, compact = false, hint = f
   }, []);
 
   const startMeter = useCallback(async () => {
-    wantMeterRef.current = true;
+    if (!meterOkRef.current || meterRef.current) return;
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       // L'utilisateur a pu arrêter pendant la demande d'autorisation.
-      if (!wantMeterRef.current) {
+      if (!wantRef.current) {
         stream.getTracks().forEach((track) => track.stop());
         return;
       }
@@ -113,45 +155,34 @@ export default function VoiceButton({ value, onChange, compact = false, hint = f
     }
   }, []);
 
-  // Le bloc porteur du champ s'allume pendant l'écoute (cf. .voice-scope--live).
-  useEffect(() => {
-    const scope = btnRef.current?.closest("[data-voice-scope]");
-    if (!scope) return;
-    scope.classList.toggle("voice-scope--live", recording);
-    return () => scope.classList.remove("voice-scope--live");
-  }, [recording]);
-
-  useEffect(() => {
-    if (!recording) {
-      setSeconds(0);
-      return;
-    }
-    const id = window.setInterval(() => setSeconds((s) => s + 1), 1000);
-    return () => window.clearInterval(id);
-  }, [recording]);
-
-  useEffect(() => () => {
-    recognitionRef.current?.stop();
+  const finish = useCallback((wasBlocked = false) => {
+    wantRef.current = false;
+    recognitionRef.current = null;
     stopMeter();
+    setRecording(false);
+    if (wasBlocked) {
+      setBlocked(true);
+      window.setTimeout(() => setBlocked(false), 3200);
+    }
   }, [stopMeter]);
 
-  function toggle() {
-    if (recording) {
-      recognitionRef.current?.stop();
-      stopMeter();
-      return;
-    }
-
+  // Une session de reconnaissance. Chrome la coupe tout seul (silence, réseau,
+  // limite de durée) : on la relance tant que `wantRef` est vrai.
+  const startSession = useCallback(() => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const w = window as any;
     const SR = w.SpeechRecognition || w.webkitSpeechRecognition;
+    if (!SR) return;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const r: any = new SR();
     r.lang = SPEECH_LANG[locale] ?? SPEECH_LANG.en;
     r.interimResults = true;
-    r.continuous = false;
+    r.continuous = true;
 
-    baseRef.current = value;
+    baseRef.current = valueRef.current;
+    const startedAt = Date.now();
+    let lastError = "";
+    let gotResult = false;
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     r.onresult = (e: any) => {
@@ -163,23 +194,88 @@ export default function VoiceButton({ value, onChange, compact = false, hint = f
         else interim += result[0].transcript;
       }
       const prefix = baseRef.current ? baseRef.current + " " : "";
-      if (final) {
-        onChange((prefix + final.trim()).trim());
-      } else if (interim) {
-        onChange((prefix + interim).trim());
+      const spoken = (final + interim).trim();
+      if (spoken) {
+        gotResult = true;
+        strikeRef.current = 0;
+        onChange((prefix + spoken).trim());
       }
     };
 
-    const end = () => {
-      setRecording(false);
-      stopMeter();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    r.onerror = (e: any) => {
+      lastError = e?.error ?? "";
+      // L'analyseur de niveau se dispute la capture sur certaines machines :
+      // on le sacrifie plutôt que la dictée.
+      if (lastError === "audio-capture" || lastError === "aborted") {
+        meterOkRef.current = false;
+        stopMeter();
+      }
     };
-    r.onend = end;
-    r.onerror = end;
+
+    r.onend = () => {
+      if (!wantRef.current) { finish(); return; }
+      if (FATAL.has(lastError)) { finish(true); return; }
+      // Session morte-née (pas de micro branché, capture refusée par l'OS…) :
+      // trois d'affilée et on arrête de s'acharner, on le dit à l'écran.
+      if (!gotResult && Date.now() - startedAt < 700) {
+        if (++strikeRef.current >= 3) { finish(true); return; }
+      } else {
+        strikeRef.current = 0;
+      }
+      // Relance : la valeur courante devient la nouvelle base, sinon le texte
+      // déjà dicté serait répété au tour suivant.
+      window.setTimeout(() => {
+        if (!wantRef.current) { finish(); return; }
+        try { startSession(); } catch { finish(true); }
+      }, 180);
+    };
 
     recognitionRef.current = r;
     r.start();
+  }, [locale, onChange, finish, stopMeter]);
+
+  // Le bloc porteur du champ s'allume pendant l'écoute (cf. .voice-scope--live).
+  useEffect(() => {
+    const scope = btnRef.current?.closest("[data-voice-scope]");
+    if (!scope) return;
+    scope.classList.toggle("voice-scope--live", recording);
+    return () => scope.classList.remove("voice-scope--live");
+  }, [recording]);
+
+  useEffect(() => {
+    if (!recording) { setSeconds(0); return; }
+    const id = window.setInterval(() => setSeconds((s) => s + 1), 1000);
+    return () => window.clearInterval(id);
+  }, [recording]);
+
+  useEffect(() => () => {
+    wantRef.current = false;
+    try { recognitionRef.current?.abort?.(); } catch { /* déjà fermée */ }
+    stopMeter();
+  }, [stopMeter]);
+
+  function toggle() {
+    if (wantRef.current) {
+      // Arrêt demandé : on coupe d'abord l'intention, sinon onend relancerait.
+      wantRef.current = false;
+      chime(false);
+      try { recognitionRef.current?.stop(); } catch { /* rien à arrêter */ }
+      finish();
+      return;
+    }
+
+    wantRef.current = true;
+    strikeRef.current = 0;
+    setBlocked(false);
     setRecording(true);
+    chime(true);
+    try {
+      startSession();
+    } catch {
+      finish(true);
+      return;
+    }
     void startMeter();
 
     if (fresh) {
@@ -194,11 +290,12 @@ export default function VoiceButton({ value, onChange, compact = false, hint = f
 
   if (!supported) return null;
 
-  const showHint = hint && fresh && !recording;
+  const showHint = hint && fresh && !recording && !blocked;
   const className = [
     "voice-pill",
-    compact && !recording ? "voice-pill--compact" : "",
+    compact && !recording && !blocked ? "voice-pill--compact" : "",
     recording ? "voice-pill--live" : "",
+    blocked ? "voice-pill--err" : "",
     fresh && !recording ? "voice-pill--new" : "",
   ].filter(Boolean).join(" ");
 
@@ -218,7 +315,7 @@ export default function VoiceButton({ value, onChange, compact = false, hint = f
             <rect x="5" y="5" width="14" height="14" rx="3.5" />
           </svg>
         ) : (
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+          <svg className="voice-mic" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
             <rect x="9" y="2" width="6" height="12" rx="3" />
             <path d="M5 10a7 7 0 0 0 14 0" />
             <path d="M12 19v3" />
@@ -234,9 +331,17 @@ export default function VoiceButton({ value, onChange, compact = false, hint = f
               <i key={i} ref={(el) => { barsRef.current[i] = el; }} />
             ))}
           </span>
-          {!compact && <span className="voice-pill__txt">{t("listening")}</span>}
+          {!compact && (
+            <>
+              {/* Le libellé bascule sur « Terminer » au survol : on sait ce que le clic va faire. */}
+              <span className="voice-pill__txt voice-pill__txt--on">{t("listening")}</span>
+              <span className="voice-pill__txt voice-pill__txt--off">{t("stop")}</span>
+            </>
+          )}
           <span className="voice-time">{mmss(seconds)}</span>
         </>
+      ) : blocked ? (
+        <span className="voice-pill__txt">{t("blocked")}</span>
       ) : (
         !compact && <span className="voice-pill__txt">{t("dictate")}</span>
       )}

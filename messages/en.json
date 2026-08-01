@@ -1,5 +1,8 @@
 {
   "voice": {
+    "sticker": "Just say it",
+    "stop": "Done",
+    "blocked": "Mic blocked",
     "dictate": "Dictate",
     "listening": "Listening…",
     "startTitle": "Dictate instead of typing",

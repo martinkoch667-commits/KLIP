@@ -1,5 +1,8 @@
 {
   "voice": {
+    "sticker": "Dilo en voz alta",
+    "stop": "Terminar",
+    "blocked": "Micro bloqueado",
     "dictate": "Dictar",
     "listening": "Te escucho…",
     "startTitle": "Dicta en vez de escribir",

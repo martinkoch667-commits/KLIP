@@ -473,6 +473,7 @@ export default function WorkspacePage() {
   const router = useRouter();
   const supabase = createClientComponentClient();
   const t = useTranslations('workspace');
+  const tVoice = useTranslations('voice');
 
   const [workspace, setWorkspace] = useState<Workspace | null>(null);
   const [posts, setPosts] = useState<PostItem[]>([]);
@@ -1275,8 +1276,16 @@ export default function WorkspacePage() {
                   </div>
                 )}
 
-                {/* Brief global */}
-                <div className="card" data-voice-scope="" style={{ padding: 22, marginBottom: 20 }}>
+                {/* Brief global — carte « posée » (scotch + étiquette), vocabulaire
+                    atelier de la landing v3 : elle se redresse au survol. */}
+                <div className="card card-tilt" data-voice-scope="" style={{ padding: 22, margin: '26px 0 30px' }}>
+                  <span className="tape" aria-hidden="true" />
+                  <span className="stk-card stk-leaf" style={{ position: 'absolute', top: -16, right: 22, rotate: '3deg', fontSize: 11.5, letterSpacing: '.08em', textTransform: 'uppercase', padding: '8px 13px', zIndex: 5 }}>
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                      <rect x="9" y="2" width="6" height="12" rx="3" /><path d="M5 10a7 7 0 0 0 14 0" /><path d="M12 19v3" /><path d="M8 22h8" />
+                    </svg>
+                    {tVoice('sticker')}
+                  </span>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
                     <h2 className="h-title" style={{ fontSize: 16 }}>{t('globalBrief')}</h2>
                     <span style={{ fontSize: 13, color: 'var(--ink-3)' }}>{t('globalBriefHint')}</span>
