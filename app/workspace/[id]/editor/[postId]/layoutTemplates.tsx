@@ -25,8 +25,8 @@ export const LAYOUT_CATS: LayoutCat[] = ['Photo', 'Éditorial', 'Citation', 'Lis
 
 // Le STYLE compte autant que l'usage : deux modèles « citation » peuvent n'avoir
 // aucun rapport visuel. On range donc chaque modèle sur les deux axes.
-export type LayoutStyle = 'Minimal' | 'Éditorial' | 'Audacieux' | 'Rétro' | 'Élégant' | 'Ludique' | 'Scrapbook' | 'Naturel' | 'Nocturne';
-export const LAYOUT_STYLES: LayoutStyle[] = ['Minimal', 'Éditorial', 'Audacieux', 'Rétro', 'Élégant', 'Ludique', 'Scrapbook', 'Naturel', 'Nocturne'];
+export type LayoutStyle = 'Composé' | 'Minimal' | 'Éditorial' | 'Audacieux' | 'Rétro' | 'Élégant' | 'Ludique' | 'Scrapbook' | 'Naturel' | 'Nocturne';
+export const LAYOUT_STYLES: LayoutStyle[] = ['Composé', 'Minimal', 'Éditorial', 'Audacieux', 'Rétro', 'Élégant', 'Ludique', 'Scrapbook', 'Naturel', 'Nocturne'];
 
 // Rôle dans la charte — pilote la recoloration « à ma charte ».
 export type BrandRole = 'ground' | 'accent' | 'onGround' | 'onAccent' | 'title' | 'body' | 'none';
@@ -147,6 +147,105 @@ const C = { align: 'center' } as const;
 const scrimBas = rc(0, 0.5, 1, 0.5, '#000000', { scrim: 'bottom', opacity: 60 });
 
 export const LAYOUT_TEMPLATES: LayoutTemplate[] = [
+
+  // ═══ COMPOSÉ ══════════════════════════════════════════════════════════════
+  // Compositions abouties : plusieurs plans superposés, cadres inclinés, typo
+  // qui joue sur les tailles et les chevauchements. On livre un visuel FINI que
+  // le client retouche, au lieu d'un gabarit à remplir.
+  { id: 'co-polaroid3', name: 'Trois polaroids', cat: 'Collage', style: 'Composé', photos: 3, els: [
+    rc(0, 0, 1, 1, SAND, { role: G }),
+    rc(0.06, 0.12, 0.5, 0.42, WHITE, { rotation: -8, radius: 0.006 }),
+    ph(0.09, 0.15, 0.44, 0.33, 0),
+    rc(0.42, 0.26, 0.5, 0.42, WHITE, { rotation: 6, radius: 0.006 }),
+    ph(0.45, 0.29, 0.44, 0.33, 1),
+    rc(0.16, 0.44, 0.5, 0.42, WHITE, { rotation: -3, radius: 0.006 }),
+    ph(0.19, 0.47, 0.44, 0.33, 2),
+    tx(0.06, 0.87, 0.88, 'notre semaine', 0.075, INK, { ...C, role: OG }),
+  ] },
+  { id: 'co-magazine', name: 'Titre par-dessus', cat: 'Éditorial', style: 'Composé', photos: 1, els: [
+    rc(0, 0, 1, 1, BONE, { role: G }),
+    ph(0.12, 0.1, 0.76, 0.56, 0, 0.004),
+    rc(0.04, 0.5, 0.6, 0.13, CREAM, { rotation: -2 }),
+    tx(0.06, 0.51, 0.56, 'L’ART DE', 0.1, INK, { ...B, uppercase: true, rotation: -2, role: NO }),
+    rc(0.3, 0.62, 0.66, 0.13, RUST, { rotation: 1, role: AC }),
+    tx(0.32, 0.63, 0.62, 'RALENTIR', 0.1, CREAM, { ...B, uppercase: true, rotation: 1, role: NO }),
+    tx(0.12, 0.82, 0.76, 'Dossier · 6 min de lecture', 0.028, INK, { uppercase: true, letterSpacing: 3, role: OG }),
+  ] },
+  { id: 'co-typostack', name: 'Empilement typo', cat: 'Éditorial', style: 'Composé', photos: 1, els: [
+    rc(0, 0, 1, 1, NOIR, { role: G }),
+    tx(0.04, 0.08, 0.92, 'ÉTÉ', 0.26, 'rgba(244,237,228,.13)', { ...B, uppercase: true, letterSpacing: -4, role: NO }),
+    tx(0.04, 0.26, 0.92, 'ÉTÉ', 0.19, 'rgba(244,237,228,.28)', { ...B, uppercase: true, letterSpacing: -3, role: NO }),
+    ph(0.22, 0.36, 0.56, 0.4, 0, 0.02),
+    tx(0.04, 0.79, 0.92, 'ÉTÉ', 0.19, CREAM, { ...B, uppercase: true, letterSpacing: -3, role: OG }),
+    tx(0.04, 0.93, 0.92, '2026 — la collection', 0.028, GOLD, { letterSpacing: 3, uppercase: true, role: AC }),
+  ] },
+  { id: 'co-papier', name: 'Papiers superposés', cat: 'Citation', style: 'Composé', photos: 0, els: [
+    rc(0, 0, 1, 1, CLAY, { role: G }),
+    rc(0.1, 0.16, 0.78, 0.6, 'rgba(0,0,0,.12)', { rotation: 4, radius: 0.01 }),
+    rc(0.08, 0.14, 0.78, 0.6, CREAM, { rotation: -2, radius: 0.01 }),
+    tx(0.14, 0.2, 0.66, '“', 0.14, CLAY, { rotation: -2, role: AC }),
+    tx(0.14, 0.32, 0.66, 'Ce qu’on répète devient ce qu’on est.', 0.055, INK, { rotation: -2, lineHeight: 1.3, role: BD }),
+    tx(0.14, 0.62, 0.66, '— Prénom Nom', 0.03, 'rgba(20,22,15,.6)', { rotation: -2, role: BD }),
+    tx(0.08, 0.86, 0.84, '@votrecompte', 0.03, CREAM, { ...C, uppercase: true, letterSpacing: 3, role: OG }),
+  ] },
+  { id: 'co-sticker', name: 'Photo + pastilles', cat: 'Promo', style: 'Composé', photos: 1, els: [
+    rc(0, 0, 1, 1, LEMON, { role: G }),
+    rc(0.12, 0.16, 0.76, 0.56, WHITE, { rotation: 3, radius: 0.02 }),
+    ph(0.15, 0.19, 0.7, 0.5, 0, 0.015),
+    tx(0.02, 0.12, 0.34, 'NOUVEAU', 0.04, WHITE, { ...B, ...C, uppercase: true, rotation: -14, bg: CORAL, bgOpacity: 100, radius: 0.06, padH: 0.03, padV: 0.022, role: BD }),
+    tx(0.62, 0.63, 0.36, '-30%', 0.06, INK, { ...B, ...C, rotation: 9, bg: WHITE, bgOpacity: 100, radius: 0.3, padH: 0.03, padV: 0.03, role: BD }),
+    tx(0.06, 0.8, 0.88, 'La sélection de la semaine', 0.052, INK, { ...B, ...C, role: OG }),
+    tx(0.06, 0.9, 0.88, 'en boutique et en ligne', 0.03, 'rgba(20,22,15,.62)', { ...C, role: OG }),
+  ] },
+  { id: 'co-cadre', name: 'Cadre dans le cadre', cat: 'Photo', style: 'Composé', photos: 1, dark: true, els: [
+    ph(0, 0, 1, 1),
+    rc(0, 0, 1, 1, '#000000', { opacity: 30 }),
+    rc(0.08, 0.07, 0.84, 0.86, 'rgba(0,0,0,0)', { stroke: '#F4EDE4', strokeWidth: 1.5 }),
+    rc(0.2, 0.38, 0.6, 0.2, CREAM, { role: G }),
+    tx(0.22, 0.41, 0.56, 'ESCAPADE', 0.075, INK, { ...B, ...C, uppercase: true, letterSpacing: 1, role: OG }),
+    tx(0.2, 0.61, 0.6, 'du 12 au 19 juin', 0.03, WHITE, { ...C, uppercase: true, letterSpacing: 3, role: NO }),
+  ] },
+  { id: 'co-bande', name: 'Bande en diagonale', cat: 'Événement', style: 'Composé', photos: 1, dark: true, els: [
+    ph(0, 0, 1, 1),
+    rc(0, 0, 1, 1, '#000000', { opacity: 22 }),
+    rc(-0.08, 0.3, 1.16, 0.1, PLUM, { rotation: -9, role: G }),
+    rc(-0.08, 0.42, 1.16, 0.18, LEMON, { rotation: -9, role: AC }),
+    tx(0.06, 0.45, 0.88, 'SOIRÉE', 0.11, INK, { ...B, ...C, uppercase: true, rotation: -9, role: NO }),
+    tx(0.06, 0.68, 0.88, 'Vendredi · 20 h · au domaine', 0.032, WHITE, { ...C, role: BD }),
+  ] },
+  { id: 'co-grille-num', name: 'Grille numérotée', cat: 'Liste', style: 'Composé', photos: 3, els: [
+    rc(0, 0, 1, 1, MOSS, { role: G }),
+    tx(0.06, 0.06, 0.88, '3 adresses', 0.085, CREAM, { ...B, role: OG }),
+    ph(0.06, 0.2, 0.42, 0.26, 0, 0.012),
+    tx(0.5, 0.22, 0.44, '01', 0.06, SAGE, { ...B, role: AC }),
+    tx(0.5, 0.31, 0.44, 'La première, celle qu’on garde secrète.', 0.028, CREAM, { lineHeight: 1.35, role: OG }),
+    ph(0.06, 0.49, 0.42, 0.26, 1, 0.012),
+    tx(0.5, 0.51, 0.44, '02', 0.06, SAGE, { ...B, role: AC }),
+    tx(0.5, 0.6, 0.44, 'La deuxième, pour les dimanches.', 0.028, CREAM, { lineHeight: 1.35, role: OG }),
+    ph(0.06, 0.78, 0.42, 0.16, 2, 0.012),
+    tx(0.5, 0.8, 0.44, '03', 0.06, SAGE, { ...B, role: AC }),
+    tx(0.5, 0.88, 0.44, 'Et la dernière, la meilleure.', 0.028, CREAM, { lineHeight: 1.35, role: OG }),
+  ] },
+  { id: 'co-timbre', name: 'Timbre et cachet', cat: 'Photo', style: 'Composé', photos: 1, els: [
+    rc(0, 0, 1, 1, '#EFEDE3', { role: G }),
+    rc(0.14, 0.14, 0.72, 0.54, WHITE, { rotation: -4, radius: 0.008 }),
+    ph(0.17, 0.17, 0.66, 0.44, 0),
+    rc(0.62, 0.08, 0.24, 0.24, 'rgba(0,0,0,0)', { stroke: CLAY, strokeWidth: 2, radius: 0.12, rotation: 12 }),
+    tx(0.62, 0.16, 0.24, 'PAR AVION', 0.022, CLAY, { ...C, uppercase: true, letterSpacing: 1, rotation: 12, role: AC }),
+    tx(0.08, 0.74, 0.84, 'Bonjour de', 0.038, 'rgba(20,22,15,.6)', { ...C, role: OG }),
+    tx(0.08, 0.79, 0.84, 'Lisbonne', 0.095, INK, { ...C, role: OG }),
+    rc(0.4, 0.92, 0.2, 0.003, CLAY, { role: AC }),
+  ] },
+  { id: 'co-vitrine', name: 'Vitrine produit', cat: 'Promo', style: 'Composé', photos: 2, els: [
+    rc(0, 0, 1, 1, BLUSH, { role: G }),
+    rc(0.5, 0, 0.5, 1, CREAM),
+    ph(0.08, 0.18, 0.46, 0.44, 0, 0.02),
+    ph(0.4, 0.44, 0.44, 0.4, 1, 0.02),
+    tx(0.06, 0.07, 0.88, 'LA NOUVELLE', 0.036, INK, { uppercase: true, letterSpacing: 4, role: OG }),
+    tx(0.06, 0.115, 0.5, 'collection', 0.085, INK, { role: OG }),
+    tx(0.06, 0.88, 0.42, 'DÉCOUVRIR', 0.028, CREAM, { ...B, ...C, uppercase: true, letterSpacing: 2, bg: INK, bgOpacity: 100, radius: 0.06, padH: 0.03, padV: 0.025, role: BD }),
+  ] },
+
   // ═══ MINIMAL ══════════════════════════════════════════════════════════════
   { id: 'min-vide', name: 'Grand vide', cat: 'Photo', style: 'Minimal', photos: 1, dark: true, els: [
     ph(0, 0, 1, 1), rc(0, 0, 1, 1, '#000000', { opacity: 12 }),
