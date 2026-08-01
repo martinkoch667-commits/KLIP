@@ -2279,7 +2279,12 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
   // comportement de simple clic (désélection / passage en recadrage du fond).
   const MARQUEE_THRESHOLD = 4;
   const marqueeStartRef = useRef<{ x: number; y: number } | null>(null);
-  const [marquee, setMarquee] = useState<{ x: number; y: number; w: number; h: number } | null>(null);
+  const [marquee, setMarqueeState] = useState<{ x: number; y: number; w: number; h: number } | null>(null);
+  const marqueeRectRef = useRef<{ x: number; y: number; w: number; h: number } | null>(null);
+  const setMarquee = (r: { x: number; y: number; w: number; h: number } | null) => {
+    marqueeRectRef.current = r;
+    setMarqueeState(r);
+  };
   const [isDragOverCanvas, setIsDragOverCanvas] = useState(false);
 
   const beginMarquee = (stage: Konva.Stage | null) => {
@@ -2303,11 +2308,10 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
 
   // Renvoie true si un cadre a été tracé (donc le mouseup n'est pas un simple clic).
   const endMarquee = (): boolean => {
-    const start = marqueeStartRef.current;
     marqueeStartRef.current = null;
-    const rect = marquee;
+    const rect = marqueeRectRef.current;
     setMarquee(null);
-    if (!start || !rect) return false;
+    if (!rect) return false;
     const hits = elementsRef.current.filter(el => {
       if (hiddenIds.has(el.id) || lockedIds.has(el.id)) return false;
       const b = getElBox(el);
@@ -5490,7 +5494,30 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
             <AiGeneratingOverlay title={T('aiComposing')} detail={qaMsg || undefined} />
           )}
           <div ref={canvasAreaRef}
-          onMouseDown={() => { setSelectedId(null); setSelectedIds([]); setEditingId(null); setBgCropMode(false); setBgImageSelected(false); }}
+          onMouseDown={e => {
+            setEditingId(null); setBgCropMode(false); setBgImageSelected(false);
+            // Un geste amorcé sur le Stage est déjà géré par Konva : on ne double pas.
+            const onStage = !!stageRef.current?.container?.()?.contains(e.target as Node);
+            if (onStage) return;
+            const start = clientToStage(e.clientX, e.clientY);
+            if (!start) { setSelectedId(null); setSelectedIds([]); return; }
+            let moved = false;
+            const onMove = (ev: MouseEvent) => {
+              const p = clientToStage(ev.clientX, ev.clientY);
+              if (!p) return;
+              if (Math.abs(p.x - start.x) < MARQUEE_THRESHOLD && Math.abs(p.y - start.y) < MARQUEE_THRESHOLD) return;
+              moved = true;
+              setMarquee({ x: Math.min(start.x, p.x), y: Math.min(start.y, p.y), w: Math.abs(p.x - start.x), h: Math.abs(p.y - start.y) });
+            };
+            const onUp = () => {
+              window.removeEventListener('mousemove', onMove);
+              window.removeEventListener('mouseup', onUp);
+              if (!moved) { setSelectedId(null); setSelectedIds([]); setMarquee(null); return; }
+              endMarquee();
+            };
+            window.addEventListener('mousemove', onMove);
+            window.addEventListener('mouseup', onUp);
+          }}
           onDragOver={e => { e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; if (!isDragOverCanvas) setIsDragOverCanvas(true); }}
           onDragLeave={e => { if (e.currentTarget === e.target) setIsDragOverCanvas(false); }}
           onDrop={handleCanvasDrop}
@@ -5818,10 +5845,7 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
                 {guides.h !== null && (
                   <Line points={[0, guides.h, stageW, guides.h]} stroke="#FF5DA2" strokeWidth={1} dash={[4, 4]} listening={false} />
                 )}
-                {marquee && (
-                  <Rect x={marquee.x} y={marquee.y} width={marquee.w} height={marquee.h}
-                    fill="rgba(124,92,255,0.12)" stroke="#7C5CFF" strokeWidth={1} dash={[5, 4]} listening={false} />
-                )}
+
               </Layer>
             </Stage>
             </div>{/* end inner overflow:hidden */}
@@ -5941,6 +5965,15 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
                   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
                 </button>
               </div>
+            )}
+            {marquee && (
+              <div style={{
+                position: 'absolute',
+                left: marquee.x, top: marquee.y, width: marquee.w, height: marquee.h,
+                background: 'rgba(124,92,255,0.12)',
+                border: '1px dashed #7C5CFF',
+                pointerEvents: 'none', zIndex: 11,
+              }} />
             )}
             {/* Sélection multiple : contour de chaque objet + cadre de groupe redimensionnable */}
             {selectedIds.length > 1 && !isKonvaDragging && (() => {
@@ -6196,7 +6229,7 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
               détacher du plan de travail, désormais gris. */}
           <div style={{
             height: 52, flexShrink: 0,
-            background: '#F3F4F7',
+            background: 'transparent',
             display: 'flex', alignItems: 'center', gap: 12, padding: '0 16px',
           }}>
             {/* Page courante + format */}
@@ -6254,7 +6287,7 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
           {/* ── SLIDE STRIP ── (masqué en carrousel continu : une seule toile) */}
           <div style={{
             height: 80, flexShrink: 0,
-            background: 'var(--white)',
+            background: '#F3F4F7',
             display: isContinuous ? 'none' : 'flex', alignItems: 'center',
             padding: '0 16px', gap: 8,
             overflowX: 'auto',
