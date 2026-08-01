@@ -77,9 +77,9 @@ const inputStyle: CSSProperties = {
 };
 
 const labelStyle: CSSProperties = {
-  display: "block", marginBottom: 6, fontSize: 11, fontWeight: 700,
-  color: "var(--ink-3)", textTransform: "uppercase", letterSpacing: "0.1em",
-  fontFamily: "var(--display)",
+  display: "block", marginBottom: 7, fontSize: 10.5, fontWeight: 800,
+  color: "var(--mint-2)", textTransform: "uppercase", letterSpacing: "0.13em",
+  fontFamily: "var(--sans)",
 };
 
 // Aperçu fidèle d'un sous-titre : on résout le style comme le montage
@@ -509,11 +509,10 @@ export default function NewWorkspacePage() {
 
   return (
     <div style={{ display: "flex", minHeight: "100vh",
-      // Fond de la landing : crème + trame de points. C'est le premier écran que
-      // voit un nouveau client, il doit appartenir au même monde que le site.
-      background: "#F1F0E5",
-      backgroundImage: "radial-gradient(rgba(12,42,29,.07) 1px, transparent 1px)",
-      backgroundSize: "22px 22px" }}>
+      // Fond blanc franc : c'est le premier écran que voit un nouveau client,
+      // il doit respirer. La structure vient des rythmes et des filets, pas d'un
+      // fond teinté.
+      background: "#FFFFFF" }}>
       <Sidebar />
 
       <div style={{ marginLeft: "var(--sb-w)", flex: 1, display: "flex", flexDirection: "column" }}>

@@ -429,6 +429,39 @@ input.ed-range::-moz-range-thumb {
 
 /* ── Responsive ─────────────────────────────────────────────────────────────── */
 
+/* Onboarding — titres d'étape : filet vert sous le titre, comme les sections de
+   la landing. Défini ici plutôt qu'en style inline : la règle s'applique aux cinq
+   étapes d'un coup. */
+.ws-new-step-title { position: relative; padding-bottom: 16px; font-size: 38px !important; line-height: 1.05; }
+.ws-new-step-title::after {
+  content: ""; position: absolute; left: 0; bottom: 0;
+  width: 46px; height: 4px; border-radius: 99px; background: var(--leaf);
+}
+/* Onboarding sur fond BLANC : les cartes ne peuvent plus flotter par l'ombre.
+   Elles deviennent des zones légèrement teintées, délimitées au filet — c'est le
+   contraste de surface qui structure la page, pas une superposition. */
+.ws-new-main .card {
+  background: #FAFAF8;
+  border: 1px solid rgba(13,15,10,.09);
+  border-radius: 16px;
+  box-shadow: none;
+}
+/* Champs : remplis plutôt que cernés, et plus hauts — sur du blanc, une bordure
+   fine seule se lit mal et fait « formulaire administratif ». */
+.ws-new-main .input {
+  padding: 13px 15px;
+  border-radius: 12px;
+  background: #F4F4F1;
+  border: 1px solid transparent;
+  font-size: 14.5px;
+}
+.ws-new-main .input:focus {
+  background: #FFFFFF;
+  border-color: var(--leaf);
+  box-shadow: 0 0 0 4px rgba(189,242,160,.45);
+}
+.ws-new-main textarea.input { min-height: 96px; line-height: 1.55; }
+
 @media (max-width: 1080px) {
   :root { --sb-w: 76px; }
   .nav-label, .sb-full { display: none !important; }
