@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect, useCallback } from "react";
+import PostPreviewPane from "@/components/PostPreviewPane";
 import { useTranslations } from "next-intl";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
@@ -99,6 +100,8 @@ interface Workspace {
   brand_voice_prompt: string | null;
   description_style: string | null;
   caption_examples: string | null;
+  /** Lu depuis la base et affiché sur les vignettes de post ; il manquait au type. */
+  instagram_username: string | null;
 }
 
 interface PostTemplate {
@@ -526,7 +529,7 @@ export default function WorkspacePage() {
   const loadData = useCallback(async () => {
     const { data: ws } = await supabase
       .from("workspaces")
-      .select("id, name, logo_url, sector, tone, words_to_use, words_to_avoid, company_description, brand_voice_prompt, description_style, caption_examples")
+      .select("id, name, logo_url, sector, tone, words_to_use, words_to_avoid, company_description, brand_voice_prompt, description_style, caption_examples, instagram_username")
       .eq("id", id)
       .single();
 
@@ -1315,9 +1318,22 @@ export default function WorkspacePage() {
                     {posts.map((post, pIdx) => {
                       const isGenerated = post.status === "generated" || post.status === "validating" || post.status === "validated";
                       return (
-                        <div key={post.localId} className="card klip-card-in ws-post-card" style={{ overflow: 'hidden', display: 'flex', animationDelay: `${Math.min(pIdx, 8) * 55}ms` }}>
+                        <div key={post.localId} className="card klip-card-in ws-post-card" style={{ overflow: 'hidden', display: 'flex', borderRadius: 16, border: '1px solid var(--line-2)', boxShadow: '0 1px 2px rgba(13,15,10,.03), 0 14px 32px -20px rgba(13,15,10,.28)', animationDelay: `${Math.min(pIdx, 8) * 55}ms` }}>
                           {/* ── Colonne gauche : visuel + type + remplacer ── */}
-                          <div className="ws-post-left" style={{ flexShrink: 0, width: 300, background: 'var(--canvas)', borderRight: '1px solid var(--line-2)', padding: 14, display: 'flex', flexDirection: 'column', gap: 10 }}>
+                          <div className="ws-post-left" style={{ flexShrink: 0, width: 300, background: 'var(--canvas)', borderRight: '1px solid var(--line-2)', padding: 14, display: 'flex', flexDirection: 'column', gap: 12 }}>
+                            {/* Aperçu du rendu publié — même volet que la fenêtre de
+                                programmation. On voyait jusqu'ici le média nu, sans la
+                                légende ni le compte : impossible de juger le post. */}
+                            {isGenerated && !post.isVideo ? (
+                              <PostPreviewPane
+                                workspace={workspace}
+                                mediaUrl={post.exported_image_url || post.photo_url}
+                                caption={post.description || ''}
+                                postType={post.post_type}
+                                platforms={['instagram']}
+                                compact
+                              />
+                            ) : (
                             <div style={{ position: 'relative', aspectRatio: aspectForPostType(post.post_type), borderRadius: 13, overflow: 'hidden', background: '#000' }}>
                               {post.isVideo ? (
                                 <video src={post.photo_url} controls style={{ width: '100%', height: '100%', objectFit: 'contain', display: 'block' }} />
@@ -1339,6 +1355,7 @@ export default function WorkspacePage() {
                                 <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M1 1l8 8M9 1L1 9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>
                               </button>
                             </div>
+                            )}
                             {/* Type de publication */}
                             <div className="ws-type-pills" style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
                               {(['post', 'reel', 'carrousel', 'story'] as PostType[]).map(pt => {

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef, Suspense } from "react";
+import PostPreviewPane from "@/components/PostPreviewPane";
 import { useTranslations, useLocale } from "next-intl";
 import Link from "next/link";
 import { useParams, useSearchParams } from "next/navigation";
@@ -170,6 +171,7 @@ interface Workspace {
   instagram_account_id: string | null;
   instagram_username: string | null;
   facebook_page_id: string | null;
+  logo_url: string | null;
 }
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -617,7 +619,7 @@ function PlanningContent() {
   // ── Data loading ──────────────────────────────────────────────────────────
   const loadData = useCallback(async () => {
     const [{ data: ws }, { data: postsData }] = await Promise.all([
-      supabase.from("workspaces").select("id, name, primary_color, secondary_color, font_family, instagram_account_id, instagram_username, facebook_page_id").eq("id", id).single(),
+      supabase.from("workspaces").select("id, name, primary_color, secondary_color, font_family, instagram_account_id, instagram_username, facebook_page_id, logo_url").eq("id", id).single(),
       supabase.from("posts")
         .select("id, photo_url, exported_image_url, texte_visuel, description, status, scheduled_at, brief, post_type, target_platforms, tagged_users, music_note, thumbnail_url, editor_json, approved_by_client, client_comment, client_reviewed_at")
         .eq("workspace_id", id)
@@ -1025,14 +1027,26 @@ function PlanningContent() {
                 <div style={{ borderRight: `1px solid rgba(13,15,10,.08)`, background: "var(--canvas)" }} />
                 {weekDays.map((day, i) => {
                   const isToday = isSameDay(day, today);
+                  const isWeekend = i >= 5;
+                  const n = postsForDay(day).length;
                   return (
-                    <div key={i} style={{ padding: "11px 14px 10px", borderRight: i < 6 ? `1px solid rgba(13,15,10,.08)` : "none", display: "flex", alignItems: "center", gap: 8 }}>
-                      <span style={{ fontFamily: "var(--display)", fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: ".07em", color: "var(--ink-3)" }}>{DAY_LOC[i]}</span>
+                    // En-tête inversé pour le jour courant, grisé pour le week-end :
+                    // on situe la semaine sans avoir à lire les dates.
+                    <div key={i} style={{ padding: "11px 14px 10px", borderRight: i < 6 ? `1px solid rgba(13,15,10,.08)` : "none", display: "flex", alignItems: "center", gap: 8,
+                      background: isToday ? "var(--forest)" : isWeekend ? "rgba(13,15,10,.045)" : "transparent" }}>
+                      <span style={{ fontFamily: "var(--display)", fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: ".07em",
+                        color: isToday ? "var(--cream-2)" : "var(--ink-3)" }}>{DAY_LOC[i]}</span>
                       <span style={{ width: 26, height: 26, borderRadius: "50%", display: "grid", placeItems: "center", fontFamily: "'Archivo', var(--sans)", fontWeight: 700, fontSize: 13, transition: "background .12s",
                         background: isToday ? "var(--leaf)" : "transparent",
                         color: isToday ? "#0D2E1C" : "var(--ink)" }}>
                         {day.getDate()}
                       </span>
+                      {n > 0 && (
+                        <span title={`${n} post${n > 1 ? "s" : ""} programmé${n > 1 ? "s" : ""}`}
+                          style={{ marginLeft: "auto", fontSize: 10.5, fontWeight: 800, fontFamily: "var(--mono)", padding: "2px 6px", borderRadius: 99,
+                            background: isToday ? "rgba(238,237,227,.16)" : "var(--mint-soft)",
+                            color: isToday ? "var(--cream)" : "var(--mint-2)" }}>{n}</span>
+                      )}
                     </div>
                   );
                 })}
@@ -1058,13 +1072,24 @@ function PlanningContent() {
                   return (
                     <div key={dayKey} style={{ position: "relative", borderRight: di < 6 ? `1px solid rgba(13,15,10,.08)` : "none" }}>
 
-                      {/* Hour slots (drop targets + hover) */}
+                      {/* Hour slots (drop targets + hover).
+                          Chaque créneau est teinté par son score d'affluence : les
+                          bonnes heures de publication se repèrent d'un coup d'œil,
+                          sans avoir à lire la bande « meilleurs moments ». Le week-end
+                          est désaturé pour que la semaine ouvrée ressorte. */}
                       {HOURS.map(h => {
                         const isOver = dragOverDay === dayKey && dragOverHour === h;
+                        const dow = day.getDay();
+                        const isWeekend = dow === 0 || dow === 6;
+                        const score = engageScore(dow, h);
+                        // 0 → transparent, 100 → teinte franche ; atténué le week-end.
+                        const heat = Math.max(0, (score - 40) / 60) * (isWeekend ? 0.5 : 1);
                         return (
                           <div key={h}
                             className="cal-slot"
-                            style={{ height: HOUR_H, borderBottom: `1px solid rgba(13,15,10,.06)`, boxSizing: "border-box", background: isOver ? "rgba(47,215,155,.08)" : "transparent", cursor: "pointer", transition: "background .1s" }}
+                            style={{ height: HOUR_H, borderBottom: `1px solid rgba(13,15,10,.06)`, boxSizing: "border-box",
+                              background: isOver ? "rgba(47,215,155,.18)" : `rgba(102,86,217,${(heat * 0.13).toFixed(3)})`,
+                              cursor: "pointer", transition: "background .1s" }}
                             onDragOver={e => { e.preventDefault(); setDragOverDay(dayKey); setDragOverHour(h); }}
                             onDragLeave={() => { setDragOverDay(null); setDragOverHour(null); }}
                             onDrop={() => handleDropOnHour(day, h)}
@@ -1304,13 +1329,15 @@ function PlanningContent() {
       {/* ── Post panel modal ─────────────────────────────────────────────────── */}
       {selectedPost && (
         <div style={{ position: "fixed", inset: 0, zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(13,15,10,.45)" }} onClick={() => setSelectedPost(null)}>
-        <div style={{ width: 420, maxHeight: "90vh", borderRadius: 16, background: "var(--white)", display: "flex", flexDirection: "column", overflowY: "auto", boxShadow: "0 24px 60px -12px rgba(13,15,10,.45), 0 0 0 1px rgba(13,15,10,.06)" }} onClick={e => e.stopPropagation()}>
+        <div className="plan-post-modal" style={{ width: 920, maxWidth: "95vw", maxHeight: "92vh", borderRadius: 16, background: "var(--white)", display: "flex", flexDirection: "column", overflow: "hidden", boxShadow: "0 24px 60px -12px rgba(13,15,10,.45), 0 0 0 1px rgba(13,15,10,.06)" }} onClick={e => e.stopPropagation()}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "16px 20px", borderBottom: "1px solid var(--line)" }}>
             <span className="h-title" style={{ fontSize: 15 }}>{t('schedule')}</span>
             <button onClick={() => setSelectedPost(null)} className="btn btn-ghost btn-icon"><IconClose /></button>
           </div>
 
-          <div style={{ flex: 1, padding: "16px 20px", display: "flex", flexDirection: "column", gap: 16 }}>
+          {/* On écrit à gauche, on voit le rendu à droite. */}
+          <div className="plan-post-body" style={{ flex: 1, minHeight: 0, display: "grid", gridTemplateColumns: "minmax(0,1fr) 340px" }}>
+          <div style={{ padding: "16px 20px", display: "flex", flexDirection: "column", gap: 16, overflowY: "auto" }}>
             {(() => {
               const isVid = isVideoUrl(selectedPost.exported_image_url) || isVideoUrl(selectedPost.photo_url);
               const carouselUrls = carouselUrlsOf(selectedPost);
@@ -1523,6 +1550,17 @@ function PlanningContent() {
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M4 7h16M9 7V4.5h6V7M6 7l1 13h10l1-13"/></svg>
               {t('deletePost')}
             </button>
+          </div>
+
+          <aside style={{ borderLeft: "1px solid var(--line)", background: "var(--canvas)", padding: "16px 18px", overflowY: "auto" }}>
+            <PostPreviewPane
+              workspace={workspace}
+              mediaUrl={carouselUrlsOf(selectedPost)[0] || selectedPost.photo_url}
+              caption={panelDesc}
+              postType={panelPostType}
+              platforms={panelPlatforms}
+            />
+          </aside>
           </div>
 
           <div style={{ padding: "16px 20px", borderTop: "1px solid var(--line)", display: "flex", flexDirection: "column", gap: 8 }}>
