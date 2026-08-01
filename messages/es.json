@@ -1,4 +1,11 @@
 {
+  "voice": {
+    "dictate": "Dictar",
+    "listening": "Te escucho…",
+    "startTitle": "Dicta en vez de escribir",
+    "stopTitle": "Detener el dictado",
+    "tip": "Nuevo — habla, Klip escribe"
+  },
   "common": {
     "save": "Guardar",
     "saving": "Guardando…",

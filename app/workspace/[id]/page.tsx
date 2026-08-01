@@ -1210,7 +1210,7 @@ export default function WorkspacePage() {
                   </div>
 
                   {/* AI generator */}
-                  <div id="ai-gen-card" className="card" style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 12 }}>
+                  <div id="ai-gen-card" className="card" data-voice-scope="" style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 12 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                       <span className="h-title" style={{ fontSize: 15 }}>{t('generateAI')}</span>
                       <span className="chip" style={{ background: 'var(--mint-soft)', color: 'var(--mint-2)' }}>{t('klipAI')}</span>
@@ -1222,12 +1222,12 @@ export default function WorkspacePage() {
                       className="input"
                       style={{ flex: 1, minHeight: 90, resize: 'none', padding: 12 }}
                     />
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                      <VoiceButton value={imagePrompt} onChange={setImagePrompt} />
                       <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12.5, fontWeight: 600, color: 'var(--ink-2)', cursor: 'pointer', flex: 1 }}>
                         <input type="checkbox" checked={includeStyle} onChange={e => setIncludeStyle(e.target.checked)} style={{ accentColor: 'var(--mint)' }} />
                         {t('brandStyle')}
                       </label>
-                      <VoiceButton value={imagePrompt} onChange={setImagePrompt} />
                       <label className="btn btn-ghost btn-sm" style={{ cursor: 'pointer' }}>
                         {t('refImage')}
                         <input type="file" accept="image/*" style={{ display: 'none' }}
@@ -1276,7 +1276,7 @@ export default function WorkspacePage() {
                 )}
 
                 {/* Brief global */}
-                <div className="card" style={{ padding: 22, marginBottom: 20 }}>
+                <div className="card" data-voice-scope="" style={{ padding: 22, marginBottom: 20 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
                     <h2 className="h-title" style={{ fontSize: 16 }}>{t('globalBrief')}</h2>
                     <span style={{ fontSize: 13, color: 'var(--ink-3)' }}>{t('globalBriefHint')}</span>
@@ -1288,8 +1288,10 @@ export default function WorkspacePage() {
                     className="input"
                     style={{ minHeight: 90, resize: 'vertical', lineHeight: 1.6 }}
                   />
-                  <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 6 }}>
-                    <VoiceButton value={globalBrief} onChange={setGlobalBrief} />
+                  {/* La dictée est mise à gauche, taille pleine : c'est le raccourci
+                      le plus rentable du brief, il ne doit pas se cacher en coin. */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 10, flexWrap: 'wrap' }}>
+                    <VoiceButton value={globalBrief} onChange={setGlobalBrief} hint />
                   </div>
                 </div>
 
@@ -1470,8 +1472,8 @@ export default function WorkspacePage() {
                                     </button>
                                   );
                                 })()}
-                                <div>
-                                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
+                                <div data-voice-scope="">
+                                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginBottom: 7 }}>
                                     <span className="label" style={{ margin: 0, display: 'flex', alignItems: 'center', gap: 5 }}>
                                       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
                                       {post.isVideo ? t('videoNotesLabel') : t('brief')}

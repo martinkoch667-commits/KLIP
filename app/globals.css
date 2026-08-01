@@ -271,6 +271,75 @@ img { display: block; max-width: 100%; }
 }
 .input:focus { outline: none; border-color: var(--vio); box-shadow: 0 0 0 3px var(--vio-soft); }
 
+/* ── Dictée vocale ──────────────────────────────────────────────────────────── */
+/* Le micro était un rond fantôme de 30px que personne ne remarquait — alors que
+   dicter est le geste le plus rapide de l'app. Il devient une pilule leaf
+   lisible, qui se change en capsule violette animée par le niveau réel du micro
+   pendant l'écoute ; le champ alimenté (data-voice-scope) prend le même halo. */
+
+.voice-pill {
+  display: inline-flex; align-items: center; gap: 8px; flex-shrink: 0;
+  height: 34px; padding: 3px 13px 3px 3px;
+  border-radius: 999px; border: 1px solid var(--leaf);
+  background: var(--leaf-soft); color: var(--leaf-ink);
+  font-size: 12.5px; font-weight: 700; line-height: 1; cursor: pointer;
+  transition: background .16s, border-color .16s, color .16s,
+              transform .16s cubic-bezier(.2,.7,.3,1), box-shadow .16s;
+}
+.voice-pill:hover { background: var(--leaf); transform: translateY(-1px); box-shadow: 0 12px 24px -16px rgba(120,190,90,.9); }
+.voice-pill--compact { padding: 3px; }
+.voice-pill__ic {
+  width: 28px; height: 28px; border-radius: 50%; flex-shrink: 0;
+  background: var(--leaf-ink); color: var(--leaf); display: grid; place-items: center;
+}
+.voice-pill__txt { white-space: nowrap; }
+
+/* Halo d'appel — tourne tant que l'utilisateur n'a jamais dicté, puis se tait. */
+.voice-pill--new { animation: voiceCall 3.4s cubic-bezier(.2,.7,.3,1) infinite; }
+@keyframes voiceCall {
+  0%, 68%, 100% { box-shadow: 0 0 0 0 rgba(102,86,217,0); }
+  78%           { box-shadow: 0 0 0 7px rgba(102,86,217,.14); }
+  90%           { box-shadow: 0 0 0 13px rgba(102,86,217,0); }
+}
+
+/* En écoute */
+.voice-pill--live, .voice-pill--live:hover {
+  background: var(--vio); border-color: var(--vio); color: #fff;
+  transform: none; animation: voiceLive 1.5s ease-out infinite;
+}
+.voice-pill--live .voice-pill__ic { background: rgba(255,255,255,.2); color: #fff; }
+@keyframes voiceLive {
+  0%        { box-shadow: 0 0 0 0 rgba(102,86,217,.45); }
+  70%, 100% { box-shadow: 0 0 0 11px rgba(102,86,217,0); }
+}
+
+.voice-bars { display: inline-flex; align-items: center; gap: 2.5px; height: 17px; }
+.voice-bars i { width: 3px; height: 100%; border-radius: 2px; background: currentColor; transform: scaleY(.18); transition: transform .08s linear; }
+/* Repli quand l'analyseur audio n'est pas disponible : ça respire quand même. */
+.voice-bars--idle i { animation: voiceBar .9s ease-in-out infinite; }
+.voice-bars--idle i:nth-child(2) { animation-delay: .1s; }
+.voice-bars--idle i:nth-child(3) { animation-delay: .2s; }
+.voice-bars--idle i:nth-child(4) { animation-delay: .3s; }
+.voice-bars--idle i:nth-child(5) { animation-delay: .15s; }
+@keyframes voiceBar { 0%, 100% { transform: scaleY(.2); } 50% { transform: scaleY(1); } }
+
+.voice-time { font-family: var(--mono); font-size: 11.5px; font-weight: 800; font-variant-numeric: tabular-nums; opacity: .85; }
+
+.voice-hint {
+  display: inline-flex; align-items: center; gap: 5px; white-space: nowrap;
+  padding: 4px 10px; border-radius: 999px;
+  background: var(--vio-soft); color: var(--vio);
+  font-size: 11.5px; font-weight: 700;
+}
+
+/* Le champ dicté s'allume pendant l'écoute — on voit d'où vient le texte. */
+.voice-scope--live .input,
+.voice-scope--live textarea { border-color: var(--vio); box-shadow: 0 0 0 3px var(--vio-soft); }
+
+@media (prefers-reduced-motion: reduce) {
+  .voice-pill--new, .voice-pill--live, .voice-bars--idle i { animation: none; }
+}
+
 /* ── Divider ────────────────────────────────────────────────────────────────── */
 
 .divider { height: 1px; background: var(--line); border: none; }

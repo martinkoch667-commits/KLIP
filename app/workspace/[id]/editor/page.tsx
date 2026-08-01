@@ -221,15 +221,17 @@ export default function EditorPage() {
                   </button>
                 </div>
 
-                <textarea
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  placeholder={t('descriptionPlaceholder')}
-                  rows={5}
-                  className="w-full bg-[#F5F5F5] border border-[#E0E0E0] rounded px-3.5 py-3 text-sm font-inter text-black placeholder-[#BBB] focus:border-black outline-none transition-colors resize-none"
-                />
-                <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 6 }}>
-                  <VoiceButton value={description} onChange={setDescription} />
+                <div data-voice-scope="">
+                  <textarea
+                    value={description}
+                    onChange={(e) => setDescription(e.target.value)}
+                    placeholder={t('descriptionPlaceholder')}
+                    rows={5}
+                    className="w-full bg-[#F5F5F5] border border-[#E0E0E0] rounded px-3.5 py-3 text-sm font-inter text-black placeholder-[#BBB] focus:border-black outline-none transition-colors resize-none"
+                  />
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 8, flexWrap: 'wrap' }}>
+                    <VoiceButton value={description} onChange={setDescription} hint />
+                  </div>
                 </div>
 
                 {description && (

@@ -1,4 +1,11 @@
 {
+  "voice": {
+    "dictate": "Detta",
+    "listening": "Ti ascolto…",
+    "startTitle": "Detta invece di scrivere",
+    "stopTitle": "Interrompi la dettatura",
+    "tip": "Novità — parla, Klip scrive"
+  },
   "common": {
     "save": "Salva",
     "saving": "Salvataggio…",
