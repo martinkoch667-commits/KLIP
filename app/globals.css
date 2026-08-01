@@ -27,7 +27,7 @@
 
   /* surfaces — DA landing v3 : base blanc chaud (remplace la crème) */
   --paper:    #FCFBF7;   /* panneaux — blanc chaud */
-  --canvas:   #F6F5EF;   /* fond appli */
+  --canvas:   #F3F4F7;   /* fond appli — gris froid : le plan de travail blanc s'y détache (réf. Canva) */
   --white:    #FFFFFF;
   --card:     #FFFFFF;   /* cartes — blanc pur, ressortent sur le fond */
   --sunk:     #EEEDE5;   /* renfoncements / wells */
@@ -374,14 +374,14 @@ img { display: block; max-width: 100%; }
 
 input.ed-range {
   -webkit-appearance: none; appearance: none;
-  height: 4px; border-radius: 99px;
-  background: var(--sunk); outline: none; cursor: pointer;
+  height: 3px; border-radius: 99px;
+  background: rgba(13,15,10,.16); outline: none; cursor: pointer;
 }
 input.ed-range::-webkit-slider-thumb {
   -webkit-appearance: none; appearance: none;
   width: 16px; height: 16px; border-radius: 50%;
   background: #fff; border: none;
-  box-shadow: 0 1px 4px rgba(13,15,10,.3), inset 0 0 0 4px var(--mint-2);
+  box-shadow: 0 1px 3px rgba(13,15,10,.28), 0 0 0 1px rgba(13,15,10,.06);
   cursor: grab;
 }
 input.ed-range::-webkit-slider-thumb:active { cursor: grabbing; }

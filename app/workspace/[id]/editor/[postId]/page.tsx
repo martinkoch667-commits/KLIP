@@ -4785,30 +4785,30 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
       <div className="ed-body" style={{ flex: 1, display: 'flex', minHeight: 0 }}>
 
         {/* ── TOOL RAIL (68px) ── */}
-        <div data-stop-deselect className="ed-rail" style={{ width: 76, background: 'var(--white)', display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '10px 0', gap: 2, flexShrink: 0 }}>
+        <div data-stop-deselect className="ed-rail" style={{ width: 88, background: 'var(--white)', display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '10px 0', gap: 6, flexShrink: 0 }}>
           {([
-            { id: 'design',   label: 'Modèles',  icon: <svg width="25" height="25" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="16" rx="2.5"/><line x1="9" y1="4" x2="9" y2="20"/></svg> },
-            { id: 'elements', label: 'Éléments', icon: <svg width="25" height="25" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><circle cx="7" cy="8" r="3.4"/><rect x="12.5" y="4.6" width="7" height="7" rx="1.7"/><path d="M8 14.2l4.2 6.2H3.8l4.2-6.2z"/></svg> },
-            { id: 'text',     label: 'Texte',    icon: <svg width="25" height="25" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><polyline points="5 6.5 5 4 19 4 19 6.5"/><line x1="12" y1="4" x2="12" y2="20"/><line x1="9" y1="20" x2="15" y2="20"/></svg> },
-            { id: 'photos',   label: 'Photos',   icon: <svg width="25" height="25" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2.5"/><circle cx="8.5" cy="8.5" r="1.6"/><path d="M21 15l-5-5L5 21"/></svg> },
-            { id: 'brand',    label: 'Charte',   icon: <svg width="25" height="25" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><path d="M12 3a9 9 0 0 0 0 18 2.4 2.4 0 0 0 2-3.7 1.4 1.4 0 0 1 1.2-2.2H17a4 4 0 0 0 4-4c0-4.4-4-8.1-9-8.1z"/><circle cx="7.5" cy="11" r="1.1" fill="currentColor" stroke="none"/><circle cx="12" cy="7.8" r="1.1" fill="currentColor" stroke="none"/><circle cx="16.3" cy="11" r="1.1" fill="currentColor" stroke="none"/></svg> },
-            { id: 'upload',   label: 'Importer', icon: <svg width="25" height="25" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><path d="M12 15V3"/><path d="M8 7l4-4 4 4"/><path d="M4 15v4a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-4"/></svg> },
-            { id: 'calques',  label: 'Calques',  icon: <svg width="25" height="25" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg> },
+            { id: 'design',   label: 'Modèles',  icon: <svg width="29" height="29" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="16" rx="2.5"/><line x1="9" y1="4" x2="9" y2="20"/></svg> },
+            { id: 'elements', label: 'Éléments', icon: <svg width="29" height="29" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><circle cx="7" cy="8" r="3.4"/><rect x="12.5" y="4.6" width="7" height="7" rx="1.7"/><path d="M8 14.2l4.2 6.2H3.8l4.2-6.2z"/></svg> },
+            { id: 'text',     label: 'Texte',    icon: <svg width="29" height="29" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><polyline points="5 6.5 5 4 19 4 19 6.5"/><line x1="12" y1="4" x2="12" y2="20"/><line x1="9" y1="20" x2="15" y2="20"/></svg> },
+            { id: 'photos',   label: 'Photos',   icon: <svg width="29" height="29" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2.5"/><circle cx="8.5" cy="8.5" r="1.6"/><path d="M21 15l-5-5L5 21"/></svg> },
+            { id: 'brand',    label: 'Charte',   icon: <svg width="29" height="29" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><path d="M12 3a9 9 0 0 0 0 18 2.4 2.4 0 0 0 2-3.7 1.4 1.4 0 0 1 1.2-2.2H17a4 4 0 0 0 4-4c0-4.4-4-8.1-9-8.1z"/><circle cx="7.5" cy="11" r="1.1" fill="currentColor" stroke="none"/><circle cx="12" cy="7.8" r="1.1" fill="currentColor" stroke="none"/><circle cx="16.3" cy="11" r="1.1" fill="currentColor" stroke="none"/></svg> },
+            { id: 'upload',   label: 'Importer', icon: <svg width="29" height="29" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><path d="M12 15V3"/><path d="M8 7l4-4 4 4"/><path d="M4 15v4a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-4"/></svg> },
+            { id: 'calques',  label: 'Calques',  icon: <svg width="29" height="29" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg> },
           ] as const).map(({ id, label, icon }) => (
             <button key={id} onClick={() => { setTool(tool === id ? null : id); setFxPanel(null); if (isPenMode) cancelPenMode(); }} title={label}
-              style={{ width: 62, height: 62, borderRadius: 14, border: 'none', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 6, cursor: 'pointer', transition: 'all .14s',
+              style={{ width: 76, height: 74, borderRadius: 12, border: 'none', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 8, cursor: 'pointer', transition: 'all .14s',
                 background: tool === id ? 'var(--mint-soft)' : 'transparent',
                 boxShadow: tool === id ? 'inset 0 0 0 1.5px color-mix(in srgb, var(--mint-2) 55%, transparent)' : 'none',
                 color: tool === id ? 'var(--mint-2)' : 'color-mix(in srgb, var(--ink) 70%, var(--white))' }}
               onMouseEnter={e => { if (tool !== id) e.currentTarget.style.background = 'color-mix(in srgb, var(--ink) 6%, var(--white))'; }}
               onMouseLeave={e => { if (tool !== id) e.currentTarget.style.background = 'transparent'; }}>
               {icon}
-              <span style={{ fontFamily: 'var(--sans)', fontWeight: tool === id ? 700 : 600, fontSize: 11, letterSpacing: 0, lineHeight: 1 }}>{label}</span>
+              <span style={{ fontFamily: 'var(--sans)', fontWeight: tool === id ? 700 : 600, fontSize: 11.5, letterSpacing: 0, lineHeight: 1 }}>{label}</span>
             </button>
           ))}
           <div style={{ width: 32, height: 1, background: 'var(--sunk)', margin: '4px 0' }} />
           <button onClick={() => { setIsPenMode(p => !p); setTool(null); }} title={T('penToolTip')}
-            style={{ width: 62, height: 62, borderRadius: 14, border: 'none', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 6, cursor: isPenMode ? 'crosshair' : 'pointer', transition: 'all .14s',
+            style={{ width: 76, height: 74, borderRadius: 12, border: 'none', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 8, cursor: isPenMode ? 'crosshair' : 'pointer', transition: 'all .14s',
               background: isPenMode ? 'var(--mint-soft)' : 'transparent',
               boxShadow: isPenMode ? 'inset 0 0 0 1.5px color-mix(in srgb, var(--mint-2) 55%, transparent)' : 'none',
               color: isPenMode ? 'var(--mint-2)' : 'color-mix(in srgb, var(--ink) 70%, var(--white))' }}
@@ -5496,7 +5496,7 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
           onDragOver={e => { e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; if (!isDragOverCanvas) setIsDragOverCanvas(true); }}
           onDragLeave={e => { if (e.currentTarget === e.target) setIsDragOverCanvas(false); }}
           onDrop={handleCanvasDrop}
-          style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'safe center', overflow: 'auto', padding: '40px 28px', gap: 40, outline: isDragOverCanvas ? '2px dashed var(--vio)' : 'none', outlineOffset: -6 }}>
+          style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'safe center', overflow: 'auto', padding: '40px 28px', gap: 40, background: '#F3F4F7', outline: isDragOverCanvas ? '2px dashed var(--vio)' : 'none', outlineOffset: -6 }}>
             {slides.map((slide, idx) => {
               const isActive = idx === activeSlideIdx;
               // Carrousel continu : une seule toile large — on masque les autres slides.
@@ -6188,36 +6188,59 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
             )}
           </div>
 
-          {/* ── ZOOM BAR ── */}
+          {/* ── BARRE DU BAS ──
+              Refonte façon Canva : les commandes de zoom vivent dans UN bloc
+              groupé au lieu d'être une file de puces isolées, et l'indicateur de
+              page devient un vrai sélecteur. La barre est blanche pour se
+              détacher du plan de travail, désormais gris. */}
           <div style={{
-            height: 50, flexShrink: 0,
+            height: 52, flexShrink: 0,
             background: 'var(--white)',
-            display: 'flex', alignItems: 'center', gap: 14, padding: '0 18px',
+            borderTop: '1px solid var(--line-2)',
+            display: 'flex', alignItems: 'center', gap: 12, padding: '0 16px',
           }}>
-            <span className="chip" style={{ background: 'var(--sunk)', color: 'var(--ink-2)' }}>
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><rect x="3" y="4" width="18" height="16" rx="3"/><circle cx="8.5" cy="9.5" r="1.6"/><path d="M21 16l-5-5L5 20"/></svg>
-              Page {activeSlideIdx + 1} · {activeFormat.label}
-            </span>
-            <span style={{ fontSize: 12.5, color: 'var(--ink-3)', fontWeight: 600, flexShrink: 0 }}>{workspaceName}</span>
+            {/* Page courante + format */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
+              <span style={{ display: 'grid', placeItems: 'center', width: 28, height: 28, borderRadius: 8, background: 'var(--sunk)', color: 'var(--ink-2)', flexShrink: 0 }}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><rect x="3" y="4" width="18" height="16" rx="3"/><circle cx="8.5" cy="9.5" r="1.6"/><path d="M21 16l-5-5L5 20"/></svg>
+              </span>
+              <div style={{ display: 'flex', flexDirection: 'column', lineHeight: 1.2, minWidth: 0 }}>
+                <span style={{ fontSize: 12.5, fontWeight: 800, color: 'var(--ink)', whiteSpace: 'nowrap' }}>
+                  Page {activeSlideIdx + 1}{slides.length > 1 ? ` / ${slides.length}` : ''}
+                </span>
+                <span style={{ fontSize: 11, color: 'var(--ink-3)', fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                  {activeFormat.label} · {workspaceName}
+                </span>
+              </div>
+            </div>
 
             <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 10 }}>
               <button className="btn btn-sm btn-ghost" style={{ height: 34 }}>
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><path d="M5 12a7 7 0 0 1 7-7M19 12a7 7 0 0 1-7 7"/><path d="M12 5l-2.4 1.4M12 5l2.4 1.4M12 19l-2.4-1.4M12 19l2.4-1.4"/></svg>
                 Animer
               </button>
+
+              {/* Bloc de zoom groupé — c'est lui qui faisait « suite de puces » */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 4, background: 'var(--sunk)', borderRadius: 999, padding: '3px 5px' }}>
+                <button onClick={() => setZoom(z => Math.max(0.15, +(z - 0.1).toFixed(2)))} title="Dézoomer"
+                  style={{ width: 28, height: 28, borderRadius: '50%', display: 'grid', placeItems: 'center', color: 'var(--ink-2)', background: 'transparent', border: 'none', cursor: 'pointer' }}>
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><path d="M5 12h14"/></svg>
+                </button>
+                <input type="range" min={0.15} max={3} step={0.01} value={zoom}
+                  onChange={(e) => setZoom(parseFloat(e.target.value))}
+                  className="ed-range" style={{ width: 116, ...rangeFill(zoom, 0.15, 3) }} />
+                <button onClick={() => setZoom(z => Math.min(3, +(z + 0.1).toFixed(2)))} title="Zoomer"
+                  style={{ width: 28, height: 28, borderRadius: '50%', display: 'grid', placeItems: 'center', color: 'var(--ink-2)', background: 'transparent', border: 'none', cursor: 'pointer' }}>
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><path d="M12 5v14M5 12h14"/></svg>
+                </button>
+                <button onClick={() => setZoom(1)} title="Revenir à 100 %"
+                  style={{ minWidth: 46, height: 28, borderRadius: 999, border: 'none', cursor: 'pointer', background: 'var(--white)', color: 'var(--ink)', fontFamily: 'var(--mono)', fontWeight: 800, fontSize: 11.5, fontVariantNumeric: 'tabular-nums', boxShadow: '0 1px 2px rgba(13,15,10,.10)' }}>
+                  {Math.round(zoom * 100)}%
+                </button>
+              </div>
+
               <span style={{ width: 1, height: 22, background: 'var(--line)', flexShrink: 0 }} />
-              <button onClick={() => setZoom(z => Math.max(0.15, +(z - 0.1).toFixed(2)))} style={{ width: 30, height: 30, borderRadius: 8, display: 'grid', placeItems: 'center', color: 'var(--ink-2)', background: 'transparent', border: 'none', cursor: 'pointer' }}>
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M5 12h14"/></svg>
-              </button>
-              <input type="range" min={0.15} max={3} step={0.01} value={zoom}
-                onChange={(e) => setZoom(parseFloat(e.target.value))}
-                className="ed-range" style={{ width: 132, ...rangeFill(zoom, 0.15, 3) }} />
-              <button onClick={() => setZoom(z => Math.min(3, +(z + 0.1).toFixed(2)))} style={{ width: 30, height: 30, borderRadius: 8, display: 'grid', placeItems: 'center', color: 'var(--ink-2)', background: 'transparent', border: 'none', cursor: 'pointer' }}>
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M12 5v14M5 12h14"/></svg>
-              </button>
-              <span style={{ fontFamily: 'var(--mono)', fontWeight: 800, fontSize: 12, width: 42, textAlign: 'center', fontVariantNumeric: 'tabular-nums', color: 'var(--ink-2)' }}>
-                {Math.round(zoom * 100)}%
-              </span>
+
               <button onClick={fit} title={T('adjust')} className="btn btn-sm btn-ghost btn-icon" style={{ height: 34, width: 34 }}>
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><path d="M8 3H5a2 2 0 0 0-2 2v3M16 3h3a2 2 0 0 1 2 2v3M8 21H5a2 2 0 0 1-2-2v-3M16 21h3a2 2 0 0 0 2-2v-3"/></svg>
               </button>
