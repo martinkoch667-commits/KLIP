@@ -2222,6 +2222,9 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
 
   // ── Multi-selection helpers ────────────────────────────────────────────────
   const multiDragStartRef = useRef<Record<string, { x: number; y: number }>>({});
+  // Alt maintenu (suivi global) et Alt armé au début du glissement en cours.
+  const altDownRef = useRef(false);
+  const altDragRef = useRef(false);
 
   const handleElClick = (id: string, shiftKey: boolean) => {
     if (lockedIds.has(id)) return;
@@ -2244,34 +2247,51 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
 
   const handleElDragStart = (id: string) => {
     setIsKonvaDragging(true);
-    const ids = selectedIdsRef.current;
-    if (ids.length > 1) {
-      const starts: Record<string, { x: number; y: number }> = {};
-      for (const sid of ids) {
-        const e = elementsRef.current.find(el => el.id === sid);
-        if (e) starts[sid] = { x: e.x, y: e.y };
-      }
-      multiDragStartRef.current = starts;
+    // On note la position de départ de TOUT ce qui bouge (même un seul calque) :
+    // c'est ce qui permet à Alt+glisser de laisser une copie sur place.
+    const ids = selectedIdsRef.current.length > 1 ? selectedIdsRef.current : [id];
+    const starts: Record<string, { x: number; y: number }> = {};
+    for (const sid of ids) {
+      const e = elementsRef.current.find(el => el.id === sid);
+      if (e) starts[sid] = { x: e.x, y: e.y };
     }
+    multiDragStartRef.current = starts;
+    altDragRef.current = altDownRef.current;
   };
 
   const handleElDragEnd = (id: string, x: number, y: number) => {
     setIsKonvaDragging(false);
     setGuides({ v: null, h: null });
     const ids = selectedIdsRef.current;
-    if (ids.length > 1 && multiDragStartRef.current[id]) {
-      const start = multiDragStartRef.current[id];
-      const dx = x - start.x;
-      const dy = y - start.y;
-      const newEls = elementsRef.current.map(e => {
+    const starts = multiDragStartRef.current;
+    // Alt+glisser = duplication, comme dans Canva et Figma : l'original reste
+    // où il était, c'est une copie qu'on emporte. La copie est posée JUSTE SOUS
+    // son modèle pour ne pas bousculer l'ordre des calques.
+    const duplicate = altDragRef.current;
+    altDragRef.current = false;
+
+    let next: CanvasEl[];
+    if (ids.length > 1 && starts[id]) {
+      const dx = x - starts[id].x;
+      const dy = y - starts[id].y;
+      next = elementsRef.current.map(e => {
         if (!ids.includes(e.id)) return e;
-        const s = multiDragStartRef.current[e.id];
+        const s = starts[e.id];
         return s ? { ...e, x: s.x + dx, y: s.y + dy } : e;
       });
-      applyElements(newEls);
     } else {
-      updateEl(id, { x, y });
+      next = elementsRef.current.map(e => (e.id === id ? { ...e, x, y } : e));
     }
+
+    if (duplicate) {
+      const moved = ids.length > 1 ? ids : [id];
+      next = next.flatMap(e => {
+        const s = starts[e.id];
+        if (!moved.includes(e.id) || !s) return [e];
+        return [{ ...e, id: newId(), x: s.x, y: s.y } as CanvasEl, e];
+      });
+    }
+    applyElements(next);
   };
 
   // ── Sélection par cadre (lasso) ───────────────────────────────────────────
@@ -2674,7 +2694,7 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
           text: p?.texte_visuel || 'VOTRE TEXTE',
           fontSize: 32, fontFamily: w?.font_family || 'Oswald',
           fontStyle: 'bold', textDecoration: '', fill: w?.secondary_color || '#FFFFFF',
-          align: 'left', width: sw - 40,
+          align: 'center', width: sw - 40,
           hasBg: true, bgColor: w?.primary_color || '#0038FF',
           bgOpacity: 95, cornerRadius: 4, padding: 16, paddingH: 16, paddingV: 10,
         };
@@ -2710,7 +2730,7 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
               x: 24, y: sh - 132,
               width: sw - 48,
               fontSize: 44,
-              align: 'left',
+              align: 'center',
             };
             initSlides = [{ id: 'slide-1', elements: [photoZone, titleZone], proxyUrl: '' }];
           }
@@ -2947,6 +2967,8 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
   // Le presse-papiers interne garde une LISTE : copier une sélection multiple doit
   // recoller le groupe entier en conservant les positions relatives.
   const clipboardRef = useRef<CanvasEl[]>([]);
+  // Jeton écrit dans le presse-papiers système lors d'un copier interne.
+  const clipStampRef = useRef<string | null>(null);
   const [ctxMenu, setCtxMenu] = useState<{ x: number; y: number; id: string } | null>(null);
   const copyEl = useCallback((id?: string | null) => {
     const ids = id
@@ -2955,7 +2977,14 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
           ? selectedIdsRef.current
           : (selectedIdRef.current ? [selectedIdRef.current] : []));
     const els = elementsRef.current.filter(e => ids.includes(e.id));
-    if (els.length > 0) clipboardRef.current = els.map(e => ({ ...e }));
+    if (els.length === 0) return;
+    clipboardRef.current = els.map(e => ({ ...e }));
+    // On dépose un jeton dans le presse-papiers système : au collage, il permet
+    // de distinguer « je recolle mes calques » de « je colle un texte venu
+    // d'ailleurs » — sans lui, un vieux texte système volerait la place.
+    const stamp = `klip-clip:${newId()}`;
+    clipStampRef.current = stamp;
+    void navigator.clipboard?.writeText(stamp).catch(() => { clipStampRef.current = null; });
   }, []);
   const pasteEl = useCallback(() => {
     const els = clipboardRef.current;
@@ -3177,6 +3206,30 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
 
   // ── Keyboard shortcuts ────────────────────────────────────────────────────
 
+  // Alt maintenu : suivi globalement, parce que les gestionnaires de glissement
+  // de Konva ne reçoivent pas tous l'événement d'origine. Remis à zéro quand la
+  // fenêtre perd le focus, sinon un Alt+Tab laisserait la duplication armée.
+  useEffect(() => {
+    const down = (e: KeyboardEvent) => { if (e.altKey) altDownRef.current = true; };
+    const up = (e: KeyboardEvent) => { if (!e.altKey) altDownRef.current = false; };
+    const clear = () => { altDownRef.current = false; };
+    window.addEventListener('keydown', down);
+    window.addEventListener('keyup', up);
+    window.addEventListener('blur', clear);
+    return () => {
+      window.removeEventListener('keydown', down);
+      window.removeEventListener('keyup', up);
+      window.removeEventListener('blur', clear);
+    };
+  }, []);
+
+  // Le gestionnaire n'est monté qu'une fois : il passe par ces refs pour appeler
+  // la dernière version d'actions définies plus bas dans le composant.
+  const handleSaveRef = useRef<(() => void | Promise<void>) | null>(null);
+  const layerActionRef = useRef<((a: 'front' | 'forward' | 'backward' | 'back') => void) | null>(null);
+  const zoomByRef = useRef<((factor: number) => void) | null>(null);
+  const fitZoomRef = useRef<(() => void) | null>(null);
+
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       const tag = (e.target as HTMLElement).tagName;
@@ -3202,6 +3255,39 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
         setSelectedIds(ids);
         setSelectedId(ids.at(-1) ?? null);
       }
+      // Couper — copier puis supprimer, comme partout ailleurs.
+      if ((e.metaKey || e.ctrlKey) && e.key === 'x') { e.preventDefault(); copyEl(); deleteEl(); }
+      // Enregistrer.
+      if ((e.metaKey || e.ctrlKey) && e.key === 's') { e.preventDefault(); void handleSaveRef.current?.(); }
+
+      // Ordre des calques — convention Canva/Figma : ] devant, [ derrière,
+      // avec Alt pour aller directement au premier/dernier plan.
+      if ((e.metaKey || e.ctrlKey) && (e.key === ']' || e.key === '[')) {
+        e.preventDefault();
+        const toFront = e.key === ']';
+        layerActionRef.current?.(e.altKey ? (toFront ? 'front' : 'back') : (toFront ? 'forward' : 'backward'));
+      }
+
+      // Zoom — Cmd +/− pour zoomer, Cmd 0 pour réajuster à l'écran.
+      if ((e.metaKey || e.ctrlKey) && (e.key === '=' || e.key === '+' )) { e.preventDefault(); zoomByRef.current?.(1.1); }
+      if ((e.metaKey || e.ctrlKey) && e.key === '-') { e.preventDefault(); zoomByRef.current?.(1 / 1.1); }
+      if ((e.metaKey || e.ctrlKey) && e.key === '0') { e.preventDefault(); fitZoomRef.current?.(); }
+
+      // Flèches : on pousse la sélection. 1px au doigt, 10px avec Maj — le
+      // réflexe de tous les éditeurs, il manquait ici.
+      if (!e.metaKey && !e.ctrlKey && e.key.startsWith('Arrow')) {
+        const ids = selectedIdsRef.current.length > 0
+          ? selectedIdsRef.current
+          : (selectedIdRef.current ? [selectedIdRef.current] : []);
+        if (ids.length === 0) return;
+        e.preventDefault();
+        const step = e.shiftKey ? 10 : 1;
+        const dx = e.key === 'ArrowLeft' ? -step : e.key === 'ArrowRight' ? step : 0;
+        const dy = e.key === 'ArrowUp' ? -step : e.key === 'ArrowDown' ? step : 0;
+        applyElements(elementsRef.current.map(el =>
+          ids.includes(el.id) && !lockedIds.has(el.id) ? { ...el, x: el.x + dx, y: el.y + dy } : el
+        ));
+      }
     };
     document.addEventListener('keydown', handler);
     return () => document.removeEventListener('keydown', handler);
@@ -3209,8 +3295,17 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
 
   // ── Add elements ──────────────────────────────────────────────────────────
 
+  // Tout texte neuf naît centré, et posé au milieu du cadre : c'est la mise en
+  // page qu'on veut neuf fois sur dix, et la recaler soi-même à chaque fois
+  // était une corvée.
+  const newTextBox = (width?: number) => {
+    const w = Math.min(width ?? 600, stageW - 80);
+    return { x: Math.round((stageW - w) / 2), width: w };
+  };
+
   const addText = () => {
-    const el: TextEl = { id: newId(), type: 'text', x: 50, y: 100, rotation: 0, opacity: 100, text: 'Nouveau texte', fontSize: 32, fontFamily: 'Oswald', fontStyle: 'bold', textDecoration: '', fill: '#FFFFFF', align: 'left', width: 300, hasBg: false, bgColor: '#000000', bgOpacity: 80, cornerRadius: 4, padding: 16, paddingH: 16, paddingV: 10 };
+    const box = newTextBox();
+    const el: TextEl = { id: newId(), type: 'text', x: box.x, y: Math.round(stageH / 2 - 40), rotation: 0, opacity: 100, text: 'Nouveau texte', fontSize: 32, fontFamily: 'Oswald', fontStyle: 'bold', textDecoration: '', fill: '#FFFFFF', align: 'center', width: box.width, hasBg: false, bgColor: '#000000', bgOpacity: 80, cornerRadius: 4, padding: 16, paddingH: 16, paddingV: 10 };
     applyElements([...elements, el]);
     setSelectedId(el.id);
   };
@@ -3226,7 +3321,7 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
       prix: { text: '00€', fontSize: 36, fontStyle: 'bold' },
     };
     const p = preset[role] ?? preset.titre;
-    const el: TextEl = { id: newId(), type: 'text', x: 50, y: 100, rotation: 0, opacity: 100, text: p.text, fontSize: p.fontSize, fontFamily: 'Oswald', fontStyle: p.fontStyle, textDecoration: '', fill: '#FFFFFF', align: 'left', width: stageW - 100, hasBg: false, bgColor: '#000000', bgOpacity: 80, cornerRadius: 4, padding: 16, paddingH: 16, paddingV: 10, role };
+    const el: TextEl = { id: newId(), type: 'text', x: 50, y: 100, rotation: 0, opacity: 100, text: p.text, fontSize: p.fontSize, fontFamily: 'Oswald', fontStyle: p.fontStyle, textDecoration: '', fill: '#FFFFFF', align: 'center', width: stageW - 100, hasBg: false, bgColor: '#000000', bgOpacity: 80, cornerRadius: 4, padding: 16, paddingH: 16, paddingV: 10, role };
     applyElements([...elements, el]);
     setSelectedId(el.id);
   };
@@ -3636,6 +3731,23 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
   const handleFileDropRef = useRef(handleFileDrop);
   handleFileDropRef.current = handleFileDrop;
 
+  // Coller un texte venu d'une autre application : il devient un calque texte,
+  // centré au milieu du cadre comme tous les textes neufs.
+  const pasteTextRef = useRef<((text: string) => void) | null>(null);
+  pasteTextRef.current = (text: string) => {
+    const clean = text.replace(/\r\n/g, '\n').slice(0, 2000);
+    const box = newTextBox();
+    const el: TextEl = {
+      id: newId(), type: 'text', x: box.x, y: Math.round(stageH / 2 - 40), rotation: 0, opacity: 100,
+      text: clean, fontSize: 32, fontFamily: 'Oswald', fontStyle: 'bold', textDecoration: '',
+      fill: '#FFFFFF', align: 'center', width: box.width,
+      hasBg: false, bgColor: '#000000', bgOpacity: 80, cornerRadius: 4, padding: 16, paddingH: 16, paddingV: 10,
+    };
+    applyElements([...elementsRef.current, el]);
+    setSelectedId(el.id);
+    setSelectedIds([el.id]);
+  };
+
   // Coller une image venue d'une autre app (Finder, navigateur, capture d'écran).
   useEffect(() => {
     const onPaste = (e: ClipboardEvent) => {
@@ -3643,12 +3755,15 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
       if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
       const item = Array.from(e.clipboardData?.items ?? []).find(i => i.type.startsWith('image/'));
       const file = item?.getAsFile();
+      const text = e.clipboardData?.getData('text/plain')?.trim() ?? '';
       e.preventDefault();
-      // Une image dans le presse-papiers système gagne ; sinon on recolle la
+      // Une image dans le presse-papiers système gagne ; sinon un texte venu
+      // d'ailleurs devient un calque texte (réflexe Canva) ; sinon on recolle la
       // sélection copiée dans l'éditeur. C'est ici (et pas dans le handler
       // keydown) que Cmd+V est traité : un preventDefault sur la touche
       // empêcherait justement cet événement de se déclencher.
       if (file) handleFileDropRef.current(file);
+      else if (text && text !== clipStampRef.current) pasteTextRef.current?.(text);
       else pasteEl();
     };
     document.addEventListener('paste', onPaste);
@@ -3769,6 +3884,11 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
     const z = Math.min((ws.clientWidth - 120) / stageWView, (ws.clientHeight - 80) / stageH);
     setZoom(Math.max(0.05, Math.min(1.5, +z.toFixed(3))));
   }, [stageWView, stageH]);
+
+  // Branchements pour les raccourcis clavier (cf. plus haut).
+  fitZoomRef.current = fit;
+  zoomByRef.current = (factor: number) => setZoom(z => Math.max(0.05, Math.min(3, +(z * factor).toFixed(3))));
+  layerActionRef.current = layerAction;
 
   // Auto-fit after data loads and whenever the format (stageW/stageH) changes
   useEffect(() => {
@@ -3978,7 +4098,11 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
       } else {
         shadow = hexLum(fill) > 0.5 && !!b.shadow;
       }
-      const align = ['left', 'center', 'right'].includes(b.align) ? b.align : 'left';
+      // Règle maison : tout texte généré est centré, quelle que soit la mise en
+      // page proposée par l'IA (décision Martin — c'est plus propre et ça évite
+      // les blocs qui semblent flotter à gauche). Repasser à `b.align` suffirait
+      // à rendre la main à la bibliothèque de gabarits.
+      const align = 'center';
       const width = Math.round((Math.min(Math.max(b.widthPct ?? 80, 10), 100) / 100) * stageW);
       // Vrai centrage : un bloc centré est réellement centré dans le cadre (sinon ça paraît "de travers").
       const x = align === 'center'
@@ -4165,6 +4289,7 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
     }
   };
 
+  // Cmd+S passe par ici (cf. raccourcis clavier).
   const handleSave = async () => {
     if (isTemplate) { await handleSaveTemplate(); return; }
     if (!stageRef.current) return;
@@ -4261,6 +4386,8 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
     }).eq('id', postId);
     window.location.href = `/workspace/${workspaceId}/planning`;
   };
+
+  handleSaveRef.current = handleSave;
 
   // ── Post type change — updates format + clamps elements + saves to DB ───────
 
@@ -4367,7 +4494,7 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
   // ── Templates ─────────────────────────────────────────────────────────────
 
   const applyTemplate = (overrides: Partial<TextEl>) => {
-    const el: TextEl = { id: newId(), type: 'text', x: 20, y: 200, rotation: 0, opacity: 100, text: 'VOTRE TEXTE', fontSize: 36, fontFamily: 'Oswald', fontStyle: 'bold', textDecoration: '', fill: '#ffffff', align: 'left', width: 560, hasBg: true, bgColor: '#0038FF', bgOpacity: 95, cornerRadius: 4, padding: 16, paddingH: 16, paddingV: 10, ...overrides };
+    const el: TextEl = { id: newId(), type: 'text', x: 20, y: 200, rotation: 0, opacity: 100, text: 'VOTRE TEXTE', fontSize: 36, fontFamily: 'Oswald', fontStyle: 'bold', textDecoration: '', fill: '#ffffff', align: 'center', width: 560, hasBg: true, bgColor: '#0038FF', bgOpacity: 95, cornerRadius: 4, padding: 16, paddingH: 16, paddingV: 10, ...overrides };
     applyElements([...elements, el]);
     setSelectedId(el.id);
   };
@@ -5289,7 +5416,7 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 16 }}>
                     {brandFontNames.map((font, i) => (
                       <div key={font} title={T('addTextWithFont')}
-                        onClick={() => { const el: TextEl = { id: newId(), type: 'text', x: 30, y: 60 + i * 60, rotation: 0, opacity: 100, text: font, fontSize: 26, fontFamily: font, fontStyle: 'bold', textDecoration: '', fill: workspaceData?.primary_color || '#000', align: 'left', width: 260, hasBg: false, bgColor: '#000', bgOpacity: 80, cornerRadius: 4, padding: 12, paddingH: 12, paddingV: 8 }; applyElements([...elements, el]); setSelectedId(el.id); }}
+                        onClick={() => { const el: TextEl = { id: newId(), type: 'text', x: 30, y: 60 + i * 60, rotation: 0, opacity: 100, text: font, fontSize: 26, fontFamily: font, fontStyle: 'bold', textDecoration: '', fill: workspaceData?.primary_color || '#000', align: 'center', width: 260, hasBg: false, bgColor: '#000', bgOpacity: 80, cornerRadius: 4, padding: 12, paddingH: 12, paddingV: 8 }; applyElements([...elements, el]); setSelectedId(el.id); }}
                         style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 10px', borderRadius: 6, background: 'var(--white)', cursor: 'pointer', border: '1px solid var(--line)' }}>
                         <span style={{ fontFamily: `"${font}", sans-serif`, fontSize: 22, color: 'var(--ink)', lineHeight: 1 }}>Aa</span>
                         <span style={{ fontSize: 11, color: 'var(--ink-2)', fontWeight: 600 }}>{font}</span>

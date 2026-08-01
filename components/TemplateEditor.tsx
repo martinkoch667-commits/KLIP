@@ -590,7 +590,7 @@ export default function TemplateEditor({
       fontSize: role === 'titre' ? 42 : role === 'sous-titre' ? 22 : role === 'cta' ? 16 : 28,
       fontFamily: fontFamily || 'Oswald',
       fontStyle: (role === 'titre' || role === 'sous-titre' || role === 'cta') ? 'bold' : 'normal',
-      textDecoration: '', fill: '#FFFFFF', align: 'left',
+      textDecoration: '', fill: '#FFFFFF', align: 'center',
       width: stageWRef.current - 40,
       hasBg: false, bgColor: primaryColor, bgOpacity: 90, cornerRadius: 4, padding: 12, paddingH: 14, paddingV: 8,
       role: role || undefined,
