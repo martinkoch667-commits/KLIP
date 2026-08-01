@@ -553,9 +553,10 @@ input.ed-range::-moz-range-thumb {
   .ws-new-main { padding: 0 20px !important; }
   .ws-new-main > div { padding-top: 24px !important; padding-bottom: 100px !important; }
 
-  /* Stepper — desktop hidden, mobile shown */
-  .ws-new-stepper-full { display: none !important; }
-  .ws-new-stepper-mobile { display: flex !important; }
+  /* Stepper — la barre segmentée sert à toutes les tailles ; sur mobile on
+     replie seulement les libellés, le compteur « 3 / 5 » suffit à se situer. */
+  .ws-new-stepper-mobile { display: none !important; }
+  .ws-new-step-labels { display: none !important; }
 
   /* Step titles */
   .ws-new-step-title { font-size: 26px !important; }

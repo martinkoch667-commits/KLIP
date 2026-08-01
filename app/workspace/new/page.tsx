@@ -508,7 +508,12 @@ export default function NewWorkspacePage() {
   const canContinue = step === 1 ? name.trim().length > 0 : true;
 
   return (
-    <div style={{ display: "flex", minHeight: "100vh", background: "var(--canvas)" }}>
+    <div style={{ display: "flex", minHeight: "100vh",
+      // Fond de la landing : crème + trame de points. C'est le premier écran que
+      // voit un nouveau client, il doit appartenir au même monde que le site.
+      background: "#F1F0E5",
+      backgroundImage: "radial-gradient(rgba(12,42,29,.07) 1px, transparent 1px)",
+      backgroundSize: "22px 22px" }}>
       <Sidebar />
 
       <div style={{ marginLeft: "var(--sb-w)", flex: 1, display: "flex", flexDirection: "column" }}>
@@ -516,42 +521,38 @@ export default function NewWorkspacePage() {
         {/* ── Progress header ───────────────────────────────────────────────── */}
         <header className="ws-new-header" style={{ padding: "28px 40px 0", flexShrink: 0 }}>
           <div style={{ maxWidth: 680, margin: "0 auto" }}>
-            {/* Desktop stepper */}
-            <div className="ws-new-stepper-full" style={{ display: "flex", alignItems: "flex-start" }}>
-              {STEP_LABELS.map((label, i) => {
-                const n = i + 1;
-                const active = n === step;
-                const done = n < step;
-                return (
-                  <div key={n} style={{ display: "flex", alignItems: "flex-start", flex: i < 4 ? 1 : "none" }}>
-                    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6, flexShrink: 0 }}>
-                      <div style={{
-                        width: 34, height: 34, borderRadius: "50%",
-                        background: done ? "var(--leaf)" : active ? "var(--ink)" : "var(--sunk)",
-                        display: "grid", placeItems: "center",
-                        fontSize: 13, fontWeight: 800,
-                        color: done ? "var(--mint-ink)" : active ? "var(--paper)" : "var(--ink-3)",
-                        fontFamily: "var(--mono)", transition: "all 0.2s",
-                      }}>
-                        {done ? <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg> : n}
-                      </div>
-                      <span style={{
-                        fontSize: 11, fontWeight: 600, whiteSpace: "nowrap",
-                        color: active ? "var(--ink)" : done ? "var(--ink-2)" : "var(--ink-3)",
-                      }}>
-                        {label}
-                      </span>
-                    </div>
-                    {i < 4 && (
-                      <div style={{
-                        flex: 1, height: 2, marginTop: 16, marginLeft: 8, marginRight: 8,
-                        background: done ? "var(--leaf)" : "var(--line-2)",
-                        transition: "background 0.3s",
-                      }} />
-                    )}
-                  </div>
-                );
-              })}
+            {/* Eyebrow + compteur : on situe où l'on en est avant de lire le titre. */}
+            <div style={{ display: "flex", alignItems: "baseline", gap: 10, marginBottom: 14 }}>
+              <span style={{ fontSize: 11, fontWeight: 800, textTransform: "uppercase", letterSpacing: ".14em", color: "var(--mint-2)", fontFamily: "var(--sans)" }}>
+                Nouveau client
+              </span>
+              <span style={{ marginLeft: "auto", fontSize: 11.5, fontWeight: 700, color: "var(--ink-3)", fontFamily: "var(--mono)", fontVariantNumeric: "tabular-nums" }}>
+                {step} / {STEP_LABELS.length}
+              </span>
+            </div>
+
+            {/* Barre segmentée : plus graphique qu'une file de ronds reliés, et on
+                lit l'avancement d'un coup d'œil plutôt qu'en comptant les cercles. */}
+            <div className="ws-new-stepper-full" style={{ display: "flex", flexDirection: "column", gap: 9 }}>
+              <div style={{ display: "flex", gap: 5 }}>
+                {STEP_LABELS.map((_, i) => {
+                  const n = i + 1;
+                  return (
+                    <span key={n} style={{ flex: 1, height: 5, borderRadius: 99, transition: "background .25s",
+                      background: n < step ? "var(--leaf)" : n === step ? "var(--forest)" : "rgba(12,42,29,.12)" }} />
+                  );
+                })}
+              </div>
+              <div className="ws-new-step-labels" style={{ display: "flex", gap: 5 }}>
+                {STEP_LABELS.map((label, i) => {
+                  const n = i + 1;
+                  const active = n === step;
+                  return (
+                    <span key={n} style={{ flex: 1, fontSize: 11, fontWeight: active ? 800 : 600, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
+                      color: active ? "var(--ink)" : n < step ? "var(--ink-2)" : "var(--ink-3)" }}>{label}</span>
+                  );
+                })}
+              </div>
             </div>
 
             {/* Mobile stepper — compact circles + active label */}
