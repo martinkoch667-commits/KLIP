@@ -672,7 +672,7 @@ export default function Dashboard() {
               <div className="halo-blob" style={{ width: 300, height: 300, right: -70, top: -150, background: 'var(--leaf)', opacity: .42 }} />
               <div className="halo-blob" style={{ width: 220, height: 220, right: 180, bottom: -150, background: 'var(--acid)', opacity: .28 }} />
               {/* stickers décoratifs (coins, derrière le contenu z:2) */}
-              <Sticker name="sparkle" size={72} float="spin" style={{ position: 'absolute', bottom: 18, right: 318, zIndex: 3 }} />
+              <Sticker name="sparkle" size={34} float="spin" style={{ position: 'absolute', bottom: 26, right: 330, zIndex: 3 }} />
               <div style={{ position: 'relative', zIndex: 2, display: 'grid', gridTemplateColumns: '1fr auto', gap: 28, alignItems: 'center' }} className="dash-hero">
                 <div>
                   <div className="label" style={{ color: 'var(--leaf)', marginBottom: 12 }}>

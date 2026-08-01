@@ -19,6 +19,16 @@ type PostType   = "post" | "reel" | "story" | "carrousel";
 
 // Formats alignés sur l'éditeur (PT_FORMAT_MAP) : post = portrait 4:5 (1080×1350),
 // carrousel = carré 1:1 (1080×1080), reel/story = vertical 9:16 (1080×1920).
+// Picto par format — remplace les pastilles de couleur du sélecteur de type :
+// une forme se reconnaît, un point coloré ne veut rien dire.
+function PostTypeGlyph({ type }: { type: PostType }) {
+  const c = { width: 14, height: 14, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 1.9, strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const };
+  if (type === 'reel') return <svg {...c}><rect x="3" y="3" width="18" height="18" rx="4"/><path d="M10 8.5l6 3.5-6 3.5z"/></svg>;
+  if (type === 'story') return <svg {...c}><rect x="6" y="2.5" width="12" height="19" rx="3"/><path d="M12 6.5v5"/></svg>;
+  if (type === 'carrousel') return <svg {...c}><rect x="7" y="4" width="13" height="16" rx="3"/><path d="M4 7v10"/></svg>;
+  return <svg {...c}><rect x="3.5" y="3.5" width="17" height="17" rx="3"/><circle cx="9" cy="9.5" r="1.4"/><path d="M20 15l-4.5-4.5L6 20"/></svg>;
+}
+
 const POST_TYPE_CFG: Record<PostType, { label: string; tKey: string; color: string; bg: string; format: string }> = {
   // Palette DA : vert forest / violet / orange warn / rose — couleurs de la charte,
   // assez contrastées pour servir de texte sur leur fond teinté (color + 15 alpha).
@@ -1416,7 +1426,7 @@ export default function WorkspacePage() {
                                     style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '7px 4px',
                                       cursor: ok ? 'pointer' : 'not-allowed', opacity: ok ? 1 : 0.35, fontSize: 11.5,
                                       color: active ? 'var(--ink)' : 'var(--ink-3)' }}>
-                                    <span style={{ width: 7, height: 7, borderRadius: '50%', background: POST_TYPE_CFG[pt].color, flexShrink: 0, boxShadow: active ? `0 0 0 3px ${POST_TYPE_CFG[pt].color}22` : 'none' }} />
+                                    <PostTypeGlyph type={pt} />
                                     {t(POST_TYPE_CFG[pt].tKey)}
                                   </button>
                                 );
@@ -1462,32 +1472,6 @@ export default function WorkspacePage() {
 
                             {!isGenerated ? (
                               <>
-                                {/* ── Modèle éditorial (angle de contenu) ── */}
-                                {/* Rien de tout ceci pour une vidéo : le texte s'écrit après le montage. */}
-                                {!post.isVideo && (
-                                <div>
-                                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
-                                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--ink-3)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
-                                    <span className="label" style={{ margin: 0 }}>{t('editorialModel')}</span>
-                                  </div>
-                                  <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap' }}>
-                                    {EDITORIAL_MODELS.map(m => {
-                                      const active = editorialModel[post.localId] === m.id;
-                                      const lightBg = m.id === 'annonce' || m.id === 'minimal';
-                                      return (
-                                        <button key={m.id} onClick={() => setEditorialModel(prev => ({ ...prev, [post.localId]: prev[post.localId] === m.id ? '' : m.id }))}
-                                          style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '7px 13px', borderRadius: 99, cursor: 'pointer', fontSize: 12.5, fontWeight: 700, fontFamily: 'var(--sans)', transition: 'all .14s',
-                                            border: active ? `1.5px solid ${m.color}` : '1px solid var(--line)',
-                                            background: active ? m.color : 'var(--card)',
-                                            color: active ? (lightBg ? '#06281C' : '#fff') : 'var(--ink-2)' }}>
-                                          <span style={{ width: 8, height: 8, borderRadius: '50%', background: active ? (lightBg ? '#06281C' : '#fff') : m.color, flexShrink: 0 }} />
-                                          {t(m.tKey)}
-                                        </button>
-                                      );
-                                    })}
-                                  </div>
-                                </div>
-                                )}
                                 {/* ── Template selector (before generation) ── */}
                                 {!post.isVideo && templates.length > 0 && (() => {
                                   const activeTpl = post.templateId ? templates.find(t => t.id === post.templateId) : null;
@@ -1549,38 +1533,6 @@ export default function WorkspacePage() {
                                     </p>
                                   )}
                                 </div>
-                                {!post.isVideo && (
-                                <div>
-                                  <p className="label" style={{ marginBottom: 4 }}>{t('postContext')}</p>
-                                  <textarea
-                                    value={postContexts[post.localId] ?? ''}
-                                    onChange={e => setPostContexts(prev => ({ ...prev, [post.localId]: e.target.value }))}
-                                    placeholder={t('postContextPh')}
-                                    maxLength={200}
-                                    rows={2}
-                                    className="input"
-                                    style={{ resize: 'none', fontSize: 12.5 }}
-                                  />
-                                </div>
-                                )}
-                                {/* ── Voix (ton) ── */}
-                                {!post.isVideo && (
-                                <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-                                  <span className="label" style={{ margin: 0 }}>{t('voice')}</span>
-                                  <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                                    {POST_VOICES.map(v => {
-                                      const active = postVoice[post.localId] === v.id;
-                                      return (
-                                        <button key={v.id} onClick={() => setPostVoice(prev => ({ ...prev, [post.localId]: prev[post.localId] === v.id ? '' : v.id }))}
-                                          style={{ padding: '6px 13px', borderRadius: 99, cursor: 'pointer', fontSize: 12, fontWeight: 700, fontFamily: 'var(--sans)', transition: 'all .14s',
-                                            border: active ? '1.5px solid var(--ink)' : '1px solid var(--line)', background: active ? 'var(--ink)' : 'var(--card)', color: active ? 'var(--paper)' : 'var(--ink-2)' }}>
-                                          {t(v.tKey)}
-                                        </button>
-                                      );
-                                    })}
-                                  </div>
-                                </div>
-                                )}
                                 {/* Toggle : la photo contient-elle déjà du texte ? */}
                                 {!post.isVideo && (
                                   <button type="button"
@@ -1696,7 +1648,7 @@ export default function WorkspacePage() {
                                 {/* La couverture se choisit dans l'éditeur de montage, une fois la vidéo montée :
                                     avant montage, on ne sait pas encore quelle image représente la vidéo. */}
 
-                                <div style={{ display: 'flex', gap: 7 }}>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: 7, alignSelf: 'start' }}>
                                   {post.isVideo ? (
                                     /* Vidéo : direction l'éditeur de montage. Pas de génération de
                                        texte ici — la légende s'écrit après le montage. */
@@ -1739,13 +1691,13 @@ export default function WorkspacePage() {
                                           onClick={() => openEditorWithTemplatePicker(post)}
                                           disabled={post.status === "validating"}
                                           className="btn btn-dark"
-                                          style={{ flex: 1, opacity: post.status === "validating" ? 0.5 : 1 }}
+                                          style={{ width: '100%', opacity: post.status === "validating" ? 0.5 : 1 }}
                                         >
                                           {post.status === "validating" ? <><Spinner /> {t('saving')}</> : <><IconEdit /> {t('editVisual')}</>}
                                         </button>
                                       )}
                                       {post.status === "validated" && post.dbId && (
-                                        <Link href={`/workspace/${id}/editor/${post.dbId}`} className="btn btn-dark" style={{ flex: 1, textAlign: 'center' }}>
+                                        <Link href={`/workspace/${id}/editor/${post.dbId}`} className="btn btn-dark" style={{ width: '100%', textAlign: 'center' }}>
                                           <IconEdit /> {t('openEditor')}
                                         </Link>
                                       )}

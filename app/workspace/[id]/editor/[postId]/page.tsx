@@ -3333,14 +3333,43 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
   // (c'est le propre d'un modèle), mais passe par l'historique, donc Cmd+Z revient
   // à l'état d'avant. Les zones photo prennent la photo du post quand il y en a
   // une ; les emplacements secondaires restent des zones à remplir.
-  const applyLayoutTemplate = (tpl: LayoutTemplate) => {
+  // Modèles livrés AVEC leur visuel : les zones photo qui portent une requête
+  // `stock` vont chercher une image de banque au moment où on applique le
+  // modèle. Une seule requête par mot-clé, et on n'écrase jamais la photo du
+  // post (slot 0) quand elle existe.
+  const resolveStockPhotos = async (tpl: LayoutTemplate): Promise<Record<string, string>> => {
+    const queries = Array.from(new Set(
+      tpl.els
+        .filter((el): el is Extract<typeof el, { kind: 'photo' }> => el.kind === 'photo')
+        .filter(el => el.stock && !(el.slot === 0 && proxyUrl))
+        .map(el => el.stock!)
+    ));
+    if (queries.length === 0) return {};
+    const pairs = await Promise.all(queries.map(async q => {
+      try {
+        const res = await fetch(`/api/pexels?query=${encodeURIComponent(q)}&page=1`);
+        if (!res.ok) return null;
+        const data = await res.json();
+        const url: string | undefined = data?.photos?.[0]?.src?.large || data?.photos?.[0]?.src?.medium;
+        return url ? ([q, `/api/proxy-image?url=${encodeURIComponent(url)}`] as const) : null;
+      } catch {
+        return null;
+      }
+    }));
+    return Object.fromEntries(pairs.filter(Boolean) as (readonly [string, string])[]);
+  };
+
+  const applyLayoutTemplate = async (tpl: LayoutTemplate) => {
     const W = stageW, H = stageH;
     const k = W / 1080; // pour les grandeurs déjà exprimées en points typo
+    const stock = await resolveStockPhotos(tpl);
     const out: CanvasEl[] = tpl.els.map(el => {
       if (el.kind === 'photo') {
         return {
           id: newId(), type: 'image',
-          src: el.slot === 0 && proxyUrl ? proxyUrl : PHOTO_PLACEHOLDER_SRC,
+          src: el.slot === 0 && proxyUrl
+            ? proxyUrl
+            : (el.stock && stock[el.stock]) || PHOTO_PLACEHOLDER_SRC,
           x: Math.round(el.x * W), y: Math.round(el.y * H),
           width: Math.round(el.w * W), height: Math.round(el.h * H),
           rotation: el.rotation ?? 0, opacity: el.opacity ?? 100,
@@ -5015,7 +5044,7 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
                         {list.map(tpl => {
                           const t = shown(tpl);
                           return (
-                            <button key={tpl.id} onClick={() => applyLayoutTemplate(t)} title={`${tpl.name} · ${tpl.cat}`}
+                            <button key={tpl.id} onClick={() => { void applyLayoutTemplate(t); }} title={`${tpl.name} · ${tpl.cat}`}
                               style={{ padding: 0, borderRadius: 12, border: 'none', cursor: 'pointer', overflow: 'hidden', background: 'transparent', transition: 'transform .14s', display: 'block' }}
                               onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-3px)'; }}
                               onMouseLeave={e => { e.currentTarget.style.transform = 'none'; }}>

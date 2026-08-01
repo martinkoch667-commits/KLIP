@@ -39,6 +39,12 @@ export interface PhotoSpec extends Common {
   radius?: number;
   /** 0 = la photo du post ; 1+ = photos secondaires à déposer par l'utilisateur. */
   slot?: number;
+  /** Requête banque d'images : le modèle arrive AVEC son visuel, comme chez
+   *  Canva, au lieu d'une zone grise à remplir. Résolue à l'application via
+   *  /api/pexels (Pexels si clé, sinon Openverse) — pas d'URL en dur, qui
+   *  pourrirait le jour où l'image disparaît. Ignorée si le post a déjà sa
+   *  photo et que le slot vaut 0. */
+  stock?: string;
 }
 export interface RectSpec extends Common {
   kind: 'rect';
@@ -132,8 +138,8 @@ export function adaptLayoutToCharter(tpl: LayoutTemplate, brand: BrandKit): Layo
 // (cat) et par style — et l'onglet propose les deux filtres.
 
 // Raccourcis d'écriture : la géométrie est en fractions du plan de travail.
-const ph = (x: number, y: number, w: number, h: number, slot = 0, radius = 0): PhotoSpec =>
-  ({ kind: 'photo', x, y, w, h, slot, radius });
+const ph = (x: number, y: number, w: number, h: number, slot = 0, radius = 0, stock?: string): PhotoSpec =>
+  ({ kind: 'photo', x, y, w, h, slot, radius, ...(stock ? { stock } : {}) });
 const rc = (x: number, y: number, w: number, h: number, fill: string, o: Partial<RectSpec> = {}): RectSpec =>
   ({ kind: 'rect', x, y, w, h, fill, ...o });
 const tx = (x: number, y: number, w: number, text: string, size: number, fill: string, o: Partial<TextSpec> = {}): TextSpec =>
@@ -599,6 +605,180 @@ export const LAYOUT_TEMPLATES: LayoutTemplate[] = [
     tx(0.07, 0.69, 0.86, 'Le titre de l’épisode', 0.065, CREAM, { lineHeight: 1.15, role: OG }),
     tx(0.07, 0.88, 0.86, 'Disponible maintenant', 0.028, 'rgba(244,237,228,.65)', { role: OG }),
   ] },
+  // ═══ SÉRIE « PRÊT À POSTER » ═══════════════════════════════════════════════
+  // Modèles livrés finis, dans les codes actuels des réseaux : gros serif
+  // éditorial, aplats francs, collage scotché, duotone, arches rétro, cartes
+  // témoignage. Ceux qui portent `stock` arrivent AVEC leur image (banque
+  // libre) ; les autres tiennent en pur aplat + typo, sans dépendance.
+
+  { id: 'pp-serif-num', name: 'Nº éditorial', cat: 'Éditorial', style: 'Élégant', photos: 1, els: [
+    rc(0, 0, 1, 1, PAPER, { role: G }),
+    tx(0.08, 0.07, 0.84, 'Nº 01', 0.032, CLAY, { font: 'Playfair Display', uppercase: true, letterSpacing: 6, role: AC }),
+    rc(0.08, 0.115, 0.84, 0.0015, 'rgba(20,22,15,.25)'),
+    tx(0.08, 0.15, 0.84, 'Le goût\ndu détail', 0.13, INK, { font: 'Playfair Display', lineHeight: 1.02, role: OG }),
+    ph(0.08, 0.42, 0.84, 0.4, 0, 0.002, 'ceramic studio hands'),
+    tx(0.08, 0.86, 0.6, 'Reportage · atelier', 0.026, 'rgba(20,22,15,.6)', { uppercase: true, letterSpacing: 4, role: OG }),
+    tx(0.68, 0.86, 0.24, '@votrecompte', 0.026, INK, { align: 'right', uppercase: true, letterSpacing: 2, role: OG }),
+  ] },
+
+  { id: 'pp-duotone', name: 'Duotone plein cadre', cat: 'Photo', style: 'Audacieux', photos: 1, dark: true, els: [
+    ph(0, 0, 1, 1, 0, 0, 'portrait studio fashion'),
+    rc(0, 0, 1, 1, PLUM, { opacity: 72, role: G }),
+    tx(0.07, 0.3, 0.86, 'ON\nCHANGE\nDE TON', 0.155, LEMON, { font: 'Archivo Black', uppercase: true, lineHeight: 0.95, letterSpacing: -2, role: AC }),
+    rc(0.07, 0.79, 0.2, 0.006, LEMON, { role: AC }),
+    tx(0.07, 0.83, 0.86, 'Nouvelle collection · en ligne', 0.028, WHITE, { uppercase: true, letterSpacing: 3, role: NO }),
+  ] },
+
+  { id: 'pp-tape', name: 'Photo scotchée', cat: 'Collage', style: 'Scrapbook', photos: 1, els: [
+    rc(0, 0, 1, 1, BONE, { role: G }),
+    rc(0.14, 0.17, 0.72, 0.56, WHITE, { rotation: -3, radius: 0.004 }),
+    ph(0.17, 0.2, 0.66, 0.44, 0, 0.002, 'coffee shop counter'),
+    tx(0.17, 0.66, 0.66, 'mardi, 8 h 40', 0.03, 'rgba(20,22,15,.55)', { rotation: -3, font: 'Space Grotesk', role: OG }),
+    rc(0.4, 0.135, 0.2, 0.035, 'rgba(201,162,39,.55)', { rotation: -7 }),
+    rc(0.12, 0.68, 0.16, 0.03, 'rgba(201,162,39,.55)', { rotation: 5 }),
+    tx(0.08, 0.79, 0.84, 'Les matins\nqui comptent', 0.085, INK, { ...C, font: 'Playfair Display', lineHeight: 1.05, role: OG }),
+  ] },
+
+  { id: 'pp-arche', name: 'Arche rétro', cat: 'Photo', style: 'Rétro', photos: 1, els: [
+    rc(0, 0, 1, 1, RUST, { role: G }),
+    rc(0.18, 0.1, 0.64, 0.64, CREAM, { radius: 0.32 }),
+    ph(0.21, 0.13, 0.58, 0.58, 0, 0.3, 'desert road vintage'),
+    rc(0.18, 0.52, 0.64, 0.22, RUST, { role: G }),
+    tx(0.08, 0.56, 0.84, 'ÉVASION', 0.115, CREAM, { ...B, ...C, font: 'Bebas Neue', uppercase: true, letterSpacing: 6, role: NO }),
+    tx(0.08, 0.72, 0.84, 'Trois jours, zéro réseau', 0.032, 'rgba(244,237,228,.8)', { ...C, role: NO }),
+    rc(0.42, 0.8, 0.16, 0.004, CREAM),
+  ] },
+
+  { id: 'pp-swipe', name: 'Couverture carrousel', cat: 'Éditorial', style: 'Audacieux', photos: 0, els: [
+    rc(0, 0, 1, 1, NOIR, { role: G }),
+    rc(0, 0, 1, 0.34, LEMON, { role: AC }),
+    tx(0.07, 0.06, 0.86, '3 ERREURS', 0.135, INK, { font: 'Archivo Black', uppercase: true, lineHeight: 1, letterSpacing: -1, role: NO }),
+    tx(0.07, 0.22, 0.86, 'qui plombent vos posts', 0.038, INK, { font: 'Space Grotesk', role: NO }),
+    tx(0.07, 0.45, 0.86, '01', 0.09, 'rgba(244,237,228,.22)', { font: 'Archivo Black', role: NO }),
+    tx(0.07, 0.56, 0.86, 'Vous parlez\nde vous, pas d’eux', 0.062, CREAM, { font: 'Space Grotesk', lineHeight: 1.15, role: OG }),
+    tx(0.07, 0.86, 0.5, 'Faites glisser', 0.03, LEMON, { uppercase: true, letterSpacing: 3, role: AC }),
+    tx(0.62, 0.845, 0.31, '→', 0.075, LEMON, { align: 'right', role: AC }),
+  ] },
+
+  { id: 'pp-avantapres', name: 'Avant / après', cat: 'Photo', style: 'Minimal', photos: 2, els: [
+    rc(0, 0, 1, 1, WHITE, { role: G }),
+    ph(0.04, 0.14, 0.44, 0.62, 0, 0.01, 'empty living room'),
+    ph(0.52, 0.14, 0.44, 0.62, 1, 0.01, 'styled living room interior'),
+    tx(0.04, 0.06, 0.44, 'AVANT', 0.036, 'rgba(20,22,15,.45)', { ...C, uppercase: true, letterSpacing: 4, role: OG }),
+    tx(0.52, 0.06, 0.44, 'APRÈS', 0.036, INK, { ...B, ...C, uppercase: true, letterSpacing: 4, role: AC }),
+    rc(0.495, 0.14, 0.01, 0.62, WHITE),
+    tx(0.04, 0.82, 0.92, 'Le même salon, deux heures plus tard', 0.038, INK, { ...C, font: 'DM Sans', role: OG }),
+  ] },
+
+  { id: 'pp-grille4', name: 'Grille + pastille', cat: 'Collage', style: 'Ludique', photos: 4, els: [
+    rc(0, 0, 1, 1, SKY, { role: G }),
+    ph(0.04, 0.06, 0.45, 0.42, 0, 0.02, 'flat lay stationery'),
+    ph(0.51, 0.06, 0.45, 0.42, 1, 0.02, 'plant close up'),
+    ph(0.04, 0.5, 0.45, 0.42, 2, 0.02, 'textile texture'),
+    ph(0.51, 0.5, 0.45, 0.42, 3, 0.02, 'coffee cup top view'),
+    tx(0.29, 0.42, 0.42, 'NOS\nFAVORIS', 0.062, INK, { ...B, ...C, font: 'Archivo Black', uppercase: true, lineHeight: 1.05, bg: LEMON, bgOpacity: 100, radius: 0.5, padH: 0.045, padV: 0.045, role: BD }),
+  ] },
+
+  { id: 'pp-temoignage', name: 'Témoignage', cat: 'Citation', style: 'Élégant', photos: 1, els: [
+    rc(0, 0, 1, 1, SAGE, { role: G }),
+    rc(0.08, 0.16, 0.84, 0.6, WHITE, { radius: 0.03 }),
+    tx(0.13, 0.2, 0.2, '“', 0.16, SAGE, { font: 'Playfair Display', role: AC }),
+    tx(0.13, 0.34, 0.74, 'On a gagné deux journées par semaine. Sans exagérer.', 0.052, INK, { font: 'Playfair Display', lineHeight: 1.3, role: BD }),
+    ph(0.13, 0.6, 0.1, 0.075, 0, 0.5, 'professional portrait smiling'),
+    tx(0.26, 0.615, 0.5, 'Camille · Studio Neuf', 0.028, INK, { ...B, font: 'DM Sans', role: BD }),
+    tx(0.26, 0.65, 0.5, 'cliente depuis 2024', 0.024, 'rgba(20,22,15,.55)', { font: 'DM Sans', role: BD }),
+    tx(0.08, 0.85, 0.84, 'Ils nous font confiance', 0.032, CREAM, { ...C, uppercase: true, letterSpacing: 4, role: OG }),
+  ] },
+
+  { id: 'pp-ticket', name: 'Billet', cat: 'Événement', style: 'Ludique', photos: 0, els: [
+    rc(0, 0, 1, 1, CHOCO, { role: G }),
+    rc(0.09, 0.14, 0.82, 0.64, BONE, { radius: 0.02 }),
+    rc(0.09, 0.5, 0.82, 0.002, CHOCO, { opacity: 25 }),
+    rc(0.055, 0.47, 0.07, 0.07, CHOCO, { radius: 0.5, role: G }),
+    rc(0.875, 0.47, 0.07, 0.07, CHOCO, { radius: 0.5, role: G }),
+    tx(0.13, 0.19, 0.74, 'PORTES\nOUVERTES', 0.1, CHOCO, { ...B, font: 'Bebas Neue', uppercase: true, lineHeight: 0.98, letterSpacing: 1, role: AC }),
+    tx(0.13, 0.38, 0.74, 'Samedi 14 juin · 10 h → 19 h', 0.032, 'rgba(59,42,32,.75)', { font: 'DM Sans', role: BD }),
+    tx(0.13, 0.56, 0.36, 'ENTRÉE', 0.024, 'rgba(59,42,32,.5)', { uppercase: true, letterSpacing: 3, role: BD }),
+    tx(0.13, 0.6, 0.36, 'Libre', 0.05, CHOCO, { ...B, font: 'DM Sans', role: BD }),
+    tx(0.53, 0.56, 0.34, 'LIEU', 0.024, 'rgba(59,42,32,.5)', { uppercase: true, letterSpacing: 3, role: BD }),
+    tx(0.53, 0.6, 0.34, '12 rue Basse', 0.038, CHOCO, { ...B, font: 'DM Sans', role: BD }),
+    tx(0.09, 0.84, 0.82, '@votrecompte', 0.028, BONE, { ...C, uppercase: true, letterSpacing: 4, role: OG }),
+  ] },
+
+  { id: 'pp-prix', name: 'Prix en gros', cat: 'Promo', style: 'Audacieux', photos: 1, els: [
+    rc(0, 0, 1, 1, CORAL, { role: G }),
+    ph(0.5, 0, 0.5, 1, 0, 0, 'product bottle studio'),
+    rc(0, 0, 0.55, 1, CORAL, { role: G }),
+    tx(0.06, 0.12, 0.44, 'OFFRE\nDU MOIS', 0.062, WHITE, { ...B, font: 'Archivo Black', uppercase: true, lineHeight: 1.05, role: NO }),
+    tx(0.06, 0.34, 0.44, '24', 0.26, WHITE, { font: 'Archivo Black', lineHeight: 0.9, letterSpacing: -6, role: NO }),
+    tx(0.06, 0.58, 0.44, '€90 le litre', 0.032, 'rgba(255,255,255,.8)', { font: 'DM Sans', role: NO }),
+    rc(0.06, 0.68, 0.3, 0.004, WHITE),
+    tx(0.06, 0.74, 0.44, 'Jusqu’au 30 juin,\nen boutique', 0.034, WHITE, { font: 'DM Sans', lineHeight: 1.35, role: NO }),
+  ] },
+
+  { id: 'pp-luxe', name: 'Luxe minimal', cat: 'Photo', style: 'Élégant', photos: 1, els: [
+    rc(0, 0, 1, 1, WHITE, { role: G }),
+    ph(0.18, 0.08, 0.64, 0.52, 0, 0, 'perfume bottle minimal'),
+    tx(0.1, 0.67, 0.8, 'ESSENTIEL', 0.055, INK, { ...C, font: 'Playfair Display', uppercase: true, letterSpacing: 12, role: OG }),
+    rc(0.44, 0.75, 0.12, 0.001, 'rgba(20,22,15,.35)'),
+    tx(0.1, 0.79, 0.8, 'Une pièce, mille usages.', 0.03, 'rgba(20,22,15,.6)', { ...C, font: 'DM Sans', role: OG }),
+  ] },
+
+  { id: 'pp-blocs', name: 'Blocs de couleur', cat: 'Éditorial', style: 'Minimal', photos: 1, els: [
+    rc(0, 0, 1, 1, BONE, { role: G }),
+    rc(0, 0, 1, 0.46, MOSS, { role: AC }),
+    ph(0.1, 0.3, 0.8, 0.42, 0, 0.01, 'workspace desk laptop'),
+    tx(0.08, 0.08, 0.84, 'MÉTHODE', 0.028, 'rgba(244,237,228,.7)', { uppercase: true, letterSpacing: 6, role: NO }),
+    tx(0.08, 0.13, 0.7, 'Travailler moins,\npublier mieux', 0.075, CREAM, { font: 'Space Grotesk', lineHeight: 1.12, role: NO }),
+    tx(0.08, 0.78, 0.84, 'Le carnet · épisode 4', 0.03, MOSS, { ...B, uppercase: true, letterSpacing: 3, role: AC }),
+    tx(0.08, 0.83, 0.84, 'Trois habitudes qui changent une semaine de production.', 0.032, 'rgba(20,22,15,.7)', { font: 'DM Sans', lineHeight: 1.4, role: OG }),
+  ] },
+
+  { id: 'pp-neon', name: 'Néon nocturne', cat: 'Événement', style: 'Nocturne', photos: 1, dark: true, els: [
+    ph(0, 0, 1, 1, 0, 0, 'night city neon lights'),
+    rc(0, 0, 1, 1, '#0A0A0A', { opacity: 55 }),
+    rc(0.08, 0.28, 0.84, 0.44, 'rgba(0,0,0,0)', { stroke: LILAC, strokeWidth: 2, radius: 0.02 }),
+    tx(0.1, 0.34, 0.8, 'AFTER\nWORK', 0.14, LILAC, { ...B, ...C, font: 'Bebas Neue', uppercase: true, lineHeight: 0.95, letterSpacing: 4, role: AC }),
+    tx(0.1, 0.62, 0.8, 'jeudi · 19 h · rooftop', 0.03, WHITE, { ...C, uppercase: true, letterSpacing: 5, role: NO }),
+    tx(0.08, 0.85, 0.84, 'places limitées', 0.026, 'rgba(255,255,255,.6)', { ...C, uppercase: true, letterSpacing: 3, role: NO }),
+  ] },
+
+  { id: 'pp-carte', name: 'Carte du jour', cat: 'Liste', style: 'Naturel', photos: 1, els: [
+    rc(0, 0, 1, 1, CREAM, { role: G }),
+    ph(0, 0, 1, 0.34, 0, 0, 'restaurant table food'),
+    rc(0, 0.3, 1, 0.08, CREAM, { role: G }),
+    tx(0.08, 0.36, 0.84, 'À LA CARTE', 0.045, MOSS, { ...B, ...C, font: 'Bebas Neue', uppercase: true, letterSpacing: 8, role: AC }),
+    tx(0.08, 0.46, 0.6, 'Velouté de courge', 0.038, INK, { font: 'DM Sans', role: OG }),
+    tx(0.7, 0.46, 0.22, '9 €', 0.038, INK, { ...B, align: 'right', font: 'DM Sans', role: OG }),
+    rc(0.08, 0.515, 0.84, 0.001, 'rgba(20,22,15,.15)'),
+    tx(0.08, 0.54, 0.6, 'Poulet fermier, jus au thym', 0.038, INK, { font: 'DM Sans', role: OG }),
+    tx(0.7, 0.54, 0.22, '18 €', 0.038, INK, { ...B, align: 'right', font: 'DM Sans', role: OG }),
+    rc(0.08, 0.595, 0.84, 0.001, 'rgba(20,22,15,.15)'),
+    tx(0.08, 0.62, 0.6, 'Tarte fine aux pommes', 0.038, INK, { font: 'DM Sans', role: OG }),
+    tx(0.7, 0.62, 0.22, '8 €', 0.038, INK, { ...B, align: 'right', font: 'DM Sans', role: OG }),
+    rc(0.08, 0.78, 0.84, 0.11, MOSS, { radius: 0.02, role: AC }),
+    tx(0.08, 0.805, 0.84, 'Réservez au 03 88 00 00 00', 0.032, CREAM, { ...C, font: 'DM Sans', role: NO }),
+  ] },
+
+  { id: 'pp-postit', name: 'Trois conseils', cat: 'Liste', style: 'Ludique', photos: 0, els: [
+    rc(0, 0, 1, 1, SKY, { role: G }),
+    tx(0.08, 0.07, 0.84, '3 conseils\npour tenir\nle rythme', 0.085, NAVY, { font: 'Space Grotesk', lineHeight: 1.1, role: OG }),
+    rc(0.08, 0.36, 0.84, 0.16, LEMON, { rotation: -1.5, radius: 0.01, role: AC }),
+    tx(0.12, 0.39, 0.76, '01 · Batcher une fois par semaine', 0.036, INK, { rotation: -1.5, font: 'DM Sans', role: BD }),
+    rc(0.08, 0.54, 0.84, 0.16, WHITE, { rotation: 1.5, radius: 0.01 }),
+    tx(0.12, 0.57, 0.76, '02 · Écrire la légende avant le visuel', 0.036, INK, { rotation: 1.5, font: 'DM Sans', role: BD }),
+    rc(0.08, 0.72, 0.84, 0.16, CORAL, { rotation: -1, radius: 0.01, role: AC }),
+    tx(0.12, 0.75, 0.76, '03 · Garder un post d’avance', 0.036, WHITE, { rotation: -1, font: 'DM Sans', role: BD }),
+  ] },
+
+  { id: 'pp-badge', name: 'Plein cadre + pastille', cat: 'Promo', style: 'Ludique', photos: 1, dark: true, els: [
+    ph(0, 0, 1, 1, 0, 0, 'sneakers product shot'),
+    rc(0, 0.55, 1, 0.45, '#000000', { scrim: 'bottom', opacity: 65 }),
+    tx(0.62, 0.06, 0.32, 'NOUVEAU', 0.038, INK, { ...B, ...C, uppercase: true, rotation: 12, bg: LEMON, bgOpacity: 100, radius: 0.5, padH: 0.035, padV: 0.035, role: BD }),
+    tx(0.07, 0.72, 0.86, 'La paire qui\nfait la saison', 0.085, WHITE, { font: 'Archivo Black', lineHeight: 1.05, role: NO }),
+    tx(0.07, 0.9, 0.86, 'en ligne dès vendredi', 0.028, 'rgba(255,255,255,.75)', { uppercase: true, letterSpacing: 3, role: NO }),
+  ] },
+
   { id: 'no-steel', name: 'Acier', cat: 'Éditorial', style: 'Nocturne', photos: 1, els: [
     rc(0, 0, 1, 1, STEEL, { role: G }),
     tx(0.07, 0.08, 0.86, 'RAPPORT', 0.075, CREAM, { ...B, uppercase: true, letterSpacing: 3, role: OG }),
