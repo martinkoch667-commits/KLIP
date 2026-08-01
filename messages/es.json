@@ -1,5 +1,6 @@
 {
   "voice": {
+    "langTitle": "Idioma del dictado",
     "sticker": "Dilo en voz alta",
     "stop": "Terminar",
     "blocked": "Micro bloqueado",

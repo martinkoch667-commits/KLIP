@@ -1,5 +1,6 @@
 {
   "voice": {
+    "langTitle": "Langue de la dictée",
     "sticker": "Dictez-le",
     "stop": "Terminer",
     "blocked": "Micro bloqué",

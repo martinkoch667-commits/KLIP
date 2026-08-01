@@ -222,14 +222,29 @@ img { display: block; max-width: 100%; }
 }
 .well { background: var(--sunk); border-radius: var(--r); }
 
-/* Carte « posée » — vocabulaire atelier de la landing v3 : légèrement de
-   travers, avec son bout de scotch et son étiquette. Elle ne bouge JAMAIS
-   (pas de redressement au survol, décision Martin) ; seule l'ombre portée
-   lui donne son relief. */
-.card-tilt {
+/* Carte « posée » — vocabulaire atelier de la landing v3 : scotch et étiquette,
+   mais bien D'ÉQUERRE (les cartes penchées faisaient bancal, décision Martin).
+   Seule l'ombre portée lui donne son relief. */
+.card-note {
   position: relative;
-  transform: rotate(var(--tilt, -1.1deg));
+  /* z-index explicite = contexte d'empilement : le scotch et l'étiquette
+     restent DANS la carte au lieu de flotter au-dessus de tout (ils passaient
+     par-dessus les menus ouverts dans la carte voisine). */
+  z-index: 0;
   box-shadow: 0 26px 54px -34px rgba(16,19,11,.38), 0 1px 2px rgba(13,15,10,.05);
+}
+
+/* Survol : la carte avance d'un cheveu vers l'écran, son ombre se creuse.
+   Rien de plus — le contenu ne doit ni sauter ni devenir flou. */
+.card-hover { transition: transform .22s cubic-bezier(.2,.7,.3,1), box-shadow .22s; }
+.card-hover:hover {
+  transform: scale(1.012);
+  box-shadow: 0 34px 64px -30px rgba(16,19,11,.42), 0 2px 6px rgba(13,15,10,.06);
+  /* Le `transform` crée un contexte d'empilement : sans ce z-index, la carte
+     survolée (et tout ce qu'elle ouvre, menu de langue compris) passerait SOUS
+     la carte suivante. */
+  position: relative;
+  z-index: 2;
 }
 .tape {
   position: absolute; top: -12px; left: 50%; width: 104px; height: 26px;
@@ -245,7 +260,7 @@ img { display: block; max-width: 100%; }
   font-weight: 800; font-size: 13.5px;
 }
 .stk-leaf { background: var(--leaf); color: var(--leaf-ink); box-shadow: 0 18px 36px -16px rgba(120,190,90,.5); }
-@media (prefers-reduced-motion: reduce) { .card-tilt { transform: none; } }
+@media (prefers-reduced-motion: reduce) { .card-hover, .card-hover:hover { transform: none; transition: box-shadow .22s; } }
 
 /* Cadre de sélection — l'élément a l'air « choisi » dans un éditeur, comme sur
    la landing v3. Décoratif et non cliquable : le contenu reste maître. */
@@ -378,6 +393,33 @@ img { display: block; max-width: 100%; }
 @keyframes voiceBar { 0%, 100% { transform: scaleY(.2); } 50% { transform: scaleY(1); } }
 
 .voice-time { font-family: var(--mono); font-size: 11.5px; font-weight: 800; font-variant-numeric: tabular-nums; opacity: .85; }
+
+.voice-wrap { display: inline-flex; align-items: center; gap: 8px; }
+
+/* Sélecteur de langue de dictée */
+.voice-lang-wrap { position: relative; display: inline-flex; }
+.voice-lang {
+  display: inline-flex; align-items: center; gap: 5px;
+  height: 28px; padding: 0 10px; border-radius: 999px;
+  border: 1px solid var(--line); background: var(--white); color: var(--ink-2);
+  font-size: 11.5px; font-weight: 800; letter-spacing: .04em;
+  transition: border-color .15s, color .15s, background .15s;
+}
+.voice-lang:hover { border-color: var(--vio); color: var(--vio); background: var(--vio-soft); }
+.voice-lang-menu {
+  position: absolute; top: calc(100% + 6px); left: 0; z-index: 30;
+  display: flex; flex-direction: column; min-width: 170px; padding: 5px;
+  background: var(--white); border: 1px solid var(--line); border-radius: var(--r);
+  box-shadow: var(--shadow-pop);
+}
+.voice-lang-menu button {
+  display: flex; align-items: center; gap: 8px; text-align: left;
+  padding: 7px 9px; border-radius: var(--r-s);
+  font-size: 13px; font-weight: 600; color: var(--ink);
+  transition: background .12s;
+}
+.voice-lang-menu button:hover { background: var(--sunk); }
+.voice-lang-menu button.on { background: var(--leaf-soft); color: var(--leaf-ink); font-weight: 800; }
 
 .voice-hint {
   display: inline-flex; align-items: center; gap: 5px; white-space: nowrap;

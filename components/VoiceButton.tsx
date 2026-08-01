@@ -12,12 +12,17 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
+import { LOCALES, LOCALE_LABELS, isLocale, type Locale } from "@/lib/i18n/config";
 
 const BAR_COUNT = 5;
 const USED_KEY = "klip:voice-used";
+const LANG_KEY = "klip:voice-lang";
+// Plusieurs micros cohabitent sur une même page : quand l'un change de langue,
+// les autres doivent suivre, sinon l'affichage ment sur la moitié des champs.
+const LANG_EVENT = "klip:voice-lang-change";
 
 // La reconnaissance a besoin d'une locale complète, pas d'un code court.
-const SPEECH_LANG: Record<string, string> = {
+const SPEECH_LANG: Record<Locale, string> = {
   fr: "fr-FR", en: "en-US", es: "es-ES", de: "de-DE", it: "it-IT", pt: "pt-PT",
 };
 
@@ -72,6 +77,15 @@ export default function VoiceButton({ value, onChange, compact = false, hint = f
   const t = useTranslations("voice");
   const locale = useLocale();
 
+  // Langue DICTÉE ≠ langue de l'interface : on peut très bien piloter une app en
+  // anglais et parler français. On part de la langue de l'interface, puis le
+  // choix de l'utilisateur prime et se retient (sinon la reconnaissance rend du
+  // charabia, un moteur anglais sur une phrase française).
+  const [lang, setLang] = useState<Locale>(isLocale(locale) ? locale : "en");
+  const [langOpen, setLangOpen] = useState(false);
+  const langRef = useRef<Locale>(lang);
+  langRef.current = lang;
+
   const [supported, setSupported] = useState(false);
   const [recording, setRecording] = useState(false);
   const [blocked, setBlocked] = useState(false);   // micro refusé / indisponible
@@ -87,6 +101,7 @@ export default function VoiceButton({ value, onChange, compact = false, hint = f
   const meterOkRef = useRef(true);     // l'analyseur est-il encore le bienvenu ?
   const strikeRef = useRef(0);         // sessions mortes-nées d'affilée (pas de micro ?)
   const btnRef = useRef<HTMLButtonElement>(null);
+  const langWrapRef = useRef<HTMLSpanElement>(null);
   const barsRef = useRef<(HTMLElement | null)[]>([]);
   const meterRef = useRef<{ ctx: AudioContext; stream: MediaStream; raf: number } | null>(null);
 
@@ -99,10 +114,39 @@ export default function VoiceButton({ value, onChange, compact = false, hint = f
     setSupported(!!(w.SpeechRecognition || w.webkitSpeechRecognition));
     try {
       setFresh(!window.localStorage.getItem(USED_KEY));
+      const saved = window.localStorage.getItem(LANG_KEY);
+      if (isLocale(saved)) setLang(saved);
     } catch {
       setFresh(true);
     }
   }, []);
+
+  useEffect(() => {
+    const sync = (e: Event) => {
+      const next = (e as CustomEvent).detail;
+      if (isLocale(next)) setLang(next);
+    };
+    window.addEventListener(LANG_EVENT, sync);
+    return () => window.removeEventListener(LANG_EVENT, sync);
+  }, []);
+
+  // Fermeture du menu de langue au clic ailleurs / à l'échap. Le test se fait
+  // sur l'appartenance au menu (contains) et non sur la propagation : sinon le
+  // pointerdown fermait le menu avant que le clic n'atteigne l'option.
+  useEffect(() => {
+    if (!langOpen) return;
+    const onDown = (e: PointerEvent) => {
+      if (langWrapRef.current?.contains(e.target as Node)) return;
+      setLangOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setLangOpen(false); };
+    document.addEventListener("pointerdown", onDown);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("pointerdown", onDown);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [langOpen]);
 
   const stopMeter = useCallback(() => {
     const m = meterRef.current;
@@ -175,7 +219,7 @@ export default function VoiceButton({ value, onChange, compact = false, hint = f
     if (!SR) return;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const r: any = new SR();
-    r.lang = SPEECH_LANG[locale] ?? SPEECH_LANG.en;
+    r.lang = SPEECH_LANG[langRef.current] ?? SPEECH_LANG.en;
     r.interimResults = true;
     r.continuous = true;
 
@@ -233,7 +277,7 @@ export default function VoiceButton({ value, onChange, compact = false, hint = f
 
     recognitionRef.current = r;
     r.start();
-  }, [locale, onChange, finish, stopMeter]);
+  }, [onChange, finish, stopMeter]);
 
   // Le bloc porteur du champ s'allume pendant l'écoute (cf. .voice-scope--live).
   useEffect(() => {
@@ -348,12 +392,53 @@ export default function VoiceButton({ value, onChange, compact = false, hint = f
     </button>
   );
 
-  if (!showHint) return button;
+  function pickLang(l: Locale) {
+    setLang(l);
+    setLangOpen(false);
+    try { window.localStorage.setItem(LANG_KEY, l); } catch { /* mode privé */ }
+    window.dispatchEvent(new CustomEvent(LANG_EVENT, { detail: l }));
+  }
 
   return (
-    <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
+    <span className="voice-wrap">
       {button}
-      <span className="voice-hint">{t("tip")}</span>
+
+      {/* Langue de dictée — visible en permanence : c'est elle qui décide si la
+          phrase est comprise ou transcrite en charabia. */}
+      {!recording && !blocked && (
+        <span className="voice-lang-wrap" ref={langWrapRef}>
+          <button
+            type="button"
+            className="voice-lang"
+            onClick={() => setLangOpen((o) => !o)}
+            aria-haspopup="listbox"
+            aria-expanded={langOpen}
+            title={t("langTitle")}
+          >
+            <span aria-hidden="true">{LOCALE_LABELS[lang].flag}</span>
+            {lang.toUpperCase()}
+          </button>
+          {langOpen && (
+            <span className="voice-lang-menu" role="listbox">
+              {LOCALES.map((l) => (
+                <button
+                  key={l}
+                  type="button"
+                  role="option"
+                  aria-selected={l === lang}
+                  className={l === lang ? "on" : ""}
+                  onClick={() => pickLang(l)}
+                >
+                  <span aria-hidden="true">{LOCALE_LABELS[l].flag}</span>
+                  {LOCALE_LABELS[l].name}
+                </button>
+              ))}
+            </span>
+          )}
+        </span>
+      )}
+
+      {showHint && <span className="voice-hint">{t("tip")}</span>}
     </span>
   );
 }

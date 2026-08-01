@@ -1198,11 +1198,12 @@ export default function WorkspacePage() {
                 {/* Upload + AI generation — 50/50 */}
                 <div className="ws-upload-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 30, margin: '12px 0 34px' }}>
 
-                  {/* Zone de dépôt — posée de travers et « sélectionnée » (cadre +
-                      poignées violettes de la landing v3) : le plan de travail
-                      ressemble à un éditeur, pas à un formulaire. Le cadre est
-                      décoratif, il ne capte aucun clic. */}
-                  <span className="sel sel-block" style={{ rotate: '1.3deg' }}>
+                  {/* Zone de dépôt « sélectionnée » (cadre + poignées violettes de
+                      la landing v3) : le plan de travail ressemble à un éditeur,
+                      pas à un formulaire. Le cadre est décoratif, il ne capte
+                      aucun clic ; le survol porte sur l'ensemble pour que les
+                      poignées suivent la carte. */}
+                  <span className="sel sel-block card-hover">
                   <div
                     className="card"
                     onClick={() => fileInputRef.current?.click()}
@@ -1237,7 +1238,7 @@ export default function WorkspacePage() {
                   </span>
 
                   {/* AI generator */}
-                  <div id="ai-gen-card" className="card" data-voice-scope="" style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 12 }}>
+                  <div id="ai-gen-card" className="card card-hover" data-voice-scope="" style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 12 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                       <span className="h-title" style={{ fontSize: 15 }}>{t('generateAI')}</span>
                       <span className="chip" style={{ background: 'var(--mint-soft)', color: 'var(--mint-2)' }}>{t('klipAI')}</span>
@@ -1303,8 +1304,8 @@ export default function WorkspacePage() {
                 )}
 
                 {/* Brief global — carte « posée » (scotch + étiquette), vocabulaire
-                    atelier de la landing v3 : elle se redresse au survol. */}
-                <div className="card card-tilt" data-voice-scope="" style={{ padding: 22, margin: '26px 0 30px' }}>
+                    atelier de la landing v3, mais d'équerre. */}
+                <div className="card card-note card-hover" data-voice-scope="" style={{ padding: 22, margin: '26px 0 30px' }}>
                   <span className="tape" aria-hidden="true" />
                   <span className="stk-card stk-leaf" style={{ position: 'absolute', top: -16, right: 22, rotate: '3deg', fontSize: 11.5, letterSpacing: '.08em', textTransform: 'uppercase', padding: '8px 13px', zIndex: 5 }}>
                     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">

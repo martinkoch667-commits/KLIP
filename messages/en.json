@@ -1,5 +1,6 @@
 {
   "voice": {
+    "langTitle": "Dictation language",
     "sticker": "Just say it",
     "stop": "Done",
     "blocked": "Mic blocked",
