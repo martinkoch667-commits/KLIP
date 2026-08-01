@@ -10,6 +10,7 @@ import ColorPicker from "@/components/ColorPicker";
 import {
   effectiveSubStyle, charterSubPresets, DEFAULT_SUB_POS, type SubCustom,
 } from "@/app/workspace/[id]/montage/[postId]/constants";
+import BrandStage from "@/components/BrandStage";
 import SubtitleStyleEditor, { SubtitlePreviewChip, SubtitlePreviewStage } from "@/components/SubtitleStyleEditor";
 import { parseFontFile, groupFontFiles, weightLabel, type FontFamily } from "@/lib/fontFiles";
 import { MiniTemplatePreview, type TemplateDraft } from "@/components/TemplateEditor";
@@ -515,7 +516,8 @@ export default function NewWorkspacePage() {
       background: "#FFFFFF" }}>
       <Sidebar />
 
-      <div style={{ marginLeft: "var(--sb-w)", flex: 1, display: "flex", flexDirection: "column" }}>
+      <div className="ws-new-shell" style={{ marginLeft: "var(--sb-w)", flex: 1, display: "grid", gridTemplateColumns: "minmax(0,1fr) 420px" }}>
+      <div style={{ display: "flex", flexDirection: "column", minWidth: 0 }}>
 
         {/* ── Progress header ───────────────────────────────────────────────── */}
         <header className="ws-new-header" style={{ padding: "28px 40px 0", flexShrink: 0 }}>
@@ -1397,6 +1399,25 @@ export default function NewWorkspacePage() {
             )}
           </div>
         </footer>
+        </div>
+
+        {/* Plateau de composition : la marque du client s'assemble à mesure qu'on
+            remplit. C'est ce qui fait passer l'écran du formulaire à l'outil. */}
+        <BrandStage
+          step={step}
+          name={name}
+          sector={sector}
+          handle={instagramHandle}
+          description={brandDescription}
+          tone={tone}
+          primary={primaryColor}
+          secondary={secondaryColor}
+          accent={accentColor}
+          logo={logoPreview}
+          fontPrimary={activeFontPrimary}
+          fontSecondary={activeFontSecondary}
+          templatesCount={pendingTemplates.length}
+        />
 
         {/* ── Mobile back button — fixed top-left ───────────────────────────── */}
         {step > 1 && (

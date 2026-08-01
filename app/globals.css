@@ -429,6 +429,18 @@ input.ed-range::-moz-range-thumb {
 
 /* ── Responsive ─────────────────────────────────────────────────────────────── */
 
+/* Onboarding — le plateau de composition prend la colonne de droite ; sous
+   1080px il n'y a plus la place, on rend la page à la saisie seule. */
+.ws-new-shell > .brandstage { display: grid; }
+/* Le pied de page est en position fixe : sans cette borne il passerait SOUS le
+   plateau. Et son fond doit suivre la page, désormais blanche. */
+.ws-new-footer { right: 420px !important; background: rgba(255,255,255,.92) !important; }
+@media (max-width: 1180px) {
+  .ws-new-shell { grid-template-columns: 1fr !important; }
+  .ws-new-shell > .brandstage { display: none !important; }
+  .ws-new-footer { right: 0 !important; }
+}
+
 /* Onboarding — titres d'étape : filet vert sous le titre, comme les sections de
    la landing. Défini ici plutôt qu'en style inline : la règle s'applique aux cinq
    étapes d'un coup. */
