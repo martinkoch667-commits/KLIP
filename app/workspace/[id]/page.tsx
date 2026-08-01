@@ -1180,8 +1180,11 @@ export default function WorkspacePage() {
                         le panneau de la bannière devient un objet du plan de
                         travail plutôt qu'un encart administratif. */}
                     <span className="sel" style={{ rotate: '-1.6deg' }}>
-                    <div style={{ width: 220, borderRadius: 'var(--r-l)', background: 'rgba(238,237,227,.08)', boxShadow: 'inset 0 0 0 1px rgba(238,237,227,.15)', backdropFilter: 'blur(6px)', padding: '16px 18px' }}>
-                      <div className="label" style={{ color: 'var(--cream)', marginBottom: 12 }}>{t('thisSession')}</div>
+                    {/* Carton blanc posé sur la bannière : le verre dépoli se
+                        confondait avec le fond et jurait avec le cadre de
+                        sélection (décision Martin). */}
+                    <div style={{ width: 220, borderRadius: 'var(--r-l)', background: 'var(--white)', boxShadow: '0 18px 40px -22px rgba(0,0,0,.55)', padding: '16px 18px' }}>
+                      <div className="label" style={{ marginBottom: 12 }}>{t('thisSession')}</div>
                       <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                         {[
                           { label: t('sessPhotos'), n: posts.length },
@@ -1190,8 +1193,8 @@ export default function WorkspacePage() {
                           { label: t('sessInProgress'), n: posts.filter(p => p.status === 'generating' || p.status === 'validating').length },
                         ].map(({ label, n }) => (
                           <div key={label} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                            <span style={{ fontSize: 12, color: 'var(--cream-2)', fontWeight: 600 }}>{label}</span>
-                            <span className="num" style={{ fontSize: 18, color: n > 0 ? 'var(--leaf)' : 'var(--cream-3)', lineHeight: 1 }}>{n}</span>
+                            <span style={{ fontSize: 12, color: 'var(--ink-2)', fontWeight: 600 }}>{label}</span>
+                            <span className="num" style={{ fontSize: 18, color: n > 0 ? 'var(--ink)' : 'var(--ink-3)', lineHeight: 1 }}>{n}</span>
                           </div>
                         ))}
                       </div>
@@ -1349,18 +1352,20 @@ export default function WorkspacePage() {
                     {t('noPhoto')}
                   </div>
                 ) : (
-                  // Deux posts par ligne, sur toute la largeur : la colonne unique
-                  // à 880px laissait la moitié du plan de travail vide.
-                  <div className="ws-posts-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 18, alignItems: 'start' }}>
+                  // Un post par ligne mais sur TOUTE la largeur : à deux par ligne,
+                  // la hauteur de la carte suivait le format du visuel (un 9:16
+                  // faisait exploser la ligne). Ici la carte s'étale à l'horizontale
+                  // et reste basse.
+                  <div className="ws-posts-grid" style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr)', gap: 16, alignItems: 'start' }}>
                     {posts.map((post, pIdx) => {
                       const isGenerated = post.status === "generated" || post.status === "validating" || post.status === "validated";
                       return (
                         <div key={post.localId} className="card klip-card-in ws-post-card" style={{ overflow: 'hidden', display: 'flex', borderRadius: 16, border: '1px solid var(--line-2)', boxShadow: '0 1px 2px rgba(13,15,10,.03), 0 14px 32px -20px rgba(13,15,10,.28)', animationDelay: `${Math.min(pIdx, 8) * 55}ms` }}>
                           {/* ── Colonne gauche : visuel + type + remplacer ── */}
-                          {/* Colonne visuelle : elle peut se resserrer quand deux
-                              posts partagent la ligne, pour ne pas étrangler les
-                              champs de droite. */}
-                          <div className="ws-post-left" style={{ flex: '0 1 300px', minWidth: 190, background: 'var(--canvas)', borderRight: '1px solid var(--line-2)', padding: 14, display: 'flex', flexDirection: 'column', gap: 12 }}>
+                          {/* Aperçu volontairement bridé en hauteur : à pleine taille
+                              il dictait la hauteur de toute la carte, un 9:16 la
+                              faisait doubler. Fond blanc, comme le reste de la carte. */}
+                          <div className="ws-post-left" style={{ flex: '0 0 268px', minWidth: 200, background: 'var(--white)', borderRight: '1px solid var(--line-2)', padding: 14, display: 'flex', flexDirection: 'column', gap: 10 }}>
                             {/* Aperçu du rendu publié — même volet que la fenêtre de
                                 programmation. On voyait jusqu'ici le média nu, sans la
                                 légende ni le compte : impossible de juger le post. */}
@@ -1372,9 +1377,10 @@ export default function WorkspacePage() {
                                 postType={post.post_type}
                                 platforms={['instagram']}
                                 compact
+                                mediaHeight="230px"
                               />
                             ) : (
-                            <div style={{ position: 'relative', aspectRatio: aspectForPostType(post.post_type), borderRadius: 13, overflow: 'hidden', background: '#000' }}>
+                            <div style={{ position: 'relative', height: 230, borderRadius: 13, overflow: 'hidden', background: '#000' }}>
                               {post.isVideo ? (
                                 <video src={post.photo_url} controls style={{ width: '100%', height: '100%', objectFit: 'contain', display: 'block' }} />
                               ) : (
@@ -1620,7 +1626,11 @@ export default function WorkspacePage() {
                                 )}
                               </>
                             ) : (
-                              <>
+                              /* Post généré : les textes à gauche, les actions à droite.
+                                 Empilés, ils faisaient une carte deux fois plus haute
+                                 alors que la largeur ne servait à rien. */
+                              <div className="ws-post-fields" style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1.7fr) minmax(0, 1fr)', gap: 14, alignItems: 'start' }}>
+                                <div style={{ minWidth: 0, display: 'flex', flexDirection: 'column', gap: 12 }}>
                                 {post.texte_visuel && (
                                   <div style={{ borderRadius: 12, background: 'linear-gradient(180deg, var(--card), color-mix(in srgb, var(--mint, #2FD79B) 5%, var(--card)))', border: '1px solid var(--line-2)', borderLeft: '3px solid var(--mint, #2FD79B)', padding: '11px 13px' }}>
                                     <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
@@ -1672,10 +1682,12 @@ export default function WorkspacePage() {
                                   </div>
                                 )}
 
+                                </div>
+
                                 {/* La couverture se choisit dans l'éditeur de montage, une fois la vidéo montée :
                                     avant montage, on ne sait pas encore quelle image représente la vidéo. */}
 
-                                <div style={{ display: 'flex', gap: 7, marginTop: 2 }}>
+                                <div style={{ display: 'flex', gap: 7 }}>
                                   {post.isVideo ? (
                                     /* Vidéo : direction l'éditeur de montage. Pas de génération de
                                        texte ici — la légende s'écrit après le montage. */
@@ -1736,7 +1748,7 @@ export default function WorkspacePage() {
                                     </>
                                   )}
                                 </div>
-                              </>
+                              </div>
                             )}
                           </div>
                           </div>
@@ -1952,10 +1964,9 @@ export default function WorkspacePage() {
 
       <style>{`
         @keyframes spin{to{transform:rotate(360deg)}}
-        /* Deux posts par ligne seulement quand la carte reste lisible : sous
-           1440px, la colonne visuelle étrangle les champs de droite. */
-        @media(max-width:1439px){
-          .ws-posts-grid{grid-template-columns:1fr !important;}
+        /* Textes et actions côte à côte tant qu'il y a la place. */
+        @media(max-width:1100px){
+          .ws-post-fields{grid-template-columns:1fr !important;}
         }
         @media(max-width:767px){
           .ws-hero-grid{grid-template-columns:1fr !important;}

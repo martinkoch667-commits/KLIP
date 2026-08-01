@@ -707,13 +707,15 @@ export default function Dashboard() {
                 {/* glass panel: today's posts — « sélectionné » et posé de biais,
                     comme le panneau de session du plan de travail. */}
                 <span className="sel dash-hero-card" style={{ rotate: '1.6deg' }}>
-                <div style={{ width: 256, borderRadius: 'var(--r-l)', background: 'rgba(238,237,227,.08)', boxShadow: 'inset 0 0 0 1px var(--cream-4)', backdropFilter: 'blur(6px)', padding: 16 }}>
+                {/* Carton blanc posé sur la bannière : le verre dépoli jurait
+                    avec le cadre de sélection (décision Martin). */}
+                <div style={{ width: 256, borderRadius: 'var(--r-l)', background: 'var(--white)', boxShadow: '0 18px 40px -22px rgba(0,0,0,.55)', padding: 16 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 13 }}>
                     <span style={{ width: 24, height: 24, borderRadius: 7, background: 'var(--leaf)', color: 'var(--mint-ink)', display: 'grid', placeItems: 'center', flexShrink: 0 }}>
                       <IconBolt />
                     </span>
-                    <span className="label" style={{ color: 'var(--cream)' }}>{t('toPublishToday')}</span>
-                    <span className="num" style={{ marginLeft: 'auto', fontSize: 18, color: 'var(--acid)' }}>{todayPosts}</span>
+                    <span className="label">{t('toPublishToday')}</span>
+                    <span className="num" style={{ marginLeft: 'auto', fontSize: 18, color: 'var(--ink)' }}>{todayPosts}</span>
                   </div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
                     {upcoming.slice(0, 3).map(p => {
@@ -722,17 +724,17 @@ export default function Dashboard() {
                       return (
                         <button key={p.id}
                           onClick={() => router.push(`/workspace/${p.workspace_id}/editor/${p.id}`)}
-                          style={{ display: 'flex', alignItems: 'center', gap: 9, padding: 6, borderRadius: 9, textAlign: 'left', transition: 'background .14s', background: 'transparent', border: 'none', cursor: 'pointer', width: '100%', color: 'var(--cream)' }}
-                          onMouseEnter={e => (e.currentTarget.style.background = 'rgba(238,237,227,.08)')}
+                          style={{ display: 'flex', alignItems: 'center', gap: 9, padding: 6, borderRadius: 9, textAlign: 'left', transition: 'background .14s', background: 'transparent', border: 'none', cursor: 'pointer', width: '100%', color: 'var(--ink)' }}
+                          onMouseEnter={e => (e.currentTarget.style.background = 'var(--sunk)')}
                           onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
-                          <div style={{ width: 28, height: 34, borderRadius: 6, background: 'rgba(255,255,255,.1)', flexShrink: 0, overflow: 'hidden' }}>
+                          <div style={{ width: 28, height: 34, borderRadius: 6, background: 'var(--sunk)', flexShrink: 0, overflow: 'hidden' }}>
                             {src && <img src={src} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />}
                           </div>
                           <span style={{ minWidth: 0, flex: 1 }}>
-                            <span style={{ display: 'block', fontWeight: 700, fontSize: 12, color: 'var(--cream)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            <span style={{ display: 'block', fontWeight: 700, fontSize: 12, color: 'var(--ink)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                               {p.texte_visuel?.slice(0, 28) || t('postFallback')}
                             </span>
-                            <span style={{ fontSize: 10.5, color: 'var(--cream-2)', fontWeight: 600 }}>
+                            <span style={{ fontSize: 10.5, color: 'var(--ink-3)', fontWeight: 600 }}>
                               {ws?.name ?? t('clientFallback')}{p.scheduled_at ? ' · ' + new Date(p.scheduled_at).toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' }) : ''}
                             </span>
                           </span>
@@ -740,7 +742,7 @@ export default function Dashboard() {
                       );
                     })}
                     {upcoming.length === 0 && (
-                      <div style={{ fontSize: 12.5, color: 'var(--cream-2)', textAlign: 'center', padding: '12px 0' }}>
+                      <div style={{ fontSize: 12.5, color: 'var(--ink-3)', textAlign: 'center', padding: '12px 0' }}>
                         {t('noUpcoming')}
                       </div>
                     )}
