@@ -5459,7 +5459,7 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
         )}
 
         {/* ── CANVAS WORKSPACE ── */}
-        <div className="ed-canvas-area" style={{ flex: 1, minWidth: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column', background: 'var(--white)', position: 'relative' }}>
+        <div className="ed-canvas-area" style={{ flex: 1, minWidth: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column', background: '#F3F4F7', position: 'relative' }}>
           {/* ── Barre contextuelle flottante (desktop) — centrée sous la topbar, par-dessus le plan de travail ── */}
           {selectedEl && (
             <div className="ed-ctx-float" data-stop-deselect onMouseDown={e => e.stopPropagation()}
@@ -5504,7 +5504,10 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
                   ref={el => { slideContainerRefs.current[idx] = el; }}
                   style={{ flexShrink: 0, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
                   <div style={{ width: (isActive && isContinuous ? stageWView : stageW) * zoom, marginBottom: 8, fontSize: 12, color: 'var(--ink-2)', fontWeight: 700, fontFamily: 'var(--sans)', textAlign: 'left', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{(isTemplate ? (templateName || 'Template') : (workspaceName || 'Sans titre'))}{slides.length > 1 ? ` — Page ${idx + 1}` : ''}</div>
-                  <div style={{ width: (isActive && isContinuous ? stageWView : stageW) * zoom, height: stageH * zoom, position: 'relative', borderRadius: 0, flexShrink: 0 }}>
+                  <div style={{ width: (isActive && isContinuous ? stageWView : stageW) * zoom, height: stageH * zoom, position: 'relative', borderRadius: 0, flexShrink: 0,
+                    // Décolle la page du fond gris : sans ombre, les deux surfaces
+                    // se touchaient et le plan de travail semblait « à plat ».
+                    boxShadow: '0 2px 6px rgba(13,15,10,.06), 0 18px 40px -14px rgba(13,15,10,.22)' }}>
                   {isActive ? (
                     <>
                     <div onMouseDown={e => e.stopPropagation()} style={{ position: 'absolute', top: 0, left: 0, width: isContinuous ? stageWView : stageW, height: stageH, transform: `scale(${zoom})`, transformOrigin: 'top left', borderRadius: 0 }}>

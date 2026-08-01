@@ -58,40 +58,54 @@ export default function BrandStage(p: StageProps) {
         <svg className="bs-star bs-star-a" width="22" height="22" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 0L14 10L24 12L14 14L12 24L10 14L0 12L10 10Z" fill="#BDF2A0" /></svg>
         <svg className="bs-star bs-star-b" width="14" height="14" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 0L14 10L24 12L14 14L12 24L10 14L0 12L10 10Z" fill="#6656D9" /></svg>
 
-        {/* La composition — ce qu'on remplit à gauche se voit ici */}
+        {/* La composition. ARTICULATION : tant que la charte n'est pas définie
+            (étapes 1-2), on ne peint PAS un aplat de la couleur par défaut — ça
+            affichait un grand bleu vif sorti de nulle part. On montre une fiche
+            client dans la palette de KLIP, qui dit ce qu'on sait déjà. La bascule
+            vers les couleurs du client se fait à l'étape charte, et c'est
+            précisément ce moment qui rend le passage lisible. */}
         <div className="bs-frame">
-          <div className="bs-post" style={{ background: p.primary }}>
-            {p.step >= 3 && p.logo && (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={p.logo} alt="" className="bs-logo" />
-            )}
-
-            <div className="bs-post-body">
-              <span className="bs-eyebrow" style={{ color: p.accent }}>
-                {p.sector?.trim() || "Votre secteur"}
+          {p.step < 3 ? (
+            <div className="bs-sheet">
+              <span className="bs-sheet-tag">Fiche client</span>
+              <span className="bs-sheet-name">{brandName}</span>
+              <span className="bs-sheet-sector">{p.sector?.trim() || "Secteur à préciser"}</span>
+              <span className="bs-rule" />
+              <span className="bs-sheet-desc">
+                {p.description?.trim() || p.tone?.trim() || "Ce que fait le client, en quelques mots."}
               </span>
-              <span
-                className="bs-title"
-                style={{ color: onPrimary, fontFamily: `"${p.fontPrimary}", var(--display), sans-serif` }}
-              >
-                {brandName}
+              <span className="bs-sheet-handle">
+                {p.handle?.trim() ? `@${p.handle.trim().replace(/^@/, "")}` : "@compte à renseigner"}
               </span>
-              {p.step >= 2 && (
+            </div>
+          ) : (
+            <div className="bs-post" style={{ background: p.primary }}>
+              {p.logo && (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={p.logo} alt="" className="bs-logo" />
+              )}
+              <div className="bs-post-body">
+                <span className="bs-eyebrow" style={{ color: p.accent }}>
+                  {p.sector?.trim() || "Votre secteur"}
+                </span>
+                <span
+                  className="bs-title"
+                  style={{ color: onPrimary, fontFamily: `"${p.fontPrimary}", var(--display), sans-serif` }}
+                >
+                  {brandName}
+                </span>
                 <span
                   className="bs-sub"
                   style={{ color: onPrimary, opacity: .78, fontFamily: `"${p.fontSecondary || p.fontPrimary}", var(--sans), sans-serif` }}
                 >
                   {p.description?.trim() || p.tone?.trim() || "La voix de la marque, en une ligne."}
                 </span>
-              )}
-            </div>
-
-            {p.step >= 3 && (
+              </div>
               <span className="bs-badge" style={{ background: p.accent, color: inkOn(p.accent) }}>
                 {p.handle?.trim() ? `@${p.handle.trim().replace(/^@/, "")}` : "@votrecompte"}
               </span>
-            )}
-          </div>
+            </div>
+          )}
 
           {/* Cadre de sélection façon logiciel de design */}
           <svg className="bs-ants" aria-hidden="true"><rect x="1" y="1" rx="10" /></svg>
@@ -150,6 +164,32 @@ export default function BrandStage(p: StageProps) {
         .bs-live { color: #2FD79B; letter-spacing: .1em; }
 
         .bs-frame { position: relative; width: 244px; }
+
+        /* Fiche client — étapes 1 et 2, avant que la charte existe. Palette KLIP,
+           pas celle du client : on ne montre pas une couleur qu'il n'a pas choisie. */
+        .bs-sheet {
+          width: 244px; aspect-ratio: 4 / 5; border-radius: 12px;
+          background: #F4EDE4; padding: 22px 20px;
+          display: flex; flex-direction: column; gap: 8px;
+          box-shadow: 0 26px 50px -22px rgba(0,0,0,.7);
+        }
+        .bs-sheet-tag {
+          align-self: flex-start; font-size: 9.5px; font-weight: 800; letter-spacing: .16em;
+          text-transform: uppercase; color: #1E3317; background: #BDF2A0;
+          padding: 4px 9px; border-radius: 99px;
+        }
+        .bs-sheet-name {
+          margin-top: 6px; font-family: var(--display), sans-serif; font-weight: 800;
+          font-size: 27px; line-height: 1.05; letter-spacing: -.02em; color: #14160F;
+          word-break: break-word;
+        }
+        .bs-sheet-sector { font-size: 11.5px; font-weight: 700; color: #5A6650; text-transform: uppercase; letter-spacing: .1em; }
+        .bs-rule { height: 2px; width: 34px; border-radius: 99px; background: #2FD79B; margin: 4px 0; }
+        .bs-sheet-desc {
+          font-size: 12.5px; line-height: 1.5; color: rgba(20,22,15,.72);
+          display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden;
+        }
+        .bs-sheet-handle { margin-top: auto; font-size: 11.5px; font-weight: 700; color: #5A6650; }
         .bs-post {
           width: 244px; aspect-ratio: 4 / 5; border-radius: 12px;
           position: relative; overflow: hidden;
