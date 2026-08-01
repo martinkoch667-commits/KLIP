@@ -672,7 +672,7 @@ export default function Dashboard() {
               <div className="halo-blob" style={{ width: 300, height: 300, right: -70, top: -150, background: 'var(--leaf)', opacity: .42 }} />
               <div className="halo-blob" style={{ width: 220, height: 220, right: 180, bottom: -150, background: 'var(--acid)', opacity: .28 }} />
               {/* stickers décoratifs (coins, derrière le contenu z:2) */}
-              <Sticker name="sparkle" size={46} float="spin" style={{ position: 'absolute', top: 14, right: 20, zIndex: 1 }} />
+              <Sticker name="sparkle" size={72} float="spin" style={{ position: 'absolute', bottom: 18, right: 318, zIndex: 3 }} />
               <div style={{ position: 'relative', zIndex: 2, display: 'grid', gridTemplateColumns: '1fr auto', gap: 28, alignItems: 'center' }} className="dash-hero">
                 <div>
                   <div className="label" style={{ color: 'var(--leaf)', marginBottom: 12 }}>
@@ -683,7 +683,7 @@ export default function Dashboard() {
                     {active === 'all'
                       ? <>{t('heroAllPre')}<span className="acc-hl">{t('heroAllAccent')}</span></>
                       : <>{t('heroClientPre')}<span className="acc-hl">{clientName}.</span></>}
-                    <Sticker name="star" size={30} float="A" style={{ position: 'absolute', top: -12, right: -22, ['--r' as string]: '-8deg' }} />
+                    <Sticker name="heart" size={34} float="A" style={{ position: 'absolute', top: -14, right: -26, ['--r' as string]: '12deg' }} />
                   </h1>
                   <p style={{ color: 'var(--cream-2)', marginTop: 10, maxWidth: 460, fontSize: 14.5 }}>
                     {pendingPosts > 0

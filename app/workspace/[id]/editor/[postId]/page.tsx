@@ -3454,7 +3454,7 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
       diamond: [Math.round(base * 0.86), base], hexagon: [base, base], custom: [base, base],
     };
     const [w, h] = sizes[shape];
-    const el: VectorEl = { id: newId(), type: 'vector', shape, x: Math.round((stageW - w) / 2), y: Math.round((stageH - h) / 2), rotation: 0, opacity: 100, width: w, height: h, fill: '#E6E4DA', fillType: 'color', stroke: workspaceData?.primary_color || '#2FD79B', strokeWidth: 3 };
+    const el: VectorEl = { id: newId(), type: 'vector', shape, x: Math.round((stageW - w) / 2), y: Math.round((stageH - h) / 2), rotation: 0, opacity: 100, width: w, height: h, fill: '#E9EAEE', fillType: 'color', stroke: workspaceData?.primary_color || '#2FD79B', strokeWidth: 3 };
     applyElements([...elements, el]);
     setSelectedId(el.id);
     selectedIdRef.current = el.id;

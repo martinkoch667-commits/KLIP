@@ -836,7 +836,22 @@
     "clientFallback": "Cliente",
     "typePost": "Post",
     "typeReel": "Reel",
-    "typeStory": "Story"
+    "typeStory": "Story",
+    "scheduled": "Programmati",
+    "published": "Pubblicati",
+    "drafts": "Da programmare",
+    "thisWeek": "Questa settimana",
+    "dragHint": "Trascina un post su una fascia per programmarlo",
+    "openClient": "Apri il calendario del cliente",
+    "editPost": "Apri l'editor",
+    "unscheduled": "Non programmati",
+    "caption": "Didascalia",
+    "dateTime": "Data e ora",
+    "save": "Salva",
+    "saved": "Programmato",
+    "noneToPlan": "È tutto programmato",
+    "detailTitle": "Dettaglio del post",
+    "clientLabel": "Cliente"
   },
   "feed": {
     "title": "Coda di pubblicazione",

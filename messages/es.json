@@ -836,7 +836,22 @@
     "clientFallback": "Cliente",
     "typePost": "Post",
     "typeReel": "Reel",
-    "typeStory": "Story"
+    "typeStory": "Story",
+    "scheduled": "Programados",
+    "published": "Publicados",
+    "drafts": "Por programar",
+    "thisWeek": "Esta semana",
+    "dragHint": "Arrastra un post a una franja para programarlo",
+    "openClient": "Abrir calendario del cliente",
+    "editPost": "Abrir el editor",
+    "unscheduled": "Sin programar",
+    "caption": "Pie de foto",
+    "dateTime": "Fecha y hora",
+    "save": "Guardar",
+    "saved": "Programado",
+    "noneToPlan": "Todo está programado",
+    "detailTitle": "Detalle del post",
+    "clientLabel": "Cliente"
   },
   "feed": {
     "title": "Cola de publicación",

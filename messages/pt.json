@@ -836,7 +836,22 @@
     "clientFallback": "Cliente",
     "typePost": "Post",
     "typeReel": "Reel",
-    "typeStory": "Story"
+    "typeStory": "Story",
+    "scheduled": "Agendados",
+    "published": "Publicados",
+    "drafts": "Por agendar",
+    "thisWeek": "Esta semana",
+    "dragHint": "Arraste um post para uma faixa para o agendar",
+    "openClient": "Abrir calendário do cliente",
+    "editPost": "Abrir o editor",
+    "unscheduled": "Não agendados",
+    "caption": "Legenda",
+    "dateTime": "Data e hora",
+    "save": "Guardar",
+    "saved": "Agendado",
+    "noneToPlan": "Está tudo agendado",
+    "detailTitle": "Detalhe do post",
+    "clientLabel": "Cliente"
   },
   "feed": {
     "title": "Fila de publicação",

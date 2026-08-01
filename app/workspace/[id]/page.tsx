@@ -1402,17 +1402,21 @@ export default function WorkspacePage() {
                               </button>
                             </div>
                             )}
-                            {/* Type de publication */}
-                            <div className="ws-type-pills" style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
+                            {/* Type de publication — contrôle segmenté posé dans un
+                                renfoncement plutôt que quatre boutons encadrés :
+                                on lit le choix actif d'un coup d'œil. */}
+                            <div className="seg ws-type-pills" style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 3, width: '100%' }}>
                               {(['post', 'reel', 'carrousel', 'story'] as PostType[]).map(pt => {
                                 const active = (post.post_type ?? 'post') === pt;
                                 const ok = allowedPostTypes(!!post.isVideo).includes(pt);
                                 return (
                                   <button key={pt} disabled={!ok} onClick={() => ok && updatePostType(post.localId, pt)}
                                     title={ok ? undefined : post.isVideo ? t('videoTypeTooltip') : t('photoTypeTooltip')}
-                                    style={{ flex: '1 1 auto', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5, padding: '7px 6px', borderRadius: 9, cursor: ok ? 'pointer' : 'not-allowed', opacity: ok ? 1 : 0.4, fontSize: 11, fontWeight: 700, fontFamily: 'var(--sans)',
-                                      border: active ? '1.5px solid var(--ink)' : '1px solid var(--line)', background: active ? 'var(--ink)' : 'var(--card)', color: active ? 'var(--paper)' : 'var(--ink-2)', transition: 'all .14s' }}>
-                                    <span style={{ width: 6, height: 6, borderRadius: '50%', background: POST_TYPE_CFG[pt].color, flexShrink: 0 }} />
+                                    className={active ? 'on' : ''}
+                                    style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '7px 4px',
+                                      cursor: ok ? 'pointer' : 'not-allowed', opacity: ok ? 1 : 0.35, fontSize: 11.5,
+                                      color: active ? 'var(--ink)' : 'var(--ink-3)' }}>
+                                    <span style={{ width: 7, height: 7, borderRadius: '50%', background: POST_TYPE_CFG[pt].color, flexShrink: 0, boxShadow: active ? `0 0 0 3px ${POST_TYPE_CFG[pt].color}22` : 'none' }} />
                                     {t(POST_TYPE_CFG[pt].tKey)}
                                   </button>
                                 );
@@ -1420,8 +1424,12 @@ export default function WorkspacePage() {
                             </div>
                             {/* Remplacer la photo */}
                             {!post.isVideo && (
-                              <label className="btn btn-ghost btn-sm" style={{ width: '100%', justifyContent: 'center', cursor: 'pointer' }}>
-                                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                              <label style={{ display: 'flex', alignItems: 'center', gap: 9, padding: '7px 10px', borderRadius: 'var(--r-btn)', background: 'var(--sunk)', cursor: 'pointer', fontSize: 12, fontWeight: 700, color: 'var(--ink-2)', transition: 'background .14s' }}
+                                onMouseEnter={e => { e.currentTarget.style.background = 'var(--leaf-soft)'; }}
+                                onMouseLeave={e => { e.currentTarget.style.background = 'var(--sunk)'; }}>
+                                <span style={{ width: 24, height: 24, borderRadius: '50%', background: 'var(--leaf)', color: 'var(--leaf-ink)', display: 'grid', placeItems: 'center', flexShrink: 0 }}>
+                                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                                </span>
                                 {t('replacePhoto')}
                                 <input type="file" accept="image/jpeg,image/png,image/webp" style={{ display: 'none' }}
                                   onChange={e => { const f = e.target.files?.[0]; if (f) replacePhoto(post, f); }} />
@@ -1446,7 +1454,7 @@ export default function WorkspacePage() {
                               <StatusChip status={post.status} />
                             </div>
 
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: 12, padding: '12px 18px 16px' }}>
+                          <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', gap: 12, padding: '12px 18px 16px' }}>
                             {/* Error */}
                             {post.error && (
                               <p style={{ fontSize: 12, color: 'var(--warn)', background: 'var(--warn-soft)', borderRadius: 'var(--r-s)', padding: '6px 10px' }}>{post.error}</p>
@@ -1628,8 +1636,10 @@ export default function WorkspacePage() {
                             ) : (
                               /* Post généré : les textes à gauche, les actions à droite.
                                  Empilés, ils faisaient une carte deux fois plus haute
-                                 alors que la largeur ne servait à rien. */
-                              <div className="ws-post-fields" style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1.7fr) minmax(0, 1fr)', gap: 14, alignItems: 'start' }}>
+                                 alors que la largeur ne servait à rien. La colonne des
+                                 textes s'étire pour occuper la hauteur de l'aperçu :
+                                 sinon la carte se terminait sur un grand vide. */
+                              <div className="ws-post-fields" style={{ flex: 1, display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 210px', gap: 14, alignItems: 'stretch' }}>
                                 <div style={{ minWidth: 0, display: 'flex', flexDirection: 'column', gap: 12 }}>
                                 {post.texte_visuel && (
                                   <div style={{ borderRadius: 12, background: 'linear-gradient(180deg, var(--card), color-mix(in srgb, var(--mint, #2FD79B) 5%, var(--card)))', border: '1px solid var(--line-2)', borderLeft: '3px solid var(--mint, #2FD79B)', padding: '11px 13px' }}>
@@ -1648,7 +1658,7 @@ export default function WorkspacePage() {
                                 )}
 
                                 {post.description && (
-                                  <div>
+                                  <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
                                     <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
                                       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--ink-3)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="2" width="20" height="20" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="1"/></svg>
                                       <span className="label" style={{ margin: 0 }}>{t('igCaption')}</span>
@@ -1656,9 +1666,8 @@ export default function WorkspacePage() {
                                     <textarea
                                       value={post.description}
                                       onChange={(e) => setPosts((prev) => prev.map((p) => p.localId === post.localId ? { ...p, description: e.target.value } : p))}
-                                      rows={4}
                                       className="input"
-                                      style={{ resize: 'none', fontSize: 12.5, color: 'var(--ink-2)' }}
+                                      style={{ flex: 1, minHeight: 96, resize: 'none', fontSize: 12.5, color: 'var(--ink-2)', lineHeight: 1.5 }}
                                     />
                                     <div style={{ display: 'flex', gap: 6, marginTop: 6 }}>
                                       <input

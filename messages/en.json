@@ -836,7 +836,22 @@
     "clientFallback": "Client",
     "typePost": "Post",
     "typeReel": "Reel",
-    "typeStory": "Story"
+    "typeStory": "Story",
+    "scheduled": "Scheduled",
+    "published": "Published",
+    "drafts": "To schedule",
+    "thisWeek": "This week",
+    "dragHint": "Drag a post onto a slot to schedule it",
+    "openClient": "Open client calendar",
+    "editPost": "Open the editor",
+    "unscheduled": "Unscheduled",
+    "caption": "Caption",
+    "dateTime": "Date and time",
+    "save": "Save",
+    "saved": "Scheduled",
+    "noneToPlan": "Everything is scheduled",
+    "detailTitle": "Post details",
+    "clientLabel": "Client"
   },
   "feed": {
     "title": "Publishing queue",

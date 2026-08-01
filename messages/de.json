@@ -836,7 +836,22 @@
     "clientFallback": "Kunde",
     "typePost": "Post",
     "typeReel": "Reel",
-    "typeStory": "Story"
+    "typeStory": "Story",
+    "scheduled": "Geplant",
+    "published": "Veröffentlicht",
+    "drafts": "Zu planen",
+    "thisWeek": "Diese Woche",
+    "dragHint": "Zieh einen Beitrag auf einen Zeitraum, um ihn zu planen",
+    "openClient": "Kundenkalender öffnen",
+    "editPost": "Editor öffnen",
+    "unscheduled": "Ungeplant",
+    "caption": "Bildtext",
+    "dateTime": "Datum und Uhrzeit",
+    "save": "Speichern",
+    "saved": "Geplant",
+    "noneToPlan": "Alles ist geplant",
+    "detailTitle": "Beitragsdetails",
+    "clientLabel": "Kunde"
   },
   "feed": {
     "title": "Veröffentlichungswarteschlange",

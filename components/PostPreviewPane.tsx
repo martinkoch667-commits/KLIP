@@ -93,13 +93,16 @@ export default function PostPreviewPane({ workspace, mediaUrl, caption, postType
             impose `mediaHeight` (fenêtre de programmation). Un Reel 9:16 dépassait
             sinon du volet et on ne voyait jamais le post en entier. `max-width`
             reprend la main si la largeur dérivée déborde. */}
-        <div style={{ display: "flex", justifyContent: "center", background: "#000" }}>
+        {/* Le fond noir ne couvre QUE le média : posé sur la rangée entière, il
+            encadrait la photo de deux barres noires (retour Martin). */}
+        <div style={{ display: "flex", justifyContent: "center", background: "var(--sunk)" }}>
           <div style={{
             width: mediaHeight ? "auto" : "100%",
             height: mediaHeight,
             maxWidth: "100%",
             aspectRatio: aspectForType(postType),
-            background: "#000",
+            background: "var(--sunk)",
+            overflow: "hidden",
           }}>
             {mediaUrl ? <MediaThumb raw={mediaUrl} /> : <div style={{ width: "100%", height: "100%", background: "var(--sunk)" }} />}
           </div>

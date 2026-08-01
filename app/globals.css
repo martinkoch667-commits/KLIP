@@ -26,11 +26,11 @@
   /* ── App design tokens ───────────────────────────────────────────────────── */
 
   /* surfaces — DA landing v3 : base blanc chaud (remplace la crème) */
-  --paper:    #FCFBF7;   /* panneaux — blanc chaud */
+  --paper:    #FBFBFC;   /* panneaux — blanc froid (le blanc chaud tirait sur le beige) */
   --canvas:   #F3F4F7;   /* fond appli — gris froid : le plan de travail blanc s'y détache (réf. Canva) */
   --white:    #FFFFFF;
   --card:     #FFFFFF;   /* cartes — blanc pur, ressortent sur le fond */
-  --sunk:     #EEEDE5;   /* renfoncements / wells */
+  --sunk:     #F1F2F5;   /* renfoncements / wells — gris cassé, plus de beige */
 
   /* sidebar */
   --forest:   #0C2A1D;
@@ -480,7 +480,7 @@ img { display: block; max-width: 100%; }
   animation: shimmer 1.3s ease infinite;
 }
 .card .shim {
-  background: linear-gradient(90deg, var(--sunk) 25%, #e3e2d6 37%, var(--sunk) 63%);
+  background: linear-gradient(90deg, var(--sunk) 25%, #e4e6ea 37%, var(--sunk) 63%);
   background-size: 400% 100%;
 }
 
