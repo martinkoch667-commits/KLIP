@@ -24,7 +24,7 @@ function MediaThumb({ raw }: { raw?: string | null }) {
 // ensemble. Structure reprise de l'éditeur de publication de Metricool.
 export interface PreviewAccount { name?: string | null; instagram_username?: string | null; logo_url?: string | null }
 
-export default function PostPreviewPane({ workspace, mediaUrl, caption, postType, platforms, compact }: {
+export default function PostPreviewPane({ workspace, mediaUrl, caption, postType, platforms, compact, mediaHeight }: {
   workspace: PreviewAccount | null;
   mediaUrl?: string | null;
   caption: string;
@@ -32,6 +32,9 @@ export default function PostPreviewPane({ workspace, mediaUrl, caption, postType
   platforms?: string[];
   /** Version resserrée : sans la barre d'actions ni le rappel de coupure. */
   compact?: boolean;
+  /** Hauteur imposée au média (ex. "min(56vh, 620px)") : le format 9:16 tient
+      alors dans le volet au lieu de le faire défiler. */
+  mediaHeight?: string;
 }) {
   const available = platforms && platforms.length ? platforms : ["instagram"];
   const [platform, setPlatform] = useState<string>(available[0]);
@@ -86,8 +89,20 @@ export default function PostPreviewPane({ workspace, mediaUrl, caption, postType
           <div style={{ padding: "0 11px 9px", fontSize: 12.5, lineHeight: 1.45, color: "var(--ink)", whiteSpace: "pre-wrap", wordBreak: "break-word" }}>{shown}</div>
         )}
 
-        <div style={{ width: "100%", aspectRatio: aspectForType(postType), background: "#000" }}>
-          {mediaUrl ? <MediaThumb raw={mediaUrl} /> : <div style={{ width: "100%", height: "100%", background: "var(--sunk)" }} />}
+        {/* Média : piloté par la LARGEUR par défaut, par la HAUTEUR quand l'appelant
+            impose `mediaHeight` (fenêtre de programmation). Un Reel 9:16 dépassait
+            sinon du volet et on ne voyait jamais le post en entier. `max-width`
+            reprend la main si la largeur dérivée déborde. */}
+        <div style={{ display: "flex", justifyContent: "center", background: "#000" }}>
+          <div style={{
+            width: mediaHeight ? "auto" : "100%",
+            height: mediaHeight,
+            maxWidth: "100%",
+            aspectRatio: aspectForType(postType),
+            background: "#000",
+          }}>
+            {mediaUrl ? <MediaThumb raw={mediaUrl} /> : <div style={{ width: "100%", height: "100%", background: "var(--sunk)" }} />}
+          </div>
         </div>
 
         {isIg && (

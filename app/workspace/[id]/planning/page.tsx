@@ -1329,14 +1329,16 @@ function PlanningContent() {
       {/* ── Post panel modal ─────────────────────────────────────────────────── */}
       {selectedPost && (
         <div style={{ position: "fixed", inset: 0, zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(13,15,10,.45)" }} onClick={() => setSelectedPost(null)}>
-        <div className="plan-post-modal" style={{ width: 920, maxWidth: "95vw", maxHeight: "92vh", borderRadius: 16, background: "var(--white)", display: "flex", flexDirection: "column", overflow: "hidden", boxShadow: "0 24px 60px -12px rgba(13,15,10,.45), 0 0 0 1px rgba(13,15,10,.06)" }} onClick={e => e.stopPropagation()}>
+        {/* Fenêtre volontairement large : on préfère masquer le calendrier
+            derrière plutôt que de tasser les infos du post (décision Martin). */}
+        <div className="plan-post-modal" style={{ width: 1220, maxWidth: "96vw", height: "94vh", borderRadius: 16, background: "var(--white)", display: "flex", flexDirection: "column", overflow: "hidden", boxShadow: "0 24px 60px -12px rgba(13,15,10,.45), 0 0 0 1px rgba(13,15,10,.06)" }} onClick={e => e.stopPropagation()}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "16px 20px", borderBottom: "1px solid var(--line)" }}>
             <span className="h-title" style={{ fontSize: 15 }}>{t('schedule')}</span>
             <button onClick={() => setSelectedPost(null)} className="btn btn-ghost btn-icon"><IconClose /></button>
           </div>
 
           {/* On écrit à gauche, on voit le rendu à droite. */}
-          <div className="plan-post-body" style={{ flex: 1, minHeight: 0, display: "grid", gridTemplateColumns: "minmax(0,1fr) 340px" }}>
+          <div className="plan-post-body" style={{ flex: 1, minHeight: 0, display: "grid", gridTemplateColumns: "minmax(0,1fr) 460px" }}>
           <div style={{ padding: "16px 20px", display: "flex", flexDirection: "column", gap: 16, overflowY: "auto" }}>
             {(() => {
               const isVid = isVideoUrl(selectedPost.exported_image_url) || isVideoUrl(selectedPost.photo_url);
@@ -1559,6 +1561,7 @@ function PlanningContent() {
               caption={panelDesc}
               postType={panelPostType}
               platforms={panelPlatforms}
+              mediaHeight="min(58vh, 660px)"
             />
           </aside>
           </div>

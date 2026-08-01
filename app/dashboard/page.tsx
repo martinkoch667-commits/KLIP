@@ -11,6 +11,7 @@ import OnboardingChecklist from '@/components/OnboardingChecklist';
 import NotificationBell from '@/components/NotificationBell';
 import { ConnectClaudeModal } from '@/components/ConnectClaudeModal';
 import { Sticker } from '@/components/Stickers';
+import SelFrame from '@/components/SelFrame';
 
 // ─── Types ─────────────────────────────────────────────────────────────────
 
@@ -703,8 +704,10 @@ export default function Dashboard() {
                   </div>
                 </div>
 
-                {/* glass panel: today's posts */}
-                <div className="dash-hero-card" style={{ width: 256, borderRadius: 'var(--r-l)', background: 'rgba(238,237,227,.08)', boxShadow: 'inset 0 0 0 1px var(--cream-4)', backdropFilter: 'blur(6px)', padding: 16 }}>
+                {/* glass panel: today's posts — « sélectionné » et posé de biais,
+                    comme le panneau de session du plan de travail. */}
+                <span className="sel dash-hero-card" style={{ rotate: '1.6deg' }}>
+                <div style={{ width: 256, borderRadius: 'var(--r-l)', background: 'rgba(238,237,227,.08)', boxShadow: 'inset 0 0 0 1px var(--cream-4)', backdropFilter: 'blur(6px)', padding: 16 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 13 }}>
                     <span style={{ width: 24, height: 24, borderRadius: 7, background: 'var(--leaf)', color: 'var(--mint-ink)', display: 'grid', placeItems: 'center', flexShrink: 0 }}>
                       <IconBolt />
@@ -743,6 +746,8 @@ export default function Dashboard() {
                     )}
                   </div>
                 </div>
+                  <SelFrame />
+                </span>
               </div>
             </div>
 

@@ -4852,7 +4852,7 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
                         <p className="label" style={{ margin: 0 }}>Mises en page <span style={{ fontFamily: 'var(--mono)', color: 'var(--ink-3)', fontWeight: 700 }}>({list.length})</span></p>
                         {hasCharter && (
                           <button onClick={() => setLtCharter(v => !v)} title="Adapter les mises en page à la charte du client"
-                            style={{ fontSize: 10.5, fontWeight: 700, padding: '4px 9px', borderRadius: 999, cursor: 'pointer', border: '1px solid ' + (useCharter ? 'var(--leaf)' : 'var(--line)'), background: useCharter ? 'var(--leaf)' : 'transparent', color: useCharter ? '#06281C' : 'var(--ink-2)', display: 'flex', alignItems: 'center', gap: 5 }}>
+                            style={{ fontSize: 10.5, fontWeight: 700, padding: '4px 9px', borderRadius: 'var(--r-btn)', cursor: 'pointer', border: '1px solid ' + (useCharter ? 'var(--leaf)' : 'var(--line)'), background: useCharter ? 'var(--leaf)' : 'transparent', color: useCharter ? '#06281C' : 'var(--ink-2)', display: 'flex', alignItems: 'center', gap: 5 }}>
                             <span style={{ width: 8, height: 8, borderRadius: 2, background: brandKit.accent || brandKit.primary || '#BDF2A0', display: 'inline-block' }} />
                             À ma charte
                           </button>
@@ -4863,7 +4863,7 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
                       <div style={{ display: 'flex', gap: 5, overflowX: 'auto', paddingBottom: 7 }}>
                         {(['Tous', ...LAYOUT_STYLES] as string[]).map(s => (
                           <button key={s} onClick={() => setLtStyle(s)}
-                            style={{ flexShrink: 0, fontSize: 12.5, fontWeight: 700, padding: '6px 13px', borderRadius: 999, cursor: 'pointer', border: 'none',
+                            style={{ flexShrink: 0, fontSize: 12.5, fontWeight: 700, padding: '6px 13px', borderRadius: 'var(--r-btn)', cursor: 'pointer', border: 'none',
                               background: ltStyle === s ? 'var(--ink)' : 'var(--sunk)',
                               color: ltStyle === s ? 'var(--paper)' : 'var(--ink-2)' }}>
                             {s}
@@ -4873,7 +4873,7 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
                       <div style={{ display: 'flex', gap: 5, overflowX: 'auto', paddingBottom: 8, marginBottom: 10 }}>
                         {(['Tous', ...LAYOUT_CATS] as string[]).map(c => (
                           <button key={c} onClick={() => setLtCat(c)}
-                            style={{ flexShrink: 0, fontSize: 11.5, fontWeight: 700, padding: '5px 12px', borderRadius: 999, cursor: 'pointer', border: 'none',
+                            style={{ flexShrink: 0, fontSize: 11.5, fontWeight: 700, padding: '5px 12px', borderRadius: 'var(--r-btn)', cursor: 'pointer', border: 'none',
                               background: ltCat === c ? 'var(--mint-soft)' : 'transparent',
                               color: ltCat === c ? 'var(--mint-2)' : 'var(--ink-3)' }}>
                             {c}
@@ -5122,7 +5122,7 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
                         <p style={{ fontSize: 10, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '0.12em', fontFamily: 'var(--mono)', fontWeight: 800, margin: 0 }}>Combinaisons de texte</p>
                         {hasCharter && (
                           <button onClick={() => setTtCharter(v => !v)} title="Adapter les templates à la charte du client"
-                            style={{ fontSize: 10.5, fontWeight: 700, padding: '4px 9px', borderRadius: 999, cursor: 'pointer', border: '1px solid ' + (useCharter ? 'var(--leaf)' : 'var(--line)'), background: useCharter ? 'var(--leaf)' : 'transparent', color: useCharter ? '#06281C' : 'var(--ink-2)', display: 'flex', alignItems: 'center', gap: 5 }}>
+                            style={{ fontSize: 10.5, fontWeight: 700, padding: '4px 9px', borderRadius: 'var(--r-btn)', cursor: 'pointer', border: '1px solid ' + (useCharter ? 'var(--leaf)' : 'var(--line)'), background: useCharter ? 'var(--leaf)' : 'transparent', color: useCharter ? '#06281C' : 'var(--ink-2)', display: 'flex', alignItems: 'center', gap: 5 }}>
                             <span style={{ width: 8, height: 8, borderRadius: 2, background: brandKit.accent || brandKit.primary || '#BDF2A0', display: 'inline-block' }} />
                             À ma charte
                           </button>
@@ -6255,7 +6255,7 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
               </button>
 
               {/* Bloc de zoom groupé — c'est lui qui faisait « suite de puces » */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: 4, background: 'var(--sunk)', borderRadius: 999, padding: '3px 5px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 4, background: 'var(--sunk)', borderRadius: 'var(--r-btn)', padding: '3px 5px' }}>
                 <button onClick={() => setZoom(z => Math.max(0.15, +(z - 0.1).toFixed(2)))} title="Dézoomer"
                   style={{ width: 28, height: 28, borderRadius: '50%', display: 'grid', placeItems: 'center', color: 'var(--ink-2)', background: 'transparent', border: 'none', cursor: 'pointer' }}>
                   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><path d="M5 12h14"/></svg>
@@ -6268,7 +6268,7 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
                   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><path d="M12 5v14M5 12h14"/></svg>
                 </button>
                 <button onClick={() => setZoom(1)} title="Revenir à 100 %"
-                  style={{ minWidth: 46, height: 28, borderRadius: 999, border: 'none', cursor: 'pointer', background: 'var(--white)', color: 'var(--ink)', fontFamily: 'var(--mono)', fontWeight: 800, fontSize: 11.5, fontVariantNumeric: 'tabular-nums', boxShadow: '0 1px 2px rgba(13,15,10,.10)' }}>
+                  style={{ minWidth: 46, height: 28, borderRadius: 'var(--r-btn)', border: 'none', cursor: 'pointer', background: 'var(--white)', color: 'var(--ink)', fontFamily: 'var(--mono)', fontWeight: 800, fontSize: 11.5, fontVariantNumeric: 'tabular-nums', boxShadow: '0 1px 2px rgba(13,15,10,.10)' }}>
                   {Math.round(zoom * 100)}%
                 </button>
               </div>
@@ -6395,7 +6395,7 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
               </div>
               {hasCharter && (
                 <button onClick={() => setTtCharter(v => !v)} title="Adapter les templates à la charte du client"
-                  style={{ flexShrink: 0, height: 38, padding: '0 14px', borderRadius: 999, cursor: 'pointer', fontSize: 12.5, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 7, border: '1px solid ' + (useCharter ? 'var(--mint-2)' : 'var(--line)'), background: useCharter ? 'var(--leaf)' : 'var(--white)', color: useCharter ? 'var(--forest)' : 'var(--ink-2)' }}>
+                  style={{ flexShrink: 0, height: 38, padding: '0 14px', borderRadius: 'var(--r-btn)', cursor: 'pointer', fontSize: 12.5, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 7, border: '1px solid ' + (useCharter ? 'var(--mint-2)' : 'var(--line)'), background: useCharter ? 'var(--leaf)' : 'var(--white)', color: useCharter ? 'var(--forest)' : 'var(--ink-2)' }}>
                   <span style={{ width: 10, height: 10, borderRadius: 3, background: brandKit.accent || brandKit.primary || '#BDF2A0', display: 'inline-block' }} />
                   À ma charte
                 </button>
@@ -6412,7 +6412,7 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
                 const active = textLibCat === cat;
                 return (
                   <button key={cat} onClick={() => setTextLibCat(cat)}
-                    style={{ padding: '6px 14px', borderRadius: 999, cursor: 'pointer', fontSize: 12.5, fontWeight: 700, fontFamily: 'var(--sans)', transition: 'all .12s',
+                    style={{ padding: '6px 14px', borderRadius: 'var(--r-btn)', cursor: 'pointer', fontSize: 12.5, fontWeight: 700, fontFamily: 'var(--sans)', transition: 'all .12s',
                       border: active ? '1px solid var(--mint-2)' : '1px solid var(--line)',
                       background: active ? 'var(--leaf)' : 'var(--white)',
                       color: active ? 'var(--forest)' : 'var(--ink-2)' }}>
@@ -6496,7 +6496,7 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
                   const active = stickerCat === cat;
                   return (
                     <button key={cat} onClick={() => setStickerCat(cat)}
-                      style={{ padding: '6px 13px', borderRadius: 999, cursor: 'pointer', fontSize: 12, fontWeight: 700, fontFamily: 'var(--sans)', transition: 'all .12s',
+                      style={{ padding: '6px 13px', borderRadius: 'var(--r-btn)', cursor: 'pointer', fontSize: 12, fontWeight: 700, fontFamily: 'var(--sans)', transition: 'all .12s',
                         border: active ? '1px solid var(--mint-2)' : '1px solid var(--line)', background: active ? 'var(--leaf)' : 'var(--white)', color: active ? 'var(--forest)' : 'var(--ink-2)' }}>
                       {cat}
                     </button>

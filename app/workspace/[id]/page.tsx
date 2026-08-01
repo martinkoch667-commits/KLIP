@@ -10,6 +10,7 @@ import Sidebar from "@/components/Sidebar";
 import VoiceButton from "@/components/VoiceButton";
 import NotificationBell from "@/components/NotificationBell";
 import { Sticker } from "@/components/Stickers";
+import SelFrame from "@/components/SelFrame";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -1175,7 +1176,10 @@ export default function WorkspacePage() {
                         </button>
                       </div>
                     </div>
-                    {/* Session stats panel */}
+                    {/* Session stats panel — « sélectionné » et posé de biais :
+                        le panneau de la bannière devient un objet du plan de
+                        travail plutôt qu'un encart administratif. */}
+                    <span className="sel" style={{ rotate: '-1.6deg' }}>
                     <div style={{ width: 220, borderRadius: 'var(--r-l)', background: 'rgba(238,237,227,.08)', boxShadow: 'inset 0 0 0 1px rgba(238,237,227,.15)', backdropFilter: 'blur(6px)', padding: '16px 18px' }}>
                       <div className="label" style={{ color: 'var(--cream)', marginBottom: 12 }}>{t('thisSession')}</div>
                       <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -1192,6 +1196,8 @@ export default function WorkspacePage() {
                         ))}
                       </div>
                     </div>
+                      <SelFrame />
+                    </span>
                   </div>
                 </div>
 
@@ -1225,16 +1231,7 @@ export default function WorkspacePage() {
                     <div className="h-title" style={{ fontSize: 15, marginBottom: 6 }}>{t('dropHere')}</div>
                     <div style={{ fontSize: 13, color: 'var(--ink-3)' }}>{t('dropHint')}</div>
                   </div>
-                    <span className="sel-frame" aria-hidden="true">
-                      <span className="sel-h" style={{ top: -7, left: -7 }} />
-                      <span className="sel-h" style={{ top: -7, right: -7 }} />
-                      <span className="sel-h" style={{ bottom: -7, left: -7 }} />
-                      <span className="sel-h" style={{ bottom: -7, right: -7 }} />
-                      <span className="sel-p" style={{ top: -5, left: '50%', transform: 'translateX(-50%)', width: 22, height: 9 }} />
-                      <span className="sel-p" style={{ bottom: -5, left: '50%', transform: 'translateX(-50%)', width: 22, height: 9 }} />
-                      <span className="sel-p" style={{ left: -5, top: '50%', transform: 'translateY(-50%)', width: 9, height: 22 }} />
-                      <span className="sel-p" style={{ right: -5, top: '50%', transform: 'translateY(-50%)', width: 9, height: 22 }} />
-                    </span>
+                    <SelFrame />
                   </span>
 
                   {/* AI generator */}
@@ -1352,13 +1349,18 @@ export default function WorkspacePage() {
                     {t('noPhoto')}
                   </div>
                 ) : (
-                  <div className="ws-posts-grid" style={{ display: 'flex', flexDirection: 'column', gap: 16, maxWidth: 880, margin: '0 auto' }}>
+                  // Deux posts par ligne, sur toute la largeur : la colonne unique
+                  // à 880px laissait la moitié du plan de travail vide.
+                  <div className="ws-posts-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 18, alignItems: 'start' }}>
                     {posts.map((post, pIdx) => {
                       const isGenerated = post.status === "generated" || post.status === "validating" || post.status === "validated";
                       return (
                         <div key={post.localId} className="card klip-card-in ws-post-card" style={{ overflow: 'hidden', display: 'flex', borderRadius: 16, border: '1px solid var(--line-2)', boxShadow: '0 1px 2px rgba(13,15,10,.03), 0 14px 32px -20px rgba(13,15,10,.28)', animationDelay: `${Math.min(pIdx, 8) * 55}ms` }}>
                           {/* ── Colonne gauche : visuel + type + remplacer ── */}
-                          <div className="ws-post-left" style={{ flexShrink: 0, width: 300, background: 'var(--canvas)', borderRight: '1px solid var(--line-2)', padding: 14, display: 'flex', flexDirection: 'column', gap: 12 }}>
+                          {/* Colonne visuelle : elle peut se resserrer quand deux
+                              posts partagent la ligne, pour ne pas étrangler les
+                              champs de droite. */}
+                          <div className="ws-post-left" style={{ flex: '0 1 300px', minWidth: 190, background: 'var(--canvas)', borderRight: '1px solid var(--line-2)', padding: 14, display: 'flex', flexDirection: 'column', gap: 12 }}>
                             {/* Aperçu du rendu publié — même volet que la fenêtre de
                                 programmation. On voyait jusqu'ici le média nu, sans la
                                 légende ni le compte : impossible de juger le post. */}
@@ -1950,15 +1952,16 @@ export default function WorkspacePage() {
 
       <style>{`
         @keyframes spin{to{transform:rotate(360deg)}}
+        /* Deux posts par ligne seulement quand la carte reste lisible : sous
+           1440px, la colonne visuelle étrangle les champs de droite. */
+        @media(max-width:1439px){
+          .ws-posts-grid{grid-template-columns:1fr !important;}
+        }
         @media(max-width:767px){
           .ws-hero-grid{grid-template-columns:1fr !important;}
           .ws-hero-grid > *:last-child{display:none !important;}
           .ws-upload-grid{grid-template-columns:1fr !important;}
-          .ws-posts-grid{grid-template-columns:repeat(2,1fr) !important;}
           .ws-gen-grid{grid-template-columns:repeat(2,1fr) !important;}
-        }
-        @media(max-width:480px){
-          .ws-posts-grid{grid-template-columns:1fr !important;}
         }
       `}</style>
     </div>
