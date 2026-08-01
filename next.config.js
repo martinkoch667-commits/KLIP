@@ -8,8 +8,11 @@ const securityHeaders = [
   // Anti-clickjacking : le site ne peut pas être embarqué dans une iframe tierce.
   { key: "X-Frame-Options", value: "SAMEORIGIN" },
   { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
-  // Coupe l'accès aux capteurs sensibles par défaut.
-  { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=()" },
+  // Coupe l'accès aux capteurs sensibles par défaut. Le micro reste ouvert à
+  // KLIP seul (self) : la dictée vocale en dépend, et un `microphone=()` global
+  // la bloquait en production ("Permissions policy violation" en console) —
+  // les iframes tierces, elles, n'y ont toujours pas droit.
+  { key: "Permissions-Policy", value: "camera=(), microphone=(self), geolocation=()" },
   { key: "X-DNS-Prefetch-Control", value: "on" },
 ];
 

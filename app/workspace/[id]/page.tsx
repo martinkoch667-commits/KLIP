@@ -690,6 +690,21 @@ export default function WorkspacePage() {
 
   // ── Generate ──────────────────────────────────────────────────────────────
 
+  // Un onglet laissé ouvert plus d'une heure porte un jeton d'accès expiré : le
+  // serveur répondait « Non autorisé » et la génération échouait sans recours.
+  // On rafraîchit la session et on retente une fois avant d'abandonner.
+  async function postJsonAuth(url: string, payload: unknown): Promise<Response> {
+    const send = () => fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    const res = await send();
+    if (res.status !== 401) return res;
+    await supabase.auth.refreshSession();
+    return send();
+  }
+
   async function generateOne(item: PostItem): Promise<void> {
     if (!item.brief.trim() || item.status === "generating") return;
     setPosts((prev) => prev.map((p) => (p.localId === item.localId ? { ...p, status: "generating", error: undefined } : p)));
@@ -719,10 +734,7 @@ export default function WorkspacePage() {
       const combinedBrief = globalBrief.trim()
         ? `CONSIGNES GLOBALES : ${globalBrief}\n\nINFOS SPÉCIFIQUES À CE POST : ${item.brief}`
         : item.brief;
-      const res = await fetch("/api/generate-description", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
+      const res = await postJsonAuth("/api/generate-description", {
           brief: combinedBrief,
           photoUrl,
           // Server-side workspace fetch (preferred)
@@ -747,7 +759,6 @@ export default function WorkspacePage() {
           descriptionStyle: workspace?.description_style ?? undefined,
           // Template zone structure (if template selected before generating)
           templateZones: templateZones.length > 0 ? templateZones : undefined,
-        }),
       });
       const data = await res.json();
       if (res.ok && (data.texte_visuel || data.description)) {
@@ -818,7 +829,11 @@ export default function WorkspacePage() {
         }
         setPosts((prev) => prev.map((p) => p.localId === item.localId ? { ...p, dbId, photo_url: pUrl, texte_visuel, description, status: "generated", templateId: item.templateId ?? p.templateId, error: undefined } : p));
       } else {
-        const errMsg = (typeof data?.error === "string" ? data.error : data?.error?.message) || "La génération a échoué. Réessayez dans un instant.";
+        // « Non autorisé » ne dit rien à personne : si la session est vraiment
+        // perdue (rafraîchissement compris), on donne le geste à faire.
+        const errMsg = res.status === 401
+          ? "Session expirée — rechargez la page ou reconnectez-vous."
+          : (typeof data?.error === "string" ? data.error : data?.error?.message) || "La génération a échoué. Réessayez dans un instant.";
         setPosts((prev) => prev.map((p) => (p.localId === item.localId ? { ...p, status: "idle", error: errMsg } : p)));
       }
     } catch {
@@ -843,20 +858,16 @@ export default function WorkspacePage() {
     setRefiningIds(prev => new Set(prev).add(item.localId));
     try {
       const refinementBrief = `Voici la description Instagram actuelle :\n"${item.description}"\n\nL'utilisateur souhaite la modifier ainsi : ${instruction}\n\nRéécris la description en tenant compte de cette demande, en conservant la voix de marque.`;
-      const res = await fetch("/api/generate-description", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          brief: refinementBrief,
-          workspaceId: id,
-          workspaceName: workspace?.name ?? undefined,
-          brandVoicePrompt: workspace?.brand_voice_prompt ?? undefined,
-          wordsToUse: workspace?.words_to_use ?? undefined,
-          wordsToAvoid: workspace?.words_to_avoid ?? undefined,
-          captionExamples: workspace?.caption_examples ?? undefined,
-          descriptionStyle: workspace?.description_style ?? undefined,
-          refinementOnly: true,
-        }),
+      const res = await postJsonAuth("/api/generate-description", {
+        brief: refinementBrief,
+        workspaceId: id,
+        workspaceName: workspace?.name ?? undefined,
+        brandVoicePrompt: workspace?.brand_voice_prompt ?? undefined,
+        wordsToUse: workspace?.words_to_use ?? undefined,
+        wordsToAvoid: workspace?.words_to_avoid ?? undefined,
+        captionExamples: workspace?.caption_examples ?? undefined,
+        descriptionStyle: workspace?.description_style ?? undefined,
+        refinementOnly: true,
       });
       const data = await res.json();
       const refined: string = data?.description || data?.texte_visuel || '';
@@ -1185,9 +1196,13 @@ export default function WorkspacePage() {
                 </div>
 
                 {/* Upload + AI generation — 50/50 */}
-                <div className="ws-upload-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 20 }}>
+                <div className="ws-upload-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 30, margin: '12px 0 34px' }}>
 
-                  {/* Upload zone */}
+                  {/* Zone de dépôt — posée de travers et « sélectionnée » (cadre +
+                      poignées violettes de la landing v3) : le plan de travail
+                      ressemble à un éditeur, pas à un formulaire. Le cadre est
+                      décoratif, il ne capte aucun clic. */}
+                  <span className="sel sel-block" style={{ rotate: '1.3deg' }}>
                   <div
                     className="card"
                     onClick={() => fileInputRef.current?.click()}
@@ -1198,7 +1213,7 @@ export default function WorkspacePage() {
                       if (!files.length) return;
                       setPendingFiles(files);
                     }}
-                    style={{ padding: 28, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: 200, cursor: 'pointer', textAlign: 'center', transition: 'border-color 0.15s, background 0.15s', border: '1.5px dashed var(--line)' }}
+                    style={{ padding: 28, height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: 200, cursor: 'pointer', textAlign: 'center', transition: 'border-color 0.15s, background 0.15s', border: '1.5px dashed var(--line)' }}
                     onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--mint-2)'; e.currentTarget.style.background = 'var(--mint-soft)'; }}
                     onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--line)'; e.currentTarget.style.background = 'var(--card)'; }}
                   >
@@ -1209,6 +1224,17 @@ export default function WorkspacePage() {
                     <div className="h-title" style={{ fontSize: 15, marginBottom: 6 }}>{t('dropHere')}</div>
                     <div style={{ fontSize: 13, color: 'var(--ink-3)' }}>{t('dropHint')}</div>
                   </div>
+                    <span className="sel-frame" aria-hidden="true">
+                      <span className="sel-h" style={{ top: -7, left: -7 }} />
+                      <span className="sel-h" style={{ top: -7, right: -7 }} />
+                      <span className="sel-h" style={{ bottom: -7, left: -7 }} />
+                      <span className="sel-h" style={{ bottom: -7, right: -7 }} />
+                      <span className="sel-p" style={{ top: -5, left: '50%', transform: 'translateX(-50%)', width: 22, height: 9 }} />
+                      <span className="sel-p" style={{ bottom: -5, left: '50%', transform: 'translateX(-50%)', width: 22, height: 9 }} />
+                      <span className="sel-p" style={{ left: -5, top: '50%', transform: 'translateY(-50%)', width: 9, height: 22 }} />
+                      <span className="sel-p" style={{ right: -5, top: '50%', transform: 'translateY(-50%)', width: 9, height: 22 }} />
+                    </span>
+                  </span>
 
                   {/* AI generator */}
                   <div id="ai-gen-card" className="card" data-voice-scope="" style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 12 }}>
