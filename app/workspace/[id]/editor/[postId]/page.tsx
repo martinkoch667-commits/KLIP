@@ -276,22 +276,23 @@ function applyAutoFit(elements: any[]): any[] {
 }
 
 // Re-layout complet des slots texte pour un format donné :
-// 1) clamp largeur dans le cadre  2) auto-fit taille  3) anti-chevauchement vertical
-// 4) remontée du bloc s'il dépasse le bas. Tourne au chargement ET au changement de format.
+// 1) auto-fit taille  2) anti-chevauchement vertical  3) remontée du bloc s'il
+// dépasse le bas. Tourne au chargement ET au changement de format.
+// Aucune marge horizontale n'est imposée : un texte posé à cheval sur un bord,
+// ou collé au ras du cadre, doit rester exactement où on l'a mis. Le rappel à
+// l'ordre ne concerne plus que la verticale (chevauchement / sortie par le bas).
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function relayoutText(elements: any[], stageW: number, stageH: number): any[] {
   if (!Array.isArray(elements)) return elements;
   const margin = 26, gap = 10;
-  // 1 + 2 : clamp largeur + auto-fit (slots uniquement)
+  // 1 : auto-fit (slots uniquement) — la largeur du bloc est celle voulue
   const els = elements.map(el => {
     if (el?.type !== 'text' || !el.role) return el;
-    const x = Math.max(0, Math.min(el.x ?? 0, stageW - 60));
-    const maxW = Math.max(60, stageW - x - margin);
-    const width = Math.min(el.width ?? maxW, maxW);
-    const withW = { ...el, x, width };
+    const width = el.width ?? Math.max(60, stageW - (el.x ?? 0));
+    const withW = { ...el, width };
     return { ...withW, fontSize: autoFitFontSize(withW as TextEl) };
   });
-  // 3 : anti-chevauchement (slots, par ordre vertical)
+  // 2 : anti-chevauchement (slots, par ordre vertical)
   const order = els
     .map((e, i) => ({ e, i }))
     .filter(o => o.e?.type === 'text' && o.e.role)
@@ -311,7 +312,7 @@ function relayoutText(elements: any[], stageW: number, stageH: number): any[] {
     if (y < prevBottom + gap) { y = Math.round(prevBottom + gap); els[i] = { ...els[i], y }; }
     prevBottom = y + h;
   }
-  // 4 : si la pile dépasse le bas, on la remonte (sans sortir par le haut)
+  // 3 : si la pile dépasse le bas, on la remonte (sans sortir par le haut)
   const bottomLimit = stageH - margin;
   if (prevBottom > bottomLimit && order.length) {
     const topY = els[order[0].i].y ?? 0;
