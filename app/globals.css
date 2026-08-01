@@ -539,13 +539,16 @@ img { display: block; max-width: 100%; }
 /* Barre contextuelle mobile — cachée sur desktop, affichée ≤767px */
 .ed-mobile-ctx { display: none; }
 
-/* Éditeur desktop : le panneau flyout se superpose au plan de travail
-   (aucun décalage du canvas à l'ouverture). Le mobile (media query) repasse en bottom-sheet. */
+/* Éditeur desktop : à l'ouverture d'un outil, le rail et son panneau forment UNE
+   seule surface blanche continue qui pousse le plan de travail — comme Canva.
+   Avant, le panneau flottait par-dessus le canvas en carte arrondie à ombre :
+   ça se lisait comme une pop-up posée là (retour Martin). Le mobile (media
+   query plus bas) repasse en bottom-sheet. */
 .ed-body { position: relative; }
+.ed-rail { transition: background .16s; }
+.ed-body.ed-open .ed-rail { background: var(--white) !important; }
 .ed-panel {
-  position: absolute; top: 12px; bottom: 12px; left: 80px; z-index: 25;
-  border-radius: 18px; overflow: hidden;
-  box-shadow: 0 16px 46px -16px rgba(13,15,10,.34), 0 2px 8px rgba(13,15,10,.06);
+  border-right: 1px solid var(--line-2);
 }
 
 input.ed-range {

@@ -4914,10 +4914,10 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
       )}
 
       {/* ── BODY: rail + flyout + canvas workspace ── */}
-      <div className="ed-body" style={{ flex: 1, display: 'flex', minHeight: 0 }}>
+      <div className={`ed-body${tool ? ' ed-open' : ''}`} style={{ flex: 1, display: 'flex', minHeight: 0 }}>
 
         {/* ── TOOL RAIL (68px) ── */}
-        <div data-stop-deselect className="ed-rail" style={{ width: 88, background: '#F3F4F7', display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '10px 0', gap: 6, flexShrink: 0 }}>
+        <div data-stop-deselect className="ed-rail" style={{ width: 88, background: 'var(--canvas)', display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '10px 0', gap: 6, flexShrink: 0 }}>
           {([
             { id: 'design',   label: 'Modèles',  icon: <svg width="29" height="29" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="16" rx="2.5"/><line x1="9" y1="4" x2="9" y2="20"/></svg> },
             { id: 'elements', label: 'Éléments', icon: <svg width="29" height="29" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><circle cx="7" cy="8" r="3.4"/><rect x="12.5" y="4.6" width="7" height="7" rx="1.7"/><path d="M8 14.2l4.2 6.2H3.8l4.2-6.2z"/></svg> },
@@ -4928,32 +4928,36 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
             { id: 'calques',  label: 'Calques',  icon: <svg width="29" height="29" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg> },
           ] as const).map(({ id, label, icon }) => (
             <button key={id} onClick={() => { setTool(tool === id ? null : id); setFxPanel(null); if (isPenMode) cancelPenMode(); }} title={label}
-              style={{ width: 76, height: 74, borderRadius: 12, border: 'none', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 8, cursor: 'pointer', transition: 'all .14s',
-                background: tool === id ? 'var(--mint-soft)' : 'transparent',
-                boxShadow: tool === id ? 'inset 0 0 0 1.5px color-mix(in srgb, var(--mint-2) 55%, transparent)' : 'none',
-                color: tool === id ? 'var(--mint-2)' : 'color-mix(in srgb, var(--ink) 70%, var(--white))' }}
-              onMouseEnter={e => { if (tool !== id) e.currentTarget.style.background = 'color-mix(in srgb, var(--ink) 6%, var(--white))'; }}
-              onMouseLeave={e => { if (tool !== id) e.currentTarget.style.background = 'transparent'; }}>
-              {icon}
-              <span style={{ fontFamily: 'var(--sans)', fontWeight: tool === id ? 700 : 600, fontSize: 11.5, letterSpacing: 0, lineHeight: 1 }}>{label}</span>
+              style={{ width: 76, height: 74, borderRadius: 12, border: 'none', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 6, cursor: 'pointer', transition: 'background .14s',
+                background: 'transparent', color: tool === id ? 'var(--ink)' : 'var(--ink-2)' }}
+              onMouseEnter={e => { if (tool !== id) e.currentTarget.style.background = 'rgba(13,15,10,.05)'; }}
+              onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}>
+              {/* Outil actif : pastille pleine autour du picto (grammaire Canva),
+                  au lieu d'un cadre teinté autour de tout le bouton. */}
+              <span style={{ width: 42, height: 42, borderRadius: 13, display: 'grid', placeItems: 'center', transition: 'background .14s, color .14s',
+                background: tool === id ? 'var(--leaf)' : 'transparent', color: tool === id ? 'var(--leaf-ink)' : 'inherit' }}>
+                {icon}
+              </span>
+              <span style={{ fontFamily: 'var(--sans)', fontWeight: tool === id ? 800 : 600, fontSize: 11.5, letterSpacing: 0, lineHeight: 1 }}>{label}</span>
             </button>
           ))}
           <div style={{ width: 32, height: 1, background: 'var(--sunk)', margin: '4px 0' }} />
           <button onClick={() => { setIsPenMode(p => !p); setTool(null); }} title={T('penToolTip')}
-            style={{ width: 76, height: 74, borderRadius: 12, border: 'none', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 8, cursor: isPenMode ? 'crosshair' : 'pointer', transition: 'all .14s',
-              background: isPenMode ? 'var(--mint-soft)' : 'transparent',
-              boxShadow: isPenMode ? 'inset 0 0 0 1.5px color-mix(in srgb, var(--mint-2) 55%, transparent)' : 'none',
-              color: isPenMode ? 'var(--mint-2)' : 'color-mix(in srgb, var(--ink) 70%, var(--white))' }}
-            onMouseEnter={e => { if (!isPenMode) e.currentTarget.style.background = 'color-mix(in srgb, var(--ink) 6%, var(--white))'; }}
-            onMouseLeave={e => { if (!isPenMode) e.currentTarget.style.background = 'transparent'; }}>
+            style={{ width: 76, height: 74, borderRadius: 12, border: 'none', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 6, cursor: isPenMode ? 'crosshair' : 'pointer', transition: 'background .14s',
+              background: 'transparent', color: isPenMode ? 'var(--ink)' : 'var(--ink-2)' }}
+            onMouseEnter={e => { if (!isPenMode) e.currentTarget.style.background = 'rgba(13,15,10,.05)'; }}
+            onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}>
+            <span style={{ width: 42, height: 42, borderRadius: 13, display: 'grid', placeItems: 'center', transition: 'background .14s, color .14s',
+              background: isPenMode ? 'var(--leaf)' : 'transparent', color: isPenMode ? 'var(--leaf-ink)' : 'inherit' }}>
             <svg width="25" height="25" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><path d="M12 19l7-7 3 3-7 7-3-3z"/><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"/><path d="M2 2l7.586 7.586"/><circle cx="11" cy="11" r="2"/></svg>
-            <span style={{ fontFamily: 'var(--sans)', fontWeight: isPenMode ? 700 : 600, fontSize: 11, letterSpacing: 0, lineHeight: 1 }}>{T('penTool')}</span>
+            </span>
+            <span style={{ fontFamily: 'var(--sans)', fontWeight: isPenMode ? 800 : 600, fontSize: 11, letterSpacing: 0, lineHeight: 1 }}>{T('penTool')}</span>
           </button>
         </div>
 
         {/* ── TOOL PANEL FLYOUT (312px, conditional) ── */}
         {tool && (
-          <div data-stop-deselect className="pop-in ed-panel" style={{ width: 360, background: 'var(--white)', overflowY: 'auto', flexShrink: 0, display: 'flex', flexDirection: 'column' }}>
+          <div data-stop-deselect className="ed-panel" style={{ width: 360, background: 'var(--white)', overflowY: 'auto', flexShrink: 0, display: 'flex', flexDirection: 'column' }}>
 
             {/* DESIGN — Modèles */}
             {tool === 'design' && (
