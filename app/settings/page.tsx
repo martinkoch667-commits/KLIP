@@ -588,7 +588,7 @@ function PubliSection({ supabase, userId }: { supabase: any; userId: string }) {
           {TIME_SLOTS.map(t => (
             <span key={t} className="chip" style={{ background: 'var(--mint-soft)', color: 'var(--mint-2)', fontFamily: 'var(--mono)', fontWeight: 700, fontSize: 12.5, padding: '6px 14px' }}>{t}</span>
           ))}
-          <span className="chip" style={{ background: 'var(--sunk)', color: 'var(--ink-3)', fontSize: 12, padding: '6px 14px', border: '1px dashed var(--line)', cursor: 'default' }}>Personnaliser — bientôt</span>
+          <span className="chip" style={{ background: 'var(--sunk)', color: 'var(--ink-3)', fontSize: 12, padding: '6px 14px', border: '1px solid var(--line)', cursor: 'default' }}>Personnaliser — bientôt</span>
         </div>
       </div>
 

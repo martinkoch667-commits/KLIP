@@ -807,7 +807,7 @@ function TextProperties({ el, onChange, customFonts, onFontUpload, brandColors, 
           <label style={{ fontSize: 10.5, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '0.08em', fontFamily: 'var(--mono)', fontWeight: 800 }}>
             {T('uploadFont')}
           </label>
-          <label style={{ display: 'block', marginTop: 8, background: 'var(--sunk)', border: '1.5px dashed var(--line)', color: 'var(--ink-2)', padding: '10px', borderRadius: 8, cursor: 'pointer', textAlign: 'center', fontSize: 13 }}>
+          <label style={{ display: 'block', marginTop: 8, background: 'var(--sunk)', border: '1.5px solid var(--line)', color: 'var(--ink-2)', padding: '10px', borderRadius: 8, cursor: 'pointer', textAlign: 'center', fontSize: 13 }}>
             {T('uploadFontBtn')}
             <input type="file" accept=".ttf,.otf,.woff,.woff2" style={{ display: 'none' }}
               onChange={async (e) => {
@@ -5030,7 +5030,7 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                   {['NOUVEAU', '-20%', 'RÉSA EN BIO'].map(badge => (
                     <button key={badge} onClick={() => { const el: TextEl = { id: newId(), type: 'text', x: 60, y: 60, rotation: 0, opacity: 100, text: badge, fontSize: 32, fontFamily: 'Archivo', fontStyle: 'bold', textDecoration: '', fill: '#fff', align: 'center', width: 220, hasBg: true, bgColor: workspaceData?.primary_color || '#0038FF', bgOpacity: 100, cornerRadius: 8, padding: 16, paddingH: 20, paddingV: 12 }; applyElements([...elements, el]); setSelectedId(el.id); }}
-                      style={{ padding: '9px 14px', borderRadius: 8, border: '1.5px dashed var(--line)', cursor: 'pointer', fontSize: 13, fontFamily: 'Archivo', fontWeight: 800, letterSpacing: '.05em', color: 'var(--ink-2)', background: 'var(--sunk)', textAlign: 'left' }}>
+                      style={{ padding: '9px 14px', borderRadius: 8, border: '1.5px solid var(--line)', cursor: 'pointer', fontSize: 13, fontFamily: 'Archivo', fontWeight: 800, letterSpacing: '.05em', color: 'var(--ink-2)', background: 'var(--sunk)', textAlign: 'left' }}>
                       {badge}
                     </button>
                   ))}
@@ -5337,7 +5337,7 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
                 <div
                   onDragOver={e => { e.preventDefault(); e.stopPropagation(); }}
                   onDrop={e => { e.preventDefault(); e.stopPropagation(); const file = e.dataTransfer.files?.[0]; if (file) handleFileDrop(file); }}
-                  style={{ border: '1.5px dashed var(--line)', borderRadius: 10, padding: '32px 14px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10, color: 'var(--ink-3)' }}>
+                  style={{ border: '1.5px solid var(--line)', borderRadius: 10, padding: '32px 14px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10, color: 'var(--ink-3)' }}>
                   <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
                   <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink-2)' }}>{T('dropFilesHere')}</span>
                   <span style={{ fontSize: 11, color: 'var(--ink-3)' }}>{T('fileFormats')}</span>
@@ -5522,7 +5522,7 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
           onDragOver={e => { e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; if (!isDragOverCanvas) setIsDragOverCanvas(true); }}
           onDragLeave={e => { if (e.currentTarget === e.target) setIsDragOverCanvas(false); }}
           onDrop={handleCanvasDrop}
-          style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'safe center', overflow: 'auto', padding: '40px 28px', gap: 40, background: '#F3F4F7', outline: isDragOverCanvas ? '2px dashed var(--vio)' : 'none', outlineOffset: -6 }}>
+          style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'safe center', overflow: 'auto', padding: '40px 28px', gap: 40, background: '#F3F4F7', outline: isDragOverCanvas ? '2px solid var(--vio)' : 'none', outlineOffset: -6 }}>
             {slides.map((slide, idx) => {
               const isActive = idx === activeSlideIdx;
               // Carrousel continu : une seule toile large — on masque les autres slides.
@@ -5607,7 +5607,7 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
                         onDragStart={() => handleElDragStart(el.id)}
                         onDragMove={e => handleElDragMove(el.id, e)}
                         onDragEnd={e => handleElDragEnd(el.id, e.target.x(), e.target.y())}>
-                        <Rect width={ph.width} height={ph.height} fill="rgba(120,120,120,0.12)" stroke="#8B8E7F" strokeWidth={2} dash={[10, 8]} cornerRadius={6} />
+                        <Rect width={ph.width} height={ph.height} fill="rgba(120,120,120,0.12)" stroke="#8B8E7F" strokeWidth={2} cornerRadius={6} />
                         <Text width={ph.width} height={ph.height} text={'\uD83D\uDCF7\nPHOTO'} align="center" verticalAlign="middle" fontSize={20} fontStyle="bold" fill="#5A5E50" fontFamily="var(--sans), sans-serif" listening={false} />
                       </Group>
                     );
@@ -5841,10 +5841,10 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
                   </>
                 )}
                 {guides.v !== null && (
-                  <Line points={[guides.v, 0, guides.v, stageH]} stroke="#FF5DA2" strokeWidth={1} dash={[4, 4]} listening={false} />
+                  <Line points={[guides.v, 0, guides.v, stageH]} stroke="#FF5DA2" strokeWidth={1} listening={false} />
                 )}
                 {guides.h !== null && (
-                  <Line points={[0, guides.h, stageW, guides.h]} stroke="#FF5DA2" strokeWidth={1} dash={[4, 4]} listening={false} />
+                  <Line points={[0, guides.h, stageW, guides.h]} stroke="#FF5DA2" strokeWidth={1} listening={false} />
                 )}
 
               </Layer>
@@ -5940,7 +5940,7 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
             {/* Carrousel continu — repères de découpe entre volets (overlay HTML, jamais exporté) */}
             {isContinuous && Array.from({ length: contPanels }).map((_, i) => (
               <div key={`cut-${i}`} style={{ position: 'absolute', top: 0, left: i * stageW, width: stageW, height: stageH, pointerEvents: 'none', zIndex: 8,
-                borderRight: i < contPanels - 1 ? '2px dashed rgba(47,215,155,.85)' : 'none' }}>
+                borderRight: i < contPanels - 1 ? '2px solid rgba(47,215,155,.85)' : 'none' }}>
                 <div style={{ position: 'absolute', top: 12, left: 12, background: 'rgba(12,42,29,.82)', color: '#eeeee0', fontSize: 22, fontWeight: 800, fontFamily: 'var(--mono)', padding: '4px 12px', borderRadius: 8 }}>{i + 1}</div>
               </div>
             ))}
@@ -5972,7 +5972,7 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
                 position: 'absolute',
                 left: marquee.x, top: marquee.y, width: marquee.w, height: marquee.h,
                 background: 'rgba(124,92,255,0.12)',
-                border: '1px dashed #7C5CFF',
+                border: '1px solid #7C5CFF',
                 pointerEvents: 'none', zIndex: 11,
               }} />
             )}
@@ -6013,7 +6013,7 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
                     position: 'absolute',
                     left: minX - pad, top: minY - pad,
                     width: maxX - minX + pad * 2, height: maxY - minY + pad * 2,
-                    border: '2px dashed var(--vio)',
+                    border: '2px solid var(--vio)',
                     borderRadius: 4,
                     pointerEvents: 'none',
                     zIndex: 10,
@@ -6345,7 +6345,7 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
               onClick={addSlide}
               style={{
                 width: 46, height: 58, borderRadius: 7, flexShrink: 0,
-                border: '1.5px dashed var(--line)',
+                border: '1.5px solid var(--line)',
                 background: 'transparent',
                 cursor: 'pointer', padding: 0,
                 display: 'flex', alignItems: 'center', justifyContent: 'center',

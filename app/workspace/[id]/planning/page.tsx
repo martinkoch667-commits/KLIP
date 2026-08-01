@@ -424,7 +424,7 @@ function FeedPreview({ posts, workspaceId, handle }: {
                   <MediaThumb raw={urls[0]} style={{ opacity: isPublished ? 1 : 0.92 }} />
                   {/* Les posts pas encore publiés se distinguent par un liseré */}
                   {!isPublished && (
-                    <span style={{ position: "absolute", inset: 0, border: "1.5px dashed var(--mint-2)", borderRadius: 2, pointerEvents: "none" }} />
+                    <span style={{ position: "absolute", inset: 0, border: "1.5px solid var(--mint-2)", borderRadius: 2, pointerEvents: "none" }} />
                   )}
                   {(type === "reel" || type === "carrousel") && (
                     <span style={{ position: "absolute", top: 4, right: 4, color: "#fff", filter: "drop-shadow(0 1px 2px rgba(0,0,0,.6))", display: "grid" }}>

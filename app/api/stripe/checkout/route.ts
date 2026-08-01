@@ -4,6 +4,7 @@ import { createRouteHandlerClient } from "@supabase/auth-helpers-nextjs";
 import { createClient } from "@supabase/supabase-js";
 import { cookies } from "next/headers";
 import { stripe, priceId, APP_URL, type Plan, type Period } from "@/lib/stripe";
+import { launchApplies } from "@/lib/launch-offer";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -63,6 +64,16 @@ export async function POST(req: NextRequest) {
     hadSubscriptionBefore = existing.data.length > 0;
   } catch { /* en cas d'erreur on ne bloque pas la création */ }
 
+  // ── Offre de lancement ─────────────────────────────────────────────────
+  // Coupon Stripe (percent_off, duration: once) appliqué automatiquement quand
+  // l'offre court sur cette période. Sans STRIPE_LAUNCH_COUPON en env, rien
+  // n'est appliqué : on préviendra dans les logs plutôt que de débiter le plein
+  // tarif après avoir affiché un prix barré.
+  const launchCoupon = launchApplies(period) ? process.env.STRIPE_LAUNCH_COUPON?.trim() : undefined;
+  if (launchApplies(period) && !launchCoupon) {
+    console.warn("[checkout] LAUNCH_OFFER active mais STRIPE_LAUNCH_COUPON absent : le prix barré de la landing ne sera PAS appliqué.");
+  }
+
   // ── Session Checkout (abonnement ; essai seulement à la 1re fois) ───────
   try {
     const checkout = await stripe.checkout.sessions.create({
@@ -74,7 +85,13 @@ export async function POST(req: NextRequest) {
         ...(hadSubscriptionBefore ? {} : { trial_period_days: 7 }),
         metadata: { user_id: userId, plan, period },
       },
-      allow_promotion_codes: true,
+      // Offre de lancement : la remise annoncée sur la landing est appliquée
+      // ici, sinon le prix affiché serait un mensonge. Stripe refuse
+      // `discounts` et `allow_promotion_codes` ensemble — le coupon
+      // automatique l'emporte, le champ code promo revient sans lui.
+      ...(launchCoupon
+        ? { discounts: [{ coupon: launchCoupon }] }
+        : { allow_promotion_codes: true as const }),
       metadata: { user_id: userId, plan, period },
       success_url: `${APP_URL}/checkout-success`,
       cancel_url: `${APP_URL}/#tarifs`,

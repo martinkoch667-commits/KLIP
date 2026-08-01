@@ -217,7 +217,7 @@ export default function Sidebar({ workspaces: _w, userName: _u, activeWorkspaceI
         data-tour="new-post"
         href="/workspace/new"
         className="sb-full"
-        style={{ display: "flex", alignItems: "center", gap: 10, padding: "9px 12px", borderRadius: "var(--r-s)", color: "var(--cream-3)", fontSize: 13, fontWeight: 600, border: "1px dashed var(--cream-4)", transition: "all 0.15s", textDecoration: "none", marginTop: 4 }}
+        style={{ display: "flex", alignItems: "center", gap: 10, padding: "9px 12px", borderRadius: "var(--r-s)", color: "var(--cream-3)", fontSize: 13, fontWeight: 600, border: "1px solid var(--cream-4)", transition: "all 0.15s", textDecoration: "none", marginTop: 4 }}
         onMouseEnter={e => { e.currentTarget.style.borderColor = "var(--leaf)"; e.currentTarget.style.color = "var(--leaf)"; }}
         onMouseLeave={e => { e.currentTarget.style.borderColor = "var(--cream-4)"; e.currentTarget.style.color = "var(--cream-3)"; }}
       >

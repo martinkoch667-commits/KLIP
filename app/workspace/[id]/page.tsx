@@ -397,7 +397,7 @@ function TemplatePicker({
             onClick={() => onSelect(null)}
             style={{
               display: 'flex', flexDirection: 'column', alignItems: 'center',
-              background: 'var(--card)', border: '2px dashed var(--line)',
+              background: 'var(--card)', border: '2px solid var(--line)',
               borderRadius: 'var(--r-m)', padding: '12px 8px 10px',
               cursor: 'pointer', gap: 8, transition: 'border-color .15s, background .15s',
             }}
@@ -1220,7 +1220,7 @@ export default function WorkspacePage() {
                       if (!files.length) return;
                       setPendingFiles(files);
                     }}
-                    style={{ padding: 28, height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: 200, cursor: 'pointer', textAlign: 'center', transition: 'border-color 0.15s, background 0.15s', border: '1.5px dashed var(--line)' }}
+                    style={{ padding: 28, height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: 200, cursor: 'pointer', textAlign: 'center', transition: 'border-color 0.15s, background 0.15s', border: '1.5px solid var(--line)' }}
                     onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--mint-2)'; e.currentTarget.style.background = 'var(--mint-soft)'; }}
                     onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--line)'; e.currentTarget.style.background = 'var(--card)'; }}
                   >

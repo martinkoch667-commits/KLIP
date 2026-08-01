@@ -364,7 +364,7 @@ export default function StyleEditorPage() {
                       >
                         <div style={{
                           width: 52, height: 52, borderRadius: "var(--r-s)", flexShrink: 0,
-                          border: "2px dashed var(--line)", background: "var(--white)",
+                          border: "2px solid var(--line)", background: "var(--white)",
                           display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden",
                         }}>
                           {s.logoUrl ? (

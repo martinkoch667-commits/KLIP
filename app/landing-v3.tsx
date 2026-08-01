@@ -1,12 +1,13 @@
 'use client';
 import { useState, useEffect, useRef } from 'react';
-import { useTranslations } from 'next-intl';
+import { useTranslations, useLocale } from 'next-intl';
 import Link from 'next/link';
 import Image from 'next/image';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import { useRouter } from 'next/navigation';
 import { ConnectClaudePill } from '@/components/ConnectClaudeModal';
 import { trackLead } from '@/components/analytics/MetaPixel';
+import { LAUNCH_OFFER, launchApplies, launchPrice, formatPrice } from '@/lib/launch-offer';
 import { gsap } from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import { Draggable } from 'gsap/Draggable';
@@ -1314,8 +1315,10 @@ async function startCheckout(plan: 'studio' | 'agence', period: 'monthly' | 'yea
 /* ─── Pricing ────────────────────────────────────────────────────────────── */
 function Pricing({ prelaunch = false }: { prelaunch?: boolean }) {
   const tp = useTranslations('landing.pricing');
+  const locale = useLocale();
   const [period, setPeriod] = useState<'monthly' | 'yearly'>('monthly');
   const [busy, setBusy] = useState<string | null>(null);
+  const launched = launchApplies(period);
   const tiers = [
     { name: 'Studio', plan: 'studio' as const, monthly: 35, yearly: 29, tag: tp('studioTag'), clients: tp('studioClients'), feats: [tp('studioF1'), tp('studioF2'), tp('studioF3'), tp('studioF4'), tp('studioF5')], pop: false },
     { name: 'Agence', plan: 'agence' as const, monthly: 96, yearly: 80, tag: tp('agencyTag'), clients: tp('agencyClients'), feats: [tp('agencyF1'), tp('agencyF2'), tp('agencyF3'), tp('agencyF4'), tp('agencyF5')], pop: true },
@@ -1348,12 +1351,24 @@ function Pricing({ prelaunch = false }: { prelaunch?: boolean }) {
                 {t.pop && <span className="stk-card stk-leaf" style={{ position: 'absolute', top: -16, right: 22, rotate: '3deg', fontSize: 11.5, letterSpacing: '.08em', textTransform: 'uppercase', padding: '8px 13px', zIndex: 3 }}>{tp('popular')}</span>}
                 <h3 className="t-oaksx" style={{ fontSize: 24, margin: 0 }}>{t.name}</h3>
                 <div style={{ fontFamily: 'var(--sans)', fontWeight: 600, fontSize: 13, color: t.pop ? 'var(--cream-3)' : 'var(--ink-3)', marginTop: 6 }}>{t.tag}</div>
-                <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, margin: '22px 0 2px' }}>
-                  <span style={{ fontFamily: 'var(--heavy)', fontWeight: 800, fontSize: 58, letterSpacing: '-.04em', lineHeight: 1 }}>{shown}€</span>
+                {/* Offre de lancement : prix barré + prix remisé. Le montant
+                    affiché est celui que la caisse débite (même constante). */}
+                {launched && (
+                  <div style={{ display: 'inline-flex', alignItems: 'center', gap: 7, marginTop: 20, padding: '6px 11px', borderRadius: 999, background: t.pop ? 'var(--leaf)' : 'var(--leaf-soft)', color: 'var(--leaf-ink)', fontFamily: 'var(--sans)', fontWeight: 800, fontSize: 11.5, letterSpacing: '.07em', textTransform: 'uppercase' }}>
+                    {tp('launchBadge', { percent: LAUNCH_OFFER.percent })}
+                  </div>
+                )}
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, margin: launched ? '10px 0 2px' : '22px 0 2px', flexWrap: 'wrap' }}>
+                  {launched && (
+                    <span style={{ fontFamily: 'var(--heavy)', fontWeight: 800, fontSize: 30, letterSpacing: '-.03em', lineHeight: 1, color: t.pop ? 'var(--cream-3)' : 'var(--ink-3)', textDecoration: 'line-through', textDecorationThickness: 2 }}>{formatPrice(shown, locale)}€</span>
+                  )}
+                  <span style={{ fontFamily: 'var(--heavy)', fontWeight: 800, fontSize: 58, letterSpacing: '-.04em', lineHeight: 1 }}>{formatPrice(launched ? launchPrice(shown) : shown, locale)}€</span>
                   <span style={{ fontFamily: 'var(--sans)', fontWeight: 700, fontSize: 13, color: t.pop ? 'var(--cream-2)' : 'var(--ink-3)' }}>{tp('perMonth')}</span>
                 </div>
                 <div style={{ fontFamily: 'var(--sans)', fontSize: 12, color: t.pop ? 'var(--cream-3)' : 'var(--ink-3)', marginBottom: 18, minHeight: 16 }}>
-                  {period === 'yearly' ? tp('billedYear', { total: t.yearly * 12 }) : tp('billedMonth')}
+                  {launched
+                    ? tp('launchNote', { seats: LAUNCH_OFFER.seats, price: formatPrice(shown, locale) })
+                    : period === 'yearly' ? tp('billedYear', { total: t.yearly * 12 }) : tp('billedMonth')}
                 </div>
                 <div className="chip" style={{ marginBottom: 24, background: t.pop ? 'var(--forest-2)' : 'var(--paper-3)', color: t.pop ? 'var(--cream-2)' : 'var(--ink-2)', boxShadow: 'inset 0 0 0 1px var(--line)' }}>{t.clients}</div>
                 {prelaunch ? (

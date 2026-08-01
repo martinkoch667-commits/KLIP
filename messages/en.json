@@ -235,7 +235,9 @@
       "agencyF3": "Client approval workflow",
       "agencyF4": "Manager & Creative roles",
       "agencyF5": "Batch creation",
-      "montageFeat": "Built-in video editing"
+      "montageFeat": "Built-in video editing",
+      "launchBadge": "Launch offer · −{percent}%",
+      "launchNote": "instead of €{price} for the 1st month · first {seats} seats"
     },
     "faq": {
       "title1": "The questions ",

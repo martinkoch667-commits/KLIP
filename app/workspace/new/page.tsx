@@ -790,7 +790,7 @@ export default function NewWorkspacePage() {
                   <label style={labelStyle}>{t('brandIconLabel')} <OptLabel /></label>
                   <p style={{ fontSize: 12, color: "var(--ink-3)", marginBottom: 10 }}>{t('brandIconHint')}</p>
                   <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-                    <div style={{ width: 64, height: 64, borderRadius: 12, border: "1.5px dashed var(--line)", background: "var(--sunk)", overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                    <div style={{ width: 64, height: 64, borderRadius: 12, border: "1.5px solid var(--line)", background: "var(--sunk)", overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
                       {brandIconPreview
                         // eslint-disable-next-line @next/next/no-img-element
                         ? <img src={brandIconPreview} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
@@ -879,14 +879,14 @@ export default function NewWorkspacePage() {
                       ))}
                       {assetFiles.length < 5 && (
                         <div onClick={() => assetsRef.current?.click()}
-                          style={{ aspectRatio: "1", borderRadius: 10, border: "2px dashed var(--line)", display: "grid", placeItems: "center", cursor: "pointer", color: "var(--ink-3)", fontSize: 22 }}>
+                          style={{ aspectRatio: "1", borderRadius: 10, border: "2px solid var(--line)", display: "grid", placeItems: "center", cursor: "pointer", color: "var(--ink-3)", fontSize: 22 }}>
                           +
                         </div>
                       )}
                     </div>
                   ) : (
                     <div onClick={() => assetsRef.current?.click()}
-                      style={{ border: "2px dashed var(--line)", borderRadius: 13, padding: 20, background: "var(--white)", cursor: "pointer", textAlign: "center", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, color: "var(--ink-3)", fontSize: 13 }}>
+                      style={{ border: "2px solid var(--line)", borderRadius: 13, padding: 20, background: "var(--white)", cursor: "pointer", textAlign: "center", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, color: "var(--ink-3)", fontSize: 13 }}>
                       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
                         <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/>
                       </svg>
@@ -993,7 +993,7 @@ export default function NewWorkspacePage() {
                     onClick={() => customPrimaryRef.current?.click()}
                     style={{
                       width: "100%", padding: "11px 16px", borderRadius: 13,
-                      border: "1.5px dashed rgba(13,15,10,.20)", background: "transparent",
+                      border: "1.5px solid rgba(13,15,10,.20)", background: "transparent",
                       cursor: "pointer", fontSize: 13, color: "var(--ink-2)", fontWeight: 600,
                       display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
                       transition: "border-color 0.15s, color 0.15s",
@@ -1114,7 +1114,7 @@ export default function NewWorkspacePage() {
                     onClick={() => customSecondaryRef.current?.click()}
                     style={{
                       width: "100%", padding: "11px 16px", borderRadius: 13,
-                      border: "1.5px dashed rgba(13,15,10,.20)", background: "transparent",
+                      border: "1.5px solid rgba(13,15,10,.20)", background: "transparent",
                       cursor: "pointer", fontSize: 13, color: "var(--ink-2)", fontWeight: 600,
                       display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
                       transition: "border-color 0.15s, color 0.15s",
@@ -1253,7 +1253,7 @@ export default function NewWorkspacePage() {
                       <button
                         onClick={() => { setEditingTemplateIndex(null); setTemplateEditorOpen(true); }}
                         style={{
-                          border: "2px dashed rgba(13,15,10,.15)", borderRadius: 10, background: "transparent",
+                          border: "2px solid rgba(13,15,10,.15)", borderRadius: 10, background: "transparent",
                           cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center",
                           justifyContent: "center", gap: 6, color: "var(--ink-3)", fontSize: 13,
                           minHeight: 110, transition: "border-color 0.15s, color 0.15s",
@@ -1273,7 +1273,7 @@ export default function NewWorkspacePage() {
                   </div>
                 ) : (
                   /* Empty state */
-                  <div style={{ border: "2px dashed rgba(13,15,10,.15)", borderRadius: 16, padding: "48px 24px", textAlign: "center", display: "flex", flexDirection: "column", alignItems: "center", gap: 16 }}>
+                  <div style={{ border: "2px solid rgba(13,15,10,.15)", borderRadius: 16, padding: "48px 24px", textAlign: "center", display: "flex", flexDirection: "column", alignItems: "center", gap: 16 }}>
                     <div style={{ width: 52, height: 52, borderRadius: 14, background: "rgba(13,15,10,.05)", display: "grid", placeItems: "center" }}>
                       <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--ink-3)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
                         <rect x="3" y="3" width="18" height="18" rx="3"/><path d="M3 9h18M9 9v12"/>
@@ -1469,7 +1469,7 @@ function UploadZone({
       <div
         onClick={preview ? undefined : onClick}
         style={{
-          border: "2px dashed var(--line)", borderRadius: 13,
+          border: "2px solid var(--line)", borderRadius: 13,
           padding: "18px 14px", minHeight: 100,
           background: dark ? "#1A1A1A" : "var(--white)",
           cursor: preview ? "default" : "pointer",

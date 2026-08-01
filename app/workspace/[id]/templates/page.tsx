@@ -188,7 +188,7 @@ export default function TemplatesPage() {
                       <span style={{ fontSize: 13, color: 'var(--ink-3)' }}>{t('noColors')}</span>
                     )}
                     <a href={`/workspace/${workspaceId}/parametres`} style={{
-                      width: 64, height: 64, borderRadius: 14, border: '1.5px dashed var(--line)',
+                      width: 64, height: 64, borderRadius: 14, border: '1.5px solid var(--line)',
                       color: 'var(--ink-3)', display: 'grid', placeItems: 'center',
                       textDecoration: 'none', alignSelf: 'flex-start',
                       transition: 'border-color .14s, color .14s',
@@ -251,7 +251,7 @@ export default function TemplatesPage() {
               <div className="tpl-grid">
                 {/* Create tile */}
                 <button onClick={openNew} style={{
-                  border: '1.5px dashed var(--line)', borderRadius: 'var(--r-m)', background: 'transparent',
+                  border: '1.5px solid var(--line)', borderRadius: 'var(--r-m)', background: 'transparent',
                   minHeight: 230, display: 'flex', flexDirection: 'column', alignItems: 'center',
                   justifyContent: 'center', gap: 12, color: 'var(--ink-3)', transition: 'all .15s', cursor: 'pointer',
                 }}

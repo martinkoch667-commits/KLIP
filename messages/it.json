@@ -235,7 +235,9 @@
       "agencyF3": "Workflow di approvazione cliente",
       "agencyF4": "Ruoli Manager & Creativo",
       "agencyF5": "Creazione in blocco",
-      "montageFeat": "Montaggio video integrato"
+      "montageFeat": "Montaggio video integrato",
+      "launchBadge": "Offerta lancio · −{percent}%",
+      "launchNote": "invece di {price}€ il 1° mese · primi {seats} posti"
     },
     "faq": {
       "title1": "Le domande ",

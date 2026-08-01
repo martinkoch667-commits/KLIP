@@ -135,7 +135,7 @@ function UploadZone({ label, hint, preview, dark, onClick, onRemove }: {
     <div>
       <label style={labelStyle}>{label}</label>
       <div onClick={preview ? undefined : onClick} style={{
-        border: "2px dashed var(--line)", borderRadius: "var(--r-l)", padding: "18px 14px", minHeight: 90,
+        border: "2px solid var(--line)", borderRadius: "var(--r-l)", padding: "18px 14px", minHeight: 90,
         background: dark ? "#1A1A1A" : "var(--white)", cursor: preview ? "default" : "pointer",
         display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 8,
         position: "relative", overflow: "hidden",
@@ -740,7 +740,7 @@ export default function StyleTemplatePage() {
                       <label style={labelStyle}>{t('brandIconLabel')}</label>
                       <p style={{ fontSize: 12, color: "var(--ink-3)", marginBottom: 10 }}>{t('brandIconHint')}</p>
                       <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-                        <div style={{ width: 56, height: 56, borderRadius: 12, border: "1.5px dashed var(--line)", background: "var(--sunk)", overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                        <div style={{ width: 56, height: 56, borderRadius: 12, border: "1.5px solid var(--line)", background: "var(--sunk)", overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
                           {brandIconPreview
                             // eslint-disable-next-line @next/next/no-img-element
                             ? <img src={brandIconPreview} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
@@ -821,11 +821,11 @@ export default function StyleTemplatePage() {
                             </div>
                           ))}
                           {(existingAssets.length + assetFiles.length) < 5 && (
-                            <div onClick={() => assetsRef.current?.click()} style={{ aspectRatio: "1", borderRadius: 10, border: "2px dashed var(--line)", display: "grid", placeItems: "center", cursor: "pointer", color: "var(--ink-3)", fontSize: 22 }}>+</div>
+                            <div onClick={() => assetsRef.current?.click()} style={{ aspectRatio: "1", borderRadius: 10, border: "2px solid var(--line)", display: "grid", placeItems: "center", cursor: "pointer", color: "var(--ink-3)", fontSize: 22 }}>+</div>
                           )}
                         </div>
                       ) : (
-                        <div onClick={() => assetsRef.current?.click()} style={{ border: "2px dashed var(--line)", borderRadius: "var(--r-l)", padding: 18, background: "var(--white)", cursor: "pointer", textAlign: "center", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, color: "var(--ink-3)", fontSize: 13 }}>
+                        <div onClick={() => assetsRef.current?.click()} style={{ border: "2px solid var(--line)", borderRadius: "var(--r-l)", padding: 18, background: "var(--white)", cursor: "pointer", textAlign: "center", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, color: "var(--ink-3)", fontSize: 13 }}>
                           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg>
                           {t('extraAssetsHint')}
                         </div>
@@ -867,7 +867,7 @@ export default function StyleTemplatePage() {
                         <div style={{ flex: 1, height: 1, background: "var(--line)" }} />
                       </div>
                       <button type="button" onClick={() => customPrimaryRef.current?.click()} style={{
-                        width: "100%", padding: "10px 16px", borderRadius: "var(--r-l)", border: "1.5px dashed var(--line)", background: "transparent",
+                        width: "100%", padding: "10px 16px", borderRadius: "var(--r-l)", border: "1.5px solid var(--line)", background: "transparent",
                         cursor: "pointer", fontSize: 13, color: "var(--ink-2)", fontWeight: 600, display: "flex", alignItems: "center", justifyContent: "center", gap: 8, transition: "all .15s",
                       }}
                         onMouseEnter={e => { e.currentTarget.style.borderColor = "var(--leaf)"; e.currentTarget.style.color = "var(--mint-2)"; }}
@@ -899,7 +899,7 @@ export default function StyleTemplatePage() {
                         ))}
                       </div>
                       <button type="button" onClick={() => customSecondaryRef.current?.click()} style={{
-                        marginTop: 8, width: "100%", padding: "10px 16px", borderRadius: "var(--r-l)", border: "1.5px dashed var(--line)", background: "transparent",
+                        marginTop: 8, width: "100%", padding: "10px 16px", borderRadius: "var(--r-l)", border: "1.5px solid var(--line)", background: "transparent",
                         cursor: "pointer", fontSize: 13, color: "var(--ink-2)", fontWeight: 600, display: "flex", alignItems: "center", justifyContent: "center", gap: 8, transition: "all .15s",
                       }}
                         onMouseEnter={e => { e.currentTarget.style.borderColor = "var(--leaf)"; e.currentTarget.style.color = "var(--mint-2)"; }}

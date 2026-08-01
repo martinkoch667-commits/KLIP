@@ -155,7 +155,7 @@ export default function ComposerPage() {
                   <button
                     onClick={handleCompose}
                     style={{
-                      width: '100%', border: '1.5px dashed var(--line)', borderRadius: 16,
+                      width: '100%', border: '1.5px solid var(--line)', borderRadius: 16,
                       padding: '48px 20px', background: 'var(--canvas)', cursor: 'pointer',
                       display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 14,
                       transition: 'all .15s',

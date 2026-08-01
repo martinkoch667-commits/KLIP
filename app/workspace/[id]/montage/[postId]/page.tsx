@@ -3414,7 +3414,7 @@ export default function MontagePage() {
           onDragOver={(e) => { if (e.dataTransfer.types.includes("Files")) { e.preventDefault(); setTlFileOver(true); } }}
           onDragLeave={(e) => { if (!e.currentTarget.contains(e.relatedTarget as Node)) setTlFileOver(false); }}
           onDrop={(e) => { e.preventDefault(); setTlFileOver(false); if (e.dataTransfer.files?.length) importFilesToTimeline(e.dataTransfer.files, e.clientX, e.clientY); }}
-          style={{ outline: tlFileOver ? "2px dashed var(--mint-2)" : undefined, outlineOffset: -3 }}>
+          style={{ outline: tlFileOver ? "2px solid var(--mint-2)" : undefined, outlineOffset: -3 }}>
           <div
             className="a-tl-inner"
             ref={tlInnerRef}

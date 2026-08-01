@@ -785,7 +785,7 @@ export default function Dashboard() {
                   ))}
                   {/* Add new client card */}
                   <Link href="/workspace/new"
-                    style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 12, minHeight: 220, borderRadius: 'var(--r)', border: '1.5px dashed var(--line)', color: 'var(--ink-3)', textDecoration: 'none', transition: 'all .15s' }}
+                    style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 12, minHeight: 220, borderRadius: 'var(--r)', border: '1.5px solid var(--line)', color: 'var(--ink-3)', textDecoration: 'none', transition: 'all .15s' }}
                     onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = 'var(--mint-2)'; (e.currentTarget as HTMLElement).style.color = 'var(--mint-2)'; }}
                     onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = 'var(--line)'; (e.currentTarget as HTMLElement).style.color = 'var(--ink-3)'; }}
                   >

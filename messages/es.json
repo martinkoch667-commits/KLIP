@@ -235,7 +235,9 @@
       "agencyF3": "Flujo de validación del cliente",
       "agencyF4": "Roles Manager y Creativo",
       "agencyF5": "Creación por lotes",
-      "montageFeat": "Edición de vídeo integrada"
+      "montageFeat": "Edición de vídeo integrada",
+      "launchBadge": "Oferta lanzamiento · −{percent} %",
+      "launchNote": "en vez de {price}€ el 1.er mes · {seats} primeras plazas"
     },
     "faq": {
       "title1": "Las preguntas ",

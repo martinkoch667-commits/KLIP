@@ -134,7 +134,6 @@ function PhotoPlaceholderNode({ el, onSelect, onDragStart, onDragEnd }: {
         fill="rgba(200,200,200,0.12)"
         stroke="rgba(200,200,200,0.45)"
         strokeWidth={1.5}
-        dash={[6, 4]}
         cornerRadius={6}
       />
       <Text text="Zone photo" width={el.width} height={el.height}
@@ -950,7 +949,7 @@ export default function TemplateEditor({
                 <SectionLabel>Zone photo</SectionLabel>
                 <button onClick={addPhotoPlaceholder}
                   disabled={elements.some(e => e.type === 'image' && (e as ImageEl).src === PHOTO_PLACEHOLDER_SRC)}
-                  style={{ width: '100%', padding: '10px 14px', border: '1.5px dashed var(--line)', borderRadius: 'var(--r)', background: 'transparent', cursor: 'pointer', fontSize: 12, color: 'var(--ink-2)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 8, opacity: elements.some(e => e.type === 'image' && (e as ImageEl).src === PHOTO_PLACEHOLDER_SRC) ? 0.4 : 1 }}>
+                  style={{ width: '100%', padding: '10px 14px', border: '1.5px solid var(--line)', borderRadius: 'var(--r)', background: 'transparent', cursor: 'pointer', fontSize: 12, color: 'var(--ink-2)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 8, opacity: elements.some(e => e.type === 'image' && (e as ImageEl).src === PHOTO_PLACEHOLDER_SRC) ? 0.4 : 1 }}>
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
                   {elements.some(e => e.type === 'image' && (e as ImageEl).src === PHOTO_PLACEHOLDER_SRC) ? 'Zone photo déjà présente' : '+ Ajouter une zone photo'}
                 </button>
@@ -986,7 +985,7 @@ export default function TemplateEditor({
               <SectionLabel>Assets de marque</SectionLabel>
               {logoUrl ? (
                 <button onClick={addLogoEl}
-                  style={{ width: '100%', padding: '10px 14px', border: '1.5px dashed var(--line)', borderRadius: 'var(--r)', background: 'transparent', cursor: 'pointer', fontSize: 12, color: 'var(--ink-2)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 10 }}>
+                  style={{ width: '100%', padding: '10px 14px', border: '1.5px solid var(--line)', borderRadius: 'var(--r)', background: 'transparent', cursor: 'pointer', fontSize: 12, color: 'var(--ink-2)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 10 }}>
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img src={logoUrl} alt="logo" style={{ width: 28, height: 28, objectFit: 'contain', background: 'var(--sunk)', borderRadius: 4, padding: 2 }} />
                   + Placer le logo sur le canvas

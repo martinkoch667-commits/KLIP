@@ -225,7 +225,7 @@ export default function HistoriquePage() {
               </svg>
             </div>
           ) : filtered.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-20 text-center border border-dashed border-[#E0E0E0] rounded">
+            <div className="flex flex-col items-center justify-center py-20 text-center border border-solid border-[#E0E0E0] rounded">
               <p className="font-syne font-bold text-base text-black mb-2">{t('noPost')}</p>
               <p className="text-sm font-inter text-[#888]">
                 {filter === "all"

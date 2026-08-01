@@ -178,7 +178,7 @@ export default function MobileSidebar() {
         </div>
 
         {/* Add workspace */}
-        <Link href="/workspace/new" style={{ display: "flex", alignItems: "center", gap: 10, padding: "9px 12px", borderRadius: "var(--r-s)", color: "var(--cream-3)", fontSize: 13, fontWeight: 600, border: "1px dashed var(--cream-4)", textDecoration: "none", marginTop: 4 }}>
+        <Link href="/workspace/new" style={{ display: "flex", alignItems: "center", gap: 10, padding: "9px 12px", borderRadius: "var(--r-s)", color: "var(--cream-3)", fontSize: 13, fontWeight: 600, border: "1px solid var(--cream-4)", textDecoration: "none", marginTop: 4 }}>
           <IconPlus />
           {t("newClient")}
         </Link>

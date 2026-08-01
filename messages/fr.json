@@ -235,7 +235,9 @@
       "agencyF3": "Workflow de validation client",
       "agencyF4": "Rôles Manager & Créa",
       "agencyF5": "Création en lot",
-      "montageFeat": "Montage vidéo intégré"
+      "montageFeat": "Montage vidéo intégré",
+      "launchBadge": "Offre lancement · −{percent} %",
+      "launchNote": "au lieu de {price}€ le 1er mois · {seats} premières places"
     },
     "faq": {
       "title1": "Les questions ",
