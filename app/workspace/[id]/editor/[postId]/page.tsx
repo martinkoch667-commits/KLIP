@@ -2412,6 +2412,9 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
   };
 
   const addSlide = () => {
+    // Une story se publie image par image : plusieurs pages sous un même post
+    // n'auraient jamais été publiées ensemble (retour Martin).
+    if (postType === 'story') { showEditorToast(T('storyOnePage')); return; }
     const updated = saveCurrentSlide();
     const newSlide: Slide = { id: `slide-${Date.now()}`, elements: [], proxyUrl: '' };
     const newSlides = [...updated, newSlide];
@@ -6554,6 +6557,7 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
                 </div>
               );
             })}
+            {postType !== 'story' && (
             <button
               onClick={addSlide}
               style={{
@@ -6565,6 +6569,7 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
                 color: 'var(--ink-3)', fontSize: 20, fontWeight: 300,
               }}
             >+</button>
+            )}
           </div>
         </div>
 

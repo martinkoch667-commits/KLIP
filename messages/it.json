@@ -797,7 +797,8 @@
     "search": "Cerca",
     "lowercase": "Minuscolo",
     "uppercaseTitle": "Maiuscolo",
-    "weightTitle": "Spessore"
+    "weightTitle": "Spessore",
+    "storyOnePage": "Una story contiene una sola pagina."
   },
   "composer": {
     "title": "Componi con l’IA",

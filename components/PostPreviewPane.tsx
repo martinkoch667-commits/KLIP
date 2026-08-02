@@ -47,6 +47,83 @@ export default function PostPreviewPane({ workspace, mediaUrl, caption, postType
   const tooLong = caption.length > limit;
   const shown = expanded || !tooLong ? caption : caption.slice(0, limit).trimEnd() + "…";
 
+  // Une story ou un reel ne se regardent pas comme un post de fil : plein écran,
+  // pas de barre d'actions, pas de légende sous l'image. Les afficher dans la
+  // carte du fil donnait un aperçu faux (retour Martin).
+  const isFullScreen = postType === "story" || postType === "reel";
+
+  if (isFullScreen && isIg) {
+    return (
+      <div style={{ display: "flex", flexDirection: "column", gap: 12, minWidth: 0 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+          <span className="label" style={{ margin: 0 }}>Aperçu du rendu</span>
+          <span className="chip" style={{ marginLeft: "auto", background: "var(--sunk)", color: "var(--ink-2)" }}>
+            {postType === "reel" ? "Reel" : "Story"}
+          </span>
+        </div>
+
+        <div style={{ display: "flex", justifyContent: "center" }}>
+          <div style={{
+            position: "relative",
+            width: mediaHeight ? "auto" : "100%",
+            height: mediaHeight,
+            maxWidth: "100%",
+            aspectRatio: "9 / 16",
+            borderRadius: 16,
+            overflow: "hidden",
+            background: "#000",
+            boxShadow: "0 6px 18px -10px rgba(13,15,10,.35)",
+          }}>
+            {mediaUrl ? <MediaThumb raw={mediaUrl} /> : <div style={{ width: "100%", height: "100%", background: "var(--sunk)" }} />}
+
+            {/* Barre de progression : le repère visuel d'une story. */}
+            {postType === "story" && (
+              <div style={{ position: "absolute", top: 8, left: 10, right: 10, height: 2.5, borderRadius: 2, background: "rgba(255,255,255,.35)" }}>
+                <div style={{ width: "38%", height: "100%", borderRadius: 2, background: "#fff" }} />
+              </div>
+            )}
+
+            {/* Compte, en surimpression comme dans l'app */}
+            <div style={{ position: "absolute", top: postType === "story" ? 18 : 12, left: 10, right: 10, display: "flex", alignItems: "center", gap: 8 }}>
+              <div style={{ width: 26, height: 26, borderRadius: "50%", overflow: "hidden", background: "rgba(255,255,255,.25)", flexShrink: 0, display: "grid", placeItems: "center", boxShadow: "0 0 0 1.5px rgba(255,255,255,.8)" }}>
+                {workspace?.logo_url ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={`/api/proxy-image?url=${encodeURIComponent(workspace.logo_url)}`} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                ) : (
+                  <span style={{ fontSize: 11, fontWeight: 800, color: "#fff" }}>{handle.slice(0, 1).toUpperCase()}</span>
+                )}
+              </div>
+              <span style={{ fontSize: 12, fontWeight: 700, color: "#fff", textShadow: "0 1px 3px rgba(0,0,0,.6)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{handle}</span>
+              <span style={{ marginLeft: "auto", color: "#fff", fontSize: 15, lineHeight: 1, textShadow: "0 1px 3px rgba(0,0,0,.6)" }}>···</span>
+            </div>
+
+            {/* Un reel garde sa légende en bas et sa colonne d'actions à droite. */}
+            {postType === "reel" && (
+              <>
+                <div style={{ position: "absolute", right: 8, bottom: 16, display: "flex", flexDirection: "column", gap: 14, color: "#fff", filter: "drop-shadow(0 1px 3px rgba(0,0,0,.6))" }}>
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1-1.1a5.5 5.5 0 0 0-7.8 7.8l8.8 8.8 8.8-8.8a5.5 5.5 0 0 0 0-7.8z" /></svg>
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M21 11.5a8.4 8.4 0 0 1-9 8.4 8.5 8.5 0 0 1-3.8-.9L3 20.5l1.6-4.9A8.4 8.4 0 0 1 12 3.1a8.4 8.4 0 0 1 9 8.4z" /></svg>
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M22 2 11 13M22 2l-7 20-4-9-9-4 20-7z" /></svg>
+                </div>
+                {caption && (
+                  <div style={{ position: "absolute", left: 10, right: 46, bottom: 14, fontSize: 11.5, lineHeight: 1.4, color: "#fff", textShadow: "0 1px 3px rgba(0,0,0,.7)" }}>
+                    <span style={{ fontWeight: 700 }}>{handle}</span> {caption.slice(0, 90)}{caption.length > 90 ? "…" : ""}
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        </div>
+
+        {postType === "story" && caption && !compact && (
+          <p style={{ margin: 0, fontSize: 11, color: "var(--ink-3)", lineHeight: 1.45 }}>
+            La légende n&apos;apparaît pas sur une story : elle sert au contexte interne et à la republication.
+          </p>
+        )}
+      </div>
+    );
+  }
+
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 12, minWidth: 0 }}>
       <div style={{ display: "flex", alignItems: "center", gap: 6 }}>

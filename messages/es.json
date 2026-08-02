@@ -797,7 +797,8 @@
     "search": "Buscar",
     "lowercase": "Minúsculas",
     "uppercaseTitle": "Mayúsculas",
-    "weightTitle": "Grosor"
+    "weightTitle": "Grosor",
+    "storyOnePage": "Una story solo admite una página."
   },
   "composer": {
     "title": "Componer con IA",

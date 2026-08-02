@@ -797,7 +797,8 @@
     "search": "Rechercher",
     "lowercase": "Minuscules",
     "uppercaseTitle": "Majuscules",
-    "weightTitle": "Graisse"
+    "weightTitle": "Graisse",
+    "storyOnePage": "Une story ne contient qu'un plan de travail."
   },
   "composer": {
     "title": "Composer avec l’IA",

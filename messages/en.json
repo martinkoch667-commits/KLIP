@@ -797,7 +797,8 @@
     "search": "Search",
     "lowercase": "Lowercase",
     "uppercaseTitle": "Uppercase",
-    "weightTitle": "Weight"
+    "weightTitle": "Weight",
+    "storyOnePage": "A story holds a single page."
   },
   "composer": {
     "title": "Compose with AI",

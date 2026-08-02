@@ -797,7 +797,8 @@
     "search": "Suchen",
     "lowercase": "Kleinbuchstaben",
     "uppercaseTitle": "Großbuchstaben",
-    "weightTitle": "Schriftstärke"
+    "weightTitle": "Schriftstärke",
+    "storyOnePage": "Eine Story hat nur eine Seite."
   },
   "composer": {
     "title": "Mit KI erstellen",
