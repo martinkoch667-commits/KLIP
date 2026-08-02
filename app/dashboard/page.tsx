@@ -20,6 +20,7 @@ interface WorkspaceRow {
   name: string;
   instagram_account_id?: string | null;
   instagram_username?: string | null;
+  logo_url?: string | null;
 }
 
 interface PostRow {
@@ -484,62 +485,63 @@ function WorkspaceCard({ workspace, posts, color, index, onOpen }: {
   const initials = wsInitials(workspace.name);
 
   return (
-    <div className="card" style={{ overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
-      {/* Brand header */}
-      <div style={{ height: 72, background: color, position: 'relative', flexShrink: 0 }}>
-        <div style={{ position: 'absolute', top: 10, right: 10, display: 'flex', gap: 4 }}>
-          {[color, '#EEEDE3', '#14160F'].map((col, i) => (
-            <span key={i} style={{ width: 14, height: 14, borderRadius: '50%', background: col, boxShadow: '0 0 0 1.5px rgba(255,255,255,.45)' }} />
-          ))}
-        </div>
-      </div>
-      <div style={{ padding: '0 18px 18px', flex: 1, display: 'flex', flexDirection: 'column' }}>
-        {/* Avatar + name */}
-        <div style={{ display: 'flex', alignItems: 'flex-end', gap: 12, marginBottom: 14 }}>
-          <div style={{ width: 46, height: 46, borderRadius: 13, background: color, display: 'grid', placeItems: 'center', fontSize: 14, fontWeight: 800, color: '#fff', fontFamily: 'var(--mono)', flexShrink: 0, marginTop: -20, boxShadow: '0 0 0 3px var(--white)' }}>
-            {initials}
+    <div className="card card-hover" style={{ overflow: 'hidden', display: 'flex', flexDirection: 'column', cursor: 'pointer' }} onClick={onOpen}>
+      {/* Bandeau de marque, plus fin : il servait surtout à porter trois pastilles
+          de palette qui n'apprenaient rien. Il ne reste qu'un filet de couleur,
+          et la place va au contenu. */}
+      <div style={{ height: 6, background: color, flexShrink: 0 }} />
+
+      <div style={{ padding: 16, flex: 1, display: 'flex', flexDirection: 'column', gap: 14 }}>
+        {/* Identité : la photo de profil du compte quand on l'a, les initiales
+            sinon. Cerclée de leaf comme un avatar Instagram. */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <div style={{
+            width: 46, height: 46, borderRadius: '50%', flexShrink: 0, overflow: 'hidden',
+            display: 'grid', placeItems: 'center', background: color,
+            boxShadow: '0 0 0 2px var(--white), 0 0 0 4px var(--leaf)',
+          }}>
+            {workspace.logo_url
+              // eslint-disable-next-line @next/next/no-img-element
+              ? <img src={`/api/proxy-image?url=${encodeURIComponent(workspace.logo_url)}`} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+              : <span style={{ fontSize: 14, fontWeight: 800, color: '#fff', fontFamily: 'var(--mono)' }}>{initials}</span>}
           </div>
-          <div style={{ paddingBottom: 2, minWidth: 0 }}>
-            <div className="h-title" style={{ fontSize: 16 }} >{workspace.name}</div>
-            <div style={{ fontSize: 12, color: 'var(--ink-3)', fontWeight: 600 }}>
+          <div style={{ minWidth: 0, flex: 1 }}>
+            <div className="h-title" style={{ fontSize: 15.5, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{workspace.name}</div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, color: 'var(--ink-3)', fontWeight: 600 }}>
+              <span style={{ width: 6, height: 6, borderRadius: '50%', flexShrink: 0, background: workspace.instagram_username ? 'var(--mint-2)' : 'var(--line)' }} />
               {workspace.instagram_username ? `@${workspace.instagram_username}` : t('igNotConnected')}
             </div>
           </div>
         </div>
 
-        {/* Recent post thumbs */}
-        {recentWithImg.length > 0 && (
-          <div style={{ display: 'flex', gap: 6, marginBottom: 14 }}>
-            {recentWithImg.map(p => {
-              const src = p.exported_image_url || p.photo_url;
-              return (
-                <div key={p.id} style={{ flex: 1, aspectRatio: '4/5', borderRadius: 7, overflow: 'hidden', background: 'var(--sunk)' }}>
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={src!} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                </div>
-              );
-            })}
-            {Array.from({ length: 3 - recentWithImg.length }).map((_, i) => (
-              <div key={`empty-${i}`} style={{ flex: 1, aspectRatio: '4/5', borderRadius: 7, background: 'var(--sunk)' }} />
-            ))}
-          </div>
-        )}
+        {/* Derniers visuels — carrés, gouttière serrée : un extrait de feed,
+            pas trois vignettes posées là. */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 3, borderRadius: 10, overflow: 'hidden' }}>
+          {Array.from({ length: 3 }).map((_, i) => {
+            const p = recentWithImg[i];
+            const src = p ? (p.exported_image_url || p.photo_url) : null;
+            return (
+              <div key={p?.id ?? `empty-${i}`} style={{ aspectRatio: '1', background: 'var(--sunk)', overflow: 'hidden' }}>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                {src && <img src={src} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />}
+              </div>
+            );
+          })}
+        </div>
 
-        {/* Stats + action */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 14, paddingTop: 14, borderTop: '1px solid var(--line)', marginTop: 'auto' }}>
-          <div>
-            <span className="num" style={{ fontSize: 18 }}>{scheduled}</span>
-            <span style={{ fontSize: 12, color: 'var(--ink-3)', marginLeft: 4 }}>{t('scheduledShort')}</span>
-          </div>
+        {/* Chiffres + action */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 'auto' }}>
+          <span className="chip" style={{ background: 'var(--sunk)', color: 'var(--ink-2)' }}>
+            <b style={{ fontFamily: 'var(--mono)', fontWeight: 800, color: 'var(--ink)' }}>{scheduled}</b> {t('scheduledShort')}
+          </span>
           {pending > 0 && (
-            <div>
-              <span className="num" style={{ fontSize: 18, color: 'var(--warn)' }}>{pending}</span>
-              <span style={{ fontSize: 12, color: 'var(--ink-3)', marginLeft: 4 }}>{t('toValidateShort')}</span>
-            </div>
+            <span className="chip" style={{ background: 'var(--warn-soft)', color: 'var(--warn)' }}>
+              <b style={{ fontFamily: 'var(--mono)', fontWeight: 800 }}>{pending}</b> {t('toValidateShort')}
+            </span>
           )}
-          <button className="btn btn-sm btn-ghost" style={{ marginLeft: 'auto' }} onClick={onOpen}>
+          <span className="btn btn-sm btn-ghost" style={{ marginLeft: 'auto', pointerEvents: 'none' }}>
             {t('open')} <IconChevR />
-          </button>
+          </span>
         </div>
       </div>
     </div>
@@ -602,7 +604,7 @@ export default function Dashboard() {
         // Load workspaces first — critical for ClientSwitcher
         const { data: ws, error: wsErr } = await supabase
           .from('workspaces')
-          .select('id, name')
+          .select('id, name, instagram_username, logo_url')
           .order('created_at', { ascending: true });
         console.log('[Dashboard] workspaces query result:', { ws, wsErr });
         setWorkspaces(ws ?? []);
