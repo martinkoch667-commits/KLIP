@@ -412,7 +412,8 @@
     "statusDraft": "Rascunho",
     "scheduledShort": "agendados",
     "toValidateShort": "a validar",
-    "open": "Abrir"
+    "open": "Abrir",
+    "feedPreview": "Pré-visualização do feed"
   },
   "workspace": {
     "groupHint": "{count} ficheiros importados — posts separados ou uma única montagem?",
@@ -795,7 +796,8 @@
     "offsetLabel": "Deslocamento",
     "search": "Pesquisar",
     "lowercase": "Minúsculas",
-    "uppercaseTitle": "Maiúsculas"
+    "uppercaseTitle": "Maiúsculas",
+    "weightTitle": "Espessura"
   },
   "composer": {
     "title": "Compor com IA",

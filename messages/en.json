@@ -412,7 +412,8 @@
     "statusDraft": "Draft",
     "scheduledShort": "scheduled",
     "toValidateShort": "to approve",
-    "open": "Open"
+    "open": "Open",
+    "feedPreview": "Feed preview"
   },
   "workspace": {
     "groupHint": "{count} files imported — separate posts or a single montage?",
@@ -795,7 +796,8 @@
     "offsetLabel": "Offset",
     "search": "Search",
     "lowercase": "Lowercase",
-    "uppercaseTitle": "Uppercase"
+    "uppercaseTitle": "Uppercase",
+    "weightTitle": "Weight"
   },
   "composer": {
     "title": "Compose with AI",

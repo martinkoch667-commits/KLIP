@@ -412,7 +412,8 @@
     "statusDraft": "Entwurf",
     "scheduledShort": "geplant",
     "toValidateShort": "freizugeben",
-    "open": "Öffnen"
+    "open": "Öffnen",
+    "feedPreview": "Feed-Vorschau"
   },
   "workspace": {
     "groupHint": "{count} Dateien importiert – separate Posts oder eine einzige Montage?",
@@ -795,7 +796,8 @@
     "offsetLabel": "Versatz",
     "search": "Suchen",
     "lowercase": "Kleinbuchstaben",
-    "uppercaseTitle": "Großbuchstaben"
+    "uppercaseTitle": "Großbuchstaben",
+    "weightTitle": "Schriftstärke"
   },
   "composer": {
     "title": "Mit KI erstellen",

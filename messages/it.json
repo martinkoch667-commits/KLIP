@@ -412,7 +412,8 @@
     "statusDraft": "Bozza",
     "scheduledShort": "programmati",
     "toValidateShort": "da approvare",
-    "open": "Apri"
+    "open": "Apri",
+    "feedPreview": "Anteprima del feed"
   },
   "workspace": {
     "groupHint": "{count} file importati: post separati o un solo montaggio?",
@@ -795,7 +796,8 @@
     "offsetLabel": "Spostamento",
     "search": "Cerca",
     "lowercase": "Minuscolo",
-    "uppercaseTitle": "Maiuscolo"
+    "uppercaseTitle": "Maiuscolo",
+    "weightTitle": "Spessore"
   },
   "composer": {
     "title": "Componi con l’IA",

@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef, Suspense } from "react";
 import PostPreviewPane from "@/components/PostPreviewPane";
+import InstagramFeed from "@/components/InstagramFeed";
 import { useTranslations, useLocale } from "next-intl";
 import Link from "next/link";
 import { useParams, useSearchParams } from "next/navigation";
@@ -402,46 +403,16 @@ function FeedPreview({ posts, workspaceId, handle }: {
         </span>
       </button>
 
-      {open && (feedPosts.length === 0 ? (
-        <p style={{ fontSize: 11.5, color: "var(--ink-3)", margin: 0, lineHeight: 1.5 }}>
-          Programme des posts pour voir le feed du compte se construire ici.
-        </p>
-      ) : (
-        <>
-          {handle && (
-            <p style={{ fontSize: 11.5, color: "var(--ink-3)", margin: "0 0 8px", fontWeight: 600 }}>@{handle}</p>
-          )}
-          {/* Gouttière de 2px et vignettes 4:5 : le rendu actuel de la grille Instagram */}
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 2, borderRadius: 6, overflow: "hidden" }}>
-            {feedPosts.map(p => {
-              const urls = carouselUrlsOf(p);
-              const type = (p.post_type ?? "post") as PostType;
-              const isPublished = p.status === "published";
-              return (
-                <Link key={p.id} href={`/workspace/${workspaceId}/editor/${p.id}`}
-                  title={`${POST_TYPE_CFG[type]?.label ?? "Post"}${p.scheduled_at ? ` — ${new Date(p.scheduled_at).toLocaleDateString("fr-FR", { day: "numeric", month: "short" })}` : ""}`}
-                  style={{ position: "relative", aspectRatio: "4 / 5", background: "var(--sunk)", display: "block", overflow: "hidden" }}>
-                  <MediaThumb raw={urls[0]} style={{ opacity: isPublished ? 1 : 0.92 }} />
-                  {/* Les posts pas encore publiés se distinguent par un liseré */}
-                  {!isPublished && (
-                    <span style={{ position: "absolute", inset: 0, border: "1.5px solid var(--mint-2)", borderRadius: 2, pointerEvents: "none" }} />
-                  )}
-                  {(type === "reel" || type === "carrousel") && (
-                    <span style={{ position: "absolute", top: 4, right: 4, color: "#fff", filter: "drop-shadow(0 1px 2px rgba(0,0,0,.6))", display: "grid" }}>
-                      {type === "reel"
-                        ? <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 3l14 9-14 9V3Z"/></svg>
-                        : <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="8" y="3" width="13" height="13" rx="2"/><path d="M4 8v11a2 2 0 0 0 2 2h11"/></svg>}
-                    </span>
-                  )}
-                </Link>
-              );
-            })}
-          </div>
-          <p style={{ fontSize: 10.5, color: "var(--ink-3)", margin: "8px 0 0", lineHeight: 1.45 }}>
-            En pointillé : les posts à venir. Les stories n&apos;apparaissent pas dans la grille du profil.
-          </p>
-        </>
-      ))}
+      {open && (
+        <InstagramFeed
+          posts={posts}
+          account={{ instagram_username: handle }}
+          workspaceId={workspaceId}
+          limit={12}
+          compact
+          showHeader={false}
+        />
+      )}
     </div>
   );
 }

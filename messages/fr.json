@@ -412,7 +412,8 @@
     "statusDraft": "Brouillon",
     "scheduledShort": "planifiés",
     "toValidateShort": "à valider",
-    "open": "Ouvrir"
+    "open": "Ouvrir",
+    "feedPreview": "Aperçu du feed"
   },
   "workspace": {
     "groupHint": "{count} fichiers importés — en faire des posts séparés ou un seul montage ?",
@@ -795,7 +796,8 @@
     "offsetLabel": "Décalage",
     "search": "Rechercher",
     "lowercase": "Minuscules",
-    "uppercaseTitle": "Majuscules"
+    "uppercaseTitle": "Majuscules",
+    "weightTitle": "Graisse"
   },
   "composer": {
     "title": "Composer avec l’IA",

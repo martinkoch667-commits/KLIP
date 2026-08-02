@@ -12,6 +12,7 @@ import NotificationBell from '@/components/NotificationBell';
 import { ConnectClaudeModal } from '@/components/ConnectClaudeModal';
 import { Sticker } from '@/components/Stickers';
 import SelFrame from '@/components/SelFrame';
+import InstagramFeed from '@/components/InstagramFeed';
 
 // ─── Types ─────────────────────────────────────────────────────────────────
 
@@ -799,6 +800,26 @@ export default function Dashboard() {
                 {/* Activity feed below */}
                 <ActivityFeed activities={scopeActivities} workspaces={workspaces} />
               </>
+            )}
+
+            {/* Aperçu du feed — la grille du profil telle qu'elle sera publiée.
+                C'est le premier réflexe d'un CM : juger l'harmonie du compte,
+                pas lire une liste de vignettes. */}
+            {active !== 'all' && (
+              <div className="card" style={{ padding: 22, marginBottom: 14 }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 18 }}>
+                  <h2 className="h-title" style={{ fontSize: 17 }}>{t('feedPreview')}</h2>
+                  <Link href={`/workspace/${active}/planning`} className="btn btn-sm btn-ghost">
+                    {t('viewAll')} <IconChevR />
+                  </Link>
+                </div>
+                <InstagramFeed
+                  posts={posts.filter(p => p.workspace_id === active)}
+                  account={workspaces.find(w => w.id === active) ?? null}
+                  workspaceId={active}
+                  limit={12}
+                />
+              </div>
             )}
 
             {/* Single client: detailed grid */}

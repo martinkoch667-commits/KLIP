@@ -21,6 +21,7 @@ import SelectionOverlay from '@/components/SelectionOverlay';
 import Sidebar from '@/components/Sidebar';
 import { TEXT_TEMPLATES, TT_CATS, TT_REF_W, TextTemplateThumb, adaptTemplateToCharter, type BrandKit, type TextTemplate } from './textTemplates';
 import { LAYOUT_TEMPLATES, LAYOUT_CATS, LAYOUT_STYLES, LayoutThumb, adaptLayoutToCharter, type LayoutTemplate } from './layoutTemplates';
+import { googleFontHref, googleVariants, weightName } from '@/lib/fontWeights';
 import { registerFontFamily, weightLabel, type FontFamily } from '@/lib/fontFiles';
 import { STICKERS, STICKER_CATS, stickerDataUri, type Sticker } from './stickers';
 
@@ -1134,18 +1135,29 @@ function EditorContextToolbar({ sel, allFonts, brandFamilies, brandColors, stage
             famille de la charte importée avec plusieurs variantes. Konva accepte
             une graisse numérique dans fontStyle (« italic 700 » = CSS valide). */}
         {(() => {
-          const fam = brandFamilies?.find(f => f.family === textSel.fontFamily);
-          if (!fam || fam.variants.length < 2) return null;
-          const cur = textSel.fontStyle ?? 'normal';
+          // Police importée par le client d'abord, sinon les variantes réelles de
+          // la famille Google : dans les deux cas on ne propose que ce qui existe.
+          const brand = brandFamilies?.find(f => f.family === textSel.fontFamily);
+          const variants = brand && brand.variants.length > 1
+            ? brand.variants.map(v => ({ weight: v.weight, italic: v.italic }))
+            : googleVariants(textSel.fontFamily);
+          if (variants.length < 2) return null;
+          // Les anciens calques portent « bold »/« normal » : on les fait
+          // correspondre à 700/400 pour que le menu s'ouvre sur la bonne ligne.
+          const raw = textSel.fontStyle ?? 'normal';
+          const italic = raw.includes('italic');
+          const numeric = raw.match(/\d{3}/)?.[0];
+          const weight = numeric ? Number(numeric) : (raw.includes('bold') ? 700 : 400);
+          const cur = `${italic ? 'italic ' : ''}${weight}`;
           return (
             <select
-              value={cur}
+              value={variants.some(v => `${v.italic ? 'italic ' : ''}${v.weight}` === cur) ? cur : `${weight}`}
               onChange={e => u({ fontStyle: e.target.value } as Partial<TextEl>)}
-              title="Graisse de la famille"
-              style={{ height: 32, borderRadius: 8, border: '1px solid var(--line)', background: 'var(--white)', color: 'var(--ink)', fontSize: 12, fontWeight: 700, fontFamily: 'var(--sans)', padding: '0 8px', cursor: 'pointer', maxWidth: 130 }}>
-              {fam.variants.map(v => {
+              title={T('weightTitle')}
+              style={{ height: 32, borderRadius: 8, border: '1px solid var(--line)', background: 'var(--white)', color: 'var(--ink)', fontSize: 12, fontWeight: 700, fontFamily: 'var(--sans)', padding: '0 8px', cursor: 'pointer', maxWidth: 150 }}>
+              {variants.map(v => {
                 const val = `${v.italic ? 'italic ' : ''}${v.weight}`;
-                return <option key={val} value={val}>{weightLabel(v.weight, v.italic)}</option>;
+                return <option key={val} value={val}>{weightName(v.weight)}{v.italic ? ' Italic' : ''}</option>;
               })}
             </select>
           );
@@ -2564,12 +2576,12 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
   // ── Load fonts ────────────────────────────────────────────────────────────
 
   useEffect(() => {
-    const fontsToLoad = ['Anton', 'Oswald', 'Bebas+Neue', 'Montserrat', 'Syne', 'Inter', 'Poppins',
-      'Barlow+Condensed', 'Raleway', 'Roboto+Condensed', 'Playfair+Display', 'Lato', 'Nunito',
-      'Work+Sans', 'DM+Sans', 'Space+Grotesk', 'Archivo+Black', 'Fjalla+One', 'Exo+2', 'Ubuntu'];
-    fontsToLoad.forEach(font => {
+    // Chaque famille est chargée avec SES graisses (et ses italiques) : demander
+    // 400/700/900 partout privait Oswald de son Light et faisait rendre les
+    // autres graisses en faux gras synthétique.
+    FONTS.forEach(family => {
       const link = document.createElement('link');
-      link.href = `https://fonts.googleapis.com/css2?family=${font}:wght@400;700;900&display=swap`;
+      link.href = googleFontHref(family);
       link.rel = 'stylesheet';
       document.head.appendChild(link);
     });

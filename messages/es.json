@@ -412,7 +412,8 @@
     "statusDraft": "Borrador",
     "scheduledShort": "programados",
     "toValidateShort": "por validar",
-    "open": "Abrir"
+    "open": "Abrir",
+    "feedPreview": "Vista del feed"
   },
   "workspace": {
     "groupHint": "{count} archivos importados: ¿publicaciones separadas o un solo montaje?",
@@ -795,7 +796,8 @@
     "offsetLabel": "Desplazamiento",
     "search": "Buscar",
     "lowercase": "Minúsculas",
-    "uppercaseTitle": "Mayúsculas"
+    "uppercaseTitle": "Mayúsculas",
+    "weightTitle": "Grosor"
   },
   "composer": {
     "title": "Componer con IA",
