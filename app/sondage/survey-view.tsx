@@ -83,8 +83,8 @@ export default function SurveyView({ initialEmail = '' }: { initialEmail?: strin
           <div style={S.badge}>Reçu 5/5</div>
           <h1 style={S.h1}>Merci, c’est noté.</h1>
           <p style={S.lead}>
-            Vos réponses arrivent directement chez moi et vont peser sur ce que je code les prochaines
-            semaines. Je vous écris à l’ouverture — avant tout le monde.
+            Vos réponses arrivent directement chez moi et je les lis toutes. Je vous écris à
+            l’ouverture — avant tout le monde.
           </p>
           <a className="btn btn-primary" href="/acces-anticipe" style={{ marginTop: 22 }}>
             Revoir Klip
@@ -98,10 +98,11 @@ export default function SurveyView({ initialEmail = '' }: { initialEmail?: strin
     <main style={S.page}>
       <form className="card" style={S.card} onSubmit={submit}>
         <div style={S.badge}>2 minutes · 5 questions</div>
-        <h1 style={S.h1}>Aidez-moi à construire le bon outil</h1>
+        <h1 style={S.h1}>Dites-moi qui vous êtes</h1>
         <p style={S.lead}>
-          Vous faites partie des tout premiers inscrits sur Klip. Vos réponses décident très
-          concrètement de ce que je développe d’ici l’ouverture.
+          Vous faites partie des tout premiers inscrits sur Klip, et l’ouverture approche. J’aimerais
+          savoir ce que vous gérez au quotidien et ce qui vous a donné envie de vous inscrire — pour
+          vous accompagner correctement au démarrage.
         </p>
 
         <Field label="Votre email" hint="Pour relier votre réponse à votre inscription.">
@@ -149,12 +150,12 @@ export default function SurveyView({ initialEmail = '' }: { initialEmail?: strin
           />
         </Field>
 
-        <Field label="5. Si Klip pouvait vous enlever UNE galère, laquelle ?" hint="La réponse qui m’est la plus utile. Écrivez comme ça vient.">
+        <Field label="5. Qu’est-ce qui vous a donné envie de vous inscrire à Klip ?" hint="La réponse qui m’est la plus utile. Écrivez comme ça vient.">
           <textarea
             value={wish}
             onChange={e => setWish(e.target.value)}
             rows={4}
-            placeholder="Les allers-retours de validation avec les clients me tuent…"
+            placeholder="Les allers-retours de validation avec les clients me tuent, et je cherchais un truc qui centralise…"
             style={{ ...S.input, resize: 'vertical', lineHeight: 1.6, padding: '12px 14px' }}
           />
         </Field>
