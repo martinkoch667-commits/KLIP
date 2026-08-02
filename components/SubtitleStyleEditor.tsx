@@ -132,6 +132,20 @@ export default function SubtitleStyleEditor({
     'Playfair Display', 'Poppins', 'Raleway', 'Roboto Condensed', 'Space Grotesk',
     'Syne', 'Ubuntu', 'Work Sans',
   ];
+  // Valeurs RÉELLES utilisées par les styles de base "Magazine"/"Vintage" et
+  // "Terminal" (cf. SUB_STYLES) — doivent être IDENTIQUES aux valeurs des
+  // <option> ci-dessous, sinon le <select> ne trouve aucune correspondance et
+  // s'affiche vide (aucune option sélectionnée) alors qu'une police est bien
+  // appliquée.
+  const SERIF_FONT = "'Instrument Serif', serif";
+  const MONO_FONT = "var(--mono)";
+  const KNOWN_FONT_VALUES = new Set([brandFont || "", "", SERIF_FONT, MONO_FONT, ...FONT_LIST]);
+  // Filet de sécurité : une police de marque personnalisée (import externe) ou
+  // tout autre réglage déjà enregistré peut ne correspondre à aucune des
+  // options ci-dessus — sans repli, le <select> se retrouve sans option
+  // sélectionnée et paraît vide côté client.
+  const currentFont = e.font ?? "";
+  const unknownFont = currentFont && !KNOWN_FONT_VALUES.has(currentFont) ? currentFont : null;
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
@@ -148,9 +162,10 @@ export default function SubtitleStyleEditor({
             style={{ height: 34, fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: e.font || undefined }}
           >
             {brandFont && <option value={brandFont}>{L.brandFont} — {brandFont}</option>}
+            {unknownFont && <option value={unknownFont}>{unknownFont}</option>}
             <option value="">{L.system}</option>
-            <option value="Georgia">{L.serif}</option>
-            <option value="ui-monospace">{L.mono}</option>
+            <option value={SERIF_FONT}>{L.serif}</option>
+            <option value={MONO_FONT}>{L.mono}</option>
             {FONT_LIST.filter(f => f !== brandFont).map(f => <option key={f} value={f}>{f}</option>)}
           </select>
         </div>
@@ -341,8 +356,13 @@ const TEST_SCENES = [
 
 const DEMO_PHRASE = "Voilà à quoi ressemblent vos sous-titres";
 
+// Longueur de bloc par défaut si aucune n'est fournie — cohérent avec
+// DEFAULT_WORDS_PER_CAPTION (constants.ts), sans dépendre de ce module.
+const DEFAULT_PREVIEW_MAX_WORDS = 4;
+
 export function SubtitlePreviewStage({
   styleId, custom, pos, onPosChange, fontSize = 14, phrase = DEMO_PHRASE, hint,
+  maxWords = DEFAULT_PREVIEW_MAX_WORDS, editableTextLabel, onScaleChange,
 }: {
   styleId: string;
   custom?: SubCustom;
@@ -351,6 +371,14 @@ export function SubtitlePreviewStage({
   fontSize?: number;
   phrase?: string;
   hint?: string;
+  // Glisser directement le coin du sous-titre pour changer sa taille (en plus
+  // du curseur TAILLE du panneau). Absent → pas de poignée affichée.
+  onScaleChange?: (scale: number) => void;
+  // Mots max par bloc (façon montage réel) : le texte se réaffiche par blocs
+  // de cette taille plutôt qu'en une seule phrase figée. Passer un grand
+  // nombre (ex. 99, "Phrase") pour tout afficher d'un bloc.
+  maxWords?: number;
+  editableTextLabel?: string;
 }) {
   const stageRef = React.useRef<HTMLDivElement>(null);
   const [scene, setScene] = React.useState(0);
@@ -366,8 +394,23 @@ export function SubtitlePreviewStage({
   const [progress, setProgress] = React.useState(0);
   const rafRef = React.useRef<number | null>(null);
 
-  const words = React.useMemo(() => phrase.split(/\s+/).filter(Boolean), [phrase]);
+  // Texte modifiable : on part de `phrase` mais l'utilisateur peut le remplacer
+  // par son propre exemple, pour juger le rendu sur SON texte plutôt que sur
+  // une démo figée.
+  const [customPhrase, setCustomPhrase] = React.useState(phrase);
+  const words = React.useMemo(() => customPhrase.split(/\s+/).filter(Boolean), [customPhrase]);
   const DURATION = 2600; // ms — cadence proche d'un bloc de sous-titre réel
+
+  // Redécoupage en blocs de `maxWords` mots — EXACTEMENT comme segmentCaptions()
+  // appliqué à un vrai montage : le sous-titre s'affiche bloc par bloc, pas en
+  // une phrase entière figée, pour montrer fidèlement combien de mots
+  // apparaissent à l'écran à la fois.
+  const step = Math.max(1, Math.floor(maxWords));
+  const chunks = React.useMemo(() => {
+    const out: string[][] = [];
+    for (let i = 0; i < words.length; i += step) out.push(words.slice(i, i + step));
+    return out.length ? out : [[]];
+  }, [words, step]);
 
   // Charge la scène demandée si on ne l'a pas déjà. Une seule requête à la fois.
   React.useEffect(() => {
@@ -441,10 +484,53 @@ export function SubtitlePreviewStage({
     window.addEventListener("pointerup", onUp);
   }
 
+  // Poignée de coin : redimensionne en direct sur l'aperçu, au lieu de forcer
+  // un aller-retour vers le curseur TAILLE du panneau. Le facteur d'échelle
+  // suit le ratio distance-au-point-d'ancrage courante / distance de départ.
+  const eff = effectiveSubStyle(styleId, custom);
+  const [chipSize, setChipSize] = React.useState({ w: 0, h: 0 });
+  const chipWrapRef = React.useCallback((el: HTMLDivElement | null) => {
+    if (!el) return;
+    const ro = new ResizeObserver((entries) => {
+      const r = entries[0]?.contentRect;
+      if (r) setChipSize({ w: r.width, h: r.height });
+    });
+    ro.observe(el);
+  }, []);
+
+  function onResizeStart(ev: React.PointerEvent) {
+    ev.preventDefault();
+    ev.stopPropagation();
+    const box = stageRef.current;
+    if (!box || !onScaleChange) return;
+    (ev.currentTarget as HTMLElement).setPointerCapture?.(ev.pointerId);
+    const r = box.getBoundingClientRect();
+    const anchorX = r.left + (pos.x / 100) * r.width;
+    const anchorY = r.top + (pos.y / 100) * r.height;
+    const d0 = Math.max(1, Math.hypot(ev.clientX - anchorX, ev.clientY - anchorY));
+    const scale0 = eff.scale;
+    const move = (clientX: number, clientY: number) => {
+      const d1 = Math.max(1, Math.hypot(clientX - anchorX, clientY - anchorY));
+      onScaleChange(Math.max(0.5, Math.min(2.4, +(scale0 * (d1 / d0)).toFixed(3))));
+    };
+    const onMove = (e: PointerEvent) => move(e.clientX, e.clientY);
+    const onUp = () => { window.removeEventListener("pointermove", onMove); window.removeEventListener("pointerup", onUp); };
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onUp);
+  }
+
   const sceneList = pool[scene];
   const bg = ownFrame ?? (sceneList.length ? sceneList[pick[scene] % sceneList.length] : null);
-  const activeIdx = playing || progress > 0
-    ? Math.min(words.length - 1, Math.floor(progress * words.length))
+
+  // Progression globale répartie sur les BLOCS (pas sur les mots de toute la
+  // phrase) : chaque bloc s'affiche à son tour, exactement comme au montage.
+  const animating = playing || progress > 0;
+  const chunkFloat = animating ? Math.min(chunks.length - 1e-6, progress * chunks.length) : 0;
+  const activeChunk = Math.min(chunks.length - 1, Math.floor(chunkFloat));
+  const chunkWords = chunks[activeChunk] ?? [];
+  const chunkProgress = animating ? chunkFloat - activeChunk : 0;
+  const activeIdx = animating
+    ? Math.min(chunkWords.length - 1, Math.floor(chunkProgress * chunkWords.length))
     : -1;
 
   return (
@@ -472,12 +558,28 @@ export function SubtitlePreviewStage({
         )}
         <div style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: "34%", background: "linear-gradient(to top, rgba(0,0,0,.45), transparent)" }} />
 
-        <div style={{ position: "absolute", left: pos.x + "%", top: pos.y + "%", transform: "translate(-50%,-50%)", maxWidth: "88%", textAlign: "center", pointerEvents: "none" }}>
+        <div ref={chipWrapRef} style={{ position: "absolute", left: pos.x + "%", top: pos.y + "%", transform: "translate(-50%,-50%)", maxWidth: "88%", textAlign: "center", pointerEvents: "none" }}>
           <SubtitlePreviewChip
             styleId={styleId} custom={custom} fontSize={fontSize}
-            words={words} activeIdx={activeIdx} progress={progress}
+            words={chunkWords} activeIdx={activeIdx} progress={chunkProgress}
           />
         </div>
+
+        {onScaleChange && chipSize.w > 0 && (
+          <div
+            onPointerDown={onResizeStart}
+            title="Glisser pour changer la taille"
+            style={{
+              position: "absolute",
+              left: `calc(${pos.x}% + ${chipSize.w / 2}px)`,
+              top: `calc(${pos.y}% + ${chipSize.h / 2}px)`,
+              transform: "translate(-50%,-50%)",
+              width: 20, height: 20, borderRadius: 99, cursor: "nwse-resize",
+              background: "rgba(12,42,29,.88)", boxShadow: "0 0 0 2px #EEEDE3",
+              zIndex: 4, touchAction: "none",
+            }}
+          />
+        )}
 
         <div style={{ position: "absolute", right: 8, bottom: 8, zIndex: 3, display: "flex", gap: 6 }}>
           {!ownFrame && sceneList.length > 1 && (
@@ -530,6 +632,17 @@ export function SubtitlePreviewStage({
             if (f) setOwnFrame(URL.createObjectURL(f));
           }} />
       </div>
+
+      {/* Texte d'exemple modifiable : on juge le rendu sur SON propre texte,
+          plutôt que sur une phrase de démo imposée. */}
+      <input
+        type="text"
+        value={customPhrase}
+        onChange={(e) => setCustomPhrase(e.target.value)}
+        placeholder={editableTextLabel}
+        className="input"
+        style={{ marginTop: 8, height: 32, fontSize: 12.5 }}
+      />
 
       {hint && <p style={{ fontSize: 11.5, color: "var(--ink-3)", margin: "8px 0 0", lineHeight: 1.4 }}>{hint}</p>}
     </div>

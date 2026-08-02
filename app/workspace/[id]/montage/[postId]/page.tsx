@@ -204,17 +204,19 @@ function peaksFromSamples(samples: Float32Array): number[] {
 function charterSubDefault(ws: {
   accent_color?: string | null; subtitle_style_id?: string | null;
   subtitle_custom?: SubCustom | null; subtitle_pos?: { x: number; y: number } | null;
-} | null | undefined): { styleId: string; custom: SubCustom; pos: { x: number; y: number } | null } | null {
+  subtitle_max_words?: number | null;
+} | null | undefined): { styleId: string; custom: SubCustom; pos: { x: number; y: number } | null; maxWords: number | null } | null {
   const acc = ws?.accent_color;
   const hasStyle = SUB_STYLES.some((s) => s.id === ws?.subtitle_style_id);
   const custom = ws?.subtitle_custom && typeof ws.subtitle_custom === "object" ? ws.subtitle_custom : null;
   const p = ws?.subtitle_pos;
   const pos = p && typeof p === "object" && typeof p.x === "number" && typeof p.y === "number" ? { x: p.x, y: p.y } : null;
+  const maxWords = typeof ws?.subtitle_max_words === "number" ? ws.subtitle_max_words : null;
   // Rien de configuré ET pas de couleur d'accent exploitable → on laisse le défaut du montage.
-  if (!hasStyle && !custom && !pos && (!acc || !/^#([0-9a-fA-F]{3,8})$/.test(acc))) return null;
+  if (!hasStyle && !custom && !pos && !maxWords && (!acc || !/^#([0-9a-fA-F]{3,8})$/.test(acc))) return null;
   const styleId = hasStyle ? (ws!.subtitle_style_id as string) : "bold-white";
   // Le template du client prime ; à défaut, on surligne simplement à la couleur d'accent.
-  return { styleId, custom: custom ?? { hi: acc as string }, pos };
+  return { styleId, custom: custom ?? { hi: acc as string }, pos, maxWords };
 }
 
 // Positions sur la timeline d'une liste de plans. Fonction PURE : les étapes du
@@ -631,11 +633,11 @@ export default function MontagePage() {
     (async () => {
       const [{ data: post }, wsRes] = await Promise.all([
         supabase.from("posts").select("montage_json, brief, photo_url").eq("id", postId).single(),
-        supabase.from("workspaces").select("logo_url, accent_color, subtitle_style_id, subtitle_custom, subtitle_pos").eq("id", workspaceId).single(),
+        supabase.from("workspaces").select("logo_url, accent_color, subtitle_style_id, subtitle_custom, subtitle_pos, subtitle_max_words").eq("id", workspaceId).single(),
       ]);
-      // Tolérant : si subtitle_style_id n'est pas encore migré, on relit sans la colonne.
+      // Tolérant : si une colonne subtitle_* n'est pas encore migrée, on relit sans elles.
       let ws = wsRes.data;
-      if (wsRes.error && /subtitle_(style_id|custom|pos)/.test(wsRes.error.message || "")) {
+      if (wsRes.error && /subtitle_(style_id|custom|pos|max_words)/.test(wsRes.error.message || "")) {
         ws = (await supabase.from("workspaces").select("logo_url, accent_color").eq("id", workspaceId).single()).data as typeof ws;
       }
       if (post?.brief) setProjectName(post.brief);
@@ -649,7 +651,7 @@ export default function MontagePage() {
         // Montage jamais personnalisé côté sous-titres → on applique le style de la charte.
         const subUntouched = !proj.subStyleId && (!proj.subCustom || Object.keys(proj.subCustom).length === 0);
         setSubStyleId(subUntouched && charterSub ? charterSub.styleId : (proj.subStyleId || SUB_STYLES[0].id));
-        setSubMaxWords(proj.subMaxWords || DEFAULT_WORDS_PER_CAPTION);
+        setSubMaxWords(proj.subMaxWords || (subUntouched ? charterSub?.maxWords : null) || DEFAULT_WORDS_PER_CAPTION);
         setSubPos(proj.subPos || (subUntouched ? charterSub?.pos : null) || DEFAULT_SUB_POS);
         setSubCustom(subUntouched && charterSub ? charterSub.custom : (proj.subCustom || {}));
         setLinkedSubs(proj.linkedSubs ?? true);
@@ -666,10 +668,11 @@ export default function MontagePage() {
       } else if (post?.photo_url) {
         const dur = await getVideoDuration(post.photo_url);
         setClips([{ id: crypto.randomUUID(), kind: "video", name: t('initialImportName'), src: post.photo_url, srcDur: dur, trimStart: 0, trimEnd: dur, ...newClipDefaults() }]);
-        if (charterSub) { setSubStyleId(charterSub.styleId); setSubCustom(charterSub.custom); if (charterSub.pos) setSubPos(charterSub.pos); }
+        if (charterSub) { setSubStyleId(charterSub.styleId); setSubCustom(charterSub.custom); if (charterSub.pos) setSubPos(charterSub.pos); if (charterSub.maxWords) setSubMaxWords(charterSub.maxWords); }
       } else if (charterSub) {
         setSubStyleId(charterSub.styleId); setSubCustom(charterSub.custom);
         if (charterSub.pos) setSubPos(charterSub.pos);
+        if (charterSub.maxWords) setSubMaxWords(charterSub.maxWords);
       }
       setLoading(false);
     })();

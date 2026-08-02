@@ -7,7 +7,7 @@ import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
 import Sidebar from "@/components/Sidebar";
 import ColorPicker from "@/components/ColorPicker";
 import {
-  effectiveSubStyle, charterSubPresets, DEFAULT_SUB_POS, type SubCustom,
+  effectiveSubStyle, charterSubPresets, DEFAULT_SUB_POS, SUB_LENGTHS, DEFAULT_WORDS_PER_CAPTION, type SubCustom,
 } from "@/app/workspace/[id]/montage/[postId]/constants";
 import BrandStage from "@/components/BrandStage";
 import SubtitleStyleEditor, { SubtitlePreviewChip, SubtitlePreviewStage } from "@/components/SubtitleStyleEditor";
@@ -203,6 +203,10 @@ export default function NewWorkspacePage() {
   const [subtitleCustom, setSubtitleCustom] = useState<SubCustom>({});
   const [subPresetId, setSubPresetId] = useState<string | null>("charte"); // preset charte actif
   const [subAdvanced, setSubAdvanced] = useState(false); // panneau de personnalisation ouvert
+  // Mots max par bloc de sous-titre — même réglage que l'éditeur de montage
+  // (SUB_LENGTHS), pour que l'aperçu montre fidèlement comment le texte
+  // s'affichera réellement (par blocs, pas en une phrase entière figée).
+  const [subMaxWords, setSubMaxWords] = useState(DEFAULT_WORDS_PER_CAPTION);
   // Position des sous-titres dans le cadre (%), réglée au doigt sur l'aperçu vidéo.
   const [subPos, setSubPos] = useState<{ x: number; y: number }>(DEFAULT_SUB_POS);
   const logoRef = useRef<HTMLInputElement>(null);
@@ -263,6 +267,10 @@ export default function NewWorkspacePage() {
 
   // Libellés de l'éditeur de sous-titres (partagé avec l'éditeur de montage).
   const tse = useTranslations('subtitleEditor');
+  // Libellés « longueur des sous-titres » — réutilise les traductions déjà
+  // faites pour l'éditeur de montage (mêmes 6 langues), pas de doublon à créer.
+  const tc = useTranslations('montageConstants');
+  const SUB_LENGTH_KEY: Record<number, string> = { 1: "one", 2: "two", 3: "three", 4: "four", 6: "six", 99: "sentence" };
   const subEditorLabels = useMemo(() => ({
     basic: tse('basic'), font: tse('font'), brandFont: tse('brandFont'), system: tse('system'),
     serif: tse('serif'), mono: tse('mono'), size: tse('size'), style: tse('style'), case: tse('case'),
@@ -469,6 +477,7 @@ export default function NewWorkspacePage() {
           subtitle_style_id: subtitleStyleId,
           subtitle_custom: subtitleCustom,
           subtitle_pos: subPos,
+          subtitle_max_words: subMaxWords,
           logo_url: logoUrl,
           logo_dark_url: logoDarkUrl,
           brand_assets: assetUrls,
@@ -1321,6 +1330,9 @@ export default function NewWorkspacePage() {
                           custom={subtitleCustom}
                           pos={subPos}
                           onPosChange={setSubPos}
+                          onScaleChange={(scale) => { setSubPresetId(null); setSubtitleCustom((c) => ({ ...c, scale })); }}
+                          maxWords={subMaxWords}
+                          editableTextLabel={t('subTextPlaceholder')}
                           fontSize={14}
                         />
                         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, marginTop: 8 }}>
@@ -1328,6 +1340,22 @@ export default function NewWorkspacePage() {
                           <button type="button" onClick={() => setSubPos(DEFAULT_SUB_POS)} className="btn btn-ghost btn-sm" style={{ flexShrink: 0, fontSize: 11 }}>
                             {t('subPosReset')}
                           </button>
+                        </div>
+
+                        {/* Longueur des sous-titres — combien de mots apparaissent à la
+                            fois, exactement comme dans l'éditeur de montage. */}
+                        <div style={{ marginTop: 14 }}>
+                          <span style={{ ...labelStyle, marginBottom: 6 }}>{t('subLengthLabel')}</span>
+                          <p style={{ fontSize: 11, color: "var(--ink-3)", margin: "0 0 8px" }}>{t('subLengthHint')}</p>
+                          <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
+                            {SUB_LENGTHS.map((l) => (
+                              <button type="button" key={l.words} onClick={() => setSubMaxWords(l.words)}
+                                className={subMaxWords === l.words ? "btn btn-primary btn-sm" : "btn btn-ghost btn-sm"}
+                                style={{ fontSize: 11, padding: "4px 9px" }}>
+                                {tc(`subLength.${SUB_LENGTH_KEY[l.words] ?? "four"}`)}
+                              </button>
+                            ))}
+                          </div>
                         </div>
                       </div>
 
