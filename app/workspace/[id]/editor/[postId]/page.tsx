@@ -91,6 +91,13 @@ interface StarEl extends BaseEl { type: 'star'; numPoints: number; innerRadius: 
 interface AnchorPoint { x: number; y: number; cpIn?: { x: number; y: number }; cpOut?: { x: number; y: number }; }
 interface VectorEl extends BaseEl { type: 'vector'; shape: 'rectangle'|'circle'|'triangle'|'star'|'pill'|'arrow'|'diamond'|'hexagon'|'custom'; width: number; height: number; fill: string; fillType?: 'color'|'none'|'image'|'gradient'; fillTo?: string; fillAngle?: number; stroke: string; strokeWidth: number; points?: AnchorPoint[]; closed?: boolean; imageSrc?: string; imageOffsetX?: number; imageOffsetY?: number; }
 interface ImageEl extends BaseEl { type: 'image'; src: string; width: number; height: number; cropX?: number; cropY?: number; naturalW?: number; naturalH?: number;
+  // Zoom de l'image DANS son cadre, figé indépendamment de la taille du cadre —
+  // sans lui, redimensionner via une seule poignée (haut/bas notamment) faisait
+  // « zoomer » l'image au lieu de simplement révéler/masquer du cadre, puisque
+  // l'échelle « cover » se recalculait à chaque frame à partir de la largeur ET
+  // de la hauteur courantes. Absent (images déjà existantes) → calculé et figé
+  // au premier redimensionnement (cf. ImgNode/SelectionOverlay).
+  imgScale?: number;
   // Ajustements colorimétriques (chacun -100..100, 0 = neutre ; flou 0..100)
   adjBrightness?: number; adjContrast?: number; adjSaturation?: number; adjWarmth?: number; adjTint?: number; adjBlur?: number; }
 type CanvasEl = TextEl | RectEl | CircleEl | StarEl | VectorEl | ImageEl;
@@ -447,10 +454,13 @@ function ImgNode({ el, onSelect, onChange, onDragStart, onDragMove, onDragEnd, i
   const imgRef = useRef<Konva.Image>(null);
   const hasAdj = imageHasAdjustments(el);
 
-  // Store natural dimensions once the image is loaded
+  // Store natural dimensions once the image is loaded, et fige le zoom initial
+  // (imgScale) une bonne fois pour toutes — c'est cette valeur, pas le cadre en
+  // cours de redimensionnement, qui pilote l'échelle de l'image (cf. plus bas).
   useEffect(() => {
     if (img && img.naturalWidth > 0 && !el.naturalW) {
-      onChange({ naturalW: img.naturalWidth, naturalH: img.naturalHeight });
+      const initScale = Math.max(el.width / img.naturalWidth, el.height / img.naturalHeight);
+      onChange({ naturalW: img.naturalWidth, naturalH: img.naturalHeight, imgScale: el.imgScale ?? initScale });
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [img]);
@@ -473,7 +483,17 @@ function ImgNode({ el, onSelect, onChange, onDragStart, onDragMove, onDragEnd, i
   const natH = el.naturalH ?? (img?.naturalHeight || el.height);
   const frameW = el.width;
   const frameH = el.height;
-  const scale = Math.max(frameW / natW, frameH / natH);
+  // C'est imgScale (figé au chargement) qui décide, PAS la taille courante du
+  // cadre : sinon toucher une seule poignée (ex. haut/bas) fait « zoomer »
+  // l'image entière au lieu de simplement révéler/masquer plus de cadre —
+  // exactement le bug remonté : les poignées horizontales semblaient bien
+  // « croper » (l'axe dominant n'a jamais de marge à révéler, donc rien n'y
+  // trahissait le souci) tandis que les verticales changeaient visiblement la
+  // taille de l'image. Pas de plancher « couverture minimale » : un cadre
+  // agrandi au-delà de ce que l'image peut couvrir au zoom figé laisse
+  // apparaître du vide — c'est le comportement attendu d'un recadrage (Canva
+  // fait pareil), pas une régression à masquer en zoomant malgré soi.
+  const scale = el.imgScale ?? Math.max(frameW / natW, frameH / natH);
   const scaledW = natW * scale;
   const scaledH = natH * scale;
   const cropX = el.cropX ?? (frameW - scaledW) / 2;
@@ -506,8 +526,15 @@ function ImgNode({ el, onSelect, onChange, onDragStart, onDragMove, onDragEnd, i
         blurRadius={el.adjBlur || 0}
         draggable={isCropping}
         onDragMove={isCropping ? (e => {
-          const nx = Math.min(0, Math.max(frameW - scaledW, e.target.x()));
-          const ny = Math.min(0, Math.max(frameH - scaledH, e.target.y()));
+          // Bornes symétriques : avec un zoom figé (imgScale), l'image peut
+          // désormais être plus PETITE que son cadre (cadre agrandi au-delà de
+          // ce qu'elle couvre) — le clamp supposait jusqu'ici l'inverse
+          // (frameW-scaledW toujours ≤ 0), ce qui bloquait tout déplacement
+          // dans ce cas.
+          const loX = Math.min(0, frameW - scaledW), hiX = Math.max(0, frameW - scaledW);
+          const loY = Math.min(0, frameH - scaledH), hiY = Math.max(0, frameH - scaledH);
+          const nx = Math.min(hiX, Math.max(loX, e.target.x()));
+          const ny = Math.min(hiY, Math.max(loY, e.target.y()));
           e.target.x(nx); e.target.y(ny);
         }) : undefined}
         onDragEnd={isCropping ? (e => {
@@ -3771,7 +3798,11 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
       const { error } = await supabase.storage.from('photos').upload(path, outBlob, { upsert: true, contentType: 'image/png' });
       if (error) { showEditorToast(T('uploadFailed', { msg: error.message })); return; }
       const { data: urlData } = supabase.storage.from('photos').getPublicUrl(path);
-      updateEl(el.id, { src: urlData.publicUrl, naturalW: undefined, naturalH: undefined, cropX: undefined, cropY: undefined } as Partial<ImageEl>);
+      // Le détouré a généralement un cadrage différent de la photo d'origine
+      // (recentré sur le sujet) : le zoom figé de l'ancienne photo (imgScale)
+      // ne doit pas lui être réappliqué, sinon le nouveau visuel apparaît
+      // arbitrairement zoomé. Repart à zéro, recalculé au premier rendu.
+      updateEl(el.id, { src: urlData.publicUrl, naturalW: undefined, naturalH: undefined, cropX: undefined, cropY: undefined, imgScale: undefined } as Partial<ImageEl>);
       showEditorToast(T('bgRemoved'));
     } catch (e) {
       showEditorToast(T('cutoutFailed', { msg: e instanceof Error ? e.message : T('cutoutError') }));
