@@ -12,7 +12,6 @@ import NotificationBell from '@/components/NotificationBell';
 import { ConnectClaudeModal } from '@/components/ConnectClaudeModal';
 import { Sticker } from '@/components/Stickers';
 import SelFrame from '@/components/SelFrame';
-import InstagramFeed from '@/components/InstagramFeed';
 
 // ─── Types ─────────────────────────────────────────────────────────────────
 
@@ -169,7 +168,7 @@ function fmtCount(n?: number) {
   return String(n);
 }
 
-function InstagramProfile({ workspaceId }: { workspaceId: string }) {
+function InstagramProfile({ workspaceId, upcoming = [] }: { workspaceId: string; upcoming?: PostRow[] }) {
   const t = useTranslations('dashboard');
   const [wsInfo, setWsInfo] = useState<{ name: string; connected: boolean; instagram_username?: string } | null>(null);
   const [profile, setProfile] = useState<IGProfile | null>(null);
@@ -229,6 +228,9 @@ function InstagramProfile({ workspaceId }: { workspaceId: string }) {
 
   return (
     <div className="card" style={{ overflow: 'hidden' }}>
+      <div style={{ padding: '14px 16px 0' }}>
+        <span className="label">{t('feedPreview')}</span>
+      </div>
       {/* Header */}
       <div style={{ padding: '14px 16px 12px' }}>
         {/* Handle + badge */}
@@ -293,10 +295,26 @@ function InstagramProfile({ workspaceId }: { workspaceId: string }) {
 
       {/* Grid / placeholder */}
       {tab === 0 ? (
-        media.length === 0 ? (
+        media.length === 0 && upcoming.length === 0 ? (
           <div style={{ padding: '24px 0', textAlign: 'center', color: 'var(--ink-3)', fontSize: 12 }}>{t('noPost')}</div>
         ) : (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 2 }}>
+            {/* À venir d'abord : sur un profil, le prochain post se posera en
+                haut à gauche. Liseré leaf pour ne pas les confondre avec le
+                réel déjà publié. */}
+            {upcoming.map(p => {
+              const raw = p.exported_image_url || p.photo_url;
+              const src = raw ? `/api/proxy-image?url=${encodeURIComponent(raw)}` : null;
+              return (
+                <Link key={`up-${p.id}`} href={`/workspace/${workspaceId}/editor/${p.id}`}
+                  title={p.scheduled_at ? new Date(p.scheduled_at).toLocaleDateString() : undefined}
+                  style={{ position: 'relative', aspectRatio: '1', overflow: 'hidden', background: 'var(--sunk)', display: 'block' }}>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  {src && <img src={src} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />}
+                  <span style={{ position: 'absolute', inset: 0, boxShadow: 'inset 0 0 0 2px var(--leaf)', pointerEvents: 'none' }} />
+                </Link>
+              );
+            })}
             {media.map(m => {
               const rawSrc = m.media_url ?? m.thumbnail_url;
               // Route via proxy to avoid CORS — Instagram media_url are cross-origin
@@ -802,26 +820,6 @@ export default function Dashboard() {
               </>
             )}
 
-            {/* Aperçu du feed — la grille du profil telle qu'elle sera publiée.
-                C'est le premier réflexe d'un CM : juger l'harmonie du compte,
-                pas lire une liste de vignettes. */}
-            {active !== 'all' && (
-              <div className="card" style={{ padding: 22, marginBottom: 14 }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 18 }}>
-                  <h2 className="h-title" style={{ fontSize: 17 }}>{t('feedPreview')}</h2>
-                  <Link href={`/workspace/${active}/planning`} className="btn btn-sm btn-ghost">
-                    {t('viewAll')} <IconChevR />
-                  </Link>
-                </div>
-                <InstagramFeed
-                  posts={posts.filter(p => p.workspace_id === active)}
-                  account={workspaces.find(w => w.id === active) ?? null}
-                  workspaceId={active}
-                  limit={12}
-                />
-              </div>
-            )}
-
             {/* Single client: detailed grid */}
             {active !== 'all' && (
               <div style={{ display: 'grid', gridTemplateColumns: '1.55fr 1fr', gap: 14 }} className="dash-grid">
@@ -859,7 +857,7 @@ export default function Dashboard() {
 
                 {/* Right column */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-                  <InstagramProfile workspaceId={active} />
+                  <InstagramProfile workspaceId={active} upcoming={upcoming} />
                   <ActivityFeed activities={scopeActivities} workspaces={workspaces} />
                 </div>
               </div>
