@@ -6,6 +6,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
 import MobileSidebar from "./ui/MobileSidebar";
+import BetaFeedback from "./BetaFeedback";
 
 interface Workspace { id: string; name: string; brand_icon_url?: string | null; logo_url?: string | null; logo_dark_url?: string | null; primary_color?: string | null }
 
@@ -147,6 +148,10 @@ export default function Sidebar({ workspaces: _w, userName: _u, activeWorkspaceI
   return (
     <>
     <MobileSidebar />
+    {/* Phase d'ouverture : signalement de bug accessible depuis toutes les pages
+        de l'app. Monté ici car la Sidebar est le seul élément commun aux 17
+        pages — le widget se positionne lui-même en `fixed`. */}
+    <BetaFeedback />
     <aside className="sidebar" style={{ width: "var(--sb-w)", position: "fixed", top: 0, left: 0, height: "100vh", zIndex: 100 }}>
 
       {/* Logo */}
