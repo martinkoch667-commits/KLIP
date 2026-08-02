@@ -853,12 +853,16 @@ export default function WorkspacePage() {
   }
 
   async function generateAll() {
+    // On reste sur cette page après génération : la génération d'un seul post
+    // (generateOne appelé seul, bouton par carte) ne redirige déjà pas — il
+    // fallait la même chose ici. L'utilisateur doit voir la description
+    // générée, l'ajuster, puis choisir lui-même d'ouvrir l'éditeur ou la file
+    // de publication, pas être expédié ailleurs dès que le texte est prêt.
     const toGenerate = posts.filter((p) => !p.isVideo && p.brief.trim() && p.status === "idle");
     if (!toGenerate.length) return;
     setGeneratingAll(true);
     await Promise.all(toGenerate.map(generateOne));
     setGeneratingAll(false);
-    router.push(`/workspace/${id}/results`);
   }
 
   // ── Refine caption ───────────────────────────────────────────────────────
