@@ -3,7 +3,6 @@
 import { useState, useRef, useEffect, useMemo, CSSProperties, Fragment } from "react";
 import { useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
-import dynamic from "next/dynamic";
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
 import Sidebar from "@/components/Sidebar";
 import ColorPicker from "@/components/ColorPicker";
@@ -12,16 +11,12 @@ import {
 } from "@/app/workspace/[id]/montage/[postId]/constants";
 import BrandStage from "@/components/BrandStage";
 import SubtitleStyleEditor, { SubtitlePreviewChip, SubtitlePreviewStage } from "@/components/SubtitleStyleEditor";
-import { parseFontFile, groupFontFiles, weightLabel, type FontFamily } from "@/lib/fontFiles";
-import { MiniTemplatePreview, type TemplateDraft } from "@/components/TemplateEditor";
-
-// Dynamically import TemplateEditor (no SSR — requires canvas API)
-const TemplateEditor = dynamic(() => import("@/components/TemplateEditor"), { ssr: false });
+import { parseFontFile, groupFontFiles, type FontFamily } from "@/lib/fontFiles";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 interface GFont { family: string; category: string }
-interface CustomFont { file: File; family: string; blobUrl: string }
+interface CustomFont { file: File; family: string; blobUrl: string; variantsCount: number }
 
 // ─── Fallback font list (used if API unavailable) ─────────────────────────────
 
@@ -190,6 +185,10 @@ export default function NewWorkspacePage() {
 
   // Step 2 — Voix de marque
   const [tone, setTone] = useState("");
+  // Six tons préréglés ne couvrent pas toutes les marques : on peut en ajouter.
+  // Ils vivent à côté des préréglages et se choisissent de la même façon.
+  const [customTones, setCustomTones] = useState<string[]>([]);
+  const [newTone, setNewTone] = useState("");
   const [wordsToUse, setWordsToUse] = useState("");
   const [wordsToAvoid, setWordsToAvoid] = useState("");
   const [captionExample, setCaptionExample] = useState("");
@@ -230,10 +229,33 @@ export default function NewWorkspacePage() {
   // Step 4 — Custom fonts
   const customPrimaryRef = useRef<HTMLInputElement>(null);
   const customSecondaryRef = useRef<HTMLInputElement>(null);
-  const [customPrimary, setCustomPrimary] = useState<CustomFont | null>(null);
+  // On garde TOUS les fichiers sélectionnés pour chaque emplacement (une
+  // famille arrive en plusieurs fichiers — Light, Regular, Bold…). L'ancien
+  // code ne retenait qu'un seul fichier « représentant » par emplacement : à
+  // chaque nouvelle sélection, le lot précédent était perdu — on ne pouvait
+  // importer qu'une graisse à la fois. `customPrimary`/`customSecondary` sont
+  // maintenant DÉRIVÉS de ces listes (cf. plus bas), jamais écrasés.
+  const [customPrimaryFiles, setCustomPrimaryFiles] = useState<File[]>([]);
+  const [customSecondaryFiles, setCustomSecondaryFiles] = useState<File[]>([]);
   // Familles complètes importées (plusieurs fichiers = plusieurs graisses).
   const [fontFiles, setFontFiles] = useState<File[]>([]);
-  const [customSecondary, setCustomSecondary] = useState<CustomFont | null>(null);
+
+  // Famille + représentant (le poids le plus proche de 400, pour l'aperçu et
+  // le champ legacy font_primary_url) dérivés de la liste de fichiers. Le nom
+  // de famille vient de `parseFontFile` — la MÊME fonction que celle qui
+  // groupe les variantes à l'enregistrement — pour ne jamais afficher un nom
+  // différent de celui réellement utilisé.
+  function deriveCustomFont(files: File[]): CustomFont | null {
+    if (files.length === 0) return null;
+    const family = parseFontFile(files[0].name).family;
+    const rep = [...files].sort((a, b) =>
+      Math.abs(parseFontFile(a.name).weight - 400) - Math.abs(parseFontFile(b.name).weight - 400))[0];
+    return { file: rep, family, blobUrl: URL.createObjectURL(rep), variantsCount: files.length };
+  }
+  const customPrimary = useMemo(() => deriveCustomFont(customPrimaryFiles), [customPrimaryFiles]);
+  const customSecondary = useMemo(() => deriveCustomFont(customSecondaryFiles), [customSecondaryFiles]);
+  function setCustomPrimary(v: null) { setCustomPrimaryFiles([]); void v; }
+  function setCustomSecondary(v: null) { setCustomSecondaryFiles([]); void v; }
 
   // Active font names (custom overrides Google selection)
   const activeFontPrimary = customPrimary ? customPrimary.family : fontPrimary;
@@ -279,10 +301,13 @@ export default function NewWorkspacePage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [subPresets]);
 
-  // Step 5 — Templates (created before workspace exists, saved after)
-  const [pendingTemplates, setPendingTemplates] = useState<TemplateDraft[]>([]);
-  const [templateEditorOpen, setTemplateEditorOpen] = useState(false);
-  const [editingTemplateIndex, setEditingTemplateIndex] = useState<number | null>(null);
+  // Step 5 — Templates. Ils se créent désormais dans le VRAI éditeur (celui
+  // qu'utilisent tous les clients), pas dans une maquette à part : il fallait
+  // donc le client réellement en base AVANT d'y entrer. On le crée dès qu'on
+  // atteint l'étape 5 (avec tout ce que les étapes 1-4 ont rempli), et les
+  // boutons de cette étape naviguent vers l'éditeur réel / le tableau de bord.
+  const [createdWorkspaceId, setCreatedWorkspaceId] = useState<string | null>(null);
+  const [templateCount, setTemplateCount] = useState(0);
 
   // Fetch Google Fonts catalog on step 4 mount
   useEffect(() => {
@@ -320,9 +345,11 @@ export default function NewWorkspacePage() {
 
   // ── Custom font handler ───────────────────────────────────────────────────
 
-  // Import d'une FAMILLE : on accepte plusieurs fichiers d'un coup, on déduit la
-  // graisse et l'italique de chaque nom, et on déclare tout au navigateur pour que
-  // l'aperçu montre les vraies graisses.
+  // Import d'une FAMILLE : on accepte plusieurs fichiers d'un coup (et
+  // plusieurs sélections successives — chaque appel VIENT S'AJOUTER aux
+  // fichiers déjà choisis pour cet emplacement, il ne les remplace pas). On
+  // déduit la graisse et l'italique de chaque nom, et on déclare tout au
+  // navigateur pour que l'aperçu montre les vraies graisses.
   function handleFontFamilyFiles(files: File[], target: "primary" | "secondary") {
     if (files.length === 0) return;
     setFontFiles(prev => [...prev, ...files]);
@@ -333,28 +360,8 @@ export default function NewWorkspacePage() {
       style.textContent = `@font-face { font-family: "${family}"; src: url("${blobUrl}"); font-weight: ${weight}; font-style: ${italic ? "italic" : "normal"}; }`;
       document.head.appendChild(style);
     }
-    // Le fichier le plus « régulier » devient le représentant de la famille.
-    const rep = [...files].sort((a, b) =>
-      Math.abs(parseFontFile(a.name).weight - 400) - Math.abs(parseFontFile(b.name).weight - 400))[0];
-    handleCustomFont(rep, target);
-  }
-
-  function handleCustomFont(file: File, target: "primary" | "secondary") {
-    const family = file.name.replace(/\.[^.]+$/, "").replace(/[-_]+/g, " ").trim();
-    const blobUrl = URL.createObjectURL(file);
-
-    // Inject @font-face for preview
-    const styleId = `klip-custom-font-${target}`;
-    const existing = document.getElementById(styleId);
-    if (existing) existing.remove();
-    const style = document.createElement("style");
-    style.id = styleId;
-    style.textContent = `@font-face { font-family: "${family}"; src: url("${blobUrl}"); }`;
-    document.head.appendChild(style);
-
-    const font: CustomFont = { file, family, blobUrl };
-    if (target === "primary") setCustomPrimary(font);
-    else setCustomSecondary(font);
+    const setFiles = target === "primary" ? setCustomPrimaryFiles : setCustomSecondaryFiles;
+    setFiles(prev => [...prev, ...files]);
   }
 
   // ── File upload helpers ───────────────────────────────────────────────────
@@ -377,12 +384,18 @@ export default function NewWorkspacePage() {
 
   // ── Create workspace ──────────────────────────────────────────────────────
 
-  async function createWorkspace() {
+  // Crée le client en base dès la première visite de l'étape 5 (une seule
+  // fois : appels suivants renvoient l'id déjà obtenu). C'est ce qui permet
+  // d'ouvrir ensuite le VRAI éditeur de templates — celui de toute l'app,
+  // pas une maquette à part — puisqu'il lui faut un workspace réel pour
+  // écrire ses lignes dans post_templates.
+  async function ensureWorkspaceCreated(): Promise<string | null> {
+    if (createdWorkspaceId) return createdWorkspaceId;
     setError(null);
     setLoading(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) { router.push("/login"); return; }
+      if (!user) { router.push("/login"); return null; }
 
       // Ensure Supabase Storage buckets exist (created server-side with service role)
       try {
@@ -471,40 +484,55 @@ export default function NewWorkspacePage() {
 
       const json = await res.json();
       if (!res.ok || !json.workspace) {
-        console.error("[createWorkspace] API error:", json);
+        console.error("[ensureWorkspaceCreated] API error:", json);
         throw new Error(json.error || json.hint || t('errorApiFallback'));
       }
       const data = json.workspace;
-
-      // Save pending templates (created during onboarding step 5)
-      if (pendingTemplates.length > 0) {
-        await Promise.all(
-          pendingTemplates.map((tpl, i) =>
-            fetch("/api/templates", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                workspace_id: data.id,
-                name: tpl.name,
-                format_id: tpl.format_id,
-                background_style: tpl.background_style,
-                text_zones: tpl.text_zones,
-                logo_placement: tpl.logo_placement,
-                sort_order: i,
-              }),
-            })
-          )
-        );
-      }
-
-      router.push(`/workspace/${data.id}`);
+      setCreatedWorkspaceId(data.id);
+      setLoading(false);
+      return data.id as string;
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : t('errorGeneric');
-      console.error("[createWorkspace] caught:", e);
+      console.error("[ensureWorkspaceCreated] caught:", e);
       setError(msg);
+      setLoading(false);
+      return null;
     }
-    setLoading(false);
   }
+
+  // Étape 5 : le client existe dès qu'on l'atteint (cf. useEffect plus bas).
+  // « Créer un template » saute directement dans le vrai éditeur ; « Terminer »
+  // rejoint le tableau de bord — les deux s'assurent d'abord que la création a
+  // fini, au cas où l'utilisateur cliquerait avant la fin de l'appel réseau.
+  async function goCreateTemplate() {
+    const id = await ensureWorkspaceCreated();
+    if (id) router.push(`/workspace/${id}/template-editor/new`);
+  }
+  async function finishOnboarding() {
+    const id = await ensureWorkspaceCreated();
+    if (id) router.push(`/workspace/${id}?welcome=true`);
+  }
+
+  // Le client est créé dès l'arrivée sur l'étape 5, avec tout ce que les
+  // étapes précédentes ont rempli — c'est ce qui permet au bouton « Créer un
+  // template » d'ouvrir tout de suite le vrai éditeur.
+  useEffect(() => {
+    if (step === 5 && !createdWorkspaceId && !loading) {
+      void ensureWorkspaceCreated();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [step]);
+
+  // Combien de templates ce client a-t-il déjà (utile si l'utilisateur revient
+  // sur l'étape après un aller-retour dans le vrai éditeur, onglet précédent).
+  useEffect(() => {
+    if (!createdWorkspaceId) return;
+    let cancelled = false;
+    supabase.from("post_templates").select("id", { count: "exact", head: true })
+      .eq("workspace_id", createdWorkspaceId)
+      .then(({ count }) => { if (!cancelled) setTemplateCount(count ?? 0); });
+    return () => { cancelled = true; };
+  }, [createdWorkspaceId, supabase]);
 
   const canContinue = step === 1 ? name.trim().length > 0 : true;
 
@@ -691,11 +719,11 @@ export default function NewWorkspacePage() {
                           style={{
                             padding: "14px 14px", borderRadius: 13, textAlign: "left",
                             border: `1.5px solid ${active ? "var(--leaf)" : "rgba(13,15,10,.10)"}`,
-                            background: active ? "var(--mint-soft)" : "var(--white)",
+                            background: active ? "var(--leaf-soft)" : "var(--white)",
                             cursor: "pointer", transition: "all 0.15s",
                           }}
                         >
-                          <div style={{ fontWeight: 700, fontSize: 14, color: active ? "var(--mint-2)" : "var(--ink)", marginBottom: 4 }}>
+                          <div style={{ fontWeight: 700, fontSize: 14, color: active ? "var(--leaf-ink)" : "var(--ink)", marginBottom: 4 }}>
                             {tn.label}
                           </div>
                           <div style={{ fontSize: 12, color: "var(--ink-3)", lineHeight: 1.4 }}>
@@ -704,6 +732,74 @@ export default function NewWorkspacePage() {
                         </button>
                       );
                     })}
+                    {/* Tons ajoutés à la main : même case, sans description. */}
+                    {customTones.map(ct => {
+                      const active = tone === ct;
+                      return (
+                        <div key={ct} style={{ position: "relative" }}>
+                          <button
+                            type="button"
+                            onClick={() => setTone(tone === ct ? "" : ct)}
+                            style={{
+                              width: "100%", padding: "14px 14px", borderRadius: 13, textAlign: "left",
+                              border: `1.5px solid ${active ? "var(--leaf)" : "rgba(13,15,10,.10)"}`,
+                              background: active ? "var(--leaf-soft)" : "var(--white)",
+                              cursor: "pointer", transition: "all 0.15s",
+                            }}
+                          >
+                            <div style={{ fontWeight: 700, fontSize: 14, color: active ? "var(--leaf-ink)" : "var(--ink)", marginBottom: 4 }}>
+                              {ct}
+                            </div>
+                            <div style={{ fontSize: 12, color: "var(--ink-3)", lineHeight: 1.4 }}>{t('toneCustomTag')}</div>
+                          </button>
+                          <button
+                            type="button"
+                            title={t('remove')}
+                            onClick={() => { setCustomTones(prev => prev.filter(x => x !== ct)); if (tone === ct) setTone(""); }}
+                            style={{ position: "absolute", top: 8, right: 8, width: 20, height: 20, borderRadius: "50%", background: "var(--sunk)", color: "var(--ink-3)", border: "none", cursor: "pointer", fontSize: 12, lineHeight: 1, display: "grid", placeItems: "center" }}
+                          >×</button>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {/* Ajout d'un ton maison */}
+                  <div style={{ display: "flex", gap: 8, marginTop: 10, maxWidth: 420 }}>
+                    <input
+                      value={newTone}
+                      onChange={e => setNewTone(e.target.value)}
+                      onKeyDown={e => {
+                        if (e.key !== "Enter") return;
+                        e.preventDefault();
+                        const v = newTone.trim();
+                        if (!v) return;
+                        if (![...TONES.map(x => x.value), ...customTones].some(x => x.toLowerCase() === v.toLowerCase())) {
+                          setCustomTones(prev => [...prev, v]);
+                        }
+                        setTone(v);
+                        setNewTone("");
+                      }}
+                      placeholder={t('toneAddPh')}
+                      className="input"
+                      style={{ flex: 1 }}
+                    />
+                    <button
+                      type="button"
+                      className="btn btn-ghost btn-sm"
+                      disabled={!newTone.trim()}
+                      onClick={() => {
+                        const v = newTone.trim();
+                        if (!v) return;
+                        if (![...TONES.map(x => x.value), ...customTones].some(x => x.toLowerCase() === v.toLowerCase())) {
+                          setCustomTones(prev => [...prev, v]);
+                        }
+                        setTone(v);
+                        setNewTone("");
+                      }}
+                      style={{ flexShrink: 0, opacity: newTone.trim() ? 1 : 0.45 }}
+                    >
+                      {t('add')}
+                    </button>
                   </div>
                 </div>
 
@@ -930,12 +1026,24 @@ export default function NewWorkspacePage() {
                         <span style={{ fontFamily: `"${customPrimary.family}", sans-serif`, fontSize: 16, color: "var(--ink)" }}>
                           {customPrimary.family}
                         </span>
+                        {/* Confirme que TOUS les fichiers sélectionnés ont bien
+                            été pris en compte — pas juste le dernier. */}
+                        <span style={{ fontSize: 11.5, color: "var(--ink-3)", display: "block", marginTop: 1 }}>
+                          {t('customFontVariants', { count: customPrimary.variantsCount })}
+                        </span>
                       </div>
-                      <button type="button"
-                        onClick={() => setCustomPrimary(null)}
-                        style={{ fontSize: 12, fontWeight: 700, color: "var(--ink-3)", background: "none", border: "none", cursor: "pointer", padding: "4px 8px" }}>
-                        {t('removeFont')}
-                      </button>
+                      <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                        <button type="button"
+                          onClick={() => customPrimaryRef.current?.click()}
+                          style={{ fontSize: 12, fontWeight: 700, color: "var(--mint-2)", background: "none", border: "none", cursor: "pointer", padding: "4px 8px" }}>
+                          {t('addMoreWeights')}
+                        </button>
+                        <button type="button"
+                          onClick={() => setCustomPrimary(null)}
+                          style={{ fontSize: 12, fontWeight: 700, color: "var(--ink-3)", background: "none", border: "none", cursor: "pointer", padding: "4px 8px" }}>
+                          {t('removeFont')}
+                        </button>
+                      </div>
                     </div>
                   )}
 
@@ -1056,11 +1164,21 @@ export default function NewWorkspacePage() {
                         <span style={{ fontFamily: `"${customSecondary.family}", sans-serif`, fontSize: 16, color: "var(--ink)" }}>
                           {customSecondary.family}
                         </span>
+                        <span style={{ fontSize: 11.5, color: "var(--ink-3)", display: "block", marginTop: 1 }}>
+                          {t('customFontVariants', { count: customSecondary.variantsCount })}
+                        </span>
                       </div>
-                      <button type="button" onClick={() => setCustomSecondary(null)}
-                        style={{ fontSize: 12, fontWeight: 700, color: "var(--ink-3)", background: "none", border: "none", cursor: "pointer", padding: "4px 8px" }}>
-                        {t('removeFont')}
-                      </button>
+                      <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                        <button type="button"
+                          onClick={() => customSecondaryRef.current?.click()}
+                          style={{ fontSize: 12, fontWeight: 700, color: "var(--mint-2)", background: "none", border: "none", cursor: "pointer", padding: "4px 8px" }}>
+                          {t('addMoreWeights')}
+                        </button>
+                        <button type="button" onClick={() => setCustomSecondary(null)}
+                          style={{ fontSize: 12, fontWeight: 700, color: "var(--ink-3)", background: "none", border: "none", cursor: "pointer", padding: "4px 8px" }}>
+                          {t('removeFont')}
+                        </button>
+                      </div>
                     </div>
                   )}
 
@@ -1228,77 +1346,38 @@ export default function NewWorkspacePage() {
                   )}
                 </div>
 
-                {/* Grille des templates créés */}
-                {pendingTemplates.length > 0 ? (
+                {/* Création de template — le VRAI éditeur, celui de toute
+                    l'app (rail + panneau Canva, modèles, IA), pas une
+                    maquette à part. Un nouveau template y arrive déjà avec
+                    photo, voile et deux blocs de texte à la couleur et à la
+                    police du client. */}
+                <div style={{ border: "2px solid rgba(13,15,10,.15)", borderRadius: 16, padding: "48px 24px", textAlign: "center", display: "flex", flexDirection: "column", alignItems: "center", gap: 16 }}>
+                  <div style={{ width: 52, height: 52, borderRadius: 14, background: "rgba(13,15,10,.05)", display: "grid", placeItems: "center" }}>
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--ink-3)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                      <rect x="3" y="3" width="18" height="18" rx="3"/><path d="M3 9h18M9 9v12"/>
+                    </svg>
+                  </div>
                   <div>
-                    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))", gap: 14, marginBottom: 16 }}>
-                      {pendingTemplates.map((tpl, i) => (
-                        <div key={i} style={{ position: "relative", cursor: "pointer" }}
-                          onClick={() => { setEditingTemplateIndex(i); setTemplateEditorOpen(true); }}>
-                          <MiniTemplatePreview
-                            bg={tpl.background_style}
-                            name={tpl.name}
-                            formatId={tpl.format_id}
-                            zonesCount={tpl.text_zones.length}
-                          />
-                          <button
-                            onClick={e => { e.stopPropagation(); setPendingTemplates(prev => prev.filter((_, j) => j !== i)); }}
-                            style={{ position: "absolute", top: 6, right: 6, width: 20, height: 20, borderRadius: "50%", background: "rgba(0,0,0,.55)", border: "none", cursor: "pointer", color: "#fff", fontSize: 12, display: "grid", placeItems: "center" }}
-                            title={t('remove')}
-                          >×</button>
-                        </div>
-                      ))}
-
-                      {/* Add another */}
-                      <button
-                        onClick={() => { setEditingTemplateIndex(null); setTemplateEditorOpen(true); }}
-                        style={{
-                          border: "2px solid rgba(13,15,10,.15)", borderRadius: 10, background: "transparent",
-                          cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center",
-                          justifyContent: "center", gap: 6, color: "var(--ink-3)", fontSize: 13,
-                          minHeight: 110, transition: "border-color 0.15s, color 0.15s",
-                        }}
-                        onMouseEnter={e => { e.currentTarget.style.borderColor = "var(--leaf)"; e.currentTarget.style.color = "var(--mint-2)"; }}
-                        onMouseLeave={e => { e.currentTarget.style.borderColor = "rgba(13,15,10,.15)"; e.currentTarget.style.color = "var(--ink-3)"; }}
-                      >
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                          <path d="M12 5v14M5 12h14"/>
-                        </svg>
-                        <span style={{ fontSize: 12, fontWeight: 600 }}>{t('add')}</span>
-                      </button>
-                    </div>
-                    <p style={{ fontSize: 12, color: "var(--ink-3)", margin: 0 }}>
-                      {t('templatesSavedNote', { count: pendingTemplates.length })}
+                    <p style={{ fontSize: 15, fontWeight: 700, color: "var(--ink)", margin: "0 0 4px" }}>
+                      {templateCount > 0 ? t('templatesSavedNote', { count: templateCount }) : t('noTemplateYet')}
+                    </p>
+                    <p style={{ fontSize: 13, color: "var(--ink-3)", margin: 0 }}>
+                      {t('noTemplateHint')}
                     </p>
                   </div>
-                ) : (
-                  /* Empty state */
-                  <div style={{ border: "2px solid rgba(13,15,10,.15)", borderRadius: 16, padding: "48px 24px", textAlign: "center", display: "flex", flexDirection: "column", alignItems: "center", gap: 16 }}>
-                    <div style={{ width: 52, height: 52, borderRadius: 14, background: "rgba(13,15,10,.05)", display: "grid", placeItems: "center" }}>
-                      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--ink-3)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                        <rect x="3" y="3" width="18" height="18" rx="3"/><path d="M3 9h18M9 9v12"/>
-                      </svg>
-                    </div>
-                    <div>
-                      <p style={{ fontSize: 15, fontWeight: 700, color: "var(--ink)", margin: "0 0 4px" }}>
-                        {t('noTemplateYet')}
-                      </p>
-                      <p style={{ fontSize: 13, color: "var(--ink-3)", margin: 0 }}>
-                        {t('noTemplateHint')}
-                      </p>
-                    </div>
-                    <button
-                      onClick={() => { setEditingTemplateIndex(null); setTemplateEditorOpen(true); }}
-                      style={{
-                        padding: "11px 28px", borderRadius: 13, background: "var(--ink)",
-                        border: "none", color: "var(--paper)", fontSize: 14, fontWeight: 700,
-                        cursor: "pointer", fontFamily: "var(--display)", transition: "opacity 0.15s",
-                      }}
-                    >
-                      {t('createTemplate')}
-                    </button>
-                  </div>
-                )}
+                  <button
+                    onClick={goCreateTemplate}
+                    disabled={loading}
+                    style={{
+                      padding: "11px 28px", borderRadius: 13, background: "var(--ink)",
+                      border: "none", color: "var(--paper)", fontSize: 14, fontWeight: 700,
+                      cursor: loading ? "default" : "pointer", opacity: loading ? 0.7 : 1,
+                      fontFamily: "var(--display)", transition: "opacity 0.15s",
+                    }}
+                  >
+                    {templateCount > 0 ? t('add') : t('createTemplate')}
+                  </button>
+                </div>
 
                 {error && (
                   <div style={{ padding: "12px 16px", borderRadius: "var(--r-s)", background: "var(--warn-soft)", border: "1px solid rgba(200,115,43,.25)", color: "var(--warn)", fontSize: 13, fontWeight: 600 }}>
@@ -1310,27 +1389,6 @@ export default function NewWorkspacePage() {
 
           </div>
         </main>
-
-        {/* ── Template editor overlay ────────────────────────────────────────── */}
-        {templateEditorOpen && (
-          <TemplateEditor
-            primaryColor={primaryColor}
-            secondaryColor={secondaryColor}
-            fontFamily={activeFontPrimary}
-            logoPreview={logoPreview}
-            initialDraft={editingTemplateIndex !== null ? pendingTemplates[editingTemplateIndex] : undefined}
-            onSave={draft => {
-              if (editingTemplateIndex !== null) {
-                setPendingTemplates(prev => prev.map((tpl, i) => i === editingTemplateIndex ? draft : tpl));
-              } else {
-                setPendingTemplates(prev => [...prev, draft]);
-              }
-              setTemplateEditorOpen(false);
-              setEditingTemplateIndex(null);
-            }}
-            onCancel={() => { setTemplateEditorOpen(false); setEditingTemplateIndex(null); }}
-          />
-        )}
 
         {/* ── Navigation footer ─────────────────────────────────────────────── */}
         <footer className="ws-new-footer" style={{
@@ -1362,8 +1420,8 @@ export default function NewWorkspacePage() {
             </span>
 
             {/* Step 5: skip link */}
-            {step === 5 && pendingTemplates.length === 0 && (
-              <button type="button" onClick={createWorkspace} disabled={loading}
+            {step === 5 && templateCount === 0 && (
+              <button type="button" onClick={finishOnboarding} disabled={loading}
                 style={{ padding: "8px 16px", borderRadius: 10, background: "transparent", border: "none", color: "var(--ink-3)", fontSize: 13, fontWeight: 600, cursor: "pointer", textDecoration: "underline" }}>
                 {t('skipStep')}
               </button>
@@ -1384,7 +1442,7 @@ export default function NewWorkspacePage() {
                 {t('continueBtn')}
               </button>
             ) : (
-              <button type="button" onClick={createWorkspace} disabled={loading}
+              <button type="button" onClick={finishOnboarding} disabled={loading}
                 className="ws-new-footer-btn"
                 style={{
                   padding: "11px 30px", borderRadius: 13,
@@ -1394,7 +1452,7 @@ export default function NewWorkspacePage() {
                   fontFamily: "var(--display)", transition: "all 0.15s",
                   opacity: loading ? 0.7 : 1,
                 }}>
-                {loading ? t('creating') : t('createWorkspaceBtn')}
+                {loading ? t('creating') : createdWorkspaceId ? t('finishBtn') : t('createWorkspaceBtn')}
               </button>
             )}
           </div>
@@ -1416,7 +1474,7 @@ export default function NewWorkspacePage() {
           logo={logoPreview}
           fontPrimary={activeFontPrimary}
           fontSecondary={activeFontSecondary}
-          templatesCount={pendingTemplates.length}
+          templatesCount={templateCount}
         />
 
         {/* ── Mobile back button — fixed top-left ───────────────────────────── */}

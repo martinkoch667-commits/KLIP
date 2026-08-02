@@ -1030,7 +1030,12 @@
     "subWeight": "Graisse",
     "subPreviewLabel": "Aperçu",
     "subPreviewHint": "Glissez pour placer les sous-titres.",
-    "subPosReset": "Recentrer"
+    "subPosReset": "Recentrer",
+    "toneAddPh": "Ajouter un ton (ex. : décalé, expert…)",
+    "toneCustomTag": "Ton personnalisé",
+    "finishBtn": "Terminer",
+    "customFontVariants": "{count, plural, one {# graisse importée} other {# graisses importées}}",
+    "addMoreWeights": "+ Ajouter des graisses"
   },
   "onboardingSurvey": {
     "q1": "Pour combien de clients travaillez-vous ?",

@@ -1030,7 +1030,12 @@
     "subWeight": "Espessura",
     "subPreviewLabel": "Pré-visualização",
     "subPreviewHint": "Arraste para posicionar as legendas.",
-    "subPosReset": "Repor"
+    "subPosReset": "Repor",
+    "toneAddPh": "Adicionar um tom (ex.: irreverente, especialista…)",
+    "toneCustomTag": "Tom personalizado",
+    "finishBtn": "Concluir",
+    "customFontVariants": "{count, plural, one {# espessura importada} other {# espessuras importadas}}",
+    "addMoreWeights": "+ Adicionar espessuras"
   },
   "onboardingSurvey": {
     "q1": "Para quantos clientes trabalha?",

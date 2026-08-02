@@ -1030,7 +1030,12 @@
     "subWeight": "Weight",
     "subPreviewLabel": "Preview",
     "subPreviewHint": "Drag to position the subtitles.",
-    "subPosReset": "Reset"
+    "subPosReset": "Reset",
+    "toneAddPh": "Add a tone (e.g. quirky, expert…)",
+    "toneCustomTag": "Custom tone",
+    "finishBtn": "Finish",
+    "customFontVariants": "{count, plural, one {# weight imported} other {# weights imported}}",
+    "addMoreWeights": "+ Add weights"
   },
   "onboardingSurvey": {
     "q1": "How many clients do you work for?",

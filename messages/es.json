@@ -1030,7 +1030,12 @@
     "subWeight": "Grosor",
     "subPreviewLabel": "Vista previa",
     "subPreviewHint": "Arrastra para colocar los subtítulos.",
-    "subPosReset": "Restablecer"
+    "subPosReset": "Restablecer",
+    "toneAddPh": "Añadir un tono (ej.: desenfadado, experto…)",
+    "toneCustomTag": "Tono personalizado",
+    "finishBtn": "Terminar",
+    "customFontVariants": "{count, plural, one {# grosor importado} other {# grosores importados}}",
+    "addMoreWeights": "+ Añadir grosores"
   },
   "onboardingSurvey": {
     "q1": "¿Para cuántos clientes trabajas?",

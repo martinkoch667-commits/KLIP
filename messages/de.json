@@ -1030,7 +1030,12 @@
     "subWeight": "Stärke",
     "subPreviewLabel": "Vorschau",
     "subPreviewHint": "Ziehen, um die Untertitel zu platzieren.",
-    "subPosReset": "Zurücksetzen"
+    "subPosReset": "Zurücksetzen",
+    "toneAddPh": "Tonfall hinzufügen (z. B. frech, fachkundig…)",
+    "toneCustomTag": "Eigener Tonfall",
+    "finishBtn": "Fertig",
+    "customFontVariants": "{count, plural, one {# Schriftstärke importiert} other {# Schriftstärken importiert}}",
+    "addMoreWeights": "+ Schriftstärken hinzufügen"
   },
   "onboardingSurvey": {
     "q1": "Für wie viele Kunden arbeitest du?",

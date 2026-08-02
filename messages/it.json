@@ -1030,7 +1030,12 @@
     "subWeight": "Spessore",
     "subPreviewLabel": "Anteprima",
     "subPreviewHint": "Trascina per posizionare i sottotitoli.",
-    "subPosReset": "Reimposta"
+    "subPosReset": "Reimposta",
+    "toneAddPh": "Aggiungi un tono (es. ironico, esperto…)",
+    "toneCustomTag": "Tono personalizzato",
+    "finishBtn": "Fine",
+    "customFontVariants": "{count, plural, one {# spessore importato} other {# spessori importati}}",
+    "addMoreWeights": "+ Aggiungi spessori"
   },
   "onboardingSurvey": {
     "q1": "Per quanti clienti lavori?",

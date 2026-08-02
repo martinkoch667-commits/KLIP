@@ -36,6 +36,29 @@ function stem(fileName: string): string {
   return fileName.replace(/\.[^.]+$/, '');
 }
 
+// Qualificatifs de graisse/style qui peuvent être COLLÉS en fin de mot à un
+// descriptif légitime sans séparateur (« ObviouslyDemo-CompressedBold » : le
+// split sur « - » isole « CompressedBold », mais « compressed » n'est pas un
+// qualificatif connu, donc le mot entier passait jusqu'ici pour la famille —
+// chaque graisse devenait sa propre « famille », et une seule s'affichait à
+// l'écran). Triés du plus long au plus court pour lire « extrabold » avant
+// « bold ».
+const EMBEDDED_QUALIFIERS = [
+  'extralight', 'ultralight', 'semibold', 'demibold', 'extrabold', 'ultrabold',
+  'hairline', 'regular', 'medium', 'normal', 'light', 'black', 'heavy', 'book',
+  'bold', 'thin', 'italic', 'oblique',
+].sort((a, b) => b.length - a.length);
+
+function splitEmbeddedQualifier(token: string): { prefix: string; suffix: string } {
+  const lower = token.toLowerCase();
+  for (const w of EMBEDDED_QUALIFIERS) {
+    if (lower.length > w.length && lower.endsWith(w)) {
+      return { prefix: token.slice(0, token.length - w.length), suffix: token.slice(token.length - w.length) };
+    }
+  }
+  return { prefix: token, suffix: '' };
+}
+
 export function parseFontFile(fileName: string): { family: string; weight: number; italic: boolean } {
   const s = stem(fileName);
 
@@ -46,6 +69,18 @@ export function parseFontFile(fileName: string): { family: string; weight: numbe
   const parts = s.split(/[\s_-]+/).filter(Boolean);
   const tail: string[] = [];
   while (parts.length > 1 && QUAL.test(parts[parts.length - 1])) tail.unshift(parts.pop()!);
+
+  // Reste-t-il un qualificatif COLLÉ au mot précédent (« CompressedBold ») ?
+  // On le détache : le préfixe (« Compressed ») reste dans la famille, le
+  // suffixe (« Bold ») rejoint les qualificatifs pour la détection de graisse.
+  if (parts.length > 0) {
+    const { prefix, suffix } = splitEmbeddedQualifier(parts[parts.length - 1]);
+    if (suffix && prefix) {
+      parts[parts.length - 1] = prefix;
+      tail.unshift(suffix);
+    }
+  }
+
   // Sans suffixe reconnaissable, on retombe sur le nom entier (« Inter700 »).
   const probe = tail.length > 0 ? tail.join(' ') : s;
 
@@ -58,17 +93,12 @@ export function parseFontFile(fileName: string): { family: string; weight: numbe
   const num = probe.match(/(?:^|[\s_-])?([1-9]00)(?:[\s_-]|$)/);
   if (num) weight = parseInt(num[1], 10);
 
-  // La famille = le nom une fois retirés les qualificatifs de FIN, qui est là où
-  // ils vivent par convention (« Archivo-BoldItalic »). On raisonne segment par
-  // segment plutôt que par recherche/remplacement : « BoldItalic » est un seul
-  // mot, donc une frontière de mot ne le découpe pas, et un remplacement brutal
-  // mutilerait des familles légitimes comme « Bookman » ou « Blackout ».
-  const QUALIFIER_ONLY = /^(thin|hairline|extra|ultra|semi|demi|light|medium|bold|regular|normal|book|black|heavy|italic|oblique|[1-9]00)+$/i;
-  const tokens = s.split(/[\s_-]+/).filter(Boolean);
-  while (tokens.length > 1 && QUALIFIER_ONLY.test(tokens[tokens.length - 1])) tokens.pop();
-  let family = tokens.join(' ').trim();
+  // La famille = le nom une fois retirés les qualificatifs (mêmes `parts` que
+  // la détection de graisse : une seule lecture, une seule vérité — l'ancien
+  // code refaisait le découpage en double, et les deux pouvaient diverger).
+  let family = parts.join(' ').trim();
   // Nom entièrement composé de qualificatifs : on retombe sur le nom de fichier.
-  if (!family) family = stem(fileName).replace(/[-_]+/g, ' ').trim();
+  if (!family) family = s.replace(/[-_]+/g, ' ').trim();
   return { family, weight, italic };
 }
 
