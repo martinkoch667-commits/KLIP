@@ -1001,9 +1001,12 @@ function BillingTab({ accountType }: { accountType: string }) {
               className="btn btn-primary btn-sm"
               style={{ border: 'none', cursor: 'pointer' }}
             >
-              Gérer mon abonnement
+              Gérer ou résilier
             </button>
             <Link href="/onboarding/plan" style={{ fontSize: 12.5, color: 'var(--cream-2)', textDecoration: 'underline' }}>Changer de plan</Link>
+            <div style={{ fontSize: 11.5, color: 'var(--cream-2)', opacity: .85, maxWidth: 210, textAlign: 'right', lineHeight: 1.45 }}>
+              Résiliation en un clic, sans justificatif. L'accès reste ouvert jusqu'à la fin de la période payée.
+            </div>
           </div>
         </div>
       </div>
