@@ -486,11 +486,6 @@ function WorkspaceCard({ workspace, posts, color, index, onOpen }: {
 
   return (
     <div className="card card-hover" style={{ overflow: 'hidden', display: 'flex', flexDirection: 'column', cursor: 'pointer' }} onClick={onOpen}>
-      {/* Bandeau de marque, plus fin : il servait surtout à porter trois pastilles
-          de palette qui n'apprenaient rien. Il ne reste qu'un filet de couleur,
-          et la place va au contenu. */}
-      <div style={{ height: 6, background: color, flexShrink: 0 }} />
-
       <div style={{ padding: 16, flex: 1, display: 'flex', flexDirection: 'column', gap: 14 }}>
         {/* Identité : la photo de profil du compte quand on l'a, les initiales
             sinon. Cerclée de leaf comme un avatar Instagram. */}
