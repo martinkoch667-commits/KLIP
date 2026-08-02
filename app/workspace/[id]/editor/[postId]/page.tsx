@@ -3375,6 +3375,26 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
     const W = stageW, H = stageH;
     const k = W / 1080; // pour les grandeurs déjà exprimées en points typo
     const stock = await resolveStockPhotos(tpl);
+
+    // Les modèles sont dessinés en 4:5. Étirer leurs fractions sur une story
+    // 9:16 déformait tout : photo démesurément haute, titres minuscules (leur
+    // taille est une fraction de la LARGEUR), énorme vide en bas. On projette
+    // donc la composition dans une zone au ratio d'origine, centrée — c'est ce
+    // que fait le redimensionnement de Canva. Seuls les éléments plein cadre
+    // (fonds, voiles) continuent de couvrir tout le plan de travail.
+    const REF_RATIO = 4 / 5;
+    const dW = Math.min(W, H * REF_RATIO);
+    const dH = dW / REF_RATIO;
+    const ox = Math.round((W - dW) / 2);
+    const oy = Math.round((H - dH) / 2);
+    const fullBleed = (el: { x: number; y: number; w: number; h: number }) =>
+      el.x <= 0.001 && el.y <= 0.001 && el.w >= 0.999 && el.h >= 0.999;
+    // Un élément plein cadre garde les coordonnées du plan de travail ; les
+    // autres vivent dans la zone de composition.
+    const box = (el: { x: number; y: number; w: number; h: number }) => fullBleed(el)
+      ? { x: 0, y: 0, w: W, h: H }
+      : { x: ox + el.x * dW, y: oy + el.y * dH, w: el.w * dW, h: el.h * dH };
+
     const out: CanvasEl[] = tpl.els.map(el => {
       if (el.kind === 'photo') {
         return {
@@ -3382,30 +3402,34 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
           src: el.slot === 0 && proxyUrl
             ? proxyUrl
             : (el.stock && stock[el.stock]) || PHOTO_PLACEHOLDER_SRC,
-          x: Math.round(el.x * W), y: Math.round(el.y * H),
-          width: Math.round(el.w * W), height: Math.round(el.h * H),
+          ...(b => ({
+            x: Math.round(b.x), y: Math.round(b.y),
+            width: Math.round(b.w), height: Math.round(b.h),
+          }))(box(el)),
           rotation: el.rotation ?? 0, opacity: el.opacity ?? 100,
         } as ImageEl;
       }
       if (el.kind === 'rect') {
         return {
           id: newId(), type: 'rect',
-          x: Math.round(el.x * W), y: Math.round(el.y * H),
-          width: Math.round(el.w * W), height: Math.round(el.h * H),
+          ...(b => ({
+            x: Math.round(b.x), y: Math.round(b.y),
+            width: Math.round(b.w), height: Math.round(b.h),
+          }))(box(el)),
           fill: el.fill, stroke: el.stroke ?? '', strokeWidth: el.strokeWidth ?? 0,
-          cornerRadius: Math.round((el.radius ?? 0) * W),
+          cornerRadius: Math.round((el.radius ?? 0) * dW),
           rotation: el.rotation ?? 0, opacity: el.opacity ?? 100,
           ...(el.scrim ? { scrim: el.scrim } : {}),
         } as RectEl;
       }
-      const padH = Math.round((el.padH ?? 0) * W);
-      const padV = Math.round((el.padV ?? 0) * H);
+      const padH = Math.round((el.padH ?? 0) * dW);
+      const padV = Math.round((el.padV ?? 0) * dH);
       return {
         id: newId(), type: 'text',
-        x: Math.round(el.x * W), y: Math.round(el.y * H),
-        width: Math.round(el.w * W),
+        x: Math.round(ox + el.x * dW), y: Math.round(oy + el.y * dH),
+        width: Math.round(el.w * dW),
         text: el.text,
-        fontSize: Math.max(8, Math.round(el.size * W)),
+        fontSize: Math.max(8, Math.round(el.size * dW)),
         fontFamily: el.font ?? 'Oswald',
         fontStyle: el.weight === 'bold' ? 'bold' : 'normal',
         textDecoration: '',
@@ -3416,7 +3440,7 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
         letterSpacing: (el.letterSpacing ?? 0) * k,
         rotation: el.rotation ?? 0, opacity: el.opacity ?? 100,
         hasBg: !!el.bg, bgColor: el.bg ?? '#000000', bgOpacity: el.bgOpacity ?? 100,
-        cornerRadius: Math.round((el.radius ?? 0) * W),
+        cornerRadius: Math.round((el.radius ?? 0) * dW),
         padding: padH, paddingH: padH, paddingV: padV,
       } as TextEl;
     });
@@ -3726,6 +3750,25 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
     img.onload = () => place(img.naturalWidth || stageW, img.naturalHeight || stageH);
     img.onerror = () => place(stageW, stageH);
     img.src = src;
+  };
+
+  // Zone photo d'un modèle : elle attendait une image sans jamais dire comment
+  // la lui donner. Un double-clic (ou le bouton de la barre contextuelle) ouvre
+  // le sélecteur de fichiers et remplit CE calque, sans en créer un nouveau.
+  const fillPhotoRef = useRef<HTMLInputElement | null>(null);
+  const fillTargetRef = useRef<string | null>(null);
+
+  const openPhotoPicker = (elementId: string) => {
+    fillTargetRef.current = elementId;
+    fillPhotoRef.current?.click();
+  };
+
+  const onFillPhoto = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    const id = fillTargetRef.current;
+    e.target.value = '';
+    if (!file || !id || !file.type.startsWith('image/')) return;
+    updateEl(id, { src: URL.createObjectURL(file) } as Partial<ImageEl>);
   };
 
   const handleFileDrop = (file: File, point?: { x: number; y: number } | null) => {
@@ -5631,7 +5674,9 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
         )}
 
         {/* ── CANVAS WORKSPACE ── */}
-        <div className="ed-canvas-area" style={{ flex: 1, minWidth: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column', background: '#F3F4F7', position: 'relative' }}>
+        <div className="ed-canvas-area" style={{ flex: 1, minWidth: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column', background: 'var(--canvas)', position: 'relative' }}>
+          {/* Sélecteur caché : sert à remplir une zone photo de modèle. */}
+          <input ref={fillPhotoRef} type="file" accept="image/*" onChange={onFillPhoto} style={{ display: 'none' }} />
           {/* ── Barre contextuelle flottante (desktop) — centrée sous la topbar, par-dessus le plan de travail ── */}
           {selectedEl && (
             <div className="ed-ctx-float" data-stop-deselect onMouseDown={e => e.stopPropagation()}
@@ -5771,11 +5816,12 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
                     return (
                       <Group key={el.id} id={el.id} x={ph.x} y={ph.y} rotation={ph.rotation} opacity={ph.opacity / 100} draggable={!lockedIds.has(el.id)}
                         onClick={e => handleElClick(el.id, e.evt.shiftKey)} onTap={() => handleElClick(el.id, false)}
+                        onDblClick={() => openPhotoPicker(el.id)} onDblTap={() => openPhotoPicker(el.id)}
                         onDragStart={() => handleElDragStart(el.id)}
                         onDragMove={e => handleElDragMove(el.id, e)}
                         onDragEnd={e => handleElDragEnd(el.id, e.target.x(), e.target.y())}>
                         <Rect width={ph.width} height={ph.height} fill="rgba(120,120,120,0.12)" stroke="#8B8E7F" strokeWidth={2} cornerRadius={6} />
-                        <Text width={ph.width} height={ph.height} text={'\uD83D\uDCF7\nPHOTO'} align="center" verticalAlign="middle" fontSize={20} fontStyle="bold" fill="#5A5E50" fontFamily="var(--sans), sans-serif" listening={false} />
+                        <Text width={ph.width} height={ph.height} text={'\uD83D\uDCF7\n' + T('photoZoneHint')} align="center" verticalAlign="middle" fontSize={16} fontStyle="bold" fill="#5A5E50" fontFamily="var(--sans), sans-serif" listening={false} />
                       </Group>
                     );
                   }
