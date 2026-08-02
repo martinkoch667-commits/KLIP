@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import crypto from 'node:crypto';
 import { createClient } from '@supabase/supabase-js';
-import { unsubToken } from '@/lib/email';
+import { verifyUnsubToken } from '@/lib/email';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -29,13 +28,7 @@ export async function GET(request: NextRequest) {
   const email = (url.searchParams.get('e') || '').trim().toLowerCase();
   const token = url.searchParams.get('t') || '';
 
-  const expected = email ? unsubToken(email) : '';
-  const valid =
-    !!email &&
-    token.length === expected.length &&
-    crypto.timingSafeEqual(Buffer.from(token), Buffer.from(expected));
-
-  if (!valid) {
+  if (!verifyUnsubToken(email, token)) {
     return html(page('Lien invalide', "Ce lien de désinscription n'est pas valide ou a expiré. Répondez simplement à l'email et je vous retire de la liste à la main."), 400);
   }
 

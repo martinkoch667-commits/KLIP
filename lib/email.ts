@@ -12,10 +12,38 @@ export const emailEnabled = () => !!process.env.RESEND_API_KEY;
 
 /* ── Désinscription (RGPD) ────────────────────────────────────────────────────
    Jeton HMAC dérivé de l'email : pas de table de tokens à gérer, et un lien
-   forgé sans le secret ne peut pas désinscrire quelqu'un d'autre. */
-export function unsubToken(email: string): string {
-  const secret = process.env.CRON_SECRET ?? "klip-dev-secret";
+   forgé sans le secret ne peut pas désinscrire quelqu'un d'autre.
+
+   La clé est `UNSUBSCRIBE_SECRET`, séparée de `CRON_SECRET` À DESSEIN : les
+   liens de désinscription vivent dans des mails déjà distribués, parfois depuis
+   des mois. Si la clé bougeait avec le secret d'exploitation, faire tourner
+   celui-ci casserait silencieusement le « me désinscrire » de tous les mails
+   déjà partis. `UNSUBSCRIBE_SECRET` ne doit donc JAMAIS être modifiée.
+
+   La vérification accepte aussi les clés de repli, pour que les liens émis
+   avant l'introduction de cette variable continuent de fonctionner. */
+function tokenFor(email: string, secret: string): string {
   return crypto.createHmac("sha256", secret).update(email.trim().toLowerCase()).digest("hex").slice(0, 20);
+}
+
+function unsubSecrets(): string[] {
+  const list = [process.env.UNSUBSCRIBE_SECRET, process.env.CRON_SECRET, "klip-dev-secret"];
+  return Array.from(new Set(list.filter((s): s is string => !!s)));
+}
+
+export function unsubToken(email: string): string {
+  return tokenFor(email, unsubSecrets()[0]);
+}
+
+/** Vrai si le jeton correspond à l'email pour l'une des clés connues. */
+export function verifyUnsubToken(email: string, token: string): boolean {
+  if (!email || !token) return false;
+  return unsubSecrets().some(secret => {
+    const expected = tokenFor(email, secret);
+    // timingSafeEqual exige des longueurs égales, sinon il lève.
+    if (token.length !== expected.length) return false;
+    return crypto.timingSafeEqual(Buffer.from(token), Buffer.from(expected));
+  });
 }
 
 export function unsubUrl(email: string): string {
