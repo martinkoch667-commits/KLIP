@@ -4787,8 +4787,8 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
 
       {/* ── TOPBAR ── */}
       <div data-stop-deselect className={`ed-topbar${sidebarOpen ? ' ed-narrow' : ''}`} style={{
-        minHeight: 60, flexShrink: 0,
-        display: 'flex', alignItems: 'center', gap: 12, padding: '11px 18px',
+        minHeight: 52, flexShrink: 0,
+        display: 'flex', alignItems: 'center', gap: 8, padding: '7px 14px',
         // Bandeau vert dégradé (façon en-tête sombre Canva) — tous les enfants
         // basculent en clair via ces overrides de tokens (scopés à la topbar).
         background: 'linear-gradient(115deg, var(--forest) 0%, var(--forest-2) 55%, var(--forest-3) 100%)',
@@ -4842,15 +4842,10 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
           </button>
         </div>
 
-        {/* Center: hint (barre contextuelle déplacée en flottant au-dessus du plan de travail) */}
-        <div className="ed-topbar-center" style={{ flex: 1, display: 'flex', justifyContent: 'center', minWidth: 0 }}>
-          {!selectedEl && (
-            <span className="ed-hint-desktop" style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--ink-3)', display: 'flex', alignItems: 'center', gap: 7 }}>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
-              Sélectionnez un calque pour le modifier
-            </span>
-          )}
-        </div>
+        {/* Centre volontairement vide : il ne sert qu'à pousser les actions à
+            droite. La consigne « Sélectionnez un calque » qui s'y trouvait
+            mangeait la largeur et finissait coupée. */}
+        <div className="ed-topbar-center" style={{ flex: 1, minWidth: 0 }} />
 
         {/* Right: Type selector + Aperçu + Partager */}
         <div className="ed-topbar-right" style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
@@ -4884,7 +4879,7 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
                 ))}
               </div>
               <button onClick={() => composeWithAI()} disabled={qaBusy} className="btn btn-sm ed-ai-btn" title={T('aiComposeTip')}
-                style={{ height: 36, opacity: qaBusy ? 0.6 : 1, cursor: qaBusy ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+                style={{ height: 32, opacity: qaBusy ? 0.6 : 1, cursor: qaBusy ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9.5 3l1.6 4.9L16 9.5l-4.9 1.6L9.5 16l-1.6-4.9L3 9.5l4.9-1.6z"/><path d="M18 14l.8 2.5L21 17l-2.2.8L18 20l-.8-2.2L15 17l2.2-.5z"/></svg>
                 <span className="ed-hide-md">{aiVariants.length ? 'Recomposer' : 'Composer (IA)'}</span>
               </button>
@@ -4901,13 +4896,13 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
                 </div>
               )}
               <button onClick={runVisualQA} disabled={qaBusy} className="btn btn-sm ed-ai-btn" title={T('aiQaTip')}
-                style={{ height: 36, opacity: qaBusy ? 0.6 : 1, cursor: qaBusy ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+                style={{ height: 32, opacity: qaBusy ? 0.6 : 1, cursor: qaBusy ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 3l1.9 5.8L20 10l-5.8 1.9L12 18l-1.9-5.8L4 10l5.8-1.2z"/></svg>
                 <span className="ed-hide-md">{qaBusy ? 'Analyse…' : 'Vérifier'}</span>
               </button>
               <div style={{ position: 'relative' }}>
                 <button onClick={() => generateAI()} disabled={aiTyping} className="btn btn-sm ed-ai-btn" title={T('aiCaptionTip')}
-                  style={{ height: 36, opacity: aiTyping ? 0.6 : 1, cursor: aiTyping ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+                  style={{ height: 32, opacity: aiTyping ? 0.6 : 1, cursor: aiTyping ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5z"/></svg>
                   <span className="ed-hide-md">{aiTyping ? 'Rédaction…' : 'Régénérer la légende'}</span>
                 </button>
@@ -4920,9 +4915,9 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
               </div>
             </>
           )}
-          <button onClick={exportPNG} className="btn btn-sm btn-ghost" style={{ height: 36 }}>{T('preview')}</button>
+          <button onClick={exportPNG} className="btn btn-sm btn-ghost" style={{ height: 32 }}>{T('preview')}</button>
           <button onClick={handleSave} disabled={saving} className="btn btn-sm btn-primary"
-            style={{ height: 36, opacity: saving ? 0.6 : 1, cursor: saving ? 'not-allowed' : 'pointer' }}>
+            style={{ height: 32, opacity: saving ? 0.6 : 1, cursor: saving ? 'not-allowed' : 'pointer' }}>
             {saving ? 'Sauvegarde…' : isTemplate ? 'Enregistrer' : 'Publier'}
           </button>
         </div>

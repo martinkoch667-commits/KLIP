@@ -853,7 +853,8 @@
     "saved": "Programmé",
     "noneToPlan": "Tout est programmé",
     "detailTitle": "Détail du post",
-    "clientLabel": "Client"
+    "clientLabel": "Client",
+    "feedPreview": "Aperçu du feed"
   },
   "feed": {
     "title": "File de publication",

@@ -853,7 +853,8 @@
     "saved": "Programado",
     "noneToPlan": "Todo está programado",
     "detailTitle": "Detalle del post",
-    "clientLabel": "Cliente"
+    "clientLabel": "Cliente",
+    "feedPreview": "Vista del feed"
   },
   "feed": {
     "title": "Cola de publicación",

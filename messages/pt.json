@@ -853,7 +853,8 @@
     "saved": "Agendado",
     "noneToPlan": "Está tudo agendado",
     "detailTitle": "Detalhe do post",
-    "clientLabel": "Cliente"
+    "clientLabel": "Cliente",
+    "feedPreview": "Pré-visualização do feed"
   },
   "feed": {
     "title": "Fila de publicação",

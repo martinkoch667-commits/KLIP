@@ -13,6 +13,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Sidebar from "@/components/Sidebar";
 import PostPreviewPane from "@/components/PostPreviewPane";
+import InstagramFeed from "@/components/InstagramFeed";
 import {
   HOUR_H, HOURS, getMonday, addDays, isSameDay, toDateInput, toTimeInput,
   buildScheduledAt, slotHeat, wsColor,
@@ -260,39 +261,32 @@ export default function CalendarPage() {
         <div className="scroll">
           <div style={{ padding: "20px 28px 28px", display: "flex", flexDirection: "column", gap: 16 }}>
 
-            {/* Filtre client — pastilles colorées plutôt qu'une liste déroulante :
-                la couleur sert aussi de légende pour toute la grille. */}
-            <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-              <button
-                onClick={() => setFilterWsId("all")}
-                className="btn btn-sm"
-                style={{
-                  background: filterWsId === "all" ? "var(--ink)" : "var(--white)",
-                  color: filterWsId === "all" ? "var(--paper)" : "var(--ink-2)",
-                  boxShadow: filterWsId === "all" ? "none" : "inset 0 0 0 1px var(--line)",
-                }}
-              >
-                {t("allClients")}
-                <span style={{ fontFamily: "var(--mono)", fontWeight: 800, opacity: .7 }}>{posts.length}</span>
-              </button>
-              {workspaces.map(w => {
-                const on = filterWsId === w.id;
-                const color = wsMap[w.id]?.color;
-                const n = posts.filter(p => p.workspace_id === w.id).length;
+            {/* Filtre client — une barre unique, façon segments : chaque client est
+                repéré par une pastille de couleur et son compteur, l'actif se
+                détache en carte blanche. Les gros boutons colorés faisaient
+                sapin de Noël (retour Martin). */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 4, padding: 4, background: 'var(--sunk)', borderRadius: 'var(--r-l)', overflowX: 'auto' }}>
+              {[{ id: 'all', name: t('allClients'), color: 'var(--ink)', n: posts.length },
+                ...workspaces.map(w => ({ id: w.id, name: w.name, color: wsMap[w.id]?.color, n: posts.filter(p => p.workspace_id === w.id).length }))
+              ].map(item => {
+                const on = filterWsId === item.id;
                 return (
                   <button
-                    key={w.id}
-                    onClick={() => setFilterWsId(on ? "all" : w.id)}
-                    className="btn btn-sm"
+                    key={item.id}
+                    onClick={() => setFilterWsId(item.id)}
                     style={{
-                      background: on ? color : "var(--white)",
-                      color: on ? "#fff" : "var(--ink-2)",
-                      boxShadow: on ? "none" : "inset 0 0 0 1px var(--line)",
+                      display: 'flex', alignItems: 'center', gap: 7, flexShrink: 0,
+                      padding: '7px 13px', borderRadius: 'var(--r)', cursor: 'pointer',
+                      fontSize: 12.5, fontWeight: on ? 800 : 600,
+                      color: on ? 'var(--ink)' : 'var(--ink-2)',
+                      background: on ? 'var(--white)' : 'transparent',
+                      boxShadow: on ? 'var(--shadow-card)' : 'none',
+                      transition: 'background .14s, color .14s',
                     }}
                   >
-                    <span style={{ width: 8, height: 8, borderRadius: "50%", background: on ? "#fff" : color, flexShrink: 0 }} />
-                    {w.name}
-                    <span style={{ fontFamily: "var(--mono)", fontWeight: 800, opacity: .7 }}>{n}</span>
+                    <span style={{ width: 8, height: 8, borderRadius: '50%', background: item.color, flexShrink: 0 }} />
+                    {item.name}
+                    <span style={{ fontFamily: 'var(--mono)', fontWeight: 800, fontSize: 11, color: on ? 'var(--ink-3)' : 'var(--ink-3)' }}>{item.n}</span>
                   </button>
                 );
               })}
@@ -307,6 +301,24 @@ export default function CalendarPage() {
                 </div>
               ))}
             </div>
+
+            {/* Aperçu du feed — dès qu'un client est isolé, on voit à quoi
+                ressemblera son profil une fois la semaine publiée. Sur « tous
+                les clients », un feed mélangé n'aurait aucun sens. */}
+            {filterWsId !== 'all' && (
+              <div className="card" style={{ padding: 18 }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+                  <span className="label">{t('feedPreview')}</span>
+                  <Link href={`/workspace/${filterWsId}/planning`} className="btn btn-ghost btn-sm">{t('openClient')}</Link>
+                </div>
+                <InstagramFeed
+                  posts={posts.filter(p => p.workspace_id === filterWsId)}
+                  account={wsMap[filterWsId] ?? null}
+                  workspaceId={filterWsId}
+                  limit={12}
+                />
+              </div>
+            )}
 
             {/* Pile à programmer — on la glisse sur la grille */}
             {unscheduled.length > 0 && (

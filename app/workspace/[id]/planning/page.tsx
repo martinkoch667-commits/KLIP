@@ -403,14 +403,16 @@ function FeedPreview({ posts, workspaceId, handle }: {
         </span>
       </button>
 
+      {/* Vrai rendu de profil : en-tête, compteurs, grille 3 colonnes. On y voit
+          les posts déjà publiés ET ceux à venir, pour juger à quoi ressemblera
+          le compte une fois la semaine passée. */}
       {open && (
         <InstagramFeed
           posts={posts}
           account={{ instagram_username: handle }}
           workspaceId={workspaceId}
-          limit={12}
+          limit={15}
           compact
-          showHeader={false}
         />
       )}
     </div>
@@ -448,7 +450,7 @@ function CalendarRail({ posts, weekDays, chipColor, workspaceId, igHandle }: {
   const maxLoad = Math.max(1, ...load);
 
   return (
-    <aside className="plan-rail" style={{ width: 288, flexShrink: 0, borderLeft: "1px solid var(--line)", background: "var(--paper)", display: "flex", flexDirection: "column", gap: 0, overflowY: "auto" }}>
+    <aside className="plan-rail" style={{ width: 340, flexShrink: 0, borderLeft: "1px solid var(--line)", background: "var(--paper)", display: "flex", flexDirection: "column", gap: 0, overflowY: "auto" }}>
       <FeedPreview posts={posts} workspaceId={workspaceId} handle={igHandle} />
 
       {/* Week overview */}

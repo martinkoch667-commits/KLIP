@@ -943,18 +943,21 @@ input.ed-range::-moz-range-thumb {
 .ed-topbar.ed-narrow .ed-topbar-center { display: none !important; }
 
 /* Boutons IA de l'éditeur — lisibles sur le bandeau vert (texte clair + icône menthe vive) */
+/* Actions IA de la barre d'éditeur : le mint cerclé jurait avec la charte (il
+   est réservé aux micro-accents). Aplat crème translucide sur le vert forêt,
+   picto leaf — même famille que le reste de la barre. */
 .ed-ai-btn {
-  background: rgba(47,215,155,.16);
-  color: #EDFBF4;
+  background: rgba(238,237,227,.10);
+  color: var(--cream);
   font-weight: 700;
-  box-shadow: inset 0 0 0 1px rgba(47,215,155,.55);
+  box-shadow: inset 0 0 0 1px rgba(238,237,227,.22);
   transition: transform .14s cubic-bezier(.2,.7,.3,1), box-shadow .18s, background .18s;
 }
-.ed-ai-btn svg { color: #34E0A1; }
+.ed-ai-btn svg { color: var(--leaf); }
 .ed-ai-btn:hover:not(:disabled) {
   transform: translateY(-1px);
-  background: rgba(47,215,155,.28);
-  box-shadow: inset 0 0 0 1px rgba(47,215,155,.8), 0 6px 16px -8px rgba(0,0,0,.5);
+  background: rgba(238,237,227,.18);
+  box-shadow: inset 0 0 0 1px rgba(238,237,227,.4), 0 6px 16px -8px rgba(0,0,0,.5);
 }
 
 /* Barre d'actions droite de l'éditeur agrandie ~10 % (icônes + texte plus lisibles) */

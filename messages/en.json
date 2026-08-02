@@ -853,7 +853,8 @@
     "saved": "Scheduled",
     "noneToPlan": "Everything is scheduled",
     "detailTitle": "Post details",
-    "clientLabel": "Client"
+    "clientLabel": "Client",
+    "feedPreview": "Feed preview"
   },
   "feed": {
     "title": "Publishing queue",

@@ -853,7 +853,8 @@
     "saved": "Geplant",
     "noneToPlan": "Alles ist geplant",
     "detailTitle": "Beitragsdetails",
-    "clientLabel": "Kunde"
+    "clientLabel": "Kunde",
+    "feedPreview": "Feed-Vorschau"
   },
   "feed": {
     "title": "Veröffentlichungswarteschlange",
