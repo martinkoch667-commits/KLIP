@@ -112,6 +112,28 @@ const RIBBON = `
 
 const FONT_LINK = `<style>@import url('https://fonts.googleapis.com/css2?family=Archivo:wght@700;800;900&display=swap');</style>`;
 
+/** Bannière reprenant le hero de la landing : donne à voir Klip sans quitter le mail. */
+const HERO_BANNER = `
+  <div style="background:#0C2A1D;border-radius:20px;overflow:hidden;margin:30px 0 4px;">
+    <div style="padding:28px 24px 22px;text-align:center;">
+      <div style="font-family:${F_DISPLAY};font-size:10.5px;font-weight:800;letter-spacing:.16em;text-transform:uppercase;color:#BDF2A0;margin-bottom:14px;">
+        L'outil de post-production de vos réseaux sociaux
+      </div>
+      <div style="font-family:${F_DISPLAY};font-size:31px;line-height:1.04;font-weight:900;letter-spacing:-.035em;color:#FBFBFC;text-transform:uppercase;">
+        Tous vos clients.
+      </div>
+      <div style="margin-top:9px;">
+        <span style="font-family:${F_OAKS};font-size:29px;font-weight:700;background:#BDF2A0;color:#1E3317;border-radius:13px;padding:.04em .22em .12em;">Un seul</span>
+        <span style="font-family:${F_DISPLAY};font-size:27px;font-weight:900;letter-spacing:-.02em;background:#FBFBFC;color:#14160F;border-radius:11px;padding:5px 12px;text-transform:uppercase;">Outil</span>
+      </div>
+      <div style="font-size:14px;line-height:1.6;color:rgba(251,251,252,.72);max-width:400px;margin:16px auto 0;">
+        Un seul espace pour gérer le contenu Instagram de tous vos clients, chaque marque avec sa voix.
+      </div>
+    </div>
+    <img src="${APP_URL}/klip-media/email-apercu.jpg" alt="Le tableau de bord de Klip : tous les clients au même endroit"
+         width="540" style="display:block;width:100%;max-width:540px;height:auto;border:0;" />
+  </div>`;
+
 /* ── Gabarit marque ──────────────────────────────────────────────────────────
    Fond forest + carte blanche, comme le hero de la landing d'accès anticipé.
    `title` accepte du HTML : passer un mot dans hl() pour le surligner. */
@@ -150,13 +172,17 @@ function shell(title: string, bodyHtml: string, cta?: { label: string; href: str
    un vrai message tapé par un humain — c'est ce qui fait répondre les gens. */
 function plain(bodyHtml: string, cta?: { label: string; href: string }, afterCta?: string): string {
   return `${FONT_LINK}
-  <div style="background:#FBFBFC;padding:34px 16px;font-family:${F_SANS};">
+  <div style="background:#FBFBFC;padding:30px 16px 34px;font-family:${F_SANS};">
     <div style="max-width:520px;margin:0 auto;font-size:16px;line-height:1.72;color:#14160F;">
+      <div style="padding-bottom:26px;">
+        <a href="${APP_URL}" style="text-decoration:none;">
+          <img src="${APP_URL}/logo-klip-dark.png" alt="Klip" height="26" style="height:26px;width:auto;border:0;display:block;" />
+        </a>
+      </div>
       ${bodyHtml}
-      ${cta ? `<div style="margin:26px 0 24px;"><a href="${cta.href}" style="display:inline-block;background:#BDF2A0;color:#1E3317;font-family:${F_DISPLAY};font-weight:800;font-size:15px;text-decoration:none;padding:14px 26px;border-radius:999px;">${cta.label} &nbsp;&#8599;</a></div>` : ""}
+      ${cta ? `<div style="margin:28px 0 24px;"><a href="${cta.href}" style="display:inline-block;background:#BDF2A0;color:#1E3317;font-family:${F_DISPLAY};font-weight:800;font-size:15.5px;letter-spacing:-.01em;text-decoration:none;padding:16px 30px;border-radius:999px;box-shadow:0 12px 26px -14px rgba(120,190,90,.9);">${cta.label} &nbsp;&#8599;</a></div>` : ""}
       ${afterCta ?? ""}
       <div style="margin-top:34px;padding-top:18px;border-top:1px solid rgba(13,15,10,.10);font-size:12px;line-height:1.6;color:#8B8E7F;">
-        <a href="${APP_URL}" style="display:inline-block;background:#BDF2A0;color:#1E3317;font-family:${F_DISPLAY};font-weight:800;font-size:11px;letter-spacing:.1em;text-decoration:none;padding:4px 9px;border-radius:7px;margin-bottom:9px;">KLIP</a><br/>
         Martin · <a href="${APP_URL}" style="color:#8B8E7F;">getklip.fr</a><br/>
         Vous recevez ce mail car vous êtes sur la liste d'accès anticipé.
         <a href="{{UNSUB_URL}}" style="color:#8B8E7F;">Me retirer de la liste</a>.
@@ -209,20 +235,20 @@ export const emails = {
     ),
   }),
   waitlistConfirm: () => ({
-    subject: "C'est noté — vous êtes sur la liste d'accès anticipé Klip 🎉",
+    subject: "C'est noté, vous êtes sur la liste d'accès anticipé Klip 🎉",
     html: shell(
       "Vous êtes bien inscrit·e !",
       `Merci d'avoir rejoint la <strong>liste d'accès anticipé de Klip</strong>.<br/><br/>
-       On vous prévient <strong>par email dès l'ouverture</strong>, avant tout le monde — avec vos avantages réservés aux premiers : <strong>accès prioritaire</strong>, <strong>tarif fondateur</strong> et <strong>onboarding offert</strong>.<br/><br/>
+       On vous prévient <strong>par email dès l'ouverture</strong>, avant tout le monde, avec vos avantages réservés aux premiers : <strong>accès prioritaire</strong>, <strong>tarif fondateur</strong> et <strong>onboarding offert</strong>.<br/><br/>
        À très vite 👋`
     ),
   }),
   launch: () => ({
-    subject: "🚀 Klip est ouvert — votre accès anticipé est prêt",
+    subject: "🚀 Klip est ouvert, votre accès anticipé est prêt",
     html: shell(
       "Ça y est, Klip ouvre ses portes !",
       `Vous étiez sur la liste d'accès anticipé : <strong>bienvenue parmi les premiers</strong>.<br/><br/>
-       Gérez l'Instagram de tous vos clients au même endroit — création de visuels, IA, calendrier, validation client, publication.<br/><br/>
+       Gérez l'Instagram de tous vos clients au même endroit : création de visuels, IA, calendrier, validation client, publication.<br/><br/>
        Vos <strong>avantages d'accès anticipé</strong> (tarif fondateur + onboarding offert) vous attendent. Cliquez ci-dessous pour créer votre compte.`,
       { label: "Activer mon accès anticipé", href: `${APP_URL}/register` }
     ),
@@ -235,19 +261,21 @@ export const emails = {
     html: plain(
       `<p style="margin:0 0 16px;">Salut,</p>
        <p style="margin:0 0 16px;">Je suis Martin, je construis Klip.</p>
-       <p style="margin:0 0 16px;">Vous faites partie des <strong>premiers inscrits</strong> sur la liste d'accès anticipé. Assez peu nombreux pour que je vous écrive à la main plutôt que de vous envoyer une newsletter automatique — alors autant en profiter.</p>
-       <p style="margin:0 0 16px;">Klip ouvre <strong>dans un peu moins d'un mois</strong>. Le logiciel est en finalisation — je suis sur les derniers réglages, pas sur la ligne de départ.</p>
+       <p style="margin:0 0 16px;">Vous faites partie des <strong>premiers inscrits</strong> sur la liste d'accès anticipé. Assez peu nombreux pour que je vous écrive à la main plutôt que de vous envoyer une newsletter automatique, alors autant en profiter.</p>
+       <p style="margin:0 0 16px;">Klip ouvre <strong>dans un peu moins d'un mois</strong>. Le logiciel est en finalisation, je suis sur les derniers réglages.</p>
        <p style="margin:0 0 16px;">D'ici l'ouverture, je vous envoie <strong>un mail par semaine, pas plus</strong> :</p>
        <ul style="margin:0 0 16px;padding-left:20px;">
          <li style="margin-bottom:6px;">ce que Klip fait, en vrai, captures à l'appui ;</li>
-         <li style="margin-bottom:6px;">des trucs concrets sur la gestion de contenu client — utiles que vous utilisiez Klip ou non ;</li>
+         <li style="margin-bottom:6px;">des trucs concrets sur la gestion de contenu client, utiles que vous utilisiez Klip ou non ;</li>
          <li>la date d'ouverture, avant tout le monde.</li>
        </ul>
        <p style="margin:0 0 16px;">Et avant ça, j'aimerais savoir à qui je parle.</p>
-       <p style="margin:0 0 16px;">Qui vous êtes, ce que vous gérez aujourd'hui, et surtout <strong>ce qui vous a donné envie de vous inscrire</strong>. J'ai mis ça en 5 questions — <strong>deux minutes, pas une de plus</strong>. Ça me permet de vous montrer les bonnes choses d'ici l'ouverture, et de vous accompagner correctement au démarrage plutôt que de vous lâcher devant un écran vide.</p>`,
+       <p style="margin:0 0 16px;">Qui vous êtes, ce que vous gérez aujourd'hui, et surtout <strong>ce qui vous a donné envie de vous inscrire</strong>. J'ai mis ça en 5 questions, <strong>deux minutes, pas une de plus</strong>. Ça me permet de vous montrer les bonnes choses d'ici l'ouverture, et de vous accompagner correctement au démarrage plutôt que de vous lâcher devant un écran vide.</p>
+       <p style="margin:0 0 16px;">Si on n'a pas encore eu l'occasion d'échanger sur ce que vous faites, c'est le bon moment. Et si on s'est déjà parlé, par message ou sur Instagram, n'hésitez pas à y répondre quand même : ça me permet de tout retrouver au même endroit le jour de l'ouverture.</p>`,
       { label: "Répondre aux 5 questions", href: `${APP_URL}/sondage?e={{EMAIL_ENC}}` },
       `<p style="margin:0 0 16px;">Et si le formulaire vous saoule : répondez juste à ce mail en me racontant votre semaine type. Je lis tout, je réponds à tout.</p>
-       <p style="margin:0;">À la semaine prochaine,<br/>Martin</p>`
+       <p style="margin:0 0 4px;">À la semaine prochaine,<br/>Martin</p>
+       ${HERO_BANNER}`
     ),
   }),
 
@@ -258,7 +286,7 @@ export const emails = {
       `<p style="margin:0 0 16px;">Salut,</p>
        <p style="margin:0 0 16px;">Cette semaine, pas de Klip. Juste un constat que presque tous les community managers à qui j'ai parlé m'ont répété, avec les mêmes mots.</p>
        <p style="margin:0 0 16px;"><strong>Le problème n'est jamais la création. C'est de retrouver.</strong></p>
-       <p style="margin:0 0 16px;">Vous savez faire un beau post. Ce qui vous mange vos soirées, c'est : retrouver le logo du client, sa palette, la police qu'il aime, le visuel validé il y a trois semaines, le fichier « FINAL_v3_vraiment_final.psd ». Multiplié par six clients.</p>
+       <p style="margin:0 0 16px;">Vous savez faire un beau post. Ce qui vous mange vos soirées, c'est de retrouver le logo du client, sa palette, la police qu'il aime, le visuel validé il y a trois semaines, le fichier « FINAL_v3_vraiment_final.psd ». Multiplié par six clients.</p>
        <p style="margin:0 0 16px;">Trois choses qui changent tout, à mettre en place ce week-end :</p>
        <p style="margin:0 0 14px;"><strong>1. Une charte par client, écrite une seule fois.</strong><br/>
        Pas dans votre tête : dans un document. Trois couleurs en hexa, deux polices, cinq mots que la marque dit, cinq mots qu'elle ne dit jamais. Vous ne redécidez plus jamais. Le gain n'est pas le temps de recherche, c'est de ne plus avoir à trancher à 23 h.</p>
@@ -267,9 +295,9 @@ export const emails = {
        <p style="margin:0 0 16px;"><strong>3. Un seul canal de validation.</strong><br/>
        Le jour où la validation passe par WhatsApp <em>plus</em> mail <em>plus</em> vocal, c'est perdu. Un lien, une page, un « ok » ou un commentaire écrit. Et une règle annoncée au client : ce qui n'est pas écrit là n'existe pas.</p>
        <p style="margin:0 0 16px;">Rien de tout ça ne demande un outil. Mais si vous vous demandez ce que je construis : Klip, c'est exactement ces trois points, en automatique.</p>
-       <p style="margin:0 0 16px;">La semaine prochaine, je vous ouvre le capot — captures à l'appui.</p>
+       <p style="margin:0 0 16px;">La semaine prochaine, je vous ouvre le capot, captures à l'appui.</p>
        <p style="margin:0 0 16px;">Martin</p>
-       <p style="margin:0;font-size:14.5px;color:#5A5E50;"><em>PS — Si vous n'avez pas encore répondu aux 5 questions, c'est <a href="${APP_URL}/sondage?e={{EMAIL_ENC}}" style="color:#14160F;">par ici</a>. On est un tout petit groupe : chaque réponse pèse lourd.</em></p>`
+       <p style="margin:0;font-size:14.5px;color:#5A5E50;"><em>PS. Si vous n'avez pas encore répondu aux 5 questions, c'est <a href="${APP_URL}/sondage?e={{EMAIL_ENC}}" style="color:#14160F;">par ici</a>. On est un tout petit groupe : chaque réponse pèse lourd.</em></p>`
     ),
   }),
 
@@ -281,14 +309,14 @@ export const emails = {
       `Comme promis, j'ouvre le capot. Klip, c'est <strong>un seul espace pour gérer l'Instagram de tous vos clients</strong> :
        <br/><br/>
        <strong>· Un espace par client.</strong> Charte, ton de voix, historique. Vous changez de client d'un clic, et l'outil change de voix avec vous.<br/><br/>
-       <strong>· Un éditeur visuel</strong> type Canva/Adobe — sauf qu'il connaît déjà les couleurs et les polices de la marque.<br/><br/>
+       <strong>· Un éditeur visuel</strong> type Canva/Adobe, sauf qu'il connaît déjà les couleurs et les polices de la marque.<br/><br/>
        <strong>· Des légendes IA</strong> écrites dans la voix du client, pas dans celle d'un robot.<br/><br/>
        <strong>· Un calendrier et une validation client sur un lien.</strong> Fini les allers-retours WhatsApp.<br/><br/>
        <strong>· La publication Instagram directe</strong>, programmée à l'heure que vous voulez.
        <br/><br/>
        <span style="display:block;background:#F1F2F5;border-radius:12px;padding:16px 18px;">
          <strong style="color:#14160F;">Ouverture : dans deux semaines.</strong><br/>
-         Vous recevrez le lien avant tout le monde — et parce que vous étiez là avant : <strong>accès prioritaire</strong>, <strong>tarif fondateur bloqué à vie</strong> et <strong>onboarding en visio avec moi, offert</strong>.
+         Vous recevrez le lien avant tout le monde. Et parce que vous étiez là avant : <strong>accès prioritaire</strong>, <strong>tarif fondateur bloqué à vie</strong> et <strong>onboarding en visio avec moi, offert</strong>.
        </span>`,
       { label: "Voir Klip en détail", href: `${APP_URL}/acces-anticipe` }
     ),
@@ -296,16 +324,16 @@ export const emails = {
 
   // S4 — Ouverture.
   nurture4: () => ({
-    subject: "C'est ouvert — votre accès anticipé est prêt 🚀",
+    subject: "C'est ouvert, votre accès anticipé est prêt 🚀",
     html: shell(
       `Klip ${hl("ouvre ses portes")}`,
       `Ça y est. Vous étiez sur la liste avant tout le monde : <strong>votre accès est actif</strong>.
        <br/><br/>
        Créez votre compte avec l'email qui reçoit ce message, et vos avantages fondateurs s'appliquent automatiquement :
        <br/><br/>
-       <strong>· Tarif fondateur, bloqué à vie</strong> — il n'augmentera jamais pour vous, quoi qu'il arrive aux tarifs publics.<br/><br/>
-       <strong>· Onboarding en visio, offert</strong> — trente minutes avec moi pour paramétrer vos premiers clients ensemble.<br/><br/>
-       <strong>· Une ligne directe</strong> — vous répondez à ce mail, ça tombe sur ma boîte.
+       <strong>· Tarif fondateur, bloqué à vie</strong> : il n'augmentera jamais pour vous, quoi qu'il arrive aux tarifs publics.<br/><br/>
+       <strong>· Onboarding en visio, offert</strong> : trente minutes avec moi pour paramétrer vos premiers clients ensemble.<br/><br/>
+       <strong>· Une ligne directe</strong> : vous répondez à ce mail, ça tombe sur ma boîte.
        <br/><br/>
        Merci d'avoir attendu. Sincèrement : sur une liste aussi courte, chaque inscription a compté.`,
       { label: "Activer mon accès anticipé", href: `${APP_URL}/register` }
@@ -317,9 +345,9 @@ export const emails = {
     subject: "Je vous garde votre place jusqu'à dimanche",
     html: plain(
       `<p style="margin:0 0 16px;">Salut,</p>
-       <p style="margin:0 0 16px;">Klip est ouvert depuis trois jours et je vois que vous n'avez pas encore activé votre accès. Aucun souci — je sais ce que c'est, une semaine chargée.</p>
+       <p style="margin:0 0 16px;">Klip est ouvert depuis trois jours et je vois que vous n'avez pas encore activé votre accès. Aucun souci, je sais ce que c'est, une semaine chargée.</p>
        <p style="margin:0 0 16px;">Je vous dis juste où on en est : <strong>le tarif fondateur reste réservé jusqu'à dimanche soir</strong>. Après, je bascule sur les tarifs publics et je ne pourrai plus le rattraper pour vous.</p>
-       <p style="margin:0 0 16px;">Créer le compte prend une minute, et il y a sept jours d'essai — vous ne payez rien pour voir si ça vous va.</p>`,
+       <p style="margin:0 0 16px;">Créer le compte prend une minute, et il y a sept jours d'essai, vous ne payez rien pour voir si ça vous va.</p>`,
       { label: "Activer mon accès", href: `${APP_URL}/register` },
       `<p style="margin:0 0 16px;">Et si Klip ne correspond pas à ce que vous cherchiez, répondez-moi en un mot pour me dire pourquoi. C'est l'info la plus utile que vous puissiez me donner.</p>
        <p style="margin:0;">Martin</p>`
