@@ -83,6 +83,22 @@ function Section({ title, children }: { title: string; children: React.ReactNode
   );
 }
 
+// Taille de police du sous-titre à l'échelle 1, telle que l'export la dessine
+// (cf. export.ts). C'est elle qui permet d'afficher des pixels plutôt qu'un
+// pourcentage abstrait.
+const SUB_BASE_PX = 34;
+
+function AlignIcon({ dir }: { dir: "left" | "center" | "right" }) {
+  const short = dir === "left" ? { x1: 3, x2: 14 } : dir === "right" ? { x1: 10, x2: 21 } : { x1: 6, x2: 18 };
+  return (
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+      <line x1="3" y1="6" x2="21" y2="6" />
+      <line x1={short.x1} y1="12" x2={short.x2} y2="12" />
+      <line x1="3" y1="18" x2="21" y2="18" />
+    </svg>
+  );
+}
+
 // ─── éditeur ─────────────────────────────────────────────────────────────────
 
 export interface SubtitleStyleEditorLabels {
@@ -108,11 +124,13 @@ export default function SubtitleStyleEditor({
   const e = effectiveSubStyle(styleId, custom);
   const patch = (p: SubCustom) => onChange({ ...custom, ...p });
 
-  const fontOptions = [
-    ...(brandFont ? [{ v: brandFont, label: L.brandFont, title: brandFont }] : []),
-    { v: "", label: L.system },
-    { v: "Georgia", label: L.serif },
-    { v: "ui-monospace", label: L.mono },
+  // Quatre familles imposées, c'était trop peu : on ouvre la liste complète de
+  // l'éditeur, la police de la marque restant en tête.
+  const FONT_LIST = [
+    'Anton', 'Archivo Black', 'Barlow Condensed', 'Bebas Neue', 'DM Sans', 'Exo 2',
+    'Fjalla One', 'Inter', 'Lato', 'Montserrat', 'Nunito', 'Oswald',
+    'Playfair Display', 'Poppins', 'Raleway', 'Roboto Condensed', 'Space Grotesk',
+    'Syne', 'Ubuntu', 'Work Sans',
   ];
 
   return (
@@ -123,12 +141,32 @@ export default function SubtitleStyleEditor({
 
         <div>
           <Label>{L.font}</Label>
-          <Seg options={fontOptions} value={e.font ?? ""} onChange={(v) => patch({ font: v || undefined })} />
+          <select
+            value={e.font ?? ""}
+            onChange={(ev) => patch({ font: ev.target.value || undefined })}
+            className="input"
+            style={{ height: 34, fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: e.font || undefined }}
+          >
+            {brandFont && <option value={brandFont}>{L.brandFont} — {brandFont}</option>}
+            <option value="">{L.system}</option>
+            <option value="Georgia">{L.serif}</option>
+            <option value="ui-monospace">{L.mono}</option>
+            {FONT_LIST.filter(f => f !== brandFont).map(f => <option key={f} value={f}>{f}</option>)}
+          </select>
         </div>
 
         <div>
           <Label>{L.size}</Label>
-          <Slider value={e.scale} min={0.5} max={2.4} step={0.05} onChange={(v) => patch({ scale: v })} fmt={(v) => `${Math.round(v * 100)}%`} />
+          {/* La taille se règle en PIXELS du rendu final : « 120 % » ne disait
+              rien de ce qu'on obtient. 34px = échelle 1 à l'export. */}
+          <Slider
+            value={Math.round(e.scale * SUB_BASE_PX)}
+            min={Math.round(0.5 * SUB_BASE_PX)}
+            max={Math.round(2.4 * SUB_BASE_PX)}
+            step={1}
+            onChange={(px) => patch({ scale: +(px / SUB_BASE_PX).toFixed(3) })}
+            fmt={(px) => `${Math.round(px)} px`}
+          />
         </div>
 
         <div>
@@ -161,7 +199,11 @@ export default function SubtitleStyleEditor({
         <div>
           <Label>{L.align}</Label>
           <Seg<SubAlign>
-            options={[{ v: "left", label: "◧" }, { v: "center", label: "▣" }, { v: "right", label: "◨" }]}
+            options={[
+              { v: "left", label: <AlignIcon key="l" dir="left" /> },
+              { v: "center", label: <AlignIcon key="c" dir="center" /> },
+              { v: "right", label: <AlignIcon key="r" dir="right" /> },
+            ]}
             value={e.align} onChange={(v) => patch({ align: v })}
           />
         </div>

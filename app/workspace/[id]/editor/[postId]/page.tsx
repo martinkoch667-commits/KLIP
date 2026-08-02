@@ -2729,25 +2729,55 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
             const zones: CanvasEl[] = Array.isArray(tpl.text_zones) ? tpl.text_zones : [];
             initSlides = [{ id: 'slide-1', elements: zones, proxyUrl: '' }];
           } else {
-            // Nouveau template : jamais une page blanche. On pose une base de
-            // composition — la zone photo en plein cadre, un titre par-dessus —
-            // pour que le client ait tout de suite quelque chose à déplacer.
-            setBgStyle({ type: 'gradient', colorFrom: '#0038FF', colorTo: '#FFFFFF', angle: 135 });
+            // Nouveau template : jamais une page blanche. On pose une base
+            // complète — photo plein cadre, voile de lisibilité, un titre et un
+            // sous-titre déjà à la charte du client — pour que la personne
+            // n'ait plus qu'à déplacer et réécrire. Les deux zones portent un
+            // rôle : c'est par elles que l'IA remplira le modèle.
+            const brandInk = w?.secondary_color || '#FFFFFF';
+            const brandFont = w?.font_family || 'Oswald';
+            setBgStyle({ type: 'solid', color: w?.primary_color || '#14160F' });
             const photoZone: ImageEl = {
               id: 'tpl-photo', type: 'image', src: PHOTO_PLACEHOLDER_SRC,
               x: 0, y: 0, rotation: 0, opacity: 100, width: sw, height: sh,
             };
+            // Voile bas : sans lui, un titre clair devient illisible dès que la
+            // photo est claire.
+            const scrim: RectEl = {
+              id: 'tpl-scrim', type: 'rect',
+              x: 0, y: Math.round(sh * 0.45), width: sw, height: Math.round(sh * 0.55),
+              rotation: 0, opacity: 62, fill: '#000000', stroke: '', strokeWidth: 0,
+              cornerRadius: 0, scrim: 'bottom',
+            } as RectEl;
             const titleZone: TextEl = {
               ...defaultEl,
               id: 'tpl-titre',
-              text: 'VOTRE TITRE',
+              text: 'TEXTE 1',
               role: 'titre',
-              x: 24, y: sh - 132,
+              x: 24, y: Math.round(sh * 0.68),
               width: sw - 48,
-              fontSize: 44,
+              fontSize: Math.round(sw * 0.105),
               align: 'center',
+              fontFamily: brandFont,
+              fill: brandInk,
+              hasBg: false,
+              uppercase: true,
             };
-            initSlides = [{ id: 'slide-1', elements: [photoZone, titleZone], proxyUrl: '' }];
+            const subZone: TextEl = {
+              ...defaultEl,
+              id: 'tpl-sous-titre',
+              text: 'Texte 2',
+              role: 'sous-titre',
+              x: 24, y: Math.round(sh * 0.68) + Math.round(sw * 0.155),
+              width: sw - 48,
+              fontSize: Math.round(sw * 0.042),
+              align: 'center',
+              fontFamily: brandFont,
+              fill: brandInk,
+              hasBg: false,
+              uppercase: false,
+            };
+            initSlides = [{ id: 'slide-1', elements: [photoZone, scrim, titleZone, subZone], proxyUrl: '' }];
           }
         } else if (p?.editor_json) {
           // Saved state always wins — never re-apply template
