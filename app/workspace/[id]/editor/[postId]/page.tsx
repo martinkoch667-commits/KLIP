@@ -3725,6 +3725,26 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
     setTimeout(() => setEditorToast(null), 4000);
   };
 
+  // @imgly/background-removal ne reconnaît qu'une liste fermée de formats
+  // (png/jpeg/webp) et rejette tout le reste avec une erreur brute
+  // (« Invalid format: image/avif with params… ») — alors que le navigateur
+  // sait très bien décoder l'image. On repasse systématiquement par un canvas
+  // pour obtenir un PNG garanti compatible, quel que soit le format d'origine
+  // (AVIF notamment, de plus en plus courant en sortie de banques d'images).
+  const toPngBlob = async (blob: Blob): Promise<Blob> => {
+    const bitmap = await createImageBitmap(blob);
+    const canvas = document.createElement('canvas');
+    canvas.width = bitmap.width;
+    canvas.height = bitmap.height;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) throw new Error('Contexte canvas indisponible');
+    ctx.drawImage(bitmap, 0, 0);
+    bitmap.close();
+    return await new Promise<Blob>((resolve, reject) => {
+      canvas.toBlob(b => (b ? resolve(b) : reject(new Error('Conversion PNG échouée'))), 'image/png');
+    });
+  };
+
   // Détourage / suppression d'arrière-plan (100% côté client, sans clé API)
   const removeBgFromImage = async (el: ImageEl) => {
     if (bgRemovingId) return;
@@ -3740,6 +3760,7 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
         const resp = await fetch(`/api/proxy-image?url=${encodeURIComponent(el.src)}`);
         blob = await resp.blob();
       }
+      blob = await toPngBlob(blob);
       // Chargé depuis un CDN (webpackIgnore) : évite de bundler onnxruntime, dont le backend
       // Node casse le build. Le modèle IA est téléchargé depuis le CDN static d'imgly au 1er usage.
       // @ts-expect-error import CDN dynamique sans types
