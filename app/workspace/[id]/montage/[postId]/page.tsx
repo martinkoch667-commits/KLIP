@@ -11,7 +11,7 @@ import {
   subStyleById, effectiveSubStyle, subtitleBoxCss, applySubCase,
   transitionStateAt, transitionCss,
   // (analyzeClipQuality importé depuis ./autoCut plus bas)
-  fmt, newClipDefaults, newOverlayDefaults, clipFilterCss, overlayFilterCss, clipTimelineDur, clipAudioGainAt, overlayTimelineDur, overlayAudioGainAt, segmentCaptions,
+  fmt, newClipDefaults, newOverlayDefaults, clipFilterCss, overlayFilterCss, clipTimelineDur, clipAudioGainAt, overlayTimelineDur, overlayAudioGainAt, segmentCaptions, captionsFromWords, dedupeSegments,
   audioVolumeAt, kenBurnsScale, VIDEO_FORMATS, videoFormatById, EXPORT_QUALITIES,
 } from "./constants";
 import { MontageCtx, CutPanel, TextPanel, CaptionsPanel, AudioPanel, TransitionsPanel, FilterPanel, SpeedPanel, StickerPanel, OverlayPanel, AiPanel } from "./panels";
@@ -281,6 +281,9 @@ export default function MontagePage() {
   const [selectedCaptionId, setSelectedCaptionId] = useState<string | null>(null);
   const [editingCaptionId, setEditingCaptionId] = useState<string | null>(null);
   const [rawSegments, setRawSegments] = useState<{ start: number; end: number; text: string }[]>([]);
+  // Mots horodatés recalés sur la timeline : source de vérité des sous-titres. Conservés
+  // pour pouvoir changer la longueur des sous-titres sans relancer la transcription.
+  const [rawWords, setRawWords] = useState<TWord[]>([]);
   const [subSelected, setSubSelected] = useState(false);
   const [titles, setTitles] = useState<TitleEl[]>([]);
   const [stickers, setStickers] = useState<StickerEl[]>([]);
@@ -484,6 +487,12 @@ export default function MontagePage() {
   const lastSeekRef = useRef(0); // temporisation des recalages de dérive
   const mediaErrRef = useRef<Set<string>>(new Set()); // sources déjà signalées comme illisibles
   const [slot, setSlot] = useState<0 | 1>(0);
+  // Miroir SYNCHRONE de `slot`. Indispensable : `setSlot()` n'est appliqué qu'au rendu
+  // suivant, or l'effet de préchargement se rejoue DANS LE MÊME commit que la bascule
+  // de plan. Avec l'ancienne valeur d'état il calculait « lecteur libre = celui qui
+  // vient de devenir actif » et le mettait en pause en le déplaçant sur le plan
+  // suivant — d'où l'image bloquée en boucle sur deux frames.
+  const activeSlotRef = useRef<0 | 1>(0);
   const loadedSrcRef = useRef<string | null>(null);
   const overlayVideoRefs = useRef<Map<string, HTMLVideoElement>>(new Map());
   const scrubRef = useRef<HTMLDivElement>(null);
@@ -656,6 +665,7 @@ export default function MontagePage() {
         setSubCustom(subUntouched && charterSub ? charterSub.custom : (proj.subCustom || {}));
         setLinkedSubs(proj.linkedSubs ?? true);
         setRawSegments(proj.rawSegments || []);
+        setRawWords(proj.rawWords || []);
         setTitles(proj.titles || []);
         setStickers(proj.stickers || []);
         setAudioTracks(proj.audioTracks || []);
@@ -694,11 +704,11 @@ export default function MontagePage() {
     if (loading) return;
     if (saveTimer.current) clearTimeout(saveTimer.current);
     saveTimer.current = setTimeout(() => {
-      const project: MontageProject = { clips, overlays, captions, subStyleId, subMaxWords, subPos, subCustom, linkedSubs, rawSegments, titles, stickers, audioTracks, showProgressBar, exportUrl, formatId, customW, customH, exportQuality };
+      const project: MontageProject = { clips, overlays, captions, subStyleId, subMaxWords, subPos, subCustom, linkedSubs, rawSegments, rawWords, titles, stickers, audioTracks, showProgressBar, exportUrl, formatId, customW, customH, exportQuality };
       supabase.from("posts").update({ montage_json: project }).eq("id", postId).then(() => {});
     }, 700);
     return () => { if (saveTimer.current) clearTimeout(saveTimer.current); };
-  }, [clips, overlays, captions, subStyleId, subMaxWords, subPos, subCustom, linkedSubs, rawSegments, titles, stickers, audioTracks, showProgressBar, exportUrl, formatId, customW, customH, exportQuality, loading, postId, supabase]);
+  }, [clips, overlays, captions, subStyleId, subMaxWords, subPos, subCustom, linkedSubs, rawSegments, rawWords, titles, stickers, audioTracks, showProgressBar, exportUrl, formatId, customW, customH, exportQuality, loading, postId, supabase]);
 
   // ── Historique undo/redo ────────────────────────────────────────────────────
   type Snapshot = Required<Pick<MontageProject, "subPos" | "subCustom" | "overlays">> & Pick<MontageProject, "clips" | "captions" | "subStyleId" | "titles" | "stickers" | "audioTracks" | "showProgressBar">;
@@ -853,9 +863,15 @@ export default function MontagePage() {
       if (el) { el.src = activeClip.src; slotSrcRef.current[target] = activeClip.src; }
     }
     slotClipRef.current[target] = activeClip.id;
+    // Un plan n'est prêt que dans UN lecteur : sans ce nettoyage, les deux slots
+    // finissaient par revendiquer le même id et la bascule suivante repartait sur
+    // le mauvais lecteur.
+    const other = target === 0 ? 1 : 0;
+    if (slotClipRef.current[other] === activeClip.id) slotClipRef.current[other] = null;
     const v = els[target];
     if (!v) return;
     videoRef.current = v;
+    activeSlotRef.current = target; // avant setSlot : l'effet de préchargement le lit dans ce même commit
     loadedSrcRef.current = activeClip.src;
     if (target !== slot) setSlot(target);
     v.playbackRate = activeClip.speed;
@@ -872,9 +888,15 @@ export default function MontagePage() {
   // ── Précharge le plan suivant dans le lecteur libre, déjà positionné ─────────
   useEffect(() => {
     if (!nextClip) return;
-    const free = slot === 0 ? 1 : 0;
+    // `activeSlotRef` et non `slot` : au commit d'un changement de plan, l'état `slot`
+    // porte encore l'ANCIENNE valeur et désignait comme « libre » le lecteur qui vient
+    // d'être mis à l'antenne.
+    const free = activeSlotRef.current === 0 ? 1 : 0;
     const el = [videoARef.current, videoBRef.current][free];
     if (!el) return;
+    // Garde-fou : on ne précharge JAMAIS dans le lecteur affiché (pause + seek en
+    // pleine lecture = image figée qui ping-pongue entre deux frames).
+    if (el === videoRef.current) return;
     if (slotClipRef.current[free] === nextClip.id) return; // déjà prêt
     const seek = () => {
       try { el.currentTime = Math.max(0, nextClip.trimStart); } catch {}
@@ -979,7 +1001,12 @@ export default function MontagePage() {
       // (si elle a calé, été bloquée, ou pris de l'avance/retard). + fondu du son du plan.
       const vEl = videoRef.current, ac = activeClipRef.current;
       if (vEl && ac && ac.kind === "video") {
-        const expected = ac.trimStart + (t - ac.start) * ac.speed;
+        // Position visée DANS LA SOURCE, bornée à son métrage réel : si `trimEnd`
+        // dépasse la durée du fichier (métadonnée fausse, ré-encodage), viser au-delà
+        // rend la cible inatteignable — le lecteur repassait en `ended` à chaque frame
+        // et se figeait sur les deux dernières images jusqu'à la fin du plan.
+        const srcEnd = isFinite(vEl.duration) && vEl.duration > 0 ? vEl.duration - 0.05 : Infinity;
+        const expected = Math.min(ac.trimStart + (t - ac.start) * ac.speed, srcEnd);
         if (vEl.paused) vEl.play().catch(() => {});
         // Recaler seulement en cas de vraie dérive, et pas plus d'une fois par
         // demi-seconde : un re-seek en rafale empêche le décodeur de repartir
@@ -987,8 +1014,11 @@ export default function MontagePage() {
         const drift = Math.abs(vEl.currentTime - expected);
         // `ended` : la source a atteint sa fin alors que le plan continue sur la
         // timeline (trimEnd = durée du fichier) — play() n'y peut rien, il faut
-        // repositionner. On ne temporise pas dans ce cas.
-        const mustRecover = vEl.ended || drift > 1.5;
+        // repositionner.
+        // Même un recalage « urgent » garde un délai minimal : si la cible reste
+        // inatteignable, un seek à chaque frame empêche définitivement le décodeur
+        // de repartir. 250 ms suffisent à rattraper sans bloquer le décodage.
+        const mustRecover = (vEl.ended || drift > 1.5) && now - lastSeekRef.current > 250;
         if (isFinite(expected) && !vEl.seeking && (mustRecover || (drift > 0.5 && now - lastSeekRef.current > 500))) {
           lastSeekRef.current = now;
           vEl.currentTime = Math.max(0, expected);
@@ -1557,34 +1587,53 @@ export default function MontagePage() {
       // le temps de la SOURCE en temps de la TIMELINE — sinon les sous-titres ne
       // couvraient que le début et tombaient à côté dès qu'un plan était rogné.
       const all: { start: number; end: number; text: string }[] = [];
+      const allWords: TWord[] = [];
       let firstError: string | null = null;
       // Une même source utilisée par plusieurs plans n'est transcrite qu'une fois.
-      const cache = new Map<string, { start: number; end: number; text: string }[]>();
+      const cache = new Map<string, { segments: { start: number; end: number; text: string }[]; words: TWord[] }>();
 
       for (const c of vids) {
-        let segs = cache.get(c.src);
-        if (!segs) {
+        let tr = cache.get(c.src);
+        if (!tr) {
           const r = await transcribeMedia(c.src);
-          if (r.error && !r.segments.length) { firstError = firstError ?? r.error; continue; }
+          if (r.error && !r.segments.length && !r.words.length) { firstError = firstError ?? r.error; continue; }
           if (r.error && !firstError) firstError = r.error;
-          segs = r.segments;
-          cache.set(c.src, segs);
+          tr = { segments: r.segments, words: r.words };
+          cache.set(c.src, tr);
         }
-        for (const sg of segs) {
+        const toTimeline = (srcT: number) => c.start + (srcT - c.trimStart) / c.speed;
+        // ── Mots horodatés : la voie normale ────────────────────────────────
+        // Un mot est rattaché au plan dont la partie conservée contient son MILIEU.
+        // Ce test d'appartenance unique est ce qui empêche un même passage d'être
+        // réécrit deux fois quand le prémontage scinde un rush en plusieurs plans.
+        for (const w of tr.words) {
+          const mid = (w.start + w.end) / 2;
+          if (mid < c.trimStart || mid >= c.trimEnd) continue;
+          allWords.push({
+            start: toTimeline(Math.max(w.start, c.trimStart)),
+            end: toTimeline(Math.min(w.end, c.trimEnd)),
+            word: w.word,
+          });
+        }
+        for (const sg of tr.segments) {
           // ne garder que ce qui tombe dans la partie conservée du plan
           const from = Math.max(sg.start, c.trimStart);
           const to = Math.min(sg.end, c.trimEnd);
           if (to - from < 0.08) continue;
-          const toTimeline = (srcT: number) => c.start + (srcT - c.trimStart) / c.speed;
           all.push({ start: toTimeline(from), end: toTimeline(to), text: sg.text });
         }
       }
 
-      if (!all.length) { toast(firstError || t('toastTranscriptionError'), "error"); return; }
+      if (!all.length && !allWords.length) { toast(firstError || t('toastTranscriptionError'), "error"); return; }
       if (firstError) toast(firstError, "error"); // transcription partielle
       all.sort((a, b) => a.start - b.start);
+      allWords.sort((a, b) => a.start - b.start);
       setRawSegments(all);
-      const newCaps: Caption[] = segmentCaptions(all, subMaxWords);
+      setRawWords(allWords);
+      // Repli sur les segments seulement si le fournisseur n'a pas renvoyé de mots.
+      const newCaps: Caption[] = allWords.length
+        ? captionsFromWords(allWords, subMaxWords)
+        : segmentCaptions(dedupeSegments(all), subMaxWords);
       setCaptions(newCaps);
       toast(t('toastCaptionsGenerated', { count: newCaps.length }));
     } catch {
@@ -1976,7 +2025,9 @@ export default function MontagePage() {
   // Re-découpe les sous-titres avec une nouvelle longueur (mots/bloc) sans re-transcrire.
   function setCaptionLength(words: number) {
     setSubMaxWords(words);
-    if (rawSegments.length) setCaptions(segmentCaptions(rawSegments, words));
+    // Re-découpe à partir des mots quand on les a (calage exact), sinon des segments.
+    if (rawWords.length) setCaptions(captionsFromWords(rawWords, words));
+    else if (rawSegments.length) setCaptions(segmentCaptions(dedupeSegments(rawSegments), words));
   }
 
   // Applique un modèle de sous-titres enregistré (style + surcharges + position + longueur).
@@ -2556,7 +2607,7 @@ export default function MontagePage() {
       }
 
       await supabase.from("posts").update({
-        montage_json: { clips, overlays, captions, subStyleId, subMaxWords, subPos, subCustom, linkedSubs, rawSegments, titles, stickers, audioTracks, showProgressBar, exportUrl: urlData.publicUrl, formatId, customW, customH, exportQuality },
+        montage_json: { clips, overlays, captions, subStyleId, subMaxWords, subPos, subCustom, linkedSubs, rawSegments, rawWords, titles, stickers, audioTracks, showProgressBar, exportUrl: urlData.publicUrl, formatId, customW, customH, exportQuality },
         photo_url: urlData.publicUrl,
         ...(thumbUrl ? { thumbnail_url: thumbUrl } : {}),
         ...(publish ? { status: "validated" } : {}),
@@ -2912,7 +2963,7 @@ export default function MontagePage() {
     else setSubCustom(next);
   };
   const ctx: MontageCtx = {
-    clips, selectedClip, captions, subStyleId: activeSubStyleId, subMaxWords, subCustom: activeSubCustom, subPos, hasRawSegments: rawSegments.length > 0,
+    clips, selectedClip, captions, subStyleId: activeSubStyleId, subMaxWords, subCustom: activeSubCustom, subPos, hasRawSegments: rawSegments.length > 0 || rawWords.length > 0,
     linkedSubs, setLinkedSubs, selectedCaptionId, setSelectedCaptionId,
     titles, stickers, audioTracks, showProgressBar,
     overlays, selectedOverlay, uploadingOverlay, addOverlayFiles, updateOverlay, removeOverlay, duplicateOverlay, selectOverlay,

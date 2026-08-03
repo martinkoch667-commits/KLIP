@@ -239,6 +239,7 @@ export interface MontageProject {
   subCustom?: SubCustom;                                       // surcharges manuelles (couleurs, typo, taille)
   linkedSubs?: boolean;                                        // true = tous les sous-titres partagent le style; false = style par sous-titre
   rawSegments?: { start: number; end: number; text: string }[]; // segments Whisper bruts (pour re-découper)
+  rawWords?: { start: number; end: number; word: string }[];    // mots horodatés RECALÉS SUR LA TIMELINE (source de vérité des sous-titres)
   titles: TitleEl[];
   stickers: StickerEl[];
   audioTracks: AudioTrack[];
@@ -590,6 +591,63 @@ export function segmentCaptions(
       out.push({ id: crypto.randomUUID(), start, end, text: chunk.join(" ") });
     }
   }
+  return out;
+}
+
+// Repli sans mots horodatés : un segment Whisper à cheval sur une coupe de montage
+// ressort une fois par morceau conservé, avec le texte ENTIER à chaque fois. On ne
+// garde que l'occurrence la plus longue — sinon la même phrase s'affiche deux fois.
+export function dedupeSegments(
+  segments: { start: number; end: number; text: string }[],
+): { start: number; end: number; text: string }[] {
+  const best = new Map<string, { start: number; end: number; text: string }>();
+  for (const s of segments) {
+    const key = s.text.trim().toLowerCase();
+    if (!key) continue;
+    const cur = best.get(key);
+    if (!cur || s.end - s.start > cur.end - cur.start) best.set(key, s);
+  }
+  return Array.from(best.values()).sort((a, b) => a.start - b.start);
+}
+
+// Découpe des sous-titres à partir des mots HORODATÉS — la voie normale.
+// `segmentCaptions` ci-dessus étale le temps d'un segment Whisper proportionnellement
+// au nombre de mots : une respiration ou un silence d'effet au milieu d'une phrase
+// suffisait à décaler l'affichage de plusieurs secondes. Ici chaque sous-titre prend
+// le début du premier mot et la fin du dernier — le texte tombe donc exactement quand
+// il est prononcé.
+// Les mots reçus sont déjà exprimés en temps de TIMELINE (voir generateCaptionsAI).
+export function captionsFromWords(
+  words: { start: number; end: number; word: string }[],
+  maxWords: number = DEFAULT_WORDS_PER_CAPTION,
+  // Un blanc supérieur à ce seuil termine le sous-titre en cours : on ne garde pas
+  // un texte à l'écran pendant un silence, et on ne recolle pas deux phrases séparées
+  // par une coupe de montage.
+  gapBreak = 0.7,
+): { id: string; start: number; end: number; text: string }[] {
+  const step = Math.max(1, Math.floor(maxWords));
+  const out: { id: string; start: number; end: number; text: string }[] = [];
+  const src = words
+    .filter((w) => w && w.word && isFinite(w.start) && isFinite(w.end) && w.end > w.start)
+    .sort((a, b) => a.start - b.start);
+  let group: { start: number; end: number; word: string }[] = [];
+  const flush = () => {
+    if (!group.length) return;
+    out.push({
+      id: crypto.randomUUID(),
+      start: group[0].start,
+      end: Math.max(group[group.length - 1].end, group[0].start + 0.12), // durée minimale lisible
+      text: group.map((w) => w.word).join(" "),
+    });
+    group = [];
+  };
+  for (const w of src) {
+    const prev = group[group.length - 1];
+    if (prev && w.start - prev.end > gapBreak) flush();
+    group.push(w);
+    if (group.length >= step) flush();
+  }
+  flush();
   return out;
 }
 
