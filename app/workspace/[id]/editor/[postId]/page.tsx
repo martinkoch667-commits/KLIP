@@ -2527,6 +2527,69 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
     setHistTick(t => t + 1);
   };
 
+  // ── Bascule Séparé ⇄ Continu — fusionne/redécoupe réellement les éléments ──
+  // Avant ce correctif, la bascule ne faisait que changer un booléen : seule la
+  // slide « active » restait visible dans la grande toile, les éléments des
+  // AUTRES slides devenaient orphelins (invisibles) sans jamais être perdus en
+  // base, ce qui donnait l'impression qu'un visuel « disparaissait » (retour Martin).
+  const toggleCarouselMode = (toContinuous: boolean) => {
+    if (toContinuous === carouselContinuous) return;
+    const updated = saveCurrentSlide();
+    if (toContinuous) {
+      // Séparé → Continu : chaque slide i devient le volet i de la grande toile
+      // (décalage horizontal de i × stageW), fusionnées en une seule slide.
+      const panels = Math.max(2, Math.min(6, updated.length));
+      const merged: CanvasEl[] = updated
+        .slice(0, panels)
+        .flatMap((s, i) => s.elements.map(el => ({ ...el, x: el.x + i * stageW })));
+      const base = updated[0];
+      const mergedSlide: Slide = { id: base?.id || 'slide-1', elements: merged, proxyUrl: base?.proxyUrl || '', bgOffsetX: base?.bgOffsetX, bgOffsetY: base?.bgOffsetY };
+      slidesRef.current = [mergedSlide];
+      setSlides([mergedSlide]);
+      setActiveSlideIdx(0);
+      setElements(merged);
+      setProxyUrl(mergedSlide.proxyUrl);
+      setBgOffsetX(mergedSlide.bgOffsetX ?? 0);
+      setBgOffsetY(mergedSlide.bgOffsetY ?? 0);
+      setSelectedId(null);
+      setCropId(null);
+      historyRef.current = [merged];
+      histIdxRef.current = 0;
+      setHistTick(t => t + 1);
+      setContPanels(panels);
+    } else {
+      // Continu → Séparé : redécoupe la grande toile en `contPanels` slides,
+      // chaque élément rejoignant le volet où se trouve son bord gauche.
+      const count = Math.max(2, Math.min(6, contPanels));
+      const source = updated[activeSlideIdx] ?? updated[0];
+      const buckets: CanvasEl[][] = Array.from({ length: count }, () => []);
+      for (const el of source?.elements ?? []) {
+        const idx = Math.min(count - 1, Math.max(0, Math.floor(el.x / stageW)));
+        buckets[idx].push({ ...el, x: el.x - idx * stageW });
+      }
+      const newSlides: Slide[] = buckets.map((els, i) => ({
+        id: i === 0 ? (source?.id || 'slide-1') : `slide-${Date.now()}-${i}`,
+        elements: els,
+        proxyUrl: source?.proxyUrl || '',
+        bgOffsetX: (source?.bgOffsetX ?? 0) - i * stageW,
+        bgOffsetY: source?.bgOffsetY ?? 0,
+      }));
+      slidesRef.current = newSlides;
+      setSlides(newSlides);
+      setActiveSlideIdx(0);
+      setElements(newSlides[0].elements);
+      setProxyUrl(newSlides[0].proxyUrl);
+      setBgOffsetX(newSlides[0].bgOffsetX ?? 0);
+      setBgOffsetY(newSlides[0].bgOffsetY ?? 0);
+      setSelectedId(null);
+      setCropId(null);
+      historyRef.current = [newSlides[0].elements];
+      histIdxRef.current = 0;
+      setHistTick(t => t + 1);
+    }
+    setCarouselContinuous(toContinuous);
+  };
+
   const [saving, setSaving] = useState(false);
   const [resizing, setResizing] = useState(false);
   const [qaBusy, setQaBusy] = useState(false);
@@ -5683,7 +5746,7 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
                       {([['separate', 'Séparé'], ['continuous', 'Continu']] as const).map(([mode, label]) => {
                         const active = (mode === 'continuous') === carouselContinuous;
                         return (
-                          <button key={mode} onClick={() => setCarouselContinuous(mode === 'continuous')}
+                          <button key={mode} onClick={() => toggleCarouselMode(mode === 'continuous')}
                             style={{ flex: 1, padding: '6px 4px', borderRadius: 6, border: 'none', cursor: 'pointer', fontSize: 12, fontWeight: 700, fontFamily: 'var(--sans)', transition: 'all .15s', background: active ? 'var(--leaf)' : 'transparent', color: active ? '#06281C' : 'var(--ink-3)' }}>
                             {label}
                           </button>
