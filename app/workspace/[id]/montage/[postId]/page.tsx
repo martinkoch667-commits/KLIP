@@ -18,6 +18,8 @@ import { MontageCtx, CutPanel, TextPanel, CaptionsPanel, AudioPanel, Transitions
 import { renderExport } from "./export";
 import { analyzeClipQuality, planSemanticCuts, keepRangesFromCuts, type TWord } from "./autoCut";
 import { transcodeToMp4 } from "@/lib/mp4-transcode";
+import AiThinkingPanel from "@/components/AiThinkingPanel";
+import AiChatDock from "@/components/AiChatDock";
 
 // ─── Types / rail ───────────────────────────────────────────────────────────
 
@@ -374,6 +376,16 @@ export default function MontagePage() {
   // Prémontage IA complet lancé à l'ouverture (?premontage=1).
   const [preEditing, setPreEditing] = useState(false);
   const [preEditStep, setPreEditStep] = useState<string | null>(null);
+  // Journal fin du prémontage : alimenté par les étapes RÉELLES (un plan analysé,
+  // une transcription reçue, des coupes appliquées…) et révélé à la machine à
+  // écrire par AiThinkingPanel. Aucune ligne décorative : ce qui s'affiche a eu lieu.
+  const [preEditStepIdx, setPreEditStepIdx] = useState(-1);
+  const [aiLog, setAiLog] = useState<string[]>([]);
+  const pushAiLog = useCallback((line: string) => setAiLog((l) => (l[l.length - 1] === line ? l : [...l, line])), []);
+  // Le journal ne s'alimente que pendant le prémontage complet (les outils lancés
+  // à l'unité gardent leurs toasts habituels).
+  const loggingRef = useRef(false);
+  const logStep = useCallback((line: string) => { if (loggingRef.current) pushAiLog(line); }, [pushAiLog]);
   const [autoCutProgress, setAutoCutProgress] = useState<{ done: number; total: number; name: string } | null>(null);
   const [autoCutDone, setAutoCutDone] = useState<{ clips: number; seconds: number } | null>(null);
   const [cuttingSilence, setCuttingSilence] = useState(false);
@@ -1588,6 +1600,7 @@ export default function MontagePage() {
       let failure: string | null = null;
       for (const c of base) {
         if (!ids.has(c.id)) { next.push(c); continue; }
+        logStep(t('logTranscribing', { name: c.name }));
         const r = await transcribeWords(c.src);
         if (!r) { next.push(c); continue; }
         if (!r.words.length) {
@@ -1597,8 +1610,10 @@ export default function MontagePage() {
           if (r.error) failure = r.error;
           continue;
         }
+        logStep(t('logWordsHeard', { n: r.words.length }));
         const cuts = planSemanticCuts(r.words).filter((x) => x.end > c.trimStart && x.start < c.trimEnd);
-        if (!cuts.length) { next.push(c); continue; }
+        if (!cuts.length) { next.push(c); logStep(t('logSpeechClean')); continue; }
+        logStep(t('logCutsFound', { n: cuts.length }));
         const keeps = keepRangesFromCuts(cuts, c.trimStart, c.trimEnd);
         if (!keeps.length) { next.push(c); continue; }
         removed += (c.trimEnd - c.trimStart) - keeps.reduce((s, k) => s + (k.end - k.start), 0);
@@ -1641,6 +1656,7 @@ export default function MontagePage() {
       for (const c of vids) {
         let tr = cache.get(c.src);
         if (!tr) {
+          logStep(t('logTranscribing', { name: c.name }));
           const r = await transcribeMedia(c.src);
           if (r.error && !r.segments.length && !r.words.length) { firstError = firstError ?? r.error; continue; }
           if (r.error && !firstError) firstError = r.error;
@@ -1681,6 +1697,7 @@ export default function MontagePage() {
         ? captionsFromWords(allWords, subMaxWords)
         : segmentCaptions(dedupeSegments(all), subMaxWords);
       setCaptions(newCaps);
+      logStep(allWords.length ? t('logCaptionsWords', { n: newCaps.length }) : t('logCaptionsSegments', { n: newCaps.length }));
       toast(t('toastCaptionsGenerated', { count: newCaps.length }));
     } catch {
       toast(t('toastTranscriptionError'), "error");
@@ -1855,6 +1872,7 @@ export default function MontagePage() {
         const c = next[i];
         if (c.kind !== "video") continue;
         setAutoCutProgress({ done: trimmedCount, total: vids.length, name: c.name });
+        logStep(t('logAnalyzing', { name: c.name }));
         // On repère d'abord où ça parle (analyse locale, sans clé) pour ne jamais
         // sacrifier de la parole à cause d'un défaut d'image.
         let voiced: { start: number; end: number }[] | undefined;
@@ -1867,9 +1885,13 @@ export default function MontagePage() {
         const end = Math.min(c.trimEnd, rep.keep.end);
         // On n'applique que si le gain est réel (> 0.3 s) et la plage valide.
         if (end - start > 0.5 && (c.trimEnd - c.trimStart) - (end - start) > 0.3) {
-          savedSec += (c.trimEnd - c.trimStart) - (end - start);
+          const gain = (c.trimEnd - c.trimStart) - (end - start);
+          savedSec += gain;
           next[i] = { ...c, trimStart: start, trimEnd: end };
           trimmedCount++;
+          logStep(t('logTrimmed', { s: gain.toFixed(1) }));
+        } else {
+          logStep(t('logClipClean'));
         }
       }
       if (trimmedCount > 0) {
@@ -1895,21 +1917,31 @@ export default function MontagePage() {
     if (preRunRef.current) return;
     preRunRef.current = true;
     setPreEditing(true);
+    setAiLog([]);
+    loggingRef.current = true;
     try {
-      setPreEditStep(t('preStepRushes'));
+      setPreEditStep(t('preStepRushes')); setPreEditStepIdx(0);
+      logStep(t('logStartRushes', { n: clips.filter((c) => c.kind === "video").length }));
       let work = await autoCutQuality();
-      setPreEditStep(t('preStepSpeech'));
+      setPreEditStep(t('preStepSpeech')); setPreEditStepIdx(1);
       work = await cutFillers(work);
-      setPreEditStep(t('preStepCaptions'));
+      setPreEditStep(t('preStepCaptions')); setPreEditStepIdx(2);
       // on passe les plans RÉELS issus des deux étapes précédentes
       await generateCaptionsAI(work);
-      setPreEditStep(t('preStepTransitions'));
+      setPreEditStep(t('preStepTransitions')); setPreEditStepIdx(3);
       // Enchaînement plus vif : fondu court entre les plans.
       applyTransitionToAll("fade", 0.25);
+      logStep(t('logTransitions', { n: Math.max(0, work.length - 1) }));
+      setPreEditStepIdx(4);
+      logStep(t('logAllDone'));
       toast(t('preEditDone'));
+      // On laisse la dernière ligne s'écrire avant de refermer l'écran.
+      await new Promise((r) => setTimeout(r, 900));
     } finally {
+      loggingRef.current = false;
       setPreEditing(false);
       setPreEditStep(null);
+      setPreEditStepIdx(-1);
     }
   }
 
@@ -3008,6 +3040,137 @@ export default function MontagePage() {
     if (perCap && editingCaption) updateCaption(editingCaption.id, { custom: next });
     else setSubCustom(next);
   };
+  // ── Assistant de montage : état envoyé à l'IA + exécution de ses actions ────
+  // On n'envoie qu'un RÉSUMÉ du projet (pas les URLs de médias ni les styles
+  // complets) : assez pour raisonner, assez court pour tenir dans le contexte.
+  const buildChatProject = useCallback(() => {
+    const starts = computeStarts(clips);
+    return {
+      format: formatId,
+      dureeTotale: Number(total.toFixed(2)),
+      plans: starts.map((c, i) => ({
+        id: c.id, n: i + 1, nom: c.name, type: c.kind,
+        debutTimeline: Number(c.start.toFixed(2)),
+        duree: Number(c.dur.toFixed(2)),
+        trimStart: Number(c.trimStart.toFixed(2)),
+        trimEnd: Number(c.trimEnd.toFixed(2)),
+        dureeSource: Number((c.srcDur ?? 0).toFixed(2)),
+        vitesse: c.speed, volume: c.vol ?? 1,
+        filtre: c.filterId, transitionEntree: c.transitionIn, dureeTransition: c.transitionDur,
+      })),
+      sousTitres: { nombre: captions.length, motsParSousTitre: subMaxWords, style: subStyleId, position: subPos },
+      titres: titles.map((x) => ({ id: x.id, texte: x.text, debut: Number(x.start.toFixed(2)), fin: Number(x.end.toFixed(2)) })),
+      pistesAudio: audioTracks.map((a) => ({ id: a.id, nom: a.name, debut: a.offset, duree: a.dur })),
+      incrustations: overlays.length,
+      barreDeProgression: showProgressBar,
+    };
+  }, [clips, total, formatId, captions.length, subMaxWords, subStyleId, subPos, titles, audioTracks, overlays.length, showProgressBar]);
+
+  // Applique les actions renvoyées par l'IA. Chaque branche passe par les setters
+  // normaux → l'historique enregistre les points d'annulation tout seul (Cmd+Z).
+  // Renvoie le nombre d'actions réellement appliquées.
+  const applyChatActions = useCallback((actions: { type: string; [k: string]: unknown }[]): number => {
+    let done = 0;
+    const num = (v: unknown, min: number, max: number, dflt: number) =>
+      typeof v === "number" && isFinite(v) ? Math.max(min, Math.min(max, v)) : dflt;
+    // « all » ou un id de plan → liste des plans visés.
+    const targets = (t: unknown): string[] => {
+      if (t === "all" || t == null) return clips.map((c) => c.id);
+      return clips.some((c) => c.id === t) ? [String(t)] : [];
+    };
+
+    for (const a of actions) {
+      switch (a.type) {
+        case "run_pre_edit": void runFullPreEdit(); done++; break;
+        case "auto_cut": void autoCutQuality(); done++; break;
+        case "cut_fillers": void cutFillers(); done++; break;
+        case "generate_captions": void generateCaptionsAI(); done++; break;
+        case "set_transition": {
+          const tr = TRANSITIONS.some((x) => x.id === a.transition) ? String(a.transition) : null;
+          if (!tr) break;
+          const dur = num(a.dur, 0.1, 2, 0.4);
+          if (a.target === "all" || a.target == null) { applyTransitionToAll(tr, dur); done++; }
+          else for (const id of targets(a.target)) { updateClip(id, { transitionIn: tr, transitionDur: dur }); done++; }
+          break;
+        }
+        case "set_speed": {
+          const sp = num(a.speed, 0.25, 4, 1);
+          for (const id of targets(a.target)) { updateClip(id, { speed: sp }); done++; }
+          break;
+        }
+        case "set_volume": {
+          const v = num(a.vol, 0, 1, 1);
+          for (const id of targets(a.target)) { updateClip(id, { vol: v }); done++; }
+          break;
+        }
+        case "set_filter": {
+          const patch: Partial<MontageClip> = {};
+          if (typeof a.filterId === "string" && FILTERS.some((f) => f.id === a.filterId)) patch.filterId = a.filterId;
+          if (typeof a.lum === "number") patch.lum = num(a.lum, -100, 100, 0);
+          if (typeof a.con === "number") patch.con = num(a.con, -100, 100, 0);
+          if (typeof a.sat === "number") patch.sat = num(a.sat, -100, 100, 0);
+          if (!Object.keys(patch).length) break;
+          for (const id of targets(a.target)) { updateClip(id, patch); done++; }
+          break;
+        }
+        case "trim_clip": {
+          const c = clips.find((x) => x.id === a.clipId);
+          if (!c) break;
+          const cap = c.kind === "video" ? (isFinite(c.srcDur) && c.srcDur > 0 ? c.srcDur : c.trimEnd) : 15;
+          const ts = num(a.trimStart, 0, cap - 0.2, c.trimStart);
+          const te = num(a.trimEnd, ts + 0.2, cap, c.trimEnd);
+          updateClip(c.id, { trimStart: ts, trimEnd: te }); done++;
+          break;
+        }
+        case "remove_clip": {
+          if (clips.some((c) => c.id === a.clipId)) { removeClip(String(a.clipId)); done++; }
+          break;
+        }
+        case "reorder_clips": {
+          if (!Array.isArray(a.order)) break;
+          const byId = new Map(clips.map((c) => [c.id, c]));
+          const next = (a.order as unknown[])
+            .map((id) => byId.get(String(id)))
+            .filter((c): c is MontageClip => !!c);
+          // On n'accepte qu'une permutation COMPLÈTE : un ordre partiel ferait
+          // disparaître des plans du montage.
+          if (next.length !== clips.length) break;
+          setClips(next); done++;
+          break;
+        }
+        case "set_caption_length": { setCaptionLength(Math.round(num(a.words, 1, 8, 3))); done++; break; }
+        case "set_subtitle_style": {
+          if (typeof a.styleId === "string" && SUB_STYLES.some((s) => s.id === a.styleId)) { pickSubStyle(a.styleId); done++; }
+          break;
+        }
+        case "set_subtitle_pos": {
+          setSubPos({ x: num(a.x, 0, 100, 50), y: num(a.y, 0, 100, 78) }); done++;
+          break;
+        }
+        case "add_title": {
+          if (typeof a.text !== "string" || !a.text.trim()) break;
+          // `addTitle()` pose un titre par défaut au curseur ; ici l'IA fixe le
+          // texte et la plage, donc on crée l'élément directement.
+          const st = num(a.start, 0, Math.max(0, total), time);
+          setTitles((prev) => [...prev, {
+            id: crypto.randomUUID(), start: st, end: st + num(a.dur, 0.5, 30, 2.5),
+            text: (a.text as string).trim(), font: "archivo", color: "#FFFFFF", anim: "rise", x: 50, y: 78,
+          }]);
+          done++;
+          break;
+        }
+        case "set_format": {
+          if (typeof a.formatId === "string" && VIDEO_FORMATS.some((f) => f.id === a.formatId)) { setFormatId(a.formatId); done++; }
+          break;
+        }
+        case "toggle_progress_bar": { setShowProgressBar(!!a.on); done++; break; }
+        default: break; // action inconnue → ignorée silencieusement
+      }
+    }
+    return done;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [clips, total, time]);
+
   const ctx: MontageCtx = {
     clips, selectedClip, captions, subStyleId: activeSubStyleId, subMaxWords, subCustom: activeSubCustom, subPos, hasRawSegments: rawSegments.length > 0 || rawWords.length > 0,
     linkedSubs, setLinkedSubs, selectedCaptionId, setSelectedCaptionId,
@@ -3224,17 +3387,19 @@ export default function MontagePage() {
           <div className="mz-stage">
             {/* Prémontage IA en cours : on montre l'étape plutôt qu'un écran figé. */}
             {preEditing && (
-              <div style={{
-                position: "absolute", inset: 0, zIndex: 40, display: "grid", placeItems: "center",
-                background: "rgba(8,12,8,.72)", backdropFilter: "blur(3px)",
-              }}>
-                <div style={{ textAlign: "center", padding: 20 }}>
-                  <div style={{ fontFamily: "var(--display)", fontWeight: 800, fontStyle: "italic", fontSize: 20, color: "var(--leaf)", marginBottom: 8 }}>
-                    {t('preEditRunning')}
-                  </div>
-                  <div style={{ fontSize: 13, color: "var(--cream-2)" }}>{preEditStep}</div>
-                </div>
-              </div>
+              <AiThinkingPanel
+                title={t('preEditRunning')}
+                subtitle={preEditStep || undefined}
+                steps={[
+                  { id: "rushes", label: t('preStepRushes') },
+                  { id: "speech", label: t('preStepSpeech') },
+                  { id: "captions", label: t('preStepCaptions') },
+                  { id: "transitions", label: t('preStepTransitions') },
+                ]}
+                activeStep={preEditStepIdx}
+                lines={aiLog}
+                progress={preEditStepIdx < 0 ? 0 : Math.min(1, preEditStepIdx / 4)}
+              />
             )}
             {previewZoom !== 1 && (
               <button
@@ -3833,6 +3998,19 @@ export default function MontagePage() {
           </div>
         );
       })()}
+
+      {/* Assistant de montage : consignes en langage naturel, appliquées au projet. */}
+      <AiChatDock
+        endpoint="/api/montage-chat"
+        labels={{
+          title: t('chatTitle'), intro: t('chatIntro'), placeholder: t('chatPlaceholder'),
+          thinking: t('chatThinking'), error: t('chatError'),
+          open: t('chatOpen'), close: t('chatClose'),
+        }}
+        buildProject={buildChatProject}
+        applyActions={applyChatActions}
+        disabled={preEditing}
+      />
 
       {/* Rectangle de sélection multiple (glisser sur une zone vide de la timeline). */}
       {selRect && (

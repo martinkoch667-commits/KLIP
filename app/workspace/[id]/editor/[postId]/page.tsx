@@ -24,6 +24,8 @@ import { LAYOUT_TEMPLATES, LAYOUT_CATS, LAYOUT_STYLES, LayoutThumb, adaptLayoutT
 import { googleFontHref, googleVariants, weightName } from '@/lib/fontWeights';
 import { registerFontFamily, weightLabel, type FontFamily } from '@/lib/fontFiles';
 import { STICKERS, STICKER_CATS, stickerDataUri, type Sticker } from './stickers';
+import { AiThinkingLog } from '@/components/AiThinkingPanel';
+import AiChatDock from '@/components/AiChatDock';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -2002,7 +2004,7 @@ const GEN_STEPS: {
     cursor: { x: '20%', y: '90%' } },
 ];
 
-function AiGeneratingOverlay({ title, detail }: { title: string; detail?: string }) {
+function AiGeneratingOverlay({ title, detail, lines }: { title: string; detail?: string; lines?: string[] }) {
   const [step, setStep] = useState(0);
   useEffect(() => {
     // Boucle : on rejoue la composition tant que l'IA travaille.
@@ -2067,6 +2069,11 @@ function AiGeneratingOverlay({ title, detail }: { title: string; detail?: string
             <span key={b.key} className={i <= active ? 'on' : ''} />
           ))}
         </div>
+        {lines && lines.length > 0 && (
+          <div style={{ width: 'min(420px, 86vw)', margin: '10px auto 0', textAlign: 'left' }}>
+            <AiThinkingLog lines={lines} />
+          </div>
+        )}
         <p className="klipgen-reassure">Quelques secondes, et le visuel est prêt à retoucher.</p>
       </div>
 
@@ -2593,6 +2600,10 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
   const [saving, setSaving] = useState(false);
   const [resizing, setResizing] = useState(false);
   const [qaBusy, setQaBusy] = useState(false);
+  // Journal « ce que l'IA fait », révélé à la machine à écrire dans l'écran d'attente.
+  // Alimenté par les étapes réelles de la composition et de l'audit visuel.
+  const [edAiLog, setEdAiLog] = useState<string[]>([]);
+  const edLog = (line: string) => setEdAiLog(l => (l[l.length - 1] === line ? l : [...l, line]));
   const [qaMsg, setQaMsg]   = useState<string | null>(null);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [aiVariants, setAiVariants] = useState<any[]>([]);
@@ -3027,6 +3038,147 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
   const applyElements = (newEls: CanvasEl[], withHistory = true) => {
     setElements(newEls);
     if (withHistory) pushHistory(newEls);
+  };
+
+  // ── Assistant visuel : état envoyé à l'IA + exécution de ses actions ────────
+  // Résumé des calques : assez pour raisonner (rôle, texte, position, style),
+  // sans les données lourdes (sources d'images, points vectoriels).
+  const buildChatProject = () => ({
+    cadre: { largeur: stageW, hauteur: stageH },
+    calques: elementsRef.current.map((e, i) => {
+      const base = { id: e.id, n: i + 1, type: e.type, x: Math.round(e.x), y: Math.round(e.y), opacite: Math.round(e.opacity ?? 100) };
+      if (e.type === 'text') {
+        const t = e as TextEl;
+        return { ...base, role: t.role, texte: t.text, taille: Math.round(t.fontSize), couleur: t.fill,
+          largeur: Math.round(t.width), alignement: t.align, majuscules: !!t.uppercase, police: t.fontFamily };
+      }
+      const s = e as unknown as { width?: number; height?: number; fill?: string; scrim?: string };
+      return { ...base, largeur: s.width ? Math.round(s.width) : undefined, hauteur: s.height ? Math.round(s.height) : undefined,
+        couleur: s.fill, voile: s.scrim };
+    }),
+  });
+
+  // Applique les actions de l'assistant. Tout passe par applyElements → l'historique
+  // enregistre un point d'annulation (Cmd+Z). Renvoie le nombre d'actions appliquées.
+  const applyChatActions = (actions: { type: string; [k: string]: unknown }[]): number => {
+    let done = 0;
+    const num = (v: unknown, min: number, max: number, dflt: number) =>
+      typeof v === 'number' && isFinite(v) ? Math.max(min, Math.min(max, v)) : dflt;
+    const isHex = (v: unknown): v is string => typeof v === 'string' && /^#[0-9a-f]{6}$/i.test(v);
+    // Cible : un id précis, ou tous les calques texte.
+    const pick = (id: unknown) => (el: CanvasEl) => id === 'all_text' ? el.type === 'text' : el.id === id;
+
+    let els = [...elementsRef.current];
+    const patchWhere = (match: (el: CanvasEl) => boolean, patch: Record<string, unknown>) => {
+      let hit = 0;
+      els = els.map(el => { if (!match(el)) return el; hit++; return { ...el, ...patch } as CanvasEl; });
+      return hit;
+    };
+
+    for (const a of actions) {
+      switch (a.type) {
+        case 'set_text': {
+          if (typeof a.text !== 'string') break;
+          if (patchWhere(el => el.id === a.id && el.type === 'text', { text: a.text })) done++;
+          break;
+        }
+        case 'set_text_style': {
+          const patch: Record<string, unknown> = {};
+          if (typeof a.fontSize === 'number') patch.fontSize = Math.round(num(a.fontSize, 8, Math.round(stageH / 2), 24));
+          if (isHex(a.fill)) patch.fill = a.fill;
+          if (a.align === 'left' || a.align === 'center' || a.align === 'right') patch.align = a.align;
+          if (typeof a.uppercase === 'boolean') patch.uppercase = a.uppercase;
+          if (typeof a.letterSpacing === 'number') patch.letterSpacing = num(a.letterSpacing, -5, 30, 0);
+          if (typeof a.lineHeight === 'number') patch.lineHeight = num(a.lineHeight, 0.6, 3, 1.2);
+          if (typeof a.fontStyle === 'string' && /^(normal|bold|italic|italic bold)$/.test(a.fontStyle)) patch.fontStyle = a.fontStyle;
+          if (!Object.keys(patch).length) break;
+          if (patchWhere(el => el.type === 'text' && pick(a.id)(el), patch)) done++;
+          break;
+        }
+        case 'move': {
+          const el = els.find(e => e.id === a.id);
+          if (!el) break;
+          const patch: Record<string, unknown> = {};
+          if (typeof a.x === 'number') patch.x = Math.round(num(a.x, 0, stageW - 10, el.x));
+          if (typeof a.y === 'number') patch.y = Math.round(num(a.y, 0, stageH - 10, el.y));
+          if (typeof a.width === 'number' && el.type === 'text') {
+            const x = (patch.x as number | undefined) ?? el.x;
+            patch.width = Math.round(num(a.width, 40, stageW - x, (el as TextEl).width));
+          }
+          if (!Object.keys(patch).length) break;
+          if (patchWhere(e => e.id === a.id, patch)) done++;
+          break;
+        }
+        case 'set_opacity': {
+          if (patchWhere(e => e.id === a.id, { opacity: Math.round(num(a.opacity, 0, 100, 100)) })) done++;
+          break;
+        }
+        case 'set_fill': {
+          if (!isHex(a.fill)) break;
+          if (patchWhere(e => pick(a.id)(e), { fill: a.fill })) done++;
+          break;
+        }
+        case 'set_effect': {
+          const on = a.on !== false;
+          const map: Record<string, Record<string, unknown>> = {
+            shadow: { shadowEnabled: on, ...(isHex(a.color) ? { shadowColor: a.color } : {}), ...(typeof a.intensity === 'number' ? { shadowOpacity: num(a.intensity, 0, 100, 75) } : {}) },
+            highlight: { highlightEnabled: on, ...(isHex(a.color) ? { highlightColor: a.color } : {}), ...(typeof a.intensity === 'number' ? { highlightOpacity: num(a.intensity, 0, 100, 80) } : {}) },
+            glow: { glowEnabled: on, ...(isHex(a.color) ? { glowColor: a.color } : {}), ...(typeof a.intensity === 'number' ? { glowIntensity: num(a.intensity, 0, 100, 50) } : {}) },
+            hollow: { hollowEnabled: on },
+            lift: { liftEnabled: on, ...(isHex(a.color) ? { liftColor: a.color } : {}) },
+            echo: { echoEnabled: on, ...(isHex(a.color) ? { echoColor: a.color } : {}) },
+          };
+          const patch = map[String(a.effect)];
+          if (!patch) break;
+          if (patchWhere(el => el.type === 'text' && pick(a.id)(el), patch)) done++;
+          break;
+        }
+        case 'add_text': {
+          if (typeof a.text !== 'string' || !a.text.trim()) break;
+          const x = Math.round(num(a.x, 0, stageW - 60, Math.round(stageW * 0.1)));
+          els = [...els, {
+            id: `ai-${Date.now()}-${done}`, type: 'text', text: a.text.trim(),
+            x, y: Math.round(num(a.y, 0, stageH - 30, Math.round(stageH * 0.1))),
+            rotation: 0, opacity: 100,
+            fontSize: Math.round(num(a.fontSize, 8, Math.round(stageH / 2), 32)),
+            fontFamily: 'Archivo', fontStyle: 'bold', textDecoration: '',
+            fill: isHex(a.fill) ? a.fill : '#FFFFFF', align: 'left',
+            width: Math.round(stageW * 0.8 > stageW - x ? stageW - x - 10 : stageW * 0.8),
+            hasBg: false, bgColor: '#000000', bgOpacity: 45, cornerRadius: 6,
+            padding: 0, paddingH: 0, paddingV: 0,
+          } as CanvasEl];
+          done++;
+          break;
+        }
+        case 'delete': {
+          const before = els.length;
+          els = els.filter(e => e.id !== a.id);
+          if (els.length !== before) done++;
+          break;
+        }
+        case 'set_scrim': {
+          const pos = a.position;
+          els = els.filter(e => e.id !== 'scrim-overlay');
+          if (pos === 'bottom' || pos === 'top') {
+            els.unshift({
+              id: 'scrim-overlay', type: 'rect', x: 0, y: 0, rotation: 0,
+              opacity: Math.round(num(a.opacity, 20, 80, 60)),
+              width: stageW, height: stageH, fill: '#000000', stroke: '', strokeWidth: 0,
+              cornerRadius: 0, scrim: pos,
+            } as CanvasEl);
+          } else if (pos !== 'none') break;
+          done++;
+          break;
+        }
+        // Les deux IA déjà en place, déclenchables à la voix. Elles réécrivent
+        // elles-mêmes les calques : on applique d'abord ce qui précède.
+        case 'compose': { applyElements(els); void composeWithAI(); return done + 1; }
+        case 'visual_qa': { applyElements(els); void runVisualQA(); return done + 1; }
+        default: break;
+      }
+    }
+    if (done) applyElements(els);
+    return done;
   };
 
   const layerAction = (action: 'front' | 'forward' | 'backward' | 'back') => {
@@ -4179,6 +4331,7 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
   const runVisualQA = async () => {
     if (!stageRef.current || qaBusy) return;
     setQaBusy(true);
+    setEdAiLog([]);
     const prevSel = selectedId;
     setSelectedId(null);
     const nextFrame = () => new Promise<void>(r => requestAnimationFrame(() => r()));
@@ -4230,6 +4383,7 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           .map((e: any) => ({ id: e.id, role: e.role, text: e.text, fontSize: e.fontSize, x: Math.round(e.x), y: Math.round(e.y), width: e.width }));
         setQaMsg(pass === 0 ? 'Analyse du rendu…' : 'Nouvelle vérification…');
+        edLog(pass === 0 ? `Audit visuel du rendu (${layers.length} calque(s) texte)` : `Nouvelle passe de vérification (${pass + 1})`);
         const res = await fetch('/api/visual-qa', {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ image, layers, stageW, stageH }),
@@ -4241,7 +4395,11 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
         const wantScrim = scrimPos === 'bottom' || scrimPos === 'top';
         const hasScrimEl = elementsRef.current.some(e => e.id === 'scrim-overlay');
         const scrimChange = wantScrim ? !hasScrimEl : (scrimPos === 'none' && hasScrimEl);
-        if ((data.ok || issues.length === 0) && !scrimChange) { setQaMsg(applied ? `Corrigé (${applied}) ✓` : 'Rendu validé ✓'); break; }
+        if ((data.ok || issues.length === 0) && !scrimChange) {
+          edLog(applied ? `Terminé — ${applied} correction(s) appliquée(s)` : 'Aucun défaut détecté, rendu validé');
+          setQaMsg(applied ? `Corrigé (${applied}) ✓` : 'Rendu validé ✓'); break;
+        }
+        edLog(`${issues.length} défaut(s) repéré(s)${wantScrim ? ' + voile de lisibilité' : ''}`);
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const fixById = new Map<string, any>(issues.filter((i: any) => i?.id && i?.fix).map((i: any) => [i.id, i.fix]));
         let newEls = elementsRef.current.map(e => fixById.has(e.id) ? { ...e, ...sanitizeFix(e, fixById.get(e.id)) } as CanvasEl : e);
@@ -4395,6 +4553,8 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
     if (qaBusy) return;
     const chainQA = opts?.chainQA !== false;
     setQaBusy(true); setQaMsg('Composition IA…');
+    setEdAiLog([]);
+    edLog('Lecture de la charte du client');
     let success = false;
     try {
       const texts = elementsRef.current.filter(e => e.type === 'text').map(e => (e as TextEl).text).filter(t => t && t.trim() && t !== 'VOTRE TEXTE');
@@ -4423,6 +4583,9 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
         }).filter((s: any) => s.blocks.length > 0).slice(0, 3);
       } catch { /* compose librement */ }
+      edLog(`${styleRef.length} gabarit(s) et ${approvedRef.length} post(s) validé(s) en référence`);
+      edLog(`${texts.length} bloc(s) de texte à placer`);
+      edLog('Recherche de 3 compositions…');
 
       const res = await fetch('/api/compose-layout', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -4435,6 +4598,7 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
       const data = await res.json();
       const layouts = Array.isArray(data.layouts) ? data.layouts : [];
       if (!res.ok || layouts.length === 0) { setQaMsg(data?.error ?? 'Composition échouée'); return; }
+      edLog(`${layouts.length} composition(s) proposée(s) — application de la 1re`);
       setAiVariants(layouts); setAiVariantIdx(0);
       await materializeLayout(layouts[0]);
       setQaMsg(layouts.length > 1 ? `Composé ✓ (1/${layouts.length})` : 'Composé ✓');
@@ -5852,8 +6016,20 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
             </div>
           )}
           {(aiBuilding || qaBusy) && (
-            <AiGeneratingOverlay title={T('aiComposing')} detail={qaMsg || undefined} />
+            <AiGeneratingOverlay title={T('aiComposing')} detail={qaMsg || undefined} lines={edAiLog} />
           )}
+          {/* Assistant visuel : consignes en langage naturel, appliquées aux calques. */}
+          <AiChatDock
+            endpoint="/api/editor-chat"
+            labels={{
+              title: T('chatTitle'), intro: T('chatIntro'), placeholder: T('chatPlaceholder'),
+              thinking: T('chatThinking'), error: T('chatError'),
+              open: T('chatOpen'), close: T('chatClose'),
+            }}
+            buildProject={buildChatProject}
+            applyActions={applyChatActions}
+            disabled={qaBusy || aiBuilding}
+          />
           <div ref={canvasAreaRef}
           onMouseDown={e => {
             setEditingId(null); setBgCropMode(false); setBgImageSelected(false);
