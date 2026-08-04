@@ -1416,17 +1416,16 @@ input.mz-range::-moz-range-thumb { width: 16px; height: 16px; border-radius: 50%
    `.a-root` en montage, clair en éditeur : tout passe par les tokens. Le
    panneau prend franchement de la hauteur — on parle avec, pas on lui glisse
    un mot par une chatière. */
-/* Bouton fermé : aplat leaf (le CTA de la marque), la marque die-cut violette
-   déborde légèrement en haut — un sticker collé sur le bouton, pas une icône
-   centrée dans un rond. */
+/* Bouton fermé : aplat violet, la marque die-cut verte posée dessus — un
+   sticker collé sur le bouton, pas une icône centrée dans un rond. */
 .mzchat-fab { position: fixed; right: 20px; bottom: 20px; z-index: 900; display: flex; align-items: center; gap: 9px;
   height: 46px; padding: 0 18px 0 15px; border-radius: 23px; border: none; cursor: pointer;
-  background: var(--leaf); color: var(--leaf-ink, #1E3317);
+  background: var(--vio); color: #fff;
   font-family: var(--sans); font-weight: 800; font-size: 13px; letter-spacing: -.01em;
-  box-shadow: 0 10px 26px -10px rgba(120,190,90,.85), 0 2px 8px rgba(16,19,11,.18);
+  box-shadow: 0 10px 26px -10px rgba(102,86,217,.85), 0 2px 8px rgba(16,19,11,.18);
   transition: transform .14s var(--ease), box-shadow .14s;
   animation: mzchatCall 3.8s var(--ease) infinite; }
-.mzchat-fab:hover { transform: translateY(-2px) scale(1.02); box-shadow: 0 16px 34px -12px rgba(120,190,90,.95), 0 3px 10px rgba(16,19,11,.22); animation-play-state: paused; }
+.mzchat-fab:hover { transform: translateY(-2px) scale(1.02); box-shadow: 0 16px 34px -12px rgba(102,86,217,.95), 0 3px 10px rgba(16,19,11,.22); animation-play-state: paused; }
 .mzchat-fab:active { transform: translateY(0) scale(.97); }
 /* La marque dépasse du gabarit : c'est ce débord qui fait « collé ». */
 .mzchat-fab-mark { display: grid; place-items: center; width: 26px; height: 26px; flex-shrink: 0;
@@ -1434,8 +1433,8 @@ input.mz-range::-moz-range-thumb { width: 16px; height: 16px; border-radius: 50%
 .mzchat-fab:hover .mzchat-fab-mark { transform: rotate(-7deg) scale(1.08); }
 .mzchat-fab-lbl { white-space: nowrap; }
 @keyframes mzchatCall {
-  0%, 66%, 100% { box-shadow: 0 10px 26px -10px rgba(120,190,90,.85), 0 2px 8px rgba(16,19,11,.18), 0 0 0 0 rgba(102,86,217,.4); }
-  80% { box-shadow: 0 10px 26px -10px rgba(120,190,90,.85), 0 2px 8px rgba(16,19,11,.18), 0 0 0 10px rgba(102,86,217,0); }
+  0%, 66%, 100% { box-shadow: 0 10px 26px -10px rgba(102,86,217,.85), 0 2px 8px rgba(16,19,11,.18), 0 0 0 0 rgba(189,242,160,.55); }
+  80% { box-shadow: 0 10px 26px -10px rgba(102,86,217,.85), 0 2px 8px rgba(16,19,11,.18), 0 0 0 10px rgba(189,242,160,0); }
 }
 @media (max-width: 640px) { .mzchat-fab-lbl { display: none; } .mzchat-fab { padding: 0; width: 46px; justify-content: center; } }
 
