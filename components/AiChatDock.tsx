@@ -31,6 +31,37 @@ export interface ChatLabels {
   close: string;
 }
 
+// Marque de l'assistant — die-cut, comme les stickers de la DA (contour blanc
+// via paintOrder, aplats de la charte) plutôt qu'un pictogramme au trait fin.
+// Une bulle violette, les yeux Klip dedans : ça dit « on lui parle » et
+// « il regarde ta création » d'un seul coup d'œil, et ça reste lisible à 20px.
+const AssistantMark = ({ size = 22, blink = true }: { size?: number; blink?: boolean }) => {
+  const outline = { stroke: '#fff', strokeWidth: 9, strokeLinejoin: 'round' as const, paintOrder: 'stroke' as const };
+  return (
+    <svg width={size} height={size} viewBox="-6 -6 112 112" overflow="visible" aria-hidden="true">
+      {/* Bulle + queue en une seule forme : la découpe reste franche à petite taille. */}
+      <path d="M22 8h56a16 16 0 0 1 16 16v38a16 16 0 0 1-16 16H50l-22 16 4-16h-10A16 16 0 0 1 6 62V24A16 16 0 0 1 22 8Z"
+        fill="#6656D9" {...outline} />
+      <g className={blink ? 'stk-eyes-pupils' : undefined} style={{ transformOrigin: '50px 43px' }}>
+        <ellipse cx="38" cy="43" rx="8.5" ry="11" fill="#BDF2A0" />
+        <ellipse cx="64" cy="43" rx="8.5" ry="11" fill="#BDF2A0" />
+      </g>
+      {/* Éclat : le signal « IA », repris du sticker sparkle (pointes nettes). */}
+      <path d="M88 2c3 14 8 19 22 22-14 3-19 8-22 22-3-14-8-19-22-22 14-3 19-8 22-22Z"
+        fill="#BDF2A0" stroke="#fff" strokeWidth="7" strokeLinejoin="miter" strokeMiterlimit={14} paintOrder="stroke" />
+    </svg>
+  );
+};
+
+// Flèche d'envoi : trait épais, même famille que les boutons pleins de l'app.
+const SendArrow = ({ size = 16 }: { size?: number }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor"
+    strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <path d="M12 19V5" />
+    <path d="m5.5 11.5 6.5-6.5 6.5 6.5" />
+  </svg>
+);
+
 const Sparkle = ({ size = 16 }: { size?: number }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor"
     strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -55,7 +86,7 @@ function Bubble({ m, live }: { m: ChatMsg; live: boolean }) {
   const shown = useTypedText(m.text, live && m.role === 'assistant');
   return (
     <div className={'mzchat-msg is-' + m.role}>
-      {m.role === 'assistant' && <span className="mzchat-avatar" aria-hidden />}
+      {m.role === 'assistant' && <span className="mzchat-avatar"><AssistantMark size={22} /></span>}
       <div className="mzchat-msg-col">
         <div className="mzchat-bubble">{m.role === 'assistant' ? shown : m.text}</div>
         {m.role === 'assistant' && !!m.actions && (
@@ -139,7 +170,7 @@ export default function AiChatDock({
   if (!open) {
     return (
       <button className="mzchat-fab" onClick={() => setOpen(true)} title={labels.open} aria-label={labels.open}>
-        <Sparkle size={17} />
+        <span className="mzchat-fab-mark"><AssistantMark size={26} /></span>
         <span className="mzchat-fab-lbl">{labels.title}</span>
       </button>
     );
@@ -148,7 +179,7 @@ export default function AiChatDock({
   return (
     <div className={'mzchat' + (closing ? ' is-closing' : '')} role="dialog" aria-label={labels.title}>
       <div className="mzchat-head">
-        <span className="mzchat-head-orb aithink-orb" aria-hidden />
+        <span className="mzchat-head-mark"><AssistantMark size={24} /></span>
         <strong className="mzchat-title">{labels.title}</strong>
         <button className="mzchat-x" onClick={requestClose} title={labels.close} aria-label={labels.close}>×</button>
       </div>
@@ -158,7 +189,7 @@ export default function AiChatDock({
         {msgs.map((m, i) => <Bubble key={i} m={m} live={i === msgs.length - 1 && !busy} />)}
         {busy && (
           <div className="mzchat-msg is-assistant">
-            <span className="mzchat-avatar" aria-hidden />
+            <span className="mzchat-avatar"><AssistantMark size={22} /></span>
             <div className="mzchat-msg-col">
               <div className="mzchat-bubble mzchat-typing">
                 {labels.thinking}<span className="aithink-caret" aria-hidden />
@@ -187,7 +218,7 @@ export default function AiChatDock({
             n'a pas cliqué Terminer, se relance seule après les coupures Chrome. */}
         <VoiceButton value={draft} onChange={setDraft} compact />
         <button className="mzchat-send" onClick={() => void send()} disabled={disabled || busy || !draft.trim()} title={labels.title} aria-label={labels.title}>
-          <Sparkle size={15} />
+          <SendArrow size={17} />
         </button>
       </div>
     </div>
