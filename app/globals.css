@@ -1185,6 +1185,16 @@ input.ed-range::-moz-range-thumb {
 
 .a-clip { height: calc(30px * var(--tscale, 1)); border-radius: 8px; position: relative; overflow: hidden; cursor: grab; flex-shrink: 0;
   box-shadow: inset 0 0 0 1px rgba(255,255,255,.14); transition: box-shadow .14s var(--ease), transform .12s; background-size: cover; background-position: center; }
+/* Vignettes du plan : tuiles de largeur fixe (hauteur de piste × ratio de la source).
+   Zoomer ajoute des tuiles au lieu d'étirer une image — la dernière est rognée par
+   l'overflow du plan, comme dans CapCut. `content-visibility` laisse le navigateur
+   ignorer les tuiles hors écran sur une timeline très zoomée. */
+.a-clip-strip { position: absolute; inset: 0; display: flex; overflow: hidden; pointer-events: none;
+  z-index: 0; border-radius: inherit; content-visibility: auto; }
+.a-clip-strip::after { content: ""; position: absolute; inset: 0;
+  background: linear-gradient(180deg, rgba(0,0,0,.10), rgba(0,0,0,.36)); }
+.a-strip-tile { flex: 0 0 auto; height: 100%; background-size: cover; background-position: center;
+  background-repeat: no-repeat; box-shadow: inset -1px 0 0 rgba(0,0,0,.22); }
 .a-clip:hover { transform: translateY(-1px); }
 .a-clip.on { box-shadow: 0 0 0 2px var(--vio), 0 0 0 4px var(--white); }
 .a-clip.dragging { box-shadow: 0 0 0 2px var(--mint-2), 0 8px 20px rgba(0,0,0,.3); cursor: grabbing; }

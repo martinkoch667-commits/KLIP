@@ -100,28 +100,70 @@ async function grabFrame(src: string, kind: "video" | "photo", atTime = 0, maxW 
   return c.toDataURL("image/jpeg", 0.82);
 }
 
-// Bande-film (façon CapCut) : compose N frames d'une vidéo côte à côte en une seule
-// image, pour afficher un aperçu qui « avance » le long du plan sur la timeline.
-async function makeFilmstrip(src: string, trimStart: number, trimEnd: number): Promise<string> {
+// ─── Vignettes de la timeline ────────────────────────────────────────────────
+// Chaque plan expose N images extraites de la source, TOUJOURS dans le ratio de
+// cette source. La timeline les pose ensuite en tuiles de largeur fixe
+// (hauteur de piste × ratio) : quand on zoome, il y a PLUS de tuiles au lieu
+// d'une image que l'on étire. L'ancienne version composait une bande unique de
+// 540×52 px affichée en `backgroundSize: 100% 100%` — d'où des vignettes de plus
+// en plus déformées à mesure qu'on zoomait.
+interface ClipStripData { frames: string[]; aspect: number }
+
+async function extractClipFrames(src: string, trimStart: number, trimEnd: number): Promise<ClipStripData> {
   const v = document.createElement("video");
   v.crossOrigin = "anonymous"; v.muted = true; v.preload = "auto"; v.src = src;
   await new Promise<void>((res, rej) => { v.onloadedmetadata = () => res(); v.onerror = () => rej(new Error("load")); });
-  const COUNT = 6, fw = 90, fh = 52;
-  const canvas = document.createElement("canvas");
-  canvas.width = COUNT * fw; canvas.height = fh;
-  const ctx = canvas.getContext("2d")!;
   const dur = v.duration && isFinite(v.duration) ? v.duration : Math.max(0.1, trimEnd - trimStart);
   const a = Math.max(0, Math.min(trimStart || 0, dur - 0.05));
   const b = Math.max(a + 0.05, Math.min(trimEnd || dur, dur));
-  const vw = v.videoWidth || fw, vh = v.videoHeight || fh;
-  const scale = Math.max(fw / vw, fh / vh);
-  const dw = vw * scale, dh = vh * scale;
-  for (let i = 0; i < COUNT; i++) {
-    const tt = a + (b - a) * (i / (COUNT - 1));
+  const vw = v.videoWidth || 16, vh = v.videoHeight || 9;
+  const aspect = vw / vh;
+  // ~1 image par 1,2 s de plan : assez dense pour lire le contenu sans saturer le décodage.
+  const count = Math.max(3, Math.min(14, Math.ceil((b - a) / 1.2)));
+  const FH = 120; // hauteur d'extraction — couvre les pistes agrandies sans flou
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.max(1, Math.round(FH * aspect)); canvas.height = FH;
+  const ctx = canvas.getContext("2d")!;
+  const frames: string[] = [];
+  for (let i = 0; i < count; i++) {
+    const tt = count === 1 ? a : a + (b - a) * (i / (count - 1));
     await new Promise<void>((res) => { v.onseeked = () => res(); v.currentTime = Math.max(0, Math.min(tt, dur - 0.05)); });
-    ctx.drawImage(v, i * fw + (fw - dw) / 2, (fh - dh) / 2, dw, dh);
+    ctx.drawImage(v, 0, 0, canvas.width, canvas.height); // ratio source → aucune déformation
+    frames.push(canvas.toDataURL("image/jpeg", 0.72));
   }
-  return canvas.toDataURL("image/jpeg", 0.72);
+  return { frames, aspect };
+}
+
+// Une photo est une « bande » d'une seule image : mêmes tuiles, même rendu que la vidéo.
+async function photoStripData(src: string): Promise<ClipStripData> {
+  const img = await new Promise<HTMLImageElement>((res, rej) => {
+    const im = new Image(); im.crossOrigin = "anonymous";
+    im.onload = () => res(im); im.onerror = () => rej(new Error("load")); im.src = src;
+  });
+  return { frames: [src], aspect: (img.naturalWidth || 16) / (img.naturalHeight || 9) };
+}
+
+// Tuiles d'un plan : largeur fixe = hauteur × ratio source. On en pose autant que
+// nécessaire pour couvrir la largeur du plan ; la dernière est simplement rognée
+// par l'`overflow: hidden` du plan (exactement le comportement de CapCut).
+function ClipStrip({ data, width, height, filter }: { data?: ClipStripData; width: number; height: number; filter?: string }) {
+  if (!data || !data.frames.length || width <= 0 || height <= 0) return null;
+  let tileW = Math.max(14, Math.round(height * data.aspect));
+  // Garde-fou DOM : sur un plan très long fortement zoomé, on élargit les tuiles
+  // plutôt que d'en produire des milliers (elles rognent, elles ne s'étirent pas).
+  const MAX_TILES = 220;
+  if (width / tileW > MAX_TILES) tileW = Math.ceil(width / MAX_TILES);
+  const count = Math.max(1, Math.ceil(width / tileW));
+  const last = data.frames.length - 1;
+  const tiles: React.ReactNode[] = [];
+  for (let i = 0; i < count; i++) {
+    // image la plus proche du moment représenté au CENTRE de la tuile
+    const progress = count === 1 ? 0 : Math.min(1, (i * tileW + tileW / 2) / width);
+    tiles.push(
+      <span key={i} className="a-strip-tile" style={{ width: tileW, backgroundImage: `url("${data.frames[Math.round(progress * last)]}")` }} />,
+    );
+  }
+  return <div className="a-clip-strip" style={filter ? { filter } : undefined} aria-hidden>{tiles}</div>;
 }
 
 const WAVEFORM_SAMPLES = 120;
@@ -428,7 +470,7 @@ export default function MontagePage() {
   const [playing, setPlaying] = useState(false);
   const [stageW, setStageW] = useState(0); // largeur px réelle de la preview → texte figé à l'échelle de l'image (WYSIWYG avec l'export)
   const [previewZoom, setPreviewZoom] = useState(1); // zoom de la preview (pincement/molette), 1–5
-  const [strips, setStrips] = useState<Record<string, string>>({}); // bandes-film (aperçu) par id de plan
+  const [strips, setStrips] = useState<Record<string, ClipStripData>>({}); // images + ratio source, par id de plan
   const stripReqRef = useRef<Set<string>>(new Set()); // ids déjà demandés (évite les régénérations)
   const [clipWaves, setClipWaves] = useState<Record<string, number[]>>({}); // spectre audio du son embarqué, par src
   const waveReqRef = useRef<Set<string>>(new Set());
@@ -445,10 +487,14 @@ export default function MontagePage() {
     if (playing) return; // on ne décode pas de vignettes pendant la lecture (évite les à-coups)
     (async () => {
       for (const x of [...clips, ...overlays]) {
-        if (x.kind !== "video" || stripReqRef.current.has(x.id)) continue;
+        if (stripReqRef.current.has(x.id)) continue;
         stripReqRef.current.add(x.id);
         try {
-          const s = await makeFilmstrip(x.src, x.trimStart, x.trimEnd);
+          // Les photos passent par le même rendu en tuiles que les vidéos : une seule
+          // image, répétée, au lieu d'un `object-fit: cover` étalé sur tout le plan.
+          const s = x.kind === "video"
+            ? await extractClipFrames(x.src, x.trimStart, x.trimEnd)
+            : await photoStripData(x.src);
           setStrips((p) => ({ ...p, [x.id]: s }));
         } catch { stripReqRef.current.delete(x.id); }
       }
@@ -3531,16 +3577,13 @@ export default function MontagePage() {
                       data-selid={c.id}
                       className={"a-clip" + (selectedClipId === c.id || multiSel.has(c.id) ? " on" : "")}
                       style={{ width: c.dur * pps, height: blockH("video"), position: "relative", cursor: tlGhost?.id === c.id ? "grabbing" : "grab", touchAction: "none", opacity: tlGhost?.id === c.id ? 0.3 : 1,
-                        background: c.kind === "video"
-                          ? (strips[c.id] ? `linear-gradient(180deg,rgba(0,0,0,.12),rgba(0,0,0,.34)), url("${strips[c.id]}")` : "linear-gradient(150deg,#2b8d57,#0c2a1d)")
-                          : undefined,
-                        backgroundSize: c.kind === "video" && strips[c.id] ? "100% 100%, 100% 100%" : undefined }}
+                        background: strips[c.id] ? undefined : (c.kind === "video" ? "linear-gradient(150deg,#2b8d57,#0c2a1d)" : "linear-gradient(150deg,#c8792f,#5e3a1a)") }}
                       onPointerDown={(e) => startTlDrag(e, c.id, "clip")}
                       onPointerMove={onTlDragMove}
                       onPointerUp={onTlDragUp}
                       onContextMenu={(e) => { e.preventDefault(); selectClip(c.id); setClipMenu({ x: e.clientX, y: e.clientY, id: c.id, kind: "clip" }); }}
                     >
-                      {c.kind === "photo" && <img src={c.src} alt="" draggable={false} style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", filter: clipFilterCss(c) }} />}
+                      <ClipStrip data={strips[c.id]} width={c.dur * pps} height={blockH("video")} filter={clipFilterCss(c)} />
                       {/* Le son fait UN avec la vidéo : spectre audio intégré en bas du plan (façon CapCut). */}
                       {c.kind === "video" && (c.vol ?? 1) > 0 && clipWaves[c.src] && (
                         <div className="a-clip-wave">
@@ -3627,16 +3670,14 @@ export default function MontagePage() {
                       data-selid={o.id}
                       className={"a-chip" + (selectedOverlayId === o.id || multiSel.has(o.id) ? " on" : "")}
                       style={{ left: o.offset * pps, width: Math.max(24, overlayTimelineDur(o) * pps), top: 2, height: blockH(`v${o.track ?? 0}`), cursor: tlGhost?.id === o.id ? "grabbing" : "grab", touchAction: "none", opacity: tlGhost?.id === o.id ? 0.3 : 1,
-                        background: o.kind === "video"
-                          ? (strips[o.id] ? `linear-gradient(180deg,rgba(0,0,0,.15),rgba(0,0,0,.4)), url("${strips[o.id]}")` : "linear-gradient(150deg,#2b8d57,#0c2a1d)")
-                          : "linear-gradient(150deg,#c8792f,#5e3a1a)",
-                        backgroundSize: o.kind === "video" && strips[o.id] ? "100% 100%, 100% 100%" : undefined }}
+                        background: strips[o.id] ? undefined : (o.kind === "video" ? "linear-gradient(150deg,#2b8d57,#0c2a1d)" : "linear-gradient(150deg,#c8792f,#5e3a1a)") }}
                       title={o.name}
                       onPointerDown={(e) => startTlDrag(e, o.id, "overlay")}
                       onPointerMove={onTlDragMove}
                       onPointerUp={onTlDragUp}
                       onContextMenu={(e) => { e.preventDefault(); selectOverlay(o.id); setClipMenu({ x: e.clientX, y: e.clientY, id: o.id, kind: "overlay" }); }}
                     >
+                      <ClipStrip data={strips[o.id]} width={Math.max(24, overlayTimelineDur(o) * pps)} height={blockH(`v${o.track ?? 0}`)} filter={overlayFilterCss(o)} />
                       {o.kind === "video" && (o.vol ?? 1) > 0 && clipWaves[o.src] && (
                         <div className="a-clip-wave">
                           <svg width="100%" height="100%" preserveAspectRatio="none">
@@ -3782,12 +3823,11 @@ export default function MontagePage() {
         if (!gi) return null;
         const isPhoto = gi.kind === "photo";
         const strip = strips[gi.id];
-        const bg = isPhoto ? "linear-gradient(150deg,#c8792f,#5e3a1a)" : (strip ? `linear-gradient(180deg,rgba(0,0,0,.12),rgba(0,0,0,.34)), url("${strip}")` : "linear-gradient(150deg,#2b8d57,#0c2a1d)");
+        const ghostW = Math.max(28, tlGhost.w);
         return (
-          <div className="a-tl-ghost" style={{ left: tlGhost.x, top: tlGhost.y, width: Math.max(28, tlGhost.w), background: bg, backgroundSize: strip && !isPhoto ? "100% 100%, 100% 100%" : undefined }}>
-            {isPhoto && (gi as { src?: string }).src && (
-              <img src={(gi as { src?: string }).src} alt="" draggable={false} style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", opacity: .9 }} />
-            )}
+          <div className="a-tl-ghost" style={{ left: tlGhost.x, top: tlGhost.y, width: ghostW,
+            background: strip ? undefined : (isPhoto ? "linear-gradient(150deg,#c8792f,#5e3a1a)" : "linear-gradient(150deg,#2b8d57,#0c2a1d)") }}>
+            <ClipStrip data={strip} width={ghostW} height={34} />{/* 34px = hauteur de .a-tl-ghost */}
             <span className="a-tl-ghost-ic"><VIcon name={isPhoto ? "image" : "video"} size={10} /></span>
             <span className="a-tl-ghost-lbl">{gi.name}</span>
           </div>
