@@ -1411,44 +1411,75 @@ input.mz-range::-moz-range-thumb { width: 16px; height: 16px; border-radius: 50%
   .aithink-orb::after, .is-now .aithink-bullet, .aithink-caret { animation: none; }
 }
 
-/* ─── Assistant de montage (aiChat.tsx) ───────────────────────────────────────
-   Pastille + panneau en bas à droite du montage. Thème sombre `.a-root`. */
-.mzchat-fab { position: fixed; right: 18px; bottom: 18px; z-index: 900; display: flex; align-items: center; gap: 8px;
-  height: 42px; padding: 0 15px; border-radius: 22px; border: 1px solid var(--line); cursor: pointer;
+/* ─── Assistant conversationnel (components/AiChatDock.tsx) ────────────────────
+   Pastille + grand panneau en bas à droite (montage ET éditeur). Thème sombre
+   `.a-root` en montage, clair en éditeur : tout passe par les tokens. Le
+   panneau prend franchement de la hauteur — on parle avec, pas on lui glisse
+   un mot par une chatière. */
+.mzchat-fab { position: fixed; right: 20px; bottom: 20px; z-index: 900; display: flex; align-items: center; gap: 8px;
+  height: 44px; padding: 0 16px; border-radius: 22px; border: 1px solid var(--line); cursor: pointer;
   background: linear-gradient(135deg, var(--leaf), color-mix(in srgb, var(--vio) 62%, var(--leaf)));
   color: #14301A; font-family: var(--sans); font-weight: 800; font-size: 12.5px;
-  box-shadow: 0 8px 24px rgba(0,0,0,.32); transition: transform .14s var(--ease), box-shadow .14s; }
-.mzchat-fab:hover { transform: translateY(-2px); box-shadow: 0 12px 30px rgba(0,0,0,.4); }
+  box-shadow: 0 8px 24px rgba(0,0,0,.32); transition: transform .14s var(--ease), box-shadow .14s;
+  animation: mzchatCall 3.8s var(--ease) infinite; }
+.mzchat-fab:hover { transform: translateY(-2px) scale(1.02); box-shadow: 0 14px 32px rgba(0,0,0,.4); animation-play-state: paused; }
+.mzchat-fab:active { transform: translateY(0) scale(.97); }
 .mzchat-fab-lbl { white-space: nowrap; }
-@media (max-width: 640px) { .mzchat-fab-lbl { display: none; } .mzchat-fab { padding: 0; width: 42px; justify-content: center; } }
+@keyframes mzchatCall {
+  0%, 66%, 100% { box-shadow: 0 8px 24px rgba(0,0,0,.32), 0 0 0 0 color-mix(in srgb, var(--leaf) 45%, transparent); }
+  80% { box-shadow: 0 8px 24px rgba(0,0,0,.32), 0 0 0 9px color-mix(in srgb, var(--leaf) 0%, transparent); }
+}
+@media (max-width: 640px) { .mzchat-fab-lbl { display: none; } .mzchat-fab { padding: 0; width: 44px; justify-content: center; } }
 
-.mzchat { position: fixed; right: 18px; bottom: 18px; z-index: 900; width: min(370px, calc(100vw - 36px));
-  max-height: min(560px, calc(100vh - 120px)); display: flex; flex-direction: column;
-  border-radius: 16px; border: 1px solid var(--line); overflow: hidden;
-  background: var(--paper, var(--canvas)); box-shadow: 0 20px 54px rgba(0,0,0,.42); }
-.mzchat-head { display: flex; align-items: center; gap: 9px; padding: 11px 12px; border-bottom: 1px solid var(--line);
-  font-family: var(--sans); font-size: 13px; color: var(--ink, var(--cream)); flex-shrink: 0; }
-.mzchat-x { margin-left: auto; width: 26px; height: 26px; border-radius: 7px; border: none; cursor: pointer;
-  background: transparent; color: var(--ink-3); font-size: 19px; line-height: 1; }
+.mzchat { position: fixed; right: 20px; bottom: 20px; z-index: 900; width: min(410px, calc(100vw - 32px));
+  height: min(720px, calc(100vh - 108px)); max-height: calc(100vh - 108px); display: flex; flex-direction: column;
+  border-radius: 20px; border: 1px solid var(--line); overflow: hidden; transform-origin: bottom right;
+  background: var(--paper, var(--canvas)); box-shadow: var(--shadow-float, 0 22px 50px -24px rgba(0,0,0,.5));
+  animation: mzchatIn .3s var(--ease) both; }
+.mzchat.is-closing { animation: mzchatOut .17s var(--ease) both; }
+@keyframes mzchatIn { from { opacity: 0; transform: translateY(22px) scale(.94); } to { opacity: 1; transform: none; } }
+@keyframes mzchatOut { from { opacity: 1; transform: none; } to { opacity: 0; transform: translateY(14px) scale(.96); } }
+
+.mzchat-head { display: flex; align-items: center; gap: 10px; padding: 14px 14px 13px; border-bottom: 1px solid var(--line);
+  flex-shrink: 0; }
+.mzchat-head-orb { width: 22px; height: 22px; }
+.mzchat-title { font-family: var(--display); font-weight: 800; font-style: italic; font-size: 15px;
+  color: var(--ink, var(--cream)); line-height: 1.2; }
+.mzchat-x { margin-left: auto; width: 28px; height: 28px; border-radius: 8px; border: none; cursor: pointer;
+  background: transparent; color: var(--ink-3); font-size: 19px; line-height: 1; transition: background .12s, color .12s; }
 .mzchat-x:hover { background: var(--sunk); color: var(--ink, var(--cream)); }
 
-.mzchat-list { flex: 1; min-height: 90px; overflow-y: auto; padding: 12px; display: flex; flex-direction: column; gap: 9px; }
-.mzchat-intro { margin: 0; font-size: 12px; line-height: 1.55; color: var(--ink-3); }
-.mzchat-msg { display: flex; flex-direction: column; gap: 3px; max-width: 92%; }
-.mzchat-msg.is-user { align-self: flex-end; align-items: flex-end; }
+.mzchat-list { flex: 1; min-height: 90px; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 13px; }
+.mzchat-intro { margin: 0; font-size: 12.5px; line-height: 1.6; color: var(--ink-3); }
+.mzchat-msg { display: flex; align-items: flex-start; gap: 8px; max-width: 92%;
+  animation: mzchatMsgIn .22s var(--ease) both; }
+@keyframes mzchatMsgIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+.mzchat-msg.is-user { align-self: flex-end; justify-content: flex-end; }
 .mzchat-msg.is-assistant { align-self: flex-start; }
-.mzchat-bubble { padding: 8px 11px; border-radius: 13px; font-size: 12.5px; line-height: 1.5;
+.mzchat-msg-col { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.mzchat-msg.is-user .mzchat-msg-col { align-items: flex-end; }
+.mzchat-avatar { width: 22px; height: 22px; flex-shrink: 0; margin-top: 1px; border-radius: 50%;
+  background: radial-gradient(circle at 34% 32%, var(--leaf), color-mix(in srgb, var(--vio) 70%, var(--leaf))); }
+.mzchat-bubble { padding: 9px 13px; border-radius: 15px; font-size: 13px; line-height: 1.55;
   white-space: pre-wrap; word-break: break-word; }
 .is-user .mzchat-bubble { background: var(--leaf); color: #14301A; border-bottom-right-radius: 5px; font-weight: 600; }
 .is-assistant .mzchat-bubble { background: var(--sunk); color: var(--ink-2); border-bottom-left-radius: 5px; }
 .mzchat-typing { color: var(--ink-3); font-style: italic; }
 .mzchat-applied { display: flex; align-items: center; gap: 4px; font-size: 10.5px; font-weight: 700; color: var(--ink-3); padding-left: 4px; }
 
-.mzchat-input { display: flex; align-items: flex-end; gap: 7px; padding: 10px; border-top: 1px solid var(--line); flex-shrink: 0; }
-.mzchat-input textarea { flex: 1; min-height: 36px; max-height: 110px; resize: none; padding: 9px 11px;
-  border-radius: 10px; border: 1px solid var(--line); background: var(--sunk); color: var(--ink, var(--cream));
-  font-family: var(--sans); font-size: 12.5px; line-height: 1.45; }
-.mzchat-input textarea:focus { outline: 2px solid color-mix(in srgb, var(--leaf) 55%, transparent); outline-offset: -1px; }
-.mzchat-input button { width: 36px; height: 36px; flex-shrink: 0; border-radius: 10px; border: none; cursor: pointer;
-  background: var(--leaf); color: #14301A; display: grid; place-items: center; }
-.mzchat-input button:disabled { opacity: .45; cursor: not-allowed; }
+.mzchat-input { display: flex; align-items: center; gap: 8px; padding: 12px; border-top: 1px solid var(--line); flex-shrink: 0; }
+.mzchat-input textarea { flex: 1; min-height: 38px; max-height: 130px; resize: none; padding: 10px 12px;
+  border-radius: 11px; border: 1px solid var(--line); background: var(--sunk); color: var(--ink, var(--cream));
+  font-family: var(--sans); font-size: 13px; line-height: 1.45; transition: border-color .15s, box-shadow .15s; }
+.mzchat-input textarea:focus { outline: none; border-color: var(--leaf); box-shadow: 0 0 0 3px color-mix(in srgb, var(--leaf) 30%, transparent); }
+.mzchat-send { width: 38px; height: 38px; flex-shrink: 0; border-radius: 11px; border: none; cursor: pointer;
+  background: var(--leaf); color: #14301A; display: grid; place-items: center; transition: transform .14s var(--ease); }
+.mzchat-send:hover:not(:disabled) { transform: translateY(-1px) scale(1.03); }
+.mzchat-send:disabled { opacity: .45; cursor: not-allowed; }
+
+@media (max-width: 640px) {
+  .mzchat { right: 12px; left: 12px; bottom: 12px; width: auto; height: min(680px, calc(100vh - 88px)); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .mzchat-fab, .mzchat, .mzchat.is-closing, .mzchat-msg { animation: none; }
+}

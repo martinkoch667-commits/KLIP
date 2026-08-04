@@ -11,6 +11,7 @@
 // (/api/montage-chat ou /api/editor-chat) et `buildProject` de ce qu'il voit.
 
 import { useEffect, useRef, useState } from 'react';
+import VoiceButton from '@/components/VoiceButton';
 
 export interface ChatAction { type: string; [k: string]: unknown }
 
@@ -54,10 +55,13 @@ function Bubble({ m, live }: { m: ChatMsg; live: boolean }) {
   const shown = useTypedText(m.text, live && m.role === 'assistant');
   return (
     <div className={'mzchat-msg is-' + m.role}>
-      <div className="mzchat-bubble">{m.role === 'assistant' ? shown : m.text}</div>
-      {m.role === 'assistant' && !!m.actions && (
-        <div className="mzchat-applied"><Sparkle size={11} /> {m.actions}</div>
-      )}
+      {m.role === 'assistant' && <span className="mzchat-avatar" aria-hidden />}
+      <div className="mzchat-msg-col">
+        <div className="mzchat-bubble">{m.role === 'assistant' ? shown : m.text}</div>
+        {m.role === 'assistant' && !!m.actions && (
+          <div className="mzchat-applied"><Sparkle size={11} /> {m.actions}</div>
+        )}
+      </div>
     </div>
   );
 }
@@ -76,6 +80,9 @@ export default function AiChatDock({
   disabled?: boolean;
 }) {
   const [open, setOpen] = useState(false);
+  // Sortie animée : on rejoue l'aller-retour de l'ouverture avant de démonter,
+  // sinon le panneau disparaît d'un coup et « l'ouverture » semble à sens unique.
+  const [closing, setClosing] = useState(false);
   const [msgs, setMsgs] = useState<ChatMsg[]>([]);
   const [draft, setDraft] = useState('');
   const [busy, setBusy] = useState(false);
@@ -87,6 +94,18 @@ export default function AiChatDock({
     if (el) el.scrollTop = el.scrollHeight;
   }, [msgs, busy, open]);
   useEffect(() => { if (open) inputRef.current?.focus(); }, [open]);
+
+  function requestClose() {
+    setClosing(true);
+    window.setTimeout(() => { setClosing(false); setOpen(false); }, 170);
+  }
+
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') requestClose(); };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [open]);
 
   async function send() {
     const instruction = draft.trim();
@@ -127,11 +146,11 @@ export default function AiChatDock({
   }
 
   return (
-    <div className="mzchat" role="dialog" aria-label={labels.title}>
+    <div className={'mzchat' + (closing ? ' is-closing' : '')} role="dialog" aria-label={labels.title}>
       <div className="mzchat-head">
-        <span className="aithink-orb" style={{ width: 18, height: 18 }} aria-hidden />
-        <strong>{labels.title}</strong>
-        <button className="mzchat-x" onClick={() => setOpen(false)} title={labels.close} aria-label={labels.close}>×</button>
+        <span className="mzchat-head-orb aithink-orb" aria-hidden />
+        <strong className="mzchat-title">{labels.title}</strong>
+        <button className="mzchat-x" onClick={requestClose} title={labels.close} aria-label={labels.close}>×</button>
       </div>
 
       <div className="mzchat-list" ref={listRef}>
@@ -139,14 +158,17 @@ export default function AiChatDock({
         {msgs.map((m, i) => <Bubble key={i} m={m} live={i === msgs.length - 1 && !busy} />)}
         {busy && (
           <div className="mzchat-msg is-assistant">
-            <div className="mzchat-bubble mzchat-typing">
-              {labels.thinking}<span className="aithink-caret" aria-hidden />
+            <span className="mzchat-avatar" aria-hidden />
+            <div className="mzchat-msg-col">
+              <div className="mzchat-bubble mzchat-typing">
+                {labels.thinking}<span className="aithink-caret" aria-hidden />
+              </div>
             </div>
           </div>
         )}
       </div>
 
-      <div className="mzchat-input">
+      <div className="mzchat-input" data-voice-scope>
         <textarea
           ref={inputRef}
           value={draft}
@@ -161,7 +183,10 @@ export default function AiChatDock({
             e.stopPropagation();
           }}
         />
-        <button onClick={() => void send()} disabled={disabled || busy || !draft.trim()} title={labels.title} aria-label={labels.title}>
+        {/* Même dictée que le reste de l'app (VoiceButton) : continue tant qu'on
+            n'a pas cliqué Terminer, se relance seule après les coupures Chrome. */}
+        <VoiceButton value={draft} onChange={setDraft} compact />
+        <button className="mzchat-send" onClick={() => void send()} disabled={disabled || busy || !draft.trim()} title={labels.title} aria-label={labels.title}>
           <Sparkle size={15} />
         </button>
       </div>
