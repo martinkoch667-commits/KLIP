@@ -19,7 +19,13 @@ const FILTERS = 'none, chaud, doux, froid, argent, nb, vif, cinema, vintage, pas
 const SUB_STYLES = 'simple, karaoke, editorial, clean, mint, bold-white, bold-yellow, bold-mint, bold-pink, bold-blue, pill-black, pill-acid, pill-coral, pill-violet, pill-forest, band-black, band-cream, band-red, serif-white, serif-cream, mono-tech, sunset, ocean, gold, candy';
 const FORMATS = 'story (9:16), square (1:1), portrait (4:5), landscape (16:9)';
 
-const SYSTEM = `Tu es le monteur vidéo de KLIP. L'utilisateur te parle en langage naturel de SON montage en cours ; tu appliques ses consignes.
+const SYSTEM = `Tu es le monteur vidéo de KLIP. L'utilisateur te confie une mission sur SON montage en cours, comme à un monteur professionnel.
+
+MÉTHODE — dans cet ordre, avant de décider :
+1. REGARDE les images fournies : ce sont des extraits des plans du montage, dans l'ordre. Juge ce qu'elles montrent (cadrage, lumière, sujet), et si l'enchaînement se tient.
+2. LIS la transcription : c'est ce qui est dit. Elle te dit le propos, le rythme, les redites, et les moments qui méritent un titre à l'écran.
+3. COMPRENDS L'INTENTION derrière la consigne. « c'est mou », « ça traîne », « on décroche » sont des diagnostics, pas des instructions littérales : traduis-les en décisions de montage (couper les temps morts, raccourcir les plans, accélérer, poser des transitions plus vives, resserrer les sous-titres).
+4. AGIS sur les vrais leviers. Pour rendre une vidéo plus dynamique, on coupe et on resserre AVANT d'ajouter des effets.
 
 Tu reçois l'état courant du projet (plans, sous-titres, titres, audio, format) et l'historique de la conversation. Tu réponds TOUJOURS avec un unique objet JSON, sans texte autour, sans bloc de code :
 
@@ -39,6 +45,8 @@ ACTIONS DISPONIBLES (n'en invente aucune autre) :
 - { "type": "reorder_clips", "order": ["<id>", "<id>", ...] } — tous les ids, dans le nouvel ordre
 - { "type": "set_caption_length", "words": 3 } — mots par sous-titre, de 1 à 8
 - { "type": "set_subtitle_style", "styleId": "<id>" } — styles : ${SUB_STYLES}
+- { "type": "set_subtitle_anim", "anim": "words" | "none" } — "words" révèle mot par mot en surlignant le mot dit ; "none" affiche le sous-titre d'un bloc, sans animation
+- { "type": "set_subtitle_custom", "fg": "#RRGGBB", "hi": "#RRGGBB", "stroke": "#RRGGBB", "strokeW": 2, "weight": 800, "italic": false, "caseMode": "none|upper|lower|title", "scale": 1, "letterSpacing": 0, "bg": "#RRGGBB", "bgOpacity": 1 } — réglages fins des sous-titres, toutes les propriétés facultatives
 - { "type": "set_subtitle_pos", "x": 50, "y": 78 } — en % du cadre
 - { "type": "add_title", "text": "...", "start": 0, "dur": 2.5 }
 - { "type": "set_format", "formatId": "story" } — formats : ${FORMATS}
@@ -71,12 +79,22 @@ export async function POST(request: NextRequest) {
     // utile est l'état COURANT du projet, pas la conversation entière).
     const history = Array.isArray(body.history) ? body.history.slice(-8) : [];
 
+    // Les extraits de plans voyagent dans `project.images` : on les sort du JSON
+    // pour les envoyer comme VRAIES images (sinon ce serait du base64 en texte).
+    const proj = (body.project ?? {}) as Record<string, unknown>;
+    const images = Array.isArray(proj.images)
+      ? (proj.images as unknown[]).filter((i): i is string => typeof i === 'string' && i.startsWith('data:')).slice(0, 4)
+      : [];
+    const { images: _omit, ...projectSansImages } = proj;
+    void _omit;
+
     const userText = [
+      images.length ? `Les ${images.length} image(s) jointe(s) sont des extraits des plans du montage, dans l'ordre. Regarde-les avant de décider.` : '',
       'ÉTAT COURANT DU PROJET :',
-      JSON.stringify(body.project ?? {}, null, 1),
+      JSON.stringify(projectSansImages, null, 1),
       '',
       `CONSIGNE : ${instruction}`,
-    ].join('\n');
+    ].filter(Boolean).join('\n');
 
     let raw: string;
     try {
@@ -84,9 +102,10 @@ export async function POST(request: NextRequest) {
         userId: session.user.id,
         system: SYSTEM,
         userText,
+        images: images.length ? images : undefined,
         priorTurns: history.map((h) => ({ role: h.role, text: h.text })),
-        temperature: 0.2,
-        maxTokens: 1400,
+        temperature: 0.3,
+        maxTokens: 2000,
       });
     } catch (err) {
       console.error('[montage-chat] erreur fournisseur IA :', err);

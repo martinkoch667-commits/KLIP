@@ -8,7 +8,7 @@
 import React from "react";
 import {
   effectiveSubStyle, applySubCase, subtitleBoxCss,
-  type SubCustom, type CaseMode, type SubAlign,
+  type SubCustom, type CaseMode, type SubAlign, type SubAnim,
 } from "@/app/workspace/[id]/montage/[postId]/constants";
 
 const HEX = /^#([0-9a-f]{6})$/i;
@@ -110,6 +110,7 @@ export interface SubtitleStyleEditorLabels {
   shadow: string; blur: string; offsetX: string; offsetY: string;
   glow: string; intensity: string;
   transform: string; rotation: string;
+  anim: string; animWords: string; animNone: string;
 }
 
 export default function SubtitleStyleEditor({
@@ -197,6 +198,18 @@ export default function SubtitleStyleEditor({
                 style={{ padding: "5px 13px", fontSize: 13, minWidth: 38 }}>{node}</button>
             ))}
           </div>
+        </div>
+
+        {/* Animation : « mot par mot » (surlignage façon CapCut) ou « simple »,
+            où le sous-titre s'affiche d'un bloc. Le style complet (contour, casse,
+            couleur, ombre…) s'applique dans les deux cas. */}
+        <div>
+          <Label>{L.anim}</Label>
+          <Seg<SubAnim>
+            options={[{ v: "words", label: L.animWords }, { v: "none", label: L.animNone }]}
+            value={e.anim}
+            onChange={(v) => patch({ anim: v })}
+          />
         </div>
 
         <div>

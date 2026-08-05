@@ -151,7 +151,11 @@ function drawCaptions(ctx: CanvasRenderingContext2D, captions: Caption[], subSty
   const rawWords = cap.text.split(/\s+/).filter(Boolean);
   const words = rawWords.map((w) => applySubCase(w, style.caseMode));
   const progress = (t - cap.start) / Math.max(0.1, cap.end - cap.start);
-  const activeIdx = Math.min(words.length - 1, Math.floor(progress * words.length));
+  // anim "none" : aucun mot n'est « actif », donc aucun surlignage — le
+  // sous-titre s'affiche d'un bloc, comme dans l'aperçu.
+  const activeIdx = style.anim === "none"
+    ? -1
+    : Math.min(words.length - 1, Math.floor(progress * words.length));
 
   const fontSize = 34 * style.scale;
   const fam = style.font

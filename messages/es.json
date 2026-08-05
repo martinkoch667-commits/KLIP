@@ -2241,6 +2241,9 @@
     "glow": "Resplandor",
     "intensity": "Intensidad",
     "transform": "Transformar",
-    "rotation": "Rotación"
+    "rotation": "Rotación",
+    "anim": "Animación",
+    "animWords": "Palabra a palabra",
+    "animNone": "Simple"
   }
 }

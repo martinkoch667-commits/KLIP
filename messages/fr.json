@@ -2241,6 +2241,9 @@
     "glow": "Lueur",
     "intensity": "Intensité",
     "transform": "Transformer",
-    "rotation": "Rotation"
+    "rotation": "Rotation",
+    "anim": "Animation",
+    "animWords": "Mot par mot",
+    "animNone": "Simple"
   }
 }

@@ -191,6 +191,8 @@ export type SubAlign = "left" | "center" | "right";
 // Surcharges de style d'un sous-titre — jeu de paramètres complet (façon CapCut).
 // TOUT champ ajouté ici doit être honoré aux 3 endroits : aperçu montage (DOM),
 // export vidéo (canvas 2D, export.ts drawCaptions) et aperçu de l'assistant client.
+export type SubAnim = "words" | "none";
+
 export interface SubCustom {
   // — Base —
   fg?: string;
@@ -227,6 +229,11 @@ export interface SubCustom {
   // — Transformer / Mélange —
   rotation?: number;      // degrés (défaut 0)
   opacity?: number;       // 0-1 (défaut 1)
+  // — Animation du texte —
+  // "words" = révélation mot par mot avec surlignage du mot dit (comportement
+  // historique, façon CapCut). "none" = le sous-titre s'affiche d'un bloc, sans
+  // animation ni surlignage : du texte simple posé sur l'image.
+  anim?: SubAnim;
 }
 
 export interface MontageProject {
@@ -297,6 +304,7 @@ export type EffectiveSub = SubStyle & {
   glowBlur: number;
   rotation: number;
   opacity: number;
+  anim: SubAnim;
 };
 
 export function effectiveSubStyle(styleId: string, custom?: SubCustom): EffectiveSub {
@@ -322,6 +330,8 @@ export function effectiveSubStyle(styleId: string, custom?: SubCustom): Effectiv
     letterSpacing: custom?.letterSpacing ?? 0,
     lineHeight: custom?.lineHeight ?? 1.15,
     align: custom?.align ?? "center",
+    // Animation : par défaut on garde la révélation mot par mot (projets existants).
+    anim: custom?.anim ?? "words",
     // Trait
     strokeW: custom?.strokeW ?? 2,
     // Fond

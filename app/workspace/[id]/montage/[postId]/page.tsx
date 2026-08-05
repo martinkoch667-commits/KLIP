@@ -3043,10 +3043,21 @@ export default function MontagePage() {
   // ── Assistant de montage : état envoyé à l'IA + exécution de ses actions ────
   // On n'envoie qu'un RÉSUMÉ du projet (pas les URLs de médias ni les styles
   // complets) : assez pour raisonner, assez court pour tenir dans le contexte.
-  const buildChatProject = useCallback(() => {
+  const buildChatProject = useCallback(async () => {
     const starts = computeStarts(clips);
+    // L'assistant REGARDE le montage : une image par plan (jusqu'à 4, prises au
+    // milieu du segment conservé). Sans ça il raisonne à l'aveugle sur des noms
+    // de fichiers et ne peut rien dire du contenu réel.
+    const sample = starts.filter((c) => c.kind === "video").slice(0, 4);
+    const images = (await Promise.all(sample.map((c) =>
+      grabFrame(c.src, c.kind, (c.trimStart + c.trimEnd) / 2).catch(() => null),
+    ))).filter((x): x is string => !!x);
     return {
       format: formatId,
+      images,
+      // Ce qui est DIT dans la vidéo : l'assistant comprend le propos et peut
+      // juger le rythme, les redites, ce qui mérite un titre à l'écran.
+      transcription: captions.map((c) => c.text).join(" ").slice(0, 2500),
       dureeTotale: Number(total.toFixed(2)),
       plans: starts.map((c, i) => ({
         id: c.id, n: i + 1, nom: c.name, type: c.kind,
@@ -3064,7 +3075,8 @@ export default function MontagePage() {
       incrustations: overlays.length,
       barreDeProgression: showProgressBar,
     };
-  }, [clips, total, formatId, captions.length, subMaxWords, subStyleId, subPos, titles, audioTracks, overlays.length, showProgressBar]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [clips, total, formatId, captions, subMaxWords, subStyleId, subPos, titles, audioTracks, overlays.length, showProgressBar]);
 
   // Applique les actions renvoyées par l'IA. Chaque branche passe par les setters
   // normaux → l'historique enregistre les points d'annulation tout seul (Cmd+Z).
@@ -3141,6 +3153,32 @@ export default function MontagePage() {
         case "set_caption_length": { setCaptionLength(Math.round(num(a.words, 1, 8, 3))); done++; break; }
         case "set_subtitle_style": {
           if (typeof a.styleId === "string" && SUB_STYLES.some((s) => s.id === a.styleId)) { pickSubStyle(a.styleId); done++; }
+          break;
+        }
+        case "set_subtitle_anim": {
+          if (a.anim !== "words" && a.anim !== "none") break;
+          setSubCustom((c) => ({ ...c, anim: a.anim as "words" | "none" })); done++;
+          break;
+        }
+        case "set_subtitle_custom": {
+          const patch: SubCustom = {};
+          const hex = (v: unknown) => (typeof v === "string" && /^#[0-9a-f]{6}$/i.test(v) ? v : undefined);
+          if (hex(a.fg)) patch.fg = a.fg as string;
+          if (hex(a.hi)) patch.hi = a.hi as string;
+          if (hex(a.bg)) patch.bg = a.bg as string;
+          if (hex(a.stroke)) patch.stroke = a.stroke as string;
+          if (typeof a.strokeW === "number") patch.strokeW = num(a.strokeW, 0, 12, 2);
+          if (typeof a.weight === "number") patch.weight = Math.round(num(a.weight, 100, 900, 800));
+          if (typeof a.italic === "boolean") patch.italic = a.italic;
+          if (typeof a.scale === "number") patch.scale = num(a.scale, 0.4, 3, 1);
+          if (typeof a.letterSpacing === "number") patch.letterSpacing = num(a.letterSpacing, -0.05, 0.5, 0);
+          if (typeof a.bgOpacity === "number") patch.bgOpacity = num(a.bgOpacity, 0, 1, 1);
+          if (a.caseMode === "none" || a.caseMode === "upper" || a.caseMode === "lower" || a.caseMode === "title") {
+            patch.caseMode = a.caseMode;
+            patch.uppercase = a.caseMode === "upper"; // garde l'ancien booléen cohérent
+          }
+          if (!Object.keys(patch).length) break;
+          setSubCustom((c) => ({ ...c, ...patch })); done++;
           break;
         }
         case "set_subtitle_pos": {
@@ -3598,6 +3636,11 @@ export default function MontagePage() {
                           onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); (e.currentTarget as HTMLElement).blur(); } }}
                           onBlur={(e) => { const txt = (e.currentTarget.textContent || "").trim(); if (txt) updateCaption(activeCaption.id, { text: txt }); setEditingCaptionId(null); }}
                         >{activeCaption.text}</span>
+                      ) : capStyle.anim === "none" ? (
+                        // Sous-titre simple : le texte s'affiche d'un bloc, sans
+                        // révélation ni surlignage. Tous les réglages de style
+                        // (contour, casse, couleur, ombre…) s'appliquent quand même.
+                        <span style={{ color: capStyle.fg }}>{applySubCase(activeCaption.text, capStyle.caseMode)}</span>
                       ) : activeCaption.text.split(/\s+/).filter(Boolean).map((w, i, arr) => {
                         const progress = (time - activeCaption.start) / Math.max(0.1, activeCaption.end - activeCaption.start);
                         const activeIdx = Math.min(arr.length - 1, Math.floor(progress * arr.length));

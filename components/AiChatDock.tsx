@@ -108,8 +108,10 @@ export default function AiChatDock({
 }: {
   endpoint: string;
   labels: ChatLabels;
-  buildProject: () => unknown;
-  applyActions: (actions: ChatAction[]) => number;
+  // Peut être asynchrone : l'assistant visuel récupère la charte et les posts
+  // déjà validés du client avant d'envoyer, et rend le canvas en image.
+  buildProject: () => unknown | Promise<unknown>;
+  applyActions: (actions: ChatAction[]) => number | Promise<number>;
   disabled?: boolean;
 }) {
   const [open, setOpen] = useState(false);
@@ -151,7 +153,7 @@ export default function AiChatDock({
       const res = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ project: buildProject(), history, instruction }),
+        body: JSON.stringify({ project: await buildProject(), history, instruction }),
       });
       const data = await res.json().catch(() => null);
       if (!res.ok || !data) {
@@ -160,7 +162,7 @@ export default function AiChatDock({
       }
       // On applique AVANT d'afficher la réponse : le « c'est fait » ne s'écrit
       // que si les actions ont réellement été exécutées.
-      const applied = Array.isArray(data.actions) && data.actions.length ? applyActions(data.actions) : 0;
+      const applied = Array.isArray(data.actions) && data.actions.length ? await applyActions(data.actions) : 0;
       setMsgs((p) => [...p, { role: 'assistant', text: String(data.reply || ''), actions: applied }]);
     } catch {
       setMsgs((p) => [...p, { role: 'assistant', text: labels.error }]);

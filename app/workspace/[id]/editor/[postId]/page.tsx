@@ -3043,8 +3043,49 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
   // ── Assistant visuel : état envoyé à l'IA + exécution de ses actions ────────
   // Résumé des calques : assez pour raisonner (rôle, texte, position, style),
   // sans les données lourdes (sources d'images, points vectoriels).
-  const buildChatProject = () => ({
+  // Références de marque : gabarits du client + posts déjà validés. C'est ce qui
+  // fait que l'assistant s'améliore à mesure que le client valide des visuels —
+  // il compose comme ce qui a déjà été approuvé, pas dans le vide.
+  // (Même source que composeWithAI, extraite ici pour être partagée.)
+  const FMT_DIMS_REF: Record<string, [number, number]> = { 'ig-portrait': [448, 560], 'ig-square': [560, 560], 'ig-story': [315, 560], 'facebook': [560, 294] };
+  const fetchBrandRefs = async () => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const summarize = (zones: any[], fw: number, fh: number) => zones.filter(z => z?.type === 'text' && z.role).map(z => ({
+      role: z.role, xPct: Math.round(((z.x ?? 0) / fw) * 100), yPct: Math.round(((z.y ?? 0) / fh) * 100),
+      wPct: Math.round(((z.width ?? fw) / fw) * 100), fontPct: Math.round(((z.fontSize ?? 24) / fh) * 100),
+      align: z.align ?? 'left', upper: !!z.uppercase,
+    }));
+    try {
+      const [{ data: tpls }, { data: approved }] = await Promise.all([
+        supabase.from('post_templates').select('name, format_id, background_style, text_zones').eq('workspace_id', workspaceId).limit(6),
+        supabase.from('posts').select('post_type, editor_json').eq('workspace_id', workspaceId).eq('approved_by_client', true).limit(4),
+      ]);
+      const gabarits = (tpls ?? []).map(t => {
+        const [fw, fh] = FMT_DIMS_REF[t.format_id as string] ?? [448, 560];
+        return { nom: t.name, fond: (t.background_style as { type?: string } | null)?.type ?? 'none', blocs: summarize(Array.isArray(t.text_zones) ? t.text_zones : [], fw, fh) };
+      }).filter(s => s.blocs.length > 0).slice(0, 4);
+      const postsValides = (approved ?? []).map(p => {
+        const [fw, fh] = FMT_DIMS_REF[(p.post_type as string) ? PT_FORMAT_MAP[p.post_type as string] : 'ig-portrait'] ?? [448, 560];
+        try { const j = JSON.parse(p.editor_json as string); return { blocs: summarize(j?.slides?.[0]?.elements ?? [], fw, fh) }; }
+        catch { return { blocs: [] }; }
+      }).filter(s => s.blocs.length > 0).slice(0, 3);
+      return { gabarits, postsValides };
+    } catch { return { gabarits: [], postsValides: [] }; }
+  };
+
+  const buildChatProject = async () => ({
     cadre: { largeur: stageW, hauteur: stageH },
+    // La charte : l'assistant ne propose que des couleurs et des polices du client.
+    charte: {
+      couleurPrimaire: workspaceData?.primary_color, couleurSecondaire: workspaceData?.secondary_color,
+      couleurAccent: workspaceData?.accent_color, policeTitre: workspaceData?.font_family,
+      policeTexte: workspaceData?.font_secondary, logo: !!workspaceData?.logo_url,
+    },
+    // Ce que le client a déjà validé → l'assistant s'aligne sur ses habitudes.
+    references: await fetchBrandRefs(),
+    // Rendu courant du visuel : l'assistant le REGARDE (équilibre, zones vides,
+    // lisibilité sur la photo) au lieu de raisonner sur une liste de propriétés.
+    image: (() => { try { return stageRef.current?.toDataURL({ pixelRatio: 1 }) ?? null; } catch { return null; } })(),
     calques: elementsRef.current.map((e, i) => {
       const base = { id: e.id, n: i + 1, type: e.type, x: Math.round(e.x), y: Math.round(e.y), opacite: Math.round(e.opacity ?? 100) };
       if (e.type === 'text') {
@@ -3060,7 +3101,7 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
 
   // Applique les actions de l'assistant. Tout passe par applyElements → l'historique
   // enregistre un point d'annulation (Cmd+Z). Renvoie le nombre d'actions appliquées.
-  const applyChatActions = (actions: { type: string; [k: string]: unknown }[]): number => {
+  const applyChatActions = async (actions: { type: string; [k: string]: unknown }[]): Promise<number> => {
     let done = 0;
     const num = (v: unknown, min: number, max: number, dflt: number) =>
       typeof v === 'number' && isFinite(v) ? Math.max(min, Math.min(max, v)) : dflt;
@@ -3170,10 +3211,21 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
           done++;
           break;
         }
-        // Les deux IA déjà en place, déclenchables à la voix. Elles réécrivent
-        // elles-mêmes les calques : on applique d'abord ce qui précède.
-        case 'compose': { applyElements(els); void composeWithAI(); return done + 1; }
-        case 'visual_qa': { applyElements(els); void runVisualQA(); return done + 1; }
+        // Refonte complète : l'IA renvoie une mise en page (mêmes blocs que
+        // /api/compose-layout) et on la matérialise avec la MÊME machinerie que
+        // la composition automatique — couleurs de la charte, contraste calculé
+        // sur la photo, voile de lisibilité si le fond est chargé. C'est ce qui
+        // permet de « restructurer le visuel » et pas seulement de retoucher.
+        case 'redesign': {
+          if (!Array.isArray(a.blocks) || !a.blocks.length) break;
+          if (done) applyElements(els);
+          await materializeLayout({ blocks: a.blocks, scrim: a.scrim });
+          return done + 1;
+        }
+        // Les deux IA déjà en place, déclenchables depuis la conversation. Elles
+        // réécrivent elles-mêmes les calques : on applique d'abord ce qui précède.
+        case 'compose': { if (done) applyElements(els); void composeWithAI(); return done + 1; }
+        case 'visual_qa': { if (done) applyElements(els); void runVisualQA(); return done + 1; }
         default: break;
       }
     }
