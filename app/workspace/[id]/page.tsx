@@ -227,6 +227,104 @@ const GROUP_ICONS = {
 
 type ImportMode = 'separate' | 'montage';
 
+type ClipPoster = { url: string | null; duration: number | null; loading: boolean };
+
+function fmtClipDuration(s: number) {
+  const total = Math.round(s);
+  return `${Math.floor(total / 60)}:${String(total % 60).padStart(2, '0')}`;
+}
+
+// Vignette + durée de chaque rush, extraites côté navigateur : un nom de fichier
+// (IMG_1693.MOV) ne dit rien de ce qu'il y a dedans, on ne peut pas ordonner des
+// plans à l'aveugle. Photo → objectURL direct ; vidéo → première image décodable
+// peinte dans un canvas. Si le codec n'est pas lisible (HEVC sur Chrome), on
+// retombe sur le picto : la ligne reste utilisable, elle perd juste son aperçu.
+function useClipPosters(files: File[]): ClipPoster[] {
+  const [posters, setPosters] = useState<ClipPoster[]>(() => files.map(() => ({ url: null, duration: null, loading: true })));
+
+  useEffect(() => {
+    let alive = true;
+    const created: string[] = [];
+    setPosters(files.map(() => ({ url: null, duration: null, loading: true })));
+
+    function settle(i: number, next: Partial<ClipPoster>) {
+      if (!alive) return;
+      setPosters(prev => { const out = [...prev]; out[i] = { ...out[i], ...next, loading: false }; return out; });
+    }
+
+    files.forEach((file, i) => {
+      const src = URL.createObjectURL(file);
+      created.push(src);
+
+      if (file.type.startsWith('image/')) { settle(i, { url: src }); return; }
+
+      const video = document.createElement('video');
+      video.preload = 'metadata';
+      video.muted = true;
+      video.playsInline = true;
+      video.src = src;
+
+      const done = (poster: string | null) => {
+        // Certains conteneurs n'annoncent pas de durée fiable (webm en flux,
+        // MOV tronqué) : mieux vaut pas de badge qu'un « 0:00 » faux.
+        const d = video.duration;
+        settle(i, { url: poster, duration: Number.isFinite(d) && d >= 0.5 ? d : null });
+        video.removeAttribute('src');
+        video.load();
+      };
+
+      video.onloadeddata = () => {
+        // Pas la toute première image : souvent noire le temps que l'expo se cale.
+        video.currentTime = Math.min(0.6, (video.duration || 1) / 2);
+      };
+      video.onseeked = () => {
+        try {
+          const w = 160;
+          const ratio = video.videoWidth && video.videoHeight ? video.videoHeight / video.videoWidth : 1;
+          const canvas = document.createElement('canvas');
+          canvas.width = w; canvas.height = Math.round(w * ratio) || w;
+          const ctx = canvas.getContext('2d');
+          if (!ctx) return done(null);
+          ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+          done(canvas.toDataURL('image/jpeg', 0.72));
+        } catch { done(null); }
+      };
+      video.onerror = () => done(null);
+    });
+
+    return () => { alive = false; created.forEach(URL.revokeObjectURL); };
+  }, [files]);
+
+  return posters;
+}
+
+function ClipThumb({ file, poster }: { file: File; poster?: ClipPoster }) {
+  const isVideo = file.type.startsWith('video/');
+  return (
+    <span style={{
+      position: 'relative', flexShrink: 0, width: 40, height: 52, borderRadius: 'var(--r-s)',
+      overflow: 'hidden', background: 'var(--line-2)', border: '1px solid var(--line)',
+      display: 'grid', placeItems: 'center', color: 'var(--ink-3)',
+    }}>
+      {poster?.url
+        ? <img src={poster.url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+        : poster?.loading
+          ? null
+          : isVideo
+            ? <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 9h20M2 15h20M7 5v14M17 5v14"/></svg>
+            : <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="3.5" y="3.5" width="17" height="17" rx="3"/><circle cx="9" cy="9.5" r="1.4"/><path d="M20 15l-4.5-4.5L6 20"/></svg>}
+      {isVideo && poster?.url && (
+        <span style={{
+          position: 'absolute', inset: 0, display: 'grid', placeItems: 'center',
+          background: 'linear-gradient(to top, rgba(10,14,10,.45), transparent 55%)',
+        }}>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="#fff" style={{ filter: 'drop-shadow(0 1px 2px rgba(0,0,0,.5))' }}><path d="M8 5.5v13l11-6.5z"/></svg>
+        </span>
+      )}
+    </span>
+  );
+}
+
 function TypePickerModal({ files, onSeparate, onMontage, onClose }: {
   files: File[];
   onSeparate: (type: PostType) => void;
@@ -243,6 +341,7 @@ function TypePickerModal({ files, onSeparate, onMontage, onClose }: {
   const [selected, setSelected] = useState<PostType>('post');
   // Ordre des plans du futur montage (indices dans `files`), réarrangeable ici.
   const [order, setOrder] = useState<number[]>(() => files.map((_, i) => i));
+  const posters = useClipPosters(files);
   function moveOrder(i: number, dir: -1 | 1) {
     setOrder(prev => {
       const next = [...prev]; const j = i + dir;
@@ -260,7 +359,7 @@ function TypePickerModal({ files, onSeparate, onMontage, onClose }: {
   return (
     <div style={{ position: 'fixed', inset: 0, zIndex: 9500, background: 'rgba(12,42,29,0.78)', backdropFilter: 'blur(6px)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
       onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
-      <div style={{ background: 'var(--paper)', borderRadius: 'var(--r-xl)', border: '1px solid var(--line)', padding: '32px', width: 480, maxWidth: '90vw', boxShadow: '0 24px 64px rgba(12,42,29,.45)' }}>
+      <div style={{ background: 'var(--paper)', borderRadius: 'var(--r-xl)', border: '1px solid var(--line)', padding: '32px', width: 480, maxWidth: '90vw', maxHeight: '92vh', overflowY: 'auto', boxShadow: '0 24px 64px rgba(12,42,29,.45)' }}>
         <p style={{ margin: '0 0 8px', fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--ink-3)', fontFamily: 'var(--mono)' }}>{t('typePickerEyebrow')}</p>
         <h2 style={{ margin: '0 0 6px', fontSize: 20, fontWeight: 800, color: 'var(--ink)', fontFamily: 'var(--display)', lineHeight: 1.2 }}>{t('typePickerTitle')}</h2>
         <p style={{ margin: '0 0 24px', fontSize: 13, color: 'var(--ink-2)', lineHeight: 1.5 }}>{multi ? t('groupHint', { count: files.length }) : t('typePickerHint')}</p>
@@ -324,12 +423,18 @@ function TypePickerModal({ files, onSeparate, onMontage, onClose }: {
             </div>
 
             <p className="label" style={{ margin: '16px 0 8px' }}>{t('orderLabel')}</p>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 6, maxHeight: 210, overflowY: 'auto' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6, maxHeight: 272, overflowY: 'auto' }}>
               {order.map((fi, i) => (
                 <div key={fi} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 10px', borderRadius: 'var(--r-s)', background: 'var(--sunk)' }}>
                   <span className="num" style={{ fontSize: 13, width: 18, textAlign: 'center', color: 'var(--ink-3)', flexShrink: 0 }}>{i + 1}</span>
-                  <span style={{ flex: 1, minWidth: 0, fontSize: 12.5, fontWeight: 600, color: 'var(--ink)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                    {files[fi]?.name}
+                  <ClipThumb file={files[fi]} poster={posters[fi]} />
+                  <span style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 2 }}>
+                    <span style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--ink)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {files[fi]?.name}
+                    </span>
+                    {posters[fi]?.duration != null && (
+                      <span className="num" style={{ fontSize: 11, color: 'var(--ink-3)' }}>{fmtClipDuration(posters[fi].duration!)}</span>
+                    )}
                   </span>
                   <button type="button" disabled={i === 0} onClick={() => moveOrder(i, -1)}
                     className="btn btn-ghost btn-icon" style={{ padding: 5, opacity: i === 0 ? 0.3 : 1 }} title={t('moveUp')}>
@@ -628,10 +733,18 @@ export default function WorkspacePage() {
 
   // ── File selection ────────────────────────────────────────────────────────
 
+  // Tri naturel : IMG_2 avant IMG_10 (un tri texte mettrait 10 avant 2). Les
+  // navigateurs ne garantissent pas l'ordre d'une sélection multiple — un glisser
+  // depuis le Finder arrive régulièrement mélangé — alors que le sélecteur, lui,
+  // affiche les fichiers triés par nom. On rejoue ce même ordre pour que le
+  // premier fichier de la sélection soit bien le premier plan du montage.
+  const naturalOrder = new Intl.Collator(undefined, { numeric: true, sensitivity: "base" });
+
   function filterFiles(rawFiles: File[]): File[] {
     return rawFiles
       .filter((f) => f.type.startsWith("image/") || f.type.startsWith("video/"))
-      .filter((f) => { if (f.size > 100 * 1024 * 1024) { alert(`"${f.name}" dépasse 100 MB — fichier ignoré.`); return false; } return true; });
+      .filter((f) => { if (f.size > 100 * 1024 * 1024) { alert(`"${f.name}" dépasse 100 MB — fichier ignoré.`); return false; } return true; })
+      .sort((a, b) => naturalOrder.compare(a.name, b.name));
   }
 
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
