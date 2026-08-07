@@ -547,7 +547,19 @@
     "preEditHint": "Depurado y subtítulos aplicados al abrir.",
     "orderLabel": "Orden de los planos",
     "moveUp": "Subir",
-    "moveDown": "Bajar"
+    "moveDown": "Bajar",
+    "batchAll": "Generar todo",
+    "batchRunning": "Premontaje · {done}/{total}",
+    "batchStop": "Detener",
+    "batchQueued": "En espera",
+    "batchDone": "Listo",
+    "batchOpen": "Abrir",
+    "batchTitle": "Premontaje de los vídeos",
+    "batchHint": "Los montajes se preparan uno tras otro. Puedes salir cuando terminen.",
+    "batchErrSave": "No se pudo guardar",
+    "batchErrNoClips": "Sin material utilizable",
+    "batchErrEmpty": "El análisis no dio resultado",
+    "batchErrGeneric": "Fallo del premontaje"
   },
   "planning": {
     "bestTime": "Mejor momento para publicar",

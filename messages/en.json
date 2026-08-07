@@ -547,7 +547,19 @@
     "preEditHint": "Rush trimming and captions applied on opening.",
     "orderLabel": "Clip order",
     "moveUp": "Move up",
-    "moveDown": "Move down"
+    "moveDown": "Move down",
+    "batchAll": "Generate all",
+    "batchRunning": "Pre-editing · {done}/{total}",
+    "batchStop": "Stop",
+    "batchQueued": "Queued",
+    "batchDone": "Ready",
+    "batchOpen": "Open",
+    "batchTitle": "Pre-editing your videos",
+    "batchHint": "Montages are prepared one after another. You can leave this screen once they are done.",
+    "batchErrSave": "Could not save",
+    "batchErrNoClips": "No usable footage",
+    "batchErrEmpty": "Analysis returned nothing",
+    "batchErrGeneric": "Pre-edit failed"
   },
   "planning": {
     "bestTime": "Best time to post",

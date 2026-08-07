@@ -547,7 +547,19 @@
     "preEditHint": "Sfoltimento e sottotitoli applicati all’apertura.",
     "orderLabel": "Ordine delle clip",
     "moveUp": "Su",
-    "moveDown": "Giù"
+    "moveDown": "Giù",
+    "batchAll": "Genera tutto",
+    "batchRunning": "Premontaggio · {done}/{total}",
+    "batchStop": "Ferma",
+    "batchQueued": "In attesa",
+    "batchDone": "Pronto",
+    "batchOpen": "Apri",
+    "batchTitle": "Premontaggio dei video",
+    "batchHint": "I montaggi vengono preparati uno dopo l’altro. Puoi uscire quando sono pronti.",
+    "batchErrSave": "Salvataggio non riuscito",
+    "batchErrNoClips": "Nessuna ripresa utilizzabile",
+    "batchErrEmpty": "Analisi senza risultato",
+    "batchErrGeneric": "Premontaggio non riuscito"
   },
   "planning": {
     "bestTime": "Momento migliore per pubblicare",

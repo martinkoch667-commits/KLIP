@@ -547,7 +547,19 @@
     "preEditHint": "Rohschnitt und Untertitel beim Öffnen angewendet.",
     "orderLabel": "Reihenfolge der Clips",
     "moveUp": "Nach oben",
-    "moveDown": "Nach unten"
+    "moveDown": "Nach unten",
+    "batchAll": "Alle erzeugen",
+    "batchRunning": "Vorschnitt · {done}/{total}",
+    "batchStop": "Stoppen",
+    "batchQueued": "Wartet",
+    "batchDone": "Fertig",
+    "batchOpen": "Öffnen",
+    "batchTitle": "Vorschnitt der Videos",
+    "batchHint": "Die Schnitte entstehen nacheinander. Du kannst den Bildschirm danach verlassen.",
+    "batchErrSave": "Speichern fehlgeschlagen",
+    "batchErrNoClips": "Kein brauchbares Material",
+    "batchErrEmpty": "Analyse ohne Ergebnis",
+    "batchErrGeneric": "Vorschnitt fehlgeschlagen"
   },
   "planning": {
     "bestTime": "Beste Zeit zum Posten",

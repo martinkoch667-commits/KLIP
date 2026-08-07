@@ -16,7 +16,12 @@ import {
 } from "./constants";
 import { MontageCtx, CutPanel, TextPanel, CaptionsPanel, AudioPanel, TransitionsPanel, FilterPanel, SpeedPanel, StickerPanel, OverlayPanel, AiPanel } from "./panels";
 import { renderExport } from "./export";
-import { analyzeClipQuality, planSemanticCuts, keepRangesFromCuts, voicedFromWords, type TWord } from "./autoCut";
+import { analyzeClipQuality, type TWord } from "./autoCut";
+import {
+  runPreEdit, trimClipsByQuality, tightenSpeech, buildCaptions,
+  detectSpeechSegments, encodeWavMono, newTranscriptCache, computeStarts,
+  type TranscriptCache, type TranscribeErrorCode, type PreEditHooks,
+} from "./preEdit";
 import { transcodeToMp4 } from "@/lib/mp4-transcode";
 import AiThinkingPanel from "@/components/AiThinkingPanel";
 import AiChatDock from "@/components/AiChatDock";
@@ -219,19 +224,6 @@ async function computeWaveformFromUrl(src: string): Promise<number[]> {
   }
 }
 
-// Encode des échantillons mono (Float32, -1..1) en WAV PCM 16 bits.
-function encodeWavMono(samples: Float32Array, sampleRate: number): Blob {
-  const n = samples.length;
-  const view = new DataView(new ArrayBuffer(44 + n * 2));
-  const w = (o: number, s: string) => { for (let i = 0; i < s.length; i++) view.setUint8(o + i, s.charCodeAt(i)); };
-  w(0, "RIFF"); view.setUint32(4, 36 + n * 2, true); w(8, "WAVE"); w(12, "fmt ");
-  view.setUint32(16, 16, true); view.setUint16(20, 1, true); view.setUint16(22, 1, true);
-  view.setUint32(24, sampleRate, true); view.setUint32(28, sampleRate * 2, true);
-  view.setUint16(32, 2, true); view.setUint16(34, 16, true); w(36, "data"); view.setUint32(40, n * 2, true);
-  let off = 44;
-  for (let i = 0; i < n; i++) { const s = Math.max(-1, Math.min(1, samples[i])); view.setInt16(off, s < 0 ? s * 0x8000 : s * 0x7fff, true); off += 2; }
-  return new Blob([view], { type: "audio/wav" });
-}
 // 120 pics normalisés depuis des échantillons (pour l'affichage timeline après traitement).
 function peaksFromSamples(samples: Float32Array): number[] {
   const N = 120;
@@ -261,20 +253,6 @@ function charterSubDefault(ws: {
   const styleId = hasStyle ? (ws!.subtitle_style_id as string) : "bold-white";
   // Le template du client prime ; à défaut, on surligne simplement à la couleur d'accent.
   return { styleId, custom: custom ?? { hi: acc as string }, pos, maxWords };
-}
-
-// Positions sur la timeline d'une liste de plans. Fonction PURE : les étapes du
-// prémontage l'appellent sur le résultat de l'étape précédente, sans dépendre de
-// l'état React (qui n'est pas encore à jour quand on enchaîne).
-function computeStarts(list: MontageClip[]) {
-  let acc = 0;
-  return list.map((c) => {
-    acc += Math.max(0, c.gapBefore ?? 0);
-    const start = acc;
-    const dur = clipTimelineDur(c);
-    acc += dur;
-    return { ...c, start, end: acc, dur };
-  });
 }
 
 const PHOTO_DEFAULT_DUR = 3;
@@ -1493,6 +1471,9 @@ export default function MontagePage() {
   // n'envoie que le son, ré-échantillonné — quelques centaines de Ko au lieu de plusieurs Mo.
   // Traduit un code d'erreur de transcription en message lisible. Le serveur ne
   // renvoie plus de texte brut (on affichait du JSON et du HTML Cloudflare tels quels).
+  // Le pipeline renvoie des CODES (il ne connaît pas les traductions) : c'est ici
+  // qu'ils redeviennent des phrases. Sans ce passage, les toasts affichaient
+  // « provider_unavailable » tel quel.
   function transcribeErrorMsg(data: { error?: string; sizeMb?: number } | null | undefined): string {
     switch (data?.error) {
       case "missing_api_key":      return t('errNoKey');
@@ -1505,97 +1486,31 @@ export default function MontagePage() {
     }
   }
 
-  // ── Transcription d'un média, par TRANCHES ──────────────────────────────────
-  // Une route serverless n'accepte qu'un corps de requête limité (~4,5 Mo). Or un
-  // WAV 16 kHz mono pèse ~1,8 Mo par minute : au-delà de ~2,5 min, l'envoi échouait
-  // avant même d'atteindre Whisper. On découpe donc l'audio en tranches de 100 s
-  // et on recale les horodatages de chaque tranche.
-  const TRANSCRIBE_CHUNK_SEC = 100;
+  // Le cache de transcription du module : partagé par les trois étapes, un rush
+  // n'est écouté qu'une fois même s'il sert à plusieurs plans.
+  const trCacheRef = useRef<TranscriptCache>(newTranscriptCache());
 
-  async function decodeToMono16k(src: string): Promise<Float32Array> {
-    const ab = await (await fetch(src)).arrayBuffer();
-    const AC: typeof AudioContext = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
-    const actx = new AC();
-    const decoded = await actx.decodeAudioData(ab.slice(0));
-    try { await actx.close(); } catch {}
-    const rate = 16000;
-    const off = new OfflineAudioContext(1, Math.max(1, Math.ceil(decoded.duration * rate)), rate);
-    const node = off.createBufferSource(); node.buffer = decoded; node.connect(off.destination); node.start();
-    return (await off.startRendering()).getChannelData(0);
-  }
-
-  interface TranscriptResult { segments: { start: number; end: number; text: string }[]; words: TWord[]; error?: string }
-
-  async function transcribeMedia(src: string, onProgress?: (done: number, total: number) => void): Promise<TranscriptResult> {
-    const rate = 16000;
-    let pcm: Float32Array | null = null;
-    let decodeErr: unknown = null;
-    try { pcm = await decodeToMono16k(src); } catch (e) { decodeErr = e; pcm = null; }
-    if (!pcm) {
-      // Le décodage local a échoué (conteneur illisible par Web Audio, CORS…).
-      // On le journalise : c'est LA cause du repli qui envoie la vidéo entière au
-      // serveur et déclenche « vidéo trop lourde ».
-      console.warn("[transcribe] décodage audio local impossible, repli serveur :", decodeErr);
-    }
-
-    // Repli : décodage impossible (CORS…) → le serveur récupère le média lui-même.
-    if (!pcm) {
-      const res = await fetch("/api/transcribe", {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ url: src }),
-      });
-      const data = await res.json().catch(() => null);
-      if (!res.ok || !data?.ok) return { segments: [], words: [], error: transcribeErrorMsg(data) };
-      return { segments: data.segments || [], words: data.words || [] };
-    }
-
-    const chunkLen = TRANSCRIBE_CHUNK_SEC * rate;
-    const total = Math.max(1, Math.ceil(pcm.length / chunkLen));
-    const segments: { start: number; end: number; text: string }[] = [];
-    const words: TWord[] = [];
-
-    for (let i = 0; i < total; i++) {
-      onProgress?.(i, total);
-      const slice = pcm.subarray(i * chunkLen, Math.min(pcm.length, (i + 1) * chunkLen));
-      if (!slice.length) continue;
-      const offset = (i * chunkLen) / rate; // recalage temporel de la tranche
-      const form = new FormData();
-      form.append("audio", encodeWavMono(slice, rate), "audio.wav");
-      let data: { ok?: boolean; error?: string; sizeMb?: number; segments?: { start: number; end: number; text: string }[]; words?: TWord[] } | null = null;
-      try {
-        const res = await fetch("/api/transcribe", { method: "POST", body: form });
-        data = await res.json().catch(() => null);
-        if (!res.ok || !data?.ok) return { segments, words, error: transcribeErrorMsg(data) };
-      } catch {
-        return { segments, words, error: t('toastTranscriptionError') };
+  // Traduit les événements du pipeline en lignes de journal affichables.
+  const preEditHooks = (): PreEditHooks => ({
+    onLog: (ev) => {
+      switch (ev.type) {
+        case "startRushes":  return logStep(t('logStartRushes', { n: ev.n }));
+        case "analyzing":    return logStep(t('logAnalyzing', { name: ev.name }));
+        case "speechMapped": return logStep(t('logSpeechMapped', { n: ev.n }));
+        case "trimmed":      return logStep(t('logTrimmed', { s: ev.seconds.toFixed(1) }));
+        case "clipClean":    return logStep(t('logClipClean'));
+        case "transcribing": return logStep(t('logTranscribing', { name: ev.name }));
+        case "wordsHeard":   return logStep(t('logWordsHeard', { n: ev.n }));
+        case "cutsFound":    return logStep(t('logCutsFound', { n: ev.n }));
+        case "speechClean":  return logStep(t('logSpeechClean'));
+        case "captions":     return logStep(ev.byWords ? t('logCaptionsWords', { n: ev.n }) : t('logCaptionsSegments', { n: ev.n }));
+        case "allDone":      return logStep(t('logAllDone'));
       }
-      for (const sg of data.segments || []) segments.push({ start: sg.start + offset, end: sg.end + offset, text: sg.text });
-      for (const w of data.words || []) words.push({ start: w.start + offset, end: w.end + offset, word: w.word });
-    }
-    onProgress?.(total, total);
-    return { segments, words };
-  }
+    },
+  });
 
-  // Mots horodatés d'un plan (liste vide + message si la transcription échoue).
-  async function transcribeWords(src: string): Promise<{ words: TWord[]; error?: string }> {
-    const r = await transcribeMedia(src);
-    return { words: r.words, error: r.error };
-  }
-
-  // Une transcription par rush, réutilisée par TOUTES les étapes du prémontage :
-  // protéger la parole pendant le dérushage image, resserrer le discours, puis
-  // écrire les sous-titres. Sans ce partage, on écoutait le même plan deux fois.
-  const wordsCacheRef = useRef(new Map<string, TWord[]>());
-  async function wordsFor(src: string): Promise<TWord[]> {
-    const hit = wordsCacheRef.current.get(src);
-    if (hit) return hit;
-    const r = await transcribeWords(src);
-    const words = r.words ?? [];
-    // On ne met en cache qu'un résultat utile : une transcription vide peut
-    // venir d'une panne passagère, il ne faut pas la figer pour la session.
-    if (words.length) wordsCacheRef.current.set(src, words);
-    return words;
-  }
+  // Un code d'erreur du pipeline redevient une phrase.
+  const codeMsg = (code?: TranscribeErrorCode) => transcribeErrorMsg(code ? { error: code } : null);
 
   // ── Découpe fine : hésitations, faux départs, prises refaites ───────────────
   // Nécessite la transcription (clé côté serveur). Chaque plan est scindé en
@@ -1609,43 +1524,16 @@ export default function MontagePage() {
     if (!targets.length) { toast(t('toastAutoCutNoVideo'), "error"); return base; }
     setCuttingFillers(true);
     try {
-      const ids = new Set(targets.map((c) => c.id));
-      const next: MontageClip[] = [];
-      let removed = 0, changed = false;
-      let failure: string | null = null;
-      for (const c of base) {
-        if (!ids.has(c.id)) { next.push(c); continue; }
-        logStep(t('logTranscribing', { name: c.name }));
-        // Passe par le cache : l'étape de dérushage image a déjà écouté ce plan.
-        const cached = wordsCacheRef.current.get(c.src);
-        const r = cached?.length ? { words: cached, error: undefined } : await transcribeWords(c.src);
-        if (!r) { next.push(c); continue; }
-        if (!r.words.length) {
-          // Transcription indisponible → on ne touche à rien, et surtout on ne
-          // conclut pas « rien à retirer » (message contradictoire après un échec).
-          next.push(c);
-          if (r.error) failure = r.error;
-          continue;
-        }
-        if (!cached?.length) wordsCacheRef.current.set(c.src, r.words);
-        logStep(t('logWordsHeard', { n: r.words.length }));
-        const cuts = planSemanticCuts(r.words).filter((x) => x.end > c.trimStart && x.start < c.trimEnd);
-        if (!cuts.length) { next.push(c); logStep(t('logSpeechClean')); continue; }
-        logStep(t('logCutsFound', { n: cuts.length }));
-        const keeps = keepRangesFromCuts(cuts, c.trimStart, c.trimEnd);
-        if (!keeps.length) { next.push(c); continue; }
-        removed += (c.trimEnd - c.trimStart) - keeps.reduce((s, k) => s + (k.end - k.start), 0);
-        changed = true;
-        keeps.forEach((k, idx) => {
-          next.push({ ...c, id: crypto.randomUUID(), trimStart: k.start, trimEnd: k.end, gapBefore: idx === 0 ? c.gapBefore : 0 });
-        });
-      }
-      // Un échec de transcription prime sur « rien à retirer ».
-      if (failure) { toast(failure, "error"); return base; }
-      if (!changed) { toast(t('toastFillersNothing')); return base; }
-      setClips(next);
-      toast(t('toastFillersCut', { s: removed.toFixed(1) }));
-      return next;
+      const res = await tightenSpeech(base, trCacheRef.current, {
+        ...preEditHooks(), only: new Set(targets.map((c) => c.id)),
+      });
+      // Un échec de transcription prime sur « rien à retirer » : sans ça on
+      // affichait un message rassurant après une panne.
+      if (res.error && !res.removedSec) { toast(codeMsg(res.error), "error"); return base; }
+      if (!res.removedSec) { toast(t('toastFillersNothing')); return base; }
+      setClips(res.clips);
+      toast(t('toastFillersCut', { s: res.removedSec.toFixed(1) }));
+      return res.clips;
     } catch {
       toast(t('toastTranscriptionError'), "error");
       return base;
@@ -1655,68 +1543,20 @@ export default function MontagePage() {
   }
 
   async function generateCaptionsAI(input?: MontageClip[]) {
-    // On calcule les positions à partir des plans FOURNIS : quand le prémontage
-    // enchaîne les étapes, l'état React n'est pas encore à jour et `clipStarts`
-    // décrirait l'ancienne timeline (sous-titres totalement décalés).
-    const vids = computeStarts(input ?? clips).filter((c) => c.kind === "video");
-    if (!vids.length) return;
+    // On travaille sur les plans FOURNIS : quand le prémontage enchaîne les
+    // étapes, l'état React n'est pas encore à jour et décrirait l'ancienne
+    // timeline (sous-titres totalement décalés).
+    const base = input ?? clips;
+    if (!base.some((c) => c.kind === "video")) return;
     setTranscribing(true);
     try {
-      // On transcrit TOUS les plans vidéo (pas seulement le premier), et on convertit
-      // le temps de la SOURCE en temps de la TIMELINE — sinon les sous-titres ne
-      // couvraient que le début et tombaient à côté dès qu'un plan était rogné.
-      const all: { start: number; end: number; text: string }[] = [];
-      const allWords: TWord[] = [];
-      let firstError: string | null = null;
-      // Une même source utilisée par plusieurs plans n'est transcrite qu'une fois.
-      const cache = new Map<string, { segments: { start: number; end: number; text: string }[]; words: TWord[] }>();
-
-      for (const c of vids) {
-        let tr = cache.get(c.src);
-        if (!tr) {
-          logStep(t('logTranscribing', { name: c.name }));
-          const r = await transcribeMedia(c.src);
-          if (r.error && !r.segments.length && !r.words.length) { firstError = firstError ?? r.error; continue; }
-          if (r.error && !firstError) firstError = r.error;
-          tr = { segments: r.segments, words: r.words };
-          cache.set(c.src, tr);
-        }
-        const toTimeline = (srcT: number) => c.start + (srcT - c.trimStart) / c.speed;
-        // ── Mots horodatés : la voie normale ────────────────────────────────
-        // Un mot est rattaché au plan dont la partie conservée contient son MILIEU.
-        // Ce test d'appartenance unique est ce qui empêche un même passage d'être
-        // réécrit deux fois quand le prémontage scinde un rush en plusieurs plans.
-        for (const w of tr.words) {
-          const mid = (w.start + w.end) / 2;
-          if (mid < c.trimStart || mid >= c.trimEnd) continue;
-          allWords.push({
-            start: toTimeline(Math.max(w.start, c.trimStart)),
-            end: toTimeline(Math.min(w.end, c.trimEnd)),
-            word: w.word,
-          });
-        }
-        for (const sg of tr.segments) {
-          // ne garder que ce qui tombe dans la partie conservée du plan
-          const from = Math.max(sg.start, c.trimStart);
-          const to = Math.min(sg.end, c.trimEnd);
-          if (to - from < 0.08) continue;
-          all.push({ start: toTimeline(from), end: toTimeline(to), text: sg.text });
-        }
-      }
-
-      if (!all.length && !allWords.length) { toast(firstError || t('toastTranscriptionError'), "error"); return; }
-      if (firstError) toast(firstError, "error"); // transcription partielle
-      all.sort((a, b) => a.start - b.start);
-      allWords.sort((a, b) => a.start - b.start);
-      setRawSegments(all);
-      setRawWords(allWords);
-      // Repli sur les segments seulement si le fournisseur n'a pas renvoyé de mots.
-      const newCaps: Caption[] = allWords.length
-        ? captionsFromWords(allWords, subMaxWords)
-        : segmentCaptions(dedupeSegments(all), subMaxWords);
-      setCaptions(newCaps);
-      logStep(allWords.length ? t('logCaptionsWords', { n: newCaps.length }) : t('logCaptionsSegments', { n: newCaps.length }));
-      toast(t('toastCaptionsGenerated', { count: newCaps.length }));
+      const res = await buildCaptions(base, subMaxWords, trCacheRef.current, preEditHooks());
+      if (!res.captions.length) { toast(codeMsg(res.error), "error"); return; }
+      if (res.error) toast(codeMsg(res.error), "error"); // transcription partielle
+      setRawSegments(res.rawSegments);
+      setRawWords(res.rawWords);
+      setCaptions(res.captions);
+      toast(t('toastCaptionsGenerated', { count: res.captions.length }));
     } catch {
       toast(t('toastTranscriptionError'), "error");
     } finally {
@@ -1754,91 +1594,6 @@ export default function MontagePage() {
   // Reprend les plans déjà importés (pas de bibliothèque séparée dans ce module —
   // l'import place directement les plans sur la timeline) et laisse l'IA proposer
   // un ordre + rognage + Ken Burns + transitions cohérents en un clic.
-  // Détecte les segments « parlés » d'une source audio/vidéo : RMS par fenêtres de
-  // 30 ms, seuil calé sur le bruit de fond avec hystérésis, on fusionne les courts
-  // silences et on coupe ceux ≥ minSilenceSec.
-  // Renvoie des segments [start,end] en secondes dans le référentiel de la source.
-  // REPLI seulement : quand la transcription est disponible, c'est elle qui dit
-  // où l'on parle (cf. voicedFromWords) — un niveau sonore ne distingue pas une
-  // voix d'un coup de vent.
-  async function detectSpeechSegments(src: string, minSilenceSec = 1.0, padSec = 0.12): Promise<{ start: number; end: number }[] | null> {
-    try {
-      const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
-      const actx = new AudioCtx();
-      const buf = await actx.decodeAudioData(await (await fetch(src)).arrayBuffer());
-      const data = buf.getChannelData(0);
-      const sr = buf.sampleRate;
-      const win = Math.max(1, Math.floor(sr * 0.03));
-      const nWin = Math.floor(data.length / win);
-      const rms = new Array<number>(nWin);
-      let maxR = 0;
-      for (let i = 0; i < nWin; i++) {
-        let s = 0; const off = i * win;
-        for (let j = 0; j < win; j++) { const v = data[off + j]; s += v * v; }
-        const r = Math.sqrt(s / win); rms[i] = r; if (r > maxR) maxR = r;
-      }
-      await actx.close();
-      if (maxR <= 0) return null;
-      // Seuil calé sur le BRUIT DE FOND, pas sur le pic. Avec un seuil à 8 % du
-      // maximum, un seul éclat (rire, coup de vent, claquement) faisait passer
-      // la voix normale pour du silence, tandis qu'un rush sans aucun pic
-      // faisait passer le souffle pour de la parole — deux rushes voisins
-      // partaient donc dans des sens opposés. Le centile bas mesure le silence
-      // réel du plan, ce qui rend le seuil comparable d'un rush à l'autre.
-      const sorted = [...rms].sort((a, b) => a - b);
-      const pct = (p: number) => sorted[Math.min(sorted.length - 1, Math.floor(sorted.length * p))] ?? 0;
-      const floor = pct(0.2);   // 20e centile ≈ le silence de ce plan
-      const mid = pct(0.5);
-      const loud = pct(0.95);
-      const winSec = win / sr;
-
-      // Plan sans dynamique : soit ça parle d'un bout à l'autre, soit c'est du
-      // souffle constant. Aucun seuil relatif ne peut trancher — les deux ont le
-      // même profil. C'est le niveau ABSOLU qui décide, et dans le doute on
-      // protège : rater une coupe est bénin, couper la parole ne l'est pas.
-      // (0.02 RMS ≈ -34 dBFS : au-dessus d'un fond de pièce, sous une voix.)
-      if (loud / Math.max(floor, 1e-6) < 3) {
-        return mid >= 0.02 ? [{ start: 0, end: buf.duration }] : [];
-      }
-
-      // Hystérésis : on entre en parole franchement, on en sort plus tard. Un
-      // seuil unique découpait les syllabes à chaque creux d'articulation.
-      // Le seuil se cale UNIQUEMENT sur le bruit de fond : le rapporter au pic
-      // (même au 95e centile) fait remonter le seuil dès qu'un éclat dure un peu,
-      // et la voix normale repasse pour du silence — le bug d'origine.
-      const open = Math.max(0.006, floor * 2.4);
-      const close = Math.max(0.004, open * 0.55);
-      const minSilWin = Math.ceil(minSilenceSec / winSec);
-      const voiced: boolean[] = new Array(nWin);
-      let on = false;
-      for (let i = 0; i < nWin; i++) {
-        on = on ? rms[i] >= close : rms[i] >= open;
-        voiced[i] = on;
-      }
-      const segs: { start: number; end: number }[] = [];
-      let i = 0;
-      while (i < nWin) {
-        if (!voiced[i]) { i++; continue; }
-        let j = i;
-        while (j < nWin) {
-          if (voiced[j]) { j++; continue; }
-          let k = j; while (k < nWin && !voiced[k]) k++;
-          if (k - j >= minSilWin) break; // silence long → fin du segment
-          j = k;                         // silence court → on fusionne
-        }
-        segs.push({ start: Math.max(0, i * winSec - padSec), end: Math.min(buf.duration, j * winSec + padSec) });
-        i = j;
-      }
-      const merged: { start: number; end: number }[] = [];
-      for (const s of segs) {
-        const last = merged[merged.length - 1];
-        if (last && s.start <= last.end) last.end = Math.max(last.end, s.end);
-        else merged.push({ ...s });
-      }
-      return merged;
-    } catch { return null; }
-  }
-
   // Coupe les silences des plans vidéo (le plan sélectionné, sinon tous) : remplace
   // chaque plan par des sous-plans ne couvrant que les segments parlés.
   async function cutSilences() {
@@ -1920,54 +1675,28 @@ export default function MontagePage() {
     setAutoCutting(true);
     setAutoCutDone(null);
     try {
-      let trimmedCount = 0, savedSec = 0;
-      const next = [...base];
-      for (let i = 0; i < next.length; i++) {
-        const c = next[i];
-        if (c.kind !== "video") continue;
-        setAutoCutProgress({ done: trimmedCount, total: vids.length, name: c.name });
-        logStep(t('logAnalyzing', { name: c.name }));
-        // On repère d'abord où ça parle, pour ne jamais sacrifier de la parole à
-        // cause d'un défaut d'image. La transcription est la source de vérité :
-        // elle dit ce qui a été ENTENDU. Le repli au niveau sonore ne sert que
-        // si aucune clé de transcription n'est configurée.
-        let voiced: { start: number; end: number }[] | undefined;
-        try {
-          const words = await wordsFor(c.src);
-          if (words.length) {
-            voiced = voicedFromWords(words);
-            logStep(t('logSpeechMapped', { n: voiced.length }));
-          }
-        } catch { /* transcription indisponible → repli local ci-dessous */ }
-        if (!voiced?.length) {
-          try { voiced = (await detectSpeechSegments(c.src, 0.6)) ?? undefined; } catch { voiced = undefined; }
-        }
-        let rep;
-        try { rep = await analyzeClipQuality(c.src, c.trimStart, c.trimEnd, { voiced }); }
-        catch { continue; }
-        if (!rep.keep) continue; // rien d'exploitable détecté → on ne touche pas au plan
-        const start = Math.max(c.trimStart, rep.keep.start);
-        const end = Math.min(c.trimEnd, rep.keep.end);
-        // On n'applique que si le gain est réel (> 0.3 s) et la plage valide.
-        if (end - start > 0.5 && (c.trimEnd - c.trimStart) - (end - start) > 0.3) {
-          const gain = (c.trimEnd - c.trimStart) - (end - start);
-          savedSec += gain;
-          next[i] = { ...c, trimStart: start, trimEnd: end };
-          trimmedCount++;
-          logStep(t('logTrimmed', { s: gain.toFixed(1) }));
-        } else {
-          logStep(t('logClipClean'));
-        }
-      }
-      if (trimmedCount > 0) {
+      // Le compteur du panneau se réalimente sur l'événement « analyse en cours »
+      // du pipeline : c'est lui qui sait où il en est.
+      const hooks = preEditHooks();
+      let done = 0;
+      const res = await trimClipsByQuality(base, trCacheRef.current, {
+        ...hooks,
+        onLog: (ev) => {
+          if (ev.type === "analyzing") setAutoCutProgress({ done: done++, total: vids.length, name: ev.name });
+          hooks.onLog?.(ev);
+        },
+      });
+      // Un plan modifié est un nouvel objet : comparer les références suffit.
+      const trimmed = res.clips.filter((c, i) => c !== base[i]).length;
+      if (trimmed > 0) {
         // setClips suffit : l'historique enregistre un point d'annulation tout seul.
-        setClips(next);
-        setAutoCutDone({ clips: trimmedCount, seconds: savedSec });
-        toast(t('toastAutoCutDone', { n: trimmedCount, s: savedSec.toFixed(1) }));
+        setClips(res.clips);
+        setAutoCutDone({ clips: trimmed, seconds: res.trimmedSec });
+        toast(t('toastAutoCutDone', { n: trimmed, s: res.trimmedSec.toFixed(1) }));
       } else {
         toast(t('toastAutoCutNothing'));
       }
-      return next;
+      return res.clips;
     } finally {
       setAutoCutting(false);
       setAutoCutProgress(null);
@@ -1984,22 +1713,25 @@ export default function MontagePage() {
     setPreEditing(true);
     setAiLog([]);
     loggingRef.current = true;
+    const stepLabels = [t('preStepRushes'), t('preStepSpeech'), t('preStepCaptions')];
     try {
-      setPreEditStep(t('preStepRushes')); setPreEditStepIdx(0);
-      logStep(t('logStartRushes', { n: clips.filter((c) => c.kind === "video").length }));
-      let work = await autoCutQuality();
-      setPreEditStep(t('preStepSpeech')); setPreEditStepIdx(1);
-      work = await cutFillers(work);
-      setPreEditStep(t('preStepCaptions')); setPreEditStepIdx(2);
-      // on passe les plans RÉELS issus des deux étapes précédentes
-      await generateCaptionsAI(work);
-      // Aucune transition posée d'office : la coupe franche est le montage par
-      // défaut. Un fondu automatique entre CHAQUE plan se remarque plus qu'il
-      // n'apporte, et il faut le retirer partout quand on n'en veut pas.
-      // L'onglet Transitions reste là pour en poser à la main.
-      setPreEditStepIdx(3);
-      logStep(t('logAllDone'));
-      toast(t('preEditDone'));
+      // Un seul pipeline, partagé avec la génération en lot du workspace : une
+      // correction ici vaut pour les deux. Aucune transition posée d'office —
+      // la coupe franche est le montage par défaut.
+      const res = await runPreEdit(clips, {
+        subMaxWords,
+        cache: trCacheRef.current,
+        ...preEditHooks(),
+        onStep: (i) => { setPreEditStepIdx(i); setPreEditStep(stepLabels[i] ?? null); },
+      });
+      setClips(res.clips);
+      if (res.captions.length) {
+        setCaptions(res.captions);
+        setRawSegments(res.rawSegments);
+        setRawWords(res.rawWords);
+      }
+      if (res.error && !res.captions.length) toast(codeMsg(res.error), "error");
+      else toast(t('preEditDone'));
       // On laisse la dernière ligne s'écrire avant de refermer l'écran.
       await new Promise((r) => setTimeout(r, 900));
     } finally {

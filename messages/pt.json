@@ -547,7 +547,19 @@
     "preEditHint": "Depuração e legendas aplicadas ao abrir.",
     "orderLabel": "Ordem dos planos",
     "moveUp": "Subir",
-    "moveDown": "Descer"
+    "moveDown": "Descer",
+    "batchAll": "Gerar tudo",
+    "batchRunning": "Pré-montagem · {done}/{total}",
+    "batchStop": "Parar",
+    "batchQueued": "Na fila",
+    "batchDone": "Pronto",
+    "batchOpen": "Abrir",
+    "batchTitle": "Pré-montagem dos vídeos",
+    "batchHint": "As montagens são preparadas uma após a outra. Podes sair quando terminarem.",
+    "batchErrSave": "Não foi possível guardar",
+    "batchErrNoClips": "Sem imagens utilizáveis",
+    "batchErrEmpty": "Análise sem resultado",
+    "batchErrGeneric": "Falha na pré-montagem"
   },
   "planning": {
     "bestTime": "Melhor momento para publicar",
