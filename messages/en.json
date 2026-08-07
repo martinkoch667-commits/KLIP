@@ -544,7 +544,7 @@
     "videoNotesPh": "Ideas, angle, useful info — for later.",
     "videoCaptionLaterHint": "The caption is written after editing, once we know what the video says.",
     "preEditLabel": "AI pre-edit",
-    "preEditHint": "Rush cleanup, subtitles and transitions applied on opening.",
+    "preEditHint": "Rush trimming and captions applied on opening.",
     "orderLabel": "Clip order",
     "moveUp": "Move up",
     "moveDown": "Move down"
@@ -1814,6 +1814,7 @@
     "logClipClean": "→ nothing to remove, clip is clean",
     "logTranscribing": "Transcribing — {name}",
     "logWordsHeard": "→ {n} words recognised",
+    "logSpeechMapped": "Speech located — {n} passage(s)",
     "logCutsFound": "→ {n} filler(s) / repetition(s) to cut",
     "logSpeechClean": "→ clean delivery, no cuts",
     "logCaptionsWords": "{n} subtitles aligned word by word",

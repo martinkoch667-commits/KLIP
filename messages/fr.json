@@ -544,7 +544,7 @@
     "videoNotesPh": "Idées, angle, infos utiles — pour plus tard.",
     "videoCaptionLaterHint": "La légende s’écrit après le montage, quand on sait ce que la vidéo raconte.",
     "preEditLabel": "Prémontage IA",
-    "preEditHint": "Dérushage, sous-titres et transitions appliqués à l’ouverture.",
+    "preEditHint": "Dérushage et sous-titres appliqués à l’ouverture.",
     "orderLabel": "Ordre des plans",
     "moveUp": "Monter",
     "moveDown": "Descendre"
@@ -1814,6 +1814,7 @@
     "logClipClean": "→ rien à retirer, plan net",
     "logTranscribing": "Transcription — {name}",
     "logWordsHeard": "→ {n} mots reconnus",
+    "logSpeechMapped": "Parole repérée — {n} passage(s)",
     "logCutsFound": "→ {n} hésitation(s) / répétition(s) à couper",
     "logSpeechClean": "→ discours propre, aucune coupe",
     "logCaptionsWords": "{n} sous-titres calés au mot",

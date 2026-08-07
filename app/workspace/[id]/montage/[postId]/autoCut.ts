@@ -160,7 +160,20 @@ export async function analyzeClipQuality(
   }
   closeRun(to);
 
-  const keep = bestStart >= 0 ? { start: bestStart, end: bestEnd } : null;
+  let keep = bestStart >= 0 ? { start: bestStart, end: bestEnd } : null;
+
+  // La fenêtre est choisie sur des critères d'IMAGE ; ses bords peuvent donc
+  // tomber en pleine phrase. On les repousse jusqu'au bord de la plage parlée :
+  // un mot tranché en deux s'entend immédiatement, alors qu'une demi-seconde
+  // d'image moyenne en plus ne se voit pas.
+  if (keep && opts.voiced?.length) {
+    for (const seg of opts.voiced) {
+      if (keep.start > seg.start && keep.start < seg.end) keep.start = Math.max(from, seg.start);
+      if (keep.end > seg.start && keep.end < seg.end) keep.end = Math.min(to, seg.end);
+    }
+    if (keep.end - keep.start < MIN_KEEP) keep = null;
+  }
+
   const analyzed = span;
   const dropped = keep ? Math.max(0, span - (keep.end - keep.start)) : span;
   return { samples, keep, dropped, analyzed };
@@ -182,6 +195,31 @@ export function dominantIssue(samples: QualitySample[]): QualitySample["why"] | 
 // Nécessite la transcription (GROQ_API_KEY côté serveur, cf. /api/transcribe).
 
 export interface TWord { start: number; end: number; word: string }
+
+/**
+ * Plages où quelqu'un parle, déduites des mots HORODATÉS de la transcription.
+ *
+ * C'est la vérité terrain : un mot reconnu à 3.2 s, c'est de la parole à 3.2 s.
+ * L'alternative — deviner la parole au niveau sonore — se trompe dès qu'un rush
+ * a un pic (la voix normale passe sous le seuil) ou n'en a aucun (le souffle
+ * passe pour de la parole), et se trompe DIFFÉREMMENT sur chaque rush.
+ *
+ * `joinSec` : deux mots séparés par moins que ça appartiennent à la même phrase
+ * (on ne veut pas une plage par mot). `padSec` : marge de sécurité de part et
+ * d'autre, une attaque de syllabe démarre avant l'horodatage.
+ */
+export function voicedFromWords(words: TWord[], joinSec = 0.35, padSec = 0.15): { start: number; end: number }[] {
+  const w = words
+    .filter((x) => x.word && Number.isFinite(x.start) && Number.isFinite(x.end) && x.end > x.start)
+    .sort((a, b) => a.start - b.start);
+  const out: { start: number; end: number }[] = [];
+  for (const x of w) {
+    const last = out[out.length - 1];
+    if (last && x.start - last.end <= joinSec) last.end = Math.max(last.end, x.end);
+    else out.push({ start: x.start, end: x.end });
+  }
+  return out.map((r) => ({ start: Math.max(0, r.start - padSec), end: r.end + padSec }));
+}
 
 export interface SemanticCut {
   start: number;

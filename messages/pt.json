@@ -544,7 +544,7 @@
     "videoNotesPh": "Ideias, ângulo, informação útil — para depois.",
     "videoCaptionLaterHint": "A legenda escreve-se após a montagem, quando sabemos o que o vídeo conta.",
     "preEditLabel": "Pré-montagem IA",
-    "preEditHint": "Limpeza, legendas e transições aplicadas ao abrir.",
+    "preEditHint": "Depuração e legendas aplicadas ao abrir.",
     "orderLabel": "Ordem dos planos",
     "moveUp": "Subir",
     "moveDown": "Descer"
@@ -1814,6 +1814,7 @@
     "logClipClean": "→ nada a remover, plano limpo",
     "logTranscribing": "A transcrever — {name}",
     "logWordsHeard": "→ {n} palavras reconhecidas",
+    "logSpeechMapped": "Fala localizada — {n} passagem(ns)",
     "logCutsFound": "→ {n} hesitação(ões) / repetição(ões) a cortar",
     "logSpeechClean": "→ discurso limpo, sem cortes",
     "logCaptionsWords": "{n} legendas alinhadas palavra a palavra",

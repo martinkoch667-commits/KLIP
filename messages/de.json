@@ -544,7 +544,7 @@
     "videoNotesPh": "Ideen, Blickwinkel, nützliche Infos — für später.",
     "videoCaptionLaterHint": "Die Caption entsteht nach dem Schnitt, wenn klar ist, was das Video erzählt.",
     "preEditLabel": "KI-Vorschnitt",
-    "preEditHint": "Rohschnitt, Untertitel und Übergänge beim Öffnen angewendet.",
+    "preEditHint": "Rohschnitt und Untertitel beim Öffnen angewendet.",
     "orderLabel": "Reihenfolge der Clips",
     "moveUp": "Nach oben",
     "moveDown": "Nach unten"
@@ -1814,6 +1814,7 @@
     "logClipClean": "→ nichts zu entfernen, Clip ist sauber",
     "logTranscribing": "Transkription — {name}",
     "logWordsHeard": "→ {n} Wörter erkannt",
+    "logSpeechMapped": "Sprache erkannt — {n} Passage(n)",
     "logCutsFound": "→ {n} Füllwort(e) / Wiederholung(en) zu schneiden",
     "logSpeechClean": "→ sauberer Vortrag, keine Schnitte",
     "logCaptionsWords": "{n} Untertitel wortgenau ausgerichtet",

@@ -16,7 +16,7 @@ import {
 } from "./constants";
 import { MontageCtx, CutPanel, TextPanel, CaptionsPanel, AudioPanel, TransitionsPanel, FilterPanel, SpeedPanel, StickerPanel, OverlayPanel, AiPanel } from "./panels";
 import { renderExport } from "./export";
-import { analyzeClipQuality, planSemanticCuts, keepRangesFromCuts, type TWord } from "./autoCut";
+import { analyzeClipQuality, planSemanticCuts, keepRangesFromCuts, voicedFromWords, type TWord } from "./autoCut";
 import { transcodeToMp4 } from "@/lib/mp4-transcode";
 import AiThinkingPanel from "@/components/AiThinkingPanel";
 import AiChatDock from "@/components/AiChatDock";
@@ -1582,6 +1582,21 @@ export default function MontagePage() {
     return { words: r.words, error: r.error };
   }
 
+  // Une transcription par rush, réutilisée par TOUTES les étapes du prémontage :
+  // protéger la parole pendant le dérushage image, resserrer le discours, puis
+  // écrire les sous-titres. Sans ce partage, on écoutait le même plan deux fois.
+  const wordsCacheRef = useRef(new Map<string, TWord[]>());
+  async function wordsFor(src: string): Promise<TWord[]> {
+    const hit = wordsCacheRef.current.get(src);
+    if (hit) return hit;
+    const r = await transcribeWords(src);
+    const words = r.words ?? [];
+    // On ne met en cache qu'un résultat utile : une transcription vide peut
+    // venir d'une panne passagère, il ne faut pas la figer pour la session.
+    if (words.length) wordsCacheRef.current.set(src, words);
+    return words;
+  }
+
   // ── Découpe fine : hésitations, faux départs, prises refaites ───────────────
   // Nécessite la transcription (clé côté serveur). Chaque plan est scindé en
   // segments à garder, dans l'ordre — le reste disparaît de la timeline.
@@ -1601,7 +1616,9 @@ export default function MontagePage() {
       for (const c of base) {
         if (!ids.has(c.id)) { next.push(c); continue; }
         logStep(t('logTranscribing', { name: c.name }));
-        const r = await transcribeWords(c.src);
+        // Passe par le cache : l'étape de dérushage image a déjà écouté ce plan.
+        const cached = wordsCacheRef.current.get(c.src);
+        const r = cached?.length ? { words: cached, error: undefined } : await transcribeWords(c.src);
         if (!r) { next.push(c); continue; }
         if (!r.words.length) {
           // Transcription indisponible → on ne touche à rien, et surtout on ne
@@ -1610,6 +1627,7 @@ export default function MontagePage() {
           if (r.error) failure = r.error;
           continue;
         }
+        if (!cached?.length) wordsCacheRef.current.set(c.src, r.words);
         logStep(t('logWordsHeard', { n: r.words.length }));
         const cuts = planSemanticCuts(r.words).filter((x) => x.end > c.trimStart && x.start < c.trimEnd);
         if (!cuts.length) { next.push(c); logStep(t('logSpeechClean')); continue; }
@@ -1736,9 +1754,13 @@ export default function MontagePage() {
   // Reprend les plans déjà importés (pas de bibliothèque séparée dans ce module —
   // l'import place directement les plans sur la timeline) et laisse l'IA proposer
   // un ordre + rognage + Ken Burns + transitions cohérents en un clic.
-  // Détecte les segments « parlés » d'une source audio/vidéo : RMS par fenêtres de 30 ms,
-  // seuil relatif, on fusionne les courts silences et on coupe ceux ≥ minSilenceSec.
+  // Détecte les segments « parlés » d'une source audio/vidéo : RMS par fenêtres de
+  // 30 ms, seuil calé sur le bruit de fond avec hystérésis, on fusionne les courts
+  // silences et on coupe ceux ≥ minSilenceSec.
   // Renvoie des segments [start,end] en secondes dans le référentiel de la source.
+  // REPLI seulement : quand la transcription est disponible, c'est elle qui dit
+  // où l'on parle (cf. voicedFromWords) — un niveau sonore ne distingue pas une
+  // voix d'un coup de vent.
   async function detectSpeechSegments(src: string, minSilenceSec = 1.0, padSec = 0.12): Promise<{ start: number; end: number }[] | null> {
     try {
       const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
@@ -1757,10 +1779,42 @@ export default function MontagePage() {
       }
       await actx.close();
       if (maxR <= 0) return null;
-      const thresh = Math.max(0.008, maxR * 0.08);
+      // Seuil calé sur le BRUIT DE FOND, pas sur le pic. Avec un seuil à 8 % du
+      // maximum, un seul éclat (rire, coup de vent, claquement) faisait passer
+      // la voix normale pour du silence, tandis qu'un rush sans aucun pic
+      // faisait passer le souffle pour de la parole — deux rushes voisins
+      // partaient donc dans des sens opposés. Le centile bas mesure le silence
+      // réel du plan, ce qui rend le seuil comparable d'un rush à l'autre.
+      const sorted = [...rms].sort((a, b) => a - b);
+      const pct = (p: number) => sorted[Math.min(sorted.length - 1, Math.floor(sorted.length * p))] ?? 0;
+      const floor = pct(0.2);   // 20e centile ≈ le silence de ce plan
+      const mid = pct(0.5);
+      const loud = pct(0.95);
       const winSec = win / sr;
+
+      // Plan sans dynamique : soit ça parle d'un bout à l'autre, soit c'est du
+      // souffle constant. Aucun seuil relatif ne peut trancher — les deux ont le
+      // même profil. C'est le niveau ABSOLU qui décide, et dans le doute on
+      // protège : rater une coupe est bénin, couper la parole ne l'est pas.
+      // (0.02 RMS ≈ -34 dBFS : au-dessus d'un fond de pièce, sous une voix.)
+      if (loud / Math.max(floor, 1e-6) < 3) {
+        return mid >= 0.02 ? [{ start: 0, end: buf.duration }] : [];
+      }
+
+      // Hystérésis : on entre en parole franchement, on en sort plus tard. Un
+      // seuil unique découpait les syllabes à chaque creux d'articulation.
+      // Le seuil se cale UNIQUEMENT sur le bruit de fond : le rapporter au pic
+      // (même au 95e centile) fait remonter le seuil dès qu'un éclat dure un peu,
+      // et la voix normale repasse pour du silence — le bug d'origine.
+      const open = Math.max(0.006, floor * 2.4);
+      const close = Math.max(0.004, open * 0.55);
       const minSilWin = Math.ceil(minSilenceSec / winSec);
-      const voiced = rms.map((r) => r >= thresh);
+      const voiced: boolean[] = new Array(nWin);
+      let on = false;
+      for (let i = 0; i < nWin; i++) {
+        on = on ? rms[i] >= close : rms[i] >= open;
+        voiced[i] = on;
+      }
       const segs: { start: number; end: number }[] = [];
       let i = 0;
       while (i < nWin) {
@@ -1873,10 +1927,21 @@ export default function MontagePage() {
         if (c.kind !== "video") continue;
         setAutoCutProgress({ done: trimmedCount, total: vids.length, name: c.name });
         logStep(t('logAnalyzing', { name: c.name }));
-        // On repère d'abord où ça parle (analyse locale, sans clé) pour ne jamais
-        // sacrifier de la parole à cause d'un défaut d'image.
+        // On repère d'abord où ça parle, pour ne jamais sacrifier de la parole à
+        // cause d'un défaut d'image. La transcription est la source de vérité :
+        // elle dit ce qui a été ENTENDU. Le repli au niveau sonore ne sert que
+        // si aucune clé de transcription n'est configurée.
         let voiced: { start: number; end: number }[] | undefined;
-        try { voiced = (await detectSpeechSegments(c.src, 0.6)) ?? undefined; } catch { voiced = undefined; }
+        try {
+          const words = await wordsFor(c.src);
+          if (words.length) {
+            voiced = voicedFromWords(words);
+            logStep(t('logSpeechMapped', { n: voiced.length }));
+          }
+        } catch { /* transcription indisponible → repli local ci-dessous */ }
+        if (!voiced?.length) {
+          try { voiced = (await detectSpeechSegments(c.src, 0.6)) ?? undefined; } catch { voiced = undefined; }
+        }
         let rep;
         try { rep = await analyzeClipQuality(c.src, c.trimStart, c.trimEnd, { voiced }); }
         catch { continue; }
@@ -1928,11 +1993,11 @@ export default function MontagePage() {
       setPreEditStep(t('preStepCaptions')); setPreEditStepIdx(2);
       // on passe les plans RÉELS issus des deux étapes précédentes
       await generateCaptionsAI(work);
-      setPreEditStep(t('preStepTransitions')); setPreEditStepIdx(3);
-      // Enchaînement plus vif : fondu court entre les plans.
-      applyTransitionToAll("fade", 0.25);
-      logStep(t('logTransitions', { n: Math.max(0, work.length - 1) }));
-      setPreEditStepIdx(4);
+      // Aucune transition posée d'office : la coupe franche est le montage par
+      // défaut. Un fondu automatique entre CHAQUE plan se remarque plus qu'il
+      // n'apporte, et il faut le retirer partout quand on n'en veut pas.
+      // L'onglet Transitions reste là pour en poser à la main.
+      setPreEditStepIdx(3);
       logStep(t('logAllDone'));
       toast(t('preEditDone'));
       // On laisse la dernière ligne s'écrire avant de refermer l'écran.
@@ -3432,11 +3497,10 @@ export default function MontagePage() {
                   { id: "rushes", label: t('preStepRushes') },
                   { id: "speech", label: t('preStepSpeech') },
                   { id: "captions", label: t('preStepCaptions') },
-                  { id: "transitions", label: t('preStepTransitions') },
                 ]}
                 activeStep={preEditStepIdx}
                 lines={aiLog}
-                progress={preEditStepIdx < 0 ? 0 : Math.min(1, preEditStepIdx / 4)}
+                progress={preEditStepIdx < 0 ? 0 : Math.min(1, preEditStepIdx / 3)}
               />
             )}
             {previewZoom !== 1 && (

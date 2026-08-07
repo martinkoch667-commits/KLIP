@@ -544,7 +544,7 @@
     "videoNotesPh": "Idee, angolo, info utili — per dopo.",
     "videoCaptionLaterHint": "La didascalia si scrive dopo il montaggio, quando sappiamo cosa racconta il video.",
     "preEditLabel": "Premontaggio IA",
-    "preEditHint": "Sgrossatura, sottotitoli e transizioni applicati all’apertura.",
+    "preEditHint": "Sfoltimento e sottotitoli applicati all’apertura.",
     "orderLabel": "Ordine delle clip",
     "moveUp": "Su",
     "moveDown": "Giù"
@@ -1814,6 +1814,7 @@
     "logClipClean": "→ niente da rimuovere, clip pulita",
     "logTranscribing": "Trascrizione — {name}",
     "logWordsHeard": "→ {n} parole riconosciute",
+    "logSpeechMapped": "Parlato individuato — {n} passaggio/i",
     "logCutsFound": "→ {n} esitazione/i o ripetizione/i da tagliare",
     "logSpeechClean": "→ discorso pulito, nessun taglio",
     "logCaptionsWords": "{n} sottotitoli allineati parola per parola",
