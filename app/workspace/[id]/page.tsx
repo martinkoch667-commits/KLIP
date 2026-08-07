@@ -1646,12 +1646,12 @@ export default function WorkspacePage() {
                                     directement le montage, avec le prémontage IA en option. */}
                                 {post.isVideo && (
                                   <>
-                                    <label style={{ display: 'flex', alignItems: 'flex-start', gap: 8, cursor: 'pointer', padding: '9px 11px', borderRadius: 'var(--r-s)', background: 'var(--sunk)' }}>
+                                    <label className="card-video" style={{ display: 'flex', alignItems: 'flex-start', gap: 8, cursor: 'pointer', padding: '9px 11px', borderRadius: 'var(--r-s)' }}>
                                       <input
                                         type="checkbox"
                                         checked={preEdit[post.localId] ?? true}
                                         onChange={e => setPreEdit(prev => ({ ...prev, [post.localId]: e.target.checked }))}
-                                        style={{ accentColor: 'var(--leaf-ink)', marginTop: 1, flexShrink: 0 }}
+                                        style={{ accentColor: 'var(--vio)', marginTop: 1, flexShrink: 0 }}
                                       />
                                       <span style={{ minWidth: 0 }}>
                                         <span style={{ display: 'block', fontSize: 12.5, fontWeight: 700, color: 'var(--ink)' }}>{t('preEditLabel')}</span>
@@ -1661,7 +1661,7 @@ export default function WorkspacePage() {
                                     <button
                                       onClick={() => validatePost(post)}
                                       disabled={post.status === "validating"}
-                                      className="btn btn-primary"
+                                      className="btn btn-video"
                                       style={{ width: '100%', opacity: post.status === "validating" ? 0.5 : 1 }}
                                     >
                                       {post.status === "validating" ? <><Spinner /> {t('saving')}</> : <><IconEdit /> {t('montageVideo')}</>}
@@ -1750,12 +1750,12 @@ export default function WorkspacePage() {
                                     <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 8 }}>
                                       {/* Prémontage IA : dérushage + sous-titres + transitions, appliqués
                                           à l'ouverture pour ne pas avoir à lancer les outils un par un. */}
-                                      <label style={{ display: 'flex', alignItems: 'flex-start', gap: 8, cursor: 'pointer', padding: '8px 10px', borderRadius: 'var(--r-s)', background: 'var(--sunk)' }}>
+                                      <label className="card-video" style={{ display: 'flex', alignItems: 'flex-start', gap: 8, cursor: 'pointer', padding: '8px 10px', borderRadius: 'var(--r-s)' }}>
                                         <input
                                           type="checkbox"
                                           checked={preEdit[post.localId] ?? true}
                                           onChange={e => setPreEdit(prev => ({ ...prev, [post.localId]: e.target.checked }))}
-                                          style={{ accentColor: 'var(--leaf-ink)', marginTop: 1, flexShrink: 0 }}
+                                          style={{ accentColor: 'var(--vio)', marginTop: 1, flexShrink: 0 }}
                                         />
                                         <span style={{ minWidth: 0 }}>
                                           <span style={{ display: 'block', fontSize: 12.5, fontWeight: 700, color: 'var(--ink)' }}>{t('preEditLabel')}</span>
@@ -1766,14 +1766,14 @@ export default function WorkspacePage() {
                                         <button
                                           onClick={() => validatePost(post)}
                                           disabled={post.status === "validating"}
-                                          className="btn btn-dark"
+                                          className="btn btn-video"
                                           style={{ opacity: post.status === "validating" ? 0.5 : 1 }}
                                         >
                                           {post.status === "validating" ? <><Spinner /> {t('saving')}</> : <><IconEdit /> {t('montageVideo')}</>}
                                         </button>
                                       )}
                                       {post.status === "validated" && post.dbId && (
-                                        <Link href={`/workspace/${id}/montage/${post.dbId}${(preEdit[post.localId] ?? true) ? '?premontage=1' : ''}`} className="btn btn-dark" style={{ textAlign: 'center' }}>
+                                        <Link href={`/workspace/${id}/montage/${post.dbId}${(preEdit[post.localId] ?? true) ? '?premontage=1' : ''}`} className="btn btn-video" style={{ textAlign: 'center' }}>
                                           <IconEdit /> {t('openMontage')}
                                         </Link>
                                       )}

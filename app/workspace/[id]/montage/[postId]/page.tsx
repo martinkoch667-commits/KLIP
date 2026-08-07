@@ -3336,7 +3336,9 @@ export default function MontagePage() {
   return (
     <div className="a-root" style={{ height: "100vh" }}>
       {/* topbar */}
-      <div className="ed-topbar" style={{ height: 58, flexShrink: 0, display: "flex", alignItems: "center", gap: 12, padding: "0 16px", borderBottom: "1px solid rgba(47,215,155,.14)", background: "radial-gradient(120% 130% at 0% 0%, rgba(47,215,155,.18), transparent 55%), radial-gradient(90% 130% at 100% 0%, rgba(200,241,53,.10), transparent 60%), linear-gradient(90deg, #0E2F20 0%, var(--forest) 50%, #0A2316 100%)", position: "relative", zIndex: 30 }}>
+      {/* Barre du montage en violet : dans le produit, le violet est la vidéo
+          et le vert la photo. C'est la première chose qu'on voit en entrant. */}
+      <div className="ed-topbar" style={{ height: 58, flexShrink: 0, display: "flex", alignItems: "center", gap: 12, padding: "0 16px", borderBottom: "1px solid rgba(122,105,232,.20)", background: "radial-gradient(120% 130% at 0% 0%, rgba(122,105,232,.24), transparent 55%), radial-gradient(90% 130% at 100% 0%, rgba(156,140,255,.12), transparent 60%), linear-gradient(90deg, #1E1846 0%, var(--forest) 50%, #171238 100%)", position: "relative", zIndex: 30 }}>
         <a href={`/workspace/${workspaceId}`} className="btn btn-sm btn-ghost" style={{ gap: 5, textDecoration: "none", flexShrink: 0 }}>
           <VIcon name="chevL" size={15} /> {t('composeBack')}
         </a>

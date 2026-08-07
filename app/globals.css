@@ -292,6 +292,14 @@ img { display: block; max-width: 100%; }
 }
 .btn:active { transform: translateY(0) scale(.97); }
 .btn:disabled { transform: none !important; box-shadow: none; }
+/* ── Violet = vidéo, vert = photo ───────────────────────────────────────────
+   Règle de couleur du produit. Tout ce qui mène au montage porte le violet,
+   partout dans l'app : on reconnaît « c'est de la vidéo » avant d'avoir lu le
+   libellé, et le module de montage (thème .a-root) prolonge le même accent. */
+.btn-video { background: var(--vio); color: #fff; box-shadow: 0 1px 0 rgba(0,0,0,.04), 0 12px 26px -14px rgba(102,86,217,.7); }
+.btn-video:hover:not(:disabled) { background: #7A69E8; transform: translateY(-1.5px); box-shadow: 0 1px 0 rgba(0,0,0,.04), 0 16px 32px -14px rgba(102,86,217,.8); }
+.card-video { background: color-mix(in srgb, var(--vio) 10%, var(--sunk)); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--vio) 26%, transparent); }
+
 .btn-primary { background: var(--leaf); color: var(--leaf-ink); box-shadow: 0 1px 0 rgba(0,0,0,.04), 0 12px 26px -14px rgba(120,190,90,.6); }
 .btn-primary:hover:not(:disabled) { background: #C9F5B2; transform: translateY(-1.5px); box-shadow: 0 1px 0 rgba(0,0,0,.04), 0 16px 32px -14px rgba(120,190,90,.7); }
 .btn-dark { background: var(--ink); color: var(--paper); }
@@ -983,22 +991,38 @@ input.ed-range::-moz-range-thumb {
 
 /* ── Thème SOMBRE type CapCut — scopé au module montage (n'affecte pas le reste de l'app)
    On redéfinit les tokens KLIP sous .a-root : tout le module bascule en sombre
-   automatiquement (presque tout utilise var(--...)). ─────────────────────────── */
+   automatiquement (presque tout utilise var(--...)).
+
+   RÈGLE DE COULEUR DU PRODUIT : le VIOLET est la vidéo, le VERT est la photo.
+   Le montage bascule donc TOUT son accent en violet, ici et en un seul endroit :
+   le module ne peint jamais en dur, il lit --leaf / --mint / --mint-2. Redéfinir
+   ces trois tokens repeint le bouton Publier, la tête de lecture, les libellés
+   de section, les halos, les anneaux de focus et la sélection d'un coup.
+   Seul le vert qui subsiste est celui de la marque de l'assistant, en aplat
+   dans son SVG — et c'est ce contraste qui la fait ressortir. ─────────────── */
 .a-root {
   --paper:   #0C0D0F;
   --canvas:  #0C0D0F;
   --white:   #17181C;   /* surfaces / panneaux */
   --card:    #17181C;
   --sunk:    #202127;   /* wells, inputs, pistes */
-  --forest:  #10261C;   /* cartes accent sombres */
-  --forest-2:#143122;
-  --forest-3:#184028;
+  --forest:  #1A1636;   /* cartes accent sombres — teintées violet */
+  --forest-2:#221C48;
+  --forest-3:#2C2459;
+
+  /* accent vidéo — remplace le vert sur tout le module */
+  --leaf:      #C9C0FF;   /* aplats (bouton principal, interrupteurs) */
+  --leaf-soft: #E4DFFF;
+  --leaf-ink:  #1E1246;   /* texte posé sur --leaf */
+  --mint:      #9C8CFF;   /* libellés, icônes, halos — lisible sur le fond sombre */
+  --mint-2:    #7A69E8;   /* bordures, anneaux de focus */
+  --mint-ink:  #1E1246;
   --ink:     #F1F1F3;   /* texte principal */
   --ink-2:   #A6A8B0;   /* texte secondaire */
   --ink-3:   #6C6E77;   /* texte tertiaire */
   --line:    rgba(255,255,255,.085);
   --line-2:  rgba(255,255,255,.05);
-  --mint-soft: rgba(47,215,155,.15);
+  --mint-soft: rgba(122,105,232,.18);
   --shadow-card:  0 1px 2px rgba(0,0,0,.5);
   --shadow-pop:   0 16px 40px -16px rgba(0,0,0,.7), 0 2px 8px rgba(0,0,0,.5);
   --shadow-float: 0 22px 50px -20px rgba(0,0,0,.8);
@@ -1016,6 +1040,11 @@ input.ed-range::-moz-range-thumb {
 .a-root .btn-ghost { color: var(--ink-2); box-shadow: inset 0 0 0 1px var(--line); }
 .a-root .btn-ghost:hover:not(:disabled) { color: var(--ink); background: rgba(255,255,255,.05); box-shadow: inset 0 0 0 1px var(--line-2); }
 .a-root .chip { background: var(--sunk); color: var(--ink-2); }
+/* Le bouton principal peint son survol et son ombre en vert EN DUR : sous le
+   montage on les repasse en violet, sinon « Publier » reverdit au survol. */
+.a-root .btn-primary { box-shadow: 0 1px 0 rgba(0,0,0,.04), 0 12px 26px -14px rgba(122,105,232,.75); }
+.a-root .btn-primary:hover:not(:disabled) { background: var(--leaf-soft); box-shadow: 0 1px 0 rgba(0,0,0,.04), 0 16px 32px -14px rgba(122,105,232,.85); }
+.a-root .voice-pill:hover { box-shadow: 0 12px 24px -16px rgba(122,105,232,.9); }
 
 .mz-hbtn { width: 34px; height: 34px; border-radius: 9px; display: grid; place-items: center; color: var(--ink-2); transition: background .12s; flex-shrink: 0; }
 .mz-hbtn:hover { background: rgba(255,255,255,.08); color: var(--ink); }
@@ -1097,12 +1126,12 @@ input.ed-range::-moz-range-thumb {
 /* poignées de redimensionnement (comme CapCut) */
 .a-hresize { width: 8px; flex-shrink: 0; cursor: ew-resize; display: flex; align-items: center; justify-content: center;
   background: var(--white); border-right: 1px solid var(--line); position: relative; z-index: 18; }
-.a-hresize:hover, .a-hresize:active { background: rgba(47,215,155,.08); }
+.a-hresize:hover, .a-hresize:active { background: rgba(122,105,232,.12); }
 .a-hresize-grip { width: 3px; height: 40px; border-radius: 3px; background: var(--line-2); transition: background .13s var(--ease), height .13s var(--ease); }
 .a-hresize:hover .a-hresize-grip, .a-hresize:active .a-hresize-grip { background: var(--mint-2); height: 60px; }
 .a-vresize { height: 8px; flex-shrink: 0; cursor: ns-resize; display: flex; align-items: center; justify-content: center;
   background: var(--white); border-top: 1px solid var(--line); position: relative; z-index: 18; }
-.a-vresize:hover, .a-vresize:active { background: rgba(47,215,155,.08); }
+.a-vresize:hover, .a-vresize:active { background: rgba(122,105,232,.12); }
 .a-vresize-grip { width: 40px; height: 3px; border-radius: 3px; background: var(--line-2); transition: background .13s var(--ease), width .13s var(--ease); }
 .a-vresize:hover .a-vresize-grip, .a-vresize:active .a-vresize-grip { background: var(--mint-2); width: 60px; }
 
@@ -1279,7 +1308,7 @@ input.mz-range::-moz-range-thumb { width: 16px; height: 16px; border-radius: 50%
 /* overlay export (progression) */
 .mz-ai-overlay { position: absolute; inset: 0; z-index: 80; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px;
   background: rgba(10,24,18,.92); backdrop-filter: blur(6px); border-radius: inherit; }
-.mz-orb { width: 84px; height: 84px; border-radius: 50%; position: relative; background: conic-gradient(from 0deg, var(--mint-2), var(--leaf), var(--mint)); animation: mzSpin 2.6s linear infinite; box-shadow: 0 0 50px -6px rgba(47,215,155,.5); }
+.mz-orb { width: 84px; height: 84px; border-radius: 50%; position: relative; background: conic-gradient(from 0deg, var(--mint-2), var(--leaf), var(--mint)); animation: mzSpin 2.6s linear infinite; box-shadow: 0 0 50px -6px rgba(122,105,232,.55); }
 .mz-orb::after { content: ""; position: absolute; inset: 7px; border-radius: 50%; background: #0A1812; }
 .mz-orb .mz-spark { position: absolute; inset: 0; display: grid; place-items: center; color: var(--acid); z-index: 2; }
 @keyframes mzSpin { to { transform: rotate(360deg); } }

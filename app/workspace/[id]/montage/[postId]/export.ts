@@ -333,7 +333,8 @@ function drawProgressBar(ctx: CanvasRenderingContext2D, t: number, total: number
   const trackY = CANVAS_H - 24, trackX = 24, trackW = CANVAS_W - 48;
   ctx.fillStyle = "rgba(255,255,255,.28)";
   ctx.beginPath(); ctx.roundRect(trackX, trackY, trackW, 5, 3); ctx.fill();
-  ctx.fillStyle = "#2FD79B";
+  // Violet : c'est la couleur de la vidéo dans le produit, jusque dans l'export.
+  ctx.fillStyle = "#8B7BF0";
   ctx.beginPath(); ctx.roundRect(trackX, trackY, trackW * Math.min(1, t / Math.max(0.01, total)), 5, 3); ctx.fill();
 }
 
