@@ -227,93 +227,67 @@ const GROUP_ICONS = {
 
 type ImportMode = 'separate' | 'montage';
 
-type ClipPoster = { url: string | null; duration: number | null; loading: boolean };
-
 function fmtClipDuration(s: number) {
   const total = Math.round(s);
   return `${Math.floor(total / 60)}:${String(total % 60).padStart(2, '0')}`;
 }
 
-// Vignette + durée de chaque rush, extraites côté navigateur : un nom de fichier
-// (IMG_1693.MOV) ne dit rien de ce qu'il y a dedans, on ne peut pas ordonner des
-// plans à l'aveugle. Photo → objectURL direct ; vidéo → première image décodable
-// peinte dans un canvas. Si le codec n'est pas lisible (HEVC sur Chrome), on
-// retombe sur le picto : la ligne reste utilisable, elle perd juste son aperçu.
-function useClipPosters(files: File[]): ClipPoster[] {
-  const [posters, setPosters] = useState<ClipPoster[]>(() => files.map(() => ({ url: null, duration: null, loading: true })));
-
+// Un objectURL par fichier, révoqué au démontage. Les URL doivent vivre aussi
+// longtemps que les vignettes qui les affichent : on ne peut pas les libérer
+// dès la première image peinte.
+function useClipUrls(files: File[]): string[] {
+  const [urls, setUrls] = useState<string[]>([]);
   useEffect(() => {
-    let alive = true;
-    const created: string[] = [];
-    setPosters(files.map(() => ({ url: null, duration: null, loading: true })));
-
-    function settle(i: number, next: Partial<ClipPoster>) {
-      if (!alive) return;
-      setPosters(prev => { const out = [...prev]; out[i] = { ...out[i], ...next, loading: false }; return out; });
-    }
-
-    files.forEach((file, i) => {
-      const src = URL.createObjectURL(file);
-      created.push(src);
-
-      if (file.type.startsWith('image/')) { settle(i, { url: src }); return; }
-
-      const video = document.createElement('video');
-      video.preload = 'metadata';
-      video.muted = true;
-      video.playsInline = true;
-      video.src = src;
-
-      const done = (poster: string | null) => {
-        // Certains conteneurs n'annoncent pas de durée fiable (webm en flux,
-        // MOV tronqué) : mieux vaut pas de badge qu'un « 0:00 » faux.
-        const d = video.duration;
-        settle(i, { url: poster, duration: Number.isFinite(d) && d >= 0.5 ? d : null });
-        video.removeAttribute('src');
-        video.load();
-      };
-
-      video.onloadeddata = () => {
-        // Pas la toute première image : souvent noire le temps que l'expo se cale.
-        video.currentTime = Math.min(0.6, (video.duration || 1) / 2);
-      };
-      video.onseeked = () => {
-        try {
-          const w = 160;
-          const ratio = video.videoWidth && video.videoHeight ? video.videoHeight / video.videoWidth : 1;
-          const canvas = document.createElement('canvas');
-          canvas.width = w; canvas.height = Math.round(w * ratio) || w;
-          const ctx = canvas.getContext('2d');
-          if (!ctx) return done(null);
-          ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-          done(canvas.toDataURL('image/jpeg', 0.72));
-        } catch { done(null); }
-      };
-      video.onerror = () => done(null);
-    });
-
-    return () => { alive = false; created.forEach(URL.revokeObjectURL); };
+    const made = files.map(f => URL.createObjectURL(f));
+    setUrls(made);
+    return () => { made.forEach(URL.revokeObjectURL); setUrls([]); };
   }, [files]);
-
-  return posters;
+  return urls;
 }
 
-function ClipThumb({ file, poster }: { file: File; poster?: ClipPoster }) {
+// Vignette de chaque rush : un nom de fichier (IMG_1693.MOV) ne dit rien de ce
+// qu'il y a dedans, on ne peut pas ordonner des plans à l'aveugle.
+// On laisse le navigateur peindre l'image lui-même plutôt que de l'extraire à la
+// main dans un canvas : sur un gros .MOV, `loadeddata` ne se déclenche jamais
+// (le chargement s'arrête aux métadonnées, sans jamais décoder d'image) et la
+// vignette restait bloquée sur un carré gris. Le fragment #t= demande une image
+// un peu après le début — la toute première est souvent noire, le temps que
+// l'exposition se cale — et les navigateurs qui l'ignorent affichent l'image 0,
+// ce qui reste un aperçu valable. Codec illisible → picto, la ligne reste
+// utilisable, elle perd juste son aperçu.
+function ClipThumb({ file, url, index, onDuration }: {
+  file: File;
+  url?: string;
+  index: number;
+  onDuration: (index: number, seconds: number) => void;
+}) {
+  const [failed, setFailed] = useState(false);
   const isVideo = file.type.startsWith('video/');
+  const media: React.CSSProperties = { width: '100%', height: '100%', objectFit: 'cover' };
+
   return (
     <span style={{
       position: 'relative', flexShrink: 0, width: 40, height: 52, borderRadius: 'var(--r-s)',
       overflow: 'hidden', background: 'var(--line-2)', border: '1px solid var(--line)',
       display: 'grid', placeItems: 'center', color: 'var(--ink-3)',
     }}>
-      {poster?.url
-        ? <img src={poster.url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-        : poster?.loading
-          ? null
-          : isVideo
-            ? <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 9h20M2 15h20M7 5v14M17 5v14"/></svg>
-            : <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="3.5" y="3.5" width="17" height="17" rx="3"/><circle cx="9" cy="9.5" r="1.4"/><path d="M20 15l-4.5-4.5L6 20"/></svg>}
-      {isVideo && poster?.url && (
+      {url && !failed ? (
+        isVideo
+          ? <video src={`${url}#t=0.6`} preload="metadata" muted playsInline style={media}
+              onLoadedMetadata={e => {
+                // Un conteneur qui n'annonce pas de durée fiable (webm en flux,
+                // MOV tronqué) : pas de badge, plutôt qu'un faux « 0:00 ».
+                const d = e.currentTarget.duration;
+                if (Number.isFinite(d) && d >= 0.5) onDuration(index, d);
+              }}
+              onError={() => setFailed(true)} />
+          : <img src={url} alt="" style={media} onError={() => setFailed(true)} />
+      ) : isVideo ? (
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 9h20M2 15h20M7 5v14M17 5v14"/></svg>
+      ) : (
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="3.5" y="3.5" width="17" height="17" rx="3"/><circle cx="9" cy="9.5" r="1.4"/><path d="M20 15l-4.5-4.5L6 20"/></svg>
+      )}
+      {isVideo && url && !failed && (
         <span style={{
           position: 'absolute', inset: 0, display: 'grid', placeItems: 'center',
           background: 'linear-gradient(to top, rgba(10,14,10,.45), transparent 55%)',
@@ -341,7 +315,11 @@ function TypePickerModal({ files, onSeparate, onMontage, onClose }: {
   const [selected, setSelected] = useState<PostType>('post');
   // Ordre des plans du futur montage (indices dans `files`), réarrangeable ici.
   const [order, setOrder] = useState<number[]>(() => files.map((_, i) => i));
-  const posters = useClipPosters(files);
+  const clipUrls = useClipUrls(files);
+  const [clipDurations, setClipDurations] = useState<Record<number, number>>({});
+  const reportDuration = useCallback((index: number, seconds: number) => {
+    setClipDurations(prev => (prev[index] === seconds ? prev : { ...prev, [index]: seconds }));
+  }, []);
   function moveOrder(i: number, dir: -1 | 1) {
     setOrder(prev => {
       const next = [...prev]; const j = i + dir;
@@ -427,13 +405,13 @@ function TypePickerModal({ files, onSeparate, onMontage, onClose }: {
               {order.map((fi, i) => (
                 <div key={fi} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 10px', borderRadius: 'var(--r-s)', background: 'var(--sunk)' }}>
                   <span className="num" style={{ fontSize: 13, width: 18, textAlign: 'center', color: 'var(--ink-3)', flexShrink: 0 }}>{i + 1}</span>
-                  <ClipThumb file={files[fi]} poster={posters[fi]} />
+                  <ClipThumb file={files[fi]} url={clipUrls[fi]} index={fi} onDuration={reportDuration} />
                   <span style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 2 }}>
                     <span style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--ink)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                       {files[fi]?.name}
                     </span>
-                    {posters[fi]?.duration != null && (
-                      <span className="num" style={{ fontSize: 11, color: 'var(--ink-3)' }}>{fmtClipDuration(posters[fi].duration!)}</span>
+                    {clipDurations[fi] != null && (
+                      <span className="num" style={{ fontSize: 11, color: 'var(--ink-3)' }}>{fmtClipDuration(clipDurations[fi])}</span>
                     )}
                   </span>
                   <button type="button" disabled={i === 0} onClick={() => moveOrder(i, -1)}
