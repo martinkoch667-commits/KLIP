@@ -10,6 +10,8 @@
 // clair) : les couleurs viennent des tokens, donc le composant suit le thème.
 
 import { useEffect, useRef, useState } from 'react';
+import AssistantMark from '@/components/AssistantMark';
+import SelFrame from '@/components/SelFrame';
 
 export interface AiThinkingStep {
   id: string;
@@ -94,49 +96,60 @@ export default function AiThinkingPanel({
     if (el) el.scrollTop = el.scrollHeight;
   }, [shown.length, shown[shown.length - 1]]);
 
+  const pct = typeof progress === 'number' ? Math.round(Math.max(0, Math.min(1, progress)) * 100) : null;
+
   return (
     <div className="aithink" role="status" aria-live="polite">
-      <div className="aithink-card">
-        <div className="aithink-head">
-          <span className="aithink-orb" aria-hidden />
-          <div style={{ minWidth: 0 }}>
-            <div className="aithink-title">{title}</div>
-            {subtitle && <div className="aithink-sub">{subtitle}</div>}
+      {/* Le panneau se donne l'allure d'un objet SÉLECTIONNÉ dans l'éditeur —
+          cadre et poignées violets de la landing. C'est le langage de la marque
+          plutôt que l'habillage « assistant IA » interchangeable. */}
+      <div className="aithink-sel">
+        <SelFrame />
+        <div className="aithink-card">
+          <div className="aithink-head">
+            <span className="aithink-mark" aria-hidden><AssistantMark size={30} /></span>
+            <div style={{ minWidth: 0 }}>
+              <div className="aithink-title">{title}</div>
+              {subtitle && <div className="aithink-sub">{subtitle}</div>}
+            </div>
+            {pct !== null && <span className="aithink-pct num" aria-hidden>{pct}%</span>}
           </div>
+
+          {steps.length > 0 && (
+            <ul className="aithink-steps">
+              {steps.map((s, i) => {
+                const state = activeStep < 0 || i < activeStep ? 'done' : i === activeStep ? 'now' : 'todo';
+                return (
+                  <li key={s.id} className={`aithink-step is-${state}`}>
+                    <span className="aithink-bullet" aria-hidden>
+                      {state === 'done' && (
+                        <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5" /></svg>
+                      )}
+                    </span>
+                    <span className="aithink-step-lbl">{s.label}</span>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+
+          {shown.length > 0 && (
+            <div className="aithink-log" ref={logRef}>
+              {shown.map((l, i) => (
+                <div key={i} className={'aithink-line' + (i === shown.length - 1 ? ' is-last' : '')}>
+                  {l}
+                  {i === shown.length - 1 && typing && <span className="aithink-caret" aria-hidden />}
+                </div>
+              ))}
+            </div>
+          )}
+
+          {pct !== null && (
+            <div className="aithink-bar" aria-hidden>
+              <span style={{ width: `${pct}%` }} />
+            </div>
+          )}
         </div>
-
-        {steps.length > 0 && (
-          <ul className="aithink-steps">
-            {steps.map((s, i) => {
-              const state = activeStep < 0 || i < activeStep ? 'done' : i === activeStep ? 'now' : 'todo';
-              return (
-                <li key={s.id} className={`aithink-step is-${state}`}>
-                  <span className="aithink-bullet" aria-hidden>
-                    {state === 'done' ? '✓' : state === 'now' ? '' : '·'}
-                  </span>
-                  <span className="aithink-step-lbl">{s.label}</span>
-                </li>
-              );
-            })}
-          </ul>
-        )}
-
-        {shown.length > 0 && (
-          <div className="aithink-log" ref={logRef}>
-            {shown.map((l, i) => (
-              <div key={i} className={'aithink-line' + (i === shown.length - 1 ? ' is-last' : '')}>
-                {l}
-                {i === shown.length - 1 && typing && <span className="aithink-caret" aria-hidden />}
-              </div>
-            ))}
-          </div>
-        )}
-
-        {typeof progress === 'number' && (
-          <div className="aithink-bar" aria-hidden>
-            <span style={{ width: `${Math.round(Math.max(0, Math.min(1, progress)) * 100)}%` }} />
-          </div>
-        )}
       </div>
     </div>
   );
