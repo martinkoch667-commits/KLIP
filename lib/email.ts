@@ -188,23 +188,35 @@ function plain(bodyHtml: string, cta?: { label: string; href: string }, afterCta
 type Mail = { subject: string; html: string; text?: string };
 
 /* ── Rendu « lettre » ────────────────────────────────────────────────────────
-   L'apparence d'un mail tapé à la main dans une boîte perso. Ni logo, ni image,
-   ni bouton, ni fond coloré, ni police importée : ce sont exactement les signaux
-   sur lesquels Gmail s'appuie pour ranger un message dans Promotions. Aucun lien
-   vers la home non plus — seuls subsistent le sondage (l'objet du mail) et la
-   désinscription (obligation RGPD).
+   L'allure d'un mail écrit à la main, pas d'une newsletter. Le fond reste blanc,
+   sans carte ni bandeau, et la seule image est le logo posé dans la signature,
+   là où on l'attend dans un vrai mail. Ce qui envoie un message en Promotions,
+   c'est le bandeau pleine largeur, le fond coloré et le gros bouton rond — pas
+   une signature ni un lien mis en valeur.
 
-   À n'utiliser que là où la relation compte plus que la démonstration produit ;
-   pour montrer Klip, `plain` et `shell` restent les bons gabarits. */
+   Le sondage est le seul lien du corps : ni renvoi vers la home, ni pied de page
+   de désinscription. C'est un choix explicite de Martin, pour que le message
+   passe pour un mail personnel — il n'y a donc AUCUN mécanisme de désabonnement
+   sur les modèles rendus ici, ni lien ni en-tête `List-Unsubscribe`, et les
+   destinataires n'ont que la réponse au mail pour se retirer. Les gabarits
+   `plain` et `shell` gardent, eux, leur lien de désinscription.
+
+   Le bouton est volontairement discret — angles à 8px, pas de relief, pas de
+   pleine largeur. Le grossir, c'est reprendre le risque de l'onglet Promotions. */
 function letter(bodyHtml: string): string {
-  return `<div style="font-family:-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:15px;line-height:1.62;color:#222222;max-width:600px;">
+  return `<div style="font-family:-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:15.5px;line-height:1.65;color:#1F1F1F;max-width:600px;">
 ${bodyHtml}
-      <p style="margin:30px 0 0;font-size:12px;line-height:1.55;color:#999999;">
-        Vous recevez ce message parce que vous vous êtes inscrit sur la liste d'accès anticipé.
-        <a href="{{UNSUB_URL}}" style="color:#999999;">Me retirer de la liste</a>.
+      <p style="margin:26px 0 0;">
+        <img src="${APP_URL}/logo-klip-dark.png" alt="Klip" height="20" style="height:20px;width:auto;border:0;vertical-align:middle;" />
+        <span style="font-size:13px;color:#777777;vertical-align:middle;padding-left:9px;">Martin — je construis Klip</span>
       </p>
 </div>`;
 }
+
+/** Lien d'action de la lettre : assez visible pour se voir, assez sobre pour ne
+    pas ressembler à un bouton de campagne marketing. */
+const softButton = (label: string, href: string) =>
+  `<a href="${href}" style="display:inline-block;background:#BDF2A0;color:#1E3317;font-weight:700;font-size:15px;text-decoration:none;padding:11px 20px;border-radius:8px;">${label}</a>`;
 
 /* ── Modèles ─────────────────────────────────────────────────────────────── */
 export const emails = {
@@ -284,7 +296,8 @@ export const emails = {
       <p style="margin:0 0 15px;">Klip ouvre dans un peu moins d'un mois. Le logiciel est en finalisation, je suis sur les derniers réglages.</p>
       <p style="margin:0 0 15px;">D'ici là, j'aimerais savoir à qui je parle.</p>
       <p style="margin:0 0 15px;">Qui vous êtes, ce que vous gérez aujourd'hui, et surtout ce qui vous a donné envie de vous inscrire. J'ai mis ça en 5 questions, deux minutes, pas une de plus. Ça me permet de vous montrer les bonnes choses d'ici l'ouverture, et de vous accompagner correctement au démarrage plutôt que de vous lâcher devant un écran vide.</p>
-      <p style="margin:0 0 15px;">C'est par ici : <a href="${survey}" style="color:#1155cc;">répondre aux 5 questions</a></p>
+      <p style="margin:0 0 15px;">C'est par ici :</p>
+      <p style="margin:0 0 22px;">${softButton("Répondre aux 5 questions", survey)}</p>
       <p style="margin:0 0 15px;">Si on n'a pas encore eu l'occasion d'échanger sur ce que vous faites, c'est le bon moment. Et si on s'est déjà parlé, par message ou sur Instagram, n'hésitez pas à y répondre quand même : ça me permet de tout retrouver au même endroit le jour de l'ouverture.</p>
       <p style="margin:0 0 15px;">Et si le formulaire vous saoule : répondez juste à ce mail en me racontant votre semaine type. Je lis tout, je réponds à tout.</p>
       <p style="margin:0 0 15px;">À bientôt,<br/>Martin</p>`
@@ -308,11 +321,7 @@ Si on n'a pas encore eu l'occasion d'échanger sur ce que vous faites, c'est le 
 Et si le formulaire vous saoule : répondez juste à ce mail en me racontant votre semaine type. Je lis tout, je réponds à tout.
 
 À bientôt,
-Martin
-
---
-Vous recevez ce message parce que vous vous êtes inscrit sur la liste d'accès anticipé.
-Me retirer de la liste : {{UNSUB_URL}}`,
+Martin`,
     };
   },
 
