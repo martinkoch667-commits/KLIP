@@ -112,27 +112,13 @@ const RIBBON = `
 
 const FONT_LINK = `<style>@import url('https://fonts.googleapis.com/css2?family=Archivo:wght@700;800;900&display=swap');</style>`;
 
-/** Bannière reprenant le hero de la landing : donne à voir Klip sans quitter le mail. */
+/** Capture réelle du hero de getklip.fr/fr (1080px, soit 2x la carte : net sur retina).
+    Regénérable avec le script de capture ; toute refonte de la landing la périme. */
 const HERO_BANNER = `
-  <div style="background:#0C2A1D;border-radius:20px;overflow:hidden;margin:30px 0 4px;">
-    <div style="padding:28px 24px 22px;text-align:center;">
-      <div style="font-family:${F_DISPLAY};font-size:10.5px;font-weight:800;letter-spacing:.16em;text-transform:uppercase;color:#BDF2A0;margin-bottom:14px;">
-        L'outil de post-production de vos réseaux sociaux
-      </div>
-      <div style="font-family:${F_DISPLAY};font-size:31px;line-height:1.04;font-weight:900;letter-spacing:-.035em;color:#FBFBFC;text-transform:uppercase;">
-        Tous vos clients.
-      </div>
-      <div style="margin-top:9px;">
-        <span style="font-family:${F_OAKS};font-size:29px;font-weight:700;background:#BDF2A0;color:#1E3317;border-radius:13px;padding:.04em .22em .12em;">Un seul</span>
-        <span style="font-family:${F_DISPLAY};font-size:27px;font-weight:900;letter-spacing:-.02em;background:#FBFBFC;color:#14160F;border-radius:11px;padding:5px 12px;text-transform:uppercase;">Outil</span>
-      </div>
-      <div style="font-size:14px;line-height:1.6;color:rgba(251,251,252,.72);max-width:400px;margin:16px auto 0;">
-        Un seul espace pour gérer le contenu Instagram de tous vos clients, chaque marque avec sa voix.
-      </div>
-    </div>
-    <img src="${APP_URL}/klip-media/email-apercu.jpg" alt="Le tableau de bord de Klip : tous les clients au même endroit"
-         width="540" style="display:block;width:100%;max-width:540px;height:auto;border:0;" />
-  </div>`;
+  <a href="${APP_URL}" style="display:block;margin:30px 0 4px;text-decoration:none;">
+    <img src="${APP_URL}/klip-media/hero-site.jpg" alt="La page d'accueil de Klip : tous vos clients, un seul outil"
+         width="540" style="display:block;width:100%;max-width:540px;height:auto;border:0;border-radius:20px;" />
+  </a>`;
 
 /* ── Gabarit marque ──────────────────────────────────────────────────────────
    Fond forest + carte blanche, comme le hero de la landing d'accès anticipé.
@@ -263,13 +249,7 @@ export const emails = {
        <p style="margin:0 0 16px;">Je suis Martin, je construis Klip.</p>
        <p style="margin:0 0 16px;">Vous faites partie des <strong>premiers inscrits</strong> sur la liste d'accès anticipé. Assez peu nombreux pour que je vous écrive à la main plutôt que de vous envoyer une newsletter automatique, alors autant en profiter.</p>
        <p style="margin:0 0 16px;">Klip ouvre <strong>dans un peu moins d'un mois</strong>. Le logiciel est en finalisation, je suis sur les derniers réglages.</p>
-       <p style="margin:0 0 16px;">D'ici l'ouverture, je vous envoie <strong>un mail par semaine, pas plus</strong> :</p>
-       <ul style="margin:0 0 16px;padding-left:20px;">
-         <li style="margin-bottom:6px;">ce que Klip fait, en vrai, captures à l'appui ;</li>
-         <li style="margin-bottom:6px;">des trucs concrets sur la gestion de contenu client, utiles que vous utilisiez Klip ou non ;</li>
-         <li>la date d'ouverture, avant tout le monde.</li>
-       </ul>
-       <p style="margin:0 0 16px;">Et avant ça, j'aimerais savoir à qui je parle.</p>
+       <p style="margin:0 0 16px;">D'ici là, j'aimerais savoir à qui je parle.</p>
        <p style="margin:0 0 16px;">Qui vous êtes, ce que vous gérez aujourd'hui, et surtout <strong>ce qui vous a donné envie de vous inscrire</strong>. J'ai mis ça en 5 questions, <strong>deux minutes, pas une de plus</strong>. Ça me permet de vous montrer les bonnes choses d'ici l'ouverture, et de vous accompagner correctement au démarrage plutôt que de vous lâcher devant un écran vide.</p>
        <p style="margin:0 0 16px;">Si on n'a pas encore eu l'occasion d'échanger sur ce que vous faites, c'est le bon moment. Et si on s'est déjà parlé, par message ou sur Instagram, n'hésitez pas à y répondre quand même : ça me permet de tout retrouver au même endroit le jour de l'ouverture.</p>`,
       { label: "Répondre aux 5 questions", href: `${APP_URL}/sondage?e={{EMAIL_ENC}}` },
