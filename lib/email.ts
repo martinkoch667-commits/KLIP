@@ -51,12 +51,17 @@ export function unsubUrl(email: string): string {
   return `${APP_URL}/api/waitlist/unsubscribe?e=${encodeURIComponent(e)}&t=${unsubToken(e)}`;
 }
 
-export async function sendEmail(to: string, subject: string, html: string): Promise<boolean> {
+export async function sendEmail(to: string, subject: string, html: string, text?: string): Promise<boolean> {
   const key = process.env.RESEND_API_KEY;
   if (!key) {
     console.log("[email] RESEND_API_KEY absent — e-mail ignoré:", subject, "→", to);
     return false;
   }
+  // Le lien de désinscription dépend du destinataire : les gabarits posent un
+  // marqueur, on le résout ici pour que tous les modèles en héritent.
+  const resolve = (s: string) =>
+    s.replace(/\{\{UNSUB_URL\}\}/g, unsubUrl(to))
+     .replace(/\{\{EMAIL_ENC\}\}/g, encodeURIComponent(to.trim().toLowerCase()));
   try {
     const res = await fetch(RESEND_API, {
       method: "POST",
@@ -65,11 +70,10 @@ export async function sendEmail(to: string, subject: string, html: string): Prom
         from: FROM,
         to,
         subject,
-        // Le lien de désinscription dépend du destinataire : les gabarits posent
-        // un marqueur, on le résout ici pour que tous les modèles en héritent.
-        html: html
-          .replace(/\{\{UNSUB_URL\}\}/g, unsubUrl(to))
-          .replace(/\{\{EMAIL_ENC\}\}/g, encodeURIComponent(to.trim().toLowerCase())),
+        html: resolve(html),
+        // Envoyer le HTML seul est un signal négatif pour les filtres : les
+        // modèles qui fournissent une version texte la joignent en alternative.
+        ...(text ? { text: resolve(text) } : {}),
         ...(REPLY_TO ? { reply_to: REPLY_TO } : {}),
       }),
     });
@@ -113,7 +117,9 @@ const RIBBON = `
 const FONT_LINK = `<style>@import url('https://fonts.googleapis.com/css2?family=Archivo:wght@700;800;900&display=swap');</style>`;
 
 /** Capture réelle du hero de getklip.fr/fr (1080px, soit 2x la carte : net sur retina).
-    Regénérable avec le script de capture ; toute refonte de la landing la périme. */
+    Regénérable avec le script de capture ; toute refonte de la landing la périme.
+    Réservée aux mails 3 et 4, qui montrent le produit : le mail 1 est volontairement
+    en texte nu (voir `letter`), une image l'enverrait dans l'onglet Promotions. */
 const HERO_BANNER = `
   <a href="${APP_URL}" style="display:block;margin:30px 0 4px;text-decoration:none;">
     <img src="${APP_URL}/klip-media/hero-site.jpg" alt="La page d'accueil de Klip : tous vos clients, un seul outil"
@@ -175,6 +181,29 @@ function plain(bodyHtml: string, cta?: { label: string; href: string }, afterCta
       </div>
     </div>
   </div>`;
+}
+
+/** Un modèle rendu. `text` est la version texte nu envoyée en parallèle du HTML :
+    sans elle, un mail HTML seul est un signal négatif pour les filtres. */
+type Mail = { subject: string; html: string; text?: string };
+
+/* ── Rendu « lettre » ────────────────────────────────────────────────────────
+   L'apparence d'un mail tapé à la main dans une boîte perso. Ni logo, ni image,
+   ni bouton, ni fond coloré, ni police importée : ce sont exactement les signaux
+   sur lesquels Gmail s'appuie pour ranger un message dans Promotions. Aucun lien
+   vers la home non plus — seuls subsistent le sondage (l'objet du mail) et la
+   désinscription (obligation RGPD).
+
+   À n'utiliser que là où la relation compte plus que la démonstration produit ;
+   pour montrer Klip, `plain` et `shell` restent les bons gabarits. */
+function letter(bodyHtml: string): string {
+  return `<div style="font-family:-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:15px;line-height:1.62;color:#222222;max-width:600px;">
+${bodyHtml}
+      <p style="margin:30px 0 0;font-size:12px;line-height:1.55;color:#999999;">
+        Vous recevez ce message parce que vous vous êtes inscrit sur la liste d'accès anticipé.
+        <a href="{{UNSUB_URL}}" style="color:#999999;">Me retirer de la liste</a>.
+      </p>
+</div>`;
 }
 
 /* ── Modèles ─────────────────────────────────────────────────────────────── */
@@ -242,22 +271,50 @@ export const emails = {
   /* ── Séquence pré-ouverture (1 mail / semaine, voir `sequence` plus bas) ──── */
 
   // S1 — Prise de contact. Objectif unique : faire remplir le sondage.
-  nurture1: () => ({
-    subject: "Vous êtes là avant tout le monde",
-    html: plain(
-      `<p style="margin:0 0 16px;">Salut,</p>
-       <p style="margin:0 0 16px;">Je suis Martin, je construis Klip.</p>
-       <p style="margin:0 0 16px;">Vous faites partie des <strong>premiers inscrits</strong> sur la liste d'accès anticipé. Assez peu nombreux pour que je vous écrive à la main plutôt que de vous envoyer une newsletter automatique, alors autant en profiter.</p>
-       <p style="margin:0 0 16px;">Klip ouvre <strong>dans un peu moins d'un mois</strong>. Le logiciel est en finalisation, je suis sur les derniers réglages.</p>
-       <p style="margin:0 0 16px;">D'ici là, j'aimerais savoir à qui je parle.</p>
-       <p style="margin:0 0 16px;">Qui vous êtes, ce que vous gérez aujourd'hui, et surtout <strong>ce qui vous a donné envie de vous inscrire</strong>. J'ai mis ça en 5 questions, <strong>deux minutes, pas une de plus</strong>. Ça me permet de vous montrer les bonnes choses d'ici l'ouverture, et de vous accompagner correctement au démarrage plutôt que de vous lâcher devant un écran vide.</p>
-       <p style="margin:0 0 16px;">Si on n'a pas encore eu l'occasion d'échanger sur ce que vous faites, c'est le bon moment. Et si on s'est déjà parlé, par message ou sur Instagram, n'hésitez pas à y répondre quand même : ça me permet de tout retrouver au même endroit le jour de l'ouverture.</p>`,
-      { label: "Répondre aux 5 questions", href: `${APP_URL}/sondage?e={{EMAIL_ENC}}` },
-      `<p style="margin:0 0 16px;">Et si le formulaire vous saoule : répondez juste à ce mail en me racontant votre semaine type. Je lis tout, je réponds à tout.</p>
-       <p style="margin:0 0 4px;">À la semaine prochaine,<br/>Martin</p>
-       ${HERO_BANNER}`
-    ),
-  }),
+  // Rendu en texte nu (`letter`) : ce mail se présente comme écrit à la main, il
+  // doit en avoir l'air. Habillé, il partait dans l'onglet Promotions de Gmail.
+  nurture1: (): Mail => {
+    const survey = `${APP_URL}/sondage?e={{EMAIL_ENC}}`;
+    return {
+      subject: "Vous êtes là avant tout le monde",
+      html: letter(
+        `      <p style="margin:0 0 15px;">Salut,</p>
+      <p style="margin:0 0 15px;">Je suis Martin, je construis Klip.</p>
+      <p style="margin:0 0 15px;">Vous faites partie des premiers inscrits sur la liste d'accès anticipé. Assez peu nombreux pour que je vous écrive à la main plutôt que de vous envoyer une newsletter automatique, alors autant en profiter.</p>
+      <p style="margin:0 0 15px;">Klip ouvre dans un peu moins d'un mois. Le logiciel est en finalisation, je suis sur les derniers réglages.</p>
+      <p style="margin:0 0 15px;">D'ici là, j'aimerais savoir à qui je parle.</p>
+      <p style="margin:0 0 15px;">Qui vous êtes, ce que vous gérez aujourd'hui, et surtout ce qui vous a donné envie de vous inscrire. J'ai mis ça en 5 questions, deux minutes, pas une de plus. Ça me permet de vous montrer les bonnes choses d'ici l'ouverture, et de vous accompagner correctement au démarrage plutôt que de vous lâcher devant un écran vide.</p>
+      <p style="margin:0 0 15px;">C'est par ici : <a href="${survey}" style="color:#1155cc;">répondre aux 5 questions</a></p>
+      <p style="margin:0 0 15px;">Si on n'a pas encore eu l'occasion d'échanger sur ce que vous faites, c'est le bon moment. Et si on s'est déjà parlé, par message ou sur Instagram, n'hésitez pas à y répondre quand même : ça me permet de tout retrouver au même endroit le jour de l'ouverture.</p>
+      <p style="margin:0 0 15px;">Et si le formulaire vous saoule : répondez juste à ce mail en me racontant votre semaine type. Je lis tout, je réponds à tout.</p>
+      <p style="margin:0 0 15px;">À bientôt,<br/>Martin</p>`
+      ),
+      text: `Salut,
+
+Je suis Martin, je construis Klip.
+
+Vous faites partie des premiers inscrits sur la liste d'accès anticipé. Assez peu nombreux pour que je vous écrive à la main plutôt que de vous envoyer une newsletter automatique, alors autant en profiter.
+
+Klip ouvre dans un peu moins d'un mois. Le logiciel est en finalisation, je suis sur les derniers réglages.
+
+D'ici là, j'aimerais savoir à qui je parle.
+
+Qui vous êtes, ce que vous gérez aujourd'hui, et surtout ce qui vous a donné envie de vous inscrire. J'ai mis ça en 5 questions, deux minutes, pas une de plus. Ça me permet de vous montrer les bonnes choses d'ici l'ouverture, et de vous accompagner correctement au démarrage plutôt que de vous lâcher devant un écran vide.
+
+C'est par ici : ${survey}
+
+Si on n'a pas encore eu l'occasion d'échanger sur ce que vous faites, c'est le bon moment. Et si on s'est déjà parlé, par message ou sur Instagram, n'hésitez pas à y répondre quand même : ça me permet de tout retrouver au même endroit le jour de l'ouverture.
+
+Et si le formulaire vous saoule : répondez juste à ce mail en me racontant votre semaine type. Je lis tout, je réponds à tout.
+
+À bientôt,
+Martin
+
+--
+Vous recevez ce message parce que vous vous êtes inscrit sur la liste d'accès anticipé.
+Me retirer de la liste : {{UNSUB_URL}}`,
+    };
+  },
 
   // S2 — Valeur pure. Zéro vente, zéro produit. On donne, c'est tout.
   nurture2: () => ({
@@ -363,7 +420,7 @@ export const emails = {
 /* ── Séquence pré-ouverture ───────────────────────────────────────────────────
    Un mail par semaine jusqu'à l'ouverture. Envoi via /api/waitlist/campaign?n=X
    (voir la route pour le mode aperçu / test / envoi réel). */
-export const sequence = [
+export const sequence: { n: number; when: string; goal: string; tpl: () => Mail }[] = [
   { n: 1, when: "S1 — maintenant",        goal: "Se présenter et faire remplir le sondage", tpl: emails.nurture1 },
   { n: 2, when: "S2 — +7 jours",          goal: "Donner de la valeur, sans rien vendre",    tpl: emails.nurture2 },
   { n: 3, when: "S3 — +14 jours",         goal: "Montrer le produit et annoncer la date",   tpl: emails.nurture3 },
