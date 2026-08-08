@@ -335,11 +335,30 @@ export async function tightenSpeech(
     }
     hooks.onLog?.({ type: "wordsHeard", n: tr.words.length });
 
-    const cuts = planSemanticCuts(tr.words).filter((x) => x.end > c.trimStart && x.start < c.trimEnd);
-    if (!cuts.length) { out.push(c); hooks.onLog?.({ type: "speechClean" }); continue; }
-    hooks.onLog?.({ type: "cutsFound", n: cuts.length });
+    // Blanc de TÊTE et de QUEUE : un rush démarre presque toujours avant la
+    // première syllabe et court après la dernière (on lance, on se place, on
+    // coupe). `planSemanticCuts` ne voit que les trous ENTRE deux mots : ces
+    // deux blancs-là lui échappaient complètement et restaient dans le montage.
+    // On resserre sur la parole, en laissant juste une amorce et une chute.
+    const inClip = tr.words.filter((w) => w.end > c.trimStart && w.start < c.trimEnd);
+    let from = c.trimStart, to = c.trimEnd;
+    if (inClip.length) {
+      const first = Math.min(...inClip.map((w) => w.start));
+      const last = Math.max(...inClip.map((w) => w.end));
+      // Amorce courte, chute un peu plus longue : couper net après le dernier
+      // mot donne l'impression que la phrase est tronquée.
+      from = Math.max(c.trimStart, first - 0.12);
+      to = Math.min(c.trimEnd, last + 0.28);
+      // Un plan quasiment muet n'est pas un plan à resserrer : on n'y touche pas.
+      if (to - from < 0.4) { from = c.trimStart; to = c.trimEnd; }
+    }
 
-    const keeps = keepRangesFromCuts(cuts, c.trimStart, c.trimEnd);
+    const cuts = planSemanticCuts(tr.words).filter((x) => x.end > from && x.start < to);
+    const headTail = (c.trimEnd - c.trimStart) - (to - from);
+    if (!cuts.length && headTail < 0.15) { out.push(c); hooks.onLog?.({ type: "speechClean" }); continue; }
+    if (cuts.length) hooks.onLog?.({ type: "cutsFound", n: cuts.length });
+
+    const keeps = keepRangesFromCuts(cuts, from, to);
     if (!keeps.length) { out.push(c); continue; }
     removedSec += (c.trimEnd - c.trimStart) - keeps.reduce((s, k) => s + (k.end - k.start), 0);
     keeps.forEach((k, idx) => {

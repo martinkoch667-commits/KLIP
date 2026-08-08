@@ -358,6 +358,9 @@ export default function MontagePage() {
   // une transcription reçue, des coupes appliquées…) et révélé à la machine à
   // écrire par AiThinkingPanel. Aucune ligne décorative : ce qui s'affiche a eu lieu.
   const [preEditStepIdx, setPreEditStepIdx] = useState(-1);
+  // Date du dernier prémontage, relue depuis le projet : elle survit au fait de
+  // quitter la page, ce qu'un simple drapeau en mémoire ne faisait pas.
+  const preEditedAtRef = useRef<string | null>(null);
   const [aiLog, setAiLog] = useState<string[]>([]);
   const pushAiLog = useCallback((line: string) => setAiLog((l) => (l[l.length - 1] === line ? l : [...l, line])), []);
   // Le journal ne s'alimente que pendant le prémontage complet (les outils lancés
@@ -711,6 +714,7 @@ export default function MontagePage() {
         if (proj.customW) setCustomW(proj.customW);
         if (proj.customH) setCustomH(proj.customH);
         setExportQuality(proj.exportQuality || "standard");
+        if (proj.preEditedAt) preEditedAtRef.current = proj.preEditedAt;
       } else if (post?.photo_url) {
         const dur = await getVideoDuration(post.photo_url);
         setClips([{ id: crypto.randomUUID(), kind: "video", name: t('initialImportName'), src: post.photo_url, srcDur: dur, trimStart: 0, trimEnd: dur, ...newClipDefaults() }]);
@@ -735,13 +739,65 @@ export default function MontagePage() {
   }, [time, postId]);
 
   // ── Autosave du projet (debounced) ──────────────────────────────────────────
+  // `buildProject` est aussi utilisé par l'enregistrement de sortie : les deux
+  // doivent écrire EXACTEMENT le même objet, sinon quitter la page perd un champ.
+  const buildProject = useCallback((): MontageProject => ({
+    clips, overlays, captions, subStyleId, subMaxWords, subPos, subCustom, linkedSubs,
+    rawSegments, rawWords, titles, stickers, audioTracks, showProgressBar, exportUrl,
+    formatId, customW, customH, exportQuality,
+    ...(preEditedAtRef.current ? { preEditedAt: preEditedAtRef.current } : {}),
+  }), [clips, overlays, captions, subStyleId, subMaxWords, subPos, subCustom, linkedSubs,
+       rawSegments, rawWords, titles, stickers, audioTracks, showProgressBar, exportUrl,
+       formatId, customW, customH, exportQuality]);
+
+  // Quitter la page ne doit rien perdre : l'autosave est temporisé à 700 ms, et
+  // un clic sur « Composer », « Publier » ou la fermeture de l'onglet partait
+  // sans attendre. On force donc une écriture au moment où la page se cache.
+  // `keepalive` : la requête survit à la navigation, contrairement à un fetch
+  // normal que le navigateur annule en partant.
+  const projectRef = useRef(buildProject);
+  projectRef.current = buildProject;
+  // Le jeton est lu à l'avance : au moment où la page se cache, il est trop tard
+  // pour attendre une promesse.
+  const accessTokenRef = useRef<string | null>(null);
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data }) => { accessTokenRef.current = data.session?.access_token ?? null; });
+  }, [supabase]);
+
+  useEffect(() => {
+    if (loading) return;
+    const flush = () => {
+      if (document.visibilityState !== "hidden") return;
+      if (!accessTokenRef.current) return; // sans jeton, l'écriture serait refusée
+      try {
+        const url = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/posts?id=eq.${postId}`;
+        fetch(url, {
+          method: "PATCH",
+          keepalive: true,
+          headers: {
+            "Content-Type": "application/json",
+            apikey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "",
+            Authorization: `Bearer ${accessTokenRef.current}`,
+            Prefer: "return=minimal",
+          },
+          body: JSON.stringify({ montage_json: projectRef.current() }),
+        }).catch(() => {});
+      } catch { /* la sauvegarde temporisée reprendra la main si la page revient */ }
+    };
+    document.addEventListener("visibilitychange", flush);
+    window.addEventListener("pagehide", flush);
+    return () => {
+      document.removeEventListener("visibilitychange", flush);
+      window.removeEventListener("pagehide", flush);
+    };
+  }, [loading, postId]);
+
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
     if (loading) return;
     if (saveTimer.current) clearTimeout(saveTimer.current);
     saveTimer.current = setTimeout(() => {
-      const project: MontageProject = { clips, overlays, captions, subStyleId, subMaxWords, subPos, subCustom, linkedSubs, rawSegments, rawWords, titles, stickers, audioTracks, showProgressBar, exportUrl, formatId, customW, customH, exportQuality };
-      supabase.from("posts").update({ montage_json: project }).eq("id", postId).then(() => {});
+      supabase.from("posts").update({ montage_json: buildProject() }).eq("id", postId).then(() => {});
     }, 700);
     return () => { if (saveTimer.current) clearTimeout(saveTimer.current); };
   }, [clips, overlays, captions, subStyleId, subMaxWords, subPos, subCustom, linkedSubs, rawSegments, rawWords, titles, stickers, audioTracks, showProgressBar, exportUrl, formatId, customW, customH, exportQuality, loading, postId, supabase]);
@@ -1731,7 +1787,7 @@ export default function MontagePage() {
         setRawWords(res.rawWords);
       }
       if (res.error && !res.captions.length) toast(codeMsg(res.error), "error");
-      else toast(t('preEditDone'));
+      else { preEditedAtRef.current = new Date().toISOString(); toast(t('preEditDone')); }
       // On laisse la dernière ligne s'écrire avant de refermer l'écran.
       await new Promise((r) => setTimeout(r, 900));
     } finally {
@@ -1750,6 +1806,10 @@ export default function MontagePage() {
     if (!clips.some((c) => c.kind === "video")) return;
     // on retire le paramètre pour ne pas relancer au rafraîchissement
     window.history.replaceState({}, "", window.location.pathname);
+    // Déjà prémonté : on ne recommence PAS. Quitter la page en cours de route
+    // puis revenir relançait tout et écrasait le travail fait entre-temps.
+    // Le panneau IA reste là pour le relancer volontairement.
+    if (preEditedAtRef.current) { preRunRef.current = true; return; }
     runFullPreEdit();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loading, clips.length]);
@@ -3279,14 +3339,19 @@ export default function MontagePage() {
                       }}
                       playsInline
                       muted={!shown}
+                      // Taille et position ne changent JAMAIS (cf. .mz-video > video) :
+                      // seule l'opacité bascule. Redimensionner le lecteur au moment
+                      // de l'afficher lui faisait montrer une image à l'ancienne
+                      // échelle, cernée de noir, le temps de se remettre en place.
                       style={shown
                         ? ({
                             filter: [clipFilterCss(activeClip!), activeTrans?.extraFilter].filter(Boolean).join(" ") || undefined,
                             objectPosition: `${(activeClip!.focusX ?? 0.5) * 100}% ${(activeClip!.focusY ?? 0.5) * 100}%`,
                             ...(activeTransCss || {}),
                             transformOrigin: "center",
+                            zIndex: 1,
                           } as React.CSSProperties)
-                        : { position: "absolute", width: 1, height: 1, opacity: 0, pointerEvents: "none" }}
+                        : { opacity: 0, pointerEvents: "none", zIndex: 0 }}
                     />
                   );
                 })}

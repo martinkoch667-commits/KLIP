@@ -256,6 +256,10 @@ export interface MontageProject {
   customW?: number;     // largeur px si formatId === "custom"
   customH?: number;     // hauteur px si formatId === "custom"
   exportQuality?: string; // EXPORT_QUALITIES[].id — défaut "standard" si absent
+  /** Horodatage du prémontage IA. Sa PRÉSENCE empêche un relancement automatique :
+   *  revenir sur un montage déjà prémonté ne doit pas écraser le travail fait
+   *  depuis. On ne le relance qu'à la main, depuis le panneau IA. */
+  preEditedAt?: string;
 }
 
 export const EXPORT_QUALITIES: { id: string; label: string; bitrate: number }[] = [

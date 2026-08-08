@@ -266,8 +266,11 @@ export function planSemanticCuts(
 
   // 2 bis) Temps morts : tout blanc entre deux mots dépassant `maxGap` est resserré
   //        (on garde `gapKeep` de respiration). C'est ce qui rend le montage vif.
-  const maxGap = opts.maxGap ?? 0.6;
-  const gapKeep = opts.gapKeep ?? 0.25;
+  // Resserré : à 0.6 s de tolérance et 0.25 s de souffle conservé, il restait
+  // des trous très audibles entre deux phrases. On coupe plus tôt et on laisse
+  // moins — assez pour que ça respire, pas assez pour que ça traîne.
+  const maxGap = opts.maxGap ?? 0.4;
+  const gapKeep = opts.gapKeep ?? 0.14;
   for (let i = 1; i < w.length; i++) {
     const gap = w[i].start - w[i - 1].end;
     if (gap > maxGap) {

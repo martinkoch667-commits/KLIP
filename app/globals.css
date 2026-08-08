@@ -1060,6 +1060,13 @@ input.ed-range::-moz-range-thumb {
 }
 .mz-video { position: absolute; inset: 0; background: #000; transition: filter .3s var(--ease); }
 .mz-video video, .mz-video img { width: 100%; height: 100%; object-fit: cover; }
+/* Les DEUX lecteurs restent superposés, à taille pleine, en permanence : on ne
+   bascule que l'opacité. Masquer en réduisant le lecteur à 1×1 px l'obligeait à
+   être re-disposé ET à recréer sa surface vidéo en redevenant visible — d'où
+   l'image à l'ancienne échelle, entourée de noir, pendant une demi-seconde à
+   chaque changement de plan. Un élément qui ne change jamais de taille n'a rien
+   à recalculer. */
+.mz-video > video { position: absolute; inset: 0; }
 .mz-vempty { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; color: var(--cream-3); text-align: center; padding: 0 24px; }
 
 /* playback scrubber */

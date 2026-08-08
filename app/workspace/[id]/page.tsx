@@ -1174,6 +1174,9 @@ export default function WorkspacePage() {
             clips: res.clips,
             ...(res.captions.length ? { captions: res.captions, rawSegments: res.rawSegments, rawWords: res.rawWords } : {}),
             formatId: (prev.formatId as string) || "story",
+            // Marque le montage comme prémonté : l'ouvrir ensuite ne relancera
+            // pas l'analyse par-dessus le résultat.
+            preEditedAt: new Date().toISOString(),
           },
         }).eq("id", saved.dbId);
 
