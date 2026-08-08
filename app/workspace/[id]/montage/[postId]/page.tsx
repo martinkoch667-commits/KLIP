@@ -8,7 +8,7 @@ import { VIcon } from "./icons";
 import {
   MontageClip, OverlayClip, Caption, TitleEl, StickerEl, AudioTrack, MontageProject, SubCustom,
   FILTERS, TRANSITIONS, SUB_STYLES, FONT_CHOICES, SUB_LENGTHS, DEFAULT_WORDS_PER_CAPTION, DEFAULT_SUB_POS,
-  subStyleById, effectiveSubStyle, subtitleBoxCss, applySubCase,
+  subStyleById, effectiveSubStyle, resolveCapStyle, resolveCapPos, subtitleBoxCss, applySubCase,
   transitionStateAt, transitionCss,
   // (analyzeClipQuality importé depuis ./autoCut plus bas)
   fmt, newClipDefaults, newOverlayDefaults, clipFilterCss, overlayFilterCss, clipTimelineDur, clipAudioGainAt, overlayTimelineDur, overlayAudioGainAt, segmentCaptions, captionsFromWords, dedupeSegments,
@@ -1512,12 +1512,14 @@ export default function MontagePage() {
   // Cible d'écriture : le lot sélectionné, sinon le sous-titre courant.
   const targetCaps = (): Caption[] => (capMulti.length ? capMulti : (editingCaption ? [editingCaption] : []));
   // Résout le style/position d'UN sous-titre donné (surcharges si déliées).
-  function capStyleOf(c: Caption) {
-    return linkedSubs ? effectiveSubStyle(subStyleId, subCustom) : effectiveSubStyle(c.styleId ?? subStyleId, c.custom ?? {});
-  }
-  function capPosOf(c: Caption) {
-    return linkedSubs ? subPos : { x: c.x ?? subPos.x, y: c.y ?? subPos.y };
-  }
+  // Une surcharge posée sur un sous-titre l'emporte TOUJOURS, même en mode lié.
+  // Sans ça, régler un lot sélectionné écrivait bien les surcharges en base mais
+  // l'affichage continuait de montrer le style global : le réglage paraissait
+  // sans aucun effet.
+  // Résolution partagée avec l'export (constants.ts) : l'aperçu et la vidéo
+  // rendue doivent appliquer exactement la même règle.
+  const capStyleOf = (c: Caption) => resolveCapStyle(c, subStyleId, subCustom, linkedSubs);
+  const capPosOf = (c: Caption) => resolveCapPos(c, subPos);
   // Applique un changement de style au bon endroit (global ou sous-titre isolé).
   function pickSubStyle(id: string) {
     const caps = targetCaps();
@@ -1986,6 +1988,17 @@ export default function MontagePage() {
 
   // Applique un modèle de sous-titres enregistré (style + surcharges + position + longueur).
   function applySubTemplate(tpl: { styleId: string; custom: SubCustom; pos: { x: number; y: number }; maxWords: number }) {
+    // Un lot sélectionné reçoit le preset POUR LUI SEUL. Sans ce test, appliquer
+    // un preset après avoir sélectionné cinq sous-titres le posait sur les
+    // quarante autres — l'inverse de ce qu'on demande.
+    if (capMulti.length) {
+      const pos = tpl.pos || DEFAULT_SUB_POS;
+      capMulti.forEach((c) => updateCaption(c.id, { styleId: tpl.styleId, custom: tpl.custom || {}, x: pos.x, y: pos.y }));
+      // `maxWords` redécoupe TOUS les sous-titres : ça n'a pas de sens sur un
+      // lot, on ne le touche pas ici.
+      toast(t('toastSubTemplateApplied'));
+      return;
+    }
     setSubStyleId(tpl.styleId);
     setSubCustom(tpl.custom || {});
     setSubPos(tpl.pos || DEFAULT_SUB_POS);

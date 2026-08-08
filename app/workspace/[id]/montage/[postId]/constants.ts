@@ -729,6 +729,35 @@ export function charterSubPresets(brand: CharterBrand): CharterPreset[] {
   ];
 }
 
+// ─── Style effectif d'UN sous-titre ─────────────────────────────────────────
+// SOURCE UNIQUE partagée par l'aperçu et l'export : les deux doivent résoudre
+// le style exactement pareil, sinon la vidéo exportée ne montre pas ce qu'on a
+// réglé à l'écran.
+//
+// Règle : une surcharge posée sur un sous-titre l'emporte TOUJOURS, même quand
+// les sous-titres sont liés — c'est ce qui permet de régler un lot sélectionné
+// sans délier tout le montage. En mode lié, la surcharge se pose par-dessus le
+// style commun (on ne change que ce qu'on a réglé) ; en mode délié, chaque
+// sous-titre est autonome.
+export function capHasOwnStyle(c: Caption): boolean {
+  return !!c.styleId || !!(c.custom && Object.keys(c.custom).length);
+}
+
+export function resolveCapStyle(
+  c: Caption, subStyleId: string, subCustom: SubCustom | undefined, linkedSubs: boolean,
+) {
+  if (linkedSubs && !capHasOwnStyle(c)) return effectiveSubStyle(subStyleId, subCustom);
+  const custom = linkedSubs ? { ...(subCustom ?? {}), ...(c.custom ?? {}) } : (c.custom ?? {});
+  return effectiveSubStyle(c.styleId ?? subStyleId, custom);
+}
+
+export function resolveCapPos(c: Caption, subPos: { x: number; y: number } | undefined) {
+  const base = subPos ?? DEFAULT_SUB_POS;
+  // Une position propre prime, quel que soit le mode.
+  if (c.x != null || c.y != null) return { x: c.x ?? base.x, y: c.y ?? base.y };
+  return base;
+}
+
 // ─── État d'une transition d'entrée ─────────────────────────────────────────
 // SOURCE UNIQUE partagée par l'aperçu (DOM/CSS) et l'export (canvas 2D).
 // Les décalages et découpes sont exprimés en FRACTIONS du cadre (0-1) pour être

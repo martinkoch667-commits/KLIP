@@ -13,7 +13,7 @@
 // par-dessus — un vrai équivalent pour celles-ci nécessiterait un transform de
 // sortie dédié par type, hors périmètre de ce lot.
 
-import { MontageClip, OverlayClip, Caption, TitleEl, StickerEl, AudioTrack, SubCustom, effectiveSubStyle, applySubCase, withAlpha, transitionStateAt, DEFAULT_SUB_POS, clipFilterCss, overlayFilterCss, clipTimelineDur, clipAudioGainAt, overlayTimelineDur, overlayAudioGainAt, audioVolumeAt, kenBurnsScale, videoFormatById, exportQualityById } from "./constants";
+import { MontageClip, OverlayClip, Caption, TitleEl, StickerEl, AudioTrack, SubCustom, effectiveSubStyle, resolveCapStyle, resolveCapPos, applySubCase, withAlpha, transitionStateAt, DEFAULT_SUB_POS, clipFilterCss, overlayFilterCss, clipTimelineDur, clipAudioGainAt, overlayTimelineDur, overlayAudioGainAt, audioVolumeAt, kenBurnsScale, videoFormatById, exportQualityById } from "./constants";
 
 export interface ExportProject {
   clips: MontageClip[];
@@ -147,7 +147,7 @@ function drawCaptions(ctx: CanvasRenderingContext2D, captions: Caption[], subSty
   const cap = captions.find((c) => t >= c.start && t <= c.end);
   if (!cap) return;
   // Sous-titres déliés : chaque bloc honore ses propres surcharges de style/position.
-  const style = linkedSubs ? effectiveSubStyle(subStyleId, subCustom) : effectiveSubStyle(cap.styleId ?? subStyleId, cap.custom ?? {});
+  const style = resolveCapStyle(cap, subStyleId, subCustom, linkedSubs);
   const rawWords = cap.text.split(/\s+/).filter(Boolean);
   const words = rawWords.map((w) => applySubCase(w, style.caseMode));
   const progress = (t - cap.start) / Math.max(0.1, cap.end - cap.start);
@@ -173,7 +173,7 @@ function drawCaptions(ctx: CanvasRenderingContext2D, captions: Caption[], subSty
   const padX = style.padX * style.scale, padY = style.padY * style.scale;
   const boxW = Math.min(CANVAS_W - 60, metrics.width + padX * 2);
   const boxH = fontSize * style.lineHeight + padY * 2;
-  const pos = linkedSubs ? (subPos || DEFAULT_SUB_POS) : { x: cap.x ?? (subPos?.x ?? DEFAULT_SUB_POS.x), y: cap.y ?? (subPos?.y ?? DEFAULT_SUB_POS.y) };
+  const pos = resolveCapPos(cap, subPos);
   const cxPos = (pos.x / 100) * CANVAS_W;
   const cyPos = (pos.y / 100) * CANVAS_H;
   const boxX = Math.max(20, Math.min(CANVAS_W - 20 - boxW, cxPos - boxW / 2));
