@@ -56,6 +56,10 @@ export interface PreEditResult {
   fillersSec: number;
   /** Première erreur de transcription rencontrée, s'il y en a eu une. */
   error?: TranscribeErrorCode;
+  /** Plans dont la transcription a échoué. Un montage peut réussir pour trois
+   *  rushes et échouer pour le quatrième : sans cette liste, le trou de
+   *  sous-titres apparaissait sans la moindre explication. */
+  failed: { name: string; code: TranscribeErrorCode }[];
 }
 
 /** Événements de journal — l'appelant traduit et affiche. */
@@ -72,6 +76,7 @@ export interface PreEditHooks {
     | { type: "cutsFound"; n: number }
     | { type: "speechClean" }
     | { type: "captions"; n: number; byWords: boolean }
+    | { type: "transcribeFailed"; name: string; code: TranscribeErrorCode }
     | { type: "allDone" }
   ) => void;
   signal?: AbortSignal;
@@ -119,6 +124,36 @@ const errCode = (raw: unknown): TranscribeErrorCode => {
   return known.includes(raw as TranscribeErrorCode) ? (raw as TranscribeErrorCode) : "unknown";
 };
 
+// Échecs PASSAGERS : le palier gratuit de Groq limite au débit, et transcrire
+// quatre rushes à la suite le déclenche facilement. Sans réessai, la première
+// tranche refusée condamnait tout le plan — d'où un montage où un plan sur
+// quatre n'a ni sous-titres ni coupes calées sur la parole, sans rien qui le
+// signale. Les échecs définitifs (pas de clé, fichier trop lourd, format
+// refusé) ne sont PAS réessayés : insister n'y changerait rien.
+const RETRYABLE: TranscribeErrorCode[] = ["rate_limited", "provider_unavailable", "unknown"];
+const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+async function postChunk(body: BodyInit, headers?: HeadersInit): Promise<
+  { ok: true; data: { segments?: { start: number; end: number; text: string }[]; words?: TWord[] } }
+  | { ok: false; code: TranscribeErrorCode; sizeMb?: number }
+> {
+  let last: { code: TranscribeErrorCode; sizeMb?: number } = { code: "unknown" };
+  for (let attempt = 0; attempt < 3; attempt++) {
+    if (attempt) await wait(700 * 2 ** (attempt - 1)); // 0.7 s, puis 1.4 s
+    try {
+      const res = await fetch("/api/transcribe", { method: "POST", body, ...(headers ? { headers } : {}) });
+      const data = await res.json().catch(() => null);
+      if (res.ok && data?.ok) return { ok: true, data };
+      const code = errCode(data?.error);
+      last = { code, sizeMb: data?.sizeMb };
+      if (!RETRYABLE.includes(code)) return { ok: false, ...last };
+    } catch {
+      last = { code: "unknown" }; // réseau : on retente
+    }
+  }
+  return { ok: false, ...last };
+}
+
 export async function transcribeMedia(
   src: string,
   onProgress?: (done: number, total: number) => void,
@@ -134,13 +169,9 @@ export async function transcribeMedia(
   // Repli : décodage impossible (CORS, conteneur illisible) → le serveur va
   // chercher le média lui-même.
   if (!pcm) {
-    const res = await fetch("/api/transcribe", {
-      method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ url: src }),
-    });
-    const data = await res.json().catch(() => null);
-    if (!res.ok || !data?.ok) return { segments: [], words: [], error: errCode(data?.error), sizeMb: data?.sizeMb };
-    return { segments: data.segments || [], words: data.words || [] };
+    const r = await postChunk(JSON.stringify({ url: src }), { "Content-Type": "application/json" });
+    if (!r.ok) return { segments: [], words: [], error: r.code, sizeMb: r.sizeMb };
+    return { segments: r.data.segments || [], words: r.data.words || [] };
   }
 
   const chunkLen = TRANSCRIBE_CHUNK_SEC * rate;
@@ -155,15 +186,10 @@ export async function transcribeMedia(
     const offset = (i * chunkLen) / rate;
     const form = new FormData();
     form.append("audio", encodeWavMono(slice, rate), "audio.wav");
-    try {
-      const res = await fetch("/api/transcribe", { method: "POST", body: form });
-      const data = await res.json().catch(() => null);
-      if (!res.ok || !data?.ok) return { segments, words, error: errCode(data?.error), sizeMb: data?.sizeMb };
-      for (const sg of data.segments || []) segments.push({ start: sg.start + offset, end: sg.end + offset, text: sg.text });
-      for (const w of data.words || []) words.push({ start: w.start + offset, end: w.end + offset, word: w.word });
-    } catch {
-      return { segments, words, error: "unknown" };
-    }
+    const r = await postChunk(form);
+    if (!r.ok) return { segments, words, error: r.code, sizeMb: r.sizeMb };
+    for (const sg of r.data.segments || []) segments.push({ start: sg.start + offset, end: sg.end + offset, text: sg.text });
+    for (const w of r.data.words || []) words.push({ start: w.start + offset, end: w.end + offset, word: w.word });
   }
   onProgress?.(total, total);
   return { segments, words };
@@ -175,7 +201,11 @@ export async function transcriptFor(src: string, cache: TranscriptCache): Promis
   const hit = cache.get(src);
   if (hit) return hit;
   const r = await transcribeMedia(src);
-  if (r.words.length || r.segments.length) cache.set(src, r);
+  // On mémorise le résultat MÊME s'il a échoué. Les trois étapes demandent la
+  // transcription du même rush : sans ça, un plan qui échoue était redemandé
+  // trois fois, ce qui triplait la charge sur une API déjà en train de refuser.
+  // Les réessais internes ont déjà fait le nécessaire contre le passager.
+  cache.set(src, r);
   return r;
 }
 
@@ -317,8 +347,9 @@ export async function tightenSpeech(
   // plan). Les autres traversent inchangés, ce qui préserve l'ordre sans avoir à
   // recoller les sous-plans à leur origine après coup.
   hooks: PreEditHooks & { only?: Set<string> } = {},
-): Promise<{ clips: MontageClip[]; removedSec: number; error?: TranscribeErrorCode }> {
+): Promise<{ clips: MontageClip[]; removedSec: number; error?: TranscribeErrorCode; failed: { name: string; code: TranscribeErrorCode }[] }> {
   const out: MontageClip[] = [];
+  const failed: { name: string; code: TranscribeErrorCode }[] = [];
   let removedSec = 0;
   let error: TranscribeErrorCode | undefined;
 
@@ -330,7 +361,10 @@ export async function tightenSpeech(
       // Transcription indisponible → on ne touche à rien, et surtout on ne
       // conclut pas « rien à retirer » (message contradictoire après un échec).
       out.push(c);
-      error = error ?? tr.error ?? "unknown";
+      const code = tr.error ?? "unknown";
+      error = error ?? code;
+      if (!failed.some((f) => f.name === c.name)) failed.push({ name: c.name, code });
+      hooks.onLog?.({ type: "transcribeFailed", name: c.name, code });
       continue;
     }
     hooks.onLog?.({ type: "wordsHeard", n: tr.words.length });
@@ -365,7 +399,7 @@ export async function tightenSpeech(
       out.push({ ...c, id: crypto.randomUUID(), trimStart: k.start, trimEnd: k.end, gapBefore: idx === 0 ? c.gapBefore : 0 });
     });
   }
-  return { clips: out, removedSec, error };
+  return { clips: out, removedSec, error, failed };
 }
 
 // ─── Étape 3 — sous-titres ──────────────────────────────────────────────────
@@ -469,5 +503,6 @@ export async function runPreEdit(
     trimmedSec: trimmed.trimmedSec,
     fillersSec: tightened.removedSec,
     error: tightened.error ?? caps.error,
+    failed: tightened.failed,
   };
 }

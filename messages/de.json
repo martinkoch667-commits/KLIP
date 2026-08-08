@@ -1840,7 +1840,9 @@
     "chatError": "Assistent derzeit nicht verfügbar",
     "chatApplied": "Änderung(en) angewendet",
     "chatOpen": "Schnitt-Assistent öffnen",
-    "chatClose": "Schließen"
+    "chatClose": "Schließen",
+    "logTranscribeFailed": "⚠ {name} — Transkription nicht möglich, Clip unverändert",
+    "toastPartialTranscribe": "{n} Clip(s) konnten nicht transkribiert werden: keine Untertitel, keine sprachgenauen Schnitte. Vorschnitt erneut starten."
   },
   "forgotPassword": {
     "title": "Passwort vergessen",

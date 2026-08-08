@@ -1840,7 +1840,9 @@
     "chatError": "Assistant indisponible pour le moment",
     "chatApplied": "modification(s) appliquée(s)",
     "chatOpen": "Ouvrir l'assistant de montage",
-    "chatClose": "Fermer"
+    "chatClose": "Fermer",
+    "logTranscribeFailed": "⚠ {name} — transcription impossible, plan laissé tel quel",
+    "toastPartialTranscribe": "{n} plan(s) n’ont pas pu être transcrits : ni sous-titres ni coupes calées sur la parole. Relance le prémontage pour réessayer."
   },
   "forgotPassword": {
     "title": "Mot de passe oublié",

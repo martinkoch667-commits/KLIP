@@ -1840,7 +1840,9 @@
     "chatError": "Assistant unavailable right now",
     "chatApplied": "change(s) applied",
     "chatOpen": "Open the edit assistant",
-    "chatClose": "Close"
+    "chatClose": "Close",
+    "logTranscribeFailed": "⚠ {name} — could not transcribe, clip left untouched",
+    "toastPartialTranscribe": "{n} clip(s) could not be transcribed: no captions and no speech-aligned cuts. Re-run the pre-edit to retry."
   },
   "forgotPassword": {
     "title": "Forgot password",

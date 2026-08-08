@@ -1560,6 +1560,7 @@ export default function MontagePage() {
         case "cutsFound":    return logStep(t('logCutsFound', { n: ev.n }));
         case "speechClean":  return logStep(t('logSpeechClean'));
         case "captions":     return logStep(ev.byWords ? t('logCaptionsWords', { n: ev.n }) : t('logCaptionsSegments', { n: ev.n }));
+        case "transcribeFailed": return logStep(t('logTranscribeFailed', { name: ev.name }));
         case "allDone":      return logStep(t('logAllDone'));
       }
     },
@@ -1787,7 +1788,13 @@ export default function MontagePage() {
         setRawWords(res.rawWords);
       }
       if (res.error && !res.captions.length) toast(codeMsg(res.error), "error");
-      else { preEditedAtRef.current = new Date().toISOString(); toast(t('preEditDone')); }
+      else {
+        preEditedAtRef.current = new Date().toISOString();
+        // Réussite PARTIELLE : trois rushes transcrits, un quatrième non. Le trou
+        // de sous-titres apparaissait sans un mot d'explication — on le dit.
+        if (res.failed.length) toast(t('toastPartialTranscribe', { n: res.failed.length }), "error");
+        else toast(t('preEditDone'));
+      }
       // On laisse la dernière ligne s'écrire avant de refermer l'écran.
       await new Promise((r) => setTimeout(r, 900));
     } finally {
