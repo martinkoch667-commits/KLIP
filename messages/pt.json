@@ -1842,7 +1842,8 @@
     "chatOpen": "Abrir o assistente de montagem",
     "chatClose": "Fechar",
     "logTranscribeFailed": "⚠ {name} — transcrição impossível, plano intacto",
-    "toastPartialTranscribe": "{n} plano(s) não foram transcritos: sem legendas nem cortes na fala. Relança a pré-montagem."
+    "toastPartialTranscribe": "{n} plano(s) não foram transcritos: sem legendas nem cortes na fala. Relança a pré-montagem.",
+    "subsMultiHint": "{n} legendas selecionadas — os ajustes aplicam-se a todas."
   },
   "forgotPassword": {
     "title": "Esqueceu a palavra-passe",

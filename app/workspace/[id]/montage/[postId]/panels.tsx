@@ -24,6 +24,8 @@ export interface MontageCtx {
   subCustom: SubCustom;
   subPos: { x: number; y: number };
   linkedSubs: boolean;
+  /** Nombre de sous-titres sélectionnés au lasso (0 = aucun lot). */
+  capSelectedCount: number;
   setLinkedSubs: (v: boolean) => void;
   selectedCaptionId: string | null;
   setSelectedCaptionId: (id: string | null) => void;
@@ -387,7 +389,16 @@ export function CaptionsPanel({ ctx }: { ctx: MontageCtx }) {
           <span className="mz-sec-label" style={{ margin: 0 }}>{t('customizationTitle')}</span>
           <button className="btn btn-ghost btn-sm" onClick={ctx.resetSubCustom} title={t('resetToBaseStyle')}><VIcon name="undo" size={12} /> {t('reset')}</button>
         </div>
-        <p style={{ fontSize: 11.5, color: "var(--ink-3)", margin: "0 0 10px" }}>{ctx.linkedSubs ? t('subsLinkedHint') : t('subsIndividualHint')}</p>
+        {ctx.capSelectedCount > 1 ? (
+          // Un lot est sélectionné : on le dit, sinon on croit régler un seul
+          // sous-titre (ou tous) alors qu'on en règle une partie.
+          <p style={{ fontSize: 11.5, margin: "0 0 10px", padding: "7px 10px", borderRadius: 8,
+            background: "color-mix(in srgb, var(--vio) 14%, transparent)", color: "var(--ink)", fontWeight: 600 }}>
+            {t('subsMultiHint', { n: ctx.capSelectedCount })}
+          </p>
+        ) : (
+          <p style={{ fontSize: 11.5, color: "var(--ink-3)", margin: "0 0 10px" }}>{ctx.linkedSubs ? t('subsLinkedHint') : t('subsIndividualHint')}</p>
+        )}
         {/* Réglages complets — MÊME composant que l'assistant « nouveau client »,
             pour que les deux endroits proposent exactement les mêmes paramètres. */}
         <SubtitleStyleEditor

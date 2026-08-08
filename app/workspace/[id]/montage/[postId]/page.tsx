@@ -1499,9 +1499,18 @@ export default function MontagePage() {
   const editingCaption = captions.find((c) => c.id === selectedCaptionId)
     || captions.find((c) => time >= c.start && time <= c.end)
     || null;
-  const perCap = !linkedSubs && !!editingCaption; // on édite le sous-titre isolé
-  const activeSubStyleId = perCap ? (editingCaption!.styleId ?? subStyleId) : subStyleId;
-  const activeSubCustom: SubCustom = perCap ? (editingCaption!.custom ?? {}) : subCustom;
+  // Sous-titres VISÉS par les réglages de style. Une sélection au lasso (ou
+  // Maj+clic) l'emporte : on règle alors ce lot d'un coup. Elle force aussi le
+  // mode « par sous-titre » — choisir une partie des sous-titres et voir le
+  // changement s'appliquer à TOUS serait le contraire de ce qu'on a demandé.
+  const capMulti = captions.filter((c) => multiSel.has(c.id));
+  const perCap = capMulti.length > 0 || (!linkedSubs && !!editingCaption);
+  // La valeur affichée dans le panneau vient du premier sous-titre visé.
+  const refCap = capMulti[0] ?? (editingCaption ?? null);
+  const activeSubStyleId = perCap && refCap ? (refCap.styleId ?? subStyleId) : subStyleId;
+  const activeSubCustom: SubCustom = perCap && refCap ? (refCap.custom ?? {}) : subCustom;
+  // Cible d'écriture : le lot sélectionné, sinon le sous-titre courant.
+  const targetCaps = (): Caption[] => (capMulti.length ? capMulti : (editingCaption ? [editingCaption] : []));
   // Résout le style/position d'UN sous-titre donné (surcharges si déliées).
   function capStyleOf(c: Caption) {
     return linkedSubs ? effectiveSubStyle(subStyleId, subCustom) : effectiveSubStyle(c.styleId ?? subStyleId, c.custom ?? {});
@@ -1511,15 +1520,18 @@ export default function MontagePage() {
   }
   // Applique un changement de style au bon endroit (global ou sous-titre isolé).
   function pickSubStyle(id: string) {
-    if (perCap && editingCaption) updateCaption(editingCaption.id, { styleId: id });
+    const caps = targetCaps();
+    if (perCap && caps.length) caps.forEach((c) => updateCaption(c.id, { styleId: id }));
     else setSubStyleId(id);
   }
   function patchSubCustom(p: SubCustom) {
-    if (perCap && editingCaption) updateCaption(editingCaption.id, { custom: { ...(editingCaption.custom ?? {}), ...p } });
+    const caps = targetCaps();
+    if (perCap && caps.length) caps.forEach((c) => updateCaption(c.id, { custom: { ...(c.custom ?? {}), ...p } }));
     else setSubCustom((c) => ({ ...c, ...p }));
   }
   function resetSubCustomRouted() {
-    if (perCap && editingCaption) updateCaption(editingCaption.id, { custom: {}, styleId: undefined });
+    const caps = targetCaps();
+    if (perCap && caps.length) caps.forEach((c) => updateCaption(c.id, { custom: {}, styleId: undefined }));
     else setSubCustom({});
   }
   // Extrait la piste audio d'un média en WAV mono 16 kHz (format attendu par Whisper).
@@ -2168,6 +2180,10 @@ export default function MontagePage() {
   const capDragRef = useRef<{ id: string; startX: number; t0start: number; dur: number; moved: boolean } | null>(null);
   function onCaptionBarDown(e: React.PointerEvent, c: Caption) {
     e.stopPropagation();
+    // Maj+clic : on cumule, comme sur les plans. Sans ça on ne pouvait
+    // sélectionner qu'un sous-titre à la fois.
+    if (e.shiftKey) { toggleMulti(c.id); setTool("captions"); return; }
+    if (multiSel.size) setMultiSel(new Set());
     setSelectedCaptionId(c.id); setSubSelected(true); setTool("captions");
     if (lockedLanes.has("subs")) return; // piste verrouillée
     try { (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId); } catch {}
@@ -2573,8 +2589,11 @@ export default function MontagePage() {
       setClips((prev) => prev.filter((c) => !ids.has(c.id)));
       setOverlays((prev) => prev.filter((o) => !ids.has(o.id)));
       setAudioTracks((prev) => prev.filter((a) => !ids.has(a.id)));
+      // Les sous-titres entrent maintenant dans la sélection au lasso : sans
+      // cette ligne, en supprimer un lot n'effaçait rien.
+      setCaptions((prev) => prev.filter((c) => !ids.has(c.id)));
       setMultiSel(new Set());
-      setSelectedClipId(null); setSelectedOverlayId(null); setSelectedAudioId(null);
+      setSelectedClipId(null); setSelectedOverlayId(null); setSelectedAudioId(null); setSelectedCaptionId(null);
       return;
     }
     if (selectedAudioId) { removeAudioTrack(selectedAudioId); setSelectedAudioId(null); return; }
@@ -2901,7 +2920,8 @@ export default function MontagePage() {
   // sélectionné (via activeSubStyleId/activeSubCustom + pickSubStyle/patchSubCustom).
   const routedSetSubCustom: typeof setSubCustom = (updater) => {
     const next = typeof updater === "function" ? (updater as (c: SubCustom) => SubCustom)(activeSubCustom) : updater;
-    if (perCap && editingCaption) updateCaption(editingCaption.id, { custom: next });
+    const caps = targetCaps();
+    if (perCap && caps.length) caps.forEach((c) => updateCaption(c.id, { custom: next }));
     else setSubCustom(next);
   };
   // ── Assistant de montage : état envoyé à l'IA + exécution de ses actions ────
@@ -3076,6 +3096,7 @@ export default function MontagePage() {
   const ctx: MontageCtx = {
     clips, selectedClip, captions, subStyleId: activeSubStyleId, subMaxWords, subCustom: activeSubCustom, subPos, hasRawSegments: rawSegments.length > 0 || rawWords.length > 0,
     linkedSubs, setLinkedSubs, selectedCaptionId, setSelectedCaptionId,
+    capSelectedCount: capMulti.length,
     titles, stickers, audioTracks, showProgressBar,
     overlays, selectedOverlay, uploadingOverlay, addOverlayFiles, updateOverlay, removeOverlay, duplicateOverlay, selectOverlay,
     videoTrackCount, moveOverlayTrack,
@@ -3858,7 +3879,7 @@ export default function MontagePage() {
               <div className="a-lane-label" style={{ display: "flex", alignItems: "center", gap: 4 }}><VIcon name="captions" size={13} /> <span className="trunc">{t('labelSubtitlesShort')}</span><LaneControls laneKey="subs" audio /></div>
               <div className="a-lane-track">
                 {captions.map((c) => (
-                  <div key={c.id} className={"a-chip a-chip-cap" + (selectedCaptionId === c.id ? " on" : "")} style={{ left: c.start * pps, width: Math.max(20, (c.end - c.start) * pps), top: 2, height: blockH("subs"), cursor: "grab", touchAction: "none" }} title={c.text}
+                  <div key={c.id} data-selid={c.id} className={"a-chip a-chip-cap" + (selectedCaptionId === c.id || multiSel.has(c.id) ? " on" : "")} style={{ left: c.start * pps, width: Math.max(20, (c.end - c.start) * pps), top: 2, height: blockH("subs"), cursor: "grab", touchAction: "none" }} title={c.text}
                     onPointerDown={(e) => onCaptionBarDown(e, c)} onPointerMove={onCaptionBarMove} onPointerUp={onCaptionBarUp}
                     onContextMenu={(e) => { e.preventDefault(); setSelectedCaptionId(c.id); setClipMenu({ x: e.clientX, y: e.clientY, id: c.id, kind: "caption" }); }}>
                     <VIcon name="captions" size={11} />

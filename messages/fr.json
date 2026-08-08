@@ -1842,7 +1842,8 @@
     "chatOpen": "Ouvrir l'assistant de montage",
     "chatClose": "Fermer",
     "logTranscribeFailed": "⚠ {name} — transcription impossible, plan laissé tel quel",
-    "toastPartialTranscribe": "{n} plan(s) n’ont pas pu être transcrits : ni sous-titres ni coupes calées sur la parole. Relance le prémontage pour réessayer."
+    "toastPartialTranscribe": "{n} plan(s) n’ont pas pu être transcrits : ni sous-titres ni coupes calées sur la parole. Relance le prémontage pour réessayer.",
+    "subsMultiHint": "{n} sous-titres sélectionnés — les réglages ci-dessous s’appliquent à tous."
   },
   "forgotPassword": {
     "title": "Mot de passe oublié",
