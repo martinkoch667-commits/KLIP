@@ -1843,7 +1843,9 @@
     "chatClose": "Close",
     "logTranscribeFailed": "⚠ {name} — could not transcribe, clip left untouched",
     "toastPartialTranscribe": "{n} clip(s) could not be transcribed: no captions and no speech-aligned cuts. Re-run the pre-edit to retry.",
-    "subsMultiHint": "{n} captions selected — the settings below apply to all of them."
+    "subsMultiHint": "{n} captions selected — the settings below apply to all of them.",
+    "fullPreview": "View large",
+    "exitFullPreview": "Shrink preview"
   },
   "forgotPassword": {
     "title": "Forgot password",

@@ -462,7 +462,15 @@ export default function MontagePage() {
   const [time, setTime] = useState(0);
   const [playing, setPlaying] = useState(false);
   const [stageW, setStageW] = useState(0); // largeur px réelle de la preview → texte figé à l'échelle de l'image (WYSIWYG avec l'export)
-  const [previewZoom, setPreviewZoom] = useState(1); // zoom de la preview (pincement/molette), 1–5
+  const [previewZoom, setPreviewZoom] = useState(1);
+  // Aperçu en grand : la scène recouvre le module le temps de regarder.
+  const [stageFull, setStageFull] = useState(false);
+  useEffect(() => {
+    if (!stageFull) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setStageFull(false); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [stageFull]); // zoom de la preview (pincement/molette), 1–5
   const [strips, setStrips] = useState<Record<string, ClipStripData>>({}); // images + ratio source, par id de plan
   const stripReqRef = useRef<Set<string>>(new Set()); // ids déjà demandés (évite les régénérations)
   const [clipWaves, setClipWaves] = useState<Record<string, number[]>>({}); // spectre audio du son embarqué, par src
@@ -3322,7 +3330,7 @@ export default function MontagePage() {
 
         {/* preview + playbar */}
         <div className="a-canvas">
-          <div className="mz-stage">
+          <div className={"mz-stage" + (stageFull ? " is-full" : "")}>
             {/* Prémontage IA en cours : on montre l'étape plutôt qu'un écran figé. */}
             {preEditing && (
               <AiThinkingPanel
@@ -3338,6 +3346,18 @@ export default function MontagePage() {
                 progress={preEditStepIdx < 0 ? 0 : Math.min(1, preEditStepIdx / 3)}
               />
             )}
+            {/* Voir la vidéo en grand : l'aperçu était contraint à la colonne
+                centrale, sans moyen de l'agrandir pour juger un cadrage ou la
+                lisibilité des sous-titres. */}
+            <button
+              onClick={() => setStageFull((v) => !v)}
+              title={stageFull ? t('exitFullPreview') : t('fullPreview')}
+              style={{ position: "absolute", top: 12, left: 12, zIndex: 11, width: 30, height: 30, display: "grid", placeItems: "center", borderRadius: 8, border: "1px solid var(--line)", background: "rgba(0,0,0,.55)", color: "#fff", cursor: "pointer" }}
+            >
+              {stageFull
+                ? <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 3H5a2 2 0 0 0-2 2v4M15 3h4a2 2 0 0 1 2 2v4M9 21H5a2 2 0 0 1-2-2v-4M15 21h4a2 2 0 0 0 2-2v-4"/></svg>
+                : <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9V5a2 2 0 0 1 2-2h4M21 9V5a2 2 0 0 0-2-2h-4M3 15v4a2 2 0 0 0 2 2h4M21 15v4a2 2 0 0 1-2 2h-4"/></svg>}
+            </button>
             {previewZoom !== 1 && (
               <button
                 onClick={() => setPreviewZoom(1)}
@@ -3520,7 +3540,9 @@ export default function MontagePage() {
                 {activeCaption && (
                   <div
                     className={"mz-cap-wrap mz-cap-move" + (subSelected ? " sel" : "")}
-                    style={{ left: capPos.x + "%", top: capPos.y + "%", transform: `translate(-50%,-50%) scale(${capStyle.scale})` }}
+                    // Pas de scale() ici : l'échelle est portée par la police et les
+                    // marges (subtitleBoxCss), sinon on étire une image déjà rendue.
+                    style={{ left: capPos.x + "%", top: capPos.y + "%", transform: "translate(-50%,-50%)" }}
                     onPointerDown={(e) => { if (editingCaptionId === activeCaption.id) return; setSelectedCaptionId(activeCaption.id); onOverlayPointerDown(e, "caption", "sub"); }}
                     onDoubleClick={(e) => { e.stopPropagation(); setPlaying(false); setSelectedCaptionId(activeCaption.id); setEditingCaptionId(activeCaption.id); }}
                     title={editingCaptionId === activeCaption.id ? undefined : t('doubleClickToEdit')}
@@ -3528,7 +3550,7 @@ export default function MontagePage() {
                     <div className="mz-cap-box" style={{
                       // Rendu piloté par la source unique partagée avec l'assistant client
                       // et répliquée par l'export canvas (cf. subtitleBoxCss / drawCaptions).
-                      ...subtitleBoxCss(capStyle, 34 * previewScale),
+                      ...subtitleBoxCss(capStyle, previewScale),
                       transform: capStyle.rotation ? `rotate(${capStyle.rotation}deg)` : undefined,
                     } as React.CSSProperties}>
                       {editingCaptionId === activeCaption.id ? (

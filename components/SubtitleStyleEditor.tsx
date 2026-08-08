@@ -7,7 +7,7 @@
 // et répliqué à l'identique par l'export canvas (export.ts drawCaptions).
 import React from "react";
 import {
-  effectiveSubStyle, applySubCase, subtitleBoxCss,
+  effectiveSubStyle, applySubCase, subtitleBoxCss, SUB_BASE_FONT,
   type SubCustom, type CaseMode, type SubAlign, type SubAnim,
 } from "@/app/workspace/[id]/montage/[postId]/constants";
 
@@ -322,7 +322,10 @@ export function SubtitlePreviewChip({ styleId, custom, fontSize = 22, words = ["
   activeIdx?: number; progress?: number;
 }) {
   const e = effectiveSubStyle(styleId, custom);
-  const css = subtitleBoxCss(e, fontSize) as React.CSSProperties;
+  // `fontSize` est la taille voulue pour la pastille d'aperçu : on la convertit en
+  // facteur d'échelle, puisque subtitleBoxCss raisonne désormais en unités de
+  // dessin (et applique lui-même e.scale, comme l'export).
+  const css = subtitleBoxCss(e, fontSize / SUB_BASE_FONT / (e.scale || 1)) as React.CSSProperties;
   const animating = typeof activeIdx === "number" && activeIdx >= 0;
   return (
     <span style={{ ...css, display: "inline-block", maxWidth: "100%", transform: e.rotation ? `rotate(${e.rotation}deg)` : undefined }}>

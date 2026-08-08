@@ -1843,7 +1843,9 @@
     "chatClose": "Schließen",
     "logTranscribeFailed": "⚠ {name} — Transkription nicht möglich, Clip unverändert",
     "toastPartialTranscribe": "{n} Clip(s) konnten nicht transkribiert werden: keine Untertitel, keine sprachgenauen Schnitte. Vorschnitt erneut starten.",
-    "subsMultiHint": "{n} Untertitel ausgewählt — die Einstellungen gelten für alle."
+    "subsMultiHint": "{n} Untertitel ausgewählt — die Einstellungen gelten für alle.",
+    "fullPreview": "Groß ansehen",
+    "exitFullPreview": "Vorschau verkleinern"
   },
   "forgotPassword": {
     "title": "Passwort vergessen",

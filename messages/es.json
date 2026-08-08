@@ -1843,7 +1843,9 @@
     "chatClose": "Cerrar",
     "logTranscribeFailed": "⚠ {name} — transcripción imposible, plano sin tocar",
     "toastPartialTranscribe": "{n} plano(s) no se pudieron transcribir: sin subtítulos ni cortes ajustados al habla. Relanza el premontaje.",
-    "subsMultiHint": "{n} subtítulos seleccionados — los ajustes se aplican a todos."
+    "subsMultiHint": "{n} subtítulos seleccionados — los ajustes se aplican a todos.",
+    "fullPreview": "Ver en grande",
+    "exitFullPreview": "Reducir la vista"
   },
   "forgotPassword": {
     "title": "Contraseña olvidada",

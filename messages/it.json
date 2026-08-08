@@ -1843,7 +1843,9 @@
     "chatClose": "Chiudi",
     "logTranscribeFailed": "⚠ {name} — trascrizione impossibile, clip non toccata",
     "toastPartialTranscribe": "{n} clip non trascritte: niente sottotitoli né tagli sul parlato. Rilancia il premontaggio.",
-    "subsMultiHint": "{n} sottotitoli selezionati — le impostazioni valgono per tutti."
+    "subsMultiHint": "{n} sottotitoli selezionati — le impostazioni valgono per tutti.",
+    "fullPreview": "Vedi in grande",
+    "exitFullPreview": "Riduci anteprima"
   },
   "forgotPassword": {
     "title": "Password dimenticata",

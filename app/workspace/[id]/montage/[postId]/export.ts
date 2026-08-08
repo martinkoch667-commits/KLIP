@@ -13,7 +13,7 @@
 // par-dessus — un vrai équivalent pour celles-ci nécessiterait un transform de
 // sortie dédié par type, hors périmètre de ce lot.
 
-import { MontageClip, OverlayClip, Caption, TitleEl, StickerEl, AudioTrack, SubCustom, effectiveSubStyle, resolveCapStyle, resolveCapPos, applySubCase, withAlpha, transitionStateAt, DEFAULT_SUB_POS, clipFilterCss, overlayFilterCss, clipTimelineDur, clipAudioGainAt, overlayTimelineDur, overlayAudioGainAt, audioVolumeAt, kenBurnsScale, videoFormatById, exportQualityById } from "./constants";
+import { MontageClip, OverlayClip, Caption, TitleEl, StickerEl, AudioTrack, SubCustom, effectiveSubStyle, resolveCapStyle, resolveCapPos, SUB_BASE_FONT, applySubCase, withAlpha, transitionStateAt, DEFAULT_SUB_POS, clipFilterCss, overlayFilterCss, clipTimelineDur, clipAudioGainAt, overlayTimelineDur, overlayAudioGainAt, audioVolumeAt, kenBurnsScale, videoFormatById, exportQualityById } from "./constants";
 
 export interface ExportProject {
   clips: MontageClip[];
@@ -157,7 +157,7 @@ function drawCaptions(ctx: CanvasRenderingContext2D, captions: Caption[], subSty
     ? -1
     : Math.min(words.length - 1, Math.floor(progress * words.length));
 
-  const fontSize = 34 * style.scale;
+  const fontSize = SUB_BASE_FONT * style.scale;
   const fam = style.font
     ? `'${style.font}', system-ui, sans-serif`
     : (style.italic ? "Georgia, serif" : "system-ui, sans-serif");

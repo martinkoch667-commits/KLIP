@@ -391,8 +391,20 @@ export function subTextShadowCss(e: EffectiveSub): string {
 
 // SOURCE UNIQUE du rendu de la boîte de sous-titre en DOM (aperçu montage +
 // aperçu de l'assistant client). L'export canvas réplique ces mêmes règles.
-export function subtitleBoxCss(e: EffectiveSub, fontSizePx: number): Record<string, string | number | undefined> {
+// `unit` : nombre de pixels écran par unité de dessin. L'export dessine à la
+// résolution du canvas (unit = 1, police de base 34) ; l'aperçu, plus petit,
+// passe son facteur d'échelle. TOUTE la géométrie — police, marges, arrondi,
+// contour — est multipliée par `e.scale * unit`, exactement comme le fait
+// l'export. Auparavant l'aperçu grossissait le bloc avec un `transform: scale()` :
+// on étirait une image déjà rendue, et la typo se pixellisait comme un zoom
+// numérique au lieu d'être redessinée plus grande.
+/** Corps de référence des sous-titres, à l'échelle 1. Partagé avec l'export. */
+export const SUB_BASE_FONT = 34;
+
+export function subtitleBoxCss(e: EffectiveSub, unit = 1): Record<string, string | number | undefined> {
   const hasBg = e.bg && e.bg !== "transparent";
+  const k = e.scale * unit;
+  const fontSizePx = SUB_BASE_FONT * k;
   return {
     background: hasBg ? withAlpha(e.bg, e.bgOpacity) : "transparent",
     color: e.fg,
@@ -405,9 +417,9 @@ export function subtitleBoxCss(e: EffectiveSub, fontSizePx: number): Record<stri
     textAlign: e.align,
     textDecorationLine: e.underline ? "underline" : "none",
     textTransform: "none", // la casse est appliquée sur le texte via applySubCase
-    padding: `${e.padY}px ${e.padX}px`,
-    borderRadius: e.pill ? 999 : e.radius,
-    WebkitTextStroke: e.stroke && e.strokeW > 0 ? `${e.strokeW}px ${e.stroke}` : undefined,
+    padding: `${e.padY * k}px ${e.padX * k}px`,
+    borderRadius: e.pill ? 999 : e.radius * k,
+    WebkitTextStroke: e.stroke && e.strokeW > 0 ? `${e.strokeW * k}px ${e.stroke}` : undefined,
     paintOrder: "stroke fill",
     textShadow: subTextShadowCss(e),
     opacity: e.opacity,
