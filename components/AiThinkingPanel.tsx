@@ -79,6 +79,7 @@ export default function AiThinkingPanel({
   activeStep = -1,
   lines = [],
   progress,
+  inline = false,
 }: {
   title: string;
   subtitle?: string;
@@ -86,6 +87,10 @@ export default function AiThinkingPanel({
   activeStep?: number;
   lines?: string[];
   progress?: number; // 0-1 — barre de progression réelle si connue
+  // `inline` : le panneau se pose DANS une carte au lieu de recouvrir l'écran.
+  // Même contenu, même identité — seul le voile plein écran disparaît, pour
+  // qu'on puisse continuer à travailler à côté pendant que ça tourne.
+  inline?: boolean;
 }) {
   const { shown, typing } = useRevealedLines(lines);
   const logRef = useRef<HTMLDivElement>(null);
@@ -99,7 +104,7 @@ export default function AiThinkingPanel({
   const pct = typeof progress === 'number' ? Math.round(Math.max(0, Math.min(1, progress)) * 100) : null;
 
   return (
-    <div className="aithink" role="status" aria-live="polite">
+    <div className={inline ? 'aithink is-inline' : 'aithink'} role="status" aria-live="polite">
       {/* Le panneau se donne l'allure d'un objet SÉLECTIONNÉ dans l'éditeur —
           cadre et poignées violets de la landing. C'est le langage de la marque
           plutôt que l'habillage « assistant IA » interchangeable. */}

@@ -1484,6 +1484,14 @@ input.mz-range::-moz-range-thumb { width: 16px; height: 16px; border-radius: 50%
   animation: aithink-sheen 1.6s var(--ease, ease-out) infinite; }
 @keyframes aithink-sheen { from { transform: translateX(-100%) } to { transform: translateX(100%) } }
 
+/* Version intégrée : le même panneau, posé dans une carte au lieu de recouvrir
+   l'écran. On garde le cadre de sélection et tout le contenu — c'est la place
+   vide de la carte qui sert enfin à quelque chose. */
+.aithink.is-inline { position: static; inset: auto; padding: 14px 12px; background: none;
+  backdrop-filter: none; display: block; }
+.aithink.is-inline .aithink-sel { width: 100%; max-height: none; }
+.aithink.is-inline .aithink-card { max-height: none; }
+
 @media (prefers-reduced-motion: reduce) {
   .aithink-mark::after, .is-now .aithink-bullet, .aithink-caret, .aithink-bar > span::after { animation: none; }
 }

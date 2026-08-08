@@ -2,7 +2,8 @@
 
 import { useState, useRef, useEffect, useCallback } from "react";
 import PostPreviewPane from "@/components/PostPreviewPane";
-import AssistantMark from "@/components/AssistantMark";
+import AiThinkingPanel from "@/components/AiThinkingPanel";
+import type { PreEditHooks } from "./montage/[postId]/preEdit";
 import { runPreEdit, newTranscriptCache } from "./montage/[postId]/preEdit";
 import type { MontageClip } from "./montage/[postId]/constants";
 import { useTranslations } from "next-intl";
@@ -570,6 +571,8 @@ export default function WorkspacePage() {
   const router = useRouter();
   const supabase = createClientComponentClient();
   const t = useTranslations('workspace');
+  // Les libellés du prémontage vivent dans l'espace « montage ».
+  const tm = useTranslations('montage');
   const tVoice = useTranslations('voice');
 
   const [workspace, setWorkspace] = useState<Workspace | null>(null);
@@ -1114,7 +1117,7 @@ export default function WorkspacePage() {
   // En FILE plutôt qu'en vrai parallèle : chaque prémontage sature déjà le
   // processeur (décodage, analyse d'image) et l'API de transcription. Trois de
   // front, c'est trois fois plus lent et des erreurs de quota.
-  type BatchState = { localId: string; name: string; status: "queued" | "running" | "done" | "error"; step: number; detail?: string };
+  type BatchState = { localId: string; name: string; status: "queued" | "running" | "done" | "error"; step: number; detail?: string; lines: string[] };
   const [batch, setBatch] = useState<BatchState[]>([]);
   const queueRef = useRef<PostItem[]>([]);
   const workingRef = useRef(false);
@@ -1129,6 +1132,31 @@ export default function WorkspacePage() {
   const patchBatch = (localId: string, next: Partial<BatchState>) =>
     setBatch((prev) => prev.map((b) => (b.localId === localId ? { ...b, ...next } : b)));
 
+  const pushBatchLine = (localId: string, line: string) =>
+    setBatch((prev) => prev.map((b) => (b.localId === localId
+      ? (b.lines[b.lines.length - 1] === line ? b : { ...b, lines: [...b.lines, line] })
+      : b)));
+
+  // Les libellés du prémontage vivent dans l'espace « montage » : les demander à
+  // `t` (espace « workspace ») affichait la clé brute, workspace.preStep…
+  function preEditLogLine(ev: Parameters<NonNullable<PreEditHooks['onLog']>>[0]): string | null {
+    switch (ev.type) {
+      case 'startRushes':      return tm('logStartRushes', { n: ev.n });
+      case 'analyzing':        return tm('logAnalyzing', { name: ev.name });
+      case 'speechMapped':     return tm('logSpeechMapped', { n: ev.n });
+      case 'trimmed':          return tm('logTrimmed', { s: ev.seconds.toFixed(1) });
+      case 'clipClean':        return tm('logClipClean');
+      case 'transcribing':     return tm('logTranscribing', { name: ev.name });
+      case 'wordsHeard':       return tm('logWordsHeard', { n: ev.n });
+      case 'cutsFound':        return tm('logCutsFound', { n: ev.n });
+      case 'speechClean':      return tm('logSpeechClean');
+      case 'captions':         return ev.byWords ? tm('logCaptionsWords', { n: ev.n }) : tm('logCaptionsSegments', { n: ev.n });
+      case 'transcribeFailed': return tm('logTranscribeFailed', { name: ev.name });
+      case 'allDone':          return tm('logAllDone');
+      default:                 return null;
+    }
+  }
+
   // File d'attente NON bloquante : on peut lancer une vidéo, puis une autre
   // pendant que la première tourne. En file plutôt qu'en vrai parallèle — chaque
   // prémontage sature déjà le processeur et l'API de transcription, trois de
@@ -1141,7 +1169,7 @@ export default function WorkspacePage() {
     if (!fresh.length) return;
     setBatch((prev) => [
       ...prev.filter((b) => !fresh.some((f) => f.localId === b.localId)),
-      ...fresh.map((p) => ({ localId: p.localId, name: p.brief?.trim() || p.file?.name || t('untitledPost'), status: "queued" as const, step: -1 })),
+      ...fresh.map((p) => ({ localId: p.localId, name: p.brief?.trim() || p.file?.name || t('untitledPost'), status: "queued" as const, step: -1, lines: [] })),
     ]);
     queueRef.current.push(...fresh);
     void drainQueue();
@@ -1182,7 +1210,11 @@ export default function WorkspacePage() {
             cache: trCacheRef.current,
             signal: ctrl.signal,
             onStep: (i) => patchBatch(item.localId, { step: i }),
-            onLog: (ev) => { if (ev.type === "analyzing" || ev.type === "transcribing") patchBatch(item.localId, { detail: ev.name }); },
+            onLog: (ev) => {
+              const line = preEditLogLine(ev);
+              if (line) pushBatchLine(item.localId, line);
+              if (ev.type === "analyzing" || ev.type === "transcribing") patchBatch(item.localId, { detail: ev.name });
+            },
           });
 
           // On n'écrit QUE si le pipeline a produit quelque chose d'utilisable :
@@ -1219,29 +1251,38 @@ export default function WorkspacePage() {
   }
 
   // Progression du prémontage, affichée DANS la carte du post — là où la zone
-  // était vide. C'est ce qui permet d'en lancer plusieurs et de tous les suivre
-  // d'un coup d'œil, au lieu d'attendre dans l'éditeur.
+  // était vide. C'est exactement le panneau qu'on avait dans l'éditeur : étapes,
+  // journal qui s'écrit, barre d'avancement. La place vide sert enfin à voir
+  // l'IA travailler, et on peut en lancer d'autres à côté.
   function PreEditCard({ post }: { post: PostItem }) {
     const b = batchFor(post.localId);
     if (!b) return null;
-    const steps = [t('preStepRushes'), t('preStepSpeech'), t('preStepCaptions')];
+    const done = b.status === 'done' || b.status === 'error';
     return (
-      <div className={`kb-inline is-${b.status}`}>
-        <span className="kb-mark" aria-hidden><AssistantMark size={22} /></span>
-        <div style={{ minWidth: 0, flex: 1 }}>
-          <div className="kb-line">
-            {b.status === 'queued' && t('batchQueued')}
-            {b.status === 'running' && (steps[b.step] || t('batchQueued'))}
-            {b.status === 'done' && t('batchDone')}
-            {b.status === 'error' && t('batchErrGeneric')}
-          </div>
-          {b.detail && <div className="kb-detail">{b.detail}</div>}
-        </div>
-        {b.status === 'running' && <span className="kb-spin" aria-hidden />}
-        {b.status === 'done' && post.dbId && (
-          <Link href={`/workspace/${id}/montage/${post.dbId}`} className="kb-open">{t('batchOpen')}</Link>
-        )}
-      </div>
+      <AiThinkingPanel
+        inline
+        title={b.status === 'done' ? t('batchDone') : b.status === 'error' ? t('batchErrGeneric') : tm('preEditRunning')}
+        subtitle={b.status === 'error' ? b.detail : (b.detail || (b.status === 'queued' ? t('batchQueued') : undefined))}
+        steps={[
+          { id: 'rushes',   label: tm('preStepRushes') },
+          { id: 'speech',   label: tm('preStepSpeech') },
+          { id: 'captions', label: tm('preStepCaptions') },
+        ]}
+        activeStep={done ? 3 : b.step}
+        lines={b.lines}
+        progress={b.step < 0 ? 0 : Math.min(1, b.step / 3)}
+      />
+    );
+  }
+
+  // Accès au montage une fois le prémontage terminé (colonne d'actions).
+  function PreEditDone({ post }: { post: PostItem }) {
+    const b = batchFor(post.localId);
+    if (b?.status !== 'done' || !post.dbId) return null;
+    return (
+      <Link href={`/workspace/${id}/montage/${post.dbId}`} className="btn btn-video" style={{ justifyContent: 'center' }}>
+        <IconEdit /> {t('openMontage')}
+      </Link>
     );
   }
 
@@ -1858,6 +1899,9 @@ export default function WorkspacePage() {
                                  sinon la carte se terminait sur un grand vide. */
                               <div className="ws-post-fields" style={{ flex: 1, display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 210px', gap: 14, alignItems: 'stretch' }}>
                                 <div style={{ minWidth: 0, display: 'flex', flexDirection: 'column', gap: 12 }}>
+                                {/* Sur une vidéo, cette colonne était vide : c'est là que le
+                                    prémontage se montre, en grand, plutôt que dans un filet. */}
+                                {batchFor(post.localId) && <PreEditCard post={post} />}
                                 {post.texte_visuel && (
                                   <div style={{ borderRadius: 12, background: 'linear-gradient(180deg, var(--card), color-mix(in srgb, var(--mint, #2FD79B) 5%, var(--card)))', border: '1px solid var(--line-2)', borderLeft: '3px solid var(--mint, #2FD79B)', padding: '11px 13px' }}>
                                     <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
@@ -1932,7 +1976,7 @@ export default function WorkspacePage() {
                                           <span style={{ display: 'block', fontSize: 11.5, color: 'var(--ink-3)', lineHeight: 1.4 }}>{t('preEditHint')}</span>
                                         </span>
                                       </label>
-                                      {batchFor(post.localId) && <PreEditCard post={post} />}
+                                      <PreEditDone post={post} />
                                       {post.status !== "validated" && !batchFor(post.localId) && (
                                         <button
                                           onClick={() => (preEdit[post.localId] ?? true) ? enqueuePreEdit([post]) : validatePost(post)}
@@ -2191,23 +2235,7 @@ export default function WorkspacePage() {
 
       <style>{`
         @keyframes spin{to{transform:rotate(360deg)}}
-        /* Prémontage — affiché dans la carte du post */
-        .kb-inline{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:12px;
-          background:color-mix(in srgb,var(--vio) 9%,var(--sunk));
-          box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--vio) 26%,transparent);}
-        .kb-inline.is-error{background:var(--warn-soft);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--warn) 34%,transparent);}
-        .kb-mark{flex-shrink:0;display:grid;place-items:center;width:22px;height:22px;
-          filter:drop-shadow(0 2px 6px color-mix(in srgb,var(--vio) 40%,transparent));}
-        .kb-line{font-size:12.5px;font-weight:700;color:var(--ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-        .kb-detail{font-size:11px;color:var(--ink-3);line-height:1.35;margin-top:2px;
-          overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-        .is-error .kb-detail{color:var(--warn);white-space:normal;}
-        .kb-spin{flex-shrink:0;width:15px;height:15px;border-radius:50%;
-          border:2px solid color-mix(in srgb,var(--vio) 28%,transparent);border-top-color:var(--vio);
-          animation:spin .7s linear infinite;}
-        .kb-open{flex-shrink:0;font-size:11.5px;font-weight:800;color:var(--vio);
-          text-decoration:underline;text-underline-offset:3px;white-space:nowrap;}
-        @media(prefers-reduced-motion:reduce){.kb-spin{animation:none;}}
+
         /* Textes et actions côte à côte tant qu'il y a la place. */
         @media(max-width:1100px){
           .ws-post-fields{grid-template-columns:1fr !important;}
