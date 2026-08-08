@@ -13,7 +13,7 @@
 // par-dessus — un vrai équivalent pour celles-ci nécessiterait un transform de
 // sortie dédié par type, hors périmètre de ce lot.
 
-import { MontageClip, OverlayClip, Caption, TitleEl, StickerEl, AudioTrack, SubCustom, effectiveSubStyle, resolveCapStyle, resolveCapPos, SUB_BASE_FONT, applySubCase, withAlpha, transitionStateAt, DEFAULT_SUB_POS, clipFilterCss, overlayFilterCss, clipTimelineDur, clipAudioGainAt, overlayTimelineDur, overlayAudioGainAt, audioVolumeAt, kenBurnsScale, videoFormatById, exportQualityById } from "./constants";
+import { MontageClip, OverlayClip, Caption, TitleEl, StickerEl, AudioTrack, SubCustom, effectiveSubStyle, resolveCapStyle, resolveCapPos, SUB_BASE_FONT, wrapWords, applySubCase, withAlpha, transitionStateAt, DEFAULT_SUB_POS, clipFilterCss, overlayFilterCss, clipTimelineDur, clipAudioGainAt, overlayTimelineDur, overlayAudioGainAt, audioVolumeAt, kenBurnsScale, videoFormatById, exportQualityById } from "./constants";
 
 export interface ExportProject {
   clips: MontageClip[];
@@ -168,11 +168,16 @@ function drawCaptions(ctx: CanvasRenderingContext2D, captions: Caption[], subSty
   const prevLS = ctxLS.letterSpacing;
   if (style.letterSpacing) ctxLS.letterSpacing = `${style.letterSpacing * fontSize}px`;
 
-  const line = words.join(" ");
-  const metrics = ctx.measureText(line);
   const padX = style.padX * style.scale, padY = style.padY * style.scale;
-  const boxW = Math.min(CANVAS_W - 60, metrics.width + padX * 2);
-  const boxH = fontSize * style.lineHeight + padY * 2;
+  // Retour à la ligne, comme l'aperçu. Sans ça un sous-titre un peu long était
+  // dessiné d'un seul trait et débordait du cadre dans la vidéo rendue.
+  const maxBoxW = (style.maxWidth / 100) * CANVAS_W;
+  const measure = (str: string) => ctx.measureText(str).width;
+  const lines = wrapWords(words, measure, maxBoxW - padX * 2, style.maxLines);
+  const lineW = lines.map((ln) => measure(ln.join(" ")));
+  const boxW = Math.min(maxBoxW, Math.max(...lineW) + padX * 2);
+  const lineStep = fontSize * style.lineHeight;
+  const boxH = lineStep * lines.length + padY * 2;
   const pos = resolveCapPos(cap, subPos);
   const cxPos = (pos.x / 100) * CANVAS_W;
   const cyPos = (pos.y / 100) * CANVAS_H;
@@ -196,12 +201,12 @@ function drawCaptions(ctx: CanvasRenderingContext2D, captions: Caption[], subSty
     ctx.fill();
   }
 
-  // Alignement du texte dans la boîte.
+  // Alignement calculé LIGNE PAR LIGNE (une seule origine ne marchait que sur
+  // une ligne unique).
   const innerW = boxW - padX * 2;
-  let x = style.align === "left" ? boxX + padX
-        : style.align === "right" ? boxX + padX + innerW - metrics.width
-        : boxX + boxW / 2 - metrics.width / 2;
-  const y = boxY + boxH / 2;
+  const lineX = (w: number) => style.align === "left" ? boxX + padX
+        : style.align === "right" ? boxX + padX + innerW - w
+        : boxX + boxW / 2 - w / 2;
 
   ctx.textAlign = "left";
   ctx.lineJoin = "round";
@@ -226,7 +231,13 @@ function drawCaptions(ctx: CanvasRenderingContext2D, captions: Caption[], subSty
   };
   const clearShadow = () => { ctx.shadowColor = "transparent"; ctx.shadowBlur = 0; ctx.shadowOffsetX = 0; ctx.shadowOffsetY = 0; };
 
-  words.forEach((w, i) => {
+  let wordIndex = 0;
+  lines.forEach((ln, li) => {
+  // Centre vertical de CETTE ligne.
+  const y = boxY + padY + lineStep * li + lineStep / 2;
+  let x = lineX(lineW[li]);
+  ln.forEach((w) => {
+    const i = wordIndex++;
     const wordProg = Math.max(0, Math.min(1, progress * words.length - i));
     const revealed = i <= activeIdx;
     ctx.globalAlpha = style.opacity * (revealed ? 0.35 + 0.65 * wordProg : 0.28);
@@ -249,6 +260,7 @@ function drawCaptions(ctx: CanvasRenderingContext2D, captions: Caption[], subSty
       ctx.lineWidth = style.strokeW * 2 * style.scale;
     }
     x += ctx.measureText(w + " ").width;
+  });
   });
 
   ctx.restore();

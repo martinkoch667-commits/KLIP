@@ -417,6 +417,8 @@ export function CaptionsPanel({ ctx }: { ctx: MontageCtx }) {
             glow: tse('glow'), intensity: tse('intensity'),
             transform: tse('transform'), rotation: tse('rotation'),
             anim: tse('anim'), animWords: tse('animWords'), animNone: tse('animNone'),
+          
+            layout: tse('layout'), boxWidth: tse('boxWidth'), lines: tse('lines'), oneLine: tse('oneLine'), twoLines: tse('twoLines'), threeLines: tse('threeLines'),
           }}
         />
       </div>

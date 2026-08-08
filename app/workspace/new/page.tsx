@@ -282,6 +282,8 @@ export default function NewWorkspacePage() {
     glow: tse('glow'), intensity: tse('intensity'),
     transform: tse('transform'), rotation: tse('rotation'),
     anim: tse('anim'), animWords: tse('animWords'), animNone: tse('animNone'),
+    layout: tse('layout'), boxWidth: tse('boxWidth'), lines: tse('lines'),
+    oneLine: tse('oneLine'), twoLines: tse('twoLines'), threeLines: tse('threeLines'),
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }), []);
 

@@ -110,6 +110,7 @@ export interface SubtitleStyleEditorLabels {
   shadow: string; blur: string; offsetX: string; offsetY: string;
   glow: string; intensity: string;
   transform: string; rotation: string;
+  layout: string; boxWidth: string; lines: string; oneLine: string; twoLines: string; threeLines: string;
   anim: string; animWords: string; animNone: string;
 }
 
@@ -273,6 +274,21 @@ export default function SubtitleStyleEditor({
             </div>
           </>
         )}
+      </Section>
+
+      {/* ── Mise en page ── */}
+      {/* Largeur du bloc et nombre de lignes : ce sont les deux réglages qui
+          décident si un sous-titre tient sur une ligne ou se replie. L'export
+          applique exactement les mêmes (cf. wrapWords). */}
+      <Section title={L.layout}>
+        <div><Label>{L.boxWidth}</Label><Slider value={e.maxWidth} min={40} max={100} step={1} onChange={(v) => patch({ maxWidth: v })} fmt={(v) => `${v}%`} /></div>
+        <div style={{ display: "flex", gap: 6, marginTop: 8 }}>
+          {([[1, L.oneLine], [2, L.twoLines], [3, L.threeLines]] as const).map(([n, lbl]) => (
+            <button key={n} type="button" onClick={() => patch({ maxLines: n })}
+              className={e.maxLines === n ? "btn btn-primary btn-sm" : "btn btn-ghost btn-sm"}
+              style={{ flex: 1, justifyContent: "center" }}>{lbl}</button>
+          ))}
+        </div>
       </Section>
 
       {/* ── Trait (contour) ── */}

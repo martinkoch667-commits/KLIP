@@ -8,7 +8,7 @@ import { VIcon } from "./icons";
 import {
   MontageClip, OverlayClip, Caption, TitleEl, StickerEl, AudioTrack, MontageProject, SubCustom,
   FILTERS, TRANSITIONS, SUB_STYLES, FONT_CHOICES, SUB_LENGTHS, DEFAULT_WORDS_PER_CAPTION, DEFAULT_SUB_POS,
-  subStyleById, effectiveSubStyle, resolveCapStyle, resolveCapPos, subtitleBoxCss, applySubCase,
+  subStyleById, effectiveSubStyle, resolveCapStyle, resolveCapPos, subtitleBoxCss, applySubCase, DEFAULT_SUB_STYLE_ID,
   transitionStateAt, transitionCss,
   // (analyzeClipQuality importé depuis ./autoCut plus bas)
   fmt, newClipDefaults, newOverlayDefaults, clipFilterCss, overlayFilterCss, clipTimelineDur, clipAudioGainAt, overlayTimelineDur, overlayAudioGainAt, segmentCaptions, captionsFromWords, dedupeSegments,
@@ -250,7 +250,9 @@ function charterSubDefault(ws: {
   const maxWords = typeof ws?.subtitle_max_words === "number" ? ws.subtitle_max_words : null;
   // Rien de configuré ET pas de couleur d'accent exploitable → on laisse le défaut du montage.
   if (!hasStyle && !custom && !pos && !maxWords && (!acc || !/^#([0-9a-fA-F]{3,8})$/.test(acc))) return null;
-  const styleId = hasStyle ? (ws!.subtitle_style_id as string) : "bold-white";
+  // Sans style configuré par le client, on part du sobre plutôt que du contour
+  // épais : le point de départ doit être neutre, l'habillage vient ensuite.
+  const styleId = hasStyle ? (ws!.subtitle_style_id as string) : DEFAULT_SUB_STYLE_ID;
   // Le template du client prime ; à défaut, on surligne simplement à la couleur d'accent.
   return { styleId, custom: custom ?? { hi: acc as string }, pos, maxWords };
 }
@@ -295,7 +297,7 @@ export default function MontagePage() {
   const [clips, setClips] = useState<MontageClip[]>([]);
   const [overlays, setOverlays] = useState<OverlayClip[]>([]);
   const [captions, setCaptions] = useState<Caption[]>([]);
-  const [subStyleId, setSubStyleId] = useState<string>(SUB_STYLES[0].id);
+  const [subStyleId, setSubStyleId] = useState<string>(DEFAULT_SUB_STYLE_ID);
   const [subMaxWords, setSubMaxWords] = useState<number>(DEFAULT_WORDS_PER_CAPTION);
   const [subPos, setSubPos] = useState<{ x: number; y: number }>(DEFAULT_SUB_POS);
   const [subCustom, setSubCustom] = useState<SubCustom>({});
@@ -706,7 +708,7 @@ export default function MontagePage() {
         setCaptions(proj.captions || []);
         // Montage jamais personnalisé côté sous-titres → on applique le style de la charte.
         const subUntouched = !proj.subStyleId && (!proj.subCustom || Object.keys(proj.subCustom).length === 0);
-        setSubStyleId(subUntouched && charterSub ? charterSub.styleId : (proj.subStyleId || SUB_STYLES[0].id));
+        setSubStyleId(subUntouched && charterSub ? charterSub.styleId : (proj.subStyleId || DEFAULT_SUB_STYLE_ID));
         setSubMaxWords(proj.subMaxWords || (subUntouched ? charterSub?.maxWords : null) || DEFAULT_WORDS_PER_CAPTION);
         setSubPos(proj.subPos || (subUntouched ? charterSub?.pos : null) || DEFAULT_SUB_POS);
         setSubCustom(subUntouched && charterSub ? charterSub.custom : (proj.subCustom || {}));

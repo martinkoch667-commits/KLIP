@@ -2262,6 +2262,12 @@
     "rotation": "Drehung",
     "anim": "Animation",
     "animWords": "Wort für Wort",
-    "animNone": "Einfach"
+    "animNone": "Einfach",
+    "layout": "Layout",
+    "boxWidth": "Blockbreite",
+    "lines": "Zeilen",
+    "oneLine": "1 Zeile",
+    "twoLines": "2 Zeilen",
+    "threeLines": "3 Zeilen"
   }
 }

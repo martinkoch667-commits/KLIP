@@ -2262,6 +2262,12 @@
     "rotation": "Rotación",
     "anim": "Animación",
     "animWords": "Palabra a palabra",
-    "animNone": "Simple"
+    "animNone": "Simple",
+    "layout": "Disposición",
+    "boxWidth": "Ancho del bloque",
+    "lines": "Líneas",
+    "oneLine": "1 línea",
+    "twoLines": "2 líneas",
+    "threeLines": "3 líneas"
   }
 }

@@ -226,6 +226,9 @@ export interface SubCustom {
   // — Lueur (glow) —
   glowColor?: string;
   glowBlur?: number;
+  // — Mise en page —
+  maxWidth?: number;      // largeur maximale du bloc, en % du cadre (défaut 82)
+  maxLines?: number;      // lignes autorisées avant troncature (défaut 2)
   // — Transformer / Mélange —
   rotation?: number;      // degrés (défaut 0)
   opacity?: number;       // 0-1 (défaut 1)
@@ -300,6 +303,8 @@ export type EffectiveSub = SubStyle & {
   radius: number;
   padX: number;
   padY: number;
+  maxWidth: number;
+  maxLines: number;
   shadowColor: string;
   shadowBlur: number;
   shadowX: number;
@@ -334,8 +339,10 @@ export function effectiveSubStyle(styleId: string, custom?: SubCustom): Effectiv
     letterSpacing: custom?.letterSpacing ?? 0,
     lineHeight: custom?.lineHeight ?? 1.15,
     align: custom?.align ?? "center",
-    // Animation : par défaut on garde la révélation mot par mot (projets existants).
-    anim: custom?.anim ?? "words",
+    // Animation : AUCUNE par défaut. Un sous-titre simple, blanc, posé sur
+    // l'image, lisible dans tous les formats — la révélation mot par mot devient
+    // un choix, pas l'état de départ.
+    anim: custom?.anim ?? "none",
     // Trait
     strokeW: custom?.strokeW ?? 2,
     // Fond
@@ -343,6 +350,9 @@ export function effectiveSubStyle(styleId: string, custom?: SubCustom): Effectiv
     radius: custom?.radius ?? 8,
     padX: custom?.padX ?? (pill ? 16 : 12),
     padY: custom?.padY ?? (pill ? 6 : 8),
+    // Mise en page
+    maxWidth: custom?.maxWidth ?? 82,
+    maxLines: custom?.maxLines ?? 2,
     // Ombre / lueur
     shadowColor: custom?.shadowColor ?? "",
     shadowBlur: custom?.shadowBlur ?? 0,
@@ -398,6 +408,44 @@ export function subTextShadowCss(e: EffectiveSub): string {
 // l'export. Auparavant l'aperçu grossissait le bloc avec un `transform: scale()` :
 // on étirait une image déjà rendue, et la typo se pixellisait comme un zoom
 // numérique au lieu d'être redessinée plus grande.
+/**
+ * Découpe une suite de mots en lignes qui tiennent dans `maxW`.
+ *
+ * L'export ne dessinait qu'UNE ligne (tous les mots concaténés) alors que
+ * l'aperçu, lui, renvoyait à la ligne tout seul : un sous-titre un peu long
+ * débordait donc du cadre dans la vidéo rendue, sans qu'on le voie à l'écran.
+ *
+ * `measure` est injecté (ctx.measureText côté canvas) pour que la fonction reste
+ * pure et testable. Au-delà de `maxLines`, le reste est replié sur la dernière
+ * ligne : mieux vaut une ligne serrée qu'un mot escamoté.
+ */
+export function wrapWords(
+  words: string[], measure: (s: string) => number, maxW: number, maxLines = 2,
+): string[][] {
+  const lines: string[][] = [];
+  let cur: string[] = [];
+  for (const w of words) {
+    const next = cur.length ? [...cur, w] : [w];
+    if (cur.length && measure(next.join(" ")) > maxW && lines.length + 1 < maxLines) {
+      lines.push(cur);
+      cur = [w];
+    } else {
+      cur = next;
+    }
+  }
+  if (cur.length) lines.push(cur);
+  return lines.length ? lines : [[]];
+}
+
+/**
+ * Style de départ d'un montage : « simple » — blanc net, sans fond ni pilule.
+ * Ce n'était pas le cas : on prenait le PREMIER de la liste (« karaoké », pilule
+ * sombre à surlignage vert), donc tout nouveau montage démarrait habillé.
+ * L'ombre douce vient automatiquement quand il n'y a ni fond ni contour
+ * (cf. subTextShadowCss), ce qui garde le texte lisible sur n'importe quelle image.
+ */
+export const DEFAULT_SUB_STYLE_ID = "simple";
+
 /** Corps de référence des sous-titres, à l'échelle 1. Partagé avec l'export. */
 export const SUB_BASE_FONT = 34;
 
@@ -415,6 +463,9 @@ export function subtitleBoxCss(e: EffectiveSub, unit = 1): Record<string, string
     lineHeight: e.lineHeight,
     letterSpacing: `${e.letterSpacing}em`,
     textAlign: e.align,
+    // Même largeur maximale que l'export, sinon le retour à la ligne ne tombe
+    // pas au même endroit dans la vidéo rendue.
+    maxWidth: `${e.maxWidth}%`,
     textDecorationLine: e.underline ? "underline" : "none",
     textTransform: "none", // la casse est appliquée sur le texte via applySubCase
     padding: `${e.padY * k}px ${e.padX * k}px`,
