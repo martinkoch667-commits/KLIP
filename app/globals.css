@@ -1403,69 +1403,56 @@ input.mz-range::-moz-range-thumb { width: 16px; height: 16px; border-radius: 50%
    barre. Le vert ne reste que dans la marque die-cut, qui est verte par
    construction — c'est ce qui l'y fait ressortir. */
 .aithink { position: absolute; inset: 0; z-index: 60; display: grid; place-items: center;
-  padding: 26px;
-  background:
-    radial-gradient(120% 90% at 50% 0%, color-mix(in srgb, var(--vio) 30%, transparent), transparent 62%),
-    color-mix(in srgb, var(--vio) 12%, color-mix(in srgb, var(--canvas) 84%, transparent));
-  backdrop-filter: blur(7px); }
+  padding: 26px; background: color-mix(in srgb, var(--canvas) 82%, transparent); backdrop-filter: blur(7px); }
 
-/* Enveloppe du cadre de sélection : les poignées débordent, d'où l'inset -10px
-   de .sel-frame — le parent ne doit donc rien rogner. */
+/* Enveloppe du cadre de sélection : les poignées débordent (inset -10px), le
+   parent ne doit donc rien rogner. En intégré, il n'y a pas de cadre. */
 .aithink-sel { position: relative; width: min(430px, 100%); max-height: 100%; display: flex; }
 .aithink-sel .sel-frame { border-radius: 20px; }
 
+/* Surfaces PLATES : ni dégradé ni ombre portée. Le violet suffit à dire « IA »,
+   il n'a pas besoin d'être souligné par un halo. */
 .aithink-card { flex: 1; min-width: 0; max-height: 100%; overflow: hidden; display: flex; flex-direction: column;
-  gap: 13px; padding: 17px 17px 15px; border-radius: 16px;
-  border: 1px solid color-mix(in srgb, var(--vio) 40%, transparent);
-  background:
-    linear-gradient(168deg, color-mix(in srgb, var(--vio) 15%, var(--paper, var(--canvas))), var(--paper, var(--canvas)) 62%);
-  box-shadow: 0 26px 60px -22px color-mix(in srgb, var(--vio) 70%, transparent), 0 4px 14px rgba(0,0,0,.16); }
+  gap: 13px; padding: 16px; border-radius: 14px;
+  border: 1px solid color-mix(in srgb, var(--vio) 30%, transparent);
+  background: color-mix(in srgb, var(--vio) 7%, var(--paper, var(--canvas))); }
 
 .aithink-head { display: flex; align-items: center; gap: 11px; }
-.aithink-title { font-family: var(--display); font-weight: 800; font-style: italic; font-size: 17px;
-  color: var(--ink, var(--cream)); line-height: 1.15; }
+.aithink-title { font-family: var(--display); font-weight: 800; font-style: italic; font-size: 16px;
+  color: var(--ink, var(--cream)); line-height: 1.2; }
 .aithink-sub { font-size: 11.5px; color: var(--ink-3); margin-top: 2px; }
-/* Le compteur reprend la pastille de zoom de l'éditeur : un chiffre d'outil. */
 .aithink-pct { margin-left: auto; flex-shrink: 0; align-self: flex-start; padding: 3px 8px; border-radius: 999px;
   font-size: 11px; font-weight: 800; color: var(--vio);
-  background: color-mix(in srgb, var(--vio) 15%, transparent);
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--vio) 32%, transparent); }
+  background: color-mix(in srgb, var(--vio) 13%, transparent); }
 
-/* La marque de l'assistant travaille : un halo violet pulse derrière elle. */
-.aithink-mark { position: relative; flex-shrink: 0; display: grid; place-items: center; width: 30px; height: 30px;
-  filter: drop-shadow(0 3px 8px color-mix(in srgb, var(--vio) 45%, transparent)); }
-.aithink-mark::after { content: ""; position: absolute; inset: -7px; border-radius: 50%;
-  border: 1.5px solid color-mix(in srgb, var(--vio) 60%, transparent);
+/* La marque de l'assistant travaille : un anneau qui pulse, sans halo. */
+.aithink-mark { position: relative; flex-shrink: 0; display: grid; place-items: center; width: 28px; height: 28px; }
+.aithink-mark::after { content: ""; position: absolute; inset: -6px; border-radius: 50%;
+  border: 1.5px solid color-mix(in srgb, var(--vio) 45%, transparent);
   animation: aithink-ring 1.9s var(--ease, ease-out) infinite; }
-@keyframes aithink-ring { 0% { transform: scale(.66); opacity: .9 } 100% { transform: scale(1.3); opacity: 0 } }
+@keyframes aithink-ring { 0% { transform: scale(.7); opacity: .85 } 100% { transform: scale(1.28); opacity: 0 } }
 
 /* Étapes reliées par un rail : une chaîne de traitement, pas une liste à puces. */
-.aithink-steps { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 3px; }
+.aithink-steps { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
 .aithink-step { position: relative; display: flex; align-items: center; gap: 9px; padding: 4px 8px 4px 4px;
-  border-radius: 8px; font-size: 12.5px; font-weight: 650; color: var(--ink-3);
-  transition: color .2s, background .2s; }
-.aithink-step::before { content: ""; position: absolute; left: 11.5px; top: -3px; height: 7px; width: 2px;
-  background: color-mix(in srgb, var(--vio) 30%, transparent); }
+  border-radius: 7px; font-size: 12.5px; font-weight: 650; color: var(--ink-3); transition: color .2s, background .2s; }
+.aithink-step::before { content: ""; position: absolute; left: 11.5px; top: -2px; height: 6px; width: 2px;
+  background: color-mix(in srgb, var(--vio) 26%, transparent); }
 .aithink-step:first-child::before { display: none; }
 .aithink-step.is-done { color: var(--ink-2); }
-.aithink-step.is-now { color: var(--ink, var(--cream));
-  background: color-mix(in srgb, var(--vio) 14%, transparent); }
+.aithink-step.is-now { color: var(--ink, var(--cream)); background: color-mix(in srgb, var(--vio) 12%, transparent); }
 .aithink-step-lbl { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.aithink-bullet { width: 16px; height: 16px; flex-shrink: 0; display: grid; place-items: center;
-  border-radius: 50%; }
+.aithink-bullet { width: 16px; height: 16px; flex-shrink: 0; display: grid; place-items: center; border-radius: 50%; }
 .is-done .aithink-bullet { background: var(--vio); color: #fff; }
-.is-todo .aithink-bullet { box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--vio) 35%, transparent); }
-.is-now .aithink-bullet { border: 2px solid color-mix(in srgb, var(--vio) 28%, transparent);
+.is-todo .aithink-bullet { box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--vio) 32%, transparent); }
+.is-now .aithink-bullet { border: 2px solid color-mix(in srgb, var(--vio) 26%, transparent);
   border-top-color: var(--vio); animation: aithink-spin .7s linear infinite; }
 @keyframes aithink-spin { to { transform: rotate(360deg) } }
 
-/* Journal fin : ce que l'IA est en train de faire, écrit au fil de l'eau.
-   Rail violet à gauche — on lit une trace d'exécution, pas une console. */
+/* Journal fin : ce que l'IA fait, écrit au fil de l'eau. Fond plat. */
 .aithink-log { max-height: 138px; overflow-y: auto; display: flex; flex-direction: column; gap: 3px;
-  padding: 9px 11px 9px 12px; border-radius: 10px;
-  background: color-mix(in srgb, var(--vio) 9%, var(--sunk));
-  border: 1px solid color-mix(in srgb, var(--vio) 22%, transparent);
-  border-left: 2px solid color-mix(in srgb, var(--vio) 55%, transparent);
+  padding: 9px 11px; border-radius: 9px; background: var(--sunk);
+  border: 1px solid color-mix(in srgb, var(--vio) 16%, transparent);
   font-family: var(--mono); font-size: 11px; line-height: 1.45; scrollbar-width: thin; }
 .aithink-line { color: var(--ink-3); word-break: break-word; }
 .aithink-line.is-last { color: var(--ink-2); }
@@ -1473,27 +1460,20 @@ input.mz-range::-moz-range-thumb { width: 16px; height: 16px; border-radius: 50%
   background: var(--vio); animation: aithink-blink 1s steps(2, start) infinite; }
 @keyframes aithink-blink { 0%,50% { opacity: 1 } 50.01%,100% { opacity: 0 } }
 
-.aithink-bar { height: 5px; border-radius: 3px; overflow: hidden;
-  background: color-mix(in srgb, var(--vio) 14%, var(--sunk)); }
-.aithink-bar > span { display: block; height: 100%; border-radius: 3px; position: relative; overflow: hidden;
-  background: linear-gradient(90deg, color-mix(in srgb, var(--vio) 72%, #fff), var(--vio));
+/* Barre d'avancement : un aplat, sans dégradé ni reflet qui balaie. */
+.aithink-bar { height: 4px; border-radius: 2px; overflow: hidden; background: var(--sunk); }
+.aithink-bar > span { display: block; height: 100%; border-radius: 2px; background: var(--vio);
   transition: width .35s var(--ease, ease-out); }
-/* Reflet qui balaie : la barre reste vivante même quand l'étape dure. */
-.aithink-bar > span::after { content: ""; position: absolute; inset: 0;
-  background: linear-gradient(90deg, transparent, rgba(255,255,255,.45), transparent);
-  animation: aithink-sheen 1.6s var(--ease, ease-out) infinite; }
-@keyframes aithink-sheen { from { transform: translateX(-100%) } to { transform: translateX(100%) } }
 
 /* Version intégrée : le même panneau, posé dans une carte au lieu de recouvrir
-   l'écran. On garde le cadre de sélection et tout le contenu — c'est la place
-   vide de la carte qui sert enfin à quelque chose. */
-.aithink.is-inline { position: static; inset: auto; padding: 14px 12px; background: none;
+   l'écran. C'est la place vide de la carte qui sert enfin à quelque chose. */
+.aithink.is-inline { position: static; inset: auto; padding: 0; background: none;
   backdrop-filter: none; display: block; }
 .aithink.is-inline .aithink-sel { width: 100%; max-height: none; }
 .aithink.is-inline .aithink-card { max-height: none; }
 
 @media (prefers-reduced-motion: reduce) {
-  .aithink-mark::after, .is-now .aithink-bullet, .aithink-caret, .aithink-bar > span::after { animation: none; }
+  .aithink-mark::after, .is-now .aithink-bullet, .aithink-caret { animation: none; }
 }
 
 /* ─── Assistant conversationnel (components/AiChatDock.tsx) ────────────────────

@@ -109,7 +109,10 @@ export default function AiThinkingPanel({
           cadre et poignées violets de la landing. C'est le langage de la marque
           plutôt que l'habillage « assistant IA » interchangeable. */}
       <div className="aithink-sel">
-        <SelFrame />
+        {/* Le cadre de sélection n'a de sens qu'en surimpression, où le panneau
+            flotte au-dessus de l'image. Posé dans une carte, il ne fait que
+            doubler la bordure. */}
+        {!inline && <SelFrame />}
         <div className="aithink-card">
           <div className="aithink-head">
             <span className="aithink-mark" aria-hidden><AssistantMark size={30} /></span>

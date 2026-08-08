@@ -1129,6 +1129,21 @@ export default function WorkspacePage() {
   const videoPosts = posts.filter((p) => p.isVideo);
   const batchFor = (localId: string) => batch.find((b) => b.localId === localId);
 
+  // Un prémontage tourne DANS l'onglet : quitter la page l'interrompt. On note
+  // donc en local ceux qui n'ont pas fini, pour les relancer en revenant — sinon
+  // on retrouvait une carte figée sans savoir que rien n'avançait plus.
+  // Clé par identifiant de post en base : les identifiants locaux, eux, sont
+  // régénérés à chaque chargement.
+  const PENDING_KEY = `klip-preedit-${id}`;
+  const readPending = (): string[] => {
+    try { return JSON.parse(localStorage.getItem(PENDING_KEY) || "[]"); } catch { return []; }
+  };
+  const writePending = (ids: string[]) => {
+    try { localStorage.setItem(PENDING_KEY, JSON.stringify(Array.from(new Set(ids)))); } catch { /* stockage indisponible */ }
+  };
+  const markPending = (dbId: string) => writePending([...readPending(), dbId]);
+  const clearPending = (dbId: string) => writePending(readPending().filter((x) => x !== dbId));
+
   const patchBatch = (localId: string, next: Partial<BatchState>) =>
     setBatch((prev) => prev.map((b) => (b.localId === localId ? { ...b, ...next } : b)));
 
@@ -1188,6 +1203,7 @@ export default function WorkspacePage() {
         try {
           const saved = await savePost(item, null);
           if (!saved) { patchBatch(item.localId, { status: "error", detail: t('batchErrSave') }); continue; }
+          markPending(saved.dbId);
 
           // Plans de départ : ceux du montage groupé, sinon le média unique du post.
           let clips = (saved.clips as unknown as MontageClip[] | null) ?? null;
@@ -1204,7 +1220,7 @@ export default function WorkspacePage() {
               }];
             }
           }
-          if (!clips?.length) { patchBatch(item.localId, { status: "error", detail: t('batchErrNoClips') }); continue; }
+          if (!clips?.length) { clearPending(saved.dbId); patchBatch(item.localId, { status: "error", detail: t('batchErrNoClips') }); continue; }
 
           const res = await runPreEdit(clips, {
             cache: trCacheRef.current,
@@ -1219,7 +1235,7 @@ export default function WorkspacePage() {
 
           // On n'écrit QUE si le pipeline a produit quelque chose d'utilisable :
           // un post dont l'analyse échoue reste strictement dans son état d'avant.
-          if (!res.clips.length) { patchBatch(item.localId, { status: "error", detail: t('batchErrEmpty') }); continue; }
+          if (!res.clips.length) { clearPending(saved.dbId); patchBatch(item.localId, { status: "error", detail: t('batchErrEmpty') }); continue; }
           const { data: cur } = await supabase.from("posts").select("montage_json").eq("id", saved.dbId).single();
           const prev = (cur?.montage_json as Record<string, unknown> | null) ?? {};
           await supabase.from("posts").update({
@@ -1234,6 +1250,7 @@ export default function WorkspacePage() {
             },
           }).eq("id", saved.dbId);
 
+          clearPending(saved.dbId);
           patchBatch(item.localId, {
             status: "done", step: 3,
             // Une réussite partielle se dit : sans ça, le trou de sous-titres
@@ -1254,6 +1271,24 @@ export default function WorkspacePage() {
   // était vide. C'est exactement le panneau qu'on avait dans l'éditeur : étapes,
   // journal qui s'écrit, barre d'avancement. La place vide sert enfin à voir
   // l'IA travailler, et on peut en lancer d'autres à côté.
+  // Reprise : en revenant sur la page, on relance les prémontages que la
+  // navigation avait interrompus. Le traitement vit dans l'onglet — il ne peut
+  // pas continuer pendant qu'on est ailleurs — mais il ne doit pas rester en
+  // plan pour autant. Une seule tentative par chargement : si le post est
+  // toujours marqué après ça, c'est un échec réel, pas une interruption.
+  const resumedRef = useRef(false);
+  useEffect(() => {
+    if (resumedRef.current || !posts.length) return;
+    const pending = readPending();
+    if (!pending.length) return;
+    resumedRef.current = true;
+    const toResume = posts.filter((p) => p.isVideo && p.dbId && pending.includes(p.dbId));
+    // Les identifiants orphelins (post supprimé depuis) sont oubliés.
+    writePending(toResume.map((p) => p.dbId!));
+    if (toResume.length) enqueuePreEdit(toResume);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [posts.length]);
+
   function PreEditCard({ post }: { post: PostItem }) {
     const b = batchFor(post.localId);
     if (!b) return null;
