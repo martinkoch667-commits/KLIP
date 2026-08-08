@@ -420,6 +420,7 @@ export function CaptionsPanel({ ctx }: { ctx: MontageCtx }) {
           
             layout: tse('layout'), boxWidth: tse('boxWidth'), lines: tse('lines'), oneLine: tse('oneLine'), twoLines: tse('twoLines'), threeLines: tse('threeLines'),
             bgWidth: tse('bgWidth'), bgHeight: tse('bgHeight'), spread: tse('spread'),
+            tabBasic: tse('tabBasic'), tabBubble: tse('tabBubble'), tabEffects: tse('tabEffects'), curve: tse('curve'),
           }}
         />
       </div>

@@ -2271,6 +2271,10 @@
     "threeLines": "3 líneas",
     "bgWidth": "Ancho del fondo",
     "bgHeight": "Alto del fondo",
-    "spread": "Intervalo"
+    "spread": "Intervalo",
+    "tabBasic": "Básico",
+    "tabBubble": "Burbuja",
+    "tabEffects": "Efectos",
+    "curve": "Curva"
   }
 }

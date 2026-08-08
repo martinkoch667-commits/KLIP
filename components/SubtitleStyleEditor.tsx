@@ -154,6 +154,7 @@ export interface SubtitleStyleEditorLabels {
   transform: string; rotation: string;
   layout: string; boxWidth: string; lines: string; oneLine: string; twoLines: string; threeLines: string;
   bgWidth: string; bgHeight: string; spread: string;
+  tabBasic: string; tabBubble: string; tabEffects: string; curve: string;
   anim: string; animWords: string; animNone: string;
 }
 
@@ -189,11 +190,28 @@ export default function SubtitleStyleEditor({
   // tout autre réglage déjà enregistré peut ne correspondre à aucune des
   // options ci-dessus — sans repli, le <select> se retrouve sans option
   // sélectionnée et paraît vide côté client.
+  const [tab, setTab] = useState<"basic" | "bubble" | "fx">("basic");
   const currentFont = e.font ?? "";
   const unknownFont = currentFont && !KNOWN_FONT_VALUES.has(currentFont) ? currentFont : null;
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+      {/* Trois onglets : la typo, l'habillage du bloc, les effets. Tout tenait
+          dans une seule colonne à dérouler — on ne trouvait plus rien. */}
+      <div style={{ display: "flex", gap: 4, padding: 3, borderRadius: 10, background: "var(--sunk)" }}>
+        {([["basic", L.tabBasic], ["bubble", L.tabBubble], ["fx", L.tabEffects]] as const).map(([k, lbl]) => (
+          <button type="button" key={k} onClick={() => setTab(k)}
+            style={{ flex: 1, padding: "7px 4px", borderRadius: 8, border: "none", cursor: "pointer",
+              fontSize: 12.5, fontWeight: 700, fontFamily: "inherit",
+              background: tab === k ? "var(--card)" : "transparent",
+              color: tab === k ? "var(--ink)" : "var(--ink-3)",
+              boxShadow: tab === k ? "0 1px 3px rgba(0,0,0,.12)" : "none" }}>
+            {lbl}
+          </button>
+        ))}
+      </div>
+
+      {tab === "basic" && <>
       {/* ── Basique ── */}
       <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
         <Label>{L.basic}</Label>
@@ -300,6 +318,31 @@ export default function SubtitleStyleEditor({
         </div>
       </Section>
 
+      {/* ── Mise en page ── */}
+      {/* Largeur du bloc et nombre de lignes : ce sont les deux réglages qui
+          décident si un sous-titre tient sur une ligne ou se replie. L'export
+          applique exactement les mêmes (cf. wrapWords). */}
+      <Section title={L.layout}>
+        <div><Label>{L.boxWidth}</Label><Slider value={e.maxWidth} min={40} max={100} step={1} onChange={(v) => patch({ maxWidth: v })} fmt={(v) => `${v}%`} /></div>
+        <div style={{ display: "flex", gap: 6, marginTop: 8 }}>
+          {([[1, L.oneLine], [2, L.twoLines], [3, L.threeLines]] as const).map(([n, lbl]) => (
+            <button key={n} type="button" onClick={() => patch({ maxLines: n })}
+              className={e.maxLines === n ? "btn btn-primary btn-sm" : "btn btn-ghost btn-sm"}
+              style={{ flex: 1, justifyContent: "center" }}>{lbl}</button>
+          ))}
+        </div>
+      </Section>
+
+      {/* ── Transformer / mélange ── */}
+      <Section title={L.transform}>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+          <div><Label>{L.rotation}</Label><Slider value={e.rotation} min={-45} max={45} step={1} onChange={(v) => patch({ rotation: v })} fmt={(v) => `${v}°`} /></div>
+          <div><Label>{L.opacity}</Label><Slider value={e.opacity} min={0.1} max={1} step={0.05} onChange={(v) => patch({ opacity: v })} fmt={(v) => `${Math.round(v * 100)}%`} /></div>
+        </div>
+      </Section>
+      </>}
+
+      {tab === "bubble" && <>
       {/* ── Arrière-plan ── */}
       <Section title={L.background}
         active={e.bg !== "transparent"}
@@ -330,21 +373,9 @@ export default function SubtitleStyleEditor({
         )}
       </Section>
 
-      {/* ── Mise en page ── */}
-      {/* Largeur du bloc et nombre de lignes : ce sont les deux réglages qui
-          décident si un sous-titre tient sur une ligne ou se replie. L'export
-          applique exactement les mêmes (cf. wrapWords). */}
-      <Section title={L.layout}>
-        <div><Label>{L.boxWidth}</Label><Slider value={e.maxWidth} min={40} max={100} step={1} onChange={(v) => patch({ maxWidth: v })} fmt={(v) => `${v}%`} /></div>
-        <div style={{ display: "flex", gap: 6, marginTop: 8 }}>
-          {([[1, L.oneLine], [2, L.twoLines], [3, L.threeLines]] as const).map(([n, lbl]) => (
-            <button key={n} type="button" onClick={() => patch({ maxLines: n })}
-              className={e.maxLines === n ? "btn btn-primary btn-sm" : "btn btn-ghost btn-sm"}
-              style={{ flex: 1, justifyContent: "center" }}>{lbl}</button>
-          ))}
-        </div>
-      </Section>
+      </>}
 
+      {tab === "fx" && <>
       {/* ── Trait (contour) ── */}
       <Section title={L.stroke}
         active={!!e.stroke}
@@ -390,13 +421,19 @@ export default function SubtitleStyleEditor({
         )}
       </Section>
 
-      {/* ── Transformer / mélange ── */}
-      <Section title={L.transform}>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-          <div><Label>{L.rotation}</Label><Slider value={e.rotation} min={-45} max={45} step={1} onChange={(v) => patch({ rotation: v })} fmt={(v) => `${v}°`} /></div>
-          <div><Label>{L.opacity}</Label><Slider value={e.opacity} min={0.1} max={1} step={0.05} onChange={(v) => patch({ opacity: v })} fmt={(v) => `${Math.round(v * 100)}%`} /></div>
-        </div>
+      {/* ── Courbe ── */}
+      {/* Le texte se cintre vers le haut ou vers le bas. L'aperçu et l'export
+          partagent la même formule (curveLayout) : sans ça, la courbe vue à
+          l'écran ne serait pas celle de la vidéo. */}
+      <Section title={L.curve}
+        active={e.curve !== 0}
+        onToggle={(on) => patch({ curve: on ? 30 : 0 })}
+        onReset={() => patch({ curve: 0 })}>
+        {e.curve !== 0 && (
+          <div><Slider value={e.curve} min={-100} max={100} step={1} onChange={(v) => patch({ curve: v })} fmt={(v) => `${v}`} /></div>
+        )}
       </Section>
+      </>}
     </div>
   );
 }

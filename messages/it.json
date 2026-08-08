@@ -2271,6 +2271,10 @@
     "threeLines": "3 righe",
     "bgWidth": "Larghezza sfondo",
     "bgHeight": "Altezza sfondo",
-    "spread": "Intervallo"
+    "spread": "Intervallo",
+    "tabBasic": "Base",
+    "tabBubble": "Fumetto",
+    "tabEffects": "Effetti",
+    "curve": "Curva"
   }
 }

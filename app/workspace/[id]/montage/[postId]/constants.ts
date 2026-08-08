@@ -233,6 +233,8 @@ export interface SubCustom {
   glowSpread?: number;    // intervalle : nombre de passes empilées (défaut 1)
   glowX?: number;         // décalage de la lueur
   glowY?: number;
+  // — Courbe —
+  curve?: number;         // -100 à 100 : texte cintré vers le haut ou le bas (0 = droit)
   // — Mise en page —
   maxWidth?: number;      // largeur maximale du bloc, en % du cadre (défaut 82)
   maxLines?: number;      // lignes autorisées avant troncature (défaut 2)
@@ -319,6 +321,7 @@ export type EffectiveSub = SubStyle & {
   glowSpread: number;
   glowX: number;
   glowY: number;
+  curve: number;
   shadowColor: string;
   shadowBlur: number;
   shadowX: number;
@@ -368,6 +371,7 @@ export function effectiveSubStyle(styleId: string, custom?: SubCustom): Effectiv
     bgH: custom?.bgH ?? 0,
     bgX: custom?.bgX ?? 0,
     bgY: custom?.bgY ?? 0,
+    curve: custom?.curve ?? 0,
     glowSpread: custom?.glowSpread ?? 1,
     glowX: custom?.glowX ?? 0,
     glowY: custom?.glowY ?? 0,
@@ -427,6 +431,32 @@ export function subTextShadowCss(e: EffectiveSub, k = 1): string {
   // Lisibilité par défaut : texte nu sans contour ni ombre → ombre douce.
   if (!parts.length && e.bg === "transparent" && !e.stroke) parts.push(`0 ${1 * k}px ${8 * k}px rgba(0,0,0,.6)`);
   return parts.join(", ") || "none";
+}
+
+/**
+ * Texte cintré. Chaque caractère est posé sur un arc : on rend son angle et son
+ * décalage vertical.
+ *
+ * SOURCE UNIQUE, et c'est ici que ça compte le plus : le CSS ne sait pas mesurer
+ * un caractère, le canvas si. Si chaque côté calculait sa courbe à sa façon,
+ * l'aperçu et la vidéo rendue ne se superposeraient jamais. On répartit donc les
+ * caractères à angle CONSTANT — approximation assumée, mais identique des deux
+ * côtés, ce qui est la seule propriété qui compte ici.
+ *
+ * `curve` : -100 (creux) à 100 (bombé). 0 rend un tableau d'angles nuls.
+ */
+export function curveLayout(n: number, curve: number, fontSizePx: number): { deg: number; dy: number }[] {
+  if (!curve || n <= 1) return Array.from({ length: Math.max(0, n) }, () => ({ deg: 0, dy: 0 }));
+  const totalDeg = (curve / 100) * 70;       // ouverture de l'arc
+  const step = totalDeg / (n - 1);
+  const radius = fontSizePx * 7;             // rayon lié au corps, pour rester proportionné
+  const sign = curve < 0 ? -1 : 1;
+  return Array.from({ length: n }, (_, i) => {
+    const deg = (i - (n - 1) / 2) * step;
+    const rad = (deg * Math.PI) / 180;
+    // Flèche de l'arc : les extrémités descendent (ou montent) par rapport au centre.
+    return { deg, dy: sign * radius * (1 - Math.cos(rad)) };
+  });
 }
 
 /** Calque de fond en CSS, à poser en premier enfant de la boîte de sous-titre.

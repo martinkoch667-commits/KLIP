@@ -2271,6 +2271,10 @@
     "threeLines": "3 lines",
     "bgWidth": "Background width",
     "bgHeight": "Background height",
-    "spread": "Range"
+    "spread": "Range",
+    "tabBasic": "Basic",
+    "tabBubble": "Bubble",
+    "tabEffects": "Effects",
+    "curve": "Curve"
   }
 }

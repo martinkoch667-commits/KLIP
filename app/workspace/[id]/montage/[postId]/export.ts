@@ -13,7 +13,7 @@
 // par-dessus — un vrai équivalent pour celles-ci nécessiterait un transform de
 // sortie dédié par type, hors périmètre de ce lot.
 
-import { MontageClip, OverlayClip, Caption, TitleEl, StickerEl, AudioTrack, SubCustom, effectiveSubStyle, resolveCapStyle, resolveCapPos, SUB_BASE_FONT, wrapWords, subBgBox, applySubCase, withAlpha, transitionStateAt, DEFAULT_SUB_POS, clipFilterCss, overlayFilterCss, clipTimelineDur, clipAudioGainAt, overlayTimelineDur, overlayAudioGainAt, audioVolumeAt, kenBurnsScale, videoFormatById, exportQualityById } from "./constants";
+import { MontageClip, OverlayClip, Caption, TitleEl, StickerEl, AudioTrack, SubCustom, effectiveSubStyle, resolveCapStyle, resolveCapPos, SUB_BASE_FONT, wrapWords, subBgBox, curveLayout, applySubCase, withAlpha, transitionStateAt, DEFAULT_SUB_POS, clipFilterCss, overlayFilterCss, clipTimelineDur, clipAudioGainAt, overlayTimelineDur, overlayAudioGainAt, audioVolumeAt, kenBurnsScale, videoFormatById, exportQualityById } from "./constants";
 
 export interface ExportProject {
   clips: MontageClip[];
@@ -240,6 +240,39 @@ function drawCaptions(ctx: CanvasRenderingContext2D, captions: Caption[], subSty
     }
   };
   const clearShadow = () => { ctx.shadowColor = "transparent"; ctx.shadowBlur = 0; ctx.shadowOffsetX = 0; ctx.shadowOffsetY = 0; };
+
+  // ── Texte cintré ──────────────────────────────────────────────────────────
+  // Même formule que l'aperçu (curveLayout) : caractère par caractère, angle
+  // constant. On sort par ce chemin car la courbe rend l'avance mot par mot
+  // caduque — chaque lettre a sa propre rotation.
+  if (style.curve) {
+    const chars = Array.from(words.join(" "));
+    const lay = curveLayout(chars.length, style.curve, fontSize);
+    const totalW = chars.reduce((acc, ch) => acc + ctx.measureText(ch).width, 0);
+    let cx = boxX + boxW / 2 - totalW / 2;
+    const cy = boxY + boxH / 2;
+    chars.forEach((ch, i) => {
+      const w = ctx.measureText(ch).width;
+      ctx.save();
+      ctx.globalAlpha = style.opacity;
+      ctx.translate(cx + w / 2, cy + lay[i].dy);
+      ctx.rotate((lay[i].deg * Math.PI) / 180);
+      applyShadow();
+      if (style.stroke && style.strokeW > 0) { ctx.strokeStyle = style.stroke; ctx.strokeText(ch, -w / 2, 0); }
+      ctx.fillStyle = style.fg;
+      for (let g = 2; g <= glowPasses; g++) { applyGlowPass(g); ctx.fillText(ch, -w / 2, 0); }
+      if (glowPasses) applyGlowPass(1);
+      ctx.fillText(ch, -w / 2, 0);
+      clearShadow();
+      ctx.restore();
+      cx += w;
+    });
+    ctx.restore();
+    ctx.globalAlpha = 1;
+    clearShadow();
+    if (style.letterSpacing) ctxLS.letterSpacing = prevLS ?? "0px";
+    return;
+  }
 
   let wordIndex = 0;
   lines.forEach((ln, li) => {

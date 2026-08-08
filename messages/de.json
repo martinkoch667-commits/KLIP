@@ -2271,6 +2271,10 @@
     "threeLines": "3 Zeilen",
     "bgWidth": "Hintergrundbreite",
     "bgHeight": "Hintergrundhöhe",
-    "spread": "Bereich"
+    "spread": "Bereich",
+    "tabBasic": "Basis",
+    "tabBubble": "Sprechblase",
+    "tabEffects": "Effekte",
+    "curve": "Kurve"
   }
 }

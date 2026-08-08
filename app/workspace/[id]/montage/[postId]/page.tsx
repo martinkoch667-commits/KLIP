@@ -8,7 +8,7 @@ import { VIcon } from "./icons";
 import {
   MontageClip, OverlayClip, Caption, TitleEl, StickerEl, AudioTrack, MontageProject, SubCustom,
   FILTERS, TRANSITIONS, SUB_STYLES, FONT_CHOICES, SUB_LENGTHS, DEFAULT_WORDS_PER_CAPTION, DEFAULT_SUB_POS,
-  subStyleById, effectiveSubStyle, resolveCapStyle, resolveCapPos, subtitleBoxCss, subBgLayerCss, applySubCase, DEFAULT_SUB_STYLE_ID,
+  subStyleById, effectiveSubStyle, resolveCapStyle, resolveCapPos, subtitleBoxCss, subBgLayerCss, curveLayout, SUB_BASE_FONT, applySubCase, DEFAULT_SUB_STYLE_ID,
   transitionStateAt, transitionCss,
   // (analyzeClipQuality importé depuis ./autoCut plus bas)
   fmt, newClipDefaults, newOverlayDefaults, clipFilterCss, overlayFilterCss, clipTimelineDur, clipAudioGainAt, overlayTimelineDur, overlayAudioGainAt, segmentCaptions, captionsFromWords, dedupeSegments,
@@ -3567,11 +3567,24 @@ export default function MontagePage() {
                           onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); (e.currentTarget as HTMLElement).blur(); } }}
                           onBlur={(e) => { const txt = (e.currentTarget.textContent || "").trim(); if (txt) updateCaption(activeCaption.id, { text: txt }); setEditingCaptionId(null); }}
                         >{activeCaption.text}</span>
+                      ) : capStyle.curve ? (
+                        // Texte cintré : un caractère par span, posé sur l'arc selon
+                        // la MÊME formule que l'export (curveLayout). L'animation mot
+                        // par mot n'a pas de sens ici, la courbe l'emporte.
+                        (() => {
+                          const chars = Array.from(applySubCase(activeCaption.text, capStyle.caseMode));
+                          const lay = curveLayout(chars.length, capStyle.curve, SUB_BASE_FONT * capStyle.scale * previewScale);
+                          return <span style={{ display: "inline-block", whiteSpace: "pre", color: capStyle.fg, position: "relative", zIndex: 1 }}>
+                            {chars.map((ch, i) => (
+                              <span key={i} style={{ display: "inline-block", transform: `translateY(${lay[i].dy}px) rotate(${lay[i].deg}deg)` }}>{ch}</span>
+                            ))}
+                          </span>;
+                        })()
                       ) : capStyle.anim === "none" ? (
                         // Sous-titre simple : le texte s'affiche d'un bloc, sans
                         // révélation ni surlignage. Tous les réglages de style
                         // (contour, casse, couleur, ombre…) s'appliquent quand même.
-                        <span style={{ color: capStyle.fg }}>{applySubCase(activeCaption.text, capStyle.caseMode)}</span>
+                        <span style={{ color: capStyle.fg, position: "relative", zIndex: 1 }}>{applySubCase(activeCaption.text, capStyle.caseMode)}</span>
                       ) : activeCaption.text.split(/\s+/).filter(Boolean).map((w, i, arr) => {
                         const progress = (time - activeCaption.start) / Math.max(0.1, activeCaption.end - activeCaption.start);
                         const activeIdx = Math.min(arr.length - 1, Math.floor(progress * arr.length));
