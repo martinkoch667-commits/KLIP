@@ -555,7 +555,7 @@
     "batchDone": "Listo",
     "batchOpen": "Abrir",
     "batchTitle": "Premontaje de los vídeos",
-    "batchHint": "Los montajes se preparan uno tras otro. Puedes salir cuando terminen.",
+    "batchHint": "Los montajes se preparan uno tras otro. Puedes lanzar otros y seguir trabajando mientras tanto.",
     "batchErrSave": "No se pudo guardar",
     "batchErrNoClips": "Sin material utilizable",
     "batchErrEmpty": "El análisis no dio resultado",

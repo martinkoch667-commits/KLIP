@@ -555,7 +555,7 @@
     "batchDone": "Fertig",
     "batchOpen": "Öffnen",
     "batchTitle": "Vorschnitt der Videos",
-    "batchHint": "Die Schnitte entstehen nacheinander. Du kannst den Bildschirm danach verlassen.",
+    "batchHint": "Die Schnitte entstehen nacheinander. Du kannst weitere starten und in der Zwischenzeit weiterarbeiten.",
     "batchErrSave": "Speichern fehlgeschlagen",
     "batchErrNoClips": "Kein brauchbares Material",
     "batchErrEmpty": "Analyse ohne Ergebnis",

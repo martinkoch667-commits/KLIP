@@ -555,7 +555,7 @@
     "batchDone": "Pronto",
     "batchOpen": "Apri",
     "batchTitle": "Premontaggio dei video",
-    "batchHint": "I montaggi vengono preparati uno dopo l’altro. Puoi uscire quando sono pronti.",
+    "batchHint": "I montaggi vengono preparati uno dopo l’altro. Puoi avviarne altri e continuare a lavorare.",
     "batchErrSave": "Salvataggio non riuscito",
     "batchErrNoClips": "Nessuna ripresa utilizzabile",
     "batchErrEmpty": "Analisi senza risultato",

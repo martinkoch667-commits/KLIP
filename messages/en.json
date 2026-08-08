@@ -555,7 +555,7 @@
     "batchDone": "Ready",
     "batchOpen": "Open",
     "batchTitle": "Pre-editing your videos",
-    "batchHint": "Montages are prepared one after another. You can leave this screen once they are done.",
+    "batchHint": "Montages are prepared one after another. You can start others and keep working meanwhile.",
     "batchErrSave": "Could not save",
     "batchErrNoClips": "No usable footage",
     "batchErrEmpty": "Analysis returned nothing",

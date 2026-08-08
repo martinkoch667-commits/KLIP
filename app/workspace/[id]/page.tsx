@@ -1115,83 +1115,134 @@ export default function WorkspacePage() {
   // processeur (décodage, analyse d'image) et l'API de transcription. Trois de
   // front, c'est trois fois plus lent et des erreurs de quota.
   type BatchState = { localId: string; name: string; status: "queued" | "running" | "done" | "error"; step: number; detail?: string };
-  const [batch, setBatch] = useState<BatchState[] | null>(null);
+  const [batch, setBatch] = useState<BatchState[]>([]);
+  const queueRef = useRef<PostItem[]>([]);
+  const workingRef = useRef(false);
   const batchAbort = useRef<AbortController | null>(null);
+  // Le cache de transcription vit au-delà d'un lancement : deux vidéos qui
+  // partagent un rush ne le font écouter qu'une fois, même lancées séparément.
+  const trCacheRef = useRef(newTranscriptCache());
 
   const videoPosts = posts.filter((p) => p.isVideo);
+  const batchFor = (localId: string) => batch.find((b) => b.localId === localId);
 
-  async function runBatchPreEdit() {
-    if (batch) return;
-    const targets = posts.filter((p) => p.isVideo);
-    if (!targets.length) return;
-    const ctrl = new AbortController();
-    batchAbort.current = ctrl;
-    setBatch(targets.map((p) => ({ localId: p.localId, name: p.brief?.trim() || p.file?.name || t('untitledPost'), status: "queued", step: -1 })));
+  const patchBatch = (localId: string, next: Partial<BatchState>) =>
+    setBatch((prev) => prev.map((b) => (b.localId === localId ? { ...b, ...next } : b)));
 
-    const cache = newTranscriptCache();  // un rush partagé n'est écouté qu'une fois
-    const patch = (localId: string, next: Partial<BatchState>) =>
-      setBatch((prev) => prev?.map((b) => (b.localId === localId ? { ...b, ...next } : b)) ?? prev);
-
-    for (const item of targets) {
-      if (ctrl.signal.aborted) break;
-      patch(item.localId, { status: "running", step: 0 });
-      try {
-        const saved = await savePost(item, null);
-        if (!saved) { patch(item.localId, { status: "error", detail: t('batchErrSave') }); continue; }
-
-        // Plans de départ : ceux du montage groupé, sinon le média unique du post.
-        let clips = (saved.clips as unknown as MontageClip[] | null) ?? null;
-        if (!clips?.length) {
-          const { data: post } = await supabase.from("posts").select("montage_json, photo_url").eq("id", saved.dbId).single();
-          const proj = post?.montage_json as { clips?: MontageClip[] } | null;
-          if (proj?.clips?.length) clips = proj.clips;
-          else if (post?.photo_url) {
-            const dur = (await getVideoDurationSafe(post.photo_url)) || 5;
-            clips = [{
-              id: crypto.randomUUID(), kind: "video", name: item.file?.name || "video", src: post.photo_url,
-              srcDur: dur, trimStart: 0, trimEnd: dur,
-              speed: 1, filterId: "none", lum: 0, con: 0, sat: 0, transitionIn: "cut", transitionDur: 0.4, vol: 1,
-            }];
-          }
-        }
-        if (!clips?.length) { patch(item.localId, { status: "error", detail: t('batchErrNoClips') }); continue; }
-
-        const res = await runPreEdit(clips, {
-          cache,
-          signal: ctrl.signal,
-          onStep: (i) => patch(item.localId, { step: i }),
-          onLog: (ev) => { if (ev.type === "analyzing" || ev.type === "transcribing") patch(item.localId, { detail: ev.name }); },
-        });
-
-        // On n'écrit QUE si le pipeline a produit quelque chose d'utilisable :
-        // un post dont l'analyse échoue reste strictement dans son état d'avant.
-        if (!res.clips.length) { patch(item.localId, { status: "error", detail: t('batchErrEmpty') }); continue; }
-        const { data: cur } = await supabase.from("posts").select("montage_json").eq("id", saved.dbId).single();
-        const prev = (cur?.montage_json as Record<string, unknown> | null) ?? {};
-        await supabase.from("posts").update({
-          montage_json: {
-            ...prev,
-            clips: res.clips,
-            ...(res.captions.length ? { captions: res.captions, rawSegments: res.rawSegments, rawWords: res.rawWords } : {}),
-            formatId: (prev.formatId as string) || "story",
-            // Marque le montage comme prémonté : l'ouvrir ensuite ne relancera
-            // pas l'analyse par-dessus le résultat.
-            preEditedAt: new Date().toISOString(),
-          },
-        }).eq("id", saved.dbId);
-
-        patch(item.localId, { status: "done", step: 3, detail: undefined });
-      } catch {
-        patch(item.localId, { status: "error", detail: t('batchErrGeneric') });
-      }
-    }
-    batchAbort.current = null;
+  // File d'attente NON bloquante : on peut lancer une vidéo, puis une autre
+  // pendant que la première tourne. En file plutôt qu'en vrai parallèle — chaque
+  // prémontage sature déjà le processeur et l'API de transcription, trois de
+  // front seraient plus lents et déclencheraient des quotas.
+  function enqueuePreEdit(targets: PostItem[]) {
+    const fresh = targets.filter((p) => {
+      const st = batchFor(p.localId)?.status;
+      return st !== "queued" && st !== "running" && st !== "done";
+    });
+    if (!fresh.length) return;
+    setBatch((prev) => [
+      ...prev.filter((b) => !fresh.some((f) => f.localId === b.localId)),
+      ...fresh.map((p) => ({ localId: p.localId, name: p.brief?.trim() || p.file?.name || t('untitledPost'), status: "queued" as const, step: -1 })),
+    ]);
+    queueRef.current.push(...fresh);
+    void drainQueue();
   }
 
-  function stopBatch() {
-    batchAbort.current?.abort();
-    batchAbort.current = null;
-    setBatch(null);
+  async function drainQueue() {
+    if (workingRef.current) return;
+    workingRef.current = true;
+    const ctrl = batchAbort.current ?? new AbortController();
+    batchAbort.current = ctrl;
+    try {
+      while (queueRef.current.length) {
+        if (ctrl.signal.aborted) break;
+        const item = queueRef.current.shift()!;
+        patchBatch(item.localId, { status: "running", step: 0 });
+        try {
+          const saved = await savePost(item, null);
+          if (!saved) { patchBatch(item.localId, { status: "error", detail: t('batchErrSave') }); continue; }
+
+          // Plans de départ : ceux du montage groupé, sinon le média unique du post.
+          let clips = (saved.clips as unknown as MontageClip[] | null) ?? null;
+          if (!clips?.length) {
+            const { data: post } = await supabase.from("posts").select("montage_json, photo_url").eq("id", saved.dbId).single();
+            const proj = post?.montage_json as { clips?: MontageClip[] } | null;
+            if (proj?.clips?.length) clips = proj.clips;
+            else if (post?.photo_url) {
+              const dur = (await getVideoDurationSafe(post.photo_url)) || 5;
+              clips = [{
+                id: crypto.randomUUID(), kind: "video", name: item.file?.name || "video", src: post.photo_url,
+                srcDur: dur, trimStart: 0, trimEnd: dur,
+                speed: 1, filterId: "none", lum: 0, con: 0, sat: 0, transitionIn: "cut", transitionDur: 0.4, vol: 1,
+              }];
+            }
+          }
+          if (!clips?.length) { patchBatch(item.localId, { status: "error", detail: t('batchErrNoClips') }); continue; }
+
+          const res = await runPreEdit(clips, {
+            cache: trCacheRef.current,
+            signal: ctrl.signal,
+            onStep: (i) => patchBatch(item.localId, { step: i }),
+            onLog: (ev) => { if (ev.type === "analyzing" || ev.type === "transcribing") patchBatch(item.localId, { detail: ev.name }); },
+          });
+
+          // On n'écrit QUE si le pipeline a produit quelque chose d'utilisable :
+          // un post dont l'analyse échoue reste strictement dans son état d'avant.
+          if (!res.clips.length) { patchBatch(item.localId, { status: "error", detail: t('batchErrEmpty') }); continue; }
+          const { data: cur } = await supabase.from("posts").select("montage_json").eq("id", saved.dbId).single();
+          const prev = (cur?.montage_json as Record<string, unknown> | null) ?? {};
+          await supabase.from("posts").update({
+            montage_json: {
+              ...prev,
+              clips: res.clips,
+              ...(res.captions.length ? { captions: res.captions, rawSegments: res.rawSegments, rawWords: res.rawWords } : {}),
+              formatId: (prev.formatId as string) || "story",
+              // Marque le montage comme prémonté : l'ouvrir ensuite ne relancera
+              // pas l'analyse par-dessus le résultat.
+              preEditedAt: new Date().toISOString(),
+            },
+          }).eq("id", saved.dbId);
+
+          patchBatch(item.localId, {
+            status: "done", step: 3,
+            // Une réussite partielle se dit : sans ça, le trou de sous-titres
+            // apparaissait plus tard sans explication.
+            detail: res.failed.length ? t('toastPartialTranscribe', { n: res.failed.length }) : undefined,
+          });
+        } catch {
+          patchBatch(item.localId, { status: "error", detail: t('batchErrGeneric') });
+        }
+      }
+    } finally {
+      workingRef.current = false;
+      batchAbort.current = null;
+    }
+  }
+
+  // Progression du prémontage, affichée DANS la carte du post — là où la zone
+  // était vide. C'est ce qui permet d'en lancer plusieurs et de tous les suivre
+  // d'un coup d'œil, au lieu d'attendre dans l'éditeur.
+  function PreEditCard({ post }: { post: PostItem }) {
+    const b = batchFor(post.localId);
+    if (!b) return null;
+    const steps = [t('preStepRushes'), t('preStepSpeech'), t('preStepCaptions')];
+    return (
+      <div className={`kb-inline is-${b.status}`}>
+        <span className="kb-mark" aria-hidden><AssistantMark size={22} /></span>
+        <div style={{ minWidth: 0, flex: 1 }}>
+          <div className="kb-line">
+            {b.status === 'queued' && t('batchQueued')}
+            {b.status === 'running' && (steps[b.step] || t('batchQueued'))}
+            {b.status === 'done' && t('batchDone')}
+            {b.status === 'error' && t('batchErrGeneric')}
+          </div>
+          {b.detail && <div className="kb-detail">{b.detail}</div>}
+        </div>
+        {b.status === 'running' && <span className="kb-spin" aria-hidden />}
+        {b.status === 'done' && post.dbId && (
+          <Link href={`/workspace/${id}/montage/${post.dbId}`} className="kb-open">{t('batchOpen')}</Link>
+        )}
+      </div>
+    );
   }
 
   async function validatePost(item: PostItem, templateId?: string | null) {
@@ -1562,7 +1613,7 @@ export default function WorkspacePage() {
                       </div>
                       <div style={{ fontSize: 12.5, color: 'var(--ink-3)', marginTop: 2 }}>{t('batchHint')}</div>
                     </div>
-                    <button onClick={runBatchPreEdit} disabled={!!batch} className="btn btn-video" style={{ flexShrink: 0 }}>
+                    <button onClick={() => enqueuePreEdit(videoPosts)} disabled={!!batch} className="btn btn-video" style={{ flexShrink: 0 }}>
                       <IconSpark /> {t('batchAll')}
                     </button>
                   </div>
@@ -1775,14 +1826,16 @@ export default function WorkspacePage() {
                                         <span style={{ display: 'block', fontSize: 11.5, color: 'var(--ink-3)', lineHeight: 1.4 }}>{t('preEditHint')}</span>
                                       </span>
                                     </label>
+                                    {batchFor(post.localId) ? <PreEditCard post={post} /> : (
                                     <button
-                                      onClick={() => validatePost(post)}
+                                      onClick={() => (preEdit[post.localId] ?? true) ? enqueuePreEdit([post]) : validatePost(post)}
                                       disabled={post.status === "validating"}
                                       className="btn btn-video"
                                       style={{ width: '100%', opacity: post.status === "validating" ? 0.5 : 1 }}
                                     >
                                       {post.status === "validating" ? <><Spinner /> {t('saving')}</> : <><IconEdit /> {t('montageVideo')}</>}
                                     </button>
+                                    )}
                                   </>
                                 )}
                                 {/* Une vidéo ne se « génère » pas : elle se monte. */}
@@ -1879,9 +1932,10 @@ export default function WorkspacePage() {
                                           <span style={{ display: 'block', fontSize: 11.5, color: 'var(--ink-3)', lineHeight: 1.4 }}>{t('preEditHint')}</span>
                                         </span>
                                       </label>
-                                      {post.status !== "validated" && (
+                                      {batchFor(post.localId) && <PreEditCard post={post} />}
+                                      {post.status !== "validated" && !batchFor(post.localId) && (
                                         <button
-                                          onClick={() => validatePost(post)}
+                                          onClick={() => (preEdit[post.localId] ?? true) ? enqueuePreEdit([post]) : validatePost(post)}
                                           disabled={post.status === "validating"}
                                           className="btn btn-video"
                                           style={{ opacity: post.status === "validating" ? 0.5 : 1 }}
@@ -2135,83 +2189,25 @@ export default function WorkspacePage() {
         </div>
       )}
 
-      {/* ── Prémontage en lot ─────────────────────────────────────────────
-          On voit les montages se faire ici, au lieu d'ouvrir l'éditeur post
-          par post. Violet : c'est de la vidéo. */}
-      {batch && (
-        <div className="kb-scrim" role="dialog" aria-label={t('batchTitle')}>
-          <div className="kb-card">
-            <div className="kb-head">
-              <span className="kb-mark" aria-hidden><AssistantMark size={28} /></span>
-              <div style={{ minWidth: 0, flex: 1 }}>
-                <div className="kb-title">{t('batchTitle')}</div>
-                <div className="kb-sub">{t('batchRunning', { done: batch.filter((b) => b.status === 'done' || b.status === 'error').length, total: batch.length })}</div>
-              </div>
-              <button className="btn btn-ghost btn-sm" onClick={stopBatch}>
-                {batch.every((b) => b.status === 'done' || b.status === 'error') ? t('close') : t('batchStop')}
-              </button>
-            </div>
-
-            <ul className="kb-list">
-              {batch.map((b) => {
-                const steps = [t('preStepRushes'), t('preStepSpeech'), t('preStepCaptions')];
-                return (
-                  <li key={b.localId} className={`kb-row is-${b.status}`}>
-                    <span className="kb-dot" aria-hidden>
-                      {b.status === 'done' && <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5" /></svg>}
-                      {b.status === 'error' && '!'}
-                    </span>
-                    <span className="kb-name">{b.name}</span>
-                    <span className="kb-state">
-                      {b.status === 'queued' && t('batchQueued')}
-                      {b.status === 'running' && (b.detail || steps[b.step] || '…')}
-                      {b.status === 'done' && t('batchDone')}
-                      {b.status === 'error' && b.detail}
-                    </span>
-                    {b.status === 'done' && (() => {
-                      const post = posts.find((p) => p.localId === b.localId);
-                      return post?.dbId ? <Link href={`/workspace/${id}/montage/${post.dbId}`} className="kb-open">{t('batchOpen')}</Link> : null;
-                    })()}
-                  </li>
-                );
-              })}
-            </ul>
-            <p className="kb-hint">{t('batchHint')}</p>
-          </div>
-        </div>
-      )}
-
       <style>{`
         @keyframes spin{to{transform:rotate(360deg)}}
-        /* Prémontage en lot */
-        .kb-scrim{position:fixed;inset:0;z-index:9400;display:grid;place-items:center;padding:24px;
-          background:radial-gradient(120% 90% at 50% 0%,rgba(102,86,217,.30),transparent 62%),rgba(12,14,10,.66);
-          backdrop-filter:blur(7px);}
-        .kb-card{width:min(520px,100%);max-height:88vh;overflow:auto;display:flex;flex-direction:column;gap:14px;
-          padding:20px;border-radius:18px;background:var(--paper);
-          border:1px solid color-mix(in srgb,var(--vio) 40%,transparent);
-          box-shadow:0 26px 60px -22px color-mix(in srgb,var(--vio) 70%,transparent),0 4px 14px rgba(0,0,0,.16);}
-        .kb-head{display:flex;align-items:center;gap:11px;}
-        .kb-mark{flex-shrink:0;display:grid;place-items:center;width:28px;height:28px;
-          filter:drop-shadow(0 3px 8px color-mix(in srgb,var(--vio) 45%,transparent));}
-        .kb-title{font-family:var(--display);font-weight:800;font-style:italic;font-size:17px;color:var(--ink);line-height:1.15;}
-        .kb-sub{font-size:11.5px;color:var(--ink-3);margin-top:2px;}
-        .kb-list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px;}
-        .kb-row{display:flex;align-items:center;gap:10px;padding:9px 11px;border-radius:10px;background:var(--sunk);font-size:12.5px;}
-        .kb-row.is-running{background:color-mix(in srgb,var(--vio) 12%,var(--sunk));}
-        .kb-dot{width:16px;height:16px;flex-shrink:0;display:grid;place-items:center;border-radius:50%;
-          font-size:10px;font-weight:900;box-shadow:inset 0 0 0 1.5px color-mix(in srgb,var(--vio) 35%,transparent);}
-        .is-done .kb-dot{background:var(--vio);color:#fff;box-shadow:none;}
-        .is-error .kb-dot{background:var(--warn);color:#fff;box-shadow:none;}
-        .is-running .kb-dot{border:2px solid color-mix(in srgb,var(--vio) 28%,transparent);border-top-color:var(--vio);
-          box-shadow:none;animation:spin .7s linear infinite;}
-        .kb-name{flex:1;min-width:0;font-weight:700;color:var(--ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-        .kb-state{flex-shrink:0;font-size:11.5px;color:var(--ink-3);max-width:45%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-        .is-error .kb-state{color:var(--warn);}
-        .kb-open{flex-shrink:0;font-size:11.5px;font-weight:800;color:var(--vio);text-decoration:underline;
-          text-underline-offset:3px;}
-        .kb-hint{margin:0;font-size:11.5px;color:var(--ink-3);line-height:1.5;}
-        @media(prefers-reduced-motion:reduce){.is-running .kb-dot{animation:none;}}
+        /* Prémontage — affiché dans la carte du post */
+        .kb-inline{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:12px;
+          background:color-mix(in srgb,var(--vio) 9%,var(--sunk));
+          box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--vio) 26%,transparent);}
+        .kb-inline.is-error{background:var(--warn-soft);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--warn) 34%,transparent);}
+        .kb-mark{flex-shrink:0;display:grid;place-items:center;width:22px;height:22px;
+          filter:drop-shadow(0 2px 6px color-mix(in srgb,var(--vio) 40%,transparent));}
+        .kb-line{font-size:12.5px;font-weight:700;color:var(--ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+        .kb-detail{font-size:11px;color:var(--ink-3);line-height:1.35;margin-top:2px;
+          overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+        .is-error .kb-detail{color:var(--warn);white-space:normal;}
+        .kb-spin{flex-shrink:0;width:15px;height:15px;border-radius:50%;
+          border:2px solid color-mix(in srgb,var(--vio) 28%,transparent);border-top-color:var(--vio);
+          animation:spin .7s linear infinite;}
+        .kb-open{flex-shrink:0;font-size:11.5px;font-weight:800;color:var(--vio);
+          text-decoration:underline;text-underline-offset:3px;white-space:nowrap;}
+        @media(prefers-reduced-motion:reduce){.kb-spin{animation:none;}}
         /* Textes et actions côte à côte tant qu'il y a la place. */
         @media(max-width:1100px){
           .ws-post-fields{grid-template-columns:1fr !important;}

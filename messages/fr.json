@@ -555,7 +555,7 @@
     "batchDone": "Prêt",
     "batchOpen": "Ouvrir",
     "batchTitle": "Prémontage des vidéos",
-    "batchHint": "Les montages sont préparés l’un après l’autre. Tu peux fermer cet écran une fois terminés.",
+    "batchHint": "Les montages sont préparés l’un après l’autre. Tu peux en lancer d’autres et continuer à travailler pendant ce temps.",
     "batchErrSave": "Enregistrement impossible",
     "batchErrNoClips": "Aucun plan exploitable",
     "batchErrEmpty": "Analyse sans résultat",
