@@ -2268,6 +2268,9 @@
     "lines": "Lignes",
     "oneLine": "1 ligne",
     "twoLines": "2 lignes",
-    "threeLines": "3 lignes"
+    "threeLines": "3 lignes",
+    "bgWidth": "Largeur du fond",
+    "bgHeight": "Hauteur du fond",
+    "spread": "Intervalle"
   }
 }

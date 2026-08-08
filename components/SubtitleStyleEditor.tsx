@@ -5,9 +5,9 @@
 // de montage (thème sombre .a-root) : les deux endroits proposent donc exactement
 // les mêmes réglages. Le rendu est piloté par subtitleBoxCss/effectiveSubStyle,
 // et répliqué à l'identique par l'export canvas (export.ts drawCaptions).
-import React from "react";
+import React, { useState } from "react";
 import {
-  effectiveSubStyle, applySubCase, subtitleBoxCss, SUB_BASE_FONT,
+  effectiveSubStyle, applySubCase, subtitleBoxCss, subBgLayerCss, SUB_BASE_FONT,
   type SubCustom, type CaseMode, type SubAlign, type SubAnim,
 } from "@/app/workspace/[id]/montage/[postId]/constants";
 
@@ -74,11 +74,53 @@ function Seg<T extends string | number>({ options, value, onChange }: {
   );
 }
 
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
+/**
+ * Bloc repliable, façon éditeur vidéo : un interrupteur qui coupe l'effet, un
+ * chevron pour replier, et une réinitialisation propre au bloc. Replié par
+ * défaut quand l'effet est éteint — on ne montre pas dix panneaux ouverts sur
+ * des réglages inactifs.
+ */
+function Section({ title, children, active, onToggle, onReset, defaultOpen }: {
+  title: string; children: React.ReactNode;
+  /** undefined = bloc toujours actif (pas d'interrupteur). */
+  active?: boolean;
+  onToggle?: (next: boolean) => void;
+  onReset?: () => void;
+  defaultOpen?: boolean;
+}) {
+  const [open, setOpen] = useState(defaultOpen ?? (active === undefined ? true : active));
+  const hasSwitch = active !== undefined && !!onToggle;
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 12, paddingTop: 14, borderTop: "1px solid var(--line)" }}>
-      <Label>{title}</Label>
-      {children}
+      <div style={{ display: "flex", alignItems: "center", gap: 9 }}>
+        {hasSwitch && (
+          <button type="button" role="switch" aria-checked={!!active} title={title}
+            onClick={() => { const next = !active; onToggle!(next); if (next) setOpen(true); }}
+            style={{ width: 30, height: 17, flexShrink: 0, borderRadius: 99, border: "none", cursor: "pointer", padding: 0,
+              background: active ? "var(--vio)" : "var(--line)", position: "relative", transition: "background .18s" }}>
+            <span style={{ position: "absolute", top: 2, left: active ? 15 : 2, width: 13, height: 13, borderRadius: "50%",
+              background: "#fff", transition: "left .18s", boxShadow: "0 1px 3px rgba(0,0,0,.25)" }} />
+          </button>
+        )}
+        <button type="button" onClick={() => setOpen((v) => !v)}
+          style={{ display: "flex", alignItems: "center", gap: 5, background: "none", border: "none", padding: 0, cursor: "pointer", flex: 1, textAlign: "left" }}>
+          <Label>{title}</Label>
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6"
+            strokeLinecap="round" strokeLinejoin="round" aria-hidden
+            style={{ color: "var(--ink-3)", transform: open ? "rotate(180deg)" : "none", transition: "transform .18s", marginBottom: 6 }}>
+            <path d="m6 9 6 6 6-6" />
+          </svg>
+        </button>
+        {onReset && (
+          <button type="button" onClick={onReset} title="Réinitialiser"
+            style={{ background: "none", border: "none", cursor: "pointer", color: "var(--ink-3)", padding: 2, flexShrink: 0 }}>
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+              <path d="M3 12a9 9 0 1 0 3-6.7L3 8" /><path d="M3 3v5h5" />
+            </svg>
+          </button>
+        )}
+      </div>
+      {open && children}
     </div>
   );
 }
@@ -111,6 +153,7 @@ export interface SubtitleStyleEditorLabels {
   glow: string; intensity: string;
   transform: string; rotation: string;
   layout: string; boxWidth: string; lines: string; oneLine: string; twoLines: string; threeLines: string;
+  bgWidth: string; bgHeight: string; spread: string;
   anim: string; animWords: string; animNone: string;
 }
 
@@ -258,7 +301,10 @@ export default function SubtitleStyleEditor({
       </Section>
 
       {/* ── Arrière-plan ── */}
-      <Section title={L.background}>
+      <Section title={L.background}
+        active={e.bg !== "transparent"}
+        onToggle={(on) => patch(on ? { bg: "#000000", bgOpacity: 0.55 } : { bg: "transparent" })}
+        onReset={() => patch({ bgOpacity: 1, radius: 8, pill: false, bgW: 0, bgH: 0, bgX: 0, bgY: 0 })}>
         <Swatch value={e.bg} onChange={(v) => patch({ bg: v })} allowNone noneLabel={L.none} onNone={() => patch({ bg: "transparent" })} />
         {e.bg !== "transparent" && (
           <>
@@ -271,6 +317,14 @@ export default function SubtitleStyleEditor({
                   <Slider value={e.radius} min={0} max={40} step={1} onChange={(v) => patch({ radius: v })} fmt={(v) => `${v}px`} />
                 </div>
               )}
+            </div>
+            {/* Le fond se règle indépendamment du texte : on l'élargit, on le
+                rehausse, on le décale sans que la typo bouge. */}
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+              <div><Label>{L.bgWidth}</Label><Slider value={e.bgW} min={0} max={60} step={1} onChange={(v) => patch({ bgW: v })} fmt={(v) => `${v}px`} /></div>
+              <div><Label>{L.bgHeight}</Label><Slider value={e.bgH} min={0} max={60} step={1} onChange={(v) => patch({ bgH: v })} fmt={(v) => `${v}px`} /></div>
+              <div><Label>{L.offsetX}</Label><Slider value={e.bgX} min={-40} max={40} step={1} onChange={(v) => patch({ bgX: v })} fmt={(v) => `${v}px`} /></div>
+              <div><Label>{L.offsetY}</Label><Slider value={e.bgY} min={-40} max={40} step={1} onChange={(v) => patch({ bgY: v })} fmt={(v) => `${v}px`} /></div>
             </div>
           </>
         )}
@@ -292,7 +346,10 @@ export default function SubtitleStyleEditor({
       </Section>
 
       {/* ── Trait (contour) ── */}
-      <Section title={L.stroke}>
+      <Section title={L.stroke}
+        active={!!e.stroke}
+        onToggle={(on) => patch(on ? { stroke: "#000000", strokeW: e.strokeW || 2 } : { stroke: "" })}
+        onReset={() => patch({ strokeW: 2 })}>
         <Swatch value={e.stroke ?? ""} onChange={(v) => patch({ stroke: v })} allowNone noneLabel={L.none} onNone={() => patch({ stroke: "" })} />
         {!!e.stroke && (
           <div><Label>{L.thickness}</Label><Slider value={e.strokeW} min={0.5} max={8} step={0.5} onChange={(v) => patch({ strokeW: v })} fmt={(v) => `${v}px`} /></div>
@@ -300,7 +357,10 @@ export default function SubtitleStyleEditor({
       </Section>
 
       {/* ── Ombre ── */}
-      <Section title={L.shadow}>
+      <Section title={L.shadow}
+        active={!!e.shadowColor}
+        onToggle={(on) => patch(on ? { shadowColor: "#000000", shadowBlur: e.shadowBlur || 8 } : { shadowColor: "", shadowBlur: 0, shadowX: 0, shadowY: 0 })}
+        onReset={() => patch({ shadowBlur: 8, shadowX: 0, shadowY: 0 })}>
         <Swatch value={e.shadowColor} onChange={(v) => patch({ shadowColor: v, shadowBlur: e.shadowBlur || 8 })} allowNone noneLabel={L.none} onNone={() => patch({ shadowColor: "", shadowBlur: 0, shadowX: 0, shadowY: 0 })} />
         {!!e.shadowColor && (
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
@@ -312,10 +372,21 @@ export default function SubtitleStyleEditor({
       </Section>
 
       {/* ── Lueur ── */}
-      <Section title={L.glow}>
+      <Section title={L.glow}
+        active={!!e.glowColor}
+        onToggle={(on) => patch(on ? { glowColor: "#FFFFFF", glowBlur: e.glowBlur || 12 } : { glowColor: "", glowBlur: 0 })}
+        onReset={() => patch({ glowBlur: 12, glowSpread: 1, glowX: 0, glowY: 0 })}>
         <Swatch value={e.glowColor} onChange={(v) => patch({ glowColor: v, glowBlur: e.glowBlur || 12 })} allowNone noneLabel={L.none} onNone={() => patch({ glowColor: "", glowBlur: 0 })} />
         {!!e.glowColor && (
-          <div><Label>{L.intensity}</Label><Slider value={e.glowBlur} min={0} max={40} step={1} onChange={(v) => patch({ glowBlur: v })} /></div>
+          <>
+            <div><Label>{L.intensity}</Label><Slider value={e.glowBlur} min={0} max={40} step={1} onChange={(v) => patch({ glowBlur: v })} /></div>
+            {/* Intervalle : combien de passes de lueur on empile — serrée ou diffuse. */}
+            <div><Label>{L.spread}</Label><Slider value={e.glowSpread} min={1} max={3} step={1} onChange={(v) => patch({ glowSpread: v })} /></div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+              <div><Label>{L.offsetX}</Label><Slider value={e.glowX} min={-20} max={20} step={1} onChange={(v) => patch({ glowX: v })} fmt={(v) => `${v}px`} /></div>
+              <div><Label>{L.offsetY}</Label><Slider value={e.glowY} min={-20} max={20} step={1} onChange={(v) => patch({ glowY: v })} fmt={(v) => `${v}px`} /></div>
+            </div>
+          </>
         )}
       </Section>
 
@@ -345,6 +416,7 @@ export function SubtitlePreviewChip({ styleId, custom, fontSize = 22, words = ["
   const animating = typeof activeIdx === "number" && activeIdx >= 0;
   return (
     <span style={{ ...css, display: "inline-block", maxWidth: "100%", transform: e.rotation ? `rotate(${e.rotation}deg)` : undefined }}>
+      {(() => { const bg = subBgLayerCss(e, fontSize / SUB_BASE_FONT / (e.scale || 1)); return bg ? <span aria-hidden style={bg as React.CSSProperties} /> : null; })()}
       {words.map((w, i) => {
         // Mêmes paliers d'opacité que l'export canvas : mot à venir 0.28,
         // mot révélé 0.35 → 1 selon sa propre progression.

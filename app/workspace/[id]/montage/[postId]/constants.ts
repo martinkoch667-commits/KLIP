@@ -218,6 +218,10 @@ export interface SubCustom {
   radius?: number;        // rayon des coins quand ce n'est pas une pilule (défaut 8)
   padX?: number;          // marge intérieure horizontale (px, défaut selon pill)
   padY?: number;
+  bgW?: number;           // élargit le fond au-delà du texte (px, défaut 0)
+  bgH?: number;           // le rehausse (px, défaut 0)
+  bgX?: number;           // décale le fond seul, sans bouger le texte (px)
+  bgY?: number;
   // — Ombre —
   shadowColor?: string;
   shadowBlur?: number;
@@ -225,7 +229,10 @@ export interface SubCustom {
   shadowY?: number;
   // — Lueur (glow) —
   glowColor?: string;
-  glowBlur?: number;
+  glowBlur?: number;      // intensité (rayon de flou)
+  glowSpread?: number;    // intervalle : nombre de passes empilées (défaut 1)
+  glowX?: number;         // décalage de la lueur
+  glowY?: number;
   // — Mise en page —
   maxWidth?: number;      // largeur maximale du bloc, en % du cadre (défaut 82)
   maxLines?: number;      // lignes autorisées avant troncature (défaut 2)
@@ -303,8 +310,15 @@ export type EffectiveSub = SubStyle & {
   radius: number;
   padX: number;
   padY: number;
+  bgW: number;
+  bgH: number;
+  bgX: number;
+  bgY: number;
   maxWidth: number;
   maxLines: number;
+  glowSpread: number;
+  glowX: number;
+  glowY: number;
   shadowColor: string;
   shadowBlur: number;
   shadowX: number;
@@ -350,6 +364,13 @@ export function effectiveSubStyle(styleId: string, custom?: SubCustom): Effectiv
     radius: custom?.radius ?? 8,
     padX: custom?.padX ?? (pill ? 16 : 12),
     padY: custom?.padY ?? (pill ? 6 : 8),
+    bgW: custom?.bgW ?? 0,
+    bgH: custom?.bgH ?? 0,
+    bgX: custom?.bgX ?? 0,
+    bgY: custom?.bgY ?? 0,
+    glowSpread: custom?.glowSpread ?? 1,
+    glowX: custom?.glowX ?? 0,
+    glowY: custom?.glowY ?? 0,
     // Mise en page
     maxWidth: custom?.maxWidth ?? 82,
     maxLines: custom?.maxLines ?? 2,
@@ -386,17 +407,56 @@ export function withAlpha(color: string, alpha: number): string {
 }
 
 // Ombre + lueur combinées, en syntaxe CSS text-shadow (aperçus DOM).
-export function subTextShadowCss(e: EffectiveSub): string {
+// `k` : facteur d'échelle (e.scale * unit). Les distances doivent le suivre,
+// sinon l'ombre et la lueur gardent la même taille quand on grossit le texte —
+// et l'aperçu cesse de correspondre à l'export, qui lui les multiplie.
+export function subTextShadowCss(e: EffectiveSub, k = 1): string {
   const parts: string[] = [];
   if (e.glowColor && e.glowBlur > 0) {
-    parts.push(`0 0 ${e.glowBlur}px ${e.glowColor}`, `0 0 ${e.glowBlur * 2}px ${e.glowColor}`);
+    // « Intervalle » = nombre de passes empilées : une lueur serrée (1) ou
+    // largement diffusée (3). Le CSS n'a pas d'étalement sur text-shadow, on
+    // superpose donc des flous croissants — l'export fait autant de passes.
+    const n = Math.max(1, Math.round(e.glowSpread));
+    for (let i = 1; i <= n; i++) {
+      parts.push(`${e.glowX * k}px ${e.glowY * k}px ${e.glowBlur * i * k}px ${e.glowColor}`);
+    }
   }
   if (e.shadowColor && (e.shadowBlur > 0 || e.shadowX || e.shadowY)) {
-    parts.push(`${e.shadowX}px ${e.shadowY}px ${e.shadowBlur}px ${e.shadowColor}`);
+    parts.push(`${e.shadowX * k}px ${e.shadowY * k}px ${e.shadowBlur * k}px ${e.shadowColor}`);
   }
   // Lisibilité par défaut : texte nu sans contour ni ombre → ombre douce.
-  if (!parts.length && e.bg === "transparent" && !e.stroke) parts.push("0 1px 8px rgba(0,0,0,.6)");
+  if (!parts.length && e.bg === "transparent" && !e.stroke) parts.push(`0 ${1 * k}px ${8 * k}px rgba(0,0,0,.6)`);
   return parts.join(", ") || "none";
+}
+
+/** Calque de fond en CSS, à poser en premier enfant de la boîte de sous-titre.
+ *  Rend `null` quand il n'y a pas de fond — on n'ajoute pas un calque pour rien. */
+export function subBgLayerCss(e: EffectiveSub, unit = 1): Record<string, string | number> | null {
+  if (!e.bg || e.bg === "transparent") return null;
+  const k = e.scale * unit;
+  return {
+    position: "absolute",
+    left: -e.bgW * k + e.bgX * k,
+    top: -e.bgH * k + e.bgY * k,
+    right: -e.bgW * k - e.bgX * k,
+    bottom: -e.bgH * k - e.bgY * k,
+    background: withAlpha(e.bg, e.bgOpacity),
+    borderRadius: e.pill ? 999 : e.radius * k,
+    pointerEvents: "none",
+    zIndex: 0,
+  };
+}
+
+/** Géométrie du FOND, indépendante du texte : on peut l'élargir, le rehausser
+ *  et le décaler sans que le texte bouge. Partagée par l'aperçu et l'export. */
+export function subBgBox(e: EffectiveSub, boxW: number, boxH: number, k = 1) {
+  return {
+    x: -e.bgW * k + e.bgX * k,
+    y: -e.bgH * k + e.bgY * k,
+    w: boxW + e.bgW * 2 * k,
+    h: boxH + e.bgH * 2 * k,
+    r: e.pill ? (boxH + e.bgH * 2 * k) / 2 : e.radius * k,
+  };
 }
 
 // SOURCE UNIQUE du rendu de la boîte de sous-titre en DOM (aperçu montage +
@@ -450,11 +510,13 @@ export const DEFAULT_SUB_STYLE_ID = "simple";
 export const SUB_BASE_FONT = 34;
 
 export function subtitleBoxCss(e: EffectiveSub, unit = 1): Record<string, string | number | undefined> {
-  const hasBg = e.bg && e.bg !== "transparent";
   const k = e.scale * unit;
   const fontSizePx = SUB_BASE_FONT * k;
   return {
-    background: hasBg ? withAlpha(e.bg, e.bgOpacity) : "transparent",
+    // Le fond n'est PAS peint ici : il vit sur son propre calque (subBgBox) pour
+    // pouvoir être élargi et décalé sans déplacer le texte.
+    position: "relative",
+    background: "transparent",
     color: e.fg,
     fontFamily: e.font ? `'${e.font}', var(--sans)` : (e.italic ? "var(--display)" : "var(--sans)"),
     fontWeight: e.weight,
@@ -472,7 +534,7 @@ export function subtitleBoxCss(e: EffectiveSub, unit = 1): Record<string, string
     borderRadius: e.pill ? 999 : e.radius * k,
     WebkitTextStroke: e.stroke && e.strokeW > 0 ? `${e.strokeW * k}px ${e.stroke}` : undefined,
     paintOrder: "stroke fill",
-    textShadow: subTextShadowCss(e),
+    textShadow: subTextShadowCss(e, k),
     opacity: e.opacity,
   };
 }

@@ -8,7 +8,7 @@ import { VIcon } from "./icons";
 import {
   MontageClip, OverlayClip, Caption, TitleEl, StickerEl, AudioTrack, MontageProject, SubCustom,
   FILTERS, TRANSITIONS, SUB_STYLES, FONT_CHOICES, SUB_LENGTHS, DEFAULT_WORDS_PER_CAPTION, DEFAULT_SUB_POS,
-  subStyleById, effectiveSubStyle, resolveCapStyle, resolveCapPos, subtitleBoxCss, applySubCase, DEFAULT_SUB_STYLE_ID,
+  subStyleById, effectiveSubStyle, resolveCapStyle, resolveCapPos, subtitleBoxCss, subBgLayerCss, applySubCase, DEFAULT_SUB_STYLE_ID,
   transitionStateAt, transitionCss,
   // (analyzeClipQuality importé depuis ./autoCut plus bas)
   fmt, newClipDefaults, newOverlayDefaults, clipFilterCss, overlayFilterCss, clipTimelineDur, clipAudioGainAt, overlayTimelineDur, overlayAudioGainAt, segmentCaptions, captionsFromWords, dedupeSegments,
@@ -3555,6 +3555,9 @@ export default function MontagePage() {
                       ...subtitleBoxCss(capStyle, previewScale),
                       transform: capStyle.rotation ? `rotate(${capStyle.rotation}deg)` : undefined,
                     } as React.CSSProperties}>
+                      {/* Fond sur son propre calque : il peut être élargi, rehaussé
+                          et décalé sans déplacer le texte. */}
+                      {(() => { const bg = subBgLayerCss(capStyle, previewScale); return bg ? <span aria-hidden style={bg as React.CSSProperties} /> : null; })()}
                       {editingCaptionId === activeCaption.id ? (
                         <span
                           ref={captionEditRef}

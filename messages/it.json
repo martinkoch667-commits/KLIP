@@ -2268,6 +2268,9 @@
     "lines": "Righe",
     "oneLine": "1 riga",
     "twoLines": "2 righe",
-    "threeLines": "3 righe"
+    "threeLines": "3 righe",
+    "bgWidth": "Larghezza sfondo",
+    "bgHeight": "Altezza sfondo",
+    "spread": "Intervallo"
   }
 }

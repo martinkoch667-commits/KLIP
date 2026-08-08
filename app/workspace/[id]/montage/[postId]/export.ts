@@ -13,7 +13,7 @@
 // par-dessus — un vrai équivalent pour celles-ci nécessiterait un transform de
 // sortie dédié par type, hors périmètre de ce lot.
 
-import { MontageClip, OverlayClip, Caption, TitleEl, StickerEl, AudioTrack, SubCustom, effectiveSubStyle, resolveCapStyle, resolveCapPos, SUB_BASE_FONT, wrapWords, applySubCase, withAlpha, transitionStateAt, DEFAULT_SUB_POS, clipFilterCss, overlayFilterCss, clipTimelineDur, clipAudioGainAt, overlayTimelineDur, overlayAudioGainAt, audioVolumeAt, kenBurnsScale, videoFormatById, exportQualityById } from "./constants";
+import { MontageClip, OverlayClip, Caption, TitleEl, StickerEl, AudioTrack, SubCustom, effectiveSubStyle, resolveCapStyle, resolveCapPos, SUB_BASE_FONT, wrapWords, subBgBox, applySubCase, withAlpha, transitionStateAt, DEFAULT_SUB_POS, clipFilterCss, overlayFilterCss, clipTimelineDur, clipAudioGainAt, overlayTimelineDur, overlayAudioGainAt, audioVolumeAt, kenBurnsScale, videoFormatById, exportQualityById } from "./constants";
 
 export interface ExportProject {
   clips: MontageClip[];
@@ -195,9 +195,11 @@ function drawCaptions(ctx: CanvasRenderingContext2D, captions: Caption[], subSty
 
   if (style.bg !== "transparent") {
     ctx.fillStyle = withAlpha(style.bg, style.bgOpacity);
-    const r = style.pill ? boxH / 2 : style.radius * style.scale;
+    // Même géométrie que l'aperçu : le fond peut être élargi, rehaussé et décalé
+    // indépendamment du texte (cf. subBgBox / subBgLayerCss).
+    const b = subBgBox(style, boxW, boxH, style.scale);
     ctx.beginPath();
-    ctx.roundRect(boxX, boxY, boxW, boxH, r);
+    ctx.roundRect(boxX + b.x, boxY + b.y, b.w, b.h, b.r);
     ctx.fill();
   }
 
@@ -213,11 +215,19 @@ function drawCaptions(ctx: CanvasRenderingContext2D, captions: Caption[], subSty
   ctx.lineWidth = style.strokeW * 2 * style.scale; // strokeText déborde de moitié
 
   // Ombre / lueur : mêmes réglages que subTextShadowCss côté aperçu.
+  // Nombre de passes de lueur : le canvas n'a pas d'étalement sur shadowBlur, on
+  // redessine donc le texte avec des flous croissants — exactement ce que fait
+  // subTextShadowCss en empilant des text-shadow.
+  const glowPasses = style.glowColor && style.glowBlur > 0 ? Math.max(1, Math.round(style.glowSpread)) : 0;
+  const applyGlowPass = (i: number) => {
+    ctx.shadowColor = style.glowColor;
+    ctx.shadowBlur = style.glowBlur * i * style.scale;
+    ctx.shadowOffsetX = style.glowX * style.scale;
+    ctx.shadowOffsetY = style.glowY * style.scale;
+  };
   const applyShadow = () => {
-    if (style.glowColor && style.glowBlur > 0) {
-      ctx.shadowColor = style.glowColor;
-      ctx.shadowBlur = style.glowBlur * style.scale;
-      ctx.shadowOffsetX = 0; ctx.shadowOffsetY = 0;
+    if (glowPasses) {
+      applyGlowPass(1);
     } else if (style.shadowColor && (style.shadowBlur > 0 || style.shadowX || style.shadowY)) {
       ctx.shadowColor = style.shadowColor;
       ctx.shadowBlur = style.shadowBlur * style.scale;
@@ -248,6 +258,9 @@ function drawCaptions(ctx: CanvasRenderingContext2D, captions: Caption[], subSty
       ctx.strokeText(w, x, y);
     }
     ctx.fillStyle = i === activeIdx ? style.hi : style.fg;
+    // Passes de lueur au-delà de la première (l'intervalle).
+    for (let g = 2; g <= glowPasses; g++) { applyGlowPass(g); ctx.fillText(w, x, y); }
+    if (glowPasses) applyGlowPass(1);
     ctx.fillText(w, x, y);
     clearShadow();
     // Soulignement (le canvas n'a pas text-decoration).
