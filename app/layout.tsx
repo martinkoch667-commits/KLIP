@@ -10,21 +10,21 @@ import { getMessages } from "@/lib/i18n/messages";
 export const metadata: Metadata = {
   metadataBase: new URL("https://getklip.fr"),
   title: {
-    default: "Klip — The social studio for agencies & community managers",
+    default: "Klip — Le studio social pour agences & community managers",
     template: "%s | Klip",
   },
   description:
-    "Klip brings the visual editor, AI caption generation, the calendar and automatic Instagram publishing together in one place. Manage all your clients from a single workspace.",
+    "Klip réunit l'éditeur visuel, la génération de légendes par IA, le calendrier et la publication automatique Instagram en un seul endroit. Gérez tous vos clients depuis un même espace.",
   keywords: [
-    "social media agency",
+    "agence social media",
     "community manager",
-    "automatic Instagram publishing",
-    "social media scheduling",
-    "AI Instagram captions",
-    "multi-client management",
-    "editorial calendar",
-    "Instagram content creation",
-    "agency social media tool",
+    "publication Instagram automatique",
+    "planification réseaux sociaux",
+    "légendes IA Instagram",
+    "gestion multi-clients",
+    "calendrier éditorial",
+    "création contenu Instagram",
+    "outil social media agence",
     "Klip",
   ],
   authors: [{ name: "Klip" }],
@@ -37,18 +37,18 @@ export const metadata: Metadata = {
   },
   openGraph: {
     type: "website",
-    locale: "en_US",
+    locale: "fr_FR",
     siteName: "Klip",
-    title: "Klip — The social studio for agencies & community managers",
+    title: "Klip — Le studio social pour agences & community managers",
     description:
-      "Create, schedule and publish content for all your Instagram clients from a single workspace. Visual editor, AI captions, calendar and automatic publishing.",
+      "Créez, planifiez et publiez le contenu de tous vos clients Instagram depuis un seul espace. Éditeur visuel, légendes IA, calendrier et publication automatique.",
     // image fournie par app/opengraph-image.tsx (route dynamique)
   },
   twitter: {
     card: "summary_large_image",
-    title: "Klip — The social studio for agencies & community managers",
+    title: "Klip — Le studio social pour agences & community managers",
     description:
-      "Create, schedule and publish content for all your Instagram clients from a single workspace. Visual editor, AI captions, calendar and automatic publishing.",
+      "Créez, planifiez et publiez le contenu de tous vos clients Instagram depuis un seul espace. Éditeur visuel, légendes IA, calendrier et publication automatique.",
   },
   icons: {
     icon: "/favicon-32.png",

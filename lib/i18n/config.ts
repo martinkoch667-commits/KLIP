@@ -7,7 +7,7 @@
 export const LOCALES = ['fr', 'en', 'es', 'de', 'it', 'pt'] as const;
 export type Locale = (typeof LOCALES)[number];
 
-export const DEFAULT_LOCALE: Locale = 'en';
+export const DEFAULT_LOCALE: Locale = 'fr';
 
 export const LOCALE_COOKIE = 'klip-locale';
 
