@@ -3,7 +3,7 @@ import { createClient } from '@supabase/supabase-js';
 export interface NotificationPayload {
   userId: string;
   workspaceId: string;
-  type: 'post_published' | 'post_failed' | 'post_pending_review' | 'post_approved' | 'post_rejected' | 'post_revision_requested';
+  type: 'post_published' | 'post_failed' | 'post_pending_review' | 'post_approved' | 'post_rejected' | 'post_revision_requested' | 'instagram_token_expired';
   title: string;
   message: string;
   postId?: string;

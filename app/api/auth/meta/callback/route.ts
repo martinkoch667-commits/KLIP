@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createRouteHandlerClient } from "@supabase/auth-helpers-nextjs";
 import { cookies } from "next/headers";
+import { expiryFromNow } from "@/lib/instagram-token";
 
 export async function GET(request: NextRequest) {
   // Unique ID per invocation — detects double-invocation
@@ -76,6 +77,9 @@ export async function GET(request: NextRequest) {
     );
     const longTokenData = await longTokenRes.json();
     const accessToken = ((longTokenData.access_token ?? shortToken) as string).trim();
+    // Échéance du token (60 jours) : sans elle, /api/cron/refresh-tokens ne peut
+    // pas savoir quels comptes renouveler avant la coupure.
+    const tokenExpiresAt = expiryFromNow(longTokenData.expires_in);
 
     console.log('[CB] long token first 20:', accessToken?.substring(0, 20));
 
@@ -95,6 +99,8 @@ export async function GET(request: NextRequest) {
       instagram_access_token: accessToken.trim(),
       instagram_username: igDetails.username ?? igDetails.name ?? String(igUserId),
       instagram_connected_at: new Date().toISOString(),
+      instagram_token_expires_at: tokenExpiresAt,
+      instagram_token_refreshed_at: new Date().toISOString(),
     }).eq("id", workspaceId).select("id");
 
     // RLS exige auth.uid() = user_id : si la session n'était pas présente/valide

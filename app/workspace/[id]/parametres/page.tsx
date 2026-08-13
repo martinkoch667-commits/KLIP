@@ -13,6 +13,7 @@ interface Workspace {
   name: string;
   instagram_account_id: string | null;
   instagram_username: string | null;
+  instagram_token_expires_at: string | null;
   facebook_page_id: string | null;
   facebook_page_name: string | null;
 }
@@ -65,9 +66,11 @@ function ParametresContent() {
 
   useEffect(() => {
     async function load() {
+      // Note : instagram_token_expires_at vient de la migration 020, à passer en
+      // base AVANT de déployer ce code (sinon PostgREST rejette la requête).
       const { data } = await supabase
         .from("workspaces")
-        .select("id, name, instagram_account_id, instagram_username, facebook_page_id, facebook_page_name")
+        .select("id, name, instagram_account_id, instagram_username, instagram_token_expires_at, facebook_page_id, facebook_page_name")
         .eq("id", id)
         .single();
       if (data) setWorkspace(data);
@@ -112,6 +115,19 @@ function ParametresContent() {
 
   const isInstagramConnected = !!(workspace?.instagram_account_id || workspace?.instagram_username);
   const isFacebookConnected = !!workspace?.facebook_page_id;
+
+  // L'autorisation Instagram vit 60 jours. Le cron la renouvelle tout seul, mais
+  // si le renouvellement a échoué (compte déconnecté côté Meta, mot de passe
+  // changé…), il faut que l'utilisateur le voie ici avant que ses publications
+  // programmées ne commencent à échouer.
+  const tokenExpiresAt = workspace?.instagram_token_expires_at
+    ? new Date(workspace.instagram_token_expires_at)
+    : null;
+  const daysBeforeExpiry = tokenExpiresAt
+    ? Math.ceil((tokenExpiresAt.getTime() - Date.now()) / 86_400_000)
+    : null;
+  const tokenExpired = isInstagramConnected && daysBeforeExpiry !== null && daysBeforeExpiry <= 0;
+  const tokenExpiringSoon = isInstagramConnected && daysBeforeExpiry !== null && daysBeforeExpiry > 0 && daysBeforeExpiry <= 7;
 
   return (
     <main style={{ marginLeft: "var(--sb-w)", flex: 1, overflowY: "auto" }}>
@@ -175,9 +191,15 @@ function ParametresContent() {
                     <div style={{ fontWeight: 700, fontSize: 14, color: "var(--ink)", marginBottom: 2 }}>{t('instagram')}</div>
                     {isInstagramConnected ? (
                       <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                        <span className="badge" style={{ background: "var(--mint-soft)", color: "var(--mint-2)", display: "inline-flex", alignItems: "center", gap: 4 }}>
-                          <span className="dot" style={{ background: "var(--mint-2)" }} /> {t('connected')}
-                        </span>
+                        {tokenExpired ? (
+                          <span className="badge" style={{ background: "#FEF3C7", color: "#B45309", display: "inline-flex", alignItems: "center", gap: 4 }}>
+                            <span className="dot" style={{ background: "#B45309" }} /> {t('tokenExpiredBadge')}
+                          </span>
+                        ) : (
+                          <span className="badge" style={{ background: "var(--mint-soft)", color: "var(--mint-2)", display: "inline-flex", alignItems: "center", gap: 4 }}>
+                            <span className="dot" style={{ background: "var(--mint-2)" }} /> {t('connected')}
+                          </span>
+                        )}
                         <span style={{ fontSize: 12, color: "var(--ink-3)", fontWeight: 600 }}>
                           @{workspace?.instagram_username ?? workspace?.instagram_account_id}
                         </span>
@@ -185,17 +207,31 @@ function ParametresContent() {
                     ) : (
                       <span style={{ fontSize: 12.5, color: "var(--ink-3)" }}>{t('notConnected')}</span>
                     )}
+                    {(tokenExpired || tokenExpiringSoon) && (
+                      <p style={{ fontSize: 12, color: "#B45309", marginTop: 6, lineHeight: 1.45 }}>
+                        {tokenExpired
+                          ? t('tokenExpiredHint')
+                          : t('tokenExpiringHint', { days: daysBeforeExpiry ?? 0 })}
+                      </p>
+                    )}
                   </div>
-                  <div style={{ flexShrink: 0 }}>
+                  <div style={{ flexShrink: 0, display: "flex", alignItems: "center", gap: 8 }}>
                     {isInstagramConnected ? (
-                      <button
-                        onClick={handleDisconnect}
-                        disabled={disconnecting}
-                        className="btn btn-ghost btn-sm"
-                        style={{ color: "var(--warn)", borderColor: "rgba(200,115,43,.3)", opacity: disconnecting ? 0.5 : 1 }}
-                      >
-                        <IconTrash /> {disconnecting ? "…" : t('disconnect')}
-                      </button>
+                      <>
+                        {(tokenExpired || tokenExpiringSoon) && (
+                          <a href={`/api/auth/meta/connect?workspaceId=${id}`} className="btn btn-dark btn-sm">
+                            {t('reconnect')} <IconArrow />
+                          </a>
+                        )}
+                        <button
+                          onClick={handleDisconnect}
+                          disabled={disconnecting}
+                          className="btn btn-ghost btn-sm"
+                          style={{ color: "var(--warn)", borderColor: "rgba(200,115,43,.3)", opacity: disconnecting ? 0.5 : 1 }}
+                        >
+                          <IconTrash /> {disconnecting ? "…" : t('disconnect')}
+                        </button>
+                      </>
                     ) : (
                       <a href={`/api/auth/meta/connect?workspaceId=${id}`} className="btn btn-dark btn-sm">
                         {t('connectInstagram')} <IconArrow />

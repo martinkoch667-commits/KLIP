@@ -7,7 +7,7 @@ import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 
 interface Notification {
   id: string;
-  type: 'post_published' | 'post_failed' | 'post_pending_review' | 'post_approved' | 'post_rejected' | 'post_revision_requested';
+  type: 'post_published' | 'post_failed' | 'post_pending_review' | 'post_approved' | 'post_rejected' | 'post_revision_requested' | 'instagram_token_expired';
   title: string;
   message: string;
   post_id: string | null;
@@ -37,16 +37,19 @@ function NotifIcon({ type }: { type: Notification['type'] }) {
     post_approved:          { bg: 'rgba(47,215,155,.15)', color: 'var(--mint-2)' },
     post_rejected:          { bg: '#FEF3C7', color: '#D97706' },
     post_revision_requested:{ bg: '#FEF3C7', color: '#D97706' },
+    instagram_token_expired:{ bg: '#FEF3C7', color: '#D97706' },
   };
   const s = styles[type] ?? styles.post_published;
   const isOk = type === 'post_published' || type === 'post_approved';
   const isKo = type === 'post_failed' || type === 'post_rejected';
   const isPending = type === 'post_pending_review' || type === 'post_revision_requested';
+  const isWarn = type === 'instagram_token_expired';
   return (
     <span style={{ width: 30, height: 30, borderRadius: '50%', background: s.bg, color: s.color, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
       {isOk && <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5"/></svg>}
       {isKo && <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg>}
       {isPending && <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>}
+      {isWarn && <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 9v4M12 17h.01"/><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z"/></svg>}
     </span>
   );
 }
