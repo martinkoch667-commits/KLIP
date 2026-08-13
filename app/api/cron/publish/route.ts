@@ -11,6 +11,16 @@ export const maxDuration = 300;
 // plutôt que de se faire couper en plein vol par la fin de la fonction.
 const BUDGET_MS = 230_000;
 
+// Le cron tourne toutes les minutes, une publication peut durer plus longtemps :
+// plusieurs exécutions se chevauchent donc forcément. Chacune « réserve » les
+// posts qu'elle traite pour que les autres les ignorent — sans quoi le même reel
+// serait publié deux ou trois fois.
+//
+// Une réservation plus vieille que ce délai est considérée comme abandonnée
+// (fonction tuée en plein vol, redéploiement…) et le post redevient candidat,
+// plutôt que de rester bloqué à jamais.
+const CLAIM_TTL_MS = 15 * 60 * 1000;
+
 export async function GET(request: NextRequest) {
   const authHeader = request.headers.get("authorization");
   if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
@@ -44,6 +54,7 @@ export async function GET(request: NextRequest) {
   let published = 0;
   let failed = 0;
   let deferred = 0;
+  let skipped = 0;
 
   for (const post of posts ?? []) {
     const workspace = post.workspaces as {
@@ -58,7 +69,7 @@ export async function GET(request: NextRequest) {
 
     const markFailed = async (reason: string) => {
       console.error(`[Cron] Post ${post.id}: ${reason}`);
-      await supabase.from("posts").update({ status: "failed" }).eq("id", post.id);
+      await supabase.from("posts").update({ status: "failed", publishing_started_at: null }).eq("id", post.id);
       if (postUserId) {
         await createNotification({
           userId: postUserId,
@@ -91,6 +102,25 @@ export async function GET(request: NextRequest) {
       continue;
     }
 
+    // Réservation atomique : le filtre rejoue les conditions dans la requête
+    // d'écriture elle-même. Si une exécution concurrente a déjà réservé ce post,
+    // aucune ligne ne correspond et on passe au suivant — c'est ce qui empêche
+    // une double publication.
+    const staleBefore = new Date(Date.now() - CLAIM_TTL_MS).toISOString();
+    const { data: claimed } = await supabase
+      .from("posts")
+      .update({ publishing_started_at: new Date().toISOString() })
+      .eq("id", post.id)
+      .eq("status", "scheduled")
+      .or(`publishing_started_at.is.null,publishing_started_at.lt.${staleBefore}`)
+      .select("id");
+
+    if (!claimed || claimed.length === 0) {
+      console.log(`[Cron] Post ${post.id}: déjà pris en charge par une autre exécution`);
+      skipped++;
+      continue;
+    }
+
     const result = await publishPostToInstagram(post, workspace.instagram_access_token);
 
     if (!result.ok) {
@@ -101,6 +131,7 @@ export async function GET(request: NextRequest) {
     await supabase.from("posts").update({
       status: "published",
       instagram_post_id: result.instagramPostId,
+      publishing_started_at: null,
     }).eq("id", post.id);
 
     if (postUserId) {
@@ -119,5 +150,5 @@ export async function GET(request: NextRequest) {
     published++;
   }
 
-  return NextResponse.json({ processed: posts?.length ?? 0, published, failed, deferred });
+  return NextResponse.json({ processed: posts?.length ?? 0, published, failed, deferred, skipped });
 }
