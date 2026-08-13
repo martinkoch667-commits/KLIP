@@ -29,11 +29,14 @@ export async function GET(request: NextRequest) {
     scope: "instagram_business_basic,instagram_business_content_publish",
     state: workspaceId,
     response_type: "code",
-    // Sans ça, Instagram réutilise silencieusement la session ouverte dans le
-    // navigateur : une agence qui connecte le compte d'un client se retrouve à
-    // brancher le sien, sans jamais voir d'écran de choix. force_reauth impose
-    // la saisie des identifiants du compte qu'on veut réellement connecter.
-    force_reauth: "true",
+    // NE PAS ajouter force_reauth ici. L'intention est bonne — sans lui,
+    // Instagram réutilise la session ouverte dans le navigateur et connecte le
+    // compte de l'agence au lieu de celui du client, sans écran de choix. Mais
+    // testé en production le 13/08/2026 : après la saisie des identifiants,
+    // Instagram dépose l'utilisateur sur son fil et ne reprend jamais
+    // l'autorisation. Le flux ne revient donc plus jamais sur Klip.
+    // En attendant mieux, on choisit le compte via une fenêtre de navigation
+    // privée (aucune session active = écran de connexion naturel).
   });
 
   const authUrl = `https://www.instagram.com/oauth/authorize?${params.toString()}`;
