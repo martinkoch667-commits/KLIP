@@ -29,6 +29,11 @@ export async function GET(request: NextRequest) {
     scope: "instagram_business_basic,instagram_business_content_publish",
     state: workspaceId,
     response_type: "code",
+    // Sans ça, Instagram réutilise silencieusement la session ouverte dans le
+    // navigateur : une agence qui connecte le compte d'un client se retrouve à
+    // brancher le sien, sans jamais voir d'écran de choix. force_reauth impose
+    // la saisie des identifiants du compte qu'on veut réellement connecter.
+    force_reauth: "true",
   });
 
   const authUrl = `https://www.instagram.com/oauth/authorize?${params.toString()}`;
