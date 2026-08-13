@@ -1,30 +1,29 @@
 import type { Metadata } from "next";
 import LandingView from "./landing-v3";
-import { I18nProvider } from "@/lib/i18n/I18nProvider";
 import { getMessages } from "@/lib/i18n/messages";
 
 export const metadata: Metadata = {
-  title: "Klip — The all-in-one tool for agencies managing multiple Instagram clients",
+  title: "Klip — L'outil tout-en-un pour agences qui gèrent plusieurs clients Instagram",
   description:
-    "Visual creation, AI captions, scheduling and client approval. Klip brings all your clients' Instagram content production into one tool. 7-day free trial.",
+    "Création visuelle, descriptions IA, planification et validation client. Klip réunit toute la production de contenu Instagram de vos clients dans un seul outil. Essai gratuit 7 jours.",
   keywords:
-    "community manager tool, agency social media management, instagram scheduling, client approval, multiple instagram accounts",
+    "outil community manager, gestion réseaux sociaux agence, planification instagram, validation client, plusieurs comptes instagram",
   authors: [{ name: "Klip" }],
   alternates: { canonical: "/" },
   openGraph: {
     type: "website",
-    locale: "en_US",
+    locale: "fr_FR",
     url: "https://getklip.fr",
     siteName: "Klip",
-    title: "Klip — The all-in-one social studio for agencies",
+    title: "Klip — Le studio social tout-en-un pour agences",
     description:
-      "Visual creation, AI captions, scheduling and client approval — all in one tool.",
+      "Création visuelle, descriptions IA, planification et validation client — tout dans un seul outil.",
     // image fournie par app/opengraph-image.tsx (route dynamique)
   },
   twitter: {
     card: "summary_large_image",
-    title: "Klip — The social studio for agencies & community managers",
-    description: "All your clients' Instagram content production in one tool.",
+    title: "Klip — Le studio social pour agences & community managers",
+    description: "Toute la production de contenu Instagram de vos clients dans un seul outil.",
   },
   robots: { index: true, follow: true },
 };
@@ -38,7 +37,7 @@ const organizationLd = {
   url: SITE,
   logo: `${SITE}/logo-klip-dark.png`,
   description:
-    "Klip is the all-in-one social studio for agencies and community managers: visual editor, AI captions, video editing, calendar and automatic Instagram publishing.",
+    "Klip est le studio social tout-en-un des agences et community managers : éditeur visuel, descriptions IA, montage vidéo, calendrier et publication automatique sur Instagram.",
 };
 
 const websiteLd = {
@@ -46,7 +45,7 @@ const websiteLd = {
   "@type": "WebSite",
   name: "Klip",
   url: SITE,
-  inLanguage: ["en", "fr"],
+  inLanguage: ["fr", "en"],
   publisher: { "@type": "Organization", name: "Klip", url: SITE },
 };
 
@@ -57,17 +56,17 @@ const softwareLd = {
   applicationCategory: "BusinessApplication",
   operatingSystem: "Web",
   url: SITE,
-  inLanguage: "en",
+  inLanguage: "fr",
   description:
-    "All-in-one Instagram content creation and scheduling tool for agencies: visual editor, AI captions, calendar, client approval and automatic publishing.",
+    "Outil tout-en-un de création et de planification de contenu Instagram pour agences : éditeur visuel, descriptions IA, calendrier, validation client et publication automatique.",
   featureList: [
-    "Visual editor for posts and carousels",
-    "AI captions generated in each client's brand voice",
-    "Video editing (subtitles, transitions, auto assembly)",
-    "Editorial calendar and scheduling",
-    "Client approval via link, no account needed",
-    "Automatic Instagram publishing",
-    "Siloed multi-client management",
+    "Éditeur visuel pour posts et carrousels",
+    "Descriptions IA écrites dans la voix de chaque marque",
+    "Montage vidéo (sous-titres, transitions, assemblage automatique)",
+    "Calendrier éditorial et planification",
+    "Validation client par lien, sans création de compte",
+    "Publication automatique sur Instagram",
+    "Gestion multi-clients cloisonnée",
   ],
   offers: [
     { "@type": "Offer", name: "Studio", price: "35.00", priceCurrency: "EUR", category: "subscription" },
@@ -75,13 +74,17 @@ const softwareLd = {
   ],
 };
 
-// Reprend les questions/réponses réelles de la section FAQ de la landing (EN)
-const FAQ = [
-  ["Do I need to already have a pro Instagram account?", "Yes. KLIP connects to a professional or creator Instagram account via the official API. Connecting takes two minutes, per client."],
-  ["Does the AI really respect each brand’s voice?", "You define the tone, style and banned words for each client once. Every generation draws on that voice — you stay in control and refine in one click."],
-  ["Can my clients approve without a KLIP account?", "Yes. You send an approval link: the client approves or comments directly, with nothing to install. No more email back-and-forth."],
-  ["Is my client data siloed?", "Each client has its own space: brand kit, history, connected accounts. Nothing is ever mixed between two brands."],
-  ["Can I change plans along the way?", "Anytime, no commitment. You move up a tier when you take on more clients, and back down if needed."],
+// Les questions/réponses sont lues dans le catalogue de traduction plutôt que
+// recopiées ici : la FAQ affichée et celle déclarée à Google ne peuvent plus
+// diverger quand l'une des deux est retouchée.
+const faqCopy = getMessages("fr").landing.faq;
+const FAQ: [string, string][] = [
+  [faqCopy.q1, faqCopy.a1],
+  [faqCopy.q2, faqCopy.a2],
+  [faqCopy.q3, faqCopy.a3],
+  [faqCopy.q4, faqCopy.a4],
+  [faqCopy.q5, faqCopy.a5],
+  [faqCopy.qMontage, faqCopy.aMontage],
 ];
 
 const faqLd = {
@@ -94,10 +97,10 @@ const faqLd = {
   })),
 };
 
-// La page d'accueil est TOUJOURS en anglais (audience internationale), quel que
-// soit le cookie de langue : provider next-intl forcé en 'en' (le plus proche
-// l'emporte sur celui du layout racine). La version française en mode liste
-// d'attente vit sur /acces-anticipe.
+// La page d'accueil suit la langue du visiteur comme le reste du site (cookie
+// klip-locale, français à défaut) : plus de provider forcé en anglais ici — le
+// sélecteur de langue fonctionne donc aussi sur l'accueil. La version en mode
+// liste d'attente vit toujours sur /acces-anticipe.
 export default function Page() {
   return (
     <>
@@ -105,9 +108,7 @@ export default function Page() {
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(websiteLd) }} />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(softwareLd) }} />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(faqLd) }} />
-      <I18nProvider locale="en" messages={getMessages("en")}>
-        <LandingView />
-      </I18nProvider>
+      <LandingView />
     </>
   );
 }
