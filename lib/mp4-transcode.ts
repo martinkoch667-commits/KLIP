@@ -27,10 +27,15 @@ export async function transcodeToMp4(webmBlob: Blob, onProgress?: (p: number) =>
     wasmURL: await toBlobURL(`${baseURL}/ffmpeg-core.wasm`, 'application/wasm'),
   });
 
-  await ffmpeg.writeFile('input.webm', await fetchFile(webmBlob));
-  await ffmpeg.exec(['-i', 'input.webm', '-c:v', 'libx264', '-preset', 'fast', '-crf', '23', '-c:a', 'aac', '-movflags', '+faststart', 'output.mp4']);
-  const data = await ffmpeg.readFile('output.mp4');
-  ffmpeg.terminate();
-
-  return new Blob([data as unknown as BlobPart], { type: 'video/mp4' });
+  try {
+    await ffmpeg.writeFile('input.webm', await fetchFile(webmBlob));
+    await ffmpeg.exec(['-i', 'input.webm', '-c:v', 'libx264', '-preset', 'fast', '-crf', '23', '-c:a', 'aac', '-movflags', '+faststart', 'output.mp4']);
+    const data = await ffmpeg.readFile('output.mp4');
+    return new Blob([data as unknown as BlobPart], { type: 'video/mp4' });
+  } finally {
+    // terminate() dans un finally : un transcodage qui échoue laissait sinon
+    // tout le tas WebAssembly de ffmpeg (plusieurs centaines de Mo) en place
+    // jusqu'à la fermeture de l'onglet.
+    ffmpeg.terminate();
+  }
 }

@@ -51,13 +51,34 @@ const TOOL_TITLE_KEYS: Record<RailTool, string> = {
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
+// Un <video> créé en JS garde son tampon de décodage — et, en preload="auto",
+// le fichier entier — tant qu'on ne le vide pas. Les helpers ci-dessous en
+// fabriquent un par plan, à chaque extraction de vignettes ou de frame : sans
+// libération, monter une vidéo de dix plans retient dix vidéos complètes en
+// mémoire, et Safari finit par recharger l'onglet. Couper la source puis
+// appeler load() est le seul moyen de rendre ce tampon.
+function releaseMediaElement(el: HTMLMediaElement | null | undefined) {
+  if (!el) return;
+  try {
+    el.pause();
+    el.removeAttribute("src");
+    el.srcObject = null;
+    el.load();
+  } catch { /* élément déjà détruit */ }
+}
+
 function getVideoDuration(src: string): Promise<number> {
   return new Promise((resolve) => {
     const v = document.createElement("video");
     v.preload = "metadata";
     v.src = src;
     let done = false;
-    const finish = (d: number) => { if (done) return; done = true; resolve(d && isFinite(d) && d > 0 ? d : 4); };
+    const finish = (d: number) => {
+      if (done) return;
+      done = true;
+      resolve(d && isFinite(d) && d > 0 ? d : 4);
+      releaseMediaElement(v);
+    };
     v.onloadedmetadata = () => {
       // Chrome renvoie souvent duration = Infinity pour un fichier fraîchement uploadé :
       // on force le calcul de la vraie durée en cherchant très loin dans la vidéo.
@@ -74,8 +95,9 @@ function getAudioDuration(src: string): Promise<number> {
     const a = document.createElement("audio");
     a.preload = "metadata";
     a.src = src;
-    a.onloadedmetadata = () => resolve(a.duration && isFinite(a.duration) ? a.duration : 3);
-    a.onerror = () => resolve(3);
+    const finish = (d: number) => { resolve(d); releaseMediaElement(a); };
+    a.onloadedmetadata = () => finish(a.duration && isFinite(a.duration) ? a.duration : 3);
+    a.onerror = () => finish(3);
   });
 }
 
@@ -86,15 +108,21 @@ function getAudioDuration(src: string): Promise<number> {
 async function grabFrame(src: string, kind: "video" | "photo", atTime = 0, maxW = 320): Promise<string> {
   if (kind === "video") {
     const v = document.createElement("video");
-    v.crossOrigin = "anonymous"; v.muted = true; v.preload = "auto"; v.src = src;
-    await new Promise<void>((resolve, reject) => { v.onloadedmetadata = () => resolve(); v.onerror = () => reject(new Error("load")); });
-    await new Promise<void>((resolve) => { v.onseeked = () => resolve(); v.currentTime = Math.max(0, Math.min(atTime, (v.duration || 1) - 0.05)); });
-    const scale = Math.min(1, maxW / (v.videoWidth || maxW));
-    const c = document.createElement("canvas");
-    c.width = Math.max(1, Math.round((v.videoWidth || maxW) * scale));
-    c.height = Math.max(1, Math.round((v.videoHeight || maxW) * scale));
-    c.getContext("2d")!.drawImage(v, 0, 0, c.width, c.height);
-    return c.toDataURL("image/jpeg", 0.82);
+    try {
+      v.crossOrigin = "anonymous"; v.muted = true; v.preload = "auto"; v.src = src;
+      await new Promise<void>((resolve, reject) => { v.onloadedmetadata = () => resolve(); v.onerror = () => reject(new Error("load")); });
+      await new Promise<void>((resolve) => { v.onseeked = () => resolve(); v.currentTime = Math.max(0, Math.min(atTime, (v.duration || 1) - 0.05)); });
+      const scale = Math.min(1, maxW / (v.videoWidth || maxW));
+      const c = document.createElement("canvas");
+      c.width = Math.max(1, Math.round((v.videoWidth || maxW) * scale));
+      c.height = Math.max(1, Math.round((v.videoHeight || maxW) * scale));
+      c.getContext("2d")!.drawImage(v, 0, 0, c.width, c.height);
+      return c.toDataURL("image/jpeg", 0.82);
+    } finally {
+      // finally, et pas après le return : une source illisible ne doit pas
+      // laisser la vidéo chargée derrière elle.
+      releaseMediaElement(v);
+    }
   }
   const img = new Image();
   img.crossOrigin = "anonymous"; img.src = src;
@@ -118,6 +146,7 @@ interface ClipStripData { frames: string[]; aspect: number }
 
 async function extractClipFrames(src: string, trimStart: number, trimEnd: number): Promise<ClipStripData> {
   const v = document.createElement("video");
+  try {
   v.crossOrigin = "anonymous"; v.muted = true; v.preload = "auto"; v.src = src;
   await new Promise<void>((res, rej) => { v.onloadedmetadata = () => res(); v.onerror = () => rej(new Error("load")); });
   const dur = v.duration && isFinite(v.duration) ? v.duration : Math.max(0.1, trimEnd - trimStart);
@@ -139,6 +168,11 @@ async function extractClipFrames(src: string, trimStart: number, trimEnd: number
     frames.push(canvas.toDataURL("image/jpeg", 0.72));
   }
   return { frames, aspect };
+  } finally {
+    // La bande de vignettes est ré-extraite à chaque changement de trim : sans
+    // libération, chaque ajustement laissait une vidéo complète en mémoire.
+    releaseMediaElement(v);
+  }
 }
 
 // Une photo est une « bande » d'une seule image : mêmes tuiles, même rendu que la vidéo.
@@ -1083,13 +1117,22 @@ export default function MontagePage() {
   useEffect(() => {
     const els = audioElsRef.current;
     const ids = new Set(audioTracks.map((a) => a.id));
-    Object.keys(els).forEach((id) => { if (!ids.has(id)) { els[id].pause(); delete els[id]; } });
+    // preload="auto" charge la piste entière : une simple mise en pause la laisse
+    // en mémoire. Toute piste retirée ou remplacée doit être vidée, sinon chaque
+    // essai de musique ou de voix off s'ajoute au précédent.
+    Object.keys(els).forEach((id) => { if (!ids.has(id)) { releaseMediaElement(els[id]); delete els[id]; } });
     audioTracks.forEach((a) => {
       const ex = els[a.id];
       if (!ex) { const el = new Audio(a.src); el.preload = "auto"; els[a.id] = el; }
-      else if (ex.src !== a.src) { ex.pause(); const el = new Audio(a.src); el.preload = "auto"; els[a.id] = el; } // src changé (voix traitée)
+      else if (ex.src !== a.src) { releaseMediaElement(ex); const el = new Audio(a.src); el.preload = "auto"; els[a.id] = el; } // src changé (voix traitée)
     });
   }, [audioTracks]);
+
+  // En quittant le monteur, aucune piste ne doit survivre à l'écran.
+  useEffect(() => () => {
+    const els = audioElsRef.current;
+    Object.keys(els).forEach((id) => { releaseMediaElement(els[id]); delete els[id]; });
+  }, []);
 
   useEffect(() => {
     if (!playing) {
