@@ -488,6 +488,7 @@ export default function CalendarPage() {
               <PostPreviewPane
                 workspace={wsMap[selected.workspace_id] ?? null}
                 mediaUrl={selected.exported_image_url || selected.photo_url}
+                posterUrl={selected.thumbnail_url}
                 caption={panelCaption}
                 postType={selected.post_type}
                 platforms={["instagram"]}

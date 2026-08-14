@@ -1517,6 +1517,7 @@ function PlanningContent() {
             <PostPreviewPane
               workspace={workspace}
               mediaUrl={carouselUrlsOf(selectedPost)[0] || selectedPost.photo_url}
+              posterUrl={selectedPost.thumbnail_url}
               caption={panelDesc}
               postType={panelPostType}
               platforms={panelPlatforms}

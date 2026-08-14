@@ -1,6 +1,6 @@
 "use client";
 import React, { useState } from "react";
-import MediaThumb from "@/components/MediaThumb";
+import { MediaPreview } from "@/components/MediaThumb";
 
 function aspectForType(t?: string | null): string {
   if (t === "story" || t === "reel") return "9 / 16";
@@ -15,9 +15,12 @@ function aspectForType(t?: string | null): string {
 // ensemble. Structure reprise de l'éditeur de publication de Metricool.
 export interface PreviewAccount { name?: string | null; instagram_username?: string | null; logo_url?: string | null }
 
-export default function PostPreviewPane({ workspace, mediaUrl, caption, postType, platforms, compact, mediaHeight }: {
+export default function PostPreviewPane({ workspace, mediaUrl, posterUrl, caption, postType, platforms, compact, mediaHeight }: {
   workspace: PreviewAccount | null;
   mediaUrl?: string | null;
+  /** Vignette d'attente pour une vidéo : sans elle, un plan d'ouverture sombre
+      donne un aperçu noir tant que la lecture n'a pas commencé. */
+  posterUrl?: string | null;
   caption: string;
   postType?: string | null;
   platforms?: string[];
@@ -65,7 +68,7 @@ export default function PostPreviewPane({ workspace, mediaUrl, caption, postType
             background: "#000",
             boxShadow: "0 6px 18px -10px rgba(13,15,10,.35)",
           }}>
-            {mediaUrl ? <MediaThumb raw={mediaUrl} /> : <div style={{ width: "100%", height: "100%", background: "var(--sunk)" }} />}
+            {mediaUrl ? <MediaPreview raw={mediaUrl} poster={posterUrl} /> : <div style={{ width: "100%", height: "100%", background: "var(--sunk)" }} />}
 
             {/* Barre de progression : le repère visuel d'une story. */}
             {postType === "story" && (
@@ -172,7 +175,7 @@ export default function PostPreviewPane({ workspace, mediaUrl, caption, postType
             background: "var(--sunk)",
             overflow: "hidden",
           }}>
-            {mediaUrl ? <MediaThumb raw={mediaUrl} /> : <div style={{ width: "100%", height: "100%", background: "var(--sunk)" }} />}
+            {mediaUrl ? <MediaPreview raw={mediaUrl} poster={posterUrl} /> : <div style={{ width: "100%", height: "100%", background: "var(--sunk)" }} />}
           </div>
         </div>
 

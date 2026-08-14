@@ -44,6 +44,83 @@ export function thumbUrl(raw: string, width = 480): string {
   return `/_next/image?url=${encodeURIComponent(proxied)}&w=${width}&q=70`;
 }
 
+/**
+ * Média d'aperçu, lisible.
+ *
+ * MediaThumb fige la vidéo sur sa première image — ce qu'il faut dans une
+ * grille, mais pas dans un aperçu du rendu : quand cette première image est
+ * noire (une ouverture en fondu, un plan sombre), l'aperçu paraît vide et rien
+ * n'indique qu'il y a une vidéo, encore moins comment la lancer. Ici un bouton
+ * de lecture centré la démarre sur place.
+ */
+export function MediaPreview({
+  raw,
+  poster,
+  style,
+}: {
+  raw?: string | null;
+  /** Image d'attente — évite le rectangle noir avant la première lecture. */
+  poster?: string | null;
+  style?: React.CSSProperties;
+}) {
+  const videoRef = React.useRef<HTMLVideoElement>(null);
+  const [playing, setPlaying] = React.useState(false);
+
+  if (!raw) return null;
+
+  const base: React.CSSProperties = {
+    width: "100%",
+    height: "100%",
+    objectFit: "cover",
+    display: "block",
+    ...style,
+  };
+
+  if (!isVideoUrl(raw)) return <MediaThumb raw={raw} style={style} />;
+
+  const toggle = () => {
+    const el = videoRef.current;
+    if (!el) return;
+    if (el.paused) { el.play().catch(() => { /* lecture refusée par le navigateur */ }); }
+    else { el.pause(); }
+  };
+
+  return (
+    <div style={{ position: "relative", width: "100%", height: "100%", background: "#000" }}>
+      <video
+        ref={videoRef}
+        src={raw}
+        poster={poster ? thumbUrl(poster, 640) : undefined}
+        playsInline
+        preload="metadata"
+        onClick={toggle}
+        onPlay={() => setPlaying(true)}
+        onPause={() => setPlaying(false)}
+        onEnded={() => setPlaying(false)}
+        style={{ ...base, cursor: "pointer" }}
+      />
+      {!playing && (
+        <button
+          type="button"
+          onClick={toggle}
+          aria-label="Lire la vidéo"
+          style={{
+            position: "absolute", top: "50%", left: "50%", transform: "translate(-50%,-50%)",
+            width: 62, height: 62, borderRadius: "50%", border: "none", cursor: "pointer",
+            background: "rgba(12,14,11,.55)", backdropFilter: "blur(4px)",
+            display: "grid", placeItems: "center", color: "#fff",
+            boxShadow: "0 2px 14px rgba(0,0,0,.35)",
+          }}
+        >
+          <svg width="26" height="26" viewBox="0 0 24 24" fill="currentColor" style={{ marginLeft: 3 }}>
+            <path d="M6 4.5v15a1 1 0 0 0 1.53.85l12-7.5a1 1 0 0 0 0-1.7l-12-7.5A1 1 0 0 0 6 4.5Z" />
+          </svg>
+        </button>
+      )}
+    </div>
+  );
+}
+
 export default function MediaThumb({
   raw,
   style,
