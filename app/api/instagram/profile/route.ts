@@ -54,9 +54,16 @@ export async function GET(request: NextRequest) {
     const media = (mData.data ?? []).map((m: { id: string; media_type?: string; media_url?: string; thumbnail_url?: string; timestamp?: string }) => ({
       id: m.id,
       media_type: m.media_type,
-      // VIDEO posts have no media_url — fall back to thumbnail_url
-      media_url: m.media_url ?? m.thumbnail_url ?? null,
+      media_url: m.media_url ?? null,
       thumbnail_url: m.thumbnail_url ?? null,
+      // Image à afficher dans une grille. Contrairement à ce que supposait le
+      // code précédent, une VIDEO a bien un media_url — mais il pointe sur le
+      // .mp4, qu'aucune balise <img> ne sait rendre : la vignette était donc
+      // remplacée par une image cassée. Pour une vidéo c'est thumbnail_url
+      // qu'il faut, media_url ne servant que si l'on veut lire la vidéo.
+      display_url: m.media_type === "VIDEO"
+        ? m.thumbnail_url ?? m.media_url ?? null
+        : m.media_url ?? m.thumbnail_url ?? null,
       timestamp: m.timestamp,
     }));
 

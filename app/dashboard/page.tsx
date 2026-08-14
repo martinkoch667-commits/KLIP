@@ -160,7 +160,7 @@ function IconTabSaved() {
 }
 
 interface IGProfile { username: string; media_count?: number; biography?: string; followers_count?: number; follows_count?: number; profile_picture_url?: string; }
-interface IGMedia { id: string; media_url?: string; thumbnail_url?: string; }
+interface IGMedia { id: string; media_type?: string; media_url?: string; thumbnail_url?: string; display_url?: string | null; }
 
 function fmtCount(n?: number) {
   if (n == null) return '—';
@@ -317,13 +317,21 @@ function InstagramProfile({ workspaceId, upcoming = [] }: { workspaceId: string;
               );
             })}
             {media.map(m => {
-              const rawSrc = m.media_url ?? m.thumbnail_url;
+              // display_url est calculé côté serveur : la vignette pour une
+              // vidéo, l'image elle-même sinon (cf. /api/instagram/profile).
+              const rawSrc = m.display_url ?? m.thumbnail_url ?? m.media_url;
               // Route via proxy to avoid CORS — Instagram media_url are cross-origin
               const src = rawSrc ? `/api/proxy-image?url=${encodeURIComponent(rawSrc)}` : null;
+              const isVideo = m.media_type === 'VIDEO';
               return (
-                <div key={m.id} style={{ aspectRatio: '1', overflow: 'hidden', background: 'var(--sunk)' }}>
+                <div key={m.id} style={{ position: 'relative', aspectRatio: '1', overflow: 'hidden', background: 'var(--sunk)' }}>
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   {src && <img src={src} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />}
+                  {isVideo && (
+                    <span style={{ position: 'absolute', top: 6, right: 6, color: '#fff', filter: 'drop-shadow(0 1px 2px rgba(0,0,0,.5))', pointerEvents: 'none' }}>
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M4 6.5A2.5 2.5 0 0 1 6.5 4h7A2.5 2.5 0 0 1 16 6.5v11a2.5 2.5 0 0 1-2.5 2.5h-7A2.5 2.5 0 0 1 4 17.5v-11ZM18 9l4-2.5v11L18 15V9Z"/></svg>
+                    </span>
+                  )}
                 </div>
               );
             })}
