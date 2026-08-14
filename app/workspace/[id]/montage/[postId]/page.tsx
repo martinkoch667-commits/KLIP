@@ -2599,22 +2599,33 @@ export default function MontagePage() {
       const exAudio = audioTracks.filter((a) => !HL.has(`a${a.track ?? 0}`)).map((a) => ML.has(`a${a.track ?? 0}`) ? { ...a, vol: 0 } : a);
       const exTitles = HL.has("text") ? [] : titles;
       const exCaptions = HL.has("subs") ? [] : captions;
-      const { blob: webmBlob, thumbnailBlob } = await renderExport({ clips: exClips, overlays: exOverlays, captions: exCaptions, subStyleId, subCustom, subPos, linkedSubs, titles: exTitles, stickers, audioTracks: exAudio, showProgressBar, formatId, customW, customH, exportQuality }, (p) => setExportProgress(p));
+      const { blob: rawBlob, thumbnailBlob, mimeType: recordedType } = await renderExport({ clips: exClips, overlays: exOverlays, captions: exCaptions, subStyleId, subCustom, subPos, linkedSubs, titles: exTitles, stickers, audioTracks: exAudio, showProgressBar, formatId, customW, customH, exportQuality }, (p) => setExportProgress(p));
 
-      // Transcodage en MP4 (H.264/AAC) pour compatibilité universelle — le
-      // rendu brut Canvas/MediaRecorder est en .webm.
-      setExportPhase("transcode");
-      setExportProgress(0);
-      let blob: Blob;
+      // Instagram veut du MP4/H.264. Safari sait l'enregistrer directement : dans
+      // ce cas il n'y a rien à transcoder, et on évite ffmpeg.wasm — qui, en
+      // mono-thread, mettait plusieurs minutes sur une vidéo de quinze secondes
+      // et donnait l'impression d'un export bloqué.
+      let blob: Blob = rawBlob;
       let ext = "webm";
-      let contentType = "video/webm";
-      try {
-        blob = await transcodeToMp4(webmBlob, (p) => setExportProgress(p));
+      let contentType = recordedType || "video/webm";
+
+      if (recordedType.includes("mp4")) {
         ext = "mp4";
         contentType = "video/mp4";
-      } catch (e) {
-        console.warn("[montage] transcodage MP4 échoué, export .webm conservé :", e);
-        blob = webmBlob;
+      } else {
+        setExportPhase("transcode");
+        setExportProgress(0);
+        try {
+          blob = await transcodeToMp4(rawBlob, (p) => setExportProgress(p));
+          ext = "mp4";
+          contentType = "video/mp4";
+        } catch (e) {
+          // Le repli .webm existait déjà, mais il n'était jamais atteint : sans
+          // délai maximum, un transcodage qui n'avançait plus tournait
+          // indéfiniment au lieu d'échouer.
+          console.warn("[montage] transcodage MP4 abandonné, export conservé tel quel :", e);
+          blob = rawBlob;
+        }
       }
 
       const path = `${workspaceId}/${postId}-export-${Date.now()}.${ext}`;

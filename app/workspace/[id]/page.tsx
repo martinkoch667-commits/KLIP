@@ -2044,7 +2044,12 @@ export default function WorkspacePage() {
                                           {post.status === "validating" ? <><Spinner /> {t('saving')}</> : <><IconEdit /> {t('montageVideo')}</>}
                                         </button>
                                       )}
-                                      {post.status === "validated" && post.dbId && (
+                                      {/* Un prémontage terminé affiche déjà son propre accès via
+                                          PreEditDone : sans cette condition, les deux boutons
+                                          « Ouvrir le montage » se superposaient. Celui-ci ne sert
+                                          qu'au cas sans prémontage, et porte alors ?premontage=1
+                                          pour le lancer à l'ouverture. */}
+                                      {post.status === "validated" && post.dbId && batchFor(post.localId)?.status !== 'done' && (
                                         <Link href={`/workspace/${id}/montage/${post.dbId}${(preEdit[post.localId] ?? true) ? '?premontage=1' : ''}`} className="btn btn-video" style={{ textAlign: 'center' }}>
                                           <IconEdit /> {t('openMontage')}
                                         </Link>

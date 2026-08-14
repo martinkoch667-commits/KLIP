@@ -36,6 +36,32 @@ export interface ExportProject {
 export interface ExportResult {
   blob: Blob;
   thumbnailBlob: Blob | null;
+  /** Type MIME réellement produit par MediaRecorder — tous les navigateurs ne
+   *  donnent pas le même conteneur, et l'appelant doit savoir s'il lui reste un
+   *  transcodage à faire. */
+  mimeType: string;
+}
+
+// Conteneurs acceptés par MediaRecorder, du plus souhaitable au moins.
+// Le MP4/H.264 vient en tête : Safari sait l'enregistrer nativement, ce qui
+// évite complètement le transcodage ffmpeg.wasm — une étape qui, sur une vidéo
+// d'une quinzaine de secondes, prenait des minutes en mono-thread.
+const RECORDER_TYPES = [
+  "video/mp4;codecs=avc1.640028,mp4a.40.2",
+  "video/mp4;codecs=avc1,mp4a",
+  "video/mp4",
+  "video/webm;codecs=vp9,opus",
+  "video/webm;codecs=vp8,opus",
+  "video/webm",
+];
+
+function pickRecorderType(): string {
+  const supported = RECORDER_TYPES.find(
+    (t) => typeof MediaRecorder !== "undefined" && MediaRecorder.isTypeSupported(t)
+  );
+  // Aucun type reconnu : on laisse MediaRecorder choisir son défaut plutôt que
+  // de lui imposer un conteneur qu'il refuserait (le constructeur lèverait).
+  return supported ?? "";
 }
 
 interface ClipTimed extends MontageClip {
@@ -529,12 +555,14 @@ export async function renderExport(project: ExportProject, onProgress: (p: numbe
   const stream = canvas.captureStream(FPS);
   dest.stream.getAudioTracks().forEach((t) => stream.addTrack(t));
 
-  const mimeType = MediaRecorder.isTypeSupported("video/webm;codecs=vp9,opus") ? "video/webm;codecs=vp9,opus" : "video/webm;codecs=vp8,opus";
+  const mimeType = pickRecorderType();
   const bitrate = exportQualityById(project.exportQuality).bitrate;
-  const recorder = new MediaRecorder(stream, { mimeType, videoBitsPerSecond: bitrate });
+  const recorder = new MediaRecorder(stream, mimeType ? { mimeType, videoBitsPerSecond: bitrate } : { videoBitsPerSecond: bitrate });
+  // Type réellement retenu — MediaRecorder peut normaliser celui qu'on demande.
+  const actualType = (recorder.mimeType || mimeType || "video/webm").split(";")[0];
   const chunks: Blob[] = [];
   recorder.ondataavailable = (e) => { if (e.data.size) chunks.push(e.data); };
-  const stopped = new Promise<Blob>((resolve) => { recorder.onstop = () => resolve(new Blob(chunks, { type: "video/webm" })); });
+  const stopped = new Promise<Blob>((resolve) => { recorder.onstop = () => resolve(new Blob(chunks, { type: actualType })); });
 
   recorder.start(200);
   // Les pistes audio sont démarrées/seek/pausées à leur offset par updateAudioAt() dans la boucle.
@@ -721,5 +749,5 @@ export async function renderExport(project: ExportProject, onProgress: (p: numbe
   const blob = await stopped;
   await audioCtx.close();
   await thumbnailPromise;
-  return { blob, thumbnailBlob };
+  return { blob, thumbnailBlob, mimeType: actualType };
 }
