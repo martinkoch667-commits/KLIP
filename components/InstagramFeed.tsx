@@ -9,7 +9,7 @@
 // posts pas encore publiés portent un liseré, pour distinguer le réel du prévu.
 
 import Link from "next/link";
-import MediaThumb, { pickThumbSource } from "@/components/MediaThumb";
+import MediaThumb, { pickThumbSource, thumbUrl } from "@/components/MediaThumb";
 
 export interface FeedPost {
   id: string;
@@ -68,7 +68,7 @@ export default function InstagramFeed({
           }}>
             {account?.logo_url
               // eslint-disable-next-line @next/next/no-img-element
-              ? <img src={`/api/proxy-image?url=${encodeURIComponent(account.logo_url)}`} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+              ? <img src={thumbUrl(account.logo_url, 128)} alt="" loading="lazy" decoding="async" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
               : <span style={{ fontFamily: "var(--mono)", fontWeight: 800, color: "var(--ink-3)" }}>{handle.slice(0, 2).toUpperCase()}</span>}
           </div>
           <div style={{ minWidth: 0 }}>

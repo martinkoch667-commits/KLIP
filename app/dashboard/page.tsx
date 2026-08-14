@@ -12,7 +12,7 @@ import NotificationBell from '@/components/NotificationBell';
 import { ConnectClaudeModal } from '@/components/ConnectClaudeModal';
 import { Sticker } from '@/components/Stickers';
 import SelFrame from '@/components/SelFrame';
-import MediaThumb, { pickThumbSource } from '@/components/MediaThumb';
+import MediaThumb, { pickThumbSource, thumbUrl } from '@/components/MediaThumb';
 
 // ─── Types ─────────────────────────────────────────────────────────────────
 
@@ -519,7 +519,7 @@ function WorkspaceCard({ workspace, posts, color, index, onOpen }: {
           }}>
             {workspace.logo_url
               // eslint-disable-next-line @next/next/no-img-element
-              ? <img src={`/api/proxy-image?url=${encodeURIComponent(workspace.logo_url)}`} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+              ? <img src={thumbUrl(workspace.logo_url, 128)} alt="" loading="lazy" decoding="async" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
               : <span style={{ fontSize: 14, fontWeight: 800, color: '#fff', fontFamily: 'var(--mono)' }}>{initials}</span>}
           </div>
           <div style={{ minWidth: 0, flex: 1 }}>

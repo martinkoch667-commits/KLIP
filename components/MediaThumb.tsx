@@ -25,12 +25,34 @@ export function pickThumbSource(...candidates: (string | null | undefined)[]): s
   return present.find((u) => !isVideoUrl(u)) ?? present[0] ?? null;
 }
 
+/**
+ * URL d'affichage d'une image, redimensionnée.
+ *
+ * Le point critique pour la mémoire. /api/proxy-image règle le CORS et les
+ * en-têtes exigés par Instagram, mais renvoie l'ORIGINAL : une photo d'iPhone
+ * de 12 Mpx pèse 48 Mo une fois décodée par le navigateur, quelle que soit la
+ * taille d'affichage. Une grille d'une douzaine de vignettes suffisait donc à
+ * faire recharger l'onglet par Safari — sans que rien ne « rame » au sens du
+ * calcul : c'est de la mémoire, pas du CPU.
+ *
+ * On enchaîne donc l'optimiseur d'images de Next derrière le proxy : le proxy
+ * va chercher le fichier, l'optimiseur le réduit à la largeur demandée et le
+ * sert en WebP. Une vignette de 320 px retombe sous le mégaoctet.
+ */
+export function thumbUrl(raw: string, width = 480): string {
+  const proxied = `/api/proxy-image?url=${encodeURIComponent(raw)}`;
+  return `/_next/image?url=${encodeURIComponent(proxied)}&w=${width}&q=70`;
+}
+
 export default function MediaThumb({
   raw,
   style,
+  width = 480,
 }: {
   raw?: string | null;
   style?: React.CSSProperties;
+  /** Largeur de rendu visée, en pixels. Doit figurer dans imageSizes/deviceSizes. */
+  width?: number;
 }) {
   if (!raw) return null;
   const base: React.CSSProperties = {
@@ -46,5 +68,5 @@ export default function MediaThumb({
     return <video src={`${raw}#t=0.1`} muted playsInline preload="metadata" style={base} />;
   }
   // eslint-disable-next-line @next/next/no-img-element
-  return <img src={`/api/proxy-image?url=${encodeURIComponent(raw)}`} alt="" loading="lazy" decoding="async" style={base} />;
+  return <img src={thumbUrl(raw, width)} alt="" loading="lazy" decoding="async" style={base} />;
 }

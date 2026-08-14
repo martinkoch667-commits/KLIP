@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Sidebar from "@/components/Sidebar";
 import { useAccountType } from "@/hooks/useAccountType";
+import MediaThumb, { pickThumbSource } from "@/components/MediaThumb";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -449,7 +450,7 @@ export default function FeedPage() {
                       <div style={{ display: "flex", gap: 12, padding: "12px 16px 16px" }}>
                         <button onClick={() => handleEdit(next)} style={{ width: 58, height: 72, borderRadius: 10, background: "var(--sunk)", flexShrink: 0, cursor: "pointer", border: "none", overflow: "hidden", position: "relative" }}>
                           {(next.exported_image_url || next.thumbnail_url || next.photo_url) && (
-                            <img src={`/api/proxy-image?url=${encodeURIComponent((next.exported_image_url || next.thumbnail_url || next.photo_url)!)}`} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                            <MediaThumb raw={pickThumbSource(next.exported_image_url, next.thumbnail_url, next.photo_url)} width={128} />
                           )}
                         </button>
                         <div style={{ minWidth: 0, flex: 1 }}>
