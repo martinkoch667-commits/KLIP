@@ -12,6 +12,7 @@ import NotificationBell from '@/components/NotificationBell';
 import { ConnectClaudeModal } from '@/components/ConnectClaudeModal';
 import { Sticker } from '@/components/Stickers';
 import SelFrame from '@/components/SelFrame';
+import MediaThumb, { pickThumbSource } from '@/components/MediaThumb';
 
 // ─── Types ─────────────────────────────────────────────────────────────────
 
@@ -35,22 +36,8 @@ interface PostRow {
   created_at: string;
 }
 
-// Même règle que la page Planning : un post vidéo n'a pas d'aperçu image, son
-// média EST la vidéo. La passer à une balise <img> ne donne qu'une image
-// cassée — d'où un <video> figé sur sa première image.
-function isVideoUrl(url?: string | null): boolean {
-  return !!url && /\.(webm|mp4|mov|m4v|quicktime)(\?|$)/i.test(url);
-}
-
 function PostThumb({ post }: { post: PostRow }) {
-  const raw = post.exported_image_url || post.thumbnail_url || post.photo_url;
-  if (!raw) return null;
-  const base: React.CSSProperties = { width: '100%', height: '100%', objectFit: 'cover', display: 'block' };
-  if (isVideoUrl(raw)) {
-    return <video src={`${raw}#t=0.1`} muted playsInline preload="metadata" style={base} />;
-  }
-  // eslint-disable-next-line @next/next/no-img-element
-  return <img src={`/api/proxy-image?url=${encodeURIComponent(raw)}`} alt="" style={base} />;
+  return <MediaThumb raw={pickThumbSource(post.exported_image_url, post.thumbnail_url, post.photo_url)} />;
 }
 
 interface ActivityRow {
@@ -135,7 +122,7 @@ function StatTile({ value, label, icon, tone = 'default', sub }: StatTileProps) 
 
 function PostCard({ post, workspaceId, onClick }: { post: PostRow; workspaceId: string; onClick: () => void }) {
   const t = useTranslations('dashboard');
-  const imgUrl = post.exported_image_url || post.photo_url;
+  const hasMedia = !!(post.exported_image_url || post.thumbnail_url || post.photo_url);
   const statusLabel = post.status === 'generated' ? t('statusToValidate') : post.status === 'validated' ? t('statusReady') : t('statusDraft');
   const statusBg = post.status === 'generated' ? 'var(--warn-soft)' : post.status === 'validated' ? 'var(--mint-soft)' : 'var(--sunk)';
   const statusColor = post.status === 'generated' ? 'var(--warn)' : post.status === 'validated' ? 'var(--mint-2)' : 'var(--ink-3)';
@@ -145,9 +132,8 @@ function PostCard({ post, workspaceId, onClick }: { post: PostRow; workspaceId: 
       style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', textAlign: 'left', borderRadius: 10, overflow: 'hidden' }}
     >
       <div style={{ aspectRatio: '4/5', borderRadius: 10, overflow: 'hidden', position: 'relative', background: 'var(--sunk)' }}>
-        {imgUrl ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={imgUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+        {hasMedia ? (
+          <PostThumb post={post} />
         ) : (
           <div style={{ width: '100%', height: '100%', display: 'grid', placeItems: 'center', color: 'var(--ink-3)' }}>
             <IconInstagram />

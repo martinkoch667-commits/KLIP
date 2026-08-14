@@ -9,6 +9,7 @@
 // posts pas encore publiés portent un liseré, pour distinguer le réel du prévu.
 
 import Link from "next/link";
+import MediaThumb, { pickThumbSource } from "@/components/MediaThumb";
 
 export interface FeedPost {
   id: string;
@@ -26,16 +27,9 @@ export interface FeedAccount {
   logo_url?: string | null;
 }
 
-function isVideoUrl(url?: string | null): boolean {
-  return !!url && /\.(webm|mp4|mov|m4v|quicktime)(\?|$)/i.test(url);
-}
-
 function Thumb({ raw }: { raw?: string | null }) {
   if (!raw) return <div style={{ width: "100%", height: "100%", background: "var(--sunk)" }} />;
-  const style: React.CSSProperties = { width: "100%", height: "100%", objectFit: "cover", display: "block" };
-  if (isVideoUrl(raw)) return <video src={`${raw}#t=0.1`} muted playsInline preload="metadata" style={style} />;
-  // eslint-disable-next-line @next/next/no-img-element
-  return <img src={`/api/proxy-image?url=${encodeURIComponent(raw)}`} alt="" style={style} />;
+  return <MediaThumb raw={raw} />;
 }
 
 export default function InstagramFeed({
@@ -105,7 +99,7 @@ export default function InstagramFeed({
           {feed.map(p => {
             const type = (p.post_type ?? "post") as string;
             const isPub = p.status === "published";
-            const raw = p.exported_image_url || p.thumbnail_url || p.photo_url;
+            const raw = pickThumbSource(p.exported_image_url, p.thumbnail_url, p.photo_url);
             return (
               <Link
                 key={p.id}

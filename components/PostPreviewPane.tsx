@@ -1,20 +1,11 @@
 "use client";
 import React, { useState } from "react";
+import MediaThumb from "@/components/MediaThumb";
 
 function aspectForType(t?: string | null): string {
   if (t === "story" || t === "reel") return "9 / 16";
   if (t === "carrousel") return "1 / 1";
   return "4 / 5";
-}
-function isVideoUrl(url?: string | null): boolean {
-  return !!url && /\.(webm|mp4|mov|m4v|quicktime)(\?|$)/i.test(url);
-}
-function MediaThumb({ raw }: { raw?: string | null }) {
-  if (!raw) return null;
-  const base: React.CSSProperties = { width: "100%", height: "100%", objectFit: "cover", display: "block" };
-  if (isVideoUrl(raw)) return <video src={`${raw}#t=0.1`} muted playsInline preload="metadata" style={base} />;
-  // eslint-disable-next-line @next/next/no-img-element
-  return <img src={`/api/proxy-image?url=${encodeURIComponent(raw)}`} alt="" style={base} />;
 }
 
 // ─── Aperçu du rendu publié ──────────────────────────────────────────────────

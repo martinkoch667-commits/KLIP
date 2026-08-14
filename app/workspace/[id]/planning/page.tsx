@@ -9,6 +9,7 @@ import { useParams, useSearchParams } from "next/navigation";
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
 import Sidebar from "@/components/Sidebar";
 import NotificationBell from "@/components/NotificationBell";
+import MediaThumb, { isVideoUrl, pickThumbSource } from "@/components/MediaThumb";
 
 // ─── Sélecteur de musique (recherche catalogue réel + extrait audio) ──────────
 type Song = { id: string; title: string; artist: string; artwork: string; preview: string };
@@ -139,7 +140,7 @@ function carouselUrlsOf(post: { editor_json?: string | null; exported_image_url:
       if (Array.isArray(urls) && urls.length > 0) return urls.filter((u: unknown): u is string => typeof u === 'string' && !!u);
     } catch { /* ignore */ }
   }
-  const single = post.exported_image_url || post.thumbnail_url || post.photo_url;
+  const single = pickThumbSource(post.exported_image_url, post.thumbnail_url, post.photo_url);
   return single ? [single] : [];
 }
 
@@ -227,23 +228,9 @@ function aspectForType(t?: string | null): string {
   if (t === "carrousel") return "1 / 1";
   return "4 / 5";
 }
-// Détecte une source vidéo (export du monteur .webm, imports .mp4/.mov).
-function isVideoUrl(url?: string | null): boolean {
-  return !!url && /\.(webm|mp4|mov|m4v|quicktime)(\?|$)/i.test(url);
-}
 // Un post vidéo ne peut être que Reel ou Story ; une photo ne peut pas être un Reel.
 function allowedTypesFor(isVideo: boolean): PostType[] {
   return isVideo ? ["reel", "story"] : ["post", "carrousel", "story"];
-}
-// Miniature média : rend une <video> (première image comme poster) pour les sources vidéo,
-// sinon une <img> via le proxy. Évite l'image cassée "?" pour les exports .webm/.mp4.
-function MediaThumb({ raw, style }: { raw?: string | null; style?: React.CSSProperties }) {
-  if (!raw) return null;
-  const base: React.CSSProperties = { width: "100%", height: "100%", objectFit: "cover", display: "block", ...style };
-  if (isVideoUrl(raw)) {
-    return <video src={`${raw}#t=0.1`} muted playsInline preload="metadata" style={base} />;
-  }
-  return <img src={`/api/proxy-image?url=${encodeURIComponent(raw)}`} alt="" style={base} />;
 }
 // Month view grid: Mon-based, pads with nulls
 function getMonthGrid(year: number, month: number): (Date | null)[] {
@@ -477,7 +464,7 @@ function CalendarRail({ posts, weekDays, chipColor, workspaceId, igHandle }: {
         ) : (
           <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
             {toFinish.map(p => {
-              const rawImg = p.exported_image_url || p.thumbnail_url || p.photo_url;
+              const rawImg = pickThumbSource(p.exported_image_url, p.thumbnail_url, p.photo_url);
               return (
                 <Link key={p.id} href={`/workspace/${workspaceId}/${isVideoUrl(p.photo_url) ? "montage" : "editor"}/${p.id}`}
                   style={{ display: "flex", alignItems: "center", gap: 10, padding: 7, borderRadius: 10, textDecoration: "none", boxShadow: "inset 0 0 0 1px var(--line)", transition: "background .14s" }}
@@ -944,7 +931,7 @@ function PlanningContent() {
               ) : (
                 <div style={{ display: "flex", gap: 10, overflowX: "auto", paddingBottom: 4 }}>
                   {scheduled.map(post => {
-                    const rawImg  = post.exported_image_url || post.thumbnail_url || post.photo_url;
+                    const rawImg  = pickThumbSource(post.exported_image_url, post.thumbnail_url, post.photo_url);
                     const isPub   = post.status === "published";
                     const pType   = (post.post_type as PostType) ?? "post";
                     const ptCfg   = POST_TYPE_CFG[pType];
@@ -1085,7 +1072,7 @@ function PlanningContent() {
                         const blockH     = Math.max(HOUR_H - 4, 44);
                         const isSelected = selectedPost?.id === post.id;
                         const isPub      = post.status === "published";
-                        const rawImg     = post.exported_image_url || post.thumbnail_url || post.photo_url;
+                        const rawImg     = pickThumbSource(post.exported_image_url, post.thumbnail_url, post.photo_url);
                         const initials   = (workspace?.name ?? "??").slice(0, 2).toUpperCase();
                         return (
                           <div key={post.id}
@@ -1152,8 +1139,8 @@ function PlanningContent() {
                     onDragEnd={() => { setDraggedId(null); setDragOverDay(null); setDragOverHour(null); }}
                     onClick={() => selectPost(post)}
                     style={{ flexShrink: 0, width: 52, height: 64, borderRadius: 8, overflow: "hidden", cursor: "pointer", opacity: draggedId === post.id ? 0.35 : 1, boxShadow: selectedPost?.id === post.id ? `0 0 0 2.5px ${chipColor}` : "0 1px 4px rgba(13,15,10,.12)", userSelect: "none", background: "var(--white)" }}>
-                    {(post.exported_image_url || post.thumbnail_url || post.photo_url) ? (
-                      <MediaThumb raw={post.exported_image_url || post.thumbnail_url || post.photo_url} />
+                    {(pickThumbSource(post.exported_image_url, post.thumbnail_url, post.photo_url)) ? (
+                      <MediaThumb raw={pickThumbSource(post.exported_image_url, post.thumbnail_url, post.photo_url)} />
                     ) : (
                       <div style={{ width: "100%", height: "100%", background: chipColor, display: "grid", placeItems: "center" }}>
                         <span style={{ fontFamily: "var(--sans)", fontSize: 9, fontWeight: 800, color: "#fff", textTransform: "uppercase" }}>Post</span>
@@ -1203,7 +1190,7 @@ function PlanningContent() {
                       {/* Post chips */}
                       <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
                         {dayPosts.slice(0, 3).map(post => {
-                          const rawImg  = post.exported_image_url || post.thumbnail_url || post.photo_url;
+                          const rawImg  = pickThumbSource(post.exported_image_url, post.thumbnail_url, post.photo_url);
                           const isPub   = post.status === "published";
                           return (
                           <div key={post.id}
@@ -1257,9 +1244,8 @@ function PlanningContent() {
                     onDragEnd={() => { setDraggedId(null); setDragOverDay(null); }}
                     onClick={() => selectPost(post)}
                     style={{ flexShrink: 0, width: 56, height: 68, borderRadius: 8, overflow: "hidden", cursor: "pointer", opacity: draggedId === post.id ? 0.35 : 1, boxShadow: selectedPost?.id === post.id ? `0 0 0 2.5px ${chipColor}` : "0 1px 4px rgba(13,15,10,.12)", userSelect: "none", background: "var(--white)" }}>
-                    {(post.exported_image_url || post.thumbnail_url || post.photo_url) ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img src={post.exported_image_url || post.thumbnail_url || post.photo_url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                    {(pickThumbSource(post.exported_image_url, post.thumbnail_url, post.photo_url)) ? (
+                      <MediaThumb raw={pickThumbSource(post.exported_image_url, post.thumbnail_url, post.photo_url)} />
                     ) : (
                       <div style={{ width: "100%", height: "100%", background: chipColor, display: "grid", placeItems: "center" }}>
                         <span style={{ fontFamily: "var(--mono)", fontSize: 9, fontWeight: 800, color: "#fff", textTransform: "uppercase" }}>{t('postFallback')}</span>

@@ -239,6 +239,15 @@ function fmtClipDuration(s: number) {
 // Un objectURL par fichier, révoqué au démontage. Les URL doivent vivre aussi
 // longtemps que les vignettes qui les affichent : on ne peut pas les libérer
 // dès la première image peinte.
+// Un aperçu local (blob:) retient TOUT le fichier en mémoire jusqu'à sa
+// libération explicite — le navigateur ne peut pas le deviner. Sur une session
+// d'import de plusieurs vidéos, les aperçus oubliés se comptent en centaines de
+// mégaoctets : l'onglet ralentit puis Safari le tue. Chaque fois qu'un aperçu
+// est remplacé par l'URL définitive, il faut donc le relâcher.
+function releasePreview(url?: string | null) {
+  if (url && url.startsWith("blob:")) URL.revokeObjectURL(url);
+}
+
 function useClipUrls(files: File[]): string[] {
   const [urls, setUrls] = useState<string[]>([]);
   useEffect(() => {
@@ -577,6 +586,14 @@ export default function WorkspacePage() {
 
   const [workspace, setWorkspace] = useState<Workspace | null>(null);
   const [posts, setPosts] = useState<PostItem[]>([]);
+
+  // Filet de sécurité : en quittant l'écran, les aperçus restés locaux (import
+  // abandonné, envoi échoué) doivent être relâchés. La navigation côté client
+  // ne recharge pas la page, donc sans ça ils survivent jusqu'à la fermeture de
+  // l'onglet.
+  const postsRef = useRef<PostItem[]>([]);
+  postsRef.current = posts;
+  useEffect(() => () => { postsRef.current.forEach(p => releasePreview(p.photo_url)); }, []);
   const [activeTab, setActiveTab] = useState<Tab>("produire");
   const [generatingAll, setGeneratingAll] = useState(false);
   const [globalBrief, setGlobalBrief] = useState('');
@@ -935,6 +952,7 @@ export default function WorkspacePage() {
             ...(editorJson ? { editor_json: editorJson } : {}),
           }).eq("id", dbId);
         }
+        releasePreview(item.photo_url);
         setPosts((prev) => prev.map((p) => p.localId === item.localId ? { ...p, dbId, photo_url: pUrl, texte_visuel, description, status: "generated", templateId: item.templateId ?? p.templateId, error: undefined } : p));
       } else {
         // « Non autorisé » ne dit rien à personne : si la session est vraiment
@@ -1016,7 +1034,9 @@ export default function WorkspacePage() {
   async function replacePhoto(post: PostItem, file: File) {
     if (file.size > 10 * 1024 * 1024) { alert(t('fileTooLarge10')); return; }
     const preview = URL.createObjectURL(file);
-    // Aperçu immédiat
+    // Aperçu immédiat — l'aperçu précédent, s'il était local, n'a plus de raison
+    // d'occuper la mémoire.
+    releasePreview(post.photo_url);
     setPosts(prev => prev.map(p => p.localId === post.localId ? { ...p, photo_url: preview, exported_image_url: null } : p));
     try {
       const path = `photos/${id}/${post.dbId ?? post.localId}-${Date.now()}.${file.name.split('.').pop() || 'jpg'}`;
@@ -1025,6 +1045,7 @@ export default function WorkspacePage() {
       const { data: urlData } = supabase.storage.from('photos').getPublicUrl(path);
       const url = urlData.publicUrl;
       if (post.dbId) await supabase.from('posts').update({ photo_url: url, exported_image_url: null }).eq('id', post.dbId);
+      releasePreview(preview);
       setPosts(prev => prev.map(p => p.localId === post.localId ? { ...p, photo_url: url, file, exported_image_url: null } : p));
     } catch { /* silent */ }
   }
@@ -1103,6 +1124,7 @@ export default function WorkspacePage() {
           ...(montageJson ? { montage_json: montageJson } : {}),
         }).eq("id", dbId);
       }
+      releasePreview(item.photo_url);
       setPosts((prev) => prev.map((p) => p.localId === item.localId ? { ...p, dbId, photo_url: pUrl, status: "validated" } : p));
       return dbId ? { dbId, clips: montageJson?.clips ?? null } : null;
     }
