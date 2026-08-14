@@ -29,9 +29,28 @@ interface PostRow {
   status: string;
   photo_url: string | null;
   exported_image_url: string | null;
+  thumbnail_url: string | null;
   texte_visuel: string | null;
   scheduled_at: string | null;
   created_at: string;
+}
+
+// Même règle que la page Planning : un post vidéo n'a pas d'aperçu image, son
+// média EST la vidéo. La passer à une balise <img> ne donne qu'une image
+// cassée — d'où un <video> figé sur sa première image.
+function isVideoUrl(url?: string | null): boolean {
+  return !!url && /\.(webm|mp4|mov|m4v|quicktime)(\?|$)/i.test(url);
+}
+
+function PostThumb({ post }: { post: PostRow }) {
+  const raw = post.exported_image_url || post.thumbnail_url || post.photo_url;
+  if (!raw) return null;
+  const base: React.CSSProperties = { width: '100%', height: '100%', objectFit: 'cover', display: 'block' };
+  if (isVideoUrl(raw)) {
+    return <video src={`${raw}#t=0.1`} muted playsInline preload="metadata" style={base} />;
+  }
+  // eslint-disable-next-line @next/next/no-img-element
+  return <img src={`/api/proxy-image?url=${encodeURIComponent(raw)}`} alt="" style={base} />;
 }
 
 interface ActivityRow {
@@ -304,14 +323,23 @@ function InstagramProfile({ workspaceId, upcoming = [] }: { workspaceId: string;
                 haut à gauche. Liseré leaf pour ne pas les confondre avec le
                 réel déjà publié. */}
             {upcoming.map(p => {
-              const raw = p.exported_image_url || p.photo_url;
-              const src = raw ? `/api/proxy-image?url=${encodeURIComponent(raw)}` : null;
+              const when = p.scheduled_at
+                ? new Date(p.scheduled_at).toLocaleDateString(undefined, { day: 'numeric', month: 'short' })
+                : null;
               return (
                 <Link key={`up-${p.id}`} href={`/workspace/${workspaceId}/editor/${p.id}`}
-                  title={p.scheduled_at ? new Date(p.scheduled_at).toLocaleDateString() : undefined}
+                  title={p.scheduled_at ? new Date(p.scheduled_at).toLocaleString() : undefined}
                   style={{ position: 'relative', aspectRatio: '1', overflow: 'hidden', background: 'var(--sunk)', display: 'block' }}>
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  {src && <img src={src} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />}
+                  <PostThumb post={p} />
+                  {/* Un liseré seul ne suffisait pas à distinguer le programmé
+                      du déjà publié : la pastille nomme l'état et donne la date. */}
+                  <span style={{
+                    position: 'absolute', top: 5, left: 5, display: 'inline-flex', alignItems: 'center', gap: 3,
+                    padding: '2px 6px', borderRadius: 999, background: 'var(--leaf)', color: '#0B1F14',
+                    fontSize: 9.5, fontWeight: 800, letterSpacing: '.02em', lineHeight: 1.5, pointerEvents: 'none',
+                  }}>
+                    {t('scheduledBadge')}{when ? ` · ${when}` : ''}
+                  </span>
                   <span style={{ position: 'absolute', inset: 0, boxShadow: 'inset 0 0 0 2px var(--leaf)', pointerEvents: 'none' }} />
                 </Link>
               );
@@ -615,7 +643,7 @@ export default function Dashboard() {
 
         // Load posts + activity in parallel (activity_log may not exist yet)
         const [{ data: ps }, { data: acts }] = await Promise.all([
-          supabase.from('posts').select('id, workspace_id, status, photo_url, exported_image_url, texte_visuel, scheduled_at, created_at').order('created_at', { ascending: false }),
+          supabase.from('posts').select('id, workspace_id, status, photo_url, exported_image_url, thumbnail_url, texte_visuel, scheduled_at, created_at').order('created_at', { ascending: false }),
           supabase.from('activity_log').select('id, workspace_id, action_type, post_title, created_at').order('created_at', { ascending: false }).limit(20),
         ]);
         setPosts(ps ?? []);
