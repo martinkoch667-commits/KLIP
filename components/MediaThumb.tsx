@@ -89,7 +89,13 @@ export function MediaPreview({
     <div style={{ position: "relative", width: "100%", height: "100%", background: "#000" }}>
       <video
         ref={videoRef}
-        src={raw}
+        // #t=0.1 n'est pas cosmétique : sans ce fragment, un <video> en
+        // preload="metadata" charge le fichier (readyState 4, dimensions
+        // connues) mais ne peint AUCUNE image — l'aperçu reste noir jusqu'à la
+        // première lecture. Demander une position force le décodage de cette
+        // image-là et l'affiche. Vérifié sur un MP4 issu de MediaRecorder,
+        // exactement celui que produit l'export.
+        src={`${raw}#t=0.1`}
         poster={poster ? thumbUrl(poster, 640) : undefined}
         playsInline
         preload="metadata"

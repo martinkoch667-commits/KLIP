@@ -144,6 +144,16 @@ function carouselUrlsOf(post: { editor_json?: string | null; exported_image_url:
   return single ? [single] : [];
 }
 
+// Média à montrer dans l'aperçu du rendu. À ne pas confondre avec la vignette :
+// ici on veut le fichier RÉEL — pour une vidéo, la vidéo elle-même, sinon
+// l'aperçu afficherait une image fixe sans moyen de la lire. La vignette, elle,
+// sert d'image d'attente (posterUrl).
+function previewMediaOf(post: { editor_json?: string | null; exported_image_url: string | null; photo_url: string }): string | null {
+  const slides = carouselUrlsOf({ ...post, thumbnail_url: null });
+  if (slides.length > 1) return slides[0];
+  return post.exported_image_url || post.photo_url || null;
+}
+
 interface Post {
   id: string;
   photo_url: string;
@@ -1516,7 +1526,7 @@ function PlanningContent() {
           <aside style={{ borderLeft: "1px solid var(--line)", background: "var(--canvas)", padding: "16px 18px", overflowY: "auto" }}>
             <PostPreviewPane
               workspace={workspace}
-              mediaUrl={carouselUrlsOf(selectedPost)[0] || selectedPost.photo_url}
+              mediaUrl={previewMediaOf(selectedPost)}
               posterUrl={selectedPost.thumbnail_url}
               caption={panelDesc}
               postType={panelPostType}
