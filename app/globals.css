@@ -644,30 +644,44 @@ input.ed-range::-moz-range-thumb {
   content: ""; position: absolute; left: 0; bottom: 0;
   width: 46px; height: 4px; border-radius: 99px; background: var(--leaf);
 }
-/* Onboarding sur fond BLANC : les cartes ne peuvent plus flotter par l'ombre.
-   Elles deviennent des zones légèrement teintées, délimitées au filet — c'est le
-   contraste de surface qui structure la page, pas une superposition. */
+/* Onboarding sur fond BLANC : les cartes se signalent par un aplat, jamais par
+   un filet — même principe que les boutons secondaires, et que l'écran d'entrée
+   du parcours. C'est le contraste de surface qui structure la page. */
 .ws-new-main .card {
-  background: #FAFAF8;
-  border: 1px solid rgba(13,15,10,.09);
+  background: var(--sunk);
+  border: none;
   border-radius: 16px;
   box-shadow: none;
 }
-/* Champs : remplis plutôt que cernés, et plus hauts — sur du blanc, une bordure
-   fine seule se lit mal et fait « formulaire administratif ». */
+/* Champs : remplis plutôt que cernés. Sur la page (blanche) ils prennent
+   l'aplat ; dans une carte (déjà en aplat) ils passent au blanc, sans quoi les
+   deux surfaces se confondraient. */
 .ws-new-main .input {
   padding: 13px 15px;
   border-radius: 12px;
-  background: #F4F4F1;
-  border: 1px solid transparent;
+  background: var(--sunk);
+  border: none;
   font-size: 14.5px;
 }
+.ws-new-main .card .input { background: #FFFFFF; }
 .ws-new-main .input:focus {
   background: #FFFFFF;
-  border-color: var(--leaf);
-  box-shadow: 0 0 0 4px rgba(189,242,160,.45);
+  box-shadow: 0 0 0 3px rgba(189,242,160,.85);
 }
 .ws-new-main textarea.input { min-height: 96px; line-height: 1.55; }
+
+/* Titre d'étape : même voix que l'écran d'entrée — oaks, gros, sans filet. */
+.ws-new-step-title { font-family: var(--oaks) !important; font-weight: 700 !important;
+  color: var(--leaf-ink) !important; letter-spacing: -.015em !important;
+  padding-bottom: 0 !important; font-size: clamp(30px, 3.6vw, 46px) !important; }
+.ws-new-step-title::after { display: none !important; }
+
+/* Puces de choix (secteur, ton…) : aplat, pas de contour. */
+.wsn-chip { padding: 9px 18px; border-radius: 999px; border: none; cursor: pointer;
+  font-family: var(--sans); font-size: 13px; font-weight: 700; color: var(--ink-2);
+  background: var(--btn-soft); transition: background .13s, color .13s; }
+.wsn-chip:hover { background: var(--btn-soft-2); color: var(--ink); }
+.wsn-chip.is-on { background: var(--leaf); color: var(--leaf-ink); }
 
 @media (max-width: 1080px) {
   :root { --sb-w: 76px; }

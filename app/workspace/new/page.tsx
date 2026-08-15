@@ -65,9 +65,10 @@ function loadGoogleFont(family: string) {
 
 // ─── Shared styles ────────────────────────────────────────────────────────────
 
+// Champs du parcours : aplat, sans filet, comme partout ailleurs dans le produit.
 const inputStyle: CSSProperties = {
-  width: "100%", background: "#fff", border: "1px solid rgba(13,15,10,.10)",
-  borderRadius: 13, padding: "11px 16px", fontSize: 14, color: "var(--ink)",
+  width: "100%", background: "var(--sunk)", border: "none",
+  borderRadius: 13, padding: "12px 16px", fontSize: 14.5, color: "var(--ink)",
   outline: "none", fontFamily: "var(--sans)", boxSizing: "border-box",
 };
 
@@ -668,12 +669,12 @@ export default function NewWorkspacePage() {
               {sitePhase === "ask" && (
                 <>
                   <h1 className="wsx-h1">
-                    Sa charte, à partir<br />de son <span className="acc-hl">site</span>.
+                    La charte, à partir<br />du <span className="acc-hl">site</span>.
                   </h1>
                   <p className="wsx-sub">
-                    Collez l&apos;adresse de votre client. On y lit ses couleurs, sa
-                    typographie et sa façon de parler, puis on remplit sa fiche à sa
-                    place — vous n&apos;aurez plus qu&apos;à corriger ce qui ne va pas.
+                    Collez l&apos;adresse du site de la marque. On y lit ses couleurs, sa
+                    typographie et sa façon de parler, puis on remplit sa fiche —
+                    vous n&apos;aurez plus qu&apos;à corriger ce qui ne va pas.
                   </p>
                   <div className="wsx-field">
                     <input
@@ -733,12 +734,12 @@ export default function NewWorkspacePage() {
                   </h1>
                   <p className="wsx-sub">
                     Une lecture automatique se trompe parfois : relisez, corrigez sur place.
-                    Ce que vous validez ici devient la charte du client.
+                    Ce que vous validez ici devient la charte de la marque.
                   </p>
 
                   <div className="wsx-cards">
                     <div className="wsx-card wsx-card-wide">
-                      <span className="wsx-card-t">Nom du client</span>
+                      <span className="wsx-card-t">Nom de la marque</span>
                       <input className="wsx-in" value={name} onChange={e => setName(e.target.value)} placeholder="Nom de la marque" />
                     </div>
 
@@ -955,13 +956,7 @@ export default function NewWorkspacePage() {
                       <button
                         key={s.value} type="button"
                         onClick={() => setSector(sector === s.value ? "" : s.value)}
-                        style={{
-                          padding: "8px 18px", borderRadius: 20, fontSize: 13, fontWeight: 600,
-                          border: "1.5px solid", cursor: "pointer", transition: "all 0.12s",
-                          background: sector === s.value ? "var(--leaf)" : "var(--white)",
-                          borderColor: sector === s.value ? "var(--leaf)" : "rgba(13,15,10,.12)",
-                          color: sector === s.value ? "var(--mint-ink)" : "var(--ink-2)",
-                        }}
+                        className={"wsn-chip" + (sector === s.value ? " is-on" : "")}
                       >
                         {s.label}
                       </button>
@@ -1021,7 +1016,8 @@ export default function NewWorkspacePage() {
                           onClick={() => setTone(tone === tn.value ? "" : tn.value)}
                           style={{
                             padding: "14px 14px", borderRadius: 13, textAlign: "left",
-                            border: `1.5px solid ${active ? "var(--leaf)" : "rgba(13,15,10,.10)"}`,
+                            border: "none",
+                            boxShadow: active ? "inset 0 0 0 2px var(--leaf-ink)" : "none",
                             background: active ? "var(--leaf-soft)" : "var(--white)",
                             cursor: "pointer", transition: "all 0.15s",
                           }}
@@ -1045,7 +1041,8 @@ export default function NewWorkspacePage() {
                             onClick={() => setTone(tone === ct ? "" : ct)}
                             style={{
                               width: "100%", padding: "14px 14px", borderRadius: 13, textAlign: "left",
-                              border: `1.5px solid ${active ? "var(--leaf)" : "rgba(13,15,10,.10)"}`,
+                              border: "none",
+                            boxShadow: active ? "inset 0 0 0 2px var(--leaf-ink)" : "none",
                               background: active ? "var(--leaf-soft)" : "var(--white)",
                               cursor: "pointer", transition: "all 0.15s",
                             }}
@@ -1189,7 +1186,7 @@ export default function NewWorkspacePage() {
                   <label style={labelStyle}>{t('brandIconLabel')} <OptLabel /></label>
                   <p style={{ fontSize: 12, color: "var(--ink-3)", marginBottom: 10 }}>{t('brandIconHint')}</p>
                   <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-                    <div style={{ width: 64, height: 64, borderRadius: 12, border: "1.5px solid var(--line)", background: "var(--sunk)", overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                    <div style={{ width: 64, height: 64, borderRadius: 12, background: "var(--sunk)", overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
                       {brandIconPreview
                         // eslint-disable-next-line @next/next/no-img-element
                         ? <img src={brandIconPreview} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
@@ -1362,7 +1359,7 @@ export default function NewWorkspacePage() {
                   {/* Font list */}
                   <div style={{
                     maxHeight: 300, overflowY: "auto",
-                    border: "1px solid rgba(13,15,10,.08)", borderRadius: 13,
+                    border: "none", borderRadius: 13,
                     background: "var(--white)",
                   }}>
                     {fontsLoading ? (
@@ -1404,7 +1401,7 @@ export default function NewWorkspacePage() {
                     onClick={() => customPrimaryRef.current?.click()}
                     style={{
                       width: "100%", padding: "11px 16px", borderRadius: 13,
-                      border: "1.5px solid rgba(13,15,10,.20)", background: "transparent",
+                      border: "none", background: "var(--btn-soft)",
                       cursor: "pointer", fontSize: 13, color: "var(--ink-2)", fontWeight: 600,
                       display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
                       transition: "border-color 0.15s, color 0.15s",
@@ -1496,7 +1493,7 @@ export default function NewWorkspacePage() {
                   {/* Font list */}
                   <div style={{
                     maxHeight: 220, overflowY: "auto",
-                    border: "1px solid rgba(13,15,10,.08)", borderRadius: 13, background: "var(--white)",
+                    border: "none", borderRadius: 13, background: "var(--white)",
                   }}>
                     {/* "Aucune" option */}
                     <button type="button"
@@ -1535,7 +1532,7 @@ export default function NewWorkspacePage() {
                     onClick={() => customSecondaryRef.current?.click()}
                     style={{
                       width: "100%", padding: "11px 16px", borderRadius: 13,
-                      border: "1.5px solid rgba(13,15,10,.20)", background: "transparent",
+                      border: "none", background: "var(--btn-soft)",
                       cursor: "pointer", fontSize: 13, color: "var(--ink-2)", fontWeight: 600,
                       display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
                       transition: "border-color 0.15s, color 0.15s",
@@ -1590,8 +1587,8 @@ export default function NewWorkspacePage() {
                       return (
                         <button type="button" key={p.id} onClick={() => applySubPreset(p)}
                           style={{ flexShrink: 0, width: 150, textAlign: "left", padding: 0, borderRadius: 12, overflow: "hidden", cursor: "pointer",
-                            border: active ? "2px solid var(--leaf-ink)" : "1.5px solid var(--line)", background: "var(--card)",
-                            boxShadow: active ? "0 0 0 3px var(--leaf-soft)" : "none", transition: "border-color .15s, box-shadow .15s" }}>
+                            border: "none", background: "var(--sunk)",
+                            boxShadow: active ? "inset 0 0 0 2px var(--leaf-ink)" : "none", transition: "box-shadow .15s" }}>
                           <div style={{ height: 78, background: "linear-gradient(135deg,#242a20,#0b110a)", display: "grid", placeItems: "center", padding: 8 }}>
                             <SubChip styleId={p.styleId} custom={p.custom} />
                           </div>
@@ -1727,8 +1724,8 @@ export default function NewWorkspacePage() {
             {step > 0 && (
               <button type="button" onClick={() => setStep(s => s - 1)}
                 style={{
-                  padding: "10px 20px", borderRadius: 13, background: "transparent",
-                  border: "1px solid rgba(13,15,10,.12)", color: "var(--ink-2)",
+                  padding: "10px 20px", borderRadius: 13,
+                  border: "none", background: "var(--btn-soft)", color: "var(--ink-2)",
                   fontSize: 13, fontWeight: 600, cursor: "pointer",
                 }}>
                 {t('back')}
