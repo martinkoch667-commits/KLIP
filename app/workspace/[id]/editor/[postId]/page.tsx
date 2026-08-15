@@ -208,6 +208,19 @@ function newId() { return `el-${Date.now()}-${Math.random().toString(36).slice(2
 // l'éditeur (et perdait la sélection) avant d'avoir appliqué quoi que ce soit.
 const KEEP_TEXT_EDIT_SELECTOR = '[data-stop-deselect], .ed-ctx-float, .ed-mobile-ctx, .ed-panel';
 
+// L'utilisateur est-il en train de SAISIR ? Si oui, les raccourcis de l'éditeur
+// (Suppr, flèches, Cmd+A/C/X/D…) doivent lui laisser la main : ils s'adressent
+// aux calques, pas au texte en cours de frappe.
+// Le champ d'édition du canvas est un contentEditable, pas un <textarea> : ne
+// tester que le nom de balise laissait passer Suppr, qui effaçait alors le
+// calque entier au lieu du caractère sous le curseur.
+function isTypingTarget(target: EventTarget | null): boolean {
+  const el = target as HTMLElement | null;
+  if (!el || typeof el.tagName !== 'string') return false;
+  if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT') return true;
+  return el.isContentEditable === true;
+}
+
 function measureTextWidth(text: string, fontSize: number, fontFamily: string, fontStyle = 'bold', letterSpacing = 0): number {
   return measureSegment(text, { fontFamily, fontSize, fontStyle, fill: '#000', textDecoration: '', letterSpacing });
 }
@@ -3638,8 +3651,7 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      const tag = (e.target as HTMLElement).tagName;
-      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+      if (isTypingTarget(e.target)) return;
       if (e.key === 'Escape') {
         if (isPenModeRef.current) {
           setIsPenMode(false); penPointsRef.current = []; setPenPoints([]); setPenPreviewPos(null);
@@ -4254,8 +4266,9 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
   // Coller une image venue d'une autre app (Finder, navigateur, capture d'écran).
   useEffect(() => {
     const onPaste = (e: ClipboardEvent) => {
-      const tag = (e.target as HTMLElement | null)?.tagName;
-      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+      // Coller dans un texte en cours d'édition insère des caractères ; ça ne
+      // doit pas créer un calque texte ni recoller la sélection copiée.
+      if (isTypingTarget(e.target)) return;
       const item = Array.from(e.clipboardData?.items ?? []).find(i => i.type.startsWith('image/'));
       const file = item?.getAsFile();
       const text = e.clipboardData?.getData('text/plain')?.trim() ?? '';
