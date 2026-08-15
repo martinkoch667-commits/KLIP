@@ -653,7 +653,7 @@ export default function NewWorkspacePage() {
   // barre latérale et barre haute — pour qu'on sache toujours où l'on est.
   if (step === 0) {
     return (
-      <div style={{ display: "flex", minHeight: "100vh", background: "var(--forest)" }}>
+      <div style={{ display: "flex", minHeight: "100vh", background: "#FFFFFF" }}>
         <Sidebar />
         <div className="wsx" style={{ marginLeft: "var(--sb-w)" }}>
           <div className="wsx-bar">
@@ -754,16 +754,17 @@ export default function NewWorkspacePage() {
 
                     <div className="wsx-card">
                       <span className="wsx-card-t">Couleurs</span>
+                      {/* Le nuancier de l'application, pas celui du système : mêmes
+                          teintes de charte, pipette et réglage fin, comme dans l'éditeur. */}
                       <div className="wsx-cols">
                         {([["Principale", primaryColor, setPrimaryColor],
                            ["Secondaire", secondaryColor, setSecondaryColor],
                            ["Accent", accentColor, setAccentColor]] as const).map(([lbl, val, set]) => (
-                          <label key={lbl} className="wsx-col">
-                            <input type="color" value={val} onChange={e => set(e.target.value)} />
-                            <span className="wsx-col-sw" style={{ background: val }} />
+                          <div key={lbl} className="wsx-col">
+                            <ColorPicker value={val} onChange={set} brandColors={[primaryColor, secondaryColor, accentColor]} />
                             <span className="wsx-col-l">{lbl}</span>
                             <span className="wsx-col-h">{val.toUpperCase()}</span>
-                          </label>
+                          </div>
                         ))}
                       </div>
                     </div>
