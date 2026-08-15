@@ -1,10 +1,11 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { useParams, useRouter } from 'next/navigation';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import Sidebar from '@/components/Sidebar';
+import ColorPicker from '@/components/ColorPicker';
 import {
   SUB_STYLES, effectiveSubStyle, loadSubTemplates, saveSubTemplates,
   DEFAULT_SUB_POS, DEFAULT_WORDS_PER_CAPTION,
@@ -53,6 +54,24 @@ const FORMATS = [
   { id: 'ig-story',    labelKey: 'formatStoryFull',    sub: '1080×1920', w: 253, h: 450 },
   { id: 'facebook',    labelKey: 'formatFacebookFull', sub: '1200×630',  w: 420, h: 221 },
 ] as const;
+
+// Libellé de réglage — même voix que les autres panneaux du produit.
+const subLabel: React.CSSProperties = {
+  display: 'block', marginBottom: 6, fontSize: 10.5, fontWeight: 800,
+  color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '0.12em',
+  fontFamily: 'var(--mono)',
+};
+
+// Polices proposées pour les sous-titres. Valeurs CSS directement utilisables
+// par le rendu du montage, qui lit `font` tel quel.
+const SUB_FONTS: { label: string; value: string }[] = [
+  { label: 'Archivo (titrage)', value: 'var(--display)' },
+  { label: 'Sans (interface)', value: 'var(--sans)' },
+  { label: 'Mono', value: 'var(--mono)' },
+  { label: 'Instrument Serif', value: "'Instrument Serif', serif" },
+  { label: 'Impact', value: 'Impact, sans-serif' },
+  { label: 'Georgia', value: 'Georgia, serif' },
+];
 
 const panelInput: React.CSSProperties = {
   width: '100%', background: 'var(--white)', border: '1px solid var(--line)',
@@ -269,7 +288,7 @@ export default function TemplatesPage() {
               </div>
             )}
 
-            <SubtitleTemplatesSection workspaceId={workspaceId} />
+            <SubtitleTemplatesSection workspaceId={workspaceId} workspace={workspace} />
 
             <style>{`
               .tpl-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
@@ -369,7 +388,7 @@ function MiniPreview({ bg }: { bg: BgStyle }) {
 // Partagés avec le monteur via localStorage (clé « klip-sub-templates »). Permet de
 // créer/supprimer ici des modèles réutilisables dans le module Montage.
 
-function SubtitleTemplatesSection({ workspaceId }: { workspaceId: string }) {
+function SubtitleTemplatesSection({ workspaceId, workspace }: { workspaceId: string; workspace: Workspace | null }) {
   const t = useTranslations('workspaceTemplates');
   const [list, setList] = useState<SubTemplate[]>([]);
   const [creating, setCreating] = useState(false);
@@ -380,8 +399,29 @@ function SubtitleTemplatesSection({ workspaceId }: { workspaceId: string }) {
 
   useEffect(() => { setList(loadSubTemplates()); }, []);
 
+  // Le style de base n'a aucune raison d'ignorer la charte du compte : on part
+  // de ses couleurs et de sa police, quitte à ce que tout soit ensuite repris
+  // à la main. Un nouveau modèle qui ressemble déjà à la marque évite de
+  // refaire le même réglage à chaque fois.
+  const charterCustom = useCallback((): SubCustom => ({
+    fg: workspace?.secondary_color || '#FFFFFF',
+    hi: workspace?.accent_color || workspace?.primary_color || '#BDF2A0',
+    bg: workspace?.primary_color || 'transparent',
+    font: workspace?.font_family || undefined,
+  }), [workspace]);
+
+  const openCreator = () => {
+    if (creating) { setCreating(false); return; }
+    setCustom(charterCustom());
+    setStyleId(SUB_STYLES[0].id);
+    setName('');
+    setMaxWords(DEFAULT_WORDS_PER_CAPTION);
+    setCreating(true);
+  };
+
   const eff = effectiveSubStyle(styleId, custom);
   const patch = (p: SubCustom) => setCustom(c => ({ ...c, ...p }));
+  const hasCharter = !!(workspace?.primary_color || workspace?.font_family);
 
   function persist(next: SubTemplate[]) { setList(next); saveSubTemplates(next); }
   function create() {
@@ -394,6 +434,20 @@ function SubtitleTemplatesSection({ workspaceId }: { workspaceId: string }) {
     setCreating(false); setName(''); setCustom({}); setStyleId(SUB_STYLES[0].id); setMaxWords(DEFAULT_WORDS_PER_CAPTION);
   }
   function remove(id: string) { persist(list.filter(tpl => tpl.id !== id)); }
+
+  const brandCols = [workspace?.primary_color, workspace?.secondary_color, workspace?.accent_color].filter(Boolean) as string[];
+
+  const slider = (label: string, value: number, min: number, max: number, step: number,
+                  on: (v: number) => void, fmt: (v: number) => string) => (
+    <div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 5 }}>
+        <span style={subLabel}>{label}</span>
+        <span style={{ fontFamily: 'var(--mono)', fontSize: 11, fontWeight: 800, color: 'var(--ink-2)' }}>{fmt(value)}</span>
+      </div>
+      <input type="range" min={min} max={max} step={step} value={value}
+        onChange={e => on(parseFloat(e.target.value))} style={{ width: '100%', accentColor: 'var(--mint-2)' }} />
+    </div>
+  );
 
   const colorField = (label: string, value: string, on: (v: string) => void) => (
     <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, fontSize: 12, color: 'var(--ink-2)', fontWeight: 700 }}>
@@ -409,7 +463,7 @@ function SubtitleTemplatesSection({ workspaceId }: { workspaceId: string }) {
           <h2 style={{ fontSize: 19, fontWeight: 800, margin: 0 }}>{t('subtitlesTitle')}</h2>
           <span style={{ color: 'var(--ink-3)', fontWeight: 700, fontSize: 14 }}>{list.length}</span>
         </div>
-        <button className="btn btn-primary btn-sm" onClick={() => setCreating(v => !v)}>
+        <button className="btn btn-primary btn-sm" onClick={openCreator}>
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12h14"/></svg>
           {creating ? t('close') : t('newTemplate')}
         </button>
@@ -422,10 +476,14 @@ function SubtitleTemplatesSection({ workspaceId }: { workspaceId: string }) {
         <div className="card" style={{ padding: 18, marginBottom: 18, display: 'grid', gridTemplateColumns: '260px 1fr', gap: 20 }}>
           {/* Aperçu */}
           <div style={{ borderRadius: 'var(--r)', overflow: 'hidden', background: 'linear-gradient(150deg,#2b8d57,#0c2a1d)', minHeight: 150, display: 'grid', placeItems: 'center' }}>
+            {/* L'aperçu doit refléter TOUS les réglages, sinon on règle à l'aveugle. */}
             <span style={{
               display: 'inline-block', padding: eff.pill ? '6px 14px' : '5px 10px', borderRadius: eff.pill ? 99 : 7,
               background: eff.bg, color: eff.fg, fontFamily: eff.font || (eff.italic ? 'var(--display)' : 'var(--sans)'),
-              fontStyle: eff.italic ? 'italic' : 'normal', fontWeight: eff.weight, fontSize: 18,
+              fontStyle: eff.italic ? 'italic' : 'normal', fontWeight: eff.weight,
+              fontSize: 18 * (eff.scale ?? 1),
+              letterSpacing: eff.letterSpacing ? `${eff.letterSpacing}em` : undefined,
+              textDecoration: eff.underline ? 'underline' : undefined,
               textTransform: eff.uppercase ? 'uppercase' : 'none',
               WebkitTextStroke: eff.stroke ? `1.6px ${eff.stroke}` : undefined, paintOrder: 'stroke fill',
               textShadow: eff.bg === 'transparent' && !eff.stroke ? '0 1px 6px rgba(0,0,0,.6)' : 'none',
@@ -437,34 +495,76 @@ function SubtitleTemplatesSection({ workspaceId }: { workspaceId: string }) {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             <input value={name} onChange={e => setName(e.target.value)} placeholder={t('namePlaceholder')} style={panelInput} />
             <div>
-              <label style={{ fontSize: 11, color: 'var(--ink-3)', display: 'block', marginBottom: 5, fontWeight: 600 }}>{t('baseStyleLabel')}</label>
+              <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 10, marginBottom: 6 }}>
+                <label style={subLabel}>{t('baseStyleLabel')}</label>
+                {hasCharter && (
+                  <button onClick={() => setCustom(charterCustom())} className="wsn-chip" style={{ padding: '5px 12px', fontSize: 11.5 }}>
+                    Repartir de ma charte
+                  </button>
+                )}
+              </div>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
                 {SUB_STYLES.map(s => (
-                  <button key={s.id} onClick={() => { setStyleId(s.id); setCustom({}); }} style={{
-                    padding: '5px 10px', borderRadius: 99, fontSize: 12, fontWeight: 700, cursor: 'pointer',
-                    border: 'none', background: styleId === s.id ? 'var(--mint-2)' : 'var(--sunk)',
-                    color: styleId === s.id ? '#06281C' : 'var(--ink-2)', boxShadow: styleId === s.id ? 'none' : 'inset 0 0 0 1px var(--line)',
-                  }}>{s.name}</button>
+                  <button key={s.id} onClick={() => { setStyleId(s.id); setCustom({}); }}
+                    className={'wsn-chip' + (styleId === s.id ? ' is-on' : '')}
+                    style={{ padding: '6px 12px', fontSize: 12 }}>{s.name}</button>
                 ))}
               </div>
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-              {colorField(t('textColorLabel'), eff.fg, v => patch({ fg: v }))}
-              {colorField(t('activeWordLabel'), eff.hi, v => patch({ hi: v }))}
+
+            {/* Couleurs — nuancier de l'application, teintes de la charte en tête. */}
+            <div>
+              <label style={subLabel}>Couleurs</label>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0,1fr))', gap: 8 }}>
+                {([[t('textColorLabel'), eff.fg, (v: string) => patch({ fg: v })],
+                   [t('activeWordLabel'), eff.hi, (v: string) => patch({ hi: v })],
+                   ['Fond', eff.bg === 'transparent' ? '#0C2A1D' : eff.bg, (v: string) => patch({ bg: v })],
+                   ['Contour', eff.stroke || '#000000', (v: string) => patch({ stroke: v })]] as const).map(([lbl, val, on]) => (
+                  <div key={lbl} style={{ display: 'flex', alignItems: 'center', gap: 9, background: 'var(--sunk)', borderRadius: 11, padding: '8px 10px' }}>
+                    <ColorPicker value={val} onChange={on} brandColors={brandCols} />
+                    <span style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--ink-2)' }}>{lbl}</span>
+                  </div>
+                ))}
+              </div>
             </div>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-              <button onClick={() => patch({ bg: eff.bg === 'transparent' ? '#0C2A1D' : 'transparent' })} className="btn btn-ghost btn-sm">{eff.bg === 'transparent' ? t('bgNone') : t('bgFull')}</button>
-              <button onClick={() => patch({ uppercase: !eff.uppercase })} className="btn btn-ghost btn-sm" style={{ fontWeight: eff.uppercase ? 800 : 600 }}>{t('uppercaseShort')}</button>
-              <button onClick={() => patch({ pill: !eff.pill })} className="btn btn-ghost btn-sm">{t('pill')}</button>
-              <button onClick={() => patch({ stroke: eff.stroke ? '' : '#000000' })} className="btn btn-ghost btn-sm">{t('outline')}</button>
+
+            {/* Police : celles de la charte d'abord, puis le reste. */}
+            <div>
+              <label style={subLabel}>Police</label>
+              <select value={eff.font || ''} onChange={e => patch({ font: e.target.value || undefined })}
+                style={{ ...panelInput, cursor: 'pointer', fontFamily: eff.font || 'var(--sans)' }}>
+                {workspace?.font_family && <option value={workspace.font_family}>{workspace.font_family} — charte</option>}
+                <option value="">Par défaut du style</option>
+                {SUB_FONTS.map(f => <option key={f.value} value={f.value}>{f.label}</option>)}
+              </select>
             </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <label style={{ fontSize: 11, color: 'var(--ink-3)', fontWeight: 600 }}>{t('lengthLabel')}</label>
+
+            <div>
+              <label style={subLabel}>Apparence</label>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                {([['MAJ', !!eff.uppercase, () => patch({ uppercase: !eff.uppercase })],
+                   ['Pilule', !!eff.pill, () => patch({ pill: !eff.pill })],
+                   ['Contour', !!eff.stroke, () => patch({ stroke: eff.stroke ? '' : '#000000' })],
+                   ['Fond', eff.bg !== 'transparent', () => patch({ bg: eff.bg === 'transparent' ? (workspace?.primary_color || '#0C2A1D') : 'transparent' })],
+                   ['Gras', (eff.weight ?? 700) >= 800, () => patch({ weight: (eff.weight ?? 700) >= 800 ? 700 : 900 })],
+                   ['Italique', !!eff.italic, () => patch({ italic: !eff.italic })],
+                   ['Souligné', !!eff.underline, () => patch({ underline: !eff.underline })]] as const).map(([lbl, on, fn]) => (
+                  <button key={lbl} onClick={fn} className={'wsn-chip' + (on ? ' is-on' : '')} style={{ padding: '6px 12px', fontSize: 12 }}>{lbl}</button>
+                ))}
+              </div>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+              {slider('Taille', eff.scale ?? 1, 0.6, 1.8, 0.05, v => patch({ scale: v }), v => `${Math.round(v * 100)} %`)}
+              {slider('Interlettrage', eff.letterSpacing ?? 0, -0.05, 0.3, 0.01, v => patch({ letterSpacing: v }), v => `${v.toFixed(2)} em`)}
+            </div>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+              <label style={{ ...subLabel, marginBottom: 0 }}>{t('lengthLabel')}</label>
               {[1, 2, 3, 4, 6].map(w => (
-                <button key={w} onClick={() => setMaxWords(w)} style={{
-                  padding: '4px 9px', borderRadius: 99, fontSize: 11.5, fontWeight: 700, cursor: 'pointer', border: 'none',
-                  background: maxWords === w ? 'var(--mint-2)' : 'var(--sunk)', color: maxWords === w ? '#06281C' : 'var(--ink-2)', boxShadow: maxWords === w ? 'none' : 'inset 0 0 0 1px var(--line)',
-                }}>{t('wordsCount', { count: w })}</button>
+                <button key={w} onClick={() => setMaxWords(w)}
+                  className={'wsn-chip' + (maxWords === w ? ' is-on' : '')}
+                  style={{ padding: '5px 11px', fontSize: 11.5 }}>{t('wordsCount', { count: w })}</button>
               ))}
             </div>
             <div style={{ display: 'flex', gap: 8, marginTop: 2 }}>
@@ -486,7 +586,10 @@ function SubtitleTemplatesSection({ workspaceId }: { workspaceId: string }) {
                 <div style={{ height: 120, background: 'linear-gradient(150deg,#2b8d57,#0c2a1d)', display: 'grid', placeItems: 'center' }}>
                   <span style={{
                     display: 'inline-block', padding: te.pill ? '5px 12px' : '4px 9px', borderRadius: te.pill ? 99 : 6,
-                    background: te.bg, color: te.fg, fontFamily: te.font || 'var(--sans)', fontWeight: te.weight, fontSize: 15,
+                    background: te.bg, color: te.fg, fontFamily: te.font || 'var(--sans)', fontWeight: te.weight,
+                    fontSize: 15 * (te.scale ?? 1),
+                    letterSpacing: te.letterSpacing ? `${te.letterSpacing}em` : undefined,
+                    textDecoration: te.underline ? 'underline' : undefined,
                     fontStyle: te.italic ? 'italic' : 'normal', textTransform: te.uppercase ? 'uppercase' : 'none',
                     WebkitTextStroke: te.stroke ? `1.3px ${te.stroke}` : undefined, paintOrder: 'stroke fill',
                     textShadow: te.bg === 'transparent' && !te.stroke ? '0 1px 6px rgba(0,0,0,.6)' : 'none',
