@@ -5397,7 +5397,7 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
         {/* Left: burger + back + workspace label + undo/redo */}
         <div className="ed-topbar-left" style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
           <button onClick={toggleSidebar} title={sidebarOpen ? 'Masquer la sidebar' : 'Afficher la sidebar'}
-            className="btn btn-sm btn-primary btn-icon" style={{ flexShrink: 0 }}>
+            className="btn btn-sm btn-ghost btn-icon" style={{ flexShrink: 0 }}>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/>
             </svg>
@@ -5444,13 +5444,12 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
         <div className="ed-topbar-right" style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
           {isTemplate ? (
             /* Format pills (template mode) */
-            <div className="ed-type-pills" style={{ display: 'flex', gap: 2, padding: '3px', background: 'var(--sunk)', borderRadius: 'var(--r-s)', border: '1px solid var(--line)' }}>
+            <div className="ed-type-pills" style={{ display: 'flex', alignItems: 'center', gap: 2, height: 32, padding: '0 3px', background: 'var(--btn-soft)', borderRadius: 'var(--r-s)', flexShrink: 0 }}>
               {FORMATS.map(f => (
                 <button key={f.id} onClick={() => setFormatId(f.id)}
-                  style={{ padding: '3px 9px', borderRadius: 6, border: 'none', cursor: 'pointer', fontSize: 11, fontWeight: 700, fontFamily: 'var(--sans)', transition: 'all .12s',
-                    background: formatId === f.id ? 'var(--canvas)' : 'transparent',
+                  style={{ height: 26, padding: '0 10px', borderRadius: 6, border: 'none', cursor: 'pointer', fontSize: 11.5, fontWeight: 700, fontFamily: 'var(--sans)', transition: 'all .12s',
+                    background: formatId === f.id ? 'var(--btn-soft-2)' : 'transparent',
                     color: formatId === f.id ? 'var(--ink)' : 'var(--ink-3)',
-                    boxShadow: formatId === f.id ? '0 1px 3px rgba(13,15,10,.1)' : 'none',
                   }}>
                   {f.label}
                 </button>
@@ -5459,13 +5458,12 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
           ) : (
             <>
               {/* Post type pills */}
-              <div className="ed-type-pills" style={{ display: 'flex', gap: 2, padding: '3px', background: 'var(--sunk)', borderRadius: 'var(--r-s)', border: '1px solid var(--line)' }}>
+              <div className="ed-type-pills" style={{ display: 'flex', alignItems: 'center', gap: 2, height: 32, padding: '0 3px', background: 'var(--btn-soft)', borderRadius: 'var(--r-s)', flexShrink: 0 }}>
                 {(['post', 'reel', 'story', 'carrousel'] as const).map(t => (
                   <button key={t} onClick={() => changePostType(t)}
-                    style={{ padding: '3px 9px', borderRadius: 6, border: 'none', cursor: 'pointer', fontSize: 11, fontWeight: 700, fontFamily: 'var(--sans)', transition: 'all .12s',
-                      background: postType === t ? 'var(--canvas)' : 'transparent',
+                    style={{ height: 26, padding: '0 10px', borderRadius: 6, border: 'none', cursor: 'pointer', fontSize: 11.5, fontWeight: 700, fontFamily: 'var(--sans)', transition: 'all .12s',
+                      background: postType === t ? 'var(--btn-soft-2)' : 'transparent',
                       color: postType === t ? 'var(--ink)' : 'var(--ink-3)',
-                      boxShadow: postType === t ? '0 1px 3px rgba(13,15,10,.1)' : 'none',
                     }}>
                     {t === 'post' ? 'Post' : t === 'reel' ? 'Reel' : t === 'story' ? 'Story' : 'Carrousel'}
                   </button>
@@ -5477,12 +5475,11 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
                 <span className="ed-hide-md">{aiVariants.length ? 'Recomposer' : 'Composer (IA)'}</span>
               </button>
               {aiVariants.length > 1 && (
-                <div style={{ display: 'flex', alignItems: 'center', gap: 3, padding: '3px', background: 'var(--sunk)', borderRadius: 9, border: '1px solid var(--line)', flexShrink: 0 }} title={T('aiPickVariant')}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 3, height: 32, padding: '0 3px', background: 'var(--btn-soft)', borderRadius: 9, flexShrink: 0 }} title={T('aiPickVariant')}>
                   {aiVariants.map((_, i) => (
                     <button key={i} onClick={() => selectVariant(i)} disabled={qaBusy}
                       style={{ width: 26, height: 26, borderRadius: 6, border: 'none', cursor: qaBusy ? 'not-allowed' : 'pointer', fontSize: 12, fontWeight: 800, fontFamily: 'var(--sans)',
-                        background: i === aiVariantIdx ? 'var(--canvas)' : 'transparent', color: i === aiVariantIdx ? 'var(--ink)' : 'var(--ink-3)',
-                        boxShadow: i === aiVariantIdx ? '0 1px 3px rgba(13,15,10,.1)' : 'none' }}>
+                        background: i === aiVariantIdx ? 'var(--btn-soft-2)' : 'transparent', color: i === aiVariantIdx ? 'var(--ink)' : 'var(--ink-3)' }}>
                       {i + 1}
                     </button>
                   ))}
