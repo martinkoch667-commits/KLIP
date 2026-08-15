@@ -1,5 +1,6 @@
 "use client";
 import { useRef, useState } from "react";
+import { measureBlock } from "@/lib/richText";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -51,47 +52,29 @@ function getElementBounds(el: AnyEl): Bounds | null {
       originX = r; originY = r;
 
     } else if (el.type === 'text') {
+      // Même moteur de mesure que le rendu Konva : le cadre de sélection colle
+      // ainsi au bloc réellement dessiné, y compris quand le texte passe sur
+      // plusieurs lignes, qu'il est en capitales ou stylé par morceaux.
       x = el.x; y = el.y;
-      w = Math.max(20, el.width ?? 200);
-      const pV = Number(el.paddingV ?? el.padding ?? 10);
-      const pH = Number(el.paddingH ?? el.padding ?? 10);
-      const fontSize = el.fontSize ?? 32;
-      const lineHeight = el.lineHeight ?? 1.2;
-      const textAreaW = Math.max(1, w - pH * 2);
-      let lineCount = 1;
-      try {
-        if (typeof document !== 'undefined') {
-          const cvs = document.createElement('canvas');
-          const ctx = cvs.getContext('2d');
-          if (ctx) {
-            ctx.font = `${el.fontStyle ?? 'bold'} ${fontSize}px ${el.fontFamily ?? 'Archivo'}`;
-            // Simule le retour à la ligne par mots de Konva (wrap="word") pour que la
-            // boîte de sélection colle exactement à la hitbox multi-lignes.
-            const aw = Math.max(1, textAreaW);
-            const spaceW = ctx.measureText(' ').width;
-            let lines = 0;
-            for (const para of (el.text ?? '').split('\n')) {
-              let lineW = 0;
-              let paraLines = 1;
-              for (const word of para.split(' ')) {
-                const wordW = ctx.measureText(word).width;
-                if (wordW > aw) {
-                  if (lineW > 0) { paraLines++; lineW = 0; }
-                  paraLines += Math.ceil(wordW / aw) - 1;
-                  lineW = wordW % aw;
-                  continue;
-                }
-                const add = lineW === 0 ? wordW : lineW + spaceW + wordW;
-                if (add > aw && lineW > 0) { paraLines++; lineW = wordW; }
-                else { lineW = add; }
-              }
-              lines += paraLines;
-            }
-            lineCount = Math.max(1, lines);
-          }
-        }
-      } catch {}
-      h = Math.max(1, lineCount) * fontSize * lineHeight + pV * 2;
+      const m = measureBlock({
+        text: el.text ?? '',
+        runs: el.runs,
+        fontSize: el.fontSize ?? 32,
+        fontFamily: el.fontFamily ?? 'Archivo',
+        fontStyle: el.fontStyle ?? 'bold',
+        fill: el.fill,
+        textDecoration: el.textDecoration,
+        letterSpacing: el.letterSpacing,
+        lineHeight: el.lineHeight,
+        align: el.align,
+        uppercase: el.uppercase,
+        width: el.width ?? 200,
+        padding: el.padding,
+        paddingH: el.paddingH,
+        paddingV: el.paddingV,
+      });
+      w = m.blockW;
+      h = Math.max(1, m.blockH);
       originX = 0; originY = 0;
 
     } else if (el.type === 'vector') {
@@ -220,6 +203,7 @@ export default function SelectionOverlay({ el, stageRef, onChange, onDragEnd, zo
     const startPaddingH = el.paddingH;
     const startPaddingV = el.paddingV;
     const startLetterSpacing = el.letterSpacing;
+    const startRuns   = Array.isArray(el.runs) ? (el.runs as Array<Record<string, unknown>>).map(r => ({ ...r })) : null;
     const elType      = el.type;
     const startCustomPts = elType === 'vector' && el.shape === 'custom' && Array.isArray(el.points)
       ? (el.points as Array<{x:number;y:number;cpIn?:{x:number;y:number};cpOut?:{x:number;y:number}}>).map(p => ({ x:p.x, y:p.y, cpIn: p.cpIn ? {...p.cpIn} : undefined, cpOut: p.cpOut ? {...p.cpOut} : undefined }))
@@ -332,6 +316,13 @@ export default function SelectionOverlay({ el, stageRef, onChange, onDragEnd, zo
             if (startPaddingH != null) patch.paddingH = startPaddingH * r;
             if (startPaddingV != null) patch.paddingV = startPaddingV * r;
             if (startLetterSpacing) patch.letterSpacing = startLetterSpacing * r;
+            // Les morceaux stylés portent des tailles absolues : sans ça, un mot
+            // agrandi restait à sa taille pendant qu'on redimensionnait le bloc.
+            if (startRuns?.length) patch.runs = startRuns.map(run => ({
+              ...run,
+              ...(typeof run.fontSize === 'number' ? { fontSize: Math.max(8, run.fontSize * r) } : {}),
+              ...(typeof run.letterSpacing === 'number' && run.letterSpacing ? { letterSpacing: run.letterSpacing * r } : {}),
+            }));
             onChangeRef.current(patch);
           } else {
             // Poignées latérales : largeur seule, la police ne bouge pas.

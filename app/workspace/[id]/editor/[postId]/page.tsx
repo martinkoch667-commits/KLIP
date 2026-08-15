@@ -26,6 +26,12 @@ import { registerFontFamily, weightLabel, type FontFamily } from '@/lib/fontFile
 import { STICKERS, STICKER_CATS, stickerDataUri, type Sticker } from './stickers';
 import { AiThinkingLog } from '@/components/AiThinkingPanel';
 import AiChatDock from '@/components/AiChatDock';
+import RichTextOverlay, { type RichTextHandle } from '@/components/RichTextOverlay';
+import {
+  blockStyleOf, clearTextMetricsCache, isRunKey, layoutText,
+  measureBlock, measureSegment, stripRunKeys, styleOfRange,
+  type ResolvedStyle, type TextRun,
+} from '@/lib/richText';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -44,6 +50,10 @@ interface BaseEl { id: string; x: number; y: number; rotation: number; opacity: 
 interface TextEl extends BaseEl {
   type: 'text'; text: string; fontSize: number; fontFamily: string; fontStyle: string;
   textDecoration: string; fill: string; align: string; width: number;
+  // Stylisation partielle : chaque run porte un intervalle [start, end) sur
+  // `text` et les propriétés qui écrasent celles du bloc. Absent = calque
+  // uniforme.
+  runs?: TextRun[];
   fillType?: 'color' | 'gradient'; fillTo?: string; fillAngle?: number;
   hasBg: boolean; bgColor: string; bgOpacity: number; cornerRadius: number;
   padding: number; paddingH: number; paddingV: number;
@@ -193,13 +203,13 @@ const PHOTO_FILTER_PRESETS: { id: string; name: string; values: Partial<Record<'
 
 function newId() { return `el-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`; }
 
-function measureTextWidth(text: string, fontSize: number, fontFamily: string, fontStyle = 'bold'): number {
-  if (typeof document === 'undefined') return text.length * fontSize * 0.6;
-  const canvas = document.createElement('canvas');
-  const ctx = canvas.getContext('2d');
-  if (!ctx) return text.length * fontSize * 0.6;
-  ctx.font = `${fontStyle} ${fontSize}px ${fontFamily}`;
-  return ctx.measureText(text).width;
+// Zones d'interface où l'on peut cliquer sans quitter l'édition d'un texte :
+// sinon, sélectionner trois mots puis aller choisir une police fermait
+// l'éditeur (et perdait la sélection) avant d'avoir appliqué quoi que ce soit.
+const KEEP_TEXT_EDIT_SELECTOR = '[data-stop-deselect], .ed-ctx-float, .ed-mobile-ctx, .ed-panel';
+
+function measureTextWidth(text: string, fontSize: number, fontFamily: string, fontStyle = 'bold', letterSpacing = 0): number {
+  return measureSegment(text, { fontFamily, fontSize, fontStyle, fill: '#000', textDecoration: '', letterSpacing });
 }
 
 // ─── Auto-fit (Phase 2) ──────────────────────────────────────────────────────
@@ -219,41 +229,23 @@ function roleMaxLines(role?: string): number {
 // Compte de lignes en SIMULANT le retour à la ligne par mots de Konva (wrap="word").
 // L'ancienne estimation ceil(largeurTotale/areaW) était un MINORANT : Konva coupe aux
 // mots, donc peut produire PLUS de lignes (ex. "NOUVELLE COCCINELLE" -> 2 lignes) et le
-// bloc/hitbox se retrouvait trop court -> lignes basses non cliquables. On reproduit ici
-// l'algorithme glouton de Konva pour obtenir la hauteur réelle.
+// bloc/hitbox se retrouvait trop court -> lignes basses non cliquables.
+// La simulation vit désormais dans lib/richText (partagée avec la boîte de
+// sélection et l'éditeur en surimpression) : ici on ne garde que les adaptateurs
+// pour les appels historiques qui ne manipulent qu'une police uniforme.
 // Renvoie le nombre de lignes ET la largeur de la plus longue, pour pouvoir caler
 // le fond coloré sur l'encombrement réel du texte plutôt que sur la boîte.
-function wrapMetrics(text: string, fontSize: number, font: string, fontStyle: string, areaW: number): { lines: number; maxLineWidth: number } {
-  const w = Math.max(1, areaW);
-  const spaceW = measureTextWidth(' ', fontSize, font, fontStyle);
-  let lines = 0;
-  let maxLineWidth = 0;
-  for (const para of text.split('\n')) {
-    const words = para.split(' ');
-    let lineW = 0;
-    let paraLines = 1;
-    for (const word of words) {
-      const wordW = measureTextWidth(word, fontSize, font, fontStyle);
-      if (wordW > w) {
-        // Mot plus large que la zone : Konva le coupe par caractères.
-        if (lineW > 0) { paraLines++; lineW = 0; }
-        paraLines += Math.ceil(wordW / w) - 1;
-        maxLineWidth = w;
-        lineW = wordW % w;
-        continue;
-      }
-      const add = lineW === 0 ? wordW : lineW + spaceW + wordW;
-      if (add > w && lineW > 0) { maxLineWidth = Math.max(maxLineWidth, lineW); paraLines++; lineW = wordW; }
-      else { lineW = add; }
-    }
-    maxLineWidth = Math.max(maxLineWidth, lineW);
-    lines += paraLines;
-  }
-  return { lines: Math.max(1, lines), maxLineWidth: Math.min(w, maxLineWidth) };
+function wrapMetrics(text: string, fontSize: number, font: string, fontStyle: string, areaW: number, letterSpacing = 0): { lines: number; maxLineWidth: number } {
+  const layout = layoutText({
+    text,
+    base: { fontFamily: font, fontSize, fontStyle, fill: '#000', textDecoration: '', letterSpacing, lineHeight: 1.2, align: 'left', uppercase: false },
+    areaW,
+  });
+  return { lines: layout.lineCount, maxLineWidth: layout.maxLineWidth };
 }
 
-function countLines(text: string, fontSize: number, font: string, fontStyle: string, areaW: number): number {
-  return wrapMetrics(text, fontSize, font, fontStyle, areaW).lines;
+function countLines(text: string, fontSize: number, font: string, fontStyle: string, areaW: number, letterSpacing = 0): number {
+  return wrapMetrics(text, fontSize, font, fontStyle, areaW, letterSpacing).lines;
 }
 // Calcule la taille de police qui fait tenir le texte dans sa largeur + maxLines.
 // Ne change QUE la taille (jamais police ni couleur). Ne fait que réduire (max = taille du design).
@@ -265,7 +257,7 @@ function autoFitFontSize(el: TextEl): number {
   const pH = el.paddingH ?? el.padding ?? 0;
   const areaW = Math.max(1, el.width - pH * 2);
   const txt = el.uppercase ? el.text.toUpperCase() : el.text;
-  const fits = (fs: number) => countLines(txt, fs, el.fontFamily, el.fontStyle, areaW) <= maxLines;
+  const fits = (fs: number) => countLines(txt, fs, el.fontFamily, el.fontStyle, areaW, el.letterSpacing ?? 0) <= maxLines;
   if (fits(maxFs)) return maxFs;           // tient déjà à la taille du design
   let lo = minFs, hi = maxFs, best = minFs;
   while (lo <= hi) {
@@ -312,7 +304,7 @@ function relayoutText(elements: any[], stageW: number, stageH: number): any[] {
     const pV = e.paddingV ?? e.padding ?? 0;
     const areaW = Math.max(1, (e.width ?? stageW) - pH * 2);
     const txt = e.uppercase ? (e.text || '').toUpperCase() : (e.text || '');
-    const lines = countLines(txt, e.fontSize, e.fontFamily, e.fontStyle, areaW);
+    const lines = countLines(txt, e.fontSize, e.fontFamily, e.fontStyle, areaW, e.letterSpacing ?? 0);
     return lines * e.fontSize * (e.lineHeight ?? 1.2) + pV * 2;
   };
   let prevBottom = -Infinity;
@@ -346,7 +338,13 @@ function remapElementsToFormat(elements: CanvasEl[], oldW: number, oldH: number,
   return elements.map(el => {
     const x = el.x * sx, y = el.y * sy;
     if (el.type === 'text') {
-      return { ...el, x, y, width: el.width * sx, fontSize: Math.max(8, Math.round(el.fontSize * s)) };
+      // Les morceaux stylés portent une taille absolue : ils suivent la même
+      // échelle que le bloc, sinon un mot agrandi resterait à sa taille d'origine.
+      return {
+        ...el, x, y, width: el.width * sx,
+        fontSize: Math.max(8, Math.round(el.fontSize * s)),
+        runs: el.runs?.map(r => r.fontSize === undefined ? r : { ...r, fontSize: Math.max(8, Math.round(r.fontSize * s)) }),
+      };
     }
     if (el.type === 'rect' || el.type === 'vector' || el.type === 'image') {
       return { ...el, x, y, width: el.width * sx, height: el.height * sy };
@@ -2222,6 +2220,11 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [editingId, setEditingId] = useState<string | null>(null);
+  // Portion de texte sélectionnée à l'intérieur du bloc en cours d'édition.
+  // Non nulle et non vide ⇒ les réglages typographiques de la barre d'outils
+  // ne s'appliquent qu'à cette portion.
+  const [textRange, setTextRange] = useState<{ start: number; end: number } | null>(null);
+  const richRef = useRef<RichTextHandle | null>(null);
   const [hiddenIds, setHiddenIds] = useState<Set<string>>(new Set());
   const [lockedIds, setLockedIds] = useState<Set<string>>(new Set());
   const [guides, setGuides] = useState<{ v: number | null; h: number | null }>({ v: null, h: null });
@@ -2261,8 +2264,23 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
   const elementsRef = useRef<CanvasEl[]>([]);
   const selectedIdRef = useRef<string | null>(null);
   const selectedIdsRef = useRef<string[]>([]);
+  const editingIdRef = useRef<string | null>(null);
   useEffect(() => { elementsRef.current = elements; }, [elements]);
   useEffect(() => { selectedIdRef.current = selectedId; }, [selectedId]);
+  useEffect(() => { editingIdRef.current = editingId; if (!editingId) setTextRange(null); }, [editingId]);
+
+  // Les polices de charte arrivent après le premier rendu. Tant qu'elles ne sont
+  // pas là, on mesure une police de repli et les blocs sont mal dimensionnés :
+  // on vide le cache de mesure et on redessine dès que le chargement est fini.
+  const [, setFontTick] = useState(0);
+  useEffect(() => {
+    if (typeof document === 'undefined' || !document.fonts) return;
+    let alive = true;
+    const bump = () => { if (alive) { clearTextMetricsCache(); setFontTick(t => t + 1); } };
+    document.fonts.ready.then(bump).catch(() => {});
+    document.fonts.addEventListener?.('loadingdone', bump);
+    return () => { alive = false; document.fonts.removeEventListener?.('loadingdone', bump); };
+  }, []);
   useEffect(() => { selectedIdsRef.current = selectedIds; }, [selectedIds]);
   useEffect(() => { if (selectedId) { setBgCropMode(false); setBgImageSelected(false); setMaskCropId(null); } }, [selectedId]);
 
@@ -3026,6 +3044,16 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
 
   const selectedEl = elements.find(e => e.id === selectedId);
 
+  // Quand une portion du texte est sélectionnée, la barre d'outils doit refléter
+  // le style de CETTE portion (police, corps, couleur…), pas celui du bloc.
+  const toolbarSel = React.useMemo(() => {
+    if (!selectedEl || selectedEl.type !== 'text') return selectedEl;
+    if (editingId !== selectedEl.id || !textRange || textRange.end <= textRange.start) return selectedEl;
+    const tel = selectedEl as TextEl;
+    const partial = styleOfRange(tel.runs, blockStyleOf(tel), (tel.text ?? '').length, textRange.start, textRange.end);
+    return { ...tel, ...partial } as CanvasEl;
+  }, [selectedEl, editingId, textRange]);
+
   // ── History ───────────────────────────────────────────────────────────────
 
   const pushHistory = (newEls: CanvasEl[]) => {
@@ -3112,7 +3140,18 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
     let els = [...elementsRef.current];
     const patchWhere = (match: (el: CanvasEl) => boolean, patch: Record<string, unknown>) => {
       let hit = 0;
-      els = els.map(el => { if (!match(el)) return el; hit++; return { ...el, ...patch } as CanvasEl; });
+      const runKeys = Object.keys(patch).filter(isRunKey);
+      els = els.map(el => {
+        if (!match(el)) return el;
+        hit++;
+        // Réglage typographique posé sur tout le calque : il doit l'emporter sur
+        // d'éventuelles stylisations partielles de la même propriété.
+        if (el.type === 'text' && runKeys.length) {
+          const t = el as TextEl;
+          return { ...t, ...patch, runs: stripRunKeys(t.runs, runKeys, (t.text ?? '').length) } as CanvasEl;
+        }
+        return { ...el, ...patch } as CanvasEl;
+      });
       return hit;
     };
 
@@ -3120,7 +3159,9 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
       switch (a.type) {
         case 'set_text': {
           if (typeof a.text !== 'string') break;
-          if (patchWhere(el => el.id === a.id && el.type === 'text', { text: a.text })) done++;
+          // Le texte est remplacé en entier : les runs, indexés sur l'ancienne
+          // chaîne, ne veulent plus rien dire — on repart d'un calque uniforme.
+          if (patchWhere(el => el.id === a.id && el.type === 'text', { text: a.text, runs: undefined })) done++;
           break;
         }
         case 'set_text_style': {
@@ -3259,6 +3300,31 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Réglage typographique venu de la barre d'outils. Deux portées possibles :
+  //  • une portion est sélectionnée dans le texte en cours d'édition → on ne
+  //    touche qu'à elle, via un run ;
+  //  • sinon → tout le bloc, et on efface ces mêmes propriétés des runs
+  //    existants pour que le réglage global reprenne bien la main.
+  const updateTextAwareEl = useCallback((el: CanvasEl, patch: Partial<CanvasEl>) => {
+    if (el.type !== 'text') { updateEl(el.id, patch); return; }
+    const keys = Object.keys(patch);
+    const runKeys = keys.filter(isRunKey);
+    const scoped = runKeys.length === keys.length && runKeys.length > 0;
+    if (scoped && editingIdRef.current === el.id) {
+      const r = richRef.current?.getRange();
+      if (r && r.end > r.start && richRef.current?.applyToSelection(patch as Record<string, unknown>)) {
+        // L'éditeur a réécrit les runs et rendu la main : l'historique est
+        // poussé à la sortie de l'édition, comme pour la saisie.
+        return;
+      }
+    }
+    const tel = el as TextEl;
+    updateEl(el.id, runKeys.length
+      ? { ...patch, runs: stripRunKeys(tel.runs, runKeys, (tel.text ?? '').length) } as Partial<CanvasEl>
+      : patch);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [updateEl]);
+
   const undo = useCallback(() => {
     if (histIdxRef.current <= 0) return;
     histIdxRef.current--;
@@ -3342,12 +3408,7 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
     const w = 'width' in e ? (e as any).width : 100;
     let h: number;
     if (e.type === 'text') {
-      const t = e as TextEl;
-      const pH = Number(t.paddingH ?? t.padding ?? 10);
-      const pV = Number(t.paddingV ?? t.padding ?? 10);
-      const areaW = Math.max(1, w - pH * 2);
-      const lines = countLines(t.uppercase ? t.text.toUpperCase() : t.text, t.fontSize, t.fontFamily, t.fontStyle, areaW);
-      h = lines * t.fontSize * (t.lineHeight ?? 1.2) + pV * 2;
+      h = measureBlock(e as TextEl, 20).blockH;
     } else {
       h = 'height' in e ? (e as any).height : 100;
     }
@@ -3481,6 +3542,12 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
         if (t.paddingH != null) out.paddingH = t.paddingH * s;
         if (t.paddingV != null) out.paddingV = t.paddingV * s;
         if (t.letterSpacing) out.letterSpacing = t.letterSpacing * s;
+        // Les morceaux stylés portent des valeurs absolues : ils suivent l'échelle.
+        if (t.runs?.length) out.runs = t.runs.map(r => ({
+          ...r,
+          ...(r.fontSize !== undefined ? { fontSize: Math.max(8, r.fontSize * s) } : {}),
+          ...(r.letterSpacing ? { letterSpacing: r.letterSpacing * s } : {}),
+        }));
       } else if (st.type === 'circle') {
         out.radius = Math.max(4, (st as CircleEl).radius * s);
       } else if (st.type === 'star') {
@@ -5334,13 +5401,13 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
       {selectedEl && (
         <div className="ed-mobile-ctx" data-stop-deselect>
           <EditorContextToolbar
-            sel={selectedEl}
+            sel={toolbarSel ?? selectedEl}
             allFonts={[...FONTS, ...brandFontNames, ...customFonts.map(f => f.name)]}
                 brandFamilies={brandFamilies}
             brandColors={[workspaceData?.primary_color, workspaceData?.secondary_color, workspaceData?.accent_color].filter(Boolean) as string[]}
             stageW={stageW}
             stageH={stageH}
-            onUpdate={(patch) => updateEl(selectedEl.id, patch)}
+            onUpdate={(patch) => updateTextAwareEl(selectedEl, patch)}
             onAlign={alignEl}
             onDuplicate={duplicateEl}
             onDelete={() => deleteEl(selectedId)}
@@ -6046,13 +6113,13 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
             <div className="ed-ctx-float" data-stop-deselect onMouseDown={e => e.stopPropagation()}
               style={{ position: 'absolute', top: 12, left: '50%', transform: 'translateX(-50%)', zIndex: 45, maxWidth: 'calc(100% - 24px)' }}>
               <EditorContextToolbar
-                sel={selectedEl}
+                sel={toolbarSel ?? selectedEl}
                 allFonts={[...FONTS, ...brandFontNames, ...customFonts.map(f => f.name)]}
                 brandFamilies={brandFamilies}
                 brandColors={[workspaceData?.primary_color, workspaceData?.secondary_color, workspaceData?.accent_color].filter(Boolean) as string[]}
                 stageW={stageW}
                 stageH={stageH}
-                onUpdate={(patch) => updateEl(selectedEl.id, patch)}
+                onUpdate={(patch) => updateTextAwareEl(selectedEl, patch)}
                 onAlign={alignEl}
                 onDuplicate={duplicateEl}
                 onDelete={() => deleteEl(selectedId)}
@@ -6281,31 +6348,46 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
                   if (el.type === 'text') {
                     const pH = el.paddingH ?? el.padding;
                     const pV = el.paddingV ?? el.padding;
-                    const measuredW = measureTextWidth(el.text, el.fontSize, el.fontFamily, el.fontStyle);
+                    const measuredW = measureTextWidth(el.text, el.fontSize, el.fontFamily, el.fontStyle, el.letterSpacing ?? 0);
                     const rawW = el.width ?? (measuredW + pH * 2);
                     // Pas de clamp sur le cadre : un bloc déplacé près d'un bord garde sa
                     // largeur au lieu de se replier. Les marges restent imposées à l'IA par
                     // relayoutText(), qui s'applique aux slots (role) au chargement/format.
-                    const blockW = Math.max(rawW, 80);
-                    const textAreaW = Math.max(1, blockW - pH * 2);
-                    // Dynamic blockH: word-wrap simulation matching Konva (so hitbox grows with wrapped lines)
-                    const metrics = wrapMetrics(
-                      el.uppercase ? el.text.toUpperCase() : el.text,
-                      el.fontSize, el.fontFamily, el.fontStyle, textAreaW
-                    );
-                    const lineCount = metrics.lines;
-                    const blockH = Math.max(1, lineCount) * el.fontSize * (el.lineHeight ?? 1.2) + pV * 2;
+                    // Hauteur et largeur du texte viennent du moteur partagé (lib/richText),
+                    // le même que celui du cadre de sélection et de l'éditeur : le bloc,
+                    // sa hitbox et son aplat suivent donc toujours le texte, y compris sur
+                    // plusieurs lignes ou avec des morceaux stylés différemment.
+                    const m = measureBlock({ ...el, width: rawW });
+                    const blockW = m.blockW;
+                    const textAreaW = m.textAreaW;
+                    const layout = m.layout;
+                    const blockH = m.blockH;
                     // Le fond épouse le texte réellement écrit : élargir la boîte à droite
                     // ne doit plus étirer l'aplat dans le vide. On le recale ensuite selon
                     // l'alignement, comme le fait Konva pour les lignes elles-mêmes.
-                    const bgW = Math.min(blockW, metrics.maxLineWidth + pH * 2);
+                    const bgW = Math.min(blockW, layout.maxLineWidth + pH * 2);
                     const bgX = el.align === 'center' ? (blockW - bgW) / 2
                               : el.align === 'right'  ? blockW - bgW
                               : 0;
-                    // Pendant l'édition, le textarea HTML rend le texte : on masque les
+                    // Pendant l'édition, l'éditeur HTML rend le texte : on masque les
                     // nœuds Konva pour éviter le doublon superposé. Le Rect de fond, lui,
-                    // reste peint ici (le textarea est transparent).
+                    // reste peint ici (l'éditeur est transparent).
                     const isEditing = editingId === el.id;
+                    // Stylisation partielle : Konva ne sait pas mélanger plusieurs
+                    // typographies dans un même nœud Text, on pose donc un nœud par
+                    // fragment aux positions calculées par le moteur de mise en page.
+                    const hasRuns = !!el.runs?.length;
+                    const segNodes = (keyPrefix: string, dx: number, dy: number, extra: (s: ResolvedStyle) => Record<string, unknown>) =>
+                      layout.lines.flatMap((line, li) => line.segments.map((seg, si) => (
+                        <Text key={`${keyPrefix}-${li}-${si}`}
+                          x={pH + dx + seg.x} y={pV + dy + line.top}
+                          height={line.height} verticalAlign="bottom" lineHeight={1} wrap="none"
+                          text={seg.text}
+                          fontSize={seg.style.fontSize} fontFamily={seg.style.fontFamily}
+                          fontStyle={seg.style.fontStyle} letterSpacing={seg.style.letterSpacing}
+                          listening={false}
+                          {...extra(seg.style)} />
+                      )));
                     return (
                       <Group key={el.id} id={el.id} x={el.x} y={el.y} rotation={el.rotation} opacity={el.opacity / 100}
                         draggable={!lockedIds.has(el.id)}
@@ -6349,6 +6431,8 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
                           const dirMap: Record<string,[number,number]> = { tl:[-1,-1],t:[0,-1],tr:[1,-1],l:[-1,0],r:[1,0],bl:[-1,1],b:[0,1],br:[1,1] };
                           const [dx,dy] = dirMap[el.liftDirection ?? 'br'] ?? [1,1];
                           const txt = el.uppercase ? el.text.toUpperCase() : el.text;
+                          if (hasRuns) return Array.from({ length: depth }, (_,i) =>
+                            segNodes(`lift-${i}`, dx*(depth-i), dy*(depth-i), () => ({ fill: el.liftColor ?? '#333333' })));
                           return Array.from({ length: depth }, (_,i) => (
                             <Text key={`lift-${i}`} x={pH + dx*(depth-i)} y={pV + dy*(depth-i)} width={textAreaW} wrap="word"
                               text={txt} fontSize={el.fontSize} fontFamily={el.fontFamily} fontStyle={el.fontStyle}
@@ -6362,6 +6446,11 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
                           const offset = el.echoOffset ?? 8;
                           const fade = el.echoFade !== false;
                           const txt = el.uppercase ? el.text.toUpperCase() : el.text;
+                          if (hasRuns) return Array.from({ length: count }, (_,i) =>
+                            segNodes(`echo-${i}`, offset*(count-i), offset*(count-i), () => ({
+                              fill: el.echoColor ?? '#FF69B4',
+                              opacity: fade ? 1 / Math.pow(2, count-i) : 0.5,
+                            })));
                           return Array.from({ length: count }, (_,i) => (
                             <Text key={`echo-${i}`} x={pH + offset*(count-i)} y={pV + offset*(count-i)} width={textAreaW} wrap="word"
                               text={txt} fontSize={el.fontSize} fontFamily={el.fontFamily} fontStyle={el.fontStyle}
@@ -6372,7 +6461,16 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
                           ));
                         })()}
                         {/* Lueur — glow Text clone rendered behind main text */}
-                        {el.glowEnabled && !isEditing && (
+                        {el.glowEnabled && !isEditing && hasRuns && segNodes('glow', 0, 0, () => ({
+                          fill: 'transparent',
+                          shadowEnabled: true,
+                          shadowColor: el.glowColor ?? '#00FFFF',
+                          shadowOpacity: (el.glowIntensity ?? 50) / 100,
+                          shadowBlur: el.glowSize ?? 10,
+                          shadowOffsetX: 0,
+                          shadowOffsetY: 0,
+                        }))}
+                        {el.glowEnabled && !isEditing && !hasRuns && (
                           <Text x={pH} y={pV} width={textAreaW} wrap="word"
                             text={el.uppercase ? el.text.toUpperCase() : el.text}
                             fontSize={el.fontSize} fontFamily={el.fontFamily}
@@ -6390,7 +6488,23 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
                           />
                         )}
                         {/* text wraps within blockW; handles update el.width which drives blockW */}
-                        <Text x={pH} y={pV} width={textAreaW} wrap="word" visible={!isEditing}
+                        {hasRuns && !isEditing && segNodes('seg', 0, 0, s => ({
+                          textDecoration: s.textDecoration,
+                          ...(el.hollowEnabled
+                            ? { fill: 'transparent' }
+                            : el.fillType === 'gradient'
+                            ? gradientFillProps(blockW, blockH, el.fillAngle ?? 90, el.fill, el.fillTo ?? '#ffffff')
+                            : { fill: s.fill }),
+                          shadowEnabled: el.shadowEnabled ?? false,
+                          shadowColor: el.shadowColor ?? '#000000',
+                          shadowOpacity: (el.shadowOpacity ?? 75) / 100,
+                          shadowBlur: el.shadowBlur ?? 5,
+                          shadowOffsetX: el.shadowOffsetX ?? 2,
+                          shadowOffsetY: el.shadowOffsetY ?? 2,
+                          stroke: el.hollowEnabled ? (el.stroke ?? s.fill) : (el.strokeWidth ? (el.stroke ?? '#000000') : ''),
+                          strokeWidth: el.hollowEnabled ? Math.max(el.strokeWidth ?? 0, 1) : (el.strokeWidth ?? 0),
+                        }))}
+                        <Text x={pH} y={pV} width={textAreaW} wrap="word" visible={!isEditing && !hasRuns}
                           text={el.uppercase ? el.text.toUpperCase() : el.text}
                           fontSize={el.fontSize} fontFamily={el.fontFamily}
                           fontStyle={el.fontStyle} textDecoration={el.textDecoration}
@@ -6663,68 +6777,27 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
             {editingId && (() => {
               const tel = elements.find(e => e.id === editingId) as TextEl | undefined;
               if (!tel || tel.type !== 'text') return null;
-              const pV = Number(tel.paddingV ?? tel.padding ?? 10);
-              const pH = Number(tel.paddingH ?? tel.padding ?? 10);
-              const blockW = Math.max(tel.width ?? 200, 80);
-              // Même hauteur que le bloc Konva : sinon overflow:hidden coupe les lignes
-              // basses dès que le texte passe sur plusieurs lignes.
-              const editLines = countLines(
-                tel.uppercase ? tel.text.toUpperCase() : tel.text,
-                tel.fontSize, tel.fontFamily, tel.fontStyle,
-                Math.max(1, blockW - pH * 2)
-              );
-              const blockH = editLines * tel.fontSize * (tel.lineHeight ?? 1.2) + pV * 2;
               return (
-                <textarea
+                <RichTextOverlay
                   key={editingId}
-                  autoFocus
-                  value={tel.uppercase ? tel.text.toUpperCase() : tel.text}
-                  onChange={ev => {
-                    const newText = tel.uppercase ? ev.target.value.toLowerCase() : ev.target.value;
+                  ref={richRef}
+                  el={tel}
+                  keepOpenSelector={KEEP_TEXT_EDIT_SELECTOR}
+                  onRangeChange={setTextRange}
+                  onChange={patch => {
                     const newEls = elementsRef.current.map(e =>
-                      e.id === editingId ? { ...e, text: newText } as CanvasEl : e
+                      e.id === editingId ? { ...e, ...patch } as CanvasEl : e
                     );
                     setElements(newEls);
                     elementsRef.current = newEls;
                   }}
-                  onBlur={() => {
+                  onCommit={() => {
                     const slice = historyRef.current.slice(0, histIdxRef.current + 1);
                     historyRef.current = [...slice, elementsRef.current];
                     histIdxRef.current = historyRef.current.length - 1;
                     setHistTick(t => t + 1);
-                    setEditingId(null);
                   }}
-                  onKeyDown={e => { if (e.key === 'Escape') { e.currentTarget.blur(); } }}
-                  style={{
-                    position: 'absolute',
-                    left: tel.x,
-                    top: tel.y,
-                    width: blockW,
-                    minHeight: blockH,
-                    padding: `${pV}px ${pH}px`,
-                    fontSize: tel.fontSize,
-                    fontFamily: tel.fontFamily,
-                    fontWeight: tel.fontStyle.includes('bold') ? 'bold' : 'normal',
-                    fontStyle: tel.fontStyle.includes('italic') ? 'italic' : 'normal',
-                    color: tel.fill,
-                    // Le fond reste peint par le Rect Konva dessous : pas de doublon, et la
-                    // bordure passe en box-shadow pour ne pas décaler le contenu de 2px
-                    // (c'est ce décalage qui donnait l'effet de texte dédoublé).
-                    background: 'transparent',
-                    border: 'none',
-                    boxShadow: '0 0 0 2px var(--leaf)',
-                    outline: 'none',
-                    resize: 'none',
-                    zIndex: 100,
-                    pointerEvents: 'auto',
-                    lineHeight: String(tel.lineHeight ?? 1.2),
-                    textAlign: tel.align as React.CSSProperties['textAlign'],
-                    letterSpacing: tel.letterSpacing ? `${tel.letterSpacing}px` : 'normal',
-                    transform: tel.rotation ? `rotate(${tel.rotation}deg)` : undefined,
-                    transformOrigin: '0 0',
-                    boxSizing: 'border-box',
-                    overflow: 'hidden',
-                  }}
+                  onExit={() => { setEditingId(null); setTextRange(null); }}
                 />
               );
             })()}
