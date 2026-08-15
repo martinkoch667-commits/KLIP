@@ -1803,6 +1803,7 @@
     "preStepRushes": "Pulizia rushes…",
     "preStepSpeech": "Pulizia parlato…",
     "preStepCaptions": "Sottotitoli…",
+    "preStepDressing": "Titoli e transizioni…",
     "preStepTransitions": "Transizioni…",
     "preEditDone": "Premontaggio completato ✦",
     "preEditTitle": "Fare tutto in una volta",
@@ -1850,7 +1851,18 @@
     "toastPartialTranscribe": "{n} clip non trascritte: niente sottotitoli né tagli sul parlato. Rilancia il premontaggio.",
     "subsMultiHint": "{n} sottotitoli selezionati — le impostazioni valgono per tutti.",
     "fullPreview": "Vedi in grande",
-    "exitFullPreview": "Riduci anteprima"
+    "exitFullPreview": "Riduci anteprima",
+    "beatSyncTitle": "Ritmo",
+    "beatSyncAction": "Allinea i tagli al ritmo",
+    "beatSyncWorking": "Analisi del ritmo…",
+    "beatSyncHint": "Analizza la musica e sposta la fine di ogni clip sul tempo più vicino. Limite di 0,25 s: un taglio che si sposterebbe troppo resta dov'è.",
+    "toastBeatDone": "{n} taglio/i allineato/i al ritmo — {bpm} BPM.",
+    "toastBeatAlreadyOn": "I tagli cadono già sul ritmo ({bpm} BPM).",
+    "toastBeatNotFound": "Nessun ritmo netto in questo brano: non è stato spostato nulla.",
+    "toastBeatNeedsClips": "Servono almeno due clip per allineare i tagli.",
+    "toastBeatFailed": "Impossibile analizzare il ritmo.",
+    "logTrimSkippedNoSpeech": "«{name}» lasciato intatto: senza trascrizione non si taglia alla cieca.",
+    "toastTrimSkippedNoSpeech": "{n} clip lasciate intatte: senza trascrizione KLIP non taglia — rischierebbe di tagliare a metà frase."
   },
   "forgotPassword": {
     "title": "Password dimenticata",

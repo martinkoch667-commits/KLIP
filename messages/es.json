@@ -1803,6 +1803,7 @@
     "preStepRushes": "Limpiando brutos…",
     "preStepSpeech": "Limpiando discurso…",
     "preStepCaptions": "Subtítulos…",
+    "preStepDressing": "Títulos y transiciones…",
     "preStepTransitions": "Transiciones…",
     "preEditDone": "Premontaje terminado ✦",
     "preEditTitle": "Hacerlo todo de una vez",
@@ -1850,7 +1851,18 @@
     "toastPartialTranscribe": "{n} plano(s) no se pudieron transcribir: sin subtítulos ni cortes ajustados al habla. Relanza el premontaje.",
     "subsMultiHint": "{n} subtítulos seleccionados — los ajustes se aplican a todos.",
     "fullPreview": "Ver en grande",
-    "exitFullPreview": "Reducir la vista"
+    "exitFullPreview": "Reducir la vista",
+    "beatSyncTitle": "Ritmo",
+    "beatSyncAction": "Ajustar los cortes al ritmo",
+    "beatSyncWorking": "Analizando el ritmo…",
+    "beatSyncHint": "Analiza la música y mueve el final de cada plano al tiempo más cercano. Limitado a 0,25 s: un corte que se movería demasiado se queda donde está.",
+    "toastBeatDone": "{n} corte(s) ajustado(s) al ritmo — {bpm} BPM.",
+    "toastBeatAlreadyOn": "Los cortes ya caen en el ritmo ({bpm} BPM).",
+    "toastBeatNotFound": "No hay un ritmo claro en esta pista: no se movió nada.",
+    "toastBeatNeedsClips": "Se necesitan al menos dos planos para ajustar los cortes.",
+    "toastBeatFailed": "No se pudo analizar el ritmo.",
+    "logTrimSkippedNoSpeech": "«{name}» intacto: sin transcripción no se corta a ciegas.",
+    "toastTrimSkippedNoSpeech": "{n} plano(s) intacto(s): sin transcripción KLIP no corta — se arriesgaría a cortar a media frase."
   },
   "forgotPassword": {
     "title": "Contraseña olvidada",

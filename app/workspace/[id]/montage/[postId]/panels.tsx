@@ -102,6 +102,8 @@ export interface MontageCtx {
   removeVolKey: (id: string, idx: number) => void;
   processingVoice: string | null;
   isolateVoiceOnTrack: (id: string, mode: "isolate" | "remove") => void;
+  beatSyncing: string | null;
+  snapCutsToBeat: (id: string) => void;
 
   overlays: OverlayClip[];
   selectedOverlay: OverlayClip | null;
@@ -528,6 +530,27 @@ function VoiceTools({ track, ctx }: { track: AudioTrack; ctx: MontageCtx }) {
   );
 }
 
+// Calage des coupes sur le rythme du morceau. Proposé sur les pistes de MUSIQUE
+// seulement : une voix off n'a pas de pulsation, et y caler des coupes n'a pas de sens.
+function BeatSyncTool({ track, ctx }: { track: AudioTrack; ctx: MontageCtx }) {
+  const t = useTranslations('montage');
+  const busy = ctx.beatSyncing === track.id;
+  return (
+    <div style={{ marginTop: 10 }}>
+      <span className="mz-sec-label">{t('beatSyncTitle')}</span>
+      <button
+        className="btn btn-ghost btn-sm mz-btn-block"
+        style={{ marginTop: 6 }}
+        disabled={!!ctx.beatSyncing || ctx.clips.length < 2}
+        onClick={() => ctx.snapCutsToBeat(track.id)}
+      >
+        <VIcon name="sparkles" size={13} /> {busy ? t('beatSyncWorking') : t('beatSyncAction')}
+      </button>
+      <p style={{ fontSize: 11, color: "var(--ink-3)", lineHeight: 1.4, marginTop: 5 }}>{t('beatSyncHint')}</p>
+    </div>
+  );
+}
+
 export function AudioPanel({ ctx }: { ctx: MontageCtx }) {
   const t = useTranslations('montage');
   const fileRef = useRef<HTMLInputElement>(null);
@@ -602,6 +625,7 @@ export function AudioPanel({ ctx }: { ctx: MontageCtx }) {
             </div>
             <Range label={t('volumeMusic')} value={Math.round(a.vol * 100)} min={0} max={200} unit="%" onChange={(v) => ctx.setAudioVol(a.id, v / 100)} />
             <VolKeyframes track={a} ctx={ctx} />
+            <BeatSyncTool track={a} ctx={ctx} />
           <VoiceTools track={a} ctx={ctx} />
             <Range label={t('fadeIn')} value={Math.round((a.fadeIn ?? 0) * 10) / 10} min={0} max={5} step={0.1} unit="s" onChange={(v) => ctx.setAudioFade(a.id, "fadeIn", v)} />
             <Range label={t('fadeOut')} value={Math.round((a.fadeOut ?? 0) * 10) / 10} min={0} max={5} step={0.1} unit="s" onChange={(v) => ctx.setAudioFade(a.id, "fadeOut", v)} />

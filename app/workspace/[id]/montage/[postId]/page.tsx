@@ -22,6 +22,7 @@ import {
   detectSpeechSegments, encodeWavMono, newTranscriptCache, computeStarts,
   type TranscriptCache, type TranscribeErrorCode, type PreEditHooks,
 } from "./preEdit";
+import { detectBeats, beatsOnTimeline, snapClipsToBeats, type BeatMap } from "./beatSync";
 import { transcodeToMp4 } from "@/lib/mp4-transcode";
 import AiThinkingPanel from "@/components/AiThinkingPanel";
 import AiChatDock from "@/components/AiChatDock";
@@ -407,6 +408,7 @@ export default function MontagePage() {
   const [autoCutDone, setAutoCutDone] = useState<{ clips: number; seconds: number } | null>(null);
   const [cuttingSilence, setCuttingSilence] = useState(false);
   const [processingVoice, setProcessingVoice] = useState<string | null>(null); // id de la piste audio en cours de traitement voix
+  const [beatSyncing, setBeatSyncing] = useState<string | null>(null); // id de la piste dont on analyse le rythme
   const [generatingDesc, setGeneratingDesc] = useState(false);
   const [videoDescription, setVideoDescription] = useState<string | null>(null);
   const [suggestingMusic, setSuggestingMusic] = useState(false);
@@ -1628,6 +1630,7 @@ export default function MontagePage() {
         case "speechClean":  return logStep(t('logSpeechClean'));
         case "captions":     return logStep(ev.byWords ? t('logCaptionsWords', { n: ev.n }) : t('logCaptionsSegments', { n: ev.n }));
         case "transcribeFailed": return logStep(t('logTranscribeFailed', { name: ev.name }));
+        case "trimSkippedNoSpeech": return logStep(t('logTrimSkippedNoSpeech', { name: ev.name }));
         case "allDone":      return logStep(t('logAllDone'));
       }
     },
@@ -1817,6 +1820,10 @@ export default function MontagePage() {
         setClips(res.clips);
         setAutoCutDone({ clips: trimmed, seconds: res.trimmedSec });
         toast(t('toastAutoCutDone', { n: trimmed, s: res.trimmedSec.toFixed(1) }));
+      } else if (res.skippedNoSpeech.length) {
+        // « Rien à retirer » serait un mensonge : on n'a rien ANALYSÉ. Sans
+        // transcription, on ne sait pas où est la parole, donc on ne coupe pas.
+        toast(t('toastTrimSkippedNoSpeech', { n: res.skippedNoSpeech.length }), "error");
       } else {
         toast(t('toastAutoCutNothing'));
       }
@@ -1827,9 +1834,61 @@ export default function MontagePage() {
     }
   }
 
+  // ── Habillage IA (« le réalisateur ») ───────────────────────────────────────
+  // Dernière étape du prémontage : une fois l'ours propre, on pose les titres et
+  // les transitions. C'était le chaînon manquant — le prémontage rendait un
+  // montage nettoyé mais NU, sans un seul texte à l'écran, là où une vidéo
+  // livrable en porte toujours (accroche, chapitres, chiffres, CTA).
+  //
+  // Best-effort assumé : un habillage raté ne doit pas emporter un prémontage
+  // réussi. En cas d'échec, on garde les coupes et les sous-titres, et on le dit.
+  async function runDirector(
+    dressed: MontageClip[],
+    segments: { start: number; end: number; text: string }[],
+  ): Promise<{ clips: MontageClip[]; titles: TitleEl[] } | null> {
+    const starts = computeStarts(dressed);
+    try {
+      const res = await fetch("/api/montage-director", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          workspaceId,
+          clips: starts.map((c) => ({
+            id: c.id, kind: c.kind, name: c.name,
+            tlStart: c.start, tlDur: clipTimelineDur(c),
+          })),
+          // Déjà dans le référentiel de la timeline (buildCaptions les y ramène) :
+          // les timings rendus par le réalisateur sont donc posables tels quels.
+          transcript: segments.slice(0, 400),
+        }),
+      });
+      if (!res.ok) return null;
+      const data = await res.json();
+
+      const newTitles: TitleEl[] = (Array.isArray(data.titles) ? data.titles : []).map(
+        (t: Omit<TitleEl, "id">) => ({ ...t, id: crypto.randomUUID() }),
+      );
+
+      const byId = new Map<string, { transition: string; dur: number }>(
+        (Array.isArray(data.transitions) ? data.transitions : []).map(
+          (tr: { clipId: string; transition: string; dur: number }) => [tr.clipId, { transition: tr.transition, dur: tr.dur }],
+        ),
+      );
+      const withTransitions = dressed.map((c) => {
+        const tr = byId.get(c.id);
+        return tr ? { ...c, transitionIn: tr.transition, transitionDur: tr.dur } : c;
+      });
+
+      return { clips: withTransitions, titles: newTitles };
+    } catch (e) {
+      console.warn("[réalisateur] habillage indisponible :", e);
+      return null;
+    }
+  }
+
   // ── Prémontage IA complet (?premontage=1) ───────────────────────────────────
   // Enchaîne automatiquement à l'ouverture ce qu'on lançait outil par outil :
-  // dérushage image → dérushage parole → sous-titres à la charte → transitions.
+  // dérushage image → dérushage parole → sous-titres à la charte → habillage.
   const preRunRef = useRef(false);
   async function runFullPreEdit() {
     if (preRunRef.current) return;
@@ -1837,24 +1896,44 @@ export default function MontagePage() {
     setPreEditing(true);
     setAiLog([]);
     loggingRef.current = true;
-    const stepLabels = [t('preStepRushes'), t('preStepSpeech'), t('preStepCaptions')];
+    const stepLabels = [t('preStepRushes'), t('preStepSpeech'), t('preStepCaptions'), t('preStepDressing')];
     try {
       // Un seul pipeline, partagé avec la génération en lot du workspace : une
-      // correction ici vaut pour les deux. Aucune transition posée d'office —
-      // la coupe franche est le montage par défaut.
+      // correction ici vaut pour les deux. Les transitions ne sont plus posées
+      // d'office : c'est le réalisateur, ci-dessous, qui les choisit selon le
+      // propos — la coupe franche reste le défaut là où il n'en demande pas.
       const res = await runPreEdit(clips, {
         subMaxWords,
         cache: trCacheRef.current,
         ...preEditHooks(),
         onStep: (i) => { setPreEditStepIdx(i); setPreEditStep(stepLabels[i] ?? null); },
       });
-      setClips(res.clips);
+
+      // Habillage : seulement s'il y a de quoi le nourrir. Sans parole transcrite,
+      // le réalisateur n'a rien pour décider où poser un titre — on s'arrête à
+      // l'ours propre plutôt que d'inventer.
+      let finalClips = res.clips;
+      if (res.rawSegments.length) {
+        setPreEditStepIdx(3);
+        setPreEditStep(stepLabels[3]);
+        const dressed = await runDirector(res.clips, res.rawSegments);
+        if (dressed) {
+          finalClips = dressed.clips;
+          if (dressed.titles.length) setTitles((prev) => [...prev, ...dressed.titles]);
+        }
+      }
+
+      setClips(finalClips);
       if (res.captions.length) {
         setCaptions(res.captions);
         setRawSegments(res.rawSegments);
         setRawWords(res.rawWords);
       }
+      // La transcription est le socle du prémontage : sans elle, pas de sous-titres
+      // ET pas de rognage (on ne coupe pas à l'aveugle). Le dire franchement vaut
+      // mieux qu'un « c'est fait » sur une vidéo que l'IA n'a pas touchée.
       if (res.error && !res.captions.length) toast(codeMsg(res.error), "error");
+      else if (res.skippedNoSpeech.length) toast(t('toastTrimSkippedNoSpeech', { n: res.skippedNoSpeech.length }), "error");
       else {
         preEditedAtRef.current = new Date().toISOString();
         // Réussite PARTIELLE : trois rushes transcrits, un quatrième non. Le trou
@@ -2347,6 +2426,48 @@ export default function MontagePage() {
   // Isole la voix (canal central (L+R)/2 + passe-bande voix) ou la supprime (karaoké,
   // (L-R)/2). Best-effort DSP côté client — meilleur résultat sur un son stéréo.
   // Le résultat remplace la source de la piste (WAV encodé + uploadé).
+  // ── Caler les coupes sur le rythme ──────────────────────────────────────────
+  // Le prémontage décide OÙ couper (sur la parole, sur la qualité d'image) ; il ne
+  // décide pas QUAND. Sur une vidéo posée sur une musique, des coupes à côté du
+  // temps s'entendent immédiatement — c'est ce qui reste le plus « amateur » dans
+  // un montage par ailleurs propre.
+  //
+  // La grille est mémorisée par piste : l'analyse ne dépend que du fichier, et
+  // l'utilisateur relance volontiers le calage après avoir retouché ses plans.
+  const beatCacheRef = useRef<Map<string, BeatMap | null>>(new Map());
+  async function snapCutsToBeat(id: string) {
+    if (beatSyncing) return;
+    const track = audioTracks.find((a) => a.id === id);
+    if (!track) return;
+    if (clips.length < 2) { toast(t('toastBeatNeedsClips')); return; }
+
+    setBeatSyncing(id);
+    try {
+      let map = beatCacheRef.current.get(track.src);
+      if (map === undefined) {
+        map = await detectBeats(track.src);
+        beatCacheRef.current.set(track.src, map);
+      }
+      // Pas de pulsation exploitable (nappe, voix seule, ambiance) : on le dit
+      // plutôt que de caler sur du bruit et de rendre un montage pire qu'avant.
+      if (!map) { toast(t('toastBeatNotFound'), "error"); return; }
+
+      const totalDur = clips.reduce((s, c) => s + Math.max(0, c.gapBefore ?? 0) + clipTimelineDur(c), 0);
+      const grid = beatsOnTimeline(map, track, totalDur);
+      const res = snapClipsToBeats(clips, grid);
+
+      if (!res.moved) { toast(t('toastBeatAlreadyOn', { bpm: Math.round(map.bpm) })); return; }
+      // setClips suffit : l'historique pose son point d'annulation tout seul.
+      setClips(res.clips);
+      toast(t('toastBeatDone', { n: res.moved, bpm: Math.round(map.bpm) }));
+    } catch (e) {
+      console.warn("[beatSync] calage impossible :", e);
+      toast(t('toastBeatFailed'), "error");
+    } finally {
+      setBeatSyncing(null);
+    }
+  }
+
   async function isolateVoiceOnTrack(id: string, mode: "isolate" | "remove") {
     if (processingVoice) return;
     const track = audioTracks.find((a) => a.id === id);
@@ -3198,6 +3319,7 @@ export default function MontagePage() {
     audioTrackCount, moveAudioTrackRow,
     addVolKey, setVolKey, removeVolKey,
     processingVoice, isolateVoiceOnTrack,
+    beatSyncing, snapCutsToBeat,
   };
 
   const trackW = Math.max(total * pps, 200);
@@ -3396,10 +3518,11 @@ export default function MontagePage() {
                   { id: "rushes", label: t('preStepRushes') },
                   { id: "speech", label: t('preStepSpeech') },
                   { id: "captions", label: t('preStepCaptions') },
+                  { id: "dressing", label: t('preStepDressing') },
                 ]}
                 activeStep={preEditStepIdx}
                 lines={aiLog}
-                progress={preEditStepIdx < 0 ? 0 : Math.min(1, preEditStepIdx / 3)}
+                progress={preEditStepIdx < 0 ? 0 : Math.min(1, preEditStepIdx / 4)}
               />
             )}
             {/* Voir la vidéo en grand : l'aperçu était contraint à la colonne

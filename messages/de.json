@@ -1803,6 +1803,7 @@
     "preStepRushes": "Rohmaterial säubern…",
     "preStepSpeech": "Sprache säubern…",
     "preStepCaptions": "Untertitel…",
+    "preStepDressing": "Titel & Übergänge…",
     "preStepTransitions": "Übergänge…",
     "preEditDone": "Vorschnitt fertig ✦",
     "preEditTitle": "Alles auf einmal",
@@ -1850,7 +1851,18 @@
     "toastPartialTranscribe": "{n} Clip(s) konnten nicht transkribiert werden: keine Untertitel, keine sprachgenauen Schnitte. Vorschnitt erneut starten.",
     "subsMultiHint": "{n} Untertitel ausgewählt — die Einstellungen gelten für alle.",
     "fullPreview": "Groß ansehen",
-    "exitFullPreview": "Vorschau verkleinern"
+    "exitFullPreview": "Vorschau verkleinern",
+    "beatSyncTitle": "Rhythmus",
+    "beatSyncAction": "Schnitte auf den Beat legen",
+    "beatSyncWorking": "Rhythmus wird analysiert…",
+    "beatSyncHint": "Analysiert die Musik und verschiebt das Ende jedes Clips auf den nächstgelegenen Beat. Auf 0,25 s begrenzt: Ein Schnitt, der zu weit wandern würde, bleibt, wo er ist.",
+    "toastBeatDone": "{n} Schnitt(e) auf den Beat gelegt — {bpm} BPM.",
+    "toastBeatAlreadyOn": "Die Schnitte liegen bereits auf dem Beat ({bpm} BPM).",
+    "toastBeatNotFound": "Kein klarer Beat in diesem Titel: Nichts wurde verschoben.",
+    "toastBeatNeedsClips": "Für das Ausrichten der Schnitte braucht es mindestens zwei Clips.",
+    "toastBeatFailed": "Rhythmus konnte nicht analysiert werden.",
+    "logTrimSkippedNoSpeech": "„{name}“ unverändert: ohne Transkript wird nicht blind geschnitten.",
+    "toastTrimSkippedNoSpeech": "{n} Clip(s) unverändert: Ohne Transkript schneidet KLIP nicht — es würde mitten im Satz schneiden."
   },
   "forgotPassword": {
     "title": "Passwort vergessen",

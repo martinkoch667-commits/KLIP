@@ -1803,6 +1803,7 @@
     "preStepRushes": "Cleaning rushes…",
     "preStepSpeech": "Cleaning speech…",
     "preStepCaptions": "Subtitles…",
+    "preStepDressing": "Titles & transitions…",
     "preStepTransitions": "Transitions…",
     "preEditDone": "Pre-edit complete ✦",
     "preEditTitle": "Do it all at once",
@@ -1850,7 +1851,18 @@
     "toastPartialTranscribe": "{n} clip(s) could not be transcribed: no captions and no speech-aligned cuts. Re-run the pre-edit to retry.",
     "subsMultiHint": "{n} captions selected — the settings below apply to all of them.",
     "fullPreview": "View large",
-    "exitFullPreview": "Shrink preview"
+    "exitFullPreview": "Shrink preview",
+    "beatSyncTitle": "Rhythm",
+    "beatSyncAction": "Snap cuts to the beat",
+    "beatSyncWorking": "Analysing rhythm…",
+    "beatSyncHint": "Analyses the music and moves each clip's end to the nearest beat. Capped at 0.25 s: a cut that would move too far stays put.",
+    "toastBeatDone": "{n} cut(s) snapped to the beat — {bpm} BPM.",
+    "toastBeatAlreadyOn": "Cuts already land on the beat ({bpm} BPM).",
+    "toastBeatNotFound": "No clear beat in this track: nothing was moved.",
+    "toastBeatNeedsClips": "You need at least two clips to snap cuts.",
+    "toastBeatFailed": "Could not analyse the rhythm.",
+    "logTrimSkippedNoSpeech": "“{name}” left untouched: no transcript, so no blind cutting.",
+    "toastTrimSkippedNoSpeech": "{n} clip(s) left untouched: without a transcript KLIP does not cut — it would risk cutting mid-sentence."
   },
   "forgotPassword": {
     "title": "Forgot password",

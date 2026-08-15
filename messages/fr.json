@@ -1803,6 +1803,7 @@
     "preStepRushes": "Nettoyage des rushes…",
     "preStepSpeech": "Nettoyage du discours…",
     "preStepCaptions": "Sous-titres…",
+    "preStepDressing": "Habillage…",
     "preStepTransitions": "Transitions…",
     "preEditDone": "Prémontage terminé ✦",
     "preEditTitle": "Tout faire d’un coup",
@@ -1850,7 +1851,18 @@
     "toastPartialTranscribe": "{n} plan(s) n’ont pas pu être transcrits : ni sous-titres ni coupes calées sur la parole. Relance le prémontage pour réessayer.",
     "subsMultiHint": "{n} sous-titres sélectionnés — les réglages ci-dessous s’appliquent à tous.",
     "fullPreview": "Voir en grand",
-    "exitFullPreview": "Réduire l’aperçu"
+    "exitFullPreview": "Réduire l’aperçu",
+    "beatSyncTitle": "Rythme",
+    "beatSyncAction": "Caler les coupes sur le rythme",
+    "beatSyncWorking": "Analyse du rythme…",
+    "beatSyncHint": "Analyse la musique et déplace la fin de chaque plan vers le temps fort le plus proche. Déplacement limité à 0,25 s : une coupe qui aurait trop bougé reste où elle est.",
+    "toastBeatDone": "{n} coupe(s) calée(s) sur le rythme — {bpm} BPM.",
+    "toastBeatAlreadyOn": "Les coupes tombent déjà sur le rythme ({bpm} BPM).",
+    "toastBeatNotFound": "Pas de rythme net dans ce morceau : rien n'a été déplacé.",
+    "toastBeatNeedsClips": "Il faut au moins deux plans pour caler des coupes.",
+    "toastBeatFailed": "Analyse du rythme impossible.",
+    "logTrimSkippedNoSpeech": "« {name} » laissé intact : pas de transcription, on ne coupe pas à l'aveugle.",
+    "toastTrimSkippedNoSpeech": "{n} plan(s) laissé(s) intacts : sans transcription, KLIP ne coupe pas — il risquerait de couper en pleine phrase."
   },
   "forgotPassword": {
     "title": "Mot de passe oublié",
