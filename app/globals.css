@@ -1581,10 +1581,20 @@ input.mz-range::-moz-range-thumb { width: 16px; height: 16px; border-radius: 50%
    fond forêt, gros titre en oaks, mot surligné en leaf. C'est le premier écran
    du produit, il doit avoir la même prestance que la page d'accueil.
    ============================================================================ */
-.wsx { min-height: 100vh; display: flex; align-items: center; justify-content: center;
-  padding: clamp(28px, 6vw, 72px) clamp(20px, 5vw, 56px);
+.wsx { min-height: 100vh; flex: 1; display: flex; flex-direction: column;
   background: linear-gradient(150deg, var(--forest) 0%, var(--forest-2) 52%, var(--forest-3) 100%);
   position: relative; overflow: hidden; }
+/* Barre haute : on reste dans le produit. Sans elle, l'écran plein cadre
+   donnait l'impression d'avoir quitté l'application. */
+.wsx-bar { position: relative; z-index: 2; flex-shrink: 0; display: flex; align-items: center;
+  justify-content: space-between; gap: 16px; padding: 18px clamp(20px, 4vw, 44px);
+  border-bottom: 1px solid rgba(238,237,227,.10); }
+.wsx-bar .wsx-eyebrow { margin-bottom: 0; }
+.wsx-quit { font-family: var(--sans); font-size: 13px; font-weight: 700; color: var(--cream-3);
+  text-decoration: none; padding: 8px 14px; border-radius: 10px; transition: background .14s, color .14s; }
+.wsx-quit:hover { background: rgba(238,237,227,.10); color: var(--cream); }
+.wsx-body { position: relative; z-index: 2; flex: 1; display: flex; align-items: center; justify-content: center;
+  padding: clamp(28px, 5vw, 64px) clamp(20px, 5vw, 56px); }
 /* Halo diffus : la landing pose toujours une lumière derrière le titre. */
 .wsx::before { content: ""; position: absolute; width: 780px; height: 780px; border-radius: 50%;
   top: -320px; right: -220px; pointer-events: none;
@@ -1639,4 +1649,66 @@ input.mz-range::-moz-range-thumb { width: 16px; height: 16px; border-radius: 50%
 @media (max-width: 640px) {
   .wsx-field { flex-direction: column; }
   .wsx-go { width: 100%; }
+}
+
+/* ── Écran d'entrée : recherche et relecture ───────────────────────────────── */
+.wsx-h1-sm { font-size: clamp(32px, 4.4vw, 54px); }
+
+/* Le déroulé de la recherche : on montre ce qui se passe plutôt qu'un sablier. */
+.wsx-steps { list-style: none; margin: clamp(24px, 4vw, 38px) 0 0; padding: 0;
+  display: flex; flex-direction: column; gap: 14px; }
+.wsx-step { display: flex; align-items: center; gap: 14px; font-family: var(--sans);
+  font-size: clamp(15px, 1.5vw, 17px); font-weight: 600; color: var(--cream-3);
+  transition: color .3s; }
+.wsx-step-dot { flex-shrink: 0; width: 24px; height: 24px; border-radius: 50%;
+  display: grid; place-items: center; background: rgba(238,237,227,.10);
+  box-shadow: inset 0 0 0 1px rgba(238,237,227,.16); transition: background .3s, box-shadow .3s; }
+.wsx-step.is-done { color: var(--cream-2); }
+.wsx-step.is-done .wsx-step-dot { background: var(--leaf); color: var(--leaf-ink); box-shadow: none; }
+.wsx-step.is-now { color: var(--cream); }
+.wsx-step.is-now .wsx-step-dot { background: rgba(189,242,160,.22); box-shadow: inset 0 0 0 1px var(--leaf);
+  animation: wsxPulse 1.15s ease-in-out infinite; }
+@keyframes wsxPulse { 0%, 100% { transform: scale(1); opacity: 1; } 50% { transform: scale(.82); opacity: .6; } }
+
+/* Relecture : une carte par élément de charte, tout modifiable sur place. */
+.wsx-cards { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px; margin-top: clamp(22px, 3vw, 32px); }
+.wsx-card-wide { grid-column: 1 / -1; }
+.wsx-card { background: rgba(238,237,227,.07); border-radius: 16px; padding: 18px 20px;
+  box-shadow: inset 0 0 0 1px rgba(238,237,227,.10); }
+.wsx-card-t { display: block; font-family: var(--mono); font-size: 10.5px; font-weight: 800;
+  letter-spacing: .12em; text-transform: uppercase; color: var(--cream-3); margin-bottom: 12px; }
+.wsx-in { width: 100%; box-sizing: border-box; height: 46px; padding: 0 14px; border-radius: 11px;
+  border: none; background: rgba(255,255,255,.94); color: var(--ink); outline: none;
+  font-family: var(--sans); font-size: 15px; font-weight: 600; }
+.wsx-in:focus { box-shadow: 0 0 0 2.5px rgba(189,242,160,.6); }
+.wsx-ta { height: auto; padding: 12px 14px; line-height: 1.55; resize: vertical; font-weight: 500; }
+.wsx-empty { margin: 0; font-family: var(--sans); font-size: 13px; line-height: 1.55; color: var(--cream-3); }
+.wsx-logo { height: 76px; border-radius: 11px; background: #fff; display: grid; place-items: center; padding: 10px; }
+.wsx-logo img { max-height: 100%; max-width: 100%; object-fit: contain; }
+.wsx-font { margin: 0 0 8px; font-size: 30px; font-weight: 700; color: var(--cream); line-height: 1.1; }
+
+.wsx-cols { display: flex; gap: 10px; }
+.wsx-col { position: relative; flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 5px; cursor: pointer; }
+.wsx-col input[type="color"] { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+.wsx-col-sw { height: 40px; border-radius: 10px; box-shadow: inset 0 0 0 1px rgba(255,255,255,.28); }
+.wsx-col-l { font-family: var(--sans); font-size: 11.5px; font-weight: 700; color: var(--cream-3); }
+.wsx-col-h { font-family: var(--mono); font-size: 11px; font-weight: 700; color: var(--cream-2); }
+
+.wsx-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.wsx-chip { padding: 8px 15px; border-radius: 999px; border: none; cursor: pointer;
+  font-family: var(--sans); font-size: 13px; font-weight: 700; color: var(--cream-2);
+  background: rgba(238,237,227,.10); transition: background .13s, color .13s; }
+.wsx-chip:hover { background: rgba(238,237,227,.18); color: var(--cream); }
+.wsx-chip.is-on { background: var(--leaf); color: var(--leaf-ink); }
+
+.wsx-actions { display: flex; align-items: center; gap: 18px; margin-top: clamp(22px, 3vw, 30px); }
+.wsx-again { background: none; border: none; cursor: pointer; padding: 0;
+  font-family: var(--sans); font-size: 13.5px; font-weight: 700; color: var(--cream-3);
+  text-decoration: underline; text-underline-offset: 4px; }
+.wsx-again:hover { color: var(--cream); }
+
+@media (max-width: 760px) {
+  .wsx-cards { grid-template-columns: 1fr; }
+  .wsx-cols { flex-wrap: wrap; }
 }

@@ -190,6 +190,10 @@ export default function NewWorkspacePage() {
   const [siteError, setSiteError] = useState<string | null>(null);
   const [siteFilled, setSiteFilled] = useState<string[] | null>(null);
   const [siteFonts, setSiteFonts] = useState<string[]>([]);
+  // L'écran d'entrée se joue en trois temps : on demande, on cherche, on relit.
+  const [sitePhase, setSitePhase] = useState<"ask" | "searching" | "result">("ask");
+  const [siteStepIdx, setSiteStepIdx] = useState(0);
+  const [siteLogo, setSiteLogo] = useState<string | null>(null);
 
   // Step 2 — Voix de marque
   const [tone, setTone] = useState("");
@@ -330,6 +334,16 @@ export default function NewWorkspacePage() {
   const [createdWorkspaceId, setCreatedWorkspaceId] = useState<string | null>(null);
   const [templateCount, setTemplateCount] = useState(0);
 
+  // Ce que le serveur fait, dans l'ordre. On l'annonce au fil de l'eau plutôt
+  // que de laisser un bouton tourner dans le vide : l'attente devient lisible.
+  const SITE_STEPS = [
+    "Ouverture de la page",
+    "Lecture des feuilles de style",
+    "Extraction des couleurs de marque",
+    "Repérage des typographies",
+    "Lecture du positionnement et du ton",
+  ];
+
   // Lit le site de la marque et remplit ce qui peut l'être. Les champs déjà
   // saisis à la main ne sont jamais écrasés : si quelqu'un a pris la peine
   // d'écrire, sa version gagne.
@@ -339,6 +353,13 @@ export default function NewWorkspacePage() {
     setSiteBusy(true);
     setSiteError(null);
     setSiteFilled(null);
+    setSitePhase("searching");
+    setSiteStepIdx(0);
+    // Les étapes défilent pendant que la requête est en vol ; la dernière ne se
+    // referme qu'à l'arrivée de la réponse, jamais avant.
+    const ticker = setInterval(() => {
+      setSiteStepIdx(i => Math.min(i + 1, SITE_STEPS.length - 2));
+    }, 900);
     try {
       const res = await fetch("/api/brand/analyze", {
         method: "POST",
@@ -346,7 +367,8 @@ export default function NewWorkspacePage() {
         body: JSON.stringify({ url }),
       });
       const d = await res.json();
-      if (!res.ok) { setSiteError(d?.error ?? "Analyse impossible."); return; }
+      if (!res.ok) { setSiteError(d?.error ?? "Analyse impossible."); setSitePhase("ask"); return; }
+      if (d.logoUrl) setSiteLogo(d.logoUrl);
 
       const filled: string[] = [];
       if (d.name && !name.trim()) { setName(d.name); filled.push("nom"); }
@@ -386,9 +408,13 @@ export default function NewWorkspacePage() {
         if (match) { setFontPrimary(match.family); filled.push("typographie"); }
       }
       setSiteFilled(filled);
+      setSiteStepIdx(SITE_STEPS.length);
+      setSitePhase("result");
     } catch {
       setSiteError("Analyse impossible. Vérifiez l'adresse et réessayez.");
+      setSitePhase("ask");
     } finally {
+      clearInterval(ticker);
       setSiteBusy(false);
     }
   };
@@ -622,69 +648,174 @@ export default function NewWorkspacePage() {
   const canContinue = step === 1 ? name.trim().length > 0 : true;
 
   // ── Écran d'entrée ────────────────────────────────────────────────────────
-  // Une seule chose à faire : donner le lien. Tout le reste attend.
+  // Trois temps sur la même page : on demande le lien, on montre la recherche,
+  // on présente ce qui a été trouvé. Le cadre de l'application reste en place —
+  // barre latérale et barre haute — pour qu'on sache toujours où l'on est.
   if (step === 0) {
     return (
-      <div className="wsx">
-        <div className="wsx-inner">
-          <span className="wsx-eyebrow"><b>1</b> Nouveau client</span>
-          <h1 className="wsx-h1">
-            Donnez-nous son site.<br />
-            On s&apos;occupe du <span className="acc-hl">reste</span>.
-          </h1>
-          <p className="wsx-sub">
-            Couleurs, typographie, positionnement, ton de voix : on lit la marque
-            et on prépare sa charte. Vous n&apos;aurez plus qu&apos;à relire.
-          </p>
-
-          <div className="wsx-field">
-            <input
-              className="wsx-input"
-              value={website}
-              onChange={e => { setWebsite(e.target.value); setSiteError(null); }}
-              onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); void analyzeWebsite(); } }}
-              placeholder="smashy-burger.fr"
-              inputMode="url"
-              autoFocus
-              aria-label="Adresse du site de la marque"
-            />
-            <button
-              type="button"
-              className="wsx-go"
-              onClick={() => void analyzeWebsite()}
-              disabled={siteBusy || !website.trim()}
-            >
-              {siteBusy ? "Lecture…" : "Analyser"}
-            </button>
+      <div style={{ display: "flex", minHeight: "100vh", background: "var(--forest)" }}>
+        <Sidebar />
+        <div className="wsx" style={{ marginLeft: "var(--sb-w)" }}>
+          <div className="wsx-bar">
+            <span className="wsx-eyebrow"><b>1</b> Nouveau client</span>
+            <a className="wsx-quit" href="/dashboard">Quitter</a>
           </div>
 
-          {siteError
-            ? <p className="wsx-err">{siteError}</p>
-            : !siteFilled && <p className="wsx-note">Rien à installer. On lit la page publique, c&apos;est tout.</p>}
+          <div className="wsx-body">
+            <div className="wsx-inner">
 
-          {siteFilled && !siteError && (
-            <div className="wsx-found">
-              {siteFilled.length > 0 ? (
+              {/* ── 1. On demande ─────────────────────────────────────────── */}
+              {sitePhase === "ask" && (
                 <>
-                  <strong>Trouvé :</strong> {siteFilled.join(", ")}.
-                  {siteFonts.length > 0 && <> Polices repérées : {siteFonts.join(", ")}.</>}
-                  <div className="wsx-swatches">
-                    {[primaryColor, secondaryColor, accentColor].map((c, i) => (
-                      <span key={i} className="wsx-sw" style={{ background: c }} />
-                    ))}
+                  <h1 className="wsx-h1">
+                    Donnez-nous son site.<br />
+                    On s&apos;occupe du <span className="acc-hl">reste</span>.
+                  </h1>
+                  <p className="wsx-sub">
+                    Couleurs, typographie, positionnement, ton de voix : on lit la marque
+                    et on prépare sa charte. Vous n&apos;aurez plus qu&apos;à relire.
+                  </p>
+                  <div className="wsx-field">
+                    <input
+                      className="wsx-input"
+                      value={website}
+                      onChange={e => { setWebsite(e.target.value); setSiteError(null); }}
+                      onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); void analyzeWebsite(); } }}
+                      placeholder="smashy-burger.fr"
+                      inputMode="url"
+                      autoFocus
+                      aria-label="Adresse du site de la marque"
+                    />
+                    <button type="button" className="wsx-go" onClick={() => void analyzeWebsite()} disabled={!website.trim()}>
+                      Analyser
+                    </button>
+                  </div>
+                  {siteError
+                    ? <p className="wsx-err">{siteError}</p>
+                    : <p className="wsx-note">Rien à installer. On lit la page publique, c&apos;est tout.</p>}
+                  <div className="wsx-skip">
+                    <button type="button" onClick={() => setStep(1)}>Passer, je remplis à la main</button>
+                    <span className="wsx-rule" />
                   </div>
                 </>
-              ) : (
-                <>Ce site ne dit pas grand-chose de lisible. On remplira à la main, c&apos;est aussi bien.</>
               )}
-            </div>
-          )}
 
-          <div className="wsx-skip">
-            <button type="button" onClick={() => setStep(1)}>
-              {siteFilled ? "Continuer" : "Passer, je remplis à la main"}
-            </button>
-            <span className="wsx-rule" />
+              {/* ── 2. On cherche ─────────────────────────────────────────── */}
+              {sitePhase === "searching" && (
+                <>
+                  <h1 className="wsx-h1 wsx-h1-sm">
+                    On lit <span className="acc-hl">{website.replace(/^https?:\/\//, "")}</span>
+                  </h1>
+                  <ol className="wsx-steps">
+                    {SITE_STEPS.map((label, i) => {
+                      const state = i < siteStepIdx ? "done" : i === siteStepIdx ? "now" : "wait";
+                      return (
+                        <li key={label} className={`wsx-step is-${state}`}>
+                          <span className="wsx-step-dot">
+                            {state === "done" && (
+                              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round"><path d="M4 12.5l5 5 11-11" /></svg>
+                            )}
+                          </span>
+                          {label}
+                        </li>
+                      );
+                    })}
+                  </ol>
+                </>
+              )}
+
+              {/* ── 3. On relit ───────────────────────────────────────────── */}
+              {sitePhase === "result" && (
+                <>
+                  <h1 className="wsx-h1 wsx-h1-sm">
+                    Voici sa <span className="acc-hl">charte</span>.
+                  </h1>
+                  <p className="wsx-sub">
+                    Tout est modifiable ici. Corrigez ce qui ne va pas, le reste suivra.
+                  </p>
+
+                  <div className="wsx-cards">
+                    <div className="wsx-card wsx-card-wide">
+                      <span className="wsx-card-t">Nom du client</span>
+                      <input className="wsx-in" value={name} onChange={e => setName(e.target.value)} placeholder="Nom de la marque" />
+                    </div>
+
+                    <div className="wsx-card">
+                      <span className="wsx-card-t">Logo</span>
+                      {siteLogo ? (
+                        <div className="wsx-logo">
+                          {/* Passé par le proxy : beaucoup de sites refusent l'affichage direct. */}
+                          <img src={`/api/proxy-image?url=${encodeURIComponent(siteLogo)}`} alt="" />
+                        </div>
+                      ) : (
+                        <p className="wsx-empty">Aucun logo repéré. Vous pourrez l&apos;ajouter à l&apos;étape identité visuelle.</p>
+                      )}
+                    </div>
+
+                    <div className="wsx-card">
+                      <span className="wsx-card-t">Couleurs</span>
+                      <div className="wsx-cols">
+                        {([["Principale", primaryColor, setPrimaryColor],
+                           ["Secondaire", secondaryColor, setSecondaryColor],
+                           ["Accent", accentColor, setAccentColor]] as const).map(([lbl, val, set]) => (
+                          <label key={lbl} className="wsx-col">
+                            <input type="color" value={val} onChange={e => set(e.target.value)} />
+                            <span className="wsx-col-sw" style={{ background: val }} />
+                            <span className="wsx-col-l">{lbl}</span>
+                            <span className="wsx-col-h">{val.toUpperCase()}</span>
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="wsx-card wsx-card-wide">
+                      <span className="wsx-card-t">Typographie</span>
+                      {siteFonts.length > 0 ? (
+                        <>
+                          <p className="wsx-font" style={{ fontFamily: `"${activeFontPrimary}", sans-serif` }}>{activeFontPrimary}</p>
+                          <p className="wsx-empty">Repérées sur le site : {siteFonts.join(", ")}. Vous choisirez la plus proche à l&apos;étape typographie.</p>
+                        </>
+                      ) : (
+                        <p className="wsx-empty">Ce site ne déclare pas ses polices lisiblement. À choisir à l&apos;étape typographie.</p>
+                      )}
+                    </div>
+
+                    <div className="wsx-card wsx-card-wide">
+                      <span className="wsx-card-t">Ce que fait la marque</span>
+                      <textarea className="wsx-in wsx-ta" value={brandDescription} onChange={e => setBrandDescription(e.target.value)} rows={3} placeholder="En deux phrases" />
+                    </div>
+
+                    <div className="wsx-card wsx-card-wide">
+                      <span className="wsx-card-t">Secteur</span>
+                      <div className="wsx-chips">
+                        {SECTORS.map(sc => (
+                          <button key={sc.value} type="button" onClick={() => setSector(sector === sc.value ? "" : sc.value)}
+                            className={"wsx-chip" + (sector === sc.value ? " is-on" : "")}>
+                            {sc.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {(wordsToUse || wordsToAvoid) && (
+                      <div className="wsx-card wsx-card-wide">
+                        <span className="wsx-card-t">Vocabulaire</span>
+                        <input className="wsx-in" value={wordsToUse} onChange={e => setWordsToUse(e.target.value)} placeholder="Mots à privilégier" />
+                        <input className="wsx-in" style={{ marginTop: 8 }} value={wordsToAvoid} onChange={e => setWordsToAvoid(e.target.value)} placeholder="Mots à éviter" />
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="wsx-actions">
+                    <button type="button" className="wsx-go" onClick={() => setStep(1)}>Continuer</button>
+                    <button type="button" className="wsx-again" onClick={() => { setSitePhase("ask"); setSiteFilled(null); }}>
+                      Analyser un autre site
+                    </button>
+                  </div>
+                </>
+              )}
+
+            </div>
           </div>
         </div>
       </div>
