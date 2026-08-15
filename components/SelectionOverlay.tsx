@@ -115,6 +115,32 @@ function getElementBounds(el: AnyEl): Bounds | null {
   }
 }
 
+// Encombrement RÉEL à l'écran, rotation comprise : le rectangle englobant des
+// quatre coins une fois tournés. Sert à poser les surcouches (pastille de
+// sélection) au-dessus de l'objet sans jamais le recouvrir — une boîte non
+// tournée sous-estime la hauteur dès que l'objet est incliné.
+export function getVisualRect(el: AnyEl): { left: number; top: number; right: number; bottom: number } | null {
+  const b = getElementBounds(el);
+  if (!b) return null;
+  const { x, y, w, h, rotation, originX, originY } = b;
+  // Cercle et étoile sont bornés par leur rayon autour de leur centre : les faire
+  // tourner ne change pas leur encombrement. Passer par les coins de la boîte
+  // donnerait la diagonale et éloignerait inutilement ce qu'on pose au-dessus.
+  if (!rotation || el.type === 'circle' || el.type === 'star') {
+    return { left: x, top: y, right: x + w, bottom: y + h };
+  }
+  const rad = rotation * Math.PI / 180;
+  const cos = Math.cos(rad), sin = Math.sin(rad);
+  const ox = x + originX, oy = y + originY;
+  const xs: number[] = [], ys: number[] = [];
+  for (const [px, py] of [[0, 0], [w, 0], [w, h], [0, h]]) {
+    const dx = px - originX, dy = py - originY;
+    xs.push(ox + dx * cos - dy * sin);
+    ys.push(oy + dx * sin + dy * cos);
+  }
+  return { left: Math.min(...xs), top: Math.min(...ys), right: Math.max(...xs), bottom: Math.max(...ys) };
+}
+
 // viewport delta → element-local delta (undo the CSS rotation)
 function toLocal(dx: number, dy: number, rotation: number): [number, number] {
   const rad = rotation * Math.PI / 180;

@@ -1,5 +1,6 @@
 "use client";
-import { useEffect, useRef, useState, useCallback } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, useCallback } from "react";
+import { createPortal } from "react-dom";
 
 const RECENT_KEY = 'klip-recent-colors';
 const RECENT_MAX = 8;
@@ -143,6 +144,30 @@ export default function ColorPicker({
     setOpen(true);
   };
 
+  // Recalage sur la taille RÉELLE du panneau (les estimations ci-dessus ne
+  // valent que pour le premier placement) et à chaque redimensionnement de la
+  // fenêtre : le panneau doit toujours rester entièrement visible.
+  const clampToViewport = useCallback(() => {
+    const pop = popRef.current, trig = trigRef.current;
+    if (!pop || !trig) return;
+    const m = 8;
+    const pr = pop.getBoundingClientRect();
+    const tr = trig.getBoundingClientRect();
+    const left = Math.max(m, Math.min(tr.left, window.innerWidth - pr.width - m));
+    const below = tr.bottom + 6;
+    const top = below + pr.height <= window.innerHeight - m
+      ? below
+      : Math.max(m, Math.min(tr.top - pr.height - 6, window.innerHeight - pr.height - m));
+    setPos(p => (Math.abs(p.left - left) < 0.5 && Math.abs(p.top - top) < 0.5 ? p : { top, left }));
+  }, []);
+
+  useLayoutEffect(() => {
+    if (!open) return;
+    clampToViewport();
+    window.addEventListener('resize', clampToViewport);
+    return () => window.removeEventListener('resize', clampToViewport);
+  }, [open, clampToViewport]);
+
   // Close on outside click
   useEffect(() => {
     if (!open) return;
@@ -215,8 +240,16 @@ export default function ColorPicker({
         }}
       />
 
-      {/* Popover */}
-      {open && (
+      {/* Popover — rendu dans <body>.
+          Il est en position:fixed, donc censé se placer par rapport à la
+          fenêtre. Mais la barre d'outils flottante porte un
+          `transform: translateX(-50%)`, et un ancêtre transformé devient le
+          référentiel des descendants fixed : les coordonnées calculées en
+          repère fenêtre étaient appliquées depuis le coin de la barre. Le
+          panneau partait donc d'autant plus loin à droite que la barre était
+          décalée — invisible dès que le panneau latéral gauche était ouvert.
+          Le portail sort le panneau de ce référentiel. */}
+      {open && typeof document !== 'undefined' && createPortal(
         <div
           ref={popRef}
           style={{
@@ -419,7 +452,8 @@ export default function ColorPicker({
               </button>
             )}
           </div>
-        </div>
+        </div>,
+        document.body,
       )}
     </div>
   );

@@ -17,7 +17,7 @@ import useImage from 'use-image';
 import Konva from 'konva';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import ColorPicker from '@/components/ColorPicker';
-import SelectionOverlay from '@/components/SelectionOverlay';
+import SelectionOverlay, { getVisualRect } from '@/components/SelectionOverlay';
 import Sidebar from '@/components/Sidebar';
 import { TEXT_TEMPLATES, TT_CATS, TT_REF_W, TextTemplateThumb, adaptTemplateToCharter, type BrandKit, type TextTemplate } from './textTemplates';
 import { LAYOUT_TEMPLATES, LAYOUT_CATS, LAYOUT_STYLES, LayoutThumb, adaptLayoutToCharter, type LayoutTemplate } from './layoutTemplates';
@@ -26,6 +26,7 @@ import { registerFontFamily, weightLabel, type FontFamily } from '@/lib/fontFile
 import { STICKERS, STICKER_CATS, stickerDataUri, type Sticker } from './stickers';
 import { AiThinkingLog } from '@/components/AiThinkingPanel';
 import AiChatDock from '@/components/AiChatDock';
+import AssistantMark from '@/components/AssistantMark';
 import RichTextOverlay, { type RichTextHandle } from '@/components/RichTextOverlay';
 import {
   blockStyleOf, clearTextMetricsCache, isRunKey, layoutText,
@@ -1089,6 +1090,51 @@ function EditorContextToolbar({ sel, allFonts, brandFamilies, brandColors, stage
 
   const popStyle: React.CSSProperties = { position: 'absolute', top: 'calc(100% + 8px)', left: 0, background: '#fff', borderRadius: 12, padding: 12, boxShadow: '0 18px 44px -14px rgba(13,15,10,.28), 0 0 0 1px rgba(13,15,10,.06)', zIndex: 100, minWidth: 220 };
 
+  // Les panneaux flottants sont ancrés sous leur bouton. Tels quels, ils
+  // sortaient par le bord droit dès que la barre d'outils était décalée — ce
+  // qui arrive quand le panneau latéral gauche est ouvert : le panneau devenait
+  // alors invisible. On les recale donc dans la fenêtre après affichage.
+  // Un seul panneau est ouvert à la fois (état `pop`), d'où une ref partagée.
+  const popRef = React.useRef<HTMLDivElement>(null);
+  const [popDx, setPopDx] = React.useState(0);
+  const [popMaxH, setPopMaxH] = React.useState(0);
+  React.useLayoutEffect(() => {
+    if (!pop) { setPopDx(0); setPopMaxH(0); return; }
+    const fit = () => {
+      const el = popRef.current;
+      if (!el) return;
+      const m = 8;
+      // Mesure à la position d'ancrage : on neutralise le décalage courant,
+      // sinon chaque recalage se cumulerait au précédent.
+      const prev = el.style.transform;
+      el.style.transform = 'none';
+      const r = el.getBoundingClientRect();
+      el.style.transform = prev;
+      let d = 0;
+      if (r.right > window.innerWidth - m) d = window.innerWidth - m - r.right;
+      if (r.left + d < m) d = m - r.left;
+      setPopDx(d);
+      setPopMaxH(Math.max(120, window.innerHeight - r.top - m));
+    };
+    fit();
+    window.addEventListener('resize', fit);
+    return () => window.removeEventListener('resize', fit);
+  }, [pop]);
+  // Attributs communs à tous les panneaux : ancrage + recalage + hauteur bornée.
+  const popAttrs = (extra?: React.CSSProperties) => {
+    const asked = typeof extra?.maxHeight === 'number' ? extra.maxHeight : Infinity;
+    return {
+      ref: popRef,
+      style: {
+        ...popStyle,
+        ...extra,
+        maxHeight: popMaxH > 0 ? Math.min(asked, popMaxH) : extra?.maxHeight,
+        overflowY: 'auto' as const,
+        transform: popDx ? `translateX(${popDx}px)` : undefined,
+      } as React.CSSProperties,
+    };
+  };
+
   return (
     <div className="pop-in" style={{ display: 'flex', alignItems: 'center', gap: 4, background: '#fff', borderRadius: 14, padding: '7px 12px', boxShadow: '0 8px 26px -10px rgba(13,15,10,.2), 0 0 0 1px rgba(13,15,10,.06)', overflow: 'visible', position: 'relative' }}>
 
@@ -1102,7 +1148,7 @@ function EditorContextToolbar({ sel, allFonts, brandFamilies, brandColors, stage
             <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M6 9l6 6 6-6"/></svg>
           </button>
           {pop === 'font' && (
-            <div style={{ ...popStyle, maxHeight: 240, overflowY: 'auto' }}>
+            <div {...popAttrs({ maxHeight: 240 })}>
               {allFonts.map(f => (
                 <button key={f} onClick={() => { u({ fontFamily: f } as Partial<TextEl>); setPop(null); }}
                   style={{ display: 'flex', alignItems: 'center', padding: '7px 10px', borderRadius: 8, width: '100%', background: textSel.fontFamily === f ? 'var(--mint-soft)' : 'transparent', cursor: 'pointer', border: 'none', textAlign: 'left' }}
@@ -1163,7 +1209,7 @@ function EditorContextToolbar({ sel, allFonts, brandFamilies, brandColors, stage
             onClick={() => setPop(p => p === 'spacing' ? null : 'spacing')}
             icon={<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M8 6h13M8 12h13M8 18h13M3 6v.01M3 12v.01M3 18v.01"/></svg>} />
           {pop === 'spacing' && (
-            <div style={{ ...popStyle }}>
+            <div {...popAttrs()}>
               <SliderRow label={T('lineHeight')} value={textSel.lineHeight ?? 1.2} min={0.8} max={3} step={0.05}
                 fmt={v => v.toFixed(2)} onChange={v => u({ lineHeight: v } as any)} />
               <SliderRow label={T('letterSpacing')} value={textSel.letterSpacing ?? 0} min={-5} max={30} step={0.5}
@@ -1220,7 +1266,7 @@ function EditorContextToolbar({ sel, allFonts, brandFamilies, brandColors, stage
           <IBtn title={T('gradient')} on={gradSel.fillType === 'gradient'} onClick={() => setPop(p => p === 'grad' ? null : 'grad')}
             icon={<svg width="15" height="15" viewBox="0 0 24 24" fill="none"><defs><linearGradient id="ed-grad-icon" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="currentColor" stopOpacity="1" /><stop offset="1" stopColor="currentColor" stopOpacity="0.15" /></linearGradient></defs><rect x="3" y="3" width="18" height="18" rx="4" fill="url(#ed-grad-icon)" /></svg>} />
           {pop === 'grad' && (
-            <div style={{ ...popStyle, minWidth: 220 }}>
+            <div {...popAttrs({ minWidth: 220 })}>
               <div className="label" style={{ marginBottom: 8 }}>{T('fill')}</div>
               <div style={{ display: 'flex', gap: 6, marginBottom: 12 }}>
                 {(['color', 'gradient'] as const).map(ft => (
@@ -1264,7 +1310,7 @@ function EditorContextToolbar({ sel, allFonts, brandFamilies, brandColors, stage
               <span style={{ width: 18, height: 18, borderRadius: 5, background: textSel.bgColor, boxShadow: 'inset 0 0 0 1.5px rgba(13,15,10,.2)' }} />
             </button>
             {pop === 'bg' && (
-              <div style={{ ...popStyle, left: 'auto', right: 0 }}>
+              <div {...popAttrs({ left: 'auto', right: 0 })}>
                 <div className="label" style={{ marginBottom: 8 }}>{T('textBackground')}</div>
                 <ColorPicker value={textSel.bgColor} onChange={(c: string) => u({ bgColor: c } as Partial<TextEl>)} brandColors={brandColors} />
                 <div style={{ marginTop: 10 }}>
@@ -1292,7 +1338,7 @@ function EditorContextToolbar({ sel, allFonts, brandFamilies, brandColors, stage
             onClick={() => setPop(p => p === 'vstroke' ? null : 'vstroke')}
             icon={<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><rect x="3" y="3" width="18" height="18" rx="3"/></svg>} />
           {pop === 'vstroke' && (
-            <div style={{ ...popStyle, minWidth: 220 }}>
+            <div {...popAttrs({ minWidth: 220 })}>
               <div className="label" style={{ marginBottom: 8 }}>{T('outline')}</div>
               <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 10 }}>
                 <ColorPicker value={vecSel.stroke || '#000000'} onChange={c => u({ stroke: c } as Partial<VectorEl>)} />
@@ -1351,7 +1397,7 @@ function EditorContextToolbar({ sel, allFonts, brandFamilies, brandColors, stage
             onClick={() => setPop(p => p === 'radius' ? null : 'radius')}
             icon={<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><rect x="3" y="3" width="18" height="18" rx="4"/></svg>} />
           {pop === 'radius' && (
-            <div style={{ ...popStyle }}>
+            <div {...popAttrs()}>
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
                 <span className="label" style={{ marginBottom: 0 }}>{T('rounding')}</span>
                 <span style={{ fontFamily: 'var(--mono)', fontWeight: 800, fontSize: 11, color: 'var(--ink-2)' }}>{rectSel.cornerRadius}px</span>
@@ -1394,7 +1440,7 @@ function EditorContextToolbar({ sel, allFonts, brandFamilies, brandColors, stage
               Ajuster
             </TextBtn>
             {pop === 'adjust' && (
-              <div style={{ ...popStyle, minWidth: 244 }}>
+              <div {...popAttrs({ minWidth: 244 })}>
                 <span className="label" style={{ display: 'block', marginBottom: 8 }}>{T('filters')}</span>
                 <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 12 }}>
                   {PHOTO_FILTER_PRESETS.map(p => {
@@ -1434,7 +1480,7 @@ function EditorContextToolbar({ sel, allFonts, brandFamilies, brandColors, stage
           onClick={() => setPop(p => p === 'opacity' ? null : 'opacity')}
           icon={<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><rect x="3" y="3" width="18" height="18" rx="2.5"/><path d="M3 9h6V3M9 15h6V9M15 21v-6h6" fill="currentColor" stroke="none" opacity=".25"/></svg>} />
         {pop === 'opacity' && (
-          <div style={{ ...popStyle, left: 'auto', right: 0 }}>
+          <div {...popAttrs({ left: 'auto', right: 0 })}>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
               <span className="label" style={{ marginBottom: 0 }}>{T('opacity')}</span>
               <span style={{ fontFamily: 'var(--mono)', fontWeight: 800, fontSize: 11, color: 'var(--ink-2)' }}>{sel.opacity}%</span>
@@ -1451,7 +1497,7 @@ function EditorContextToolbar({ sel, allFonts, brandFamilies, brandColors, stage
           Animer
         </TextBtn>
         {pop === 'anim' && (
-          <div style={{ ...popStyle, right: 0, left: 'auto', minWidth: 200, textAlign: 'center', padding: '20px 16px' }}>
+          <div {...popAttrs({ right: 0, left: 'auto', minWidth: 200, textAlign: 'center', padding: '20px 16px' })}>
             <div style={{ fontWeight: 700, fontSize: 14, color: 'var(--ink)', marginBottom: 6 }}>{T('comingSoon')}</div>
             <div style={{ fontSize: 12, color: 'var(--ink-3)', lineHeight: 1.4 }}>{T('animComingSoon')}</div>
           </div>
@@ -1479,22 +1525,30 @@ function EditorContextToolbar({ sel, allFonts, brandFamilies, brandColors, stage
 // ─── SelectionPill (floats above selected element in canvas space) ─────────────
 
 interface PillProps {
-  elX: number; elY: number; elW: number;
+  // Encombrement réel de l'objet à l'écran, rotation comprise.
+  rect: { left: number; top: number; right: number; bottom: number };
   zoom: number;
   onDuplicate: () => void;
   onDelete: () => void;
 }
 
-function SelectionPill({ elX, elY, elW, zoom, onDuplicate, onDelete }: PillProps) {
+function SelectionPill({ rect, zoom, onDuplicate, onDelete }: PillProps) {
   const T = useTranslations('editor');
   const pillW = 260;
+  // La pastille se pose au-dessus de l'encombrement RÉEL : une boîte non tournée
+  // sous-estime la hauteur dès que l'objet est incliné, et la pastille venait
+  // alors se poser par-dessus le texte. Faute de place en haut, elle bascule
+  // sous l'objet plutôt que de sortir du plan de travail.
+  const GAP = 12;        // écart à l'écran entre l'objet et la pastille
+  const PILL_H = 42;     // hauteur approximative de la pastille, à l'écran
+  const below = rect.top * zoom < PILL_H + GAP + 8;
   // La couche d'overlay est mise à l'échelle par `zoom` : on contre-scale la barre
   // pour qu'elle garde une taille constante à l'écran (façon Canva).
   return (
     <div style={{
       position: 'absolute',
-      left: elX + elW / 2,
-      top: elY - 12 / zoom,
+      left: (rect.left + rect.right) / 2,
+      top: below ? rect.bottom + GAP / zoom : rect.top - GAP / zoom,
       width: 0,
       height: 0,
       zIndex: 55,
@@ -1502,29 +1556,29 @@ function SelectionPill({ elX, elY, elW, zoom, onDuplicate, onDelete }: PillProps
     }}>
     <div style={{
       position: 'absolute', left: 0, top: 0, width: pillW,
-      transform: `translate(-50%, -100%) scale(${1 / zoom})`,
-      transformOrigin: 'center bottom',
+      transform: `translate(-50%, ${below ? '0%' : '-100%'}) scale(${1 / zoom})`,
+      transformOrigin: below ? 'center top' : 'center bottom',
     }}>
       <div className="pop-in" style={{
         display: 'flex', alignItems: 'center', gap: 2,
         background: '#fff', borderRadius: 11, padding: '5px 6px',
         boxShadow: '0 10px 30px -8px rgba(13,15,10,.35), 0 0 0 1px rgba(13,15,10,.05)',
       }}>
-        {/* Demander à Klip */}
-        <button style={{
-          display: 'flex', alignItems: 'center', gap: 7, padding: '0 12px 0 9px', height: 30,
-          borderRadius: 8, color: '#14160F', fontFamily: 'var(--sans)', fontWeight: 700, fontSize: 13,
-          whiteSpace: 'nowrap', background: 'linear-gradient(120deg,rgba(47,215,155,.13),rgba(200,241,53,.13))',
+        {/* Demander à Klip — même identité que la pastille « Assistant visuel »
+            en bas de l'écran : c'est le même interlocuteur, il doit se
+            reconnaître au premier coup d'œil. */}
+        <button className="klip-ask" style={{
+          display: 'flex', alignItems: 'center', gap: 8, padding: '0 14px 0 10px', height: 32,
+          borderRadius: 16, color: '#fff', fontFamily: 'var(--sans)', fontWeight: 800, fontSize: 13,
+          letterSpacing: '-.01em', whiteSpace: 'nowrap', background: 'var(--vio)',
           border: 'none', cursor: 'pointer',
+          boxShadow: '0 8px 20px -9px rgba(102,86,217,.85), 0 2px 6px rgba(16,19,11,.16)',
         }}>
-          <span style={{
-            width: 19, height: 19, borderRadius: '50%',
-            background: 'conic-gradient(from 120deg,#2FD79B,#BDF2A0,#2FD79B)',
-            display: 'grid', placeItems: 'center', flexShrink: 0,
+          <span className="klip-ask-mark" style={{
+            display: 'grid', placeItems: 'center', width: 22, height: 22, flexShrink: 0,
+            filter: 'drop-shadow(0 2px 5px rgba(16,19,11,.28))',
           }}>
-            <span style={{ width: 13, height: 13, borderRadius: '50%', background: '#fff', display: 'grid', placeItems: 'center' }}>
-              <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="#14160F" strokeWidth="2.2" strokeLinecap="round"><path d="M15 4V2M15 14v-2M8 9h2M20 9h2M17.6 11.6l1.4 1.4M17.6 6.4l1.4-1.4M4 21l10-10"/></svg>
-            </span>
+            <AssistantMark size={22} blink={false} />
           </span>
           Demander à Klip
         </button>
@@ -2302,6 +2356,14 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
   // Alt maintenu (suivi global) et Alt armé au début du glissement en cours.
   const altDownRef = useRef(false);
   const altDragRef = useRef(false);
+  // Aperçu de la copie pendant un Alt+glisser. La duplication n'aboutit qu'au
+  // relâchement : sans cet aperçu, on déplaçait « à l'aveugle », rien ne
+  // montrait qu'une copie était en train d'être créée.
+  // Ce sont des calques d'affichage seulement, jamais poussés dans l'état des
+  // éléments : toucher `elements` pendant le glissement replacerait le nœud
+  // tiré sur ses coordonnées d'état, sous le curseur.
+  const [altGhosts, setAltGhosts] = useState<CanvasEl[] | null>(null);
+  const GHOST_PREFIX = 'ghost-';
 
   const handleElClick = (id: string, shiftKey: boolean) => {
     if (lockedIds.has(id)) return;
@@ -2334,11 +2396,21 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
     }
     multiDragStartRef.current = starts;
     altDragRef.current = altDownRef.current;
+    if (altDownRef.current) {
+      setAltGhosts(
+        elementsRef.current
+          .filter(e => ids.includes(e.id))
+          // Légèrement estompée : elle se lit comme une copie en cours, pas
+          // comme un calque déjà posé.
+          .map(e => ({ ...e, id: `${GHOST_PREFIX}${e.id}`, opacity: Math.round(e.opacity * 0.7) } as CanvasEl)),
+      );
+    }
   };
 
   const handleElDragEnd = (id: string, x: number, y: number) => {
     setIsKonvaDragging(false);
     setGuides({ v: null, h: null });
+    setAltGhosts(null);
     const ids = selectedIdsRef.current;
     const starts = multiDragStartRef.current;
     // Alt+glisser = duplication, comme dans Canva et Figma : l'original reste
@@ -3081,6 +3153,43 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
     if (withHistory) pushHistory(newEls);
   };
 
+  // Pendant l'édition d'un texte, la frappe n'empile pas une entrée par
+  // caractère : elle écrit directement dans elementsRef. Il faut donc poser un
+  // point d'annulation à la sortie de l'édition — et le faire ici, pas dans le
+  // champ lui-même : quitter en cliquant sur le plan de travail DÉMONTE le
+  // champ sans déclencher son blur, et la modification n'entrait alors jamais
+  // dans l'historique (Cmd+Z sautait par-dessus, la saisie était perdue).
+  const editStartRef = useRef<CanvasEl[] | null>(null);
+
+  // Empile l'état courant, sauf s'il y est déjà. Sert aux actions discrètes
+  // faites pendant l'édition (appliquer une police à une portion) : chacune
+  // reste annulable séparément.
+  const commitEditSnapshot = useCallback(() => {
+    const now = elementsRef.current;
+    if (historyRef.current[histIdxRef.current] !== now) {
+      const slice = historyRef.current.slice(0, histIdxRef.current + 1);
+      historyRef.current = [...slice, now];
+      histIdxRef.current = historyRef.current.length - 1;
+      setHistTick(t => t + 1);
+    }
+    editStartRef.current = now;
+  }, []);
+
+  // Fin d'édition : une seule entrée pour toute la saisie. Idempotente — peu
+  // importe combien de fois la sortie est signalée (blur, Échap, démontage).
+  const commitTextEdit = useCallback(() => {
+    const before = editStartRef.current;
+    editStartRef.current = null;
+    if (!before || elementsRef.current === before) return;
+    commitEditSnapshot();
+    editStartRef.current = null;
+  }, [commitEditSnapshot]);
+
+  useEffect(() => {
+    if (editingId) editStartRef.current = elementsRef.current;
+    else commitTextEdit();
+  }, [editingId, commitTextEdit]);
+
   // ── Assistant visuel : état envoyé à l'IA + exécution de ses actions ────────
   // Résumé des calques : assez pour raisonner (rôle, texte, position, style),
   // sans les données lourdes (sources d'images, points vectoriels).
@@ -3326,8 +3435,9 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
     if (scoped && editingIdRef.current === el.id) {
       const r = richRef.current?.getRange();
       if (r && r.end > r.start && richRef.current?.applyToSelection(patch as Record<string, unknown>)) {
-        // L'éditeur a réécrit les runs et rendu la main : l'historique est
-        // poussé à la sortie de l'édition, comme pour la saisie.
+        // Action discrète : elle mérite son propre point d'annulation, au lieu
+        // d'être noyée dans l'entrée unique de la saisie.
+        commitEditSnapshot();
         return;
       }
     }
@@ -3336,7 +3446,7 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
       ? { ...patch, runs: stripRunKeys(tel.runs, runKeys, (tel.text ?? '').length) } as Partial<CanvasEl>
       : patch);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [updateEl]);
+  }, [updateEl, commitEditSnapshot]);
 
   const undo = useCallback(() => {
     if (histIdxRef.current <= 0) return;
@@ -6265,7 +6375,7 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
                   />
                 )}
 
-                {elements.map(el => {
+                {(altGhosts ? [...elements, ...altGhosts] : elements).map(el => {
                   if (hiddenIds.has(el.id)) return null;
                   if (el.type === 'image' && (el as ImageEl).src === PHOTO_PLACEHOLDER_SRC) {
                     const ph = el as ImageEl;
@@ -6777,14 +6887,22 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
                   }}
                   zoom={zoom}
                 />
-                <SelectionPill
-                  elX={selectedEl.x}
-                  elY={selectedEl.y}
-                  elW={('width' in selectedEl ? (selectedEl as any).width : ('radius' in selectedEl ? (selectedEl as any).radius * 2 : ('outerRadius' in selectedEl ? (selectedEl as any).outerRadius * 2 : 100))) ?? 100}
-                  zoom={zoom}
-                  onDuplicate={duplicateEl}
-                  onDelete={() => deleteEl(selectedId)}
-                />
+                {(() => {
+                  // Même géométrie que le cadre de sélection, rotation comprise.
+                  const half = (('width' in selectedEl ? (selectedEl as any).width : ('radius' in selectedEl ? (selectedEl as any).radius * 2 : ('outerRadius' in selectedEl ? (selectedEl as any).outerRadius * 2 : 100))) ?? 100) / 2;
+                  const rect = getVisualRect(selectedEl as any) ?? {
+                    left: selectedEl.x - half, top: selectedEl.y,
+                    right: selectedEl.x + half, bottom: selectedEl.y,
+                  };
+                  return (
+                    <SelectionPill
+                      rect={rect}
+                      zoom={zoom}
+                      onDuplicate={duplicateEl}
+                      onDelete={() => deleteEl(selectedId)}
+                    />
+                  );
+                })()}
               </>
             )}
             {editingId && (() => {
@@ -6804,12 +6922,7 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
                     setElements(newEls);
                     elementsRef.current = newEls;
                   }}
-                  onCommit={() => {
-                    const slice = historyRef.current.slice(0, histIdxRef.current + 1);
-                    historyRef.current = [...slice, elementsRef.current];
-                    histIdxRef.current = historyRef.current.length - 1;
-                    setHistTick(t => t + 1);
-                  }}
+                  onCommit={commitTextEdit}
                   onExit={() => { setEditingId(null); setTextRange(null); }}
                 />
               );
