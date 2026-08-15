@@ -869,7 +869,7 @@ function TextProperties({ el, onChange, customFonts, onFontUpload, brandColors, 
         <div style={{ display: 'flex', gap: 6 }}>
           {[{ label: 'G', title: T('bold'), active: isBold, fn: toggleBold }, { label: 'I', title: T('italic'), active: isItalic, fn: toggleItalic }, { label: 'S', title: T('underline'), active: isUnderline, fn: () => onChange({ textDecoration: isUnderline ? '' : 'underline' }) }].map(({ label, title, active, fn }) => (
             <button key={label} onClick={fn} title={title}
-              style={{ flex: 1, padding: '7px 6px', border: 'none', borderRadius: 'var(--r-s)', cursor: 'pointer', fontWeight: 700, fontSize: 13, background: active ? 'var(--leaf)' : 'var(--sunk)', color: active ? 'var(--mint-ink)' : 'var(--ink-2)', boxShadow: active ? 'none' : 'inset 0 0 0 1px var(--line)' }}>
+              style={{ flex: 1, padding: '7px 6px', border: 'none', borderRadius: 'var(--r-s)', cursor: 'pointer', fontWeight: 700, fontSize: 13, background: active ? 'var(--leaf)' : 'var(--btn-soft)', color: active ? 'var(--mint-ink)' : 'var(--ink-2)' }}>
               {label}
             </button>
           ))}
@@ -879,7 +879,7 @@ function TextProperties({ el, onChange, customFonts, onFontUpload, brandColors, 
         <div style={{ display: 'flex', gap: 6 }}>
           {(['left', 'center', 'right'] as const).map(a => (
             <button key={a} onClick={() => onChange({ align: a })}
-              style={{ flex: 1, padding: '7px 6px', border: 'none', borderRadius: 'var(--r-s)', cursor: 'pointer', fontSize: 13, background: el.align === a ? 'var(--leaf)' : 'var(--sunk)', color: el.align === a ? 'var(--mint-ink)' : 'var(--ink-2)', boxShadow: el.align === a ? 'none' : 'inset 0 0 0 1px var(--line)' }}>
+              style={{ flex: 1, padding: '7px 6px', border: 'none', borderRadius: 'var(--r-s)', cursor: 'pointer', fontSize: 13, background: el.align === a ? 'var(--leaf)' : 'var(--btn-soft)', color: el.align === a ? 'var(--mint-ink)' : 'var(--ink-2)' }}>
               {a === 'left'
                 ? <svg width="13" height="11" viewBox="0 0 13 11" fill="currentColor"><rect x="0" y="0" width="13" height="2" rx="1"/><rect x="0" y="4.5" width="8" height="2" rx="1"/><rect x="0" y="9" width="10" height="2" rx="1"/></svg>
                 : a === 'center'
@@ -5388,6 +5388,8 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
         ['--ink-3' as string]: 'rgba(241,240,232,.52)',
         ['--line' as string]: 'rgba(255,255,255,.16)',
         ['--sunk' as string]: 'rgba(255,255,255,.10)',
+        ['--btn-soft' as string]: 'rgba(255,255,255,.13)',
+        ['--btn-soft-2' as string]: 'rgba(255,255,255,.22)',
         ['--canvas' as string]: 'rgba(255,255,255,.16)',
         ['--paper' as string]: 'rgba(255,255,255,.10)',
         position: 'relative', zIndex: 30,
@@ -5395,7 +5397,7 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
         {/* Left: burger + back + workspace label + undo/redo */}
         <div className="ed-topbar-left" style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
           <button onClick={toggleSidebar} title={sidebarOpen ? 'Masquer la sidebar' : 'Afficher la sidebar'}
-            className="btn btn-sm btn-ghost btn-icon" style={{ flexShrink: 0 }}>
+            className="btn btn-sm btn-primary btn-icon" style={{ flexShrink: 0 }}>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/>
             </svg>
@@ -5506,7 +5508,7 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
               </div>
             </>
           )}
-          <button onClick={exportPNG} className="btn btn-sm btn-ghost" style={{ height: 32 }}>{T('preview')}</button>
+          <button onClick={exportPNG} className="btn btn-sm ed-ai-btn" style={{ height: 32 }}>{T('preview')}</button>
           <button onClick={handleSave} disabled={saving} className="btn btn-sm btn-primary"
             style={{ height: 32, opacity: saving ? 0.6 : 1, cursor: saving ? 'not-allowed' : 'pointer' }}>
             {saving ? 'Sauvegarde…' : isTemplate ? 'Enregistrer' : 'Publier'}
