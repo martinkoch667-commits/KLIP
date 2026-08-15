@@ -3,6 +3,9 @@ import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
 import { cookies } from 'next/headers';
 import { generateAiText } from '@/lib/ai-text';
 
+// Un appel LLM avec images dépasse régulièrement les 10 s par défaut de Vercel.
+export const maxDuration = 60;
+
 // POST /api/montage-chat
 // Assistant de montage conversationnel : l'utilisateur décrit ce qu'il veut en
 // langage naturel, l'IA répond ET renvoie une liste d'ACTIONS que le client

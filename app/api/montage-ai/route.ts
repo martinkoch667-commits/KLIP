@@ -3,6 +3,9 @@ import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
 import { cookies } from 'next/headers';
 import { generateAiText } from '@/lib/ai-text';
 
+// Un appel LLM avec images dépasse régulièrement les 10 s par défaut de Vercel.
+export const maxDuration = 60;
+
 // POST /api/montage-ai
 // 3 chantiers IA du module Montage (palier 3 de l'audit Canva/CapCut), regroupés
 // sur un seul endpoint (même auth, même schéma de réponse "JSON dans le texte") :

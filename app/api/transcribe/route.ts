@@ -1,5 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 
+// Vercel coupe une fonction à 10 s par défaut. Transcrire une tranche de 100 s
+// d'audio (téléversement + inférence Whisper) dépasse largement ce budget : la
+// requête était tuée avant la réponse du fournisseur, et le client ne voyait
+// qu'un échec réseau générique — sans clé configurée le problème était masqué,
+// mais il se serait posé dès la première.
+// 60 s est le plafond du palier Hobby ; sur un palier supérieur, ce nombre peut
+// monter (300 s) si des rushes longs le demandent.
+export const maxDuration = 60;
+
 // ─── /api/transcribe ────────────────────────────────────────────────────────
 // Transcription IA (sous-titres auto) via une API Whisper.
 // Reçoit { url } (URL publique Storage d'un clip vidéo/audio), télécharge le

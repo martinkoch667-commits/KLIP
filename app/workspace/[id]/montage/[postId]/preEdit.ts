@@ -60,6 +60,10 @@ export interface PreEditResult {
    *  rushes et échouer pour le quatrième : sans cette liste, le trou de
    *  sous-titres apparaissait sans la moindre explication. */
   failed: { name: string; code: TranscribeErrorCode }[];
+  /** Plans laissés INTACTS faute de transcription. Sans transcription on ne sait
+   *  pas où est la parole, donc on ne rogne pas — et il faut le dire, sinon le
+   *  prémontage a l'air de n'avoir rien fait. */
+  skippedNoSpeech: string[];
 }
 
 /** Événements de journal — l'appelant traduit et affiche. */
@@ -77,6 +81,7 @@ export interface PreEditHooks {
     | { type: "speechClean" }
     | { type: "captions"; n: number; byWords: boolean }
     | { type: "transcribeFailed"; name: string; code: TranscribeErrorCode }
+    | { type: "trimSkippedNoSpeech"; name: string }
     | { type: "allDone" }
   ) => void;
   signal?: AbortSignal;
@@ -305,8 +310,9 @@ export async function speechMapFor(
  *  sacrifier de parole. Ne modifie un plan que si le gain est réel. */
 export async function trimClipsByQuality(
   clips: MontageClip[], cache: TranscriptCache, hooks: PreEditHooks & { only?: Set<string> } = {},
-): Promise<{ clips: MontageClip[]; trimmedSec: number }> {
+): Promise<{ clips: MontageClip[]; trimmedSec: number; skippedNoSpeech: string[] }> {
   const next = [...clips];
+  const skipped: string[] = [];
   let trimmedSec = 0;
   for (let i = 0; i < next.length; i++) {
     if (hooks.signal?.aborted) break;
@@ -315,7 +321,23 @@ export async function trimClipsByQuality(
     hooks.onLog?.({ type: "analyzing", name: c.name });
 
     const { voiced, fromWords } = await speechMapFor(c.src, cache);
-    if (fromWords && voiced.length) hooks.onLog?.({ type: "speechMapped", n: voiced.length });
+
+    // SANS TRANSCRIPTION, ON NE COUPE PAS.
+    //
+    // Le repli local (`detectSpeechSegments`) ne juge que l'ÉNERGIE du signal : il
+    // prend un passage parlé doucement pour du silence. Or c'est cette carte de la
+    // parole qui protège le discours pendant le rognage — la protection était donc
+    // aussi peu fiable que le repli, et le prémontage coupait en pleine phrase.
+    //
+    // Rendre les rushes intacts est toujours préférable à rendre une vidéo coupée au
+    // milieu d'un mot : le premier se retouche, le second se refait. L'appelant est
+    // prévenu et le dit à l'utilisateur.
+    if (!fromWords) {
+      hooks.onLog?.({ type: "trimSkippedNoSpeech", name: c.name });
+      skipped.push(c.name);
+      continue;
+    }
+    if (voiced.length) hooks.onLog?.({ type: "speechMapped", n: voiced.length });
 
     let rep;
     try { rep = await analyzeClipQuality(c.src, c.trimStart, c.trimEnd, { voiced: voiced.length ? voiced : undefined, signal: hooks.signal }); }
@@ -334,7 +356,7 @@ export async function trimClipsByQuality(
       hooks.onLog?.({ type: "clipClean" });
     }
   }
-  return { clips: next, trimmedSec };
+  return { clips: next, trimmedSec, skippedNoSpeech: skipped };
 }
 
 // ─── Étape 2 — resserrage du discours ───────────────────────────────────────
@@ -504,5 +526,6 @@ export async function runPreEdit(
     fillersSec: tightened.removedSec,
     error: tightened.error ?? caps.error,
     failed: tightened.failed,
+    skippedNoSpeech: trimmed.skippedNoSpeech,
   };
 }
