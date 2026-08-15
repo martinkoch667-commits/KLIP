@@ -26,7 +26,7 @@ import { registerFontFamily, weightLabel, type FontFamily } from '@/lib/fontFile
 import { STICKERS, STICKER_CATS, stickerDataUri, type Sticker } from './stickers';
 import { AiThinkingLog } from '@/components/AiThinkingPanel';
 import AiChatDock from '@/components/AiChatDock';
-import AssistantMark from '@/components/AssistantMark';
+import KlipMark from '@/components/KlipMark';
 import RichTextOverlay, { type RichTextHandle } from '@/components/RichTextOverlay';
 import {
   blockStyleOf, clearTextMetricsCache, isRunKey, layoutText,
@@ -1537,18 +1537,17 @@ function SelectionPill({ rect, zoom, onDuplicate, onDelete }: PillProps) {
   const pillW = 260;
   // La pastille se pose au-dessus de l'encombrement RÉEL : une boîte non tournée
   // sous-estime la hauteur dès que l'objet est incliné, et la pastille venait
-  // alors se poser par-dessus le texte. Faute de place en haut, elle bascule
-  // sous l'objet plutôt que de sortir du plan de travail.
+  // alors se poser par-dessus le texte.
+  // Toujours au-dessus, jamais en dessous : une pastille qui saute d'un côté à
+  // l'autre pendant qu'on fait tourner l'objet se cherche du regard.
   const GAP = 12;        // écart à l'écran entre l'objet et la pastille
-  const PILL_H = 42;     // hauteur approximative de la pastille, à l'écran
-  const below = rect.top * zoom < PILL_H + GAP + 8;
   // La couche d'overlay est mise à l'échelle par `zoom` : on contre-scale la barre
   // pour qu'elle garde une taille constante à l'écran (façon Canva).
   return (
     <div style={{
       position: 'absolute',
       left: (rect.left + rect.right) / 2,
-      top: below ? rect.bottom + GAP / zoom : rect.top - GAP / zoom,
+      top: rect.top - GAP / zoom,
       width: 0,
       height: 0,
       zIndex: 55,
@@ -1556,8 +1555,8 @@ function SelectionPill({ rect, zoom, onDuplicate, onDelete }: PillProps) {
     }}>
     <div style={{
       position: 'absolute', left: 0, top: 0, width: pillW,
-      transform: `translate(-50%, ${below ? '0%' : '-100%'}) scale(${1 / zoom})`,
-      transformOrigin: below ? 'center top' : 'center bottom',
+      transform: `translate(-50%, -100%) scale(${1 / zoom})`,
+      transformOrigin: 'center bottom',
     }}>
       <div className="pop-in" style={{
         display: 'flex', alignItems: 'center', gap: 2,
@@ -1574,12 +1573,7 @@ function SelectionPill({ rect, zoom, onDuplicate, onDelete }: PillProps) {
           border: 'none', cursor: 'pointer',
           boxShadow: '0 8px 20px -9px rgba(102,86,217,.85), 0 2px 6px rgba(16,19,11,.16)',
         }}>
-          <span className="klip-ask-mark" style={{
-            display: 'grid', placeItems: 'center', width: 22, height: 22, flexShrink: 0,
-            filter: 'drop-shadow(0 2px 5px rgba(16,19,11,.28))',
-          }}>
-            <AssistantMark size={22} blink={false} />
-          </span>
+          <KlipMark size={22} />
           Demander à Klip
         </button>
         <span style={{ width: 1, height: 18, background: '#E4E3D7', flexShrink: 0 }} />

@@ -13,6 +13,7 @@
 import { useEffect, useRef, useState } from 'react';
 import VoiceButton from '@/components/VoiceButton';
 import AssistantMark from '@/components/AssistantMark';
+import KlipMark from '@/components/KlipMark';
 
 export interface ChatAction { type: string; [k: string]: unknown }
 
@@ -154,7 +155,9 @@ export default function AiChatDock({
   if (!open) {
     return (
       <button className="mzchat-fab" onClick={() => setOpen(true)} title={labels.open} aria-label={labels.open}>
-        <span className="mzchat-fab-mark"><AssistantMark size={26} /></span>
+        {/* Même marque que « Demander à Klip » sur un calque : c'est le même
+            interlocuteur, il doit se reconnaître d'un endroit à l'autre. */}
+        <span className="mzchat-fab-mark"><KlipMark size={26} /></span>
         <span className="mzchat-fab-lbl">{labels.title}</span>
       </button>
     );
