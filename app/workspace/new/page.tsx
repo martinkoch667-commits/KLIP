@@ -847,7 +847,9 @@ export default function NewWorkspacePage() {
       // il doit respirer. La structure vient des rythmes et des filets, pas d'un
       // fond teinté.
       background: "#FFFFFF" }}>
-      <Sidebar />
+      {/* Masquée sur tout le parcours de création : la pastille se posait sur la
+          barre d'actions du bas et empêchait de cliquer « Continuer ». */}
+      <Sidebar hideBeta />
 
       <div className="ws-new-shell" style={{ marginLeft: "var(--sb-w)", flex: 1, display: "grid", gridTemplateColumns: "minmax(0,1fr)" }}>
       <div style={{ display: "flex", flexDirection: "column", minWidth: 0 }}>
