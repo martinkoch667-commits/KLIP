@@ -182,6 +182,13 @@ export default function NewWorkspacePage() {
   const [sector, setSector] = useState("");
   const [instagramHandle, setInstagramHandle] = useState("");
   const [brandDescription, setBrandDescription] = useState("");
+  // Analyse du site : on préremplit, on ne décide pas. Rien n'est verrouillé,
+  // tout reste modifiable — c'est un point de départ, pas un verdict.
+  const [website, setWebsite] = useState("");
+  const [siteBusy, setSiteBusy] = useState(false);
+  const [siteError, setSiteError] = useState<string | null>(null);
+  const [siteFilled, setSiteFilled] = useState<string[] | null>(null);
+  const [siteFonts, setSiteFonts] = useState<string[]>([]);
 
   // Step 2 — Voix de marque
   const [tone, setTone] = useState("");
@@ -321,6 +328,69 @@ export default function NewWorkspacePage() {
   // boutons de cette étape naviguent vers l'éditeur réel / le tableau de bord.
   const [createdWorkspaceId, setCreatedWorkspaceId] = useState<string | null>(null);
   const [templateCount, setTemplateCount] = useState(0);
+
+  // Lit le site de la marque et remplit ce qui peut l'être. Les champs déjà
+  // saisis à la main ne sont jamais écrasés : si quelqu'un a pris la peine
+  // d'écrire, sa version gagne.
+  const analyzeWebsite = async () => {
+    const url = website.trim();
+    if (!url || siteBusy) return;
+    setSiteBusy(true);
+    setSiteError(null);
+    setSiteFilled(null);
+    try {
+      const res = await fetch("/api/brand/analyze", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url }),
+      });
+      const d = await res.json();
+      if (!res.ok) { setSiteError(d?.error ?? "Analyse impossible."); return; }
+
+      const filled: string[] = [];
+      if (d.name && !name.trim()) { setName(d.name); filled.push("nom"); }
+      if (d.description && !brandDescription.trim()) { setBrandDescription(d.description); filled.push("description"); }
+      if (d.sector && !sector) {
+        // Le modèle rend un secteur en clair : on le rattache à la liste, sinon « Autre ».
+        const guess = d.sector.toLowerCase();
+        const hit = SECTORS.find(x => guess.includes(x.value.toLowerCase()) || x.label.toLowerCase().includes(guess));
+        setSector(hit ? hit.value : "Autre");
+        filled.push("secteur");
+      }
+      if (d.tone && !tone) {
+        const guess = String(d.tone).toLowerCase();
+        const hit = TONES.find(x => guess.includes(x.value.toLowerCase()));
+        if (hit) { setTone(hit.value); filled.push("ton"); }
+      }
+      if (Array.isArray(d.wordsToUse) && d.wordsToUse.length && !wordsToUse.trim()) {
+        setWordsToUse(d.wordsToUse.join(", ")); filled.push("mots à privilégier");
+      }
+      if (Array.isArray(d.wordsToAvoid) && d.wordsToAvoid.length && !wordsToAvoid.trim()) {
+        setWordsToAvoid(d.wordsToAvoid.join(", ")); filled.push("mots à éviter");
+      }
+      if (Array.isArray(d.colors) && d.colors.length) {
+        setPrimaryColor(d.colors[0]);
+        if (d.colors[1]) setSecondaryColor(d.colors[1]);
+        if (d.colors[2]) setAccentColor(d.colors[2]);
+        filled.push(d.colors.length > 1 ? "couleurs" : "couleur principale");
+      }
+      if (Array.isArray(d.fonts) && d.fonts.length) {
+        setSiteFonts(d.fonts);
+        // La police du site n'existe pas forcément dans le catalogue : on ne
+        // l'applique que si on la retrouve, et on l'affiche dans tous les cas.
+        const pool = googleFonts.length ? googleFonts : FALLBACK_FONTS;
+        const match = d.fonts
+          .map((f: string) => pool.find(g => g.family.toLowerCase() === String(f).toLowerCase()))
+          .find(Boolean);
+        if (match) { setFontPrimary(match.family); filled.push("typographie"); }
+      }
+      setSiteFilled(filled);
+    } catch {
+      setSiteError("Analyse impossible. Vérifiez l'adresse et réessayez.");
+    } finally {
+      setSiteBusy(false);
+    }
+  };
 
   // Fetch Google Fonts catalog on step 4 mount
   useEffect(() => {
@@ -648,6 +718,55 @@ export default function NewWorkspacePage() {
                   </p>
                 </div>
 
+                {/* Raccourci : on lit le site de la marque et on remplit le
+                    formulaire à sa place. Volontairement facultatif — un client
+                    sans site doit pouvoir avancer sans se sentir bloqué. */}
+                <div style={{ background: "var(--sunk)", borderRadius: "var(--r)", padding: 16 }}>
+                  <label style={labelStyle}>Site web de la marque <OptLabel /></label>
+                  <div style={{ display: "flex", gap: 8, alignItems: "stretch" }}>
+                    <input
+                      style={{ ...inputStyle, flex: 1, background: "var(--white)" }}
+                      value={website}
+                      onChange={e => { setWebsite(e.target.value); setSiteError(null); }}
+                      onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); void analyzeWebsite(); } }}
+                      placeholder="exemple.fr"
+                      inputMode="url"
+                      autoFocus
+                    />
+                    <button
+                      type="button"
+                      onClick={() => void analyzeWebsite()}
+                      disabled={siteBusy || !website.trim()}
+                      className="btn btn-primary"
+                      style={{ flexShrink: 0, opacity: siteBusy || !website.trim() ? 0.55 : 1 }}
+                    >
+                      {siteBusy ? "Analyse…" : "Analyser"}
+                    </button>
+                  </div>
+                  <p style={{ fontSize: 12.5, color: "var(--ink-2)", marginTop: 8, lineHeight: 1.5 }}>
+                    On y récupère vos couleurs, votre typographie et votre positionnement
+                    pour préremplir la suite. Vous gardez la main sur tout.
+                  </p>
+                  {siteError && (
+                    <p style={{ fontSize: 12.5, color: "#C4452F", marginTop: 8, fontWeight: 600 }}>{siteError}</p>
+                  )}
+                  {siteFilled && !siteError && (
+                    <div style={{ marginTop: 10, fontSize: 12.5, color: "var(--ink-2)", lineHeight: 1.6 }}>
+                      {siteFilled.length > 0 ? (
+                        <><strong style={{ color: "var(--ink)" }}>Prérempli :</strong> {siteFilled.join(", ")}. À relire et corriger.</>
+                      ) : (
+                        <>Rien d&apos;exploitable trouvé sur ce site — remplissez à la main, c&apos;est aussi bien.</>
+                      )}
+                      {siteFonts.length > 0 && (
+                        <div style={{ marginTop: 4 }}>
+                          Polices repérées : {siteFonts.join(", ")}.
+                          {" "}Choisissez la plus proche à l&apos;étape typographie si elle n&apos;y est pas.
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+
                 <div>
                   <label style={labelStyle}>{t('clientNameLabel')}</label>
                   <input
@@ -655,7 +774,6 @@ export default function NewWorkspacePage() {
                     value={name}
                     onChange={e => setName(e.target.value)}
                     placeholder={t('clientNamePlaceholder')}
-                    autoFocus
                   />
                 </div>
 

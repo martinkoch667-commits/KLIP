@@ -2,19 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 
 // Anti-SSRF : refuse les adresses internes/privées pour ne pas transformer
 // le proxy en passerelle vers le réseau interne (metadata cloud, localhost…).
-function isBlockedHost(hostname: string): boolean {
-  const h = hostname.toLowerCase();
-  if (h === "localhost" || h === "0.0.0.0" || h.endsWith(".local") || h.endsWith(".internal")) return true;
-  if (h === "169.254.169.254") return true; // metadata cloud
-  // IPv4 privées / loopback
-  if (/^127\./.test(h)) return true;
-  if (/^10\./.test(h)) return true;
-  if (/^192\.168\./.test(h)) return true;
-  if (/^172\.(1[6-9]|2\d|3[01])\./.test(h)) return true;
-  // IPv6 loopback / link-local / unique-local
-  if (h === "::1" || h.startsWith("fe80:") || h.startsWith("fc") || h.startsWith("fd")) return true;
-  return false;
-}
+// Le garde vit dans lib/safeUrl : il sert aussi à l'analyse d'un site de marque,
+// et deux copies auraient fini par diverger.
+import { isBlockedHost } from "@/lib/safeUrl";
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
