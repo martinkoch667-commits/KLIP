@@ -5,7 +5,7 @@ import { useTranslations } from 'next-intl';
 import { useParams, useRouter } from 'next/navigation';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import Sidebar from '@/components/Sidebar';
-import ColorPicker from '@/components/ColorPicker';
+import SubtitleStyleEditor from '@/components/SubtitleStyleEditor';
 import {
   SUB_STYLES, effectiveSubStyle, loadSubTemplates, saveSubTemplates,
   DEFAULT_SUB_POS, DEFAULT_WORDS_PER_CAPTION,
@@ -390,12 +390,15 @@ function MiniPreview({ bg }: { bg: BgStyle }) {
 
 function SubtitleTemplatesSection({ workspaceId, workspace }: { workspaceId: string; workspace: Workspace | null }) {
   const t = useTranslations('workspaceTemplates');
+  const tse = useTranslations('subtitleEditor');
   const [list, setList] = useState<SubTemplate[]>([]);
   const [creating, setCreating] = useState(false);
   const [name, setName] = useState('');
   const [styleId, setStyleId] = useState(SUB_STYLES[0].id);
   const [custom, setCustom] = useState<SubCustom>({});
   const [maxWords, setMaxWords] = useState(DEFAULT_WORDS_PER_CAPTION);
+  const [pos, setPos] = useState(DEFAULT_SUB_POS);
+  const frameRef = React.useRef<HTMLDivElement>(null);
 
   useEffect(() => { setList(loadSubTemplates()); }, []);
 
@@ -403,11 +406,19 @@ function SubtitleTemplatesSection({ workspaceId, workspace }: { workspaceId: str
   // de ses couleurs et de sa police, quitte à ce que tout soit ensuite repris
   // à la main. Un nouveau modèle qui ressemble déjà à la marque évite de
   // refaire le même réglage à chaque fois.
+  // Point de départ volontairement SOBRE : la police et les couleurs du compte,
+  // et rien d'autre. Pas de fond, pas de pilule, pas de contour — un sous-titre
+  // lisible posé sur l'image, sur lequel on ajoute ensuite ce qu'on veut.
+  // Arriver avec un aplat coloré et un cerclage obligeait à tout défaire avant
+  // de pouvoir commencer.
   const charterCustom = useCallback((): SubCustom => ({
-    fg: workspace?.secondary_color || '#FFFFFF',
-    hi: workspace?.accent_color || workspace?.primary_color || '#BDF2A0',
-    bg: workspace?.primary_color || 'transparent',
     font: workspace?.font_family || undefined,
+    fg: '#FFFFFF',
+    hi: workspace?.accent_color || workspace?.primary_color || '#BDF2A0',
+    bg: 'transparent',
+    pill: false,
+    stroke: '',
+    weight: 800,
   }), [workspace]);
 
   const openCreator = () => {
@@ -416,6 +427,7 @@ function SubtitleTemplatesSection({ workspaceId, workspace }: { workspaceId: str
     setStyleId(SUB_STYLES[0].id);
     setName('');
     setMaxWords(DEFAULT_WORDS_PER_CAPTION);
+    setPos(DEFAULT_SUB_POS);
     setCreating(true);
   };
 
@@ -428,14 +440,52 @@ function SubtitleTemplatesSection({ workspaceId, workspace }: { workspaceId: str
     const tpl: SubTemplate = {
       id: crypto.randomUUID(),
       name: name.trim() || t('defaultTemplateName', { n: list.length + 1 }),
-      styleId, custom, maxWords, pos: DEFAULT_SUB_POS,
+      styleId, custom, maxWords, pos,
     };
     persist([...list, tpl]);
-    setCreating(false); setName(''); setCustom({}); setStyleId(SUB_STYLES[0].id); setMaxWords(DEFAULT_WORDS_PER_CAPTION);
+    setCreating(false); setName(''); setCustom({}); setStyleId(SUB_STYLES[0].id);
+    setMaxWords(DEFAULT_WORDS_PER_CAPTION); setPos(DEFAULT_SUB_POS);
   }
   function remove(id: string) { persist(list.filter(tpl => tpl.id !== id)); }
 
-  const brandCols = [workspace?.primary_color, workspace?.secondary_color, workspace?.accent_color].filter(Boolean) as string[];
+  // Déplacement du sous-titre dans le cadre : on travaille en % pour que la
+  // position reste juste quel que soit le format de la vidéo.
+  const startPosDrag = (e: React.MouseEvent) => {
+    const box = frameRef.current;
+    if (!box) return;
+    e.preventDefault();
+    const move = (ev: MouseEvent | React.MouseEvent) => {
+      const r = box.getBoundingClientRect();
+      setPos({
+        x: Math.max(4, Math.min(96, ((ev.clientX - r.left) / r.width) * 100)),
+        y: Math.max(4, Math.min(96, ((ev.clientY - r.top) / r.height) * 100)),
+      });
+    };
+    move(e);
+    const up = () => { window.removeEventListener('mousemove', move); window.removeEventListener('mouseup', up); };
+    window.addEventListener('mousemove', move);
+    window.addEventListener('mouseup', up);
+  };
+
+  // Libellés de l'éditeur partagé — mêmes clés que le monteur et l'assistant.
+  const subEditorLabels = React.useMemo(() => ({
+    basic: tse('basic'), font: tse('font'), brandFont: tse('brandFont'), system: tse('system'),
+    serif: tse('serif'), mono: tse('mono'), size: tse('size'), style: tse('style'), case: tse('case'),
+    align: tse('align'), letterSpacing: tse('letterSpacing'), lineHeight: tse('lineHeight'),
+    colors: tse('colors'), text: tse('text'), highlight: tse('highlight'),
+    background: tse('background'), none: tse('none'), opacity: tse('opacity'), radius: tse('radius'), pill: tse('pill'),
+    stroke: tse('stroke'), thickness: tse('thickness'),
+    shadow: tse('shadow'), blur: tse('blur'), offsetX: tse('offsetX'), offsetY: tse('offsetY'),
+    glow: tse('glow'), intensity: tse('intensity'),
+    transform: tse('transform'), rotation: tse('rotation'),
+    anim: tse('anim'), animWords: tse('animWords'), animNone: tse('animNone'),
+    layout: tse('layout'), boxWidth: tse('boxWidth'), lines: tse('lines'),
+    oneLine: tse('oneLine'), twoLines: tse('twoLines'), threeLines: tse('threeLines'),
+    bgWidth: tse('bgWidth'), bgHeight: tse('bgHeight'), spread: tse('spread'),
+    tabBasic: tse('tabBasic'), tabBubble: tse('tabBubble'), tabEffects: tse('tabEffects'), curve: tse('curve'),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }), []);
+
 
   const slider = (label: string, value: number, min: number, max: number, step: number,
                   on: (v: number) => void, fmt: (v: number) => string) => (
@@ -449,12 +499,6 @@ function SubtitleTemplatesSection({ workspaceId, workspace }: { workspaceId: str
     </div>
   );
 
-  const colorField = (label: string, value: string, on: (v: string) => void) => (
-    <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, fontSize: 12, color: 'var(--ink-2)', fontWeight: 700 }}>
-      {label}
-      <input type="color" value={/^#([0-9a-f]{6})$/i.test(value) ? value : '#ffffff'} onChange={e => on(e.target.value)} style={{ width: 34, height: 26, border: '1px solid var(--line)', borderRadius: 6, padding: 0, cursor: 'pointer' }} />
-    </label>
-  );
 
   return (
     <div style={{ marginTop: 40 }}>
@@ -473,27 +517,64 @@ function SubtitleTemplatesSection({ workspaceId, workspace }: { workspaceId: str
       </p>
 
       {creating && (
-        <div className="card" style={{ padding: 18, marginBottom: 18, display: 'grid', gridTemplateColumns: '260px 1fr', gap: 20 }}>
-          {/* Aperçu */}
-          <div style={{ borderRadius: 'var(--r)', overflow: 'hidden', background: 'linear-gradient(150deg,#2b8d57,#0c2a1d)', minHeight: 150, display: 'grid', placeItems: 'center' }}>
-            {/* L'aperçu doit refléter TOUS les réglages, sinon on règle à l'aveugle. */}
-            <span style={{
-              display: 'inline-block', padding: eff.pill ? '6px 14px' : '5px 10px', borderRadius: eff.pill ? 99 : 7,
-              background: eff.bg, color: eff.fg, fontFamily: eff.font || (eff.italic ? 'var(--display)' : 'var(--sans)'),
-              fontStyle: eff.italic ? 'italic' : 'normal', fontWeight: eff.weight,
-              fontSize: 18 * (eff.scale ?? 1),
-              letterSpacing: eff.letterSpacing ? `${eff.letterSpacing}em` : undefined,
-              textDecoration: eff.underline ? 'underline' : undefined,
-              textTransform: eff.uppercase ? 'uppercase' : 'none',
-              WebkitTextStroke: eff.stroke ? `1.6px ${eff.stroke}` : undefined, paintOrder: 'stroke fill',
-              textShadow: eff.bg === 'transparent' && !eff.stroke ? '0 1px 6px rgba(0,0,0,.6)' : 'none',
-            }}>
-              Bonjour <span style={{ color: eff.hi }}>Klip</span>
-            </span>
+        <div className="card" style={{ padding: 18, marginBottom: 18, display: 'grid', gridTemplateColumns: 'minmax(240px, 300px) 1fr', gap: 22, alignItems: 'start' }}>
+          {/* Aperçu — un vrai cadre 9:16, comme le monteur. Le fond vert dégradé
+              ne représentait rien : on montre une image neutre, sur laquelle un
+              sous-titre blanc se juge comme il se jugera sur une vidéo. Le bloc
+              se déplace à la souris, la position est enregistrée dans le modèle. */}
+          <div>
+            <div
+              ref={frameRef}
+              onMouseDown={startPosDrag}
+              style={{
+                position: 'relative', aspectRatio: '9 / 16', borderRadius: 'var(--r)', overflow: 'hidden',
+                background: 'linear-gradient(180deg,#3A3D42 0%,#26282C 55%,#151719 100%)',
+                cursor: 'grab', userSelect: 'none',
+              }}
+            >
+              {/* Repères de cadrage : sans eux, « en bas » ne veut rien dire. */}
+              <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none',
+                background: 'repeating-linear-gradient(0deg, rgba(255,255,255,.05) 0 1px, transparent 1px 25%)' }} />
+              <span style={{
+                position: 'absolute', left: `${pos.x}%`, top: `${pos.y}%`, transform: 'translate(-50%,-50%)',
+                maxWidth: '86%', textAlign: 'center', pointerEvents: 'none',
+                display: 'inline-block',
+                padding: eff.bg !== 'transparent' ? (eff.pill ? '6px 14px' : '5px 10px') : 0,
+                borderRadius: eff.pill ? 99 : (eff.radius ?? 8),
+                background: eff.bg, color: eff.fg,
+                fontFamily: eff.font || 'var(--sans)',
+                fontStyle: eff.italic ? 'italic' : 'normal', fontWeight: eff.weight,
+                fontSize: 19 * (eff.scale ?? 1),
+                lineHeight: eff.lineHeight ?? 1.15,
+                letterSpacing: eff.letterSpacing ? `${eff.letterSpacing}em` : undefined,
+                textDecoration: eff.underline ? 'underline' : undefined,
+                textTransform: eff.uppercase ? 'uppercase' : 'none',
+                WebkitTextStroke: eff.stroke ? `${eff.strokeW ?? 2}px ${eff.stroke}` : undefined,
+                paintOrder: 'stroke fill',
+                textShadow: eff.bg === 'transparent' && !eff.stroke ? '0 2px 8px rgba(0,0,0,.75)' : 'none',
+              }}>
+                Bonjour <span style={{ color: eff.hi }}>Klip</span>
+              </span>
+            </div>
+            <p style={{ fontSize: 11.5, color: 'var(--ink-3)', margin: '8px 0 0', textAlign: 'center' }}>
+              Glissez le sous-titre pour choisir sa place
+            </p>
+            <div style={{ display: 'flex', gap: 6, marginTop: 8, justifyContent: 'center' }}>
+              {([['Haut', 18], ['Milieu', 50], ['Bas', 84]] as const).map(([lbl, y]) => (
+                <button key={lbl} onClick={() => setPos({ x: 50, y })}
+                  className={'wsn-chip' + (Math.abs(pos.y - y) < 3 && Math.abs(pos.x - 50) < 3 ? ' is-on' : '')}
+                  style={{ padding: '5px 12px', fontSize: 11.5 }}>{lbl}</button>
+              ))}
+            </div>
           </div>
-          {/* Contrôles */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+
+          {/* Réglages — l'éditeur complet, le même que dans le monteur vidéo et
+              l'assistant nouveau client. Une seule implémentation, donc les
+              mêmes possibilités partout : effets, contour, ombre, lueur, casse,
+              alignement, mise en page. */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 14, minWidth: 0 }}>
             <input value={name} onChange={e => setName(e.target.value)} placeholder={t('namePlaceholder')} style={panelInput} />
+
             <div>
               <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 10, marginBottom: 6 }}>
                 <label style={subLabel}>{t('baseStyleLabel')}</label>
@@ -504,60 +585,21 @@ function SubtitleTemplatesSection({ workspaceId, workspace }: { workspaceId: str
                 )}
               </div>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-                {SUB_STYLES.map(s => (
-                  <button key={s.id} onClick={() => { setStyleId(s.id); setCustom({}); }}
-                    className={'wsn-chip' + (styleId === s.id ? ' is-on' : '')}
-                    style={{ padding: '6px 12px', fontSize: 12 }}>{s.name}</button>
+                {SUB_STYLES.map(st => (
+                  <button key={st.id} onClick={() => { setStyleId(st.id); setCustom({}); }}
+                    className={'wsn-chip' + (styleId === st.id ? ' is-on' : '')}
+                    style={{ padding: '6px 12px', fontSize: 12 }}>{st.name}</button>
                 ))}
               </div>
             </div>
 
-            {/* Couleurs — nuancier de l'application, teintes de la charte en tête. */}
-            <div>
-              <label style={subLabel}>Couleurs</label>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0,1fr))', gap: 8 }}>
-                {([[t('textColorLabel'), eff.fg, (v: string) => patch({ fg: v })],
-                   [t('activeWordLabel'), eff.hi, (v: string) => patch({ hi: v })],
-                   ['Fond', eff.bg === 'transparent' ? '#0C2A1D' : eff.bg, (v: string) => patch({ bg: v })],
-                   ['Contour', eff.stroke || '#000000', (v: string) => patch({ stroke: v })]] as const).map(([lbl, val, on]) => (
-                  <div key={lbl} style={{ display: 'flex', alignItems: 'center', gap: 9, background: 'var(--sunk)', borderRadius: 11, padding: '8px 10px' }}>
-                    <ColorPicker value={val} onChange={on} brandColors={brandCols} />
-                    <span style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--ink-2)' }}>{lbl}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Police : celles de la charte d'abord, puis le reste. */}
-            <div>
-              <label style={subLabel}>Police</label>
-              <select value={eff.font || ''} onChange={e => patch({ font: e.target.value || undefined })}
-                style={{ ...panelInput, cursor: 'pointer', fontFamily: eff.font || 'var(--sans)' }}>
-                {workspace?.font_family && <option value={workspace.font_family}>{workspace.font_family} — charte</option>}
-                <option value="">Par défaut du style</option>
-                {SUB_FONTS.map(f => <option key={f.value} value={f.value}>{f.label}</option>)}
-              </select>
-            </div>
-
-            <div>
-              <label style={subLabel}>Apparence</label>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-                {([['MAJ', !!eff.uppercase, () => patch({ uppercase: !eff.uppercase })],
-                   ['Pilule', !!eff.pill, () => patch({ pill: !eff.pill })],
-                   ['Contour', !!eff.stroke, () => patch({ stroke: eff.stroke ? '' : '#000000' })],
-                   ['Fond', eff.bg !== 'transparent', () => patch({ bg: eff.bg === 'transparent' ? (workspace?.primary_color || '#0C2A1D') : 'transparent' })],
-                   ['Gras', (eff.weight ?? 700) >= 800, () => patch({ weight: (eff.weight ?? 700) >= 800 ? 700 : 900 })],
-                   ['Italique', !!eff.italic, () => patch({ italic: !eff.italic })],
-                   ['Souligné', !!eff.underline, () => patch({ underline: !eff.underline })]] as const).map(([lbl, on, fn]) => (
-                  <button key={lbl} onClick={fn} className={'wsn-chip' + (on ? ' is-on' : '')} style={{ padding: '6px 12px', fontSize: 12 }}>{lbl}</button>
-                ))}
-              </div>
-            </div>
-
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
-              {slider('Taille', eff.scale ?? 1, 0.6, 1.8, 0.05, v => patch({ scale: v }), v => `${Math.round(v * 100)} %`)}
-              {slider('Interlettrage', eff.letterSpacing ?? 0, -0.05, 0.3, 0.01, v => patch({ letterSpacing: v }), v => `${v.toFixed(2)} em`)}
-            </div>
+            <SubtitleStyleEditor
+              styleId={styleId}
+              custom={custom}
+              onChange={next => setCustom(next)}
+              brandFont={workspace?.font_family ?? null}
+              labels={subEditorLabels}
+            />
 
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
               <label style={{ ...subLabel, marginBottom: 0 }}>{t('lengthLabel')}</label>
@@ -567,6 +609,7 @@ function SubtitleTemplatesSection({ workspaceId, workspace }: { workspaceId: str
                   style={{ padding: '5px 11px', fontSize: 11.5 }}>{t('wordsCount', { count: w })}</button>
               ))}
             </div>
+
             <div style={{ display: 'flex', gap: 8, marginTop: 2 }}>
               <button className="btn btn-primary btn-sm" onClick={create}>{t('saveTemplate')}</button>
               <button className="btn btn-ghost btn-sm" onClick={() => setCreating(false)}>{t('cancel')}</button>
