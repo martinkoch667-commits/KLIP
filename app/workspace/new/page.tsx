@@ -9,7 +9,6 @@ import ColorPicker from "@/components/ColorPicker";
 import {
   effectiveSubStyle, charterSubPresets, DEFAULT_SUB_POS, SUB_LENGTHS, DEFAULT_WORDS_PER_CAPTION, type SubCustom,
 } from "@/app/workspace/[id]/montage/[postId]/constants";
-import BrandStage from "@/components/BrandStage";
 import SubtitleStyleEditor, { SubtitlePreviewChip, SubtitlePreviewStage } from "@/components/SubtitleStyleEditor";
 import { parseFontFile, groupFontFiles, type FontFamily } from "@/lib/fontFiles";
 
@@ -173,7 +172,9 @@ export default function NewWorkspacePage() {
   const SECTORS = SECTOR_KEYS.map(([value, key]) => ({ value, label: t(key) }));
   const TONES = TONE_KEYS.map(([value, labelKey, descKey]) => ({ value, label: t(labelKey), desc: t(descKey) }));
 
-  const [step, setStep] = useState(1);
+  // On commence par l'écran du lien : c'est le raccourci, il mérite toute la
+  // page. Les cinq étapes classiques ne démarrent qu'ensuite.
+  const [step, setStep] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -620,6 +621,76 @@ export default function NewWorkspacePage() {
 
   const canContinue = step === 1 ? name.trim().length > 0 : true;
 
+  // ── Écran d'entrée ────────────────────────────────────────────────────────
+  // Une seule chose à faire : donner le lien. Tout le reste attend.
+  if (step === 0) {
+    return (
+      <div className="wsx">
+        <div className="wsx-inner">
+          <span className="wsx-eyebrow"><b>1</b> Nouveau client</span>
+          <h1 className="wsx-h1">
+            Donnez-nous son site.<br />
+            On s&apos;occupe du <span className="acc-hl">reste</span>.
+          </h1>
+          <p className="wsx-sub">
+            Couleurs, typographie, positionnement, ton de voix : on lit la marque
+            et on prépare sa charte. Vous n&apos;aurez plus qu&apos;à relire.
+          </p>
+
+          <div className="wsx-field">
+            <input
+              className="wsx-input"
+              value={website}
+              onChange={e => { setWebsite(e.target.value); setSiteError(null); }}
+              onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); void analyzeWebsite(); } }}
+              placeholder="smashy-burger.fr"
+              inputMode="url"
+              autoFocus
+              aria-label="Adresse du site de la marque"
+            />
+            <button
+              type="button"
+              className="wsx-go"
+              onClick={() => void analyzeWebsite()}
+              disabled={siteBusy || !website.trim()}
+            >
+              {siteBusy ? "Lecture…" : "Analyser"}
+            </button>
+          </div>
+
+          {siteError
+            ? <p className="wsx-err">{siteError}</p>
+            : !siteFilled && <p className="wsx-note">Rien à installer. On lit la page publique, c&apos;est tout.</p>}
+
+          {siteFilled && !siteError && (
+            <div className="wsx-found">
+              {siteFilled.length > 0 ? (
+                <>
+                  <strong>Trouvé :</strong> {siteFilled.join(", ")}.
+                  {siteFonts.length > 0 && <> Polices repérées : {siteFonts.join(", ")}.</>}
+                  <div className="wsx-swatches">
+                    {[primaryColor, secondaryColor, accentColor].map((c, i) => (
+                      <span key={i} className="wsx-sw" style={{ background: c }} />
+                    ))}
+                  </div>
+                </>
+              ) : (
+                <>Ce site ne dit pas grand-chose de lisible. On remplira à la main, c&apos;est aussi bien.</>
+              )}
+            </div>
+          )}
+
+          <div className="wsx-skip">
+            <button type="button" onClick={() => setStep(1)}>
+              {siteFilled ? "Continuer" : "Passer, je remplis à la main"}
+            </button>
+            <span className="wsx-rule" />
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div style={{ display: "flex", minHeight: "100vh",
       // Fond blanc franc : c'est le premier écran que voit un nouveau client,
@@ -628,7 +699,7 @@ export default function NewWorkspacePage() {
       background: "#FFFFFF" }}>
       <Sidebar />
 
-      <div className="ws-new-shell" style={{ marginLeft: "var(--sb-w)", flex: 1, display: "grid", gridTemplateColumns: "minmax(0,1fr) 420px" }}>
+      <div className="ws-new-shell" style={{ marginLeft: "var(--sb-w)", flex: 1, display: "grid", gridTemplateColumns: "minmax(0,1fr)" }}>
       <div style={{ display: "flex", flexDirection: "column", minWidth: 0 }}>
 
         {/* ── Progress header ───────────────────────────────────────────────── */}
@@ -716,55 +787,6 @@ export default function NewWorkspacePage() {
                   <p style={{ fontSize: 14, color: "var(--ink-2)" }}>
                     {t('step1Subtitle')}
                   </p>
-                </div>
-
-                {/* Raccourci : on lit le site de la marque et on remplit le
-                    formulaire à sa place. Volontairement facultatif — un client
-                    sans site doit pouvoir avancer sans se sentir bloqué. */}
-                <div style={{ background: "var(--sunk)", borderRadius: "var(--r)", padding: 16 }}>
-                  <label style={labelStyle}>Site web de la marque <OptLabel /></label>
-                  <div style={{ display: "flex", gap: 8, alignItems: "stretch" }}>
-                    <input
-                      style={{ ...inputStyle, flex: 1, background: "var(--white)" }}
-                      value={website}
-                      onChange={e => { setWebsite(e.target.value); setSiteError(null); }}
-                      onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); void analyzeWebsite(); } }}
-                      placeholder="exemple.fr"
-                      inputMode="url"
-                      autoFocus
-                    />
-                    <button
-                      type="button"
-                      onClick={() => void analyzeWebsite()}
-                      disabled={siteBusy || !website.trim()}
-                      className="btn btn-primary"
-                      style={{ flexShrink: 0, opacity: siteBusy || !website.trim() ? 0.55 : 1 }}
-                    >
-                      {siteBusy ? "Analyse…" : "Analyser"}
-                    </button>
-                  </div>
-                  <p style={{ fontSize: 12.5, color: "var(--ink-2)", marginTop: 8, lineHeight: 1.5 }}>
-                    On y récupère vos couleurs, votre typographie et votre positionnement
-                    pour préremplir la suite. Vous gardez la main sur tout.
-                  </p>
-                  {siteError && (
-                    <p style={{ fontSize: 12.5, color: "#C4452F", marginTop: 8, fontWeight: 600 }}>{siteError}</p>
-                  )}
-                  {siteFilled && !siteError && (
-                    <div style={{ marginTop: 10, fontSize: 12.5, color: "var(--ink-2)", lineHeight: 1.6 }}>
-                      {siteFilled.length > 0 ? (
-                        <><strong style={{ color: "var(--ink)" }}>Prérempli :</strong> {siteFilled.join(", ")}. À relire et corriger.</>
-                      ) : (
-                        <>Rien d&apos;exploitable trouvé sur ce site — remplissez à la main, c&apos;est aussi bien.</>
-                      )}
-                      {siteFonts.length > 0 && (
-                        <div style={{ marginTop: 4 }}>
-                          Polices repérées : {siteFonts.join(", ")}.
-                          {" "}Choisissez la plus proche à l&apos;étape typographie si elle n&apos;y est pas.
-                        </div>
-                      )}
-                    </div>
-                  )}
                 </div>
 
                 <div>
@@ -1553,7 +1575,7 @@ export default function NewWorkspacePage() {
           zIndex: 50,
         }}>
           <div className="ws-new-footer-left">
-            {step > 1 && (
+            {step > 0 && (
               <button type="button" onClick={() => setStep(s => s - 1)}
                 style={{
                   padding: "10px 20px", borderRadius: 13, background: "transparent",
@@ -1612,21 +1634,6 @@ export default function NewWorkspacePage() {
 
         {/* Plateau de composition : la marque du client s'assemble à mesure qu'on
             remplit. C'est ce qui fait passer l'écran du formulaire à l'outil. */}
-        <BrandStage
-          step={step}
-          name={name}
-          sector={sector}
-          handle={instagramHandle}
-          description={brandDescription}
-          tone={tone}
-          primary={primaryColor}
-          secondary={secondaryColor}
-          accent={accentColor}
-          logo={logoPreview}
-          fontPrimary={activeFontPrimary}
-          fontSecondary={activeFontSecondary}
-          templatesCount={templateCount}
-        />
 
         {/* ── Mobile back button — fixed top-left ───────────────────────────── */}
         {step > 1 && (
