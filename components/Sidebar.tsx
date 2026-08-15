@@ -14,6 +14,9 @@ interface SidebarProps {
   workspaces?: any[];
   userName?: string;
   activeWorkspaceId?: string;
+  /** Masque la pastille de signalement : elle recouvre les actions de
+   *  certains écrans pleine page (parcours de création). */
+  hideBeta?: boolean;
 }
 
 const WS_COLORS = ["#7B5CF5", "#2FD79B", "#C8732B", "#5A86E8", "#DD2A7B", "#88B394", "#E8A03A", "#4A8DD4"];
@@ -50,7 +53,7 @@ function IconLogout() {
 
 // ─── Component ───────────────────────────────────────────────────────────────
 
-export default function Sidebar({ workspaces: _w, userName: _u, activeWorkspaceId: _a }: SidebarProps = {}) {
+export default function Sidebar({ workspaces: _w, userName: _u, activeWorkspaceId: _a, hideBeta = false }: SidebarProps = {}) {
   const pathname = usePathname();
   const router = useRouter();
   const supabase = createClientComponentClient();
@@ -151,7 +154,7 @@ export default function Sidebar({ workspaces: _w, userName: _u, activeWorkspaceI
     {/* Phase d'ouverture : signalement de bug accessible depuis toutes les pages
         de l'app. Monté ici car la Sidebar est le seul élément commun aux 17
         pages — le widget se positionne lui-même en `fixed`. */}
-    <BetaFeedback />
+    {!hideBeta && <BetaFeedback />}
     <aside className="sidebar" style={{ width: "var(--sb-w)", position: "fixed", top: 0, left: 0, height: "100vh", zIndex: 100 }}>
 
       {/* Logo */}

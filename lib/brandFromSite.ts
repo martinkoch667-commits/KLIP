@@ -63,6 +63,25 @@ function collectColors(css: string): Map<string, number> {
     if (!hex) return;
     counts.set(hex, (counts.get(hex) ?? 0) + weight);
   };
+  // Une variable qui s'APPELLE « primary », « brand » ou « accent » désigne la
+  // couleur de marque bien plus sûrement que sa fréquence d'apparition : les
+  // cadres modernes embarquent des palettes entières de teintes inutilisées,
+  // et le simple comptage remontait souvent une nuance de gris d'interface.
+  for (const m of Array.from(css.matchAll(/(--[\w-]+)\s*:\s*(#[0-9a-fA-F]{3,8}|rgba?\([^)]+\))/g))) {
+    const nameL = m[1].toLowerCase();
+    if (/border|shadow|text|bg-|background|surface|muted|neutral|gray|grey|disabled|overlay|scrim/.test(nameL)) continue;
+    let w = 0;
+    if (/primary|brand|principal/.test(nameL)) w = 60;
+    else if (/accent|secondary|secondaire/.test(nameL)) w = 40;
+    else if (/^--(color|theme)-?\d*$|main/.test(nameL)) w = 20;
+    if (!w) continue;
+    const v = m[2];
+    if (v.startsWith('#')) bump(normalizeHex(v), w);
+    else {
+      const p = v.match(/[\d.]+/g);
+      if (p && p.length >= 3) bump(rgbToHex(parseFloat(p[0]), parseFloat(p[1]), parseFloat(p[2])), w);
+    }
+  }
   for (const m of Array.from(css.matchAll(/#([0-9a-fA-F]{3,8})\b/g))) bump(normalizeHex(m[1]));
   for (const m of Array.from(css.matchAll(/rgba?\(\s*([\d.]+)[\s,]+([\d.]+)[\s,]+([\d.]+)\s*(?:[,/]\s*([\d.]+)\s*)?\)/g))) {
     const alpha = m[4] === undefined ? 1 : parseFloat(m[4]);
@@ -72,13 +91,25 @@ function collectColors(css: string): Map<string, number> {
   return counts;
 }
 
+// Palettes livrées par défaut avec les cadres et thèmes courants (WordPress en
+// tête). Elles saturent le CSS de sites qui ne s'en servent pas, et sortaient
+// devant les vraies couleurs de la marque.
+const STOCK_PALETTE = new Set([
+  '#FF6900', '#FCB900', '#7BDCB5', '#00D084', '#8ED1FC', '#0693E3', '#ABB8C3',
+  '#EB144C', '#F78DA7', '#9900EF', '#CF2E2E', '#CC3366', '#CD2653',
+  '#0D6EFD', '#6610F2', '#6F42C1', '#D63384', '#DC3545', '#FD7E14', '#198754',
+  '#20C997', '#0DCAF0', '#212529', '#6C757D',
+]);
+
 // On veut des couleurs de MARQUE : ni le noir du texte, ni le blanc du fond,
 // ni les dix gris de l'ombre portée. On privilégie donc ce qui est saturé, tout
 // en gardant les plus fréquentes en secours.
 function rankBrandColors(counts: Map<string, number>): string[] {
   const all = Array.from(counts.entries())
     .map(([hex, n]) => ({ hex, n, sat: hexSaturation(hex), luma: hexLuma(hex) }))
-    .filter(c => c.n >= 2);
+    // Une couleur de palette générique n'est retenue que si elle a été
+    // explicitement désignée comme couleur de marque (poids élevé).
+    .filter(c => c.n >= 2 && (!STOCK_PALETTE.has(c.hex) || c.n >= 20));
   const vivid = all
     .filter(c => c.sat > 0.25 && c.luma > 0.06 && c.luma < 0.96)
     .sort((a, b) => b.n * (0.5 + b.sat) - a.n * (0.5 + a.sat));
@@ -111,6 +142,7 @@ function cleanFontName(raw: string): string | null {
   const generated = n.match(/^__(.+?)_[0-9a-f]{4,}$/i);
   if (generated) n = generated[1].replace(/_/g, ' ').trim();
   if (/fallback/i.test(n)) return null;
+  if (/icon|awesome|dashicons|glyph|symbol|elusive|entypo|ionicons|material icons/i.test(n)) return null;
   return n;
 }
 
@@ -173,15 +205,74 @@ function absolutize(href: string | undefined, base: URL): string | undefined {
   try { return new URL(href, base).toString(); } catch { return undefined; }
 }
 
+// Le logo, par ordre de fiabilité décroissante. L'ancienne version retombait
+// sur og:image faute de mieux : c'est l'image de PARTAGE du site, souvent une
+// photo d'ambiance — d'où le « logo » au hasard qui remontait. Mieux vaut ne
+// rien renvoyer que renvoyer n'importe quoi.
 function findLogo(html: string, base: URL): string | undefined {
-  // Une image dont le nom ou la description dit « logo » — le plus sûr indice.
+  // 1. Données structurées : quand elles existent, la marque a désigné son logo
+  //    elle-même. Aucune heuristique ne bat ça.
+  for (const m of Array.from(html.matchAll(/<script[^>]+application\/ld\+json[^>]*>([\s\S]*?)<\/script>/gi))) {
+    try {
+      const found = findJsonLdLogo(JSON.parse(m[1].trim()));
+      const abs = absolutize(found, base);
+      if (abs) return abs;
+    } catch { /* JSON-LD malformé : fréquent, on passe */ }
+  }
+
+  // 2. Une image qui se présente comme le logo. On note les candidates plutôt
+  //    que de prendre la première : « logo » dans le nom de fichier vaut mieux
+  //    que « logo » quelque part dans la classe d'un conteneur.
+  const candidates: { url: string; score: number }[] = [];
   for (const m of Array.from(html.matchAll(/<img[^>]+>/gi))) {
     const tag = m[0];
-    if (!/logo/i.test(tag)) continue;
     const src = tag.match(/\ssrc=["']([^"']+)["']/i)?.[1]
-             ?? tag.match(/\sdata-src=["']([^"']+)["']/i)?.[1];
+             ?? tag.match(/\sdata-src=["']([^"']+)["']/i)?.[1]
+             ?? tag.match(/\sdata-lazy-src=["']([^"']+)["']/i)?.[1];
     const abs = absolutize(src, base);
-    if (abs && !/\.svg\?|sprite/i.test(abs)) return abs;
+    if (!abs) continue;
+    if (/sprite|placeholder|pixel|spacer|1x1|blank\./i.test(abs)) continue;
+    const alt = tag.match(/\salt=["']([^"']*)["']/i)?.[1] ?? '';
+    const cls = tag.match(/\sclass=["']([^"']*)["']/i)?.[1] ?? '';
+    let score = 0;
+    if (/logo|brand/i.test(abs.split('/').pop() ?? '')) score += 6;
+    if (/^logo$|logo/i.test(alt)) score += 4;
+    if (/logo|brand/i.test(cls)) score += 3;
+    // Une image tout en haut du document est presque toujours l'en-tête.
+    if (m.index !== undefined && m.index < 4000) score += 2;
+    if (/icon/i.test(abs)) score += 1;
+    if (score >= 3) candidates.push({ url: abs, score });
+  }
+  candidates.sort((a, b) => b.score - a.score);
+  if (candidates.length) return candidates[0].url;
+
+  // 3. L'icône d'application : c'est la marque, en carré. Faute de mieux, elle
+  //    reste juste — contrairement à l'image de partage.
+  const touch = html.match(/<link[^>]+rel=["'][^"']*apple-touch-icon[^"']*["'][^>]*>/i);
+  if (touch) {
+    const abs = absolutize(touch[0].match(/href=["']([^"']+)["']/i)?.[1], base);
+    if (abs) return abs;
+  }
+  return undefined;
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function findJsonLdLogo(node: any, depth = 0): string | undefined {
+  if (!node || depth > 6) return undefined;
+  if (Array.isArray(node)) {
+    for (const n of node) {
+      const r = findJsonLdLogo(n, depth + 1);
+      if (r) return r;
+    }
+    return undefined;
+  }
+  if (typeof node !== 'object') return undefined;
+  const logo = node.logo;
+  if (typeof logo === 'string') return logo;
+  if (logo && typeof logo === 'object' && typeof logo.url === 'string') return logo.url;
+  for (const k of Object.keys(node)) {
+    const r = findJsonLdLogo(node[k], depth + 1);
+    if (r) return r;
   }
   return undefined;
 }
@@ -250,7 +341,7 @@ export async function analyzeBrandSite(rawUrl: string): Promise<BrandFromSite | 
     description: meta(html, 'og:description', 'description', 'twitter:description'),
     colors: rankBrandColors(colorCounts),
     fonts: collectFonts(html, css),
-    logoUrl: findLogo(html, url) ?? absolutize(meta(html, 'og:image'), url),
+    logoUrl: findLogo(html, url),
     iconUrl: findIcon(html, url),
     sampleText: visibleText(html),
   };

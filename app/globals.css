@@ -1589,10 +1589,10 @@ input.mz-range::-moz-range-thumb { width: 16px; height: 16px; border-radius: 50%
    salir le fond. */
 .wsx::before { content: ""; position: absolute; width: 760px; height: 760px; border-radius: 50%;
   top: -340px; right: -240px; pointer-events: none;
-  background: radial-gradient(circle, rgba(189,242,160,.30) 0%, transparent 66%); }
+  background: radial-gradient(circle, rgba(189,242,160,.14) 0%, transparent 68%); }
 .wsx::after { content: ""; position: absolute; width: 600px; height: 600px; border-radius: 50%;
   bottom: -320px; left: -200px; pointer-events: none;
-  background: radial-gradient(circle, rgba(47,215,155,.13) 0%, transparent 68%); }
+  background: radial-gradient(circle, rgba(47,215,155,.06) 0%, transparent 70%); }
 
 .wsx-bar { position: relative; z-index: 2; flex-shrink: 0; display: flex; align-items: center;
   justify-content: space-between; gap: 16px; padding: 18px clamp(20px, 4vw, 44px);

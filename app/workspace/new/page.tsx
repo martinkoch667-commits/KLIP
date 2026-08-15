@@ -194,6 +194,9 @@ export default function NewWorkspacePage() {
   const [sitePhase, setSitePhase] = useState<"ask" | "searching" | "result">("ask");
   const [siteStepIdx, setSiteStepIdx] = useState(0);
   const [siteLogo, setSiteLogo] = useState<string | null>(null);
+  // Une police repérée sur un site n'existe pas forcément dans le catalogue :
+  // il faut le dire plutôt que de laisser croire qu'elle a été appliquée.
+  const [siteFontMatched, setSiteFontMatched] = useState(false);
 
   // Step 2 — Voix de marque
   const [tone, setTone] = useState("");
@@ -405,6 +408,7 @@ export default function NewWorkspacePage() {
         const match = d.fonts
           .map((f: string) => pool.find(g => g.family.toLowerCase() === String(f).toLowerCase()))
           .find(Boolean);
+        setSiteFontMatched(!!match);
         if (match) { setFontPrimary(match.family); filled.push("typographie"); }
       }
       setSiteFilled(filled);
@@ -654,13 +658,9 @@ export default function NewWorkspacePage() {
   if (step === 0) {
     return (
       <div style={{ display: "flex", minHeight: "100vh", background: "#FFFFFF" }}>
-        <Sidebar />
+        {/* La pastille de signalement recouvrait les actions de cet écran. */}
+        <Sidebar hideBeta />
         <div className="wsx" style={{ marginLeft: "var(--sb-w)" }}>
-          <div className="wsx-bar">
-            <span className="wsx-eyebrow"><b>1</b> Nouveau client</span>
-            <a className="wsx-quit" href="/dashboard">Quitter</a>
-          </div>
-
           <div className="wsx-body">
             <div className="wsx-inner">
 
@@ -668,12 +668,12 @@ export default function NewWorkspacePage() {
               {sitePhase === "ask" && (
                 <>
                   <h1 className="wsx-h1">
-                    Donnez-nous son site.<br />
-                    On s&apos;occupe du <span className="acc-hl">reste</span>.
+                    Sa charte, à partir<br />de son <span className="acc-hl">site</span>.
                   </h1>
                   <p className="wsx-sub">
-                    Couleurs, typographie, positionnement, ton de voix : on lit la marque
-                    et on prépare sa charte. Vous n&apos;aurez plus qu&apos;à relire.
+                    Collez l&apos;adresse de votre client. On y lit ses couleurs, sa
+                    typographie et sa façon de parler, puis on remplit sa fiche à sa
+                    place — vous n&apos;aurez plus qu&apos;à corriger ce qui ne va pas.
                   </p>
                   <div className="wsx-field">
                     <input
@@ -704,8 +704,9 @@ export default function NewWorkspacePage() {
               {sitePhase === "searching" && (
                 <>
                   <h1 className="wsx-h1 wsx-h1-sm">
-                    On lit <span className="acc-hl">{website.replace(/^https?:\/\//, "")}</span>
+                    On lit <span className="acc-hl">{website.replace(/^https?:\/\//, "").replace(/\/$/, "")}</span>
                   </h1>
+                  <p className="wsx-sub">Quelques secondes, le temps de parcourir la page.</p>
                   <ol className="wsx-steps">
                     {SITE_STEPS.map((label, i) => {
                       const state = i < siteStepIdx ? "done" : i === siteStepIdx ? "now" : "wait";
@@ -728,10 +729,11 @@ export default function NewWorkspacePage() {
               {sitePhase === "result" && (
                 <>
                   <h1 className="wsx-h1 wsx-h1-sm">
-                    Voici sa <span className="acc-hl">charte</span>.
+                    Voilà ce qu&apos;on a <span className="acc-hl">trouvé</span>.
                   </h1>
                   <p className="wsx-sub">
-                    Tout est modifiable ici. Corrigez ce qui ne va pas, le reste suivra.
+                    Une lecture automatique se trompe parfois : relisez, corrigez sur place.
+                    Ce que vous validez ici devient la charte du client.
                   </p>
 
                   <div className="wsx-cards">
@@ -748,7 +750,7 @@ export default function NewWorkspacePage() {
                           <img src={`/api/proxy-image?url=${encodeURIComponent(siteLogo)}`} alt="" />
                         </div>
                       ) : (
-                        <p className="wsx-empty">Aucun logo repéré. Vous pourrez l&apos;ajouter à l&apos;étape identité visuelle.</p>
+                        <p className="wsx-empty">Aucun logo identifié avec certitude. Vous l&apos;ajouterez à l&apos;étape identité visuelle.</p>
                       )}
                     </div>
 
@@ -771,13 +773,28 @@ export default function NewWorkspacePage() {
 
                     <div className="wsx-card wsx-card-wide">
                       <span className="wsx-card-t">Typographie</span>
-                      {siteFonts.length > 0 ? (
+                      {siteFontMatched ? (
                         <>
                           <p className="wsx-font" style={{ fontFamily: `"${activeFontPrimary}", sans-serif` }}>{activeFontPrimary}</p>
-                          <p className="wsx-empty">Repérées sur le site : {siteFonts.join(", ")}. Vous choisirez la plus proche à l&apos;étape typographie.</p>
+                          <p className="wsx-empty">Trouvée sur le site et disponible ici.</p>
+                        </>
+                      ) : siteFonts.length > 0 ? (
+                        <>
+                          <p className="wsx-font" style={{ fontFamily: `"${activeFontPrimary}", sans-serif` }}>{activeFontPrimary}</p>
+                          <p className="wsx-empty">
+                            Repérées sur le site : {siteFonts.join(", ")} — aucune ne figure dans notre
+                            catalogue. Vous choisirez la plus proche, ou importerez le fichier de police,
+                            à l&apos;étape typographie. En attendant, {activeFontPrimary} sert de base.
+                          </p>
                         </>
                       ) : (
-                        <p className="wsx-empty">Ce site ne déclare pas ses polices lisiblement. À choisir à l&apos;étape typographie.</p>
+                        <>
+                          <p className="wsx-font" style={{ fontFamily: `"${activeFontPrimary}", sans-serif` }}>{activeFontPrimary}</p>
+                          <p className="wsx-empty">
+                            Ce site ne déclare pas ses polices de façon lisible — c&apos;est fréquent.
+                            Vous la choisirez, ou importerez son fichier, à l&apos;étape typographie.
+                          </p>
+                        </>
                       )}
                     </div>
 
