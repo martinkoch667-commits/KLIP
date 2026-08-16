@@ -382,6 +382,33 @@ function findLogoCandidates(html: string, css: string, base: URL): string[] {
  * qu'ils sont contenus dans le lien de retour à l'accueil, qui est l'endroit
  * où vit le logo sur la quasi-totalité des sites.
  */
+/**
+ * Rend un fragment SVG lisible en XML.
+ *
+ * Un SVG écrit dans une page est du HTML : les attributs peuvent y être sans
+ * guillemets (`role=img`) et même sans valeur (`data-fa-processed`). Une data
+ * URL `image/svg+xml` est en revanche analysée en XML, qui interdit les deux —
+ * le navigateur refusait donc l'image et affichait un point d'interrogation.
+ */
+function svgToXml(tagSoup: string): string {
+  return tagSoup.replace(/<([a-zA-Z][\w:-]*)((?:[^>"']|"[^"]*"|'[^']*')*?)(\/?)>/g, (_m, tag, attrs, selfClose) => {
+    const out: string[] = [];
+    // Un attribut à la fois : valeur entre guillemets, entre apostrophes, nue,
+    // ou absente.
+    const re = /([a-zA-Z_:][\w:.-]*)(?:\s*=\s*("[^"]*"|'[^']*'|[^\s"'>]+))?/g;
+    let m: RegExpExecArray | null;
+    while ((m = re.exec(attrs))) {
+      const nom = m[1];
+      const val = m[2];
+      // Attribut sans valeur : XML l'interdit et il ne sert jamais au rendu.
+      if (val === undefined) continue;
+      if (val.startsWith('"') || val.startsWith("'")) out.push(`${nom}=${val}`);
+      else out.push(`${nom}="${val.replace(/"/g, '&quot;')}"`);
+    }
+    return `<${tag}${out.length ? ' ' + out.join(' ') : ''}${selfClose}>`;
+  });
+}
+
 function inlineSvgLogos(html: string): string[] {
   const out: string[] = [];
   // Balayage par index et non par expression régulière : `<svg[\s\S]*?</svg>`
@@ -409,6 +436,10 @@ function inlineSvgLogos(html: string): string[] {
     if (!looksLikeLogo) continue;
     // Les icônes d'interface les plus courantes, même bien placées.
     if (/arrow|chevron|caret|close|cross|menu|hamburger|search|cart|panier/i.test(head)) continue;
+    // Les icônes de réseaux sociaux traînent dans tous les pieds de page et
+    // portent « instagram » ou « facebook » dans leur classe : ce ne sont pas
+    // les logos de la marque, ce sont des liens vers ses profils.
+    if (/instagram|facebook|twitter|tiktok|youtube|linkedin|pinterest|snapchat|whatsapp|fa-|font-?awesome/i.test(head)) continue;
 
     // Un SVG sans dimensions ne s'affiche pas dans une balise <img> : on lui
     // donne celles de son viewBox.
@@ -419,7 +450,10 @@ function inlineSvgLogos(html: string): string[] {
     }
     if (!/xmlns=/i.test(el.slice(0, 200))) el = el.replace(/<svg/i, '<svg xmlns="http://www.w3.org/2000/svg"');
 
-    out.push(`data:image/svg+xml;utf8,${encodeURIComponent(el)}`);
+    // `;utf8,` n'est PAS un paramètre de type MIME valide — la forme correcte
+    // est `;charset=utf-8,`. Les navigateurs refusaient donc de décoder l'image
+    // et affichaient un point d'interrogation à la place de chaque vignette.
+    out.push(`data:image/svg+xml;charset=utf-8,${encodeURIComponent(svgToXml(el))}`);
   }
   return out;
 }
