@@ -1016,8 +1016,10 @@ export default function NewWorkspacePage() {
                       le lien de report vivaient sur quatre largeurs différentes —
                       alignés à gauche mais jamais entre eux, d'où le désordre. */}
                   <div style={{ maxWidth: 460, margin: "0 auto", textAlign: "center", paddingTop: 8 }}>
+                    {/* « du client » supposait une agence. KLIP sert aussi à qui
+                        gère son propre compte : la formulation reste neutre. */}
                     <h1 className="wsx-h1" style={{ textAlign: "center" }}>
-                      Reliez le <span className="acc-hl">compte</span> du client.
+                      Reliez votre<br /><span className="acc-hl">compte</span>.
                     </h1>
                     <p className="wsx-sub" style={{ textAlign: "center", marginLeft: "auto", marginRight: "auto" }}>
                       C&apos;est là que ses publications partiront. On en tire aussi son logo,
@@ -1069,18 +1071,13 @@ export default function NewWorkspacePage() {
                           ? "Connexion annulée. Vous pourrez la refaire à tout moment."
                           : "La connexion a échoué. Réessayez, ou passez cette étape."}
                       </p>
-                    ) : (
-                      <p className="wsx-note" style={{ textAlign: "center", marginTop: 16 }}>
-                        Ouvrez une fenêtre de navigation privée pour ne pas relier votre
-                        propre compte à la place de celui du client.
-                      </p>
-                    )}
+                    ) : null}
 
                     <button
                       type="button"
                       onClick={() => setMetaDone(true)}
                       style={{
-                        display: "block", margin: "34px auto 0",
+                        display: "block", margin: "26px auto 0",
                         background: "transparent", border: "none", cursor: "pointer",
                         color: "var(--ink-3)", fontSize: 13, fontWeight: 600, padding: "6px 2px",
                       }}
