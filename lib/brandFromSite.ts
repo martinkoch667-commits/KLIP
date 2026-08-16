@@ -56,13 +56,46 @@ function hexSaturation(hex: string): number {
 }
 
 // Deux couleurs trop proches ne sont qu'une seule couleur de charte.
+// Deux couleurs sont « la même » quand elles se ressemblent À L'ŒIL.
+//
+// L'ancienne version sommait les écarts RVB avec un seuil de 60 : deux bruns
+// distants de 20 par canal passaient pour différents. La palette se remplissait
+// donc de VARIANTES d'une seule teinte au lieu des couleurs de la marque.
+//
+// On compare maintenant la TEINTE d'abord (deux rouges restent un rouge, quelle
+// que soit leur clarté), et on ne retient l'écart de clarté/saturation que pour
+// les couleurs peu colorées, où la teinte ne veut plus rien dire.
 function tooClose(a: string, b: string): boolean {
-  const v = (h: string, i: number) => parseInt(h.slice(1 + i * 2, 3 + i * 2), 16);
-  return Math.abs(v(a, 0) - v(b, 0)) + Math.abs(v(a, 1) - v(b, 1)) + Math.abs(v(a, 2) - v(b, 2)) < 60;
+  const ha = hexHue(a), hb = hexHue(b);
+  const sa = hexSaturation(a), sb = hexSaturation(b);
+  const la = hexLuma(a), lb = hexLuma(b);
+  const bothColored = sa > 0.18 && sb > 0.18;
+  if (bothColored) {
+    let dh = Math.abs(ha - hb);
+    if (dh > 180) dh = 360 - dh;         // la teinte est un cercle
+    return dh < 28;
+  }
+  return Math.abs(la - lb) < 0.18 && Math.abs(sa - sb) < 0.2;
 }
 
-function collectColors(css: string): Map<string, number> {
+/** Teinte en degrés (0-360). */
+function hexHue(hex: string): number {
+  const r = parseInt(hex.slice(1, 3), 16) / 255;
+  const g = parseInt(hex.slice(3, 5), 16) / 255;
+  const b = parseInt(hex.slice(5, 7), 16) / 255;
+  const max = Math.max(r, g, b), min = Math.min(r, g, b), d = max - min;
+  if (!d) return 0;
+  const h = max === r ? ((g - b) / d) % 6 : max === g ? (b - r) / d + 2 : (r - g) / d + 4;
+  return (h * 60 + 360) % 360;
+}
+
+function collectColors(css: string): { counts: Map<string, number>; designated: Set<string> } {
   const counts = new Map<string, number>();
+  // Couleurs qu'une variable CSS a explicitement nommées « primary », « brand »,
+  // « accent »… Seules celles-là ont le droit d'être neutres : quand une marque
+  // déclare que sa couleur est le noir, c'est vrai. Quand le noir sort du simple
+  // comptage, c'est la couleur du texte.
+  const designated = new Set<string>();
   const bump = (hex: string | null, weight = 1) => {
     if (!hex) return;
     counts.set(hex, (counts.get(hex) ?? 0) + weight);
@@ -80,11 +113,10 @@ function collectColors(css: string): Map<string, number> {
     else if (/^--(color|theme)-?\d*$|main/.test(nameL)) w = 20;
     if (!w) continue;
     const v = m[2];
-    if (v.startsWith('#')) bump(normalizeHex(v), w);
-    else {
-      const p = v.match(/[\d.]+/g);
-      if (p && p.length >= 3) bump(rgbToHex(parseFloat(p[0]), parseFloat(p[1]), parseFloat(p[2])), w);
-    }
+    const hex = v.startsWith('#')
+      ? normalizeHex(v)
+      : (() => { const p = v.match(/[\d.]+/g); return p && p.length >= 3 ? rgbToHex(parseFloat(p[0]), parseFloat(p[1]), parseFloat(p[2])) : null; })();
+    if (hex) { bump(hex, w); designated.add(hex); }
   }
   for (const m of Array.from(css.matchAll(/#([0-9a-fA-F]{3,8})\b/g))) bump(normalizeHex(m[1]));
   for (const m of Array.from(css.matchAll(/rgba?\(\s*([\d.]+)[\s,]+([\d.]+)[\s,]+([\d.]+)\s*(?:[,/]\s*([\d.]+)\s*)?\)/g))) {
@@ -92,7 +124,7 @@ function collectColors(css: string): Map<string, number> {
     if (alpha < 0.5) continue;                     // un voile n'est pas une couleur de marque
     bump(rgbToHex(parseFloat(m[1]), parseFloat(m[2]), parseFloat(m[3])));
   }
-  return counts;
+  return { counts, designated };
 }
 
 // Palettes livrées par défaut avec les cadres et thèmes courants (WordPress en
@@ -108,21 +140,37 @@ const STOCK_PALETTE = new Set([
 // On veut des couleurs de MARQUE : ni le noir du texte, ni le blanc du fond,
 // ni les dix gris de l'ombre portée. On privilégie donc ce qui est saturé, tout
 // en gardant les plus fréquentes en secours.
-function rankBrandColors(counts: Map<string, number>): string[] {
+function rankBrandColors(counts: Map<string, number>, designated: Set<string>): string[] {
   const all = Array.from(counts.entries())
     .map(([hex, n]) => ({ hex, n, sat: hexSaturation(hex), luma: hexLuma(hex) }))
     // Une couleur de palette générique n'est retenue que si elle a été
     // explicitement désignée comme couleur de marque (poids élevé).
     .filter(c => c.n >= 2 && (!STOCK_PALETTE.has(c.hex) || c.n >= 20));
-  const vivid = all
-    .filter(c => c.sat > 0.25 && c.luma > 0.06 && c.luma < 0.96)
+
+  // Le blanc, le noir et les gris sont l'HABILLAGE de la page — fond, texte,
+  // bordures — pas l'identité de la marque. Ils ne sont gardés que si une
+  // variable CSS les a explicitement désignés comme couleur de marque (poids
+  // élevé). Sans ce filtre, Burger King ressortait en blanc, crème et brun de
+  // texte : « on sent les couleurs, mais pas vraiment ».
+  // Seuils resserrés après mesure : à 0,14 de saturation, un gris-vert (#5A5E50)
+  // et un noir légèrement teinté (#14160F) passaient encore pour des couleurs de
+  // marque. Une vraie couleur de marque est franchement colorée.
+  const isChrome = (c: { sat: number; luma: number }) =>
+    c.sat < 0.22 || c.luma > 0.90 || c.luma < 0.10;
+
+  // Une couleur neutre n'est gardée QUE si la marque l'a nommée elle-même. Le
+  // seuil de fréquence ne suffisait pas : sur getklip.fr, le blanc du fond et le
+  // presque-noir du texte passaient devant les vraies couleurs.
+  const brand = all
+    .filter(c => !isChrome(c) || designated.has(c.hex))
     .sort((a, b) => b.n * (0.5 + b.sat) - a.n * (0.5 + a.sat));
-  const fallback = all.sort((a, b) => b.n - a.n);
+
   const out: string[] = [];
-  for (const c of [...vivid, ...fallback]) {
-    // Huit et non quatre : une marque a souvent plus de trois couleurs, et
-    // n'en proposer que le strict nécessaire privait l'utilisateur de choix.
-    if (out.length >= 8) break;
+  for (const c of brand) {
+    // Cinq au maximum : au-delà ce ne sont plus des couleurs de marque, c'est
+    // un nuancier. Mieux vaut rendre deux vraies couleurs que cinq dont trois
+    // sont du décor de page.
+    if (out.length >= 5) break;
     if (out.some(h => tooClose(h, c.hex))) continue;
     out.push(c.hex);
   }
@@ -250,14 +298,32 @@ function findLogoCandidates(html: string, base: URL): string[] {
     const abs = absolutize(src, base);
     if (!abs) continue;
     if (/sprite|placeholder|pixel|spacer|1x1|blank\./i.test(abs)) continue;
+    // Le bruit récurrent des sites de marque : badges de téléchargement, icônes
+    // de réseaux sociaux, drapeaux de langue, moyens de paiement, flèches. Ils
+    // portent souvent « logo » dans leur nom de fichier et remontaient donc en
+    // tête — sur burgerking.fr, les propositions étaient des badges App Store.
+    if (/apple[-_]?(white|black|dark|light)?[-_]?logo|app-?store|google-?play|play-?store|windows-?store|badge|download|t[ée]l[ée]charger|facebook|instagram|twitter|x-logo|tiktok|youtube|linkedin|snapchat|pinterest|whatsapp|visa|mastercard|paypal|amex|flag|drapeau|arrow|chevron|burger-?menu|hamburger|avatar|star-?rating/i.test(abs)) continue;
     const alt = tag.match(/\salt=["']([^"']*)["']/i)?.[1] ?? '';
     const cls = tag.match(/\sclass=["']([^"']*)["']/i)?.[1] ?? '';
+    const file = abs.split('/').pop() ?? '';
     let score = 0;
-    if (/logo|brand/i.test(abs.split('/').pop() ?? '')) score += 6;
+    if (/logo|brand/i.test(file)) score += 6;
+    // Un fichier qui s'appelle exactement « logo.svg » ou « logo-xxx.png » est un
+    // logo ; « hero-logo-banner.jpg » l'est beaucoup moins.
+    if (/^logo[-_.]/i.test(file)) score += 3;
     if (/^logo$|logo/i.test(alt)) score += 4;
     if (/logo|brand/i.test(cls)) score += 3;
     // Une image tout en haut du document est presque toujours l'en-tête.
     if (m.index !== undefined && m.index < 4000) score += 2;
+    // Un SVG est un logo vectoriel : c'est LA bonne version, et elle est
+    // transparente. Martin s'est retrouvé avec un aplat noir faute de ce choix.
+    if (/\.svg(\?|$)/i.test(abs)) score += 4;
+    // Le PNG préserve la transparence, le JPEG jamais : à contenu égal, le PNG
+    // est la version utilisable sur un visuel.
+    else if (/\.png(\?|$)/i.test(abs)) score += 2;
+    else if (/\.jpe?g(\?|$)/i.test(abs)) score -= 2;
+    // Une photo d'équipe ou d'ambiance n'est pas un logo, même bien nommée.
+    if (/photo|team|equipe|hero|banner|banni[èe]re|cover|slide|carousel/i.test(abs)) score -= 5;
     if (/icon/i.test(abs)) score += 1;
     if (score >= 3) candidates.push({ url: abs, score });
   }
@@ -345,9 +411,14 @@ export async function analyzeBrandSite(rawUrl: string): Promise<BrandFromSite | 
   const css = [inlineCss, inlineStyleAttrs, ...sheets].join('\n');
 
   const colorCounts = collectColors(css);
-  // La couleur de thème est déclarée par la marque : elle vaut mieux qu'un comptage.
+  // La couleur de thème est DÉCLARÉE par la marque dans son en-tête : elle vaut
+  // mieux qu'un comptage, et elle compte donc comme désignée — même si elle est
+  // neutre, c'est un choix assumé de la marque.
   const themeColor = normalizeHex(meta(html, 'theme-color') ?? '');
-  if (themeColor) colorCounts.set(themeColor, (colorCounts.get(themeColor) ?? 0) + 40);
+  if (themeColor) {
+    colorCounts.counts.set(themeColor, (colorCounts.counts.get(themeColor) ?? 0) + 40);
+    colorCounts.designated.add(themeColor);
+  }
 
   const title = html.match(/<title[^>]*>([\s\S]*?)<\/title>/i)?.[1];
   const name = meta(html, 'og:site_name', 'application-name')
@@ -359,7 +430,7 @@ export async function analyzeBrandSite(rawUrl: string): Promise<BrandFromSite | 
     url: url.toString(),
     name: name && name.length <= 60 ? name : undefined,
     description: meta(html, 'og:description', 'description', 'twitter:description'),
-    colors: rankBrandColors(colorCounts),
+    colors: rankBrandColors(colorCounts.counts, colorCounts.designated),
     fonts: collectFonts(html, css),
     logoUrl: logoCandidates[0],
     /** Toutes les pistes de logo, du plus probable au moins — l'utilisateur choisit. */

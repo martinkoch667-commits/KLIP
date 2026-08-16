@@ -198,10 +198,9 @@ export default function NewWorkspacePage() {
   // L'analyse du site trouve aussi une icône (favicon, apple-touch-icon). Elle
   // était renvoyée par brandFromSite et jetée sans être lue.
   const [siteIcon, setSiteIcon] = useState<string | null>(null);
-  /** Palette complète relevée sur le site, et pistes de logo. On ne se contente
-   *  plus d'imposer les trois premières couleurs et l'unique meilleur logo : la
-   *  détection se trompe, et une marque a souvent plus de trois couleurs. */
-  const [sitePalette, setSitePalette] = useState<string[]>([]);
+  /** Pistes de logo trouvées sur le site — la détection se trompe, l'utilisateur
+   *  tranche. Les couleurs, elles, n'ont plus de sélecteur : mieux vaut en sortir
+   *  cinq justes que dix à trier (retour de Martin). */
   const [logoCandidates, setLogoCandidates] = useState<string[]>([]);
   // Une police repérée sur un site n'existe pas forcément dans le catalogue :
   // il faut le dire plutôt que de laisser croire qu'elle a été appliquée.
@@ -383,7 +382,6 @@ export default function NewWorkspacePage() {
       if (d.logoUrl) setSiteLogo(d.logoUrl);
       if (d.iconUrl) setSiteIcon(d.iconUrl);
       if (Array.isArray(d.logoCandidates)) setLogoCandidates(d.logoCandidates.filter((u: unknown) => typeof u === 'string'));
-      if (Array.isArray(d.colors)) setSitePalette(d.colors.filter((c: unknown) => typeof c === 'string'));
 
       const filled: string[] = [];
       if (d.name && !name.trim()) { setName(d.name); filled.push("nom"); }
@@ -406,11 +404,23 @@ export default function NewWorkspacePage() {
       if (Array.isArray(d.wordsToAvoid) && d.wordsToAvoid.length && !wordsToAvoid.trim()) {
         setWordsToAvoid(d.wordsToAvoid.join(", ")); filled.push("mots à éviter");
       }
-      if (Array.isArray(d.colors) && d.colors.length) {
-        setPrimaryColor(d.colors[0]);
-        if (d.colors[1]) setSecondaryColor(d.colors[1]);
-        if (d.colors[2]) setAccentColor(d.colors[2]);
-        filled.push(d.colors.length > 1 ? "couleurs" : "couleur principale");
+      // Les couleurs du LOGO passent devant celles du CSS : le logo EST l'identité
+      // de la marque, la feuille de style n'est que l'habillage de son site. Chez
+      // Burger King, le rouge n'existe que dans le logo — la lecture du CSS ne
+      // rendait que le brun du texte et le crème du fond.
+      const fromLogo = d.logoUrl ? await dominantColorsFromImage(d.logoUrl) : [];
+      const cssColors: string[] = Array.isArray(d.colors) ? d.colors : [];
+      const merged: string[] = [];
+      for (const c of [...fromLogo, ...cssColors]) {
+        if (typeof c !== 'string' || merged.includes(c)) continue;
+        if (merged.length >= 5) break;
+        merged.push(c);
+      }
+      if (merged.length) {
+        setPrimaryColor(merged[0]);
+        if (merged[1]) setSecondaryColor(merged[1]);
+        if (merged[2]) setAccentColor(merged[2]);
+        filled.push(merged.length > 1 ? "couleurs" : "couleur principale");
       }
       if (Array.isArray(d.fonts) && d.fonts.length) {
         setSiteFonts(d.fonts);
@@ -500,6 +510,75 @@ export default function NewWorkspacePage() {
   //
   // On passe par /api/proxy-image : même origine, donc pas de CORS, et c'est déjà
   // le chemin utilisé partout ailleurs pour lire les images distantes.
+  // Couleurs DOMINANTES d'une image, façon charte.
+  //
+  // Le CSS d'un site ne contient que l'habillage de la page. Chez une marque dont
+  // l'identité vit dans son logo — Burger King, par exemple — le rouge n'apparaît
+  // NULLE PART dans la feuille de style : il est dans l'image. On lisait donc du
+  // brun de texte et du crème de fond, et Martin voyait « des couleurs, mais pas
+  // vraiment les siennes ».
+  //
+  // On échantillonne donc le logo lui-même. Le canvas est disponible ici (côté
+  // navigateur), et le proxy évite les soucis d'origine croisée.
+  async function dominantColorsFromImage(url: string, max = 4): Promise<string[]> {
+    try {
+      const img = await new Promise<HTMLImageElement | null>((res) => {
+        const i = new Image();
+        i.crossOrigin = 'anonymous';
+        i.onload = () => res(i);
+        i.onerror = () => res(null);
+        i.src = `/api/proxy-image?url=${encodeURIComponent(url)}`;
+      });
+      if (!img) return [];
+      const S = 48;
+      const cv = document.createElement('canvas');
+      cv.width = S; cv.height = S;
+      const ctx = cv.getContext('2d', { willReadFrequently: true });
+      if (!ctx) return [];
+      ctx.drawImage(img, 0, 0, S, S);
+      const data = ctx.getImageData(0, 0, S, S).data;
+
+      // Regroupement par paquets grossiers : sans ça, l'antialiasing produit des
+      // centaines de nuances uniques et rien ne ressort.
+      const buckets = new Map<string, { n: number; r: number; g: number; b: number }>();
+      for (let i = 0; i < data.length; i += 4) {
+        const a = data[i + 3];
+        if (a < 200) continue;                       // un logo transparent : on ignore le vide
+        const r = data[i], g = data[i + 1], b = data[i + 2];
+        const mx = Math.max(r, g, b), mn = Math.min(r, g, b);
+        const sat = mx === 0 ? 0 : (mx - mn) / mx;
+        const luma = (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255;
+        // Même exigence que pour le CSS : ni blanc, ni noir, ni gris.
+        if (sat < 0.22 || luma > 0.9 || luma < 0.1) continue;
+        const key = `${r >> 5}-${g >> 5}-${b >> 5}`;
+        const cur = buckets.get(key) ?? { n: 0, r: 0, g: 0, b: 0 };
+        buckets.set(key, { n: cur.n + 1, r: cur.r + r, g: cur.g + g, b: cur.b + b });
+      }
+      const hex = (n: number) => Math.round(n).toString(16).padStart(2, '0').toUpperCase();
+      const hue = (r: number, g: number, b: number) => {
+        const mx = Math.max(r, g, b), mn = Math.min(r, g, b), d = mx - mn;
+        if (!d) return 0;
+        const h = mx === r ? ((g - b) / d) % 6 : mx === g ? (b - r) / d + 2 : (r - g) / d + 4;
+        return (h * 60 + 360) % 360;
+      };
+      // Dédoublonnage par TEINTE, comme pour les couleurs du CSS. Sans lui, un
+      // logo monochrome rendait quatre nuances du même vert et remplissait les
+      // trois champs de variantes d'une seule couleur — exactement le défaut
+      // qu'on cherchait à corriger.
+      const out: { hex: string; h: number }[] = [];
+      for (const c of Array.from(buckets.values()).sort((a, b) => b.n - a.n)) {
+        const r = c.r / c.n, g = c.g / c.n, b = c.b / c.n;
+        const h = hue(r, g, b);
+        if (out.some((o) => { let d = Math.abs(o.h - h); if (d > 180) d = 360 - d; return d < 28; })) continue;
+        out.push({ hex: `#${hex(r)}${hex(g)}${hex(b)}`, h });
+        if (out.length >= max) break;
+      }
+      return out.map((o) => o.hex);
+    } catch {
+      return [];
+    }
+  }
+
   async function importRemoteImage(url: string, bucket: string, userId: string): Promise<string | null> {
     try {
       const res = await fetch(`/api/proxy-image?url=${encodeURIComponent(url)}`);
@@ -1221,26 +1300,6 @@ export default function NewWorkspacePage() {
                           width: "100%", height: 6, borderRadius: 99, marginTop: 12,
                           background: col.value, boxShadow: "inset 0 0 0 1px rgba(13,15,10,.08)",
                         }} />
-                        {/* Palette relevée sur le site : un clic assigne la couleur
-                            à CE champ. Auparavant les trois premières étaient
-                            imposées d'office et le reste jeté — or l'ordre de
-                            fréquence n'est pas l'ordre d'importance. */}
-                        {sitePalette.length > 0 && (
-                          <div style={{ display: "flex", flexWrap: "wrap", gap: 5, marginTop: 10 }}>
-                            {sitePalette.map(hex => (
-                              <button
-                                key={hex} type="button" title={hex}
-                                onClick={() => col.onChange(hex)}
-                                style={{
-                                  width: 18, height: 18, borderRadius: 5, background: hex, cursor: "pointer",
-                                  border: hex.toLowerCase() === col.value.toLowerCase()
-                                    ? "2px solid var(--ink)" : "1px solid rgba(13,15,10,.15)",
-                                  padding: 0,
-                                }}
-                              />
-                            ))}
-                          </div>
-                        )}
                       </div>
                     ))}
                   </div>
