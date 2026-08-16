@@ -1061,7 +1061,8 @@
     "toneCustomTag": "Tono personalizado",
     "finishBtn": "Terminar",
     "customFontVariants": "{count, plural, one {# grosor importado} other {# grosores importados}}",
-    "addMoreWeights": "+ Añadir grosores"
+    "addMoreWeights": "+ Añadir grosores",
+    "logoFromSite": "Encontrado en el sitio — reemplazable"
   },
   "onboardingSurvey": {
     "q1": "¿Para cuántos clientes trabajas?",

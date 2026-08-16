@@ -195,6 +195,9 @@ export default function NewWorkspacePage() {
   const [sitePhase, setSitePhase] = useState<"ask" | "searching" | "result">("ask");
   const [siteStepIdx, setSiteStepIdx] = useState(0);
   const [siteLogo, setSiteLogo] = useState<string | null>(null);
+  // L'analyse du site trouve aussi une icône (favicon, apple-touch-icon). Elle
+  // était renvoyée par brandFromSite et jetée sans être lue.
+  const [siteIcon, setSiteIcon] = useState<string | null>(null);
   // Une police repérée sur un site n'existe pas forcément dans le catalogue :
   // il faut le dire plutôt que de laisser croire qu'elle a été appliquée.
   const [siteFontMatched, setSiteFontMatched] = useState(false);
@@ -373,6 +376,7 @@ export default function NewWorkspacePage() {
       const d = await res.json();
       if (!res.ok) { setSiteError(d?.error ?? "Analyse impossible."); setSitePhase("ask"); return; }
       if (d.logoUrl) setSiteLogo(d.logoUrl);
+      if (d.iconUrl) setSiteIcon(d.iconUrl);
 
       const filled: string[] = [];
       if (d.name && !name.trim()) { setName(d.name); filled.push("nom"); }
@@ -481,6 +485,33 @@ export default function NewWorkspacePage() {
 
   // ── File upload helpers ───────────────────────────────────────────────────
 
+  // Rapatrie une image TROUVÉE SUR LE SITE du client dans notre Storage.
+  //
+  // Le logo était détecté à l'analyse, affiché à l'écran… puis jeté : seul un
+  // fichier téléversé à la main finissait en base. L'utilisateur voyait donc son
+  // logo pendant l'onboarding et se retrouvait sans logo à l'arrivée.
+  //
+  // On passe par /api/proxy-image : même origine, donc pas de CORS, et c'est déjà
+  // le chemin utilisé partout ailleurs pour lire les images distantes.
+  async function importRemoteImage(url: string, bucket: string, userId: string): Promise<string | null> {
+    try {
+      const res = await fetch(`/api/proxy-image?url=${encodeURIComponent(url)}`);
+      if (!res.ok) return null;
+      const blob = await res.blob();
+      // Un logo de plusieurs mégaoctets est presque toujours une erreur de
+      // détection (photo d'ambiance prise pour un logo) : on ne l'importe pas.
+      if (!blob.type.startsWith('image/') || blob.size > 3 * 1024 * 1024) return null;
+      const ext = blob.type.includes('svg') ? 'svg' : blob.type.includes('png') ? 'png' : 'jpg';
+      const path = `${userId}/${crypto.randomUUID()}.${ext}`;
+      const { error } = await supabase.storage.from(bucket).upload(path, blob, { contentType: blob.type });
+      if (error) { console.warn('[importRemoteImage] envoi impossible :', error.message); return null; }
+      return supabase.storage.from(bucket).getPublicUrl(path).data.publicUrl;
+    } catch (err) {
+      console.warn('[importRemoteImage] échec :', err);
+      return null;
+    }
+  }
+
   async function uploadFile(file: File, bucket: string, userId: string): Promise<string | null> {
     try {
       const ext = file.name.split(".").pop();
@@ -527,6 +558,11 @@ export default function NewWorkspacePage() {
       if (logoFile)      logoUrl      = await uploadFile(logoFile,      "brand-assets", user.id);
       if (logoDarkFile)  logoDarkUrl  = await uploadFile(logoDarkFile,  "brand-assets", user.id);
       if (brandIconFile) brandIconUrl = await uploadFile(brandIconFile, "brand-assets", user.id);
+      // Rien de téléversé mais quelque chose de trouvé sur le site : on le prend.
+      // Un fichier choisi à la main prime toujours — l'automatique ne remplace
+      // jamais un choix explicite, il comble une absence.
+      if (!logoUrl && siteLogo)      logoUrl      = await importRemoteImage(siteLogo, "brand-assets", user.id);
+      if (!brandIconUrl && siteIcon) brandIconUrl = await importRemoteImage(siteIcon, "brand-assets", user.id);
       for (const f of assetFiles) {
         const url = await uploadFile(f, "brand-assets", user.id);
         if (url) assetUrls.push(url);
@@ -1213,13 +1249,17 @@ export default function NewWorkspacePage() {
                 <div>
                   <label style={labelStyle}>{t('logosLabel')}</label>
                   <div className="ws-upload-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                    {/* Le logo trouvé sur le site s'affiche ici tant que rien n'a
+                        été téléversé : il était détecté puis invisible à cette
+                        étape, et l'utilisateur croyait n'avoir aucun logo.
+                        « Retirer » l'écarte aussi de l'enregistrement. */}
                     <UploadZone
                       label={t('logoMainLabel')}
-                      hint={t('logoMainHint')}
-                      preview={logoPreview}
+                      hint={siteLogo && !logoPreview ? t('logoFromSite') : t('logoMainHint')}
+                      preview={logoPreview ?? (siteLogo ? `/api/proxy-image?url=${encodeURIComponent(siteLogo)}` : null)}
                       dark={false}
                       onClick={() => logoRef.current?.click()}
-                      onRemove={() => { setLogoFile(null); setLogoPreview(null); }}
+                      onRemove={() => { setLogoFile(null); setLogoPreview(null); setSiteLogo(null); }}
                     />
                     <input ref={logoRef} type="file" accept=".png,.svg,.jpg,.jpeg" style={{ display: "none" }}
                       onChange={e => { const f = e.target.files?.[0]; if (f) { setLogoFile(f); setLogoPreview(URL.createObjectURL(f)); } }}

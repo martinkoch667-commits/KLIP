@@ -1061,7 +1061,8 @@
     "toneCustomTag": "Eigener Tonfall",
     "finishBtn": "Fertig",
     "customFontVariants": "{count, plural, one {# Schriftstärke importiert} other {# Schriftstärken importiert}}",
-    "addMoreWeights": "+ Schriftstärken hinzufügen"
+    "addMoreWeights": "+ Schriftstärken hinzufügen",
+    "logoFromSite": "Auf der Website gefunden — ersetzbar"
   },
   "onboardingSurvey": {
     "q1": "Für wie viele Kunden arbeitest du?",

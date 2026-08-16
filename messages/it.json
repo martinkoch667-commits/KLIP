@@ -1061,7 +1061,8 @@
     "toneCustomTag": "Tono personalizzato",
     "finishBtn": "Fine",
     "customFontVariants": "{count, plural, one {# spessore importato} other {# spessori importati}}",
-    "addMoreWeights": "+ Aggiungi spessori"
+    "addMoreWeights": "+ Aggiungi spessori",
+    "logoFromSite": "Trovato sul sito — sostituibile"
   },
   "onboardingSurvey": {
     "q1": "Per quanti clienti lavori?",

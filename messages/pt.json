@@ -1061,7 +1061,8 @@
     "toneCustomTag": "Tom personalizado",
     "finishBtn": "Concluir",
     "customFontVariants": "{count, plural, one {# espessura importada} other {# espessuras importadas}}",
-    "addMoreWeights": "+ Adicionar espessuras"
+    "addMoreWeights": "+ Adicionar espessuras",
+    "logoFromSite": "Encontrado no site — substituível"
   },
   "onboardingSurvey": {
     "q1": "Para quantos clientes trabalha?",

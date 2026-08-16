@@ -1061,7 +1061,8 @@
     "toneCustomTag": "Custom tone",
     "finishBtn": "Finish",
     "customFontVariants": "{count, plural, one {# weight imported} other {# weights imported}}",
-    "addMoreWeights": "+ Add weights"
+    "addMoreWeights": "+ Add weights",
+    "logoFromSite": "Found on the website — replaceable"
   },
   "onboardingSurvey": {
     "q1": "How many clients do you work for?",
