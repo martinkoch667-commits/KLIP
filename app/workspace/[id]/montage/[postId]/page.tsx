@@ -9,6 +9,7 @@ import {
   MontageClip, OverlayClip, Caption, TitleEl, StickerEl, AudioTrack, MontageProject, SubCustom,
   FILTERS, TRANSITIONS, SUB_STYLES, FONT_CHOICES, SUB_LENGTHS, DEFAULT_WORDS_PER_CAPTION, DEFAULT_SUB_POS,
   subStyleById, effectiveSubStyle, resolveCapStyle, resolveCapPos, subtitleBoxCss, subBgLayerCss, curveLayout, SUB_BASE_FONT, applySubCase, DEFAULT_SUB_STYLE_ID,
+  captionPartAt, subLines,
   transitionStateAt, transitionCss,
   // (analyzeClipQuality importé depuis ./autoCut plus bas)
   fmt, newClipDefaults, newOverlayDefaults, clipFilterCss, overlayFilterCss, clipTimelineDur, clipAudioGainAt, overlayTimelineDur, overlayAudioGainAt, segmentCaptions, captionsFromWords, dedupeSegments,
@@ -3343,6 +3344,15 @@ export default function MontagePage() {
       || (selectedCaptionId && !playing ? captions.find((c) => c.id === selectedCaptionId) : undefined));
   const capStyle = activeCaption ? capStyleOf(activeCaption) : effectiveSubStyle(subStyleId, subCustom);
   const capPos = activeCaption ? capPosOf(activeCaption) : subPos;
+  // Le nombre de lignes autorisé est une VRAIE limite : ce qui ne rentre pas est
+  // passé au sous-titre suivant. Le découpage (morceaux + retours à la ligne) est
+  // celui de l'export, à la virgule près (cf. fitCaptionParts / subLines).
+  const capPart = activeCaption ? captionPartAt(activeCaption, capStyle, activeFmt.w, time) : undefined;
+  // En édition on montre le texte ENTIER : on corrige la phrase qu'on a écrite,
+  // pas le morceau qui tient à l'écran.
+  const capText = editingCaptionId && activeCaption?.id === editingCaptionId
+    ? (activeCaption?.text ?? "") : (capPart?.text ?? "");
+  const capLines = activeCaption ? subLines(capText, capStyle, activeFmt.w) : [[]];
 
   if (loading) {
     return (
@@ -3749,7 +3759,7 @@ export default function MontagePage() {
                         // la MÊME formule que l'export (curveLayout). L'animation mot
                         // par mot n'a pas de sens ici, la courbe l'emporte.
                         (() => {
-                          const chars = Array.from(applySubCase(activeCaption.text, capStyle.caseMode));
+                          const chars = Array.from(applySubCase(capText, capStyle.caseMode));
                           const lay = curveLayout(chars.length, capStyle.curve, SUB_BASE_FONT * capStyle.scale * previewScale);
                           return <span style={{ display: "inline-block", whiteSpace: "pre", color: capStyle.fg, position: "relative", zIndex: 1 }}>
                             {chars.map((ch, i) => (
@@ -3761,27 +3771,47 @@ export default function MontagePage() {
                         // Sous-titre simple : le texte s'affiche d'un bloc, sans
                         // révélation ni surlignage. Tous les réglages de style
                         // (contour, casse, couleur, ombre…) s'appliquent quand même.
-                        <span style={{ color: capStyle.fg, position: "relative", zIndex: 1 }}>{applySubCase(activeCaption.text, capStyle.caseMode)}</span>
-                      ) : activeCaption.text.split(/\s+/).filter(Boolean).map((w, i, arr) => {
-                        const progress = (time - activeCaption.start) / Math.max(0.1, activeCaption.end - activeCaption.start);
-                        const activeIdx = Math.min(arr.length - 1, Math.floor(progress * arr.length));
-                        // Révélation mot par mot : chaque mot apparaît (fondu + pop) à son tour,
-                        // le mot actif est surligné et légèrement agrandi.
-                        const wordProg = Math.max(0, Math.min(1, progress * arr.length - i));
-                        const revealed = i <= activeIdx;
+                        // Une ligne = un bloc insécable : le pli tombe exactement là
+                        // où l'export le met, et jamais une ligne de plus que la limite.
+                        <span style={{ color: capStyle.fg, position: "relative", zIndex: 1 }}>
+                          {capLines.map((ln, li) => (
+                            <span key={li} style={{ display: "block", whiteSpace: "nowrap" }}>{ln.join(" ")}</span>
+                          ))}
+                        </span>
+                      ) : capLines.map((ln, li, allLines) => {
+                        // Révélation mot par mot, ligne par ligne. La progression se
+                        // compte sur le MORCEAU affiché : le surplus est parti au
+                        // sous-titre suivant, il ne consomme plus de temps ici.
+                        const nWords = allLines.reduce((n, l) => n + l.length, 0);
+                        const before = allLines.slice(0, li).reduce((n, l) => n + l.length, 0);
+                        const cStart = capPart?.start ?? activeCaption.start;
+                        const cEnd = capPart?.end ?? activeCaption.end;
+                        const progress = (time - cStart) / Math.max(0.1, cEnd - cStart);
+                        const activeIdx = Math.min(nWords - 1, Math.floor(progress * nWords));
                         return (
-                          <span
-                            key={i}
-                            className="mz-cap-word"
-                            style={{
-                              color: i === activeIdx ? capStyle.hi : capStyle.fg,
-                              opacity: revealed ? 0.35 + 0.65 * wordProg : 0.28,
-                              transform: `scale(${i === activeIdx ? 0.9 + 0.1 * wordProg + 0.06 : revealed ? 1 : 0.92})`,
-                              display: "inline-block",
-                              transition: "color .12s, opacity .12s, transform .12s var(--ease)",
-                            }}
-                          >
-                            {applySubCase(w, capStyle.caseMode)}{i < arr.length - 1 ? "\u00A0" : ""}
+                          <span key={li} style={{ display: "block", whiteSpace: "nowrap", position: "relative", zIndex: 1 }}>
+                            {ln.map((w, wi) => {
+                              const i = before + wi;
+                              // Chaque mot apparaît (fondu + pop) à son tour, le mot
+                              // actif est surligné et légèrement agrandi.
+                              const wordProg = Math.max(0, Math.min(1, progress * nWords - i));
+                              const revealed = i <= activeIdx;
+                              return (
+                                <span
+                                  key={i}
+                                  className="mz-cap-word"
+                                  style={{
+                                    color: i === activeIdx ? capStyle.hi : capStyle.fg,
+                                    opacity: revealed ? 0.35 + 0.65 * wordProg : 0.28,
+                                    transform: `scale(${i === activeIdx ? 0.9 + 0.1 * wordProg + 0.06 : revealed ? 1 : 0.92})`,
+                                    display: "inline-block",
+                                    transition: "color .12s, opacity .12s, transform .12s var(--ease)",
+                                  }}
+                                >
+                                  {w}{wi < ln.length - 1 ? "\u00A0" : ""}
+                                </span>
+                              );
+                            })}
                           </span>
                         );
                       })}

@@ -13,7 +13,7 @@
 // par-dessus — un vrai équivalent pour celles-ci nécessiterait un transform de
 // sortie dédié par type, hors périmètre de ce lot.
 
-import { MontageClip, OverlayClip, Caption, TitleEl, StickerEl, AudioTrack, SubCustom, effectiveSubStyle, resolveCapStyle, resolveCapPos, SUB_BASE_FONT, wrapWords, subBgBox, curveLayout, applySubCase, withAlpha, transitionStateAt, DEFAULT_SUB_POS, clipFilterCss, overlayFilterCss, clipTimelineDur, clipAudioGainAt, overlayTimelineDur, overlayAudioGainAt, audioVolumeAt, kenBurnsScale, videoFormatById, exportQualityById } from "./constants";
+import { MontageClip, OverlayClip, Caption, TitleEl, StickerEl, AudioTrack, SubCustom, effectiveSubStyle, resolveCapStyle, resolveCapPos, SUB_BASE_FONT, wrapWords, captionPartAt, subCanvasFont, subBgBox, curveLayout, applySubCase, withAlpha, transitionStateAt, DEFAULT_SUB_POS, clipFilterCss, overlayFilterCss, clipTimelineDur, clipAudioGainAt, overlayTimelineDur, overlayAudioGainAt, audioVolumeAt, kenBurnsScale, videoFormatById, exportQualityById } from "./constants";
 
 export interface ExportProject {
   clips: MontageClip[];
@@ -174,9 +174,12 @@ function drawCaptions(ctx: CanvasRenderingContext2D, captions: Caption[], subSty
   if (!cap) return;
   // Sous-titres déliés : chaque bloc honore ses propres surcharges de style/position.
   const style = resolveCapStyle(cap, subStyleId, subCustom, linkedSubs);
-  const rawWords = cap.text.split(/\s+/).filter(Boolean);
+  // Le nombre de lignes est une VRAIE limite : ce qui ne rentre pas est passé au
+  // sous-titre suivant (même découpage que l'aperçu, cf. fitCaptionParts).
+  const part = captionPartAt(cap, style, CANVAS_W, t);
+  const rawWords = part.text.split(/\s+/).filter(Boolean);
   const words = rawWords.map((w) => applySubCase(w, style.caseMode));
-  const progress = (t - cap.start) / Math.max(0.1, cap.end - cap.start);
+  const progress = (t - part.start) / Math.max(0.1, part.end - part.start);
   // anim "none" : aucun mot n'est « actif », donc aucun surlignage — le
   // sous-titre s'affiche d'un bloc, comme dans l'aperçu.
   const activeIdx = style.anim === "none"
@@ -184,10 +187,9 @@ function drawCaptions(ctx: CanvasRenderingContext2D, captions: Caption[], subSty
     : Math.min(words.length - 1, Math.floor(progress * words.length));
 
   const fontSize = SUB_BASE_FONT * style.scale;
-  const fam = style.font
-    ? `'${style.font}', system-ui, sans-serif`
-    : (style.italic ? "Georgia, serif" : "system-ui, sans-serif");
-  ctx.font = `${style.italic ? "italic " : ""}${style.weight} ${fontSize}px ${fam}`;
+  // Même police que la mesure du découpage (subMeasure), sinon on découperait
+  // selon une police et on dessinerait avec une autre.
+  ctx.font = subCanvasFont(style, fontSize);
   ctx.textBaseline = "middle";
   // Interlettrage (Chrome ≥ 99) — ignoré silencieusement ailleurs.
   const ctxLS = ctx as CanvasRenderingContext2D & { letterSpacing?: string };

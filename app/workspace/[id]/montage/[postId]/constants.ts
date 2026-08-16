@@ -499,24 +499,20 @@ export function subBgBox(e: EffectiveSub, boxW: number, boxH: number, k = 1) {
 // on étirait une image déjà rendue, et la typo se pixellisait comme un zoom
 // numérique au lieu d'être redessinée plus grande.
 /**
- * Découpe une suite de mots en lignes qui tiennent dans `maxW`.
- *
- * L'export ne dessinait qu'UNE ligne (tous les mots concaténés) alors que
- * l'aperçu, lui, renvoyait à la ligne tout seul : un sous-titre un peu long
- * débordait donc du cadre dans la vidéo rendue, sans qu'on le voie à l'écran.
- *
- * `measure` est injecté (ctx.measureText côté canvas) pour que la fonction reste
- * pure et testable. Au-delà de `maxLines`, le reste est replié sur la dernière
- * ligne : mieux vaut une ligne serrée qu'un mot escamoté.
+ * Découpe une suite de mots en lignes qui tiennent dans `maxW`, SANS limite de
+ * nombre de lignes. `measure` est injecté (ctx.measureText côté canvas) pour que
+ * la fonction reste pure et testable.
  */
-export function wrapWords(
-  words: string[], measure: (s: string) => number, maxW: number, maxLines = 2,
+export function packLines(
+  words: string[], measure: (s: string) => number, maxW: number,
 ): string[][] {
   const lines: string[][] = [];
   let cur: string[] = [];
   for (const w of words) {
     const next = cur.length ? [...cur, w] : [w];
-    if (cur.length && measure(next.join(" ")) > maxW && lines.length + 1 < maxLines) {
+    // Un mot seul plus large que la boîte reste sur sa ligne : on ne peut pas
+    // faire mieux, et surtout on ne boucle pas dans le vide.
+    if (cur.length && measure(next.join(" ")) > maxW) {
       lines.push(cur);
       cur = [w];
     } else {
@@ -524,7 +520,168 @@ export function wrapWords(
     }
   }
   if (cur.length) lines.push(cur);
+  return lines;
+}
+
+/**
+ * Lignes réellement dessinées pour un sous-titre.
+ *
+ * L'export ne dessinait qu'UNE ligne (tous les mots concaténés) alors que
+ * l'aperçu, lui, renvoyait à la ligne tout seul : un sous-titre un peu long
+ * débordait donc du cadre dans la vidéo rendue, sans qu'on le voie à l'écran.
+ *
+ * Le surplus au-delà de `maxLines` n'est plus tassé sur la dernière ligne : il
+ * part dans le sous-titre suivant (cf. fitCaptionParts), qui est appelé en amont
+ * par l'aperçu comme par l'export. La coupe ici n'est donc plus qu'un garde-fou.
+ */
+export function wrapWords(
+  words: string[], measure: (s: string) => number, maxW: number, maxLines = 2,
+): string[][] {
+  const lines = packLines(words, measure, maxW).slice(0, Math.max(1, Math.round(maxLines)));
   return lines.length ? lines : [[]];
+}
+
+// Police canvas d'un sous-titre. SOURCE UNIQUE : l'export dessine avec, et le
+// découpage en lignes mesure avec — sinon on découperait selon une police et on
+// dessinerait avec une autre.
+export function subCanvasFont(style: EffectiveSub, fontSize: number): string {
+  const fam = style.font
+    ? `'${style.font}', system-ui, sans-serif`
+    : (style.italic ? "Georgia, serif" : "system-ui, sans-serif");
+  return `${style.italic ? "italic " : ""}${style.weight} ${fontSize}px ${fam}`;
+}
+
+// Canvas de mesure hors écran, partagé (en créer un par appel coûterait cher :
+// on mesure à chaque image de la vidéo).
+let measureCtx: CanvasRenderingContext2D | null = null;
+/**
+ * Mesure de texte à la géométrie d'EXPORT (unité de dessin, police de base 34).
+ * `null` côté serveur : l'appelant retombe alors sur « pas de découpage ».
+ */
+export function subMeasure(style: EffectiveSub): ((s: string) => number) | null {
+  if (typeof document === "undefined") return null;
+  if (!measureCtx) measureCtx = document.createElement("canvas").getContext("2d");
+  const ctx = measureCtx;
+  if (!ctx) return null;
+  const fontSize = SUB_BASE_FONT * style.scale;
+  const font = subCanvasFont(style, fontSize);
+  const ls = style.letterSpacing ? `${style.letterSpacing * fontSize}px` : "0px";
+  return (s: string) => {
+    // Réappliqués à chaque mesure : le contexte est partagé, un autre style a pu
+    // passer entre-temps.
+    ctx.font = font;
+    (ctx as CanvasRenderingContext2D & { letterSpacing?: string }).letterSpacing = ls;
+    return ctx.measureText(s).width;
+  };
+}
+
+/** Un morceau affichable d'un sous-titre : même id, sa part du texte et du temps. */
+export interface CaptionPart {
+  id: string;
+  index: number;   // rang du morceau (0 = le premier)
+  count: number;   // nombre total de morceaux
+  start: number;
+  end: number;
+  text: string;
+}
+
+const partsCache = new Map<string, CaptionPart[]>();
+
+/**
+ * Découpe un sous-titre en autant de morceaux qu'il faut pour qu'AUCUN ne dépasse
+ * le nombre de lignes autorisé.
+ *
+ * Le réglage « 1 / 2 / 3 lignes » ne tenait pas ses promesses : au-delà, les mots
+ * en trop étaient entassés sur la dernière ligne (aperçu comme export). Le nombre
+ * de lignes est maintenant une vraie limite — le surplus devient le sous-titre
+ * SUIVANT, affiché sur la fin de la fenêtre de temps d'origine, répartie au
+ * prorata des mots (même règle que segmentCaptions).
+ *
+ * Le texte source n'est pas touché : le découpage se refait à chaque rendu, donc
+ * remonter la limite à 3 lignes recolle les morceaux tout seul.
+ */
+export function fitCaptionParts(
+  cap: { id: string; start: number; end: number; text: string },
+  style: EffectiveSub,
+  frameW: number,
+): CaptionPart[] {
+  const whole: CaptionPart[] = [{ id: cap.id, index: 0, count: 1, start: cap.start, end: cap.end, text: cap.text }];
+  const words = (cap.text || "").trim().split(/\s+/).filter(Boolean);
+  // Texte cintré : le rendu pose les lettres sur un arc, d'un seul tenant — le
+  // découpage en lignes n'a pas de sens là.
+  if (words.length < 2 || style.curve) return whole;
+
+  const maxLines = Math.max(1, Math.round(style.maxLines || 1));
+  const padX = style.padX * style.scale;
+  const maxW = (style.maxWidth / 100) * frameW - padX * 2;
+  if (!(maxW > 0)) return whole;
+
+  const key = [cap.id, cap.text, cap.start, cap.end, maxLines, Math.round(maxW),
+    style.scale, style.font, style.weight, style.italic, style.letterSpacing, style.caseMode].join("|");
+  const hit = partsCache.get(key);
+  if (hit) return hit;
+
+  const measure = subMeasure(style);
+  if (!measure) return whole;
+  // On mesure la casse RÉELLEMENT affichée : « TOUT EN MAJUSCULES » est plus large.
+  const shown = words.map((w) => applySubCase(w, style.caseMode));
+  const lines = packLines(shown, measure, maxW);
+
+  let out = whole;
+  if (lines.length > maxLines) {
+    // Un morceau = un paquet de `maxLines` lignes.
+    const sizes: number[] = [];
+    for (let i = 0; i < lines.length; i += maxLines) {
+      sizes.push(lines.slice(i, i + maxLines).reduce((n, ln) => n + ln.length, 0));
+    }
+    const perWord = Math.max(0.001, cap.end - cap.start) / words.length;
+    out = [];
+    let i = 0;
+    sizes.forEach((n, k) => {
+      out.push({
+        id: cap.id,
+        index: k,
+        count: sizes.length,
+        start: cap.start + i * perWord,
+        // Le dernier morceau va jusqu'au bout : pas de trou d'arrondi en fin de bloc.
+        end: k === sizes.length - 1 ? cap.end : cap.start + (i + n) * perWord,
+        text: words.slice(i, i + n).join(" "),
+      });
+      i += n;
+    });
+  }
+
+  if (partsCache.size > 600) partsCache.clear();
+  partsCache.set(key, out);
+  return out;
+}
+
+/**
+ * Lignes d'un sous-titre telles que l'export les dessinera — mots déjà mis à la
+ * casse d'affichage. L'aperçu DOM les pose telles quelles au lieu de laisser le
+ * navigateur replier le texte à sa façon : les retours à la ligne vus à l'écran
+ * sont alors exactement ceux de la vidéo, et la limite de lignes tient à l'image
+ * près malgré le léger écart de métriques entre police écran et police canvas.
+ */
+export function subLines(text: string, style: EffectiveSub, frameW: number): string[][] {
+  const words = (text || "").trim().split(/\s+/).filter(Boolean).map((w) => applySubCase(w, style.caseMode));
+  if (!words.length) return [[]];
+  const measure = subMeasure(style);
+  const padX = style.padX * style.scale;
+  const maxW = (style.maxWidth / 100) * frameW - padX * 2;
+  if (!measure || !(maxW > 0) || words.length < 2) return [words];
+  return wrapWords(words, measure, maxW, style.maxLines);
+}
+
+/** Le morceau à afficher à l'instant `t` (le dernier si `t` sort de la fenêtre). */
+export function captionPartAt(
+  cap: { id: string; start: number; end: number; text: string },
+  style: EffectiveSub,
+  frameW: number,
+  t: number,
+): CaptionPart {
+  const parts = fitCaptionParts(cap, style, frameW);
+  return parts.find((p) => t >= p.start && t <= p.end) ?? (t < parts[0].start ? parts[0] : parts[parts.length - 1]);
 }
 
 /**
