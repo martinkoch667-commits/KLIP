@@ -4823,16 +4823,23 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
       } else {
         shadow = hexLum(fill) > 0.5 && !!b.shadow;
       }
-      // Règle maison : tout texte généré est centré, quelle que soit la mise en
-      // page proposée par l'IA (décision Martin — c'est plus propre et ça évite
-      // les blocs qui semblent flotter à gauche). Repasser à `b.align` suffirait
-      // à rendre la main à la bibliothèque de gabarits.
-      const align = 'center';
+      // L'alignement redevient celui de la MISE EN PAGE choisie.
+      //
+      // Il était forcé au centre pour tout le monde — décision prise à l'époque
+      // contre des blocs qui semblaient flotter de travers. Mais le vrai centrage
+      // dans le cadre (juste en dessous) a corrigé ce défaut depuis, et la règle
+      // ne faisait plus qu'écraser les 18 compositions de la bibliothèque en une
+      // seule : « magazine bas-gauche » et « hero centré » sortaient identiques.
+      // C'était la première cause du « tout se ressemble ».
+      const align = ['left', 'center', 'right'].includes(b.align) ? b.align : 'center';
       const width = Math.round((Math.min(Math.max(b.widthPct ?? 80, 10), 100) / 100) * stageW);
-      // Vrai centrage : un bloc centré est réellement centré dans le cadre (sinon ça paraît "de travers").
+      // Un bloc centré est RÉELLEMENT centré dans le cadre (sinon ça paraît « de
+      // travers ») ; les blocs alignés, eux, respectent la marge de la recette.
       const x = align === 'center'
         ? Math.round((stageW - width) / 2)
-        : Math.max(0, Math.round(((b.xPct ?? 8) / 100) * stageW));
+        : align === 'right'
+          ? Math.max(0, Math.round(stageW - width - ((b.xPct ?? 8) / 100) * stageW))
+          : Math.max(0, Math.round(((b.xPct ?? 8) / 100) * stageW));
       return {
         id: newId(), type: 'text', text: String(b.text),
         x, y: Math.max(0, Math.round(((b.yPct ?? 70) / 100) * stageH)),
@@ -4926,6 +4933,10 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           imageUrl: postPhotoUrl, format: { w: stageW, h: stageH },
+          // Le workspace part avec : le directeur artistique lit alors le secteur,
+          // le ton et la typographie du client, au lieu de ne connaître que trois
+          // couleurs et de composer à l'aveugle.
+          workspaceId,
           brand: { primary: workspaceData?.primary_color, secondary: workspaceData?.secondary_color, accent: workspaceData?.accent_color, logo: !!workspaceData?.logo_url },
           blocks: texts, styleRef, approvedRef,
         }),

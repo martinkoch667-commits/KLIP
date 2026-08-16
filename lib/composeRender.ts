@@ -208,8 +208,15 @@ export async function renderComposedVisual(input: RenderInput): Promise<string |
       lines = wrap(ctx, txt, width);
     }
 
-    // Comme l'éditeur : tout texte généré est centré dans le cadre (décision Martin).
-    const x = Math.round((w - width) / 2);
+    // Même règle que l'éditeur : l'alignement vient de la mise en page choisie.
+    // Un aperçu qui centrerait tout alors que le rendu final aligne à gauche ne
+    // serait plus un aperçu.
+    const align = ['left', 'center', 'right'].includes(b.align ?? '') ? b.align : 'center';
+    const x = align === 'center'
+      ? Math.round((w - width) / 2)
+      : align === 'right'
+        ? Math.max(0, Math.round(w - width - ((b.xPct ?? 8) / 100) * w))
+        : Math.max(0, Math.round(((b.xPct ?? 8) / 100) * w));
     const lh = size * 1.15;
 
     if (shadow) {
@@ -220,7 +227,12 @@ export async function renderComposedVisual(input: RenderInput): Promise<string |
     ctx.fillStyle = fill;
     lines.forEach((ln, i) => {
       const lw = ctx.measureText(ln).width;
-      ctx.fillText(ln, x + (width - lw) / 2, y + i * lh);
+      // Chaque ligne se place selon l'alignement du bloc — centrer les lignes
+      // d'un bloc aligné à gauche donnait un pavé en drapeau des deux côtés.
+      const lx = align === 'center' ? x + (width - lw) / 2
+        : align === 'right' ? x + width - lw
+        : x;
+      ctx.fillText(ln, lx, y + i * lh);
     });
     ctx.shadowColor = 'transparent';
     ctx.shadowBlur = 0;

@@ -880,7 +880,7 @@ export default function WorkspacePage() {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             imageUrl: item.photo_url?.startsWith('http') ? item.photo_url : undefined,
-            format: { w, h },
+            format: { w, h }, workspaceId: id,
             brand: { primary: workspace?.primary_color, secondary: workspace?.secondary_color, accent: workspace?.accent_color },
             blocks: texts,
           }),

@@ -18,9 +18,38 @@ export async function POST(request: NextRequest) {
     const { data: { session } } = await sb.auth.getSession();
     if (!session) return NextResponse.json({ error: 'Non autorisé' }, { status: 401 });
 
-    const { imageUrl, format, brand, blocks, styleRef, approvedRef } = await request.json();
+    const { imageUrl, format, brand, blocks, styleRef, approvedRef, workspaceId } = await request.json();
     const fmt = format ?? { w: 1080, h: 1350 };
     const palette = [brand?.primary && `primary=${brand.primary}`, brand?.secondary && `secondary=${brand.secondary}`, brand?.accent && `accent=${brand.accent}`].filter(Boolean).join(', ');
+
+    // QUI EST CE CLIENT ?
+    //
+    // Le directeur artistique ne recevait que trois couleurs. Il ne savait donc
+    // pas s'il travaillait pour un burger, un cabinet d'avocats ou une marque de
+    // cosmétiques — et il ne pouvait que faire du générique. C'est la première
+    // raison pour laquelle tous les clients se ressemblaient.
+    //
+    // On lit l'identité côté serveur (la RLS reste seule juge de l'accès), et on
+    // la lui donne comme un brief : secteur, ton, vocabulaire, typographie.
+    let identity = '';
+    if (typeof workspaceId === 'string' && workspaceId) {
+      const { data: ws } = await sb
+        .from('workspaces')
+        .select('name, sector, tone, company_description, words_to_use, words_to_avoid, font_family, font_secondary')
+        .eq('id', workspaceId)
+        .single();
+      if (ws) {
+        identity = [
+          ws.name ? `Marque : ${ws.name}` : '',
+          ws.sector ? `Secteur : ${ws.sector}` : '',
+          ws.company_description ? `Activité : ${ws.company_description}` : '',
+          ws.tone ? `Ton de la marque : ${ws.tone}` : '',
+          ws.words_to_use ? `Vocabulaire à privilégier : ${ws.words_to_use}` : '',
+          ws.words_to_avoid ? `Vocabulaire à bannir : ${ws.words_to_avoid}` : '',
+          ws.font_family ? `Police de titre : ${ws.font_family}${ws.font_secondary ? ` · police de texte : ${ws.font_secondary}` : ''}` : '',
+        ].filter(Boolean).join('\n');
+      }
+    }
     const textList: string[] = Array.isArray(blocks) ? blocks.filter((b: unknown) => typeof b === 'string' && (b as string).trim()) : [];
 
     // Templates du client = candidats de layout (avec leur géométrie).
@@ -33,6 +62,8 @@ export async function POST(request: NextRequest) {
       `Tu es directeur artistique Instagram. Choisis et adapte une mise en page pour ce post (cadre ${fmt.w}×${fmt.h}px).`,
       `Couleurs charte autorisées : ${palette || 'aucune'} + white + black. Polices = marque (gérées par l'app).`,
       '',
+      identity ? `LA MARQUE POUR QUI TU TRAVAILLES :\n${identity}\n\nCette identité doit se VOIR dans ta composition, pas seulement dans les mots. Une marque sobre ne prend pas la mise en page la plus tapageuse ; une marque directe ne prend pas la plus timide. Choisis la composition qui RESSEMBLE à ce client, et un alignement qui va avec son caractère — le centré est solennel, le drapeau à gauche est éditorial et moderne.` : '',
+      identity ? '' : '',
       'ANALYSE la photo : où est le sujet/point focal ? quelles zones sont CALMES (pour le texte) ? haut/bas/centre clair ou sombre ?',
       'PRINCIPES (veille design social) : règle des tiers & lecture en Z (haut-gauche -> bas-droite) ; ne place jamais le texte sur le sujet/visage ; hiérarchie claire (titre dominant) ; centré UNIQUEMENT pour une phrase courte, sinon aligné à gauche ; contraste fort ; respiration (marges).',
       '',
