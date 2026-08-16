@@ -22,6 +22,11 @@ export interface BrandFromSite {
    *  bannière. L'appelant les propose, l'utilisateur tranche. */
   logoCandidates: string[];
   iconUrl?: string;
+  /** Image de partage (og:image). Elle est écartée comme LOGO — c'est souvent
+   *  une photo d'ambiance — mais c'est une excellente source de COULEURS : chez
+   *  une marque dont l'identité vit dans ses visuels, l'orange et le rouge n'ont
+   *  aucune raison d'apparaître dans la feuille de style. */
+  heroImage?: string;
   sampleText?: string;     // matière brute pour déduire le ton, côté appelant
 }
 
@@ -515,6 +520,7 @@ export async function analyzeBrandSite(rawUrl: string): Promise<BrandFromSite | 
     logoUrl: logoCandidates[0],
     /** Toutes les pistes de logo, du plus probable au moins — l'utilisateur choisit. */
     logoCandidates,
+    heroImage: absolutize(meta(html, 'og:image', 'twitter:image'), url),
     iconUrl: findIcon(html, url),
     sampleText: visibleText(html),
   };

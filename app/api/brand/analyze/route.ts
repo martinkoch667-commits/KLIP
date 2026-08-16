@@ -95,6 +95,7 @@ export async function POST(request: NextRequest) {
     fonts: site.fonts,
     logoUrl: site.logoUrl,
     logoCandidates: site.logoCandidates,
+    heroImage: site.heroImage,
     iconUrl: site.iconUrl,
   });
 }

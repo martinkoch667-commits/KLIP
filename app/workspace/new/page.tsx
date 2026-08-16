@@ -432,6 +432,10 @@ export default function NewWorkspacePage() {
         : (d.logoUrl ? [d.logoUrl] : []);
       const fromLogo: string[] = [];
       for (const c of cands) fromLogo.push(...await dominantColorsFromImage(c, 3));
+      // L'image de partage en dernier recours : chez une marque dont l'identité
+      // vit dans ses visuels (Burger King), l'orange et le rouge n'apparaissent
+      // NI dans la feuille de style, NI dans le logo — seulement dans les images.
+      const fromHero = d.heroImage ? await dominantColorsFromImage(d.heroImage, 4) : [];
 
       const cssColors: string[] = Array.isArray(d.colors) ? d.colors : [];
       // Dédoublonnage par TEINTE ici aussi : sans lui, trois logos d'une même
@@ -445,17 +449,21 @@ export default function NewWorkspacePage() {
       };
       const merged: string[] = [];
       const hues: number[] = [];
-      for (const c of [...fromLogo, ...cssColors]) {
+      for (const c of [...fromLogo, ...cssColors, ...fromHero]) {
         if (typeof c !== 'string' || !/^#[0-9A-Fa-f]{6}$/.test(c) || merged.includes(c)) continue;
         const h = hueOf(c);
-        if (h >= 0 && hues.some((o) => { let dd = Math.abs(o - h); if (dd > 180) dd = 360 - dd; return dd < 26; })) continue;
+        if (h >= 0 && hues.some((o) => { let dd = Math.abs(o - h); if (dd > 180) dd = 360 - dd; return dd < 15; })) continue;
         merged.push(c); hues.push(h);
         if (merged.length >= 5) break;
       }
       if (merged.length) {
+        // TOUS les champs sont réécrits, y compris ceux qu'on ne peut pas remplir.
+        // Sinon ils gardaient les valeurs par défaut de KLIP — Martin a vu le vert
+        // #BDF2A0 présenté comme la couleur d'accent de Burger King. Un champ vide
+        // dit la vérité ; un défaut déguisé en résultat, non.
         setPrimaryColor(merged[0]);
-        if (merged[1]) setSecondaryColor(merged[1]);
-        if (merged[2]) setAccentColor(merged[2]);
+        setSecondaryColor(merged[1] ?? "");
+        setAccentColor(merged[2] ?? "");
         setColor4(merged[3] ?? "");
         setColor5(merged[4] ?? "");
         filled.push(merged.length > 1 ? "couleurs" : "couleur principale");
@@ -611,7 +619,10 @@ export default function NewWorkspacePage() {
       for (const c of Array.from(buckets.values()).sort((a, b) => b.n - a.n)) {
         const r = c.r / c.n, g = c.g / c.n, b = c.b / c.n;
         const h = hue(r, g, b);
-        if (out.some((o) => { let d = Math.abs(o.h - h); if (d > 180) d = 360 - d; return d < 28; })) continue;
+        // 15° et non 28° : le rouge et l'orange d'une même marque ne sont
+        // séparés que d'une quinzaine de degrés (Burger King : #D62300 et
+        // #FF8532). À 28° on n'en gardait qu'un, et Martin cherchait l'autre.
+        if (out.some((o) => { let d = Math.abs(o.h - h); if (d > 180) d = 360 - d; return d < 15; })) continue;
         out.push({ hex: `#${hex(r)}${hex(g)}${hex(b)}`, h });
         if (out.length >= max) break;
       }
@@ -749,9 +760,12 @@ export default function NewWorkspacePage() {
           caption_examples: captionExample.trim() || null,
           brand_voice_prompt: voiceParts.join("\n") || null,
           // Step 3
-          primary_color: primaryColor,
-          secondary_color: secondaryColor,
-          accent_color: accentColor,
+          // Une couleur non trouvée vaut null, pas la chaîne vide : les lecteurs
+          // de la charte testent un format hexadécimal, et null dit clairement
+          // « absente » là où "" ressemble à une valeur.
+          primary_color: primaryColor || null,
+          secondary_color: secondaryColor || null,
+          accent_color: accentColor || null,
           // La palette complète. Les trois premières restent dans leurs colonnes
           // historiques — tout le code existant s'appuie dessus — et les couleurs
           // supplémentaires vivent ici plutôt que d'ajouter une colonne par
