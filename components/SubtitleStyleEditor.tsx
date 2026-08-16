@@ -8,6 +8,7 @@
 import React, { useState } from "react";
 import {
   effectiveSubStyle, applySubCase, subtitleBoxCss, subBgLayerCss, SUB_BASE_FONT,
+  fitChunks, makeTextMeasurer,
   type SubCustom, type CaseMode, type SubAlign, type SubAnim,
 } from "@/app/workspace/[id]/montage/[postId]/constants";
 
@@ -563,11 +564,40 @@ export function SubtitlePreviewStage({
   // une phrase entière figée, pour montrer fidèlement combien de mots
   // apparaissent à l'écran à la fois.
   const step = Math.max(1, Math.floor(maxWords));
+
+  // Largeur réelle de la scène : la limite de lignes ne veut rien dire sans elle.
+  const [stageW, setStageW] = React.useState(0);
+  React.useEffect(() => {
+    const el = stageRef.current;
+    if (!el || typeof ResizeObserver === "undefined") return;
+    const ro = new ResizeObserver(() => setStageW(el.clientWidth));
+    ro.observe(el);
+    setStageW(el.clientWidth);
+    return () => ro.disconnect();
+  }, []);
+
   const chunks = React.useMemo(() => {
-    const out: string[][] = [];
-    for (let i = 0; i < words.length; i += step) out.push(words.slice(i, i + step));
-    return out.length ? out : [[]];
-  }, [words, step]);
+    // Sans largeur connue (premier rendu), on retombe sur le découpage au mot :
+    // l'effet dure une frame, le temps que la scène soit mesurée.
+    if (!stageW) {
+      const out: string[][] = [];
+      for (let i = 0; i < words.length; i += step) out.push(words.slice(i, i + step));
+      return out.length ? out : [[]];
+    }
+    const st = effectiveSubStyle(styleId, custom);
+    const px = fontSize * (st.scale ?? 1);
+    const base = makeTextMeasurer(
+      `${st.italic ? "italic " : ""}${st.weight} ${px}px ${st.font || SUB_BASE_FONT}`,
+      (st.letterSpacing ?? 0) * px,
+    );
+    // On MESURE en casse appliquée — les capitales sont sensiblement plus larges —
+    // mais on renvoie les mots d'origine, la casse restant appliquée au rendu.
+    const measure = (t: string) => base(applySubCase(t, st.caseMode));
+    // La largeur du bloc est un pourcentage du cadre ; on retire le rembourrage
+    // horizontal de la pilule, sinon on mesure plus large que la place réelle.
+    const boxPx = (stageW * (st.maxWidth ?? 88)) / 100 - (st.pill ? px * 0.9 : 0);
+    return fitChunks(words, step, measure, boxPx, st.maxLines ?? 1);
+  }, [words, step, stageW, styleId, custom, fontSize]);
 
   // Charge la scène demandée si on ne l'a pas déjà. Une seule requête à la fois.
   React.useEffect(() => {

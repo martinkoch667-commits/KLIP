@@ -414,6 +414,92 @@ export function withAlpha(color: string, alpha: number): string {
 // `k` : facteur d'échelle (e.scale * unit). Les distances doivent le suivre,
 // sinon l'ombre et la lueur gardent la même taille quand on grossit le texte —
 // et l'aperçu cesse de correspondre à l'export, qui lui les multiplie.
+
+/**
+ * Mesureur de largeur de texte, adossé à un canvas hors écran.
+ * `fontCss` suit la syntaxe de la propriété CSS `font` (ex. « 800 34px Archivo »).
+ */
+export function makeTextMeasurer(fontCss: string, letterSpacingPx = 0): (t: string) => number {
+  if (typeof document === "undefined") {
+    // Hors navigateur : approximation grossière, elle ne sert qu'à ne pas planter.
+    return (t) => t.length * 8;
+  }
+  const ctx = document.createElement("canvas").getContext("2d");
+  if (!ctx) return (t) => t.length * 8;
+  ctx.font = fontCss;
+  // `letterSpacing` n'est pas pris en compte par measureText : on l'ajoute nous-mêmes.
+  return (t) => ctx.measureText(t).width + Math.max(0, t.length - 1) * letterSpacingPx;
+}
+
+/** Le texte tient-il dans `maxLines` lignes à cette largeur ? */
+export function wrapsWithin(
+  text: string, measure: (t: string) => number, maxWidthPx: number, maxLines: number,
+): boolean {
+  const words = text.split(/\s+/).filter(Boolean);
+  let lines = 1, cur = "";
+  for (const w of words) {
+    const cand = cur ? `${cur} ${w}` : w;
+    if (measure(cand) <= maxWidthPx) { cur = cand; continue; }
+    lines++;
+    if (lines > maxLines) return false;
+    cur = w;
+  }
+  return true;
+}
+
+/**
+ * Découpe une suite de mots en blocs de sous-titre qui respectent DEUX limites :
+ * un nombre de mots, et un nombre de LIGNES à une largeur donnée.
+ *
+ * Le découpage ne regardait que le nombre de mots. « 4 mots » sur « 1 ligne »
+ * produisait donc un bloc trop large, qui passait à la ligne — le réglage de
+ * lignes n'était qu'une propriété de style, il ne contraignait rien.
+ *
+ * Ici la limite de lignes est une VRAIE règle : dès qu'un mot ne rentre plus dans
+ * le budget de lignes, il ouvre le bloc suivant au lieu de déborder.
+ */
+export function fitChunks(
+  words: string[],
+  maxWords: number,
+  measure: (t: string) => number,
+  maxWidthPx: number,
+  maxLines: number,
+): string[][] {
+  const cap = Math.max(1, Math.floor(maxWords));
+  const lineCap = Math.max(1, Math.floor(maxLines));
+  const width = Math.max(1, maxWidthPx);
+  const out: string[][] = [];
+  let i = 0;
+
+  while (i < words.length) {
+    const chunk: string[] = [];
+    let lines = 1;
+    let cur = "";
+
+    while (i < words.length && chunk.length < cap) {
+      const w = words[i];
+      const cand = cur ? `${cur} ${w}` : w;
+      if (measure(cand) <= width) {
+        cur = cand;
+      } else if (lines < lineCap) {
+        lines++;          // le mot ouvre une nouvelle ligne, dans le budget
+        cur = w;
+      } else {
+        break;            // budget épuisé : ce mot appartient au bloc suivant
+      }
+      chunk.push(w);
+      i++;
+    }
+
+    // Un mot seul plus large que la boîte ne rentrera jamais : on l'accepte tel
+    // quel, sinon la boucle ne progresserait pas.
+    if (!chunk.length) { chunk.push(words[i]); i++; }
+    out.push(chunk);
+  }
+
+  return out.length ? out : [[]];
+}
+
 export function subTextShadowCss(e: EffectiveSub, k = 1): string {
   const parts: string[] = [];
   if (e.glowColor && e.glowBlur > 0) {
@@ -950,6 +1036,11 @@ export function captionsFromWords(
   // un texte à l'écran pendant un silence, et on ne recolle pas deux phrases séparées
   // par une coupe de montage.
   gapBreak = 0.7,
+  // Contrainte de PLACE, facultative. Sans elle, le découpage ne connaît que le
+  // nombre de mots et un bloc trop large passe à la ligne — le réglage « 1 ligne »
+  // ne contraignait alors rien. Avec elle, un mot qui ne rentre plus dans le
+  // budget de lignes ouvre le sous-titre suivant.
+  fits?: (text: string) => boolean,
 ): { id: string; start: number; end: number; text: string }[] {
   const step = Math.max(1, Math.floor(maxWords));
   const out: { id: string; start: number; end: number; text: string }[] = [];
@@ -970,6 +1061,10 @@ export function captionsFromWords(
   for (const w of src) {
     const prev = group[group.length - 1];
     if (prev && w.start - prev.end > gapBreak) flush();
+    if (fits && group.length) {
+      const cand = [...group.map((g) => g.word), w.word].join(" ");
+      if (!fits(cand)) flush();
+    }
     group.push(w);
     if (group.length >= step) flush();
   }
