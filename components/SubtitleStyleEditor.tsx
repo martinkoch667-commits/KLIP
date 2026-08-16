@@ -394,7 +394,10 @@ export default function SubtitleStyleEditor({
         onReset={() => patch({ shadowBlur: 8, shadowX: 0, shadowY: 0 })}>
         <Swatch value={e.shadowColor} onChange={(v) => patch({ shadowColor: v, shadowBlur: e.shadowBlur || 8 })} allowNone noneLabel={L.none} onNone={() => patch({ shadowColor: "", shadowBlur: 0, shadowX: 0, shadowY: 0 })} />
         {!!e.shadowColor && (
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
+          // Trois curseurs sur une ligne sortaient du panneau : le libellé
+          // « Décalage Y » et sa valeur passaient hors cadre. La grille se replie
+          // maintenant selon la place disponible.
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(130px, 1fr))", gap: 10 }}>
             <div><Label>{L.blur}</Label><Slider value={e.shadowBlur} min={0} max={40} step={1} onChange={(v) => patch({ shadowBlur: v })} /></div>
             <div><Label>{L.offsetX}</Label><Slider value={e.shadowX} min={-20} max={20} step={1} onChange={(v) => patch({ shadowX: v })} /></div>
             <div><Label>{L.offsetY}</Label><Slider value={e.shadowY} min={-20} max={20} step={1} onChange={(v) => patch({ shadowY: v })} /></div>
@@ -712,7 +715,12 @@ export function SubtitlePreviewStage({
             <div style={{ position: "absolute", left: "50%", top: "34%", transform: "translate(-50%,-50%)", width: "42%", aspectRatio: "1", borderRadius: "50%", background: "rgba(255,255,255,.10)" }} />
           </>
         )}
-        <div style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: "34%", background: "linear-gradient(to top, rgba(0,0,0,.45), transparent)" }} />
+        {/* Voile de lisibilité : il n'a de sens que sur une PHOTO. Sur l'aplat
+            neutre il produisait un dégradé du gris clair au gris foncé, alors que
+            tout l'intérêt de ce décor est d'être uni. */}
+        {bg !== NEUTRAL_BG && (
+          <div style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: "34%", background: "linear-gradient(to top, rgba(0,0,0,.45), transparent)" }} />
+        )}
 
         <div ref={chipWrapRef} style={{ position: "absolute", left: pos.x + "%", top: pos.y + "%", transform: "translate(-50%,-50%)", maxWidth: "88%", textAlign: "center", pointerEvents: "none" }}>
           <SubtitlePreviewChip
