@@ -19,10 +19,18 @@ export async function GET(request: NextRequest) {
   const inv = Math.random().toString(36).slice(2, 8);
   const { searchParams } = new URL(request.url);
   const code = searchParams.get("code");
-  const workspaceId = searchParams.get("state");
+  const rawState = searchParams.get("state") ?? "";
+  const [workspaceId, from] = rawState.split("|");
+  const fromOnboarding = from === "onboarding";
   const error = searchParams.get("error");
 
-  const back = (q: string) => NextResponse.redirect(`${APP_URL}/workspace/${workspaceId}/parametres?${q}`);
+  // On renvoie là d'où l'utilisateur est parti : le ramener dans les paramètres
+  // du client au milieu d'une création en cours lui ferait perdre son parcours.
+  const back = (q: string) => NextResponse.redirect(
+    fromOnboarding
+      ? `${APP_URL}/workspace/new?ws=${workspaceId}&${q}`
+      : `${APP_URL}/workspace/${workspaceId}/parametres?${q}`,
+  );
 
   if (error || !code || !workspaceId) {
     return back("error=cancelled");

@@ -20,6 +20,9 @@ const CONFIG_ID = "1687148909161883";
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const workspaceId = searchParams.get("workspaceId");
+  // Même mécanique que le flux Instagram : `state` est le seul paramètre que
+  // Facebook nous rend, donc le seul endroit où faire voyager la provenance.
+  const from = searchParams.get("from") === "onboarding" ? "onboarding" : "";
 
   if (!workspaceId) {
     return NextResponse.json({ error: "workspaceId manquant" }, { status: 400 });
@@ -29,7 +32,7 @@ export async function GET(request: NextRequest) {
     client_id: APP_ID,
     redirect_uri: REDIRECT_URI,
     config_id: CONFIG_ID,
-    state: workspaceId,
+    state: from ? `${workspaceId}|${from}` : workspaceId,
     response_type: "code",
   });
 

@@ -732,12 +732,16 @@ export default function NewWorkspacePage() {
 
     (async () => {
       const { data } = await supabase.from("workspaces").select("name").eq("id", ws).single();
-      if (data?.name) setName(data.name);
+      // Le nom provisoire cède la place à celui du compte relié.
+      if (data?.name && data.name !== "Nouveau client") setName(data.name);
       try {
         const res = await fetch(`/api/instagram/profile?workspaceId=${ws}`);
         if (!res.ok) return;
         const p = await res.json();
-        if (p?.username) setIgUsername(p.username);
+        if (p?.username) {
+          setIgUsername(p.username);
+          if (!name.trim() || name.trim() === "Nouveau client") setName(p.username);
+        }
         // La bio dit ce que fait la marque — souvent mieux que la page d'accueil
         // de son site, parce qu'elle est écrite pour être lue en trois secondes.
         if (p?.biography && !brandDescription.trim()) setBrandDescription(p.biography);
@@ -752,15 +756,21 @@ export default function NewWorkspacePage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  /** Crée le client s'il n'existe pas encore, puis part vers l'autorisation. */
-  async function connectInstagram() {
+  /** Crée le client s'il n'existe pas encore, puis part vers l'autorisation.
+   *
+   *  Aucun nom n'est demandé ici : c'est une friction inutile avant même d'avoir
+   *  montré ce que fait le produit, et le compte relié le donnera lui-même. Le
+   *  client est donc créé sous un nom provisoire, remplacé au retour par celui
+   *  du profil. */
+  async function connectAccount(network: "instagram" | "facebook") {
     if (connecting) return;
-    if (!name.trim()) { setIgError("name"); return; }
     setConnecting(true);
     setIgError(null);
+    if (!name.trim()) setName("Nouveau client");
     const ws = await ensureWorkspaceCreated();
     if (!ws) { setConnecting(false); return; }
-    window.location.href = `/api/auth/meta/connect?workspaceId=${ws}&from=onboarding`;
+    const route = network === "facebook" ? "/api/auth/facebook/connect" : "/api/auth/meta/connect";
+    window.location.href = `${route}?workspaceId=${ws}&from=onboarding`;
   }
 
   async function importRemoteImage(url: string, bucket: string, userId: string): Promise<string | null> {
@@ -1002,46 +1012,67 @@ export default function NewWorkspacePage() {
               {!metaDone && sitePhase === "ask" && (
                 <>
                   <h1 className="wsx-h1">
-                    On commence par<br />le <span className="acc-hl">compte</span>.
+                    Reliez le <span className="acc-hl">compte</span><br />du client.
                   </h1>
                   <p className="wsx-sub">
-                    Reliez le compte Instagram ou Facebook du client. C&apos;est ce qui
-                    permettra de publier — et on en tire déjà son logo, ses couleurs et
-                    ce qu&apos;il fait.
+                    C&apos;est là que ses publications partiront. On en tire aussi son logo,
+                    ses couleurs et ce qu&apos;il fait — vous n&apos;aurez presque rien à saisir.
                   </p>
-                  <div className="wsx-field">
-                    <input
-                      className="wsx-input"
-                      value={name}
-                      onChange={e => { setName(e.target.value); setIgError(null); }}
-                      onKeyDown={e => { if (e.key === "Enter" && name.trim()) { e.preventDefault(); void connectInstagram(); } }}
-                      placeholder="Nom du client"
-                      autoFocus
-                      aria-label="Nom du client"
-                    />
+
+                  {/* Deux réseaux, deux boutons reconnaissables. Un champ « nom du
+                      client » ouvrait l'écran auparavant : c'était une friction avant
+                      même d'avoir montré quoi que ce soit, et le compte relié donne
+                      ce nom tout seul. */}
+                  <div style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 6, maxWidth: 420 }}>
                     <button
-                      type="button" className="wsx-go"
-                      onClick={() => void connectInstagram()}
-                      disabled={connecting || !name.trim()}
+                      type="button"
+                      onClick={() => void connectAccount("instagram")}
+                      disabled={connecting}
+                      style={{
+                        display: "flex", alignItems: "center", justifyContent: "center", gap: 10,
+                        padding: "15px 20px", borderRadius: 12, border: "none", cursor: connecting ? "default" : "pointer",
+                        background: "linear-gradient(90deg,#F58529,#DD2A7B 55%,#8134AF)",
+                        color: "#fff", fontWeight: 800, fontSize: 15, opacity: connecting ? 0.6 : 1,
+                      }}
                     >
-                      {connecting ? "…" : "Connecter"}
+                      <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <rect x="2" y="2" width="20" height="20" rx="5.5" />
+                        <circle cx="12" cy="12" r="4.2" />
+                        <circle cx="17.6" cy="6.4" r="1.2" fill="currentColor" stroke="none" />
+                      </svg>
+                      Connecter Instagram
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => void connectAccount("facebook")}
+                      disabled={connecting}
+                      style={{
+                        display: "flex", alignItems: "center", justifyContent: "center", gap: 10,
+                        padding: "15px 20px", borderRadius: 12, border: "none", cursor: connecting ? "default" : "pointer",
+                        background: "#1877F2", color: "#fff", fontWeight: 800, fontSize: 15,
+                        opacity: connecting ? 0.6 : 1,
+                      }}
+                    >
+                      <svg width="19" height="19" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M22 12a10 10 0 1 0-11.6 9.9v-7H7.9V12h2.5V9.8c0-2.5 1.5-3.9 3.8-3.9 1.1 0 2.2.2 2.2.2v2.4h-1.2c-1.2 0-1.6.8-1.6 1.6V12h2.7l-.4 2.9h-2.3v7A10 10 0 0 0 22 12Z" />
+                      </svg>
+                      Connecter Facebook
                     </button>
                   </div>
+
                   {igError ? (
                     <p className="wsx-err">
-                      {igError === "name"
-                        ? "Donnez d'abord un nom au client."
-                        : igError === "cancelled"
-                          ? "Connexion annulée. Vous pourrez la refaire plus tard."
-                          : "La connexion a échoué. Réessayez, ou passez cette étape."}
+                      {igError === "cancelled"
+                        ? "Connexion annulée. Vous pourrez la refaire à tout moment."
+                        : "La connexion a échoué. Réessayez, ou passez cette étape."}
                     </p>
                   ) : (
                     <p className="wsx-note">
-                      Une fenêtre de navigation privée évite de relier votre propre compte
-                      à la place de celui du client.
+                      Ouvrez une fenêtre de navigation privée pour éviter de relier votre
+                      propre compte à la place de celui du client.
                     </p>
                   )}
-                  {/* Reportable : on ne bloque personne sur une autorisation. */}
+
                   <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 28 }}>
                     <button
                       type="button"
