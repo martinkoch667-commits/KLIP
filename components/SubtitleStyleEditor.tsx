@@ -489,11 +489,22 @@ export function SubtitlePreviewChip({ styleId, custom, fontSize = 22, words = ["
 // renvoie des 403 sur les requêtes longues et refuse les rafales, et son premier
 // résultat n'est pas curé — d'où le bouton « autre image » pour retirer au sort.
 // Les trois scènes couvrent ce qui décide de la lisibilité : clair, sombre, chargé.
+// Le premier décor est un GRIS NEUTRE, sans requête réseau : c'est ce qu'on veut
+// voir par défaut pour juger une typographie. Une photo de campagne tirée au sort
+// ne parle de rien et détourne l'œil du sujet — le retour de Martin.
+// Les scènes photo restent là pour éprouver la lisibilité, qui est leur vraie
+// raison d'être : clair, sombre, chargé.
 const TEST_SCENES = [
+  { id: 'neutre', q: '',          label: 'Fond neutre' },
   { id: 'clair',  q: 'landscape', label: 'Fond clair' },
   { id: 'sombre', q: 'night',     label: 'Fond sombre' },
   { id: 'charge', q: 'city',      label: 'Fond chargé' },
 ];
+
+/** Aplat gris clair, en data URL : aucun aller-retour réseau, aucun échec possible. */
+const NEUTRAL_BG = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(
+  '<svg xmlns="http://www.w3.org/2000/svg" width="8" height="8"><rect width="8" height="8" fill="#DEDEDA"/></svg>'
+);
 
 const DEMO_PHRASE = "Voilà à quoi ressemblent vos sous-titres";
 
@@ -525,7 +536,9 @@ export function SubtitlePreviewStage({
   const [scene, setScene] = React.useState(0);
   // Plusieurs candidats par scène : « autre image » se contente d'avancer l'index,
   // sans nouvelle requête réseau.
-  const [pool, setPool] = React.useState<string[][]>([[], [], []]);
+  // Dérivé de TEST_SCENES : le tableau était figé à trois entrées, et ajouter
+  // une scène laissait `pool[3]` indéfini — donc un plantage à la sélection.
+  const [pool, setPool] = React.useState<string[][]>(() => TEST_SCENES.map(() => []));
   const [pick, setPick] = React.useState<number[]>([0, 0, 0]);
   const [ownFrame, setOwnFrame] = React.useState<string | null>(null);
   const fileRef = React.useRef<HTMLInputElement>(null);
@@ -556,6 +569,8 @@ export function SubtitlePreviewStage({
   // Charge la scène demandée si on ne l'a pas déjà. Une seule requête à la fois.
   React.useEffect(() => {
     if (pool[scene].length > 0) return;
+    // Le fond neutre n'a rien à télécharger.
+    if (!TEST_SCENES[scene].q) { setPool(prev => prev.map((v, i) => (i === scene ? [NEUTRAL_BG] : v))); return; }
     let cancelled = false;
     (async () => {
       try {
