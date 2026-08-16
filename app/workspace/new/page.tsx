@@ -1011,78 +1011,81 @@ export default function NewWorkspacePage() {
                   d'ailleurs pas de site exploitable, mais tous ont un Instagram. */}
               {!metaDone && sitePhase === "ask" && (
                 <>
-                  <h1 className="wsx-h1">
-                    Reliez le <span className="acc-hl">compte</span><br />du client.
-                  </h1>
-                  <p className="wsx-sub">
-                    C&apos;est là que ses publications partiront. On en tire aussi son logo,
-                    ses couleurs et ce qu&apos;il fait — vous n&apos;aurez presque rien à saisir.
-                  </p>
-
-                  {/* Deux réseaux, deux boutons reconnaissables. Un champ « nom du
-                      client » ouvrait l'écran auparavant : c'était une friction avant
-                      même d'avoir montré quoi que ce soit, et le compte relié donne
-                      ce nom tout seul. */}
-                  <div style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 6, maxWidth: 420 }}>
-                    <button
-                      type="button"
-                      onClick={() => void connectAccount("instagram")}
-                      disabled={connecting}
-                      style={{
-                        display: "flex", alignItems: "center", justifyContent: "center", gap: 10,
-                        padding: "15px 20px", borderRadius: 12, border: "none", cursor: connecting ? "default" : "pointer",
-                        background: "linear-gradient(90deg,#F58529,#DD2A7B 55%,#8134AF)",
-                        color: "#fff", fontWeight: 800, fontSize: 15, opacity: connecting ? 0.6 : 1,
-                      }}
-                    >
-                      <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                        <rect x="2" y="2" width="20" height="20" rx="5.5" />
-                        <circle cx="12" cy="12" r="4.2" />
-                        <circle cx="17.6" cy="6.4" r="1.2" fill="currentColor" stroke="none" />
-                      </svg>
-                      Connecter Instagram
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => void connectAccount("facebook")}
-                      disabled={connecting}
-                      style={{
-                        display: "flex", alignItems: "center", justifyContent: "center", gap: 10,
-                        padding: "15px 20px", borderRadius: 12, border: "none", cursor: connecting ? "default" : "pointer",
-                        background: "#1877F2", color: "#fff", fontWeight: 800, fontSize: 15,
-                        opacity: connecting ? 0.6 : 1,
-                      }}
-                    >
-                      <svg width="19" height="19" viewBox="0 0 24 24" fill="currentColor">
-                        <path d="M22 12a10 10 0 1 0-11.6 9.9v-7H7.9V12h2.5V9.8c0-2.5 1.5-3.9 3.8-3.9 1.1 0 2.2.2 2.2.2v2.4h-1.2c-1.2 0-1.6.8-1.6 1.6V12h2.7l-.4 2.9h-2.3v7A10 10 0 0 0 22 12Z" />
-                      </svg>
-                      Connecter Facebook
-                    </button>
-                  </div>
-
-                  {igError ? (
-                    <p className="wsx-err">
-                      {igError === "cancelled"
-                        ? "Connexion annulée. Vous pourrez la refaire à tout moment."
-                        : "La connexion a échoué. Réessayez, ou passez cette étape."}
+                  {/* Écran à une seule décision : tout est centré sur une même
+                      colonne étroite. Auparavant le titre, le texte, les boutons et
+                      le lien de report vivaient sur quatre largeurs différentes —
+                      alignés à gauche mais jamais entre eux, d'où le désordre. */}
+                  <div style={{ maxWidth: 460, margin: "0 auto", textAlign: "center", paddingTop: 8 }}>
+                    <h1 className="wsx-h1" style={{ textAlign: "center" }}>
+                      Reliez le <span className="acc-hl">compte</span> du client.
+                    </h1>
+                    <p className="wsx-sub" style={{ textAlign: "center", marginLeft: "auto", marginRight: "auto" }}>
+                      C&apos;est là que ses publications partiront. On en tire aussi son logo,
+                      ses couleurs et ce qu&apos;il fait.
                     </p>
-                  ) : (
-                    <p className="wsx-note">
-                      Ouvrez une fenêtre de navigation privée pour éviter de relier votre
-                      propre compte à la place de celui du client.
-                    </p>
-                  )}
 
-                  <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 28 }}>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 30 }}>
+                      <button
+                        type="button"
+                        onClick={() => void connectAccount("instagram")}
+                        disabled={connecting}
+                        style={{
+                          display: "flex", alignItems: "center", justifyContent: "center", gap: 10,
+                          width: "100%", padding: "15px 20px", borderRadius: 12, border: "none",
+                          cursor: connecting ? "default" : "pointer",
+                          background: "linear-gradient(90deg,#F58529,#DD2A7B 55%,#8134AF)",
+                          color: "#fff", fontWeight: 800, fontSize: 15, opacity: connecting ? 0.6 : 1,
+                        }}
+                      >
+                        <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <rect x="2" y="2" width="20" height="20" rx="5.5" />
+                          <circle cx="12" cy="12" r="4.2" />
+                          <circle cx="17.6" cy="6.4" r="1.2" fill="currentColor" stroke="none" />
+                        </svg>
+                        Connecter Instagram
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => void connectAccount("facebook")}
+                        disabled={connecting}
+                        style={{
+                          display: "flex", alignItems: "center", justifyContent: "center", gap: 10,
+                          width: "100%", padding: "15px 20px", borderRadius: 12, border: "none",
+                          cursor: connecting ? "default" : "pointer",
+                          background: "#1877F2", color: "#fff", fontWeight: 800, fontSize: 15,
+                          opacity: connecting ? 0.6 : 1,
+                        }}
+                      >
+                        <svg width="19" height="19" viewBox="0 0 24 24" fill="currentColor">
+                          <path d="M22 12a10 10 0 1 0-11.6 9.9v-7H7.9V12h2.5V9.8c0-2.5 1.5-3.9 3.8-3.9 1.1 0 2.2.2 2.2.2v2.4h-1.2c-1.2 0-1.6.8-1.6 1.6V12h2.7l-.4 2.9h-2.3v7A10 10 0 0 0 22 12Z" />
+                        </svg>
+                        Connecter Facebook
+                      </button>
+                    </div>
+
+                    {igError ? (
+                      <p className="wsx-err" style={{ textAlign: "center" }}>
+                        {igError === "cancelled"
+                          ? "Connexion annulée. Vous pourrez la refaire à tout moment."
+                          : "La connexion a échoué. Réessayez, ou passez cette étape."}
+                      </p>
+                    ) : (
+                      <p className="wsx-note" style={{ textAlign: "center", marginTop: 16 }}>
+                        Ouvrez une fenêtre de navigation privée pour ne pas relier votre
+                        propre compte à la place de celui du client.
+                      </p>
+                    )}
+
                     <button
                       type="button"
                       onClick={() => setMetaDone(true)}
                       style={{
+                        display: "block", margin: "34px auto 0",
                         background: "transparent", border: "none", cursor: "pointer",
                         color: "var(--ink-3)", fontSize: 13, fontWeight: 600, padding: "6px 2px",
                       }}
                     >
-                      Passer cette étape, je relierai plus tard →
+                      Passer cette étape, je relierai plus tard
                     </button>
                   </div>
                 </>
