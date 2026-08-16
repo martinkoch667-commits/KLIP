@@ -5,6 +5,8 @@ import PostPreviewPane from "@/components/PostPreviewPane";
 import AiThinkingPanel from "@/components/AiThinkingPanel";
 import type { PreEditHooks } from "./montage/[postId]/preEdit";
 import { runPreEdit, newTranscriptCache } from "./montage/[postId]/preEdit";
+import { renderComposedVisual, renderElementSpecs } from "@/lib/composeRender";
+import { buildCarouselSlide, themeFromBrand } from "@/lib/carouselDesigns";
 import type { MontageClip } from "./montage/[postId]/constants";
 import { useTranslations } from "next-intl";
 import Link from "next/link";
@@ -97,6 +99,10 @@ interface PostItem {
   created_at?: string;
   templateId?: string | null;  // template chosen BEFORE generation
   post_type?: PostType;
+  /** Aperçu du visuel COMPOSÉ (data URL), rendu hors écran après génération.
+   *  L'aperçu ne montrait que la photo brute : le visuel fini n'existait pas
+   *  encore, la composition ayant lieu dans l'éditeur. */
+  preview_url?: string;
   thumbnail_url?: string | null;
   // Montage groupé : plusieurs fichiers réunis dans UN seul post vidéo (plans concaténés).
   // `file` = 1er plan (couverture) ; `groupedFiles` = tous les plans dans l'ordre.
@@ -117,6 +123,12 @@ interface Workspace {
   caption_examples: string | null;
   /** Lu depuis la base et affiché sur les vignettes de post ; il manquait au type. */
   instagram_username: string | null;
+  /** Identité visuelle — nécessaire à l'aperçu composé, qui applique la charte. */
+  primary_color: string | null;
+  secondary_color: string | null;
+  accent_color: string | null;
+  font_family: string | null;
+  font_secondary: string | null;
 }
 
 interface PostTemplate {
@@ -647,7 +659,9 @@ export default function WorkspacePage() {
   const loadData = useCallback(async () => {
     const { data: ws } = await supabase
       .from("workspaces")
-      .select("id, name, logo_url, sector, tone, words_to_use, words_to_avoid, company_description, brand_voice_prompt, description_style, caption_examples, instagram_username")
+      // Les couleurs et polices ne servaient à rien ici tant que l'aperçu montrait
+      // la photo brute ; l'aperçu composé applique la charte, il lui faut donc.
+      .select("id, name, logo_url, sector, tone, words_to_use, words_to_avoid, company_description, brand_voice_prompt, description_style, caption_examples, instagram_username, primary_color, secondary_color, accent_color, font_family, font_secondary")
       .eq("id", id)
       .single();
 
@@ -830,6 +844,68 @@ export default function WorkspacePage() {
     return send();
   }
 
+  // ── Aperçu du visuel COMPOSÉ ────────────────────────────────────────────────
+  // L'aperçu du Composer ne montrait que la photo importée, parce que le visuel
+  // fini n'existait pas encore : la composition et son rendu vivent dans
+  // l'éditeur, où il y a un canvas. On refait donc le chemin ici, hors écran.
+  //
+  // Best-effort de bout en bout : un aperçu qui échoue laisse simplement la photo
+  // brute à l'écran. Il ne doit jamais empêcher de générer, d'éditer ou de publier
+  // — c'est un confort, pas une étape du parcours.
+  async function buildPreview(item: PostItem): Promise<void> {
+    if (item.isVideo) return; // une vidéo montre déjà son premier plan
+    try {
+      // Format du cadre selon le type de publication, comme dans l'éditeur.
+      const [w, h] = item.post_type === 'reel' || item.post_type === 'story'
+        ? [1080, 1920]
+        : item.post_type === 'carrousel' ? [1080, 1080] : [1080, 1350];
+
+      let url: string | null = null;
+
+      if (item.post_type === 'carrousel') {
+        // Couverture seulement : c'est elle qui décide si le carrousel est lu, et
+        // elle se dessine sans appel IA (le sujet est déjà écrit). Le carrousel
+        // complet, lui, s'écrit à l'ouverture de l'éditeur.
+        const theme = themeFromBrand(workspace ?? null);
+        const els = buildCarouselSlide(
+          'cover-statement',
+          { titre: item.texte_visuel || item.brief, corps: item.description?.split('\n')[0] },
+          theme, w, h, 1, 6,
+        );
+        url = renderElementSpecs(els, w, h);
+      } else {
+        const texts = [item.texte_visuel].filter((t): t is string => !!t && !!t.trim());
+        if (!texts.length) return; // rien à composer : la photo brute suffit
+        const res = await fetch('/api/compose-layout', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            imageUrl: item.photo_url?.startsWith('http') ? item.photo_url : undefined,
+            format: { w, h },
+            brand: { primary: workspace?.primary_color, secondary: workspace?.secondary_color, accent: workspace?.accent_color },
+            blocks: texts,
+          }),
+        });
+        if (!res.ok) return;
+        const data = await res.json();
+        const layout = Array.isArray(data?.layouts) ? data.layouts[0] : null;
+        if (!layout?.blocks?.length) return;
+        url = await renderComposedVisual({
+          photoUrl: item.photo_url?.startsWith('http') ? item.photo_url : null,
+          blocks: layout.blocks, scrim: layout.scrim,
+          brand: {
+            primary: workspace?.primary_color, secondary: workspace?.secondary_color, accent: workspace?.accent_color,
+            display: workspace?.font_family, body: workspace?.font_secondary,
+          },
+          w, h,
+        });
+      }
+
+      if (url) setPosts((prev) => prev.map((p) => (p.localId === item.localId ? { ...p, preview_url: url! } : p)));
+    } catch (e) {
+      console.warn('[buildPreview] aperçu composé indisponible :', e);
+    }
+  }
+
   async function generateOne(item: PostItem): Promise<void> {
     if (!item.brief.trim() || item.status === "generating") return;
     setPosts((prev) => prev.map((p) => (p.localId === item.localId ? { ...p, status: "generating", error: undefined } : p)));
@@ -954,6 +1030,7 @@ export default function WorkspacePage() {
         }
         releasePreview(item.photo_url);
         setPosts((prev) => prev.map((p) => p.localId === item.localId ? { ...p, dbId, photo_url: pUrl, texte_visuel, description, status: "generated", templateId: item.templateId ?? p.templateId, error: undefined } : p));
+        void buildPreview({ ...item, dbId, photo_url: pUrl, texte_visuel, description });
       } else {
         // « Non autorisé » ne dit rien à personne : si la session est vraiment
         // perdue (rafraîchissement compris), on donne le geste à faire.
@@ -1794,7 +1871,7 @@ export default function WorkspacePage() {
                             {isGenerated && !post.isVideo ? (
                               <PostPreviewPane
                                 workspace={workspace}
-                                mediaUrl={post.exported_image_url || post.photo_url}
+                                mediaUrl={post.exported_image_url || post.preview_url || post.photo_url}
                                 caption={post.description || ''}
                                 postType={post.post_type}
                                 platforms={['instagram']}
@@ -1807,7 +1884,7 @@ export default function WorkspacePage() {
                                 <video src={post.photo_url} controls style={{ width: '100%', height: '100%', objectFit: 'contain', display: 'block' }} />
                               ) : (
                                 // eslint-disable-next-line @next/next/no-img-element
-                                <img src={post.exported_image_url || post.photo_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                <img src={post.exported_image_url || post.preview_url || post.photo_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                               )}
                               {/* Nom du client (overlay) + badge vidéo */}
                               <div style={{ position: 'absolute', top: 8, left: 8, display: 'flex', gap: 5 }}>
