@@ -520,6 +520,10 @@ export default function NewWorkspacePage() {
   //
   // On échantillonne donc le logo lui-même. Le canvas est disponible ici (côté
   // navigateur), et le proxy évite les soucis d'origine croisée.
+  /** Un SVG en ligne arrive déjà sous forme de data URL : le proxy ne saurait
+   *  pas quoi en faire, et l'image ne s'afficherait pas. */
+  const imgSrc = (url: string) => url.startsWith('data:') ? url : `/api/proxy-image?url=${encodeURIComponent(url)}`;
+
   async function dominantColorsFromImage(url: string, max = 4): Promise<string[]> {
     try {
       const img = await new Promise<HTMLImageElement | null>((res) => {
@@ -527,7 +531,7 @@ export default function NewWorkspacePage() {
         i.crossOrigin = 'anonymous';
         i.onload = () => res(i);
         i.onerror = () => res(null);
-        i.src = `/api/proxy-image?url=${encodeURIComponent(url)}`;
+        i.src = imgSrc(url);
       });
       if (!img) return [];
       const S = 48;
@@ -581,7 +585,7 @@ export default function NewWorkspacePage() {
 
   async function importRemoteImage(url: string, bucket: string, userId: string): Promise<string | null> {
     try {
-      const res = await fetch(`/api/proxy-image?url=${encodeURIComponent(url)}`);
+      const res = await fetch(imgSrc(url));
       if (!res.ok) return null;
       const blob = await res.blob();
       // Un logo de plusieurs mégaoctets est presque toujours une erreur de
@@ -1342,7 +1346,7 @@ export default function NewWorkspacePage() {
                     <UploadZone
                       label={t('logoMainLabel')}
                       hint={siteLogo && !logoPreview ? t('logoFromSite') : t('logoMainHint')}
-                      preview={logoPreview ?? (siteLogo ? `/api/proxy-image?url=${encodeURIComponent(siteLogo)}` : null)}
+                      preview={logoPreview ?? (siteLogo ? imgSrc(siteLogo) : null)}
                       dark={false}
                       onClick={() => logoRef.current?.click()}
                       onRemove={() => { setLogoFile(null); setLogoPreview(null); setSiteLogo(null); }}
@@ -1369,7 +1373,7 @@ export default function NewWorkspacePage() {
                               }}
                             >
                               {/* eslint-disable-next-line @next/next/no-img-element */}
-                              <img src={`/api/proxy-image?url=${encodeURIComponent(url)}`} alt=""
+                              <img src={imgSrc(url)} alt=""
                                 style={{ width: "100%", height: "100%", objectFit: "contain" }} />
                             </button>
                           ))}

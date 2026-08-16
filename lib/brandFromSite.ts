@@ -161,7 +161,16 @@ function rankBrandColors(counts: Map<string, number>, designated: Set<string>): 
   // Une couleur neutre n'est gardée QUE si la marque l'a nommée elle-même. Le
   // seuil de fréquence ne suffisait pas : sur getklip.fr, le blanc du fond et le
   // presque-noir du texte passaient devant les vraies couleurs.
+  // Un GRIS MOYEN n'est jamais une couleur de marque, même déclaré dans une
+  // variable CSS : c'est du texte ou une bordure. Le noir et le blanc, eux,
+  // peuvent l'être — beaucoup de marques n'ont que ça — donc on ne rejette que
+  // la plage intermédiaire. (Mesuré sur vercel.com, qui sortait en #666666,
+  // #333333 et #999999.)
+  const isMidGrey = (c: { sat: number; luma: number }) =>
+    c.sat < 0.06 && c.luma > 0.12 && c.luma < 0.88;
+
   const brand = all
+    .filter(c => !isMidGrey(c))
     .filter(c => !isChrome(c) || designated.has(c.hex))
     .sort((a, b) => b.n * (0.5 + b.sat) - a.n * (0.5 + a.sat));
 
@@ -275,7 +284,7 @@ function absolutize(href: string | undefined, base: URL): string | undefined {
 // meilleur revenait à parier : sur un site mal balisé, l'unique proposition était
 // souvent une illustration de bannière plutôt que le logo, et l'utilisateur
 // n'avait aucun recours. Plusieurs propositions, c'est lui qui tranche.
-function findLogoCandidates(html: string, base: URL): string[] {
+function findLogoCandidates(html: string, css: string, base: URL): string[] {
   const out: string[] = [];
   const push = (u?: string) => { if (u && !out.includes(u)) out.push(u); };
 
@@ -330,7 +339,25 @@ function findLogoCandidates(html: string, base: URL): string[] {
   candidates.sort((a, b) => b.score - a.score);
   for (const c of candidates) push(c.url);
 
-  // 3. L'icône d'application : c'est la marque, en carré. Faute de mieux, elle
+  // 3. SVG EN LIGNE. Beaucoup de sites modernes n'ont aucune balise <img> pour
+  //    leur logo : ils écrivent le SVG directement dans la page. Les étapes 1 et
+  //    2 ne voyaient donc rien du tout (mesuré : bigfernand.com, paulbocuse.com,
+  //    et le logo au burger de Burger King). On sérialise ces SVG en data URL,
+  //    ce qui les rend affichables et importables comme n'importe quelle image —
+  //    et en prime ils sont vectoriels et transparents, la bonne version.
+  for (const svg of inlineSvgLogos(html)) push(svg);
+
+  // 4. FONDS CSS. L'autre cachette classique : `background-image: url(...)` sur
+  //    un élément d'en-tête. On ne retient que ce qui se présente comme un logo,
+  //    sans quoi on ramasserait toutes les images décoratives du site.
+  for (const m of Array.from(css.matchAll(/([^{}]*)\{[^{}]*background(?:-image)?\s*:[^;{}]*url\((['"]?)([^'")]+)\2\)/gi))) {
+    const selector = m[1], href = m[3];
+    if (!/logo|brand/i.test(selector) && !/logo|brand/i.test(href)) continue;
+    if (/sprite|placeholder|pattern|texture/i.test(href)) continue;
+    push(absolutize(href, base));
+  }
+
+  // 5. L'icône d'application : c'est la marque, en carré. Faute de mieux, elle
   //    reste juste — contrairement à l'image de partage.
   const touch = html.match(/<link[^>]+rel=["'][^"']*apple-touch-icon[^"']*["'][^>]*>/i);
   if (touch) push(absolutize(touch[0].match(/href=["']([^"']+)["']/i)?.[1], base));
@@ -339,6 +366,59 @@ function findLogoCandidates(html: string, base: URL): string[] {
   // trop longue redevient un travail de tri.
   return out.slice(0, 6);
 }
+
+
+/**
+ * SVG écrits DANS la page, sérialisés en data URL.
+ *
+ * On ne prend pas tous les SVG d'une page — il y en a des dizaines (flèches,
+ * chevrons, icônes de menu). On garde ceux qui se présentent comme un logo :
+ * par leur classe, leur identifiant, leur <title>, leur aria-label, ou parce
+ * qu'ils sont contenus dans le lien de retour à l'accueil, qui est l'endroit
+ * où vit le logo sur la quasi-totalité des sites.
+ */
+function inlineSvgLogos(html: string): string[] {
+  const out: string[] = [];
+  // Balayage par index et non par expression régulière : `<svg[\s\S]*?</svg>`
+  // avec un quantificateur paresseux part en retour arrière catastrophique sur
+  // une grosse page — burgerking.fr ne rendait plus rien du tout. Ici, chaque
+  // caractère n'est lu qu'une fois.
+  let i = 0;
+  while (out.length < 3) {
+    const a = html.indexOf('<svg', i);
+    if (a < 0) break;
+    const b = html.indexOf('</svg>', a);
+    if (b < 0) break;
+    i = b + 6;
+    const svg = html.slice(a, i);
+
+    // Un SVG minuscule est une icône d'interface ; un SVG énorme est une
+    // illustration. Ni l'un ni l'autre n'est un logo.
+    if (svg.length < 120 || svg.length > 60000) continue;
+
+    const head = svg.slice(0, 400);
+    const looksLikeLogo = /logo|brand/i.test(head)
+      || /<title[^>]*>\s*[^<]*logo/i.test(svg)
+      // Un SVG placé tout en haut de la page est presque toujours celui de l'en-tête.
+      || (a < 3000 && /viewBox/i.test(head));
+    if (!looksLikeLogo) continue;
+    // Les icônes d'interface les plus courantes, même bien placées.
+    if (/arrow|chevron|caret|close|cross|menu|hamburger|search|cart|panier/i.test(head)) continue;
+
+    // Un SVG sans dimensions ne s'affiche pas dans une balise <img> : on lui
+    // donne celles de son viewBox.
+    let el = svg;
+    if (!/\swidth=/i.test(head)) {
+      const vb = head.match(/viewBox=["']\s*[\d.-]+\s+[\d.-]+\s+([\d.]+)\s+([\d.]+)/i);
+      if (vb) el = el.replace(/<svg/i, `<svg width="${vb[1]}" height="${vb[2]}"`);
+    }
+    if (!/xmlns=/i.test(el.slice(0, 200))) el = el.replace(/<svg/i, '<svg xmlns="http://www.w3.org/2000/svg"');
+
+    out.push(`data:image/svg+xml;utf8,${encodeURIComponent(el)}`);
+  }
+  return out;
+}
+
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function findJsonLdLogo(node: any, depth = 0): string | undefined {
@@ -424,7 +504,7 @@ export async function analyzeBrandSite(rawUrl: string): Promise<BrandFromSite | 
   const name = meta(html, 'og:site_name', 'application-name')
     ?? (title ? decodeEntities(title).split(/[|–—·-]/)[0].trim() : undefined);
 
-  const logoCandidates = findLogoCandidates(html, url);
+  const logoCandidates = findLogoCandidates(html, css, url);
 
   return {
     url: url.toString(),
