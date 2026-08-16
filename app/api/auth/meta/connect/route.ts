@@ -11,6 +11,11 @@ const REDIRECT_URI = `${APP_URL}/api/auth/meta/callback`;
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const workspaceId = searchParams.get("workspaceId");
+  // D'où vient la demande. Instagram ne nous rend que le paramètre `state` :
+  // c'est donc le seul endroit où faire voyager cette information, et sans elle
+  // le callback ramène toujours sur le planning — y compris quand la connexion
+  // a été lancée depuis la création de client, qui n'est pas terminée.
+  const from = searchParams.get("from") === "onboarding" ? "onboarding" : "";
 
   if (!workspaceId) {
     return NextResponse.json({ error: "workspaceId manquant" }, { status: 400 });
@@ -27,7 +32,7 @@ export async function GET(request: NextRequest) {
     // exige une démo vidéo par permission à l'App Review — demander messages,
     // comments ou insights sans code correspondant fait rejeter la soumission.
     scope: "instagram_business_basic,instagram_business_content_publish",
-    state: workspaceId,
+    state: from ? `${workspaceId}|${from}` : workspaceId,
     response_type: "code",
     // NE PAS ajouter force_reauth ici. L'intention est bonne — sans lui,
     // Instagram réutilise la session ouverte dans le navigateur et connecte le

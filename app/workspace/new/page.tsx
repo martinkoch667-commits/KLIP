@@ -176,6 +176,12 @@ export default function NewWorkspacePage() {
   // On commence par l'écran du lien : c'est le raccourci, il mérite toute la
   // page. Les cinq étapes classiques ne démarrent qu'ensuite.
   const [step, setStep] = useState(0);
+  /** Compte Instagram rattaché pendant la création. La connexion est la PREMIÈRE
+   *  chose qu'on propose : un client sans site exploitable a presque toujours un
+   *  Instagram, et son profil suffit à pré-remplir la charte. */
+  const [igUsername, setIgUsername] = useState<string | null>(null);
+  const [igError, setIgError] = useState<string | null>(null);
+  const [connecting, setConnecting] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -690,6 +696,56 @@ export default function NewWorkspacePage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [logoPreview, siteLogo]);
 
+  // RETOUR D'INSTAGRAM. L'autorisation quitte le site : au retour, l'assistant
+  // doit se rebrancher sur le client déjà créé plutôt que d'en démarrer un neuf.
+  // On ne conserve rien en local — le workspace existe en base, c'est lui la
+  // mémoire, et c'est bien plus fiable qu'un état de formulaire à restaurer.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const q = new URLSearchParams(window.location.search);
+    const ws = q.get("ws");
+    if (!ws) return;
+    window.history.replaceState({}, "", "/workspace/new");
+    setCreatedWorkspaceId(ws);
+    if (q.get("error")) { setIgError(q.get("error")); return; }
+    if (q.get("connected") !== "true") return;
+    // La connexion a réussi : on entre dans l'assistant. Rester sur l'écran de
+    // l'adresse du site laisserait croire que rien ne s'est passé.
+    setStep(1);
+
+    (async () => {
+      const { data } = await supabase.from("workspaces").select("name").eq("id", ws).single();
+      if (data?.name) setName(data.name);
+      try {
+        const res = await fetch(`/api/instagram/profile?workspaceId=${ws}`);
+        if (!res.ok) return;
+        const p = await res.json();
+        if (p?.username) setIgUsername(p.username);
+        // La bio dit ce que fait la marque — souvent mieux que la page d'accueil
+        // de son site, parce qu'elle est écrite pour être lue en trois secondes.
+        if (p?.biography && !brandDescription.trim()) setBrandDescription(p.biography);
+        // La photo de profil EST le logo, et ses couleurs sont celles de la marque.
+        if (p?.profile_picture_url) {
+          setSiteLogo(p.profile_picture_url);
+          const cols = await dominantColorsFromImage(p.profile_picture_url, 5);
+          if (cols.length) setBrandColors(cols);
+        }
+      } catch { /* la connexion a réussi, le pré-remplissage est un bonus */ }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  /** Crée le client s'il n'existe pas encore, puis part vers l'autorisation. */
+  async function connectInstagram() {
+    if (connecting) return;
+    if (!name.trim()) { setIgError("name"); return; }
+    setConnecting(true);
+    setIgError(null);
+    const ws = await ensureWorkspaceCreated();
+    if (!ws) { setConnecting(false); return; }
+    window.location.href = `/api/auth/meta/connect?workspaceId=${ws}&from=onboarding`;
+  }
+
   async function importRemoteImage(url: string, bucket: string, userId: string): Promise<string | null> {
     try {
       const res = await fetch(imgSrc(url));
@@ -949,6 +1005,45 @@ export default function NewWorkspacePage() {
                   {siteError
                     ? <p className="wsx-err">{siteError}</p>
                     : <p className="wsx-note">Rien à installer. On lit la page publique, c&apos;est tout.</p>}
+                  {/* ── Instagram, l'autre porte d'entrée ────────────────────
+                      Beaucoup de clients n'ont pas de site exploitable — mesuré :
+                      certains sites de restauration ne rendent ni logo ni couleur —
+                      mais ils ont tous un Instagram. Et son profil est une
+                      meilleure source : la photo de profil EST le logo, la bio dit
+                      ce que fait la marque en trois lignes.
+                      La connexion sera de toute façon nécessaire pour publier. */}
+                  <div style={{ marginTop: 26, paddingTop: 22, borderTop: "1px solid rgba(13,15,10,.10)" }}>
+                    <p className="wsx-note" style={{ marginBottom: 12 }}>
+                      {igUsername
+                        ? <>Compte <strong>@{igUsername}</strong> connecté.</>
+                        : <>Pas de site ? Connectez son <strong>Instagram</strong> : on y prend son logo, ses couleurs et ce qu&apos;elle fait.</>}
+                    </p>
+                    <div className="wsx-field">
+                      <input
+                        className="wsx-input"
+                        value={name}
+                        onChange={e => { setName(e.target.value); setIgError(null); }}
+                        placeholder="Nom du client"
+                        aria-label="Nom du client"
+                      />
+                      <button
+                        type="button" className="wsx-go"
+                        onClick={() => void connectInstagram()}
+                        disabled={connecting || !name.trim()}
+                      >
+                        {connecting ? "…" : "Connecter"}
+                      </button>
+                    </div>
+                    {igError && (
+                      <p className="wsx-err">
+                        {igError === "name"
+                          ? "Donnez d'abord un nom au client."
+                          : igError === "cancelled"
+                            ? "Connexion annulée — vous pouvez réessayer ou remplir à la main."
+                            : "La connexion Instagram a échoué. Réessayez, ou remplissez à la main."}
+                      </p>
+                    )}
+                  </div>
                   <div className="wsx-skip">
                     <button type="button" onClick={() => setStep(1)}>Passer, je remplis à la main</button>
                     <span className="wsx-rule" />

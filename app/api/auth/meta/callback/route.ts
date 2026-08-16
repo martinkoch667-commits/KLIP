@@ -9,9 +9,18 @@ export async function GET(request: NextRequest) {
 
   const { searchParams } = new URL(request.url);
   const code = searchParams.get("code");
-  const workspaceId = searchParams.get("state");
-  const error = searchParams.get("error");
+  // `state` porte l'identifiant du workspace et, éventuellement, la provenance.
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://getklip.fr";
+  const rawState = searchParams.get("state") ?? "";
+  const [workspaceId, from] = rawState.split("|");
+  const fromOnboarding = from === "onboarding";
+  // Où renvoyer l'utilisateur : là d'où il est parti, pas ailleurs. Le ramener
+  // sur le planning au milieu d'une création de client lui faisait perdre le
+  // parcours en cours.
+  const back = (qs: string) => fromOnboarding
+    ? `${appUrl}/workspace/new?ws=${workspaceId}&${qs}`
+    : `${appUrl}/workspace/${workspaceId}/${qs.startsWith("connected") ? "planning" : "parametres"}?${qs}`;
+  const error = searchParams.get("error");
   const redirectUri = `${appUrl}/api/auth/meta/callback`;
   // Voir commentaire dans meta/connect/route.ts : ID Instagram dédié,
   // distinct de l'ID principal de l'app (1998010880798347).
@@ -26,7 +35,7 @@ export async function GET(request: NextRequest) {
   // ─────────────────────────────────────────────────────────────────────────
 
   if (error || !code || !workspaceId) {
-    return NextResponse.redirect(`${appUrl}/workspace/${workspaceId}/parametres?error=cancelled`);
+    return NextResponse.redirect(back("error=cancelled"));
   }
 
   try {
@@ -63,7 +72,7 @@ export async function GET(request: NextRequest) {
     try { tokenData = JSON.parse(tokenText); } catch { tokenData = { parse_error: tokenText }; }
 
     if (!tokenData.access_token) {
-      return NextResponse.redirect(`${appUrl}/workspace/${workspaceId}/parametres?error=token`);
+      return NextResponse.redirect(back("error=token"));
     }
 
     const shortToken = (tokenData.access_token as string).trim();
@@ -110,11 +119,11 @@ export async function GET(request: NextRequest) {
     // faux "connecté" alors que rien n'a été enregistré.
     if (updateError || !updated || updated.length === 0) {
       console.error(`[CB:${inv}] update failed — error:`, updateError, "rows:", updated?.length ?? 0);
-      return NextResponse.redirect(`${appUrl}/workspace/${workspaceId}/parametres?error=save_failed`);
+      return NextResponse.redirect(back("error=save_failed"));
     }
 
     console.log(`[CB:${inv}] SUCCESS — connected @${igDetails.username}`);
-    return NextResponse.redirect(`${appUrl}/workspace/${workspaceId}/planning?connected=true`);
+    return NextResponse.redirect(back("connected=true"));
   } catch (err) {
     console.error(`[CB:${inv}] Callback error:`, err);
     return NextResponse.redirect(`${appUrl}/workspace/${workspaceId}/parametres?error=unknown`);
