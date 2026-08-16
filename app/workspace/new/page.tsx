@@ -209,6 +209,11 @@ export default function NewWorkspacePage() {
   /** Fond du cadre d'aperçu : sombre derrière un logo clair, clair derrière un
    *  logo sombre. Sinon un logo blanc disparaît purement et simplement. */
   const [logoIsLight, setLogoIsLight] = useState(false);
+  /** Variantes SUPPLÉMENTAIRES du logo, au-delà de la variante principale.
+   *  Une marque en a souvent plus de deux (fond clair, fond sombre, monochrome,
+   *  version carrée) et deux emplacements figés forçaient à choisir. */
+  const [extraLogos, setExtraLogos] = useState<{ file: File | null; preview: string }[]>([]);
+  const extraLogoRefs = useRef<(HTMLInputElement | null)[]>([]);
   // Une police repérée sur un site n'existe pas forcément dans le catalogue :
   // il faut le dire plutôt que de laisser croire qu'elle a été appliquée.
   const [siteFontMatched, setSiteFontMatched] = useState(false);
@@ -224,14 +229,27 @@ export default function NewWorkspacePage() {
   const [captionExample, setCaptionExample] = useState("");
 
   // Step 3 — Identité visuelle
-  const [primaryColor, setPrimaryColor] = useState("#0038FF");
-  const [secondaryColor, setSecondaryColor] = useState("#FFFFFF");
-  const [accentColor, setAccentColor] = useState("#BDF2A0");
+  // LISTE de couleurs de marque, et non des champs figés. Trois emplacements
+  // fixes obligeaient à jeter ce qu'on trouvait en plus, et à en afficher de
+  // vides quand on en trouvait moins. La personne ajoute, retire, modifie.
+  //
+  // Les trois premières restent lues sous leurs anciens noms : tout le reste de
+  // la page (aperçus, presets de sous-titres, enregistrement) s'appuie dessus.
+  const [brandColors, setBrandColors] = useState<string[]>(["#0038FF", "#FFFFFF", "#BDF2A0"]);
+  const primaryColor = brandColors[0] ?? "";
+  const secondaryColor = brandColors[1] ?? "";
+  const accentColor = brandColors[2] ?? "";
+  const setColorAt = (i: number, v: string) =>
+    setBrandColors((prev) => prev.map((c, k) => (k === i ? v : c)));
+  const removeColorAt = (i: number) =>
+    // Jamais zéro couleur : une charte sans couleur principale n'a pas de sens,
+    // et tous les lecteurs de `primaryColor` s'attendent à trouver quelque chose.
+    setBrandColors((prev) => (prev.length <= 1 ? prev : prev.filter((_, k) => k !== i)));
+  const addColor = () =>
+    setBrandColors((prev) => (prev.length >= 8 ? prev : [...prev, "#888888"]));
   // Quatrième et cinquième couleurs de marque. Trois champs ne suffisaient pas :
   // une marque en a souvent plus, et l'extraction en trouvait cinq qu'on jetait
   // faute d'endroit où les mettre (retour de Martin, deux fois). Vides = absentes.
-  const [color4, setColor4] = useState("");
-  const [color5, setColor5] = useState("");
   // Template de sous-titres du client (utilisé par défaut dans les montages vidéo).
   // Choisi à l'étape 5, une fois les COULEURS (étape 3) et la TYPO (étape 4) connues.
   const [subtitleStyleId, setSubtitleStyleId] = useState("bold-white");
@@ -464,11 +482,9 @@ export default function NewWorkspacePage() {
         // Sinon ils gardaient les valeurs par défaut de KLIP — Martin a vu le vert
         // #BDF2A0 présenté comme la couleur d'accent de Burger King. Un champ vide
         // dit la vérité ; un défaut déguisé en résultat, non.
-        setPrimaryColor(merged[0]);
-        setSecondaryColor(merged[1] ?? "");
-        setAccentColor(merged[2] ?? "");
-        setColor4(merged[3] ?? "");
-        setColor5(merged[4] ?? "");
+        // La liste prend exactement ce qu'on a trouvé : ni champ vide affiché
+        // comme un résultat, ni couleur jetée faute de place.
+        setBrandColors(merged.slice(0, 8));
         filled.push(merged.length > 1 ? "couleurs" : "couleur principale");
       }
       if (Array.isArray(d.fonts) && d.fonts.length) {
@@ -746,6 +762,13 @@ export default function NewWorkspacePage() {
       if (!brandIconUrl && siteIcon)     brandIconUrl = await importRemoteImage(siteIcon, "brand-assets", user.id);
       if (!logoDarkUrl && siteLogoDark)  logoDarkUrl  = await importRemoteImage(siteLogoDark, "brand-assets", user.id);
       // Les assets proposés ne s'ajoutent qu'aux emplacements restés libres.
+      // Les variantes supplémentaires rejoignent les assets de marque : c'est là
+      // que la charte les attend, et il n'y a pas de colonne dédiée par variante.
+      for (const lg of extraLogos) {
+        if (!lg.file || assetUrls.length >= 5) continue;
+        const u = await uploadFile(lg.file, "brand-assets", user.id);
+        if (u) assetUrls.push(u);
+      }
       for (const a of siteAssets) {
         if (assetUrls.length >= 5) break;
         const u = await importRemoteImage(a, "brand-assets", user.id);
@@ -812,7 +835,7 @@ export default function NewWorkspacePage() {
           // historiques — tout le code existant s'appuie dessus — et les couleurs
           // supplémentaires vivent ici plutôt que d'ajouter une colonne par
           // couleur.
-          brand_colors: [primaryColor, secondaryColor, accentColor, color4, color5].filter(Boolean),
+          brand_colors: brandColors.filter(Boolean),
           subtitle_style_id: subtitleStyleId,
           subtitle_custom: subtitleCustom,
           subtitle_pos: subPos,
@@ -992,9 +1015,9 @@ export default function NewWorkspacePage() {
                       {/* Le nuancier de l'application, pas celui du système : mêmes
                           teintes de charte, pipette et réglage fin, comme dans l'éditeur. */}
                       <div className="wsx-cols">
-                        {([["Principale", primaryColor, setPrimaryColor],
-                           ["Secondaire", secondaryColor, setSecondaryColor],
-                           ["Accent", accentColor, setAccentColor]] as const).map(([lbl, val, set]) => (
+                        {([["Principale", primaryColor, (v: string) => setColorAt(0, v)],
+                           ["Secondaire", secondaryColor, (v: string) => setColorAt(1, v)],
+                           ["Accent", accentColor, (v: string) => setColorAt(2, v)]] as const).map(([lbl, val, set]) => (
                           <div key={lbl} className="wsx-col">
                             <ColorPicker value={val} onChange={set} brandColors={[primaryColor, secondaryColor, accentColor]} />
                             <span className="wsx-col-l">{lbl}</span>
@@ -1393,27 +1416,47 @@ export default function NewWorkspacePage() {
                 <div>
                   <label style={labelStyle}>{t('brandColorsLabel')}</label>
                   <div className="ws-new-3col" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 12 }}>
-                    {[
-                      { label: t('colorPrimary'), value: primaryColor, onChange: setPrimaryColor, optional: false },
-                      { label: t('colorSecondary'), value: secondaryColor, onChange: setSecondaryColor, optional: false },
-                      { label: t('colorAccent'), value: accentColor, onChange: setAccentColor, optional: false },
-                      { label: t('color4'), value: color4, onChange: setColor4, optional: true },
-                      { label: t('color5'), value: color5, onChange: setColor5, optional: true },
-                    ].map(col => (
-                      <div key={col.label} className="card" style={{ padding: "14px 16px" }}>
-                        <span style={{ ...labelStyle, marginBottom: 12, display: "block" }}>{col.label}</span>
+                    {brandColors.map((val, i) => (
+                      <div key={i} className="card" style={{ padding: "14px 16px", position: "relative" }}>
+                        <span style={{ ...labelStyle, marginBottom: 12, display: "block" }}>
+                          {i === 0 ? t('colorPrimary') : i === 1 ? t('colorSecondary') : i === 2 ? t('colorAccent') : t('colorN', { n: i + 1 })}
+                        </span>
+                        {/* Retirer : jamais sur la couleur principale, dont tout le
+                            reste de l'application dépend. */}
+                        {brandColors.length > 1 && (
+                          <button
+                            type="button" title={t('colorRemove')}
+                            onClick={() => removeColorAt(i)}
+                            style={{
+                              position: "absolute", top: 8, right: 8, width: 22, height: 22,
+                              borderRadius: 99, border: "1px solid rgba(13,15,10,.14)", background: "var(--paper, #fff)",
+                              cursor: "pointer", lineHeight: 1, fontSize: 13, color: "var(--ink-3)", padding: 0,
+                            }}
+                          >×</button>
+                        )}
                         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                          <ColorPicker value={col.value || "#FFFFFF"} onChange={col.onChange} />
-                          <span style={{ fontFamily: "var(--mono)", fontWeight: 700, fontSize: 12, color: col.value ? "var(--ink)" : "var(--ink-3)", textTransform: "uppercase" }}>
-                            {col.value || t('colorEmpty')}
+                          <ColorPicker value={val || "#FFFFFF"} onChange={(v) => setColorAt(i, v)} />
+                          <span style={{ fontFamily: "var(--mono)", fontWeight: 700, fontSize: 12, color: "var(--ink)", textTransform: "uppercase" }}>
+                            {val}
                           </span>
                         </div>
                         <div style={{
                           width: "100%", height: 6, borderRadius: 99, marginTop: 12,
-                          background: col.value || "transparent", boxShadow: "inset 0 0 0 1px rgba(13,15,10,.08)",
+                          background: val, boxShadow: "inset 0 0 0 1px rgba(13,15,10,.08)",
                         }} />
                       </div>
                     ))}
+                    {brandColors.length < 8 && (
+                      <button
+                        type="button" onClick={addColor}
+                        className="card"
+                        style={{
+                          padding: "14px 16px", cursor: "pointer", border: "1px dashed rgba(13,15,10,.22)",
+                          background: "transparent", color: "var(--ink-3)", fontWeight: 700, fontSize: 13,
+                          display: "flex", alignItems: "center", justifyContent: "center", gap: 6, minHeight: 96,
+                        }}
+                      >+ {t('colorAdd')}</button>
+                    )}
                   </div>
                 </div>
 
@@ -1502,6 +1545,43 @@ export default function NewWorkspacePage() {
                       onClick={() => logoDarkRef.current?.click()}
                       onRemove={() => { setLogoDarkFile(null); setLogoDarkPreview(null); setSiteLogoDark(null); }}
                     />
+                    {/* Variantes supplémentaires : chacune se retire, et « + » en
+                        ajoute une. Rien n'est imposé, tout est facultatif. */}
+                    {extraLogos.map((lg, i) => (
+                      <UploadZone
+                        key={i}
+                        label={<>{t('logoVariantLabel')} {i + 2} <OptLabel /></>}
+                        hint={t('logoVariantHint')}
+                        preview={lg.preview || null}
+                        dark
+                        onClick={() => extraLogoRefs.current[i]?.click()}
+                        onRemove={() => setExtraLogos((prev) => prev.filter((_, k) => k !== i))}
+                      />
+                    ))}
+                    {extraLogos.map((_, i) => (
+                      <input
+                        key={`in-${i}`}
+                        ref={(el) => { extraLogoRefs.current[i] = el; }}
+                        type="file" accept=".png,.svg,.jpg,.jpeg" style={{ display: "none" }}
+                        onChange={(e) => {
+                          const f = e.target.files?.[0];
+                          if (!f) return;
+                          const url = URL.createObjectURL(f);
+                          setExtraLogos((prev) => prev.map((p, k) => (k === i ? { file: f, preview: url } : p)));
+                        }}
+                      />
+                    ))}
+                    {extraLogos.length < 4 && (
+                      <button
+                        type="button"
+                        onClick={() => setExtraLogos((prev) => [...prev, { file: null, preview: "" }])}
+                        style={{
+                          border: "1px dashed rgba(13,15,10,.22)", borderRadius: 12, background: "transparent",
+                          color: "var(--ink-3)", fontWeight: 700, fontSize: 13, cursor: "pointer",
+                          minHeight: 96, display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
+                        }}
+                      >+ {t('logoAdd')}</button>
+                    )}
                     <input ref={logoDarkRef} type="file" accept=".png,.svg,.jpg,.jpeg" style={{ display: "none" }}
                       onChange={e => { const f = e.target.files?.[0]; if (f) { setLogoDarkFile(f); setLogoDarkPreview(URL.createObjectURL(f)); } }}
                     />

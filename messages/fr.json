@@ -1066,7 +1066,11 @@
     "logoOtherCandidates": "Autres pistes trouvées sur le site — cliquez pour choisir",
     "color4": "Couleur 4",
     "color5": "Couleur 5",
-    "colorEmpty": "non définie"
+    "colorEmpty": "non définie",
+    "colorN": "Couleur {n}",
+    "colorRemove": "Retirer cette couleur",
+    "colorAdd": "Ajouter une couleur",
+    "logoAdd": "Ajouter une variante"
   },
   "onboardingSurvey": {
     "q1": "Pour combien de clients travaillez-vous ?",
