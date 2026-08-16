@@ -22,6 +22,7 @@ import Sidebar from '@/components/Sidebar';
 import { TEXT_TEMPLATES, TT_CATS, TT_REF_W, TextTemplateThumb, adaptTemplateToCharter, type BrandKit, type TextTemplate } from './textTemplates';
 import { LAYOUT_TEMPLATES, LAYOUT_CATS, LAYOUT_STYLES, LayoutThumb, adaptLayoutToCharter, type LayoutTemplate } from './layoutTemplates';
 import { googleFontHref, googleVariants, weightName } from '@/lib/fontWeights';
+import { buildCarouselSlide, themeFromBrand } from '@/lib/carouselDesigns';
 import { registerFontFamily, weightLabel, type FontFamily } from '@/lib/fontFiles';
 import { STICKERS, STICKER_CATS, stickerDataUri, type Sticker } from './stickers';
 import { AiThinkingLog } from '@/components/AiThinkingPanel';
@@ -4707,34 +4708,16 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
   // Matérialise une variante de layout : couleur intelligente (contraste réel), accents, logo, scrim.
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   // ── Carrousel généré d'un bout à l'autre ────────────────────────────────────
-  // L'éditeur savait déjà habiller UNE slide (materializeLayout). Ce qu'il ne
-  // savait pas faire, c'est produire un carrousel : l'accroche, le déroulé, la
-  // conclusion, écrits ensemble parce qu'ils n'ont de sens que les uns par
-  // rapport aux autres. /api/compose-carousel s'en charge et rend des slides
-  // dans la MÊME forme que materializeLayout ({ blocks, scrim }) — donc rien de
-  // neuf côté rendu, et les slides obtenues sont des slides ordinaires.
+  // L'éditeur savait habiller UNE slide (materializeLayout, prévue pour du texte
+  // SUR PHOTO). Une slide de carrousel n'a pas de photo à habiller : elle doit se
+  // tenir toute seule. La première version réutilisait quand même cette
+  // machinerie, et rendait donc un aplat de couleur avec du texte centré dessus —
+  // aucun design, retour de Martin, à raison.
   //
-  // Une différence avec la composition sur photo : ici il n'y a PAS d'image de
-  // fond. Un titre « blanc » sur un plan de travail vide serait invisible, donc
-  // chaque slide reçoit un fond plein aux couleurs de la marque et l'encre du
-  // texte est calculée pour rester lisible dessus.
+  // Le dessin vient maintenant de `lib/carouselDesigns.ts` : l'IA choisit un
+  // archétype et écrit les textes, le moteur compose formes, chiffres géants,
+  // cartes, pastilles et filets d'accent, aux couleurs de la charte.
   const generateCarousel = async (brief: string, slideCount: number) => {
-    const ground = workspaceData?.primary_color || '#14160F';
-    const displayFont = workspaceData?.font_family || 'Archivo';
-    const bodyFont = workspaceData?.font_secondary || displayFont;
-    // Encre lisible sur le fond : on ne fait pas confiance à la couleur demandée
-    // quand elle risque de disparaître dans le fond.
-    const ink = hexLum(ground) > 0.5 ? '#14160F' : '#FFFFFF';
-    const resolve = (c: string) => {
-      const v = c === 'primary' ? workspaceData?.primary_color
-        : c === 'secondary' ? workspaceData?.secondary_color
-        : c === 'accent' ? workspaceData?.accent_color
-        : c === 'black' ? '#14160F' : '#FFFFFF';
-      if (!v) return ink;
-      // Trop proche du fond = illisible : on retombe sur l'encre calculée.
-      return Math.abs(hexLum(v) - hexLum(ground)) < 0.25 ? ink : v;
-    };
-
     const res = await fetch('/api/compose-carousel', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -4746,49 +4729,46 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
       return;
     }
 
+    const theme = themeFromBrand(workspaceData ?? null);
+    const total = data.slides.length;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const built: Slide[] = data.slides.map((s: any, i: number) => {
-      const els: CanvasEl[] = [{
-        id: `carousel-ground-${i}`, type: 'rect', x: 0, y: 0, rotation: 0, opacity: 100,
-        width: stageW, height: stageH, fill: ground, stroke: '', strokeWidth: 0, cornerRadius: 0,
-      } as CanvasEl];
+    const built: Slide[] = data.slides.map((s: any, i: number) => ({
+      id: `slide-carousel-${Date.now()}-${i}`,
+      proxyUrl: '',
+      elements: buildCarouselSlide(String(s.archetype), s.texts ?? {}, theme, stageW, stageH, i + 1, total)
+        .map((e) => ({ ...e, id: newId() }) as CanvasEl),
+    }));
 
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      for (const b of (Array.isArray(s.blocks) ? s.blocks : []) as any[]) {
-        const width = Math.round((Math.min(Math.max(b.widthPct ?? 80, 10), 100) / 100) * stageW);
-        els.push({
-          id: newId(), type: 'text', text: String(b.text),
-          // Même règle maison que la composition sur photo : tout texte généré est
-          // centré dans le cadre (décision Martin).
-          x: Math.round((stageW - width) / 2),
-          y: Math.max(0, Math.round(((b.yPct ?? 40) / 100) * stageH)),
-          width, rotation: 0, opacity: 100,
-          fontSize: Math.max(12, Math.round(((b.fontPct ?? 7) / 100) * stageH)),
-          fontFamily: b.role === 'sous-titre' ? bodyFont : displayFont,
-          fontStyle: b.role === 'sous-titre' ? 'normal' : 'bold', textDecoration: '',
-          fill: resolve(String(b.color ?? 'white')), align: 'center',
-          hasBg: false, bgColor: '#000000', bgOpacity: 80, cornerRadius: 6,
-          padding: 16, paddingH: 16, paddingV: 10,
-          role: b.role || 'titre', uppercase: !!b.uppercase,
-        } as CanvasEl);
-      }
-      return { id: `slide-carousel-${Date.now()}-${i}`, elements: els, proxyUrl: '' };
-    });
-
-    // Le carrousel REMPLACE les slides du post : on repart de la première.
     slidesRef.current = built;
     setSlides(built);
-    setActiveSlideIdx(0);
-    setElements(built[0].elements);
     setProxyUrl('');
     setBgOffsetX(0);
     setBgOffsetY(0);
     setBgCropMode(false);
     setSelectedId(null);
     setCropId(null);
+
+    // Les vignettes de la bande latérale sont captées depuis le canvas VIVANT
+    // (saveCurrentSlide). Une slide jamais affichée n'en a donc aucune, et
+    // s'affichait vide : le carrousel avait l'air de n'avoir qu'une slide.
+    // On fait donc défiler chaque slide dans le canvas pour la photographier.
+    const frame = () => new Promise<void>((r) => requestAnimationFrame(() => requestAnimationFrame(() => r())));
+    for (let i = 0; i < built.length; i++) {
+      setActiveSlideIdx(i);
+      setElements(built[i].elements);
+      await frame();
+      built[i].thumbnail = stageRef.current?.toDataURL({ pixelRatio: 1.25 }) ?? undefined;
+    }
+    slidesRef.current = built;
+    setSlides([...built]);
+
+    // Retour à la première slide : c'est celle qu'on veut voir après génération.
+    setActiveSlideIdx(0);
+    setElements(built[0].elements);
     historyRef.current = [built[0].elements];
     histIdxRef.current = 0;
-    setHistTick(t => t + 1);
+    setHistTick((t) => t + 1);
+
     // La légende accompagne le carrousel : elle est écrite dans le même mouvement.
     // On ne l'écrase PAS si l'utilisateur a déjà retouché la sienne — les slides,
     // il les a demandées ; sa légende, non.

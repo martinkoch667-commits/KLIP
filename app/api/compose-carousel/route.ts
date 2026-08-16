@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
 import { cookies } from 'next/headers';
 import { generateAiText } from '@/lib/ai-text';
-import { LAYOUT_LIBRARY, type Slot } from '@/lib/layoutLibrary';
+import { CAROUSEL_ARCHETYPES, type Archetype } from '@/lib/carouselDesigns';
 
 // Un carrousel = plusieurs slides rédigées et mises en page d'un coup. Le budget
 // par défaut de Vercel (10 s) ne suffit pas.
@@ -17,14 +17,15 @@ export const maxDuration = 60;
 // qui court sur N slides (on accroche, on déroule, on conclut), où chaque slide
 // n'a de sens que par rapport à celle d'avant et celle d'après.
 //
-// Même principe que partout ailleurs ici : l'IA NE DESSINE PAS. Elle choisit une
-// recette dans la bibliothèque partagée (`lib/layoutLibrary.ts`) et la remplit.
-// La géométrie vient de mises en page déjà soignées, donc le rendu tient debout
-// même quand le texte, lui, est à retoucher.
+// Même principe que partout ailleurs ici : l'IA NE DESSINE PAS. Elle choisit un
+// ARCHÉTYPE de slide (`lib/carouselDesigns.ts`) et écrit ses textes ; tout le
+// décor — formes, chiffres géants, cartes, pastilles, filets — est dessiné par le
+// moteur. La première version réutilisait la bibliothèque de mises en page prévue
+// pour du texte SUR PHOTO : sans photo elle ne produisait qu'un aplat de couleur
+// avec du texte centré, c'est-à-dire aucun design.
 //
-// La sortie a EXACTEMENT la forme que `materializeLayout` consomme déjà côté
-// éditeur ({ blocks, scrim }) : aucune machinerie de rendu nouvelle, et les slides
-// générées sont des slides ordinaires, éditables et annulables comme les autres.
+// La route ne rend donc que des TEXTES et un nom d'archétype. Les slides obtenues
+// restent des slides ordinaires, éditables et annulables comme les autres.
 
 const MIN_SLIDES = 3;
 const MAX_SLIDES = 10;
@@ -32,8 +33,6 @@ const DEFAULT_SLIDES = 6;
 
 const num = (v: unknown, def: number) => (typeof v === 'number' && Number.isFinite(v) ? v : def);
 const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
-const COLORS = ['primary', 'secondary', 'accent', 'white', 'black'];
-const SCRIMS = ['bottom', 'top', 'none'];
 
 interface BrandRow {
   name?: string | null;
@@ -76,23 +75,24 @@ L'ÉCRITURE :
 - Tu écris en FRANÇAIS.
 
 LA MISE EN PAGE :
-Tu ne places aucune coordonnée. Pour chaque slide tu CHOISIS une recette dans la bibliothèque fournie et tu remplis ses emplacements (chaque emplacement a un rôle : titre, sous-titre, cta). Choisis la recette dont les rôles correspondent à ce que la slide doit dire — n'utilise pas une recette à trois niveaux pour une slide qui n'a qu'un titre.
-Varie les recettes entre les slides, mais garde une famille cohérente : un carrousel doit se tenir visuellement.
+Tu ne dessines RIEN et tu ne places aucune coordonnée. Pour chaque slide tu CHOISIS un ARCHÉTYPE dans la liste fournie et tu écris ses textes. Le décor — formes, chiffres géants, cartes, pastilles, filets d'accent — est dessiné par le moteur.
+- La PREMIÈRE slide prend un archétype "cover", la DERNIÈRE un archétype "closing", les autres un archétype "content".
+- VARIE les archétypes de contenu : trois slides "numbered" d'affilée, c'est un document Word. Alterne pour donner du rythme.
+- Chaque archétype liste ses emplacements avec une longueur conseillée en mots (« max »). RESPECTE-LA : le moteur rétrécit le texte trop long, mais une slide dont tout est rétréci est une slide ratée.
+- Un emplacement marqué « required » doit être rempli. Les autres, seulement s'ils apportent quelque chose.
+- Pour l'archétype "checklist", le champ "corps" contient les points séparés par le caractère « | » (3 points maximum).
 
 Tu réponds avec un UNIQUE objet JSON, sans texte autour, sans bloc de code :
 
 {
   "title": "titre interne du carrousel, court",
   "slides": [
-    {
-      "role": "hook" | "content" | "cta",
-      "recipeId": "<id EXACT d'une recette de la bibliothèque>",
-      "slots": [ { "role": "titre"|"sous-titre"|"cta", "text": "...", "color": "primary"|"secondary"|"accent"|"white"|"black", "uppercase": true } ],
-      "scrim": { "position": "bottom"|"top"|"none", "opacity": 55 }
-    }
+    { "archetype": "<id EXACT d'un archétype>", "kicker": "...", "titre": "...", "corps": "...", "cta": "..." }
   ],
   "caption": "la légende du post, prête à publier, avec 3 à 5 hashtags pertinents"
-}`;
+}
+
+N'inclus que les champs de texte que l'archétype choisi accepte. Pas de champ vide.`;
 
 export async function POST(request: NextRequest) {
   try {
@@ -119,19 +119,12 @@ export async function POST(request: NextRequest) {
       brand = (data as BrandRow) ?? null;
     }
 
-    const palette = [
-      brand?.primary_color && `primary=${brand.primary_color}`,
-      brand?.secondary_color && `secondary=${brand.secondary_color}`,
-      brand?.accent_color && `accent=${brand.accent_color}`,
-    ].filter(Boolean).join(', ');
-
-    const recipes = LAYOUT_LIBRARY.map((r) => ({ id: r.id, desc: r.desc, roles: r.slots.map((s) => s.role) }));
+    const archetypes = CAROUSEL_ARCHETYPES.map((a) => ({ id: a.id, usage: a.use, desc: a.desc, slots: a.slots }));
 
     const userText = [
       `CHARTE :\n${brandBlock(brand)}`,
-      palette ? `Couleurs disponibles : ${palette}, plus white et black. Aucune autre.` : 'Pas de couleur de charte : utilise white et black.',
       '',
-      `BIBLIOTHÈQUE DE MISES EN PAGE (choisis parmi ces id, n'en invente aucun) :\n${JSON.stringify(recipes)}`,
+      `ARCHÉTYPES DE SLIDES (choisis parmi ces id, n'en invente aucun) :\n${JSON.stringify(archetypes)}`,
       '',
       `SUJET DU CARROUSEL :\n${brief}`,
       '',
@@ -160,48 +153,40 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Réponse illisible' }, { status: 502 });
     }
 
-    // ── Revalidation. Ce qui sort d'ici doit être matérialisable tel quel par
-    //    l'éditeur : recette existante, rôles connus, couleurs de la charte.
+    // ── Revalidation. L'IA n'écrit que des TEXTES et le NOM d'un archétype :
+    //    tout ce qui touche au dessin est décidé par le moteur, donc il n'y a
+    //    ici ni coordonnée ni couleur à contrôler — seulement l'existence de
+    //    l'archétype et la présence des textes obligatoires.
     const rawSlides = Array.isArray(parsed.slides) ? parsed.slides : [];
+    const txt = (v: unknown, maxWords: number): string => {
+      const s = String(v ?? '').replace(/\s+/g, ' ').trim();
+      if (!s) return '';
+      // Coupe de sécurité : au-delà du double de la longueur conseillée, le texte
+      // ne rentre plus dans la composition même rétréci au minimum.
+      const words = s.split(' ');
+      return words.length > maxWords * 2 ? words.slice(0, maxWords * 2).join(' ') : s;
+    };
+
     const slides = rawSlides
       .filter((s): s is Record<string, unknown> => !!s && typeof s === 'object')
-      .map((s) => {
-        const recipe = LAYOUT_LIBRARY.find((r) => r.id === s.recipeId) ?? LAYOUT_LIBRARY[0];
-        const aiSlots = Array.isArray(s.slots) ? (s.slots as Record<string, unknown>[]) : [];
+      .map((s, i) => {
+        const wanted = CAROUSEL_ARCHETYPES.find((a) => a.id === s.archetype);
+        // Position attendue dans le carrousel : si l'IA se trompe d'usage (une
+        // couverture au milieu, une clôture en tête), on la ramène à sa place.
+        const want: Archetype['use'] = i === 0 ? 'cover' : i === rawSlides.length - 1 ? 'closing' : 'content';
+        const arch = wanted && wanted.use === want
+          ? wanted
+          : CAROUSEL_ARCHETYPES.find((a) => a.use === want) ?? CAROUSEL_ARCHETYPES[2];
 
-        // La géométrie vient de la recette, le texte de l'IA. On apparie par rôle,
-        // et un emplacement sans texte est simplement omis — mieux vaut une slide
-        // à deux blocs qu'un bloc vide qui laisse un trou dans la composition.
-        const used = new Set<number>();
-        const blocks = recipe.slots.map((g: Slot) => {
-          let idx = aiSlots.findIndex((a, i) => !used.has(i) && a.role === g.role);
-          if (idx < 0) idx = aiSlots.findIndex((a, i) => !used.has(i) && typeof a.text === 'string' && a.text);
-          if (idx < 0) return null;
-          used.add(idx);
-          const a = aiSlots[idx];
-          const text = String(a.text ?? '').trim();
-          if (!text) return null;
-          return {
-            text,
-            role: g.role,
-            xPct: g.xPct, yPct: g.yPct, widthPct: g.widthPct, fontPct: g.fontPct, align: g.align,
-            color: COLORS.includes(String(a.color)) ? String(a.color) : g.color,
-            uppercase: typeof a.uppercase === 'boolean' ? a.uppercase : g.uppercase,
-          };
-        }).filter((b): b is NonNullable<typeof b> => b !== null);
-
-        const scrimIn = (s.scrim ?? {}) as Record<string, unknown>;
-        const position = SCRIMS.includes(String(scrimIn.position)) ? String(scrimIn.position) : recipe.scrim;
-
-        return {
-          role: ['hook', 'content', 'cta'].includes(String(s.role)) ? String(s.role) : 'content',
-          recipeId: recipe.id,
-          blocks,
-          scrim: { position, opacity: clamp(num(scrimIn.opacity, 55), 0, 100) },
-        };
+        const texts: Record<string, string> = {};
+        for (const slot of arch.slots) {
+          const v = txt(s[slot.role], slot.max);
+          if (v) texts[slot.role] = v;
+        }
+        const missing = arch.slots.some((sl) => sl.required && !texts[sl.role]);
+        return missing ? null : { archetype: arch.id, texts };
       })
-      // Une slide sans un seul bloc de texte serait une slide vide dans le carrousel.
-      .filter((s) => s.blocks.length > 0)
+      .filter((s): s is NonNullable<typeof s> => s !== null)
       .slice(0, MAX_SLIDES);
 
     if (slides.length < MIN_SLIDES) {
