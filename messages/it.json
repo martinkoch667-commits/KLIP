@@ -818,7 +818,9 @@
     "chatThinking": "Sto guardando il visual",
     "chatError": "Assistente non disponibile al momento",
     "chatOpen": "Apri l'assistente visivo",
-    "chatClose": "Chiudi"
+    "chatClose": "Chiudi",
+    "carouselDone": "Carosello di {n} slide generato.",
+    "carouselFailed": "Impossibile generare il carosello."
   },
   "composer": {
     "title": "Componi con l’IA",

@@ -3381,6 +3381,16 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
         }
         // Les deux IA déjà en place, déclenchables depuis la conversation. Elles
         // réécrivent elles-mêmes les calques : on applique d'abord ce qui précède.
+        // Le carrousel remplace toutes les slides : on applique d'abord ce qui
+        // précède, sinon les retouches en attente seraient écrasées sans trace.
+        case 'generate_carousel': {
+          if (done) applyElements(els);
+          const brief = typeof a.brief === 'string' ? a.brief.trim() : '';
+          if (!brief) break;
+          const n = Math.max(3, Math.min(10, Math.round(typeof a.slides === 'number' ? a.slides : 6)));
+          await generateCarousel(brief, n);
+          return done + 1;
+        }
         case 'compose': { if (done) applyElements(els); void composeWithAI(); return done + 1; }
         case 'visual_qa': { if (done) applyElements(els); void runVisualQA(); return done + 1; }
         default: break;
@@ -4695,6 +4705,99 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
   };
 
   // Matérialise une variante de layout : couleur intelligente (contraste réel), accents, logo, scrim.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  // ── Carrousel généré d'un bout à l'autre ────────────────────────────────────
+  // L'éditeur savait déjà habiller UNE slide (materializeLayout). Ce qu'il ne
+  // savait pas faire, c'est produire un carrousel : l'accroche, le déroulé, la
+  // conclusion, écrits ensemble parce qu'ils n'ont de sens que les uns par
+  // rapport aux autres. /api/compose-carousel s'en charge et rend des slides
+  // dans la MÊME forme que materializeLayout ({ blocks, scrim }) — donc rien de
+  // neuf côté rendu, et les slides obtenues sont des slides ordinaires.
+  //
+  // Une différence avec la composition sur photo : ici il n'y a PAS d'image de
+  // fond. Un titre « blanc » sur un plan de travail vide serait invisible, donc
+  // chaque slide reçoit un fond plein aux couleurs de la marque et l'encre du
+  // texte est calculée pour rester lisible dessus.
+  const generateCarousel = async (brief: string, slideCount: number) => {
+    const ground = workspaceData?.primary_color || '#14160F';
+    const displayFont = workspaceData?.font_family || 'Archivo';
+    const bodyFont = workspaceData?.font_secondary || displayFont;
+    // Encre lisible sur le fond : on ne fait pas confiance à la couleur demandée
+    // quand elle risque de disparaître dans le fond.
+    const ink = hexLum(ground) > 0.5 ? '#14160F' : '#FFFFFF';
+    const resolve = (c: string) => {
+      const v = c === 'primary' ? workspaceData?.primary_color
+        : c === 'secondary' ? workspaceData?.secondary_color
+        : c === 'accent' ? workspaceData?.accent_color
+        : c === 'black' ? '#14160F' : '#FFFFFF';
+      if (!v) return ink;
+      // Trop proche du fond = illisible : on retombe sur l'encre calculée.
+      return Math.abs(hexLum(v) - hexLum(ground)) < 0.25 ? ink : v;
+    };
+
+    const res = await fetch('/api/compose-carousel', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ workspaceId, brief, slideCount }),
+    });
+    const data = await res.json().catch(() => null);
+    if (!res.ok || !Array.isArray(data?.slides) || !data.slides.length) {
+      showEditorToast(data?.error || T('carouselFailed'));
+      return;
+    }
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const built: Slide[] = data.slides.map((s: any, i: number) => {
+      const els: CanvasEl[] = [{
+        id: `carousel-ground-${i}`, type: 'rect', x: 0, y: 0, rotation: 0, opacity: 100,
+        width: stageW, height: stageH, fill: ground, stroke: '', strokeWidth: 0, cornerRadius: 0,
+      } as CanvasEl];
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      for (const b of (Array.isArray(s.blocks) ? s.blocks : []) as any[]) {
+        const width = Math.round((Math.min(Math.max(b.widthPct ?? 80, 10), 100) / 100) * stageW);
+        els.push({
+          id: newId(), type: 'text', text: String(b.text),
+          // Même règle maison que la composition sur photo : tout texte généré est
+          // centré dans le cadre (décision Martin).
+          x: Math.round((stageW - width) / 2),
+          y: Math.max(0, Math.round(((b.yPct ?? 40) / 100) * stageH)),
+          width, rotation: 0, opacity: 100,
+          fontSize: Math.max(12, Math.round(((b.fontPct ?? 7) / 100) * stageH)),
+          fontFamily: b.role === 'sous-titre' ? bodyFont : displayFont,
+          fontStyle: b.role === 'sous-titre' ? 'normal' : 'bold', textDecoration: '',
+          fill: resolve(String(b.color ?? 'white')), align: 'center',
+          hasBg: false, bgColor: '#000000', bgOpacity: 80, cornerRadius: 6,
+          padding: 16, paddingH: 16, paddingV: 10,
+          role: b.role || 'titre', uppercase: !!b.uppercase,
+        } as CanvasEl);
+      }
+      return { id: `slide-carousel-${Date.now()}-${i}`, elements: els, proxyUrl: '' };
+    });
+
+    // Le carrousel REMPLACE les slides du post : on repart de la première.
+    slidesRef.current = built;
+    setSlides(built);
+    setActiveSlideIdx(0);
+    setElements(built[0].elements);
+    setProxyUrl('');
+    setBgOffsetX(0);
+    setBgOffsetY(0);
+    setBgCropMode(false);
+    setSelectedId(null);
+    setCropId(null);
+    historyRef.current = [built[0].elements];
+    histIdxRef.current = 0;
+    setHistTick(t => t + 1);
+    // La légende accompagne le carrousel : elle est écrite dans le même mouvement.
+    // On ne l'écrase PAS si l'utilisateur a déjà retouché la sienne — les slides,
+    // il les a demandées ; sa légende, non.
+    if (typeof data.caption === 'string' && data.caption.trim() && !captionEdited) {
+      setAiCaption(data.caption.trim());
+    }
+    showEditorToast(T('carouselDone', { n: built.length }));
+  };
+
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const materializeLayout = async (L: any) => {
     const displayFont = workspaceData?.font_family || 'Archivo';

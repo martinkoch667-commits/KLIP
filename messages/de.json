@@ -818,7 +818,9 @@
     "chatThinking": "Ich sehe mir das Design an",
     "chatError": "Assistent derzeit nicht verfügbar",
     "chatOpen": "Design-Assistent öffnen",
-    "chatClose": "Schließen"
+    "chatClose": "Schließen",
+    "carouselDone": "Karussell mit {n} Slides erstellt.",
+    "carouselFailed": "Karussell konnte nicht erstellt werden."
   },
   "composer": {
     "title": "Mit KI erstellen",

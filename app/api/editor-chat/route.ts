@@ -36,6 +36,7 @@ ACTIONS DISPONIBLES (n'en invente aucune autre) :
 - { "type": "delete", "id": "<id>" }
 - { "type": "set_scrim", "position": "bottom|top|none", "opacity": 55 } — voile sombre de lisibilité derrière le texte
 - { "type": "visual_qa" } — relance l'audit visuel (lisibilité, débordements, contrastes)
+- { "type": "generate_carousel", "brief": "le sujet, tel que l'utilisateur l'a formulé", "slides": 6 } — écrit et met en page un CARROUSEL ENTIER (3 à 10 slides) à partir d'un sujet. À utiliser dès que l'utilisateur demande un carrousel sur un thème (« fais-moi un carrousel sur X », « 5 slides pour expliquer Y »). Tu ne rédiges RIEN toi-même : tu passes le sujet, un module dédié écrit l'accroche, le contenu et la conclusion, et remplace les slides du post. Si le nombre de slides n'est pas précisé, mets 6.
 
 ACTION DE REFONTE — c'est la principale quand on te demande de restructurer, redesigner, réorganiser, « aérer », « donner du punch », ou quand le visuel ne fonctionne pas :
 { "type": "redesign",

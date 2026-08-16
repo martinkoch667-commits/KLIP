@@ -818,7 +818,9 @@
     "chatThinking": "Estou a ver o visual",
     "chatError": "Assistente indisponível de momento",
     "chatOpen": "Abrir o assistente visual",
-    "chatClose": "Fechar"
+    "chatClose": "Fechar",
+    "carouselDone": "Carrossel de {n} slides gerado.",
+    "carouselFailed": "Não foi possível gerar o carrossel."
   },
   "composer": {
     "title": "Compor com IA",

@@ -818,7 +818,9 @@
     "chatThinking": "Looking at the design",
     "chatError": "Assistant unavailable right now",
     "chatOpen": "Open the design assistant",
-    "chatClose": "Close"
+    "chatClose": "Close",
+    "carouselDone": "{n}-slide carousel generated.",
+    "carouselFailed": "Could not generate the carousel."
   },
   "composer": {
     "title": "Compose with AI",
