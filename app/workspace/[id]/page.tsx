@@ -1055,6 +1055,32 @@ export default function WorkspacePage() {
   // Enregistre un post (envoi des fichiers + ligne en base) SANS naviguer.
   // Séparé de validatePost pour que la génération en lot puisse enchaîner
   // plusieurs posts sans quitter l'écran de sélection.
+  // Colonnes de `posts` que le code écrit mais qu'AUCUNE migration du dépôt ne
+  // crée : une base qui n'a pas reçu le bon ALTER TABLE à la main fait échouer
+  // l'insert entier avec « column ... does not exist » (Postgres 42703, PostgREST
+  // PGRST204). Un post perdu parce qu'une colonne facultative manque, c'est le
+  // pire rapport dégât/bénéfice possible : on retire la colonne fautive et on
+  // réessaie, exactement comme le fait déjà la création de client.
+  //
+  // Ce n'est pas un remplacement de migration : `supabase/add-posts-columns.sql`
+  // ajoute ces colonnes pour de bon. C'est le filet en attendant qu'elle soit
+  // passée, et pour les bases qui ne le seront jamais.
+  const POST_SOFT_COLUMNS = ["post_type", "template_id", "montage_json", "texte_visuel"] as const;
+
+  async function insertPost(payload: Record<string, unknown>) {
+    const p = { ...payload };
+    for (let i = 0; i <= POST_SOFT_COLUMNS.length; i++) {
+      const res = await supabase.from("posts").insert(p).select().single();
+      if (!res.error) return res;
+      const msg = res.error.message || "";
+      const missing = POST_SOFT_COLUMNS.find((c) => c in p && msg.includes(c));
+      if (!missing) return res;
+      console.warn(`[savePost] colonne « ${missing} » absente de la base — réessai sans elle. Passez supabase/add-posts-columns.sql.`);
+      delete p[missing];
+    }
+    return await supabase.from("posts").insert(p).select().single();
+  }
+
   async function savePost(item: PostItem, templateId?: string | null): Promise<{ dbId: string; clips: Record<string, unknown>[] | null } | null> {
     {
       const { data: { user } } = await supabase.auth.getUser();
@@ -1107,14 +1133,14 @@ export default function WorkspacePage() {
       }
       let saveError: string | null = null;
       if (!dbId) {
-        const { data: post, error } = await supabase.from("posts").insert({
+        const { data: post, error } = await insertPost({
           workspace_id: id, photo_url: pUrl, brief: item.brief,
           description: item.description, texte_visuel: item.texte_visuel,
           status: "validated",
           template_id: templateId ?? null,
           post_type: item.post_type ?? 'post',
           ...(montageJson ? { montage_json: montageJson } : {}),
-        }).select().single();
+        });
         if (post) dbId = post.id;
         else saveError = error?.message ?? "insert";
       } else {
@@ -1142,7 +1168,10 @@ export default function WorkspacePage() {
       if (!dbId || saveError) {
         console.error("[savePost] enregistrement impossible :", saveError);
         setPosts((prev) => prev.map((p) => (p.localId === item.localId ? { ...p, status: "generated", error: "save" } : p)));
-        alert(t('saveFailed'));
+        // La cause EXACTE est affichée, pas seulement « ça a échoué ». Un message
+        // générique oblige l'utilisateur à ouvrir la console pour qu'on puisse
+        // diagnostiquer — autant lui donner directement de quoi nous le dire.
+        alert(`${t('saveFailed')}\n\n${saveError ?? 'raison inconnue'}`);
         return null;
       }
 
