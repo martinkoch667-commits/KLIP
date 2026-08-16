@@ -1063,7 +1063,10 @@
     "customFontVariants": "{count, plural, one {# graisse importée} other {# graisses importées}}",
     "addMoreWeights": "+ Ajouter des graisses",
     "logoFromSite": "Trouvé sur le site — remplaçable",
-    "logoOtherCandidates": "Autres pistes trouvées sur le site — cliquez pour choisir"
+    "logoOtherCandidates": "Autres pistes trouvées sur le site — cliquez pour choisir",
+    "color4": "Couleur 4",
+    "color5": "Couleur 5",
+    "colorEmpty": "non définie"
   },
   "onboardingSurvey": {
     "q1": "Pour combien de clients travaillez-vous ?",

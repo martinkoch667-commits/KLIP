@@ -7,7 +7,7 @@ import { getPlan } from "@/lib/plans";
 // Colonnes optionnelles pas forcément migrées : si l'insert échoue parce que la
 // colonne n'existe pas encore (PostgREST PGRST204 / Postgres 42703), on la retire
 // et on réessaie — la création de client ne casse jamais faute de migration.
-const SOFT_COLUMNS = ["subtitle_style_id", "subtitle_custom", "subtitle_pos", "subtitle_max_words"] as const;
+const SOFT_COLUMNS = ["subtitle_style_id", "subtitle_custom", "subtitle_pos", "subtitle_max_words", "brand_colors"] as const;
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function insertWorkspace(client: any, payload: Record<string, unknown>) {
   const p = { ...payload };
@@ -51,7 +51,7 @@ export async function POST(request: NextRequest) {
       "sector", "instagram_username", "company_description",
       "tone", "words_to_use", "words_to_avoid", "caption_examples",
       "brand_voice_prompt", "description_style",
-      "primary_color", "secondary_color", "accent_color",
+      "primary_color", "secondary_color", "accent_color", "brand_colors",
       "logo_url", "logo_dark_url", "brand_assets", "brand_icon_url",
       "font_family", "font_primary_url", "font_secondary", "font_secondary_url", "brand_fonts",
       "subtitle_style_id", "subtitle_custom", "subtitle_pos", "subtitle_max_words",

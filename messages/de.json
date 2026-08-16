@@ -1063,7 +1063,10 @@
     "customFontVariants": "{count, plural, one {# Schriftstärke importiert} other {# Schriftstärken importiert}}",
     "addMoreWeights": "+ Schriftstärken hinzufügen",
     "logoFromSite": "Auf der Website gefunden — ersetzbar",
-    "logoOtherCandidates": "Weitere auf der Website gefundene Kandidaten — zum Auswählen klicken"
+    "logoOtherCandidates": "Weitere auf der Website gefundene Kandidaten — zum Auswählen klicken",
+    "color4": "Farbe 4",
+    "color5": "Farbe 5",
+    "colorEmpty": "nicht gesetzt"
   },
   "onboardingSurvey": {
     "q1": "Für wie viele Kunden arbeitest du?",

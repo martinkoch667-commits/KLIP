@@ -202,6 +202,10 @@ export default function NewWorkspacePage() {
    *  tranche. Les couleurs, elles, n'ont plus de sélecteur : mieux vaut en sortir
    *  cinq justes que dix à trier (retour de Martin). */
   const [logoCandidates, setLogoCandidates] = useState<string[]>([]);
+  /** Variante et assets proposés depuis le site : la personne n'a plus qu'à
+   *  retirer ce qui ne lui va pas, au lieu de tout téléverser à la main. */
+  const [siteLogoDark, setSiteLogoDark] = useState<string | null>(null);
+  const [siteAssets, setSiteAssets] = useState<string[]>([]);
   // Une police repérée sur un site n'existe pas forcément dans le catalogue :
   // il faut le dire plutôt que de laisser croire qu'elle a été appliquée.
   const [siteFontMatched, setSiteFontMatched] = useState(false);
@@ -220,6 +224,11 @@ export default function NewWorkspacePage() {
   const [primaryColor, setPrimaryColor] = useState("#0038FF");
   const [secondaryColor, setSecondaryColor] = useState("#FFFFFF");
   const [accentColor, setAccentColor] = useState("#BDF2A0");
+  // Quatrième et cinquième couleurs de marque. Trois champs ne suffisaient pas :
+  // une marque en a souvent plus, et l'extraction en trouvait cinq qu'on jetait
+  // faute d'endroit où les mettre (retour de Martin, deux fois). Vides = absentes.
+  const [color4, setColor4] = useState("");
+  const [color5, setColor5] = useState("");
   // Template de sous-titres du client (utilisé par défaut dans les montages vidéo).
   // Choisi à l'étape 5, une fois les COULEURS (étape 3) et la TYPO (étape 4) connues.
   const [subtitleStyleId, setSubtitleStyleId] = useState("bold-white");
@@ -381,7 +390,13 @@ export default function NewWorkspacePage() {
       if (!res.ok) { setSiteError(d?.error ?? "Analyse impossible."); setSitePhase("ask"); return; }
       if (d.logoUrl) setSiteLogo(d.logoUrl);
       if (d.iconUrl) setSiteIcon(d.iconUrl);
-      if (Array.isArray(d.logoCandidates)) setLogoCandidates(d.logoCandidates.filter((u: unknown) => typeof u === 'string'));
+      const cand: string[] = Array.isArray(d.logoCandidates) ? d.logoCandidates.filter((u: unknown) => typeof u === 'string') : [];
+      setLogoCandidates(cand);
+      // Le deuxième candidat est presque toujours la VARIANTE du premier (version
+      // sombre, blanche, monochrome) : c'est exactement ce que demande le champ
+      // « logo variante ». Les suivants deviennent des assets proposés.
+      if (cand[1]) setSiteLogoDark(cand[1]);
+      if (cand.length > 2) setSiteAssets(cand.slice(2, 7));
 
       const filled: string[] = [];
       if (d.name && !name.trim()) { setName(d.name); filled.push("nom"); }
@@ -408,18 +423,41 @@ export default function NewWorkspacePage() {
       // de la marque, la feuille de style n'est que l'habillage de son site. Chez
       // Burger King, le rouge n'existe que dans le logo — la lecture du CSS ne
       // rendait que le brun du texte et le crème du fond.
-      const fromLogo = d.logoUrl ? await dominantColorsFromImage(d.logoUrl) : [];
+      // On échantillonne TOUS les logos trouvés, pas seulement le premier.
+      // Sur Burger King, le premier candidat est le wordmark noir et crème :
+      // le rouge de la marque vit dans un AUTRE candidat, et ne remontait donc
+      // jamais. Trois candidats suffisent — au-delà on descend dans les icônes.
+      const cands: string[] = Array.isArray(d.logoCandidates) && d.logoCandidates.length
+        ? d.logoCandidates.slice(0, 3)
+        : (d.logoUrl ? [d.logoUrl] : []);
+      const fromLogo: string[] = [];
+      for (const c of cands) fromLogo.push(...await dominantColorsFromImage(c, 3));
+
       const cssColors: string[] = Array.isArray(d.colors) ? d.colors : [];
+      // Dédoublonnage par TEINTE ici aussi : sans lui, trois logos d'une même
+      // marque rendraient cinq nuances de la même couleur.
+      const hueOf = (hex: string) => {
+        const r = parseInt(hex.slice(1, 3), 16) / 255, g = parseInt(hex.slice(3, 5), 16) / 255, b = parseInt(hex.slice(5, 7), 16) / 255;
+        const mx = Math.max(r, g, b), mn = Math.min(r, g, b), dd = mx - mn;
+        if (!dd) return -1;
+        const h = mx === r ? ((g - b) / dd) % 6 : mx === g ? (b - r) / dd + 2 : (r - g) / dd + 4;
+        return (h * 60 + 360) % 360;
+      };
       const merged: string[] = [];
+      const hues: number[] = [];
       for (const c of [...fromLogo, ...cssColors]) {
-        if (typeof c !== 'string' || merged.includes(c)) continue;
+        if (typeof c !== 'string' || !/^#[0-9A-Fa-f]{6}$/.test(c) || merged.includes(c)) continue;
+        const h = hueOf(c);
+        if (h >= 0 && hues.some((o) => { let dd = Math.abs(o - h); if (dd > 180) dd = 360 - dd; return dd < 26; })) continue;
+        merged.push(c); hues.push(h);
         if (merged.length >= 5) break;
-        merged.push(c);
       }
       if (merged.length) {
         setPrimaryColor(merged[0]);
         if (merged[1]) setSecondaryColor(merged[1]);
         if (merged[2]) setAccentColor(merged[2]);
+        setColor4(merged[3] ?? "");
+        setColor5(merged[4] ?? "");
         filled.push(merged.length > 1 ? "couleurs" : "couleur principale");
       }
       if (Array.isArray(d.fonts) && d.fonts.length) {
@@ -651,8 +689,15 @@ export default function NewWorkspacePage() {
       // Rien de téléversé mais quelque chose de trouvé sur le site : on le prend.
       // Un fichier choisi à la main prime toujours — l'automatique ne remplace
       // jamais un choix explicite, il comble une absence.
-      if (!logoUrl && siteLogo)      logoUrl      = await importRemoteImage(siteLogo, "brand-assets", user.id);
-      if (!brandIconUrl && siteIcon) brandIconUrl = await importRemoteImage(siteIcon, "brand-assets", user.id);
+      if (!logoUrl && siteLogo)          logoUrl      = await importRemoteImage(siteLogo, "brand-assets", user.id);
+      if (!brandIconUrl && siteIcon)     brandIconUrl = await importRemoteImage(siteIcon, "brand-assets", user.id);
+      if (!logoDarkUrl && siteLogoDark)  logoDarkUrl  = await importRemoteImage(siteLogoDark, "brand-assets", user.id);
+      // Les assets proposés ne s'ajoutent qu'aux emplacements restés libres.
+      for (const a of siteAssets) {
+        if (assetUrls.length >= 5) break;
+        const u = await importRemoteImage(a, "brand-assets", user.id);
+        if (u) assetUrls.push(u);
+      }
       for (const f of assetFiles) {
         const url = await uploadFile(f, "brand-assets", user.id);
         if (url) assetUrls.push(url);
@@ -707,6 +752,11 @@ export default function NewWorkspacePage() {
           primary_color: primaryColor,
           secondary_color: secondaryColor,
           accent_color: accentColor,
+          // La palette complète. Les trois premières restent dans leurs colonnes
+          // historiques — tout le code existant s'appuie dessus — et les couleurs
+          // supplémentaires vivent ici plutôt que d'ajouter une colonne par
+          // couleur.
+          brand_colors: [primaryColor, secondaryColor, accentColor, color4, color5].filter(Boolean),
           subtitle_style_id: subtitleStyleId,
           subtitle_custom: subtitleCustom,
           subtitle_pos: subPos,
@@ -1286,23 +1336,25 @@ export default function NewWorkspacePage() {
                 {/* Colors */}
                 <div>
                   <label style={labelStyle}>{t('brandColorsLabel')}</label>
-                  <div className="ws-new-3col" style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12 }}>
+                  <div className="ws-new-3col" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 12 }}>
                     {[
-                      { label: t('colorPrimary'), value: primaryColor, onChange: setPrimaryColor },
-                      { label: t('colorSecondary'), value: secondaryColor, onChange: setSecondaryColor },
-                      { label: t('colorAccent'), value: accentColor, onChange: setAccentColor },
+                      { label: t('colorPrimary'), value: primaryColor, onChange: setPrimaryColor, optional: false },
+                      { label: t('colorSecondary'), value: secondaryColor, onChange: setSecondaryColor, optional: false },
+                      { label: t('colorAccent'), value: accentColor, onChange: setAccentColor, optional: false },
+                      { label: t('color4'), value: color4, onChange: setColor4, optional: true },
+                      { label: t('color5'), value: color5, onChange: setColor5, optional: true },
                     ].map(col => (
                       <div key={col.label} className="card" style={{ padding: "14px 16px" }}>
                         <span style={{ ...labelStyle, marginBottom: 12, display: "block" }}>{col.label}</span>
                         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                          <ColorPicker value={col.value} onChange={col.onChange} />
-                          <span style={{ fontFamily: "var(--mono)", fontWeight: 700, fontSize: 12, color: "var(--ink)", textTransform: "uppercase" }}>
-                            {col.value}
+                          <ColorPicker value={col.value || "#FFFFFF"} onChange={col.onChange} />
+                          <span style={{ fontFamily: "var(--mono)", fontWeight: 700, fontSize: 12, color: col.value ? "var(--ink)" : "var(--ink-3)", textTransform: "uppercase" }}>
+                            {col.value || t('colorEmpty')}
                           </span>
                         </div>
                         <div style={{
                           width: "100%", height: 6, borderRadius: 99, marginTop: 12,
-                          background: col.value, boxShadow: "inset 0 0 0 1px rgba(13,15,10,.08)",
+                          background: col.value || "transparent", boxShadow: "inset 0 0 0 1px rgba(13,15,10,.08)",
                         }} />
                       </div>
                     ))}
@@ -1383,11 +1435,11 @@ export default function NewWorkspacePage() {
 
                     <UploadZone
                       label={<>{t('logoVariantLabel')} <OptLabel /></>}
-                      hint={t('logoVariantHint')}
-                      preview={logoDarkPreview}
+                      hint={siteLogoDark && !logoDarkPreview ? t('logoFromSite') : t('logoVariantHint')}
+                      preview={logoDarkPreview ?? (siteLogoDark ? imgSrc(siteLogoDark) : null)}
                       dark={true}
                       onClick={() => logoDarkRef.current?.click()}
-                      onRemove={() => { setLogoDarkFile(null); setLogoDarkPreview(null); }}
+                      onRemove={() => { setLogoDarkFile(null); setLogoDarkPreview(null); setSiteLogoDark(null); }}
                     />
                     <input ref={logoDarkRef} type="file" accept=".png,.svg,.jpg,.jpeg" style={{ display: "none" }}
                       onChange={e => { const f = e.target.files?.[0]; if (f) { setLogoDarkFile(f); setLogoDarkPreview(URL.createObjectURL(f)); } }}
