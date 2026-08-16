@@ -560,7 +560,8 @@
     "batchErrSave": "Could not save",
     "batchErrNoClips": "No usable footage",
     "batchErrEmpty": "Analysis returned nothing",
-    "batchErrGeneric": "Pre-edit failed"
+    "batchErrGeneric": "Pre-edit failed",
+    "saveFailed": "Could not save this post. Nothing was lost: try again, and report the bug if it persists."
   },
   "planning": {
     "bestTime": "Best time to post",

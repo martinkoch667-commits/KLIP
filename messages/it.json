@@ -560,7 +560,8 @@
     "batchErrSave": "Salvataggio non riuscito",
     "batchErrNoClips": "Nessuna ripresa utilizzabile",
     "batchErrEmpty": "Analisi senza risultato",
-    "batchErrGeneric": "Premontaggio non riuscito"
+    "batchErrGeneric": "Premontaggio non riuscito",
+    "saveFailed": "Impossibile salvare questo post. Non è andato perso nulla: riprova e segnala il bug se persiste."
   },
   "planning": {
     "bestTime": "Momento migliore per pubblicare",

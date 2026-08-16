@@ -560,7 +560,8 @@
     "batchErrSave": "Não foi possível guardar",
     "batchErrNoClips": "Sem imagens utilizáveis",
     "batchErrEmpty": "Análise sem resultado",
-    "batchErrGeneric": "Falha na pré-montagem"
+    "batchErrGeneric": "Falha na pré-montagem",
+    "saveFailed": "Não foi possível guardar esta publicação. Nada se perdeu: tente novamente e reporte o erro se persistir."
   },
   "planning": {
     "bestTime": "Melhor momento para publicar",

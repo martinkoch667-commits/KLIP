@@ -1105,8 +1105,9 @@ export default function WorkspacePage() {
           pUrl = urlData.publicUrl;
         }
       }
+      let saveError: string | null = null;
       if (!dbId) {
-        const { data: post } = await supabase.from("posts").insert({
+        const { data: post, error } = await supabase.from("posts").insert({
           workspace_id: id, photo_url: pUrl, brief: item.brief,
           description: item.description, texte_visuel: item.texte_visuel,
           status: "validated",
@@ -1115,18 +1116,39 @@ export default function WorkspacePage() {
           ...(montageJson ? { montage_json: montageJson } : {}),
         }).select().single();
         if (post) dbId = post.id;
+        else saveError = error?.message ?? "insert";
       } else {
-        await supabase.from("posts").update({
+        const { error } = await supabase.from("posts").update({
           photo_url: pUrl,
+          // Le sujet est ré-enregistré : c'est lui qui alimente l'écriture du
+          // carrousel à l'ouverture de l'éditeur, il ne doit pas rester périmé.
+          brief: item.brief,
           description: item.description, texte_visuel: item.texte_visuel,
           status: "validated",
           ...(templateId !== undefined ? { template_id: templateId ?? null } : {}),
           ...(montageJson ? { montage_json: montageJson } : {}),
         }).eq("id", dbId);
+        if (error) saveError = error.message;
       }
+
+      // ÉCHEC D'ENREGISTREMENT : le post ne doit surtout PAS passer « validé ».
+      //
+      // C'est ce qui se passait — l'erreur de Supabase n'était même pas lue, le
+      // post était marqué validé sans identifiant en base, et l'interface se
+      // retrouvait sans aucune action : « Éditer le visuel » ne s'affiche que
+      // tant que le post n'est pas validé, « Ouvrir l'éditeur » seulement s'il a
+      // un dbId. Ni l'un ni l'autre → le bouton disparaissait purement et
+      // simplement, sans un mot d'explication (retour de Martin).
+      if (!dbId || saveError) {
+        console.error("[savePost] enregistrement impossible :", saveError);
+        setPosts((prev) => prev.map((p) => (p.localId === item.localId ? { ...p, status: "generated", error: "save" } : p)));
+        alert(t('saveFailed'));
+        return null;
+      }
+
       releasePreview(item.photo_url);
       setPosts((prev) => prev.map((p) => p.localId === item.localId ? { ...p, dbId, photo_url: pUrl, status: "validated" } : p));
-      return dbId ? { dbId, clips: montageJson?.clips ?? null } : null;
+      return { dbId, clips: montageJson?.clips ?? null };
     }
   }
 
@@ -2034,7 +2056,9 @@ export default function WorkspacePage() {
                                         </span>
                                       </label>
                                       <PreEditDone post={post} />
-                                      {post.status !== "validated" && !batchFor(post.localId) && (
+                                      {/* Même garde-fou que côté photo : validé sans dbId = aucun
+                                          montage ouvrable, on garde le bouton qui réessaie. */}
+                                      {(post.status !== "validated" || !post.dbId) && !batchFor(post.localId) && (
                                         <button
                                           onClick={() => (preEdit[post.localId] ?? true) ? enqueuePreEdit([post]) : validatePost(post)}
                                           disabled={post.status === "validating"}
@@ -2058,7 +2082,11 @@ export default function WorkspacePage() {
                                   ) : (
                                     /* Photo: standard editor flow */
                                     <>
-                                      {post.status !== "validated" && (
+                                      {/* `|| !post.dbId` : ceinture et bretelles. Un post
+                                          « validé » sans identifiant en base ne peut ouvrir
+                                          aucun éditeur — mieux vaut lui laisser le bouton qui
+                                          RETENTE l'enregistrement que ne rien afficher du tout. */}
+                                      {(post.status !== "validated" || !post.dbId) && (
                                         <button
                                           onClick={() => openEditorWithTemplatePicker(post)}
                                           disabled={post.status === "validating"}

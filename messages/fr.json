@@ -560,7 +560,8 @@
     "batchErrSave": "Enregistrement impossible",
     "batchErrNoClips": "Aucun plan exploitable",
     "batchErrEmpty": "Analyse sans résultat",
-    "batchErrGeneric": "Échec du prémontage"
+    "batchErrGeneric": "Échec du prémontage",
+    "saveFailed": "Impossible d'enregistrer ce post. Rien n'a été perdu : réessayez, et si ça persiste, signalez le bug."
   },
   "planning": {
     "bestTime": "Meilleur moment pour publier",
