@@ -182,6 +182,13 @@ export default function NewWorkspacePage() {
   const [igUsername, setIgUsername] = useState<string | null>(null);
   const [igError, setIgError] = useState<string | null>(null);
   const [connecting, setConnecting] = useState(false);
+  /** L'écran de connexion Meta est passé (connecté OU explicitement reporté).
+   *  C'est la première chose qu'on demande : publier est la raison d'être de
+   *  KLIP, et le compte devra être relié de toute façon. */
+  const [metaDone, setMetaDone] = useState(false);
+  /** Couleurs tirées du profil Instagram. Gardées à part pour COMPLÉTER ce que
+   *  le site donnera ensuite, au lieu d'être écrasées par lui. */
+  const [igColors, setIgColors] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -490,7 +497,17 @@ export default function NewWorkspacePage() {
         // dit la vérité ; un défaut déguisé en résultat, non.
         // La liste prend exactement ce qu'on a trouvé : ni champ vide affiché
         // comme un résultat, ni couleur jetée faute de place.
-        setBrandColors(merged.slice(0, 8));
+        // Le site complète Instagram, il ne l'efface pas : une couleur trouvée
+        // sur le profil et absente du site reste dans la charte.
+        const both = [...merged];
+        for (const c of igColors) {
+          if (both.length >= 8) break;
+          const h = hueOf(c);
+          if (both.includes(c)) continue;
+          if (h >= 0 && both.some((o) => { let dd = Math.abs(hueOf(o) - h); if (dd > 180) dd = 360 - dd; return dd < 15; })) continue;
+          both.push(c);
+        }
+        setBrandColors(both.slice(0, 8));
         filled.push(merged.length > 1 ? "couleurs" : "couleur principale");
       }
       if (Array.isArray(d.fonts) && d.fonts.length) {
@@ -708,10 +725,10 @@ export default function NewWorkspacePage() {
     window.history.replaceState({}, "", "/workspace/new");
     setCreatedWorkspaceId(ws);
     if (q.get("error")) { setIgError(q.get("error")); return; }
-    if (q.get("connected") !== "true") return;
-    // La connexion a réussi : on entre dans l'assistant. Rester sur l'écran de
-    // l'adresse du site laisserait croire que rien ne s'est passé.
-    setStep(1);
+    if (q.get("connected") !== "true") { setMetaDone(true); return; }
+    // Connecté : on passe à la suite du parcours — l'adresse du site — au lieu
+    // de renvoyer sur l'écran de connexion qui n'a plus lieu d'être.
+    setMetaDone(true);
 
     (async () => {
       const { data } = await supabase.from("workspaces").select("name").eq("id", ws).single();
@@ -728,7 +745,7 @@ export default function NewWorkspacePage() {
         if (p?.profile_picture_url) {
           setSiteLogo(p.profile_picture_url);
           const cols = await dominantColorsFromImage(p.profile_picture_url, 5);
-          if (cols.length) setBrandColors(cols);
+          if (cols.length) { setIgColors(cols); setBrandColors(cols); }
         }
       } catch { /* la connexion a réussi, le pré-remplissage est un bonus */ }
     })();
@@ -976,8 +993,72 @@ export default function NewWorkspacePage() {
           <div className="wsx-body">
             <div className="wsx-inner">
 
+              {/* ── 0. On relie le compte ─────────────────────────────────
+                  Avant tout le reste : publier est la raison d'être de KLIP, le
+                  compte devra être relié de toute façon, et son profil est une
+                  excellente source de charte — la photo de profil EST le logo,
+                  la bio dit ce que fait la marque. Beaucoup de clients n'ont
+                  d'ailleurs pas de site exploitable, mais tous ont un Instagram. */}
+              {!metaDone && sitePhase === "ask" && (
+                <>
+                  <h1 className="wsx-h1">
+                    On commence par<br />le <span className="acc-hl">compte</span>.
+                  </h1>
+                  <p className="wsx-sub">
+                    Reliez le compte Instagram ou Facebook du client. C&apos;est ce qui
+                    permettra de publier — et on en tire déjà son logo, ses couleurs et
+                    ce qu&apos;il fait.
+                  </p>
+                  <div className="wsx-field">
+                    <input
+                      className="wsx-input"
+                      value={name}
+                      onChange={e => { setName(e.target.value); setIgError(null); }}
+                      onKeyDown={e => { if (e.key === "Enter" && name.trim()) { e.preventDefault(); void connectInstagram(); } }}
+                      placeholder="Nom du client"
+                      autoFocus
+                      aria-label="Nom du client"
+                    />
+                    <button
+                      type="button" className="wsx-go"
+                      onClick={() => void connectInstagram()}
+                      disabled={connecting || !name.trim()}
+                    >
+                      {connecting ? "…" : "Connecter"}
+                    </button>
+                  </div>
+                  {igError ? (
+                    <p className="wsx-err">
+                      {igError === "name"
+                        ? "Donnez d'abord un nom au client."
+                        : igError === "cancelled"
+                          ? "Connexion annulée. Vous pourrez la refaire plus tard."
+                          : "La connexion a échoué. Réessayez, ou passez cette étape."}
+                    </p>
+                  ) : (
+                    <p className="wsx-note">
+                      Une fenêtre de navigation privée évite de relier votre propre compte
+                      à la place de celui du client.
+                    </p>
+                  )}
+                  {/* Reportable : on ne bloque personne sur une autorisation. */}
+                  <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 28 }}>
+                    <button
+                      type="button"
+                      onClick={() => setMetaDone(true)}
+                      style={{
+                        background: "transparent", border: "none", cursor: "pointer",
+                        color: "var(--ink-3)", fontSize: 13, fontWeight: 600, padding: "6px 2px",
+                      }}
+                    >
+                      Passer cette étape, je relierai plus tard →
+                    </button>
+                  </div>
+                </>
+              )}
+
               {/* ── 1. On demande ─────────────────────────────────────────── */}
-              {sitePhase === "ask" && (
+              {metaDone && sitePhase === "ask" && (
                 <>
                   <h1 className="wsx-h1">
                     La charte, à partir<br />du <span className="acc-hl">site</span>.
@@ -1004,46 +1085,11 @@ export default function NewWorkspacePage() {
                   </div>
                   {siteError
                     ? <p className="wsx-err">{siteError}</p>
-                    : <p className="wsx-note">Rien à installer. On lit la page publique, c&apos;est tout.</p>}
-                  {/* ── Instagram, l'autre porte d'entrée ────────────────────
-                      Beaucoup de clients n'ont pas de site exploitable — mesuré :
-                      certains sites de restauration ne rendent ni logo ni couleur —
-                      mais ils ont tous un Instagram. Et son profil est une
-                      meilleure source : la photo de profil EST le logo, la bio dit
-                      ce que fait la marque en trois lignes.
-                      La connexion sera de toute façon nécessaire pour publier. */}
-                  <div style={{ marginTop: 26, paddingTop: 22, borderTop: "1px solid rgba(13,15,10,.10)" }}>
-                    <p className="wsx-note" style={{ marginBottom: 12 }}>
-                      {igUsername
-                        ? <>Compte <strong>@{igUsername}</strong> connecté.</>
-                        : <>Pas de site ? Connectez son <strong>Instagram</strong> : on y prend son logo, ses couleurs et ce qu&apos;elle fait.</>}
-                    </p>
-                    <div className="wsx-field">
-                      <input
-                        className="wsx-input"
-                        value={name}
-                        onChange={e => { setName(e.target.value); setIgError(null); }}
-                        placeholder="Nom du client"
-                        aria-label="Nom du client"
-                      />
-                      <button
-                        type="button" className="wsx-go"
-                        onClick={() => void connectInstagram()}
-                        disabled={connecting || !name.trim()}
-                      >
-                        {connecting ? "…" : "Connecter"}
-                      </button>
-                    </div>
-                    {igError && (
-                      <p className="wsx-err">
-                        {igError === "name"
-                          ? "Donnez d'abord un nom au client."
-                          : igError === "cancelled"
-                            ? "Connexion annulée — vous pouvez réessayer ou remplir à la main."
-                            : "La connexion Instagram a échoué. Réessayez, ou remplissez à la main."}
-                      </p>
-                    )}
-                  </div>
+                    : igUsername
+                      // Après l'autorisation, l'écran change : sans un mot, rien ne
+                      // dit que la connexion a abouti.
+                      ? <p className="wsx-note">Compte <strong>@{igUsername}</strong> relié — sa charte est déjà pré-remplie. Le site vient la compléter.</p>
+                      : <p className="wsx-note">Rien à installer. On lit la page publique, c&apos;est tout.</p>}
                   <div className="wsx-skip">
                     <button type="button" onClick={() => setStep(1)}>Passer, je remplis à la main</button>
                     <span className="wsx-rule" />
