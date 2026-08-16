@@ -206,6 +206,9 @@ export default function NewWorkspacePage() {
    *  retirer ce qui ne lui va pas, au lieu de tout téléverser à la main. */
   const [siteLogoDark, setSiteLogoDark] = useState<string | null>(null);
   const [siteAssets, setSiteAssets] = useState<string[]>([]);
+  /** Fond du cadre d'aperçu : sombre derrière un logo clair, clair derrière un
+   *  logo sombre. Sinon un logo blanc disparaît purement et simplement. */
+  const [logoIsLight, setLogoIsLight] = useState(false);
   // Une police repérée sur un site n'existe pas forcément dans le catalogue :
   // il faut le dire plutôt que de laisser croire qu'elle a été appliquée.
   const [siteFontMatched, setSiteFontMatched] = useState(false);
@@ -570,6 +573,36 @@ export default function NewWorkspacePage() {
    *  pas quoi en faire, et l'image ne s'afficherait pas. */
   const imgSrc = (url: string) => url.startsWith('data:') ? url : `/api/proxy-image?url=${encodeURIComponent(url)}`;
 
+  /** Un logo est-il CLAIR ? On mesure la luminosité moyenne de ses pixels
+   *  visibles (le vide d'un PNG transparent ne compte pas). Un logo blanc posé
+   *  sur un cadre blanc est parfaitement invisible — c'est ce que Martin a vu. */
+  async function isLightImage(url: string): Promise<boolean> {
+    try {
+      const img = await new Promise<HTMLImageElement | null>((res) => {
+        const i = new Image();
+        i.crossOrigin = 'anonymous';
+        i.onload = () => res(i);
+        i.onerror = () => res(null);
+        i.src = imgSrc(url);
+      });
+      if (!img) return false;
+      const S = 32;
+      const cv = document.createElement('canvas');
+      cv.width = S; cv.height = S;
+      const ctx = cv.getContext('2d', { willReadFrequently: true });
+      if (!ctx) return false;
+      ctx.drawImage(img, 0, 0, S, S);
+      const d = ctx.getImageData(0, 0, S, S).data;
+      let sum = 0, n = 0;
+      for (let i = 0; i < d.length; i += 4) {
+        if (d[i + 3] < 40) continue;                 // pixel transparent : pas du logo
+        sum += (0.2126 * d[i] + 0.7152 * d[i + 1] + 0.0722 * d[i + 2]) / 255;
+        n++;
+      }
+      return n > 0 && sum / n > 0.6;
+    } catch { return false; }
+  }
+
   async function dominantColorsFromImage(url: string, max = 4): Promise<string[]> {
     try {
       const img = await new Promise<HTMLImageElement | null>((res) => {
@@ -631,6 +664,15 @@ export default function NewWorkspacePage() {
       return [];
     }
   }
+
+  useEffect(() => {
+    const src = logoPreview ?? siteLogo;
+    if (!src) { setLogoIsLight(false); return; }
+    let annule = false;
+    isLightImage(src).then((v) => { if (!annule) setLogoIsLight(v); });
+    return () => { annule = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [logoPreview, siteLogo]);
 
   async function importRemoteImage(url: string, bucket: string, userId: string): Promise<string | null> {
     try {
@@ -1413,7 +1455,7 @@ export default function NewWorkspacePage() {
                       label={t('logoMainLabel')}
                       hint={siteLogo && !logoPreview ? t('logoFromSite') : t('logoMainHint')}
                       preview={logoPreview ?? (siteLogo ? imgSrc(siteLogo) : null)}
-                      dark={false}
+                      dark={logoIsLight}
                       onClick={() => logoRef.current?.click()}
                       onRemove={() => { setLogoFile(null); setLogoPreview(null); setSiteLogo(null); }}
                     />
@@ -1434,7 +1476,12 @@ export default function NewWorkspacePage() {
                               onClick={() => setSiteLogo(url)}
                               style={{
                                 width: 64, height: 44, borderRadius: 7, cursor: "pointer", padding: 3,
-                                background: "var(--sunk, #f4f4f0)",
+                                // Damier : un logo blanc comme un logo noir s'y
+                                // détachent, sans avoir à mesurer chaque vignette.
+                                backgroundColor: "#FFFFFF",
+                                backgroundImage: "linear-gradient(45deg,#d9d9d4 25%,transparent 25%),linear-gradient(-45deg,#d9d9d4 25%,transparent 25%),linear-gradient(45deg,transparent 75%,#d9d9d4 75%),linear-gradient(-45deg,transparent 75%,#d9d9d4 75%)",
+                                backgroundSize: "10px 10px",
+                                backgroundPosition: "0 0,0 5px,5px -5px,-5px 0",
                                 border: url === siteLogo ? "2px solid var(--ink)" : "1px solid rgba(13,15,10,.14)",
                               }}
                             >
