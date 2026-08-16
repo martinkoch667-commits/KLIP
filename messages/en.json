@@ -1062,7 +1062,8 @@
     "finishBtn": "Finish",
     "customFontVariants": "{count, plural, one {# weight imported} other {# weights imported}}",
     "addMoreWeights": "+ Add weights",
-    "logoFromSite": "Found on the website — replaceable"
+    "logoFromSite": "Found on the website — replaceable",
+    "logoOtherCandidates": "Other candidates found on the site — click to choose"
   },
   "onboardingSurvey": {
     "q1": "How many clients do you work for?",

@@ -1062,7 +1062,8 @@
     "finishBtn": "Terminar",
     "customFontVariants": "{count, plural, one {# grosor importado} other {# grosores importados}}",
     "addMoreWeights": "+ Añadir grosores",
-    "logoFromSite": "Encontrado en el sitio — reemplazable"
+    "logoFromSite": "Encontrado en el sitio — reemplazable",
+    "logoOtherCandidates": "Otras opciones encontradas en el sitio — haz clic para elegir"
   },
   "onboardingSurvey": {
     "q1": "¿Para cuántos clientes trabajas?",

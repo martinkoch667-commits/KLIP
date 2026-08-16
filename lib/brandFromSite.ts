@@ -17,6 +17,10 @@ export interface BrandFromSite {
   colors: string[];        // du plus au moins présent, #RRGGBB
   fonts: string[];         // familles CSS, du plus au moins présent
   logoUrl?: string;
+  /** Toutes les pistes de logo trouvées, du plus probable au moins. Le meilleur
+   *  candidat n'est qu'un pari : sur un site mal balisé c'est souvent une
+   *  bannière. L'appelant les propose, l'utilisateur tranche. */
+  logoCandidates: string[];
   iconUrl?: string;
   sampleText?: string;     // matière brute pour déduire le ton, côté appelant
 }
@@ -116,7 +120,9 @@ function rankBrandColors(counts: Map<string, number>): string[] {
   const fallback = all.sort((a, b) => b.n - a.n);
   const out: string[] = [];
   for (const c of [...vivid, ...fallback]) {
-    if (out.length >= 4) break;
+    // Huit et non quatre : une marque a souvent plus de trois couleurs, et
+    // n'en proposer que le strict nécessaire privait l'utilisateur de choix.
+    if (out.length >= 8) break;
     if (out.some(h => tooClose(h, c.hex))) continue;
     out.push(c.hex);
   }
@@ -202,22 +208,34 @@ function decodeEntities(s: string): string {
 
 function absolutize(href: string | undefined, base: URL): string | undefined {
   if (!href) return undefined;
-  try { return new URL(href, base).toString(); } catch { return undefined; }
+  // Les attributs HTML sont ÉCHAPPÉS : un src contenant plusieurs paramètres
+  // s'écrit `?url=x&amp;w=1920`. Sans décodage, l'URL construite gardait le
+  // « &amp; » littéral et pointait dans le vide — le candidat s'affichait cassé.
+  const decoded = href
+    .replace(/&amp;/g, '&').replace(/&#38;/g, '&')
+    .replace(/&quot;/g, '"').replace(/&#39;/g, "'")
+    .replace(/&lt;/g, '<').replace(/&gt;/g, '>')
+    .trim();
+  try { return new URL(decoded, base).toString(); } catch { return undefined; }
 }
 
 // Le logo, par ordre de fiabilité décroissante. L'ancienne version retombait
 // sur og:image faute de mieux : c'est l'image de PARTAGE du site, souvent une
 // photo d'ambiance — d'où le « logo » au hasard qui remontait. Mieux vaut ne
 // rien renvoyer que renvoyer n'importe quoi.
-function findLogo(html: string, base: URL): string | undefined {
+// Rend une LISTE de candidats, du plus probable au moins. Ne rendre que le
+// meilleur revenait à parier : sur un site mal balisé, l'unique proposition était
+// souvent une illustration de bannière plutôt que le logo, et l'utilisateur
+// n'avait aucun recours. Plusieurs propositions, c'est lui qui tranche.
+function findLogoCandidates(html: string, base: URL): string[] {
+  const out: string[] = [];
+  const push = (u?: string) => { if (u && !out.includes(u)) out.push(u); };
+
   // 1. Données structurées : quand elles existent, la marque a désigné son logo
-  //    elle-même. Aucune heuristique ne bat ça.
+  //    elle-même. Aucune heuristique ne bat ça — elle reste donc en tête.
   for (const m of Array.from(html.matchAll(/<script[^>]+application\/ld\+json[^>]*>([\s\S]*?)<\/script>/gi))) {
-    try {
-      const found = findJsonLdLogo(JSON.parse(m[1].trim()));
-      const abs = absolutize(found, base);
-      if (abs) return abs;
-    } catch { /* JSON-LD malformé : fréquent, on passe */ }
+    try { push(absolutize(findJsonLdLogo(JSON.parse(m[1].trim())), base)); }
+    catch { /* JSON-LD malformé : fréquent, on passe */ }
   }
 
   // 2. Une image qui se présente comme le logo. On note les candidates plutôt
@@ -244,16 +262,16 @@ function findLogo(html: string, base: URL): string | undefined {
     if (score >= 3) candidates.push({ url: abs, score });
   }
   candidates.sort((a, b) => b.score - a.score);
-  if (candidates.length) return candidates[0].url;
+  for (const c of candidates) push(c.url);
 
   // 3. L'icône d'application : c'est la marque, en carré. Faute de mieux, elle
   //    reste juste — contrairement à l'image de partage.
   const touch = html.match(/<link[^>]+rel=["'][^"']*apple-touch-icon[^"']*["'][^>]*>/i);
-  if (touch) {
-    const abs = absolutize(touch[0].match(/href=["']([^"']+)["']/i)?.[1], base);
-    if (abs) return abs;
-  }
-  return undefined;
+  if (touch) push(absolutize(touch[0].match(/href=["']([^"']+)["']/i)?.[1], base));
+
+  // Six suffit : au-delà on descend dans le bruit, et une grille de propositions
+  // trop longue redevient un travail de tri.
+  return out.slice(0, 6);
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -335,13 +353,17 @@ export async function analyzeBrandSite(rawUrl: string): Promise<BrandFromSite | 
   const name = meta(html, 'og:site_name', 'application-name')
     ?? (title ? decodeEntities(title).split(/[|–—·-]/)[0].trim() : undefined);
 
+  const logoCandidates = findLogoCandidates(html, url);
+
   return {
     url: url.toString(),
     name: name && name.length <= 60 ? name : undefined,
     description: meta(html, 'og:description', 'description', 'twitter:description'),
     colors: rankBrandColors(colorCounts),
     fonts: collectFonts(html, css),
-    logoUrl: findLogo(html, url),
+    logoUrl: logoCandidates[0],
+    /** Toutes les pistes de logo, du plus probable au moins — l'utilisateur choisit. */
+    logoCandidates,
     iconUrl: findIcon(html, url),
     sampleText: visibleText(html),
   };

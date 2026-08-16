@@ -1062,7 +1062,8 @@
     "finishBtn": "Concluir",
     "customFontVariants": "{count, plural, one {# espessura importada} other {# espessuras importadas}}",
     "addMoreWeights": "+ Adicionar espessuras",
-    "logoFromSite": "Encontrado no site — substituível"
+    "logoFromSite": "Encontrado no site — substituível",
+    "logoOtherCandidates": "Outras opções encontradas no site — clique para escolher"
   },
   "onboardingSurvey": {
     "q1": "Para quantos clientes trabalha?",

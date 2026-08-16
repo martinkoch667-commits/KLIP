@@ -1062,7 +1062,8 @@
     "finishBtn": "Fine",
     "customFontVariants": "{count, plural, one {# spessore importato} other {# spessori importati}}",
     "addMoreWeights": "+ Aggiungi spessori",
-    "logoFromSite": "Trovato sul sito — sostituibile"
+    "logoFromSite": "Trovato sul sito — sostituibile",
+    "logoOtherCandidates": "Altre proposte trovate sul sito — clicca per scegliere"
   },
   "onboardingSurvey": {
     "q1": "Per quanti clienti lavori?",

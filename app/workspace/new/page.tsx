@@ -198,6 +198,11 @@ export default function NewWorkspacePage() {
   // L'analyse du site trouve aussi une icône (favicon, apple-touch-icon). Elle
   // était renvoyée par brandFromSite et jetée sans être lue.
   const [siteIcon, setSiteIcon] = useState<string | null>(null);
+  /** Palette complète relevée sur le site, et pistes de logo. On ne se contente
+   *  plus d'imposer les trois premières couleurs et l'unique meilleur logo : la
+   *  détection se trompe, et une marque a souvent plus de trois couleurs. */
+  const [sitePalette, setSitePalette] = useState<string[]>([]);
+  const [logoCandidates, setLogoCandidates] = useState<string[]>([]);
   // Une police repérée sur un site n'existe pas forcément dans le catalogue :
   // il faut le dire plutôt que de laisser croire qu'elle a été appliquée.
   const [siteFontMatched, setSiteFontMatched] = useState(false);
@@ -377,6 +382,8 @@ export default function NewWorkspacePage() {
       if (!res.ok) { setSiteError(d?.error ?? "Analyse impossible."); setSitePhase("ask"); return; }
       if (d.logoUrl) setSiteLogo(d.logoUrl);
       if (d.iconUrl) setSiteIcon(d.iconUrl);
+      if (Array.isArray(d.logoCandidates)) setLogoCandidates(d.logoCandidates.filter((u: unknown) => typeof u === 'string'));
+      if (Array.isArray(d.colors)) setSitePalette(d.colors.filter((c: unknown) => typeof c === 'string'));
 
       const filled: string[] = [];
       if (d.name && !name.trim()) { setName(d.name); filled.push("nom"); }
@@ -1214,6 +1221,26 @@ export default function NewWorkspacePage() {
                           width: "100%", height: 6, borderRadius: 99, marginTop: 12,
                           background: col.value, boxShadow: "inset 0 0 0 1px rgba(13,15,10,.08)",
                         }} />
+                        {/* Palette relevée sur le site : un clic assigne la couleur
+                            à CE champ. Auparavant les trois premières étaient
+                            imposées d'office et le reste jeté — or l'ordre de
+                            fréquence n'est pas l'ordre d'importance. */}
+                        {sitePalette.length > 0 && (
+                          <div style={{ display: "flex", flexWrap: "wrap", gap: 5, marginTop: 10 }}>
+                            {sitePalette.map(hex => (
+                              <button
+                                key={hex} type="button" title={hex}
+                                onClick={() => col.onChange(hex)}
+                                style={{
+                                  width: 18, height: 18, borderRadius: 5, background: hex, cursor: "pointer",
+                                  border: hex.toLowerCase() === col.value.toLowerCase()
+                                    ? "2px solid var(--ink)" : "1px solid rgba(13,15,10,.15)",
+                                  padding: 0,
+                                }}
+                              />
+                            ))}
+                          </div>
+                        )}
                       </div>
                     ))}
                   </div>
@@ -1264,6 +1291,32 @@ export default function NewWorkspacePage() {
                     <input ref={logoRef} type="file" accept=".png,.svg,.jpg,.jpeg" style={{ display: "none" }}
                       onChange={e => { const f = e.target.files?.[0]; if (f) { setLogoFile(f); setLogoPreview(URL.createObjectURL(f)); } }}
                     />
+                    {/* Les autres pistes trouvées sur le site. La détection classe
+                        des candidats mais n'en proposait qu'un seul, et sur un site
+                        mal balisé c'est souvent une bannière plutôt que le logo :
+                        sans alternative, l'utilisateur n'avait aucun recours. */}
+                    {!logoPreview && logoCandidates.length > 1 && (
+                      <div style={{ gridColumn: "1 / -1", marginTop: -4 }}>
+                        <span style={{ fontSize: 11.5, color: "var(--ink-3)" }}>{t('logoOtherCandidates')}</span>
+                        <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 6 }}>
+                          {logoCandidates.map(url => (
+                            <button
+                              key={url} type="button" title={url}
+                              onClick={() => setSiteLogo(url)}
+                              style={{
+                                width: 64, height: 44, borderRadius: 7, cursor: "pointer", padding: 3,
+                                background: "var(--sunk, #f4f4f0)",
+                                border: url === siteLogo ? "2px solid var(--ink)" : "1px solid rgba(13,15,10,.14)",
+                              }}
+                            >
+                              {/* eslint-disable-next-line @next/next/no-img-element */}
+                              <img src={`/api/proxy-image?url=${encodeURIComponent(url)}`} alt=""
+                                style={{ width: "100%", height: "100%", objectFit: "contain" }} />
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
 
                     <UploadZone
                       label={<>{t('logoVariantLabel')} <OptLabel /></>}

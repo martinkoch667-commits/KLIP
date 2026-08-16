@@ -1062,7 +1062,8 @@
     "finishBtn": "Terminer",
     "customFontVariants": "{count, plural, one {# graisse importée} other {# graisses importées}}",
     "addMoreWeights": "+ Ajouter des graisses",
-    "logoFromSite": "Trouvé sur le site — remplaçable"
+    "logoFromSite": "Trouvé sur le site — remplaçable",
+    "logoOtherCandidates": "Autres pistes trouvées sur le site — cliquez pour choisir"
   },
   "onboardingSurvey": {
     "q1": "Pour combien de clients travaillez-vous ?",
