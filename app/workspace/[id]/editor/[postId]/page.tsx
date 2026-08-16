@@ -2708,6 +2708,11 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
   const [aiVariantIdx, setAiVariantIdx] = useState(0);
   const [aiBuilding, setAiBuilding] = useState(false);          // overlay "l'IA construit le visuel"
   const [autoComposeReady, setAutoComposeReady] = useState(false);
+  // Sujet d'un post CARROUSEL jamais édité : le carrousel s'écrit tout seul à
+  // l'ouverture, comme le prémontage côté vidéo. C'est là que les gens
+  // commencent — depuis le Composer — pas dans le chat de l'éditeur.
+  const [autoCarouselBrief, setAutoCarouselBrief] = useState<string | null>(null);
+  const autoCarouselDoneRef = useRef(false);
   const autoComposeDoneRef = useRef(false);
   const [dataLoading, setDataLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -2862,8 +2867,19 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
           const PT_FORMAT: Record<string, string> = { post: 'ig-portrait', reel: 'ig-story', story: 'ig-story', carrousel: 'ig-square' };
           if (p?.post_type && PT_FORMAT[p.post_type]) { setFormatId(PT_FORMAT[p.post_type]); setPostType(p.post_type as 'post' | 'reel' | 'story' | 'carrousel'); }
           if (p?.photo_url) { setPostPhotoUrl(p.photo_url); }
+          // Un carrousel jamais édité s'écrit ENTIÈREMENT à l'ouverture, à partir du
+          // sujet saisi dans le Composer. Il prime sur l'auto-composition photo :
+          // celle-ci habille UNE image, elle ne sait pas produire des slides.
+          // Le sujet est pris là où l'utilisateur l'a réellement écrit : le champ
+          // « brief » du Composer d'abord, sinon le texte sur le visuel, sinon la
+          // description. Exiger `brief` seulement faisait rater le cas — fréquent —
+          // où la personne a tout dit dans le texte du visuel.
+          const subject = [p?.brief, p?.texte_visuel, p?.description]
+            .map((v) => String(v ?? '').trim()).find((v) => v.length > 2) ?? '';
+          const wantCarousel = p?.post_type === 'carrousel' && !p?.editor_json && !!subject;
+          if (wantCarousel) setAutoCarouselBrief(subject);
           // Post vierge (jamais édité, pas de template) + une photo -> l'IA composera automatiquement à l'ouverture.
-          setAutoComposeReady(!p?.editor_json && !p?.template_id && !!p?.photo_url);
+          setAutoComposeReady(!wantCarousel && !p?.editor_json && !p?.template_id && !!p?.photo_url);
         }
         if (w) {
           setWorkspaceName(w.name || '');
@@ -4952,6 +4968,18 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
     })();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dataLoading, autoComposeReady]);
+
+  // Carrousel écrit à l'ouverture, à partir du sujet du Composer.
+  useEffect(() => {
+    if (dataLoading || autoCarouselDoneRef.current || !autoCarouselBrief) return;
+    autoCarouselDoneRef.current = true;
+    (async () => {
+      setAiBuilding(true);
+      try { await generateCarousel(autoCarouselBrief, 6); } catch { /* le toast de generateCarousel a déjà parlé */ }
+      setAiBuilding(false);
+    })();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dataLoading, autoCarouselBrief]);
 
   const deletePost = async () => {
     if (!confirm("Supprimer ce post ? Cette action est irréversible.")) return;
