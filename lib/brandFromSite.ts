@@ -152,31 +152,31 @@ function rankBrandColors(counts: Map<string, number>, designated: Set<string>): 
     // explicitement désignée comme couleur de marque (poids élevé).
     .filter(c => c.n >= 2 && (!STOCK_PALETTE.has(c.hex) || c.n >= 20));
 
-  // Le blanc, le noir et les gris sont l'HABILLAGE de la page — fond, texte,
-  // bordures — pas l'identité de la marque. Ils ne sont gardés que si une
-  // variable CSS les a explicitement désignés comme couleur de marque (poids
-  // élevé). Sans ce filtre, Burger King ressortait en blanc, crème et brun de
-  // texte : « on sent les couleurs, mais pas vraiment ».
-  // Seuils resserrés après mesure : à 0,14 de saturation, un gris-vert (#5A5E50)
-  // et un noir légèrement teinté (#14160F) passaient encore pour des couleurs de
-  // marque. Une vraie couleur de marque est franchement colorée.
-  const isChrome = (c: { sat: number; luma: number }) =>
-    c.sat < 0.22 || c.luma > 0.90 || c.luma < 0.10;
+  // CE QUI EST ÉCARTÉ, ET SUR QUEL CRITÈRE.
+  //
+  // J'ai d'abord filtré sur la SATURATION (« garder ce qui est vif »). C'était
+  // faux : le crème de Burger King est à 0,10 de saturation et c'est pourtant
+  // une de ses couleurs de marque. En montant le seuil à 0,22 pour chasser les
+  // gris, j'ai emporté tous les tons rompus — beiges, crèmes, sables, taupes —
+  // et la palette est tombée à deux couleurs.
+  //
+  // Le bon critère n'est pas « est-elle vive » mais « A-T-ELLE UNE TEINTE ».
+  // Un gris, un blanc et un noir n'en ont aucune ; un crème en a une. On ne
+  // rejette donc que les vrais neutres, et le blanc et le noir francs — sauf
+  // quand la marque les a explicitement nommés dans son CSS.
+  const isNeutral = (c: { sat: number }) => c.sat < 0.08;
+  const isPureWhiteOrBlack = (c: { luma: number }) => c.luma > 0.95 || c.luma < 0.05;
 
-  // Une couleur neutre n'est gardée QUE si la marque l'a nommée elle-même. Le
-  // seuil de fréquence ne suffisait pas : sur getklip.fr, le blanc du fond et le
-  // presque-noir du texte passaient devant les vraies couleurs.
-  // Un GRIS MOYEN n'est jamais une couleur de marque, même déclaré dans une
-  // variable CSS : c'est du texte ou une bordure. Le noir et le blanc, eux,
-  // peuvent l'être — beaucoup de marques n'ont que ça — donc on ne rejette que
-  // la plage intermédiaire. (Mesuré sur vercel.com, qui sortait en #666666,
-  // #333333 et #999999.)
+  // Un GRIS MOYEN reste rejeté SANS EXCEPTION, même déclaré dans une variable
+  // CSS : c'est du texte ou une bordure, jamais une identité. (vercel.com le
+  // déclare et sortait en #666666, #333333, #999999.)
   const isMidGrey = (c: { sat: number; luma: number }) =>
     c.sat < 0.06 && c.luma > 0.12 && c.luma < 0.88;
 
   const brand = all
     .filter(c => !isMidGrey(c))
-    .filter(c => !isChrome(c) || designated.has(c.hex))
+    .filter(c => !isNeutral(c) || designated.has(c.hex))
+    .filter(c => !isPureWhiteOrBlack(c) || designated.has(c.hex))
     .sort((a, b) => b.n * (0.5 + b.sat) - a.n * (0.5 + a.sat));
 
   const out: string[] = [];
