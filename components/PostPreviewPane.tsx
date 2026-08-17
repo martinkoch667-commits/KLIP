@@ -198,16 +198,24 @@ export default function PostPreviewPane({ workspace, mediaUrl, mediaUrls, poster
             {shownMedia ? <MediaPreview raw={shownMedia} poster={posterUrl} /> : <div style={{ width: "100%", height: "100%", background: "var(--sunk)" }} />}
 
             {/* Carrousel : flèches, compteur et pastilles — comme sur Instagram. */}
+            {/* Une flèche ne s'affiche que s'il y a vraiment quelque chose de ce
+                côté-là : sur la première page, seule celle de droite existe ; sur
+                la dernière, seule celle de gauche. Boucler ferait croire à des
+                pages qui n'existent pas. */}
             {pages.length > 1 && (
               <>
-                <button type="button" onClick={() => setPage(p => (p - 1 + pages.length) % pages.length)} aria-label="Page précédente"
-                  style={navBtn("left")}>
-                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"><path d="M15 18l-6-6 6-6" /></svg>
-                </button>
-                <button type="button" onClick={() => setPage(p => (p + 1) % pages.length)} aria-label="Page suivante"
-                  style={navBtn("right")}>
-                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"><path d="M9 6l6 6-6 6" /></svg>
-                </button>
+                {page > 0 && (
+                  <button type="button" onClick={() => setPage(p => Math.max(0, p - 1))} aria-label="Page précédente"
+                    style={navBtn("left")}>
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"><path d="M15 18l-6-6 6-6" /></svg>
+                  </button>
+                )}
+                {page < pages.length - 1 && (
+                  <button type="button" onClick={() => setPage(p => Math.min(pages.length - 1, p + 1))} aria-label="Page suivante"
+                    style={navBtn("right")}>
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"><path d="M9 6l6 6-6 6" /></svg>
+                  </button>
+                )}
                 <div style={{ position: "absolute", top: 10, right: 10, background: "rgba(13,15,10,.62)", color: "#fff", fontSize: 11, fontWeight: 700, padding: "2px 8px", borderRadius: 999, backdropFilter: "blur(4px)" }}>
                   {page + 1}/{pages.length}
                 </div>
