@@ -105,6 +105,25 @@ export const LAYOUT_LIBRARY: Recipe[] = [
     { role: 'titre', xPct: 7, yPct: 68, widthPct: 78, fontPct: 8.5, align: 'left', color: 'white', uppercase: true },
     { role: 'cta', xPct: 7, yPct: 84, widthPct: 34, fontPct: 4.5, align: 'center', color: 'black', uppercase: true, box: 'accent', radiusPct: 50 },
   ] },
+  // — Titre découpé en blocs empilés —
+  // Chaque ligne devient son PROPRE bloc, avec son propre aplat : les cartouches
+  // épousent la longueur de chaque ligne et créent un décroché. C'est la
+  // composition d'affiche par excellence — bien plus forte qu'un pavé unique, et
+  // celle que Martin a retenue sur ses essais.
+  { id: 'lib-stack-bottom', desc: 'Titre découpé en DEUX blocs empilés en bas à gauche, chacun dans son aplat de marque. Décroché d’affiche, très identitaire. Coupe le titre en deux moitiés qui se tiennent.', anchor: 'bottom', scrim: 'none', slots: [
+    { role: 'titre', xPct: 8, yPct: 68, widthPct: 62, fontPct: 8.5, align: 'left', color: 'white', uppercase: false, box: 'brand' },
+    { role: 'sous-titre', xPct: 8, yPct: 79, widthPct: 66, fontPct: 8.5, align: 'left', color: 'white', uppercase: false, box: 'brand' },
+  ] },
+  { id: 'lib-stack-center', desc: 'Titre découpé en deux blocs empilés au centre, chacun dans son aplat. Frappe fort sur une photo calme au milieu.', anchor: 'center', scrim: 'none', slots: [
+    { role: 'titre', xPct: 10, yPct: 40, widthPct: 60, fontPct: 9, align: 'left', color: 'white', uppercase: false, box: 'brand' },
+    { role: 'sous-titre', xPct: 10, yPct: 52, widthPct: 66, fontPct: 9, align: 'left', color: 'white', uppercase: false, box: 'brand' },
+  ] },
+  { id: 'lib-stack-accent', desc: 'Trois blocs empilés en bas : deux en couleur de marque, le dernier en accent. Pour une accroche en trois temps.', anchor: 'bottom', scrim: 'none', slots: [
+    { role: 'titre', xPct: 8, yPct: 60, widthPct: 58, fontPct: 7.5, align: 'left', color: 'white', uppercase: false, box: 'brand' },
+    { role: 'sous-titre', xPct: 8, yPct: 70, widthPct: 64, fontPct: 7.5, align: 'left', color: 'white', uppercase: false, box: 'brand' },
+    { role: 'cta', xPct: 8, yPct: 80, widthPct: 44, fontPct: 5, align: 'left', color: 'black', uppercase: true, box: 'accent' },
+  ] },
+
   { id: 'lib-underline-title', desc: 'Titre souligné d’un filet de marque, au centre-gauche. Élégant, presse.', anchor: 'center', scrim: 'bottom', slots: [
     { role: 'titre', xPct: 8, yPct: 42, widthPct: 72, fontPct: 9.5, align: 'left', color: 'white', uppercase: true },
     { role: 'sous-titre', xPct: 8, yPct: 60, widthPct: 60, fontPct: 3.6, align: 'left', color: 'white', uppercase: false },
