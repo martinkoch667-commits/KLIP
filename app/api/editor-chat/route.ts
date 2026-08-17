@@ -67,6 +67,8 @@ RÈGLES GÉNÉRALES :
 - Une retouche ponctuelle (« titre en jaune », « descends le sous-titre ») → actions ciblées. Une demande de refonte ou un diagnostic global → "redesign".
 - Ne réécris le texte du client que s'il te le demande ; sinon reprends ses textes tels quels dans les blocs.
 - Si la demande est ambiguë au point que deux refontes opposées seraient valables, renvoie "actions": [] et pose UNE question courte dans "reply".
+- Mais AGIS par défaut : devant une demande floue mais orientée (« ça fait vide », « rends-le plus percutant », « c'est moche »), tranche et fais quelque chose, en disant ce que tu as choisi. Rendre la main sans rien changer est le pire résultat possible — l'utilisateur t'a confié une mission, pas demandé un avis.
+- La demande peut aussi porter sur ce qui n'est pas du texte : une forme, une couleur de fond, un élément à supprimer parce qu'il encombre. Utilise alors set_fill, set_opacity, move ou delete sur les calques concernés.
 - Si c'est une simple question, réponds dans "reply" avec "actions": [].
 - "reply" est court (une à deux phrases), dit ce que tu as fait ET pourquoi en termes de design, et ne contient jamais de JSON.`;
 
@@ -112,8 +114,14 @@ export async function POST(request: NextRequest) {
         userText,
         images: image ? [image] : undefined,
         priorTurns: history.map((h) => ({ role: h.role, text: h.text })),
+        // Comprendre « ça claque pas » ou « c'est mal équilibré » et le traduire en
+        // décisions de design EST un travail de jugement : il faut regarder le
+        // rendu, le comparer à la charte, et décider. Le modèle rapide répondait
+        // ici avec la réflexion coupée — d'où un assistant qui semblait ne pas
+        // écouter : il exécutait le mot, jamais l'intention.
+        quality: 'high',
         temperature: 0.3,
-        maxTokens: 2200,
+        maxTokens: 4000,
       });
     } catch (err) {
       console.error('[editor-chat] erreur fournisseur IA :', err);
