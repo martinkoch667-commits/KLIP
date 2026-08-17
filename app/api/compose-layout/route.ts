@@ -184,6 +184,7 @@ export async function POST(request: NextRequest) {
       textList.length ? `Textes à utiliser :\n${textList.map((t, i) => `${i + 1}. "${t}"`).join('\n')}` : 'Aucun texte fourni : rédige un titre court (≤6 mots) + éventuel sous-titre, cohérents avec la photo.',
       '',
       'Choisis les 3 MEILLEURS layouts (selon où le texte tombera dans une zone calme de CETTE photo). Pour chacun : remplis chaque slot (rôle->texte), choisis une couleur de charte par slot (contraste avec le fond), décide du scrim.',
+      'Les trois propositions doivent être VRAIMENT différentes — pas trois variantes de texte posé sur la photo. Au moins UNE doit utiliser la couleur de la marque comme matière (cartouche, bandeau, pastille, filet) ou reprendre un template maison. Du texte blanc sur voile noir est le rendu par défaut de n\'importe quelle marque : ne le proposez que s\'il est vraiment le meilleur choix pour cette photo, jamais deux fois.',
       'Préfère TOUJOURS un template maison du client quand il peut accueillir ce contenu : le choisir applique son dessin complet — son fond, ses aplats, ses couleurs, ses formes — donc le visuel ressemble immédiatement à cette marque. Ne prends une recette de la bibliothèque que si aucun template ne convient. Évite de placer le texte sur le sujet.',
       '',
       // Un parti pris formulé AVANT les choix : ça oblige à décider d'une direction

@@ -5101,14 +5101,26 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
     const newTextEls: CanvasEl[] = (Array.isArray(L?.blocks) ? L.blocks : []).filter((b: any) => b?.text).map((b: any) => {
       let fill = resolveColor(b.color);
       let shadow = false;
+      // Un aplat peut être IMPOSÉ ici quand la photo ne laisse pas d'autre choix
+      // (cf. plus bas) : c'est la réponse d'un graphiste à un fond difficile.
+      let forcedBox: string | null = null;
       if (sampler) {
         const { mean, std } = sampler(b.xPct ?? 8, b.yPct ?? 70, b.widthPct ?? 80, Math.min(45, (b.fontPct ?? 7) * 2.6));
         const busy = std > 0.17;                 // zone chargée (mélange clair/sombre) = risque d'illisibilité
         const fillLum = hexLum(fill);
         const contrastOK = !busy && Math.abs(mean - fillLum) > 0.45;
         if (busy) {
-          // Fond chargé : on ne parie pas sur la couleur du texte -> blanc + voile dégradé + ombre (lisible à coup sûr).
-          fill = '#FFFFFF'; shadow = true; forceScrim = true;
+          // Fond chargé. L'ancienne réponse — texte blanc + voile noir — était
+          // lisible mais effaçait la marque : c'est elle qui produisait le rendu
+          // générique « du texte posé sur une photo », quel que soit le client.
+          // On pose plutôt la MATIÈRE de la marque derrière le texte : la charte
+          // reste visible ET la lisibilité est garantie par construction.
+          const brand = workspaceData?.primary_color || workspaceData?.accent_color;
+          if (brand && !b.box) {
+            forcedBox = brand;
+          } else {
+            fill = '#FFFFFF'; shadow = true; forceScrim = true;
+          }
         } else if (!contrastOK) {
           fill = mean > 0.5 ? '#14160F' : '#FFFFFF';     // fond uni : noir sur clair, blanc sur sombre
           shadow = fill === '#FFFFFF' && mean > 0.5;
@@ -5141,7 +5153,7 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
         : b.box === 'accent' ? resolveColor('accent')
         : b.box === 'white' ? '#FFFFFF'
         : b.box === 'black' ? '#14160F'
-        : null;
+        : forcedBox;
       const fontSize = Math.max(12, Math.round(((b.fontPct ?? 7) / 100) * stageH));
       if (boxFill) {
         fill = hexLum(boxFill) > 0.55 ? '#14160F' : '#FFFFFF';

@@ -181,7 +181,16 @@ export async function renderComposedVisual(input: RenderInput): Promise<string |
       const { mean, std } = sampler(b.xPct ?? 8, b.yPct ?? 70, b.widthPct ?? 80, Math.min(45, (b.fontPct ?? 7) * 2.6));
       const busy = std > 0.17;
       const contrastOK = !busy && Math.abs(mean - hexLum(fill)) > 0.45;
-      if (busy) { fill = '#FFFFFF'; shadow = true; forceScrim = true; }
+      if (busy) {
+        // Fond chargé : on pose la matière de la marque derrière le texte plutôt
+        // que de le blanchir sur un voile — même règle que l'éditeur, sinon
+        // l'aperçu montrerait autre chose que le visuel final.
+        const brandBg = brand.primary || brand.accent;
+        if (brandBg) {
+          return { b, fill: hexLum(brandBg) > 0.55 ? '#14160F' : '#FFFFFF', shadow: false, boxFill: brandBg };
+        }
+        fill = '#FFFFFF'; shadow = true; forceScrim = true;
+      }
       else if (!contrastOK) {
         fill = mean > 0.5 ? '#14160F' : '#FFFFFF';
         shadow = fill === '#FFFFFF' && mean > 0.5;
