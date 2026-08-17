@@ -3,6 +3,10 @@ import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
 import { cookies } from 'next/headers';
 import { generateAiText } from '@/lib/ai-text';
 
+// Un appel IA avec image dépasse volontiers les 10 s par défaut de Vercel :
+// sans cette marge, la requête est coupée en plein travail.
+export const maxDuration = 60;
+
 // POST /api/editor-chat
 // Assistant conversationnel de l'éditeur visuel : l'utilisateur dit ce qu'il veut
 // changer sur le visuel, l'IA répond ET renvoie des ACTIONS que le client applique

@@ -3,6 +3,10 @@ import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
 import { cookies } from 'next/headers';
 import { generateDescriptionForUser } from '@/lib/generate-description';
 
+// Un appel IA avec image dépasse volontiers les 10 s par défaut de Vercel :
+// sans cette marge, la requête est coupée en plein travail.
+export const maxDuration = 60;
+
 // Mince wrapper : vérifie la session cookie puis délègue à
 // lib/generate-description.ts (partagée avec l'outil MCP generate_caption,
 // qui résout userId depuis un token OAuth au lieu d'une session cookie).

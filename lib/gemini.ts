@@ -46,7 +46,9 @@ export async function callGeminiText(params: {
       // Sauf en qualité `high` : juger une composition EST un travail de réflexion,
       // et la couper produisait exactement le reproche fait à l'outil — un choix
       // pris sans regarder vraiment. On laisse alors le modèle réfléchir.
-      ...(params.quality === 'high' ? {} : { thinkingConfig: { thinkingBudget: 0 } }),
+      // Budget borné en qualité haute : le droit de réfléchir, pas celui de faire
+      // expirer la requête.
+      thinkingConfig: { thinkingBudget: params.quality === 'high' ? 2048 : 0 },
       ...(params.temperature !== undefined ? { temperature: params.temperature } : {}),
       ...(params.maxOutputTokens !== undefined ? { maxOutputTokens: params.maxOutputTokens } : {}),
     },

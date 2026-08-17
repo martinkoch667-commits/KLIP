@@ -4,6 +4,11 @@ import { cookies } from 'next/headers';
 import { generateAiText } from '@/lib/ai-text';
 import { LAYOUT_LIBRARY, type Slot, type Accent } from '@/lib/layoutLibrary';
 
+// Diriger un visuel prend plus que les 10 s par défaut d'une fonction Vercel :
+// le modèle regarde la photo, les références, et réfléchit. Sans cette ligne,
+// l'appel était coupé en plein travail et remontait comme « composition échouée ».
+export const maxDuration = 60;
+
 // POST /api/compose-layout
 // "Directeur artistique IA" — Option 3 : l'IA NE DESSINE PAS de zéro.
 // Elle CHOISIT la meilleure mise en page parmi (a) les templates du client et
@@ -126,7 +131,7 @@ export async function POST(request: NextRequest) {
           const j = await r.json();
           instaRefs = (Array.isArray(j?.data) ? j.data : [])
             .filter((m: { media_type?: string; media_url?: string }) => m.media_type === 'IMAGE' && typeof m.media_url === 'string')
-            .slice(0, 3)
+            .slice(0, 2)
             .map((m: { media_url: string }) => m.media_url);
         }
       } catch { /* les références sont un bonus, jamais un point de blocage */ }
@@ -192,24 +197,35 @@ export async function POST(request: NextRequest) {
 
     const hasImage = typeof imageUrl === 'string' && imageUrl.startsWith('http');
 
+    // La photo à habiller D'ABORD, les références Instagram ensuite (le prompt
+    // dit explicitement laquelle est laquelle).
+    const images = hasImage ? [imageUrl, ...instaRefs] : (instaRefs.length ? instaRefs : undefined);
+    const askAi = (quality: 'high' | 'fast') => generateAiText({
+      userId: session.user.id,
+      userText: prompt,
+      images: quality === 'high' ? images : (hasImage ? [imageUrl] : undefined),
+      quality,
+      temperature: 0.7,
+      maxTokens: quality === 'high' ? 4000 : 1800,
+    });
+
     let raw: string;
     try {
-      raw = await generateAiText({
-        userId: session.user.id,
-        userText: prompt,
-        // La photo à habiller D'ABORD, les références Instagram ensuite (le prompt
-        // dit explicitement laquelle est laquelle).
-        images: hasImage ? [imageUrl, ...instaRefs] : (instaRefs.length ? instaRefs : undefined),
-        // Diriger un visuel est un travail de jugement : on prend le modèle qui
-        // regarde vraiment la photo et les références, et on lui laisse le droit
-        // de réfléchir. C'est la tâche de l'app où la qualité prime sur la vitesse.
-        quality: 'high',
-        temperature: 0.7,
-        maxTokens: 4000,
-      });
+      // Diriger un visuel est un travail de jugement : on prend d'abord le modèle
+      // qui regarde vraiment la photo et les références, et on lui laisse le droit
+      // de réfléchir.
+      raw = await askAi('high');
     } catch (err) {
-      console.error('[compose-layout] API error:', err);
-      return NextResponse.json({ error: 'Composition échouée' }, { status: 500 });
+      // Mais la qualité ne doit jamais coûter le RÉSULTAT : si ce modèle échoue
+      // (indisponible, trop lent, quota), on repasse aussitôt par le modèle rapide
+      // avec la seule photo. Une composition ordinaire vaut mieux qu'un échec.
+      console.warn('[compose-layout] modèle de jugement indisponible, repli rapide :', err);
+      try {
+        raw = await askAi('fast');
+      } catch (err2) {
+        console.error('[compose-layout] API error:', err2);
+        return NextResponse.json({ error: 'Composition échouée' }, { status: 500 });
+      }
     }
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any

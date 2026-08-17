@@ -3,6 +3,10 @@ import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
 import { cookies } from 'next/headers';
 import { generateAiText } from '@/lib/ai-text';
 
+// Un appel IA avec image dépasse volontiers les 10 s par défaut de Vercel :
+// sans cette marge, la requête est coupée en plein travail.
+export const maxDuration = 60;
+
 // POST /api/visual-qa
 // Boucle d'auto-correction (Option A) : reçoit le RENDU du post + la liste des calques texte,
 // demande à Claude (vision) de repérer les défauts visuels et renvoie des corrections bornées.
