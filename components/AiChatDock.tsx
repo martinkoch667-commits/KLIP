@@ -180,7 +180,7 @@ export default function AiChatDock({
             seule phrase. Rien d'autre tant que la conversation n'a pas commencé. */}
         {msgs.length === 0 && (
           <div className="mzchat-welcome">
-            <span className="mzchat-welcome-mark"><AssistantMark size={58} /></span>
+            <span className="mzchat-welcome-mark"><KlipMark size={88} /></span>
             <p className="mzchat-intro">{labels.intro}</p>
           </div>
         )}

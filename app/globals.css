@@ -1559,9 +1559,8 @@ input.mz-range::-moz-range-thumb { width: 16px; height: 16px; border-radius: 50%
    la page ne montre rien d'autre tant qu'on n'a pas parlé. */
 .mzchat-welcome { margin: auto 0; display: flex; flex-direction: column; align-items: center; gap: 18px;
   padding: 24px 10px 30px; text-align: center; }
-.mzchat-welcome-mark { display: grid; place-items: center; width: 96px; height: 96px; border-radius: 50%;
-  background: var(--white, #fff);
-  box-shadow: 0 1px 3px rgba(16,19,11,.05), 0 18px 34px -18px rgba(102,86,217,.45); }
+.mzchat-welcome-mark { display: grid; place-items: center; border-radius: 50%;
+  filter: drop-shadow(0 14px 26px rgba(47,215,155,.32)) drop-shadow(0 2px 4px rgba(16,19,11,.08)); }
 .mzchat-intro { margin: 0; font-size: 13.5px; line-height: 1.6; color: var(--ink-3); max-width: 30ch; }
 
 .mzchat-msg { display: flex; align-items: flex-start; gap: 8px; max-width: 92%;
@@ -1584,12 +1583,12 @@ input.mz-range::-moz-range-thumb { width: 16px; height: 16px; border-radius: 50%
    et une ombre douce. */
 .mzchat-input { margin: 6px 14px 16px; padding: 12px 12px 10px; flex-shrink: 0;
   display: flex; flex-direction: column; gap: 8px;
-  border-radius: 20px; border: none;
+  border-radius: 20px; border: 1px solid rgba(16,19,11,.07);
   background: var(--white, var(--card));
   box-shadow: 0 1px 2px rgba(16,19,11,.04), 0 10px 24px -16px rgba(16,19,11,.3);
   transition: box-shadow .16s; }
-/* À la saisie, la carte se DÉTACHE un peu plus — pas de contour, pas de halo
-   coloré : la profondeur reste le seul signal. */
+/* À la saisie, la carte se détache un peu plus par son ombre. Le liseré reste
+   gris pâle et ne prend JAMAIS de couleur : pas de halo violet. */
 .mzchat-input:focus-within { box-shadow: 0 1px 2px rgba(16,19,11,.05), 0 14px 30px -16px rgba(16,19,11,.38); }
 .mzchat-input textarea { width: 100%; min-height: 24px; max-height: 130px; resize: none; padding: 2px 4px;
   border-radius: 0; border: none; background: transparent; color: var(--ink, var(--cream));
