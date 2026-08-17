@@ -183,10 +183,12 @@ const PHOTO_PLACEHOLDER_SRC_COMPOSER = '__PHOTO_PLACEHOLDER__';
 
 const STATUS_CONFIG: Record<PostStatus, { label: string; tKey: string; bg: string; color: string }> = {
   idle:       { label: "Brouillon",   tKey: "stIdle",       bg: "var(--sunk)",      color: "var(--ink-3)" },
-  generating: { label: "Génération…", tKey: "stGenerating", bg: "var(--mint-soft)", color: "var(--mint-2)" },
-  generated:  { label: "Généré",      tKey: "stGenerated",  bg: "var(--mint-soft)", color: "var(--mint-2)" },
+  generating: { label: "Génération…", tKey: "stGenerating", bg: "var(--leaf-soft)", color: "var(--leaf-ink)" },
+  generated:  { label: "Généré",      tKey: "stGenerated",  bg: "var(--leaf-soft)", color: "var(--leaf-ink)" },
   validating: { label: "Sauvegarde…", tKey: "stValidating", bg: "var(--warn-soft)", color: "var(--warn)" },
-  validated:  { label: "Validé",      tKey: "stValidated",  bg: "var(--mint)",      color: "var(--mint-ink)" },
+  // `--leaf` est LE vert d'accent de la charte (celui des boutons) ; `--mint`
+  // est réservé aux micro-accents et sortait du ton.
+  validated:  { label: "Validé",      tKey: "stValidated",  bg: "var(--leaf)",      color: "var(--leaf-ink)" },
 };
 
 function StatusChip({ status }: { status: PostStatus }) {
@@ -2154,7 +2156,8 @@ export default function WorkspacePage() {
                                 <div style={{ fontWeight: 800, fontSize: 14.5, fontFamily: 'var(--display)', letterSpacing: '-0.01em', color: 'var(--ink)', lineHeight: 1.1 }}>{workspace?.name}</div>
                                 {workspace?.instagram_username && <div style={{ fontSize: 12, color: 'var(--ink-3)', fontWeight: 600 }}>@{workspace.instagram_username}</div>}
                               </div>
-                              <StatusChip status={post.status} />
+                              {/* Décalé du bord : la croix de suppression occupe le coin. */}
+                              <span style={{ marginRight: 30 }}><StatusChip status={post.status} /></span>
                             </div>
 
                           <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', gap: 12, padding: '12px 18px 16px' }}>
@@ -2329,10 +2332,12 @@ export default function WorkspacePage() {
                                     prémontage se montre, en grand, plutôt que dans un filet. */}
                                 {batchFor(post.localId) && <PreEditCard post={post} />}
                                 {post.texte_visuel && (
-                                  <div style={{ borderRadius: 12, background: 'linear-gradient(180deg, var(--card), color-mix(in srgb, var(--mint, #2FD79B) 5%, var(--card)))', border: '1px solid var(--line-2)', borderLeft: '3px solid var(--mint, #2FD79B)', padding: '11px 13px' }}>
+                                  <div style={{ borderRadius: 12, background: 'linear-gradient(180deg, var(--card), color-mix(in srgb, var(--leaf) 14%, var(--card)))', border: '1px solid var(--line-2)', borderLeft: '3px solid var(--leaf)', padding: '11px 13px' }}>
+                                    {/* Le libellé et le filet peignaient un vert codé en dur (#16A36F),
+                                        hors charte. Ils suivent maintenant les jetons de la marque. */}
                                     <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
-                                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#16A36F" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 7V5h16v2M9 5v14M7 19h4"/></svg>
-                                      <span className="label" style={{ margin: 0, color: '#16A36F' }}>{t('visualText')}</span>
+                                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--leaf-ink)" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 7V5h16v2M9 5v14M7 19h4"/></svg>
+                                      <span className="label" style={{ margin: 0, color: 'var(--leaf-ink)' }}>{t('visualText')}</span>
                                     </div>
                                     <textarea
                                       value={post.texte_visuel}
