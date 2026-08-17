@@ -6564,8 +6564,13 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
                         onDragStart={() => handleElDragStart(el.id)}
                         onDragMove={e => handleElDragMove(el.id, e)}
                         onDragEnd={e => handleElDragEnd(el.id, e.target.x(), e.target.y())}>
-                        <Rect width={ph.width} height={ph.height} fill="rgba(120,120,120,0.12)" stroke="#8B8E7F" strokeWidth={2} cornerRadius={6} />
-                        <Text width={ph.width} height={ph.height} text={'\uD83D\uDCF7\n' + T('photoZoneHint')} align="center" verticalAlign="middle" fontSize={16} fontStyle="bold" fill="#5A5E50" fontFamily="var(--sans), sans-serif" listening={false} />
+                        {/* Gris OPAQUE : le repère était rempli à 12 % d'opacité,
+                            donc la couleur du plan de travail le traversait et la
+                            zone devenait invisible sur un fond coloré (rouge, chez
+                            Obvisouly Burger). Un aplat neutre montre exactement où
+                            la photo se posera, quelle que soit la charte. */}
+                        <Rect width={ph.width} height={ph.height} fill="#DDDDD8" stroke="#A9AC9F" strokeWidth={2} cornerRadius={6} />
+                        <Text width={ph.width} height={ph.height} text={'\uD83D\uDCF7\n' + T('photoZoneHint')} align="center" verticalAlign="middle" fontSize={16} fontStyle="bold" fill="#6B6F62" fontFamily="var(--sans), sans-serif" listening={false} />
                       </Group>
                     );
                   }
