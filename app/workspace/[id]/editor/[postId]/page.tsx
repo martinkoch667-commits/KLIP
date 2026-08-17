@@ -2951,7 +2951,12 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
             // rôle : c'est par elles que l'IA remplira le modèle.
             const brandInk = w?.secondary_color || '#FFFFFF';
             const brandFont = w?.font_family || 'Oswald';
-            setBgStyle({ type: 'solid', color: w?.primary_color || '#14160F' });
+            // Un plan de travail part TOUJOURS du blanc, comme dans n'importe quel
+            // éditeur graphique : c'est la surface neutre sur laquelle on compose.
+            // Il prenait la couleur principale du client, ce qui imposait un aplat
+            // coloré dont on ne pouvait plus juger le reste. La couleur se choisit
+            // en cliquant sur le fond.
+            setBgStyle({ type: 'solid', color: '#FFFFFF' });
             const photoZone: ImageEl = {
               id: 'tpl-photo', type: 'image', src: PHOTO_PLACEHOLDER_SRC,
               x: 0, y: 0, rotation: 0, opacity: 100, width: sw, height: sh,
@@ -6719,10 +6724,19 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
                         {/* Surbrillance — highlight rect behind text */}
                         {el.highlightEnabled && !isEditing && (() => {
                           const hp = el.highlightPadding ?? 8;
+                          // L'aplat épouse le TEXTE, pas la zone de texte.
+                          // Il prenait `textAreaW` : élargir la boîte étirait donc
+                          // l'aplat dans le vide, avec de grandes marges à gauche
+                          // et à droite du mot. On le recale selon l'alignement,
+                          // exactement comme le fond `hasBg` juste au-dessus.
+                          const hlInner = Math.min(textAreaW, layout.maxLineWidth);
+                          const hlX = el.align === 'center' ? pH + (textAreaW - hlInner) / 2 - hp
+                                    : el.align === 'right'  ? pH + textAreaW - hlInner - hp
+                                    : pH - hp;
                           return (
                             <Rect
-                              x={pH - hp} y={pV - Math.round(hp / 2)}
-                              width={textAreaW + hp * 2}
+                              x={hlX} y={pV - Math.round(hp / 2)}
+                              width={hlInner + hp * 2}
                               height={el.fontSize * (el.lineHeight ?? 1.2) + hp}
                               fill={el.highlightColor ?? '#FFFF00'}
                               opacity={(el.highlightOpacity ?? 80) / 100}
