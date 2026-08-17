@@ -992,32 +992,8 @@ function TextProperties({ el, onChange, customFonts, onFontUpload, brandColors, 
         </div>
       </PropRow>
       <ColorRow label={T('textColor')} value={el.fill} onChange={v => onChange({ fill: v })} brandColors={brandColors} />
-      <div style={{ borderTop: '1px solid var(--line)', paddingTop: 12 }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-          <span style={{ fontSize: 10.5, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '0.07em', fontFamily: 'var(--mono)', fontWeight: 800 }}>{T('blockBackground')}</span>
-          <div onClick={() => onChange({ hasBg: !el.hasBg })}
-            style={{ width: 38, height: 22, borderRadius: 11, background: el.hasBg ? 'var(--leaf)' : 'var(--line)', cursor: 'pointer', position: 'relative', transition: 'background 0.2s', flexShrink: 0 }}>
-            <span style={{ position: 'absolute', top: 3, left: el.hasBg ? 19 : 3, width: 16, height: 16, borderRadius: '50%', background: 'white', transition: 'left 0.2s', display: 'block', boxShadow: '0 1px 3px rgba(0,0,0,0.4)' }} />
-          </div>
-        </div>
-        {el.hasBg && (
-          <>
-            <ColorRow label={T('bgColorLabel')} value={el.bgColor} onChange={v => onChange({ bgColor: v })} brandColors={brandColors} />
-            <PropRow label={T('opacityVal', { n: el.bgOpacity })}>
-              <input type="range" min={0} max={100} value={el.bgOpacity} onChange={e => onChange({ bgOpacity: Number(e.target.value) })} style={{ width: '100%', accentColor: 'var(--mint-2)' }} />
-            </PropRow>
-            <PropRow label={T('roundingVal', { n: el.cornerRadius })}>
-              <input type="range" min={0} max={50} value={el.cornerRadius} onChange={e => onChange({ cornerRadius: Number(e.target.value) })} style={{ width: '100%', accentColor: 'var(--mint-2)' }} />
-            </PropRow>
-            <PropRow label={T('paddingHVal', { n: el.paddingH ?? el.padding })}>
-              <input type="range" min={0} max={40} value={el.paddingH ?? el.padding} onChange={e => onChange({ paddingH: Number(e.target.value) })} style={{ width: '100%', accentColor: 'var(--mint-2)' }} />
-            </PropRow>
-            <PropRow label={T('paddingVVal', { n: el.paddingV ?? el.padding })}>
-              <input type="range" min={0} max={30} value={el.paddingV ?? el.padding} onChange={e => onChange({ paddingV: Number(e.target.value) })} style={{ width: '100%', accentColor: 'var(--mint-2)' }} />
-            </PropRow>
-          </>
-        )}
-      </div>
+      {/* Le fond de texte vit uniquement dans l'effet « Arrière-plan » du
+          panneau Effet — un seul réglage, celui qui épouse chaque ligne. */}
       <PropRow label={T('opacityVal', { n: el.opacity })}>
         <input type="range" min={0} max={100} value={el.opacity} onChange={e => onChange({ opacity: Number(e.target.value) })} style={{ width: '100%', accentColor: 'var(--mint-2)' }} />
       </PropRow>
@@ -1418,38 +1394,10 @@ function EditorContextToolbar({ sel, allFonts, brandFamilies, brandColors, stage
         </div>
       )}
 
-      {/* TEXT background */}
-      {textSel && <>
-        <IBtn title={textSel.hasBg ? 'Masquer fond' : 'Fond coloré'} on={textSel.hasBg}
-          onClick={() => u({ hasBg: !textSel.hasBg } as Partial<TextEl>)}
-          icon={<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="M3 9h18"/></svg>} />
-        {textSel.hasBg && (
-          <div style={{ position: 'relative' }}>
-            <button onClick={() => setPop(p => p === 'bg' ? null : 'bg')} title={T('bgOptions')}
-              style={{ width: 32, height: 32, borderRadius: 8, display: 'grid', placeItems: 'center', background: pop === 'bg' ? 'var(--sunk)' : 'transparent', border: 'none', cursor: 'pointer' }}>
-              <span style={{ width: 18, height: 18, borderRadius: 5, background: textSel.bgColor, boxShadow: 'inset 0 0 0 1.5px rgba(13,15,10,.2)' }} />
-            </button>
-            {pop === 'bg' && (
-              <div {...popAttrs({ left: 'auto', right: 0 })}>
-                <div className="label" style={{ marginBottom: 8 }}>{T('textBackground')}</div>
-                <ColorPicker value={textSel.bgColor} onChange={(c: string) => u({ bgColor: c } as Partial<TextEl>)} brandColors={brandColors} />
-                <div style={{ marginTop: 10 }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 5 }}>
-                    <span className="label" style={{ marginBottom: 0 }}>{T('bgOpacity')}</span>
-                    <span style={{ fontFamily: 'var(--mono)', fontWeight: 800, fontSize: 11, color: 'var(--ink-2)' }}>{textSel.bgOpacity}%</span>
-                  </div>
-                  <input type="range" min={0} max={100} step={1} value={textSel.bgOpacity} onChange={e => u({ bgOpacity: parseInt(e.target.value) } as Partial<TextEl>)} className="ed-range" style={{ width: '100%', ...rangeFill(textSel.bgOpacity, 0, 100) }} />
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 10, marginBottom: 5 }}>
-                    <span className="label" style={{ marginBottom: 0 }}>{T('rounding')}</span>
-                    <span style={{ fontFamily: 'var(--mono)', fontWeight: 800, fontSize: 11, color: 'var(--ink-2)' }}>{textSel.cornerRadius}px</span>
-                  </div>
-                  <input type="range" min={0} max={50} step={1} value={textSel.cornerRadius} onChange={e => u({ cornerRadius: parseInt(e.target.value) } as Partial<TextEl>)} className="ed-range" style={{ width: '100%', ...rangeFill(textSel.cornerRadius, 0, 50) }} />
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-      </>}
+      {/* Le fond de texte a désormais UN SEUL endroit : l'effet « Arrière-plan »
+          du panneau Effet, qui épouse chaque ligne. L'ancien « Fond coloré » de
+          cette barre était une seconde implémentation, indépendante et moins
+          bonne : deux réglages pour la même chose, qui ne se parlaient pas. */}
 
       {/* VECTOR — stroke controls */}
       {vecSel && (
@@ -3132,8 +3080,11 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
           fontStyle: 'bold', textDecoration: '',
           fill: inkOn(defBg),
           align: 'left', width: defWidth,
-          hasBg: true, bgColor: defBg,
-          bgOpacity: 100, cornerRadius: 6, padding: 14, paddingH: 14, paddingV: 10,
+          // Aplat via l'effet « Arrière-plan » : un seul mécanisme dans toute l'app.
+          hasBg: false, bgColor: defBg, bgOpacity: 100,
+          highlightEnabled: true, highlightColor: defBg, highlightOpacity: 100,
+          highlightBorderRadius: 6, highlightPadding: Math.max(6, Math.round(defSize * 0.22)),
+          cornerRadius: 6, padding: 14, paddingH: 14, paddingV: 10,
         };
         const photoProxyUrl = p?.photo_url ? `/api/proxy-image?url=${encodeURIComponent(p.photo_url)}` : '';
         let initSlides: Slide[];
@@ -5168,9 +5119,18 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
         fontFamily: b.role === 'sous-titre' ? bodyFont : displayFont,
         fontStyle: b.role === 'sous-titre' ? 'normal' : 'bold', textDecoration: '',
         fill, align,
-        hasBg: !!boxFill, bgColor: boxFill ?? '#000000', bgOpacity: boxFill ? 100 : 80,
-        // radiusPct = % de la hauteur du texte : 50 donne une pastille, 0 un bandeau net.
-        cornerRadius: boxFill ? Math.round(((b.radiusPct ?? 8) / 100) * fontSize) : 6,
+        // L'aplat passe par l'effet « Arrière-plan » — le même réglage que celui
+        // offert à l'utilisateur, et le seul qui épouse chaque ligne de texte.
+        hasBg: false, bgColor: '#000000', bgOpacity: 80,
+        ...(boxFill ? {
+          highlightEnabled: true,
+          highlightColor: boxFill,
+          highlightOpacity: 100,
+          // radiusPct = % de la hauteur du texte : 50 donne une pastille, 0 un bandeau net.
+          highlightBorderRadius: Math.round(((b.radiusPct ?? 8) / 100) * fontSize),
+          highlightPadding: Math.max(6, Math.round(fontSize * 0.22)),
+        } : {}),
+        cornerRadius: 6,
         padding: 16, paddingH: 16, paddingV: 10,
         role: b.role || 'titre', uppercase: !!b.uppercase,
         // Ombre = halo doux de lisibilité (offset 0, flou large, faible opacité), JAMAIS une ombre portée lourde.
