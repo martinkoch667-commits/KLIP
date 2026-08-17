@@ -6738,12 +6738,22 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
                                 const x = el.align === 'center' ? pH + (textAreaW - line.width) / 2 - hp
                                         : el.align === 'right'  ? pH + textAreaW - line.width - hp
                                         : pH - hp;
+                                // La MARGE EST LA MÊME PARTOUT — hp de chaque côté.
+                                //
+                                // La hauteur était calée sur `line.height`, qui
+                                // englobe l'interligne : le blanc de l'interligne
+                                // s'ajoutait donc sous le texte, et l'aplat semblait
+                                // plus large en bas qu'ailleurs. On le cale sur la
+                                // hauteur du TEXTE, que Konva pose au bas de sa
+                                // ligne (verticalAlign="bottom").
+                                const textH = line.segments.reduce((h, sg) => Math.max(h, sg.style.fontSize), el.fontSize);
+                                const textTop = pV + line.top + line.height - textH;
                                 return (
                                   <Rect
                                     key={`hl-${li}`}
-                                    x={x} y={pV + line.top - Math.round(hp / 2)}
+                                    x={x} y={textTop - hp}
                                     width={line.width + hp * 2}
-                                    height={line.height + hp}
+                                    height={textH + hp * 2}
                                     fill={el.highlightColor ?? '#FFFF00'}
                                     opacity={(el.highlightOpacity ?? 80) / 100}
                                     cornerRadius={el.highlightBorderRadius ?? 4}
