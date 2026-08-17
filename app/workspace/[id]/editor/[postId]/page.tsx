@@ -6724,25 +6724,34 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
                         {/* Surbrillance — highlight rect behind text */}
                         {el.highlightEnabled && !isEditing && (() => {
                           const hp = el.highlightPadding ?? 8;
-                          // L'aplat épouse le TEXTE, pas la zone de texte.
-                          // Il prenait `textAreaW` : élargir la boîte étirait donc
-                          // l'aplat dans le vide, avec de grandes marges à gauche
-                          // et à droite du mot. On le recale selon l'alignement,
-                          // exactement comme le fond `hasBg` juste au-dessus.
-                          const hlInner = Math.min(textAreaW, layout.maxLineWidth);
-                          const hlX = el.align === 'center' ? pH + (textAreaW - hlInner) / 2 - hp
-                                    : el.align === 'right'  ? pH + textAreaW - hlInner - hp
-                                    : pH - hp;
+                          // UN APLAT PAR LIGNE, chacun épousant SA ligne.
+                          //
+                          // Il n'y en avait qu'un, calé sur `textAreaW` : élargir
+                          // la boîte l'étirait dans le vide, et un texte passant à
+                          // la ligne laissait la deuxième sans fond du tout. Chaque
+                          // ligne a sa propre largeur dans le moteur de mise en
+                          // page — on s'en sert, et on recale selon l'alignement.
                           return (
-                            <Rect
-                              x={hlX} y={pV - Math.round(hp / 2)}
-                              width={hlInner + hp * 2}
-                              height={el.fontSize * (el.lineHeight ?? 1.2) + hp}
-                              fill={el.highlightColor ?? '#FFFF00'}
-                              opacity={(el.highlightOpacity ?? 80) / 100}
-                              cornerRadius={el.highlightBorderRadius ?? 4}
-                              listening={false}
-                            />
+                            <>
+                              {layout.lines.map((line, li) => {
+                                if (!line.width) return null;   // ligne vide : pas d'aplat
+                                const x = el.align === 'center' ? pH + (textAreaW - line.width) / 2 - hp
+                                        : el.align === 'right'  ? pH + textAreaW - line.width - hp
+                                        : pH - hp;
+                                return (
+                                  <Rect
+                                    key={`hl-${li}`}
+                                    x={x} y={pV + line.top - Math.round(hp / 2)}
+                                    width={line.width + hp * 2}
+                                    height={line.height + hp}
+                                    fill={el.highlightColor ?? '#FFFF00'}
+                                    opacity={(el.highlightOpacity ?? 80) / 100}
+                                    cornerRadius={el.highlightBorderRadius ?? 4}
+                                    listening={false}
+                                  />
+                                );
+                              })}
+                            </>
                           );
                         })()}
                         {/* Élévation — lift layers rendered deepest */}
