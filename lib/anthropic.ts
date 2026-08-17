@@ -7,6 +7,9 @@ export type AnthropicContentBlock =
 
 export type AnthropicMessage = { role: 'user' | 'assistant'; content: string | AnthropicContentBlock[] };
 
+// Modèle le plus capable de la famille Opus — c'est lui qui juge les compositions.
+const MODEL = 'claude-opus-5';
+
 export async function callAnthropicText(params: {
   apiKey: string;
   system?: string;
@@ -18,9 +21,12 @@ export async function callAnthropicText(params: {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'x-api-key': params.apiKey, 'anthropic-version': '2023-06-01' },
     body: JSON.stringify({
-      model: 'claude-opus-4-5',
-      max_tokens: params.maxTokens,
-      ...(params.temperature !== undefined ? { temperature: params.temperature } : {}),
+      model: MODEL,
+      // Claude Opus 5 réfléchit par défaut, et `max_tokens` plafonne la réflexion
+      // ET la réponse : sans marge, la réponse est tronquée en plein milieu.
+      max_tokens: Math.max(params.maxTokens, 8000),
+      // `temperature` est refusé par Opus 5 (400) : la direction se donne par le
+      // prompt, plus par un réglage d'échantillonnage.
       ...(params.system ? { system: params.system } : {}),
       messages: params.messages,
     }),
@@ -29,7 +35,10 @@ export async function callAnthropicText(params: {
   if (!response.ok) {
     throw new Error(data.error?.message || 'Erreur IA (Claude)');
   }
-  const text = data.content?.[0]?.text ?? '';
+  // Le premier bloc n'est pas forcément le texte : quand le modèle réfléchit, il
+  // est précédé d'un bloc `thinking`. Prendre content[0] rendait une réponse vide.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const text = (data.content ?? []).find((b: any) => b?.type === 'text')?.text ?? '';
   if (!text) throw new Error('Réponse IA vide (Claude)');
   return text;
 }

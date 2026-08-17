@@ -29,6 +29,9 @@ export async function generateAiText(params: {
   temperature?: number;
   maxTokens: number;
   priorTurns?: Turn[];
+  /** `high` : modèle de jugement côté Gemini (voir lib/gemini.ts). Sans effet sur
+   *  Claude, dont le modèle unique réfléchit déjà. */
+  quality?: 'fast' | 'high';
 }): Promise<string> {
   const provider = await resolveAiProvider(params.userId);
   const turns: Turn[] = [...(params.priorTurns ?? []), { role: 'user', text: params.userText, images: params.images }];
@@ -57,5 +60,6 @@ export async function generateAiText(params: {
     contents,
     temperature: params.temperature,
     maxOutputTokens: params.maxTokens,
+    quality: params.quality,
   });
 }

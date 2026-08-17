@@ -5037,6 +5037,33 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
   const materializeLayout = async (L: any) => {
     const displayFont = workspaceData?.font_family || 'Archivo';
     const bodyFont = workspaceData?.font_secondary || displayFont;
+
+    // L'IA a repris un TEMPLATE MAISON : on applique son dessin complet — fond,
+    // aplats, formes, couleurs — avec les textes qu'elle a écrits. Le réduire à
+    // des positions de texte, comme avant, revenait à jeter le template.
+    if (L?.template && Array.isArray(L.template.elements) && L.template.elements.length) {
+      const src = L.template.sourceFormat ?? { w: stageW, h: stageH };
+      const sx = stageW / Math.max(1, src.w);
+      const sy = stageH / Math.max(1, src.h);
+      const sf = Math.min(sx, sy); // tailles et rayons : échelle uniforme, pas de déformation
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const scaled: CanvasEl[] = L.template.elements.map((el: any, i: number) => {
+        const out: Record<string, unknown> = { ...el, id: `ai-tpl-${i}-${newId()}` };
+        out.x = Math.round((el.x ?? 0) * sx);
+        out.y = Math.round((el.y ?? 0) * sy);
+        if (typeof el.width === 'number') out.width = Math.round(el.width * sx);
+        if (typeof el.height === 'number') out.height = Math.round(el.height * sy);
+        if (typeof el.fontSize === 'number') out.fontSize = Math.max(11, Math.round(el.fontSize * sf));
+        if (typeof el.radius === 'number') out.radius = Math.round(el.radius * sf);
+        if (typeof el.cornerRadius === 'number') out.cornerRadius = Math.round(el.cornerRadius * sf);
+        // La zone photo du template accueille la photo du post.
+        if (el.type === 'image' && el.src === PHOTO_PLACEHOLDER_SRC) out.src = proxyUrlRef.current || '';
+        return out as unknown as CanvasEl;
+      });
+      if (L.template.backgroundStyle) setBgStyle(L.template.backgroundStyle as BgStyle);
+      applyElements(relayoutText(scaled, stageW, stageH));
+      return;
+    }
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const resolveColor = (c: any) => c === 'primary' ? (workspaceData?.primary_color || '#FFFFFF') : c === 'secondary' ? (workspaceData?.secondary_color || '#FFFFFF') : c === 'accent' ? (workspaceData?.accent_color || '#BDF2A0') : c === 'black' ? '#14160F' : '#FFFFFF';
     let sampler: ((xp: number, yp: number, wp: number, hp: number) => { mean: number; std: number }) | null = null;

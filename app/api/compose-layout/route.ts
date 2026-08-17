@@ -97,7 +97,18 @@ export async function POST(request: NextRequest) {
         serverStyleRef = (tplRes.data ?? []).map((t: any) => {
           const [fw, fh] = FMT_DIMS[t.format_id as string] ?? [420, 560];
           const firstPage = Array.isArray(t.pages) && t.pages.length ? (t.pages[0]?.elements ?? []) : t.text_zones;
-          return { name: t.name, bg: (t.background_style as { type?: string } | null)?.type ?? 'none', blocks: summarizeZones(firstPage, fw, fh) };
+          return {
+            name: t.name,
+            bg: (t.background_style as { type?: string } | null)?.type ?? 'none',
+            blocks: summarizeZones(firstPage, fw, fh),
+            // Le DESSIN complet du template, conservé tel quel. Sans lui, choisir un
+            // template ne rapportait qu'une grille de positions : ses couleurs, ses
+            // aplats, son fond et ses formes étaient perdus, et le visuel ressortait
+            // en texte nu — d'où « elle ne s'inspire pas du template ».
+            elements: Array.isArray(firstPage) ? firstPage : [],
+            backgroundStyle: t.background_style ?? null,
+            format: [fw, fh] as [number, number],
+          };
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
         }).filter((s: any) => s.blocks.length > 0).slice(0, 4);
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -126,7 +137,25 @@ export async function POST(request: NextRequest) {
     const tpls: any[] = Array.isArray(styleRef) && styleRef.length ? styleRef : serverStyleRef;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const approved: any[] = Array.isArray(approvedRef) && approvedRef.length ? approvedRef : serverApprovedRef;
-    const tplCandidates = tpls.map((t, i) => ({ id: `tpl-${i}`, desc: `Template client "${t.name ?? i}" — rôles: ${(t.blocks ?? []).map((b: { role: string }) => b.role).join(', ')}`, roles: (t.blocks ?? []).map((b: { role: string }) => b.role) }));
+    // Un candidat template doit se DÉCRIRE : combien de blocs, quel fond, quels
+    // aplats. « Template client 3 — rôles: titre, cta » ne donne aucune raison de
+    // le choisir plutôt qu'une recette générique.
+    const tplCandidates = tpls.map((t, i) => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const els: any[] = Array.isArray(t.elements) ? t.elements : [];
+      const nShapes = els.filter(e => e?.type === 'rect' || e?.type === 'vector').length;
+      const nBoxed = els.filter(e => e?.type === 'text' && e?.hasBg).length;
+      const traits = [
+        t.bg && t.bg !== 'none' ? `fond ${t.bg}` : '',
+        nShapes ? `${nShapes} forme${nShapes > 1 ? 's' : ''} de couleur` : '',
+        nBoxed ? `${nBoxed} texte${nBoxed > 1 ? 's' : ''} en cartouche` : '',
+      ].filter(Boolean).join(', ');
+      return {
+        id: `tpl-${i}`,
+        desc: `Template MAISON du client « ${t.name ?? i} » — ${(t.blocks ?? []).length} blocs (${(t.blocks ?? []).map((b: { role: string }) => b.role).join(', ')})${traits ? ` ; ${traits}` : ''}. Le choisir applique son dessin complet, aux couleurs de la marque.`,
+        roles: (t.blocks ?? []).map((b: { role: string }) => b.role),
+      };
+    });
     const libCandidates = LAYOUT_LIBRARY.map(r => ({ id: r.id, desc: r.desc, anchor: r.anchor, roles: r.slots.map(s => s.role) }));
 
     const prompt = [
@@ -150,7 +179,7 @@ export async function POST(request: NextRequest) {
       textList.length ? `Textes à utiliser :\n${textList.map((t, i) => `${i + 1}. "${t}"`).join('\n')}` : 'Aucun texte fourni : rédige un titre court (≤6 mots) + éventuel sous-titre, cohérents avec la photo.',
       '',
       'Choisis les 3 MEILLEURS layouts (selon où le texte tombera dans une zone calme de CETTE photo). Pour chacun : remplis chaque slot (rôle->texte), choisis une couleur de charte par slot (contraste avec le fond), décide du scrim.',
-      'Préfère un template client quand il colle ; sinon un layout de la bibliothèque. Évite de placer le texte sur le sujet.',
+      'Préfère TOUJOURS un template maison du client quand il peut accueillir ce contenu : le choisir applique son dessin complet — son fond, ses aplats, ses couleurs, ses formes — donc le visuel ressemble immédiatement à cette marque. Ne prends une recette de la bibliothèque que si aucun template ne convient. Évite de placer le texte sur le sujet.',
       '',
       // Un parti pris formulé AVANT les choix : ça oblige à décider d'une direction
       // (et non à prendre la mise en page la plus neutre), et ça donne à
@@ -171,8 +200,12 @@ export async function POST(request: NextRequest) {
         // La photo à habiller D'ABORD, les références Instagram ensuite (le prompt
         // dit explicitement laquelle est laquelle).
         images: hasImage ? [imageUrl, ...instaRefs] : (instaRefs.length ? instaRefs : undefined),
+        // Diriger un visuel est un travail de jugement : on prend le modèle qui
+        // regarde vraiment la photo et les références, et on lui laisse le droit
+        // de réfléchir. C'est la tâche de l'app où la qualité prime sur la vitesse.
+        quality: 'high',
         temperature: 0.7,
-        maxTokens: 1800,
+        maxTokens: 4000,
       });
     } catch (err) {
       console.error('[compose-layout] API error:', err);
@@ -204,8 +237,40 @@ export async function POST(request: NextRequest) {
       return { slots: LAYOUT_LIBRARY[0].slots, defaultScrim: LAYOUT_LIBRARY[0].scrim };
     };
 
+    // Un template choisi est appliqué EN ENTIER : on renvoie ses éléments, avec
+    // seulement les textes remplacés par ceux que l'IA a écrits. C'est la
+    // différence entre « s'inspirer du template » et « reprendre trois positions ».
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const templateLayout = (pick: any) => {
+      if (pick.source !== 'template') return null;
+      const idx = parseInt(String(pick.id).replace('tpl-', ''), 10);
+      const t = tpls[idx];
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const els: any[] = Array.isArray(t?.elements) ? t.elements : [];
+      if (!els.length) return null;
+      const aiSlots: { role?: string; text?: string; uppercase?: boolean }[] = Array.isArray(pick.slots) ? pick.slots : [];
+      const used = new Set<number>();
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const filled = els.map((el: any) => {
+        if (el?.type !== 'text' || !el.role) return el;
+        let k = aiSlots.findIndex((sl, i) => !used.has(i) && sl.role === el.role && sl.text);
+        if (k < 0) k = aiSlots.findIndex((sl, i) => !used.has(i) && sl.text);
+        if (k < 0) return el;
+        used.add(k);
+        return { ...el, text: String(aiSlots[k].text) };
+      });
+      const [fw, fh] = (t.format as [number, number]) ?? [420, 560];
+      return { elements: filled, backgroundStyle: t.backgroundStyle ?? null, sourceFormat: { w: fw, h: fh }, name: t.name };
+    };
+
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const layouts = picks.slice(0, 3).map((pick: any) => {
+      const tpl = templateLayout(pick);
+      if (tpl) {
+        // Le dessin du template FAIT la composition — pas de voile ni d'accents
+        // ajoutés par-dessus, ils défigureraient le modèle du client.
+        return { template: tpl, blocks: [], scrim: { position: 'none', opacity: 0 }, accents: [], logo: { show: false } };
+      }
       const { slots, defaultScrim, accents } = geomFor(pick);
       const aiSlots: { role: string; text?: string; color?: string; uppercase?: boolean }[] = Array.isArray(pick.slots) ? pick.slots : [];
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -233,7 +298,7 @@ export async function POST(request: NextRequest) {
         : { position: defaultScrim, opacity: 55 };
       return { blocks: outBlocks, scrim, accents: accents ?? [], logo: { show: false } };
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    }).filter((l: any) => l.blocks.length > 0);
+    }).filter((l: any) => l.blocks.length > 0 || l.template);
 
     if (layouts.length === 0) return NextResponse.json({ error: 'Composition vide' }, { status: 502 });
     // `rationale` = le parti pris, à afficher tel quel : c'est ce qui montre qu'une
