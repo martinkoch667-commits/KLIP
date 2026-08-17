@@ -119,7 +119,7 @@ const CW_CSS = `
 .cw-acct-name { font-weight:700; font-size:13.5px; color:#0D0F0A; line-height:1.2; }
 .cw-acct-sub { font-size:11.5px; color:#9ca3af; }
 .cw-modal-close { margin-left:auto; width:30px; height:30px; border-radius:50%; border:1px solid rgba(13,15,10,.1); background:#f7f6f3; cursor:pointer; display:grid; place-items:center; color:#6b7280; flex-shrink:0; }
-.cw-modal-img { width:100%; aspect-ratio:4/5; object-fit:cover; background:#0D0F0A; display:block; }
+.cw-modal-img { width:100%; aspect-ratio:3/4; object-fit:cover; background:#0D0F0A; display:block; }
 .cw-modal-body { padding:16px 18px 20px; }
 .cw-modal-cap { font-size:13.5px; color:#1f2937; line-height:1.6; margin:0 0 14px; white-space:pre-wrap; }
 .cw-meta-row { display:flex; align-items:center; gap:7px; padding:9px 12px; border-radius:10px; background:var(--canvas,#F6F5EF); margin-bottom:14px; }
@@ -398,7 +398,7 @@ export default function PreviewPage() {
               {img && (
                 <div style={{ position: 'relative' }}>
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={img} alt="" className="cw-modal-img" style={{ aspectRatio: selected.post_type === 'story' || selected.post_type === 'reel' ? '9 / 16' : '4 / 5' }} />
+                  <img src={img} alt="" className="cw-modal-img" style={{ aspectRatio: selected.post_type === 'story' || selected.post_type === 'reel' ? '9 / 16' : selected.post_type === 'carrousel' ? '1 / 1' : '3 / 4' }} />
                   {selected.texte_visuel && (
                     <div style={{ position: 'absolute', bottom: 14, left: 14, right: 14, background: 'rgba(0,0,0,.55)', borderRadius: 10, padding: '8px 12px', backdropFilter: 'blur(4px)' }}>
                       <p style={{ color: '#fff', fontSize: 13, fontWeight: 600, margin: 0, lineHeight: 1.4 }}>{selected.texte_visuel}</p>

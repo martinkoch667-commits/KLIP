@@ -131,7 +131,7 @@ function PostCard({ post, workspaceId, onClick }: { post: PostRow; workspaceId: 
       onClick={onClick}
       style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', textAlign: 'left', borderRadius: 10, overflow: 'hidden' }}
     >
-      <div style={{ aspectRatio: '4/5', borderRadius: 10, overflow: 'hidden', position: 'relative', background: 'var(--sunk)' }}>
+      <div style={{ aspectRatio: '3/4', borderRadius: 10, overflow: 'hidden', position: 'relative', background: 'var(--sunk)' }}>
         {hasMedia ? (
           <PostThumb post={post} />
         ) : (

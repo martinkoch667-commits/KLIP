@@ -51,7 +51,7 @@ interface PostTemplate {
 // ─── Format definitions ───────────────────────────────────────────────────────
 
 const FORMATS = [
-  { id: 'ig-portrait', labelKey: 'formatPortraitFull', sub: '1080×1350', w: 360, h: 450 },
+  { id: 'ig-portrait', labelKey: 'formatPortraitFull', sub: '1080×1440', w: 338, h: 450 },
   { id: 'ig-square',   labelKey: 'formatSquareFull',   sub: '1080×1080', w: 420, h: 420 },
   { id: 'ig-story',    labelKey: 'formatStoryFull',    sub: '1080×1920', w: 253, h: 450 },
   { id: 'facebook',    labelKey: 'formatFacebookFull', sub: '1200×630',  w: 420, h: 221 },

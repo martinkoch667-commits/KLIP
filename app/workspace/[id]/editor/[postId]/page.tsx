@@ -191,7 +191,7 @@ const FONTS = [
 ];
 
 const FORMATS = [
-  { id: 'ig-portrait', label: 'Portrait 4:5',  sub: '1080×1350', w: 448, h: 560 },
+  { id: 'ig-portrait', label: 'Portrait 3:4',  sub: '1080×1440', w: 420, h: 560 },
   { id: 'ig-square',   label: 'Carré',          sub: '1080×1080', w: 560, h: 560 },
   { id: 'ig-story',    label: 'Story',           sub: '1080×1920', w: 315, h: 560 },
   { id: 'facebook',    label: 'Facebook Post',   sub: '1200×630',  w: 560, h: 294 },
@@ -2357,9 +2357,20 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
   const [dragId, setDragId] = useState<string | null>(null);
   const [dragOverId, setDragOverId] = useState<string | null>(null);
 
-  const historyRef = useRef<CanvasEl[][]>([[]]);
+  // Historique GLOBAL au visuel, pas par plan de travail.
+  //
+  // Il était remis à zéro à chaque changement de page : on modifiait la page 1,
+  // on allait voir la page 2, et en revenant Cmd+Z ne pouvait plus rien annuler —
+  // le travail précédent était sorti de l'historique. Chaque entrée retient donc
+  // la page à laquelle elle appartient, et annuler y ramène automatiquement.
+  type HistEntry = { slide: number; els: CanvasEl[] };
+  const historyRef = useRef<HistEntry[]>([{ slide: 0, els: [] }]);
   const histIdxRef = useRef(0);
   const [histTick, setHistTick] = useState(0);
+  // Index de page lisible de façon SYNCHRONE : `activeSlideIdx` est un état, donc
+  // périmé dans une closure différée (l'auto-save attend 1,5 s) — et sauvegarder
+  // dans la mauvaise page écraserait le travail d'une autre.
+  const activeSlideIdxRef = useRef(0);
 
   const [showUnsplash, setShowUnsplash] = useState(false);
   const [unsplashQuery, setUnsplashQuery] = useState('');
@@ -2560,7 +2571,13 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
 
   // ── Carousel slides ───────────────────────────────────────────────────────
   const [slides, setSlides] = useState<Slide[]>([{ id: 'slide-1', elements: [], proxyUrl: '' }]);
-  const [activeSlideIdx, setActiveSlideIdx] = useState(0);
+  const [activeSlideIdx, setActiveSlideIdxState] = useState(0);
+  // Toujours passer par ce setter : le ref doit suivre l'état sans attendre le
+  // rendu suivant (cf. activeSlideIdxRef).
+  const setActiveSlideIdx = useCallback((idx: number) => {
+    activeSlideIdxRef.current = idx;
+    setActiveSlideIdxState(idx);
+  }, []);
   const slidesRef = useRef<Slide[]>(slides);
   const proxyUrlRef = useRef<string>('');
   useEffect(() => { slidesRef.current = slides; }, [slides]);
@@ -2570,8 +2587,12 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
   const saveCurrentSlide = () => {
     // Aperçu net des slides inactives (0.3 rendait le plan de travail flou en carrousel).
     const thumbnail = stageRef.current?.toDataURL({ pixelRatio: 1.25 }) ?? undefined;
+    // Index lu au ref : appelée depuis un timer (auto-save), la valeur d'état
+    // serait celle d'AVANT le changement de page, et on écrirait le contenu
+    // courant par-dessus une autre page.
+    const cur = activeSlideIdxRef.current;
     const updated = slidesRef.current.map((s, i) =>
-      i === activeSlideIdx ? {
+      i === cur ? {
         ...s,
         elements: elementsRef.current,
         proxyUrl: proxyUrlRef.current,
@@ -2584,25 +2605,35 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
     return updated;
   };
 
+  // Bascule vers une page SANS toucher à l'historique : c'est ce qui permet à
+  // Cmd+Z de remonter au-delà d'un changement de page (cf. historyRef).
+  const goToSlide = (idx: number, slidesSource?: Slide[]) => {
+    const list = slidesSource ?? slidesRef.current;
+    const next = list[idx];
+    if (!next) return;
+    setElements(next.elements);
+    elementsRef.current = next.elements;
+    setProxyUrl(next.proxyUrl);
+    proxyUrlRef.current = next.proxyUrl;
+    setBgOffsetX(next.bgOffsetX ?? 0);
+    bgOffsetXRef.current = next.bgOffsetX ?? 0;
+    setBgOffsetY(next.bgOffsetY ?? 0);
+    bgOffsetYRef.current = next.bgOffsetY ?? 0;
+    setBgCropMode(false);
+    setActiveSlideIdx(idx);
+    setSelectedId(null);
+    setSelectedIds([]);
+    setCropId(null);
+    requestAnimationFrame(() => {
+      slideContainerRefs.current[idx]?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    });
+  };
+
   const switchSlide = (idx: number) => {
     if (idx === activeSlideIdx) return;
     const updated = saveCurrentSlide();
     setSlides(updated);
-    const next = updated[idx];
-    setElements(next.elements);
-    setProxyUrl(next.proxyUrl);
-    setBgOffsetX(next.bgOffsetX ?? 0);
-    setBgOffsetY(next.bgOffsetY ?? 0);
-    setBgCropMode(false);
-    setActiveSlideIdx(idx);
-    setSelectedId(null);
-    setCropId(null);
-    historyRef.current = [next.elements];
-    histIdxRef.current = 0;
-    setHistTick(t => t + 1);
-    requestAnimationFrame(() => {
-      slideContainerRefs.current[idx]?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-    });
+    goToSlide(idx, updated);
   };
 
   const addSlide = () => {
@@ -2614,18 +2645,7 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
     const newSlides = [...updated, newSlide];
     slidesRef.current = newSlides;
     setSlides(newSlides);
-    const newIdx = newSlides.length - 1;
-    setElements([]);
-    setProxyUrl('');
-    setBgOffsetX(0);
-    setBgOffsetY(0);
-    setBgCropMode(false);
-    setActiveSlideIdx(newIdx);
-    setSelectedId(null);
-    setCropId(null);
-    historyRef.current = [[]];
-    histIdxRef.current = 0;
-    setHistTick(t => t + 1);
+    goToSlide(newSlides.length - 1, newSlides);
   };
 
   // ── Carrousel "lié" façon Canva : étend l'image de fond de la slide active sur
@@ -2673,6 +2693,35 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
     }
   };
 
+  // Réordonner les pages : l'ordre de la bande EST l'ordre de lecture du
+  // carrousel. On déplace la page ET son entrée d'historique, sinon Cmd+Z
+  // ramènerait un état sur la mauvaise page.
+  const [slideDragIdx, setSlideDragIdx] = useState<number | null>(null);
+  const [slideDragOverIdx, setSlideDragOverIdx] = useState<number | null>(null);
+
+  const moveSlide = (from: number | null, to: number) => {
+    setSlideDragIdx(null);
+    setSlideDragOverIdx(null);
+    if (from === null || from === to) return;
+    const updated = saveCurrentSlide();
+    if (from < 0 || from >= updated.length || to < 0 || to >= updated.length) return;
+    const reordered = [...updated];
+    const [moved] = reordered.splice(from, 1);
+    reordered.splice(to, 0, moved);
+    slidesRef.current = reordered;
+    setSlides(reordered);
+    // Nouvel index de chaque ancienne position, pour suivre l'historique et la
+    // page active à travers le déplacement.
+    const newIndexOf = (old: number): number => {
+      if (old === from) return to;
+      if (from < to) return old > from && old <= to ? old - 1 : old;
+      return old >= to && old < from ? old + 1 : old;
+    };
+    historyRef.current = historyRef.current.map(h => ({ ...h, slide: newIndexOf(h.slide) }));
+    setActiveSlideIdx(newIndexOf(activeSlideIdxRef.current));
+    setHistTick(t => t + 1);
+  };
+
   const removeSlide = (idx: number) => {
     if (slidesRef.current.length <= 1) return;
     const updated = saveCurrentSlide();
@@ -2683,15 +2732,15 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
       : idx < activeSlideIdx ? activeSlideIdx - 1
       : idx === activeSlideIdx ? Math.min(idx, newSlides.length - 1)
       : activeSlideIdx;
-    setActiveSlideIdx(newActive);
-    const next = newSlides[newActive];
-    setElements(next.elements);
-    setProxyUrl(next.proxyUrl);
-    setSelectedId(null);
-    setCropId(null);
-    historyRef.current = [next.elements];
-    histIdxRef.current = 0;
+    // Les entrées d'historique pointent une page par son index : supprimer une
+    // page décale les suivantes, il faut décaler l'historique avec elles.
+    historyRef.current = historyRef.current
+      .filter(h => h.slide !== idx)
+      .map(h => (h.slide > idx ? { ...h, slide: h.slide - 1 } : h));
+    if (!historyRef.current.length) historyRef.current = [{ slide: 0, els: newSlides[0].elements }];
+    histIdxRef.current = Math.min(histIdxRef.current, historyRef.current.length - 1);
     setHistTick(t => t + 1);
+    goToSlide(newActive, newSlides);
   };
 
   // ── Bascule Séparé ⇄ Continu — fusionne/redécoupe réellement les éléments ──
@@ -2720,7 +2769,9 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
       setBgOffsetY(mergedSlide.bgOffsetY ?? 0);
       setSelectedId(null);
       setCropId(null);
-      historyRef.current = [merged];
+      // Fusion/redécoupe : les index de page changent de sens, l'historique
+      // d'avant ne s'y applique plus. C'est le seul cas où on repart de zéro.
+      historyRef.current = [{ slide: 0, els: merged }];
       histIdxRef.current = 0;
       setHistTick(t => t + 1);
       setContPanels(panels);
@@ -2750,7 +2801,7 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
       setBgOffsetY(newSlides[0].bgOffsetY ?? 0);
       setSelectedId(null);
       setCropId(null);
-      historyRef.current = [newSlides[0].elements];
+      historyRef.current = [{ slide: 0, els: newSlides[0].elements }];
       histIdxRef.current = 0;
       setHistTick(t => t + 1);
     }
@@ -3154,7 +3205,7 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
         // Bug 3: restore saved bg crop offsets
         setBgOffsetX(first.bgOffsetX ?? 0);
         setBgOffsetY(first.bgOffsetY ?? 0);
-        historyRef.current = [first.elements];
+        historyRef.current = [{ slide: 0, els: first.elements }];
         histIdxRef.current = 0;
         if (w?.custom_fonts) {
           try {
@@ -3189,8 +3240,13 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
   // quitte sans cliquer "Publier". Sauvegarde légère : juste le JSON, pas de
   // rendu/upload PNG ni de changement de statut (contrairement à handleSave).
   const autoSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // L'export d'un carrousel et la génération IA font DÉFILER les pages dans le
+  // canvas pour les photographier une à une. Pendant ce défilé, `elements` change
+  // sans que la page active change : l'auto-save aurait écrit le contenu d'une
+  // page par-dessus une autre. On le suspend le temps de l'opération.
+  const busyWithSlidesRef = useRef(false);
   useEffect(() => {
-    if (dataLoading || isTemplate) return;
+    if (dataLoading || isTemplate || busyWithSlidesRef.current) return;
     if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current);
     autoSaveTimer.current = setTimeout(() => {
       const updated = saveCurrentSlide();
@@ -3229,8 +3285,28 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
 
   const pushHistory = (newEls: CanvasEl[]) => {
     const slice = historyRef.current.slice(0, histIdxRef.current + 1);
-    historyRef.current = [...slice, newEls];
+    historyRef.current = [...slice, { slide: activeSlideIdxRef.current, els: newEls }];
     histIdxRef.current = historyRef.current.length - 1;
+    setHistTick(t => t + 1);
+  };
+
+  // Applique une entrée d'historique, en revenant d'abord sur SA page si on n'y
+  // est plus — c'est ce qui rend Cmd+Z compréhensible sur un carrousel : on voit
+  // toujours ce qui vient d'être annulé.
+  const applyHistEntry = (entry: HistEntry) => {
+    if (entry.slide !== activeSlideIdxRef.current) {
+      const saved = saveCurrentSlide();
+      // La page visée reçoit l'état annulé, pas celui qu'elle avait en la quittant.
+      const target = saved.map((s, i) => (i === entry.slide ? { ...s, elements: entry.els } : s));
+      slidesRef.current = target;
+      setSlides(target);
+      goToSlide(entry.slide, target);
+    } else {
+      setElements(entry.els);
+      elementsRef.current = entry.els;
+    }
+    setSelectedId(null);
+    setSelectedIds([]);
     setHistTick(t => t + 1);
   };
 
@@ -3252,9 +3328,9 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
   // reste annulable séparément.
   const commitEditSnapshot = useCallback(() => {
     const now = elementsRef.current;
-    if (historyRef.current[histIdxRef.current] !== now) {
+    if (historyRef.current[histIdxRef.current]?.els !== now) {
       const slice = historyRef.current.slice(0, histIdxRef.current + 1);
-      historyRef.current = [...slice, now];
+      historyRef.current = [...slice, { slide: activeSlideIdxRef.current, els: now }];
       histIdxRef.current = historyRef.current.length - 1;
       setHistTick(t => t + 1);
     }
@@ -3283,7 +3359,7 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
   // fait que l'assistant s'améliore à mesure que le client valide des visuels —
   // il compose comme ce qui a déjà été approuvé, pas dans le vide.
   // (Même source que composeWithAI, extraite ici pour être partagée.)
-  const FMT_DIMS_REF: Record<string, [number, number]> = { 'ig-portrait': [448, 560], 'ig-square': [560, 560], 'ig-story': [315, 560], 'facebook': [560, 294] };
+  const FMT_DIMS_REF: Record<string, [number, number]> = { 'ig-portrait': [420, 560], 'ig-square': [560, 560], 'ig-story': [315, 560], 'facebook': [560, 294] };
   const fetchBrandRefs = async () => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const summarize = (zones: any[], fw: number, fh: number) => zones.filter(z => z?.type === 'text' && z.role).map(z => ({
@@ -3297,11 +3373,11 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
         supabase.from('posts').select('post_type, editor_json').eq('workspace_id', workspaceId).eq('approved_by_client', true).limit(4),
       ]);
       const gabarits = (tpls ?? []).map(t => {
-        const [fw, fh] = FMT_DIMS_REF[t.format_id as string] ?? [448, 560];
+        const [fw, fh] = FMT_DIMS_REF[t.format_id as string] ?? [420, 560];
         return { nom: t.name, fond: (t.background_style as { type?: string } | null)?.type ?? 'none', blocs: summarize(Array.isArray(t.text_zones) ? t.text_zones : [], fw, fh) };
       }).filter(s => s.blocs.length > 0).slice(0, 4);
       const postsValides = (approved ?? []).map(p => {
-        const [fw, fh] = FMT_DIMS_REF[(p.post_type as string) ? PT_FORMAT_MAP[p.post_type as string] : 'ig-portrait'] ?? [448, 560];
+        const [fw, fh] = FMT_DIMS_REF[(p.post_type as string) ? PT_FORMAT_MAP[p.post_type as string] : 'ig-portrait'] ?? [420, 560];
         try { const j = JSON.parse(p.editor_json as string); return { blocs: summarize(j?.slides?.[0]?.elements ?? [], fw, fh) }; }
         catch { return { blocs: [] }; }
       }).filter(s => s.blocs.length > 0).slice(0, 3);
@@ -3547,17 +3623,15 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
   const undo = useCallback(() => {
     if (histIdxRef.current <= 0) return;
     histIdxRef.current--;
-    setElements(historyRef.current[histIdxRef.current]);
-    setSelectedId(null);
-    setHistTick(t => t + 1);
+    applyHistEntry(historyRef.current[histIdxRef.current]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const redo = useCallback(() => {
     if (histIdxRef.current >= historyRef.current.length - 1) return;
     histIdxRef.current++;
-    setElements(historyRef.current[histIdxRef.current]);
-    setSelectedId(null);
-    setHistTick(t => t + 1);
+    applyHistEntry(historyRef.current[histIdxRef.current]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const deleteEl = useCallback((id?: string | null) => {
@@ -3821,7 +3895,7 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
         window.removeEventListener('mousemove', onMove);
         window.removeEventListener('mouseup', onUp);
         const slice = historyRef.current.slice(0, histIdxRef.current + 1);
-        historyRef.current = [...slice, elementsRef.current];
+        historyRef.current = [...slice, { slide: activeSlideIdxRef.current, els: elementsRef.current }];
         histIdxRef.current = historyRef.current.length - 1;
         setHistTick(t => t + 1);
       };
@@ -4006,13 +4080,13 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
     const k = W / 1080; // pour les grandeurs déjà exprimées en points typo
     const stock = await resolveStockPhotos(tpl);
 
-    // Les modèles sont dessinés en 4:5. Étirer leurs fractions sur une story
+    // Les modèles sont dessinés en 3:4. Étirer leurs fractions sur une story
     // 9:16 déformait tout : photo démesurément haute, titres minuscules (leur
     // taille est une fraction de la LARGEUR), énorme vide en bas. On projette
     // donc la composition dans une zone au ratio d'origine, centrée — c'est ce
     // que fait le redimensionnement de Canva. Seuls les éléments plein cadre
     // (fonds, voiles) continuent de couvrir tout le plan de travail.
-    const REF_RATIO = 4 / 5;
+    const REF_RATIO = 3 / 4;
     const dW = Math.min(W, H * REF_RATIO);
     const dH = dW / REF_RATIO;
     const ox = Math.round((W - dW) / 2);
@@ -4862,11 +4936,17 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
     // s'affichait vide : le carrousel avait l'air de n'avoir qu'une slide.
     // On fait donc défiler chaque slide dans le canvas pour la photographier.
     const frame = () => new Promise<void>((r) => requestAnimationFrame(() => requestAnimationFrame(() => r())));
-    for (let i = 0; i < built.length; i++) {
-      setActiveSlideIdx(i);
-      setElements(built[i].elements);
-      await frame();
-      built[i].thumbnail = stageRef.current?.toDataURL({ pixelRatio: 1.25 }) ?? undefined;
+    busyWithSlidesRef.current = true;
+    try {
+      for (let i = 0; i < built.length; i++) {
+        setActiveSlideIdx(i);
+        setElements(built[i].elements);
+        elementsRef.current = built[i].elements;
+        await frame();
+        built[i].thumbnail = stageRef.current?.toDataURL({ pixelRatio: 1.25 }) ?? undefined;
+      }
+    } finally {
+      busyWithSlidesRef.current = false;
     }
     slidesRef.current = built;
     setSlides([...built]);
@@ -4874,7 +4954,7 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
     // Retour à la première slide : c'est celle qu'on veut voir après génération.
     setActiveSlideIdx(0);
     setElements(built[0].elements);
-    historyRef.current = [built[0].elements];
+    historyRef.current = [{ slide: 0, els: built[0].elements }];
     histIdxRef.current = 0;
     setHistTick((t) => t + 1);
 
@@ -5009,7 +5089,7 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
     let success = false;
     try {
       const texts = elementsRef.current.filter(e => e.type === 'text').map(e => (e as TextEl).text).filter(t => t && t.trim() && t !== 'VOTRE TEXTE');
-      const FMT_DIMS: Record<string, [number, number]> = { 'ig-portrait': [448, 560], 'ig-square': [560, 560], 'ig-story': [315, 560], 'facebook': [560, 294] };
+      const FMT_DIMS: Record<string, [number, number]> = { 'ig-portrait': [420, 560], 'ig-square': [560, 560], 'ig-story': [315, 560], 'facebook': [560, 294] };
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const summarizeZones = (zones: any[], fw: number, fh: number) => zones.filter(z => z?.type === 'text' && z.role).map(z => ({
         role: z.role, xPct: Math.round(((z.x ?? 0) / fw) * 100), yPct: Math.round(((z.y ?? 0) / fh) * 100),
@@ -5023,11 +5103,11 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
           supabase.from('posts').select('post_type, editor_json').eq('workspace_id', workspaceId).eq('approved_by_client', true).limit(4),
         ]);
         styleRef = (tpls ?? []).map(t => {
-          const [fw, fh] = FMT_DIMS[t.format_id as string] ?? [448, 560];
+          const [fw, fh] = FMT_DIMS[t.format_id as string] ?? [420, 560];
           return { name: t.name, bg: (t.background_style as { type?: string } | null)?.type ?? 'none', blocks: summarizeZones(Array.isArray(t.text_zones) ? t.text_zones : [], fw, fh) };
         }).filter(s => s.blocks.length > 0).slice(0, 4);
         approvedRef = (approved ?? []).map(p => {
-          const [fw, fh] = FMT_DIMS[(p.post_type as string) ? PT_FORMAT_MAP[p.post_type as string] : 'ig-portrait'] ?? [448, 560];
+          const [fw, fh] = FMT_DIMS[(p.post_type as string) ? PT_FORMAT_MAP[p.post_type as string] : 'ig-portrait'] ?? [420, 560];
           let blocks: unknown[] = [];
           try { const j = JSON.parse(p.editor_json as string); const els = j?.slides?.[0]?.elements ?? []; blocks = summarizeZones(els, fw, fh); } catch { /* noop */ }
           return { blocks };
@@ -5176,6 +5256,9 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
   const handleSave = async () => {
     if (isTemplate) { await handleSaveTemplate(); return; }
     if (!stageRef.current) return;
+    // L'export photographie chaque page à tour de rôle : l'auto-save doit se
+    // taire jusqu'au bout, sinon il enregistre un état intermédiaire du défilé.
+    busyWithSlidesRef.current = true;
     setSaving(true);
     setSelectedId(null);
     setSelectedIds([]);
@@ -5269,6 +5352,9 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
       texte_visuel: textEl?.text || '',
       ...(aiCaption ? { caption_final: aiCaption, caption_was_edited: captionEdited } : {}),
     }).eq('id', postId);
+    // Tout est écrit : l'auto-save peut reprendre (la page va changer, mais si la
+    // redirection est empêchée on ne reste pas bloqué sans sauvegarde).
+    busyWithSlidesRef.current = false;
     window.location.href = `/workspace/${workspaceId}/planning`;
   };
 
@@ -7221,7 +7307,7 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
                   onDragEnd={() => {
                     // Commit a single undo entry when drag ends
                     const slice = historyRef.current.slice(0, histIdxRef.current + 1);
-                    historyRef.current = [...slice, elementsRef.current];
+                    historyRef.current = [...slice, { slide: activeSlideIdxRef.current, els: elementsRef.current }];
                     histIdxRef.current = historyRef.current.length - 1;
                     setHistTick(t => t + 1);
                   }}
@@ -7430,14 +7516,29 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
               <div style={{ fontSize: 10.5, color: 'var(--ink-3)', whiteSpace: 'nowrap' }}>
                 {postType === 'story'
                   ? 'Une story = une image'
-                  : slides.length > 1 ? 'Publié en carrousel' : 'Ajoutez une page pour un carrousel'}
+                  : slides.length > 1 ? 'Glissez une page pour changer l’ordre' : 'Ajoutez une page pour un carrousel'}
               </div>
             </div>
             {slides.map((slide, idx) => {
               const isActive = idx === activeSlideIdx;
+              const isDropTarget = slideDragIdx !== null && slideDragOverIdx === idx && slideDragIdx !== idx;
               return (
-                <div key={slide.id} style={{ position: 'relative', flexShrink: 0 }}>
+                <div key={slide.id}
+                  style={{
+                    position: 'relative', flexShrink: 0,
+                    opacity: slideDragIdx === idx ? 0.4 : 1,
+                    // Repère d'insertion : on voit OÙ la page va tomber.
+                    borderLeft: isDropTarget && idx < (slideDragIdx ?? 0) ? '3px solid var(--mint-2)' : '3px solid transparent',
+                    borderRight: isDropTarget && idx > (slideDragIdx ?? 0) ? '3px solid var(--mint-2)' : '3px solid transparent',
+                    transition: 'opacity .12s',
+                  }}
+                  onDragOver={e => { if (slideDragIdx !== null) { e.preventDefault(); setSlideDragOverIdx(idx); } }}
+                  onDrop={e => { e.preventDefault(); moveSlide(slideDragIdx, idx); }}
+                >
                   <button
+                    draggable={slides.length > 1}
+                    onDragStart={e => { setSlideDragIdx(idx); e.dataTransfer.effectAllowed = 'move'; }}
+                    onDragEnd={() => { setSlideDragIdx(null); setSlideDragOverIdx(null); }}
                     onClick={() => switchSlide(idx)}
                     style={{
                       width: 46, height: 58, borderRadius: 7,

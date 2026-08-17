@@ -91,7 +91,7 @@ const FONTS = [
 ];
 
 const FORMATS = [
-  { id: 'ig-portrait', label: 'Portrait 4:5',  sub: '1080×1350', w: 448, h: 560 },
+  { id: 'ig-portrait', label: 'Portrait 3:4',  sub: '1080×1440', w: 420, h: 560 },
   { id: 'ig-square',   label: 'Carré',          sub: '1080×1080', w: 560, h: 560 },
   { id: 'ig-story',    label: 'Story',           sub: '1080×1920', w: 315, h: 560 },
   { id: 'facebook',    label: 'Facebook Post',   sub: '1200×630',  w: 560, h: 294 },

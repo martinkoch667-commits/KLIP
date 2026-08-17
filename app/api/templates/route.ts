@@ -30,7 +30,7 @@ export async function POST(request: NextRequest) {
 
   if (!workspace_id) return NextResponse.json({ error: 'workspace_id requis' }, { status: 400 });
 
-  const row = {
+  const row: Record<string, unknown> = {
     workspace_id,
     name: name ?? 'Nouveau template',
     format_id: format_id ?? 'ig-portrait',

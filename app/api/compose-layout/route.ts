@@ -19,7 +19,7 @@ export async function POST(request: NextRequest) {
     if (!session) return NextResponse.json({ error: 'Non autorisé' }, { status: 401 });
 
     const { imageUrl, format, brand, blocks, styleRef, approvedRef, workspaceId } = await request.json();
-    const fmt = format ?? { w: 1080, h: 1350 };
+    const fmt = format ?? { w: 1080, h: 1440 };
     const palette = [brand?.primary && `primary=${brand.primary}`, brand?.secondary && `secondary=${brand.secondary}`, brand?.accent && `accent=${brand.accent}`].filter(Boolean).join(', ');
 
     // QUI EST CE CLIENT ?
@@ -59,7 +59,7 @@ export async function POST(request: NextRequest) {
     // composition informée dans un écran et générique dans l'autre. Les références
     // se lisent maintenant ICI quand elles ne sont pas fournies : tout appelant en
     // profite, et la RLS reste seule juge de ce qui est lisible.
-    const FMT_DIMS: Record<string, [number, number]> = { 'ig-portrait': [448, 560], 'ig-square': [560, 560], 'ig-story': [315, 560], facebook: [560, 294] };
+    const FMT_DIMS: Record<string, [number, number]> = { 'ig-portrait': [420, 560], 'ig-square': [560, 560], 'ig-story': [315, 560], facebook: [560, 294] };
     const PT_FORMAT: Record<string, string> = { post: 'ig-portrait', reel: 'ig-story', story: 'ig-story', carrousel: 'ig-square' };
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const summarizeZones = (zones: any[], fw: number, fh: number) => (Array.isArray(zones) ? zones : [])
@@ -95,14 +95,14 @@ export async function POST(request: NextRequest) {
         ]);
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         serverStyleRef = (tplRes.data ?? []).map((t: any) => {
-          const [fw, fh] = FMT_DIMS[t.format_id as string] ?? [448, 560];
+          const [fw, fh] = FMT_DIMS[t.format_id as string] ?? [420, 560];
           const firstPage = Array.isArray(t.pages) && t.pages.length ? (t.pages[0]?.elements ?? []) : t.text_zones;
           return { name: t.name, bg: (t.background_style as { type?: string } | null)?.type ?? 'none', blocks: summarizeZones(firstPage, fw, fh) };
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
         }).filter((s: any) => s.blocks.length > 0).slice(0, 4);
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         serverApprovedRef = (apprRes.data ?? []).map((p: any) => {
-          const [fw, fh] = FMT_DIMS[PT_FORMAT[p.post_type as string] ?? 'ig-portrait'] ?? [448, 560];
+          const [fw, fh] = FMT_DIMS[PT_FORMAT[p.post_type as string] ?? 'ig-portrait'] ?? [420, 560];
           let blks: unknown[] = [];
           try { const j = JSON.parse(p.editor_json as string); blks = summarizeZones(j?.slides?.[0]?.elements ?? [], fw, fh); } catch { /* noop */ }
           return { blocks: blks };

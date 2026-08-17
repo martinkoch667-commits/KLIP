@@ -4,8 +4,9 @@ import { MediaPreview } from "@/components/MediaThumb";
 
 function aspectForType(t?: string | null): string {
   if (t === "story" || t === "reel") return "9 / 16";
+  // Un ancien post « carrousel » garde le carré dans lequel il a été dessiné.
   if (t === "carrousel") return "1 / 1";
-  return "4 / 5";
+  return "3 / 4";
 }
 
 // ─── Aperçu du rendu publié ──────────────────────────────────────────────────

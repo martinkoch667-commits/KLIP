@@ -235,8 +235,9 @@ function buildScheduledAt(dateStr: string, timeStr: string): string | null {
 // Ratio d'affichage selon le format du post (story/reel = vertical 9:16).
 function aspectForType(t?: string | null): string {
   if (t === "story" || t === "reel") return "9 / 16";
+  // Un ancien post « carrousel » garde le carré dans lequel il a été dessiné.
   if (t === "carrousel") return "1 / 1";
-  return "4 / 5";
+  return "3 / 4";
 }
 // Un post vidéo ne peut être que Reel ou Story ; une photo ne peut pas être un Reel.
 // « Carrousel » n'est plus un type à choisir : une publication en devient un dès

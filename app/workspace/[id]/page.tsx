@@ -23,8 +23,9 @@ import SelFrame from "@/components/SelFrame";
 type PostStatus = "idle" | "generating" | "generated" | "validating" | "validated";
 type PostType   = "post" | "reel" | "story" | "carrousel";
 
-// Formats alignés sur l'éditeur (PT_FORMAT_MAP) : post = portrait 4:5 (1080×1350),
-// carrousel = carré 1:1 (1080×1080), reel/story = vertical 9:16 (1080×1920).
+// Formats alignés sur l'éditeur (PT_FORMAT_MAP) : post = portrait 3:4 (1080×1440),
+// reel/story = vertical 9:16 (1080×1920). Le carrousel n'a plus de format à lui :
+// il se publie au format du post.
 // Picto par format — remplace les pastilles de couleur du sélecteur de type :
 // une forme se reconnaît, un point coloré ne veut rien dire.
 function PostTypeGlyph({ type }: { type: PostType }) {
@@ -38,17 +39,18 @@ function PostTypeGlyph({ type }: { type: PostType }) {
 const POST_TYPE_CFG: Record<PostType, { label: string; tKey: string; color: string; bg: string; format: string }> = {
   // Palette DA : vert forest / violet / orange warn / rose — couleurs de la charte,
   // assez contrastées pour servir de texte sur leur fond teinté (color + 15 alpha).
-  post:      { label: "Publication",  tKey: "ptPost",      color: "#1F7A4D", bg: "#1F7A4D15", format: "1080×1350 px" },
+  post:      { label: "Publication",  tKey: "ptPost",      color: "#1F7A4D", bg: "#1F7A4D15", format: "1080×1440 px" },
   reel:      { label: "Reel",         tKey: "ptReel",      color: "#6656D9", bg: "#6656D915", format: "1080×1920 px" },
   story:     { label: "Story",        tKey: "ptStory",     color: "#C8732B", bg: "#C8732B15", format: "1080×1920 px" },
   carrousel: { label: "Carrousel",    tKey: "ptCarrousel", color: "#C2456F", bg: "#C2456F15", format: "1080×1080 px" },
 };
 
-// Ratio d'affichage réel selon le format (post = 4:5, carrousel = carré, reel/story = 9:16).
+// Ratio d'affichage réel selon le format (post = 3:4, reel/story = 9:16).
+// Un ancien post « carrousel » garde le carré dans lequel il a été dessiné.
 function aspectForPostType(t?: PostType | null): string {
   if (t === "reel" || t === "story") return "9 / 16";
   if (t === "carrousel") return "1 / 1";
-  return "4 / 5";
+  return "3 / 4";
 }
 // Règles de format : une vidéo ne peut être que Reel/Story, une photo Post/Story (pas Reel).
 // « Carrousel » n'est plus un type à choisir : une publication DEVIENT un carrousel
@@ -274,7 +276,9 @@ const GROUP_ICONS = {
   ),
 };
 
-type ImportMode = 'separate' | 'montage';
+// « carousel » : plusieurs photos réunies en UN post, une page par photo — ce que
+// « montage » fait pour les vidéos.
+type ImportMode = 'separate' | 'montage' | 'carousel';
 
 function fmtClipDuration(s: number) {
   const total = Math.round(s);
@@ -357,10 +361,11 @@ function ClipThumb({ file, url, index, onDuration }: {
   );
 }
 
-function TypePickerModal({ files, onSeparate, onMontage, onClose }: {
+function TypePickerModal({ files, onSeparate, onMontage, onCarousel, onClose }: {
   files: File[];
   onSeparate: (type: PostType) => void;
   onMontage: (ordered: File[]) => void;
+  onCarousel: (ordered: File[]) => void;
   onClose: () => void;
 }) {
   const t = useTranslations('workspace');
@@ -368,6 +373,7 @@ function TypePickerModal({ files, onSeparate, onMontage, onClose }: {
   const nPhotos = files.length - nVideos;
   const multi = files.length >= 2;
   const allVideos = files.length > 0 && nVideos === files.length;
+  const allPhotos = files.length > 0 && nPhotos === files.length;
   // Défaut malin : tout vidéos → montage groupé ; sinon posts séparés.
   const [mode, setMode] = useState<ImportMode>(multi && allVideos ? 'montage' : 'separate');
   const [selected, setSelected] = useState<PostType>('post');
@@ -389,7 +395,10 @@ function TypePickerModal({ files, onSeparate, onMontage, onClose }: {
 
   const groupOptions: { id: ImportMode; icon: React.ReactNode; title: string; desc: string }[] = [
     { id: 'separate', icon: GROUP_ICONS.separate, title: t('groupSeparate'), desc: t('groupSeparateDesc', { count: files.length }) },
-    { id: 'montage',  icon: GROUP_ICONS.montage,  title: t('groupMontage'),  desc: t('groupMontageDesc', { count: files.length }) },
+    // Photos : un seul post, une page par photo — c'est ce qui fait un carrousel.
+    ...(allPhotos ? [{ id: 'carousel' as ImportMode, icon: TYPE_ICONS.carrousel, title: 'Un seul post', desc: `Carrousel de ${files.length} pages, une par photo` }] : []),
+    // Vidéos : un seul post monté, les plans à la suite.
+    ...(!allPhotos ? [{ id: 'montage' as ImportMode, icon: GROUP_ICONS.montage, title: t('groupMontage'), desc: t('groupMontageDesc', { count: files.length }) }] : []),
   ];
 
   return (
@@ -425,7 +434,10 @@ function TypePickerModal({ files, onSeparate, onMontage, onClose }: {
         {/* Étape 2 — type de post (posts séparés uniquement) */}
         {mode === 'separate' && (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10, marginBottom: 28 }}>
-            {(Object.entries(POST_TYPE_CFG) as [PostType, typeof POST_TYPE_CFG[PostType]][]).map(([id, cfg]) => (
+            {/* Plus de tuile « Carrousel » : plusieurs pages sur une publication
+                suffisent à en faire un, et c'est le mode « un seul post » ci-dessus
+                qui sert à en créer un depuis plusieurs médias. */}
+            {SELECTABLE_POST_TYPES.map(id => POST_TYPE_CFG[id] && (
               <button key={id} onClick={() => setSelected(id)}
                 style={{
                   padding: '22px 12px 18px',
@@ -441,8 +453,8 @@ function TypePickerModal({ files, onSeparate, onMontage, onClose }: {
                   {TYPE_ICONS[id as PostType]}
                 </span>
                 <div style={{ textAlign: 'center' }}>
-                  <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--ink)', fontFamily: 'var(--sans)', marginBottom: 4 }}>{t(cfg.tKey)}</div>
-                  <div style={{ fontSize: 11, color: 'var(--ink-3)', fontFamily: 'var(--mono)' }}>{cfg.format}</div>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--ink)', fontFamily: 'var(--sans)', marginBottom: 4 }}>{t(POST_TYPE_CFG[id].tKey)}</div>
+                  <div style={{ fontSize: 11, color: 'var(--ink-3)', fontFamily: 'var(--mono)' }}>{POST_TYPE_CFG[id].format}</div>
                 </div>
               </button>
             ))}
@@ -451,7 +463,7 @@ function TypePickerModal({ files, onSeparate, onMontage, onClose }: {
 
         {/* Récap montage + ORDRE DES PLANS : on met les rushes dans le bon ordre
             AVANT que le montage démarre, sinon tout arrive mélangé. */}
-        {mode === 'montage' && (
+        {(mode === 'montage' || mode === 'carousel') && (
           <div style={{ marginBottom: 28 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '14px 16px', borderRadius: 'var(--r)', background: 'var(--leaf-soft)', border: '1px solid var(--leaf)' }}>
               <span style={{ color: 'var(--leaf-ink)', display: 'flex', flexShrink: 0 }}>{GROUP_ICONS.montage}</span>
@@ -488,7 +500,12 @@ function TypePickerModal({ files, onSeparate, onMontage, onClose }: {
 
         <div style={{ display: 'flex', gap: 10 }}>
           <button onClick={onClose} className="btn btn-ghost" style={{ flex: 1 }}>{t('cancel')}</button>
-          <button onClick={() => mode === 'montage' ? onMontage(order.map(i => files[i])) : onSeparate(selected)} className="btn btn-primary" style={{ flex: 2 }}>{t('continue')}</button>
+          <button onClick={() => {
+            const ordered = order.map(i => files[i]);
+            if (mode === 'montage') onMontage(ordered);
+            else if (mode === 'carousel') onCarousel(ordered);
+            else onSeparate(selected);
+          }} className="btn btn-primary" style={{ flex: 2 }}>{t('continue')}</button>
         </div>
       </div>
     </div>
@@ -556,7 +573,7 @@ function TemplatePicker({
             onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--line)'; e.currentTarget.style.background = 'var(--card)'; }}
           >
             <div style={{
-              width: '100%', aspectRatio: '4/5', borderRadius: 8,
+              width: '100%', aspectRatio: '3/4', borderRadius: 8,
               background: 'var(--sunk)', border: '1.5px solid var(--line)',
               display: 'grid', placeItems: 'center', fontSize: 26, color: 'var(--ink-3)',
             }}>+</div>
@@ -586,7 +603,7 @@ function TemplatePicker({
                 onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--line)'; e.currentTarget.style.boxShadow = 'none'; }}
               >
                 <div style={{
-                  width: '100%', aspectRatio: '4/5', borderRadius: 8, overflow: 'hidden',
+                  width: '100%', aspectRatio: '3/4', borderRadius: 8, overflow: 'hidden',
                   background: gradientCss, position: 'relative',
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
                 }}>
@@ -739,19 +756,19 @@ export default function WorkspacePage() {
     // entière échouerait — donc plus AUCUN template ne s'afficherait. On retombe
     // alors sur la sélection d'avant, qui suffit à travailler.
     const baseCols = "id, name, thumbnail_url, format_id, background_style, text_zones";
-    let { data: tpls, error: tplErr } = await supabase
+    const withPages = await supabase
       .from("post_templates")
       .select(`${baseCols}, pages`)
       .eq("workspace_id", id)
       .order("sort_order", { ascending: true });
-    if (tplErr) {
-      ({ data: tpls } = await supabase
-        .from("post_templates")
-        .select(baseCols)
-        .eq("workspace_id", id)
-        .order("sort_order", { ascending: true }));
-    }
-    if (tpls) setTemplates(tpls);
+    const tplRes = withPages.error
+      ? await supabase
+          .from("post_templates")
+          .select(baseCols)
+          .eq("workspace_id", id)
+          .order("sort_order", { ascending: true })
+      : withPages;
+    if (tplRes.data) setTemplates(tplRes.data as PostTemplate[]);
   }, [id, supabase]);
 
   useEffect(() => { loadData(); }, [loadData]);
@@ -864,6 +881,25 @@ export default function WorkspacePage() {
     setPendingFiles(null);
   }
 
+  // Réunit plusieurs PHOTOS en UN post : chaque photo deviendra une page du
+  // carrousel à la génération (cf. generateOne → groupUrls).
+  function createCarouselPostItem(files: File[]) {
+    if (!files.length) return;
+    const item: PostItem = {
+      localId: crypto.randomUUID(),
+      file: files[0],
+      groupedFiles: files,
+      isVideo: false,
+      photo_url: URL.createObjectURL(files[0]),
+      brief: "", description: "", texte_visuel: "",
+      status: "idle" as PostStatus,
+      templateId: null,
+      post_type: "post",
+    };
+    setPosts((prev) => [item, ...prev]);
+    setPendingFiles(null);
+  }
+
   function updatePostType(localId: string, post_type: PostType) {
     setPosts(prev => prev.map(p => p.localId === localId ? { ...p, post_type } : p));
     const post = posts.find(p => p.localId === localId);
@@ -936,7 +972,7 @@ export default function WorkspacePage() {
       // Format du cadre selon le type de publication, comme dans l'éditeur.
       const [w, h] = item.post_type === 'reel' || item.post_type === 'story'
         ? [1080, 1920]
-        : item.post_type === 'carrousel' ? [1080, 1080] : [1080, 1350];
+        : item.post_type === 'carrousel' ? [1080, 1080] : [1080, 1440];
 
       let url: string | null = null;
 
@@ -1082,27 +1118,51 @@ export default function WorkspacePage() {
         // Upload photo first (need public URL for editor_json)
         let dbId = item.dbId;
         let pUrl = item.photo_url;
-        if (item.file) {
-          const ext = item.file.name.split(".").pop() ?? (item.isVideo ? "mp4" : "jpg");
+        // Photos réunies en UN post : chacune devient une page du carrousel, il
+        // faut donc les envoyer toutes, pas seulement la couverture.
+        const groupPhotos = !item.isVideo && item.groupedFiles && item.groupedFiles.length > 1
+          ? item.groupedFiles
+          : null;
+        const groupUrls: string[] = [];
+        const uploadOne = async (file: File): Promise<string | null> => {
+          const ext = file.name.split(".").pop() ?? (item.isVideo ? "mp4" : "jpg");
           const path = `${id}/${crypto.randomUUID()}.${ext}`;
           const bucket = item.isVideo ? "videos" : "photos";
-          const { error: uploadError } = await supabase.storage.from(bucket).upload(path, item.file, { upsert: true });
-          if (!uploadError) {
-            const { data: urlData } = supabase.storage.from(bucket).getPublicUrl(path);
-            pUrl = urlData.publicUrl;
+          const { error: uploadError } = await supabase.storage.from(bucket).upload(path, file, { upsert: true });
+          if (uploadError) return null;
+          const { data: urlData } = supabase.storage.from(bucket).getPublicUrl(path);
+          return urlData.publicUrl;
+        };
+        if (groupPhotos) {
+          genLog(item.localId, `${groupPhotos.length} photos réunies en un seul post`);
+          for (const f of groupPhotos) {
+            const u = await uploadOne(f);
+            if (u) groupUrls.push(u);
           }
+          if (groupUrls.length) pUrl = groupUrls[0];
+        } else if (item.file) {
+          const u = await uploadOne(item.file);
+          if (u) pUrl = u;
         }
+        const proxyOf = (u: string) => (u.startsWith('http') ? `/api/proxy-image?url=${encodeURIComponent(u)}` : '');
 
         // ── Build editor_json from template zones + AI zone blocks ───────────
         let editorJson: string | undefined;
         if (selectedTemplate && data.zoneBlocks && typeof data.zoneBlocks === 'object') {
           const zoneBlocks = data.zoneBlocks as Record<string, string>;
-          const proxyUrl = pUrl.startsWith('http') ? `/api/proxy-image?url=${encodeURIComponent(pUrl)}` : '';
-
-          // Une page de template = une page du post. Un template de carrousel
-          // produit donc directement un post à plusieurs pages, prêt à publier.
+          const proxyUrl = proxyOf(pUrl);
+          // Autant de pages que nécessaire : celles du template, ou celles des
+          // photos réunies si elles sont plus nombreuses (la dernière page du
+          // template se répète pour habiller les photos en trop).
+          const pageCount = Math.max(tplPages.length, groupUrls.length || 1);
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const slidesFromTemplate = tplPages.map((pageZones: any[], i: number) => {
+          const pagesToBuild: any[][] = Array.from({ length: pageCount }, (_, i) =>
+            tplPages[Math.min(i, tplPages.length - 1)] ?? []);
+
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const slidesFromTemplate = pagesToBuild.map((pageZones: any[], i: number) => {
+            // Photo de CETTE page quand plusieurs photos ont été réunies.
+            const pagePhoto = groupUrls[i] ? proxyOf(groupUrls[i]) : (i === 0 ? proxyUrl : '');
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             const hasPhotoZone = pageZones.some((z: any) => z.type === 'image' && z.src === PHOTO_PLACEHOLDER_SRC_COMPOSER);
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -1113,16 +1173,18 @@ export default function WorkspacePage() {
               }
               // Replace photo placeholder with actual photo
               if (el.type === 'image' && el.src === PHOTO_PLACEHOLDER_SRC_COMPOSER) {
-                return { ...el, id: `tpl-${el.id}`, src: proxyUrl };
+                return { ...el, id: `tpl-p${i}-${el.id}`, src: pagePhoto };
               }
-              return { ...el, id: el.id.startsWith('tpl-') ? el.id : `tpl-${el.id}` };
+              // Les identifiants doivent rester uniques d'une page à l'autre,
+              // sinon deux pages bâties sur le même modèle se marchent dessus.
+              return { ...el, id: `tpl-p${i}-${el.id}` };
             });
             return {
               id: `slide-${i + 1}`,
               elements,
-              // La photo importée n'habille que la première page : les suivantes
-              // partent du fond du template, sinon la même image se répète.
-              proxyUrl: hasPhotoZone || i > 0 ? '' : proxyUrl,
+              // Sans photos multiples, l'image importée n'habille que la première
+              // page : les suivantes partent du fond du template.
+              proxyUrl: hasPhotoZone ? '' : pagePhoto,
               ...(i === 0 ? { bgStyle: selectedTemplate.background_style ?? undefined } : {}),
             };
           });
@@ -1131,6 +1193,14 @@ export default function WorkspacePage() {
           if (slidesFromTemplate.length > 1) {
             genLog(item.localId, `Carrousel de ${slidesFromTemplate.length} pages monté depuis le template`);
           }
+        } else if (groupUrls.length > 1) {
+          // Sans template : une page par photo, chacune en fond de sa page.
+          // L'éditeur habillera la première à l'ouverture.
+          editorJson = JSON.stringify({
+            version: 2,
+            slides: groupUrls.map((u, i) => ({ id: `slide-${i + 1}`, elements: [], proxyUrl: proxyOf(u) })),
+          });
+          genLog(item.localId, `Carrousel de ${groupUrls.length} pages monté depuis vos photos`);
         }
 
         if (!dbId) {
@@ -2018,6 +2088,11 @@ export default function WorkspacePage() {
                                 {post.isVideo && (
                                   <span style={{ background: 'rgba(0,0,0,.7)', color: '#fff', fontSize: 9.5, fontWeight: 700, padding: '3px 7px', borderRadius: 99, fontFamily: 'var(--mono)', backdropFilter: 'blur(4px)', letterSpacing: '.05em' }}>▶ {post.groupedFiles && post.groupedFiles.length > 1 ? `${t('videoBadge')} · ${post.groupedFiles.length}` : t('videoBadge')}</span>
                                 )}
+                                {/* Photos réunies : on doit voir tout de suite que ce
+                                    post en contient plusieurs, et combien. */}
+                                {!post.isVideo && post.groupedFiles && post.groupedFiles.length > 1 && (
+                                  <span style={{ background: 'rgba(0,0,0,.7)', color: '#fff', fontSize: 9.5, fontWeight: 700, padding: '3px 7px', borderRadius: 99, fontFamily: 'var(--mono)', backdropFilter: 'blur(4px)', letterSpacing: '.05em' }}>CARROUSEL · {post.groupedFiles.length}</span>
+                                )}
                               </div>
                               <button onClick={() => removePost(post)}
                                 style={{ position: 'absolute', top: 8, right: 8, width: 28, height: 28, borderRadius: '50%', background: 'rgba(0,0,0,.55)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', border: 'none', cursor: 'pointer', backdropFilter: 'blur(4px)' }}>
@@ -2415,6 +2490,7 @@ export default function WorkspacePage() {
           files={pendingFiles}
           onSeparate={type => createPostItemsWithType(pendingFiles, type)}
           onMontage={(ordered) => createMontagePostItem(ordered)}
+          onCarousel={(ordered) => createCarouselPostItem(ordered)}
           onClose={() => setPendingFiles(null)}
         />
       )}
