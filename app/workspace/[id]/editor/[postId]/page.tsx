@@ -5984,6 +5984,35 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
             {tool === 'text' && (
               <div style={{ padding: '22px' }}>
                 <PanelHead title={T('text')} onClose={() => setTool(null)} />
+
+                {/* ── ZONES PAR RÔLE IA — EN TÊTE DU PANNEAU ──────────────────
+                    C'est la raison d'être d'un template : sans zones portant un
+                    rôle, l'IA n'a aucun emplacement à remplir et le modèle n'est
+                    qu'un dessin figé. C'était pourtant enterré sous la
+                    bibliothèque de textes, en gris discret (retour de Martin :
+                    « sans ça cet outil ne sert à rien »). */}
+                {isTemplate && (
+                  <div style={{
+                    border: '2px solid var(--mint-2, #BDF2A0)', borderRadius: 14,
+                    padding: '14px 14px 12px', marginBottom: 18, background: 'var(--white)',
+                  }}>
+                    <p style={{ fontSize: 13, fontWeight: 800, color: 'var(--ink)', margin: '0 0 4px' }}>
+                      {T('aiRoleZones')}
+                    </p>
+                    <p style={{ fontSize: 11.5, color: 'var(--ink-2)', margin: '0 0 12px', lineHeight: 1.45 }}>
+                      {T('aiRoleZonesHint')}
+                    </p>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
+                      {([['accroche', 'Accroche'], ['titre', 'Titre'], ['sous-titre', 'Sous-titre'], ['corps', 'Corps'], ['cta', 'CTA'], ['prix', 'Prix']] as const).map(([role, label]) => (
+                        <button key={role} onClick={() => addTextRole(role)} className="btn btn-ghost btn-sm"
+                          style={{ padding: '10px 8px', cursor: 'pointer', fontSize: 12.5, fontWeight: 700, justifyContent: 'center' }}>
+                          + {label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
                 <button onClick={addText} className="btn btn-dark" style={{ width: '100%', justifyContent: 'center', marginBottom: 16, gap: 8, height: 44 }}>
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
                   Ajouter une zone de texte
@@ -6029,20 +6058,6 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
                   <span style={{ fontSize: 11, color: 'var(--ink-3)', fontFamily: 'var(--mono)', fontWeight: 700 }}>({TEXT_TEMPLATES.length})</span>
                 </button>
 
-                {isTemplate && (
-                  <>
-                    <p style={{ fontSize: 10, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '0.12em', fontFamily: 'var(--mono)', fontWeight: 800, margin: '0 0 8px' }}>{T('aiRoleZones')}</p>
-                    <p style={{ fontSize: 11, color: 'var(--ink-3)', margin: '0 0 8px', lineHeight: 1.4 }}>{T('aiRoleZonesHint')}</p>
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, marginBottom: 16 }}>
-                      {([['accroche', 'Accroche'], ['titre', 'Titre'], ['sous-titre', 'Sous-titre'], ['corps', 'Corps'], ['cta', 'CTA'], ['prix', 'Prix']] as const).map(([role, label]) => (
-                        <button key={role} onClick={() => addTextRole(role)} className="well"
-                          style={{ padding: '10px 8px', cursor: 'pointer', fontSize: 12, fontWeight: 700, color: 'var(--ink-2)', fontFamily: 'var(--sans)', textAlign: 'center' }}>
-                          {label}
-                        </button>
-                      ))}
-                    </div>
-                  </>
-                )}
                 <p style={{ fontSize: 10, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '0.12em', fontFamily: 'var(--mono)', fontWeight: 800, margin: '0 0 8px' }}>{T('styles')}</p>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                   <button onClick={() => applyTemplate({ fontSize: 96, fontFamily: 'Archivo Black', fontStyle: 'normal', uppercase: true, letterSpacing: -2, lineHeight: 0.92, fill: workspaceData?.primary_color || '#14160F' } as Partial<TextEl>)}
