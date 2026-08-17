@@ -40,6 +40,8 @@ interface PostTemplate {
   format_id: string;
   background_style: BgStyle;
   text_zones: any[];
+  // Template de carrousel : une entrée par page (absent = template une page).
+  pages?: { elements?: any[] }[] | null;
   logo_placement: { x: number; y: number; width: number; height: number } | null;
   thumbnail_url: string | null;
   sort_order: number;
@@ -312,6 +314,9 @@ function TemplateCard({ tpl, onEdit, onDelete }: { tpl: PostTemplate; onEdit: ()
   const fmt = FORMATS.find(f => f.id === tpl.format_id) ?? FORMATS[0];
   const aspect = fmt.h / fmt.w;
   const zones = Array.isArray(tpl.text_zones) ? tpl.text_zones : [];
+  // Un template peut décrire un carrousel entier : on le dit sur la carte, sinon
+  // rien ne distingue un modèle d'une page d'un modèle de six.
+  const pageCount = Array.isArray(tpl.pages) && tpl.pages.length ? tpl.pages.length : 1;
 
   return (
     <div className="card tpl-card" style={{
@@ -357,7 +362,7 @@ function TemplateCard({ tpl, onEdit, onDelete }: { tpl: PostTemplate; onEdit: ()
         <div style={{ flex: 1, minWidth: 0 }}>
           <p style={{ margin: 0, fontWeight: 700, fontSize: 13, color: 'var(--ink)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{tpl.name}</p>
           <p style={{ margin: 0, fontSize: 11, color: 'var(--ink-3)', marginTop: 2 }}>
-            {t('zonesCount', { count: zones.length })}
+            {t('zonesCount', { count: zones.length })}{pageCount > 1 ? ` · ${pageCount} pages` : ''}
           </p>
         </div>
         <span className="chip" style={{ background: 'var(--sunk)', color: 'var(--ink-2)', fontSize: 10.5, flexShrink: 0 }}>{t(fmt.labelKey)}</span>

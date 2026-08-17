@@ -26,6 +26,20 @@ export interface RenderBlock {
   /** Rôle de couleur de la charte, résolu par l'appelant. */
   color?: string;
   uppercase?: boolean;
+  /** Aplat de couleur derrière le texte (cartouche / bandeau / pastille). */
+  box?: 'none' | 'brand' | 'accent' | 'white' | 'black';
+  /** Arrondi de l'aplat, en % de la hauteur du texte (50 = pastille). */
+  radiusPct?: number;
+}
+
+/** Filet fin posé par la recette (soulignement, barre de kicker). */
+export interface RenderAccent {
+  type?: string;
+  xPct?: number;
+  yPct?: number;
+  widthPct?: number;
+  heightPct?: number;
+  color?: string;
 }
 
 export interface RenderBrand {
@@ -39,6 +53,7 @@ export interface RenderBrand {
 export interface RenderInput {
   photoUrl: string | null;
   blocks: RenderBlock[];
+  accents?: RenderAccent[] | null;
   scrim?: { position?: string; opacity?: number } | null;
   brand: RenderBrand;
   w: number;
@@ -153,6 +168,15 @@ export async function renderComposedVisual(input: RenderInput): Promise<string |
   const resolved = blocks.filter((b) => b?.text).map((b) => {
     let fill = resolve(b.color);
     let shadow = false;
+    // Aplat de marque : la lisibilité ne dépend plus de la photo, mais du fond posé.
+    const boxFill = b.box === 'brand' ? resolve('primary')
+      : b.box === 'accent' ? resolve('accent')
+      : b.box === 'white' ? '#FFFFFF'
+      : b.box === 'black' ? '#14160F'
+      : null;
+    if (boxFill) {
+      return { b, fill: hexLum(boxFill) > 0.55 ? '#14160F' : '#FFFFFF', shadow: false, boxFill };
+    }
     if (sampler) {
       const { mean, std } = sampler(b.xPct ?? 8, b.yPct ?? 70, b.widthPct ?? 80, Math.min(45, (b.fontPct ?? 7) * 2.6));
       const busy = std > 0.17;
@@ -163,7 +187,7 @@ export async function renderComposedVisual(input: RenderInput): Promise<string |
         shadow = fill === '#FFFFFF' && mean > 0.5;
       }
     }
-    return { b, fill, shadow };
+    return { b, fill, shadow, boxFill: null as string | null };
   });
 
   // ── Voile de lisibilité ──
@@ -180,10 +204,21 @@ export async function renderComposedVisual(input: RenderInput): Promise<string |
     ctx.fillRect(0, 0, w, h);
   }
 
+  // ── Filets d'accent (soulignements, barres de kicker) ──
+  // Posés AVANT les textes : ce sont des repères de composition, jamais des
+  // éléments qui passent devant.
+  for (const a of (input.accents ?? [])) {
+    if (!a?.type) continue;
+    const aw = Math.max(4, Math.round((Math.min(Math.max(a.widthPct ?? 20, 2), 60) / 100) * w));
+    const ah = Math.max(2, Math.round((Math.min(a.heightPct ?? 0.7, 1.2) / 100) * h));
+    ctx.fillStyle = resolve(a.color);
+    ctx.fillRect(Math.round(((a.xPct ?? 8) / 100) * w), Math.round(((a.yPct ?? 60) / 100) * h), aw, ah);
+  }
+
   // ── Textes ──
   const display = brand.display || 'Archivo';
   const body = brand.body || display;
-  for (const { b, fill, shadow } of resolved) {
+  for (const { b, fill, shadow, boxFill } of resolved) {
     const fontSize = Math.max(12, Math.round(((b.fontPct ?? 7) / 100) * h));
     const family = b.role === 'sous-titre' ? body : display;
     const weight = b.role === 'sous-titre' ? '400' : '700';
@@ -218,6 +253,31 @@ export async function renderComposedVisual(input: RenderInput): Promise<string |
         ? Math.max(0, Math.round(w - width - ((b.xPct ?? 8) / 100) * w))
         : Math.max(0, Math.round(((b.xPct ?? 8) / 100) * w));
     const lh = size * 1.15;
+
+    // Aplat derrière le texte : une boîte par LIGNE, comme dans l'éditeur, pour
+    // que la cartouche épouse le texte au lieu d'encadrer un pavé vide.
+    if (boxFill) {
+      const padH = Math.round(size * 0.42);
+      const padV = Math.round(size * 0.24);
+      const radius = Math.min(Math.round(((b.radiusPct ?? 8) / 100) * size), Math.round((size * 1.15 + padV * 2) / 2));
+      ctx.fillStyle = boxFill;
+      lines.forEach((ln, i) => {
+        const lw = ctx.measureText(ln).width;
+        const lx = align === 'center' ? x + (width - lw) / 2 : align === 'right' ? x + width - lw : x;
+        const bx = lx - padH, by = y + i * lh - padV;
+        const bw = lw + padH * 2, bh = size * 1.15 + padV * 2;
+        const r = Math.min(radius, bw / 2, bh / 2);
+        ctx.beginPath();
+        if (r > 0) {
+          ctx.moveTo(bx + r, by);
+          ctx.arcTo(bx + bw, by, bx + bw, by + bh, r);
+          ctx.arcTo(bx + bw, by + bh, bx, by + bh, r);
+          ctx.arcTo(bx, by + bh, bx, by, r);
+          ctx.arcTo(bx, by, bx + bw, by, r);
+        } else ctx.rect(bx, by, bw, bh);
+        ctx.fill();
+      });
+    }
 
     if (shadow) {
       // Halo doux de lisibilité, jamais une ombre portée lourde.

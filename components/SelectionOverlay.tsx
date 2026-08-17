@@ -186,6 +186,7 @@ interface Props {
 
 export default function SelectionOverlay({ el, stageRef, onChange, onDragEnd, zoom }: Props) {
   const [liveAngle, setLiveAngle] = useState<number | null>(null);
+  const [liveRadius, setLiveRadius] = useState<number | null>(null);
   // Keep latest callbacks in refs so closures never go stale
   const onChangeRef = useRef(onChange);
   onChangeRef.current = onChange;
@@ -468,6 +469,58 @@ export default function SelectionOverlay({ el, stageRef, onChange, onDragEnd, zo
     }
   };
 
+  // ── Arrondi des coins ───────────────────────────────────────────────────────
+  // Quatre points posés dans les coins, comme dans Illustrator : on les tire vers
+  // le centre pour arrondir. Le glissement suit la diagonale du coin saisi, et la
+  // valeur reste commune aux quatre coins (un seul cornerRadius par objet).
+
+  const canRound = el.type === 'rect' || el.type === 'image';
+  const maxRadius = Math.max(0, Math.min(w, h) / 2);
+  const radius = Math.max(0, Math.min(Number(el.cornerRadius) || 0, maxRadius));
+  // Distance du point à son coin : le rayon lui-même, avec un plancher pour rester
+  // attrapable quand l'objet a les coins nets.
+  const roundInset = Math.min(Math.max(radius, 10), Math.max(10, maxRadius - 2));
+
+  const startRound = (corner: 'tl' | 'tr' | 'bl' | 'br') => (e: React.MouseEvent) => {
+    e.stopPropagation();
+    e.preventDefault();
+    const startX = e.clientX, startY = e.clientY;
+    const startRadius = radius;
+    const rot = rotation;
+    const cap = maxRadius;
+
+    const onMove = (ev: MouseEvent) => {
+      try {
+        const z = zoomRef.current || 1;
+        const [ldx, ldy] = toLocal((ev.clientX - startX) / z, (ev.clientY - startY) / z, rot);
+        // Projection sur la diagonale qui rentre dans l'objet depuis ce coin.
+        const sx = corner === 'tl' || corner === 'bl' ? 1 : -1;
+        const sy = corner === 'tl' || corner === 'tr' ? 1 : -1;
+        const d = (ldx * sx + ldy * sy) / 2;
+        const next = Math.round(Math.max(0, Math.min(startRadius + d, cap)));
+        setLiveRadius(next);
+        onChangeRef.current({ cornerRadius: next });
+      } catch (err) {
+        console.error('[SelectionOverlay] round move error:', err);
+      }
+    };
+    const onUp = () => {
+      setLiveRadius(null);
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
+      onDragEndRef.current?.();
+    };
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+  };
+
+  const ROUND_CORNERS: { id: 'tl' | 'tr' | 'bl' | 'br'; style: React.CSSProperties }[] = [
+    { id: 'tl', style: { left: roundInset - 5, top: roundInset - 5 } },
+    { id: 'tr', style: { right: roundInset - 5, top: roundInset - 5 } },
+    { id: 'br', style: { right: roundInset - 5, bottom: roundInset - 5 } },
+    { id: 'bl', style: { left: roundInset - 5, bottom: roundInset - 5 } },
+  ];
+
   // ── Render ───────────────────────────────────────────────────────────────────
 
   const visibleHandles = el.type === 'text'
@@ -534,6 +587,39 @@ export default function SelectionOverlay({ el, stageRef, onChange, onDragEnd, zo
           style={{ ...HANDLE_BASE, cursor: hnd.cursor, ...hnd.style }}
         />
       ))}
+
+      {/* Points d'arrondi — un par coin, tirés vers le centre pour arrondir */}
+      {canRound && maxRadius > 12 && ROUND_CORNERS.map(c => (
+        <div
+          key={`r-${c.id}`}
+          onMouseDown={startRound(c.id)}
+          title="Arrondir les coins"
+          style={{
+            position: 'absolute',
+            width: 10, height: 10,
+            background: 'var(--mint-2, #2FD79B)',
+            border: '1.5px solid #FFFFFF',
+            borderRadius: '50%',
+            boxShadow: '0 1px 3px rgba(13,15,10,.3)',
+            cursor: 'pointer',
+            pointerEvents: 'auto',
+            ...c.style,
+          }}
+        />
+      ))}
+
+      {/* Valeur d'arrondi pendant le glissement */}
+      {liveRadius !== null && (
+        <div style={{
+          position: 'absolute', top: -28, left: '50%', transform: 'translateX(-50%)',
+          background: '#0C2A1D', color: '#EEEDE3', borderRadius: 6, padding: '3px 8px',
+          fontFamily: "'Cabinet Grotesk', system-ui, sans-serif", fontWeight: 700, fontSize: 11,
+          whiteSpace: 'nowrap', pointerEvents: 'none', zIndex: 200,
+          boxShadow: '0 2px 6px rgba(13,15,10,.28)',
+        }}>
+          Arrondi {liveRadius}px
+        </div>
+      )}
 
       {/* Live angle badge during rotation — next to the handle below */}
       {liveAngle !== null && (

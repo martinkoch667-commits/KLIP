@@ -24,6 +24,10 @@ interface TextEl extends BaseEl {
   hasBg: boolean; bgColor: string; bgOpacity: number; cornerRadius: number;
   padding: number; paddingH: number; paddingV: number;
   role?: string;
+  // Rôle nommé par l'auteur du template (role === 'personnalise') : ce bloc
+  // contiendra toujours cette information-là, et l'IA le sait.
+  roleLabel?: string;
+  roleHint?: string;
 }
 interface RectEl extends BaseEl { type: 'rect'; width: number; height: number; fill: string; stroke: string; strokeWidth: number; cornerRadius: number; }
 interface CircleEl extends BaseEl { type: 'circle'; radius: number; fill: string; stroke: string; strokeWidth: number; }
@@ -75,7 +79,9 @@ const TEXT_ROLES = [
   { value: 'corps',       label: 'Corps de texte' },
   { value: 'cta',         label: 'Call-to-action' },
   { value: 'prix',        label: 'Prix / Offre' },
-  { value: 'personnalise', label: 'Personnalisé' },
+  // Rôle libre : l'auteur du template le nomme lui-même (« Nom du journal »,
+  // « Horaires »…) et l'IA remplira toujours ce bloc avec cette information.
+  { value: 'personnalise', label: 'Champ personnalisé…' },
 ];
 
 function newId() { return `el-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`; }
@@ -217,9 +223,28 @@ function TextProperties({ el, onChange, brandColors, brandFontNames }: {
           style={{ width: '100%', padding: '6px 8px', border: '1px solid var(--line)', borderRadius: 'var(--r-s)', fontSize: 13, outline: 'none', background: 'var(--sunk)', color: 'var(--ink)' }}>
           {TEXT_ROLES.map(r => <option key={r.value} value={r.value}>{r.label}</option>)}
         </select>
+        {/* Rôle sur mesure : c'est l'auteur du template qui décide de ce que ce
+            bloc contiendra TOUJOURS (« Nom du journal », « Prix », « Horaires »…).
+            L'IA reçoit ce nom tel quel et sait donc quoi y écrire. */}
+        {el.role === 'personnalise' && (
+          <div style={{ marginTop: 6, display: 'flex', flexDirection: 'column', gap: 6 }}>
+            <input
+              value={el.roleLabel ?? ''}
+              onChange={e => onChange({ roleLabel: e.target.value || undefined })}
+              placeholder="Nom du champ — ex. Nom du journal"
+              style={{ width: '100%', padding: '6px 8px', border: '1px solid var(--line)', borderRadius: 'var(--r-s)', fontSize: 13, outline: 'none', background: 'var(--sunk)', color: 'var(--ink)', boxSizing: 'border-box' }} />
+            <input
+              value={el.roleHint ?? ''}
+              onChange={e => onChange({ roleHint: e.target.value || undefined })}
+              placeholder="Ce qu'on y met (facultatif) — ex. le titre du média cité"
+              style={{ width: '100%', padding: '6px 8px', border: '1px solid var(--line)', borderRadius: 'var(--r-s)', fontSize: 12.5, outline: 'none', background: 'var(--sunk)', color: 'var(--ink)', boxSizing: 'border-box' }} />
+          </div>
+        )}
         {el.role && (
           <span style={{ fontSize: 10, color: 'var(--mint-2)', marginTop: 4, display: 'block', fontFamily: 'var(--mono)', fontWeight: 700 }}>
-            Ce bloc sera rempli par l'IA lors de la génération
+            {el.role === 'personnalise' && el.roleLabel
+              ? `L'IA remplira toujours ce bloc avec : ${el.roleLabel}`
+              : "Ce bloc sera rempli par l'IA lors de la génération"}
           </span>
         )}
       </PropRow>
@@ -400,7 +425,10 @@ function FloatingToolbar({ el, onChange, onDuplicate, onDelete, brandColors }: {
 }
 
 function layerName(el: CanvasEl): string {
-  if (el.type === 'text') return (el.role ? `[${el.role}] ` : '') + (el.text.slice(0, 16) || 'Texte');
+  if (el.type === 'text') {
+    const tag = el.role === 'personnalise' ? (el.roleLabel || 'champ') : el.role;
+    return (tag ? `[${tag}] ` : '') + (el.text.slice(0, 16) || 'Texte');
+  }
   if (el.type === 'image') return el.src === PHOTO_PLACEHOLDER_SRC ? 'Zone photo' : 'Logo';
   if (el.type === 'rect') return 'Rectangle';
   if (el.type === 'circle') return 'Cercle';
@@ -586,7 +614,7 @@ export default function TemplateEditor({
     const roleLabel = TEXT_ROLES.find(r => r.value === role)?.label ?? 'Texte';
     const el: TextEl = {
       id: newId(), type: 'text', x: 20, y: 60 + elements.length * 50, rotation: 0, opacity: 100,
-      text: role ? roleLabel : 'Nouveau texte',
+      text: role === 'personnalise' ? 'Votre champ' : role ? roleLabel : 'Nouveau texte',
       fontSize: role === 'titre' ? 42 : role === 'sous-titre' ? 22 : role === 'cta' ? 16 : 28,
       fontFamily: fontFamily || 'Oswald',
       fontStyle: (role === 'titre' || role === 'sous-titre' || role === 'cta') ? 'bold' : 'normal',

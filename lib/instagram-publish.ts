@@ -109,7 +109,10 @@ export function resolveMediaType(post: PublishablePost): PublishedMediaType {
   const postType = post.post_type ?? "post";
   if (postType === "story") return "story";
   if (isVideo) return "reels";
-  if (postType === "carrousel" && carouselUrlsOf(post).length >= 2) return "carousel";
+  // Le carrousel n'est plus un type choisi en amont : une publication en devient un
+  // dès que l'éditeur a exporté plusieurs pages. Le type « carrousel » des posts
+  // créés avant cette fusion passe donc par le même chemin.
+  if (postType !== "reel" && carouselUrlsOf(post).length >= 2) return "carousel";
   return "image";
 }
 

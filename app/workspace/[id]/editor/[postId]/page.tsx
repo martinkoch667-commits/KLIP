@@ -60,6 +60,10 @@ interface TextEl extends BaseEl {
   hasBg: boolean; bgColor: string; bgOpacity: number; cornerRadius: number;
   padding: number; paddingH: number; paddingV: number;
   role?: string;
+  // Champ nommé par l'auteur du template (role === 'personnalise') : « Nom du
+  // journal », « Horaires »… — ce que ce bloc contiendra toujours.
+  roleLabel?: string;
+  roleHint?: string;
   maxLines?: number;
   minFontSize?: number;
   maxFontSize?: number;
@@ -112,6 +116,8 @@ interface ImageEl extends BaseEl { type: 'image'; src: string; width: number; he
   // de la hauteur courantes. Absent (images déjà existantes) → calculé et figé
   // au premier redimensionnement (cf. ImgNode/SelectionOverlay).
   imgScale?: number;
+  // Arrondi des quatre coins du cadre (px). Absent = coins nets.
+  cornerRadius?: number;
   // Ajustements colorimétriques (chacun -100..100, 0 = neutre ; flou 0..100)
   adjBrightness?: number; adjContrast?: number; adjSaturation?: number; adjWarmth?: number; adjTint?: number; adjBlur?: number; }
 type CanvasEl = TextEl | RectEl | CircleEl | StarEl | VectorEl | ImageEl;
@@ -378,11 +384,25 @@ function remapElementsToFormat(elements: CanvasEl[], oldW: number, oldH: number,
 // avec un mapping retour propre via PT_FORMAT_MAP (le format 'facebook' n'a pas de
 // post_type associé : un post créé dans ce format se rechargerait à tort en
 // 'ig-portrait', donc on l'exclut volontairement des cibles auto-resize).
+// Le carré n'est plus une cible : il servait au type « carrousel », qui n'existe
+// plus en tant que type (un carrousel se publie au format du post).
 const MAGIC_RESIZE_TARGETS: { postType: 'post' | 'carrousel' | 'reel'; formatId: string }[] = [
   { postType: 'post', formatId: 'ig-portrait' },
-  { postType: 'carrousel', formatId: 'ig-square' },
   { postType: 'reel', formatId: 'ig-story' },
 ];
+
+// Tracé d'un rectangle à coins arrondis — sert de masque de découpe pour les
+// images arrondies (Konva ne sait arrondir nativement qu'un Rect).
+function roundRectPath(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) {
+  const rr = Math.max(0, Math.min(r, w / 2, h / 2));
+  ctx.beginPath();
+  ctx.moveTo(x + rr, y);
+  ctx.arcTo(x + w, y, x + w, y + h, rr);
+  ctx.arcTo(x + w, y + h, x, y + h, rr);
+  ctx.arcTo(x, y + h, x, y, rr);
+  ctx.arcTo(x, y, x + w, y, rr);
+  ctx.closePath();
+}
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
@@ -513,6 +533,8 @@ function ImgNode({ el, onSelect, onChange, onDragStart, onDragMove, onDragEnd, i
   const scaledH = natH * scale;
   const cropX = el.cropX ?? (frameW - scaledW) / 2;
   const cropY = el.cropY ?? (frameH - scaledH) / 2;
+  // Borné à la moitié du plus petit côté : au-delà, le tracé se replierait sur lui-même.
+  const radius = Math.max(0, Math.min(el.cornerRadius ?? 0, frameW / 2, frameH / 2));
 
   return (
     <Group
@@ -520,7 +542,12 @@ function ImgNode({ el, onSelect, onChange, onDragStart, onDragMove, onDragEnd, i
       x={el.x} y={el.y}
       rotation={el.rotation}
       opacity={el.opacity / 100}
-      clipX={0} clipY={0} clipWidth={frameW} clipHeight={frameH}
+      {...(radius > 0
+        // Coins arrondis : le découpage rectangulaire ne suffit plus, on découpe
+        // sur un tracé arrondi — l'image elle-même est donc rognée, pas seulement
+        // habillée d'un cadre.
+        ? { clipFunc: (ctx: Konva.Context) => roundRectPath(ctx as unknown as CanvasRenderingContext2D, 0, 0, frameW, frameH, radius) }
+        : { clipX: 0, clipY: 0, clipWidth: frameW, clipHeight: frameH })}
       draggable={!isCropping && !locked}
       onClick={e => onSelect(e.evt.shiftKey)} onTap={() => onSelect(false)}
       onDragStart={!isCropping ? onDragStart : undefined}
@@ -931,10 +958,23 @@ function TextProperties({ el, onChange, customFonts, onFontUpload, brandColors, 
           <option value="corps">{T('roleBody')}</option>
           <option value="cta">{T('roleCta')}</option>
           <option value="prix">{T('rolePrice')}</option>
+          <option value="personnalise">Champ personnalisé…</option>
         </select>
+        {/* Champ nommé par l'auteur : ce bloc contiendra TOUJOURS cette
+            information, et l'IA reçoit le nom tel quel. */}
+        {el.role === 'personnalise' && (
+          <div style={{ marginTop: 6, display: 'flex', flexDirection: 'column', gap: 6 }}>
+            <input value={el.roleLabel ?? ''} onChange={e => onChange({ roleLabel: e.target.value || undefined })}
+              placeholder="Nom du champ — ex. Nom du journal"
+              style={{ width: '100%', padding: '6px 8px', border: '1px solid var(--line)', borderRadius: 'var(--r-s)', fontSize: 13, outline: 'none', background: 'var(--white)', color: 'var(--ink)', boxSizing: 'border-box' }} />
+            <input value={el.roleHint ?? ''} onChange={e => onChange({ roleHint: e.target.value || undefined })}
+              placeholder="Ce qu'on y met (facultatif)"
+              style={{ width: '100%', padding: '6px 8px', border: '1px solid var(--line)', borderRadius: 'var(--r-s)', fontSize: 12.5, outline: 'none', background: 'var(--white)', color: 'var(--ink)', boxSizing: 'border-box' }} />
+          </div>
+        )}
         {el.role && (
           <span style={{ fontSize: 10, color: 'var(--mint-2)', marginTop: 4, display: 'block', fontFamily: 'var(--mono)', fontWeight: 700 }}>
-            {T('aiRoleFillHint')}
+            {el.role === 'personnalise' && el.roleLabel ? `Toujours rempli avec : ${el.roleLabel}` : T('aiRoleFillHint')}
           </span>
         )}
       </PropRow>
@@ -1030,6 +1070,8 @@ function EditorContextToolbar({ sel, allFonts, brandFamilies, brandColors, stage
   const textSel = isText ? sel as TextEl : null;
   const rectSel = sel.type === 'rect' ? sel as RectEl : null;
   const vecSel = isVector ? sel as VectorEl : null;
+  // Tout ce qui a un cadre rectangulaire peut être arrondi — rectangle ET image.
+  const roundSel = (sel.type === 'rect' || sel.type === 'image') ? sel as RectEl | ImageEl : null;
 
   const Div = () => <span style={{ width: 1, height: 22, background: 'var(--line)', margin: '0 4px', flexShrink: 0 }} />;
   const IBtn = ({ icon, on, title, onClick, danger }: { icon: React.ReactNode; on?: boolean; title: string; onClick: () => void; danger?: boolean }) => (
@@ -1392,7 +1434,13 @@ function EditorContextToolbar({ sel, allFonts, brandFamilies, brandColors, stage
       )}
 
       {/* SHAPE extra — corner radius for rect */}
-      {rectSel && (
+      {/* Arrondi — pour un rectangle comme pour une image importée. Le maximum suit
+          l'objet (moitié de son plus petit côté = coins parfaitement ronds) au lieu
+          d'un plafond fixe à 50 px qui ne voulait rien dire sur un grand cadre. */}
+      {roundSel && (() => {
+        const maxR = Math.max(1, Math.round(Math.min(roundSel.width, roundSel.height) / 2));
+        const cur = Math.min(roundSel.cornerRadius ?? 0, maxR);
+        return (
         <div style={{ position: 'relative' }}>
           <IBtn title={T('rounding')} on={pop === 'radius'}
             onClick={() => setPop(p => p === 'radius' ? null : 'radius')}
@@ -1401,13 +1449,24 @@ function EditorContextToolbar({ sel, allFonts, brandFamilies, brandColors, stage
             <div {...popAttrs()}>
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
                 <span className="label" style={{ marginBottom: 0 }}>{T('rounding')}</span>
-                <span style={{ fontFamily: 'var(--mono)', fontWeight: 800, fontSize: 11, color: 'var(--ink-2)' }}>{rectSel.cornerRadius}px</span>
+                <span style={{ fontFamily: 'var(--mono)', fontWeight: 800, fontSize: 11, color: 'var(--ink-2)' }}>{cur}px</span>
               </div>
-              <input type="range" min={0} max={50} step={1} value={rectSel.cornerRadius} onChange={e => u({ cornerRadius: parseInt(e.target.value) } as Partial<RectEl>)} className="ed-range" style={{ width: '100%', ...rangeFill(rectSel.cornerRadius, 0, 50) }} />
+              <input type="range" min={0} max={maxR} step={1} value={cur} onChange={e => u({ cornerRadius: parseInt(e.target.value) } as Partial<RectEl>)} className="ed-range" style={{ width: '100%', ...rangeFill(cur, 0, maxR) }} />
+              <div style={{ display: 'flex', gap: 4, marginTop: 8 }}>
+                {[0, Math.round(maxR * 0.15), Math.round(maxR * 0.4), maxR].map((r, i) => (
+                  <button key={i} onClick={() => u({ cornerRadius: r } as Partial<RectEl>)}
+                    style={{ flex: 1, padding: '4px 0', borderRadius: 6, cursor: 'pointer', fontSize: 10.5, fontWeight: 700,
+                      border: cur === r ? '1.5px solid var(--mint-2)' : '1.5px solid var(--line)',
+                      background: cur === r ? 'var(--mint-soft)' : 'var(--sunk)', color: cur === r ? 'var(--mint-2)' : 'var(--ink-3)' }}>
+                    {['Net', 'Doux', 'Rond', 'Max'][i]}
+                  </button>
+                ))}
+              </div>
             </div>
           )}
         </div>
-      )}
+        );
+      })()}
 
       {/* IMAGE controls */}
       {isImage && (() => {
@@ -2276,7 +2335,10 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
   const activeFormat = FORMATS.find(f => f.id === formatId) ?? FORMATS[0];
   const stageW = activeFormat.w;
   const stageH = activeFormat.h;
-  const isContinuous = postType === 'carrousel' && carouselContinuous;
+  // Le carrousel n'est plus un type de post : toute publication (sauf story, qui se
+  // publie image par image) devient un carrousel dès qu'elle a plusieurs pages.
+  const canBeCarousel = postType !== 'story' && postType !== 'reel';
+  const isContinuous = canBeCarousel && carouselContinuous;
   const stageWView = isContinuous ? stageW * contPanels : stageW;
   const [elements, setElements] = useState<CanvasEl[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -2941,8 +3003,16 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
             setTemplateName(tpl.name || 'Nouveau template');
             if (tpl.format_id && FORMATS.find(f => f.id === tpl.format_id)) setFormatId(tpl.format_id);
             setBgStyle((tpl.background_style as BgStyle) || { type: 'gradient', colorFrom: '#0038FF', colorTo: '#FFFFFF', angle: 135 });
-            const zones: CanvasEl[] = Array.isArray(tpl.text_zones) ? tpl.text_zones : [];
-            initSlides = [{ id: 'slide-1', elements: zones, proxyUrl: '' }];
+            // Un template peut décrire plusieurs pages (carrousel). `text_zones`
+            // reste la première page pour les templates enregistrés avant ça.
+            const tplPages: { elements?: CanvasEl[] }[] = Array.isArray(tpl.pages) && tpl.pages.length
+              ? tpl.pages
+              : [{ elements: Array.isArray(tpl.text_zones) ? tpl.text_zones : [] }];
+            initSlides = tplPages.map((pg, i) => ({
+              id: `slide-${i + 1}`,
+              elements: Array.isArray(pg?.elements) ? pg.elements : [],
+              proxyUrl: '',
+            }));
           } else {
             // Nouveau template : jamais une page blanche. On pose une base
             // complète — photo plein cadre, voile de lisibilité, un titre et un
@@ -4863,16 +4933,32 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
         : align === 'right'
           ? Math.max(0, Math.round(stageW - width - ((b.xPct ?? 8) / 100) * stageW))
           : Math.max(0, Math.round(((b.xPct ?? 8) / 100) * stageW));
+      // Aplat de marque derrière le texte (cartouche, bandeau, pastille) : c'est
+      // la recette qui le décide. Sur un aplat, la lisibilité ne dépend plus de la
+      // photo — la couleur du texte se déduit du fond posé, et le halo n'a plus lieu d'être.
+      const boxFill = b.box === 'brand' ? resolveColor('primary')
+        : b.box === 'accent' ? resolveColor('accent')
+        : b.box === 'white' ? '#FFFFFF'
+        : b.box === 'black' ? '#14160F'
+        : null;
+      const fontSize = Math.max(12, Math.round(((b.fontPct ?? 7) / 100) * stageH));
+      if (boxFill) {
+        fill = hexLum(boxFill) > 0.55 ? '#14160F' : '#FFFFFF';
+        shadow = false;
+      }
       return {
         id: newId(), type: 'text', text: String(b.text),
         x, y: Math.max(0, Math.round(((b.yPct ?? 70) / 100) * stageH)),
         width,
         rotation: 0, opacity: 100,
-        fontSize: Math.max(12, Math.round(((b.fontPct ?? 7) / 100) * stageH)),
+        fontSize,
         fontFamily: b.role === 'sous-titre' ? bodyFont : displayFont,
         fontStyle: b.role === 'sous-titre' ? 'normal' : 'bold', textDecoration: '',
         fill, align,
-        hasBg: false, bgColor: '#000000', bgOpacity: 80, cornerRadius: 6, padding: 16, paddingH: 16, paddingV: 10,
+        hasBg: !!boxFill, bgColor: boxFill ?? '#000000', bgOpacity: boxFill ? 100 : 80,
+        // radiusPct = % de la hauteur du texte : 50 donne une pastille, 0 un bandeau net.
+        cornerRadius: boxFill ? Math.round(((b.radiusPct ?? 8) / 100) * fontSize) : 6,
+        padding: 16, paddingH: 16, paddingV: 10,
         role: b.role || 'titre', uppercase: !!b.uppercase,
         // Ombre = halo doux de lisibilité (offset 0, flou large, faible opacité), JAMAIS une ombre portée lourde.
         ...(shadow ? { shadowEnabled: true, shadowColor: '#000000', shadowOpacity: 38, shadowBlur: 12, shadowOffsetX: 0, shadowOffsetY: 0 } : {}),
@@ -4967,6 +5053,11 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
       const data = await res.json();
       const layouts = Array.isArray(data.layouts) ? data.layouts : [];
       if (!res.ok || layouts.length === 0) { setQaMsg(data?.error ?? 'Composition échouée'); return; }
+      // Le parti pris que l'IA s'est donné avant de choisir : on le montre, sinon
+      // rien ne distingue une composition pensée d'un tirage au sort.
+      const refs = data?.refs as { instagram?: number } | undefined;
+      if (refs?.instagram) edLog(`${refs.instagram} visuel(s) du compte Instagram en référence de style`);
+      if (typeof data?.rationale === 'string' && data.rationale.trim()) edLog(`Parti pris : ${data.rationale.trim()}`);
       edLog(`${layouts.length} composition(s) proposée(s) — application de la 1re`);
       setAiVariants(layouts); setAiVariantIdx(0);
       await materializeLayout(layouts[0]);
@@ -5030,6 +5121,18 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
     await new Promise(resolve => setTimeout(resolve, 200));
     saveCurrentSlide();
     const els = elementsRef.current;
+    // La miniature doit montrer la PREMIÈRE page, pas celle qu'on regardait au
+    // moment d'enregistrer — sinon un template de carrousel se présente par sa
+    // page 3 dans la bibliothèque.
+    if (activeSlideIdx !== 0 && slidesRef.current[0]) {
+      const first = slidesRef.current[0];
+      setElements(first.elements);
+      elementsRef.current = first.elements;
+      setProxyUrl(first.proxyUrl);
+      proxyUrlRef.current = first.proxyUrl;
+      setActiveSlideIdx(0);
+      await new Promise(resolve => setTimeout(resolve, 350));
+    }
     // Miniature du template
     let thumbnailUrl: string | null = null;
     try {
@@ -5048,7 +5151,10 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
       name: templateName || 'Nouveau template',
       format_id: formatId,
       background_style: bgStyle ?? { type: 'gradient', colorFrom: '#0038FF', colorTo: '#FFFFFF', angle: 135 },
-      text_zones: els,
+      // Première page en `text_zones` (compatibilité), template complet en `pages` :
+      // un template peut décrire un carrousel entier, page par page.
+      text_zones: slidesRef.current[0]?.elements ?? els,
+      pages: slidesRef.current.map(s => ({ elements: s.elements })),
       logo_placement,
       thumbnail_url: thumbnailUrl,
     };
@@ -5078,8 +5184,10 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
     // Flush current slide
     saveCurrentSlide();
 
-    const isCarousel = postType === 'carrousel';
+    // Carrousel = plusieurs pages, quel que soit le type déclaré. Il n'y a plus de
+    // case « carrousel » à cocher en amont : l'export suit ce qui est dessiné.
     const totalSlides = slidesRef.current.length;
+    const isCarousel = canBeCarousel && (totalSlides > 1 || isContinuous);
     const carouselUrls: string[] = [];
 
     const uploadCurrent = async (idx: number): Promise<string> => {
@@ -5300,6 +5408,9 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
           return {
             id: t.id,
             role: t.role,
+            // Nom donné au champ par l'auteur du template (rôle personnalisé).
+            roleLabel: t.roleLabel || undefined,
+            roleHint: t.roleHint || undefined,
             width: Math.max(t.width ?? 200, 1),
             height: Math.max(t.fontSize + pV * 2, 1),
             fontSize: Math.max(t.fontSize, 1),
@@ -5604,7 +5715,9 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
             <>
               {/* Post type pills */}
               <div className="ed-type-pills" style={{ display: 'flex', alignItems: 'center', gap: 2, height: 32, padding: '0 3px', background: 'var(--btn-soft)', borderRadius: 'var(--r-s)', flexShrink: 0 }}>
-                {(['post', 'reel', 'story', 'carrousel'] as const).map(t => (
+                {/* Plus de pastille « Carrousel » : plusieurs pages suffisent à en faire
+                    un. Elle reste affichée pour un post créé avant cette fusion. */}
+                {(['post', 'reel', 'story', 'carrousel'] as const).filter(t => t !== 'carrousel' || postType === 'carrousel').map(t => (
                   <button key={t} onClick={() => changePostType(t)}
                     style={{ height: 26, padding: '0 10px', borderRadius: 6, border: 'none', cursor: 'pointer', fontSize: 11.5, fontWeight: 700, fontFamily: 'var(--sans)', transition: 'all .12s',
                       background: postType === t ? 'var(--btn-soft-2)' : 'transparent',
@@ -6327,7 +6440,7 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
                     Fond déverrouillé — glissez-le sur le canvas pour le repositionner.
                   </div>
                 )}
-                {postType === 'carrousel' && (
+                {canBeCarousel && (
                   <div style={{ marginTop: 12, padding: '12px', borderRadius: 9, background: 'var(--sunk)', border: '1px solid var(--line)' }}>
                     <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--ink)', marginBottom: 8 }}>{T('linkedCarousel')}</div>
                     {/* Bascule Séparé / Continu */}
@@ -6601,7 +6714,7 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
                     return (
                       <Rect key={el.id} id={el.id} x={el.x} y={el.y} width={el.width} height={el.height}
                         {...scrimProps} stroke={el.stroke} strokeWidth={el.strokeWidth}
-                        cornerRadius={el.cornerRadius} rotation={el.rotation} opacity={el.opacity / 100} draggable={!lockedIds.has(el.id)}
+                        cornerRadius={Math.max(0, Math.min(el.cornerRadius, el.width / 2, el.height / 2))} rotation={el.rotation} opacity={el.opacity / 100} draggable={!lockedIds.has(el.id)}
                         onClick={e => handleElClick(el.id, e.evt.shiftKey)} onTap={() => handleElClick(el.id, false)}
                         onDragStart={() => handleElDragStart(el.id)}
                         onDragMove={e => handleElDragMove(el.id, e)}
@@ -7308,6 +7421,18 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
             padding: '0 16px', gap: 8,
             overflowX: 'auto',
           }}>
+            {/* Rappel du contrat : ajouter une page suffit à faire un carrousel —
+                il n'y a plus de type « carrousel » à choisir avant de dessiner. */}
+            <div style={{ flexShrink: 0, marginRight: 4, lineHeight: 1.25 }}>
+              <div style={{ fontSize: 11.5, fontWeight: 800, color: 'var(--ink-2)', fontFamily: 'var(--sans)', whiteSpace: 'nowrap' }}>
+                {slides.length > 1 && canBeCarousel ? `Carrousel · ${slides.length} pages` : 'Pages'}
+              </div>
+              <div style={{ fontSize: 10.5, color: 'var(--ink-3)', whiteSpace: 'nowrap' }}>
+                {postType === 'story'
+                  ? 'Une story = une image'
+                  : slides.length > 1 ? 'Publié en carrousel' : 'Ajoutez une page pour un carrousel'}
+              </div>
+            </div>
             {slides.map((slide, idx) => {
               const isActive = idx === activeSlideIdx;
               return (

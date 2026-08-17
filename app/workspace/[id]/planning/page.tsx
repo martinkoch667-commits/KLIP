@@ -239,9 +239,13 @@ function aspectForType(t?: string | null): string {
   return "4 / 5";
 }
 // Un post vidéo ne peut être que Reel ou Story ; une photo ne peut pas être un Reel.
+// « Carrousel » n'est plus un type à choisir : une publication en devient un dès
+// qu'elle a plusieurs pages dans l'éditeur. Le type reste lisible pour les posts
+// créés avant cette fusion.
 function allowedTypesFor(isVideo: boolean): PostType[] {
-  return isVideo ? ["reel", "story"] : ["post", "carrousel", "story"];
+  return isVideo ? ["reel", "story"] : ["post", "story"];
 }
+const SELECTABLE_POST_TYPES: PostType[] = ["post", "reel", "story"];
 // Month view grid: Mon-based, pads with nulls
 function getMonthGrid(year: number, month: number): (Date | null)[] {
   const first = new Date(year, month, 1);
@@ -1401,8 +1405,11 @@ function PlanningContent() {
                 <div>
                   <label className="label" style={{ display: "block", marginBottom: 8 }}>{t('contentType')}</label>
                   <div style={{ display: "flex", gap: 6 }}>
-                    {(Object.entries(POST_TYPE_CFG) as [PostType, typeof POST_TYPE_CFG[PostType]][]).map(([tid, cfg]) => {
-                      const ok = allowed.includes(tid);
+                    {(Object.entries(POST_TYPE_CFG) as [PostType, typeof POST_TYPE_CFG[PostType]][])
+                      // Un ancien carrousel garde son bouton pour rester lisible ; on n'en propose plus de nouveaux.
+                      .filter(([tid]) => SELECTABLE_POST_TYPES.includes(tid) || panelPostType === tid)
+                      .map(([tid, cfg]) => {
+                      const ok = allowed.includes(tid) || panelPostType === tid;
                       return (
                         <button key={tid} disabled={!ok} onClick={() => ok && setPanelPostType(tid)}
                           title={ok ? undefined : isVid ? t('videoTypeTooltip') : t('photoTypeTooltip')}

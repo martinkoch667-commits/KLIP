@@ -76,7 +76,11 @@ export interface GenerateDescriptionParams {
   context?: string;
   imageHasText?: boolean;
   textRoles?: Record<string, string>;
-  templateZones?: { id: string; role?: string; width: number; height: number; fontSize: number }[];
+  // `roleLabel` / `roleHint` : champ nommé par l'auteur du template — c'est lui
+  // qui décide de ce que la zone contient, l'IA n'a plus à le deviner.
+  // `page` / `pageCount` : template de carrousel — la zone appartient à la page N
+  // sur un total connu, ce qui permet d'écrire une suite qui se tient.
+  templateZones?: { id: string; role?: string; roleLabel?: string; roleHint?: string; page?: number; pageCount?: number; width: number; height: number; fontSize: number }[];
   approvedCaptions?: string[];
 }
 
@@ -171,7 +175,7 @@ export async function generateDescriptionForUser(params: GenerateDescriptionPara
     if (ws.description_style)  lines.push(`Style rédactionnel : ${ws.description_style}`);
   }
 
-  const zoneConstraints = new Map<string, { role: string; roleLabel: string; maxChars: number; maxLines: number }>();
+  const zoneConstraints = new Map<string, { role: string; roleLabel: string; hint?: string; maxChars: number; maxLines: number }>();
   activeZones.forEach(z => {
     const safeW = Math.max(z.width ?? 200, 1);
     const safeH = Math.max(z.height ?? z.fontSize * 2, 1);
@@ -179,20 +183,37 @@ export async function generateDescriptionForUser(params: GenerateDescriptionPara
     const charsPerLine = Math.max(3, Math.floor(safeW / (safeF * 0.55)));
     const maxLines     = Math.max(1, Math.round(safeH / (safeF * 1.25)));
     const maxChars     = Math.max(5, charsPerLine * maxLines);
-    zoneConstraints.set(z.id, { role: z.role!, roleLabel: ROLE_LABELS[z.role!] ?? z.role!, maxChars, maxLines });
+    // Le nom donné par l'auteur du template prime toujours sur le rôle générique :
+    // « Nom du journal » dit exactement quoi écrire, « Zone personnalisée » non.
+    const label = (z.roleLabel && z.roleLabel.trim()) || ROLE_LABELS[z.role!] || z.role!;
+    zoneConstraints.set(z.id, { role: z.role!, roleLabel: label, hint: z.roleHint?.trim() || undefined, maxChars, maxLines });
   });
 
   if (hasZoneMode) {
     lines.push('');
     lines.push('── ZONES DU TEMPLATE (contraintes STRICTES) ──────────────────');
     lines.push('Ce visuel utilise un template. Chaque zone a une limite à NE JAMAIS dépasser :');
+    const pageCount = Math.max(...activeZones.map(z => z.pageCount ?? 1), 1);
+    if (pageCount > 1) {
+      lines.push(`Ce template est un CARROUSEL de ${pageCount} pages, lues dans l'ordre en balayant.`);
+    }
+    let lastPage = 0;
     activeZones.forEach(z => {
       const c = zoneConstraints.get(z.id)!;
       const lineHint = c.maxLines === 1 ? '1 ligne' : `${c.maxLines} lignes max`;
-      lines.push(`- "${c.roleLabel}" (id: ${z.id}) : ≤ ${c.maxChars} caractères, ${lineHint}.`);
+      if (pageCount > 1 && (z.page ?? 1) !== lastPage) {
+        lastPage = z.page ?? 1;
+        lines.push(`Page ${lastPage} / ${pageCount} :`);
+      }
+      lines.push(`- "${c.roleLabel}" (id: ${z.id}) : ≤ ${c.maxChars} caractères, ${lineHint}.${c.hint ? ` Contient : ${c.hint}.` : ''}`);
     });
+    if (pageCount > 1) {
+      lines.push('');
+      lines.push(`Écris les ${pageCount} pages comme UNE histoire : la page 1 accroche et donne envie de balayer, les pages du milieu développent un point chacune (jamais de répétition d'une page à l'autre), la dernière conclut par un appel à l'action. Chaque page doit être compréhensible seule, mais l'ensemble doit se lire comme une suite.`);
+    }
     lines.push('');
     lines.push('Le texte DOIT tenir dans ces limites. Sois concis et percutant. Répartis le contenu de façon cohérente — chaque zone doit avoir du sens isolément ET ensemble.');
+    lines.push('Le nom de chaque zone a été choisi par l\'auteur du template : il dit EXACTEMENT ce que la zone doit contenir. Une zone nommée « Prix » reçoit un prix, une zone nommée « Nom du journal » reçoit un nom de média — jamais autre chose, jamais un texte générique. Si l\'information n\'est pas dans le contexte fourni, écris la formulation la plus plausible pour cette marque plutôt qu\'un texte hors sujet.');
   } else if (hasRoles) {
     lines.push('');
     lines.push(`Blocs visuels présents : ${roleKeys.join(', ')}`);

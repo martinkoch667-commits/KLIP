@@ -50,9 +50,19 @@ function aspectForPostType(t?: PostType | null): string {
   if (t === "carrousel") return "1 / 1";
   return "4 / 5";
 }
-// Règles de format : une vidéo ne peut être que Reel/Story, une photo Post/Carrousel/Story (pas Reel).
+// Règles de format : une vidéo ne peut être que Reel/Story, une photo Post/Story (pas Reel).
+// « Carrousel » n'est plus un type à choisir : une publication DEVIENT un carrousel
+// dès qu'on lui ajoute des pages dans l'éditeur, au même format qu'un post simple.
+// Le type reste connu pour lire les posts créés avant cette fusion.
 function allowedPostTypes(isVideo: boolean): PostType[] {
-  return isVideo ? ["reel", "story"] : ["post", "carrousel", "story"];
+  return isVideo ? ["reel", "story"] : ["post", "story"];
+}
+// Types proposés au choix (l'ancien « carrousel » n'en fait plus partie).
+const SELECTABLE_POST_TYPES: PostType[] = ["post", "reel", "story"];
+// Un ancien post « carrousel » se lit comme une publication : c'est le même format
+// et le même parcours, seule la façon de le créer a changé.
+function typeForSelector(t?: PostType | null): PostType {
+  return t === "carrousel" ? "post" : (t ?? "post");
 }
 
 // Durée d'une vidéo à partir de son URL (métadonnées). Utilisé pour construire les plans
@@ -83,6 +93,14 @@ const POST_VOICES: { id: string; label: string; tKey: string }[] = [
   { id: 'Minimaliste et sobre',  label: 'Minimal', tKey: 'voiceMinimal' },
   { id: 'Doux et chaleureux',    label: 'Doux',    tKey: 'voiceDoux' },
 ];
+
+// Suivi visible d'une génération : l'étape en cours (0..3) et le journal réel.
+interface GenFlow {
+  step: number;
+  lines: string[];
+  done: boolean;
+  failed?: boolean;
+}
 
 interface PostItem {
   localId: string;
@@ -139,6 +157,21 @@ interface PostTemplate {
   background_style: { type: string; color?: string; colorFrom?: string; colorTo?: string; angle?: number } | null;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   text_zones: any[];  // full CanvasEl[] — needed to build zone-aware prompt + editor_json
+  // Template de carrousel : une entrée par page. Absent = template une page,
+  // décrite par `text_zones`.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  pages?: { elements?: any[] }[] | null;
+}
+
+// Pages d'un template, toujours au moins une — `text_zones` reste la première page
+// pour les templates enregistrés avant les templates multi-pages.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function templatePages(tpl: PostTemplate | null): any[][] {
+  if (!tpl) return [];
+  if (Array.isArray(tpl.pages) && tpl.pages.length) {
+    return tpl.pages.map(p => (Array.isArray(p?.elements) ? p.elements : []));
+  }
+  return [Array.isArray(tpl.text_zones) ? tpl.text_zones : []];
 }
 
 const PHOTO_PLACEHOLDER_SRC_COMPOSER = '__PHOTO_PLACEHOLDER__';
@@ -554,9 +587,16 @@ function TemplatePicker({
               >
                 <div style={{
                   width: '100%', aspectRatio: '4/5', borderRadius: 8, overflow: 'hidden',
-                  background: gradientCss,
+                  background: gradientCss, position: 'relative',
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
                 }}>
+                  {/* Un template de carrousel se choisit en connaissance de cause :
+                      il produira un post à plusieurs pages, pas une image seule. */}
+                  {Array.isArray(tpl.pages) && tpl.pages.length > 1 && (
+                    <span style={{ position: 'absolute', top: 6, left: 6, zIndex: 1, background: 'rgba(13,15,10,.62)', color: '#fff', fontSize: 9.5, fontWeight: 800, fontFamily: 'var(--mono)', padding: '2px 6px', borderRadius: 999, backdropFilter: 'blur(4px)' }}>
+                      {tpl.pages.length} pages
+                    </span>
+                  )}
                   {tpl.thumbnail_url ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img
@@ -608,6 +648,9 @@ export default function WorkspacePage() {
   useEffect(() => () => { postsRef.current.forEach(p => releasePreview(p.photo_url)); }, []);
   const [activeTab, setActiveTab] = useState<Tab>("produire");
   const [generatingAll, setGeneratingAll] = useState(false);
+  // Journal de génération par post : ce que l'IA est en train de faire, étape par
+  // étape, jusqu'à l'état « prêt » qui se voit.
+  const [genFlow, setGenFlow] = useState<Record<string, GenFlow>>({});
   const [globalBrief, setGlobalBrief] = useState('');
   const [imagePrompt, setImagePrompt] = useState('');
   const [includeStyle, setIncludeStyle] = useState(true);
@@ -691,11 +734,23 @@ export default function WorkspacePage() {
       })));
     }
 
-    const { data: tpls } = await supabase
+    // `pages` (templates de carrousel) est arrivé après coup : tant que la
+    // migration n'est pas passée en base, la colonne n'existe pas et la requête
+    // entière échouerait — donc plus AUCUN template ne s'afficherait. On retombe
+    // alors sur la sélection d'avant, qui suffit à travailler.
+    const baseCols = "id, name, thumbnail_url, format_id, background_style, text_zones";
+    let { data: tpls, error: tplErr } = await supabase
       .from("post_templates")
-      .select("id, name, thumbnail_url, format_id, background_style, text_zones")
+      .select(`${baseCols}, pages`)
       .eq("workspace_id", id)
       .order("sort_order", { ascending: true });
+    if (tplErr) {
+      ({ data: tpls } = await supabase
+        .from("post_templates")
+        .select(baseCols)
+        .eq("workspace_id", id)
+        .order("sort_order", { ascending: true }));
+    }
     if (tpls) setTemplates(tpls);
   }, [id, supabase]);
 
@@ -844,6 +899,29 @@ export default function WorkspacePage() {
     return send();
   }
 
+  // ── Journal de génération ───────────────────────────────────────────────────
+  // Trois étapes réelles, dans l'ordre où elles se produisent : lire la marque,
+  // écrire les textes, dessiner le visuel. Le journal n'est jamais décoratif —
+  // chaque ligne est écrite au moment où la chose arrive vraiment.
+  const genStart = (localId: string) =>
+    setGenFlow(f => ({ ...f, [localId]: { step: 0, lines: [], done: false } }));
+  const genLog = (localId: string, line: string, step?: number) =>
+    setGenFlow(f => {
+      const cur = f[localId];
+      if (!cur) return f;
+      return { ...f, [localId]: { ...cur, step: step ?? cur.step, lines: [...cur.lines, line] } };
+    });
+  const genEnd = (localId: string, ok: boolean, msg?: string) => {
+    setGenFlow(f => {
+      const cur = f[localId];
+      if (!cur) return f;
+      return { ...f, [localId]: { ...cur, step: 3, done: true, failed: !ok, lines: msg ? [...cur.lines, msg] : cur.lines } };
+    });
+    // L'état « fini » reste à l'écran le temps d'être lu, puis la carte reprend
+    // sa forme normale avec le visuel généré.
+    if (ok) setTimeout(() => setGenFlow(f => { const { [localId]: _drop, ...rest } = f; return rest; }), 2600);
+  };
+
   // ── Aperçu du visuel COMPOSÉ ────────────────────────────────────────────────
   // L'aperçu du Composer ne montrait que la photo importée, parce que le visuel
   // fini n'existait pas encore : la composition et son rendu vivent dans
@@ -887,11 +965,24 @@ export default function WorkspacePage() {
         });
         if (!res.ok) return;
         const data = await res.json();
+        // Ce que l'IA a compris de la marque, dit avec ses mots : c'est la preuve
+        // visible qu'une composition a été pensée, pas piochée au hasard.
+        const refs = data?.refs as { templates?: number; approved?: number; instagram?: number } | undefined;
+        if (refs && (refs.templates || refs.approved || refs.instagram)) {
+          genLog(item.localId, `Références lues : ${[
+            refs.templates ? `${refs.templates} template${refs.templates > 1 ? 's' : ''}` : '',
+            refs.approved ? `${refs.approved} post${refs.approved > 1 ? 's' : ''} validé${refs.approved > 1 ? 's' : ''}` : '',
+            refs.instagram ? `${refs.instagram} visuel${refs.instagram > 1 ? 's' : ''} Instagram` : '',
+          ].filter(Boolean).join(', ')}`);
+        }
+        if (typeof data?.rationale === 'string' && data.rationale.trim()) {
+          genLog(item.localId, `Parti pris : ${data.rationale.trim()}`);
+        }
         const layout = Array.isArray(data?.layouts) ? data.layouts[0] : null;
         if (!layout?.blocks?.length) return;
         url = await renderComposedVisual({
           photoUrl: item.photo_url?.startsWith('http') ? item.photo_url : null,
-          blocks: layout.blocks, scrim: layout.scrim,
+          blocks: layout.blocks, accents: layout.accents, scrim: layout.scrim,
           brand: {
             primary: workspace?.primary_color, secondary: workspace?.secondary_color, accent: workspace?.accent_color,
             display: workspace?.font_family, body: workspace?.font_secondary,
@@ -909,26 +1000,45 @@ export default function WorkspacePage() {
   async function generateOne(item: PostItem): Promise<void> {
     if (!item.brief.trim() || item.status === "generating") return;
     setPosts((prev) => prev.map((p) => (p.localId === item.localId ? { ...p, status: "generating", error: undefined } : p)));
+    // Le clic sur « Générer » ne disait rien de ce qui se passait : on ouvre le
+    // journal de la génération sur la carte, avec les étapes réellement franchies.
+    genStart(item.localId);
     try {
       // ── Template zone detection ────────────────────────────────────────────
       const selectedTemplate = item.templateId
         ? templates.find(t => t.id === item.templateId) ?? null
         : null;
+      // Un template peut décrire plusieurs pages : l'IA doit remplir les zones de
+      // TOUTES les pages en une fois, pour que le carrousel se tienne d'une page
+      // à l'autre (page 1 = accroche, dernière = conclusion / appel à l'action).
+      const tplPages = templatePages(selectedTemplate);
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const allZones: any[] = Array.isArray(selectedTemplate?.text_zones) ? selectedTemplate!.text_zones : [];
+      const allZones: any[] = tplPages.flat();
       // Only send zones that have a role — those are AI-fillable
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const templateZones = allZones
+      const templateZones = tplPages.flatMap((pageZones: any[], pageIdx: number) => pageZones
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         .filter((z: any) => z.type === 'text' && z.role)
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         .map((z: any) => ({
           id: z.id,
           role: z.role,
+          // Champ nommé par l'auteur du template : c'est LUI qui dit ce que le bloc
+          // contient, l'IA n'a plus à le deviner.
+          roleLabel: z.roleLabel || undefined,
+          roleHint: z.roleHint || undefined,
+          page: tplPages.length > 1 ? pageIdx + 1 : undefined,
+          pageCount: tplPages.length > 1 ? tplPages.length : undefined,
           width: Math.max(z.width ?? 200, 1),
           height: Math.max(z.fontSize + ((z.paddingV ?? z.padding ?? 8) * 2), 1),
           fontSize: Math.max(z.fontSize ?? 24, 1),
-        }));
+        })));
+
+      genLog(item.localId, `Marque : ${workspace?.name ?? 'sans nom'}${workspace?.tone ? ` — ton ${(postVoice[item.localId] || workspace.tone).toLowerCase()}` : ''}`);
+      genLog(item.localId, selectedTemplate
+        ? `Template « ${selectedTemplate.name} »${tplPages.length > 1 ? ` — carrousel de ${tplPages.length} pages` : ''} — ${templateZones.length} zone${templateZones.length > 1 ? 's' : ''} à remplir`
+        : 'Sans template — composition libre du visuel');
+      genLog(item.localId, `Sujet : ${item.brief.trim().slice(0, 70)}${item.brief.trim().length > 70 ? '…' : ''}`, 1);
 
       // For video posts, don't pass photoUrl to the AI (no frame analysis)
       const photoUrl = item.isVideo ? undefined : (item.photo_url.startsWith("http") ? item.photo_url : undefined);
@@ -965,6 +1075,9 @@ export default function WorkspacePage() {
       if (res.ok && (data.texte_visuel || data.description)) {
         const texte_visuel = item.isVideo ? "" : (data.texte_visuel ?? "");
         const description = data.description ?? "";
+        if (texte_visuel) genLog(item.localId, `Texte du visuel : « ${texte_visuel.replace(/\n/g, ' ').slice(0, 60)} »`);
+        if (description) genLog(item.localId, `Légende écrite — ${description.length} caractères`);
+        genLog(item.localId, item.isVideo ? 'Vidéo prête à monter' : 'Mise en page du visuel', 2);
 
         // Upload photo first (need public URL for editor_json)
         let dbId = item.dbId;
@@ -985,31 +1098,39 @@ export default function WorkspacePage() {
         if (selectedTemplate && data.zoneBlocks && typeof data.zoneBlocks === 'object') {
           const zoneBlocks = data.zoneBlocks as Record<string, string>;
           const proxyUrl = pUrl.startsWith('http') ? `/api/proxy-image?url=${encodeURIComponent(pUrl)}` : '';
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const hasPhotoZone = allZones.some((z: any) => z.type === 'image' && z.src === PHOTO_PLACEHOLDER_SRC_COMPOSER);
 
+          // Une page de template = une page du post. Un template de carrousel
+          // produit donc directement un post à plusieurs pages, prêt à publier.
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const initialElements = allZones.map((el: any) => {
-            // Fill text zones with AI-generated content
-            if (el.type === 'text' && zoneBlocks[el.id]) {
-              return { ...el, text: zoneBlocks[el.id] };
-            }
-            // Replace photo placeholder with actual photo
-            if (el.type === 'image' && el.src === PHOTO_PLACEHOLDER_SRC_COMPOSER) {
-              return { ...el, id: `tpl-${el.id}`, src: proxyUrl };
-            }
-            return { ...el, id: el.id.startsWith('tpl-') ? el.id : `tpl-${el.id}` };
+          const slidesFromTemplate = tplPages.map((pageZones: any[], i: number) => {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const hasPhotoZone = pageZones.some((z: any) => z.type === 'image' && z.src === PHOTO_PLACEHOLDER_SRC_COMPOSER);
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const elements = pageZones.map((el: any) => {
+              // Fill text zones with AI-generated content
+              if (el.type === 'text' && zoneBlocks[el.id]) {
+                return { ...el, text: zoneBlocks[el.id] };
+              }
+              // Replace photo placeholder with actual photo
+              if (el.type === 'image' && el.src === PHOTO_PLACEHOLDER_SRC_COMPOSER) {
+                return { ...el, id: `tpl-${el.id}`, src: proxyUrl };
+              }
+              return { ...el, id: el.id.startsWith('tpl-') ? el.id : `tpl-${el.id}` };
+            });
+            return {
+              id: `slide-${i + 1}`,
+              elements,
+              // La photo importée n'habille que la première page : les suivantes
+              // partent du fond du template, sinon la même image se répète.
+              proxyUrl: hasPhotoZone || i > 0 ? '' : proxyUrl,
+              ...(i === 0 ? { bgStyle: selectedTemplate.background_style ?? undefined } : {}),
+            };
           });
 
-          editorJson = JSON.stringify({
-            version: 2,
-            slides: [{
-              id: 'slide-1',
-              elements: initialElements,
-              proxyUrl: hasPhotoZone ? '' : proxyUrl,
-              bgStyle: selectedTemplate.background_style ?? undefined,
-            }],
-          });
+          editorJson = JSON.stringify({ version: 2, slides: slidesFromTemplate });
+          if (slidesFromTemplate.length > 1) {
+            genLog(item.localId, `Carrousel de ${slidesFromTemplate.length} pages monté depuis le template`);
+          }
         }
 
         if (!dbId) {
@@ -1030,7 +1151,8 @@ export default function WorkspacePage() {
         }
         releasePreview(item.photo_url);
         setPosts((prev) => prev.map((p) => p.localId === item.localId ? { ...p, dbId, photo_url: pUrl, texte_visuel, description, status: "generated", templateId: item.templateId ?? p.templateId, error: undefined } : p));
-        void buildPreview({ ...item, dbId, photo_url: pUrl, texte_visuel, description });
+        void buildPreview({ ...item, dbId, photo_url: pUrl, texte_visuel, description })
+          .finally(() => genEnd(item.localId, true, 'Publication prête'));
       } else {
         // « Non autorisé » ne dit rien à personne : si la session est vraiment
         // perdue (rafraîchissement compris), on donne le geste à faire.
@@ -1038,9 +1160,11 @@ export default function WorkspacePage() {
           ? "Session expirée — rechargez la page ou reconnectez-vous."
           : (typeof data?.error === "string" ? data.error : data?.error?.message) || "La génération a échoué. Réessayez dans un instant.";
         setPosts((prev) => prev.map((p) => (p.localId === item.localId ? { ...p, status: "idle", error: errMsg } : p)));
+        genEnd(item.localId, false, errMsg);
       }
     } catch {
       setPosts((prev) => prev.map((p) => (p.localId === item.localId ? { ...p, status: "idle", error: "Erreur réseau" } : p)));
+      genEnd(item.localId, false, "Erreur réseau");
     }
   }
 
@@ -1904,9 +2028,9 @@ export default function WorkspacePage() {
                             {/* Type de publication — contrôle segmenté posé dans un
                                 renfoncement plutôt que quatre boutons encadrés :
                                 on lit le choix actif d'un coup d'œil. */}
-                            <div className="seg ws-type-pills" style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 3, width: '100%' }}>
-                              {(['post', 'reel', 'carrousel', 'story'] as PostType[]).map(pt => {
-                                const active = (post.post_type ?? 'post') === pt;
+                            <div className="seg ws-type-pills" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 3, width: '100%' }}>
+                              {SELECTABLE_POST_TYPES.map(pt => {
+                                const active = typeForSelector(post.post_type) === pt;
                                 const ok = allowedPostTypes(!!post.isVideo).includes(pt);
                                 return (
                                   <button key={pt} disabled={!ok} onClick={() => ok && updatePostType(post.localId, pt)}
@@ -1958,6 +2082,27 @@ export default function WorkspacePage() {
                             {post.error && (
                               <p style={{ fontSize: 12, color: 'var(--warn)', background: 'var(--warn-soft)', borderRadius: 'var(--r-s)', padding: '6px 10px' }}>{post.error}</p>
                             )}
+
+                            {/* Ce que l'IA est en train de faire — le clic sur « Générer »
+                                laissait sinon l'écran muet jusqu'au résultat. */}
+                            {genFlow[post.localId] && (() => {
+                              const g = genFlow[post.localId];
+                              return (
+                                <AiThinkingPanel
+                                  inline
+                                  title={g.failed ? 'Génération interrompue' : g.done ? 'Publication prête' : 'Création de la publication'}
+                                  subtitle={g.failed ? undefined : g.done ? 'Le visuel et la légende sont là — à vous de les ajuster.' : undefined}
+                                  steps={[
+                                    { id: 'brand', label: 'Lecture de la marque' },
+                                    { id: 'texts', label: 'Écriture des textes' },
+                                    { id: 'visual', label: 'Mise en page du visuel' },
+                                  ]}
+                                  activeStep={g.step}
+                                  lines={g.lines}
+                                  progress={Math.min(1, g.step / 3)}
+                                />
+                              );
+                            })()}
 
                             {!isGenerated ? (
                               <>
