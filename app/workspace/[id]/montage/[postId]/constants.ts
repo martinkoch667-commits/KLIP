@@ -326,6 +326,7 @@ export type EffectiveSub = SubStyle & {
   shadowBlur: number;
   shadowX: number;
   shadowY: number;
+  shadowSet?: boolean;
   glowColor: string;
   glowBlur: number;
   rotation: number;
@@ -383,6 +384,10 @@ export function effectiveSubStyle(styleId: string, custom?: SubCustom): Effectiv
     shadowBlur: custom?.shadowBlur ?? 0,
     shadowX: custom?.shadowX ?? 0,
     shadowY: custom?.shadowY ?? 0,
+    // L'utilisateur a-t-il touché au réglage d'ombre ? `undefined` = jamais
+    // touché, `""` = explicitement coupée. La distinction est ce qui permet à
+    // « couper l'ombre » de vraiment couper l'ombre (voir subTextShadowCss).
+    shadowSet: custom?.shadowColor !== undefined,
     glowColor: custom?.glowColor ?? "",
     glowBlur: custom?.glowBlur ?? 0,
     // Transformer / mélange
@@ -514,8 +519,16 @@ export function subTextShadowCss(e: EffectiveSub, k = 1): string {
   if (e.shadowColor && (e.shadowBlur > 0 || e.shadowX || e.shadowY)) {
     parts.push(`${e.shadowX * k}px ${e.shadowY * k}px ${e.shadowBlur * k}px ${e.shadowColor}`);
   }
-  // Lisibilité par défaut : texte nu sans contour ni ombre → ombre douce.
-  if (!parts.length && e.bg === "transparent" && !e.stroke) parts.push(`0 ${1 * k}px ${8 * k}px rgba(0,0,0,.6)`);
+  // Filet de lisibilité : un texte nu, sans contour ni ombre, reçoit une ombre
+  // douce — sinon il devient illisible sur une image claire.
+  //
+  // Mais il ne s'applique QUE si l'utilisateur n'a jamais touché au réglage.
+  // Auparavant il s'appliquait toujours : couper l'ombre ne changeait donc rien
+  // à l'écran, et l'activer remplaçait une ombre par une ombre presque
+  // identique. Le contrôle avait l'air cassé alors qu'il fonctionnait.
+  if (!parts.length && !e.shadowSet && e.bg === "transparent" && !e.stroke) {
+    parts.push(`0 ${1 * k}px ${8 * k}px rgba(0,0,0,.6)`);
+  }
   return parts.join(", ") || "none";
 }
 
