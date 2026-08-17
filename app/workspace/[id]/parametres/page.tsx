@@ -113,7 +113,11 @@ function ParametresContent() {
     setDisconnectingFb(false);
   }
 
-  const isInstagramConnected = !!(workspace?.instagram_account_id || workspace?.instagram_username);
+  // Seul le passage par Meta relie vraiment un compte : `instagram_account_id`
+  // n'est écrit que par le retour OAuth. Le pseudo, lui, se tape à la main dans
+  // la charte du client — l'accepter comme preuve affichait « Connecté » à des
+  // gens qui n'avaient rien relié, jusqu'à l'échec de leur première publication.
+  const isInstagramConnected = !!workspace?.instagram_account_id;
   const isFacebookConnected = !!workspace?.facebook_page_id;
 
   // L'autorisation Instagram vit 60 jours. Le cron la renouvelle tout seul, mais

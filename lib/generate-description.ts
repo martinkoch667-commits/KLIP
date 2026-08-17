@@ -80,7 +80,7 @@ export interface GenerateDescriptionParams {
   // qui décide de ce que la zone contient, l'IA n'a plus à le deviner.
   // `page` / `pageCount` : template de carrousel — la zone appartient à la page N
   // sur un total connu, ce qui permet d'écrire une suite qui se tient.
-  templateZones?: { id: string; role?: string; roleLabel?: string; roleHint?: string; page?: number; pageCount?: number; width: number; height: number; fontSize: number }[];
+  templateZones?: { id: string; role?: string; roleLabel?: string; roleHint?: string; sampleLen?: number; page?: number; pageCount?: number; width: number; height: number; fontSize: number }[];
   approvedCaptions?: string[];
 }
 
@@ -205,7 +205,11 @@ export async function generateDescriptionForUser(params: GenerateDescriptionPara
         lastPage = z.page ?? 1;
         lines.push(`Page ${lastPage} / ${pageCount} :`);
       }
-      lines.push(`- "${c.roleLabel}" (id: ${z.id}) : ≤ ${c.maxChars} caractères, ${lineHint}.${c.hint ? ` Contient : ${c.hint}.` : ''}`);
+      // La longueur visée compte autant que la limite : le modèle a été dessiné
+      // pour un texte de cette taille-là, et un texte deux fois plus long déforme
+      // la mise en page même s'il « rentre » techniquement.
+      const aim = z.sampleLen ? ` Vise ~${z.sampleLen} caractères (longueur pour laquelle la mise en page a été dessinée).` : '';
+      lines.push(`- "${c.roleLabel}" (id: ${z.id}) : ≤ ${c.maxChars} caractères, ${lineHint}.${aim}${c.hint ? ` Contient : ${c.hint}.` : ''}`);
     });
     if (pageCount > 1) {
       lines.push('');
@@ -213,6 +217,7 @@ export async function generateDescriptionForUser(params: GenerateDescriptionPara
     }
     lines.push('');
     lines.push('Le texte DOIT tenir dans ces limites. Sois concis et percutant. Répartis le contenu de façon cohérente — chaque zone doit avoir du sens isolément ET ensemble.');
+    lines.push('Serre-toi au plus près de la longueur visée : ce modèle est un DESSIN, pas un formulaire. Un titre prévu en trois mots qui en reçoit huit casse l\'équilibre de la page, même en tenant dans la zone. À contenu égal, préfère toujours la formulation la plus courte.');
     lines.push('Le nom de chaque zone a été choisi par l\'auteur du template : il dit EXACTEMENT ce que la zone doit contenir. Une zone nommée « Prix » reçoit un prix, une zone nommée « Nom du journal » reçoit un nom de média — jamais autre chose, jamais un texte générique. Si l\'information n\'est pas dans le contexte fourni, écris la formulation la plus plausible pour cette marque plutôt qu\'un texte hors sujet.');
   } else if (hasRoles) {
     lines.push('');

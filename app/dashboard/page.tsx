@@ -525,8 +525,9 @@ function WorkspaceCard({ workspace, posts, color, index, onOpen }: {
           <div style={{ minWidth: 0, flex: 1 }}>
             <div className="h-title" style={{ fontSize: 15.5, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{workspace.name}</div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, color: 'var(--ink-3)', fontWeight: 600 }}>
-              <span style={{ width: 6, height: 6, borderRadius: '50%', flexShrink: 0, background: workspace.instagram_username ? 'var(--mint-2)' : 'var(--line)' }} />
-              {workspace.instagram_username ? `@${workspace.instagram_username}` : t('igNotConnected')}
+              {/* Le pseudo seul ne prouve rien : il se saisit à la main. */}
+              <span style={{ width: 6, height: 6, borderRadius: '50%', flexShrink: 0, background: workspace.instagram_account_id ? 'var(--mint-2)' : 'var(--line)' }} />
+              {workspace.instagram_account_id ? `@${workspace.instagram_username ?? 'Instagram'}` : t('igNotConnected')}
             </div>
           </div>
         </div>
@@ -621,7 +622,7 @@ export default function Dashboard() {
         // Load workspaces first — critical for ClientSwitcher
         const { data: ws, error: wsErr } = await supabase
           .from('workspaces')
-          .select('id, name, instagram_username, logo_url')
+          .select('id, name, instagram_account_id, instagram_username, logo_url')
           .order('created_at', { ascending: true });
         console.log('[Dashboard] workspaces query result:', { ws, wsErr });
         setWorkspaces(ws ?? []);

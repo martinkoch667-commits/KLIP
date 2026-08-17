@@ -16,7 +16,7 @@ function aspectForType(t?: string | null): string {
 // ensemble. Structure reprise de l'éditeur de publication de Metricool.
 export interface PreviewAccount { name?: string | null; instagram_username?: string | null; logo_url?: string | null }
 
-export default function PostPreviewPane({ workspace, mediaUrl, posterUrl, caption, postType, platforms, compact, mediaHeight }: {
+export default function PostPreviewPane({ workspace, mediaUrl, mediaUrls, posterUrl, caption, postType, platforms, compact, mediaHeight }: {
   workspace: PreviewAccount | null;
   mediaUrl?: string | null;
   /** Vignette d'attente pour une vidéo : sans elle, un plan d'ouverture sombre
@@ -30,6 +30,9 @@ export default function PostPreviewPane({ workspace, mediaUrl, posterUrl, captio
   /** Hauteur imposée au média (ex. "min(56vh, 620px)") : le format 9:16 tient
       alors dans le volet au lieu de le faire défiler. */
   mediaHeight?: string;
+  /** Pages d'un carrousel. Quand il y en a plusieurs, l'aperçu se feuillette —
+   *  sans ça, on ne voyait jamais que la première et on programmait à l'aveugle. */
+  mediaUrls?: string[];
 }) {
   const available = platforms && platforms.length ? platforms : ["instagram"];
   const [platform, setPlatform] = useState<string>(available[0]);
@@ -46,6 +49,21 @@ export default function PostPreviewPane({ workspace, mediaUrl, posterUrl, captio
   // pas de barre d'actions, pas de légende sous l'image. Les afficher dans la
   // carte du fil donnait un aperçu faux (retour Martin).
   const isFullScreen = postType === "story" || postType === "reel";
+
+  // Pages du carrousel : la liste fournie si elle en compte plusieurs, sinon le
+  // média unique. `page` est borné à la liste courante pour survivre à un
+  // changement de post dans la même fenêtre.
+  const pages = (mediaUrls && mediaUrls.length > 1 ? mediaUrls : [mediaUrl]).filter(Boolean) as string[];
+  const [pageRaw, setPage] = useState(0);
+  const page = Math.min(pageRaw, Math.max(0, pages.length - 1));
+  const shownMedia = pages[page] ?? mediaUrl ?? null;
+  const navBtn = (side: "left" | "right"): React.CSSProperties => ({
+    position: "absolute", top: "50%", [side]: 8, transform: "translateY(-50%)",
+    width: 28, height: 28, borderRadius: "50%", border: "none", cursor: "pointer",
+    background: "rgba(255,255,255,.9)", color: "#14160F",
+    display: "grid", placeItems: "center", padding: 0,
+    boxShadow: "0 2px 8px rgba(13,15,10,.28)",
+  });
 
   if (isFullScreen && isIg) {
     return (
@@ -169,6 +187,7 @@ export default function PostPreviewPane({ workspace, mediaUrl, posterUrl, captio
             encadrait la photo de deux barres noires (retour Martin). */}
         <div style={{ display: "flex", justifyContent: "center", background: "var(--sunk)" }}>
           <div style={{
+            position: "relative",
             width: mediaHeight ? "auto" : "100%",
             height: mediaHeight,
             maxWidth: "100%",
@@ -176,7 +195,29 @@ export default function PostPreviewPane({ workspace, mediaUrl, posterUrl, captio
             background: "var(--sunk)",
             overflow: "hidden",
           }}>
-            {mediaUrl ? <MediaPreview raw={mediaUrl} poster={posterUrl} /> : <div style={{ width: "100%", height: "100%", background: "var(--sunk)" }} />}
+            {shownMedia ? <MediaPreview raw={shownMedia} poster={posterUrl} /> : <div style={{ width: "100%", height: "100%", background: "var(--sunk)" }} />}
+
+            {/* Carrousel : flèches, compteur et pastilles — comme sur Instagram. */}
+            {pages.length > 1 && (
+              <>
+                <button type="button" onClick={() => setPage(p => (p - 1 + pages.length) % pages.length)} aria-label="Page précédente"
+                  style={navBtn("left")}>
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"><path d="M15 18l-6-6 6-6" /></svg>
+                </button>
+                <button type="button" onClick={() => setPage(p => (p + 1) % pages.length)} aria-label="Page suivante"
+                  style={navBtn("right")}>
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"><path d="M9 6l6 6-6 6" /></svg>
+                </button>
+                <div style={{ position: "absolute", top: 10, right: 10, background: "rgba(13,15,10,.62)", color: "#fff", fontSize: 11, fontWeight: 700, padding: "2px 8px", borderRadius: 999, backdropFilter: "blur(4px)" }}>
+                  {page + 1}/{pages.length}
+                </div>
+                <div style={{ position: "absolute", bottom: 10, left: 0, right: 0, display: "flex", justifyContent: "center", gap: 5 }}>
+                  {pages.map((_, i) => (
+                    <span key={i} style={{ width: 6, height: 6, borderRadius: 999, background: i === page ? "#fff" : "rgba(255,255,255,.45)" }} />
+                  ))}
+                </div>
+              </>
+            )}
           </div>
         </div>
 

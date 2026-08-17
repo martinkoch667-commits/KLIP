@@ -1051,6 +1051,9 @@ export default function WorkspacePage() {
           // contient, l'IA n'a plus à le deviner.
           roleLabel: z.roleLabel || undefined,
           roleHint: z.roleHint || undefined,
+          // Longueur du texte que le modèle porte à cet endroit : la mise en page
+          // a été dessinée pour CETTE longueur-là.
+          sampleLen: typeof z.text === 'string' && z.text.trim() ? z.text.trim().length : undefined,
           page: tplPages.length > 1 ? pageIdx + 1 : undefined,
           pageCount: tplPages.length > 1 ? tplPages.length : undefined,
           width: Math.max(z.width ?? 200, 1),
@@ -1150,7 +1153,11 @@ export default function WorkspacePage() {
             const elements = pageZones.map((el: any) => {
               // Fill text zones with AI-generated content
               if (el.type === 'text' && zoneBlocks[el.id]) {
-                return { ...el, text: zoneBlocks[el.id] };
+                // `origText` garde la trace de ce que le modèle écrivait ici :
+                // l'éditeur s'en sert pour retrouver la même silhouette (même
+                // nombre de lignes, même ancrage) malgré un texte de longueur
+                // différente.
+                return { ...el, text: zoneBlocks[el.id], origText: el.text };
               }
               // Replace photo placeholder with actual photo
               if (el.type === 'image' && el.src === PHOTO_PLACEHOLDER_SRC_COMPOSER) {

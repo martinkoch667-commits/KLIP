@@ -64,6 +64,10 @@ interface TextEl extends BaseEl {
   // journal », « Horaires »… — ce que ce bloc contiendra toujours.
   roleLabel?: string;
   roleHint?: string;
+  /** Texte que le modèle portait à cet endroit, avant remplissage par l'IA.
+   *  Sert de référence de silhouette : c'est le nombre de lignes qu'il occupait
+   *  qu'on cherche à retrouver (cf. relayoutText). */
+  origText?: string;
   maxLines?: number;
   minFontSize?: number;
   maxFontSize?: number;
@@ -310,11 +314,60 @@ function applyAutoFit(elements: any[]): any[] {
 function relayoutText(elements: any[], stageW: number, stageH: number): any[] {
   if (!Array.isArray(elements)) return elements;
   const margin = 26, gap = 10;
-  // 1 : auto-fit (slots uniquement) — la largeur du bloc est celle voulue
+  // 1 : chaque bloc retrouve la SILHOUETTE que le modèle lui donnait.
+  //
+  // Un texte écrit par l'IA n'a jamais exactement la longueur de celui du modèle.
+  // On ne se contentait alors que de rapetisser la police : un titre prévu sur une
+  // ligne passait sur deux, la pile descendait, et la page ne ressemblait plus à
+  // ce qui avait été dessiné. Désormais, dans l'ordre :
+  //   a) on ÉLARGIT le bloc dans la place libre — c'est presque toujours la bonne
+  //      réponse quand il reste du vide à côté ;
+  //   b) seulement si ça ne suffit pas, on réduit la police.
+  // L'élargissement respecte le point d'ancrage : un bloc aligné à droite grandit
+  // vers la gauche, un bloc centré grandit des deux côtés. Sans ça, « élargir »
+  // voudrait dire « déplacer », et le visuel se décalerait.
   const els = elements.map(el => {
     if (el?.type !== 'text' || !el.role) return el;
-    const width = el.width ?? Math.max(60, stageW - (el.x ?? 0));
-    const withW = { ...el, width };
+    const width0 = el.width ?? Math.max(60, stageW - (el.x ?? 0));
+    const x0 = el.x ?? 0;
+    const pH = el.paddingH ?? el.padding ?? 0;
+    const align = ['left', 'center', 'right'].includes(el.align) ? el.align : 'left';
+    const txt = el.uppercase ? String(el.text ?? '').toUpperCase() : String(el.text ?? '');
+    const linesAt = (w: number, fs: number) =>
+      countLines(txt, fs, el.fontFamily, el.fontStyle, Math.max(1, w - pH * 2), el.letterSpacing ?? 0);
+
+    // Combien de lignes le modèle prévoyait-il ? Le texte d'origine du modèle est
+    // la référence la plus juste — mesuré ici, avec les polices vraiment chargées.
+    const target = el.origText
+      ? Math.max(1, countLines(
+          el.uppercase ? String(el.origText).toUpperCase() : String(el.origText),
+          el.maxFontSize ?? el.fontSize, el.fontFamily, el.fontStyle,
+          Math.max(1, width0 - pH * 2), el.letterSpacing ?? 0))
+      : (el.maxLines ?? roleMaxLines(el.role));
+
+    let width = width0;
+    let x = x0;
+    if (linesAt(width0, el.fontSize) > target) {
+      // Place disponible de chaque côté, ancre par ancre.
+      const maxWidth = align === 'left'
+        ? Math.max(width0, stageW - margin - x0)
+        : align === 'right'
+          ? Math.max(width0, (x0 + width0) - margin)
+          : Math.max(width0, 2 * Math.min((x0 + width0 / 2) - margin, stageW - margin - (x0 + width0 / 2)));
+      if (maxWidth > width0 && linesAt(maxWidth, el.fontSize) <= target) {
+        // Plus petite largeur qui suffit : on n'empiète pas plus que nécessaire.
+        let lo = width0, hi = Math.round(maxWidth), best = Math.round(maxWidth);
+        while (lo <= hi) {
+          const mid = Math.floor((lo + hi) / 2);
+          if (linesAt(mid, el.fontSize) <= target) { best = mid; hi = mid - 1; } else { lo = mid + 1; }
+        }
+        width = best;
+        x = align === 'right' ? (x0 + width0) - width
+          : align === 'center' ? Math.round((x0 + width0 / 2) - width / 2)
+          : x0;
+      }
+    }
+    const withW = { ...el, width, x, maxLines: el.maxLines ?? target };
     return { ...withW, fontSize: autoFitFontSize(withW as TextEl) };
   });
   // 2 : anti-chevauchement (slots, par ordre vertical)

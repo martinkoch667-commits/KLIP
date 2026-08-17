@@ -11,6 +11,8 @@ interface WsCard {
   id: string;
   name: string;
   primary_color: string | null;
+  // Renseigné par le seul retour OAuth Meta : c'est la preuve d'une vraie liaison.
+  instagram_account_id: string | null;
   instagram_username: string | null;
   banner_url: string | null;
   logo_url: string | null;
@@ -60,7 +62,8 @@ function ClientKitCard({ ws, color, index }: { ws: WsCard; color: string; index:
             <div style={{ paddingBottom: 2, minWidth: 0, flex: 1 }}>
               <div className="h-title trunc" style={{ fontSize: 16 }}>{ws.name}</div>
               <div style={{ fontSize: 12, color: 'var(--ink-3)', fontWeight: 600 }}>
-                {ws.instagram_username ? `@${ws.instagram_username}` : t('notConnected')}
+                {/* « Connecté » ne se déduit pas d'un pseudo saisi à la main. */}
+                {ws.instagram_account_id ? `@${ws.instagram_username ?? 'Instagram'}` : t('notConnected')}
               </div>
             </div>
             <span className="chip" style={{ background: 'var(--sunk)', color: 'var(--ink-2)', fontSize: 10.5, flexShrink: 0 }}>
@@ -111,7 +114,7 @@ export default function TemplatesPage() {
 
       const { data: ws } = await supabase
         .from("workspaces")
-        .select("id, name, primary_color, instagram_username, banner_url, logo_url")
+        .select("id, name, primary_color, instagram_account_id, instagram_username, banner_url, logo_url")
         .order("created_at");
 
       if (!ws) { setLoading(false); return; }

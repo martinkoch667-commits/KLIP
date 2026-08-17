@@ -1314,59 +1314,8 @@ function PlanningContent() {
           {/* On écrit à gauche, on voit le rendu à droite. */}
           <div className="plan-post-body" style={{ flex: 1, minHeight: 0, display: "grid", gridTemplateColumns: "minmax(0,1fr) 460px" }}>
           <div style={{ padding: "16px 20px", display: "flex", flexDirection: "column", gap: 16, overflowY: "auto" }}>
-            {(() => {
-              const isVid = isVideoUrl(selectedPost.exported_image_url) || isVideoUrl(selectedPost.photo_url);
-              const carouselUrls = carouselUrlsOf(selectedPost);
-              const isCarousel = !isVid && carouselUrls.length > 1;
-              const wrapMaxW = (selectedPost.post_type === "story" || selectedPost.post_type === "reel") ? 260 : "100%";
-              if (isVid) {
-                const vsrc = isVideoUrl(selectedPost.exported_image_url) ? selectedPost.exported_image_url! : selectedPost.photo_url;
-                return (
-                  <div style={{ position: "relative", width: "100%", maxWidth: wrapMaxW, margin: "0 auto", aspectRatio: aspectForType(selectedPost.post_type), borderRadius: "var(--r)", overflow: "hidden", background: "#000" }}>
-                    <video src={vsrc} controls playsInline style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-                  </div>
-                );
-              }
-              if (isCarousel) {
-                return (
-                  <div style={{ width: "100%", maxWidth: wrapMaxW, margin: "0 auto" }}>
-                    <div style={{ display: "flex", gap: 8, overflowX: "auto", scrollSnapType: "x mandatory", borderRadius: "var(--r)", WebkitOverflowScrolling: "touch" }}>
-                      {carouselUrls.map((u, i) => (
-                        <div key={i} style={{ position: "relative", flex: "0 0 100%", scrollSnapAlign: "center", aspectRatio: aspectForType(selectedPost.post_type), borderRadius: "var(--r)", overflow: "hidden", background: "#000" }}>
-                          {/* eslint-disable-next-line @next/next/no-img-element */}
-                          <img src={u} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-                          <div style={{ position: "absolute", top: 8, right: 8, background: "rgba(13,15,10,.6)", color: "#fff", fontSize: 11, fontWeight: 700, padding: "2px 8px", borderRadius: 999 }}>{i + 1}/{carouselUrls.length}</div>
-                        </div>
-                      ))}
-                    </div>
-                    <div style={{ display: "flex", justifyContent: "center", gap: 5, marginTop: 8 }}>
-                      {carouselUrls.map((_, i) => (
-                        <span key={i} style={{ width: 6, height: 6, borderRadius: 999, background: i === 0 ? "var(--ink)" : "var(--line)" }} />
-                      ))}
-                    </div>
-                  </div>
-                );
-              }
-              if (!(selectedPost.exported_image_url || selectedPost.thumbnail_url || selectedPost.photo_url)) return null;
-              return (
-                <div style={{ position: "relative", width: "100%", maxWidth: wrapMaxW, margin: "0 auto", aspectRatio: aspectForType(selectedPost.post_type), borderRadius: "var(--r)", overflow: "hidden", background: "#000" }}>
-                  {selectedPost.exported_image_url ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={selectedPost.exported_image_url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-                  ) : (
-                    <>
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={selectedPost.thumbnail_url || selectedPost.photo_url || ""} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-                      {selectedPost.texte_visuel && (
-                        <div style={{ position: "absolute", bottom: 10, left: 10, right: 10, background: workspace?.primary_color ?? "#0038FF", color: workspace?.secondary_color ?? "#FFFFFF", fontFamily: workspace?.font_family ? `"${workspace.font_family}", sans-serif` : "Oswald, sans-serif", fontWeight: "bold", fontSize: 14, padding: "6px 12px", borderRadius: 4, textTransform: "uppercase", maxWidth: "80%" }}>
-                          {selectedPost.texte_visuel}
-                        </div>
-                      )}
-                    </>
-                  )}
-                </div>
-              );
-            })()}
+            {/* Plus d'aperçu média dans cette colonne : le rendu est à droite, et
+                le voir deux fois repoussait la légende et la date hors de l'écran. */}
 
             {/* Retour du client (validation ou demande de modif) */}
             {selectedPost.approved_by_client && (
@@ -1535,6 +1484,9 @@ function PlanningContent() {
             <PostPreviewPane
               workspace={workspace}
               mediaUrl={previewMediaOf(selectedPost)}
+              // Les pages du carrousel se feuillettent dans l'aperçu : c'est le
+              // seul endroit où l'on voit le post tel qu'il sera publié.
+              mediaUrls={carouselUrlsOf(selectedPost)}
               posterUrl={selectedPost.thumbnail_url}
               caption={panelDesc}
               postType={panelPostType}
