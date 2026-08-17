@@ -107,7 +107,9 @@ interface RectEl extends BaseEl { type: 'rect'; width: number; height: number; f
 interface CircleEl extends BaseEl { type: 'circle'; radius: number; fill: string; fillType?: 'color' | 'gradient'; fillTo?: string; fillAngle?: number; stroke: string; strokeWidth: number; }
 interface StarEl extends BaseEl { type: 'star'; numPoints: number; innerRadius: number; outerRadius: number; fill: string; fillType?: 'color' | 'gradient'; fillTo?: string; fillAngle?: number; stroke: string; strokeWidth: number; }
 interface AnchorPoint { x: number; y: number; cpIn?: { x: number; y: number }; cpOut?: { x: number; y: number }; }
-interface VectorEl extends BaseEl { type: 'vector'; shape: 'rectangle'|'circle'|'triangle'|'star'|'pill'|'arrow'|'diamond'|'hexagon'|'custom'; width: number; height: number; fill: string; fillType?: 'color'|'none'|'image'|'gradient'; fillTo?: string; fillAngle?: number; stroke: string; strokeWidth: number; points?: AnchorPoint[]; closed?: boolean; imageSrc?: string; imageOffsetX?: number; imageOffsetY?: number; }
+interface VectorEl extends BaseEl { type: 'vector'; shape: 'rectangle'|'circle'|'triangle'|'star'|'pill'|'arrow'|'diamond'|'hexagon'|'custom'; width: number; height: number;
+  /** Arrondi des coins, pour les formes qui en ont (rectangle). */
+  cornerRadius?: number; fill: string; fillType?: 'color'|'none'|'image'|'gradient'; fillTo?: string; fillAngle?: number; stroke: string; strokeWidth: number; points?: AnchorPoint[]; closed?: boolean; imageSrc?: string; imageOffsetX?: number; imageOffsetY?: number; }
 interface ImageEl extends BaseEl { type: 'image'; src: string; width: number; height: number; cropX?: number; cropY?: number; naturalW?: number; naturalH?: number;
   // Zoom de l'image DANS son cadre, figé indépendamment de la taille du cadre —
   // sans lui, redimensionner via une seule poignée (haut/bas notamment) faisait
@@ -632,11 +634,19 @@ function drawCustomPath(ctx: CanvasRenderingContext2D, points: AnchorPoint[], cl
   }
 }
 
-function drawVectorShape(ctx: CanvasRenderingContext2D, shape: Exclude<VectorEl['shape'], 'custom'>, w: number, h: number) {
+// Arrondi effectif d'une forme : borné pour que le tracé ne se replie jamais.
+function vectorRadius(el: VectorEl, w: number, h: number): number {
+  if (el.shape !== 'rectangle') return 0;
+  return Math.max(0, Math.min(el.cornerRadius ?? 0, w / 2, h / 2));
+}
+
+function drawVectorShape(ctx: CanvasRenderingContext2D, shape: Exclude<VectorEl['shape'], 'custom'>, w: number, h: number, radius = 0) {
   ctx.beginPath();
   switch (shape) {
     case 'rectangle':
-      ctx.rect(0, 0, w, h);
+      // Un rectangle s'arrondit — c'est le geste de base d'un logiciel de création.
+      if (radius > 0) roundRectPath(ctx, 0, 0, w, h, radius);
+      else ctx.rect(0, 0, w, h);
       break;
     case 'circle': {
       const rx = w / 2, ry = h / 2;
@@ -708,7 +718,7 @@ function VectorNode({ el, onSelect, onDblClick, onDragStart, onDragMove, onDragE
     const clipFn = (ctx: any) => {
       const c = ctx as CanvasRenderingContext2D;
       if (el.shape === 'custom') drawCustomPath(c, el.points ?? [], el.closed ?? false);
-      else drawVectorShape(c, el.shape as Exclude<VectorEl['shape'], 'custom'>, el.width, el.height);
+      else drawVectorShape(c, el.shape as Exclude<VectorEl['shape'], 'custom'>, el.width, el.height, vectorRadius(el, el.width, el.height));
     };
     return (
       <Group
@@ -742,7 +752,7 @@ function VectorNode({ el, onSelect, onDblClick, onDragStart, onDragMove, onDragE
             sceneFunc={(kctx, shape) => {
               const ctx = (kctx as any)._context as CanvasRenderingContext2D;
               if (el.shape === 'custom') drawCustomPath(ctx, el.points ?? [], el.closed ?? false);
-              else drawVectorShape(ctx, el.shape as Exclude<VectorEl['shape'], 'custom'>, shape.width(), shape.height());
+              else drawVectorShape(ctx, el.shape as Exclude<VectorEl['shape'], 'custom'>, shape.width(), shape.height(), vectorRadius(el, shape.width(), shape.height()));
               kctx.fillStrokeShape(shape);
             }}
           />
@@ -756,7 +766,7 @@ function VectorNode({ el, onSelect, onDblClick, onDragStart, onDragMove, onDragE
     if (el.shape === 'custom') {
       drawCustomPath(ctx, el.points ?? [], el.closed ?? false);
     } else {
-      drawVectorShape(ctx, el.shape as Exclude<VectorEl['shape'], 'custom'>, shape.width(), shape.height());
+      drawVectorShape(ctx, el.shape as Exclude<VectorEl['shape'], 'custom'>, shape.width(), shape.height(), vectorRadius(el, shape.width(), shape.height()));
     }
     kctx.fillStrokeShape(shape);
   };
@@ -1070,8 +1080,11 @@ function EditorContextToolbar({ sel, allFonts, brandFamilies, brandColors, stage
   const textSel = isText ? sel as TextEl : null;
   const rectSel = sel.type === 'rect' ? sel as RectEl : null;
   const vecSel = isVector ? sel as VectorEl : null;
-  // Tout ce qui a un cadre rectangulaire peut être arrondi — rectangle ET image.
-  const roundSel = (sel.type === 'rect' || sel.type === 'image') ? sel as RectEl | ImageEl : null;
+  // Tout ce qui a un cadre rectangulaire peut être arrondi : le rectangle des
+  // formes (type 'vector'), l'ancien type 'rect', et les images importées.
+  const roundSel = (sel.type === 'rect' || sel.type === 'image' || (sel.type === 'vector' && (sel as VectorEl).shape === 'rectangle'))
+    ? sel as RectEl | ImageEl | VectorEl
+    : null;
 
   const Div = () => <span style={{ width: 1, height: 22, background: 'var(--line)', margin: '0 4px', flexShrink: 0 }} />;
   const IBtn = ({ icon, on, title, onClick, danger }: { icon: React.ReactNode; on?: boolean; title: string; onClick: () => void; danger?: boolean }) => (

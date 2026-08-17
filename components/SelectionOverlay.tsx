@@ -474,7 +474,10 @@ export default function SelectionOverlay({ el, stageRef, onChange, onDragEnd, zo
   // le centre pour arrondir. Le glissement suit la diagonale du coin saisi, et la
   // valeur reste commune aux quatre coins (un seul cornerRadius par objet).
 
-  const canRound = el.type === 'rect' || el.type === 'image';
+  // Les formes de l'éditeur sont des éléments `vector` : sans elles, les points
+  // d'arrondi n'apparaissaient sur aucun rectangle réellement dessinable.
+  const canRound = el.type === 'rect' || el.type === 'image'
+    || (el.type === 'vector' && el.shape === 'rectangle');
   const maxRadius = Math.max(0, Math.min(w, h) / 2);
   const radius = Math.max(0, Math.min(Number(el.cornerRadius) || 0, maxRadius));
   // Distance du point à son coin : le rayon lui-même, avec un plancher pour rester

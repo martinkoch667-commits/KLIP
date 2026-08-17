@@ -2073,7 +2073,10 @@ export default function WorkspacePage() {
                                 mediaHeight="230px"
                               />
                             ) : (
-                            <div style={{ position: 'relative', height: 230, borderRadius: 13, overflow: 'hidden', background: '#000' }}>
+                            /* Le cadre suit le FORMAT du post (3:4 pour une publication).
+                               Une hauteur fixe donnait un aperçu presque carré : on ne
+                               voyait pas le cadrage réel avant d'ouvrir l'éditeur. */
+                            <div style={{ position: 'relative', height: 230, width: 'auto', maxWidth: '100%', aspectRatio: aspectForPostType(post.post_type), margin: '0 auto', borderRadius: 13, overflow: 'hidden', background: '#000' }}>
                               {post.isVideo ? (
                                 <video src={post.photo_url} controls style={{ width: '100%', height: '100%', objectFit: 'contain', display: 'block' }} />
                               ) : (
