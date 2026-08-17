@@ -304,6 +304,21 @@ function applyAutoFit(elements: any[]): any[] {
   });
 }
 
+// La photo d'un post arrive comme un CALQUE IMAGE ordinaire, pas comme un « fond ».
+//
+// Le fond était un objet à part : verrouillé, déplaçable seulement à l'horizontale,
+// hors d'atteinte des effets, du recadrage libre, des arrondis. On ne pouvait donc
+// rien en faire — alors que c'est l'élément principal du visuel. En calque normal,
+// la photo se déplace, se redimensionne, se recadre et accepte tous les réglages,
+// comme n'importe quelle image importée ensuite.
+function photoLayer(src: string, w: number, h: number): CanvasEl {
+  return {
+    id: 'photo-1', type: 'image', src,
+    x: 0, y: 0, width: w, height: h,
+    rotation: 0, opacity: 100,
+  } as unknown as CanvasEl;
+}
+
 // ─── Typographie de marque ────────────────────────────────────────────────────
 // Les polices changeaient d'un client à l'autre, mais le RYTHME typographique
 // était identique pour tout le monde : même rapport titre/sous-titre, même
@@ -3288,9 +3303,9 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
               if (parsed.carouselContinuous) { setCarouselContinuous(true); setContPanels(Math.min(6, Math.max(2, parsed.contPanels || 2))); }
             } else {
               const els = Array.isArray(parsed) ? parsed : [defaultEl];
-              initSlides = [{ id: 'slide-1', elements: els, proxyUrl: photoProxyUrl }];
+              initSlides = [{ id: 'slide-1', elements: photoProxyUrl ? [photoLayer(photoProxyUrl, sw, sh), ...els] : els, proxyUrl: '' }];
             }
-          } catch { initSlides = [{ id: 'slide-1', elements: [defaultEl], proxyUrl: photoProxyUrl }]; }
+          } catch { initSlides = [{ id: 'slide-1', elements: photoProxyUrl ? [photoLayer(photoProxyUrl, sw, sh), defaultEl] : [defaultEl], proxyUrl: '' }]; }
         } else if (p?.template_id) {
           // Apply template for fresh posts
           const { data: tpl } = await supabase
@@ -3329,11 +3344,29 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
             }];
           } else {
             // Template not found — fallback to default
-            initSlides = [{ id: 'slide-1', elements: [defaultEl], proxyUrl: photoProxyUrl }];
+            initSlides = [{ id: 'slide-1', elements: photoProxyUrl ? [photoLayer(photoProxyUrl, sw, sh), defaultEl] : [defaultEl], proxyUrl: '' }];
           }
         } else {
-          initSlides = [{ id: 'slide-1', elements: [defaultEl], proxyUrl: photoProxyUrl }];
+          initSlides = [{ id: 'slide-1', elements: photoProxyUrl ? [photoLayer(photoProxyUrl, sw, sh), defaultEl] : [defaultEl], proxyUrl: '' }];
         }
+        // Les visuels enregistrés AVANT ce changement portent encore une photo en
+        // « fond » (proxyUrl). On la convertit en calque ordinaire à l'ouverture,
+        // en reportant son cadrage — sinon ces posts resteraient prisonniers d'un
+        // fond qu'on ne peut ni déplacer librement ni retoucher.
+        initSlides = initSlides.map(sl => {
+          if (!sl.proxyUrl) return sl;
+          const already = sl.elements?.some(e => e.type === 'image' && (e as ImageEl).src === sl.proxyUrl);
+          if (already) return { ...sl, proxyUrl: '' };
+          const layer = photoLayer(sl.proxyUrl, sw, sh) as unknown as ImageEl;
+          // Le fond était cadré en « cover » avec un décalage : on le transpose en
+          // recadrage du calque, pour que l'image ne saute pas à l'ouverture.
+          if (sl.bgOffsetX || sl.bgOffsetY) {
+            layer.cropX = sl.bgOffsetX ?? 0;
+            layer.cropY = sl.bgOffsetY ?? 0;
+          }
+          return { ...sl, proxyUrl: '', elements: [layer as unknown as CanvasEl, ...(sl.elements ?? [])] };
+        });
+
         // Re-layout (Phase 2) : auto-fit + anti-chevauchement pour le format du post.
         // En mode template, on préserve la mise en page dessinée à la main (pas de relayout).
         if (!isTemplate) {
@@ -5277,8 +5310,15 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
       extras.push({ id: 'scrim-overlay', type: 'rect', x: 0, y: 0, rotation: 0, opacity: op, width: stageW, height: stageH, fill: '#000000', stroke: '', strokeWidth: 0, cornerRadius: 0, scrim: pos } as CanvasEl);
     }
     // On retire les anciens éléments générés par l'IA (texte, scrim, accents, logo), on garde le reste.
-    const keptImgs = elementsRef.current.filter(e => e.type !== 'text' && e.id !== 'scrim-overlay' && !e.id.startsWith('ai-accent') && e.id !== 'ai-logo');
-    const combined = [...extras, ...keptImgs, ...accentEls, ...logoEls, ...newTextEls];
+    const kept = elementsRef.current.filter(e => e.type !== 'text' && e.id !== 'scrim-overlay' && !e.id.startsWith('ai-accent') && e.id !== 'ai-logo');
+    // La photo du post est un calque comme un autre — donc elle doit rester AU FOND
+    // et le voile de lisibilité passer par-dessus elle. Empilé naïvement, le voile
+    // se serait retrouvé sous la photo, donc invisible.
+    const photoIdx = kept.findIndex(e => e.type === 'image' && e.x <= 1 && e.y <= 1
+      && ((e as ImageEl).width ?? 0) >= stageW - 2 && ((e as ImageEl).height ?? 0) >= stageH - 2);
+    const photoLayers = photoIdx >= 0 ? [kept[photoIdx]] : [];
+    const keptImgs = photoIdx >= 0 ? kept.filter((_, i) => i !== photoIdx) : kept;
+    const combined = [...photoLayers, ...extras, ...keptImgs, ...accentEls, ...logoEls, ...newTextEls];
     applyElements(enforceDesignRules(relayoutText(combined, stageW, stageH), stageW, stageH));
   };
 
