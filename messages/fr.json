@@ -825,7 +825,9 @@
     "carouselFailed": "Génération du carrousel impossible.",
     "aiRoleBadge": "Rempli par l’IA",
     "aiRolePhoto": "Zone photo",
-    "photoZoneExists": "Ce template a déjà une zone photo."
+    "photoZoneExists": "Ce template a déjà une zone photo.",
+    "chatNewChat": "Nouvelle conversation",
+    "chatHint": "Décrivez ce que vous voulez"
   },
   "composer": {
     "title": "Composer avec l’IA",
@@ -1878,7 +1880,9 @@
     "toastBeatNeedsClips": "Il faut au moins deux plans pour caler des coupes.",
     "toastBeatFailed": "Analyse du rythme impossible.",
     "logTrimSkippedNoSpeech": "« {name} » laissé intact : pas de transcription, on ne coupe pas à l'aveugle.",
-    "toastTrimSkippedNoSpeech": "{n} plan(s) laissé(s) intacts : sans transcription, KLIP ne coupe pas — il risquerait de couper en pleine phrase."
+    "toastTrimSkippedNoSpeech": "{n} plan(s) laissé(s) intacts : sans transcription, KLIP ne coupe pas — il risquerait de couper en pleine phrase.",
+    "chatNewChat": "Nouvelle conversation",
+    "chatHint": "Décrivez ce que vous voulez"
   },
   "forgotPassword": {
     "title": "Mot de passe oublié",

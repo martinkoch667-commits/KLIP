@@ -825,7 +825,9 @@
     "carouselFailed": "Karussell konnte nicht erstellt werden.",
     "aiRoleBadge": "Von der KI gefüllt",
     "aiRolePhoto": "Fotozone",
-    "photoZoneExists": "Diese Vorlage hat bereits eine Fotozone."
+    "photoZoneExists": "Diese Vorlage hat bereits eine Fotozone.",
+    "chatNewChat": "Neue Unterhaltung",
+    "chatHint": "Beschreiben Sie, was Sie möchten"
   },
   "composer": {
     "title": "Mit KI erstellen",
@@ -1878,7 +1880,9 @@
     "toastBeatNeedsClips": "Für das Ausrichten der Schnitte braucht es mindestens zwei Clips.",
     "toastBeatFailed": "Rhythmus konnte nicht analysiert werden.",
     "logTrimSkippedNoSpeech": "„{name}“ unverändert: ohne Transkript wird nicht blind geschnitten.",
-    "toastTrimSkippedNoSpeech": "{n} Clip(s) unverändert: Ohne Transkript schneidet KLIP nicht — es würde mitten im Satz schneiden."
+    "toastTrimSkippedNoSpeech": "{n} Clip(s) unverändert: Ohne Transkript schneidet KLIP nicht — es würde mitten im Satz schneiden.",
+    "chatNewChat": "Neue Unterhaltung",
+    "chatHint": "Beschreiben Sie, was Sie möchten"
   },
   "forgotPassword": {
     "title": "Passwort vergessen",

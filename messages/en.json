@@ -825,7 +825,9 @@
     "carouselFailed": "Could not generate the carousel.",
     "aiRoleBadge": "AI-filled",
     "aiRolePhoto": "Photo zone",
-    "photoZoneExists": "This template already has a photo zone."
+    "photoZoneExists": "This template already has a photo zone.",
+    "chatNewChat": "New conversation",
+    "chatHint": "Describe what you want"
   },
   "composer": {
     "title": "Compose with AI",
@@ -1878,7 +1880,9 @@
     "toastBeatNeedsClips": "You need at least two clips to snap cuts.",
     "toastBeatFailed": "Could not analyse the rhythm.",
     "logTrimSkippedNoSpeech": "“{name}” left untouched: no transcript, so no blind cutting.",
-    "toastTrimSkippedNoSpeech": "{n} clip(s) left untouched: without a transcript KLIP does not cut — it would risk cutting mid-sentence."
+    "toastTrimSkippedNoSpeech": "{n} clip(s) left untouched: without a transcript KLIP does not cut — it would risk cutting mid-sentence.",
+    "chatNewChat": "New conversation",
+    "chatHint": "Describe what you want"
   },
   "forgotPassword": {
     "title": "Forgot password",

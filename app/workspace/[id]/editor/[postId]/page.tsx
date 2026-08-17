@@ -6914,6 +6914,7 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
             endpoint="/api/editor-chat"
             labels={{
               title: T('chatTitle'), intro: T('chatIntro'), placeholder: T('chatPlaceholder'),
+              newChat: T('chatNewChat'), hint: T('chatHint'),
               thinking: T('chatThinking'), error: T('chatError'),
               open: T('chatOpen'), close: T('chatClose'),
             }}

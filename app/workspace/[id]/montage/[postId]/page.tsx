@@ -4198,6 +4198,7 @@ export default function MontagePage() {
         endpoint="/api/montage-chat"
         labels={{
           title: t('chatTitle'), intro: t('chatIntro'), placeholder: t('chatPlaceholder'),
+              newChat: t('chatNewChat'), hint: t('chatHint'),
           thinking: t('chatThinking'), error: t('chatError'),
           open: t('chatOpen'), close: t('chatClose'),
         }}

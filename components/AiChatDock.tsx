@@ -24,6 +24,10 @@ export interface ChatMsg {
 }
 
 export interface ChatLabels {
+  /** Bouton « repartir de zéro » sous le champ de saisie. */
+  newChat?: string;
+  /** Mention discrète à gauche des boutons, quand rien ne se passe. */
+  hint?: string;
   title: string;
   intro: string;
   placeholder: string;
@@ -172,7 +176,14 @@ export default function AiChatDock({
       </div>
 
       <div className="mzchat-list" ref={listRef}>
-        {msgs.length === 0 && <p className="mzchat-intro">{labels.intro}</p>}
+        {/* Écran d'accueil : la marque en grand, posée sur un disque blanc, et une
+            seule phrase. Rien d'autre tant que la conversation n'a pas commencé. */}
+        {msgs.length === 0 && (
+          <div className="mzchat-welcome">
+            <span className="mzchat-welcome-mark"><AssistantMark size={58} /></span>
+            <p className="mzchat-intro">{labels.intro}</p>
+          </div>
+        )}
         {msgs.map((m, i) => <Bubble key={i} m={m} live={i === msgs.length - 1 && !busy} />)}
         {busy && (
           <div className="mzchat-msg is-assistant">
@@ -203,10 +214,19 @@ export default function AiChatDock({
         />
         {/* Même dictée que le reste de l'app (VoiceButton) : continue tant qu'on
             n'a pas cliqué Terminer, se relance seule après les coupures Chrome. */}
-        <VoiceButton value={draft} onChange={setDraft} compact />
-        <button className="mzchat-send" onClick={() => void send()} disabled={disabled || busy || !draft.trim()} title={labels.title} aria-label={labels.title}>
-          <SendArrow size={17} />
-        </button>
+        {/* Actions sous le texte, comme dans une barre de commande : reprendre à
+            zéro à gauche, dicter et envoyer à droite. */}
+        <div className="mzchat-actions">
+          <button className="mzchat-plus" onClick={() => { setMsgs([]); setDraft(''); inputRef.current?.focus(); }}
+            disabled={busy || (!msgs.length && !draft)} title={labels.newChat} aria-label={labels.newChat}>
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round"><path d="M12 5v14M5 12h14" /></svg>
+          </button>
+          <span className="mzchat-hint">{busy ? labels.thinking : labels.hint}</span>
+          <VoiceButton value={draft} onChange={setDraft} compact />
+          <button className="mzchat-send" onClick={() => void send()} disabled={disabled || busy || !draft.trim()} title={labels.title} aria-label={labels.title}>
+            <SendArrow size={16} />
+          </button>
+        </div>
       </div>
     </div>
   );
