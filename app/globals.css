@@ -1584,12 +1584,13 @@ input.mz-range::-moz-range-thumb { width: 16px; height: 16px; border-radius: 50%
    et une ombre douce. */
 .mzchat-input { margin: 6px 14px 16px; padding: 12px 12px 10px; flex-shrink: 0;
   display: flex; flex-direction: column; gap: 8px;
-  border-radius: 20px; border: 1px solid color-mix(in srgb, var(--line) 55%, transparent);
+  border-radius: 20px; border: none;
   background: var(--white, var(--card));
   box-shadow: 0 1px 2px rgba(16,19,11,.04), 0 10px 24px -16px rgba(16,19,11,.3);
-  transition: box-shadow .16s, border-color .16s; }
-.mzchat-input:focus-within { border-color: color-mix(in srgb, var(--vio) 35%, transparent);
-  box-shadow: 0 1px 2px rgba(16,19,11,.04), 0 12px 28px -16px color-mix(in srgb, var(--vio) 55%, transparent); }
+  transition: box-shadow .16s; }
+/* À la saisie, la carte se DÉTACHE un peu plus — pas de contour, pas de halo
+   coloré : la profondeur reste le seul signal. */
+.mzchat-input:focus-within { box-shadow: 0 1px 2px rgba(16,19,11,.05), 0 14px 30px -16px rgba(16,19,11,.38); }
 .mzchat-input textarea { width: 100%; min-height: 24px; max-height: 130px; resize: none; padding: 2px 4px;
   border-radius: 0; border: none; background: transparent; color: var(--ink, var(--cream));
   font-family: var(--sans); font-size: 13.5px; line-height: 1.5; }
