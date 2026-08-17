@@ -446,6 +446,17 @@ const MAGIC_RESIZE_TARGETS: { postType: 'post' | 'carrousel' | 'reel'; formatId:
   { postType: 'reel', formatId: 'ig-story' },
 ];
 
+// Couleur de texte lisible SUR un aplat donné. Deux couleurs de charte
+// appariées au hasard (bleu sur vert) ne sont pas un choix graphique : c'est un
+// défaut de lisibilité. La couleur du texte se déduit toujours de son fond.
+function inkOn(bg: string): string {
+  const m = /^#?([0-9a-f]{6})$/i.exec(bg || '');
+  if (!m) return '#FFFFFF';
+  const n = parseInt(m[1], 16);
+  const lum = (0.2126 * ((n >> 16) & 255) + 0.7152 * ((n >> 8) & 255) + 0.0722 * (n & 255)) / 255;
+  return lum > 0.55 ? '#14160F' : '#FFFFFF';
+}
+
 // Tracé d'un rectangle à coins arrondis — sert de masque de découpe pour les
 // images arrondies (Konva ne sait arrondir nativement qu'un Rect).
 function roundRectPath(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) {
@@ -3098,14 +3109,31 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
         }
         const sw = stageWRef.current;
         const sh = stageHRef.current;
+        // Bloc de secours — ce qu'on voit quand la composition IA n'a pas (encore)
+        // tourné. Il était bâti sur deux couleurs de charte appariées à l'aveugle
+        // (texte secondaire sur fond primaire : bleu sur vert, illisible) et posé
+        // à 80 px du bas, donc coupé dès que le texte passait sur deux lignes.
+        // Il n'a pas à être créatif, mais il doit être PROPRE.
+        const defBg = w?.primary_color || '#0038FF';
+        const defMargin = Math.round(sw * 0.06);
+        const defSize = Math.max(18, Math.round(sh * 0.055));
+        const defWidth = sw - defMargin * 2;
+        const defLines = countLines(String(p?.texte_visuel || 'VOTRE TEXTE'), defSize, w?.font_family || 'Oswald', 'bold', defWidth - 28, 0);
+        const defHeight = defLines * defSize * 1.2 + 20;
         const defaultEl: TextEl = {
-          id: 'block-1', type: 'text', x: 20, y: sh - 80, rotation: 0, opacity: 100,
+          id: 'block-1', type: 'text',
+          x: defMargin,
+          // Ancré sur le BAS du cadre en tenant compte de sa hauteur réelle : le
+          // bloc ne sort jamais par le bas, quel que soit le nombre de lignes.
+          y: Math.max(defMargin, Math.round(sh - defMargin - defHeight)),
+          rotation: 0, opacity: 100,
           text: p?.texte_visuel || 'VOTRE TEXTE',
-          fontSize: 32, fontFamily: w?.font_family || 'Oswald',
-          fontStyle: 'bold', textDecoration: '', fill: w?.secondary_color || '#FFFFFF',
-          align: 'center', width: sw - 40,
-          hasBg: true, bgColor: w?.primary_color || '#0038FF',
-          bgOpacity: 95, cornerRadius: 4, padding: 16, paddingH: 16, paddingV: 10,
+          fontSize: defSize, fontFamily: w?.font_family || 'Oswald',
+          fontStyle: 'bold', textDecoration: '',
+          fill: inkOn(defBg),
+          align: 'left', width: defWidth,
+          hasBg: true, bgColor: defBg,
+          bgOpacity: 100, cornerRadius: 6, padding: 14, paddingH: 14, paddingV: 10,
         };
         const photoProxyUrl = p?.photo_url ? `/api/proxy-image?url=${encodeURIComponent(p.photo_url)}` : '';
         let initSlides: Slide[];
@@ -5173,8 +5201,8 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
   };
 
   // Compose : récupère l'univers du client + posts validés, demande 3 variantes, applique la 1re, puis QA.
-  const composeWithAI = async (opts?: { chainQA?: boolean }) => {
-    if (qaBusy) return;
+  const composeWithAI = async (opts?: { chainQA?: boolean }): Promise<boolean> => {
+    if (qaBusy) return false;
     const chainQA = opts?.chainQA !== false;
     setQaBusy(true); setQaMsg('Composition IA…');
     setEdAiLog([]);
@@ -5225,7 +5253,7 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
       });
       const data = await res.json();
       const layouts = Array.isArray(data.layouts) ? data.layouts : [];
-      if (!res.ok || layouts.length === 0) { setQaMsg(data?.error ?? 'Composition échouée'); return; }
+      if (!res.ok || layouts.length === 0) { setQaMsg(data?.error ?? 'Composition échouée'); return false; }
       // Le parti pris que l'IA s'est donné avant de choisir : on le montre, sinon
       // rien ne distingue une composition pensée d'un tirage au sort.
       const refs = data?.refs as { instagram?: number } | undefined;
@@ -5243,6 +5271,7 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
       if (success && chainQA) setTimeout(() => { runVisualQA(); }, 450); // one-click : enchaîne l'audit visuel
       else setTimeout(() => setQaMsg(null), 2800);
     }
+    return success;
   };
 
   // Sélectionne une variante précise (pastilles 1·2·3).
@@ -5261,8 +5290,17 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
     autoComposeDoneRef.current = true;
     (async () => {
       setAiBuilding(true);
-      try { await composeWithAI({ chainQA: false }); } catch { /* noop */ }
+      // L'auto-save se tait pendant la composition. Sans ça, il enregistrait le
+      // bloc de secours 1,5 s après l'ouverture : le post cessait d'être vierge,
+      // l'auto-composition ne se relançait plus jamais, et on retrouvait ce bloc
+      // brut à chaque réouverture en croyant que c'était le travail de l'IA.
+      busyWithSlidesRef.current = true;
+      let ok = false;
+      try { ok = await composeWithAI({ chainQA: false }); } catch { /* le toast a déjà parlé */ }
+      busyWithSlidesRef.current = false;
       setAiBuilding(false);
+      // Un échec doit se voir : sinon le bloc de secours passe pour une proposition.
+      if (!ok) showEditorToast('La composition automatique n’a pas abouti — relancez « Composer (IA) ».');
     })();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dataLoading, autoComposeReady]);
