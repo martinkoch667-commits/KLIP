@@ -304,6 +304,104 @@ function applyAutoFit(elements: any[]): any[] {
   });
 }
 
+// ─── Typographie de marque ────────────────────────────────────────────────────
+// Les polices changeaient d'un client à l'autre, mais le RYTHME typographique
+// était identique pour tout le monde : même rapport titre/sous-titre, même
+// graisse, même interlettrage, même casse. Deux marques aux antipodes sortaient
+// donc avec la même voix graphique — c'est une des raisons pour lesquelles les
+// visuels se ressemblaient tous.
+//
+// On dérive ce rythme du ton et du secteur déclarés dans la charte. Ce n'est pas
+// une signature d'auteur, mais c'est la différence entre « la police du client »
+// et « la typographie du client ».
+type BrandType = { titleScale: number; subScale: number; tracking: number; upper: boolean; titleWeight: 'bold' | 'normal' };
+
+function brandTypography(ws: { tone?: string | null; sector?: string | null } | null): BrandType {
+  const t = `${ws?.tone ?? ''} ${ws?.sector ?? ''}`.toLowerCase();
+  const has = (...keys: string[]) => keys.some(k => t.includes(k));
+
+  // Chic / premium : titres plus mesurés, lettres aérées, capitales — le registre
+  // de la mode et de l'hôtellerie.
+  if (has('chic', 'premium', 'luxe', 'élégant', 'elegant', 'raffin')) {
+    return { titleScale: 0.92, subScale: 1.0, tracking: 2.2, upper: true, titleWeight: 'bold' };
+  }
+  // Punchy / direct : titre écrasant, lettres serrées, capitales — l'affiche.
+  if (has('punchy', 'direct', 'énergique', 'energique', 'street', 'sport', 'fast')) {
+    return { titleScale: 1.18, subScale: 0.92, tracking: -0.6, upper: true, titleWeight: 'bold' };
+  }
+  // Minimal / sobre : petit titre, pas de capitales, respiration.
+  if (has('minimal', 'sobre', 'épuré', 'epure', 'architecte', 'design')) {
+    return { titleScale: 0.82, subScale: 1.0, tracking: 0.8, upper: false, titleWeight: 'bold' };
+  }
+  // Doux / chaleureux : bas de casse, titre modéré — restauration, artisanat, soin.
+  if (has('doux', 'chaleureux', 'convivial', 'artisan', 'restaurant', 'café', 'cafe', 'bien-être', 'bien etre')) {
+    return { titleScale: 1.0, subScale: 1.05, tracking: 0, upper: false, titleWeight: 'bold' };
+  }
+  // Défaut : le rythme actuel, inchangé.
+  return { titleScale: 1.0, subScale: 1.0, tracking: 0, upper: false, titleWeight: 'bold' };
+}
+
+// ─── Règles non négociables ───────────────────────────────────────────────────
+// Trois garanties appliquées à TOUTE sortie du moteur — composition IA, template
+// repris, bloc de secours. Elles ne remplacent pas le goût : elles empêchent les
+// fautes qu'aucun graphiste ne laisserait passer, et qu'on retrouvait pourtant
+// dans les visuels rendus.
+//
+//  1. L'encre d'un texte se déduit de son fond. Deux couleurs de charte posées
+//     l'une sur l'autre (bleu sur vert) ne sont pas un parti pris.
+//  2. Aucun bloc ne sort du cadre. On mesure le bloc rendu, on le ramène dedans.
+//  3. Un aplat ne dépasse jamais du cadre non plus : il est borné avec son texte.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function enforceDesignRules(elements: any[], stageW: number, stageH: number): any[] {
+  if (!Array.isArray(elements)) return elements;
+  const margin = Math.round(stageW * 0.04);
+  return elements.map(el => {
+    if (el?.type !== 'text') return el;
+    const out = { ...el };
+
+    // 1 — encre lisible sur son propre fond
+    const bg = out.highlightEnabled ? out.highlightColor : (out.hasBg ? out.bgColor : null);
+    if (bg && typeof bg === 'string') {
+      const ink = inkOn(bg);
+      // On ne corrige que si le contraste est réellement insuffisant : une
+      // couleur de charte qui tient sur son fond reste un choix légitime.
+      const lumBg = /^#?([0-9a-f]{6})$/i.test(bg) ? relLum(bg) : 0.5;
+      const lumInk = /^#?([0-9a-f]{6})$/i.test(String(out.fill)) ? relLum(String(out.fill)) : 1;
+      if (Math.abs(lumBg - lumInk) < 0.4) out.fill = ink;
+    }
+
+    // 2 & 3 — le bloc, aplat compris, reste dans le cadre
+    const pH = out.paddingH ?? out.padding ?? 0;
+    const pV = out.paddingV ?? out.padding ?? 0;
+    const hlPad = out.highlightEnabled ? (out.highlightPadding ?? 8) : 0;
+    const width = Math.max(1, out.width ?? stageW);
+    const m = measureBlockSafe(out, width - pH * 2);
+    const blockH = m.lines * (out.fontSize ?? 24) * (out.lineHeight ?? 1.2) + pV * 2 + hlPad * 2;
+    const blockW = Math.min(stageW - margin * 2, width + hlPad * 2);
+    out.width = Math.max(40, Math.round(blockW - hlPad * 2));
+    out.x = Math.min(Math.max(margin, Math.round(out.x ?? 0)), Math.max(margin, stageW - margin - blockW));
+    out.y = Math.min(Math.max(margin, Math.round(out.y ?? 0)), Math.max(margin, stageH - margin - blockH));
+    return out;
+  });
+}
+
+// Luminance relative — sert aux règles ci-dessus.
+function relLum(hex: string): number {
+  const m = /^#?([0-9a-f]{6})$/i.exec(hex || '');
+  if (!m) return 1;
+  const n = parseInt(m[1], 16);
+  return (0.2126 * ((n >> 16) & 255) + 0.7152 * ((n >> 8) & 255) + 0.0722 * (n & 255)) / 255;
+}
+
+// Nombre de lignes réellement rendues, sans jamais lever.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function measureBlockSafe(el: any, areaW: number): { lines: number } {
+  try {
+    const txt = el.uppercase ? String(el.text ?? '').toUpperCase() : String(el.text ?? '');
+    return { lines: Math.max(1, countLines(txt, el.fontSize ?? 24, el.fontFamily ?? 'Archivo', el.fontStyle ?? 'bold', Math.max(1, areaW), el.letterSpacing ?? 0)) };
+  } catch { return { lines: 1 }; }
+}
+
 // Re-layout complet des slots texte pour un format donné :
 // 1) auto-fit taille  2) anti-chevauchement vertical  3) remontée du bloc s'il
 // dépasse le bas. Tourne au chargement ET au changement de format.
@@ -5040,9 +5138,11 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
         return out as unknown as CanvasEl;
       });
       if (L.template.backgroundStyle) setBgStyle(L.template.backgroundStyle as BgStyle);
-      applyElements(relayoutText(scaled, stageW, stageH));
+      applyElements(enforceDesignRules(relayoutText(scaled, stageW, stageH), stageW, stageH));
       return;
     }
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const brandType = brandTypography(workspaceData ?? null);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const resolveColor = (c: any) => c === 'primary' ? (workspaceData?.primary_color || '#FFFFFF') : c === 'secondary' ? (workspaceData?.secondary_color || '#FFFFFF') : c === 'accent' ? (workspaceData?.accent_color || '#BDF2A0') : c === 'black' ? '#14160F' : '#FFFFFF';
     let sampler: ((xp: number, yp: number, wp: number, hp: number) => { mean: number; std: number }) | null = null;
@@ -5105,7 +5205,12 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
         : b.box === 'white' ? '#FFFFFF'
         : b.box === 'black' ? '#14160F'
         : forcedBox;
-      const fontSize = Math.max(12, Math.round(((b.fontPct ?? 7) / 100) * stageH));
+      // Le rythme typographique de CETTE marque : le titre et le sous-titre ne
+      // se répondent pas de la même façon chez un caviste et chez une marque de
+      // sport, même à recette identique.
+      const isSub = b.role === 'sous-titre' || b.role === 'corps';
+      const typoScale = isSub ? brandType.subScale : brandType.titleScale;
+      const fontSize = Math.max(12, Math.round(((b.fontPct ?? 7) / 100) * stageH * typoScale));
       if (boxFill) {
         fill = hexLum(boxFill) > 0.55 ? '#14160F' : '#FFFFFF';
         shadow = false;
@@ -5117,7 +5222,10 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
         rotation: 0, opacity: 100,
         fontSize,
         fontFamily: b.role === 'sous-titre' ? bodyFont : displayFont,
-        fontStyle: b.role === 'sous-titre' ? 'normal' : 'bold', textDecoration: '',
+        fontStyle: b.role === 'sous-titre' ? 'normal' : brandType.titleWeight, textDecoration: '',
+        // Interlettrage : serré pour une marque qui frappe, aéré pour une marque
+        // qui pose. C'est ce détail qui distingue deux affiches par ailleurs identiques.
+        letterSpacing: isSub ? 0 : brandType.tracking,
         fill, align,
         // L'aplat passe par l'effet « Arrière-plan » — le même réglage que celui
         // offert à l'utilisateur, et le seul qui épouse chaque ligne de texte.
@@ -5132,7 +5240,9 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
         } : {}),
         cornerRadius: 6,
         padding: 16, paddingH: 16, paddingV: 10,
-        role: b.role || 'titre', uppercase: !!b.uppercase,
+        role: b.role || 'titre',
+        // La recette peut imposer les capitales ; sinon c'est la marque qui décide.
+        uppercase: b.uppercase === undefined ? (!isSub && brandType.upper) : !!b.uppercase,
         // Ombre = halo doux de lisibilité (offset 0, flou large, faible opacité), JAMAIS une ombre portée lourde.
         ...(shadow ? { shadowEnabled: true, shadowColor: '#000000', shadowOpacity: 38, shadowBlur: 12, shadowOffsetX: 0, shadowOffsetY: 0 } : {}),
       } as CanvasEl;
@@ -5169,7 +5279,7 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
     // On retire les anciens éléments générés par l'IA (texte, scrim, accents, logo), on garde le reste.
     const keptImgs = elementsRef.current.filter(e => e.type !== 'text' && e.id !== 'scrim-overlay' && !e.id.startsWith('ai-accent') && e.id !== 'ai-logo');
     const combined = [...extras, ...keptImgs, ...accentEls, ...logoEls, ...newTextEls];
-    applyElements(relayoutText(combined, stageW, stageH));
+    applyElements(enforceDesignRules(relayoutText(combined, stageW, stageH), stageW, stageH));
   };
 
   // Compose : récupère l'univers du client + posts validés, demande 3 variantes, applique la 1re, puis QA.
@@ -5240,8 +5350,15 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
       setQaMsg('Erreur composition');
     } finally {
       setQaBusy(false);
-      if (success && chainQA) setTimeout(() => { runVisualQA(); }, 450); // one-click : enchaîne l'audit visuel
-      else setTimeout(() => setQaMsg(null), 2800);
+      if (!(success && chainQA)) setTimeout(() => setQaMsg(null), 2800);
+    }
+    // L'audit visuel est ATTENDU, pas lancé dans le vide : composer puis relire
+    // est une seule opération. Lancé en arrière-plan, il retouchait le visuel
+    // après que l'appelant se croyait fini — et l'auto-save pouvait enregistrer
+    // entre les deux.
+    if (success && chainQA) {
+      await new Promise<void>(r => setTimeout(r, 350)); // laisse le canvas peindre la composition
+      try { await runVisualQA(); } catch { /* l'audit est un plus, jamais un blocage */ }
     }
     return success;
   };
@@ -5268,7 +5385,14 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
       // brut à chaque réouverture en croyant que c'était le travail de l'IA.
       busyWithSlidesRef.current = true;
       let ok = false;
-      try { ok = await composeWithAI({ chainQA: false }); } catch { /* le toast a déjà parlé */ }
+      // `chainQA` enchaîne l'audit visuel : le moteur RE-REGARDE le visuel qu'il
+      // vient de produire — l'image, pas ses propres intentions — et corrige ce
+      // qui cloche. Il ne tournait qu'au clic manuel : l'auto-composition livrait
+      // donc un premier jet jamais relu, alors qu'un graphiste regarde toujours
+      // son écran avant de rendre.
+      try { ok = await composeWithAI({ chainQA: true }); } catch { /* le toast a déjà parlé */ }
+      // L'audit s'enchaîne juste après, en tâche de fond : on ne relâche le
+      // verrou d'auto-save qu'une fois qu'il a fini de retoucher.
       busyWithSlidesRef.current = false;
       setAiBuilding(false);
       // Un échec doit se voir : sinon le bloc de secours passe pour une proposition.
