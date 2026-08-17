@@ -6747,13 +6747,24 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
                                 // hauteur du TEXTE, que Konva pose au bas de sa
                                 // ligne (verticalAlign="bottom").
                                 const textH = line.segments.reduce((h, sg) => Math.max(h, sg.style.fontSize), el.fontSize);
-                                const textTop = pV + line.top + line.height - textH;
+                                // La taille de police n'est pas la hauteur des LETTRES :
+                                // elle réserve de la place au-dessus des capitales et
+                                // en dessous de la ligne d'écriture, pour les jambages
+                                // (« p », « g »). Caler l'aplat dessus laissait donc un
+                                // vide sous un mot tout en capitales, qui n'a aucun
+                                // jambage — d'où la marge plus grande en bas.
+                                // On encadre les capitales : ~12 % au-dessus de la ligne
+                                // d'écriture, ~80 % en dessous du haut du cadre.
+                                const capTop = textH * 0.12;
+                                const capH = textH * 0.68;
+                                const emTop = pV + line.top + line.height - textH;
+                                const textTop = emTop + capTop;
                                 return (
                                   <Rect
                                     key={`hl-${li}`}
                                     x={x} y={textTop - hp}
                                     width={line.width + hp * 2}
-                                    height={textH + hp * 2}
+                                    height={capH + hp * 2}
                                     fill={el.highlightColor ?? '#FFFF00'}
                                     opacity={(el.highlightOpacity ?? 80) / 100}
                                     cornerRadius={el.highlightBorderRadius ?? 4}
