@@ -2037,7 +2037,29 @@ export default function WorkspacePage() {
                     {posts.map((post, pIdx) => {
                       const isGenerated = post.status === "generated" || post.status === "validating" || post.status === "validated";
                       return (
-                        <div key={post.localId} className="card klip-card-in ws-post-card" style={{ overflow: 'hidden', display: 'flex', borderRadius: 16, border: '1px solid var(--line-2)', boxShadow: '0 1px 2px rgba(13,15,10,.03), 0 14px 32px -20px rgba(13,15,10,.28)', animationDelay: `${Math.min(pIdx, 8) * 55}ms` }}>
+                        <div key={post.localId} className="card klip-card-in ws-post-card" style={{ position: 'relative', overflow: 'hidden', display: 'flex', borderRadius: 16, border: '1px solid var(--line-2)', boxShadow: '0 1px 2px rgba(13,15,10,.03), 0 14px 32px -20px rgba(13,15,10,.28)', animationDelay: `${Math.min(pIdx, 8) * 55}ms` }}>
+                          {/* Retirer le post — au coin de la CARTE, donc présent à
+                              tous les stades. La croix ne vivait que sur l'aperçu du
+                              post pas encore généré : une fois généré, plus aucun
+                              endroit pour se débarrasser d'un post dont on ne veut pas.
+                              La suppression reste annulable quelques secondes. */}
+                          <button
+                            onClick={() => removePost(post)}
+                            title={t('deletePost')}
+                            aria-label={t('deletePost')}
+                            style={{
+                              position: 'absolute', top: 10, right: 10, zIndex: 3,
+                              width: 26, height: 26, borderRadius: '50%',
+                              background: 'var(--white)', border: '1px solid var(--line)',
+                              color: 'var(--ink-3)', cursor: 'pointer', padding: 0,
+                              display: 'grid', placeItems: 'center',
+                              boxShadow: '0 1px 4px rgba(13,15,10,.14)', transition: 'color .12s, border-color .12s',
+                            }}
+                            onMouseEnter={e => { e.currentTarget.style.color = 'var(--warn)'; e.currentTarget.style.borderColor = 'var(--warn)'; }}
+                            onMouseLeave={e => { e.currentTarget.style.color = 'var(--ink-3)'; e.currentTarget.style.borderColor = 'var(--line)'; }}
+                          >
+                            <svg width="11" height="11" viewBox="0 0 10 10" fill="none"><path d="M1 1l8 8M9 1L1 9" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"/></svg>
+                          </button>
                           {/* ── Colonne gauche : visuel + type + remplacer ── */}
                           {/* Aperçu volontairement bridé en hauteur : à pleine taille
                               il dictait la hauteur de toute la carte, un 9:16 la
@@ -2081,10 +2103,6 @@ export default function WorkspacePage() {
                                   <span style={{ background: 'rgba(0,0,0,.7)', color: '#fff', fontSize: 9.5, fontWeight: 700, padding: '3px 7px', borderRadius: 99, fontFamily: 'var(--mono)', backdropFilter: 'blur(4px)', letterSpacing: '.05em' }}>CARROUSEL · {post.groupedFiles.length}</span>
                                 )}
                               </div>
-                              <button onClick={() => removePost(post)}
-                                style={{ position: 'absolute', top: 8, right: 8, width: 28, height: 28, borderRadius: '50%', background: 'rgba(0,0,0,.55)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', border: 'none', cursor: 'pointer', backdropFilter: 'blur(4px)' }}>
-                                <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M1 1l8 8M9 1L1 9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>
-                              </button>
                             </div>
                             )}
                             {/* Type de publication — contrôle segmenté posé dans un

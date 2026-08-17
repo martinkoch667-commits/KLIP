@@ -561,7 +561,8 @@
     "batchErrNoClips": "Kein brauchbares Material",
     "batchErrEmpty": "Analyse ohne Ergebnis",
     "batchErrGeneric": "Vorschnitt fehlgeschlagen",
-    "saveFailed": "Dieser Beitrag konnte nicht gespeichert werden. Nichts ging verloren: erneut versuchen und den Fehler melden, wenn er bleibt."
+    "saveFailed": "Dieser Beitrag konnte nicht gespeichert werden. Nichts ging verloren: erneut versuchen und den Fehler melden, wenn er bleibt.",
+    "deletePost": "Diesen Beitrag löschen"
   },
   "planning": {
     "bestTime": "Beste Zeit zum Posten",

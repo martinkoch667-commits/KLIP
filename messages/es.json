@@ -561,7 +561,8 @@
     "batchErrNoClips": "Sin material utilizable",
     "batchErrEmpty": "El análisis no dio resultado",
     "batchErrGeneric": "Fallo del premontaje",
-    "saveFailed": "No se pudo guardar esta publicación. No se ha perdido nada: inténtalo de nuevo y avisa si persiste."
+    "saveFailed": "No se pudo guardar esta publicación. No se ha perdido nada: inténtalo de nuevo y avisa si persiste.",
+    "deletePost": "Eliminar este post"
   },
   "planning": {
     "bestTime": "Mejor momento para publicar",

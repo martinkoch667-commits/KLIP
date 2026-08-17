@@ -561,7 +561,8 @@
     "batchErrNoClips": "Sem imagens utilizáveis",
     "batchErrEmpty": "Análise sem resultado",
     "batchErrGeneric": "Falha na pré-montagem",
-    "saveFailed": "Não foi possível guardar esta publicação. Nada se perdeu: tente novamente e reporte o erro se persistir."
+    "saveFailed": "Não foi possível guardar esta publicação. Nada se perdeu: tente novamente e reporte o erro se persistir.",
+    "deletePost": "Excluir esta publicação"
   },
   "planning": {
     "bestTime": "Melhor momento para publicar",
