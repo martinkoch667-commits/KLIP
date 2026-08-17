@@ -821,7 +821,10 @@
     "chatOpen": "Apri l'assistente visivo",
     "chatClose": "Chiudi",
     "carouselDone": "Carosello di {n} slide generato.",
-    "carouselFailed": "Impossibile generare il carosello."
+    "carouselFailed": "Impossibile generare il carosello.",
+    "aiRoleBadge": "Riempito dall’IA",
+    "aiRolePhoto": "Zona foto",
+    "photoZoneExists": "Questo template ha già una zona foto."
   },
   "composer": {
     "title": "Componi con l’IA",

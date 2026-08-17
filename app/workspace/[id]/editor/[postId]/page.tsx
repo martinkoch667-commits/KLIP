@@ -3875,6 +3875,24 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
     setSelectedId(el.id);
   };
 
+  /** Zone PHOTO remplie par l'IA : c'est le même repère que le générateur
+   *  remplace par l'image du post. Sans elle, un template ne peut accueillir
+   *  aucune photo — seulement du texte. */
+  const addPhotoZone = () => {
+    if (elements.some((e) => e.type === 'image' && (e as ImageEl).src === PHOTO_PLACEHOLDER_SRC)) {
+      showEditorToast(T('photoZoneExists'));
+      return;
+    }
+    const el: ImageEl = {
+      id: newId(), type: 'image', src: PHOTO_PLACEHOLDER_SRC,
+      x: 0, y: 0, rotation: 0, opacity: 100, width: stageW, height: stageH,
+    };
+    // En premier dans la pile : une photo de fond passe DERRIÈRE les textes,
+    // sinon elle les recouvre tous dès qu'on la pose.
+    applyElements([el, ...elements]);
+    setSelectedId(el.id);
+  };
+
   // Insère un template de la bibliothèque (authoré sur 1080px) en le MISE À
   // L'ÉCHELLE du format réel du document (facteur = stageW / TT_REF_W) pour qu'il
   // s'adapte bien et ne déborde pas, quel que soit le format.
@@ -5993,22 +6011,52 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
                     « sans ça cet outil ne sert à rien »). */}
                 {isTemplate && (
                   <div style={{
-                    border: '2px solid var(--mint-2, #BDF2A0)', borderRadius: 14,
-                    padding: '14px 14px 12px', marginBottom: 18, background: 'var(--white)',
+                    borderRadius: 16, marginBottom: 18, overflow: 'hidden',
+                    background: 'var(--forest, #0C2A1D)',
                   }}>
-                    <p style={{ fontSize: 13, fontWeight: 800, color: 'var(--ink)', margin: '0 0 4px' }}>
-                      {T('aiRoleZones')}
-                    </p>
-                    <p style={{ fontSize: 11.5, color: 'var(--ink-2)', margin: '0 0 12px', lineHeight: 1.45 }}>
-                      {T('aiRoleZonesHint')}
-                    </p>
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
+                    <div style={{ padding: '15px 16px 13px' }}>
+                      <span style={{
+                        display: 'inline-block', fontSize: 9.5, fontFamily: 'var(--mono)', fontWeight: 800,
+                        letterSpacing: '0.14em', textTransform: 'uppercase',
+                        color: 'var(--forest, #0C2A1D)', background: 'var(--mint-2, #BDF2A0)',
+                        padding: '3px 8px', borderRadius: 99, marginBottom: 9,
+                      }}>{T('aiRoleBadge')}</span>
+                      <p style={{ fontSize: 15, fontWeight: 800, color: '#FFFFFF', margin: '0 0 5px', lineHeight: 1.2 }}>
+                        {T('aiRoleZones')}
+                      </p>
+                      <p style={{ fontSize: 11.5, color: 'rgba(255,255,255,.72)', margin: 0, lineHeight: 1.45 }}>
+                        {T('aiRoleZonesHint')}
+                      </p>
+                    </div>
+                    <div style={{ padding: '0 16px 16px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
                       {([['accroche', 'Accroche'], ['titre', 'Titre'], ['sous-titre', 'Sous-titre'], ['corps', 'Corps'], ['cta', 'CTA'], ['prix', 'Prix']] as const).map(([role, label]) => (
-                        <button key={role} onClick={() => addTextRole(role)} className="btn btn-ghost btn-sm"
-                          style={{ padding: '10px 8px', cursor: 'pointer', fontSize: 12.5, fontWeight: 700, justifyContent: 'center' }}>
-                          + {label}
-                        </button>
+                        <button key={role} onClick={() => addTextRole(role)}
+                          style={{
+                            padding: '10px 8px', cursor: 'pointer', fontSize: 12.5, fontWeight: 700,
+                            borderRadius: 9, border: '1px solid rgba(255,255,255,.16)',
+                            background: 'rgba(255,255,255,.07)', color: '#FFFFFF',
+                            fontFamily: 'var(--sans)',
+                          }}
+                        >{label}</button>
                       ))}
+                      {/* La photo est une zone comme les autres : c'est elle que
+                          le générateur remplace par l'image du post. Elle
+                          manquait, donc un template ne pouvait porter que du
+                          texte (retour de Martin). */}
+                      <button onClick={addPhotoZone}
+                        style={{
+                          gridColumn: '1 / -1', padding: '11px 8px', cursor: 'pointer',
+                          fontSize: 12.5, fontWeight: 800, borderRadius: 9, border: 'none',
+                          background: 'var(--mint-2, #BDF2A0)', color: 'var(--forest, #0C2A1D)',
+                          fontFamily: 'var(--sans)', display: 'flex', alignItems: 'center',
+                          justifyContent: 'center', gap: 7,
+                        }}
+                      >
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <rect x="3" y="3" width="18" height="18" rx="2" /><circle cx="8.5" cy="8.5" r="1.5" /><path d="m21 15-5-5L5 21" />
+                        </svg>
+                        {T('aiRolePhoto')}
+                      </button>
                     </div>
                   </div>
                 )}

@@ -821,7 +821,10 @@
     "chatOpen": "Open the design assistant",
     "chatClose": "Close",
     "carouselDone": "{n}-slide carousel generated.",
-    "carouselFailed": "Could not generate the carousel."
+    "carouselFailed": "Could not generate the carousel.",
+    "aiRoleBadge": "AI-filled",
+    "aiRolePhoto": "Photo zone",
+    "photoZoneExists": "This template already has a photo zone."
   },
   "composer": {
     "title": "Compose with AI",

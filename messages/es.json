@@ -821,7 +821,10 @@
     "chatOpen": "Abrir el asistente visual",
     "chatClose": "Cerrar",
     "carouselDone": "Carrusel de {n} diapositivas generado.",
-    "carouselFailed": "No se pudo generar el carrusel."
+    "carouselFailed": "No se pudo generar el carrusel.",
+    "aiRoleBadge": "Rellenado por la IA",
+    "aiRolePhoto": "Zona de foto",
+    "photoZoneExists": "Esta plantilla ya tiene una zona de foto."
   },
   "composer": {
     "title": "Componer con IA",

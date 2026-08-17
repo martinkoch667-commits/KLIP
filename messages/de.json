@@ -821,7 +821,10 @@
     "chatOpen": "Design-Assistent öffnen",
     "chatClose": "Schließen",
     "carouselDone": "Karussell mit {n} Slides erstellt.",
-    "carouselFailed": "Karussell konnte nicht erstellt werden."
+    "carouselFailed": "Karussell konnte nicht erstellt werden.",
+    "aiRoleBadge": "Von der KI gefüllt",
+    "aiRolePhoto": "Fotozone",
+    "photoZoneExists": "Diese Vorlage hat bereits eine Fotozone."
   },
   "composer": {
     "title": "Mit KI erstellen",
