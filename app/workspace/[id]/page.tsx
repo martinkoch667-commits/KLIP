@@ -96,10 +96,11 @@ const POST_VOICES: { id: string; label: string; tKey: string }[] = [
   { id: 'Doux et chaleureux',    label: 'Doux',    tKey: 'voiceDoux' },
 ];
 
-// Suivi visible d'une génération : l'étape en cours (0..3) et le journal réel.
+// Suivi visible d'une génération : rien de plus que l'étape en cours (0..3).
+// Le journal détaillé appartient à l'écran de montage vidéo ; sur une carte de
+// post, il prenait toute la place pour une opération de quelques secondes.
 interface GenFlow {
   step: number;
-  lines: string[];
   done: boolean;
   failed?: boolean;
 }
@@ -940,18 +941,18 @@ export default function WorkspacePage() {
   // écrire les textes, dessiner le visuel. Le journal n'est jamais décoratif —
   // chaque ligne est écrite au moment où la chose arrive vraiment.
   const genStart = (localId: string) =>
-    setGenFlow(f => ({ ...f, [localId]: { step: 0, lines: [], done: false } }));
-  const genLog = (localId: string, line: string, step?: number) =>
+    setGenFlow(f => ({ ...f, [localId]: { step: 0, done: false } }));
+  const genStep = (localId: string, step: number) =>
     setGenFlow(f => {
       const cur = f[localId];
       if (!cur) return f;
-      return { ...f, [localId]: { ...cur, step: step ?? cur.step, lines: [...cur.lines, line] } };
+      return { ...f, [localId]: { ...cur, step } };
     });
-  const genEnd = (localId: string, ok: boolean, msg?: string) => {
+  const genEnd = (localId: string, ok: boolean) => {
     setGenFlow(f => {
       const cur = f[localId];
       if (!cur) return f;
-      return { ...f, [localId]: { ...cur, step: 3, done: true, failed: !ok, lines: msg ? [...cur.lines, msg] : cur.lines } };
+      return { ...f, [localId]: { ...cur, step: 3, done: true, failed: !ok } };
     });
     // L'état « fini » reste à l'écran le temps d'être lu, puis la carte reprend
     // sa forme normale avec le visuel généré.
@@ -1001,19 +1002,6 @@ export default function WorkspacePage() {
         });
         if (!res.ok) return;
         const data = await res.json();
-        // Ce que l'IA a compris de la marque, dit avec ses mots : c'est la preuve
-        // visible qu'une composition a été pensée, pas piochée au hasard.
-        const refs = data?.refs as { templates?: number; approved?: number; instagram?: number } | undefined;
-        if (refs && (refs.templates || refs.approved || refs.instagram)) {
-          genLog(item.localId, `Références lues : ${[
-            refs.templates ? `${refs.templates} template${refs.templates > 1 ? 's' : ''}` : '',
-            refs.approved ? `${refs.approved} post${refs.approved > 1 ? 's' : ''} validé${refs.approved > 1 ? 's' : ''}` : '',
-            refs.instagram ? `${refs.instagram} visuel${refs.instagram > 1 ? 's' : ''} Instagram` : '',
-          ].filter(Boolean).join(', ')}`);
-        }
-        if (typeof data?.rationale === 'string' && data.rationale.trim()) {
-          genLog(item.localId, `Parti pris : ${data.rationale.trim()}`);
-        }
         const layout = Array.isArray(data?.layouts) ? data.layouts[0] : null;
         if (!layout?.blocks?.length) return;
         url = await renderComposedVisual({
@@ -1070,11 +1058,7 @@ export default function WorkspacePage() {
           fontSize: Math.max(z.fontSize ?? 24, 1),
         })));
 
-      genLog(item.localId, `Marque : ${workspace?.name ?? 'sans nom'}${workspace?.tone ? ` — ton ${(postVoice[item.localId] || workspace.tone).toLowerCase()}` : ''}`);
-      genLog(item.localId, selectedTemplate
-        ? `Template « ${selectedTemplate.name} »${tplPages.length > 1 ? ` — carrousel de ${tplPages.length} pages` : ''} — ${templateZones.length} zone${templateZones.length > 1 ? 's' : ''} à remplir`
-        : 'Sans template — composition libre du visuel');
-      genLog(item.localId, `Sujet : ${item.brief.trim().slice(0, 70)}${item.brief.trim().length > 70 ? '…' : ''}`, 1);
+      genStep(item.localId, 1);
 
       // For video posts, don't pass photoUrl to the AI (no frame analysis)
       const photoUrl = item.isVideo ? undefined : (item.photo_url.startsWith("http") ? item.photo_url : undefined);
@@ -1111,9 +1095,7 @@ export default function WorkspacePage() {
       if (res.ok && (data.texte_visuel || data.description)) {
         const texte_visuel = item.isVideo ? "" : (data.texte_visuel ?? "");
         const description = data.description ?? "";
-        if (texte_visuel) genLog(item.localId, `Texte du visuel : « ${texte_visuel.replace(/\n/g, ' ').slice(0, 60)} »`);
-        if (description) genLog(item.localId, `Légende écrite — ${description.length} caractères`);
-        genLog(item.localId, item.isVideo ? 'Vidéo prête à monter' : 'Mise en page du visuel', 2);
+        genStep(item.localId, 2);
 
         // Upload photo first (need public URL for editor_json)
         let dbId = item.dbId;
@@ -1134,7 +1116,6 @@ export default function WorkspacePage() {
           return urlData.publicUrl;
         };
         if (groupPhotos) {
-          genLog(item.localId, `${groupPhotos.length} photos réunies en un seul post`);
           for (const f of groupPhotos) {
             const u = await uploadOne(f);
             if (u) groupUrls.push(u);
@@ -1190,9 +1171,6 @@ export default function WorkspacePage() {
           });
 
           editorJson = JSON.stringify({ version: 2, slides: slidesFromTemplate });
-          if (slidesFromTemplate.length > 1) {
-            genLog(item.localId, `Carrousel de ${slidesFromTemplate.length} pages monté depuis le template`);
-          }
         } else if (groupUrls.length > 1) {
           // Sans template : une page par photo, chacune en fond de sa page.
           // L'éditeur habillera la première à l'ouverture.
@@ -1200,7 +1178,6 @@ export default function WorkspacePage() {
             version: 2,
             slides: groupUrls.map((u, i) => ({ id: `slide-${i + 1}`, elements: [], proxyUrl: proxyOf(u) })),
           });
-          genLog(item.localId, `Carrousel de ${groupUrls.length} pages monté depuis vos photos`);
         }
 
         if (!dbId) {
@@ -1222,7 +1199,7 @@ export default function WorkspacePage() {
         releasePreview(item.photo_url);
         setPosts((prev) => prev.map((p) => p.localId === item.localId ? { ...p, dbId, photo_url: pUrl, texte_visuel, description, status: "generated", templateId: item.templateId ?? p.templateId, error: undefined } : p));
         void buildPreview({ ...item, dbId, photo_url: pUrl, texte_visuel, description })
-          .finally(() => genEnd(item.localId, true, 'Publication prête'));
+          .finally(() => genEnd(item.localId, true));
       } else {
         // « Non autorisé » ne dit rien à personne : si la session est vraiment
         // perdue (rafraîchissement compris), on donne le geste à faire.
@@ -1230,11 +1207,11 @@ export default function WorkspacePage() {
           ? "Session expirée — rechargez la page ou reconnectez-vous."
           : (typeof data?.error === "string" ? data.error : data?.error?.message) || "La génération a échoué. Réessayez dans un instant.";
         setPosts((prev) => prev.map((p) => (p.localId === item.localId ? { ...p, status: "idle", error: errMsg } : p)));
-        genEnd(item.localId, false, errMsg);
+        genEnd(item.localId, false);
       }
     } catch {
       setPosts((prev) => prev.map((p) => (p.localId === item.localId ? { ...p, status: "idle", error: "Erreur réseau" } : p)));
-      genEnd(item.localId, false, "Erreur réseau");
+      genEnd(item.localId, false);
     }
   }
 
@@ -2165,20 +2142,36 @@ export default function WorkspacePage() {
                                 laissait sinon l'écran muet jusqu'au résultat. */}
                             {genFlow[post.localId] && (() => {
                               const g = genFlow[post.localId];
+                              // Une seule ligne : où on en est, et rien d'autre. Le
+                              // journal détaillé est le langage de l'écran de montage
+                              // vidéo — sur une carte de post, il écrase tout le reste.
+                              const stepLabel = ['Lecture de la marque', 'Écriture des textes', 'Mise en page du visuel'][Math.min(g.step, 2)];
+                              const pct = Math.round(Math.min(1, g.step / 3) * 100);
                               return (
-                                <AiThinkingPanel
-                                  inline
-                                  title={g.failed ? 'Génération interrompue' : g.done ? 'Publication prête' : 'Création de la publication'}
-                                  subtitle={g.failed ? undefined : g.done ? 'Le visuel et la légende sont là — à vous de les ajuster.' : undefined}
-                                  steps={[
-                                    { id: 'brand', label: 'Lecture de la marque' },
-                                    { id: 'texts', label: 'Écriture des textes' },
-                                    { id: 'visual', label: 'Mise en page du visuel' },
-                                  ]}
-                                  activeStep={g.step}
-                                  lines={g.lines}
-                                  progress={Math.min(1, g.step / 3)}
-                                />
+                                <div style={{
+                                  padding: '10px 12px', borderRadius: 'var(--r-s)',
+                                  background: g.failed ? 'var(--warn-soft)' : g.done ? 'var(--mint-soft)' : 'var(--sunk)',
+                                  border: `1px solid ${g.failed ? 'var(--warn)' : g.done ? 'var(--mint-2)' : 'var(--line)'}`,
+                                }}>
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
+                                    {g.done ? (
+                                      <span style={{ width: 15, height: 15, borderRadius: '50%', flexShrink: 0, display: 'grid', placeItems: 'center',
+                                        background: g.failed ? 'var(--warn)' : 'var(--mint-2)', color: '#fff' }}>
+                                        <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round">
+                                          {g.failed ? <path d="M6 6l12 12M18 6L6 18" /> : <path d="M4 12.5l5 5 11-11" />}
+                                        </svg>
+                                      </span>
+                                    ) : <Spinner />}
+                                    <span style={{ fontSize: 12.5, fontWeight: 700, color: g.failed ? 'var(--warn)' : 'var(--ink-2)' }}>
+                                      {g.failed ? 'Génération interrompue' : g.done ? 'Publication prête' : `${stepLabel}…`}
+                                    </span>
+                                  </div>
+                                  {!g.done && (
+                                    <div style={{ marginTop: 8, height: 3, borderRadius: 99, background: 'var(--line)', overflow: 'hidden' }}>
+                                      <div style={{ width: `${pct}%`, height: '100%', background: 'var(--mint-2)', transition: 'width .35s ease' }} />
+                                    </div>
+                                  )}
+                                </div>
                               );
                             })()}
 
