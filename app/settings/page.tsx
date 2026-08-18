@@ -141,6 +141,35 @@ function ProfileTab({ supabase, userId, email, meta }: { supabase: any; userId: 
   const [saved, setSaved] = useState(false);
   const [uploading, setUploading] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const [deleteConfirm, setDeleteConfirm] = useState("");
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+
+  async function handleDeleteAccount() {
+    setDeleting(true);
+    setDeleteError(null);
+    try {
+      const res = await fetch("/api/account/delete", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ confirm: deleteConfirm }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setDeleteError(json?.error ?? "La suppression a échoué. Réessayez dans un instant.");
+        setDeleting(false);
+        return;
+      }
+      // La session pointe sur un compte qui n'existe plus : on la ferme, et on
+      // sort par un rechargement complet pour ne rien laisser en mémoire.
+      await supabase.auth.signOut();
+      window.location.href = "/";
+    } catch {
+      setDeleteError("La suppression a échoué. Vérifiez votre connexion et réessayez.");
+      setDeleting(false);
+    }
+  }
 
   const displayName = (firstName || lastName) ? `${firstName} ${lastName}`.trim() : email.split("@")[0];
   const initials = displayName.slice(0, 2).toUpperCase();
@@ -237,15 +266,47 @@ function ProfileTab({ supabase, userId, email, meta }: { supabase: any; userId: 
       {/* Danger zone */}
       <div className="st-card" style={{ borderColor: "rgba(220,38,38,.2)" }}>
         <div className="st-label" style={{ color: "#DC2626", marginBottom: 12 }}>Zone de danger</div>
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16 }}>
-          <div>
-            <div style={{ fontWeight: 700, fontSize: 14, color: "var(--ink)", marginBottom: 3 }}>Supprimer mon compte</div>
-            <div style={{ fontSize: 12.5, color: "var(--ink-3)" }}>Suppression définitive de votre compte et de toutes vos données.</div>
-          </div>
-          <a href="mailto:getklipsaas@gmail.com?subject=Suppression%20de%20compte%20Klip" className="st-btn-danger" style={{ textDecoration: "none" }}>
-            Contacter le support
-          </a>
+        <div style={{ fontWeight: 700, fontSize: 14, color: "var(--ink)", marginBottom: 3 }}>Supprimer mon compte</div>
+        <div style={{ fontSize: 12.5, color: "var(--ink-3)", lineHeight: 1.6 }}>
+          Suppression définitive : vos comptes clients, vos publications, vos visuels et tous vos fichiers.
+          Votre abonnement en cours est résilié dans la foulée. Cette action ne peut pas être annulée.
         </div>
+
+        {!confirmingDelete ? (
+          <button className="st-btn-danger" style={{ marginTop: 16 }} onClick={() => setConfirmingDelete(true)}>
+            Supprimer mon compte
+          </button>
+        ) : (
+          <div style={{ marginTop: 16 }}>
+            {/* Retaper son adresse : le seul geste qui ne se fait pas par réflexe. */}
+            <label className="st-label" htmlFor="delete-confirm">
+              Tapez <span style={{ textTransform: "none", letterSpacing: 0 }}>{email}</span> pour confirmer
+            </label>
+            <input
+              id="delete-confirm" className="st-input" autoComplete="off" placeholder={email}
+              value={deleteConfirm} onChange={e => { setDeleteConfirm(e.target.value); setDeleteError(null); }}
+            />
+            {deleteError && (
+              <p style={{ marginTop: 10, fontSize: 12.5, lineHeight: 1.5, color: "#DC2626" }}>{deleteError}</p>
+            )}
+            <div style={{ marginTop: 14, display: "flex", gap: 10, alignItems: "center" }}>
+              <button
+                className="st-btn-danger"
+                disabled={deleting || deleteConfirm.trim().toLowerCase() !== email.trim().toLowerCase()}
+                style={{ opacity: deleting || deleteConfirm.trim().toLowerCase() !== email.trim().toLowerCase() ? .5 : 1 }}
+                onClick={handleDeleteAccount}
+              >
+                {deleting ? "Suppression…" : "Supprimer définitivement"}
+              </button>
+              <button
+                className="st-btn-ghost" disabled={deleting}
+                onClick={() => { setConfirmingDelete(false); setDeleteConfirm(""); setDeleteError(null); }}
+              >
+                Annuler
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </>
   );
