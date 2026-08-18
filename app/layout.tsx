@@ -50,6 +50,12 @@ export const metadata: Metadata = {
     description:
       "Créez, planifiez et publiez le contenu de tous vos clients Instagram depuis un seul espace. Éditeur visuel, légendes IA, calendrier et publication automatique.",
   },
+  // Vérification Google Search Console : coller le jeton dans la variable
+  // GOOGLE_SITE_VERIFICATION sur Vercel suffit, sans toucher au code. Sans
+  // elle, la balise n'est simplement pas émise.
+  ...(process.env.GOOGLE_SITE_VERIFICATION
+    ? { verification: { google: process.env.GOOGLE_SITE_VERIFICATION } }
+    : {}),
   icons: {
     // L'icône d'app (le K sur fond vert) plutôt que le logo écrit, illisible
     // sous 32 px. `?v=2` force les navigateurs à relâcher l'ancienne : un

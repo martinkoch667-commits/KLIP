@@ -13,7 +13,10 @@ export const metadata: Metadata = {
   keywords:
     "outil community manager, gestion réseaux sociaux agence, planification instagram, validation client, plusieurs comptes instagram",
   authors: [{ name: "Klip" }],
-  alternates: { canonical: "/fr" },
+  // Page jumelle de l'accueil, en français comme lui et liée par rien : deux
+  // URL qui se disputent les mêmes requêtes. Le canonique renvoie le signal
+  // vers "/" plutôt que de le diviser.
+  alternates: { canonical: "/" },
   openGraph: {
     type: "website",
     locale: "fr_FR",
