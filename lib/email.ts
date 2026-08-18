@@ -51,7 +51,18 @@ export function unsubUrl(email: string): string {
   return `${APP_URL}/api/waitlist/unsubscribe?e=${encodeURIComponent(e)}&t=${unsubToken(e)}`;
 }
 
-export async function sendEmail(to: string, subject: string, html: string, text?: string): Promise<boolean> {
+/** `listUnsubscribe` pose les en-têtes de désinscription du client de messagerie.
+    À réserver aux publipostages : Gmail et Yahoo les exigent des expéditeurs en
+    volume, et ils deviennent la seule voie de sortie quand le gabarit n'affiche
+    pas de pied de page. Sur un mail transactionnel (reçu de paiement, alerte),
+    ils n'auraient pas de sens : on ne se désabonne pas de sa propre facture. */
+export async function sendEmail(
+  to: string,
+  subject: string,
+  html: string,
+  text?: string,
+  opts?: { listUnsubscribe?: boolean },
+): Promise<boolean> {
   const key = process.env.RESEND_API_KEY;
   if (!key) {
     console.log("[email] RESEND_API_KEY absent — e-mail ignoré:", subject, "→", to);
@@ -75,6 +86,16 @@ export async function sendEmail(to: string, subject: string, html: string, text?
         // modèles qui fournissent une version texte la joignent en alternative.
         ...(text ? { text: resolve(text) } : {}),
         ...(REPLY_TO ? { reply_to: REPLY_TO } : {}),
+        // `One-Click` engage la route de désinscription à répondre au POST que
+        // Gmail envoie sans demander confirmation à l'utilisateur.
+        ...(opts?.listUnsubscribe
+          ? {
+              headers: {
+                "List-Unsubscribe": `<${unsubUrl(to)}>`,
+                "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
+              },
+            }
+          : {}),
       }),
     });
     if (!res.ok) {
@@ -167,29 +188,43 @@ function shell(title: string, bodyHtml: string, cta?: { label: string; href: str
    cliquable et le pied de page perd son « getklip.fr ». C'est fait pour les
    mails d'avant-ouverture, où un clic vers la home mène droit au formulaire
    d'inscription : autant dire ouvrir les portes à ceux qu'on venait justement
-   de faire patienter. Seule survit la désinscription, qui est due, et qui ne
-   mène nulle part ailleurs que sur sa propre route d'API. */
+   de faire patienter.
+
+   `noFooter` retire le bloc de pied de page en entier, mention légale et lien
+   de désinscription compris, pour les mails qui doivent passer pour un message
+   personnel jusqu'au bout. ATTENTION : l'obligation de désinscription ne
+   disparaît pas avec le bloc. Elle passe alors par l'en-tête
+   `List-Unsubscribe`, que `sendEmail` pose sur demande et que Gmail affiche
+   lui-même à côté de l'expéditeur. Un publipostage sans AUCUN des deux serait
+   en infraction, et Gmail le sait aussi : depuis 2024 il exige un moyen de
+   désinscription en un clic des expéditeurs en volume, sous peine de courrier
+   indésirable.
+
+   `ground` change le fond. Par défaut un gris à peine teinté, qui pose le
+   message sur une surface ; du blanc pur le fait ressembler à un mail tapé à
+   la main, sans habillage. */
 function plain(
   bodyHtml: string,
   cta?: { label: string; href: string },
   afterCta?: string,
-  opts?: { noSiteLinks?: boolean },
+  opts?: { noSiteLinks?: boolean; noFooter?: boolean; ground?: string },
 ): string {
   const logo = `<img src="${APP_URL}/logo-klip-dark.png" alt="Klip" height="26" style="height:26px;width:auto;border:0;display:block;" />`;
+  const footer = `
+      <div style="margin-top:34px;padding-top:18px;border-top:1px solid rgba(13,15,10,.10);font-size:12px;line-height:1.6;color:#8B8E7F;">
+        ${opts?.noSiteLinks ? "Martin" : `Martin · <a href="${APP_URL}" style="color:#8B8E7F;">getklip.fr</a>`}<br/>
+        Vous recevez ce mail car vous êtes sur la liste d'accès anticipé.
+        <a href="{{UNSUB_URL}}" style="color:#8B8E7F;">Me retirer de la liste</a>.
+      </div>`;
   return `${FONT_LINK}
-  <div style="background:#FBFBFC;padding:30px 16px 34px;font-family:${F_SANS};">
+  <div style="background:${opts?.ground ?? "#FBFBFC"};padding:30px 16px 34px;font-family:${F_SANS};">
     <div style="max-width:520px;margin:0 auto;font-size:16px;line-height:1.72;color:#14160F;">
       <div style="padding-bottom:26px;">
         ${opts?.noSiteLinks ? logo : `<a href="${APP_URL}" style="text-decoration:none;">${logo}</a>`}
       </div>
       ${bodyHtml}
       ${cta ? `<div style="margin:28px 0 24px;"><a href="${cta.href}" style="display:inline-block;background:#BDF2A0;color:#1E3317;font-family:${F_DISPLAY};font-weight:800;font-size:15.5px;letter-spacing:-.01em;text-decoration:none;padding:16px 30px;border-radius:999px;box-shadow:0 12px 26px -14px rgba(120,190,90,.9);">${cta.label} &nbsp;&#8599;</a></div>` : ""}
-      ${afterCta ?? ""}
-      <div style="margin-top:34px;padding-top:18px;border-top:1px solid rgba(13,15,10,.10);font-size:12px;line-height:1.6;color:#8B8E7F;">
-        ${opts?.noSiteLinks ? "Martin" : `Martin · <a href="${APP_URL}" style="color:#8B8E7F;">getklip.fr</a>`}<br/>
-        Vous recevez ce mail car vous êtes sur la liste d'accès anticipé.
-        <a href="{{UNSUB_URL}}" style="color:#8B8E7F;">Me retirer de la liste</a>.
-      </div>
+      ${afterCta ?? ""}${opts?.noFooter ? "" : footer}
     </div>
   </div>`;
 }
@@ -457,7 +492,7 @@ Martin`,
        <p style="margin:0;font-size:14.5px;color:#5A5E50;"><em>PS. Si on n'a pas encore échangé, répondez à ce mail : ce que vous gérez aujourd'hui, et ce qui vous prend le plus de temps dans une semaine. Ça décide de ce que je vous montre en premier le jour de l'ouverture.</em></p>`,
       undefined,
       undefined,
-      { noSiteLinks: true },
+      { noSiteLinks: true, noFooter: true, ground: "#FFFFFF" },
     ),
     text: `Salut,
 
@@ -475,11 +510,7 @@ Merci d'avoir patienté.
 
 Martin
 
-PS. Si on n'a pas encore échangé, répondez à ce mail : ce que vous gérez aujourd'hui, et ce qui vous prend le plus de temps dans une semaine. Ça décide de ce que je vous montre en premier le jour de l'ouverture.
-
-Martin
-Vous recevez ce mail car vous êtes sur la liste d'accès anticipé.
-Me retirer de la liste : {{UNSUB_URL}}`,
+PS. Si on n'a pas encore échangé, répondez à ce mail : ce que vous gérez aujourd'hui, et ce qui vous prend le plus de temps dans une semaine. Ça décide de ce que je vous montre en premier le jour de l'ouverture.`,
   }),
 
   // Notification interne — un utilisateur vient de signaler un bug ou une idée.
