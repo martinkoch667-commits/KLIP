@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { createNotification } from "@/lib/notifications";
 import { refreshInstagramToken } from "@/lib/instagram-token";
+import { openToken, sealToken, tokenCryptoReady, isSealed } from "@/lib/token-crypto";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
@@ -46,13 +47,13 @@ export async function GET(request: NextRequest) {
 
   for (const workspace of workspaces ?? []) {
     const handle = workspace.instagram_username ?? "votre compte";
-    const result = await refreshInstagramToken(workspace.instagram_access_token as string);
+    const result = await refreshInstagramToken(openToken(workspace.instagram_access_token as string) as string);
 
     if (result.ok) {
       await supabase
         .from("workspaces")
         .update({
-          instagram_access_token: result.token.accessToken,
+          instagram_access_token: sealToken(result.token.accessToken),
           instagram_token_expires_at: result.token.expiresAt,
           instagram_token_refreshed_at: new Date().toISOString(),
         })
@@ -91,10 +92,39 @@ export async function GET(request: NextRequest) {
     failed++;
   }
 
+  // ── Reprise des jetons encore en clair ─────────────────────────────────
+  // Ceux d'avant le chiffrement ne passent pas par la boucle ci-dessus tant
+  // qu'ils n'approchent pas de l'échéance. On les scelle ici sans appeler Meta :
+  // même valeur, simplement chiffrée. Par lots, pour ne pas s'éterniser.
+  let sealed = 0;
+  if (tokenCryptoReady()) {
+    // Le tri se fait ici plutôt que dans la requête : le filtre `like` de
+    // PostgREST attend `*` et non `%`, et une erreur de motif passerait
+    // inaperçue en ne chiffrant jamais rien.
+    const { data: candidats } = await supabase
+      .from("workspaces")
+      .select("id, instagram_access_token")
+      .not("instagram_access_token", "is", null)
+      .limit(500);
+
+    const clairs = (candidats ?? []).filter(w => !isSealed(w.instagram_access_token as string));
+
+    for (const w of clairs) {
+      const { error: sealErr } = await supabase
+        .from("workspaces")
+        .update({ instagram_access_token: sealToken(w.instagram_access_token as string) })
+        .eq("id", w.id);
+      if (sealErr) console.error(`[Cron tokens] chiffrement impossible pour ${w.id} :`, sealErr.message);
+      else sealed++;
+    }
+    if (sealed) console.log(`[Cron tokens] ${sealed} jeton(s) chiffré(s) au repos.`);
+  }
+
   return NextResponse.json({
     examined: workspaces?.length ?? 0,
     refreshed,
     expired,
     failed,
+    sealed,
   });
 }

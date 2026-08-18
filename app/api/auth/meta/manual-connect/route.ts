@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createRouteHandlerClient } from "@supabase/auth-helpers-nextjs";
 import { cookies } from "next/headers";
+import { sealToken } from "@/lib/token-crypto";
 
 export async function POST(request: NextRequest) {
   try {
@@ -21,7 +22,7 @@ export async function POST(request: NextRequest) {
 
     await supabase.from("workspaces").update({
       instagram_account_id: String(igUserId),
-      instagram_access_token: accessToken,
+      instagram_access_token: sealToken(accessToken),
       instagram_username: igDetails.username ?? igDetails.name ?? String(igUserId),
       instagram_connected_at: new Date().toISOString(),
     }).eq("id", workspaceId);

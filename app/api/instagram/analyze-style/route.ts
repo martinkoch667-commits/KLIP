@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createRouteHandlerClient } from "@supabase/auth-helpers-nextjs";
 import { cookies } from "next/headers";
 import { generateAiText } from "@/lib/ai-text";
+import { openToken } from "@/lib/token-crypto";
 
 export const runtime = "nodejs";
 
@@ -37,7 +38,7 @@ export async function POST(request: NextRequest) {
     if (!ws?.instagram_access_token) {
       return NextResponse.json({ error: "Compte Instagram non connecté" }, { status: 400 });
     }
-    const token = ws.instagram_access_token.trim();
+    const token = (openToken(ws.instagram_access_token) ?? "").trim();
 
     // ── 1. Récupère les dernières publications (avec légendes + stats si dispo) ──
     const fetchMedia = async (fields: string): Promise<{ data?: IGMedia[]; error?: unknown }> => {

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createRouteHandlerClient } from "@supabase/auth-helpers-nextjs";
 import { cookies } from "next/headers";
+import { openToken } from "@/lib/token-crypto";
 
 export async function GET(request: NextRequest) {
   const workspaceId = request.nextUrl.searchParams.get("workspaceId");
@@ -27,7 +28,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ connected: false, name: ws?.name ?? null });
   }
 
-  const token = ws.instagram_access_token.trim();
+  const token = (openToken(ws.instagram_access_token) ?? "").trim();
 
   try {
     const [pRes, mRes] = await Promise.all([

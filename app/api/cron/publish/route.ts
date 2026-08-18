@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { createNotification } from "@/lib/notifications";
 import { publishPostToInstagram, mediaUrlOf } from "@/lib/instagram-publish";
+import { openToken } from "@/lib/token-crypto";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
@@ -121,7 +122,7 @@ export async function GET(request: NextRequest) {
       continue;
     }
 
-    const result = await publishPostToInstagram(post, workspace.instagram_access_token);
+    const result = await publishPostToInstagram(post, openToken(workspace.instagram_access_token) as string);
 
     if (!result.ok) {
       await markFailed(result.error);

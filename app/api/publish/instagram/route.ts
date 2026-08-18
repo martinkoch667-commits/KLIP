@@ -3,6 +3,7 @@ import { createRouteHandlerClient } from "@supabase/auth-helpers-nextjs";
 import { cookies } from "next/headers";
 import { createNotification } from "@/lib/notifications";
 import { publishPostToInstagram, resolveMediaType } from "@/lib/instagram-publish";
+import { openToken } from "@/lib/token-crypto";
 
 export const runtime = "nodejs";
 // Publier un reel implique d'attendre l'encodage Instagram (jusqu'à ~150 s).
@@ -36,7 +37,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Compte Instagram non connecté" }, { status: 400 });
     }
 
-    const result = await publishPostToInstagram(post, workspace.instagram_access_token as string);
+    const result = await publishPostToInstagram(post, openToken(workspace.instagram_access_token as string) as string);
 
     if (!result.ok) {
       return NextResponse.json({ error: result.error }, { status: 500 });

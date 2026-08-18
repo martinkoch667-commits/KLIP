@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
 import { cookies } from 'next/headers';
 import { generateAiText } from '@/lib/ai-text';
+import { openToken } from '@/lib/token-crypto';
 import { LAYOUT_LIBRARY, type Slot, type Accent } from '@/lib/layoutLibrary';
 
 // Diriger un visuel prend plus que les 10 s par défaut d'une fonction Vercel :
@@ -125,7 +126,7 @@ export async function POST(request: NextRequest) {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
         }).filter((s: any) => (s.blocks as unknown[]).length > 0).slice(0, 3);
 
-        const token = (tokRes.data as { instagram_access_token?: string } | null)?.instagram_access_token?.trim();
+        const token = openToken((tokRes.data as { instagram_access_token?: string } | null)?.instagram_access_token)?.trim();
         if (token) {
           const r = await fetch(`https://graph.instagram.com/me/media?fields=media_url,media_type&limit=6&access_token=${token}`);
           const j = await r.json();

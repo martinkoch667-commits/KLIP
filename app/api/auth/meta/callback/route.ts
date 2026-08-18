@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createRouteHandlerClient } from "@supabase/auth-helpers-nextjs";
 import { cookies } from "next/headers";
 import { expiryFromNow } from "@/lib/instagram-token";
+import { sealToken } from "@/lib/token-crypto";
 
 export async function GET(request: NextRequest) {
   // Unique ID per invocation — detects double-invocation
@@ -98,14 +99,11 @@ export async function GET(request: NextRequest) {
     const igDetails = await igDetailsRes.json();
     console.log('[CB] igDetails response:', JSON.stringify(igDetails));
 
-    console.log('[CB] Saving token - first20:', accessToken?.substring(0, 20));
     console.log('[CB] Saving igUserId:', igUserId);
-    console.log('[CB] Token type:', typeof accessToken);
-    console.log('[CB] Token length:', accessToken?.length);
 
     const { data: updated, error: updateError } = await supabase.from("workspaces").update({
       instagram_account_id: String(igUserId),
-      instagram_access_token: accessToken.trim(),
+      instagram_access_token: sealToken(accessToken.trim()),
       instagram_username: igDetails.username ?? igDetails.name ?? String(igUserId),
       instagram_connected_at: new Date().toISOString(),
       instagram_token_expires_at: tokenExpiresAt,
