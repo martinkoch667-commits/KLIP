@@ -52,9 +52,20 @@ export async function middleware(req: NextRequest) {
   if (isProtected && session) {
     const { data: settings } = await supabase
       .from("user_settings")
-      .select("subscription_status, trial_ends_at, is_comped")
+      .select("account_type, subscription_status, trial_ends_at, is_comped")
       .eq("user_id", session.user.id)
       .maybeSingle();
+
+    // Compte créé mais jamais passé par l'onboarding : ni offre choisie, ni
+    // abonnement. `isAccessBlocked` laisse VOLONTAIREMENT passer ce cas, la ligne
+    // `user_settings` n'existant pas encore, donc c'est ici qu'il faut le
+    // rattraper : sans ça on entre dans l'app sans jamais voir l'écran d'offre.
+    // Le trou s'ouvre dès qu'une session démarre ailleurs que par
+    // /auth/callback, typiquement une connexion par mot de passe après avoir
+    // confirmé son adresse depuis un autre appareil.
+    if (!settings?.account_type) {
+      return NextResponse.redirect(new URL("/onboarding/plan", req.url));
+    }
 
     if (isAccessBlocked(settings)) {
       return NextResponse.redirect(new URL("/abonnement", req.url));
