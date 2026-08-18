@@ -90,6 +90,7 @@ export default function AiChatDock({
   buildProject,
   applyActions,
   disabled,
+  openSignal,
 }: {
   endpoint: string;
   labels: ChatLabels;
@@ -98,6 +99,10 @@ export default function AiChatDock({
   buildProject: () => unknown | Promise<unknown>;
   applyActions: (actions: ChatAction[]) => number | Promise<number>;
   disabled?: boolean;
+  /** Signal d'ouverture externe : chaque incrément déplie l'assistant. Permet à
+   *  « Demander à Klip », posé sur un calque, d'ouvrir cette même conversation
+   *  au lieu d'un second assistant qui ne saurait rien du premier. */
+  openSignal?: number;
 }) {
   const [open, setOpen] = useState(false);
   // Sortie animée : on rejoue l'aller-retour de l'ouverture avant de démonter,
@@ -108,6 +113,17 @@ export default function AiChatDock({
   const [busy, setBusy] = useState(false);
   const listRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+
+  // Ouverture demandée de l'extérieur. On ignore la valeur initiale : seul un
+  // changement compte, sinon l'assistant s'ouvrirait tout seul au chargement.
+  const firstSignal = useRef(openSignal);
+  useEffect(() => {
+    if (openSignal === undefined || openSignal === firstSignal.current) return;
+    firstSignal.current = openSignal;
+    setClosing(false);
+    setOpen(true);
+    window.setTimeout(() => inputRef.current?.focus(), 60);
+  }, [openSignal]);
 
   useEffect(() => {
     const el = listRef.current;

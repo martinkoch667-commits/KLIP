@@ -1728,9 +1728,11 @@ interface PillProps {
   zoom: number;
   onDuplicate: () => void;
   onDelete: () => void;
+  /** Ouvre l'assistant visuel sur le calque sélectionné. */
+  onAsk: () => void;
 }
 
-function SelectionPill({ rect, zoom, onDuplicate, onDelete }: PillProps) {
+function SelectionPill({ rect, zoom, onDuplicate, onDelete, onAsk }: PillProps) {
   const T = useTranslations('editor');
   const pillW = 260;
   // La pastille se pose au-dessus de l'encombrement RÉEL : une boîte non tournée
@@ -1764,7 +1766,7 @@ function SelectionPill({ rect, zoom, onDuplicate, onDelete }: PillProps) {
         {/* Demander à Klip — même identité que la pastille « Assistant visuel »
             en bas de l'écran : c'est le même interlocuteur, il doit se
             reconnaître au premier coup d'œil. */}
-        <button className="klip-ask" style={{
+        <button className="klip-ask" onClick={e => { e.stopPropagation(); onAsk(); }} style={{
           display: 'flex', alignItems: 'center', gap: 8, padding: '0 14px 0 10px', height: 32,
           borderRadius: 16, color: '#fff', fontFamily: 'var(--sans)', fontWeight: 800, fontSize: 13,
           letterSpacing: '-.01em', whiteSpace: 'nowrap', background: 'var(--vio)',
@@ -2960,6 +2962,10 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
   // Bulle « laquelle préférez-vous ? » : posée une fois, après une composition,
   // et refermée dès que la personne a tranché — jamais réaffichée derrière elle.
   const [variantAsked, setVariantAsked] = useState(false);
+  // « Demander à Klip » vit sur la pastille de sélection, l'assistant en bas à
+  // droite : deux composants sans lien. Ce compteur sert de signal d'ouverture —
+  // chaque incrément déplie l'assistant.
+  const [chatOpenSignal, setChatOpenSignal] = useState(0);
   const [aiBuilding, setAiBuilding] = useState(false);          // overlay "l'IA construit le visuel"
   const [autoComposeReady, setAutoComposeReady] = useState(false);
   // Sujet d'un post CARROUSEL jamais édité : le carrousel s'écrit tout seul à
@@ -6974,6 +6980,7 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
               thinking: T('chatThinking'), error: T('chatError'),
               open: T('chatOpen'), close: T('chatClose'),
             }}
+            openSignal={chatOpenSignal}
             buildProject={buildChatProject}
             applyActions={applyChatActions}
             disabled={qaBusy || aiBuilding}
@@ -7650,6 +7657,7 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
                       zoom={zoom}
                       onDuplicate={duplicateEl}
                       onDelete={() => deleteEl(selectedId)}
+                      onAsk={() => setChatOpenSignal(n => n + 1)}
                     />
                   );
                 })()}
