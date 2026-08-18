@@ -237,7 +237,8 @@
       "agencyF5": "Stapelerstellung",
       "montageFeat": "Integrierter Videoschnitt",
       "launchBadge": "Launch-Angebot · −{percent} %",
-      "launchNote": "statt {price}€ im 1. Monat · erste {seats} Plätze"
+      "launchNote": "statt {price}€ im 1. Monat · erste {seats} Plätze",
+      "launchNoteYear": "statt {price}€/Monat im 1. Jahr · erste {seats} Plätze"
     },
     "faq": {
       "title1": "Die Fragen, ",

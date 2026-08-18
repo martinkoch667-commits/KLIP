@@ -237,7 +237,8 @@
       "agencyF5": "Creazione in blocco",
       "montageFeat": "Montaggio video integrato",
       "launchBadge": "Offerta lancio · −{percent}%",
-      "launchNote": "invece di {price}€ il 1° mese · primi {seats} posti"
+      "launchNote": "invece di {price}€ il 1° mese · primi {seats} posti",
+      "launchNoteYear": "invece di {price}€/mese il 1° anno · primi {seats} posti"
     },
     "faq": {
       "title1": "Le domande ",

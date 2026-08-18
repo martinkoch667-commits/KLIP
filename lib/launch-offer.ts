@@ -1,21 +1,23 @@
-// Offre de lancement — remise sur la PREMIÈRE facture mensuelle, réservée aux
-// premiers inscrits. Un seul endroit décide : la landing (prix barré) et la
-// route Checkout (remise réellement appliquée) lisent la même constante, pour
-// que le prix affiché soit toujours le prix débité.
+// Offre de lancement — remise sur la PREMIÈRE facture, réservée aux premiers
+// inscrits. Un seul endroit décide : la landing (prix barré) et la route
+// Checkout (remise réellement appliquée) lisent la même constante, pour que le
+// prix affiché soit toujours le prix débité.
 //
-// Côté Stripe il faut un coupon `percent_off: 40, duration: once` et son id dans
+// Côté Stripe il faut un coupon `percent_off: 30, duration: once` et son id dans
 // STRIPE_LAUNCH_COUPON. Sans cette variable, la remise n'est PAS appliquée au
 // paiement : `LAUNCH_OFFER.active` doit alors rester false, sinon la landing
-// annoncerait un prix que la caisse ne fait pas.
+// annoncerait un prix que la caisse ne fait pas. Le `percent` ci-dessous ne fait
+// qu'AFFICHER : c'est le coupon Stripe qui débite. Les deux doivent rester
+// alignés, sinon le client voit un prix et en paie un autre.
 export const LAUNCH_OFFER = {
   active: true,
   /** Pourcentage de remise (doit refléter le coupon Stripe). */
-  percent: 40,
+  percent: 30,
   /** Nombre de places annoncé. */
   seats: 50,
-  /** La remise ne vaut que pour le mensuel : sur l'annuel, `duration: once`
-   *  offrirait 40 % d'une année entière. */
-  periods: ['monthly'] as const,
+  /** Mensuel et annuel. Attention : `duration: once` porte sur la première
+   *  facture — un mois sur le mensuel, mais une ANNÉE ENTIÈRE sur l'annuel. */
+  periods: ['monthly', 'yearly'] as const,
 };
 
 export function launchApplies(period: string): boolean {
