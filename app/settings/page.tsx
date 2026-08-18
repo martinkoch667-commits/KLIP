@@ -968,8 +968,8 @@ function AgencyTab({ supabase, userId }: { supabase: any; userId: string }) {
 
 function BillingTab({ accountType }: { accountType: string }) {
   const plans: Record<string, { name: string; price: string; desc: string }> = {
-    solo: { name: "Studio", price: "29€ / mois", desc: "3 clients · 1 profil · Posts illimités · IA incluse" },
-    agency: { name: "Agence", price: "96€ / mois", desc: "10 clients · 5 membres · Workflow validation · Rôles" },
+    solo: { name: "Studio", price: "29€ / mois", desc: "6 clients · 1 profil · Posts illimités · IA incluse" },
+    agency: { name: "Agence", price: "96€ / mois", desc: "12 clients · 5 membres · Workflow validation · Rôles" },
   };
   const plan = plans[accountType] ?? plans.solo;
 
