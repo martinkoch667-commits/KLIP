@@ -3,6 +3,18 @@ import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
 import { cookies } from 'next/headers';
 import { chargeImage } from '@/lib/ai-budget';
 
+// Modèle de génération d'images, réglable sans toucher au code (AI_IMAGE_MODEL).
+//
+// Par défaut Nano Banana 2 Lite : génération suivante, et MOINS cher que le
+// 2.5-flash-image qu'il remplace (~0,0336 $ contre 0,039 $ l'image en 1K).
+// Ce dernier ferme le 2 octobre 2026, il ne fallait pas rester dessus.
+//
+// Pour comparer la qualité, il suffit de changer la variable :
+//   gemini-3.1-flash-lite-image  ~0,0336 $  — défaut, le meilleur rapport
+//   gemini-3.1-flash-image       ~0,045 $   — un cran au-dessus
+//   gemini-3-pro-image           ~0,134 $   — nettement plus cher
+const IMAGE_MODEL = process.env.AI_IMAGE_MODEL?.trim() || 'gemini-3.1-flash-lite-image';
+
 export async function POST(request: NextRequest) {
   try {
     // Auth requise : empêche l'abus du quota Gemini par des appels anonymes.
@@ -44,7 +56,7 @@ export async function POST(request: NextRequest) {
     parts.push({ text: prompt });
 
     const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image:generateContent?key=${process.env.GEMINI_API_KEY}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/${IMAGE_MODEL}:generateContent?key=${process.env.GEMINI_API_KEY}`,
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
