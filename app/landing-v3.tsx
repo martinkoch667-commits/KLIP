@@ -766,10 +766,10 @@ function HeroPreview() {
             <div className="win">
               <div className="win-bar">
                 <span className="win-dot" /><span className="win-dot" /><span className="win-dot" />
-                <span className="win-tab"><Icon name="layers" size={13} style={{ color: 'var(--mint-2)' }} /> app.getklip.fr — tableau-de-bord</span>
+                <span className="win-tab"><Icon name="image" size={13} style={{ color: 'var(--mint-2)' }} /> app.getklip.fr — composer</span>
                 <span className="win-zoom">100% · 1:1</span>
               </div>
-              <Image src="/klip-media/dashboard.png" alt="Tableau de bord Klip — gérer le contenu Instagram de tous ses clients au même endroit" width={2200} height={1114} priority sizes="(max-width: 1080px) 100vw, 1080px" style={{ display: 'block', width: '100%', height: 'auto' }} />
+              <Image src="/klip-media/hero-composer.png" alt="Espace de production Klip — importer ses photos et générer les visuels et légendes d'un client" width={2160} height={1075} priority sizes="(max-width: 1080px) 100vw, 1080px" style={{ display: 'block', width: '100%', height: 'auto' }} />
             </div>
             <Ants inset={12} radius={22} />
           </div>
