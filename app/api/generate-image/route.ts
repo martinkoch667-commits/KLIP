@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
 import { cookies } from 'next/headers';
+import { chargeImage } from '@/lib/ai-budget';
 
 export async function POST(request: NextRequest) {
   try {
@@ -8,6 +9,17 @@ export async function POST(request: NextRequest) {
     const supabase = createRouteHandlerClient({ cookies });
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) return NextResponse.json({ error: 'Non autorisé' }, { status: 401 });
+
+    // Plafond global du jour : dernier rempart avant que la facture Gemini ne
+    // dérape. Le garde-fou par compte, lui, vit dans le middleware.
+    const budget = await chargeImage();
+    if (!budget.allowed) {
+      console.error(`[ai-budget] plafond atteint : ${budget.used}/${budget.cap} images aujourd'hui.`);
+      return NextResponse.json(
+        { error: "La génération d'images est momentanément indisponible. Réessayez demain.", code: 'AI_DAILY_CAP' },
+        { status: 503 }
+      );
+    }
 
     const { prompt, referenceImage } = await request.json();
 

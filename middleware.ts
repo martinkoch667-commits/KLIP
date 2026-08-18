@@ -2,6 +2,7 @@ import { createMiddlewareClient } from "@supabase/auth-helpers-nextjs";
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { isAccessBlocked } from "@/lib/plans";
+import { aiLimitFor, consume } from "@/lib/ai-guard";
 
 const PROTECTED_ROUTES = ["/dashboard", "/workspace", "/calendar", "/composer", "/feed", "/templates", "/settings"];
 
@@ -24,6 +25,20 @@ export async function middleware(req: NextRequest) {
   const {
     data: { session },
   } = await supabase.auth.getSession();
+
+  // Garde-fou IA : appliqué ici plutôt que route par route, pour qu'une future
+  // route de génération soit couverte sans qu'on ait à y penser.
+  const aiLimit = aiLimitFor(pathname);
+  if (aiLimit && session) {
+    const verdict = consume(session.user.id, aiLimit.kind, aiLimit.max);
+    if (!verdict.ok) {
+      console.warn(`[ai-guard] ${aiLimit.kind} plafonné pour ${session.user.id} sur ${pathname}`);
+      return NextResponse.json(
+        { error: "Trop de générations d'affilée. Réessayez dans un instant.", code: "AI_RATE_LIMIT" },
+        { status: 429, headers: { "Retry-After": String(verdict.retryAfterSec) } }
+      );
+    }
+  }
 
   const isProtected = PROTECTED_ROUTES.some((route) => pathname.startsWith(route));
 
