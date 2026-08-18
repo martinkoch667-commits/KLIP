@@ -5,7 +5,7 @@ export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 // Aperçu des mails de la séquence, dans le navigateur.
-//   /api/apercu-mails         -> la planche complète (les 5 mails)
+//   /api/apercu-mails         -> la planche complète (toute la séquence)
 //   /api/apercu-mails?n=3     -> le mail 3 seul, tel qu'il sera reçu
 // En production il faut &k=CRON_SECRET ; en local c'est ouvert.
 const EXAMPLE = 'vous@agence.com';
