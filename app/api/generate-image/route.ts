@@ -10,11 +10,21 @@ export async function POST(request: NextRequest) {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) return NextResponse.json({ error: 'Non autorisé' }, { status: 401 });
 
-    // Plafond global du jour : dernier rempart avant que la facture Gemini ne
-    // dérape. Le garde-fou par compte, lui, vit dans le middleware.
-    const budget = await chargeImage();
+    // Quotas du jour : celui du compte, puis le plafond global. Le garde-fou à
+    // la minute, lui, vit dans le middleware.
+    const budget = await chargeImage(session.user.id);
     if (!budget.allowed) {
-      console.error(`[ai-budget] plafond atteint : ${budget.used}/${budget.cap} images aujourd'hui.`);
+      if (budget.reason === 'user') {
+        console.warn(`[ai-budget] quota compte atteint : ${budget.userUsed}/${budget.userCap} pour ${session.user.id}.`);
+        return NextResponse.json(
+          {
+            error: `Vous avez atteint votre limite de ${budget.userCap} images pour aujourd'hui. Elle repart à zéro demain.`,
+            code: 'AI_USER_DAILY_CAP',
+          },
+          { status: 429 }
+        );
+      }
+      console.error(`[ai-budget] plafond global atteint : ${budget.globalUsed}/${budget.globalCap} images aujourd'hui.`);
       return NextResponse.json(
         { error: "La génération d'images est momentanément indisponible. Réessayez demain.", code: 'AI_DAILY_CAP' },
         { status: 503 }
