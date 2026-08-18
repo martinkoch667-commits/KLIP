@@ -237,8 +237,7 @@
       "agencyF5": "Creación por lotes",
       "montageFeat": "Edición de vídeo integrada",
       "launchBadge": "Oferta lanzamiento · −{percent} %",
-      "launchNote": "en vez de {price}€ el 1.er mes · {seats} primeras plazas",
-      "launchNoteYear": "en vez de {price}€/mes el 1.er año · {seats} primeras plazas"
+      "launchNote": "en vez de {price}€/mes, de por vida · {seats} primeras plazas"
     },
     "faq": {
       "title1": "Las preguntas ",
