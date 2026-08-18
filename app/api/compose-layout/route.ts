@@ -137,6 +137,32 @@ export async function POST(request: NextRequest) {
       } catch { /* les références sont un bonus, jamais un point de blocage */ }
     }
 
+    // CE QUE CE CLIENT RETIENT.
+    //
+    // Les propositions étaient jugées trois par trois puis oubliées : une recette
+    // écartée cent fois revenait intacte à la centième-et-unième. On relit les
+    // choix passés — ce sont les seules préférences OBSERVÉES, pas déclarées.
+    let preferred: string[] = [];
+    if (typeof workspaceId === 'string' && workspaceId) {
+      try {
+        const { data: fb } = await sb
+          .from('layout_feedback')
+          .select('recipe_id')
+          .eq('workspace_id', workspaceId)
+          .order('created_at', { ascending: false })
+          .limit(40);
+        const tally = new Map<string, number>();
+        for (const row of (fb ?? []) as { recipe_id?: string }[]) {
+          const id = String(row.recipe_id ?? '');
+          if (id) tally.set(id, (tally.get(id) ?? 0) + 1);
+        }
+        preferred = Array.from(tally.entries())
+          .sort((a, b) => b[1] - a[1])
+          .slice(0, 4)
+          .map(([id, n]) => `${id} (retenue ${n} fois)`);
+      } catch { /* la table peut ne pas exister encore (migration 023) */ }
+    }
+
     // Templates du client = candidats de layout (avec leur géométrie).
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const tpls: any[] = Array.isArray(styleRef) && styleRef.length ? styleRef : serverStyleRef;
@@ -184,6 +210,7 @@ export async function POST(request: NextRequest) {
       textList.length ? `Textes à utiliser :\n${textList.map((t, i) => `${i + 1}. "${t}"`).join('\n')}` : 'Aucun texte fourni : rédige un titre court (≤6 mots) + éventuel sous-titre, cohérents avec la photo.',
       '',
       'Choisis les 3 MEILLEURS layouts (selon où le texte tombera dans une zone calme de CETTE photo). Pour chacun : remplis chaque slot (rôle->texte), choisis une couleur de charte par slot (contraste avec le fond), décide du scrim.',
+      preferred.length ? `CE QUE CE CLIENT A DÉJÀ RETENU, quand on lui a proposé plusieurs mises en page : ${preferred.join(', ')}. C'est son goût OBSERVÉ, pas une règle : privilégie ces directions quand elles conviennent à cette photo, et écarte-les franchement quand elles ne conviennent pas.` : '',
       'DÉCOUPER LE TITRE EN PLUSIEURS BLOCS est une composition à part entière, souvent la plus forte : au lieu d\'un pavé de deux lignes, tu écris chaque ligne dans SON bloc (« Pause midi » / « au Shadok »), chacun avec son propre aplat. Les cartouches épousent alors la longueur de chaque ligne et créent un décroché d\'affiche. Coupe au bon endroit — là où la phrase respire naturellement, jamais au milieu d\'un groupe de mots. Les recettes « lib-stack-* » sont faites pour ça.',
       'Les trois propositions doivent être VRAIMENT différentes — pas trois variantes de texte posé sur la photo. Au moins UNE doit utiliser la couleur de la marque comme matière (cartouche, bandeau, pastille, filet) ou reprendre un template maison. Du texte blanc sur voile noir est le rendu par défaut de n\'importe quelle marque : ne le proposez que s\'il est vraiment le meilleur choix pour cette photo, jamais deux fois.',
       'Préfère TOUJOURS un template maison du client quand il peut accueillir ce contenu : le choisir applique son dessin complet — son fond, ses aplats, ses couleurs, ses formes — donc le visuel ressemble immédiatement à cette marque. Ne prends une recette de la bibliothèque que si aucun template ne convient. Évite de placer le texte sur le sujet.',
@@ -287,7 +314,7 @@ export async function POST(request: NextRequest) {
       if (tpl) {
         // Le dessin du template FAIT la composition — pas de voile ni d'accents
         // ajoutés par-dessus, ils défigureraient le modèle du client.
-        return { template: tpl, blocks: [], scrim: { position: 'none', opacity: 0 }, accents: [], logo: { show: false } };
+        return { template: tpl, recipeId: `tpl:${tpl.name ?? pick.id}`, source: 'template', blocks: [], scrim: { position: 'none', opacity: 0 }, accents: [], logo: { show: false } };
       }
       const { slots, defaultScrim, accents } = geomFor(pick);
       const aiSlots: { role: string; text?: string; color?: string; uppercase?: boolean }[] = Array.isArray(pick.slots) ? pick.slots : [];
@@ -314,7 +341,7 @@ export async function POST(request: NextRequest) {
       const scrim = pick.scrim && ['bottom', 'top', 'none'].includes(pick.scrim.position)
         ? pick.scrim
         : { position: defaultScrim, opacity: 55 };
-      return { blocks: outBlocks, scrim, accents: accents ?? [], logo: { show: false } };
+      return { blocks: outBlocks, recipeId: String(pick.id ?? ''), source: 'library', scrim, accents: accents ?? [], logo: { show: false } };
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
     }).filter((l: any) => l.blocks.length > 0 || l.template);
 

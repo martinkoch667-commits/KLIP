@@ -2957,6 +2957,9 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [aiVariants, setAiVariants] = useState<any[]>([]);
   const [aiVariantIdx, setAiVariantIdx] = useState(0);
+  // Bulle « laquelle préférez-vous ? » : posée une fois, après une composition,
+  // et refermée dès que la personne a tranché — jamais réaffichée derrière elle.
+  const [variantAsked, setVariantAsked] = useState(false);
   const [aiBuilding, setAiBuilding] = useState(false);          // overlay "l'IA construit le visuel"
   const [autoComposeReady, setAutoComposeReady] = useState(false);
   // Sujet d'un post CARROUSEL jamais édité : le carrousel s'écrit tout seul à
@@ -5382,7 +5385,7 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
       if (refs?.instagram) edLog(`${refs.instagram} visuel(s) du compte Instagram en référence de style`);
       if (typeof data?.rationale === 'string' && data.rationale.trim()) edLog(`Parti pris : ${data.rationale.trim()}`);
       edLog(`${layouts.length} composition(s) proposée(s) — application de la 1re`);
-      setAiVariants(layouts); setAiVariantIdx(0);
+      setAiVariants(layouts); setAiVariantIdx(0); setVariantAsked(layouts.length > 1);
       await materializeLayout(layouts[0]);
       setQaMsg(layouts.length > 1 ? `Composé ✓ (1/${layouts.length})` : 'Composé ✓');
       success = true;
@@ -5403,10 +5406,31 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
     return success;
   };
 
+  // Le choix d'une variante est la SEULE préférence observée qu'on puisse
+  // recueillir sans déranger : on l'enregistre pour que le compositeur privilégie
+  // ensuite ce que ce client garde vraiment. Silencieux de bout en bout — un avis
+  // perdu ne doit jamais interrompre le travail.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const rememberChoice = (variant: any, rank: number) => {
+    const recipeId = typeof variant?.recipeId === 'string' ? variant.recipeId : '';
+    if (!recipeId || isTemplate) return;
+    void fetch('/api/layout-feedback', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        workspaceId, postId: isTemplate ? null : entityId,
+        recipeId, source: variant?.source === 'template' ? 'template' : 'library',
+        variant: rank,
+      }),
+    }).catch(() => { /* sans effet sur l'édition en cours */ });
+  };
+
   // Sélectionne une variante précise (pastilles 1·2·3).
   const selectVariant = async (idx: number) => {
     if (qaBusy || idx < 0 || idx >= aiVariants.length || idx === aiVariantIdx) return;
     setAiVariantIdx(idx);
+    rememberChoice(aiVariants[idx], idx + 1);
+    setVariantAsked(false);
     setQaBusy(true); setQaMsg(`Variante ${idx + 1}/${aiVariants.length}…`);
     try { await materializeLayout(aiVariants[idx]); setQaMsg(`Variante ${idx + 1} ✓`); }
     catch { setQaMsg('Erreur variante'); }
@@ -6086,7 +6110,24 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
                 <span className="ed-hide-md">{aiVariants.length ? 'Recomposer' : 'Composer (IA)'}</span>
               </button>
               {aiVariants.length > 1 && (
-                <div style={{ display: 'flex', alignItems: 'center', gap: 3, height: 32, padding: '0 3px', background: 'var(--btn-soft)', borderRadius: 9, flexShrink: 0 }} title={T('aiPickVariant')}>
+                <div style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: 3, height: 32, padding: '0 3px', background: 'var(--btn-soft)', borderRadius: 9, flexShrink: 0 }} title={T('aiPickVariant')}>
+                  {/* Une phrase, une fois, au-dessus des pastilles : le seul moment
+                      où la personne compare vraiment trois mises en page. Son choix
+                      nourrit les compositions suivantes. */}
+                  {variantAsked && (
+                    <div style={{
+                      position: 'absolute', top: 'calc(100% + 9px)', left: '50%', transform: 'translateX(-50%)',
+                      zIndex: 40, whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: 8,
+                      background: 'var(--white)', color: 'var(--ink-2)', fontSize: 12, fontWeight: 600,
+                      padding: '8px 10px 8px 12px', borderRadius: 12,
+                      boxShadow: '0 1px 3px rgba(16,19,11,.06), 0 14px 30px -16px rgba(16,19,11,.42)',
+                    }}>
+                      <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--leaf)', flexShrink: 0 }} />
+                      Laquelle préférez-vous&nbsp;? Votre choix guidera les prochaines.
+                      <button onClick={() => setVariantAsked(false)} aria-label="Fermer"
+                        style={{ border: 'none', background: 'transparent', cursor: 'pointer', color: 'var(--ink-3)', fontSize: 15, lineHeight: 1, padding: 0 }}>×</button>
+                    </div>
+                  )}
                   {aiVariants.map((_, i) => (
                     <button key={i} onClick={() => selectVariant(i)} disabled={qaBusy}
                       style={{ width: 26, height: 26, borderRadius: 6, border: 'none', cursor: qaBusy ? 'not-allowed' : 'pointer', fontSize: 12, fontWeight: 800, fontFamily: 'var(--sans)',
