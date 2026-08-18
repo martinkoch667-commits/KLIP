@@ -238,7 +238,7 @@
       "montageFeat": "Edição de vídeo integrada",
       "launchBadge": "Oferta de lançamento · −{percent}%",
       "launchNote": "em vez de {price}€ no 1.º mês · primeiros {seats} lugares",
-      "launchNoteYear": "em vez de {price}€/mês no 1.º ano · primeiros {seats} lugares"
+      "launchNoteYear": "{firstYear}€ cobrados no 1.º ano, depois {full}€/ano · primeiros {seats} lugares"
     },
     "faq": {
       "title1": "As perguntas ",
