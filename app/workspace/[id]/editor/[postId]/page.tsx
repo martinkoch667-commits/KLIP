@@ -3601,19 +3601,26 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
     const pick = (id: unknown) => (el: CanvasEl) => id === 'all_text' ? el.type === 'text' : el.id === id;
 
     let els = [...elementsRef.current];
-    const patchWhere = (match: (el: CanvasEl) => boolean, patch: Record<string, unknown>) => {
+    // `perEl` calcule un complément de patch qui DÉPEND de l'élément touché —
+    // par exemple recentrer un bloc, ce qui exige de connaître sa largeur.
+    const patchWhere = (
+      match: (el: CanvasEl) => boolean,
+      patch: Record<string, unknown>,
+      perEl?: (el: CanvasEl) => Record<string, unknown>,
+    ) => {
       let hit = 0;
       const runKeys = Object.keys(patch).filter(isRunKey);
       els = els.map(el => {
         if (!match(el)) return el;
         hit++;
+        const extra = perEl ? perEl(el) : {};
         // Réglage typographique posé sur tout le calque : il doit l'emporter sur
         // d'éventuelles stylisations partielles de la même propriété.
         if (el.type === 'text' && runKeys.length) {
           const t = el as TextEl;
-          return { ...t, ...patch, runs: stripRunKeys(t.runs, runKeys, (t.text ?? '').length) } as CanvasEl;
+          return { ...t, ...patch, ...extra, runs: stripRunKeys(t.runs, runKeys, (t.text ?? '').length) } as CanvasEl;
         }
-        return { ...el, ...patch } as CanvasEl;
+        return { ...el, ...patch, ...extra } as CanvasEl;
       });
       return hit;
     };
@@ -3637,7 +3644,15 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
           if (typeof a.lineHeight === 'number') patch.lineHeight = num(a.lineHeight, 0.6, 3, 1.2);
           if (typeof a.fontStyle === 'string' && /^(normal|bold|italic|italic bold)$/.test(a.fontStyle)) patch.fontStyle = a.fontStyle;
           if (!Object.keys(patch).length) break;
-          if (patchWhere(el => el.type === 'text' && pick(a.id)(el), patch)) done++;
+          // « Centre le texte » veut dire centrer le BLOC dans le cadre, pas
+          // seulement aligner les lignes à l'intérieur d'une boîte restée sur le
+          // côté. L'assistant appliquait bien align:center — et le visuel ne
+          // bougeait pas, d'où l'impression qu'il n'écoutait rien. Même règle que
+          // la composition automatique : un bloc centré est réellement centré.
+          const centering = patch.align === 'center';
+          if (patchWhere(el => el.type === 'text' && pick(a.id)(el), patch, centering
+            ? (el) => ({ x: Math.round((stageW - ((el as TextEl).width ?? stageW)) / 2) })
+            : undefined)) done++;
           break;
         }
         case 'move': {

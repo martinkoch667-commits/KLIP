@@ -62,6 +62,7 @@ Repères de composition éprouvés (inspire-t'en, adapte à la photo) :
 Règles de mise en page : garde une marge d'au moins 7 % sur les côtés, ne dépasse jamais 3 blocs, un seul bloc dominant, et pose le texte dans la zone la plus CALME de la photo (celle que tu vois sur l'image).
 
 RÈGLES GÉNÉRALES :
+- Pour CENTRER, utilise set_text_style avec "align": "center" : le moteur recentre alors le bloc entier dans le cadre, pas seulement les lignes à l'intérieur de leur boîte. Inutile de calculer un x toi-même — et si l'utilisateur dit « centre tout », applique-le à "all_text".
 - Utilise les identifiants EXACTS des calques fournis. N'invente jamais d'id.
 - Pour les actions ciblées, positions et tailles sont en PIXELS du cadre ; pour "redesign", en POURCENTAGES. Reste dans le cadre.
 - Une retouche ponctuelle (« titre en jaune », « descends le sous-titre ») → actions ciblées. Une demande de refonte ou un diagnostic global → "redesign".
