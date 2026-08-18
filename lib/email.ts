@@ -428,7 +428,7 @@ Martin`,
         `<p style="margin:0 0 16px;">Salut,</p>
          <p style="margin:0 0 16px;">Mot rapide, parce que ça y est : <strong>Klip ouvre en avant-première dans quelques jours</strong>, et vous êtes dedans.</p>
          <p style="margin:0 0 16px;">Comment ça va se passer : vous recevrez un mail avec votre lien d'accès. Vous créez votre compte avec l'adresse qui reçoit ce message, et vos avantages s'appliquent tout seuls — <strong>tarif fondateur bloqué à vie</strong>, et sept jours d'essai avant le moindre paiement.</p>
-         <p style="margin:0 0 16px;">Un mot sur l'accompagnement, parce que je ne voudrais pas que ça passe pour un passage obligé. Au moment de créer votre compte, <strong>vous pourrez demander un point en visio avec moi</strong> pour démarrer : on paramètre vos premiers clients ensemble, c'est offert, et c'est là si vous en avez envie.</p>
+         <p style="margin:0 0 16px;"><strong>Vous pourrez demander un point en visio avec moi</strong> pour démarrer : on paramètre vos premiers clients ensemble, c'est offert, et c'est là si vous en avez envie.</p>
          <p style="margin:0 0 16px;"><strong>Mais ce n'est pas obligatoire</strong>, et personne ne vous en tiendra rigueur. Tout est expliqué à l'arrivée : un tutoriel vous prend par la main dès la première connexion et vous fait le tour de l'outil, écran par écran. Si vous préférez avancer seul, vous n'aurez besoin de rien d'autre.</p>
          <p style="margin:0 0 16px;">Vous n'avez rien à faire d'ici là. Le prochain mail que vous recevrez de moi sera celui de l'ouverture.</p>
          <p style="margin:0 0 16px;">Merci d'avoir attendu. On est un petit groupe, et ça change tout : vous ne serez jamais un ticket de support parmi mille.</p>
@@ -441,7 +441,7 @@ Mot rapide, parce que ça y est : Klip ouvre en avant-première dans quelques jo
 
 Comment ça va se passer : vous recevrez un mail avec votre lien d'accès. Vous créez votre compte avec l'adresse qui reçoit ce message, et vos avantages s'appliquent tout seuls — tarif fondateur bloqué à vie, et sept jours d'essai avant le moindre paiement.
 
-Un mot sur l'accompagnement, parce que je ne voudrais pas que ça passe pour un passage obligé. Au moment de créer votre compte, vous pourrez demander un point en visio avec moi pour démarrer : on paramètre vos premiers clients ensemble, c'est offert, et c'est là si vous en avez envie.
+Vous pourrez demander un point en visio avec moi pour démarrer : on paramètre vos premiers clients ensemble, c'est offert, et c'est là si vous en avez envie.
 
 Mais ce n'est pas obligatoire, et personne ne vous en tiendra rigueur. Tout est expliqué à l'arrivée : un tutoriel vous prend par la main dès la première connexion et vous fait le tour de l'outil, écran par écran. Si vous préférez avancer seul, vous n'aurez besoin de rien d'autre.
 
