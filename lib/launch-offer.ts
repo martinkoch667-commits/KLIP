@@ -14,7 +14,7 @@ export const LAUNCH_OFFER = {
   /** Pourcentage de remise (doit refléter le coupon Stripe). */
   percent: 30,
   /** Nombre de places annoncé. */
-  seats: 50,
+  seats: 25,
   /** Mensuel et annuel. Attention : `duration: once` porte sur la première
    *  facture — un mois sur le mensuel, mais une ANNÉE ENTIÈRE sur l'annuel. */
   periods: ['monthly', 'yearly'] as const,
