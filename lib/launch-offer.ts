@@ -1,10 +1,9 @@
-// Offre de lancement — remise À VIE, réservée aux premiers inscrits : ceux qui
-// entrent dans les places annoncées gardent ce prix tant qu'ils restent
-// abonnés. Un seul endroit décide : la landing (prix barré) et la route Checkout
-// (remise réellement appliquée) lisent la même constante, pour que le prix
-// affiché soit toujours le prix débité.
+// Offre de lancement — remise sur la PREMIÈRE facture, réservée aux premiers
+// inscrits. Un seul endroit décide : la landing (prix barré) et la route
+// Checkout (remise réellement appliquée) lisent la même constante, pour que le
+// prix affiché soit toujours le prix débité.
 //
-// Côté Stripe il faut un coupon `percent_off: 30, duration: forever` et son id dans
+// Côté Stripe il faut un coupon `percent_off: 30, duration: once` et son id dans
 // STRIPE_LAUNCH_COUPON. Sans cette variable, la remise n'est PAS appliquée au
 // paiement : `LAUNCH_OFFER.active` doit alors rester false, sinon la landing
 // annoncerait un prix que la caisse ne fait pas. Le `percent` ci-dessous ne fait
@@ -16,8 +15,8 @@ export const LAUNCH_OFFER = {
   percent: 30,
   /** Nombre de places annoncé. */
   seats: 25,
-  /** Mensuel et annuel. Le coupon étant `forever`, la remise vaut pour chaque
-   *  facture à venir, pas seulement la première. */
+  /** Mensuel et annuel. Attention : `duration: once` porte sur la première
+   *  facture — un mois sur le mensuel, mais une ANNÉE ENTIÈRE sur l'annuel. */
   periods: ['monthly', 'yearly'] as const,
 };
 

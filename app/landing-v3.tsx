@@ -1370,7 +1370,7 @@ function Pricing({ prelaunch = false, seatsLeft = null }: { prelaunch?: boolean;
                 </div>
                 <div style={{ fontFamily: 'var(--sans)', fontSize: 12, color: t.pop ? 'var(--cream-3)' : 'var(--ink-3)', marginBottom: 18, minHeight: 16 }}>
                   {launched
-                    ? tp('launchNote', { seats: LAUNCH_OFFER.seats, price: formatPrice(shown, locale) })
+                    ? tp(period === 'yearly' ? 'launchNoteYear' : 'launchNote', { seats: LAUNCH_OFFER.seats, price: formatPrice(shown, locale) })
                     : period === 'yearly' ? tp('billedYear', { total: t.yearly * 12 }) : tp('billedMonth')}
                 </div>
                 <div className="chip" style={{ marginBottom: 24, background: t.pop ? 'var(--forest-2)' : 'var(--paper-3)', color: t.pop ? 'var(--cream-2)' : 'var(--ink-2)', boxShadow: 'inset 0 0 0 1px var(--line)' }}>{t.clients}</div>

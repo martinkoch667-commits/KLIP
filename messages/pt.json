@@ -237,7 +237,8 @@
       "agencyF5": "Criação em lote",
       "montageFeat": "Edição de vídeo integrada",
       "launchBadge": "Oferta de lançamento · −{percent}%",
-      "launchNote": "em vez de {price}€/mês, para sempre · primeiros {seats} lugares"
+      "launchNote": "em vez de {price}€ no 1.º mês · primeiros {seats} lugares",
+      "launchNoteYear": "em vez de {price}€/mês no 1.º ano · primeiros {seats} lugares"
     },
     "faq": {
       "title1": "As perguntas ",
