@@ -51,8 +51,15 @@ export const metadata: Metadata = {
       "Créez, planifiez et publiez le contenu de tous vos clients Instagram depuis un seul espace. Éditeur visuel, légendes IA, calendrier et publication automatique.",
   },
   icons: {
-    icon: "/favicon-32.png",
-    apple: "/icon-192.png",
+    // L'icône d'app (le K sur fond vert) plutôt que le logo écrit, illisible
+    // sous 32 px. `?v=2` force les navigateurs à relâcher l'ancienne : un
+    // favicon est mis en cache très longtemps, et le nom de fichier n'a pas
+    // changé.
+    icon: [
+      { url: "/favicon-32.png?v=2", sizes: "32x32", type: "image/png" },
+      { url: "/icon-192.png?v=2", sizes: "192x192", type: "image/png" },
+    ],
+    apple: "/icon-192.png?v=2",
   },
 };
 
