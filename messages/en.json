@@ -73,7 +73,9 @@
     "createMyAccount": "Create my account",
     "verifyEmailTitle": "Check your email",
     "verifyEmailBody1": "A confirmation link has been sent to",
-    "verifyEmailBody2": "Click the link to activate your account."
+    "verifyEmailBody2": "Click the link to activate your account.",
+    "emailConfirmed": "Your email address is confirmed. Sign in to open your workspace.",
+    "linkExpired": "This link has expired or has already been used. Request a new one."
   },
   "landing": {
     "nav": {

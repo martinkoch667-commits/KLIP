@@ -73,7 +73,9 @@
     "createMyAccount": "Mein Konto erstellen",
     "verifyEmailTitle": "Überprüfen Sie Ihre E-Mails",
     "verifyEmailBody1": "Ein Bestätigungslink wurde gesendet an",
-    "verifyEmailBody2": "Klicken Sie auf den Link, um Ihr Konto zu aktivieren."
+    "verifyEmailBody2": "Klicken Sie auf den Link, um Ihr Konto zu aktivieren.",
+    "emailConfirmed": "Deine E-Mail-Adresse ist bestätigt. Melde dich an, um deinen Bereich zu öffnen.",
+    "linkExpired": "Dieser Link ist abgelaufen oder wurde bereits verwendet. Fordere einen neuen an."
   },
   "landing": {
     "nav": {

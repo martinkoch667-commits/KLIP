@@ -31,6 +31,8 @@ const AUTH_CSS = `
   .auth-forgot{font-size:12px;color:rgba(20,22,15,.5);text-decoration:none;display:block;text-align:right;margin-top:5px;}
   .auth-forgot:hover{color:var(--mint);}
   .auth-error{font-size:13px;color:var(--warn);background:var(--warn-soft);border:1px solid rgba(200,115,43,.2);border-radius:8px;padding:9px 12px;}
+  .auth-ok{font-size:13px;line-height:1.5;color:var(--mint-deep);background:var(--mint-soft);border:1px solid rgba(47,215,155,.28);border-radius:8px;padding:10px 12px;margin-bottom:18px;}
+  .auth-warn{font-size:13px;line-height:1.5;color:var(--warn);background:var(--warn-soft);border:1px solid rgba(200,115,43,.2);border-radius:8px;padding:10px 12px;margin-bottom:18px;}
   @media(max-width:480px){
     .auth-wrap{padding:16px;}
     .auth-card{padding:28px 20px;border-radius:14px;}
@@ -62,6 +64,12 @@ function LoginForm() {
   const searchParams = useSearchParams();
   const supabase = createClientComponentClient();
 
+  // Posé par /auth/callback quand l'adresse a bien été confirmée mais que la
+  // session n'a pas pu s'ouvrir sur cet appareil, ou quand le lien est périmé.
+  // Sans ce retour, l'utilisateur arrive sur un écran de connexion nu et n'a
+  // aucun moyen de savoir si son clic a servi à quelque chose.
+  const verif = searchParams.get("verif");
+
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
@@ -92,6 +100,8 @@ function LoginForm() {
 
   return (
     <>
+      {verif === "ok" && <p className="auth-ok">{t("emailConfirmed")}</p>}
+      {verif === "expire" && <p className="auth-warn">{t("linkExpired")}</p>}
       <form onSubmit={handleLogin} style={{ display: "flex", flexDirection: "column", gap: 18 }}>
         <div>
           <label htmlFor="email" className="auth-label">{t("emailLabel")}</label>

@@ -73,7 +73,9 @@
     "createMyAccount": "Créer mon compte",
     "verifyEmailTitle": "Vérifiez votre email",
     "verifyEmailBody1": "Un lien de confirmation a été envoyé à",
-    "verifyEmailBody2": "Cliquez sur le lien pour activer votre compte."
+    "verifyEmailBody2": "Cliquez sur le lien pour activer votre compte.",
+    "emailConfirmed": "Votre adresse e-mail est confirmée. Connectez-vous pour ouvrir votre espace.",
+    "linkExpired": "Ce lien a expiré ou a déjà servi. Refaites une demande pour en recevoir un nouveau."
   },
   "landing": {
     "nav": {
