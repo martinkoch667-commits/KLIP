@@ -1,4 +1,4 @@
-/* lib/email.ts — envoi d'e-mails via Resend (REST API).
+/* lib/email.ts : envoi d'e-mails via Resend (REST API).
    Inactif tant que RESEND_API_KEY n'est pas défini (mode "prêt à brancher"). */
 
 import crypto from "node:crypto";
@@ -65,7 +65,7 @@ export async function sendEmail(
 ): Promise<boolean> {
   const key = process.env.RESEND_API_KEY;
   if (!key) {
-    console.log("[email] RESEND_API_KEY absent — e-mail ignoré:", subject, "→", to);
+    console.log("[email] RESEND_API_KEY absent, e-mail ignoré:", subject, "→", to);
     return false;
   }
   // Le lien de désinscription dépend du destinataire : les gabarits posent un
@@ -111,17 +111,17 @@ export async function sendEmail(
 
 /* ── Vocabulaire visuel de la DA landing v3 ───────────────────────────────────
    Les webfonts (Archivo, Oaks via Typekit) ne se chargent pas dans Gmail : les
-   piles se replient sur Helvetica et Georgia. C'est voulu — le mot accent reste
+   piles se replient sur Helvetica et Georgia. C'est voulu : le mot accent reste
    une serif surlignée en leaf, exactement la règle typo de la landing. */
 const F_DISPLAY = `'Archivo','Helvetica Neue',Helvetica,Arial,sans-serif`;
 const F_OAKS = `'oaks',Georgia,'Times New Roman',serif`;
 const F_SANS = `-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif`;
 
-/** Mot accent en Oaks surligné leaf — la signature typo de la landing v3. */
+/** Mot accent en Oaks surligné leaf, la signature typo de la landing v3. */
 export const hl = (word: string) =>
   `<span style="font-family:${F_OAKS};font-weight:700;font-style:normal;background:#BDF2A0;color:#1E3317;border-radius:12px;padding:.04em .22em .12em;white-space:nowrap;">${word}</span>`;
 
-/** Ruban leaf — reprise du bandeau défilant de la landing (figé, forcément). */
+/** Ruban leaf, reprise du bandeau défilant de la landing (figé, forcément). */
 const RIBBON = `
   <div style="background:#BDF2A0;color:#1E3317;padding:10px 12px;text-align:center;white-space:nowrap;overflow:hidden;">
     <span style="font-family:${F_DISPLAY};font-size:11px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;">Créer</span>
@@ -168,7 +168,7 @@ function shell(title: string, bodyHtml: string, cta?: { label: string; href: str
           ${cta ? `<div style="margin-top:28px;"><a href="${cta.href}" style="display:inline-block;background:#BDF2A0;color:#1E3317;font-family:${F_DISPLAY};font-weight:800;font-size:15px;text-decoration:none;padding:15px 28px;border-radius:999px;">${cta.label} &nbsp;&#8599;</a></div>` : ""}
         </div>
         <div style="padding:18px 34px;border-top:1px solid rgba(13,15,10,.08);font-size:12.5px;color:#8B8E7F;">
-          KLIP — l'outil tout-en-un pour gérer l'Instagram de tous vos clients.
+          KLIP, l'outil tout-en-un pour gérer l'Instagram de tous vos clients.
         </div>
       </div>
       <!-- Footer -->
@@ -237,24 +237,24 @@ type Mail = { subject: string; html: string; text?: string };
    L'allure d'un mail écrit à la main, pas d'une newsletter. Le fond reste blanc,
    sans carte ni bandeau, et la seule image est le logo posé dans la signature,
    là où on l'attend dans un vrai mail. Ce qui envoie un message en Promotions,
-   c'est le bandeau pleine largeur, le fond coloré et le gros bouton rond — pas
+   c'est le bandeau pleine largeur, le fond coloré et le gros bouton rond, et non
    une signature ni un lien mis en valeur.
 
    Le sondage est le seul lien du corps : ni renvoi vers la home, ni pied de page
    de désinscription. C'est un choix explicite de Martin, pour que le message
-   passe pour un mail personnel — il n'y a donc AUCUN mécanisme de désabonnement
+   passe pour un mail personnel : il n'y a donc AUCUN mécanisme de désabonnement
    sur les modèles rendus ici, ni lien ni en-tête `List-Unsubscribe`, et les
    destinataires n'ont que la réponse au mail pour se retirer. Les gabarits
    `plain` et `shell` gardent, eux, leur lien de désinscription.
 
-   Le bouton est volontairement discret — angles à 8px, pas de relief, pas de
+   Le bouton est volontairement discret : angles à 8px, pas de relief, pas de
    pleine largeur. Le grossir, c'est reprendre le risque de l'onglet Promotions. */
 function letter(bodyHtml: string): string {
   return `<div style="font-family:-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:15.5px;line-height:1.65;color:#1F1F1F;max-width:600px;">
 ${bodyHtml}
       <p style="margin:26px 0 0;">
         <img src="${APP_URL}/logo-klip-dark.png" alt="Klip" height="20" style="height:20px;width:auto;border:0;vertical-align:middle;" />
-        <span style="font-size:13px;color:#777777;vertical-align:middle;padding-left:9px;">Martin — je construis Klip</span>
+        <span style="font-size:13px;color:#777777;vertical-align:middle;padding-left:9px;">Martin, je construis Klip</span>
       </p>
 </div>`;
 }
@@ -267,10 +267,10 @@ const softButton = (label: string, href: string) =>
 /* ── Modèles ─────────────────────────────────────────────────────────────── */
 export const emails = {
   welcome: () => ({
-    subject: "Bienvenue sur KLIP — votre essai a démarré",
+    subject: "Bienvenue sur KLIP : votre essai a démarré",
     html: shell(
       "Bienvenue 👋",
-      `Votre espace KLIP est prêt et votre <strong>essai gratuit de 7 jours</strong> vient de démarrer. Importez vos visuels, générez vos légendes par IA et planifiez vos publications — pour tous vos clients, au même endroit.`,
+      `Votre espace KLIP est prêt et votre <strong>essai gratuit de 7 jours</strong> vient de démarrer. Importez vos visuels, générez vos légendes par IA et planifiez vos publications, pour tous vos clients, au même endroit.`,
       { label: "Ouvrir mon tableau de bord", href: `${APP_URL}/dashboard` }
     ),
   }),
@@ -278,7 +278,7 @@ export const emails = {
     subject: `Il vous reste ${daysLeft} jour${daysLeft > 1 ? "s" : ""} d'essai sur KLIP`,
     html: shell(
       `Plus que ${daysLeft} jour${daysLeft > 1 ? "s" : ""} d'essai`,
-      `Votre essai gratuit se termine bientôt. Pour continuer à gérer vos clients sans interruption, choisissez une offre — sans engagement, résiliable à tout moment.`,
+      `Votre essai gratuit se termine bientôt. Pour continuer à gérer vos clients sans interruption, choisissez une offre, sans engagement et résiliable à tout moment.`,
       { label: "Choisir mon offre", href: `${APP_URL}/abonnement` }
     ),
   }),
@@ -328,7 +328,7 @@ export const emails = {
   }),
   /* ── Séquence pré-ouverture (1 mail / semaine, voir `sequence` plus bas) ──── */
 
-  // S1 — Prise de contact. Objectif unique : faire remplir le sondage.
+  // S1. Prise de contact. Objectif unique : faire remplir le sondage.
   // Rendu en texte nu (`letter`) : ce mail se présente comme écrit à la main, il
   // doit en avoir l'air. Habillé, il partait dans l'onglet Promotions de Gmail.
   nurture1: (): Mail => {
@@ -371,7 +371,7 @@ Martin`,
     };
   },
 
-  // S2 — Valeur pure. Zéro vente, zéro produit. On donne, c'est tout.
+  // S2. Valeur pure. Zéro vente, zéro produit. On donne, c'est tout.
   nurture2: () => ({
     subject: "Le problème n'est jamais la création",
     html: plain(
@@ -393,7 +393,7 @@ Martin`,
     ),
   }),
 
-  // S3 — Le produit + l'annonce de la date. Gabarit marque, plus léché.
+  // S3. Le produit + l'annonce de la date. Gabarit marque, plus léché.
   nurture3: () => ({
     subject: "L'intérieur de Klip (et la date d'ouverture)",
     html: shell(
@@ -414,7 +414,7 @@ Martin`,
     ),
   }),
 
-  // S4 — Ouverture.
+  // S4. Ouverture.
   nurture4: () => ({
     subject: "C'est ouvert, votre accès anticipé est prêt 🚀",
     html: shell(
@@ -432,7 +432,7 @@ Martin`,
     ),
   }),
 
-  // S4 + 3 jours — relance courte pour ceux qui n'ont pas encore créé leur compte.
+  // S4 + 3 jours : relance courte pour ceux qui n'ont pas encore créé leur compte.
   nurture5: () => ({
     subject: "Je vous garde votre place jusqu'à dimanche",
     html: plain(
@@ -446,12 +446,12 @@ Martin`,
     ),
   }),
 
-  /* S3 + 7 jours — le compte à rebours. Écrit après coup et glissé ENTRE les
+  /* S3 + 7 jours : le compte à rebours. Écrit après coup et glissé ENTRE les
      mails 3 et 4, d'où son numéro 6 : renuméroter aurait fait mentir les
      `last_campaign` déjà en base et cassé `skipSent` sur les envois passés.
 
      Gabarit `plain` et non `letter` : ce mail précède immédiatement celui de
-     l'ouverture, donc sa place dans la boîte principale compte plus que tout —
+     l'ouverture, donc sa place dans la boîte principale compte plus que tout,
      mais `letter` n'a aucun lien de désinscription (choix assumé pour le mail 1
      seulement, voir son en-tête), et l'exception ne doit pas s'étendre à un
      nouveau publipostage. `plain` garde l'allure manuscrite ET le lien.
@@ -513,7 +513,7 @@ Martin
 PS. Si on n'a pas encore échangé, répondez à ce mail : ce que vous gérez aujourd'hui, et ce qui vous prend le plus de temps dans une semaine. Ça décide de ce que je vous montre en premier le jour de l'ouverture.`,
   }),
 
-  // Notification interne — un utilisateur vient de signaler un bug ou une idée.
+  // Notification interne : un utilisateur vient de signaler un bug ou une idée.
   bugReport: (r: { kind: string; message: string; email?: string | null; pageUrl?: string | null }) => {
     const label = r.kind === 'idee' ? 'Idée' : r.kind === 'autre' ? 'Message' : 'Bug';
     const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
@@ -524,7 +524,7 @@ PS. Si on n'a pas encore échangé, répondez à ce mail : ce que vous gérez au
         `<span style="display:block;background:#F1F2F5;border-radius:12px;padding:14px 16px;white-space:pre-wrap;color:#14160F;">${esc(r.message)}</span>
          <br/>
          <strong>De&nbsp;:</strong> ${r.email ? esc(r.email) : 'utilisateur non connecté'}<br/>
-         <strong>Page&nbsp;:</strong> ${r.pageUrl ? esc(r.pageUrl) : '—'}`,
+         <strong>Page&nbsp;:</strong> ${r.pageUrl ? esc(r.pageUrl) : 'non précisée'}`,
       ),
     };
   },
@@ -545,14 +545,14 @@ PS. Si on n'a pas encore échangé, répondez à ce mail : ce que vous gérez au
 
    La liste est dans l'ordre d'ENVOI, pas dans l'ordre des numéros : le mail 6 a
    été écrit après les autres et s'intercale entre le 3 et le 4. Les numéros sont
-   figés une fois un mail parti — `waitlist.last_campaign` les garde en base, et
+   figés une fois un mail parti : `waitlist.last_campaign` les garde en base, et
    `skipSent` s'y fie pour ne pas réexpédier. On ajoute, on ne renumérote pas. */
 export const sequence: { n: number; when: string; goal: string; tpl: () => Mail }[] = [
-  { n: 1, when: "S1 — maintenant",        goal: "Se présenter et faire remplir le sondage", tpl: emails.nurture1 },
-  { n: 2, when: "S2 — +7 jours",          goal: "Donner de la valeur, sans rien vendre",    tpl: emails.nurture2 },
-  { n: 3, when: "S3 — +14 jours",         goal: "Montrer le produit et annoncer la date",   tpl: emails.nurture3 },
-  { n: 6, when: "S3 + 7 jours — J-3/J-5", goal: "Annoncer l'avant-première, et poser l'accompagnement comme optionnel", tpl: emails.nurture6 },
-  { n: 4, when: "S4 — jour d'ouverture",  goal: "Faire créer le compte",                    tpl: emails.nurture4 },
+  { n: 1, when: "S1, maintenant",        goal: "Se présenter et faire remplir le sondage", tpl: emails.nurture1 },
+  { n: 2, when: "S2, +7 jours",          goal: "Donner de la valeur, sans rien vendre",    tpl: emails.nurture2 },
+  { n: 3, when: "S3, +14 jours",         goal: "Montrer le produit et annoncer la date",   tpl: emails.nurture3 },
+  { n: 6, when: "S3 + 7 jours, J-3/J-5", goal: "Annoncer l'avant-première, et poser l'accompagnement comme optionnel", tpl: emails.nurture6 },
+  { n: 4, when: "S4, jour d'ouverture",  goal: "Faire créer le compte",                    tpl: emails.nurture4 },
   { n: 5, when: "S4 + 3 jours",           goal: "Relancer ceux qui n'ont pas activé",       tpl: emails.nurture5 },
 ] as const;
 
