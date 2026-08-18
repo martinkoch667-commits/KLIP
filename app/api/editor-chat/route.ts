@@ -106,26 +106,39 @@ export async function POST(request: NextRequest) {
       `CONSIGNE : ${instruction}`,
     ].filter(Boolean).join('\n');
 
+    // Comprendre « ça claque pas » ou « c'est mal équilibré » et le traduire en
+    // décisions de design EST un travail de jugement : il faut regarder le rendu,
+    // le comparer à la charte, et décider. D'où le modèle de jugement en premier.
+    const ask = (quality: 'high' | 'fast') => generateAiText({
+      userId: session.user.id,
+      system: SYSTEM,
+      userText,
+      images: image ? [image] : undefined,
+      priorTurns: history.map((h) => ({ role: h.role, text: h.text })),
+      quality,
+      temperature: 0.3,
+      maxTokens: quality === 'high' ? 4000 : 2200,
+    });
+
     let raw: string;
     try {
-      raw = await generateAiText({
-        userId: session.user.id,
-        system: SYSTEM,
-        userText,
-        images: image ? [image] : undefined,
-        priorTurns: history.map((h) => ({ role: h.role, text: h.text })),
-        // Comprendre « ça claque pas » ou « c'est mal équilibré » et le traduire en
-        // décisions de design EST un travail de jugement : il faut regarder le
-        // rendu, le comparer à la charte, et décider. Le modèle rapide répondait
-        // ici avec la réflexion coupée — d'où un assistant qui semblait ne pas
-        // écouter : il exécutait le mot, jamais l'intention.
-        quality: 'high',
-        temperature: 0.3,
-        maxTokens: 4000,
-      });
+      raw = await ask('high');
     } catch (err) {
-      console.error('[editor-chat] erreur fournisseur IA :', err);
-      return NextResponse.json({ error: 'Assistant indisponible pour le moment' }, { status: 502 });
+      // La qualité ne doit jamais coûter la RÉPONSE. Sans ce repli, une
+      // indisponibilité du modèle de jugement rendait l'assistant muet —
+      // « Assistant indisponible » — alors que le modèle rapide répond très bien
+      // aux consignes explicites (« centre tout », « titre en jaune »).
+      console.warn('[editor-chat] modèle de jugement indisponible, repli rapide :', err);
+      try {
+        raw = await ask('fast');
+      } catch (err2) {
+        console.error('[editor-chat] erreur fournisseur IA :', err2);
+        // « Indisponible » n'apprend rien à personne et oblige à rediagnostiquer à
+        // l'aveugle. On remonte la cause réelle, courte, telle que le fournisseur
+        // la donne : c'est ce qui a permis de trouver le vrai défaut la dernière fois.
+        const why = err2 instanceof Error ? err2.message.slice(0, 140) : '';
+        return NextResponse.json({ error: why ? `Assistant indisponible — ${why}` : 'Assistant indisponible pour le moment' }, { status: 502 });
+      }
     }
 
     let parsed: { reply?: unknown; actions?: unknown } = {};
