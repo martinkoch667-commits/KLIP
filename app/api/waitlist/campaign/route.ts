@@ -49,7 +49,7 @@ async function handle(request: NextRequest) {
   // 1) Envoi de test à une seule adresse.
   const testTo = url.searchParams.get('test');
   if (testTo) {
-    const ok = await sendEmail(testTo, tpl.subject, tpl.html, tpl.text);
+    const ok = await sendEmail(testTo, tpl.subject, tpl.html, tpl.text, { listUnsubscribe: true });
     return NextResponse.json({ mode: 'test', n: step.n, objet: tpl.subject, to: testTo, sent: ok });
   }
 
@@ -86,7 +86,7 @@ async function handle(request: NextRequest) {
   // 3) Envoi réel.
   let sent = 0, failed = 0;
   for (const to of targets) {
-    const ok = await sendEmail(to, tpl.subject, tpl.html, tpl.text);
+    const ok = await sendEmail(to, tpl.subject, tpl.html, tpl.text, { listUnsubscribe: true });
     if (ok) {
       sent++;
       await db.from('waitlist')

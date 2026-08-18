@@ -21,19 +21,22 @@ const page = (title: string, body: string) => `<!doctype html>
 const html = (body: string, status = 200) =>
   new NextResponse(body, { status, headers: { 'Content-Type': 'text/html; charset=utf-8' } });
 
-// Désinscription en un clic depuis le pied de page des emails (obligation RGPD).
+type Outcome =
+  | { ok: true; email: string }
+  | { ok: false; status: 400 | 500; title: string; detail: string };
+
 // Le jeton est un HMAC de l'email : impossible de désinscrire quelqu'un d'autre.
-export async function GET(request: NextRequest) {
+async function unsubscribe(request: NextRequest): Promise<Outcome> {
   const url = new URL(request.url);
   const email = (url.searchParams.get('e') || '').trim().toLowerCase();
   const token = url.searchParams.get('t') || '';
 
   if (!verifyUnsubToken(email, token)) {
-    return html(page('Lien invalide', "Ce lien de désinscription n'est pas valide ou a expiré. Répondez simplement à l'email et je vous retire de la liste à la main."), 400);
+    return { ok: false, status: 400, title: 'Lien invalide', detail: "Ce lien de désinscription n'est pas valide ou a expiré. Répondez simplement à l'email et je vous retire de la liste à la main." };
   }
 
   if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
-    return html(page('Service indisponible', 'Réessayez dans un instant.'), 500);
+    return { ok: false, status: 500, title: 'Service indisponible', detail: 'Réessayez dans un instant.' };
   }
 
   const db = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
@@ -44,11 +47,31 @@ export async function GET(request: NextRequest) {
 
   if (error) {
     console.error('[unsubscribe]', error.message);
-    return html(page('Oups', "La désinscription n'a pas pu être enregistrée. Répondez à l'email et je m'en occupe."), 500);
+    return { ok: false, status: 500, title: 'Oups', detail: "La désinscription n'a pas pu être enregistrée. Répondez à l'email et je m'en occupe." };
   }
 
+  return { ok: true, email };
+}
+
+// Désinscription en un clic depuis le pied de page des emails (obligation RGPD).
+export async function GET(request: NextRequest) {
+  const out = await unsubscribe(request);
+  if (!out.ok) return html(page(out.title, out.detail), out.status);
   return html(page(
     'C\'est fait',
-    `<strong>${email}</strong> ne recevra plus d'emails de Klip. Aucune action supplémentaire de votre part.<br/><br/>Merci d'avoir donné sa chance au projet — et bonne continuation.`,
+    `<strong>${out.email}</strong> ne recevra plus d'emails de Klip. Aucune action supplémentaire de votre part.<br/><br/>Merci d'avoir donné sa chance au projet — et bonne continuation.`,
   ));
+}
+
+/* Désinscription en un clic depuis le client de messagerie (RFC 8058). Quand un
+   mail porte `List-Unsubscribe-Post: List-Unsubscribe=One-Click`, Gmail appelle
+   cette URL en POST, sans ouvrir de navigateur et sans rien demander à
+   l'utilisateur. Il attend un 2xx ; une page HTML ne l'intéresse pas, et un 405
+   lui ferait considérer la désinscription comme cassée. */
+export async function POST(request: NextRequest) {
+  const out = await unsubscribe(request);
+  return new NextResponse(out.ok ? 'OK' : out.title, {
+    status: out.ok ? 200 : out.status,
+    headers: { 'Content-Type': 'text/plain; charset=utf-8' },
+  });
 }
