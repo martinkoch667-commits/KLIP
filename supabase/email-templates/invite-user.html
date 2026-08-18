@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<meta name="color-scheme" content="light only" />
+<meta name="supported-color-schemes" content="light only" />
+<title>Vous êtes invité sur KLIP</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Archivo:wght@700;800&display=swap');
+  /* Mêmes ruptures que les écrans /register et /login. */
+  @media only screen and (max-width:480px){
+    .kl-card{border-radius:14px !important;}
+    .kl-hero{padding:26px 22px 28px !important;}
+    .kl-body{padding:24px 22px 26px !important;}
+    .kl-title{font-size:23px !important;}
+    .kl-btn a{padding:15px 20px !important;}
+  }
+</style>
+</head>
+<body style="margin:0;padding:0;background:#F3F4F7;">
+
+<!-- Pré-en-tête : la ligne d'aperçu dans la liste Gmail. Masquée dans le corps ;
+     les caractères invisibles repoussent le texte du gabarit hors de l'aperçu. -->
+<div style="display:none;max-height:0;overflow:hidden;opacity:0;color:transparent;height:0;width:0;">
+  Votre accès à KLIP vous attend.
+  &#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;
+</div>
+
+<!-- Ossature en table : Outlook ignore le fond posé sur un <div>. -->
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#F3F4F7;">
+<tr><td align="center" style="padding:44px 16px;font-family:-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
+
+  <table role="presentation" width="460" cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width:460px;">
+
+    <!-- Icône de l'app, centrée, 48px (et non le logo écrit) -->
+    <tr><td align="center" style="padding:0 0 30px;">
+      <img src="https://getklip.fr/icon-192.png" alt="KLIP" width="48" height="48" style="width:48px;height:48px;display:block;border:0;border-radius:12px;" />
+    </td></tr>
+
+    <tr><td class="kl-card" style="background:#ffffff;border-radius:16px;overflow:hidden;">
+
+      <!-- Panneau forest : le bandeau d'accueil du tableau de bord.
+           Le dégradé radial du produit n'existe pas en e-mail (Gmail et Outlook
+           ignorent les gradients CSS) : on garde l'aplat forest, qui porte déjà
+           l'identité à lui seul. -->
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#0C2A1D" style="background:#0C2A1D;">
+      <tr><td class="kl-hero" style="padding:32px 34px 34px;">
+
+        <p style="margin:0 0 12px;font-family:'Archivo','Helvetica Neue',Helvetica,Arial,sans-serif;font-size:11px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:#BDF2A0;">
+          Invitation
+        </p>
+
+        <h1 class="kl-title" style="margin:0 0 12px;font-family:'Archivo','Helvetica Neue',Helvetica,Arial,sans-serif;font-size:27px;font-weight:800;line-height:1.18;letter-spacing:-.02em;color:#EEEDE3;">
+          Votre accès vous <span style="font-family:'oaks',Georgia,'Times New Roman',serif;font-weight:700;font-style:normal;letter-spacing:-.01em;background:#BDF2A0;color:#1E3317;border-radius:14px;padding:.02em .2em .11em;white-space:nowrap;">attend.</span>
+        </h1>
+
+        <p style="margin:0 0 26px;font-size:14.5px;line-height:1.65;color:rgba(238,237,227,.66);">
+          Vous avez été invité à rejoindre KLIP, l'outil qui réunit la création, la validation client et la publication Instagram de tous vos comptes. Créez votre compte, <strong style="color:#EEEDE3;font-weight:600;">ça prend une minute</strong>.
+        </p>
+
+        <!-- Bouton leaf, comme le CTA du hero de la landing. En table : Outlook
+             mange le padding d'un <a>, le bouton se réduirait à son texte. -->
+        <table role="presentation" class="kl-btn" cellpadding="0" cellspacing="0" border="0">
+        <tr><td align="center" bgcolor="#BDF2A0" style="border-radius:10px;">
+          <a href="{{ .ConfirmationURL }}" style="display:block;padding:15px 26px;font-family:'Archivo','Helvetica Neue',Helvetica,Arial,sans-serif;font-size:14px;font-weight:800;letter-spacing:.02em;color:#1E3317;text-decoration:none;">Accepter l'invitation</a>
+        </td></tr>
+        </table>
+
+      </td></tr>
+      </table>
+
+      <!-- Corps clair -->
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+      <tr><td class="kl-body" style="padding:26px 34px 28px;">
+        <p style="margin:0 0 12px;font-size:12.5px;line-height:1.65;color:rgba(20,22,15,.5);">
+          Le bouton ne fonctionne pas ? Copiez ce lien :<br />
+          <a href="{{ .ConfirmationURL }}" style="color:#21B381;text-decoration:none;word-break:break-all;">{{ .ConfirmationURL }}</a>
+        </p>
+        <p style="margin:0;font-size:12.5px;line-height:1.65;color:rgba(20,22,15,.5);">
+          Invitation envoyée à {{ .Email }}. Lien valable 24&nbsp;heures, utilisable une seule fois. Si elle ne vous concerne pas, ignorez ce message.
+        </p>
+      </td></tr>
+      </table>
+
+    </td></tr>
+
+    <!-- Footer -->
+    <tr><td align="center" style="padding:24px 8px 0;font-size:12px;line-height:1.7;color:rgba(20,22,15,.42);">
+      KLIP, l'outil tout-en-un pour gérer l'Instagram de tous vos clients.<br />
+      <a href="https://getklip.fr" style="color:#21B381;text-decoration:none;">getklip.fr</a>
+    </td></tr>
+
+  </table>
+
+</td></tr>
+</table>
+</body>
+</html>
