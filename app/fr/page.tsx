@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import LandingView from "../landing-v3";
 import { I18nProvider } from "@/lib/i18n/I18nProvider";
 import { getMessages } from "@/lib/i18n/messages";
+import { launchSeatsLeft } from "@/lib/launch-seats";
 
 const SITE = "https://getklip.fr";
 
@@ -99,7 +100,10 @@ const faqLd = {
 // proche l'emporte sur celui du layout racine), indépendamment du cookie de
 // langue. La variante française en liste d'attente vit sur /acces-anticipe ;
 // l'accueil racine « / » reste en anglais pour l'audience internationale.
-export default function Page() {
+export default async function Page() {
+  // Places de lancement restantes : la landing doit afficher le même état que
+  // la caisse, sinon elle annoncerait une remise que le paiement n'accorde pas.
+  const seatsLeft = await launchSeatsLeft();
   return (
     <>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationLd) }} />
@@ -107,7 +111,7 @@ export default function Page() {
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(softwareLd) }} />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(faqLd) }} />
       <I18nProvider locale="fr" messages={getMessages("fr")}>
-        <LandingView />
+        <LandingView seatsLeft={seatsLeft} />
       </I18nProvider>
     </>
   );

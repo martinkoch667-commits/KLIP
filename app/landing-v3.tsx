@@ -1313,12 +1313,15 @@ async function startCheckout(plan: 'studio' | 'agence', period: 'monthly' | 'yea
 }
 
 /* ─── Pricing ────────────────────────────────────────────────────────────── */
-function Pricing({ prelaunch = false }: { prelaunch?: boolean }) {
+function Pricing({ prelaunch = false, seatsLeft = null }: { prelaunch?: boolean; seatsLeft?: number | null }) {
   const tp = useTranslations('landing.pricing');
   const locale = useLocale();
   const [period, setPeriod] = useState<'monthly' | 'yearly'>('monthly');
   const [busy, setBusy] = useState<string | null>(null);
-  const launched = launchApplies(period);
+  // Les places restantes viennent du serveur (coupon Stripe). `null` = compte
+  // inconnu : on laisse l'offre ouverte, la caisse appliquera la remise.
+  const seatsOpen = seatsLeft === null || seatsLeft > 0;
+  const launched = launchApplies(period) && seatsOpen;
   const tiers = [
     { name: 'Studio', plan: 'studio' as const, monthly: 35, yearly: 29, tag: tp('studioTag'), clients: tp('studioClients'), feats: [tp('studioF1'), tp('studioF2'), tp('studioF3'), tp('studioF4'), tp('studioF5')], pop: false },
     { name: 'Agence', plan: 'agence' as const, monthly: 96, yearly: 80, tag: tp('agencyTag'), clients: tp('agencyClients'), feats: [tp('agencyF1'), tp('agencyF2'), tp('agencyF3'), tp('agencyF4'), tp('agencyF5')], pop: true },
@@ -1556,7 +1559,7 @@ function Footer() {
 }
 
 /* ─── Page ───────────────────────────────────────────────────────────────── */
-export default function LandingV3({ prelaunch = false }: { prelaunch?: boolean }) {
+export default function LandingV3({ prelaunch = false, seatsLeft = null }: { prelaunch?: boolean; seatsLeft?: number | null }) {
   const supabase = createClientComponentClient();
   const router = useRouter();
 
@@ -1751,7 +1754,7 @@ export default function LandingV3({ prelaunch = false }: { prelaunch?: boolean }
       <DeckShowcase />
       <Features />
       <Testimonials />
-      <Pricing prelaunch={prelaunch} />
+      <Pricing prelaunch={prelaunch} seatsLeft={seatsLeft} />
       <FAQ />
       <AskAI />
       <FinalCTA prelaunch={prelaunch} />

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import LandingView from "./landing-v3";
 import { getMessages } from "@/lib/i18n/messages";
+import { launchSeatsLeft } from "@/lib/launch-seats";
 
 export const metadata: Metadata = {
   title: "Klip — L'outil tout-en-un pour agences qui gèrent plusieurs clients Instagram",
@@ -101,14 +102,17 @@ const faqLd = {
 // klip-locale, français à défaut) : plus de provider forcé en anglais ici — le
 // sélecteur de langue fonctionne donc aussi sur l'accueil. La version en mode
 // liste d'attente vit toujours sur /acces-anticipe.
-export default function Page() {
+export default async function Page() {
+  // Places de lancement restantes : la landing doit afficher le même état que
+  // la caisse, sinon elle annoncerait une remise que le paiement n'accorde pas.
+  const seatsLeft = await launchSeatsLeft();
   return (
     <>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationLd) }} />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(websiteLd) }} />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(softwareLd) }} />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(faqLd) }} />
-      <LandingView />
+      <LandingView seatsLeft={seatsLeft} />
     </>
   );
 }

@@ -5,6 +5,7 @@ import { createClient } from "@supabase/supabase-js";
 import { cookies } from "next/headers";
 import { stripe, priceId, APP_URL, type Plan, type Period } from "@/lib/stripe";
 import { launchApplies } from "@/lib/launch-offer";
+import { launchSeatsOpen, forgetLaunchSeats } from "@/lib/launch-seats";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -69,8 +70,11 @@ export async function POST(req: NextRequest) {
   // l'offre court sur cette période. Sans STRIPE_LAUNCH_COUPON en env, rien
   // n'est appliqué : on préviendra dans les logs plutôt que de débiter le plein
   // tarif après avoir affiché un prix barré.
-  const launchCoupon = launchApplies(period) ? process.env.STRIPE_LAUNCH_COUPON?.trim() : undefined;
-  if (launchApplies(period) && !launchCoupon) {
+  // Les places restantes se lisent au même endroit que sur la landing (compteur
+  // partagé, cache de 60 s) : ce que le visiteur a vu est ce qu'il paiera.
+  const launchOn = launchApplies(period) && (await launchSeatsOpen());
+  const launchCoupon = launchOn ? process.env.STRIPE_LAUNCH_COUPON?.trim() : undefined;
+  if (launchOn && !launchCoupon) {
     console.warn("[checkout] LAUNCH_OFFER active mais STRIPE_LAUNCH_COUPON absent : le prix barré de la landing ne sera PAS appliqué.");
   }
 
@@ -96,6 +100,7 @@ export async function POST(req: NextRequest) {
       success_url: `${APP_URL}/checkout-success`,
       cancel_url: `${APP_URL}/#tarifs`,
     });
+    if (launchCoupon) forgetLaunchSeats(); // la place vient d'être prise
     return NextResponse.json({ url: checkout.url });
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
