@@ -400,6 +400,72 @@ Martin`,
     ),
   }),
 
+  /* S3 + 7 jours — le compte à rebours. Écrit après coup et glissé ENTRE les
+     mails 3 et 4, d'où son numéro 6 : renuméroter aurait fait mentir les
+     `last_campaign` déjà en base et cassé `skipSent` sur les envois passés.
+
+     Gabarit `plain` et non `letter` : ce mail précède immédiatement celui de
+     l'ouverture, donc sa place dans la boîte principale compte plus que tout —
+     mais `letter` n'a aucun lien de désinscription (choix assumé pour le mail 1
+     seulement, voir son en-tête), et l'exception ne doit pas s'étendre à un
+     nouveau publipostage. `plain` garde l'allure manuscrite ET le lien.
+
+     Aucun bouton : à ce stade il n'y a rien à ouvrir, l'inscription n'existe
+     pas encore. Un gros CTA vers une page déjà connue coûterait de la
+     délivrabilité pour un clic sans destination. */
+  nurture6: (): Mail => {
+    const survey = `${APP_URL}/sondage?e={{EMAIL_ENC}}`;
+    return {
+      subject: "C'est pour dans quelques jours",
+      html: plain(
+        `<p style="margin:0 0 16px;">Salut,</p>
+         <p style="margin:0 0 16px;">Mot rapide, parce que ça y est : <strong>Klip ouvre en avant-première dans quelques jours</strong>, et vous êtes dedans.</p>
+         <p style="margin:0 0 16px;">Comment ça va se passer : vous recevrez un mail avec votre lien d'accès. Vous créez votre compte avec l'adresse qui reçoit ce message, et vos avantages s'appliquent tout seuls — <strong>tarif fondateur bloqué à vie</strong>, <strong>onboarding en visio avec moi, offert</strong>, et sept jours d'essai avant le moindre paiement.</p>
+         <p style="margin:0 0 16px;">Vous n'avez rien à faire d'ici là. Mais si vous voulez être opérationnel le premier jour plutôt que le troisième, trois minutes de préparation suffisent :</p>
+         <p style="margin:0 0 14px;"><strong>1. Choisissez vos deux ou trois premiers clients.</strong><br/>
+         Pas douze. On démarre mieux sur un petit périmètre, et vous ajoutez le reste une fois la mécanique en main.</p>
+         <p style="margin:0 0 14px;"><strong>2. Ayez le lien de leur site sous la main.</strong><br/>
+         Klip y récupère tout seul le logo, les couleurs et les polices pour monter leur charte. C'est ce qui fait gagner le plus de temps au démarrage.</p>
+         <p style="margin:0 0 16px;"><strong>3. Vérifiez que leurs comptes Instagram sont en professionnel.</strong><br/>
+         Pro ou créateur, ça se change en deux clics dans les réglages Instagram. C'est ce qui autorise la publication directe depuis Klip : un compte perso ne peut pas publier via l'API, c'est une règle de Meta, pas de Klip.</p>
+         <p style="margin:0 0 16px;">C'est tout. Le prochain mail que vous recevrez de moi sera celui de l'ouverture.</p>
+         <p style="margin:0 0 16px;">Merci d'avoir attendu. On est un petit groupe, et j'ai bien l'intention de vous accompagner un par un.</p>
+         <p style="margin:0 0 16px;">Martin</p>
+         <p style="margin:0;font-size:14.5px;color:#5A5E50;"><em>PS. Si vous n'avez pas encore répondu aux 5 questions, c'est <a href="${survey}" style="color:#14160F;">par ici</a> — deux minutes. Vos réponses décident de ce que je vous montre en premier le jour de l'ouverture.</em></p>`
+      ),
+      text: `Salut,
+
+Mot rapide, parce que ça y est : Klip ouvre en avant-première dans quelques jours, et vous êtes dedans.
+
+Comment ça va se passer : vous recevrez un mail avec votre lien d'accès. Vous créez votre compte avec l'adresse qui reçoit ce message, et vos avantages s'appliquent tout seuls — tarif fondateur bloqué à vie, onboarding en visio avec moi, offert, et sept jours d'essai avant le moindre paiement.
+
+Vous n'avez rien à faire d'ici là. Mais si vous voulez être opérationnel le premier jour plutôt que le troisième, trois minutes de préparation suffisent :
+
+1. Choisissez vos deux ou trois premiers clients.
+Pas douze. On démarre mieux sur un petit périmètre, et vous ajoutez le reste une fois la mécanique en main.
+
+2. Ayez le lien de leur site sous la main.
+Klip y récupère tout seul le logo, les couleurs et les polices pour monter leur charte. C'est ce qui fait gagner le plus de temps au démarrage.
+
+3. Vérifiez que leurs comptes Instagram sont en professionnel.
+Pro ou créateur, ça se change en deux clics dans les réglages Instagram. C'est ce qui autorise la publication directe depuis Klip : un compte perso ne peut pas publier via l'API, c'est une règle de Meta, pas de Klip.
+
+C'est tout. Le prochain mail que vous recevrez de moi sera celui de l'ouverture.
+
+Merci d'avoir attendu. On est un petit groupe, et j'ai bien l'intention de vous accompagner un par un.
+
+Martin
+
+PS. Si vous n'avez pas encore répondu aux 5 questions, c'est par ici — deux minutes : ${survey}
+Vos réponses décident de ce que je vous montre en premier le jour de l'ouverture.
+
+—
+Martin · ${APP_URL}
+Vous recevez ce mail car vous êtes sur la liste d'accès anticipé.
+Me retirer de la liste : {{UNSUB_URL}}`,
+    };
+  },
+
   // Notification interne — un utilisateur vient de signaler un bug ou une idée.
   bugReport: (r: { kind: string; message: string; email?: string | null; pageUrl?: string | null }) => {
     const label = r.kind === 'idee' ? 'Idée' : r.kind === 'autre' ? 'Message' : 'Bug';
@@ -428,11 +494,17 @@ Martin`,
 
 /* ── Séquence pré-ouverture ───────────────────────────────────────────────────
    Un mail par semaine jusqu'à l'ouverture. Envoi via /api/waitlist/campaign?n=X
-   (voir la route pour le mode aperçu / test / envoi réel). */
+   (voir la route pour le mode aperçu / test / envoi réel).
+
+   La liste est dans l'ordre d'ENVOI, pas dans l'ordre des numéros : le mail 6 a
+   été écrit après les autres et s'intercale entre le 3 et le 4. Les numéros sont
+   figés une fois un mail parti — `waitlist.last_campaign` les garde en base, et
+   `skipSent` s'y fie pour ne pas réexpédier. On ajoute, on ne renumérote pas. */
 export const sequence: { n: number; when: string; goal: string; tpl: () => Mail }[] = [
   { n: 1, when: "S1 — maintenant",        goal: "Se présenter et faire remplir le sondage", tpl: emails.nurture1 },
   { n: 2, when: "S2 — +7 jours",          goal: "Donner de la valeur, sans rien vendre",    tpl: emails.nurture2 },
   { n: 3, when: "S3 — +14 jours",         goal: "Montrer le produit et annoncer la date",   tpl: emails.nurture3 },
+  { n: 6, when: "S3 + 7 jours — J-3/J-5", goal: "Annoncer l'avant-première et faire préparer le terrain", tpl: emails.nurture6 },
   { n: 4, when: "S4 — jour d'ouverture",  goal: "Faire créer le compte",                    tpl: emails.nurture4 },
   { n: 5, when: "S4 + 3 jours",           goal: "Relancer ceux qui n'ont pas activé",       tpl: emails.nurture5 },
 ] as const;
