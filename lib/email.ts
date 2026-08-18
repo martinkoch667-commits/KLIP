@@ -161,21 +161,32 @@ function shell(title: string, bodyHtml: string, cta?: { label: string; href: str
 
 /* ── Gabarit « écrit à la main » ───────────────────────────────────────────────
    Pour les mails de contenu : pas de carte, pas de bouton géant, ça ressemble à
-   un vrai message tapé par un humain — c'est ce qui fait répondre les gens. */
-function plain(bodyHtml: string, cta?: { label: string; href: string }, afterCta?: string): string {
+   un vrai message tapé par un humain, c'est ce qui fait répondre les gens.
+
+   `noSiteLinks` coupe TOUS les chemins vers le site : le logo cesse d'être
+   cliquable et le pied de page perd son « getklip.fr ». C'est fait pour les
+   mails d'avant-ouverture, où un clic vers la home mène droit au formulaire
+   d'inscription : autant dire ouvrir les portes à ceux qu'on venait justement
+   de faire patienter. Seule survit la désinscription, qui est due, et qui ne
+   mène nulle part ailleurs que sur sa propre route d'API. */
+function plain(
+  bodyHtml: string,
+  cta?: { label: string; href: string },
+  afterCta?: string,
+  opts?: { noSiteLinks?: boolean },
+): string {
+  const logo = `<img src="${APP_URL}/logo-klip-dark.png" alt="Klip" height="26" style="height:26px;width:auto;border:0;display:block;" />`;
   return `${FONT_LINK}
   <div style="background:#FBFBFC;padding:30px 16px 34px;font-family:${F_SANS};">
     <div style="max-width:520px;margin:0 auto;font-size:16px;line-height:1.72;color:#14160F;">
       <div style="padding-bottom:26px;">
-        <a href="${APP_URL}" style="text-decoration:none;">
-          <img src="${APP_URL}/logo-klip-dark.png" alt="Klip" height="26" style="height:26px;width:auto;border:0;display:block;" />
-        </a>
+        ${opts?.noSiteLinks ? logo : `<a href="${APP_URL}" style="text-decoration:none;">${logo}</a>`}
       </div>
       ${bodyHtml}
       ${cta ? `<div style="margin:28px 0 24px;"><a href="${cta.href}" style="display:inline-block;background:#BDF2A0;color:#1E3317;font-family:${F_DISPLAY};font-weight:800;font-size:15.5px;letter-spacing:-.01em;text-decoration:none;padding:16px 30px;border-radius:999px;box-shadow:0 12px 26px -14px rgba(120,190,90,.9);">${cta.label} &nbsp;&#8599;</a></div>` : ""}
       ${afterCta ?? ""}
       <div style="margin-top:34px;padding-top:18px;border-top:1px solid rgba(13,15,10,.10);font-size:12px;line-height:1.6;color:#8B8E7F;">
-        Martin · <a href="${APP_URL}" style="color:#8B8E7F;">getklip.fr</a><br/>
+        ${opts?.noSiteLinks ? "Martin" : `Martin · <a href="${APP_URL}" style="color:#8B8E7F;">getklip.fr</a>`}<br/>
         Vous recevez ce mail car vous êtes sur la liste d'accès anticipé.
         <a href="{{UNSUB_URL}}" style="color:#8B8E7F;">Me retirer de la liste</a>.
       </div>
@@ -419,27 +430,40 @@ Martin`,
      sans dire qu'on pouvait le refuser, ce qui laissait croire à un passage
      obligé avant de pouvoir se servir de l'outil. Le tutoriel de première
      connexion (`components/OnboardingTour.tsx`) suffit à démarrer seul, et le
-     mail le dit. */
-  nurture6: (): Mail => {
-    const survey = `${APP_URL}/sondage?e={{EMAIL_ENC}}`;
-    return {
-      subject: "C'est pour dans quelques jours",
-      html: plain(
-        `<p style="margin:0 0 16px;">Salut,</p>
-         <p style="margin:0 0 16px;">Mot rapide, parce que ça y est : <strong>Klip ouvre en avant-première dans quelques jours</strong>, et vous êtes dedans.</p>
-         <p style="margin:0 0 16px;">Comment ça va se passer : vous recevrez un mail avec votre lien d'accès. Vous créez votre compte avec l'adresse qui reçoit ce message, et vos avantages s'appliquent tout seuls — <strong>tarif fondateur bloqué à vie</strong>, et sept jours d'essai avant le moindre paiement.</p>
-         <p style="margin:0 0 16px;"><strong>Vous pourrez demander un point en visio avec moi</strong> pour démarrer : on paramètre vos premiers clients ensemble, c'est offert, et c'est là si vous en avez envie.</p>
-         <p style="margin:0 0 16px;"><strong>Mais ce n'est pas obligatoire</strong>, et personne ne vous en tiendra rigueur. Tout est expliqué à l'arrivée : un tutoriel vous prend par la main dès la première connexion et vous fait le tour de l'outil, écran par écran. Si vous préférez avancer seul, vous n'aurez besoin de rien d'autre.</p>
-         <p style="margin:0 0 16px;">Vous n'avez rien à faire d'ici là. Le prochain mail que vous recevrez de moi sera celui de l'ouverture.</p>
-         <p style="margin:0 0 16px;">Merci d'avoir attendu. On est un petit groupe, et ça change tout : vous ne serez jamais un ticket de support parmi mille.</p>
-         <p style="margin:0 0 16px;">Martin</p>
-         <p style="margin:0;font-size:14.5px;color:#5A5E50;"><em>PS. Si vous n'avez pas encore répondu aux 5 questions, c'est <a href="${survey}" style="color:#14160F;">par ici</a> — deux minutes. Vos réponses décident de ce que je vous montre en premier le jour de l'ouverture.</em></p>`
-      ),
-      text: `Salut,
+     mail le dit.
+
+     Aucun lien vers le site, `noSiteLinks` compris : la home mène au
+     formulaire d'inscription, et ce mail part AVANT l'ouverture. Un curieux
+     qui suivrait le logo créerait son compte en avance, hors avant-première
+     et sans ses avantages. Le renvoi vers le sondage tombe pour la même
+     raison ; l'invitation demande maintenant une réponse au mail, ce qui vaut
+     mieux de toute façon : une réponse est le meilleur signal de réputation
+     qu'une boîte puisse envoyer avant un gros envoi.
+
+     Pas un seul tiret de ponctuation dans le texte, à la demande de Martin.
+     Les traits d'union des mots composés restent, eux : « avant-première »
+     sans son trait ne serait plus du français. */
+  nurture6: (): Mail => ({
+    subject: "C'est pour dans quelques jours",
+    html: plain(
+      `<p style="margin:0 0 16px;">Salut,</p>
+       <p style="margin:0 0 16px;">Mot rapide, parce que ça y est : <strong>Klip ouvre en avant-première dans quelques jours</strong>, et vous êtes dedans.</p>
+       <p style="margin:0 0 16px;">Comment ça va se passer : vous recevrez un mail avec votre lien d'accès. Vous créez votre compte avec l'adresse qui reçoit ce message, et vos avantages s'appliquent tout seuls : <strong>tarif fondateur bloqué à vie</strong>, et sept jours d'essai avant le moindre paiement.</p>
+       <p style="margin:0 0 16px;"><strong>Vous pourrez demander un point en visio avec moi</strong> pour démarrer : on paramètre vos premiers clients ensemble, c'est offert, et c'est là si vous en avez envie.</p>
+       <p style="margin:0 0 16px;"><strong>Mais ce n'est pas obligatoire</strong>, et personne ne vous en tiendra rigueur. Tout est expliqué à l'arrivée : un tutoriel vous prend par la main dès la première connexion et vous fait le tour de l'outil, écran par écran. Si vous préférez avancer seul, vous n'aurez besoin de rien d'autre.</p>
+       <p style="margin:0 0 16px;">Vous n'avez rien à faire d'ici là. Le prochain mail que vous recevrez de moi sera celui de l'ouverture.</p>
+       <p style="margin:0 0 16px;">Merci d'avoir patienté.</p>
+       <p style="margin:0 0 16px;">Martin</p>
+       <p style="margin:0;font-size:14.5px;color:#5A5E50;"><em>PS. Si on n'a pas encore échangé, répondez à ce mail : ce que vous gérez aujourd'hui, et ce qui vous prend le plus de temps dans une semaine. Ça décide de ce que je vous montre en premier le jour de l'ouverture.</em></p>`,
+      undefined,
+      undefined,
+      { noSiteLinks: true },
+    ),
+    text: `Salut,
 
 Mot rapide, parce que ça y est : Klip ouvre en avant-première dans quelques jours, et vous êtes dedans.
 
-Comment ça va se passer : vous recevrez un mail avec votre lien d'accès. Vous créez votre compte avec l'adresse qui reçoit ce message, et vos avantages s'appliquent tout seuls — tarif fondateur bloqué à vie, et sept jours d'essai avant le moindre paiement.
+Comment ça va se passer : vous recevrez un mail avec votre lien d'accès. Vous créez votre compte avec l'adresse qui reçoit ce message, et vos avantages s'appliquent tout seuls : tarif fondateur bloqué à vie, et sept jours d'essai avant le moindre paiement.
 
 Vous pourrez demander un point en visio avec moi pour démarrer : on paramètre vos premiers clients ensemble, c'est offert, et c'est là si vous en avez envie.
 
@@ -447,19 +471,16 @@ Mais ce n'est pas obligatoire, et personne ne vous en tiendra rigueur. Tout est 
 
 Vous n'avez rien à faire d'ici là. Le prochain mail que vous recevrez de moi sera celui de l'ouverture.
 
-Merci d'avoir attendu. On est un petit groupe, et ça change tout : vous ne serez jamais un ticket de support parmi mille.
+Merci d'avoir patienté.
 
 Martin
 
-PS. Si vous n'avez pas encore répondu aux 5 questions, c'est par ici — deux minutes : ${survey}
-Vos réponses décident de ce que je vous montre en premier le jour de l'ouverture.
+PS. Si on n'a pas encore échangé, répondez à ce mail : ce que vous gérez aujourd'hui, et ce qui vous prend le plus de temps dans une semaine. Ça décide de ce que je vous montre en premier le jour de l'ouverture.
 
-—
-Martin · ${APP_URL}
+Martin
 Vous recevez ce mail car vous êtes sur la liste d'accès anticipé.
 Me retirer de la liste : {{UNSUB_URL}}`,
-    };
-  },
+  }),
 
   // Notification interne — un utilisateur vient de signaler un bug ou une idée.
   bugReport: (r: { kind: string; message: string; email?: string | null; pageUrl?: string | null }) => {
