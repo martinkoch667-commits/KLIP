@@ -1109,7 +1109,7 @@
     "loading": "Caricamento…"
   },
   "onboardingPlan": {
-    "step1of2": "Passo 1 di 2 — Il tuo account",
+    "step1of2": "Passo 1 di 2 · Il tuo account",
     "title": "Che tipo di account?",
     "subtitle": "Scegli il tuo piano per iniziare. Modificabile in qualsiasi momento.",
     "studioName": "Studio",
@@ -1138,7 +1138,9 @@
     "confirm": "Conferma",
     "errorGeneric": "Si è verificato un errore. Riprova.",
     "errorAgencyName": "Inserisci il nome della tua agenzia.",
-    "hint": "Modificabile dalle impostazioni · Nessuna carta richiesta per iniziare"
+    "hint": "Modificabile dalle impostazioni · Nessuna carta richiesta per iniziare",
+    "titleLead": "Che tipo di",
+    "titleAccent": "account?"
   },
   "workspaceSettings": {
     "back": "Indietro",
@@ -1915,8 +1917,8 @@
     "titleActivate": "Attiva il tuo piano:",
     "titleChoose": "Scegli il tuo piano",
     "titleStart": "per iniziare",
-    "subActivate": "Ti portiamo direttamente al pagamento del piano scelto in fase di registrazione. Prova gratuita di 7 giorni, senza vincoli, annullabile in qualsiasi momento — verrai addebitato solo alla fine della prova.",
-    "subChoose": "Attiva la tua prova gratuita di 7 giorni — senza vincoli, annullabile in qualsiasi momento. Verrai addebitato solo alla fine della prova.",
+    "subActivate": "Ti portiamo direttamente al pagamento del piano scelto in fase di registrazione. Prova gratuita di 7 giorni, senza vincoli, annullabile in qualsiasi momento, verrai addebitato solo alla fine della prova.",
+    "subChoose": "Attiva la tua prova gratuita di 7 giorni, senza vincoli, annullabile in qualsiasi momento. Verrai addebitato solo alla fine della prova.",
     "yourChoice": "La tua scelta",
     "perMonth": "/ mese",
     "redirecting": "Reindirizzamento…",
@@ -1934,7 +1936,10 @@
     "featAgencyClients": "Fino a 12 clienti",
     "featAgencyMembers": "Fino a 5 membri del team",
     "featAgencyWorkflow": "Flusso di approvazione del cliente",
-    "featAgencyRoles": "Ruoli Manager e Creativo"
+    "featAgencyRoles": "Ruoli Manager e Creativo",
+    "titleActivateLead": "Attiva il tuo piano",
+    "titleChooseLead": "Scegli il tuo",
+    "titleChooseAccent": "piano"
   },
   "checkoutSuccess": {
     "activating": "Attivazione del tuo account…"

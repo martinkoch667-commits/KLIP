@@ -1109,7 +1109,7 @@
     "loading": "Loading…"
   },
   "onboardingPlan": {
-    "step1of2": "Step 1 of 2 — Your account",
+    "step1of2": "Step 1 of 2 · Your account",
     "title": "What type of account?",
     "subtitle": "Choose your plan to get started. Changeable at any time.",
     "studioName": "Studio",
@@ -1138,7 +1138,9 @@
     "confirm": "Confirm",
     "errorGeneric": "An error occurred. Please try again.",
     "errorAgencyName": "Please enter your agency name.",
-    "hint": "Changeable in settings · No card required to start"
+    "hint": "Changeable in settings · No card required to start",
+    "titleLead": "What type of",
+    "titleAccent": "account?"
   },
   "workspaceSettings": {
     "back": "Back",
@@ -1915,8 +1917,8 @@
     "titleActivate": "Activate your plan:",
     "titleChoose": "Choose your plan",
     "titleStart": "to get started",
-    "subActivate": "We'll take you straight to payment for the plan chosen at signup. Free 7-day trial, no commitment, cancel anytime — you're only charged at the end of the trial.",
-    "subChoose": "Activate your free 7-day trial — no commitment, cancel anytime. You're only charged at the end of the trial.",
+    "subActivate": "We'll take you straight to payment for the plan chosen at signup. Free 7-day trial, no commitment, cancel anytime, you're only charged at the end of the trial.",
+    "subChoose": "Activate your free 7-day trial, no commitment, cancel anytime. You're only charged at the end of the trial.",
     "yourChoice": "Your choice",
     "perMonth": "/ month",
     "redirecting": "Redirecting…",
@@ -1934,7 +1936,10 @@
     "featAgencyClients": "Up to 12 clients",
     "featAgencyMembers": "Up to 5 team members",
     "featAgencyWorkflow": "Client approval workflow",
-    "featAgencyRoles": "Manager & Creative roles"
+    "featAgencyRoles": "Manager & Creative roles",
+    "titleActivateLead": "Activate your plan",
+    "titleChooseLead": "Choose your",
+    "titleChooseAccent": "plan"
   },
   "checkoutSuccess": {
     "activating": "Activating your account…"

@@ -1109,7 +1109,7 @@
     "loading": "Wird geladen…"
   },
   "onboardingPlan": {
-    "step1of2": "Schritt 1 von 2 — Dein Konto",
+    "step1of2": "Schritt 1 von 2 · Dein Konto",
     "title": "Welcher Kontotyp?",
     "subtitle": "Wähle deinen Plan, um loszulegen. Jederzeit änderbar.",
     "studioName": "Studio",
@@ -1138,7 +1138,9 @@
     "confirm": "Bestätigen",
     "errorGeneric": "Ein Fehler ist aufgetreten. Bitte versuche es erneut.",
     "errorAgencyName": "Bitte gib den Namen deiner Agentur ein.",
-    "hint": "Änderbar in den Einstellungen · Keine Kreditkarte zum Start nötig"
+    "hint": "Änderbar in den Einstellungen · Keine Kreditkarte zum Start nötig",
+    "titleLead": "Welcher",
+    "titleAccent": "Kontotyp?"
   },
   "workspaceSettings": {
     "back": "Zurück",
@@ -1915,8 +1917,8 @@
     "titleActivate": "Aktiviere deinen Plan:",
     "titleChoose": "Wähle deinen Plan",
     "titleStart": "um loszulegen",
-    "subActivate": "Wir bringen dich direkt zur Zahlung des bei der Anmeldung gewählten Plans. Kostenlose 7-tägige Testphase, ohne Vertragsbindung, jederzeit kündbar — du wirst erst am Ende der Testphase belastet.",
-    "subChoose": "Aktiviere deine kostenlose 7-tägige Testphase — ohne Vertragsbindung, jederzeit kündbar. Du wirst erst am Ende der Testphase belastet.",
+    "subActivate": "Wir bringen dich direkt zur Zahlung des bei der Anmeldung gewählten Plans. Kostenlose 7-tägige Testphase, ohne Vertragsbindung, jederzeit kündbar, du wirst erst am Ende der Testphase belastet.",
+    "subChoose": "Aktiviere deine kostenlose 7-tägige Testphase, ohne Vertragsbindung, jederzeit kündbar. Du wirst erst am Ende der Testphase belastet.",
     "yourChoice": "Deine Wahl",
     "perMonth": "/ Monat",
     "redirecting": "Weiterleitung…",
@@ -1934,7 +1936,10 @@
     "featAgencyClients": "Bis zu 12 Kunden",
     "featAgencyMembers": "Bis zu 5 Teammitglieder",
     "featAgencyWorkflow": "Kunden-Freigabe-Workflow",
-    "featAgencyRoles": "Manager- & Kreativ-Rollen"
+    "featAgencyRoles": "Manager- & Kreativ-Rollen",
+    "titleActivateLead": "Aktiviere deinen Plan",
+    "titleChooseLead": "Wähle deinen",
+    "titleChooseAccent": "Plan"
   },
   "checkoutSuccess": {
     "activating": "Dein Konto wird aktiviert…"

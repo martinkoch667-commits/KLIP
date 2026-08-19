@@ -1109,7 +1109,7 @@
     "loading": "Cargando…"
   },
   "onboardingPlan": {
-    "step1of2": "Paso 1 de 2 — Tu cuenta",
+    "step1of2": "Paso 1 de 2 · Tu cuenta",
     "title": "¿Qué tipo de cuenta?",
     "subtitle": "Elige tu plan para empezar. Modificable en cualquier momento.",
     "studioName": "Studio",
@@ -1138,7 +1138,9 @@
     "confirm": "Confirmar",
     "errorGeneric": "Se produjo un error. Inténtalo de nuevo.",
     "errorAgencyName": "Introduce el nombre de tu agencia.",
-    "hint": "Modificable desde los ajustes · No se requiere tarjeta para empezar"
+    "hint": "Modificable desde los ajustes · No se requiere tarjeta para empezar",
+    "titleLead": "¿Qué tipo de",
+    "titleAccent": "cuenta?"
   },
   "workspaceSettings": {
     "back": "Atrás",
@@ -1915,8 +1917,8 @@
     "titleActivate": "Activa tu plan:",
     "titleChoose": "Elige tu plan",
     "titleStart": "para empezar",
-    "subActivate": "Te llevamos directamente al pago del plan elegido al registrarte. Prueba gratuita de 7 días, sin compromiso, cancelable en cualquier momento — solo se te cobra al final de la prueba.",
-    "subChoose": "Activa tu prueba gratuita de 7 días — sin compromiso, cancelable en cualquier momento. Solo se te cobra al final de la prueba.",
+    "subActivate": "Te llevamos directamente al pago del plan elegido al registrarte. Prueba gratuita de 7 días, sin compromiso, cancelable en cualquier momento, solo se te cobra al final de la prueba.",
+    "subChoose": "Activa tu prueba gratuita de 7 días, sin compromiso, cancelable en cualquier momento. Solo se te cobra al final de la prueba.",
     "yourChoice": "Tu elección",
     "perMonth": "/ mes",
     "redirecting": "Redirigiendo…",
@@ -1934,7 +1936,10 @@
     "featAgencyClients": "Hasta 12 clientes",
     "featAgencyMembers": "Hasta 5 miembros del equipo",
     "featAgencyWorkflow": "Flujo de validación del cliente",
-    "featAgencyRoles": "Roles Manager y Creativo"
+    "featAgencyRoles": "Roles Manager y Creativo",
+    "titleActivateLead": "Activa tu plan",
+    "titleChooseLead": "Elige tu",
+    "titleChooseAccent": "plan"
   },
   "checkoutSuccess": {
     "activating": "Activando tu cuenta…"

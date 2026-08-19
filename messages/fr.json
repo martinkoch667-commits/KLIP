@@ -1109,7 +1109,7 @@
     "loading": "Chargement…"
   },
   "onboardingPlan": {
-    "step1of2": "Étape 1 sur 2 — Votre compte",
+    "step1of2": "Étape 1 sur 2 · Votre compte",
     "title": "Quel type de compte ?",
     "subtitle": "Choisissez votre plan pour commencer. Modifiable à tout moment.",
     "studioName": "Studio",
@@ -1138,7 +1138,9 @@
     "confirm": "Confirmer",
     "errorGeneric": "Une erreur est survenue. Veuillez réessayer.",
     "errorAgencyName": "Veuillez entrer le nom de votre agence.",
-    "hint": "Modifiable depuis les paramètres · Aucun CB requis pour commencer"
+    "hint": "Modifiable depuis les paramètres · Aucun CB requis pour commencer",
+    "titleLead": "Quel type de",
+    "titleAccent": "compte ?"
   },
   "workspaceSettings": {
     "back": "Retour",
@@ -1915,8 +1917,8 @@
     "titleActivate": "Activez votre offre :",
     "titleChoose": "Choisissez votre offre",
     "titleStart": "pour démarrer",
-    "subActivate": "On vous emmène directement au paiement de l’offre choisie à l’inscription. Essai gratuit de 7 jours, sans engagement, résiliable à tout moment — vous n’êtes débité qu’à la fin de l’essai.",
-    "subChoose": "Activez votre essai gratuit de 7 jours — sans engagement, résiliable à tout moment. Vous n’êtes débité qu’à la fin de l’essai.",
+    "subActivate": "On vous emmène directement au paiement de l’offre choisie à l’inscription. Essai gratuit de 7 jours, sans engagement, résiliable à tout moment, vous n’êtes débité qu’à la fin de l’essai.",
+    "subChoose": "Activez votre essai gratuit de 7 jours, sans engagement, résiliable à tout moment. Vous n’êtes débité qu’à la fin de l’essai.",
     "yourChoice": "Votre choix",
     "perMonth": "/ mois",
     "redirecting": "Redirection…",
@@ -1934,7 +1936,10 @@
     "featAgencyClients": "Jusqu’à 12 clients",
     "featAgencyMembers": "Jusqu’à 5 membres d’équipe",
     "featAgencyWorkflow": "Workflow de validation client",
-    "featAgencyRoles": "Rôles Manager & Créa"
+    "featAgencyRoles": "Rôles Manager & Créa",
+    "titleActivateLead": "Activez votre offre",
+    "titleChooseLead": "Choisissez votre",
+    "titleChooseAccent": "offre"
   },
   "checkoutSuccess": {
     "activating": "Activation de votre compte…"
