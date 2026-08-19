@@ -30,6 +30,29 @@ export default function PlanView({ seatsLeft }: { seatsLeft: number | null }) {
   // pré-sélectionnée à l'écran de paiement, qui lui appelle la caisse.
   const [period, setPeriod] = useState<"monthly" | "yearly">("monthly");
 
+  /* Départ vers Stripe. L'offre choisie ici EST celle qu'on paie : refaire
+     choisir sur /abonnement juste après était la double étape que Martin a
+     repérée. Cet écran mène donc à la caisse, et le questionnaire attend le
+     paiement. */
+  async function startCheckout(plan: "studio" | "agence"): Promise<boolean> {
+    try {
+      const res = await fetch("/api/stripe/checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ plan, period, cancelPath: "/onboarding/plan" }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (res.ok && json?.url) {
+        window.location.href = json.url;
+        return true;
+      }
+      setError(json?.error ?? t('errorGeneric'));
+    } catch {
+      setError(t('errorGeneric'));
+    }
+    return false;
+  }
+
   function pickPeriod(p: "monthly" | "yearly") {
     setPeriod(p);
     try { localStorage.setItem("klip_period", p); } catch { /* navigation privée */ }
@@ -82,8 +105,8 @@ export default function PlanView({ seatsLeft }: { seatsLeft: number | null }) {
         { user_id: session.user.id, account_type: "solo" },
         { onConflict: "user_id" }
       );
-      fetch("/api/email/welcome", { method: "POST" }).catch(() => {});
-      router.push("/onboarding/survey");
+      const gone = await startCheckout("studio");
+      if (!gone) setLoadingStudio(false);
     } catch {
       setError(t('errorGeneric'));
       setLoadingStudio(false);
@@ -122,8 +145,8 @@ export default function PlanView({ seatsLeft }: { seatsLeft: number | null }) {
         });
       }
 
-      fetch("/api/email/welcome", { method: "POST" }).catch(() => {});
-      router.push("/onboarding/survey");
+      const gone = await startCheckout("agence");
+      if (!gone) setLoadingAgency(false);
     } catch {
       setError(t('errorGeneric'));
       setLoadingAgency(false);

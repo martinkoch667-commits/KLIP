@@ -23,10 +23,17 @@ export async function POST(req: NextRequest) {
   const email = session.user.email ?? undefined;
 
   // ── Body : plan + period ──────────────────────────────────────────────
-  let body: { plan?: string; period?: string } = {};
+  let body: { plan?: string; period?: string; cancelPath?: string } = {};
   try { body = await req.json(); } catch { /* defaults */ }
   const plan = (body.plan === "agence" ? "agence" : "studio") as Plan;
   const period = (body.period === "yearly" ? "yearly" : "monthly") as Period;
+
+  // Retour en cas d'abandon : la page d'où l'on vient, sinon les tarifs de la
+  // landing. Filtré comme le `next` de /auth/callback, un chemin relatif
+  // uniquement, sans quoi on offrirait une redirection ouverte à qui appelle
+  // cette route.
+  const rawCancel = typeof body.cancelPath === "string" ? body.cancelPath : "";
+  const cancelPath = rawCancel.startsWith("/") && !rawCancel.startsWith("//") ? rawCancel : "/#tarifs";
 
   const price = priceId(plan, period);
   if (!price) {
@@ -98,7 +105,7 @@ export async function POST(req: NextRequest) {
         : { allow_promotion_codes: true as const }),
       metadata: { user_id: userId, plan, period },
       success_url: `${APP_URL}/checkout-success`,
-      cancel_url: `${APP_URL}/#tarifs`,
+      cancel_url: `${APP_URL}${cancelPath}`,
     });
     if (launchCoupon) forgetLaunchSeats(); // la place vient d'être prise
     return NextResponse.json({ url: checkout.url });

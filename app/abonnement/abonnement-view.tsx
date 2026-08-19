@@ -64,7 +64,7 @@ export default function AbonnementView({ seatsLeft }: { seatsLeft: number | null
       const res = await fetch("/api/stripe/checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ plan: stripePlan, period }),
+        body: JSON.stringify({ plan: stripePlan, period, cancelPath: "/abonnement" }),
       });
       const json = await res.json();
       if (res.ok && json.url) {

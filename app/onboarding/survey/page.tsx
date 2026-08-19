@@ -88,7 +88,7 @@ export default function SurveyPage() {
     } catch {
       // non-blocking
     }
-    router.push("/dashboard");
+    router.push("/dashboard?welcome=true");
   }
 
   return (
