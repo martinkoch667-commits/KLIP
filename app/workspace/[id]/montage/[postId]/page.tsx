@@ -146,6 +146,58 @@ async function grabFrame(src: string, kind: "video" | "photo", atTime = 0, maxW 
 // en plus déformées à mesure qu'on zoomait.
 interface ClipStripData { frames: string[]; aspect: number }
 
+/* Cache d'images par FICHIER SOURCE, et non par plan.
+
+   Les vignettes étaient mémorisées par identifiant de plan. Couper un plan en
+   deux crée deux identifiants neufs : les deux moitiés repartaient donc à zéro,
+   rechargeaient la vidéo entière et la parcouraient image par image, alors que
+   les images étaient déjà décodées une seconde plus tôt. D'où le plan vert vide
+   pendant plusieurs secondes après chaque coupe.
+
+   Ici, chaque image extraite est rangée avec son instant, sous la clé du
+   fichier. N'importe quel plan issu de ce fichier peut donc s'afficher tout de
+   suite avec les images voisines déjà connues, pendant que l'extraction précise
+   se fait en tâche de fond. */
+type CachedFrame = { t: number; url: string };
+const srcFrameCache = new Map<string, { aspect: number; frames: CachedFrame[] }>();
+
+function rememberFrames(src: string, aspect: number, added: CachedFrame[]): void {
+  const entry = srcFrameCache.get(src) ?? { aspect, frames: [] };
+  entry.aspect = aspect;
+  for (const fr of added) {
+    if (!entry.frames.some((x) => Math.abs(x.t - fr.t) < 0.05)) entry.frames.push(fr);
+  }
+  entry.frames.sort((x, y) => x.t - y.t);
+  // Un plan long fortement retouché finirait par tout garder en mémoire : on
+  // plafonne, en gardant les images réparties sur toute la durée du fichier.
+  const MAX = 120;
+  if (entry.frames.length > MAX) {
+    const step = entry.frames.length / MAX;
+    entry.frames = Array.from({ length: MAX }, (_, i) => entry.frames[Math.floor(i * step)]);
+  }
+  srcFrameCache.set(src, entry);
+}
+
+/** Bande provisoire tirée du cache : l'image connue la plus proche de chaque
+    instant voulu. Rend `undefined` tant qu'on n'a rien de ce fichier. */
+function stripFromCache(src: string, a: number, b: number, count: number): ClipStripData | undefined {
+  const entry = srcFrameCache.get(src);
+  if (!entry || !entry.frames.length) return undefined;
+  const frames: string[] = [];
+  for (let i = 0; i < count; i++) {
+    const tt = count === 1 ? a : a + (b - a) * (i / (count - 1));
+    let best = entry.frames[0];
+    for (const fr of entry.frames) if (Math.abs(fr.t - tt) < Math.abs(best.t - tt)) best = fr;
+    frames.push(best.url);
+  }
+  return { frames, aspect: entry.aspect };
+}
+
+/** Nombre d'images d'une bande, à la même densité que l'extraction. */
+function stripCount(a: number, b: number): number {
+  return Math.max(3, Math.min(14, Math.ceil((b - a) / 1.2)));
+}
+
 async function extractClipFrames(src: string, trimStart: number, trimEnd: number): Promise<ClipStripData> {
   const v = document.createElement("video");
   try {
@@ -163,12 +215,16 @@ async function extractClipFrames(src: string, trimStart: number, trimEnd: number
   canvas.width = Math.max(1, Math.round(FH * aspect)); canvas.height = FH;
   const ctx = canvas.getContext("2d")!;
   const frames: string[] = [];
+  const cached: CachedFrame[] = [];
   for (let i = 0; i < count; i++) {
     const tt = count === 1 ? a : a + (b - a) * (i / (count - 1));
     await new Promise<void>((res) => { v.onseeked = () => res(); v.currentTime = Math.max(0, Math.min(tt, dur - 0.05)); });
     ctx.drawImage(v, 0, 0, canvas.width, canvas.height); // ratio source → aucune déformation
-    frames.push(canvas.toDataURL("image/jpeg", 0.72));
+    const url = canvas.toDataURL("image/jpeg", 0.72);
+    frames.push(url);
+    cached.push({ t: tt, url });
   }
+  rememberFrames(src, aspect, cached);
   return { frames, aspect };
   } finally {
     // La bande de vignettes est ré-extraite à chaque changement de trim : sans
@@ -183,7 +239,9 @@ async function photoStripData(src: string): Promise<ClipStripData> {
     const im = new Image(); im.crossOrigin = "anonymous";
     im.onload = () => res(im); im.onerror = () => rej(new Error("load")); im.src = src;
   });
-  return { frames: [src], aspect: (img.naturalWidth || 16) / (img.naturalHeight || 9) };
+  const aspect = (img.naturalWidth || 16) / (img.naturalHeight || 9);
+  rememberFrames(src, aspect, [{ t: 0, url: src }]);
+  return { frames: [src], aspect };
 }
 
 // Tuiles d'un plan : largeur fixe = hauteur × ratio source. On en pose autant que
@@ -529,6 +587,12 @@ export default function MontagePage() {
       for (const x of [...clips, ...overlays]) {
         if (stripReqRef.current.has(x.id)) continue;
         stripReqRef.current.add(x.id);
+        // Aperçu instantané avec ce qu'on sait déjà de ce fichier : après une
+        // coupe ou une duplication, le plan est habillé sans attendre.
+        const a0 = Math.max(0, x.trimStart || 0);
+        const b0 = Math.max(a0 + 0.05, x.trimEnd || a0 + 1);
+        const provisional = stripFromCache(x.src, a0, b0, stripCount(a0, b0));
+        if (provisional) setStrips((p) => (p[x.id] ? p : { ...p, [x.id]: provisional }));
         try {
           // Les photos passent par le même rendu en tuiles que les vidéos : une seule
           // image, répétée, au lieu d'un `object-fit: cover` étalé sur tout le plan.

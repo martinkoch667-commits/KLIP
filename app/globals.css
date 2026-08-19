@@ -1346,9 +1346,9 @@ input.mz-range::-moz-range-thumb { width: 16px; height: 16px; border-radius: 50%
 
 /* overlay export (progression) */
 .mz-ai-overlay { position: absolute; inset: 0; z-index: 80; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px;
-  background: rgba(10,24,18,.92); backdrop-filter: blur(6px); border-radius: inherit; }
+  background: rgba(0,0,0,.92); backdrop-filter: blur(6px); border-radius: inherit; }
 .mz-orb { width: 84px; height: 84px; border-radius: 50%; position: relative; background: conic-gradient(from 0deg, var(--mint-2), var(--leaf), var(--mint)); animation: mzSpin 2.6s linear infinite; box-shadow: 0 0 50px -6px rgba(122,105,232,.55); }
-.mz-orb::after { content: ""; position: absolute; inset: 7px; border-radius: 50%; background: #0A1812; }
+.mz-orb::after { content: ""; position: absolute; inset: 7px; border-radius: 50%; background: #000; }
 .mz-orb .mz-spark { position: absolute; inset: 0; display: grid; place-items: center; color: var(--acid); z-index: 2; }
 @keyframes mzSpin { to { transform: rotate(360deg); } }
 .mz-ai-overlay-title { font-family: var(--display); font-weight: 800; font-size: 22px; letter-spacing: -0.02em; color: var(--cream); }

@@ -21,6 +21,8 @@ export interface PublishablePost {
   photo_url?: string | null;
   exported_image_url?: string | null;
   editor_json?: string | null;
+  /** Miniature choisie dans KLIP (montage ou fenêtre de programmation). */
+  thumbnail_url?: string | null;
 }
 
 export type PublishResult =
@@ -192,9 +194,15 @@ export async function publishPostToInstagram(
 
     // ── Reel ─────────────────────────────────────────────────────────────────
     if (type === "reels") {
+      /* `cover_url` porte la miniature choisie dans KLIP. Sans elle, Instagram
+         prend l'image de départ de la vidéo, c'est à dire souvent un flou de
+         lancement ou un plan noir : le choix fait dans l'app ne servirait alors
+         à rien une fois publié. L'URL doit être publiquement joignable, ce qui
+         est le cas des fichiers du bucket `photos`. */
       const container = await graphPost("me/media", {
         media_type: "REELS",
         video_url: mediaUrl,
+        ...(post.thumbnail_url ? { cover_url: post.thumbnail_url } : {}),
         caption,
         share_to_feed: true,
         access_token: token,

@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef, Suspense } from "react";
 import PostPreviewPane from "@/components/PostPreviewPane";
+import VideoCoverPicker from "@/components/VideoCoverPicker";
 import InstagramFeed from "@/components/InstagramFeed";
 import { useTranslations, useLocale } from "next-intl";
 import Link from "next/link";
@@ -537,6 +538,10 @@ function PlanningContent() {
   const [loading,      setLoading]      = useState(true);
   const [weekStart,    setWeekStart]    = useState<Date>(() => getMonday(new Date()));
   const [selectedPost, setSelectedPost] = useState<Post | null>(null);
+  // Miniature de la vidéo, suivie à part : elle s'enregistre tout de suite en
+  // base (comme dans le montage) et doit se voir sans attendre l'enregistrement
+  // du reste du panneau.
+  const [panelThumb, setPanelThumb] = useState<string | null>(null);
   const [draggedId,    setDraggedId]    = useState<string | null>(null);
   const [dragOverDay,  setDragOverDay]  = useState<string | null>(null);
   const [dragOverHour, setDragOverHour] = useState<number | null>(null);
@@ -643,6 +648,7 @@ function PlanningContent() {
     setPanelPlatforms(post.target_platforms?.length ? post.target_platforms : (connected.length ? connected : ["instagram"]));
     setPanelTaggedUsers((post.tagged_users ?? []).join(", "));
     setPanelMusicNote(post.music_note ?? "");
+    setPanelThumb(post.thumbnail_url ?? null);
     if (post.scheduled_at) {
       const d = new Date(post.scheduled_at);
       setPanelDate(toDateInput(d));
@@ -1404,6 +1410,21 @@ function PlanningContent() {
                 </div>
               );
             })()}
+
+            {/* ── Miniature (vidéos seulement) ── */}
+            {isVideoUrl(selectedPost.photo_url) && (
+              <VideoCoverPicker
+                videoUrl={selectedPost.photo_url}
+                postId={selectedPost.id}
+                workspaceId={id}
+                value={panelThumb}
+                onChange={(url) => {
+                  setPanelThumb(url);
+                  setSelectedPost(p => (p ? { ...p, thumbnail_url: url } : p));
+                  setPosts(prev => prev.map(p => (p.id === selectedPost.id ? { ...p, thumbnail_url: url } : p)));
+                }}
+              />
+            )}
 
             {/* ── Tags Instagram ── */}
             <div>
