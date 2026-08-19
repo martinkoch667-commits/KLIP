@@ -50,36 +50,90 @@ function ClipStripBase({ data, width, height, filter }: { data?: ClipStripData; 
 }
 export const ClipStrip = React.memo(ClipStripBase);
 
-/* Spectre audio intégré au plan vidéo (façon CapCut). `peaks` est la même
-   référence de tableau tant que la source ne change pas, donc memo tient. */
+/* Spectre audio.
+
+   Dessiné sur un CANVAS, plus en SVG. Deux raisons.
+
+   La première est la lisibilité, qui est le but. Le spectre ne portait que 120
+   valeurs pour tout le fichier : sur une musique de trois minutes, une barre
+   couvrait une seconde et demie, tout s'écrasait en un pavé uniforme et on ne
+   reconnaissait plus rien. Il en porte maintenant trente par seconde, et il faut
+   pouvoir en dessiner plusieurs milliers.
+
+   La seconde est le coût. Un rectangle SVG par valeur, c'était déjà une centaine
+   d'éléments DOM par piste ; à cette résolution ce serait plusieurs milliers, et
+   le monteur les reconstruirait à chaque changement. Un canvas, c'est un seul
+   élément quelle que soit la finesse.
+
+   On dessine une colonne par PIXEL disponible, en prenant le pic du tronçon
+   qu'elle couvre : le dessin reste juste à tous les zooms, sans jamais dépendre
+   du nombre de valeurs stockées. */
+function dessinerSpectre(
+  cv: HTMLCanvasElement, peaks: number[], couleur: string, opacite: number, minRel: number,
+) {
+  const dpr = Math.min(2, typeof window === "undefined" ? 1 : window.devicePixelRatio || 1);
+  const w = Math.max(1, Math.round(cv.clientWidth));
+  const h = Math.max(1, Math.round(cv.clientHeight));
+  if (cv.width !== w * dpr || cv.height !== h * dpr) { cv.width = w * dpr; cv.height = h * dpr; }
+  const ctx = cv.getContext("2d");
+  if (!ctx) return;
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.clearRect(0, 0, w, h);
+  if (!peaks.length) return;
+  ctx.globalAlpha = opacite;
+  ctx.fillStyle = couleur;
+  const milieu = h / 2;
+  const parCol = peaks.length / w;
+  for (let x = 0; x < w; x++) {
+    // Pic du tronçon couvert par cette colonne : à fort dézoom une colonne
+    // représente plusieurs mesures, et c'est la plus forte qui doit se voir.
+    const a = Math.floor(x * parCol);
+    const b = Math.max(a + 1, Math.floor((x + 1) * parCol));
+    let p = 0;
+    for (let i = a; i < b && i < peaks.length; i++) if (peaks[i] > p) p = peaks[i];
+    const demi = Math.max(minRel * h, p * h * 0.46);
+    ctx.fillRect(x, milieu - demi, 1, demi * 2);
+  }
+  ctx.globalAlpha = 1;
+}
+
+function SpectreBase({ peaks, couleur, opacite, minRel, className, style }: {
+  peaks: number[]; couleur: string; opacite: number; minRel: number;
+  className?: string; style?: React.CSSProperties;
+}) {
+  const ref = React.useRef<HTMLCanvasElement>(null);
+  // Redessiné quand les données changent ET quand la taille change (zoom de la
+  // timeline, hauteur de piste) : le canvas ne se remet pas à l'échelle tout seul.
+  React.useEffect(() => {
+    const cv = ref.current;
+    if (!cv) return;
+    const peindre = () => dessinerSpectre(cv, peaks, couleur, opacite, minRel);
+    peindre();
+    if (typeof ResizeObserver === "undefined") return;
+    const ro = new ResizeObserver(peindre);
+    ro.observe(cv);
+    return () => ro.disconnect();
+  }, [peaks, couleur, opacite, minRel]);
+  return <canvas ref={ref} className={className} style={{ display: "block", width: "100%", height: "100%", ...style }} aria-hidden />;
+}
+const Spectre = React.memo(SpectreBase);
+
+/** Spectre intégré au plan vidéo (façon CapCut), en bas du bloc. */
 function ClipWaveBase({ peaks }: { peaks: number[] }) {
   if (!peaks.length) return null;
-  const w = 100 / peaks.length;
   return (
     <div className="a-clip-wave">
-      <svg width="100%" height="100%" preserveAspectRatio="none">
-        {peaks.map((p, i) => {
-          const h = Math.max(10, p * 100);
-          return <rect key={i} x={`${(i / peaks.length) * 100}%`} y={`${(100 - h) / 2}%`} width={`${w}%`} height={`${h}%`} fill="rgba(255,255,255,.82)" />;
-        })}
-      </svg>
+      <Spectre peaks={peaks} couleur="rgba(255,255,255,.82)" opacite={1} minRel={0.03} />
     </div>
   );
 }
 export const ClipWave = React.memo(ClipWaveBase);
 
-/* Forme d'onde d'une piste audio de la timeline. */
+/** Spectre d'une piste audio de la timeline. */
 function AudioWaveBase({ peaks }: { peaks: number[] }) {
   if (!peaks.length) return null;
-  const w = 100 / peaks.length;
-  return (
-    <svg width="100%" height="100%" preserveAspectRatio="none" style={{ position: "absolute", inset: 0, opacity: 0.55 }}>
-      {peaks.map((p, i) => {
-        const h = Math.max(6, p * 100);
-        return <rect key={i} x={`${(i / peaks.length) * 100}%`} y={`${(100 - h) / 2}%`} width={`${w}%`} height={`${h}%`} fill="#fff" />;
-      })}
-    </svg>
-  );
+  return <Spectre peaks={peaks} couleur="#fff" opacite={0.62} minRel={0.015}
+    style={{ position: "absolute", inset: 0 }} />;
 }
 export const AudioWave = React.memo(AudioWaveBase);
 

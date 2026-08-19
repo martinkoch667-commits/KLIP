@@ -67,14 +67,14 @@ function construireMontage(): { plans: PlanTest[]; pistes: { id: string; offset:
     plans.push({
       id: `c${i}`, start: acc, dur,
       strip: { frames, aspect: 16 / 9 },
-      peaks: Array.from({ length: 100 }, (_, k) => 0.2 + 0.8 * Math.abs(Math.sin(k / 6 + i))),
+      peaks: Array.from({ length: Math.round(dur * 30) }, (_, k) => 0.15 + 0.85 * Math.abs(Math.sin(k / 9 + i) * Math.sin(k / 2.3))),
       fi: i % 3 === 0 ? 0.4 : 0, fo: i % 4 === 0 ? 0.5 : 0,
     });
     acc += dur;
   }
   const pistes = Array.from({ length: NB_PISTES_AUDIO }, (_, i) => ({
     id: `a${i}`, offset: i * 2, dur: acc - i * 2,
-    peaks: Array.from({ length: 120 }, (_, k) => 0.1 + 0.9 * Math.abs(Math.sin(k / 4 + i * 2))),
+    peaks: Array.from({ length: Math.round((acc - i * 2) * 30) }, (_, k) => 0.1 + 0.9 * Math.abs(Math.sin(k / 11 + i * 2) * Math.sin(k / 3.1))),
   }));
   return { plans, pistes, total: acc };
 }

@@ -13,7 +13,7 @@ import {
   transitionStateAt, transitionCss,
   // (analyzeClipQuality importé depuis ./autoCut plus bas)
   fmt, newClipDefaults, newOverlayDefaults, clipFilterCss, overlayFilterCss, clipTimelineDur, clipAudioGainAt, overlayTimelineDur, overlayAudioGainAt, segmentCaptions, captionsFromWords, dedupeSegments,
-  audioVolumeAt, kenBurnsScale, VIDEO_FORMATS, videoFormatById, EXPORT_QUALITIES,
+  audioVolumeAt, audioSrcDur, kenBurnsScale, VIDEO_FORMATS, videoFormatById, EXPORT_QUALITIES,
   overlayEffectCss,
   TITLE_BASE_FONT, TITLE_LINE_HEIGHT, TITLE_DEFAULT_MAX_WIDTH, titleLines,
 } from "./constants";
@@ -251,8 +251,23 @@ async function photoStripData(src: string): Promise<ClipStripData> {
 // chaque rendu suffirait à annuler la mémoïsation.
 const FADE_ABS: React.CSSProperties = { position: "absolute", inset: 0, pointerEvents: "none" };
 
-const WAVEFORM_SAMPLES = 120;
-// Décode le fichier audio et calcule 120 pics d'amplitude normalisés (0-1) pour
+/* Résolution du spectre audio.
+
+   Elle était de 120 valeurs pour TOUT le fichier, quelle que soit sa durée. Sur
+   une musique de trois minutes, cela fait une mesure toutes les 1,5 seconde :
+   chaque barre écrase un couplet entier, le dessin devient un pavé uniforme et
+   on ne reconnaît plus rien. On ne voyait ni les temps, ni les ruptures, ni les
+   silences, alors que c'est précisément ce qu'on cherche en calant une musique.
+
+   On échantillonne donc à la SECONDE, pas au fichier : 30 mesures par seconde,
+   soit une tous les 33 ms, de quoi distinguer chaque frappe. Le plafond évite
+   qu'un fichier très long ne fasse enfler le projet enregistré. */
+const WAVEFORM_PER_SECOND = 30;
+const WAVEFORM_MAX = 9000;   // ~5 min à pleine résolution
+function waveformCount(seconds: number): number {
+  return Math.max(120, Math.min(WAVEFORM_MAX, Math.round(seconds * WAVEFORM_PER_SECOND)));
+}
+// Décode le fichier audio et calcule les pics d'amplitude normalisés (0-1) pour
 // l'affichage visuel dans la timeline. Best-effort : renvoie [] si le décodage échoue
 // (ex. format non supporté) plutôt que de bloquer l'import.
 async function computeWaveform(file: File): Promise<number[]> {
@@ -261,17 +276,23 @@ async function computeWaveform(file: File): Promise<number[]> {
     const ctx = new AudioCtx();
     const buf = await ctx.decodeAudioData(await file.arrayBuffer());
     const data = buf.getChannelData(0);
-    const blockSize = Math.max(1, Math.floor(data.length / WAVEFORM_SAMPLES));
+    const n = waveformCount(buf.duration);
+    const blockSize = Math.max(1, Math.floor(data.length / n));
     const peaks: number[] = [];
-    for (let i = 0; i < WAVEFORM_SAMPLES; i++) {
+    for (let i = 0; i < n; i++) {
       let max = 0;
       const start = i * blockSize;
-      for (let j = 0; j < blockSize && start + j < data.length; j++) max = Math.max(max, Math.abs(data[start + j]));
+      // Un pas d'échantillonnage : sur un bloc de 33 ms à 48 kHz il y a 1600
+      // échantillons, les parcourir tous n'apprend rien de plus que d'en lire un
+      // sur quatre, et une musique longue se décode quatre fois plus vite.
+      for (let j = 0; j < blockSize && start + j < data.length; j += 4) max = Math.max(max, Math.abs(data[start + j]));
       peaks.push(max);
     }
     ctx.close();
     const peak = Math.max(...peaks, 0.01);
-    return peaks.map(p => Math.min(1, p / peak));
+    // Arrondi à deux décimales : le spectre est enregistré dans le projet, et la
+    // précision au-delà ne se voit pas à l'écran mais pèse dans le fichier.
+    return peaks.map(p => Math.round(Math.min(1, p / peak) * 100) / 100);
   } catch {
     return [];
   }
@@ -286,30 +307,33 @@ async function computeWaveformFromUrl(src: string): Promise<number[]> {
     const ab = await (await fetch(src)).arrayBuffer();
     const buf = await ctx.decodeAudioData(ab);
     const data = buf.getChannelData(0);
-    const blockSize = Math.max(1, Math.floor(data.length / WAVEFORM_SAMPLES));
+    const n = waveformCount(buf.duration);
+    const blockSize = Math.max(1, Math.floor(data.length / n));
     const peaks: number[] = [];
-    for (let i = 0; i < WAVEFORM_SAMPLES; i++) {
+    for (let i = 0; i < n; i++) {
       let max = 0;
       const start = i * blockSize;
-      for (let j = 0; j < blockSize && start + j < data.length; j++) max = Math.max(max, Math.abs(data[start + j]));
+      for (let j = 0; j < blockSize && start + j < data.length; j += 4) max = Math.max(max, Math.abs(data[start + j]));
       peaks.push(max);
     }
     ctx.close();
     const peak = Math.max(...peaks, 0.01);
-    return peaks.map((p) => Math.min(1, p / peak));
+    return peaks.map((p) => Math.round(Math.min(1, p / peak) * 100) / 100);
   } catch {
     return [];
   }
 }
 
 // 120 pics normalisés depuis des échantillons (pour l'affichage timeline après traitement).
-function peaksFromSamples(samples: Float32Array): number[] {
-  const N = 120;
+// Même résolution que computeWaveform : la voix traitée doit se lire aussi
+// finement que la musique importée. `sampleRate` sert à retrouver la durée.
+function peaksFromSamples(samples: Float32Array, sampleRate = 48000): number[] {
+  const N = waveformCount(samples.length / sampleRate);
   const block = Math.max(1, Math.floor(samples.length / N));
   const peaks: number[] = [];
-  for (let i = 0; i < N; i++) { let m = 0; const s = i * block; for (let j = 0; j < block && s + j < samples.length; j++) m = Math.max(m, Math.abs(samples[s + j])); peaks.push(m); }
+  for (let i = 0; i < N; i++) { let m = 0; const s = i * block; for (let j = 0; j < block && s + j < samples.length; j += 4) m = Math.max(m, Math.abs(samples[s + j])); peaks.push(m); }
   const peak = Math.max(...peaks, 0.01);
-  return peaks.map((p) => Math.min(1, p / peak));
+  return peaks.map((p) => Math.round(Math.min(1, p / peak) * 100) / 100);
 }
 
 // Style de sous-titres dérivé de la charte du client : surlignage du mot actif dans la
@@ -1460,13 +1484,23 @@ export default function MontagePage() {
   // pose à l'endroit du dépôt — sur la piste principale (à l'instant visé) ou sur une piste
   // vidéo du dessus si on lâche dessus.
   async function importFilesToTimeline(files: FileList | File[], clientX: number, clientY: number) {
-    const arr = Array.from(files).filter((f) => f.type.startsWith("video/") || f.type.startsWith("image/"));
+    // Le son est accepté au même titre que l'image : on pouvait déposer une vidéo
+    // ou une photo sur la timeline, mais une musique devait passer par le panneau
+    // Audio, sans pouvoir choisir où elle tombe.
+    const arr = Array.from(files).filter((f) => f.type.startsWith("video/") || f.type.startsWith("image/") || estAudio(f));
     if (!arr.length) return;
     const r = rulerRef.current?.getBoundingClientRect();
     let dropT = r ? Math.max(0, snapTime((clientX - r.left) / pps)) : 0;
     const lane = dropTargetAt(clientX, clientY);
-    setUploading(true);
     for (const file of arr) {
+      if (estAudio(file)) {
+        // Piste audio visée par le dépôt ; à défaut, la première.
+        const piste = lane && /^a\d+$/.test(lane) ? (parseInt(lane.slice(1), 10) || 0) : 0;
+        const t = await importAudioAt(file, "music", dropT, piste);
+        dropT += t;
+        continue;
+      }
+      setUploading(true);
       const isVideo = file.type.startsWith("video/");
       const bucket = isVideo ? "videos" : "photos";
       const ext = file.name.split(".").pop() || (isVideo ? "mp4" : "jpg");
@@ -1499,8 +1533,8 @@ export default function MontagePage() {
         });
       }
       dropT += dur; // fichiers multiples : posés à la suite
+      setUploading(false);
     }
-    setUploading(false);
   }
 
   // ── Actions clip (timeline) ─────────────────────────────────────────────────
@@ -2404,6 +2438,37 @@ export default function MontagePage() {
   function toggleProgressBar() { setShowProgressBar((p) => !p); }
 
   // ── Audio ────────────────────────────────────────────────────────────────
+  /** Un fichier son ? Certains navigateurs ne renseignent pas le type MIME sur un
+   *  glisser-déposer : on retombe alors sur l'extension. */
+  function estAudio(f: File): boolean {
+    if (f.type.startsWith("audio/")) return true;
+    return /\.(mp3|wav|m4a|aac|ogg|oga|flac|aiff?|opus|weba)$/i.test(f.name);
+  }
+
+  /** Importe un son ET le pose à un endroit précis de la timeline. Rend sa durée,
+   *  pour que plusieurs fichiers déposés d'un coup se suivent. */
+  async function importAudioAt(file: File, kind: "music" | "voiceover", offset: number, track: number): Promise<number> {
+    setUploadingAudio(true);
+    try {
+      const ext = file.name.split(".").pop() || "mp3";
+      const path = `${workspaceId}/${postId}-${crypto.randomUUID()}.${ext}`;
+      const { error } = await supabase.storage.from("audio").upload(path, file, { upsert: true, contentType: file.type || "audio/mpeg" });
+      if (error) { toast(t('toastAudioUploadFailed', { msg: error.message })); return 0; }
+      const { data: urlData } = supabase.storage.from("audio").getPublicUrl(path);
+      const [dur, waveform] = await Promise.all([getAudioDuration(urlData.publicUrl), computeWaveform(file)]);
+      const id = crypto.randomUUID();
+      setAudioTracks((prev) => [...prev, {
+        id, kind, name: file.name, src: urlData.publicUrl, dur, srcDur: dur,
+        vol: 1, offset: Math.max(0, offset), track, waveform,
+      }]);
+      setSelectedAudioId(id);
+      setTool("audio");
+      return dur;
+    } finally {
+      setUploadingAudio(false);
+    }
+  }
+
   async function importAudio(file: File, kind: "music" | "voiceover") {
     setUploadingAudio(true);
     try {
@@ -2530,18 +2595,27 @@ export default function MontagePage() {
     );
   }
   // Déplacement d'un texte dans le temps sur la timeline (décale start ET end).
-  const titleDragRef = useRef<{ id: string; startX: number; t0start: number; dur: number; moved: boolean } | null>(null);
+  const titleDragRef = useRef<{ id: string; startX: number; t0start: number; dur: number; moved: boolean; alt: boolean } | null>(null);
   function onTitleBarDown(e: React.PointerEvent, ti: TitleEl) {
     e.stopPropagation();
     setSelectedTitleId(ti.id); setTool("text");
     if (lockedLanes.has("text")) return; // piste verrouillée : sélection ok, déplacement bloqué
     try { (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId); } catch {}
-    titleDragRef.current = { id: ti.id, startX: e.clientX, t0start: ti.start, dur: ti.end - ti.start, moved: false };
+    titleDragRef.current = { id: ti.id, startX: e.clientX, t0start: ti.start, dur: ti.end - ti.start, moved: false, alt: e.altKey };
   }
   function onTitleBarMove(e: React.PointerEvent) {
     const d = titleDragRef.current;
     if (!d) return;
     if (!d.moved && Math.abs(e.clientX - d.startX) < 4) return;
+    if (!d.moved && d.alt) {   // ⌥ + glisser = dupliquer
+      const src = titles.find((x) => x.id === d.id);
+      if (src) {
+        const nid = crypto.randomUUID();
+        setTitles((prev) => [...prev, { ...src, id: nid }]);
+        setSelectedTitleId(nid);
+        d.id = nid;
+      }
+    }
     d.moved = true;
     const ns = Math.max(0, snapTime(d.t0start + (e.clientX - d.startX) / pps));
     updateTitle(d.id, { start: ns, end: ns + d.dur });
@@ -2571,7 +2645,7 @@ export default function MontagePage() {
   }
   // Déplacement d'un sous-titre sur la timeline (chaque bloc est indépendant : on le
   // déplace, on l'allonge/raccourcit, on double-clique pour l'éditer — comme un texte).
-  const capDragRef = useRef<{ id: string; startX: number; t0start: number; dur: number; moved: boolean } | null>(null);
+  const capDragRef = useRef<{ id: string; startX: number; t0start: number; dur: number; moved: boolean; alt: boolean } | null>(null);
   function onCaptionBarDown(e: React.PointerEvent, c: Caption) {
     e.stopPropagation();
     // Maj+clic : on cumule, comme sur les plans. Sans ça on ne pouvait
@@ -2581,11 +2655,20 @@ export default function MontagePage() {
     setSelectedCaptionId(c.id); setSubSelected(true); setTool("captions");
     if (lockedLanes.has("subs")) return; // piste verrouillée
     try { (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId); } catch {}
-    capDragRef.current = { id: c.id, startX: e.clientX, t0start: c.start, dur: c.end - c.start, moved: false };
+    capDragRef.current = { id: c.id, startX: e.clientX, t0start: c.start, dur: c.end - c.start, moved: false, alt: e.altKey };
   }
   function onCaptionBarMove(e: React.PointerEvent) {
     const d = capDragRef.current; if (!d) return;
     if (!d.moved && Math.abs(e.clientX - d.startX) < 4) return;
+    if (!d.moved && d.alt) {   // ⌥ + glisser = dupliquer
+      const src = captions.find((x) => x.id === d.id);
+      if (src) {
+        const nid = crypto.randomUUID();
+        setCaptions((prev) => [...prev, { ...src, id: nid }]);
+        setSelectedCaptionId(nid);
+        d.id = nid;
+      }
+    }
     d.moved = true;
     const ns = Math.max(0, snapTime(d.t0start + (e.clientX - d.startX) / pps));
     updateCaption(d.id, { start: ns, end: ns + d.dur });
@@ -2613,7 +2696,7 @@ export default function MontagePage() {
     if (capTrimRef.current) { try { (e.target as HTMLElement).releasePointerCapture(e.pointerId); } catch {} capTrimRef.current = null; }
   }
   // Déplacement d'une piste audio dans le temps + sélection (pour la déplacer/supprimer).
-  const audDragRef = useRef<{ id: string; startX: number; t0: number; moved: boolean } | null>(null);
+  const audDragRef = useRef<{ id: string; startX: number; t0: number; moved: boolean; alt: boolean } | null>(null);
   // Filet de sécurité : dès que le bouton de la souris est relâché (ou le geste annulé)
   // n'importe où, on solde TOUS les glissements en cours. Évite l'état « souris bloquée »
   // si un relâchement passe inaperçu (poignée démontée en plein drag, capture perdue…).
@@ -2635,7 +2718,7 @@ export default function MontagePage() {
     if (lockedLanes.has(`a${a.track ?? 0}`)) return; // piste verrouillée
     if (e.shiftKey) { toggleMulti(a.id); return; }
     try { (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId); } catch {}
-    audDragRef.current = { id: a.id, startX: e.clientX, t0: a.offset, moved: false };
+    audDragRef.current = { id: a.id, startX: e.clientX, t0: a.offset, moved: false, alt: e.altKey };
     if (multiSel.size) setMultiSel(new Set());
     setSelectedAudioId(a.id); setSelectedClipId(null); setSelectedOverlayId(null); setAudioOnlyId(null); setTool("audio");
   }
@@ -2643,6 +2726,18 @@ export default function MontagePage() {
     const d = audDragRef.current;
     if (!d) return;
     if (!d.moved && Math.abs(e.clientX - d.startX) < 4) return;
+    /* ⌥ + glisser = dupliquer, comme sur les plans. Au premier mouvement on crée
+       la copie et on lui passe le glissement : l'original reste où il était, et
+       c'est le double qu'on voit suivre le curseur. */
+    if (!d.moved && d.alt) {
+      const src = audioTracksRef.current.find((a) => a.id === d.id);
+      if (src) {
+        const nid = crypto.randomUUID();
+        setAudioTracks((prev) => [...prev, { ...src, id: nid }]);
+        setSelectedAudioId(nid);
+        d.id = nid;
+      }
+    }
     d.moved = true;
     const off = Math.max(0, snapTime(d.t0 + (e.clientX - d.startX) / pps));
     setAudioTracks((prev) => prev.map((a) => (a.id === d.id ? { ...a, offset: off } : a)));
@@ -2650,6 +2745,46 @@ export default function MontagePage() {
   function onAudioBarUp(e: React.PointerEvent) {
     if (audDragRef.current) { try { (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId); } catch {} audDragRef.current = null; }
   }
+  /* Rognage d'une piste audio par ses bords, comme un plan vidéo.
+
+     Une piste audio ne pouvait que se déplacer : pour n'en garder qu'un morceau,
+     il fallait la couper au curseur. On tire maintenant sur ses bords.
+
+     Bord gauche : on avance le point d'entrée DANS la source (srcOffset) et on
+     décale d'autant la piste sur la timeline (offset), pour que le son ne bouge
+     pas d'un pouce pendant qu'on rogne. Bord droit : on raccourcit simplement. */
+  const audTrimRef = useRef<{ id: string; edge: "start" | "end"; startX: number; offset: number; dur: number; srcOffset: number; srcDur: number } | null>(null);
+  function startAudioTrim(e: React.PointerEvent, a: AudioTrack, edge: "start" | "end") {
+    e.stopPropagation();
+    if (lockedLanes.has(`a${a.track ?? 0}`)) return;
+    try { (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId); } catch {}
+    setSelectedAudioId(a.id); setTool("audio");
+    audTrimRef.current = {
+      id: a.id, edge, startX: e.clientX,
+      offset: a.offset, dur: a.dur, srcOffset: a.srcOffset ?? 0, srcDur: audioSrcDur(a),
+    };
+  }
+  function onAudioTrimMove(e: React.PointerEvent) {
+    const d = audTrimRef.current;
+    if (!d) return;
+    const dt = (e.clientX - d.startX) / pps;
+    setAudioTracks((prev) => prev.map((a) => {
+      if (a.id !== d.id) return a;
+      if (d.edge === "start") {
+        // On ne remonte pas avant le début du fichier, ni au delà de sa fin.
+        const min = -d.srcOffset;
+        const max = d.dur - 0.2;
+        const delta = Math.max(min, Math.min(max, dt));
+        return { ...a, offset: Math.max(0, d.offset + delta), srcOffset: d.srcOffset + delta, dur: d.dur - delta };
+      }
+      const restant = d.srcDur - d.srcOffset;   // ce qu'il reste de source après le point d'entrée
+      return { ...a, dur: Math.max(0.2, Math.min(restant, d.dur + dt)) };
+    }));
+  }
+  function endAudioTrim(e: React.PointerEvent) {
+    if (audTrimRef.current) { try { (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId); } catch {} audTrimRef.current = null; }
+  }
+
   // ── Points-clés de volume (automation) sur une piste audio ──────────────────
   // Ajoute un point à la position du curseur (temps local dans la piste), avec la
   // valeur de volume courante à cet instant. Si un point existe déjà là, on l'écrase.
@@ -4397,8 +4532,11 @@ export default function MontagePage() {
             {Array.from({ length: audioTrackCount }).map((_, aIdx) => {
               const atrack = aIdx; // rangée audio (l'ordre n'affecte pas le mixage, uniquement l'organisation)
               const isFirstA = aIdx === 0;
+              // `data-tllane` : sans lui, la piste audio n'était identifiable ni au
+              // survol ni au dépôt, donc un fichier son lâché sur une piste précise
+              // ne savait pas sur laquelle il tombait.
               return (
-              <div className="a-lane" style={{ height: laneH(`a${atrack}`), order: 6 }} key={"atrack-" + atrack}>
+              <div className="a-lane" style={{ height: laneH(`a${atrack}`), order: 6 }} data-tllane={`a${atrack}`} key={"atrack-" + atrack}>
                 <LaneResize laneKey={`a${atrack}`} />
                 <div className="a-lane-label" style={{ display: "flex", alignItems: "center", gap: 4 }}>
                   <VIcon name="music" size={13} />
@@ -4430,6 +4568,12 @@ export default function MontagePage() {
                           </>
                         );
                       })()}
+                      {/* Poignées de rognage, comme sur un plan vidéo : on tire sur
+                          un bord pour ne garder qu'un morceau du morceau. */}
+                      {selectedAudioId === a.id && <>
+                        <div className="a-trim a-trim-l" onPointerDown={(e) => startAudioTrim(e, a, "start")} onPointerMove={onAudioTrimMove} onPointerUp={endAudioTrim} title={t('trimStartTitle')} />
+                        <div className="a-trim a-trim-r" onPointerDown={(e) => startAudioTrim(e, a, "end")} onPointerMove={onAudioTrimMove} onPointerUp={endAudioTrim} title={t('trimEndTitle')} />
+                      </>}
                     </div>
                   ))}
                 </div>

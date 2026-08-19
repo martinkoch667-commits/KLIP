@@ -300,10 +300,19 @@ export interface AudioTrack {
   offset: number; // décalage de départ sur la timeline (s)
   track?: number; // piste audio d'empilement (0, 1, 2…) — pour organiser des pistes qui se superposent. Défaut 0.
   srcOffset?: number; // décalage de départ DANS la source (s) — utilisé par l'audio détaché d'un plan rogné. Défaut 0.
+  /** Durée TOTALE du fichier source (s). Sert de borne au rognage : sans elle on
+   *  ne sait pas jusqu'où on peut rallonger une piste raccourcie. Absente sur les
+   *  projets antérieurs, on retombe alors sur srcOffset + dur. */
+  srcDur?: number;
   fadeIn?: number;  // durée du fondu d'entrée (s), défaut 0
   fadeOut?: number; // durée du fondu de sortie (s), défaut 0
   volKeys?: { t: number; v: number }[]; // points-clés de volume (automation) : t = temps local dans la piste (s), v = volume (0-2). Remplace `vol` quand présent.
   waveform?: number[]; // pics d'amplitude normalisés (0-1), échantillonnés à l'import — pour l'affichage visuel dans la timeline
+}
+
+/** Durée totale de la source d'une piste, bornes du rognage comprises. */
+export function audioSrcDur(a: AudioTrack): number {
+  return Math.max(a.srcDur ?? 0, (a.srcOffset ?? 0) + a.dur);
 }
 
 // Volume effectif d'une piste audio à un instant donné (dans son propre référentiel,
