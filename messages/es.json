@@ -1931,7 +1931,8 @@
     "outlineCorners": "Contorno y esquinas",
     "roundedCorners": "Esquinas redondeadas",
     "textBox": "Cuadro de texto",
-    "textWidth": "Anchura"
+    "textWidth": "Anchura",
+    "addTextTrack": "Añadir una fila de texto"
   },
   "forgotPassword": {
     "title": "Contraseña olvidada",

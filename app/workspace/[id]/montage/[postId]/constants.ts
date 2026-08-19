@@ -231,6 +231,10 @@ export interface TitleEl {
   y: number; // % (0-100)
   scale?: number; // facteur de taille (défaut 1)
   rotation?: number; // degrés (défaut 0)
+  /** Piste de texte d'empilement (0 = la première). Comme pour les incrustations
+   *  et les pistes audio, on peut empiler plusieurs rangées de texte : deux
+   *  titres au même instant sur la même rangée n'auraient aucun sens. */
+  track?: number;
   /** Largeur maximale de la boîte, en % de la largeur du cadre. C'est elle qui
    *  décide où le texte revient à la ligne. Défaut 80, réglable de 20 à 100 :
    *  un titre était bloqué à 80 % et ne pouvait pas s'étendre vers les bords. */
@@ -308,6 +312,36 @@ export interface AudioTrack {
   fadeOut?: number; // durée du fondu de sortie (s), défaut 0
   volKeys?: { t: number; v: number }[]; // points-clés de volume (automation) : t = temps local dans la piste (s), v = volume (0-2). Remplace `vol` quand présent.
   waveform?: number[]; // pics d'amplitude normalisés (0-1), échantillonnés à l'import — pour l'affichage visuel dans la timeline
+}
+
+/* Placement sans chevauchement sur une piste.
+
+   Deux éléments d'une même piste ne peuvent pas occuper le même instant : sur la
+   piste vidéo c'est évident, ça l'est tout autant pour un texte, un sous-titre ou
+   une musique. Or dupliquer un texte posait la copie PAR-DESSUS l'original, et
+   plus rien ne distinguait les deux.
+
+   La règle retenue est celle d'un monteur : on ne détruit pas le voisin, on cale
+   contre lui. L'élément déplacé glisse vers la droite jusqu'au premier créneau
+   libre, si bien qu'une copie commence exactement là où finit l'original.
+
+   `occupes` liste les intervalles déjà pris SUR CETTE PISTE, l'élément déplacé
+   exclu. */
+export function creneauLibre(debut: number, duree: number, occupes: { a: number; b: number }[]): number {
+  if (duree <= 0) return Math.max(0, debut);
+  const tries = occupes.slice().sort((x, y) => x.a - y.a);
+  const EPS = 1e-3;
+  let d = Math.max(0, debut);
+  // Chaque décalage peut en provoquer un autre : on repasse jusqu'à ce que plus
+  // rien ne bouge. La garde évite toute boucle sans fin sur des données abîmées.
+  for (let garde = 0; garde < 200; garde++) {
+    let bouge = false;
+    for (const o of tries) {
+      if (d < o.b - EPS && d + duree > o.a + EPS) { d = o.b; bouge = true; }
+    }
+    if (!bouge) break;
+  }
+  return d;
 }
 
 /** Durée totale de la source d'une piste, bornes du rognage comprises. */

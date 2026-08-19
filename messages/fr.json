@@ -1931,7 +1931,8 @@
     "outlineCorners": "Contour & coins",
     "roundedCorners": "Coins arrondis",
     "textBox": "Boîte de texte",
-    "textWidth": "Largeur"
+    "textWidth": "Largeur",
+    "addTextTrack": "Ajouter une rangée de texte"
   },
   "forgotPassword": {
     "title": "Mot de passe oublié",

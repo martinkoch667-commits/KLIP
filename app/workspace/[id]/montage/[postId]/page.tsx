@@ -13,11 +13,12 @@ import {
   transitionStateAt, transitionCss,
   // (analyzeClipQuality importé depuis ./autoCut plus bas)
   fmt, newClipDefaults, newOverlayDefaults, clipFilterCss, overlayFilterCss, clipTimelineDur, clipAudioGainAt, overlayTimelineDur, overlayAudioGainAt, segmentCaptions, captionsFromWords, dedupeSegments,
-  audioVolumeAt, audioSrcDur, kenBurnsScale, VIDEO_FORMATS, videoFormatById, EXPORT_QUALITIES,
+  audioVolumeAt, audioSrcDur, creneauLibre, kenBurnsScale, VIDEO_FORMATS, videoFormatById, EXPORT_QUALITIES,
   overlayEffectCss,
   TITLE_BASE_FONT, TITLE_LINE_HEIGHT, TITLE_DEFAULT_MAX_WIDTH, titleLines,
 } from "./constants";
 import { ClipStrip, ClipWave, AudioWave, FadeRamp, type ClipStripData } from "./timeline-parts";
+import { lectureRapideDisponible, infosVideo, vignettes, picsAudio, fermerSources } from "./media-read";
 import { MontageCtx, CutPanel, TextPanel, CaptionsPanel, AudioPanel, TransitionsPanel, FilterPanel, SpeedPanel, StickerPanel, OverlayPanel, AiPanel } from "./panels";
 import { renderExport } from "./export";
 import { analyzeClipQuality, type TWord } from "./autoCut";
@@ -202,6 +203,27 @@ function stripCount(a: number, b: number): number {
 }
 
 async function extractClipFrames(src: string, trimStart: number, trimEnd: number): Promise<ClipStripData> {
+  /* Chemin rapide : décodage direct, sans élément <video>.
+
+     L'ancien chemin ci-dessous crée un <video> jetable par extraction, et Chrome
+     refuse d'en créer au delà d'une cinquantaine par onglet. Sur un montage un
+     peu fourni, c'est ce qui finissait par empêcher des sources de charger.
+     Il reste en repli pour les navigateurs sans WebCodecs. */
+  if (lectureRapideDisponible()) {
+    const infos = await infosVideo(src);
+    if (infos) {
+      const dur = infos.dur > 0 ? infos.dur : Math.max(0.1, trimEnd - trimStart);
+      const a = Math.max(0, Math.min(trimStart || 0, dur - 0.05));
+      const b = Math.max(a + 0.05, Math.min(trimEnd || dur, dur));
+      const count = stripCount(a, b);
+      const instants = Array.from({ length: count }, (_, i) => count === 1 ? a : a + (b - a) * (i / (count - 1)));
+      const res = await vignettes(src, instants, 120);
+      if (res && res.frames.length) {
+        rememberFrames(src, res.aspect, res.frames.map((url, i) => ({ t: instants[Math.min(i, instants.length - 1)], url })));
+        return res;
+      }
+    }
+  }
   const v = document.createElement("video");
   try {
   v.crossOrigin = "anonymous"; v.muted = true; v.preload = "auto"; v.src = src;
@@ -211,8 +233,7 @@ async function extractClipFrames(src: string, trimStart: number, trimEnd: number
   const b = Math.max(a + 0.05, Math.min(trimEnd || dur, dur));
   const vw = v.videoWidth || 16, vh = v.videoHeight || 9;
   const aspect = vw / vh;
-  // ~1 image par 1,2 s de plan : assez dense pour lire le contenu sans saturer le décodage.
-  const count = Math.max(3, Math.min(14, Math.ceil((b - a) / 1.2)));
+  const count = stripCount(a, b);
   const FH = 120; // hauteur d'extraction — couvre les pistes agrandies sans flou
   const canvas = document.createElement("canvas");
   canvas.width = Math.max(1, Math.round(FH * aspect)); canvas.height = FH;
@@ -301,6 +322,13 @@ async function computeWaveform(file: File): Promise<number[]> {
 // Comme computeWaveform mais depuis une URL (son embarqué d'un plan vidéo) : on
 // télécharge la source et on décode sa piste audio. Best-effort → [] si échec.
 async function computeWaveformFromUrl(src: string): Promise<number[]> {
+  // Chemin rapide : lecture par plages d'octets et pics calculés au fil du
+  // décodage. L'ancien chemin télécharge le fichier ENTIER puis le décode d'un
+  // bloc, ce qui met tout le son d'une musique en mémoire d'un coup.
+  if (lectureRapideDisponible()) {
+    const pics = await picsAudio(src, WAVEFORM_PER_SECOND, WAVEFORM_MAX);
+    if (pics && pics.length) return pics;
+  }
   try {
     const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
     const ctx = new AudioCtx();
@@ -497,6 +525,7 @@ export default function MontagePage() {
   const [histTick, setHistTick] = useState(0);
   const [extraVideoTracks, setExtraVideoTracks] = useState(0); // pistes vidéo vides ajoutées par l'utilisateur (au-delà des pistes occupées)
   const [extraAudioTracks, setExtraAudioTracks] = useState(0); // idem pour les pistes audio ajoutées
+  const [extraTextTracks, setExtraTextTracks] = useState(0);   // idem pour les rangées de texte
 
   // Disposition redimensionnable (persistée) — comme CapCut
   const [panelW, setPanelW] = useState(312);
@@ -1159,6 +1188,10 @@ export default function MontagePage() {
   // embarqué des plans a sa propre rangée dédiée (« son des plans »).
   const maxAudioTrack = useMemo(() => audioTracks.reduce((m, a) => Math.max(m, a.track ?? 0), 0), [audioTracks]);
   const audioTrackCount = (audioTracks.length ? maxAudioTrack + 1 : 0) + extraAudioTracks;
+  // Pistes de texte : au moins une, et une de plus dès qu'un titre en occupe une
+  // plus haute. Même logique d'empilement à la demande que la vidéo et l'audio.
+  const maxTextTrack = useMemo(() => titles.reduce((m, ti) => Math.max(m, ti.track ?? 0), 0), [titles]);
+  const textTrackCount = Math.max(1, maxTextTrack + 1) + extraTextTracks;
 
   totalRef.current = total;
 
@@ -1359,10 +1392,12 @@ export default function MontagePage() {
     });
   }, [audioTracks]);
 
-  // En quittant le monteur, aucune piste ne doit survivre à l'écran.
+  // En quittant le monteur, aucune piste ne doit survivre à l'écran, et aucune
+  // source ouverte ne doit garder ses octets en mémoire.
   useEffect(() => () => {
     const els = audioElsRef.current;
     Object.keys(els).forEach((id) => { releaseMediaElement(els[id]); delete els[id]; });
+    fermerSources();
   }, []);
 
   useEffect(() => {
@@ -2599,7 +2634,7 @@ export default function MontagePage() {
   function onTitleBarDown(e: React.PointerEvent, ti: TitleEl) {
     e.stopPropagation();
     setSelectedTitleId(ti.id); setTool("text");
-    if (lockedLanes.has("text")) return; // piste verrouillée : sélection ok, déplacement bloqué
+    if (lockedLanes.has(`t${ti.track ?? 0}`)) return; // piste verrouillée : sélection ok, déplacement bloqué
     try { (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId); } catch {}
     titleDragRef.current = { id: ti.id, startX: e.clientX, t0start: ti.start, dur: ti.end - ti.start, moved: false, alt: e.altKey };
   }
@@ -2623,14 +2658,30 @@ export default function MontagePage() {
   function onTitleBarUp(e: React.PointerEvent) {
     const d = titleDragRef.current; titleDragRef.current = null;
     try { (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId); } catch {}
-    if (d && !d.moved && (time < d.t0start || time > d.t0start + d.dur)) seek(d.t0start + 0.05); // clic simple → recadre le curseur
+    if (!d) return;
+    if (!d.moved) {
+      if (time < d.t0start || time > d.t0start + d.dur) seek(d.t0start + 0.05); // clic simple → recadre le curseur
+      return;
+    }
+    const cible = pisteTexteCible(e.clientX, e.clientY, textTrackCount);
+    setTitles((prev) => {
+      const moi = prev.find((x) => x.id === d.id);
+      if (!moi) return prev;
+      const track = cible ?? (moi.track ?? 0);
+      const duree = Math.max(0.05, moi.end - moi.start);
+      // Deux textes ne peuvent pas occuper le même instant sur la même rangée :
+      // on cale contre le voisin plutôt que de se poser par-dessus.
+      const occupes = prev.filter((x) => x.id !== d.id && (x.track ?? 0) === track).map((x) => ({ a: x.start, b: x.end }));
+      const debut = creneauLibre(moi.start, duree, occupes);
+      return prev.map((x) => (x.id === d.id ? { ...x, track, start: debut, end: debut + duree } : x));
+    });
   }
   // Rogner la durée d'un texte (poignées gauche/droite) comme une vidéo.
   const titleTrimRef = useRef<{ id: string; edge: "start" | "end"; startX: number; t0start: number; t0end: number } | null>(null);
   function startTitleTrim(e: React.PointerEvent, ti: TitleEl, edge: "start" | "end") {
     e.stopPropagation();
     setSelectedTitleId(ti.id);
-    if (lockedLanes.has("text")) return; // piste verrouillée
+    if (lockedLanes.has(`t${ti.track ?? 0}`)) return; // piste verrouillée
     try { (e.target as HTMLElement).setPointerCapture(e.pointerId); } catch {}
     titleTrimRef.current = { id: ti.id, edge, startX: e.clientX, t0start: ti.start, t0end: ti.end };
   }
@@ -2676,7 +2727,19 @@ export default function MontagePage() {
   function onCaptionBarUp(e: React.PointerEvent) {
     const d = capDragRef.current; capDragRef.current = null;
     try { (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId); } catch {}
-    if (d && !d.moved && (time < d.t0start || time > d.t0start + d.dur)) seek(d.t0start + 0.05); // clic simple → recadre le curseur
+    if (!d) return;
+    if (!d.moved) {
+      if (time < d.t0start || time > d.t0start + d.dur) seek(d.t0start + 0.05); // clic simple → recadre le curseur
+      return;
+    }
+    setCaptions((prev) => {
+      const moi = prev.find((x) => x.id === d.id);
+      if (!moi) return prev;
+      const duree = Math.max(0.05, moi.end - moi.start);
+      const occupes = prev.filter((x) => x.id !== d.id).map((x) => ({ a: x.start, b: x.end }));
+      const debut = creneauLibre(moi.start, duree, occupes);
+      return prev.map((x) => (x.id === d.id ? { ...x, start: debut, end: debut + duree } : x));
+    });
   }
   const capTrimRef = useRef<{ id: string; edge: "start" | "end"; startX: number; t0start: number; t0end: number } | null>(null);
   function startCaptionTrim(e: React.PointerEvent, c: Caption, edge: "start" | "end") {
@@ -2743,7 +2806,19 @@ export default function MontagePage() {
     setAudioTracks((prev) => prev.map((a) => (a.id === d.id ? { ...a, offset: off } : a)));
   }
   function onAudioBarUp(e: React.PointerEvent) {
-    if (audDragRef.current) { try { (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId); } catch {} audDragRef.current = null; }
+    const d = audDragRef.current; audDragRef.current = null;
+    if (!d) return;
+    try { (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId); } catch {}
+    if (!d.moved) return;
+    const cible = pisteAudioCible(e.clientX, e.clientY, audioTrackCount);
+    setAudioTracks((prev) => {
+      const moi = prev.find((x) => x.id === d.id);
+      if (!moi) return prev;
+      const track = cible ?? (moi.track ?? 0);
+      const occupes = prev.filter((x) => x.id !== d.id && (x.track ?? 0) === track).map((x) => ({ a: x.offset, b: x.offset + x.dur }));
+      const offset = creneauLibre(moi.offset, moi.dur, occupes);
+      return prev.map((x) => (x.id === d.id ? { ...x, track, offset } : x));
+    });
   }
   /* Rognage d'une piste audio par ses bords, comme un plan vidéo.
 
@@ -3035,7 +3110,7 @@ export default function MontagePage() {
     else if (type === "sticker") { setSelectedStickerId(id); setSubSelected(false); setSelectedOverlayId(null); }
     else if (type === "overlay") { setSelectedOverlayId(id); setSubSelected(false); setSelectedTitleId(null); setSelectedStickerId(null); setTool("overlay"); }
     else setSubSelected(true);
-    const laneKey = type === "title" ? "text" : type === "caption" ? "subs" : type === "overlay" ? `v${overlays.find((x) => x.id === id)?.track ?? 0}` : "";
+    const laneKey = type === "title" ? `t${titles.find((x) => x.id === id)?.track ?? 0}` : type === "caption" ? "subs" : type === "overlay" ? `v${overlays.find((x) => x.id === id)?.track ?? 0}` : "";
     if (laneKey && lockedLanes.has(laneKey)) return; // piste verrouillée : sélection ok, déplacement bloqué
     // position actuelle (centre) de l'élément en % — pour garder le point de préhension
     const cur = type === "caption" ? (perCap && editingCaption ? capPosOf(editingCaption) : subPos)
@@ -3111,7 +3186,7 @@ export default function MontagePage() {
       const exClips = clips.map((c) => ML.has("video") ? { ...c, vol: 0 } : c); // (masquer la piste principale n'est pas appliqué à l'export)
       const exOverlays = overlays.filter((o) => !HL.has(`v${o.track ?? 0}`)).map((o) => ML.has(`v${o.track ?? 0}`) ? { ...o, vol: 0 } : o);
       const exAudio = audioTracks.filter((a) => !HL.has(`a${a.track ?? 0}`)).map((a) => ML.has(`a${a.track ?? 0}`) ? { ...a, vol: 0 } : a);
-      const exTitles = HL.has("text") ? [] : titles;
+      const exTitles = titles.filter((ti) => !HL.has(`t${ti.track ?? 0}`));
       const exCaptions = HL.has("subs") ? [] : captions;
       const { blob: rawBlob, thumbnailBlob, mimeType: recordedType } = await renderExport({ clips: exClips, overlays: exOverlays, captions: exCaptions, subStyleId, subCustom, subPos, linkedSubs, titles: exTitles, stickers, audioTracks: exAudio, showProgressBar, formatId, customW, customH, exportQuality }, (p) => setExportProgress(p));
 
@@ -3430,6 +3505,40 @@ export default function MontagePage() {
     }
     return laneUnder(clientX, clientY);
   }
+  /* Piste visée pour un élément lâché, quand la rangée compte.
+
+     Même principe que pour la vidéo : on lit la piste sous le curseur, et on
+     réserve une ZONE MORTE au delà du groupe pour créer une rangée. Le texte
+     s'empile vers le HAUT, l'audio vers le BAS — c'est le sens de la timeline,
+     l'image monte et le son descend. Il faut sortir franchement du groupe (16 px)
+     pour déclencher : un simple tremblement vertical pendant un déplacement
+     horizontal ne doit rien créer. */
+  function bornesDuGroupe(prefixe: RegExp): { haut: number; bas: number } | null {
+    const inner = tlInnerRef.current;
+    if (!inner) return null;
+    const els = Array.from(inner.querySelectorAll<HTMLElement>("[data-tllane]"))
+      .filter((e) => prefixe.test(e.dataset.tllane || ""));
+    if (!els.length) return null;
+    const rects = els.map((e) => e.getBoundingClientRect());
+    return { haut: Math.min(...rects.map((r) => r.top)), bas: Math.max(...rects.map((r) => r.bottom)) };
+  }
+  /** Rangée de texte visée. `null` = garder la sienne, nombre = cette rangée. */
+  function pisteTexteCible(clientX: number, clientY: number, nb: number): number | null {
+    const b = bornesDuGroupe(/^t\d+$/);
+    if (b && clientY < b.haut - 16) return nb; // au-dessus du groupe → nouvelle rangée
+    const lane = laneUnder(clientX, clientY);
+    if (lane && /^t\d+$/.test(lane)) return parseInt(lane.slice(1), 10) || 0;
+    return null;
+  }
+  /** Piste audio visée. Même règle, mais l'empilement se fait vers le bas. */
+  function pisteAudioCible(clientX: number, clientY: number, nb: number): number | null {
+    const b = bornesDuGroupe(/^a\d+$/);
+    if (b && clientY > b.bas + 16) return nb; // sous le groupe → nouvelle piste
+    const lane = laneUnder(clientX, clientY);
+    if (lane && /^a\d+$/.test(lane)) return parseInt(lane.slice(1), 10) || 0;
+    return null;
+  }
+
   // Instant temporel du bord gauche du plan lâché (le point saisi reste sous le curseur).
   function dropTimeAt(clientX: number, grabDx: number): number {
     const r = rulerRef.current?.getBoundingClientRect();
@@ -3757,7 +3866,8 @@ export default function MontagePage() {
   const previewScale = (stageW || 300) / activeFmt.w;
   // Le texte sélectionné s'affiche TOUJOURS dans l'aperçu (même si le curseur sort de sa
   // plage) → on peut toujours le voir, le déplacer et l'éditer.
-  const activeTitles = hiddenLanes.has("text") ? [] : titles.filter((ti) => (time >= ti.start && time <= ti.end) || ti.id === selectedTitleId);
+  // Chaque rangée de texte se masque séparément, comme les pistes vidéo.
+  const activeTitles = titles.filter((ti) => !hiddenLanes.has(`t${ti.track ?? 0}`) && ((time >= ti.start && time <= ti.end) || ti.id === selectedTitleId));
   const activeStickers = stickers.filter((s) => time >= s.start && time <= s.end);
   const activeCaption = hiddenLanes.has("subs") ? undefined
     : (captions.find((c) => c.id === selectedCaptionId && editingCaptionId === c.id)
@@ -4598,12 +4708,21 @@ export default function MontagePage() {
                 ))}
               </div>
             </div>
-            <div className="a-lane" style={{ height: laneH("text"), order: 2 }}>
-              <LaneResize laneKey="text" />
-              <div className="a-lane-label" style={{ display: "flex", alignItems: "center", gap: 4 }}><VIcon name="text" size={13} /> <span className="trunc">{t('railText')}</span><LaneControls laneKey="text" audio /></div>
+            {Array.from({ length: textTrackCount }).map((_, ttrack) => (
+            <div className="a-lane" style={{ height: laneH(`t${ttrack}`), order: 2 }} data-tllane={`t${ttrack}`} key={"ttrack-" + ttrack}>
+              <LaneResize laneKey={`t${ttrack}`} />
+              <div className="a-lane-label" style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                <VIcon name="text" size={13} />
+                <span className="trunc">{textTrackCount > 1 ? `${t('railText')} ${ttrack + 1}` : t('railText')}</span>
+                <LaneControls laneKey={`t${ttrack}`} audio />
+                {ttrack === 0 && (
+                  <button onClick={() => setExtraTextTracks((n) => n + 1)} title={t('addTextTrack')}
+                    style={{ width: 18, height: 18, borderRadius: 5, border: "1px solid var(--line)", background: "var(--canvas)", color: "var(--ink-2)", fontSize: 14, lineHeight: "14px", cursor: "pointer", flexShrink: 0, padding: 0 }}>+</button>
+                )}
+              </div>
               <div className="a-lane-track">
-                {titles.map((ti) => (
-                  <div key={ti.id} className={"a-chip a-chip-title" + (selectedTitleId === ti.id ? " on" : "")} style={{ left: ti.start * pps, width: Math.max(20, (ti.end - ti.start) * pps), top: 2, height: blockH("text"), cursor: "grab", touchAction: "none" }} title={ti.text}
+                {titles.filter((ti) => (ti.track ?? 0) === ttrack).map((ti) => (
+                  <div key={ti.id} className={"a-chip a-chip-title" + (selectedTitleId === ti.id ? " on" : "")} style={{ left: ti.start * pps, width: Math.max(20, (ti.end - ti.start) * pps), top: 2, height: blockH(`t${ttrack}`), cursor: "grab", touchAction: "none" }} title={ti.text}
                     onPointerDown={(e) => onTitleBarDown(e, ti)} onPointerMove={onTitleBarMove} onPointerUp={onTitleBarUp}
                     onContextMenu={(e) => { e.preventDefault(); setSelectedTitleId(ti.id); setClipMenu({ x: e.clientX, y: e.clientY, id: ti.id, kind: "title" }); }}>
                     <VIcon name="text" size={11} />
@@ -4616,6 +4735,7 @@ export default function MontagePage() {
                 ))}
               </div>
             </div>
+            ))}
             {/* Position posée par `poserCurseur` (écriture DOM directe) : pendant la
                 lecture React ne touche plus à ce style, sinon chaque rendu le
                 ramènerait à la valeur du dernier rendu et le curseur sauterait

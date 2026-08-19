@@ -1931,7 +1931,8 @@
     "outlineCorners": "Contorno e angoli",
     "roundedCorners": "Angoli arrotondati",
     "textBox": "Riquadro di testo",
-    "textWidth": "Larghezza"
+    "textWidth": "Larghezza",
+    "addTextTrack": "Aggiungi una riga di testo"
   },
   "forgotPassword": {
     "title": "Password dimenticata",

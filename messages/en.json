@@ -1931,7 +1931,8 @@
     "outlineCorners": "Outline & corners",
     "roundedCorners": "Rounded corners",
     "textBox": "Text box",
-    "textWidth": "Width"
+    "textWidth": "Width",
+    "addTextTrack": "Add a text row"
   },
   "forgotPassword": {
     "title": "Forgot password",

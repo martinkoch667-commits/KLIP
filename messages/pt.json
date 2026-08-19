@@ -1931,7 +1931,8 @@
     "outlineCorners": "Contorno e cantos",
     "roundedCorners": "Cantos arredondados",
     "textBox": "Caixa de texto",
-    "textWidth": "Largura"
+    "textWidth": "Largura",
+    "addTextTrack": "Adicionar uma linha de texto"
   },
   "forgotPassword": {
     "title": "Esqueceu a palavra-passe",

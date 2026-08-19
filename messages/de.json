@@ -1931,7 +1931,8 @@
     "outlineCorners": "Kontur & Ecken",
     "roundedCorners": "Abgerundete Ecken",
     "textBox": "Textfeld",
-    "textWidth": "Breite"
+    "textWidth": "Breite",
+    "addTextTrack": "Textzeile hinzufügen"
   },
   "forgotPassword": {
     "title": "Passwort vergessen",
