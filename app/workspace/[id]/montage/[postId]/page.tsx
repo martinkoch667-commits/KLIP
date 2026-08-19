@@ -598,7 +598,7 @@ export default function MontagePage() {
   // piste sous le curseur (déplacement temporel, changement de piste, ou création
   // d'une nouvelle piste vidéo en montant tout en haut). Piloté au pointeur, sans
   // drag HTML5 (fini le fantôme moche du navigateur).
-  const tlDragRef = useRef<{ id: string; kind: "clip" | "overlay"; startX: number; startY: number; grabDx: number; grabDy: number; widthPx: number; moved: boolean; anchor: number } | null>(null);
+  const tlDragRef = useRef<{ id: string; kind: "clip" | "overlay"; startX: number; startY: number; grabDx: number; grabDy: number; widthPx: number; moved: boolean } | null>(null);
   const tlInnerRef = useRef<HTMLDivElement>(null);
   const tlScrollRef = useRef<HTMLDivElement>(null);
   const selDragRef = useRef<{ startX: number; startY: number; moved: boolean } | null>(null); // rectangle de sélection
@@ -1427,6 +1427,46 @@ export default function MontagePage() {
       const copy = [...prev]; copy.splice(idx, 0, clip); return copy;
     });
     setSelectedClipId(clip.id);
+  }
+
+  /* Déplace un plan DANS la séquence principale, en changeant son rang si
+     besoin.
+
+     Avant, le relâchement se contentait de recalculer `gapBefore`, c'est à dire
+     le trou entre le plan précédent et lui. Un plan ne pouvait donc que
+     s'éloigner vers la droite : tiré vers la gauche, son trou tombait à zéro et
+     il restait à sa place. Autrement dit, l'ordre des plans était impossible à
+     changer à la souris, alors que c'est le geste le plus courant du montage.
+
+     Le rang d'arrivée se lit à la position du BORD GAUCHE du plan déplacé,
+     comparée au milieu de chaque voisin : passer la moitié du plan d'à côté
+     suffit à passer devant lui, et il n'y a pas besoin de le dépasser
+     entièrement. Comparer les centres semblait plus naturel, mais rendait la
+     première place inatteignable : tiré tout à gauche, le centre du plan tombe
+     exactement sur le milieu du premier quand ils font la même durée. */
+  function moveClipOnMainLane(id: string, dropT: number) {
+    setClips((prev) => {
+      const from = prev.findIndex((c) => c.id === id);
+      if (from < 0) return prev;
+      const moving = prev[from];
+      const rest = prev.filter((_, i) => i !== from);
+
+      let acc = 0;
+      const ws = rest.map((c) => {
+        acc += Math.max(0, c.gapBefore ?? 0);
+        const start = acc;
+        acc += clipTimelineDur(c);
+        return { start, end: acc };
+      });
+
+      let idx = ws.findIndex((w) => dropT < (w.start + w.end) / 2);
+      if (idx < 0) idx = rest.length;
+
+      const prevEnd = idx > 0 ? ws[idx - 1].end : 0;
+      const next = [...rest];
+      next.splice(idx, 0, { ...moving, gapBefore: Math.max(0, dropT - prevEnd) });
+      return next;
+    });
   }
 
   // Couper en deux au curseur — fonctionne sur N'IMPORTE QUEL élément sélectionné :
@@ -3023,11 +3063,7 @@ export default function MontagePage() {
     else { setSelectedOverlayId(id); setSelectedClipId(null); setSelectedTitleId(null); setSelectedStickerId(null); setSubSelected(false); setSelectedAudioId(null); setTool("overlay"); }
     if (locked) return; // piste verrouillée : sélection ok, déplacement bloqué
     const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-    // anchor (plans) = fin du plan précédent = point fixe pour recalculer le trou (gapBefore)
-    // pendant le glissement live.
-    let anchor = 0;
-    if (kind === "clip") { const c = clipStarts.find((x) => x.id === id); if (c) anchor = c.start - Math.max(0, c.gapBefore ?? 0); }
-    tlDragRef.current = { id, kind, startX: e.clientX, startY: e.clientY, grabDx: e.clientX - rect.left, grabDy: e.clientY - rect.top, widthPx: rect.width, moved: false, anchor };
+    tlDragRef.current = { id, kind, startX: e.clientX, startY: e.clientY, grabDx: e.clientX - rect.left, grabDy: e.clientY - rect.top, widthPx: rect.width, moved: false };
     try { (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId); } catch {}
   }
   function onTlDragMove(e: React.PointerEvent) {
@@ -3064,7 +3100,7 @@ export default function MontagePage() {
           const cs = clips.find((x) => x.id === d.id);
           if (cs) { const copy: MontageClip = { ...cs, id: crypto.randomUUID(), gapBefore: 0 }; insertClipAtTime(copy, dropT); }
         } else {
-          updateClip(d.id, { gapBefore: Math.max(0, dropT - d.anchor) }); // reste sur la piste principale → repositionne
+          moveClipOnMainLane(d.id, dropT); // reste sur la piste principale → repositionne et réordonne
         }
       } else if (lane === "new") {
         clipToOverlayTrack(d.id, dup, dropT, videoTrackCount); // nouvelle piste au-dessus de tout
