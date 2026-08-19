@@ -656,7 +656,10 @@
     "captionPromptLabel": "What should this caption say?",
     "captionPromptPh": "E.g. announce the new autumn menu, warm tone, end on a question",
     "captionPromptHint": "⌘ + Enter",
-    "captionCancel": "Cancel"
+    "captionCancel": "Cancel",
+    "captionStarter1": "Announce something new",
+    "captionStarter2": "Share behind the scenes",
+    "captionStarter3": "End on a question"
   },
   "editor": {
     "background": "Background",

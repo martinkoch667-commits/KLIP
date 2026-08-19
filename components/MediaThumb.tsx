@@ -80,6 +80,21 @@ export function MediaPreview({
      RIEN. Le bouton de lecture restait là, la vidéo ne démarrait pas, et
      personne, ni l'utilisateur ni nous, ne savait pourquoi. */
   const [failure, setFailure] = React.useState<string | null>(null);
+  /* Chargement qui s'éternise. Sans ce garde-temps, une vidéo lourde donne un
+     écran figé sans rien dire, et on ne distingue pas « ça charge » de « c'est
+     cassé ». */
+  const [stalled, setStalled] = React.useState(false);
+  const stallTimer = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const armStall = React.useCallback(() => {
+    if (stallTimer.current) clearTimeout(stallTimer.current);
+    stallTimer.current = setTimeout(() => setStalled(true), 6000);
+  }, []);
+  const clearStall = React.useCallback(() => {
+    if (stallTimer.current) { clearTimeout(stallTimer.current); stallTimer.current = null; }
+    setStalled(false);
+  }, []);
+  React.useEffect(() => () => { if (stallTimer.current) clearTimeout(stallTimer.current); }, []);
 
   if (!raw) return null;
 
@@ -104,7 +119,9 @@ export function MediaPreview({
     const el = videoRef.current;
     if (!el) return;
     if (el.paused) {
+      armStall();
       el.play().catch((e: unknown) => {
+        clearStall();
         const msg = e instanceof Error ? e.message : String(e);
         console.warn("[MediaPreview] lecture refusée :", raw, msg);
         setFailure(msg);
@@ -122,23 +139,45 @@ export function MediaPreview({
         // première lecture. Demander une position force le décodage de cette
         // image-là et l'affiche. Vérifié sur un MP4 issu de MediaRecorder,
         // exactement celui que produit l'export.
-        src={`${raw}#t=0.1`}
+        /* `#t=0.1` force le navigateur à SE POSITIONNER sur une image, donc à
+           trouver l'index du fichier. Sur un MP4 produit par MediaRecorder,
+           cet index est écrit à la FIN : demander une position revient alors à
+           télécharger toute la vidéo avant d'afficher quoi que ce soit, d'où
+           les chargements interminables. Quand une image d'attente existe, elle
+           fait le travail et on laisse le fichier tranquille. */
+        src={poster ? raw : `${raw}#t=0.1`}
         poster={poster ? thumbUrl(poster, 640) : undefined}
         playsInline
         preload="metadata"
         controls={controls}
         onClick={controls ? undefined : toggle}
-        onPlay={() => { setPlaying(true); setFailure(null); }}
+        onPlay={() => { setPlaying(true); setFailure(null); clearStall(); }}
+        onWaiting={armStall}
+        onPlaying={clearStall}
+        onCanPlay={clearStall}
         onPause={() => setPlaying(false)}
         onEnded={() => setPlaying(false)}
         onError={(e) => {
           const code = e.currentTarget.error?.code ?? 0;
           const why = MEDIA_ERR[code] ?? "erreur inconnue";
           console.warn("[MediaPreview] média en erreur :", raw, code, why);
+          clearStall();
           setFailure(why);
         }}
         style={{ ...base, cursor: "pointer" }}
       />
+      {stalled && !failure && (
+        <div style={{
+          position: "absolute", left: 8, right: 8, bottom: 8, padding: "9px 11px", borderRadius: 9,
+          background: "rgba(12,14,11,.86)", color: "#fff", fontSize: 11.5, lineHeight: 1.45,
+          fontFamily: "var(--sans)", display: "flex", flexDirection: "column", gap: 6,
+        }}>
+          <span>La vidéo met du temps à charger.</span>
+          <a href={raw} target="_blank" rel="noopener noreferrer" style={{ color: "var(--leaf, #BDF2A0)", fontWeight: 700 }}>
+            L&apos;ouvrir dans un onglet
+          </a>
+        </div>
+      )}
       {failure && (
         <div style={{
           position: "absolute", left: 8, right: 8, bottom: 8, padding: "9px 11px", borderRadius: 9,

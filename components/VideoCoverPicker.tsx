@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
 
 /* Choix de la miniature d'une vidéo, au moment de programmer.
@@ -8,19 +9,17 @@ import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
    La miniature est la seule chose que voit un abonné qui fait défiler son fil :
    laisser Instagram prendre la première image, c'est souvent afficher un flou de
    démarrage ou un plan noir. Le montage permettait déjà de la choisir au
-   curseur, mais seulement là-bas, et seulement pendant qu'on monte. Ici on la
-   choisit au moment où l'on décide de publier, sans rouvrir l'éditeur.
+   curseur, mais seulement là-bas, et seulement pendant qu'on monte.
 
-   Deux voies : prendre une image de la vidéo, ou importer la sienne.
+   Replié par défaut. Un lecteur, un curseur et trois boutons posés en permanence
+   dans le formulaire, c'était une deuxième interface au milieu de la première,
+   pour un réglage qu'on ne touche qu'une fois. Ne reste que la vignette
+   actuelle et un bouton ; le reste s'ouvre en fenêtre.
 
    La miniature vit dans `posts.thumbnail_url`, la même colonne que celle
-   qu'écrit le montage, et part vers Instagram en `cover_url`.
+   qu'écrit le montage, et part vers Instagram en `cover_url`. */
 
-   Mise en forme : les deux visuels ont la MÊME hauteur et chacun le ratio de sa
-   source. Un cadre de largeur fixe donnait de grandes bandes noires autour d'une
-   vidéo verticale, ce qui faisait tache au milieu d'un formulaire propre. */
-
-const BOX_H = 132; // hauteur commune des deux aperçus
+const BOX_H = 168;
 
 export default function VideoCoverPicker({
   videoUrl, postId, workspaceId, value, onChange,
@@ -34,26 +33,32 @@ export default function VideoCoverPicker({
   const supabase = createClientComponentClient();
   const videoRef = useRef<HTMLVideoElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+  const [open, setOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
   const [dur, setDur] = useState(0);
   const [aspect, setAspect] = useState(9 / 16);
   const [at, setAt] = useState(0);
   const [busy, setBusy] = useState<"frame" | "file" | null>(null);
   const [err, setErr] = useState<string | null>(null);
 
-  // Lecture des dimensions et de la durée. `onLoadedMetadata` ne suffit pas :
-  // quand le fichier est déjà en cache, l'événement peut avoir eu lieu avant que
-  // React n'attache le gestionnaire, et l'aperçu resterait alors au ratio par
-  // défaut. On lit donc aussi l'état de l'élément au montage.
+  useEffect(() => setMounted(true), []);
+
+  // `onLoadedMetadata` peut avoir eu lieu avant que React n'attache le
+  // gestionnaire quand le fichier est déjà en cache : on lit aussi l'élément.
   function readMeta(v: HTMLVideoElement) {
     if (v.duration && isFinite(v.duration)) setDur(v.duration);
     if (v.videoWidth && v.videoHeight) setAspect(v.videoWidth / v.videoHeight);
   }
 
   useEffect(() => {
-    setAt(0); setDur(0);
+    if (!open) return;
+    setAt(0); setErr(null);
     const v = videoRef.current;
     if (v && v.readyState >= 1) readMeta(v);
-  }, [videoUrl]);
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setOpen(false); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [open, videoUrl]);
 
   async function upload(blob: Blob): Promise<string | null> {
     const path = `${workspaceId}/cover-${postId}-${Date.now()}.jpg`;
@@ -83,6 +88,7 @@ export default function VideoCoverPicker({
       const url = await upload(blob);
       if (!url) throw new Error("upload");
       await save(url);
+      setOpen(false);
     } catch {
       setErr("L'image n'a pas pu être enregistrée. Réessayez.");
     } finally {
@@ -100,6 +106,7 @@ export default function VideoCoverPicker({
       const url = await upload(file);
       if (!url) throw new Error("upload");
       await save(url);
+      setOpen(false);
     } catch {
       setErr("L'image n'a pas pu être envoyée. Réessayez.");
     } finally {
@@ -108,82 +115,103 @@ export default function VideoCoverPicker({
   }
 
   const pct = dur > 0 ? (at / dur) * 100 : 0;
-  const frame: React.CSSProperties = {
-    height: BOX_H, borderRadius: 10, overflow: "hidden", background: "#000",
-    boxShadow: "inset 0 0 0 1px var(--line)", flexShrink: 0,
-  };
 
   return (
     <div>
-      <label className="label" style={{ display: "block", marginBottom: 8 }}>Miniature de la vidéo</label>
+      <label className="label" style={{ display: "block", marginBottom: 6 }}>Miniature de la vidéo</label>
 
-      <div style={{ display: "flex", gap: 12, alignItems: "flex-start", flexWrap: "wrap" }}>
-        {/* Ce que verra l'abonné dans le fil. */}
-        <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
-          <div style={{ ...frame, width: BOX_H * aspect, display: "grid", placeItems: "center" }}>
-            {value
-              // eslint-disable-next-line @next/next/no-img-element
-              ? <img src={value} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
-              : <span style={{ fontSize: 10.5, color: "var(--cream-3)", textAlign: "center", padding: 10, lineHeight: 1.4 }}>Aucune<br />miniature</span>}
-          </div>
-          <span style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: ".04em", textTransform: "uppercase", color: "var(--ink-3)", textAlign: "center" }}>
-            {value ? "Choisie" : "Par défaut"}
-          </span>
+      {/* Replié : ce que verra l'abonné, et de quoi l'ouvrir. */}
+      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+        <div style={{ width: 44, height: 58, borderRadius: 8, overflow: "hidden", background: "#000", flexShrink: 0, boxShadow: "inset 0 0 0 1px var(--line)", display: "grid", placeItems: "center" }}>
+          {value
+            // eslint-disable-next-line @next/next/no-img-element
+            ? <img src={value} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+            : <span style={{ fontSize: 9, color: "rgba(255,255,255,.5)", textAlign: "center", lineHeight: 1.3, padding: 4 }}>1re<br />image</span>}
         </div>
-
-        {/* Le film, à parcourir. */}
-        <div style={{ flex: 1, minWidth: 190 }}>
-          <div style={{ ...frame, width: BOX_H * aspect, maxWidth: "100%" }}>
-            <video
-              ref={videoRef}
-              src={videoUrl}
-              crossOrigin="anonymous"
-              muted
-              playsInline
-              preload="metadata"
-              onLoadedMetadata={e => readMeta(e.currentTarget)}
-              style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
-            />
+        <div style={{ minWidth: 0 }}>
+          <div style={{ fontSize: 12.5, fontWeight: 700, color: "var(--ink)" }}>
+            {value ? "Miniature choisie" : "Miniature par défaut"}
           </div>
-
-          <input
-            className="ed-range"
-            type="range" min={0} max={Math.max(0.1, dur)} step={0.05} value={at}
-            onChange={e => {
-              const v = parseFloat(e.target.value);
-              setAt(v);
-              if (videoRef.current) videoRef.current.currentTime = v;
-            }}
-            style={{
-              width: "100%", marginTop: 12,
-              // Remplissage à la couleur de la marque, sans dépendre du bleu du navigateur.
-              background: `linear-gradient(90deg, var(--leaf) ${pct}%, rgba(13,15,10,.16) ${pct}%)`,
-            }}
-            aria-label="Instant de la miniature"
-          />
-          <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: "var(--ink-3)", marginTop: 4 }}>
-            <span>{at.toFixed(1)}s</span>
-            <span>{dur ? `${dur.toFixed(1)}s` : ""}</span>
+          <div style={{ fontSize: 11.5, color: "var(--ink-3)", lineHeight: 1.4 }}>
+            {value ? "C'est elle qui s'affichera dans le fil." : "Instagram prendra la première image de la vidéo."}
           </div>
-
-          <div style={{ display: "flex", gap: 8, marginTop: 12, flexWrap: "wrap" }}>
-            <button onClick={takeFrame} disabled={busy !== null || !dur} className="btn btn-sm" style={{ height: 30, fontSize: 11.5 }}>
-              {busy === "frame" ? "Enregistrement…" : "Prendre cette image"}
-            </button>
-            <button onClick={() => fileRef.current?.click()} disabled={busy !== null} className="btn btn-sm btn-ghost" style={{ height: 30, fontSize: 11.5 }}>
-              {busy === "file" ? "Envoi…" : "Importer"}
-            </button>
-            {value && (
-              <button onClick={() => save(null)} disabled={busy !== null} className="btn btn-sm btn-ghost" style={{ height: 30, fontSize: 11.5, color: "var(--ink-3)" }}>
-                Retirer
-              </button>
-            )}
-            <input ref={fileRef} type="file" accept="image/*" onChange={importFile} style={{ display: "none" }} />
-          </div>
-
-          {err && <p style={{ margin: "8px 0 0", fontSize: 11.5, color: "var(--warn)" }}>{err}</p>}
         </div>
+        <button onClick={() => setOpen(true)} className="btn btn-sm btn-ghost" style={{ marginLeft: "auto", height: 30, fontSize: 11.5, flexShrink: 0 }}>
+          {value ? "Modifier" : "Choisir"}
+        </button>
       </div>
+
+      {/* Déplié : la fenêtre. Rendue dans <body> pour ne dépendre d'aucun
+          conteneur de la page (défilement, transformations, z-index). */}
+      {open && mounted && createPortal(
+        <div
+          role="dialog" aria-modal="true" aria-label="Miniature de la vidéo"
+          onClick={() => setOpen(false)}
+          style={{ position: "fixed", inset: 0, zIndex: 9000, background: "rgba(7,33,23,.62)", display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}
+        >
+          <div
+            onClick={e => e.stopPropagation()}
+            style={{ width: "100%", maxWidth: 420, background: "var(--card, #fff)", borderRadius: "var(--r-l, 18px)", padding: "18px 18px 16px", boxShadow: "0 40px 90px -30px rgba(7,33,23,.55)", fontFamily: "var(--sans)" }}
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14 }}>
+              <span style={{ fontFamily: "var(--display)", fontWeight: 800, fontSize: 15, color: "var(--ink)" }}>Miniature de la vidéo</span>
+              <button onClick={() => setOpen(false)} className="mzchat-plus" style={{ marginLeft: "auto" }} aria-label="Fermer">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><path d="M5 5l14 14M19 5L5 19" /></svg>
+              </button>
+            </div>
+
+            <div style={{ display: "flex", justifyContent: "center" }}>
+              <div style={{ height: BOX_H, width: BOX_H * aspect, maxWidth: "100%", borderRadius: 12, overflow: "hidden", background: "#000", boxShadow: "inset 0 0 0 1px var(--line)" }}>
+                <video
+                  ref={videoRef}
+                  src={videoUrl}
+                  crossOrigin="anonymous"
+                  muted
+                  playsInline
+                  preload="metadata"
+                  onLoadedMetadata={e => readMeta(e.currentTarget)}
+                  style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
+                />
+              </div>
+            </div>
+
+            <input
+              className="ed-range"
+              type="range" min={0} max={Math.max(0.1, dur)} step={0.05} value={at}
+              onChange={e => {
+                const v = parseFloat(e.target.value);
+                setAt(v);
+                if (videoRef.current) videoRef.current.currentTime = v;
+              }}
+              style={{ width: "100%", marginTop: 14, background: `linear-gradient(90deg, var(--leaf) ${pct}%, rgba(13,15,10,.16) ${pct}%)` }}
+              aria-label="Instant de la miniature"
+            />
+            <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: "var(--ink-3)", marginTop: 4 }}>
+              <span>{at.toFixed(1)}s</span>
+              <span>{dur ? `${dur.toFixed(1)}s` : ""}</span>
+            </div>
+
+            <div style={{ display: "flex", gap: 8, marginTop: 14, flexWrap: "wrap" }}>
+              <button onClick={takeFrame} disabled={busy !== null || !dur} className="btn btn-primary btn-sm" style={{ height: 32, fontSize: 12 }}>
+                {busy === "frame" ? "Enregistrement…" : "Prendre cette image"}
+              </button>
+              <button onClick={() => fileRef.current?.click()} disabled={busy !== null} className="btn btn-ghost btn-sm" style={{ height: 32, fontSize: 12 }}>
+                {busy === "file" ? "Envoi…" : "Importer"}
+              </button>
+              {value && (
+                <button onClick={() => { save(null); setOpen(false); }} disabled={busy !== null}
+                  style={{ marginLeft: "auto", background: "none", border: "none", cursor: "pointer", fontFamily: "var(--sans)", fontSize: 12, fontWeight: 600, color: "var(--ink-3)" }}>
+                  Retirer
+                </button>
+              )}
+              <input ref={fileRef} type="file" accept="image/*" onChange={importFile} style={{ display: "none" }} />
+            </div>
+
+            {err && <p style={{ margin: "10px 0 0", fontSize: 11.5, color: "var(--warn)" }}>{err}</p>}
+          </div>
+        </div>,
+        document.body,
+      )}
     </div>
   );
 }

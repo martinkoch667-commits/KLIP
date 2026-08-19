@@ -656,7 +656,10 @@
     "captionPromptLabel": "O que deve dizer esta legenda?",
     "captionPromptPh": "Ex.: anunciar a nova carta de outono, tom acolhedor, terminar com uma pergunta",
     "captionPromptHint": "⌘ + Enter",
-    "captionCancel": "Cancelar"
+    "captionCancel": "Cancelar",
+    "captionStarter1": "Anunciar uma novidade",
+    "captionStarter2": "Mostrar os bastidores",
+    "captionStarter3": "Terminar com uma pergunta"
   },
   "editor": {
     "background": "Fundo",

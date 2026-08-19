@@ -656,7 +656,10 @@
     "captionPromptLabel": "Che cosa deve raccontare questa didascalia?",
     "captionPromptPh": "Es.: annunciare il nuovo menu d'autunno, tono caloroso, chiudere con una domanda",
     "captionPromptHint": "⌘ + Invio",
-    "captionCancel": "Annulla"
+    "captionCancel": "Annulla",
+    "captionStarter1": "Annunciare una novità",
+    "captionStarter2": "Raccontare il dietro le quinte",
+    "captionStarter3": "Chiudere con una domanda"
   },
   "editor": {
     "background": "Sfondo",

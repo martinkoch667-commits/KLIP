@@ -656,7 +656,10 @@
     "captionPromptLabel": "Que doit raconter cette légende ?",
     "captionPromptPh": "Ex : annoncer la nouvelle carte d'automne, ton chaleureux, finir par une question",
     "captionPromptHint": "⌘ + Entrée",
-    "captionCancel": "Annuler"
+    "captionCancel": "Annuler",
+    "captionStarter1": "Annoncer une nouveauté",
+    "captionStarter2": "Raconter les coulisses",
+    "captionStarter3": "Finir par une question"
   },
   "editor": {
     "background": "Fond",

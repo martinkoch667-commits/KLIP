@@ -656,7 +656,10 @@
     "captionPromptLabel": "¿Qué debe contar este pie de foto?",
     "captionPromptPh": "Ej.: anunciar la nueva carta de otoño, tono cercano, terminar con una pregunta",
     "captionPromptHint": "⌘ + Intro",
-    "captionCancel": "Cancelar"
+    "captionCancel": "Cancelar",
+    "captionStarter1": "Anunciar una novedad",
+    "captionStarter2": "Contar el detrás de cámaras",
+    "captionStarter3": "Terminar con una pregunta"
   },
   "editor": {
     "background": "Fondo",
