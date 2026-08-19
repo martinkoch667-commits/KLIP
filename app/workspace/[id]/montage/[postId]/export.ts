@@ -434,6 +434,45 @@ async function loadImage(src: string): Promise<HTMLImageElement> {
   });
 }
 
+/* Minuteur non bridé, exécuté dans un worker.
+
+   Le rendu de l'export était cadencé par `setInterval` dans la page. Or dès que
+   l'onglet passe en arrière-plan, et un export dure assez longtemps pour qu'on
+   aille faire autre chose, le navigateur ramène ces minuteurs à UNE fois par
+   seconde, tandis que MediaRecorder continue d'enregistrer en temps réel. Le
+   canvas n'est alors redessiné qu'une fois par seconde : le film exporté reste
+   figé pendant des secondes entières.
+
+   Mesuré dans Chromium, onglet caché, sur trois secondes à 33 ms d'intervalle :
+     setInterval dans la page   →   3 déclenchements
+     setInterval dans un worker → 120 déclenchements
+
+   Le commentaire d'origine notait justement que requestAnimationFrame est
+   suspendu en arrière-plan, mais concluait que setInterval « continue de tourner
+   de façon fiable ». C'est faux : il est bridé lui aussi. Seul un worker y
+   échappe. */
+function createTicker() {
+  const src = "let iv;onmessage=e=>{clearInterval(iv);if(e.data.ms)iv=setInterval(()=>postMessage(0),e.data.ms)}";
+  const url = URL.createObjectURL(new Blob([src], { type: "text/javascript" }));
+  let worker: Worker | null = null;
+  try { worker = new Worker(url); } catch { worker = null; }
+
+  /** Rappelle `cb` toutes les `ms`. Rend la fonction d'arrêt. */
+  function every(ms: number, cb: () => void): () => void {
+    if (!worker) {
+      const iv = setInterval(cb, ms); // repli : navigateur sans worker
+      return () => clearInterval(iv);
+    }
+    const w = worker;
+    w.onmessage = cb;
+    w.postMessage({ ms });
+    return () => { w.postMessage({ ms: 0 }); w.onmessage = null; };
+  }
+
+  function dispose() { worker?.terminate(); URL.revokeObjectURL(url); }
+  return { every, dispose };
+}
+
 export async function renderExport(project: ExportProject, onProgress: (p: number) => void): Promise<ExportResult> {
   const fmt = project.formatId === "custom" && project.customW && project.customH
     ? { w: project.customW, h: project.customH }
@@ -443,6 +482,8 @@ export async function renderExport(project: ExportProject, onProgress: (p: numbe
   const clips = withStarts(project.clips);
   const total = clips.length ? clips[clips.length - 1].end : 0;
   if (!total) throw new Error("Aucun plan à exporter");
+
+  const ticker = createTicker();
 
   const canvas = document.createElement("canvas");
   canvas.width = CANVAS_W; canvas.height = CANVAS_H;
@@ -694,9 +735,9 @@ export async function renderExport(project: ExportProject, onProgress: (p: numbe
         const gapStart = c.start - gapBefore;
         const t0 = performance.now();
         await new Promise<void>((resolve) => {
-          const iv = setInterval(() => {
+          const stop = ticker.every(1000 / FPS, () => {
             const elapsed = (performance.now() - t0) / 1000;
-            if (elapsed >= gapBefore) { clearInterval(iv); resolve(); return; }
+            if (elapsed >= gapBefore) { stop(); resolve(); return; }
             const globalT = gapStart + elapsed;
             updateAudioAt(globalT);
             ctx.fillStyle = "#000";
@@ -706,7 +747,7 @@ export async function renderExport(project: ExportProject, onProgress: (p: numbe
             drawTitles(ctx, project.titles, globalT);
             drawStickers(ctx, project.stickers, stickerImages, globalT);
             if (project.showProgressBar) drawProgressBar(ctx, globalT, total);
-          }, 1000 / FPS);
+          });
         });
       }
 
@@ -738,9 +779,9 @@ export async function renderExport(project: ExportProject, onProgress: (p: numbe
         const transDur = c.transitionDur;
         const overlapStart = performance.now();
         await new Promise<void>((resolve) => {
-          const iv = setInterval(() => {
+          const stop = ticker.every(1000 / FPS, () => {
             const elapsed = (performance.now() - overlapStart) / 1000;
-            if (elapsed >= transDur) { clearInterval(iv); resolve(); return; }
+            if (elapsed >= transDur) { stop(); resolve(); return; }
             const p = elapsed / transDur;
             const globalT = c.start + elapsed;
             updateAudioAt(globalT);
@@ -752,7 +793,7 @@ export async function renderExport(project: ExportProject, onProgress: (p: numbe
             drawTitles(ctx, project.titles, globalT);
             drawStickers(ctx, project.stickers, stickerImages, globalT);
             if (project.showProgressBar) drawProgressBar(ctx, globalT, total);
-          }, 1000 / FPS);
+          });
         });
         if (prevM.kind === "video") (prevM.el as HTMLVideoElement).pause();
       }
@@ -767,12 +808,11 @@ export async function renderExport(project: ExportProject, onProgress: (p: numbe
       if (c.kind === "video") {
         const v = media.el as HTMLVideoElement;
         await new Promise<void>((resolve) => {
-          // setInterval (pas requestAnimationFrame) : rAF est suspendu/throttlé par le
-          // navigateur quand l'onglet n'a pas le focus (ex. export lancé en tâche de fond),
-          // ce qui gèle le rendu — setInterval continue de tourner de façon fiable.
-          const iv = setInterval(() => {
+          // Cadencé par le minuteur du worker : rAF est suspendu en arrière-plan,
+          // et le setInterval de la page y tombe à une fois par seconde (mesuré).
+          const stop = ticker.every(1000 / FPS, () => {
             const localT = (v.currentTime - c.trimStart) / c.speed;
-            if (v.paused || localT >= soloEnd || v.ended) { clearInterval(iv); resolve(); return; }
+            if (v.paused || localT >= soloEnd || v.ended) { stop(); resolve(); return; }
             const globalT = c.start + localT;
             videoGains[i % 2].gain.value = clipAudioGainAt(c, localT); // volume + fondus du son du plan
             updateAudioAt(globalT);
@@ -783,15 +823,15 @@ export async function renderExport(project: ExportProject, onProgress: (p: numbe
             drawStickers(ctx, project.stickers, stickerImages, globalT);
             if (project.showProgressBar) drawProgressBar(ctx, globalT, total);
             maybeCaptureThumbnail(i === 0);
-          }, 1000 / FPS);
+          });
         });
         if (crossFadeOutDur <= 0) v.pause();
       } else {
         const img = media.el as HTMLImageElement;
         await new Promise<void>((resolve) => {
-          const iv = setInterval(() => {
+          const stop = ticker.every(1000 / FPS, () => {
             const localT = (performance.now() - media.photoStart) / 1000;
-            if (localT >= soloEnd) { clearInterval(iv); resolve(); return; }
+            if (localT >= soloEnd) { stop(); resolve(); return; }
             const globalT = c.start + localT;
             updateAudioAt(globalT);
             drawMediaFrame(ctx, img, c, localT, i === 0);
@@ -801,7 +841,7 @@ export async function renderExport(project: ExportProject, onProgress: (p: numbe
             drawStickers(ctx, project.stickers, stickerImages, globalT);
             if (project.showProgressBar) drawProgressBar(ctx, globalT, total);
             maybeCaptureThumbnail(i === 0);
-          }, 1000 / FPS);
+          });
         });
       }
 
@@ -816,6 +856,7 @@ export async function renderExport(project: ExportProject, onProgress: (p: numbe
   }
 
   const blob = await stopped;
+  ticker.dispose();
   try { silence.stop(); } catch { /* déjà arrêtée */ }
   await audioCtx.close();
   await thumbnailPromise;
