@@ -14,6 +14,7 @@ import Link from "next/link";
 import Sidebar from "@/components/Sidebar";
 import PostPreviewPane from "@/components/PostPreviewPane";
 import DateField from "@/components/DateField";
+import TimeField from "@/components/TimeField";
 import InstagramFeed from "@/components/InstagramFeed";
 import {
   HOUR_H, HOURS, getMonday, addDays, isSameDay, toDateInput, toTimeInput,
@@ -500,7 +501,7 @@ export default function CalendarPage() {
                 <label className="label" style={{ display: "block", marginBottom: 6 }}>{t("dateTime")}</label>
                 <div style={{ display: "flex", gap: 8 }}>
                   <DateField value={panelDate} onChange={setPanelDate} />
-                  <input type="time" value={panelTime} onChange={e => setPanelTime(e.target.value)} className="input" style={{ maxWidth: 130 }} />
+                  <TimeField value={panelTime} onChange={setPanelTime} style={{ maxWidth: 130 }} />
                 </div>
               </div>
 

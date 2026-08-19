@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useRef, Suspense } from "react";
 import PostPreviewPane from "@/components/PostPreviewPane";
 import DateField from "@/components/DateField";
+import TimeField from "@/components/TimeField";
 import VideoCoverPicker from "@/components/VideoCoverPicker";
 import CaptionPrompt from "@/components/CaptionPrompt";
 import InstagramFeed from "@/components/InstagramFeed";
@@ -1451,7 +1452,7 @@ function PlanningContent() {
               </div>
               <div>
                 <label className="label" style={{ display: "block", marginBottom: 6 }}>{t('time')}</label>
-                <input type="time" value={panelTime} onChange={e => setPanelTime(e.target.value)} className="input" style={{ height: 40, fontSize: 12.5 }} />
+                <TimeField value={panelTime} onChange={setPanelTime} style={{ height: 40, fontSize: 12.5 }} />
               </div>
             </div>
 

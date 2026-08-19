@@ -1,7 +1,7 @@
 "use client";
 
-import { useRef, useState } from "react";
 import { useTranslations } from "next-intl";
+import VoiceButton from "@/components/VoiceButton";
 
 /* Consigne de rédaction de la légende, au format du chat IA du montage.
 
@@ -26,50 +26,6 @@ export default function CaptionPrompt({
 }) {
   const t = useTranslations("planning");
   const starters = [t("captionStarter1"), t("captionStarter2"), t("captionStarter3")];
-
-  /* Dictée. On enregistre le micro puis on envoie l'audio à /api/transcribe,
-     la même route que les sous-titres du montage, plutôt que la reconnaissance
-     vocale du navigateur : celle-ci n'existe pas partout, et là où elle existe
-     elle passe par les serveurs de l'éditeur du navigateur. Ici, le son ne sort
-     pas de l'infrastructure du produit. */
-  const [recording, setRecording] = useState(false);
-  const [transcribing, setTranscribing] = useState(false);
-  const recRef = useRef<MediaRecorder | null>(null);
-  const chunksRef = useRef<Blob[]>([]);
-
-  async function toggleMic() {
-    if (transcribing) return;
-    if (recording) { recRef.current?.stop(); return; }
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const rec = new MediaRecorder(stream);
-      chunksRef.current = [];
-      rec.ondataavailable = e => { if (e.data.size) chunksRef.current.push(e.data); };
-      rec.onstop = async () => {
-        // Le micro doit être relâché, sinon la pastille d'enregistrement reste
-        // allumée dans l'onglet après la dictée.
-        stream.getTracks().forEach(tr => tr.stop());
-        setRecording(false);
-        const blob = new Blob(chunksRef.current, { type: rec.mimeType || "audio/webm" });
-        if (blob.size < 1200) return; // clic malheureux : rien à transcrire
-        setTranscribing(true);
-        try {
-          const fd = new FormData();
-          fd.append("audio", blob, "dictee.webm");
-          const res = await fetch("/api/transcribe", { method: "POST", body: fd });
-          const data = await res.json().catch(() => null);
-          const said = (data?.segments ?? []).map((sg: { text: string }) => sg.text).join(" ").trim();
-          if (said) onChange(value.trim() ? `${value.trim()} ${said}` : said);
-        } catch { /* on laisse le champ tel quel : la personne peut taper */ }
-        finally { setTranscribing(false); }
-      };
-      rec.start();
-      recRef.current = rec;
-      setRecording(true);
-    } catch {
-      // Micro refusé ou indisponible : le champ reste utilisable au clavier.
-    }
-  }
 
   return (
     <div style={{ marginBottom: 12 }}>
@@ -104,29 +60,11 @@ export default function CaptionPrompt({
           }}
         />
         <div className="mzchat-actions">
-          <span className="mzchat-hint">
-            {busy ? t("captionWriting")
-              : recording ? t("captionListening")
-              : transcribing ? t("captionTranscribing")
-              : t("captionPromptHint")}
-          </span>
-          <button
-            type="button"
-            onClick={toggleMic}
-            disabled={busy || transcribing}
-            className="mzchat-plus"
-            title={t("captionDictate")}
-            aria-label={t("captionDictate")}
-            style={recording ? { background: "var(--warn-soft)", color: "var(--warn)" } : undefined}
-          >
-            {recording ? (
-              <span style={{ width: 9, height: 9, borderRadius: 2, background: "currentColor", display: "block" }} />
-            ) : (
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <rect x="9" y="2" width="6" height="12" rx="3" /><path d="M5 11a7 7 0 0 0 14 0M12 18v4" />
-              </svg>
-            )}
-          </button>
+          <span className="mzchat-hint">{busy ? t("captionWriting") : t("captionPromptHint")}</span>
+          {/* La dictée du reste de l'app : pilule leaf, capsule violette avec le
+              niveau du micro pendant l'écoute. Une deuxième façon de dicter dans
+              le même produit n'aurait servi à personne. */}
+          <VoiceButton value={value} onChange={onChange} compact />
           <button
             type="button"
             onClick={onCancel}
