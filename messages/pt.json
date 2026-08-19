@@ -659,7 +659,10 @@
     "captionCancel": "Cancelar",
     "captionStarter1": "Anunciar uma novidade",
     "captionStarter2": "Mostrar os bastidores",
-    "captionStarter3": "Terminar com uma pergunta"
+    "captionStarter3": "Terminar com uma pergunta",
+    "captionDictate": "Ditar",
+    "captionListening": "A ouvir…",
+    "captionTranscribing": "A transcrever…"
   },
   "editor": {
     "background": "Fundo",

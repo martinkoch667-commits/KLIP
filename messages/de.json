@@ -659,7 +659,10 @@
     "captionCancel": "Abbrechen",
     "captionStarter1": "Etwas Neues ankündigen",
     "captionStarter2": "Hinter die Kulissen blicken",
-    "captionStarter3": "Mit einer Frage enden"
+    "captionStarter3": "Mit einer Frage enden",
+    "captionDictate": "Diktieren",
+    "captionListening": "Ich höre zu…",
+    "captionTranscribing": "Transkription…"
   },
   "editor": {
     "background": "Hintergrund",

@@ -85,11 +85,37 @@ export function MediaPreview({
      cassé ». */
   const [stalled, setStalled] = React.useState(false);
   const stallTimer = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+  /* Relevé technique affiché quand ça coince. Trois allers-retours ont été
+     perdus à deviner la cause d'un blocage : le format réellement servi, le
+     poids du fichier et l'avancée du tampon disent en une ligne s'il s'agit du
+     conteneur, du réseau ou du décodage. */
+  const [diag, setDiag] = React.useState<string | null>(null);
+
+  const collectDiag = React.useCallback(async (el: HTMLVideoElement | null, src: string) => {
+    const buffered = el && el.buffered.length ? el.buffered.end(el.buffered.length - 1) : 0;
+    const parts = [
+      `prêt ${el?.readyState ?? "?"}/4`,
+      `réseau ${el?.networkState ?? "?"}`,
+      `tampon ${buffered.toFixed(1)}s`,
+      `durée ${el && isFinite(el.duration) ? el.duration.toFixed(1) + "s" : "inconnue"}`,
+    ];
+    try {
+      const head = await fetch(src, { method: "HEAD" });
+      const type = head.headers.get("content-type") ?? "?";
+      const len = Number(head.headers.get("content-length") ?? 0);
+      const ranges = head.headers.get("accept-ranges") ?? "aucun";
+      parts.push(type, len ? `${(len / 1048576).toFixed(1)} Mo` : "poids inconnu", `ranges ${ranges}`);
+    } catch { parts.push("en-têtes illisibles"); }
+    setDiag(parts.join(" · "));
+  }, []);
 
   const armStall = React.useCallback(() => {
     if (stallTimer.current) clearTimeout(stallTimer.current);
-    stallTimer.current = setTimeout(() => setStalled(true), 6000);
-  }, []);
+    stallTimer.current = setTimeout(() => {
+      setStalled(true);
+      if (raw) void collectDiag(videoRef.current, raw);
+    }, 6000);
+  }, [collectDiag, raw]);
   const clearStall = React.useCallback(() => {
     if (stallTimer.current) { clearTimeout(stallTimer.current); stallTimer.current = null; }
     setStalled(false);
@@ -163,6 +189,7 @@ export function MediaPreview({
           console.warn("[MediaPreview] média en erreur :", raw, code, why);
           clearStall();
           setFailure(why);
+          if (raw) void collectDiag(e.currentTarget, raw);
         }}
         style={{ ...base, cursor: "pointer" }}
       />
@@ -173,6 +200,7 @@ export function MediaPreview({
           fontFamily: "var(--sans)", display: "flex", flexDirection: "column", gap: 6,
         }}>
           <span>La vidéo met du temps à charger.</span>
+          {diag && <code style={{ fontSize: 10, opacity: .75, wordBreak: "break-all" }}>{diag}</code>}
           <a href={raw} target="_blank" rel="noopener noreferrer" style={{ color: "var(--leaf, #BDF2A0)", fontWeight: 700 }}>
             L&apos;ouvrir dans un onglet
           </a>
@@ -185,6 +213,7 @@ export function MediaPreview({
           fontFamily: "var(--sans)", display: "flex", flexDirection: "column", gap: 6,
         }}>
           <span>Lecture impossible ici : {failure}.</span>
+          {diag && <code style={{ fontSize: 10, opacity: .75, wordBreak: "break-all" }}>{diag}</code>}
           <a href={raw} target="_blank" rel="noopener noreferrer" style={{ color: "var(--leaf, #BDF2A0)", fontWeight: 700 }}>
             Ouvrir la vidéo dans un onglet
           </a>

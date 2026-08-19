@@ -659,7 +659,10 @@
     "captionCancel": "Annulla",
     "captionStarter1": "Annunciare una novità",
     "captionStarter2": "Raccontare il dietro le quinte",
-    "captionStarter3": "Chiudere con una domanda"
+    "captionStarter3": "Chiudere con una domanda",
+    "captionDictate": "Dettare",
+    "captionListening": "In ascolto…",
+    "captionTranscribing": "Trascrizione…"
   },
   "editor": {
     "background": "Sfondo",
