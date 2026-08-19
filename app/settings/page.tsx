@@ -9,7 +9,7 @@ import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import Link from "next/link";
 import Sidebar from "@/components/Sidebar";
 import { Sticker } from "@/components/Stickers";
-import { resetOnboardingTour } from "@/components/OnboardingTour";
+import { resetTours } from "@/components/GuidedTour";
 import { PLANS } from "@/lib/plans";
 import { resetOnboardingChecklist } from "@/components/OnboardingChecklist";
 import { useAccountType } from "@/hooks/useAccountType";
@@ -1093,7 +1093,7 @@ function HelpTab({ supabase, userId }: { supabase: any; userId: string }) {
   async function handleResetTour() {
     setTourReset(true);
     // 1) réinitialise les flags locaux (tour + checklist de prise en main)
-    resetOnboardingTour();
+    resetTours();
     resetOnboardingChecklist();
     // 2) réinitialise le flag serveur, sinon le tour se re-marque "terminé" au montage
     try {

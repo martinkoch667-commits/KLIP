@@ -6,7 +6,7 @@ import Link from "next/link";
 import { useParams, useSearchParams } from "next/navigation";
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
 import Sidebar from "@/components/Sidebar";
-import { resetOnboardingTour } from "@/components/OnboardingTour";
+import { resetTours } from "@/components/GuidedTour";
 
 interface Workspace {
   id: string;
@@ -329,7 +329,7 @@ function ParametresContent() {
                 <button
                   className="btn btn-ghost btn-sm"
                   onClick={() => {
-                    resetOnboardingTour();
+                    resetTours();
                     window.location.href = "/dashboard";
                   }}
                 >

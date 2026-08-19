@@ -6,7 +6,6 @@ import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import Sidebar from '@/components/Sidebar';
-import OnboardingTour from '@/components/OnboardingTour';
 import OnboardingChecklist from '@/components/OnboardingChecklist';
 import NotificationBell from '@/components/NotificationBell';
 import { ConnectClaudeModal } from '@/components/ConnectClaudeModal';
@@ -712,7 +711,7 @@ export default function Dashboard() {
               <div className="halo-blob" style={{ width: 220, height: 220, right: 180, bottom: -150, background: 'var(--acid)', opacity: .28 }} />
               {/* stickers décoratifs (coins, derrière le contenu z:2) */}
               <Sticker name="sparkle" size={34} float="spin" style={{ position: 'absolute', bottom: 26, right: 330, zIndex: 3 }} />
-              <div style={{ position: 'relative', zIndex: 2, display: 'grid', gridTemplateColumns: '1fr auto', gap: 28, alignItems: 'center' }} className="dash-hero">
+              <div data-tour="hero" style={{ position: 'relative', zIndex: 2, display: 'grid', gridTemplateColumns: '1fr auto', gap: 28, alignItems: 'center' }} className="dash-hero">
                 <div>
                   <div className="label" style={{ color: 'var(--leaf)', marginBottom: 12 }}>
                     {today.charAt(0).toUpperCase() + today.slice(1)} · {t('greeting', { name: userName })}
@@ -887,7 +886,6 @@ export default function Dashboard() {
         </main>
       </div>
 
-      <OnboardingTour />
       <OnboardingChecklist />
       <Suspense fallback={null}>
         <WelcomeParamWatcher onWelcome={() => setShowConnectClaude(true)} />

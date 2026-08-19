@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { cookies } from "next/headers";
 import "./globals.css";
 import MetaPixel from "@/components/analytics/MetaPixel";
+import TourHost from "@/components/TourHost";
 import ConsentBanner from "@/components/analytics/ConsentBanner";
 import { I18nProvider } from "@/lib/i18n/I18nProvider";
 import { LOCALE_COOKIE, resolveLocale } from "@/lib/i18n/config";
@@ -106,6 +107,8 @@ export default function RootLayout({
         <I18nProvider locale={locale} messages={messages}>
           <MetaPixel />
           {children}
+          {/* Visite guidée du premier passage, choisie selon l'écran. */}
+          <TourHost />
           <ConsentBanner />
         </I18nProvider>
       </body>
