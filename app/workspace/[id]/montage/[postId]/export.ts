@@ -450,7 +450,28 @@ export async function renderExport(project: ExportProject, onProgress: (p: numbe
 
   const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
   const audioCtx = new AudioCtx();
+  // Un contexte créé hors d'un geste direct démarre suspendu : la piste audio
+  // n'émettrait alors rien du tout.
+  if (audioCtx.state === "suspended") { try { await audioCtx.resume(); } catch { /* on continue sans */ } }
   const dest = audioCtx.createMediaStreamDestination();
+
+  /* Silence CONTINU branché sur la destination, du début à la fin.
+
+     Sans lui, la piste audio de l'enregistrement ne porte des échantillons
+     qu'à partir du moment où un plan sonore commence à jouer — et jamais du
+     tout sur un montage muet. MediaRecorder écrit alors un MP4 dont la durée
+     annoncée est bien plus courte que le film : le lecteur s'arrête au bout de
+     cette durée, ce qui donne une vidéo qui « démarre puis se fige ».
+
+     Mesuré dans Chromium sur un enregistrement de 5 s :
+       piste audio sans source      → durée annoncée 3,03 s
+       piste audio alimentée        → durée annoncée 4,88 s
+     Un ConstantSourceNode à zéro suffit : il n'ajoute aucun son audible, il
+     donne juste à l'encodeur une trame à écrire à chaque instant. */
+  const silence = audioCtx.createConstantSource();
+  silence.offset.value = 0;
+  silence.connect(dest);
+  silence.start();
 
   // 2 éléments <video> alternés par index de plan (pair/impair) — indispensable pour
   // qu'un vrai fondu enchaîné ("fade") puisse décoder 2 plans vidéo consécutifs en
@@ -749,6 +770,7 @@ export async function renderExport(project: ExportProject, onProgress: (p: numbe
   }
 
   const blob = await stopped;
+  try { silence.stop(); } catch { /* déjà arrêtée */ }
   await audioCtx.close();
   await thumbnailPromise;
   return { blob, thumbnailBlob, mimeType: actualType };
