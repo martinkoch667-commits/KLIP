@@ -13,6 +13,8 @@
      est venue chercher. */
 
 import type { CSSProperties, ReactNode } from "react";
+import { useLocale } from "next-intl";
+import { formatPrice } from "@/lib/launch-offer";
 
 export const PRICING_CSS = `
   .kp *,.kp *::before,.kp *::after{box-sizing:border-box;}
@@ -22,7 +24,7 @@ export const PRICING_CSS = `
     --kp-ink:#10130B; --kp-ink-2:#50544A; --kp-ink-3:#8A8D7D;
     --kp-line:rgba(16,19,11,.14); --kp-line-2:rgba(16,19,11,.08);
     --kp-cream:#F1F0E5; --kp-cream-2:rgba(241,240,229,.66); --kp-cream-3:rgba(241,240,229,.36);
-    --kp-leaf:#BDF2A0; --kp-leaf-ink:#1E3317; --kp-mint-2:#1FA878; --kp-vio:#6656D9;
+    --kp-leaf:#BDF2A0; --kp-leaf-soft:#D9F8C7; --kp-leaf-ink:#1E3317; --kp-mint-2:#1FA878; --kp-vio:#6656D9;
     --kp-heavy:'Archivo',system-ui,sans-serif;
     --kp-oaks:'oaks',Georgia,serif;
     --kp-oaksx:'oaks-expanded',Georgia,serif;
@@ -83,6 +85,17 @@ export const PRICING_CSS = `
   .kp-tag{font-weight:600;font-size:13px;color:var(--kp-ink-3);margin-top:6px;}
   .kp-card.pop .kp-tag{color:var(--kp-cream-3);}
 
+  /* Offre de lancement : pastille leaf puis prix barré à côté du prix remisé.
+     Même présentation que la landing, sinon le client voit une remise avant de
+     s'inscrire et plus rien à l'écran de paiement, alors que la caisse
+     l'applique quand même. */
+  .kp-badge{display:inline-flex;align-items:center;align-self:flex-start;gap:7px;margin-top:20px;
+    padding:6px 11px;border-radius:999px;background:var(--kp-leaf-soft);color:var(--kp-leaf-ink);
+    font-family:var(--kp-sans);font-weight:800;font-size:11.5px;letter-spacing:.07em;text-transform:uppercase;}
+  .kp-card.pop .kp-badge{background:var(--kp-leaf);}
+  .kp-price s{font-family:var(--kp-heavy);font-weight:800;font-size:30px;letter-spacing:-.03em;line-height:1;
+    color:var(--kp-ink-3);text-decoration:line-through;text-decoration-thickness:2px;}
+  .kp-card.pop .kp-price s{color:var(--kp-cream-3);}
   .kp-price{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;margin:22px 0 2px;}
   .kp-price b{font-family:var(--kp-heavy);font-weight:800;font-size:58px;letter-spacing:-.04em;line-height:1;}
   .kp-price span{font-weight:700;font-size:13px;color:var(--kp-ink-3);}
@@ -159,11 +172,15 @@ function SelectionFrame() {
 }
 
 export function PlanCard({
-  name, tag, price, perMonth, note, chip, features, popular, flag, children, style,
+  name, tag, price, strikePrice, badge, perMonth, note, chip, features, popular, flag, children, style,
 }: {
   name: string;
   tag: string;
   price: number;
+  /** Prix plein, barré à côté du prix remisé. Absent = pas de remise en cours. */
+  strikePrice?: number;
+  /** Pastille de l'offre de lancement, au dessus du prix. */
+  badge?: string;
   perMonth: string;
   note?: string;
   chip?: string;
@@ -175,14 +192,17 @@ export function PlanCard({
   children: ReactNode;
   style?: CSSProperties;
 }) {
+  const locale = useLocale();
   return (
     <div className={`kp-card${popular ? " pop" : ""}`} style={style}>
       {popular && <SelectionFrame />}
       {popular && flag && <span className="kp-flag">{flag}</span>}
       <h2 className="kp-name">{name}</h2>
       <div className="kp-tag">{tag}</div>
-      <div className="kp-price">
-        <b>{price}€</b>
+      {badge && <div className="kp-badge">{badge}</div>}
+      <div className="kp-price" style={badge ? { marginTop: 10 } : undefined}>
+        {strikePrice !== undefined && <s>{formatPrice(strikePrice, locale)}€</s>}
+        <b>{formatPrice(price, locale)}€</b>
         <span>{perMonth}</span>
       </div>
       <div className="kp-note">{note}</div>
