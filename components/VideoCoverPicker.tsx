@@ -11,11 +11,16 @@ import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
    curseur, mais seulement là-bas, et seulement pendant qu'on monte. Ici on la
    choisit au moment où l'on décide de publier, sans rouvrir l'éditeur.
 
-   Deux voies : prendre une image de la vidéo, ou importer la sienne (une
-   couverture dessinée dans l'éditeur, par exemple).
+   Deux voies : prendre une image de la vidéo, ou importer la sienne.
 
    La miniature vit dans `posts.thumbnail_url`, la même colonne que celle
-   qu'écrit le montage : les deux chemins ne se contredisent pas. */
+   qu'écrit le montage, et part vers Instagram en `cover_url`.
+
+   Mise en forme : les deux visuels ont la MÊME hauteur et chacun le ratio de sa
+   source. Un cadre de largeur fixe donnait de grandes bandes noires autour d'une
+   vidéo verticale, ce qui faisait tache au milieu d'un formulaire propre. */
+
+const BOX_H = 132; // hauteur commune des deux aperçus
 
 export default function VideoCoverPicker({
   videoUrl, postId, workspaceId, value, onChange,
@@ -30,13 +35,25 @@ export default function VideoCoverPicker({
   const videoRef = useRef<HTMLVideoElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const [dur, setDur] = useState(0);
+  const [aspect, setAspect] = useState(9 / 16);
   const [at, setAt] = useState(0);
   const [busy, setBusy] = useState<"frame" | "file" | null>(null);
   const [err, setErr] = useState<string | null>(null);
 
-  // On garde la vidéo silencieuse et non lue : elle ne sert qu'à se placer sur
-  // une image. Sans `preload`, Safari ne rend rien tant qu'on n'a pas joué.
-  useEffect(() => { setAt(0); setDur(0); }, [videoUrl]);
+  // Lecture des dimensions et de la durée. `onLoadedMetadata` ne suffit pas :
+  // quand le fichier est déjà en cache, l'événement peut avoir eu lieu avant que
+  // React n'attache le gestionnaire, et l'aperçu resterait alors au ratio par
+  // défaut. On lit donc aussi l'état de l'élément au montage.
+  function readMeta(v: HTMLVideoElement) {
+    if (v.duration && isFinite(v.duration)) setDur(v.duration);
+    if (v.videoWidth && v.videoHeight) setAspect(v.videoWidth / v.videoHeight);
+  }
+
+  useEffect(() => {
+    setAt(0); setDur(0);
+    const v = videoRef.current;
+    if (v && v.readyState >= 1) readMeta(v);
+  }, [videoUrl]);
 
   async function upload(blob: Blob): Promise<string | null> {
     const path = `${workspaceId}/cover-${postId}-${Date.now()}.jpg`;
@@ -45,7 +62,7 @@ export default function VideoCoverPicker({
     return supabase.storage.from("photos").getPublicUrl(path).data.publicUrl;
   }
 
-  async function save(url: string) {
+  async function save(url: string | null) {
     await supabase.from("posts").update({ thumbnail_url: url }).eq("id", postId);
     onChange(url);
   }
@@ -55,8 +72,8 @@ export default function VideoCoverPicker({
     if (!v || busy) return;
     setBusy("frame"); setErr(null);
     try {
-      // La vidéo affichée est déjà positionnée sur l'instant voulu : on peint
-      // directement l'élément, sans recharger le fichier une deuxième fois.
+      // La vidéo affichée est déjà placée sur l'instant voulu : on peint
+      // directement l'élément, sans recharger le fichier une seconde fois.
       const c = document.createElement("canvas");
       c.width = v.videoWidth || 720;
       c.height = v.videoHeight || 1280;
@@ -90,55 +107,74 @@ export default function VideoCoverPicker({
     }
   }
 
+  const pct = dur > 0 ? (at / dur) * 100 : 0;
+  const frame: React.CSSProperties = {
+    height: BOX_H, borderRadius: 10, overflow: "hidden", background: "#000",
+    boxShadow: "inset 0 0 0 1px var(--line)", flexShrink: 0,
+  };
+
   return (
     <div>
-      <label className="label" style={{ display: "block", marginBottom: 6 }}>Miniature de la vidéo</label>
+      <label className="label" style={{ display: "block", marginBottom: 8 }}>Miniature de la vidéo</label>
 
-      <div style={{ display: "flex", gap: 12, alignItems: "flex-start" }}>
-        {/* Ce que verra l'abonné dans son fil. */}
-        <div style={{ position: "relative", flex: "0 0 84px", width: 84, aspectRatio: "9 / 16", borderRadius: 8, overflow: "hidden", background: "#000", border: "1px solid var(--line)" }}>
-          {value
-            // eslint-disable-next-line @next/next/no-img-element
-            ? <img src={value} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
-            : <span style={{ position: "absolute", inset: 0, display: "grid", placeItems: "center", fontSize: 10.5, color: "var(--ink-3)", textAlign: "center", padding: 8 }}>Première image</span>}
+      <div style={{ display: "flex", gap: 12, alignItems: "flex-start", flexWrap: "wrap" }}>
+        {/* Ce que verra l'abonné dans le fil. */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+          <div style={{ ...frame, width: BOX_H * aspect, display: "grid", placeItems: "center" }}>
+            {value
+              // eslint-disable-next-line @next/next/no-img-element
+              ? <img src={value} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+              : <span style={{ fontSize: 10.5, color: "var(--cream-3)", textAlign: "center", padding: 10, lineHeight: 1.4 }}>Aucune<br />miniature</span>}
+          </div>
+          <span style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: ".04em", textTransform: "uppercase", color: "var(--ink-3)", textAlign: "center" }}>
+            {value ? "Choisie" : "Par défaut"}
+          </span>
         </div>
 
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <video
-            ref={videoRef}
-            src={videoUrl}
-            crossOrigin="anonymous"
-            muted
-            playsInline
-            preload="metadata"
-            onLoadedMetadata={e => setDur(e.currentTarget.duration || 0)}
-            style={{ width: "100%", maxHeight: 108, borderRadius: 8, background: "#000", display: "block", objectFit: "contain" }}
-          />
+        {/* Le film, à parcourir. */}
+        <div style={{ flex: 1, minWidth: 190 }}>
+          <div style={{ ...frame, width: BOX_H * aspect, maxWidth: "100%" }}>
+            <video
+              ref={videoRef}
+              src={videoUrl}
+              crossOrigin="anonymous"
+              muted
+              playsInline
+              preload="metadata"
+              onLoadedMetadata={e => readMeta(e.currentTarget)}
+              style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
+            />
+          </div>
+
           <input
+            className="ed-range"
             type="range" min={0} max={Math.max(0.1, dur)} step={0.05} value={at}
             onChange={e => {
               const v = parseFloat(e.target.value);
               setAt(v);
               if (videoRef.current) videoRef.current.currentTime = v;
             }}
-            style={{ width: "100%", marginTop: 8 }}
+            style={{
+              width: "100%", marginTop: 12,
+              // Remplissage à la couleur de la marque, sans dépendre du bleu du navigateur.
+              background: `linear-gradient(90deg, var(--leaf) ${pct}%, rgba(13,15,10,.16) ${pct}%)`,
+            }}
             aria-label="Instant de la miniature"
           />
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", fontSize: 11, color: "var(--ink-3)" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: "var(--ink-3)", marginTop: 4 }}>
             <span>{at.toFixed(1)}s</span>
             <span>{dur ? `${dur.toFixed(1)}s` : ""}</span>
           </div>
 
-          <div style={{ display: "flex", gap: 8, marginTop: 10, flexWrap: "wrap" }}>
-            <button onClick={takeFrame} disabled={busy !== null || !dur} className="btn btn-sm btn-ghost" style={{ height: 30, fontSize: 11.5 }}>
+          <div style={{ display: "flex", gap: 8, marginTop: 12, flexWrap: "wrap" }}>
+            <button onClick={takeFrame} disabled={busy !== null || !dur} className="btn btn-sm" style={{ height: 30, fontSize: 11.5 }}>
               {busy === "frame" ? "Enregistrement…" : "Prendre cette image"}
             </button>
             <button onClick={() => fileRef.current?.click()} disabled={busy !== null} className="btn btn-sm btn-ghost" style={{ height: 30, fontSize: 11.5 }}>
-              {busy === "file" ? "Envoi…" : "Importer une image"}
+              {busy === "file" ? "Envoi…" : "Importer"}
             </button>
             {value && (
-              <button onClick={() => { onChange(null); supabase.from("posts").update({ thumbnail_url: null }).eq("id", postId).then(() => {}); }}
-                disabled={busy !== null} className="btn btn-sm btn-ghost" style={{ height: 30, fontSize: 11.5, color: "var(--ink-3)" }}>
+              <button onClick={() => save(null)} disabled={busy !== null} className="btn btn-sm btn-ghost" style={{ height: 30, fontSize: 11.5, color: "var(--ink-3)" }}>
                 Retirer
               </button>
             )}
