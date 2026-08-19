@@ -353,16 +353,16 @@
     "claude": {
       "pill": "Fonctionne aussi avec <strong>Claude</strong>",
       "title": "Connecter KLIP à Claude",
-      "lead": "Trois étapes pour brancher KLIP sur Claude — ensuite, demandez-lui simplement de créer ou planifier un post.",
-      "s1Title": "Ouvre les paramètres de Claude",
-      "s1Text": "Lance l’app ou va sur <strong>claude.ai</strong> et rends-toi dans <strong>Réglages → Connecteurs</strong>.",
+      "lead": "Trois étapes pour brancher KLIP sur Claude. Ensuite, demandez-lui simplement de créer ou de planifier un post.",
+      "s1Title": "Ouvrez les paramètres de Claude",
+      "s1Text": "Lancez l’app ou allez sur <strong>claude.ai</strong>, puis rendez-vous dans <strong>Réglages → Connecteurs</strong>.",
       "s1Link": "Réglages → Connecteurs",
-      "s2Title": "Ajoute un connecteur personnalisé",
-      "s2Text": "Nomme-le <strong>KLIP</strong> et colle l’URL ci-dessous.",
+      "s2Title": "Ajoutez un connecteur personnalisé",
+      "s2Text": "Nommez-le <strong>KLIP</strong> et collez l’URL ci-dessous.",
       "copy": "Copier",
       "copied": "Copié ✓",
-      "s3Title": "Connecte-toi",
-      "s3Text": "Clique <strong>Ajouter → Se connecter</strong>, connecte-toi à ton compte KLIP, et c’est bon. Demande maintenant à Claude de créer un post ou générer une légende.",
+      "s3Title": "Connectez-vous",
+      "s3Text": "Cliquez sur <strong>Ajouter → Se connecter</strong> et identifiez-vous avec votre compte KLIP. C’est fini : demandez à Claude de créer un post ou d’écrire une légende.",
       "close": "Fermer"
     }
   },

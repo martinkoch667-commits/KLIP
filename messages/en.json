@@ -353,7 +353,7 @@
     "claude": {
       "pill": "Also works with <strong>Claude</strong>",
       "title": "Connect KLIP to Claude",
-      "lead": "Three steps to hook KLIP up to Claude — then simply ask it to create or schedule a post.",
+      "lead": "Three steps to connect KLIP to Claude. Then simply ask it to create or schedule a post.",
       "s1Title": "Open Claude’s settings",
       "s1Text": "Open the app or go to <strong>claude.ai</strong> and head to <strong>Settings → Connectors</strong>.",
       "s1Link": "Settings → Connectors",

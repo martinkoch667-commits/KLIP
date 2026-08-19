@@ -8,7 +8,6 @@ import Link from 'next/link';
 import Sidebar from '@/components/Sidebar';
 import OnboardingChecklist from '@/components/OnboardingChecklist';
 import NotificationBell from '@/components/NotificationBell';
-import { ConnectClaudeModal } from '@/components/ConnectClaudeModal';
 import { Sticker } from '@/components/Stickers';
 import SelFrame from '@/components/SelFrame';
 import MediaThumb, { pickThumbSource, thumbUrl } from '@/components/MediaThumb';
@@ -589,7 +588,6 @@ export default function Dashboard() {
   const locale = useLocale();
 
   const [workspaces, setWorkspaces] = useState<WorkspaceRow[]>([]);
-  const [showConnectClaude, setShowConnectClaude] = useState(false);
   const [posts, setPosts] = useState<PostRow[]>([]);
   const [activities, setActivities] = useState<ActivityRow[]>([]);
   const [active, setActive] = useState<string>('all');
@@ -888,9 +886,12 @@ export default function Dashboard() {
 
       <OnboardingChecklist />
       <Suspense fallback={null}>
-        <WelcomeParamWatcher onWelcome={() => setShowConnectClaude(true)} />
+        {/* Nettoie ?welcome=true de l'URL. La modale Claude ne s'ouvre plus
+            ici : on ne demande pas de brancher un outil tiers à quelqu'un qui
+            découvre l'app et n'a pas encore un seul client. Elle reste dans
+            Réglages, pour qui la cherche. */}
+        <WelcomeParamWatcher onWelcome={() => {}} />
       </Suspense>
-      <ConnectClaudeModal open={showConnectClaude} onClose={() => setShowConnectClaude(false)} />
     </div>
   );
 }

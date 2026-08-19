@@ -353,7 +353,7 @@
     "claude": {
       "pill": "Funktioniert auch mit <strong>Claude</strong>",
       "title": "KLIP mit Claude verbinden",
-      "lead": "Drei Schritte, um KLIP mit Claude zu verbinden — danach einfach darum bitten, einen Post zu erstellen oder zu planen.",
+      "lead": "Drei Schritte, um KLIP mit Claude zu verbinden. Danach bittest du es einfach, einen Post zu erstellen oder zu planen.",
       "s1Title": "Öffne die Claude-Einstellungen",
       "s1Text": "Öffne die App oder gehe auf <strong>claude.ai</strong> zu <strong>Einstellungen → Konnektoren</strong>.",
       "s1Link": "Einstellungen → Konnektoren",
@@ -362,7 +362,7 @@
       "copy": "Kopieren",
       "copied": "Kopiert ✓",
       "s3Title": "Melde dich an",
-      "s3Text": "Klicke <strong>Hinzufügen → Anmelden</strong>, melde dich mit deinem KLIP-Konto an — fertig. Bitte Claude jetzt, einen Post zu erstellen oder eine Caption zu generieren.",
+      "s3Text": "Klicke <strong>Hinzufügen → Anmelden</strong>, melde dich mit deinem KLIP-Konto an. fertig. Bitte Claude jetzt, einen Post zu erstellen oder eine Caption zu generieren.",
       "close": "Schließen"
     }
   },
