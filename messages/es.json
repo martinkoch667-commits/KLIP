@@ -1929,7 +1929,9 @@
     "shadowY": "Desplazamiento vertical",
     "shadowStrength": "Intensidad",
     "outlineCorners": "Contorno y esquinas",
-    "roundedCorners": "Esquinas redondeadas"
+    "roundedCorners": "Esquinas redondeadas",
+    "textBox": "Cuadro de texto",
+    "textWidth": "Anchura"
   },
   "forgotPassword": {
     "title": "Contraseña olvidada",

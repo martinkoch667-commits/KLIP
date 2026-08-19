@@ -13,8 +13,9 @@
  */
 
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { OverlayClip, overlayEffectCss, overlayFilterCss, OVERLAY_EFFECT_PRESETS } from "../workspace/[id]/montage/[postId]/constants";
-import { drawOverlayFrame, setCanvasSize } from "../workspace/[id]/montage/[postId]/render-core";
+import { OverlayClip, TitleEl, overlayEffectCss, overlayFilterCss, OVERLAY_EFFECT_PRESETS,
+  FONT_CHOICES, titleLines, TITLE_BASE_FONT, TITLE_LINE_HEIGHT, TITLE_DEFAULT_MAX_WIDTH } from "../workspace/[id]/montage/[postId]/constants";
+import { drawOverlayFrame, drawTitles, setCanvasSize } from "../workspace/[id]/montage/[postId]/render-core";
 
 const W = 360, H = 640; // cadre de comparaison (9:16 réduit)
 
@@ -87,6 +88,87 @@ function BancEffetsDev() {
       </p>
       <div style={{ display: "flex", flexWrap: "wrap", gap: 26, marginTop: 20 }}>
         {cas.map((c, i) => <Paire key={i} nom={c.nom} o={c.o} />)}
+      </div>
+
+      <h2 style={{ fontSize: 18, fontWeight: 700, marginTop: 34 }}>Titres : aperçu contre export</h2>
+      <p style={{ color: "#555", maxWidth: 760 }}>
+        L&apos;export écrivait le titre d&apos;un seul trait, sans jamais le replier : un titre
+        tenant sur trois lignes dans le monteur sortait sur une ligne, hors du cadre. Les
+        retours à la ligne doivent tomber au même endroit des deux côtés.
+      </p>
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 26, marginTop: 16 }}>
+        {/* Après montage seulement : le découpage en lignes se mesure sur un
+            canvas, qui n'existe pas côté serveur. */}
+        {srcs && TITRES_TEST.map((tt, i) => <PaireTitre key={i} nom={tt.nom} tt={tt.tt} />)}
+      </div>
+    </div>
+  );
+}
+
+function titreDeTest(patch: Partial<TitleEl>): TitleEl {
+  return {
+    id: "t", start: 0, end: 5, text: "CECI EST UN TEST", font: "archivo",
+    color: "#FFFFFF", anim: "rise", x: 50, y: 50, scale: 1, rotation: 0, ...patch,
+  };
+}
+
+const TITRES_TEST = [
+  { nom: "largeur 80 % (défaut)", tt: titreDeTest({}) },
+  { nom: "largeur 100 %", tt: titreDeTest({ maxWidth: 100 }) },
+  { nom: "largeur 40 %", tt: titreDeTest({ maxWidth: 40 }) },
+  { nom: "texte long, taille 1,4", tt: titreDeTest({ text: "UN TITRE NETTEMENT PLUS LONG QUE LE CADRE", scale: 1.4, maxWidth: 90 }) },
+  { nom: "police serif, retour à la ligne tapé", tt: titreDeTest({ text: "PREMIERE LIGNE\ndeuxieme ligne plus longue", font: "instrument", scale: 1.1 }) },
+];
+
+function PaireTitre({ nom, tt }: { nom: string; tt: TitleEl }) {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const ecartRef = useRef<HTMLCanvasElement>(null);
+
+  useEffect(() => {
+    for (const cv of [canvasRef.current, ecartRef.current]) {
+      if (!cv) continue;
+      const ctx = cv.getContext("2d")!;
+      setCanvasSize(W, H);
+      ctx.fillStyle = "#3A3A46";
+      ctx.fillRect(0, 0, W, H);
+      // t = 1 s : passé l'animation d'entrée, le titre est à pleine opacité.
+      drawTitles(ctx, [tt], 1);
+    }
+  }, [tt]);
+
+  const f = FONT_CHOICES.find((c) => c.id === tt.font) || FONT_CHOICES[0];
+  const apercuDom = (
+    <div style={{ position: "absolute", inset: 0, transform: "scale(0.5)", transformOrigin: "top left", width: W, height: H }}>
+      <div style={{
+        position: "absolute", left: tt.x + "%", top: tt.y + "%",
+        transform: `translate(-50%,-50%) rotate(${tt.rotation ?? 0}deg)`,
+        fontFamily: f.css, fontWeight: f.weight, fontStyle: f.italic ? "italic" : "normal",
+        color: tt.color, fontSize: TITLE_BASE_FONT * (tt.scale ?? 1),
+        lineHeight: TITLE_LINE_HEIGHT, textAlign: "center", textShadow: "0 1px 8px rgba(0,0,0,.5)",
+        width: (tt.maxWidth ?? TITLE_DEFAULT_MAX_WIDTH) + "%", whiteSpace: "pre-wrap",
+      }}>
+        <span>{titleLines(tt, W).join("\n")}</span>
+      </div>
+    </div>
+  );
+
+  return (
+    <div>
+      <div style={{ fontSize: 12, fontWeight: 700, marginBottom: 6 }}>{nom}</div>
+      <div style={{ display: "flex", gap: 10 }}>
+        <div style={{ position: "relative", width: W / 2, height: H / 2, background: "#3A3A46", overflow: "hidden" }}>
+          {apercuDom}<span style={etiquette}>aperçu</span>
+        </div>
+        <div style={{ position: "relative" }}>
+          <canvas ref={canvasRef} width={W} height={H} style={{ width: W / 2, height: H / 2, display: "block" }} />
+          <span style={etiquette}>export</span>
+        </div>
+        <div style={{ position: "relative", width: W / 2, height: H / 2, background: "#3A3A46", overflow: "hidden", isolation: "isolate" }}>
+          {apercuDom}
+          <canvas ref={ecartRef} width={W} height={H}
+            style={{ position: "absolute", inset: 0, width: W / 2, height: H / 2, mixBlendMode: "difference" }} />
+          <span style={etiquette}>écart</span>
+        </div>
       </div>
     </div>
   );

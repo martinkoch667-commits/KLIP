@@ -231,7 +231,52 @@ export interface TitleEl {
   y: number; // % (0-100)
   scale?: number; // facteur de taille (défaut 1)
   rotation?: number; // degrés (défaut 0)
+  /** Largeur maximale de la boîte, en % de la largeur du cadre. C'est elle qui
+   *  décide où le texte revient à la ligne. Défaut 80, réglable de 20 à 100 :
+   *  un titre était bloqué à 80 % et ne pouvait pas s'étendre vers les bords. */
+  maxWidth?: number;
 }
+
+/** Corps de référence d'un titre, à l'échelle 1. Partagé par l'aperçu et l'export. */
+export const TITLE_BASE_FONT = 40;
+/** Interligne des titres. Posé explicitement des deux côtés : laissé à la valeur
+ *  héritée du navigateur, l'aperçu et l'export ne tombaient pas au même endroit. */
+export const TITLE_LINE_HEIGHT = 1.15;
+export const TITLE_DEFAULT_MAX_WIDTH = 80;
+
+/** Police d'un titre en syntaxe canvas. SOURCE UNIQUE : l'export dessine avec,
+ *  et le découpage en lignes mesure avec. L'export utilisait jusqu'ici une
+ *  police en dur (system-ui, Georgia) sans rapport avec celle de l'aperçu. */
+export function titleCanvasFont(font: TitleEl["font"], fontSize: number): string {
+  const f = FONT_CHOICES.find((c) => c.id === font) || FONT_CHOICES[0];
+  return `${f.italic ? "italic " : ""}${f.weight} ${fontSize}px ${f.canvas}`;
+}
+
+/** Découpe le texte d'un titre en lignes, à la géométrie du cadre d'export.
+ *  Les retours à la ligne tapés à la main sont respectés ; le reste est replié
+ *  à `maxWidth`. L'aperçu pose ces lignes telles quelles au lieu de laisser le
+ *  navigateur replier à sa façon, donc les deux tombent pareil. */
+export function titleLines(tt: TitleEl, frameW: number): string[] {
+  const texte = tt.text ?? "";
+  const paragraphes = texte.split("\n");
+  if (typeof document === "undefined") return paragraphes;
+  if (!titleMeasureCtx) titleMeasureCtx = document.createElement("canvas").getContext("2d");
+  const ctx = titleMeasureCtx;
+  if (!ctx) return paragraphes;
+  // Mesure à l'échelle 1 : la taille du titre est appliquée ensuite par une
+  // transformation, elle ne change donc pas où le texte revient à la ligne.
+  ctx.font = titleCanvasFont(tt.font, TITLE_BASE_FONT);
+  const maxW = ((tt.maxWidth ?? TITLE_DEFAULT_MAX_WIDTH) / 100) * frameW / Math.max(0.05, tt.scale ?? 1);
+  const measure = (str: string) => ctx.measureText(str).width;
+  const out: string[] = [];
+  for (const para of paragraphes) {
+    const mots = para.split(/\s+/).filter(Boolean);
+    if (!mots.length) { out.push(""); continue; }
+    for (const ln of packLines(mots, measure, maxW)) out.push(ln.join(" "));
+  }
+  return out.length ? out : [""];
+}
+let titleMeasureCtx: CanvasRenderingContext2D | null = null;
 
 export interface StickerEl {
   id: string;
@@ -1074,10 +1119,14 @@ export const STICKER_GLYPHS = [
   "➡️", "⬆️", "⬇️", "🔗", "💬", "🤯", "😍", "🤔", "👇", "☝️", "🌟", "🚀",
 ];
 
-export const FONT_CHOICES: { id: TitleEl["font"]; name: string; sub: string; css: string; weight: number; italic: boolean }[] = [
-  { id: "archivo", name: "Archivo", sub: "Display", css: "var(--display)", weight: 800, italic: true },
-  { id: "instrument", name: "Instrument", sub: "Serif", css: "'Instrument Serif', serif", weight: 400, italic: true },
-  { id: "satoshi", name: "Satoshi", sub: "Sans", css: "var(--sans)", weight: 700, italic: false },
+/* `css` sert au DOM, `canvas` au rendu de la vidéo. Le canvas ne sait pas lire
+   une variable CSS : `var(--display)` y était silencieusement ignoré et l'export
+   dessinait les titres dans la police par défaut du système, pas dans celle
+   qu'on voyait dans le monteur. */
+export const FONT_CHOICES: { id: TitleEl["font"]; name: string; sub: string; css: string; canvas: string; weight: number; italic: boolean }[] = [
+  { id: "archivo", name: "Archivo", sub: "Display", css: "var(--display)", canvas: "'Archivo', system-ui, sans-serif", weight: 800, italic: true },
+  { id: "instrument", name: "Instrument", sub: "Serif", css: "'Instrument Serif', serif", canvas: "'Instrument Serif', Georgia, serif", weight: 400, italic: true },
+  { id: "satoshi", name: "Satoshi", sub: "Sans", css: "var(--sans)", canvas: "'early-sans-variable', system-ui, sans-serif", weight: 700, italic: false },
 ];
 
 export function fmt(s: number): string {

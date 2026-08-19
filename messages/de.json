@@ -1929,7 +1929,9 @@
     "shadowY": "Vertikaler Versatz",
     "shadowStrength": "Stärke",
     "outlineCorners": "Kontur & Ecken",
-    "roundedCorners": "Abgerundete Ecken"
+    "roundedCorners": "Abgerundete Ecken",
+    "textBox": "Textfeld",
+    "textWidth": "Breite"
   },
   "forgotPassword": {
     "title": "Passwort vergessen",

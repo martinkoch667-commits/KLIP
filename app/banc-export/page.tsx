@@ -63,7 +63,9 @@ function montages() {
         { id: "s1", start: 0.2, end: 1.9, text: "un banc qui mesure vraiment" },
         { id: "s2", start: 3.2, end: 5.5, text: "et pas seulement qui rassure" },
       ] as unknown as Caption[],
-      titles: [{ id: "t1", text: "KLIP", start: 0, end: 6, x: 50, y: 20, color: "#fff", font: "archivo", anim: "pop", scale: 1, rotation: 0 }] as unknown as TitleEl[],
+      // Titre volontairement long : l'export l'écrivait sur une seule ligne, hors
+      // du cadre. Il doit maintenant se replier à la largeur demandée.
+      titles: [{ id: "t1", text: "UN TITRE ASSEZ LONG POUR REVENIR A LA LIGNE", start: 0, end: 6, x: 50, y: 22, color: "#fff", font: "archivo", anim: "rise", scale: 1, rotation: 0, maxWidth: 80 }] as unknown as TitleEl[],
       audioTracks: [{ id: "m1", kind: "music", name: "test", src: SRC_AUDIO, dur: 6, vol: 0.6, offset: 0, fadeIn: 0.5, fadeOut: 0.5 }] as AudioTrack[],
     },
     "incrustation (PIP) + barre": {

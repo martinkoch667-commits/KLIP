@@ -1929,7 +1929,9 @@
     "shadowY": "Scostamento verticale",
     "shadowStrength": "Intensità",
     "outlineCorners": "Contorno e angoli",
-    "roundedCorners": "Angoli arrotondati"
+    "roundedCorners": "Angoli arrotondati",
+    "textBox": "Riquadro di testo",
+    "textWidth": "Larghezza"
   },
   "forgotPassword": {
     "title": "Password dimenticata",

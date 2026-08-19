@@ -1929,7 +1929,9 @@
     "shadowY": "Décalage vertical",
     "shadowStrength": "Intensité",
     "outlineCorners": "Contour & coins",
-    "roundedCorners": "Coins arrondis"
+    "roundedCorners": "Coins arrondis",
+    "textBox": "Boîte de texte",
+    "textWidth": "Largeur"
   },
   "forgotPassword": {
     "title": "Mot de passe oublié",

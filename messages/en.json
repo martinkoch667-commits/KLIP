@@ -1929,7 +1929,9 @@
     "shadowY": "Vertical offset",
     "shadowStrength": "Strength",
     "outlineCorners": "Outline & corners",
-    "roundedCorners": "Rounded corners"
+    "roundedCorners": "Rounded corners",
+    "textBox": "Text box",
+    "textWidth": "Width"
   },
   "forgotPassword": {
     "title": "Forgot password",

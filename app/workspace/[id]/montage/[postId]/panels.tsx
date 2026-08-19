@@ -13,7 +13,7 @@ import {
   FILTERS, TRANSITIONS, SPEEDS, SUB_STYLES, SUB_LENGTHS, STICKER_GLYPHS, FONT_CHOICES,
   effectiveSubStyle, loadSubTemplates, saveSubTemplates,
   clipFilterCss, overlayFilterCss, clipTimelineDur, overlayTimelineDur,
-  OVERLAY_EFFECT_PRESETS, overlayEffectCss,
+  OVERLAY_EFFECT_PRESETS, overlayEffectCss, TITLE_DEFAULT_MAX_WIDTH,
 } from "./constants";
 
 export interface MontageCtx {
@@ -290,6 +290,15 @@ export function TextPanel({ ctx, selectedTitleId }: { ctx: MontageCtx; selectedT
                 <button key={col} className={"mz-sw" + (tt.color === col ? " on" : "")} style={{ background: col }} onClick={() => ctx.updateTitle(tt.id, { color: col })} />
               ))}
             </div>
+          </div>
+          {/* Largeur de la boîte : c'est elle qui décide où le texte revient à
+              la ligne. Elle était figée à 80 % du cadre, sans moyen de l'élargir. */}
+          <div className="a-section">
+            <span className="mz-sec-label">{t('textBox')}</span>
+            <Range label={t('textWidth')} value={tt.maxWidth ?? TITLE_DEFAULT_MAX_WIDTH} min={20} max={100} step={1} unit=" %"
+              onChange={(v) => ctx.updateTitle(tt.id, { maxWidth: v })} />
+            <Range label={t('size')} value={tt.scale ?? 1} min={0.3} max={3} step={0.05}
+              onChange={(v) => ctx.updateTitle(tt.id, { scale: v })} fmtv={(v) => Math.round(v * 100) + "%"} />
           </div>
           <div className="a-section">
             <span className="mz-sec-label">{t('timing')}</span>

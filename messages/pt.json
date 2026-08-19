@@ -1929,7 +1929,9 @@
     "shadowY": "Deslocamento vertical",
     "shadowStrength": "Intensidade",
     "outlineCorners": "Contorno e cantos",
-    "roundedCorners": "Cantos arredondados"
+    "roundedCorners": "Cantos arredondados",
+    "textBox": "Caixa de texto",
+    "textWidth": "Largura"
   },
   "forgotPassword": {
     "title": "Esqueceu a palavra-passe",

@@ -9,7 +9,7 @@
 // Ces fonctions viennent telles quelles de export.ts, où elles étaient
 // enfermées avec la boucle de captation.
 
-import { MontageClip, OverlayClip, Caption, TitleEl, StickerEl, AudioTrack, SubCustom, effectiveSubStyle, resolveCapStyle, resolveCapPos, SUB_BASE_FONT, wrapWords, captionPartAt, subCanvasFont, subBgBox, curveLayout, applySubCase, withAlpha, transitionStateAt, DEFAULT_SUB_POS, clipFilterCss, overlayFilterCss, clipTimelineDur, clipAudioGainAt, overlayTimelineDur, overlayAudioGainAt, audioVolumeAt, kenBurnsScale, videoFormatById, exportQualityById, overlayEffects, overlayEffectCss, OUTLINE_PASSES } from "./constants";
+import { MontageClip, OverlayClip, Caption, TitleEl, StickerEl, AudioTrack, SubCustom, effectiveSubStyle, resolveCapStyle, resolveCapPos, SUB_BASE_FONT, wrapWords, captionPartAt, subCanvasFont, subBgBox, curveLayout, applySubCase, withAlpha, transitionStateAt, DEFAULT_SUB_POS, clipFilterCss, overlayFilterCss, clipTimelineDur, clipAudioGainAt, overlayTimelineDur, overlayAudioGainAt, audioVolumeAt, kenBurnsScale, videoFormatById, exportQualityById, overlayEffects, overlayEffectCss, OUTLINE_PASSES, titleCanvasFont, titleLines, TITLE_BASE_FONT, TITLE_LINE_HEIGHT } from "./constants";
 export interface ExportProject {
   clips: MontageClip[];
   overlays?: OverlayClip[];
@@ -335,10 +335,11 @@ export function drawTitles(ctx: CanvasRenderingContext2D, titles: TitleEl[], t: 
       const n = Math.max(0, Math.min(text.length, Math.floor(local * charsPerSec)));
       text = text.slice(0, n);
     }
-    const fontMap: Record<string, string> = { archivo: "800 italic 40px system-ui, sans-serif", instrument: "40px Georgia, serif", satoshi: "700 40px system-ui, sans-serif" };
     ctx.save();
     ctx.globalAlpha = alpha;
-    ctx.font = fontMap[tt.font] || fontMap.archivo;
+    // Même police que l'aperçu. L'export dessinait avec une police en dur
+    // (system-ui, Georgia) : un titre en Archivo sortait dans une autre fonte.
+    ctx.font = titleCanvasFont(tt.font, TITLE_BASE_FONT);
     ctx.fillStyle = tt.color;
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
@@ -348,7 +349,17 @@ export function drawTitles(ctx: CanvasRenderingContext2D, titles: TitleEl[], t: 
     ctx.translate(x, y);
     if (tt.rotation) ctx.rotate((tt.rotation * Math.PI) / 180);
     ctx.scale(scale * (tt.scale ?? 1), scale * (tt.scale ?? 1));
-    ctx.fillText(text, 0, 0);
+    /* Le texte est REPLIÉ, comme dans l'aperçu. L'export l'écrivait d'un seul
+       trait : un titre qui tenait sur trois lignes dans le monteur sortait sur
+       une seule ligne dans la vidéo, débordant largement du cadre. Le découpage
+       vient de la même fonction que celle qu'utilise l'aperçu. */
+    const lignes = titleLines({ ...tt, text }, CANVAS_W);
+    const pas = TITLE_BASE_FONT * TITLE_LINE_HEIGHT;
+    // Centrage vertical du bloc, au cadratin : c'est ce qui recouvre le mieux le
+    // bloc de texte du DOM (essayé avec les métriques d'ascendante et de
+    // descendante, le résultat se superposait moins bien).
+    const haut = -((lignes.length - 1) * pas) / 2;
+    lignes.forEach((ln, i) => ctx.fillText(ln, 0, haut + i * pas));
     ctx.restore();
   }
 }

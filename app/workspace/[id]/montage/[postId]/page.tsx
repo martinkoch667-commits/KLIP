@@ -15,6 +15,7 @@ import {
   fmt, newClipDefaults, newOverlayDefaults, clipFilterCss, overlayFilterCss, clipTimelineDur, clipAudioGainAt, overlayTimelineDur, overlayAudioGainAt, segmentCaptions, captionsFromWords, dedupeSegments,
   audioVolumeAt, kenBurnsScale, VIDEO_FORMATS, videoFormatById, EXPORT_QUALITIES,
   overlayEffectCss,
+  TITLE_BASE_FONT, TITLE_LINE_HEIGHT, TITLE_DEFAULT_MAX_WIDTH, titleLines,
 } from "./constants";
 import { ClipStrip, ClipWave, AudioWave, FadeRamp, type ClipStripData } from "./timeline-parts";
 import { MontageCtx, CutPanel, TextPanel, CaptionsPanel, AudioPanel, TransitionsPanel, FilterPanel, SpeedPanel, StickerPanel, OverlayPanel, AiPanel } from "./panels";
@@ -3982,8 +3983,24 @@ export default function MontagePage() {
                       fontFamily: FONT_CSS[ti.font] || FONT_CSS.archivo,
                       fontWeight: FONT_CHOICES.find((f) => f.id === ti.font)?.weight || 800,
                       fontStyle: FONT_CHOICES.find((f) => f.id === ti.font)?.italic ? "italic" : "normal",
-                      color: ti.color, fontSize: 40 * (ti.scale ?? 1) * previewScale, textAlign: "center", textShadow: "0 1px 8px rgba(0,0,0,.5)",
-                      maxWidth: "80%", whiteSpace: "pre-wrap", zIndex: 8, // au-dessus des incrustations (le texte reste visible/cliquable)
+                      color: ti.color, fontSize: TITLE_BASE_FONT * (ti.scale ?? 1) * previewScale, textAlign: "center", textShadow: "0 1px 8px rgba(0,0,0,.5)",
+                      lineHeight: TITLE_LINE_HEIGHT,
+                      /* Largeur EXPLICITE, et réglable.
+
+                         La boîte n'avait pas de largeur : elle était posée en
+                         `left: x%` puis recentrée par un `translate(-50%)`, et sa
+                         taille était laissée au navigateur. Or une boîte en
+                         position absolue sans largeur ne peut pas dépasser la
+                         place qui reste à sa droite : un titre centré était donc
+                         plafonné à la MOITIÉ du cadre, et le `max-width: 80%`
+                         posé ici n'y changeait rien. C'est ce qui empêchait
+                         d'étendre un titre vers les bords.
+
+                         Avec une largeur donnée, la boîte fait vraiment ce qu'on
+                         lui demande, et c'est la même largeur qui décide du
+                         retour à la ligne à l'export. */
+                      width: (ti.maxWidth ?? TITLE_DEFAULT_MAX_WIDTH) + "%",
+                      whiteSpace: "pre-wrap", zIndex: 8, // au-dessus des incrustations (le texte reste visible/cliquable)
                       transform: `translate(-50%,-50%) rotate(${ti.rotation ?? 0}deg)`,
                       animation: ti.anim === "rise" ? "mzRise .35s var(--ease)" : ti.anim === "pop" ? "mzPop .3s var(--ease)" : undefined,
                     }}
@@ -4001,9 +4018,16 @@ export default function MontagePage() {
                       onKeyDown={editingTitleId === ti.id ? (e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); (e.currentTarget as HTMLElement).blur(); } } : undefined}
                       onBlur={editingTitleId === ti.id ? (e) => { const txt = (e.currentTarget.textContent || "").trim(); if (txt) updateTitle(ti.id, { text: txt }); setEditingTitleId(null); } : undefined}
                     >
+                      {/* Hors édition, l'aperçu pose LES MÊMES lignes que l'export au lieu
+                          de laisser le navigateur replier à sa façon : les retours à la
+                          ligne vus ici sont ceux du fichier rendu. En édition on montre le
+                          texte brut, c'est celui-là qu'on corrige. */}
                       {editingTitleId === ti.id
                         ? ti.text
-                        : (ti.anim === "type" ? ti.text.slice(0, Math.max(0, Math.min(ti.text.length, Math.floor((time - ti.start) * 16)))) : ti.text)}
+                        : titleLines(
+                            { ...ti, text: ti.anim === "type" ? ti.text.slice(0, Math.max(0, Math.min(ti.text.length, Math.floor((time - ti.start) * 16)))) : ti.text },
+                            activeFmt.w,
+                          ).join("\n")}
                     </span>
                     {selectedTitleId === ti.id && editingTitleId !== ti.id && <button className="mz-ov-del" onPointerDown={(e) => e.stopPropagation()} onClick={() => removeTitle(ti.id)}><VIcon name="x" size={11} /></button>}
                     {selectedTitleId === ti.id && editingTitleId !== ti.id && <TransformHandles scale={ti.scale ?? 1} onScale={(s) => updateTitle(ti.id, { scale: s })} onRotate={(d) => updateTitle(ti.id, { rotation: d })} />}
