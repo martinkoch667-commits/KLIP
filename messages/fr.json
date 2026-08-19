@@ -1754,7 +1754,7 @@
     "toastAudioUploadFailed": "Échec de l’upload audio : {msg}",
     "toastMicUnavailable": "Micro indisponible ou accès refusé.",
     "toastExportUploadFailed": "Échec de l’upload de l’export : {msg}",
-    "toastExportDone": "Export terminé ✓",
+    "toastExportDone": "Export terminé ✓ La vidéo est dans vos téléchargements.",
     "toastExportError": "Erreur pendant l’export : {msg}",
     "toastUnknownError": "inconnue",
     "toastOverlayCopied": "Incrustation copiée.",

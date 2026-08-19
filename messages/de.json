@@ -1754,7 +1754,7 @@
     "toastAudioUploadFailed": "Audio-Upload fehlgeschlagen: {msg}",
     "toastMicUnavailable": "Mikrofon nicht verfügbar oder Zugriff verweigert.",
     "toastExportUploadFailed": "Export-Upload fehlgeschlagen: {msg}",
-    "toastExportDone": "Export abgeschlossen ✓",
+    "toastExportDone": "Export fertig ✓ Das Video liegt in deinen Downloads.",
     "toastExportError": "Fehler beim Export: {msg}",
     "toastUnknownError": "unbekannt",
     "toastOverlayCopied": "Overlay kopiert.",

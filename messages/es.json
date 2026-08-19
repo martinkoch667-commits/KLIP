@@ -1754,7 +1754,7 @@
     "toastAudioUploadFailed": "Error al subir el audio: {msg}",
     "toastMicUnavailable": "Micrófono no disponible o acceso denegado.",
     "toastExportUploadFailed": "Error al subir la exportación: {msg}",
-    "toastExportDone": "Exportación completada ✓",
+    "toastExportDone": "Exportación terminada ✓ El vídeo está en tus descargas.",
     "toastExportError": "Error durante la exportación: {msg}",
     "toastUnknownError": "desconocido",
     "toastOverlayCopied": "Incrustación copiada.",

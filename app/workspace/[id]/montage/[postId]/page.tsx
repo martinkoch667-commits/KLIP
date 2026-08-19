@@ -2854,6 +2854,30 @@ export default function MontagePage() {
         }
       }
 
+      /* Téléchargement sur la machine.
+
+         « Exporter » ne faisait qu'envoyer le fichier sur le stockage et
+         proposer un lien « Voir l'export » : on ne pouvait pas récupérer la
+         vidéo pour la regarder ailleurs, ni vérifier hors de KLIP si le
+         problème venait du fichier ou du lecteur. On la télécharge donc, et
+         avant l'envoi : si le stockage échoue, la vidéo est déjà sur le disque
+         plutôt que perdue avec l'onglet.
+
+         Le lien est construit sur le blob local, il n'y a rien à retélécharger. */
+      if (!publish) {
+        try {
+          const a = document.createElement("a");
+          a.href = URL.createObjectURL(blob);
+          a.download = `klip-${projectName || postId}-${new Date().toISOString().slice(0, 10)}.${ext}`;
+          document.body.appendChild(a);
+          a.click();
+          a.remove();
+          setTimeout(() => URL.revokeObjectURL(a.href), 60_000);
+        } catch (e) {
+          console.warn("[montage] téléchargement local impossible :", e);
+        }
+      }
+
       const path = `${workspaceId}/${postId}-export-${Date.now()}.${ext}`;
       const { error } = await supabase.storage.from("videos").upload(path, blob, { upsert: true, contentType });
       if (error) { toast(t('toastExportUploadFailed', { msg: error.message })); return; }
