@@ -13,6 +13,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Sidebar from "@/components/Sidebar";
 import PostPreviewPane from "@/components/PostPreviewPane";
+import DateField from "@/components/DateField";
 import InstagramFeed from "@/components/InstagramFeed";
 import {
   HOUR_H, HOURS, getMonday, addDays, isSameDay, toDateInput, toTimeInput,
@@ -498,7 +499,7 @@ export default function CalendarPage() {
               <div>
                 <label className="label" style={{ display: "block", marginBottom: 6 }}>{t("dateTime")}</label>
                 <div style={{ display: "flex", gap: 8 }}>
-                  <input type="date" value={panelDate} onChange={e => setPanelDate(e.target.value)} className="input" />
+                  <DateField value={panelDate} onChange={setPanelDate} />
                   <input type="time" value={panelTime} onChange={e => setPanelTime(e.target.value)} className="input" style={{ maxWidth: 130 }} />
                 </div>
               </div>

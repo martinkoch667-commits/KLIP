@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef, Suspense } from "react";
 import PostPreviewPane from "@/components/PostPreviewPane";
+import DateField from "@/components/DateField";
 import VideoCoverPicker from "@/components/VideoCoverPicker";
 import CaptionPrompt from "@/components/CaptionPrompt";
 import InstagramFeed from "@/components/InstagramFeed";
@@ -926,11 +927,11 @@ function PlanningContent() {
             </p>
             <div style={{ display: "flex", gap: 12, marginBottom: 18 }}>
               <label style={{ flex: 1, fontSize: 12, fontWeight: 700, color: "var(--ink-2)" }}>{t('from')}
-                <input type="date" value={shareFrom} onChange={e => setShareFrom(e.target.value)}
+                <DateField value={shareFrom} onChange={setShareFrom}
                   style={{ width: "100%", marginTop: 5, padding: "9px 11px", borderRadius: 9, border: "1px solid var(--line)", background: "var(--sunk)", color: "var(--ink)", fontFamily: "var(--sans)", outline: "none" }} />
               </label>
               <label style={{ flex: 1, fontSize: 12, fontWeight: 700, color: "var(--ink-2)" }}>{t('to')}
-                <input type="date" value={shareTo} min={shareFrom} onChange={e => setShareTo(e.target.value)}
+                <DateField value={shareTo} min={shareFrom} onChange={setShareTo}
                   style={{ width: "100%", marginTop: 5, padding: "9px 11px", borderRadius: 9, border: "1px solid var(--line)", background: "var(--sunk)", color: "var(--ink)", fontFamily: "var(--sans)", outline: "none" }} />
               </label>
             </div>
@@ -1446,7 +1447,7 @@ function PlanningContent() {
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
               <div>
                 <label className="label" style={{ display: "block", marginBottom: 6 }}>{t('date')}</label>
-                <input type="date" value={panelDate} onChange={e => setPanelDate(e.target.value)} className="input" style={{ height: 40, fontSize: 12.5 }} />
+                <DateField value={panelDate} onChange={setPanelDate} style={{ height: 40, fontSize: 12.5 }} />
               </div>
               <div>
                 <label className="label" style={{ display: "block", marginBottom: 6 }}>{t('time')}</label>
