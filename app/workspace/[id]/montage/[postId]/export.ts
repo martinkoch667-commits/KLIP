@@ -485,6 +485,24 @@ export async function renderExport(project: ExportProject, onProgress: (p: numbe
 
   const ticker = createTicker();
 
+  /* Échéance de l'enregistrement.
+
+     L'export est une captation en temps réel : la longueur du fichier est celle
+     du TEMPS PASSÉ à rendre, pas celle du montage. Que le rendu prenne du
+     retard (machine chargée, décodage lent, onglet bridé) et le film s'allonge
+     d'autant, en gardant la dernière image affichée. Martin a vu un montage
+     court rendre un fichier de 43 secondes.
+
+     On pose donc une échéance : au delà de la durée de la timeline plus une
+     petite marge, on arrête, quoi qu'il arrive. Le fichier fait alors la durée
+     du montage, ce qui est la seule longueur juste : après le dernier plan, il
+     n'y a plus rien à montrer. */
+  const renderStart = performance.now();
+  const MARGE_MS = 400;
+  let deadlineMs = 0; // fixé une fois `total` connu
+  const tempsEcoule = () => (performance.now() - renderStart) / 1000;
+  const echeanceAtteinte = () => deadlineMs > 0 && performance.now() >= deadlineMs;
+
   const canvas = document.createElement("canvas");
   canvas.width = CANVAS_W; canvas.height = CANVAS_H;
   const ctx = canvas.getContext("2d")!;
@@ -642,6 +660,7 @@ export async function renderExport(project: ExportProject, onProgress: (p: numbe
   const stopped = new Promise<Blob>((resolve) => { recorder.onstop = () => resolve(new Blob(chunks, { type: actualType })); });
 
   recorder.start(200);
+  deadlineMs = performance.now() + total * 1000 + MARGE_MS;
   // Les pistes audio sont démarrées/seek/pausées à leur offset par updateAudioAt() dans la boucle.
 
   // Miniature : capture le tout premier frame composé (image + texte/titres) du plan 1.
@@ -737,7 +756,7 @@ export async function renderExport(project: ExportProject, onProgress: (p: numbe
         await new Promise<void>((resolve) => {
           const stop = ticker.every(1000 / FPS, () => {
             const elapsed = (performance.now() - t0) / 1000;
-            if (elapsed >= gapBefore) { stop(); resolve(); return; }
+            if (elapsed >= gapBefore || echeanceAtteinte()) { stop(); resolve(); return; }
             const globalT = gapStart + elapsed;
             updateAudioAt(globalT);
             ctx.fillStyle = "#000";
@@ -781,7 +800,7 @@ export async function renderExport(project: ExportProject, onProgress: (p: numbe
         await new Promise<void>((resolve) => {
           const stop = ticker.every(1000 / FPS, () => {
             const elapsed = (performance.now() - overlapStart) / 1000;
-            if (elapsed >= transDur) { stop(); resolve(); return; }
+            if (elapsed >= transDur || echeanceAtteinte()) { stop(); resolve(); return; }
             const p = elapsed / transDur;
             const globalT = c.start + elapsed;
             updateAudioAt(globalT);
@@ -812,7 +831,7 @@ export async function renderExport(project: ExportProject, onProgress: (p: numbe
           // et le setInterval de la page y tombe à une fois par seconde (mesuré).
           const stop = ticker.every(1000 / FPS, () => {
             const localT = (v.currentTime - c.trimStart) / c.speed;
-            if (v.paused || localT >= soloEnd || v.ended) { stop(); resolve(); return; }
+            if (v.paused || localT >= soloEnd || v.ended || echeanceAtteinte()) { stop(); resolve(); return; }
             const globalT = c.start + localT;
             videoGains[i % 2].gain.value = clipAudioGainAt(c, localT); // volume + fondus du son du plan
             updateAudioAt(globalT);
@@ -831,7 +850,7 @@ export async function renderExport(project: ExportProject, onProgress: (p: numbe
         await new Promise<void>((resolve) => {
           const stop = ticker.every(1000 / FPS, () => {
             const localT = (performance.now() - media.photoStart) / 1000;
-            if (localT >= soloEnd) { stop(); resolve(); return; }
+            if (localT >= soloEnd || echeanceAtteinte()) { stop(); resolve(); return; }
             const globalT = c.start + localT;
             updateAudioAt(globalT);
             drawMediaFrame(ctx, img, c, localT, i === 0);
@@ -850,6 +869,10 @@ export async function renderExport(project: ExportProject, onProgress: (p: numbe
     if (prevMedia?.kind === "video") (prevMedia.el as HTMLVideoElement).pause();
   } finally {
     onProgress(1);
+    const derive = tempsEcoule() - total;
+    if (derive > 0.5) {
+      console.warn(`[export] rendu en retard de ${derive.toFixed(1)} s sur les ${total.toFixed(1)} s de montage : le fichier a été coupé à la longueur de la timeline.`);
+    }
     recorder.stop();
     audioEls.forEach(({ el }) => el.pause());
     overlayMedia.forEach((m) => { if (m.video) m.video.pause(); });
