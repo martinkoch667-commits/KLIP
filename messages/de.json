@@ -289,7 +289,7 @@
     "finalCta": {
       "title1": "Mehr gestalten, ",
       "titleAccent": "weniger jonglieren.",
-      "lead": "Ein Tool für alle deine Kunden. Teste KLIP 7 Tage kostenlos — ohne Kreditkarte.",
+      "lead": "Ein Tool für alle deine Kunden. Teste KLIP 7 Tage kostenlos, ohne Bindung.",
       "ctaStart": "Kostenlos starten",
       "ctaSee": "Produkt erneut ansehen"
     },
@@ -1136,7 +1136,7 @@
     "confirm": "Bestätigen",
     "errorGeneric": "Ein Fehler ist aufgetreten. Bitte versuche es erneut.",
     "errorAgencyName": "Bitte gib den Namen deiner Agentur ein.",
-    "hint": "Änderbar in den Einstellungen · Keine Kreditkarte zum Start nötig",
+    "hint": "Jederzeit in den Einstellungen änderbar",
     "titleLead": "Welcher",
     "titleAccent": "Kontotyp?",
     "annualNote": "oder {price}€/Monat im Jahresabo · ohne Bindung"
@@ -2009,7 +2009,7 @@
     "section2Li3": "Der Dienst ist volljährigen Personen oder Personen mit der Rechtsfähigkeit zum Vertragsabschluss vorbehalten.",
     "section3Title": "Angebote, kostenlose Testphase und Preise",
     "section3Li1": "Der Dienst wird als monatliches Abonnement angeboten, mit zwei Plänen: <b>Studio</b> und <b>Agentur</b>, deren Merkmale und Preise auf der Preisseite aufgeführt sind.",
-    "section3Li2": "Jedes neue Konto profitiert von einer <b>kostenlosen 7-tägigen Testphase</b> ohne Kreditkartenanforderung bei der Anmeldung.",
+    "section3Li2": "Jedes neue Konto profitiert von einer <b>kostenlosen 7-tägigen Testphase</b>. Für die Aktivierung ist eine Zahlungskarte erforderlich; vor Ablauf erfolgt keine Abbuchung.",
     "section3Li3": "Nach Ablauf der 7 Tage wird der Zugriff auf die Funktionen ausgesetzt, bis ein kostenpflichtiger Plan abgeschlossen wird.",
     "section3Li4": "Die Preise werden in Euro angegeben. <todo>[Angabe brutto/netto und geltende USt. ergänzen]</todo>.",
     "section3Li5": "Die Zahlung erfolgt über unseren Zahlungsanbieter <todo>[Stripe — noch zu aktivieren]</todo>. Klip speichert keine Kartendaten.",

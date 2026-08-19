@@ -289,7 +289,7 @@
     "finalCta": {
       "title1": "Crie mais, ",
       "titleAccent": "faça menos malabarismos.",
-      "lead": "Uma só ferramenta para todos os seus clientes. Experimente o KLIP grátis durante 7 dias — sem cartão.",
+      "lead": "Uma só ferramenta para todos os seus clientes. Experimente o KLIP grátis durante 7 dias, sem compromisso.",
       "ctaStart": "Começar grátis",
       "ctaSee": "Rever o produto"
     },
@@ -1136,7 +1136,7 @@
     "confirm": "Confirmar",
     "errorGeneric": "Ocorreu um erro. Tente novamente.",
     "errorAgencyName": "Introduza o nome da sua agência.",
-    "hint": "Alterável nas definições · Sem cartão necessário para começar",
+    "hint": "Alterável nas definições a qualquer momento",
     "titleLead": "Que tipo de",
     "titleAccent": "conta?",
     "annualNote": "ou {price}€/mês no plano anual · sem compromisso"
@@ -2009,7 +2009,7 @@
     "section2Li3": "O Serviço está reservado a pessoas maiores de idade ou com capacidade jurídica para contratar.",
     "section3Title": "Planos, teste gratuito e preços",
     "section3Li1": "O Serviço é oferecido como subscrição mensal, com dois planos: <b>Studio</b> e <b>Agência</b>, cujas características e preços estão indicados na página de Preços.",
-    "section3Li2": "Cada nova conta beneficia de um <b>teste gratuito de 7 dias</b>, sem necessidade de cartão bancário no registo.",
+    "section3Li2": "Cada nova conta beneficia de um <b>teste gratuito de 7 dias</b>. É pedido um cartão bancário para ativar o teste; não é feita qualquer cobrança antes do fim.",
     "section3Li3": "No final dos 7 dias, o acesso às funcionalidades é suspenso até à subscrição de um plano pago.",
     "section3Li4": "Os preços são indicados em euros. <todo>[Especificar com/sem IVA e taxa aplicável]</todo>.",
     "section3Li5": "O pagamento é efetuado através do nosso prestador de pagamentos <todo>[Stripe — a ativar]</todo>. Nenhum dado de cartão é armazenado pela Klip.",

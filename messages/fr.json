@@ -289,7 +289,7 @@
     "finalCta": {
       "title1": "Créez plus, ",
       "titleAccent": "jonglez moins.",
-      "lead": "Un seul outil pour tous vos clients. Essayez KLIP gratuitement pendant 7 jours — sans carte bancaire.",
+      "lead": "Un seul outil pour tous vos clients. Essayez KLIP gratuitement pendant 7 jours, sans engagement.",
       "ctaStart": "Démarrer gratuitement",
       "ctaSee": "Revoir le produit"
     },
@@ -1136,7 +1136,7 @@
     "confirm": "Confirmer",
     "errorGeneric": "Une erreur est survenue. Veuillez réessayer.",
     "errorAgencyName": "Veuillez entrer le nom de votre agence.",
-    "hint": "Modifiable depuis les paramètres · Aucun CB requis pour commencer",
+    "hint": "Modifiable depuis les paramètres à tout moment",
     "titleLead": "Quel type de",
     "titleAccent": "compte ?",
     "annualNote": "ou {price}€/mois en annuel · sans engagement"
@@ -2009,7 +2009,7 @@
     "section2Li3": "Le Service est réservé aux personnes majeures ou disposant de la capacité juridique de contracter.",
     "section3Title": "Offres, essai gratuit et prix",
     "section3Li1": "Le Service est proposé sous forme d’abonnement mensuel, selon deux offres : <b>Studio</b> et <b>Agence</b>, dont les caractéristiques et tarifs sont indiqués sur la page Tarifs.",
-    "section3Li2": "Chaque nouveau compte bénéficie d’un <b>essai gratuit de 7 jours</b>, sans carte bancaire requise à l’inscription.",
+    "section3Li2": "Chaque nouveau compte bénéficie d’un <b>essai gratuit de 7 jours</b>. Une carte bancaire est demandée pour activer l’essai ; aucun débit n’intervient avant son terme.",
     "section3Li3": "À l’issue des 7 jours, l’accès aux fonctionnalités est suspendu jusqu’à la souscription d’une offre payante.",
     "section3Li4": "Les prix sont indiqués en euros. <todo>[Préciser TTC/HT et TVA applicable]</todo>.",
     "section3Li5": "Le paiement s’effectue via notre prestataire de paiement <todo>[Stripe — à activer]</todo>. Aucune donnée de carte n’est stockée par Klip.",

@@ -144,7 +144,7 @@ export const POSTS: Post[] = [
 
         <H2>Faut-il migrer tout de suite ?</H2>
         <P>
-          Pas besoin de tout changer d&apos;un coup. Klip se teste gratuitement pendant 7 jours, sans carte bancaire — l&apos;occasion
+          Pas besoin de tout changer d&apos;un coup. Klip se teste gratuitement pendant 7 jours, sans engagement : l&apos;occasion
           de comparer sur un ou deux clients avant de généraliser.
         </P>
         <CTA />

@@ -289,7 +289,7 @@
     "finalCta": {
       "title1": "Crea di più, ",
       "titleAccent": "destreggiati di meno.",
-      "lead": "Un solo strumento per tutti i tuoi clienti. Prova KLIP gratis per 7 giorni — senza carta di credito.",
+      "lead": "Un solo strumento per tutti i tuoi clienti. Prova KLIP gratis per 7 giorni, senza vincoli.",
       "ctaStart": "Inizia gratis",
       "ctaSee": "Rivedi il prodotto"
     },
@@ -1136,7 +1136,7 @@
     "confirm": "Conferma",
     "errorGeneric": "Si è verificato un errore. Riprova.",
     "errorAgencyName": "Inserisci il nome della tua agenzia.",
-    "hint": "Modificabile dalle impostazioni · Nessuna carta richiesta per iniziare",
+    "hint": "Modificabile dalle impostazioni in qualsiasi momento",
     "titleLead": "Che tipo di",
     "titleAccent": "account?",
     "annualNote": "oppure {price}€/mese con abbonamento annuale · senza vincoli"
@@ -2009,7 +2009,7 @@
     "section2Li3": "Il Servizio è riservato a persone maggiorenni o con capacità giuridica di contrarre.",
     "section3Title": "Piani, prova gratuita e prezzi",
     "section3Li1": "Il Servizio è offerto come abbonamento mensile, con due piani: <b>Studio</b> e <b>Agenzia</b>, le cui caratteristiche e tariffe sono indicate nella pagina Prezzi.",
-    "section3Li2": "Ogni nuovo account beneficia di una <b>prova gratuita di 7 giorni</b>, senza carta di credito richiesta alla registrazione.",
+    "section3Li2": "Ogni nuovo account beneficia di una <b>prova gratuita di 7 giorni</b>. Per attivare la prova è richiesta una carta di pagamento; nessun addebito avviene prima del termine.",
     "section3Li3": "Al termine dei 7 giorni, l’accesso alle funzionalità viene sospeso fino alla sottoscrizione di un piano a pagamento.",
     "section3Li4": "I prezzi sono indicati in euro. <todo>[Specificare IVA inclusa/esclusa e aliquota applicabile]</todo>.",
     "section3Li5": "Il pagamento avviene tramite il nostro fornitore di pagamenti <todo>[Stripe — da attivare]</todo>. Nessun dato della carta viene memorizzato da Klip.",

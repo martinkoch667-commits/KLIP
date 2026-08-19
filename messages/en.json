@@ -289,7 +289,7 @@
     "finalCta": {
       "title1": "Create more, ",
       "titleAccent": "juggle less.",
-      "lead": "One tool for all your clients. Try KLIP free for 7 days — no credit card.",
+      "lead": "One tool for all your clients. Try KLIP free for 7 days, no commitment.",
       "ctaStart": "Start for free",
       "ctaSee": "See the product again"
     },
@@ -1136,7 +1136,7 @@
     "confirm": "Confirm",
     "errorGeneric": "An error occurred. Please try again.",
     "errorAgencyName": "Please enter your agency name.",
-    "hint": "Changeable in settings · No card required to start",
+    "hint": "Changeable in settings at any time",
     "titleLead": "What type of",
     "titleAccent": "account?",
     "annualNote": "or {price}€/month billed yearly · no commitment"
@@ -2009,7 +2009,7 @@
     "section2Li3": "The Service is reserved for adults or persons with the legal capacity to enter into contracts.",
     "section3Title": "Plans, free trial and pricing",
     "section3Li1": "The Service is offered as a monthly subscription, with two plans: <b>Studio</b> and <b>Agency</b>, whose features and pricing are listed on the Pricing page.",
-    "section3Li2": "Each new account benefits from a <b>free 7-day trial</b>, with no credit card required at signup.",
+    "section3Li2": "Each new account benefits from a <b>free 7-day trial</b>. A payment card is required to activate the trial; no charge is made before it ends.",
     "section3Li3": "At the end of the 7 days, access to features is suspended until a paid plan is subscribed.",
     "section3Li4": "Prices are shown in euros. <todo>[Specify tax-inclusive/exclusive and applicable VAT]</todo>.",
     "section3Li5": "Payment is made via our payment provider <todo>[Stripe — to be activated]</todo>. No card data is stored by Klip.",
