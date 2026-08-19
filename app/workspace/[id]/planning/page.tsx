@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useRef, Suspense } from "react";
 import PostPreviewPane from "@/components/PostPreviewPane";
 import VideoCoverPicker from "@/components/VideoCoverPicker";
+import CaptionPrompt from "@/components/CaptionPrompt";
 import InstagramFeed from "@/components/InstagramFeed";
 import { useTranslations, useLocale } from "next-intl";
 import Link from "next/link";
@@ -1431,28 +1432,13 @@ function PlanningContent() {
                 </button>
               </div>
               {promptOpen && (
-                <div style={{ marginBottom: 10, padding: 12, borderRadius: 10, background: "var(--sunk)", border: "1px solid var(--line)" }}>
-                  <label className="label" style={{ display: "block", marginBottom: 6 }}>{t('captionPromptLabel')}</label>
-                  <textarea
-                    value={prompt}
-                    onChange={e => setPrompt(e.target.value)}
-                    rows={3}
-                    autoFocus
-                    placeholder={t('captionPromptPh')}
-                    className="input"
-                    style={{ resize: "none", fontSize: 12.5 }}
-                    onKeyDown={e => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) writeCaption(prompt); }}
-                  />
-                  <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
-                    <button onClick={() => writeCaption(prompt)} disabled={writing} className="btn btn-sm" style={{ height: 28, fontSize: 11.5 }}>
-                      {writing ? t('captionWriting') : t('captionWrite')}
-                    </button>
-                    <button onClick={() => setPromptOpen(false)} disabled={writing} className="btn btn-sm btn-ghost" style={{ height: 28, fontSize: 11.5 }}>
-                      {t('captionCancel')}
-                    </button>
-                    <span style={{ marginLeft: "auto", alignSelf: "center", fontSize: 11, color: "var(--ink-3)" }}>{t('captionPromptHint')}</span>
-                  </div>
-                </div>
+                <CaptionPrompt
+                  value={prompt}
+                  onChange={setPrompt}
+                  onSubmit={() => writeCaption(prompt)}
+                  onCancel={() => setPromptOpen(false)}
+                  busy={writing}
+                />
               )}
               <textarea value={panelDesc} onChange={e => setPanelDesc(e.target.value)} rows={4} className="input" style={{ resize: "none", fontSize: 12.5, color: "var(--ink-2)" }} />
             </div>
