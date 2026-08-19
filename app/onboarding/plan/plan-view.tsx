@@ -1,12 +1,12 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useTranslations } from "next-intl";
+import { useTranslations, useLocale } from "next-intl";
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
 import { useRouter } from "next/navigation";
-import { PRICING_CSS, PlanCard } from "@/components/PricingUI";
+import { PRICING_CSS, PlanCard, PeriodToggle } from "@/components/PricingUI";
 import { PLANS } from "@/lib/plans";
-import { LAUNCH_OFFER, launchApplies, launchPrice } from "@/lib/launch-offer";
+import { LAUNCH_OFFER, launchApplies, launchPrice, formatPrice } from "@/lib/launch-offer";
 
 /* Écran d'offre de l'inscription. La mise en forme vient de `PricingUI`, elle
    même reprise de la section Tarifs de la landing : c'est le même écran, à deux
@@ -17,6 +17,8 @@ export default function PlanView({ seatsLeft }: { seatsLeft: number | null }) {
   // Les textes de l'offre de lancement sont ceux de la landing : une seule
   // formulation, dans les six langues, pour les deux écrans.
   const tl = useTranslations('landing.pricing');
+  const locale = useLocale();
+  const fmt = (v: number) => formatPrice(v, locale);
   const supabase = createClientComponentClient();
   const router = useRouter();
   const [agencyName, setAgencyName] = useState("");
@@ -24,21 +26,42 @@ export default function PlanView({ seatsLeft }: { seatsLeft: number | null }) {
   const [loadingStudio, setLoadingStudio] = useState(false);
   const [loadingAgency, setLoadingAgency] = useState(false);
   const [error, setError] = useState("");
+  // La période choisie ici ne facture rien : elle est retenue pour arriver
+  // pré-sélectionnée à l'écran de paiement, qui lui appelle la caisse.
+  const [period, setPeriod] = useState<"monthly" | "yearly">("monthly");
+
+  function pickPeriod(p: "monthly" | "yearly") {
+    setPeriod(p);
+    try { localStorage.setItem("klip_period", p); } catch { /* navigation privée */ }
+  }
 
   // L'offre de lancement doit s'afficher ici aussi : la caisse l'applique
   // (voir app/api/stripe/checkout), donc taire la remise sur cet écran ferait
   // croire au plein tarif juste après l'avoir annoncée sur la landing.
-  const launched = launchApplies("monthly") && (seatsLeft === null || seatsLeft > 0);
+  const launched = launchApplies(period) && (seatsLeft === null || seatsLeft > 0);
+  const isYearly = period === "yearly";
   const badge = launched ? tl('launchBadge', { percent: LAUNCH_OFFER.percent }) : undefined;
-  const priceOf = (full: number) => (launched ? launchPrice(full) : full);
-  const strikeOf = (full: number) => (launched ? full : undefined);
-  const noteOf = (full: number, yearly: number) =>
-    launched
-      ? tl('launchNote', { seats: LAUNCH_OFFER.seats, price: full })
-      : t('annualNote', { price: yearly });
+  /** L'annuel s'annonce en équivalent par mois, comme sur la landing. */
+  const shownOf = (monthly: number, yearly: number) => (isYearly ? yearly : monthly);
+  const priceOf = (monthly: number, yearly: number) => {
+    const shown = shownOf(monthly, yearly);
+    return launched ? launchPrice(shown) : shown;
+  };
+  const strikeOf = (monthly: number, yearly: number) =>
+    launched ? shownOf(monthly, yearly) : undefined;
+  const noteOf = (monthly: number, yearly: number) => {
+    if (!launched) return isYearly ? tl('billedYear', { total: fmt(yearly * 12) }) : t('annualNote', { price: fmt(yearly) });
+    // Sur l'annuel, la remise porte sur la première facture, donc sur l'année
+    // entière : on annonce la somme débitée puis le plein tarif ensuite.
+    return isYearly
+      ? tl('launchNoteYear', { seats: LAUNCH_OFFER.seats, firstYear: fmt(launchPrice(yearly * 12)), full: fmt(yearly * 12) })
+      : tl('launchNote', { seats: LAUNCH_OFFER.seats, price: fmt(monthly) });
+  };
 
-  const STUDIO_FEATURES = [t('studioF1'), t('studioF2'), t('studioF3'), t('studioF4'), t('studioF5')];
-  const AGENCY_FEATURES = [t('agencyF1'), t('agencyF2'), t('agencyF3'), t('agencyF4'), t('agencyF5')];
+  // Les entrées vides sont là pour garder les six clés alignées entre les
+  // deux offres, elles ne s'affichent pas.
+  const STUDIO_FEATURES = [t('studioF1'), t('studioF2'), t('studioF3'), t('studioF4'), t('studioF5'), t('studioF6')].filter(Boolean);
+  const AGENCY_FEATURES = [t('agencyF1'), t('agencyF2'), t('agencyF3'), t('agencyF4'), t('agencyF5'), t('agencyF6')].filter(Boolean);
 
   // Pré-sélection de l'offre choisie sur la landing (?plan transmis via register)
   useEffect(() => {
@@ -117,12 +140,20 @@ export default function PlanView({ seatsLeft }: { seatsLeft: number | null }) {
       </h1>
       <p className="kp-lead">{t('subtitle')}</p>
 
+      <PeriodToggle
+        period={period}
+        onChange={pickPeriod}
+        monthlyLabel={tl('monthly')}
+        yearlyLabel={tl('yearly')}
+        saveLabel={tl('save2mo')}
+      />
+
       <div className="kp-grid">
         <PlanCard
           name={t('studioName')}
           tag={t('studioDesc')}
-          price={priceOf(PLANS.solo.priceMonthly)}
-          strikePrice={strikeOf(PLANS.solo.priceMonthly)}
+          price={priceOf(PLANS.solo.priceMonthly, PLANS.solo.priceYearly)}
+          strikePrice={strikeOf(PLANS.solo.priceMonthly, PLANS.solo.priceYearly)}
           badge={badge}
           perMonth={t('perMonth')}
           note={noteOf(PLANS.solo.priceMonthly, PLANS.solo.priceYearly)}
@@ -139,8 +170,8 @@ export default function PlanView({ seatsLeft }: { seatsLeft: number | null }) {
           flag={t('mostPopular')}
           name={t('agencyName')}
           tag={t('agencyDesc')}
-          price={priceOf(PLANS.agency.priceMonthly)}
-          strikePrice={strikeOf(PLANS.agency.priceMonthly)}
+          price={priceOf(PLANS.agency.priceMonthly, PLANS.agency.priceYearly)}
+          strikePrice={strikeOf(PLANS.agency.priceMonthly, PLANS.agency.priceYearly)}
           badge={badge}
           perMonth={t('perMonth')}
           note={noteOf(PLANS.agency.priceMonthly, PLANS.agency.priceYearly)}

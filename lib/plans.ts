@@ -20,7 +20,7 @@ export type PlanConfig = {
   maxClients: number;       // nombre de comptes clients (workspaces)
   maxMembers: number;       // membres d'équipe (l'owner compris)
   features: {
-    validation: boolean;    // workflow de validation client
+    validation: boolean;    // workflow de validation client (les deux offres)
     roles: boolean;         // rôles Manager / Créa
     batch: boolean;         // création en lot
   };
@@ -34,7 +34,7 @@ export const PLANS: Record<AccountType, PlanConfig> = {
     priceYearly: 29,
     maxClients: 6,
     maxMembers: 1,
-    features: { validation: false, roles: false, batch: false },
+    features: { validation: true, roles: false, batch: false },
   },
   agency: {
     key: "agency",

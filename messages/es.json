@@ -228,19 +228,21 @@
       "studioF1": "Editor visual completo",
       "studioF2": "Descripciones con IA ilimitadas",
       "studioF3": "Calendario editorial",
-      "studioF4": "Publicación en Instagram y Facebook",
-      "studioF5": "1 usuario",
+      "studioF4": "Flujo de validación del cliente",
+      "studioF5": "Publicación en Instagram y Facebook",
       "agencyTag": "Agencias y estudios de comunicación",
       "agencyClients": "Hasta 12 clientes",
       "agencyF1": "Todo Studio, y además:",
       "agencyF2": "Hasta 5 miembros de equipo",
-      "agencyF3": "Flujo de validación del cliente",
-      "agencyF4": "Roles Manager y Creativo",
-      "agencyF5": "Creación por lotes",
+      "agencyF3": "Roles Manager y Creativo",
+      "agencyF4": "Creación por lotes",
+      "agencyF5": "",
       "montageFeat": "Edición de vídeo integrada",
       "launchBadge": "Oferta lanzamiento · −{percent} %",
       "launchNote": "en vez de {price}€ el 1.er mes · {seats} primeras plazas",
-      "launchNoteYear": "{firstYear}€ cobrados el 1.er año, luego {full}€/año · {seats} primeras plazas"
+      "launchNoteYear": "{firstYear}€ cobrados el 1.er año, luego {full}€/año · {seats} primeras plazas",
+      "studioF6": "1 usuario",
+      "agencyF6": ""
     },
     "faq": {
       "title1": "Las preguntas ",
@@ -1124,9 +1126,9 @@
     "mostPopular": "El más popular",
     "agencyF1": "12 clientes incluidos",
     "agencyF2": "5 miembros incluidos",
-    "agencyF3": "Flujo de validación",
-    "agencyF4": "Roles Manager / Creativo",
-    "agencyF5": "Todo lo que incluye Studio",
+    "agencyF3": "Roles Manager / Creativo",
+    "agencyF4": "Todo lo que incluye Studio",
+    "agencyF5": "",
     "perMonth": "/ mes",
     "chooseStudio": "Elegir Studio",
     "chooseAgency": "Elegir Agencia",
@@ -1139,7 +1141,9 @@
     "hint": "Modificable desde los ajustes en cualquier momento",
     "titleLead": "¿Qué tipo de",
     "titleAccent": "cuenta?",
-    "annualNote": "o {price}€/mes en anual · sin compromiso"
+    "annualNote": "o {price}€/mes en anual · sin compromiso",
+    "studioF6": "Flujo de validación",
+    "agencyF6": ""
   },
   "workspaceSettings": {
     "back": "Atrás",
@@ -1938,7 +1942,8 @@
     "featAgencyRoles": "Roles Manager y Creativo",
     "titleActivateLead": "Activa tu plan",
     "titleChooseLead": "Elige tu",
-    "titleChooseAccent": "plan"
+    "titleChooseAccent": "plan",
+    "featSoloValidation": "Flujo de validación del cliente"
   },
   "checkoutSuccess": {
     "activating": "Activando tu cuenta…"

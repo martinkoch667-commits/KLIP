@@ -228,19 +228,21 @@
       "studioF1": "Editor visual completo",
       "studioF2": "Descrições com IA ilimitadas",
       "studioF3": "Calendário editorial",
-      "studioF4": "Publicação no Instagram e Facebook",
-      "studioF5": "1 utilizador",
+      "studioF4": "Fluxo de validação do cliente",
+      "studioF5": "Publicação no Instagram e Facebook",
       "agencyTag": "Agências e estúdios de comunicação",
       "agencyClients": "Até 12 clientes",
       "agencyF1": "Tudo o do Studio, e ainda:",
       "agencyF2": "Até 5 membros de equipa",
-      "agencyF3": "Fluxo de validação do cliente",
-      "agencyF4": "Perfis Manager e Criativo",
-      "agencyF5": "Criação em lote",
+      "agencyF3": "Perfis Manager e Criativo",
+      "agencyF4": "Criação em lote",
+      "agencyF5": "",
       "montageFeat": "Edição de vídeo integrada",
       "launchBadge": "Oferta de lançamento · −{percent}%",
       "launchNote": "em vez de {price}€ no 1.º mês · primeiros {seats} lugares",
-      "launchNoteYear": "{firstYear}€ cobrados no 1.º ano, depois {full}€/ano · primeiros {seats} lugares"
+      "launchNoteYear": "{firstYear}€ cobrados no 1.º ano, depois {full}€/ano · primeiros {seats} lugares",
+      "studioF6": "1 utilizador",
+      "agencyF6": ""
     },
     "faq": {
       "title1": "As perguntas ",
@@ -1124,9 +1126,9 @@
     "mostPopular": "Mais popular",
     "agencyF1": "12 clientes incluídos",
     "agencyF2": "5 membros incluídos",
-    "agencyF3": "Fluxo de validação",
-    "agencyF4": "Funções Gestor / Criativo",
-    "agencyF5": "Tudo o que o Studio inclui",
+    "agencyF3": "Funções Gestor / Criativo",
+    "agencyF4": "Tudo o que o Studio inclui",
+    "agencyF5": "",
     "perMonth": "/ mês",
     "chooseStudio": "Escolher Studio",
     "chooseAgency": "Escolher Agência",
@@ -1139,7 +1141,9 @@
     "hint": "Alterável nas definições a qualquer momento",
     "titleLead": "Que tipo de",
     "titleAccent": "conta?",
-    "annualNote": "ou {price}€/mês no plano anual · sem compromisso"
+    "annualNote": "ou {price}€/mês no plano anual · sem compromisso",
+    "studioF6": "Fluxo de validação",
+    "agencyF6": ""
   },
   "workspaceSettings": {
     "back": "Voltar",
@@ -1938,7 +1942,8 @@
     "featAgencyRoles": "Funções Gestor e Criativo",
     "titleActivateLead": "Ative o seu plano",
     "titleChooseLead": "Escolha o seu",
-    "titleChooseAccent": "plano"
+    "titleChooseAccent": "plano",
+    "featSoloValidation": "Fluxo de validação do cliente"
   },
   "checkoutSuccess": {
     "activating": "A ativar a sua conta…"

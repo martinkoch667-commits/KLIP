@@ -228,19 +228,21 @@
       "studioF1": "Éditeur visuel complet",
       "studioF2": "Descriptions IA illimitées",
       "studioF3": "Calendrier éditorial",
-      "studioF4": "Publication Instagram & Facebook",
-      "studioF5": "1 utilisateur",
+      "studioF4": "Workflow de validation client",
+      "studioF5": "Publication Instagram & Facebook",
       "agencyTag": "Agences & studios de communication",
       "agencyClients": "Jusquʼà 12 clients",
       "agencyF1": "Tout Studio, plus :",
       "agencyF2": "Jusqu’à 5 membres d’équipe",
-      "agencyF3": "Workflow de validation client",
-      "agencyF4": "Rôles Manager & Créa",
-      "agencyF5": "Création en lot",
+      "agencyF3": "Rôles Manager & Créa",
+      "agencyF4": "Création en lot",
+      "agencyF5": "",
       "montageFeat": "Montage vidéo intégré",
       "launchBadge": "Offre lancement · −{percent} %",
       "launchNote": "au lieu de {price}€ le 1er mois · {seats} premières places",
-      "launchNoteYear": "{firstYear}€ débités la 1re année, puis {full}€/an · {seats} premières places"
+      "launchNoteYear": "{firstYear}€ débités la 1re année, puis {full}€/an · {seats} premières places",
+      "studioF6": "1 utilisateur",
+      "agencyF6": ""
     },
     "faq": {
       "title1": "Les questions ",
@@ -1124,9 +1126,9 @@
     "mostPopular": "Le plus populaire",
     "agencyF1": "12 clients inclus",
     "agencyF2": "5 membres inclus",
-    "agencyF3": "Workflow de validation",
-    "agencyF4": "Rôles Manager / Créa",
-    "agencyF5": "Tout ce que Studio inclut",
+    "agencyF3": "Rôles Manager / Créa",
+    "agencyF4": "Tout ce que Studio inclut",
+    "agencyF5": "",
     "perMonth": "/ mois",
     "chooseStudio": "Choisir Studio",
     "chooseAgency": "Choisir Agence",
@@ -1139,7 +1141,9 @@
     "hint": "Modifiable depuis les paramètres à tout moment",
     "titleLead": "Quel type de",
     "titleAccent": "compte ?",
-    "annualNote": "ou {price}€/mois en annuel · sans engagement"
+    "annualNote": "ou {price}€/mois en annuel · sans engagement",
+    "studioF6": "Workflow de validation",
+    "agencyF6": ""
   },
   "workspaceSettings": {
     "back": "Retour",
@@ -1938,7 +1942,8 @@
     "featAgencyRoles": "Rôles Manager & Créa",
     "titleActivateLead": "Activez votre offre",
     "titleChooseLead": "Choisissez votre",
-    "titleChooseAccent": "offre"
+    "titleChooseAccent": "offre",
+    "featSoloValidation": "Workflow de validation client"
   },
   "checkoutSuccess": {
     "activating": "Activation de votre compte…"

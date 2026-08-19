@@ -1,12 +1,12 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useTranslations } from "next-intl";
+import { useTranslations, useLocale } from "next-intl";
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
 import { useRouter } from "next/navigation";
 import { PLANS } from "@/lib/plans";
-import { PRICING_CSS, PlanCard } from "@/components/PricingUI";
-import { LAUNCH_OFFER, launchApplies, launchPrice } from "@/lib/launch-offer";
+import { PRICING_CSS, PlanCard, PeriodToggle } from "@/components/PricingUI";
+import { LAUNCH_OFFER, launchApplies, launchPrice, formatPrice } from "@/lib/launch-offer";
 
 /* Ecran de paiement. Meme habillage que l'ecran d'offre de l'inscription et que
    la section Tarifs de la landing : la personne doit reconnaitre ce qu'elle a
@@ -18,10 +18,15 @@ export default function AbonnementView({ seatsLeft }: { seatsLeft: number | null
   // formulation pour les deux écrans, plutôt que deux à maintenir.
   const to = useTranslations('onboardingPlan');
   const tl = useTranslations('landing.pricing');
+  const locale = useLocale();
+  const fmt = (v: number) => formatPrice(v, locale);
   const supabase = createClientComponentClient();
   const router = useRouter();
   const [email, setEmail] = useState<string | null>(null);
   const [chosen, setChosen] = useState<"solo" | "agency" | null>(null);
+  // Mensuel par défaut, comme la landing. La période part telle quelle vers la
+  // caisse : c'est elle qui choisit le Price ID Stripe.
+  const [period, setPeriod] = useState<"monthly" | "yearly">("monthly");
 
   useEffect(() => {
     supabase.auth.getSession().then(async ({ data: { session } }) => {
@@ -34,6 +39,12 @@ export default function AbonnementView({ seatsLeft }: { seatsLeft: number | null
         .eq("user_id", session.user.id)
         .maybeSingle();
       if (data?.account_type === "agency" || data?.account_type === "solo") setChosen(data.account_type);
+      // Période retenue à l'onboarding : on arrive pré-sélectionné plutôt que
+      // de faire rechoisir, mais elle reste modifiable ici.
+      try {
+        const p = localStorage.getItem("klip_period");
+        if (p === "yearly" || p === "monthly") setPeriod(p);
+      } catch { /* navigation privée */ }
     });
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -53,7 +64,7 @@ export default function AbonnementView({ seatsLeft }: { seatsLeft: number | null
       const res = await fetch("/api/stripe/checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ plan: stripePlan, period: "monthly" }),
+        body: JSON.stringify({ plan: stripePlan, period }),
       });
       const json = await res.json();
       if (res.ok && json.url) {
@@ -76,11 +87,28 @@ export default function AbonnementView({ seatsLeft }: { seatsLeft: number | null
   // (app/api/stripe/checkout). L'écran doit donc annoncer le même prix que
   // celui qui sera débité, sinon on affiche plein tarif juste avant de
   // prélever moins, et le client ne comprend plus rien à sa facture.
-  const launched = launchApplies("monthly") && (seatsLeft === null || seatsLeft > 0);
+  const launched = launchApplies(period) && (seatsLeft === null || seatsLeft > 0);
+  const yearly = period === "yearly";
+  /** Prix mensuel affiché : l'annuel s'annonce en équivalent par mois. */
+  const shownPrice = (p: typeof PLANS.solo) => (yearly ? p.priceYearly : p.priceMonthly);
+  /* Sur l'annuel, `duration: once` porte sur la première facture, donc sur une
+     année entière : on annonce la somme réellement débitée, puis le plein tarif
+     des années suivantes. Même calcul que la landing. */
+  const noteFor = (p: typeof PLANS.solo) => {
+    const full = shownPrice(p);
+    if (!launched) return yearly ? tl('billedYear', { total: fmt(p.priceYearly * 12) }) : tl('billedMonth');
+    return yearly
+      ? tl('launchNoteYear', {
+          seats: LAUNCH_OFFER.seats,
+          firstYear: fmt(launchPrice(p.priceYearly * 12)),
+          full: fmt(p.priceYearly * 12),
+        })
+      : tl('launchNote', { seats: LAUNCH_OFFER.seats, price: fmt(p.priceMonthly) });
+  };
 
   const tiers = [
-    { p: PLANS.solo, pop: false, feats: [t('featSoloClients'), t('featSoloEditor'), t('featSoloDescriptions'), t('featSoloPublish')] },
-    { p: PLANS.agency, pop: true, feats: [t('featAgencyClients'), t('featAgencyMembers'), t('featAgencyWorkflow'), t('featAgencyRoles')] },
+    { p: PLANS.solo, pop: false, feats: [t('featSoloClients'), t('featSoloEditor'), t('featSoloDescriptions'), t('featSoloValidation'), t('featSoloPublish')] },
+    { p: PLANS.agency, pop: true, feats: [t('featAgencyClients'), t('featAgencyMembers'), t('featAgencyRoles')] },
   ];
 
   return (
@@ -96,6 +124,14 @@ export default function AbonnementView({ seatsLeft }: { seatsLeft: number | null
       </h1>
       <p className="kp-lead">{chosen ? t('subActivate') : t('subChoose')}</p>
 
+      <PeriodToggle
+        period={period}
+        onChange={setPeriod}
+        monthlyLabel={tl('monthly')}
+        yearlyLabel={tl('yearly')}
+        saveLabel={tl('save2mo')}
+      />
+
       <div className="kp-grid">
         {tiers.map(({ p, pop, feats }) => {
           const isChosen = chosen === p.key;
@@ -110,10 +146,10 @@ export default function AbonnementView({ seatsLeft }: { seatsLeft: number | null
               flag={isChosen ? t('yourChoice') : undefined}
               name={p.label}
               tag={p.key === "agency" ? to('agencyDesc') : to('studioDesc')}
-              price={launched ? launchPrice(p.priceMonthly) : p.priceMonthly}
-              strikePrice={launched ? p.priceMonthly : undefined}
+              price={launched ? launchPrice(shownPrice(p)) : shownPrice(p)}
+              strikePrice={launched ? shownPrice(p) : undefined}
               badge={launched ? tl('launchBadge', { percent: LAUNCH_OFFER.percent }) : undefined}
-              note={launched ? tl('launchNote', { seats: LAUNCH_OFFER.seats, price: p.priceMonthly }) : undefined}
+              note={noteFor(p)}
               perMonth={t('perMonth')}
               chip={feats[0]}
               features={feats.slice(1)}

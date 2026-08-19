@@ -228,19 +228,21 @@
       "studioF1": "Full visual editor",
       "studioF2": "Unlimited AI descriptions",
       "studioF3": "Editorial calendar",
-      "studioF4": "Instagram & Facebook publishing",
-      "studioF5": "1 user",
+      "studioF4": "Client approval workflow",
+      "studioF5": "Instagram & Facebook publishing",
       "agencyTag": "Agencies & communication studios",
       "agencyClients": "Up to 12 clients",
       "agencyF1": "Everything in Studio, plus:",
       "agencyF2": "Up to 5 team members",
-      "agencyF3": "Client approval workflow",
-      "agencyF4": "Manager & Creative roles",
-      "agencyF5": "Batch creation",
+      "agencyF3": "Manager & Creative roles",
+      "agencyF4": "Batch creation",
+      "agencyF5": "",
       "montageFeat": "Built-in video editing",
       "launchBadge": "Launch offer · −{percent}%",
       "launchNote": "instead of €{price} for the 1st month · first {seats} seats",
-      "launchNoteYear": "€{firstYear} charged for the 1st year, then €{full}/yr · first {seats} seats"
+      "launchNoteYear": "€{firstYear} charged for the 1st year, then €{full}/yr · first {seats} seats",
+      "studioF6": "1 user",
+      "agencyF6": ""
     },
     "faq": {
       "title1": "The questions ",
@@ -1124,9 +1126,9 @@
     "mostPopular": "Most popular",
     "agencyF1": "12 clients included",
     "agencyF2": "5 members included",
-    "agencyF3": "Approval workflow",
-    "agencyF4": "Manager / Creative roles",
-    "agencyF5": "Everything in Studio",
+    "agencyF3": "Manager / Creative roles",
+    "agencyF4": "Everything in Studio",
+    "agencyF5": "",
     "perMonth": "/ month",
     "chooseStudio": "Choose Studio",
     "chooseAgency": "Choose Agency",
@@ -1139,7 +1141,9 @@
     "hint": "Changeable in settings at any time",
     "titleLead": "What type of",
     "titleAccent": "account?",
-    "annualNote": "or {price}€/month billed yearly · no commitment"
+    "annualNote": "or {price}€/month billed yearly · no commitment",
+    "studioF6": "Approval workflow",
+    "agencyF6": ""
   },
   "workspaceSettings": {
     "back": "Back",
@@ -1938,7 +1942,8 @@
     "featAgencyRoles": "Manager & Creative roles",
     "titleActivateLead": "Activate your plan",
     "titleChooseLead": "Choose your",
-    "titleChooseAccent": "plan"
+    "titleChooseAccent": "plan",
+    "featSoloValidation": "Client approval workflow"
   },
   "checkoutSuccess": {
     "activating": "Activating your account…"

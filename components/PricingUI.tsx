@@ -30,9 +30,9 @@ export const PRICING_CSS = `
     --kp-oaksx:'oaks-expanded',Georgia,serif;
     --kp-sans:'early-sans-variable','Hanken Grotesk',system-ui,sans-serif;
     min-height:100vh;
-    background:
-      radial-gradient(120% 80% at 50% -20%, rgba(189,242,160,.20), transparent 60%),
-      #FAF9F4;
+    /* Blanc pur, comme la landing, dont --paper vaut #FFFFFF. Le beige avait
+       été pris pour la couleur de fond du site, à tort. */
+    background:var(--kp-paper);
     font-family:var(--kp-sans);
     color:var(--kp-ink);
     display:flex;flex-direction:column;align-items:center;
@@ -50,6 +50,17 @@ export const PRICING_CSS = `
     box-decoration-break:clone;-webkit-box-decoration-break:clone;}
   .kp-lead{color:var(--kp-ink-2);font-size:19px;line-height:1.62;text-align:center;
     max-width:560px;margin:22px auto 0;text-wrap:pretty;}
+
+  /* Sélecteur mensuel / annuel : segmenté en pilule, exactement comme la
+     section Tarifs de la landing. */
+  .kp-switch{display:inline-flex;align-items:center;gap:4px;margin-top:26px;padding:5px;border-radius:999px;
+    background:var(--kp-paper);box-shadow:inset 0 0 0 1px var(--kp-line);}
+  .kp-switch button{display:inline-flex;align-items:center;gap:8px;padding:9px 18px;border-radius:999px;border:none;
+    cursor:pointer;background:transparent;color:var(--kp-ink-2);
+    font-family:var(--kp-sans);font-weight:800;font-size:14px;transition:background .2s,color .2s;}
+  .kp-switch button.on{background:var(--kp-ink);color:var(--kp-paper);}
+  .kp-switch em{font-style:normal;font-size:11px;padding:2px 7px;border-radius:999px;
+    background:var(--kp-leaf);color:var(--kp-leaf-ink);}
 
   .kp-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:24px;align-items:start;
     width:100%;max-width:840px;margin:clamp(34px,5vw,54px) 0 0;}
@@ -168,6 +179,29 @@ function SelectionFrame() {
       <i className="p" style={{ left: -5, top: "50%", transform: "translateY(-50%)", width: 9, height: 22 }} />
       <i className="p" style={{ right: -5, top: "50%", transform: "translateY(-50%)", width: 9, height: 22 }} />
     </span>
+  );
+}
+
+/** Mensuel / annuel. Le libellé de l'économie n'apparaît que sur l'annuel,
+    comme sur la landing. */
+export function PeriodToggle({
+  period, onChange, monthlyLabel, yearlyLabel, saveLabel,
+}: {
+  period: "monthly" | "yearly";
+  onChange: (p: "monthly" | "yearly") => void;
+  monthlyLabel: string;
+  yearlyLabel: string;
+  saveLabel: string;
+}) {
+  return (
+    <div className="kp-switch">
+      {(["monthly", "yearly"] as const).map(p => (
+        <button key={p} type="button" onClick={() => onChange(p)} className={period === p ? "on" : undefined}>
+          {p === "monthly" ? monthlyLabel : yearlyLabel}
+          {p === "yearly" && <em>{saveLabel}</em>}
+        </button>
+      ))}
+    </div>
   );
 }
 
