@@ -8,6 +8,7 @@ import { useRouter } from 'next/navigation';
 import { ConnectClaudePill } from '@/components/ConnectClaudeModal';
 import { trackLead } from '@/components/analytics/MetaPixel';
 import { LAUNCH_OFFER, launchApplies, launchPrice, formatPrice } from '@/lib/launch-offer';
+import { PLANS } from '@/lib/plans';
 import { gsap } from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import { Draggable } from 'gsap/Draggable';
@@ -1323,8 +1324,8 @@ function Pricing({ prelaunch = false, seatsLeft = null }: { prelaunch?: boolean;
   const seatsOpen = seatsLeft === null || seatsLeft > 0;
   const launched = launchApplies(period) && seatsOpen;
   const tiers = [
-    { name: 'Studio', plan: 'studio' as const, monthly: 35, yearly: 29, tag: tp('studioTag'), clients: tp('studioClients'), feats: [tp('studioF1'), tp('studioF2'), tp('studioF3'), tp('studioF4'), tp('studioF5')], pop: false },
-    { name: 'Agence', plan: 'agence' as const, monthly: 96, yearly: 80, tag: tp('agencyTag'), clients: tp('agencyClients'), feats: [tp('agencyF1'), tp('agencyF2'), tp('agencyF3'), tp('agencyF4'), tp('agencyF5')], pop: true },
+    { name: PLANS.solo.label, plan: 'studio' as const, monthly: PLANS.solo.priceMonthly, yearly: PLANS.solo.priceYearly, tag: tp('studioTag'), clients: tp('studioClients'), feats: [tp('studioF1'), tp('studioF2'), tp('studioF3'), tp('studioF4'), tp('studioF5')], pop: false },
+    { name: PLANS.agency.label, plan: 'agence' as const, monthly: PLANS.agency.priceMonthly, yearly: PLANS.agency.priceYearly, tag: tp('agencyTag'), clients: tp('agencyClients'), feats: [tp('agencyF1'), tp('agencyF2'), tp('agencyF3'), tp('agencyF4'), tp('agencyF5')], pop: true },
   ];
   async function onChoose(plan: 'studio' | 'agence') { setBusy(plan); await startCheckout(plan, period); setBusy(null); }
 

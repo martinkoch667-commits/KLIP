@@ -1128,8 +1128,6 @@
     "agencyF4": "Rôles Manager / Créa",
     "agencyF5": "Tout ce que Studio inclut",
     "perMonth": "/ mois",
-    "studioAnnual": "ou 25€/mois en annuel · sans engagement",
-    "agencyAnnual": "ou 89€/mois en annuel · sans engagement",
     "chooseStudio": "Choisir Studio",
     "chooseAgency": "Choisir Agence",
     "creating": "Création…",
@@ -1140,7 +1138,8 @@
     "errorAgencyName": "Veuillez entrer le nom de votre agence.",
     "hint": "Modifiable depuis les paramètres · Aucun CB requis pour commencer",
     "titleLead": "Quel type de",
-    "titleAccent": "compte ?"
+    "titleAccent": "compte ?",
+    "annualNote": "ou {price}€/mois en annuel · sans engagement"
   },
   "workspaceSettings": {
     "back": "Retour",

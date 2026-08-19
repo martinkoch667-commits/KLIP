@@ -1128,8 +1128,6 @@
     "agencyF4": "Ruoli Manager / Creativo",
     "agencyF5": "Tutto quello che include Studio",
     "perMonth": "/ mese",
-    "studioAnnual": "o 25€/mese con fatturazione annuale · senza vincoli",
-    "agencyAnnual": "o 89€/mese con fatturazione annuale · senza vincoli",
     "chooseStudio": "Scegli Studio",
     "chooseAgency": "Scegli Agenzia",
     "creating": "Creazione…",
@@ -1140,7 +1138,8 @@
     "errorAgencyName": "Inserisci il nome della tua agenzia.",
     "hint": "Modificabile dalle impostazioni · Nessuna carta richiesta per iniziare",
     "titleLead": "Che tipo di",
-    "titleAccent": "account?"
+    "titleAccent": "account?",
+    "annualNote": "oppure {price}€/mese con abbonamento annuale · senza vincoli"
   },
   "workspaceSettings": {
     "back": "Indietro",

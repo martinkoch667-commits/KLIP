@@ -1128,8 +1128,6 @@
     "agencyF4": "Rollen Manager / Kreativ",
     "agencyF5": "Alles aus Studio inklusive",
     "perMonth": "/ Monat",
-    "studioAnnual": "oder 25 €/Monat jährlich · ohne Vertragsbindung",
-    "agencyAnnual": "oder 89 €/Monat jährlich · ohne Vertragsbindung",
     "chooseStudio": "Studio wählen",
     "chooseAgency": "Agentur wählen",
     "creating": "Wird erstellt…",
@@ -1140,7 +1138,8 @@
     "errorAgencyName": "Bitte gib den Namen deiner Agentur ein.",
     "hint": "Änderbar in den Einstellungen · Keine Kreditkarte zum Start nötig",
     "titleLead": "Welcher",
-    "titleAccent": "Kontotyp?"
+    "titleAccent": "Kontotyp?",
+    "annualNote": "oder {price}€/Monat im Jahresabo · ohne Bindung"
   },
   "workspaceSettings": {
     "back": "Zurück",

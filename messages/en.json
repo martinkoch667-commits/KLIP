@@ -1128,8 +1128,6 @@
     "agencyF4": "Manager / Creative roles",
     "agencyF5": "Everything in Studio",
     "perMonth": "/ month",
-    "studioAnnual": "or €25/month billed yearly · no commitment",
-    "agencyAnnual": "or €89/month billed yearly · no commitment",
     "chooseStudio": "Choose Studio",
     "chooseAgency": "Choose Agency",
     "creating": "Creating…",
@@ -1140,7 +1138,8 @@
     "errorAgencyName": "Please enter your agency name.",
     "hint": "Changeable in settings · No card required to start",
     "titleLead": "What type of",
-    "titleAccent": "account?"
+    "titleAccent": "account?",
+    "annualNote": "or {price}€/month billed yearly · no commitment"
   },
   "workspaceSettings": {
     "back": "Back",

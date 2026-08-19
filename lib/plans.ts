@@ -1,12 +1,22 @@
-/* lib/plans.ts — configuration centrale des offres KLIP (source de vérité).
-   account_type en base : 'solo' = offre Studio · 'agency' = offre Agence. */
+/* lib/plans.ts : configuration centrale des offres KLIP (source de vérité).
+   account_type en base : 'solo' = offre Studio, 'agency' = offre Agence.
+
+   LES PRIX AFFICHÉS SE LISENT ICI, NULLE PART AILLEURS. Ils étaient recopiés à
+   la main sur la landing, sur l'écran d'offre et dans la facturation, et les
+   trois avaient fini par diverger : Studio annoncé à 35 € avant l'inscription
+   et à 29 € trois minutes plus tard. Toute nouvelle grille se change ici.
+
+   Ce qui débite réellement, ce sont les Price ID Stripe (voir lib/stripe.ts) :
+   ces montants ne sont que l'affichage, ils doivent être tenus d'accord avec
+   Stripe à la main. */
 
 export type AccountType = "solo" | "agency";
 
 export type PlanConfig = {
   key: AccountType;
   label: string;            // nom affiché de l'offre
-  priceMonthly: number;     // €/mois
+  priceMonthly: number;     // €/mois, à l'engagement mensuel
+  priceYearly: number;      // €/mois équivalent, à l'engagement annuel
   maxClients: number;       // nombre de comptes clients (workspaces)
   maxMembers: number;       // membres d'équipe (l'owner compris)
   features: {
@@ -20,7 +30,8 @@ export const PLANS: Record<AccountType, PlanConfig> = {
   solo: {
     key: "solo",
     label: "Studio",
-    priceMonthly: 29,
+    priceMonthly: 35,
+    priceYearly: 29,
     maxClients: 6,
     maxMembers: 1,
     features: { validation: false, roles: false, batch: false },
@@ -29,6 +40,7 @@ export const PLANS: Record<AccountType, PlanConfig> = {
     key: "agency",
     label: "Agence",
     priceMonthly: 96,
+    priceYearly: 80,
     maxClients: 12,
     maxMembers: 5,
     features: { validation: true, roles: true, batch: true },

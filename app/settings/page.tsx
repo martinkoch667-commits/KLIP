@@ -10,6 +10,7 @@ import Link from "next/link";
 import Sidebar from "@/components/Sidebar";
 import { Sticker } from "@/components/Stickers";
 import { resetOnboardingTour } from "@/components/OnboardingTour";
+import { PLANS } from "@/lib/plans";
 import { resetOnboardingChecklist } from "@/components/OnboardingChecklist";
 import { useAccountType } from "@/hooks/useAccountType";
 
@@ -1029,8 +1030,8 @@ function AgencyTab({ supabase, userId }: { supabase: any; userId: string }) {
 
 function BillingTab({ accountType }: { accountType: string }) {
   const plans: Record<string, { name: string; price: string; desc: string }> = {
-    solo: { name: "Studio", price: "29€ / mois", desc: "6 clients · 1 profil · Posts illimités · IA incluse" },
-    agency: { name: "Agence", price: "96€ / mois", desc: "12 clients · 5 membres · Workflow validation · Rôles" },
+    solo: { name: PLANS.solo.label, price: `${PLANS.solo.priceMonthly}€ / mois`, desc: "6 clients · 1 profil · Posts illimités · IA incluse" },
+    agency: { name: PLANS.agency.label, price: `${PLANS.agency.priceMonthly}€ / mois`, desc: "12 clients · 5 membres · Workflow validation · Rôles" },
   };
   const plan = plans[accountType] ?? plans.solo;
 

@@ -5,6 +5,7 @@ import { useTranslations } from "next-intl";
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
 import { useRouter } from "next/navigation";
 import { PRICING_CSS, PlanCard } from "@/components/PricingUI";
+import { PLANS } from "@/lib/plans";
 
 /* Écran d'offre de l'inscription. La mise en forme vient de `PricingUI`, elle
    même reprise de la section Tarifs de la landing : c'est le même écran, à deux
@@ -104,9 +105,9 @@ export default function OnboardingPlanPage() {
         <PlanCard
           name={t('studioName')}
           tag={t('studioDesc')}
-          price={29}
+          price={PLANS.solo.priceMonthly}
           perMonth={t('perMonth')}
-          note={t('studioAnnual')}
+          note={t('annualNote', { price: PLANS.solo.priceYearly })}
           chip={STUDIO_FEATURES[0]}
           features={STUDIO_FEATURES.slice(1)}
         >
@@ -120,9 +121,9 @@ export default function OnboardingPlanPage() {
           flag={t('mostPopular')}
           name={t('agencyName')}
           tag={t('agencyDesc')}
-          price={96}
+          price={PLANS.agency.priceMonthly}
           perMonth={t('perMonth')}
-          note={t('agencyAnnual')}
+          note={t('annualNote', { price: PLANS.agency.priceYearly })}
           chip={AGENCY_FEATURES[0]}
           features={AGENCY_FEATURES.slice(1)}
         >

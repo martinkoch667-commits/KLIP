@@ -1128,8 +1128,6 @@
     "agencyF4": "Funções Gestor / Criativo",
     "agencyF5": "Tudo o que o Studio inclui",
     "perMonth": "/ mês",
-    "studioAnnual": "ou 25 €/mês no plano anual · sem fidelização",
-    "agencyAnnual": "ou 89 €/mês no plano anual · sem fidelização",
     "chooseStudio": "Escolher Studio",
     "chooseAgency": "Escolher Agência",
     "creating": "A criar…",
@@ -1140,7 +1138,8 @@
     "errorAgencyName": "Introduza o nome da sua agência.",
     "hint": "Alterável nas definições · Sem cartão necessário para começar",
     "titleLead": "Que tipo de",
-    "titleAccent": "conta?"
+    "titleAccent": "conta?",
+    "annualNote": "ou {price}€/mês no plano anual · sem compromisso"
   },
   "workspaceSettings": {
     "back": "Voltar",
