@@ -579,7 +579,20 @@ export async function renderExport(project: ExportProject, onProgress: (p: numbe
   dest.stream.getAudioTracks().forEach((t) => stream.addTrack(t));
 
   const mimeType = pickRecorderType();
-  const bitrate = exportQualityById(project.exportQuality).bitrate;
+  /* Débit plafonné pour que le fichier reste publiable.
+
+     Instagram refuse les vidéos trop lourdes, et un montage long à haute
+     qualité y arrivait sans prévenir : 6,5 Mb/s pendant deux minutes font déjà
+     près de 100 Mo. On vise 45 Mo, sous la limite pratique de 50 à 60 Mo, en
+     abaissant le débit plutôt qu'en refusant l'export. Un montage court garde
+     la qualité demandée, seuls les longs sont ramenés à la raison. */
+  const MAX_BYTES = 45 * 1024 * 1024;
+  const asked = exportQualityById(project.exportQuality).bitrate;
+  const budget = total > 1 ? Math.floor((MAX_BYTES * 8) / total) : asked;
+  const bitrate = Math.max(1_200_000, Math.min(asked, budget));
+  if (bitrate < asked) {
+    console.warn(`[export] débit ramené à ${(bitrate / 1e6).toFixed(1)} Mb/s pour tenir sous 45 Mo (${total.toFixed(0)} s de montage).`);
+  }
   const recorder = new MediaRecorder(stream, mimeType ? { mimeType, videoBitsPerSecond: bitrate } : { videoBitsPerSecond: bitrate });
   // Type réellement retenu — MediaRecorder peut normaliser celui qu'on demande.
   const actualType = (recorder.mimeType || mimeType || "video/webm").split(";")[0];
@@ -601,6 +614,40 @@ export async function renderExport(project: ExportProject, onProgress: (p: numbe
       canvas.toBlob((b) => { thumbnailBlob = b; resolve(); }, "image/jpeg", 0.85);
     });
   };
+
+  /* Préchargement du plan suivant.
+
+     Charger une source vidéo et s'y positionner prend du temps, et pendant ces
+     deux attentes PLUS RIEN N'EST PEINT sur le canvas. Or `captureStream`
+     n'émet une image que lorsqu'on dessine : l'enregistrement continuait donc
+     de tourner sur une image morte, à chaque jonction de plans, c'est à dire
+     précisément là où se jouent les transitions. Le film gardait ces temps
+     morts, ce qui donnait une vidéo qui se fige au changement de plan.
+
+     On prépare donc le plan suivant PENDANT que le plan courant joue. Le
+     créneau vidéo alterné (pair/impair) est libre à ce moment-là : celui du
+     plan précédent a été relâché à la fin du fondu d'entrée. */
+  const prepared = new Map<number, Promise<void>>();
+  function prepare(idx: number) {
+    const cc = clips[idx];
+    if (!cc || prepared.has(idx)) return;
+    if (cc.kind !== "video") {
+      prepared.set(idx, loadImage(cc.src).then(() => undefined).catch(() => undefined));
+      return;
+    }
+    const vv = videoSlots[idx % 2];
+    // Le créneau peut encore lire le plan d'avant : on l'arrête avant de lui
+    // donner une nouvelle source, sinon son son continuerait sur l'export.
+    try { vv.pause(); } catch { /* déjà à l'arrêt */ }
+    prepared.set(idx, new Promise<void>((resolve) => {
+      vv.onloadedmetadata = () => {
+        vv.onseeked = () => resolve();
+        try { vv.currentTime = cc.trimStart; } catch { resolve(); }
+      };
+      vv.onerror = () => resolve();
+      vv.src = cc.src;
+    }));
+  }
 
   // ── Fondu croisé réel ("fade") : le plan sortant reste "vivant" (élément vidéo
   // encore en lecture / minuteur photo non réinitialisé) et cohabite avec le plan
@@ -672,16 +719,11 @@ export async function renderExport(project: ExportProject, onProgress: (p: numbe
       let media: PlayingMedia;
       if (c.kind === "video") {
         const v = videoSlots[i % 2];
-        await new Promise<void>((resolve) => {
-          v.onloadedmetadata = () => resolve();
-          v.src = c.src;
-        });
+        prepare(i);                 // déjà lancé au plan précédent, sauf pour le premier
+        await prepared.get(i);
+        prepared.delete(i);
         v.playbackRate = c.speed;
         videoGains[i % 2].gain.value = c.vol ?? 1;
-        await new Promise<void>((resolve) => {
-          v.onseeked = () => resolve();
-          v.currentTime = c.trimStart;
-        });
         await v.play();
         media = { kind: "video", el: v, clip: c, photoStart: 0 };
       } else {
@@ -714,6 +756,10 @@ export async function renderExport(project: ExportProject, onProgress: (p: numbe
         });
         if (prevM.kind === "video") (prevM.el as HTMLVideoElement).pause();
       }
+
+      // Le créneau du plan précédent vient d'être relâché : on y charge le suivant
+      // pendant que celui-ci joue, sans attendre le résultat.
+      prepare(i + 1);
 
       // Corps du plan, hors fenêtre(s) de fondu croisé déjà couvertes ci-dessus/ci-dessous.
       const soloStart = crossFadeIn ? c.transitionDur : 0;
