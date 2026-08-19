@@ -1537,6 +1537,14 @@
       "ocean": "Cyan outline",
       "gold": "Luxury gold",
       "candy": "Pink pill"
+    },
+    "overlayEffect": {
+      "none": "None",
+      "soft": "Soft",
+      "strong": "Strong",
+      "glow": "Glow",
+      "sticker": "Sticker",
+      "card": "Card"
     }
   },
   "montage": {
@@ -1913,7 +1921,15 @@
     "logTrimSkippedNoSpeech": "“{name}” left untouched: no transcript, so no blind cutting.",
     "toastTrimSkippedNoSpeech": "{n} clip(s) left untouched: without a transcript KLIP does not cut — it would risk cutting mid-sentence.",
     "chatNewChat": "New conversation",
-    "chatHint": "Describe what you want"
+    "chatHint": "Describe what you want",
+    "effects": "Effects",
+    "dropShadow": "Drop shadow",
+    "shadowBlur": "Blur",
+    "shadowX": "Horizontal offset",
+    "shadowY": "Vertical offset",
+    "shadowStrength": "Strength",
+    "outlineCorners": "Outline & corners",
+    "roundedCorners": "Rounded corners"
   },
   "forgotPassword": {
     "title": "Forgot password",

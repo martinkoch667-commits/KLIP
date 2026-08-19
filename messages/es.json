@@ -1537,6 +1537,14 @@
       "ocean": "Cian contorno",
       "gold": "Dorado lujo",
       "candy": "Píldora rosa"
+    },
+    "overlayEffect": {
+      "none": "Ninguno",
+      "soft": "Suave",
+      "strong": "Marcada",
+      "glow": "Resplandor",
+      "sticker": "Pegatina",
+      "card": "Tarjeta"
     }
   },
   "montage": {
@@ -1913,7 +1921,15 @@
     "logTrimSkippedNoSpeech": "«{name}» intacto: sin transcripción no se corta a ciegas.",
     "toastTrimSkippedNoSpeech": "{n} plano(s) intacto(s): sin transcripción KLIP no corta — se arriesgaría a cortar a media frase.",
     "chatNewChat": "Nueva conversación",
-    "chatHint": "Describe lo que quieres"
+    "chatHint": "Describe lo que quieres",
+    "effects": "Efectos",
+    "dropShadow": "Sombra paralela",
+    "shadowBlur": "Desenfoque",
+    "shadowX": "Desplazamiento horizontal",
+    "shadowY": "Desplazamiento vertical",
+    "shadowStrength": "Intensidad",
+    "outlineCorners": "Contorno y esquinas",
+    "roundedCorners": "Esquinas redondeadas"
   },
   "forgotPassword": {
     "title": "Contraseña olvidada",

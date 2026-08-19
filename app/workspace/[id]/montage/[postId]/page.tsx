@@ -14,6 +14,7 @@ import {
   // (analyzeClipQuality importé depuis ./autoCut plus bas)
   fmt, newClipDefaults, newOverlayDefaults, clipFilterCss, overlayFilterCss, clipTimelineDur, clipAudioGainAt, overlayTimelineDur, overlayAudioGainAt, segmentCaptions, captionsFromWords, dedupeSegments,
   audioVolumeAt, kenBurnsScale, VIDEO_FORMATS, videoFormatById, EXPORT_QUALITIES,
+  overlayEffectCss,
 } from "./constants";
 import { ClipStrip, ClipWave, AudioWave, FadeRamp, type ClipStripData } from "./timeline-parts";
 import { MontageCtx, CutPanel, TextPanel, CaptionsPanel, AudioPanel, TransitionsPanel, FilterPanel, SpeedPanel, StickerPanel, OverlayPanel, AiPanel } from "./panels";
@@ -3941,16 +3942,30 @@ export default function MontagePage() {
                       }}
                       onPointerDown={(e) => onOverlayPointerDown(e, "overlay", o.id)}
                     >
-                      {o.kind === "video" ? (
-                        <video
-                          ref={(el) => { if (el) overlayVideoRefs.current.set(o.id, el); else overlayVideoRefs.current.delete(o.id); }}
-                          src={o.src}
-                          playsInline muted={(o.vol ?? 1) === 0} draggable={false}
-                          style={{ width: "100%", display: "block", filter: overlayFilterCss(o), pointerEvents: "none" }}
-                        />
-                      ) : (
-                        <img src={o.src} alt="" draggable={false} style={{ width: "100%", display: "block", filter: overlayFilterCss(o), pointerEvents: "none" }} />
-                      )}
+                      {(() => {
+                        /* Effets de l'objet (ombre portée, contour, coins arrondis).
+                           Les distances sont en % de la largeur de l'incrustation : on
+                           la calcule ici en pixels écran pour que l'aperçu montre
+                           exactement la géométrie de l'export. */
+                        const largeurPx = (stageW || 0) * 0.5 * o.scale;
+                        const eff = overlayEffectCss(o, largeurPx);
+                        const rayon = (o.radius ?? 0) > 0 ? `${((o.radius ?? 0) / 100) * largeurPx}px` : undefined;
+                        const st: React.CSSProperties = {
+                          width: "100%", display: "block", pointerEvents: "none",
+                          filter: [overlayFilterCss(o), eff].filter(Boolean).join(" ") || undefined,
+                          borderRadius: rayon,
+                        };
+                        return o.kind === "video" ? (
+                          <video
+                            ref={(el) => { if (el) overlayVideoRefs.current.set(o.id, el); else overlayVideoRefs.current.delete(o.id); }}
+                            src={o.src}
+                            playsInline muted={(o.vol ?? 1) === 0} draggable={false}
+                            style={st}
+                          />
+                        ) : (
+                          <img src={o.src} alt="" draggable={false} style={st} />
+                        );
+                      })()}
                       {sel && <button className="mz-ov-del" onPointerDown={(e) => e.stopPropagation()} onClick={() => removeOverlay(o.id)}><VIcon name="x" size={11} /></button>}
                       {sel && <TransformHandles scale={o.scale} onScale={(s) => updateOverlay(o.id, { scale: s })} onRotate={(d) => updateOverlay(o.id, { rotation: d })} />}
                     </div>

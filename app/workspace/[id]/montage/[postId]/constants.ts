@@ -82,7 +82,110 @@ export interface OverlayClip {
   vol?: number;        // volume du son embarqué (0-1)
   audioFadeIn?: number;  // fondu d'entrée du son (s)
   audioFadeOut?: number; // fondu de sortie du son (s)
+
+  /* ── Effets de l'objet incrusté ────────────────────────────────────────────
+     Ombre portée, contour et coins arrondis. Toutes les distances sont en
+     POURCENTAGE DE LA LARGEUR de l'incrustation, jamais en pixels : l'effet
+     suit alors l'objet quand on le redimensionne, et la même valeur donne le
+     même résultat quel que soit le format d'export (720 de large en 9:16, 1280
+     en 16:9). Tous les champs sont facultatifs et valent « aucun effet » quand
+     ils manquent, donc les montages existants ne changent pas d'un pixel.
+
+     TOUT champ ajouté ici doit être honoré aux DEUX endroits : l'aperçu du
+     monteur (DOM, via overlayEffectCss) et l'export (canvas 2D, via
+     drawOverlayFrame). C'est la même géométrie des deux côtés : `drop-shadow`
+     en CSS et `ctx.shadow*` sur le canvas suivent l'un comme l'autre la
+     transparence de l'image, et définissent le flou de la même façon (écart
+     type = rayon / 2). Une découpe PNG projette donc bien l'ombre de sa forme,
+     pas celle de son cadre. */
+  shadow?: boolean;       // ombre portée active
+  shadowColor?: string;   // couleur de l'ombre (#rrggbb), défaut noir
+  shadowBlur?: number;    // flou, en % de la largeur de l'incrustation
+  shadowX?: number;       // décalage horizontal, en % de la largeur
+  shadowY?: number;       // décalage vertical, en % de la largeur
+  shadowOpacity?: number; // 0-1
+  outlineW?: number;      // épaisseur du contour, en % de la largeur (0 = aucun)
+  outlineColor?: string;  // couleur du contour
+  radius?: number;        // rayon des coins, en % de la largeur (0 = angles vifs)
 }
+
+/** Valeurs d'effet résolues, en % de la largeur de l'incrustation. */
+export interface OverlayEffects {
+  shadow: boolean;
+  shadowRgba: string;
+  blur: number; dx: number; dy: number;
+  outlineW: number; outlineColor: string;
+  radius: number;
+  aucun: boolean; // rien à dessiner : on garde le chemin de rendu simple
+}
+
+export function overlayEffects(o: OverlayClip): OverlayEffects {
+  const shadow = !!o.shadow;
+  const outlineW = Math.max(0, o.outlineW ?? 0);
+  const radius = Math.max(0, o.radius ?? 0);
+  return {
+    shadow,
+    shadowRgba: withAlpha(o.shadowColor || "#000000", o.shadowOpacity ?? 0.45),
+    blur: Math.max(0, o.shadowBlur ?? 8),
+    dx: o.shadowX ?? 1.5,
+    dy: o.shadowY ?? 2.5,
+    outlineW,
+    outlineColor: o.outlineColor || "#FFFFFF",
+    radius,
+    aucun: !shadow && outlineW <= 0 && radius <= 0,
+  };
+}
+
+/* Nombre de passes du contour.
+
+   Un contour qui suit la découpe d'une image ne se trace pas : on épaissit la
+   silhouette. La manière de le faire doit être RIGOUREUSEMENT la même dans
+   l'aperçu et à l'export, sans quoi le contour n'a pas la même épaisseur des
+   deux côtés. C'était le cas d'une première version : côté canvas je posais
+   huit copies de la silhouette à distance fixe, côté CSS j'enchaînais huit
+   `drop-shadow`. Or les filtres CSS s'appliquent EN CASCADE : le deuxième prend
+   pour source l'image plus l'ombre du premier, si bien que l'épaississement
+   s'accumule au lieu de rester à la distance demandée. Le contour de l'aperçu
+   sortait plus épais que celui du fichier.
+
+   On fait donc faire la même chose aux deux : trois halos successifs, chacun
+   calculé sur le résultat du précédent. En CSS c'est trois `drop-shadow(0 0 W)`
+   à la suite ; sur le canvas, trois passes d'ombre sans décalage entre deux
+   surfaces. Le flou se définit pareil des deux côtés (écart type = rayon / 2),
+   donc les deux images se superposent. */
+export const OUTLINE_PASSES = 3;
+
+/**
+ * Effets d'une incrustation en filtres CSS, pour l'aperçu du monteur.
+ * `largeurPx` : largeur RÉELLE de l'incrustation à l'écran, en pixels CSS.
+ * Les pourcentages s'y rapportent, exactement comme à l'export.
+ * L'ordre compte : le contour d'abord, l'ombre ensuite, pour que l'ombre soit
+ * projetée par la silhouette contour compris (même ordre qu'au rendu canvas).
+ */
+export function overlayEffectCss(o: OverlayClip, largeurPx: number): string {
+  const e = overlayEffects(o);
+  if (e.aucun || !(largeurPx > 0)) return "";
+  const u = largeurPx / 100; // 1 % de la largeur, en pixels
+  const parts: string[] = [];
+  if (e.outlineW > 0) {
+    const w = (e.outlineW * u).toFixed(2);
+    for (let i = 0; i < OUTLINE_PASSES; i++) parts.push(`drop-shadow(0 0 ${w}px ${e.outlineColor})`);
+  }
+  if (e.shadow) {
+    parts.push(`drop-shadow(${(e.dx * u).toFixed(2)}px ${(e.dy * u).toFixed(2)}px ${(e.blur * u).toFixed(2)}px ${e.shadowRgba})`);
+  }
+  return parts.join(" ");
+}
+
+/** Réglages d'effet prêts à l'emploi. Le premier remet tout à plat. */
+export const OVERLAY_EFFECT_PRESETS: { id: string; patch: Partial<OverlayClip> }[] = [
+  { id: "none",    patch: { shadow: false, outlineW: 0, radius: 0 } },
+  { id: "soft",    patch: { shadow: true, shadowColor: "#000000", shadowBlur: 9,   shadowX: 1.2, shadowY: 2.2, shadowOpacity: 0.35, outlineW: 0 } },
+  { id: "strong",  patch: { shadow: true, shadowColor: "#000000", shadowBlur: 4.5, shadowX: 3,   shadowY: 4,   shadowOpacity: 0.6,  outlineW: 0 } },
+  { id: "glow",    patch: { shadow: true, shadowColor: "#FFFFFF", shadowBlur: 13,  shadowX: 0,   shadowY: 0,   shadowOpacity: 0.85, outlineW: 0 } },
+  { id: "sticker", patch: { shadow: true, shadowColor: "#000000", shadowBlur: 5,   shadowX: 0.8, shadowY: 1.6, shadowOpacity: 0.4,  outlineW: 2.2, outlineColor: "#FFFFFF" } },
+  { id: "card",    patch: { shadow: true, shadowColor: "#000000", shadowBlur: 8,   shadowX: 0,   shadowY: 2.5, shadowOpacity: 0.45, outlineW: 0, radius: 6 } },
+];
 
 // Durée effective d'un overlay sur la timeline (rognage, sans vitesse variable)
 export function overlayTimelineDur(o: OverlayClip): number {

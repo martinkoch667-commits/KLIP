@@ -76,6 +76,10 @@ function montages() {
         trimStart: 1, trimEnd: 4, offset: 1, track: 0,
         x: 70, y: 30, scale: 0.6, rotation: 8, opacity: 0.9,
         filterId: "none", lum: 0, con: 0, sat: 0, vol: 0.5,
+        // Effets activés : l'incrustation passe par le chemin de composition
+        // (aplatissement, coins arrondis, contour), pas par le chemin direct.
+        shadow: true, shadowColor: "#000000", shadowBlur: 7, shadowX: 2, shadowY: 3,
+        shadowOpacity: 0.5, outlineW: 2, outlineColor: "#FFFFFF", radius: 6,
       }] as OverlayClip[],
       captions: [] as Caption[], titles: [] as TitleEl[], audioTracks: [] as AudioTrack[],
     },

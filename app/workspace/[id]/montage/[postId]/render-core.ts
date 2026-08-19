@@ -9,7 +9,7 @@
 // Ces fonctions viennent telles quelles de export.ts, où elles étaient
 // enfermées avec la boucle de captation.
 
-import { MontageClip, OverlayClip, Caption, TitleEl, StickerEl, AudioTrack, SubCustom, effectiveSubStyle, resolveCapStyle, resolveCapPos, SUB_BASE_FONT, wrapWords, captionPartAt, subCanvasFont, subBgBox, curveLayout, applySubCase, withAlpha, transitionStateAt, DEFAULT_SUB_POS, clipFilterCss, overlayFilterCss, clipTimelineDur, clipAudioGainAt, overlayTimelineDur, overlayAudioGainAt, audioVolumeAt, kenBurnsScale, videoFormatById, exportQualityById } from "./constants";
+import { MontageClip, OverlayClip, Caption, TitleEl, StickerEl, AudioTrack, SubCustom, effectiveSubStyle, resolveCapStyle, resolveCapPos, SUB_BASE_FONT, wrapWords, captionPartAt, subCanvasFont, subBgBox, curveLayout, applySubCase, withAlpha, transitionStateAt, DEFAULT_SUB_POS, clipFilterCss, overlayFilterCss, clipTimelineDur, clipAudioGainAt, overlayTimelineDur, overlayAudioGainAt, audioVolumeAt, kenBurnsScale, videoFormatById, exportQualityById, overlayEffects, overlayEffectCss, OUTLINE_PASSES } from "./constants";
 export interface ExportProject {
   clips: MontageClip[];
   overlays?: OverlayClip[];
@@ -375,6 +375,60 @@ export function drawStickers(ctx: CanvasRenderingContext2D, stickers: StickerEl[
 }
 
 // Dessine un plan d'incrustation (PIP) à sa position/échelle/rotation/opacité.
+/* Surface de composition des incrustations à effets.
+
+   Un objet avec ombre et contour ne se dessine pas en une seule passe : le
+   contour doit exister AVANT que l'ombre ne soit projetée, sinon l'ombre sort
+   de l'image nue et le contour flotte devant elle. On compose donc l'objet fini
+   (coins arrondis, contour, média) sur cette surface, puis on la pose UNE fois
+   sur le cadre avec l'ombre. C'est exactement l'ordre des filtres CSS de
+   l'aperçu, et c'est aussi ce qui fait que l'opacité s'applique au résultat et
+   non à chaque couche.
+
+   La surface est réutilisée d'une image à l'autre : en créer une par
+   incrustation et par image ferait une allocation par plan à chaque frame. */
+/* Surfaces de travail des incrustations à effets, réutilisées d'une image à
+   l'autre : en créer une par incrustation et par image ferait une allocation par
+   plan à chaque frame. */
+type Surface = { cv: HTMLCanvasElement; ctx: CanvasRenderingContext2D };
+const surfacesPip: (Surface | null)[] = [null, null];
+function surfacePip(i: number, w: number, h: number): Surface | null {
+  let s = surfacesPip[i];
+  if (!s) {
+    const cv = document.createElement("canvas");
+    const ctx = cv.getContext("2d");
+    if (!ctx) return null;
+    s = { cv, ctx };
+    surfacesPip[i] = s;
+  }
+  if (s.cv.width !== w || s.cv.height !== h) { s.cv.width = w; s.cv.height = h; } // redimensionner efface
+  else { s.ctx.filter = "none"; s.ctx.clearRect(0, 0, w, h); }
+  return s;
+}
+
+/* Dessine un plan d'incrustation (PIP) à sa position, son échelle, sa rotation
+   et son opacité, effets compris.
+
+   L'ombre portée et le contour ne sont PAS réimplémentés ici : le contexte 2D
+   accepte la syntaxe des filtres CSS, on lui donne donc la chaîne exacte que
+   l'aperçu du monteur pose sur son élément (`overlayEffectCss`). Les deux
+   rendus ne peuvent plus diverger, puisqu'ils demandent la même chose au même
+   moteur. Une première version recalculait le contour à la main, avec des
+   copies décalées de la silhouette : elle sortait un contour visiblement plus
+   mince que celui de l'aperçu, parce que les filtres CSS s'appliquent en
+   cascade et que l'épaississement s'y accumule.
+
+   Restent deux choses que les filtres ne règlent pas seuls :
+
+   - les coins arrondis, qui demandent un rognage. Il a lieu sur une surface à
+     part, sinon il couperait aussi l'ombre ;
+   - l'opacité. En CSS, `opacity` s'applique au RÉSULTAT du filtre : là où
+     l'objet est opaque, son ombre est derrière lui et ne se voit pas, même à
+     50 %. Sur le canvas, `globalAlpha` composait l'ombre et l'image séparément,
+     si bien que l'ombre transparaissait à travers l'objet et l'assombrissait.
+     Mesuré au banc sur un aplat vert à 50 % : 91,106,101 au lieu de 128,143,138.
+     Dès que l'opacité descend sous 1, on aplatit donc l'objet et son ombre sur
+     une surface avant de le poser. */
 export function drawOverlayFrame(ctx: CanvasRenderingContext2D, media: HTMLVideoElement | HTMLImageElement, o: OverlayClip) {
   const mw = media instanceof HTMLVideoElement ? media.videoWidth : media.naturalWidth;
   const mh = media instanceof HTMLVideoElement ? media.videoHeight : media.naturalHeight;
@@ -382,14 +436,66 @@ export function drawOverlayFrame(ctx: CanvasRenderingContext2D, media: HTMLVideo
   const targetW = CANVAS_W * 0.5 * o.scale;
   const targetH = targetW * (mh / mw);
   const cx = (o.x / 100) * CANVAS_W, cy = (o.y / 100) * CANVAS_H;
+  const x = -targetW / 2, y = -targetH / 2;
+  const e = overlayEffects(o);
+  const alpha = Math.max(0, Math.min(1, o.opacity ?? 1));
+  // Mêmes filtres, dans le même ordre, que l'aperçu : couleur puis effets.
+  const filtre = [overlayFilterCss(o), overlayEffectCss(o, targetW)].filter(Boolean).join(" ");
+  const u = targetW / 100;
+  const r = Math.min(e.radius * u, targetW / 2, targetH / 2);
+  const aplatir = alpha < 1 && !e.aucun;
+
   ctx.save();
-  ctx.globalAlpha = Math.max(0, Math.min(1, o.opacity ?? 1));
-  ctx.filter = overlayFilterCss(o) || "none";
+  ctx.globalAlpha = alpha;
   ctx.translate(cx, cy);
   if (o.rotation) ctx.rotate((o.rotation * Math.PI) / 180);
-  ctx.drawImage(media, -targetW / 2, -targetH / 2, targetW, targetH);
-  ctx.restore();
-  ctx.globalAlpha = 1;
+
+  const finir = () => { ctx.restore(); ctx.globalAlpha = 1; };
+
+  // Chemin direct : ni coins arrondis ni aplatissement à faire.
+  if (r <= 0 && !aplatir) {
+    ctx.filter = filtre || "none";
+    ctx.drawImage(media, x, y, targetW, targetH);
+    finir();
+    return;
+  }
+
+  /* Marge autour de l'objet : de quoi contenir l'ombre (flou et décalage) et le
+     contour, faute de quoi la surface les rognerait à ses bords. */
+  const marge = Math.ceil(e.blur * u * 2 + Math.abs(e.dx * u) + Math.abs(e.dy * u) + e.outlineW * u * OUTLINE_PASSES * 2) + 4;
+  const W = Math.ceil(targetW) + marge * 2;
+  const H = Math.ceil(targetH) + marge * 2;
+  const a = surfacePip(0, W, H);
+  if (!a) { // pas de second contexte 2D : on rend au moins l'objet
+    ctx.filter = filtre || "none";
+    ctx.drawImage(media, x, y, targetW, targetH);
+    finir();
+    return;
+  }
+
+  // 1) le média, rogné aux coins arrondis s'il y en a, sans aucun filtre
+  a.ctx.save();
+  if (r > 0) { a.ctx.beginPath(); a.ctx.roundRect(marge, marge, targetW, targetH, r); a.ctx.clip(); }
+  a.ctx.drawImage(media, marge, marge, targetW, targetH);
+  a.ctx.restore();
+
+  if (aplatir) {
+    // 2) les filtres appliqués une fois, à part, puis une pose à l'opacité voulue
+    const b = surfacePip(1, W, H);
+    if (b) {
+      b.ctx.filter = filtre || "none";
+      b.ctx.drawImage(a.cv, 0, 0);
+      b.ctx.filter = "none";
+      ctx.filter = "none";
+      ctx.drawImage(b.cv, x - marge, y - marge, W, H);
+      finir();
+      return;
+    }
+  }
+
+  ctx.filter = filtre || "none";
+  ctx.drawImage(a.cv, x - marge, y - marge, W, H);
+  finir();
 }
 
 export function drawProgressBar(ctx: CanvasRenderingContext2D, t: number, total: number) {

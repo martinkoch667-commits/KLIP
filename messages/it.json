@@ -1537,6 +1537,14 @@
       "ocean": "Ciano contornato",
       "gold": "Oro lusso",
       "candy": "Pillola rosa"
+    },
+    "overlayEffect": {
+      "none": "Nessuno",
+      "soft": "Morbida",
+      "strong": "Marcata",
+      "glow": "Bagliore",
+      "sticker": "Adesivo",
+      "card": "Scheda"
     }
   },
   "montage": {
@@ -1913,7 +1921,15 @@
     "logTrimSkippedNoSpeech": "«{name}» lasciato intatto: senza trascrizione non si taglia alla cieca.",
     "toastTrimSkippedNoSpeech": "{n} clip lasciate intatte: senza trascrizione KLIP non taglia — rischierebbe di tagliare a metà frase.",
     "chatNewChat": "Nuova conversazione",
-    "chatHint": "Descrivi ciò che vuoi"
+    "chatHint": "Descrivi ciò che vuoi",
+    "effects": "Effetti",
+    "dropShadow": "Ombra esterna",
+    "shadowBlur": "Sfocatura",
+    "shadowX": "Scostamento orizzontale",
+    "shadowY": "Scostamento verticale",
+    "shadowStrength": "Intensità",
+    "outlineCorners": "Contorno e angoli",
+    "roundedCorners": "Angoli arrotondati"
   },
   "forgotPassword": {
     "title": "Password dimenticata",

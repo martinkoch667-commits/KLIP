@@ -13,6 +13,7 @@ import {
   FILTERS, TRANSITIONS, SPEEDS, SUB_STYLES, SUB_LENGTHS, STICKER_GLYPHS, FONT_CHOICES,
   effectiveSubStyle, loadSubTemplates, saveSubTemplates,
   clipFilterCss, overlayFilterCss, clipTimelineDur, overlayTimelineDur,
+  OVERLAY_EFFECT_PRESETS, overlayEffectCss,
 } from "./constants";
 
 export interface MontageCtx {
@@ -124,6 +125,17 @@ function camelKey(id: string): string {
 }
 
 const SUB_LENGTH_KEY: Record<number, string> = { 1: "one", 2: "two", 3: "three", 4: "four", 6: "six", 99: "sentence" };
+
+/** Ce réglage d'effet est-il celui de l'incrustation ? Sert à marquer la
+ *  vignette active : on compare champ à champ ce que le réglage impose. */
+function memeEffet(o: OverlayClip, patch: Partial<OverlayClip>): boolean {
+  return (Object.keys(patch) as (keyof OverlayClip)[]).every((k) => {
+    const attendu = patch[k], courant = o[k];
+    if (typeof attendu === "number") return Math.abs((courant as number ?? 0) - attendu) < 0.05;
+    if (typeof attendu === "boolean") return !!courant === attendu;
+    return String(courant ?? "").toUpperCase() === String(attendu ?? "").toUpperCase();
+  });
+}
 
 // ─── petits composants réutilisables ────────────────────────────────────────
 
@@ -788,6 +800,9 @@ export function OverlayPanel({ ctx }: { ctx: MontageCtx }) {
   const t = useTranslations('montage');
   const tc = useTranslations('montageConstants');
   const o = ctx.selectedOverlay;
+  // Le premier réglage qui correspond aux valeurs actuelles : c'est lui qu'on
+  // marque comme actif dans la grille.
+  const idPresetActif = o ? OVERLAY_EFFECT_PRESETS.find((q) => memeEffet(o, q.patch))?.id : undefined;
   return (
     <>
       <div className="a-section">
@@ -850,6 +865,62 @@ export function OverlayPanel({ ctx }: { ctx: MontageCtx }) {
             ) : (
               <Range label={t('duration')} value={o.trimEnd} min={1} max={15} step={0.5} unit="s" onChange={(v) => ctx.updateOverlay(o.id, { trimEnd: v })} />
             )}
+          </div>
+
+          {/* ── Effets de l'objet ────────────────────────────────────────────
+              Ombre portée, contour et coins arrondis. Les vignettes montrent
+              l'incrustation réelle avec chaque réglage : on choisit en voyant,
+              pas en lisant un nom. */}
+          <div className="a-section">
+            <span className="mz-sec-label">{t('effects')}</span>
+            <div className="mz-grid3">
+              {OVERLAY_EFFECT_PRESETS.map((p) => {
+                const apercu = { ...o, ...p.patch };
+                const actif = idPresetActif === p.id;
+                return (
+                  <button key={p.id} className={"mz-thumb" + (actif ? " on" : "")}
+                    style={{ position: "relative", overflow: "visible", display: "grid", placeItems: "center", background: "var(--sunk)" }}
+                    onClick={() => ctx.updateOverlay(o.id, p.patch)} title={tc(`overlayEffect.${p.id}`)}>
+                    <span style={{ display: "block", width: "62%", filter: overlayEffectCss(apercu, 40) || undefined, borderRadius: (apercu.radius ?? 0) > 0 ? `${((apercu.radius ?? 0) / 100) * 40}px` : undefined, overflow: "hidden" }}>
+                      {o.kind === "photo"
+                        ? <img src={o.src} alt="" style={{ width: "100%", display: "block" }} />
+                        : <video src={o.src} muted preload="metadata" style={{ width: "100%", display: "block" }} />}
+                    </span>
+                    <span style={{ position: "absolute", bottom: 3, left: 0, right: 0, textAlign: "center", fontFamily: "var(--mono)", fontWeight: 800, fontSize: 8.5, color: "#fff", textShadow: "0 1px 4px rgba(0,0,0,.8)" }}>{tc(`overlayEffect.${p.id}`)}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          <div className="a-section">
+            <Toggle label={t('dropShadow')} on={!!o.shadow} onChange={(v) => ctx.updateOverlay(o.id, { shadow: v })} />
+            {o.shadow && (
+              <>
+                <div className="mz-swrow" style={{ marginBottom: 12 }}>
+                  {["#000000", "#14160F", "#FFFFFF", "#2FD79B", "#7A69E8", "#F2A03D"].map((col) => (
+                    <button key={col} className={"mz-sw" + ((o.shadowColor || "#000000").toUpperCase() === col.toUpperCase() ? " on" : "")} style={{ background: col }} onClick={() => ctx.updateOverlay(o.id, { shadowColor: col })} />
+                  ))}
+                </div>
+                <Range label={t('shadowBlur')} value={o.shadowBlur ?? 8} min={0} max={30} step={0.5} onChange={(v) => ctx.updateOverlay(o.id, { shadowBlur: v })} fmtv={(v) => v.toFixed(1) + " %"} />
+                <Range label={t('shadowX')} value={o.shadowX ?? 1.5} min={-25} max={25} step={0.5} onChange={(v) => ctx.updateOverlay(o.id, { shadowX: v })} fmtv={(v) => v.toFixed(1) + " %"} />
+                <Range label={t('shadowY')} value={o.shadowY ?? 2.5} min={-25} max={25} step={0.5} onChange={(v) => ctx.updateOverlay(o.id, { shadowY: v })} fmtv={(v) => v.toFixed(1) + " %"} />
+                <Range label={t('shadowStrength')} value={o.shadowOpacity ?? 0.45} min={0} max={1} step={0.02} onChange={(v) => ctx.updateOverlay(o.id, { shadowOpacity: v })} fmtv={(v) => Math.round(v * 100) + "%"} />
+              </>
+            )}
+          </div>
+
+          <div className="a-section">
+            <span className="mz-sec-label">{t('outlineCorners')}</span>
+            <Range label={t('outline')} value={o.outlineW ?? 0} min={0} max={12} step={0.2} onChange={(v) => ctx.updateOverlay(o.id, { outlineW: v })} fmtv={(v) => v <= 0 ? t('none') : v.toFixed(1) + " %"} />
+            {(o.outlineW ?? 0) > 0 && (
+              <div className="mz-swrow">
+                {["#FFFFFF", "#14160F", "#2FD79B", "#BDF2A0", "#7A69E8", "#F2A03D"].map((col) => (
+                  <button key={col} className={"mz-sw" + ((o.outlineColor || "#FFFFFF").toUpperCase() === col.toUpperCase() ? " on" : "")} style={{ background: col }} onClick={() => ctx.updateOverlay(o.id, { outlineColor: col })} />
+                ))}
+              </div>
+            )}
+            <Range label={t('roundedCorners')} value={o.radius ?? 0} min={0} max={50} step={1} onChange={(v) => ctx.updateOverlay(o.id, { radius: v })} fmtv={(v) => v <= 0 ? t('none') : v + " %"} />
           </div>
 
           <div className="a-section">

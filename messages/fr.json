@@ -1537,6 +1537,14 @@
       "ocean": "Cyan contour",
       "gold": "Doré luxe",
       "candy": "Pilule rose"
+    },
+    "overlayEffect": {
+      "none": "Aucun",
+      "soft": "Douce",
+      "strong": "Marquée",
+      "glow": "Lueur",
+      "sticker": "Autocollant",
+      "card": "Carte"
     }
   },
   "montage": {
@@ -1913,7 +1921,15 @@
     "logTrimSkippedNoSpeech": "« {name} » laissé intact : pas de transcription, on ne coupe pas à l'aveugle.",
     "toastTrimSkippedNoSpeech": "{n} plan(s) laissé(s) intacts : sans transcription, KLIP ne coupe pas — il risquerait de couper en pleine phrase.",
     "chatNewChat": "Nouvelle conversation",
-    "chatHint": "Décrivez ce que vous voulez"
+    "chatHint": "Décrivez ce que vous voulez",
+    "effects": "Effets",
+    "dropShadow": "Ombre portée",
+    "shadowBlur": "Flou",
+    "shadowX": "Décalage horizontal",
+    "shadowY": "Décalage vertical",
+    "shadowStrength": "Intensité",
+    "outlineCorners": "Contour & coins",
+    "roundedCorners": "Coins arrondis"
   },
   "forgotPassword": {
     "title": "Mot de passe oublié",

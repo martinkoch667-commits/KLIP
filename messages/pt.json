@@ -1537,6 +1537,14 @@
       "ocean": "Ciano contornado",
       "gold": "Dourado luxo",
       "candy": "Pílula rosa"
+    },
+    "overlayEffect": {
+      "none": "Nenhum",
+      "soft": "Suave",
+      "strong": "Forte",
+      "glow": "Brilho",
+      "sticker": "Autocolante",
+      "card": "Cartão"
     }
   },
   "montage": {
@@ -1913,7 +1921,15 @@
     "logTrimSkippedNoSpeech": "«{name}» intacto: sem transcrição não se corta às cegas.",
     "toastTrimSkippedNoSpeech": "{n} plano(s) intacto(s): sem transcrição o KLIP não corta — arriscaria cortar a meio da frase.",
     "chatNewChat": "Nova conversa",
-    "chatHint": "Descreva o que você quer"
+    "chatHint": "Descreva o que você quer",
+    "effects": "Efeitos",
+    "dropShadow": "Sombra projetada",
+    "shadowBlur": "Desfoque",
+    "shadowX": "Deslocamento horizontal",
+    "shadowY": "Deslocamento vertical",
+    "shadowStrength": "Intensidade",
+    "outlineCorners": "Contorno e cantos",
+    "roundedCorners": "Cantos arredondados"
   },
   "forgotPassword": {
     "title": "Esqueceu a palavra-passe",

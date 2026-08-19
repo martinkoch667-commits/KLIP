@@ -1537,6 +1537,14 @@
       "ocean": "Cyan mit Kontur",
       "gold": "Luxus-Gold",
       "candy": "Rosa Pille"
+    },
+    "overlayEffect": {
+      "none": "Keiner",
+      "soft": "Weich",
+      "strong": "Kräftig",
+      "glow": "Leuchten",
+      "sticker": "Sticker",
+      "card": "Karte"
     }
   },
   "montage": {
@@ -1913,7 +1921,15 @@
     "logTrimSkippedNoSpeech": "„{name}“ unverändert: ohne Transkript wird nicht blind geschnitten.",
     "toastTrimSkippedNoSpeech": "{n} Clip(s) unverändert: Ohne Transkript schneidet KLIP nicht — es würde mitten im Satz schneiden.",
     "chatNewChat": "Neue Unterhaltung",
-    "chatHint": "Beschreiben Sie, was Sie möchten"
+    "chatHint": "Beschreiben Sie, was Sie möchten",
+    "effects": "Effekte",
+    "dropShadow": "Schlagschatten",
+    "shadowBlur": "Weichzeichnen",
+    "shadowX": "Horizontaler Versatz",
+    "shadowY": "Vertikaler Versatz",
+    "shadowStrength": "Stärke",
+    "outlineCorners": "Kontur & Ecken",
+    "roundedCorners": "Abgerundete Ecken"
   },
   "forgotPassword": {
     "title": "Passwort vergessen",
