@@ -498,8 +498,19 @@ export async function renderExport(project: ExportProject, onProgress: (p: numbe
      du montage, ce qui est la seule longueur juste : après le dernier plan, il
      n'y a plus rien à montrer. */
   const renderStart = performance.now();
-  const MARGE_MS = 400;
-  let deadlineMs = 0; // fixé une fois `total` connu
+  let deadlineMs = 0;
+  /* L'échéance ne démarre qu'à la PREMIÈRE IMAGE PEINTE, pas au lancement de
+     l'enregistreur. Entre les deux, il faut aller chercher le premier plan sur
+     le réseau, ce qui peut prendre plusieurs secondes : compté dans le budget,
+     ce temps mangeait tout le montage et rendait un fichier vide.
+
+     La marge est large, un quart de la durée et au moins trois secondes. Il ne
+     s'agit pas de serrer au plus juste mais d'empêcher un fichier de partir en
+     vrille : un montage doit s'exporter en entier, c'est la règle. */
+  const armerEcheance = () => {
+    if (deadlineMs) return;
+    deadlineMs = performance.now() + total * 1000 + Math.max(3000, total * 250);
+  };
   const tempsEcoule = () => (performance.now() - renderStart) / 1000;
   const echeanceAtteinte = () => deadlineMs > 0 && performance.now() >= deadlineMs;
 
@@ -660,7 +671,6 @@ export async function renderExport(project: ExportProject, onProgress: (p: numbe
   const stopped = new Promise<Blob>((resolve) => { recorder.onstop = () => resolve(new Blob(chunks, { type: actualType })); });
 
   recorder.start(200);
-  deadlineMs = performance.now() + total * 1000 + MARGE_MS;
   // Les pistes audio sont démarrées/seek/pausées à leur offset par updateAudioAt() dans la boucle.
 
   // Miniature : capture le tout premier frame composé (image + texte/titres) du plan 1.
@@ -756,6 +766,7 @@ export async function renderExport(project: ExportProject, onProgress: (p: numbe
         await new Promise<void>((resolve) => {
           const stop = ticker.every(1000 / FPS, () => {
             const elapsed = (performance.now() - t0) / 1000;
+            armerEcheance();
             if (elapsed >= gapBefore || echeanceAtteinte()) { stop(); resolve(); return; }
             const globalT = gapStart + elapsed;
             updateAudioAt(globalT);
@@ -800,6 +811,7 @@ export async function renderExport(project: ExportProject, onProgress: (p: numbe
         await new Promise<void>((resolve) => {
           const stop = ticker.every(1000 / FPS, () => {
             const elapsed = (performance.now() - overlapStart) / 1000;
+            armerEcheance();
             if (elapsed >= transDur || echeanceAtteinte()) { stop(); resolve(); return; }
             const p = elapsed / transDur;
             const globalT = c.start + elapsed;
@@ -831,6 +843,7 @@ export async function renderExport(project: ExportProject, onProgress: (p: numbe
           // et le setInterval de la page y tombe à une fois par seconde (mesuré).
           const stop = ticker.every(1000 / FPS, () => {
             const localT = (v.currentTime - c.trimStart) / c.speed;
+            armerEcheance();
             if (v.paused || localT >= soloEnd || v.ended || echeanceAtteinte()) { stop(); resolve(); return; }
             const globalT = c.start + localT;
             videoGains[i % 2].gain.value = clipAudioGainAt(c, localT); // volume + fondus du son du plan
@@ -850,6 +863,7 @@ export async function renderExport(project: ExportProject, onProgress: (p: numbe
         await new Promise<void>((resolve) => {
           const stop = ticker.every(1000 / FPS, () => {
             const localT = (performance.now() - media.photoStart) / 1000;
+            armerEcheance();
             if (localT >= soloEnd || echeanceAtteinte()) { stop(); resolve(); return; }
             const globalT = c.start + localT;
             updateAudioAt(globalT);
@@ -880,6 +894,12 @@ export async function renderExport(project: ExportProject, onProgress: (p: numbe
 
   const blob = await stopped;
   ticker.dispose();
+  // Un fichier minuscule pour un montage de plusieurs secondes veut dire que
+  // presque aucune image n'a été encodée. Mieux vaut le dire que rendre une
+  // vidéo vide qu'on découvrira sur Instagram.
+  if (blob.size < 20_000 && total > 1) {
+    throw new Error("L'enregistrement n'a produit presque aucune image. Réessayez en gardant l'onglet au premier plan.");
+  }
   try { silence.stop(); } catch { /* déjà arrêtée */ }
   await audioCtx.close();
   await thumbnailPromise;
