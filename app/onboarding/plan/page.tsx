@@ -95,7 +95,6 @@ export default function OnboardingPlanPage() {
       <style dangerouslySetInnerHTML={{ __html: PRICING_CSS }} />
 
       <img src="/logo-klip-dark.png" alt="Klip" className="kp-logo" />
-      <p className="kp-eyebrow">{t('step1of2')}</p>
       <h1 className="kp-title">
         {t('titleLead')} <span className="kp-acc">{t('titleAccent')}</span>
       </h1>
@@ -108,7 +107,8 @@ export default function OnboardingPlanPage() {
           price={29}
           perMonth={t('perMonth')}
           note={t('studioAnnual')}
-          features={STUDIO_FEATURES}
+          chip={STUDIO_FEATURES[0]}
+          features={STUDIO_FEATURES.slice(1)}
         >
           <button onClick={handleSolo} disabled={loadingStudio || loadingAgency} className="kp-btn kp-btn-ghost">
             {loadingStudio ? t('creating') : t('chooseStudio')}
@@ -123,7 +123,8 @@ export default function OnboardingPlanPage() {
           price={96}
           perMonth={t('perMonth')}
           note={t('agencyAnnual')}
-          features={AGENCY_FEATURES}
+          chip={AGENCY_FEATURES[0]}
+          features={AGENCY_FEATURES.slice(1)}
         >
           {!agencyExpanded ? (
             <button onClick={() => setAgencyExpanded(true)} disabled={loadingStudio || loadingAgency} className="kp-btn kp-btn-leaf">

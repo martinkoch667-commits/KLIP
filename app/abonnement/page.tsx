@@ -104,7 +104,8 @@ export default function AbonnementPage() {
               tag={p.key === "agency" ? to('agencyDesc') : to('studioDesc')}
               price={p.priceMonthly}
               perMonth={t('perMonth')}
-              features={feats}
+              chip={feats[0]}
+              features={feats.slice(1)}
             >
               <button
                 className={`kp-btn ${highlight ? "kp-btn-leaf" : "kp-btn-ghost"}`}
