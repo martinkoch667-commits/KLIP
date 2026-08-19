@@ -652,7 +652,11 @@
     "captionRedo": "Réécrire",
     "captionWriting": "Rédaction…",
     "captionError": "La légende n'a pas pu être écrite. Réessayez.",
-    "captionFallbackBrief": "Publication Instagram"
+    "captionFallbackBrief": "Publication Instagram",
+    "captionPromptLabel": "Que doit raconter cette légende ?",
+    "captionPromptPh": "Ex : annoncer la nouvelle carte d'automne, ton chaleureux, finir par une question",
+    "captionPromptHint": "⌘ + Entrée",
+    "captionCancel": "Annuler"
   },
   "editor": {
     "background": "Fond",

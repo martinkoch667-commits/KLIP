@@ -172,6 +172,11 @@ function carouselUrlsOf(post: { editor_json?: string | null; exported_image_url:
 function previewMediaOf(post: { editor_json?: string | null; exported_image_url: string | null; photo_url: string }): string | null {
   const slides = carouselUrlsOf({ ...post, thumbnail_url: null });
   if (slides.length > 1) return slides[0];
+  // Une vidéo passe AVANT le visuel exporté. Le montage écrit la vidéo dans
+  // `photo_url` sans effacer `exported_image_url`, qui peut encore contenir une
+  // image fixe d'une version antérieure du post : l'aperçu montrait alors cette
+  // image, impossible à lire, à la place de la vidéo qu'on s'apprête à publier.
+  if (isVideoUrl(post.photo_url)) return post.photo_url;
   return post.exported_image_url || post.photo_url || null;
 }
 
@@ -563,6 +568,12 @@ function PlanningContent() {
   // du reste du panneau.
   const [panelThumb, setPanelThumb] = useState<string | null>(null);
   const [writing, setWriting] = useState(false);
+  /* Consigne de rédaction. Le bouton ne lance plus la rédaction tout de suite :
+     il ouvre une fenêtre où l'on dit CE QU'ON VEUT raconter. Sans elle, l'IA
+     n'avait que l'image et le brief d'origine, souvent écrit pour dessiner le
+     visuel, pas pour parler au public. */
+  const [promptOpen, setPromptOpen] = useState(false);
+  const [prompt, setPrompt] = useState("");
 
   /* Rédaction de la légende, ici et pas seulement dans l'éditeur.
 
@@ -570,7 +581,7 @@ function PlanningContent() {
      écrit rarement la légende quand on dessine : on l'écrit quand on décide de
      publier, c'est à dire ici. Sans ça il fallait rouvrir l'éditeur juste pour
      une phrase. */
-  async function writeCaption() {
+  async function writeCaption(instruction: string) {
     const post = selectedPost;
     if (!post || writing) return;
     setWriting(true);
@@ -594,7 +605,7 @@ function PlanningContent() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          brief: post.brief || post.texte_visuel || t('captionFallbackBrief'),
+          brief: instruction.trim() || post.brief || post.texte_visuel || t('captionFallbackBrief'),
           workspaceId: id,
           ...(photoUrl ? { photoUrl } : {}),
           ...(frames.length ? { frames } : {}),
@@ -603,6 +614,7 @@ function PlanningContent() {
       const data = await res.json().catch(() => ({}));
       if (!res.ok || !data?.description) { alert(data?.error || t('captionError')); return; }
       setPanelDesc(data.description);
+      setPromptOpen(false);
     } catch {
       alert(t('captionError'));
     } finally {
@@ -1407,7 +1419,10 @@ function PlanningContent() {
             <div>
               <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}>
                 <label className="label" style={{ display: "block", margin: 0 }}>{t('igDescription')}</label>
-                <button onClick={writeCaption} disabled={writing} className="btn btn-sm btn-ghost"
+                <button
+                  onClick={() => { setPrompt(selectedPost.brief ?? ""); setPromptOpen(o => !o); }}
+                  disabled={writing}
+                  className="btn btn-sm btn-ghost"
                   style={{ marginLeft: "auto", height: 26, fontSize: 11.5, gap: 5 }}>
                   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <path d="M9.5 3l1.6 4.9L16 9.5l-4.9 1.6L9.5 16l-1.6-4.9L3 9.5l4.9-1.6z" /><path d="M18 14l.8 2.5L21 17l-2.2.8L18 20l-.8-2.2L15 17l2.2-.5z" />
@@ -1415,6 +1430,30 @@ function PlanningContent() {
                   {writing ? t('captionWriting') : panelDesc.trim() ? t('captionRedo') : t('captionWrite')}
                 </button>
               </div>
+              {promptOpen && (
+                <div style={{ marginBottom: 10, padding: 12, borderRadius: 10, background: "var(--sunk)", border: "1px solid var(--line)" }}>
+                  <label className="label" style={{ display: "block", marginBottom: 6 }}>{t('captionPromptLabel')}</label>
+                  <textarea
+                    value={prompt}
+                    onChange={e => setPrompt(e.target.value)}
+                    rows={3}
+                    autoFocus
+                    placeholder={t('captionPromptPh')}
+                    className="input"
+                    style={{ resize: "none", fontSize: 12.5 }}
+                    onKeyDown={e => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) writeCaption(prompt); }}
+                  />
+                  <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
+                    <button onClick={() => writeCaption(prompt)} disabled={writing} className="btn btn-sm" style={{ height: 28, fontSize: 11.5 }}>
+                      {writing ? t('captionWriting') : t('captionWrite')}
+                    </button>
+                    <button onClick={() => setPromptOpen(false)} disabled={writing} className="btn btn-sm btn-ghost" style={{ height: 28, fontSize: 11.5 }}>
+                      {t('captionCancel')}
+                    </button>
+                    <span style={{ marginLeft: "auto", alignSelf: "center", fontSize: 11, color: "var(--ink-3)" }}>{t('captionPromptHint')}</span>
+                  </div>
+                </div>
+              )}
               <textarea value={panelDesc} onChange={e => setPanelDesc(e.target.value)} rows={4} className="input" style={{ resize: "none", fontSize: 12.5, color: "var(--ink-2)" }} />
             </div>
 

@@ -652,7 +652,11 @@
     "captionRedo": "Reescribir",
     "captionWriting": "Redactando…",
     "captionError": "No se pudo redactar el pie de foto. Inténtalo de nuevo.",
-    "captionFallbackBrief": "Publicación de Instagram"
+    "captionFallbackBrief": "Publicación de Instagram",
+    "captionPromptLabel": "¿Qué debe contar este pie de foto?",
+    "captionPromptPh": "Ej.: anunciar la nueva carta de otoño, tono cercano, terminar con una pregunta",
+    "captionPromptHint": "⌘ + Intro",
+    "captionCancel": "Cancelar"
   },
   "editor": {
     "background": "Fondo",

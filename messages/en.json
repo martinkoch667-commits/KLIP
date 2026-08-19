@@ -652,7 +652,11 @@
     "captionRedo": "Rewrite",
     "captionWriting": "Writing…",
     "captionError": "The caption could not be written. Try again.",
-    "captionFallbackBrief": "Instagram post"
+    "captionFallbackBrief": "Instagram post",
+    "captionPromptLabel": "What should this caption say?",
+    "captionPromptPh": "E.g. announce the new autumn menu, warm tone, end on a question",
+    "captionPromptHint": "⌘ + Enter",
+    "captionCancel": "Cancel"
   },
   "editor": {
     "background": "Background",

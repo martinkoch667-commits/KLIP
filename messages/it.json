@@ -652,7 +652,11 @@
     "captionRedo": "Riscrivi",
     "captionWriting": "Scrittura…",
     "captionError": "Non è stato possibile scrivere la didascalia. Riprova.",
-    "captionFallbackBrief": "Post Instagram"
+    "captionFallbackBrief": "Post Instagram",
+    "captionPromptLabel": "Che cosa deve raccontare questa didascalia?",
+    "captionPromptPh": "Es.: annunciare il nuovo menu d'autunno, tono caloroso, chiudere con una domanda",
+    "captionPromptHint": "⌘ + Invio",
+    "captionCancel": "Annulla"
   },
   "editor": {
     "background": "Sfondo",

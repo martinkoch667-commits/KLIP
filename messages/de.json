@@ -652,7 +652,11 @@
     "captionRedo": "Neu schreiben",
     "captionWriting": "Wird geschrieben…",
     "captionError": "Die Bildunterschrift konnte nicht geschrieben werden. Versuche es erneut.",
-    "captionFallbackBrief": "Instagram-Beitrag"
+    "captionFallbackBrief": "Instagram-Beitrag",
+    "captionPromptLabel": "Was soll die Bildunterschrift sagen?",
+    "captionPromptPh": "Z. B. die neue Herbstkarte ankündigen, warmer Ton, mit einer Frage enden",
+    "captionPromptHint": "⌘ + Enter",
+    "captionCancel": "Abbrechen"
   },
   "editor": {
     "background": "Hintergrund",

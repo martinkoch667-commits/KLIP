@@ -72,6 +72,14 @@ export function MediaPreview({
 }) {
   const videoRef = React.useRef<HTMLVideoElement>(null);
   const [playing, setPlaying] = React.useState(false);
+  /* Panne de lecture, affichée au lieu d'être avalée.
+
+     Jusqu'ici, `play()` était appelé avec un `.catch()` vide et l'élément
+     n'écoutait pas `error` : quand le navigateur refusait le fichier (format
+     qu'il ne décode pas, fichier illisible, réseau), il ne se passait
+     RIEN. Le bouton de lecture restait là, la vidéo ne démarrait pas, et
+     personne, ni l'utilisateur ni nous, ne savait pourquoi. */
+  const [failure, setFailure] = React.useState<string | null>(null);
 
   if (!raw) return null;
 
@@ -85,11 +93,23 @@ export function MediaPreview({
 
   if (!isVideoUrl(raw)) return <MediaThumb raw={raw} style={style} />;
 
+  const MEDIA_ERR: Record<number, string> = {
+    1: "lecture interrompue",
+    2: "erreur réseau",
+    3: "fichier illisible (décodage impossible)",
+    4: "format non pris en charge par ce navigateur",
+  };
+
   const toggle = () => {
     const el = videoRef.current;
     if (!el) return;
-    if (el.paused) { el.play().catch(() => { /* lecture refusée par le navigateur */ }); }
-    else { el.pause(); }
+    if (el.paused) {
+      el.play().catch((e: unknown) => {
+        const msg = e instanceof Error ? e.message : String(e);
+        console.warn("[MediaPreview] lecture refusée :", raw, msg);
+        setFailure(msg);
+      });
+    } else { el.pause(); }
   };
 
   return (
@@ -108,12 +128,30 @@ export function MediaPreview({
         preload="metadata"
         controls={controls}
         onClick={controls ? undefined : toggle}
-        onPlay={() => setPlaying(true)}
+        onPlay={() => { setPlaying(true); setFailure(null); }}
         onPause={() => setPlaying(false)}
         onEnded={() => setPlaying(false)}
+        onError={(e) => {
+          const code = e.currentTarget.error?.code ?? 0;
+          const why = MEDIA_ERR[code] ?? "erreur inconnue";
+          console.warn("[MediaPreview] média en erreur :", raw, code, why);
+          setFailure(why);
+        }}
         style={{ ...base, cursor: "pointer" }}
       />
-      {!playing && (
+      {failure && (
+        <div style={{
+          position: "absolute", left: 8, right: 8, bottom: 8, padding: "9px 11px", borderRadius: 9,
+          background: "rgba(12,14,11,.86)", color: "#fff", fontSize: 11.5, lineHeight: 1.45,
+          fontFamily: "var(--sans)", display: "flex", flexDirection: "column", gap: 6,
+        }}>
+          <span>Lecture impossible ici : {failure}.</span>
+          <a href={raw} target="_blank" rel="noopener noreferrer" style={{ color: "var(--leaf, #BDF2A0)", fontWeight: 700 }}>
+            Ouvrir la vidéo dans un onglet
+          </a>
+        </div>
+      )}
+      {!playing && !failure && !controls && (
         <button
           type="button"
           onClick={toggle}
