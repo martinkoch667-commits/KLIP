@@ -62,7 +62,7 @@ export const PRICING_CSS = `
   .kp-switch em{font-style:normal;font-size:11px;padding:2px 7px;border-radius:999px;
     background:var(--kp-leaf);color:var(--kp-leaf-ink);}
 
-  .kp-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:24px;align-items:start;
+  .kp-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:24px;align-items:stretch;
     width:100%;max-width:840px;margin:clamp(34px,5vw,54px) 0 0;}
   @media(max-width:760px){.kp-grid{grid-template-columns:1fr;gap:34px;}}
 
@@ -71,9 +71,8 @@ export const PRICING_CSS = `
     box-shadow:0 20px 44px -30px rgba(16,19,11,.2);}
   /* La carte mise en avant est la seule surface sombre de l'écran, et elle est
      remontée de quelques pixels : c'est ce décalage qui fait l'accroche. */
-  .kp-card.pop{background:var(--kp-forest);color:var(--kp-cream);border:none;
-    box-shadow:0 40px 80px -40px rgba(7,33,23,.7);transform:translateY(-14px) rotate(.8deg);}
-  @media(max-width:760px){.kp-card.pop{transform:none;}}
+  .kp-card.pop{background:var(--kp-forest);color:var(--kp-cream);border-color:transparent;
+    box-shadow:0 40px 80px -40px rgba(7,33,23,.7);}
 
   /* Le cadre de sélection de la landing : la carte est posée là comme un objet
      dans l'éditeur, poignées comprises. C'est la métaphore de tout le site, et
@@ -93,7 +92,7 @@ export const PRICING_CSS = `
 
   .kp-name{font-family:var(--kp-oaksx);font-weight:700;text-transform:uppercase;letter-spacing:.015em;
     line-height:.95;font-size:24px;margin:0;}
-  .kp-tag{font-weight:600;font-size:13px;color:var(--kp-ink-3);margin-top:6px;}
+  .kp-tag{font-weight:600;font-size:13px;line-height:1.45;color:var(--kp-ink-3);margin-top:6px;min-height:2.9em;}
   .kp-card.pop .kp-tag{color:var(--kp-cream-3);}
 
   /* Offre de lancement : pastille leaf puis prix barré à côté du prix remisé.
@@ -111,7 +110,7 @@ export const PRICING_CSS = `
   .kp-price b{font-family:var(--kp-heavy);font-weight:800;font-size:58px;letter-spacing:-.04em;line-height:1;}
   .kp-price span{font-weight:700;font-size:13px;color:var(--kp-ink-3);}
   .kp-card.pop .kp-price span{color:var(--kp-cream-2);}
-  .kp-note{font-size:12px;color:var(--kp-ink-3);margin-bottom:18px;min-height:16px;}
+  .kp-note{font-size:12px;line-height:1.5;color:var(--kp-ink-3);margin-bottom:18px;min-height:3em;}
   .kp-card.pop .kp-note{color:var(--kp-cream-3);}
 
   .kp-chip{display:inline-flex;align-items:center;align-self:flex-start;gap:8px;padding:8px 14px;border-radius:999px;
@@ -130,7 +129,7 @@ export const PRICING_CSS = `
   .kp-card.pop .kp-btn-ghost{color:var(--kp-cream);box-shadow:inset 0 0 0 1.6px rgba(241,240,229,.28);}
   .kp-btn:disabled{opacity:.5;cursor:not-allowed;}
 
-  .kp-feats{list-style:none;display:flex;flex-direction:column;gap:12px;padding:0;margin:24px 0 0;}
+  .kp-feats{list-style:none;display:flex;flex-direction:column;gap:12px;padding:0;margin:24px 0 0;flex:1;}
   .kp-feat{display:flex;gap:11px;align-items:flex-start;font-size:15px;color:var(--kp-ink-2);}
   .kp-card.pop .kp-feat{color:var(--kp-cream-2);}
   .kp-feat svg{flex:none;margin-top:2px;color:var(--kp-mint-2);}
