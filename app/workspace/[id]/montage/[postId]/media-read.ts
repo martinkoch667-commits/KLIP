@@ -93,6 +93,76 @@ export async function infosVideo(src: string): Promise<{ dur: number; aspect: nu
 }
 
 /**
+ * Images brutes d'une source, une par instant demandé, rendues sous forme de
+ * canvas prêts à être lus ou redessinés. C'est la brique de tout le reste :
+ * vignettes de la timeline, analyse d'image du prémontage, capture envoyée à
+ * l'IA. Aucune ne crée d'élément <video>.
+ *
+ * `canvasesAtTimestamps` décode chaque paquet AU PLUS UNE FOIS quand les
+ * instants sont croissants, là où l'ancien chemin repositionnait un <video> et
+ * attendait un événement `seeked` à chaque image.
+ */
+export async function pourChaqueImage(
+  src: string,
+  instants: number[],
+  taille: { largeur?: number; hauteur?: number },
+  recevoir: (canvas: HTMLCanvasElement | OffscreenCanvas, index: number) => void | Promise<void>,
+): Promise<{ recues: number; aspect: number } | null> {
+  try {
+    const piste = await pisteVideo(src);
+    if (!piste) return null;
+    const aspect = (piste.displayWidth || 16) / (piste.displayHeight || 9);
+    const sink = new CanvasSink(piste, {
+      ...(taille.hauteur ? { height: Math.round(taille.hauteur) } : {}),
+      ...(taille.largeur ? { width: Math.round(taille.largeur) } : {}),
+      poolSize: 2, // deux canvas recyclés : la mémoire vidéo ne gonfle pas
+    });
+    const tries = instants.slice().sort((a, b) => a - b);
+    let i = 0;
+    for await (const wrapped of sink.canvasesAtTimestamps(tries)) {
+      if (!wrapped) { i++; continue; }
+      // Le canvas appartient au pool et sera réécrit juste après : l'appelant
+      // doit en avoir fini avec lui quand `recevoir` rend la main.
+      await recevoir(wrapped.canvas as HTMLCanvasElement | OffscreenCanvas, i);
+      i++;
+    }
+    return i ? { recues: i, aspect } : null;
+  } catch { return null; }
+}
+
+/**
+ * Images brutes d'une source, ramassées dans un tableau.
+ *
+ * À N'UTILISER QUE POUR QUELQUES IMAGES : chaque image est copiée et conservée.
+ * Pour en parcourir beaucoup, passer par `pourChaqueImage`, qui n'en garde
+ * aucune — soixante images d'un rush 4K collectées d'un coup, ce serait
+ * plusieurs gigaoctets.
+ */
+export async function imagesAux(
+  src: string, instants: number[], taille: { largeur?: number; hauteur?: number },
+): Promise<{ canvases: HTMLCanvasElement[]; aspect: number } | null> {
+  const canvases: HTMLCanvasElement[] = [];
+  const r = await pourChaqueImage(src, instants, taille, (source) => {
+    const copie = document.createElement("canvas");
+    copie.width = source.width; copie.height = source.height;
+    copie.getContext("2d")!.drawImage(source as CanvasImageSource, 0, 0);
+    canvases.push(copie);
+  });
+  if (!r || !canvases.length) return null;
+  return { canvases, aspect: r.aspect };
+}
+
+/** Durée d'une source sonore, sans créer de lecteur média. */
+export async function dureeAudio(src: string): Promise<number | null> {
+  try {
+    const piste = await pisteAudio(src);
+    if (!piste) return null;
+    const d = await entree(src).computeDuration();
+    return d > 0 && isFinite(d) ? d : null;
+  } catch { return null; }
+}
+
+/**
  * Vignettes d'un plan : une image par instant demandé, en JPEG encodé.
  * `hauteur` fixe la taille d'extraction ; la largeur suit le ratio de la source.
  *
@@ -103,26 +173,15 @@ export async function infosVideo(src: string): Promise<{ dur: number; aspect: nu
 export async function vignettes(
   src: string, instants: number[], hauteur: number,
 ): Promise<{ frames: string[]; aspect: number } | null> {
-  try {
-    const piste = await pisteVideo(src);
-    if (!piste) return null;
-    const aspect = (piste.displayWidth || 16) / (piste.displayHeight || 9);
-    const sink = new CanvasSink(piste, {
-      height: Math.round(hauteur),
-      poolSize: 2, // deux canvas recyclés : la mémoire vidéo ne gonfle pas
-    });
-    const frames: string[] = [];
-    const tries = [...instants].sort((a, b) => a - b);
-    for await (const wrapped of sink.canvasesAtTimestamps(tries)) {
-      if (!wrapped) { frames.push(frames[frames.length - 1] ?? ""); continue; }
-      const cv = wrapped.canvas as HTMLCanvasElement | OffscreenCanvas;
-      frames.push(await enJpeg(cv));
-    }
-    return frames.some(Boolean) ? { frames: frames.filter(Boolean), aspect } : null;
-  } catch { return null; }
+  const frames: string[] = [];
+  const r = await pourChaqueImage(src, instants, { hauteur }, async (cv) => {
+    frames.push(await enJpeg(cv));
+  });
+  if (!r || !frames.length) return null;
+  return { frames, aspect: r.aspect };
 }
 
-async function enJpeg(cv: HTMLCanvasElement | OffscreenCanvas): Promise<string> {
+export async function enJpeg(cv: HTMLCanvasElement | OffscreenCanvas): Promise<string> {
   if (cv instanceof HTMLCanvasElement) return cv.toDataURL("image/jpeg", 0.72);
   // OffscreenCanvas : pas de toDataURL, on passe par un blob.
   const blob = await cv.convertToBlob({ type: "image/jpeg", quality: 0.72 });

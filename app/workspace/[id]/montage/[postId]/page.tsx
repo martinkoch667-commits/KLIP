@@ -18,7 +18,7 @@ import {
   TITLE_BASE_FONT, TITLE_LINE_HEIGHT, TITLE_DEFAULT_MAX_WIDTH, titleLines,
 } from "./constants";
 import { ClipStrip, ClipWave, AudioWave, FadeRamp, type ClipStripData } from "./timeline-parts";
-import { lectureRapideDisponible, infosVideo, vignettes, picsAudio, fermerSources } from "./media-read";
+import { lectureRapideDisponible, infosVideo, dureeAudio, imagesAux, enJpeg, vignettes, picsAudio, fermerSources } from "./media-read";
 import { MontageCtx, CutPanel, TextPanel, CaptionsPanel, AudioPanel, TransitionsPanel, FilterPanel, SpeedPanel, StickerPanel, OverlayPanel, AiPanel } from "./panels";
 import { renderExport } from "./export";
 import { analyzeClipQuality, type TWord } from "./autoCut";
@@ -73,7 +73,14 @@ function releaseMediaElement(el: HTMLMediaElement | null | undefined) {
   } catch { /* élément déjà détruit */ }
 }
 
-function getVideoDuration(src: string): Promise<number> {
+async function getVideoDuration(src: string): Promise<number> {
+  // Lecture des métadonnées sans créer de lecteur média. Le chemin ci-dessous
+  // reste en repli, avec sa parade au `duration = Infinity` que Chrome renvoie
+  // souvent sur un fichier fraîchement envoyé.
+  if (lectureRapideDisponible()) {
+    const infos = await infosVideo(src);
+    if (infos && infos.dur > 0) return infos.dur;
+  }
   return new Promise((resolve) => {
     const v = document.createElement("video");
     v.preload = "metadata";
@@ -96,7 +103,11 @@ function getVideoDuration(src: string): Promise<number> {
     setTimeout(() => finish(v.duration), 4000); // garde-fou : ne jamais rester bloqué
   });
 }
-function getAudioDuration(src: string): Promise<number> {
+async function getAudioDuration(src: string): Promise<number> {
+  if (lectureRapideDisponible()) {
+    const d = await dureeAudio(src);
+    if (d) return d;
+  }
   return new Promise((resolve) => {
     const a = document.createElement("audio");
     a.preload = "metadata";
@@ -113,6 +124,12 @@ function getAudioDuration(src: string): Promise<number> {
 // Supabase Storage publiques, sans souci CORS pour toDataURL() (comme dans export.ts).
 async function grabFrame(src: string, kind: "video" | "photo", atTime = 0, maxW = 320): Promise<string> {
   if (kind === "video") {
+    // Décodage direct : un <video> par capture, sur un montage entier, c'était
+    // autant de lecteurs média créés d'un coup.
+    if (lectureRapideDisponible()) {
+      const lu = await imagesAux(src, [Math.max(0, atTime)], { largeur: maxW });
+      if (lu && lu.canvases.length) return await enJpeg(lu.canvases[0]);
+    }
     const v = document.createElement("video");
     try {
       v.crossOrigin = "anonymous"; v.muted = true; v.preload = "auto"; v.src = src;
@@ -4173,6 +4190,18 @@ export default function MontagePage() {
                 {[...overlays].sort((a, b) => (a.track ?? 0) - (b.track ?? 0)).map((o) => {
                   const hidden = hiddenLanes.has(`v${o.track ?? 0}`);
                   const isActive = time >= o.offset && time < o.offset + overlayTimelineDur(o) && !hidden;
+                  /* Le lecteur n'est monté qu'AUTOUR de sa fenêtre d'activité.
+
+                     Toutes les incrustations gardaient un <video> monté en
+                     permanence, même celles qui n'apparaissent qu'à la fin du
+                     montage : dix incrustations, dix lecteurs média vivants du
+                     début à la fin, sur les cinquante que Chrome tolère. La
+                     marge (2 s) laisse le temps de charger avant l'entrée à
+                     l'image, donc le passage reste net. */
+                  const MARGE = 2;
+                  const monte = o.kind !== "video" || (
+                    time >= o.offset - MARGE && time < o.offset + overlayTimelineDur(o) + MARGE
+                  );
                   const sel = selectedOverlayId === o.id;
                   return (
                     <div
@@ -4202,12 +4231,14 @@ export default function MontagePage() {
                           borderRadius: rayon,
                         };
                         return o.kind === "video" ? (
-                          <video
-                            ref={(el) => { if (el) overlayVideoRefs.current.set(o.id, el); else overlayVideoRefs.current.delete(o.id); }}
-                            src={o.src}
-                            playsInline muted={(o.vol ?? 1) === 0} draggable={false}
-                            style={st}
-                          />
+                          monte ? (
+                            <video
+                              ref={(el) => { if (el) overlayVideoRefs.current.set(o.id, el); else overlayVideoRefs.current.delete(o.id); }}
+                              src={o.src}
+                              playsInline muted={(o.vol ?? 1) === 0} draggable={false}
+                              style={st}
+                            />
+                          ) : null
                         ) : (
                           <img src={o.src} alt="" draggable={false} style={st} />
                         );

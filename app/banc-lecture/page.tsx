@@ -14,7 +14,8 @@
  */
 
 import React, { useCallback, useEffect, useState } from "react";
-import { lectureRapideDisponible, infosVideo, vignettes, picsAudio, fermerSources } from "../workspace/[id]/montage/[postId]/media-read";
+import { lectureRapideDisponible, infosVideo, dureeAudio, vignettes, picsAudio, fermerSources } from "../workspace/[id]/montage/[postId]/media-read";
+import { analyzeClipQuality } from "../workspace/[id]/montage/[postId]/autoCut";
 
 const SRC_VIDEO = "https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4";
 const SRC_AUDIO = "https://interactive-examples.mdn.mozilla.net/media/cc0-audio/t-rex-roar.mp3";
@@ -131,6 +132,34 @@ function BancLectureDev() {
       const i = await infosVideo(SRC_VIDEO);
       if (!i) throw new Error("lecture impossible");
       return `durée ${i.dur.toFixed(2)} s, ratio ${i.aspect.toFixed(2)}`;
+    });
+    await mesurer("métadonnées audio", "nouveau : sans lecteur média", SRC_AUDIO, async () => {
+      const d = await dureeAudio(SRC_AUDIO);
+      if (!d) throw new Error("lecture impossible");
+      return `durée ${d.toFixed(2)} s`;
+    });
+
+    // Le prémontage analyse TOUS les plans : c'est lui qui créait le plus de
+    // lecteurs média d'un coup. On vérifie qu'il rend toujours un verdict sensé.
+    const resume = (r: Awaited<ReturnType<typeof analyzeClipQuality>>) => {
+      const ok = r.samples.filter((x) => x.ok).length;
+      const pourquoi: Record<string, number> = {};
+      for (const x of r.samples) if (x.why) pourquoi[x.why] = (pourquoi[x.why] ?? 0) + 1;
+      const moy = (a: number[]) => a.length ? a.reduce((p, c) => p + c, 0) / a.length : 0;
+      return `${r.samples.length} éch., ${ok} ok, ${JSON.stringify(pourquoi)}, `
+        + `lum ${moy(r.samples.map((x) => x.lum)).toFixed(3)}, `
+        + `netteté ${moy(r.samples.map((x) => x.sharp)).toFixed(4)}, `
+        + `mvt ${moy(r.samples.map((x) => x.diff)).toFixed(4)}`;
+    };
+    await mesurer("analyse de qualité d'image", "ancien : élément <video>", SRC_VIDEO, async () =>
+      resume(await analyzeClipQuality(SRC_VIDEO, 0, 5, { step: 0.3, maxSamples: 20, legacy: true })));
+    await mesurer("analyse de qualité d'image", "nouveau : décodage direct", SRC_VIDEO, async () => {
+      const r = await analyzeClipQuality(SRC_VIDEO, 0, 5, { step: 0.3, maxSamples: 20 });
+      // Le détail des verdicts dit d'où vient un rejet : un « noir » partout
+      // voudrait dire que les images arrivent vides, donc que la lecture est
+      // cassée ; un « flou » partout peut être un jugement sur le contenu. Seule
+      // la comparaison avec l'ancien chemin, sur la MÊME source, tranche.
+      return resume(r);
     });
 
     setEnCours(false);

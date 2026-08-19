@@ -15,6 +15,63 @@
 // Un score global par échantillon décide « exploitable » ou non, puis on retient
 // la plus longue plage exploitable continue.
 
+import { pourChaqueImage } from "./media-read";
+
+/* Les images d'analyse, décodées SANS élément <video>.
+
+   Le prémontage analyse tous les plans du montage : un <video> par plan, c'est
+   un lecteur média par plan, et Chrome en refuse au delà d'une cinquantaine par
+   onglet. Sur un montage fourni, l'analyse finissait par ne plus rien pouvoir
+   charger, sans erreur visible. En prime, on repositionnait le lecteur image par
+   image en attendant un `seeked` à chaque fois, avec un garde-fou de 400 ms
+   parce que certains encodages ne le déclenchent jamais.
+
+   L'ancien chemin reste en repli, pour les navigateurs sans WebCodecs. `legacy`
+   permet de le forcer : c'est ainsi que le banc compare les deux sur la même
+   source, seul moyen de savoir si un verdict vient du contenu ou du décodage. */
+async function pourChaqueImageAnalyse(
+  src: string, times: number[], largeur: number, legacy: boolean | undefined,
+  recevoir: (cv: CanvasImageSource, w: number, h: number, index: number) => void,
+): Promise<boolean> {
+  if (!legacy) {
+    /* Résolution NATIVE, réduite ensuite par nous.
+
+       En demandant directement 160 px de large, on laissait le décodeur faire la
+       réduction — et son filtre lisse plus que `drawImage`. Or ce qu'on mesure
+       ici, c'est justement la NETTETÉ : sur la vidéo d'essai, elle tombait de
+       0,0080 à 0,0043, soit presque de moitié, pour la même image. Le verdict ne
+       changeait pas sur ce plan-là, mais il aurait changé sur un plan limite : on
+       aurait coupé pour flou des rushes parfaitement nets.
+
+       On décode donc à la taille d'origine et on réduit avec exactement la même
+       opération que l'ancien chemin, pour que le chiffre soit comparable. */
+    const r = await pourChaqueImage(src, times, {}, (cv, i) => {
+      recevoir(cv as CanvasImageSource, cv.width, cv.height, i);
+    });
+    if (r) return true;
+  }
+  const v = document.createElement("video");
+  try {
+    v.crossOrigin = "anonymous"; v.muted = true; v.preload = "auto"; v.src = src;
+    await new Promise<void>((res, rej) => { v.onloadedmetadata = () => res(); v.onerror = () => rej(new Error("load")); });
+    for (let i = 0; i < times.length; i++) {
+      await new Promise<void>((res) => {
+        let done = false;
+        const fin = () => { if (!done) { done = true; res(); } };
+        v.onseeked = fin;
+        setTimeout(fin, 400); // certains encodages ne déclenchent pas `seeked`
+        v.currentTime = Math.max(0, Math.min(times[i], (v.duration || 1) - 0.05));
+      });
+      recevoir(v, v.videoWidth || largeur, v.videoHeight || largeur, i);
+    }
+    return true;
+  } catch {
+    return false;
+  } finally {
+    try { v.removeAttribute("src"); v.load(); } catch { /* déjà libéré */ }
+  }
+}
+
 export interface QualitySample {
   t: number;      // instant dans la SOURCE (s)
   lum: number;    // 0-1, luminance moyenne
@@ -85,46 +142,32 @@ export async function analyzeClipQuality(
   // `voiced` : plages où quelqu'un parle (référentiel source). Elles sont
   // PROTÉGÉES : une image un peu floue pendant que la personne parle reste dans
   // le montage — on ne coupe jamais la parole pour un défaut d'image.
-  opts: { step?: number; maxSamples?: number; signal?: AbortSignal; voiced?: { start: number; end: number }[] } = {},
+  opts: { step?: number; maxSamples?: number; signal?: AbortSignal; voiced?: { start: number; end: number }[]; legacy?: boolean } = {},
 ): Promise<ClipQualityReport> {
   const span = Math.max(0, to - from);
   const step = opts.step ?? Math.max(0.25, Math.min(0.8, span / 40));
   const maxSamples = opts.maxSamples ?? 60;
 
-  const v = document.createElement("video");
-  v.crossOrigin = "anonymous"; v.muted = true; v.preload = "auto"; v.src = src;
-  await new Promise<void>((res, rej) => {
-    v.onloadedmetadata = () => res();
-    v.onerror = () => rej(new Error("load"));
-  });
-
   // Petite résolution : l'analyse est statistique, 160px de large suffisent.
   const W = 160;
-  const scale = Math.min(1, W / (v.videoWidth || W));
-  const cw = Math.max(8, Math.round((v.videoWidth || W) * scale));
-  const ch = Math.max(8, Math.round((v.videoHeight || W) * scale));
-  const canvas = document.createElement("canvas");
-  canvas.width = cw; canvas.height = ch;
-  const ctx = canvas.getContext("2d", { willReadFrequently: true })!;
 
   const times: number[] = [];
   for (let t = from; t < to && times.length < maxSamples; t += step) times.push(t);
   if (!times.length) times.push(from);
 
+  const canvas = document.createElement("canvas");
+  const ctx = canvas.getContext("2d", { willReadFrequently: true })!;
   const samples: QualitySample[] = [];
   let prevGray: Float32Array | null = null;
 
-  for (const t of times) {
-    if (opts.signal?.aborted) break;
-    await new Promise<void>((res) => {
-      let done = false;
-      const fin = () => { if (!done) { done = true; res(); } };
-      v.onseeked = fin;
-      // garde-fou : certains encodages ne déclenchent pas onseeked
-      setTimeout(fin, 400);
-      v.currentTime = Math.max(0, Math.min(t, (v.duration || 1) - 0.05));
-    });
-    try { ctx.drawImage(v, 0, 0, cw, ch); } catch { continue; }
+  const lu = await pourChaqueImageAnalyse(src, times, W, opts.legacy, (source, sw, sh, i) => {
+    const t = times[i];
+    if (opts.signal?.aborted) return;
+    const scale = Math.min(1, W / (sw || W));
+    const cw = Math.max(8, Math.round((sw || W) * scale));
+    const ch = Math.max(8, Math.round((sh || W) * scale));
+    if (canvas.width !== cw || canvas.height !== ch) { canvas.width = cw; canvas.height = ch; }
+    try { ctx.drawImage(source, 0, 0, cw, ch); } catch { return; }
     const img = ctx.getImageData(0, 0, cw, ch);
     const { lum, sharp, gray } = measure(img.data, cw, ch);
     const diff = prevGray ? meanAbsDiff(gray, prevGray) : 1;
@@ -140,9 +183,9 @@ export async function analyzeClipQuality(
     else if (samples.length > 0 && diff < FROZEN_MAX && !speaking) why = "frozen";
 
     samples.push({ t, lum, sharp, diff, ok: !why, why });
-  }
-
-  v.removeAttribute("src"); v.load();
+  });
+  // Source illisible : on ne coupe RIEN plutôt que de couper au hasard.
+  if (!lu || !samples.length) return { samples: [], keep: { start: from, end: to }, dropped: 0, analyzed: 0 };
 
   // Plus longue plage continue d'échantillons exploitables.
   let bestStart = -1, bestEnd = -1;
