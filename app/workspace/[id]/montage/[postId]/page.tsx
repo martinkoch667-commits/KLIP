@@ -15,6 +15,7 @@ import {
   fmt, newClipDefaults, newOverlayDefaults, clipFilterCss, overlayFilterCss, clipTimelineDur, clipAudioGainAt, overlayTimelineDur, overlayAudioGainAt, segmentCaptions, captionsFromWords, dedupeSegments,
   audioVolumeAt, kenBurnsScale, VIDEO_FORMATS, videoFormatById, EXPORT_QUALITIES,
 } from "./constants";
+import { ClipStrip, ClipWave, AudioWave, FadeRamp, type ClipStripData } from "./timeline-parts";
 import { MontageCtx, CutPanel, TextPanel, CaptionsPanel, AudioPanel, TransitionsPanel, FilterPanel, SpeedPanel, StickerPanel, OverlayPanel, AiPanel } from "./panels";
 import { renderExport } from "./export";
 import { analyzeClipQuality, type TWord } from "./autoCut";
@@ -144,7 +145,7 @@ async function grabFrame(src: string, kind: "video" | "photo", atTime = 0, maxW 
 // d'une image que l'on étire. L'ancienne version composait une bande unique de
 // 540×52 px affichée en `backgroundSize: 100% 100%` — d'où des vignettes de plus
 // en plus déformées à mesure qu'on zoomait.
-interface ClipStripData { frames: string[]; aspect: number }
+// (ClipStripData vit dans timeline-parts.tsx, avec les composants qui la consomment)
 
 /* Cache d'images par FICHIER SOURCE, et non par plan.
 
@@ -244,28 +245,9 @@ async function photoStripData(src: string): Promise<ClipStripData> {
   return { frames: [src], aspect };
 }
 
-// Tuiles d'un plan : largeur fixe = hauteur × ratio source. On en pose autant que
-// nécessaire pour couvrir la largeur du plan ; la dernière est simplement rognée
-// par l'`overflow: hidden` du plan (exactement le comportement de CapCut).
-function ClipStrip({ data, width, height, filter }: { data?: ClipStripData; width: number; height: number; filter?: string }) {
-  if (!data || !data.frames.length || width <= 0 || height <= 0) return null;
-  let tileW = Math.max(14, Math.round(height * data.aspect));
-  // Garde-fou DOM : sur un plan très long fortement zoomé, on élargit les tuiles
-  // plutôt que d'en produire des milliers (elles rognent, elles ne s'étirent pas).
-  const MAX_TILES = 220;
-  if (width / tileW > MAX_TILES) tileW = Math.ceil(width / MAX_TILES);
-  const count = Math.max(1, Math.ceil(width / tileW));
-  const last = data.frames.length - 1;
-  const tiles: React.ReactNode[] = [];
-  for (let i = 0; i < count; i++) {
-    // image la plus proche du moment représenté au CENTRE de la tuile
-    const progress = count === 1 ? 0 : Math.min(1, (i * tileW + tileW / 2) / width);
-    tiles.push(
-      <span key={i} className="a-strip-tile" style={{ width: tileW, backgroundImage: `url("${data.frames[Math.round(progress * last)]}")` }} />,
-    );
-  }
-  return <div className="a-clip-strip" style={filter ? { filter } : undefined} aria-hidden>{tiles}</div>;
-}
+// Objet figé : passé en `style` à un composant mémoïsé, un littéral recréé à
+// chaque rendu suffirait à annuler la mémoïsation.
+const FADE_ABS: React.CSSProperties = { position: "absolute", inset: 0, pointerEvents: "none" };
 
 const WAVEFORM_SAMPLES = 120;
 // Décode le fichier audio et calcule 120 pics d'amplitude normalisés (0-1) pour
@@ -375,10 +357,17 @@ const FONT_CSS: Record<string, string> = {
 export default function MontagePage() {
   const t = useTranslations('montage');
   const tc = useTranslations('montageConstants');
-  const RAIL_TOOLS = RAIL_TOOL_KEYS.map(([id, icon, key]) => [id, icon, t(key)] as [RailTool, string, string]);
-  const TOOL_TITLES: Record<RailTool, string> = Object.fromEntries(
-    Object.entries(TOOL_TITLE_KEYS).map(([id, key]) => [id, t(key)])
-  ) as Record<RailTool, string>;
+  // Ces deux tables ne dépendent que de la langue. Reconstruites à chaque rendu,
+  // elles rejouaient une vingtaine de recherches de traduction soixante fois par
+  // seconde pendant la lecture, pour un résultat identique.
+  const RAIL_TOOLS = useMemo(
+    () => RAIL_TOOL_KEYS.map(([id, icon, key]) => [id, icon, t(key)] as [RailTool, string, string]),
+    [t],
+  );
+  const TOOL_TITLES = useMemo(
+    () => Object.fromEntries(Object.entries(TOOL_TITLE_KEYS).map(([id, key]) => [id, t(key)])) as Record<RailTool, string>,
+    [t],
+  );
   const params = useParams();
   const workspaceId = params.id as string;
   const postId = params.postId as string;
@@ -558,6 +547,7 @@ export default function MontagePage() {
 
   const [time, setTime] = useState(0);
   const [playing, setPlaying] = useState(false);
+  const playingRef = useRef(playing); playingRef.current = playing;
   const [stageW, setStageW] = useState(0); // largeur px réelle de la preview → texte figé à l'échelle de l'image (WYSIWYG avec l'export)
   const [previewZoom, setPreviewZoom] = useState(1);
   // Aperçu en grand : la scène recouvre le module le temps de regarder.
@@ -845,9 +835,19 @@ export default function MontagePage() {
     if (saved) setTime(parseFloat(saved) || 0);
   }, [postId]);
 
+  /* Position de lecture retenue d'une visite à l'autre.
+
+     Cette ligne écrivait dans localStorage à CHAQUE changement de `time`, donc à
+     chaque image pendant la lecture : soixante écritures synchrones par seconde,
+     pour une information qui n'a d'intérêt qu'au moment où l'on quitte la page.
+     On n'écrit donc plus qu'à l'arrêt, et une dernière fois en quittant. */
   useEffect(() => {
+    if (playing) return;
     localStorage.setItem(`montage-time-${postId}`, String(time));
-  }, [time, postId]);
+  }, [time, postId, playing]);
+  useEffect(() => () => {
+    localStorage.setItem(`montage-time-${postId}`, String(timeRef.current));
+  }, [postId]);
 
   // ── Autosave du projet (debounced) ──────────────────────────────────────────
   // `buildProject` est aussi utilisé par l'enregistrement de sortie : les deux
@@ -985,6 +985,102 @@ export default function MontagePage() {
 
   // ── Temps cumulés des clips ─────────────────────────────────────────────────
   const clipStarts = useMemo(() => computeStarts(clips), [clips]);
+
+  /* ─── L'horloge de lecture, et pourquoi elle ne passe plus par React ───────
+
+     Le monteur est UN seul composant. Tant que l'horloge appelait setTime à
+     chaque image, React réexécutait tout le monteur soixante fois par seconde :
+     la timeline entière, le panneau de l'outil courant, la barre du haut, et la
+     construction de l'objet `ctx` avec ses soixante-dix champs. Mesuré sur un
+     banc réduit à la seule timeline de quatorze plans : 5,36 ms de React par
+     image, soit un tiers du temps machine, avant même la mise en page, la
+     peinture, le décodage vidéo et le mixage audio. C'est là que passait la
+     fluidité.
+
+     Le temps vit donc maintenant dans une référence, avancée à chaque image sans
+     rendu. React n'est prévenu que lorsque l'écran doit réellement changer :
+
+       - immédiatement quand ce qui est AFFICHÉ change (plan, sous-titre, titre,
+         sticker, incrustation), pour qu'aucune bascule n'arrive en retard ;
+       - à 30 images par seconde tant qu'une animation continue est à l'écran
+         (transition, zoom Ken Burns, sous-titre mot à mot) : c'est la cadence de
+         l'export, l'aperçu ne peut pas être plus fin que le fichier rendu ;
+       - à 10 images par seconde le reste du temps, où seul le curseur bouge.
+
+     Le curseur, lui, est repositionné à chaque image par une écriture directe
+     dans le DOM : c'est le mouvement le plus visible, il reste à 60 Hz sans
+     coûter un seul rendu. */
+  const clockRef = useRef(0);           // temps de lecture faisant autorité
+  /* `timeRef` porte le temps EXACT, à l'image près, que la lecture soit en cours
+     ou non : c'est lui que lisent la synchro image/son et les actions qui doivent
+     tomber sur l'image affichée (couper au curseur, choisir la couverture).
+     L'état React `time`, lui, a jusqu'à un dixième de seconde de retard pendant
+     la lecture, et c'est très bien : il ne sert qu'à dessiner. */
+  const timeRef = useRef(0);
+  const playheadRef = useRef<HTMLDivElement>(null);
+  // La barre de lecture sous l'aperçu bouge elle aussi en continu : elle est
+  // repositionnée par la même écriture directe, sinon elle avancerait par
+  // saccades de dix images par seconde.
+  const scrubFillRef = useRef<HTMLDivElement>(null);
+  const scrubKnobRef = useRef<HTMLDivElement>(null);
+  const totalRef = useRef(0);
+  /* Les sous-titres ne s'animent que si le style choisi surligne mot à mot. Un
+     style « sans animation » n'a rien à rafraîchir entre deux sous-titres, et il
+     serait absurde de tenir 30 images par seconde pour un texte immobile. Style
+     délié : chaque sous-titre a le sien, on reste prudent. */
+  const sousTitresAnimes = !linkedSubs || effectiveSubStyle(subStyleId, subCustom).anim !== "none";
+  const sceneRef = useRef({ clipStarts, captions, titles, stickers, overlays, pps, sousTitresAnimes });
+  sceneRef.current = { clipStarts, captions, titles, stickers, overlays, pps, sousTitresAnimes };
+
+  /** Ce qui est à l'écran à l'instant `t`, résumé en une chaîne. Elle change
+   *  exactement quand une bascule doit être vue, et pas avant. */
+  function signatureScene(t: number): string {
+    const sc = sceneRef.current;
+    let sig = "c";
+    for (let i = 0; i < sc.clipStarts.length; i++) {
+      if (t >= sc.clipStarts[i].start && t < sc.clipStarts[i].end) { sig += i; break; }
+    }
+    for (let i = 0; i < sc.captions.length; i++) {
+      if (t >= sc.captions[i].start && t <= sc.captions[i].end) { sig += "s" + i; break; }
+    }
+    for (let i = 0; i < sc.titles.length; i++) if (t >= sc.titles[i].start && t <= sc.titles[i].end) sig += "t" + i;
+    for (let i = 0; i < sc.stickers.length; i++) if (t >= sc.stickers[i].start && t <= sc.stickers[i].end) sig += "k" + i;
+    for (let i = 0; i < sc.overlays.length; i++) {
+      const o = sc.overlays[i];
+      if (t >= o.offset && t < o.offset + overlayTimelineDur(o)) sig += "o" + i;
+    }
+    return sig;
+  }
+
+  /** Une animation continue est-elle à l'écran ? Si oui l'aperçu doit suivre à la
+   *  cadence de l'export ; sinon seul le curseur bouge. */
+  function animationEnCours(t: number): boolean {
+    const sc = sceneRef.current;
+    for (const c of sc.clipStarts) {
+      if (t < c.start || t >= c.end) continue;
+      if (c.kind === "photo" && c.kenBurns) return true;
+      if (c.transitionIn && c.transitionIn !== "cut" && t - c.start < (c.transitionDur || 0)) return true;
+      break;
+    }
+    if (sc.sousTitresAnimes) {
+      for (const cp of sc.captions) if (t >= cp.start && t <= cp.end) return true; // surlignage mot à mot
+    }
+    for (const ti of sc.titles) {
+      if (t < ti.start || t > ti.end) continue;
+      const duree = ti.anim === "type" ? ti.text.length / 16 + 0.2 : 0.6;
+      if (t - ti.start < duree) return true;
+    }
+    return false;
+  }
+
+  /** Repositionne le curseur sans passer par React. 92 px = largeur des étiquettes. */
+  const poserCurseur = useCallback((t: number) => {
+    if (playheadRef.current) playheadRef.current.style.left = `${92 + t * sceneRef.current.pps}px`;
+    const pct = totalRef.current ? `${(t / totalRef.current) * 100}%` : "0%";
+    if (scrubFillRef.current) scrubFillRef.current.style.width = pct;
+    if (scrubKnobRef.current) scrubKnobRef.current.style.left = pct;
+  }, []);
+
   const clipsEnd = clipStarts.length ? clipStarts[clipStarts.length - 1].end : 0;
   // Fin réelle du projet = dernière frame de TOUT ce qui est posé sur la timeline
   // (plans, incrustations vidéo/photo, sons, textes, sous-titres) — pas seulement la
@@ -1038,8 +1134,28 @@ export default function MontagePage() {
   const maxAudioTrack = useMemo(() => audioTracks.reduce((m, a) => Math.max(m, a.track ?? 0), 0), [audioTracks]);
   const audioTrackCount = (audioTracks.length ? maxAudioTrack + 1 : 0) + extraAudioTracks;
 
+  totalRef.current = total;
+
+  // Hors lecture (déplacement du curseur, zoom, position restaurée à l'ouverture),
+  // c'est l'état React qui fait foi : on y recale l'horloge et le curseur.
+  useEffect(() => {
+    if (playingRef.current) return;
+    clockRef.current = time;
+    timeRef.current = time;
+    poserCurseur(time);
+    // `loading` : le curseur n'existe pas encore tant que le monteur charge, et
+    // sans ce déclencheur il resterait à zéro une fois la timeline montée.
+    // `total` : la barre de lecture est en pourcentage, elle bouge quand la durée
+    // du montage change (import, coupe) même si le curseur, lui, n'a pas bougé.
+  }, [time, pps, total, loading, poserCurseur]);
+
   const seek = useCallback((t: number) => {
     const clamped = Math.max(0, Math.min(total, t));
+    // L'horloge de lecture est la référence : sans ce recalage, un déplacement du
+    // curseur pendant la lecture serait aussitôt écrasé par l'image suivante.
+    clockRef.current = clamped;
+    poserCurseur(clamped);
+    timeRef.current = clamped;
     setTime(clamped);
     const c = clipStarts.find((c) => clamped >= c.start && clamped < c.end); // null dans un trou (écran noir)
     if (c && c.kind === "video" && videoRef.current && loadedSrcRef.current === c.src) {
@@ -1146,6 +1262,8 @@ export default function MontagePage() {
     if (!playing) return;
     let raf = 0; let last = performance.now();
     let stalledSince = 0; // depuis quand on attend la vidéo (ms)
+    let derniereSignature = signatureScene(clockRef.current);
+    let dernierRendu = 0;   // horodatage du dernier setTime consenti
     const tick = (now: number) => {
       const dt = (now - last) / 1000; last = now;
       // ── Anti-décalage au démarrage / au changement de plan ──────────────────
@@ -1165,19 +1283,39 @@ export default function MontagePage() {
       } else {
         stalledSince = 0;
       }
-      setTime((t) => { const n = t + dt; if (total > 0 && n >= total) { setPlaying(false); return 0; } return n; });
+      const n = clockRef.current + dt;
+      if (total > 0 && n >= total) {
+        clockRef.current = 0; timeRef.current = 0;
+        poserCurseur(0); setPlaying(false); setTime(0);
+        return;
+      }
+      clockRef.current = n;
+      timeRef.current = n;          // la synchro image/son lit ici, à 60 Hz
+      poserCurseur(n);              // le curseur bouge sans rendu React
+
+      // React n'est réveillé que si l'écran doit changer, ou à la cadence utile.
+      const sig = signatureScene(n);
+      const intervalle = animationEnCours(n) ? 1000 / 30 : 1000 / 10;
+      if (sig !== derniereSignature || now - dernierRendu >= intervalle) {
+        derniereSignature = sig;
+        dernierRendu = now;
+        setTime(n);
+      }
       raf = requestAnimationFrame(tick);
     };
     raf = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(raf);
+    return () => {
+      cancelAnimationFrame(raf);
+      // À l'arrêt, l'état React rattrape l'horloge : sinon le curseur reculerait
+      // de la fraction de seconde non encore rendue.
+      setTime(clockRef.current);
+    };
   }, [playing, total]);
 
   // ── Lecture live des pistes audio (musique/voix off) ────────────────────────
   // Un <audio> par piste, joué/mis en pause/mixé (fondu) en direct pendant la
   // lecture — jusqu'ici ces pistes n'étaient audibles qu'à l'export.
   const audioElsRef = useRef<Record<string, HTMLAudioElement>>({});
-  const timeRef = useRef(time);
-  useEffect(() => { timeRef.current = time; }, [time]);
   const audioTracksRef = useRef(audioTracks);
   useEffect(() => { audioTracksRef.current = audioTracks; }, [audioTracks]);
 
@@ -1253,6 +1391,7 @@ export default function MontagePage() {
           el.pause();
         }
       }
+      syncOverlaysRef.current(t);
       raf = requestAnimationFrame(tick);
     };
     raf = requestAnimationFrame(tick);
@@ -1536,6 +1675,9 @@ export default function MontagePage() {
   // Couper en deux au curseur — fonctionne sur N'IMPORTE QUEL élément sélectionné :
   // plan principal, incrustation (Vidéo 2, 3…), texte, ou piste audio.
   function splitAtPlayhead() {
+    // Le temps exact, pas celui du dernier rendu : couper au curseur pendant la
+    // lecture doit couper là où l'on voit le curseur.
+    const time = timeRef.current;
     // 1) Incrustation sélectionnée
     if (selectedOverlayId) {
       const o = overlays.find((x) => x.id === selectedOverlayId);
@@ -2080,7 +2222,7 @@ export default function MontagePage() {
     if (settingCover || !c) return;
     setSettingCover(true);
     try {
-      const at = c.kind === "video" ? c.trimStart + (time - c.start) * c.speed : 0;
+      const at = c.kind === "video" ? c.trimStart + (timeRef.current - c.start) * c.speed : 0;
       const dataUrl = await grabFrame(c.src, c.kind, at, 720);
       const blob = await (await fetch(dataUrl)).blob();
       const path = `${workspaceId}/cover-${postId}-${Date.now()}.jpg`;
@@ -2724,20 +2866,29 @@ export default function MontagePage() {
     if (o) seek(o.offset + 0.05);
   }
 
-  // Piste d'incrustation : garde les <video> superposées synchronisées avec le playhead.
-  useEffect(() => {
+  /* Piste d'incrustation : garde les <video> superposées synchronisées avec le
+     playhead.
+
+     Cette synchronisation ne passe plus par un effet dépendant de `time`. Un tel
+     effet se rejouait à CHAQUE image de lecture, et rien qu'y entrer coûtait un
+     `overlays.find` par incrustation. C'est désormais une simple fonction,
+     appelée par la boucle de lecture (qui tourne de toute façon) et, à l'arrêt,
+     quand le curseur bouge. */
+  const syncOverlaysRef = useRef<(t: number) => void>(() => {});
+  syncOverlaysRef.current = (t: number) => {
     overlayVideoRefs.current.forEach((v, id) => {
       const o = overlays.find((x) => x.id === id);
       if (!o || o.kind !== "video") return;
-      const isActive = time >= o.offset && time < o.offset + overlayTimelineDur(o);
+      const isActive = t >= o.offset && t < o.offset + overlayTimelineDur(o);
       if (!isActive) { if (!v.paused) v.pause(); return; }
-      const g = overlayAudioGainAt(o, time - o.offset);
-      v.volume = mutedLanes.has(`v${o.track ?? 0}`) ? 0 : (isFinite(g) ? Math.max(0, Math.min(1, g)) : 0);
-      const localTime = o.trimStart + (time - o.offset);
+      const g = overlayAudioGainAt(o, t - o.offset);
+      v.volume = mutedLanesRef.current.has(`v${o.track ?? 0}`) ? 0 : (isFinite(g) ? Math.max(0, Math.min(1, g)) : 0);
+      const localTime = o.trimStart + (t - o.offset);
       if (Math.abs(v.currentTime - localTime) > 0.4) v.currentTime = Math.max(0, localTime);
-      if (playing) v.play().catch(() => {}); else if (!v.paused) v.pause();
+      if (playingRef.current) v.play().catch(() => {}); else if (!v.paused) v.pause();
     });
-  }, [overlays, time, playing, mutedLanes]);
+  };
+  useEffect(() => { if (!playing) syncOverlaysRef.current(time); }, [time, playing, overlays, mutedLanes]);
 
   // ── Overlays de scène (drag titres/stickers/sous-titres) ────────────────────
   function onOverlayPointerDown(e: React.PointerEvent, type: "title" | "sticker" | "caption" | "overlay", id: string) {
@@ -2976,8 +3127,14 @@ export default function MontagePage() {
     if (selectedClipId) duplicateClip(selectedClipId);
   }
   const FRAME = 1 / 30;
-  useEffect(() => {
-    function onKey(e: KeyboardEvent) {
+  /* Raccourcis clavier.
+
+     L'écouteur était (dés)inscrit à chaque changement de sa liste de dépendances,
+     `time` compris : pendant la lecture, cela faisait un removeEventListener et un
+     addEventListener SOIXANTE FOIS PAR SECONDE, pour reposer exactement le même
+     raccourci. On garde donc le gestionnaire à jour dans une référence et on
+     n'inscrit qu'un seul écouteur, une seule fois. */
+  function onKey(e: KeyboardEvent) {
       const el = e.target as HTMLElement;
       const typing = el && (el.tagName === "INPUT" || el.tagName === "TEXTAREA" || el.isContentEditable);
       if (typing) return;
@@ -3007,11 +3164,14 @@ export default function MontagePage() {
       if (e.key === ".") { e.preventDefault(); seek(time + FRAME); return; }
       if (e.key === "ArrowLeft") { e.preventDefault(); seek(time - (e.shiftKey ? 1 : 0.1)); return; }
       if (e.key === "ArrowRight") { e.preventDefault(); seek(time + (e.shiftKey ? 1 : 0.1)); return; }
-    }
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [undo, redo, time, total, clipStarts, selectedClipId, selectedOverlayId, selectedTitleId, selectedStickerId, playing, selectedClip, overlays, clips]);
+  }
+  const onKeyRef = useRef(onKey);
+  onKeyRef.current = onKey; // une affectation par rendu, au lieu de deux appels au DOM
+  useEffect(() => {
+    const h = (e: KeyboardEvent) => onKeyRef.current(e);
+    window.addEventListener("keydown", h);
+    return () => window.removeEventListener("keydown", h);
+  }, []);
 
   // ── Trim (poignées) & scrub sur la règle ────────────────────────────────────
   function startTrim(e: React.PointerEvent, c: (typeof clipStarts)[number], edge: "start" | "end") {
@@ -3965,8 +4125,9 @@ export default function MontagePage() {
             <button className="mz-play" onClick={togglePlay} disabled={!clips.length}><VIcon name={playing ? "pause" : "play"} size={19} /></button>
             <span className="mz-time">{fmt(time)}</span>
             <div className="mz-scrub" ref={scrubRef} onClick={onScrub}>
-              <div className="mz-scrub-fill" style={{ width: total ? (time / total) * 100 + "%" : "0%" }} />
-              <div className="mz-scrub-knob" style={{ left: total ? (time / total) * 100 + "%" : "0%" }} />
+              {/* Position posée par `poserCurseur`, comme le curseur de la timeline. */}
+              <div className="mz-scrub-fill" ref={scrubFillRef} />
+              <div className="mz-scrub-knob" ref={scrubKnobRef} />
             </div>
             <span className="mz-time" style={{ color: "var(--ink-3)" }}>{fmt(total)}</span>
           </div>
@@ -4069,24 +4230,15 @@ export default function MontagePage() {
                       <ClipStrip data={strips[c.id]} width={c.dur * pps} height={blockH("video")} filter={clipFilterCss(c)} />
                       {/* Le son fait UN avec la vidéo : spectre audio intégré en bas du plan (façon CapCut). */}
                       {c.kind === "video" && (c.vol ?? 1) > 0 && clipWaves[c.src] && (
-                        <div className="a-clip-wave">
-                          <svg width="100%" height="100%" preserveAspectRatio="none">
-                            {clipWaves[c.src].map((p, wi) => { const arr = clipWaves[c.src]; const x = (wi / arr.length) * 100; const h = Math.max(10, p * 100); return <rect key={wi} x={`${x}%`} y={`${(100 - h) / 2}%`} width={`${100 / arr.length}%`} height={`${h}%`} fill="rgba(255,255,255,.82)" />; })}
-                          </svg>
-                        </div>
+                        <ClipWave peaks={clipWaves[c.src]} />
                       )}
                       {/* Rampe de fondu du son, dessinée sur le plan (mêmes repères que l'audio). */}
-                      {c.kind === "video" && (c.vol ?? 1) > 0 && ((c.audioFadeIn ?? 0) > 0 || (c.audioFadeOut ?? 0) > 0) && (() => {
-                        const w = c.dur * pps, H = 30;
-                        const fi = Math.max(0, Math.min(c.dur, c.audioFadeIn ?? 0)) * pps;
-                        const fo = Math.max(0, Math.min(c.dur, c.audioFadeOut ?? 0)) * pps;
-                        return (
-                          <svg className="a-clip-fade" viewBox={`0 0 ${Math.max(1, w)} ${H}`} preserveAspectRatio="none">
-                            {fi > 0 && <><polygon points={`0,${H} ${fi},0 ${fi},${H}`} fill="rgba(0,0,0,.4)" /><line x1="0" y1={H} x2={fi} y2="0" stroke="#fff" strokeWidth="1.5" vectorEffect="non-scaling-stroke" opacity=".95" /></>}
-                            {fo > 0 && <><polygon points={`${w},${H} ${w - fo},0 ${w - fo},${H}`} fill="rgba(0,0,0,.4)" /><line x1={w} y1={H} x2={w - fo} y2="0" stroke="#fff" strokeWidth="1.5" vectorEffect="non-scaling-stroke" opacity=".95" /></>}
-                          </svg>
-                        );
-                      })()}
+                      {c.kind === "video" && (c.vol ?? 1) > 0 && (
+                        <FadeRamp className="a-clip-fade" w={c.dur * pps}
+                          fi={Math.max(0, Math.min(c.dur, c.audioFadeIn ?? 0)) * pps}
+                          fo={Math.max(0, Math.min(c.dur, c.audioFadeOut ?? 0)) * pps}
+                          dim="rgba(0,0,0,.4)" />
+                      )}
                       <span className="a-clip-badge"><VIcon name={c.kind === "photo" ? "image" : "video"} size={10} /></span>
                       <span className="a-clip-dur">{c.dur.toFixed(1)}s</span>
                       <span className="a-clip-lbl">{c.name}</span>
@@ -4223,28 +4375,15 @@ export default function MontagePage() {
                     <div key={a.id} data-selid={a.id} className="a-wave-bar" style={{ left: a.offset * pps, width: a.dur * pps, top: 2, height: blockH(`a${a.track ?? 0}`), cursor: "grab", touchAction: "none", boxShadow: selectedAudioId === a.id || multiSel.has(a.id) ? "inset 0 0 0 2px var(--acid)" : undefined }} title={a.name}
                       onPointerDown={(e) => onAudioBarDown(e, a)} onPointerMove={onAudioBarMove} onPointerUp={onAudioBarUp}
                       onContextMenu={(e) => { e.preventDefault(); setSelectedAudioId(a.id); setTool("audio"); setClipMenu({ x: e.clientX, y: e.clientY, id: a.id, kind: "audio" }); }}>
-                      {a.waveform && a.waveform.length > 0 && (
-                        <svg width="100%" height="100%" preserveAspectRatio="none" style={{ position: "absolute", inset: 0, opacity: 0.55 }}>
-                          {a.waveform.map((p, i) => {
-                            const x = (i / a.waveform!.length) * 100;
-                            const h = Math.max(6, p * 100);
-                            return <rect key={i} x={`${x}%`} y={`${(100 - h) / 2}%`} width={`${100 / a.waveform!.length}%`} height={`${h}%`} fill="#fff" />;
-                          })}
-                        </svg>
-                      )}
+                      {a.waveform && a.waveform.length > 0 && <AudioWave peaks={a.waveform} />}
                       <span style={{ position: "absolute", left: 6, top: 4, fontSize: 9.5, fontWeight: 700, color: "#fff" }}>{a.kind === "voiceover" ? "🎙" : "🎵"} {a.name}</span>
                       {(() => {
-                        const w = a.dur * pps, H = 30;
+                        const w = a.dur * pps;
                         const fi = Math.max(0, Math.min(a.dur, a.fadeIn ?? 0)) * pps;
                         const fo = Math.max(0, Math.min(a.dur, a.fadeOut ?? 0)) * pps;
                         return (
                           <>
-                            <svg width="100%" height="100%" viewBox={`0 0 ${Math.max(1, w)} ${H}`} preserveAspectRatio="none" style={{ position: "absolute", inset: 0, pointerEvents: "none" }}>
-                              {fi > 0 && <polygon points={`0,${H} ${fi},0 ${fi},${H}`} fill="rgba(0,0,0,.34)" />}
-                              {fo > 0 && <polygon points={`${w},${H} ${w - fo},0 ${w - fo},${H}`} fill="rgba(0,0,0,.34)" />}
-                              {fi > 0 && <line x1="0" y1={H} x2={fi} y2="0" stroke="#fff" strokeWidth="1.5" vectorEffect="non-scaling-stroke" opacity=".95" />}
-                              {fo > 0 && <line x1={w} y1={H} x2={w - fo} y2="0" stroke="#fff" strokeWidth="1.5" vectorEffect="non-scaling-stroke" opacity=".95" />}
-                            </svg>
+                            <FadeRamp w={w} fi={fi} fo={fo} dim="rgba(0,0,0,.34)" style={FADE_ABS} />
                             <span className="a-fade-dot" style={{ left: Math.max(0, fi) - 5 }} title={t('fadeIn')}
                               onPointerDown={(e) => startFadeDrag(e, a, "fadeIn")} onPointerMove={onFadeDragMove} onPointerUp={onFadeDragUp} />
                             <span className="a-fade-dot" style={{ left: Math.max(0, w - fo) - 5 }} title={t('fadeOut')}
@@ -4294,7 +4433,11 @@ export default function MontagePage() {
                 ))}
               </div>
             </div>
-            <div className="a-playhead" style={{ left: 92 + time * pps }} />
+            {/* Position posée par `poserCurseur` (écriture DOM directe) : pendant la
+                lecture React ne touche plus à ce style, sinon chaque rendu le
+                ramènerait à la valeur du dernier rendu et le curseur sauterait
+                en arrière dix fois par seconde. */}
+            <div className="a-playhead" ref={playheadRef} />
           </div>
         </div>
       </div>
