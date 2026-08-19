@@ -12,6 +12,26 @@ import Sidebar from "@/components/Sidebar";
 import NotificationBell from "@/components/NotificationBell";
 import MediaThumb, { isVideoUrl, pickThumbSource } from "@/components/MediaThumb";
 
+/** Une image de la vidéo, en dataURL, pour que le modèle voie de quoi il parle.
+    Sans elle, la légende d'une vidéo s'écrirait à l'aveugle, sur le seul brief. */
+async function grabVideoFrame(src: string, atTime = 1, maxW = 640): Promise<string> {
+  const v = document.createElement("video");
+  try {
+    v.crossOrigin = "anonymous"; v.muted = true; v.preload = "auto"; v.src = src;
+    await new Promise<void>((res, rej) => { v.onloadedmetadata = () => res(); v.onerror = () => rej(new Error("load")); });
+    await new Promise<void>((res) => { v.onseeked = () => res(); v.currentTime = Math.max(0, Math.min(atTime, (v.duration || 1) - 0.05)); });
+    const scale = Math.min(1, maxW / (v.videoWidth || maxW));
+    const c = document.createElement("canvas");
+    c.width = Math.max(1, Math.round((v.videoWidth || maxW) * scale));
+    c.height = Math.max(1, Math.round((v.videoHeight || maxW) * scale));
+    c.getContext("2d")!.drawImage(v, 0, 0, c.width, c.height);
+    return c.toDataURL("image/jpeg", 0.82);
+  } finally {
+    // Sans libération, chaque tentative laisse une vidéo entière en mémoire.
+    v.removeAttribute("src"); v.load();
+  }
+}
+
 // ─── Sélecteur de musique (recherche catalogue réel + extrait audio) ──────────
 type Song = { id: string; title: string; artist: string; artwork: string; preview: string };
 
@@ -542,6 +562,53 @@ function PlanningContent() {
   // base (comme dans le montage) et doit se voir sans attendre l'enregistrement
   // du reste du panneau.
   const [panelThumb, setPanelThumb] = useState<string | null>(null);
+  const [writing, setWriting] = useState(false);
+
+  /* Rédaction de la légende, ici et pas seulement dans l'éditeur.
+
+     Elle se faisait à l'étape d'avant, au moment de créer le visuel. Sauf qu'on
+     écrit rarement la légende quand on dessine : on l'écrit quand on décide de
+     publier, c'est à dire ici. Sans ça il fallait rouvrir l'éditeur juste pour
+     une phrase. */
+  async function writeCaption() {
+    const post = selectedPost;
+    if (!post || writing) return;
+    setWriting(true);
+    try {
+      const isVid = isVideoUrl(post.photo_url);
+      // Le modèle a besoin de VOIR le post. Pour une vidéo, la miniature si elle
+      // existe, sinon une image prise à une seconde de lecture.
+      let photoUrl: string | undefined;
+      const frames: string[] = [];
+      if (isVid) {
+        if (post.thumbnail_url) photoUrl = post.thumbnail_url;
+        else {
+          const shot = await grabVideoFrame(post.photo_url, 1).catch(() => null);
+          if (shot) frames.push(shot);
+        }
+      } else {
+        photoUrl = previewMediaOf(post) ?? undefined;
+      }
+
+      const res = await fetch("/api/generate-description", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          brief: post.brief || post.texte_visuel || t('captionFallbackBrief'),
+          workspaceId: id,
+          ...(photoUrl ? { photoUrl } : {}),
+          ...(frames.length ? { frames } : {}),
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data?.description) { alert(data?.error || t('captionError')); return; }
+      setPanelDesc(data.description);
+    } catch {
+      alert(t('captionError'));
+    } finally {
+      setWriting(false);
+    }
+  }
   const [draggedId,    setDraggedId]    = useState<string | null>(null);
   const [dragOverDay,  setDragOverDay]  = useState<string | null>(null);
   const [dragOverHour, setDragOverHour] = useState<number | null>(null);
@@ -1338,7 +1405,16 @@ function PlanningContent() {
             )}
 
             <div>
-              <label className="label" style={{ display: "block", marginBottom: 6 }}>{t('igDescription')}</label>
+              <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}>
+                <label className="label" style={{ display: "block", margin: 0 }}>{t('igDescription')}</label>
+                <button onClick={writeCaption} disabled={writing} className="btn btn-sm btn-ghost"
+                  style={{ marginLeft: "auto", height: 26, fontSize: 11.5, gap: 5 }}>
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M9.5 3l1.6 4.9L16 9.5l-4.9 1.6L9.5 16l-1.6-4.9L3 9.5l4.9-1.6z" /><path d="M18 14l.8 2.5L21 17l-2.2.8L18 20l-.8-2.2L15 17l2.2-.5z" />
+                  </svg>
+                  {writing ? t('captionWriting') : panelDesc.trim() ? t('captionRedo') : t('captionWrite')}
+                </button>
+              </div>
               <textarea value={panelDesc} onChange={e => setPanelDesc(e.target.value)} rows={4} className="input" style={{ resize: "none", fontSize: 12.5, color: "var(--ink-2)" }} />
             </div>
 

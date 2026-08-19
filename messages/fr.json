@@ -647,7 +647,12 @@
     "stPublished": "Publié",
     "stGenerated": "Brouillon",
     "errLinkGen": "Erreur lors de la génération du lien",
-    "errNetwork": "Erreur réseau"
+    "errNetwork": "Erreur réseau",
+    "captionWrite": "Rédiger avec l'IA",
+    "captionRedo": "Réécrire",
+    "captionWriting": "Rédaction…",
+    "captionError": "La légende n'a pas pu être écrite. Réessayez.",
+    "captionFallbackBrief": "Publication Instagram"
   },
   "editor": {
     "background": "Fond",

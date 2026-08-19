@@ -647,7 +647,12 @@
     "stPublished": "Published",
     "stGenerated": "Draft",
     "errLinkGen": "Error generating the link",
-    "errNetwork": "Network error"
+    "errNetwork": "Network error",
+    "captionWrite": "Write with AI",
+    "captionRedo": "Rewrite",
+    "captionWriting": "Writing…",
+    "captionError": "The caption could not be written. Try again.",
+    "captionFallbackBrief": "Instagram post"
   },
   "editor": {
     "background": "Background",

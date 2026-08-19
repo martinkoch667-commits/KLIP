@@ -647,7 +647,12 @@
     "stPublished": "Pubblicato",
     "stGenerated": "Bozza",
     "errLinkGen": "Errore durante la generazione del link",
-    "errNetwork": "Errore di rete"
+    "errNetwork": "Errore di rete",
+    "captionWrite": "Scrivi con l'IA",
+    "captionRedo": "Riscrivi",
+    "captionWriting": "Scrittura…",
+    "captionError": "Non è stato possibile scrivere la didascalia. Riprova.",
+    "captionFallbackBrief": "Post Instagram"
   },
   "editor": {
     "background": "Sfondo",

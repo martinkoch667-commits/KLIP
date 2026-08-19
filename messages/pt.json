@@ -647,7 +647,12 @@
     "stPublished": "Publicado",
     "stGenerated": "Rascunho",
     "errLinkGen": "Erro ao gerar o link",
-    "errNetwork": "Erro de rede"
+    "errNetwork": "Erro de rede",
+    "captionWrite": "Escrever com IA",
+    "captionRedo": "Reescrever",
+    "captionWriting": "A escrever…",
+    "captionError": "Não foi possível escrever a legenda. Tente novamente.",
+    "captionFallbackBrief": "Publicação de Instagram"
   },
   "editor": {
     "background": "Fundo",

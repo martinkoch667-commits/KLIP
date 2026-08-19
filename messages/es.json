@@ -647,7 +647,12 @@
     "stPublished": "Publicado",
     "stGenerated": "Borrador",
     "errLinkGen": "Error al generar el enlace",
-    "errNetwork": "Error de red"
+    "errNetwork": "Error de red",
+    "captionWrite": "Redactar con IA",
+    "captionRedo": "Reescribir",
+    "captionWriting": "Redactando…",
+    "captionError": "No se pudo redactar el pie de foto. Inténtalo de nuevo.",
+    "captionFallbackBrief": "Publicación de Instagram"
   },
   "editor": {
     "background": "Fondo",

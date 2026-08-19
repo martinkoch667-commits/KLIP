@@ -57,11 +57,18 @@ export function MediaPreview({
   raw,
   poster,
   style,
+  controls,
 }: {
   raw?: string | null;
-  /** Image d'attente — évite le rectangle noir avant la première lecture. */
+  /** Image d'attente : évite le rectangle noir avant la première lecture. */
   poster?: string | null;
   style?: React.CSSProperties;
+  /** Commandes natives (lecture, pause, barre de progression, son).
+      À réserver aux grands aperçus : sur une vignette elles écrasent l'image.
+      Sans elles, une fois la lecture lancée il n'y a plus rien à cliquer pour
+      revenir en arrière ou couper le son, et on ne peut pas vraiment regarder
+      la vidéo qu'on s'apprête à publier. */
+  controls?: boolean;
 }) {
   const videoRef = React.useRef<HTMLVideoElement>(null);
   const [playing, setPlaying] = React.useState(false);
@@ -99,7 +106,8 @@ export function MediaPreview({
         poster={poster ? thumbUrl(poster, 640) : undefined}
         playsInline
         preload="metadata"
-        onClick={toggle}
+        controls={controls}
+        onClick={controls ? undefined : toggle}
         onPlay={() => setPlaying(true)}
         onPause={() => setPlaying(false)}
         onEnded={() => setPlaying(false)}
