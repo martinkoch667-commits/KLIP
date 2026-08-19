@@ -1324,8 +1324,8 @@ function Pricing({ prelaunch = false, seatsLeft = null }: { prelaunch?: boolean;
   const seatsOpen = seatsLeft === null || seatsLeft > 0;
   const launched = launchApplies(period) && seatsOpen;
   const tiers = [
-    { name: PLANS.solo.label, plan: 'studio' as const, monthly: PLANS.solo.priceMonthly, yearly: PLANS.solo.priceYearly, tag: tp('studioTag'), clients: tp('studioClients'), feats: [tp('studioF1'), tp('studioF2'), tp('studioF3'), tp('studioF4'), tp('studioF5'), tp('studioF6')].filter(Boolean), pop: false },
-    { name: PLANS.agency.label, plan: 'agence' as const, monthly: PLANS.agency.priceMonthly, yearly: PLANS.agency.priceYearly, tag: tp('agencyTag'), clients: tp('agencyClients'), feats: [tp('agencyF1'), tp('agencyF2'), tp('agencyF3'), tp('agencyF4'), tp('agencyF5'), tp('agencyF6')].filter(Boolean), pop: true },
+    { name: PLANS.solo.label, plan: 'studio' as const, monthly: PLANS.solo.priceMonthly, yearly: PLANS.solo.priceYearly, tag: tp('studioTag'), clients: tp('studioClients'), feats: [1,2,3,4,5,6,7,8].map(n => tp(`studioF${n}`)).filter(Boolean), pop: false },
+    { name: PLANS.agency.label, plan: 'agence' as const, monthly: PLANS.agency.priceMonthly, yearly: PLANS.agency.priceYearly, tag: tp('agencyTag'), clients: tp('agencyClients'), feats: [1,2,3,4,5,6,7,8].map(n => tp(`agencyF${n}`)).filter(Boolean), pop: true },
   ];
   async function onChoose(plan: 'studio' | 'agence') { setBusy(plan); await startCheckout(plan, period); setBusy(null); }
 

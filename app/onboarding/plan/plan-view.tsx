@@ -60,8 +60,8 @@ export default function PlanView({ seatsLeft }: { seatsLeft: number | null }) {
 
   // Les entrées vides sont là pour garder les six clés alignées entre les
   // deux offres, elles ne s'affichent pas.
-  const STUDIO_FEATURES = [t('studioF1'), t('studioF2'), t('studioF3'), t('studioF4'), t('studioF5'), t('studioF6')].filter(Boolean);
-  const AGENCY_FEATURES = [t('agencyF1'), t('agencyF2'), t('agencyF3'), t('agencyF4'), t('agencyF5'), t('agencyF6')].filter(Boolean);
+  const STUDIO_FEATURES = [1, 2, 3, 4, 5, 6, 7, 8].map(n => t(`studioF${n}`)).filter(Boolean);
+  const AGENCY_FEATURES = [1, 2, 3, 4, 5, 6, 7, 8].map(n => t(`agencyF${n}`)).filter(Boolean);
 
   // Pré-sélection de l'offre choisie sur la landing (?plan transmis via register)
   useEffect(() => {

@@ -232,17 +232,21 @@
       "studioF5": "Publicación en Instagram y Facebook",
       "agencyTag": "Agencias y estudios de comunicación",
       "agencyClients": "Hasta 12 clientes",
-      "agencyF1": "Todo Studio, y además:",
-      "agencyF2": "Hasta 5 miembros de equipo",
-      "agencyF3": "Roles Manager y Creativo",
-      "agencyF4": "Creación por lotes",
-      "agencyF5": "",
+      "agencyF1": "Hasta 5 miembros de equipo",
+      "agencyF2": "Roles Manager y Creativo",
+      "agencyF3": "Creación por lotes",
+      "agencyF4": "Editor visual completo",
+      "agencyF5": "Descripciones con IA ilimitadas",
       "montageFeat": "Edición de vídeo integrada",
       "launchBadge": "Oferta lanzamiento · −{percent} %",
       "launchNote": "en vez de {price}€ el 1.er mes · {seats} primeras plazas",
       "launchNoteYear": "{firstYear}€ cobrados el 1.er año, luego {full}€/año · {seats} primeras plazas",
       "studioF6": "1 usuario",
-      "agencyF6": ""
+      "agencyF6": "Calendario editorial",
+      "studioF7": "",
+      "agencyF7": "Flujo de validación del cliente",
+      "studioF8": "",
+      "agencyF8": "Publicación en Instagram y Facebook"
     },
     "faq": {
       "title1": "Las preguntas ",
@@ -1127,8 +1131,8 @@
     "agencyF1": "12 clientes incluidos",
     "agencyF2": "5 miembros incluidos",
     "agencyF3": "Roles Manager / Creativo",
-    "agencyF4": "Todo lo que incluye Studio",
-    "agencyF5": "",
+    "agencyF4": "Creación por lotes",
+    "agencyF5": "Posts ilimitados",
     "perMonth": "/ mes",
     "chooseStudio": "Elegir Studio",
     "chooseAgency": "Elegir Agencia",
@@ -1143,7 +1147,11 @@
     "titleAccent": "cuenta?",
     "annualNote": "o {price}€/mes en anual · sin compromiso",
     "studioF6": "Flujo de validación",
-    "agencyF6": ""
+    "agencyF6": "IA incluida",
+    "studioF7": "",
+    "agencyF7": "Publicación en Instagram y Facebook",
+    "studioF8": "",
+    "agencyF8": "Flujo de validación"
   },
   "workspaceSettings": {
     "back": "Atrás",
@@ -1943,7 +1951,11 @@
     "titleActivateLead": "Activa tu plan",
     "titleChooseLead": "Elige tu",
     "titleChooseAccent": "plan",
-    "featSoloValidation": "Flujo de validación del cliente"
+    "featSoloValidation": "Flujo de validación del cliente",
+    "featAgencyEditor": "Editor visual completo",
+    "featAgencyDescriptions": "Descripciones con IA ilimitadas",
+    "featAgencyValidation": "Flujo de validación del cliente",
+    "featAgencyPublish": "Publicación en Instagram y Facebook"
   },
   "checkoutSuccess": {
     "activating": "Activando tu cuenta…"

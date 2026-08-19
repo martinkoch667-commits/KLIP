@@ -232,17 +232,21 @@
       "studioF5": "Instagram & Facebook publishing",
       "agencyTag": "Agencies & communication studios",
       "agencyClients": "Up to 12 clients",
-      "agencyF1": "Everything in Studio, plus:",
-      "agencyF2": "Up to 5 team members",
-      "agencyF3": "Manager & Creative roles",
-      "agencyF4": "Batch creation",
-      "agencyF5": "",
+      "agencyF1": "Up to 5 team members",
+      "agencyF2": "Manager & Creative roles",
+      "agencyF3": "Batch creation",
+      "agencyF4": "Full visual editor",
+      "agencyF5": "Unlimited AI descriptions",
       "montageFeat": "Built-in video editing",
       "launchBadge": "Launch offer · −{percent}%",
       "launchNote": "instead of €{price} for the 1st month · first {seats} seats",
       "launchNoteYear": "€{firstYear} charged for the 1st year, then €{full}/yr · first {seats} seats",
       "studioF6": "1 user",
-      "agencyF6": ""
+      "agencyF6": "Editorial calendar",
+      "studioF7": "",
+      "agencyF7": "Client approval workflow",
+      "studioF8": "",
+      "agencyF8": "Instagram & Facebook publishing"
     },
     "faq": {
       "title1": "The questions ",
@@ -1127,8 +1131,8 @@
     "agencyF1": "12 clients included",
     "agencyF2": "5 members included",
     "agencyF3": "Manager / Creative roles",
-    "agencyF4": "Everything in Studio",
-    "agencyF5": "",
+    "agencyF4": "Batch creation",
+    "agencyF5": "Unlimited posts",
     "perMonth": "/ month",
     "chooseStudio": "Choose Studio",
     "chooseAgency": "Choose Agency",
@@ -1143,7 +1147,11 @@
     "titleAccent": "account?",
     "annualNote": "or {price}€/month billed yearly · no commitment",
     "studioF6": "Approval workflow",
-    "agencyF6": ""
+    "agencyF6": "AI included",
+    "studioF7": "",
+    "agencyF7": "Instagram & Facebook publishing",
+    "studioF8": "",
+    "agencyF8": "Approval workflow"
   },
   "workspaceSettings": {
     "back": "Back",
@@ -1943,7 +1951,11 @@
     "titleActivateLead": "Activate your plan",
     "titleChooseLead": "Choose your",
     "titleChooseAccent": "plan",
-    "featSoloValidation": "Client approval workflow"
+    "featSoloValidation": "Client approval workflow",
+    "featAgencyEditor": "Full visual editor",
+    "featAgencyDescriptions": "Unlimited AI descriptions",
+    "featAgencyValidation": "Client approval workflow",
+    "featAgencyPublish": "Instagram & Facebook publishing"
   },
   "checkoutSuccess": {
     "activating": "Activating your account…"

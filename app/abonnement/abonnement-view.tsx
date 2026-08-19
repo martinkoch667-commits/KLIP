@@ -108,7 +108,7 @@ export default function AbonnementView({ seatsLeft }: { seatsLeft: number | null
 
   const tiers = [
     { p: PLANS.solo, pop: false, feats: [t('featSoloClients'), t('featSoloEditor'), t('featSoloDescriptions'), t('featSoloValidation'), t('featSoloPublish')] },
-    { p: PLANS.agency, pop: true, feats: [t('featAgencyClients'), t('featAgencyMembers'), t('featAgencyRoles')] },
+    { p: PLANS.agency, pop: true, feats: [t('featAgencyClients'), t('featAgencyMembers'), t('featAgencyRoles'), t('featAgencyEditor'), t('featAgencyDescriptions'), t('featAgencyValidation'), t('featAgencyPublish')] },
   ];
 
   return (

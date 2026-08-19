@@ -232,17 +232,21 @@
       "studioF5": "Publication Instagram & Facebook",
       "agencyTag": "Agences & studios de communication",
       "agencyClients": "Jusquʼà 12 clients",
-      "agencyF1": "Tout Studio, plus :",
-      "agencyF2": "Jusqu’à 5 membres d’équipe",
-      "agencyF3": "Rôles Manager & Créa",
-      "agencyF4": "Création en lot",
-      "agencyF5": "",
+      "agencyF1": "Jusqu’à 5 membres d’équipe",
+      "agencyF2": "Rôles Manager & Créa",
+      "agencyF3": "Création en lot",
+      "agencyF4": "Éditeur visuel complet",
+      "agencyF5": "Descriptions IA illimitées",
       "montageFeat": "Montage vidéo intégré",
       "launchBadge": "Offre lancement · −{percent} %",
       "launchNote": "au lieu de {price}€ le 1er mois · {seats} premières places",
       "launchNoteYear": "{firstYear}€ débités la 1re année, puis {full}€/an · {seats} premières places",
       "studioF6": "1 utilisateur",
-      "agencyF6": ""
+      "agencyF6": "Calendrier éditorial",
+      "studioF7": "",
+      "agencyF7": "Workflow de validation client",
+      "studioF8": "",
+      "agencyF8": "Publication Instagram & Facebook"
     },
     "faq": {
       "title1": "Les questions ",
@@ -1127,8 +1131,8 @@
     "agencyF1": "12 clients inclus",
     "agencyF2": "5 membres inclus",
     "agencyF3": "Rôles Manager / Créa",
-    "agencyF4": "Tout ce que Studio inclut",
-    "agencyF5": "",
+    "agencyF4": "Création en lot",
+    "agencyF5": "Posts illimités",
     "perMonth": "/ mois",
     "chooseStudio": "Choisir Studio",
     "chooseAgency": "Choisir Agence",
@@ -1143,7 +1147,11 @@
     "titleAccent": "compte ?",
     "annualNote": "ou {price}€/mois en annuel · sans engagement",
     "studioF6": "Workflow de validation",
-    "agencyF6": ""
+    "agencyF6": "IA incluse",
+    "studioF7": "",
+    "agencyF7": "Publication Instagram & Facebook",
+    "studioF8": "",
+    "agencyF8": "Workflow de validation"
   },
   "workspaceSettings": {
     "back": "Retour",
@@ -1943,7 +1951,11 @@
     "titleActivateLead": "Activez votre offre",
     "titleChooseLead": "Choisissez votre",
     "titleChooseAccent": "offre",
-    "featSoloValidation": "Workflow de validation client"
+    "featSoloValidation": "Workflow de validation client",
+    "featAgencyEditor": "Éditeur visuel complet",
+    "featAgencyDescriptions": "Descriptions IA illimitées",
+    "featAgencyValidation": "Workflow de validation client",
+    "featAgencyPublish": "Publication Instagram & Facebook"
   },
   "checkoutSuccess": {
     "activating": "Activation de votre compte…"

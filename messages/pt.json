@@ -232,17 +232,21 @@
       "studioF5": "Publicação no Instagram e Facebook",
       "agencyTag": "Agências e estúdios de comunicação",
       "agencyClients": "Até 12 clientes",
-      "agencyF1": "Tudo o do Studio, e ainda:",
-      "agencyF2": "Até 5 membros de equipa",
-      "agencyF3": "Perfis Manager e Criativo",
-      "agencyF4": "Criação em lote",
-      "agencyF5": "",
+      "agencyF1": "Até 5 membros de equipa",
+      "agencyF2": "Perfis Manager e Criativo",
+      "agencyF3": "Criação em lote",
+      "agencyF4": "Editor visual completo",
+      "agencyF5": "Descrições com IA ilimitadas",
       "montageFeat": "Edição de vídeo integrada",
       "launchBadge": "Oferta de lançamento · −{percent}%",
       "launchNote": "em vez de {price}€ no 1.º mês · primeiros {seats} lugares",
       "launchNoteYear": "{firstYear}€ cobrados no 1.º ano, depois {full}€/ano · primeiros {seats} lugares",
       "studioF6": "1 utilizador",
-      "agencyF6": ""
+      "agencyF6": "Calendário editorial",
+      "studioF7": "",
+      "agencyF7": "Fluxo de validação do cliente",
+      "studioF8": "",
+      "agencyF8": "Publicação no Instagram e Facebook"
     },
     "faq": {
       "title1": "As perguntas ",
@@ -1127,8 +1131,8 @@
     "agencyF1": "12 clientes incluídos",
     "agencyF2": "5 membros incluídos",
     "agencyF3": "Funções Gestor / Criativo",
-    "agencyF4": "Tudo o que o Studio inclui",
-    "agencyF5": "",
+    "agencyF4": "Criação em lote",
+    "agencyF5": "Posts ilimitados",
     "perMonth": "/ mês",
     "chooseStudio": "Escolher Studio",
     "chooseAgency": "Escolher Agência",
@@ -1143,7 +1147,11 @@
     "titleAccent": "conta?",
     "annualNote": "ou {price}€/mês no plano anual · sem compromisso",
     "studioF6": "Fluxo de validação",
-    "agencyF6": ""
+    "agencyF6": "IA incluída",
+    "studioF7": "",
+    "agencyF7": "Publicação no Instagram e Facebook",
+    "studioF8": "",
+    "agencyF8": "Fluxo de validação"
   },
   "workspaceSettings": {
     "back": "Voltar",
@@ -1943,7 +1951,11 @@
     "titleActivateLead": "Ative o seu plano",
     "titleChooseLead": "Escolha o seu",
     "titleChooseAccent": "plano",
-    "featSoloValidation": "Fluxo de validação do cliente"
+    "featSoloValidation": "Fluxo de validação do cliente",
+    "featAgencyEditor": "Editor visual completo",
+    "featAgencyDescriptions": "Descrições de IA ilimitadas",
+    "featAgencyValidation": "Fluxo de validação do cliente",
+    "featAgencyPublish": "Publicação no Instagram e Facebook"
   },
   "checkoutSuccess": {
     "activating": "A ativar a sua conta…"
