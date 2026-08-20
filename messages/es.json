@@ -1967,7 +1967,8 @@
     "presetStyle": "Estilo predefinido",
     "fontCatalogue": "Catálogo",
     "glow": "Resplandor",
-    "offset": "Desplazamiento"
+    "offset": "Desplazamiento",
+    "animNone": "Ninguna"
   },
   "forgotPassword": {
     "title": "Contraseña olvidada",

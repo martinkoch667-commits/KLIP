@@ -1967,7 +1967,8 @@
     "presetStyle": "Vorlagenstil",
     "fontCatalogue": "Katalog",
     "glow": "Leuchten",
-    "offset": "Versatz"
+    "offset": "Versatz",
+    "animNone": "Keine"
   },
   "forgotPassword": {
     "title": "Passwort vergessen",

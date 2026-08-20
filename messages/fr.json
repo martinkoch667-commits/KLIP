@@ -1967,7 +1967,8 @@
     "presetStyle": "Style de préréglage",
     "fontCatalogue": "Catalogue",
     "glow": "Lueur",
-    "offset": "Décalage"
+    "offset": "Décalage",
+    "animNone": "Aucune"
   },
   "forgotPassword": {
     "title": "Mot de passe oublié",

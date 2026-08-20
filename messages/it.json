@@ -1967,7 +1967,8 @@
     "presetStyle": "Stile predefinito",
     "fontCatalogue": "Catalogo",
     "glow": "Bagliore",
-    "offset": "Scostamento"
+    "offset": "Scostamento",
+    "animNone": "Nessuna"
   },
   "forgotPassword": {
     "title": "Password dimenticata",

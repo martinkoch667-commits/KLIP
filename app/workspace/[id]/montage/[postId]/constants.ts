@@ -226,7 +226,8 @@ export interface TitleEl {
   text: string;
   font: "archivo" | "instrument" | "satoshi";
   color: string;
-  anim: "rise" | "type" | "pop";
+  /** "none" = le titre apparaît d'un bloc, sans animation d'entrée. */
+  anim: "rise" | "type" | "pop" | "none";
   x: number; // % (0-100)
   y: number; // % (0-100)
   scale?: number; // facteur de taille (défaut 1)

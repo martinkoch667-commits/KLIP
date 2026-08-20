@@ -1177,6 +1177,7 @@ export default function MontagePage() {
     }
     for (const ti of sc.titles) {
       if (t < ti.start || t > ti.end) continue;
+      if (ti.anim === "none") continue; // rien ne bouge : inutile de rendre plus souvent
       const duree = ti.anim === "type" ? ti.text.length / 16 + 0.2 : 0.6;
       if (t - ti.start < duree) return true;
     }

@@ -152,7 +152,10 @@ function Range({ label, value, min, max, step = 1, unit = "", onChange, fmtv }: 
     <div style={{ marginBottom: 14 }}>
       <div className="mz-rangelbl">
         <span style={{ fontWeight: 700, fontSize: 12.5, color: "var(--ink-2)" }}>{label}</span>
-        <span className="mz-rangeval">{fmtv ? fmtv(value) : value + unit}</span>
+        {/* Arrondi par défaut : une valeur posée à la souris (le début d'un
+            titre glissé sur la timeline, par exemple) arrivait avec toutes ses
+            décimales et s'affichait telle quelle, sur trois lignes. */}
+        <span className="mz-rangeval">{fmtv ? fmtv(value) : `${Math.round(value * 100) / 100}${unit}`}</span>
       </div>
       <input className="mz-range" type="range" min={min} max={max} step={step} value={value} onChange={(e) => onChange(parseFloat(e.target.value))} />
     </div>
@@ -546,7 +549,7 @@ export function TextPanel({ ctx, selectedTitleId }: { ctx: MontageCtx; selectedT
           <div className="a-section">
             <span className="mz-sec-label">{t('entryAnimation')}</span>
             <div className="mz-seg">
-              {([["rise", t('animRise')], ["type", t('animType')], ["pop", t('animPop')]] as const).map(([k, l]) => (
+              {([["none", t('animNone')], ["rise", t('animRise')], ["type", t('animType')], ["pop", t('animPop')]] as const).map(([k, l]) => (
                 <button key={k} className={tt.anim === k ? "on" : ""} onClick={() => ctx.updateTitle(tt.id, { anim: k })}>{l}</button>
               ))}
             </div>
