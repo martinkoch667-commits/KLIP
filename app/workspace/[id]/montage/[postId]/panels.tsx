@@ -506,9 +506,21 @@ function TitleStylePanel({ ctx, tt }: { ctx: MontageCtx; tt: TitleEl }) {
             <Num value={Math.round(look.bgOpacity * 100)} min={0} max={100} step={5} suffix="%" onChange={(v) => ctx.updateTitle(tt.id, { bgOpacity: v / 100 })} />
           </Row>
           <Row label={t('padding')}>
+            <input className="mz-range" type="range" min={0} max={60} step={1} value={look.padX}
+              onChange={(e) => { const v = parseFloat(e.target.value); ctx.updateTitle(tt.id, { padX: v, padY: Math.round(v * 0.5) }); }} style={{ flex: 1 }} />
             <Num value={look.padX} min={0} max={60} step={1} onChange={(v) => ctx.updateTitle(tt.id, { padX: v, padY: Math.round(v * 0.5) })} />
-            <Num value={look.radius} min={0} max={40} step={1} onChange={(v) => ctx.updateTitle(tt.id, { radius: v })} />
           </Row>
+          {/* L'arrondi avait sa valeur, mais pas de ligne à lui : il était le
+              second champ, sans étiquette, de la marge intérieure. Introuvable.
+              Il disparaît quand la pilule est allumée, puisqu'elle impose
+              l'arrondi maximal. */}
+          {!look.pill && (
+            <Row label={t('roundedCorners')}>
+              <input className="mz-range" type="range" min={0} max={40} step={1} value={look.radius}
+                onChange={(e) => ctx.updateTitle(tt.id, { radius: parseFloat(e.target.value) })} style={{ flex: 1 }} />
+              <Num value={look.radius} min={0} max={40} step={1} onChange={(v) => ctx.updateTitle(tt.id, { radius: v })} />
+            </Row>
+          )}
           <Toggle label={t('pillShape')} on={look.pill} onChange={(v) => ctx.updateTitle(tt.id, { pill: v })} />
         </Fold>
 
