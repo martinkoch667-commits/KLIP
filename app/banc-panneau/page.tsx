@@ -46,7 +46,9 @@ function BancPanneauDev() {
   const [monte, setMonte] = useState(false);
   useEffect(() => { setMonte(true); }, []);
   return (
-    <div style={{ display: "flex", gap: 0, height: "100vh", background: "var(--canvas)" }}>
+    <div style={{ height: "100vh", display: "flex", flexDirection: "column", background: "var(--canvas)" }}>
+      <BarreDuHaut />
+      <div style={{ display: "flex", gap: 0, flex: 1, minHeight: 0 }}>
       <div className="a-panel" style={{ width: 340, flexShrink: 0, borderRight: "1px solid var(--line)" }}>
         <div className="a-panel-head"><span className="a-panel-title">Texte &amp; titres</span></div>
         <div className="a-panel-scroll">
@@ -60,6 +62,49 @@ function BancPanneauDev() {
           {monte && <Apercu tt={tt} />}
         </div>
       </div>
+      </div>
+    </div>
+  );
+}
+
+/* Réplique de la barre du haut du montage, avec les mêmes classes : c'est le
+   rendu qu'on juge, et le monteur demande un projet et une session. */
+function BarreDuHaut() {
+  const [q, setQ] = useState(false);
+  const [qualite, setQualite] = useState("standard");
+  const qualites = [["low", "Légère (rapide)", "2.5"], ["standard", "Standard", "4.0"], ["high", "Haute qualité", "6.5"]];
+  return (
+    <div className="ed-topbar" style={{ height: 58, flexShrink: 0, display: "flex", alignItems: "center", gap: 12, padding: "0 16px", borderBottom: "1px solid rgba(122,105,232,.20)", background: "radial-gradient(120% 130% at 0% 0%, rgba(122,105,232,.24), transparent 55%), radial-gradient(90% 130% at 100% 0%, rgba(156,140,255,.12), transparent 60%), linear-gradient(90deg, #1E1846 0%, var(--forest) 50%, #171238 100%)", position: "relative", zIndex: 30 }}>
+      <a className="mz-top" style={{ flexShrink: 0 }}>‹ Composer</a>
+      <span style={{ width: 1, height: 24, background: "var(--line)", flexShrink: 0 }} />
+      <div style={{ display: "flex", gap: 2 }}>
+        <button className="mz-top mz-top-icon">↺</button>
+        <button className="mz-top mz-top-icon" disabled>↻</button>
+      </div>
+      <span style={{ width: 1, height: 24, background: "var(--line)", flexShrink: 0 }} />
+      <div className="mz-seg" style={{ flexShrink: 0, width: "auto" }}>
+        {["9:16", "1:1", "4:5", "16:9", "Perso"].map((f, i) => <button key={f} className={i === 0 ? "on" : ""}>{f}</button>)}
+      </div>
+      <div style={{ flex: 1 }} />
+      <a className="mz-top">Voir l&apos;export</a>
+      <button className="mz-top">Couverture</button>
+      <button className="mz-top">Légende IA</button>
+      <div className="mz-drop">
+        <button className="mz-top" onClick={() => setQ((v) => !v)}>
+          {qualites.find((x) => x[0] === qualite)?.[1]} <span style={{ fontSize: 9, opacity: .7 }}>▼</span>
+        </button>
+        {q && (
+          <div className="mz-drop-menu">
+            {qualites.map(([id, nom, deb]) => (
+              <button key={id} className={"mz-drop-item" + (qualite === id ? " on" : "")} onClick={() => { setQualite(id); setQ(false); }}>
+                <span>{nom}</span><span className="mz-drop-sub">{deb} Mb/s</span>
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+      <button className="mz-top">Exporter</button>
+      <button className="mz-top mz-top-primary">Planifier</button>
     </div>
   );
 }

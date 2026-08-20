@@ -1307,6 +1307,34 @@ input.mz-range::-moz-range-thumb { width: 16px; height: 16px; border-radius: 50%
 .mz-rangelbl { display: flex; align-items: center; justify-content: space-between; margin-bottom: 7px; }
 .mz-rangeval { font-family: var(--mono); font-weight: 800; font-size: 11px; color: var(--ink-2); }
 
+/* ── Barre du haut du montage ────────────────────────────────────────────────
+   Les actions y étaient posées avec les boutons génériques du produit, pensés
+   pour du fond clair : sur le violet de la barre, le contour se perdait et rien
+   ne distinguait une action secondaire de l'action principale. On leur donne
+   leur propre habillage, lisible sur ce fond, avec trois niveaux nets. */
+.mz-top { display: inline-flex; align-items: center; gap: 6px; height: 34px; padding: 0 12px;
+  border-radius: 9px; border: 1px solid rgba(255,255,255,.16); background: rgba(255,255,255,.07);
+  color: #fff; font-size: 12.5px; font-weight: 700; cursor: pointer; text-decoration: none;
+  white-space: nowrap; transition: background .14s var(--ease), border-color .14s var(--ease); }
+.mz-top:hover:not(:disabled) { background: rgba(255,255,255,.14); border-color: rgba(255,255,255,.3); }
+.mz-top:disabled { opacity: .45; cursor: not-allowed; }
+.mz-top-primary { background: var(--mint-2, #BDF2A0); border-color: transparent; color: #14160F; }
+.mz-top-primary:hover:not(:disabled) { background: #cdf7b6; border-color: transparent; }
+.mz-top-icon { width: 34px; padding: 0; justify-content: center; }
+
+/* Liste déroulante maison : la native ne se style pas, son menu restait gris
+   système au milieu d'une barre violette. */
+.mz-drop { position: relative; }
+.mz-drop-menu { position: absolute; top: calc(100% + 6px); right: 0; z-index: 60; min-width: 190px;
+  padding: 5px; border-radius: 11px; border: 1px solid var(--line); background: var(--white);
+  box-shadow: 0 14px 40px rgba(13,15,10,.32); }
+.mz-drop-item { display: flex; align-items: center; justify-content: space-between; gap: 10px; width: 100%;
+  padding: 9px 11px; border: none; border-radius: 8px; background: none; cursor: pointer;
+  font-size: 13px; font-weight: 600; color: var(--ink); text-align: left; }
+.mz-drop-item:hover { background: var(--sunk); }
+.mz-drop-item.on { background: var(--mint-soft); color: var(--ink); }
+.mz-drop-sub { font-size: 11px; color: var(--ink-3); font-weight: 600; }
+
 /* ── Contrôles compacts du panneau (façon éditeur, pas gros boutons) ─────────
    Le panneau Texte empilait de gros blocs cliquables pour le gras, l'italique,
    l'alignement. Personne ne reconnaissait ces commandes : partout ailleurs ce

@@ -637,6 +637,19 @@ export default function MontagePage() {
   const [playing, setPlaying] = useState(false);
   const playingRef = useRef(playing); playingRef.current = playing;
   const [stageW, setStageW] = useState(0); // largeur px réelle de la preview → texte figé à l'échelle de l'image (WYSIWYG avec l'export)
+  const [qualiteOuverte, setQualiteOuverte] = useState(false);
+  const qualiteRef = useRef<HTMLDivElement>(null);
+  // Un menu qui ne se referme pas au clic à côté reste ouvert par-dessus le
+  // montage : c'est le comportement attendu de n'importe quelle liste.
+  useEffect(() => {
+    if (!qualiteOuverte) return;
+    const dehors = (e: MouseEvent) => {
+      if (qualiteRef.current && !qualiteRef.current.contains(e.target as Node)) setQualiteOuverte(false);
+    };
+    document.addEventListener("mousedown", dehors);
+    return () => document.removeEventListener("mousedown", dehors);
+  }, [qualiteOuverte]);
+
   const [previewZoom, setPreviewZoom] = useState(1);
   /* Déplacement dans l'aperçu zoomé.
 
@@ -4207,13 +4220,13 @@ export default function MontagePage() {
       {/* Barre du montage en violet : dans le produit, le violet est la vidéo
           et le vert la photo. C'est la première chose qu'on voit en entrant. */}
       <div className="ed-topbar" style={{ height: 58, flexShrink: 0, display: "flex", alignItems: "center", gap: 12, padding: "0 16px", borderBottom: "1px solid rgba(122,105,232,.20)", background: "radial-gradient(120% 130% at 0% 0%, rgba(122,105,232,.24), transparent 55%), radial-gradient(90% 130% at 100% 0%, rgba(156,140,255,.12), transparent 60%), linear-gradient(90deg, #1E1846 0%, var(--forest) 50%, #171238 100%)", position: "relative", zIndex: 30 }}>
-        <a href={`/workspace/${workspaceId}`} className="btn btn-sm btn-ghost" style={{ gap: 5, textDecoration: "none", flexShrink: 0 }}>
+        <a href={`/workspace/${workspaceId}`} className="mz-top" style={{ flexShrink: 0 }}>
           <VIcon name="chevL" size={15} /> {t('composeBack')}
         </a>
         <span style={{ width: 1, height: 24, background: "var(--line)", flexShrink: 0 }} />
         <div style={{ display: "flex", gap: 2 }}>
-          <button className="mz-hbtn" title={t('undoTitle')} disabled={!canUndo} onClick={undo}><VIcon name="undo" size={17} /></button>
-          <button className="mz-hbtn" title={t('redoTitle')} disabled={!canRedo} onClick={redo}><VIcon name="redo" size={17} /></button>
+          <button className="mz-top mz-top-icon" title={t('undoTitle')} disabled={!canUndo} onClick={undo}><VIcon name="undo" size={16} /></button>
+          <button className="mz-top mz-top-icon" title={t('redoTitle')} disabled={!canRedo} onClick={redo}><VIcon name="redo" size={16} /></button>
         </div>
         <span style={{ width: 1, height: 24, background: "var(--line)", flexShrink: 0 }} />
         <div style={{ display: "flex", alignItems: "center", gap: 9, minWidth: 0 }}>
@@ -4239,35 +4252,51 @@ export default function MontagePage() {
         </div>
         <div style={{ flex: 1 }} />
         {exportUrl && (
-          <a href={exportUrl} target="_blank" rel="noreferrer" className="btn btn-sm btn-ghost" style={{ gap: 5, textDecoration: "none" }}>
+          <a href={exportUrl} target="_blank" rel="noreferrer" className="mz-top">
             <VIcon name="eye" size={15} /> {t('viewExport')}
           </a>
         )}
         {/* La couverture se choisit ICI : on se place sur l'image voulue, on clique. */}
-        <button onClick={setCoverFromPlayhead} disabled={settingCover || !activeClip} className="btn btn-sm btn-ghost" style={{ gap: 5 }} title={t('coverAtPlayheadTitle')}>
+        <button onClick={setCoverFromPlayhead} disabled={settingCover || !activeClip} className="mz-top" title={t('coverAtPlayheadTitle')}>
           <VIcon name="image" size={15} /> {settingCover ? t('coverSaving') : coverUrl ? t('coverRedo') : t('coverAtPlayhead')}
         </button>
 
-        {/* La légende s'écrit ICI, une fois la vidéo montée — pas au compositeur. */}
+        {/* La légende s'écrit ICI, une fois la vidéo montée, pas au compositeur. */}
         {exportUrl && (
-          <button onClick={generateCaptionAI} disabled={captioning} className="btn btn-sm btn-ghost" style={{ gap: 5 }} title={t('captionAiTitle')}>
+          <button onClick={generateCaptionAI} disabled={captioning} className="mz-top" title={t('captionAiTitle')}>
             <VIcon name="sparkles" size={15} /> {captioning ? t('captionAiBusy') : caption ? t('captionAiRedo') : t('captionAi')}
           </button>
         )}
-        {exportUrl && (
-          <a href={`/workspace/${workspaceId}/planning?post=${postId}`} className="btn btn-sm btn-dark" style={{ gap: 5, textDecoration: "none" }}>
-            <VIcon name="calendar" size={15} /> {t('schedule')}
-          </a>
-        )}
-        <select value={exportQuality} onChange={e => setExportQuality(e.target.value)} title={t('exportQualityTitle')}
-          style={{ height: 34, borderRadius: 8, border: "1px solid var(--line)", background: "var(--canvas)", color: "var(--ink-2)", fontSize: 12.5, fontWeight: 600, padding: "0 8px" }}>
-          {EXPORT_QUALITIES.map(q => <option key={q.id} value={q.id}>{tc(`exportQuality.${q.id}`)}</option>)}
-        </select>
-        <button className="btn btn-sm btn-ghost" disabled={!clips.length || exporting} onClick={() => handleExport(false)}>
+
+        {/* Qualité d'export : liste déroulante maison. La native ne se style pas,
+            son menu restait gris système au milieu d'une barre violette. */}
+        <div className="mz-drop" ref={qualiteRef}>
+          <button className="mz-top" onClick={() => setQualiteOuverte((v) => !v)} title={t('exportQualityTitle')}>
+            {tc(`exportQuality.${exportQuality}`)}
+            <span style={{ fontSize: 9, opacity: .7 }}>▼</span>
+          </button>
+          {qualiteOuverte && (
+            <div className="mz-drop-menu">
+              {EXPORT_QUALITIES.map((q) => (
+                <button key={q.id} className={"mz-drop-item" + (exportQuality === q.id ? " on" : "")}
+                  onClick={() => { setExportQuality(q.id); setQualiteOuverte(false); }}>
+                  <span>{tc(`exportQuality.${q.id}`)}</span>
+                  <span className="mz-drop-sub">{(q.bitrate / 1e6).toFixed(1)} Mb/s</span>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <button className="mz-top" disabled={!clips.length || exporting} onClick={() => handleExport(false)}>
           <VIcon name="export" size={15} /> {exporting ? t('exportingShort') : t('exportBtn')}
         </button>
-        <button className="btn btn-sm btn-primary" disabled={!clips.length || exporting} onClick={() => handleExport(true)} title={t('publishBtnTitle')}>
-          <VIcon name="check" size={15} /> {t('publishBtn')}
+        {/* « Publier » et « Planifier » faisaient la même chose : rendre la vidéo,
+            la marquer prête et emmener au planning. Deux boutons côte à côte pour
+            un seul geste, dont un qui laissait croire à une publication immédiate.
+            Il n'en reste qu'un, et c'est le mot le plus juste qui est gardé. */}
+        <button className="mz-top mz-top-primary" disabled={!clips.length || exporting} onClick={() => handleExport(true)} title={t('publishBtnTitle')}>
+          <VIcon name="calendar" size={15} /> {t('schedule')}
         </button>
       </div>
 

@@ -311,7 +311,7 @@ function InstagramProfile({ workspaceId, upcoming = [] }: { workspaceId: string;
                 ? new Date(p.scheduled_at).toLocaleDateString(undefined, { day: 'numeric', month: 'short' })
                 : null;
               return (
-                <Link key={`up-${p.id}`} href={`/workspace/${workspaceId}/editor/${p.id}`}
+                <Link key={`up-${p.id}`} href={lienEditeur({ ...p, workspace_id: workspaceId })}
                   title={p.scheduled_at ? new Date(p.scheduled_at).toLocaleString() : undefined}
                   style={{ position: 'relative', aspectRatio: '1', overflow: 'hidden', background: 'var(--sunk)', display: 'block' }}>
                   <PostThumb post={p} />
@@ -581,6 +581,20 @@ function WelcomeParamWatcher({ onWelcome }: { onWelcome: () => void }) {
 
 // ─── Page ───────────────────────────────────────────────────────────────────
 
+/* Vers quel éditeur ouvrir une publication.
+
+   Le tableau de bord envoyait TOUT vers l'éditeur visuel, y compris les vidéos :
+   cliquer sur un montage ouvrait l'éditeur d'image, où il n'y avait rien à faire.
+   Une vidéo se reconnaît à son type de publication (un reel en est toujours
+   une), à la miniature que seul l'export du montage écrit, ou à l'extension de
+   son fichier une fois exporté. */
+function lienEditeur(p: { id: string; workspace_id: string; post_type?: string | null; thumbnail_url?: string | null; photo_url?: string | null }): string {
+  const estVideo = p.post_type === 'reel'
+    || !!p.thumbnail_url
+    || /\.(mp4|webm|mov|m4v)(\?|$)/i.test(p.photo_url ?? '');
+  return `/workspace/${p.workspace_id}/${estVideo ? 'montage' : 'editor'}/${p.id}`;
+}
+
 export default function Dashboard() {
   const supabase = createClientComponentClient();
   const router = useRouter();
@@ -627,7 +641,7 @@ export default function Dashboard() {
 
         // Load posts + activity in parallel (activity_log may not exist yet)
         const [{ data: ps }, { data: acts }] = await Promise.all([
-          supabase.from('posts').select('id, workspace_id, status, photo_url, exported_image_url, thumbnail_url, texte_visuel, scheduled_at, created_at').order('created_at', { ascending: false }),
+          supabase.from('posts').select('id, workspace_id, status, post_type, photo_url, exported_image_url, thumbnail_url, texte_visuel, scheduled_at, created_at').order('created_at', { ascending: false }),
           supabase.from('activity_log').select('id, workspace_id, action_type, post_title, created_at').order('created_at', { ascending: false }).limit(20),
         ]);
         setPosts(ps ?? []);
@@ -759,7 +773,7 @@ export default function Dashboard() {
                       const ws = workspaces.find(w => w.id === p.workspace_id);
                       return (
                         <button key={p.id}
-                          onClick={() => router.push(`/workspace/${p.workspace_id}/editor/${p.id}`)}
+                          onClick={() => router.push(lienEditeur(p))}
                           style={{ display: 'flex', alignItems: 'center', gap: 9, padding: 6, borderRadius: 9, textAlign: 'left', transition: 'background .14s', background: 'transparent', border: 'none', cursor: 'pointer', width: '100%', color: 'var(--ink)' }}
                           onMouseEnter={e => (e.currentTarget.style.background = 'var(--sunk)')}
                           onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
@@ -865,7 +879,7 @@ export default function Dashboard() {
                           key={p.id}
                           post={p}
                           workspaceId={p.workspace_id}
-                          onClick={() => router.push(`/workspace/${p.workspace_id}/editor/${p.id}`)}
+                          onClick={() => router.push(lienEditeur(p))}
                         />
                       ))}
                     </div>
