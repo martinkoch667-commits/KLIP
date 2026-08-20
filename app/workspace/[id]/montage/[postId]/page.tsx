@@ -2834,15 +2834,22 @@ export default function MontagePage() {
     const onUp = () => { window.removeEventListener("pointermove", onMove); window.removeEventListener("pointerup", onUp); };
     window.addEventListener("pointermove", onMove); window.addEventListener("pointerup", onUp);
   }
+  /* Poignées de transformation.
+
+     Le `scale(var(--pzi))` les tient à taille constante à l'écran quand l'aperçu
+     est zoomé : sans lui, elles grossissaient avec l'image et finissaient par la
+     recouvrir. Elles sont posées à cheval sur le coin (décalage de -6 pour une
+     bille de 13), et l'échelle joue autour de leur centre : le centre reste donc
+     sur le coin, quel que soit le zoom. */
   const MZ_HANDLES: { id: string; style: React.CSSProperties }[] = [
-    { id: "tl", style: { left: -6, top: -6, cursor: "nwse-resize" } },
-    { id: "tc", style: { left: "50%", top: -6, transform: "translateX(-50%)", cursor: "ns-resize" } },
-    { id: "tr", style: { right: -6, top: -6, cursor: "nesw-resize" } },
-    { id: "mr", style: { right: -6, top: "50%", transform: "translateY(-50%)", cursor: "ew-resize" } },
-    { id: "br", style: { right: -6, bottom: -6, cursor: "nwse-resize" } },
-    { id: "bc", style: { left: "50%", bottom: -6, transform: "translateX(-50%)", cursor: "ns-resize" } },
-    { id: "bl", style: { left: -6, bottom: -6, cursor: "nesw-resize" } },
-    { id: "ml", style: { left: -6, top: "50%", transform: "translateY(-50%)", cursor: "ew-resize" } },
+    { id: "tl", style: { left: -6, top: -6, transform: "scale(var(--pzi,1))", cursor: "nwse-resize" } },
+    { id: "tc", style: { left: "50%", top: -6, transform: "translateX(-50%) scale(var(--pzi,1))", cursor: "ns-resize" } },
+    { id: "tr", style: { right: -6, top: -6, transform: "scale(var(--pzi,1))", cursor: "nesw-resize" } },
+    { id: "mr", style: { right: -6, top: "50%", transform: "translateY(-50%) scale(var(--pzi,1))", cursor: "ew-resize" } },
+    { id: "br", style: { right: -6, bottom: -6, transform: "scale(var(--pzi,1))", cursor: "nwse-resize" } },
+    { id: "bc", style: { left: "50%", bottom: -6, transform: "translateX(-50%) scale(var(--pzi,1))", cursor: "ns-resize" } },
+    { id: "bl", style: { left: -6, bottom: -6, transform: "scale(var(--pzi,1))", cursor: "nesw-resize" } },
+    { id: "ml", style: { left: -6, top: "50%", transform: "translateY(-50%) scale(var(--pzi,1))", cursor: "ew-resize" } },
   ];
   function TransformHandles({ scale, onScale, onRotate }: { scale: number; onScale: (s: number) => void; onRotate: (d: number) => void }) {
     return (
@@ -4564,6 +4571,9 @@ export default function MontagePage() {
               className="mz-phone"
               style={{
                 aspectRatio: `${activeFmt.w} / ${activeFmt.h}`,
+                // `--pz` sert au cadre de sélection, qui s'échelonne à l'envers
+                // pour garder la même taille à l'écran quel que soit le zoom.
+                ["--pz" as string]: previewZoom,
                 transform: previewZoom !== 1 ? `translate(${previewPan.x}px, ${previewPan.y}px) scale(${previewZoom})` : undefined,
                 cursor: previewZoom > 1 ? (panRef.current ? "grabbing" : "grab") : undefined,
               }}
@@ -4777,7 +4787,9 @@ export default function MontagePage() {
                          dont se sert aussi l'export pour peindre son fond.
                          `maxWidth` retrouve son seul rôle : décider où le texte
                          revient à la ligne. */
-                      width: titleBoxWidth(ti, activeFmt.w) * unit,
+                      width: editingTitleId === ti.id ? "auto" : titleBoxWidth(ti, activeFmt.w) * unit,
+                      minWidth: editingTitleId === ti.id ? titleBoxWidth(ti, activeFmt.w) * unit : undefined,
+                      maxWidth: editingTitleId === ti.id ? `${ti.maxWidth ?? TITLE_DEFAULT_MAX_WIDTH}%` : undefined,
                       /* `pre` et non `pre-wrap` : les retours à la ligne sont
                          DÉJÀ calculés, par la même fonction que l'export. Laissé
                          libre de replier, le navigateur recoupait ces lignes dès
@@ -4796,7 +4808,19 @@ export default function MontagePage() {
                       contentEditable={editingTitleId === ti.id}
                       suppressContentEditableWarning
                       spellCheck={false}
-                      style={{ outline: "none", cursor: editingTitleId === ti.id ? "text" : "inherit" }}
+                      /* En édition, le texte redevient SÉLECTIONNABLE.
+
+                          Le conteneur porte `user-select: none` — nécessaire pour
+                          qu'un glissement déplace le titre au lieu de sélectionner
+                          ses lettres. Mais il s'applique aussi au champ d'édition :
+                          le double-clic ne sélectionnait pas le mot et le curseur
+                          ne se posait pas, si bien que la retouche à même l'aperçu
+                          paraissait ne pas exister. Et le texte redevient
+                          repliable : en édition on montre la phrase entière, pas
+                          les lignes calculées. */
+                      style={editingTitleId === ti.id
+                        ? { outline: "none", cursor: "text", userSelect: "text", WebkitUserSelect: "text", whiteSpace: "pre-wrap" }
+                        : { outline: "none", cursor: "inherit" }}
                       onPointerDown={editingTitleId === ti.id ? (e) => e.stopPropagation() : undefined}
                       onKeyDown={editingTitleId === ti.id ? (e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); (e.currentTarget as HTMLElement).blur(); } } : undefined}
                       onBlur={editingTitleId === ti.id ? (e) => { const txt = (e.currentTarget.textContent || "").trim(); if (txt) updateTitle(ti.id, { text: txt }); setEditingTitleId(null); } : undefined}
