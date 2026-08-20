@@ -17,6 +17,14 @@ export async function middleware(req: NextRequest) {
 
   const res = NextResponse.next();
 
+  // Domaine de refonte : même contenu que la production, donc à tenir hors des
+  // moteurs de recherche. Sans ça, Google voit deux fois le même site et choisit
+  // lui-même lequel afficher.
+  const hote = req.headers.get("host") ?? "";
+  if (!hote.startsWith("getklip.fr") && !hote.startsWith("www.getklip.fr")) {
+    res.headers.set("X-Robots-Tag", "noindex, nofollow");
+  }
+
   const supabase = createMiddlewareClient({ req, res });
 
   // Effet de bord VOULU : getSession() rafraîchit le jeton expiré et réécrit le
