@@ -1409,6 +1409,44 @@ export default function MontagePage() {
     });
   }, [audioTracks]);
 
+  /* Réparation des projets existants.
+
+     Les pistes audio créées avant que `srcDur` n'existe ne savent pas quelle est
+     la vraie longueur de leur fichier : `audioSrcDur` retombe alors sur ce qui
+     est posé sur la timeline, et une piste déjà raccourcie ne peut plus être
+     rallongée — elle s'est murée toute seule. On va donc lire la durée réelle
+     (sans créer de lecteur média) et la poser.
+
+     Même chose pour le spectre : les anciens ne portaient que 120 valeurs pour
+     tout le fichier. À trente mesures par seconde attendues, on les recalcule
+     dès qu'ils sont manifestement trop grossiers, sinon le dessin resterait un
+     pavé sans relief. */
+  const repareesRef = useRef<Set<string>>(new Set());
+  useEffect(() => {
+    const aFaire = audioTracks.filter((a) => a.src && !repareesRef.current.has(a.id)
+      && (!a.srcDur || !a.waveform || a.waveform.length < Math.min(WAVEFORM_MAX, ((a.srcDur ?? a.dur) * WAVEFORM_PER_SECOND) / 3)));
+    if (!aFaire.length) return;
+    let vivant = true;
+    (async () => {
+      for (const a of aFaire) {
+        repareesRef.current.add(a.id);
+        const duree = a.srcDur ?? (await dureeAudio(a.src)) ?? undefined;
+        const attendu = duree ? waveformCount(duree) : 0;
+        const spectre = (!a.waveform || (attendu && a.waveform.length < attendu / 3))
+          ? await computeWaveformFromUrl(a.src)
+          : null;
+        if (!vivant) return;
+        if (!duree && !spectre?.length) continue;
+        setAudioTracks((prev) => prev.map((x) => x.id !== a.id ? x : {
+          ...x,
+          ...(duree ? { srcDur: Math.max(duree, (x.srcOffset ?? 0) + x.dur) } : {}),
+          ...(spectre?.length ? { waveform: spectre } : {}),
+        }));
+      }
+    })();
+    return () => { vivant = false; };
+  }, [audioTracks]);
+
   // En quittant le monteur, aucune piste ne doit survivre à l'écran, et aucune
   // source ouverte ne doit garder ses octets en mémoire.
   useEffect(() => () => {
@@ -1636,7 +1674,9 @@ export default function MontagePage() {
     const aid = crypto.randomUUID();
     setAudioTracks((prev) => [...prev, {
       id: aid, kind: "voiceover", name: c.name,
-      src: c.src, dur: c.dur, vol: c.vol ?? 1, offset: c.start, srcOffset: c.trimStart, track: 0,
+      // La source, c'est le rush ENTIER : on doit pouvoir rallonger le son
+      // détaché au delà du rognage du plan dont il vient.
+      src: c.src, dur: c.dur, srcDur: c.srcDur, vol: c.vol ?? 1, offset: c.start, srcOffset: c.trimStart, track: 0,
       fadeIn: c.audioFadeIn ?? 0, fadeOut: c.audioFadeOut ?? 0,
     }]);
     updateClip(id, { vol: 0 }); // le son passe sur la piste audio → on coupe celui embarqué
@@ -1650,7 +1690,7 @@ export default function MontagePage() {
     if ((o.vol ?? 1) === 0) { toast(t('toastAudioAlreadyDetached')); return; }
     setAudioTracks((prev) => [...prev, {
       id: crypto.randomUUID(), kind: "voiceover", name: o.name,
-      src: o.src, dur: overlayTimelineDur(o), vol: o.vol ?? 1, offset: o.offset, srcOffset: o.trimStart, track: 0,
+      src: o.src, dur: overlayTimelineDur(o), srcDur: o.srcDur, vol: o.vol ?? 1, offset: o.offset, srcOffset: o.trimStart, track: 0,
     }]);
     updateOverlay(id, { vol: 0 });
     toast(t('toastAudioDetached'));
@@ -2530,7 +2570,11 @@ export default function MontagePage() {
       if (error) { toast(t('toastAudioUploadFailed', { msg: error.message })); return; }
       const { data: urlData } = supabase.storage.from("audio").getPublicUrl(path);
       const [dur, waveform] = await Promise.all([getAudioDuration(urlData.publicUrl), computeWaveform(file)]);
-      setAudioTracks((prev) => [...prev, { id: crypto.randomUUID(), kind, name: file.name, src: urlData.publicUrl, dur, vol: 1, offset: 0, waveform }]);
+      // `srcDur` : la VRAIE longueur du fichier. Sans elle, `audioSrcDur` retombe
+      // sur ce qui est actuellement posé sur la timeline, si bien qu'au premier
+      // raccourcissement la piste oublie ce qu'il lui restait de source et ne
+      // peut plus jamais être rallongée.
+      setAudioTracks((prev) => [...prev, { id: crypto.randomUUID(), kind, name: file.name, src: urlData.publicUrl, dur, srcDur: dur, vol: 1, offset: 0, waveform }]);
     } finally {
       setUploadingAudio(false);
     }
@@ -4545,7 +4589,7 @@ export default function MontagePage() {
                       <ClipStrip data={strips[c.id]} width={c.dur * pps} height={blockH("video")} filter={clipFilterCss(c)} />
                       {/* Le son fait UN avec la vidéo : spectre audio intégré en bas du plan (façon CapCut). */}
                       {c.kind === "video" && (c.vol ?? 1) > 0 && clipWaves[c.src] && (
-                        <ClipWave peaks={clipWaves[c.src]} />
+                        <ClipWave peaks={clipWaves[c.src]} srcDur={c.srcDur} de={c.trimStart} a={c.trimEnd} />
                       )}
                       {/* Rampe de fondu du son, dessinée sur le plan (mêmes repères que l'audio). */}
                       {c.kind === "video" && (c.vol ?? 1) > 0 && (
@@ -4693,7 +4737,9 @@ export default function MontagePage() {
                     <div key={a.id} data-selid={a.id} className="a-wave-bar" style={{ left: a.offset * pps, width: a.dur * pps, top: 2, height: blockH(`a${a.track ?? 0}`), cursor: "grab", touchAction: "none", boxShadow: selectedAudioId === a.id || multiSel.has(a.id) ? "inset 0 0 0 2px var(--acid)" : undefined }} title={a.name}
                       onPointerDown={(e) => onAudioBarDown(e, a)} onPointerMove={onAudioBarMove} onPointerUp={onAudioBarUp}
                       onContextMenu={(e) => { e.preventDefault(); setSelectedAudioId(a.id); setTool("audio"); setClipMenu({ x: e.clientX, y: e.clientY, id: a.id, kind: "audio" }); }}>
-                      {a.waveform && a.waveform.length > 0 && <AudioWave peaks={a.waveform} />}
+                      {a.waveform && a.waveform.length > 0 && (
+                        <AudioWave peaks={a.waveform} srcDur={audioSrcDur(a)} de={a.srcOffset ?? 0} a={(a.srcOffset ?? 0) + a.dur} />
+                      )}
                       <span style={{ position: "absolute", left: 6, top: 4, fontSize: 9.5, fontWeight: 700, color: "#fff" }}>{a.kind === "voiceover" ? "🎙" : "🎵"} {a.name}</span>
                       {(() => {
                         const w = a.dur * pps;

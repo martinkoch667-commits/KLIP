@@ -67,9 +67,18 @@ export const ClipStrip = React.memo(ClipStripBase);
 
    On dessine une colonne par PIXEL disponible, en prenant le pic du tronçon
    qu'elle couvre : le dessin reste juste à tous les zooms, sans jamais dépendre
-   du nombre de valeurs stockées. */
+   du nombre de valeurs stockées.
+
+   Enfin, et c'est le point qui manquait : on ne dessine que la TRANCHE GARDÉE.
+   Les pics couvrent la source entière ; le bloc, lui, n'en montre que
+   [de, a]. Auparavant tout le fichier était étalé sur toute la largeur du bloc,
+   quel que soit le rognage : raccourcir une musique ne changeait pas son dessin,
+   il se contentait de se comprimer. Le spectre ne disait donc rien du son
+   réellement gardé, c'était une décoration. Maintenant, rogner un bord fait
+   disparaître le son correspondant et le reste ne bouge pas d'un pixel. */
 function dessinerSpectre(
   cv: HTMLCanvasElement, peaks: number[], couleur: string, opacite: number, minRel: number,
+  srcDur: number, de: number, a: number,
 ) {
   const dpr = Math.min(2, typeof window === "undefined" ? 1 : window.devicePixelRatio || 1);
   const w = Math.max(1, Math.round(cv.clientWidth));
@@ -83,22 +92,30 @@ function dessinerSpectre(
   ctx.globalAlpha = opacite;
   ctx.fillStyle = couleur;
   const milieu = h / 2;
-  const parCol = peaks.length / w;
+  // Bornes de la tranche gardée, en indices de pics. Sans durée de source
+  // connue (projet ancien), on retombe sur « tout le fichier ».
+  const parSec = srcDur > 0 ? peaks.length / srcDur : 0;
+  const i0 = parSec > 0 ? Math.max(0, Math.floor(de * parSec)) : 0;
+  const i1 = parSec > 0 ? Math.min(peaks.length, Math.ceil(a * parSec)) : peaks.length;
+  if (i1 <= i0) return;
+  const parCol = (i1 - i0) / w;
   for (let x = 0; x < w; x++) {
     // Pic du tronçon couvert par cette colonne : à fort dézoom une colonne
     // représente plusieurs mesures, et c'est la plus forte qui doit se voir.
-    const a = Math.floor(x * parCol);
-    const b = Math.max(a + 1, Math.floor((x + 1) * parCol));
+    const d0 = i0 + Math.floor(x * parCol);
+    const d1 = Math.max(d0 + 1, i0 + Math.floor((x + 1) * parCol));
     let p = 0;
-    for (let i = a; i < b && i < peaks.length; i++) if (peaks[i] > p) p = peaks[i];
+    for (let i = d0; i < d1 && i < i1; i++) if (peaks[i] > p) p = peaks[i];
     const demi = Math.max(minRel * h, p * h * 0.46);
     ctx.fillRect(x, milieu - demi, 1, demi * 2);
   }
   ctx.globalAlpha = 1;
 }
 
-function SpectreBase({ peaks, couleur, opacite, minRel, className, style }: {
+function SpectreBase({ peaks, couleur, opacite, minRel, srcDur, de, a, className, style }: {
   peaks: number[]; couleur: string; opacite: number; minRel: number;
+  /** Durée de la SOURCE, à laquelle `peaks` se rapporte, et tranche gardée. */
+  srcDur: number; de: number; a: number;
   className?: string; style?: React.CSSProperties;
 }) {
   const ref = React.useRef<HTMLCanvasElement>(null);
@@ -107,32 +124,32 @@ function SpectreBase({ peaks, couleur, opacite, minRel, className, style }: {
   React.useEffect(() => {
     const cv = ref.current;
     if (!cv) return;
-    const peindre = () => dessinerSpectre(cv, peaks, couleur, opacite, minRel);
+    const peindre = () => dessinerSpectre(cv, peaks, couleur, opacite, minRel, srcDur, de, a);
     peindre();
     if (typeof ResizeObserver === "undefined") return;
     const ro = new ResizeObserver(peindre);
     ro.observe(cv);
     return () => ro.disconnect();
-  }, [peaks, couleur, opacite, minRel]);
+  }, [peaks, couleur, opacite, minRel, srcDur, de, a]);
   return <canvas ref={ref} className={className} style={{ display: "block", width: "100%", height: "100%", ...style }} aria-hidden />;
 }
 const Spectre = React.memo(SpectreBase);
 
 /** Spectre intégré au plan vidéo (façon CapCut), en bas du bloc. */
-function ClipWaveBase({ peaks }: { peaks: number[] }) {
+function ClipWaveBase({ peaks, srcDur, de, a }: { peaks: number[]; srcDur: number; de: number; a: number }) {
   if (!peaks.length) return null;
   return (
     <div className="a-clip-wave">
-      <Spectre peaks={peaks} couleur="rgba(255,255,255,.82)" opacite={1} minRel={0.03} />
+      <Spectre peaks={peaks} couleur="rgba(255,255,255,.82)" opacite={1} minRel={0.03} srcDur={srcDur} de={de} a={a} />
     </div>
   );
 }
 export const ClipWave = React.memo(ClipWaveBase);
 
 /** Spectre d'une piste audio de la timeline. */
-function AudioWaveBase({ peaks }: { peaks: number[] }) {
+function AudioWaveBase({ peaks, srcDur, de, a }: { peaks: number[]; srcDur: number; de: number; a: number }) {
   if (!peaks.length) return null;
-  return <Spectre peaks={peaks} couleur="#fff" opacite={0.62} minRel={0.015}
+  return <Spectre peaks={peaks} couleur="#fff" opacite={0.62} minRel={0.015} srcDur={srcDur} de={de} a={a}
     style={{ position: "absolute", inset: 0 }} />;
 }
 export const AudioWave = React.memo(AudioWaveBase);

@@ -96,7 +96,7 @@ function Timeline({ memo, plans, pistes, time, curseurRef }: {
           <div key={c.id} style={{ position: "absolute", left: c.start * PPS, width: c.dur * PPS, height: H_PLAN, overflow: "hidden", borderRadius: 6, background: "#2b8d57" }}>
             <Strip data={c.strip} width={c.dur * PPS} height={H_PLAN} filter={undefined} />
             {memo
-              ? <ClipWave peaks={c.peaks} />
+              ? <ClipWave peaks={c.peaks} srcDur={c.dur} de={0} a={c.dur} />
               : (
                 <div className="a-clip-wave">
                   <svg width="100%" height="100%" preserveAspectRatio="none">
@@ -124,8 +124,12 @@ function Timeline({ memo, plans, pistes, time, curseurRef }: {
       {pistes.map((a, i) => (
         <div key={a.id} style={{ position: "relative", height: 40, marginTop: 4 }}>
           <div style={{ position: "absolute", left: a.offset * PPS, width: a.dur * PPS, height: 36, background: "#3a2f7a", borderRadius: 6, overflow: "hidden" }}>
+            {/* La 3e piste est volontairement « rognée » au tiers du milieu :
+                son dessin doit montrer CETTE portion, pas tout le fichier
+                comprimé. C'est ce que le spectre ne faisait pas. */}
             {memo
-              ? <AudioWave peaks={a.peaks} />
+              ? <AudioWave peaks={a.peaks} srcDur={a.dur}
+                  de={i === 2 ? a.dur / 3 : 0} a={i === 2 ? (2 * a.dur) / 3 : a.dur} />
               : (
                 <svg width="100%" height="100%" preserveAspectRatio="none" style={{ position: "absolute", inset: 0, opacity: 0.55 }}>
                   {a.peaks.map((p, k) => { const x = (k / a.peaks.length) * 100; const h = Math.max(6, p * 100); return <rect key={k} x={`${x}%`} y={`${(100 - h) / 2}%`} width={`${100 / a.peaks.length}%`} height={`${h}%`} fill="#fff" />; })}
