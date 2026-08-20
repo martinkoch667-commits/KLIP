@@ -2420,6 +2420,21 @@
     "tabBasic": "Base",
     "tabBubble": "Fumetto",
     "tabEffects": "Effetti",
-    "curve": "Curva"
+    "curve": "Curva",
+    "color": "Colore",
+    "offset": "Scostamento",
+    "padding": "Margine interno",
+    "bold": "Grassetto",
+    "italic": "Corsivo",
+    "alignLeft": "Allinea a sinistra",
+    "alignCenter": "Centra",
+    "alignRight": "Allinea a destra",
+    "brandFonts": "Font del marchio",
+    "builtInFonts": "Font KLIP",
+    "fontCatalogue": "Catalogo",
+    "effects": "Effetti",
+    "underline": "Sottolineato",
+    "spacingPair": "Carattere / riga",
+    "bgSize": "Dimensione sfondo"
   }
 }

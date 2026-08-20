@@ -660,6 +660,28 @@ export type EffectiveSub = SubStyle & {
   anim: SubAnim;
 };
 
+/**
+ * Police d'un sous-titre, ramenée à un NOM DE FAMILLE.
+ *
+ * L'aperçu comme l'export écrivent `'${font}', …` : la valeur est entourée de
+ * quotes, donc seule une famille nue fonctionne. Or la bibliothèque et les
+ * réglages déjà enregistrés contiennent aussi des valeurs en syntaxe CSS
+ * (« 'Instrument Serif', serif », « var(--mono) ») héritées de l'ancien menu :
+ * une fois requotées elles ne désignaient plus rien, et le sous-titre retombait
+ * silencieusement sur la police par défaut. Magazine, Vintage et Terminal
+ * s'affichaient donc dans la mauvaise fonte, à l'écran comme dans la vidéo.
+ */
+export function subFontFamily(font?: string): string | undefined {
+  const f = (font || "").trim();
+  if (!f) return undefined;
+  if (f === "var(--sans)") return undefined;          // c'est déjà le défaut
+  if (f === "var(--display)") return "Archivo";
+  if (f === "var(--mono)") return "Courier New";
+  // Valeur CSS héritée : on ne garde que la première famille de la pile.
+  const first = f.split(",")[0].trim().replace(/^['"]|['"]$/g, "");
+  return first || undefined;
+}
+
 export function effectiveSubStyle(styleId: string, custom?: SubCustom): EffectiveSub {
   const base = subStyleById(styleId);
   const pill = custom?.pill ?? base.pill;
@@ -670,7 +692,7 @@ export function effectiveSubStyle(styleId: string, custom?: SubCustom): Effectiv
     hi: custom?.hi ?? base.hi,
     bg: custom?.bg ?? base.bg,
     stroke: custom?.stroke ?? base.stroke,
-    font: custom?.font ?? base.font,
+    font: subFontFamily(custom?.font ?? base.font),
     weight: custom?.weight ?? base.weight,
     italic: custom?.italic ?? base.italic,
     uppercase,
@@ -910,7 +932,10 @@ export function subBgBox(e: EffectiveSub, boxW: number, boxH: number, k = 1) {
     y: -e.bgH * k + e.bgY * k,
     w: boxW + e.bgW * 2 * k,
     h: boxH + e.bgH * 2 * k,
-    r: e.pill ? (boxH + e.bgH * 2 * k) / 2 : e.radius * k,
+    // Le curseur d'arrondi va jusqu'à la pilule. Le DOM borne de lui-même à la
+    // moitié de la hauteur ; le canvas, lui, dessinerait un arc impossible et
+    // casserait le tracé. On borne donc ici, des deux côtés du même calcul.
+    r: Math.min(e.pill ? Infinity : e.radius * k, (boxH + e.bgH * 2 * k) / 2),
   };
 }
 
@@ -1301,9 +1326,9 @@ export const SUB_STYLES: SubStyle[] = [
   { id: "band-cream",name: "Crème",      sub: "Bloc clair",       bg: "#F1F0E8",             fg: "#14160F", hi: "#6656D9", weight: 700, italic: false, pill: false },
   { id: "band-red",  name: "Alerte",     sub: "Bloc rouge",       bg: "#E0332E",             fg: "#FFFFFF", hi: "#FFE14D", weight: 800, italic: false, pill: false, uppercase: true },
   // — Élégants / éditoriaux —
-  { id: "serif-white",name: "Magazine",  sub: "Serif italique",   bg: "transparent",         fg: "#FFFFFF", hi: "#C9C0FF", weight: 400, italic: true,  pill: false, font: "'Instrument Serif', serif" },
-  { id: "serif-cream",name: "Vintage",   sub: "Serif crème",      bg: "transparent",         fg: "#F1E9D2", hi: "#E8B14C", weight: 400, italic: true,  pill: false, font: "'Instrument Serif', serif", stroke: "#3A2A10" },
-  { id: "mono-tech", name: "Terminal",   sub: "Mono tech",        bg: "rgba(10,8,24,.88)",   fg: "#C9C0FF", hi: "#FFFFFF", weight: 600, italic: false, pill: false, font: "var(--mono)" },
+  { id: "serif-white",name: "Magazine",  sub: "Serif italique",   bg: "transparent",         fg: "#FFFFFF", hi: "#C9C0FF", weight: 400, italic: true,  pill: false, font: "Instrument Serif" },
+  { id: "serif-cream",name: "Vintage",   sub: "Serif crème",      bg: "transparent",         fg: "#F1E9D2", hi: "#E8B14C", weight: 400, italic: true,  pill: false, font: "Instrument Serif", stroke: "#3A2A10" },
+  { id: "mono-tech", name: "Terminal",   sub: "Mono tech",        bg: "rgba(10,8,24,.88)",   fg: "#C9C0FF", hi: "#FFFFFF", weight: 600, italic: false, pill: false, font: "Courier New" },
   // — Fun / gras —
   { id: "sunset",    name: "Sunset",     sub: "Orange contour",   bg: "transparent",         fg: "#FFB347", hi: "#FFFFFF", weight: 900, italic: false, pill: false, uppercase: true, stroke: "#3A1A00" },
   { id: "ocean",     name: "Océan",      sub: "Cyan contour",     bg: "transparent",         fg: "#3FE0E0", hi: "#FFFFFF", weight: 900, italic: false, pill: false, uppercase: true, stroke: "#052A2A" },

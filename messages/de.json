@@ -2420,6 +2420,21 @@
     "tabBasic": "Basis",
     "tabBubble": "Sprechblase",
     "tabEffects": "Effekte",
-    "curve": "Kurve"
+    "curve": "Kurve",
+    "color": "Farbe",
+    "offset": "Versatz",
+    "padding": "Innenabstand",
+    "bold": "Fett",
+    "italic": "Kursiv",
+    "alignLeft": "Linksbündig",
+    "alignCenter": "Zentriert",
+    "alignRight": "Rechtsbündig",
+    "brandFonts": "Markenschriften",
+    "builtInFonts": "KLIP-Schriften",
+    "fontCatalogue": "Katalog",
+    "effects": "Effekte",
+    "underline": "Unterstrichen",
+    "spacingPair": "Zeichen / Zeile",
+    "bgSize": "Hintergrundgröße"
   }
 }

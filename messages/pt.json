@@ -2420,6 +2420,21 @@
     "tabBasic": "Básico",
     "tabBubble": "Balão",
     "tabEffects": "Efeitos",
-    "curve": "Curva"
+    "curve": "Curva",
+    "color": "Cor",
+    "offset": "Deslocamento",
+    "padding": "Margem interna",
+    "bold": "Negrito",
+    "italic": "Itálico",
+    "alignLeft": "Alinhar à esquerda",
+    "alignCenter": "Centrar",
+    "alignRight": "Alinhar à direita",
+    "brandFonts": "Tipos de letra da marca",
+    "builtInFonts": "Tipos de letra KLIP",
+    "fontCatalogue": "Catálogo",
+    "effects": "Efeitos",
+    "underline": "Sublinhado",
+    "spacingPair": "Carácter / linha",
+    "bgSize": "Tamanho do fundo"
   }
 }

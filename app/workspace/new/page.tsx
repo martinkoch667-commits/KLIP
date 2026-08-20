@@ -332,28 +332,10 @@ export default function NewWorkspacePage() {
   const activeFontSecondary = customSecondary ? customSecondary.family : fontSecondary;
 
   // Libellés de l'éditeur de sous-titres (partagé avec l'éditeur de montage).
-  const tse = useTranslations('subtitleEditor');
   // Libellés « longueur des sous-titres » — réutilise les traductions déjà
   // faites pour l'éditeur de montage (mêmes 6 langues), pas de doublon à créer.
   const tc = useTranslations('montageConstants');
   const SUB_LENGTH_KEY: Record<number, string> = { 1: "one", 2: "two", 3: "three", 4: "four", 6: "six", 99: "sentence" };
-  const subEditorLabels = useMemo(() => ({
-    basic: tse('basic'), font: tse('font'), brandFont: tse('brandFont'), system: tse('system'),
-    serif: tse('serif'), mono: tse('mono'), size: tse('size'), style: tse('style'), case: tse('case'),
-    align: tse('align'), letterSpacing: tse('letterSpacing'), lineHeight: tse('lineHeight'),
-    colors: tse('colors'), text: tse('text'), highlight: tse('highlight'),
-    background: tse('background'), none: tse('none'), opacity: tse('opacity'), radius: tse('radius'), pill: tse('pill'),
-    stroke: tse('stroke'), thickness: tse('thickness'),
-    shadow: tse('shadow'), blur: tse('blur'), offsetX: tse('offsetX'), offsetY: tse('offsetY'),
-    glow: tse('glow'), intensity: tse('intensity'),
-    transform: tse('transform'), rotation: tse('rotation'),
-    anim: tse('anim'), animWords: tse('animWords'), animNone: tse('animNone'),
-    layout: tse('layout'), boxWidth: tse('boxWidth'), lines: tse('lines'),
-    oneLine: tse('oneLine'), twoLines: tse('twoLines'), threeLines: tse('threeLines'),
-            bgWidth: tse('bgWidth'), bgHeight: tse('bgHeight'), spread: tse('spread'),
-            tabBasic: tse('tabBasic'), tabBubble: tse('tabBubble'), tabEffects: tse('tabEffects'), curve: tse('curve'),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }), []);
 
   // Templates de sous-titres dérivés de la charte (couleurs + police déjà choisies).
   const subPresets = useMemo(
@@ -2180,7 +2162,7 @@ export default function NewWorkspacePage() {
                           custom={subtitleCustom}
                           onChange={(next) => { setSubPresetId(null); setSubtitleCustom(next); }}
                           brandFont={activeFontPrimary}
-                          labels={subEditorLabels}
+                          brandColors={[primaryColor, secondaryColor, accentColor].filter(Boolean) as string[]}
                         />
                         <p style={{ fontSize: 11.5, color: "var(--ink-3)", margin: "14px 0 0" }}>{t('subCustomizeNote')}</p>
                       </div>

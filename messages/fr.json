@@ -2382,7 +2382,7 @@
     "serif": "Serif",
     "mono": "Mono",
     "size": "Taille",
-    "style": "Motif",
+    "style": "Style",
     "case": "Casse",
     "align": "Alignement",
     "letterSpacing": "Caractère",
@@ -2420,6 +2420,21 @@
     "tabBasic": "Basique",
     "tabBubble": "Bulle",
     "tabEffects": "Effets",
-    "curve": "Courbe"
+    "curve": "Courbe",
+    "color": "Couleur",
+    "offset": "Décalage",
+    "padding": "Marge intérieure",
+    "bold": "Gras",
+    "italic": "Italique",
+    "alignLeft": "Aligner à gauche",
+    "alignCenter": "Centrer",
+    "alignRight": "Aligner à droite",
+    "brandFonts": "Polices de la marque",
+    "builtInFonts": "Polices KLIP",
+    "fontCatalogue": "Catalogue",
+    "effects": "Effets",
+    "underline": "Souligné",
+    "spacingPair": "Caractère / ligne",
+    "bgSize": "Taille du fond"
   }
 }

@@ -2420,6 +2420,21 @@
     "tabBasic": "Basic",
     "tabBubble": "Bubble",
     "tabEffects": "Effects",
-    "curve": "Curve"
+    "curve": "Curve",
+    "color": "Color",
+    "offset": "Offset",
+    "padding": "Padding",
+    "bold": "Bold",
+    "italic": "Italic",
+    "alignLeft": "Align left",
+    "alignCenter": "Center",
+    "alignRight": "Align right",
+    "brandFonts": "Brand fonts",
+    "builtInFonts": "KLIP fonts",
+    "fontCatalogue": "Catalogue",
+    "effects": "Effects",
+    "underline": "Underline",
+    "spacingPair": "Letter / line",
+    "bgSize": "Background size"
   }
 }

@@ -5,440 +5,293 @@
 // de montage (thème sombre .a-root) : les deux endroits proposent donc exactement
 // les mêmes réglages. Le rendu est piloté par subtitleBoxCss/effectiveSubStyle,
 // et répliqué à l'identique par l'export canvas (export.ts drawCaptions).
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { useTranslations } from "next-intl";
+import { Row, Ico, Num, Fold, Swatches, AlignIcon, chargerCatalogue, type GFont } from "@/components/EditorControls";
+import { chargerPoliceGoogle } from "@/app/workspace/[id]/montage/[postId]/fonts";
 import {
   effectiveSubStyle, applySubCase, subtitleBoxCss, subBgLayerCss, SUB_BASE_FONT,
   fitChunks, makeTextMeasurer,
   type SubCustom, type CaseMode, type SubAlign, type SubAnim,
 } from "@/app/workspace/[id]/montage/[postId]/constants";
 
-const HEX = /^#([0-9a-f]{6})$/i;
-const safeHex = (v: string | undefined, fallback = "#000000") => (v && HEX.test(v) ? v : fallback);
-
-// ─── petits contrôles ────────────────────────────────────────────────────────
-
-function Label({ children }: { children: React.ReactNode }) {
-  return <span style={{ display: "block", fontSize: 10.5, fontWeight: 800, letterSpacing: ".1em", textTransform: "uppercase", color: "var(--ink-3)", marginBottom: 7 }}>{children}</span>;
-}
-
-function Swatch({ value, onChange, allowNone, noneLabel, onNone }: {
-  value: string; onChange: (v: string) => void;
-  allowNone?: boolean; noneLabel?: string; onNone?: () => void;
-}) {
-  const isNone = !value || value === "transparent";
-  return (
-    <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
-      <input
-        type="color" value={safeHex(isNone ? undefined : value, "#ffffff")}
-        onChange={(e) => onChange(e.target.value)}
-        style={{ width: 34, height: 28, borderRadius: 8, border: "1px solid var(--line)", background: "none", cursor: "pointer", padding: 0 }}
-      />
-      {allowNone && (
-        <button type="button" onClick={onNone}
-          className={isNone ? "btn btn-primary btn-sm" : "btn btn-ghost btn-sm"}
-          style={{ fontSize: 11, padding: "4px 10px" }}>
-          {noneLabel}
-        </button>
-      )}
-    </div>
-  );
-}
-
-function Slider({ value, min, max, step = 1, onChange, fmt }: {
-  value: number; min: number; max: number; step?: number; onChange: (v: number) => void; fmt?: (v: number) => string;
-}) {
-  return (
-    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-      <input type="range" min={min} max={max} step={step} value={value}
-        onChange={(e) => onChange(parseFloat(e.target.value))}
-        style={{ flex: 1, accentColor: "var(--leaf-ink)" }} />
-      <span style={{ minWidth: 44, textAlign: "right", fontSize: 11.5, fontWeight: 700, color: "var(--ink-2)", fontVariantNumeric: "tabular-nums" }}>
-        {fmt ? fmt(value) : value}
-      </span>
-    </div>
-  );
-}
-
-function Seg<T extends string | number>({ options, value, onChange }: {
-  options: { v: T; label: React.ReactNode; title?: string }[]; value: T; onChange: (v: T) => void;
-}) {
-  return (
-    <div style={{ display: "flex", gap: 5, flexWrap: "wrap" }}>
-      {options.map((o) => (
-        <button type="button" key={String(o.v)} title={o.title} onClick={() => onChange(o.v)}
-          className={value === o.v ? "btn btn-primary btn-sm" : "btn btn-ghost btn-sm"}
-          style={{ padding: "5px 11px", fontSize: 12, minWidth: 38 }}>
-          {o.label}
-        </button>
-      ))}
-    </div>
-  );
-}
-
-/**
- * Bloc repliable, façon éditeur vidéo : un interrupteur qui coupe l'effet, un
- * chevron pour replier, et une réinitialisation propre au bloc. Replié par
- * défaut quand l'effet est éteint — on ne montre pas dix panneaux ouverts sur
- * des réglages inactifs.
- */
-function Section({ title, children, active, onToggle, onReset, defaultOpen }: {
-  title: string; children: React.ReactNode;
-  /** undefined = bloc toujours actif (pas d'interrupteur). */
-  active?: boolean;
-  onToggle?: (next: boolean) => void;
-  onReset?: () => void;
-  defaultOpen?: boolean;
-}) {
-  const [open, setOpen] = useState(defaultOpen ?? (active === undefined ? true : active));
-  const hasSwitch = active !== undefined && !!onToggle;
-  return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 12, paddingTop: 14, borderTop: "1px solid var(--line)" }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 9 }}>
-        {hasSwitch && (
-          <button type="button" role="switch" aria-checked={!!active} title={title}
-            onClick={() => { const next = !active; onToggle!(next); if (next) setOpen(true); }}
-            style={{ width: 30, height: 17, flexShrink: 0, borderRadius: 99, border: "none", cursor: "pointer", padding: 0,
-              background: active ? "var(--vio)" : "var(--line)", position: "relative", transition: "background .18s" }}>
-            <span style={{ position: "absolute", top: 2, left: active ? 15 : 2, width: 13, height: 13, borderRadius: "50%",
-              background: "#fff", transition: "left .18s", boxShadow: "0 1px 3px rgba(0,0,0,.25)" }} />
-          </button>
-        )}
-        <button type="button" onClick={() => setOpen((v) => !v)}
-          style={{ display: "flex", alignItems: "center", gap: 5, background: "none", border: "none", padding: 0, cursor: "pointer", flex: 1, textAlign: "left" }}>
-          <Label>{title}</Label>
-          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6"
-            strokeLinecap="round" strokeLinejoin="round" aria-hidden
-            style={{ color: "var(--ink-3)", transform: open ? "rotate(180deg)" : "none", transition: "transform .18s", marginBottom: 6 }}>
-            <path d="m6 9 6 6 6-6" />
-          </svg>
-        </button>
-        {onReset && (
-          <button type="button" onClick={onReset} title="Réinitialiser"
-            style={{ background: "none", border: "none", cursor: "pointer", color: "var(--ink-3)", padding: 2, flexShrink: 0 }}>
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-              <path d="M3 12a9 9 0 1 0 3-6.7L3 8" /><path d="M3 3v5h5" />
-            </svg>
-          </button>
-        )}
-      </div>
-      {open && children}
-    </div>
-  );
-}
-
 // Taille de police du sous-titre à l'échelle 1, telle que l'export la dessine
 // (cf. export.ts). C'est elle qui permet d'afficher des pixels plutôt qu'un
 // pourcentage abstrait.
 const SUB_BASE_PX = 34;
 
-function AlignIcon({ dir }: { dir: "left" | "center" | "right" }) {
-  const short = dir === "left" ? { x1: 3, x2: 14 } : dir === "right" ? { x1: 10, x2: 21 } : { x1: 6, x2: 18 };
-  return (
-    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-      <line x1="3" y1="6" x2="21" y2="6" />
-      <line x1={short.x1} y1="12" x2={short.x2} y2="12" />
-      <line x1="3" y1="18" x2="21" y2="18" />
-    </svg>
-  );
-}
+// Polices déjà présentes dans la page : rien à aller chercher au catalogue.
+const POLICES_MAISON = ["Archivo", "Instrument Serif", "Courier New"];
 
 // ─── éditeur ─────────────────────────────────────────────────────────────────
 
-export interface SubtitleStyleEditorLabels {
-  basic: string; font: string; brandFont: string; system: string; serif: string; mono: string;
-  size: string; style: string; case: string; align: string; letterSpacing: string; lineHeight: string;
-  colors: string; text: string; highlight: string;
-  background: string; none: string; opacity: string; radius: string; pill: string;
-  stroke: string; thickness: string;
-  shadow: string; blur: string; offsetX: string; offsetY: string;
-  glow: string; intensity: string;
-  transform: string; rotation: string;
-  layout: string; boxWidth: string; lines: string; oneLine: string; twoLines: string; threeLines: string;
-  bgWidth: string; bgHeight: string; spread: string;
-  tabBasic: string; tabBubble: string; tabEffects: string; curve: string;
-  anim: string; animWords: string; animNone: string;
-}
-
+/**
+ * Réglages d'un sous-titre.
+ *
+ * MÊME PANNEAU QUE LE TEXTE, volontairement : mêmes lignes « libellé +
+ * contrôle », même nuancier (la charte du client en tête, puis la pioche
+ * maison), mêmes champs numériques à côté des curseurs, mêmes sections d'effets
+ * qu'on allume à la case et qu'on replie. Les deux panneaux se suivent dans la
+ * même colonne du monteur : tant qu'ils avaient chacun leur grammaire — ici des
+ * onglets et le sélecteur de couleur du système, là des lignes et le nuancier
+ * de la marque — on avait l'impression de changer de logiciel en passant de
+ * l'un à l'autre. Les commandes viennent maintenant du même endroit
+ * (components/EditorControls), donc elles ne peuvent plus diverger.
+ *
+ * PARTAGÉ avec l'assistant « nouveau client » et la page Modèles : les trois
+ * endroits proposent exactement les mêmes réglages. Les libellés sont lus
+ * directement dans le dictionnaire plutôt que recopiés par chaque appelant.
+ */
 export default function SubtitleStyleEditor({
-  styleId, custom, onChange, brandFont, labels: L,
+  styleId, custom, onChange, brandFont, brandColors = [],
 }: {
   styleId: string;
   custom: SubCustom;
   onChange: (patch: SubCustom) => void;
   brandFont?: string | null;
-  labels: SubtitleStyleEditorLabels;
+  /** Couleurs de la charte du client, proposées en tête du nuancier. */
+  brandColors?: string[];
 }) {
+  const t = useTranslations("subtitleEditor");
   const e = effectiveSubStyle(styleId, custom);
   const patch = (p: SubCustom) => onChange({ ...custom, ...p });
 
-  // Quatre familles imposées, c'était trop peu : on ouvre la liste complète de
-  // l'éditeur, la police de la marque restant en tête.
-  const FONT_LIST = [
-    'Anton', 'Archivo Black', 'Barlow Condensed', 'Bebas Neue', 'DM Sans', 'Exo 2',
-    'Fjalla One', 'Inter', 'Lato', 'Montserrat', 'Nunito', 'Oswald',
-    'Playfair Display', 'Poppins', 'Raleway', 'Roboto Condensed', 'Space Grotesk',
-    'Syne', 'Ubuntu', 'Work Sans',
-  ];
-  // Valeurs RÉELLES utilisées par les styles de base "Magazine"/"Vintage" et
-  // "Terminal" (cf. SUB_STYLES) — doivent être IDENTIQUES aux valeurs des
-  // <option> ci-dessous, sinon le <select> ne trouve aucune correspondance et
-  // s'affiche vide (aucune option sélectionnée) alors qu'une police est bien
-  // appliquée.
-  const SERIF_FONT = "'Instrument Serif', serif";
-  const MONO_FONT = "var(--mono)";
-  const KNOWN_FONT_VALUES = new Set([brandFont || "", "", SERIF_FONT, MONO_FONT, ...FONT_LIST]);
-  // Filet de sécurité : une police de marque personnalisée (import externe) ou
-  // tout autre réglage déjà enregistré peut ne correspondre à aucune des
-  // options ci-dessus — sans repli, le <select> se retrouve sans option
-  // sélectionnée et paraît vide côté client.
-  const [tab, setTab] = useState<"basic" | "bubble" | "fx">("basic");
-  const currentFont = e.font ?? "";
-  const unknownFont = currentFont && !KNOWN_FONT_VALUES.has(currentFont) ? currentFont : null;
+  const [fonts, setFonts] = useState<GFont[]>([]);
+  useEffect(() => { chargerCatalogue().then(setFonts); }, []);
+
+  const police = e.font ?? "";
+  // La police retenue doit être déclarée au navigateur, sinon l'aperçu la
+  // mesure sur une autre fonte et le texte ne revient pas à la ligne au même
+  // endroit que dans la vidéo.
+  useEffect(() => {
+    if (police && police !== brandFont && !POLICES_MAISON.includes(police)) chargerPoliceGoogle(police);
+  }, [police, brandFont]);
+
+  // Une police déjà enregistrée peut ne figurer dans aucune liste (import de la
+  // marque, réglage ancien) : sans cette option, le menu s'afficherait vide
+  // alors qu'une police est bien appliquée.
+  const connues = new Set([...(brandFont ? [brandFont] : []), ...POLICES_MAISON, ...fonts.map((f) => f.family)]);
+  const inconnue = police && !connues.has(police) ? police : null;
+
+  const seg = <T extends string | number>(value: T, options: { v: T; label: React.ReactNode }[], on: (v: T) => void) => (
+    <div className="mz-seg">
+      {options.map((o) => (
+        <button type="button" key={String(o.v)} className={value === o.v ? "on" : ""} onClick={() => on(o.v)}>{o.label}</button>
+      ))}
+    </div>
+  );
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-      {/* Trois onglets : la typo, l'habillage du bloc, les effets. Tout tenait
-          dans une seule colonne à dérouler — on ne trouvait plus rien. */}
-      <div style={{ display: "flex", gap: 4, padding: 3, borderRadius: 10, background: "var(--sunk)" }}>
-        {([["basic", L.tabBasic], ["bubble", L.tabBubble], ["fx", L.tabEffects]] as const).map(([k, lbl]) => (
-          <button type="button" key={k} onClick={() => setTab(k)}
-            style={{ flex: 1, padding: "7px 4px", borderRadius: 8, border: "none", cursor: "pointer",
-              fontSize: 12.5, fontWeight: 700, fontFamily: "inherit",
-              background: tab === k ? "var(--card)" : "transparent",
-              color: tab === k ? "var(--ink)" : "var(--ink-3)",
-              boxShadow: tab === k ? "0 1px 3px rgba(0,0,0,.12)" : "none" }}>
-            {lbl}
-          </button>
-        ))}
-      </div>
+    <>
+      <div className="a-section">
+        <span className="mz-sec-label">{t("basic")}</span>
 
-      {tab === "basic" && <>
-      {/* ── Basique ── */}
-      <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-        <Label>{L.basic}</Label>
-
-        <div>
-          <Label>{L.font}</Label>
-          <select
-            value={e.font ?? ""}
-            onChange={(ev) => patch({ font: ev.target.value || undefined })}
-            className="input"
-            style={{ height: 34, fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: e.font || undefined }}
-          >
-            {brandFont && <option value={brandFont}>{L.brandFont} — {brandFont}</option>}
-            {unknownFont && <option value={unknownFont}>{unknownFont}</option>}
-            <option value="">{L.system}</option>
-            <option value={SERIF_FONT}>{L.serif}</option>
-            <option value={MONO_FONT}>{L.mono}</option>
-            {FONT_LIST.filter(f => f !== brandFont).map(f => <option key={f} value={f}>{f}</option>)}
+        <Row label={t("font")}>
+          <select className="mz-sel" value={police} onChange={(ev) => patch({ font: ev.target.value || undefined })}
+            style={{ fontFamily: police ? `'${police}', var(--sans)` : undefined }}>
+            <option value="">{t("system")}</option>
+            {brandFont && <optgroup label={t("brandFonts")}><option value={brandFont}>{brandFont}</option></optgroup>}
+            {inconnue && <option value={inconnue}>{inconnue}</option>}
+            <optgroup label={t("builtInFonts")}>
+              {POLICES_MAISON.map((f) => <option key={f} value={f}>{f}</option>)}
+            </optgroup>
+            {fonts.length > 0 && (
+              <optgroup label={t("fontCatalogue")}>
+                {fonts.filter((f) => f.family !== brandFont).map((f) => <option key={f.family} value={f.family}>{f.family}</option>)}
+              </optgroup>
+            )}
           </select>
-        </div>
+        </Row>
 
-        <div>
-          <Label>{L.size}</Label>
-          {/* La taille se règle en PIXELS du rendu final : « 120 % » ne disait
-              rien de ce qu'on obtient. 34px = échelle 1 à l'export. */}
-          <Slider
-            value={Math.round(e.scale * SUB_BASE_PX)}
-            min={Math.round(0.5 * SUB_BASE_PX)}
-            max={Math.round(2.4 * SUB_BASE_PX)}
-            step={1}
-            onChange={(px) => patch({ scale: +(px / SUB_BASE_PX).toFixed(3) })}
-            fmt={(px) => `${Math.round(px)} px`}
-          />
-        </div>
+        {/* La taille se règle en PIXELS du rendu final : « 120 % » ne disait rien
+            de ce qu'on obtient. 34 px = échelle 1 à l'export. */}
+        <Row label={t("size")}>
+          <input className="mz-range" type="range" min={0.5} max={2.4} step={0.02} value={e.scale}
+            onChange={(ev) => patch({ scale: parseFloat(ev.target.value) })} style={{ flex: 1 }} />
+          <Num value={Math.round(e.scale * SUB_BASE_PX)} min={Math.round(0.5 * SUB_BASE_PX)} max={Math.round(2.4 * SUB_BASE_PX)} step={1} suffix="px"
+            onChange={(px) => patch({ scale: +(px / SUB_BASE_PX).toFixed(3) })} />
+        </Row>
 
-        <div>
-          <Label>{L.style}</Label>
-          <div style={{ display: "flex", gap: 5, flexWrap: "wrap" }}>
-            {([
-              ["weight", <b key="b">B</b>, e.weight >= 800, () => patch({ weight: e.weight >= 800 ? 600 : 800 })],
-              ["underline", <u key="u">U</u>, e.underline, () => patch({ underline: !e.underline })],
-              ["italic", <i key="i">I</i>, e.italic, () => patch({ italic: !e.italic })],
-            ] as const).map(([k, node, on, act]) => (
-              <button type="button" key={k} onClick={act}
-                className={on ? "btn btn-primary btn-sm" : "btn btn-ghost btn-sm"}
-                style={{ padding: "5px 13px", fontSize: 13, minWidth: 38 }}>{node}</button>
-            ))}
-          </div>
-        </div>
+        <Row label={t("style")}>
+          <Ico on={e.weight >= 800} title={t("bold")} onClick={() => patch({ weight: e.weight >= 800 ? 600 : 800 })}>
+            <span style={{ fontWeight: 900, fontSize: 13 }}>B</span>
+          </Ico>
+          <Ico on={e.italic} title={t("italic")} onClick={() => patch({ italic: !e.italic })}>
+            <span style={{ fontStyle: "italic", fontWeight: 700, fontSize: 13, fontFamily: "Georgia, serif" }}>I</span>
+          </Ico>
+          <Ico on={e.underline} title={t("underline")} onClick={() => patch({ underline: !e.underline })}>
+            <span style={{ textDecoration: "underline", fontWeight: 700, fontSize: 13 }}>U</span>
+          </Ico>
+          <span style={{ width: 6 }} />
+          {(["left", "center", "right"] as const).map((k) => (
+            <Ico key={k} on={e.align === k} title={t(k === "left" ? "alignLeft" : k === "right" ? "alignRight" : "alignCenter")}
+              onClick={() => patch({ align: k as SubAlign })}>
+              <AlignIcon k={k} />
+            </Ico>
+          ))}
+        </Row>
 
-        {/* Animation : « mot par mot » (surlignage façon CapCut) ou « simple »,
-            où le sous-titre s'affiche d'un bloc. Le style complet (contour, casse,
-            couleur, ombre…) s'applique dans les deux cas. */}
-        <div>
-          <Label>{L.anim}</Label>
-          <Seg<SubAnim>
-            options={[{ v: "words", label: L.animWords }, { v: "none", label: L.animNone }]}
-            value={e.anim}
-            onChange={(v) => patch({ anim: v })}
-          />
-        </div>
+        <Row label={t("case")}>
+          {seg<CaseMode>(e.caseMode, [
+            { v: "none", label: "Aa" }, { v: "upper", label: "AA" },
+            { v: "lower", label: "aa" }, { v: "title", label: "Aa." },
+          ], (v) => patch({ caseMode: v, uppercase: v === "upper" }))}
+        </Row>
 
-        <div>
-          <Label>{L.case}</Label>
-          <Seg<CaseMode>
-            options={[
-              { v: "none", label: "Aa" }, { v: "upper", label: "TT" },
-              { v: "lower", label: "tt" }, { v: "title", label: "Tt" },
-            ]}
-            value={e.caseMode}
-            onChange={(v) => patch({ caseMode: v, uppercase: v === "upper" })}
-          />
-        </div>
+        <Row label={t("spacingPair")}>
+          <Num value={e.letterSpacing} min={-0.05} max={0.5} step={0.01} suffix="em" onChange={(v) => patch({ letterSpacing: v })} />
+          <Num value={e.lineHeight} min={0.9} max={2} step={0.05} suffix="↕" onChange={(v) => patch({ lineHeight: v })} />
+        </Row>
 
-        <div>
-          <Label>{L.align}</Label>
-          <Seg<SubAlign>
-            options={[
-              { v: "left", label: <AlignIcon key="l" dir="left" /> },
-              { v: "center", label: <AlignIcon key="c" dir="center" /> },
-              { v: "right", label: <AlignIcon key="r" dir="right" /> },
-            ]}
-            value={e.align} onChange={(v) => patch({ align: v })}
-          />
-        </div>
+        <Row label={t("text")}>
+          <Swatches brandColors={brandColors} value={e.fg} onPick={(c) => patch({ fg: c })} />
+        </Row>
+        <Row label={t("highlight")}>
+          <Swatches brandColors={brandColors} value={e.hi} onPick={(c) => patch({ hi: c })} />
+        </Row>
 
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-          <div>
-            <Label>{L.letterSpacing}</Label>
-            <Slider value={e.letterSpacing} min={-0.05} max={0.5} step={0.01} onChange={(v) => patch({ letterSpacing: v })} fmt={(v) => v.toFixed(2)} />
-          </div>
-          <div>
-            <Label>{L.lineHeight}</Label>
-            <Slider value={e.lineHeight} min={0.9} max={2} step={0.05} onChange={(v) => patch({ lineHeight: v })} fmt={(v) => v.toFixed(2)} />
-          </div>
-        </div>
+        <Row label={t("opacity")}>
+          <input className="mz-range" type="range" min={0.05} max={1} step={0.02} value={e.opacity}
+            onChange={(ev) => patch({ opacity: parseFloat(ev.target.value) })} style={{ flex: 1 }} />
+          <Num value={Math.round(e.opacity * 100)} min={5} max={100} step={5} suffix="%" onChange={(v) => patch({ opacity: v / 100 })} />
+        </Row>
       </div>
 
-      {/* ── Couleurs ── */}
-      <Section title={L.colors}>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-          <div><Label>{L.text}</Label><Swatch value={e.fg} onChange={(v) => patch({ fg: v })} /></div>
-          <div><Label>{L.highlight}</Label><Swatch value={e.hi} onChange={(v) => patch({ hi: v })} /></div>
-        </div>
-      </Section>
+      {/* Largeur du bloc et nombre de lignes : les deux réglages qui décident
+          si un sous-titre tient sur une ligne ou se replie. L'export applique
+          exactement les mêmes (cf. wrapWords). */}
+      <div className="a-section">
+        <span className="mz-sec-label">{t("layout")}</span>
 
-      {/* ── Mise en page ── */}
-      {/* Largeur du bloc et nombre de lignes : ce sont les deux réglages qui
-          décident si un sous-titre tient sur une ligne ou se replie. L'export
-          applique exactement les mêmes (cf. wrapWords). */}
-      <Section title={L.layout}>
-        <div><Label>{L.boxWidth}</Label><Slider value={e.maxWidth} min={40} max={100} step={1} onChange={(v) => patch({ maxWidth: v })} fmt={(v) => `${v}%`} /></div>
-        <div style={{ display: "flex", gap: 6, marginTop: 8 }}>
-          {([[1, L.oneLine], [2, L.twoLines], [3, L.threeLines]] as const).map(([n, lbl]) => (
-            <button key={n} type="button" onClick={() => patch({ maxLines: n })}
-              className={e.maxLines === n ? "btn btn-primary btn-sm" : "btn btn-ghost btn-sm"}
-              style={{ flex: 1, justifyContent: "center" }}>{lbl}</button>
-          ))}
-        </div>
-      </Section>
+        <Row label={t("boxWidth")}>
+          <input className="mz-range" type="range" min={40} max={100} step={1} value={e.maxWidth}
+            onChange={(ev) => patch({ maxWidth: parseFloat(ev.target.value) })} style={{ flex: 1 }} />
+          <Num value={e.maxWidth} min={40} max={100} step={1} suffix="%" onChange={(v) => patch({ maxWidth: v })} />
+        </Row>
 
-      {/* ── Transformer / mélange ── */}
-      <Section title={L.transform}>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-          <div><Label>{L.rotation}</Label><Slider value={e.rotation} min={-45} max={45} step={1} onChange={(v) => patch({ rotation: v })} fmt={(v) => `${v}°`} /></div>
-          <div><Label>{L.opacity}</Label><Slider value={e.opacity} min={0.1} max={1} step={0.05} onChange={(v) => patch({ opacity: v })} fmt={(v) => `${Math.round(v * 100)}%`} /></div>
-        </div>
-      </Section>
-      </>}
+        <Row label={t("lines")}>
+          {seg<number>(e.maxLines, [
+            { v: 1, label: t("oneLine") }, { v: 2, label: t("twoLines") }, { v: 3, label: t("threeLines") },
+          ], (v) => patch({ maxLines: v }))}
+        </Row>
 
-      {tab === "bubble" && <>
-      {/* ── Arrière-plan ── */}
-      <Section title={L.background}
-        active={e.bg !== "transparent"}
-        onToggle={(on) => patch(on ? { bg: "#000000", bgOpacity: 0.55 } : { bg: "transparent" })}
-        onReset={() => patch({ bgOpacity: 1, radius: 8, pill: false, bgW: 0, bgH: 0, bgX: 0, bgY: 0 })}>
-        <Swatch value={e.bg} onChange={(v) => patch({ bg: v })} allowNone noneLabel={L.none} onNone={() => patch({ bg: "transparent" })} />
-        {e.bg !== "transparent" && (
-          <>
-            <div><Label>{L.opacity}</Label><Slider value={e.bgOpacity} min={0} max={1} step={0.05} onChange={(v) => patch({ bgOpacity: v })} fmt={(v) => `${Math.round(v * 100)}%`} /></div>
-            <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-              <button type="button" onClick={() => patch({ pill: !e.pill })}
-                className={e.pill ? "btn btn-primary btn-sm" : "btn btn-ghost btn-sm"}>{L.pill}</button>
-              {!e.pill && (
-                <div style={{ flex: 1, minWidth: 140 }}>
-                  <Slider value={e.radius} min={0} max={40} step={1} onChange={(v) => patch({ radius: v })} fmt={(v) => `${v}px`} />
-                </div>
-              )}
-            </div>
-            {/* Le fond se règle indépendamment du texte : on l'élargit, on le
-                rehausse, on le décale sans que la typo bouge. */}
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-              <div><Label>{L.bgWidth}</Label><Slider value={e.bgW} min={0} max={60} step={1} onChange={(v) => patch({ bgW: v })} fmt={(v) => `${v}px`} /></div>
-              <div><Label>{L.bgHeight}</Label><Slider value={e.bgH} min={0} max={60} step={1} onChange={(v) => patch({ bgH: v })} fmt={(v) => `${v}px`} /></div>
-              <div><Label>{L.offsetX}</Label><Slider value={e.bgX} min={-40} max={40} step={1} onChange={(v) => patch({ bgX: v })} fmt={(v) => `${v}px`} /></div>
-              <div><Label>{L.offsetY}</Label><Slider value={e.bgY} min={-40} max={40} step={1} onChange={(v) => patch({ bgY: v })} fmt={(v) => `${v}px`} /></div>
-            </div>
-          </>
-        )}
-      </Section>
+        {/* « Mot par mot » (révélation façon CapCut) ou « Simple », où le
+            sous-titre s'affiche d'un bloc. Le style complet s'applique dans les
+            deux cas. */}
+        <Row label={t("anim")}>
+          {seg<SubAnim>(e.anim, [
+            { v: "words", label: t("animWords") }, { v: "none", label: t("animNone") },
+          ], (v) => patch({ anim: v }))}
+        </Row>
 
-      </>}
+        <Row label={t("rotation")}>
+          <input className="mz-range" type="range" min={-45} max={45} step={1} value={e.rotation}
+            onChange={(ev) => patch({ rotation: parseFloat(ev.target.value) })} style={{ flex: 1 }} />
+          <Num value={e.rotation} min={-45} max={45} step={1} suffix="°" onChange={(v) => patch({ rotation: v })} />
+        </Row>
+      </div>
 
-      {tab === "fx" && <>
-      {/* ── Trait (contour) ── */}
-      <Section title={L.stroke}
-        active={!!e.stroke}
-        onToggle={(on) => patch(on ? { stroke: "#000000", strokeW: e.strokeW || 2 } : { stroke: "" })}
-        onReset={() => patch({ strokeW: 2 })}>
-        <Swatch value={e.stroke ?? ""} onChange={(v) => patch({ stroke: v })} allowNone noneLabel={L.none} onNone={() => patch({ stroke: "" })} />
-        {!!e.stroke && (
-          <div><Label>{L.thickness}</Label><Slider value={e.strokeW} min={0.5} max={8} step={0.5} onChange={(v) => patch({ strokeW: v })} fmt={(v) => `${v}px`} /></div>
-        )}
-      </Section>
+      <div className="a-section">
+        <span className="mz-sec-label">{t("effects")}</span>
 
-      {/* ── Ombre ── */}
-      <Section title={L.shadow}
-        active={!!e.shadowColor}
-        onToggle={(on) => patch(on ? { shadowColor: "#000000", shadowBlur: e.shadowBlur || 8 } : { shadowColor: "", shadowBlur: 0, shadowX: 0, shadowY: 0 })}
-        onReset={() => patch({ shadowBlur: 8, shadowX: 0, shadowY: 0 })}>
-        <Swatch value={e.shadowColor} onChange={(v) => patch({ shadowColor: v, shadowBlur: e.shadowBlur || 8 })} allowNone noneLabel={L.none} onNone={() => patch({ shadowColor: "", shadowBlur: 0, shadowX: 0, shadowY: 0 })} />
-        {!!e.shadowColor && (
-          // Trois curseurs sur une ligne sortaient du panneau : le libellé
-          // « Décalage Y » et sa valeur passaient hors cadre. La grille se replie
-          // maintenant selon la place disponible.
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(130px, 1fr))", gap: 10 }}>
-            <div><Label>{L.blur}</Label><Slider value={e.shadowBlur} min={0} max={40} step={1} onChange={(v) => patch({ shadowBlur: v })} /></div>
-            <div><Label>{L.offsetX}</Label><Slider value={e.shadowX} min={-20} max={20} step={1} onChange={(v) => patch({ shadowX: v })} /></div>
-            <div><Label>{L.offsetY}</Label><Slider value={e.shadowY} min={-20} max={20} step={1} onChange={(v) => patch({ shadowY: v })} /></div>
-          </div>
-        )}
-      </Section>
+        <Fold name={t("stroke")} on={!!e.stroke && e.strokeW > 0}
+          onToggle={(v) => patch(v ? { stroke: e.stroke || "#000000", strokeW: e.strokeW || 2 } : { stroke: "" })}>
+          <Row label={t("thickness")}>
+            <input className="mz-range" type="range" min={0.5} max={8} step={0.25} value={e.strokeW || 2}
+              onChange={(ev) => patch({ strokeW: parseFloat(ev.target.value) })} style={{ flex: 1 }} />
+            <Num value={e.strokeW} min={0} max={8} step={0.25} onChange={(v) => patch({ strokeW: v })} />
+          </Row>
+          <Row label={t("color")}>
+            <Swatches brandColors={brandColors} value={e.stroke || "#000000"} onPick={(c) => patch({ stroke: c })} />
+          </Row>
+        </Fold>
 
-      {/* ── Lueur ── */}
-      <Section title={L.glow}
-        active={!!e.glowColor}
-        onToggle={(on) => patch(on ? { glowColor: "#FFFFFF", glowBlur: e.glowBlur || 12 } : { glowColor: "", glowBlur: 0 })}
-        onReset={() => patch({ glowBlur: 12, glowSpread: 1, glowX: 0, glowY: 0 })}>
-        <Swatch value={e.glowColor} onChange={(v) => patch({ glowColor: v, glowBlur: e.glowBlur || 12 })} allowNone noneLabel={L.none} onNone={() => patch({ glowColor: "", glowBlur: 0 })} />
-        {!!e.glowColor && (
-          <>
-            <div><Label>{L.intensity}</Label><Slider value={e.glowBlur} min={0} max={40} step={1} onChange={(v) => patch({ glowBlur: v })} /></div>
-            {/* Intervalle : combien de passes de lueur on empile — serrée ou diffuse. */}
-            <div><Label>{L.spread}</Label><Slider value={e.glowSpread} min={1} max={3} step={1} onChange={(v) => patch({ glowSpread: v })} /></div>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-              <div><Label>{L.offsetX}</Label><Slider value={e.glowX} min={-20} max={20} step={1} onChange={(v) => patch({ glowX: v })} fmt={(v) => `${v}px`} /></div>
-              <div><Label>{L.offsetY}</Label><Slider value={e.glowY} min={-20} max={20} step={1} onChange={(v) => patch({ glowY: v })} fmt={(v) => `${v}px`} /></div>
-            </div>
-          </>
-        )}
-      </Section>
+        <Fold name={t("background")} on={e.bg !== "transparent"}
+          onToggle={(v) => patch(v ? { bg: custom.bg && custom.bg !== "transparent" ? custom.bg : "#000000", bgOpacity: e.bgOpacity } : { bg: "transparent" })}>
+          <Row label={t("color")}>
+            <Swatches brandColors={brandColors} value={e.bg} onPick={(c) => patch({ bg: c })} />
+          </Row>
+          <Row label={t("opacity")}>
+            <input className="mz-range" type="range" min={0} max={1} step={0.02} value={e.bgOpacity}
+              onChange={(ev) => patch({ bgOpacity: parseFloat(ev.target.value) })} style={{ flex: 1 }} />
+            <Num value={Math.round(e.bgOpacity * 100)} min={0} max={100} step={5} suffix="%" onChange={(v) => patch({ bgOpacity: v / 100 })} />
+          </Row>
+          <Row label={t("padding")}>
+            <input className="mz-range" type="range" min={0} max={60} step={1} value={e.padX}
+              onChange={(ev) => { const v = parseFloat(ev.target.value); patch({ padX: v, padY: Math.round(v * 0.5) }); }} style={{ flex: 1 }} />
+            <Num value={e.padX} min={0} max={60} step={1} onChange={(v) => patch({ padX: v, padY: Math.round(v * 0.5) })} />
+          </Row>
+          {/* UN SEUL réglage d'arrondi, du carré à la pilule — comme pour le
+              texte. La pilule n'est pas un mode : c'est le curseur poussé à
+              fond, et les deux rendus bornent d'eux-mêmes à la moitié de la
+              hauteur. */}
+          <Row label={t("radius")}>
+            <input className="mz-range" type="range" min={0} max={60} step={1} value={e.pill ? 60 : e.radius}
+              onChange={(ev) => patch({ pill: false, radius: parseFloat(ev.target.value) })} style={{ flex: 1 }} />
+            <Num value={e.pill ? 60 : e.radius} min={0} max={60} step={1} onChange={(v) => patch({ pill: false, radius: v })} />
+          </Row>
+          {/* Le fond se règle indépendamment du texte : on l'élargit, on le
+              rehausse, on le décale sans que la typo bouge. */}
+          <Row label={t("bgSize")}>
+            <Num value={e.bgW} min={0} max={60} step={1} suffix="↔" onChange={(v) => patch({ bgW: v })} />
+            <Num value={e.bgH} min={0} max={60} step={1} suffix="↕" onChange={(v) => patch({ bgH: v })} />
+          </Row>
+          <Row label={t("offset")}>
+            <Num value={e.bgX} min={-40} max={40} step={1} suffix="x" onChange={(v) => patch({ bgX: v })} />
+            <Num value={e.bgY} min={-40} max={40} step={1} suffix="y" onChange={(v) => patch({ bgY: v })} />
+          </Row>
+        </Fold>
 
-      {/* ── Courbe ── */}
-      {/* Le texte se cintre vers le haut ou vers le bas. L'aperçu et l'export
-          partagent la même formule (curveLayout) : sans ça, la courbe vue à
-          l'écran ne serait pas celle de la vidéo. */}
-      <Section title={L.curve}
-        active={e.curve !== 0}
-        onToggle={(on) => patch({ curve: on ? 30 : 0 })}
-        onReset={() => patch({ curve: 0 })}>
-        {e.curve !== 0 && (
-          <div><Slider value={e.curve} min={-100} max={100} step={1} onChange={(v) => patch({ curve: v })} fmt={(v) => `${v}`} /></div>
-        )}
-      </Section>
-      </>}
-    </div>
+        <Fold name={t("glow")} on={!!e.glowColor}
+          onToggle={(v) => patch(v ? { glowColor: e.glowColor || "#FFFFFF", glowBlur: e.glowBlur || 12 } : { glowColor: "", glowBlur: 0 })}>
+          <Row label={t("color")}>
+            <Swatches brandColors={brandColors} value={e.glowColor || "#FFFFFF"} onPick={(c) => patch({ glowColor: c, glowBlur: e.glowBlur || 12 })} />
+          </Row>
+          <Row label={t("intensity")}>
+            <input className="mz-range" type="range" min={0} max={40} step={1} value={e.glowBlur}
+              onChange={(ev) => patch({ glowBlur: parseFloat(ev.target.value) })} style={{ flex: 1 }} />
+            <Num value={e.glowBlur} min={0} max={40} step={1} onChange={(v) => patch({ glowBlur: v })} />
+          </Row>
+          {/* Intervalle : combien de passes de lueur on empile — serrée ou diffuse. */}
+          <Row label={t("spread")}>
+            <input className="mz-range" type="range" min={1} max={3} step={1} value={e.glowSpread}
+              onChange={(ev) => patch({ glowSpread: parseFloat(ev.target.value) })} style={{ flex: 1 }} />
+            <Num value={e.glowSpread} min={1} max={3} step={1} onChange={(v) => patch({ glowSpread: v })} />
+          </Row>
+          <Row label={t("offset")}>
+            <Num value={e.glowX} min={-20} max={20} step={1} suffix="x" onChange={(v) => patch({ glowX: v })} />
+            <Num value={e.glowY} min={-20} max={20} step={1} suffix="y" onChange={(v) => patch({ glowY: v })} />
+          </Row>
+        </Fold>
+
+        <Fold name={t("shadow")} on={!!e.shadowColor}
+          onToggle={(v) => patch(v ? { shadowColor: e.shadowColor || "#000000", shadowBlur: e.shadowBlur || 8 } : { shadowColor: "", shadowBlur: 0, shadowX: 0, shadowY: 0 })}>
+          <Row label={t("color")}>
+            <Swatches brandColors={brandColors} value={e.shadowColor || "#000000"} onPick={(c) => patch({ shadowColor: c, shadowBlur: e.shadowBlur || 8 })} />
+          </Row>
+          <Row label={t("blur")}>
+            <input className="mz-range" type="range" min={0} max={40} step={1} value={e.shadowBlur}
+              onChange={(ev) => patch({ shadowBlur: parseFloat(ev.target.value) })} style={{ flex: 1 }} />
+            <Num value={e.shadowBlur} min={0} max={40} step={1} onChange={(v) => patch({ shadowBlur: v })} />
+          </Row>
+          <Row label={t("offset")}>
+            <Num value={e.shadowX} min={-20} max={20} step={1} suffix="x" onChange={(v) => patch({ shadowX: v })} />
+            <Num value={e.shadowY} min={-20} max={20} step={1} suffix="y" onChange={(v) => patch({ shadowY: v })} />
+          </Row>
+        </Fold>
+
+        {/* Le texte se cintre vers le haut ou vers le bas. L'aperçu et l'export
+            partagent la même formule (curveLayout) : sans ça, la courbe vue à
+            l'écran ne serait pas celle de la vidéo. */}
+        <Fold name={t("curve")} on={e.curve !== 0} onToggle={(v) => patch({ curve: v ? 30 : 0 })}>
+          <Row label={t("curve")}>
+            <input className="mz-range" type="range" min={-100} max={100} step={1} value={e.curve}
+              onChange={(ev) => patch({ curve: parseFloat(ev.target.value) })} style={{ flex: 1 }} />
+            <Num value={e.curve} min={-100} max={100} step={1} onChange={(v) => patch({ curve: v })} />
+          </Row>
+        </Fold>
+      </div>
+    </>
   );
 }
 

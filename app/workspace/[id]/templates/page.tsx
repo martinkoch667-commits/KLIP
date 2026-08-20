@@ -395,7 +395,6 @@ function MiniPreview({ bg }: { bg: BgStyle }) {
 
 function SubtitleTemplatesSection({ workspaceId, workspace }: { workspaceId: string; workspace: Workspace | null }) {
   const t = useTranslations('workspaceTemplates');
-  const tse = useTranslations('subtitleEditor');
   const [list, setList] = useState<SubTemplate[]>([]);
   const [creating, setCreating] = useState(false);
   const [name, setName] = useState('');
@@ -473,23 +472,6 @@ function SubtitleTemplatesSection({ workspaceId, workspace }: { workspaceId: str
   };
 
   // Libellés de l'éditeur partagé — mêmes clés que le monteur et l'assistant.
-  const subEditorLabels = React.useMemo(() => ({
-    basic: tse('basic'), font: tse('font'), brandFont: tse('brandFont'), system: tse('system'),
-    serif: tse('serif'), mono: tse('mono'), size: tse('size'), style: tse('style'), case: tse('case'),
-    align: tse('align'), letterSpacing: tse('letterSpacing'), lineHeight: tse('lineHeight'),
-    colors: tse('colors'), text: tse('text'), highlight: tse('highlight'),
-    background: tse('background'), none: tse('none'), opacity: tse('opacity'), radius: tse('radius'), pill: tse('pill'),
-    stroke: tse('stroke'), thickness: tse('thickness'),
-    shadow: tse('shadow'), blur: tse('blur'), offsetX: tse('offsetX'), offsetY: tse('offsetY'),
-    glow: tse('glow'), intensity: tse('intensity'),
-    transform: tse('transform'), rotation: tse('rotation'),
-    anim: tse('anim'), animWords: tse('animWords'), animNone: tse('animNone'),
-    layout: tse('layout'), boxWidth: tse('boxWidth'), lines: tse('lines'),
-    oneLine: tse('oneLine'), twoLines: tse('twoLines'), threeLines: tse('threeLines'),
-    bgWidth: tse('bgWidth'), bgHeight: tse('bgHeight'), spread: tse('spread'),
-    tabBasic: tse('tabBasic'), tabBubble: tse('tabBubble'), tabEffects: tse('tabEffects'), curve: tse('curve'),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }), []);
 
 
   const slider = (label: string, value: number, min: number, max: number, step: number,
@@ -603,7 +585,7 @@ function SubtitleTemplatesSection({ workspaceId, workspace }: { workspaceId: str
               custom={custom}
               onChange={next => setCustom(next)}
               brandFont={workspace?.font_family ?? null}
-              labels={subEditorLabels}
+              brandColors={[workspace?.primary_color, workspace?.secondary_color, workspace?.accent_color].filter(Boolean) as string[]}
             />
 
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
