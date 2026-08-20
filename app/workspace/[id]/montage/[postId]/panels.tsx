@@ -478,7 +478,7 @@ function TitleStylePanel({ ctx, tt }: { ctx: MontageCtx; tt: TitleEl }) {
                   paintOrder: "stroke fill",
                   background: l.bg !== "transparent" ? withAlpha(l.bg, l.bgOpacity) : undefined,
                   padding: l.bg !== "transparent" ? "1px 6px" : undefined,
-                  borderRadius: l.bg !== "transparent" ? (l.pill ? 999 : 4) : undefined,
+                  borderRadius: l.bg !== "transparent" ? Math.min(9, l.radius * 0.35) : undefined,
                 }}>Aa</span>
               </button>
             );
@@ -524,10 +524,10 @@ function TitleStylePanel({ ctx, tt }: { ctx: MontageCtx; tt: TitleEl }) {
               des deux côtés. */}
           <Row label={t('roundedCorners')}>
             <input className="mz-range" type="range" min={0} max={60} step={1}
-              value={look.pill ? 60 : look.radius}
-              onChange={(e) => ctx.updateTitle(tt.id, { radius: parseFloat(e.target.value), pill: false })} style={{ flex: 1 }} />
-            <Num value={look.pill ? 60 : look.radius} min={0} max={60} step={1}
-              onChange={(v) => ctx.updateTitle(tt.id, { radius: v, pill: false })} />
+              value={look.radius}
+              onChange={(e) => ctx.updateTitle(tt.id, { radius: parseFloat(e.target.value) })} style={{ flex: 1 }} />
+            <Num value={look.radius} min={0} max={60} step={1}
+              onChange={(v) => ctx.updateTitle(tt.id, { radius: v })} />
           </Row>
         </Fold>
 

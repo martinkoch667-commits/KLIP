@@ -1014,7 +1014,16 @@ export default function MontagePage() {
         setLinkedSubs(proj.linkedSubs ?? true);
         setRawSegments(proj.rawSegments || []);
         setRawWords(proj.rawWords || []);
-        setTitles(proj.titles || []);
+        /* Reprise des montages faits avant la suppression du mode « pilule ».
+
+           Le champ n'existe plus : sans reprise, un titre en pilule retomberait
+           sur l'arrondi par défaut et changerait d'allure tout seul en rouvrant
+           le projet. On traduit donc l'ancien mode dans le réglage continu qui
+           l'a remplacé. */
+        setTitles((proj.titles || []).map((ti) => {
+          const ancien = ti as TitleEl & { pill?: boolean };
+          return ancien.pill ? { ...ti, radius: 60 } : ti;
+        }));
         setStickers(proj.stickers || []);
         setAudioTracks(proj.audioTracks || []);
         setShowProgressBar(!!proj.showProgressBar);
@@ -4843,7 +4852,7 @@ export default function MontagePage() {
                       // Marge intérieure TOUJOURS posée, fond ou pas : elle entre
                       // dans la largeur de la boîte que l'export calcule aussi.
                       padding: `${look.padY * unit}px ${look.padX * unit}px`,
-                      borderRadius: look.bg !== "transparent" ? (look.pill ? 999 : look.radius * unit) : undefined,
+                      borderRadius: look.bg !== "transparent" ? look.radius * unit : undefined,
                       lineHeight: TITLE_LINE_HEIGHT,
                       /* Largeur calée sur le TEXTE.
 

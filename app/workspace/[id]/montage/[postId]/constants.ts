@@ -252,8 +252,10 @@ export interface TitleEl {
   bgOpacity?: number;
   padX?: number;
   padY?: number;
+  /** Arrondi du fond, en unités de dessin. Un seul réglage, du carré à la
+   *  pilule : les rendus bornent d'eux-mêmes à la moitié de la hauteur, donc
+   *  au delà la forme EST une pilule sans qu'on ait à le déclarer. */
   radius?: number;
-  pill?: boolean;
   /** Contour des lettres. */
   stroke?: string;
   strokeW?: number;
@@ -293,7 +295,7 @@ export interface TitleLook {
   caseMode: CaseMode;
   letterSpacing: number;
   opacity: number;
-  bg: string; bgOpacity: number; padX: number; padY: number; radius: number; pill: boolean;
+  bg: string; bgOpacity: number; padX: number; padY: number; radius: number;
   stroke: string; strokeW: number;
   shadow: boolean; shadowRgba: string; shadowBlur: number; shadowX: number; shadowY: number;
   glow: boolean; glowColor: string; glowBlur: number;
@@ -312,7 +314,6 @@ export function titleLook(tt: TitleEl): TitleLook {
     padX: tt.padX ?? 16,
     padY: tt.padY ?? 8,
     radius: tt.radius ?? 10,
-    pill: !!tt.pill,
     stroke: tt.stroke ?? "",
     strokeW: tt.strokeW ?? 0,
     shadow,
@@ -362,16 +363,16 @@ export function titleShadowCss(tt: TitleEl, unit: number): string | undefined {
 
 /** Habillages prêts à l'emploi, façon Canva : on choisit en voyant. */
 export const TITLE_EFFECT_PRESETS: { id: string; patch: Partial<TitleEl> }[] = [
-  { id: "none",    patch: { glow: false, shadow: false, stroke: "", strokeW: 0, bg: "transparent", pill: false } },
-  { id: "soft",    patch: { glow: false, shadow: true, shadowColor: "#000000", shadowBlur: 8, shadowX: 0, shadowY: 1, shadowOpacity: 0.5, stroke: "", strokeW: 0, bg: "transparent", pill: false } },
-  { id: "drop",    patch: { glow: false, shadow: true, shadowColor: "#000000", shadowBlur: 2, shadowX: 3, shadowY: 4, shadowOpacity: 0.75, stroke: "", strokeW: 0, bg: "transparent", pill: false } },
-  { id: "outline", patch: { glow: false, shadow: false, stroke: "#000000", strokeW: 2.5, bg: "transparent", pill: false } },
-  { id: "neon",    patch: { shadow: false, glow: true, glowColor: "#2FD79B", glowBlur: 14, stroke: "", strokeW: 0, bg: "transparent", pill: false } },
+  { id: "none",    patch: { glow: false, shadow: false, stroke: "", strokeW: 0, bg: "transparent" } },
+  { id: "soft",    patch: { glow: false, shadow: true, shadowColor: "#000000", shadowBlur: 8, shadowX: 0, shadowY: 1, shadowOpacity: 0.5, stroke: "", strokeW: 0, bg: "transparent" } },
+  { id: "drop",    patch: { glow: false, shadow: true, shadowColor: "#000000", shadowBlur: 2, shadowX: 3, shadowY: 4, shadowOpacity: 0.75, stroke: "", strokeW: 0, bg: "transparent" } },
+  { id: "outline", patch: { glow: false, shadow: false, stroke: "#000000", strokeW: 2.5, bg: "transparent" } },
+  { id: "neon",    patch: { shadow: false, glow: true, glowColor: "#2FD79B", glowBlur: 14, stroke: "", strokeW: 0, bg: "transparent" } },
   /* Les habillages à fond posent AUSSI la couleur du texte. Sans elle, un titre
      blanc gardait sa couleur sur un fond blanc : le préréglage effaçait le texte
      au lieu de l'habiller. */
-  { id: "block",   patch: { shadow: false, glow: false, stroke: "", strokeW: 0, bg: "#14160F", bgOpacity: 0.85, pill: false, radius: 6, color: "#FFFFFF" } },
-  { id: "pill",    patch: { shadow: false, glow: false, stroke: "", strokeW: 0, bg: "#FFFFFF", bgOpacity: 1, pill: true, color: "#14160F" } },
+  { id: "block",   patch: { shadow: false, glow: false, stroke: "", strokeW: 0, bg: "#14160F", bgOpacity: 0.85, radius: 6, color: "#FFFFFF" } },
+  { id: "pill",    patch: { shadow: false, glow: false, stroke: "", strokeW: 0, bg: "#FFFFFF", bgOpacity: 1, radius: 60, color: "#14160F" } },
 ];
 
 /** Police d'un titre en syntaxe canvas. SOURCE UNIQUE : l'export dessine avec,
@@ -1268,35 +1269,41 @@ export interface SubStyle {
 
 // Bibliothèque de styles de sous-titres façon CapCut — large variété (couleur, contour,
 // pilule, majuscules, polices). Le rendu (aperçu + export) honore tous ces champs.
+//
+// COULEURS : le montage est le module vidéo, donc violet (cf. .a-root dans
+// globals.css). Aucun style ne repart du vert de la marque : les accents
+// tournent autour de #C9C0FF / #9C8CFF / #6656D9 sur encre #1E1246, et les
+// styles franchement colorés (jaune, corail, rose, bleu, or, cyan) restent là
+// pour la variété. Un vert qui traînerait ici jurerait avec tout le module.
 export const SUB_STYLES: SubStyle[] = [
   // — Défaut minimaliste (aucun template de marque) : texte blanc net, sans fond,
   //   avec une ombre portée douce → lisible sur n'importe quel fond. —
   { id: "simple",    name: "Simple",     sub: "Texte net",        bg: "transparent",         fg: "#FFFFFF", hi: "#FFFFFF", weight: 700, italic: false, pill: false },
   // — Essentiels —
-  { id: "karaoke",   name: "Karaoké",    sub: "Mot par mot",      bg: "#0C2A1D",             fg: "#EEEDE3", hi: "#BDF2A0", weight: 800, italic: false, pill: true },
-  { id: "editorial", name: "Éditorial",  sub: "Archivo italique", bg: "transparent",         fg: "#FFFFFF", hi: "#2FD79B", weight: 800, italic: true,  pill: false },
-  { id: "clean",     name: "Net",        sub: "Bandeau blanc",    bg: "#FFFFFF",             fg: "#14160F", hi: "#1F7A4D", weight: 700, italic: false, pill: false },
-  { id: "mint",      name: "Menthe",     sub: "Accent KLIP",      bg: "rgba(47,215,155,.92)",fg: "#06281C", hi: "#0C2A1D", weight: 800, italic: false, pill: true },
+  { id: "karaoke",   name: "Karaoké",    sub: "Mot par mot",      bg: "#1A1636",             fg: "#EEEDE3", hi: "#C9C0FF", weight: 800, italic: false, pill: true },
+  { id: "editorial", name: "Éditorial",  sub: "Archivo italique", bg: "transparent",         fg: "#FFFFFF", hi: "#9C8CFF", weight: 800, italic: true,  pill: false },
+  { id: "clean",     name: "Net",        sub: "Bandeau blanc",    bg: "#FFFFFF",             fg: "#14160F", hi: "#5B44C8", weight: 700, italic: false, pill: false },
+  { id: "mint",      name: "Lilas",      sub: "Accent KLIP",      bg: "rgba(201,192,255,.94)",fg: "#1E1246", hi: "#6656D9", weight: 800, italic: false, pill: true },
   // — Contour (outline) —
   { id: "bold-white",name: "Punch",      sub: "Contour noir",     bg: "transparent",         fg: "#FFFFFF", hi: "#FFE14D", weight: 900, italic: false, pill: false, uppercase: true, stroke: "#000000" },
   { id: "bold-yellow",name: "TikTok",    sub: "Jaune contour",    bg: "transparent",         fg: "#FFE14D", hi: "#FFFFFF", weight: 900, italic: false, pill: false, uppercase: true, stroke: "#000000" },
-  { id: "bold-mint", name: "Néon menthe",sub: "Contour foncé",    bg: "transparent",         fg: "#2FD79B", hi: "#FFFFFF", weight: 900, italic: false, pill: false, uppercase: true, stroke: "#06281C" },
+  { id: "bold-mint", name: "Néon lilas", sub: "Contour foncé",    bg: "transparent",         fg: "#C9C0FF", hi: "#FFFFFF", weight: 900, italic: false, pill: false, uppercase: true, stroke: "#1E1246" },
   { id: "bold-pink", name: "Bubblegum",  sub: "Rose contour",     bg: "transparent",         fg: "#FF5DA2", hi: "#FFFFFF", weight: 900, italic: false, pill: false, uppercase: true, stroke: "#2A0A1B" },
   { id: "bold-blue", name: "Électrique", sub: "Bleu contour",     bg: "transparent",         fg: "#4DA2FF", hi: "#FFFFFF", weight: 900, italic: false, pill: false, uppercase: true, stroke: "#08203A" },
   // — Pilules colorées —
-  { id: "pill-black",name: "Pilule noire",sub: "Fond sombre",     bg: "rgba(12,14,10,.9)",   fg: "#FFFFFF", hi: "#BDF2A0", weight: 800, italic: false, pill: true },
-  { id: "pill-acid", name: "Acide",      sub: "Pilule citron",    bg: "#BDF2A0",             fg: "#14160F", hi: "#0C2A1D", weight: 800, italic: false, pill: true, uppercase: true },
+  { id: "pill-black",name: "Pilule noire",sub: "Fond sombre",     bg: "rgba(12,14,10,.9)",   fg: "#FFFFFF", hi: "#C9C0FF", weight: 800, italic: false, pill: true },
+  { id: "pill-acid", name: "Acide",      sub: "Pilule citron",    bg: "#F0E45C",             fg: "#14160F", hi: "#1E1246", weight: 800, italic: false, pill: true, uppercase: true },
   { id: "pill-coral",name: "Corail",     sub: "Pilule chaude",    bg: "#FF6B4A",             fg: "#2A0A03", hi: "#FFFFFF", weight: 800, italic: false, pill: true },
   { id: "pill-violet",name: "Violet",    sub: "Pilule mauve",     bg: "#7C5CFF",             fg: "#FFFFFF", hi: "#FFE14D", weight: 800, italic: false, pill: true },
-  { id: "pill-forest",name: "Forêt",     sub: "Pilule verte",     bg: "#103A28",             fg: "#EEEDE3", hi: "#2FD79B", weight: 800, italic: false, pill: true },
+  { id: "pill-forest",name: "Prune",     sub: "Pilule prune",     bg: "#3A1E4D",             fg: "#F6ECFF", hi: "#D9B8FF", weight: 800, italic: false, pill: true },
   // — Bandeaux pleins —
-  { id: "band-black",name: "Bandeau noir",sub: "Bloc sombre",     bg: "#14160F",             fg: "#FFFFFF", hi: "#BDF2A0", weight: 700, italic: false, pill: false },
-  { id: "band-cream",name: "Crème",      sub: "Bloc clair",       bg: "#F1F0E8",             fg: "#14160F", hi: "#21B381", weight: 700, italic: false, pill: false },
+  { id: "band-black",name: "Bandeau noir",sub: "Bloc sombre",     bg: "#14160F",             fg: "#FFFFFF", hi: "#C9C0FF", weight: 700, italic: false, pill: false },
+  { id: "band-cream",name: "Crème",      sub: "Bloc clair",       bg: "#F1F0E8",             fg: "#14160F", hi: "#6656D9", weight: 700, italic: false, pill: false },
   { id: "band-red",  name: "Alerte",     sub: "Bloc rouge",       bg: "#E0332E",             fg: "#FFFFFF", hi: "#FFE14D", weight: 800, italic: false, pill: false, uppercase: true },
   // — Élégants / éditoriaux —
-  { id: "serif-white",name: "Magazine",  sub: "Serif italique",   bg: "transparent",         fg: "#FFFFFF", hi: "#BDF2A0", weight: 400, italic: true,  pill: false, font: "'Instrument Serif', serif" },
+  { id: "serif-white",name: "Magazine",  sub: "Serif italique",   bg: "transparent",         fg: "#FFFFFF", hi: "#C9C0FF", weight: 400, italic: true,  pill: false, font: "'Instrument Serif', serif" },
   { id: "serif-cream",name: "Vintage",   sub: "Serif crème",      bg: "transparent",         fg: "#F1E9D2", hi: "#E8B14C", weight: 400, italic: true,  pill: false, font: "'Instrument Serif', serif", stroke: "#3A2A10" },
-  { id: "mono-tech", name: "Terminal",   sub: "Mono tech",        bg: "rgba(6,20,14,.86)",   fg: "#2FD79B", hi: "#BDF2A0", weight: 600, italic: false, pill: false, font: "var(--mono)" },
+  { id: "mono-tech", name: "Terminal",   sub: "Mono tech",        bg: "rgba(10,8,24,.88)",   fg: "#C9C0FF", hi: "#FFFFFF", weight: 600, italic: false, pill: false, font: "var(--mono)" },
   // — Fun / gras —
   { id: "sunset",    name: "Sunset",     sub: "Orange contour",   bg: "transparent",         fg: "#FFB347", hi: "#FFFFFF", weight: 900, italic: false, pill: false, uppercase: true, stroke: "#3A1A00" },
   { id: "ocean",     name: "Océan",      sub: "Cyan contour",     bg: "transparent",         fg: "#3FE0E0", hi: "#FFFFFF", weight: 900, italic: false, pill: false, uppercase: true, stroke: "#052A2A" },

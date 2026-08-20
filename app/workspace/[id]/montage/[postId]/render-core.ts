@@ -372,7 +372,8 @@ export function drawTitles(ctx: CanvasRenderingContext2D, titles: TitleEl[], t: 
     if (look.bg && look.bg !== "transparent") {
       ctx.save();
       ctx.fillStyle = withAlpha(look.bg, look.bgOpacity);
-      const r = look.pill ? boiteH / 2 : look.radius;
+      // Borné à la moitié de la hauteur : au delà, la forme est une pilule.
+      const r = look.radius;
       ctx.beginPath();
       ctx.roundRect(-boiteW / 2, -boiteH / 2, boiteW, boiteH, Math.min(r, boiteH / 2));
       ctx.fill();

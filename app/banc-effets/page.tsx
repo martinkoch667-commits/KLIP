@@ -124,7 +124,7 @@ const TITRES_TEST = [
   { nom: "contour épais", tt: titreDeTest({ text: "CONTOUR", scale: 1.5, shadow: false, stroke: "#14160F", strokeW: 3 }) },
   { nom: "ombre portée marquée", tt: titreDeTest({ text: "OMBRE PORTEE", scale: 1.2, shadow: true, shadowColor: "#000000", shadowBlur: 2, shadowX: 3, shadowY: 4, shadowOpacity: 0.75 }) },
   { nom: "néon", tt: titreDeTest({ text: "NEON", scale: 1.5, color: "#FFFFFF", shadow: true, shadowColor: "#2FD79B", shadowBlur: 16, shadowX: 0, shadowY: 0, shadowOpacity: 0.95 }) },
-  { nom: "fond pilule", tt: titreDeTest({ text: "PILULE", scale: 1.2, color: "#14160F", shadow: false, bg: "#FFFFFF", bgOpacity: 1, pill: true, padX: 22, padY: 11 }) },
+  { nom: "fond pilule", tt: titreDeTest({ text: "PILULE", scale: 1.2, color: "#14160F", shadow: false, bg: "#FFFFFF", bgOpacity: 1, radius: 60, padX: 22, padY: 11 }) },
   { nom: "bloc, aligné à gauche", tt: titreDeTest({ text: "UN BLOC ALIGNE A GAUCHE", scale: 1, color: "#FFFFFF", shadow: false, bg: "#7A69E8", bgOpacity: 0.9, radius: 8, align: "left", maxWidth: 70 }) },
   { nom: "majuscules + interlettrage", tt: titreDeTest({ text: "espace entre lettres", scale: 1.1, caseMode: "upper", letterSpacing: 0.18 }) },
   { nom: "opacité 45 %", tt: titreDeTest({ text: "TRANSPARENT", scale: 1.4, opacity: 0.45 }) },
@@ -170,7 +170,7 @@ function PaireTitre({ nom, tt }: { nom: string; tt: TitleEl }) {
         letterSpacing: look.letterSpacing ? `${look.letterSpacing}em` : undefined,
         background: look.bg !== "transparent" ? withAlpha(look.bg, look.bgOpacity) : undefined,
         padding: `${look.padY * unit}px ${look.padX * unit}px`,
-        borderRadius: look.bg !== "transparent" ? (look.pill ? 999 : look.radius * unit) : undefined,
+        borderRadius: look.bg !== "transparent" ? look.radius * unit : undefined,
         width: titleBoxWidth(tt, W) * unit, whiteSpace: "pre",
       }}>
         <span>{titleLines(tt, W).map((ln) => applySubCase(ln, look.caseMode)).join("\n")}</span>
