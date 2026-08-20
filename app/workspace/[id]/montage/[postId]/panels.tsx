@@ -510,18 +510,25 @@ function TitleStylePanel({ ctx, tt }: { ctx: MontageCtx; tt: TitleEl }) {
               onChange={(e) => { const v = parseFloat(e.target.value); ctx.updateTitle(tt.id, { padX: v, padY: Math.round(v * 0.5) }); }} style={{ flex: 1 }} />
             <Num value={look.padX} min={0} max={60} step={1} onChange={(v) => ctx.updateTitle(tt.id, { padX: v, padY: Math.round(v * 0.5) })} />
           </Row>
-          {/* L'arrondi avait sa valeur, mais pas de ligne à lui : il était le
-              second champ, sans étiquette, de la marge intérieure. Introuvable.
-              Il disparaît quand la pilule est allumée, puisqu'elle impose
-              l'arrondi maximal. */}
-          {!look.pill && (
-            <Row label={t('roundedCorners')}>
-              <input className="mz-range" type="range" min={0} max={40} step={1} value={look.radius}
-                onChange={(e) => ctx.updateTitle(tt.id, { radius: parseFloat(e.target.value) })} style={{ flex: 1 }} />
-              <Num value={look.radius} min={0} max={40} step={1} onChange={(v) => ctx.updateTitle(tt.id, { radius: v })} />
-            </Row>
-          )}
-          <Toggle label={t('pillShape')} on={look.pill} onChange={(v) => ctx.updateTitle(tt.id, { pill: v })} />
+          {/* UN SEUL réglage d'arrondi, du carré à la pilule.
+
+              Il y en avait deux : un curseur, et un interrupteur « Pilule » qui
+              imposait l'arrondi maximal. Et comme la pilule rendait le curseur
+              sans objet, je le cachais quand elle était allumée — si bien qu'un
+              utilisateur en mode pilule ne trouvait plus aucun moyen de régler
+              l'arrondi. Deux commandes pour une seule idée, dont une qui faisait
+              disparaître l'autre.
+
+              La pilule n'est qu'un arrondi poussé à fond : le curseur va
+              jusque-là, et le rendu borne de lui-même à la moitié de la hauteur,
+              des deux côtés. */}
+          <Row label={t('roundedCorners')}>
+            <input className="mz-range" type="range" min={0} max={60} step={1}
+              value={look.pill ? 60 : look.radius}
+              onChange={(e) => ctx.updateTitle(tt.id, { radius: parseFloat(e.target.value), pill: false })} style={{ flex: 1 }} />
+            <Num value={look.pill ? 60 : look.radius} min={0} max={60} step={1}
+              onChange={(v) => ctx.updateTitle(tt.id, { radius: v, pill: false })} />
+          </Row>
         </Fold>
 
         <Fold name={t('glow')} on={look.glow} onToggle={(v) => ctx.updateTitle(tt.id, { glow: v })}>
