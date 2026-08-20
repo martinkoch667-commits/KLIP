@@ -2436,5 +2436,28 @@
     "underline": "Subrayado",
     "spacingPair": "Letra / línea",
     "bgSize": "Tamaño del fondo"
+  },
+  "onboardingChecklist": {
+    "title": "Primeros pasos",
+    "titleDone": "¡Todo listo!",
+    "collapse": "Minimizar",
+    "close": "Cerrar",
+    "steps": "{done} / {total} pasos",
+    "finish": "Terminar la configuración",
+    "clientTitle": "Crea tu primer cliente",
+    "clientDesc": "Añade un espacio dedicado a una marca.",
+    "clientCta": "Nuevo cliente",
+    "instagramTitle": "Conectar Instagram",
+    "instagramDesc": "Vincula la cuenta para publicar automáticamente.",
+    "instagramCta": "Conectar",
+    "styleTitle": "Analiza tu estilo con IA",
+    "styleDesc": "La IA estudia tu línea editorial en Instagram.",
+    "styleCta": "Analizar",
+    "postTitle": "Compón tu primer post",
+    "postDesc": "Importa una foto y deja que la IA escriba.",
+    "postCta": "Componer",
+    "scheduleTitle": "Validar y programar",
+    "scheduleDesc": "Valida un post y colócalo en el calendario.",
+    "scheduleCta": "Programar"
   }
 }

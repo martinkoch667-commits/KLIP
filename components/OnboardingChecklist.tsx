@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { useTranslations } from "next-intl";
 import Link from "next/link";
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
 
@@ -43,6 +44,7 @@ function IconRocket() {
 }
 
 export default function OnboardingChecklist() {
+  const t = useTranslations("onboardingChecklist");
   const supabase = createClientComponentClient();
   const [visible, setVisible] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
@@ -101,43 +103,43 @@ export default function OnboardingChecklist() {
   const steps: Step[] = [
     {
       id: "client",
-      title: "Créer votre premier client",
-      description: "Ajoutez un espace dédié à une marque.",
+      title: t("clientTitle"),
+      description: t("clientDesc"),
       done: workspaces.length > 0,
       href: "/workspace/new",
-      cta: "Nouveau client",
+      cta: t("clientCta"),
     },
     {
       id: "instagram",
-      title: "Connecter Instagram",
-      description: "Reliez le compte pour publier automatiquement.",
+      title: t("instagramTitle"),
+      description: t("instagramDesc"),
       done: workspaces.some(w => w.instagram_account_id),
       href: firstWs ? `/workspace/${firstWs}/parametres` : "/workspace/new",
-      cta: "Connecter",
+      cta: t("instagramCta"),
     },
     {
       id: "style",
-      title: "Analyser votre style IA",
-      description: "L'IA étudie votre ligne éditoriale Instagram.",
+      title: t("styleTitle"),
+      description: t("styleDesc"),
       done: workspaces.some(w => w.description_style),
       href: firstWs ? `/workspace/${firstWs}/style` : "/workspace/new",
-      cta: "Analyser",
+      cta: t("styleCta"),
     },
     {
       id: "post",
-      title: "Composer un premier post",
-      description: "Importez une photo et laissez l'IA écrire.",
+      title: t("postTitle"),
+      description: t("postDesc"),
       done: posts.length > 0,
       href: firstWs ? `/workspace/${firstWs}` : "/workspace/new",
-      cta: "Composer",
+      cta: t("postCta"),
     },
     {
       id: "schedule",
-      title: "Valider & planifier",
-      description: "Validez un post et placez-le au calendrier.",
+      title: t("scheduleTitle"),
+      description: t("scheduleDesc"),
       done: posts.some(p => p.scheduled_at || p.status === "validated"),
       href: firstWs ? `/workspace/${firstWs}/planning` : "/workspace/new",
-      cta: "Planifier",
+      cta: t("scheduleCta"),
     },
   ];
 
@@ -150,111 +152,98 @@ export default function OnboardingChecklist() {
   return (
     <div style={{
       position: "fixed", right: 24, bottom: 24, zIndex: 8000,
-      width: collapsed ? "auto" : 340,
+      width: collapsed ? "auto" : 336,
       fontFamily: "var(--sans)",
     }}>
       {collapsed ? (
-        // ── Collapsed pill ──────────────────────────────────────────────────
-        <button onClick={toggleCollapse}
+        // ── Réduit : une pastille posée sur le plan de travail ───────────────
+        <button onClick={toggleCollapse} className="card lift"
           style={{
             display: "flex", alignItems: "center", gap: 10,
-            background: "var(--forest)", color: "var(--cream)",
-            border: "none", cursor: "pointer",
-            borderRadius: 999, padding: "10px 16px 10px 12px",
-            boxShadow: "0 8px 30px rgba(0,0,0,0.28)",
+            border: "1px solid var(--line-2)", cursor: "pointer",
+            borderRadius: 999, padding: "8px 16px 8px 9px",
+            boxShadow: "var(--shadow-pop)", color: "var(--ink)",
+            fontFamily: "var(--sans)",
           }}>
-          <span style={{ position: "relative", width: 30, height: 30, flexShrink: 0 }}>
-            <svg width="30" height="30" viewBox="0 0 36 36" style={{ transform: "rotate(-90deg)" }}>
-              <circle cx="18" cy="18" r="15" fill="none" stroke="rgba(238,237,227,.18)" strokeWidth="4" />
-              <circle cx="18" cy="18" r="15" fill="none" stroke="var(--mint)" strokeWidth="4" strokeLinecap="round"
+          <span style={{ position: "relative", width: 28, height: 28, flexShrink: 0 }}>
+            <svg width="28" height="28" viewBox="0 0 36 36" style={{ transform: "rotate(-90deg)" }}>
+              <circle cx="18" cy="18" r="15" fill="none" stroke="var(--sunk)" strokeWidth="4" />
+              <circle cx="18" cy="18" r="15" fill="none" stroke="var(--leaf)" strokeWidth="4" strokeLinecap="round"
                 strokeDasharray={`${(pct / 100) * 2 * Math.PI * 15} ${2 * Math.PI * 15}`} />
             </svg>
-            <span style={{ position: "absolute", inset: 0, display: "grid", placeItems: "center", fontSize: 9, fontWeight: 800, fontFamily: "var(--mono)", color: "var(--cream)" }}>{pct}%</span>
+            <span style={{ position: "absolute", inset: 0, display: "grid", placeItems: "center", fontSize: 9, fontWeight: 800, fontFamily: "var(--mono)", color: "var(--ink-2)" }}>{doneCount}/{steps.length}</span>
           </span>
-          <span style={{ fontSize: 13, fontWeight: 700 }}>Prise en main</span>
+          <span style={{ fontSize: 13, fontWeight: 700 }}>{t("title")}</span>
         </button>
       ) : (
-        // ── Full card ───────────────────────────────────────────────────────
-        <div style={{
-          background: "var(--forest)", color: "var(--cream)",
-          borderRadius: 18, overflow: "hidden",
-          boxShadow: "0 12px 44px rgba(0,0,0,0.34)",
-        }}>
-          {/* Header */}
-          <div style={{ padding: "18px 18px 14px", position: "relative" }}>
-            <div className="halo-blob" style={{ width: 140, height: 140, right: -40, top: -70, background: "var(--leaf)", opacity: .22 }} />
-            <div style={{ position: "relative", zIndex: 2 }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
-                <span style={{ width: 26, height: 26, borderRadius: 8, background: "var(--leaf)", color: "var(--mint-ink)", display: "grid", placeItems: "center", flexShrink: 0 }}>
-                  <IconRocket />
-                </span>
-                <span style={{ fontSize: 14, fontWeight: 800, fontFamily: "var(--display)", color: "var(--cream)" }}>
-                  {allDone ? "Vous êtes prêt !" : "Prise en main"}
-                </span>
-                <div style={{ marginLeft: "auto", display: "flex", gap: 2 }}>
-                  <button onClick={toggleCollapse} title="Réduire"
-                    style={{ width: 26, height: 26, display: "grid", placeItems: "center", background: "var(--cream-4)", border: "none", borderRadius: 7, cursor: "pointer", color: "var(--cream)" }}>
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14" /></svg>
-                  </button>
-                  <button onClick={dismiss} title="Fermer"
-                    style={{ width: 26, height: 26, display: "grid", placeItems: "center", background: "var(--cream-4)", border: "none", borderRadius: 7, cursor: "pointer", color: "var(--cream)" }}>
-                    <IconClose />
-                  </button>
-                </div>
+        // ── Carte complète ───────────────────────────────────────────────────
+        <div className="card" style={{ overflow: "hidden", boxShadow: "var(--shadow-float)" }}>
+          {/* En-tête */}
+          <div style={{ padding: "15px 15px 14px", borderBottom: "1px solid var(--line-2)" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 9 }}>
+              <span style={{ width: 28, height: 28, borderRadius: 9, background: "var(--leaf)", color: "var(--leaf-ink)", display: "grid", placeItems: "center", flexShrink: 0 }}>
+                <IconRocket />
+              </span>
+              <span style={{ fontSize: 15, fontWeight: 800, fontFamily: "var(--display)", fontStyle: "italic", letterSpacing: "-0.02em", color: "var(--ink)" }}>
+                {allDone ? t("titleDone") : t("title")}
+              </span>
+              <div style={{ marginLeft: "auto", display: "flex", gap: 4 }}>
+                <button onClick={toggleCollapse} title={t("collapse")} className="btn btn-ghost btn-icon">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14" /></svg>
+                </button>
+                <button onClick={dismiss} title={t("close")} className="btn btn-ghost btn-icon">
+                  <IconClose />
+                </button>
               </div>
+            </div>
 
-              {/* Progress */}
-              <div style={{ display: "flex", alignItems: "baseline", gap: 8, marginBottom: 8 }}>
-                <span style={{ fontSize: 26, fontWeight: 800, fontFamily: "var(--mono)", color: "var(--acid)", lineHeight: 1 }}>{pct}%</span>
-                <span style={{ fontSize: 12, color: "var(--cream-2)", fontWeight: 600 }}>{doneCount} / {steps.length} étapes</span>
-              </div>
-              <div style={{ height: 7, borderRadius: 99, background: "rgba(238,237,227,.15)", overflow: "hidden" }}>
-                <div style={{ height: "100%", width: `${pct}%`, background: "linear-gradient(90deg, var(--mint), var(--acid))", borderRadius: 99, transition: "width .4s cubic-bezier(.4,0,.2,1)" }} />
-              </div>
+            {/* Avancement : ce sont les ÉTAPES qui parlent, le pourcentage n'est
+                qu'un repère. L'inverse (un « 60 % » énorme au-dessus d'une barre
+                dégradée) tenait plus du tableau de bord que de la charte. */}
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", margin: "15px 0 7px" }}>
+              <span className="label">{t("steps", { done: doneCount, total: steps.length })}</span>
+              <span style={{ fontFamily: "var(--mono)", fontWeight: 800, fontSize: 11, color: "var(--ink-2)" }}>{pct}%</span>
+            </div>
+            <div style={{ height: 6, borderRadius: 99, background: "var(--sunk)", overflow: "hidden" }}>
+              <div style={{ height: "100%", width: `${pct}%`, background: "var(--leaf)", borderRadius: 99, transition: "width .4s cubic-bezier(.4,0,.2,1)" }} />
             </div>
           </div>
 
-          {/* Steps */}
-          <div style={{ padding: "4px 10px 12px" }}>
+          {/* Étapes */}
+          <div style={{ padding: 8 }}>
             {steps.map(s => {
               const isNext = !s.done && s.id === nextStep?.id;
               return (
                 <div key={s.id}
                   style={{
-                    display: "flex", alignItems: "center", gap: 11,
-                    padding: "10px 10px", borderRadius: 11,
-                    background: isNext ? "rgba(47,215,155,.1)" : "transparent",
+                    display: "flex", alignItems: "center", gap: 10,
+                    padding: "9px 9px", borderRadius: 12,
+                    background: isNext ? "var(--sunk)" : "transparent",
                   }}>
-                  {/* Check circle */}
+                  {/* Pastille d'état */}
                   <span style={{
-                    width: 22, height: 22, borderRadius: "50%", flexShrink: 0,
+                    width: 20, height: 20, borderRadius: "50%", flexShrink: 0,
                     display: "grid", placeItems: "center",
                     background: s.done ? "var(--leaf)" : "transparent",
-                    color: s.done ? "var(--mint-ink)" : "var(--cream-2)",
-                    boxShadow: s.done ? "none" : "inset 0 0 0 1.5px var(--cream-4)",
+                    color: s.done ? "var(--leaf-ink)" : "var(--ink-3)",
+                    boxShadow: s.done ? "none" : "inset 0 0 0 1.5px var(--line)",
                   }}>
-                    {s.done ? <IconCheck /> : <span style={{ width: 6, height: 6, borderRadius: "50%", background: isNext ? "var(--leaf)" : "var(--cream-3)" }} />}
+                    {s.done ? <IconCheck /> : isNext ? <span style={{ width: 6, height: 6, borderRadius: "50%", background: "var(--leaf-ink)" }} /> : null}
                   </span>
-                  {/* Text */}
+                  {/* Libellé — une étape faite s'efface, elle ne se barre pas :
+                      le texte rayé donnait un air de liste de courses. */}
                   <div style={{ minWidth: 0, flex: 1 }}>
                     <div style={{
-                      fontSize: 13, fontWeight: 700,
-                      color: s.done ? "var(--cream-2)" : "var(--cream)",
-                      textDecoration: s.done ? "line-through" : "none",
+                      fontSize: 13, fontWeight: isNext ? 700 : 600,
+                      color: s.done ? "var(--ink-3)" : "var(--ink)",
                     }}>{s.title}</div>
                     {isNext && (
-                      <div style={{ fontSize: 11.5, color: "var(--cream-2)", marginTop: 1 }}>{s.description}</div>
+                      <div style={{ fontSize: 11.5, color: "var(--ink-3)", marginTop: 2, lineHeight: 1.35 }}>{s.description}</div>
                     )}
                   </div>
-                  {/* CTA */}
+                  {/* Action */}
                   {isNext && (
-                    <Link href={s.href}
-                      style={{
-                        display: "inline-flex", alignItems: "center", gap: 3, flexShrink: 0,
-                        padding: "6px 11px", borderRadius: 8,
-                        background: "var(--leaf)", color: "var(--mint-ink)",
-                        fontSize: 12, fontWeight: 800, textDecoration: "none",
-                      }}>
+                    <Link href={s.href} className="btn btn-primary btn-sm" style={{ flexShrink: 0, textDecoration: "none" }}>
                       {s.cta} <IconChevR />
                     </Link>
                   )}
@@ -264,10 +253,9 @@ export default function OnboardingChecklist() {
           </div>
 
           {allDone && (
-            <div style={{ padding: "0 18px 16px" }}>
-              <button onClick={dismiss}
-                style={{ width: "100%", padding: "10px 0", borderRadius: 10, background: "var(--leaf)", color: "var(--mint-ink)", border: "none", cursor: "pointer", fontSize: 13, fontWeight: 800 }}>
-                Terminer la prise en main
+            <div style={{ padding: "0 15px 15px" }}>
+              <button onClick={dismiss} className="btn btn-primary" style={{ width: "100%" }}>
+                {t("finish")}
               </button>
             </div>
           )}

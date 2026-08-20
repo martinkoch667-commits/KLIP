@@ -2436,5 +2436,28 @@
     "underline": "Unterstrichen",
     "spacingPair": "Zeichen / Zeile",
     "bgSize": "Hintergrundgröße"
+  },
+  "onboardingChecklist": {
+    "title": "Erste Schritte",
+    "titleDone": "Alles bereit!",
+    "collapse": "Minimieren",
+    "close": "Schließen",
+    "steps": "{done} / {total} Schritte",
+    "finish": "Einrichtung abschließen",
+    "clientTitle": "Ersten Kunden anlegen",
+    "clientDesc": "Lege einen eigenen Bereich für eine Marke an.",
+    "clientCta": "Neuer Kunde",
+    "instagramTitle": "Instagram verbinden",
+    "instagramDesc": "Verknüpfe das Konto, um automatisch zu veröffentlichen.",
+    "instagramCta": "Verbinden",
+    "styleTitle": "KI-Stil analysieren",
+    "styleDesc": "Die KI analysiert deine redaktionelle Linie auf Instagram.",
+    "styleCta": "Analysieren",
+    "postTitle": "Ersten Post erstellen",
+    "postDesc": "Importiere ein Foto und lass die KI schreiben.",
+    "postCta": "Erstellen",
+    "scheduleTitle": "Freigeben & planen",
+    "scheduleDesc": "Gib einen Post frei und setze ihn in den Kalender.",
+    "scheduleCta": "Planen"
   }
 }
