@@ -10,6 +10,15 @@
 
 import Sidebar from '@/components/Sidebar';
 
+const Ic = {
+  post: <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.3" cy="6.7" r="1" fill="currentColor" stroke="none"/></svg>,
+  cal: <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4.5" width="18" height="16" rx="3"/><path d="M3 9h18M8 2.5v4M16 2.5v4"/></svg>,
+  grid: <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7.5" height="7.5" rx="2"/><rect x="13.5" y="3" width="7.5" height="7.5" rx="2"/><rect x="3" y="13.5" width="7.5" height="7.5" rx="2"/><rect x="13.5" y="13.5" width="7.5" height="7.5" rx="2"/></svg>,
+  bolt: <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M13 2 4 14h7l-1 8 9-12h-7l1-8Z"/></svg>,
+  plus: <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M12 5v14M5 12h14"/></svg>,
+  clock: <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>,
+};
+
 const CLIENTS = [
   { nom: 'Café Lomi', compte: '@cafelomi', couleur: '#C8732B', planifies: 12, aValider: 1, connecte: true },
   { nom: 'Maison Verte', compte: '@maisonverte', couleur: '#88B394', planifies: 9, aValider: 1, connecte: true },
@@ -17,18 +26,18 @@ const CLIENTS = [
 ];
 
 const STATS = [
-  { valeur: 3, libelle: 'À publier aujourd’hui', fond: 'var(--mint-soft)', encre: 'var(--mint-2)' },
-  { valeur: 3, libelle: 'En attente de validation', fond: 'var(--warn-soft)', encre: 'var(--warn)' },
-  { valeur: 12, libelle: 'Planifiés', fond: 'var(--sunk)', encre: 'var(--ink-2)' },
-  { valeur: 5, libelle: 'Clients actifs', fond: 'var(--sunk)', encre: 'var(--ink-2)' },
+  { valeur: 3, libelle: 'À publier aujourd’hui', fond: 'var(--mint-soft)', encre: 'var(--mint-2)', icone: Ic.bolt },
+  { valeur: 3, libelle: 'En attente de validation', fond: 'var(--warn-soft)', encre: 'var(--warn)', icone: Ic.clock },
+  { valeur: 12, libelle: 'Planifiés', fond: 'var(--sunk)', encre: 'var(--ink-2)', icone: Ic.cal },
+  { valeur: 5, libelle: 'Clients actifs', fond: 'var(--sunk)', encre: 'var(--ink-2)', icone: Ic.post },
 ];
 
 const DEPARTS = [
-  { titre: 'Nouveau post', fond: 'var(--forest-2)', encre: '#fff' },
-  { titre: 'Calendrier', fond: 'var(--mint-2)', encre: '#fff' },
-  { titre: 'Templates', fond: 'var(--leaf)', encre: 'var(--leaf-ink)' },
-  { titre: 'Fil de publication', fond: 'var(--vio)', encre: '#fff' },
-  { titre: 'Nouveau client', fond: 'var(--ink)', encre: '#fff' },
+  { titre: 'Nouveau post', fond: 'var(--forest-2)', encre: '#fff', icone: Ic.post },
+  { titre: 'Calendrier', fond: 'var(--mint-2)', encre: '#fff', icone: Ic.cal },
+  { titre: 'Templates', fond: 'var(--leaf)', encre: 'var(--leaf-ink)', icone: Ic.grid },
+  { titre: 'Fil de publication', fond: 'var(--vio)', encre: '#fff', icone: Ic.bolt },
+  { titre: 'Nouveau client', fond: 'var(--ink)', encre: '#fff', icone: Ic.plus },
 ];
 
 export default function ApercuV2() {
@@ -63,7 +72,7 @@ export default function ApercuV2() {
               <div className="dash-starts">
                 {DEPARTS.map(d => (
                   <button key={d.titre} className="dash-start">
-                    <span style={{ background: d.fond, color: d.encre }} />
+                    <span style={{ background: d.fond, color: d.encre }}>{d.icone}</span>
                     {d.titre}
                   </button>
                 ))}
@@ -73,7 +82,7 @@ export default function ApercuV2() {
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 14, marginBottom: 14 }} className="dash-stats">
               {STATS.map(s => (
                 <div key={s.libelle} className="card tile-accent" style={{ padding: '18px 20px' }}>
-                  <span style={{ width: 36, height: 36, borderRadius: 11, display: 'grid', placeItems: 'center', background: s.fond, color: s.encre }} />
+                  <span style={{ width: 36, height: 36, borderRadius: 11, display: 'grid', placeItems: 'center', background: s.fond, color: s.encre }}>{s.icone}</span>
                   <div className="num" style={{ fontSize: 32, lineHeight: 1, marginTop: 14 }}>{s.valeur}</div>
                   <div style={{ color: 'var(--ink-2)', fontSize: 13, marginTop: 3, fontWeight: 600 }}>{s.libelle}</div>
                 </div>
