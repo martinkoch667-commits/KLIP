@@ -41,7 +41,11 @@ type RailTool = "media" | "cut" | "overlay" | "text" | "captions" | "audio" | "t
 const RAIL_TOOL_KEYS: [RailTool, string, string][] = [
   ["media", "video", "railMedia"],
   ["cut", "scissors", "railCut"],
-  ["overlay", "image", "railOverlay"],
+  /* « Incrustation » ne figure plus dans le rail : on n'y allait que pour
+     importer, ce que Médias fait désormais pour tout, et pour régler une
+     incrustation déjà posée — auquel cas on la sélectionne, et son panneau
+     s'ouvre tout seul. Un onglet qu'on n'ouvre jamais de son plein gré n'a pas
+     à occuper le rail. Le panneau, lui, existe toujours. */
   ["text", "text", "railText"],
   ["captions", "captions", "railCaptions"],
   ["audio", "music", "railAudio"],
@@ -312,6 +316,20 @@ const FADE_ABS: React.CSSProperties = { position: "absolute", inset: 0, pointerE
    trois bascules (verrou, oeil, son) et les deux boutons de rangée. Ces deux
    derniers ont d'abord été cachés au survol pour gagner de la place ; c'était
    une fausse économie, personne ne devine un bouton invisible. */
+/* Tailles courantes, proposées dans la fenêtre du format personnalisé.
+
+   Ce sont celles qu'on saisit réellement : les formats des réseaux en pleine
+   définition, plus le 4K pour une sortie hors réseau. Les taper à la main à
+   chaque fois n'apporte rien. */
+const CUSTOM_SIZES: [number, number, string][] = [
+  [1080, 1920, "1080×1920"],
+  [1080, 1080, "1080×1080"],
+  [1080, 1350, "1080×1350"],
+  [1920, 1080, "1920×1080"],
+  [2160, 3840, "2160×3840"],
+  [3840, 2160, "3840×2160"],
+];
+
 const LANE_LABEL_W = 160;
 
 const WAVEFORM_PER_SECOND = 30;
@@ -637,11 +655,28 @@ export default function MontagePage() {
   const [playing, setPlaying] = useState(false);
   const playingRef = useRef(playing); playingRef.current = playing;
   const [stageW, setStageW] = useState(0); // largeur px réelle de la preview → texte figé à l'échelle de l'image (WYSIWYG avec l'export)
+  /* ─── Bibliothèque de médias ───────────────────────────────────────────────
+     Un seul inventaire, quel que soit l'endroit où le fichier a été posé :
+     plan de la piste principale, incrustation, ou piste sonore. C'est ce qui
+     permet de se passer de l'onglet Incrustation, et de retrouver un fichier
+     sans se souvenir de ce qu'on en avait fait. */
+  const [mediaFilter, setMediaFilter] = useState<"all" | "video" | "photo" | "audio">("all");
+  const [mediaQuery, setMediaQuery] = useState("");
+
   const [formatPersoOuvert, setFormatPersoOuvert] = useState(false);
   const [qualiteOuverte, setQualiteOuverte] = useState(false);
   const qualiteRef = useRef<HTMLDivElement>(null);
   // Un menu qui ne se referme pas au clic à côté reste ouvert par-dessus le
   // montage : c'est le comportement attendu de n'importe quelle liste.
+  // Échap referme la fenêtre du format : c'est le réflexe, et il n'y a pas de
+  // bouton d'annulation puisqu'il n'y a rien à annuler.
+  useEffect(() => {
+    if (!formatPersoOuvert) return;
+    const surTouche = (e: KeyboardEvent) => { if (e.key === "Escape") setFormatPersoOuvert(false); };
+    window.addEventListener("keydown", surTouche);
+    return () => window.removeEventListener("keydown", surTouche);
+  }, [formatPersoOuvert]);
+
   useEffect(() => {
     if (!qualiteOuverte) return;
     const dehors = (e: MouseEvent) => {
@@ -4175,6 +4210,45 @@ export default function MontagePage() {
     beatSyncing, snapCutsToBeat,
   };
 
+  interface MediaItem {
+    cle: string; nom: string; src: string; type: "video" | "photo" | "audio";
+    dur: number; ou: string; selectionne: boolean; ouvrir: () => void;
+  }
+  const mediaLibrary = useMemo<MediaItem[]>(() => {
+    const tout: MediaItem[] = [];
+    clipStarts.forEach((c, i) => tout.push({
+      cle: `c${c.id}`, nom: c.name, src: c.src, type: c.kind === "photo" ? "photo" : "video",
+      dur: c.dur, ou: t('mediaInMainTrack', { n: i + 1 }), selectionne: selectedClipId === c.id,
+      ouvrir: () => { selectClip(c.id); setTool("cut"); },
+    }));
+    overlays.forEach((o) => tout.push({
+      cle: `o${o.id}`, nom: o.name, src: o.src, type: o.kind === "photo" ? "photo" : "video",
+      dur: overlayTimelineDur(o), ou: t('mediaInOverlay', { n: (o.track ?? 0) + 1 }), selectionne: selectedOverlayId === o.id,
+      ouvrir: () => selectOverlay(o.id),
+    }));
+    audioTracks.forEach((a) => tout.push({
+      cle: `a${a.id}`, nom: a.name, src: a.src, type: "audio",
+      dur: a.dur, ou: t('mediaInAudio', { n: (a.track ?? 0) + 1 }), selectionne: selectedAudioId === a.id,
+      ouvrir: () => { setSelectedAudioId(a.id); setTool("audio"); },
+    }));
+    const q = mediaQuery.trim().toLowerCase();
+    return tout.filter((m) => (mediaFilter === "all" || m.type === mediaFilter)
+      && (!q || m.nom.toLowerCase().includes(q)));
+  }, [clipStarts, overlays, audioTracks, selectedClipId, selectedOverlayId, selectedAudioId, mediaFilter, mediaQuery, t]);
+
+  /** Reposer un média déjà importé en incrustation, sans le retélécharger. */
+  function ajouterEnIncrustation(src: string, kind: "video" | "photo", dur: number) {
+    const id = crypto.randomUUID();
+    setOverlays((prev) => [...prev, {
+      id, kind, name: src.split("/").pop() || "", src, srcDur: dur,
+      trimStart: 0, trimEnd: dur, offset: time, track: 0,
+      ...newOverlayDefaults(),
+    }]);
+    setSelectedOverlayId(id);
+    setTool("overlay");
+    toast(t('toastOverlayAdded'));
+  }
+
   const trackW = Math.max(total * pps, 200);
   const ticks: number[] = [];
   for (let s = 0; s <= total; s += 2) ticks.push(s);
@@ -4295,27 +4369,33 @@ export default function MontagePage() {
       {formatPersoOuvert && (
         <div className="mz-modal-fond" onMouseDown={(e) => { if (e.target === e.currentTarget) setFormatPersoOuvert(false); }}>
           <div className="mz-modal">
-            <h3>{t('customFormatTitle')}</h3>
-            <p style={{ fontSize: 12.5, color: "var(--ink-3)", lineHeight: 1.45, marginBottom: 16 }}>{t('customFormatHint')}</p>
-            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-              <label style={{ flex: 1 }}>
-                <span className="mz-sec-label" style={{ display: "block", marginBottom: 6 }}>{t('widthPx')}</span>
-                <input className="input" type="number" min={64} max={4096} value={customW}
-                  onChange={e => setCustomW(Math.max(64, Math.min(4096, Math.round(Number(e.target.value) || 0))))} />
-              </label>
-              <span style={{ fontSize: 13, color: "var(--ink-3)", marginTop: 20 }}>×</span>
-              <label style={{ flex: 1 }}>
-                <span className="mz-sec-label" style={{ display: "block", marginBottom: 6 }}>{t('heightPx')}</span>
-                <input className="input" type="number" min={64} max={4096} value={customH}
-                  onChange={e => setCustomH(Math.max(64, Math.min(4096, Math.round(Number(e.target.value) || 0))))} />
-              </label>
+            <div className="mz-modal-head">
+              <h3>{t('customFormatTitle')}</h3>
+              <button className="mz-modal-x" onClick={() => setFormatPersoOuvert(false)} title={t('close')}>×</button>
             </div>
-            <p style={{ fontFamily: "var(--mono)", fontSize: 11, color: "var(--ink-3)", marginTop: 10 }}>
-              {(customW / Math.max(1, customH)).toFixed(2)} : 1
-            </p>
-            <button className="btn btn-primary mz-btn-block" style={{ marginTop: 16 }} onClick={() => setFormatPersoOuvert(false)}>
-              {t('done')}
-            </button>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <input className="mz-dim" type="number" min={64} max={4096} value={customW} aria-label={t('widthPx')}
+                onChange={e => setCustomW(Math.max(64, Math.min(4096, Math.round(Number(e.target.value) || 0))))} />
+              <span style={{ fontSize: 12, color: "var(--ink-3)" }}>×</span>
+              <input className="mz-dim" type="number" min={64} max={4096} value={customH} aria-label={t('heightPx')}
+                onChange={e => setCustomH(Math.max(64, Math.min(4096, Math.round(Number(e.target.value) || 0))))} />
+              {/* La forme obtenue, dessinée. Un rapport écrit « 0.56 : 1 » ne dit
+                  rien à personne ; un rectangle, si. */}
+              <span className="mz-dim-shape" title={`${(customW / Math.max(1, customH)).toFixed(2)} : 1`}>
+                <i style={{
+                  width: customW >= customH ? 40 : Math.max(6, Math.round((customW / Math.max(1, customH)) * 40)),
+                  height: customH >= customW ? 40 : Math.max(6, Math.round((customH / Math.max(1, customW)) * 40)),
+                }} />
+              </span>
+            </div>
+            <div className="mz-dim-presets">
+              {CUSTOM_SIZES.map(([w, h, nom]) => (
+                <button key={nom} className={customW === w && customH === h ? "on" : ""}
+                  onClick={() => { setCustomW(w as number); setCustomH(h as number); }}>
+                  {nom}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
       )}
@@ -4364,17 +4444,45 @@ export default function MontagePage() {
                   <input ref={photoInputRef} type="file" accept="image/jpeg,image/png" multiple onChange={handleFileInput} style={{ display: "none" }} />
                 </div>
                 <div className="a-section">
-                  <span className="mz-sec-label">{t('projectClipsTitle', { count: clips.length })}</span>
-                  <div className="mz-grid3" style={{ marginTop: 10 }}>
-                    {clipStarts.map((c) => (
-                      <div key={c.id} className={"mz-thumb" + (selectedClipId === c.id ? " on" : "")} onClick={() => selectClip(c.id)}>
-                        {c.kind === "photo" ? <img src={c.src} alt="" style={{ filter: clipFilterCss(c) }} /> : <video src={c.src} muted preload="metadata" style={{ filter: clipFilterCss(c) }} />}
-                        <span style={{ position: "absolute", top: 5, left: 5, width: 16, height: 16, borderRadius: 5, background: "rgba(0,0,0,.4)", display: "grid", placeItems: "center", color: "#fff" }}>
-                          <VIcon name={c.kind === "photo" ? "image" : "video"} size={10} />
+                  {/* ── Bibliothèque unique ──────────────────────────────────
+                      Les médias étaient éparpillés : les plans ici, les
+                      incrustations dans leur onglet, les sons dans le leur. Pour
+                      retrouver un fichier il fallait déjà savoir ce qu'on en
+                      avait fait. Tout est réuni, avec un filtre et une recherche,
+                      et chaque élément dit où il est posé. */}
+                  <span className="mz-sec-label">{t('mediaLibrary', { count: mediaLibrary.length })}</span>
+                  <div className="mz-fmt" style={{ background: "var(--sunk)", marginTop: 10, width: "100%" }}>
+                    {(["all", "video", "photo", "audio"] as const).map((k) => (
+                      <button key={k} style={{ flex: 1, color: mediaFilter === k ? "var(--ink)" : "var(--ink-3)", background: mediaFilter === k ? "var(--white)" : "none" }}
+                        onClick={() => setMediaFilter(k)}>{t(`mediaFilter_${k}`)}</button>
+                    ))}
+                  </div>
+                  <input className="input" value={mediaQuery} onChange={(e) => setMediaQuery(e.target.value)}
+                    placeholder={t('mediaSearch')} style={{ width: "100%", marginTop: 8 }} />
+
+                  <div style={{ display: "flex", flexDirection: "column", gap: 4, marginTop: 10 }}>
+                    {mediaLibrary.map((m) => (
+                      <div key={m.cle} className={"mz-media" + (m.selectionne ? " on" : "")} onClick={m.ouvrir} title={m.nom}>
+                        <span className="mz-media-vue">
+                          {m.type === "photo" && <img src={m.src} alt="" />}
+                          {m.type === "video" && <video src={m.src} muted preload="metadata" />}
+                          {m.type === "audio" && <VIcon name="music" size={16} />}
                         </span>
-                        <span style={{ position: "absolute", bottom: 5, right: 5, fontFamily: "var(--mono)", fontWeight: 700, fontSize: 8.5, color: "#fff", background: "rgba(0,0,0,.4)", padding: "1px 4px", borderRadius: 4 }}>{c.dur.toFixed(0)}s</span>
+                        <span style={{ minWidth: 0, flex: 1 }}>
+                          <span className="mz-media-nom trunc">{m.nom}</span>
+                          <span className="mz-media-meta">{m.ou} · {m.dur.toFixed(1)}s</span>
+                        </span>
+                        {m.type !== "audio" && (
+                          <button className="mz-media-act" title={t('useAsOverlay')}
+                            onClick={(e) => { e.stopPropagation(); ajouterEnIncrustation(m.src, m.type as "video" | "photo", m.dur); }}>
+                            <VIcon name="plus" size={12} />
+                          </button>
+                        )}
                       </div>
                     ))}
+                    {!mediaLibrary.length && (
+                      <p style={{ fontSize: 12.5, color: "var(--ink-3)", lineHeight: 1.45 }}>{t('mediaEmpty')}</p>
+                    )}
                   </div>
                 </div>
                 <div className="a-section">

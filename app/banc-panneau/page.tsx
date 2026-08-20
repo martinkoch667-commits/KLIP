@@ -48,6 +48,7 @@ function BancPanneauDev() {
   return (
     <div style={{ height: "100vh", display: "flex", flexDirection: "column", background: "var(--canvas)" }}>
       <BarreDuHaut />
+      <FenetreTaille />
       <div style={{ display: "flex", gap: 0, flex: 1, minHeight: 0 }}>
       <div className="a-panel" style={{ width: 340, flexShrink: 0, borderRight: "1px solid var(--line)" }}>
         <div className="a-panel-head"><span className="a-panel-title">Texte &amp; titres</span></div>
@@ -62,6 +63,36 @@ function BancPanneauDev() {
           {monte && <Apercu tt={tt} />}
         </div>
       </div>
+      </div>
+    </div>
+  );
+}
+
+/* Réplique de la fenêtre de taille personnalisée, pour juger son dessin. */
+function FenetreTaille() {
+  const [w, setW] = useState(1080);
+  const [h, setH] = useState(1920);
+  const tailles: [number, number][] = [[1080,1920],[1080,1080],[1080,1350],[1920,1080],[2160,3840],[3840,2160]];
+  return (
+    <div className="mz-modal-fond" style={{ position: "absolute", inset: "58px 0 0", zIndex: 5 }}>
+      <div className="mz-modal">
+        <div className="mz-modal-head">
+          <h3>Taille personnalisée</h3>
+          <button className="mz-modal-x">×</button>
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <input className="mz-dim" type="number" value={w} onChange={(e) => setW(Number(e.target.value) || 0)} />
+          <span style={{ fontSize: 12, color: "var(--ink-3)" }}>×</span>
+          <input className="mz-dim" type="number" value={h} onChange={(e) => setH(Number(e.target.value) || 0)} />
+          <span className="mz-dim-shape">
+            <i style={{ width: w >= h ? 40 : Math.max(6, Math.round((w / Math.max(1, h)) * 40)), height: h >= w ? 40 : Math.max(6, Math.round((h / Math.max(1, w)) * 40)) }} />
+          </span>
+        </div>
+        <div className="mz-dim-presets">
+          {tailles.map(([a, b]) => (
+            <button key={`${a}x${b}`} className={w === a && h === b ? "on" : ""} onClick={() => { setW(a); setH(b); }}>{a}×{b}</button>
+          ))}
+        </div>
       </div>
     </div>
   );

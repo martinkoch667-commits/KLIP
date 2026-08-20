@@ -1333,16 +1333,60 @@ input.mz-range::-moz-range-thumb { width: 16px; height: 16px; border-radius: 50%
 
 /* Liste déroulante maison : la native ne se style pas, son menu restait gris
    système au milieu d'une barre violette. */
+/* Ligne de la bibliothèque de médias : vignette, nom, où le fichier est posé.
+   Une liste plutôt qu'une grille : le nom du fichier compte autant que l'image,
+   et c'est lui qu'on cherche. */
+.mz-media { display: flex; align-items: center; gap: 9px; padding: 6px; border-radius: 9px;
+  cursor: pointer; transition: background .12s var(--ease); }
+.mz-media:hover { background: var(--sunk); }
+.mz-media.on { background: var(--mint-soft); }
+.mz-media-vue { width: 38px; height: 38px; flex-shrink: 0; border-radius: 7px; overflow: hidden;
+  background: var(--sunk); display: grid; place-items: center; color: var(--ink-3); }
+.mz-media-vue img, .mz-media-vue video { width: 100%; height: 100%; object-fit: cover; }
+.mz-media-nom { display: block; font-size: 12.5px; font-weight: 700; color: var(--ink); }
+.mz-media-meta { display: block; font-family: var(--mono); font-size: 9.5px; font-weight: 700;
+  color: var(--ink-3); margin-top: 2px; }
+.mz-media-act { width: 24px; height: 24px; flex-shrink: 0; display: grid; place-items: center;
+  border: none; border-radius: 7px; background: var(--sunk); color: var(--ink-2); cursor: pointer; }
+.mz-media-act:hover { background: var(--vio); color: #fff; }
+
 /* Fenêtre du format personnalisé.
 
    Les champs largeur et hauteur s'ouvraient DANS la barre : faute de place, ils
-   passaient sous les boutons voisins et se chevauchaient. Une fenêtre au centre
-   règle la question et laisse la place d'expliquer ce qu'on saisit. */
+   passaient sous les boutons voisins et se chevauchaient.
+
+   Sa première version tenait de la boîte de dialogue générique : un titre, un
+   paragraphe d'explication, deux champs étiquetés, un gros bouton de validation.
+   Personne ne lit ce paragraphe, et « px » y était écrit trois fois. Un réglage
+   de taille se règle : deux champs, la forme obtenue sous les yeux, et les
+   tailles qu'on utilise vraiment à portée de clic. */
 .mz-modal-fond { position: fixed; inset: 0; z-index: 200; display: grid; place-items: center;
   background: rgba(13,15,10,.55); backdrop-filter: blur(4px); }
-.mz-modal { width: 320px; padding: 20px; border-radius: 16px; background: var(--white);
+.mz-modal { width: 300px; padding: 16px; border-radius: 14px; background: var(--white);
   box-shadow: 0 22px 60px rgba(13,15,10,.4); }
-.mz-modal h3 { font-family: var(--display); font-weight: 800; font-size: 17px; margin-bottom: 4px; }
+.mz-modal-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+.mz-modal-head h3 { font-family: var(--display); font-weight: 800; font-size: 15px; }
+.mz-modal-x { width: 24px; height: 24px; border: none; background: none; border-radius: 6px;
+  color: var(--ink-3); font-size: 16px; line-height: 1; cursor: pointer; }
+.mz-modal-x:hover { background: var(--sunk); color: var(--ink); }
+
+/* Champs de dimension : les flèches natives font « formulaire », on les retire. */
+.mz-dim { width: 100%; padding: 9px 10px; border-radius: 9px; background: var(--sunk);
+  border: 1px solid transparent; font-family: var(--mono); font-weight: 800; font-size: 14px;
+  color: var(--ink); text-align: center; -moz-appearance: textfield; }
+.mz-dim:focus { outline: none; border-color: var(--vio); background: var(--white); }
+.mz-dim::-webkit-outer-spin-button, .mz-dim::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+
+/* Aperçu de la forme : plus parlant qu'un rapport écrit en chiffres. */
+.mz-dim-shape { width: 46px; height: 46px; flex-shrink: 0; display: grid; place-items: center; }
+.mz-dim-shape > i { display: block; background: var(--vio); border-radius: 3px; }
+
+/* Tailles courantes, en pastilles. */
+.mz-dim-presets { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 12px; }
+.mz-dim-presets button { padding: 5px 9px; border-radius: 7px; border: none; background: var(--sunk);
+  font-family: var(--mono); font-size: 10.5px; font-weight: 800; color: var(--ink-2); cursor: pointer; }
+.mz-dim-presets button:hover { background: var(--mint-soft); color: var(--ink); }
+.mz-dim-presets button.on { background: var(--vio); color: #fff; }
 
 .mz-drop { position: relative; }
 .mz-drop-menu { position: absolute; top: calc(100% + 6px); right: 0; z-index: 60; min-width: 190px;
