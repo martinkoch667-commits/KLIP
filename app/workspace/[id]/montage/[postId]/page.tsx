@@ -300,6 +300,13 @@ const FADE_ABS: React.CSSProperties = { position: "absolute", inset: 0, pointerE
    On échantillonne donc à la SECONDE, pas au fichier : 30 mesures par seconde,
    soit une tous les 33 ms, de quoi distinguer chaque frappe. Le plafond évite
    qu'un fichier très long ne fasse enfler le projet enregistré. */
+/* Largeur de la gouttière d'étiquettes, à gauche de la timeline.
+
+   Elle était écrite en dur (92) à six endroits : le curseur de lecture, le
+   décalage de la règle, le zoom à la molette, la détection de la zone de dépôt.
+   Une seule valeur maintenant, partagée avec la CSS par une variable. */
+const LANE_LABEL_W = 108;
+
 const WAVEFORM_PER_SECOND = 30;
 const WAVEFORM_MAX = 9000;   // ~5 min à pleine résolution
 function waveformCount(seconds: number): number {
@@ -808,8 +815,8 @@ export default function MontagePage() {
         setPps((p) => {
           const np = Math.max(10, Math.min(220, p * factor));
           const rect = tl.getBoundingClientRect();
-          const tAtCursor = (e.clientX - rect.left + tl.scrollLeft - 92) / p; // 92 = label
-          requestAnimationFrame(() => { tl.scrollLeft = Math.max(0, tAtCursor * np - (e.clientX - rect.left - 92)); });
+          const tAtCursor = (e.clientX - rect.left + tl.scrollLeft - LANE_LABEL_W) / p;
+          requestAnimationFrame(() => { tl.scrollLeft = Math.max(0, tAtCursor * np - (e.clientX - rect.left - LANE_LABEL_W)); });
           return np;
         });
       } else if (stage && stage.contains(target)) {
@@ -1149,9 +1156,9 @@ export default function MontagePage() {
     return false;
   }
 
-  /** Repositionne le curseur sans passer par React. 92 px = largeur des étiquettes. */
+  /** Repositionne le curseur sans passer par React. */
   const poserCurseur = useCallback((t: number) => {
-    if (playheadRef.current) playheadRef.current.style.left = `${92 + t * sceneRef.current.pps}px`;
+    if (playheadRef.current) playheadRef.current.style.left = `${LANE_LABEL_W + t * sceneRef.current.pps}px`;
     const pct = totalRef.current ? `${(t / totalRef.current) * 100}%` : "0%";
     if (scrubFillRef.current) scrubFillRef.current.style.width = pct;
     if (scrubKnobRef.current) scrubKnobRef.current.style.left = pct;
@@ -3681,12 +3688,21 @@ export default function MontagePage() {
     decalerCles(setHiddenLanes); decalerCles(setLockedLanes); decalerCles(setMutedLanes);
   }
 
+  /** Bouton « ajouter une rangée », même gabarit que la croix. */
+  function LaneAdd({ onClick, title: titre }: { onClick: () => void; title: string }) {
+    return (
+      <button onClick={onClick} title={titre}
+        style={{ width: 17, height: 17, borderRadius: 5, border: "1px solid var(--line)", background: "var(--canvas)",
+          color: "var(--ink-2)", fontSize: 13, lineHeight: "13px", cursor: "pointer", flexShrink: 0, padding: 0 }}>+</button>
+    );
+  }
+
   /** Petit bouton « supprimer cette rangée », posé dans l'étiquette de piste. */
   function LaneDelete({ genre, index }: { genre: "v" | "a" | "t"; index: number }) {
     const vide = pisteVide(genre, index);
     return (
       <button onClick={() => supprimerPiste(genre, index)} title={vide ? t('removeLane') : t('removeLaneBlocked')}
-        style={{ width: 18, height: 18, borderRadius: 5, border: "1px solid var(--line)", background: "var(--canvas)",
+        style={{ width: 17, height: 17, borderRadius: 5, border: "1px solid var(--line)", background: "var(--canvas)",
           color: vide ? "var(--ink-2)" : "var(--ink-3)", opacity: vide ? 1 : 0.4, fontSize: 13, lineHeight: "13px",
           cursor: vide ? "pointer" : "not-allowed", flexShrink: 0, padding: 0 }}>×</button>
     );
@@ -4693,13 +4709,13 @@ export default function MontagePage() {
           <div
             className="a-tl-inner"
             ref={tlInnerRef}
-            style={{ width: 92 + trackW + 30, ["--tscale" as string]: trackScale } as React.CSSProperties}
+            style={{ width: LANE_LABEL_W + trackW + 30, ["--tscale" as string]: trackScale, ["--lane-label-w" as string]: `${LANE_LABEL_W}px` } as React.CSSProperties}
             onPointerDown={(e) => {
               // Sur une zone vide : un simple clic déplace le curseur ; un glissement trace
               // un rectangle de sélection multiple (façon explorateur de fichiers).
               const el = e.target as HTMLElement;
               if (el.closest(".a-clip, .a-chip, .a-wave-bar, .a-trim, .a-fade-dot, .a-lane-label, .a-ruler")) return;
-              if (e.clientX - (tlInnerRef.current?.getBoundingClientRect().left ?? 0) < 92) return; // gouttière labels
+              if (e.clientX - (tlInnerRef.current?.getBoundingClientRect().left ?? 0) < LANE_LABEL_W) return; // gouttière labels
               try { (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId); } catch {}
               selDragRef.current = { startX: e.clientX, startY: e.clientY, moved: false };
             }}
@@ -4730,7 +4746,7 @@ export default function MontagePage() {
             <div
               className="a-ruler"
               ref={rulerRef}
-              style={{ marginLeft: 92, width: trackW, cursor: "pointer" }}
+              style={{ marginLeft: LANE_LABEL_W, width: trackW, cursor: "pointer" }}
               onPointerDown={onRulerDown}
               onPointerMove={onRulerMove}
               onPointerUp={onRulerUp}
@@ -4821,11 +4837,10 @@ export default function MontagePage() {
                   <VIcon name="video" size={13} />
                   <span className="trunc">{`${t('labelVideo')} ${track + 2}`}</span>
                   <LaneControls laneKey={`v${track}`} />
-                  <LaneDelete genre="v" index={track} />
-                  {isTop && (
-                    <button onClick={() => setExtraVideoTracks((n) => n + 1)} title={t('addVideoTrack')}
-                      style={{ width: 18, height: 18, borderRadius: 5, border: "1px solid var(--line)", background: "var(--canvas)", color: "var(--ink-2)", fontSize: 14, lineHeight: "14px", cursor: "pointer", flexShrink: 0, padding: 0 }}>+</button>
-                  )}
+                  <span className="a-lane-acts">
+                    <LaneDelete genre="v" index={track} />
+                    {isTop && <LaneAdd onClick={() => setExtraVideoTracks((n) => n + 1)} title={t('addVideoTrack')} />}
+                  </span>
                 </div>
                 <div className={"a-lane-track" + (dropLane === `v${track}` && dragActive ? " drop-hot" : "")}>
                   {overlays.length === 0 && isTop && (
@@ -4900,11 +4915,10 @@ export default function MontagePage() {
                   <VIcon name="music" size={13} />
                   <span className="trunc">{audioTrackCount > 1 ? `${t('railAudio')} ${atrack + 1}` : t('railAudio')}</span>
                   <LaneControls laneKey={`a${atrack}`} audio />
-                  <LaneDelete genre="a" index={atrack} />
-                  {isFirstA && (
-                    <button onClick={() => setExtraAudioTracks((n) => n + 1)} title={t('addAudioTrack')}
-                      style={{ width: 18, height: 18, borderRadius: 5, border: "1px solid var(--line)", background: "var(--canvas)", color: "var(--ink-2)", fontSize: 14, lineHeight: "14px", cursor: "pointer", flexShrink: 0, padding: 0 }}>+</button>
-                  )}
+                  <span className="a-lane-acts">
+                    <LaneDelete genre="a" index={atrack} />
+                    {isFirstA && <LaneAdd onClick={() => setExtraAudioTracks((n) => n + 1)} title={t('addAudioTrack')} />}
+                  </span>
                 </div>
                 <div className="a-lane-track">
                   {audioTracks.filter((a) => (a.track ?? 0) === atrack).map((a) => (
@@ -4973,11 +4987,10 @@ export default function MontagePage() {
                 <VIcon name="text" size={13} />
                 <span className="trunc">{textTrackCount > 1 ? `${t('railText')} ${ttrack + 1}` : t('railText')}</span>
                 <LaneControls laneKey={`t${ttrack}`} audio />
-                <LaneDelete genre="t" index={ttrack} />
-                {isTopT && (
-                  <button onClick={() => setExtraTextTracks((n) => n + 1)} title={t('addTextTrack')}
-                    style={{ width: 18, height: 18, borderRadius: 5, border: "1px solid var(--line)", background: "var(--canvas)", color: "var(--ink-2)", fontSize: 14, lineHeight: "14px", cursor: "pointer", flexShrink: 0, padding: 0 }}>+</button>
-                )}
+                <span className="a-lane-acts">
+                  <LaneDelete genre="t" index={ttrack} />
+                  {isTopT && <LaneAdd onClick={() => setExtraTextTracks((n) => n + 1)} title={t('addTextTrack')} />}
+                </span>
               </div>
               <div className="a-lane-track">
                 {titles.filter((ti) => (ti.track ?? 0) === ttrack).map((ti) => (
