@@ -15,8 +15,9 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { OverlayClip, TitleEl, overlayEffectCss, overlayFilterCss, OVERLAY_EFFECT_PRESETS,
   FONT_CHOICES, titleLines, TITLE_BASE_FONT, TITLE_LINE_HEIGHT, TITLE_DEFAULT_MAX_WIDTH,
-  titleLook, titleShadowCss, titleWeight, titleItalic, applySubCase, withAlpha } from "../workspace/[id]/montage/[postId]/constants";
+  titleLook, titleShadowCss, titleWeight, titleItalic, applySubCase, withAlpha, titleBoxWidth } from "../workspace/[id]/montage/[postId]/constants";
 import { drawOverlayFrame, drawTitles, setCanvasSize } from "../workspace/[id]/montage/[postId]/render-core";
+import { surPolicesChargees } from "../workspace/[id]/montage/[postId]/fonts";
 
 const W = 360, H = 640; // cadre de comparaison (9:16 réduit)
 
@@ -132,6 +133,9 @@ const TITRES_TEST = [
 function PaireTitre({ nom, tt }: { nom: string; tt: TitleEl }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const ecartRef = useRef<HTMLCanvasElement>(null);
+  // Comme le monteur : on remesure quand la police est vraiment là.
+  const [pretes, setPretes] = useState(0);
+  useEffect(() => surPolicesChargees(() => setPretes((n) => n + 1)), []);
 
   useEffect(() => {
     for (const cv of [canvasRef.current, ecartRef.current]) {
@@ -143,7 +147,7 @@ function PaireTitre({ nom, tt }: { nom: string; tt: TitleEl }) {
       // t = 1 s : passé l'animation d'entrée, le titre est à pleine opacité.
       drawTitles(ctx, [tt], 1);
     }
-  }, [tt]);
+  }, [tt, pretes]);
 
   const f = FONT_CHOICES.find((c) => c.id === tt.font) || FONT_CHOICES[0];
   const look = titleLook(tt);
@@ -165,9 +169,9 @@ function PaireTitre({ nom, tt }: { nom: string; tt: TitleEl }) {
         opacity: look.opacity,
         letterSpacing: look.letterSpacing ? `${look.letterSpacing}em` : undefined,
         background: look.bg !== "transparent" ? withAlpha(look.bg, look.bgOpacity) : undefined,
-        padding: look.bg !== "transparent" ? `${look.padY * unit}px ${look.padX * unit}px` : undefined,
+        padding: `${look.padY * unit}px ${look.padX * unit}px`,
         borderRadius: look.bg !== "transparent" ? (look.pill ? 999 : look.radius * unit) : undefined,
-        width: (tt.maxWidth ?? TITLE_DEFAULT_MAX_WIDTH) + "%", whiteSpace: "pre-wrap",
+        width: titleBoxWidth(tt, W) * unit, whiteSpace: "pre",
       }}>
         <span>{titleLines(tt, W).map((ln) => applySubCase(ln, look.caseMode)).join("\n")}</span>
       </div>

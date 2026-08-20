@@ -9,7 +9,7 @@
 // Ces fonctions viennent telles quelles de export.ts, où elles étaient
 // enfermées avec la boucle de captation.
 
-import { MontageClip, OverlayClip, Caption, TitleEl, StickerEl, AudioTrack, SubCustom, effectiveSubStyle, resolveCapStyle, resolveCapPos, SUB_BASE_FONT, wrapWords, captionPartAt, subCanvasFont, subBgBox, curveLayout, applySubCase, withAlpha, transitionStateAt, DEFAULT_SUB_POS, clipFilterCss, overlayFilterCss, clipTimelineDur, clipAudioGainAt, overlayTimelineDur, overlayAudioGainAt, audioVolumeAt, kenBurnsScale, videoFormatById, exportQualityById, overlayEffects, overlayEffectCss, OUTLINE_PASSES, titleCanvasFont, titleLines, titleLook, TITLE_BASE_FONT, TITLE_LINE_HEIGHT } from "./constants";
+import { MontageClip, OverlayClip, Caption, TitleEl, StickerEl, AudioTrack, SubCustom, effectiveSubStyle, resolveCapStyle, resolveCapPos, SUB_BASE_FONT, wrapWords, captionPartAt, subCanvasFont, subBgBox, curveLayout, applySubCase, withAlpha, transitionStateAt, DEFAULT_SUB_POS, clipFilterCss, overlayFilterCss, clipTimelineDur, clipAudioGainAt, overlayTimelineDur, overlayAudioGainAt, audioVolumeAt, kenBurnsScale, videoFormatById, exportQualityById, overlayEffects, overlayEffectCss, OUTLINE_PASSES, titleCanvasFont, titleLines, titleLook, titleBoxWidth, TITLE_BASE_FONT, TITLE_LINE_HEIGHT } from "./constants";
 export interface ExportProject {
   clips: MontageClip[];
   overlays?: OverlayClip[];
@@ -355,13 +355,16 @@ export function drawTitles(ctx: CanvasRenderingContext2D, titles: TitleEl[], t: 
     const lignes = titleLines({ ...tt, text }, CANVAS_W).map((ln) => applySubCase(ln, look.caseMode));
     const pas = TITLE_BASE_FONT * TITLE_LINE_HEIGHT;
 
-    // Interlettrage (Chrome ≥ 99), ignoré silencieusement ailleurs.
+    // Interlettrage (Chrome ≥ 99), ignoré silencieusement ailleurs. Posé même à
+    // zéro : le contexte est réutilisé d'un titre à l'autre.
     const ctxLS = ctx as CanvasRenderingContext2D & { letterSpacing?: string };
     const prevLS = ctxLS.letterSpacing;
-    if (look.letterSpacing) ctxLS.letterSpacing = `${look.letterSpacing * TITLE_BASE_FONT}px`;
+    ctxLS.letterSpacing = look.letterSpacing ? `${look.letterSpacing * TITLE_BASE_FONT}px` : "0px";
 
     const largeurs = lignes.map((ln) => ctx.measureText(ln).width);
-    const boiteW = Math.max(1, ...largeurs) + look.padX * 2;
+    // Même mesure que l'aperçu, par la même fonction : la boîte se cale sur le
+    // texte, et les deux côtés ne peuvent pas diverger.
+    const boiteW = titleBoxWidth({ ...tt, text }, CANVAS_W);
     const boiteH = pas * lignes.length + look.padY * 2;
 
     /* Fond (bloc ou pilule), peint avant le texte. Même géométrie que l'aperçu :
@@ -426,7 +429,7 @@ export function drawTitles(ctx: CanvasRenderingContext2D, titles: TitleEl[], t: 
       ctx.shadowColor = "transparent"; ctx.shadowBlur = 0;
       ctx.shadowOffsetX = 0; ctx.shadowOffsetY = 0;
     });
-    if (look.letterSpacing) ctxLS.letterSpacing = prevLS ?? "0px";
+    ctxLS.letterSpacing = prevLS ?? "0px";
     ctx.restore();
   }
 }

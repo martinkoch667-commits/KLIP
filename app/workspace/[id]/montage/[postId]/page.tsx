@@ -16,10 +16,10 @@ import {
   audioVolumeAt, audioSrcDur, creneauLibre, kenBurnsScale, withAlpha,
   titleLook, titleShadowCss, titleWeight, titleItalic, VIDEO_FORMATS, videoFormatById, EXPORT_QUALITIES,
   overlayEffectCss,
-  TITLE_BASE_FONT, TITLE_LINE_HEIGHT, TITLE_DEFAULT_MAX_WIDTH, titleLines,
+  TITLE_BASE_FONT, TITLE_LINE_HEIGHT, TITLE_DEFAULT_MAX_WIDTH, titleLines, titleBoxWidth,
 } from "./constants";
 import { ClipStrip, ClipWave, AudioWave, FadeRamp, type ClipStripData } from "./timeline-parts";
-import { chargerPoliceGoogle, declarerPoliceMaison } from "./fonts";
+import { chargerPoliceGoogle, declarerPoliceMaison, surPolicesChargees } from "./fonts";
 import { lectureRapideDisponible, infosVideo, dureeAudio, imagesAux, enJpeg, vignettes, picsAudio, fermerSources } from "./media-read";
 import { MontageCtx, CutPanel, TextPanel, CaptionsPanel, AudioPanel, TransitionsPanel, FilterPanel, SpeedPanel, StickerPanel, OverlayPanel, AiPanel } from "./panels";
 import { renderExport } from "./export";
@@ -662,6 +662,14 @@ export default function MontagePage() {
      sans se souvenir de ce qu'on en avait fait. */
   const [mediaFilter, setMediaFilter] = useState<"all" | "video" | "photo" | "audio">("all");
   const [mediaQuery, setMediaQuery] = useState("");
+
+  /* Recalcul quand une police finit d'arriver.
+
+     Le découpage des titres en lignes se mesure sur un canvas : mesuré avant que
+     la police ne soit là, il porte sur la fonte de repli et coupe au mauvais
+     endroit. Ce compteur ne sert qu'à refaire le rendu à ce moment-là. */
+  const [policesPretes, setPolicesPretes] = useState(0);
+  useEffect(() => surPolicesChargees(() => setPolicesPretes((n) => n + 1)), []);
 
   const [formatPersoOuvert, setFormatPersoOuvert] = useState(false);
   const [qualiteOuverte, setQualiteOuverte] = useState(false);
@@ -4750,25 +4758,32 @@ export default function MontagePage() {
                       opacity: look.opacity,
                       letterSpacing: look.letterSpacing ? `${look.letterSpacing}em` : undefined,
                       background: look.bg !== "transparent" ? withAlpha(look.bg, look.bgOpacity) : undefined,
-                      padding: look.bg !== "transparent" ? `${look.padY * unit}px ${look.padX * unit}px` : undefined,
+                      // Marge intérieure TOUJOURS posée, fond ou pas : elle entre
+                      // dans la largeur de la boîte que l'export calcule aussi.
+                      padding: `${look.padY * unit}px ${look.padX * unit}px`,
                       borderRadius: look.bg !== "transparent" ? (look.pill ? 999 : look.radius * unit) : undefined,
                       lineHeight: TITLE_LINE_HEIGHT,
-                      /* Largeur EXPLICITE, et réglable.
+                      /* Largeur calée sur le TEXTE.
 
-                         La boîte n'avait pas de largeur : elle était posée en
-                         `left: x%` puis recentrée par un `translate(-50%)`, et sa
-                         taille était laissée au navigateur. Or une boîte en
+                         Elle a d'abord été laissée au navigateur : une boîte en
                          position absolue sans largeur ne peut pas dépasser la
-                         place qui reste à sa droite : un titre centré était donc
-                         plafonné à la MOITIÉ du cadre, et le `max-width: 80%`
-                         posé ici n'y changeait rien. C'est ce qui empêchait
-                         d'étendre un titre vers les bords.
+                         place qui reste à sa droite, donc un titre centré était
+                         plafonné à la moitié du cadre. Puis figée à `maxWidth` :
+                         elle ne suivait alors plus la taille du texte, le cadre
+                         de sélection restait immense autour d'un petit mot, et un
+                         fond couvrait toute la boîte au lieu du texte.
 
-                         Avec une largeur donnée, la boîte fait vraiment ce qu'on
-                         lui demande, et c'est la même largeur qui décide du
-                         retour à la ligne à l'export. */
-                      width: (ti.maxWidth ?? TITLE_DEFAULT_MAX_WIDTH) + "%",
-                      whiteSpace: "pre-wrap", zIndex: 8, // au-dessus des incrustations (le texte reste visible/cliquable)
+                         Elle est maintenant MESURÉE sur le texte, par la fonction
+                         dont se sert aussi l'export pour peindre son fond.
+                         `maxWidth` retrouve son seul rôle : décider où le texte
+                         revient à la ligne. */
+                      width: titleBoxWidth(ti, activeFmt.w) * unit,
+                      /* `pre` et non `pre-wrap` : les retours à la ligne sont
+                         DÉJÀ calculés, par la même fonction que l'export. Laissé
+                         libre de replier, le navigateur recoupait ces lignes dès
+                         qu'une d'elles frôlait la largeur de la boîte, et
+                         l'aperçu ne montrait plus le découpage du fichier. */
+                      whiteSpace: "pre", zIndex: 8, // au-dessus des incrustations (le texte reste visible/cliquable)
                       transform: `translate(-50%,-50%) rotate(${ti.rotation ?? 0}deg)`,
                       animation: ti.anim === "rise" ? "mzRise .35s var(--ease)" : ti.anim === "pop" ? "mzPop .3s var(--ease)" : undefined,
                     }}

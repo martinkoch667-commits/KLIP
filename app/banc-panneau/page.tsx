@@ -159,9 +159,9 @@ function Apercu({ tt }: { tt: TitleEl }) {
       opacity: look.opacity,
       letterSpacing: look.letterSpacing ? `${look.letterSpacing}em` : undefined,
       background: look.bg !== "transparent" ? mod.withAlpha(look.bg, look.bgOpacity) : undefined,
-      padding: look.bg !== "transparent" ? `${look.padY * unit}px ${look.padX * unit}px` : undefined,
+      padding: `${look.padY * unit}px ${look.padX * unit}px`,
       borderRadius: look.bg !== "transparent" ? (look.pill ? 999 : look.radius * unit) : undefined,
-      width: (tt.maxWidth ?? mod.TITLE_DEFAULT_MAX_WIDTH) + "%", whiteSpace: "pre-wrap",
+      width: mod.titleBoxWidth(tt, 360) * unit, whiteSpace: "pre",
     }}>
       <span>{mod.titleLines(tt, 360).map((ln) => mod.applySubCase(ln, look.caseMode)).join("\n")}</span>
     </div>

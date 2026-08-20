@@ -395,6 +395,15 @@ export function titleLines(tt: TitleEl, frameW: number): string[] {
   // Mesure à l'échelle 1 : la taille du titre est appliquée ensuite par une
   // transformation, elle ne change donc pas où le texte revient à la ligne.
   ctx.font = titleCanvasFont(tt, TITLE_BASE_FONT);
+  /* L'interlettrage est posé EXPLICITEMENT, même à zéro.
+
+     Le contexte de mesure est partagé par tous les titres. Un titre à
+     interlettrage large le laissait derrière lui, et le suivant se mesurait avec
+     un espacement qui n'était pas le sien : son texte paraissait plus long qu'il
+     ne l'est, et il revenait à la ligne trop tôt — ou pas au bon endroit. */
+  const ctxLS = ctx as CanvasRenderingContext2D & { letterSpacing?: string };
+  const ls = tt.letterSpacing ?? 0;
+  ctxLS.letterSpacing = ls ? `${ls * TITLE_BASE_FONT}px` : "0px";
   const maxW = ((tt.maxWidth ?? TITLE_DEFAULT_MAX_WIDTH) / 100) * frameW / Math.max(0.05, tt.scale ?? 1);
   const measure = (str: string) => ctx.measureText(str).width;
   const out: string[] = [];
@@ -1086,6 +1095,35 @@ export function subLines(text: string, style: EffectiveSub, frameW: number): str
   const maxW = (style.maxWidth / 100) * frameW - padX * 2;
   if (!measure || !(maxW > 0) || words.length < 2) return [words];
   return wrapWords(words, measure, maxW, style.maxLines);
+}
+
+/**
+ * Largeur de la BOÎTE d'un titre, en unités de dessin (police de base 40).
+ *
+ * La boîte se cale sur le texte : la ligne la plus large, plus la marge
+ * intérieure de chaque côté. Elle avait été figée à `maxWidth` pour régler un
+ * autre défaut — une boîte sans largeur ne pouvait pas dépasser la place restant
+ * à sa droite. Mais figée, elle ne suivait plus la taille du texte : le cadre de
+ * sélection restait immense autour d'un petit mot, et un fond posé en effet
+ * couvrait toute la boîte au lieu du texte.
+ *
+ * `maxWidth` retrouve son seul rôle utile : décider OÙ le texte revient à la
+ * ligne, pas quelle place il occupe.
+ *
+ * SOURCE UNIQUE : l'aperçu dimensionne sa boîte avec, et l'export peint son fond
+ * avec. Les deux ne peuvent donc pas diverger.
+ */
+export function titleBoxWidth(tt: TitleEl, frameW: number): number {
+  const l = titleLook(tt);
+  const lignes = titleLines(tt, frameW).map((ln) => applySubCase(ln, l.caseMode));
+  if (typeof document === "undefined" || !titleMeasureCtx) return l.padX * 2 + TITLE_BASE_FONT * 4;
+  const ctx = titleMeasureCtx;
+  ctx.font = titleCanvasFont(tt, TITLE_BASE_FONT);
+  const ctxLS = ctx as CanvasRenderingContext2D & { letterSpacing?: string };
+  ctxLS.letterSpacing = l.letterSpacing ? `${l.letterSpacing * TITLE_BASE_FONT}px` : "0px";
+  let max = 1;
+  for (const ln of lignes) max = Math.max(max, ctx.measureText(ln).width);
+  return max + l.padX * 2;
 }
 
 /** Le morceau à afficher à l'instant `t` (le dernier si `t` sort de la fenêtre). */
