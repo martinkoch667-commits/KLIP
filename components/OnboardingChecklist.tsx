@@ -151,7 +151,11 @@ export default function OnboardingChecklist() {
 
   return (
     <div style={{
-      position: "fixed", right: 24, bottom: 24, zIndex: 8000,
+      /* Le coin bas-droit est déjà occupé par la pastille « signaler un bug »,
+         présente sur toutes les pages : elle publie la hauteur qu'elle prend
+         (--klip-dock-bas), on se pose juste au-dessus. Sans ça, la prise en
+         main recouvrait purement et simplement le bouton de signalement. */
+      position: "fixed", right: 18, bottom: "calc(var(--klip-dock-bas, 18px) + 12px)", zIndex: 8000,
       width: collapsed ? "auto" : 336,
       fontFamily: "var(--sans)",
     }}>

@@ -11,6 +11,16 @@ import { useEffect, useRef, useState } from "react";
 
 const SEEN_KEY = "klip-beta-intro-vu";
 
+/* Hauteur occupée par ce widget dans le coin bas-droit, publiée sur <html>.
+   Les autres flottants du même coin (prise en main) s'empilent au-dessus en
+   lisant cette variable : la pastille de signalement est présente sur les dix-
+   sept pages, c'est donc elle qui tient le bas de la pile, et personne n'a
+   besoin de connaître la taille de personne. */
+const DOCK_VAR = "--klip-dock-bas";
+/* Hauteur de la seule pastille : la carte d'accueil s'appuie dessus pour se
+   poser juste au-dessus, sans la recouvrir. */
+const PASTILLE_VAR = "--klip-dock-pastille";
+
 type Kind = "bug" | "idee" | "autre";
 
 const KINDS: { v: Kind; l: string }[] = [
@@ -28,6 +38,8 @@ export default function BetaFeedback() {
   const [done, setDone] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const areaRef = useRef<HTMLTextAreaElement>(null);
+  const pastilleRef = useRef<HTMLButtonElement>(null);
+  const introRef = useRef<HTMLDivElement>(null);
 
   // Carte d'introduction : une seule fois par navigateur.
   useEffect(() => {
@@ -39,6 +51,31 @@ export default function BetaFeedback() {
   useEffect(() => {
     if (open) setTimeout(() => areaRef.current?.focus(), 60);
   }, [open]);
+
+  // Publie la hauteur réellement occupée (pastille, plus la carte d'accueil
+  // quand elle est là). Mesurée, pas devinée : le libellé peut passer sur deux
+  // lignes en écran étroit, et la carte change de hauteur avec la traduction.
+  useEffect(() => {
+    const racine = document.documentElement;
+    const publier = () => {
+      const p = pastilleRef.current?.offsetHeight ?? 0;
+      const i = introRef.current?.offsetHeight ?? 0;
+      const h = BAS + p + (i ? ECART + i : 0);
+      racine.style.setProperty(DOCK_VAR, `${h}px`);
+      if (p) racine.style.setProperty(PASTILLE_VAR, `${p}px`);
+    };
+    publier();
+    const ro = new ResizeObserver(publier);
+    if (pastilleRef.current) ro.observe(pastilleRef.current);
+    if (introRef.current) ro.observe(introRef.current);
+    window.addEventListener("resize", publier);
+    return () => {
+      ro.disconnect();
+      window.removeEventListener("resize", publier);
+      racine.style.removeProperty(DOCK_VAR);
+      racine.style.removeProperty(PASTILLE_VAR);
+    };
+  }, [intro, open]);
 
   // Échap ferme la fenêtre.
   useEffect(() => {
@@ -89,7 +126,7 @@ export default function BetaFeedback() {
     <>
       {/* ── Carte d'accueil bêta (une fois) ── */}
       {intro && !open && (
-        <div style={S.intro} role="status">
+        <div ref={introRef} style={S.intro} role="status">
           <div style={S.introTop}>
             <span style={S.badge}>Phase d’ouverture</span>
             <button onClick={dismissIntro} aria-label="Fermer" style={S.close}>×</button>
@@ -105,7 +142,7 @@ export default function BetaFeedback() {
 
       {/* ── Pastille permanente ── */}
       {!open && (
-        <button onClick={openForm} style={S.pill} title="Signaler un bug ou une idée">
+        <button ref={pastilleRef} onClick={openForm} style={S.pill} title="Signaler un bug ou une idée">
           <span style={S.dot} />
           Bêta — signaler un bug
         </button>
@@ -182,9 +219,13 @@ export default function BetaFeedback() {
 
 /* ── Styles (tokens du design system) ─────────────────────────────────────── */
 
+/* Géométrie du coin bas-droit, partagée par la pastille et la carte d'accueil. */
+const BAS = 18;    // marge au bord de la fenêtre
+const ECART = 10;  // espace entre deux éléments empilés
+
 const S: Record<string, React.CSSProperties> = {
   pill: {
-    position: "fixed", right: 18, bottom: 18, zIndex: 900,
+    position: "fixed", right: BAS, bottom: BAS, zIndex: 900,
     display: "inline-flex", alignItems: "center", gap: 8,
     background: "var(--leaf)", color: "var(--leaf-ink)",
     fontFamily: "var(--sans)", fontWeight: 700, fontSize: 12.5,
@@ -194,7 +235,7 @@ const S: Record<string, React.CSSProperties> = {
   dot: { width: 7, height: 7, borderRadius: "50%", background: "var(--leaf-ink)", flexShrink: 0 },
 
   intro: {
-    position: "fixed", right: 18, bottom: 66, zIndex: 900, width: 310,
+    position: "fixed", right: BAS, bottom: `calc(${BAS + ECART}px + var(--klip-dock-pastille, 38px))`, zIndex: 900, width: 310,
     background: "var(--card)", borderRadius: "var(--r-l)", padding: "14px 16px 16px",
     border: "1px solid var(--line-2)",
     boxShadow: "0 26px 54px -30px rgba(16,19,11,.5)",
@@ -220,7 +261,7 @@ const S: Record<string, React.CSSProperties> = {
   },
 
   backdrop: {
-    position: "fixed", inset: 0, zIndex: 950,
+    position: "fixed", inset: 0, zIndex: 9000,
     background: "rgba(13,15,10,.42)", backdropFilter: "blur(2px)",
     display: "flex", alignItems: "center", justifyContent: "center", padding: 18,
   },
