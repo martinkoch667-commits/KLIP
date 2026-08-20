@@ -13,11 +13,13 @@ import {
   transitionStateAt, transitionCss,
   // (analyzeClipQuality importé depuis ./autoCut plus bas)
   fmt, newClipDefaults, newOverlayDefaults, clipFilterCss, overlayFilterCss, clipTimelineDur, clipAudioGainAt, overlayTimelineDur, overlayAudioGainAt, segmentCaptions, captionsFromWords, dedupeSegments,
-  audioVolumeAt, audioSrcDur, creneauLibre, kenBurnsScale, VIDEO_FORMATS, videoFormatById, EXPORT_QUALITIES,
+  audioVolumeAt, audioSrcDur, creneauLibre, kenBurnsScale, withAlpha,
+  titleLook, titleShadowCss, titleWeight, titleItalic, VIDEO_FORMATS, videoFormatById, EXPORT_QUALITIES,
   overlayEffectCss,
   TITLE_BASE_FONT, TITLE_LINE_HEIGHT, TITLE_DEFAULT_MAX_WIDTH, titleLines,
 } from "./constants";
 import { ClipStrip, ClipWave, AudioWave, FadeRamp, type ClipStripData } from "./timeline-parts";
+import { chargerPoliceGoogle, declarerPoliceMaison } from "./fonts";
 import { lectureRapideDisponible, infosVideo, dureeAudio, imagesAux, enJpeg, vignettes, picsAudio, fermerSources } from "./media-read";
 import { MontageCtx, CutPanel, TextPanel, CaptionsPanel, AudioPanel, TransitionsPanel, FilterPanel, SpeedPanel, StickerPanel, OverlayPanel, AiPanel } from "./panels";
 import { renderExport } from "./export";
@@ -459,6 +461,8 @@ export default function MontagePage() {
   const [loading, setLoading] = useState(true);
   const [projectName, setProjectName] = useState(t('defaultProjectName'));
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
+  const [brandColors, setBrandColors] = useState<string[]>([]);
+  const [brandFonts, setBrandFonts] = useState<string[]>([]);
 
   const [clips, setClips] = useState<MontageClip[]>([]);
   const [overlays, setOverlays] = useState<OverlayClip[]>([]);
@@ -870,15 +874,33 @@ export default function MontagePage() {
     (async () => {
       const [{ data: post }, wsRes] = await Promise.all([
         supabase.from("posts").select("montage_json, brief, photo_url").eq("id", postId).single(),
-        supabase.from("workspaces").select("logo_url, accent_color, subtitle_style_id, subtitle_custom, subtitle_pos, subtitle_max_words").eq("id", workspaceId).single(),
+        supabase.from("workspaces").select("logo_url, accent_color, primary_color, secondary_color, font_family, font_secondary, font_primary_url, font_secondary_url, subtitle_style_id, subtitle_custom, subtitle_pos, subtitle_max_words").eq("id", workspaceId).single(),
       ]);
       // Tolérant : si une colonne subtitle_* n'est pas encore migrée, on relit sans elles.
       let ws = wsRes.data;
       if (wsRes.error && /subtitle_(style_id|custom|pos|max_words)/.test(wsRes.error.message || "")) {
-        ws = (await supabase.from("workspaces").select("logo_url, accent_color").eq("id", workspaceId).single()).data as typeof ws;
+        ws = (await supabase.from("workspaces").select("logo_url, accent_color, primary_color, secondary_color, font_family, font_secondary, font_primary_url, font_secondary_url").eq("id", workspaceId).single()).data as typeof ws;
       }
       if (post?.brief) setProjectName(post.brief);
       if (ws?.logo_url) setLogoUrl(ws.logo_url);
+      /* Charte de la marque : couleurs et polices.
+
+         Elles vivent déjà sur le workspace (page Style), mais le monteur ne les
+         lisait pas : on repartait d'une palette générique et de trois polices en
+         dur pour habiller un texte. Les polices maison téléversées sont
+         déclarées à la volée, sinon le navigateur ne saurait pas les dessiner. */
+      const charte: string[] = [];
+      for (const c of [ws?.primary_color, ws?.secondary_color, ws?.accent_color]) {
+        if (typeof c === "string" && /^#[0-9a-f]{6}$/i.test(c) && !charte.includes(c.toUpperCase())) charte.push(c.toUpperCase());
+      }
+      setBrandColors(charte);
+      const fontes: string[] = [];
+      for (const [fam, url] of [[ws?.font_family, ws?.font_primary_url], [ws?.font_secondary, ws?.font_secondary_url]] as const) {
+        if (!fam || fontes.includes(fam)) continue;
+        fontes.push(fam);
+        if (url) declarerPoliceMaison(fam, url); else chargerPoliceGoogle(fam);
+      }
+      setBrandFonts(fontes);
       const charterSub = charterSubDefault(ws); // sous-titres à la charte (surlignage = accent)
       const proj = post?.montage_json as Partial<MontageProject> | null;
       if (proj?.clips?.length) {
@@ -4083,7 +4105,7 @@ export default function MontagePage() {
     titles, stickers, audioTracks, showProgressBar,
     overlays, selectedOverlay, uploadingOverlay, addOverlayFiles, updateOverlay, removeOverlay, duplicateOverlay, selectOverlay,
     videoTrackCount, moveOverlayTrack,
-    time, total, logoUrl, uploadingAudio, transcribing, isRecordingVO,
+    time, total, logoUrl, brandColors, brandFonts, uploadingAudio, transcribing, isRecordingVO,
     croppingClipId, smartCropClip, assembling, autoAssembleAI, suggestingMusic, musicSuggestion, suggestMusicMoodAI,
     cuttingSilence, cutSilences,
     autoCutting, autoCutProgress,
@@ -4487,16 +4509,33 @@ export default function MontagePage() {
                 })}
 
                 {/* titres */}
-                {activeTitles.map((ti) => (
+                {activeTitles.map((ti) => {
+                  const look = titleLook(ti);
+                  const unit = (ti.scale ?? 1) * previewScale;
+                  return (
                   <div
                     key={ti.id}
                     className={"mz-ov-item" + (selectedTitleId === ti.id ? " sel" : "")}
                     style={{
                       left: ti.x + "%", top: ti.y + "%",
-                      fontFamily: FONT_CSS[ti.font] || FONT_CSS.archivo,
-                      fontWeight: FONT_CHOICES.find((f) => f.id === ti.font)?.weight || 800,
-                      fontStyle: FONT_CHOICES.find((f) => f.id === ti.font)?.italic ? "italic" : "normal",
-                      color: ti.color, fontSize: TITLE_BASE_FONT * (ti.scale ?? 1) * previewScale, textAlign: "center", textShadow: "0 1px 8px rgba(0,0,0,.5)",
+                      fontFamily: ti.fontFamily ? `'${ti.fontFamily}', system-ui, sans-serif` : (FONT_CSS[ti.font] || FONT_CSS.archivo),
+                      fontWeight: titleWeight(ti),
+                      fontStyle: titleItalic(ti) ? "italic" : "normal",
+                      color: ti.color, fontSize: TITLE_BASE_FONT * (ti.scale ?? 1) * previewScale,
+                      /* Habillage : mêmes réglages que l'export, à la même
+                         géométrie. `unit` est la taille d'un point de dessin à
+                         l'écran, donc l'échelle du titre multipliée par celle de
+                         l'aperçu — sans quoi une ombre garderait la même taille
+                         quand on grossit le texte. */
+                      textAlign: look.align,
+                      textShadow: titleShadowCss(ti, unit),
+                      WebkitTextStroke: look.stroke && look.strokeW > 0 ? `${look.strokeW * unit}px ${look.stroke}` : undefined,
+                      paintOrder: "stroke fill",
+                      opacity: look.opacity,
+                      letterSpacing: look.letterSpacing ? `${look.letterSpacing}em` : undefined,
+                      background: look.bg !== "transparent" ? withAlpha(look.bg, look.bgOpacity) : undefined,
+                      padding: look.bg !== "transparent" ? `${look.padY * unit}px ${look.padX * unit}px` : undefined,
+                      borderRadius: look.bg !== "transparent" ? (look.pill ? 999 : look.radius * unit) : undefined,
                       lineHeight: TITLE_LINE_HEIGHT,
                       /* Largeur EXPLICITE, et réglable.
 
@@ -4540,12 +4579,13 @@ export default function MontagePage() {
                         : titleLines(
                             { ...ti, text: ti.anim === "type" ? ti.text.slice(0, Math.max(0, Math.min(ti.text.length, Math.floor((time - ti.start) * 16)))) : ti.text },
                             activeFmt.w,
-                          ).join("\n")}
+                          ).map((ln) => applySubCase(ln, look.caseMode)).join("\n")}
                     </span>
                     {selectedTitleId === ti.id && editingTitleId !== ti.id && <button className="mz-ov-del" onPointerDown={(e) => e.stopPropagation()} onClick={() => removeTitle(ti.id)}><VIcon name="x" size={11} /></button>}
                     {selectedTitleId === ti.id && editingTitleId !== ti.id && <TransformHandles scale={ti.scale ?? 1} onScale={(s) => updateTitle(ti.id, { scale: s })} onRotate={(d) => updateTitle(ti.id, { rotation: d })} />}
                   </div>
-                ))}
+                  );
+                })}
 
                 {/* stickers */}
                 {activeStickers.map((s) => (

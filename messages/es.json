@@ -1545,6 +1545,15 @@
       "glow": "Resplandor",
       "sticker": "Pegatina",
       "card": "Tarjeta"
+    },
+    "titleEffect": {
+      "none": "Ninguno",
+      "soft": "Suave",
+      "drop": "Proyectada",
+      "outline": "Contorno",
+      "neon": "Neón",
+      "block": "Bloque",
+      "pill": "Píldora"
     }
   },
   "montage": {
@@ -1935,7 +1944,20 @@
     "addTextTrack": "Añadir una fila de texto",
     "removeLane": "Eliminar esta fila",
     "removeLaneBlocked": "Vacía esta fila antes de eliminarla",
-    "toastLaneNotEmpty": "Esta fila todavía contiene elementos: vacíala antes de eliminarla."
+    "toastLaneNotEmpty": "Esta fila todavía contiene elementos: vacíala antes de eliminarla.",
+    "brandFonts": "Tipografías de la marca",
+    "brandFontTag": "Marca",
+    "builtInFonts": "Tipografías KLIP",
+    "searchFont": "Buscar una tipografía…",
+    "noFontFound": "Ninguna tipografía con ese nombre",
+    "brandColors": "Colores de la marca",
+    "otherColors": "Otros colores",
+    "customColor": "Color personalizado",
+    "letterSpacing": "Espaciado",
+    "outlineWidth": "Grosor",
+    "textBackground": "Fondo del texto",
+    "pillShape": "Píldora",
+    "padding": "Margen interior"
   },
   "forgotPassword": {
     "title": "Contraseña olvidada",

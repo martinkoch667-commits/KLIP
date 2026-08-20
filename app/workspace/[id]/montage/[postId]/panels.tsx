@@ -4,7 +4,7 @@
 // Reprend la structure de design_handoff_montage_video/design_files/panels.jsx,
 // branché sur de vraies actions (state du projet Montage).
 
-import { useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import { VIcon } from "./icons";
 import SubtitleStyleEditor from "@/components/SubtitleStyleEditor";
@@ -14,7 +14,9 @@ import {
   effectiveSubStyle, loadSubTemplates, saveSubTemplates,
   clipFilterCss, overlayFilterCss, clipTimelineDur, overlayTimelineDur,
   OVERLAY_EFFECT_PRESETS, overlayEffectCss, TITLE_DEFAULT_MAX_WIDTH,
+  TITLE_EFFECT_PRESETS, titleLook, titleShadowCss, titleWeight, titleItalic, withAlpha,
 } from "./constants";
+import { chargerPoliceGoogle } from "./fonts";
 
 export interface MontageCtx {
   clips: MontageClip[];
@@ -38,6 +40,9 @@ export interface MontageCtx {
   time: number;
   total: number;
   logoUrl: string | null;
+  /** Couleurs et polices de la charte du client (page Style de l'espace). */
+  brandColors: string[];
+  brandFonts: string[];
   uploadingAudio: boolean;
   transcribing: boolean;
   isRecordingVO: boolean;
@@ -165,6 +170,250 @@ function Toggle({ label, on, onChange }: { label: string; on: boolean; onChange:
   );
 }
 
+/* ─── Habillage d'un titre : polices, couleurs, effets ───────────────────────
+
+   Le panneau ne proposait que trois polices en dur, six couleurs génériques et
+   aucun effet. On y branche maintenant ce que le produit possède déjà : le
+   catalogue de polices servi par /api/google-fonts, et les couleurs et polices
+   de la CHARTE du client, qui vivent sur son espace de travail. */
+
+interface GFont { family: string; category: string }
+
+/** Catalogue de polices, chargé une fois pour toute la session. */
+let catalogue: GFont[] | null = null;
+let catalogueEnCours: Promise<GFont[]> | null = null;
+function chargerCatalogue(): Promise<GFont[]> {
+  if (catalogue) return Promise.resolve(catalogue);
+  if (!catalogueEnCours) {
+    catalogueEnCours = fetch("/api/google-fonts")
+      .then((r) => (r.ok ? r.json() : []))
+      .then((j: GFont[]) => { catalogue = Array.isArray(j) ? j : []; return catalogue; })
+      .catch(() => { catalogue = []; return catalogue; });
+  }
+  return catalogueEnCours;
+}
+
+function TitleFontPicker({ ctx, tt }: { ctx: MontageCtx; tt: TitleEl }) {
+  const t = useTranslations('montage');
+  const tc = useTranslations('montageConstants');
+  const [fonts, setFonts] = useState<GFont[]>([]);
+  const [q, setQ] = useState("");
+  useEffect(() => { chargerCatalogue().then(setFonts); }, []);
+
+  // Une police n'existe pour le navigateur qu'une fois déclarée : sans ça
+  // l'aperçu de la liste s'afficherait tout entier dans la police par défaut.
+  const apercu = useMemo(() => {
+    const base = q.trim()
+      ? fonts.filter((f) => f.family.toLowerCase().includes(q.trim().toLowerCase()))
+      : fonts;
+    return base.slice(0, 40);
+  }, [fonts, q]);
+  useEffect(() => { apercu.forEach((f) => chargerPoliceGoogle(f.family)); }, [apercu]);
+
+  const choisir = (family: string) => {
+    chargerPoliceGoogle(family);
+    ctx.updateTitle(tt.id, { fontFamily: family });
+  };
+
+  return (
+    <div className="a-section">
+      <span className="mz-sec-label">{t('font')}</span>
+
+      {ctx.brandFonts.length > 0 && (
+        <>
+          <div style={{ fontSize: 11, color: "var(--ink-3)", fontWeight: 700, margin: "8px 0 6px" }}>{t('brandFonts')}</div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 12 }}>
+            {ctx.brandFonts.map((fam) => (
+              <button key={fam} className="font-pick" onClick={() => choisir(fam)}
+                style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 12px", borderRadius: 9,
+                  background: tt.fontFamily === fam ? "var(--mint-soft)" : "var(--white)",
+                  boxShadow: tt.fontFamily === fam ? "inset 0 0 0 1.5px var(--mint-2)" : "inset 0 0 0 1px var(--line)", border: "none", cursor: "pointer" }}>
+                <span style={{ fontFamily: `'${fam}', sans-serif`, fontSize: 18 }}>{fam}</span>
+                <span className="mz-sec-label">{t('brandFontTag')}</span>
+              </button>
+            ))}
+          </div>
+        </>
+      )}
+
+      <div style={{ fontSize: 11, color: "var(--ink-3)", fontWeight: 700, margin: "4px 0 6px" }}>{t('builtInFonts')}</div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 12 }}>
+        {FONT_CHOICES.map((f) => (
+          <button key={f.id} className="font-pick" onClick={() => ctx.updateTitle(tt.id, { font: f.id, fontFamily: undefined, weight: undefined, italic: undefined })}
+            style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 12px", borderRadius: 9,
+              background: !tt.fontFamily && tt.font === f.id ? "var(--mint-soft)" : "var(--white)",
+              boxShadow: !tt.fontFamily && tt.font === f.id ? "inset 0 0 0 1.5px var(--mint-2)" : "inset 0 0 0 1px var(--line)", border: "none", cursor: "pointer" }}>
+            <span style={{ fontFamily: f.css, fontWeight: f.weight, fontStyle: f.italic ? "italic" : "normal", fontSize: 18 }}>{tc(`fontChoiceName.${f.id}`)}</span>
+            <span className="mz-sec-label">{tc(`fontChoiceSub.${f.id}`)}</span>
+          </button>
+        ))}
+      </div>
+
+      <input className="input" value={q} onChange={(e) => setQ(e.target.value)} placeholder={t('searchFont')}
+        style={{ width: "100%", marginBottom: 8 }} />
+      <div style={{ display: "flex", flexDirection: "column", gap: 4, maxHeight: 260, overflowY: "auto" }}>
+        {apercu.map((f) => (
+          <button key={f.family} className="font-pick" onClick={() => choisir(f.family)}
+            style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "9px 12px", borderRadius: 9,
+              background: tt.fontFamily === f.family ? "var(--mint-soft)" : "var(--white)",
+              boxShadow: tt.fontFamily === f.family ? "inset 0 0 0 1.5px var(--mint-2)" : "inset 0 0 0 1px var(--line)", border: "none", cursor: "pointer" }}>
+            <span style={{ fontFamily: `'${f.family}', sans-serif`, fontSize: 17 }}>{f.family}</span>
+            <span className="mz-sec-label">{f.category}</span>
+          </button>
+        ))}
+        {!apercu.length && <p style={{ fontSize: 12, color: "var(--ink-3)" }}>{t('noFontFound')}</p>}
+      </div>
+
+      <div style={{ display: "flex", gap: 6, marginTop: 10 }}>
+        <button className="btn btn-ghost" style={{ flex: 1, justifyContent: "center", fontWeight: titleWeight(tt) >= 700 ? 800 : 600 }}
+          onClick={() => ctx.updateTitle(tt.id, { weight: titleWeight(tt) >= 700 ? 400 : 800 })}>{t('bold')}</button>
+        <button className="btn btn-ghost" style={{ flex: 1, justifyContent: "center", fontStyle: "italic", opacity: titleItalic(tt) ? 1 : 0.6 }}
+          onClick={() => ctx.updateTitle(tt.id, { italic: !titleItalic(tt) })}>{t('italic')}</button>
+      </div>
+      <div className="mz-seg" style={{ marginTop: 8 }}>
+        {([["left", "◀"], ["center", "■"], ["right", "▶"]] as const).map(([k, l]) => (
+          <button key={k} className={(tt.align ?? "center") === k ? "on" : ""} onClick={() => ctx.updateTitle(tt.id, { align: k })}>{l}</button>
+        ))}
+      </div>
+      <div className="mz-seg" style={{ marginTop: 6 }}>
+        {([["none", "Aa"], ["upper", "AA"], ["lower", "aa"], ["title", "Aa."]] as const).map(([k, l]) => (
+          <button key={k} className={(tt.caseMode ?? "none") === k ? "on" : ""} onClick={() => ctx.updateTitle(tt.id, { caseMode: k })}>{l}</button>
+        ))}
+      </div>
+      <Range label={t('letterSpacing')} value={tt.letterSpacing ?? 0} min={-0.05} max={0.4} step={0.01}
+        onChange={(v) => ctx.updateTitle(tt.id, { letterSpacing: v })} fmtv={(v) => v.toFixed(2)} />
+    </div>
+  );
+}
+
+/** Couleurs : celles de la charte d'abord, puis une pioche libre. */
+function TitleColors({ ctx, tt }: { ctx: MontageCtx; tt: TitleEl }) {
+  const t = useTranslations('montage');
+  const generiques = ["#FFFFFF", "#14160F", "#0C2A1D", "#2FD79B", "#BDF2A0", "#1F7A4D"];
+  const ligne = (valeur: string, poser: (c: string) => void) => (
+    <>
+      {ctx.brandColors.length > 0 && (
+        <>
+          <div style={{ fontSize: 11, color: "var(--ink-3)", fontWeight: 700, margin: "8px 0 5px" }}>{t('brandColors')}</div>
+          <div className="mz-swrow">
+            {ctx.brandColors.map((col) => (
+              <button key={col} className={"mz-sw" + (valeur.toUpperCase() === col ? " on" : "")} style={{ background: col }} onClick={() => poser(col)} title={col} />
+            ))}
+          </div>
+        </>
+      )}
+      <div style={{ fontSize: 11, color: "var(--ink-3)", fontWeight: 700, margin: "8px 0 5px" }}>{t('otherColors')}</div>
+      <div className="mz-swrow" style={{ alignItems: "center" }}>
+        {generiques.map((col) => (
+          <button key={col} className={"mz-sw" + (valeur.toUpperCase() === col ? " on" : "")} style={{ background: col }} onClick={() => poser(col)} title={col} />
+        ))}
+        {/* Pioche libre : n'importe quelle couleur, pas seulement la liste. */}
+        <label className="mz-sw" style={{ display: "grid", placeItems: "center", cursor: "pointer", background: "conic-gradient(red,yellow,lime,aqua,blue,magenta,red)" }} title={t('customColor')}>
+          <input type="color" value={/^#[0-9a-f]{6}$/i.test(valeur) ? valeur : "#ffffff"}
+            onChange={(e) => poser(e.target.value.toUpperCase())}
+            style={{ opacity: 0, width: 1, height: 1, position: "absolute", pointerEvents: "none" }} />
+        </label>
+      </div>
+    </>
+  );
+  return (
+    <div className="a-section">
+      <span className="mz-sec-label">{t('color')}</span>
+      {ligne(tt.color, (c) => ctx.updateTitle(tt.id, { color: c }))}
+    </div>
+  );
+}
+
+/** Effets : réglages prêts à l'emploi, puis les curseurs pour affiner. */
+function TitleEffects({ ctx, tt }: { ctx: MontageCtx; tt: TitleEl }) {
+  const t = useTranslations('montage');
+  const tc = useTranslations('montageConstants');
+  const look = titleLook(tt);
+  const swatchs = [...ctx.brandColors, "#000000", "#FFFFFF", "#2FD79B", "#7A69E8", "#F2A03D"];
+  return (
+    <div className="a-section">
+      <span className="mz-sec-label">{t('effects')}</span>
+      <div className="mz-grid3" style={{ marginTop: 8 }}>
+        {TITLE_EFFECT_PRESETS.map((p) => {
+          const vu = { ...tt, ...p.patch };
+          const l = titleLook(vu);
+          return (
+            <button key={p.id} className="mz-thumb" title={tc(`titleEffect.${p.id}`)}
+              onClick={() => ctx.updateTitle(tt.id, p.patch)}
+              style={{ position: "relative", display: "grid", placeItems: "center", background: "var(--sunk)", overflow: "hidden" }}>
+              <span style={{
+                fontFamily: vu.fontFamily ? `'${vu.fontFamily}', sans-serif` : undefined,
+                fontWeight: 800, fontSize: 17, color: l.fg,
+                textShadow: titleShadowCss(vu, 0.4),
+                WebkitTextStroke: l.stroke && l.strokeW > 0 ? `${l.strokeW * 0.4}px ${l.stroke}` : undefined,
+                paintOrder: "stroke fill",
+                background: l.bg !== "transparent" ? withAlpha(l.bg, l.bgOpacity) : undefined,
+                padding: l.bg !== "transparent" ? "2px 7px" : undefined,
+                borderRadius: l.bg !== "transparent" ? (l.pill ? 999 : 4) : undefined,
+              }}>Aa</span>
+              <span style={{ position: "absolute", bottom: 3, left: 0, right: 0, textAlign: "center", fontFamily: "var(--mono)", fontWeight: 800, fontSize: 8.5, color: "var(--ink-3)" }}>{tc(`titleEffect.${p.id}`)}</span>
+            </button>
+          );
+        })}
+      </div>
+
+      <div style={{ marginTop: 14 }}>
+        <Toggle label={t('dropShadow')} on={look.shadow} onChange={(v) => ctx.updateTitle(tt.id, { shadow: v })} />
+        {look.shadow && (
+          <>
+            <div className="mz-swrow" style={{ marginBottom: 10 }}>
+              {swatchs.map((col) => (
+                <button key={col} className={"mz-sw" + ((tt.shadowColor || "#000000").toUpperCase() === col.toUpperCase() ? " on" : "")} style={{ background: col }} onClick={() => ctx.updateTitle(tt.id, { shadowColor: col })} />
+              ))}
+            </div>
+            <Range label={t('shadowBlur')} value={look.shadowBlur} min={0} max={30} step={0.5} onChange={(v) => ctx.updateTitle(tt.id, { shadowBlur: v })} />
+            <Range label={t('shadowX')} value={look.shadowX} min={-20} max={20} step={0.5} onChange={(v) => ctx.updateTitle(tt.id, { shadowX: v })} />
+            <Range label={t('shadowY')} value={look.shadowY} min={-20} max={20} step={0.5} onChange={(v) => ctx.updateTitle(tt.id, { shadowY: v })} />
+            <Range label={t('shadowStrength')} value={tt.shadowOpacity ?? 0.5} min={0} max={1} step={0.02} onChange={(v) => ctx.updateTitle(tt.id, { shadowOpacity: v })} fmtv={(v) => Math.round(v * 100) + "%"} />
+          </>
+        )}
+      </div>
+
+      <div style={{ marginTop: 10 }}>
+        <span className="mz-sec-label">{t('outline')}</span>
+        <Range label={t('outlineWidth')} value={look.strokeW} min={0} max={8} step={0.25}
+          onChange={(v) => ctx.updateTitle(tt.id, { strokeW: v, stroke: tt.stroke || "#000000" })}
+          fmtv={(v) => v <= 0 ? t('none') : v.toFixed(2)} />
+        {look.strokeW > 0 && (
+          <div className="mz-swrow">
+            {swatchs.map((col) => (
+              <button key={col} className={"mz-sw" + ((tt.stroke || "#000000").toUpperCase() === col.toUpperCase() ? " on" : "")} style={{ background: col }} onClick={() => ctx.updateTitle(tt.id, { stroke: col })} />
+            ))}
+          </div>
+        )}
+      </div>
+
+      <div style={{ marginTop: 10 }}>
+        <span className="mz-sec-label">{t('textBackground')}</span>
+        <div className="mz-swrow" style={{ marginBottom: 8 }}>
+          <button className={"mz-sw" + (look.bg === "transparent" ? " on" : "")} title={t('none')}
+            style={{ background: "repeating-conic-gradient(#bbb 0% 25%, #fff 0% 50%) 50%/8px 8px" }}
+            onClick={() => ctx.updateTitle(tt.id, { bg: "transparent" })} />
+          {swatchs.map((col) => (
+            <button key={col} className={"mz-sw" + (look.bg.toUpperCase() === col.toUpperCase() ? " on" : "")} style={{ background: col }} onClick={() => ctx.updateTitle(tt.id, { bg: col })} />
+          ))}
+        </div>
+        {look.bg !== "transparent" && (
+          <>
+            <Toggle label={t('pillShape')} on={look.pill} onChange={(v) => ctx.updateTitle(tt.id, { pill: v })} />
+            <Range label={t('opacity')} value={look.bgOpacity} min={0} max={1} step={0.02} onChange={(v) => ctx.updateTitle(tt.id, { bgOpacity: v })} fmtv={(v) => Math.round(v * 100) + "%"} />
+            <Range label={t('padding')} value={look.padX} min={0} max={60} step={1} onChange={(v) => ctx.updateTitle(tt.id, { padX: v, padY: Math.round(v * 0.5) })} />
+            {!look.pill && <Range label={t('roundedCorners')} value={look.radius} min={0} max={40} step={1} onChange={(v) => ctx.updateTitle(tt.id, { radius: v })} />}
+          </>
+        )}
+      </div>
+
+      <Range label={t('opacity')} value={look.opacity} min={0.05} max={1} step={0.02}
+        onChange={(v) => ctx.updateTitle(tt.id, { opacity: v })} fmtv={(v) => Math.round(v * 100) + "%"} />
+    </div>
+  );
+}
+
 // ─── Découper / Rogner ──────────────────────────────────────────────────────
 
 export function CutPanel({ ctx }: { ctx: MontageCtx }) {
@@ -264,17 +513,7 @@ export function TextPanel({ ctx, selectedTitleId }: { ctx: MontageCtx; selectedT
             <span className="mz-sec-label">{t('text')}</span>
             <textarea className="input" value={tt.text} onChange={(e) => ctx.updateTitle(tt.id, { text: e.target.value })} rows={2} style={{ width: "100%", resize: "vertical" }} />
           </div>
-          <div className="a-section">
-            <span className="mz-sec-label">{t('font')}</span>
-            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-              {FONT_CHOICES.map((f) => (
-                <button key={f.id} className="font-pick" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "11px 13px", borderRadius: 9, background: tt.font === f.id ? "var(--mint-soft)" : "var(--white)", boxShadow: tt.font === f.id ? "inset 0 0 0 1.5px var(--mint-2)" : "inset 0 0 0 1px var(--line)", border: "none", cursor: "pointer" }} onClick={() => ctx.updateTitle(tt.id, { font: f.id })}>
-                  <span style={{ fontFamily: f.css, fontWeight: f.weight, fontStyle: f.italic ? "italic" : "normal", fontSize: 19 }}>{tc(`fontChoiceName.${f.id}`)}</span>
-                  <span className="mz-sec-label">{tc(`fontChoiceSub.${f.id}`)}</span>
-                </button>
-              ))}
-            </div>
-          </div>
+          <TitleFontPicker ctx={ctx} tt={tt} />
           <div className="a-section">
             <span className="mz-sec-label">{t('entryAnimation')}</span>
             <div className="mz-seg">
@@ -283,14 +522,8 @@ export function TextPanel({ ctx, selectedTitleId }: { ctx: MontageCtx; selectedT
               ))}
             </div>
           </div>
-          <div className="a-section">
-            <span className="mz-sec-label">{t('color')}</span>
-            <div className="mz-swrow">
-              {["#FFFFFF", "#0C2A1D", "#2FD79B", "#BDF2A0", "#1F7A4D", "#14160F"].map((col) => (
-                <button key={col} className={"mz-sw" + (tt.color === col ? " on" : "")} style={{ background: col }} onClick={() => ctx.updateTitle(tt.id, { color: col })} />
-              ))}
-            </div>
-          </div>
+          <TitleColors ctx={ctx} tt={tt} />
+          <TitleEffects ctx={ctx} tt={tt} />
           {/* Largeur de la boîte : c'est elle qui décide où le texte revient à
               la ligne. Elle était figée à 80 % du cadre, sans moyen de l'élargir. */}
           <div className="a-section">

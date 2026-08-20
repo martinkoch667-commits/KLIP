@@ -9,7 +9,7 @@
 // Ces fonctions viennent telles quelles de export.ts, où elles étaient
 // enfermées avec la boucle de captation.
 
-import { MontageClip, OverlayClip, Caption, TitleEl, StickerEl, AudioTrack, SubCustom, effectiveSubStyle, resolveCapStyle, resolveCapPos, SUB_BASE_FONT, wrapWords, captionPartAt, subCanvasFont, subBgBox, curveLayout, applySubCase, withAlpha, transitionStateAt, DEFAULT_SUB_POS, clipFilterCss, overlayFilterCss, clipTimelineDur, clipAudioGainAt, overlayTimelineDur, overlayAudioGainAt, audioVolumeAt, kenBurnsScale, videoFormatById, exportQualityById, overlayEffects, overlayEffectCss, OUTLINE_PASSES, titleCanvasFont, titleLines, TITLE_BASE_FONT, TITLE_LINE_HEIGHT } from "./constants";
+import { MontageClip, OverlayClip, Caption, TitleEl, StickerEl, AudioTrack, SubCustom, effectiveSubStyle, resolveCapStyle, resolveCapPos, SUB_BASE_FONT, wrapWords, captionPartAt, subCanvasFont, subBgBox, curveLayout, applySubCase, withAlpha, transitionStateAt, DEFAULT_SUB_POS, clipFilterCss, overlayFilterCss, clipTimelineDur, clipAudioGainAt, overlayTimelineDur, overlayAudioGainAt, audioVolumeAt, kenBurnsScale, videoFormatById, exportQualityById, overlayEffects, overlayEffectCss, OUTLINE_PASSES, titleCanvasFont, titleLines, titleLook, TITLE_BASE_FONT, TITLE_LINE_HEIGHT } from "./constants";
 export interface ExportProject {
   clips: MontageClip[];
   overlays?: OverlayClip[];
@@ -335,31 +335,86 @@ export function drawTitles(ctx: CanvasRenderingContext2D, titles: TitleEl[], t: 
       const n = Math.max(0, Math.min(text.length, Math.floor(local * charsPerSec)));
       text = text.slice(0, n);
     }
+    const look = titleLook(tt);
     ctx.save();
-    ctx.globalAlpha = alpha;
+    ctx.globalAlpha = alpha * look.opacity;
     // Même police que l'aperçu. L'export dessinait avec une police en dur
     // (system-ui, Georgia) : un titre en Archivo sortait dans une autre fonte.
-    ctx.font = titleCanvasFont(tt.font, TITLE_BASE_FONT);
-    ctx.fillStyle = tt.color;
+    ctx.font = titleCanvasFont(tt, TITLE_BASE_FONT);
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
-    ctx.shadowColor = "rgba(0,0,0,.5)";
-    ctx.shadowBlur = 10;
     const x = (tt.x / 100) * CANVAS_W, y = (tt.y / 100) * CANVAS_H;
     ctx.translate(x, y);
     if (tt.rotation) ctx.rotate((tt.rotation * Math.PI) / 180);
     ctx.scale(scale * (tt.scale ?? 1), scale * (tt.scale ?? 1));
+
     /* Le texte est REPLIÉ, comme dans l'aperçu. L'export l'écrivait d'un seul
        trait : un titre qui tenait sur trois lignes dans le monteur sortait sur
        une seule ligne dans la vidéo, débordant largement du cadre. Le découpage
        vient de la même fonction que celle qu'utilise l'aperçu. */
-    const lignes = titleLines({ ...tt, text }, CANVAS_W);
+    const lignes = titleLines({ ...tt, text }, CANVAS_W).map((ln) => applySubCase(ln, look.caseMode));
     const pas = TITLE_BASE_FONT * TITLE_LINE_HEIGHT;
+
+    // Interlettrage (Chrome ≥ 99), ignoré silencieusement ailleurs.
+    const ctxLS = ctx as CanvasRenderingContext2D & { letterSpacing?: string };
+    const prevLS = ctxLS.letterSpacing;
+    if (look.letterSpacing) ctxLS.letterSpacing = `${look.letterSpacing * TITLE_BASE_FONT}px`;
+
+    const largeurs = lignes.map((ln) => ctx.measureText(ln).width);
+    const boiteW = Math.max(1, ...largeurs) + look.padX * 2;
+    const boiteH = pas * lignes.length + look.padY * 2;
+
+    /* Fond (bloc ou pilule), peint avant le texte. Même géométrie que l'aperçu :
+       la boîte enveloppe TOUTES les lignes, pas chacune séparément. */
+    if (look.bg && look.bg !== "transparent") {
+      ctx.save();
+      ctx.fillStyle = withAlpha(look.bg, look.bgOpacity);
+      const r = look.pill ? boiteH / 2 : look.radius;
+      ctx.beginPath();
+      ctx.roundRect(-boiteW / 2, -boiteH / 2, boiteW, boiteH, Math.min(r, boiteH / 2));
+      ctx.fill();
+      ctx.restore();
+    }
+
     // Centrage vertical du bloc, au cadratin : c'est ce qui recouvre le mieux le
     // bloc de texte du DOM (essayé avec les métriques d'ascendante et de
     // descendante, le résultat se superposait moins bien).
     const haut = -((lignes.length - 1) * pas) / 2;
-    lignes.forEach((ln, i) => ctx.fillText(ln, 0, haut + i * pas));
+    // L'alignement joue à l'intérieur de la boîte, pas sur le cadre entier.
+    const interne = boiteW - look.padX * 2;
+    const posX = (w: number) => look.align === "left" ? -interne / 2 + w / 2
+      : look.align === "right" ? interne / 2 - w / 2 : 0;
+
+    ctx.lineJoin = "round";
+    lignes.forEach((ln, i) => {
+      const yy = haut + i * pas;
+      const xx = posX(largeurs[i]);
+      // L'ombre est posée sur le CONTOUR quand il existe, sinon sur le texte :
+      // sans quoi elle serait recouverte par le contour et ne se verrait plus.
+      if (look.shadow) {
+        ctx.shadowColor = look.shadowRgba;
+        ctx.shadowBlur = look.shadowBlur;
+        ctx.shadowOffsetX = look.shadowX;
+        ctx.shadowOffsetY = look.shadowY;
+      }
+      if (look.stroke && look.strokeW > 0) {
+        ctx.strokeStyle = look.stroke;
+        /* Même convention que `-webkit-text-stroke` de l'aperçu : le trait est
+           CENTRÉ sur le contour de la lettre, donc la moitié déborde. Doubler
+           l'épaisseur ici, comme le fait le rendu des sous-titres pour obtenir
+           un contour entièrement extérieur, donnait un trait deux fois plus
+           épais dans le fichier que dans le monteur. */
+        ctx.lineWidth = look.strokeW;
+        ctx.strokeText(ln, xx, yy);
+        ctx.shadowColor = "transparent"; ctx.shadowBlur = 0;
+        ctx.shadowOffsetX = 0; ctx.shadowOffsetY = 0;
+      }
+      ctx.fillStyle = look.fg;
+      ctx.fillText(ln, xx, yy);
+      ctx.shadowColor = "transparent"; ctx.shadowBlur = 0;
+      ctx.shadowOffsetX = 0; ctx.shadowOffsetY = 0;
+    });
+    if (look.letterSpacing) ctxLS.letterSpacing = prevLS ?? "0px";
     ctx.restore();
   }
 }

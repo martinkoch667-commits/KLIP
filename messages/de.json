@@ -1545,6 +1545,15 @@
       "glow": "Leuchten",
       "sticker": "Sticker",
       "card": "Karte"
+    },
+    "titleEffect": {
+      "none": "Keiner",
+      "soft": "Weich",
+      "drop": "Schlagschatten",
+      "outline": "Kontur",
+      "neon": "Neon",
+      "block": "Block",
+      "pill": "Pille"
     }
   },
   "montage": {
@@ -1935,7 +1944,20 @@
     "addTextTrack": "Textzeile hinzufügen",
     "removeLane": "Diese Zeile entfernen",
     "removeLaneBlocked": "Leeren Sie diese Zeile, bevor Sie sie entfernen",
-    "toastLaneNotEmpty": "Diese Zeile enthält noch Elemente: leeren Sie sie vor dem Entfernen."
+    "toastLaneNotEmpty": "Diese Zeile enthält noch Elemente: leeren Sie sie vor dem Entfernen.",
+    "brandFonts": "Markenschriften",
+    "brandFontTag": "Marke",
+    "builtInFonts": "KLIP-Schriften",
+    "searchFont": "Schrift suchen…",
+    "noFontFound": "Keine Schrift mit diesem Namen",
+    "brandColors": "Markenfarben",
+    "otherColors": "Weitere Farben",
+    "customColor": "Eigene Farbe",
+    "letterSpacing": "Laufweite",
+    "outlineWidth": "Stärke",
+    "textBackground": "Texthintergrund",
+    "pillShape": "Pille",
+    "padding": "Innenabstand"
   },
   "forgotPassword": {
     "title": "Passwort vergessen",

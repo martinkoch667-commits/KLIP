@@ -1545,6 +1545,15 @@
       "glow": "Lueur",
       "sticker": "Autocollant",
       "card": "Carte"
+    },
+    "titleEffect": {
+      "none": "Aucun",
+      "soft": "Douce",
+      "drop": "Portée",
+      "outline": "Contour",
+      "neon": "Néon",
+      "block": "Bloc",
+      "pill": "Pilule"
     }
   },
   "montage": {
@@ -1935,7 +1944,20 @@
     "addTextTrack": "Ajouter une rangée de texte",
     "removeLane": "Supprimer cette rangée",
     "removeLaneBlocked": "Videz d'abord cette rangée pour pouvoir la supprimer",
-    "toastLaneNotEmpty": "Cette rangée contient encore des éléments : videz-la avant de la supprimer."
+    "toastLaneNotEmpty": "Cette rangée contient encore des éléments : videz-la avant de la supprimer.",
+    "brandFonts": "Polices de la marque",
+    "brandFontTag": "Charte",
+    "builtInFonts": "Polices KLIP",
+    "searchFont": "Rechercher une police…",
+    "noFontFound": "Aucune police à ce nom",
+    "brandColors": "Couleurs de la marque",
+    "otherColors": "Autres couleurs",
+    "customColor": "Couleur personnalisée",
+    "letterSpacing": "Interlettrage",
+    "outlineWidth": "Épaisseur",
+    "textBackground": "Fond du texte",
+    "pillShape": "Pilule",
+    "padding": "Marge intérieure"
   },
   "forgotPassword": {
     "title": "Mot de passe oublié",

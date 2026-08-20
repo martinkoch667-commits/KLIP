@@ -14,7 +14,8 @@
 
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { OverlayClip, TitleEl, overlayEffectCss, overlayFilterCss, OVERLAY_EFFECT_PRESETS,
-  FONT_CHOICES, titleLines, TITLE_BASE_FONT, TITLE_LINE_HEIGHT, TITLE_DEFAULT_MAX_WIDTH } from "../workspace/[id]/montage/[postId]/constants";
+  FONT_CHOICES, titleLines, TITLE_BASE_FONT, TITLE_LINE_HEIGHT, TITLE_DEFAULT_MAX_WIDTH,
+  titleLook, titleShadowCss, titleWeight, titleItalic, applySubCase, withAlpha } from "../workspace/[id]/montage/[postId]/constants";
 import { drawOverlayFrame, drawTitles, setCanvasSize } from "../workspace/[id]/montage/[postId]/render-core";
 
 const W = 360, H = 640; // cadre de comparaison (9:16 réduit)
@@ -118,6 +119,14 @@ const TITRES_TEST = [
   { nom: "largeur 40 %", tt: titreDeTest({ maxWidth: 40 }) },
   { nom: "texte long, taille 1,4", tt: titreDeTest({ text: "UN TITRE NETTEMENT PLUS LONG QUE LE CADRE", scale: 1.4, maxWidth: 90 }) },
   { nom: "police serif, retour à la ligne tapé", tt: titreDeTest({ text: "PREMIERE LIGNE\ndeuxieme ligne plus longue", font: "instrument", scale: 1.1 }) },
+  // Habillage : chaque réglage doit sortir identique des deux côtés.
+  { nom: "contour épais", tt: titreDeTest({ text: "CONTOUR", scale: 1.5, shadow: false, stroke: "#14160F", strokeW: 3 }) },
+  { nom: "ombre portée marquée", tt: titreDeTest({ text: "OMBRE PORTEE", scale: 1.2, shadow: true, shadowColor: "#000000", shadowBlur: 2, shadowX: 3, shadowY: 4, shadowOpacity: 0.75 }) },
+  { nom: "néon", tt: titreDeTest({ text: "NEON", scale: 1.5, color: "#FFFFFF", shadow: true, shadowColor: "#2FD79B", shadowBlur: 16, shadowX: 0, shadowY: 0, shadowOpacity: 0.95 }) },
+  { nom: "fond pilule", tt: titreDeTest({ text: "PILULE", scale: 1.2, color: "#14160F", shadow: false, bg: "#FFFFFF", bgOpacity: 1, pill: true, padX: 22, padY: 11 }) },
+  { nom: "bloc, aligné à gauche", tt: titreDeTest({ text: "UN BLOC ALIGNE A GAUCHE", scale: 1, color: "#FFFFFF", shadow: false, bg: "#7A69E8", bgOpacity: 0.9, radius: 8, align: "left", maxWidth: 70 }) },
+  { nom: "majuscules + interlettrage", tt: titreDeTest({ text: "espace entre lettres", scale: 1.1, caseMode: "upper", letterSpacing: 0.18 }) },
+  { nom: "opacité 45 %", tt: titreDeTest({ text: "TRANSPARENT", scale: 1.4, opacity: 0.45 }) },
 ];
 
 function PaireTitre({ nom, tt }: { nom: string; tt: TitleEl }) {
@@ -137,17 +146,30 @@ function PaireTitre({ nom, tt }: { nom: string; tt: TitleEl }) {
   }, [tt]);
 
   const f = FONT_CHOICES.find((c) => c.id === tt.font) || FONT_CHOICES[0];
+  const look = titleLook(tt);
+  const unit = tt.scale ?? 1; // l'aperçu du banc est à l'échelle 1 du cadre
+  // Copie conforme du balisage de l'aperçu du monteur (cf. page.tsx).
   const apercuDom = (
     <div style={{ position: "absolute", inset: 0, transform: "scale(0.5)", transformOrigin: "top left", width: W, height: H }}>
       <div style={{
         position: "absolute", left: tt.x + "%", top: tt.y + "%",
         transform: `translate(-50%,-50%) rotate(${tt.rotation ?? 0}deg)`,
-        fontFamily: f.css, fontWeight: f.weight, fontStyle: f.italic ? "italic" : "normal",
-        color: tt.color, fontSize: TITLE_BASE_FONT * (tt.scale ?? 1),
-        lineHeight: TITLE_LINE_HEIGHT, textAlign: "center", textShadow: "0 1px 8px rgba(0,0,0,.5)",
+        fontFamily: tt.fontFamily ? `'${tt.fontFamily}', sans-serif` : f.css,
+        fontWeight: titleWeight(tt), fontStyle: titleItalic(tt) ? "italic" : "normal",
+        color: look.fg, fontSize: TITLE_BASE_FONT * (tt.scale ?? 1),
+        lineHeight: TITLE_LINE_HEIGHT,
+        textAlign: look.align,
+        textShadow: titleShadowCss(tt, unit),
+        WebkitTextStroke: look.stroke && look.strokeW > 0 ? `${look.strokeW * unit}px ${look.stroke}` : undefined,
+        paintOrder: "stroke fill",
+        opacity: look.opacity,
+        letterSpacing: look.letterSpacing ? `${look.letterSpacing}em` : undefined,
+        background: look.bg !== "transparent" ? withAlpha(look.bg, look.bgOpacity) : undefined,
+        padding: look.bg !== "transparent" ? `${look.padY * unit}px ${look.padX * unit}px` : undefined,
+        borderRadius: look.bg !== "transparent" ? (look.pill ? 999 : look.radius * unit) : undefined,
         width: (tt.maxWidth ?? TITLE_DEFAULT_MAX_WIDTH) + "%", whiteSpace: "pre-wrap",
       }}>
-        <span>{titleLines(tt, W).join("\n")}</span>
+        <span>{titleLines(tt, W).map((ln) => applySubCase(ln, look.caseMode)).join("\n")}</span>
       </div>
     </div>
   );

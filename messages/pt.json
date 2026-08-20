@@ -1545,6 +1545,15 @@
       "glow": "Brilho",
       "sticker": "Autocolante",
       "card": "Cartão"
+    },
+    "titleEffect": {
+      "none": "Nenhum",
+      "soft": "Suave",
+      "drop": "Projetada",
+      "outline": "Contorno",
+      "neon": "Néon",
+      "block": "Bloco",
+      "pill": "Pílula"
     }
   },
   "montage": {
@@ -1935,7 +1944,20 @@
     "addTextTrack": "Adicionar uma linha de texto",
     "removeLane": "Remover esta linha",
     "removeLaneBlocked": "Esvazie esta linha antes de a remover",
-    "toastLaneNotEmpty": "Esta linha ainda contém elementos: esvazie-a antes de a remover."
+    "toastLaneNotEmpty": "Esta linha ainda contém elementos: esvazie-a antes de a remover.",
+    "brandFonts": "Tipos de letra da marca",
+    "brandFontTag": "Marca",
+    "builtInFonts": "Tipos de letra KLIP",
+    "searchFont": "Procurar um tipo de letra…",
+    "noFontFound": "Nenhum tipo de letra com esse nome",
+    "brandColors": "Cores da marca",
+    "otherColors": "Outras cores",
+    "customColor": "Cor personalizada",
+    "letterSpacing": "Espaçamento",
+    "outlineWidth": "Espessura",
+    "textBackground": "Fundo do texto",
+    "pillShape": "Pílula",
+    "padding": "Margem interna"
   },
   "forgotPassword": {
     "title": "Esqueceu a palavra-passe",

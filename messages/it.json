@@ -1545,6 +1545,15 @@
       "glow": "Bagliore",
       "sticker": "Adesivo",
       "card": "Scheda"
+    },
+    "titleEffect": {
+      "none": "Nessuno",
+      "soft": "Morbida",
+      "drop": "Esterna",
+      "outline": "Contorno",
+      "neon": "Neon",
+      "block": "Blocco",
+      "pill": "Pillola"
     }
   },
   "montage": {
@@ -1935,7 +1944,20 @@
     "addTextTrack": "Aggiungi una riga di testo",
     "removeLane": "Elimina questa riga",
     "removeLaneBlocked": "Svuota questa riga prima di eliminarla",
-    "toastLaneNotEmpty": "Questa riga contiene ancora elementi: svuotala prima di eliminarla."
+    "toastLaneNotEmpty": "Questa riga contiene ancora elementi: svuotala prima di eliminarla.",
+    "brandFonts": "Font del marchio",
+    "brandFontTag": "Marchio",
+    "builtInFonts": "Font KLIP",
+    "searchFont": "Cerca un font…",
+    "noFontFound": "Nessun font con questo nome",
+    "brandColors": "Colori del marchio",
+    "otherColors": "Altri colori",
+    "customColor": "Colore personalizzato",
+    "letterSpacing": "Spaziatura",
+    "outlineWidth": "Spessore",
+    "textBackground": "Sfondo del testo",
+    "pillShape": "Pillola",
+    "padding": "Margine interno"
   },
   "forgotPassword": {
     "title": "Password dimenticata",

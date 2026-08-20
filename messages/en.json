@@ -1545,6 +1545,15 @@
       "glow": "Glow",
       "sticker": "Sticker",
       "card": "Card"
+    },
+    "titleEffect": {
+      "none": "None",
+      "soft": "Soft",
+      "drop": "Drop",
+      "outline": "Outline",
+      "neon": "Neon",
+      "block": "Block",
+      "pill": "Pill"
     }
   },
   "montage": {
@@ -1935,7 +1944,20 @@
     "addTextTrack": "Add a text row",
     "removeLane": "Remove this row",
     "removeLaneBlocked": "Empty this row before removing it",
-    "toastLaneNotEmpty": "This row still holds items: empty it before removing it."
+    "toastLaneNotEmpty": "This row still holds items: empty it before removing it.",
+    "brandFonts": "Brand fonts",
+    "brandFontTag": "Brand",
+    "builtInFonts": "KLIP fonts",
+    "searchFont": "Search a font…",
+    "noFontFound": "No font by that name",
+    "brandColors": "Brand colours",
+    "otherColors": "Other colours",
+    "customColor": "Custom colour",
+    "letterSpacing": "Letter spacing",
+    "outlineWidth": "Thickness",
+    "textBackground": "Text background",
+    "pillShape": "Pill",
+    "padding": "Padding"
   },
   "forgotPassword": {
     "title": "Forgot password",

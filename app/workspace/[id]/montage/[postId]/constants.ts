@@ -231,6 +231,38 @@ export interface TitleEl {
   y: number; // % (0-100)
   scale?: number; // facteur de taille (défaut 1)
   rotation?: number; // degrés (défaut 0)
+  /* ── Habillage du texte ───────────────────────────────────────────────────
+     Tout est facultatif : sans ces champs, un titre s'affiche comme avant. Les
+     distances sont en unités du cadre d'export à l'échelle 1, comme la taille de
+     police (TITLE_BASE_FONT), et suivent donc `scale`.
+
+     TOUT champ ajouté ici doit être honoré aux DEUX endroits : l'aperçu du
+     monteur (DOM) et l'export (canvas 2D, drawTitles). */
+  /** Police libre (catalogue Google ou police de la charte). Prime sur `font`. */
+  fontFamily?: string;
+  weight?: number;
+  italic?: boolean;
+  align?: SubAlign;
+  caseMode?: CaseMode;
+  letterSpacing?: number;   // en em
+  opacity?: number;         // 0-1
+  /** Fond derrière le texte. "transparent" = aucun. */
+  bg?: string;
+  bgOpacity?: number;
+  padX?: number;
+  padY?: number;
+  radius?: number;
+  pill?: boolean;
+  /** Contour des lettres. */
+  stroke?: string;
+  strokeW?: number;
+  /** Ombre portée du texte. */
+  shadow?: boolean;
+  shadowColor?: string;
+  shadowBlur?: number;
+  shadowX?: number;
+  shadowY?: number;
+  shadowOpacity?: number;
   /** Piste de texte d'empilement (0 = la première). Comme pour les incrustations
    *  et les pistes audio, on peut empiler plusieurs rangées de texte : deux
    *  titres au même instant sur la même rangée n'auraient aucun sens. */
@@ -248,12 +280,81 @@ export const TITLE_BASE_FONT = 40;
 export const TITLE_LINE_HEIGHT = 1.15;
 export const TITLE_DEFAULT_MAX_WIDTH = 80;
 
+/** Réglages d'habillage résolus, à l'échelle 1 du cadre d'export. */
+export interface TitleLook {
+  fg: string;
+  align: SubAlign;
+  caseMode: CaseMode;
+  letterSpacing: number;
+  opacity: number;
+  bg: string; bgOpacity: number; padX: number; padY: number; radius: number; pill: boolean;
+  stroke: string; strokeW: number;
+  shadow: boolean; shadowRgba: string; shadowBlur: number; shadowX: number; shadowY: number;
+}
+
+export function titleLook(tt: TitleEl): TitleLook {
+  const shadow = tt.shadow ?? true; // l'ombre douce d'origine reste le défaut
+  return {
+    fg: tt.color,
+    align: tt.align ?? "center",
+    caseMode: tt.caseMode ?? "none",
+    letterSpacing: tt.letterSpacing ?? 0,
+    opacity: tt.opacity ?? 1,
+    bg: tt.bg ?? "transparent",
+    bgOpacity: tt.bgOpacity ?? 1,
+    padX: tt.padX ?? 16,
+    padY: tt.padY ?? 8,
+    radius: tt.radius ?? 10,
+    pill: !!tt.pill,
+    stroke: tt.stroke ?? "",
+    strokeW: tt.strokeW ?? 0,
+    shadow,
+    shadowRgba: withAlpha(tt.shadowColor || "#000000", tt.shadowOpacity ?? 0.5),
+    shadowBlur: tt.shadowBlur ?? 8,
+    shadowX: tt.shadowX ?? 0,
+    shadowY: tt.shadowY ?? 1,
+  };
+}
+
+/** Famille CSS d'un titre : police libre si elle est posée, sinon le trio d'origine. */
+export function titleFontFamilyCss(tt: TitleEl): string {
+  if (tt.fontFamily) return `'${tt.fontFamily}', system-ui, sans-serif`;
+  const f = FONT_CHOICES.find((c) => c.id === tt.font) || FONT_CHOICES[0];
+  return f.canvas;
+}
+export function titleWeight(tt: TitleEl): number {
+  if (tt.weight) return tt.weight;
+  return (FONT_CHOICES.find((c) => c.id === tt.font) || FONT_CHOICES[0]).weight;
+}
+export function titleItalic(tt: TitleEl): boolean {
+  if (tt.italic !== undefined) return tt.italic;
+  return (FONT_CHOICES.find((c) => c.id === tt.font) || FONT_CHOICES[0]).italic;
+}
+
+/** Ombre et contour d'un titre en `text-shadow` CSS, pour l'aperçu.
+ *  `unit` : taille d'un point de dessin à l'écran (échelle de l'aperçu). */
+export function titleShadowCss(tt: TitleEl, unit: number): string | undefined {
+  const l = titleLook(tt);
+  if (!l.shadow) return undefined;
+  return `${(l.shadowX * unit).toFixed(2)}px ${(l.shadowY * unit).toFixed(2)}px ${(l.shadowBlur * unit).toFixed(2)}px ${l.shadowRgba}`;
+}
+
+/** Habillages prêts à l'emploi, façon Canva : on choisit en voyant. */
+export const TITLE_EFFECT_PRESETS: { id: string; patch: Partial<TitleEl> }[] = [
+  { id: "none",    patch: { shadow: false, stroke: "", strokeW: 0, bg: "transparent", pill: false } },
+  { id: "soft",    patch: { shadow: true, shadowColor: "#000000", shadowBlur: 8, shadowX: 0, shadowY: 1, shadowOpacity: 0.5, stroke: "", strokeW: 0, bg: "transparent", pill: false } },
+  { id: "drop",    patch: { shadow: true, shadowColor: "#000000", shadowBlur: 2, shadowX: 3, shadowY: 4, shadowOpacity: 0.75, stroke: "", strokeW: 0, bg: "transparent", pill: false } },
+  { id: "outline", patch: { shadow: false, stroke: "#000000", strokeW: 2.5, bg: "transparent", pill: false } },
+  { id: "neon",    patch: { shadow: true, shadowColor: "#2FD79B", shadowBlur: 16, shadowX: 0, shadowY: 0, shadowOpacity: 0.95, stroke: "", strokeW: 0, bg: "transparent", pill: false } },
+  { id: "block",   patch: { shadow: false, stroke: "", strokeW: 0, bg: "#14160F", bgOpacity: 0.85, pill: false, radius: 6 } },
+  { id: "pill",    patch: { shadow: false, stroke: "", strokeW: 0, bg: "#FFFFFF", bgOpacity: 1, pill: true } },
+];
+
 /** Police d'un titre en syntaxe canvas. SOURCE UNIQUE : l'export dessine avec,
  *  et le découpage en lignes mesure avec. L'export utilisait jusqu'ici une
  *  police en dur (system-ui, Georgia) sans rapport avec celle de l'aperçu. */
-export function titleCanvasFont(font: TitleEl["font"], fontSize: number): string {
-  const f = FONT_CHOICES.find((c) => c.id === font) || FONT_CHOICES[0];
-  return `${f.italic ? "italic " : ""}${f.weight} ${fontSize}px ${f.canvas}`;
+export function titleCanvasFont(tt: TitleEl, fontSize: number): string {
+  return `${titleItalic(tt) ? "italic " : ""}${titleWeight(tt)} ${fontSize}px ${titleFontFamilyCss(tt)}`;
 }
 
 /** Découpe le texte d'un titre en lignes, à la géométrie du cadre d'export.
@@ -269,7 +370,7 @@ export function titleLines(tt: TitleEl, frameW: number): string[] {
   if (!ctx) return paragraphes;
   // Mesure à l'échelle 1 : la taille du titre est appliquée ensuite par une
   // transformation, elle ne change donc pas où le texte revient à la ligne.
-  ctx.font = titleCanvasFont(tt.font, TITLE_BASE_FONT);
+  ctx.font = titleCanvasFont(tt, TITLE_BASE_FONT);
   const maxW = ((tt.maxWidth ?? TITLE_DEFAULT_MAX_WIDTH) / 100) * frameW / Math.max(0.05, tt.scale ?? 1);
   const measure = (str: string) => ctx.measureText(str).width;
   const out: string[] = [];
