@@ -82,13 +82,12 @@ function BarreDuHaut() {
         <button className="mz-top mz-top-icon" disabled>↻</button>
       </div>
       <span style={{ width: 1, height: 24, background: "var(--line)", flexShrink: 0 }} />
-      <div className="mz-seg" style={{ flexShrink: 0, width: "auto" }}>
-        {["9:16", "1:1", "4:5", "16:9", "Perso"].map((f, i) => <button key={f} className={i === 0 ? "on" : ""}>{f}</button>)}
+      <div className="mz-fmt">
+        {["9:16", "1:1", "4:5", "16:9", "Custom"].map((f, i) => <button key={f} className={i === 0 ? "on" : ""}>{f}</button>)}
       </div>
       <div style={{ flex: 1 }} />
       <a className="mz-top">Voir l&apos;export</a>
       <button className="mz-top">Couverture</button>
-      <button className="mz-top">Légende IA</button>
       <div className="mz-drop">
         <button className="mz-top" onClick={() => setQ((v) => !v)}>
           {qualites.find((x) => x[0] === qualite)?.[1]} <span style={{ fontSize: 9, opacity: .7 }}>▼</span>

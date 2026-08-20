@@ -637,6 +637,7 @@ export default function MontagePage() {
   const [playing, setPlaying] = useState(false);
   const playingRef = useRef(playing); playingRef.current = playing;
   const [stageW, setStageW] = useState(0); // largeur px réelle de la preview → texte figé à l'échelle de l'image (WYSIWYG avec l'export)
+  const [formatPersoOuvert, setFormatPersoOuvert] = useState(false);
   const [qualiteOuverte, setQualiteOuverte] = useState(false);
   const qualiteRef = useRef<HTMLDivElement>(null);
   // Un menu qui ne se referme pas au clic à côté reste ouvert par-dessus le
@@ -4231,24 +4232,18 @@ export default function MontagePage() {
         <span style={{ width: 1, height: 24, background: "var(--line)", flexShrink: 0 }} />
         <div style={{ display: "flex", alignItems: "center", gap: 9, minWidth: 0 }}>
           <span style={{ fontFamily: "var(--display)", fontWeight: 700, fontSize: 14.5, letterSpacing: "-0.01em" }} className="trunc">{projectName}</span>
-          <div className="mz-seg" style={{ flexShrink: 0 }} title={t('exportFormatTitle')}>
+          <div className="mz-fmt" title={t('exportFormatTitle')}>
             {VIDEO_FORMATS.map(f => (
               <button key={f.id} className={formatId === f.id ? "on" : ""} onClick={() => setFormatId(f.id)}>{f.sub}</button>
             ))}
-            <button className={formatId === "custom" ? "on" : ""} onClick={() => setFormatId("custom")} title={t('customFormatTitle')}>{t('customFormatShort')}</button>
+            {/* Le format personnalisé ouvre une FENÊTRE. Les champs largeur et
+                hauteur s'ouvraient dans la barre : faute de place, ils passaient
+                sous les boutons voisins et se chevauchaient. */}
+            <button className={formatId === "custom" ? "on" : ""} title={t('customFormatTitle')}
+              onClick={() => { setFormatId("custom"); setFormatPersoOuvert(true); }}>
+              {t('customFormatShort')}
+            </button>
           </div>
-          {formatId === "custom" && (
-            <div style={{ display: "flex", alignItems: "center", gap: 4, flexShrink: 0 }}>
-              <input type="number" min={64} max={4096} value={customW}
-                onChange={e => setCustomW(Math.max(64, Math.min(4096, Math.round(Number(e.target.value) || 0))))}
-                title={t('widthPx')} style={{ width: 58, height: 30, borderRadius: 7, border: "1px solid var(--line)", background: "var(--canvas)", color: "var(--ink-2)", fontSize: 12.5, fontWeight: 600, padding: "0 6px", textAlign: "center" }} />
-              <span style={{ fontSize: 12, color: "var(--ink-3)" }}>×</span>
-              <input type="number" min={64} max={4096} value={customH}
-                onChange={e => setCustomH(Math.max(64, Math.min(4096, Math.round(Number(e.target.value) || 0))))}
-                title={t('heightPx')} style={{ width: 58, height: 30, borderRadius: 7, border: "1px solid var(--line)", background: "var(--canvas)", color: "var(--ink-2)", fontSize: 12.5, fontWeight: 600, padding: "0 6px", textAlign: "center" }} />
-              <span style={{ fontSize: 11, color: "var(--ink-3)", fontWeight: 600 }}>px</span>
-            </div>
-          )}
         </div>
         <div style={{ flex: 1 }} />
         {exportUrl && (
@@ -4261,12 +4256,9 @@ export default function MontagePage() {
           <VIcon name="image" size={15} /> {settingCover ? t('coverSaving') : coverUrl ? t('coverRedo') : t('coverAtPlayhead')}
         </button>
 
-        {/* La légende s'écrit ICI, une fois la vidéo montée, pas au compositeur. */}
-        {exportUrl && (
-          <button onClick={generateCaptionAI} disabled={captioning} className="mz-top" title={t('captionAiTitle')}>
-            <VIcon name="sparkles" size={15} /> {captioning ? t('captionAiBusy') : caption ? t('captionAiRedo') : t('captionAi')}
-          </button>
-        )}
+        {/* « Légende IA » retirée de la barre : la fonction est remise à une étape
+            ultérieure, et un bouton qui n'aboutit pas encombre plus qu'il ne sert.
+            Le code qui la produit reste en place, il n'y a qu'à reposer le bouton. */}
 
         {/* Qualité d'export : liste déroulante maison. La native ne se style pas,
             son menu restait gris système au milieu d'une barre violette. */}
@@ -4299,6 +4291,34 @@ export default function MontagePage() {
           <VIcon name="calendar" size={15} /> {t('schedule')}
         </button>
       </div>
+
+      {formatPersoOuvert && (
+        <div className="mz-modal-fond" onMouseDown={(e) => { if (e.target === e.currentTarget) setFormatPersoOuvert(false); }}>
+          <div className="mz-modal">
+            <h3>{t('customFormatTitle')}</h3>
+            <p style={{ fontSize: 12.5, color: "var(--ink-3)", lineHeight: 1.45, marginBottom: 16 }}>{t('customFormatHint')}</p>
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <label style={{ flex: 1 }}>
+                <span className="mz-sec-label" style={{ display: "block", marginBottom: 6 }}>{t('widthPx')}</span>
+                <input className="input" type="number" min={64} max={4096} value={customW}
+                  onChange={e => setCustomW(Math.max(64, Math.min(4096, Math.round(Number(e.target.value) || 0))))} />
+              </label>
+              <span style={{ fontSize: 13, color: "var(--ink-3)", marginTop: 20 }}>×</span>
+              <label style={{ flex: 1 }}>
+                <span className="mz-sec-label" style={{ display: "block", marginBottom: 6 }}>{t('heightPx')}</span>
+                <input className="input" type="number" min={64} max={4096} value={customH}
+                  onChange={e => setCustomH(Math.max(64, Math.min(4096, Math.round(Number(e.target.value) || 0))))} />
+              </label>
+            </div>
+            <p style={{ fontFamily: "var(--mono)", fontSize: 11, color: "var(--ink-3)", marginTop: 10 }}>
+              {(customW / Math.max(1, customH)).toFixed(2)} : 1
+            </p>
+            <button className="btn btn-primary mz-btn-block" style={{ marginTop: 16 }} onClick={() => setFormatPersoOuvert(false)}>
+              {t('done')}
+            </button>
+          </div>
+        </div>
+      )}
 
       <div className="a-main">
         {/* rail */}

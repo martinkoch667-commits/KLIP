@@ -1782,7 +1782,7 @@
     "addAudioTrack": "Aggiungi una traccia audio",
     "importVideosCta": "Video",
     "importPhotosCta": "Foto",
-    "customFormatShort": "Perso.",
+    "customFormatShort": "Custom",
     "customFormatTitle": "Dimensioni personalizzate (px)",
     "widthPx": "Larghezza (px)",
     "heightPx": "Altezza (px)",
@@ -1968,7 +1968,9 @@
     "fontCatalogue": "Catalogo",
     "glow": "Bagliore",
     "offset": "Scostamento",
-    "animNone": "Nessuna"
+    "animNone": "Nessuna",
+    "customFormatHint": "Indica larghezza e altezza in pixel. Il riquadro di anteprima e il file esportato seguiranno queste dimensioni.",
+    "done": "Fatto"
   },
   "forgotPassword": {
     "title": "Password dimenticata",

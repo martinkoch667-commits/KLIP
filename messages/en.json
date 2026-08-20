@@ -1968,7 +1968,9 @@
     "fontCatalogue": "Catalogue",
     "glow": "Glow",
     "offset": "Offset",
-    "animNone": "None"
+    "animNone": "None",
+    "customFormatHint": "Enter the width and height in pixels. The preview frame and the exported file will follow these dimensions.",
+    "done": "Done"
   },
   "forgotPassword": {
     "title": "Forgot password",

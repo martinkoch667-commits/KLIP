@@ -1313,17 +1313,37 @@ input.mz-range::-moz-range-thumb { width: 16px; height: 16px; border-radius: 50%
    ne distinguait une action secondaire de l'action principale. On leur donne
    leur propre habillage, lisible sur ce fond, avec trois niveaux nets. */
 .mz-top { display: inline-flex; align-items: center; gap: 6px; height: 34px; padding: 0 12px;
-  border-radius: 9px; border: 1px solid rgba(255,255,255,.16); background: rgba(255,255,255,.07);
+  border-radius: 9px; border: none; background: rgba(255,255,255,.08);
   color: #fff; font-size: 12.5px; font-weight: 700; cursor: pointer; text-decoration: none;
-  white-space: nowrap; transition: background .14s var(--ease), border-color .14s var(--ease); }
-.mz-top:hover:not(:disabled) { background: rgba(255,255,255,.14); border-color: rgba(255,255,255,.3); }
-.mz-top:disabled { opacity: .45; cursor: not-allowed; }
-.mz-top-primary { background: var(--mint-2, #BDF2A0); border-color: transparent; color: #14160F; }
-.mz-top-primary:hover:not(:disabled) { background: #cdf7b6; border-color: transparent; }
+  white-space: nowrap; transition: background .14s var(--ease); }
+.mz-top:hover:not(:disabled) { background: rgba(255,255,255,.16); }
+.mz-top:disabled { opacity: .4; cursor: not-allowed; }
+.mz-top-primary { background: var(--vio-2, #9C8CFF); color: #14160F; }
+.mz-top-primary:hover:not(:disabled) { background: #b0a3ff; }
 .mz-top-icon { width: 34px; padding: 0; justify-content: center; }
+
+/* Choix du format : même langage que le reste de la barre, sans trait. */
+.mz-fmt { display: inline-flex; gap: 2px; padding: 3px; border-radius: 11px;
+  background: rgba(0,0,0,.28); flex-shrink: 0; }
+.mz-fmt button { padding: 0 14px; height: 28px; border: none; border-radius: 8px; background: none;
+  color: rgba(255,255,255,.62); font-size: 12.5px; font-weight: 700; cursor: pointer;
+  transition: background .14s var(--ease), color .14s var(--ease); }
+.mz-fmt button:hover { color: #fff; }
+.mz-fmt button.on { background: rgba(255,255,255,.14); color: #fff; }
 
 /* Liste déroulante maison : la native ne se style pas, son menu restait gris
    système au milieu d'une barre violette. */
+/* Fenêtre du format personnalisé.
+
+   Les champs largeur et hauteur s'ouvraient DANS la barre : faute de place, ils
+   passaient sous les boutons voisins et se chevauchaient. Une fenêtre au centre
+   règle la question et laisse la place d'expliquer ce qu'on saisit. */
+.mz-modal-fond { position: fixed; inset: 0; z-index: 200; display: grid; place-items: center;
+  background: rgba(13,15,10,.55); backdrop-filter: blur(4px); }
+.mz-modal { width: 320px; padding: 20px; border-radius: 16px; background: var(--white);
+  box-shadow: 0 22px 60px rgba(13,15,10,.4); }
+.mz-modal h3 { font-family: var(--display); font-weight: 800; font-size: 17px; margin-bottom: 4px; }
+
 .mz-drop { position: relative; }
 .mz-drop-menu { position: absolute; top: calc(100% + 6px); right: 0; z-index: 60; min-width: 190px;
   padding: 5px; border-radius: 11px; border: 1px solid var(--line); background: var(--white);

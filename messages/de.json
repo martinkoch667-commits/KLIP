@@ -1782,7 +1782,7 @@
     "addAudioTrack": "Audiospur hinzufügen",
     "importVideosCta": "Videos",
     "importPhotosCta": "Fotos",
-    "customFormatShort": "Eigen",
+    "customFormatShort": "Custom",
     "customFormatTitle": "Eigene Maße (px)",
     "widthPx": "Breite (px)",
     "heightPx": "Höhe (px)",
@@ -1968,7 +1968,9 @@
     "fontCatalogue": "Katalog",
     "glow": "Leuchten",
     "offset": "Versatz",
-    "animNone": "Keine"
+    "animNone": "Keine",
+    "customFormatHint": "Breite und Höhe in Pixeln angeben. Vorschaurahmen und exportierte Datei folgen diesen Maßen.",
+    "done": "Fertig"
   },
   "forgotPassword": {
     "title": "Passwort vergessen",
