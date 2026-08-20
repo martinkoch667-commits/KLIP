@@ -391,11 +391,23 @@ export function drawTitles(ctx: CanvasRenderingContext2D, titles: TitleEl[], t: 
       const xx = posX(largeurs[i]);
       // L'ombre est posée sur le CONTOUR quand il existe, sinon sur le texte :
       // sans quoi elle serait recouverte par le contour et ne se verrait plus.
+      /* Lueur : deux passes de halo, comme les deux `text-shadow` empilés de
+         l'aperçu. Une seule passe donne un halo trop timide pour se lire. */
+      if (look.glow) {
+        ctx.shadowColor = look.glowColor;
+        ctx.shadowBlur = look.glowBlur;
+        ctx.shadowOffsetX = 0; ctx.shadowOffsetY = 0;
+        ctx.fillStyle = look.fg;
+        ctx.fillText(ln, xx, yy);
+        ctx.fillText(ln, xx, yy);
+      }
       if (look.shadow) {
         ctx.shadowColor = look.shadowRgba;
         ctx.shadowBlur = look.shadowBlur;
         ctx.shadowOffsetX = look.shadowX;
         ctx.shadowOffsetY = look.shadowY;
+      } else if (look.glow) {
+        ctx.shadowColor = "transparent"; ctx.shadowBlur = 0;
       }
       if (look.stroke && look.strokeW > 0) {
         ctx.strokeStyle = look.stroke;

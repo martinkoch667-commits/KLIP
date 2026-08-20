@@ -1957,7 +1957,17 @@
     "outlineWidth": "Thickness",
     "textBackground": "Text background",
     "pillShape": "Pill",
-    "padding": "Padding"
+    "padding": "Padding",
+    "style": "Style",
+    "align_left": "Align left",
+    "align_center": "Center",
+    "align_right": "Align right",
+    "caseLabel": "Case",
+    "spacingLabel": "Letter / width",
+    "presetStyle": "Preset style",
+    "fontCatalogue": "Catalogue",
+    "glow": "Glow",
+    "offset": "Offset"
   },
   "forgotPassword": {
     "title": "Forgot password",

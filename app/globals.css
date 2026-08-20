@@ -1307,6 +1307,55 @@ input.mz-range::-moz-range-thumb { width: 16px; height: 16px; border-radius: 50%
 .mz-rangelbl { display: flex; align-items: center; justify-content: space-between; margin-bottom: 7px; }
 .mz-rangeval { font-family: var(--mono); font-weight: 800; font-size: 11px; color: var(--ink-2); }
 
+/* ── Contrôles compacts du panneau (façon éditeur, pas gros boutons) ─────────
+   Le panneau Texte empilait de gros blocs cliquables pour le gras, l'italique,
+   l'alignement. Personne ne reconnaissait ces commandes : partout ailleurs ce
+   sont de petits carrés à icône, alignés sur une ligne avec leur libellé. */
+.mz-row { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+.mz-row > .mz-row-lbl { flex: 0 0 82px; font-size: 12px; font-weight: 600; color: var(--ink-3); }
+.mz-row > .mz-row-ctl { flex: 1; min-width: 0; display: flex; align-items: center; gap: 5px; }
+
+/* Petit carré à icône : gras, italique, alignement. */
+.mz-ico { width: 30px; height: 30px; flex-shrink: 0; display: grid; place-items: center;
+  border-radius: 7px; border: 1px solid var(--line); background: var(--white);
+  color: var(--ink-2); cursor: pointer; padding: 0; transition: all .13s var(--ease); }
+.mz-ico:hover { border-color: var(--vio); }
+.mz-ico.on { background: var(--vio-soft, color-mix(in srgb, var(--vio) 18%, transparent));
+  border-color: var(--vio); color: var(--ink); }
+
+/* Champ numérique court, avec son unité. */
+.mz-num { width: 100%; min-width: 0; padding: 7px 8px; border-radius: 7px;
+  background: var(--white); border: 1px solid var(--line);
+  font-family: var(--mono); font-weight: 700; font-size: 12px; color: var(--ink); text-align: right; }
+.mz-num:focus { outline: none; border-color: var(--vio); }
+
+/* Liste déroulante compacte (choix de police). */
+.mz-sel { width: 100%; padding: 8px 10px; border-radius: 8px; background: var(--white);
+  border: 1px solid var(--line); font-size: 13px; font-weight: 600; color: var(--ink); cursor: pointer; }
+.mz-sel:focus { outline: none; border-color: var(--vio); }
+
+/* Vignette de préréglage de texte : un « Aa » sur fond sombre.
+
+   Le fond est sombre EN DUR, pas repris du thème : ces vignettes montrent du
+   texte tel qu'il sera posé sur une vidéo, donc le plus souvent sur du sombre.
+   Sur un fond clair, un préréglage en blanc devenait invisible. */
+.mz-aa { aspect-ratio: 1 / 1; border-radius: 9px; cursor: pointer; position: relative;
+  display: grid; place-items: center; overflow: hidden; background: #2A2A34;
+  box-shadow: inset 0 0 0 1px var(--line); transition: transform .13s var(--ease), box-shadow .13s; }
+.mz-aa:hover { transform: translateY(-2px); }
+.mz-aa.on { box-shadow: 0 0 0 2px var(--vio); }
+.mz-grid5 { display: grid; grid-template-columns: repeat(5, 1fr); gap: 7px; }
+
+/* Section d'effet repliable, activée par sa case à cocher. */
+.mz-fold { border-top: 1px solid var(--line); padding: 10px 0 2px; }
+.mz-fold-head { display: flex; align-items: center; gap: 9px; width: 100%; background: none; border: none;
+  padding: 0 0 2px; cursor: pointer; color: var(--ink-2); }
+.mz-fold-name { font-size: 12.5px; font-weight: 700; flex: 1; text-align: left; }
+.mz-fold-chk { width: 16px; height: 16px; flex-shrink: 0; border-radius: 5px; border: 1px solid var(--line);
+  background: var(--white); display: grid; place-items: center; color: #fff; font-size: 11px; line-height: 1; }
+.mz-fold-chk.on { background: var(--vio); border-color: var(--vio); }
+.mz-fold-body { padding-top: 10px; }
+
 /* segmented control (vitesse, animation) */
 .mz-seg { display: inline-flex; gap: 3px; padding: 3px; background: var(--sunk); border-radius: 10px; width: 100%; }
 .mz-seg button { flex: 1; padding: 8px; border-radius: 7px; font-weight: 700; font-size: 12.5px; color: var(--ink-2); transition: all .14s var(--ease); border: none; background: transparent; cursor: pointer; }

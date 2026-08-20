@@ -1957,7 +1957,17 @@
     "outlineWidth": "Spessore",
     "textBackground": "Sfondo del testo",
     "pillShape": "Pillola",
-    "padding": "Margine interno"
+    "padding": "Margine interno",
+    "style": "Stile",
+    "align_left": "Allinea a sinistra",
+    "align_center": "Centra",
+    "align_right": "Allinea a destra",
+    "caseLabel": "Maiuscole",
+    "spacingLabel": "Carattere / larghezza",
+    "presetStyle": "Stile predefinito",
+    "fontCatalogue": "Catalogo",
+    "glow": "Bagliore",
+    "offset": "Scostamento"
   },
   "forgotPassword": {
     "title": "Password dimenticata",

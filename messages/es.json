@@ -1957,7 +1957,17 @@
     "outlineWidth": "Grosor",
     "textBackground": "Fondo del texto",
     "pillShape": "Píldora",
-    "padding": "Margen interior"
+    "padding": "Margen interior",
+    "style": "Estilo",
+    "align_left": "Alinear a la izquierda",
+    "align_center": "Centrar",
+    "align_right": "Alinear a la derecha",
+    "caseLabel": "Mayúsculas",
+    "spacingLabel": "Letra / anchura",
+    "presetStyle": "Estilo predefinido",
+    "fontCatalogue": "Catálogo",
+    "glow": "Resplandor",
+    "offset": "Desplazamiento"
   },
   "forgotPassword": {
     "title": "Contraseña olvidada",

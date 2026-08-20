@@ -170,12 +170,17 @@ function Toggle({ label, on, onChange }: { label: string; on: boolean; onChange:
   );
 }
 
-/* ─── Habillage d'un titre : polices, couleurs, effets ───────────────────────
+/* ─── Habillage d'un titre ───────────────────────────────────────────────────
 
-   Le panneau ne proposait que trois polices en dur, six couleurs génériques et
-   aucun effet. On y branche maintenant ce que le produit possède déjà : le
-   catalogue de polices servi par /api/google-fonts, et les couleurs et polices
-   de la CHARTE du client, qui vivent sur son espace de travail. */
+   Le panneau empilait de gros blocs cliquables pour le gras, l'italique,
+   l'alignement, et déroulait les polices en grandes cartes. Personne ne
+   reconnaissait ces commandes : partout ailleurs, dans un traitement de texte
+   comme dans un logiciel de montage, ce sont de petits carrés à icône alignés
+   sur une ligne avec leur libellé, et une liste déroulante pour la police.
+
+   On reprend donc les conventions que tout le monde connaît, dans les codes de
+   KLIP : lignes libellé + contrôle, carrés de 30 px, champs numériques courts,
+   et les effets rangés dans des sections repliables qu'on active à la case. */
 
 interface GFont { family: string; category: string }
 
@@ -193,224 +198,248 @@ function chargerCatalogue(): Promise<GFont[]> {
   return catalogueEnCours;
 }
 
-function TitleFontPicker({ ctx, tt }: { ctx: MontageCtx; tt: TitleEl }) {
+function Row({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="mz-row">
+      <span className="mz-row-lbl">{label}</span>
+      <span className="mz-row-ctl">{children}</span>
+    </div>
+  );
+}
+
+function Ico({ on, title: titre, onClick, children }: { on?: boolean; title: string; onClick: () => void; children: React.ReactNode }) {
+  return <button className={"mz-ico" + (on ? " on" : "")} title={titre} onClick={onClick}>{children}</button>;
+}
+
+/** Champ numérique court : la valeur exacte, quand le curseur ne suffit pas. */
+function Num({ value, min, max, step = 1, onChange, suffix }: {
+  value: number; min: number; max: number; step?: number; onChange: (v: number) => void; suffix?: string;
+}) {
+  return (
+    <span style={{ position: "relative", flex: 1, minWidth: 54, display: "flex", alignItems: "center" }}>
+      <input className="mz-num" type="number" value={Math.round(value * 100) / 100} min={min} max={max} step={step}
+        onChange={(e) => {
+          const v = parseFloat(e.target.value);
+          if (!isNaN(v)) onChange(Math.max(min, Math.min(max, v)));
+        }} />
+      {suffix && <span style={{ position: "absolute", right: 8, fontSize: 10, color: "var(--ink-3)", pointerEvents: "none", fontFamily: "var(--mono)" }}>{suffix}</span>}
+    </span>
+  );
+}
+
+/** Section d'effet : une case pour l'allumer, un triangle pour la déplier. */
+function Fold({ name, on, onToggle, children }: { name: string; on: boolean; onToggle: (v: boolean) => void; children: React.ReactNode }) {
+  const [ouvert, setOuvert] = useState(false);
+  return (
+    <div className="mz-fold">
+      <div style={{ display: "flex", alignItems: "center", gap: 9 }}>
+        <button className={"mz-fold-chk" + (on ? " on" : "")} onClick={() => { onToggle(!on); if (!on) setOuvert(true); }} title={name}>{on ? "✓" : ""}</button>
+        <button className="mz-fold-head" style={{ padding: 0 }} onClick={() => setOuvert((v) => !v)}>
+          <span className="mz-fold-name">{name}</span>
+          <span style={{ fontSize: 10, color: "var(--ink-3)" }}>{ouvert ? "▲" : "▼"}</span>
+        </button>
+      </div>
+      {ouvert && on && <div className="mz-fold-body">{children}</div>}
+    </div>
+  );
+}
+
+/** Nuancier compact : charte d'abord, puis génériques, puis la pioche libre. */
+function Swatches({ ctx, value, onPick }: { ctx: MontageCtx; value: string; onPick: (c: string) => void }) {
+  const t = useTranslations('montage');
+  const generiques = ["#FFFFFF", "#14160F", "#0C2A1D", "#2FD79B", "#BDF2A0", "#7A69E8"];
+  const vus = new Set<string>();
+  const liste = [...ctx.brandColors, ...generiques].filter((c) => {
+    const k = c.toUpperCase();
+    if (vus.has(k)) return false;
+    vus.add(k); return true;
+  });
+  return (
+    <div className="mz-swrow" style={{ alignItems: "center", flexWrap: "wrap" }}>
+      {liste.map((col, i) => (
+        <button key={col} className={"mz-sw" + (value.toUpperCase() === col.toUpperCase() ? " on" : "")}
+          style={{ background: col, ...(i < ctx.brandColors.length ? { boxShadow: "0 0 0 1.5px var(--vio)" } : {}) }}
+          onClick={() => onPick(col)} title={i < ctx.brandColors.length ? `${col} · ${t('brandColors')}` : col} />
+      ))}
+      <label className="mz-sw" style={{ display: "grid", placeItems: "center", cursor: "pointer", background: "conic-gradient(red,yellow,lime,aqua,blue,magenta,red)" }} title={t('customColor')}>
+        <input type="color" value={/^#[0-9a-f]{6}$/i.test(value) ? value : "#ffffff"}
+          onChange={(e) => onPick(e.target.value.toUpperCase())}
+          style={{ opacity: 0, width: 1, height: 1, position: "absolute", pointerEvents: "none" }} />
+      </label>
+    </div>
+  );
+}
+
+const AlignIcon = ({ k }: { k: "left" | "center" | "right" }) => {
+  const lignes = k === "left" ? [14, 9, 14, 7] : k === "right" ? [14, 9, 14, 7] : [14, 10, 14, 8];
+  const x = (w: number, i: number) => k === "left" ? 2 : k === "right" ? 16 - w : (16 - w) / 2;
+  return (
+    <svg width="16" height="14" viewBox="0 0 16 14" aria-hidden>
+      {lignes.map((w, i) => <rect key={i} x={x(w, i)} y={i * 3.5 + 1} width={w} height="2" rx="1" fill="currentColor" />)}
+    </svg>
+  );
+};
+
+function TitleStylePanel({ ctx, tt }: { ctx: MontageCtx; tt: TitleEl }) {
   const t = useTranslations('montage');
   const tc = useTranslations('montageConstants');
   const [fonts, setFonts] = useState<GFont[]>([]);
-  const [q, setQ] = useState("");
   useEffect(() => { chargerCatalogue().then(setFonts); }, []);
+  const look = titleLook(tt);
 
-  // Une police n'existe pour le navigateur qu'une fois déclarée : sans ça
-  // l'aperçu de la liste s'afficherait tout entier dans la police par défaut.
-  const apercu = useMemo(() => {
-    const base = q.trim()
-      ? fonts.filter((f) => f.family.toLowerCase().includes(q.trim().toLowerCase()))
-      : fonts;
-    return base.slice(0, 40);
-  }, [fonts, q]);
-  useEffect(() => { apercu.forEach((f) => chargerPoliceGoogle(f.family)); }, [apercu]);
-
-  const choisir = (family: string) => {
-    chargerPoliceGoogle(family);
-    ctx.updateTitle(tt.id, { fontFamily: family });
+  // Valeur de la liste : "k:<id>" pour les polices KLIP, la famille sinon.
+  const valPolice = tt.fontFamily ? tt.fontFamily : `k:${tt.font}`;
+  const choisirPolice = (v: string) => {
+    if (v.startsWith("k:")) { ctx.updateTitle(tt.id, { font: v.slice(2) as TitleEl["font"], fontFamily: undefined }); return; }
+    chargerPoliceGoogle(v);
+    ctx.updateTitle(tt.id, { fontFamily: v });
   };
+  // La police retenue doit être déclarée, sinon l'aperçu et le fichier la
+  // mesureraient sur une autre fonte.
+  useEffect(() => { if (tt.fontFamily) chargerPoliceGoogle(tt.fontFamily); }, [tt.fontFamily]);
 
   return (
-    <div className="a-section">
-      <span className="mz-sec-label">{t('font')}</span>
-
-      {ctx.brandFonts.length > 0 && (
-        <>
-          <div style={{ fontSize: 11, color: "var(--ink-3)", fontWeight: 700, margin: "8px 0 6px" }}>{t('brandFonts')}</div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 12 }}>
-            {ctx.brandFonts.map((fam) => (
-              <button key={fam} className="font-pick" onClick={() => choisir(fam)}
-                style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 12px", borderRadius: 9,
-                  background: tt.fontFamily === fam ? "var(--mint-soft)" : "var(--white)",
-                  boxShadow: tt.fontFamily === fam ? "inset 0 0 0 1.5px var(--mint-2)" : "inset 0 0 0 1px var(--line)", border: "none", cursor: "pointer" }}>
-                <span style={{ fontFamily: `'${fam}', sans-serif`, fontSize: 18 }}>{fam}</span>
-                <span className="mz-sec-label">{t('brandFontTag')}</span>
-              </button>
-            ))}
-          </div>
-        </>
-      )}
-
-      <div style={{ fontSize: 11, color: "var(--ink-3)", fontWeight: 700, margin: "4px 0 6px" }}>{t('builtInFonts')}</div>
-      <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 12 }}>
-        {FONT_CHOICES.map((f) => (
-          <button key={f.id} className="font-pick" onClick={() => ctx.updateTitle(tt.id, { font: f.id, fontFamily: undefined, weight: undefined, italic: undefined })}
-            style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 12px", borderRadius: 9,
-              background: !tt.fontFamily && tt.font === f.id ? "var(--mint-soft)" : "var(--white)",
-              boxShadow: !tt.fontFamily && tt.font === f.id ? "inset 0 0 0 1.5px var(--mint-2)" : "inset 0 0 0 1px var(--line)", border: "none", cursor: "pointer" }}>
-            <span style={{ fontFamily: f.css, fontWeight: f.weight, fontStyle: f.italic ? "italic" : "normal", fontSize: 18 }}>{tc(`fontChoiceName.${f.id}`)}</span>
-            <span className="mz-sec-label">{tc(`fontChoiceSub.${f.id}`)}</span>
-          </button>
-        ))}
-      </div>
-
-      <input className="input" value={q} onChange={(e) => setQ(e.target.value)} placeholder={t('searchFont')}
-        style={{ width: "100%", marginBottom: 8 }} />
-      <div style={{ display: "flex", flexDirection: "column", gap: 4, maxHeight: 260, overflowY: "auto" }}>
-        {apercu.map((f) => (
-          <button key={f.family} className="font-pick" onClick={() => choisir(f.family)}
-            style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "9px 12px", borderRadius: 9,
-              background: tt.fontFamily === f.family ? "var(--mint-soft)" : "var(--white)",
-              boxShadow: tt.fontFamily === f.family ? "inset 0 0 0 1.5px var(--mint-2)" : "inset 0 0 0 1px var(--line)", border: "none", cursor: "pointer" }}>
-            <span style={{ fontFamily: `'${f.family}', sans-serif`, fontSize: 17 }}>{f.family}</span>
-            <span className="mz-sec-label">{f.category}</span>
-          </button>
-        ))}
-        {!apercu.length && <p style={{ fontSize: 12, color: "var(--ink-3)" }}>{t('noFontFound')}</p>}
-      </div>
-
-      <div style={{ display: "flex", gap: 6, marginTop: 10 }}>
-        <button className="btn btn-ghost" style={{ flex: 1, justifyContent: "center", fontWeight: titleWeight(tt) >= 700 ? 800 : 600 }}
-          onClick={() => ctx.updateTitle(tt.id, { weight: titleWeight(tt) >= 700 ? 400 : 800 })}>{t('bold')}</button>
-        <button className="btn btn-ghost" style={{ flex: 1, justifyContent: "center", fontStyle: "italic", opacity: titleItalic(tt) ? 1 : 0.6 }}
-          onClick={() => ctx.updateTitle(tt.id, { italic: !titleItalic(tt) })}>{t('italic')}</button>
-      </div>
-      <div className="mz-seg" style={{ marginTop: 8 }}>
-        {([["left", "◀"], ["center", "■"], ["right", "▶"]] as const).map(([k, l]) => (
-          <button key={k} className={(tt.align ?? "center") === k ? "on" : ""} onClick={() => ctx.updateTitle(tt.id, { align: k })}>{l}</button>
-        ))}
-      </div>
-      <div className="mz-seg" style={{ marginTop: 6 }}>
-        {([["none", "Aa"], ["upper", "AA"], ["lower", "aa"], ["title", "Aa."]] as const).map(([k, l]) => (
-          <button key={k} className={(tt.caseMode ?? "none") === k ? "on" : ""} onClick={() => ctx.updateTitle(tt.id, { caseMode: k })}>{l}</button>
-        ))}
-      </div>
-      <Range label={t('letterSpacing')} value={tt.letterSpacing ?? 0} min={-0.05} max={0.4} step={0.01}
-        onChange={(v) => ctx.updateTitle(tt.id, { letterSpacing: v })} fmtv={(v) => v.toFixed(2)} />
-    </div>
-  );
-}
-
-/** Couleurs : celles de la charte d'abord, puis une pioche libre. */
-function TitleColors({ ctx, tt }: { ctx: MontageCtx; tt: TitleEl }) {
-  const t = useTranslations('montage');
-  const generiques = ["#FFFFFF", "#14160F", "#0C2A1D", "#2FD79B", "#BDF2A0", "#1F7A4D"];
-  const ligne = (valeur: string, poser: (c: string) => void) => (
     <>
-      {ctx.brandColors.length > 0 && (
-        <>
-          <div style={{ fontSize: 11, color: "var(--ink-3)", fontWeight: 700, margin: "8px 0 5px" }}>{t('brandColors')}</div>
-          <div className="mz-swrow">
-            {ctx.brandColors.map((col) => (
-              <button key={col} className={"mz-sw" + (valeur.toUpperCase() === col ? " on" : "")} style={{ background: col }} onClick={() => poser(col)} title={col} />
+      <div className="a-section">
+        <span className="mz-sec-label">{t('font')}</span>
+        <Row label={t('font')}>
+          <select className="mz-sel" value={valPolice} onChange={(e) => choisirPolice(e.target.value)}>
+            {ctx.brandFonts.length > 0 && (
+              <optgroup label={t('brandFonts')}>
+                {ctx.brandFonts.map((f) => <option key={f} value={f}>{f}</option>)}
+              </optgroup>
+            )}
+            <optgroup label={t('builtInFonts')}>
+              {FONT_CHOICES.map((f) => <option key={f.id} value={`k:${f.id}`}>{tc(`fontChoiceName.${f.id}`)}</option>)}
+            </optgroup>
+            {fonts.length > 0 && (
+              <optgroup label={t('fontCatalogue')}>
+                {fonts.map((f) => <option key={f.family} value={f.family}>{f.family}</option>)}
+              </optgroup>
+            )}
+          </select>
+        </Row>
+        <Row label={t('size')}>
+          <input className="mz-range" type="range" min={0.3} max={3} step={0.05} value={tt.scale ?? 1}
+            onChange={(e) => ctx.updateTitle(tt.id, { scale: parseFloat(e.target.value) })} style={{ flex: 1 }} />
+          <Num value={Math.round((tt.scale ?? 1) * 100)} min={30} max={300} step={5} suffix="%"
+            onChange={(v) => ctx.updateTitle(tt.id, { scale: v / 100 })} />
+        </Row>
+        <Row label={t('style')}>
+          <Ico on={titleWeight(tt) >= 700} title={t('bold')} onClick={() => ctx.updateTitle(tt.id, { weight: titleWeight(tt) >= 700 ? 400 : 800 })}>
+            <span style={{ fontWeight: 900, fontSize: 13 }}>B</span>
+          </Ico>
+          <Ico on={titleItalic(tt)} title={t('italic')} onClick={() => ctx.updateTitle(tt.id, { italic: !titleItalic(tt) })}>
+            <span style={{ fontStyle: "italic", fontWeight: 700, fontSize: 13, fontFamily: "Georgia, serif" }}>I</span>
+          </Ico>
+          <span style={{ width: 6 }} />
+          {(["left", "center", "right"] as const).map((k) => (
+            <Ico key={k} on={(tt.align ?? "center") === k} title={t(`align_${k}`)} onClick={() => ctx.updateTitle(tt.id, { align: k })}>
+              <AlignIcon k={k} />
+            </Ico>
+          ))}
+        </Row>
+        <Row label={t('caseLabel')}>
+          <div className="mz-seg">
+            {([["none", "Aa"], ["upper", "AA"], ["lower", "aa"], ["title", "Aa."]] as const).map(([k, l]) => (
+              <button key={k} className={(tt.caseMode ?? "none") === k ? "on" : ""} onClick={() => ctx.updateTitle(tt.id, { caseMode: k })}>{l}</button>
             ))}
           </div>
-        </>
-      )}
-      <div style={{ fontSize: 11, color: "var(--ink-3)", fontWeight: 700, margin: "8px 0 5px" }}>{t('otherColors')}</div>
-      <div className="mz-swrow" style={{ alignItems: "center" }}>
-        {generiques.map((col) => (
-          <button key={col} className={"mz-sw" + (valeur.toUpperCase() === col ? " on" : "")} style={{ background: col }} onClick={() => poser(col)} title={col} />
-        ))}
-        {/* Pioche libre : n'importe quelle couleur, pas seulement la liste. */}
-        <label className="mz-sw" style={{ display: "grid", placeItems: "center", cursor: "pointer", background: "conic-gradient(red,yellow,lime,aqua,blue,magenta,red)" }} title={t('customColor')}>
-          <input type="color" value={/^#[0-9a-f]{6}$/i.test(valeur) ? valeur : "#ffffff"}
-            onChange={(e) => poser(e.target.value.toUpperCase())}
-            style={{ opacity: 0, width: 1, height: 1, position: "absolute", pointerEvents: "none" }} />
-        </label>
+        </Row>
+        <Row label={t('spacingLabel')}>
+          <Num value={look.letterSpacing} min={-0.05} max={0.5} step={0.01} suffix="em"
+            onChange={(v) => ctx.updateTitle(tt.id, { letterSpacing: v })} />
+          <Num value={tt.maxWidth ?? TITLE_DEFAULT_MAX_WIDTH} min={20} max={100} step={1} suffix="%"
+            onChange={(v) => ctx.updateTitle(tt.id, { maxWidth: v })} />
+        </Row>
+        <Row label={t('color')}>
+          <Swatches ctx={ctx} value={tt.color} onPick={(c) => ctx.updateTitle(tt.id, { color: c })} />
+        </Row>
+        <Row label={t('opacity')}>
+          <input className="mz-range" type="range" min={0.05} max={1} step={0.02} value={look.opacity}
+            onChange={(e) => ctx.updateTitle(tt.id, { opacity: parseFloat(e.target.value) })} style={{ flex: 1 }} />
+          <Num value={Math.round(look.opacity * 100)} min={5} max={100} step={5} suffix="%"
+            onChange={(v) => ctx.updateTitle(tt.id, { opacity: v / 100 })} />
+        </Row>
+      </div>
+
+      <div className="a-section">
+        <span className="mz-sec-label">{t('presetStyle')}</span>
+        <div className="mz-grid5">
+          {TITLE_EFFECT_PRESETS.map((p) => {
+            const vu = { ...tt, ...p.patch };
+            const l = titleLook(vu);
+            return (
+              <button key={p.id} className="mz-aa" title={tc(`titleEffect.${p.id}`)} onClick={() => ctx.updateTitle(tt.id, p.patch)}>
+                <span style={{
+                  fontWeight: 800, fontSize: 16, color: l.fg,
+                  textShadow: titleShadowCss(vu, 0.35),
+                  WebkitTextStroke: l.stroke && l.strokeW > 0 ? `${l.strokeW * 0.35}px ${l.stroke}` : undefined,
+                  paintOrder: "stroke fill",
+                  background: l.bg !== "transparent" ? withAlpha(l.bg, l.bgOpacity) : undefined,
+                  padding: l.bg !== "transparent" ? "1px 6px" : undefined,
+                  borderRadius: l.bg !== "transparent" ? (l.pill ? 999 : 4) : undefined,
+                }}>Aa</span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      <div className="a-section">
+        <span className="mz-sec-label">{t('effects')}</span>
+
+        <Fold name={t('outline')} on={look.strokeW > 0} onToggle={(v) => ctx.updateTitle(tt.id, { strokeW: v ? 2.5 : 0, stroke: tt.stroke || "#000000" })}>
+          <Row label={t('outlineWidth')}>
+            <input className="mz-range" type="range" min={0.25} max={8} step={0.25} value={look.strokeW || 2.5}
+              onChange={(e) => ctx.updateTitle(tt.id, { strokeW: parseFloat(e.target.value) })} style={{ flex: 1 }} />
+            <Num value={look.strokeW} min={0} max={8} step={0.25} onChange={(v) => ctx.updateTitle(tt.id, { strokeW: v })} />
+          </Row>
+          <Row label={t('color')}><Swatches ctx={ctx} value={tt.stroke || "#000000"} onPick={(c) => ctx.updateTitle(tt.id, { stroke: c })} /></Row>
+        </Fold>
+
+        <Fold name={t('textBackground')} on={look.bg !== "transparent"} onToggle={(v) => ctx.updateTitle(tt.id, { bg: v ? (tt.bg && tt.bg !== "transparent" ? tt.bg : "#14160F") : "transparent" })}>
+          <Row label={t('color')}><Swatches ctx={ctx} value={look.bg} onPick={(c) => ctx.updateTitle(tt.id, { bg: c })} /></Row>
+          <Row label={t('opacity')}>
+            <input className="mz-range" type="range" min={0} max={1} step={0.02} value={look.bgOpacity}
+              onChange={(e) => ctx.updateTitle(tt.id, { bgOpacity: parseFloat(e.target.value) })} style={{ flex: 1 }} />
+            <Num value={Math.round(look.bgOpacity * 100)} min={0} max={100} step={5} suffix="%" onChange={(v) => ctx.updateTitle(tt.id, { bgOpacity: v / 100 })} />
+          </Row>
+          <Row label={t('padding')}>
+            <Num value={look.padX} min={0} max={60} step={1} onChange={(v) => ctx.updateTitle(tt.id, { padX: v, padY: Math.round(v * 0.5) })} />
+            <Num value={look.radius} min={0} max={40} step={1} onChange={(v) => ctx.updateTitle(tt.id, { radius: v })} />
+          </Row>
+          <Toggle label={t('pillShape')} on={look.pill} onChange={(v) => ctx.updateTitle(tt.id, { pill: v })} />
+        </Fold>
+
+        <Fold name={t('glow')} on={look.glow} onToggle={(v) => ctx.updateTitle(tt.id, { glow: v })}>
+          <Row label={t('color')}><Swatches ctx={ctx} value={look.glowColor} onPick={(c) => ctx.updateTitle(tt.id, { glowColor: c })} /></Row>
+          <Row label={t('shadowBlur')}>
+            <input className="mz-range" type="range" min={2} max={40} step={1} value={look.glowBlur}
+              onChange={(e) => ctx.updateTitle(tt.id, { glowBlur: parseFloat(e.target.value) })} style={{ flex: 1 }} />
+            <Num value={look.glowBlur} min={2} max={40} step={1} onChange={(v) => ctx.updateTitle(tt.id, { glowBlur: v })} />
+          </Row>
+        </Fold>
+
+        <Fold name={t('dropShadow')} on={look.shadow} onToggle={(v) => ctx.updateTitle(tt.id, { shadow: v })}>
+          <Row label={t('color')}><Swatches ctx={ctx} value={tt.shadowColor || "#000000"} onPick={(c) => ctx.updateTitle(tt.id, { shadowColor: c })} /></Row>
+          <Row label={t('shadowBlur')}>
+            <input className="mz-range" type="range" min={0} max={30} step={0.5} value={look.shadowBlur}
+              onChange={(e) => ctx.updateTitle(tt.id, { shadowBlur: parseFloat(e.target.value) })} style={{ flex: 1 }} />
+            <Num value={look.shadowBlur} min={0} max={30} step={0.5} onChange={(v) => ctx.updateTitle(tt.id, { shadowBlur: v })} />
+          </Row>
+          <Row label={t('offset')}>
+            <Num value={look.shadowX} min={-20} max={20} step={0.5} suffix="x" onChange={(v) => ctx.updateTitle(tt.id, { shadowX: v })} />
+            <Num value={look.shadowY} min={-20} max={20} step={0.5} suffix="y" onChange={(v) => ctx.updateTitle(tt.id, { shadowY: v })} />
+          </Row>
+          <Row label={t('shadowStrength')}>
+            <input className="mz-range" type="range" min={0} max={1} step={0.02} value={tt.shadowOpacity ?? 0.5}
+              onChange={(e) => ctx.updateTitle(tt.id, { shadowOpacity: parseFloat(e.target.value) })} style={{ flex: 1 }} />
+            <Num value={Math.round((tt.shadowOpacity ?? 0.5) * 100)} min={0} max={100} step={5} suffix="%" onChange={(v) => ctx.updateTitle(tt.id, { shadowOpacity: v / 100 })} />
+          </Row>
+        </Fold>
       </div>
     </>
-  );
-  return (
-    <div className="a-section">
-      <span className="mz-sec-label">{t('color')}</span>
-      {ligne(tt.color, (c) => ctx.updateTitle(tt.id, { color: c }))}
-    </div>
-  );
-}
-
-/** Effets : réglages prêts à l'emploi, puis les curseurs pour affiner. */
-function TitleEffects({ ctx, tt }: { ctx: MontageCtx; tt: TitleEl }) {
-  const t = useTranslations('montage');
-  const tc = useTranslations('montageConstants');
-  const look = titleLook(tt);
-  const swatchs = [...ctx.brandColors, "#000000", "#FFFFFF", "#2FD79B", "#7A69E8", "#F2A03D"];
-  return (
-    <div className="a-section">
-      <span className="mz-sec-label">{t('effects')}</span>
-      <div className="mz-grid3" style={{ marginTop: 8 }}>
-        {TITLE_EFFECT_PRESETS.map((p) => {
-          const vu = { ...tt, ...p.patch };
-          const l = titleLook(vu);
-          return (
-            <button key={p.id} className="mz-thumb" title={tc(`titleEffect.${p.id}`)}
-              onClick={() => ctx.updateTitle(tt.id, p.patch)}
-              style={{ position: "relative", display: "grid", placeItems: "center", background: "var(--sunk)", overflow: "hidden" }}>
-              <span style={{
-                fontFamily: vu.fontFamily ? `'${vu.fontFamily}', sans-serif` : undefined,
-                fontWeight: 800, fontSize: 17, color: l.fg,
-                textShadow: titleShadowCss(vu, 0.4),
-                WebkitTextStroke: l.stroke && l.strokeW > 0 ? `${l.strokeW * 0.4}px ${l.stroke}` : undefined,
-                paintOrder: "stroke fill",
-                background: l.bg !== "transparent" ? withAlpha(l.bg, l.bgOpacity) : undefined,
-                padding: l.bg !== "transparent" ? "2px 7px" : undefined,
-                borderRadius: l.bg !== "transparent" ? (l.pill ? 999 : 4) : undefined,
-              }}>Aa</span>
-              <span style={{ position: "absolute", bottom: 3, left: 0, right: 0, textAlign: "center", fontFamily: "var(--mono)", fontWeight: 800, fontSize: 8.5, color: "var(--ink-3)" }}>{tc(`titleEffect.${p.id}`)}</span>
-            </button>
-          );
-        })}
-      </div>
-
-      <div style={{ marginTop: 14 }}>
-        <Toggle label={t('dropShadow')} on={look.shadow} onChange={(v) => ctx.updateTitle(tt.id, { shadow: v })} />
-        {look.shadow && (
-          <>
-            <div className="mz-swrow" style={{ marginBottom: 10 }}>
-              {swatchs.map((col) => (
-                <button key={col} className={"mz-sw" + ((tt.shadowColor || "#000000").toUpperCase() === col.toUpperCase() ? " on" : "")} style={{ background: col }} onClick={() => ctx.updateTitle(tt.id, { shadowColor: col })} />
-              ))}
-            </div>
-            <Range label={t('shadowBlur')} value={look.shadowBlur} min={0} max={30} step={0.5} onChange={(v) => ctx.updateTitle(tt.id, { shadowBlur: v })} />
-            <Range label={t('shadowX')} value={look.shadowX} min={-20} max={20} step={0.5} onChange={(v) => ctx.updateTitle(tt.id, { shadowX: v })} />
-            <Range label={t('shadowY')} value={look.shadowY} min={-20} max={20} step={0.5} onChange={(v) => ctx.updateTitle(tt.id, { shadowY: v })} />
-            <Range label={t('shadowStrength')} value={tt.shadowOpacity ?? 0.5} min={0} max={1} step={0.02} onChange={(v) => ctx.updateTitle(tt.id, { shadowOpacity: v })} fmtv={(v) => Math.round(v * 100) + "%"} />
-          </>
-        )}
-      </div>
-
-      <div style={{ marginTop: 10 }}>
-        <span className="mz-sec-label">{t('outline')}</span>
-        <Range label={t('outlineWidth')} value={look.strokeW} min={0} max={8} step={0.25}
-          onChange={(v) => ctx.updateTitle(tt.id, { strokeW: v, stroke: tt.stroke || "#000000" })}
-          fmtv={(v) => v <= 0 ? t('none') : v.toFixed(2)} />
-        {look.strokeW > 0 && (
-          <div className="mz-swrow">
-            {swatchs.map((col) => (
-              <button key={col} className={"mz-sw" + ((tt.stroke || "#000000").toUpperCase() === col.toUpperCase() ? " on" : "")} style={{ background: col }} onClick={() => ctx.updateTitle(tt.id, { stroke: col })} />
-            ))}
-          </div>
-        )}
-      </div>
-
-      <div style={{ marginTop: 10 }}>
-        <span className="mz-sec-label">{t('textBackground')}</span>
-        <div className="mz-swrow" style={{ marginBottom: 8 }}>
-          <button className={"mz-sw" + (look.bg === "transparent" ? " on" : "")} title={t('none')}
-            style={{ background: "repeating-conic-gradient(#bbb 0% 25%, #fff 0% 50%) 50%/8px 8px" }}
-            onClick={() => ctx.updateTitle(tt.id, { bg: "transparent" })} />
-          {swatchs.map((col) => (
-            <button key={col} className={"mz-sw" + (look.bg.toUpperCase() === col.toUpperCase() ? " on" : "")} style={{ background: col }} onClick={() => ctx.updateTitle(tt.id, { bg: col })} />
-          ))}
-        </div>
-        {look.bg !== "transparent" && (
-          <>
-            <Toggle label={t('pillShape')} on={look.pill} onChange={(v) => ctx.updateTitle(tt.id, { pill: v })} />
-            <Range label={t('opacity')} value={look.bgOpacity} min={0} max={1} step={0.02} onChange={(v) => ctx.updateTitle(tt.id, { bgOpacity: v })} fmtv={(v) => Math.round(v * 100) + "%"} />
-            <Range label={t('padding')} value={look.padX} min={0} max={60} step={1} onChange={(v) => ctx.updateTitle(tt.id, { padX: v, padY: Math.round(v * 0.5) })} />
-            {!look.pill && <Range label={t('roundedCorners')} value={look.radius} min={0} max={40} step={1} onChange={(v) => ctx.updateTitle(tt.id, { radius: v })} />}
-          </>
-        )}
-      </div>
-
-      <Range label={t('opacity')} value={look.opacity} min={0.05} max={1} step={0.02}
-        onChange={(v) => ctx.updateTitle(tt.id, { opacity: v })} fmtv={(v) => Math.round(v * 100) + "%"} />
-    </div>
   );
 }
 
@@ -513,7 +542,7 @@ export function TextPanel({ ctx, selectedTitleId }: { ctx: MontageCtx; selectedT
             <span className="mz-sec-label">{t('text')}</span>
             <textarea className="input" value={tt.text} onChange={(e) => ctx.updateTitle(tt.id, { text: e.target.value })} rows={2} style={{ width: "100%", resize: "vertical" }} />
           </div>
-          <TitleFontPicker ctx={ctx} tt={tt} />
+          <TitleStylePanel ctx={ctx} tt={tt} />
           <div className="a-section">
             <span className="mz-sec-label">{t('entryAnimation')}</span>
             <div className="mz-seg">
@@ -522,17 +551,7 @@ export function TextPanel({ ctx, selectedTitleId }: { ctx: MontageCtx; selectedT
               ))}
             </div>
           </div>
-          <TitleColors ctx={ctx} tt={tt} />
-          <TitleEffects ctx={ctx} tt={tt} />
-          {/* Largeur de la boîte : c'est elle qui décide où le texte revient à
-              la ligne. Elle était figée à 80 % du cadre, sans moyen de l'élargir. */}
-          <div className="a-section">
-            <span className="mz-sec-label">{t('textBox')}</span>
-            <Range label={t('textWidth')} value={tt.maxWidth ?? TITLE_DEFAULT_MAX_WIDTH} min={20} max={100} step={1} unit=" %"
-              onChange={(v) => ctx.updateTitle(tt.id, { maxWidth: v })} />
-            <Range label={t('size')} value={tt.scale ?? 1} min={0.3} max={3} step={0.05}
-              onChange={(v) => ctx.updateTitle(tt.id, { scale: v })} fmtv={(v) => Math.round(v * 100) + "%"} />
-          </div>
+
           <div className="a-section">
             <span className="mz-sec-label">{t('timing')}</span>
             <Range label={t('start')} value={tt.start} min={0} max={Math.max(0.5, ctx.total - 0.5)} step={0.1} unit="s" onChange={(v) => ctx.updateTitle(tt.id, { start: Math.min(v, tt.end - 0.2) })} />

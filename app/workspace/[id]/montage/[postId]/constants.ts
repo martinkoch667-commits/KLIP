@@ -256,6 +256,11 @@ export interface TitleEl {
   /** Contour des lettres. */
   stroke?: string;
   strokeW?: number;
+  /** Lueur autour des lettres. Séparée de l'ombre : on veut souvent les deux,
+   *  et les confondre obligerait à choisir. */
+  glow?: boolean;
+  glowColor?: string;
+  glowBlur?: number;
   /** Ombre portée du texte. */
   shadow?: boolean;
   shadowColor?: string;
@@ -290,6 +295,7 @@ export interface TitleLook {
   bg: string; bgOpacity: number; padX: number; padY: number; radius: number; pill: boolean;
   stroke: string; strokeW: number;
   shadow: boolean; shadowRgba: string; shadowBlur: number; shadowX: number; shadowY: number;
+  glow: boolean; glowColor: string; glowBlur: number;
 }
 
 export function titleLook(tt: TitleEl): TitleLook {
@@ -313,6 +319,9 @@ export function titleLook(tt: TitleEl): TitleLook {
     shadowBlur: tt.shadowBlur ?? 8,
     shadowX: tt.shadowX ?? 0,
     shadowY: tt.shadowY ?? 1,
+    glow: !!tt.glow,
+    glowColor: tt.glowColor || "#2FD79B",
+    glowBlur: tt.glowBlur ?? 14,
   };
 }
 
@@ -335,19 +344,33 @@ export function titleItalic(tt: TitleEl): boolean {
  *  `unit` : taille d'un point de dessin à l'écran (échelle de l'aperçu). */
 export function titleShadowCss(tt: TitleEl, unit: number): string | undefined {
   const l = titleLook(tt);
-  if (!l.shadow) return undefined;
-  return `${(l.shadowX * unit).toFixed(2)}px ${(l.shadowY * unit).toFixed(2)}px ${(l.shadowBlur * unit).toFixed(2)}px ${l.shadowRgba}`;
+  const couches: string[] = [];
+  // La lueur d'abord : elle se pose autour des lettres, l'ombre est portée
+  // derrière. Même ordre au rendu canvas.
+  if (l.glow) {
+    const b = (l.glowBlur * unit).toFixed(2);
+    // Deux passes : une seule donne un halo trop timide pour se lire comme une
+    // lueur, exactement comme pour les sous-titres.
+    couches.push(`0 0 ${b}px ${l.glowColor}`, `0 0 ${b}px ${l.glowColor}`);
+  }
+  if (l.shadow) {
+    couches.push(`${(l.shadowX * unit).toFixed(2)}px ${(l.shadowY * unit).toFixed(2)}px ${(l.shadowBlur * unit).toFixed(2)}px ${l.shadowRgba}`);
+  }
+  return couches.length ? couches.join(", ") : undefined;
 }
 
 /** Habillages prêts à l'emploi, façon Canva : on choisit en voyant. */
 export const TITLE_EFFECT_PRESETS: { id: string; patch: Partial<TitleEl> }[] = [
-  { id: "none",    patch: { shadow: false, stroke: "", strokeW: 0, bg: "transparent", pill: false } },
-  { id: "soft",    patch: { shadow: true, shadowColor: "#000000", shadowBlur: 8, shadowX: 0, shadowY: 1, shadowOpacity: 0.5, stroke: "", strokeW: 0, bg: "transparent", pill: false } },
-  { id: "drop",    patch: { shadow: true, shadowColor: "#000000", shadowBlur: 2, shadowX: 3, shadowY: 4, shadowOpacity: 0.75, stroke: "", strokeW: 0, bg: "transparent", pill: false } },
-  { id: "outline", patch: { shadow: false, stroke: "#000000", strokeW: 2.5, bg: "transparent", pill: false } },
-  { id: "neon",    patch: { shadow: true, shadowColor: "#2FD79B", shadowBlur: 16, shadowX: 0, shadowY: 0, shadowOpacity: 0.95, stroke: "", strokeW: 0, bg: "transparent", pill: false } },
-  { id: "block",   patch: { shadow: false, stroke: "", strokeW: 0, bg: "#14160F", bgOpacity: 0.85, pill: false, radius: 6 } },
-  { id: "pill",    patch: { shadow: false, stroke: "", strokeW: 0, bg: "#FFFFFF", bgOpacity: 1, pill: true } },
+  { id: "none",    patch: { glow: false, shadow: false, stroke: "", strokeW: 0, bg: "transparent", pill: false } },
+  { id: "soft",    patch: { glow: false, shadow: true, shadowColor: "#000000", shadowBlur: 8, shadowX: 0, shadowY: 1, shadowOpacity: 0.5, stroke: "", strokeW: 0, bg: "transparent", pill: false } },
+  { id: "drop",    patch: { glow: false, shadow: true, shadowColor: "#000000", shadowBlur: 2, shadowX: 3, shadowY: 4, shadowOpacity: 0.75, stroke: "", strokeW: 0, bg: "transparent", pill: false } },
+  { id: "outline", patch: { glow: false, shadow: false, stroke: "#000000", strokeW: 2.5, bg: "transparent", pill: false } },
+  { id: "neon",    patch: { shadow: false, glow: true, glowColor: "#2FD79B", glowBlur: 14, stroke: "", strokeW: 0, bg: "transparent", pill: false } },
+  /* Les habillages à fond posent AUSSI la couleur du texte. Sans elle, un titre
+     blanc gardait sa couleur sur un fond blanc : le préréglage effaçait le texte
+     au lieu de l'habiller. */
+  { id: "block",   patch: { shadow: false, glow: false, stroke: "", strokeW: 0, bg: "#14160F", bgOpacity: 0.85, pill: false, radius: 6, color: "#FFFFFF" } },
+  { id: "pill",    patch: { shadow: false, glow: false, stroke: "", strokeW: 0, bg: "#FFFFFF", bgOpacity: 1, pill: true, color: "#14160F" } },
 ];
 
 /** Police d'un titre en syntaxe canvas. SOURCE UNIQUE : l'export dessine avec,

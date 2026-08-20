@@ -1957,7 +1957,17 @@
     "outlineWidth": "Espessura",
     "textBackground": "Fundo do texto",
     "pillShape": "Pílula",
-    "padding": "Margem interna"
+    "padding": "Margem interna",
+    "style": "Estilo",
+    "align_left": "Alinhar à esquerda",
+    "align_center": "Centrar",
+    "align_right": "Alinhar à direita",
+    "caseLabel": "Maiúsculas",
+    "spacingLabel": "Carácter / largura",
+    "presetStyle": "Estilo predefinido",
+    "fontCatalogue": "Catálogo",
+    "glow": "Brilho",
+    "offset": "Deslocamento"
   },
   "forgotPassword": {
     "title": "Esqueceu a palavra-passe",

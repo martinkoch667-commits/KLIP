@@ -1957,7 +1957,17 @@
     "outlineWidth": "Stärke",
     "textBackground": "Texthintergrund",
     "pillShape": "Pille",
-    "padding": "Innenabstand"
+    "padding": "Innenabstand",
+    "style": "Stil",
+    "align_left": "Linksbündig",
+    "align_center": "Zentriert",
+    "align_right": "Rechtsbündig",
+    "caseLabel": "Schreibung",
+    "spacingLabel": "Zeichen / Breite",
+    "presetStyle": "Vorlagenstil",
+    "fontCatalogue": "Katalog",
+    "glow": "Leuchten",
+    "offset": "Versatz"
   },
   "forgotPassword": {
     "title": "Passwort vergessen",

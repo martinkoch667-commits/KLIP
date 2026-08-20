@@ -1957,7 +1957,17 @@
     "outlineWidth": "Épaisseur",
     "textBackground": "Fond du texte",
     "pillShape": "Pilule",
-    "padding": "Marge intérieure"
+    "padding": "Marge intérieure",
+    "style": "Style",
+    "align_left": "Aligner à gauche",
+    "align_center": "Centrer",
+    "align_right": "Aligner à droite",
+    "caseLabel": "Casse",
+    "spacingLabel": "Caractère / largeur",
+    "presetStyle": "Style de préréglage",
+    "fontCatalogue": "Catalogue",
+    "glow": "Lueur",
+    "offset": "Décalage"
   },
   "forgotPassword": {
     "title": "Mot de passe oublié",
