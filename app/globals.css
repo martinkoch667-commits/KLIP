@@ -1490,7 +1490,14 @@ input.mz-range::-moz-range-thumb { width: 16px; height: 16px; border-radius: 50%
 .mz-substyle-card { border-radius: 12px; overflow: hidden; cursor: pointer; box-shadow: inset 0 0 0 1px var(--line); transition: all .14s var(--ease); background: var(--white); border: none; padding: 0; text-align: left; }
 .mz-substyle-card:hover { box-shadow: inset 0 0 0 1px var(--ink-3); }
 .mz-substyle-card.on { box-shadow: 0 0 0 2px var(--vio); }
-.mz-substyle-prev { height: 56px; display: grid; place-items: center; background: linear-gradient(150deg,#2b8d57,#0c2a1d); position: relative; }
+/* Vignette d'aperçu : elle tient lieu d'image de fond sous le sous-titre, donc
+   elle reste NEUTRE (graphite + un lavis violet, l'accent vidéo). Le dégradé
+   vert d'origine teintait tous les styles et jurait avec le module. */
+.mz-substyle-prev { height: 60px; display: grid; place-items: center; position: relative;
+  background:
+    radial-gradient(140% 120% at 18% -10%, rgba(102,86,217,.30), transparent 60%),
+    linear-gradient(160deg, #34353F 0%, #1C1D23 60%, #101116 100%);
+  box-shadow: inset 0 -1px 0 rgba(255,255,255,.06); }
 .mz-substyle-meta { padding: 8px 10px; }
 .mz-substyle-name { font-weight: 700; font-size: 12.5px; }
 .mz-substyle-sub { font-size: 10.5px; color: var(--ink-3); }

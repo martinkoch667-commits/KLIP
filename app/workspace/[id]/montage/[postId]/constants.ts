@@ -322,7 +322,7 @@ export function titleLook(tt: TitleEl): TitleLook {
     shadowX: tt.shadowX ?? 0,
     shadowY: tt.shadowY ?? 1,
     glow: !!tt.glow,
-    glowColor: tt.glowColor || "#2FD79B",
+    glowColor: tt.glowColor || "#C9C0FF",
     glowBlur: tt.glowBlur ?? 14,
   };
 }
@@ -367,7 +367,7 @@ export const TITLE_EFFECT_PRESETS: { id: string; patch: Partial<TitleEl> }[] = [
   { id: "soft",    patch: { glow: false, shadow: true, shadowColor: "#000000", shadowBlur: 8, shadowX: 0, shadowY: 1, shadowOpacity: 0.5, stroke: "", strokeW: 0, bg: "transparent" } },
   { id: "drop",    patch: { glow: false, shadow: true, shadowColor: "#000000", shadowBlur: 2, shadowX: 3, shadowY: 4, shadowOpacity: 0.75, stroke: "", strokeW: 0, bg: "transparent" } },
   { id: "outline", patch: { glow: false, shadow: false, stroke: "#000000", strokeW: 2.5, bg: "transparent" } },
-  { id: "neon",    patch: { shadow: false, glow: true, glowColor: "#2FD79B", glowBlur: 14, stroke: "", strokeW: 0, bg: "transparent" } },
+  { id: "neon",    patch: { shadow: false, glow: true, glowColor: "#C9C0FF", glowBlur: 14, stroke: "", strokeW: 0, bg: "transparent" } },
   /* Les habillages à fond posent AUSSI la couleur du texte. Sans elle, un titre
      blanc gardait sa couleur sur un fond blanc : le préréglage effaçait le texte
      au lieu de l'habiller. */

@@ -347,7 +347,9 @@ function PiocheCouleur({ value, onChange, onClose }: { value: string; onChange: 
 function Swatches({ ctx, value, onPick }: { ctx: MontageCtx; value: string; onPick: (c: string) => void }) {
   const t = useTranslations('montage');
   const [piocheOuverte, setPiocheOuverte] = useState(false);
-  const generiques = ["#FFFFFF", "#14160F", "#0C2A1D", "#2FD79B", "#BDF2A0", "#7A69E8"];
+  // Génériques du module vidéo : neutres + violet (l'accent du montage) + un
+  // orange chaud. Le vert de la marque n'a rien à faire ici, il appartient à la photo.
+  const generiques = ["#FFFFFF", "#14160F", "#1E1246", "#7A69E8", "#C9C0FF", "#F2A03D"];
   const vus = new Set<string>();
   const liste = [...ctx.brandColors, ...generiques].filter((c) => {
     const k = c.toUpperCase();
@@ -1278,7 +1280,7 @@ export function OverlayPanel({ ctx }: { ctx: MontageCtx }) {
             {o.shadow && (
               <>
                 <div className="mz-swrow" style={{ marginBottom: 12 }}>
-                  {["#000000", "#14160F", "#FFFFFF", "#2FD79B", "#7A69E8", "#F2A03D"].map((col) => (
+                  {["#000000", "#14160F", "#FFFFFF", "#C9C0FF", "#7A69E8", "#F2A03D"].map((col) => (
                     <button key={col} className={"mz-sw" + ((o.shadowColor || "#000000").toUpperCase() === col.toUpperCase() ? " on" : "")} style={{ background: col }} onClick={() => ctx.updateOverlay(o.id, { shadowColor: col })} />
                   ))}
                 </div>
@@ -1295,7 +1297,7 @@ export function OverlayPanel({ ctx }: { ctx: MontageCtx }) {
             <Range label={t('outline')} value={o.outlineW ?? 0} min={0} max={12} step={0.2} onChange={(v) => ctx.updateOverlay(o.id, { outlineW: v })} fmtv={(v) => v <= 0 ? t('none') : v.toFixed(1) + " %"} />
             {(o.outlineW ?? 0) > 0 && (
               <div className="mz-swrow">
-                {["#FFFFFF", "#14160F", "#2FD79B", "#BDF2A0", "#7A69E8", "#F2A03D"].map((col) => (
+                {["#FFFFFF", "#14160F", "#1E1246", "#C9C0FF", "#7A69E8", "#F2A03D"].map((col) => (
                   <button key={col} className={"mz-sw" + ((o.outlineColor || "#FFFFFF").toUpperCase() === col.toUpperCase() ? " on" : "")} style={{ background: col }} onClick={() => ctx.updateOverlay(o.id, { outlineColor: col })} />
                 ))}
               </div>
