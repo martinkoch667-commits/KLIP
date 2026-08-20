@@ -1333,6 +1333,30 @@ input.mz-range::-moz-range-thumb { width: 16px; height: 16px; border-radius: 50%
 
 /* Liste déroulante maison : la native ne se style pas, son menu restait gris
    système au milieu d'une barre violette. */
+/* Pioche de couleur maison.
+
+   Elle passait par `<input type="color">`, donc par le sélecteur du SYSTÈME :
+   une fenêtre grise, aux codes de l'OS, ouverte au milieu d'un panneau sombre.
+   Même reproche que pour la liste de qualité, et même réponse : on la dessine. */
+.mz-pioche { position: absolute; top: calc(100% + 8px); left: 0; z-index: 80; width: 208px;
+  padding: 9px; border-radius: 12px; background: var(--white); border: 1px solid var(--line);
+  box-shadow: 0 16px 44px rgba(13,15,10,.34); }
+.mz-pioche-carre { position: relative; height: 118px; border-radius: 8px; cursor: crosshair;
+  touch-action: none; }
+.mz-pioche-rail { position: relative; height: 12px; margin-top: 9px; border-radius: 99px; cursor: pointer;
+  touch-action: none;
+  background: linear-gradient(to right, #f00, #ff0, #0f0, #0ff, #00f, #f0f, #f00); }
+.mz-pioche-point { position: absolute; width: 13px; height: 13px; border-radius: 50%;
+  border: 2px solid #fff; box-shadow: 0 0 0 1px rgba(0,0,0,.35), 0 1px 4px rgba(0,0,0,.3);
+  transform: translate(-50%, -50%); pointer-events: none; }
+.mz-pioche-bas { display: flex; align-items: center; gap: 8px; margin-top: 9px; }
+.mz-pioche-vu { width: 26px; height: 26px; flex-shrink: 0; border-radius: 7px;
+  box-shadow: inset 0 0 0 1px rgba(0,0,0,.15); }
+.mz-pioche-hex { flex: 1; min-width: 0; padding: 6px 8px; border-radius: 7px; background: var(--sunk);
+  border: 1px solid transparent; font-family: var(--mono); font-weight: 800; font-size: 12px;
+  color: var(--ink); text-transform: uppercase; }
+.mz-pioche-hex:focus { outline: none; border-color: var(--vio); background: var(--white); }
+
 /* Ligne de la bibliothèque de médias : vignette, nom, où le fichier est posé.
    Une liste plutôt qu'une grille : le nom du fichier compte autant que l'image,
    et c'est lui qu'on cherche. */

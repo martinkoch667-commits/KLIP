@@ -511,6 +511,13 @@ export default function MontagePage() {
   const [selectedClipId, setSelectedClipId] = useState<string | null>(null);
   const [selectedTitleId, setSelectedTitleId] = useState<string | null>(null);
   const [editingTitleId, setEditingTitleId] = useState<string | null>(null); // titre édité en inline sur la preview (double-clic)
+  /* Sélection MULTIPLE de textes dans l'aperçu.
+
+     `selectedTitleId` reste le titre « principal » : c'est le sien que montre le
+     panneau, et c'est sur lui qu'agissent les poignées de taille et de rotation,
+     qui n'ont de sens que sur un seul objet. `titresSel` porte le groupe entier,
+     celui qu'on déplace d'un bloc. ⇧ + clic ajoute ou retire du groupe. */
+  const [titresSel, setTitresSel] = useState<Set<string>>(new Set());
   // Menu contextuel (clic droit), adapté au type d'élément visé (façon CapCut).
   const [clipMenu, setClipMenu] = useState<{ x: number; y: number; id: string; kind: "clip" | "overlay" | "audio" | "title" | "caption" } | null>(null);
   const [selectedStickerId, setSelectedStickerId] = useState<string | null>(null);
@@ -805,7 +812,10 @@ export default function MontagePage() {
   const scrubRef = useRef<HTMLDivElement>(null);
   const stageRef = useRef<HTMLDivElement>(null);
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const dragOverlayRef = useRef<{ type: "title" | "sticker" | "caption" | "overlay"; id: string; startX: number; startY: number; offX: number; offY: number; moved: boolean } | null>(null);
+  const dragOverlayRef = useRef<{ type: "title" | "sticker" | "caption" | "overlay"; id: string; startX: number; startY: number; offX: number; offY: number; moved: boolean;
+    /** Groupe déplacé d'un bloc (sélection multiple de textes) et position de
+     *  départ du titre saisi, dont on tire l'écart appliqué à tous. */
+    groupe: { id: string; x: number; y: number }[]; x0: number; y0: number } | null>(null);
   const resizeOverlayRef = useRef<{ type: "title" | "sticker" | "caption" | "overlay"; id: string; startDist: number; startScale: number; cx: number; cy: number } | null>(null);
   const voRecorderRef = useRef<MediaRecorder | null>(null);
   const voChunksRef = useRef<Blob[]>([]);
@@ -3379,7 +3389,21 @@ export default function MontagePage() {
   function onOverlayPointerDown(e: React.PointerEvent, type: "title" | "sticker" | "caption" | "overlay", id: string) {
     e.stopPropagation();
     e.preventDefault(); // empêche le drag natif de l'image/vidéo qui « avale » le relâchement
-    if (type === "title") { setSelectedTitleId(id); setSubSelected(false); setSelectedOverlayId(null); }
+    let groupeIds: string[] = [];
+    if (type === "title") {
+      setSelectedTitleId(id); setSubSelected(false); setSelectedOverlayId(null);
+      // ⇧ + clic : on ajoute ou on retire, sans perdre le reste du groupe.
+      if (e.shiftKey) {
+        const n = new Set(titresSel);
+        if (n.has(id) && n.size > 1) n.delete(id); else n.add(id);
+        n.add(id);
+        groupeIds = Array.from(n);
+        setTitresSel(n);
+      } else {
+        groupeIds = titresSel.has(id) ? Array.from(titresSel) : [id];
+        if (!titresSel.has(id)) setTitresSel(new Set([id]));
+      }
+    }
     else if (type === "sticker") { setSelectedStickerId(id); setSubSelected(false); setSelectedOverlayId(null); }
     else if (type === "overlay") { setSelectedOverlayId(id); setSubSelected(false); setSelectedTitleId(null); setSelectedStickerId(null); setTool("overlay"); }
     else setSubSelected(true);
@@ -3393,7 +3417,14 @@ export default function MontagePage() {
     const r = stageRef.current?.getBoundingClientRect();
     let offX = 0, offY = 0;
     if (cur && r) { offX = cur.x - ((e.clientX - r.left) / r.width) * 100; offY = cur.y - ((e.clientY - r.top) / r.height) * 100; }
-    dragOverlayRef.current = { type, id, startX: e.clientX, startY: e.clientY, offX, offY, moved: false };
+    /* Positions de départ de TOUT le groupe : on déplacera chacun du même écart,
+       pas vers la même position — sans quoi ils se superposeraient tous sur le
+       point saisi. */
+    const groupe = type === "title" && groupeIds.length > 1
+      ? titles.filter((x) => groupeIds.includes(x.id)).map((x) => ({ id: x.id, x: x.x, y: x.y }))
+      : [];
+    dragOverlayRef.current = { type, id, startX: e.clientX, startY: e.clientY, offX, offY, moved: false,
+      groupe, x0: (cur as { x?: number } | undefined)?.x ?? 0, y0: (cur as { y?: number } | undefined)?.y ?? 0 };
     // capture sur la scène : les pointermove/up reviennent toujours ici, même hors cadre → plus de « suivi fantôme »
     try { stageRef.current?.setPointerCapture(e.pointerId); } catch {}
   }
@@ -3433,7 +3464,15 @@ export default function MontagePage() {
     if (!r) return;
     const x = Math.max(0, Math.min(100, ((e.clientX - r.left) / r.width) * 100 + drag.offX));
     const y = Math.max(0, Math.min(100, ((e.clientY - r.top) / r.height) * 100 + drag.offY));
-    if (drag.type === "title") updateTitle(drag.id, { x, y });
+    if (drag.type === "title" && drag.groupe.length > 1) {
+      // Déplacement d'un bloc : le même écart pour tous.
+      const dx = x - drag.x0, dy = y - drag.y0;
+      setTitles((prev) => prev.map((ti) => {
+        const dep = drag.groupe.find((g) => g.id === ti.id);
+        return dep ? { ...ti, x: Math.max(0, Math.min(100, dep.x + dx)), y: Math.max(0, Math.min(100, dep.y + dy)) } : ti;
+      }));
+    }
+    else if (drag.type === "title") updateTitle(drag.id, { x, y });
     else if (drag.type === "sticker") updateSticker(drag.id, { x, y });
     else if (drag.type === "overlay") updateOverlay(drag.id, { x, y });
     else if (perCap && editingCaption) updateCaption(editingCaption.id, { x, y }); // sous-titre délié : position propre
@@ -3561,6 +3600,7 @@ export default function MontagePage() {
     }
     if (selectedAudioId) { removeAudioTrack(selectedAudioId); setSelectedAudioId(null); return; }
     if (selectedOverlayId) { removeOverlay(selectedOverlayId); return; }
+    if (titresSel.size > 1) { const ids = titresSel; setTitles((prev) => prev.filter((x) => !ids.has(x.id))); setTitresSel(new Set()); setSelectedTitleId(null); return; }
     if (selectedTitleId) { removeTitle(selectedTitleId); return; }
     if (selectedCaptionId) { removeCaption(selectedCaptionId); return; }
     if (selectedStickerId) { removeSticker(selectedStickerId); return; }
@@ -3569,7 +3609,7 @@ export default function MontagePage() {
   // Tout désélectionner (clic dans le vide).
   function deselectAll() {
     setSelectedClipId(null); setSelectedOverlayId(null); setSelectedAudioId(null);
-    setSelectedTitleId(null); setSelectedStickerId(null); setSubSelected(false);
+    setSelectedTitleId(null); setTitresSel(new Set()); setSelectedStickerId(null); setSubSelected(false);
     setSelectedCaptionId(null); setEditingCaptionId(null);
     setAudioOnlyId(null); if (multiSel.size) setMultiSel(new Set());
   }
@@ -4749,7 +4789,7 @@ export default function MontagePage() {
                   return (
                   <div
                     key={ti.id}
-                    className={"mz-ov-item" + (selectedTitleId === ti.id ? " sel" : "")}
+                    className={"mz-ov-item" + (selectedTitleId === ti.id || titresSel.has(ti.id) ? " sel" : "")}
                     style={{
                       left: ti.x + "%", top: ti.y + "%",
                       fontFamily: ti.fontFamily ? `'${ti.fontFamily}', system-ui, sans-serif` : (FONT_CSS[ti.font] || FONT_CSS.archivo),
