@@ -716,7 +716,11 @@ export default function MontagePage() {
   const voChunksRef = useRef<Blob[]>([]);
   const rulerRef = useRef<HTMLDivElement>(null);
   const scrubbingRulerRef = useRef(false);
-  const trimRef = useRef<{ id: string; edge: "start" | "end"; startX: number; t0start: number; t0end: number; kind: "video" | "photo"; srcDur: number; speed: number; t0gap: number } | null>(null);
+  const trimRef = useRef<{ id: string; edge: "start" | "end"; startX: number; t0start: number; t0end: number;
+    kind: "video" | "photo"; srcDur: number; speed: number; t0gap: number;
+    /** Position du plan SUR LA TIMELINE au début du geste : c'est là que
+     *  raisonne l'aimantation, pas dans le référentiel de la source. */
+    t0tlStart: number; t0tlEnd: number } | null>(null);
   const ovTrimRef = useRef<{ id: string; edge: "start" | "end"; startX: number; t0start: number; t0end: number; t0offset: number; srcDur: number; kind: "video" | "photo" } | null>(null);
   const clipboardRef = useRef<{ type: "clip"; data: MontageClip } | { type: "overlay"; data: OverlayClip } | null>(null);
   // Glisser-déposer libre façon CapCut : on attrape le corps d'un plan / d'une
@@ -2754,7 +2758,25 @@ export default function MontagePage() {
       }
     }
     d.moved = true;
-    const ns = Math.max(0, snapTime(d.t0start + (e.clientX - d.startX) / pps));
+    /* Changement de rangée EN DIRECT.
+
+       La rangée visée n'était calculée qu'au relâchement : en glissant vers le
+       haut, rien ne bougeait, on ne savait pas où l'on allait atterrir, et le
+       geste passait pour inopérant. Le texte saute donc tout de suite dans la
+       rangée survolée, exactement comme un plan. Pour la création d'une NOUVELLE
+       rangée, on se contente d'allumer le repère : la créer en pleine main
+       décalerait toute la timeline sous le curseur. */
+    const cible = pisteTexteCible(e.clientX, e.clientY, textTrackCount);
+    if (cible !== null && cible < textTrackCount) {
+      if (dropLane) setDropLane(null);
+      const actuelle = titles.find((x) => x.id === d.id)?.track ?? 0;
+      if (cible !== actuelle) updateTitle(d.id, { track: cible });
+    } else if (cible !== null) {
+      if (dropLane !== "newtext") setDropLane("newtext");
+    } else if (dropLane) {
+      setDropLane(null);
+    }
+    const ns = Math.max(0, snapTime(d.t0start + (e.clientX - d.startX) / pps, { ignorer: d.id }));
     updateTitle(d.id, { start: ns, end: ns + d.dur });
   }
   function onTitleBarUp(e: React.PointerEvent) {
@@ -2765,7 +2787,9 @@ export default function MontagePage() {
       if (time < d.t0start || time > d.t0start + d.dur) seek(d.t0start + 0.05); // clic simple → recadre le curseur
       return;
     }
-    const cible = pisteTexteCible(e.clientX, e.clientY, textTrackCount);
+    const nouvelle = dropLane === "newtext";
+    setDropLane(null);
+    const cible = nouvelle ? textTrackCount : pisteTexteCible(e.clientX, e.clientY, textTrackCount);
     setTitles((prev) => {
       const moi = prev.find((x) => x.id === d.id);
       if (!moi) return prev;
@@ -2790,8 +2814,8 @@ export default function MontagePage() {
   function onTitleTrimMove(e: React.PointerEvent) {
     const d = titleTrimRef.current; if (!d) return;
     const delta = (e.clientX - d.startX) / pps;
-    if (d.edge === "start") updateTitle(d.id, { start: Math.max(0, Math.min(d.t0end - 0.3, snapTime(d.t0start + delta))) });
-    else updateTitle(d.id, { end: Math.max(d.t0start + 0.3, snapTime(d.t0end + delta)) });
+    if (d.edge === "start") updateTitle(d.id, { start: Math.max(0, Math.min(d.t0end - 0.3, snapTime(d.t0start + delta, { ignorer: d.id }))) });
+    else updateTitle(d.id, { end: Math.max(d.t0start + 0.3, snapTime(d.t0end + delta, { ignorer: d.id })) });
   }
   function endTitleTrim(e: React.PointerEvent) {
     if (titleTrimRef.current) { try { (e.target as HTMLElement).releasePointerCapture(e.pointerId); } catch {} titleTrimRef.current = null; }
@@ -2823,7 +2847,7 @@ export default function MontagePage() {
       }
     }
     d.moved = true;
-    const ns = Math.max(0, snapTime(d.t0start + (e.clientX - d.startX) / pps));
+    const ns = Math.max(0, snapTime(d.t0start + (e.clientX - d.startX) / pps, { ignorer: d.id }));
     updateCaption(d.id, { start: ns, end: ns + d.dur });
   }
   function onCaptionBarUp(e: React.PointerEvent) {
@@ -2854,8 +2878,8 @@ export default function MontagePage() {
   function onCaptionTrimMove(e: React.PointerEvent) {
     const d = capTrimRef.current; if (!d) return;
     const delta = (e.clientX - d.startX) / pps;
-    if (d.edge === "start") updateCaption(d.id, { start: Math.max(0, Math.min(d.t0end - 0.2, snapTime(d.t0start + delta))) });
-    else updateCaption(d.id, { end: Math.max(d.t0start + 0.2, snapTime(d.t0end + delta)) });
+    if (d.edge === "start") updateCaption(d.id, { start: Math.max(0, Math.min(d.t0end - 0.2, snapTime(d.t0start + delta, { ignorer: d.id }))) });
+    else updateCaption(d.id, { end: Math.max(d.t0start + 0.2, snapTime(d.t0end + delta, { ignorer: d.id })) });
   }
   function endCaptionTrim(e: React.PointerEvent) {
     if (capTrimRef.current) { try { (e.target as HTMLElement).releasePointerCapture(e.pointerId); } catch {} capTrimRef.current = null; }
@@ -2904,7 +2928,19 @@ export default function MontagePage() {
       }
     }
     d.moved = true;
-    const off = Math.max(0, snapTime(d.t0 + (e.clientX - d.startX) / pps));
+    // Changement de piste en direct, comme pour un plan ou un texte : sans retour
+    // visuel pendant le geste, on ne sait pas où l'on va atterrir.
+    const cible = pisteAudioCible(e.clientX, e.clientY, audioTrackCount);
+    if (cible !== null && cible < audioTrackCount) {
+      if (dropLane) setDropLane(null);
+      const actuelle = audioTracksRef.current.find((a) => a.id === d.id)?.track ?? 0;
+      if (cible !== actuelle) setAudioTracks((prev) => prev.map((a) => (a.id === d.id ? { ...a, track: cible } : a)));
+    } else if (cible !== null) {
+      if (dropLane !== "newaudio") setDropLane("newaudio");
+    } else if (dropLane) {
+      setDropLane(null);
+    }
+    const off = Math.max(0, snapTime(d.t0 + (e.clientX - d.startX) / pps, { ignorer: d.id }));
     setAudioTracks((prev) => prev.map((a) => (a.id === d.id ? { ...a, offset: off } : a)));
   }
   function onAudioBarUp(e: React.PointerEvent) {
@@ -2912,7 +2948,9 @@ export default function MontagePage() {
     if (!d) return;
     try { (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId); } catch {}
     if (!d.moved) return;
-    const cible = pisteAudioCible(e.clientX, e.clientY, audioTrackCount);
+    const nouvelle = dropLane === "newaudio";
+    setDropLane(null);
+    const cible = nouvelle ? audioTrackCount : pisteAudioCible(e.clientX, e.clientY, audioTrackCount);
     setAudioTracks((prev) => {
       const moi = prev.find((x) => x.id === d.id);
       if (!moi) return prev;
@@ -2952,12 +2990,12 @@ export default function MontagePage() {
         const min = -d.srcOffset;
         const max = d.dur - 0.2;
         // Aimantation du bord, comme pour les plans et les textes.
-        const vise = snapTime(d.offset + dt) - d.offset;
+        const vise = snapTime(d.offset + dt, { ignorer: d.id }) - d.offset;
         const delta = Math.max(min, Math.min(max, vise));
         return { ...a, offset: Math.max(0, d.offset + delta), srcOffset: d.srcOffset + delta, dur: d.dur - delta };
       }
       const restant = d.srcDur - d.srcOffset;   // ce qu'il reste de source après le point d'entrée
-      const fin = snapTime(d.offset + d.dur + dt);
+      const fin = snapTime(d.offset + d.dur + dt, { ignorer: d.id });
       return { ...a, dur: Math.max(0.2, Math.min(restant, fin - d.offset)) };
     }));
   }
@@ -3497,17 +3535,29 @@ export default function MontagePage() {
     setSelectedClipId(c.id);
     if (lockedLanes.has("video")) return; // piste verrouillée
     (e.target as HTMLElement).setPointerCapture(e.pointerId);
-    trimRef.current = { id: c.id, edge, startX: e.clientX, t0start: c.trimStart, t0end: c.trimEnd, kind: c.kind, srcDur: c.srcDur, speed: c.speed, t0gap: Math.max(0, c.gapBefore ?? 0) };
+    trimRef.current = { id: c.id, edge, startX: e.clientX, t0start: c.trimStart, t0end: c.trimEnd, kind: c.kind, srcDur: c.srcDur, speed: c.speed, t0gap: Math.max(0, c.gapBefore ?? 0), t0tlStart: c.start, t0tlEnd: c.end };
   }
   function onTrimMove(e: React.PointerEvent) {
     const d = trimRef.current;
     if (!d) return;
-    const deltaSrc = ((e.clientX - d.startX) / pps) * (d.kind === "video" ? d.speed : 1);
+    const vitesse = d.kind === "video" ? d.speed : 1;
+    /* Aimantation du bord rogné.
+
+       Elle raisonne sur la TIMELINE, pas dans le référentiel de la source : c'est
+       là que se trouvent les repères qu'on vise (la fin d'une musique, le début
+       d'un titre). On aimante donc la position d'arrivée du bord sur la timeline,
+       puis on reconvertit en secondes de source, la vitesse du plan comprise.
+       Le rognage d'un plan ne s'aimante pas aux autres plans : la piste est
+       enchaînée, ils se décalent tous ensemble et leurs bords ne sont pas des
+       repères. */
+    const deltaTl = (e.clientX - d.startX) / pps;
+    const bordVise = d.edge === "start" ? d.t0tlStart + deltaTl : d.t0tlEnd + deltaTl;
+    const deltaSrc = (snapTime(bordVise, { ignorerPlans: true }) - (d.edge === "start" ? d.t0tlStart : d.t0tlEnd)) * vitesse;
     if (d.edge === "start") {
       // Rogner/étirer le DÉBUT : le bord gauche bouge et le bord droit reste en place
       // (on décale gapBefore en conséquence) — comme les incrustations et CapCut.
       const ns = Math.max(0, Math.min(d.t0end - 0.3, d.t0start + deltaSrc));
-      const dtl = (ns - d.t0start) / (d.kind === "video" ? d.speed : 1);
+      const dtl = (ns - d.t0start) / vitesse;
       updateClip(d.id, { trimStart: ns, gapBefore: Math.max(0, d.t0gap + dtl) });
     } else {
       // Plafond = longueur réelle de la source (vidéo) — on ne peut jamais étirer un plan
@@ -3565,17 +3615,32 @@ export default function MontagePage() {
      Elle ne visait que le curseur, les bornes du projet et les bords des PLANS.
      On ne pouvait donc pas caler un texte sur la fin d'une musique, ni deux
      titres l'un sur l'autre : les repères les plus utiles manquaient. Tous les
-     bords comptent maintenant, quel que soit le type d'objet. */
-  function snapTime(t: number): number {
-    const targets = [
-      0, total, time,
-      ...clipStarts.flatMap((c) => [c.start, c.end]),
-      ...overlays.flatMap((o) => [o.offset, o.offset + overlayTimelineDur(o)]),
-      ...audioTracks.flatMap((a) => [a.offset, a.offset + a.dur]),
-      ...titles.flatMap((ti) => [ti.start, ti.end]),
-      ...captions.flatMap((c) => [c.start, c.end]),
-      ...stickers.flatMap((k) => [k.start, k.end]),
-    ];
+     bords comptent maintenant, quel que soit le type d'objet.
+
+     Deux exclusions, sans lesquelles l'aimantation se retourne contre l'objet
+     qu'on déplace :
+
+     `ignorer` retire les bords de l'objet lui-même. Ils font partie des cibles
+     et suivent le geste : à chaque image, le bord se retrouvait à moins de huit
+     pixels de sa propre position d'avant, donc il s'y recollait. Il fallait un
+     coup sec de plus de huit pixels pour le décoller, ce qui donnait cette
+     impression d'objet « bridé », impossible à poser où l'on veut.
+
+     `ignorerPlans` retire les bords des plans quand c'est justement un plan
+     qu'on rogne. La piste principale est enchaînée : rogner un plan décale tous
+     les suivants, leurs bords bougent en même temps, et s'y aimanter n'a aucun
+     sens. Les autres pistes, elles, restent des repères utiles. */
+  function snapTime(t: number, opts?: { ignorer?: string; ignorerPlans?: boolean }): number {
+    const hors = opts?.ignorer;
+    const targets: number[] = [0, total, time];
+    if (!opts?.ignorerPlans) {
+      for (const c of clipStarts) if (c.id !== hors) targets.push(c.start, c.end);
+    }
+    for (const o of overlays) if (o.id !== hors) targets.push(o.offset, o.offset + overlayTimelineDur(o));
+    for (const a of audioTracks) if (a.id !== hors) targets.push(a.offset, a.offset + a.dur);
+    for (const ti of titles) if (ti.id !== hors) targets.push(ti.start, ti.end);
+    for (const c of captions) if (c.id !== hors) targets.push(c.start, c.end);
+    for (const k of stickers) if (k.id !== hors) targets.push(k.start, k.end);
     const thresh = 8 / pps;
     let best = t, bestD = thresh;
     for (const tg of targets) { const d = Math.abs(tg - t); if (d < bestD) { bestD = d; best = tg; } }
@@ -3792,7 +3857,11 @@ export default function MontagePage() {
   function onOvTrimMove(e: React.PointerEvent) {
     const d = ovTrimRef.current;
     if (!d) return;
-    const delta = (e.clientX - d.startX) / pps;
+    // Aimantation, en excluant l'incrustation elle-même : ses propres bords
+    // suivent le geste et la recolleraient à sa position d'avant.
+    const brut = (e.clientX - d.startX) / pps;
+    const bord = d.edge === "end" ? d.t0offset + (d.t0end - d.t0start) : d.t0offset;
+    const delta = snapTime(bord + brut, { ignorer: d.id }) - bord;
     if (d.edge === "end") {
       // Plafond = longueur réelle de la source (jamais au-delà du métrage). Garde-fou
       // anti-Infinity/NaN pour ne pas pouvoir étirer une incrustation vidéo à l'infini.
@@ -4825,7 +4894,7 @@ export default function MontagePage() {
               // survol ni au dépôt, donc un fichier son lâché sur une piste précise
               // ne savait pas sur laquelle il tombait.
               return (
-              <div className="a-lane" style={{ height: laneH(`a${atrack}`), order: 6 }} data-tllane={`a${atrack}`} key={"atrack-" + atrack}>
+              <div className={"a-lane" + (aIdx === audioTrackCount - 1 && dropLane === "newaudio" ? " nt-hint" : "")} style={{ height: laneH(`a${atrack}`), order: 6 }} data-tllane={`a${atrack}`} key={"atrack-" + atrack}>
                 <LaneResize laneKey={`a${atrack}`} />
                 <div className="a-lane-label" style={{ display: "flex", alignItems: "center", gap: 4 }}>
                   <VIcon name="music" size={13} />
@@ -4890,15 +4959,22 @@ export default function MontagePage() {
                 ))}
               </div>
             </div>
-            {Array.from({ length: textTrackCount }).map((_, ttrack) => (
-            <div className="a-lane" style={{ height: laneH(`t${ttrack}`), order: 2 }} data-tllane={`t${ttrack}`} key={"ttrack-" + ttrack}>
+            {Array.from({ length: textTrackCount }).map((_, idx) => {
+            // Comme pour la vidéo : la rangée la plus HAUTE se dessine en premier,
+            // donc en haut de la timeline. Rendues dans l'ordre des indices, une
+            // nouvelle rangée apparaissait en bas alors qu'on l'avait demandée
+            // en glissant vers le haut.
+            const ttrack = textTrackCount - 1 - idx;
+            const isTopT = idx === 0;
+            return (
+            <div className={"a-lane" + (isTopT && dropLane === "newtext" ? " nt-hint" : "")} style={{ height: laneH(`t${ttrack}`), order: 2 }} data-tllane={`t${ttrack}`} key={"ttrack-" + ttrack}>
               <LaneResize laneKey={`t${ttrack}`} />
               <div className="a-lane-label" style={{ display: "flex", alignItems: "center", gap: 4 }}>
                 <VIcon name="text" size={13} />
                 <span className="trunc">{textTrackCount > 1 ? `${t('railText')} ${ttrack + 1}` : t('railText')}</span>
                 <LaneControls laneKey={`t${ttrack}`} audio />
                 <LaneDelete genre="t" index={ttrack} />
-                {ttrack === 0 && (
+                {isTopT && (
                   <button onClick={() => setExtraTextTracks((n) => n + 1)} title={t('addTextTrack')}
                     style={{ width: 18, height: 18, borderRadius: 5, border: "1px solid var(--line)", background: "var(--canvas)", color: "var(--ink-2)", fontSize: 14, lineHeight: "14px", cursor: "pointer", flexShrink: 0, padding: 0 }}>+</button>
                 )}
@@ -4918,7 +4994,8 @@ export default function MontagePage() {
                 ))}
               </div>
             </div>
-            ))}
+            );
+            })}
             {/* Position posée par `poserCurseur` (écriture DOM directe) : pendant la
                 lecture React ne touche plus à ce style, sinon chaque rendu le
                 ramènerait à la valeur du dernier rendu et le curseur sauterait
