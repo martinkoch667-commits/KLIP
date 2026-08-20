@@ -1932,7 +1932,10 @@
     "roundedCorners": "Cantos arredondados",
     "textBox": "Caixa de texto",
     "textWidth": "Largura",
-    "addTextTrack": "Adicionar uma linha de texto"
+    "addTextTrack": "Adicionar uma linha de texto",
+    "removeLane": "Remover esta linha",
+    "removeLaneBlocked": "Esvazie esta linha antes de a remover",
+    "toastLaneNotEmpty": "Esta linha ainda contém elementos: esvazie-a antes de a remover."
   },
   "forgotPassword": {
     "title": "Esqueceu a palavra-passe",

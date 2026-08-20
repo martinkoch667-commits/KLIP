@@ -1932,7 +1932,10 @@
     "roundedCorners": "Coins arrondis",
     "textBox": "Boîte de texte",
     "textWidth": "Largeur",
-    "addTextTrack": "Ajouter une rangée de texte"
+    "addTextTrack": "Ajouter une rangée de texte",
+    "removeLane": "Supprimer cette rangée",
+    "removeLaneBlocked": "Videz d'abord cette rangée pour pouvoir la supprimer",
+    "toastLaneNotEmpty": "Cette rangée contient encore des éléments : videz-la avant de la supprimer."
   },
   "forgotPassword": {
     "title": "Mot de passe oublié",

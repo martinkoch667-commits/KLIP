@@ -1932,7 +1932,10 @@
     "roundedCorners": "Angoli arrotondati",
     "textBox": "Riquadro di testo",
     "textWidth": "Larghezza",
-    "addTextTrack": "Aggiungi una riga di testo"
+    "addTextTrack": "Aggiungi una riga di testo",
+    "removeLane": "Elimina questa riga",
+    "removeLaneBlocked": "Svuota questa riga prima di eliminarla",
+    "toastLaneNotEmpty": "Questa riga contiene ancora elementi: svuotala prima di eliminarla."
   },
   "forgotPassword": {
     "title": "Password dimenticata",

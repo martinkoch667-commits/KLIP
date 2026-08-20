@@ -1932,7 +1932,10 @@
     "roundedCorners": "Esquinas redondeadas",
     "textBox": "Cuadro de texto",
     "textWidth": "Anchura",
-    "addTextTrack": "Añadir una fila de texto"
+    "addTextTrack": "Añadir una fila de texto",
+    "removeLane": "Eliminar esta fila",
+    "removeLaneBlocked": "Vacía esta fila antes de eliminarla",
+    "toastLaneNotEmpty": "Esta fila todavía contiene elementos: vacíala antes de eliminarla."
   },
   "forgotPassword": {
     "title": "Contraseña olvidada",

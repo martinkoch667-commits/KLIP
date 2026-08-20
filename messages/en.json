@@ -1932,7 +1932,10 @@
     "roundedCorners": "Rounded corners",
     "textBox": "Text box",
     "textWidth": "Width",
-    "addTextTrack": "Add a text row"
+    "addTextTrack": "Add a text row",
+    "removeLane": "Remove this row",
+    "removeLaneBlocked": "Empty this row before removing it",
+    "toastLaneNotEmpty": "This row still holds items: empty it before removing it."
   },
   "forgotPassword": {
     "title": "Forgot password",

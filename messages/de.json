@@ -1932,7 +1932,10 @@
     "roundedCorners": "Abgerundete Ecken",
     "textBox": "Textfeld",
     "textWidth": "Breite",
-    "addTextTrack": "Textzeile hinzufügen"
+    "addTextTrack": "Textzeile hinzufügen",
+    "removeLane": "Diese Zeile entfernen",
+    "removeLaneBlocked": "Leeren Sie diese Zeile, bevor Sie sie entfernen",
+    "toastLaneNotEmpty": "Diese Zeile enthält noch Elemente: leeren Sie sie vor dem Entfernen."
   },
   "forgotPassword": {
     "title": "Passwort vergessen",

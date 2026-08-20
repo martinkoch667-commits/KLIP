@@ -2951,11 +2951,14 @@ export default function MontagePage() {
         // On ne remonte pas avant le début du fichier, ni au delà de sa fin.
         const min = -d.srcOffset;
         const max = d.dur - 0.2;
-        const delta = Math.max(min, Math.min(max, dt));
+        // Aimantation du bord, comme pour les plans et les textes.
+        const vise = snapTime(d.offset + dt) - d.offset;
+        const delta = Math.max(min, Math.min(max, vise));
         return { ...a, offset: Math.max(0, d.offset + delta), srcOffset: d.srcOffset + delta, dur: d.dur - delta };
       }
       const restant = d.srcDur - d.srcOffset;   // ce qu'il reste de source après le point d'entrée
-      return { ...a, dur: Math.max(0.2, Math.min(restant, d.dur + dt)) };
+      const fin = snapTime(d.offset + d.dur + dt);
+      return { ...a, dur: Math.max(0.2, Math.min(restant, fin - d.offset)) };
     }));
   }
   function endAudioTrim(e: React.PointerEvent) {
@@ -3557,12 +3560,71 @@ export default function MontagePage() {
 
   // Aimantation (magnétisme) : cale une valeur temporelle sur le playhead, les bords
   // de plans et les extrémités du projet quand on est à ≤ 8 px.
+  /* Aimantation.
+
+     Elle ne visait que le curseur, les bornes du projet et les bords des PLANS.
+     On ne pouvait donc pas caler un texte sur la fin d'une musique, ni deux
+     titres l'un sur l'autre : les repères les plus utiles manquaient. Tous les
+     bords comptent maintenant, quel que soit le type d'objet. */
   function snapTime(t: number): number {
-    const targets = [0, total, time, ...clipStarts.map((c) => c.start), ...clipStarts.map((c) => c.end)];
+    const targets = [
+      0, total, time,
+      ...clipStarts.flatMap((c) => [c.start, c.end]),
+      ...overlays.flatMap((o) => [o.offset, o.offset + overlayTimelineDur(o)]),
+      ...audioTracks.flatMap((a) => [a.offset, a.offset + a.dur]),
+      ...titles.flatMap((ti) => [ti.start, ti.end]),
+      ...captions.flatMap((c) => [c.start, c.end]),
+      ...stickers.flatMap((k) => [k.start, k.end]),
+    ];
     const thresh = 8 / pps;
     let best = t, bestD = thresh;
     for (const tg of targets) { const d = Math.abs(tg - t); if (d < bestD) { bestD = d; best = tg; } }
     return best;
+  }
+
+  /* Supprimer une rangée ajoutée.
+
+     On n'enlève qu'une rangée VIDE : effacer une piste emporterait son contenu
+     avec elle, et ce n'est jamais ce qu'on veut d'un clic sur une croix. Les
+     rangées au-dessus redescendent d'un cran pour qu'il ne reste pas de trou. */
+  function pisteVide(genre: "v" | "a" | "t", index: number): boolean {
+    if (genre === "v") return !overlays.some((o) => (o.track ?? 0) === index);
+    if (genre === "a") return !audioTracks.some((a) => (a.track ?? 0) === index);
+    return !titles.some((ti) => (ti.track ?? 0) === index);
+  }
+  function supprimerPiste(genre: "v" | "a" | "t", index: number) {
+    if (!pisteVide(genre, index)) { toast(t('toastLaneNotEmpty')); return; }
+    const descendre = <T extends { track?: number }>(x: T): T =>
+      (x.track ?? 0) > index ? { ...x, track: (x.track ?? 0) - 1 } : x;
+    if (genre === "v") { setOverlays((prev) => prev.map(descendre)); setExtraVideoTracks((n) => Math.max(0, n - 1)); }
+    else if (genre === "a") { setAudioTracks((prev) => prev.map(descendre)); setExtraAudioTracks((n) => Math.max(0, n - 1)); }
+    else { setTitles((prev) => prev.map(descendre)); setExtraTextTracks((n) => Math.max(0, n - 1)); }
+    // Les réglages de hauteur/visibilité suivent le décalage : sinon la rangée
+    // qui remonte hériterait des réglages de celle qu'on vient d'enlever.
+    const decalerCles = (set: React.Dispatch<React.SetStateAction<Set<string>>>) =>
+      set((prev) => {
+        const n = new Set<string>();
+        prev.forEach((k) => {
+          const m = new RegExp(`^${genre}(\\d+)$`).exec(k);
+          if (!m) { n.add(k); return; }
+          const i = parseInt(m[1], 10);
+          if (i === index) return;
+          n.add(i > index ? `${genre}${i - 1}` : k);
+        });
+        return n;
+      });
+    decalerCles(setHiddenLanes); decalerCles(setLockedLanes); decalerCles(setMutedLanes);
+  }
+
+  /** Petit bouton « supprimer cette rangée », posé dans l'étiquette de piste. */
+  function LaneDelete({ genre, index }: { genre: "v" | "a" | "t"; index: number }) {
+    const vide = pisteVide(genre, index);
+    return (
+      <button onClick={() => supprimerPiste(genre, index)} title={vide ? t('removeLane') : t('removeLaneBlocked')}
+        style={{ width: 18, height: 18, borderRadius: 5, border: "1px solid var(--line)", background: "var(--canvas)",
+          color: vide ? "var(--ink-2)" : "var(--ink-3)", opacity: vide ? 1 : 0.4, fontSize: 13, lineHeight: "13px",
+          cursor: vide ? "pointer" : "not-allowed", flexShrink: 0, padding: 0 }}>×</button>
+    );
   }
 
   // Déplace une incrustation d'une piste vers le haut/bas (z-order). Bornée aux pistes visibles.
@@ -4690,6 +4752,7 @@ export default function MontagePage() {
                   <VIcon name="video" size={13} />
                   <span className="trunc">{`${t('labelVideo')} ${track + 2}`}</span>
                   <LaneControls laneKey={`v${track}`} />
+                  <LaneDelete genre="v" index={track} />
                   {isTop && (
                     <button onClick={() => setExtraVideoTracks((n) => n + 1)} title={t('addVideoTrack')}
                       style={{ width: 18, height: 18, borderRadius: 5, border: "1px solid var(--line)", background: "var(--canvas)", color: "var(--ink-2)", fontSize: 14, lineHeight: "14px", cursor: "pointer", flexShrink: 0, padding: 0 }}>+</button>
@@ -4768,6 +4831,7 @@ export default function MontagePage() {
                   <VIcon name="music" size={13} />
                   <span className="trunc">{audioTrackCount > 1 ? `${t('railAudio')} ${atrack + 1}` : t('railAudio')}</span>
                   <LaneControls laneKey={`a${atrack}`} audio />
+                  <LaneDelete genre="a" index={atrack} />
                   {isFirstA && (
                     <button onClick={() => setExtraAudioTracks((n) => n + 1)} title={t('addAudioTrack')}
                       style={{ width: 18, height: 18, borderRadius: 5, border: "1px solid var(--line)", background: "var(--canvas)", color: "var(--ink-2)", fontSize: 14, lineHeight: "14px", cursor: "pointer", flexShrink: 0, padding: 0 }}>+</button>
@@ -4833,6 +4897,7 @@ export default function MontagePage() {
                 <VIcon name="text" size={13} />
                 <span className="trunc">{textTrackCount > 1 ? `${t('railText')} ${ttrack + 1}` : t('railText')}</span>
                 <LaneControls laneKey={`t${ttrack}`} audio />
+                <LaneDelete genre="t" index={ttrack} />
                 {ttrack === 0 && (
                   <button onClick={() => setExtraTextTracks((n) => n + 1)} title={t('addTextTrack')}
                     style={{ width: 18, height: 18, borderRadius: 5, border: "1px solid var(--line)", background: "var(--canvas)", color: "var(--ink-2)", fontSize: 14, lineHeight: "14px", cursor: "pointer", flexShrink: 0, padding: 0 }}>+</button>
