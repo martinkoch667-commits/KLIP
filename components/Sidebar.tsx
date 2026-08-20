@@ -17,6 +17,9 @@ interface SidebarProps {
   /** Masque la pastille de signalement : elle recouvre les actions de
    *  certains écrans pleine page (parcours de création). */
   hideBeta?: boolean;
+  /** Écran pleine page (éditeur, montage) : le contenu ne prend pas la
+   *  feuille arrondie, il occupe tout ce qui reste. */
+  bare?: boolean;
 }
 
 const WS_COLORS = ["#7B5CF5", "#2FD79B", "#C8732B", "#5A86E8", "#DD2A7B", "#88B394", "#E8A03A", "#4A8DD4"];
@@ -53,7 +56,7 @@ function IconLogout() {
 
 // ─── Component ───────────────────────────────────────────────────────────────
 
-export default function Sidebar({ workspaces: _w, userName: _u, activeWorkspaceId: _a, hideBeta = false }: SidebarProps = {}) {
+export default function Sidebar({ workspaces: _w, userName: _u, activeWorkspaceId: _a, hideBeta = false, bare = false }: SidebarProps = {}) {
   const pathname = usePathname();
   const router = useRouter();
   const supabase = createClientComponentClient();
@@ -155,12 +158,13 @@ export default function Sidebar({ workspaces: _w, userName: _u, activeWorkspaceI
         de l'app. Monté ici car la Sidebar est le seul élément commun aux 17
         pages — le widget se positionne lui-même en `fixed`. */}
     {!hideBeta && <BetaFeedback />}
-    <aside className="sidebar" style={{ width: "var(--sb-w)", position: "fixed", top: 0, left: 0, height: "100vh", zIndex: 100 }}>
+    <aside className={`sidebar${bare ? " sidebar-bare" : ""}`} style={{ width: "var(--sb-w)", position: "fixed", top: 0, left: 0, height: "100vh", zIndex: 100 }}>
 
       {/* Logo */}
-      <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "6px 10px 14px" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "6px 0 4px" }}>
         <Link href="/dashboard" style={{ textDecoration: "none", display: "flex", alignItems: "center" }}>
-          <img src="/logo-klip-mint.png" alt="Klip" style={{ height: 32, width: "auto" }} />
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/icon-192.png" alt="Klip" className="sb-mark" />
         </Link>
         <span className="sb-full chip" style={{ marginLeft: "auto", background: "var(--cream-4)", color: "var(--cream-2)", fontSize: 10 }}>
           Agence
@@ -195,7 +199,7 @@ export default function Sidebar({ workspaces: _w, userName: _u, activeWorkspaceI
       </div>
 
       {/* Workspace list */}
-      <div style={{ display: "flex", flexDirection: "column", gap: 2, overflowY: "auto", flex: 1, margin: "0 -4px", padding: "0 4px" }}>
+      <div className="sb-wslist" style={{ display: "flex", flexDirection: "column", gap: 2, overflowY: "auto", flex: 1, margin: "0 -4px", padding: "0 4px" }}>
         {workspaces.length === 0 && (
           <p className="sb-full" style={{ padding: "8px 12px", fontSize: 13, color: "var(--cream-3)" }}>{t("noClients")}</p>
         )}
@@ -205,7 +209,7 @@ export default function Sidebar({ workspaces: _w, userName: _u, activeWorkspaceI
           const wsInitials = ws.name.slice(0, 2).toUpperCase();
           const logoSrc = ws.brand_icon_url || ws.logo_url || ws.logo_dark_url || null;
           return (
-            <Link key={ws.id} href={`/workspace/${ws.id}`} className={`nav-item${isActive ? " active" : ""}`} style={{ padding: "7px 10px", textDecoration: "none" }}>
+            <Link key={ws.id} href={`/workspace/${ws.id}`} title={ws.name} className={`nav-item sb-ws${isActive ? " active" : ""}`} style={{ padding: "7px 10px", textDecoration: "none" }}>
               {logoSrc ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img src={logoSrc} alt={ws.name} style={{ width: 26, height: 26, borderRadius: 7, objectFit: "contain", flexShrink: 0, background: "#fff", padding: 3, outline: isActive ? "2px solid var(--leaf)" : "none" }} />
@@ -224,13 +228,11 @@ export default function Sidebar({ workspaces: _w, userName: _u, activeWorkspaceI
       <Link
         data-tour="new-post"
         href="/workspace/new"
-        className="sb-full"
-        style={{ display: "flex", alignItems: "center", gap: 10, padding: "9px 12px", borderRadius: "var(--r-s)", color: "var(--cream-3)", fontSize: 13, fontWeight: 600, border: "1px solid var(--cream-4)", transition: "all 0.15s", textDecoration: "none", marginTop: 4 }}
-        onMouseEnter={e => { e.currentTarget.style.borderColor = "var(--leaf)"; e.currentTarget.style.color = "var(--leaf)"; }}
-        onMouseLeave={e => { e.currentTarget.style.borderColor = "var(--cream-4)"; e.currentTarget.style.color = "var(--cream-3)"; }}
+        className="sb-add"
+        title={t("newClient")}
+        style={{ textDecoration: "none", marginTop: 6 }}
       >
         <IconPlus />
-        <span>{t("newClient")}</span>
       </Link>
 
       {/* Divider */}
@@ -248,6 +250,7 @@ export default function Sidebar({ workspaces: _w, userName: _u, activeWorkspaceI
 
       {/* User footer */}
       <button
+        className="sb-foot"
         style={{ display: "flex", alignItems: "center", gap: 10, padding: "7px 10px", borderRadius: "var(--r-s)", background: "transparent", border: "none", cursor: "pointer", width: "100%", textAlign: "left", transition: "background 0.15s", color: "var(--cream)" }}
         onMouseEnter={e => { e.currentTarget.style.background = "var(--cream-4)"; }}
         onMouseLeave={e => { e.currentTarget.style.background = "transparent"; }}

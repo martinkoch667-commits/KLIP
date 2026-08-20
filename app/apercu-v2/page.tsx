@@ -1,0 +1,116 @@
+'use client';
+
+/**
+ * Aperçu de la refonte, accessible sans compte.
+ *
+ * Cette page n'existe que sur la branche de refonte : elle sert à regarder le
+ * nouveau chrome (fond forêt, rail, feuille arrondie) et la nouvelle accroche
+ * du tableau de bord sans avoir à se connecter. Les chiffres sont fictifs.
+ */
+
+import Sidebar from '@/components/Sidebar';
+
+const CLIENTS = [
+  { nom: 'Café Lomi', compte: '@cafelomi', couleur: '#C8732B', planifies: 12, aValider: 1, connecte: true },
+  { nom: 'Maison Verte', compte: '@maisonverte', couleur: '#88B394', planifies: 9, aValider: 1, connecte: true },
+  { nom: 'Bloom Fleuriste', compte: '@bloomfleuriste', couleur: '#DD2A7B', planifies: 6, aValider: 0, connecte: true },
+];
+
+const STATS = [
+  { valeur: 3, libelle: 'À publier aujourd’hui', fond: 'var(--mint-soft)', encre: 'var(--mint-2)' },
+  { valeur: 3, libelle: 'En attente de validation', fond: 'var(--warn-soft)', encre: 'var(--warn)' },
+  { valeur: 12, libelle: 'Planifiés', fond: 'var(--sunk)', encre: 'var(--ink-2)' },
+  { valeur: 5, libelle: 'Clients actifs', fond: 'var(--sunk)', encre: 'var(--ink-2)' },
+];
+
+const DEPARTS = [
+  { titre: 'Nouveau post', fond: 'var(--forest-2)', encre: '#fff' },
+  { titre: 'Calendrier', fond: 'var(--mint-2)', encre: '#fff' },
+  { titre: 'Templates', fond: 'var(--leaf)', encre: 'var(--leaf-ink)' },
+  { titre: 'Fil de publication', fond: 'var(--vio)', encre: '#fff' },
+  { titre: 'Nouveau client', fond: 'var(--ink)', encre: '#fff' },
+];
+
+export default function ApercuV2() {
+  return (
+    <div style={{ display: 'flex', minHeight: '100vh' }}>
+      <Sidebar />
+
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, marginLeft: 'var(--sb-w)' }}>
+        <header className="topbar">
+          <span className="h-title" style={{ fontSize: 15, color: 'var(--ink-2)' }}>Aperçu de la refonte</span>
+          <div style={{ marginLeft: 'auto', display: 'flex', gap: 10 }}>
+            <button className="btn btn-ghost btn-sm">Calendrier</button>
+            <button className="btn btn-primary btn-sm">Nouveau post</button>
+          </div>
+        </header>
+
+        <main style={{ flex: 1, overflowY: 'auto' }}>
+          <div className="page">
+
+            <div className="dash-wash">
+              <div className="label" style={{ textAlign: 'center', marginBottom: 10 }}>
+                Jeudi 20 août · Bonjour Martin
+              </div>
+              <h1 className="h-display dash-title">
+                Voici l’état de <span className="acc-hl">vos marques.</span>
+              </h1>
+              <p className="dash-lead">3 posts attendent votre validation · Publications automatiques activées.</p>
+              <div className="dash-ctas">
+                <button className="btn btn-primary">Composer avec l’IA</button>
+                <button className="btn btn-ghost">Calendrier</button>
+              </div>
+              <div className="dash-starts">
+                {DEPARTS.map(d => (
+                  <button key={d.titre} className="dash-start">
+                    <span style={{ background: d.fond, color: d.encre }} />
+                    {d.titre}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 14, marginBottom: 14 }} className="dash-stats">
+              {STATS.map(s => (
+                <div key={s.libelle} className="card tile-accent" style={{ padding: '18px 20px' }}>
+                  <span style={{ width: 36, height: 36, borderRadius: 11, display: 'grid', placeItems: 'center', background: s.fond, color: s.encre }} />
+                  <div className="num" style={{ fontSize: 32, lineHeight: 1, marginTop: 14 }}>{s.valeur}</div>
+                  <div style={{ color: 'var(--ink-2)', fontSize: 13, marginTop: 3, fontWeight: 600 }}>{s.libelle}</div>
+                </div>
+              ))}
+            </div>
+
+            <h2 className="h-title" style={{ fontSize: 17, marginBottom: 12 }}>Vos clients</h2>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 14 }} className="clients-grid">
+              {CLIENTS.map(c => (
+                <div key={c.nom} className="card card-hover" style={{ padding: 16 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
+                    <span style={{ width: 40, height: 40, borderRadius: 13, background: c.couleur, display: 'grid', placeItems: 'center', color: '#fff', fontWeight: 800, fontSize: 13 }}>
+                      {c.nom.slice(0, 2).toUpperCase()}
+                    </span>
+                    <span style={{ minWidth: 0 }}>
+                      <b style={{ display: 'block', fontSize: 14 }}>{c.nom}</b>
+                      <span style={{ fontSize: 11.5, color: 'var(--ink-3)' }}>{c.compte}</span>
+                    </span>
+                    <span className="badge" style={{ marginLeft: 'auto', background: 'var(--mint-soft)', color: 'var(--mint-2)' }}>Connecté</span>
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 3, borderRadius: 10, overflow: 'hidden' }}>
+                    {[0, 1, 2].map(i => (
+                      <div key={i} style={{ aspectRatio: '1', background: `color-mix(in srgb, ${c.couleur} ${18 + i * 12}%, var(--sunk))` }} />
+                    ))}
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 12, fontSize: 12, color: 'var(--ink-3)' }}>
+                    <b style={{ color: 'var(--ink)' }}>{c.planifies}</b> planifiés ·
+                    <b style={{ color: 'var(--ink)' }}>{c.aValider}</b> à valider
+                    <span style={{ marginLeft: 'auto', fontWeight: 700, color: 'var(--ink)' }}>Ouvrir ›</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+          </div>
+        </main>
+      </div>
+    </div>
+  );
+}

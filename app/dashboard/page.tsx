@@ -9,7 +9,6 @@ import Sidebar from '@/components/Sidebar';
 import OnboardingChecklist from '@/components/OnboardingChecklist';
 import NotificationBell from '@/components/NotificationBell';
 import { Sticker } from '@/components/Stickers';
-import SelFrame from '@/components/SelFrame';
 import MediaThumb, { pickThumbSource, thumbUrl } from '@/components/MediaThumb';
 
 // ─── Types ─────────────────────────────────────────────────────────────────
@@ -599,6 +598,7 @@ export default function Dashboard() {
   const supabase = createClientComponentClient();
   const router = useRouter();
   const t = useTranslations('dashboard');
+  const tn = useTranslations('nav');
   const locale = useLocale();
 
   const [workspaces, setWorkspaces] = useState<WorkspaceRow[]>([]);
@@ -717,89 +717,94 @@ export default function Dashboard() {
         <main style={{ flex: 1, overflowY: 'auto' }}>
           <div className="page screen-in">
 
-            {/* Hero */}
-            <div style={{ position: 'relative', borderRadius: 'var(--r-xl)', overflow: 'hidden', padding: '30px 32px', marginBottom: 16, background: 'linear-gradient(120deg, #0A2418 0%, var(--forest) 48%, #103A28 100%)', color: 'var(--cream)' }}>
-              <div className="halo-blob" style={{ width: 300, height: 300, right: -70, top: -150, background: 'var(--leaf)', opacity: .42 }} />
-              <div className="halo-blob" style={{ width: 220, height: 220, right: 180, bottom: -150, background: 'var(--acid)', opacity: .28 }} />
-              {/* stickers décoratifs (coins, derrière le contenu z:2) */}
-              <Sticker name="sparkle" size={34} float="spin" style={{ position: 'absolute', bottom: 26, right: 330, zIndex: 3 }} />
-              <div data-tour="hero" style={{ position: 'relative', zIndex: 2, display: 'grid', gridTemplateColumns: '1fr auto', gap: 28, alignItems: 'center' }} className="dash-hero">
-                <div>
-                  <div className="label" style={{ color: 'var(--leaf)', marginBottom: 12 }}>
-                    {today.charAt(0).toUpperCase() + today.slice(1)} · {t('greeting', { name: userName })}
-                  </div>
-                  {/* Sticker accolé au titre — en bas à gauche il passait derrière les boutons. */}
-                  <h1 className="h-display" style={{ position: 'relative', fontSize: 38, color: 'var(--cream)', maxWidth: 520 }}>
-                    {active === 'all'
-                      ? <>{t('heroAllPre')}<span className="acc-hl">{t('heroAllAccent')}</span></>
-                      : <>{t('heroClientPre')}<span className="acc-hl">{clientName}.</span></>}
-                    <Sticker name="heart" size={34} float="A" style={{ position: 'absolute', top: -14, right: -26, ['--r' as string]: '12deg' }} />
-                  </h1>
-                  <p style={{ color: 'var(--cream-2)', marginTop: 10, maxWidth: 460, fontSize: 14.5 }}>
-                    {pendingPosts > 0
-                      ? t('pendingValidation', { count: pendingPosts })
-                      : t('allGood')}
-                  </p>
-                  <div style={{ display: 'flex', gap: 10, marginTop: 18 }}>
-                    {active !== 'all' ? (
-                      <Link href={`/workspace/${active}`} className="btn btn-primary"><IconSpark /> {t('composeAI')}</Link>
-                    ) : (
-                      <Link href="/composer" className="btn btn-primary"><IconSpark /> {t('composeAI')}</Link>
-                    )}
-                    {active !== 'all' && (
-                      <Link href={`/workspace/${active}/planning`} className="btn" style={{ background: 'var(--cream-4)', color: 'var(--cream)', boxShadow: 'inset 0 0 0 1px var(--cream-3)' }}>
-                        <IconCalendar /> {t('calendar')}
-                      </Link>
-                    )}
-                  </div>
-                </div>
+            {/* Hero : la page pose la question, les réponses sont juste dessous.
+                Le fond forêt est désormais AUTOUR de la feuille : remettre une
+                bannière sombre ici ferait doublon, d'où le voile clair. */}
+            <div className="dash-wash">
+              <div className="label" style={{ textAlign: 'center', marginBottom: 10 }}>
+                {today.charAt(0).toUpperCase() + today.slice(1)} · {t('greeting', { name: userName })}
+              </div>
+              <h1 className="h-display dash-title">
+                {active === 'all'
+                  ? <>{t('heroAllPre')}<span className="acc-hl">{t('heroAllAccent')}</span></>
+                  : <>{t('heroClientPre')}<span className="acc-hl">{clientName}.</span></>}
+                <Sticker name="sparkle" size={30} float="spin" style={{ position: 'absolute', top: -10, right: -34 }} />
+              </h1>
+              <p className="dash-lead">
+                {pendingPosts > 0
+                  ? t('pendingValidation', { count: pendingPosts })
+                  : t('allGood')}
+              </p>
 
-                {/* glass panel: today's posts — « sélectionné » et posé de biais,
-                    comme le panneau de session du plan de travail. */}
-                <span className="sel dash-hero-card" style={{ rotate: '1.6deg' }}>
-                {/* Carton blanc posé sur la bannière : le verre dépoli jurait
-                    avec le cadre de sélection (décision Martin). */}
-                <div style={{ width: 256, borderRadius: 'var(--r-l)', background: 'var(--white)', boxShadow: '0 18px 40px -22px rgba(0,0,0,.55)', padding: 16 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 13 }}>
-                    <span style={{ width: 24, height: 24, borderRadius: 7, background: 'var(--leaf)', color: 'var(--mint-ink)', display: 'grid', placeItems: 'center', flexShrink: 0 }}>
-                      <IconBolt />
-                    </span>
-                    <span className="label">{t('toPublishToday')}</span>
-                    <span className="num" style={{ marginLeft: 'auto', fontSize: 18, color: 'var(--ink)' }}>{todayPosts}</span>
-                  </div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
-                    {upcoming.slice(0, 3).map(p => {
-                      const src = p.exported_image_url || p.photo_url;
-                      const ws = workspaces.find(w => w.id === p.workspace_id);
-                      return (
-                        <button key={p.id}
-                          onClick={() => router.push(lienEditeur(p))}
-                          style={{ display: 'flex', alignItems: 'center', gap: 9, padding: 6, borderRadius: 9, textAlign: 'left', transition: 'background .14s', background: 'transparent', border: 'none', cursor: 'pointer', width: '100%', color: 'var(--ink)' }}
-                          onMouseEnter={e => (e.currentTarget.style.background = 'var(--sunk)')}
-                          onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
-                          <div style={{ width: 28, height: 34, borderRadius: 6, background: 'var(--sunk)', flexShrink: 0, overflow: 'hidden' }}>
-                            {src && <img src={src} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />}
-                          </div>
-                          <span style={{ minWidth: 0, flex: 1 }}>
-                            <span style={{ display: 'block', fontWeight: 700, fontSize: 12, color: 'var(--ink)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                              {p.texte_visuel?.slice(0, 28) || t('postFallback')}
-                            </span>
-                            <span style={{ fontSize: 10.5, color: 'var(--ink-3)', fontWeight: 600 }}>
-                              {ws?.name ?? t('clientFallback')}{p.scheduled_at ? ' · ' + new Date(p.scheduled_at).toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' }) : ''}
-                            </span>
-                          </span>
-                        </button>
-                      );
-                    })}
-                    {upcoming.length === 0 && (
-                      <div style={{ fontSize: 12.5, color: 'var(--ink-3)', textAlign: 'center', padding: '12px 0' }}>
-                        {t('noUpcoming')}
-                      </div>
-                    )}
-                  </div>
-                </div>
-                  <SelFrame />
+              <div data-tour="hero" className="dash-ctas">
+                <Link href={active !== 'all' ? `/workspace/${active}` : '/composer'} className="btn btn-primary">
+                  <IconSpark /> {t('composeAI')}
+                </Link>
+                <Link href={active !== 'all' ? `/workspace/${active}/planning` : '/calendar'} className="btn btn-ghost">
+                  <IconCalendar /> {t('calendar')}
+                </Link>
+              </div>
+
+              {/* Points de départ : uniquement des pages qui existent déjà. */}
+              <div className="dash-starts">
+                <Link href={active !== 'all' ? `/workspace/${active}` : '/composer'} className="dash-start">
+                  <span style={{ background: 'var(--forest-2)' }}><IconInstagram /></span>
+                  {t('newPost')}
+                </Link>
+                <Link href={active !== 'all' ? `/workspace/${active}/planning` : '/calendar'} className="dash-start">
+                  <span style={{ background: 'var(--mint-2)' }}><IconCalendar /></span>
+                  {t('calendar')}
+                </Link>
+                <Link href="/templates" className="dash-start">
+                  <span style={{ background: 'var(--leaf)', color: 'var(--leaf-ink)' }}><IconGrid /></span>
+                  {tn('templates')}
+                </Link>
+                <Link href={active !== 'all' ? `/workspace/${active}/results` : '/feed'} className="dash-start">
+                  <span style={{ background: 'var(--vio)' }}><IconBolt /></span>
+                  {tn('feed')}
+                </Link>
+                <Link href="/workspace/new" className="dash-start">
+                  <span style={{ background: 'var(--ink)' }}><IconPlus /></span>
+                  {t('newClient')}
+                </Link>
+              </div>
+            </div>
+
+            {/* À publier aujourd'hui : même contenu qu'avant, posé à plat sous
+                l'accroche au lieu d'être incliné dans la bannière. */}
+            <div className="card dash-today">
+              <div className="dash-today-head">
+                <span style={{ width: 26, height: 26, borderRadius: 8, background: 'var(--leaf)', color: 'var(--mint-ink)', display: 'grid', placeItems: 'center', flexShrink: 0 }}>
+                  <IconBolt />
                 </span>
+                <span className="label">{t('toPublishToday')}</span>
+                <span className="num" style={{ fontSize: 17 }}>{todayPosts}</span>
+              </div>
+              <div className="dash-today-list">
+                {upcoming.slice(0, 3).map(p => {
+                  const src = p.exported_image_url || p.photo_url;
+                  const ws = workspaces.find(w => w.id === p.workspace_id);
+                  return (
+                    <button key={p.id} onClick={() => router.push(lienEditeur(p))} className="dash-today-item">
+                      <span className="dash-today-th">
+                        {src && <img src={src} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />}
+                      </span>
+                      <span style={{ minWidth: 0, flex: 1 }}>
+                        <span style={{ display: 'block', fontWeight: 700, fontSize: 12.5, color: 'var(--ink)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {p.texte_visuel?.slice(0, 28) || t('postFallback')}
+                        </span>
+                        <span style={{ fontSize: 11, color: 'var(--ink-3)', fontWeight: 600 }}>
+                          {ws?.name ?? t('clientFallback')}{p.scheduled_at ? ' · ' + new Date(p.scheduled_at).toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' }) : ''}
+                        </span>
+                      </span>
+                    </button>
+                  );
+                })}
+                {upcoming.length === 0 && (
+                  <div style={{ fontSize: 12.5, color: 'var(--ink-3)', padding: '10px 2px' }}>
+                    {t('noUpcoming')}
+                  </div>
+                )}
               </div>
             </div>
 

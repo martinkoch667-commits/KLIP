@@ -2386,3 +2386,257 @@ input.mz-range::-moz-range-thumb { width: 16px; height: 16px; border-radius: 50%
    calendrier, pas un filtre. Le survol doit donc se comporter comme un lien. */
 .cal-client-link:hover { background: var(--btn-soft); color: var(--ink) !important; }
 .cal-client-link:hover svg { opacity: 1 !important; }
+/* ════════════════════════════════════════════════════════════════════════════
+   REFONTE V2 — le fond, la feuille, le rail
+   ────────────────────────────────────────────────────────────────────────────
+   Trois couches au lieu d'une : le fond de l'app est la forêt, le rail de
+   navigation vit dessus sans panneau à lui, et le contenu de chaque page est
+   une feuille claire à bords arrondis posée par-dessus, marge visible tout
+   autour. Aucune page n'a besoin d'être réécrite : la feuille est le frère
+   adjacent de la sidebar, et c'est vrai sur les dix-sept écrans.
+   ════════════════════════════════════════════════════════════════════════════ */
+
+:root {
+  --sb-w:      84px;   /* le rail remplace la sidebar de 256px */
+  --sheet-gap: 10px;
+  --sheet-r:   22px;
+}
+
+/* ── La couche du fond ─────────────────────────────────────────────────────── */
+
+body:has(aside.sidebar) {
+  background:
+    radial-gradient(900px 520px at 0% 0%, rgba(47,215,155,.14), transparent 62%),
+    radial-gradient(700px 420px at 100% 100%, rgba(189,242,160,.08), transparent 60%),
+    linear-gradient(165deg, #0E3122 0%, #0A1F16 62%, #081812 100%);
+  background-attachment: fixed;
+}
+/* le conteneur racine des pages peignait le canvas en dur : il ne peint plus
+   rien, sinon la marge autour de la feuille disparaît. */
+div:has(> aside.sidebar) { background: transparent !important; }
+
+/* ── La feuille ────────────────────────────────────────────────────────────── */
+
+aside.sidebar:not(.sidebar-bare) + .work,
+aside.sidebar:not(.sidebar-bare) + div,
+aside.sidebar:not(.sidebar-bare) + main {
+  margin: var(--sheet-gap) var(--sheet-gap) var(--sheet-gap) calc(var(--sb-w) + var(--sheet-gap)) !important;
+  height: calc(100vh - var(--sheet-gap) * 2) !important;
+  border-radius: var(--sheet-r);
+  background: var(--canvas);
+  overflow: auto;
+  box-shadow:
+    0 30px 70px -30px rgba(0,0,0,.72),
+    0 0 0 1px rgba(255,255,255,.08),
+    inset 0 1px 0 rgba(255,255,255,.8);
+}
+/* `.work` gère déjà son propre défilement interne (.scroll) : lui laisser
+   `auto` ferait apparaître une seconde barre pour un pixel de débordement. */
+aside.sidebar:not(.sidebar-bare) + .work { overflow: hidden; }
+
+/* La topbar devient le haut de la feuille : plus de filet appuyé, le voile
+   suffit à la séparer du contenu qui défile dessous. */
+aside.sidebar:not(.sidebar-bare) + * .topbar {
+  border-bottom: 1px solid var(--line-2);
+  background: color-mix(in srgb, var(--canvas) 82%, transparent);
+}
+
+/* ── Le rail ───────────────────────────────────────────────────────────────── */
+
+.sidebar {
+  background: transparent !important;
+  align-items: center;
+  padding: 14px 6px !important;
+  gap: 2px !important;
+}
+/* tout ce qui suppose une sidebar large disparaît */
+.sidebar .sb-full { display: none !important; }
+
+.sidebar .nav-item {
+  flex-direction: column;
+  gap: 5px;
+  width: 68px;
+  padding: 9px 2px !important;
+  border-radius: 14px;
+  color: var(--cream-2);
+}
+.sidebar .nav-label {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0;
+  text-transform: none;
+  line-height: 1.1;
+  text-align: center;
+}
+.sidebar .nav-item.active {
+  background: rgba(238,237,227,.14);
+  color: #fff;
+  font-weight: 700;
+}
+.sidebar .nav-item.active .nav-ic { color: var(--leaf); }
+.sidebar .nav-badge {
+  position: absolute;
+  top: 5px; right: 9px;
+  margin-left: 0;
+  min-width: 17px; height: 17px;
+  padding: 0 5px;
+  background: var(--leaf);
+  color: var(--leaf-ink);
+  font-size: 9.5px;
+}
+.sidebar .nav-item.active .nav-badge { background: var(--leaf); color: var(--leaf-ink); }
+
+/* logo : l'icône carrée, le logo écrit ne tient pas dans 84 px */
+.sb-mark {
+  width: 36px; height: 36px;
+  border-radius: 12px;
+  object-fit: cover;
+  margin-bottom: 10px;
+}
+
+/* clients : des pastilles, le nom passe en infobulle */
+.sb-wslist {
+  align-items: center;
+  gap: 6px !important;
+  padding-top: 4px !important;
+  margin: 0 !important;
+}
+.sb-wslist::before {
+  content: "";
+  width: 26px; height: 1px;
+  background: var(--cream-4);
+  margin-bottom: 6px;
+  flex-shrink: 0;
+}
+.sidebar .sb-ws {
+  width: 44px;
+  padding: 4px !important;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.sidebar .sb-ws .nav-label { display: none; }
+.sidebar .sb-ws.active { background: transparent; }
+
+.sb-add {
+  width: 36px; height: 36px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  color: var(--cream-3);
+  border: 1px dashed var(--cream-4);
+  flex-shrink: 0;
+  transition: color .15s, border-color .15s;
+}
+.sb-add:hover { color: var(--leaf); border-color: var(--leaf); }
+
+.sb-foot {
+  width: auto !important;
+  padding: 6px !important;
+  border-radius: 50% !important;
+}
+
+/* ── Écrans étroits : la feuille reprend tout l'espace ──────────────────────── */
+
+@media (max-width: 900px) {
+  :root { --sb-w: 0px; }
+  aside.sidebar:not(.sidebar-bare) + .work,
+  aside.sidebar:not(.sidebar-bare) + div,
+  aside.sidebar:not(.sidebar-bare) + main {
+    margin: 0 !important;
+    height: 100vh !important;
+    border-radius: 0;
+    box-shadow: none;
+  }
+}
+
+/* ── Tableau de bord V2 : l'accroche centrée et ses points de départ ───────── */
+
+/* Le voile déborde du padding de `.page` pour toucher les bords de la feuille,
+   comme le dégradé de haut de page touche les arrondis. */
+.dash-wash {
+  position: relative;
+  margin: -30px -34px 16px;
+  padding: 32px 34px 26px;
+  background:
+    radial-gradient(720px 340px at 12% -30%, rgba(189,242,160,.9), transparent 66%),
+    radial-gradient(620px 300px at 84% -22%, rgba(102,86,217,.2), transparent 68%),
+    radial-gradient(540px 280px at 50% -10%, rgba(47,215,155,.24), transparent 70%),
+    linear-gradient(180deg, #FCFDFA, var(--canvas) 92%);
+}
+.dash-title {
+  position: relative;
+  font-size: clamp(28px, 3.4vw, 42px);
+  text-align: center;
+  text-wrap: balance;
+  max-width: 20ch;
+  margin: 0 auto 12px;
+}
+.dash-lead {
+  text-align: center;
+  font-size: 14.5px;
+  color: var(--ink-2);
+  max-width: 56ch;
+  margin: 0 auto 20px;
+}
+.dash-ctas { display: flex; justify-content: center; gap: 10px; }
+
+.dash-starts {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding-top: 22px;
+}
+.dash-start {
+  width: 92px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 9px;
+  padding: 8px 4px;
+  border-radius: 14px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink-2);
+  text-align: center;
+  line-height: 1.2;
+  transition: background .16s;
+}
+.dash-start:hover { background: rgba(255,255,255,.62); color: var(--ink); }
+.dash-start span {
+  width: 52px; height: 52px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  color: #fff;
+  flex-shrink: 0;
+  box-shadow: 0 10px 20px -12px rgba(13,15,10,.6);
+  transition: transform .16s;
+}
+.dash-start:hover span { transform: translateY(-3px); }
+
+/* À publier aujourd'hui : la liste du carton incliné, remise à plat */
+.dash-today { padding: 16px 20px; margin-bottom: 14px; }
+.dash-today-head { display: flex; align-items: center; gap: 9px; margin-bottom: 10px; }
+.dash-today-head .num { margin-left: auto; color: var(--ink); }
+.dash-today-list { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.dash-today-item {
+  display: flex; align-items: center; gap: 9px;
+  padding: 7px; border-radius: 10px;
+  text-align: left; width: 100%;
+  background: var(--sunk);
+  transition: background .14s;
+}
+.dash-today-item:hover { background: var(--btn-soft-2); }
+.dash-today-th {
+  width: 30px; height: 36px;
+  border-radius: 7px;
+  background: var(--white);
+  flex-shrink: 0;
+  overflow: hidden;
+}
+
+@media (max-width: 860px) {
+  .dash-wash { margin: -20px -16px 14px; padding: 24px 16px 20px; }
+  .dash-today-list { grid-template-columns: 1fr; }
+}

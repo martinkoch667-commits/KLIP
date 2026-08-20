@@ -6012,7 +6012,7 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
 
   return (
     <>
-      {sidebarOpen && <Sidebar />}
+      {sidebarOpen && <Sidebar bare />}
 
       {/* ── Menu contextuel (clic droit sur un élément, façon Canva) ── */}
       {ctxMenu && (() => {
