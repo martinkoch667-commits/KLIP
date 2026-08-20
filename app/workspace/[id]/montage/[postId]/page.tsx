@@ -1351,11 +1351,32 @@ export default function MontagePage() {
       // On ne gèle plus pendant un `seeking` : les seeks ont désormais lieu à l'avance
       // dans le lecteur libre, et geler à chaque frontière de plan saccadait.
       // On gèle uniquement quand le lecteur n'a AUCUNE image à montrer.
-      const notReady = !!(ac && ac.kind === "video" && vEl && vEl.readyState < 2);
-      if (notReady) {
+      /* L'horloge ATTEND la vidéo tant qu'elle n'a pas de quoi jouer.
+
+         `readyState < 2` ne couvrait que le cas « aucune image du tout ». Or ce
+         qui saccade, c'est le cas d'à côté : le lecteur a une image mais pas la
+         suite (readyState 2), le temps continue d'avancer, la dérive se creuse,
+         et le recalage plus bas finit par déclencher un saut. Le décodeur vide
+         alors son tampon, repart en retard, et le cycle recommence. Sur une
+         source lourde tirée du réseau, ça tourne en boucle : c'est précisément
+         « ça rame et ça bug » à la lecture. On attend donc d'avoir de la marge
+         (readyState 3) avant de laisser le temps courir. */
+      /* Deux niveaux d'attente, et deux garde-fous différents.
+
+         « Aucune image » (readyState < 2) : rien à montrer, on attend jusqu'à 3 s.
+         « Pas de suite » (readyState < 3) : on a une image mais pas de marge ; on
+         n'attend que 600 ms, juste de quoi laisser le tampon se remplir.
+
+         Et on n'attend PAS près de la fin du plan : quand le rognage va jusqu'au
+         bout du fichier, le lecteur retombe naturellement à readyState 2 sur ses
+         dernières images. Attendre là bloquerait la timeline à chaque fin de
+         plan, ce qui serait pire que le mal. */
+      const resteDansLePlan = ac ? (ac.end - clockRef.current) : Infinity;
+      const rs = ac && ac.kind === "video" && vEl && !vEl.ended ? vEl.readyState : 4;
+      const attente = rs < 2 ? 3000 : rs < 3 && resteDansLePlan > 0.35 ? 600 : 0;
+      if (attente > 0) {
         if (!stalledSince) stalledSince = now;
-        // Garde-fou : source illisible → on repart au bout de 3 s plutôt que de rester bloqué.
-        if (now - stalledSince < 3000) { raf = requestAnimationFrame(tick); return; }
+        if (now - stalledSince < attente) { raf = requestAnimationFrame(tick); return; }
       } else {
         stalledSince = 0;
       }
@@ -1485,10 +1506,22 @@ export default function MontagePage() {
         // inatteignable, un seek à chaque frame empêche définitivement le décodeur
         // de repartir. 250 ms suffisent à rattraper sans bloquer le décodage.
         const mustRecover = (vEl.ended || drift > 1.5) && now - lastSeekRef.current > 250;
-        if (isFinite(expected) && !vEl.seeking && (mustRecover || (drift > 0.5 && now - lastSeekRef.current > 500))) {
+        if (isFinite(expected) && !vEl.seeking && (mustRecover || (drift > 1.0 && now - lastSeekRef.current > 500))) {
           lastSeekRef.current = now;
           vEl.currentTime = Math.max(0, expected);
           if (vEl.paused) vEl.play().catch(() => {});
+        } else if (isFinite(expected) && !vEl.seeking) {
+          /* Petite dérive : on ne SAUTE PAS, on accélère ou on ralentit un peu.
+
+             Un saut coupe le décodage et se voit ; une correction de vitesse de
+             quelques pour cent ne s'entend pas et ne se voit pas, et rattrape
+             une demi-seconde en quelques secondes. C'est ce que fait n'importe
+             quel lecteur en continu. Le seuil du saut est donc remonté à une
+             seconde : en dessous, la vitesse suffit. */
+          const ecart = (vEl.currentTime - expected) / (ac.speed || 1);
+          const correction = Math.max(-0.04, Math.min(0.04, -ecart * 0.25));
+          const vise = (ac.speed || 1) * (1 + (Math.abs(ecart) > 0.04 ? correction : 0));
+          if (Math.abs(vEl.playbackRate - vise) > 0.002) vEl.playbackRate = vise;
         }
         const g = clipAudioGainAt(ac, t - ac.start);
         vEl.volume = mutedLanesRef.current.has("video") ? 0 : (isFinite(g) ? Math.max(0, Math.min(1, g)) : 0);
@@ -1500,7 +1533,15 @@ export default function MontagePage() {
         if (within) {
           const local = t - a.offset;
           const srcT = (a.srcOffset ?? 0) + local; // audio détaché d'un plan rogné : décalage dans la source
-          if (Math.abs(el.currentTime - srcT) > 0.3) el.currentTime = srcT;
+          // Comme pour l'image : au delà d'une demi-seconde on repositionne, en
+          // dessous on corrige par la vitesse. Un saut de lecture s'entend comme
+          // un hoquet, une correction de 3 % ne s'entend pas.
+          const ecart = el.currentTime - srcT;
+          if (Math.abs(ecart) > 0.5) { el.currentTime = srcT; el.playbackRate = 1; }
+          else {
+            const vise = 1 + Math.max(-0.03, Math.min(0.03, -ecart * 0.2));
+            if (Math.abs(el.playbackRate - vise) > 0.002) el.playbackRate = vise;
+          }
           if (el.paused) el.play().catch(() => {});
           el.volume = mutedLanesRef.current.has(`a${a.track ?? 0}`) ? 0 : Math.min(1, audioVolumeAt(a, local)); // el.volume ∈ [0,1] ; boost >100 % à l'export
         } else if (!el.paused) {
