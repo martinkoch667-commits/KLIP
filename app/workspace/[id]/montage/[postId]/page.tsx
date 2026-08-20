@@ -638,6 +638,15 @@ export default function MontagePage() {
   const playingRef = useRef(playing); playingRef.current = playing;
   const [stageW, setStageW] = useState(0); // largeur px réelle de la preview → texte figé à l'échelle de l'image (WYSIWYG avec l'export)
   const [previewZoom, setPreviewZoom] = useState(1);
+  /* Déplacement dans l'aperçu zoomé.
+
+     On pouvait grossir l'image, jamais s'y promener : passé 100 %, tout ce qui
+     sortait du cadre était perdu, et zoomer ne servait donc qu'à regarder le
+     centre. Deux gestes le permettent maintenant, ceux qu'on attend d'un
+     éditeur : le glissement à la souris sur le fond de l'aperçu, et le
+     défilement à deux doigts (le pincement, lui, reste le zoom). */
+  const [previewPan, setPreviewPan] = useState({ x: 0, y: 0 });
+  const panRef = useRef<{ x: number; y: number; ox: number; oy: number } | null>(null);
   // Aperçu en grand : la scène recouvre le module le temps de regarder.
   const [stageFull, setStageFull] = useState(false);
   useEffect(() => {
@@ -653,6 +662,19 @@ export default function MontagePage() {
   // Valeurs de zoom lues au démarrage d'un geste (Safari) — refs pour éviter les closures figées.
   const ppsRef = useRef(pps); ppsRef.current = pps;
   const previewZoomRef = useRef(previewZoom); previewZoomRef.current = previewZoom;
+  /** Empêche de pousser le cadre entièrement hors de vue : on ne peut se
+   *  déplacer que dans ce que le zoom a fait déborder. */
+  const bornerPan = useCallback((p: { x: number; y: number }) => {
+    const el = stageRef.current;
+    const z = previewZoomRef.current;
+    if (!el || !el.parentElement || z <= 1) return { x: 0, y: 0 };
+    const maxX = Math.max(0, (el.offsetWidth * z - el.parentElement.clientWidth) / 2);
+    const maxY = Math.max(0, (el.offsetHeight * z - el.parentElement.clientHeight) / 2);
+    return { x: Math.max(-maxX, Math.min(maxX, p.x)), y: Math.max(-maxY, Math.min(maxY, p.y)) };
+  }, []);
+  const bornerPanRef = useRef(bornerPan); bornerPanRef.current = bornerPan;
+  // Revenu à 100 %, il n'y a plus rien qui dépasse : le cadre se recentre.
+  useEffect(() => { if (previewZoom <= 1) setPreviewPan({ x: 0, y: 0 }); else setPreviewPan((p) => bornerPan(p)); }, [previewZoom, bornerPan]);
   // Génère les bandes-film (aperçu) des plans vidéo, une seule fois chacune, en tâche de
   // fond et en série (pour ne pas saturer le décodage). Les photos affichent déjà leur image.
   useEffect(() => {
@@ -816,7 +838,16 @@ export default function MontagePage() {
     // vers la bonne zone (timeline ou aperçu) selon l'endroit du curseur. Comme c'est ce
     // même listener qui bloque la page (et ça marche), le zoom part forcément.
     const onWheel = (e: WheelEvent) => {
-      if (!(e.ctrlKey || e.metaKey)) return; // molette/scroll normal : on ne touche pas
+      if (!(e.ctrlKey || e.metaKey)) {
+        // Défilement simple SUR L'APERÇU ZOOMÉ : on s'y déplace. Ailleurs, ou à
+        // 100 %, on ne touche à rien — la page doit continuer de défiler.
+        const st = stageRef.current;
+        if (st && st.contains(e.target as Node) && previewZoomRef.current > 1) {
+          e.preventDefault();
+          setPreviewPan((p) => bornerPanRef.current({ x: p.x - e.deltaX, y: p.y - e.deltaY }));
+        }
+        return;
+      }
       e.preventDefault(); // bloque le zoom de la page web
       const tl = tlScrollRef.current, stage = stageRef.current, target = e.target as Node;
       const factor = Math.min(1.25, Math.max(0.8, Math.exp(-e.deltaY * 0.01)));
@@ -4357,7 +4388,7 @@ export default function MontagePage() {
             </button>
             {previewZoom !== 1 && (
               <button
-                onClick={() => setPreviewZoom(1)}
+                onClick={() => { setPreviewZoom(1); setPreviewPan({ x: 0, y: 0 }); }}
                 title={t('resetZoomTitle')}
                 style={{ position: "absolute", top: 12, right: 12, zIndex: 10, height: 28, padding: "0 10px", borderRadius: 8, border: "1px solid var(--line)", background: "rgba(0,0,0,.55)", color: "#fff", fontSize: 11.5, fontWeight: 700, cursor: "pointer" }}
               >
@@ -4366,12 +4397,39 @@ export default function MontagePage() {
             )}
             <div
               className="mz-phone"
-              style={{ aspectRatio: `${activeFmt.w} / ${activeFmt.h}`, transform: previewZoom !== 1 ? `scale(${previewZoom})` : undefined }}
+              style={{
+                aspectRatio: `${activeFmt.w} / ${activeFmt.h}`,
+                transform: previewZoom !== 1 ? `translate(${previewPan.x}px, ${previewPan.y}px) scale(${previewZoom})` : undefined,
+                cursor: previewZoom > 1 ? (panRef.current ? "grabbing" : "grab") : undefined,
+              }}
               ref={stageRef}
-              onPointerDown={(e) => { const el = e.target as HTMLElement; if (!el.closest(".mz-ov-item, .mz-pip, .mz-cap-box, .mz-th, .mz-rot, .mz-ov-del")) deselectAll(); }}
-              onPointerMove={onStagePointerMove}
-              onPointerUp={onStagePointerUp}
-              onPointerLeave={onStagePointerUp}
+              onPointerDown={(e) => {
+                const el = e.target as HTMLElement;
+                if (el.closest(".mz-ov-item, .mz-pip, .mz-cap-box, .mz-th, .mz-rot, .mz-ov-del")) return;
+                deselectAll();
+                // Le glissement sur le FOND déplace l'aperçu ; sur un objet, c'est
+                // l'objet qui bouge, d'où la sortie juste au-dessus.
+                if (previewZoom > 1) {
+                  panRef.current = { x: e.clientX, y: e.clientY, ox: previewPan.x, oy: previewPan.y };
+                  try { (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId); } catch { /* pointeur déjà capturé */ }
+                }
+              }}
+              onPointerMove={(e) => {
+                const d = panRef.current;
+                if (d) {
+                  setPreviewPan(bornerPan({ x: d.ox + (e.clientX - d.x), y: d.oy + (e.clientY - d.y) }));
+                  return;
+                }
+                onStagePointerMove(e);
+              }}
+              onPointerUp={(e) => {
+                if (panRef.current) {
+                  panRef.current = null;
+                  try { (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId); } catch { /* déjà relâché */ }
+                }
+                onStagePointerUp(e);
+              }}
+              onPointerLeave={(e) => { panRef.current = null; onStagePointerUp(e); }}
             >
               <div className="mz-video">
                 {/* Les DEUX lecteurs restent montés en permanence (même sur un plan
