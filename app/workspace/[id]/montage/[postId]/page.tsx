@@ -3407,15 +3407,31 @@ export default function MontagePage() {
     e.preventDefault(); // empêche le drag natif de l'image/vidéo qui « avale » le relâchement
     let groupeIds: string[] = [];
     if (type === "title") {
-      setSelectedTitleId(id); setSubSelected(false); setSelectedOverlayId(null);
-      // ⇧ + clic : on ajoute ou on retire, sans perdre le reste du groupe.
+      setSubSelected(false); setSelectedOverlayId(null);
       if (e.shiftKey) {
+        /* ⇧ + clic : on ajoute ou on RETIRE du groupe.
+
+           Retirer doit vraiment retirer : une première version rajoutait le titre
+           juste après l'avoir enlevé, pour être sûre qu'il soit le principal, si
+           bien qu'on ne pouvait jamais en sortir un. Quand on retire, le titre
+           principal passe à un autre membre — ce ne peut pas être celui qu'on
+           vient d'exclure — et on ne démarre aucun déplacement : le geste était
+           une désélection, pas une prise. */
         const n = new Set(titresSel);
-        if (n.has(id) && n.size > 1) n.delete(id); else n.add(id);
+        if (n.has(id) && n.size > 1) {
+          n.delete(id);
+          setTitresSel(n);
+          setSelectedTitleId(Array.from(n)[0] ?? null);
+          return;
+        }
         n.add(id);
-        groupeIds = Array.from(n);
         setTitresSel(n);
+        setSelectedTitleId(id);
+        groupeIds = Array.from(n);
       } else {
+        setSelectedTitleId(id);
+        // Clic simple sur un membre du groupe : on garde le groupe, c'est lui
+        // qu'on s'apprête à déplacer. Sur un titre hors groupe, on repart de lui.
         groupeIds = titresSel.has(id) ? Array.from(titresSel) : [id];
         if (!titresSel.has(id)) setTitresSel(new Set([id]));
       }
