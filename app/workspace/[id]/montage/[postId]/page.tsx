@@ -2488,7 +2488,6 @@ export default function MontagePage() {
       if (res.error && !res.captions.length) toast(codeMsg(res.error), "error");
       else if (res.skippedNoSpeech.length) toast(t('toastTrimSkippedNoSpeech', { n: res.skippedNoSpeech.length }), "error");
       else {
-        preEditedAtRef.current = new Date().toISOString();
         // Réussite PARTIELLE : trois rushes transcrits, un quatrième non. Le trou
         // de sous-titres apparaissait sans un mot d'explication — on le dit.
         if (res.failed.length) toast(t('toastPartialTranscribe', { n: res.failed.length }), "error");
@@ -2497,6 +2496,23 @@ export default function MontagePage() {
       // On laisse la dernière ligne s'écrire avant de refermer l'écran.
       await new Promise((r) => setTimeout(r, 900));
     } finally {
+      /* Le prémontage est marqué comme FAIT, quel qu'ait été son résultat.
+
+         Il ne l'était qu'en cas de réussite parfaite : une vidéo sans parole, ou
+         dont la transcription échouait, ne posait jamais l'horodatage. Rouvrir le
+         projet relançait alors tout le prémontage, encore et encore, en écrasant
+         à chaque fois le travail fait entre-temps.
+
+         Ce que le drapeau doit dire, c'est « on l'a lancé », pas « ça s'est bien
+         passé ». Relancer automatiquement ce qui vient d'échouer ne peut que
+         rater à nouveau, et détruire du travail au passage. Le panneau IA reste
+         là pour le relancer à la main.
+
+         Il est écrit TOUT DE SUITE en base : un prémontage qui ne change rien à
+         la timeline ne déclenche aucune sauvegarde automatique, et le drapeau
+         serait perdu à la fermeture de l'onglet. */
+      preEditedAtRef.current = new Date().toISOString();
+      supabase.from("posts").update({ montage_json: projectRef.current() }).eq("id", postId).then(() => {});
       loggingRef.current = false;
       setPreEditing(false);
       setPreEditStep(null);
