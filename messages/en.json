@@ -1004,6 +1004,8 @@
     "brandColorsLabel": "Brand colors",
     "subtitleTemplateLabel": "Subtitle template",
     "subtitleTemplateHint": "Generated from the brand colors and font. The highlighted word sets the rhythm in your video edits.",
+    "visualTemplateLabel": "Visual templates",
+    "visualTemplateHint": "Reusable layouts for posts and stories, in the brand's colors and font.",
     "colorPrimary": "Primary",
     "colorSecondary": "Secondary",
     "colorAccent": "Accent",

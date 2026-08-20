@@ -683,6 +683,94 @@ input.ed-range::-moz-range-thumb {
 .wsn-chip:hover { background: var(--btn-soft-2); color: var(--ink); }
 .wsn-chip.is-on { background: var(--leaf); color: var(--leaf-ink); }
 
+/* ── Onboarding · étape 5 : deux ateliers, pas une coulée ──────────────────
+   Les sous-titres et les templates visuels se suivaient sans rien qui dise où
+   finissait l'un et où commençait l'autre. Chacun prend donc son bloc, numéroté,
+   posé en aplat comme les autres cartes du parcours. Les fonctions n'ont pas
+   bougé : mêmes préréglages, même éditeur partagé, même bouton de création. */
+.wsn-t5-block { background: var(--sunk); border-radius: 20px; padding: 22px 24px 24px; }
+.wsn-t5-head { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 16px; }
+.wsn-t5-num { flex-shrink: 0; width: 26px; height: 26px; margin-top: 1px; border-radius: 50%;
+  background: var(--forest); color: var(--cream); display: grid; place-items: center;
+  font-family: var(--sans); font-weight: 800; font-size: 12.5px; }
+.wsn-t5-title { margin: 0 0 4px; font-family: var(--sans); font-weight: 800; font-size: 14px;
+  letter-spacing: .05em; text-transform: uppercase; color: var(--ink); }
+.wsn-t5-desc { margin: 0; max-width: 62ch; font-size: 12.5px; line-height: 1.5; color: var(--ink-2); }
+.wsn-t5-hint { font-size: 11.5px; line-height: 1.45; color: var(--ink-3); }
+
+/* Vignettes de préréglage : un sous-titre POSÉ SUR UNE IMAGE, en bas du cadre,
+   là où il apparaîtra vraiment, et non centré dans un carré vert. */
+.wsn-t5-presets { display: flex; gap: 10px; overflow-x: auto; padding: 2px 2px 12px;
+  scroll-snap-type: x proximity; }
+.wsn-t5-presets::-webkit-scrollbar { height: 7px; }
+.wsn-t5-preset { flex-shrink: 0; width: 148px; scroll-snap-align: start; padding: 0; border: none;
+  background: var(--white); border-radius: 14px; overflow: hidden; cursor: pointer; text-align: left;
+  box-shadow: var(--shadow-card); transition: transform .16s var(--ease), box-shadow .16s; }
+.wsn-t5-preset:hover { transform: translateY(-2px); box-shadow: 0 16px 28px -18px rgba(13,15,10,.55); }
+.wsn-t5-preset.is-on { box-shadow: 0 0 0 2px var(--forest); }
+.wsn-t5-preset-thumb { position: relative; display: flex; align-items: flex-end; justify-content: center;
+  height: 94px; padding: 0 10px 12px;
+  background: linear-gradient(160deg, #3b4a52 0%, #22303a 42%, #131c22 100%); }
+.wsn-t5-preset-thumb::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 58%;
+  background: linear-gradient(to top, rgba(0,0,0,.45), transparent); }
+.wsn-t5-preset-thumb > * { position: relative; z-index: 1; }
+.wsn-t5-preset-tick { position: absolute; top: 8px; right: 8px; z-index: 2;
+  width: 19px; height: 19px; border-radius: 50%; background: var(--leaf); color: var(--leaf-ink);
+  display: grid; place-items: center; }
+.wsn-t5-preset-body { display: block; padding: 9px 11px 11px; }
+.wsn-t5-preset-name { display: block; font-size: 12.5px; font-weight: 800; color: var(--ink); }
+.wsn-t5-preset-hint { display: block; margin-top: 1px; font-size: 11px; line-height: 1.35; color: var(--ink-3); }
+
+/* « Personnaliser » : un vrai interrupteur, pas un lien perdu sous la rangée. */
+.wsn-t5-toggle { display: inline-flex; align-items: center; gap: 7px; padding: 8px 15px;
+  border: none; border-radius: 999px; background: var(--btn-soft); color: var(--ink-2);
+  font-family: var(--sans); font-size: 12.5px; font-weight: 700; cursor: pointer;
+  transition: background .13s, color .13s; }
+.wsn-t5-toggle:hover { background: var(--btn-soft-2); color: var(--ink); }
+.wsn-t5-toggle.is-on { background: var(--forest); color: var(--cream); }
+.wsn-t5-toggle svg { transition: transform .18s var(--ease); }
+.wsn-t5-toggle.is-on svg { transform: rotate(90deg); }
+
+/* Le panneau de réglages : blanc sur l'aplat, comme le panneau du monteur. */
+.wsn-t5-editor { margin-top: 14px; padding: 18px; background: var(--white); border-radius: 18px;
+  box-shadow: var(--shadow-card);
+  display: grid; grid-template-columns: minmax(0, 244px) minmax(0, 1fr); gap: 24px; align-items: start; }
+/* Panneau ouvert, le BLOC ENTIER déborde la colonne de lecture (680 px) : à
+   cette largeur le nuancier se repliait sur deux rangées et les trois sections
+   tombaient en file indienne, ce qui donnait cette impression de formulaire
+   sans fin. Élargir le seul panneau le faisait sortir de son bloc : il faut
+   qu'il reste posé dessus. */
+.wsn-t5-wide { --t5-w: min(1040px, calc(100vw - var(--sb-w) - 96px));
+  width: var(--t5-w); margin-left: calc((100% - var(--t5-w)) / 2); }
+.wsn-t5-preview { position: sticky; top: 4px; }
+.wsn-t5-sublabel-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 8px; }
+.wsn-t5-sublabel { display: block; margin-bottom: 7px; font-family: var(--sans); font-size: 10.5px;
+  font-weight: 800; letter-spacing: .13em; text-transform: uppercase; color: var(--mint-2); }
+.wsn-t5-len { margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--line-2); }
+/* Les trois sections de l'éditeur partagé se rangent côte à côte dès qu'il y a
+   la place, les contrôles eux-mêmes restant EXACTEMENT ceux du monteur. */
+.wsn-t5-settings { columns: 268px 2; column-gap: 26px; }
+.wsn-t5-settings > .a-section { break-inside: avoid; margin: 0 0 16px; }
+.wsn-t5-settings .mz-sec-label { display: flex; align-items: center; gap: 10px; color: var(--mint-2); }
+/* Deux colonnes de réglages dans 900 px : chaque libellé rendu doit céder ce
+   qu'il peut au contrôle, sinon « 2 lignes » passe à la ligne dans son segment
+   et le nuancier tombe à cinq pastilles par rangée. */
+.wsn-t5-settings .mz-row > .mz-row-lbl { flex-basis: 74px; }
+.wsn-t5-settings .mz-seg button { padding: 8px 4px; }
+.wsn-t5-settings .mz-sec-label::after { content: ""; flex: 1; height: 1px; background: var(--line); }
+
+/* Templates visuels : l'invitation à créer, dans le même vocabulaire. */
+.wsn-t5-empty { background: var(--white); border-radius: 16px; padding: 26px 22px;
+  display: flex; flex-direction: column; align-items: center; gap: 14px; text-align: center; }
+.wsn-t5-empty-ico { width: 46px; height: 46px; border-radius: 14px; background: var(--leaf-soft);
+  color: var(--leaf-ink); display: grid; place-items: center; }
+
+@media (max-width: 1000px) {
+  .wsn-t5-wide { width: 100%; margin-left: 0; }
+  .wsn-t5-editor { grid-template-columns: minmax(0, 1fr); }
+  .wsn-t5-preview { position: static; max-width: 260px; }
+}
+
 @media (max-width: 1080px) {
   :root { --sb-w: 76px; }
   .nav-label, .sb-full { display: none !important; }

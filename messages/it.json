@@ -1004,6 +1004,8 @@
     "brandColorsLabel": "Colori del brand",
     "subtitleTemplateLabel": "Modello di sottotitoli",
     "subtitleTemplateHint": "Generati dai colori e dal font del brand. La parola evidenziata scandisce il ritmo nei tuoi montaggi.",
+    "visualTemplateLabel": "Template visivi",
+    "visualTemplateHint": "Layout riutilizzabili per post e storie, con i colori e il font del brand.",
     "colorPrimary": "Principale",
     "colorSecondary": "Secondario",
     "colorAccent": "Accento",

@@ -1004,6 +1004,8 @@
     "brandColorsLabel": "Colores de marca",
     "subtitleTemplateLabel": "Plantilla de subtítulos",
     "subtitleTemplateHint": "Generados a partir de los colores y la tipografía de la marca. La palabra resaltada marca el ritmo en tus montajes.",
+    "visualTemplateLabel": "Plantillas visuales",
+    "visualTemplateHint": "Diseños reutilizables para publicaciones e historias, con los colores y la tipografía de la marca.",
     "colorPrimary": "Principal",
     "colorSecondary": "Secundario",
     "colorAccent": "Acento",

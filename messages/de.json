@@ -1004,6 +1004,8 @@
     "brandColorsLabel": "Markenfarben",
     "subtitleTemplateLabel": "Untertitel-Vorlage",
     "subtitleTemplateHint": "Aus den Markenfarben und der Schrift erzeugt. Das hervorgehobene Wort gibt den Rhythmus deiner Videomontagen vor.",
+    "visualTemplateLabel": "Visuelle Vorlagen",
+    "visualTemplateHint": "Wiederverwendbare Layouts für Posts und Stories, in den Farben und der Schrift der Marke.",
     "colorPrimary": "Primär",
     "colorSecondary": "Sekundär",
     "colorAccent": "Akzent",

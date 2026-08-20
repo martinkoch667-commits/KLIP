@@ -7,9 +7,9 @@ import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
 import Sidebar from "@/components/Sidebar";
 import ColorPicker from "@/components/ColorPicker";
 import {
-  effectiveSubStyle, charterSubPresets, DEFAULT_SUB_POS, SUB_LENGTHS, DEFAULT_WORDS_PER_CAPTION, type SubCustom,
+  charterSubPresets, DEFAULT_SUB_POS, DEFAULT_WORDS_PER_CAPTION, type SubCustom,
 } from "@/app/workspace/[id]/montage/[postId]/constants";
-import SubtitleStyleEditor, { SubtitlePreviewChip, SubtitlePreviewStage } from "@/components/SubtitleStyleEditor";
+import Step5Templates from "./step5";
 import { parseFontFile, groupFontFiles, type FontFamily } from "@/lib/fontFiles";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -77,29 +77,6 @@ const labelStyle: CSSProperties = {
   color: "var(--mint-2)", textTransform: "uppercase", letterSpacing: "0.13em",
   fontFamily: "var(--sans)",
 };
-
-// Aperçu fidèle d'un sous-titre : on résout le style comme le montage
-// (effectiveSubStyle = style de base + surcharges), le 2e mot représente le mot
-// actif surligné (couleur `hi`). Rendu sur fond sombre, comme sur une vidéo.
-function SubChip({ styleId, custom, size = 15, words = ["Vos", "clips"] }: {
-  styleId: string; custom?: SubCustom; size?: number; words?: [string, string] | string[];
-}) {
-  const s = effectiveSubStyle(styleId, custom);
-  const hasBg = s.bg && s.bg !== "transparent";
-  const chip: CSSProperties = {
-    display: "inline-block", maxWidth: "100%",
-    fontFamily: s.font ? `'${s.font}', var(--display)` : "var(--display)",
-    fontWeight: s.weight,
-    fontStyle: s.italic ? "italic" : "normal",
-    textTransform: s.uppercase ? "uppercase" : "none",
-    fontSize: size, lineHeight: 1.15, letterSpacing: "-0.01em", color: s.fg,
-    padding: s.pill ? "4px 11px" : hasBg ? "3px 7px" : "2px 0",
-    borderRadius: s.pill ? 999 : hasBg ? 4 : 0,
-    background: s.bg,
-    ...(s.stroke ? { WebkitTextStroke: `0.9px ${s.stroke}`, paintOrder: "stroke", textShadow: "0 1px 2px rgba(0,0,0,.5)" } : {}),
-  };
-  return <span style={chip}>{words[0]} <span style={{ color: s.hi }}>{words[1]}</span></span>;
-}
 
 // ─── FontRow — lazy-loads the font via IntersectionObserver ───────────────────
 
@@ -330,12 +307,6 @@ export default function NewWorkspacePage() {
   // Active font names (custom overrides Google selection)
   const activeFontPrimary = customPrimary ? customPrimary.family : fontPrimary;
   const activeFontSecondary = customSecondary ? customSecondary.family : fontSecondary;
-
-  // Libellés de l'éditeur de sous-titres (partagé avec l'éditeur de montage).
-  // Libellés « longueur des sous-titres » — réutilise les traductions déjà
-  // faites pour l'éditeur de montage (mêmes 6 langues), pas de doublon à créer.
-  const tc = useTranslations('montageConstants');
-  const SUB_LENGTH_KEY: Record<number, string> = { 1: "one", 2: "two", 3: "three", 4: "four", 6: "six", 99: "sentence" };
 
   // Templates de sous-titres dérivés de la charte (couleurs + police déjà choisies).
   const subPresets = useMemo(
@@ -2069,146 +2040,27 @@ export default function NewWorkspacePage() {
 
             {/* ─── STEP 5 — Templates ─── */}
             {step === 5 && (
-              <div key="step5" className="screen-in" style={{ display: "flex", flexDirection: "column", gap: 28 }}>
-                <div>
-                  <h1 className="ws-new-step-title" style={{ fontFamily: "var(--display)", fontWeight: 800, fontSize: 30, color: "var(--ink)", letterSpacing: "-0.02em", marginBottom: 8 }}>
-                    {t('step5Title')}
-                  </h1>
-                  <p style={{ fontSize: 14, color: "var(--ink-2)" }}>
-                    {t('step5Subtitle', { name: name || t('thisClientFallback') })}{" "}
-                    <span style={{ color: "var(--ink-3)" }}>{t('optionalStep')}</span>
-                  </p>
-                </div>
-
-                {/* ── Template de sous-titres — dérivé de la charte (couleurs + typo) ── */}
-                <div>
-                  <label style={labelStyle}>{t('subtitleTemplateLabel')}</label>
-                  <p style={{ fontSize: 12, color: "var(--ink-3)", marginBottom: 12 }}>{t('subtitleTemplateHint')}</p>
-
-                  {/* Propositions à la charte */}
-                  <div style={{ display: "flex", gap: 10, overflowX: "auto", paddingBottom: 6 }}>
-                    {subPresets.map((p) => {
-                      const active = subPresetId === p.id;
-                      return (
-                        <button type="button" key={p.id} onClick={() => applySubPreset(p)}
-                          style={{ flexShrink: 0, width: 150, textAlign: "left", padding: 0, borderRadius: 12, overflow: "hidden", cursor: "pointer",
-                            border: "none", background: "var(--sunk)",
-                            boxShadow: active ? "inset 0 0 0 2px var(--leaf-ink)" : "none", transition: "box-shadow .15s" }}>
-                          <div style={{ height: 78, background: "linear-gradient(135deg,#242a20,#0b110a)", display: "grid", placeItems: "center", padding: 8 }}>
-                            <SubChip styleId={p.styleId} custom={p.custom} />
-                          </div>
-                          <div style={{ padding: "8px 10px" }}>
-                            <div style={{ fontSize: 12.5, fontWeight: 700, color: "var(--ink)" }}>{t(`subPresetName.${p.id}`)}</div>
-                            <div style={{ fontSize: 11, color: "var(--ink-3)" }}>{t(`subPresetHint.${p.id}`)}</div>
-                          </div>
-                        </button>
-                      );
-                    })}
-                  </div>
-
-                  {/* Personnalisation libre (comme dans l'éditeur de montage) */}
-                  <button type="button" onClick={() => setSubAdvanced(v => !v)}
-                    style={{ marginTop: 10, background: "none", border: "none", padding: 0, cursor: "pointer",
-                      fontSize: 12.5, fontWeight: 700, color: "var(--ink-2)", display: "inline-flex", alignItems: "center", gap: 6 }}>
-                    <span style={{ transform: subAdvanced ? "rotate(90deg)" : "none", transition: "transform .15s", display: "inline-flex" }}>
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M9 18l6-6-6-6"/></svg>
-                    </span>
-                    {t('subCustomizeToggle')}
-                  </button>
-
-                  {subAdvanced && (
-                    <div className="card sub-editor-grid" style={{ marginTop: 12, padding: 16, display: "grid", gridTemplateColumns: "minmax(0,240px) minmax(0,1fr)", gap: 20, alignItems: "start" }}>
-                      {/* Aperçu « comme sur la vidéo » — on juge la lisibilité et on place le texte */}
-                      <div>
-                        <span style={{ ...labelStyle, marginBottom: 8 }}>{t('subPreviewLabel')}</span>
-                        <SubtitlePreviewStage
-                          styleId={subtitleStyleId}
-                          custom={subtitleCustom}
-                          pos={subPos}
-                          onPosChange={setSubPos}
-                          onScaleChange={(scale) => { setSubPresetId(null); setSubtitleCustom((c) => ({ ...c, scale })); }}
-                          maxWords={subMaxWords}
-                          editableTextLabel={t('subTextPlaceholder')}
-                          fontSize={14}
-                        />
-                        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, marginTop: 8 }}>
-                          <p style={{ fontSize: 11.5, color: "var(--ink-3)", margin: 0, lineHeight: 1.4 }}>{t('subPreviewHint')}</p>
-                          <button type="button" onClick={() => setSubPos(DEFAULT_SUB_POS)} className="btn btn-ghost btn-sm" style={{ flexShrink: 0, fontSize: 11 }}>
-                            {t('subPosReset')}
-                          </button>
-                        </div>
-
-                        {/* Longueur des sous-titres — combien de mots apparaissent à la
-                            fois, exactement comme dans l'éditeur de montage. */}
-                        <div style={{ marginTop: 14 }}>
-                          <span style={{ ...labelStyle, marginBottom: 6 }}>{t('subLengthLabel')}</span>
-                          <p style={{ fontSize: 11, color: "var(--ink-3)", margin: "0 0 8px" }}>{t('subLengthHint')}</p>
-                          <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
-                            {SUB_LENGTHS.map((l) => (
-                              <button type="button" key={l.words} onClick={() => setSubMaxWords(l.words)}
-                                className={subMaxWords === l.words ? "btn btn-primary btn-sm" : "btn btn-ghost btn-sm"}
-                                style={{ fontSize: 11, padding: "4px 9px" }}>
-                                {tc(`subLength.${SUB_LENGTH_KEY[l.words] ?? "four"}`)}
-                              </button>
-                            ))}
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Tous les réglages — composant partagé avec l'éditeur de montage */}
-                      <div>
-                        <SubtitleStyleEditor
-                          styleId={subtitleStyleId}
-                          custom={subtitleCustom}
-                          onChange={(next) => { setSubPresetId(null); setSubtitleCustom(next); }}
-                          brandFont={activeFontPrimary}
-                          brandColors={[primaryColor, secondaryColor, accentColor].filter(Boolean) as string[]}
-                        />
-                        <p style={{ fontSize: 11.5, color: "var(--ink-3)", margin: "14px 0 0" }}>{t('subCustomizeNote')}</p>
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                {/* Création de template — le VRAI éditeur, celui de toute
-                    l'app (rail + panneau Canva, modèles, IA), pas une
-                    maquette à part. Un nouveau template y arrive déjà avec
-                    photo, voile et deux blocs de texte à la couleur et à la
-                    police du client. */}
-                <div style={{ border: "2px solid rgba(13,15,10,.15)", borderRadius: 16, padding: "48px 24px", textAlign: "center", display: "flex", flexDirection: "column", alignItems: "center", gap: 16 }}>
-                  <div style={{ width: 52, height: 52, borderRadius: 14, background: "rgba(13,15,10,.05)", display: "grid", placeItems: "center" }}>
-                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--ink-3)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                      <rect x="3" y="3" width="18" height="18" rx="3"/><path d="M3 9h18M9 9v12"/>
-                    </svg>
-                  </div>
-                  <div>
-                    <p style={{ fontSize: 15, fontWeight: 700, color: "var(--ink)", margin: "0 0 4px" }}>
-                      {templateCount > 0 ? t('templatesSavedNote', { count: templateCount }) : t('noTemplateYet')}
-                    </p>
-                    <p style={{ fontSize: 13, color: "var(--ink-3)", margin: 0 }}>
-                      {t('noTemplateHint')}
-                    </p>
-                  </div>
-                  <button
-                    onClick={goCreateTemplate}
-                    disabled={loading}
-                    style={{
-                      padding: "11px 28px", borderRadius: 13, background: "var(--ink)",
-                      border: "none", color: "var(--paper)", fontSize: 14, fontWeight: 700,
-                      cursor: loading ? "default" : "pointer", opacity: loading ? 0.7 : 1,
-                      fontFamily: "var(--display)", transition: "opacity 0.15s",
-                    }}
-                  >
-                    {templateCount > 0 ? t('add') : t('createTemplate')}
-                  </button>
-                </div>
-
-                {error && (
-                  <div style={{ padding: "12px 16px", borderRadius: "var(--r-s)", background: "var(--warn-soft)", border: "1px solid rgba(200,115,43,.25)", color: "var(--warn)", fontSize: 13, fontWeight: 600 }}>
-                    {error}
-                  </div>
-                )}
-              </div>
+              <Step5Templates
+                clientName={name}
+                subPresets={subPresets}
+                subPresetId={subPresetId}
+                onPickPreset={applySubPreset}
+                advanced={subAdvanced}
+                onToggleAdvanced={() => setSubAdvanced(v => !v)}
+                styleId={subtitleStyleId}
+                custom={subtitleCustom}
+                onCustomChange={(next) => { setSubPresetId(null); setSubtitleCustom(next); }}
+                pos={subPos}
+                onPosChange={setSubPos}
+                maxWords={subMaxWords}
+                onMaxWordsChange={setSubMaxWords}
+                brandFont={activeFontPrimary}
+                brandColors={[primaryColor, secondaryColor, accentColor].filter(Boolean) as string[]}
+                templateCount={templateCount}
+                onCreateTemplate={goCreateTemplate}
+                loading={loading}
+                error={error}
+              />
             )}
 
           </div>

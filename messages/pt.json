@@ -1004,6 +1004,8 @@
     "brandColorsLabel": "Cores da marca",
     "subtitleTemplateLabel": "Modelo de legendas",
     "subtitleTemplateHint": "Gerados a partir das cores e da tipografia da marca. A palavra destacada marca o ritmo nas suas montagens.",
+    "visualTemplateLabel": "Modelos visuais",
+    "visualTemplateHint": "Layouts reutilizáveis para publicações e stories, com as cores e a tipografia da marca.",
     "colorPrimary": "Principal",
     "colorSecondary": "Secundária",
     "colorAccent": "Destaque",

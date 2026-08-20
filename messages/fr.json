@@ -1004,6 +1004,8 @@
     "brandColorsLabel": "Couleurs de marque",
     "subtitleTemplateLabel": "Template de sous-titres",
     "subtitleTemplateHint": "Générés à partir des couleurs et de la police de la marque. Le mot surligné marque le rythme dans vos montages vidéo.",
+    "visualTemplateLabel": "Templates visuels",
+    "visualTemplateHint": "Des mises en page réutilisables pour les posts et les stories, aux couleurs et à la police de la marque.",
     "colorPrimary": "Principale",
     "colorSecondary": "Secondaire",
     "colorAccent": "Accent",
