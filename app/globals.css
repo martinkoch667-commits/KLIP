@@ -1197,20 +1197,19 @@ input.ed-range::-moz-range-thumb {
 .a-tick span { position: absolute; top: 2px; left: 4px; font-family: var(--mono); font-weight: 700; font-size: 9px; color: var(--ink-3); }
 
 .a-lane { display: flex; align-items: center; gap: 0; height: calc(52px * var(--tscale, 1)); margin-bottom: 7px; position: relative; }
-.a-lane-label { width: var(--lane-label-w, 108px); flex-shrink: 0; display: flex; align-items: center; gap: 5px; padding-left: 12px;
-  position: relative; overflow: hidden;
+.a-lane-label { width: var(--lane-label-w, 160px); flex-shrink: 0; display: flex; align-items: center; gap: 3px; padding-left: 10px;
   font-family: var(--mono); font-weight: 800; font-size: 10px; letter-spacing: .04em; text-transform: uppercase; color: var(--ink-3); }
-/* Actions de rangée (ajouter / supprimer) : révélées au survol de l'étiquette.
+/* Actions de rangée (ajouter / supprimer) : TOUJOURS visibles.
 
-   Posées dans le flux, elles débordaient de la gouttière et les blocs de la
-   timeline leur passaient par-dessus — la gouttière ne fait qu'une centaine de
-   pixels et porte déjà le nom de la piste et ses trois bascules. Sorties du flux
-   et montrées à la demande, elles ne prennent plus de place au repos. */
-.a-lane-acts { position: absolute; right: 4px; top: 50%; transform: translateY(-50%);
-  display: flex; align-items: center; gap: 3px; opacity: 0; pointer-events: none;
-  background: var(--canvas); border-radius: 7px; padding: 2px;
-  box-shadow: 0 1px 6px rgba(0,0,0,.35); transition: opacity .12s var(--ease); }
-.a-lane-label:hover .a-lane-acts, .a-lane-label:focus-within .a-lane-acts { opacity: 1; pointer-events: auto; }
+   Elles ont d'abord été cachées au survol pour tenir dans la gouttière. Mauvaise
+   idée : un bouton qu'on ne voit pas n'existe pas, et rien n'indiquait qu'une
+   rangée pouvait s'ajouter ou se retirer. On élargit donc la gouttière pour
+   qu'elles tiennent vraiment, et elles restent à l'écran.
+
+   `margin-left: auto` les colle à droite : le nom de la piste garde la place qui
+   reste et se tronque de lui-même, au lieu de pousser les boutons dehors. */
+.a-lane-acts { margin-left: auto; padding-right: 6px; display: flex; align-items: center; gap: 3px; flex-shrink: 0; }
+.a-lane-label .trunc { min-width: 0; }
 /* Chaque piste est un « étage » séparé (façon CapCut) : fond légèrement creusé + liseré
    discret (assez pour distinguer les couches, sans surcharger visuellement). */
 .a-lane-track { flex: 1; height: 100%; display: flex; align-items: center; gap: 3px; position: relative;

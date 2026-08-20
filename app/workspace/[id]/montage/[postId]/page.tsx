@@ -304,8 +304,13 @@ const FADE_ABS: React.CSSProperties = { position: "absolute", inset: 0, pointerE
 
    Elle était écrite en dur (92) à six endroits : le curseur de lecture, le
    décalage de la règle, le zoom à la molette, la détection de la zone de dépôt.
-   Une seule valeur maintenant, partagée avec la CSS par une variable. */
-const LANE_LABEL_W = 108;
+   Une seule valeur maintenant, partagée avec la CSS par une variable.
+
+   Elle est large parce qu'elle porte tout : l'icône de la piste, son nom, ses
+   trois bascules (verrou, oeil, son) et les deux boutons de rangée. Ces deux
+   derniers ont d'abord été cachés au survol pour gagner de la place ; c'était
+   une fausse économie, personne ne devine un bouton invisible. */
+const LANE_LABEL_W = 160;
 
 const WAVEFORM_PER_SECOND = 30;
 const WAVEFORM_MAX = 9000;   // ~5 min à pleine résolution
@@ -3692,8 +3697,8 @@ export default function MontagePage() {
   function LaneAdd({ onClick, title: titre }: { onClick: () => void; title: string }) {
     return (
       <button onClick={onClick} title={titre}
-        style={{ width: 17, height: 17, borderRadius: 5, border: "1px solid var(--line)", background: "var(--canvas)",
-          color: "var(--ink-2)", fontSize: 13, lineHeight: "13px", cursor: "pointer", flexShrink: 0, padding: 0 }}>+</button>
+        style={{ width: 16, height: 16, borderRadius: 5, border: "1px solid var(--line)", background: "var(--canvas)",
+          color: "var(--ink-2)", fontSize: 12, lineHeight: "12px", cursor: "pointer", flexShrink: 0, padding: 0 }}>+</button>
     );
   }
 
@@ -3702,8 +3707,8 @@ export default function MontagePage() {
     const vide = pisteVide(genre, index);
     return (
       <button onClick={() => supprimerPiste(genre, index)} title={vide ? t('removeLane') : t('removeLaneBlocked')}
-        style={{ width: 17, height: 17, borderRadius: 5, border: "1px solid var(--line)", background: "var(--canvas)",
-          color: vide ? "var(--ink-2)" : "var(--ink-3)", opacity: vide ? 1 : 0.4, fontSize: 13, lineHeight: "13px",
+        style={{ width: 16, height: 16, borderRadius: 5, border: "1px solid var(--line)", background: "var(--canvas)",
+          color: vide ? "var(--ink-2)" : "var(--ink-3)", opacity: vide ? 1 : 0.4, fontSize: 12, lineHeight: "12px",
           cursor: vide ? "pointer" : "not-allowed", flexShrink: 0, padding: 0 }}>×</button>
     );
   }
