@@ -31,6 +31,7 @@ import {
 } from "./preEdit";
 import { detectBeats, beatsOnTimeline, snapClipsToBeats, type BeatMap } from "./beatSync";
 import { transcodeToMp4 } from "@/lib/mp4-transcode";
+import { isTextEntry } from "@/lib/keys";
 import AiThinkingPanel from "@/components/AiThinkingPanel";
 import AiChatDock from "@/components/AiChatDock";
 
@@ -3702,12 +3703,21 @@ export default function MontagePage() {
      n'inscrit qu'un seul écouteur, une seule fois. */
   function onKey(e: KeyboardEvent) {
       const el = e.target as HTMLElement;
-      const typing = el && (el.tagName === "INPUT" || el.tagName === "TEXTAREA" || el.isContentEditable);
-      if (typing) return;
       const meta = e.metaKey || e.ctrlKey;
       const k = e.key.toLowerCase();
-      if (meta && k === "z") { e.preventDefault(); if (e.shiftKey) redo(); else undo(); return; }
-      if (meta && k === "y") { e.preventDefault(); redo(); return; }
+      /* Annuler / rétablir passent AVANT le garde-fou de saisie. Après avoir
+         bougé un curseur ou coché une case du panneau, le focus reste sur ce
+         champ : ⌘Z n'arrivait alors jamais jusqu'ici, alors que c'est
+         précisément l'instant où l'on veut annuler. Seuls les champs où l'on
+         tape gardent leur annulation native (cf. isTextEntry). */
+      if (meta && (k === "z" || k === "y")) {
+        if (isTextEntry(el)) return;
+        e.preventDefault();
+        if (k === "y" || e.shiftKey) redo(); else undo();
+        return;
+      }
+      const typing = el && (el.tagName === "INPUT" || el.tagName === "TEXTAREA" || el.isContentEditable);
+      if (typing) return;
       if (meta && k === "c") { e.preventDefault(); copySelected(); return; }
       if (meta && k === "x") { e.preventDefault(); copySelected(); deleteSelected(); return; }
       if (meta && k === "v") { e.preventDefault(); pasteClipboard(); return; }

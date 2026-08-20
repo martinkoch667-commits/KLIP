@@ -24,6 +24,7 @@ import { LAYOUT_TEMPLATES, LAYOUT_CATS, LAYOUT_STYLES, LayoutThumb, adaptLayoutT
 import { googleFontHref, googleVariants, weightName } from '@/lib/fontWeights';
 import { buildCarouselSlide, themeFromBrand } from '@/lib/carouselDesigns';
 import { registerFontFamily, weightLabel, type FontFamily } from '@/lib/fontFiles';
+import { isTextEntry } from '@/lib/keys';
 import { STICKERS, STICKER_CATS, stickerDataUri, type Sticker } from './stickers';
 import { AiThinkingLog } from '@/components/AiThinkingPanel';
 import AiChatDock from '@/components/AiChatDock';
@@ -4131,6 +4132,15 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
+      // Annuler / rétablir passent AVANT le garde-fou de saisie : un curseur ou
+      // une case du panneau garde le focus après usage, et ⌘Z se perdait alors
+      // dans un champ qui n'avait rien à annuler. Seuls les champs où l'on tape
+      // gardent leur annulation native (cf. isTextEntry).
+      if ((e.metaKey || e.ctrlKey) && (e.key.toLowerCase() === 'z' || e.key.toLowerCase() === 'y') && !isTextEntry(e.target)) {
+        e.preventDefault();
+        if (e.key.toLowerCase() === 'y' || e.shiftKey) redo(); else undo();
+        return;
+      }
       if (isTypingTarget(e.target)) return;
       if (e.key === 'Escape') {
         if (isPenModeRef.current) {
@@ -4141,8 +4151,6 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
         setSelectedId(null); setSelectedIds([]); setEditingId(null); return;
       }
       if (e.key === 'Delete' || e.key === 'Backspace') deleteEl();
-      if ((e.metaKey || e.ctrlKey) && e.key === 'z' && !e.shiftKey) { e.preventDefault(); undo(); }
-      if ((e.metaKey || e.ctrlKey) && (e.key === 'y' || (e.key === 'z' && e.shiftKey))) { e.preventDefault(); redo(); }
       if ((e.metaKey || e.ctrlKey) && e.key === 'd') { e.preventDefault(); duplicateEl(); }
       if ((e.metaKey || e.ctrlKey) && e.key === 'c') { copyEl(); }
       // Cmd/Ctrl+V est géré par l'écouteur 'paste' (voir plus bas) pour pouvoir
