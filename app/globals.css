@@ -2448,6 +2448,11 @@ aside.sidebar:not(.sidebar-bare) + div,
 aside.sidebar:not(.sidebar-bare) + main {
   margin: var(--sheet-gap) 0 0 calc(var(--sb-w) + var(--sheet-gap)) !important;
   height: calc(100vh - var(--sheet-gap)) !important;
+  /* Une feuille qui déborde d'un pixel fait apparaître une barre horizontale
+     sur toute la page, et on se retrouve à naviguer de gauche à droite sans
+     raison. Elle ne peut pas dépasser la place qui lui reste. */
+  max-width: calc(100vw - var(--sb-w) - var(--sheet-gap)) !important;
+  box-sizing: border-box;
   /* Arrondie en haut, franche en bas : la page continue vers le bas au lieu de
      se refermer sur un carré posé au milieu de l'écran. */
   border-radius: var(--sheet-r) var(--sheet-r) 0 0;
@@ -2984,3 +2989,17 @@ aside.sidebar:not(.sidebar-bare) + div:has(> .topbar-voile) {
   background: var(--white);
   box-shadow: 0 1px 2px rgba(13,15,10,.06), 0 12px 24px -10px rgba(13,15,10,.34);
 }
+
+/* Des écrans se calaient sur la hauteur de la FENÊTRE (`min-height: 100vh`)
+   alors qu'ils vivent maintenant dans une feuille qui en fait dix pixels de
+   moins : la différence suffisait à créer un défilement, sur une page qui
+   tient pourtant à l'écran. Dans une feuille, la référence est la feuille. */
+aside.sidebar:not(.sidebar-bare) + .wsx,
+aside.sidebar:not(.sidebar-bare) + .ws-new-shell,
+aside.sidebar:not(.sidebar-bare) + .work,
+aside.sidebar:not(.sidebar-bare) + div,
+aside.sidebar:not(.sidebar-bare) + main { min-height: 0 !important; }
+
+/* Le fond n'a rien à faire défiler : tout ce qui se lit est dans la feuille,
+   qui a son propre défilement. */
+body:has(aside.sidebar) { overflow-x: hidden; }
