@@ -209,16 +209,14 @@ export default function Sidebar({ workspaces: _w, userName: _u, activeWorkspaceI
           const wsInitials = ws.name.slice(0, 2).toUpperCase();
           const logoSrc = ws.brand_icon_url || ws.logo_url || ws.logo_dark_url || null;
           return (
-            <Link key={ws.id} href={`/workspace/${ws.id}`} title={ws.name} className={`nav-item sb-ws${isActive ? " active" : ""}`} style={{ padding: "7px 10px", textDecoration: "none" }}>
+            <Link key={ws.id} href={`/workspace/${ws.id}`} title={ws.name} className={`nav-item sb-ws${isActive ? " active" : ""}`} style={{ textDecoration: "none" }}>
               {logoSrc ? (
                 // eslint-disable-next-line @next/next/no-img-element
-                <img src={logoSrc} alt={ws.name} style={{ width: 26, height: 26, borderRadius: 7, objectFit: "contain", flexShrink: 0, background: "#fff", padding: 3, outline: isActive ? "2px solid var(--leaf)" : "none" }} />
+                <img className="sb-ws-ico" src={logoSrc} alt={ws.name} style={{ background: "#fff" }} />
               ) : (
-                <span style={{ width: 26, height: 26, borderRadius: 7, background: isActive ? "var(--leaf-ink)" : color, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, fontWeight: 800, color: "#fff", fontFamily: "var(--mono)", letterSpacing: "0.02em", flexShrink: 0 }}>
-                  {wsInitials}
-                </span>
+                <span className="sb-ws-ico" style={{ background: color }}>{wsInitials}</span>
               )}
-              <span className="nav-label trunc" style={{ fontWeight: 600, fontSize: 13 }}>{ws.name}</span>
+              <span className="nav-label sb-ws-nom">{ws.name}</span>
             </Link>
           );
         })}

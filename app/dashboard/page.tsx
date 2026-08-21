@@ -679,6 +679,13 @@ export default function Dashboard() {
   // Upcoming = not-yet-published, sorted by created_at, first 4
   const upcoming = scopePosts.filter(p => p.status !== 'idle').slice(0, 4);
 
+  // Le bloc du haut annonçait « à publier aujourd'hui » avec un compteur à 0,
+  // tout en listant les prochains posts : le titre et la liste parlaient de
+  // deux choses différentes. Il montre maintenant la journée quand il y a une
+  // journée à montrer, et les publications à venir sinon.
+  const todayList = scopePosts.filter(p => p.scheduled_at?.slice(0, 10) === todayStr);
+  const aVenir = todayList.length > 0 ? todayList : upcoming;
+
   // Clients needing attention (have 'generated' posts)
   const attentionClients = workspaces
     .map((w, i) => ({ ...w, color: wsColor(i), pending: posts.filter(p => p.workspace_id === w.id && p.status === 'generated').length }))
@@ -777,11 +784,11 @@ export default function Dashboard() {
                 <span style={{ width: 26, height: 26, borderRadius: 8, background: 'var(--leaf)', color: 'var(--mint-ink)', display: 'grid', placeItems: 'center', flexShrink: 0 }}>
                   <IconBolt />
                 </span>
-                <span className="label">{t('toPublishToday')}</span>
-                <span className="num" style={{ fontSize: 17 }}>{todayPosts}</span>
+                <span className="label">{todayList.length > 0 ? t('toPublishToday') : t('upcomingPublications')}</span>
+                {todayList.length > 0 && <span className="num" style={{ fontSize: 17 }}>{todayPosts}</span>}
               </div>
               <div className="dash-today-list">
-                {upcoming.slice(0, 3).map(p => {
+                {aVenir.slice(0, 3).map(p => {
                   const src = p.exported_image_url || p.photo_url;
                   const ws = workspaces.find(w => w.id === p.workspace_id);
                   return (
@@ -800,7 +807,7 @@ export default function Dashboard() {
                     </button>
                   );
                 })}
-                {upcoming.length === 0 && (
+                {aVenir.length === 0 && (
                   <div style={{ fontSize: 12.5, color: 'var(--ink-3)', padding: '10px 2px' }}>
                     {t('noUpcoming')}
                   </div>

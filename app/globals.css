@@ -2397,7 +2397,7 @@ input.mz-range::-moz-range-thumb { width: 16px; height: 16px; border-radius: 50%
    ════════════════════════════════════════════════════════════════════════════ */
 
 :root {
-  --sb-w:      84px;   /* le rail remplace la sidebar de 256px */
+  --sb-w:      92px;   /* le rail remplace la sidebar de 256px */
   --sheet-gap: 10px;
   --sheet-r:   22px;
 }
@@ -2455,18 +2455,24 @@ aside.sidebar:not(.sidebar-bare) + * .topbar {
 .sidebar .nav-item {
   flex-direction: column;
   gap: 5px;
-  width: 68px;
-  padding: 9px 2px !important;
+  width: 80px;
+  padding: 9px 4px !important;
   border-radius: 14px;
   color: var(--cream-2);
 }
+/* Le libellé hérite de `white-space: nowrap` : sans cette reprise, « Fil de
+   publication » sort de sa pastille et va toucher le bord de l'écran. */
 .sidebar .nav-label {
-  font-size: 10px;
+  max-width: 100%;
+  font-size: 9.5px;
   font-weight: 600;
   letter-spacing: 0;
   text-transform: none;
-  line-height: 1.1;
+  line-height: 1.15;
   text-align: center;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  hyphens: auto;
 }
 .sidebar .nav-item.active {
   background: rgba(238,237,227,.14);
@@ -2508,14 +2514,43 @@ aside.sidebar:not(.sidebar-bare) + * .topbar {
   margin-bottom: 6px;
   flex-shrink: 0;
 }
+/* Un client se reconnaît à son logo ET à son nom : la colonne de pastilles
+   muettes obligeait à survoler chacune pour savoir qui était qui. */
 .sidebar .sb-ws {
-  width: 44px;
-  padding: 4px !important;
-  border-radius: 50%;
+  width: 80px;
+  padding: 7px 4px !important;
+  border-radius: 14px;
   flex-shrink: 0;
 }
-.sidebar .sb-ws .nav-label { display: none; }
-.sidebar .sb-ws.active { background: transparent; }
+.sb-ws-ico {
+  width: 34px; height: 34px;
+  border-radius: 50%;
+  object-fit: cover;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 800;
+  color: #fff;
+  letter-spacing: .02em;
+  box-shadow: 0 0 0 1.5px rgba(238,237,227,.18);
+  transition: box-shadow .15s;
+}
+/* Deux lignes au plus : « Atelier Rousseau » doit rester lisible en entier,
+   mais un nom à rallonge ne doit pas repousser la liste vers le bas. */
+.sidebar .sb-ws-nom {
+  font-size: 9.5px;
+  font-weight: 600;
+  max-width: 100%;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.sidebar .sb-ws:hover .sb-ws-ico { box-shadow: 0 0 0 1.5px rgba(238,237,227,.45); }
+.sidebar .sb-ws.active { background: rgba(238,237,227,.14); color: #fff; }
+.sidebar .sb-ws.active .sb-ws-ico { box-shadow: 0 0 0 2px var(--leaf); }
 
 .sb-add {
   width: 36px; height: 36px;
@@ -2553,16 +2588,30 @@ aside.sidebar:not(.sidebar-bare) + * .topbar {
 
 /* Le voile déborde du padding de `.page` pour toucher les bords de la feuille,
    comme le dégradé de haut de page touche les arrondis. */
+/* `.page` est centrée et plafonnée à 1320 px : peint sur elle, le voile
+   s'arrêtait net des deux côtés dès qu'on avait un écran large. Il est donc
+   peint par un calque plus large que la colonne, que la feuille recadre à ses
+   propres bords. */
 .dash-wash {
   position: relative;
   margin: -30px -34px 16px;
   padding: 32px 34px 26px;
+}
+.dash-wash::before {
+  content: "";
+  position: absolute;
+  top: 0; bottom: 0;
+  left: 50%;
+  width: 100vw;
+  transform: translateX(-50%);
   background:
     radial-gradient(720px 340px at 12% -30%, rgba(189,242,160,.9), transparent 66%),
     radial-gradient(620px 300px at 84% -22%, rgba(102,86,217,.2), transparent 68%),
     radial-gradient(540px 280px at 50% -10%, rgba(47,215,155,.24), transparent 70%),
     linear-gradient(180deg, #FCFDFA, var(--canvas) 92%);
+  pointer-events: none;
 }
+.dash-wash > * { position: relative; z-index: 1; }
 .dash-title {
   position: relative;
   font-size: clamp(28px, 3.4vw, 42px);
