@@ -2438,7 +2438,7 @@ aside.sidebar:not(.sidebar-bare) + .work { overflow: hidden; }
 
 /* La topbar devient le haut de la feuille : plus de filet appuyé, le voile
    suffit à la séparer du contenu qui défile dessous. */
-aside.sidebar:not(.sidebar-bare) + * .topbar {
+aside.sidebar:not(.sidebar-bare) + * .topbar:not(.topbar-voile) {
   border-bottom: 1px solid var(--line-2);
   background: color-mix(in srgb, var(--canvas) 82%, transparent);
 }
@@ -2612,12 +2612,12 @@ aside.sidebar:not(.sidebar-bare) + * .topbar {
 aside.sidebar:not(.sidebar-bare) + div:has(> .topbar-voile) {
   background-color: var(--canvas);
   background-image:
-    radial-gradient(760px 420px at 12% 0%, rgba(189,242,160,.95), transparent 66%),
-    radial-gradient(640px 380px at 84% 0%, rgba(102,86,217,.24), transparent 68%),
-    radial-gradient(560px 340px at 50% 0%, rgba(47,215,155,.3), transparent 70%);
+    radial-gradient(720px 320px at 10% 0%, rgba(189,242,160,.95), transparent 68%),
+    radial-gradient(620px 300px at 82% 0%, rgba(47,215,155,.34), transparent 70%),
+    radial-gradient(520px 260px at 48% 0%, rgba(124,201,87,.28), transparent 70%);
   background-repeat: no-repeat;
   background-position: top center;
-  background-size: 100% 440px;
+  background-size: 100% 300px;
 }
 .dash-wash > * { position: relative; z-index: 1; }
 .dash-wash { background: transparent; }
@@ -2710,50 +2710,78 @@ aside.sidebar:not(.sidebar-bare) + div:has(> .topbar-voile) {
   position: relative;
   overflow: hidden;
   display: flex;
-  align-items: flex-end;
-  min-height: 148px;
+  flex-direction: column;
+  justify-content: flex-end;
+  min-height: 126px;
   padding: 18px 20px;
   border-radius: var(--r-l);
-  box-shadow: 0 1px 2px rgba(13,15,10,.05), 0 14px 30px -22px rgba(13,15,10,.5);
+  background: var(--card);
+  color: var(--ink);
+  box-shadow: var(--shadow-card);
   transition: transform .2s cubic-bezier(.2,.7,.3,1), box-shadow .2s;
 }
 .stat-case:hover {
   transform: translateY(-3px);
-  box-shadow: 0 1px 2px rgba(13,15,10,.05), 0 26px 44px -24px rgba(13,15,10,.55);
+  box-shadow: 0 20px 38px -26px rgba(13,15,10,.45);
+}
+/* La couleur ne peint pas la carte, elle l'éclaire par un coin : c'est le
+   vocabulaire de la charte, et quatre aplats saturés côte à côte finissaient
+   par se ressembler tous. */
+.stat-case::after {
+  content: "";
+  position: absolute;
+  right: -34px;
+  bottom: -44px;
+  width: 124px;
+  height: 124px;
+  border-radius: 50%;
+  background: radial-gradient(circle, var(--teinte, var(--leaf)), transparent 66%);
+  opacity: .34;
+  pointer-events: none;
 }
 .stat-case-txt { position: relative; z-index: 2; min-width: 0; }
-.stat-case-num { font-size: 40px; line-height: .95; letter-spacing: -.035em; }
-.stat-case-lab { margin-top: 5px; font-size: 13px; font-weight: 700; opacity: .72; max-width: 12ch; }
-.stat-case-chip {
-  display: inline-block; margin-top: 9px;
-  padding: 3px 9px; border-radius: 99px;
-  background: rgba(255,255,255,.72);
-  font-size: 11px; font-weight: 800; letter-spacing: .02em;
+.stat-case-num { font-size: 42px; line-height: .92; letter-spacing: -.04em; }
+.stat-case-lab {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 7px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--ink-2);
+  max-width: 18ch;
 }
-/* L'objet sort par le coin : une partie reste hors champ, comme un objet posé
-   sur le bord de la table. */
-.stat-case-vol {
+.stat-case-lab::before {
+  content: "";
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--teinte, var(--leaf));
+  flex-shrink: 0;
+}
+.stat-case-chip {
   position: absolute;
-  right: -10px;
-  bottom: -14px;
-  width: 152px;
-  height: 152px;
-  z-index: 1;
-  pointer-events: none;
-  display: block;
-  /* L'ombre est déjà dans le rendu : en rajouter une ici donnerait deux
-     lumières contradictoires. */
+  z-index: 2;
+  top: 16px;
+  right: 16px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: var(--sunk);
+  color: var(--ink-2);
+  font-size: 11px;
+  font-weight: 800;
 }
 
 @media (max-width: 1180px) {
-  .stat-case { min-height: 132px; }
+  .stat-case { min-height: 124px; }
   .stat-case-num { font-size: 34px; }
-  .stat-case-vol { right: -18px; bottom: -18px; width: 128px; height: 128px; }
 }
 
 /* Sur le tableau de bord, la barre du haut se pose SUR le voile : elle n'a donc
    ni fond ni filet, sinon elle recoupe la couleur en deux. */
-.topbar-voile {
+/* Là où le voile passe derrière, la barre n'a ni fond, ni filet, ni flou :
+   le moindre voile gris dessine une bande en travers du dégradé. */
+.topbar.topbar-voile {
   background: transparent;
   border-bottom: 0;
   backdrop-filter: none;
@@ -2874,4 +2902,35 @@ aside.sidebar:not(.sidebar-bare) + div:has(> .topbar-voile) {
 @media (max-width: 1180px) {
   .carte-nappe { min-height: 142px; padding: 16px 18px; }
   .nappe-num { font-size: 58px; }
+}
+
+/* ── Pastille de signalement : repliée, puis déployée au survol ──────────────
+   Elle occupait un bandeau permanent dans le coin. Au repos, il ne reste que
+   l'étiquette verte ; au survol, le libellé se déplie avec un ressort, ce qui
+   dit à la fois qu'on peut cliquer et ce qui va se passer. */
+
+.kbeta { padding: 8px; gap: 0; }
+.kbeta-txt {
+  display: inline-block;
+  max-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  opacity: 0;
+  transition:
+    max-width .42s cubic-bezier(.34, 1.5, .5, 1),
+    opacity .18s ease,
+    margin .42s cubic-bezier(.34, 1.5, .5, 1);
+}
+.kbeta:hover .kbeta-txt,
+.kbeta:focus-visible .kbeta-txt {
+  max-width: 260px;
+  opacity: 1;
+  margin: 0 14px 0 12px;
+}
+/* Sans étiquette (sortie de bêta), il n'y a plus rien à déplier. */
+.kbeta--nue { padding: 9px 22px; }
+.kbeta--nue .kbeta-txt { max-width: none; opacity: 1; margin: 0; }
+
+@media (prefers-reduced-motion: reduce) {
+  .kbeta-txt { transition: opacity .12s ease; }
 }

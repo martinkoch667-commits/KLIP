@@ -2,6 +2,11 @@
 
 /* Pastille « Signaler un bug » de la phase d'ouverture.
  *
+ * Repliée sur son étiquette au repos, elle se déplie au survol : le libellé
+ * tient dans un élément à part pour pouvoir s'ouvrir avec un ressort. Un
+ * bandeau permanent dans le coin de chaque page, c'était trop de place prise
+ * pour une action qu'on ne fait pas tous les jours.
+ *
  * Deux blocs dans un seul objet : une étiquette verte détachée, façon sticker
  * collé sur la pilule, puis l'action. C'est l'étiquette qui dit « bêta », le
  * texte dit ce qu'on peut faire — l'ancien libellé d'un seul tenant mélangeait
@@ -79,7 +84,7 @@ const BetaButton = React.forwardRef<HTMLElement, BetaButtonProps>(function BetaB
           {chipLabel}
         </span>
       )}
-      {label}
+      <span className="kbeta-txt">{label}</span>
     </>
   );
 
