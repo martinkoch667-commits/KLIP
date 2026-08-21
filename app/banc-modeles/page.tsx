@@ -9,7 +9,7 @@
  */
 
 import React, { useState } from "react";
-import { TemplatesView } from "../workspace/[id]/templates/page";
+import TemplatesView from "../workspace/[id]/templates/TemplatesView";
 
 const CHARTE = {
   id: "banc", name: "PEPE CHICKEN",
