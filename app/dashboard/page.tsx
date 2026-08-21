@@ -10,7 +10,6 @@ import OnboardingChecklist from '@/components/OnboardingChecklist';
 import NotificationBell from '@/components/NotificationBell';
 import { Sticker } from '@/components/Stickers';
 import MediaThumb, { pickThumbSource, thumbUrl } from '@/components/MediaThumb';
-import { VolEclair, VolSablier, VolCalendrier, VolClients } from '@/components/Volumes';
 
 // ─── Types ─────────────────────────────────────────────────────────────────
 
@@ -92,8 +91,6 @@ function IconChevR() {
 interface StatTileProps {
   value: number;
   label: string;
-  /** L'objet en relief, à droite. Il déborde volontairement du cadre. */
-  volume: React.ReactNode;
   /** Le fond de la case. Chaque compteur a le sien, c'est ce qui les distingue
    *  d'un coup d'œil, avant même d'avoir lu le libellé. */
   fond: string;
@@ -107,7 +104,7 @@ interface StatTileProps {
  * fois. Chaque compteur reçoit donc sa couleur et son objet, et le chiffre
  * prend la place qu'il mérite.
  */
-function StatTile({ value, label, volume, fond, encre = 'var(--ink)', sub }: StatTileProps) {
+function StatTile({ value, label, fond, encre = 'var(--ink)', sub }: StatTileProps) {
   return (
     <div className="stat-case" style={{ background: fond, color: encre }}>
       <div className="stat-case-txt">
@@ -115,7 +112,6 @@ function StatTile({ value, label, volume, fond, encre = 'var(--ink)', sub }: Sta
         <div className="stat-case-lab">{label}</div>
         {sub && <span className="stat-case-chip">{sub}</span>}
       </div>
-      <span className="stat-case-vol" aria-hidden="true">{volume}</span>
     </div>
   );
 }
@@ -823,15 +819,15 @@ export default function Dashboard() {
             {/* Stat tiles */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 14, marginBottom: 14 }} className="dash-stats">
               <StatTile value={todayPosts} label={t('toPublishToday')} sub={t('statAuto')}
-                fond="linear-gradient(150deg, #E7F9D8, #CFF0B6)" volume={<VolEclair taille={112} />} />
+                fond="linear-gradient(150deg, #E7F9D8, #CFF0B6)" />
               <StatTile value={pendingPosts} label={t('statPending')}
-                fond="linear-gradient(150deg, #FFF0DF, #FBDCBC)" volume={<VolSablier taille={112} />} />
+                fond="linear-gradient(150deg, #FFF0DF, #FBDCBC)" />
               <StatTile value={scheduledPosts} label={t('statScheduled')}
-                fond="linear-gradient(150deg, #EDEAFC, #DCD5F6)" volume={<VolCalendrier taille={112} />} />
+                fond="linear-gradient(150deg, #EDEAFC, #DCD5F6)" />
               <StatTile
                 value={active === 'all' ? workspaces.length : 1}
                 label={active === 'all' ? t('statClients') : t('statConnected')}
-                fond="linear-gradient(150deg, #E2F5EC, #C9EBDC)" volume={<VolClients taille={112} />} />
+                fond="linear-gradient(150deg, #E2F5EC, #C9EBDC)" />
             </div>
 
             {/* All clients: workspace card grid */}

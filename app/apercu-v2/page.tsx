@@ -9,7 +9,6 @@
  */
 
 import Sidebar from '@/components/Sidebar';
-import { VolEclair, VolSablier, VolCalendrier, VolClients } from '@/components/Volumes';
 
 const Ic = {
   post: <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.3" cy="6.7" r="1" fill="currentColor" stroke="none"/></svg>,
@@ -27,10 +26,10 @@ const CLIENTS = [
 ];
 
 const STATS = [
-  { valeur: 3, libelle: 'À publier aujourd’hui', fond: 'linear-gradient(150deg, #E7F9D8, #CFF0B6)', volume: <VolEclair taille={112} />, sub: 'Auto' },
-  { valeur: 3, libelle: 'En attente de validation', fond: 'linear-gradient(150deg, #FFF0DF, #FBDCBC)', volume: <VolSablier taille={112} /> },
-  { valeur: 12, libelle: 'Planifiés', fond: 'linear-gradient(150deg, #EDEAFC, #DCD5F6)', volume: <VolCalendrier taille={112} /> },
-  { valeur: 10, libelle: 'Clients actifs', fond: 'linear-gradient(150deg, #E2F5EC, #C9EBDC)', volume: <VolClients taille={112} /> },
+  { valeur: 3, libelle: 'À publier aujourd’hui', fond: 'linear-gradient(150deg, #E7F9D8, #CFF0B6)', sub: 'Auto' },
+  { valeur: 3, libelle: 'En attente de validation', fond: 'linear-gradient(150deg, #FFF0DF, #FBDCBC)' },
+  { valeur: 12, libelle: 'Planifiés', fond: 'linear-gradient(150deg, #EDEAFC, #DCD5F6)' },
+  { valeur: 10, libelle: 'Clients actifs', fond: 'linear-gradient(150deg, #E2F5EC, #C9EBDC)' },
 ];
 
 const DEPARTS = [
@@ -88,7 +87,6 @@ export default function ApercuV2() {
                     <div className="stat-case-lab">{st.libelle}</div>
                     {st.sub && <span className="stat-case-chip">{st.sub}</span>}
                   </div>
-                  <span className="stat-case-vol" aria-hidden="true">{st.volume}</span>
                 </div>
               ))}
             </div>
