@@ -285,7 +285,7 @@ export default function BetaFeedback() {
 
           {done ? (
             <>
-              <div className="kbf-corps kbf-ok">
+              <div className="kbf-ok">
                 <div className="kbf-ok-pastille"><IconeCoche /></div>
                 <h2 className="kbf-titre">Merci, c’est parti.</h2>
                 <p className="kbf-sous">
@@ -293,7 +293,7 @@ export default function BetaFeedback() {
                   et si besoin on vous recontacte.
                 </p>
               </div>
-              <div className="kbf-pied">
+              <div className="kbf-pied kbf-pied--ok">
                 <button onClick={() => setDone(false)} className="kbf-btn kbf-btn--fantome">Autre chose</button>
                 <button onClick={fermer} className="kbf-btn kbf-btn--vert">Fermer</button>
               </div>

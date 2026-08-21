@@ -855,16 +855,27 @@ input.ed-range::-moz-range-thumb {
 .kbf-btn--vert:active { transform: none; }
 .kbf-btn[disabled] { opacity: .55; cursor: default; transform: none; }
 
-/* Accusé de réception : le même volet, un état de plus. */
-.kbf-ok { text-align: center; padding: 10px 0 6px; }
+/* Accusé de réception : le même volet, un état de plus. Il vit avec ses
+   propres marges — le corps du formulaire est cadré pour un champ pleine
+   largeur, ce qui colle un texte centré aux deux bords. Ici la ligne est
+   bornée et respire, et rien ne passe sous la croix. */
+.kbf-ok {
+  flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  text-align: center; padding: 34px 30px 30px; overflow-y: auto;
+}
+.kbf-ok .kbf-titre { margin: 0 0 8px; }
+.kbf-ok .kbf-sous { max-width: 34ch; margin: 0 auto; }
 .kbf-ok-pastille {
-  width: 58px; height: 58px; margin: 4px auto 14px; border-radius: 50%;
-  display: grid; place-items: center; color: var(--kbeta-encre);
+  width: 54px; height: 54px; margin: 0 0 18px; border-radius: 50%;
+  display: grid; place-items: center; color: var(--kbeta-encre); flex-shrink: 0;
   background: linear-gradient(176deg, var(--kbeta-vert-clair), var(--kbeta-vert-fonce));
   box-shadow: inset 0 2px 0 rgba(255,255,255,.9), 0 12px 26px -14px rgba(23,36,15,.6);
   animation: kbfPastille .32s cubic-bezier(.2,.9,.3,1.4) both;
 }
-.kbf-ok-pastille svg { width: 26px; height: 26px; }
+.kbf-ok-pastille svg { width: 24px; height: 24px; }
+/* Le pied de l'accusé n'a pas de champ au-dessus de lui : il se donne la même
+   marge que le texte plutôt que celle, plus serrée, du formulaire. */
+.kbf-pied--ok { padding: 14px 22px 18px; margin-top: 0; }
 
 @keyframes kbfVolet { from { opacity: 0; transform: translateY(18px) scale(.94); } to { opacity: 1; transform: none; } }
 @keyframes kbfVoletOut { from { opacity: 1; transform: none; } to { opacity: 0; transform: translateY(12px) scale(.96); } }
