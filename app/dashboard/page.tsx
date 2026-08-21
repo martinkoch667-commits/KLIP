@@ -711,8 +711,10 @@ export default function Dashboard() {
         {/* Topbar */}
         <header className="topbar topbar-voile" data-tour="dashboard">
           <ClientSwitcher active={active} workspaces={workspaces} onChange={setActive} />
-          <div style={{ width: 1, height: 24, background: 'var(--line)', flexShrink: 0 }} />
-          <span className="h-title" style={{ fontSize: 15, whiteSpace: 'nowrap', color: 'var(--ink-2)' }}>{t('title')}</span>
+          <div style={{ width: 1, height: 24, background: 'rgba(13,15,10,.22)', flexShrink: 0 }} />
+          {/* Encre pleine : en gris moyen sur un dégradé clair, le titre avait
+              l'air à moitié effacé à côté du reste de la barre. */}
+          <span className="h-title" style={{ fontSize: 15, whiteSpace: 'nowrap', color: 'var(--ink)' }}>{t('title')}</span>
 
           <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 10 }}>
             <NotificationBell />

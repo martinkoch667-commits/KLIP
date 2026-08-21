@@ -2943,3 +2943,20 @@ aside.sidebar:not(.sidebar-bare) + div:has(> .topbar-voile) {
    d'autant plus qu'ils sont côte à côte. */
 .kbeta { min-height: 46px; }
 .mzchat-fab { height: 46px; }
+
+/* Posées sur le dégradé, les commandes de la barre du haut avaient l'air
+   grisées : leur aplat gris venait du fond d'application, qui n'est plus
+   derrière elles. Elles passent en blanc plein, légèrement soulevé. */
+.topbar-voile .btn-ghost,
+.topbar-voile .btn-icon,
+.topbar-voile .ws-switch {
+  background: var(--white);
+  color: var(--ink);
+  box-shadow: 0 1px 2px rgba(13,15,10,.06), 0 6px 16px -10px rgba(13,15,10,.28);
+}
+.topbar-voile .btn-ghost:hover:not(:disabled),
+.topbar-voile .btn-icon:hover:not(:disabled),
+.topbar-voile .ws-switch:hover {
+  background: var(--white);
+  box-shadow: 0 1px 2px rgba(13,15,10,.06), 0 12px 24px -10px rgba(13,15,10,.34);
+}
