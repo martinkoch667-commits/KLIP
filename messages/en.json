@@ -2282,7 +2282,10 @@
     "loading": "Loading…",
     "emptyTitle": "No clients",
     "emptyText": "Create a client space to start building your template library.",
-    "palette": "Palette"
+    "palette": "Palette",
+    "loadFailedTitle": "Clients could not be loaded",
+    "loadFailedHint": "Reload the page. If it persists, it's on the server side.",
+    "retry": "Try again"
   },
   "preview": {
     "errorGeneric": "Error",

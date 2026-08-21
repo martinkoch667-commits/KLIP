@@ -6115,7 +6115,23 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
         </div>
       )}
 
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', fontFamily: 'var(--sans)', background: 'radial-gradient(120% 80% at 50% -10%, #FBFAF4, #ECEBE1 70%)', overflow: 'hidden', marginLeft: sidebarOpen ? 'var(--sb-w)' : 0, transition: 'margin-left 0.2s' }}>
+    {/* Le plan de travail est une feuille posée sur le fond, comme le reste de
+        l'app : arrondie en haut, marge à gauche du rail. Replier le rail la
+        fait glisser en plein écran — la marge, les arrondis et la hauteur
+        s'animent ensemble, si bien qu'on voit le cadre s'ouvrir puis se
+        refermer au lieu d'un changement sec. */}
+    <div style={{
+      display: 'flex', flexDirection: 'column',
+      height: sidebarOpen ? 'calc(100vh - 10px)' : '100vh',
+      marginTop: sidebarOpen ? 10 : 0,
+      marginLeft: sidebarOpen ? 'calc(var(--sb-w) + 10px)' : 0,
+      borderRadius: sidebarOpen ? '22px 22px 0 0' : 0,
+      boxShadow: sidebarOpen ? '-30px 0 70px -40px rgba(0,0,0,.72), 0 0 0 1px rgba(255,255,255,.08)' : 'none',
+      fontFamily: 'var(--sans)',
+      background: 'radial-gradient(120% 80% at 50% -10%, #FBFAF4, #ECEBE1 70%)',
+      overflow: 'hidden',
+      transition: 'margin .34s cubic-bezier(.22,1,.36,1), height .34s cubic-bezier(.22,1,.36,1), border-radius .34s cubic-bezier(.22,1,.36,1), box-shadow .34s',
+    }}>
 
       {/* ── TOPBAR ── */}
       <div data-stop-deselect className={`ed-topbar${sidebarOpen ? ' ed-narrow' : ''}`} style={{

@@ -2282,7 +2282,10 @@
     "loading": "Wird geladen…",
     "emptyTitle": "Kein Kunde",
     "emptyText": "Erstelle einen Kundenbereich, um deine Vorlagenbibliothek aufzubauen.",
-    "palette": "Palette"
+    "palette": "Palette",
+    "loadFailedTitle": "Kunden konnten nicht geladen werden",
+    "loadFailedHint": "Laden Sie die Seite neu. Hält es an, liegt es am Server.",
+    "retry": "Erneut versuchen"
   },
   "preview": {
     "errorGeneric": "Fehler",

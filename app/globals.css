@@ -1389,10 +1389,12 @@ input.ed-range::-moz-range-thumb {
   .ed-topbar-center { display: none !important; }
 }
 
-/* Menu latéral du site ouvert : l'éditeur perd 256px de large → on replie les
-   libellés IA + le hint central pour que « Publier » ne soit jamais rogné. */
+/* Menu latéral ouvert : l'éditeur perdait 256 px de large, d'où ce repli des
+   libellés IA. Le rail n'en prend plus que 92 : le centre extensible peut
+   rester, et c'est lui qui pousse « Post / Reel / Story » jusqu'à « Publier »
+   contre le bord droit. Sans lui, tout ce groupe restait collé au milieu avec
+   du vide à sa droite. */
 .ed-topbar.ed-narrow .ed-hide-md { display: none !important; }
-.ed-topbar.ed-narrow .ed-topbar-center { display: none !important; }
 
 /* Boutons IA de l'éditeur — lisibles sur le bandeau vert (texte clair + icône menthe vive) */
 /* Actions IA de la barre d'éditeur : le mint cerclé jurait avec la charte (il
@@ -2153,7 +2155,7 @@ input.mz-range::-moz-range-thumb { width: 16px; height: 16px; border-radius: 50%
 /* Le coin bas-droit est déjà tenu par la pastille de signalement : le bouton
    de l'assistant se range à SA GAUCHE (largeur publiée par le widget bêta,
    0 sur les pages qui ne l'affichent pas) au lieu de se poser dessus. */
-.mzchat-fab { position: fixed; right: calc(20px + var(--klip-dock-largeur, 0px)); bottom: 20px; z-index: 900; display: flex; align-items: center; gap: 9px;
+.mzchat-fab { position: fixed; right: calc(20px + var(--klip-dock-largeur, 0px)); bottom: 18px; z-index: 900; display: flex; align-items: center; gap: 9px;
   height: 46px; padding: 0 18px 0 15px; border-radius: 23px; border: none; cursor: pointer;
   background: var(--vio); color: #fff;
   font-family: var(--sans); font-weight: 800; font-size: 13px; letter-spacing: -.01em;
@@ -2934,3 +2936,10 @@ aside.sidebar:not(.sidebar-bare) + div:has(> .topbar-voile) {
 @media (prefers-reduced-motion: reduce) {
   .kbeta-txt { transition: opacity .12s ease; }
 }
+
+/* Les deux objets du coin bas-droit — l'assistant et la pastille de
+   signalement — s'alignent sur la même ligne de base et la même hauteur.
+   Sans cela, l'un flottait deux pixels plus haut que l'autre, ce qui se voit
+   d'autant plus qu'ils sont côte à côte. */
+.kbeta { min-height: 46px; }
+.mzchat-fab { height: 46px; }

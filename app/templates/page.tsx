@@ -106,17 +106,36 @@ export default function TemplatesPage() {
   const router = useRouter();
   const [workspaces, setWorkspaces] = useState<WsCard[]>([]);
   const [loading, setLoading] = useState(true);
+  const [erreur, setErreur] = useState<string | null>(null);
 
   useEffect(() => {
     (async () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) { router.push("/login"); return; }
 
-      const { data: ws } = await supabase
+      const COLONNES = "id, name, primary_color, instagram_account_id, instagram_username, logo_url";
+
+      // `banner_url` vient d'une migration : si elle n'est pas passée sur cette
+      // base, demander la colonne fait échouer TOUTE la requête, et la page
+      // annonçait alors « Aucun client » à quelqu'un qui en a dix. On retente
+      // donc sans elle, et on ne se tait jamais sur une erreur.
+      let { data: ws, error } = await supabase
         .from("workspaces")
-        .select("id, name, primary_color, instagram_account_id, instagram_username, banner_url, logo_url")
+        .select(`${COLONNES}, banner_url`)
         .order("created_at");
 
+      if (error) {
+        const repli = await supabase.from("workspaces").select(COLONNES).order("created_at");
+        ws = repli.data?.map(w => ({ ...w, banner_url: null })) ?? null;
+        error = repli.error;
+      }
+
+      if (error) {
+        console.error("[templates] chargement des clients", error);
+        setErreur(error.message);
+        setLoading(false);
+        return;
+      }
       if (!ws) { setLoading(false); return; }
 
       const cards: WsCard[] = await Promise.all(
@@ -162,6 +181,12 @@ export default function TemplatesPage() {
 
             {loading ? (
               <div style={{ color: 'var(--ink-3)', fontSize: 13 }}>{t('loading')}</div>
+            ) : erreur ? (
+              <div className="card" style={{ padding: 28, textAlign: "center", maxWidth: 460, margin: "40px auto" }}>
+                <h2 className="h-title" style={{ fontSize: 17, marginBottom: 6 }}>{t('loadFailedTitle')}</h2>
+                <p style={{ fontSize: 13.5, color: "var(--ink-2)", marginBottom: 14 }}>{t('loadFailedHint')}</p>
+                <button className="btn btn-primary btn-sm" onClick={() => window.location.reload()}>{t('retry')}</button>
+              </div>
             ) : workspaces.length === 0 ? (
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', padding: '80px 20px', gap: 20 }}>
                 <div style={{ width: 76, height: 76, borderRadius: 22, background: 'var(--sunk)', display: 'grid', placeItems: 'center', color: 'var(--ink-3)' }}>

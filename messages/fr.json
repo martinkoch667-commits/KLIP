@@ -2282,7 +2282,10 @@
     "loading": "Chargement…",
     "emptyTitle": "Aucun client",
     "emptyText": "Créez un espace client pour commencer à construire votre bibliothèque de modèles.",
-    "palette": "Palette"
+    "palette": "Palette",
+    "loadFailedTitle": "Les clients n'ont pas pu être chargés",
+    "loadFailedHint": "Rechargez la page. Si le problème dure, c'est côté serveur.",
+    "retry": "Réessayer"
   },
   "preview": {
     "errorGeneric": "Erreur",

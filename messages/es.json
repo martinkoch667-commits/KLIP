@@ -2282,7 +2282,10 @@
     "loading": "Cargando…",
     "emptyTitle": "Ningún cliente",
     "emptyText": "Crea un espacio de cliente para empezar a construir tu biblioteca de plantillas.",
-    "palette": "Paleta"
+    "palette": "Paleta",
+    "loadFailedTitle": "No se pudieron cargar los clientes",
+    "loadFailedHint": "Recarga la página. Si continúa, es del lado del servidor.",
+    "retry": "Reintentar"
   },
   "preview": {
     "errorGeneric": "Error",
