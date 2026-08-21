@@ -316,7 +316,6 @@ function IconCalendar() { return <svg width="14" height="14" viewBox="0 0 24 24"
 function IconEdit() { return <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><path d="M4 20h4L18.5 9.5a2.1 2.1 0 0 0-3-3L5 17v3Z"/><path d="M13.5 7.5l3 3"/></svg>; }
 function IconInstagram() { return <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.3" cy="6.7" r="1" fill="currentColor" stroke="none"/></svg>; }
 function IconPlus() { return <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12h14"/></svg>; }
-function IconSpark() { return <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><path d="M12 3l1.6 5.4L19 10l-5.4 1.6L12 17l-1.6-5.4L5 10l5.4-1.6L12 3Z"/></svg>; }
 
 // ─── Engagement heatmap helpers ────────────────────────────────────────────────
 
@@ -638,8 +637,6 @@ function PlanningContent() {
   const [publishing,   setPublishing]   = useState(false);
   const [toast,        setToast]        = useState<{ msg: string; ok: boolean } | null>(null);
   const [showIgModal,  setShowIgModal]  = useState(false);
-  const [showCanva,    setShowCanva]    = useState(false);
-  const [canvaPostId,  setCanvaPostId]  = useState("");
   const [calView,      setCalView]      = useState<"week" | "month">("week");
   const [monthDate,    setMonthDate]    = useState<Date>(() => { const d = new Date(); d.setDate(1); d.setHours(0,0,0,0); return d; });
   const [nowTop,       setNowTop]       = useState(() => new Date().getHours() * HOUR_H + new Date().getMinutes());
@@ -886,35 +883,6 @@ function PlanningContent() {
               <Link href={`/workspace/${id}/parametres`} className="btn btn-dark" style={{ flex: 1, textAlign: "center" }}>{t('connectInstagram')}</Link>
             </div>
           </div>
-        </div>
-      )}
-
-      {/* Canva modal */}
-      {showCanva && (
-        <div style={{ position: "fixed", inset: 0, background: "rgba(13,15,10,.9)", zIndex: 1000, display: "flex", flexDirection: "column" }}>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 24px", background: "var(--forest)", borderBottom: "1px solid var(--cream-4)" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-              <span style={{ fontFamily: "var(--display)", fontWeight: 900, fontSize: 20, color: "var(--cream)", letterSpacing: "-0.04em" }}>Kl<span style={{ color: "var(--mint)" }}>ip</span></span>
-              <span style={{ color: "var(--cream-3)", fontSize: 14 }}>{t('canvaEditor')}</span>
-            </div>
-            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-              <label className="btn btn-primary btn-sm" style={{ cursor: "pointer" }}>
-                {t('uploadPng')}
-                <input type="file" accept="image/png,image/jpeg" style={{ display: "none" }}
-                  onChange={async e => {
-                    const file = e.target.files?.[0]; if (!file) return;
-                    const fileName = `${id}/${canvaPostId}-canva-${Date.now()}.png`;
-                    await supabase.storage.from("exports").upload(fileName, file, { contentType: file.type, upsert: true });
-                    const { data: urlData } = supabase.storage.from("exports").getPublicUrl(fileName);
-                    await supabase.from("posts").update({ exported_image_url: urlData.publicUrl, status: "validated" }).eq("id", canvaPostId);
-                    setShowCanva(false); window.location.reload();
-                  }}
-                />
-              </label>
-              <button onClick={() => setShowCanva(false)} className="btn btn-ghost btn-sm" style={{ color: "var(--cream)" }}>{t('close')}</button>
-            </div>
-          </div>
-          <iframe src="https://www.canva.com/_partnership/embed?action=createDesign&type=InstagramPost&fileType=png&supportDesignButtonErrorPage=false&apiMode=button&embed" style={{ flex: 1, width: "100%", border: "none" }} allow="fullscreen" title="Canva Editor" />
         </div>
       )}
 
@@ -1586,16 +1554,11 @@ function PlanningContent() {
               </div>
             )}
 
-            <div style={{ display: "flex", gap: 7 }}>
-              <Link href={isVideoUrl(selectedPost.photo_url) ? `/workspace/${id}/montage/${selectedPost.id}` : `/workspace/${id}/editor/${selectedPost.id}`} className="btn btn-ghost btn-sm" style={{ flex: 1, justifyContent: "center" }}>
-                <IconEdit /> {isVideoUrl(selectedPost.photo_url) ? t('montageShort') : t('editShort')}
-              </Link>
-              {!isVideoUrl(selectedPost.photo_url) && (
-                <button onClick={() => { setCanvaPostId(selectedPost.id); setShowCanva(true); }} className="btn btn-dark btn-sm" style={{ flex: 1 }}>
-                  <IconSpark /> {t('canva')}
-                </button>
-              )}
-            </div>
+            {/* Le renvoi vers Canva est retiré : l'éditeur du produit fait le
+                travail, et le détour par un outil tiers ne servait à rien. */}
+            <Link href={isVideoUrl(selectedPost.photo_url) ? `/workspace/${id}/montage/${selectedPost.id}` : `/workspace/${id}/editor/${selectedPost.id}`} className="btn btn-ghost btn-sm" style={{ width: "100%", justifyContent: "center" }}>
+              <IconEdit /> {isVideoUrl(selectedPost.photo_url) ? t('montageShort') : t('editShort')}
+            </Link>
 
             <button onClick={() => deletePost(selectedPost)} className="btn btn-ghost btn-sm"
               style={{ color: "var(--warn)", borderColor: "rgba(200,115,43,.3)", width: "100%", justifyContent: "center" }}>
