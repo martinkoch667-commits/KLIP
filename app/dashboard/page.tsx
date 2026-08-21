@@ -10,6 +10,7 @@ import OnboardingChecklist from '@/components/OnboardingChecklist';
 import NotificationBell from '@/components/NotificationBell';
 import { Sticker } from '@/components/Stickers';
 import MediaThumb, { pickThumbSource, thumbUrl } from '@/components/MediaThumb';
+import { VolEclair, VolSablier, VolCalendrier, VolClients } from '@/components/Volumes';
 
 // ─── Types ─────────────────────────────────────────────────────────────────
 
@@ -91,26 +92,30 @@ function IconChevR() {
 interface StatTileProps {
   value: number;
   label: string;
-  icon: React.ReactNode;
-  tone?: 'mint' | 'warn' | 'default';
+  /** L'objet en relief, à droite. Il déborde volontairement du cadre. */
+  volume: React.ReactNode;
+  /** Le fond de la case. Chaque compteur a le sien, c'est ce qui les distingue
+   *  d'un coup d'œil, avant même d'avoir lu le libellé. */
+  fond: string;
+  encre?: string;
   sub?: string;
 }
 
-function StatTile({ value, label, icon, tone = 'default', sub }: StatTileProps) {
-  const iconBg = tone === 'mint' ? 'var(--mint-soft)' : tone === 'warn' ? 'var(--warn-soft)' : 'var(--sunk)';
-  const iconColor = tone === 'mint' ? 'var(--mint-2)' : tone === 'warn' ? 'var(--warn)' : 'var(--ink-2)';
+/**
+ * Quatre cartes blanches identiques avec un petit picto dans un carré : on
+ * lisait quatre fois la même chose et il fallait déchiffrer le libellé à chaque
+ * fois. Chaque compteur reçoit donc sa couleur et son objet, et le chiffre
+ * prend la place qu'il mérite.
+ */
+function StatTile({ value, label, volume, fond, encre = 'var(--ink)', sub }: StatTileProps) {
   return (
-    <div className="card tile-accent" style={{ padding: '18px 20px', display: 'flex', flexDirection: 'column', gap: 14 }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <span style={{ width: 38, height: 38, borderRadius: 11, display: 'grid', placeItems: 'center', background: iconBg, color: iconColor }}>
-          {icon}
-        </span>
-        {sub && <span className="chip" style={{ background: 'var(--sunk)', color: 'var(--ink-2)' }}>{sub}</span>}
+    <div className="stat-case" style={{ background: fond, color: encre }}>
+      <div className="stat-case-txt">
+        <div className="num stat-case-num">{value}</div>
+        <div className="stat-case-lab">{label}</div>
+        {sub && <span className="stat-case-chip">{sub}</span>}
       </div>
-      <div>
-        <div className="num" style={{ fontSize: 34, lineHeight: 1 }}>{value}</div>
-        <div style={{ color: 'var(--ink-2)', fontSize: 13, marginTop: 3, fontWeight: 600 }}>{label}</div>
-      </div>
+      <span className="stat-case-vol" aria-hidden="true">{volume}</span>
     </div>
   );
 }
@@ -817,14 +822,16 @@ export default function Dashboard() {
 
             {/* Stat tiles */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 14, marginBottom: 14 }} className="dash-stats">
-              <StatTile value={todayPosts} label={t('toPublishToday')} icon={<IconBolt />} tone="mint" sub={t('statAuto')} />
-              <StatTile value={pendingPosts} label={t('statPending')} icon={<IconClock />} tone="warn" />
-              <StatTile value={scheduledPosts} label={t('statScheduled')} icon={<IconCalendar />} />
+              <StatTile value={todayPosts} label={t('toPublishToday')} sub={t('statAuto')}
+                fond="linear-gradient(150deg, #E7F9D8, #CFF0B6)" volume={<VolEclair taille={112} />} />
+              <StatTile value={pendingPosts} label={t('statPending')}
+                fond="linear-gradient(150deg, #FFF0DF, #FBDCBC)" volume={<VolSablier taille={112} />} />
+              <StatTile value={scheduledPosts} label={t('statScheduled')}
+                fond="linear-gradient(150deg, #EDEAFC, #DCD5F6)" volume={<VolCalendrier taille={112} />} />
               <StatTile
                 value={active === 'all' ? workspaces.length : 1}
                 label={active === 'all' ? t('statClients') : t('statConnected')}
-                icon={<IconInstagram />}
-              />
+                fond="linear-gradient(150deg, #E2F5EC, #C9EBDC)" volume={<VolClients taille={112} />} />
             </div>
 
             {/* All clients: workspace card grid */}

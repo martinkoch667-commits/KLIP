@@ -9,6 +9,7 @@
  */
 
 import Sidebar from '@/components/Sidebar';
+import { VolEclair, VolSablier, VolCalendrier, VolClients } from '@/components/Volumes';
 
 const Ic = {
   post: <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.3" cy="6.7" r="1" fill="currentColor" stroke="none"/></svg>,
@@ -26,10 +27,10 @@ const CLIENTS = [
 ];
 
 const STATS = [
-  { valeur: 3, libelle: 'À publier aujourd’hui', fond: 'var(--mint-soft)', encre: 'var(--mint-2)', icone: Ic.bolt },
-  { valeur: 3, libelle: 'En attente de validation', fond: 'var(--warn-soft)', encre: 'var(--warn)', icone: Ic.clock },
-  { valeur: 12, libelle: 'Planifiés', fond: 'var(--sunk)', encre: 'var(--ink-2)', icone: Ic.cal },
-  { valeur: 5, libelle: 'Clients actifs', fond: 'var(--sunk)', encre: 'var(--ink-2)', icone: Ic.post },
+  { valeur: 3, libelle: 'À publier aujourd’hui', fond: 'linear-gradient(150deg, #E7F9D8, #CFF0B6)', volume: <VolEclair taille={112} />, sub: 'Auto' },
+  { valeur: 3, libelle: 'En attente de validation', fond: 'linear-gradient(150deg, #FFF0DF, #FBDCBC)', volume: <VolSablier taille={112} /> },
+  { valeur: 12, libelle: 'Planifiés', fond: 'linear-gradient(150deg, #EDEAFC, #DCD5F6)', volume: <VolCalendrier taille={112} /> },
+  { valeur: 10, libelle: 'Clients actifs', fond: 'linear-gradient(150deg, #E2F5EC, #C9EBDC)', volume: <VolClients taille={112} /> },
 ];
 
 const DEPARTS = [
@@ -80,11 +81,14 @@ export default function ApercuV2() {
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 14, marginBottom: 14 }} className="dash-stats">
-              {STATS.map(s => (
-                <div key={s.libelle} className="card tile-accent" style={{ padding: '18px 20px' }}>
-                  <span style={{ width: 36, height: 36, borderRadius: 11, display: 'grid', placeItems: 'center', background: s.fond, color: s.encre }}>{s.icone}</span>
-                  <div className="num" style={{ fontSize: 32, lineHeight: 1, marginTop: 14 }}>{s.valeur}</div>
-                  <div style={{ color: 'var(--ink-2)', fontSize: 13, marginTop: 3, fontWeight: 600 }}>{s.libelle}</div>
+              {STATS.map(st => (
+                <div key={st.libelle} className="stat-case" style={{ background: st.fond }}>
+                  <div className="stat-case-txt">
+                    <div className="num stat-case-num">{st.valeur}</div>
+                    <div className="stat-case-lab">{st.libelle}</div>
+                    {st.sub && <span className="stat-case-chip">{st.sub}</span>}
+                  </div>
+                  <span className="stat-case-vol" aria-hidden="true">{st.volume}</span>
                 </div>
               ))}
             </div>

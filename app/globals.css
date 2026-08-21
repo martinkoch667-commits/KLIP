@@ -2689,3 +2689,52 @@ aside.sidebar:not(.sidebar-bare) + * .topbar {
   .dash-wash { margin: -20px -16px 14px; padding: 24px 16px 20px; }
   .dash-today-list { grid-template-columns: 1fr; }
 }
+
+/* ── Les quatre compteurs du tableau de bord ────────────────────────────────
+   Des cases peintes, chacune la sienne, avec un objet en relief qui déborde du
+   cadre : c'est le débordement qui donne la profondeur, une illustration bien
+   sage au milieu d'une carte reste un picto. */
+
+.dash-stats { align-items: stretch; }
+
+.stat-case {
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  align-items: flex-end;
+  min-height: 148px;
+  padding: 18px 20px;
+  border-radius: var(--r-l);
+  box-shadow: 0 1px 2px rgba(13,15,10,.05), 0 14px 30px -22px rgba(13,15,10,.5);
+  transition: transform .2s cubic-bezier(.2,.7,.3,1), box-shadow .2s;
+}
+.stat-case:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 1px 2px rgba(13,15,10,.05), 0 26px 44px -24px rgba(13,15,10,.55);
+}
+.stat-case-txt { position: relative; z-index: 2; min-width: 0; }
+.stat-case-num { font-size: 40px; line-height: .95; letter-spacing: -.035em; }
+.stat-case-lab { margin-top: 5px; font-size: 13px; font-weight: 700; opacity: .72; max-width: 12ch; }
+.stat-case-chip {
+  display: inline-block; margin-top: 9px;
+  padding: 3px 9px; border-radius: 99px;
+  background: rgba(255,255,255,.72);
+  font-size: 11px; font-weight: 800; letter-spacing: .02em;
+}
+/* L'objet sort par le coin : une partie reste hors champ, comme un objet posé
+   sur le bord de la table. */
+.stat-case-vol {
+  position: absolute;
+  right: -6px;
+  bottom: -8px;
+  z-index: 1;
+  pointer-events: none;
+  filter: drop-shadow(0 14px 18px rgba(16,22,14,.18));
+}
+.stat-case-vol svg { display: block; }
+
+@media (max-width: 1180px) {
+  .stat-case { min-height: 132px; }
+  .stat-case-num { font-size: 34px; }
+  .stat-case-vol { right: -22px; bottom: -16px; transform: scale(.85); transform-origin: bottom right; }
+}
