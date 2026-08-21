@@ -1262,6 +1262,10 @@
   "workspaceTemplates": {
     "title": "Modèles",
     "newTemplate": "Nouveau modèle",
+    "visualsTitle": "Modèles de visuels",
+    "visualsDesc": "Les mises en page réutilisables pour les posts, carrousels et stories de ce client. Elles s'ouvrent dans l'éditeur, aux couleurs et à la police de la marque.",
+    "emptyVisualTitle": "Aucun modèle de visuel",
+    "emptyVisualDesc": "Créez une mise en page réutilisable : photo, aplats et textes arrivent déjà à la charte du client.",
     "paletteTitle": "Palette de marque",
     "noColors": "Aucune couleur définie",
     "editPalette": "Modifier la charte",

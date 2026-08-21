@@ -571,7 +571,7 @@ function TemplatePicker({
             style={{
               display: 'flex', flexDirection: 'column', alignItems: 'center',
               background: 'var(--card)', border: '2px solid var(--line)',
-              borderRadius: 'var(--r-m)', padding: '12px 8px 10px',
+              borderRadius: 'var(--r)', padding: '12px 8px 10px',
               cursor: 'pointer', gap: 8, transition: 'border-color .15s, background .15s',
             }}
             onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--mint-2)'; e.currentTarget.style.background = 'var(--mint-soft)'; }}
@@ -601,7 +601,7 @@ function TemplatePicker({
                 style={{
                   display: 'flex', flexDirection: 'column', alignItems: 'center',
                   background: 'var(--card)', border: '2px solid var(--line)',
-                  borderRadius: 'var(--r-m)', padding: '8px 8px 10px',
+                  borderRadius: 'var(--r)', padding: '8px 8px 10px',
                   cursor: 'pointer', gap: 8, transition: 'border-color .15s, box-shadow .15s',
                 }}
                 onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--mint-2)'; e.currentTarget.style.boxShadow = '0 0 0 3px var(--mint-soft)'; }}

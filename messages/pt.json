@@ -1262,6 +1262,10 @@
   "workspaceTemplates": {
     "title": "Modelos",
     "newTemplate": "Novo modelo",
+    "visualsTitle": "Modelos visuais",
+    "visualsDesc": "Layouts reutilizáveis para as publicações, carrosséis e stories deste cliente. Abrem no editor, com as cores e a tipografia da marca.",
+    "emptyVisualTitle": "Ainda sem modelo visual",
+    "emptyVisualDesc": "Crie um layout reutilizável: foto, blocos de cor e textos já chegam com a identidade do cliente.",
     "paletteTitle": "Paleta da marca",
     "noColors": "Nenhuma cor definida",
     "editPalette": "Editar o kit da marca",

@@ -683,6 +683,94 @@ input.ed-range::-moz-range-thumb {
 .wsn-chip:hover { background: var(--btn-soft-2); color: var(--ink); }
 .wsn-chip.is-on { background: var(--leaf); color: var(--leaf-ink); }
 
+/* ── Page « Modèles » d'un client ───────────────────────────────────────────
+   Elle empilait un bandeau de marque, deux cartes de charte, une grille et une
+   section de sous-titres sans qu'on sache ce qui appartenait à quoi, avec trois
+   boutons « Nouveau modèle » qui ne créaient pas la même chose. Deux ateliers
+   numérotés, une seule carte de charte, un bouton par atelier. */
+.tplp-brand { overflow: hidden; margin-bottom: 22px; }
+/* Le bandeau était en `position: relative` : posé APRÈS la rangée dans l'ordre
+   de peinture, il recouvrait le logo et le nom du client. Rien de positionné
+   ici, et c'est la rangée qui monte au-dessus. */
+.tplp-band { height: 84px; background-image: radial-gradient(120% 90% at 82% 0%, rgba(255,255,255,.16), transparent 62%); }
+/* Seul le logo chevauche le bandeau, et il est POSÉ dessus (absolu) plutôt que
+   de tirer toute la rangée vers le haut : le nom du client reste sur le blanc,
+   où il se lit, au lieu d'être à cheval sur la couleur de la marque. */
+.tplp-brand-row { position: relative; display: flex; align-items: center; gap: 14px;
+  padding: 16px 22px 16px 100px; min-height: 44px; }
+.tplp-avatar { position: absolute; left: 22px; top: -34px;
+  width: 64px; height: 64px; border-radius: 18px; display: grid; place-items: center;
+  font-family: var(--mono); font-weight: 800; font-size: 18px; color: #fff;
+  box-shadow: 0 0 0 4px var(--card), 0 8px 20px -12px rgba(13,15,10,.55); }
+.tplp-brand-name { font-size: 24px; margin: 0; }
+.tplp-brand-meta { margin: 2px 0 0; font-size: 12.5px; font-weight: 600; color: var(--ink-3); }
+.tplp-kit { display: flex; align-items: flex-start; gap: 26px; flex-wrap: wrap;
+  border-top: 1px solid var(--line-2); padding: 16px 22px 18px; }
+.tplp-kit-col { min-width: 0; }
+.tplp-kit-col > .label { display: block; margin-bottom: 10px; }
+.tplp-sw-row { display: flex; gap: 10px; flex-wrap: wrap; align-items: flex-start; }
+.tplp-sw { display: flex; flex-direction: column; align-items: center; gap: 5px; }
+.tplp-sw i { width: 38px; height: 38px; border-radius: 11px; box-shadow: inset 0 0 0 1px rgba(13,15,10,.14); }
+.tplp-sw span { font-family: var(--mono); font-size: 9.5px; font-weight: 700; color: var(--ink-3); letter-spacing: .04em; }
+.tplp-sw-add { width: 38px; height: 38px; border-radius: 11px; display: grid; place-items: center;
+  background: var(--sunk); color: var(--ink-3); transition: background .13s, color .13s; }
+.tplp-sw-add:hover { background: var(--btn-soft-2); color: var(--ink); }
+.tplp-kit-sep { align-self: stretch; width: 1px; background: var(--line); }
+.tplp-kit-note { font-family: var(--mono); font-weight: 800; font-size: 9.5px; letter-spacing: .12em;
+  text-transform: uppercase; color: var(--ink-3); }
+
+/* Un atelier : en-tête numéroté, son propre bouton de création, son contenu. */
+.tplp-sec { margin-bottom: 22px; padding: 20px 22px 22px; }
+.tplp-sec-head { display: flex; align-items: flex-start; gap: 12px; flex-wrap: wrap; margin-bottom: 18px; }
+.tplp-sec-num { flex-shrink: 0; width: 26px; height: 26px; margin-top: 1px; border-radius: 50%;
+  background: var(--forest); color: var(--cream); display: grid; place-items: center;
+  font-family: var(--sans); font-weight: 800; font-size: 12.5px; }
+.tplp-sec-title { margin: 0 0 4px; font-family: var(--sans); font-weight: 800; font-size: 14px;
+  letter-spacing: .05em; text-transform: uppercase; color: var(--ink); }
+.tplp-sec-desc { margin: 0; max-width: 68ch; font-size: 12.5px; line-height: 1.5; color: var(--ink-2); }
+.tplp-sec-actions { margin-left: auto; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.tplp-seg { display: inline-flex; gap: 2px; padding: 3px; background: var(--sunk); border-radius: var(--r-s); }
+.tplp-seg button { padding: 5px 11px; border-radius: 6px; font-size: 12.5px; font-weight: 700;
+  color: var(--ink-3); background: transparent; border: none; cursor: pointer; transition: background .13s, color .13s; }
+.tplp-seg button:hover { color: var(--ink); }
+.tplp-seg button.on { background: var(--white); color: var(--ink); box-shadow: var(--shadow-card); }
+
+/* État vide : une invitation, pas une case vide au milieu de rien. */
+.tplp-empty { display: flex; flex-direction: column; align-items: center; gap: 14px; text-align: center;
+  padding: 34px 22px; background: var(--sunk); border-radius: var(--r-l); }
+.tplp-empty-ico { width: 46px; height: 46px; border-radius: 14px; background: var(--leaf-soft);
+  color: var(--leaf-ink); display: grid; place-items: center; }
+.tplp-empty-t { margin: 0 0 3px; font-size: 14.5px; font-weight: 800; color: var(--ink); }
+.tplp-empty-d { margin: 0; max-width: 46ch; font-size: 12.5px; line-height: 1.5; color: var(--ink-3); }
+
+/* Vignette de modèle : cadre COMMUN à tous les formats, le modèle posé dedans
+   à ses proportions. C'est ce qui aligne la grille. */
+.tpl-thumb { position: relative; aspect-ratio: 4 / 5; background: var(--sunk);
+  display: grid; place-items: center; padding: 14px; overflow: hidden; }
+.tpl-shot { position: relative; height: 100%; width: auto; max-width: 100%; max-height: 100%;
+  border-radius: 8px; overflow: hidden; box-shadow: 0 6px 16px -10px rgba(13,15,10,.5); }
+
+/* Tuile de création, en tête de grille quand des modèles existent déjà. */
+.tplp-new { min-height: 200px; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 12px; color: var(--ink-3); cursor: pointer; transition: background .14s, color .14s, transform .14s; }
+.tplp-new:hover { background: var(--leaf-soft); color: var(--leaf-ink); transform: translateY(-2px); }
+.tplp-new i { width: 46px; height: 46px; border-radius: 13px; background: var(--sunk); display: grid; place-items: center; }
+.tplp-new:hover i { background: var(--white); }
+
+@media (max-width: 720px) {
+  .tplp-kit-sep { display: none; }
+  .tplp-sec-actions { margin-left: 0; width: 100%; }
+}
+/* En étroit, le nom et le bouton ne tiennent plus à côté du logo : tout
+   s'empile, le logo chevauchant toujours le bandeau. */
+@media (max-width: 560px) {
+  .tplp-brand-row { display: block; padding: 0 16px 16px; min-height: 0; }
+  .tplp-avatar { position: relative; left: auto; top: -30px; margin-bottom: -22px; }
+  .tplp-brand-name { font-size: 20px; }
+  .tplp-brand-row .btn { display: inline-flex; margin-top: 12px; }
+  .tplp-sec { padding: 18px 16px 18px; }
+}
+
 /* ── Onboarding · étape 5 : deux ateliers, pas une coulée ──────────────────
    Les sous-titres et les templates visuels se suivaient sans rien qui dise où
    finissait l'un et où commençait l'autre. Chacun prend donc son bloc, numéroté,
@@ -749,15 +837,15 @@ input.ed-range::-moz-range-thumb {
 .wsn-t5-len { margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--line-2); }
 /* Les trois sections de l'éditeur partagé se rangent côte à côte dès qu'il y a
    la place, les contrôles eux-mêmes restant EXACTEMENT ceux du monteur. */
-.wsn-t5-settings { columns: 268px 2; column-gap: 26px; }
-.wsn-t5-settings > .a-section { break-inside: avoid; margin: 0 0 16px; }
-.wsn-t5-settings .mz-sec-label { display: flex; align-items: center; gap: 10px; color: var(--mint-2); }
+.wsn-t5-settings, .tplp-settings { columns: 268px 2; column-gap: 26px; }
+.wsn-t5-settings > .a-section, .tplp-settings > .a-section { break-inside: avoid; margin: 0 0 16px; }
+.wsn-t5-settings .mz-sec-label, .tplp-settings .mz-sec-label { display: flex; align-items: center; gap: 10px; color: var(--mint-2); }
 /* Deux colonnes de réglages dans 900 px : chaque libellé rendu doit céder ce
    qu'il peut au contrôle, sinon « 2 lignes » passe à la ligne dans son segment
    et le nuancier tombe à cinq pastilles par rangée. */
-.wsn-t5-settings .mz-row > .mz-row-lbl { flex-basis: 74px; }
-.wsn-t5-settings .mz-seg button { padding: 8px 4px; }
-.wsn-t5-settings .mz-sec-label::after { content: ""; flex: 1; height: 1px; background: var(--line); }
+.wsn-t5-settings .mz-row > .mz-row-lbl, .tplp-settings .mz-row > .mz-row-lbl { flex-basis: 74px; }
+.wsn-t5-settings .mz-seg button, .tplp-settings .mz-seg button { padding: 8px 4px; }
+.wsn-t5-settings .mz-sec-label::after, .tplp-settings .mz-sec-label::after { content: ""; flex: 1; height: 1px; background: var(--line); }
 
 /* Templates visuels : l'invitation à créer, dans le même vocabulaire. */
 .wsn-t5-empty { background: var(--white); border-radius: 16px; padding: 26px 22px;

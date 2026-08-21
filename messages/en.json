@@ -1262,6 +1262,10 @@
   "workspaceTemplates": {
     "title": "Templates",
     "newTemplate": "New template",
+    "visualsTitle": "Visual templates",
+    "visualsDesc": "Reusable layouts for this client's posts, carousels and stories. They open in the editor, in the brand's colors and font.",
+    "emptyVisualTitle": "No visual template yet",
+    "emptyVisualDesc": "Create a reusable layout: photo, color blocks and text already come in the client's brand style.",
     "paletteTitle": "Brand palette",
     "noColors": "No colors defined",
     "editPalette": "Edit brand kit",

@@ -1262,6 +1262,10 @@
   "workspaceTemplates": {
     "title": "Vorlagen",
     "newTemplate": "Neue Vorlage",
+    "visualsTitle": "Visuelle Vorlagen",
+    "visualsDesc": "Wiederverwendbare Layouts für Posts, Karussells und Stories dieses Kunden. Sie öffnen sich im Editor, in den Farben und der Schrift der Marke.",
+    "emptyVisualTitle": "Noch keine visuelle Vorlage",
+    "emptyVisualDesc": "Erstelle ein wiederverwendbares Layout: Foto, Farbflächen und Texte kommen bereits im Markenstil des Kunden.",
     "paletteTitle": "Markenpalette",
     "noColors": "Keine Farben definiert",
     "editPalette": "Marken-Kit bearbeiten",

@@ -1262,6 +1262,10 @@
   "workspaceTemplates": {
     "title": "Plantillas",
     "newTemplate": "Nueva plantilla",
+    "visualsTitle": "Plantillas visuales",
+    "visualsDesc": "Diseños reutilizables para las publicaciones, carruseles e historias de este cliente. Se abren en el editor, con los colores y la tipografía de la marca.",
+    "emptyVisualTitle": "Ninguna plantilla visual",
+    "emptyVisualDesc": "Crea un diseño reutilizable: la foto, los bloques de color y los textos ya vienen con la identidad del cliente.",
     "paletteTitle": "Paleta de marca",
     "noColors": "Ningún color definido",
     "editPalette": "Editar el kit de marca",

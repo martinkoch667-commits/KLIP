@@ -84,7 +84,6 @@ const panelInput: React.CSSProperties = {
 // ─── Main page ────────────────────────────────────────────────────────────────
 
 export default function TemplatesPage() {
-  const t = useTranslations('workspaceTemplates');
   const { id: workspaceId } = useParams<{ id: string }>();
   const router = useRouter();
   const supabase = createClientComponentClient();
@@ -112,22 +111,51 @@ export default function TemplatesPage() {
     load();
   }, [workspaceId, supabase]);
 
+  return (
+    <TemplatesView
+      workspaceId={workspaceId}
+      workspace={workspace}
+      templates={templates}
+      loading={loading}
+      formatFilter={formatFilter}
+      onFilter={setFormatFilter}
+      onNew={() => router.push(`/workspace/${workspaceId}/template-editor/new`)}
+      onEdit={(tpl) => router.push(`/workspace/${workspaceId}/template-editor/${tpl.id}`)}
+      onDelete={async (id) => {
+        await fetch(`/api/templates/${id}`, { method: 'DELETE' });
+        setTemplates(prev => prev.filter(tpl => tpl.id !== id));
+      }}
+    />
+  );
+}
+
+/* La page séparée de son chargement de données : c'est ce qui permet de la
+   regarder sur un banc d'essai (/banc-modeles) sans compte, sans client en base
+   et sans passer par l'authentification. */
+export function TemplatesView({
+  workspaceId, workspace, templates, loading, formatFilter, onFilter, onNew, onEdit, onDelete,
+}: {
+  workspaceId: string;
+  workspace: Workspace | null;
+  templates: PostTemplate[];
+  loading: boolean;
+  formatFilter: string;
+  onFilter: (id: string) => void;
+  onNew: () => void;
+  onEdit: (tpl: PostTemplate) => void;
+  onDelete: (id: string) => void;
+}) {
+  const t = useTranslations('workspaceTemplates');
+
   const filteredTemplates = formatFilter === 'all'
     ? templates
     : templates.filter(tpl => tpl.format_id === formatFilter);
 
-  function openNew() {
-    router.push(`/workspace/${workspaceId}/template-editor/new`);
-  }
-
-  function openEdit(tpl: PostTemplate) {
-    router.push(`/workspace/${workspaceId}/template-editor/${tpl.id}`);
-  }
-
-  async function deleteTemplate(id: string) {
+  const openNew = onNew;
+  const openEdit = onEdit;
+  function deleteTemplate(id: string) {
     if (!confirm(t('confirmDeleteTemplate'))) return;
-    await fetch(`/api/templates/${id}`, { method: 'DELETE' });
-    setTemplates(prev => prev.filter(tpl => tpl.id !== id));
+    onDelete(id);
   }
 
   const primaryColor = workspace?.primary_color ?? '#2FD79B';
@@ -140,7 +168,9 @@ export default function TemplatesPage() {
       <Sidebar />
       <div className="work">
 
-        {/* Topbar */}
+        {/* Topbar : le fil d'Ariane seul. Le bouton de création vit désormais
+            DANS son atelier — il y en a deux sur la page, et un bouton posé
+            ici ne disait pas lequel des deux il remplissait. */}
         <div className="topbar">
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <a href={`/workspace/${workspaceId}`} style={{
@@ -154,148 +184,133 @@ export default function TemplatesPage() {
             <span style={{ color: 'var(--line)', fontSize: 14 }}>/</span>
             <h1 style={{ fontSize: 14, fontWeight: 800, margin: 0 }}>{t('title')}</h1>
           </div>
-          <button onClick={openNew} className="btn btn-primary btn-sm" style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 6 }}>
-            <span style={{ fontSize: 16, lineHeight: 1 }}>+</span>
-            {t('newTemplate')}
-          </button>
         </div>
 
         <div className="scroll">
           <div className="page screen-in" style={{ maxWidth: 1320 }}>
 
-            {/* Brand hero header */}
+            {/* ── Charte du client : identité, palette et typographies dans UNE
+                   carte. C'est le contexte de la page, pas son sujet. ────── */}
             {workspace && (
-              <div style={{ position: 'relative', borderRadius: 'var(--r-xl)', overflow: 'hidden', marginBottom: 22 }}>
-                <div style={{ height: 132, background: primaryColor, position: 'relative' }}>
-                  <div style={{ position: 'absolute', inset: 0, background: 'radial-gradient(120% 80% at 80% 0%, rgba(255,255,255,.13), transparent 60%)' }} />
-                </div>
-                <div style={{ display: 'flex', alignItems: 'flex-end', gap: 16, padding: '0 24px 22px', marginTop: -36 }}>
-                  <div style={{
-                    width: 72, height: 72, borderRadius: 18, flexShrink: 0,
-                    background: primaryColor,
-                    display: 'grid', placeItems: 'center',
-                    fontSize: 20, fontWeight: 800, color: '#fff', fontFamily: 'var(--mono)',
-                    boxShadow: '0 0 0 4px var(--canvas)',
-                  }}>
+              <div className="card tplp-brand">
+                <div className="tplp-band" style={{ background: primaryColor }} />
+                <div className="tplp-brand-row">
+                  <span className="tplp-avatar" style={{ background: primaryColor }}>
                     {workspace.name.slice(0, 2).toUpperCase()}
+                  </span>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <h2 className="h-display tplp-brand-name">{workspace.name}</h2>
+                    <p className="tplp-brand-meta">{t('modelsCount', { count: templates.length })}</p>
                   </div>
-                  <div style={{ paddingBottom: 4, flex: 1, minWidth: 0 }}>
-                    <h1 className="h-display" style={{ fontSize: 26, margin: 0 }}>{workspace.name}</h1>
-                    <div style={{ fontSize: 13, color: 'var(--ink-3)', fontWeight: 600, marginTop: 2 }}>
-                      {t('modelsCount', { count: templates.length })}
+                  {/* La charte s'édite sur la page Style, pas dans les réglages :
+                      le lien menait à un écran qui ne contient aucune couleur. */}
+                  <a href={`/workspace/${workspaceId}/style`} className="btn btn-ghost btn-sm" style={{ flexShrink: 0 }}>
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                    {t('editPalette')}
+                  </a>
+                </div>
+                <div className="tplp-kit">
+                  <div className="tplp-kit-col">
+                    <span className="label">{t('paletteTitle')}</span>
+                    <div className="tplp-sw-row">
+                      {palette.length > 0 ? palette.map((col, i) => (
+                        <span className="tplp-sw" key={`${col}-${i}`}>
+                          <i style={{ background: col }} />
+                          <span>{col.toUpperCase()}</span>
+                        </span>
+                      )) : (
+                        <span style={{ fontSize: 12.5, color: 'var(--ink-3)' }}>{t('noColors')}</span>
+                      )}
+                      <a href={`/workspace/${workspaceId}/style`} className="tplp-sw-add" title={t('editPalette')}>
+                        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12h14"/></svg>
+                      </a>
                     </div>
                   </div>
-                  <button onClick={openNew} className="btn btn-ghost btn-sm" style={{ alignSelf: 'flex-end', marginBottom: 2 }}>
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12h14"/></svg>
+                  <span className="tplp-kit-sep" />
+                  <div className="tplp-kit-col">
+                    <span className="label">{t('typographyTitle')}</span>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
+                      <div style={{ display: 'flex', alignItems: 'baseline', gap: 12, flexWrap: 'wrap' }}>
+                        <span style={{ fontFamily: workspace.font_family || 'var(--display)', fontWeight: 800, fontSize: 22, letterSpacing: '-0.02em', lineHeight: 1 }}>
+                          {t('titleSample')}
+                        </span>
+                        <span className="tplp-kit-note">{t('displayFontLabel', { font: workspace.font_family || 'Archivo' })}</span>
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'baseline', gap: 12, flexWrap: 'wrap' }}>
+                        <span style={{ fontFamily: 'var(--sans)', fontWeight: 500, fontSize: 14, color: 'var(--ink-2)' }}>{t('bodySample')}</span>
+                        <span className="tplp-kit-note">{t('bodyFontLabel')}</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* ── 1 · Modèles de visuels ─────────────────────────────────── */}
+            <section className="card tplp-sec">
+              <header className="tplp-sec-head">
+                <span className="tplp-sec-num">1</span>
+                <div style={{ minWidth: 0 }}>
+                  <h2 className="tplp-sec-title">{t('visualsTitle')}</h2>
+                  <p className="tplp-sec-desc">{t('visualsDesc')}</p>
+                </div>
+                <div className="tplp-sec-actions">
+                  {templates.length > 0 && (
+                    <div className="tplp-seg">
+                      {([['all', t('filterAll')], ['ig-portrait', t('formatPortraitShort')], ['ig-square', t('formatSquareShort')], ['ig-story', t('formatStoryShort')]] as [string, string][]).map(([id, label]) => (
+                        <button key={id} onClick={() => onFilter(id)} className={formatFilter === id ? 'on' : ''}>
+                          {label}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                  <button onClick={openNew} className="btn btn-primary btn-sm">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12h14"/></svg>
                     {t('newTemplate')}
                   </button>
                 </div>
-              </div>
-            )}
+              </header>
 
-            {/* Charte — palette + typography */}
-            {workspace && (
-              <div style={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr', gap: 16, marginBottom: 26 }} className="kit-charte">
-                {/* Palette */}
-                <div className="card" style={{ padding: 22 }}>
-                  <div className="label" style={{ marginBottom: 16 }}>{t('paletteTitle')}</div>
-                  <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', alignItems: 'flex-start' }}>
-                    {palette.length > 0 ? palette.map((col, i) => (
-                      <div key={i} style={{ display: 'flex', flexDirection: 'column', gap: 7, alignItems: 'center' }}>
-                        <span style={{ width: 64, height: 64, borderRadius: 14, background: col, boxShadow: 'inset 0 0 0 1px rgba(13,15,10,.12)' }} />
-                        <span style={{ fontSize: 10, color: 'var(--ink-3)', fontWeight: 700, textTransform: 'uppercase', fontFamily: 'var(--mono)' }}>{col}</span>
-                      </div>
-                    )) : (
-                      <span style={{ fontSize: 13, color: 'var(--ink-3)' }}>{t('noColors')}</span>
-                    )}
-                    <a href={`/workspace/${workspaceId}/parametres`} style={{
-                      width: 64, height: 64, borderRadius: 14, border: '1.5px solid var(--line)',
-                      color: 'var(--ink-3)', display: 'grid', placeItems: 'center',
-                      textDecoration: 'none', alignSelf: 'flex-start',
-                      transition: 'border-color .14s, color .14s',
-                    }}
-                      onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = 'var(--mint-2)'; (e.currentTarget as HTMLElement).style.color = 'var(--mint-2)'; }}
-                      onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = 'var(--line)'; (e.currentTarget as HTMLElement).style.color = 'var(--ink-3)'; }}
-                      title={t('editPalette')}>
-                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12h14"/></svg>
-                    </a>
+              {loading ? (
+                <div style={{ color: 'var(--ink-3)', fontSize: 13, padding: '30px 0' }}>{t('loading')}</div>
+              ) : templates.length === 0 ? (
+                <div className="tplp-empty">
+                  <span className="tplp-empty-ico">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+                      <rect x="3" y="3" width="18" height="18" rx="3"/><path d="M3 9h18M9 9v12"/>
+                    </svg>
+                  </span>
+                  <div>
+                    <p className="tplp-empty-t">{t('emptyVisualTitle')}</p>
+                    <p className="tplp-empty-d">{t('emptyVisualDesc')}</p>
                   </div>
+                  <button onClick={openNew} className="btn btn-dark btn-sm">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12h14"/></svg>
+                    {t('newTemplate')}
+                  </button>
                 </div>
-
-                {/* Typography */}
-                <div className="card" style={{ padding: 22 }}>
-                  <div className="label" style={{ marginBottom: 16 }}>{t('typographyTitle')}</div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-                    <div>
-                      <div style={{ fontFamily: workspace.font_family || 'var(--display)', fontWeight: 800, fontSize: 28, letterSpacing: '-0.02em', lineHeight: 1 }}>
-                        {t('titleSample')}
-                      </div>
-                      <div className="label" style={{ marginTop: 6, fontSize: 9.5 }}>{t('displayFontLabel', { font: workspace.font_family || 'Archivo' })}</div>
-                    </div>
-                    <div style={{ height: 1, background: 'var(--line)' }} />
-                    <div>
-                      <div style={{ fontFamily: 'var(--sans)', fontWeight: 500, fontSize: 15, color: 'var(--ink-2)' }}>{t('bodySample')}</div>
-                      <div className="label" style={{ marginTop: 6, fontSize: 9.5 }}>{t('bodyFontLabel')}</div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Templates section header */}
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 14, marginBottom: 16, flexWrap: 'wrap' }}>
-              <div style={{ display: 'flex', alignItems: 'baseline', gap: 10 }}>
-                <h2 style={{ fontSize: 19, fontWeight: 800, margin: 0 }}>{t('title')}</h2>
-                <span style={{ color: 'var(--ink-3)', fontWeight: 700, fontSize: 14 }}>{filteredTemplates.length}</span>
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <div style={{ display: 'flex', gap: 2, padding: 3, background: 'var(--sunk)', borderRadius: 'var(--r-s)', border: '1px solid var(--line)' }}>
-                  {[['all', t('filterAll')], ['ig-portrait', t('formatPortraitShort')], ['ig-square', t('formatSquareShort')], ['ig-story', t('formatStoryShort')]].map(([id, label]) => (
-                    <button key={id} onClick={() => setFormatFilter(id)} style={{
-                      padding: '5px 10px', borderRadius: 6, fontSize: 12.5, fontWeight: 600,
-                      cursor: 'pointer', border: 'none',
-                      background: formatFilter === id ? 'var(--white)' : 'transparent',
-                      color: formatFilter === id ? 'var(--ink)' : 'var(--ink-3)',
-                      boxShadow: formatFilter === id ? 'var(--shadow-s)' : 'none',
-                      transition: 'all .14s',
-                    }}>
-                      {label}
-                    </button>
+              ) : (
+                <div className="tpl-grid">
+                  <button onClick={openNew} className="card tplp-new">
+                    <i>
+                      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12h14"/></svg>
+                    </i>
+                    <span style={{ fontWeight: 700, fontSize: 13.5 }}>{t('newTemplate')}</span>
+                  </button>
+                  {filteredTemplates.map(tpl => (
+                    <TemplateCard key={tpl.id} tpl={tpl} onEdit={() => openEdit(tpl)} onDelete={() => deleteTemplate(tpl.id)} />
                   ))}
                 </div>
-              </div>
-            </div>
+              )}
+            </section>
 
-            {loading ? (
-              <div style={{ color: 'var(--ink-3)', fontSize: 13, padding: '40px 0' }}>{t('loading')}</div>
-            ) : (
-              <div className="tpl-grid">
-                {/* Create tile */}
-                <button onClick={openNew} style={{
-                  border: '1.5px solid var(--line)', borderRadius: 'var(--r-m)', background: 'transparent',
-                  minHeight: 230, display: 'flex', flexDirection: 'column', alignItems: 'center',
-                  justifyContent: 'center', gap: 12, color: 'var(--ink-3)', transition: 'all .15s', cursor: 'pointer',
-                }}
-                  onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--mint-2)'; e.currentTarget.style.color = 'var(--mint-2)'; e.currentTarget.style.background = 'var(--mint-soft)'; }}
-                  onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--line)'; e.currentTarget.style.color = 'var(--ink-3)'; e.currentTarget.style.background = 'transparent'; }}>
-                  <span style={{ width: 46, height: 46, borderRadius: 13, background: 'var(--sunk)', display: 'grid', placeItems: 'center' }}>
-                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12h14"/></svg>
-                  </span>
-                  <span style={{ fontWeight: 700, fontSize: 13.5 }}>{t('newTemplate')}</span>
-                </button>
-
-                {filteredTemplates.map(tpl => (
-                  <TemplateCard key={tpl.id} tpl={tpl} onEdit={() => openEdit(tpl)} onDelete={() => deleteTemplate(tpl.id)} />
-                ))}
-              </div>
-            )}
-
+            {/* ── 2 · Modèles de sous-titres ─────────────────────────────── */}
             <SubtitleTemplatesSection workspaceId={workspaceId} workspace={workspace} />
 
             <style>{`
               .tpl-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
               @media (max-width: 1280px) { .tpl-grid { grid-template-columns: repeat(3, 1fr); } }
-              @media (max-width: 960px)  { .tpl-grid { grid-template-columns: repeat(2, 1fr); } .kit-charte { grid-template-columns: 1fr !important; } }
+              @media (max-width: 960px)  { .tpl-grid { grid-template-columns: repeat(2, 1fr); } }
               @media (max-width: 560px)  { .tpl-grid { grid-template-columns: 1fr; } }
               .tpl-card:hover .tpl-hover { opacity: 1 !important; }
               .tpl-card:hover { transform: translateY(-2px); box-shadow: var(--shadow-pop); }
@@ -307,12 +322,12 @@ export default function TemplatesPage() {
   );
 }
 
+
 // ─── Template card ────────────────────────────────────────────────────────────
 
 function TemplateCard({ tpl, onEdit, onDelete }: { tpl: PostTemplate; onEdit: () => void; onDelete: () => void }) {
   const t = useTranslations('workspaceTemplates');
   const fmt = FORMATS.find(f => f.id === tpl.format_id) ?? FORMATS[0];
-  const aspect = fmt.h / fmt.w;
   const zones = Array.isArray(tpl.text_zones) ? tpl.text_zones : [];
   // Un template peut décrire un carrousel entier : on le dit sur la carte, sinon
   // rien ne distingue un modèle d'une page d'un modèle de six.
@@ -323,14 +338,19 @@ function TemplateCard({ tpl, onEdit, onDelete }: { tpl: PostTemplate; onEdit: ()
       overflow: 'hidden', cursor: 'pointer', display: 'flex', flexDirection: 'column',
       transition: 'transform .14s, box-shadow .14s',
     }}>
-      {/* Thumbnail */}
-      <div onClick={onEdit} style={{ width: '100%', paddingTop: `${aspect * 100}%`, position: 'relative', background: 'var(--sunk)', overflow: 'hidden' }}>
-        {tpl.thumbnail_url ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={tpl.thumbnail_url} alt={tpl.name} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />
-        ) : (
-          <MiniPreview bg={tpl.background_style} />
-        )}
+      {/* Vignette : TOUJOURS le même cadre, quel que soit le format du modèle.
+          À hauteur libre, une story et un carré donnaient des cartes de tailles
+          différentes sur la même ligne, et la grille partait en dents de scie.
+          Le modèle est donc posé À SON FORMAT dans un cadre commun. */}
+      <div onClick={onEdit} className="tpl-thumb">
+        <div className="tpl-shot" style={{ aspectRatio: `${fmt.w} / ${fmt.h}` }}>
+          {tpl.thumbnail_url ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={tpl.thumbnail_url} alt={tpl.name} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />
+          ) : (
+            <MiniPreview bg={tpl.background_style} />
+          )}
+        </div>
         {/* Hover overlay */}
         <div className="tpl-hover" style={{
           position: 'absolute', inset: 0,
@@ -488,20 +508,24 @@ function SubtitleTemplatesSection({ workspaceId, workspace }: { workspaceId: str
 
 
   return (
-    <div style={{ marginTop: 40 }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 14, marginBottom: 6, flexWrap: 'wrap' }}>
-        <div style={{ display: 'flex', alignItems: 'baseline', gap: 10 }}>
-          <h2 style={{ fontSize: 19, fontWeight: 800, margin: 0 }}>{t('subtitlesTitle')}</h2>
-          <span style={{ color: 'var(--ink-3)', fontWeight: 700, fontSize: 14 }}>{list.length}</span>
+    <section className="card tplp-sec">
+      <header className="tplp-sec-head">
+        <span className="tplp-sec-num">2</span>
+        <div style={{ minWidth: 0 }}>
+          <h2 className="tplp-sec-title">{t('subtitlesTitle')}</h2>
+          <p className="tplp-sec-desc">{t('subtitlesDesc')}</p>
         </div>
-        <button className="btn btn-primary btn-sm" onClick={openCreator}>
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12h14"/></svg>
-          {creating ? t('close') : t('newTemplate')}
-        </button>
-      </div>
-      <p style={{ fontSize: 12.5, color: 'var(--ink-3)', margin: '0 0 16px', maxWidth: 620 }}>
-        {t('subtitlesDesc')}
-      </p>
+        <div className="tplp-sec-actions">
+          <button className={creating ? 'btn btn-ghost btn-sm' : 'btn btn-primary btn-sm'} onClick={openCreator}>
+            {creating ? (
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+            ) : (
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12h14"/></svg>
+            )}
+            {creating ? t('close') : t('newTemplate')}
+          </button>
+        </div>
+      </header>
 
       {creating && (
         <div className="card" style={{ padding: 18, marginBottom: 18, display: 'grid', gridTemplateColumns: 'minmax(240px, 300px) 1fr', gap: 22, alignItems: 'start' }}>
@@ -580,13 +604,18 @@ function SubtitleTemplatesSection({ workspaceId, workspace }: { workspaceId: str
               </div>
             </div>
 
-            <SubtitleStyleEditor
-              styleId={styleId}
-              custom={custom}
-              onChange={next => setCustom(next)}
-              brandFont={workspace?.font_family ?? null}
-              brandColors={[workspace?.primary_color, workspace?.secondary_color, workspace?.accent_color].filter(Boolean) as string[]}
-            />
+            {/* Les trois sections de réglages se rangent côte à côte dès qu'il y
+                a la place, comme dans l'assistant : en file indienne, le panneau
+                n'en finissait plus. */}
+            <div className="tplp-settings">
+              <SubtitleStyleEditor
+                styleId={styleId}
+                custom={custom}
+                onChange={next => setCustom(next)}
+                brandFont={workspace?.font_family ?? null}
+                brandColors={[workspace?.primary_color, workspace?.secondary_color, workspace?.accent_color].filter(Boolean) as string[]}
+              />
+            </div>
 
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
               <label style={{ ...subLabel, marginBottom: 0 }}>{t('lengthLabel')}</label>
@@ -606,7 +635,14 @@ function SubtitleTemplatesSection({ workspaceId, workspace }: { workspaceId: str
       )}
 
       {list.length === 0 && !creating ? (
-        <div style={{ color: 'var(--ink-3)', fontSize: 13, padding: '20px 0' }}>{t('noSubtitleTemplates')}</div>
+        <div className="tplp-empty">
+          <span className="tplp-empty-ico">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="3" y="4" width="18" height="16" rx="3"/><path d="M7 14h6M15 14h2"/>
+            </svg>
+          </span>
+          <p className="tplp-empty-d" style={{ margin: 0 }}>{t('noSubtitleTemplates')}</p>
+        </div>
       ) : (
         <div className="tpl-grid">
           {list.map(tpl => {
@@ -637,6 +673,6 @@ function SubtitleTemplatesSection({ workspaceId, workspace }: { workspaceId: str
           })}
         </div>
       )}
-    </div>
+    </section>
   );
 }
