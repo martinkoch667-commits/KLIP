@@ -26,10 +26,10 @@ const CLIENTS = [
 ];
 
 const STATS = [
-  { valeur: 3, libelle: 'À publier aujourd’hui', fond: 'linear-gradient(150deg, #E7F9D8, #CFF0B6)', objet: '/volumes/eclair.png', sub: 'Auto' },
-  { valeur: 3, libelle: 'En attente de validation', fond: 'linear-gradient(150deg, #FFF0DF, #FBDCBC)', objet: '/volumes/sablier.png' },
-  { valeur: 12, libelle: 'Planifiés', fond: 'linear-gradient(150deg, #EDEAFC, #DCD5F6)', objet: '/volumes/calendrier.png' },
-  { valeur: 10, libelle: 'Clients actifs', fond: 'linear-gradient(150deg, #E2F5EC, #C9EBDC)', objet: '/volumes/comptes.png' },
+  { valeur: 3, libelle: 'À publier aujourd’hui', fond: 'linear-gradient(148deg, #C4FF8F 0%, #7EE23F 100%)', encre: '#183B06', objet: '/volumes/eclair.png', sub: 'Auto' },
+  { valeur: 3, libelle: 'En attente de validation', fond: 'linear-gradient(148deg, #FFC978 0%, #FF7A2F 100%)', encre: '#4A1E02', objet: '/volumes/sablier.png' },
+  { valeur: 12, libelle: 'Planifiés', fond: 'linear-gradient(148deg, #9B87FF 0%, #5B45E0 100%)', encre: '#FFFFFF', objet: '/volumes/calendrier.png' },
+  { valeur: 10, libelle: 'Clients actifs', fond: 'linear-gradient(148deg, #5FEFC0 0%, #0FBF8A 100%)', encre: '#053427', objet: '/volumes/comptes.png' },
 ];
 
 const DEPARTS = [
@@ -46,7 +46,7 @@ export default function ApercuV2() {
       <Sidebar />
 
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, marginLeft: 'var(--sb-w)' }}>
-        <header className="topbar">
+        <header className="topbar topbar-voile">
           <span className="h-title" style={{ fontSize: 15, color: 'var(--ink-2)' }}>Aperçu de la refonte</span>
           <div style={{ marginLeft: 'auto', display: 'flex', gap: 10 }}>
             <button className="btn btn-ghost btn-sm">Calendrier</button>
@@ -81,7 +81,7 @@ export default function ApercuV2() {
 
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 14, marginBottom: 14 }} className="dash-stats">
               {STATS.map(st => (
-                <div key={st.libelle} className="stat-case" style={{ background: st.fond }}>
+                <div key={st.libelle} className="stat-case" style={{ background: st.fond, color: st.encre }}>
                   <div className="stat-case-txt">
                     <div className="num stat-case-num">{st.valeur}</div>
                     <div className="stat-case-lab">{st.libelle}</div>

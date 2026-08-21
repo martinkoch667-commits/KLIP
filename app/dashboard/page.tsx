@@ -704,7 +704,7 @@ export default function Dashboard() {
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, marginLeft: 'var(--sb-w)' }}>
 
         {/* Topbar */}
-        <header className="topbar" data-tour="dashboard">
+        <header className="topbar topbar-voile" data-tour="dashboard">
           <ClientSwitcher active={active} workspaces={workspaces} onChange={setActive} />
           <div style={{ width: 1, height: 24, background: 'var(--line)', flexShrink: 0 }} />
           <span className="h-title" style={{ fontSize: 15, whiteSpace: 'nowrap', color: 'var(--ink-2)' }}>{t('title')}</span>
@@ -824,15 +824,15 @@ export default function Dashboard() {
             {/* Stat tiles */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 14, marginBottom: 14 }} className="dash-stats">
               <StatTile value={todayPosts} label={t('toPublishToday')} sub={t('statAuto')}
-                fond="linear-gradient(150deg, #E7F9D8, #CFF0B6)" objet="/volumes/eclair.png" />
+                fond="linear-gradient(148deg, #C4FF8F 0%, #7EE23F 100%)" encre="#183B06" objet="/volumes/eclair.png" />
               <StatTile value={pendingPosts} label={t('statPending')}
-                fond="linear-gradient(150deg, #FFF0DF, #FBDCBC)" objet="/volumes/sablier.png" />
+                fond="linear-gradient(148deg, #FFC978 0%, #FF7A2F 100%)" encre="#4A1E02" objet="/volumes/sablier.png" />
               <StatTile value={scheduledPosts} label={t('statScheduled')}
-                fond="linear-gradient(150deg, #EDEAFC, #DCD5F6)" objet="/volumes/calendrier.png" />
+                fond="linear-gradient(148deg, #9B87FF 0%, #5B45E0 100%)" encre="#FFFFFF" objet="/volumes/calendrier.png" />
               <StatTile
                 value={active === 'all' ? workspaces.length : 1}
                 label={active === 'all' ? t('statClients') : t('statConnected')}
-                fond="linear-gradient(150deg, #E2F5EC, #C9EBDC)" objet="/volumes/comptes.png" />
+                fond="linear-gradient(148deg, #5FEFC0 0%, #0FBF8A 100%)" encre="#053427" objet="/volumes/comptes.png" />
             </div>
 
             {/* All clients: workspace card grid */}

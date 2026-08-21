@@ -2606,24 +2606,21 @@ aside.sidebar:not(.sidebar-bare) + * .topbar {
   margin: -30px -34px 16px;
   padding: 32px 34px 26px;
 }
-.dash-wash::before {
-  content: "";
-  position: absolute;
-  /* Le voile passait sous la barre du haut, ce qui dessinait une frontière en
-     travers de la page. Il remonte derrière elle : une seule surface colorée,
-     du bord haut de la feuille jusqu'au bas de l'accroche. */
-  top: -64px; bottom: 0;
-  left: 50%;
-  width: 100vw;
-  transform: translateX(-50%);
-  background:
-    radial-gradient(720px 340px at 12% -30%, rgba(189,242,160,.9), transparent 66%),
-    radial-gradient(620px 300px at 84% -22%, rgba(102,86,217,.2), transparent 68%),
-    radial-gradient(540px 280px at 50% -10%, rgba(47,215,155,.24), transparent 70%),
-    linear-gradient(180deg, #FCFDFA, var(--canvas) 92%);
-  pointer-events: none;
+/* Le voile appartient à la feuille, pas à la colonne de contenu : peint dans
+   la zone qui défile, il était rogné juste sous la barre du haut, et cette
+   coupure barrait la page. */
+aside.sidebar:not(.sidebar-bare) + div:has(> .topbar-voile) {
+  background-color: var(--canvas);
+  background-image:
+    radial-gradient(760px 420px at 12% 0%, rgba(189,242,160,.95), transparent 66%),
+    radial-gradient(640px 380px at 84% 0%, rgba(102,86,217,.24), transparent 68%),
+    radial-gradient(560px 340px at 50% 0%, rgba(47,215,155,.3), transparent 70%);
+  background-repeat: no-repeat;
+  background-position: top center;
+  background-size: 100% 440px;
 }
 .dash-wash > * { position: relative; z-index: 1; }
+.dash-wash { background: transparent; }
 .dash-title {
   position: relative;
   font-size: clamp(28px, 3.4vw, 42px);
@@ -2756,7 +2753,7 @@ aside.sidebar:not(.sidebar-bare) + * .topbar {
 
 /* Sur le tableau de bord, la barre du haut se pose SUR le voile : elle n'a donc
    ni fond ni filet, sinon elle recoupe la couleur en deux. */
-.topbar[data-tour="dashboard"] {
+.topbar-voile {
   background: transparent;
   border-bottom: 0;
   backdrop-filter: none;
