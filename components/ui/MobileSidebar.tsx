@@ -116,7 +116,7 @@ export default function MobileSidebar() {
         {/* Header row */}
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "6px 4px 14px" }}>
           <Link href="/dashboard" style={{ textDecoration: "none", display: "flex", alignItems: "center" }} onClick={() => setOpen(false)}>
-            <img src="/icon-192.png" alt="Klip" style={{ height: 30, width: 30, borderRadius: 9, display: "block" }} />
+            <img src="/logo-klip-mint.png" alt="Klip" style={{ height: 28, width: "auto" }} />
           </Link>
           <button
             onClick={() => setOpen(false)}

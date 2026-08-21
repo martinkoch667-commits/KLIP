@@ -160,9 +160,7 @@ export default function Sidebar({ workspaces: _w, userName: _u, activeWorkspaceI
       {/* Logo */}
       <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "6px 10px 14px" }}>
         <Link href="/dashboard" style={{ textDecoration: "none", display: "flex", alignItems: "center" }}>
-          {/* Le sigle de l'app plutôt que le logotype : c'est le signe qu'on
-              retrouve sur l'icône, et il tient dans le rail replié. */}
-          <img src="/icon-192.png" alt="Klip" style={{ height: 34, width: 34, borderRadius: 10, display: "block" }} />
+          <img src="/logo-klip-mint.png" alt="Klip" style={{ height: 32, width: "auto" }} />
         </Link>
         <span className="sb-full chip" style={{ marginLeft: "auto", background: "var(--cream-4)", color: "var(--cream-2)", fontSize: 10 }}>
           Agence

@@ -698,6 +698,7 @@ input.ed-range::-moz-range-thumb {
    où il se lit, au lieu d'être à cheval sur la couleur de la marque. */
 .tplp-brand-row { position: relative; display: flex; align-items: center; gap: 14px;
   padding: 16px 22px 16px 100px; min-height: 44px; }
+.tplp-avatar-img { object-fit: contain; background: #fff; padding: 8px; }
 .tplp-avatar { position: absolute; left: 22px; top: -34px;
   width: 64px; height: 64px; border-radius: 18px; display: grid; place-items: center;
   font-family: var(--mono); font-weight: 800; font-size: 18px; color: #fff;
