@@ -726,6 +726,177 @@ input.ed-range::-moz-range-thumb {
    l'appelant, jamais au bouton. */
 .kbeta-dock { position: fixed; right: 18px; bottom: 18px; z-index: 900; }
 
+/* ── Fenêtre de signalement (phase d'ouverture) ─────────────────────────────
+   Même famille que la pastille : l'étiquette-sticker verte, la pilule blanche,
+   le titre en oaks. Rien en style en ligne — survol, focus clavier et
+   « moins d'animations » ne s'écrivent pas dans un attribut style. Tout lit
+   les tokens, donc le module suit le thème sombre sans seconde écriture. */
+.kbf-fond {
+  position: fixed; inset: 0; z-index: 9000;
+  display: grid; place-items: center; padding: 20px;
+  background: rgba(13,15,10,.46);
+  backdrop-filter: blur(6px) saturate(.92);
+  -webkit-backdrop-filter: blur(6px) saturate(.92);
+  animation: kbfFond .18s ease-out both;
+}
+.kbf-carte {
+  width: min(520px, 100%); max-height: min(88vh, 760px);
+  display: flex; flex-direction: column; overflow: hidden;
+  background: var(--card); border-radius: 26px;
+  border: 1px solid var(--line-2);
+  box-shadow: 0 40px 90px -40px rgba(13,15,10,.62), 0 2px 6px rgba(13,15,10,.06);
+  font-family: var(--sans); color: var(--ink);
+  animation: kbfCarte .24s cubic-bezier(.2,.8,.3,1) both;
+}
+
+/* En-tête : sticker à gauche, fermeture à droite, puis le titre en pleine
+   largeur — le titre ne partage pas sa ligne, il n'a pas à se replier. */
+.kbf-tete { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 20px 24px 0; }
+.kbf-x {
+  flex-shrink: 0; width: 34px; height: 34px; border-radius: 50%;
+  display: grid; place-items: center; border: none; cursor: pointer;
+  background: var(--sunk); color: var(--ink-3);
+  transition: background .14s, color .14s;
+}
+.kbf-x:hover { background: var(--btn-soft-2); color: var(--ink); }
+.kbf-x:focus-visible { outline: 3px solid var(--kbeta-vert-focus); outline-offset: 2px; }
+.kbf-x svg { width: 15px; height: 15px; display: block; }
+
+.kbf-corps { padding: 16px 24px 0; overflow-y: auto; }
+.kbf-titre {
+  margin: 0 0 8px; font-family: var(--oaks), Georgia, serif; font-weight: 700;
+  font-size: clamp(27px, 4.4vw, 34px); line-height: 1.06; letter-spacing: -.02em; color: var(--ink);
+}
+.kbf-sous { margin: 0; max-width: 44ch; font-size: 14px; line-height: 1.6; color: var(--ink-2); }
+
+/* Genre du retour : aplats, pas de contours — même puce que l'atelier. */
+.kbf-genres { display: flex; gap: 8px; flex-wrap: wrap; margin: 20px 0 14px; }
+.kbf-genre {
+  padding: 10px 18px; border-radius: 999px; border: none; cursor: pointer;
+  font-family: var(--sans); font-size: 13.5px; font-weight: 700; letter-spacing: -.005em;
+  background: var(--btn-soft); color: var(--ink-2);
+  transition: background .13s, color .13s;
+}
+.kbf-genre:hover { background: var(--btn-soft-2); color: var(--ink); }
+.kbf-genre[aria-pressed="true"] {
+  background: linear-gradient(176deg, var(--kbeta-vert-clair), var(--kbeta-vert-fonce));
+  color: var(--kbeta-encre);
+  box-shadow: inset 0 1.5px 0 rgba(255,255,255,.85), inset 0 -1.5px 0 rgba(91,168,58,.25);
+}
+.kbf-genre:focus-visible { outline: 3px solid var(--kbeta-vert-focus); outline-offset: 2px; }
+
+/* Champ : un renfoncement, pas une boîte à filet. */
+.kbf-champ {
+  width: 100%; box-sizing: border-box; min-height: 136px; resize: vertical;
+  padding: 15px 17px; border-radius: 16px; border: none;
+  background: var(--sunk); color: var(--ink);
+  font-family: var(--sans); font-size: 14.5px; line-height: 1.6;
+  transition: background .14s, box-shadow .14s;
+}
+.kbf-champ::placeholder { color: var(--ink-3); }
+.kbf-champ:focus {
+  outline: none; background: var(--card);
+  box-shadow: 0 0 0 1.5px var(--kbeta-vert-fonce), 0 0 0 5px var(--leaf-soft);
+}
+
+/* Ce qui part avec le message, dit noir sur blanc : la page, pas « la page ». */
+.kbf-joint {
+  display: flex; align-items: center; gap: 8px; margin: 12px 0 0;
+  font-size: 12.5px; line-height: 1.4; color: var(--ink-3);
+}
+.kbf-joint svg { width: 14px; height: 14px; flex-shrink: 0; }
+.kbf-joint code {
+  font-family: var(--mono); font-size: 11.5px; font-weight: 700; color: var(--ink-2);
+  background: var(--sunk); border-radius: 6px; padding: 3px 7px;
+  max-width: 24ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.kbf-err {
+  margin: 14px 0 0; padding: 11px 14px; border-radius: 12px;
+  background: var(--warn-soft); color: var(--warn);
+  font-size: 13px; font-weight: 600; line-height: 1.5;
+}
+
+/* Pied : posé sur un aplat, séparé par un filet — la fenêtre a un socle. */
+.kbf-pied {
+  display: flex; align-items: center; justify-content: flex-end; gap: 9px;
+  margin-top: 20px; padding: 14px 24px 16px;
+  border-top: 1px solid var(--line-2); background: var(--sunk);
+}
+.kbf-btn {
+  font-family: var(--sans); font-weight: 700; font-size: 13.5px; letter-spacing: -.005em;
+  padding: 11px 20px; border-radius: 999px; border: none; cursor: pointer;
+  transition: background .13s, transform .16s cubic-bezier(.2,.8,.3,1), box-shadow .16s;
+}
+.kbf-btn:focus-visible { outline: 3px solid var(--kbeta-vert-focus); outline-offset: 2px; }
+.kbf-btn--fantome { background: transparent; color: var(--ink-2); }
+.kbf-btn--fantome:hover { background: var(--btn-soft-2); color: var(--ink); }
+.kbf-btn--vert {
+  background: linear-gradient(176deg, var(--kbeta-vert-clair), var(--kbeta-vert-fonce));
+  color: var(--kbeta-encre);
+  box-shadow: inset 0 1.5px 0 rgba(255,255,255,.85), 0 8px 18px -10px rgba(23,36,15,.5);
+}
+.kbf-btn--vert:hover { transform: translateY(-1px); box-shadow: inset 0 1.5px 0 rgba(255,255,255,.85), 0 14px 24px -12px rgba(23,36,15,.55); }
+.kbf-btn--vert:active { transform: none; }
+.kbf-btn[disabled] { opacity: .55; cursor: default; transform: none; }
+
+/* Accusé de réception : la même carte, un état de plus. */
+.kbf-ok { padding: 6px 0 4px; text-align: center; }
+.kbf-ok-pastille {
+  width: 62px; height: 62px; margin: 6px auto 16px; border-radius: 50%;
+  display: grid; place-items: center; color: var(--kbeta-encre);
+  background: linear-gradient(176deg, var(--kbeta-vert-clair), var(--kbeta-vert-fonce));
+  box-shadow: inset 0 2px 0 rgba(255,255,255,.9), 0 12px 26px -14px rgba(23,36,15,.6);
+  animation: kbfPastille .32s cubic-bezier(.2,.9,.3,1.4) both;
+}
+.kbf-ok-pastille svg { width: 28px; height: 28px; }
+.kbf-ok .kbf-sous { margin: 0 auto; }
+
+@keyframes kbfFond { from { opacity: 0; } to { opacity: 1; } }
+@keyframes kbfCarte { from { opacity: 0; transform: translateY(14px) scale(.985); } to { opacity: 1; transform: none; } }
+@keyframes kbfPastille { from { opacity: 0; transform: scale(.6); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) {
+  .kbf-fond, .kbf-carte, .kbf-ok-pastille { animation: none; }
+  .kbf-btn, .kbf-btn:hover { transition: background .13s; transform: none; }
+}
+
+/* Carte d'accueil du coin bas-droit : même écriture que la fenêtre. */
+.kbf-intro {
+  position: fixed; right: 18px; z-index: 900; width: 320px;
+  bottom: calc(28px + var(--klip-dock-pastille, 38px));
+  background: var(--card); border-radius: 22px; padding: 16px 18px 18px;
+  border: 1px solid var(--line-2);
+  box-shadow: 0 26px 54px -30px rgba(16,19,11,.5);
+  font-family: var(--sans);
+  animation: kbfCarte .26s cubic-bezier(.2,.8,.3,1) both;
+}
+.kbf-intro-titre { margin: 12px 0 6px; font-family: var(--oaks), Georgia, serif; font-weight: 700;
+  font-size: 21px; line-height: 1.15; letter-spacing: -.015em; color: var(--ink); }
+.kbf-intro-texte { margin: 0; font-size: 13px; line-height: 1.6; color: var(--ink-2); }
+.kbf-intro .kbf-btn { width: 100%; margin-top: 14px; }
+@media (prefers-reduced-motion: reduce) { .kbf-intro { animation: none; } }
+
+/* Sur mobile la fenêtre vient du bas et occupe la largeur : une feuille. */
+@media (max-width: 560px) {
+  .kbf-fond { place-items: end center; padding: 0; }
+  .kbf-carte { width: 100%; max-height: 92vh; border-radius: 26px 26px 0 0; border-bottom: none; }
+  .kbf-intro { width: auto; left: 12px; right: 12px; }
+}
+
+/* Rangée de la barre contextuelle de l'éditeur : elle appartient au flux, au-
+   dessus du plan de travail. Sa hauteur est réservée en permanence pour que la
+   page ne saute pas quand un objet est sélectionné, et les panneaux de la barre
+   s'ouvrent par-dessus la zone de travail (z-index). */
+.ed-ctx-row {
+  flex-shrink: 0; position: relative; z-index: 45;
+  min-height: 64px; padding: 7px 14px;
+  display: flex; align-items: center; justify-content: center;
+  overflow: visible; pointer-events: none;
+}
+.ed-ctx-row > * { pointer-events: auto; min-width: 0; }
+/* Elle se replie plutôt que de déborder : `overflow-x: auto` aurait fermé
+   l'axe vertical avec lui, et les panneaux de la barre auraient été coupés. */
+.ed-ctx-row .pop-in { max-width: 100%; flex-wrap: wrap; row-gap: 6px; }
+
 /* ── Page « Modèles » d'un client ───────────────────────────────────────────
    Elle empilait un bandeau de marque, deux cartes de charte, une grille et une
    section de sous-titres sans qu'on sache ce qui appartenait à quoi, avec trois
@@ -983,6 +1154,7 @@ input.ed-range::-moz-range-thumb {
   /* Barre contextuelle : la version topbar est masquée, on utilise .ed-mobile-ctx */
   .ed-topbar-center { display: none !important; }
   .ed-ctx-float { display: none !important; }
+  .ed-ctx-row { display: none !important; }
   /* En flux normal, juste sous la topbar — passe à la ligne (tout accessible, menus non coupés) */
   .ed-mobile-ctx {
     display: flex; flex-shrink: 0; width: 100%;
@@ -1948,7 +2120,10 @@ input.mz-range::-moz-range-thumb { width: 16px; height: 16px; border-radius: 50%
    un mot par une chatière. */
 /* Bouton fermé : aplat violet, la marque die-cut verte posée dessus — un
    sticker collé sur le bouton, pas une icône centrée dans un rond. */
-.mzchat-fab { position: fixed; right: 20px; bottom: 20px; z-index: 900; display: flex; align-items: center; gap: 9px;
+/* Le coin bas-droit est déjà tenu par la pastille de signalement : le bouton
+   de l'assistant se range à SA GAUCHE (largeur publiée par le widget bêta,
+   0 sur les pages qui ne l'affichent pas) au lieu de se poser dessus. */
+.mzchat-fab { position: fixed; right: calc(20px + var(--klip-dock-largeur, 0px)); bottom: 20px; z-index: 900; display: flex; align-items: center; gap: 9px;
   height: 46px; padding: 0 18px 0 15px; border-radius: 23px; border: none; cursor: pointer;
   background: var(--vio); color: #fff;
   font-family: var(--sans); font-weight: 800; font-size: 13px; letter-spacing: -.01em;

@@ -97,4 +97,8 @@ const BetaButton = React.forwardRef<HTMLElement, BetaButtonProps>(function BetaB
   );
 });
 
+/* La fiole est exposée à part : la fenêtre de signalement reprend le même
+   sticker en tête, et c'est ce qui relie visuellement le bouton à ce qui
+   s'ouvre. */
+export { FioleIcon };
 export default BetaButton;

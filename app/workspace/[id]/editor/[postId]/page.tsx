@@ -7029,10 +7029,19 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
         <div className="ed-canvas-area" style={{ flex: 1, minWidth: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column', background: 'var(--canvas)', position: 'relative' }}>
           {/* Sélecteur caché : sert à remplir une zone photo de modèle. */}
           <input ref={fillPhotoRef} type="file" accept="image/*" onChange={onFillPhoto} style={{ display: 'none' }} />
-          {/* ── Barre contextuelle flottante (desktop) — centrée sous la topbar, par-dessus le plan de travail ── */}
+          {/* ── Barre contextuelle (desktop) — sa PROPRE rangée, au-dessus du plan
+               de travail et jamais par-dessus ─────────────────────────────────
+               Elle flottait en `position: absolute` sur le haut du plan de
+               travail : les poignées hautes d'un objet passaient dessous et
+               devenaient impossibles à attraper (redimensionner par le haut
+               revenait à cliquer dans la barre). Elle est maintenant un vrai
+               bloc du flux : le plan de travail commence dessous.
+               La rangée est là même sans sélection — sinon le plan de travail
+               sauterait de 62 px à chaque clic sur un objet. */}
+          <div className="ed-ctx-row">
           {selectedEl && (
             <div className="ed-ctx-float" data-stop-deselect onMouseDown={e => e.stopPropagation()}
-              style={{ position: 'absolute', top: 12, left: '50%', transform: 'translateX(-50%)', zIndex: 45, maxWidth: 'calc(100% - 24px)' }}>
+              style={{ maxWidth: '100%' }}>
               <EditorContextToolbar
                 sel={toolbarSel ?? selectedEl}
                 allFonts={[...FONTS, ...brandFontNames, ...customFonts.map(f => f.name)]}
@@ -7055,6 +7064,7 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
               />
             </div>
           )}
+          </div>
           {(aiBuilding || qaBusy) && (
             <AiGeneratingOverlay title={T('aiComposing')} detail={qaMsg || undefined} lines={edAiLog} />
           )}
@@ -7100,7 +7110,7 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
           onDragOver={e => { e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; if (!isDragOverCanvas) setIsDragOverCanvas(true); }}
           onDragLeave={e => { if (e.currentTarget === e.target) setIsDragOverCanvas(false); }}
           onDrop={handleCanvasDrop}
-          style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'safe center', overflow: 'auto', padding: '40px 28px', gap: 40, background: '#F3F4F7', outline: isDragOverCanvas ? '2px solid var(--vio)' : 'none', outlineOffset: -6 }}>
+          style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'safe center', overflow: 'auto', padding: '18px 28px 40px', gap: 40, background: '#F3F4F7', outline: isDragOverCanvas ? '2px solid var(--vio)' : 'none', outlineOffset: -6 }}>
             {slides.map((slide, idx) => {
               const isActive = idx === activeSlideIdx;
               // Carrousel continu : une seule toile large — on masque les autres slides.
