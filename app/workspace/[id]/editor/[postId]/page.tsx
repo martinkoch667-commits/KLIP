@@ -1503,7 +1503,7 @@ function EditorContextToolbar({ sel, allFonts, brandFamilies, brandColors, stage
       {(isText || isShape) && !isVector && gradSel && (
         <div style={{ position: 'relative' }}>
           <IBtn title={T('gradient')} on={gradSel.fillType === 'gradient'} onClick={() => setPop(p => p === 'grad' ? null : 'grad')}
-            icon={<svg width="15" height="15" viewBox="0 0 24 24" fill="none"><defs><linearGradient id="ed-grad-icon" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="currentColor" stopOpacity="1" /><stop offset="1" stopColor="currentColor" stopOpacity="0.15" /></linearGradient></defs><rect x="3" y="3" width="18" height="18" rx="4" fill="url(#ed-grad-icon)" /></svg>} />
+            icon={<svg width="15" height="15" viewBox="0 0 24 24" fill="none"><defs><linearGradient id="ed-grad-icon" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="currentColor" stopOpacity="1" /><stop offset="1" stopColor="currentColor" stopOpacity="0.15" /></linearGradient></defs><rect x="3" y="3" width="18" height="18" rx="4" fill="url(#ed-grad-icon)" /><rect x="3" y="3" width="18" height="18" rx="4" stroke="currentColor" strokeWidth="1.6" strokeOpacity=".55" /></svg>} />
           {pop === 'grad' && (
             <div {...popAttrs({ minWidth: 220 })}>
               <div className="label" style={{ marginBottom: 8 }}>{T('fill')}</div>

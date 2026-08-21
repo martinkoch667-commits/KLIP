@@ -921,11 +921,35 @@ input.ed-range::-moz-range-thumb {
   min-height: 64px; padding: 7px 14px;
   display: flex; align-items: center; justify-content: center;
   overflow: visible; pointer-events: none;
+  /* Conteneur de requête : les commandes se règlent sur la largeur RÉELLE de
+     la rangée, qui dépend du rail et du panneau ouvert à gauche — une media
+     query, elle, ne connaît que la fenêtre et se tromperait à chaque fois. */
+  container-type: inline-size;
 }
 .ed-ctx-row > * { pointer-events: auto; min-width: 0; }
-/* Elle se replie plutôt que de déborder : `overflow-x: auto` aurait fermé
-   l'axe vertical avec lui, et les panneaux de la barre auraient été coupés. */
-.ed-ctx-row .pop-in { max-width: 100%; flex-wrap: wrap; row-gap: 6px; }
+/* Une rangée qui passe à deux lignes déplace tout le plan de travail sous
+   elle. Elle tient donc sur une seule ligne, et ce sont les commandes qui
+   maigrissent quand la place manque. */
+.ed-ctx-row .pop-in { max-width: 100%; flex-wrap: nowrap; }
+
+/* Premier palier : les boutons perdent leurs marges intérieures. */
+@container (max-width: 1180px) {
+  .ed-ctx-float .pop-in { gap: 3px !important; }
+  .ed-ctx-float button { height: 32px !important; padding: 0 8px !important; font-size: 12.5px !important; gap: 5px !important; }
+  .ed-ctx-float select { height: 32px !important; font-size: 12.5px !important; padding-right: 22px !important; }
+  .ed-ctx-float input[type="text"], .ed-ctx-float input[type="number"] { height: 32px !important; font-size: 12.5px !important; }
+}
+/* Deuxième palier : on descend encore, et les séparateurs disparaissent. */
+@container (max-width: 980px) {
+  .ed-ctx-float .pop-in { gap: 2px !important; }
+  .ed-ctx-float button { height: 30px !important; padding: 0 6px !important; font-size: 12px !important; gap: 4px !important; }
+  .ed-ctx-float select { height: 30px !important; font-size: 12px !important; max-width: 116px; }
+  .ed-ctx-float > div > span[style*="width: 1px"], .ed-ctx-float span[aria-hidden="true"][style*="width: 1px"] { display: none !important; }
+}
+/* Les panneaux qui s'ouvrent depuis la barre gardent leur taille de lecture :
+   ce sont les commandes qui rétrécissent, pas leur contenu. */
+.ed-ctx-float .pop-in .pop-in,
+.ed-ctx-float [data-pop] { font-size: 13px; }
 
 /* ── Page « Modèles » d'un client ───────────────────────────────────────────
    Elle empilait un bandeau de marque, deux cartes de charte, une grille et une
