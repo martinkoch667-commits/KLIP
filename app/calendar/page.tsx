@@ -12,6 +12,7 @@ import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Sidebar from "@/components/Sidebar";
+import { thumbUrl } from "@/components/MediaThumb";
 import PostPreviewPane from "@/components/PostPreviewPane";
 import DateField from "@/components/DateField";
 import TimeField from "@/components/TimeField";
@@ -88,7 +89,11 @@ export default function CalendarPage() {
         supabase
           .from("posts")
           .select("id,workspace_id,scheduled_at,exported_image_url,thumbnail_url,photo_url,description,texte_visuel,post_type,status")
-          .order("scheduled_at", { nullsFirst: false }),
+          // On affiche une semaine ou un mois : les posts d'il y a six mois
+          // n'apparaîtront jamais à l'écran, autant ne pas les charger.
+          .or(`scheduled_at.gte.${new Date(Date.now() - 120 * 864e5).toISOString()},scheduled_at.is.null`)
+          .order("scheduled_at", { nullsFirst: false })
+          .limit(600),
       ]);
       setWorkspaces(ws ?? []);
       setPosts(ps ?? []);
@@ -179,7 +184,9 @@ export default function CalendarPage() {
   function PostBlock({ p, style, compact = false }: { p: Post; style?: React.CSSProperties; compact?: boolean }) {
     const ws = wsMap[p.workspace_id];
     const raw = p.exported_image_url || p.thumbnail_url || p.photo_url;
-    const thumb = raw ? `/api/proxy-image?url=${encodeURIComponent(raw)}` : null;
+    // Le proxy seul renvoie l'ORIGINAL : une photo de 12 Mpx pèse ~48 Mo une
+    // fois décodée, pour une vignette de 30 px. On passe par l'optimiseur.
+    const thumb = raw ? thumbUrl(raw, 96) : null;
     const isPub = p.status === "published";
     const time = p.scheduled_at ? new Date(p.scheduled_at).toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit" }) : null;
     return (

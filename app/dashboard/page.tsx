@@ -646,7 +646,10 @@ export default function Dashboard() {
 
         // Load posts + activity in parallel (activity_log may not exist yet)
         const [{ data: ps }, { data: acts }] = await Promise.all([
-          supabase.from('posts').select('id, workspace_id, status, post_type, photo_url, exported_image_url, thumbnail_url, texte_visuel, scheduled_at, created_at').order('created_at', { ascending: false }),
+          // Le tableau de bord ne montre que les derniers posts et quelques
+          // compteurs : inutile de rapatrier tout l'historique de tous les
+          // clients à chaque ouverture.
+          supabase.from('posts').select('id, workspace_id, status, post_type, photo_url, exported_image_url, thumbnail_url, texte_visuel, scheduled_at, created_at').order('created_at', { ascending: false }).limit(200),
           supabase.from('activity_log').select('id, workspace_id, action_type, post_title, created_at').order('created_at', { ascending: false }).limit(20),
         ]);
         setPosts(ps ?? []);

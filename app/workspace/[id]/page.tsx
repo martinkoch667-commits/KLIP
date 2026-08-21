@@ -17,6 +17,7 @@ import VoiceButton from "@/components/VoiceButton";
 import NotificationBell from "@/components/NotificationBell";
 import { Sticker } from "@/components/Stickers";
 import SelFrame from "@/components/SelFrame";
+import { thumbUrl } from "@/components/MediaThumb";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -740,7 +741,11 @@ export default function WorkspacePage() {
       .from("posts")
       .select("id, photo_url, exported_image_url, brief, description, texte_visuel, status, created_at, thumbnail_url, template_id, post_type")
       .eq("workspace_id", id)
-      .order("created_at", { ascending: false });
+      .order("created_at", { ascending: false })
+      // Un client actif depuis un an, c'est plusieurs centaines de posts rendus
+      // d'un bloc, chacun avec sa vignette. Au-delà, l'historique complet est à
+      // sa place dans la page Historique.
+      .limit(150);
 
     if (dbPosts) {
       setPosts(dbPosts.map((p) => ({
@@ -2093,11 +2098,20 @@ export default function WorkspacePage() {
                                voyait pas le cadrage réel avant d'ouvrir l'éditeur. */
                             <div style={{ position: 'relative', height: 230, width: 'auto', maxWidth: '100%', aspectRatio: aspectForPostType(post.post_type), margin: '0 auto', borderRadius: 13, overflow: 'hidden', background: '#000' }}>
                               {post.isVideo ? (
-                                <video src={post.photo_url} controls style={{ width: '100%', height: '100%', objectFit: 'contain', display: 'block' }} />
-                              ) : (
-                                // eslint-disable-next-line @next/next/no-img-element
-                                <img src={post.exported_image_url || post.preview_url || post.photo_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                              )}
+                                /* `preload="none"` : sans lui, le navigateur ouvre un
+                                   décodeur vidéo par vignette dès l'affichage de la
+                                   grille, et une douzaine suffit à faire recharger
+                                   l'onglet. Le fichier n'est cherché qu'au clic. */
+                                <video src={post.photo_url} controls preload="none" style={{ width: '100%', height: '100%', objectFit: 'contain', display: 'block' }} />
+                              ) : (() => {
+                                /* Même règle que partout ailleurs : on affiche une
+                                   version réduite, jamais l'original. */
+                                const brut = post.exported_image_url || post.preview_url || post.photo_url;
+                                return brut ? (
+                                  // eslint-disable-next-line @next/next/no-img-element
+                                  <img src={thumbUrl(brut, 480)} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                ) : null;
+                              })()}
                               {/* Nom du client (overlay) + badge vidéo */}
                               <div style={{ position: 'absolute', top: 8, left: 8, display: 'flex', gap: 5 }}>
                                 <span style={{ background: 'rgba(0,0,0,.5)', backdropFilter: 'blur(6px)', color: '#fff', fontSize: 10, fontWeight: 800, padding: '4px 9px', borderRadius: 99, fontFamily: 'var(--mono)', letterSpacing: '.06em', textTransform: 'uppercase', maxWidth: 150, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>

@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
 import Sidebar from "@/components/Sidebar";
+import { thumbUrl } from "@/components/MediaThumb";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -243,7 +244,7 @@ export default function HistoriquePage() {
                   {/* Thumbnail with brand overlay */}
                   <div className="w-20 h-20 rounded border border-[#E0E0E0] overflow-hidden shrink-0 bg-[#F5F5F5] relative">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={post.photo_url} alt="" className="w-full h-full object-cover" />
+                    <img src={post.photo_url ? thumbUrl(post.photo_url, 160) : undefined} alt="" className="w-full h-full object-cover" />
                     {post.texte_visuel && (
                       <div style={{
                         position: "absolute", bottom: 4, left: 4, right: 4,
