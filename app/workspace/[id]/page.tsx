@@ -150,6 +150,8 @@ interface Workspace {
   accent_color: string | null;
   font_family: string | null;
   font_secondary: string | null;
+  /** Nombre de mots par sous-titre choisi à la création du client. */
+  subtitle_max_words: number | null;
 }
 
 interface PostTemplate {
@@ -724,7 +726,11 @@ export default function WorkspacePage() {
       .from("workspaces")
       // Les couleurs et polices ne servaient à rien ici tant que l'aperçu montrait
       // la photo brute ; l'aperçu composé applique la charte, il lui faut donc.
-      .select("id, name, logo_url, sector, tone, words_to_use, words_to_avoid, company_description, brand_voice_prompt, description_style, caption_examples, instagram_username, primary_color, secondary_color, accent_color, font_family, font_secondary")
+      // subtitle_max_words : le prémontage en lot découpe les sous-titres ici,
+      // il doit le faire au nombre de mots choisi pour ce client (sinon le
+      // monteur affichait bien le style de la charte, mais des blocs découpés
+      // au réglage d'usine).
+      .select("id, name, logo_url, sector, tone, words_to_use, words_to_avoid, company_description, brand_voice_prompt, description_style, caption_examples, instagram_username, primary_color, secondary_color, accent_color, font_family, font_secondary, subtitle_max_words")
       .eq("id", id)
       .single();
 
@@ -1553,6 +1559,7 @@ export default function WorkspacePage() {
           if (!clips?.length) { clearPending(saved.dbId); patchBatch(item.localId, { status: "error", detail: t('batchErrNoClips') }); continue; }
 
           const res = await runPreEdit(clips, {
+            subMaxWords: workspace?.subtitle_max_words ?? null,
             cache: trCacheRef.current,
             signal: ctrl.signal,
             onStep: (i) => patchBatch(item.localId, { step: i }),

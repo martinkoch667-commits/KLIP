@@ -12,39 +12,16 @@
  * déborde la colonne de lecture pour retrouver la largeur d'un vrai éditeur.
  */
 
-import React, { CSSProperties } from "react";
+import React from "react";
 import { useTranslations } from "next-intl";
 import {
-  effectiveSubStyle, DEFAULT_SUB_POS, SUB_LENGTHS, type SubCustom,
+  DEFAULT_SUB_POS, SUB_LENGTHS, type SubCustom,
 } from "@/app/workspace/[id]/montage/[postId]/constants";
-import SubtitleStyleEditor, { SubtitlePreviewStage } from "@/components/SubtitleStyleEditor";
+import SubtitleStyleEditor, { SubtitlePreviewChip, SubtitlePreviewStage } from "@/components/SubtitleStyleEditor";
 
 // Libellés « longueur des sous-titres » : mêmes traductions que l'éditeur de
 // montage (six langues), pas de doublon à créer.
 const SUB_LENGTH_KEY: Record<number, string> = { 1: "one", 2: "two", 3: "three", 4: "four", 6: "six", 99: "sentence" };
-
-// Aperçu fidèle d'un sous-titre : on résout le style comme le montage
-// (effectiveSubStyle = style de base + surcharges), le 2e mot représente le mot
-// actif surligné (couleur `hi`). Rendu sur fond sombre, comme sur une vidéo.
-export function SubChip({ styleId, custom, size = 15, words = ["Vos", "clips"] }: {
-  styleId: string; custom?: SubCustom; size?: number; words?: [string, string] | string[];
-}) {
-  const s = effectiveSubStyle(styleId, custom);
-  const hasBg = s.bg && s.bg !== "transparent";
-  const chip: CSSProperties = {
-    display: "inline-block", maxWidth: "100%",
-    fontFamily: s.font ? `'${s.font}', var(--display)` : "var(--display)",
-    fontWeight: s.weight,
-    fontStyle: s.italic ? "italic" : "normal",
-    textTransform: s.uppercase ? "uppercase" : "none",
-    fontSize: size, lineHeight: 1.15, letterSpacing: "-0.01em", color: s.fg,
-    padding: s.pill ? "4px 11px" : hasBg ? "3px 7px" : "2px 0",
-    borderRadius: s.pill ? 999 : hasBg ? 4 : 0,
-    background: s.bg,
-    ...(s.stroke ? { WebkitTextStroke: `0.9px ${s.stroke}`, paintOrder: "stroke", textShadow: "0 1px 2px rgba(0,0,0,.5)" } : {}),
-  };
-  return <span style={chip}>{words[0]} <span style={{ color: s.hi }}>{words[1]}</span></span>;
-}
 
 export interface SubPreset { id: string; styleId: string; custom: SubCustom }
 
@@ -112,7 +89,7 @@ export default function Step5Templates({
               <button type="button" key={p.id} onClick={() => onPickPreset(p)}
                 className={"wsn-t5-preset" + (active ? " is-on" : "")}>
                 <span className="wsn-t5-preset-thumb">
-                  <SubChip styleId={p.styleId} custom={p.custom} />
+                  <SubtitlePreviewChip styleId={p.styleId} custom={p.custom} fontSize={15} words={["Vos", "clips"]} />
                   {active && (
                     <span className="wsn-t5-preset-tick">
                       <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.4" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5"/></svg>

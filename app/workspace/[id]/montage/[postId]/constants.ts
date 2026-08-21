@@ -671,6 +671,21 @@ export type EffectiveSub = SubStyle & {
  * silencieusement sur la police par défaut. Magazine, Vintage et Terminal
  * s'affichaient donc dans la mauvaise fonte, à l'écran comme dans la vidéo.
  */
+/* Pile de polices d'un sous-titre. SOURCE UNIQUE : l'aperçu (CSS) et l'export
+   (canvas) doivent nommer les MÊMES familles, sinon la vidéo rendue n'est pas
+   écrite dans la police qu'on avait sous les yeux. C'était le cas : sans police
+   choisie, l'aperçu prenait var(--sans) et l'export system-ui ; en italique,
+   var(--display) d'un côté et Georgia de l'autre, donc une serif là où l'écran
+   montrait une sans. Les deux valeurs ci-dessous sont la version littérale de
+   var(--sans) et var(--display) (cf. globals.css) : le canvas ne sait pas lire
+   une variable CSS. */
+export const SUB_FONT_FALLBACK = "'early-sans-variable', system-ui, sans-serif";
+export const SUB_FONT_FALLBACK_ITALIC = "'Archivo', system-ui, sans-serif";
+export function subFontStack(style: { font?: string; italic?: boolean }): string {
+  if (style.font) return `'${style.font}', ${SUB_FONT_FALLBACK}`;
+  return style.italic ? SUB_FONT_FALLBACK_ITALIC : SUB_FONT_FALLBACK;
+}
+
 export function subFontFamily(font?: string): string | undefined {
   const f = (font || "").trim();
   if (!f) return undefined;
@@ -853,6 +868,17 @@ export function fitChunks(
   return out.length ? out : [[]];
 }
 
+/* Filet de lisibilité : l'ombre douce posée sous un texte NU (ni fond, ni
+   contour, ni ombre réglée). L'aperçu ne l'appliquait que si l'utilisateur
+   n'avait jamais touché au réglage d'ombre, l'export l'appliquait toujours :
+   couper l'ombre changeait donc l'écran sans changer la vidéo. */
+export const SUB_DEFAULT_SHADOW = { color: "rgba(0,0,0,.6)", blur: 8, x: 0, y: 1 };
+export function subDefaultShadowOn(e: EffectiveSub): boolean {
+  const regle = (e.glowColor && e.glowBlur > 0)
+    || (e.shadowColor && (e.shadowBlur > 0 || e.shadowX || e.shadowY));
+  return !regle && !e.shadowSet && e.bg === "transparent" && !e.stroke;
+}
+
 export function subTextShadowCss(e: EffectiveSub, k = 1): string {
   const parts: string[] = [];
   if (e.glowColor && e.glowBlur > 0) {
@@ -874,8 +900,9 @@ export function subTextShadowCss(e: EffectiveSub, k = 1): string {
   // Auparavant il s'appliquait toujours : couper l'ombre ne changeait donc rien
   // à l'écran, et l'activer remplaçait une ombre par une ombre presque
   // identique. Le contrôle avait l'air cassé alors qu'il fonctionnait.
-  if (!parts.length && !e.shadowSet && e.bg === "transparent" && !e.stroke) {
-    parts.push(`0 ${1 * k}px ${8 * k}px rgba(0,0,0,.6)`);
+  if (!parts.length && subDefaultShadowOn(e)) {
+    const d = SUB_DEFAULT_SHADOW;
+    parts.push(`${d.x * k}px ${d.y * k}px ${d.blur * k}px ${d.color}`);
   }
   return parts.join(", ") || "none";
 }
@@ -995,10 +1022,7 @@ export function wrapWords(
 // découpage en lignes mesure avec — sinon on découperait selon une police et on
 // dessinerait avec une autre.
 export function subCanvasFont(style: EffectiveSub, fontSize: number): string {
-  const fam = style.font
-    ? `'${style.font}', system-ui, sans-serif`
-    : (style.italic ? "Georgia, serif" : "system-ui, sans-serif");
-  return `${style.italic ? "italic " : ""}${style.weight} ${fontSize}px ${fam}`;
+  return `${style.italic ? "italic " : ""}${style.weight} ${fontSize}px ${subFontStack(style)}`;
 }
 
 // Canvas de mesure hors écran, partagé (en créer un par appel coûterait cher :
@@ -1184,7 +1208,7 @@ export function subtitleBoxCss(e: EffectiveSub, unit = 1): Record<string, string
     position: "relative",
     background: "transparent",
     color: e.fg,
-    fontFamily: e.font ? `'${e.font}', var(--sans)` : (e.italic ? "var(--display)" : "var(--sans)"),
+    fontFamily: subFontStack(e),
     fontWeight: e.weight,
     fontStyle: e.italic ? "italic" : "normal",
     fontSize: fontSizePx,

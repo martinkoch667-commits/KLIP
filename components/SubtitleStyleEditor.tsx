@@ -311,6 +311,11 @@ export function SubtitlePreviewChip({ styleId, custom, fontSize = 22, words = ["
   return (
     <span style={{ ...css, display: "inline-block", maxWidth: "100%", transform: e.rotation ? `rotate(${e.rotation}deg)` : undefined }}>
       {(() => { const bg = subBgLayerCss(e, fontSize / SUB_BASE_FONT / (e.scale || 1)); return bg ? <span aria-hidden style={bg as React.CSSProperties} /> : null; })()}
+      {/* Le texte est POSITIONNÉ, sinon le calque de fond lui passe par-dessus :
+          un élément positionné se peint après le contenu en ligne, quel que soit
+          son z-index. Les styles à fond (pilule, bandeau) montraient donc une
+          barre de couleur vide, ici comme dans l'aperçu de l'assistant client. */}
+      <span style={{ position: "relative", zIndex: 1 }}>
       {words.map((w, i) => {
         // Mêmes paliers d'opacité que l'export canvas : mot à venir 0.28,
         // mot révélé 0.35 → 1 selon sa propre progression.
@@ -328,6 +333,7 @@ export function SubtitlePreviewChip({ styleId, custom, fontSize = 22, words = ["
           </React.Fragment>
         );
       })}
+      </span>
     </span>
   );
 }

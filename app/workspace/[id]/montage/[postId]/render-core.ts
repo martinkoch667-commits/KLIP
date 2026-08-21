@@ -9,7 +9,7 @@
 // Ces fonctions viennent telles quelles de export.ts, où elles étaient
 // enfermées avec la boucle de captation.
 
-import { MontageClip, OverlayClip, Caption, TitleEl, StickerEl, AudioTrack, SubCustom, effectiveSubStyle, resolveCapStyle, resolveCapPos, SUB_BASE_FONT, wrapWords, captionPartAt, subCanvasFont, subBgBox, curveLayout, applySubCase, withAlpha, transitionStateAt, DEFAULT_SUB_POS, clipFilterCss, overlayFilterCss, clipTimelineDur, clipAudioGainAt, overlayTimelineDur, overlayAudioGainAt, audioVolumeAt, kenBurnsScale, videoFormatById, exportQualityById, overlayEffects, overlayEffectCss, OUTLINE_PASSES, titleCanvasFont, titleLines, titleLook, titleBoxWidth, TITLE_BASE_FONT, TITLE_LINE_HEIGHT } from "./constants";
+import { MontageClip, OverlayClip, Caption, TitleEl, StickerEl, AudioTrack, SubCustom, effectiveSubStyle, resolveCapStyle, resolveCapPos, SUB_BASE_FONT, wrapWords, captionPartAt, subCanvasFont, subBgBox, curveLayout, applySubCase, withAlpha, subDefaultShadowOn, SUB_DEFAULT_SHADOW, transitionStateAt, DEFAULT_SUB_POS, clipFilterCss, overlayFilterCss, clipTimelineDur, clipAudioGainAt, overlayTimelineDur, overlayAudioGainAt, audioVolumeAt, kenBurnsScale, videoFormatById, exportQualityById, overlayEffects, overlayEffectCss, OUTLINE_PASSES, titleCanvasFont, titleLines, titleLook, titleBoxWidth, TITLE_BASE_FONT, TITLE_LINE_HEIGHT } from "./constants";
 export interface ExportProject {
   clips: MontageClip[];
   overlays?: OverlayClip[];
@@ -238,10 +238,14 @@ export function drawCaptions(ctx: CanvasRenderingContext2D, captions: Caption[],
       ctx.shadowBlur = style.shadowBlur * style.scale;
       ctx.shadowOffsetX = style.shadowX * style.scale;
       ctx.shadowOffsetY = style.shadowY * style.scale;
-    } else if (style.bg === "transparent" && !style.stroke) {
-      ctx.shadowColor = "rgba(0,0,0,.6)";
-      ctx.shadowBlur = 8 * style.scale;
-      ctx.shadowOffsetX = 0; ctx.shadowOffsetY = 0;
+    } else if (subDefaultShadowOn(style)) {
+      // Filet de lisibilité, MÊME RÈGLE que l'aperçu : il ne se pose que si
+      // l'ombre n'a jamais été réglée. L'export l'appliquait dans tous les cas,
+      // si bien que couper l'ombre à l'écran ne coupait rien dans la vidéo.
+      ctx.shadowColor = SUB_DEFAULT_SHADOW.color;
+      ctx.shadowBlur = SUB_DEFAULT_SHADOW.blur * style.scale;
+      ctx.shadowOffsetX = SUB_DEFAULT_SHADOW.x * style.scale;
+      ctx.shadowOffsetY = SUB_DEFAULT_SHADOW.y * style.scale;
     }
   };
   const clearShadow = () => { ctx.shadowColor = "transparent"; ctx.shadowBlur = 0; ctx.shadowOffsetX = 0; ctx.shadowOffsetY = 0; };

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect, useMemo, CSSProperties, Fragment } from "react";
+import { useState, useRef, useEffect, useMemo, useCallback, CSSProperties, Fragment } from "react";
 import { useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
@@ -907,17 +907,45 @@ export default function NewWorkspacePage() {
     }
   }
 
+  /* Réglages de sous-titres : ils se choisissent à l'ÉTAPE 5, or le client est
+     créé EN ARRIVANT sur cette étape. L'insert emportait donc le préréglage par
+     défaut et jamais le choix de l'utilisateur : le monteur ouvrait ensuite des
+     sous-titres qui n'étaient pas les siens, et l'export non plus. On réécrit
+     la ligne à chaque changement, et une dernière fois avant de quitter. */
+  const saveSubtitleSettings = useCallback(async (id: string) => {
+    const { error } = await supabase.from("workspaces").update({
+      subtitle_style_id: subtitleStyleId,
+      subtitle_custom: subtitleCustom,
+      subtitle_pos: subPos,
+      subtitle_max_words: subMaxWords,
+    }).eq("id", id);
+    // Colonne pas encore migrée : la création ne doit pas échouer pour autant,
+    // même politique que l'insert (cf. SOFT_COLUMNS côté API).
+    if (error) console.warn("[workspace] réglages de sous-titres non enregistrés :", error.message);
+  }, [supabase, subtitleStyleId, subtitleCustom, subPos, subMaxWords]);
+
+  useEffect(() => {
+    if (step !== 5 || !createdWorkspaceId) return;
+    const h = setTimeout(() => { void saveSubtitleSettings(createdWorkspaceId); }, 600);
+    return () => clearTimeout(h);
+  }, [step, createdWorkspaceId, saveSubtitleSettings]);
+
   // Étape 5 : le client existe dès qu'on l'atteint (cf. useEffect plus bas).
   // « Créer un template » saute directement dans le vrai éditeur ; « Terminer »
   // rejoint le tableau de bord — les deux s'assurent d'abord que la création a
   // fini, au cas où l'utilisateur cliquerait avant la fin de l'appel réseau.
   async function goCreateTemplate() {
     const id = await ensureWorkspaceCreated();
-    if (id) router.push(`/workspace/${id}/template-editor/new`);
+    if (!id) return;
+    // Sans attendre, on part avant que l'écriture temporisée soit passée.
+    await saveSubtitleSettings(id);
+    router.push(`/workspace/${id}/template-editor/new`);
   }
   async function finishOnboarding() {
     const id = await ensureWorkspaceCreated();
-    if (id) router.push(`/workspace/${id}?welcome=true`);
+    if (!id) return;
+    await saveSubtitleSettings(id);
+    router.push(`/workspace/${id}?welcome=true`);
   }
 
   // Le client est créé dès l'arrivée sur l'étape 5, avec tout ce que les
