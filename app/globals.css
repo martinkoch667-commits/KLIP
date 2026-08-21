@@ -683,6 +683,49 @@ input.ed-range::-moz-range-thumb {
 .wsn-chip:hover { background: var(--btn-soft-2); color: var(--ink); }
 .wsn-chip.is-on { background: var(--leaf); color: var(--leaf-ink); }
 
+/* ── Pastille « Signaler un bug » (phase d'ouverture) ───────────────────────
+   Étiquette verte détachée + action, sur une pilule blanche. Tout est ici et
+   rien en style en ligne : le survol, le focus clavier et le respect de
+   « moins d'animations » ne s'écrivent pas dans un attribut style, et un
+   attribut style l'emporterait sur ces règles. */
+:root {
+  --kbeta-vert-clair: #DDFAC4;
+  --kbeta-vert-fonce: #A8E67C;
+  --kbeta-vert-focus: #5BA83A;
+  --kbeta-encre:      #17240F;
+}
+.kbeta {
+  display: inline-flex; align-items: center; gap: 12px;
+  padding: 9px 22px 9px 9px; border-radius: 999px;
+  background: #FFFFFF; border: 1px solid rgba(23,36,15,.10);
+  color: var(--kbeta-encre); text-decoration: none; cursor: pointer;
+  font-family: var(--sans); font-size: 15px; font-weight: 700;
+  letter-spacing: -0.01em; line-height: 1;
+  box-shadow: 0 1px 2px rgba(23,36,15,.05), 0 10px 24px -12px rgba(23,36,15,.3);
+  transition: transform .2s cubic-bezier(.2,.8,.3,1), box-shadow .2s cubic-bezier(.2,.8,.3,1);
+}
+.kbeta:hover { transform: translateY(-2px);
+  box-shadow: 0 1px 2px rgba(23,36,15,.05), 0 18px 32px -14px rgba(23,36,15,.35); }
+.kbeta:active { transform: translateY(0); }
+.kbeta:focus-visible { outline: 3px solid var(--kbeta-vert-focus); outline-offset: 3px; }
+/* Sortie de bêta : sans étiquette, le texte reprend la marge de gauche. */
+.kbeta--nue { padding-left: 22px; }
+.kbeta-chip {
+  display: inline-flex; align-items: center; gap: 7px;
+  padding: 7px 14px; border-radius: 999px;
+  background: linear-gradient(176deg, var(--kbeta-vert-clair), var(--kbeta-vert-fonce));
+  box-shadow: inset 0 1.5px 0 rgba(255,255,255,.9), inset 0 -1.5px 0 rgba(91,168,58,.25);
+  font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: .1em; line-height: 1;
+}
+.kbeta-chip svg { width: 14px; height: 14px; flex-shrink: 0; display: block; }
+@media (prefers-reduced-motion: reduce) {
+  .kbeta { transition: none; }
+  .kbeta:hover { transform: none; }
+}
+/* Ancrage dans le coin bas-droit de l'app. Le placement appartient à
+   l'appelant, jamais au bouton. */
+.kbeta-dock { position: fixed; right: 18px; bottom: 18px; z-index: 900; }
+
 /* ── Page « Modèles » d'un client ───────────────────────────────────────────
    Elle empilait un bandeau de marque, deux cartes de charte, une grille et une
    section de sous-titres sans qu'on sache ce qui appartenait à quoi, avec trois

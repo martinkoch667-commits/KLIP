@@ -8,6 +8,7 @@
    bandeau fixe en haut décalerait la moitié de l'application. */
 
 import { useEffect, useRef, useState } from "react";
+import BetaButton from "@/components/BetaButton";
 
 const SEEN_KEY = "klip-beta-intro-vu";
 
@@ -38,7 +39,7 @@ export default function BetaFeedback() {
   const [done, setDone] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const areaRef = useRef<HTMLTextAreaElement>(null);
-  const pastilleRef = useRef<HTMLButtonElement>(null);
+  const pastilleRef = useRef<HTMLElement>(null);
   const introRef = useRef<HTMLDivElement>(null);
 
   // Carte d'introduction : une seule fois par navigateur.
@@ -142,10 +143,7 @@ export default function BetaFeedback() {
 
       {/* ── Pastille permanente ── */}
       {!open && (
-        <button ref={pastilleRef} onClick={openForm} style={S.pill} title="Signaler un bug ou une idée">
-          <span style={S.dot} />
-          Bêta — signaler un bug
-        </button>
+        <BetaButton ref={pastilleRef} className="kbeta-dock" onReport={openForm} />
       )}
 
       {/* ── Fenêtre de signalement ── */}
@@ -224,16 +222,6 @@ const BAS = 18;    // marge au bord de la fenêtre
 const ECART = 10;  // espace entre deux éléments empilés
 
 const S: Record<string, React.CSSProperties> = {
-  pill: {
-    position: "fixed", right: BAS, bottom: BAS, zIndex: 900,
-    display: "inline-flex", alignItems: "center", gap: 8,
-    background: "var(--leaf)", color: "var(--leaf-ink)",
-    fontFamily: "var(--sans)", fontWeight: 700, fontSize: 12.5,
-    padding: "10px 15px", borderRadius: 999, border: "none", cursor: "pointer",
-    boxShadow: "0 14px 30px -14px rgba(120,190,90,.85), 0 1px 0 rgba(0,0,0,.04)",
-  },
-  dot: { width: 7, height: 7, borderRadius: "50%", background: "var(--leaf-ink)", flexShrink: 0 },
-
   intro: {
     position: "fixed", right: BAS, bottom: `calc(${BAS + ECART}px + var(--klip-dock-pastille, 38px))`, zIndex: 900, width: 310,
     background: "var(--card)", borderRadius: "var(--r-l)", padding: "14px 16px 16px",
