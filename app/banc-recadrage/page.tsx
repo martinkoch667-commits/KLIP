@@ -61,7 +61,8 @@ function BancRecadrageDev() {
     <div style={{ padding: 24, fontFamily: "var(--sans)", background: "var(--canvas)", minHeight: "100vh" }}>
       <h1 style={{ fontSize: 18, fontWeight: 800, marginBottom: 4 }}>Banc — recadrage d&apos;image</h1>
       <p style={{ fontSize: 13, color: "var(--ink-2)", marginBottom: 16 }}>
-        Tirez la barre du haut ou du bas : les bandes numérotées ne doivent PAS bouger, seul le cadre coupe dedans.
+        Les BORDS recadrent : les bandes numérotées ne doivent pas bouger, seul le cadre coupe dedans.
+        Les COINS agrandissent : le cadrage reste le même, tout change de taille (le zoom suit).
       </p>
 
       <div ref={stageRef} style={{ position: "relative", width: 600, height: 700, background: "#fff", boxShadow: "var(--shadow-card)", overflow: "hidden" }}>

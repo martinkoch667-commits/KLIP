@@ -387,8 +387,9 @@ export default function SelectionOverlay({ el, stageRef, onChange, onDragEnd, zo
             case 'bl': nw = startW - ldx; nh = startH + ldy; break;
             case 'tl': nw = startW - ldx; nh = startH - ldy; break;
           }
-          // Step 2: Shift/Cmd → constrain to original aspect ratio
-          if ((ev.shiftKey || ev.metaKey) && startRatio > 0) {
+          // Step 2: proportions conservées — au Shift/Cmd pour les formes, et
+          // TOUJOURS pour une photo : un coin l'agrandit, il ne l'étire pas.
+          if ((ev.shiftKey || ev.metaKey || isImage) && startRatio > 0) {
             const relW = Math.abs(nw / startW - 1);
             const relH = Math.abs(nh / startH - 1);
             if (relW >= relH) { nh = nw * startRatio; }
@@ -415,12 +416,32 @@ export default function SelectionOverlay({ el, stageRef, onChange, onDragEnd, zo
         }
 
         if (isImage) {
+          /* Deux gestes, comme dans les éditeurs que tout le monde connaît :
+
+             - un COIN agrandit ou réduit la photo. Le cadre et l'image changent
+               de taille ensemble, dans les mêmes proportions : le cadrage reste
+               exactement le même, il est simplement plus grand. Sans ça, il n'y
+               avait plus AUCUN moyen d'agrandir une image — le reproche de
+               Martin après le correctif précédent, où les huit poignées
+               recadraient.
+             - un BORD recadre. Le cadre vient couper dans la photo, qui ne
+               bouge pas d'un pixel. */
+          if (isCorner) {
+            const r = nw / Math.max(1, startW);   // proportions verrouillées : un seul ratio
+            onChangeRef.current({
+              x: origin.x, y: origin.y, width: nw, height: nh,
+              imgScale: startImgScale * r,
+              cropX: startCropX * r,
+              cropY: startCropY * r,
+            });
+            return;
+          }
           // Le bord tiré déplace l'origine du cadre : on retire ce même
           // déplacement au décalage de l'image, donc elle reste où elle est à
           // l'écran et le cadre vient couper dedans. Les bords opposés (bas,
           // droite) ne déplacent pas l'origine : rien à compenser.
-          const pullsLeft = ['tl', 'bl', 'ml'].includes(handleId);
-          const pullsTop  = ['tl', 'tr', 'tc'].includes(handleId);
+          const pullsLeft = handleId === 'ml';
+          const pullsTop  = handleId === 'tc';
           onChangeRef.current({
             x: origin.x, y: origin.y, width: nw, height: nh,
             // Le zoom reste celui d'avant la poignée : recadrer n'agrandit pas
