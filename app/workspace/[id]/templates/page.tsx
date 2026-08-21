@@ -17,6 +17,7 @@ import {
 interface Workspace {
   id: string;
   name: string;
+  brand_icon_url?: string | null;
   primary_color: string | null;
   secondary_color: string | null;
   accent_color: string | null;
@@ -98,7 +99,7 @@ export default function TemplatesPage() {
     async function load() {
       setLoading(true);
       const [{ data: ws }, res] = await Promise.all([
-        supabase.from('workspaces').select('id,name,primary_color,secondary_color,accent_color,logo_url,logo_dark_url,font_family').eq('id', workspaceId).single(),
+        supabase.from('workspaces').select('id,name,primary_color,secondary_color,accent_color,brand_icon_url,logo_url,logo_dark_url,font_family').eq('id', workspaceId).single(),
         fetch(`/api/templates?workspaceId=${workspaceId}`),
       ]);
       setWorkspace(ws);
@@ -159,6 +160,7 @@ export function TemplatesView({
   }
 
   const primaryColor = workspace?.primary_color ?? '#2FD79B';
+  const brandLogo = workspace?.brand_icon_url || workspace?.logo_url || workspace?.logo_dark_url || null;
   const palette = [workspace?.primary_color, workspace?.secondary_color, workspace?.accent_color].filter(Boolean) as string[];
 
   // ── Render ────────────────────────────────────────────────────────────────────
@@ -195,9 +197,16 @@ export function TemplatesView({
               <div className="card tplp-brand">
                 <div className="tplp-band" style={{ background: primaryColor }} />
                 <div className="tplp-brand-row">
-                  <span className="tplp-avatar" style={{ background: primaryColor }}>
-                    {workspace.name.slice(0, 2).toUpperCase()}
-                  </span>
+                  {/* Le logo du client, comme dans le rail de navigation. Les
+                      initiales ne servent que s'il n'y en a aucun. */}
+                  {brandLogo ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img className="tplp-avatar tplp-avatar-img" src={brandLogo} alt={workspace.name} />
+                  ) : (
+                    <span className="tplp-avatar" style={{ background: primaryColor }}>
+                      {workspace.name.slice(0, 2).toUpperCase()}
+                    </span>
+                  )}
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <h2 className="h-display tplp-brand-name">{workspace.name}</h2>
                     <p className="tplp-brand-meta">{t('modelsCount', { count: templates.length })}</p>
@@ -649,7 +658,10 @@ function SubtitleTemplatesSection({ workspaceId, workspace }: { workspaceId: str
             const te = effectiveSubStyle(tpl.styleId, tpl.custom);
             return (
               <div key={tpl.id} className="card" style={{ overflow: 'hidden', padding: 0 }}>
-                <div style={{ height: 120, background: 'linear-gradient(150deg,#2b8d57,#0c2a1d)', display: 'grid', placeItems: 'center' }}>
+                {/* Décor sombre NEUTRE, celui de tous les aperçus de sous-titres
+                    du produit. Le dégradé vert datait d'une direction artistique
+                    précédente et ne ressemblait plus à rien d'autre dans l'app. */}
+                <div style={{ height: 120, background: 'linear-gradient(160deg,#3b4a52 0%,#22303a 42%,#131c22 100%)', display: 'grid', placeItems: 'center' }}>
                   <span style={{
                     display: 'inline-block', padding: te.pill ? '5px 12px' : '4px 9px', borderRadius: te.pill ? 99 : 6,
                     background: te.bg, color: te.fg, fontFamily: te.font || 'var(--sans)', fontWeight: te.weight,

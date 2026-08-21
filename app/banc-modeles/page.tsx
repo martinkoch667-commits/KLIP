@@ -14,7 +14,7 @@ import { TemplatesView } from "../workspace/[id]/templates/page";
 const CHARTE = {
   id: "banc", name: "PEPE CHICKEN",
   primary_color: "#FF4438", secondary_color: "#FFC600", accent_color: "#FFFFFF",
-  logo_url: null, logo_dark_url: null, font_family: "Oswald",
+  brand_icon_url: "/icon-192.png", logo_url: null, logo_dark_url: null, font_family: "Oswald",
 };
 
 const MODELES = [
