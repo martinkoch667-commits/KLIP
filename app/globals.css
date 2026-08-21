@@ -750,7 +750,9 @@ input.ed-range::-moz-range-thumb {
 }
 .kbf-volet.est-parti { animation: kbfVoletOut .16s ease-in both; }
 
-/* En-tête : le sticker de la pastille, et la fermeture. Il ne défile pas. */
+/* En-tête : rien qu'une fermeture, posée dans l'angle. L'étiquette « phase
+   d'ouverture » a sauté — elle répétait la pastille d'où l'on vient, et le
+   sous-titre dit déjà que Klip ouvre. */
 .kbf-tete {
   flex-shrink: 0; display: flex; align-items: center; justify-content: space-between; gap: 12px;
   padding: 16px 18px 0;
@@ -764,26 +766,22 @@ input.ed-range::-moz-range-thumb {
 .kbf-x:hover { background: var(--btn-soft-2); color: var(--ink); }
 .kbf-x:focus-visible { outline: 3px solid var(--kbeta-vert-focus); outline-offset: 2px; }
 .kbf-x svg { width: 14px; height: 14px; display: block; }
+/* Posée dans l'angle du volet : elle ne prend pas une rangée pour elle seule. */
+.kbf-x--flottant { position: absolute; top: 14px; right: 14px; z-index: 2; background: transparent; }
+.kbf-x--flottant:hover { background: var(--btn-soft-2); }
 
-/* Corps : la seule partie qui défile. */
-.kbf-corps { flex: 1; min-height: 0; overflow-y: auto; padding: 12px 18px 4px; }
+/* Corps : la seule partie qui défile. Trois choses, dans l'ordre où on les
+   fait — la question, le genre, le message. Pas d'intitulé au-dessus de
+   chacune : à ce format, nommer trois éléments visibles est du bruit. */
+.kbf-corps { flex: 1; min-height: 0; overflow-y: auto; padding: 20px 18px 4px; }
 .kbf-titre {
-  margin: 0 0 6px; font-family: var(--oaks), Georgia, serif; font-weight: 700;
+  margin: 0 44px 6px 0; font-family: var(--oaks), Georgia, serif; font-weight: 700;
   font-size: 25px; line-height: 1.08; letter-spacing: -.02em; color: var(--ink);
 }
 .kbf-sous { margin: 0; font-size: 13.5px; line-height: 1.55; color: var(--ink-2); }
 
-/* Chaque bloc porte son intitulé : on sait ce qu'on remplit, et dans quel
-   ordre. C'est ce qui manquait au bloc unique d'avant. */
-.kbf-bloc { margin-top: 18px; }
-.kbf-lbl {
-  display: block; margin-bottom: 8px;
-  font-size: 10.5px; font-weight: 800; letter-spacing: .11em; text-transform: uppercase;
-  color: var(--ink-3);
-}
-
 /* Genre du retour : aplats, pas de contours — même puce que l'atelier. */
-.kbf-genres { display: flex; gap: 7px; flex-wrap: wrap; }
+.kbf-genres { display: flex; gap: 7px; flex-wrap: wrap; margin: 16px 0 12px; }
 .kbf-genre {
   display: inline-flex; align-items: center; gap: 7px;
   padding: 9px 15px; border-radius: 999px; border: none; cursor: pointer;
@@ -800,7 +798,9 @@ input.ed-range::-moz-range-thumb {
 }
 .kbf-genre:focus-visible { outline: 3px solid var(--kbeta-vert-focus); outline-offset: 2px; }
 
-/* Champ : un renfoncement, pas une boîte à filet. */
+/* Champ : un renfoncement, sans filet et sans halo de couleur. Le vert au
+   focus faisait clignoter l'accent sur le plus gros bloc du volet ; le champ
+   s'éclaircit, c'est assez pour dire où on écrit. */
 .kbf-champ {
   width: 100%; box-sizing: border-box; min-height: 124px; resize: vertical; display: block;
   padding: 13px 15px; border-radius: 16px; border: none;
@@ -811,7 +811,7 @@ input.ed-range::-moz-range-thumb {
 .kbf-champ::placeholder { color: var(--ink-3); }
 .kbf-champ:focus {
   outline: none; background: var(--card);
-  box-shadow: 0 0 0 1.5px var(--kbeta-vert-fonce), 0 0 0 5px var(--leaf-soft);
+  box-shadow: inset 0 0 0 1px var(--line), 0 0 0 3px var(--line-2);
 }
 
 /* Ce qui part avec le message, dit noir sur blanc : la page, pas « la page ». */

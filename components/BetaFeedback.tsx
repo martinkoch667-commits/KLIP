@@ -92,32 +92,30 @@ function IconeCoche() {
   );
 }
 
-/* Ce que chaque genre demande. Le titre, la consigne et l'exemple suivent le
-   genre choisi : on ne pose pas « qu'est-ce qui s'est passé » à quelqu'un qui
-   propose une idée. */
+/* Ce que chaque genre demande. Le titre et l'exemple suivent le genre choisi :
+   on ne pose pas « qu'est-ce qui s'est passé » à quelqu'un qui propose une
+   idée. C'est le titre qui tient lieu d'intitulé de champ — un volet de trois
+   éléments n'a pas besoin qu'on nomme chacun d'eux. */
 const GENRES: {
   v: Kind; l: string; icone: () => React.ReactElement;
-  titre: string; sous: string; consigne: string; exemple: string;
+  titre: string; sous: string; exemple: string;
 }[] = [
   {
     v: "bug", l: "Un bug", icone: IconeBug,
     titre: "Qu’est-ce qui s’est passé ?",
     sous: "Klip est en début d’ouverture. Chaque bug remonté est corrigé au fil de l’eau.",
-    consigne: "Ce qui s’est passé",
     exemple: "Le bouton « Générer » ne répond plus depuis que j’ai importé une image en AVIF…",
   },
   {
     v: "idee", l: "Une idée", icone: IconeIdee,
     titre: "Qu’est-ce qui vous manque ?",
     sous: "Les idées des premiers utilisateurs décident de ce qu’on construit ensuite.",
-    consigne: "Ce qui vous manque",
     exemple: "J’aimerais dupliquer un modèle d’un client vers un autre…",
   },
   {
     v: "autre", l: "Autre chose", icone: IconeAutre,
     titre: "On vous écoute.",
     sous: "Une question, un doute, un truc qui vous a fait tiquer : tout se dit ici.",
-    consigne: "Votre message",
     exemple: "Je ne comprends pas ce que fait le bouton « Charte » dans l’atelier…",
   },
 ];
@@ -283,10 +281,7 @@ export default function BetaFeedback() {
       {open && (
         <div ref={voletRef} className={"kbf-volet" + (sortie ? " est-parti" : "")}
           role="dialog" aria-label="Signaler un problème">
-          <div className="kbf-tete">
-            {sticker}
-            <button onClick={fermer} aria-label="Fermer" className="kbf-x"><IconeCroix /></button>
-          </div>
+          <button onClick={fermer} aria-label="Fermer" className="kbf-x kbf-x--flottant"><IconeCroix /></button>
 
           {done ? (
             <>
@@ -309,44 +304,37 @@ export default function BetaFeedback() {
                 <h2 className="kbf-titre">{genre.titre}</h2>
                 <p className="kbf-sous">{genre.sous}</p>
 
-                <div className="kbf-bloc">
-                  <span className="kbf-lbl">De quoi s’agit-il</span>
-                  <div className="kbf-genres">
-                    {GENRES.map(g => {
-                      const Icone = g.icone;
-                      return (
-                        <button
-                          key={g.v}
-                          type="button"
-                          onClick={() => setKind(g.v)}
-                          aria-pressed={kind === g.v}
-                          className="kbf-genre"
-                        >
-                          <Icone />
-                          {g.l}
-                        </button>
-                      );
-                    })}
-                  </div>
+                <div className="kbf-genres">
+                  {GENRES.map(g => {
+                    const Icone = g.icone;
+                    return (
+                      <button
+                        key={g.v}
+                        type="button"
+                        onClick={() => setKind(g.v)}
+                        aria-pressed={kind === g.v}
+                        className="kbf-genre"
+                      >
+                        <Icone />
+                        {g.l}
+                      </button>
+                    );
+                  })}
                 </div>
 
-                <div className="kbf-bloc">
-                  <label className="kbf-lbl" htmlFor="kbf-message">{genre.consigne}</label>
-                  <textarea
-                    id="kbf-message"
-                    ref={areaRef}
-                    value={message}
-                    onChange={e => setMessage(e.target.value)}
-                    rows={5}
-                    placeholder={genre.exemple}
-                    className="kbf-champ"
-                  />
-                  <p className="kbf-joint">
-                    <IconeLien />
-                    Joint automatiquement <code>{chemin || "/"}</code>
-                  </p>
-                  {err && <p className="kbf-err">{err}</p>}
-                </div>
+                <textarea
+                  ref={areaRef}
+                  value={message}
+                  onChange={e => setMessage(e.target.value)}
+                  rows={5}
+                  placeholder={genre.exemple}
+                  className="kbf-champ"
+                />
+                <p className="kbf-joint">
+                  <IconeLien />
+                  Joint automatiquement <code>{chemin || "/"}</code>
+                </p>
+                {err && <p className="kbf-err">{err}</p>}
               </div>
 
               <div className="kbf-pied">
