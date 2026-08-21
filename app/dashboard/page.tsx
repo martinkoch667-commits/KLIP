@@ -91,8 +91,9 @@ function IconChevR() {
 interface StatTileProps {
   value: number;
   label: string;
-  /** Le rendu 3D posé dans le coin. Il déborde volontairement du cadre. */
-  objet: string;
+  /** Rendu posé dans le coin, s'il y en a un. Une case peut très bien n'être
+   *  qu'une couleur et un chiffre. */
+  objet?: string;
   /** Le fond de la case. Chaque compteur a le sien, c'est ce qui les distingue
    *  d'un coup d'œil, avant même d'avoir lu le libellé. */
   fond: string;
@@ -114,8 +115,10 @@ function StatTile({ value, label, objet, fond, encre = 'var(--ink)', sub }: Stat
         <div className="stat-case-lab">{label}</div>
         {sub && <span className="stat-case-chip">{sub}</span>}
       </div>
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img className="stat-case-vol" src={objet} alt="" aria-hidden="true" />
+      {objet && (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img className="stat-case-vol" src={objet} alt="" aria-hidden="true" />
+      )}
     </div>
   );
 }
@@ -824,15 +827,15 @@ export default function Dashboard() {
             {/* Stat tiles */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 14, marginBottom: 14 }} className="dash-stats">
               <StatTile value={todayPosts} label={t('toPublishToday')} sub={t('statAuto')}
-                fond="linear-gradient(148deg, #C4FF8F 0%, #7EE23F 100%)" encre="#183B06" objet="/volumes/eclair.png" />
+                fond="linear-gradient(148deg, #D7FF9E 0%, #86E24F 100%)" encre="#183B06" />
               <StatTile value={pendingPosts} label={t('statPending')}
-                fond="linear-gradient(148deg, #FFC978 0%, #FF7A2F 100%)" encre="#4A1E02" objet="/volumes/sablier.png" />
+                fond="linear-gradient(148deg, #A9F5D2 0%, #1FB07C 100%)" encre="#04301F" />
               <StatTile value={scheduledPosts} label={t('statScheduled')}
-                fond="linear-gradient(148deg, #9B87FF 0%, #5B45E0 100%)" encre="#FFFFFF" objet="/volumes/calendrier.png" />
+                fond="linear-gradient(148deg, #1F7A55 0%, #0B3B29 100%)" encre="#FFFFFF" />
               <StatTile
                 value={active === 'all' ? workspaces.length : 1}
                 label={active === 'all' ? t('statClients') : t('statConnected')}
-                fond="linear-gradient(148deg, #5FEFC0 0%, #0FBF8A 100%)" encre="#053427" objet="/volumes/comptes.png" />
+                fond="linear-gradient(148deg, #8CFFD8 0%, #12A87A 100%)" encre="#053427" />
             </div>
 
             {/* All clients: workspace card grid */}

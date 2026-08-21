@@ -26,10 +26,10 @@ const CLIENTS = [
 ];
 
 const STATS = [
-  { valeur: 3, libelle: 'À publier aujourd’hui', fond: 'linear-gradient(148deg, #C4FF8F 0%, #7EE23F 100%)', encre: '#183B06', objet: '/volumes/eclair.png', sub: 'Auto' },
-  { valeur: 3, libelle: 'En attente de validation', fond: 'linear-gradient(148deg, #FFC978 0%, #FF7A2F 100%)', encre: '#4A1E02', objet: '/volumes/sablier.png' },
-  { valeur: 12, libelle: 'Planifiés', fond: 'linear-gradient(148deg, #9B87FF 0%, #5B45E0 100%)', encre: '#FFFFFF', objet: '/volumes/calendrier.png' },
-  { valeur: 10, libelle: 'Clients actifs', fond: 'linear-gradient(148deg, #5FEFC0 0%, #0FBF8A 100%)', encre: '#053427', objet: '/volumes/comptes.png' },
+  { valeur: 3, libelle: 'À publier aujourd’hui', fond: 'linear-gradient(148deg, #D7FF9E 0%, #86E24F 100%)', encre: '#183B06', sub: 'Auto' },
+  { valeur: 3, libelle: 'En attente de validation', fond: 'linear-gradient(148deg, #A9F5D2 0%, #1FB07C 100%)', encre: '#04301F' },
+  { valeur: 12, libelle: 'Planifiés', fond: 'linear-gradient(148deg, #1F7A55 0%, #0B3B29 100%)', encre: '#FFFFFF' },
+  { valeur: 10, libelle: 'Clients actifs', fond: 'linear-gradient(148deg, #8CFFD8 0%, #12A87A 100%)', encre: '#053427' },
 ];
 
 const DEPARTS = [
@@ -87,41 +87,31 @@ export default function ApercuV2() {
                     <div className="stat-case-lab">{st.libelle}</div>
                     {st.sub && <span className="stat-case-chip">{st.sub}</span>}
                   </div>
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img className="stat-case-vol" src={st.objet} alt="" aria-hidden="true" />
                 </div>
               ))}
             </div>
 
-            <h2 className="h-title" style={{ fontSize: 17, margin: '30px 0 4px' }}>Variante : cartes à dégradé de nappe</h2>
+            <h2 className="h-title" style={{ fontSize: 17, margin: '30px 0 4px' }}>Variante : cartes à nappes</h2>
             <p style={{ fontSize: 13, color: 'var(--ink-2)', marginBottom: 12, maxWidth: '62ch' }}>
-              Même contenu, autre traitement : des nappes de couleur floutées, un chiffre qui occupe la carte, et l’objet qui vient mordre dessus.
+              Une seule famille de couleur, les verts de Klip, du plus acide au plus profond. Le chiffre tient la carte, sans objet ni picto.
             </p>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 14, marginBottom: 14 }} className="dash-stats">
               <div className="carte-nappe nappe-1 nappe-claire">
                 <span className="nappe-chip">Auto</span>
                 <div className="nappe-num">3</div>
                 <div className="nappe-lab">À publier aujourd’hui</div>
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img className="nappe-objet" src="/volumes/eclair.png" alt="" aria-hidden="true" />
               </div>
-              <div className="carte-nappe nappe-2 nappe-claire">
+              <div className="carte-nappe nappe-2 nappe-sombre">
                 <div className="nappe-num">3</div>
                 <div className="nappe-lab">En attente de validation</div>
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img className="nappe-objet" src="/volumes/sablier.png" alt="" aria-hidden="true" />
               </div>
               <div className="carte-nappe nappe-3 nappe-claire">
                 <div className="nappe-num">12</div>
                 <div className="nappe-lab">Planifiés</div>
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img className="nappe-objet" src="/volumes/calendrier.png" alt="" aria-hidden="true" />
               </div>
-              <div className="carte-nappe nappe-4 nappe-claire">
+              <div className="carte-nappe nappe-4 nappe-sombre">
                 <div className="nappe-num">10</div>
                 <div className="nappe-lab">Clients actifs</div>
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img className="nappe-objet" src="/volumes/comptes.png" alt="" aria-hidden="true" />
               </div>
             </div>
 
