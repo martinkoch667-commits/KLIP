@@ -606,7 +606,6 @@ export default function Dashboard() {
   const [posts, setPosts] = useState<PostRow[]>([]);
   const [activities, setActivities] = useState<ActivityRow[]>([]);
   const [active, setActive] = useState<string>('all');
-  const [userName, setUserName] = useState('');
   const [loading, setLoading] = useState(true);
 
   // Reprise d'un Checkout demandé depuis la landing avant inscription
@@ -629,7 +628,6 @@ export default function Dashboard() {
       try {
         const { data: { session } } = await supabase.auth.getSession();
         if (!session) { router.push('/login'); return; }
-        setUserName(session.user.email?.split('@')[0] ?? 'vous');
 
         // Load workspaces first — critical for ClientSwitcher
         const { data: ws, error: wsErr } = await supabase
@@ -729,8 +727,11 @@ export default function Dashboard() {
                 Le fond forêt est désormais AUTOUR de la feuille : remettre une
                 bannière sombre ici ferait doublon, d'où le voile clair. */}
             <div className="dash-wash">
+              {/* « Bonjour prénom » sur une date : le gabarit qu'on lit partout,
+                  et qui affichait ici l'identifiant de courriel. À la place, un
+                  repère utile : la date, et ce que l'on suit. */}
               <div className="label" style={{ textAlign: 'center', marginBottom: 10 }}>
-                {today.charAt(0).toUpperCase() + today.slice(1)} · {t('greeting', { name: userName })}
+                {today.charAt(0).toUpperCase() + today.slice(1)} · {workspaces.length} {t('statClients')}
               </div>
               <h1 className="h-display dash-title">
                 {active === 'all'

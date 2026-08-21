@@ -16,10 +16,10 @@
     "saved": "Saved"
   },
   "nav": {
-    "dashboard": "Dashboard",
+    "dashboard": "Home",
     "calendar": "Calendar",
     "composer": "Composer",
-    "feed": "Publishing feed",
+    "feed": "Publishing",
     "templates": "Templates",
     "newClient": "New client",
     "settings": "Settings",

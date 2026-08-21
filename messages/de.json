@@ -16,10 +16,10 @@
     "saved": "Gespeichert"
   },
   "nav": {
-    "dashboard": "Dashboard",
+    "dashboard": "Start",
     "calendar": "Kalender",
     "composer": "Erstellen",
-    "feed": "Veröffentlichungs-Feed",
+    "feed": "Beiträge",
     "templates": "Vorlagen",
     "newClient": "Neuer Kunde",
     "settings": "Einstellungen",

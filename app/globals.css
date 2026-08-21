@@ -2420,13 +2420,15 @@ div:has(> aside.sidebar) { background: transparent !important; }
 aside.sidebar:not(.sidebar-bare) + .work,
 aside.sidebar:not(.sidebar-bare) + div,
 aside.sidebar:not(.sidebar-bare) + main {
-  margin: var(--sheet-gap) var(--sheet-gap) var(--sheet-gap) calc(var(--sb-w) + var(--sheet-gap)) !important;
-  height: calc(100vh - var(--sheet-gap) * 2) !important;
-  border-radius: var(--sheet-r);
+  margin: var(--sheet-gap) 0 0 calc(var(--sb-w) + var(--sheet-gap)) !important;
+  height: calc(100vh - var(--sheet-gap)) !important;
+  /* Arrondie en haut, franche en bas : la page continue vers le bas au lieu de
+     se refermer sur un carré posé au milieu de l'écran. */
+  border-radius: var(--sheet-r) var(--sheet-r) 0 0;
   background: var(--canvas);
   overflow: auto;
   box-shadow:
-    0 30px 70px -30px rgba(0,0,0,.72),
+    -30px 0 70px -40px rgba(0,0,0,.72),
     0 0 0 1px rgba(255,255,255,.08),
     inset 0 1px 0 rgba(255,255,255,.8);
 }
@@ -2470,9 +2472,9 @@ aside.sidebar:not(.sidebar-bare) + * .topbar {
   text-transform: none;
   line-height: 1.15;
   text-align: center;
-  white-space: normal;
-  overflow-wrap: anywhere;
-  hyphens: auto;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .sidebar .nav-item.active {
   background: rgba(238,237,227,.14);
@@ -2504,9 +2506,15 @@ aside.sidebar:not(.sidebar-bare) + * .topbar {
 .sb-wslist {
   align-items: center;
   gap: 6px !important;
-  padding-top: 4px !important;
+  padding: 4px 0 0 !important;
   margin: 0 !important;
+  scrollbar-width: none;
+  /* Le fondu du bas dit qu'il reste des comptes en dessous : une liste qui
+     s'arrête net au ras du bord ne se signale pas comme défilante. */
+  -webkit-mask-image: linear-gradient(to bottom, #000 0, #000 calc(100% - 26px), transparent 100%);
+  mask-image: linear-gradient(to bottom, #000 0, #000 calc(100% - 26px), transparent 100%);
 }
+.sb-wslist::-webkit-scrollbar { width: 0; height: 0; }
 .sb-wslist::before {
   content: "";
   width: 26px; height: 1px;
@@ -2553,7 +2561,8 @@ aside.sidebar:not(.sidebar-bare) + * .topbar {
 .sidebar .sb-ws.active .sb-ws-ico { box-shadow: 0 0 0 2px var(--leaf); }
 
 .sb-add {
-  width: 36px; height: 36px;
+  width: 44px; height: 44px;
+  margin: 0 auto;
   border-radius: 50%;
   display: grid;
   place-items: center;
@@ -2600,7 +2609,10 @@ aside.sidebar:not(.sidebar-bare) + * .topbar {
 .dash-wash::before {
   content: "";
   position: absolute;
-  top: 0; bottom: 0;
+  /* Le voile passait sous la barre du haut, ce qui dessinait une frontière en
+     travers de la page. Il remonte derrière elle : une seule surface colorée,
+     du bord haut de la feuille jusqu'au bas de l'accroche. */
+  top: -64px; bottom: 0;
   left: 50%;
   width: 100vw;
   transform: translateX(-50%);
@@ -2737,4 +2749,12 @@ aside.sidebar:not(.sidebar-bare) + * .topbar {
   .stat-case { min-height: 132px; }
   .stat-case-num { font-size: 34px; }
   .stat-case-vol { right: -22px; bottom: -16px; transform: scale(.85); transform-origin: bottom right; }
+}
+
+/* Sur le tableau de bord, la barre du haut se pose SUR le voile : elle n'a donc
+   ni fond ni filet, sinon elle recoupe la couleur en deux. */
+.topbar[data-tour="dashboard"] {
+  background: transparent;
+  border-bottom: 0;
+  backdrop-filter: none;
 }

@@ -59,7 +59,7 @@ export default function ApercuV2() {
 
             <div className="dash-wash">
               <div className="label" style={{ textAlign: 'center', marginBottom: 10 }}>
-                Jeudi 20 août · Bonjour Martin
+                Vendredi 21 août · 10 clients actifs
               </div>
               <h1 className="h-display dash-title">
                 Voici l’état de <span className="acc-hl">vos marques.</span>
