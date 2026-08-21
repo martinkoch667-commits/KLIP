@@ -275,6 +275,31 @@ function wrapMetrics(text: string, fontSize: number, font: string, fontStyle: st
 function countLines(text: string, fontSize: number, font: string, fontStyle: string, areaW: number, letterSpacing = 0): number {
   return wrapMetrics(text, fontSize, font, fontStyle, areaW, letterSpacing).lines;
 }
+
+/* Attend que les polices citées soient RÉELLEMENT dessinables avant de mesurer.
+
+   Mesurer un texte dont la police n'est pas encore arrivée, c'est le mesurer
+   dans une autre typographie : « LA SUITE ! » tient sur une ligne en Oswald
+   (condensé) et déborde sur deux dans la police de repli. Or le re-calage du
+   chargement (relayoutText) ne fait pas que dessiner : il ÉCRIT la largeur, la
+   taille et le nombre de lignes dans le document. Un visuel validé sur une
+   ligne se rouvrait donc replié sur deux, aplat compris, sans qu'on y ait
+   touché — le reproche de Martin.
+
+   Les polices Google arrivent par une feuille de style, qu'on ne peut pas
+   attendre : `document.fonts.load` force leur téléchargement et rend la main
+   quand elles sont posées. Course contre une limite de temps : une police
+   injoignable ne doit jamais retenir l'ouverture de l'éditeur. */
+async function attendrePolices(familles: string[], limiteMs = 2500): Promise<void> {
+  if (typeof document === 'undefined' || !document.fonts) return;
+  const uniques = Array.from(new Set(familles.filter(Boolean)));
+  const chargements = uniques.flatMap((f) => [
+    document.fonts.load(`400 32px "${f}"`).catch(() => {}),
+    document.fonts.load(`700 32px "${f}"`).catch(() => {}),
+  ]);
+  const pret = Promise.all([...chargements, document.fonts.ready]).then(() => {});
+  await Promise.race([pret, new Promise<void>((r) => setTimeout(r, limiteMs))]);
+}
 // Calcule la taille de police qui fait tenir le texte dans sa largeur + maxLines.
 // Ne change QUE la taille (jamais police ni couleur). Ne fait que réduire (max = taille du design).
 function autoFitFontSize(el: TextEl): number {
@@ -3381,6 +3406,17 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
         // En mode template, on préserve la mise en page dessinée à la main (pas de relayout).
         if (!isTemplate) {
           const loadFmt = FORMATS.find(f => f.id === (p?.post_type && PT_FORMAT_MAP[p.post_type] ? PT_FORMAT_MAP[p.post_type] : 'ig-portrait')) ?? FORMATS[0];
+          // Les polices d'abord : ce re-calage écrit largeurs et tailles dans le
+          // document, il ne doit pas mesurer sur une typo de repli (cf.
+          // attendrePolices).
+          await attendrePolices(
+            initSlides.flatMap(sl => (sl.elements ?? []).flatMap(e => {
+              if (e?.type !== 'text') return [];
+              const te = e as TextEl;
+              const runs = Array.isArray(te.runs) ? te.runs.map(r => r.fontFamily) : [];
+              return [te.fontFamily, ...runs];
+            })).filter((f): f is string => !!f),
+          );
           initSlides = initSlides.map(s => ({ ...s, elements: relayoutText(s.elements, loadFmt.w, loadFmt.h) }));
         }
         setSlides(initSlides);
@@ -5203,6 +5239,7 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
         return out as unknown as CanvasEl;
       });
       if (L.template.backgroundStyle) setBgStyle(L.template.backgroundStyle as BgStyle);
+      await attendrePolices([displayFont, bodyFont, ...scaled.flatMap(e => e.type === 'text' ? [(e as TextEl).fontFamily] : [])].filter((f): f is string => !!f));
       applyElements(enforceDesignRules(relayoutText(scaled, stageW, stageH), stageW, stageH));
       return;
     }
@@ -5351,6 +5388,7 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
     const photoLayers = photoIdx >= 0 ? [kept[photoIdx]] : [];
     const keptImgs = photoIdx >= 0 ? kept.filter((_, i) => i !== photoIdx) : kept;
     const combined = [...photoLayers, ...extras, ...keptImgs, ...accentEls, ...logoEls, ...newTextEls];
+    await attendrePolices([displayFont, bodyFont]);
     applyElements(enforceDesignRules(relayoutText(combined, stageW, stageH), stageW, stageH));
   };
 
