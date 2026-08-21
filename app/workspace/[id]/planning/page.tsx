@@ -960,7 +960,7 @@ function PlanningContent() {
       )}
 
       {/* ── Main area ─────────────────────────────────────────────────────────── */}
-      <div className="plan-main" style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0, overflow: "hidden" }}>
+      <div className="plan-main" style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0, minHeight: 0, overflow: "hidden" }}>
 
         {/* Topbar */}
         <header className="topbar">
@@ -1079,7 +1079,7 @@ function PlanningContent() {
 
         {/* ─── WEEK VIEW ───────────────────────────────────────────────────── */}
         {calView === "week" && (
-          <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", height: "calc(100vh - 64px)" }}>
+          <div style={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column", overflow: "hidden" }}>
 
             {/* Single scrollable area — day headers sticky at top inside it */}
             <div ref={gridRef} className="plan-cal-scroll" style={{ flex: 1, overflowY: "auto", overflowX: "hidden", position: "relative", background: "var(--canvas)" }}>
@@ -1234,7 +1234,7 @@ function PlanningContent() {
 
             {/* Unscheduled strip */}
             {unscheduled.length > 0 && (
-              <div style={{ flexShrink: 0, borderTop: `1px solid rgba(13,15,10,.08)`, padding: "10px 20px", background: "var(--canvas)", display: "flex", gap: 8, overflowX: "auto", alignItems: "center" }}>
+              <div style={{ flexShrink: 0, borderTop: `1px solid rgba(13,15,10,.08)`, padding: "10px 20px", background: "var(--white)", boxShadow: "0 -8px 20px -16px rgba(13,15,10,.5)", display: "flex", gap: 8, overflowX: "auto", alignItems: "center" }}>
                 <span style={{ fontFamily: "var(--display)", fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: ".08em", color: "var(--ink-3)", flexShrink: 0 }}>Non programmés ({unscheduled.length})</span>
                 {unscheduled.map(post => (
                   <div key={post.id} draggable
@@ -1258,7 +1258,7 @@ function PlanningContent() {
 
         {/* ─── MONTH VIEW ──────────────────────────────────────────────────── */}
         {calView === "month" && (
-          <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
+          <div style={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column", overflow: "hidden" }}>
             {/* Day headers */}
             <div style={{ display: "grid", gridTemplateColumns: "repeat(7,1fr)", borderBottom: `1px solid rgba(13,15,10,.08)`, flexShrink: 0, background: "var(--canvas)" }}>
               {DAY_LOC.map(d => (
@@ -1339,7 +1339,7 @@ function PlanningContent() {
 
             {/* Unscheduled (month view) */}
             {unscheduled.length > 0 && (
-              <div style={{ flexShrink: 0, borderTop: "1px solid var(--line)", padding: "10px 20px", background: "var(--canvas)", display: "flex", gap: 8, overflowX: "auto", alignItems: "center" }}>
+              <div style={{ flexShrink: 0, borderTop: "1px solid var(--line)", padding: "10px 20px", background: "var(--white)", boxShadow: "0 -8px 20px -16px rgba(13,15,10,.5)", display: "flex", gap: 8, overflowX: "auto", alignItems: "center" }}>
                 <span style={{ fontFamily: "var(--mono)", fontSize: 9.5, fontWeight: 800, textTransform: "uppercase", letterSpacing: ".08em", color: "var(--ink-3)", flexShrink: 0 }}>{t('unscheduled')}</span>
                 {unscheduled.map(post => (
                   <div key={post.id} draggable
@@ -1640,7 +1640,10 @@ function PlanningContent() {
 
 export default function PlanningPage() {
   return (
-    <div style={{ display: "flex", minHeight: "100vh", background: "var(--canvas)", overflow: "hidden" }}>
+    /* Hauteur EXACTE de la fenêtre (et non un minimum) : sans ça la colonne
+       débordait vers le bas, et la pile « non programmés » comme la légende
+       tombaient sous la ligne de flottaison. Seule la grille défile. */
+    <div style={{ display: "flex", height: "100vh", background: "var(--canvas)", overflow: "hidden" }}>
       <Sidebar />
       <div style={{ marginLeft: "var(--sb-w)", flex: 1, display: "flex", overflow: "hidden" }}>
         <Suspense fallback={
