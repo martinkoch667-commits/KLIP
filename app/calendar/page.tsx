@@ -15,7 +15,6 @@ import Sidebar from "@/components/Sidebar";
 import PostPreviewPane from "@/components/PostPreviewPane";
 import DateField from "@/components/DateField";
 import TimeField from "@/components/TimeField";
-import InstagramFeed from "@/components/InstagramFeed";
 import {
   HOUR_H, HOURS, getMonday, addDays, isSameDay, toDateInput, toTimeInput,
   buildScheduledAt, slotHeat, wsColor,
@@ -64,7 +63,6 @@ export default function CalendarPage() {
   const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
-  const [filterWsId, setFilterWsId] = useState<string>("all");
   const [calView, setCalView] = useState<"week" | "month">("week");
   const [weekStart, setWeekStart] = useState(() => getMonday(new Date()));
   const [monthDate, setMonthDate] = useState(() => { const d = new Date(); d.setDate(1); return d; });
@@ -103,10 +101,12 @@ export default function CalendarPage() {
     workspaces.map((w, i) => [w.id, { ...w, color: wsColor(i) }])
   ) as Record<string, Workspace & { color: string }>, [workspaces]);
 
-  const visible = useMemo(
-    () => (filterWsId === "all" ? posts : posts.filter(p => p.workspace_id === filterWsId)),
-    [posts, filterWsId]
-  );
+  // Cette page est la vue d'ensemble, et rien d'autre : choisir un client
+  // ouvre SON calendrier, celui qui porte la validation, le lien de partage et
+  // les meilleurs horaires. Deux calendriers qui se ressemblaient à moitié,
+  // avec un renvoi de l'un vers l'autre au milieu d'un filtre, faisaient perdre
+  // pied (retour Martin).
+  const visible = posts;
 
   const scheduled = visible.filter(p => p.scheduled_at && p.status !== "published");
   const published = visible.filter(p => p.status === "published");
@@ -263,35 +263,46 @@ export default function CalendarPage() {
         <div className="scroll">
           <div style={{ padding: "20px 28px 28px", display: "flex", flexDirection: "column", gap: 16 }}>
 
-            {/* Filtre client — une barre unique, façon segments : chaque client est
-                repéré par une pastille de couleur et son compteur, l'actif se
-                détache en carte blanche. Les gros boutons colorés faisaient
-                sapin de Noël (retour Martin). */}
+            {/* Vos clients — « Tous les clients » dit où l'on est, chaque client
+                est une porte vers SON calendrier. Le chevron annonce qu'on
+                quitte la page : un filtre qui déménageait sans prévenir, c'était
+                le contraire d'une promesse tenue. */}
             <div style={{ display: 'flex', alignItems: 'center', gap: 4, padding: 4, background: 'var(--sunk)', borderRadius: 'var(--r-l)', overflowX: 'auto' }}>
-              {[{ id: 'all', name: t('allClients'), color: 'var(--ink)', n: posts.length },
-                ...workspaces.map(w => ({ id: w.id, name: w.name, color: wsMap[w.id]?.color, n: posts.filter(p => p.workspace_id === w.id).length }))
-              ].map(item => {
-                const on = filterWsId === item.id;
-                return (
-                  <button
-                    key={item.id}
-                    onClick={() => setFilterWsId(item.id)}
-                    style={{
-                      display: 'flex', alignItems: 'center', gap: 7, flexShrink: 0,
-                      padding: '7px 13px', borderRadius: 'var(--r)', cursor: 'pointer',
-                      fontSize: 12.5, fontWeight: on ? 800 : 600,
-                      color: on ? 'var(--ink)' : 'var(--ink-2)',
-                      background: on ? 'var(--white)' : 'transparent',
-                      boxShadow: on ? 'var(--shadow-card)' : 'none',
-                      transition: 'background .14s, color .14s',
-                    }}
-                  >
-                    <span style={{ width: 8, height: 8, borderRadius: '50%', background: item.color, flexShrink: 0 }} />
-                    {item.name}
-                    <span style={{ fontFamily: 'var(--mono)', fontWeight: 800, fontSize: 11, color: on ? 'var(--ink-3)' : 'var(--ink-3)' }}>{item.n}</span>
-                  </button>
-                );
-              })}
+              <span
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 7, flexShrink: 0,
+                  padding: '7px 13px', borderRadius: 'var(--r)',
+                  fontSize: 12.5, fontWeight: 800, color: 'var(--ink)',
+                  background: 'var(--white)', boxShadow: 'var(--shadow-card)',
+                }}
+              >
+                <span style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--ink)', flexShrink: 0 }} />
+                {t('allClients')}
+                <span style={{ fontFamily: 'var(--mono)', fontWeight: 800, fontSize: 11, color: 'var(--ink-3)' }}>{posts.length}</span>
+              </span>
+
+              {workspaces.map(w => (
+                <Link
+                  key={w.id}
+                  href={`/workspace/${w.id}/planning`}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 7, flexShrink: 0,
+                    padding: '7px 11px 7px 13px', borderRadius: 'var(--r)',
+                    fontSize: 12.5, fontWeight: 600, color: 'var(--ink-2)',
+                    textDecoration: 'none', transition: 'background .14s, color .14s',
+                  }}
+                  className="cal-client-link"
+                >
+                  <span style={{ width: 8, height: 8, borderRadius: '50%', background: wsMap[w.id]?.color, flexShrink: 0 }} />
+                  {w.name}
+                  <span style={{ fontFamily: 'var(--mono)', fontWeight: 800, fontSize: 11, color: 'var(--ink-3)' }}>
+                    {posts.filter(p => p.workspace_id === w.id).length}
+                  </span>
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{ opacity: .5 }}>
+                    <path d="M9 6l6 6-6 6" />
+                  </svg>
+                </Link>
+              ))}
             </div>
 
             {/* Chiffres du périmètre affiché */}
@@ -303,24 +314,6 @@ export default function CalendarPage() {
                 </div>
               ))}
             </div>
-
-            {/* Aperçu du feed — dès qu'un client est isolé, on voit à quoi
-                ressemblera son profil une fois la semaine publiée. Sur « tous
-                les clients », un feed mélangé n'aurait aucun sens. */}
-            {filterWsId !== 'all' && (
-              <div className="card" style={{ padding: 18 }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
-                  <span className="label">{t('feedPreview')}</span>
-                  <Link href={`/workspace/${filterWsId}/planning`} className="btn btn-ghost btn-sm">{t('openClient')}</Link>
-                </div>
-                <InstagramFeed
-                  posts={posts.filter(p => p.workspace_id === filterWsId)}
-                  account={wsMap[filterWsId] ?? null}
-                  workspaceId={filterWsId}
-                  limit={12}
-                />
-              </div>
-            )}
 
             {/* Pile à programmer — on la glisse sur la grille */}
             {unscheduled.length > 0 && (

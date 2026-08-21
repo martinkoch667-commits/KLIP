@@ -2381,3 +2381,8 @@ input.mz-range::-moz-range-thumb { width: 16px; height: 16px; border-radius: 50%
   .wsx-cards { grid-template-columns: 1fr; }
   .wsx-cols { flex-wrap: wrap; }
 }
+
+/* Calendrier : chaque client de la barre est une porte vers son propre
+   calendrier, pas un filtre. Le survol doit donc se comporter comme un lien. */
+.cal-client-link:hover { background: var(--btn-soft); color: var(--ink) !important; }
+.cal-client-link:hover svg { opacity: 1 !important; }
