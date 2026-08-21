@@ -3261,6 +3261,15 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
         };
         const photoProxyUrl = p?.photo_url ? `/api/proxy-image?url=${encodeURIComponent(p.photo_url)}` : '';
         let initSlides: Slide[];
+        /* Le re-calage des textes (relayoutText) DÉPLACE et REDIMENSIONNE les
+           blocs, puis l'enregistrement automatique écrit le résultat. Il n'a de
+           sens que sur des textes qui viennent d'être écrits dans un modèle,
+           où la longueur du texte ne correspond pas à celle du dessin. Sur un
+           visuel déjà enregistré, il défaisait la mise en page à chaque
+           ouverture — le reproche de Martin, deux captures à l'appui : au
+           rouvrir, son bandeau avait grandi et les deux blocs étaient
+           descendus. */
+        let dejaEnregistre = false;
         if (isTemplate) {
           // Mode template : charge le modèle depuis post_templates (ou vierge si "new").
           let tpl: any = null;
@@ -3340,6 +3349,9 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
           }
         } else if (p?.editor_json) {
           // Saved state always wins — never re-apply template
+          /* … et « tel quel » veut dire TEL QUEL : c'est l'utilisateur qui a
+             placé ses blocs, on ne les recale pas derrière son dos. */
+          dejaEnregistre = true;
           try {
             const parsed = JSON.parse(p.editor_json);
             if (parsed && parsed.version === 2 && Array.isArray(parsed.slides)) {
@@ -3356,6 +3368,8 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
                   elements: remapElementsToFormat(s.elements, savedFmt.w, savedFmt.h, targetFmt.w, targetFmt.h),
                 }));
                 setFormatChangedFrom({ from: savedFmt.label ?? savedFmt.id, to: targetFmt.label ?? targetFmt.id });
+                // Le cadre a changé de proportions : là, oui, il faut recaler.
+                dejaEnregistre = false;
               }
               // Restore bgStyle if embedded in the first slide (set by Composer pre-gen)
               if (parsed.slides[0]?.bgStyle) setBgStyle(parsed.slides[0].bgStyle as BgStyle);
@@ -3429,7 +3443,7 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
 
         // Re-layout (Phase 2) : auto-fit + anti-chevauchement pour le format du post.
         // En mode template, on préserve la mise en page dessinée à la main (pas de relayout).
-        if (!isTemplate) {
+        if (!isTemplate && !dejaEnregistre) {
           const loadFmt = FORMATS.find(f => f.id === (p?.post_type && PT_FORMAT_MAP[p.post_type] ? PT_FORMAT_MAP[p.post_type] : 'ig-portrait')) ?? FORMATS[0];
           // Les polices d'abord : ce re-calage écrit largeurs et tailles dans le
           // document, il ne doit pas mesurer sur une typo de repli (cf.
