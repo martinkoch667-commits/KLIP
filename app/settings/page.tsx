@@ -142,35 +142,7 @@ function ProfileTab({ supabase, userId, email, meta }: { supabase: any; userId: 
   const [saved, setSaved] = useState(false);
   const [uploading, setUploading] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
-  const [confirmingDelete, setConfirmingDelete] = useState(false);
-  const [deleteConfirm, setDeleteConfirm] = useState("");
-  const [deleting, setDeleting] = useState(false);
-  const [deleteError, setDeleteError] = useState<string | null>(null);
 
-  async function handleDeleteAccount() {
-    setDeleting(true);
-    setDeleteError(null);
-    try {
-      const res = await fetch("/api/account/delete", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ confirm: deleteConfirm }),
-      });
-      const json = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        setDeleteError(json?.error ?? "La suppression a échoué. Réessayez dans un instant.");
-        setDeleting(false);
-        return;
-      }
-      // La session pointe sur un compte qui n'existe plus : on la ferme, et on
-      // sort par un rechargement complet pour ne rien laisser en mémoire.
-      await supabase.auth.signOut();
-      window.location.href = "/";
-    } catch {
-      setDeleteError("La suppression a échoué. Vérifiez votre connexion et réessayez.");
-      setDeleting(false);
-    }
-  }
 
   const displayName = (firstName || lastName) ? `${firstName} ${lastName}`.trim() : email.split("@")[0];
   const initials = displayName.slice(0, 2).toUpperCase();
@@ -264,58 +236,13 @@ function ProfileTab({ supabase, userId, email, meta }: { supabase: any; userId: 
         </div>
       </div>
 
-      {/* Danger zone */}
-      <div className="st-card" style={{ borderColor: "rgba(220,38,38,.2)" }}>
-        <div className="st-label" style={{ color: "#DC2626", marginBottom: 12 }}>Zone de danger</div>
-        <div style={{ fontWeight: 700, fontSize: 14, color: "var(--ink)", marginBottom: 3 }}>Supprimer mon compte</div>
-        <div style={{ fontSize: 12.5, color: "var(--ink-3)", lineHeight: 1.6 }}>
-          Suppression définitive : vos comptes clients, vos publications, vos visuels et tous vos fichiers.
-          Votre abonnement en cours est résilié dans la foulée. Cette action ne peut pas être annulée.
-        </div>
-
-        {!confirmingDelete ? (
-          <button className="st-btn-danger" style={{ marginTop: 16 }} onClick={() => setConfirmingDelete(true)}>
-            Supprimer mon compte
-          </button>
-        ) : (
-          <div style={{ marginTop: 16 }}>
-            {/* Retaper son adresse : le seul geste qui ne se fait pas par réflexe. */}
-            <label className="st-label" htmlFor="delete-confirm">
-              Tapez <span style={{ textTransform: "none", letterSpacing: 0 }}>{email}</span> pour confirmer
-            </label>
-            <input
-              id="delete-confirm" className="st-input" autoComplete="off" placeholder={email}
-              value={deleteConfirm} onChange={e => { setDeleteConfirm(e.target.value); setDeleteError(null); }}
-            />
-            {deleteError && (
-              <p style={{ marginTop: 10, fontSize: 12.5, lineHeight: 1.5, color: "#DC2626" }}>{deleteError}</p>
-            )}
-            <div style={{ marginTop: 14, display: "flex", gap: 10, alignItems: "center" }}>
-              <button
-                className="st-btn-danger"
-                disabled={deleting || deleteConfirm.trim().toLowerCase() !== email.trim().toLowerCase()}
-                style={{ opacity: deleting || deleteConfirm.trim().toLowerCase() !== email.trim().toLowerCase() ? .5 : 1 }}
-                onClick={handleDeleteAccount}
-              >
-                {deleting ? "Suppression…" : "Supprimer définitivement"}
-              </button>
-              <button
-                className="st-btn-ghost" disabled={deleting}
-                onClick={() => { setConfirmingDelete(false); setDeleteConfirm(""); setDeleteError(null); }}
-              >
-                Annuler
-              </button>
-            </div>
-          </div>
-        )}
-      </div>
     </>
   );
 }
 
 // ─── Security Tab ─────────────────────────────────────────────────────────────
 
-function SecurityTab({ supabase, providers }: { supabase: any; providers: string[] }) {
+function SecurityTab({ supabase, providers, email }: { supabase: any; providers: string[]; email: string }) {
   const isGoogleOnly = providers.length === 1 && providers.includes("google");
   const [current, setCurrent] = useState("");
   const [next, setNext] = useState("");
@@ -417,8 +344,113 @@ function SecurityTab({ supabase, providers }: { supabase: any; providers: string
           </span>
         </div>
       </div>
+
+      <SuppressionCompte supabase={supabase} email={email} />
     </>
   );
+}
+
+
+/* ── Suppression du compte ────────────────────────────────────────────────────
+   Elle vivait au bas de « Mon compte » : le premier écran des réglages, celui
+   qu'on ouvre pour changer son prénom. Trois clics depuis n'importe où, et le
+   bouton rouge était là, offert. Il est désormais au bas de « Sécurité », et
+   replié : il faut demander à le voir avant de pouvoir le presser. La
+   confirmation par saisie de l'adresse, elle, ne bouge pas — c'est le seul
+   geste qui ne se fait pas par réflexe. */
+function SuppressionCompte({ supabase, email }: { supabase: any; email: string }) {
+  const [ouvert, setOuvert] = useState(false);
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const [deleteConfirm, setDeleteConfirm] = useState("");
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+
+  async function handleDeleteAccount() {
+    setDeleting(true);
+    setDeleteError(null);
+    try {
+      const res = await fetch("/api/account/delete", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ confirm: deleteConfirm }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setDeleteError(json?.error ?? "La suppression a échoué. Réessayez dans un instant.");
+        setDeleting(false);
+        return;
+      }
+      // La session pointe sur un compte qui n'existe plus : on la ferme, et on
+      // sort par un rechargement complet pour ne rien laisser en mémoire.
+      await supabase.auth.signOut();
+      window.location.href = "/";
+    } catch {
+      setDeleteError("La suppression a échoué. Vérifiez votre connexion et réessayez.");
+      setDeleting(false);
+    }
+  }
+
+  if (!ouvert) {
+    return (
+      <button
+        onClick={() => setOuvert(true)}
+        style={{
+          display: "block", margin: "4px auto 0", padding: "8px 14px",
+          background: "none", border: "none", cursor: "pointer",
+          fontFamily: "var(--sans)", fontSize: 12.5, fontWeight: 600,
+          color: "var(--ink-3)", textDecoration: "underline", textUnderlineOffset: 3,
+        }}
+      >
+        Options avancées du compte
+      </button>
+    );
+  }
+
+  return (
+      <div className="st-card" style={{ borderColor: "rgba(220,38,38,.2)" }}>
+        <div className="st-label" style={{ color: "#DC2626", marginBottom: 12 }}>Zone de danger</div>
+        <div style={{ fontWeight: 700, fontSize: 14, color: "var(--ink)", marginBottom: 3 }}>Supprimer mon compte</div>
+        <div style={{ fontSize: 12.5, color: "var(--ink-3)", lineHeight: 1.6 }}>
+          Suppression définitive : vos comptes clients, vos publications, vos visuels et tous vos fichiers.
+          Votre abonnement en cours est résilié dans la foulée. Cette action ne peut pas être annulée.
+        </div>
+
+        {!confirmingDelete ? (
+          <button className="st-btn-danger" style={{ marginTop: 16 }} onClick={() => setConfirmingDelete(true)}>
+            Supprimer mon compte
+          </button>
+        ) : (
+          <div style={{ marginTop: 16 }}>
+            {/* Retaper son adresse : le seul geste qui ne se fait pas par réflexe. */}
+            <label className="st-label" htmlFor="delete-confirm">
+              Tapez <span style={{ textTransform: "none", letterSpacing: 0 }}>{email}</span> pour confirmer
+            </label>
+            <input
+              id="delete-confirm" className="st-input" autoComplete="off" placeholder={email}
+              value={deleteConfirm} onChange={e => { setDeleteConfirm(e.target.value); setDeleteError(null); }}
+            />
+            {deleteError && (
+              <p style={{ marginTop: 10, fontSize: 12.5, lineHeight: 1.5, color: "#DC2626" }}>{deleteError}</p>
+            )}
+            <div style={{ marginTop: 14, display: "flex", gap: 10, alignItems: "center" }}>
+              <button
+                className="st-btn-danger"
+                disabled={deleting || deleteConfirm.trim().toLowerCase() !== email.trim().toLowerCase()}
+                style={{ opacity: deleting || deleteConfirm.trim().toLowerCase() !== email.trim().toLowerCase() ? .5 : 1 }}
+                onClick={handleDeleteAccount}
+              >
+                {deleting ? "Suppression…" : "Supprimer définitivement"}
+              </button>
+              <button
+                className="st-btn-ghost" disabled={deleting}
+                onClick={() => { setConfirmingDelete(false); setDeleteConfirm(""); setDeleteError(null); }}
+              >
+                Annuler
+              </button>
+            </div>
+          </div>
+        )}
+      </div>  );
 }
 
 // ─── Notifications Tab ────────────────────────────────────────────────────────
@@ -1241,7 +1273,7 @@ export default function SettingsPage() {
             {/* Tab content */}
             <div className="st-content">
               {tab === "profile"       && <ProfileTab       supabase={supabase} userId={userId} email={email} meta={meta} />}
-              {tab === "security"      && <SecurityTab      supabase={supabase} providers={providers} />}
+              {tab === "security"      && <SecurityTab      supabase={supabase} providers={providers} email={email} />}
               {tab === "notifications" && <NotificationsTab supabase={supabase} userId={userId} />}
               {tab === "publi"         && <PubliSection     supabase={supabase} userId={userId} />}
               {tab === "appearance"    && <AppearanceTab    supabase={supabase} userId={userId} />}
