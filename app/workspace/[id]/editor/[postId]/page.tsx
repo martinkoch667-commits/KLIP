@@ -299,6 +299,8 @@ async function attendrePolices(familles: string[], limiteMs = 2500): Promise<voi
   ]);
   const pret = Promise.all([...chargements, document.fonts.ready]).then(() => {});
   await Promise.race([pret, new Promise<void>((r) => setTimeout(r, limiteMs))]);
+  // Le cache de mesure a pu se remplir AVANT l'attente, avec la police de repli.
+  clearTextMetricsCache();
 }
 // Calcule la taille de police qui fait tenir le texte dans sa largeur + maxLines.
 // Ne change QUE la taille (jamais police ni couleur). Ne fait que réduire (max = taille du design).
@@ -2577,7 +2579,30 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
   useEffect(() => {
     if (typeof document === 'undefined' || !document.fonts) return;
     let alive = true;
-    const bump = () => { if (alive) { clearTextMetricsCache(); setFontTick(t => t + 1); } };
+    /* Konva garde SA PROPRE mesure du texte, et c'est elle qui centre les lignes.
+
+       Vider notre cache et redessiner ne la touche pas : react-konva n'appelle
+       un setter que si la valeur a changé, donc un nœud mesuré avant l'arrivée
+       de la police garde sa largeur de repli. Un titre centré était alors
+       dessiné trop à gauche — d'environ (largeur de repli - largeur réelle) / 2,
+       soit une quarantaine de pixels en Oswald — pendant que son aplat, lui,
+       se calait sur la vraie mesure. D'où l'« effet buggé » du template neuf :
+       le bloc de couleur et le texte ne se superposaient plus.
+
+       On force donc chaque nœud texte à se re-mesurer, par l'API publique :
+       une valeur différente puis la bonne, ce qui déclenche le recalcul. */
+    const remesurerKonva = () => {
+      try {
+        const noeuds = stageRef.current?.find?.('Text') ?? [];
+        for (const n of noeuds) {
+          const f = n.fontFamily();
+          n.fontFamily('klip-remesure');
+          n.fontFamily(f);
+        }
+        stageRef.current?.batchDraw?.();
+      } catch { /* pas de scène montée : rien à re-mesurer */ }
+    };
+    const bump = () => { if (alive) { clearTextMetricsCache(); remesurerKonva(); setFontTick(t => t + 1); } };
     document.fonts.ready.then(bump).catch(() => {});
     document.fonts.addEventListener?.('loadingdone', bump);
     return () => { alive = false; document.fonts.removeEventListener?.('loadingdone', bump); };
