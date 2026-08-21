@@ -230,6 +230,20 @@ export default function SelectionOverlay({ el, stageRef, onChange, onDragEnd, zo
     const startPaddingH = el.paddingH;
     const startPaddingV = el.paddingV;
     const startLetterSpacing = el.letterSpacing;
+    /* Recadrage d'une photo. Tout ce qui décrit la place de l'image DANS son
+       cadre est figé au moment où l'on saisit la poignée.
+
+       Sans ça, cropX/cropY restaient indéfinis et l'affichage les recalculait à
+       chaque image du glissement pour recentrer la photo dans le nouveau cadre :
+       tirer la barre du haut faisait glisser toute la photo au lieu d'en couper
+       le haut. C'est le reproche de Martin, capture d'écran à l'appui. Une
+       poignée déplace le CADRE ; la photo, elle, ne bouge pas d'un pixel. */
+    const isImage    = el.type === 'image';
+    const startNatW  = (el.naturalW as number) || Math.max(1, startW);
+    const startNatH  = (el.naturalH as number) || Math.max(1, startH);
+    const startImgScale = (el.imgScale as number) ?? Math.max(startW / startNatW, startH / startNatH);
+    const startCropX = (el.cropX as number) ?? (startW - startNatW * startImgScale) / 2;
+    const startCropY = (el.cropY as number) ?? (startH - startNatH * startImgScale) / 2;
     const startRuns   = Array.isArray(el.runs) ? (el.runs as Array<Record<string, unknown>>).map(r => ({ ...r })) : null;
     const elType      = el.type;
     const startCustomPts = elType === 'vector' && el.shape === 'custom' && Array.isArray(el.points)
@@ -400,6 +414,23 @@ export default function SelectionOverlay({ el, stageRef, onChange, onDragEnd, zo
           nh = Math.max(20, nh);
         }
 
+        if (isImage) {
+          // Le bord tiré déplace l'origine du cadre : on retire ce même
+          // déplacement au décalage de l'image, donc elle reste où elle est à
+          // l'écran et le cadre vient couper dedans. Les bords opposés (bas,
+          // droite) ne déplacent pas l'origine : rien à compenser.
+          const pullsLeft = ['tl', 'bl', 'ml'].includes(handleId);
+          const pullsTop  = ['tl', 'tr', 'tc'].includes(handleId);
+          onChangeRef.current({
+            x: origin.x, y: origin.y, width: nw, height: nh,
+            // Le zoom reste celui d'avant la poignée : recadrer n'agrandit pas
+            // la photo, il découvre ou masque du cadre.
+            imgScale: startImgScale,
+            cropX: startCropX - (pullsLeft ? startW - nw : 0),
+            cropY: startCropY - (pullsTop ? startH - nh : 0),
+          });
+          return;
+        }
         onChangeRef.current({ x: origin.x, y: origin.y, width: nw, height: nh });
       } catch (err) {
         console.error('[SelectionOverlay] resize error:', err);
