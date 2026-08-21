@@ -2737,18 +2737,21 @@ aside.sidebar:not(.sidebar-bare) + * .topbar {
    sur le bord de la table. */
 .stat-case-vol {
   position: absolute;
-  right: -6px;
-  bottom: -8px;
+  right: -10px;
+  bottom: -14px;
+  width: 152px;
+  height: 152px;
   z-index: 1;
   pointer-events: none;
-  filter: drop-shadow(0 14px 18px rgba(16,22,14,.18));
+  display: block;
+  /* L'ombre est déjà dans le rendu : en rajouter une ici donnerait deux
+     lumières contradictoires. */
 }
-.stat-case-vol svg { display: block; }
 
 @media (max-width: 1180px) {
   .stat-case { min-height: 132px; }
   .stat-case-num { font-size: 34px; }
-  .stat-case-vol { right: -22px; bottom: -16px; transform: scale(.85); transform-origin: bottom right; }
+  .stat-case-vol { right: -18px; bottom: -18px; width: 128px; height: 128px; }
 }
 
 /* Sur le tableau de bord, la barre du haut se pose SUR le voile : elle n'a donc
