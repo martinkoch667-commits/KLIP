@@ -93,6 +93,38 @@ export default function ApercuV2() {
               ))}
             </div>
 
+            <h2 className="h-title" style={{ fontSize: 17, margin: '30px 0 4px' }}>Variante : cartes à dégradé de nappe</h2>
+            <p style={{ fontSize: 13, color: 'var(--ink-2)', marginBottom: 12, maxWidth: '62ch' }}>
+              Même contenu, autre traitement : des nappes de couleur floutées, un chiffre qui occupe la carte, et l’objet qui vient mordre dessus.
+            </p>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 14, marginBottom: 14 }} className="dash-stats">
+              <div className="carte-nappe nappe-1 nappe-claire">
+                <span className="nappe-chip">Auto</span>
+                <div className="nappe-num">3</div>
+                <div className="nappe-lab">À publier aujourd’hui</div>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img className="nappe-objet" src="/volumes/eclair.png" alt="" aria-hidden="true" />
+              </div>
+              <div className="carte-nappe nappe-2 nappe-claire">
+                <div className="nappe-num">3</div>
+                <div className="nappe-lab">En attente de validation</div>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img className="nappe-objet" src="/volumes/sablier.png" alt="" aria-hidden="true" />
+              </div>
+              <div className="carte-nappe nappe-3 nappe-claire">
+                <div className="nappe-num">12</div>
+                <div className="nappe-lab">Planifiés</div>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img className="nappe-objet" src="/volumes/calendrier.png" alt="" aria-hidden="true" />
+              </div>
+              <div className="carte-nappe nappe-4 nappe-claire">
+                <div className="nappe-num">10</div>
+                <div className="nappe-lab">Clients actifs</div>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img className="nappe-objet" src="/volumes/comptes.png" alt="" aria-hidden="true" />
+              </div>
+            </div>
+
             <h2 className="h-title" style={{ fontSize: 17, marginBottom: 12 }}>Vos clients</h2>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 14 }} className="clients-grid">
               {CLIENTS.map(c => (

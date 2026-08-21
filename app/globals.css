@@ -2758,3 +2758,124 @@ aside.sidebar:not(.sidebar-bare) + div:has(> .topbar-voile) {
   border-bottom: 0;
   backdrop-filter: none;
 }
+
+/* ── Variante : cartes à dégradé de nappe ───────────────────────────────────
+   Quatre nappes de couleur floutées les unes sur les autres, un chiffre
+   énorme, et l'objet qui vient mordre dessus. Le principe de la référence
+   Lovable, dans la gamme Klip : verts acides et menthes, violet de l'app,
+   forêt pour les fonds sombres. La nappe est peinte sur un calque à part et
+   floutée — c'est le flou qui fond les couleurs entre elles, un dégradé net
+   ferait drapeau. */
+
+.carte-nappe {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  min-height: 156px;
+  padding: 18px 20px;
+  border-radius: 20px;
+  box-shadow: 0 1px 2px rgba(13,15,10,.06), 0 18px 34px -24px rgba(13,15,10,.6);
+}
+.carte-nappe::before {
+  content: "";
+  position: absolute;
+  inset: -18%;
+  z-index: -1;
+  /* La saturation compense ce que le flou dilue : sans elle, quatre nappes
+     superposées donnent une bouillie grise. */
+  filter: blur(30px) saturate(1.35);
+  transform: translateZ(0);
+}
+
+/* Le fond n'est jamais du noir : c'est déjà une couleur de la famille, sur
+   laquelle les nappes viennent se poser. Sinon elles se noient et la carte
+   redevient sombre. */
+.nappe-1 { background: #16A97C; }
+.nappe-1::before {
+  background:
+    radial-gradient(58% 62% at 20% 22%, #E4FFB8 0%, transparent 70%),
+    radial-gradient(62% 66% at 82% 16%, #3DEBAB 0%, transparent 72%),
+    radial-gradient(66% 70% at 62% 92%, #7A69E8 0%, transparent 74%),
+    radial-gradient(54% 58% at 6% 88%, #0FBF8A 0%, transparent 70%);
+}
+.nappe-2 { background: #FF9A45; }
+.nappe-2::before {
+  background:
+    radial-gradient(60% 64% at 16% 18%, #FFD27A 0%, transparent 72%),
+    radial-gradient(62% 66% at 86% 24%, #FF7A2F 0%, transparent 72%),
+    radial-gradient(70% 72% at 48% 96%, #B9A8FF 0%, transparent 74%),
+    radial-gradient(50% 54% at 96% 88%, #D7FF9E 0%, transparent 70%);
+}
+.nappe-3 { background: #5B45E0; }
+.nappe-3::before {
+  background:
+    radial-gradient(60% 64% at 24% 18%, #A995FF 0%, transparent 72%),
+    radial-gradient(58% 62% at 84% 30%, #6C57F0 0%, transparent 70%),
+    radial-gradient(70% 72% at 56% 96%, #3DEBAB 0%, transparent 74%),
+    radial-gradient(48% 52% at 4% 88%, #D7FF9E 0%, transparent 70%);
+}
+.nappe-4 { background: #0FBF8A; }
+.nappe-4::before {
+  background:
+    radial-gradient(58% 62% at 18% 24%, #8CFFD8 0%, transparent 72%),
+    radial-gradient(62% 66% at 78% 16%, #D7FF9E 0%, transparent 72%),
+    radial-gradient(66% 70% at 68% 94%, #12A87A 0%, transparent 74%),
+    radial-gradient(52% 56% at 6% 86%, #7A69E8 0%, transparent 70%);
+}
+
+/* Le chiffre porte la carte : il occupe la moitié de la hauteur, et l'objet
+   passe devant lui, exactement comme le cœur mord sur le montant. */
+.nappe-num {
+  font-family: var(--display);
+  font-weight: 900;
+  font-size: 68px;
+  line-height: .84;
+  letter-spacing: -.055em;
+  font-variant-numeric: tabular-nums;
+  position: relative;
+  z-index: 1;
+}
+.nappe-lab {
+  position: relative;
+  z-index: 3;
+  margin-top: 8px;
+  font-size: 12.5px;
+  font-weight: 700;
+  max-width: 16ch;
+  opacity: .88;
+}
+.nappe-objet {
+  position: absolute;
+  z-index: 2;
+  right: -12px;
+  top: 50%;
+  width: 132px;
+  height: 132px;
+  transform: translateY(-58%);
+  pointer-events: none;
+}
+.nappe-chip {
+  position: absolute;
+  z-index: 3;
+  top: 16px;
+  left: 20px;
+  padding: 4px 11px;
+  border-radius: 999px;
+  background: rgba(255,255,255,.22);
+  backdrop-filter: blur(8px);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: .02em;
+}
+.nappe-claire { color: #FFFFFF; }
+.nappe-sombre { color: #10210F; }
+.nappe-sombre .nappe-chip { background: rgba(16,33,15,.12); }
+
+@media (max-width: 1180px) {
+  .carte-nappe { min-height: 138px; }
+  .nappe-num { font-size: 54px; }
+  .nappe-objet { width: 110px; height: 110px; right: -16px; }
+}
