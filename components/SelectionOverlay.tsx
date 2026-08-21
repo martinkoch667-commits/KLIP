@@ -442,13 +442,30 @@ export default function SelectionOverlay({ el, stageRef, onChange, onDragEnd, zo
           // droite) ne déplacent pas l'origine : rien à compenser.
           const pullsLeft = handleId === 'ml';
           const pullsTop  = handleId === 'tc';
+          // Le zoom reste celui d'avant la poignée : recadrer n'agrandit pas la
+          // photo, il découvre ou masque du cadre.
+          let scale = startImgScale;
+          let cx = startCropX - (pullsLeft ? startW - nw : 0);
+          let cy = startCropY - (pullsTop ? startH - nh : 0);
+          /* SAUF quand le cadre sort de la photo. Une fois la photo découverte
+             en entier, continuer à tirer le bord ne doit pas faire apparaître
+             du vide : la photo grandit juste ce qu'il faut pour couvrir, et
+             c'est l'autre axe qui se recadre pour compenser. Le zoom se prend
+             autour du centre du cadre, sinon le sujet saute d'un coup. */
+          const couverture = Math.max(nw / startNatW, nh / startNatH);
+          if (couverture > scale) {
+            const r = couverture / scale;
+            cx = nw / 2 - (nw / 2 - cx) * r;
+            cy = nh / 2 - (nh / 2 - cy) * r;
+            scale = couverture;
+          }
+          // Et le décalage reste dans les bornes : aucun bord ne laisse de vide.
+          const vueW = startNatW * scale, vueH = startNatH * scale;
+          cx = Math.min(0, Math.max(nw - vueW, cx));
+          cy = Math.min(0, Math.max(nh - vueH, cy));
           onChangeRef.current({
             x: origin.x, y: origin.y, width: nw, height: nh,
-            // Le zoom reste celui d'avant la poignée : recadrer n'agrandit pas
-            // la photo, il découvre ou masque du cadre.
-            imgScale: startImgScale,
-            cropX: startCropX - (pullsLeft ? startW - nw : 0),
-            cropY: startCropY - (pullsTop ? startH - nh : 0),
+            imgScale: scale, cropX: cx, cropY: cy,
           });
           return;
         }

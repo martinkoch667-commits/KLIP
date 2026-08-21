@@ -63,6 +63,7 @@ function BancRecadrageDev() {
       <p style={{ fontSize: 13, color: "var(--ink-2)", marginBottom: 16 }}>
         Les BORDS recadrent : les bandes numérotées ne doivent pas bouger, seul le cadre coupe dedans.
         Les COINS agrandissent : le cadrage reste le même, tout change de taille (le zoom suit).
+        Un bord tiré AU-DELÀ de la photo la fait grandir pour couvrir, plutôt que de laisser du vide.
       </p>
 
       <div ref={stageRef} style={{ position: "relative", width: 600, height: 700, background: "#fff", boxShadow: "var(--shadow-card)", overflow: "hidden" }}>

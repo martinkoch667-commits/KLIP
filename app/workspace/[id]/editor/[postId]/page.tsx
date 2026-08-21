@@ -731,10 +731,12 @@ function ImgNode({ el, onSelect, onChange, onDragStart, onDragMove, onDragEnd, i
   // exactement le bug remonté : les poignées horizontales semblaient bien
   // « croper » (l'axe dominant n'a jamais de marge à révéler, donc rien n'y
   // trahissait le souci) tandis que les verticales changeaient visiblement la
-  // taille de l'image. Pas de plancher « couverture minimale » : un cadre
-  // agrandi au-delà de ce que l'image peut couvrir au zoom figé laisse
-  // apparaître du vide — c'est le comportement attendu d'un recadrage (Canva
-  // fait pareil), pas une régression à masquer en zoomant malgré soi.
+  // taille de l'image.
+  //
+  // La couverture du cadre est tenue en amont, au geste : quand un bord est
+  // tiré au-delà de ce que la photo couvre, SelectionOverlay remonte le zoom
+  // juste ce qu'il faut et recadre l'autre axe. Ici on se contente donc de
+  // dessiner ce qui a été décidé.
   const scale = el.imgScale ?? Math.max(frameW / natW, frameH / natH);
   const scaledW = natW * scale;
   const scaledH = natH * scale;
