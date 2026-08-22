@@ -298,19 +298,30 @@ export default function SubtitleStyleEditor({
 // Aperçu d'un sous-titre rendu avec le style résolu (même source que le montage).
 // activeIdx pilote le mot en surbrillance : -1 = aucun (rendu statique), sinon on
 // reproduit la révélation progressive de drawCaptions (export.ts).
-export function SubtitlePreviewChip({ styleId, custom, fontSize = 22, words = ["Vos", "clips"], activeIdx, progress }: {
+export function SubtitlePreviewChip({ styleId, custom, fontSize = 22, words = ["Vos", "clips"], activeIdx, progress, honorScale = false }: {
   styleId: string; custom?: SubCustom; fontSize?: number; words?: string[];
   activeIdx?: number; progress?: number;
+  /** Fait vraiment réagir l'aperçu au curseur TAILLE. À laisser fermé sur les
+   *  vignettes de style (le sélecteur de préréglages) : elles comparent des
+   *  styles côte à côte à une taille fixe, une pastille ne doit pas gonfler au-
+   *  delà de son cadre juste parce que le style choisi a un `scale` élevé.
+   *  À ouvrir pour l'aperçu « comme sur la vidéo » : LÀ, `scale` est le réglage
+   *  qu'on est en train de juger, il doit se voir. */
+  honorScale?: boolean;
 }) {
   const e = effectiveSubStyle(styleId, custom);
-  // `fontSize` est la taille voulue pour la pastille d'aperçu : on la convertit en
-  // facteur d'échelle, puisque subtitleBoxCss raisonne désormais en unités de
-  // dessin (et applique lui-même e.scale, comme l'export).
-  const css = subtitleBoxCss(e, fontSize / SUB_BASE_FONT / (e.scale || 1)) as React.CSSProperties;
+  // `fontSize` est la taille voulue pour la pastille d'aperçu, `subtitleBoxCss`
+  // multiplie ensuite par `e.scale` en interne (comme l'export). Diviser par
+  // `e.scale` ici annule EXACTEMENT cette multiplication : `k` retombe toujours
+  // sur `fontSize`, quel que soit le curseur TAILLE — le réglage change le
+  // chiffre affiché à côté du curseur, jamais le rendu. `honorScale` laisse le
+  // facteur agir pour de vrai, là où c'est justement lui qu'on édite.
+  const unit = honorScale ? fontSize / SUB_BASE_FONT : fontSize / SUB_BASE_FONT / (e.scale || 1);
+  const css = subtitleBoxCss(e, unit) as React.CSSProperties;
   const animating = typeof activeIdx === "number" && activeIdx >= 0;
   return (
     <span style={{ ...css, display: "inline-block", maxWidth: "100%", transform: e.rotation ? `rotate(${e.rotation}deg)` : undefined }}>
-      {(() => { const bg = subBgLayerCss(e, fontSize / SUB_BASE_FONT / (e.scale || 1)); return bg ? <span aria-hidden style={bg as React.CSSProperties} /> : null; })()}
+      {(() => { const bg = subBgLayerCss(e, unit); return bg ? <span aria-hidden style={bg as React.CSSProperties} /> : null; })()}
       {/* Le texte est POSITIONNÉ, sinon le calque de fond lui passe par-dessus :
           un élément positionné se peint après le contenu en ligne, quel que soit
           son z-index. Les styles à fond (pilule, bandeau) montraient donc une
@@ -615,6 +626,7 @@ export function SubtitlePreviewStage({
           <SubtitlePreviewChip
             styleId={styleId} custom={custom} fontSize={fontSize}
             words={chunkWords} activeIdx={activeIdx} progress={chunkProgress}
+            honorScale
           />
         </div>
 
