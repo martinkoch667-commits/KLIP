@@ -5425,8 +5425,14 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
       const op = Math.max(22, Math.min(typeof L?.scrim?.opacity === 'number' ? L.scrim.opacity : 50, 65));
       extras.push({ id: 'scrim-overlay', type: 'rect', x: 0, y: 0, rotation: 0, opacity: op, width: stageW, height: stageH, fill: '#000000', stroke: '', strokeWidth: 0, cornerRadius: 0, scrim: pos } as CanvasEl);
     }
-    // On retire les anciens éléments générés par l'IA (texte, scrim, accents, logo), on garde le reste.
-    const kept = elementsRef.current.filter(e => e.type !== 'text' && e.id !== 'scrim-overlay' && !e.id.startsWith('ai-accent') && e.id !== 'ai-logo');
+    // On retire les anciens éléments générés par l'IA (texte, scrim, accents,
+    // logo, décor d'un template maison), on garde le reste. `ai-tpl-` manquait
+    // ici : un décor choisi lors d'une génération précédente (aplat, forme)
+    // restait accroché sous chaque régénération suivante, orphelin — aucun
+    // panneau ne pouvait plus l'atteindre, puisqu'il n'appartient à aucun
+    // texte. Signalé par Martin : un fond bleu impossible à retirer via
+    // « Effet > Arrière-plan », qui ne contrôle que le texte sélectionné.
+    const kept = elementsRef.current.filter(e => e.type !== 'text' && e.id !== 'scrim-overlay' && !e.id.startsWith('ai-accent') && e.id !== 'ai-logo' && !e.id.startsWith('ai-tpl-'));
     // La photo du post est un calque comme un autre — donc elle doit rester AU FOND
     // et le voile de lisibilité passer par-dessus elle. Empilé naïvement, le voile
     // se serait retrouvé sous la photo, donc invisible.
