@@ -768,8 +768,20 @@ export default function NewWorkspacePage() {
   // d'ouvrir ensuite le VRAI éditeur de templates — celui de toute l'app,
   // pas une maquette à part — puisqu'il lui faut un workspace réel pour
   // écrire ses lignes dans post_templates.
+  /* Le client est créé DÈS l'arrivée à l'étape 5 (cf. le useEffect plus bas),
+     avec l'état des couleurs/polices/logo tel qu'il est à CET instant précis.
+     Rien n'empêchait ensuite de revenir sur une étape précédente pour changer
+     une couleur, ou que l'import de police depuis le site finisse APRÈS cet
+     instant : la fonction, appelée une seconde fois, se contentait de
+     renvoyer l'identifiant déjà connu sans jamais renvoyer l'état à jour. Le
+     bouton « Créer un template » ouvrait alors un éditeur qui lisait une
+     ligne figée à l'arrivée sur l'étape, sourde à tout ce qui avait changé
+     depuis — logo excepté, chargé une fois pour toutes en tout début de
+     parcours. Même défaut déjà corrigé une fois pour les seuls réglages de
+     sous-titres (cf. `saveSubtitleSettings` ci-dessous) ; il vaut pour toute
+     la charte, pas seulement pour eux. */
   async function ensureWorkspaceCreated(): Promise<string | null> {
-    if (createdWorkspaceId) return createdWorkspaceId;
+    const dejaCree = createdWorkspaceId;
     setError(null);
     setLoading(true);
     try {
@@ -845,48 +857,77 @@ export default function NewWorkspacePage() {
       if (captionExample.trim()) voiceParts.push(`Exemple de caption : ${captionExample.trim()}`);
 
       // ── Server-side insert (logs errors to Vercel, bypasses RLS) ──────────
+      // Champs communs à la création ET à la remise à jour : construits une
+      // seule fois, envoyés par l'une ou l'autre voie selon que la ligne
+      // existe déjà.
+      const champs = {
+        name: name.trim(),
+        // Step 1
+        sector: sector || null,
+        instagram_username: instagramHandle.replace(/^@/, "").trim() || null,
+        company_description: brandDescription.trim() || null,
+        // Step 2
+        tone: tone || null,
+        words_to_use: wordsToUse.trim() || null,
+        words_to_avoid: wordsToAvoid.trim() || null,
+        caption_examples: captionExample.trim() || null,
+        brand_voice_prompt: voiceParts.join("\n") || null,
+        // Step 3
+        // Une couleur non trouvée vaut null, pas la chaîne vide : les lecteurs
+        // de la charte testent un format hexadécimal, et null dit clairement
+        // « absente » là où "" ressemble à une valeur.
+        primary_color: primaryColor || null,
+        secondary_color: secondaryColor || null,
+        accent_color: accentColor || null,
+        // La palette complète. Les trois premières restent dans leurs colonnes
+        // historiques — tout le code existant s'appuie dessus — et les couleurs
+        // supplémentaires vivent ici plutôt que d'ajouter une colonne par
+        // couleur.
+        brand_colors: brandColors.filter(Boolean),
+        subtitle_style_id: subtitleStyleId,
+        subtitle_custom: subtitleCustom,
+        subtitle_pos: subPos,
+        subtitle_max_words: subMaxWords,
+        // Un fichier choisi après coup l'emporte ; sinon on garde ce qui existe
+        // déjà en base plutôt que d'écraser un logo déjà enregistré par du vide.
+        ...(logoUrl      ? { logo_url: logoUrl } : {}),
+        ...(logoDarkUrl  ? { logo_dark_url: logoDarkUrl } : {}),
+        ...(assetUrls.length ? { brand_assets: assetUrls } : {}),
+        ...(brandIconUrl ? { brand_icon_url: brandIconUrl } : {}),
+        // Step 4
+        font_family: activeFontPrimary,
+        ...(fontPrimaryUrl   ? { font_primary_url: fontPrimaryUrl } : {}),
+        font_secondary: activeFontSecondary || null,
+        ...(fontSecondaryUrl ? { font_secondary_url: fontSecondaryUrl } : {}),
+        ...(brandFonts.length ? { brand_fonts: brandFonts } : {}),
+      };
+
+      if (dejaCree) {
+        // La ligne existe : on la remet à jour plutôt que de la recréer.
+        // Certaines colonnes ne sont pas forcément migrées partout (mêmes
+        // colonnes « souples » que côté serveur) — une colonne absente ne
+        // doit pas faire perdre tout le reste de la mise à jour.
+        let a_ecrire: Record<string, unknown> = { ...champs };
+        for (let i = 0; i <= 5; i++) {
+          const { error } = await supabase.from("workspaces").update(a_ecrire).eq("id", dejaCree);
+          if (!error) break;
+          const manquante = Object.keys(a_ecrire).find(c => c !== "name" && error.message?.includes(c));
+          if (!manquante) {
+            console.warn("[ensureWorkspaceCreated] mise à jour de la charte échouée :", error.message);
+            break;
+          }
+          const { [manquante]: _omise, ...reste } = a_ecrire;
+          a_ecrire = reste;
+        }
+        setLoading(false);
+        return dejaCree;
+      }
+
+      // ── Server-side insert (logs errors to Vercel, bypasses RLS) ──────────
       const res = await fetch("/api/workspace/create", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: name.trim(),
-          // Step 1
-          sector: sector || null,
-          instagram_username: instagramHandle.replace(/^@/, "").trim() || null,
-          company_description: brandDescription.trim() || null,
-          // Step 2
-          tone: tone || null,
-          words_to_use: wordsToUse.trim() || null,
-          words_to_avoid: wordsToAvoid.trim() || null,
-          caption_examples: captionExample.trim() || null,
-          brand_voice_prompt: voiceParts.join("\n") || null,
-          // Step 3
-          // Une couleur non trouvée vaut null, pas la chaîne vide : les lecteurs
-          // de la charte testent un format hexadécimal, et null dit clairement
-          // « absente » là où "" ressemble à une valeur.
-          primary_color: primaryColor || null,
-          secondary_color: secondaryColor || null,
-          accent_color: accentColor || null,
-          // La palette complète. Les trois premières restent dans leurs colonnes
-          // historiques — tout le code existant s'appuie dessus — et les couleurs
-          // supplémentaires vivent ici plutôt que d'ajouter une colonne par
-          // couleur.
-          brand_colors: brandColors.filter(Boolean),
-          subtitle_style_id: subtitleStyleId,
-          subtitle_custom: subtitleCustom,
-          subtitle_pos: subPos,
-          subtitle_max_words: subMaxWords,
-          logo_url: logoUrl,
-          logo_dark_url: logoDarkUrl,
-          brand_assets: assetUrls,
-          brand_icon_url: brandIconUrl,
-          // Step 4
-          font_family: activeFontPrimary,
-          font_primary_url: fontPrimaryUrl,
-          font_secondary: activeFontSecondary || null,
-          font_secondary_url: fontSecondaryUrl,
-          brand_fonts: brandFonts,
-        }),
+        body: JSON.stringify(champs),
       });
 
       const json = await res.json();
