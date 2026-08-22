@@ -418,17 +418,24 @@ Martin`,
     ),
   }),
 
-  // S4. Ouverture.
+  /* S4. Ouverture, le jour même.
+
+     L'onboarding a changé de statut depuis l'écriture initiale de ce mail :
+     les mails 6 et 7 posent qu'il est facultatif, celui-ci le présentait
+     encore comme un avantage qui « s'applique automatiquement » au même
+     titre que le tarif fondateur. Réaligné pour ne pas contredire ce qu'on
+     vient de dire deux mails plus tôt, avec le même lien Calendly que le
+     mail 7 : même offre, mêmes mots, tout du long. */
   nurture4: () => ({
     subject: "C'est ouvert, votre accès anticipé est prêt 🚀",
     html: shell(
       `Klip ${hl("ouvre ses portes")}`,
       `Ça y est. Vous étiez sur la liste avant tout le monde : <strong>votre accès est actif</strong>.
        <br/><br/>
-       Créez votre compte avec l'email qui reçoit ce message, et vos avantages fondateurs s'appliquent automatiquement :
+       Créez votre compte avec l'email qui reçoit ce message. Ce qui vous attend :
        <br/><br/>
        <strong>· Tarif fondateur, bloqué à vie</strong> : il n'augmentera jamais pour vous, quoi qu'il arrive aux tarifs publics.<br/><br/>
-       <strong>· Onboarding en visio, offert</strong> : trente minutes avec moi pour paramétrer vos premiers clients ensemble.<br/><br/>
+       <strong>· Un onboarding en visio, si vous le souhaitez</strong> : ce n'est pas obligatoire, un tutoriel intégré vous montre l'outil dès la première connexion. Si vous préférez qu'on paramètre vos premiers clients ensemble, <a href="${CALENDLY_URL}" style="color:#14160F;text-decoration:underline;">réservez un point avec moi</a>.<br/><br/>
        <strong>· Une ligne directe</strong> : vous répondez à ce mail, ça tombe sur ma boîte.
        <br/><br/>
        Merci d'avoir attendu. Sincèrement : sur une liste aussi courte, chaque inscription a compté.`,
