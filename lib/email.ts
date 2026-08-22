@@ -7,6 +7,10 @@ const RESEND_API = "https://api.resend.com/emails";
 const FROM = process.env.EMAIL_FROM ?? "KLIP <onboarding@resend.dev>";
 const REPLY_TO = process.env.EMAIL_REPLY_TO ?? null;
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://getklip.fr";
+/** Créneaux d'onboarding, mail 7 (J-1). Une seule adresse, pas de variable
+    d'environnement : ce n'est pas un secret, et un lien Calendly ne change pas
+    au déploiement, seulement quand Martin change de compte Calendly. */
+const CALENDLY_URL = "https://calendly.com/getklipsaas/30min";
 
 export const emailEnabled = () => !!process.env.RESEND_API_KEY;
 
@@ -513,6 +517,44 @@ Martin
 PS. Si on n'a pas encore échangé, répondez à ce mail : ce que vous gérez aujourd'hui, et ce qui vous prend le plus de temps dans une semaine. Ça décide de ce que je vous montre en premier le jour de l'ouverture.`,
   }),
 
+  /* S3 + 8 jours, J-1 : la veille de l'ouverture. Numéro 7 pour la même raison
+     que le mail 6 : `waitlist.last_campaign` fige les numéros déjà partis,
+     renuméroter casserait `skipSent` sur les envois précédents.
+
+     Toujours `noSiteLinks` : le lien d'inscription n'existe pas encore dans ce
+     mail, il arrive dans celui de demain (`nurture4`). Le lien Calendly n'est
+     PAS concerné par cette règle : réserver un point ne fait sauter la file
+     d'attente de personne, contrairement à un lien vers `${APP_URL}/register`.
+
+     L'onboarding est présenté une fois, sans y revenir : le mail 6 a déjà posé
+     que ce n'est pas obligatoire, pas la peine de le replaider ici. */
+  nurture7: (): Mail => ({
+    subject: "C'est demain",
+    html: plain(
+      `<p style="margin:0 0 16px;">Salut,</p>
+       <p style="margin:0 0 16px;">Petit mot rapide : <strong>Klip ouvre officiellement demain</strong>.</p>
+       <p style="margin:0 0 16px;">Demain matin, vous recevrez un mail avec le lien pour créer votre compte sur Klip et l'essayer.</p>
+       <p style="margin:0 0 16px;">Si ça vous intéresse, je propose aussi <strong>un point en visio avec moi</strong> pour vous montrer comment le logiciel fonctionne et vous présenter les fonctionnalités. Ce n'est pas obligatoire, c'est une option que j'offre aux premiers inscrits de la liste.</p>`,
+      { label: "Réserver un point avec moi", href: CALENDLY_URL },
+      `<p style="margin:0 0 16px;">À demain,</p>
+       <p style="margin:0;">Martin</p>`,
+      { noSiteLinks: true, noFooter: true, ground: "#FFFFFF" },
+    ),
+    text: `Salut,
+
+Petit mot rapide : Klip ouvre officiellement demain.
+
+Demain matin, vous recevrez un mail avec le lien pour créer votre compte sur Klip et l'essayer.
+
+Si ça vous intéresse, je propose aussi un point en visio avec moi pour vous montrer comment le logiciel fonctionne et vous présenter les fonctionnalités. Ce n'est pas obligatoire, c'est une option que j'offre aux premiers inscrits de la liste.
+
+Réserver un point avec moi : ${CALENDLY_URL}
+
+À demain,
+
+Martin`,
+  }),
+
   // Notification interne : un utilisateur vient de signaler un bug ou une idée.
   bugReport: (r: { kind: string; message: string; email?: string | null; pageUrl?: string | null }) => {
     const label = r.kind === 'idee' ? 'Idée' : r.kind === 'autre' ? 'Message' : 'Bug';
@@ -543,15 +585,17 @@ PS. Si on n'a pas encore échangé, répondez à ce mail : ce que vous gérez au
    Un mail par semaine jusqu'à l'ouverture. Envoi via /api/waitlist/campaign?n=X
    (voir la route pour le mode aperçu / test / envoi réel).
 
-   La liste est dans l'ordre d'ENVOI, pas dans l'ordre des numéros : le mail 6 a
-   été écrit après les autres et s'intercale entre le 3 et le 4. Les numéros sont
-   figés une fois un mail parti : `waitlist.last_campaign` les garde en base, et
-   `skipSent` s'y fie pour ne pas réexpédier. On ajoute, on ne renumérote pas. */
+   La liste est dans l'ordre d'ENVOI, pas dans l'ordre des numéros : les mails 6
+   et 7 ont été écrits après les autres et s'intercalent entre le 3 et le 4. Les
+   numéros sont figés une fois un mail parti : `waitlist.last_campaign` les
+   garde en base, et `skipSent` s'y fie pour ne pas réexpédier. On ajoute, on ne
+   renumérote pas. */
 export const sequence: { n: number; when: string; goal: string; tpl: () => Mail }[] = [
   { n: 1, when: "S1, maintenant",        goal: "Se présenter et faire remplir le sondage", tpl: emails.nurture1 },
   { n: 2, when: "S2, +7 jours",          goal: "Donner de la valeur, sans rien vendre",    tpl: emails.nurture2 },
   { n: 3, when: "S3, +14 jours",         goal: "Montrer le produit et annoncer la date",   tpl: emails.nurture3 },
   { n: 6, when: "S3 + 7 jours, J-3/J-5", goal: "Annoncer l'avant-première, et poser l'accompagnement comme optionnel", tpl: emails.nurture6 },
+  { n: 7, when: "S3 + 8 jours, J-1",     goal: "Prévenir que l'ouverture est demain, et proposer un créneau Calendly", tpl: emails.nurture7 },
   { n: 4, when: "S4, jour d'ouverture",  goal: "Faire créer le compte",                    tpl: emails.nurture4 },
   { n: 5, when: "S4 + 3 jours",           goal: "Relancer ceux qui n'ont pas activé",       tpl: emails.nurture5 },
 ] as const;
