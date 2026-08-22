@@ -77,22 +77,46 @@ export default function GuidedTour({ id, steps, delayMs = 700, onFinish, force =
   const [live, setLive] = useState<TourStep[]>([]);
 
   useEffect(() => {
-    if (!force && tourSeen(id)) return;
     let cancelled = false;
 
     const timer = setTimeout(async () => {
       if (cancelled) return;
+
+      /* Qui a vu la visite : le COMPTE, pas le navigateur. L'ordre comptait —
+         on lisait d'abord le stockage local, si bien qu'un nouvel arrivant sur
+         un poste déjà utilisé n'avait jamais droit à la visite : elle était
+         marquée « vue » par quelqu'un d'autre. Le stockage local ne sert plus
+         que de repli quand la session est illisible. */
+      let vue: boolean;
       try {
         const { data: { user } } = await supabase.auth.getUser();
-        const seen: string[] = user?.user_metadata?.[META_KEY] ?? [];
-        if (!force && seen.includes(id)) {
-          try { localStorage.setItem(LS_PREFIX + id, "1"); } catch { /* ignore */ }
-          return;
+        if (user) {
+          const seen: string[] = user.user_metadata?.[META_KEY] ?? [];
+          vue = seen.includes(id);
+          // Le cache local se réaligne sur le compte, dans les deux sens.
+          try {
+            if (vue) localStorage.setItem(LS_PREFIX + id, "1");
+            else localStorage.removeItem(LS_PREFIX + id);
+          } catch { /* navigation privée */ }
+        } else {
+          vue = tourSeen(id);
         }
-      } catch { /* pas de session : on montre quand même */ }
+      } catch {
+        vue = tourSeen(id);
+      }
+      if (!force && vue) return;
       if (cancelled) return;
 
-      const usable = steps.filter(s => !s.target || document.querySelector(s.target));
+      /* Les cibles peuvent arriver après nous : le tableau de bord attend ses
+         données, le rail attend la liste des clients. Plutôt que d'abandonner,
+         on regarde à nouveau un peu plus tard. */
+      const utilisables = () => steps.filter(s => !s.target || document.querySelector(s.target));
+      let usable = utilisables();
+      if (!usable.length) {
+        await new Promise(r => setTimeout(r, 1200));
+        if (cancelled) return;
+        usable = utilisables();
+      }
       if (!usable.length) return;
       setLive(usable);
       setStep(0);

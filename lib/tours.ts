@@ -67,6 +67,48 @@ export const TOURS: Record<string, TourStep[]> = {
   ],
 
   /* ── Éditeur visuel, post photo ──────────────────────────────────────── */
+  /* L'espace d'un client : c'est là qu'on passe le plus de temps, et il
+     n'avait aucune visite. Les étapes centrées ne visent rien à l'écran, ce
+     qui les rend insensibles au contenu réel de la page — un compte neuf n'a
+     ni post ni photo à désigner. */
+  client: [
+    {
+      title: "L'espace d'un client",
+      body: "Tout ce qui appartient à cette marque tient ici : ses posts, sa charte, ses modèles, son compte Instagram. Vous pouvez ouvrir plusieurs clients dans la journée sans jamais mélanger deux marques.",
+    },
+    {
+      target: ".topbar",
+      title: "Ce qu'on peut faire d'ici",
+      body: "En haut : le planning de ce client, son fil de publication, ses réglages. Le bouton principal crée un post, et c'est lui que vous utiliserez le plus.",
+    },
+    {
+      title: "Partir d'une photo",
+      body: "Importez une photo : KLIP compose le visuel à la charte du client et rédige la légende. Vous relisez, vous corrigez ce qui ne va pas, et vous envoyez au calendrier ou à la validation.",
+    },
+    {
+      title: "Rien ne part sans vous",
+      body: "Un contenu créé reste un brouillon. Il ne se publie qu'une fois programmé, et vous gardez la main jusqu'au bout.",
+    },
+  ],
+
+  /* Le fil de publication : la page où l'on vient quand quelque chose a raté,
+     donc celle où une explication compte le plus. */
+  feed: [
+    {
+      title: "Le fil de publication",
+      body: "L'état réel de chaque contenu, tous clients confondus : programmé, publié, ou en échec. C'est le seul endroit qui dit ce qui s'est vraiment passé du côté d'Instagram.",
+    },
+    {
+      target: ".topbar",
+      title: "Filtrer et vérifier",
+      body: "Choisissez un client pour ne voir que le sien. Une publication en échec affiche la raison du refus : le plus souvent un compte à reconnecter ou un format que le réseau n'accepte pas.",
+    },
+    {
+      title: "Reprendre un échec",
+      body: "Un post refusé n'est pas perdu : ouvrez-le, corrigez ce qui bloque, reprogrammez. Rien n'a besoin d'être refait depuis le début.",
+    },
+  ],
+
   editor: [
     {
       title: "L'éditeur visuel",

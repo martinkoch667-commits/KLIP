@@ -20,6 +20,10 @@ function tourIdFor(pathname: string): string | null {
   if (/^\/workspace\/[^/]+\/templates(\/|$)/.test(pathname)) return "templates";
   if (pathname === "/templates") return "templates";
   if (pathname === "/calendar") return "planning";
+  if (pathname === "/feed" || /^\/workspace\/[^/]+\/results(\/|$)/.test(pathname)) return "feed";
+  /* L'espace d'un client, et lui seul : le test vient APRÈS ceux des
+     sous-pages, sinon il les avalerait toutes. */
+  if (/^\/workspace\/[^/]+$/.test(pathname)) return "client";
   return null;
 }
 
