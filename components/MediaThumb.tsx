@@ -40,6 +40,13 @@ export function pickThumbSource(...candidates: (string | null | undefined)[]): s
  * sert en WebP. Une vignette de 320 px retombe sous le mégaoctet.
  */
 export function thumbUrl(raw: string, width = 480): string {
+  // Un fichier tout juste importé n'existe qu'ici, dans cet onglet, sous la
+  // forme d'une URL `blob:` (ou parfois `data:`) — rien à quoi le SERVEUR
+  // puisse accéder. Le proxy essaie quand même de la récupérer, échoue, et
+  // l'image reste noire. Ni l'un ni l'autre n'a besoin d'optimisation :
+  // ils sont déjà locaux, déjà légers, déjà à la bonne échelle par le
+  // navigateur.
+  if (raw.startsWith("blob:") || raw.startsWith("data:")) return raw;
   const proxied = `/api/proxy-image?url=${encodeURIComponent(raw)}`;
   return `/_next/image?url=${encodeURIComponent(proxied)}&w=${width}&q=70`;
 }

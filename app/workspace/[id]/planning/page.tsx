@@ -634,6 +634,12 @@ function PlanningContent() {
   const [panelTaggedUsers,  setPanelTaggedUsers]  = useState("");
   const [panelMusicNote,    setPanelMusicNote]    = useState("");
   const [scheduling,   setScheduling]   = useState(false);
+  // Bref accusé visuel sur le bouton lui-même AVANT de fermer la fenêtre : un
+  // simple toast passait inaperçu (retour Martin), et une case peut très bien
+  // être hors écran (semaine suivante, vue mensuelle) au moment où on
+  // programme — compter sur « voir le post apparaître dans le calendrier »
+  // pour confirmer l'action ne marche donc pas toujours.
+  const [justScheduled, setJustScheduled] = useState(false);
   const [publishing,   setPublishing]   = useState(false);
   const [toast,        setToast]        = useState<{ msg: string; ok: boolean } | null>(null);
   const [showIgModal,  setShowIgModal]  = useState(false);
@@ -801,8 +807,12 @@ function PlanningContent() {
     setScheduling(false);
     if (error) { showToast(`Échec de la programmation : ${error.message}`, false); return; }
     setPosts(prev => prev.map(p => p.id === selectedPost.id ? { ...p, scheduled_at, description: panelDesc, status: "scheduled", post_type: panelPostType, target_platforms: panelPlatforms, tagged_users, music_note: panelMusicNote || null } : p));
-    setSelectedPost(null);
     showToast("Post programmé");
+    // Le bouton affiche la coche un instant, PUIS la fenêtre se ferme — dans
+    // cet ordre, sinon l'utilisateur ne voit jamais l'accusé, la fenêtre étant
+    // déjà partie.
+    setJustScheduled(true);
+    setTimeout(() => { setJustScheduled(false); setSelectedPost(null); }, 700);
   }
 
   async function deletePost(post: Post) {
@@ -1155,12 +1165,15 @@ function PlanningContent() {
                               position: "absolute", top: topPx + 2, left: 4, right: 4,
                               height: blockH, borderRadius: 8,
                               padding: "0 8px 0 0",
-                              background: isPub ? "var(--mint-soft)" : "var(--white)",
-                              borderLeft: `3px solid ${chipColor}`,
+                              // Publié = affaire classée : le trait s'éteint et le
+                              // fond se fond dans la grille, pour que l'œil aille
+                              // spontanément vers ce qui reste à faire.
+                              background: isPub ? "var(--sunk)" : "var(--white)",
+                              borderLeft: `3px solid ${isPub ? "var(--line)" : chipColor}`,
                               boxShadow: isSelected
                                 ? `0 0 0 2px ${chipColor}, var(--shadow-card)`
-                                : isPub ? "inset 0 0 0 1px rgba(47,215,155,.4)" : "inset 0 0 0 1px var(--line)",
-                              opacity: draggedId === post.id ? 0.35 : 1,
+                                : isPub ? "none" : "inset 0 0 0 1px var(--line)",
+                              opacity: draggedId === post.id ? 0.35 : isPub ? 0.6 : 1,
                               overflow: "hidden", userSelect: "none",
                               display: "flex", alignItems: "center", gap: 7,
                               cursor: "grab", zIndex: 2,
@@ -1271,12 +1284,12 @@ function PlanningContent() {
                             onClick={e => { e.stopPropagation(); selectPost(post); }}
                             style={{
                               borderRadius: 6, padding: "3px 5px 3px 0",
-                              background: isPub ? "var(--mint-soft)" : "var(--white)",
-                              borderLeft: `3px solid ${chipColor}`,
-                              boxShadow: isPub ? "inset 0 0 0 1px rgba(47,215,155,.3)" : "inset 0 0 0 1px var(--line)",
-                              color: "var(--ink)", fontSize: 10.5, fontWeight: 600,
+                              background: isPub ? "var(--sunk)" : "var(--white)",
+                              borderLeft: `3px solid ${isPub ? "var(--line)" : chipColor}`,
+                              boxShadow: isPub ? "none" : "inset 0 0 0 1px var(--line)",
+                              color: isPub ? "var(--ink-3)" : "var(--ink)", fontSize: 10.5, fontWeight: 600,
                               overflow: "hidden", whiteSpace: "nowrap",
-                              cursor: "grab", opacity: draggedId === post.id ? 0.35 : 1,
+                              cursor: "grab", opacity: draggedId === post.id ? 0.35 : isPub ? 0.6 : 1,
                               display: "flex", alignItems: "center", gap: 4,
                               transition: "transform .12s",
                             }}>
@@ -1584,8 +1597,18 @@ function PlanningContent() {
           </div>
 
           <div style={{ padding: "16px 20px", borderTop: "1px solid var(--line)", display: "flex", flexDirection: "column", gap: 8 }}>
-            <button onClick={handleSchedule} disabled={scheduling || !panelDate} className="btn btn-primary" style={{ width: "100%", padding: "12px", opacity: (scheduling || !panelDate) ? 0.5 : 1 }}>
-              <IconCalendar /> {scheduling ? t('scheduling') : t('schedulePost')}
+            <button onClick={handleSchedule} disabled={scheduling || justScheduled || !panelDate} className="btn btn-primary"
+              style={{
+                width: "100%", padding: "12px",
+                opacity: (scheduling || !panelDate) ? 0.5 : 1,
+                background: justScheduled ? "var(--mint-2)" : undefined,
+                transition: "background .15s",
+              }}>
+              {justScheduled ? (
+                <><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5"/></svg> Programmé</>
+              ) : (
+                <><IconCalendar /> {scheduling ? t('scheduling') : t('schedulePost')}</>
+              )}
             </button>
             <button onClick={handlePublish} disabled={publishing} className="btn btn-ghost" style={{ width: "100%", opacity: publishing ? 0.5 : 1 }}>
               {publishing ? t('publishing') : t('publishNow')}
