@@ -49,6 +49,11 @@ export default function TourHost() {
      panneaux) : on leur laisse un peu plus de temps avant de mesurer les
      cibles, sinon les étapes disparaîtraient faute d'élément à désigner. */
   const delay = id === "editor" || id === "montage" ? 1600 : 800;
+  // Composer un visuel par IA peut prendre bien plus longtemps que le délai
+  // ci-dessus : la première étape de la visite (sans cible propre) s'affichait
+  // en plein sur l'écran « génération en cours ». `.klipgen` est cet écran ;
+  // on attend qu'il ait disparu avant même de commencer à compter `delay`.
+  const waitForAbsent = id === "editor" ? ".klipgen" : undefined;
 
   /* La checklist de prise en main attend la fin de la visite d'accueil, à
      l'ancienne clé et à l'ancien événement. On les honore plutôt que de la
@@ -60,5 +65,5 @@ export default function TourHost() {
       }
     : undefined;
 
-  return <GuidedTour key={id} id={id} steps={TOURS[id]} delayMs={delay} onFinish={onFinish} force={forced === id} />;
+  return <GuidedTour key={id} id={id} steps={TOURS[id]} delayMs={delay} onFinish={onFinish} force={forced === id} waitForAbsent={waitForAbsent} />;
 }

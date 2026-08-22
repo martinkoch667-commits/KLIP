@@ -51,7 +51,7 @@ export function resetTours(ids?: string[]): void {
   } catch { /* navigation privée */ }
 }
 
-export default function GuidedTour({ id, steps, delayMs = 700, onFinish, force = false }: {
+export default function GuidedTour({ id, steps, delayMs = 700, onFinish, force = false, waitForAbsent }: {
   id: string;
   steps: TourStep[];
   /** Laisse à l'écran le temps de se peindre avant de mesurer les cibles. */
@@ -60,6 +60,12 @@ export default function GuidedTour({ id, steps, delayMs = 700, onFinish, force =
   onFinish?: () => void;
   /** Rejoue la visite même si elle a déjà été vue (lien `?tour=`). */
   force?: boolean;
+  /** Sélecteur d'un écran de chargement à attendre disparu avant de démarrer —
+   *  l'éditeur affiche la visite dès `delayMs`, alors que composer un visuel
+   *  par IA peut prendre bien plus longtemps que ça : la première étape
+   *  (sans cible propre) s'affichait alors EN PLEIN SUR l'écran « génération
+   *  en cours ». `delayMs` reste un délai de PEINTURE, pas de chargement. */
+  waitForAbsent?: string;
 }) {
   const supabase = createClientComponentClient();
   const [visible, setVisible] = useState(false);
@@ -81,6 +87,17 @@ export default function GuidedTour({ id, steps, delayMs = 700, onFinish, force =
 
     const timer = setTimeout(async () => {
       if (cancelled) return;
+
+      // On attend que l'écran de chargement ait disparu — pas un délai fixe,
+      // qui devine toujours faux pour une opération de durée variable. Plafond
+      // à 20s : passé ça, mieux vaut montrer la visite en retard que jamais.
+      if (waitForAbsent) {
+        const debut = Date.now();
+        while (document.querySelector(waitForAbsent) && Date.now() - debut < 20000) {
+          await new Promise(r => setTimeout(r, 300));
+          if (cancelled) return;
+        }
+      }
 
       /* Qui a vu la visite : le COMPTE, pas le navigateur. L'ordre comptait —
          on lisait d'abord le stockage local, si bien qu'un nouvel arrivant sur
