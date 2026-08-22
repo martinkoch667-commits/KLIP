@@ -3039,7 +3039,13 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
   const [brandFamilies, setBrandFamilies] = useState<FontFamily[]>([]);
 
   // ── UI tool + workspace ───────────────────────────────────────────────────
-  const [tool, setTool] = useState<'design'|'elements'|'text'|'photos'|'brand'|'upload'|'calques'|null>(null);
+  // Un template TOUT NEUF s'ouvre directement sur « Texte » — c'est là que
+  // vivent les zones remplies par l'IA, le cœur d'un template. Un template
+  // qu'on rouvre pour le modifier, lui, ne doit rien imposer : l'utilisateur
+  // reprend où il en était, pas où on voudrait qu'il commence.
+  const [tool, setTool] = useState<'design'|'elements'|'text'|'photos'|'brand'|'upload'|'calques'|null>(
+    () => (mode === 'template' && (!templateId || templateId === 'new')) ? 'text' : null
+  );
   // Panneau gauche contextuel (Effet / Position) ouvert depuis la barre de modification.
   const [fxPanel, setFxPanel] = useState<'effects'|'position'|null>(null);
   // Bibliothèque de combinaisons de texte (modale "Voir plus").
@@ -6646,7 +6652,7 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
                     bibliothèque de textes, en gris discret (retour de Martin :
                     « sans ça cet outil ne sert à rien »). */}
                 {isTemplate && (
-                  <div style={{
+                  <div data-tour="template-ai-zones" style={{
                     borderRadius: 16, marginBottom: 18, overflow: 'hidden',
                     background: 'var(--forest, #0C2A1D)',
                   }}>
@@ -6679,7 +6685,7 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
                           le générateur remplace par l'image du post. Elle
                           manquait, donc un template ne pouvait porter que du
                           texte (retour de Martin). */}
-                      <button onClick={addPhotoZone}
+                      <button data-tour="template-photo-zone" onClick={addPhotoZone}
                         style={{
                           gridColumn: '1 / -1', padding: '11px 8px', cursor: 'pointer',
                           fontSize: 12.5, fontWeight: 800, borderRadius: 9, border: 'none',

@@ -109,6 +109,23 @@ export const TOURS: Record<string, TourStep[]> = {
     },
   ],
 
+  /* Le cœur d'un template, expliqué une seule fois : sans ces zones, l'IA n'a
+     nulle part où écrire, et le modèle reste un dessin figé. Rien à voir avec
+     la visite « editor » (déplacement, outils, topbar) — celle-ci ne parle que
+     du mécanisme propre au template. */
+  "template-ai-zones": [
+    {
+      target: '[data-tour="template-ai-zones"]',
+      title: "Le cœur d'un template",
+      body: "Chaque bouton ici pose une zone de texte D'UN RÔLE PRÉCIS — accroche, titre, prix… À chaque post généré depuis ce template, l'IA écrit dedans, à la bonne place, dans le bon ton. Un texte posé sans passer par ces boutons reste figé, toujours le même sur tous les posts.",
+    },
+    {
+      target: '[data-tour="template-photo-zone"]',
+      title: "Et la photo, pareil",
+      body: "La zone photo fonctionne comme les zones de texte : à chaque post, l'IA y met LA photo de ce post-là. Sans elle, le visuel garde pour toujours l'image que vous voyez maintenant.",
+    },
+  ],
+
   editor: [
     {
       title: "L'éditeur visuel",

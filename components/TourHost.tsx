@@ -18,6 +18,9 @@ function tourIdFor(pathname: string): string | null {
   if (/^\/workspace\/[^/]+\/montage(\/|$)/.test(pathname)) return "montage";
   if (/^\/workspace\/[^/]+\/planning(\/|$)/.test(pathname)) return "planning";
   if (/^\/workspace\/[^/]+\/templates(\/|$)/.test(pathname)) return "templates";
+  // Un template tout neuf, et lui seul : rouvrir un template existant pour le
+  // modifier ne doit pas ressasser l'explication.
+  if (/^\/workspace\/[^/]+\/template-editor\/new$/.test(pathname)) return "template-ai-zones";
   if (pathname === "/templates") return "templates";
   if (pathname === "/calendar") return "planning";
   if (pathname === "/feed" || /^\/workspace\/[^/]+\/results(\/|$)/.test(pathname)) return "feed";
