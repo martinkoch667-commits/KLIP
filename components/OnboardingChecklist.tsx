@@ -6,9 +6,15 @@ import Link from "next/link";
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
 
 // ── Persisted flags ───────────────────────────────────────────────────────────
-const TOUR_KEY = "klip-onboarding-done";       // spotlight tour completed
-const DISMISS_KEY = "klip-checklist-dismissed"; // user closed the checklist
+// Namespacées par COMPTE, jamais globales : des flags par navigateur faisaient
+// qu'un poste réutilisé d'un compte à l'autre — le cas le plus banal, une
+// agence à plusieurs mains, ou simplement plusieurs essais pendant les tests —
+// gardait la checklist fermée pour tout le monde après le premier « fermer »
+// du tout premier compte. Même défaut que la visite guidée, mêmes clés.
+const TOUR_KEY = "klip-onboarding-done";       // repli hors-session uniquement
+const DISMISS_KEY = "klip-checklist-dismissed";
 const COLLAPSE_KEY = "klip-checklist-collapsed";
+const cle = (base: string, uid: string) => `${base}:${uid}`;
 
 interface WorkspaceRow {
   id: string;
@@ -51,23 +57,33 @@ export default function OnboardingChecklist() {
   const [workspaces, setWorkspaces] = useState<WorkspaceRow[]>([]);
   const [posts, setPosts] = useState<PostRow[]>([]);
 
-  // Load progress data — only if the spotlight tour is done and not dismissed
-  const check = useCallback(async () => {
-    try {
-      if (!localStorage.getItem(TOUR_KEY)) return;    // wait for intro tour first
-      if (localStorage.getItem(DISMISS_KEY)) return;  // user closed it
-    } catch { return; }
+  // On a besoin du compte AVANT de savoir quoi lire : les trois indicateurs
+  // sont namespacés par identifiant, donc rien à consulter tant qu'on ne sait
+  // pas pour QUI on regarde.
+  const [uid, setUid] = useState<string | null>(null);
 
+  const check = useCallback(async () => {
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) return;
+      const id = session.user.id;
+      setUid(id);
+
+      // La visite guidée écrit sur le compte (métadonnée `tours_done`) depuis
+      // le correctif de la visite ; on la lit en priorité, et on ne retombe
+      // sur le repère local — namespacé, lui aussi — que hors-ligne.
+      const vues: string[] = (session.user.user_metadata?.tours_done as string[] | undefined) ?? [];
+      const tourFait = vues.includes("dashboard") || !!localStorage.getItem(cle(TOUR_KEY, id));
+      if (!tourFait) return;                                    // attendre la visite d'abord
+      if (localStorage.getItem(cle(DISMISS_KEY, id))) return;    // CE compte l'a fermée
+
       const [{ data: ws }, { data: ps }] = await Promise.all([
         supabase.from("workspaces").select("id, instagram_account_id, description_style"),
         supabase.from("posts").select("status, scheduled_at"),
       ]);
       setWorkspaces(ws ?? []);
       setPosts(ps ?? []);
-      try { setCollapsed(!!localStorage.getItem(COLLAPSE_KEY)); } catch {}
+      try { setCollapsed(!!localStorage.getItem(cle(COLLAPSE_KEY, id))); } catch {}
       setVisible(true);
     } catch {}
   }, [supabase]);
@@ -82,20 +98,21 @@ export default function OnboardingChecklist() {
   }, [check]);
 
   const dismiss = useCallback(() => {
-    try { localStorage.setItem(DISMISS_KEY, "1"); } catch {}
+    try { if (uid) localStorage.setItem(cle(DISMISS_KEY, uid), "1"); } catch {}
     setVisible(false);
-  }, []);
+  }, [uid]);
 
   const toggleCollapse = useCallback(() => {
     setCollapsed(c => {
       const next = !c;
       try {
-        if (next) localStorage.setItem(COLLAPSE_KEY, "1");
-        else localStorage.removeItem(COLLAPSE_KEY);
+        if (!uid) return next;
+        if (next) localStorage.setItem(cle(COLLAPSE_KEY, uid), "1");
+        else localStorage.removeItem(cle(COLLAPSE_KEY, uid));
       } catch {}
       return next;
     });
-  }, []);
+  }, [uid]);
 
   if (!visible) return null;
 

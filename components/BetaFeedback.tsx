@@ -156,7 +156,12 @@ export default function BetaFeedback() {
     const publier = () => {
       const p = pastilleRef.current?.offsetHeight ?? 0;
       const i = introRef.current?.offsetHeight ?? 0;
-      const h = BAS + p + (i ? ECART + i : 0);
+      const v = voletRef.current?.offsetHeight ?? 0;
+      // Le volet REMPLACE la pastille (elle se démonte pendant qu'il est
+      // ouvert) : sans compter sa propre hauteur, la variable retombait à
+      // 18px dès l'ouverture du signalement, et la checklist de prise en main
+      // venait se reposer en plein sur le formulaire encore ouvert.
+      const h = v ? BAS + v : BAS + p + (i ? ECART + i : 0);
       racine.style.setProperty(DOCK_VAR, `${h}px`);
       if (p) racine.style.setProperty(PASTILLE_VAR, `${p}px`);
       // Le volet remplace la pastille dans le coin : c'est lui qui donne la
