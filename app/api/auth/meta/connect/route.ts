@@ -34,14 +34,18 @@ export async function GET(request: NextRequest) {
     scope: "instagram_business_basic,instagram_business_content_publish",
     state: from ? `${workspaceId}|${from}` : workspaceId,
     response_type: "code",
-    // NE PAS ajouter force_reauth ici. L'intention est bonne — sans lui,
-    // Instagram réutilise la session ouverte dans le navigateur et connecte le
-    // compte de l'agence au lieu de celui du client, sans écran de choix. Mais
-    // testé en production le 13/08/2026 : après la saisie des identifiants,
-    // Instagram dépose l'utilisateur sur son fil et ne reprend jamais
-    // l'autorisation. Le flux ne revient donc plus jamais sur Klip.
-    // En attendant mieux, on choisit le compte via une fenêtre de navigation
-    // privée (aucune session active = écran de connexion naturel).
+    // Le 13/08/2026, l'ajouter avait semblé casser le retour vers Klip — sans
+    // lui, on pensait éviter qu'Instagram réutilise la session ouverte et
+    // connecte le compte de l'agence au lieu de celui du client. Mais
+    // retesté le 21/08/2026, dans l'autre sens : SANS force_reauth, c'est le
+    // retour vers Klip qui échoue — Instagram dépose l'utilisateur sur son
+    // fil et ne reprend jamais l'autorisation. AVEC, comparé au lien que
+    // fournit Meta lui-même dans son propre tableau de bord (qui l'inclut par
+    // défaut), le retour fonctionne. La panne du 13/08 avait donc une autre
+    // cause, jamais identifiée. On revient à ce que Meta recommande : un
+    // écran de connexion à chaque fois, quitte à devoir choisir le bon
+    // compte, plutôt qu'un flux qui ne revient parfois jamais.
+    force_reauth: "true",
   });
 
   const authUrl = `https://www.instagram.com/oauth/authorize?${params.toString()}`;
