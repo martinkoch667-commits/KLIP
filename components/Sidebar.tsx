@@ -194,12 +194,12 @@ export default function Sidebar({ workspaces: _w, userName: _u, activeWorkspaceI
       <div style={{ height: 1, background: "var(--cream-4)", margin: "6px 4px" }} />
 
       {/* Clients label */}
-      <div data-tour="clients" className="label sb-full" style={{ color: "var(--cream-3)", padding: "0 12px 4px" }}>
+      <div className="label sb-full" style={{ color: "var(--cream-3)", padding: "0 12px 4px" }}>
         {t("yourClients")}
       </div>
 
       {/* Workspace list */}
-      <div className="sb-wslist" style={{ display: "flex", flexDirection: "column", gap: 2, overflowY: "auto", flex: 1, margin: "0 -4px", padding: "0 4px" }}>
+      <div data-tour="clients" className="sb-wslist" style={{ display: "flex", flexDirection: "column", gap: 2, overflowY: "auto", flex: 1, margin: "0 -4px", padding: "0 4px" }}>
         {workspaces.length === 0 && (
           <p className="sb-full" style={{ padding: "8px 12px", fontSize: 13, color: "var(--cream-3)" }}>{t("noClients")}</p>
         )}

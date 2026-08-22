@@ -16,24 +16,24 @@ export const TOURS: Record<string, TourStep[]> = {
   dashboard: [
     {
       title: "Bienvenue sur KLIP",
-      body: "En deux minutes, le tour du propriétaire. Vous verrez où créer un client, comment produire un post, comment le faire valider et comment le programmer. Vous pouvez passer à tout moment et relancer la visite depuis les réglages.",
+      body: "En deux minutes, le tour du propriétaire. À gauche, le rail : c'est le sommaire de l'app, il ne bouge jamais. Au centre, la page du moment, posée dessus. Vous pouvez passer à tout moment et relancer la visite depuis les réglages.",
     },
     {
       target: '[data-tour="hero"]',
-      title: "Votre état des lieux",
-      body: "Ce bandeau résume la journée : ce qui part aujourd'hui, ce qui attend une validation client, ce qui est programmé. Si tout est vide, c'est normal, vous n'avez pas encore de client.",
+      title: "L'état du jour",
+      body: "L'accroche donne l'état du jour en une phrase, et les deux boutons mènent aux deux gestes les plus fréquents : composer, ou ouvrir le calendrier. Juste en dessous, quatre compteurs : ce qui part aujourd'hui, ce qui attend une validation, ce qui est programmé, et le nombre de clients.",
       placement: "bottom",
     },
     {
       target: '[data-tour="clients"]',
       title: "Un espace par client",
-      body: "Chaque client a son espace : sa charte, ses couleurs, ses logos, ses publications, son compte Instagram. Rien n'est mélangé entre deux marques. C'est par là qu'il faut commencer.",
+      body: "Vos clients vivent dans le rail, sous les pages : une pastille et un nom par marque. Chacune a sa charte, ses couleurs, ses logos, ses publications et son compte Instagram, et rien ne se mélange. S'il y en a plus que la hauteur de l'écran, la liste défile.",
       placement: "right",
     },
     {
       target: '[data-tour="new-post"]',
       title: "Créer un client",
-      body: "Ce bouton crée un nouvel espace. KLIP peut récupérer tout seul les couleurs, les polices et le logo depuis le site du client, vous n'aurez plus qu'à corriger.",
+      body: "Le « + » sous vos clients crée un espace. KLIP peut récupérer tout seul les couleurs, les polices et le logo depuis le site du client : vous n'aurez plus qu'à corriger ce qu'il a mal lu.",
       placement: "right",
     },
     {
@@ -45,24 +45,24 @@ export const TOURS: Record<string, TourStep[]> = {
     {
       target: '[data-tour="calendar"]',
       title: "Le calendrier",
-      body: "Tous vos clients sur une même grille, en semaine ou en mois. C'est ici qu'on repère les trous et qu'on déplace une publication d'un jour à l'autre.",
+      body: "Tous vos clients sur une même grille, en semaine ou en mois. C'est ici qu'on repère les trous et qu'on déplace une publication d'un jour à l'autre. En haut, chaque client est une porte vers son propre calendrier, celui qui porte la validation et le lien de partage.",
       placement: "right",
     },
     {
       target: '[data-tour="feed"]',
-      title: "Le fil de publication",
-      body: "L'état réel de chaque contenu : programmé, publié, en échec. Si Instagram refuse une publication, c'est ici que vous le voyez.",
+      title: "Publications",
+      body: "Sous « Publications », l'état réel de chaque contenu : programmé, publié, en échec. Si Instagram refuse une publication, c'est ici que vous le voyez, avec la raison.",
       placement: "right",
     },
     {
       target: '[data-tour="templates"]',
-      title: "Les modèles",
-      body: "Des mises en page réutilisables. Vous en créez une fois, vous la réutilisez pour tous les posts d'un client, et la charte s'applique toute seule.",
+      title: "Templates",
+      body: "Des mises en page réutilisables, rangées par client. Vous en créez une fois, vous la réutilisez pour tous les posts de cette marque, et la charte s'applique toute seule.",
       placement: "right",
     },
     {
       title: "Par quoi commencer",
-      body: "Créez votre premier client. Ensuite, importez une photo, KLIP compose le visuel à sa charte et rédige la légende. Vous n'avez plus qu'à relire.",
+      body: "Créez votre premier client avec le « + » du rail. Ensuite, importez une photo : KLIP compose le visuel à sa charte et rédige la légende. Vous n'avez plus qu'à relire.",
     },
   ],
 
@@ -75,7 +75,7 @@ export const TOURS: Record<string, TourStep[]> = {
     {
       target: ".ed-rail",
       title: "Les outils",
-      body: "Photos, textes, formes, logos, stickers, calques. Chaque outil ouvre son panneau : vous cliquez, vous posez sur la page, vous ajustez.",
+      body: "Photos, textes, formes, logos, stickers, calques. Chaque outil ouvre son panneau à gauche : vous cliquez, vous posez sur la page, vous ajustez. Quand un objet est sélectionné, ses réglages apparaissent sur la barre au-dessus du plan de travail.",
       placement: "right",
     },
     {
@@ -87,7 +87,7 @@ export const TOURS: Record<string, TourStep[]> = {
     {
       target: ".ed-topbar",
       title: "Annuler, vérifier, enregistrer",
-      body: "Tout en haut : l'historique pour revenir en arrière, la vérification qui relit le visuel avant publication, et le format du post. Votre travail est enregistré au fil de l'eau.",
+      body: "Tout en haut : l'historique pour revenir en arrière, le format du post, la vérification qui relit le visuel, et « Publier ». Le bouton menu, à gauche, replie le rail : le plan de travail passe alors en plein écran. Votre travail est enregistré au fil de l'eau.",
       placement: "bottom",
     },
     {

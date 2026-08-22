@@ -4,6 +4,7 @@ import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { stripe } from "@/lib/stripe";
+import { codeValide } from "@/lib/deletion-code";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -36,13 +37,22 @@ export async function POST(req: NextRequest) {
   const userId = session.user.id;
   const email = (session.user.email ?? "").trim().toLowerCase();
 
-  // Garde-fou : retaper son adresse. Un compte se supprime une fois, sans
-  // deuxième chance, donc un simple clic ne suffit pas.
+  // Deux garde-fous, et ils ne protègent pas de la même chose. Retaper son
+  // adresse empêche le geste réflexe ; le code reçu par mail prouve qu'on a
+  // accès à la boîte du compte — sans lui, un ordinateur resté ouvert suffit à
+  // effacer le travail d'une agence.
   const body = await req.json().catch(() => ({}));
   const confirm = typeof body?.confirm === "string" ? body.confirm.trim().toLowerCase() : "";
   if (!email || confirm !== email) {
     return NextResponse.json(
       { error: "Saisissez votre adresse e-mail exacte pour confirmer.", code: "CONFIRM_MISMATCH" },
+      { status: 400 },
+    );
+  }
+
+  if (!codeValide(userId, typeof body?.code === "string" ? body.code : "")) {
+    return NextResponse.json(
+      { error: "Ce code est faux ou expiré. Demandez-en un nouveau.", code: "BAD_CODE" },
       { status: 400 },
     );
   }

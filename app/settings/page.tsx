@@ -352,18 +352,88 @@ function SecurityTab({ supabase, providers, email }: { supabase: any; providers:
 
 
 /* ── Suppression du compte ────────────────────────────────────────────────────
-   Elle vivait au bas de « Mon compte » : le premier écran des réglages, celui
-   qu'on ouvre pour changer son prénom. Trois clics depuis n'importe où, et le
-   bouton rouge était là, offert. Il est désormais au bas de « Sécurité », et
-   replié : il faut demander à le voir avant de pouvoir le presser. La
-   confirmation par saisie de l'adresse, elle, ne bouge pas — c'est le seul
-   geste qui ne se fait pas par réflexe. */
+   Un parcours long, et long à dessein. Chaque étape a pourtant un rôle : dire
+   ce qui va disparaître, demander pourquoi (c'est la seule fois où on peut
+   l'apprendre), proposer ce qui règle peut-être le problème sans tout effacer,
+   rappeler l'export, puis vérifier par un code envoyé sur la boîte du compte.
+
+   La friction est volontaire, la sortie ne l'est pas : le RGPD garantit le
+   droit d'effacement, donc aucune étape ne peut être bloquante, et le chemin
+   reste droit du début à la fin. On ralentit, on ne piège pas. */
+
+const MOTIFS_DEPART = [
+  { id: "prix", label: "Trop cher pour ce que j'en fais" },
+  { id: "manque", label: "Une fonction me manquait" },
+  { id: "inutilise", label: "Je ne m'en sers plus" },
+  { id: "concurrent", label: "Je pars chez un concurrent" },
+  { id: "bugs", label: "Trop de problèmes techniques" },
+  { id: "autre", label: "Autre raison" },
+];
+
+/* Ce qu'on propose selon la raison. Une réponse creuse ferait perdre du temps :
+   à chaque motif correspond une action qui existe vraiment dans l'app. */
+const REPONSES: Record<string, { titre: string; texte: string; action?: { label: string; href: string } }> = {
+  prix: {
+    titre: "Mettez plutôt l'abonnement en pause",
+    texte: "Vos clients, vos visuels et vos programmations restent en place, et vous ne payez plus. Vous reprenez quand vous voulez.",
+    action: { label: "Voir la facturation", href: "?tab=billing" },
+  },
+  manque: {
+    titre: "Dites-nous laquelle",
+    texte: "La feuille de route se décide sur ce que les premiers utilisateurs demandent. Une fonction réclamée est une fonction qui arrive.",
+    action: { label: "Nous écrire", href: "mailto:contact@getklip.fr" },
+  },
+  inutilise: {
+    titre: "Vous pouvez simplement laisser le compte de côté",
+    texte: "Rien ne se publie sans vous. Un compte inactif ne fait rien, et vos contenus vous attendent si vous revenez.",
+  },
+  concurrent: {
+    titre: "On aimerait savoir ce qui a fait la différence",
+    texte: "Deux lignes suffisent, et elles nous servent plus que vous ne l'imaginez.",
+    action: { label: "Nous écrire", href: "mailto:contact@getklip.fr" },
+  },
+  bugs: {
+    titre: "Laissez-nous une chance de corriger",
+    texte: "Klip vient d'ouvrir. Un bug signalé est corrigé en quelques jours, et vous n'avez rien à réinstaller.",
+    action: { label: "Signaler le problème", href: "mailto:contact@getklip.fr" },
+  },
+  autre: {
+    titre: "Avant de partir",
+    texte: "Si quelque chose peut être réglé, écrivez-nous : on répond vite, et on préfère régler que perdre.",
+    action: { label: "Nous écrire", href: "mailto:contact@getklip.fr" },
+  },
+};
+
 function SuppressionCompte({ supabase, email }: { supabase: any; email: string }) {
-  const [ouvert, setOuvert] = useState(false);
-  const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const [etape, setEtape] = useState(0); // 0 = replié
+  const [motif, setMotif] = useState<string | null>(null);
+  const [detail, setDetail] = useState("");
+  const [compris, setCompris] = useState(false);
+  const [code, setCode] = useState("");
+  const [envoiCode, setEnvoiCode] = useState(false);
+  const [codeEnvoye, setCodeEnvoye] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState("");
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
+
+  async function demanderCode() {
+    setEnvoiCode(true);
+    setDeleteError(null);
+    try {
+      const res = await fetch("/api/account/delete/code", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ motif, detail }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) { setDeleteError(json?.error ?? "L'envoi du code a échoué."); setEnvoiCode(false); return; }
+      setCodeEnvoye(true);
+      setEtape(5);
+    } catch {
+      setDeleteError("L'envoi du code a échoué. Vérifiez votre connexion.");
+    }
+    setEnvoiCode(false);
+  }
 
   async function handleDeleteAccount() {
     setDeleting(true);
@@ -372,7 +442,7 @@ function SuppressionCompte({ supabase, email }: { supabase: any; email: string }
       const res = await fetch("/api/account/delete", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ confirm: deleteConfirm }),
+        body: JSON.stringify({ confirm: deleteConfirm, code }),
       });
       const json = await res.json().catch(() => ({}));
       if (!res.ok) {
@@ -390,10 +460,15 @@ function SuppressionCompte({ supabase, email }: { supabase: any; email: string }
     }
   }
 
-  if (!ouvert) {
+  function abandonner() {
+    setEtape(0); setMotif(null); setDetail(""); setCompris(false);
+    setCode(""); setCodeEnvoye(false); setDeleteConfirm(""); setDeleteError(null);
+  }
+
+  if (etape === 0) {
     return (
       <button
-        onClick={() => setOuvert(true)}
+        onClick={() => setEtape(1)}
         style={{
           display: "block", margin: "4px auto 0", padding: "8px 14px",
           background: "none", border: "none", cursor: "pointer",
@@ -406,51 +481,157 @@ function SuppressionCompte({ supabase, email }: { supabase: any; email: string }
     );
   }
 
-  return (
-      <div className="st-card" style={{ borderColor: "rgba(220,38,38,.2)" }}>
-        <div className="st-label" style={{ color: "#DC2626", marginBottom: 12 }}>Zone de danger</div>
-        <div style={{ fontWeight: 700, fontSize: 14, color: "var(--ink)", marginBottom: 3 }}>Supprimer mon compte</div>
-        <div style={{ fontSize: 12.5, color: "var(--ink-3)", lineHeight: 1.6 }}>
-          Suppression définitive : vos comptes clients, vos publications, vos visuels et tous vos fichiers.
-          Votre abonnement en cours est résilié dans la foulée. Cette action ne peut pas être annulée.
-        </div>
+  const reponse = motif ? REPONSES[motif] : null;
 
-        {!confirmingDelete ? (
-          <button className="st-btn-danger" style={{ marginTop: 16 }} onClick={() => setConfirmingDelete(true)}>
-            Supprimer mon compte
-          </button>
-        ) : (
-          <div style={{ marginTop: 16 }}>
-            {/* Retaper son adresse : le seul geste qui ne se fait pas par réflexe. */}
-            <label className="st-label" htmlFor="delete-confirm">
-              Tapez <span style={{ textTransform: "none", letterSpacing: 0 }}>{email}</span> pour confirmer
-            </label>
-            <input
-              id="delete-confirm" className="st-input" autoComplete="off" placeholder={email}
-              value={deleteConfirm} onChange={e => { setDeleteConfirm(e.target.value); setDeleteError(null); }}
-            />
-            {deleteError && (
-              <p style={{ marginTop: 10, fontSize: 12.5, lineHeight: 1.5, color: "#DC2626" }}>{deleteError}</p>
-            )}
-            <div style={{ marginTop: 14, display: "flex", gap: 10, alignItems: "center" }}>
-              <button
-                className="st-btn-danger"
-                disabled={deleting || deleteConfirm.trim().toLowerCase() !== email.trim().toLowerCase()}
-                style={{ opacity: deleting || deleteConfirm.trim().toLowerCase() !== email.trim().toLowerCase() ? .5 : 1 }}
-                onClick={handleDeleteAccount}
-              >
-                {deleting ? "Suppression…" : "Supprimer définitivement"}
-              </button>
-              <button
-                className="st-btn-ghost" disabled={deleting}
-                onClick={() => { setConfirmingDelete(false); setDeleteConfirm(""); setDeleteError(null); }}
-              >
-                Annuler
-              </button>
-            </div>
+  return (
+    <div className="st-card" style={{ borderColor: "rgba(220,38,38,.2)" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14 }}>
+        <div className="st-label" style={{ color: "#DC2626", margin: 0 }}>Supprimer mon compte</div>
+        <span style={{ marginLeft: "auto", fontSize: 11.5, fontWeight: 700, color: "var(--ink-3)", fontVariantNumeric: "tabular-nums" }}>
+          Étape {etape} sur 5
+        </span>
+      </div>
+
+      {/* 1 — ce qui disparaît */}
+      {etape === 1 && (
+        <>
+          <div style={{ fontWeight: 700, fontSize: 14, color: "var(--ink)", marginBottom: 8 }}>Ce que vous perdez</div>
+          <ul style={{ margin: "0 0 14px", paddingLeft: 18, fontSize: 13, lineHeight: 1.8, color: "var(--ink-2)" }}>
+            <li>Tous vos espaces clients, avec leurs chartes et leurs modèles</li>
+            <li>Vos publications, programmées comme déjà parues</li>
+            <li>Vos visuels, vos montages et tous vos fichiers importés</li>
+            <li>Votre abonnement, résilié dans la foulée</li>
+          </ul>
+          <p style={{ fontSize: 13, lineHeight: 1.6, color: "var(--ink-3)", marginBottom: 14 }}>
+            Rien de tout cela ne se récupère. Les comptes Instagram de vos clients, eux, ne sont pas touchés :
+            ils restent chez eux, ce sont seulement vos accès qui disparaissent.
+          </p>
+          <label style={{ display: "flex", alignItems: "flex-start", gap: 9, fontSize: 13, fontWeight: 600, color: "var(--ink)", cursor: "pointer", marginBottom: 16 }}>
+            <input type="checkbox" checked={compris} onChange={e => setCompris(e.target.checked)} style={{ marginTop: 2, accentColor: "#DC2626" }} />
+            J'ai compris que cette suppression est définitive.
+          </label>
+          <div style={{ display: "flex", gap: 10 }}>
+            <button className="st-btn-danger" disabled={!compris} style={{ opacity: compris ? 1 : .5 }} onClick={() => setEtape(2)}>Continuer</button>
+            <button className="st-btn-ghost" onClick={abandonner}>Annuler</button>
           </div>
-        )}
-      </div>  );
+        </>
+      )}
+
+      {/* 2 — pourquoi */}
+      {etape === 2 && (
+        <>
+          <div style={{ fontWeight: 700, fontSize: 14, color: "var(--ink)", marginBottom: 3 }}>Pourquoi partez-vous ?</div>
+          <p style={{ fontSize: 13, color: "var(--ink-3)", marginBottom: 14 }}>
+            C'est la seule fois où on peut l'apprendre, et ça change ce qu'on construit ensuite.
+          </p>
+          <div style={{ display: "grid", gap: 7, marginBottom: 14 }}>
+            {MOTIFS_DEPART.map(m => (
+              <label key={m.id}
+                style={{
+                  display: "flex", alignItems: "center", gap: 10, padding: "10px 13px",
+                  borderRadius: 11, cursor: "pointer", fontSize: 13.5, fontWeight: 600,
+                  color: motif === m.id ? "var(--ink)" : "var(--ink-2)",
+                  background: motif === m.id ? "var(--sunk)" : "transparent",
+                  boxShadow: motif === m.id ? "inset 0 0 0 1.5px var(--ink-3)" : "inset 0 0 0 1px var(--line)",
+                }}>
+                <input type="radio" name="motif-depart" checked={motif === m.id} onChange={() => setMotif(m.id)} style={{ accentColor: "var(--ink)" }} />
+                {m.label}
+              </label>
+            ))}
+          </div>
+          <div style={{ display: "flex", gap: 10 }}>
+            <button className="st-btn-danger" disabled={!motif} style={{ opacity: motif ? 1 : .5 }} onClick={() => setEtape(3)}>Continuer</button>
+            <button className="st-btn-ghost" onClick={abandonner}>Annuler</button>
+          </div>
+        </>
+      )}
+
+      {/* 3 — ce qui règle peut-être le problème */}
+      {etape === 3 && reponse && (
+        <>
+          <div style={{ fontWeight: 700, fontSize: 14, color: "var(--ink)", marginBottom: 3 }}>{reponse.titre}</div>
+          <p style={{ fontSize: 13, lineHeight: 1.6, color: "var(--ink-2)", marginBottom: 14 }}>{reponse.texte}</p>
+          <label className="st-label" htmlFor="depart-detail">Ce qui vous a manqué (facultatif)</label>
+          <textarea
+            id="depart-detail" className="st-input" rows={3} value={detail}
+            onChange={e => setDetail(e.target.value)}
+            placeholder="En deux lignes, ce qui aurait pu vous retenir."
+            style={{ resize: "vertical", minHeight: 74, paddingTop: 10, marginBottom: 14 }}
+          />
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
+            {reponse.action && (
+              <a className="st-btn-ghost" href={reponse.action.href} style={{ textDecoration: "none" }}>{reponse.action.label}</a>
+            )}
+            <button className="st-btn-ghost" onClick={abandonner}>Je reste finalement</button>
+            <button className="st-btn-danger" style={{ marginLeft: "auto" }} onClick={() => setEtape(4)}>Supprimer quand même</button>
+          </div>
+        </>
+      )}
+
+      {/* 4 — emporter ses contenus */}
+      {etape === 4 && (
+        <>
+          <div style={{ fontWeight: 700, fontSize: 14, color: "var(--ink)", marginBottom: 3 }}>Emportez ce qui compte</div>
+          <p style={{ fontSize: 13, lineHeight: 1.6, color: "var(--ink-2)", marginBottom: 14 }}>
+            Après la suppression, vos visuels ne seront plus téléchargeables. Prenez le temps d'enregistrer
+            ceux que vous voulez garder : ouvrez chaque client, puis exportez les posts qui vous servent
+            encore. Personne ne pourra vous les renvoyer ensuite.
+          </p>
+          <p style={{ fontSize: 13, lineHeight: 1.6, color: "var(--ink-3)", marginBottom: 16 }}>
+            Le compte reste utilisable tant que vous n'avez pas validé la dernière étape.
+          </p>
+          {deleteError && <p style={{ fontSize: 12.5, color: "#DC2626", marginBottom: 12 }}>{deleteError}</p>}
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
+            <button className="st-btn-ghost" onClick={abandonner}>J'y retourne</button>
+            <button className="st-btn-danger" style={{ marginLeft: "auto" }} disabled={envoiCode} onClick={demanderCode}>
+              {envoiCode ? "Envoi…" : "Recevoir le code de suppression"}
+            </button>
+          </div>
+        </>
+      )}
+
+      {/* 5 — code reçu par mail, puis adresse */}
+      {etape === 5 && (
+        <>
+          <div style={{ fontWeight: 700, fontSize: 14, color: "var(--ink)", marginBottom: 3 }}>Dernière étape</div>
+          <p style={{ fontSize: 13, lineHeight: 1.6, color: "var(--ink-2)", marginBottom: 14 }}>
+            {codeEnvoye
+              ? <>Un code à six chiffres vient de partir sur <strong>{email}</strong>. Il est valable quinze minutes.</>
+              : <>Demandez un code pour continuer.</>}
+          </p>
+          <label className="st-label" htmlFor="delete-code">Code reçu par e-mail</label>
+          <input
+            id="delete-code" className="st-input" autoComplete="one-time-code" inputMode="numeric"
+            placeholder="000000" maxLength={6} value={code}
+            onChange={e => { setCode(e.target.value.replace(/\D/g, "")); setDeleteError(null); }}
+            style={{ letterSpacing: ".22em", fontWeight: 700, marginBottom: 14 }}
+          />
+          <label className="st-label" htmlFor="delete-confirm">
+            Tapez <span style={{ textTransform: "none", letterSpacing: 0 }}>{email}</span> pour confirmer
+          </label>
+          <input
+            id="delete-confirm" className="st-input" autoComplete="off" placeholder={email}
+            value={deleteConfirm} onChange={e => { setDeleteConfirm(e.target.value); setDeleteError(null); }}
+          />
+          {deleteError && <p style={{ marginTop: 10, fontSize: 12.5, lineHeight: 1.5, color: "#DC2626" }}>{deleteError}</p>}
+          <div style={{ marginTop: 14, display: "flex", flexWrap: "wrap", gap: 10, alignItems: "center" }}>
+            <button className="st-btn-ghost" onClick={abandonner}>Annuler</button>
+            <button className="st-btn-ghost" disabled={envoiCode} onClick={demanderCode}>
+              {envoiCode ? "Envoi…" : "Renvoyer un code"}
+            </button>
+            <button
+              className="st-btn-danger"
+              style={{ marginLeft: "auto", opacity: deleting || code.length !== 6 || deleteConfirm.trim().toLowerCase() !== email.trim().toLowerCase() ? .5 : 1 }}
+              disabled={deleting || code.length !== 6 || deleteConfirm.trim().toLowerCase() !== email.trim().toLowerCase()}
+              onClick={handleDeleteAccount}
+            >
+              {deleting ? "Suppression…" : "Supprimer définitivement"}
+            </button>
+          </div>
+        </>
+      )}
+    </div>
+  );
 }
 
 // ─── Notifications Tab ────────────────────────────────────────────────────────
