@@ -5,7 +5,7 @@ import PostPreviewPane from "@/components/PostPreviewPane";
 import AiThinkingPanel from "@/components/AiThinkingPanel";
 import type { PreEditHooks } from "./montage/[postId]/preEdit";
 import { runPreEdit, newTranscriptCache } from "./montage/[postId]/preEdit";
-import { renderComposedVisual, renderElementSpecs } from "@/lib/composeRender";
+import { renderComposedVisual, renderElementSpecs, renderTemplateVisual } from "@/lib/composeRender";
 import { buildCarouselSlide, themeFromBrand } from "@/lib/carouselDesigns";
 import type { MontageClip } from "./montage/[postId]/constants";
 import { useTranslations } from "next-intl";
@@ -1016,7 +1016,22 @@ export default function WorkspacePage() {
         if (!res.ok) return;
         const data = await res.json();
         const layout = Array.isArray(data?.layouts) ? data.layouts[0] : null;
-        if (!layout?.blocks?.length) return;
+        if (!layout) return;
+        // Une composition DESSINÉE (système de design ou template maison) arrive
+        // en calques complets : on la rend telle quelle. Sans ce chemin, le
+        // Composer retombait sur la photo brute et l'utilisateur ne découvrait le
+        // vrai visuel qu'en ouvrant l'éditeur.
+        if (Array.isArray(layout.template?.elements) && layout.template.elements.length) {
+          url = await renderTemplateVisual({
+            elements: layout.template.elements,
+            sourceFormat: layout.template.sourceFormat ?? null,
+            photoUrl: item.photo_url?.startsWith('http') ? item.photo_url : null,
+            w, h,
+          });
+          if (url) setPosts((prev) => prev.map((p) => (p.localId === item.localId ? { ...p, preview_url: url! } : p)));
+          return;
+        }
+        if (!layout.blocks?.length) return;
         url = await renderComposedVisual({
           photoUrl: item.photo_url?.startsWith('http') ? item.photo_url : null,
           blocks: layout.blocks, accents: layout.accents, scrim: layout.scrim,

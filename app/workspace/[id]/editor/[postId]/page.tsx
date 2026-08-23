@@ -70,6 +70,10 @@ interface TextEl extends BaseEl {
    *  qu'on cherche à retrouver (cf. relayoutText). */
   origText?: string;
   maxLines?: number;
+  /** Largeur VOULUE par le dessin : le re-calage n'a pas le droit de l'élargir.
+   *  Sans ce verrou, un titre un peu long dans une colonne étroite s'étalait sur
+   *  toute la page — et la composition en colonne n'existait plus. */
+  lockWidth?: boolean;
   minFontSize?: number;
   maxFontSize?: number;
   lineHeight?: number;
@@ -290,6 +294,23 @@ function countLines(text: string, fontSize: number, font: string, fontStyle: str
    attendre : `document.fonts.load` force leur téléchargement et rend la main
    quand elles sont posées. Course contre une limite de temps : une police
    injoignable ne doit jamais retenir l'ouverture de l'éditeur. */
+/* Les polices de la charte reçoivent leur feuille de style au chargement du
+   workspace. Celles du système de design (Anton, Playfair Display, Caveat) n'y
+   sont pas : sans ce déclencheur, une composition dessinée sortait en police de
+   repli — le geste typographique disparaissait, et avec lui la moitié du
+   dessin. Idempotent : une famille déjà demandée ne redemande pas. */
+function assurerPolicesGoogle(familles: string[]): void {
+  if (typeof document === 'undefined') return;
+  for (const f of Array.from(new Set(familles.filter(Boolean)))) {
+    const cle = `gf-${f.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`;
+    if (document.getElementById(cle)) continue;
+    const lnk = document.createElement('link');
+    lnk.id = cle; lnk.rel = 'stylesheet';
+    lnk.href = `https://fonts.googleapis.com/css2?family=${encodeURIComponent(f).replace(/%20/g, '+')}:ital,wght@0,400;0,700;1,400;1,700&display=swap`;
+    document.head.appendChild(lnk);
+  }
+}
+
 async function attendrePolices(familles: string[], limiteMs = 2500): Promise<void> {
   if (typeof document === 'undefined' || !document.fonts) return;
   const uniques = Array.from(new Set(familles.filter(Boolean)));
@@ -488,7 +509,7 @@ function relayoutText(elements: any[], stageW: number, stageH: number): any[] {
 
     let width = width0;
     let x = x0;
-    if (linesAt(width0, el.fontSize) > target) {
+    if (linesAt(width0, el.fontSize) > target && !el.lockWidth) {
       // Place disponible de chaque côté, ancre par ancre.
       const maxWidth = align === 'left'
         ? Math.max(width0, stageW - margin - x0)
@@ -5286,7 +5307,11 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
         return out as unknown as CanvasEl;
       });
       if (L.template.backgroundStyle) setBgStyle(L.template.backgroundStyle as BgStyle);
-      await attendrePolices([displayFont, bodyFont, ...scaled.flatMap(e => e.type === 'text' ? [(e as TextEl).fontFamily] : [])].filter((f): f is string => !!f));
+      const famillesDuModele = [displayFont, bodyFont, ...scaled.flatMap(e => e.type === 'text' ? [(e as TextEl).fontFamily] : [])].filter((f): f is string => !!f);
+      // Demander la feuille de style AVANT de l'attendre : sinon on attend une
+      // police que personne n'a demandée, et on mesure sur le repli.
+      assurerPolicesGoogle(famillesDuModele.filter(f => f !== displayFont && f !== bodyFont));
+      await attendrePolices(famillesDuModele);
       applyElements(enforceDesignRules(relayoutText(scaled, stageW, stageH), stageW, stageH));
       return;
     }
@@ -5447,6 +5472,9 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
 
   // Compose : récupère l'univers du client + posts validés, demande 3 variantes, applique la 1re, puis QA.
   const composeWithAI = async (opts?: { chainQA?: boolean }): Promise<boolean> => {
+    // Vrai dès que la composition retenue est un dessin complet : l'audit visuel
+    // ne s'applique alors pas (cf. plus bas).
+    let dessin = false;
     if (qaBusy) return false;
     const chainQA = opts?.chainQA !== false;
     setQaBusy(true); setQaMsg('Composition IA…');
@@ -5506,7 +5534,17 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
       if (typeof data?.rationale === 'string' && data.rationale.trim()) edLog(`Parti pris : ${data.rationale.trim()}`);
       edLog(`${layouts.length} composition(s) proposée(s) — application de la 1re`);
       setAiVariants(layouts); setAiVariantIdx(0); setVariantAsked(layouts.length > 1);
+      // Ce qui est APPLIQUÉ compte, pas seulement ce qui est changé : sans cette
+      // trace, le compositeur n'a aucun moyen de savoir qu'il vient de servir
+      // cette composition, et il la resert au post suivant.
+      rememberChoice(layouts[0], 1);
       await materializeLayout(layouts[0]);
+      // Une composition DESSINÉE (template maison ou système de design) ne doit
+      // pas passer devant l'audit visuel : celui-ci raisonne en « texte posé sur
+      // une photo » — il écarte les blocs qui se chevauchent, retire les aplats
+      // de couleur derrière le texte, réaligne tout. Sur un dessin, ces règles
+      // défont exactement ce qui en fait un visuel de marque.
+      dessin = !!layouts[0]?.template;
       setQaMsg(layouts.length > 1 ? `Composé ✓ (1/${layouts.length})` : 'Composé ✓');
       success = true;
     } catch {
@@ -5519,7 +5557,7 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
     // est une seule opération. Lancé en arrière-plan, il retouchait le visuel
     // après que l'appelant se croyait fini — et l'auto-save pouvait enregistrer
     // entre les deux.
-    if (success && chainQA) {
+    if (success && chainQA && !dessin) {
       await new Promise<void>(r => setTimeout(r, 350)); // laisse le canvas peindre la composition
       try { await runVisualQA(); } catch { /* l'audit est un plus, jamais un blocage */ }
     }

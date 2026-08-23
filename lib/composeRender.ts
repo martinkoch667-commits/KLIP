@@ -75,9 +75,9 @@ function loadImage(url: string): Promise<HTMLImageElement | null> {
     img.crossOrigin = 'anonymous';
     img.onload = () => resolve(img);
     img.onerror = () => resolve(null);
-    // Une image déjà locale (data:/blob:) n'a rien à faire dans le proxy — et y
-    // passer la rendait simplement introuvable.
-    img.src = /^(data:|blob:)/.test(url) ? url : `/api/proxy-image?url=${encodeURIComponent(url)}`;
+    // Une image déjà locale (data:, blob:, ou servie par l'app elle-même) n'a
+    // rien à faire dans le proxy — et y passer la rendait simplement introuvable.
+    img.src = /^(data:|blob:|\/)/.test(url) ? url : `/api/proxy-image?url=${encodeURIComponent(url)}`;
   });
 }
 
@@ -380,6 +380,296 @@ export function renderElementSpecs(els: Record<string, unknown>[], w: number, h:
       });
     }
     ctx.globalAlpha = 1;
+  }
+
+  try { return canvas.toDataURL('image/jpeg', 0.86); } catch { return null; }
+}
+
+// ─── Aperçu d'une composition DESSINÉE ───────────────────────────────────────
+//
+// `renderComposedVisual` ne sait habiller qu'une photo avec des blocs de texte.
+// Les compositions du système de design ne sont pas ça : ce sont des calques
+// complets (aplats, cartes, pastilles, flèches, photo recadrée, typographies qui
+// se répondent), les mêmes que ceux que l'éditeur matérialise. Sans ce rendu,
+// le Composer retombait sur la photo brute et l'utilisateur ne voyait le vrai
+// visuel qu'en ouvrant l'éditeur — donc il ne le voyait presque jamais.
+
+/** Demande les feuilles de style Google manquantes, puis attend les polices. */
+export async function ensureFonts(families: string[], limiteMs = 2500): Promise<void> {
+  if (typeof document === 'undefined') return;
+  const uniques = Array.from(new Set(families.filter(Boolean)));
+  for (const f of uniques) {
+    const cle = `gf-${f.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`;
+    if (document.getElementById(cle)) continue;
+    const lnk = document.createElement('link');
+    lnk.id = cle; lnk.rel = 'stylesheet';
+    lnk.href = `https://fonts.googleapis.com/css2?family=${encodeURIComponent(f).replace(/%20/g, '+')}:ital,wght@0,400;0,700;1,400;1,700&display=swap`;
+    document.head.appendChild(lnk);
+  }
+  if (!document.fonts) return;
+  const jobs = uniques.flatMap(f => [
+    document.fonts.load(`400 32px "${f}"`).catch(() => {}),
+    document.fonts.load(`700 32px "${f}"`).catch(() => {}),
+  ]);
+  await Promise.race([Promise.all(jobs).then(() => {}), new Promise<void>(r => setTimeout(r, limiteMs))]);
+}
+
+function roundRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) {
+  const rad = Math.max(0, Math.min(r, w / 2, h / 2));
+  ctx.beginPath();
+  if (rad <= 0) { ctx.rect(x, y, w, h); return; }
+  ctx.moveTo(x + rad, y);
+  ctx.arcTo(x + w, y, x + w, y + h, rad);
+  ctx.arcTo(x + w, y + h, x, y + h, rad);
+  ctx.arcTo(x, y + h, x, y, rad);
+  ctx.arcTo(x, y, x + w, y, rad);
+  ctx.closePath();
+}
+
+/** Chemin d'une forme vectorielle, dans un repère local 0,0 → w,h. Même
+ *  géométrie que `drawVectorShape` de l'éditeur : l'aperçu doit montrer la
+ *  MÊME forme, pas une approximation. */
+function vectorPath(ctx: CanvasRenderingContext2D, shape: string, w: number, h: number, radius: number) {
+  ctx.beginPath();
+  switch (shape) {
+    case 'circle': ctx.ellipse(w / 2, h / 2, w / 2, h / 2, 0, 0, Math.PI * 2); break;
+    case 'triangle': ctx.moveTo(w / 2, 0); ctx.lineTo(w, h); ctx.lineTo(0, h); ctx.closePath(); break;
+    case 'diamond': ctx.moveTo(w / 2, 0); ctx.lineTo(w, h / 2); ctx.lineTo(w / 2, h); ctx.lineTo(0, h / 2); ctx.closePath(); break;
+    case 'pill': {
+      const r = h / 2;
+      ctx.moveTo(r, 0); ctx.lineTo(w - r, 0);
+      ctx.arc(w - r, h / 2, r, -Math.PI / 2, Math.PI / 2);
+      ctx.lineTo(r, h);
+      ctx.arc(r, h / 2, r, Math.PI / 2, -Math.PI / 2);
+      ctx.closePath();
+      break;
+    }
+    case 'arrow': {
+      const aw = w * 0.38, ah = h * 0.30;
+      ctx.moveTo(0, h / 2 - ah / 2); ctx.lineTo(w - aw, h / 2 - ah / 2);
+      ctx.lineTo(w - aw, 0); ctx.lineTo(w, h / 2);
+      ctx.lineTo(w - aw, h); ctx.lineTo(w - aw, h / 2 + ah / 2);
+      ctx.lineTo(0, h / 2 + ah / 2); ctx.closePath();
+      break;
+    }
+    case 'star': {
+      const cx = w / 2, cy = h / 2, r1 = Math.min(w, h) / 2, r2 = r1 * 0.42;
+      for (let i = 0; i < 10; i++) {
+        const a = (i * Math.PI) / 5 - Math.PI / 2;
+        const r = i % 2 === 0 ? r1 : r2;
+        const px = cx + r * Math.cos(a), py = cy + r * Math.sin(a);
+        if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+      }
+      ctx.closePath();
+      break;
+    }
+    case 'hexagon': {
+      const cx = w / 2, cy = h / 2, r = Math.min(w, h) / 2;
+      for (let i = 0; i < 6; i++) {
+        const a = (i * Math.PI) / 3 - Math.PI / 6;
+        const px = cx + r * Math.cos(a), py = cy + r * Math.sin(a);
+        if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+      }
+      ctx.closePath();
+      break;
+    }
+    default: roundRect(ctx, 0, 0, w, h, radius);
+  }
+}
+
+export interface TemplateRenderInput {
+  /** Calques au format éditeur, tels que renvoyés par /api/compose-layout. */
+  elements: Record<string, unknown>[];
+  sourceFormat?: { w: number; h: number } | null;
+  /** Photo du post : remplace le marqueur `__PHOTO_PLACEHOLDER__`. */
+  photoUrl?: string | null;
+  w: number;
+  h: number;
+}
+
+/**
+ * Rend une composition dessinée hors écran. Fidèle par construction : mêmes
+ * calques, mêmes formes, mêmes polices que ce que l'éditeur affichera.
+ */
+export async function renderTemplateVisual(input: TemplateRenderInput): Promise<string | null> {
+  if (typeof document === 'undefined') return null;
+  const { w, h } = input;
+  const els = Array.isArray(input.elements) ? input.elements : [];
+  if (!els.length) return null;
+
+  const src = input.sourceFormat && input.sourceFormat.w > 0 && input.sourceFormat.h > 0 ? input.sourceFormat : { w, h };
+  const sx = w / src.w, sy = h / src.h, sf = Math.min(sx, sy);
+
+  const n = (v: unknown, d = 0) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
+  const st = (v: unknown, d = '') => (typeof v === 'string' ? v : d);
+
+  await ensureFonts(els.filter(e => st(e.type) === 'text').map(e => st(e.fontFamily)).filter(Boolean));
+
+  // Un template maison peut porter SES propres images (un logo, un décor) en
+  // plus de la zone photo. Charger la photo du post pour tous les calques image
+  // les écraserait : chaque source est chargée pour elle-même, seul le marqueur
+  // reçoit la photo du post.
+  const PLACEHOLDER = '__PHOTO_PLACEHOLDER__';
+  const srcs = Array.from(new Set(
+    els.filter(e => st(e.type) === 'image').map(e => st(e.src)).filter(Boolean),
+  ));
+  const images = new Map<string, HTMLImageElement | null>();
+  await Promise.all(srcs.map(async (u) => {
+    const real = u === PLACEHOLDER ? (input.photoUrl ?? '') : u;
+    images.set(u, real ? await loadImage(real) : null);
+  }));
+
+  const canvas = document.createElement('canvas');
+  canvas.width = w; canvas.height = h;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return null;
+  ctx.fillStyle = '#FFFFFF';
+  ctx.fillRect(0, 0, w, h);
+
+  for (const e of els) {
+    const type = st(e.type);
+    const x = n(e.x) * sx, y = n(e.y) * sy;
+    const ew = n(e.width, 0) * sx, eh = n(e.height, 0) * sy;
+    const rot = (n(e.rotation) * Math.PI) / 180;
+
+    ctx.save();
+    ctx.globalAlpha = Math.max(0, Math.min(n(e.opacity, 100), 100)) / 100;
+    ctx.translate(x, y);
+    if (rot) ctx.rotate(rot);
+
+    if (type === 'image') {
+      const photo = images.get(st(e.src)) ?? null;
+      if (photo) {
+        const r = n(e.cornerRadius) * sf;
+        ctx.save();
+        roundRect(ctx, 0, 0, ew, eh, r);
+        ctx.clip();
+        // Cadrage « cover », comme le calque image de l'éditeur.
+        const scale = Math.max(ew / photo.width, eh / photo.height);
+        const dw = photo.width * scale, dh = photo.height * scale;
+        ctx.drawImage(photo, (ew - dw) / 2, (eh - dh) / 2, dw, dh);
+        ctx.restore();
+      } else {
+        ctx.fillStyle = '#DDD8D0';
+        roundRect(ctx, 0, 0, ew, eh, n(e.cornerRadius) * sf);
+        ctx.fill();
+      }
+
+    } else if (type === 'rect') {
+      const scrim = st(e.scrim);
+      if (scrim === 'bottom' || scrim === 'top') {
+        const op = ctx.globalAlpha;
+        ctx.globalAlpha = 1;
+        const g = scrim === 'bottom'
+          ? ctx.createLinearGradient(0, eh, 0, eh * 0.25)
+          : ctx.createLinearGradient(0, 0, 0, eh * 0.75);
+        g.addColorStop(0, `rgba(0,0,0,${op})`);
+        g.addColorStop(1, 'rgba(0,0,0,0)');
+        ctx.fillStyle = g;
+        ctx.fillRect(0, 0, ew, eh);
+      } else {
+        ctx.fillStyle = st(e.fill, '#000000');
+        roundRect(ctx, 0, 0, ew, eh, n(e.cornerRadius) * sf);
+        ctx.fill();
+        const swid = n(e.strokeWidth) * sf;
+        if (swid > 0 && st(e.stroke)) { ctx.strokeStyle = st(e.stroke); ctx.lineWidth = swid; ctx.stroke(); }
+      }
+
+    } else if (type === 'vector') {
+      vectorPath(ctx, st(e.shape, 'rectangle'), ew, eh, n(e.cornerRadius) * sf);
+      if (st(e.fillType) !== 'none') { ctx.fillStyle = st(e.fill, '#000000'); ctx.fill(); }
+      const swid = n(e.strokeWidth) * sf;
+      if (swid > 0 && st(e.stroke)) { ctx.strokeStyle = st(e.stroke); ctx.lineWidth = swid; ctx.stroke(); }
+
+    } else if (type === 'circle') {
+      const r = n(e.radius) * sf;
+      ctx.beginPath(); ctx.arc(0, 0, r, 0, Math.PI * 2);
+      ctx.fillStyle = st(e.fill, '#000000'); ctx.fill();
+
+    } else if (type === 'text') {
+      const size = Math.max(9, n(e.fontSize, 24) * sf);
+      const style = st(e.fontStyle, 'normal');
+      const weight = style.includes('bold') ? '700' : '400';
+      const italic = style.includes('italic') ? 'italic ' : '';
+      const family = st(e.fontFamily, 'Archivo');
+      const track = n(e.letterSpacing) * sf;
+      // `letterSpacing` du contexte : disponible partout où l'app tourne, et
+      // sans lui un titre très espacé s'affichait serré dans l'aperçu seul.
+      try { (ctx as unknown as { letterSpacing: string }).letterSpacing = `${track}px`; } catch { /* moteur sans support */ }
+      ctx.font = `${italic}${weight} ${size}px "${family}", system-ui, sans-serif`;
+      ctx.textBaseline = 'top';
+
+      const width = Math.max(1, n(e.width, src.w) * sx);
+      let txt = st(e.text);
+      if (e.uppercase) txt = txt.toUpperCase();
+      const maxLines = Math.max(1, n(e.maxLines, 6));
+      // RÉTRÉCIR POUR TENIR — l'éditeur le fait (autoFitFontSize) ; sans la même
+      // règle ici, l'aperçu montrait un chiffre qui déborde du cadre alors que le
+      // visuel final, lui, tenait. Un aperçu qui ment ne sert à rien.
+      const plancher = Math.max(9, n(e.minFontSize, Math.round(n(e.fontSize, 24) * 0.62)) * sf);
+      let taille = size;
+      let lines = txt.split('\n').flatMap(part => wrap(ctx, part, width));
+      const deborde = () => lines.length > maxLines || lines.some(l => ctx.measureText(l).width > width + 1);
+      while (taille > plancher && deborde()) {
+        taille = Math.max(plancher, taille - Math.max(1, Math.round(size * 0.04)));
+        try { (ctx as unknown as { letterSpacing: string }).letterSpacing = `${(n(e.letterSpacing) * sf * taille) / size}px`; } catch { /* noop */ }
+        ctx.font = `${italic}${weight} ${taille}px "${family}", system-ui, sans-serif`;
+        lines = txt.split('\n').flatMap(part => wrap(ctx, part, width));
+      }
+      lines = lines.slice(0, maxLines);
+      const lh = taille * n(e.lineHeight, 1.15);
+      // Konva centre chaque ligne dans sa hauteur d'interligne : sans ce demi-
+      // interligne, l'aperçu remonte d'un cheveu par rapport au rendu final.
+      const half = Math.max(0, (lh - taille) / 2);
+      const align = st(e.align, 'left');
+      const posOf = (lw: number) => (align === 'center' ? (width - lw) / 2 : align === 'right' ? width - lw : 0);
+
+      if (e.highlightEnabled) {
+        const padH = n(e.highlightPadding, 8) * sf;
+        const padV = padH * 0.55;
+        const rad = n(e.highlightBorderRadius, 4) * sf;
+        ctx.fillStyle = st(e.highlightColor, '#000000');
+        const prev = ctx.globalAlpha;
+        ctx.globalAlpha = prev * (Math.max(0, Math.min(n(e.highlightOpacity, 100), 100)) / 100);
+        lines.forEach((ln, i) => {
+          const lw = ctx.measureText(ln).width;
+          roundRect(ctx, posOf(lw) - padH, i * lh + half - padV, lw + padH * 2, taille + padV * 2, rad);
+          ctx.fill();
+        });
+        ctx.globalAlpha = prev;
+      }
+
+      if (e.shadowEnabled) {
+        ctx.shadowColor = `rgba(0,0,0,${Math.max(0, Math.min(n(e.shadowOpacity, 40), 100)) / 100})`;
+        ctx.shadowBlur = n(e.shadowBlur, 12) * sf;
+      }
+      const strokeW = n(e.strokeWidth) * sf;
+      ctx.fillStyle = st(e.fill, '#FFFFFF');
+      if (strokeW > 0 && st(e.stroke)) { ctx.strokeStyle = st(e.stroke); ctx.lineWidth = strokeW; }
+      lines.forEach((ln, i) => {
+        const lw = ctx.measureText(ln).width;
+        const lx = posOf(lw), ly = i * lh + half;
+        // Lettres évidées : le contour SEUL, jamais contour + plein.
+        if (e.hollowEnabled) { if (strokeW > 0 && st(e.stroke)) ctx.strokeText(ln, lx, ly); else { ctx.strokeStyle = st(e.fill, '#FFFFFF'); ctx.lineWidth = Math.max(1, taille * 0.03); ctx.strokeText(ln, lx, ly); } }
+        else {
+          ctx.fillText(ln, lx, ly);
+          if (strokeW > 0 && st(e.stroke)) ctx.strokeText(ln, lx, ly);
+        }
+        if (st(e.textDecoration).includes('line-through')) {
+          ctx.save();
+          ctx.strokeStyle = st(e.fill, '#FFFFFF');
+          ctx.lineWidth = Math.max(1, taille * 0.07);
+          ctx.beginPath();
+          ctx.moveTo(lx, ly + taille * 0.55); ctx.lineTo(lx + lw, ly + taille * 0.55);
+          ctx.stroke();
+          ctx.restore();
+        }
+      });
+      ctx.shadowColor = 'transparent'; ctx.shadowBlur = 0;
+      try { (ctx as unknown as { letterSpacing: string }).letterSpacing = '0px'; } catch { /* noop */ }
+    }
+
+    ctx.restore();
   }
 
   try { return canvas.toDataURL('image/jpeg', 0.86); } catch { return null; }

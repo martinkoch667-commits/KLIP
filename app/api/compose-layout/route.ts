@@ -4,6 +4,10 @@ import { cookies } from 'next/headers';
 import { generateAiText } from '@/lib/ai-text';
 import { openToken } from '@/lib/token-crypto';
 import { LAYOUT_LIBRARY, type Slot, type Accent } from '@/lib/layoutLibrary';
+import {
+  pickDesignCandidates, describeDesignCandidates, findDesignRecipe,
+  sanitizeFields, buildDesignElements,
+} from '@/lib/designSystem';
 
 // Diriger un visuel prend plus que les 10 s par défaut d'une fonction Vercel :
 // le modèle regarde la photo, les références, et réfléchit. Sans cette ligne,
@@ -38,13 +42,18 @@ export async function POST(request: NextRequest) {
     // On lit l'identité côté serveur (la RLS reste seule juge de l'accès), et on
     // la lui donne comme un brief : secteur, ton, vocabulaire, typographie.
     let identity = '';
+    // La charte lue côté serveur sert de repli : le Composer n'envoie pas toujours
+    // les trois couleurs, et une composition dessinée sans couleur de marque est
+    // exactement le « visuel générique » qu'on cherche à ne plus produire.
+    let wsRow: Record<string, unknown> | null = null;
     if (typeof workspaceId === 'string' && workspaceId) {
       const { data: ws } = await sb
         .from('workspaces')
-        .select('name, sector, tone, company_description, words_to_use, words_to_avoid, font_family, font_secondary')
+        .select('name, sector, tone, company_description, words_to_use, words_to_avoid, font_family, font_secondary, primary_color, secondary_color, accent_color, instagram_username')
         .eq('id', workspaceId)
         .single();
       if (ws) {
+        wsRow = ws as Record<string, unknown>;
         identity = [
           ws.name ? `Marque : ${ws.name}` : '',
           ws.sector ? `Secteur : ${ws.sector}` : '',
@@ -144,23 +153,32 @@ export async function POST(request: NextRequest) {
     // écartée cent fois revenait intacte à la centième-et-unième. On relit les
     // choix passés — ce sont les seules préférences OBSERVÉES, pas déclarées.
     let preferred: string[] = [];
+    // Et ce qu'il vient de VOIR. Le goût et la lassitude sont deux choses
+    // différentes : servir trois fois de suite la composition préférée d'un
+    // client, c'est exactement le reproche « c'est toujours les mêmes ». On
+    // distingue donc le choix délibéré (l'utilisateur a changé de variante) de
+    // la simple récence (ce qui vient d'être appliqué, à ne pas resservir).
+    let recentIds: string[] = [];
     if (typeof workspaceId === 'string' && workspaceId) {
       try {
         const { data: fb } = await sb
           .from('layout_feedback')
-          .select('recipe_id')
+          .select('recipe_id, variant')
           .eq('workspace_id', workspaceId)
           .order('created_at', { ascending: false })
           .limit(40);
+        const rows = (fb ?? []) as { recipe_id?: string; variant?: number | null }[];
         const tally = new Map<string, number>();
-        for (const row of (fb ?? []) as { recipe_id?: string }[]) {
+        for (const row of rows) {
           const id = String(row.recipe_id ?? '');
-          if (id) tally.set(id, (tally.get(id) ?? 0) + 1);
+          // Seul un changement de variante dit « celle-ci, plutôt que celle-là ».
+          if (id && Number(row.variant ?? 1) >= 2) tally.set(id, (tally.get(id) ?? 0) + 1);
         }
         preferred = Array.from(tally.entries())
           .sort((a, b) => b[1] - a[1])
           .slice(0, 4)
           .map(([id, n]) => `${id} (retenue ${n} fois)`);
+        recentIds = Array.from(new Set(rows.slice(0, 10).map(r => String(r.recipe_id ?? '')).filter(Boolean)));
       } catch { /* la table peut ne pas exister encore (migration 023) */ }
     }
 
@@ -190,6 +208,27 @@ export async function POST(request: NextRequest) {
     });
     const libCandidates = LAYOUT_LIBRARY.map(r => ({ id: r.id, desc: r.desc, anchor: r.anchor, roles: r.slots.map(s => s.role) }));
 
+    // LE SYSTÈME DE DESIGN.
+    //
+    // Les deux familles ci-dessus ne savent faire qu'une chose : poser du texte
+    // sur une image. C'est pour ça que tous les visuels générés se ressemblaient,
+    // quel que soit le client — il n'existait aucune AUTRE idée de composition
+    // dans la maison. Celle-ci en contient une cinquantaine, dessinées d'après
+    // les codes réellement en usage : rail de marque, mot corrigé à la main,
+    // serif contre grotesque, cartes d'interface, aplats, listes, preuves.
+    //
+    // On n'en montre jamais la totalité : un tirage réparti entre les familles,
+    // amputé de ce qui vient d'être servi à ce client, et penché vers son secteur.
+    const hasPhotoForDesign = typeof imageUrl === 'string' && imageUrl.startsWith('http');
+    const designPool = pickDesignCandidates({
+      hasPhoto: hasPhotoForDesign,
+      sector: typeof wsRow?.sector === 'string' ? wsRow.sector : null,
+      avoid: recentIds.map(id => id.replace(/^ds:/, '')),
+      count: 20,
+      seed: (Date.now() >>> 6) ^ (workspaceId ? String(workspaceId).length * 2654435761 : 0),
+    });
+    const designCandidates = describeDesignCandidates(designPool);
+
     const prompt = [
       `Tu es directeur artistique Instagram. Choisis et adapte une mise en page pour ce post (cadre ${fmt.w}×${fmt.h}px).`,
       `Couleurs charte autorisées : ${palette || 'aucune'} + white + black. Polices = marque (gérées par l'app).`,
@@ -203,26 +242,35 @@ export async function POST(request: NextRequest) {
       'CANDIDATS DE MISE EN PAGE (tu DOIS en choisir, tu n\'inventes pas de coordonnées) :',
       'A) Templates du client (à privilégier pour rester dans son univers) :',
       JSON.stringify(tplCandidates),
-      'B) Bibliothèque de layouts pros :',
+      'B) Bibliothèque de layouts simples (texte posé sur la photo) :',
       JSON.stringify(libCandidates),
+      '',
+      'C) SYSTÈME DE DESIGN — des compositions ENTIÈRES, déjà dessinées (aplats, cadres, pastilles, filets, flèches, cartes, typographies qui se répondent). C\'est ici que vivent les codes visuels réellement en usage sur Instagram aujourd\'hui. Chaque recette liste ses CHAMPS : tu écris le texte de chacun, en respectant la longueur maximale — le dessin a été fait POUR cette longueur, un texte trop long le casse.',
+      JSON.stringify(designCandidates),
       '',
       approved.length > 0 ? `Posts déjà validés par le client (ce qui lui plaît) : ${JSON.stringify(approved)}` : '',
       instaRefs.length > 0 ? `LES ${instaRefs.length} DERNIÈRES IMAGES DU COMPTE INSTAGRAM SONT JOINTES APRÈS LA PHOTO À HABILLER. Elles montrent ce que la marque publie déjà : densité de texte, place du sujet, rapport au vide, façon d'utiliser la couleur. Ta composition doit pouvoir se poser à côté d'elles sans détonner — même famille visuelle, sans les copier. La PREMIÈRE image jointe est la photo à habiller ; les suivantes ne sont que des références.` : '',
       textList.length ? `Textes à utiliser :\n${textList.map((t, i) => `${i + 1}. "${t}"`).join('\n')}` : 'Aucun texte fourni : rédige un titre court (≤6 mots) + éventuel sous-titre, cohérents avec la photo.',
       '',
-      'Choisis les 3 MEILLEURS layouts (selon où le texte tombera dans une zone calme de CETTE photo). Pour chacun : remplis chaque slot (rôle->texte), choisis une couleur de charte par slot (contraste avec le fond), décide du scrim.',
+      'Choisis les 3 MEILLEURES compositions. Pour une recette A ou B : remplis chaque slot (rôle->texte), choisis une couleur de charte par slot (contraste avec le fond), décide du scrim. Pour une recette C : remplis "fields" avec la clé de CHAQUE champ de la recette — les couleurs, les tailles et les positions sont déjà décidées par le dessin, tu n\'y touches pas.',
+      'PRIVILÉGIE le système de design (C). Une composition dessinée — avec ses aplats, ses pastilles, sa typographie qui joue — ressemble à ce que publient les comptes soignés ; du texte blanc posé sur une photo ressemble à tout le monde. Ne prends une recette B que si la photo est vraiment le sujet et qu\'elle se suffit à elle-même.',
+      'ÉCRIS COMME LA MARQUE PARLE, pas comme une brochure. Phrases courtes, verbes concrets, aucune formule creuse (« au service de votre réussite », « l\'excellence au quotidien »). Un champ « max 14 caractères » veut dire UN ou DEUX mots, pas une phrase raccourcie.',
       preferred.length ? `CE QUE CE CLIENT A DÉJÀ RETENU, quand on lui a proposé plusieurs mises en page : ${preferred.join(', ')}. C'est son goût OBSERVÉ, pas une règle : privilégie ces directions quand elles conviennent à cette photo, et écarte-les franchement quand elles ne conviennent pas.` : '',
       'DÉCOUPER LE TITRE EN PLUSIEURS BLOCS est une composition à part entière, souvent la plus forte : au lieu d\'un pavé de deux lignes, tu écris chaque ligne dans SON bloc (« Pause midi » / « au Shadok »), chacun avec son propre aplat. Les cartouches épousent alors la longueur de chaque ligne et créent un décroché d\'affiche. Coupe au bon endroit — là où la phrase respire naturellement, jamais au milieu d\'un groupe de mots. Les recettes « lib-stack-* » sont faites pour ça.',
-      'Les trois propositions doivent être VRAIMENT différentes — pas trois variantes de texte posé sur la photo. Au moins UNE doit utiliser la couleur de la marque comme matière (cartouche, bandeau, pastille, filet) ou reprendre un template maison. Du texte blanc sur voile noir est le rendu par défaut de n\'importe quelle marque : ne le proposez que s\'il est vraiment le meilleur choix pour cette photo, jamais deux fois.',
+      'Les trois propositions doivent venir de FAMILLES DIFFÉRENTES et ne pas se ressembler de loin : si on les met côte à côte en vignette, on doit voir trois visuels distincts, pas trois cadrages du même. Deux recettes C au minimum. Du texte blanc sur voile noir est le rendu par défaut de n\'importe quelle marque : jamais deux fois, et jamais s\'il existe une composition dessinée qui convient.',
       'Préfère TOUJOURS un template maison du client quand il peut accueillir ce contenu : le choisir applique son dessin complet — son fond, ses aplats, ses couleurs, ses formes — donc le visuel ressemble immédiatement à cette marque. Ne prends une recette de la bibliothèque que si aucun template ne convient. Évite de placer le texte sur le sujet.',
       '',
+      recentIds.length ? `DÉJÀ SERVI RÉCEMMENT À CE CLIENT (à ne pas reprendre, son fil deviendrait répétitif) : ${recentIds.join(', ')}.` : '',
       // Un parti pris formulé AVANT les choix : ça oblige à décider d'une direction
       // (et non à prendre la mise en page la plus neutre), et ça donne à
       // l'utilisateur une raison lisible — il voit ce que l'IA a compris de sa marque.
       'Commence par formuler ton PARTI PRIS en une phrase (français, ≤ 22 mots) : quelle personnalité de marque tu lis, et quelle direction de composition tu en tires. Puis choisis.',
       '',
       'Réponds UNIQUEMENT avec ce JSON :',
-      '{ "rationale": "<ton parti pris en une phrase>", "picks": [ { "source": "template"|"library", "id": "<id candidat>", "slots": [ { "role": "titre"|"sous-titre"|"cta", "text": "...", "color": "primary"|"secondary"|"accent"|"white"|"black", "uppercase": boolean } ], "scrim": { "position": "bottom"|"top"|"none", "opacity": number } } ] }',
+      '{ "rationale": "<ton parti pris en une phrase>", "picks": [',
+      '  { "source": "design", "id": "<id d\'une recette C>", "fields": { "<cle du champ>": "<texte>", "...": "..." } },',
+      '  { "source": "template"|"library", "id": "<id candidat A ou B>", "slots": [ { "role": "titre"|"sous-titre"|"cta", "text": "...", "color": "primary"|"secondary"|"accent"|"white"|"black", "uppercase": boolean } ], "scrim": { "position": "bottom"|"top"|"none", "opacity": number } }',
+      '] }',
     ].filter(Boolean).join('\n');
 
     const hasImage = typeof imageUrl === 'string' && imageUrl.startsWith('http');
@@ -309,8 +357,41 @@ export async function POST(request: NextRequest) {
       return { elements: filled, backgroundStyle: t.backgroundStyle ?? null, sourceFormat: { w: fw, h: fh }, name: t.name };
     };
 
+    // La charte telle qu'elle sera VRAIMENT peinte. Le Composer n'envoie pas
+    // toujours les couleurs ; les lire ici évite le visuel gris qui ne ressemble
+    // à personne.
+    const brandForDesign = {
+      primary: (brand?.primary as string | undefined) ?? (wsRow?.primary_color as string | undefined) ?? null,
+      secondary: (brand?.secondary as string | undefined) ?? (wsRow?.secondary_color as string | undefined) ?? null,
+      accent: (brand?.accent as string | undefined) ?? (wsRow?.accent_color as string | undefined) ?? null,
+      display: (wsRow?.font_family as string | undefined) ?? null,
+      body: (wsRow?.font_secondary as string | undefined) ?? null,
+      name: (wsRow?.name as string | undefined) ?? null,
+      handle: wsRow?.instagram_username ? `@${String(wsRow.instagram_username).replace(/^@/, '')}` : null,
+    };
+
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const layouts = picks.slice(0, 3).map((pick: any) => {
+      // Une recette du système de design se matérialise ICI, côté serveur : elle
+      // sort en calques d'éditeur, comme un template maison. L'éditeur et
+      // l'aperçu n'ont donc rien de nouveau à apprendre — et l'utilisateur peut
+      // déplacer chaque élément, rien n'est verrouillé.
+      if (pick?.source === 'design') {
+        const recipe = findDesignRecipe(pick.id);
+        if (recipe) {
+          const fields = sanitizeFields(recipe, pick.fields);
+          if (Object.keys(fields).length) {
+            const elements = buildDesignElements(recipe, {
+              fields, brand: brandForDesign, w: fmt.w, h: fmt.h, hasPhoto: hasPhotoForDesign,
+            });
+            return {
+              template: { elements, backgroundStyle: null, sourceFormat: { w: fmt.w, h: fmt.h }, name: recipe.name },
+              recipeId: `ds:${recipe.id}`, source: 'design',
+              blocks: [], scrim: { position: 'none', opacity: 0 }, accents: [], logo: { show: false },
+            };
+          }
+        }
+      }
       const tpl = templateLayout(pick);
       if (tpl) {
         // Le dessin du template FAIT la composition — pas de voile ni d'accents
