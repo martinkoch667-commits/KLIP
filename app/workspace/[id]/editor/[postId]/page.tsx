@@ -5289,6 +5289,18 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
     // des positions de texte, comme avant, revenait à jeter le template.
     if (L?.template && Array.isArray(L.template.elements) && L.template.elements.length) {
       const src = L.template.sourceFormat ?? { w: stageW, h: stageH };
+      // OÙ EST LA PHOTO DU POST ?
+      //
+      // On ne regardait que `proxyUrl`, l'image de FOND. Or un post vierge ouvre
+      // avec sa photo posée en CALQUE, fond vide : la zone photo de la
+      // composition recevait donc une source vide, l'image ne s'affichait pas,
+      // et il ne restait que l'aplat de couleur derrière — le visuel tout rouge.
+      // On cherche donc dans l'ordre : le fond, la photo du post, puis n'importe
+      // quelle image déjà posée sur le plan de travail.
+      const photoDuPost = proxyUrlRef.current
+        || (postPhotoUrl ? `/api/proxy-image?url=${encodeURIComponent(postPhotoUrl)}` : '')
+        || (elementsRef.current.find(e => e.type === 'image' && !!(e as ImageEl).src) as ImageEl | undefined)?.src
+        || '';
       const sx = stageW / Math.max(1, src.w);
       const sy = stageH / Math.max(1, src.h);
       const sf = Math.min(sx, sy); // tailles et rayons : échelle uniforme, pas de déformation
@@ -5303,9 +5315,12 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
         if (typeof el.radius === 'number') out.radius = Math.round(el.radius * sf);
         if (typeof el.cornerRadius === 'number') out.cornerRadius = Math.round(el.cornerRadius * sf);
         // La zone photo du template accueille la photo du post.
-        if (el.type === 'image' && el.src === PHOTO_PLACEHOLDER_SRC) out.src = proxyUrlRef.current || '';
+        if (el.type === 'image' && el.src === PHOTO_PLACEHOLDER_SRC) out.src = photoDuPost;
         return out as unknown as CanvasEl;
-      });
+      })
+        // Une zone photo sans photo est un trou invisible qu'on ne peut ni voir
+        // ni sélectionner : mieux vaut ne pas la poser du tout.
+        .filter((el: CanvasEl) => el.type !== 'image' || !!(el as ImageEl).src);
       if (L.template.backgroundStyle) setBgStyle(L.template.backgroundStyle as BgStyle);
       const famillesDuModele = [displayFont, bodyFont, ...scaled.flatMap(e => e.type === 'text' ? [(e as TextEl).fontFamily] : [])].filter((f): f is string => !!f);
       // Demander la feuille de style AVANT de l'attendre : sinon on attend une
@@ -5516,6 +5531,11 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           imageUrl: postPhotoUrl, format: { w: stageW, h: stageH },
+          // Le serveur déduisait la présence d'une photo de l'URL qu'il reçoit.
+          // Une photo importée à l'instant, ou posée en calque dans l'éditeur,
+          // n'a pas encore d'URL publique : il concluait « pas de photo » et
+          // remplaçait la zone par un aplat. C'est le client qui sait.
+          hasPhoto: !!postPhotoUrl || elementsRef.current.some(e => e.type === 'image' && !!(e as ImageEl).src),
           // Le workspace part avec : le directeur artistique lit alors le secteur,
           // le ton et la typographie du client, au lieu de ne connaître que trois
           // couleurs et de composer à l'aveugle.

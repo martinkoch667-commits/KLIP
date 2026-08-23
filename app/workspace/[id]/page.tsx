@@ -1008,6 +1008,9 @@ export default function WorkspacePage() {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             imageUrl: item.photo_url?.startsWith('http') ? item.photo_url : undefined,
+            // Le modèle ne peut pas REGARDER un blob local, mais la composition,
+            // elle, doit quand même réserver sa zone photo.
+            hasPhoto: !!item.photo_url,
             format: { w, h }, workspaceId: id,
             brand: { primary: workspace?.primary_color, secondary: workspace?.secondary_color, accent: workspace?.accent_color },
             blocks: texts,
@@ -1025,7 +1028,9 @@ export default function WorkspacePage() {
           url = await renderTemplateVisual({
             elements: layout.template.elements,
             sourceFormat: layout.template.sourceFormat ?? null,
-            photoUrl: item.photo_url?.startsWith('http') ? item.photo_url : null,
+            // Y compris un blob local : l'aperçu se dessine dans le navigateur,
+            // il n'a pas besoin que la photo soit déjà en ligne.
+            photoUrl: item.photo_url || null,
             w, h,
           });
           if (url) setPosts((prev) => prev.map((p) => (p.localId === item.localId ? { ...p, preview_url: url! } : p)));

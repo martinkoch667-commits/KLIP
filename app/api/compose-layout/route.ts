@@ -28,7 +28,7 @@ export async function POST(request: NextRequest) {
     const { data: { session } } = await sb.auth.getSession();
     if (!session) return NextResponse.json({ error: 'Non autorisé' }, { status: 401 });
 
-    const { imageUrl, format, brand, blocks, styleRef, approvedRef, workspaceId } = await request.json();
+    const { imageUrl, format, brand, blocks, styleRef, approvedRef, workspaceId, hasPhoto } = await request.json();
     const fmt = format ?? { w: 1080, h: 1440 };
     const palette = [brand?.primary && `primary=${brand.primary}`, brand?.secondary && `secondary=${brand.secondary}`, brand?.accent && `accent=${brand.accent}`].filter(Boolean).join(', ');
 
@@ -219,7 +219,13 @@ export async function POST(request: NextRequest) {
     //
     // On n'en montre jamais la totalité : un tirage réparti entre les familles,
     // amputé de ce qui vient d'être servi à ce client, et penché vers son secteur.
-    const hasPhotoForDesign = typeof imageUrl === 'string' && imageUrl.startsWith('http');
+    // La présence d'une photo ne se déduit pas de l'URL reçue : une photo tout
+    // juste importée vit encore en blob local, et une photo posée en calque dans
+    // l'éditeur n'a pas d'URL du tout. Sans le mot du client, on concluait « pas
+    // de photo » et la composition remplaçait la zone par un aplat de couleur.
+    const hasPhotoForDesign = typeof hasPhoto === 'boolean'
+      ? hasPhoto
+      : (typeof imageUrl === 'string' && imageUrl.startsWith('http'));
     const designPool = pickDesignCandidates({
       hasPhoto: hasPhotoForDesign,
       sector: typeof wsRow?.sector === 'string' ? wsRow.sector : null,
@@ -257,6 +263,7 @@ export async function POST(request: NextRequest) {
       'ÉCRIS COMME LA MARQUE PARLE, pas comme une brochure. Phrases courtes, verbes concrets, aucune formule creuse (« au service de votre réussite », « l\'excellence au quotidien »). Un champ « max 14 caractères » veut dire UN ou DEUX mots, pas une phrase raccourcie.',
       preferred.length ? `CE QUE CE CLIENT A DÉJÀ RETENU, quand on lui a proposé plusieurs mises en page : ${preferred.join(', ')}. C'est son goût OBSERVÉ, pas une règle : privilégie ces directions quand elles conviennent à cette photo, et écarte-les franchement quand elles ne conviennent pas.` : '',
       'DÉCOUPER LE TITRE EN PLUSIEURS BLOCS est une composition à part entière, souvent la plus forte : au lieu d\'un pavé de deux lignes, tu écris chaque ligne dans SON bloc (« Pause midi » / « au Shadok »), chacun avec son propre aplat. Les cartouches épousent alors la longueur de chaque ligne et créent un décroché d\'affiche. Coupe au bon endroit — là où la phrase respire naturellement, jamais au milieu d\'un groupe de mots. Les recettes « lib-stack-* » sont faites pour ça.',
+      hasPhotoForDesign ? 'UNE PHOTO EST FOURNIE : au moins DEUX des trois propositions doivent l\'utiliser. La personne a importé cette image pour la voir dans son visuel — une composition purement typographique la jette, ce n\'est acceptable qu\'en troisième proposition et seulement si elle est franchement meilleure.' : 'AUCUNE PHOTO : ne choisis que des compositions qui n\'en demandent pas.',
       'Les trois propositions doivent venir de FAMILLES DIFFÉRENTES et ne pas se ressembler de loin : si on les met côte à côte en vignette, on doit voir trois visuels distincts, pas trois cadrages du même. Deux recettes C au minimum. Du texte blanc sur voile noir est le rendu par défaut de n\'importe quelle marque : jamais deux fois, et jamais s\'il existe une composition dessinée qui convient.',
       'Préfère TOUJOURS un template maison du client quand il peut accueillir ce contenu : le choisir applique son dessin complet — son fond, ses aplats, ses couleurs, ses formes — donc le visuel ressemble immédiatement à cette marque. Ne prends une recette de la bibliothèque que si aucun template ne convient. Évite de placer le texte sur le sujet.',
       '',

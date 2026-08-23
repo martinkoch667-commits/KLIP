@@ -1080,10 +1080,22 @@ function resolvePalette(brand: BuildBrand) {
   // Beaucoup de chartes déclarent un « accent » quasi blanc (le crème d'un fond,
   // le blanc d'un logo). Sur un fond clair il devient invisible : pastilles,
   // surlignages et filets disparaissent, et la composition se vide de ses
-  // repères sans qu'on comprenne pourquoi. On lui substitue alors la couleur la
-  // plus contrastée dont la charte dispose vraiment.
+  // repères sans qu'on comprenne pourquoi.
+  //
+  // On lui cherche un remplaçant DANS la charte, et dans cet ordre : la couleur
+  // secondaire d'abord — c'est presque toujours la vraie couleur d'appoint de la
+  // marque — puis la couleur principale, puis l'encre. Prendre la principale
+  // trop tôt était une erreur : l'accent devenait identique au fond de marque,
+  // et un bouton rouge sur un aplat rouge ne se voit pas plus qu'un blanc sur
+  // du blanc.
   const ecart = (a: string, b: string) => Math.abs(relLum(a) - relLum(b));
-  if (ecart(accent, PAPER) < 0.16) accent = ecart(primary, PAPER) >= 0.16 ? primary : INK;
+  const lisible = (c: string) => ecart(c, PAPER) >= 0.16;
+  if (!lisible(accent)) {
+    const secours = hex(brand.secondary);
+    accent = (secours && secours !== accent && lisible(secours)) ? secours
+      : lisible(primary) ? primary
+        : INK;
+  }
   const secondary = hex(brand.secondary) ?? accent;
   const map: Record<Col, string> = {
     brand: primary, accent, secondary,

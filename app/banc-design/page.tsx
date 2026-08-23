@@ -17,6 +17,9 @@ const CHARTES = [
   { nom: "Trattoria", primary: "#1B2FE8", secondary: "#F1EDE4", accent: "#F1EDE4", display: "Archivo", body: "Archivo", name: "AMICII", handle: "@amicii.ristorante" },
   { nom: "Studio", primary: "#111111", secondary: "#F5F3EF", accent: "#F2542D", display: "Archivo", body: "Archivo", name: "ASTERISK", handle: "@asterisk.create" },
   { nom: "Boisson", primary: "#7FE04A", secondary: "#FFE500", accent: "#FF3EA5", display: "Archivo", body: "Archivo", name: "UPGAS", handle: "@upgas" },
+  // Charte réelle d'un client : l'accent déclaré est BLANC, donc inutilisable
+  // comme repère. C'est le cas qui a fait disparaître les pastilles.
+  { nom: "Poulet", primary: "#FF4438", secondary: "#FFC600", accent: "#FFFFFF", display: "Oswald", body: "Archivo", name: "PEPE CHICKEN", handle: "@pepechicken" },
 ];
 
 // Photo de démonstration : une image locale suffit, l'objet du banc est le dessin.
