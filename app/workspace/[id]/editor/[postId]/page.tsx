@@ -5279,6 +5279,24 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
     showEditorToast(T('carouselDone', { n: built.length }));
   };
 
+  // OÙ EST LA PHOTO DU POST ?
+  //
+  // Nulle part en particulier, et c'est bien le problème : selon le chemin, elle
+  // est l'image de FOND (`proxyUrl`), un CALQUE posé à l'ouverture d'un post
+  // vierge, ou seulement une URL en base. Chercher au seul endroit habituel
+  // suffisait à la perdre — et une composition privée de sa photo ne montre plus
+  // que l'aplat de couleur derrière.
+  //
+  // On regarde donc les trois, dans l'ordre. En dernier recours on prend la plus
+  // GRANDE image du plan de travail : la petite, c'est le logo.
+  const sourcePhotoDuPost = (): string => {
+    if (proxyUrlRef.current) return proxyUrlRef.current;
+    if (postPhotoUrl) return `/api/proxy-image?url=${encodeURIComponent(postPhotoUrl)}`;
+    const images = elementsRef.current.filter(e => e.type === 'image' && !!(e as ImageEl).src) as ImageEl[];
+    const aire = (e: ImageEl) => (e.width ?? 0) * (e.height ?? 0);
+    return images.sort((a, b) => aire(b) - aire(a))[0]?.src ?? '';
+  };
+
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const materializeLayout = async (L: any) => {
     const displayFont = workspaceData?.font_family || 'Archivo';
@@ -5289,18 +5307,7 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
     // des positions de texte, comme avant, revenait à jeter le template.
     if (L?.template && Array.isArray(L.template.elements) && L.template.elements.length) {
       const src = L.template.sourceFormat ?? { w: stageW, h: stageH };
-      // OÙ EST LA PHOTO DU POST ?
-      //
-      // On ne regardait que `proxyUrl`, l'image de FOND. Or un post vierge ouvre
-      // avec sa photo posée en CALQUE, fond vide : la zone photo de la
-      // composition recevait donc une source vide, l'image ne s'affichait pas,
-      // et il ne restait que l'aplat de couleur derrière — le visuel tout rouge.
-      // On cherche donc dans l'ordre : le fond, la photo du post, puis n'importe
-      // quelle image déjà posée sur le plan de travail.
-      const photoDuPost = proxyUrlRef.current
-        || (postPhotoUrl ? `/api/proxy-image?url=${encodeURIComponent(postPhotoUrl)}` : '')
-        || (elementsRef.current.find(e => e.type === 'image' && !!(e as ImageEl).src) as ImageEl | undefined)?.src
-        || '';
+      const photoDuPost = sourcePhotoDuPost();
       const sx = stageW / Math.max(1, src.w);
       const sy = stageH / Math.max(1, src.h);
       const sf = Math.min(sx, sy); // tailles et rayons : échelle uniforme, pas de déformation
@@ -5478,7 +5485,18 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
     // se serait retrouvé sous la photo, donc invisible.
     const photoIdx = kept.findIndex(e => e.type === 'image' && e.x <= 1 && e.y <= 1
       && ((e as ImageEl).width ?? 0) >= stageW - 2 && ((e as ImageEl).height ?? 0) >= stageH - 2);
-    const photoLayers = photoIdx >= 0 ? [kept[photoIdx]] : [];
+    // Passer d'une variante DESSINÉE à une variante simple effaçait la photo :
+    // la composition dessinée l'avait posée sous un identifiant `ai-tpl-`, et le
+    // ménage ci-dessus balaie précisément ces calques-là. On la remet donc quand
+    // il n'en reste plus — une recette « texte sur photo » sans photo n'est plus
+    // qu'un texte sur du vide.
+    let photoLayers = photoIdx >= 0 ? [kept[photoIdx]] : [];
+    // `proxyUrl` = la photo est déjà le FOND du plan de travail, elle s'affiche
+    // sans calque : en rajouter un la doublerait.
+    if (photoIdx < 0 && !proxyUrlRef.current) {
+      const src = sourcePhotoDuPost();
+      if (src) photoLayers = [photoLayer(src, stageW, stageH)];
+    }
     const keptImgs = photoIdx >= 0 ? kept.filter((_, i) => i !== photoIdx) : kept;
     const combined = [...photoLayers, ...extras, ...keptImgs, ...accentEls, ...logoEls, ...newTextEls];
     await attendrePolices([displayFont, bodyFont]);

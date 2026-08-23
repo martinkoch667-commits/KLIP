@@ -230,7 +230,10 @@ export async function POST(request: NextRequest) {
       hasPhoto: hasPhotoForDesign,
       sector: typeof wsRow?.sector === 'string' ? wsRow.sector : null,
       avoid: recentIds.map(id => id.replace(/^ds:/, '')),
-      count: 20,
+      // Volontairement plus petit que la réserve disponible : si on présentait
+      // presque tout le catalogue à chaque appel, la rotation ne ferait plus
+      // tourner grand-chose et on retomberait sur les mêmes.
+      count: 14,
       seed: (Date.now() >>> 6) ^ (workspaceId ? String(workspaceId).length * 2654435761 : 0),
     });
     const designCandidates = describeDesignCandidates(designPool);

@@ -1286,12 +1286,15 @@ export function pickDesignCandidates(o: PickOptions): DesignRecipe[] {
   const sector = (o.sector ?? '').trim().toLowerCase();
   const rand = rng(o.seed ?? Date.now());
 
-  // 1 — compatibilité photo. Une recette qui exige une photo n'a aucun sens sans
-  // photo ; une composition purement typographique en a un même avec (c'est un
-  // choix éditorial), mais elle ne doit pas dominer, sinon la photo du client
-  // finirait à la poubelle une fois sur deux.
-  const usable = DESIGN_RECIPES.filter(r => (o.hasPhoto ? r.photo !== 'none' : r.photo !== 'required'));
-  const spare = o.hasPhoto ? DESIGN_RECIPES.filter(r => r.photo === 'none') : [];
+  // 1 — compatibilité photo, jugée sur le DESSIN et non sur l'étiquette.
+  //
+  // On se fiait au champ `photo`, mais « facultative » voulait dire en pratique
+  // « aucune zone photo dans le dessin » : proposer ces recettes à quelqu'un qui
+  // vient d'importer une image revenait à jeter son image. Quand une photo
+  // existe, toute composition proposée doit donc avoir une zone pour l'accueillir
+  // — sans exception, c'est la raison pour laquelle la personne l'a importée.
+  const aUneZonePhoto = (r: DesignRecipe) => r.nodes.some(n => n.k === 'photo');
+  const usable = DESIGN_RECIPES.filter(r => (o.hasPhoto ? aUneZonePhoto(r) : !aUneZonePhoto(r)));
 
   // Une note TIRÉE UNE FOIS par recette. Calculée dans le comparateur, elle
   // changeait à chaque comparaison : le tri devenait du bruit, et l'affinité de
@@ -1326,14 +1329,7 @@ export function pickDesignCandidates(o: PickOptions): DesignRecipe[] {
     if (!added) break;
   }
 
-  // 3 — une ou deux compositions purement typographiques restent proposées même
-  // quand il y a une photo : c'est parfois la meilleure réponse, et ça élargit
-  // le champ des possibles au lieu de le refermer sur « du texte sur l'image ».
-  if (spare.length) {
-    const extra = spare.sort((a, b) => score(b) - score(a)).slice(0, 2);
-    out.splice(Math.min(out.length, 3), 0, ...extra);
-  }
-  return out.slice(0, count + 2);
+  return out.slice(0, count);
 }
 
 /** Fiche compacte d'une recette, telle que le modèle la lit pour choisir. */
