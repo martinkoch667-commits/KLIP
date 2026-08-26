@@ -67,7 +67,24 @@ export async function callGeminiText(params: {
       // pris sans regarder vraiment. On laisse alors le modèle réfléchir.
       // Budget borné en qualité haute : le droit de réfléchir, pas celui de faire
       // expirer la requête.
-      thinkingConfig: { thinkingBudget: params.quality === 'high' ? 2048 : 0 },
+      // LA RÉFLEXION SUIT LE MODÈLE, PAS LE PALIER DEMANDÉ.
+      //
+      // Elle était activée dès qu'une route demandait `high`, même quand le
+      // palier de qualité est désactivé et que tout retombe sur le modèle
+      // rapide. Or la réflexion se PRÉLÈVE sur `maxOutputTokens` : 2048 jetons
+      // de réflexion sur un budget de 1200 ne laissent rien pour la réponse, le
+      // modèle renvoie un candidat vide, et l'appel échoue sur « Réponse IA
+      // vide » — c'est-à-dire « La génération a échoué » à l'écran, alors que
+      // rien n'est cassé côté modèle.
+      //
+      // On ne réfléchit donc que si un VRAI modèle de qualité est configuré, et
+      // le budget est borné au tiers de la sortie pour qu'il reste toujours de
+      // la place pour répondre.
+      thinkingConfig: {
+        thinkingBudget: params.quality === 'high' && MODEL_QUALITY !== MODEL
+          ? Math.min(2048, Math.floor((params.maxOutputTokens ?? 2048) / 3))
+          : 0,
+      },
       ...(params.temperature !== undefined ? { temperature: params.temperature } : {}),
       ...(params.maxOutputTokens !== undefined ? { maxOutputTokens: params.maxOutputTokens } : {}),
     },

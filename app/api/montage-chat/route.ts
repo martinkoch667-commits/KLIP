@@ -109,9 +109,6 @@ export async function POST(request: NextRequest) {
         priorTurns: history.map((h) => ({ role: h.role, text: h.text })),
         temperature: 0.3,
         maxTokens: 2000,
-        // Même palier que le chat de l'éditeur : on répond à des consignes
-        // précises sur un montage en cours, pas à une question générale.
-        quality: 'high',
       });
     } catch (err) {
       console.error('[montage-chat] erreur fournisseur IA :', err);

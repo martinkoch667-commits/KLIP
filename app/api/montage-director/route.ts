@@ -176,9 +176,6 @@ export async function POST(request: NextRequest) {
         images: images.length ? images : undefined,
         temperature: 0.5,
         maxTokens: 2000,
-        // Diriger un montage est un travail de jugement de bout en bout : couper
-        // la réflexion ici n'avait aucun sens.
-        quality: 'high',
       });
     } catch (err) {
       console.error('[montage-director] erreur fournisseur IA :', err);

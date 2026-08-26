@@ -87,10 +87,6 @@ export async function POST(request: NextRequest) {
           userId, userText: prompt,
           images: imgList.length ? imgList.map((i) => i.dataUrl) : undefined,
           temperature: 0.4, maxTokens: 1200,
-          // Ordonner des plans et choisir les coupes est un jugement. Le recadrage
-          // automatique plus haut, lui, reste sur le modèle rapide : il ne renvoie
-          // que deux coordonnées, il n'y a rien à peser.
-          quality: 'high',
         });
       } catch (err) {
         console.error('[montage-ai:auto_assemble] API error:', err);

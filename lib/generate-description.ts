@@ -264,11 +264,6 @@ export async function generateDescriptionForUser(params: GenerateDescriptionPara
     images: hasImage ? images : undefined,
     temperature: 0.9,
     maxTokens,
-    // Palier de jugement : cette sortie est LUE par un humain et doit respecter
-    // des consignes de marque. Le modèle rapide, réflexion coupée, suit les
-    // consignes faciles et laisse tomber les nuances — c'est le « elle n'écoute
-    // qu'à moitié » rapporté. Le budget de temps est là (maxDuration = 60).
-    quality: 'high',
   });
 
   // ─── 6. Parse JSON response ───────────────────────────────────────────────
@@ -341,9 +336,6 @@ export async function generateDescriptionForUser(params: GenerateDescriptionPara
           userText: fixPrompt,
           temperature: 0.9,
           maxTokens,
-          // Même palier que le premier jet : reprendre une bonne réponse avec un
-          // modèle plus faible, c'est la dégrader.
-          quality: 'high',
           priorTurns: [
             { role: 'user', text: userText, images: hasImage ? images : undefined },
             { role: 'assistant', text: rawText },
