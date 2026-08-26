@@ -3729,9 +3729,20 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
           {
             const secours = (w?.font_family as string | undefined)?.trim() || 'Oswald';
             const inconnues = new Set<string>();
+            // `document.fonts.check` MENT : mesuré le 26/08, il renvoie `true`
+            // pour une famille que le navigateur a refusé de charger, parce qu'il
+            // répond « saurais-je afficher ce texte ? » et non « cette police
+            // est-elle là ? ». Le seul test fiable est de MESURER : si le texte a
+            // exactement la largeur qu'il aurait dans deux polices de secours
+            // différentes, c'est qu'aucune police propre ne s'applique.
+            const mesure = document.createElement('canvas').getContext('2d');
             const connue = (f: string) => {
-              if (!f) return false;
-              try { return document.fonts.check(`16px "${f}"`); } catch { return true; }
+              if (!f || !mesure) return true;
+              const t = 'HAMBURGEFONTSIV 123';
+              const large = (pile: string) => { mesure.font = `40px ${pile}`; return mesure.measureText(t).width; };
+              const mono = large('monospace'), sans = large('sans-serif');
+              const avec = large(`"${f}", monospace`), avec2 = large(`"${f}", sans-serif`);
+              return !(Math.abs(avec - mono) < 0.5 && Math.abs(avec2 - sans) < 0.5);
             };
             initSlides = initSlides.map(sl => ({
               ...sl,

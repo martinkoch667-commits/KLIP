@@ -431,7 +431,7 @@ export default function StyleTemplatePage() {
   //
   // Même lecture qu'à la création : on analyse chaque nom de fichier, on en tire
   // la famille et la graisse, et on garde le lot entier.
-  function handleCustomFont(fileList: FileList, target: "primary" | "secondary") {
+  async function handleCustomFont(fileList: FileList, target: "primary" | "secondary") {
     const files = Array.from(fileList);
     if (!files.length) return;
     // La famille est celle qui revient le plus souvent dans le lot : déposer
@@ -446,6 +446,26 @@ export default function StyleTemplatePage() {
     const apercu = files.slice().sort((a, b) =>
       Math.abs(parseFontFile(a.name).weight - 400) - Math.abs(parseFontFile(b.name).weight - 400))[0];
     const blobUrl = URL.createObjectURL(apercu);
+
+    // LE NAVIGATEUR A LE DERNIER MOT SUR UNE POLICE.
+    //
+    // Un fichier peut être un TrueType parfaitement valide et rester REFUSÉ :
+    // les navigateurs passent toute police du web dans un vérificateur strict,
+    // et les vieilles fontes (Adobe des années 90, notamment) y échouent. Le
+    // refus est silencieux — le texte tombe sur un serif de secours — et la
+    // personne conclut que l'import ne marche pas.
+    //
+    // On tente donc le chargement AVANT d'accepter le fichier, et on le dit.
+    try {
+      const essai = new FontFace(family, `url(${blobUrl})`);
+      await essai.load();
+      document.fonts.add(essai);
+    } catch {
+      URL.revokeObjectURL(blobUrl);
+      showToast(`« ${family} » est refusée par le navigateur : ce fichier n'est pas utilisable sur le web. Convertissez-le en WOFF2 et réimportez.`);
+      return;
+    }
+
     const styleId = `klip-custom-font-${target}`;
     document.getElementById(styleId)?.remove();
     const s = document.createElement("style"); s.id = styleId;
@@ -1018,7 +1038,7 @@ export default function StyleTemplatePage() {
                         {t('uploadCustomFont')}
                       </button>
                       <input ref={customPrimaryRef} type="file" accept=".ttf,.otf,.woff,.woff2" multiple style={{ display: "none" }}
-                        onChange={e => { const fs = e.target.files; if (fs?.length) handleCustomFont(fs, "primary"); e.target.value = ""; }} />
+                        onChange={e => { const fs = e.target.files; if (fs?.length) void handleCustomFont(fs, "primary"); e.target.value = ""; }} />
                     </div>
 
                     {/* Police secondaire */}
@@ -1050,7 +1070,7 @@ export default function StyleTemplatePage() {
                         {t('uploadCustomFont')}
                       </button>
                       <input ref={customSecondaryRef} type="file" accept=".ttf,.otf,.woff,.woff2" multiple style={{ display: "none" }}
-                        onChange={e => { const fs = e.target.files; if (fs?.length) handleCustomFont(fs, "secondary"); e.target.value = ""; }} />
+                        onChange={e => { const fs = e.target.files; if (fs?.length) void handleCustomFont(fs, "secondary"); e.target.value = ""; }} />
                     </div>
 
                     {/* Live preview */}
