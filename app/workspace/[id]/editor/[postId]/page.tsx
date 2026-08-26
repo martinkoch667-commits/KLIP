@@ -367,11 +367,26 @@ function autoFitFontSize(el: TextEl): number {
   const minFs = el.minFontSize ?? Math.max(12, Math.round(el.fontSize * 0.5));
   const maxLines = el.maxLines ?? roleMaxLines(el.role);
   const pH = el.paddingH ?? el.padding ?? 0;
-  const areaW = Math.max(1, el.width - pH * 2);
+  // LE CARTOUCHE COMPTE DANS LA LARGEUR.
+  //
+  // On mesurait le texte nu, mais on le DESSINE dans un aplat qui déborde de
+  // `highlightPadding` de chaque côté. Un titre calculé « juste à la largeur »
+  // sortait donc du cadre une fois son cartouche peint — visible dès que le
+  // texte généré est entré dans les templates, où les aplats sont larges.
+  const pHl = el.highlightEnabled ? (el.highlightPadding ?? 0) : 0;
+  const areaW = Math.max(1, el.width - pH * 2 - pHl * 2);
   const txt = el.uppercase ? el.text.toUpperCase() : el.text;
   const lignes = (fs: number) => countLines(txt, fs, el.fontFamily, el.fontStyle, areaW, el.letterSpacing ?? 0);
   const fits = (fs: number) => lignes(fs) <= maxLines;
   if (fits(maxFs)) {
+    // GRANDIR N'EST PERMIS QUE SI LA TAILLE EST UN POINT DE DÉPART.
+    //
+    // `maxFontSize` est posé par le système de design : il dit « ce dessin vise
+    // cette taille, cale-toi sur ta mesure ». Une zone de template, elle, a été
+    // dimensionnée À LA MAIN par l'auteur du modèle : la grossir de 60 % défait
+    // son travail et fait déborder ses aplats. Sans ce test, mon remplissage
+    // optique s'appliquait aux deux.
+    if (el.maxFontSize === undefined) return maxFs;
     if (!ROLES_QUI_REMPLISSENT.has(el.role)) return maxFs;
     const budget = maxLines * maxFs * 1.34;
     const plafond = Math.round(maxFs * 1.6);
@@ -555,8 +570,10 @@ function relayoutText(elements: any[], stageW: number, stageH: number): any[] {
     const pH = el.paddingH ?? el.padding ?? 0;
     const align = ['left', 'center', 'right'].includes(el.align) ? el.align : 'left';
     const txt = el.uppercase ? String(el.text ?? '').toUpperCase() : String(el.text ?? '');
+    // Même raison que dans `autoFitFontSize` : l'aplat déborde du texte.
+    const pHl = el.highlightEnabled ? (el.highlightPadding ?? 0) : 0;
     const linesAt = (w: number, fs: number) =>
-      countLines(txt, fs, el.fontFamily, el.fontStyle, Math.max(1, w - pH * 2), el.letterSpacing ?? 0);
+      countLines(txt, fs, el.fontFamily, el.fontStyle, Math.max(1, w - pH * 2 - pHl * 2), el.letterSpacing ?? 0);
 
     // Combien de lignes le modèle prévoyait-il ? Le texte d'origine du modèle est
     // la référence la plus juste — mesuré ici, avec les polices vraiment chargées.
