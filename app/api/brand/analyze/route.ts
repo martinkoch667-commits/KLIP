@@ -5,7 +5,9 @@ import { analyzeBrandSite } from "@/lib/brandFromSite";
 import { generateAiText } from "@/lib/ai-text";
 
 export const runtime = "nodejs";
-export const maxDuration = 30;
+// 60 s comme les autres routes de jugement : le modèle de qualité réfléchit
+// avant de répondre, et cette analyse remplit toute la fiche de marque.
+export const maxDuration = 60;
 
 // POST /api/brand/analyze — lit le site d'une marque et propose de quoi
 // préremplir sa charte : couleurs, polices, logo, secteur, description et ton.
@@ -48,6 +50,9 @@ export async function POST(request: NextRequest) {
   if (site.sampleText && site.sampleText.length > 200) {
     try {
       const raw = await generateAiText({
+        // Cette analyse préremplit secteur, ton et vocabulaire : tout le reste de
+        // la génération s'appuie dessus ensuite. C'est le pire endroit où lésiner.
+        quality: 'high',
         userId: session.user.id,
         system:
           "Tu analyses le site d'une marque pour préremplir sa fiche de marque. " +

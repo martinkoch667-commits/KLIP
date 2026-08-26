@@ -1,29 +1,33 @@
 // Appels texte/vision à Gemini (fournisseur IA par défaut, cf. lib/ai-provider.ts).
 // Pour la génération d'images, voir app/api/generate-image/route.ts (modèle -image dédié).
 
-// Modèle rapide : c'est LE modèle de secours de toute l'application. Il tourne
-// en production depuis des mois, il est le moins cher et le plus disponible.
-// Ne jamais le changer sans une raison forte : tout le reste retombe dessus.
+// MESURES DU 26/08 SUR LA CLÉ DE PRODUCTION, avec un vrai prompt de génération.
+// Elles contredisent l'idée qu'il suffit de prendre « le dernier Gemini » :
+//
+//   gemini-2.5-flash        sans réflexion    1,0 s   ✓
+//   gemini-2.5-flash        réflexion 1024    2,6 s   ✓  (329 jetons de pensée)
+//   gemini-2.5-pro          —                  —      RETIRÉ aux projets récents
+//   gemini-3.1-pro-preview  réflexion 1024   28,0 s   ✓ mais inutilisable
+//   gemini-3.1-pro-preview  réflexion auto   57,2 s   ✓ mais inutilisable
+//   gemini-3.7-flash        réflexion 1024   60,8 s   REFUSÉ « high demand »
+//   gemini-3.7-flash        défaut           75,0 s   expiré
+//
+// Conclusion : le gain de qualité ne vient pas d'un modèle plus récent, il vient
+// de la RÉFLEXION. Le modèle rapide qui réfléchit répond en 2,6 s ; le modèle
+// récent qui réfléchit met dix fois plus longtemps pour un résultat comparable,
+// quand il n'est pas simplement saturé. Les previews ne sont pas dimensionnées
+// pour de la production.
 const MODEL = 'gemini-2.5-flash';
 
-// Modèle de jugement, pour les tâches où la QUALITÉ du choix prime sur la
-// vitesse. `gemini-2.5-pro` a été RETIRÉ aux projets récents en cours de route
-// (« no longer available to new users »), et comme rien ne rattrapait cet échec,
-// la génération s'arrêtait net : « Génération interrompue », en pleine
-// utilisation. Un modèle épinglé peut disparaître sans préavis ; c'est une
-// certitude, pas un risque.
-//
-// EN PANNE OUVERTE, PILOTÉE PAR VARIABLE D'ENVIRONNEMENT.
-// `gemini-2.5-pro` a été retiré ; son remplaçant `gemini-3.1-pro-preview` est
-// une preview lente, et sans délai maximum sur l'appel une génération pouvait
-// tourner indéfiniment — écran bloqué sur « Écriture des textes… », pire qu'une
-// erreur franche. Le palier de qualité est donc DÉSACTIVÉ par défaut : tout
-// passe par le modèle rapide, celui qui n'est jamais tombé.
-//
-// Pour le réactiver sans redéployer, poser AI_MODEL_QUALITY dans Vercel
-// (ex. `gemini-3.1-pro-preview`) et vérifier les temps de réponse dans les
-// journaux avant de le laisser en place.
+// Le palier de jugement, c'est donc le MÊME modèle avec le droit de réfléchir.
+// `AI_MODEL_QUALITY` reste là pour épingler un autre modèle sans redéployer, le
+// jour où un successeur stable sortira — à condition de mesurer ses temps de
+// réponse avant de l'y laisser.
 const MODEL_QUALITY = process.env.AI_MODEL_QUALITY?.trim() || MODEL;
+
+// Jetons de réflexion en qualité haute. Mettre 0 désactive complètement le
+// palier de jugement, partout, sans redéploiement : c'est le coupe-circuit.
+const REFLEXION = Math.max(0, Number(process.env.AI_THINKING_BUDGET ?? 1024));
 
 export type GeminiPart = { text: string } | { inlineData: { mimeType: string; data: string } };
 export type GeminiContent = { role: 'user' | 'model'; parts: GeminiPart[] };
@@ -53,40 +57,38 @@ export async function callGeminiText(params: {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) throw new Error('GEMINI_API_KEY manquante');
 
+  // Le droit de réfléchir n'est accordé qu'en qualité haute. `gemini-3.1-pro-preview`
+  // refuse d'ailleurs un budget nul (« This model only works in thinking mode »),
+  // donc épingler un tel modèle sans réflexion serait une panne garantie.
+  const reflexion = params.quality === 'high' ? REFLEXION : 0;
+
   const body: Record<string, unknown> = {
     contents: params.contents,
     generationConfig: {
       responseModalities: ['TEXT'],
-      // gemini-2.5-flash est un modèle "thinking" : sur un gros system prompt avec
-      // un maxOutputTokens modeste, la réflexion consomme tout le budget et le
-      // texte revient VIDE ("Réponse IA vide") -> la génération échoue. On coupe
-      // le budget de réflexion pour ces tâches JSON structurées (réponse fiable + rapide).
+      // POURQUOI LA RÉFLEXION EST COUPÉE PAR DÉFAUT.
       //
-      // Sauf en qualité `high` : juger une composition EST un travail de réflexion,
-      // et la couper produisait exactement le reproche fait à l'outil — un choix
-      // pris sans regarder vraiment. On laisse alors le modèle réfléchir.
-      // Budget borné en qualité haute : le droit de réfléchir, pas celui de faire
-      // expirer la requête.
-      // LA RÉFLEXION SUIT LE MODÈLE, PAS LE PALIER DEMANDÉ.
+      // `gemini-2.5-flash` est un modèle qui pense. Sur une tâche JSON courte, la
+      // pensée n'apporte rien et coûte du temps ; pire, elle se prélève sur le
+      // budget de sortie, donc un budget serré revenait VIDE et la génération
+      // échouait. Le défaut est donc zéro : réponse fiable et rapide.
       //
-      // Elle était activée dès qu'une route demandait `high`, même quand le
-      // palier de qualité est désactivé et que tout retombe sur le modèle
-      // rapide. Or la réflexion se PRÉLÈVE sur `maxOutputTokens` : 2048 jetons
-      // de réflexion sur un budget de 1200 ne laissent rien pour la réponse, le
-      // modèle renvoie un candidat vide, et l'appel échoue sur « Réponse IA
-      // vide » — c'est-à-dire « La génération a échoué » à l'écran, alors que
-      // rien n'est cassé côté modèle.
-      //
-      // On ne réfléchit donc que si un VRAI modèle de qualité est configuré, et
-      // le budget est borné au tiers de la sortie pour qu'il reste toujours de
-      // la place pour répondre.
-      thinkingConfig: {
-        thinkingBudget: params.quality === 'high' && MODEL_QUALITY !== MODEL
-          ? Math.min(2048, Math.floor((params.maxOutputTokens ?? 2048) / 3))
-          : 0,
-      },
+      // La qualité haute lui rend ce droit, parce qu'il y a des tâches où juger
+      // EST le travail : choisir une composition, écrire huit slides qui
+      // s'enchaînent, diriger un montage. Mesuré à 2,6 s contre 1,0 s — le prix
+      // est raisonnable, contrairement aux modèles récents (28 à 75 s).
+      thinkingConfig: { thinkingBudget: reflexion },
       ...(params.temperature !== undefined ? { temperature: params.temperature } : {}),
-      ...(params.maxOutputTokens !== undefined ? { maxOutputTokens: params.maxOutputTokens } : {}),
+      // LA RÉFLEXION SE PRÉLÈVE SUR LE BUDGET DE SORTIE.
+      //
+      // C'est le piège qui a produit « La génération a échoué » : demander 2048
+      // jetons de réflexion sur un budget de 1200 ne laisse rien pour écrire, le
+      // modèle renvoie un candidat vide, et l'appel casse. On RELÈVE donc le
+      // plafond de la valeur du budget de réflexion, au lieu de rogner la
+      // réponse : l'appelant obtient toujours la longueur qu'il a demandée.
+      ...(params.maxOutputTokens !== undefined
+        ? { maxOutputTokens: params.maxOutputTokens + reflexion }
+        : {}),
     },
   };
   if (params.systemInstruction) {
