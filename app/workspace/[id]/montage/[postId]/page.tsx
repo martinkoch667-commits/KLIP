@@ -5106,7 +5106,13 @@ export default function MontagePage() {
               // un rectangle de sélection multiple (façon explorateur de fichiers).
               const el = e.target as HTMLElement;
               if (el.closest(".a-clip, .a-chip, .a-wave-bar, .a-trim, .a-fade-dot, .a-lane-label, .a-ruler")) return;
-              if (e.clientX - (tlInnerRef.current?.getBoundingClientRect().left ?? 0) < LANE_LABEL_W) return; // gouttière labels
+              // Gouttière des labels : elle est COLLÉE à gauche du conteneur qui
+              // défile, donc on se repère sur lui. Mesurer depuis le contenu
+              // (`tlInnerRef`) donnait une position en coordonnées de piste : dès
+              // qu'on avait fait défiler, ce test bloquait des clics légitimes au
+              // milieu du montage et laissait passer ceux sur la gouttière.
+              const bordScroll = tlScrollRef.current?.getBoundingClientRect().left ?? 0;
+              if (e.clientX - bordScroll < LANE_LABEL_W) return;
               try { (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId); } catch {}
               selDragRef.current = { startX: e.clientX, startY: e.clientY, moved: false };
             }}

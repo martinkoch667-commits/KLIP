@@ -1639,14 +1639,29 @@ input.ed-range::-moz-range-thumb {
 /* Règle temporelle : reste collée en haut au défilement vertical (la personne voit
    toujours le temps + le repère, peu importe où elle est dans la timeline). Le
    box-shadow peint le fond blanc sous la gouttière des labels (92 px à gauche). */
+/* `box-shadow` peint le fond blanc sous la gouttière des labels. Il était figé à
+   96 px, la largeur qu'elle faisait autrefois ; elle en fait 160 depuis, et une
+   bande de 64 px restait transparente. On suit la variable. */
 .a-ruler { height: 20px; position: sticky; top: 0; z-index: 16; margin: 0 0 6px; border-bottom: 1px solid var(--line-2);
-  background: var(--white); box-shadow: -96px 0 0 var(--white); }
+  background: var(--white); box-shadow: calc(-1 * var(--lane-label-w, 160px)) 0 0 var(--white); }
 .a-tick { position: absolute; top: 0; bottom: 0; border-left: 1px solid var(--line); }
 .a-tick span { position: absolute; top: 2px; left: 4px; font-family: var(--mono); font-weight: 700; font-size: 9px; color: var(--ink-3); }
 
 .a-lane { display: flex; align-items: center; gap: 0; height: calc(52px * var(--tscale, 1)); margin-bottom: 7px; position: relative; }
+/* La gouttière des pistes reste COLLÉE à gauche pendant le défilement.
+
+   Sans ça, avancer dans le montage emportait les noms de pistes hors de l'écran :
+   passé quelques secondes de timeline, on ne savait plus quelle rangée était
+   quoi, ni où étaient ses boutons d'œil, de cadenas et de son. Un montage se lit
+   en travers — le repère doit rester sous les yeux quel que soit l'endroit où
+   l'on se trouve.
+
+   Le fond opaque est indispensable : sans lui, les clips défileraient EN DESSOUS
+   du texte des labels et les deux se mélangeraient. Et le z-index passe au-dessus
+   de la tête de lecture (17), qui sinon traverserait la gouttière. */
 .a-lane-label { width: var(--lane-label-w, 160px); flex-shrink: 0; display: flex; align-items: center; gap: 3px; padding-left: 10px;
-  font-family: var(--mono); font-weight: 800; font-size: 10px; letter-spacing: .04em; text-transform: uppercase; color: var(--ink-3); }
+  font-family: var(--mono); font-weight: 800; font-size: 10px; letter-spacing: .04em; text-transform: uppercase; color: var(--ink-3);
+  position: sticky; left: 0; z-index: 18; background: var(--white); height: 100%; }
 /* Actions de rangée (ajouter / supprimer) : TOUJOURS visibles.
 
    Elles ont d'abord été cachées au survol pour tenir dans la gouttière. Mauvaise
