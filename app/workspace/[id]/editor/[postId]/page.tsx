@@ -1,5 +1,5 @@
 'use client';
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import {
   Circle,
@@ -1311,7 +1311,10 @@ function layerName(el: CanvasEl): string {
 
 interface CtxToolbarProps {
   sel: CanvasEl;
-  allFonts: string[];
+  /** Le sélecteur de polices, par groupes : charte de la marque, bibliothèque
+   *  du compte, catalogue. Une liste plate de cent dix lignes ne se parcourt
+   *  pas — c'est le nombre qui rend le regroupement et la recherche obligatoires. */
+  fontGroups: { label: string; fonts: string[] }[];
   brandFamilies?: FontFamily[];
   brandColors: string[];
   stageW: number;
@@ -1330,9 +1333,48 @@ interface CtxToolbarProps {
   fxPanel?: 'effects' | 'position' | null;
 }
 
-function EditorContextToolbar({ sel, allFonts, brandFamilies, brandColors, stageW, stageH, onUpdate, onAlign, onDuplicate, onDelete, onCrop, onSetBg, onMaskPhoto, onRemoveBg, bgRemoving, onLayerAction, onOpenFx, fxPanel }: CtxToolbarProps) {
+/** Une ligne du sélecteur, rendue DANS sa propre police.
+ *  La feuille de style n'est demandée que lorsque la ligne entre à l'écran :
+ *  cent dix familles chargées à l'ouverture du menu, c'est autant de requêtes
+ *  pour un choix qui n'en concerne qu'une. */
+function LigneDePolice({ famille, choisie, onChoisir }: { famille: string; choisie: boolean; onChoisir: () => void }) {
+  const ref = React.useRef<HTMLButtonElement>(null);
+  const demandee = React.useRef(false);
+  React.useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const obs = new IntersectionObserver(([e]) => {
+      if (e.isIntersecting && !demandee.current) { demandee.current = true; assurerPolicesGoogle([famille]); }
+    }, { rootMargin: '160px' });
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, [famille]);
+  return (
+    <button ref={ref} onClick={onChoisir}
+      style={{ display: 'flex', alignItems: 'center', padding: '7px 10px', borderRadius: 8, width: '100%', background: choisie ? 'var(--mint-soft)' : 'transparent', cursor: 'pointer', border: 'none', textAlign: 'left' }}
+      onMouseEnter={e => { if (!choisie) (e.currentTarget as HTMLElement).style.background = 'var(--sunk)'; }}
+      onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = choisie ? 'var(--mint-soft)' : 'transparent'; }}>
+      <span style={{ fontFamily: `"${famille}", sans-serif`, fontWeight: 700, fontSize: 15, color: 'var(--ink)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{famille}</span>
+      {choisie && <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--mint-2)" strokeWidth="2.5" strokeLinecap="round" style={{ marginLeft: 'auto', flexShrink: 0 }}><path d="M4 12.5l5 5 11-11"/></svg>}
+    </button>
+  );
+}
+
+function EditorContextToolbar({ sel, fontGroups, brandFamilies, brandColors, stageW, stageH, onUpdate, onAlign, onDuplicate, onDelete, onCrop, onSetBg, onMaskPhoto, onRemoveBg, bgRemoving, onLayerAction, onOpenFx, fxPanel }: CtxToolbarProps) {
   const T = useTranslations('editor');
   const [pop, setPop] = React.useState<string | null>(null);
+  const [fontQuery, setFontQuery] = React.useState('');
+  // La recherche porte sur TOUS les groupes à la fois : on cherche une police par
+  // son nom, pas par l'endroit d'où elle vient.
+  const groupesFiltres = React.useMemo(() => {
+    const q = fontQuery.trim().toLowerCase();
+    return fontGroups
+      .map(g => ({ label: g.label, fonts: q ? g.fonts.filter(f => f.toLowerCase().includes(q)) : g.fonts }))
+      .filter(g => g.fonts.length > 0);
+  }, [fontGroups, fontQuery]);
+  // Le champ se vide à la fermeture : rouvrir le menu sur un filtre laissé la
+  // veille donne l'impression que le catalogue a rétréci.
+  React.useEffect(() => { if (pop !== 'font') setFontQuery(''); }, [pop]);
   const u = (patch: Partial<CanvasEl>) => onUpdate(patch);
   const isText = sel.type === 'text';
   const isShape = sel.type === 'rect' || sel.type === 'circle' || sel.type === 'star' || sel.type === 'vector';
@@ -1465,15 +1507,24 @@ function EditorContextToolbar({ sel, allFonts, brandFamilies, brandColors, stage
             <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M6 9l6 6 6-6"/></svg>
           </button>
           {pop === 'font' && (
-            <div {...popAttrs({ maxHeight: 240 })}>
-              {allFonts.map(f => (
-                <button key={f} onClick={() => { u({ fontFamily: f } as Partial<TextEl>); setPop(null); }}
-                  style={{ display: 'flex', alignItems: 'center', padding: '7px 10px', borderRadius: 8, width: '100%', background: textSel.fontFamily === f ? 'var(--mint-soft)' : 'transparent', cursor: 'pointer', border: 'none', textAlign: 'left' }}
-                  onMouseEnter={e => { if (textSel.fontFamily !== f) (e.currentTarget as HTMLElement).style.background = 'var(--sunk)'; }}
-                  onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = textSel.fontFamily === f ? 'var(--mint-soft)' : 'transparent'; }}>
-                  <span style={{ fontFamily: `"${f}", sans-serif`, fontWeight: 700, fontSize: 15, color: 'var(--ink)' }}>{f}</span>
-                  {textSel.fontFamily === f && <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--mint-2)" strokeWidth="2.5" strokeLinecap="round" style={{ marginLeft: 'auto' }}><path d="M4 12.5l5 5 11-11"/></svg>}
-                </button>
+            <div {...popAttrs({ maxHeight: 340, width: 268 })}>
+              <input
+                autoFocus
+                value={fontQuery}
+                onChange={e => setFontQuery(e.target.value)}
+                placeholder="Rechercher une police"
+                style={{ width: '100%', boxSizing: 'border-box', padding: '7px 10px', marginBottom: 6, border: '1px solid var(--line)', borderRadius: 8, fontSize: 12.5, fontFamily: 'var(--sans)', outline: 'none', background: 'var(--white)', color: 'var(--ink)' }} />
+              {groupesFiltres.length === 0 && (
+                <p style={{ margin: '10px 4px', fontSize: 12.5, color: 'var(--ink-3)' }}>Aucune police pour « {fontQuery} »</p>
+              )}
+              {groupesFiltres.map(g => (
+                <div key={g.label}>
+                  <p style={{ margin: '8px 4px 3px', fontSize: 10, fontWeight: 800, letterSpacing: '0.09em', textTransform: 'uppercase', color: 'var(--ink-3)' }}>{g.label}</p>
+                  {g.fonts.map(f => (
+                    <LigneDePolice key={f} famille={f} choisie={textSel.fontFamily === f}
+                      onChoisir={() => { assurerPolicesGoogle([f]); u({ fontFamily: f } as Partial<TextEl>); setPop(null); }} />
+                  ))}
+                </div>
               ))}
             </div>
           )}
@@ -3115,6 +3166,26 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
   const [customFonts, setCustomFonts] = useState<{ name: string; url: string }[]>([]);
   const [brandFontNames, setBrandFontNames] = useState<string[]>([]);
   const [brandFamilies, setBrandFamilies] = useState<FontFamily[]>([]);
+  /** Polices importées pour les AUTRES marques du compte : réutilisables ici. */
+  const [accountFontNames, setAccountFontNames] = useState<string[]>([]);
+
+  // LES TROIS ORIGINES D'UNE POLICE, dans l'ordre où on les cherche.
+  //
+  // La charte du client d'abord — c'est elle qui doit être choisie par défaut.
+  // Puis les polices importées pour les AUTRES marques du compte : une police
+  // achetée appartient à l'agence, pas au dossier dans lequel on l'a déposée.
+  // Le catalogue maison en dernier, parce qu'il est long.
+  const groupesDePolices = useMemo(() => {
+    const charte = Array.from(new Set([...brandFontNames, ...customFonts.map(f => f.name)]));
+    const vus = new Set(charte);
+    const compte = accountFontNames.filter(n => !vus.has(n) && (vus.add(n), true));
+    const catalogue = FONTS.filter(n => !vus.has(n));
+    return [
+      { label: 'Charte du client', fonts: charte },
+      { label: 'Mes polices importées', fonts: compte },
+      { label: 'Catalogue', fonts: catalogue },
+    ].filter(g => g.fonts.length > 0);
+  }, [brandFontNames, customFonts, accountFontNames]);
 
   // ── UI tool + workspace ───────────────────────────────────────────────────
   // Un template TOUT NEUF s'ouvre directement sur « Texte » — c'est là que
@@ -3550,15 +3621,33 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
         historyRef.current = [{ slide: 0, els: first.elements }];
         histIdxRef.current = 0;
         if (w?.custom_fonts) {
+          // UNE POLICE ILLISIBLE NE DOIT PAS EMPORTER LES AUTRES.
+          //
+          // La boucle chargeait les polices l'une après l'autre dans un seul
+          // try : au premier `ff.load()` qui échouait — fichier supprimé du
+          // stockage, URL expirée, format refusé par le navigateur — l'exception
+          // sautait par-dessus `setCustomFonts`, et TOUTES les polices importées
+          // disparaissaient du sélecteur d'un coup. C'est le symptôme rapporté :
+          // « j'ai importé une typo, j'ai enregistré, elle n'est pas là ».
+          //
+          // Chaque police est maintenant isolée, et la liste est posée quoi qu'il
+          // arrive : une famille qui n'a pas pu être chargée reste visible dans le
+          // sélecteur plutôt que de s'évaporer en silence.
           try {
             const fonts: { name: string; url: string }[] = JSON.parse(w.custom_fonts);
-            for (const font of fonts) {
-              const ff = new FontFace(font.name, `url(${font.url})`);
-              await ff.load();
-              document.fonts.add(ff);
-            }
+            await Promise.all(fonts.map(async (font) => {
+              try {
+                const ff = new FontFace(font.name, `url(${font.url})`);
+                await ff.load();
+                document.fonts.add(ff);
+              } catch (e) {
+                console.warn('[Editor] police importée illisible :', font.name, e);
+              }
+            }));
             setCustomFonts(fonts);
-          } catch {}
+          } catch (e) {
+            console.warn('[Editor] liste de polices importées illisible', e);
+          }
         }
       } catch (err) {
         setLoadError('Impossible de charger le post. Vérifiez votre connexion.');
@@ -3569,6 +3658,68 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
     };
     load();
   }, [postId, templateId, workspaceId, isTemplate]);
+
+  // ── La bibliothèque de polices du COMPTE ─────────────────────────────────
+  //
+  // Les polices importées vivent dans `workspaces` : celles chargées pour un
+  // client n'existaient que chez ce client. Une agence qui gère quinze marques
+  // réimportait donc le même fichier quinze fois, et n'avait aucun moyen de
+  // savoir ce qu'elle possédait déjà. Une police achetée est un actif du compte,
+  // pas d'un dossier.
+  //
+  // Rien à changer en base : on relit les polices de TOUS les espaces auxquels
+  // la personne a accès — la RLS reste seule juge de ce qui est lisible — et on
+  // les ajoute au sélecteur dans leur propre groupe. Les polices de la marque en
+  // cours gardent la priorité : ce sont elles, sa charte.
+  //
+  // Chargé à part et sans bloquer : une bibliothèque injoignable ne doit jamais
+  // retarder l'ouverture de l'éditeur ni faire disparaître la charte.
+  useEffect(() => {
+    if (!workspaceId) return;
+    let vivant = true;
+    (async () => {
+      try {
+        const { data } = await supabase
+          .from('workspaces')
+          .select('brand_fonts, custom_fonts')
+          .neq('id', workspaceId);
+        if (!vivant || !Array.isArray(data)) return;
+
+        const familles: FontFamily[] = [];
+        const fichiers: { name: string; url: string }[] = [];
+        for (const ws of data as { brand_fonts?: FontFamily[] | null; custom_fonts?: string | null }[]) {
+          for (const fam of Array.isArray(ws.brand_fonts) ? ws.brand_fonts : []) {
+            if (fam?.family && Array.isArray(fam.variants) && fam.variants.length) familles.push(fam);
+          }
+          try {
+            const cf = ws.custom_fonts ? JSON.parse(ws.custom_fonts) : [];
+            if (Array.isArray(cf)) for (const f of cf) if (f?.name && f?.url) fichiers.push(f);
+          } catch { /* une liste illisible n'empêche pas les autres espaces */ }
+        }
+
+        await Promise.all(familles.map(f => registerFontFamily(f).catch(() => {})));
+        await Promise.all(fichiers.map(async (f) => {
+          try { const ff = new FontFace(f.name, `url(${f.url})`); await ff.load(); document.fonts.add(ff); } catch { /* noop */ }
+        }));
+        if (!vivant) return;
+
+        // Les familles rejoignent `brandFamilies` : c'est là que le sélecteur de
+        // graisse va chercher les variantes réelles d'une police importée.
+        setBrandFamilies(prev => {
+          const vus = new Set(prev.map(f => f.family));
+          const ajout = familles.filter(f => { if (vus.has(f.family)) return false; vus.add(f.family); return true; });
+          return ajout.length ? [...prev, ...ajout] : prev;
+        });
+        setAccountFontNames(prev => {
+          const vus = new Set(prev);
+          const noms = [...familles.map(f => f.family), ...fichiers.map(f => f.name)];
+          const ajout = noms.filter(n => { if (vus.has(n)) return false; vus.add(n); return true; });
+          return ajout.length ? [...prev, ...ajout].sort((a, b) => a.localeCompare(b)) : prev;
+        });
+      } catch { /* la bibliothèque partagée est un plus, jamais un blocage */ }
+    })();
+    return () => { vivant = false; };
+  }, [workspaceId]);
 
   // 5s timeout
   useEffect(() => {
@@ -6449,7 +6600,7 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
         <div className="ed-mobile-ctx" data-stop-deselect>
           <EditorContextToolbar
             sel={toolbarSel ?? selectedEl}
-            allFonts={[...FONTS, ...brandFontNames, ...customFonts.map(f => f.name)]}
+            fontGroups={groupesDePolices}
                 brandFamilies={brandFamilies}
             brandColors={[workspaceData?.primary_color, workspaceData?.secondary_color, workspaceData?.accent_color].filter(Boolean) as string[]}
             stageW={stageW}
@@ -7215,7 +7366,7 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
               style={{ maxWidth: '100%' }}>
               <EditorContextToolbar
                 sel={toolbarSel ?? selectedEl}
-                allFonts={[...FONTS, ...brandFontNames, ...customFonts.map(f => f.name)]}
+                fontGroups={groupesDePolices}
                 brandFamilies={brandFamilies}
                 brandColors={[workspaceData?.primary_color, workspaceData?.secondary_color, workspaceData?.accent_color].filter(Boolean) as string[]}
                 stageW={stageW}
