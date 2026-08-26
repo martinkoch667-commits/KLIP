@@ -445,25 +445,59 @@ export default function StyleTemplatePage() {
     // L'aperçu se fait sur la variante la plus proche du Regular.
     const apercu = files.slice().sort((a, b) =>
       Math.abs(parseFontFile(a.name).weight - 400) - Math.abs(parseFontFile(b.name).weight - 400))[0];
-    const blobUrl = URL.createObjectURL(apercu);
-
-    // LE NAVIGATEUR A LE DERNIER MOT SUR UNE POLICE.
+    // LE NAVIGATEUR A LE DERNIER MOT, ET IL REFUSE SOUVENT.
     //
     // Un fichier peut être un TrueType parfaitement valide et rester REFUSÉ :
     // les navigateurs passent toute police du web dans un vérificateur strict,
-    // et les vieilles fontes (Adobe des années 90, notamment) y échouent. Le
-    // refus est silencieux — le texte tombe sur un serif de secours — et la
-    // personne conclut que l'import ne marche pas.
+    // et les vieilles fontes y échouent (diagnostiqué sur une Poplar d'Adobe :
+    // « cmap: Range glyph reference too high »). Le refus est silencieux, le
+    // texte tombe sur un serif, et la personne conclut que l'import ne marche
+    // pas.
     //
-    // On tente donc le chargement AVANT d'accepter le fichier, et on le dit.
-    try {
-      const essai = new FontFace(family, `url(${blobUrl})`);
-      await essai.load();
-      document.fonts.add(essai);
-    } catch {
+    // Répondre « convertissez votre police » n'est pas une réponse : le .ttf est
+    // le format que tout le monde a, et personne ne fera la manipulation. On
+    // tente donc le chargement, et si le navigateur refuse, on envoie le fichier
+    // à /api/fonts/repair — un aller-retour qui reconstruit les tables — puis on
+    // réessaie. La personne ne voit rien de tout ça, c'est le but.
+    const chargeable = async (url: string) => {
+      try { const ff = new FontFace(family, `url(${url})`); await ff.load(); document.fonts.add(ff); return true; }
+      catch { return false; }
+    };
+
+    let fichiersRetenus = files;
+    let apercuRetenu = apercu;
+    let blobUrl = URL.createObjectURL(apercu);
+
+    if (!(await chargeable(blobUrl))) {
       URL.revokeObjectURL(blobUrl);
-      showToast(`« ${family} » est refusée par le navigateur : ce fichier n'est pas utilisable sur le web. Convertissez-le en WOFF2 et réimportez.`);
-      return;
+      showToast(`« ${family} » n'est pas lisible telle quelle, réparation en cours…`);
+      const reparees: File[] = [];
+      for (const f of files) {
+        try {
+          const fd = new FormData();
+          fd.append('font', f);
+          const r = await fetch('/api/fonts/repair', { method: 'POST', body: fd });
+          if (!r.ok) throw new Error((await r.json().catch(() => ({}))).error ?? `HTTP ${r.status}`);
+          const buf = await r.arrayBuffer();
+          reparees.push(new File([buf], f.name.replace(/\.[^.]+$/, '') + '.ttf', { type: 'font/ttf' }));
+        } catch (e) {
+          console.error('[charte] réparation impossible', f.name, e);
+        }
+      }
+      if (!reparees.length) {
+        showToast(`« ${family} » n'a pas pu être réparée : ce fichier n'est pas utilisable sur le web.`);
+        return;
+      }
+      fichiersRetenus = reparees;
+      apercuRetenu = reparees.slice().sort((a, b) =>
+        Math.abs(parseFontFile(a.name).weight - 400) - Math.abs(parseFontFile(b.name).weight - 400))[0];
+      blobUrl = URL.createObjectURL(apercuRetenu);
+      if (!(await chargeable(blobUrl))) {
+        URL.revokeObjectURL(blobUrl);
+        showToast(`« ${family} » reste refusée par le navigateur même après réparation.`);
+        return;
+      }
+      showToast(`« ${family} » réparée et importée.`);
     }
 
     const styleId = `klip-custom-font-${target}`;
@@ -471,7 +505,7 @@ export default function StyleTemplatePage() {
     const s = document.createElement("style"); s.id = styleId;
     s.textContent = `@font-face { font-family: "${family}"; src: url("${blobUrl}"); }`;
     document.head.appendChild(s);
-    const valeur: CustomFont = { file: apercu, family, blobUrl, files };
+    const valeur: CustomFont = { file: apercuRetenu, family, blobUrl, files: fichiersRetenus };
     if (target === "primary") setCustomPrimary(valeur);
     else setCustomSecondary(valeur);
   }
