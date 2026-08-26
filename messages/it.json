@@ -651,6 +651,8 @@
     "captionWrite": "Scrivi con l'IA",
     "captionRedo": "Riscrivi",
     "captionWriting": "Scrittura…",
+    "captionStepFrames": "Analisi del video…",
+    "captionStepAudio": "Ascolto dell'audio…",
     "captionError": "Non è stato possibile scrivere la didascalia. Riprova.",
     "captionFallbackBrief": "Post Instagram",
     "captionPromptLabel": "Che cosa deve raccontare questa didascalia?",

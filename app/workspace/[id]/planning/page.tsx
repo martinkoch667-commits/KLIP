@@ -15,24 +15,55 @@ import Sidebar from "@/components/Sidebar";
 import NotificationBell from "@/components/NotificationBell";
 import MediaThumb, { isVideoUrl, pickThumbSource } from "@/components/MediaThumb";
 
-/** Une image de la vidéo, en dataURL, pour que le modèle voie de quoi il parle.
-    Sans elle, la légende d'une vidéo s'écrirait à l'aveugle, sur le seul brief. */
-async function grabVideoFrame(src: string, atTime = 1, maxW = 640): Promise<string> {
+/** Des images de la vidéo, en dataURL, réparties sur toute sa durée.
+
+    Une seule image prise à la première seconde ne dit rien de ce que la vidéo
+    raconte : on y voit un plan d'ouverture, souvent un visage immobile, et la
+    légende s'écrivait sur cette impression-là. On échantillonne donc plusieurs
+    instants, dans l'ordre, avec UN seul élément vidéo qu'on déplace — le
+    recharger à chaque image gardait autant de vidéos entières en mémoire. */
+async function grabVideoFrames(src: string, count = 6, maxW = 512): Promise<{ frames: string[]; duration: number }> {
   const v = document.createElement("video");
+  const frames: string[] = [];
   try {
     v.crossOrigin = "anonymous"; v.muted = true; v.preload = "auto"; v.src = src;
     await new Promise<void>((res, rej) => { v.onloadedmetadata = () => res(); v.onerror = () => rej(new Error("load")); });
-    await new Promise<void>((res) => { v.onseeked = () => res(); v.currentTime = Math.max(0, Math.min(atTime, (v.duration || 1) - 0.05)); });
+    const duration = Number.isFinite(v.duration) && v.duration > 0 ? v.duration : 1;
     const scale = Math.min(1, maxW / (v.videoWidth || maxW));
     const c = document.createElement("canvas");
-    c.width = Math.max(1, Math.round((v.videoWidth || maxW) * scale));
+    c.width  = Math.max(1, Math.round((v.videoWidth  || maxW) * scale));
     c.height = Math.max(1, Math.round((v.videoHeight || maxW) * scale));
-    c.getContext("2d")!.drawImage(v, 0, 0, c.width, c.height);
-    return c.toDataURL("image/jpeg", 0.82);
+    const ctx = c.getContext("2d")!;
+    // Milieu de chaque tranche : le tout premier et le tout dernier instant
+    // d'une vidéo sont souvent noirs ou flous (fondu, début de mouvement).
+    for (let i = 0; i < count; i++) {
+      const at = Math.max(0, Math.min(duration - 0.05, ((i + 0.5) / count) * duration));
+      const ok = await new Promise<boolean>((res) => {
+        // Un seek qui n'aboutit jamais (fichier abîmé, réseau coupé) bloquerait
+        // le bouton indéfiniment : au bout de 4 s on passe à la suite.
+        const timer = setTimeout(() => res(false), 4000);
+        v.onseeked = () => { clearTimeout(timer); res(true); };
+        v.currentTime = at;
+      });
+      if (!ok) break;
+      ctx.drawImage(v, 0, 0, c.width, c.height);
+      frames.push(c.toDataURL("image/jpeg", 0.8));
+    }
+    return { frames, duration };
   } finally {
     // Sans libération, chaque tentative laisse une vidéo entière en mémoire.
     v.removeAttribute("src"); v.load();
   }
+}
+
+/** Ce qui est DIT dans la vidéo, quand le montage l'a déjà écouté.
+    Un post monté dans KLIP porte sa transcription dans montage_json : la
+    réécouter serait payer deux fois la même minute d'API. */
+function spokenFromMontage(montage: unknown): string {
+  if (!montage || typeof montage !== "object") return "";
+  const m = montage as { captions?: { text?: string }[]; rawSegments?: { text?: string }[] };
+  const src = (m.rawSegments?.length ? m.rawSegments : m.captions) ?? [];
+  return src.map((s) => (s?.text ?? "").trim()).filter(Boolean).join(" ").trim();
 }
 
 // ─── Sélecteur de musique (recherche catalogue réel + extrait audio) ──────────
@@ -198,6 +229,8 @@ interface Post {
   music_note?: string | null;
   thumbnail_url?: string | null;
   editor_json?: string | null;
+  // Projet de montage : porte la transcription déjà faite (captions/rawSegments).
+  montage_json?: unknown;
   approved_by_client?: boolean | null;
   client_comment?: string | null;
   client_reviewed_at?: string | null;
@@ -570,6 +603,13 @@ function PlanningContent() {
   // du reste du panneau.
   const [panelThumb, setPanelThumb] = useState<string | null>(null);
   const [writing, setWriting] = useState(false);
+  /* Ce que l'IA est en train de faire. Regarder la vidéo puis l'écouter
+     prend plusieurs secondes : sans nom sur l'étape, le bouton a l'air bloqué. */
+  const [writeStep, setWriteStep] = useState("");
+  /* Ce qu'on a déjà entendu, par vidéo. Réécrire une légende deux fois de suite
+     est le geste normal ici : sans ce cache, la même bande son repartait à la
+     transcription à chaque essai, temps et appels d'API en double. */
+  const spokenCache = useRef<Map<string, string>>(new Map());
   /* Consigne de rédaction. Le bouton ne lance plus la rédaction tout de suite :
      il ouvre une fenêtre où l'on dit CE QU'ON VEUT raconter. Sans elle, l'IA
      n'avait que l'image et le brief d'origine, souvent écrit pour dessiner le
@@ -589,20 +629,49 @@ function PlanningContent() {
     setWriting(true);
     try {
       const isVid = isVideoUrl(post.photo_url);
-      // Le modèle a besoin de VOIR le post. Pour une vidéo, la miniature si elle
-      // existe, sinon une image prise à une seconde de lecture.
+      // Le modèle a besoin de VOIR le post — et, pour une vidéo, de l'ENTENDRE.
+      // Une vidéo, ce n'est pas une image : ce qui la raconte se joue dans le
+      // déroulé et dans ce qui est dit. On lui donne donc des instants répartis
+      // sur toute la durée, plus la parole transcrite.
       let photoUrl: string | undefined;
-      const frames: string[] = [];
+      let frames: string[] = [];
+      let context: string | undefined;
+
       if (isVid) {
-        if (post.thumbnail_url) photoUrl = post.thumbnail_url;
-        else {
-          const shot = await grabVideoFrame(post.photo_url, 1).catch(() => null);
-          if (shot) frames.push(shot);
+        setWriteStep(t('captionStepFrames'));
+        const shot = await grabVideoFrames(post.photo_url, 6).catch(() => null);
+        frames = shot?.frames ?? [];
+        // Vidéo illisible dans le navigateur (CORS, format) : au moins la
+        // miniature, plutôt que d'écrire à l'aveugle.
+        if (!frames.length && post.thumbnail_url) photoUrl = post.thumbnail_url;
+
+        let spoken = spokenFromMontage(post.montage_json) || spokenCache.current.get(post.photo_url) || "";
+        // Au-delà de cinq minutes, tout télécharger et décoder dans le
+        // navigateur coûte plus que ça ne rapporte : les images suffisent.
+        if (!spoken && (shot?.duration ?? 0) <= 300) {
+          setWriteStep(t('captionStepAudio'));
+          try {
+            // Chargé à la demande : le montage n'a pas à peser sur le planning
+            // de ceux qui ne rédigent jamais la légende d'une vidéo ici.
+            const { transcribeMedia } = await import("../montage/[postId]/preEdit");
+            const r = await transcribeMedia(post.photo_url);
+            spoken = r.segments.map((sg) => sg.text).join(" ").trim();
+            // Un échec n'est PAS mis en cache : une limite de débit passe.
+            if (spoken) spokenCache.current.set(post.photo_url, spoken);
+          } catch {
+            // Pas de clé de transcription, média trop lourd, réseau : on écrit
+            // sur les images seules plutôt que d'échouer.
+            spoken = "";
+          }
+        }
+        if (spoken) {
+          context = `Transcription de la bande son de la vidéo (ce qui est dit à l'écran) : "${spoken.slice(0, 2000)}"`;
         }
       } else {
         photoUrl = previewMediaOf(post) ?? undefined;
       }
 
+      setWriteStep("");
       const res = await fetch("/api/generate-description", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -611,6 +680,7 @@ function PlanningContent() {
           workspaceId: id,
           ...(photoUrl ? { photoUrl } : {}),
           ...(frames.length ? { frames } : {}),
+          ...(context ? { context } : {}),
         }),
       });
       const data = await res.json().catch(() => ({}));
@@ -621,6 +691,7 @@ function PlanningContent() {
       alert(t('captionError'));
     } finally {
       setWriting(false);
+      setWriteStep("");
     }
   }
   const [draggedId,    setDraggedId]    = useState<string | null>(null);
@@ -686,7 +757,7 @@ function PlanningContent() {
     const [{ data: ws }, { data: postsData }] = await Promise.all([
       supabase.from("workspaces").select("id, name, primary_color, secondary_color, font_family, instagram_account_id, instagram_username, facebook_page_id, logo_url").eq("id", id).single(),
       supabase.from("posts")
-        .select("id, photo_url, exported_image_url, texte_visuel, description, status, scheduled_at, brief, post_type, target_platforms, tagged_users, music_note, thumbnail_url, editor_json, approved_by_client, client_comment, client_reviewed_at")
+        .select("id, photo_url, exported_image_url, texte_visuel, description, status, scheduled_at, brief, post_type, target_platforms, tagged_users, music_note, thumbnail_url, editor_json, montage_json, approved_by_client, client_comment, client_reviewed_at")
         .eq("workspace_id", id)
         .in("status", ["generated", "validated", "scheduled", "published"])
         .order("scheduled_at", { ascending: true }),
@@ -1411,7 +1482,7 @@ function PlanningContent() {
                   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <path d="M9.5 3l1.6 4.9L16 9.5l-4.9 1.6L9.5 16l-1.6-4.9L3 9.5l4.9-1.6z" /><path d="M18 14l.8 2.5L21 17l-2.2.8L18 20l-.8-2.2L15 17l2.2-.5z" />
                   </svg>
-                  {writing ? t('captionWriting') : panelDesc.trim() ? t('captionRedo') : t('captionWrite')}
+                  {writing ? (writeStep || t('captionWriting')) : panelDesc.trim() ? t('captionRedo') : t('captionWrite')}
                 </button>
               </div>
               {promptOpen && (
@@ -1421,6 +1492,7 @@ function PlanningContent() {
                   onSubmit={() => writeCaption(prompt)}
                   onCancel={() => setPromptOpen(false)}
                   busy={writing}
+                  status={writeStep}
                 />
               )}
               <textarea value={panelDesc} onChange={e => setPanelDesc(e.target.value)} rows={4} className="input" style={{ resize: "none", fontSize: 12.5, color: "var(--ink-2)" }} />

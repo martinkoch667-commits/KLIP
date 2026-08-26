@@ -651,6 +651,8 @@
     "captionWrite": "Escrever com IA",
     "captionRedo": "Reescrever",
     "captionWriting": "A escrever…",
+    "captionStepFrames": "A ver o vídeo…",
+    "captionStepAudio": "A ouvir o áudio…",
     "captionError": "Não foi possível escrever a legenda. Tente novamente.",
     "captionFallbackBrief": "Publicação de Instagram",
     "captionPromptLabel": "O que deve dizer esta legenda?",

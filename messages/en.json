@@ -651,6 +651,8 @@
     "captionWrite": "Write with AI",
     "captionRedo": "Rewrite",
     "captionWriting": "Writing…",
+    "captionStepFrames": "Watching the video…",
+    "captionStepAudio": "Listening to the audio…",
     "captionError": "The caption could not be written. Try again.",
     "captionFallbackBrief": "Instagram post",
     "captionPromptLabel": "What should this caption say?",

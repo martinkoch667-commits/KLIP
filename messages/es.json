@@ -651,6 +651,8 @@
     "captionWrite": "Redactar con IA",
     "captionRedo": "Reescribir",
     "captionWriting": "Redactando…",
+    "captionStepFrames": "Viendo el vídeo…",
+    "captionStepAudio": "Escuchando el audio…",
     "captionError": "No se pudo redactar el pie de foto. Inténtalo de nuevo.",
     "captionFallbackBrief": "Publicación de Instagram",
     "captionPromptLabel": "¿Qué debe contar este pie de foto?",

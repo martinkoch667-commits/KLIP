@@ -16,13 +16,16 @@ import VoiceButton from "@/components/VoiceButton";
    consigne pour la première fois. */
 
 export default function CaptionPrompt({
-  value, onChange, onSubmit, onCancel, busy,
+  value, onChange, onSubmit, onCancel, busy, status,
 }: {
   value: string;
   onChange: (v: string) => void;
   onSubmit: () => void;
   onCancel: () => void;
   busy?: boolean;
+  /* Étape en cours, quand il y en a plusieurs : regarder la vidéo, l'écouter,
+     puis écrire. « Rédaction… » pendant qu'on transcrit serait un mensonge. */
+  status?: string;
 }) {
   const t = useTranslations("planning");
   const starters = [t("captionStarter1"), t("captionStarter2"), t("captionStarter3")];
@@ -60,7 +63,7 @@ export default function CaptionPrompt({
           }}
         />
         <div className="mzchat-actions">
-          <span className="mzchat-hint">{busy ? t("captionWriting") : t("captionPromptHint")}</span>
+          <span className="mzchat-hint">{busy ? (status || t("captionWriting")) : t("captionPromptHint")}</span>
           {/* La dictée du reste de l'app : pilule leaf, capsule violette avec le
               niveau du micro pendant l'écoute. Une deuxième façon de dicter dans
               le même produit n'aurait servi à personne. */}

@@ -651,6 +651,8 @@
     "captionWrite": "Mit KI schreiben",
     "captionRedo": "Neu schreiben",
     "captionWriting": "Wird geschrieben…",
+    "captionStepFrames": "Video wird angesehen…",
+    "captionStepAudio": "Ton wird angehört…",
     "captionError": "Die Bildunterschrift konnte nicht geschrieben werden. Versuche es erneut.",
     "captionFallbackBrief": "Instagram-Beitrag",
     "captionPromptLabel": "Was soll die Bildunterschrift sagen?",

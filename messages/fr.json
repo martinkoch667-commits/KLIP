@@ -651,6 +651,8 @@
     "captionWrite": "Rédiger avec l'IA",
     "captionRedo": "Réécrire",
     "captionWriting": "Rédaction…",
+    "captionStepFrames": "Lecture de la vidéo…",
+    "captionStepAudio": "Écoute de la bande son…",
     "captionError": "La légende n'a pas pu être écrite. Réessayez.",
     "captionFallbackBrief": "Publication Instagram",
     "captionPromptLabel": "Que doit raconter cette légende ?",
