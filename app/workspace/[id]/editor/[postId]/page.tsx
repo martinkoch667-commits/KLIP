@@ -23,6 +23,7 @@ import { TEXT_TEMPLATES, TT_CATS, TT_REF_W, TextTemplateThumb, adaptTemplateToCh
 import { LAYOUT_TEMPLATES, LAYOUT_CATS, LAYOUT_STYLES, LayoutThumb, adaptLayoutToCharter, type LayoutTemplate } from './layoutTemplates';
 import { googleVariants, weightName } from '@/lib/fontWeights';
 import { fontCssHrefs, CATALOG_FAMILIES } from '@/lib/fontCatalog';
+import { resolveFonts } from '@/lib/designSystem';
 import { buildCarouselSlide, themeFromBrand } from '@/lib/carouselDesigns';
 import { registerFontFamily, weightLabel, type FontFamily } from '@/lib/fontFiles';
 import { isTextEntry } from '@/lib/keys';
@@ -53,6 +54,11 @@ interface Slide {
 interface BaseEl { id: string; x: number; y: number; rotation: number; opacity: number; }
 interface TextEl extends BaseEl {
   type: 'text'; text: string; fontSize: number; fontFamily: string; fontStyle: string;
+  /** Rôle typographique d'origine (`display`, `body`, `condensed`, `serif`,
+   *  `script`) quand le calque a été écrit par le système de design. Tant qu'il
+   *  est là, la police suit la charte du client ; choisir une police à la main
+   *  l'efface, et le choix est alors définitif. */
+  fontRole?: string;
   textDecoration: string; fill: string; align: string; width: number;
   // Stylisation partielle : chaque run porte un intervalle [start, end) sur
   // `text` et les propriétés qui écrasent celles du bloc. Absent = calque
@@ -1522,7 +1528,13 @@ function EditorContextToolbar({ sel, fontGroups, brandFamilies, brandColors, sta
                   <p style={{ margin: '8px 4px 3px', fontSize: 10, fontWeight: 800, letterSpacing: '0.09em', textTransform: 'uppercase', color: 'var(--ink-3)' }}>{g.label}</p>
                   {g.fonts.map(f => (
                     <LigneDePolice key={f} famille={f} choisie={textSel.fontFamily === f}
-                      onChoisir={() => { assurerPolicesGoogle([f]); u({ fontFamily: f } as Partial<TextEl>); setPop(null); }} />
+                      onChoisir={() => {
+                        assurerPolicesGoogle([f]);
+                        // Le rôle disparaît : ce calque n'appartient plus à la
+                        // charte, un changement de typographie ne le touchera pas.
+                        u({ fontFamily: f, fontRole: '' } as Partial<TextEl>);
+                        setPop(null);
+                      }} />
                   ))}
                 </div>
               ))}
@@ -3592,6 +3604,36 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
           }
           return { ...sl, proxyUrl: '', elements: [layer as unknown as CanvasEl, ...(sl.elements ?? [])] };
         });
+
+        // LA CHARTE FAIT AUTORITÉ SUR LES CALQUES QU'ELLE A ÉCRITS.
+        //
+        // Modifier la typographie d'un client ne changeait rien aux visuels déjà
+        // composés : le calque portait le nom de la police résolue le jour de la
+        // composition, pas le rôle qu'elle jouait. On re-résout donc à chaque
+        // ouverture les calques qui portent un `fontRole`, et EUX SEULS — un
+        // calque dont quelqu'un a choisi la police à la main n'a plus de rôle,
+        // et son choix est respecté.
+        //
+        // Placé AVANT `attendrePolices` : c'est la nouvelle police qu'il faut
+        // attendre, sinon les largeurs sont mesurées sur l'ancienne.
+        {
+          const ft = resolveFonts({
+            display: w?.font_family ?? null, body: w?.font_secondary ?? null,
+            name: w?.name ?? null, sector: w?.sector ?? null, tone: w?.tone ?? null,
+          });
+          const parRole: Record<string, string> = {
+            display: ft.display, body: ft.body, condensed: ft.condensed, serif: ft.serif, script: ft.script,
+          };
+          initSlides = initSlides.map(sl => ({
+            ...sl,
+            elements: (sl.elements ?? []).map((e: CanvasEl) => {
+              if (e?.type !== 'text') return e;
+              const te = e as TextEl & { fontRole?: string };
+              const cible = te.fontRole ? parRole[te.fontRole] : null;
+              return cible && cible !== te.fontFamily ? { ...te, fontFamily: cible } : e;
+            }),
+          }));
+        }
 
         // Re-layout (Phase 2) : auto-fit + anti-chevauchement pour le format du post.
         // En mode template, on préserve la mise en page dessinée à la main (pas de relayout).

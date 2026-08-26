@@ -9,12 +9,16 @@ import ColorPicker from "@/components/ColorPicker";
 import NotificationBell from "@/components/NotificationBell";
 import { MiniTemplatePreview, type BgStyle } from "@/components/TemplateEditor";
 import { fontCssHref, CATALOG_FAMILIES } from "@/lib/fontCatalog";
+import { parseFontFile, groupFontFiles, type FontFamily } from "@/lib/fontFiles";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 type Tab = "charte" | "templates";
 interface GFont { family: string; category: string }
-interface CustomFont { file: File; family: string; blobUrl: string }
+/** Une police importée dans la charte.
+ *  `files` porte TOUTES les variantes déposées (Regular, Bold, Italic…) : la
+ *  page n'en gardait qu'une, et le client perdait ses graisses au passage. */
+interface CustomFont { file: File; family: string; blobUrl: string; files: File[] }
 interface PostTemplate {
   id: string; workspace_id: string; name: string; format_id: string;
   background_style: BgStyle; text_zones: unknown[]; logo_placement: { x: number; y: number; width: number; height: number } | null;
@@ -276,6 +280,10 @@ export default function StyleTemplatePage() {
   const [fontSearchSec, setFontSearchSec]         = useState("");
   const customPrimaryRef   = useRef<HTMLInputElement>(null);
   const customSecondaryRef = useRef<HTMLInputElement>(null);
+  /** Familles déjà enregistrées pour ce client, relues pour être fusionnées et
+   *  non écrasées : `brand_fonts` n'était écrit qu'à la CRÉATION du client, donc
+   *  toute police importée ensuite depuis cette page était perdue. */
+  const [brandFonts, setBrandFonts]           = useState<FontFamily[]>([]);
   const [customPrimary, setCustomPrimary]     = useState<CustomFont | null>(null);
   const [customSecondary, setCustomSecondary] = useState<CustomFont | null>(null);
   const activeFontPrimary   = customPrimary   ? customPrimary.family   : fontPrimary;
@@ -312,6 +320,7 @@ export default function StyleTemplatePage() {
         setBrandIconUrl(data.brand_icon_url ?? null);
         setBrandIconPreview(data.brand_icon_url ?? null);
         setExistingAssets(Array.isArray(data.brand_assets) ? data.brand_assets : []);
+        if (Array.isArray(data.brand_fonts)) setBrandFonts(data.brand_fonts as FontFamily[]);
         if (data.font_family) setFontPrimary(data.font_family);
         if (data.font_secondary) setFontSecondary(data.font_secondary);
         if (data.font_family) loadGoogleFont(data.font_family);
@@ -323,7 +332,7 @@ export default function StyleTemplatePage() {
             s.textContent = `@font-face { font-family: "${data.font_family}"; src: url("${data.font_primary_url}"); }`;
             document.head.appendChild(s);
           }
-          setCustomPrimary({ file: new File([], ""), family: data.font_family, blobUrl: data.font_primary_url });
+          setCustomPrimary({ file: new File([], ""), family: data.font_family, blobUrl: data.font_primary_url, files: [] });
         }
         if (data.font_secondary_url && data.font_secondary) {
           const styleId = "klip-custom-font-secondary";
@@ -332,7 +341,7 @@ export default function StyleTemplatePage() {
             s.textContent = `@font-face { font-family: "${data.font_secondary}"; src: url("${data.font_secondary_url}"); }`;
             document.head.appendChild(s);
           }
-          setCustomSecondary({ file: new File([], ""), family: data.font_secondary, blobUrl: data.font_secondary_url });
+          setCustomSecondary({ file: new File([], ""), family: data.font_secondary, blobUrl: data.font_secondary_url, files: [] });
         }
       }
       setLoading(false);
@@ -391,17 +400,39 @@ export default function StyleTemplatePage() {
   }
 
   // ── Custom font handler ──────────────────────────────────────────────────────
-  function handleCustomFont(file: File, target: "primary" | "secondary") {
-    const family = file.name.replace(/\.[^.]+$/, "").replace(/[-_]+/g, " ").trim();
-    const blobUrl = URL.createObjectURL(file);
+  // UNE FAMILLE ARRIVE EN PLUSIEURS FICHIERS.
+  //
+  // La page n'acceptait qu'un fichier par rôle et déduisait la famille du nom
+  // complet : « Obviously-Bold.otf » devenait la famille « Obviously Bold ».
+  // Le client perdait toutes ses graisses, et la police importée ne portait pas
+  // le même nom que celle enregistrée à la création du client — d'où
+  // l'impression qu'elle « n'arrivait pas » dans l'éditeur.
+  //
+  // Même lecture qu'à la création : on analyse chaque nom de fichier, on en tire
+  // la famille et la graisse, et on garde le lot entier.
+  function handleCustomFont(fileList: FileList, target: "primary" | "secondary") {
+    const files = Array.from(fileList);
+    if (!files.length) return;
+    // La famille est celle qui revient le plus souvent dans le lot : déposer
+    // huit fichiers d'une même police ne doit pas en faire huit familles.
+    const compte = new Map<string, number>();
+    for (const f of files) {
+      const fam = parseFontFile(f.name).family;
+      compte.set(fam, (compte.get(fam) ?? 0) + 1);
+    }
+    const family = Array.from(compte.entries()).sort((a, b) => b[1] - a[1])[0][0];
+    // L'aperçu se fait sur la variante la plus proche du Regular.
+    const apercu = files.slice().sort((a, b) =>
+      Math.abs(parseFontFile(a.name).weight - 400) - Math.abs(parseFontFile(b.name).weight - 400))[0];
+    const blobUrl = URL.createObjectURL(apercu);
     const styleId = `klip-custom-font-${target}`;
-    const existing = document.getElementById(styleId);
-    if (existing) existing.remove();
+    document.getElementById(styleId)?.remove();
     const s = document.createElement("style"); s.id = styleId;
     s.textContent = `@font-face { font-family: "${family}"; src: url("${blobUrl}"); }`;
     document.head.appendChild(s);
-    if (target === "primary") setCustomPrimary({ file, family, blobUrl });
-    else setCustomSecondary({ file, family, blobUrl });
+    const valeur: CustomFont = { file: apercu, family, blobUrl, files };
+    if (target === "primary") setCustomPrimary(valeur);
+    else setCustomSecondary(valeur);
   }
 
   // ── Toast ────────────────────────────────────────────────────────────────────
@@ -434,6 +465,43 @@ export default function StyleTemplatePage() {
       if (customPrimary?.file?.size)   finalFontPrimaryUrl   = await uploadFile(customPrimary.file, "brand-fonts");
       if (customSecondary?.file?.size) finalFontSecondaryUrl = await uploadFile(customSecondary.file, "brand-fonts");
 
+      // LES FAMILLES ENTIÈRES, ENFIN ENREGISTRÉES.
+      //
+      // `brand_fonts` n'était écrit qu'au moment de créer le client. Modifier la
+      // charte ensuite ne mettait à jour que `font_family` et son unique fichier :
+      // l'éditeur continuait donc à proposer les familles du premier jour, et la
+      // police fraîchement importée n'apparaissait jamais dans ses graisses.
+      // C'est le défaut rapporté — « j'ai changé la typo de la charte, l'éditeur
+      // n'a pas suivi ».
+      //
+      // On fusionne par NOM de famille : réimporter un Bold manquant complète la
+      // famille au lieu de la remplacer, et les polices des autres charges du
+      // compte ne sont jamais touchées.
+      const nouvellesFamilles: FontFamily[] = [];
+      for (const lot of [customPrimary?.files ?? [], customSecondary?.files ?? []]) {
+        if (!lot.length) continue;
+        const televerses: { name: string; url: string }[] = [];
+        for (const f of lot) {
+          const u = await uploadFile(f, "brand-fonts");
+          if (u) televerses.push({ name: f.name, url: u });
+        }
+        if (televerses.length) nouvellesFamilles.push(...groupFontFiles(televerses));
+      }
+      let famillesFinales = brandFonts;
+      if (nouvellesFamilles.length) {
+        const parNom = new Map(brandFonts.map(f => [f.family, f]));
+        for (const nf of nouvellesFamilles) {
+          const deja = parNom.get(nf.family);
+          if (!deja) { parNom.set(nf.family, nf); continue; }
+          // Fusion des variantes : une graisse déjà connue garde son URL.
+          const vues = new Set(deja.variants.map(v => `${v.weight}-${v.italic}`));
+          const ajout = nf.variants.filter(v => !vues.has(`${v.weight}-${v.italic}`));
+          parNom.set(nf.family, { family: nf.family, variants: [...deja.variants, ...ajout].sort((a, b) => a.weight - b.weight || Number(a.italic) - Number(b.italic)) });
+        }
+        famillesFinales = Array.from(parNom.values());
+        setBrandFonts(famillesFinales);
+      }
+
       const voiceParts: string[] = [];
       if (tone)              voiceParts.push(`Ton : ${tone}`);
       if (wordsUse.trim())   voiceParts.push(`Mots à utiliser : ${wordsUse.trim()}`);
@@ -463,6 +531,7 @@ export default function StyleTemplatePage() {
       };
       if (finalFontPrimaryUrl)   updates.font_primary_url   = finalFontPrimaryUrl;
       if (finalFontSecondaryUrl) updates.font_secondary_url = finalFontSecondaryUrl;
+      if (nouvellesFamilles.length) updates.brand_fonts = famillesFinales;
 
       await supabase.from("workspaces").update(updates).eq("id", id);
 
@@ -874,8 +943,8 @@ export default function StyleTemplatePage() {
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg>
                         {t('uploadCustomFont')}
                       </button>
-                      <input ref={customPrimaryRef} type="file" accept=".ttf,.otf,.woff,.woff2" style={{ display: "none" }}
-                        onChange={e => { const f = e.target.files?.[0]; if (f) handleCustomFont(f, "primary"); e.target.value = ""; }} />
+                      <input ref={customPrimaryRef} type="file" accept=".ttf,.otf,.woff,.woff2" multiple style={{ display: "none" }}
+                        onChange={e => { const fs = e.target.files; if (fs?.length) handleCustomFont(fs, "primary"); e.target.value = ""; }} />
                     </div>
 
                     {/* Police secondaire */}
@@ -906,8 +975,8 @@ export default function StyleTemplatePage() {
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg>
                         {t('uploadCustomFont')}
                       </button>
-                      <input ref={customSecondaryRef} type="file" accept=".ttf,.otf,.woff,.woff2" style={{ display: "none" }}
-                        onChange={e => { const f = e.target.files?.[0]; if (f) handleCustomFont(f, "secondary"); e.target.value = ""; }} />
+                      <input ref={customSecondaryRef} type="file" accept=".ttf,.otf,.woff,.woff2" multiple style={{ display: "none" }}
+                        onChange={e => { const fs = e.target.files; if (fs?.length) handleCustomFont(fs, "secondary"); e.target.value = ""; }} />
                     </div>
 
                     {/* Live preview */}

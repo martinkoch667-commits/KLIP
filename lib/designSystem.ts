@@ -1890,6 +1890,15 @@ export function buildDesignElements(recipe: DesignRecipe, opt: BuildOptions): an
       id, type: 'text', text,
       x: px(nd.x, w), y: px(nd.y, h), width: px(nd.w, w),
       fontSize: size, fontFamily: famille, fontStyle: style,
+      // LE RÔLE, PAS SEULEMENT LA POLICE.
+      //
+      // Un calque ne gardait que le nom de la police résolue. Changer la
+      // typographie de la charte ne pouvait donc rien y faire : le document
+      // disait « Oswald », pas « le titrage de la marque ». En gardant le rôle,
+      // l'éditeur peut re-résoudre la police à l'ouverture — et seulement pour
+      // les calques que le système a écrits, jamais pour ceux où quelqu'un a
+      // choisi une police à la main (le rôle est effacé à ce moment-là).
+      fontRole: nd.font ?? 'display',
       textDecoration: nd.strike ? 'line-through' : '',
       fill: fill(nd.fill), align: nd.align ?? 'left',
       uppercase: !!nd.upper, lineHeight: nd.lh ?? 1.15,
