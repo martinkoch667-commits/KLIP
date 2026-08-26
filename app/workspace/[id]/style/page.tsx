@@ -563,19 +563,35 @@ export default function StyleTemplatePage() {
       // et la personne repartait en croyant avoir enregistré. C'est la raison
       // pour laquelle ce défaut a pu durer : l'application affirmait le contraire
       // de ce qui s'était passé.
-      let { error: errUpdate } = await supabase.from("workspaces").update(updates).eq("id", id);
-
-      // `brand_fonts` (migration 017) peut manquer sur une base qui n'a pas été
-      // migrée. Sans ce repli, une colonne absente ferait échouer TOUT
-      // l'enregistrement — couleurs et textes compris — pour une histoire de
-      // graisses. On réessaie sans elle et on le dit.
-      let famillesPerdues = false;
-      if (errUpdate && /brand_fonts/i.test(`${errUpdate.message} ${errUpdate.details ?? ""}`)) {
-        console.error("[charte] colonne brand_fonts absente : migration 017 non appliquée", errUpdate);
-        const sansFamilles = { ...updates };
-        delete sansFamilles.brand_fonts;
-        ({ error: errUpdate } = await supabase.from("workspaces").update(sansFamilles).eq("id", id));
-        famillesPerdues = !errUpdate;
+      // UNE COLONNE ABSENTE NE DOIT PAS EMPORTER TOUTE LA CHARTE.
+      //
+      // La base de production est en retard sur le code, et PostgREST ne signale
+      // qu'UNE colonne manquante à la fois : « Could not find the 'banner_url'
+      // column of 'workspaces' in the schema cache ». Résultat, l'écriture
+      // échouait en entier — couleurs, ton, typographie comprises — à cause
+      // d'une seule colonne, et corriger celle-là n'aurait fait qu'exposer la
+      // suivante.
+      //
+      // On retire donc la colonne fautive et on réessaie, en boucle, jusqu'à ce
+      // que le reste passe. Ce n'est PAS une façon de masquer le problème : les
+      // colonnes abandonnées sont nommées à l'écran et en console, et la
+      // migration 026 les rétablit toutes en une passe. Le repli sert à ce que
+      // le travail de la personne ne soit pas perdu en attendant.
+      const colonnesAbandonnees: string[] = [];
+      let charge: Record<string, unknown> = updates;
+      let errUpdate: { message: string; details?: string | null } | null = null;
+      for (let essai = 0; essai < 12; essai++) {
+        const { error } = await supabase.from("workspaces").update(charge).eq("id", id);
+        errUpdate = error;
+        if (!error) break;
+        const manquante = `${error.message} ${error.details ?? ""}`.match(/'([a-z0-9_]+)' column/i)?.[1];
+        if (!manquante || !(manquante in charge)) break;
+        console.error(`[charte] colonne absente en base : ${manquante} — migration 026 à appliquer`, error);
+        colonnesAbandonnees.push(manquante);
+        const reste = { ...charge };
+        delete reste[manquante];
+        charge = reste;
+        if (Object.keys(reste).length === 0) break;
       }
 
       if (errUpdate) {
@@ -594,8 +610,8 @@ export default function StyleTemplatePage() {
 
       if (echecsTeleversement.current.length) {
         showToast(`Charte enregistrée, mais ${echecsTeleversement.current.length} fichier(s) refusé(s) : ${echecsTeleversement.current[0]}`);
-      } else if (famillesPerdues) {
-        showToast("Charte enregistrée, mais les graisses n'ont pas pu l'être : la base n'a pas la colonne brand_fonts.");
+      } else if (colonnesAbandonnees.length) {
+        showToast(`Charte enregistrée sauf ${colonnesAbandonnees.join(", ")} : ces colonnes manquent en base (migration 026 à appliquer).`);
       } else {
         showToast(t('charteUpdatedToast'));
       }
