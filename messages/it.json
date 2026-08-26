@@ -1992,7 +1992,8 @@
     "mediaInOverlay": "Sovrapposizione · traccia {n}",
     "mediaInAudio": "Suono · traccia {n}",
     "useAsOverlay": "Aggiungi come sovrapposizione",
-    "toastOverlayAdded": "Sovrapposizione aggiunta al cursore."
+    "toastOverlayAdded": "Sovrapposizione aggiunta al cursore.",
+    "audioLevel": "Livello audio"
   },
   "forgotPassword": {
     "title": "Password dimenticata",

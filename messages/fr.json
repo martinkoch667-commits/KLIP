@@ -1992,7 +1992,8 @@
     "mediaInOverlay": "Incrustation · piste {n}",
     "mediaInAudio": "Son · piste {n}",
     "useAsOverlay": "Ajouter en incrustation",
-    "toastOverlayAdded": "Incrustation ajoutée au curseur."
+    "toastOverlayAdded": "Incrustation ajoutée au curseur.",
+    "audioLevel": "Niveau audio"
   },
   "forgotPassword": {
     "title": "Mot de passe oublié",

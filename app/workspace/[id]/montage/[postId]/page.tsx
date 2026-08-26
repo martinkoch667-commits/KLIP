@@ -2026,13 +2026,22 @@ export default function MontagePage() {
    * distingue un outil d'un bouton. Toute la logique de découpe reste commune —
    * dupliquer ces cinq cas pour la lame aurait garanti qu'ils divergent.
    */
-  function splitAtPlayhead(instant?: number) {
+  function splitAtPlayhead(instant?: number, cible?: { kind: string; id: string }) {
     // Le temps exact, pas celui du dernier rendu : couper au curseur pendant la
     // lecture doit couper là où l'on voit le curseur.
     const time = instant ?? timeRef.current;
+    // La LAME désigne sa cible directement. Passer par `selectClip()` puis lire
+    // `selectedClipId` ne marcherait pas : l'état React n'est pas encore à jour
+    // dans le même tour, et on découperait l'élément précédent.
+    const vise = (k: string, courant: string | null) => (cible ? (cible.kind === k ? cible.id : null) : courant);
+    const idOverlay = vise("overlay", selectedOverlayId);
+    const idTitle = vise("title", selectedTitleId);
+    const idCaption = vise("caption", selectedCaptionId);
+    const idAudio = vise("audio", selectedAudioId);
+    const idClip = vise("clip", selectedClipId);
     // 1) Incrustation sélectionnée
-    if (selectedOverlayId) {
-      const o = overlays.find((x) => x.id === selectedOverlayId);
+    if (idOverlay) {
+      const o = overlays.find((x) => x.id === idOverlay);
       if (!o) return;
       const dur = overlayTimelineDur(o);
       const localT = time - o.offset;
@@ -2050,8 +2059,8 @@ export default function MontagePage() {
       return;
     }
     // 2) Texte sélectionné
-    if (selectedTitleId) {
-      const ti = titles.find((x) => x.id === selectedTitleId);
+    if (idTitle) {
+      const ti = titles.find((x) => x.id === idTitle);
       if (!ti) return;
       if (time <= ti.start + 0.1 || time >= ti.end - 0.1) { toast(t('toastMovePlayhead')); return; }
       const nid = crypto.randomUUID();
@@ -2064,8 +2073,8 @@ export default function MontagePage() {
       return;
     }
     // 2bis) Sous-titre sélectionné
-    if (selectedCaptionId) {
-      const c = captions.find((x) => x.id === selectedCaptionId);
+    if (idCaption) {
+      const c = captions.find((x) => x.id === idCaption);
       if (!c) return;
       if (time <= c.start + 0.1 || time >= c.end - 0.1) { toast(t('toastMovePlayhead')); return; }
       const nid = crypto.randomUUID();
@@ -2078,8 +2087,8 @@ export default function MontagePage() {
       return;
     }
     // 3) Piste audio sélectionnée
-    if (selectedAudioId) {
-      const a = audioTracks.find((x) => x.id === selectedAudioId);
+    if (idAudio) {
+      const a = audioTracks.find((x) => x.id === idAudio);
       if (!a) return;
       const localT = time - a.offset;
       if (localT <= 0.15 || localT >= a.dur - 0.15) { toast(t('toastMovePlayhead')); return; }
@@ -2095,7 +2104,7 @@ export default function MontagePage() {
       return;
     }
     // 4) Plan principal
-    const c = selectedClip;
+    const c = idClip ? clipStarts.find((x) => x.id === idClip) : selectedClip;
     if (!c) return;
     const localSplit = c.kind === "video" ? c.trimStart + (time - c.start) * c.speed : time - c.start;
     if (localSplit <= c.trimStart + 0.15 || localSplit >= c.trimEnd - 0.15) {
@@ -2982,6 +2991,7 @@ export default function MontagePage() {
     updateTitle(d.id, { start: ns, end: ns + d.dur });
   }
   function onTitleBarUp(e: React.PointerEvent) {
+    effacerAimant();
     const d = titleDragRef.current; titleDragRef.current = null;
     try { (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId); } catch {}
     if (!d) return;
@@ -3053,6 +3063,7 @@ export default function MontagePage() {
     updateCaption(d.id, { start: ns, end: ns + d.dur });
   }
   function onCaptionBarUp(e: React.PointerEvent) {
+    effacerAimant();
     const d = capDragRef.current; capDragRef.current = null;
     try { (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId); } catch {}
     if (!d) return;
@@ -3146,6 +3157,7 @@ export default function MontagePage() {
     setAudioTracks((prev) => prev.map((a) => (a.id === d.id ? { ...a, offset: off } : a)));
   }
   function onAudioBarUp(e: React.PointerEvent) {
+    effacerAimant();
     const d = audDragRef.current; audDragRef.current = null;
     if (!d) return;
     try { (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId); } catch {}
@@ -3729,6 +3741,71 @@ export default function MontagePage() {
     if (selectedOverlayId) { duplicateOverlay(selectedOverlayId); return; }
     if (selectedClipId) duplicateClip(selectedClipId);
   }
+  /* L'OUTIL EN MAIN, PLUTÔT QU'UN BOUTON À CHAQUE COUPE.
+     Découper demandait de sélectionner l'élément PUIS de cliquer sur « Diviser » :
+     deux gestes par coupe, et autant d'allers-retours vers la barre d'outils.
+     Comme dans Premiere ou Resolve, la lame se prend une fois (C) et coupe
+     ensuite là où l'on clique, sur n'importe quel élément. V rend la main. */
+  const [outilLame, setOutilLame] = useState(false);
+  /** Instant survolé avec la lame : on montre OÙ la coupe tombera avant de
+   *  cliquer. Sans ce trait, on coupe à l'aveugle et on annule une fois sur
+   *  deux. `null` dès qu'on quitte un élément découpable. */
+  const [apercuCoupe, setApercuCoupe] = useState<number | null>(null);
+  const [marqueAimant, setMarqueAimant] = useState<number | null>(null);
+  const marqueAimantRef = useRef<number | null>(null);
+  /** À la fin d'un geste, le repère d'aimantation n'a plus lieu d'être. */
+  const effacerAimant = useCallback(() => {
+    if (marqueAimantRef.current !== null) { marqueAimantRef.current = null; setMarqueAimant(null); }
+  }, []);
+
+  /** Découpe l'élément cliqué à l'endroit exact du clic.
+   *
+   *  FONCTION ORDINAIRE, PAS UN `useCallback`. Mémorisée avec une liste de
+   *  dépendances vide, elle gardait le `splitAtPlayhead` du tout PREMIER rendu —
+   *  donc une timeline encore vide : la recherche de l'élément échouait à chaque
+   *  fois et le clic ne coupait rien, alors que le viseur, lui, s'affichait
+   *  correctement. Recréée à chaque rendu, elle voit l'état courant. */
+  const couperAuClic = ((e: React.PointerEvent) => {
+    const cible = (e.target as HTMLElement).closest<HTMLElement>("[data-lame]");
+    const rect = tlInnerRef.current?.getBoundingClientRect();
+    if (!cible || !rect) return;
+    const [kind, ...reste] = (cible.dataset.lame ?? "").split(":");
+    const id = reste.join(":");
+    if (!kind || !id) return;
+    const t = (e.clientX - rect.left - LANE_LABEL_W) / sceneRef.current.pps;
+    if (!Number.isFinite(t) || t < 0) return;
+    splitAtPlayhead(t, { kind, id });
+  });
+
+  /* NIVEAU AUDIO À LA SOURIS, sur la piste elle-même.
+     Régler le volume obligeait à passer par le panneau latéral. Comme dans
+     Premiere, une ligne traverse la piste à la hauteur du niveau : on la tire
+     vers le haut ou vers le bas et on entend le résultat tout de suite.
+     L'échelle va de 0 à 2 — au-delà de 1, c'est du gain, appliqué à l'export
+     (la lecture est bornée à 1 par le navigateur). */
+  const NIVEAU_MAX = 2;
+  const niveauDragRef = useRef<{ id: string; startY: number; v0: number; h: number } | null>(null);
+
+  function onNiveauDown(e: React.PointerEvent, a: { id: string; vol: number }, hauteur: number) {
+    e.stopPropagation();
+    e.preventDefault();
+    try { (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId); } catch { /* noop */ }
+    niveauDragRef.current = { id: a.id, startY: e.clientY, v0: a.vol ?? 1, h: Math.max(1, hauteur) };
+  }
+  function onNiveauMove(e: React.PointerEvent) {
+    const d = niveauDragRef.current;
+    if (!d) return;
+    // Tirer vers le HAUT augmente : l'écran descend en Y, le niveau monte.
+    const v = d.v0 + ((d.startY - e.clientY) / d.h) * NIVEAU_MAX;
+    setAudioTracks((prev) => prev.map((x) => (x.id === d.id ? { ...x, vol: Math.max(0, Math.min(NIVEAU_MAX, v)) } : x)));
+  }
+  function onNiveauUp(e: React.PointerEvent) {
+    if (!niveauDragRef.current) return;
+    niveauDragRef.current = null;
+    try { (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId); } catch { /* noop */ }
+    // L'historique se prend tout seul sur changement d'état (cf. historyRef).
+  }
+
   const FRAME = 1 / 30;
   /* Raccourcis clavier.
 
@@ -3764,6 +3841,10 @@ export default function MontagePage() {
       if (meta) return; // laisse passer les autres raccourcis système
       if (e.altKey && e.shiftKey && k === "s") { e.preventDefault(); if (selectedOverlayId) detachOverlayAudio(selectedOverlayId); else if (selectedClipId) detachAudio(selectedClipId); return; } // ⇧⌥S : extraire le son (CapCut)
       if (e.altKey) return; // autres combos Option laissées au système
+      // C prend la lame, V rend la main — les touches de Premiere et Resolve.
+      if (k === "c") { e.preventDefault(); setOutilLame(true); return; }
+      if (k === "v") { e.preventDefault(); setOutilLame(false); setApercuCoupe(null); return; }
+      if (e.key === "Escape" && outilLame) { e.preventDefault(); setOutilLame(false); return; }
       if (e.key === " ") { e.preventDefault(); togglePlay(); return; }
       if (e.key === "Delete" || e.key === "Backspace") { e.preventDefault(); deleteSelected(); return; }
       if (k === "s") { e.preventDefault(); splitAtPlayhead(); return; }
@@ -3887,6 +3968,7 @@ export default function MontagePage() {
      qu'on rogne. La piste principale est enchaînée : rogner un plan décale tous
      les suivants, leurs bords bougent en même temps, et s'y aimanter n'a aucun
      sens. Les autres pistes, elles, restent des repères utiles. */
+  /** Instant sur lequel l'aimant vient d'accrocher, pour le tracer à l'écran. */
   function snapTime(t: number, opts?: { ignorer?: string; ignorerPlans?: boolean }): number {
     const hors = opts?.ignorer;
     const targets: number[] = [0, total, time];
@@ -3900,7 +3982,16 @@ export default function MontagePage() {
     for (const k of stickers) if (k.id !== hors) targets.push(k.start, k.end);
     const thresh = 8 / pps;
     let best = t, bestD = thresh;
-    for (const tg of targets) { const d = Math.abs(tg - t); if (d < bestD) { bestD = d; best = tg; } }
+    let accroche = false;
+    for (const tg of targets) { const d = Math.abs(tg - t); if (d < bestD) { bestD = d; best = tg; accroche = true; } }
+    // L'aimant agissait en silence : les bords se collaient bien, mais rien ne
+    // disait SUR QUOI, ni même qu'il s'était passé quelque chose. On garde donc
+    // l'instant accroché pour tracer un repère le temps du geste.
+    const marque = accroche ? best : null;
+    if (marqueAimantRef.current !== marque) {
+      marqueAimantRef.current = marque;
+      setMarqueAimant(marque);
+    }
     return best;
   }
 
@@ -4075,6 +4166,7 @@ export default function MontagePage() {
     setTlGhost({ x: gx, y: e.clientY - d.grabDy, w: d.widthPx, id: d.id, kind: d.kind });
   }
   function onTlDragUp(e: React.PointerEvent) {
+    effacerAimant();
     const d = tlDragRef.current;
     tlDragRef.current = null;
     setDragActive(false); setDropLane(null); setTlGhost(null);
@@ -5114,7 +5206,13 @@ export default function MontagePage() {
       {/* timeline dock */}
       <div className="a-timeline" style={{ height: timelineH }}>
         <div className="a-tl-bar">
-          <button className="a-tl-tool" disabled={!(selectedClipId || selectedOverlayId || selectedTitleId || selectedCaptionId || selectedAudioId)} onClick={() => splitAtPlayhead()}><VIcon name="split" size={15} /> {t('splitShort')}</button>
+          {/* Bouton d'OUTIL, pas d'action : il reste enfoncé tant que la lame est
+              en main, et n'est plus grisé faute de sélection — c'est justement
+              le principe, on coupe sans avoir sélectionné au préalable. */}
+          <button className={"a-tl-tool" + (outilLame ? " on" : "")} onClick={() => { setOutilLame((v) => !v); setApercuCoupe(null); }}
+            title={`${t('splitShort')} — C`}>
+            <VIcon name="split" size={15} /> {t('splitShort')}
+          </button>
           <button className="a-tl-tool" disabled={!(selectedClipId || selectedOverlayId)} onClick={duplicateSelectedAny}><VIcon name="copy" size={15} /> {t('duplicate')}</button>
           <button className="a-tl-tool" disabled={!(selectedClipId || selectedOverlayId || selectedAudioId || selectedTitleId || selectedCaptionId || selectedStickerId || multiSel.size)} onClick={deleteSelected}><VIcon name="trash" size={15} /> {t('delete')}</button>
           <div style={{ flex: 1 }} />
@@ -5134,8 +5232,28 @@ export default function MontagePage() {
           onDrop={(e) => { e.preventDefault(); setTlFileOver(false); if (e.dataTransfer.files?.length) importFilesToTimeline(e.dataTransfer.files, e.clientX, e.clientY); }}
           style={{ outline: tlFileOver ? "2px solid var(--mint-2)" : undefined, outlineOffset: -3 }}>
           <div
-            className="a-tl-inner"
+            className={"a-tl-inner" + (outilLame ? " lame" : "")}
             ref={tlInnerRef}
+            /* Phase de CAPTURE : le clic est traité avant d'atteindre l'élément.
+               Sur un clip, `onPointerDown` démarre sinon un glisser-déposer, et
+               la lame déplacerait le plan au lieu de le couper. */
+            onPointerMoveCapture={(e) => {
+              if (!outilLame) { if (apercuCoupe !== null) setApercuCoupe(null); return; }
+              const sur = (e.target as HTMLElement).closest("[data-lame]");
+              const rect = tlInnerRef.current?.getBoundingClientRect();
+              if (!sur || !rect) { if (apercuCoupe !== null) setApercuCoupe(null); return; }
+              const t = (e.clientX - rect.left - LANE_LABEL_W) / sceneRef.current.pps;
+              setApercuCoupe(Number.isFinite(t) && t >= 0 ? t : null);
+            }}
+            onPointerLeave={() => setApercuCoupe(null)}
+            onPointerDownCapture={(e) => {
+              if (!outilLame || e.button !== 0) return;
+              const surElement = (e.target as HTMLElement).closest("[data-lame]");
+              if (!surElement) return;
+              e.preventDefault();
+              e.stopPropagation();
+              couperAuClic(e);
+            }}
             style={{ width: LANE_LABEL_W + trackW + 30, ["--tscale" as string]: trackScale, ["--lane-label-w" as string]: `${LANE_LABEL_W}px` } as React.CSSProperties}
             onPointerDown={(e) => {
               // Sur une zone vide : un simple clic déplace le curseur ; un glissement trace
@@ -5374,6 +5492,23 @@ export default function MontagePage() {
                       {a.waveform && a.waveform.length > 0 && (
                         <AudioWave peaks={a.waveform} srcDur={audioSrcDur(a)} de={a.srcOffset ?? 0} a={(a.srcOffset ?? 0) + a.dur} />
                       )}
+                      {/* LIGNE DE NIVEAU. Elle traverse la piste à la hauteur du
+                          volume et se tire à la souris. Masquée quand la piste
+                          porte des points-clés : le volume y varie dans le temps,
+                          une ligne droite mentirait sur ce qui se passe. */}
+                      {!(a.volKeys && a.volKeys.length > 0) && (() => {
+                        const h = blockH(`a${a.track ?? 0}`);
+                        const v = Math.max(0, Math.min(NIVEAU_MAX, a.vol ?? 1));
+                        return (
+                          <div className="a-niveau" style={{ bottom: (v / NIVEAU_MAX) * h }}
+                            title={`${t('audioLevel')} — ${Math.round(v * 100)} %`}
+                            onPointerDown={(e) => onNiveauDown(e, a, h)}
+                            onPointerMove={onNiveauMove}
+                            onPointerUp={onNiveauUp}>
+                            <span className="a-niveau-val">{Math.round(v * 100)}%</span>
+                          </div>
+                        );
+                      })()}
                       <span style={{ position: "absolute", left: 6, top: 4, fontSize: 9.5, fontWeight: 700, color: "#fff" }}>{a.kind === "voiceover" ? "🎙" : "🎵"} {a.name}</span>
                       {(() => {
                         const w = a.dur * pps;
@@ -5464,6 +5599,17 @@ export default function MontagePage() {
                 bas. Il ajoute sa hauteur au contenu, ce qui n'est que de la marge
                 de fin. */}
             <div className="a-tl-pied" aria-hidden />
+            {/* REPÈRE D'AIMANTATION : la ligne sur laquelle le bord vient de se
+                coller. Elle n'apparaît que pendant le geste et disparaît au
+                relâchement — c'est un retour, pas un élément de la timeline. */}
+            {/* APERÇU DE COUPE : le trait rouge suit la lame sur l'élément survolé
+                et montre l'endroit exact où le clic coupera. */}
+            {outilLame && apercuCoupe !== null && (
+              <div className="a-coupe-apercu" aria-hidden style={{ left: LANE_LABEL_W + apercuCoupe * pps }} />
+            )}
+            {marqueAimant !== null && (
+              <div className="a-aimant" aria-hidden style={{ left: LANE_LABEL_W + marqueAimant * pps }} />
+            )}
             {/* Position posée par `poserCurseur` (écriture DOM directe) : pendant la
                 lecture React ne touche plus à ce style, sinon chaque rendu le
                 ramènerait à la valeur du dernier rendu et le curseur sauterait
@@ -5569,6 +5715,9 @@ export default function MontagePage() {
           rows.push(item("del1", t('delete'), () => removeAudioTrack(id), { sc: "⌫", danger: true }));
           rows.push(sep("s0"));
           rows.push(item("edit", t('contextEdit'), () => setTool("audio")));
+          // Le niveau se règle à la souris sur la piste, mais il faut aussi
+          // pouvoir y arriver sans viser une ligne d'un pixel et demi.
+          rows.push(item("niveau", t('audioLevel'), () => { setSelectedAudioId(id); setTool("audio"); }));
           rows.push(item("iso", t('voiceIsolate'), () => isolateVoiceOnTrack(id, "isolate"), { disabled: !!processingVoice }));
           rows.push(item("rem", t('voiceRemove'), () => isolateVoiceOnTrack(id, "remove"), { disabled: !!processingVoice }));
           rows.push(sep("s1"));

@@ -1630,6 +1630,18 @@ input.ed-range::-moz-range-thumb {
   color: var(--ink-2); box-shadow: none; transition: all .13s var(--ease); border: none; background: var(--btn-soft); cursor: pointer; }
 .a-tl-tool:hover:not(:disabled) { color: var(--ink); background: var(--btn-soft-2); }
 .a-tl-tool:disabled { opacity: .35; cursor: not-allowed; }
+/* Outil actif : le bouton reste enfoncé, pour qu'on sache ce qu'on a en main. */
+.a-tl-tool.on { color: var(--ink); background: var(--mint-soft); box-shadow: inset 0 0 0 1.5px var(--mint-2); }
+/* Lame en main : le curseur le dit sur toute la timeline, et les éléments
+   cessent d'afficher la main de déplacement — ils ne se déplacent plus, ils se
+   coupent. */
+.a-tl-inner.lame, .a-tl-inner.lame * {
+  /* L'icône de la lame EST le curseur : c'est elle qui dit qu'on a l'outil en
+     main, une croix ne le dit pas. Le tracé noir est doublé d'un liseré blanc,
+     sinon il disparaît sur les clips sombres. Le point chaud est au centre du
+     trait vertical (13, 13), donc là où la coupe aura lieu. */
+  cursor: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2226%22%20height%3D%2226%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M12%203v18M7%208l-3%204%203%204M17%208l3%204-3%204%22%20stroke%3D%22%23fff%22%20stroke-width%3D%225%22%2F%3E%3Cpath%20d%3D%22M12%203v18M7%208l-3%204%203%204M17%208l3%204-3%204%22%20stroke%3D%22%230b0b0b%22%20stroke-width%3D%222.4%22%2F%3E%3C%2Fsvg%3E") 13 13, crosshair !important;
+}
 
 .a-tl-scroll { flex: 1; overflow-x: auto; overflow-y: auto; position: relative; }
 .a-tl-inner { position: relative; min-width: 100%; padding: 8px 0 10px; display: flex; flex-direction: column; }
@@ -1659,6 +1671,28 @@ input.ed-range::-moz-range-thumb {
    lecture ressortait sur ses derniers pixels. */
 .a-tl-pied { position: sticky; left: 0; z-index: 19; pointer-events: none;
   width: var(--lane-label-w, 160px); height: 16px; background: var(--white); }
+
+/* Repère d'aimantation : la ligne sur laquelle un bord vient de se coller.
+   Sous la gouttière (19) et le ruban (20) comme la tête de lecture, pour ne pas
+   traverser la colonne des pistes. */
+/* Aperçu de coupe : le trait que la lame suivra. Rouge, pour ne pas se
+   confondre avec le repère d'aimantation (vert) ni la tête de lecture. Sous la
+   gouttière, comme tout ce qui vit dans la timeline. */
+.a-coupe-apercu { position: absolute; top: 0; bottom: 8px; width: 1.5px; z-index: 16; pointer-events: none;
+  background: #ff4438; box-shadow: 0 0 0 .5px rgba(0,0,0,.35); }
+
+.a-aimant { position: absolute; top: 0; bottom: 8px; width: 1.5px; z-index: 16; pointer-events: none;
+  background: var(--acid, #b8ff3c); box-shadow: 0 0 0 .5px rgba(0,0,0,.15); }
+
+/* Ligne de niveau audio, tirable à la souris. La zone de saisie déborde de part
+   et d'autre du trait : viser une ligne d'un pixel et demi est impossible. */
+.a-niveau { position: absolute; left: 0; right: 0; height: 11px; margin-bottom: -5.5px;
+  cursor: ns-resize; z-index: 6; touch-action: none; display: flex; align-items: center; }
+.a-niveau::before { content: ""; position: absolute; left: 0; right: 0; top: 50%; height: 1.5px;
+  transform: translateY(-50%); background: var(--acid, #b8ff3c); box-shadow: 0 0 0 .5px rgba(0,0,0,.35); }
+.a-niveau-val { position: relative; margin-left: 6px; font-family: var(--mono); font-size: 8.5px; font-weight: 800;
+  color: #0b1a0b; background: var(--acid, #b8ff3c); border-radius: 3px; padding: 0 3px; opacity: 0; transition: opacity .12s; }
+.a-wave-bar:hover .a-niveau-val, .a-niveau:active .a-niveau-val { opacity: 1; }
 
 .a-tick { position: absolute; top: 0; bottom: 0; border-left: 1px solid var(--line); }
 .a-tick span { position: absolute; top: 2px; left: 4px; font-family: var(--mono); font-weight: 700; font-size: 9px; color: var(--ink-3); }

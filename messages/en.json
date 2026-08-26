@@ -1992,7 +1992,8 @@
     "mediaInOverlay": "Overlay · track {n}",
     "mediaInAudio": "Audio · track {n}",
     "useAsOverlay": "Add as overlay",
-    "toastOverlayAdded": "Overlay added at the playhead."
+    "toastOverlayAdded": "Overlay added at the playhead.",
+    "audioLevel": "Audio level"
   },
   "forgotPassword": {
     "title": "Forgot password",
