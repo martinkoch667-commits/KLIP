@@ -139,6 +139,9 @@ export async function POST(request: NextRequest) {
         userText,
         temperature: 0.75, // on veut de l'angle, pas la version moyenne du sujet
         maxTokens: 3000,
+        // Écrire huit slides qui s'enchaînent demande de tenir un fil : c'est
+        // exactement ce que la réflexion coupée fait perdre.
+        quality: 'high',
       });
     } catch (err) {
       console.error('[compose-carousel] erreur fournisseur IA :', err);
