@@ -12,7 +12,18 @@ const MODEL = 'gemini-2.5-flash';
 // la génération s'arrêtait net : « Génération interrompue », en pleine
 // utilisation. Un modèle épinglé peut disparaître sans préavis ; c'est une
 // certitude, pas un risque.
-const MODEL_QUALITY = 'gemini-3.1-pro-preview';
+//
+// EN PANNE OUVERTE, PILOTÉE PAR VARIABLE D'ENVIRONNEMENT.
+// `gemini-2.5-pro` a été retiré ; son remplaçant `gemini-3.1-pro-preview` est
+// une preview lente, et sans délai maximum sur l'appel une génération pouvait
+// tourner indéfiniment — écran bloqué sur « Écriture des textes… », pire qu'une
+// erreur franche. Le palier de qualité est donc DÉSACTIVÉ par défaut : tout
+// passe par le modèle rapide, celui qui n'est jamais tombé.
+//
+// Pour le réactiver sans redéployer, poser AI_MODEL_QUALITY dans Vercel
+// (ex. `gemini-3.1-pro-preview`) et vérifier les temps de réponse dans les
+// journaux avant de le laisser en place.
+const MODEL_QUALITY = process.env.AI_MODEL_QUALITY?.trim() || MODEL;
 
 export type GeminiPart = { text: string } | { inlineData: { mimeType: string; data: string } };
 export type GeminiContent = { role: 'user' | 'model'; parts: GeminiPart[] };
@@ -79,15 +90,35 @@ export async function callGeminiText(params: {
   let modeleUtilise = modeles[0];
   let derniereErreur = '';
 
+  // UN APPEL QUI NE RÉPOND PAS DOIT ÉCHOUER, PAS ATTENDRE.
+  //
+  // Il n'y avait aucun délai maximum : un modèle lent ou muet laissait la
+  // requête ouverte jusqu'à ce que la fonction serverless soit tuée, et
+  // l'interface restait bloquée sur « Écriture des textes… » sans jamais rien
+  // afficher. Une erreur en vingt-cinq secondes est infiniment plus utile
+  // qu'une roue qui tourne : on peut la rattraper, la journaliser, réessayer.
+  //
+  // 25 s laisse la place au repli dans les 60 s de la fonction.
   for (const modele of modeles) {
-    const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/${modele}:generateContent?key=${apiKey}`,
-      { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }
-    );
-    const json = await response.json();
-    if (response.ok) { data = json; modeleUtilise = modele; break; }
-    derniereErreur = json.error?.message || `HTTP ${response.status}`;
-    console.error(`[ia] ${modele} refusé : ${derniereErreur}`);
+    const stop = new AbortController();
+    const minuteur = setTimeout(() => stop.abort(), 25_000);
+    try {
+      const response = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/${modele}:generateContent?key=${apiKey}`,
+        { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body), signal: stop.signal }
+      );
+      const json = await response.json();
+      if (response.ok) { data = json; modeleUtilise = modele; break; }
+      derniereErreur = json.error?.message || `HTTP ${response.status}`;
+      console.error(`[ia] ${modele} refusé : ${derniereErreur}`);
+    } catch (e) {
+      derniereErreur = e instanceof Error && e.name === 'AbortError'
+        ? `${modele} n'a pas répondu en 25 s`
+        : `${modele} injoignable : ${e instanceof Error ? e.message : String(e)}`;
+      console.error(`[ia] ${derniereErreur}`);
+    } finally {
+      clearTimeout(minuteur);
+    }
   }
 
   if (!data) throw new Error(derniereErreur || 'Erreur IA (Gemini)');
