@@ -3565,8 +3565,49 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
               (e: CanvasEl) => e.type === 'image' && (e as ImageEl).src === PHOTO_PLACEHOLDER_SRC
             );
 
+            // LE TEXTE GÉNÉRÉ DOIT ENTRER DANS LE TEMPLATE.
+            //
+            // Les zones du modèle étaient recopiées TELLES QUELLES, texte de
+            // remplissage compris : choisir un template rendait donc un visuel
+            // marqué « TEXTE 1 » et « Texte 2 », pendant que l'accroche écrite
+            // par l'IA restait dans le panneau à côté. Sans template, elle était
+            // bien injectée (bloc par défaut) — d'où l'impression que les deux
+            // n'étaient « plus reliés ».
+            //
+            // On remplit par RÔLE, parce que c'est exactement ce que l'auteur du
+            // template a déclaré en le dessinant : le bloc « Titre principal »
+            // reçoit l'accroche, le sous-titre ou le corps reçoit la première
+            // phrase de la légende.
+            const estRemplissage = (t: string) =>
+              /^(texte\s*\d*|votre texte|nouveau texte)$/i.test(String(t ?? '').trim());
+            const accroche = String(p?.texte_visuel ?? '').trim();
+            // Première phrase de la légende, sans les hashtags qui la terminent.
+            const legende = String(p?.description ?? '').split(/#/)[0].trim();
+            const phrase = (legende.match(/^[^.!?]+[.!?]?/)?.[0] ?? '').trim();
+
+            const textes = zones.filter((e): e is TextEl => e.type === 'text');
+            // À défaut de rôle déclaré, le plus gros bloc de texte EST le titre.
+            const principal = textes.find(e => e.role === 'titre')
+              ?? textes.find(e => e.role === 'accroche')
+              ?? textes.slice().sort((a, b) => (b.fontSize ?? 0) - (a.fontSize ?? 0))[0];
+            const secondaire = textes.find(e => e !== principal && (e.role === 'sous-titre' || e.role === 'corps'));
+
+            const rempli = zones.map((el: CanvasEl) => {
+              if (el.type !== 'text') return el;
+              const te = el as TextEl;
+              if (te === principal && accroche) return { ...te, text: accroche };
+              if (te === secondaire && phrase && estRemplissage(te.text)) return { ...te, text: phrase };
+              return te;
+            });
+
+            // Un bloc de remplissage laissé en place est pire qu'un bloc absent :
+            // « Texte 2 » se retrouverait publié tel quel. Les textes FIXES voulus
+            // par l'auteur (« NOUVEAU », un compte, un prix) ne correspondent à
+            // aucun motif de remplissage et sont donc conservés.
+            const nettoye = rempli.filter(el => !(el.type === 'text' && estRemplissage((el as TextEl).text)));
+
             // Replace photo placeholder with actual photo; assign fresh ids to avoid conflicts
-            const initElements: CanvasEl[] = zones.map((el: CanvasEl) => {
+            const initElements: CanvasEl[] = nettoye.map((el: CanvasEl) => {
               const freshId = el.id.startsWith('tpl-') ? el.id : `tpl-${el.id}`;
               if (el.type === 'image' && (el as ImageEl).src === PHOTO_PLACEHOLDER_SRC) {
                 return { ...el, id: freshId, src: photoProxyUrl } as ImageEl;
