@@ -395,6 +395,18 @@ function applyAutoFit(elements: any[]): any[] {
   });
 }
 
+/** Ligne de journal identifiant la composition appliquée.
+ *  Le nom pour la personne qui regarde, l'identifiant pour celui qui devra
+ *  retrouver le dessin dans `designSystem.ts` quand le visuel déplaît. */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function nomDeComposition(layout: any): string {
+  const id = String(layout?.recipeId ?? '').replace(/^ds:|^tpl:/, '');
+  const nom = String(layout?.template?.name ?? '').trim();
+  if (!id && !nom) return 'Composition appliquée';
+  const origine = layout?.source === 'template' ? 'Modèle maison' : 'Composition';
+  return nom && nom !== id ? `${origine} : ${nom} (${id})` : `${origine} : ${id}`;
+}
+
 // La photo d'un post arrive comme un CALQUE IMAGE ordinaire, pas comme un « fond ».
 //
 // Le fond était un objet à part : verrouillé, déplaçable seulement à l'horizontale,
@@ -5612,7 +5624,20 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
       const refs = data?.refs as { instagram?: number } | undefined;
       if (refs?.instagram) edLog(`${refs.instagram} visuel(s) du compte Instagram en référence de style`);
       if (typeof data?.rationale === 'string' && data.rationale.trim()) edLog(`Parti pris : ${data.rationale.trim()}`);
+      // QUELLE COMPOSITION, ET SUR QUELLE IDENTITÉ.
+      //
+      // Le journal disait ce que l'IA avait COMPRIS, jamais ce qu'elle avait
+      // CHOISI. Quand un visuel déplaît, personne — ni l'utilisateur, ni nous —
+      // ne peut dire quelle recette l'a produit : on rejuge la bibliothèque
+      // entière à l'aveugle. Le nom se lit comme un nom de modèle, l'identifiant
+      // entre parenthèses est ce qu'on nous rapporte pour aller droit au dessin.
+      const typo = data?.typo as { name?: string } | undefined;
+      const terrain = data?.terrain as { name?: string } | undefined;
+      if (typo?.name || terrain?.name) {
+        edLog(`Identité : ${[typo?.name, terrain?.name].filter(Boolean).join(' · ')}`);
+      }
       edLog(`${layouts.length} composition(s) proposée(s) — application de la 1re`);
+      edLog(nomDeComposition(layouts[0]));
       setAiVariants(layouts); setAiVariantIdx(0); setVariantAsked(layouts.length > 1);
       // Ce qui est APPLIQUÉ compte, pas seulement ce qui est changé : sans cette
       // trace, le compositeur n'a aucun moyen de savoir qu'il vient de servir
@@ -5670,7 +5695,7 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
     rememberChoice(aiVariants[idx], idx + 1);
     setVariantAsked(false);
     setQaBusy(true); setQaMsg(`Variante ${idx + 1}/${aiVariants.length}…`);
-    try { await materializeLayout(aiVariants[idx]); setQaMsg(`Variante ${idx + 1} ✓`); }
+    try { await materializeLayout(aiVariants[idx]); edLog(nomDeComposition(aiVariants[idx])); setQaMsg(`Variante ${idx + 1} ✓`); }
     catch { setQaMsg('Erreur variante'); }
     finally { setQaBusy(false); setTimeout(() => setQaMsg(null), 2000); }
   };

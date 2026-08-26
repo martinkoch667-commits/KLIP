@@ -23,10 +23,11 @@ const CHARTES = [
   { nom: "Trattoria", primary: "#1B2FE8", secondary: "#F1EDE4", accent: "#F1EDE4", body: null, display: null, name: "AMICII", handle: "@amicii.ristorante", sector: "Restaurant", tone: "chaleureux, familial, authentique" },
   { nom: "Studio", primary: "#111111", secondary: "#F5F3EF", accent: "#F2542D", body: null, display: null, name: "ASTERISK", handle: "@asterisk.create", sector: "Autre", tone: "épuré, éditorial, pointu" },
   { nom: "Boisson", primary: "#7FE04A", secondary: "#FFE500", accent: "#FF3EA5", body: null, display: null, name: "UPGAS", handle: "@upgas", sector: "Retail", tone: "fun, décalé, énergique" },
-  // Charte réelle d'un client : l'accent déclaré est BLANC, donc inutilisable
-  // comme repère. C'est le cas qui a fait disparaître les pastilles. Elle garde
-  // sa police de titre : la charte doit rester souveraine.
-  { nom: "Poulet", primary: "#FF4438", secondary: "#FFC600", accent: "#FFFFFF", display: "Oswald", body: "Archivo", name: "PEPE CHICKEN", handle: "@pepechicken", sector: "Restaurant", tone: "direct, cash, percutant" },
+  // Charte réelle de Pepe Chicken, relevée dans le produit : rouge, jaune, blanc,
+  // Oswald 800 en titre et Satoshi en texte. L'accent déclaré est BLANC, donc
+  // inutilisable comme repère — c'est le cas qui a fait disparaître les pastilles,
+  // et c'est aussi le client sur lequel les visuels rejetés ont été produits.
+  { nom: "Poulet", primary: "#FF4438", secondary: "#FFC600", accent: "#FFFFFF", display: "Oswald", body: "Satoshi", name: "PEPE CHICKEN", handle: "@pepechicken", sector: "Restaurant", tone: "direct, cash, percutant" },
 ];
 
 // Photo de démonstration : une image locale suffit, l'objet du banc est le dessin.
