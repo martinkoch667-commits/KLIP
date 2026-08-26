@@ -1990,10 +1990,18 @@ export default function MontagePage() {
 
   // Couper en deux au curseur — fonctionne sur N'IMPORTE QUEL élément sélectionné :
   // plan principal, incrustation (Vidéo 2, 3…), texte, ou piste audio.
-  function splitAtPlayhead() {
+  /**
+   * Découpe l'élément sélectionné, au curseur par défaut.
+   *
+   * `instant` permet à l'outil lame de couper là où l'on CLIQUE, sans déplacer
+   * la tête de lecture : c'est ce que font Premiere et Resolve, et c'est ce qui
+   * distingue un outil d'un bouton. Toute la logique de découpe reste commune —
+   * dupliquer ces cinq cas pour la lame aurait garanti qu'ils divergent.
+   */
+  function splitAtPlayhead(instant?: number) {
     // Le temps exact, pas celui du dernier rendu : couper au curseur pendant la
     // lecture doit couper là où l'on voit le curseur.
-    const time = timeRef.current;
+    const time = instant ?? timeRef.current;
     // 1) Incrustation sélectionnée
     if (selectedOverlayId) {
       const o = overlays.find((x) => x.id === selectedOverlayId);
@@ -5078,7 +5086,7 @@ export default function MontagePage() {
       {/* timeline dock */}
       <div className="a-timeline" style={{ height: timelineH }}>
         <div className="a-tl-bar">
-          <button className="a-tl-tool" disabled={!(selectedClipId || selectedOverlayId || selectedTitleId || selectedCaptionId || selectedAudioId)} onClick={splitAtPlayhead}><VIcon name="split" size={15} /> {t('splitShort')}</button>
+          <button className="a-tl-tool" disabled={!(selectedClipId || selectedOverlayId || selectedTitleId || selectedCaptionId || selectedAudioId)} onClick={() => splitAtPlayhead()}><VIcon name="split" size={15} /> {t('splitShort')}</button>
           <button className="a-tl-tool" disabled={!(selectedClipId || selectedOverlayId)} onClick={duplicateSelectedAny}><VIcon name="copy" size={15} /> {t('duplicate')}</button>
           <button className="a-tl-tool" disabled={!(selectedClipId || selectedOverlayId || selectedAudioId || selectedTitleId || selectedCaptionId || selectedStickerId || multiSel.size)} onClick={deleteSelected}><VIcon name="trash" size={15} /> {t('delete')}</button>
           <div style={{ flex: 1 }} />
@@ -5169,6 +5177,7 @@ export default function MontagePage() {
                       onPointerDown={(e) => startTlDrag(e, c.id, "clip")}
                       onPointerMove={onTlDragMove}
                       onPointerUp={onTlDragUp}
+                      data-lame={`clip:${c.id}`}
                       onContextMenu={(e) => { e.preventDefault(); selectClip(c.id); setClipMenu({ x: e.clientX, y: e.clientY, id: c.id, kind: "clip" }); }}
                     >
                       <ClipStrip data={strips[c.id]} width={c.dur * pps} height={blockH("video")} filter={clipFilterCss(c)} />
@@ -5254,6 +5263,7 @@ export default function MontagePage() {
                       onPointerDown={(e) => startTlDrag(e, o.id, "overlay")}
                       onPointerMove={onTlDragMove}
                       onPointerUp={onTlDragUp}
+                      data-lame={`overlay:${o.id}`}
                       onContextMenu={(e) => { e.preventDefault(); selectOverlay(o.id); setClipMenu({ x: e.clientX, y: e.clientY, id: o.id, kind: "overlay" }); }}
                     >
                       <ClipStrip data={strips[o.id]} width={Math.max(24, overlayTimelineDur(o) * pps)} height={blockH(`v${o.track ?? 0}`)} filter={overlayFilterCss(o)} />
@@ -5321,6 +5331,7 @@ export default function MontagePage() {
                   {audioTracks.filter((a) => (a.track ?? 0) === atrack).map((a) => (
                     <div key={a.id} data-selid={a.id} className="a-wave-bar" style={{ left: a.offset * pps, width: a.dur * pps, top: 2, height: blockH(`a${a.track ?? 0}`), cursor: "grab", touchAction: "none", boxShadow: selectedAudioId === a.id || multiSel.has(a.id) ? "inset 0 0 0 2px var(--acid)" : undefined }} title={a.name}
                       onPointerDown={(e) => onAudioBarDown(e, a)} onPointerMove={onAudioBarMove} onPointerUp={onAudioBarUp}
+                      data-lame={`audio:${a.id}`}
                       onContextMenu={(e) => { e.preventDefault(); setSelectedAudioId(a.id); setTool("audio"); setClipMenu({ x: e.clientX, y: e.clientY, id: a.id, kind: "audio" }); }}>
                       {a.waveform && a.waveform.length > 0 && (
                         <AudioWave peaks={a.waveform} srcDur={audioSrcDur(a)} de={a.srcOffset ?? 0} a={(a.srcOffset ?? 0) + a.dur} />
@@ -5359,6 +5370,7 @@ export default function MontagePage() {
                 {captions.map((c) => (
                   <div key={c.id} data-selid={c.id} className={"a-chip a-chip-cap" + (selectedCaptionId === c.id || multiSel.has(c.id) ? " on" : "")} style={{ left: c.start * pps, width: Math.max(20, (c.end - c.start) * pps), top: 2, height: blockH("subs"), cursor: "grab", touchAction: "none" }} title={c.text}
                     onPointerDown={(e) => onCaptionBarDown(e, c)} onPointerMove={onCaptionBarMove} onPointerUp={onCaptionBarUp}
+                    data-lame={`caption:${c.id}`}
                     onContextMenu={(e) => { e.preventDefault(); setSelectedCaptionId(c.id); setClipMenu({ x: e.clientX, y: e.clientY, id: c.id, kind: "caption" }); }}>
                     <VIcon name="captions" size={11} />
                     <span style={{ fontSize: 10, fontWeight: 700, color: "#fff", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.text}</span>
@@ -5393,6 +5405,7 @@ export default function MontagePage() {
                 {titles.filter((ti) => (ti.track ?? 0) === ttrack).map((ti) => (
                   <div key={ti.id} className={"a-chip a-chip-title" + (selectedTitleId === ti.id ? " on" : "")} style={{ left: ti.start * pps, width: Math.max(20, (ti.end - ti.start) * pps), top: 2, height: blockH(`t${ttrack}`), cursor: "grab", touchAction: "none" }} title={ti.text}
                     onPointerDown={(e) => onTitleBarDown(e, ti)} onPointerMove={onTitleBarMove} onPointerUp={onTitleBarUp}
+                    data-lame={`title:${ti.id}`}
                     onContextMenu={(e) => { e.preventDefault(); setSelectedTitleId(ti.id); setClipMenu({ x: e.clientX, y: e.clientY, id: ti.id, kind: "title" }); }}>
                     <VIcon name="text" size={11} />
                     <span style={{ fontSize: 10, fontWeight: 700, color: "#fff", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{ti.text}</span>
