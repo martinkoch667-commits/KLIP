@@ -1292,13 +1292,41 @@ export default function MontagePage() {
     return false;
   }
 
-  /** Repositionne le curseur sans passer par React. */
+  /**
+   * Repositionne le curseur sans passer par React.
+   *
+   * ET LE CACHE QUAND IL PASSE DERRIÈRE LA GOUTTIÈRE.
+   *
+   * Masquer par empilement ne suffisait pas : la tête de lecture porte une
+   * poignée qui déborde d'un pixel au-dessus de son trait, et son extrémité
+   * basse sort sous la dernière piste. À chaque endroit non couvert, elle
+   * reparaissait dans la colonne des pistes. Empiler des caches revient à
+   * courir après des cas particuliers ; ne rien dessiner du tout est exact.
+   *
+   * La position du curseur est en coordonnées de CONTENU ; la gouttière occupe
+   * les 160 premiers pixels de la fenêtre de défilement. Le curseur est donc
+   * derrière elle tant que `t * pps` est inférieur au défilement horizontal.
+   */
   const poserCurseur = useCallback((t: number) => {
-    if (playheadRef.current) playheadRef.current.style.left = `${LANE_LABEL_W + t * sceneRef.current.pps}px`;
+    if (playheadRef.current) {
+      playheadRef.current.style.left = `${LANE_LABEL_W + t * sceneRef.current.pps}px`;
+      const defile = tlScrollRef.current?.scrollLeft ?? 0;
+      playheadRef.current.style.visibility = t * sceneRef.current.pps < defile ? "hidden" : "";
+    }
     const pct = totalRef.current ? `${(t / totalRef.current) * 100}%` : "0%";
     if (scrubFillRef.current) scrubFillRef.current.style.width = pct;
     if (scrubKnobRef.current) scrubKnobRef.current.style.left = pct;
   }, []);
+
+  // Le curseur ne bouge pas quand on fait DÉFILER, mais la gouttière, elle,
+  // avance sur lui : sa visibilité doit être réévaluée à chaque défilement.
+  useEffect(() => {
+    const el = tlScrollRef.current;
+    if (!el) return;
+    const surDefilement = () => poserCurseur(timeRef.current);
+    el.addEventListener("scroll", surDefilement, { passive: true });
+    return () => el.removeEventListener("scroll", surDefilement);
+  }, [poserCurseur]);
 
   const clipsEnd = clipStarts.length ? clipStarts[clipStarts.length - 1].end : 0;
   // Fin réelle du projet = dernière frame de TOUT ce qui est posé sur la timeline
