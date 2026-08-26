@@ -1274,27 +1274,35 @@ export const TRANSITIONS: { id: string; name: string; glyph: string }[] = [
   // — Fondus —
   { id: "fade", name: "Fondu", glyph: "◐" },
   { id: "fadeblack", name: "Fondu au noir", glyph: "◼" },
+  { id: "fadewhite", name: "Fondu au blanc", glyph: "◻" },
   { id: "flash", name: "Flash", glyph: "✦" },
   // — Glissés —
   { id: "slide", name: "Glissé", glyph: "⇥" },
   { id: "slideright", name: "Glissé droite", glyph: "⇤" },
   { id: "slideup", name: "Glissé haut", glyph: "⇧" },
   { id: "slidedown", name: "Glissé bas", glyph: "⇩" },
+  { id: "slidediag", name: "Glissé diagonale", glyph: "⇘" },
+  { id: "slidediagup", name: "Glissé diagonale ↗", glyph: "⇗" },
   // — Zooms —
   { id: "zoom", name: "Zoom avant", glyph: "⊕" },
   { id: "zoomout", name: "Zoom arrière", glyph: "⊖" },
   { id: "bounce", name: "Rebond", glyph: "◎" },
+  { id: "zoomblur", name: "Zoom flouté", glyph: "⊛" },
+  { id: "zoomspin", name: "Zoom tournant", glyph: "⟳" },
+  { id: "punch", name: "Coup de zoom", glyph: "⊙" },
   // — Balayages —
   { id: "wipe", name: "Balayage", glyph: "◑" },
   { id: "wiperight", name: "Balayage ←", glyph: "◐" },
   { id: "wipeup", name: "Balayage ↑", glyph: "◒" },
   { id: "wipedown", name: "Balayage ↓", glyph: "◓" },
   { id: "iris", name: "Iris", glyph: "◉" },
+  { id: "boxin", name: "Iris carré", glyph: "▣" },
   // — Dynamiques —
   { id: "spin", name: "Rotation", glyph: "↻" },
   { id: "swirl", name: "Tourbillon", glyph: "✺" },
   { id: "blur", name: "Flou", glyph: "◌" },
   { id: "whip", name: "Whip", glyph: "⤳" },
+  { id: "whipup", name: "Whip vertical", glyph: "⤒" },
   { id: "shake", name: "Secousse", glyph: "≋" },
   { id: "glitch", name: "Glitch", glyph: "⌁" },
 ];
@@ -1610,68 +1618,190 @@ export interface TransitionState {
   clipCircle: [number, number, number] | null;       // cx,cy,r en fractions (r = /diagonale)
 }
 
+/** État des DEUX plans pendant une transition : celui qui arrive et celui qui part.
+ *
+ *  Une transition n'était appliquée qu'au plan ENTRANT, par-dessus un plan sortant
+ *  figé sur sa dernière image (ou, dans l'aperçu, par-dessus rien du tout : un
+ *  « fondu » apparaissait depuis le noir au lieu de l'image d'avant). C'est ce qui
+ *  les faisait toutes paraître bon marché : un glissé, c'était une photo immobile
+ *  avec une image qui passe dessus. Les deux côtés bougent maintenant, et c'est le
+ *  même calcul qui sert à l'aperçu et aux deux exports.
+ *
+ *  `out` décrit le plan qui s'en va, dessiné EN DESSOUS ; `in` celui qui arrive,
+ *  dessiné par-dessus. Les voiles (flash, noir) sont portés par `in` et posés une
+ *  seule fois, au-dessus des deux.
+ */
+export interface TransitionPair { in: TransitionState; out: TransitionState }
+
+const neutralState = (): TransitionState => ({
+  alpha: 1, dx: 0, dy: 0, scale: 1, rotate: 0, flash: 0, dark: 0,
+  extraFilter: "", clipRect: null, clipCircle: null,
+});
+
+export function transitionPairAt(
+  transitionIn: string | undefined,
+  transitionDur: number,
+  tIntoClip: number,
+  isFirst: boolean,
+): TransitionPair {
+  const entrant = neutralState();
+  const sortant = neutralState();
+  if (isFirst || !transitionIn || transitionIn === "cut" || transitionDur <= 0 || tIntoClip >= transitionDur) {
+    return { in: entrant, out: sortant };
+  }
+  const p = Math.max(0, Math.min(1, tIntoClip / transitionDur));
+  const ease = 1 - Math.pow(1 - p, 2);
+  // Un fondu croisé linéaire creuse un trou de luminosité au milieu : les deux
+  // moitiés d'opacité ne s'additionnent pas. La racine le comble.
+  const fadeIn = Math.sqrt(p), fadeOut = Math.sqrt(1 - p);
+
+  switch (transitionIn) {
+    case "fade":
+      entrant.alpha = fadeIn; sortant.alpha = fadeOut;
+      break;
+    case "fadeblack":
+      // Passage par le noir : le sortant s'efface sur la première moitié, l'entrant
+      // arrive sur la seconde. Le fond noir fait le reste, sans voile à poser.
+      sortant.alpha = Math.max(0, 1 - p * 2);
+      entrant.alpha = Math.max(0, p * 2 - 1);
+      break;
+    case "fadewhite":
+      // Comme le fondu au noir, mais on passe par le blanc : le voile fait le
+      // travail pendant que les deux plans se croisent en dessous.
+      sortant.alpha = Math.max(0, 1 - p * 2);
+      entrant.alpha = Math.max(0, p * 2 - 1);
+      entrant.flash = Math.min(1, Math.sin(p * Math.PI) * 1.6);
+      break;
+    case "flash":
+      sortant.alpha = fadeOut; entrant.alpha = fadeIn;
+      entrant.flash = Math.sin(p * Math.PI); // pic de blanc au milieu, pas au début
+      break;
+
+    // — Glissés : les deux plans traversent le cadre ensemble, à pleine opacité.
+    //   Ils partaient d'un demi-cadre et en fondu, ce qui donnait un flottement
+    //   au lieu d'un glissement.
+    case "slide":      entrant.dx = 1 - ease;  sortant.dx = -ease; break;
+    case "slideright": entrant.dx = -(1 - ease); sortant.dx = ease; break;
+    case "slideup":    entrant.dy = 1 - ease;  sortant.dy = -ease; break;
+    case "slidedown":  entrant.dy = -(1 - ease); sortant.dy = ease; break;
+    // En diagonale, le sortant NE BOUGE PAS : deux rectangles qui filent en biais
+    // ne pavent pas le cadre, et on récoltait deux coins noirs. L'entrant passe
+    // donc par-dessus, en recouvrement.
+    case "slidediag":
+      entrant.dx = 1 - ease; entrant.dy = 1 - ease;
+      break;
+    case "slidediagup":
+      entrant.dx = -(1 - ease); entrant.dy = 1 - ease;
+      break;
+
+    // — Zooms : le sortant continue le mouvement du reste, l'entrant le rattrape.
+    case "zoom":
+      sortant.scale = 1 + 0.55 * ease; sortant.alpha = fadeOut;
+      entrant.scale = 1.55 - 0.55 * ease; entrant.alpha = fadeIn;
+      break;
+    // Le plan sortant ne descend JAMAIS sous le cadre plein : il est dessiné en
+    // dessous, donc tout ce qu'il libère montre du noir. C'est au plan entrant,
+    // par-dessus, d'arriver petit et de grandir.
+    case "zoomout":
+      sortant.scale = 1 + 0.1 * ease; sortant.alpha = fadeOut;
+      entrant.scale = 0.6 + 0.4 * ease; entrant.alpha = fadeIn;
+      break;
+    case "bounce": {
+      const o = Math.sin(p * Math.PI) * 0.1;
+      sortant.scale = 1 + 0.12 * ease; sortant.alpha = fadeOut;
+      entrant.scale = 0.8 + 0.2 * ease + o; entrant.alpha = fadeIn;
+      break;
+    }
+
+    case "zoomblur":
+      sortant.scale = 1 + 0.5 * ease; sortant.extraFilter = `blur(${ease * 18}px)`; sortant.alpha = fadeOut;
+      entrant.scale = 1.5 - 0.5 * ease; entrant.extraFilter = `blur(${(1 - ease) * 18}px)`; entrant.alpha = fadeIn;
+      break;
+    case "zoomspin":
+      sortant.scale = 1 + 0.3 * ease; sortant.alpha = fadeOut;
+      entrant.scale = 1.6 - 0.6 * ease; entrant.rotate = -(1 - ease) * 45; entrant.alpha = fadeIn;
+      break;
+    case "punch": {
+      // Coup sec : l'entrant arrive gros et se pose vite, au lieu de s'étaler sur
+      // toute la durée. C'est la nervosité qu'on attend d'un montage court.
+      const sec = 1 - Math.pow(1 - p, 4);
+      sortant.scale = 1 + 0.08 * sec; sortant.alpha = Math.max(0, 1 - p * 2.2);
+      entrant.scale = 1.35 - 0.35 * sec; entrant.alpha = Math.min(1, p * 2.2);
+      break;
+    }
+
+    // — Balayages : le sortant ne bouge pas, il est recouvert. C'est la définition
+    //   même d'un balayage, et elle demande que le sortant soit là.
+    case "wipe":      entrant.clipRect = [0, 0, ease, 1]; break;
+    case "wiperight": entrant.clipRect = [1 - ease, 0, ease, 1]; break;
+    case "wipedown":  entrant.clipRect = [0, 0, 1, ease]; break;
+    case "wipeup":    entrant.clipRect = [0, 1 - ease, 1, ease]; break;
+    case "iris":      entrant.clipCircle = [0.5, 0.5, 0.5 * ease]; break;
+    case "boxin":     entrant.clipRect = [0.5 - ease / 2, 0.5 - ease / 2, ease, ease]; break;
+
+    // — Dynamiques —
+    // Seul le plan ENTRANT tourne. Faire pivoter celui du dessous découvre ses
+    // quatre coins, et aucune échelle raisonnable ne les rattrape à 80 degrés :
+    // on gagnait un cadre noir en biais à chaque rotation.
+    case "spin":
+      sortant.scale = 1 + 0.12 * ease; sortant.alpha = fadeOut;
+      entrant.rotate = -(1 - ease) * 25; entrant.scale = 0.8 + 0.2 * ease; entrant.alpha = fadeIn;
+      break;
+    case "swirl":
+      sortant.scale = 1 + 0.2 * ease; sortant.alpha = fadeOut;
+      entrant.rotate = -(1 - ease) * 80; entrant.scale = 0.65 + 0.35 * ease; entrant.alpha = fadeIn;
+      break;
+    case "blur":
+      sortant.extraFilter = `blur(${ease * 16}px)`; sortant.alpha = fadeOut;
+      entrant.extraFilter = `blur(${(1 - ease) * 16}px)`; entrant.alpha = fadeIn;
+      break;
+    case "whip":
+      // Coup de caméra : les deux fuient dans le même sens, filés par le flou.
+      sortant.dx = -ease; sortant.extraFilter = `blur(${ease * 14}px)`;
+      entrant.dx = 1 - ease; entrant.extraFilter = `blur(${(1 - ease) * 14}px)`;
+      break;
+    case "whipup":
+      sortant.dy = -ease; sortant.extraFilter = `blur(${ease * 14}px)`;
+      entrant.dy = 1 - ease; entrant.extraFilter = `blur(${(1 - ease) * 14}px)`;
+      break;
+    case "shake": {
+      const amp = 0.036;
+      const sx = Math.sin(p * Math.PI * 7) * amp, sy = Math.cos(p * Math.PI * 5) * amp * 0.5;
+      sortant.dx = sx * ease; sortant.dy = sy * ease; sortant.alpha = fadeOut;
+      entrant.dx = sx * (1 - ease); entrant.dy = sy * (1 - ease); entrant.alpha = fadeIn;
+      break;
+    }
+    case "glitch": {
+      const amp = 0.047;
+      // pseudo-aléatoire déterministe : même rendu en aperçu et à l'export
+      const rnd = (v: number) => v - Math.floor(v);
+      const r1 = rnd(Math.sin(tIntoClip * 977.1) * 43758.5453);
+      const r2 = rnd(Math.sin(tIntoClip * 311.7) * 24634.6345);
+      sortant.dx = (r2 - 0.5) * amp * ease;
+      sortant.extraFilter = `saturate(${1 + ease * 2.2}) hue-rotate(${-ease * 25}deg)`;
+      sortant.alpha = fadeOut;
+      entrant.dx = (r1 - 0.5) * amp * (1 - ease);
+      entrant.dy = (r2 - 0.5) * amp * 0.4 * (1 - ease);
+      entrant.extraFilter = `saturate(${1 + (1 - ease) * 2.2}) hue-rotate(${(1 - ease) * 25}deg)`;
+      entrant.flash = r1 > 0.65 ? Math.sin(p * Math.PI) * 0.55 : 0;
+      entrant.alpha = fadeIn;
+      break;
+    }
+  }
+  return { in: entrant, out: sortant };
+}
+
+/** Le seul plan entrant. Conservé pour tout ce qui ne connaît qu'un plan à la fois
+ *  (vignettes de la timeline, panneau des transitions). */
 export function transitionStateAt(
   transitionIn: string | undefined,
   transitionDur: number,
   tIntoClip: number,
   isFirst: boolean,
 ): TransitionState {
-  const st: TransitionState = {
-    alpha: 1, dx: 0, dy: 0, scale: 1, rotate: 0, flash: 0, dark: 0,
-    extraFilter: "", clipRect: null, clipCircle: null,
-  };
-  if (isFirst || !transitionIn || transitionIn === "cut" || transitionDur <= 0 || tIntoClip >= transitionDur) return st;
-  const p = Math.max(0, Math.min(1, tIntoClip / transitionDur));
-  const ease = 1 - Math.pow(1 - p, 2);
-  switch (transitionIn) {
-    case "fade": st.alpha = ease; break;
-    case "fadeblack": st.dark = 1 - ease; st.alpha = Math.min(1, 0.35 + ease); break;
-    case "flash": st.flash = 1 - ease; st.alpha = Math.min(1, 0.4 + ease); break;
-    case "zoom": st.scale = 1.18 - 0.18 * ease; st.alpha = 0.2 + 0.8 * ease; break;
-    case "zoomout": st.scale = 0.82 + 0.18 * ease; st.alpha = 0.3 + 0.7 * ease; break;
-    case "bounce": {
-      const o = Math.sin(p * Math.PI) * 0.12;
-      st.scale = 0.86 + 0.14 * ease + o; st.alpha = Math.min(1, 0.3 + 1.2 * ease);
-      break;
-    }
-    case "slide": st.dx = (1 - ease) * 0.5; st.alpha = 0.3 + 0.7 * ease; break;
-    case "slideright": st.dx = -(1 - ease) * 0.5; st.alpha = 0.3 + 0.7 * ease; break;
-    case "slideup": st.dy = (1 - ease) * 0.4; st.alpha = 0.3 + 0.7 * ease; break;
-    case "slidedown": st.dy = -(1 - ease) * 0.4; st.alpha = 0.3 + 0.7 * ease; break;
-    case "spin": st.rotate = (1 - ease) * 22; st.scale = 0.85 + 0.15 * ease; st.alpha = ease; break;
-    case "swirl": st.rotate = (1 - ease) * 75; st.scale = 0.7 + 0.3 * ease; st.alpha = ease; break;
-    case "wipe": st.clipRect = [0, 0, ease, 1]; break;
-    case "wiperight": st.clipRect = [1 - ease, 0, ease, 1]; break;
-    case "wipedown": st.clipRect = [0, 0, 1, ease]; break;
-    case "wipeup": st.clipRect = [0, 1 - ease, 1, ease]; break;
-    case "iris": st.clipCircle = [0.5, 0.5, 0.5 * ease]; break;
-    case "blur": st.extraFilter = `blur(${(1 - ease) * 14}px)`; st.alpha = 0.5 + 0.5 * ease; break;
-    case "whip": st.dx = (1 - ease) * 0.6; st.extraFilter = `blur(${(1 - ease) * 12}px)`; st.alpha = 0.4 + 0.6 * ease; break;
-    case "shake": {
-      const amp = (1 - ease) * 0.036;
-      st.dx = Math.sin(p * Math.PI * 7) * amp;
-      st.dy = Math.cos(p * Math.PI * 5) * amp * 0.5;
-      st.alpha = Math.min(1, 0.5 + ease);
-      break;
-    }
-    case "glitch": {
-      const amp = (1 - ease) * 0.047;
-      // pseudo-aléatoire déterministe : même rendu en aperçu et à l'export
-      const r1 = Math.sin(tIntoClip * 977.1) * 43758.5453;
-      const r2 = Math.sin(tIntoClip * 311.7) * 24634.6345;
-      const rnd = (v: number) => v - Math.floor(v);
-      st.dx = (rnd(r1) - 0.5) * amp;
-      st.dy = (rnd(r2) - 0.5) * amp * 0.4;
-      st.extraFilter = `saturate(${1 + (1 - ease) * 2.2}) hue-rotate(${(1 - ease) * 25}deg)`;
-      st.flash = (1 - ease) * (rnd(r1) > 0.65 ? 0.55 : 0);
-      st.alpha = Math.min(1, 0.55 + ease);
-      break;
-    }
-  }
-  return st;
+  return transitionPairAt(transitionIn, transitionDur, tIntoClip, isFirst).in;
 }
 
-// Traduit un état de transition en styles CSS pour l'aperçu DOM.
 export function transitionCss(st: TransitionState): Record<string, string | number | undefined> {
   const parts: string[] = [];
   if (st.dx || st.dy) parts.push(`translate(${st.dx * 100}%, ${st.dy * 100}%)`);

@@ -12,18 +12,17 @@
 // Le DESSIN, lui, est partagé avec le chemin hors temps réel : il vit dans
 // render-core.ts et les deux chemins l'appellent à l'identique.
 //
-// Transitions : pour "fade" spécifiquement, un vrai fondu enchaîné multi-flux.
-// Le plan sortant continue de jouer/s'animer (au lieu d'être figé sur son dernier
-// frame) pendant que le plan entrant démarre, les deux décodés en parallèle
-// (2 <video> alternées par index de plan + <img> déjà indépendantes pour les
-// photos). Les autres transitions (zoom/glissé/balayage/flou) gardent le
-// comportement précédent : le plan sortant reste figé, le plan entrant s'anime
-// par-dessus.
+// Transitions : TOUTES se jouent à deux flux. Le plan sortant continue de
+// jouer/s'animer (au lieu d'être figé sur son dernier frame) pendant que le plan
+// entrant démarre, les deux décodés en parallèle (2 <video> alternées par index de
+// plan + <img> déjà indépendantes pour les photos). C'était réservé au fondu ; les
+// autres s'animaient par-dessus une image morte, ce qui se voyait : un glissé était
+// une photo immobile avec une image qui passe dessus, un balayage balayait le vide.
 
-import { OverlayClip, clipAudioGainAt, overlayTimelineDur, overlayAudioGainAt, audioVolumeAt, kenBurnsScale, clipFilterCss, videoFormatById, exportQualityById } from "./constants";
+import { OverlayClip, transitionPairAt, type TransitionState, clipAudioGainAt, overlayTimelineDur, overlayAudioGainAt, audioVolumeAt, kenBurnsScale, clipFilterCss, videoFormatById, exportQualityById } from "./constants";
 import {
   ExportProject, ExportResult, ClipTimed, withStarts, FPS, setCanvasSize,
-  drawCover, drawMediaFrame, drawCaptions, drawTitles, drawStickers,
+  drawCover, drawMediaFrame, drawMediaWithState, drawTransitionVeils, drawCaptions, drawTitles, drawStickers,
   drawOverlayFrame, drawProgressBar, loadImage,
 } from "./render-core";
 import { renderExportOffline, exportOfflineDisponible } from "./export-offline";
@@ -349,23 +348,9 @@ export async function renderExportTempsReel(project: ExportProject, onProgress: 
     if (m.kind === "video") return ((m.el as HTMLVideoElement).currentTime - m.clip.trimStart) / m.clip.speed;
     return (performance.now() - m.photoStart) / 1000;
   }
-  function drawDissolveFrame(m: PlayingMedia, alpha: number) {
-    const media = m.el;
-    const mw = media instanceof HTMLVideoElement ? media.videoWidth : (media as HTMLImageElement).naturalWidth;
-    const mh = media instanceof HTMLVideoElement ? media.videoHeight : (media as HTMLImageElement).naturalHeight;
-    const localT = localTimeOf(m);
-    const kbP = m.clip.dur > 0 ? Math.min(1, Math.max(0, localT / m.clip.dur)) : 0;
-    const kbScale = m.clip.kind === "photo" ? kenBurnsScale(m.clip.kenBurns, kbP) : 1;
-    ctx.save();
-    ctx.globalAlpha = alpha;
-    ctx.filter = clipFilterCss(m.clip) || "none";
-    if (kbScale !== 1) {
-      ctx.translate(CANVAS_W / 2, CANVAS_H / 2);
-      ctx.scale(kbScale, kbScale);
-      ctx.translate(-CANVAS_W / 2, -CANVAS_H / 2);
-    }
-    drawCover(ctx, media, mw, mh, m.clip.focusX, m.clip.focusY);
-    ctx.restore();
+  /** Un des deux plans d'une transition, avec l'état qui lui revient. */
+  function drawPairSide(m: PlayingMedia, st: TransitionState) {
+    drawMediaWithState(ctx, m.el, m.clip, localTimeOf(m), st);
   }
 
   let prevMedia: PlayingMedia | null = null;
@@ -401,11 +386,12 @@ export async function renderExportTempsReel(project: ExportProject, onProgress: 
         });
       }
 
-      // Un fondu enchaîné n'a pas de sens à travers un trou : on le désactive quand ce
-      // plan (entrée) ou le suivant (sortie) est précédé d'un écran noir.
-      const crossFadeIn = i > 0 && c.transitionIn === "fade" && c.transitionDur > 0 && !!prevMedia && gapBefore <= 0;
+      // Une transition n'a rien à enchaîner à travers un trou : on la désactive quand
+      // ce plan (entrée) ou le suivant (sortie) est précédé d'un écran noir.
+      const aUneTransition = (cl: ClipTimed | undefined) => !!cl && !!cl.transitionIn && cl.transitionIn !== "cut" && cl.transitionDur > 0;
+      const recouvrementIn = i > 0 && aUneTransition(c) && !!prevMedia && gapBefore <= 0;
       const nextGap = next ? Math.max(0, next.gapBefore ?? 0) : 0;
-      const crossFadeOutDur = next && next.transitionIn === "fade" && next.transitionDur > 0 && nextGap <= 0 ? Math.min(next.transitionDur, c.dur) : 0;
+      const recouvrementOutDur = aUneTransition(next) && nextGap <= 0 ? Math.min(next!.transitionDur, c.dur) : 0;
 
       let media: PlayingMedia;
       if (c.kind === "video") {
@@ -422,9 +408,9 @@ export async function renderExportTempsReel(project: ExportProject, onProgress: 
         media = { kind: "photo", el: img, clip: c, photoStart: performance.now() };
       }
 
-      // Fondu enchaîné d'entrée : le plan précédent (toujours en lecture) et celui-ci
-      // cohabitent pendant transitionDur.
-      if (crossFadeIn) {
+      // Transition d'entrée : le plan précédent (toujours en lecture) et celui-ci
+      // cohabitent pendant transitionDur, chacun avec son propre mouvement.
+      if (recouvrementIn) {
         const prevM = prevMedia!;
         const transDur = c.transitionDur;
         const overlapStart = performance.now();
@@ -433,12 +419,13 @@ export async function renderExportTempsReel(project: ExportProject, onProgress: 
             const elapsed = (performance.now() - overlapStart) / 1000;
             armerEcheance();
             if (elapsed >= transDur || echeanceAtteinte()) { stop(); resolve(); return; }
-            const p = elapsed / transDur;
             const globalT = c.start + elapsed;
             updateAudioAt(globalT);
             ctx.clearRect(0, 0, CANVAS_W, CANVAS_H);
-            drawDissolveFrame(prevM, 1 - p);
-            drawDissolveFrame(media, p);
+            const paire = transitionPairAt(c.transitionIn, c.transitionDur, elapsed, false);
+            drawPairSide(prevM, paire.out);
+            drawPairSide(media, paire.in);
+            drawTransitionVeils(ctx, paire.in);
             drawOverlays(globalT);
             drawCaptions(ctx, project.captions, project.subStyleId, project.subCustom, project.subPos, globalT, project.linkedSubs ?? true);
             drawTitles(ctx, project.titles, globalT);
@@ -454,8 +441,8 @@ export async function renderExportTempsReel(project: ExportProject, onProgress: 
       prepare(i + 1);
 
       // Corps du plan, hors fenêtre(s) de fondu croisé déjà couvertes ci-dessus/ci-dessous.
-      const soloStart = crossFadeIn ? c.transitionDur : 0;
-      const soloEnd = Math.max(soloStart, c.dur - crossFadeOutDur);
+      const soloStart = recouvrementIn ? c.transitionDur : 0;
+      const soloEnd = Math.max(soloStart, c.dur - recouvrementOutDur);
       if (c.kind === "video") {
         const v = media.el as HTMLVideoElement;
         await new Promise<void>((resolve) => {
@@ -477,7 +464,7 @@ export async function renderExportTempsReel(project: ExportProject, onProgress: 
             maybeCaptureThumbnail(i === 0);
           });
         });
-        if (crossFadeOutDur <= 0) v.pause();
+        if (recouvrementOutDur <= 0) v.pause();
       } else {
         const img = media.el as HTMLImageElement;
         await new Promise<void>((resolve) => {

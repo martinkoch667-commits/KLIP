@@ -1478,7 +1478,15 @@
       "iris": "Íris",
       "swirl": "Remoinho",
       "shake": "Tremor",
-      "glitch": "Glitch"
+      "glitch": "Glitch",
+      "fadewhite": "Fundido a branco",
+      "slidediag": "Deslize diagonal",
+      "slidediagup": "Deslize diagonal ↗",
+      "zoomblur": "Zoom desfocado",
+      "zoomspin": "Zoom rotativo",
+      "punch": "Golpe de zoom",
+      "boxin": "Íris quadrada",
+      "whipup": "Whip vertical"
     },
     "subLength": {
       "one": "1 palavra",

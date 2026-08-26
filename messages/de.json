@@ -1478,7 +1478,15 @@
       "iris": "Iris",
       "swirl": "Wirbel",
       "shake": "Wackeln",
-      "glitch": "Glitch"
+      "glitch": "Glitch",
+      "fadewhite": "Weißblende",
+      "slidediag": "Diagonaler Slide",
+      "slidediagup": "Diagonaler Slide ↗",
+      "zoomblur": "Unschärfe-Zoom",
+      "zoomspin": "Dreh-Zoom",
+      "punch": "Zoom-Punch",
+      "boxin": "Box-Iris",
+      "whipup": "Vertikaler Whip"
     },
     "subLength": {
       "one": "1 Wort",

@@ -10,7 +10,7 @@ import {
   FILTERS, TRANSITIONS, SUB_STYLES, FONT_CHOICES, SUB_LENGTHS, DEFAULT_WORDS_PER_CAPTION, DEFAULT_SUB_POS,
   subStyleById, effectiveSubStyle, resolveCapStyle, resolveCapPos, subtitleBoxCss, subBgLayerCss, curveLayout, SUB_BASE_FONT, applySubCase, DEFAULT_SUB_STYLE_ID,
   captionPartAt, subLines,
-  transitionStateAt, transitionCss,
+  transitionPairAt, transitionCss,
   // (analyzeClipQuality importé depuis ./autoCut plus bas)
   fmt, newClipDefaults, newOverlayDefaults, clipFilterCss, overlayFilterCss, clipTimelineDur, clipAudioGainAt, overlayTimelineDur, overlayAudioGainAt, segmentCaptions, captionsFromWords, dedupeSegments,
   audioVolumeAt, audioSrcDur, creneauLibre, kenBurnsScale, withAlpha,
@@ -1349,12 +1349,53 @@ export default function MontagePage() {
   const activeClipRef = useRef(activeClip); activeClipRef.current = activeClip;
   // Transition d'entrée du plan courant, calculée avec la MÊME fonction que l'export
   // → l'aperçu montre enfin les transitions au lieu de les révéler seulement au rendu.
-  const activeTrans = useMemo(() => {
+  const activeTransPair = useMemo(() => {
     if (!activeClip) return null;
     const isFirst = clipStarts.length > 0 && clipStarts[0].id === activeClip.id;
-    return transitionStateAt(activeClip.transitionIn, activeClip.transitionDur, time - activeClip.start, isFirst);
+    return transitionPairAt(activeClip.transitionIn, activeClip.transitionDur, time - activeClip.start, isFirst);
   }, [activeClip, clipStarts, time]);
+  const activeTrans = activeTransPair?.in ?? null;
   const activeTransCss = activeTrans ? transitionCss(activeTrans) : null;
+
+  /* Le plan qui S'EN VA, pendant la transition.
+
+     L'aperçu ne montrait que le plan entrant : un fondu apparaissait donc depuis
+     le noir, un balayage balayait le vide. On remet l'image d'avant en dessous,
+     avec le mouvement qui lui revient — le même calcul qu'à l'export. */
+  const outClip = useMemo(() => {
+    if (!activeClip) return null;
+    const dur = activeClip.transitionDur || 0;
+    if (!activeClip.transitionIn || activeClip.transitionIn === "cut" || dur <= 0) return null;
+    if (Math.max(0, activeClip.gapBefore ?? 0) > 0) return null; // rien à enchaîner à travers un trou
+    if (time - activeClip.start >= dur || time < activeClip.start) return null;
+    const i = clipStarts.findIndex((c) => c.id === activeClip.id);
+    return i > 0 ? clipStarts[i - 1] : null;
+  }, [activeClip, clipStarts, time]);
+  const outTransCss = activeTransPair && outClip ? transitionCss(activeTransPair.out) : null;
+
+  /* Le sortant poursuit sa course au delà de sa propre fin, comme à l'export.
+     En lecture on ne le recale qu'au démarrage : chercher une position à chaque
+     image le ferait hoqueter. À l'arrêt, on vise l'image exacte. */
+  const videoOutRef = useRef<HTMLVideoElement>(null);
+  const outSrcRef = useRef<string>("");
+  useEffect(() => {
+    const el = videoOutRef.current;
+    if (!el) return;
+    if (!outClip || outClip.kind !== "video" || !activeClip) { if (!el.paused) el.pause(); return; }
+    if (outSrcRef.current !== outClip.src) { el.src = outClip.src; outSrcRef.current = outClip.src; }
+    const dureeSortant = outClip.end - outClip.start;
+    const localOut = dureeSortant + (time - activeClip.start);
+    const cible = Math.max(0, Math.min(
+      outClip.trimStart + localOut * outClip.speed,
+      Math.max(0, (outClip.srcDur || 0) - 0.05),
+    ));
+    if (playing) {
+      if (el.paused) { el.currentTime = cible; el.play().catch(() => {}); }
+    } else {
+      if (!el.paused) el.pause();
+      if (Math.abs(el.currentTime - cible) > 0.04) el.currentTime = cible;
+    }
+  }, [outClip, activeClip, time, playing]);
   // Plan vidéo suivant : préchargé en sourdine pour que le passage d'un plan à
   // l'autre soit net (sans le temps de chargement qui figeait l'image).
   const nextClip = useMemo(() => {
@@ -4827,6 +4868,25 @@ export default function MontagePage() {
               onPointerLeave={(e) => { panRef.current = null; onStagePointerUp(e); }}
             >
               <div className="mz-video">
+                {/* Le plan qui s'en va, en dessous de celui qui arrive. Monté
+                    seulement pendant la transition : le reste du temps il n'a
+                    rien à montrer, et un lecteur de plus coûte du décodage. */}
+                {outClip && !hiddenLanes.has("video") && (() => {
+                  const styleSortant: React.CSSProperties = {
+                    position: "absolute", inset: 0, zIndex: 0, pointerEvents: "none",
+                    filter: [clipFilterCss(outClip), activeTransPair?.out.extraFilter].filter(Boolean).join(" ") || undefined,
+                    objectPosition: `${(outClip.focusX ?? 0.5) * 100}% ${(outClip.focusY ?? 0.5) * 100}%`,
+                    ...(outTransCss || {}),
+                    transformOrigin: "center",
+                  };
+                  return outClip.kind === "video"
+                    ? <video key="sortant" ref={videoOutRef} playsInline muted style={styleSortant} />
+                    : <img key="sortant" src={outClip.src} alt="" style={{
+                        ...styleSortant,
+                        // Le zoom automatique du sortant est arrivé au bout de sa course.
+                        transform: [outTransCss?.transform, `scale(${kenBurnsScale(outClip.kenBurns, 1)})`].filter(Boolean).join(" "),
+                      }} />;
+                })()}
                 {/* Les DEUX lecteurs restent montés en permanence (même sur un plan
                     photo) : les démonter réinitialisait la source et le préchargement,
                     ce qui refaisait saccader le plan vidéo suivant. */}
@@ -4870,6 +4930,10 @@ export default function MontagePage() {
                   activeClip.kind === "video"
                     ? null
                     : <img src={activeClip.src} alt="" style={{
+                        // Posé et empilé explicitement : le plan sortant est une
+                        // couche absolue, et une image restée dans le flux passerait
+                        // dessous alors qu'elle doit arriver par-dessus.
+                        position: "absolute", inset: 0, zIndex: 1,
                         filter: [clipFilterCss(activeClip), activeTrans?.extraFilter].filter(Boolean).join(" ") || undefined,
                         objectPosition: `${(activeClip.focusX ?? 0.5) * 100}% ${(activeClip.focusY ?? 0.5) * 100}%`,
                         ...(activeTransCss || {}),

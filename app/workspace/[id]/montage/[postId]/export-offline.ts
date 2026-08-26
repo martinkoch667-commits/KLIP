@@ -27,10 +27,11 @@ import {
   MontageClip, OverlayClip, AudioTrack,
   clipAudioGainAt, overlayTimelineDur, overlayAudioGainAt, audioVolumeAt,
   kenBurnsScale, clipFilterCss, videoFormatById, exportQualityById,
+  transitionPairAt, type TransitionState,
 } from "./constants";
 import {
   ExportProject, ExportResult, ClipTimed, withStarts, FPS, setCanvasSize,
-  drawCover, drawMediaFrame, drawCaptions, drawTitles, drawStickers,
+  drawCover, drawMediaFrame, drawMediaWithState, drawTransitionVeils, drawCaptions, drawTitles, drawStickers,
   drawOverlayFrame, drawProgressBar, loadImage,
 } from "./render-core";
 
@@ -322,23 +323,11 @@ export async function renderExportOffline(
 
   // Fondu enchaîné : le plan sortant continue d'avancer sous le plan entrant.
   // Même géométrie que l'aperçu et que le chemin temps réel.
-  function dessinerFondu(m: Media, c: ClipTimed, localT: number, alpha: number) {
+  /** Un des deux plans d'une transition, avec l'état qui lui revient. */
+  function dessinerCote(m: Media, c: ClipTimed, localT: number, st: TransitionState) {
     const media = m.video ?? m.img;
     if (!media) return;
-    const mw = m.video ? m.video.videoWidth : m.img!.naturalWidth;
-    const mh = m.video ? m.video.videoHeight : m.img!.naturalHeight;
-    const kbP = c.dur > 0 ? Math.min(1, Math.max(0, localT / c.dur)) : 0;
-    const kbScale = c.kind === "photo" ? kenBurnsScale(c.kenBurns, kbP) : 1;
-    ctx.save();
-    ctx.globalAlpha = alpha;
-    ctx.filter = clipFilterCss(c) || "none";
-    if (kbScale !== 1) {
-      ctx.translate(W / 2, H / 2);
-      ctx.scale(kbScale, kbScale);
-      ctx.translate(-W / 2, -H / 2);
-    }
-    drawCover(ctx, media, mw, mh, c.focusX, c.focusY);
-    ctx.restore();
+    drawMediaWithState(ctx, media, c, localT, st);
   }
 
   /** Instant à atteindre DANS la source pour un plan vidéo, à `localT` sur la
@@ -351,9 +340,13 @@ export async function renderExportOffline(
   }
 
   // Un plan est-il « en fondu enchaîné d'entrée » à cet instant ?
-  function fonduEntree(i: number): number {
+  /** Durée pendant laquelle le plan `i` cohabite avec celui d'avant.
+   *  C'était réservé au fondu ; toutes les transitions se jouent maintenant à
+   *  deux, un balayage sans le plan qu'il balaie n'ayant aucun sens. */
+  function recouvrementEntree(i: number): number {
     const c = clips[i];
-    if (i <= 0 || c.transitionIn !== "fade" || !(c.transitionDur > 0)) return 0;
+    if (i <= 0 || !c.transitionIn || c.transitionIn === "cut" || !(c.transitionDur > 0)) return 0;
+    // À travers un écran noir, il n'y a rien à enchaîner.
     if (Math.max(0, c.gapBefore ?? 0) > 0) return 0;
     return Math.min(c.transitionDur, clips[i - 1].dur);
   }
@@ -388,17 +381,18 @@ export async function renderExportOffline(
         const localT = Math.min(t - c.start, Math.max(0, c.dur - 1e-4));
         if (m.video) await seekPrecis(m.video, tempsSource(c, localT));
 
-        const fondu = fonduEntree(i);
-        if (fondu > 0 && t - c.start < fondu) {
+        const recouvrement = recouvrementEntree(i);
+        if (recouvrement > 0 && t - c.start < recouvrement) {
           // Les deux plans cohabitent : le sortant poursuit sa course au delà de
           // sa propre fin, exactement comme dans l'aperçu.
           const prev = clips[i - 1];
           const mp = await ouvrir(i - 1)!;
           const localPrev = prev.dur + (t - c.start);
           if (mp.video) await seekPrecis(mp.video, tempsSource(prev, localPrev));
-          const p = (t - c.start) / fondu;
-          dessinerFondu(mp, prev, localPrev, 1 - p);
-          dessinerFondu(m, c, localT, p);
+          const paire = transitionPairAt(c.transitionIn, c.transitionDur, t - c.start, false);
+          dessinerCote(mp, prev, localPrev, paire.out);
+          dessinerCote(m, c, localT, paire.in);
+          drawTransitionVeils(ctx, paire.in);
         } else if (m.video || m.img) {
           drawMediaFrame(ctx, (m.video ?? m.img)!, c, localT, i === 0);
         }

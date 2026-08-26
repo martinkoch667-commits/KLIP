@@ -9,7 +9,7 @@
 // Ces fonctions viennent telles quelles de export.ts, où elles étaient
 // enfermées avec la boucle de captation.
 
-import { MontageClip, OverlayClip, Caption, TitleEl, StickerEl, AudioTrack, SubCustom, effectiveSubStyle, resolveCapStyle, resolveCapPos, SUB_BASE_FONT, wrapWords, captionPartAt, subCanvasFont, subBgBox, curveLayout, applySubCase, withAlpha, subDefaultShadowOn, SUB_DEFAULT_SHADOW, transitionStateAt, DEFAULT_SUB_POS, clipFilterCss, overlayFilterCss, clipTimelineDur, clipAudioGainAt, overlayTimelineDur, overlayAudioGainAt, audioVolumeAt, kenBurnsScale, videoFormatById, exportQualityById, overlayEffects, overlayEffectCss, OUTLINE_PASSES, titleCanvasFont, titleLines, titleLook, titleBoxWidth, TITLE_BASE_FONT, TITLE_LINE_HEIGHT } from "./constants";
+import { MontageClip, OverlayClip, Caption, TitleEl, StickerEl, AudioTrack, SubCustom, effectiveSubStyle, resolveCapStyle, resolveCapPos, SUB_BASE_FONT, wrapWords, captionPartAt, subCanvasFont, subBgBox, curveLayout, applySubCase, withAlpha, subDefaultShadowOn, SUB_DEFAULT_SHADOW, transitionPairAt, type TransitionState, DEFAULT_SUB_POS, clipFilterCss, overlayFilterCss, clipTimelineDur, clipAudioGainAt, overlayTimelineDur, overlayAudioGainAt, audioVolumeAt, kenBurnsScale, videoFormatById, exportQualityById, overlayEffects, overlayEffectCss, OUTLINE_PASSES, titleCanvasFont, titleLines, titleLook, titleBoxWidth, TITLE_BASE_FONT, TITLE_LINE_HEIGHT } from "./constants";
 export interface ExportProject {
   clips: MontageClip[];
   overlays?: OverlayClip[];
@@ -76,74 +76,71 @@ export function drawCover(ctx: CanvasRenderingContext2D, media: CanvasImageSourc
   ctx.drawImage(media, x, y, w, h);
 }
 
-// entrée transition : délègue à la SOURCE UNIQUE (constants.ts) puis convertit
-// les fractions en pixels du canvas. L'aperçu utilise exactement le même calcul.
-function transitionState(clip: ClipTimed, tIntoClip: number, isFirst: boolean) {
-  const s = transitionStateAt(clip.transitionIn, clip.transitionDur, tIntoClip, isFirst);
-  const diag = Math.hypot(CANVAS_W, CANVAS_H);
-  return {
-    alpha: s.alpha,
-    dx: s.dx * CANVAS_W,
-    dy: s.dy * CANVAS_H,
-    scale: s.scale,
-    rotate: s.rotate,
-    flash: s.flash,
-    dark: s.dark,
-    extraFilter: s.extraFilter,
-    clipRect: s.clipRect
-      ? ([s.clipRect[0] * CANVAS_W, s.clipRect[1] * CANVAS_H, s.clipRect[2] * CANVAS_W, s.clipRect[3] * CANVAS_H] as [number, number, number, number])
-      : null,
-    clipCircle: s.clipCircle
-      ? ([s.clipCircle[0] * CANVAS_W, s.clipCircle[1] * CANVAS_H, s.clipCircle[2] * diag] as [number, number, number])
-      : null,
-  };
-}
-
-export function drawMediaFrame(ctx: CanvasRenderingContext2D, media: HTMLVideoElement | HTMLImageElement, clip: ClipTimed, tIntoClip: number, isFirst: boolean) {
+/** Dessine un plan avec un état de transition IMPOSÉ, sans poser les voiles.
+ *  C'est la brique commune : pendant une transition, les deux plans passent par
+ *  ici, le sortant d'abord, l'entrant ensuite. */
+export function drawMediaWithState(
+  ctx: CanvasRenderingContext2D,
+  media: HTMLVideoElement | HTMLImageElement,
+  clip: ClipTimed,
+  tIntoClip: number,
+  st: TransitionState,
+) {
   const mw = media instanceof HTMLVideoElement ? media.videoWidth : media.naturalWidth;
   const mh = media instanceof HTMLVideoElement ? media.videoHeight : media.naturalHeight;
-  const tr = transitionState(clip, tIntoClip, isFirst);
-  const kbP = clip.dur > 0 ? Math.min(1, tIntoClip / clip.dur) : 0;
+  const diag = Math.hypot(CANVAS_W, CANVAS_H);
+  const dx = st.dx * CANVAS_W, dy = st.dy * CANVAS_H;
+  const kbP = clip.dur > 0 ? Math.min(1, Math.max(0, tIntoClip / clip.dur)) : 0;
   const kbScale = clip.kind === "photo" ? kenBurnsScale(clip.kenBurns, kbP) : 1;
-  const scale = tr.scale * kbScale;
+  const scale = st.scale * kbScale;
   ctx.save();
-  ctx.globalAlpha = tr.alpha;
-  ctx.filter = [clipFilterCss(clip), tr.extraFilter].filter(Boolean).join(" ") || "none";
-  if (tr.clipRect) {
+  ctx.globalAlpha = Math.max(0, Math.min(1, st.alpha));
+  ctx.filter = [clipFilterCss(clip), st.extraFilter].filter(Boolean).join(" ") || "none";
+  if (st.clipRect) {
     ctx.beginPath();
-    ctx.rect(...tr.clipRect);
+    ctx.rect(st.clipRect[0] * CANVAS_W, st.clipRect[1] * CANVAS_H, st.clipRect[2] * CANVAS_W, st.clipRect[3] * CANVAS_H);
     ctx.clip();
   }
   // Iris : le plan entrant n'apparaît qu'à l'intérieur d'un disque grandissant.
-  if (tr.clipCircle) {
+  if (st.clipCircle) {
     ctx.beginPath();
-    ctx.arc(tr.clipCircle[0], tr.clipCircle[1], Math.max(0, tr.clipCircle[2]), 0, Math.PI * 2);
+    ctx.arc(st.clipCircle[0] * CANVAS_W, st.clipCircle[1] * CANVAS_H, Math.max(0, st.clipCircle[2] * diag), 0, Math.PI * 2);
     ctx.clip();
   }
-  if (scale !== 1 || tr.dx || tr.dy || tr.rotate) {
-    ctx.translate(CANVAS_W / 2 + tr.dx, CANVAS_H / 2 + tr.dy);
-    if (tr.rotate) ctx.rotate((tr.rotate * Math.PI) / 180);
+  if (scale !== 1 || dx || dy || st.rotate) {
+    ctx.translate(CANVAS_W / 2 + dx, CANVAS_H / 2 + dy);
+    if (st.rotate) ctx.rotate((st.rotate * Math.PI) / 180);
     ctx.scale(scale, scale);
     ctx.translate(-CANVAS_W / 2, -CANVAS_H / 2);
   }
   drawCover(ctx, media, mw, mh, clip.focusX, clip.focusY);
   ctx.restore();
-  // Flash blanc (transition "flash") par-dessus le plan entrant.
-  if (tr.flash > 0) {
+}
+
+/** Voiles de transition (flash blanc, fondu au noir), posés UNE FOIS au-dessus
+ *  des deux plans — sinon le sortant les recevrait deux fois. */
+export function drawTransitionVeils(ctx: CanvasRenderingContext2D, st: TransitionState) {
+  if (st.flash > 0) {
     ctx.save();
-    ctx.globalAlpha = Math.max(0, Math.min(1, tr.flash));
+    ctx.globalAlpha = Math.max(0, Math.min(1, st.flash));
     ctx.fillStyle = "#fff";
     ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
     ctx.restore();
   }
-  // Voile noir (transition "fondu au noir").
-  if (tr.dark > 0) {
+  if (st.dark > 0) {
     ctx.save();
-    ctx.globalAlpha = Math.max(0, Math.min(1, tr.dark));
+    ctx.globalAlpha = Math.max(0, Math.min(1, st.dark));
     ctx.fillStyle = "#000";
     ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
     ctx.restore();
   }
+}
+
+/** Un plan seul (hors fenêtre de transition, ou premier plan du montage). */
+export function drawMediaFrame(ctx: CanvasRenderingContext2D, media: HTMLVideoElement | HTMLImageElement, clip: ClipTimed, tIntoClip: number, isFirst: boolean) {
+  const st = transitionPairAt(clip.transitionIn, clip.transitionDur, tIntoClip, isFirst).in;
+  drawMediaWithState(ctx, media, clip, tIntoClip, st);
+  drawTransitionVeils(ctx, st);
 }
 
 export function drawCaptions(ctx: CanvasRenderingContext2D, captions: Caption[], subStyleId: string, subCustom: SubCustom | undefined, subPos: { x: number; y: number } | undefined, t: number, linkedSubs: boolean = true) {
