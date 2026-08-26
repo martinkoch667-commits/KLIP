@@ -1854,21 +1854,34 @@ export function buildDesignElements(recipe: DesignRecipe, opt: BuildOptions): an
     // lit — les titres et les petites capitales — et on laisse le reste à 700,
     // parce qu'un sous-titre allégé devient illisible sur photo.
     //
-    // Deux garde-fous :
-    //  · la graisse est ramenée à une graisse RÉELLEMENT publiée par la famille,
-    //    sinon le navigateur fabrique un faux gras baveux ;
-    //  · quand le titre est dans la police de la CHARTE (et non dans celle de
-    //    l'identité), on ne descend pas sous 600 : l'identité a été pensée pour
-    //    son propre titrage, pas pour le Poppins d'un client.
+    // UN VISUEL SOCIAL SE LIT EN VIGNETTE : LE PLANCHER EST ÉPAIS.
+    //
+    // L'identité pouvait descendre un titre à 400, et c'est juste dans une revue
+    // — pas dans un fil, où le visuel est vu à deux centimètres de large avant
+    // qu'on décide de s'arrêter. Un titre fin y disparaît. Il y a aussi un piège
+    // technique : une police importée dont la graisse demandée n'existe pas fait
+    // appliquer au navigateur sa règle de substitution, et pour une cible sous
+    // 500 celle-ci cherche D'ABORD vers le BAS. Demander 400 à une famille qui
+    // publie 300 et 900 donne le 300. D'où « il m'a mis la typo la plus light ».
+    //
+    // Planchers, donc, et ils priment sur l'identité :
+    //  · un titre ne descend jamais sous 700, sauf en serif ou en manuscrit où
+    //    700 devient pâteux : 600 y suffit ;
+    //  · les petites capitales ne descendent pas sous 600, c'est là que la
+    //    lisibilité se perd le plus vite ;
+    //  · même un texte « normal » part à 500 : sur une photo, un 400 est mou.
+    //
+    // Et la graisse est ramenée à une graisse RÉELLEMENT publiée par la famille,
+    // en arrondissant VERS LE HAUT : sur un visuel, un titre trop fin est un
+    // défaut, un titre trop gras est un parti pris.
     const microCap = !!nd.upper && nd.size <= 0.036;
     const titre = nd.role === 'titre' || nd.role === 'accroche' || nd.role === 'prix';
-    let poids = weight === 'bold' ? 700 : 400;
+    const gesteDelicat = nd.font === 'serif' || nd.font === 'script';
+    let poids = weight === 'bold' ? 700 : 500;
     if (weight === 'bold' && titre) {
-      poids = FT.displayDeLaCharte && nd.font !== 'serif' && nd.font !== 'script' && nd.font !== 'condensed'
-        ? Math.max(600, FT.ident.titleWeight)
-        : FT.ident.titleWeight;
+      poids = Math.max(gesteDelicat ? 600 : 700, FT.ident.titleWeight);
     } else if (weight === 'bold' && microCap) {
-      poids = FT.ident.microWeight;
+      poids = Math.max(600, FT.ident.microWeight);
     }
     poids = nearestWeight(famille, poids);
     const style = [nd.italic ? 'italic' : '', String(poids)].filter(Boolean).join(' ');

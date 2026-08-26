@@ -269,17 +269,26 @@ export function fontVariants(family: string): { weight: number; italic: boolean 
 }
 
 /**
- * La graisse publiée la plus proche de celle qu'on veut.
+ * La graisse publiée la plus proche de celle qu'on veut, À ÉGALITÉ LA PLUS GRASSE.
  *
  * Demander un 800 à une famille qui s'arrête à 700 ne donne pas un 800 : le
  * navigateur fabrique un faux gras, baveux à l'écran et pire encore une fois
  * rastérisé dans le visuel exporté. Une famille inconnue garde la valeur
  * demandée : c'est une charte cliente, elle sait ce qu'elle a chargé.
+ *
+ * En cas d'égalité — 600 demandé, 500 et 700 disponibles — on prend le PLUS
+ * GRAS. Sur un visuel vu en vignette, un titre trop fin est un défaut de
+ * lisibilité ; un titre trop gras n'est qu'un parti pris.
  */
 export function nearestWeight(family: string, wanted: number): number {
   const spec = fontSpec(family);
   if (!spec || !spec.weights.length) return wanted;
-  return spec.weights.reduce((a, b) => (Math.abs(b - wanted) < Math.abs(a - wanted) ? b : a));
+  return spec.weights.reduce((a, b) => {
+    const da = Math.abs(a - wanted), db = Math.abs(b - wanted);
+    if (db < da) return b;
+    if (db === da) return Math.max(a, b);
+    return a;
+  });
 }
 
 /** Familles portant un geste donné, dans l'ordre du catalogue. */
