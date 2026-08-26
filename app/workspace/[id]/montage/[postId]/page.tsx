@@ -3758,8 +3758,14 @@ export default function MontagePage() {
     if (marqueAimantRef.current !== null) { marqueAimantRef.current = null; setMarqueAimant(null); }
   }, []);
 
-  /** Découpe l'élément cliqué à l'endroit exact du clic. */
-  const couperAuClic = useCallback((e: React.PointerEvent) => {
+  /** Découpe l'élément cliqué à l'endroit exact du clic.
+   *
+   *  FONCTION ORDINAIRE, PAS UN `useCallback`. Mémorisée avec une liste de
+   *  dépendances vide, elle gardait le `splitAtPlayhead` du tout PREMIER rendu —
+   *  donc une timeline encore vide : la recherche de l'élément échouait à chaque
+   *  fois et le clic ne coupait rien, alors que le viseur, lui, s'affichait
+   *  correctement. Recréée à chaque rendu, elle voit l'état courant. */
+  const couperAuClic = ((e: React.PointerEvent) => {
     const cible = (e.target as HTMLElement).closest<HTMLElement>("[data-lame]");
     const rect = tlInnerRef.current?.getBoundingClientRect();
     if (!cible || !rect) return;
@@ -3769,7 +3775,7 @@ export default function MontagePage() {
     const t = (e.clientX - rect.left - LANE_LABEL_W) / sceneRef.current.pps;
     if (!Number.isFinite(t) || t < 0) return;
     splitAtPlayhead(t, { kind, id });
-  }, []);
+  });
 
   /* NIVEAU AUDIO À LA SOURIS, sur la piste elle-même.
      Régler le volume obligeait à passer par le panneau latéral. Comme dans
