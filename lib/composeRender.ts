@@ -622,7 +622,11 @@ export async function renderTemplateVisual(input: TemplateRenderInput): Promise<
       ctx.font = `${italic}${weight} ${size}px "${family}", system-ui, sans-serif`;
       ctx.textBaseline = 'top';
 
-      const width = Math.max(1, n(e.width, src.w) * sx);
+      // Le cartouche déborde du texte de `highlightPadding` de chaque côté : on
+      // mesure donc dans la largeur RÉELLEMENT disponible, sinon l'aperçu montre
+      // un titre qui tient et l'éditeur un aplat qui sort du cadre.
+      const padHl = e.highlightEnabled ? n(e.highlightPadding) * sf : 0;
+      const width = Math.max(1, n(e.width, src.w) * sx - padHl * 2);
       let txt = st(e.text);
       if (e.uppercase) txt = txt.toUpperCase();
       const maxLines = Math.max(1, n(e.maxLines, 6));

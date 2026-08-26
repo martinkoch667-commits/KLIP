@@ -367,11 +367,26 @@ function autoFitFontSize(el: TextEl): number {
   const minFs = el.minFontSize ?? Math.max(12, Math.round(el.fontSize * 0.5));
   const maxLines = el.maxLines ?? roleMaxLines(el.role);
   const pH = el.paddingH ?? el.padding ?? 0;
-  const areaW = Math.max(1, el.width - pH * 2);
+  // LE CARTOUCHE COMPTE DANS LA LARGEUR.
+  //
+  // On mesurait le texte nu, mais on le DESSINE dans un aplat qui déborde de
+  // `highlightPadding` de chaque côté. Un titre calculé « juste à la largeur »
+  // sortait donc du cadre une fois son cartouche peint — visible dès que le
+  // texte généré est entré dans les templates, où les aplats sont larges.
+  const pHl = el.highlightEnabled ? (el.highlightPadding ?? 0) : 0;
+  const areaW = Math.max(1, el.width - pH * 2 - pHl * 2);
   const txt = el.uppercase ? el.text.toUpperCase() : el.text;
   const lignes = (fs: number) => countLines(txt, fs, el.fontFamily, el.fontStyle, areaW, el.letterSpacing ?? 0);
   const fits = (fs: number) => lignes(fs) <= maxLines;
   if (fits(maxFs)) {
+    // GRANDIR N'EST PERMIS QUE SI LA TAILLE EST UN POINT DE DÉPART.
+    //
+    // `maxFontSize` est posé par le système de design : il dit « ce dessin vise
+    // cette taille, cale-toi sur ta mesure ». Une zone de template, elle, a été
+    // dimensionnée À LA MAIN par l'auteur du modèle : la grossir de 60 % défait
+    // son travail et fait déborder ses aplats. Sans ce test, mon remplissage
+    // optique s'appliquait aux deux.
+    if (el.maxFontSize === undefined) return maxFs;
     if (!ROLES_QUI_REMPLISSENT.has(el.role)) return maxFs;
     const budget = maxLines * maxFs * 1.34;
     const plafond = Math.round(maxFs * 1.6);
@@ -555,8 +570,10 @@ function relayoutText(elements: any[], stageW: number, stageH: number): any[] {
     const pH = el.paddingH ?? el.padding ?? 0;
     const align = ['left', 'center', 'right'].includes(el.align) ? el.align : 'left';
     const txt = el.uppercase ? String(el.text ?? '').toUpperCase() : String(el.text ?? '');
+    // Même raison que dans `autoFitFontSize` : l'aplat déborde du texte.
+    const pHl = el.highlightEnabled ? (el.highlightPadding ?? 0) : 0;
     const linesAt = (w: number, fs: number) =>
-      countLines(txt, fs, el.fontFamily, el.fontStyle, Math.max(1, w - pH * 2), el.letterSpacing ?? 0);
+      countLines(txt, fs, el.fontFamily, el.fontStyle, Math.max(1, w - pH * 2 - pHl * 2), el.letterSpacing ?? 0);
 
     // Combien de lignes le modèle prévoyait-il ? Le texte d'origine du modèle est
     // la référence la plus juste — mesuré ici, avec les polices vraiment chargées.
@@ -3691,6 +3708,57 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
               return [te.fontFamily, ...runs];
             })).filter((f): f is string => !!f),
           );
+          // UNE POLICE QUI N'EXISTE PAS NE DOIT PAS DEVENIR UN SERIF DE SECOURS.
+          //
+          // Un calque garde le NOM de la police décidé le jour où il a été écrit.
+          // Ce nom peut ne plus correspondre à rien : police retirée de la
+          // charte, fichier disparu du stockage, ou — c'est le cas rencontré —
+          // famille renommée. « Poplar Regular.ttf » donnait la famille « Poplar
+          // Regular » avant le 26/08, et « Poplar » après : les visuels d'avant
+          // réclament donc une famille qui n'existe plus sous ce nom.
+          //
+          // Le navigateur, lui, ne prévient pas : il tombe silencieusement sur sa
+          // police par défaut, un serif. Un titre de fast-food dessiné en gras
+          // condensé ressort en Times, et rien ne dit pourquoi.
+          //
+          // On demande donc au navigateur, APRÈS le chargement des polices, si la
+          // famille existe vraiment. Sinon on prend celle de la charte. Le test
+          // est exact et sans effet de bord : une police qui fonctionne n'est
+          // jamais touchée, et le remplacement est journalisé pour rester
+          // diagnosticable.
+          {
+            const secours = (w?.font_family as string | undefined)?.trim() || 'Oswald';
+            const inconnues = new Set<string>();
+            // `document.fonts.check` MENT : mesuré le 26/08, il renvoie `true`
+            // pour une famille que le navigateur a refusé de charger, parce qu'il
+            // répond « saurais-je afficher ce texte ? » et non « cette police
+            // est-elle là ? ». Le seul test fiable est de MESURER : si le texte a
+            // exactement la largeur qu'il aurait dans deux polices de secours
+            // différentes, c'est qu'aucune police propre ne s'applique.
+            const mesure = document.createElement('canvas').getContext('2d');
+            const connue = (f: string) => {
+              if (!f || !mesure) return true;
+              const t = 'HAMBURGEFONTSIV 123';
+              const large = (pile: string) => { mesure.font = `40px ${pile}`; return mesure.measureText(t).width; };
+              const mono = large('monospace'), sans = large('sans-serif');
+              const avec = large(`"${f}", monospace`), avec2 = large(`"${f}", sans-serif`);
+              return !(Math.abs(avec - mono) < 0.5 && Math.abs(avec2 - sans) < 0.5);
+            };
+            initSlides = initSlides.map(sl => ({
+              ...sl,
+              elements: (sl.elements ?? []).map((e: CanvasEl) => {
+                if (e?.type !== 'text') return e;
+                const te = e as TextEl;
+                if (!te.fontFamily || connue(te.fontFamily)) return e;
+                inconnues.add(te.fontFamily);
+                return { ...te, fontFamily: secours };
+              }),
+            }));
+            if (inconnues.size) {
+              console.warn(`[Editor] polices introuvables, remplacées par « ${secours} » : ${Array.from(inconnues).join(', ')}`);
+            }
+          }
+
           initSlides = initSlides.map(s => ({ ...s, elements: relayoutText(s.elements, loadFmt.w, loadFmt.h) }));
         }
         setSlides(initSlides);

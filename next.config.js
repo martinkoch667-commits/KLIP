@@ -43,4 +43,16 @@ const nextConfig = {
     return config;
   },
 };
+// `fonteditor-core` embarque un module WebAssembly pour le WOFF2 que la route de
+// réparation n'utilise pas (elle écrit du TTF). Le laisser passer par le
+// bundler produit un avertissement « Critical dependency » et embarque du code
+// mort ; on la charge donc comme un paquet Node ordinaire, côté serveur.
+nextConfig.experimental = {
+  ...(nextConfig.experimental ?? {}),
+  serverComponentsExternalPackages: [
+    ...((nextConfig.experimental && nextConfig.experimental.serverComponentsExternalPackages) || []),
+    'fonteditor-core',
+  ],
+};
+
 module.exports = nextConfig;
