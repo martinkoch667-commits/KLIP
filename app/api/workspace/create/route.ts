@@ -7,16 +7,34 @@ import { getPlan } from "@/lib/plans";
 // Colonnes optionnelles pas forcément migrées : si l'insert échoue parce que la
 // colonne n'existe pas encore (PostgREST PGRST204 / Postgres 42703), on la retire
 // et on réessaie — la création de client ne casse jamais faute de migration.
-const SOFT_COLUMNS = ["subtitle_style_id", "subtitle_custom", "subtitle_pos", "subtitle_max_words", "brand_colors"] as const;
+// Le repli tenait une LISTE FERMÉE de colonnes tolérées. Toute colonne absente
+// hors de cette liste faisait échouer la création en entier — et surtout, la
+// liste ne pouvait pas suivre : elle ne contenait ni `banner_url`, ni
+// `brand_icon_url`, ni `brand_fonts`. C'est la même famille de défaut que celle
+// qui a fait échouer l'enregistrement de la charte pendant des semaines sans
+// que personne puisse le nommer (cf. migration 026).
+//
+// On lit donc le nom de la colonne DANS le message de PostgREST, quelle qu'elle
+// soit, et on la retire. Les colonnes abandonnées sont journalisées : le repli
+// ne doit jamais faire oublier qu'une migration manque.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function insertWorkspace(client: any, payload: Record<string, unknown>) {
   const p = { ...payload };
-  for (let i = 0; i <= SOFT_COLUMNS.length; i++) {
+  const abandonnees: string[] = [];
+  for (let i = 0; i < 12; i++) {
     const res = await client.from("workspaces").insert(p).select().single();
-    if (!res.error) return res;
-    const msg = res.error.message || "";
-    const missing = SOFT_COLUMNS.find((c) => c in p && msg.includes(c));
-    if (!missing) return res;
+    if (!res.error) {
+      if (abandonnees.length) {
+        console.error(`[workspace/create] colonnes absentes en base, ignorées : ${abandonnees.join(", ")} — migration 026 à appliquer`);
+      }
+      return res;
+    }
+    const msg = `${res.error.message ?? ""} ${res.error.details ?? ""}`;
+    const missing = msg.match(/'([a-z0-9_]+)' column/i)?.[1];
+    // On ne retire jamais une colonne indispensable : sans `name` ni `user_id`,
+    // la ligne créée ne vaudrait rien et l'échec doit remonter.
+    if (!missing || !(missing in p) || missing === "name" || missing === "user_id") return res;
+    abandonnees.push(missing);
     delete p[missing];
   }
   return await client.from("workspaces").insert(p).select().single();
