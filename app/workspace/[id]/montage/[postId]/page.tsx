@@ -3747,6 +3747,10 @@ export default function MontagePage() {
      Comme dans Premiere ou Resolve, la lame se prend une fois (C) et coupe
      ensuite là où l'on clique, sur n'importe quel élément. V rend la main. */
   const [outilLame, setOutilLame] = useState(false);
+  /** Instant survolé avec la lame : on montre OÙ la coupe tombera avant de
+   *  cliquer. Sans ce trait, on coupe à l'aveugle et on annule une fois sur
+   *  deux. `null` dès qu'on quitte un élément découpable. */
+  const [apercuCoupe, setApercuCoupe] = useState<number | null>(null);
   const [marqueAimant, setMarqueAimant] = useState<number | null>(null);
   const marqueAimantRef = useRef<number | null>(null);
   /** À la fin d'un geste, le repère d'aimantation n'a plus lieu d'être. */
@@ -3833,7 +3837,7 @@ export default function MontagePage() {
       if (e.altKey) return; // autres combos Option laissées au système
       // C prend la lame, V rend la main — les touches de Premiere et Resolve.
       if (k === "c") { e.preventDefault(); setOutilLame(true); return; }
-      if (k === "v") { e.preventDefault(); setOutilLame(false); return; }
+      if (k === "v") { e.preventDefault(); setOutilLame(false); setApercuCoupe(null); return; }
       if (e.key === "Escape" && outilLame) { e.preventDefault(); setOutilLame(false); return; }
       if (e.key === " ") { e.preventDefault(); togglePlay(); return; }
       if (e.key === "Delete" || e.key === "Backspace") { e.preventDefault(); deleteSelected(); return; }
@@ -5199,7 +5203,7 @@ export default function MontagePage() {
           {/* Bouton d'OUTIL, pas d'action : il reste enfoncé tant que la lame est
               en main, et n'est plus grisé faute de sélection — c'est justement
               le principe, on coupe sans avoir sélectionné au préalable. */}
-          <button className={"a-tl-tool" + (outilLame ? " on" : "")} onClick={() => setOutilLame((v) => !v)}
+          <button className={"a-tl-tool" + (outilLame ? " on" : "")} onClick={() => { setOutilLame((v) => !v); setApercuCoupe(null); }}
             title={`${t('splitShort')} — C`}>
             <VIcon name="split" size={15} /> {t('splitShort')}
           </button>
@@ -5227,6 +5231,15 @@ export default function MontagePage() {
             /* Phase de CAPTURE : le clic est traité avant d'atteindre l'élément.
                Sur un clip, `onPointerDown` démarre sinon un glisser-déposer, et
                la lame déplacerait le plan au lieu de le couper. */
+            onPointerMoveCapture={(e) => {
+              if (!outilLame) { if (apercuCoupe !== null) setApercuCoupe(null); return; }
+              const sur = (e.target as HTMLElement).closest("[data-lame]");
+              const rect = tlInnerRef.current?.getBoundingClientRect();
+              if (!sur || !rect) { if (apercuCoupe !== null) setApercuCoupe(null); return; }
+              const t = (e.clientX - rect.left - LANE_LABEL_W) / sceneRef.current.pps;
+              setApercuCoupe(Number.isFinite(t) && t >= 0 ? t : null);
+            }}
+            onPointerLeave={() => setApercuCoupe(null)}
             onPointerDownCapture={(e) => {
               if (!outilLame || e.button !== 0) return;
               const surElement = (e.target as HTMLElement).closest("[data-lame]");
@@ -5583,6 +5596,11 @@ export default function MontagePage() {
             {/* REPÈRE D'AIMANTATION : la ligne sur laquelle le bord vient de se
                 coller. Elle n'apparaît que pendant le geste et disparaît au
                 relâchement — c'est un retour, pas un élément de la timeline. */}
+            {/* APERÇU DE COUPE : le trait rouge suit la lame sur l'élément survolé
+                et montre l'endroit exact où le clic coupera. */}
+            {outilLame && apercuCoupe !== null && (
+              <div className="a-coupe-apercu" aria-hidden style={{ left: LANE_LABEL_W + apercuCoupe * pps }} />
+            )}
             {marqueAimant !== null && (
               <div className="a-aimant" aria-hidden style={{ left: LANE_LABEL_W + marqueAimant * pps }} />
             )}
