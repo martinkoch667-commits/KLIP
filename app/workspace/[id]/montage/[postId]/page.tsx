@@ -5148,6 +5148,16 @@ export default function MontagePage() {
               if (d && !d.moved) { deselectAll(); rulerSeek(e.clientX); } // simple clic dans le vide → désélectionne + curseur
             }}
           >
+            {/* COIN HAUT-GAUCHE.
+                Le ruban ne colle qu'en HAUT : ses graduations défilent avec le
+                contenu et glissaient donc sous la gouttière, où l'on continuait à
+                lire « 0:04 » par-dessus les noms de pistes. Son ombre ne pouvait
+                pas les masquer — l'ombre appartient au fond du ruban, et ses
+                enfants se peignent au-dessus.
+                Ce bloc-ci colle dans les DEUX sens et passe devant tout le monde.
+                La marge négative annule sa propre hauteur : il se superpose au
+                ruban au lieu de le pousser vers le bas. */}
+            <div className="a-tl-coin" aria-hidden />
             <div
               className="a-ruler"
               ref={rulerRef}
@@ -5419,6 +5429,13 @@ export default function MontagePage() {
             </div>
             );
             })}
+            {/* PIED DE GOUTTIÈRE.
+                Sous la dernière piste il reste une bande où plus aucun label ne
+                couvre la colonne : la tête de lecture y ressortait et retraversait
+                la gouttière sur ses derniers pixels. Ce cache la ferme jusqu'en
+                bas. Il ajoute sa hauteur au contenu, ce qui n'est que de la marge
+                de fin. */}
+            <div className="a-tl-pied" aria-hidden />
             {/* Position posée par `poserCurseur` (écriture DOM directe) : pendant la
                 lecture React ne touche plus à ce style, sinon chaque rendu le
                 ramènerait à la valeur du dernier rendu et le curseur sauterait
