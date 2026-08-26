@@ -15,6 +15,8 @@
 // Le module ne connaît ni React ni Supabase : il prend une photo et une mise en
 // page, il rend une image.
 
+import { fontCssHrefs } from './fontCatalog';
+
 export interface RenderBlock {
   text: string;
   role?: string;
@@ -361,7 +363,7 @@ export function renderElementSpecs(els: Record<string, unknown>[], w: number, h:
 
     } else if (type === 'text') {
       const size = Math.max(11, n(e.fontSize, 20));
-      const weight = s(e.fontStyle) === 'bold' ? '700' : '400';
+      const weight = poidsDe(s(e.fontStyle));
       ctx.font = `${weight} ${size}px "${s(e.fontFamily, 'Archivo')}", system-ui, sans-serif`;
       ctx.fillStyle = s(e.fill, '#FFFFFF');
       ctx.textBaseline = 'top';
@@ -394,16 +396,33 @@ export function renderElementSpecs(els: Record<string, unknown>[], w: number, h:
 // le Composer retombait sur la photo brute et l'utilisateur ne voyait le vrai
 // visuel qu'en ouvrant l'éditeur — donc il ne le voyait presque jamais.
 
-/** Demande les feuilles de style Google manquantes, puis attend les polices. */
+/**
+ * Graisse CSS d'un `fontStyle` de calque.
+ *
+ * L'éditeur écrit une graisse NUMÉRIQUE (« italic 800 ») dès que la famille en
+ * publie plusieurs — Konva l'accepte, c'est du CSS valide. L'aperçu, lui, ne
+ * connaissait que « bold » : un titre réglé sur 800 ou sur 300 se dessinait en
+ * 400, donc l'aperçu ne montrait pas le visuel qu'on venait de valider. Et sans
+ * ça, une identité typographique par marque ne peut pas exister : c'est la
+ * graisse qui sépare un titre de mode d'un titre de burger.
+ */
+function poidsDe(style: string): string {
+  const num = String(style ?? '').match(/[1-9]00|1000/)?.[0];
+  if (num) return num;
+  return String(style ?? '').includes('bold') ? '700' : '400';
+}
+
+/** Demande les feuilles de style manquantes, puis attend les polices.
+ *  Le fournisseur vient du catalogue : une famille Fontshare demandée à Google
+ *  ne renvoie rien et le texte sort en police système, sans erreur visible. */
 export async function ensureFonts(families: string[], limiteMs = 2500): Promise<void> {
   if (typeof document === 'undefined') return;
   const uniques = Array.from(new Set(families.filter(Boolean)));
-  for (const f of uniques) {
-    const cle = `gf-${f.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`;
-    if (document.getElementById(cle)) continue;
+  for (const { id, href } of fontCssHrefs(uniques)) {
+    if (document.getElementById(id)) continue;
     const lnk = document.createElement('link');
-    lnk.id = cle; lnk.rel = 'stylesheet';
-    lnk.href = `https://fonts.googleapis.com/css2?family=${encodeURIComponent(f).replace(/%20/g, '+')}:ital,wght@0,400;0,700;1,400;1,700&display=swap`;
+    lnk.id = id; lnk.rel = 'stylesheet';
+    lnk.href = href;
     document.head.appendChild(lnk);
   }
   if (!document.fonts) return;
@@ -589,7 +608,7 @@ export async function renderTemplateVisual(input: TemplateRenderInput): Promise<
     } else if (type === 'text') {
       const size = Math.max(9, n(e.fontSize, 24) * sf);
       const style = st(e.fontStyle, 'normal');
-      const weight = style.includes('bold') ? '700' : '400';
+      const weight = poidsDe(style);
       const italic = style.includes('italic') ? 'italic ' : '';
       const family = st(e.fontFamily, 'Archivo');
       const track = n(e.letterSpacing) * sf;

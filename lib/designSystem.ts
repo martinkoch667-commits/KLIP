@@ -29,13 +29,22 @@
 // coordonnées, de couleur ni de taille : le dessin est déjà juste, et c'est ce
 // qui garantit un rendu pro à chaque tirage.
 
+import { pickTypeIdentity } from './typeIdentity';
+import { pickColorway } from './colorway';
+import { nearestWeight } from './fontCatalog';
+
 // ── Vocabulaire ──────────────────────────────────────────────────────────────
 
 /** Rôle de couleur, résolu sur la charte du client au moment du rendu. */
 export type Col =
   | 'brand' | 'accent' | 'secondary'
   | 'ink' | 'paper' | 'white' | 'black'
-  | 'onBrand' | 'onAccent' | 'onSecondary' | 'onPaper'
+  // Le fond clair n'est plus seul : `surface` est la carte posée SUR le papier
+  // (elle doit s'en détacher), `deep` le fond sombre du terrain. Sans eux, une
+  // carte ne pouvait être que blanche — la même carte blanche pour toutes les
+  // marques, sur le même beige.
+  | 'surface' | 'deep'
+  | 'onBrand' | 'onAccent' | 'onSecondary' | 'onPaper' | 'onSurface' | 'onDeep'
   // Trois variantes de l'accent, calculées pour un FOND donné. Un accent est
   // une couleur unique ; un visuel a des fonds sombres ET clairs. Sans elles,
   // une charte au bleu nuit perdait ses chiffres, ses filets et ses guillemets
@@ -1020,6 +1029,398 @@ export const DESIGN_RECIPES: DesignRecipe[] = [
       T('signature', 0.15, 0.72, 0.7, 0.024, 'ink', { font: 'body', align: 'center', upper: true, track: 0.28, maxLines: 1, opacity: 60 }),
     ],
   },
+
+  // ══ G. TIRÉES DES RÉFÉRENCES DU 26/08 ═════════════════════════════════════
+  //
+  // Vingt compositions relevées sur les 42 visuels déposés dans
+  // `design-reference/inspiration/`. Elles ne rejouent aucune des 53 premières :
+  // à chaque fois, c'est un GESTE qui n'existait pas dans la maison.
+  //
+  //  · le titre à deux calibres (un mot petit collé sur un mot énorme) ;
+  //  · le mot qui déborde du cadre, jusqu'à sortir à gauche et à droite ;
+  //  · le titre posé en diagonale le long du sujet ;
+  //  · le texte-autocollant : un contour épais de papier autour des lettres ;
+  //  · l'étiquette de couleur inclinée, collée derrière le titre ;
+  //  · le tampon ovale posé de travers ;
+  //  · les repères d'imprimeur en bordure ;
+  //  · l'affiche de film : crédits minuscules, titre serif, sous-titre espacé ;
+  //  · les mots en cartouches décalés en escalier ;
+  //  · le chiffre géant AU MILIEU de la phrase ;
+  //  · le mot serif italique géant entre deux petites lignes ;
+  //  · la réplique : deux citations et une flèche entre elles ;
+  //  · le post dans le post, barre d'icônes comprise ;
+  //  · la rangée de pastilles rondes en tête ;
+  //  · la liste en pilules décalées ;
+  //  · le ticket promotionnel incliné.
+  //
+  // Deux d'entre elles ouvrent une famille : `sticker`, pour les compositions
+  // faites d'éléments collés de travers. Sans famille à part, la répartition du
+  // tirage les aurait noyées dans « photo éditoriale » alors que c'est un tout
+  // autre langage.
+
+  {
+    id: 'ds-deux-calibres', name: 'Deux calibres', family: 'photo-editorial',
+    vibe: ['audacieux', 'chaleureux'], intents: ['accroche', 'annonce', 'produit'],
+    sectors: ['Restaurant', 'Café', 'Retail'],
+    photo: 'required',
+    desc: 'Un mot court posé juste au-dessus d’un mot énorme, tous deux centrés en haut, collés l’un à l’autre. Le contraste d’échelle fait tout le travail : c’est le titre le plus vu sur les comptes de restaurants et de boissons.',
+    slots: [sl('petit', 'le mot d’appel, très court', 14), sl('gros', 'LE mot, un seul, court', 12), sl('sous', 'la mention de pied', 42)],
+    nodes: [
+      P(0, 0, 1, 1, { dark: 12 }),
+      R(0, 0, 1, 0.5, 'black', { scrim: 'top', opacity: 42 }),
+      T('petit', 0.1, 0.135, 0.8, 0.062, 'white', { font: 'condensed', align: 'center', upper: true, maxLines: 1, weight: 'bold', shadow: true }),
+      T('gros', 0.03, 0.185, 0.94, 0.175, 'white', { font: 'condensed', align: 'center', upper: true, lh: 0.9, maxLines: 1, role: 'titre', weight: 'bold', shadow: true }),
+      T('sous', 0.14, 0.9, 0.72, 0.026, 'white', { font: 'body', align: 'center', upper: true, track: 0.18, maxLines: 1, role: 'sous-titre', opacity: 88 }),
+    ],
+  },
+  {
+    id: 'ds-mot-deborde', name: 'Le mot qui déborde', family: 'photo-editorial',
+    vibe: ['audacieux', 'minimal'], intents: ['accroche', 'annonce'],
+    photo: 'required',
+    desc: 'Un seul mot, ou une interjection, écrit si grand qu’il sort du cadre à gauche et à droite. La photo reste entière dessous. Composition d’une seconde : on ne lit pas, on reçoit.',
+    slots: [sl('mot', 'UN mot ou une interjection, très court', 10), sl('sous', 'la précision, en pied', 44)],
+    nodes: [
+      P(0, 0, 1, 1, { dark: 8 }),
+      T('mot', -0.08, 0.22, 1.16, 0.36, 'white', { align: 'center', lh: 0.95, maxLines: 1, role: 'titre', weight: 'bold', opacity: 94, shadow: true }),
+      T('sous', 0.1, 0.87, 0.8, 0.028, 'white', { font: 'body', align: 'center', upper: true, track: 0.2, maxLines: 1, role: 'sous-titre' }),
+      ...footer('white'),
+    ],
+  },
+  {
+    id: 'ds-titre-oblique', name: 'Titre en diagonale', family: 'photo-editorial',
+    vibe: ['ludique', 'audacieux'], intents: ['produit', 'accroche'],
+    sectors: ['Retail', 'Café', 'Sport'],
+    photo: 'required',
+    desc: 'Le titre monte en diagonale le long du sujet, en capitales espacées. Le geste des marques de boisson : le texte suit l’objet au lieu de se poser dessus.',
+    slots: [sl('titre', 'la phrase, courte, d’un seul tenant', 30), sl('sous', 'la mention de pied', 36)],
+    nodes: [
+      P(0, 0, 1, 1, { dark: 6 }),
+      T('titre', 0.03, 0.42, 0.72, 0.056, 'white', { upper: true, track: 0.16, maxLines: 1, rotation: -32, role: 'titre', weight: 'bold', shadow: true }),
+      rail('white'),
+      T('sous', 0.08, 0.92, 0.62, 0.024, 'white', { font: 'body', upper: true, track: 0.18, maxLines: 1, opacity: 82 }),
+    ],
+  },
+  {
+    id: 'ds-condense-geant', name: 'Condensé plein cadre', family: 'photo-editorial',
+    vibe: ['audacieux', 'editorial'], intents: ['annonce', 'accroche', 'produit'],
+    sectors: ['Mode', 'Sport', 'Retail'],
+    photo: 'required',
+    desc: 'Trois lignes de condensé énorme en couleur d’accent, calées à gauche, de largeurs inégales, avec une flèche dessinée et un pied en deux blocs opposés. Le vocabulaire des marques de mode : le texte EST l’image.',
+    slots: [sl('kicker', 'la marque ou la collection', 26), sl('l1', 'ligne 1 du titre', 14), sl('l2', 'ligne 2, plus courte', 8), sl('l3', 'ligne 3', 14), sl('pgauche', 'mention de pied à gauche', 26), sl('pdroite', 'lien ou compte, à droite', 26)],
+    nodes: [
+      P(0, 0, 1, 1, { dark: 6 }),
+      T('kicker', 0.06, 0.05, 0.5, 0.024, 'white', { font: 'body', upper: true, track: 0.16, lh: 1.5, maxLines: 2, opacity: 90 }),
+      T('l1', 0.04, 0.13, 0.92, 0.2, 'accentLight', { font: 'condensed', upper: true, lh: 0.86, maxLines: 1, weight: 'bold' }),
+      T('l2', 0.04, 0.295, 0.46, 0.115, 'accentLight', { font: 'condensed', upper: true, lh: 0.86, maxLines: 1, weight: 'bold' }),
+      T('l3', 0.04, 0.39, 0.92, 0.2, 'accentLight', { font: 'condensed', upper: true, lh: 0.86, maxLines: 1, role: 'titre', weight: 'bold' }),
+      S('arrow', 0.6, 0.58, 0.1, 0.05, 'white', { rotation: 45 }),
+      T('pgauche', 0.06, 0.945, 0.42, 0.022, 'white', { font: 'body', upper: true, track: 0.14, maxLines: 1, opacity: 85 }),
+      T('pdroite', 0.52, 0.945, 0.42, 0.022, 'white', { font: 'body', align: 'right', upper: true, track: 0.14, maxLines: 1, opacity: 85 }),
+    ],
+  },
+  {
+    id: 'ds-affiche-cinema', name: 'Affiche de film', family: 'photo-editorial',
+    vibe: ['editorial', 'luxe', 'retro'], intents: ['annonce', 'evenement', 'accroche'],
+    sectors: ['Mode', 'Café', 'Autre'],
+    photo: 'required',
+    desc: 'Photo pleine assombrie du bas, ligne de crédits en capitales minuscules très espacées, gros titre serif juste dessous, et une mention finale espacée. Le code de l’affiche de cinéma, repris tel quel par les marques de voyage et de mode.',
+    slots: [sl('credits', 'la ligne de crédits, courte', 54), sl('titre', 'le titre', 32), sl('sous', 'la mention finale', 30)],
+    nodes: [
+      P(0, 0, 1, 1, { dark: 10 }),
+      R(0, 0.5, 1, 0.5, 'black', { scrim: 'bottom', opacity: 62 }),
+      T('credits', 0.1, 0.7, 0.8, 0.019, 'white', { font: 'body', align: 'center', upper: true, track: 0.24, lh: 1.6, maxLines: 2, opacity: 80 }),
+      T('titre', 0.05, 0.765, 0.9, 0.115, 'white', { font: 'serif', align: 'center', lh: 0.98, maxLines: 2, role: 'titre' }),
+      T('sous', 0.14, 0.92, 0.72, 0.021, 'white', { font: 'body', align: 'center', upper: true, track: 0.32, maxLines: 1, opacity: 88 }),
+    ],
+  },
+  {
+    id: 'ds-cadre-imprimeur', name: 'Repères d’imprimeur', family: 'photo-editorial',
+    vibe: ['tech', 'audacieux', 'retro'], intents: ['annonce', 'evenement', 'produit'],
+    sectors: ['Sport', 'Mode', 'Retail'],
+    photo: 'required',
+    desc: 'La photo posée dans une marge de papier, entourée de repères de calage et de petits carrés de contrôle, avec le nom de la marque répété en haut et en bas. Le langage des grandes marques de sport : ça ressemble à une planche d’imprimeur, pas à un post.',
+    slots: [sl('titre', 'le titre', 34), sl('sous', 'la mention de pied', 34)],
+    nodes: [
+      R(0, 0, 1, 1, 'paper'),
+      P(0.075, 0.075, 0.85, 0.66, { radius: 0.004 }),
+      rail('ink', 0.03),
+      R(0.03, 0.028, 0.022, 0.0018, 'ink'), R(0.0395, 0.0215, 0.0025, 0.014, 'ink'),
+      R(0.948, 0.028, 0.022, 0.0018, 'ink'), R(0.9575, 0.0215, 0.0025, 0.014, 'ink'),
+      R(0.03, 0.962, 0.022, 0.0018, 'ink'), R(0.0395, 0.9555, 0.0025, 0.014, 'ink'),
+      R(0.948, 0.962, 0.022, 0.0018, 'ink'), R(0.9575, 0.9555, 0.0025, 0.014, 'ink'),
+      R(0.4, 0.049, 0.016, 0.008, 'ink'), R(0.425, 0.049, 0.016, 0.008, 'accentDeep'),
+      R(0.45, 0.049, 0.016, 0.008, 'ink'), R(0.475, 0.049, 0.016, 0.008, 'brand'),
+      T('titre', 0.075, 0.78, 0.85, 0.078, 'ink', { font: 'condensed', upper: true, lh: 0.95, maxLines: 2, role: 'titre', weight: 'bold' }),
+      T('sous', 0.075, 0.915, 0.62, 0.022, 'ink', { font: 'body', upper: true, track: 0.16, maxLines: 1, opacity: 70 }),
+    ],
+  },
+  {
+    id: 'ds-mots-escalier', name: 'Mots en escalier', family: 'photo-editorial',
+    vibe: ['ludique', 'chaleureux'], intents: ['accroche', 'conseil', 'annonce'],
+    sectors: ['Sport', 'Restaurant', 'Retail'],
+    photo: 'required',
+    desc: 'Chaque mot de la phrase dans son propre cartouche de papier, les cartouches décalés en escalier sur la photo, et une flèche dans le dernier. Le décroché crée le rythme qu’un pavé de texte n’a jamais.',
+    slots: [sl('m1', 'mot 1', 12), sl('m2', 'mot 2', 12), sl('m3', 'mot 3', 12), sl('m4', 'mot 4, le plus long', 18), sl('sous', 'la phrase de contexte', 74)],
+    nodes: [
+      P(0, 0, 1, 1, { dark: 16 }),
+      R(0.06, 0.325, 0.32, 0.072, 'paper'),
+      T('m1', 0.08, 0.343, 0.28, 0.05, 'ink', { maxLines: 1, weight: 'bold' }),
+      R(0.45, 0.318, 0.28, 0.072, 'paper'),
+      T('m2', 0.47, 0.336, 0.24, 0.05, 'ink', { maxLines: 1, weight: 'bold' }),
+      R(0.09, 0.412, 0.26, 0.072, 'paper'),
+      T('m3', 0.11, 0.43, 0.22, 0.05, 'ink', { maxLines: 1, weight: 'bold' }),
+      R(0.37, 0.422, 0.5, 0.072, 'paper'),
+      T('m4', 0.39, 0.44, 0.46, 0.05, 'ink', { maxLines: 1, weight: 'bold' }),
+      R(0.2, 0.512, 0.14, 0.062, 'paper'),
+      F('→', 0.2, 0.527, 0.14, 0.042, 'ink', { align: 'center', maxLines: 1, weight: 'bold' }),
+      T('sous', 0.12, 0.79, 0.76, 0.029, 'white', { font: 'body', align: 'center', lh: 1.35, maxLines: 2, role: 'sous-titre', shadow: true }),
+      ...footer('white'),
+    ],
+  },
+  {
+    id: 'ds-manuscrit-coin', name: 'Mot manuscrit en coin', family: 'photo-editorial',
+    vibe: ['chaleureux', 'minimal'], intents: ['produit', 'coulisses', 'accroche'],
+    sectors: ['Café', 'Beauté', 'Restaurant', 'Mode'],
+    photo: 'required',
+    desc: 'La photo seule, et une phrase manuscrite posée de travers dans le coin haut. Rien d’autre. La retenue est le parti pris : la photo porte le visuel, l’écriture signe.',
+    slots: [sl('mot', 'la phrase manuscrite, très courte', 24), sl('sous', 'la mention de pied', 32)],
+    nodes: [
+      P(0, 0, 1, 1, { dark: 6 }),
+      T('mot', 0.06, 0.085, 0.56, 0.075, 'white', { font: 'script', lh: 1.05, maxLines: 2, rotation: -6, role: 'titre', shadow: true }),
+      T('sous', 0.06, 0.9, 0.6, 0.024, 'white', { font: 'body', upper: true, track: 0.16, maxLines: 1, opacity: 82 }),
+      ...footer('white'),
+    ],
+  },
+
+  // ── Autocollants ────────────────────────────────────────────────────────
+  {
+    id: 'ds-texte-autocollant', name: 'Texte autocollant', family: 'sticker',
+    vibe: ['audacieux', 'retro', 'ludique'], intents: ['accroche', 'citation', 'annonce'],
+    sectors: ['Café', 'Retail', 'Sport', 'Restaurant'],
+    photo: 'required',
+    desc: 'La phrase en gros condensé de couleur, cernée d’un contour épais de papier qui épouse les lettres : un autocollant découpé, collé de travers sur la photo. Le geste le plus repris de l’année, et impossible à confondre avec du texte posé.',
+    slots: [sl('titre', 'la phrase, en trois ou quatre mots par ligne', 58), sl('sous', 'la mention de pied', 40)],
+    nodes: [
+      // Photo bien assombrie : un autocollant se voit parce que son contour clair
+      // TRANCHE. Sur une photo laissée claire, le contour se confond avec elle et
+      // il ne reste qu'un bloc de texte sombre.
+      P(0, 0, 1, 1, { dark: 24 }),
+      // Le contour d'abord, en calque séparé : le rendu dessine le plein PUIS le
+      // contour, donc un seul calque cerné effacerait ses propres lettres.
+      // Contour épais : c'est LUI qui découpe l'autocollant. À dix pixels il
+      // ressemblait à un liseré, et les lettres se noyaient dans la photo —
+      // vu sur la charte au jaune sombre, où le plein est presque de la couleur
+      // du fond. Le contour doit isoler, pas souligner.
+      T('titre', 0.09, 0.28, 0.82, 0.105, 'paper', { font: 'condensed', align: 'center', upper: true, lh: 0.98, maxLines: 4, rotation: -2, hollow: true, strokeCol: 'paper', strokeW: 0.03 }),
+      T('titre', 0.09, 0.28, 0.82, 0.105, 'accentDeep', { font: 'condensed', align: 'center', upper: true, lh: 0.98, maxLines: 4, rotation: -2, role: 'titre', weight: 'bold' }),
+      T('sous', 0.12, 0.85, 0.76, 0.027, 'white', { font: 'body', align: 'center', maxLines: 2, role: 'sous-titre', shadow: true }),
+    ],
+  },
+  {
+    id: 'ds-etiquette-dechiree', name: 'Étiquette collée', family: 'sticker',
+    vibe: ['ludique', 'chaleureux', 'retro'], intents: ['conseil', 'accroche', 'coulisses'],
+    sectors: ['Café', 'Beauté', 'Restaurant', 'Retail'],
+    photo: 'required',
+    desc: 'Une bande de couleur collée légèrement de travers porte le titre, une petite étiquette de rubrique se pose par-dessus en biais, une étoile déborde à droite, et un paragraphe manuscrit ferme en bas. Le collage d’un carnet de voyage.',
+    slots: [sl('titre', 'le titre', 44), sl('rubrique', 'la rubrique, deux mots', 16), sl('signature', 'la phrase manuscrite finale', 76)],
+    nodes: [
+      P(0, 0, 1, 1, { dark: 10 }),
+      R(0.05, 0.085, 0.9, 0.15, 'accent', { radius: 0.006, rotation: -1.5 }),
+      T('titre', 0.08, 0.1, 0.84, 0.082, 'onAccent', { font: 'condensed', upper: true, lh: 0.95, maxLines: 2, role: 'titre', rotation: -1.5, weight: 'bold' }),
+      R(0.06, 0.192, 0.3, 0.062, 'ink', { rotation: -8 }),
+      T('rubrique', 0.06, 0.207, 0.3, 0.028, 'paper', { align: 'center', upper: true, track: 0.1, maxLines: 1, rotation: -8, weight: 'bold' }),
+      S('star', 0.75, 0.2, 0.17, 0.122, 'accent', { rotation: 14 }),
+      T('signature', 0.08, 0.78, 0.62, 0.04, 'white', { font: 'script', lh: 1.25, maxLines: 3, rotation: -3, shadow: true }),
+      ...footer('white'),
+    ],
+  },
+  {
+    id: 'ds-tampon', name: 'Tampon', family: 'sticker',
+    vibe: ['audacieux', 'tech'], intents: ['offre', 'annonce', 'produit'],
+    sectors: ['Sport', 'Retail', 'Mode'],
+    photo: 'required',
+    desc: 'Un tampon ovale sombre, cerné d’un filet clair, posé de travers sur la photo : une ligne de capitales espacées au-dessus, le mot fort en dessous. Le badge des grandes marques de sport, celui qu’on reconnaît avant de lire.',
+    slots: [sl('titre', 'le titre, en haut', 34), sl('kicker', 'la ligne espacée du tampon, très courte', 18), sl('mot', 'le mot fort du tampon', 12)],
+    nodes: [
+      P(0, 0, 1, 1, { dark: 10 }),
+      T('titre', 0.06, 0.07, 0.7, 0.078, 'white', { font: 'condensed', upper: true, lh: 0.95, maxLines: 2, role: 'titre', shadow: true }),
+      S('pill', 0.4, 0.52, 0.54, 0.15, 'ink', { rotation: -8, stroke: 'paper', strokeW: 0.004 }),
+      T('kicker', 0.42, 0.558, 0.5, 0.022, 'paper', { align: 'center', upper: true, track: 0.2, maxLines: 1, rotation: -8 }),
+      T('mot', 0.42, 0.588, 0.5, 0.055, 'accentLight', { font: 'condensed', align: 'center', upper: true, maxLines: 1, rotation: -8, weight: 'bold' }),
+      ...footer('white'),
+    ],
+  },
+  {
+    id: 'ds-note-fleche', name: 'Note et flèche', family: 'sticker',
+    vibe: ['ludique', 'chaleureux'], intents: ['annonce', 'conseil', 'coulisses'],
+    sectors: ['Retail', 'Tech', 'Café'],
+    photo: 'required',
+    desc: 'Une petite carte de papier posée de travers sur la photo, et une flèche dessinée qui pointe vers ce qu’il faut regarder. Le geste de la story annotée, transposé en post.',
+    slots: [sl('titre', 'ce que dit la note', 46), sl('sous', 'la précision', 40), sl('cta', 'l’appel à l’action', 26)],
+    nodes: [
+      P(0, 0, 1, 1, { dark: 10 }),
+      R(0.14, 0.29, 0.62, 0.24, 'paper', { radius: 0.012, rotation: -3 }),
+      T('titre', 0.17, 0.325, 0.56, 0.056, 'ink', { lh: 1.05, maxLines: 3, role: 'titre', rotation: -3, weight: 'bold' }),
+      T('sous', 0.17, 0.455, 0.5, 0.025, 'ink', { font: 'body', maxLines: 2, rotation: -3, opacity: 70 }),
+      S('arrow', 0.6, 0.565, 0.22, 0.06, 'accentLight', { rotation: -28 }),
+      T('cta', 0.1, 0.87, 0.62, 0.028, 'white', { font: 'body', upper: true, track: 0.14, maxLines: 1, role: 'cta', shadow: true }),
+    ],
+  },
+
+  // ── Typographie sur aplat ───────────────────────────────────────────────
+  {
+    id: 'ds-titre-plein-pastille', name: 'Titre plein cadre', family: 'aplat-typo',
+    vibe: ['editorial', 'audacieux'], intents: ['accroche', 'conseil', 'annonce'],
+    photo: 'none',
+    desc: 'Le titre occupe tout l’aplat, ligne après ligne, jusqu’aux marges, et une petite pastille d’annotation vient se loger dans un creux du texte. Le nom de la marque en haut ET en bas ferme la page.',
+    slots: [sl('titre', 'la question ou l’affirmation, en une phrase', 96), sl('note', 'l’annotation de la pastille, deux ou trois mots', 30)],
+    nodes: [
+      R(0, 0, 1, 1, 'brand'),
+      rail('onBrand', 0.04),
+      T('titre', 0.07, 0.125, 0.86, 0.125, 'paper', { lh: 0.98, maxLines: 6, role: 'titre', weight: 'bold' }),
+      S('pill', 0.57, 0.5, 0.35, 0.06, 'paper'),
+      T('note', 0.585, 0.514, 0.32, 0.021, 'ink', { align: 'center', upper: true, track: 0.06, lh: 1.3, maxLines: 2, weight: 'bold' }),
+      F('{{marque}}', 0.08, 0.945, 0.84, 0.024, 'onBrand', { align: 'center', upper: true, track: 0.34, maxLines: 1, opacity: 88 }),
+    ],
+  },
+  {
+    id: 'ds-mot-serif-geant', name: 'Le mot serif', family: 'aplat-typo',
+    vibe: ['editorial', 'chaleureux', 'luxe'], intents: ['conseil', 'citation', 'accroche'],
+    sectors: ['Beauté', 'Café', 'Autre', 'Mode'],
+    photo: 'none',
+    desc: 'Une petite phrase, puis LE mot en serif italique géant, puis la suite de la phrase. Le mot devient l’image du post, et la phrase se lit autour de lui.',
+    slots: [sl('avant', 'le début de la phrase', 44), sl('mot', 'LE mot, un seul', 12), sl('apres', 'la fin de la phrase', 44), sl('sous', 'la mention de pied', 36)],
+    nodes: [
+      R(0, 0, 1, 1, 'brand'),
+      rail('onBrand'),
+      T('avant', 0.08, 0.235, 0.7, 0.036, 'onBrand', { font: 'body', lh: 1.3, maxLines: 2 }),
+      T('mot', 0.05, 0.315, 0.9, 0.185, 'accentOnBrand', { font: 'serif', italic: true, lh: 0.95, maxLines: 1, role: 'titre' }),
+      T('apres', 0.08, 0.5, 0.7, 0.036, 'onBrand', { font: 'body', lh: 1.3, maxLines: 2 }),
+      T('sous', 0.08, 0.87, 0.72, 0.025, 'onBrand', { font: 'body', upper: true, track: 0.16, maxLines: 1, opacity: 75 }),
+    ],
+  },
+  {
+    id: 'ds-chiffre-dans-phrase', name: 'Le chiffre dans la phrase', family: 'preuve',
+    vibe: ['audacieux', 'tech'], intents: ['conseil', 'preuve', 'liste'],
+    photo: 'none',
+    desc: 'Le début de la phrase, puis le chiffre écrit en énorme dans la couleur d’accent, puis la fin de la phrase à côté de lui. Le chiffre ne commente pas la phrase, il en fait partie.',
+    slots: [sl('avant', 'le début de la phrase', 20), sl('chiffre', 'le chiffre ou le nombre', 5), sl('apres', 'la fin de la phrase', 40), sl('sous', 'la précision', 110)],
+    nodes: [
+      R(0, 0, 1, 1, 'paper'),
+      T('avant', 0.09, 0.205, 0.6, 0.055, 'ink', { font: 'condensed', upper: true, lh: 1, maxLines: 1, weight: 'bold' }),
+      T('chiffre', 0.05, 0.275, 0.44, 0.255, 'accentDeep', { font: 'condensed', maxLines: 1, weight: 'bold' }),
+      T('apres', 0.49, 0.325, 0.46, 0.062, 'ink', { font: 'condensed', upper: true, lh: 0.98, maxLines: 3, role: 'titre', weight: 'bold' }),
+      T('sous', 0.09, 0.71, 0.74, 0.029, 'ink', { font: 'body', lh: 1.4, maxLines: 3, role: 'corps', opacity: 76 }),
+      ...footer('ink'),
+    ],
+  },
+  {
+    id: 'ds-deux-repliques', name: 'La réplique', family: 'citation',
+    vibe: ['editorial', 'audacieux'], intents: ['conseil', 'citation', 'accroche'],
+    photo: 'required',
+    desc: 'Deux répliques entre guillemets, l’une en haut à gauche, l’autre en bas à droite, et une flèche entre les deux. La composition raconte une objection et sa réponse : c’est un dialogue, pas une citation.',
+    slots: [sl('kicker', 'le contexte, en une ligne', 40), sl('q1', 'la première réplique, entre guillemets', 44), sl('q2', 'la réponse, entre guillemets', 56), sl('sous', 'la précision finale', 90)],
+    nodes: [
+      P(0, 0, 1, 1, { dark: 22 }),
+      T('kicker', 0.06, 0.05, 0.72, 0.026, 'white', { font: 'body', maxLines: 1, opacity: 88, weight: 'bold' }),
+      T('q1', 0.06, 0.145, 0.5, 0.072, 'accentLight', { lh: 1.05, maxLines: 3, weight: 'bold', shadow: true }),
+      S('arrow', 0.38, 0.315, 0.24, 0.07, 'accentLight', { rotation: 24 }),
+      T('q2', 0.42, 0.42, 0.52, 0.072, 'accentLight', { align: 'right', lh: 1.05, maxLines: 4, role: 'titre', weight: 'bold', shadow: true }),
+      T('sous', 0.42, 0.79, 0.52, 0.025, 'white', { font: 'body', lh: 1.4, maxLines: 3, opacity: 85 }),
+    ],
+  },
+
+  // ── Interface ───────────────────────────────────────────────────────────
+  {
+    id: 'ds-post-instagram', name: 'Le post dans le post', family: 'carte-ui',
+    vibe: ['ludique', 'minimal'], intents: ['coulisses', 'accroche', 'produit'],
+    sectors: ['Café', 'Restaurant', 'Mode', 'Autre'],
+    photo: 'required',
+    desc: 'La photo remplit le fond, désaturée, et un faux post — cadre blanc, photo, légende, barre d’icônes — se pose par-dessus. Le visuel parle de lui-même : on publie un post qui contient un post.',
+    slots: [sl('legende', 'la légende du faux post', 40)],
+    nodes: [
+      P(0, 0, 1, 1, { dark: 16, sat: -25 }),
+      R(0.11, 0.13, 0.78, 0.7, 'white', { radius: 0.006 }),
+      P(0.13, 0.15, 0.74, 0.44),
+      T('legende', 0.14, 0.625, 0.72, 0.042, 'ink', { align: 'center', lh: 1.2, maxLines: 2, role: 'titre', weight: 'bold' }),
+      S('circle', 0.15, 0.735, 0.038, 0.03, 'none', { stroke: 'ink', strokeW: 0.0035 }),
+      S('pill', 0.205, 0.735, 0.04, 0.03, 'none', { stroke: 'ink', strokeW: 0.0035 }),
+      S('triangle', 0.265, 0.735, 0.038, 0.03, 'none', { stroke: 'ink', strokeW: 0.0035, rotation: 90 }),
+      S('rectangle', 0.815, 0.732, 0.03, 0.036, 'none', { stroke: 'ink', strokeW: 0.0035 }),
+      ...footer('white'),
+    ],
+  },
+
+  // ── Listes ──────────────────────────────────────────────────────────────
+  {
+    id: 'ds-pastilles-rondes', name: 'Pastilles en tête', family: 'liste',
+    vibe: ['ludique', 'minimal', 'chaleureux'], intents: ['liste', 'conseil', 'annonce'],
+    sectors: ['Sport', 'Beauté', 'Tech', 'Café'],
+    photo: 'none',
+    desc: 'Quatre gros ronds de couleur alignés en tête, un mot dans chacun, puis le titre en dessous. La rangée de pastilles se lit avant le titre : c’est le sommaire du post.',
+    slots: [sl('r1', 'mot 1', 12), sl('r2', 'mot 2', 12), sl('r3', 'mot 3', 12), sl('r4', 'mot 4', 12), sl('titre', 'le titre', 46), sl('sous', 'la précision', 110)],
+    nodes: [
+      R(0, 0, 1, 1, 'paper'),
+      S('circle', 0.055, 0.115, 0.2, 0.16, 'brand'),
+      T('r1', 0.055, 0.183, 0.2, 0.026, 'onBrand', { align: 'center', upper: true, lh: 1.2, maxLines: 2, weight: 'bold' }),
+      S('circle', 0.285, 0.115, 0.2, 0.16, 'accent'),
+      T('r2', 0.285, 0.183, 0.2, 0.026, 'onAccent', { align: 'center', upper: true, lh: 1.2, maxLines: 2, weight: 'bold' }),
+      S('circle', 0.515, 0.115, 0.2, 0.16, 'ink'),
+      T('r3', 0.515, 0.183, 0.2, 0.026, 'paper', { align: 'center', upper: true, lh: 1.2, maxLines: 2, weight: 'bold' }),
+      S('circle', 0.745, 0.115, 0.2, 0.16, 'secondary'),
+      T('r4', 0.745, 0.183, 0.2, 0.026, 'onSecondary', { align: 'center', upper: true, lh: 1.2, maxLines: 2, weight: 'bold' }),
+      T('titre', 0.055, 0.38, 0.89, 0.088, 'ink', { lh: 1.02, maxLines: 3, role: 'titre', weight: 'bold' }),
+      T('sous', 0.055, 0.68, 0.8, 0.029, 'ink', { font: 'body', lh: 1.4, maxLines: 3, role: 'corps', opacity: 74 }),
+      ...footer('ink'),
+    ],
+  },
+  {
+    id: 'ds-bulles-empilees', name: 'Liste en pilules', family: 'liste',
+    vibe: ['tech', 'minimal', 'sobre'], intents: ['liste', 'conseil', 'produit'],
+    sectors: ['Tech', 'Autre', 'Retail'],
+    photo: 'none',
+    desc: 'Quatre pilules de papier empilées et légèrement décalées, chacune précédée d’un point de couleur. Le langage des applications : une liste qui ressemble à une interface, pas à un tract.',
+    slots: [sl('titre', 'le titre', 44), sl('b1', 'item 1', 26), sl('b2', 'item 2', 26), sl('b3', 'item 3', 26), sl('b4', 'item 4', 26)],
+    nodes: [
+      R(0, 0, 1, 1, 'brand'),
+      rail('onBrand'),
+      T('titre', 0.08, 0.13, 0.8, 0.072, 'onBrand', { lh: 1.05, maxLines: 2, role: 'titre', weight: 'bold' }),
+      S('pill', 0.07, 0.35, 0.66, 0.068, 'paper'),
+      S('circle', 0.095, 0.362, 0.042, 0.034, 'accentDeep'),
+      T('b1', 0.155, 0.365, 0.55, 0.03, 'ink', { maxLines: 1, weight: 'bold' }),
+      S('pill', 0.12, 0.44, 0.66, 0.068, 'paper'),
+      S('circle', 0.145, 0.452, 0.042, 0.034, 'accentDeep'),
+      T('b2', 0.205, 0.455, 0.55, 0.03, 'ink', { maxLines: 1, weight: 'bold' }),
+      S('pill', 0.09, 0.53, 0.66, 0.068, 'paper'),
+      S('circle', 0.115, 0.542, 0.042, 0.034, 'accentDeep'),
+      T('b3', 0.175, 0.545, 0.55, 0.03, 'ink', { maxLines: 1, weight: 'bold' }),
+      S('pill', 0.15, 0.62, 0.66, 0.068, 'paper'),
+      S('circle', 0.175, 0.632, 0.042, 0.034, 'accentDeep'),
+      T('b4', 0.235, 0.635, 0.55, 0.03, 'ink', { maxLines: 1, weight: 'bold' }),
+      ...footer('onBrand'),
+    ],
+  },
+  {
+    id: 'ds-ticket-oblique', name: 'Ticket', family: 'offre',
+    vibe: ['audacieux', 'ludique'], intents: ['offre', 'produit', 'annonce'],
+    sectors: ['Retail', 'Restaurant', 'Sport', 'Café'],
+    photo: 'required',
+    desc: 'Un ticket de couleur collé de travers sur la photo, portant l’offre en gros condensé, avec ses lignes de petits caractères simulées à droite. Le code du bon de réduction, celui qui fait lire un prix sans le crier.',
+    slots: [sl('titre', 'le titre, en haut', 34), sl('offre', 'l’offre, en deux mots maximum', 18), sl('cta', 'la mention de pied', 34)],
+    nodes: [
+      P(0, 0, 1, 1, { dark: 12 }),
+      T('titre', 0.06, 0.07, 0.7, 0.072, 'white', { font: 'condensed', upper: true, lh: 0.95, maxLines: 2, shadow: true }),
+      R(0.08, 0.42, 0.64, 0.175, 'accent', { rotation: -7 }),
+      // Deux lignes, pas trois : le dessin du ticket a une hauteur, et un texte
+      // qui déborde de son étiquette ne ressemble plus à un bon de réduction.
+      T('offre', 0.11, 0.45, 0.42, 0.058, 'onAccent', { font: 'condensed', upper: true, lh: 0.98, maxLines: 2, role: 'titre', rotation: -7, weight: 'bold' }),
+      R(0.55, 0.462, 0.13, 0.0055, 'onAccent', { rotation: -7, opacity: 55 }),
+      R(0.55, 0.484, 0.13, 0.0055, 'onAccent', { rotation: -7, opacity: 55 }),
+      R(0.55, 0.506, 0.13, 0.0055, 'onAccent', { rotation: -7, opacity: 55 }),
+      R(0.55, 0.528, 0.09, 0.0055, 'onAccent', { rotation: -7, opacity: 55 }),
+      T('cta', 0.06, 0.88, 0.72, 0.027, 'white', { font: 'body', upper: true, track: 0.14, maxLines: 1, role: 'cta', shadow: true }),
+    ],
+  },
 ];
 
 // ── Résolution sur la charte ─────────────────────────────────────────────────
@@ -1030,6 +1431,10 @@ export interface BuildBrand {
   display?: string | null; body?: string | null;
   /** Nom de la marque et compte, pour les rails et pieds de page. */
   name?: string | null; handle?: string | null;
+  /** Secteur et ton : ils ne servent pas qu'à écrire les textes, ils CHOISISSENT
+   *  l'identité typographique. Sans eux, toutes les marques repartent sur la
+   *  même — c'est-à-dire sur aucune. */
+  sector?: string | null; tone?: string | null;
 }
 
 const HEX = /^#([0-9a-f]{6})$/i;
@@ -1045,7 +1450,10 @@ function relLum(h: string): number {
   });
   return 0.2126 * r + 0.7152 * g + 0.0722 * b;
 }
-const INK = '#14160F', PAPER = '#F6F3EE', WHITE = '#FFFFFF', BLACK = '#0A0A0A';
+// Le blanc et le noir purs restent des constantes : ce sont des ABSOLUS du
+// vocabulaire (texte blanc sur photo, aplat noir), pas des choix de terrain.
+// Le papier et l'encre, eux, viennent du terrain de la marque.
+const WHITE = '#FFFFFF', BLACK = '#0A0A0A';
 
 /** Mélange deux couleurs, `t` = part de `b`. */
 function mix(a: string, b: string, t: number): string {
@@ -1066,7 +1474,6 @@ function versLum(c: string, cible: number, vers: string): string {
   return out;
 }
 /** Encre lisible sur un fond donné — jamais la couleur d'origine si elle disparaît. */
-const inkOn = (bg: string): string => (relLum(bg) > 0.42 ? INK : WHITE);
 
 // Familles déjà « d'affiche » ou déjà serif : quand la charte en fournit une, on
 // l'utilise plutôt que d'imposer la nôtre. Le geste typographique compte, mais
@@ -1074,9 +1481,20 @@ const inkOn = (bg: string): string => (relLum(bg) > 0.42 ? INK : WHITE);
 const DISPLAY_FAMILIES = ['anton', 'archivo black', 'bebas neue', 'oswald', 'barlow condensed', 'syne', 'impact', 'league gothic', 'teko'];
 const SERIF_FAMILIES = ['playfair display', 'lora', 'merriweather', 'dm serif display', 'cormorant', 'cormorant garamond', 'libre baskerville', 'eb garamond', 'crimson pro', 'instrument serif'];
 
-function resolvePalette(brand: BuildBrand) {
+export function resolvePalette(brand: BuildBrand) {
+  // LE TERRAIN. Le fond clair, l'encre et le fond sombre étaient trois
+  // constantes, donc identiques d'un client à l'autre : deux visuels de marques
+  // opposées partageaient la majorité de leur surface. Ils viennent maintenant
+  // d'un terrain choisi pour CETTE marque (`colorway.ts`). Les couleurs de la
+  // charte, elles, ne bougent pas : c'est le sol qui change, pas la marque.
+  const way = pickColorway({ name: brand.name, sector: brand.sector, tone: brand.tone });
+  const INK = way.ink, PAPER = way.paper;
+  // L'encre lisible SUR une couleur donnée. Elle doit venir du TERRAIN : une
+  // encre générique donnerait du brun sur le papier et du vert-noir sur l'aplat
+  // de marque, dans le même visuel.
+  const encreSur = (bg: string): string => (relLum(bg) > 0.42 ? INK : WHITE);
   const primary = hex(brand.primary) ?? INK;
-  let accent = hex(brand.accent) ?? hex(brand.secondary) ?? '#BDF2A0';
+  let accent = hex(brand.accent) ?? hex(brand.secondary) ?? way.accent;
   // Beaucoup de chartes déclarent un « accent » quasi blanc (le crème d'un fond,
   // le blanc d'un logo). Sur un fond clair il devient invisible : pastilles,
   // surlignages et filets disparaissent, et la composition se vide de ses
@@ -1094,35 +1512,71 @@ function resolvePalette(brand: BuildBrand) {
     const secours = hex(brand.secondary);
     accent = (secours && secours !== accent && lisible(secours)) ? secours
       : lisible(primary) ? primary
-        : INK;
+        // Dernier recours : l'accent du terrain plutôt que l'encre. Retomber sur
+        // l'encre revenait à effacer l'accent — une pastille noire sur fond clair
+        // n'est plus un repère de couleur, c'est un trou.
+        : lisible(way.accent) ? way.accent
+          : INK;
   }
   const secondary = hex(brand.secondary) ?? accent;
   const map: Record<Col, string> = {
     brand: primary, accent, secondary,
     ink: INK, paper: PAPER, white: WHITE, black: BLACK,
-    onBrand: inkOn(primary), onAccent: inkOn(accent), onSecondary: inkOn(secondary), onPaper: INK,
+    surface: way.surface, deep: way.deep,
+    onBrand: encreSur(primary), onAccent: encreSur(accent), onSecondary: encreSur(secondary), onPaper: INK,
+    onSurface: encreSur(way.surface), onDeep: encreSur(way.deep),
     accentLight: relLum(accent) >= 0.34 ? accent : versLum(accent, 0.4, WHITE),
     accentDeep: relLum(accent) <= 0.55 ? accent : versLum(accent, 0.42, INK),
-    accentOnBrand: ecart(accent, primary) >= 0.18 ? accent : inkOn(primary),
+    accentOnBrand: ecart(accent, primary) >= 0.18 ? accent : encreSur(primary),
   };
   return map;
 }
 
-function resolveFonts(brand: BuildBrand) {
-  const display = (brand.display || '').trim() || 'Archivo';
-  const body = (brand.body || '').trim() || display;
+/**
+ * Les cinq rôles typographiques d'un visuel, résolus sur la marque.
+ *
+ * Avant : la police de la charte (ou Archivo), et trois constantes en dur pour
+ * les gestes — Anton, Playfair Display, Caveat, les mêmes pour tous les clients.
+ * C'est la raison typographique du « ça fait généré ». Maintenant, une identité
+ * choisie pour CETTE marque (`typeIdentity.ts`) fournit les gestes, et son
+ * titrage prend le relais quand la charte n'en déclare pas.
+ *
+ * La charte reste souveraine : si le client a une police de titre, elle titre.
+ */
+export function resolveFonts(brand: BuildBrand) {
+  const ident = pickTypeIdentity({ name: brand.name, sector: brand.sector, tone: brand.tone });
+  const charteDisplay = (brand.display || '').trim();
+  const charteBody = (brand.body || '').trim();
+  const display = charteDisplay || ident.display;
+  const body = charteBody || (charteDisplay || ident.body);
   const low = (s: string) => s.toLowerCase();
   return {
+    ident,
     display, body,
-    // Typo de geste : celle de la charte si elle joue déjà ce rôle, sinon la nôtre.
-    condensed: DISPLAY_FAMILIES.includes(low(display)) ? display : 'Anton',
-    serif: SERIF_FAMILIES.includes(low(display)) ? display : SERIF_FAMILIES.includes(low(body)) ? body : 'Playfair Display',
-    script: 'Caveat',
+    /** La police de titre vient-elle de la charte ? La graisse en dépend. */
+    displayDeLaCharte: !!charteDisplay,
+    // Geste d'affiche et geste de presse : ceux de la charte quand elle joue
+    // déjà ce rôle (sinon on remplacerait une identité par la nôtre), sinon
+    // ceux de l'identité.
+    condensed: DISPLAY_FAMILIES.includes(low(display)) ? display : ident.condensed,
+    serif: SERIF_FAMILIES.includes(low(display)) ? display : SERIF_FAMILIES.includes(low(body)) ? body : ident.serif,
+    // Le manuscrit ne vient JAMAIS d'une charte : aucune n'en déclare.
+    script: ident.script,
   };
 }
 
-/** Polices qui ne viennent pas de la charte et qu'il faut donc charger à part. */
-export const DESIGN_SYSTEM_FONTS = ['Anton', 'Playfair Display', 'Caveat'];
+/**
+ * Les polices à charger pour cette marque, en plus de celles de sa charte.
+ *
+ * C'était une constante de trois noms. Ça ne peut plus l'être : les gestes
+ * dépendent de l'identité, et charger Anton pour une marque qui compose en
+ * Bespoke Stencil ne sert à rien — pire, l'absence de la bonne feuille de style
+ * fait sortir le visuel en police système sans la moindre erreur.
+ */
+export function designSystemFonts(brand: BuildBrand): string[] {
+  const f = resolveFonts(brand);
+  return Array.from(new Set([f.display, f.body, f.condensed, f.serif, f.script].filter(Boolean)));
+}
 
 /** Marqueur de la photo du post — remplacé par la vraie photo à la matérialisation. */
 export const DESIGN_PHOTO_PLACEHOLDER = '__PHOTO_PLACEHOLDER__';
@@ -1209,16 +1663,52 @@ export function buildDesignElements(recipe: DesignRecipe, opt: BuildOptions): an
     const text = subst(String(raw)).trim();
     if (!text) continue; // un slot vide ne laisse pas de bloc fantôme
     const size = Math.max(11, px(nd.size, w));
+    const famille = font(nd.font);
     const weight = nd.weight ?? (nd.slot ? 'bold' : 'normal');
-    const style = [weight === 'bold' ? 'bold' : '', nd.italic ? 'italic' : ''].filter(Boolean).join(' ') || 'normal';
+
+    // LA GRAISSE FAIT L'IDENTITÉ AUTANT QUE LA FAMILLE.
+    //
+    // Tout ce qui était « bold » sortait en 700, pour toutes les marques : un
+    // titre de maison de mode et un titre de burger avaient exactement le même
+    // poids. On applique donc la graisse de l'identité là où la personnalité se
+    // lit — les titres et les petites capitales — et on laisse le reste à 700,
+    // parce qu'un sous-titre allégé devient illisible sur photo.
+    //
+    // Deux garde-fous :
+    //  · la graisse est ramenée à une graisse RÉELLEMENT publiée par la famille,
+    //    sinon le navigateur fabrique un faux gras baveux ;
+    //  · quand le titre est dans la police de la CHARTE (et non dans celle de
+    //    l'identité), on ne descend pas sous 600 : l'identité a été pensée pour
+    //    son propre titrage, pas pour le Poppins d'un client.
+    const microCap = !!nd.upper && nd.size <= 0.036;
+    const titre = nd.role === 'titre' || nd.role === 'accroche' || nd.role === 'prix';
+    let poids = weight === 'bold' ? 700 : 400;
+    if (weight === 'bold' && titre) {
+      poids = FT.displayDeLaCharte && nd.font !== 'serif' && nd.font !== 'script' && nd.font !== 'condensed'
+        ? Math.max(600, FT.ident.titleWeight)
+        : FT.ident.titleWeight;
+    } else if (weight === 'bold' && microCap) {
+      poids = FT.ident.microWeight;
+    }
+    poids = nearestWeight(famille, poids);
+    const style = [nd.italic ? 'italic' : '', String(poids)].filter(Boolean).join(' ');
+
+    // L'INTERLETTRAGE, MÊME RAISON.
+    //
+    // Le dessin garde la main — c'est lui qui sait ce qui tient dans sa colonne
+    // — mais on le déplace d'un tiers vers la valeur de l'identité. Assez pour
+    // qu'une Didone respire et qu'une affiche se serre, trop peu pour casser une
+    // composition réglée au pixel.
+    const cibleTrack = nd.upper ? FT.ident.microTrack : FT.ident.titleTrack;
+    const track = nd.track === undefined ? cibleTrack : nd.track + (cibleTrack - nd.track) * 0.34;
     out.push({
       id, type: 'text', text,
       x: px(nd.x, w), y: px(nd.y, h), width: px(nd.w, w),
-      fontSize: size, fontFamily: font(nd.font), fontStyle: style,
+      fontSize: size, fontFamily: famille, fontStyle: style,
       textDecoration: nd.strike ? 'line-through' : '',
       fill: fill(nd.fill), align: nd.align ?? 'left',
       uppercase: !!nd.upper, lineHeight: nd.lh ?? 1.15,
-      letterSpacing: Math.round((nd.track ?? 0) * size),
+      letterSpacing: Math.round(track * size),
       rotation: nd.rotation ?? 0, opacity: nd.opacity ?? 100,
       maxLines: nd.maxLines ?? 3,
       // Une taille plancher explicite : l'auto-ajustement de l'éditeur réduit

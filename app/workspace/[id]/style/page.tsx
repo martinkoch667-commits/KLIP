@@ -8,6 +8,7 @@ import Sidebar from "@/components/Sidebar";
 import ColorPicker from "@/components/ColorPicker";
 import NotificationBell from "@/components/NotificationBell";
 import { MiniTemplatePreview, type BgStyle } from "@/components/TemplateEditor";
+import { fontCssHref, CATALOG_FAMILIES } from "@/lib/fontCatalog";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -46,26 +47,24 @@ const FORMAT_KEYS: Record<string, string> = {
   "facebook":    "formatFacebookLabel",
 };
 
-const FALLBACK_FONTS: GFont[] = [
-  "Anton", "Archivo Black", "Barlow Condensed", "Bebas Neue",
-  "DM Sans", "Exo 2", "Fjalla One", "Inter", "Josefin Sans",
-  "Lato", "Merriweather", "Montserrat", "Nunito", "Oswald",
-  "Outfit", "Playfair Display", "Plus Jakarta Sans", "Poppins",
-  "Raleway", "Roboto Condensed", "Rubik", "Space Grotesk",
-  "Syne", "Ubuntu", "Work Sans",
-].map(f => ({ family: f, category: "sans-serif" }));
+// Le repli servait vingt-cinq familles Google très vues. Le catalogue maison
+// passe devant : c'est lui qui décide de quoi a l'air une charte KLIP.
+const FALLBACK_FONTS: GFont[] = CATALOG_FAMILIES.map(f => ({ family: f, category: "sans-serif" }));
 
 const FONT_LIST_LIMIT = 100;
 
 // ─── Font loader ──────────────────────────────────────────────────────────────
 
 const _gfLoaded = new Set<string>();
+// L'aperçu du sélecteur doit montrer la VRAIE police : une famille Fontshare
+// demandée à Google ne renvoie rien, et la ligne s'affichait dans la police
+// système — toutes les propositions se ressemblaient alors.
 function loadGoogleFont(family: string) {
   if (!family || _gfLoaded.has(family)) return;
   _gfLoaded.add(family);
   const link = document.createElement("link");
   link.rel = "stylesheet";
-  link.href = `https://fonts.googleapis.com/css2?family=${family.replace(/ /g, "+")}&display=swap`;
+  link.href = fontCssHref(family);
   document.head.appendChild(link);
 }
 

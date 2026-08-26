@@ -21,7 +21,8 @@ import SelectionOverlay, { getVisualRect } from '@/components/SelectionOverlay';
 import Sidebar from '@/components/Sidebar';
 import { TEXT_TEMPLATES, TT_CATS, TT_REF_W, TextTemplateThumb, adaptTemplateToCharter, type BrandKit, type TextTemplate } from './textTemplates';
 import { LAYOUT_TEMPLATES, LAYOUT_CATS, LAYOUT_STYLES, LayoutThumb, adaptLayoutToCharter, type LayoutTemplate } from './layoutTemplates';
-import { googleFontHref, googleVariants, weightName } from '@/lib/fontWeights';
+import { googleVariants, weightName } from '@/lib/fontWeights';
+import { fontCssHrefs, CATALOG_FAMILIES } from '@/lib/fontCatalog';
 import { buildCarouselSlide, themeFromBrand } from '@/lib/carouselDesigns';
 import { registerFontFamily, weightLabel, type FontFamily } from '@/lib/fontFiles';
 import { isTextEntry } from '@/lib/keys';
@@ -194,11 +195,20 @@ function BgStyleLayer({ bgStyle, w, h }: { bgStyle: BgStyle; w: number; h: numbe
   );
 }
 
-const FONTS = [
-  'Anton', 'Oswald', 'Bebas Neue', 'Montserrat', 'Syne', 'Inter', 'Poppins',
-  'Barlow Condensed', 'Raleway', 'Roboto Condensed', 'Playfair Display', 'Lato',
-  'Nunito', 'Work Sans', 'DM Sans', 'Space Grotesk', 'Archivo Black',
-  'Fjalla One', 'Exo 2', 'Ubuntu',
+// Le sélecteur proposait vingt familles Google, toutes de la première page du
+// classement de popularité. C'est le catalogue entier qui s'y déverse
+// maintenant — Fontshare comprise — sinon la seule façon d'obtenir une typo
+// actuelle était d'en téléverser une.
+const FONTS = CATALOG_FAMILIES;
+
+// On ne charge PAS quatre-vingt-dix feuilles de style à l'ouverture. Celles du
+// document arrivent par `assurerPolicesGoogle`, celle qu'on choisit arrive au
+// choix : ce lot-ci ne sert qu'à ce que l'éditeur ait de quoi dessiner tout de
+// suite. Les Fontshare tiennent en une seule requête.
+const FONTS_AMORCE = [
+  'Satoshi', 'Switzer', 'Clash Display', 'Cabinet Grotesk', 'General Sans',
+  'Zodiak', 'Boska', 'Gambetta', 'Telma', 'Khand',
+  'Instrument Serif', 'Bricolage Grotesque', 'Anton', 'Archivo',
 ];
 
 const FORMATS = [
@@ -295,18 +305,20 @@ function countLines(text: string, fontSize: number, font: string, fontStyle: str
    quand elles sont posées. Course contre une limite de temps : une police
    injoignable ne doit jamais retenir l'ouverture de l'éditeur. */
 /* Les polices de la charte reçoivent leur feuille de style au chargement du
-   workspace. Celles du système de design (Anton, Playfair Display, Caveat) n'y
-   sont pas : sans ce déclencheur, une composition dessinée sortait en police de
-   repli — le geste typographique disparaissait, et avec lui la moitié du
-   dessin. Idempotent : une famille déjà demandée ne redemande pas. */
+   workspace. Celles du système de design (le grotesque, le serif et le geste
+   manuscrit de l'identité typographique choisie pour la marque) n'y sont pas :
+   sans ce déclencheur, une composition dessinée sortait en police de repli — le
+   geste typographique disparaissait, et avec lui la moitié du dessin. Le
+   fournisseur vient du catalogue : la moitié de ces familles sont chez
+   Fontshare, pas chez Google. Idempotent : une famille déjà demandée ne
+   redemande pas. */
 function assurerPolicesGoogle(familles: string[]): void {
   if (typeof document === 'undefined') return;
-  for (const f of Array.from(new Set(familles.filter(Boolean)))) {
-    const cle = `gf-${f.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`;
-    if (document.getElementById(cle)) continue;
+  for (const { id, href } of fontCssHrefs(familles)) {
+    if (document.getElementById(id)) continue;
     const lnk = document.createElement('link');
-    lnk.id = cle; lnk.rel = 'stylesheet';
-    lnk.href = `https://fonts.googleapis.com/css2?family=${encodeURIComponent(f).replace(/%20/g, '+')}:ital,wght@0,400;0,700;1,400;1,700&display=swap`;
+    lnk.id = id; lnk.rel = 'stylesheet';
+    lnk.href = href;
     document.head.appendChild(lnk);
   }
 }
@@ -1095,7 +1107,10 @@ function TextProperties({ el, onChange, customFonts, onFontUpload, brandColors, 
           style={{ width: '100%', padding: '8px 10px', border: '1px solid var(--line)', borderRadius: 'var(--r-s)', fontSize: 13, resize: 'vertical', boxSizing: 'border-box', fontFamily: 'var(--sans)', outline: 'none', background: 'var(--white)', color: 'var(--ink)' }} />
       </PropRow>
       <PropRow label={T('font')}>
-        <select value={el.fontFamily} onChange={e => onChange({ fontFamily: e.target.value })}
+        {/* La feuille de style part au CHOIX de la police : avec quatre-vingt-dix
+            familles au catalogue, on ne les charge plus toutes à l'ouverture,
+            et sans ce déclencheur le texte resterait en police de repli. */}
+        <select value={el.fontFamily} onChange={e => { assurerPolicesGoogle([e.target.value]); onChange({ fontFamily: e.target.value }); }}
           style={{ width: '100%', padding: '6px 8px', border: '1px solid var(--line)', borderRadius: 'var(--r-s)', fontSize: 13, outline: 'none', background: 'var(--white)', color: 'var(--ink)', fontFamily: `"${el.fontFamily}", sans-serif` }}>
           {brandFontNames && brandFontNames.length > 0 && (
             <optgroup label={T('brandKit')}>
@@ -3126,12 +3141,7 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
     // Chaque famille est chargée avec SES graisses (et ses italiques) : demander
     // 400/700/900 partout privait Oswald de son Light et faisait rendre les
     // autres graisses en faux gras synthétique.
-    FONTS.forEach(family => {
-      const link = document.createElement('link');
-      link.href = googleFontHref(family);
-      link.rel = 'stylesheet';
-      document.head.appendChild(link);
-    });
+    assurerPolicesGoogle(FONTS_AMORCE);
   }, []);
 
   // ── Zoom trackpad (pinch) — façon CapCut ─────────────────────────────────

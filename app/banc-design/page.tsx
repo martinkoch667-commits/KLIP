@@ -10,16 +10,23 @@
  */
 
 import React, { useEffect, useState } from "react";
-import { DESIGN_RECIPES, buildDesignElements, type DesignRecipe } from "@/lib/designSystem";
+import { DESIGN_RECIPES, buildDesignElements, resolveFonts, type DesignRecipe } from "@/lib/designSystem";
 import { renderTemplateVisual } from "@/lib/composeRender";
+import { pickColorway } from "@/lib/colorway";
 
+// Les chartes du banc portaient toutes `display: "Archivo"` : la typographie
+// était donc la même sur les quatre colonnes, et le banc ne pouvait rien dire de
+// l'identité typographique. Trois d'entre elles n'en déclarent plus — c'est le
+// cas le plus fréquent en vrai — et toutes portent un secteur et un ton, qui
+// sont ce qui choisit l'identité.
 const CHARTES = [
-  { nom: "Trattoria", primary: "#1B2FE8", secondary: "#F1EDE4", accent: "#F1EDE4", display: "Archivo", body: "Archivo", name: "AMICII", handle: "@amicii.ristorante" },
-  { nom: "Studio", primary: "#111111", secondary: "#F5F3EF", accent: "#F2542D", display: "Archivo", body: "Archivo", name: "ASTERISK", handle: "@asterisk.create" },
-  { nom: "Boisson", primary: "#7FE04A", secondary: "#FFE500", accent: "#FF3EA5", display: "Archivo", body: "Archivo", name: "UPGAS", handle: "@upgas" },
+  { nom: "Trattoria", primary: "#1B2FE8", secondary: "#F1EDE4", accent: "#F1EDE4", body: null, display: null, name: "AMICII", handle: "@amicii.ristorante", sector: "Restaurant", tone: "chaleureux, familial, authentique" },
+  { nom: "Studio", primary: "#111111", secondary: "#F5F3EF", accent: "#F2542D", body: null, display: null, name: "ASTERISK", handle: "@asterisk.create", sector: "Autre", tone: "épuré, éditorial, pointu" },
+  { nom: "Boisson", primary: "#7FE04A", secondary: "#FFE500", accent: "#FF3EA5", body: null, display: null, name: "UPGAS", handle: "@upgas", sector: "Retail", tone: "fun, décalé, énergique" },
   // Charte réelle d'un client : l'accent déclaré est BLANC, donc inutilisable
-  // comme repère. C'est le cas qui a fait disparaître les pastilles.
-  { nom: "Poulet", primary: "#FF4438", secondary: "#FFC600", accent: "#FFFFFF", display: "Oswald", body: "Archivo", name: "PEPE CHICKEN", handle: "@pepechicken" },
+  // comme repère. C'est le cas qui a fait disparaître les pastilles. Elle garde
+  // sa police de titre : la charte doit rester souveraine.
+  { nom: "Poulet", primary: "#FF4438", secondary: "#FFC600", accent: "#FFFFFF", display: "Oswald", body: "Archivo", name: "PEPE CHICKEN", handle: "@pepechicken", sector: "Restaurant", tone: "direct, cash, percutant" },
 ];
 
 // Photo de démonstration : une image locale suffit, l'objet du banc est le dessin.
@@ -86,6 +93,30 @@ export default function BancDesign() {
         ))}
         <span style={{ alignSelf: "center", color: "#888", fontWeight: 400 }}>{DESIGN_RECIPES.length} compositions</span>
       </div>
+      {/* L'identité typographique retenue pour cette charte. Sans cette ligne, le
+          banc montre bien que la typo change d'une colonne à l'autre, mais on ne
+          peut pas dire LAQUELLE a été choisie ni pourquoi — donc on ne peut pas
+          corriger un mauvais appariement. */}
+      {(() => {
+        const f = resolveFonts(charte);
+        const t = pickColorway(charte);
+        return (
+          <>
+            <p style={{ margin: "0 0 4px", font: "400 12.5px system-ui", color: "#555" }}>
+              <b style={{ color: "#111" }}>{f.ident.name}</b> — {f.ident.note}
+              <span style={{ color: "#999" }}>
+                {"  ·  titre "}{f.display}{" · texte "}{f.body}{" · condensé "}{f.condensed}{" · serif "}{f.serif}{" · manuscrit "}{f.script}
+              </span>
+            </p>
+            <p style={{ margin: "0 0 16px", font: "400 12.5px system-ui", color: "#555", display: "flex", alignItems: "center", gap: 6 }}>
+              <b style={{ color: "#111" }}>{t.name}</b> — {t.note}
+              {[t.paper, t.surface, t.ink, t.deep, t.accent].map(c => (
+                <span key={c} title={c} style={{ width: 16, height: 16, borderRadius: 4, background: c, border: "1px solid #0002", display: "inline-block" }} />
+              ))}
+            </p>
+          </>
+        );
+      })()}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(168px, 1fr))", gap: 18 }}>
         {DESIGN_RECIPES.map(r => <Vignette key={`${r.id}-${idx}-${format[1]}`} recipe={r} charte={charte} w={format[0]} h={format[1]} />)}
       </div>

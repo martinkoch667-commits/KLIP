@@ -6,8 +6,9 @@ import { openToken } from '@/lib/token-crypto';
 import { LAYOUT_LIBRARY, type Slot, type Accent } from '@/lib/layoutLibrary';
 import {
   pickDesignCandidates, describeDesignCandidates, findDesignRecipe,
-  sanitizeFields, buildDesignElements,
+  sanitizeFields, buildDesignElements, resolveFonts,
 } from '@/lib/designSystem';
+import { pickColorway } from '@/lib/colorway';
 
 // Diriger un visuel prend plus que les 10 s par défaut d'une fonction Vercel :
 // le modèle regarde la photo, les références, et réfléchit. Sans cette ligne,
@@ -233,7 +234,7 @@ export async function POST(request: NextRequest) {
       // Volontairement plus petit que la réserve disponible : si on présentait
       // presque tout le catalogue à chaque appel, la rotation ne ferait plus
       // tourner grand-chose et on retomberait sur les mêmes.
-      count: 14,
+      count: 16,
       seed: (Date.now() >>> 6) ^ (workspaceId ? String(workspaceId).length * 2654435761 : 0),
     });
     const designCandidates = describeDesignCandidates(designPool);
@@ -378,7 +379,18 @@ export async function POST(request: NextRequest) {
       body: (wsRow?.font_secondary as string | undefined) ?? null,
       name: (wsRow?.name as string | undefined) ?? null,
       handle: wsRow?.instagram_username ? `@${String(wsRow.instagram_username).replace(/^@/, '')}` : null,
+      // Secteur et ton choisissent l'IDENTITÉ TYPOGRAPHIQUE de la marque. Sans
+      // eux, `resolveFonts` retombe sur la même pour tout le monde, et les
+      // cinquante compositions se ressemblent par la typo faute de se
+      // ressembler par le dessin.
+      sector: (wsRow?.sector as string | undefined) ?? null,
+      tone: (wsRow?.tone as string | undefined) ?? null,
     };
+    // Ce que la marque devient typographiquement, dit en clair dans le journal
+    // de génération : c'est le seul endroit où l'utilisateur peut constater que
+    // deux clients ne reçoivent pas la même typo.
+    const identiteTypo = resolveFonts(brandForDesign).ident;
+    const terrain = pickColorway({ name: brandForDesign.name, sector: brandForDesign.sector, tone: brandForDesign.tone });
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const layouts = picks.slice(0, 3).map((pick: any) => {
@@ -444,6 +456,9 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       layouts,
       ...(rationale ? { rationale } : {}),
+      // L'identité typographique de la marque, pour le journal de génération.
+      typo: { id: identiteTypo.id, name: identiteTypo.name, note: identiteTypo.note },
+      terrain: { id: terrain.id, name: terrain.name, note: terrain.note },
       refs: { templates: tpls.length, approved: approved.length, instagram: instaRefs.length },
     });
   } catch (e) {
