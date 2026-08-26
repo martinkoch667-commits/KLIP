@@ -1500,6 +1500,107 @@ export const DESIGN_RECIPES: DesignRecipe[] = [
       T('titre', 0.1, 0.76, 0.8, 0.082, 'paper', { font: 'condensed', align: 'center', upper: true, lh: 0.92, maxLines: 2, role: 'titre', weight: 'bold', shadow: true }),
     ],
   },
+
+  // ══ I. LA BANDE HAUTE ═════════════════════════════════════════════════════
+  //
+  // Mesure faite le 26/08 sur les vraies photos de Pepe Chicken, dans le banc :
+  // sur 76 compositions, DEUX seulement écrivaient dans le haut de la photo, et
+  // vingt écrivaient en travers de toute sa hauteur. Or un plan produit — un
+  // burger, un plat, un flacon — a son sujet au centre et son calme en haut.
+  // Autrement dit, pour le cas le plus fréquent du métier, le compositeur
+  // n'avait presque aucune composition juste qui montre la photo en grand. Ce
+  // n'était pas une question de goût : c'était un trou dans la bibliothèque.
+  //
+  // Ces cinq-là écrivent toutes dans la moitié haute et laissent le sujet
+  // intact. Elles sont volontairement différentes les unes des autres : un
+  // bandeau plein, un voile, un filet éditorial, une offre, des cartouches.
+  //
+  // TOUTES CALÉES À GAUCHE OU PLEINE LARGEUR, jamais dans le coin haut-droit :
+  // les photos produit des clients portent très souvent un badge ou une pastille
+  // à cet endroit (les six photos de Pepe Chicken en ont quatre). Poser un texte
+  // par-dessus le badge du client est exactement le détail qui trahit un visuel
+  // fabriqué.
+
+  {
+    id: 'ds-bandeau-haut', name: 'Bandeau haut', family: 'photo-split',
+    vibe: ['audacieux', 'sobre'], intents: ['annonce', 'offre', 'produit'],
+    sectors: ['Restaurant', 'Retail', 'Café', 'Sport'],
+    photo: 'required',
+    desc: 'Un bandeau plein de la couleur de marque occupe le haut du cadre et porte le titre ; la photo garde tout le reste, intacte. La composition la plus sûre sur un plan produit : le sujet n’est jamais touché, et la lisibilité ne dépend pas de l’image.',
+    slots: [sl('titre', 'le titre', 34), sl('sous', 'la précision', 46)],
+    nodes: [
+      P(0, 0, 1, 1),
+      R(0, 0, 1, 0.34, 'brand'),
+      T('titre', 0.06, 0.05, 0.88, 0.088, 'onBrand', { font: 'condensed', upper: true, lh: 0.94, maxLines: 2, role: 'titre', weight: 'bold' }),
+      T('sous', 0.06, 0.245, 0.7, 0.028, 'onBrand', { font: 'body', maxLines: 2, role: 'sous-titre', opacity: 88 }),
+    ],
+  },
+  {
+    id: 'ds-tag-haut', name: 'Pastille et titre en haut', family: 'photo-editorial',
+    vibe: ['audacieux', 'ludique'], intents: ['annonce', 'produit', 'offre'],
+    sectors: ['Restaurant', 'Café', 'Retail'],
+    photo: 'required',
+    desc: 'Une pastille de couleur porte la rubrique, le titre tombe juste dessous en gros condensé, le tout dans le tiers haut sur un voile léger. La photo reste entière en dessous.',
+    slots: [sl('tag', 'la rubrique, deux mots', 16), sl('titre', 'le titre', 30)],
+    nodes: [
+      P(0, 0, 1, 1, { dark: 6 }),
+      R(0, 0, 1, 0.44, 'black', { scrim: 'top', opacity: 52 }),
+      S('pill', 0.06, 0.055, 0.3, 0.05, 'accent'),
+      T('tag', 0.06, 0.0685, 0.3, 0.022, 'onAccent', { align: 'center', upper: true, track: 0.1, maxLines: 1, role: 'tag', weight: 'bold' }),
+      // Colonne arrêtée aux deux tiers : au-delà, le titre passe sous le badge que
+      // les photos produit portent presque toujours en haut à droite. Vérifié sur
+      // les six photos de Pepe Chicken, quatre en ont un.
+      T('titre', 0.06, 0.135, 0.62, 0.1, 'white', { font: 'condensed', upper: true, lh: 0.92, maxLines: 3, role: 'titre', weight: 'bold' }),
+    ],
+  },
+  {
+    id: 'ds-serif-haut', name: 'Filet éditorial en haut', family: 'photo-editorial',
+    vibe: ['editorial', 'luxe', 'sobre'], intents: ['accroche', 'annonce', 'coulisses'],
+    sectors: ['Restaurant', 'Mode', 'Beauté', 'Café'],
+    photo: 'required',
+    desc: 'Un filet court, une rubrique en capitales espacées, puis un titre serif : trois signes calés en haut à gauche, sur un voile discret. Le registre de la presse, et la photo n’est jamais recouverte.',
+    slots: [sl('kicker', 'la rubrique', 20), sl('titre', 'le titre', 34)],
+    nodes: [
+      P(0, 0, 1, 1, { dark: 8 }),
+      R(0, 0, 1, 0.42, 'black', { scrim: 'top', opacity: 46 }),
+      R(0.06, 0.06, 0.09, 0.0028, 'accentLight'),
+      T('kicker', 0.06, 0.082, 0.5, 0.022, 'accentLight', { font: 'body', upper: true, track: 0.22, maxLines: 1, role: 'tag' }),
+      // Même raison : on laisse le coin haut-droit au badge du client.
+      T('titre', 0.06, 0.125, 0.6, 0.088, 'white', { font: 'serif', lh: 1, maxLines: 3, role: 'titre' }),
+    ],
+  },
+  {
+    id: 'ds-offre-haut', name: 'Offre en haut', family: 'offre',
+    vibe: ['audacieux', 'ludique'], intents: ['offre', 'produit', 'annonce'],
+    sectors: ['Restaurant', 'Retail', 'Café'],
+    photo: 'required',
+    desc: 'Le titre à gauche dans la bande haute, le prix dans une pastille ronde inclinée à droite. Le produit reste entièrement visible en dessous : c’est lui qu’on achète.',
+    slots: [sl('titre', 'ce qui est en offre', 28), sl('prix', 'le prix ou la remise', 8)],
+    nodes: [
+      P(0, 0, 1, 1, { dark: 8 }),
+      R(0, 0, 1, 0.4, 'black', { scrim: 'top', opacity: 56 }),
+      T('titre', 0.06, 0.06, 0.58, 0.078, 'white', { font: 'condensed', upper: true, lh: 0.94, maxLines: 2, role: 'titre', weight: 'bold' }),
+      S('circle', 0.68, 0.048, 0.26, 0.208, 'accent', { rotation: -8 }),
+      // `tag`, pas `prix` : le remplissage optique ferait sortir le montant de sa pastille.
+      T('prix', 0.7, 0.115, 0.22, 0.06, 'onAccent', { font: 'condensed', align: 'center', upper: true, maxLines: 1, role: 'tag', rotation: -8, weight: 'bold' }),
+    ],
+  },
+  {
+    id: 'ds-cartouches-haut', name: 'Cartouches en haut', family: 'photo-editorial',
+    vibe: ['audacieux', 'ludique'], intents: ['accroche', 'annonce', 'produit'],
+    sectors: ['Restaurant', 'Sport', 'Retail'],
+    photo: 'required',
+    desc: 'Deux cartouches de couleur décalés portent chacun un morceau de la phrase, en haut à gauche, et une ligne de précision ferme le bloc. Le décroché d’affiche, confiné au tiers haut pour ne rien cacher du produit.',
+    slots: [sl('m1', 'premier morceau', 14), sl('m2', 'second morceau, plus long', 20), sl('sous', 'la précision', 34)],
+    nodes: [
+      P(0, 0, 1, 1, { dark: 8 }),
+      R(0.05, 0.05, 0.44, 0.078, 'accent'),
+      T('m1', 0.07, 0.0685, 0.4, 0.052, 'onAccent', { font: 'condensed', upper: true, maxLines: 1, role: 'tag', weight: 'bold' }),
+      R(0.05, 0.142, 0.62, 0.078, 'brand'),
+      T('m2', 0.07, 0.1605, 0.58, 0.052, 'onBrand', { font: 'condensed', upper: true, maxLines: 1, role: 'tag', weight: 'bold' }),
+      T('sous', 0.05, 0.248, 0.62, 0.026, 'white', { font: 'body', maxLines: 1, role: 'sous-titre', shadow: true }),
+    ],
+  },
 ];
 
 // ── Résolution sur la charte ─────────────────────────────────────────────────
@@ -1946,6 +2047,55 @@ export function effectiveMax(r: DesignRecipe, slot: DesignSlot): number {
   return cap === null ? slot.max : Math.min(slot.max, cap);
 }
 
+// ── Où la composition écrit sur la photo ─────────────────────────────────────
+//
+// L'IA regarde bien la photo, mais les recettes ont des positions de texte
+// FIXES : elle choisissait une composition sans aucune garantie que sa zone de
+// texte tombe sur une zone calme. Sur les photos de Pepe Chicken, le plan
+// produit est calme en haut et occupé au centre ; la photo de téléphone n'a
+// aucune zone calme. Une recette qui écrit au centre est juste sur l'une et
+// catastrophique sur l'autre, et rien ne le disait au modèle.
+//
+// La zone n'est pas déclarée à la main : on la DÉDUIT du dessin. Une recette
+// écrite demain est décrite correctement sans qu'on y pense, et surtout la
+// description ne peut pas mentir sur le dessin qu'elle accompagne.
+
+export type RecipeZone = 'haut' | 'bas' | 'centre' | 'partout' | 'hors-photo';
+
+export function recipeZone(r: DesignRecipe): RecipeZone {
+  const pleinCadre = r.nodes.some(n => n.k === 'photo' && n.x <= 0.01 && n.y <= 0.01 && n.w >= 0.99 && n.h >= 0.99);
+  // Sans photo plein cadre, le texte est posé sur un aplat ou dans une carte :
+  // sa lisibilité ne dépend pas de l'image, la question ne se pose pas.
+  if (!pleinCadre) return 'hors-photo';
+
+  const textes = r.nodes.filter((n): n is TextNode => n.k === 'text' && !!n.slot);
+  if (!textes.length) return 'hors-photo';
+  let haut = 1, bas = 0;
+  for (const t of textes) {
+    // Hauteur approchée du bloc, en fraction de la hauteur du cadre : la taille
+    // est une fraction de la LARGEUR, et un post est plus haut que large.
+    const h = (t.maxLines ?? 2) * t.size * (t.lh ?? 1.15) * 0.8;
+    haut = Math.min(haut, t.y);
+    bas = Math.max(bas, t.y + h);
+  }
+  // La moitié du cadre est le bon repère : une composition qui tient dans la
+  // moitié haute laisse le sujet tranquille sur un plan produit, et c'est tout
+  // ce qu'on lui demande. Des seuils plus serrés classaient « partout » des
+  // recettes qui n'écrivent que dans le tiers supérieur.
+  if (bas <= 0.5) return 'haut';
+  if (haut >= 0.5) return 'bas';
+  if (haut >= 0.28 && bas <= 0.76) return 'centre';
+  return 'partout';
+}
+
+const ZONE_DITE: Record<RecipeZone, string> = {
+  haut: 'écrit dans le HAUT de la photo : à ne choisir que si le haut est calme',
+  bas: 'écrit dans le BAS de la photo : à ne choisir que si le bas est calme',
+  centre: 'écrit en PLEIN CENTRE de la photo : à ne choisir que si le sujet n’est pas au centre',
+  partout: 'occupe TOUTE la hauteur de la photo : le texte passera forcément sur le sujet, à ne choisir que si la photo est un fond (matière, table, mur) et non un sujet à montrer',
+  'hors-photo': 'le texte est sur un aplat ou dans une carte, jamais sur la photo : marche avec n’importe quelle image',
+};
+
 export function describeDesignCandidates(list: DesignRecipe[]) {
   return list.map(r => ({
     id: r.id,
@@ -1954,6 +2104,7 @@ export function describeDesignCandidates(list: DesignRecipe[]) {
     pour: r.intents.join('/'),
     photo: r.photo === 'required' ? 'utilise la photo' : r.photo === 'optional' ? 'photo facultative' : 'sans photo',
     dessin: r.desc,
+    zone: ZONE_DITE[recipeZone(r)],
     champs: r.slots.map(s => ({ cle: s.key, quoi: s.label, max: effectiveMax(r, s) })),
   }));
 }
@@ -1970,7 +2121,18 @@ export function sanitizeFields(recipe: DesignRecipe, raw: unknown): Record<strin
     const t = v.replace(/\s+/g, ' ').trim();
     if (!t) continue;
     const max = effectiveMax(recipe, s);
-    out[s.key] = t.length > max ? t.slice(0, max).replace(/[\s,;:.!?-]+$/, '') : t;
+    if (t.length <= max) { out[s.key] = t; continue; }
+    // COUPER SUR UN MOT, JAMAIS DEDANS.
+    //
+    // La coupe se faisait au caractère : « La carte change chaque semaine »
+    // ressortait en « LA CARTE CHANGE CHAQUE SE » en gros sur la photo. Un
+    // visuel entier discrédité par deux lettres orphelines. On recule jusqu'à
+    // la dernière espace — sauf si elle ampute plus de la moitié du texte,
+    // auquel cas c'est un seul mot trop long et il n'y a rien à sauver.
+    const coupe = t.slice(0, max + 1);
+    const espace = coupe.lastIndexOf(' ');
+    const garde = espace > max * 0.5 ? coupe.slice(0, espace) : t.slice(0, max);
+    out[s.key] = garde.replace(/[\s,;:.!?…-]+$/, '');
   }
   return out;
 }

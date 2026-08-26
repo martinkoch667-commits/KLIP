@@ -10,7 +10,7 @@
  */
 
 import React, { useEffect, useState } from "react";
-import { DESIGN_RECIPES, buildDesignElements, resolveFonts, slotCapacity, effectiveMax, type DesignRecipe } from "@/lib/designSystem";
+import { DESIGN_RECIPES, buildDesignElements, resolveFonts, slotCapacity, effectiveMax, recipeZone, type DesignRecipe } from "@/lib/designSystem";
 import { renderTemplateVisual } from "@/lib/composeRender";
 import { pickColorway } from "@/lib/colorway";
 
@@ -30,8 +30,24 @@ const CHARTES = [
   { nom: "Poulet", primary: "#FF4438", secondary: "#FFC600", accent: "#FFFFFF", display: "Oswald", body: "Satoshi", name: "PEPE CHICKEN", handle: "@pepechicken", sector: "Restaurant", tone: "direct, cash, percutant" },
 ];
 
-// Photo de démonstration : une image locale suffit, l'objet du banc est le dessin.
-const PHOTO = "/klip-media/hero-site.jpg";
+// LES VRAIES PHOTOS DU CLIENT.
+//
+// Le banc jugeait les compositions sur une capture d'écran du site KLIP. Sur une
+// image pareille tout paraît chargé, rien ne paraît calme, et on corrige des
+// dessins qui n'avaient rien. Trois tours de corrections sont partis de là.
+//
+// Ces six-là viennent de Pepe Chicken et couvrent des cas OPPOSÉS, ce qui est
+// tout l'intérêt : un dessin qui tient sur le plan produit et se casse sur la
+// photo de téléphone n'est pas un bon dessin, c'est un dessin chanceux.
+// (Locales et gitignorées : `public/banc-photos/`.)
+const PHOTOS = [
+  { id: "produit-sombre-1", label: "Produit / fond sombre", zone: "calme en haut, badge en haut à droite" },
+  { id: "produit-sombre-2", label: "Produit / fond sombre 2", zone: "calme en haut, badge en haut à droite" },
+  { id: "produit-carre", label: "Produit / carré", zone: "calme en haut et sur les côtés" },
+  { id: "studio-box", label: "Box studio", zone: "calme en haut et en bas" },
+  { id: "ugc-mains", label: "UGC / mains", zone: "chargé partout, clair" },
+  { id: "ugc-visage", label: "UGC / visage", zone: "chargé partout, visage au centre" },
+] as const;
 
 const MOTS: Record<string, string[]> = {
   court: ["Ouvert", "Nouveau", "Ce soir", "Enfin", "Sans filtre", "Midi"],
@@ -47,11 +63,24 @@ function echantillon(cle: string, max: number, i: number): string {
   if (cle === "heure") return "19H00";
   if (/^h\d/.test(cle)) return ["9h — 18h", "12h — 23h", "Fermé"][i % 3];
   if (/^j\d/.test(cle)) return ["Lundi au jeudi", "Vendredi", "Dimanche"][i % 3];
+  // Même coupe que la production (`sanitizeFields`) : sur un mot, jamais dedans.
   const t = pool[i % pool.length];
-  return t.length > max ? t.slice(0, max) : t;
+  if (t.length <= max) return t;
+  const coupe = t.slice(0, max + 1);
+  const espace = coupe.lastIndexOf(" ");
+  return (espace > max * 0.5 ? coupe.slice(0, espace) : t.slice(0, max)).replace(/[\s,;:.!?…-]+$/, "");
 }
 
-function Vignette({ recipe, charte, w, h }: { recipe: DesignRecipe; charte: typeof CHARTES[number]; w: number; h: number }) {
+const COULEUR_ZONE: Record<string, string> = {
+  haut: "#1a7f37", bas: "#0969da", centre: "#bf8700", partout: "#cf222e", "hors-photo": "#8250df",
+};
+
+function ZoneTag({ recipe }: { recipe: DesignRecipe }) {
+  const z = recipeZone(recipe);
+  return <span style={{ color: COULEUR_ZONE[z] ?? "#888", fontWeight: 700 }}> · {z}</span>;
+}
+
+function Vignette({ recipe, charte, w, h, photo }: { recipe: DesignRecipe; charte: typeof CHARTES[number]; w: number; h: number; photo: string }) {
   const [url, setUrl] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
   useEffect(() => {
@@ -65,18 +94,22 @@ function Vignette({ recipe, charte, w, h }: { recipe: DesignRecipe; charte: type
         // n'ont rien.
         recipe.slots.forEach((s, i) => { fields[s.key] = echantillon(s.key, effectiveMax(recipe, s), i); });
         const elements = buildDesignElements(recipe, { fields, brand: charte, w, h, hasPhoto: recipe.photo !== "none" });
-        const out = await renderTemplateVisual({ elements, sourceFormat: { w, h }, photoUrl: PHOTO, w, h });
+        const out = await renderTemplateVisual({ elements, sourceFormat: { w, h }, photoUrl: photo, w, h });
         if (vivant) setUrl(out);
       } catch (e) { if (vivant) setErr(String(e)); }
     })();
     return () => { vivant = false; };
-  }, [recipe, charte, w, h]);
+  }, [recipe, charte, w, h, photo]);
   return (
     <figure style={{ margin: 0 }}>
       {url ? <img src={url} alt={recipe.name} style={{ width: "100%", display: "block", borderRadius: 6, background: "#eee" }} />
         : <div style={{ width: "100%", aspectRatio: `${w}/${h}`, background: "#eee", borderRadius: 6 }} />}
       <figcaption style={{ font: "500 11px/1.4 system-ui", color: "#555", marginTop: 6 }}>
         {recipe.name} <span style={{ color: "#aaa" }}>· {recipe.id}</span>
+        {/* La zone est le premier filtre du compositeur : on la voit ici sous
+            chaque vignette, sinon on ne peut pas juger si une composition est
+            fausse pour LA photo affichée ou fausse en général. */}
+        <ZoneTag recipe={recipe} />
         {err ? <span style={{ color: "#c00" }}> · {err}</span> : null}
       </figcaption>
     </figure>
@@ -86,6 +119,8 @@ function Vignette({ recipe, charte, w, h }: { recipe: DesignRecipe; charte: type
 export default function BancDesign() {
   const [idx, setIdx] = useState(0);
   const [format, setFormat] = useState<[number, number]>([1080, 1350]);
+  const [photoIdx, setPhotoIdx] = useState(0);
+  const photo = `/banc-photos/${PHOTOS[photoIdx].id}.jpg`;
   const charte = CHARTES[idx];
   return (
     <main style={{ padding: 24, background: "#fff", minHeight: "100vh" }}>
@@ -96,7 +131,20 @@ export default function BancDesign() {
         {([["4:5", [1080, 1350]], ["1:1", [1080, 1080]], ["9:16", [1080, 1920]]] as [string, [number, number]][]).map(([lbl, f]) => (
           <button key={lbl} onClick={() => setFormat(f)} style={{ padding: "6px 12px", borderRadius: 999, border: "1px solid #ddd", background: format[1] === f[1] ? "#111" : "#fff", color: format[1] === f[1] ? "#fff" : "#111", cursor: "pointer" }}>{lbl}</button>
         ))}
-        <span style={{ alignSelf: "center", color: "#888", fontWeight: 400 }}>{DESIGN_RECIPES.length} compositions</span>
+        <span style={{ alignSelf: "center", color: "#888", fontWeight: 400 }}>
+          {DESIGN_RECIPES.length} compositions ·{" "}
+          {(["haut", "bas", "centre", "partout", "hors-photo"] as const)
+            .map(z => `${DESIGN_RECIPES.filter(r => recipeZone(r) === z).length} ${z}`)
+            .join(" · ")}
+        </span>
+      </div>
+      {/* Le choix de la photo est le premier réglage du banc, avant la charte :
+          c'est lui qui décide si une composition tient ou non. */}
+      <div style={{ display: "flex", gap: 8, marginBottom: 12, font: "600 12.5px system-ui", flexWrap: "wrap", alignItems: "center" }}>
+        {PHOTOS.map((ph, i) => (
+          <button key={ph.id} onClick={() => setPhotoIdx(i)} title={ph.zone} style={{ padding: "5px 11px", borderRadius: 999, border: "1px solid #ddd", background: i === photoIdx ? "#111" : "#fff", color: i === photoIdx ? "#fff" : "#444", cursor: "pointer" }}>{ph.label}</button>
+        ))}
+        <span style={{ color: "#999", fontWeight: 400 }}>{PHOTOS[photoIdx].zone}</span>
       </div>
       {/* L'identité typographique retenue pour cette charte. Sans cette ligne, le
           banc montre bien que la typo change d'une colonne à l'autre, mais on ne
@@ -154,7 +202,7 @@ export default function BancDesign() {
         );
       })()}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(168px, 1fr))", gap: 18 }}>
-        {DESIGN_RECIPES.map(r => <Vignette key={`${r.id}-${idx}-${format[1]}`} recipe={r} charte={charte} w={format[0]} h={format[1]} />)}
+        {DESIGN_RECIPES.map(r => <Vignette key={`${r.id}-${idx}-${format[1]}-${photoIdx}`} recipe={r} charte={charte} w={format[0]} h={format[1]} photo={photo} />)}
       </div>
     </main>
   );
