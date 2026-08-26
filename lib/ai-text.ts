@@ -36,6 +36,19 @@ export async function generateAiText(params: {
   const provider = await resolveAiProvider(params.userId);
   const turns: Turn[] = [...(params.priorTurns ?? []), { role: 'user', text: params.userText, images: params.images }];
 
+  // QUI A RÉPONDU, ET AVEC QUEL DROIT DE RÉFLÉCHIR.
+  //
+  // Le palier de modèle ne se voit nulle part : deux routes sur dix demandent
+  // `high`, les huit autres tournent sur le modèle rapide avec la réflexion
+  // COUPÉE, et rien ne le dit. « L'IA n'écoute qu'à moitié les consignes » est
+  // le symptôme exact de cette configuration, mais impossible à confirmer sans
+  // regarder le code. De même, une clé Anthropic illisible bascule sur Gemini en
+  // silence : l'utilisateur croit payer un modèle et en reçoit un autre.
+  //
+  // Une ligne par appel dans les journaux de la fonction, c'est tout ce qu'il
+  // faut pour trancher la question en trente secondes.
+  console.log(`[ia] ${provider.provider} · qualité=${params.quality ?? 'fast'}${provider.provider === 'gemini' && params.quality !== 'high' ? ' · réflexion coupée' : ''}`);
+
   if (provider.provider === 'anthropic') {
     const messages: AnthropicMessage[] = turns.map(t => ({
       role: t.role,
