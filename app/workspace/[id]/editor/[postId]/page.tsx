@@ -3708,6 +3708,46 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
               return [te.fontFamily, ...runs];
             })).filter((f): f is string => !!f),
           );
+          // UNE POLICE QUI N'EXISTE PAS NE DOIT PAS DEVENIR UN SERIF DE SECOURS.
+          //
+          // Un calque garde le NOM de la police décidé le jour où il a été écrit.
+          // Ce nom peut ne plus correspondre à rien : police retirée de la
+          // charte, fichier disparu du stockage, ou — c'est le cas rencontré —
+          // famille renommée. « Poplar Regular.ttf » donnait la famille « Poplar
+          // Regular » avant le 26/08, et « Poplar » après : les visuels d'avant
+          // réclament donc une famille qui n'existe plus sous ce nom.
+          //
+          // Le navigateur, lui, ne prévient pas : il tombe silencieusement sur sa
+          // police par défaut, un serif. Un titre de fast-food dessiné en gras
+          // condensé ressort en Times, et rien ne dit pourquoi.
+          //
+          // On demande donc au navigateur, APRÈS le chargement des polices, si la
+          // famille existe vraiment. Sinon on prend celle de la charte. Le test
+          // est exact et sans effet de bord : une police qui fonctionne n'est
+          // jamais touchée, et le remplacement est journalisé pour rester
+          // diagnosticable.
+          {
+            const secours = (w?.font_family as string | undefined)?.trim() || 'Oswald';
+            const inconnues = new Set<string>();
+            const connue = (f: string) => {
+              if (!f) return false;
+              try { return document.fonts.check(`16px "${f}"`); } catch { return true; }
+            };
+            initSlides = initSlides.map(sl => ({
+              ...sl,
+              elements: (sl.elements ?? []).map((e: CanvasEl) => {
+                if (e?.type !== 'text') return e;
+                const te = e as TextEl;
+                if (!te.fontFamily || connue(te.fontFamily)) return e;
+                inconnues.add(te.fontFamily);
+                return { ...te, fontFamily: secours };
+              }),
+            }));
+            if (inconnues.size) {
+              console.warn(`[Editor] polices introuvables, remplacées par « ${secours} » : ${Array.from(inconnues).join(', ')}`);
+            }
+          }
+
           initSlides = initSlides.map(s => ({ ...s, elements: relayoutText(s.elements, loadFmt.w, loadFmt.h) }));
         }
         setSlides(initSlides);
