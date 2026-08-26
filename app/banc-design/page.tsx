@@ -10,7 +10,7 @@
  */
 
 import React, { useEffect, useState } from "react";
-import { DESIGN_RECIPES, buildDesignElements, resolveFonts, type DesignRecipe } from "@/lib/designSystem";
+import { DESIGN_RECIPES, buildDesignElements, resolveFonts, slotCapacity, effectiveMax, type DesignRecipe } from "@/lib/designSystem";
 import { renderTemplateVisual } from "@/lib/composeRender";
 import { pickColorway } from "@/lib/colorway";
 
@@ -58,7 +58,11 @@ function Vignette({ recipe, charte, w, h }: { recipe: DesignRecipe; charte: type
     (async () => {
       try {
         const fields: Record<string, string> = {};
-        recipe.slots.forEach((s, i) => { fields[s.key] = echantillon(s.key, s.max, i); });
+        // La longueur d'échantillon doit être celle que la PRODUCTION appliquera
+        // (`sanitizeFields` coupe à `effectiveMax`), sinon le banc montre des
+        // débordements que le vrai rendu n'a pas, et on corrige des dessins qui
+        // n'ont rien.
+        recipe.slots.forEach((s, i) => { fields[s.key] = echantillon(s.key, effectiveMax(recipe, s), i); });
         const elements = buildDesignElements(recipe, { fields, brand: charte, w, h, hasPhoto: recipe.photo !== "none" });
         const out = await renderTemplateVisual({ elements, sourceFormat: { w, h }, photoUrl: PHOTO, w, h });
         if (vivant) setUrl(out);
@@ -97,6 +101,37 @@ export default function BancDesign() {
           banc montre bien que la typo change d'une colonne à l'autre, mais on ne
           peut pas dire LAQUELLE a été choisie ni pourquoi — donc on ne peut pas
           corriger un mauvais appariement. */}
+      {/* AUDIT DE CAPACITÉ.
+          Chaque slot annonce une longueur maximale, et l'IA écrit jusqu'à cette
+          longueur. Mais le DESSIN, lui, a une capacité : sa colonne, son calibre
+          et son nombre de lignes décident combien de caractères tiennent. Les
+          deux ont été écrits séparément, donc ils divergent — un slot « max 24 »
+          dans un titre d'affiche qui n'en tient que 16, et le texte sort rogné
+          ou réduit au plancher. C'est la cause mécanique du « ça ne rend rien ».
+          Le banc les compare : tant que cette liste n'est pas vide, des
+          compositions rendront mal quoi qu'on fasse par ailleurs. */}
+      {(() => {
+        const ecarts: string[] = [];
+        for (const r of DESIGN_RECIPES) {
+          for (const sl of r.slots) {
+            const cap = slotCapacity(r, sl.key);
+            if (cap !== null && sl.max > cap * 1.08) ecarts.push(`${r.id}.${sl.key} : annoncé ${sl.max}, le dessin en tient ${cap}`);
+          }
+        }
+        return ecarts.length === 0 ? null : (
+          <details style={{ margin: "0 0 14px", font: "400 12px ui-monospace, monospace", color: "#777" }}>
+            <summary style={{ cursor: "pointer", fontWeight: 700 }}>{ecarts.length} slots que le dessin raccourcit</summary>
+            <div style={{ marginTop: 6, lineHeight: 1.5 }}>
+              <p style={{ color: "#555", maxWidth: 640 }}>
+                Ces longueurs ne cassent plus rien : `effectiveMax` les ramène à la
+                capacité du dessin avant de les annoncer à l’IA. La liste sert à
+                repérer les recettes dont le `max` écrit à la main est trompeur.
+              </p>
+              {ecarts.map(e => <div key={e}>{e}</div>)}
+            </div>
+          </details>
+        );
+      })()}
       {(() => {
         const f = resolveFonts(charte);
         const t = pickColorway(charte);

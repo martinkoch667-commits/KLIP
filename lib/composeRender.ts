@@ -396,6 +396,10 @@ export function renderElementSpecs(els: Record<string, unknown>[], w: number, h:
 // le Composer retombait sur la photo brute et l'utilisateur ne voyait le vrai
 // visuel qu'en ouvrant l'éditeur — donc il ne le voyait presque jamais.
 
+/** Rôles dont le texte se CALE sur sa mesure au lieu de flotter dedans.
+ *  Même liste que l'éditeur : les deux moteurs doivent grossir les mêmes blocs. */
+const ROLES_QUI_REMPLISSENT = new Set(['titre', 'accroche', 'prix']);
+
 /**
  * Graisse CSS d'un `fontStyle` de calque.
  *
@@ -635,6 +639,30 @@ export async function renderTemplateVisual(input: TemplateRenderInput): Promise<
         ctx.font = `${italic}${weight} ${taille}px "${family}", system-ui, sans-serif`;
         lines = txt.split('\n').flatMap(part => wrap(ctx, part, width));
       }
+
+      // REMPLIR LA MESURE — le pendant du grossissement de l'éditeur
+      // (`autoFitFontSize`). Sans lui, l'aperçu montrerait un titre calé sur sa
+      // colonne et le fichier ouvert ensuite un titre flottant, ou l'inverse :
+      // les deux moteurs doivent appliquer la MÊME règle typographique, sinon
+      // l'aperçu ment. Mêmes garde-fous : le nombre de lignes prévu, une hauteur
+      // qui ne dépasse pas d'un tiers celle qui était réservée, 1,6 × au plus.
+      if (ROLES_QUI_REMPLISSENT.has(st(e.role)) && !deborde()) {
+        const budget = maxLines * size * 1.34;
+        const plafond = Math.round(size * 1.6);
+        const pas = Math.max(1, Math.round(size * 0.05));
+        const poserTaille = (t: number) => {
+          try { (ctx as unknown as { letterSpacing: string }).letterSpacing = `${(n(e.letterSpacing) * sf * t) / size}px`; } catch { /* noop */ }
+          ctx.font = `${italic}${weight} ${t}px "${family}", system-ui, sans-serif`;
+          return txt.split('\n').flatMap(part => wrap(ctx, part, width));
+        };
+        for (let t = taille + pas; t <= plafond; t += pas) {
+          const essai = poserTaille(t);
+          const tient = essai.length <= maxLines && essai.every(l => ctx.measureText(l).width <= width + 1);
+          if (tient && essai.length * t <= budget) { taille = t; lines = essai; } else break;
+        }
+        poserTaille(taille);
+      }
+
       lines = lines.slice(0, maxLines);
       const lh = taille * n(e.lineHeight, 1.15);
       // Konva centre chaque ligne dans sa hauteur d'interligne : sans ce demi-
@@ -645,7 +673,10 @@ export async function renderTemplateVisual(input: TemplateRenderInput): Promise<
 
       if (e.highlightEnabled) {
         const padH = n(e.highlightPadding, 8) * sf;
-        const padV = padH * 0.55;
+        // Un surlignage épouse la ligne : large sur les côtés, serré au-dessus et
+        // au-dessous. À 0,55 les blocs empilés se touchaient presque et la
+        // composition prenait l'air d'une pile de boutons.
+        const padV = padH * 0.38;
         const rad = n(e.highlightBorderRadius, 4) * sf;
         ctx.fillStyle = st(e.highlightColor, '#000000');
         const prev = ctx.globalAlpha;

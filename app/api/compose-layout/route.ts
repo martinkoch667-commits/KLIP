@@ -207,7 +207,18 @@ export async function POST(request: NextRequest) {
         roles: (t.blocks ?? []).map((b: { role: string }) => b.role),
       };
     });
-    const libCandidates = LAYOUT_LIBRARY.map(r => ({ id: r.id, desc: r.desc, anchor: r.anchor, roles: r.slots.map(s => s.role) }));
+    // LA BIBLIOTHÈQUE N'EST PLUS PROPOSÉE.
+    //
+    // Ses vingt-deux recettes ne savent qu'une chose : poser du texte sur une
+    // photo, éventuellement dans un cartouche. C'est exactement ce que Martin
+    // rejette — « ça fait template, il n'y a rien d'exploitable » — et les trois
+    // essais qui l'ont fait remonter venaient tous de là ou de leurs cousines.
+    // Le système de design couvre désormais les mêmes intentions (`ds-mot-deborde`,
+    // `ds-manuscrit-coin`, `ds-affiche-cinema` pour le minimalisme, `ds-mots-escalier`
+    // pour les blocs empilés) en dessinant vraiment quelque chose.
+    //
+    // `LAYOUT_LIBRARY` reste importée : `geomFor` doit continuer à résoudre les
+    // `recipeId` déjà enregistrés en base. On cesse simplement de les OFFRIR.
 
     // LE SYSTÈME DE DESIGN.
     //
@@ -252,24 +263,21 @@ export async function POST(request: NextRequest) {
       'CANDIDATS DE MISE EN PAGE (tu DOIS en choisir, tu n\'inventes pas de coordonnées) :',
       'A) Templates du client (à privilégier pour rester dans son univers) :',
       JSON.stringify(tplCandidates),
-      'B) Bibliothèque de layouts simples (texte posé sur la photo) :',
-      JSON.stringify(libCandidates),
       '',
-      'C) SYSTÈME DE DESIGN — des compositions ENTIÈRES, déjà dessinées (aplats, cadres, pastilles, filets, flèches, cartes, typographies qui se répondent). C\'est ici que vivent les codes visuels réellement en usage sur Instagram aujourd\'hui. Chaque recette liste ses CHAMPS : tu écris le texte de chacun, en respectant la longueur maximale — le dessin a été fait POUR cette longueur, un texte trop long le casse.',
+      'B) SYSTÈME DE DESIGN — des compositions ENTIÈRES, déjà dessinées (aplats, cadres, pastilles, filets, flèches, cartes, typographies qui se répondent). C\'est ici que vivent les codes visuels réellement en usage sur Instagram aujourd\'hui. Chaque recette liste ses CHAMPS : tu écris le texte de chacun, en respectant la longueur maximale — le dessin a été fait POUR cette longueur, un texte trop long le casse.',
       JSON.stringify(designCandidates),
       '',
       approved.length > 0 ? `Posts déjà validés par le client (ce qui lui plaît) : ${JSON.stringify(approved)}` : '',
       instaRefs.length > 0 ? `LES ${instaRefs.length} DERNIÈRES IMAGES DU COMPTE INSTAGRAM SONT JOINTES APRÈS LA PHOTO À HABILLER. Elles montrent ce que la marque publie déjà : densité de texte, place du sujet, rapport au vide, façon d'utiliser la couleur. Ta composition doit pouvoir se poser à côté d'elles sans détonner — même famille visuelle, sans les copier. La PREMIÈRE image jointe est la photo à habiller ; les suivantes ne sont que des références.` : '',
       textList.length ? `Textes à utiliser :\n${textList.map((t, i) => `${i + 1}. "${t}"`).join('\n')}` : 'Aucun texte fourni : rédige un titre court (≤6 mots) + éventuel sous-titre, cohérents avec la photo.',
       '',
-      'Choisis les 3 MEILLEURES compositions. Pour une recette A ou B : remplis chaque slot (rôle->texte), choisis une couleur de charte par slot (contraste avec le fond), décide du scrim. Pour une recette C : remplis "fields" avec la clé de CHAQUE champ de la recette — les couleurs, les tailles et les positions sont déjà décidées par le dessin, tu n\'y touches pas.',
-      'PRIVILÉGIE le système de design (C). Une composition dessinée — avec ses aplats, ses pastilles, sa typographie qui joue — ressemble à ce que publient les comptes soignés ; du texte blanc posé sur une photo ressemble à tout le monde. Ne prends une recette B que si la photo est vraiment le sujet et qu\'elle se suffit à elle-même.',
+      'Choisis les 3 MEILLEURES compositions. Pour un template A : remplis chaque slot (rôle->texte), choisis une couleur de charte par slot (contraste avec le fond), décide du scrim. Pour une recette B : remplis "fields" avec la clé de CHAQUE champ de la recette — les couleurs, les tailles et les positions sont déjà décidées par le dessin, tu n\'y touches pas.',
       'ÉCRIS COMME LA MARQUE PARLE, pas comme une brochure. Phrases courtes, verbes concrets, aucune formule creuse (« au service de votre réussite », « l\'excellence au quotidien »). Un champ « max 14 caractères » veut dire UN ou DEUX mots, pas une phrase raccourcie.',
       preferred.length ? `CE QUE CE CLIENT A DÉJÀ RETENU, quand on lui a proposé plusieurs mises en page : ${preferred.join(', ')}. C'est son goût OBSERVÉ, pas une règle : privilégie ces directions quand elles conviennent à cette photo, et écarte-les franchement quand elles ne conviennent pas.` : '',
-      'DÉCOUPER LE TITRE EN PLUSIEURS BLOCS est une composition à part entière, souvent la plus forte : au lieu d\'un pavé de deux lignes, tu écris chaque ligne dans SON bloc (« Pause midi » / « au Shadok »), chacun avec son propre aplat. Les cartouches épousent alors la longueur de chaque ligne et créent un décroché d\'affiche. Coupe au bon endroit — là où la phrase respire naturellement, jamais au milieu d\'un groupe de mots. Les recettes « lib-stack-* » sont faites pour ça.',
+      'ÉCRIS COURT. Le calibre du titre est décidé par le dessin, mais c\'est TA longueur de texte qui décide s\'il sera grand ou minuscule : trois mots remplissent la colonne, douze la réduisent à du corps de texte. Quand un champ annonce « max 42 caractères », vise la moitié.',
       hasPhotoForDesign ? 'UNE PHOTO EST FOURNIE : au moins DEUX des trois propositions doivent l\'utiliser. La personne a importé cette image pour la voir dans son visuel — une composition purement typographique la jette, ce n\'est acceptable qu\'en troisième proposition et seulement si elle est franchement meilleure.' : 'AUCUNE PHOTO : ne choisis que des compositions qui n\'en demandent pas.',
-      'Les trois propositions doivent venir de FAMILLES DIFFÉRENTES et ne pas se ressembler de loin : si on les met côte à côte en vignette, on doit voir trois visuels distincts, pas trois cadrages du même. Deux recettes C au minimum. Du texte blanc sur voile noir est le rendu par défaut de n\'importe quelle marque : jamais deux fois, et jamais s\'il existe une composition dessinée qui convient.',
-      'Préfère TOUJOURS un template maison du client quand il peut accueillir ce contenu : le choisir applique son dessin complet — son fond, ses aplats, ses couleurs, ses formes — donc le visuel ressemble immédiatement à cette marque. Ne prends une recette de la bibliothèque que si aucun template ne convient. Évite de placer le texte sur le sujet.',
+      'Les trois propositions doivent venir de FAMILLES DIFFÉRENTES et ne pas se ressembler de loin : si on les met côte à côte en vignette, on doit voir trois visuels distincts, pas trois cadrages du même.',
+      'Préfère un template maison du client quand il peut accueillir ce contenu : le choisir applique son dessin complet — son fond, ses aplats, ses couleurs, ses formes — donc le visuel ressemble immédiatement à cette marque. Évite de placer le texte sur le sujet.',
       '',
       recentIds.length ? `DÉJÀ SERVI RÉCEMMENT À CE CLIENT (à ne pas reprendre, son fil deviendrait répétitif) : ${recentIds.join(', ')}.` : '',
       // Un parti pris formulé AVANT les choix : ça oblige à décider d'une direction
@@ -279,8 +287,8 @@ export async function POST(request: NextRequest) {
       '',
       'Réponds UNIQUEMENT avec ce JSON :',
       '{ "rationale": "<ton parti pris en une phrase>", "picks": [',
-      '  { "source": "design", "id": "<id d\'une recette C>", "fields": { "<cle du champ>": "<texte>", "...": "..." } },',
-      '  { "source": "template"|"library", "id": "<id candidat A ou B>", "slots": [ { "role": "titre"|"sous-titre"|"cta", "text": "...", "color": "primary"|"secondary"|"accent"|"white"|"black", "uppercase": boolean } ], "scrim": { "position": "bottom"|"top"|"none", "opacity": number } }',
+      '  { "source": "design", "id": "<id d\'une recette B>", "fields": { "<cle du champ>": "<texte>", "...": "..." } },',
+      '  { "source": "template", "id": "<id d\'un template A>", "slots": [ { "role": "titre"|"sous-titre"|"cta", "text": "...", "color": "primary"|"secondary"|"accent"|"white"|"black", "uppercase": boolean } ], "scrim": { "position": "bottom"|"top"|"none", "opacity": number } }',
       '] }',
     ].filter(Boolean).join('\n');
 

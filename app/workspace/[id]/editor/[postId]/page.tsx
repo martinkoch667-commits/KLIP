@@ -335,8 +335,26 @@ async function attendrePolices(familles: string[], limiteMs = 2500): Promise<voi
   // Le cache de mesure a pu se remplir AVANT l'attente, avec la police de repli.
   clearTextMetricsCache();
 }
+// REMPLIR LA MESURE.
+//
+// L'auto-ajustement ne savait que RÉDUIRE : la taille du dessin était un
+// plafond. Un titre court sortait donc à la taille prévue pour un titre long,
+// et flottait au milieu de sa colonne — deux blocs empilés se retrouvaient de
+// largeurs sans rapport, un chiffre géant occupait la moitié de son aplat. Rien
+// ne trahit plus sûrement une composition automatique : un graphiste, lui,
+// CALE le titre sur sa mesure.
+//
+// On laisse donc grandir les titres, sous deux garde-fous, parce que grandir
+// pousse aussi ce qu'il y a en dessous :
+//  · jamais plus de `maxLines` lignes — le dessin a prévu ce nombre-là ;
+//  · la hauteur du bloc ne dépasse pas de plus d'un tiers celle qui lui était
+//    réservée (maxLines × taille du dessin), et jamais 1,6 × la taille.
+// Réservé aux rôles d'affichage : un paragraphe grossi n'est pas un
+// paragraphe rempli, c'est un paragraphe cassé.
+const ROLES_QUI_REMPLISSENT = new Set(['titre', 'accroche', 'prix']);
+
 // Calcule la taille de police qui fait tenir le texte dans sa largeur + maxLines.
-// Ne change QUE la taille (jamais police ni couleur). Ne fait que réduire (max = taille du design).
+// Ne change QUE la taille (jamais police ni couleur).
 function autoFitFontSize(el: TextEl): number {
   if (!el.text || !el.width || !el.role) return el.fontSize;
   const maxFs = el.maxFontSize ?? el.fontSize;
@@ -345,8 +363,20 @@ function autoFitFontSize(el: TextEl): number {
   const pH = el.paddingH ?? el.padding ?? 0;
   const areaW = Math.max(1, el.width - pH * 2);
   const txt = el.uppercase ? el.text.toUpperCase() : el.text;
-  const fits = (fs: number) => countLines(txt, fs, el.fontFamily, el.fontStyle, areaW, el.letterSpacing ?? 0) <= maxLines;
-  if (fits(maxFs)) return maxFs;           // tient déjà à la taille du design
+  const lignes = (fs: number) => countLines(txt, fs, el.fontFamily, el.fontStyle, areaW, el.letterSpacing ?? 0);
+  const fits = (fs: number) => lignes(fs) <= maxLines;
+  if (fits(maxFs)) {
+    if (!ROLES_QUI_REMPLISSENT.has(el.role)) return maxFs;
+    const budget = maxLines * maxFs * 1.34;
+    const plafond = Math.round(maxFs * 1.6);
+    const pas = Math.max(1, Math.round(maxFs * 0.05));
+    let grand = maxFs;
+    for (let fs = maxFs + pas; fs <= plafond; fs += pas) {
+      const nl = lignes(fs);
+      if (nl <= maxLines && nl * fs <= budget) grand = fs; else break;
+    }
+    return grand;
+  }
   let lo = minFs, hi = maxFs, best = minFs;
   while (lo <= hi) {
     const mid = Math.floor((lo + hi) / 2);
@@ -5441,8 +5471,10 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
           highlightColor: boxFill,
           highlightOpacity: 100,
           // radiusPct = % de la hauteur du texte : 50 donne une pastille, 0 un bandeau net.
-          highlightBorderRadius: Math.round(((b.radiusPct ?? 8) / 100) * fontSize),
-          highlightPadding: Math.max(6, Math.round(fontSize * 0.22)),
+          // Le défaut était 8 : ni l'un ni l'autre, l'arrondi mou qu'on reconnaît
+          // sur tous les visuels générés. Sans consigne, on coupe net.
+          highlightBorderRadius: Math.round(((b.radiusPct ?? 0) / 100) * fontSize),
+          highlightPadding: Math.max(6, Math.round(fontSize * 0.34)),
         } : {}),
         cornerRadius: 6,
         padding: 16, paddingH: 16, paddingV: 10,

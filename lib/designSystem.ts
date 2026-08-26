@@ -277,14 +277,21 @@ export const DESIGN_RECIPES: DesignRecipe[] = [
     id: 'ds-split-cote', name: 'Colonne / photo', family: 'photo-split',
     vibe: ['editorial', 'tech'], intents: ['conseil', 'annonce', 'preuve'],
     photo: 'required',
-    desc: 'Une colonne de couleur à gauche porte tout le texte, la photo tient la moitié droite sur toute la hauteur. Composition de site, très lisible, qui marche même avec une photo chargée.',
-    slots: [sl('kicker', 'rubrique en capitales', 18), sl('titre', 'titre sur deux lignes', 38), sl('sous', 'phrase d’appui', 70)],
+    desc: 'Une colonne de couleur à gauche porte tout le texte, la photo prend le reste sur toute la hauteur. Composition de site, très lisible, qui marche même avec une photo chargée.',
+    slots: [sl('kicker', 'rubrique en capitales', 18), sl('titre', 'titre sur deux lignes', 34), sl('sous', 'phrase d’appui', 70)],
     nodes: [
       R(0, 0, 1, 1, 'brand'),
-      P(0.46, 0, 0.54, 1),
-      T('kicker', 0.07, 0.14, 0.32, 0.024, 'accentOnBrand', { upper: true, track: 0.24, maxLines: 1, role: 'tag' }),
-      T('titre', 0.07, 0.2, 0.36, 0.085, 'onBrand', { upper: true, lh: 0.95, maxLines: 4, role: 'titre', weight: 'bold' }),
-      T('sous', 0.07, 0.56, 0.34, 0.028, 'onBrand', { font: 'body', lh: 1.35, maxLines: 5, role: 'sous-titre', opacity: 84 }),
+      // 44/56 et non 46/54 : une coupe à un cheveu du milieu ne se lit pas comme
+      // un parti pris, elle se lit comme un défaut de centrage.
+      P(0.44, 0, 0.56, 1),
+      T('kicker', 0.06, 0.115, 0.32, 0.023, 'accentOnBrand', { upper: true, track: 0.24, maxLines: 1, role: 'tag' }),
+      T('titre', 0.06, 0.165, 0.32, 0.082, 'onBrand', { upper: true, lh: 0.94, maxLines: 4, role: 'titre', weight: 'bold' }),
+      // La phrase d'appui suivait le titre trois dixièmes plus bas : entre les
+      // deux, un trou de couleur que rien n'occupait, et sous elle une moitié de
+      // colonne vide. Elle remonte, et le pied de colonne reçoit un ancrage.
+      T('sous', 0.06, 0.5, 0.31, 0.027, 'onBrand', { font: 'body', lh: 1.35, maxLines: 5, role: 'sous-titre', opacity: 84 }),
+      R(0.06, 0.855, 0.1, 0.0028, 'accentOnBrand'),
+      F('{{handle}}', 0.06, 0.885, 0.32, 0.022, 'onBrand', { maxLines: 1, opacity: 70 }),
     ],
   },
   {
@@ -1421,6 +1428,78 @@ export const DESIGN_RECIPES: DesignRecipe[] = [
       T('cta', 0.06, 0.88, 0.72, 0.027, 'white', { font: 'body', upper: true, track: 0.14, maxLines: 1, role: 'cta', shadow: true }),
     ],
   },
+
+  // ══ H. LES TROIS SIMPLES ══════════════════════════════════════════════════
+  //
+  // Martin, en cours de route : « des compositions très simples, mais qui font
+  // le taf parce qu'elles sont harmonieuses et modernes ». Les trois références
+  // qu'il a envoyées ont un point commun que le reste de la bibliothèque n'avait
+  // pas : elles ne font qu'UNE chose.
+  //
+  // Pas de rubrique + titre + sous-titre + rail + pied dans le même cadre. Pas
+  // de voile noir pour rattraper la lisibilité. Une seule couleur de texte, un
+  // crème plutôt qu'un blanc pur, et un titre qui occupe vraiment la moitié de
+  // la hauteur. C'est l'inverse de la prudence : ce qui rendait les visuels
+  // « corrects et sans intérêt », c'était d'empiler quatre niveaux de petits
+  // textes bien alignés.
+  //
+  // RÈGLE QU'ELLES INSTALLENT, et qui vaut pour les recettes à venir : un texte
+  // enfermé dans une forme de taille fixe (pilule, cartouche) ne porte JAMAIS le
+  // rôle `titre`. Le remplissage optique ferait grandir le texte de 34 % et il
+  // sortirait de sa forme. Dans une forme, on met un `tag` ou un `cta`.
+
+  {
+    id: 'ds-affiche-creme', name: 'Affiche crème', family: 'photo-editorial',
+    vibe: ['chaleureux', 'audacieux', 'retro'], intents: ['annonce', 'accroche', 'evenement'],
+    sectors: ['Restaurant', 'Café', 'Retail'],
+    photo: 'required',
+    desc: 'Un seul geste : un titre énorme en crème qui occupe la moitié de la hauteur, une rubrique espacée au-dessus séparée par une étoile, une ligne espacée en dessous. Aucun voile, aucun aplat, aucune deuxième couleur. La photo reste lumineuse et c’est le calibre du titre qui tient tout.',
+    slots: [sl('kicker', 'la rubrique, un mot', 10), sl('titre', 'le titre, deux ou trois mots', 22), sl('sous', 'la ligne du bas, courte', 30)],
+    nodes: [
+      // Assombrissement léger : la photo doit rester une photo. Un voile à 40 %
+      // rend le texte lisible et le visuel terne, ce qui n'est pas un échange.
+      P(0, 0, 1, 1, { dark: 12 }),
+      T('kicker', 0.1, 0.075, 0.8, 0.07, 'paper', { font: 'condensed', align: 'center', upper: true, track: 0.22, maxLines: 1, weight: 'bold' }),
+      S('star', 0.465, 0.152, 0.07, 0.05, 'paper'),
+      T('titre', 0.04, 0.205, 0.92, 0.175, 'paper', { font: 'condensed', align: 'center', upper: true, lh: 0.86, maxLines: 3, role: 'titre', weight: 'bold' }),
+      T('sous', 0.08, 0.755, 0.84, 0.036, 'paper', { font: 'condensed', align: 'center', upper: true, track: 0.1, maxLines: 1, role: 'sous-titre' }),
+      S('star', 0.455, 0.855, 0.09, 0.065, 'paper', { opacity: 92 }),
+    ],
+  },
+  {
+    id: 'ds-pilule-cernee', name: 'Pilule cernée', family: 'sticker',
+    vibe: ['ludique', 'audacieux'], intents: ['annonce', 'offre', 'produit'],
+    sectors: ['Restaurant', 'Café', 'Retail', 'Sport'],
+    photo: 'required',
+    desc: 'Une grande pilule de couleur cernée d’un trait épais porte le titre en capitales lourdes, et une seconde pilule plus petite vient la chevaucher en biais avec le mot en plus. Deux formes, deux textes, rien d’autre : la photo occupe tout le reste.',
+    slots: [sl('titre', 'le titre, sur une seule ligne', 20), sl('mot', 'le mot en plus, deux mots maxi', 10)],
+    nodes: [
+      P(0, 0, 1, 1, { dark: 4 }),
+      S('pill', 0.04, 0.085, 0.92, 0.105, 'accent', { stroke: 'ink', strokeW: 0.007, rotation: -2 }),
+      // `tag` et non `titre` : dans une forme de hauteur fixe, le remplissage
+      // optique ferait sortir le texte de sa pilule.
+      T('titre', 0.07, 0.111, 0.86, 0.078, 'onAccent', { font: 'condensed', align: 'center', upper: true, maxLines: 1, role: 'tag', weight: 'bold' }),
+      S('pill', 0.5, 0.183, 0.38, 0.085, 'brand', { stroke: 'ink', strokeW: 0.007, rotation: 4 }),
+      T('mot', 0.52, 0.204, 0.34, 0.055, 'onBrand', { font: 'condensed', align: 'center', upper: true, maxLines: 1, role: 'tag', weight: 'bold', rotation: 4 }),
+    ],
+  },
+  {
+    id: 'ds-etoiles-cadre', name: 'Cadre d’étoiles', family: 'sticker',
+    vibe: ['ludique', 'audacieux'], intents: ['produit', 'accroche', 'annonce'],
+    sectors: ['Restaurant', 'Café', 'Retail'],
+    photo: 'required',
+    desc: 'De grandes étoiles de la couleur de marque mordent les quatre coins de la photo, comme un cadre découpé. Le titre se pose en bas, court. Aucun texte ne dépend de la photo pour être lisible : ce sont les formes qui font le visuel.',
+    slots: [sl('titre', 'le titre, très court', 22)],
+    nodes: [
+      P(0, 0, 1, 1),
+      S('star', -0.14, -0.08, 0.44, 0.315, 'brand'),
+      S('star', 0.74, -0.1, 0.48, 0.345, 'brand', { rotation: 18 }),
+      S('star', -0.18, 0.42, 0.42, 0.3, 'brand', { rotation: -12 }),
+      S('star', 0.76, 0.44, 0.44, 0.315, 'brand', { rotation: 8 }),
+      S('star', 0.26, 0.87, 0.4, 0.285, 'brand', { rotation: 24 }),
+      T('titre', 0.1, 0.76, 0.8, 0.082, 'paper', { font: 'condensed', align: 'center', upper: true, lh: 0.92, maxLines: 2, role: 'titre', weight: 'bold', shadow: true }),
+    ],
+  },
 ];
 
 // ── Résolution sur la charte ─────────────────────────────────────────────────
@@ -1699,7 +1778,12 @@ export function buildDesignElements(recipe: DesignRecipe, opt: BuildOptions): an
     // — mais on le déplace d'un tiers vers la valeur de l'identité. Assez pour
     // qu'une Didone respire et qu'une affiche se serre, trop peu pour casser une
     // composition réglée au pixel.
-    const cibleTrack = nd.upper ? FT.ident.microTrack : FT.ident.titleTrack;
+    // Le repère est la TAILLE, pas la casse. Viser l'interlettrage des petites
+    // capitales dès qu'un texte est en majuscules étalait aussi les titres
+    // d'affiche : un gros titre à 0,20 d'interlettrage se lit lettre à lettre,
+    // se replie sur une ligne de plus et perd la moitié de son calibre. Les
+    // capitales espacées sont un geste de PETIT texte (rail, rubrique, mention).
+    const cibleTrack = (nd.upper && nd.size <= 0.036) ? FT.ident.microTrack : FT.ident.titleTrack;
     const track = nd.track === undefined ? cibleTrack : nd.track + (cibleTrack - nd.track) * 0.34;
     out.push({
       id, type: 'text', text,
@@ -1722,7 +1806,10 @@ export function buildDesignElements(recipe: DesignRecipe, opt: BuildOptions): an
       padding: 0, paddingH: 0, paddingV: 0,
       ...(nd.hl ? {
         highlightEnabled: true, highlightColor: fill(nd.hl), highlightOpacity: 100,
-        highlightBorderRadius: nd.hlRadius ?? 4, highlightPadding: nd.hlPad ?? Math.round(size * 0.22),
+        // Un cartouche se coupe NET et respire sur les côtés. À 4 px de rayon il
+        // n'était ni carré ni arrondi — l'arrondi mou des générateurs — et son
+        // padding horizontal trop court collait les lettres au bord.
+        highlightBorderRadius: nd.hlRadius ?? 0, highlightPadding: nd.hlPad ?? Math.round(size * 0.34),
       } : {}),
       ...(nd.hollow ? { hollowEnabled: true } : {}),
       ...(nd.strokeCol ? { stroke: fill(nd.strokeCol), strokeWidth: Math.max(1, px(nd.strokeW ?? 0.003, w)) } : {}),
@@ -1823,6 +1910,42 @@ export function pickDesignCandidates(o: PickOptions): DesignRecipe[] {
 }
 
 /** Fiche compacte d'une recette, telle que le modèle la lit pour choisir. */
+// ── Ce qu'un bloc peut VRAIMENT contenir ─────────────────────────────────────
+//
+// Chaque slot annonçait une longueur maximale, écrite à la main, et l'IA écrivait
+// jusqu'à cette longueur. Mais le DESSIN a sa propre capacité : sa colonne, son
+// calibre et son nombre de lignes décident combien de caractères tiennent. Les
+// deux ont été posés séparément, donc ils divergeaient — 93 slots sur 250
+// annonçaient plus long que leur dessin ne pouvait tenir.
+//
+// Ce que ça donnait à l'écran, et c'est exactement le reproche « ça ne rend
+// rien » : l'IA remplit les 42 caractères annoncés, le bloc n'en tient que 25,
+// l'ajustement automatique descend la police jusqu'à son plancher, et le titre
+// d'affiche finit en corps de texte flottant au milieu de son aplat — quand il
+// n'est pas simplement rogné.
+//
+// La géométrie tranche désormais. `max` reste ce que l'auteur de la recette
+// voulait, mais il ne peut plus dépasser ce que le dessin porte. Une recette
+// écrite demain hérite de la règle sans qu'on y pense.
+
+/** Avance moyenne d'un caractère, en fraction du corps, par rôle typographique. */
+const AVANCE: Record<string, number> = { condensed: 0.46, display: 0.56, body: 0.52, serif: 0.5, script: 0.44 };
+
+/** Nombre de caractères que le DESSIN peut tenir pour ce slot. */
+export function slotCapacity(r: DesignRecipe, key: string): number | null {
+  const nd = r.nodes.find(n => n.k === 'text' && n.slot === key) as TextNode | undefined;
+  if (!nd) return null;
+  // Les capitales sont plus larges, l'interlettrage s'ajoute à chaque signe.
+  const avance = (AVANCE[nd.font ?? 'display'] ?? 0.54) * (nd.upper ? 1.1 : 1) + (nd.track ?? 0);
+  return Math.max(3, Math.floor((nd.maxLines ?? 2) * (nd.w / (nd.size * avance))));
+}
+
+/** La longueur réellement annoncée à l'IA, et réellement appliquée au texte. */
+export function effectiveMax(r: DesignRecipe, slot: DesignSlot): number {
+  const cap = slotCapacity(r, slot.key);
+  return cap === null ? slot.max : Math.min(slot.max, cap);
+}
+
 export function describeDesignCandidates(list: DesignRecipe[]) {
   return list.map(r => ({
     id: r.id,
@@ -1831,7 +1954,7 @@ export function describeDesignCandidates(list: DesignRecipe[]) {
     pour: r.intents.join('/'),
     photo: r.photo === 'required' ? 'utilise la photo' : r.photo === 'optional' ? 'photo facultative' : 'sans photo',
     dessin: r.desc,
-    champs: r.slots.map(s => ({ cle: s.key, quoi: s.label, max: s.max })),
+    champs: r.slots.map(s => ({ cle: s.key, quoi: s.label, max: effectiveMax(r, s) })),
   }));
 }
 
@@ -1846,7 +1969,8 @@ export function sanitizeFields(recipe: DesignRecipe, raw: unknown): Record<strin
     if (typeof v !== 'string') continue;
     const t = v.replace(/\s+/g, ' ').trim();
     if (!t) continue;
-    out[s.key] = t.length > s.max ? t.slice(0, s.max).replace(/[\s,;:.!?-]+$/, '') : t;
+    const max = effectiveMax(recipe, s);
+    out[s.key] = t.length > max ? t.slice(0, max).replace(/[\s,;:.!?-]+$/, '') : t;
   }
   return out;
 }
