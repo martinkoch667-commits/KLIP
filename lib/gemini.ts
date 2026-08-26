@@ -66,6 +66,24 @@ export async function callGeminiText(params: {
     throw new Error(data.error?.message || 'Erreur IA (Gemini)');
   }
 
+  // CE QUE L'APPEL A COÛTÉ.
+  //
+  // Gemini renvoie `usageMetadata` à chaque réponse, et on le jetait. Résultat :
+  // aucun endroit, ni dans le produit ni dans les journaux, ne disait ce que
+  // coûtait une génération. Impossible de répondre à « je dépense combien ? »
+  // autrement qu'en allant lire la facture Google, qui ne dit pas QUELLE
+  // fonctionnalité consomme.
+  //
+  // `thoughtsTokenCount` est compté à part exprès : c'est la réflexion, elle est
+  // facturée comme de la sortie, et c'est elle qu'on vient d'activer sur six
+  // routes. Si la facture monte, on saura précisément de combien et où.
+  const u = data.usageMetadata ?? {};
+  const modele = params.quality === 'high' ? MODEL_QUALITY : MODEL;
+  console.log(
+    `[ia:coût] ${modele} · entrée=${u.promptTokenCount ?? '?'} · sortie=${u.candidatesTokenCount ?? '?'}` +
+    `${u.thoughtsTokenCount ? ` · réflexion=${u.thoughtsTokenCount}` : ''} · total=${u.totalTokenCount ?? '?'}`
+  );
+
   const parts: { text?: string }[] = data.candidates?.[0]?.content?.parts ?? [];
   const text = parts.filter(p => typeof p.text === 'string').map(p => p.text).join('');
   if (!text) throw new Error('Réponse IA vide (Gemini)');
