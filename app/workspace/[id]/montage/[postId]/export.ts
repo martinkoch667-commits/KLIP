@@ -19,10 +19,10 @@
 // autres s'animaient par-dessus une image morte, ce qui se voyait : un glissé était
 // une photo immobile avec une image qui passe dessus, un balayage balayait le vide.
 
-import { OverlayClip, transitionPairAt, type TransitionState, clipAudioGainAt, overlayTimelineDur, overlayAudioGainAt, audioVolumeAt, kenBurnsScale, clipFilterCss, videoFormatById, exportQualityById } from "./constants";
+import { OverlayClip, transitionPairAt, estTransitionGl, type TransitionState, clipAudioGainAt, overlayTimelineDur, overlayAudioGainAt, audioVolumeAt, kenBurnsScale, clipFilterCss, videoFormatById, exportQualityById } from "./constants";
 import {
   ExportProject, ExportResult, ClipTimed, withStarts, FPS, setCanvasSize,
-  drawCover, drawMediaFrame, drawMediaWithState, drawTransitionVeils, drawCaptions, drawTitles, drawStickers,
+  drawCover, drawMediaFrame, drawMediaWithState, drawTransitionVeils, drawGlTransitionFrame, drawCaptions, drawTitles, drawStickers,
   drawOverlayFrame, drawProgressBar, loadImage,
 } from "./render-core";
 import { renderExportOffline, exportOfflineDisponible } from "./export-offline";
@@ -422,10 +422,15 @@ export async function renderExportTempsReel(project: ExportProject, onProgress: 
             const globalT = c.start + elapsed;
             updateAudioAt(globalT);
             ctx.clearRect(0, 0, CANVAS_W, CANVAS_H);
-            const paire = transitionPairAt(c.transitionIn, c.transitionDur, elapsed, false);
-            drawPairSide(prevM, paire.out);
-            drawPairSide(media, paire.in);
-            drawTransitionVeils(ctx, paire.in);
+            const avancement = elapsed / transDur;
+            const faitEnGl = estTransitionGl(c.transitionIn)
+              && drawGlTransitionFrame(ctx, prevM.el, prevM.clip, localTimeOf(prevM), media.el, media.clip, localTimeOf(media), c.transitionIn!, avancement);
+            if (!faitEnGl) {
+              const paire = transitionPairAt(c.transitionIn, c.transitionDur, elapsed, false);
+              drawPairSide(prevM, paire.out);
+              drawPairSide(media, paire.in);
+              drawTransitionVeils(ctx, paire.in);
+            }
             drawOverlays(globalT);
             drawCaptions(ctx, project.captions, project.subStyleId, project.subCustom, project.subPos, globalT, project.linkedSubs ?? true);
             drawTitles(ctx, project.titles, globalT);

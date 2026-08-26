@@ -1,6 +1,9 @@
 // constants.ts — types + données de référence du module Montage vidéo
 // Tokens repris à l'identique de design_handoff_montage_video/design_files/data.jsx
 
+import { GL_TRANSITIONS, estTransitionGl } from "./gl-transitions";
+export { estTransitionGl };
+
 export type ClipKind = "video" | "photo";
 
 export interface MontageClip {
@@ -1269,42 +1272,56 @@ export const FILTERS: { id: string; name: string; css: string }[] = [
   { id: "dore", name: "Doré", css: "sepia(.28) saturate(1.25) brightness(1.05) hue-rotate(-6deg)" },
 ];
 
-export const TRANSITIONS: { id: string; name: string; glyph: string }[] = [
-  { id: "cut", name: "Cut", glyph: "▮▮" },
+export const TRANSITION_FAMILIES = ["base", "fondu", "glisse", "zoom", "forme", "dynamique", "shader"] as const;
+export type TransitionFamily = "base" | "fondu" | "glisse" | "zoom" | "forme" | "dynamique" | "shader";
+
+// Le panneau les range par famille : quarante-cinq vignettes à plat, c'est un mur.
+export const TRANSITIONS: { id: string; name: string; glyph: string; family: TransitionFamily }[] = [
+  { id: "cut", family: "base", name: "Cut", glyph: "▮▮" },
   // — Fondus —
-  { id: "fade", name: "Fondu", glyph: "◐" },
-  { id: "fadeblack", name: "Fondu au noir", glyph: "◼" },
-  { id: "fadewhite", name: "Fondu au blanc", glyph: "◻" },
-  { id: "flash", name: "Flash", glyph: "✦" },
+  { id: "fade", family: "fondu", name: "Fondu", glyph: "◐" },
+  { id: "fadeblack", family: "fondu", name: "Fondu au noir", glyph: "◼" },
+  { id: "fadewhite", family: "fondu", name: "Fondu au blanc", glyph: "◻" },
+  { id: "flash", family: "fondu", name: "Flash", glyph: "✦" },
   // — Glissés —
-  { id: "slide", name: "Glissé", glyph: "⇥" },
-  { id: "slideright", name: "Glissé droite", glyph: "⇤" },
-  { id: "slideup", name: "Glissé haut", glyph: "⇧" },
-  { id: "slidedown", name: "Glissé bas", glyph: "⇩" },
-  { id: "slidediag", name: "Glissé diagonale", glyph: "⇘" },
-  { id: "slidediagup", name: "Glissé diagonale ↗", glyph: "⇗" },
+  { id: "slide", family: "glisse", name: "Glissé", glyph: "⇥" },
+  { id: "slideright", family: "glisse", name: "Glissé droite", glyph: "⇤" },
+  { id: "slideup", family: "glisse", name: "Glissé haut", glyph: "⇧" },
+  { id: "slidedown", family: "glisse", name: "Glissé bas", glyph: "⇩" },
+  { id: "slidediag", family: "glisse", name: "Glissé diagonale", glyph: "⇘" },
+  { id: "slidediagup", family: "glisse", name: "Glissé diagonale ↗", glyph: "⇗" },
   // — Zooms —
-  { id: "zoom", name: "Zoom avant", glyph: "⊕" },
-  { id: "zoomout", name: "Zoom arrière", glyph: "⊖" },
-  { id: "bounce", name: "Rebond", glyph: "◎" },
-  { id: "zoomblur", name: "Zoom flouté", glyph: "⊛" },
-  { id: "zoomspin", name: "Zoom tournant", glyph: "⟳" },
-  { id: "punch", name: "Coup de zoom", glyph: "⊙" },
+  { id: "zoom", family: "zoom", name: "Zoom avant", glyph: "⊕" },
+  { id: "zoomout", family: "zoom", name: "Zoom arrière", glyph: "⊖" },
+  { id: "bounce", family: "zoom", name: "Rebond", glyph: "◎" },
+  { id: "zoomblur", family: "zoom", name: "Zoom flouté", glyph: "⊛" },
+  { id: "zoomspin", family: "zoom", name: "Zoom tournant", glyph: "⟳" },
+  { id: "punch", family: "zoom", name: "Coup de zoom", glyph: "⊙" },
   // — Balayages —
-  { id: "wipe", name: "Balayage", glyph: "◑" },
-  { id: "wiperight", name: "Balayage ←", glyph: "◐" },
-  { id: "wipeup", name: "Balayage ↑", glyph: "◒" },
-  { id: "wipedown", name: "Balayage ↓", glyph: "◓" },
-  { id: "iris", name: "Iris", glyph: "◉" },
-  { id: "boxin", name: "Iris carré", glyph: "▣" },
+  { id: "wipe", family: "forme", name: "Balayage", glyph: "◑" },
+  { id: "wiperight", family: "forme", name: "Balayage ←", glyph: "◐" },
+  { id: "wipeup", family: "forme", name: "Balayage ↑", glyph: "◒" },
+  { id: "wipedown", family: "forme", name: "Balayage ↓", glyph: "◓" },
+  { id: "iris", family: "forme", name: "Iris", glyph: "◉" },
+  { id: "boxin", family: "forme", name: "Iris carré", glyph: "▣" },
+  { id: "bandin", family: "forme", name: "Bande centrale", glyph: "▤" },
+  { id: "wipediag", family: "forme", name: "Balayage diagonal", glyph: "◪" },
+  { id: "wipediagup", family: "forme", name: "Balayage diagonal ↗", glyph: "◩" },
+  { id: "diamond", family: "forme", name: "Losange", glyph: "◆" },
+  { id: "corner", family: "forme", name: "Balayage coin", glyph: "◤" },
+  { id: "chevron", family: "forme", name: "Chevron", glyph: "❯" },
+  { id: "blindsh", family: "forme", name: "Stores horizontaux", glyph: "☰" },
+  { id: "blindsv", family: "forme", name: "Stores verticaux", glyph: "▥" },
   // — Dynamiques —
-  { id: "spin", name: "Rotation", glyph: "↻" },
-  { id: "swirl", name: "Tourbillon", glyph: "✺" },
-  { id: "blur", name: "Flou", glyph: "◌" },
-  { id: "whip", name: "Whip", glyph: "⤳" },
-  { id: "whipup", name: "Whip vertical", glyph: "⤒" },
-  { id: "shake", name: "Secousse", glyph: "≋" },
-  { id: "glitch", name: "Glitch", glyph: "⌁" },
+  { id: "spin", family: "dynamique", name: "Rotation", glyph: "↻" },
+  { id: "swirl", family: "dynamique", name: "Tourbillon", glyph: "✺" },
+  { id: "blur", family: "dynamique", name: "Flou", glyph: "◌" },
+  { id: "whip", family: "dynamique", name: "Whip", glyph: "⤳" },
+  { id: "whipup", family: "dynamique", name: "Whip vertical", glyph: "⤒" },
+  { id: "shake", family: "dynamique", name: "Secousse", glyph: "≋" },
+  { id: "glitch", family: "dynamique", name: "Glitch", glyph: "⌁" },
+  // — Shaders : ce qu'un canvas 2D ne sait pas faire (déformation pixel à pixel).
+  ...GL_TRANSITIONS.map((t) => ({ id: t.id, name: t.name, glyph: t.glyph, family: "shader" as const })),
 ];
 
 export const SPEEDS = [0.25, 0.5, 1, 1.5, 2];
@@ -1616,6 +1633,14 @@ export interface TransitionState {
   extraFilter: string;
   clipRect: [number, number, number, number] | null; // x,y,w,h en fractions
   clipCircle: [number, number, number] | null;       // cx,cy,r en fractions (r = /diagonale)
+  /** Découpe libre, en fractions du cadre. Le canvas en fait un chemin, l'aperçu
+   *  un `clip-path: polygon()` : la même forme des deux côtés, au pixel près.
+   *  C'est ce qui ouvre les diagonales, les losanges, les chevrons — tout ce
+   *  qu'un rectangle et un cercle ne savent pas dire. */
+  clipPoly: [number, number][] | null;
+  /** Stores : `n` bandes régulières le long d'un axe, remplies à `p`. Une forme
+   *  en plusieurs morceaux qu'aucune découpe d'un seul tenant ne décrit. */
+  clipBands: { axis: "x" | "y"; n: number; p: number } | null;
 }
 
 /** État des DEUX plans pendant une transition : celui qui arrive et celui qui part.
@@ -1635,7 +1660,7 @@ export interface TransitionPair { in: TransitionState; out: TransitionState }
 
 const neutralState = (): TransitionState => ({
   alpha: 1, dx: 0, dy: 0, scale: 1, rotate: 0, flash: 0, dark: 0,
-  extraFilter: "", clipRect: null, clipCircle: null,
+  extraFilter: "", clipRect: null, clipCircle: null, clipPoly: null, clipBands: null,
 });
 
 export function transitionPairAt(
@@ -1654,6 +1679,15 @@ export function transitionPairAt(
   // Un fondu croisé linéaire creuse un trou de luminosité au milieu : les deux
   // moitiés d'opacité ne s'additionnent pas. La racine le comble.
   const fadeIn = Math.sqrt(p), fadeOut = Math.sqrt(1 - p);
+
+  // Transition à shader : le rendu passe par WebGL et n'a que faire de ces
+  // états. On rend quand même un fondu enchaîné, qui sert de REPLI là où WebGL
+  // manque (vieux navigateur, contexte refusé) : mieux vaut un fondu qu'une
+  // coupe sèche là où l'utilisateur a demandé une transition.
+  if (estTransitionGl(transitionIn)) {
+    entrant.alpha = fadeIn; sortant.alpha = fadeOut;
+    return { in: entrant, out: sortant };
+  }
 
   switch (transitionIn) {
     case "fade":
@@ -1738,6 +1772,41 @@ export function transitionPairAt(
     case "wipeup":    entrant.clipRect = [0, 1 - ease, 1, ease]; break;
     case "iris":      entrant.clipCircle = [0.5, 0.5, 0.5 * ease]; break;
     case "boxin":     entrant.clipRect = [0.5 - ease / 2, 0.5 - ease / 2, ease, ease]; break;
+    case "bandin":    entrant.clipRect = [0, 0.5 - ease / 2, 1, ease]; break;
+    // Diagonales : la frontière traverse le cadre en biais. On la décrit par le
+    // point où elle coupe le haut et celui où elle coupe le bas.
+    case "wipediag": {
+      const t = ease * 2;
+      entrant.clipPoly = [[0, 0], [Math.min(1, t), 0], [Math.max(0, t - 1), 1], [0, 1]];
+      break;
+    }
+    case "wipediagup": {
+      const t = ease * 2;
+      entrant.clipPoly = [[0, 1], [Math.min(1, t), 1], [Math.max(0, t - 1), 0], [0, 0]];
+      break;
+    }
+    case "diamond": {
+      // |x| + |y| <= r : à r = 1 le losange contient tout le cadre, coins compris.
+      const r = ease;
+      entrant.clipPoly = [[0.5, 0.5 - r], [0.5 + r, 0.5], [0.5, 0.5 + r], [0.5 - r, 0.5]];
+      break;
+    }
+    case "corner": {
+      // Le triangle doit aller jusqu'à DEUX pour contenir le cadre entier :
+      // borné à un, il s'arrêtait à la moitié et le reste apparaissait d'un coup.
+      const t = ease * 2;
+      entrant.clipPoly = [[0, 0], [t, 0], [0, t]];
+      break;
+    }
+    case "chevron": {
+      // Pointe qui avance : le sommet devance les flancs, comme une flèche.
+      const t = ease * 1.6;
+      const pointe = Math.min(1.6, t), flanc = Math.max(0, t - 0.6);
+      entrant.clipPoly = [[0, 0], [flanc, 0], [pointe, 0.5], [flanc, 1], [0, 1]];
+      break;
+    }
+    case "blindsh": entrant.clipBands = { axis: "y", n: 8, p: ease }; break;
+    case "blindsv": entrant.clipBands = { axis: "x", n: 8, p: ease }; break;
 
     // — Dynamiques —
     // Seul le plan ENTRANT tourne. Faire pivoter celui du dessous découvre ses
@@ -1808,16 +1877,31 @@ export function transitionCss(st: TransitionState): Record<string, string | numb
   if (st.rotate) parts.push(`rotate(${st.rotate}deg)`);
   if (st.scale !== 1) parts.push(`scale(${st.scale})`);
   let clipPath: string | undefined;
-  if (st.clipRect) {
+  if (st.clipPoly) {
+    clipPath = `polygon(${st.clipPoly.map(([x, y]) => `${x * 100}% ${y * 100}%`).join(", ")})`;
+  } else if (st.clipRect) {
     const [x, y, w, h] = st.clipRect;
     clipPath = `inset(${y * 100}% ${(1 - x - w) * 100}% ${(1 - y - h) * 100}% ${x * 100}%)`;
   } else if (st.clipCircle) {
     const [cx, cy, r] = st.clipCircle;
     clipPath = `circle(${r * 100}% at ${cx * 100}% ${cy * 100}%)`;
   }
+  // Les stores sont une forme en MORCEAUX : aucune découpe d'un seul tenant ne
+  // les décrit. On passe donc par un masque en dégradé répété, dont la géométrie
+  // est exactement celle des bandes que le canvas dessine à l'export.
+  let maskImage: string | undefined;
+  if (st.clipBands) {
+    const { axis, n, p } = st.clipBands;
+    const pas = 100 / n;
+    const plein = pas * Math.max(0, Math.min(1, p));
+    const sens = axis === "x" ? "to right" : "to bottom";
+    maskImage = `repeating-linear-gradient(${sens}, #000 0 ${plein}%, transparent ${plein}% ${pas}%)`;
+  }
   return {
     opacity: st.alpha,
     transform: parts.length ? parts.join(" ") : undefined,
     clipPath,
+    maskImage,
+    WebkitMaskImage: maskImage,
   };
 }

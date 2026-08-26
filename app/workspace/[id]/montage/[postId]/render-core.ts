@@ -9,6 +9,7 @@
 // Ces fonctions viennent telles quelles de export.ts, où elles étaient
 // enfermées avec la boucle de captation.
 
+import { estTransitionGl, moteurGl } from "./gl-transitions";
 import { MontageClip, OverlayClip, Caption, TitleEl, StickerEl, AudioTrack, SubCustom, effectiveSubStyle, resolveCapStyle, resolveCapPos, SUB_BASE_FONT, wrapWords, captionPartAt, subCanvasFont, subBgBox, curveLayout, applySubCase, withAlpha, subDefaultShadowOn, SUB_DEFAULT_SHADOW, transitionPairAt, type TransitionState, DEFAULT_SUB_POS, clipFilterCss, overlayFilterCss, clipTimelineDur, clipAudioGainAt, overlayTimelineDur, overlayAudioGainAt, audioVolumeAt, kenBurnsScale, videoFormatById, exportQualityById, overlayEffects, overlayEffectCss, OUTLINE_PASSES, titleCanvasFont, titleLines, titleLook, titleBoxWidth, TITLE_BASE_FONT, TITLE_LINE_HEIGHT } from "./constants";
 export interface ExportProject {
   clips: MontageClip[];
@@ -96,9 +97,32 @@ export function drawMediaWithState(
   ctx.save();
   ctx.globalAlpha = Math.max(0, Math.min(1, st.alpha));
   ctx.filter = [clipFilterCss(clip), st.extraFilter].filter(Boolean).join(" ") || "none";
-  if (st.clipRect) {
+  // Découpe libre : le chemin est le même que le `clip-path: polygon()` de l'aperçu.
+  if (st.clipPoly && st.clipPoly.length >= 3) {
+    ctx.beginPath();
+    st.clipPoly.forEach(([px, py], i) => {
+      const x = px * CANVAS_W, y = py * CANVAS_H;
+      if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+    });
+    ctx.closePath();
+    ctx.clip();
+  } else if (st.clipRect) {
     ctx.beginPath();
     ctx.rect(st.clipRect[0] * CANVAS_W, st.clipRect[1] * CANVAS_H, st.clipRect[2] * CANVAS_W, st.clipRect[3] * CANVAS_H);
+    ctx.clip();
+  }
+  // Stores : une bande pleine par pas, même géométrie que le masque en dégradé
+  // répété de l'aperçu.
+  if (st.clipBands) {
+    const { axis, n, p } = st.clipBands;
+    const total = axis === "x" ? CANVAS_W : CANVAS_H;
+    const pas = total / n;
+    const plein = pas * Math.max(0, Math.min(1, p));
+    ctx.beginPath();
+    for (let i = 0; i < n; i++) {
+      if (axis === "x") ctx.rect(i * pas, 0, plein, CANVAS_H);
+      else ctx.rect(0, i * pas, CANVAS_W, plein);
+    }
     ctx.clip();
   }
   // Iris : le plan entrant n'apparaît qu'à l'intérieur d'un disque grandissant.
@@ -135,6 +159,51 @@ export function drawTransitionVeils(ctx: CanvasRenderingContext2D, st: Transitio
     ctx.restore();
   }
 }
+
+/* Deux toiles de brouillon, gardées d'une image à l'autre. Chaque côté d'une
+   transition WebGL y est composé D'ABORD en 2D (cadrage « cover », point de
+   recadrage, zoom automatique, filtres du plan), pour que le shader travaille
+   exactement sur ce que le rendu 2D aurait affiché. Sans ça, le shader verrait
+   des images brutes, au mauvais cadre et sans les réglages du plan. */
+let brouillonA: HTMLCanvasElement | null = null;
+let brouillonB: HTMLCanvasElement | null = null;
+function brouillon(quel: "a" | "b"): CanvasRenderingContext2D | null {
+  if (typeof document === "undefined") return null;
+  let cv = quel === "a" ? brouillonA : brouillonB;
+  if (!cv) { cv = document.createElement("canvas"); if (quel === "a") brouillonA = cv; else brouillonB = cv; }
+  if (cv.width !== CANVAS_W || cv.height !== CANVAS_H) { cv.width = CANVAS_W; cv.height = CANVAS_H; }
+  return cv.getContext("2d");
+}
+
+/** Une image de transition WebGL, posée sur le canvas de sortie.
+ *  Renvoie false si WebGL manque ou si le shader n'a pas voulu : l'appelant
+ *  retombe alors sur le fondu enchaîné, qui n'est jamais faux. */
+export function drawGlTransitionFrame(
+  ctx: CanvasRenderingContext2D,
+  sortantMedia: HTMLVideoElement | HTMLImageElement,
+  sortantClip: ClipTimed,
+  sortantT: number,
+  entrantMedia: HTMLVideoElement | HTMLImageElement,
+  entrantClip: ClipTimed,
+  entrantT: number,
+  id: string,
+  progress: number,
+): boolean {
+  const ca = brouillon("a"), cb = brouillon("b");
+  if (!ca || !cb) return false;
+  const neutre = { alpha: 1, dx: 0, dy: 0, scale: 1, rotate: 0, flash: 0, dark: 0,
+    extraFilter: "", clipRect: null, clipCircle: null, clipPoly: null, clipBands: null } as TransitionState;
+  ca.clearRect(0, 0, CANVAS_W, CANVAS_H);
+  cb.clearRect(0, 0, CANVAS_W, CANVAS_H);
+  drawMediaWithState(ca, sortantMedia, sortantClip, sortantT, neutre);
+  drawMediaWithState(cb, entrantMedia, entrantClip, entrantT, neutre);
+  const rendu = moteurGl().rendre(ca.canvas, cb.canvas, progress, id, CANVAS_W, CANVAS_H);
+  if (!rendu) return false;
+  ctx.drawImage(rendu, 0, 0, CANVAS_W, CANVAS_H);
+  return true;
+}
+
+export { estTransitionGl };
 
 /** Un plan seul (hors fenêtre de transition, ou premier plan du montage). */
 export function drawMediaFrame(ctx: CanvasRenderingContext2D, media: HTMLVideoElement | HTMLImageElement, clip: ClipTimed, tIntoClip: number, isFirst: boolean) {

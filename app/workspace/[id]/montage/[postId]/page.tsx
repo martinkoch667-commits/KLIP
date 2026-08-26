@@ -10,7 +10,7 @@ import {
   FILTERS, TRANSITIONS, SUB_STYLES, FONT_CHOICES, SUB_LENGTHS, DEFAULT_WORDS_PER_CAPTION, DEFAULT_SUB_POS,
   subStyleById, effectiveSubStyle, resolveCapStyle, resolveCapPos, subtitleBoxCss, subBgLayerCss, curveLayout, SUB_BASE_FONT, applySubCase, DEFAULT_SUB_STYLE_ID,
   captionPartAt, subLines,
-  transitionPairAt, transitionCss,
+  transitionPairAt, transitionCss, estTransitionGl,
   // (analyzeClipQuality importé depuis ./autoCut plus bas)
   fmt, newClipDefaults, newOverlayDefaults, clipFilterCss, overlayFilterCss, clipTimelineDur, clipAudioGainAt, overlayTimelineDur, overlayAudioGainAt, segmentCaptions, captionsFromWords, dedupeSegments,
   audioVolumeAt, audioSrcDur, creneauLibre, kenBurnsScale, withAlpha,
@@ -23,6 +23,7 @@ import { chargerPoliceGoogle, declarerPoliceMaison, surPolicesChargees } from ".
 import { lectureRapideDisponible, infosVideo, dureeAudio, imagesAux, enJpeg, vignettes, picsAudio, fermerSources } from "./media-read";
 import { MontageCtx, CutPanel, TextPanel, CaptionsPanel, AudioPanel, TransitionsPanel, FilterPanel, SpeedPanel, StickerPanel, OverlayPanel, AiPanel } from "./panels";
 import { renderExport } from "./export";
+import { drawGlTransitionFrame, setCanvasSize as fixerTailleRendu } from "./render-core";
 import { analyzeClipQuality, type TWord } from "./autoCut";
 import {
   runPreEdit, trimClipsByQuality, tightenSpeech, buildCaptions,
@@ -1378,6 +1379,9 @@ export default function MontagePage() {
      image le ferait hoqueter. À l'arrêt, on vise l'image exacte. */
   const videoOutRef = useRef<HTMLVideoElement>(null);
   const outSrcRef = useRef<string>("");
+  const imgInRef = useRef<HTMLImageElement>(null);
+  const imgOutRef = useRef<HTMLImageElement>(null);
+  const glCanvasRef = useRef<HTMLCanvasElement>(null);
   useEffect(() => {
     const el = videoOutRef.current;
     if (!el) return;
@@ -4536,6 +4540,37 @@ export default function MontagePage() {
     ? { id: "custom", label: "Perso", sub: `${customW}×${customH}`, w: Math.max(1, customW), h: Math.max(1, customH) }
     : videoFormatById(formatId);
   const previewScale = (stageW || 300) / activeFmt.w;
+
+  /* Transition à shader dans l'aperçu.
+
+     Les sept transitions WebGL ne se décrivent pas en CSS : elles déforment
+     l'image pixel par pixel. On rend donc la même image que l'export, sur une
+     toile posée par-dessus les deux lecteurs — qui continuent de jouer en
+     dessous, puisque ce sont eux les textures.
+
+     Si WebGL manque, `drawGlTransitionFrame` rend false : on cache la toile et
+     les deux lecteurs reprennent la main avec le fondu de repli. */
+  const transitionGl = !!outClip && !!activeClip && estTransitionGl(activeClip.transitionIn);
+  useEffect(() => {
+    const cv = glCanvasRef.current;
+    if (!cv) return;
+    if (!transitionGl || !activeClip || !outClip || exporting) { cv.style.display = "none"; return; }
+    const entrant = activeClip.kind === "video" ? [videoARef, videoBRef][slot].current : imgInRef.current;
+    const sortant = outClip.kind === "video" ? videoOutRef.current : imgOutRef.current;
+    if (!entrant || !sortant) { cv.style.display = "none"; return; }
+    if (cv.width !== activeFmt.w || cv.height !== activeFmt.h) { cv.width = activeFmt.w; cv.height = activeFmt.h; }
+    const ctx = cv.getContext("2d");
+    if (!ctx) { cv.style.display = "none"; return; }
+    fixerTailleRendu(activeFmt.w, activeFmt.h);
+    const dansLaTransition = time - activeClip.start;
+    const avancement = dansLaTransition / Math.max(0.01, activeClip.transitionDur || 0.01);
+    const localSortant = (outClip.end - outClip.start) + dansLaTransition;
+    const ok = drawGlTransitionFrame(
+      ctx, sortant, outClip, localSortant, entrant, activeClip, dansLaTransition,
+      activeClip.transitionIn!, avancement,
+    );
+    cv.style.display = ok ? "block" : "none";
+  }, [transitionGl, time, activeClip, outClip, slot, activeFmt.w, activeFmt.h, exporting]);
   // Le texte sélectionné s'affiche TOUJOURS dans l'aperçu (même si le curseur sort de sa
   // plage) → on peut toujours le voir, le déplacer et l'éditer.
   // Chaque rangée de texte se masque séparément, comme les pistes vidéo.
@@ -4881,7 +4916,7 @@ export default function MontagePage() {
                   };
                   return outClip.kind === "video"
                     ? <video key="sortant" ref={videoOutRef} playsInline muted style={styleSortant} />
-                    : <img key="sortant" src={outClip.src} alt="" style={{
+                    : <img key="sortant" ref={imgOutRef} src={outClip.src} alt="" style={{
                         ...styleSortant,
                         // Le zoom automatique du sortant est arrivé au bout de sa course.
                         transform: [outTransCss?.transform, `scale(${kenBurnsScale(outClip.kenBurns, 1)})`].filter(Boolean).join(" "),
@@ -4929,7 +4964,7 @@ export default function MontagePage() {
                 {activeClip && !hiddenLanes.has("video") ? (
                   activeClip.kind === "video"
                     ? null
-                    : <img src={activeClip.src} alt="" style={{
+                    : <img ref={imgInRef} src={activeClip.src} alt="" style={{
                         // Posé et empilé explicitement : le plan sortant est une
                         // couche absolue, et une image restée dans le flux passerait
                         // dessous alors qu'elle doit arriver par-dessus.
@@ -4953,6 +4988,12 @@ export default function MontagePage() {
                   // Des plans existent mais l'instant courant tombe dans un trou → écran noir.
                   null
                 )}
+
+                {/* Transition à shader : l'image finale est calculée sur la carte
+                    graphique et posée par-dessus. Les lecteurs restent dessous,
+                    ce sont eux les textures. Cachée d'office : l'effet ne
+                    l'affiche que s'il a vraiment pu dessiner. */}
+                <canvas ref={glCanvasRef} style={{ position: "absolute", inset: 0, width: "100%", height: "100%", display: "none", zIndex: 2, pointerEvents: "none" }} />
 
                 {/* Voiles de transition (flash blanc / fondu au noir) — identiques à l'export. */}
                 {activeTrans && activeTrans.flash > 0 && (

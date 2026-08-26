@@ -11,7 +11,7 @@ import SubtitleStyleEditor from "@/components/SubtitleStyleEditor";
 import { Row, Ico, Num, Fold, Swatches, AlignIcon, chargerCatalogue, type GFont } from "@/components/EditorControls";
 import {
   MontageClip, OverlayClip, Caption, TitleEl, StickerEl, AudioTrack, SubCustom, SubTemplate,
-  FILTERS, TRANSITIONS, SPEEDS, SUB_STYLES, SUB_LENGTHS, STICKER_GLYPHS, FONT_CHOICES,
+  FILTERS, TRANSITIONS, TRANSITION_FAMILIES, SPEEDS, SUB_STYLES, SUB_LENGTHS, STICKER_GLYPHS, FONT_CHOICES,
   effectiveSubStyle, loadSubTemplates, saveSubTemplates,
   clipFilterCss, overlayFilterCss, clipTimelineDur, overlayTimelineDur,
   OVERLAY_EFFECT_PRESETS, overlayEffectCss, TITLE_DEFAULT_MAX_WIDTH,
@@ -927,14 +927,27 @@ export function TransitionsPanel({ ctx }: { ctx: MontageCtx }) {
         {!c ? (
           <p style={{ fontSize: 12.5, color: "var(--ink-3)" }}>{t('selectOtherClipHint')}</p>
         ) : (
-          <div className="mz-grid3">
-            {TRANSITIONS.map((tr) => (
-              <button key={tr.id} className={"mz-thumb" + (c.transitionIn === tr.id ? " on" : "")} style={{ aspectRatio: "1", background: "var(--sunk)", display: "grid", placeItems: "center", position: "relative" }} onClick={() => ctx.updateClip(c.id, { transitionIn: tr.id })}>
-                <span style={{ fontSize: 22, color: "var(--ink-2)" }}>{tr.glyph}</span>
-                <span style={{ position: "absolute", bottom: 5, fontWeight: 700, fontSize: 10, color: "var(--ink-2)" }}>{tc(`transition.${tr.id}`)}</span>
-              </button>
-            ))}
-          </div>
+          // Rangées par famille : à quarante-cinq, une grille à plat devient un mur
+          // qu'on parcourt au hasard. On cherche « un zoom », pas « la vingt-deuxième ».
+          <>
+            {TRANSITION_FAMILIES.map((fam) => {
+              const lot = TRANSITIONS.filter((tr) => tr.family === fam);
+              if (!lot.length) return null;
+              return (
+                <div key={fam} style={{ marginBottom: 12 }}>
+                  <span className="mz-sec-label" style={{ display: "block", marginBottom: 6, opacity: .8 }}>{tc(`transitionFamily.${fam}`)}</span>
+                  <div className="mz-grid3">
+                    {lot.map((tr) => (
+                      <button key={tr.id} className={"mz-thumb" + (c.transitionIn === tr.id ? " on" : "")} style={{ aspectRatio: "1", background: "var(--sunk)", display: "grid", placeItems: "center", position: "relative" }} onClick={() => ctx.updateClip(c.id, { transitionIn: tr.id })}>
+                        <span style={{ fontSize: 22, color: "var(--ink-2)" }}>{tr.glyph}</span>
+                        <span style={{ position: "absolute", bottom: 5, fontWeight: 700, fontSize: 10, color: "var(--ink-2)" }}>{tc(`transition.${tr.id}`)}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
+          </>
         )}
       </div>
       {c && (

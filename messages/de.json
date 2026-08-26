@@ -1486,7 +1486,22 @@
       "zoomspin": "Dreh-Zoom",
       "punch": "Zoom-Punch",
       "boxin": "Box-Iris",
-      "whipup": "Vertikaler Whip"
+      "whipup": "Vertikaler Whip",
+      "bandin": "Mittelband",
+      "wipediag": "Diagonaler Wisch",
+      "wipediagup": "Diagonaler Wisch ↗",
+      "diamond": "Raute",
+      "corner": "Eckwisch",
+      "chevron": "Chevron",
+      "blindsh": "Horizontale Jalousie",
+      "blindsv": "Vertikale Jalousie",
+      "glpixel": "Verpixeln",
+      "gldissolve": "Auflösung",
+      "glripple": "Wellen",
+      "glwarp": "Verzerrung",
+      "glrgb": "RGB-Split",
+      "glburn": "Brennen",
+      "glvortex": "Vortex"
     },
     "subLength": {
       "one": "1 Wort",
@@ -1576,6 +1591,15 @@
       "neon": "Neon",
       "block": "Block",
       "pill": "Pille"
+    },
+    "transitionFamily": {
+      "base": "Ohne Übergang",
+      "fondu": "Blenden",
+      "glisse": "Slides",
+      "zoom": "Zooms",
+      "forme": "Formen und Wische",
+      "dynamique": "Dynamisch",
+      "shader": "Erweiterte Effekte"
     }
   },
   "montage": {

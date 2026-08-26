@@ -27,11 +27,11 @@ import {
   MontageClip, OverlayClip, AudioTrack,
   clipAudioGainAt, overlayTimelineDur, overlayAudioGainAt, audioVolumeAt,
   kenBurnsScale, clipFilterCss, videoFormatById, exportQualityById,
-  transitionPairAt, type TransitionState,
+  transitionPairAt, estTransitionGl, type TransitionState,
 } from "./constants";
 import {
   ExportProject, ExportResult, ClipTimed, withStarts, FPS, setCanvasSize,
-  drawCover, drawMediaFrame, drawMediaWithState, drawTransitionVeils, drawCaptions, drawTitles, drawStickers,
+  drawCover, drawMediaFrame, drawMediaWithState, drawTransitionVeils, drawGlTransitionFrame, drawCaptions, drawTitles, drawStickers,
   drawOverlayFrame, drawProgressBar, loadImage,
 } from "./render-core";
 
@@ -389,10 +389,18 @@ export async function renderExportOffline(
           const mp = await ouvrir(i - 1)!;
           const localPrev = prev.dur + (t - c.start);
           if (mp.video) await seekPrecis(mp.video, tempsSource(prev, localPrev));
-          const paire = transitionPairAt(c.transitionIn, c.transitionDur, t - c.start, false);
-          dessinerCote(mp, prev, localPrev, paire.out);
-          dessinerCote(m, c, localT, paire.in);
-          drawTransitionVeils(ctx, paire.in);
+          const avancement = (t - c.start) / recouvrement;
+          const mediaPrev = mp.video ?? mp.img, mediaCur = m.video ?? m.img;
+          // Transition à shader : WebGL compose les deux plans. S'il n'est pas
+          // là, on continue en dessous avec le fondu de repli.
+          const faitEnGl = estTransitionGl(c.transitionIn) && !!mediaPrev && !!mediaCur
+            && drawGlTransitionFrame(ctx, mediaPrev, prev, localPrev, mediaCur, c, localT, c.transitionIn!, avancement);
+          if (!faitEnGl) {
+            const paire = transitionPairAt(c.transitionIn, c.transitionDur, t - c.start, false);
+            dessinerCote(mp, prev, localPrev, paire.out);
+            dessinerCote(m, c, localT, paire.in);
+            drawTransitionVeils(ctx, paire.in);
+          }
         } else if (m.video || m.img) {
           drawMediaFrame(ctx, (m.video ?? m.img)!, c, localT, i === 0);
         }

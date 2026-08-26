@@ -1486,7 +1486,22 @@
       "zoomspin": "Zoom tournant",
       "punch": "Coup de zoom",
       "boxin": "Iris carré",
-      "whipup": "Whip vertical"
+      "whipup": "Whip vertical",
+      "bandin": "Bande centrale",
+      "wipediag": "Balayage diagonal",
+      "wipediagup": "Balayage diagonal ↗",
+      "diamond": "Losange",
+      "corner": "Balayage coin",
+      "chevron": "Chevron",
+      "blindsh": "Stores horizontaux",
+      "blindsv": "Stores verticaux",
+      "glpixel": "Pixellisation",
+      "gldissolve": "Dissolution",
+      "glripple": "Ondulation",
+      "glwarp": "Distorsion",
+      "glrgb": "Éclatement RVB",
+      "glburn": "Brûlure",
+      "glvortex": "Vortex"
     },
     "subLength": {
       "one": "1 mot",
@@ -1576,6 +1591,15 @@
       "neon": "Néon",
       "block": "Bloc",
       "pill": "Pilule"
+    },
+    "transitionFamily": {
+      "base": "Sans transition",
+      "fondu": "Fondus",
+      "glisse": "Glissés",
+      "zoom": "Zooms",
+      "forme": "Formes et balayages",
+      "dynamique": "Dynamiques",
+      "shader": "Effets avancés"
     }
   },
   "montage": {

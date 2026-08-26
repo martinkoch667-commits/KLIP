@@ -14,8 +14,10 @@
  */
 
 import React, { useEffect, useRef, useState } from "react";
-import { TRANSITIONS, transitionPairAt, type MontageClip } from "../workspace/[id]/montage/[postId]/constants";
-import { drawMediaWithState, drawTransitionVeils, setCanvasSize } from "../workspace/[id]/montage/[postId]/render-core";
+import { TRANSITIONS, transitionPairAt, estTransitionGl, type MontageClip } from "../workspace/[id]/montage/[postId]/constants";
+import { drawMediaWithState, drawTransitionVeils, drawGlTransitionFrame, setCanvasSize } from "../workspace/[id]/montage/[postId]/render-core";
+import { TransitionsPanel } from "../workspace/[id]/montage/[postId]/panels";
+import type { MontageCtx } from "../workspace/[id]/montage/[postId]/panels";
 
 export default function BancTransitions() {
   if (process.env.NODE_ENV === "production") {
@@ -55,6 +57,12 @@ const planFactice = (id: string, src: string): MontageClip & { start: number; en
 
 function BancTransitionsDev() {
   const [pret, setPret] = useState(false);
+  // #gl dans l'adresse : n'affiche que les transitions à shader, pour les juger
+  // sans faire défiler les quarante autres.
+  const [liste, setListe] = useState(TRANSITIONS);
+  useEffect(() => {
+    if (window.location.hash === "#gl") setListe(TRANSITIONS.filter((t) => estTransitionGl(t.id)));
+  }, []);
   const refs = useRef(new Map<string, HTMLCanvasElement>());
 
   useEffect(() => {
@@ -67,7 +75,7 @@ function BancTransitionsDev() {
       if (annule) return;
       setCanvasSize(W, H);
       const sortant = planFactice("a", a.src);
-      for (const tr of TRANSITIONS) {
+      for (const tr of liste) {
         const cv = refs.current.get(tr.id);
         if (!cv) continue;
         const ctx = cv.getContext("2d")!;
@@ -78,17 +86,34 @@ function BancTransitionsDev() {
           ctx.translate(k * (W + 4), 0);
           ctx.beginPath(); ctx.rect(0, 0, W, H); ctx.clip();
           ctx.fillStyle = "#000"; ctx.fillRect(0, 0, W, H);
-          const paire = transitionPairAt(tr.id, 1, p, false);
-          drawMediaWithState(ctx, a, sortant, sortant.dur, paire.out);
-          drawMediaWithState(ctx, b, entrant, p, paire.in);
-          drawTransitionVeils(ctx, paire.in);
+          // Transition à shader : même chemin qu'à l'export. Si WebGL manque, le
+          // dessin renvoie false et on voit le fondu de repli — ce que verra
+          // aussi l'utilisateur dans ce cas.
+          const faitEnGl = estTransitionGl(tr.id)
+            && drawGlTransitionFrame(ctx, a, sortant, sortant.dur, b, entrant, p, tr.id, p);
+          if (!faitEnGl) {
+            const paire = transitionPairAt(tr.id, 1, p, false);
+            drawMediaWithState(ctx, a, sortant, sortant.dur, paire.out);
+            drawMediaWithState(ctx, b, entrant, p, paire.in);
+            drawTransitionVeils(ctx, paire.in);
+          }
           ctx.restore();
         }
       }
       setPret(true);
     })();
     return () => { annule = true; };
-  }, []);
+  }, [liste]);
+
+  /* Le panneau réel, monté à côté de la planche. Il vérifie deux choses qu'on ne
+     voit pas sur les vignettes : que les familles se rangent, et que chacune des
+     quarante-cinq a bien son nom traduit — une clé manquante fait tomber la page
+     entière avec next-intl. */
+  const ctxPanneau = {
+    selectedClip: { id: "x", transitionIn: "fade", transitionDur: 0.5 },
+    updateClip: () => {},
+    applyTransitionToAll: () => {},
+  } as unknown as MontageCtx;
 
   return (
     <div style={{ fontFamily: "system-ui", padding: 20, background: "#14141A", color: "#EDEDF2", minHeight: "100vh" }}>
@@ -96,8 +121,12 @@ function BancTransitionsDev() {
       <p style={{ fontSize: 13, color: "#9A9AA8", marginBottom: 18 }}>
         {pret ? "Sur chaque ligne, A doit rester vivant tant que B n'a pas pris toute la place. Du noir au milieu = transition qui glisse sur le vide." : "Rendu…"}
       </p>
+      <div className="a-panel" style={{ width: 300, marginBottom: 20, borderRadius: 10, overflow: "hidden" }}>
+        <div className="a-panel-head"><span className="a-panel-title">Panneau Transitions</span></div>
+        <div className="a-panel-scroll" style={{ maxHeight: 340 }}><TransitionsPanel ctx={ctxPanneau} /></div>
+      </div>
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-        {TRANSITIONS.map((tr) => (
+        {liste.map((tr) => (
           <div key={tr.id} style={{ display: "flex", alignItems: "center", gap: 14 }}>
             <span style={{ width: 110, fontSize: 12, fontWeight: 700 }}>{tr.glyph} {tr.name}</span>
             <canvas
