@@ -769,10 +769,20 @@ function PlanningContent() {
 
   useEffect(() => { loadData(); }, [loadData]);
 
+  /* Ouverture automatique du post passé dans l'URL, UNE SEULE FOIS.
+
+     Cet effet dépend de `posts`, et tout ce qui touche à la liste en recrée le
+     tableau : changer la miniature, par exemple. Il rappelait donc `selectPost`,
+     qui repart de la ligne en base — et écrasait la légende en cours de frappe
+     par l'ancienne. On a perdu des textes entiers comme ça. */
+  const preSelectDone = useRef<string | null>(null);
   useEffect(() => {
     if (!preSelectedId || posts.length === 0) return;
+    if (preSelectDone.current === preSelectedId) return;
     const post = posts.find(p => p.id === preSelectedId);
-    if (post) selectPost(post);
+    if (!post) return;
+    preSelectDone.current = preSelectedId;
+    selectPost(post);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [preSelectedId, posts]);
 
@@ -815,6 +825,46 @@ function PlanningContent() {
     }
   }
   function showToast(msg: string, ok = true) { setToast({ msg, ok }); setTimeout(() => setToast(null), 3500); }
+
+  /* La légende s'enregistre toute seule, pendant qu'on écrit.
+
+     Elle n'était écrite en base qu'au moment de programmer ou de publier : tout
+     ce qui fermait la fenêtre avant (la croix, un clic à côté) emportait le
+     texte avec lui. Un texte écrit par l'IA, qui coûte un appel et une minute
+     d'attente, disparaissait sur un clic à côté de la fenêtre.
+
+     Une seconde après la dernière frappe, donc, et pas à chaque caractère. */
+  const [descSaved, setDescSaved] = useState(false);
+  useEffect(() => {
+    const post = selectedPost;
+    if (!post || panelDesc === (post.description ?? "")) return;
+    const timer = setTimeout(async () => {
+      const { error } = await supabase.from("posts").update({ description: panelDesc }).eq("id", post.id);
+      // Ne JAMAIS annoncer « enregistré » sans avoir lu la réponse : c'est
+      // exactement comme ça qu'on perd un texte en croyant l'avoir gardé.
+      if (error) { showToast(t('captionSaveError'), false); return; }
+      setSelectedPost(prev => (prev && prev.id === post.id ? { ...prev, description: panelDesc } : prev));
+      setPosts(prev => prev.map(p => (p.id === post.id ? { ...p, description: panelDesc } : p)));
+      setDescSaved(true);
+      setTimeout(() => setDescSaved(false), 2000);
+    }, 1000);
+    return () => clearTimeout(timer);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [panelDesc, selectedPost]);
+
+  /* Fermeture de la fenêtre : ce qui n'a pas encore été enregistré part tout de
+     suite. Le compte à rebours d'une seconde ci-dessus est annulé par la
+     fermeture — sans ce filet, la dernière seconde de frappe serait perdue. */
+  function closePanel() {
+    const post = selectedPost;
+    if (post && panelDesc !== (post.description ?? "")) {
+      const text = panelDesc;
+      supabase.from("posts").update({ description: text }).eq("id", post.id)
+        .then(({ error }) => { if (error) showToast(t('captionSaveError'), false); });
+      setPosts(prev => prev.map(p => (p.id === post.id ? { ...p, description: text } : p)));
+    }
+    setSelectedPost(null);
+  }
 
   // ── Drag handlers ─────────────────────────────────────────────────────────
 
@@ -1442,13 +1492,13 @@ function PlanningContent() {
 
       {/* ── Post panel modal ─────────────────────────────────────────────────── */}
       {selectedPost && (
-        <div style={{ position: "fixed", inset: 0, zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(13,15,10,.45)" }} onClick={() => setSelectedPost(null)}>
+        <div style={{ position: "fixed", inset: 0, zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(13,15,10,.45)" }} onClick={closePanel}>
         {/* Fenêtre volontairement large : on préfère masquer le calendrier
             derrière plutôt que de tasser les infos du post (décision Martin). */}
         <div className="plan-post-modal" style={{ width: 1220, maxWidth: "96vw", height: "94vh", borderRadius: 16, background: "var(--white)", display: "flex", flexDirection: "column", overflow: "hidden", boxShadow: "0 24px 60px -12px rgba(13,15,10,.45), 0 0 0 1px rgba(13,15,10,.06)" }} onClick={e => e.stopPropagation()}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "16px 20px", borderBottom: "1px solid var(--line)" }}>
             <span className="h-title" style={{ fontSize: 15 }}>{t('schedule')}</span>
-            <button onClick={() => setSelectedPost(null)} className="btn btn-ghost btn-icon"><IconClose /></button>
+            <button onClick={closePanel} className="btn btn-ghost btn-icon"><IconClose /></button>
           </div>
 
           {/* On écrit à gauche, on voit le rendu à droite. */}
@@ -1474,6 +1524,15 @@ function PlanningContent() {
             <div>
               <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}>
                 <label className="label" style={{ display: "block", margin: 0 }}>{t('igDescription')}</label>
+                {/* Preuve que le texte est en base. Sans elle, « c'est enregistré »
+                    reste une promesse : c'est justement en la croyant qu'on a
+                    fermé la fenêtre sur un texte qui n'existait nulle part. */}
+                {descSaved && (
+                  <span style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 11, fontWeight: 700, color: "var(--mint-2)" }}>
+                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5" /></svg>
+                    {t('captionSaved')}
+                  </span>
+                )}
                 <button
                   onClick={() => { setPrompt(selectedPost.brief ?? ""); setPromptOpen(o => !o); }}
                   disabled={writing}

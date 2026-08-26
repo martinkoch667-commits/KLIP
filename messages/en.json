@@ -654,6 +654,8 @@
     "captionStepFrames": "Watching the video…",
     "captionStepAudio": "Listening to the audio…",
     "captionError": "The caption could not be written. Try again.",
+    "captionSaved": "Saved",
+    "captionSaveError": "The caption could not be saved. Copy it before closing.",
     "captionFallbackBrief": "Instagram post",
     "captionPromptLabel": "What should this caption say?",
     "captionPromptPh": "E.g. announce the new autumn menu, warm tone, end on a question",

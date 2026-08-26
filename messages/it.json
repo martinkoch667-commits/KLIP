@@ -654,6 +654,8 @@
     "captionStepFrames": "Analisi del video…",
     "captionStepAudio": "Ascolto dell'audio…",
     "captionError": "Non è stato possibile scrivere la didascalia. Riprova.",
+    "captionSaved": "Salvato",
+    "captionSaveError": "Non è stato possibile salvare la didascalia. Copiala prima di chiudere.",
     "captionFallbackBrief": "Post Instagram",
     "captionPromptLabel": "Che cosa deve raccontare questa didascalia?",
     "captionPromptPh": "Es.: annunciare il nuovo menu d'autunno, tono caloroso, chiudere con una domanda",

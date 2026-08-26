@@ -654,6 +654,8 @@
     "captionStepFrames": "Video wird angesehen…",
     "captionStepAudio": "Ton wird angehört…",
     "captionError": "Die Bildunterschrift konnte nicht geschrieben werden. Versuche es erneut.",
+    "captionSaved": "Gespeichert",
+    "captionSaveError": "Die Bildunterschrift konnte nicht gespeichert werden. Kopiere sie vor dem Schließen.",
     "captionFallbackBrief": "Instagram-Beitrag",
     "captionPromptLabel": "Was soll die Bildunterschrift sagen?",
     "captionPromptPh": "Z. B. die neue Herbstkarte ankündigen, warmer Ton, mit einer Frage enden",

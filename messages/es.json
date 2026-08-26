@@ -654,6 +654,8 @@
     "captionStepFrames": "Viendo el vídeo…",
     "captionStepAudio": "Escuchando el audio…",
     "captionError": "No se pudo redactar el pie de foto. Inténtalo de nuevo.",
+    "captionSaved": "Guardado",
+    "captionSaveError": "No se pudo guardar el pie de foto. Cópialo antes de cerrar.",
     "captionFallbackBrief": "Publicación de Instagram",
     "captionPromptLabel": "¿Qué debe contar este pie de foto?",
     "captionPromptPh": "Ej.: anunciar la nueva carta de otoño, tono cercano, terminar con una pregunta",

@@ -654,6 +654,8 @@
     "captionStepFrames": "Lecture de la vidéo…",
     "captionStepAudio": "Écoute de la bande son…",
     "captionError": "La légende n'a pas pu être écrite. Réessayez.",
+    "captionSaved": "Enregistré",
+    "captionSaveError": "La légende n'a pas pu être enregistrée. Recopiez-la avant de fermer.",
     "captionFallbackBrief": "Publication Instagram",
     "captionPromptLabel": "Que doit raconter cette légende ?",
     "captionPromptPh": "Ex : annoncer la nouvelle carte d'automne, ton chaleureux, finir par une question",

@@ -654,6 +654,8 @@
     "captionStepFrames": "A ver o vídeo…",
     "captionStepAudio": "A ouvir o áudio…",
     "captionError": "Não foi possível escrever a legenda. Tente novamente.",
+    "captionSaved": "Guardado",
+    "captionSaveError": "Não foi possível guardar a legenda. Copie-a antes de fechar.",
     "captionFallbackBrief": "Publicação de Instagram",
     "captionPromptLabel": "O que deve dizer esta legenda?",
     "captionPromptPh": "Ex.: anunciar a nova carta de outono, tom acolhedor, terminar com uma pergunta",
