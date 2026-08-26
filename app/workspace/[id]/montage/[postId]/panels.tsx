@@ -91,6 +91,8 @@ export interface MontageCtx {
   resetSubCustom: () => void;
   applySubTemplate: (tpl: { styleId: string; custom: SubCustom; pos: { x: number; y: number }; maxWords: number }) => void;
   generateCaptionsAI: () => void;
+  /** Amène la tête de lecture à cet instant (clic sur une ligne de transcription). */
+  seek: (t: number) => void;
 
   addSticker: (glyph: string, isImage?: boolean) => void;
   updateSticker: (id: string, patch: Partial<StickerEl>) => void;
@@ -499,6 +501,48 @@ export function CaptionsPanel({ ctx }: { ctx: MontageCtx }) {
   const hasVideo = ctx.clips.some((c) => c.kind === "video");
   const [tpls, setTpls] = useState<SubTemplate[]>(() => loadSubTemplates());
   const [tplName, setTplName] = useState("");
+
+  /* Deux onglets plutôt qu'une seule colonne interminable.
+
+     Tout cohabitait dans un même défilement : la bibliothèque de styles, tous
+     les réglages, les modèles, et la transcription tout en bas. Corriger un mot
+     mal entendu demandait de descendre sous une page entière de réglages qu'on
+     ne venait pas voir. Ce sont deux gestes différents — relire ce qui est dit,
+     et décider de quoi ça a l'air — donc deux onglets. */
+  const [tab, setTab] = useState<"transcript" | "style">("transcript");
+
+  /* Sélectionner un sous-titre (sur la timeline, ou dans l'aperçu) amène droit
+     à sa ligne dans la transcription : on voit tout de suite où le corriger.
+     Le repère est posé ici et consommé une fois l'onglet affiché, sinon on
+     chercherait à faire défiler une ligne qui n'est pas encore à l'écran. */
+  const rowRefs = useRef(new Map<string, HTMLDivElement>());
+  const lastSelRef = useRef<string | null>(null);
+  const toScrollRef = useRef<string | null>(null);
+  useEffect(() => {
+    const id = ctx.selectedCaptionId;
+    if (!id || id === lastSelRef.current) return;
+    lastSelRef.current = id;
+    toScrollRef.current = id;
+    setTab("transcript");
+  }, [ctx.selectedCaptionId]);
+  useEffect(() => {
+    const id = toScrollRef.current;
+    if (!id || tab !== "transcript") return;
+    // La ligne vient d'apparaître avec l'onglet : on laisse le navigateur finir
+    // sa mise en page avant de viser. Un défilement « doux » lancé dans le même
+    // souffle que le changement d'onglet se fait avaler par la remise à zéro du
+    // conteneur ; on saute donc directement au bon endroit.
+    const timer = setTimeout(() => {
+      const el = rowRefs.current.get(id);
+      // Tant qu'on ne la tient pas, le repère reste posé et le prochain rendu
+      // réessaiera : sinon la demande serait perdue en silence.
+      if (!el) return;
+      toScrollRef.current = null;
+      el.scrollIntoView({ block: "center" });
+    }, 0);
+    return () => clearTimeout(timer);
+  }, [tab, ctx.selectedCaptionId, ctx.captions.length]);
+
   function saveTemplate() {
     const name = tplName.trim() || t('defaultTemplateName', { n: tpls.length + 1 });
     const tpl: SubTemplate = { id: crypto.randomUUID(), name, styleId: ctx.subStyleId, custom: ctx.subCustom, maxWords: ctx.subMaxWords, pos: ctx.subPos };
@@ -512,6 +556,22 @@ export function CaptionsPanel({ ctx }: { ctx: MontageCtx }) {
   }
   return (
     <>
+      {/* Même vocabulaire que le sélecteur « lié / individuel » juste en dessous :
+          le monteur n'a pas besoin d'une deuxième façon de proposer un choix. */}
+      <div className="a-section" style={{ paddingBottom: 0 }}>
+        <div style={{ display: "flex", gap: 6, background: "var(--sunk)", borderRadius: 10, padding: 4 }}>
+          <button className={"mz-chip-btn" + (tab === "transcript" ? " on" : "")} style={{ flex: 1, justifyContent: "center" }} onClick={() => setTab("transcript")}>
+            <VIcon name="captions" size={13} /> {t('subTabTranscript')}
+            {ctx.captions.length > 0 && <span style={{ opacity: .6, fontVariantNumeric: "tabular-nums" }}>{ctx.captions.length}</span>}
+          </button>
+          <button className={"mz-chip-btn" + (tab === "style" ? " on" : "")} style={{ flex: 1, justifyContent: "center" }} onClick={() => setTab("style")}>
+            <VIcon name="sparkles" size={13} /> {t('subTabStyle')}
+          </button>
+        </div>
+      </div>
+
+      {tab === "transcript" ? (
+        <>
       <div className="a-section">
         <div className="mz-ai-card">
           <div className="halo-blob" style={{ width: 140, height: 140, right: -40, top: -50, background: "radial-gradient(circle, var(--mint), transparent 70%)", opacity: .5 }} />
@@ -532,6 +592,57 @@ export function CaptionsPanel({ ctx }: { ctx: MontageCtx }) {
           <VIcon name="plus" size={14} /> {t('createCaption')}
         </button>
       </div>
+      <div className="a-section">
+        <span className="mz-sec-label">{t('transcribedTextTitle', { count: ctx.captions.length })}</span>
+        {ctx.captions.length === 0 && (
+          <p style={{ fontSize: 11.5, color: "var(--ink-3)", margin: "0 0 8px" }}>{t('noCaptionsHint')}</p>
+        )}
+        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+          {ctx.captions.map((s) => {
+            const sel = ctx.selectedCaptionId === s.id;
+            return (
+            <div
+              key={s.id}
+              ref={(el) => { if (el) rowRefs.current.set(s.id, el); else rowRefs.current.delete(s.id); }}
+              onClick={(e) => {
+                // Un clic sur un champ ou un bouton fait son travail à lui : on ne
+                // déplace pas la tête de lecture pendant qu'on règle un horodatage.
+                if ((e.target as HTMLElement).closest("input,button")) return;
+                ctx.setSelectedCaptionId(s.id);
+                ctx.seek(s.start + 0.05);
+              }}
+              style={{
+                display: "flex", flexDirection: "column", gap: 6, padding: "9px 11px", borderRadius: 9,
+                background: sel ? "color-mix(in srgb, var(--vio) 14%, var(--sunk))" : "var(--sunk)",
+                boxShadow: sel ? "inset 0 0 0 1.5px var(--vio)" : "none",
+                cursor: "pointer", scrollMarginBlock: 12,
+              }}>
+              <div style={{ display: "flex", gap: 9, alignItems: "flex-start" }}>
+                <span
+                  contentEditable
+                  suppressContentEditableWarning
+                  style={{ fontSize: 12.5, lineHeight: 1.4, outline: "none", flex: 1, cursor: "text" }}
+                  onBlur={(e) => ctx.updateCaption(s.id, { text: e.currentTarget.textContent || "" })}
+                >
+                  {s.text}
+                </span>
+                <button className="mz-hbtn" style={{ width: 22, height: 22, flexShrink: 0 }} onClick={() => ctx.removeCaption(s.id)}><VIcon name="x" size={12} /></button>
+              </div>
+              <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                <span style={{ fontFamily: "var(--mono)", fontWeight: 800, fontSize: 9.5, color: "var(--ink-3)" }}>{t('captionStart')}</span>
+                <input type="number" step={0.1} min={0} value={Number(s.start.toFixed(2))} onChange={(e) => ctx.updateCaption(s.id, { start: Math.min(parseFloat(e.target.value) || 0, s.end - 0.1) })} style={{ width: 58, fontFamily: "var(--mono)", fontSize: 11, padding: "3px 6px", borderRadius: 6, border: "1px solid var(--line)", background: "var(--white)" }} />
+                <span style={{ fontFamily: "var(--mono)", fontWeight: 800, fontSize: 9.5, color: "var(--ink-3)" }}>{t('captionEnd')}</span>
+                <input type="number" step={0.1} min={0} value={Number(s.end.toFixed(2))} onChange={(e) => ctx.updateCaption(s.id, { end: Math.max(parseFloat(e.target.value) || 0, s.start + 0.1) })} style={{ width: 58, fontFamily: "var(--mono)", fontSize: 11, padding: "3px 6px", borderRadius: 6, border: "1px solid var(--line)", background: "var(--white)" }} />
+              </div>
+            </div>
+            );
+          })}
+          <button className="btn btn-ghost btn-sm" style={{ alignSelf: "flex-start" }} onClick={ctx.addCaption}><VIcon name="plus" size={13} /> {t('addAtPlayhead')}</button>
+        </div>
+      </div>
+        </>
+      ) : (
+        <>
       <div className="a-section">
         <span className="mz-sec-label">{t('displayLengthTitle')}</span>
         <p style={{ fontSize: 11.5, color: "var(--ink-3)", margin: "0 0 8px" }}>{t('wordsPerCaptionDesc')} {ctx.hasRawSegments ? t('reflowsLive') : t('appliedNextGen')}</p>
@@ -636,33 +747,8 @@ export function CaptionsPanel({ ctx }: { ctx: MontageCtx }) {
           </div>
         )}
       </div>
-      <div className="a-section">
-        <span className="mz-sec-label">{t('transcribedTextTitle', { count: ctx.captions.length })}</span>
-        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-          {ctx.captions.map((s) => (
-            <div key={s.id} style={{ display: "flex", flexDirection: "column", gap: 6, padding: "9px 11px", borderRadius: 9, background: "var(--sunk)" }}>
-              <div style={{ display: "flex", gap: 9, alignItems: "flex-start" }}>
-                <span
-                  contentEditable
-                  suppressContentEditableWarning
-                  style={{ fontSize: 12.5, lineHeight: 1.4, outline: "none", flex: 1 }}
-                  onBlur={(e) => ctx.updateCaption(s.id, { text: e.currentTarget.textContent || "" })}
-                >
-                  {s.text}
-                </span>
-                <button className="mz-hbtn" style={{ width: 22, height: 22, flexShrink: 0 }} onClick={() => ctx.removeCaption(s.id)}><VIcon name="x" size={12} /></button>
-              </div>
-              <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                <span style={{ fontFamily: "var(--mono)", fontWeight: 800, fontSize: 9.5, color: "var(--ink-3)" }}>{t('captionStart')}</span>
-                <input type="number" step={0.1} min={0} value={Number(s.start.toFixed(2))} onChange={(e) => ctx.updateCaption(s.id, { start: Math.min(parseFloat(e.target.value) || 0, s.end - 0.1) })} style={{ width: 58, fontFamily: "var(--mono)", fontSize: 11, padding: "3px 6px", borderRadius: 6, border: "1px solid var(--line)", background: "var(--white)" }} />
-                <span style={{ fontFamily: "var(--mono)", fontWeight: 800, fontSize: 9.5, color: "var(--ink-3)" }}>{t('captionEnd')}</span>
-                <input type="number" step={0.1} min={0} value={Number(s.end.toFixed(2))} onChange={(e) => ctx.updateCaption(s.id, { end: Math.max(parseFloat(e.target.value) || 0, s.start + 0.1) })} style={{ width: 58, fontFamily: "var(--mono)", fontSize: 11, padding: "3px 6px", borderRadius: 6, border: "1px solid var(--line)", background: "var(--white)" }} />
-              </div>
-            </div>
-          ))}
-          <button className="btn btn-ghost btn-sm" style={{ alignSelf: "flex-start" }} onClick={ctx.addCaption}><VIcon name="plus" size={13} /> {t('addAtPlayhead')}</button>
-        </div>
-      </div>
+        </>
+      )}
     </>
   );
 }

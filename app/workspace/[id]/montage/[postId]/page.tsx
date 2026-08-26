@@ -4416,6 +4416,7 @@ export default function MontagePage() {
   const ctx: MontageCtx = {
     clips, selectedClip, captions, subStyleId: activeSubStyleId, subMaxWords, subCustom: activeSubCustom, subPos, hasRawSegments: rawSegments.length > 0 || rawWords.length > 0,
     linkedSubs, setLinkedSubs, selectedCaptionId, setSelectedCaptionId,
+    seek,
     capSelectedCount: capMulti.length,
     titles, stickers, audioTracks, showProgressBar,
     overlays, selectedOverlay, uploadingOverlay, addOverlayFiles, updateOverlay, removeOverlay, duplicateOverlay, selectOverlay,
