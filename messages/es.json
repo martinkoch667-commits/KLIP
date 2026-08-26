@@ -1992,7 +1992,8 @@
     "mediaInOverlay": "Superposición · pista {n}",
     "mediaInAudio": "Sonido · pista {n}",
     "useAsOverlay": "Añadir como superposición",
-    "toastOverlayAdded": "Superposición añadida en el cursor."
+    "toastOverlayAdded": "Superposición añadida en el cursor.",
+    "audioLevel": "Nivel de audio"
   },
   "forgotPassword": {
     "title": "Contraseña olvidada",

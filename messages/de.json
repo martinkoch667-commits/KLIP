@@ -1992,7 +1992,8 @@
     "mediaInOverlay": "Überlagerung · Spur {n}",
     "mediaInAudio": "Ton · Spur {n}",
     "useAsOverlay": "Als Überlagerung hinzufügen",
-    "toastOverlayAdded": "Überlagerung an der Abspielposition hinzugefügt."
+    "toastOverlayAdded": "Überlagerung an der Abspielposition hinzugefügt.",
+    "audioLevel": "Audiopegel"
   },
   "forgotPassword": {
     "title": "Passwort vergessen",

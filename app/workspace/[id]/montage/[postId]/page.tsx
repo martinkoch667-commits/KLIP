@@ -2991,6 +2991,7 @@ export default function MontagePage() {
     updateTitle(d.id, { start: ns, end: ns + d.dur });
   }
   function onTitleBarUp(e: React.PointerEvent) {
+    effacerAimant();
     const d = titleDragRef.current; titleDragRef.current = null;
     try { (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId); } catch {}
     if (!d) return;
@@ -3062,6 +3063,7 @@ export default function MontagePage() {
     updateCaption(d.id, { start: ns, end: ns + d.dur });
   }
   function onCaptionBarUp(e: React.PointerEvent) {
+    effacerAimant();
     const d = capDragRef.current; capDragRef.current = null;
     try { (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId); } catch {}
     if (!d) return;
@@ -3155,6 +3157,7 @@ export default function MontagePage() {
     setAudioTracks((prev) => prev.map((a) => (a.id === d.id ? { ...a, offset: off } : a)));
   }
   function onAudioBarUp(e: React.PointerEvent) {
+    effacerAimant();
     const d = audDragRef.current; audDragRef.current = null;
     if (!d) return;
     try { (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId); } catch {}
@@ -3744,6 +3747,12 @@ export default function MontagePage() {
      Comme dans Premiere ou Resolve, la lame se prend une fois (C) et coupe
      ensuite là où l'on clique, sur n'importe quel élément. V rend la main. */
   const [outilLame, setOutilLame] = useState(false);
+  const [marqueAimant, setMarqueAimant] = useState<number | null>(null);
+  const marqueAimantRef = useRef<number | null>(null);
+  /** À la fin d'un geste, le repère d'aimantation n'a plus lieu d'être. */
+  const effacerAimant = useCallback(() => {
+    if (marqueAimantRef.current !== null) { marqueAimantRef.current = null; setMarqueAimant(null); }
+  }, []);
 
   /** Découpe l'élément cliqué à l'endroit exact du clic. */
   const couperAuClic = useCallback((e: React.PointerEvent) => {
@@ -3757,6 +3766,35 @@ export default function MontagePage() {
     if (!Number.isFinite(t) || t < 0) return;
     splitAtPlayhead(t, { kind, id });
   }, []);
+
+  /* NIVEAU AUDIO À LA SOURIS, sur la piste elle-même.
+     Régler le volume obligeait à passer par le panneau latéral. Comme dans
+     Premiere, une ligne traverse la piste à la hauteur du niveau : on la tire
+     vers le haut ou vers le bas et on entend le résultat tout de suite.
+     L'échelle va de 0 à 2 — au-delà de 1, c'est du gain, appliqué à l'export
+     (la lecture est bornée à 1 par le navigateur). */
+  const NIVEAU_MAX = 2;
+  const niveauDragRef = useRef<{ id: string; startY: number; v0: number; h: number } | null>(null);
+
+  function onNiveauDown(e: React.PointerEvent, a: { id: string; vol: number }, hauteur: number) {
+    e.stopPropagation();
+    e.preventDefault();
+    try { (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId); } catch { /* noop */ }
+    niveauDragRef.current = { id: a.id, startY: e.clientY, v0: a.vol ?? 1, h: Math.max(1, hauteur) };
+  }
+  function onNiveauMove(e: React.PointerEvent) {
+    const d = niveauDragRef.current;
+    if (!d) return;
+    // Tirer vers le HAUT augmente : l'écran descend en Y, le niveau monte.
+    const v = d.v0 + ((d.startY - e.clientY) / d.h) * NIVEAU_MAX;
+    setAudioTracks((prev) => prev.map((x) => (x.id === d.id ? { ...x, vol: Math.max(0, Math.min(NIVEAU_MAX, v)) } : x)));
+  }
+  function onNiveauUp(e: React.PointerEvent) {
+    if (!niveauDragRef.current) return;
+    niveauDragRef.current = null;
+    try { (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId); } catch { /* noop */ }
+    // L'historique se prend tout seul sur changement d'état (cf. historyRef).
+  }
 
   const FRAME = 1 / 30;
   /* Raccourcis clavier.
@@ -3920,6 +3958,7 @@ export default function MontagePage() {
      qu'on rogne. La piste principale est enchaînée : rogner un plan décale tous
      les suivants, leurs bords bougent en même temps, et s'y aimanter n'a aucun
      sens. Les autres pistes, elles, restent des repères utiles. */
+  /** Instant sur lequel l'aimant vient d'accrocher, pour le tracer à l'écran. */
   function snapTime(t: number, opts?: { ignorer?: string; ignorerPlans?: boolean }): number {
     const hors = opts?.ignorer;
     const targets: number[] = [0, total, time];
@@ -3933,7 +3972,16 @@ export default function MontagePage() {
     for (const k of stickers) if (k.id !== hors) targets.push(k.start, k.end);
     const thresh = 8 / pps;
     let best = t, bestD = thresh;
-    for (const tg of targets) { const d = Math.abs(tg - t); if (d < bestD) { bestD = d; best = tg; } }
+    let accroche = false;
+    for (const tg of targets) { const d = Math.abs(tg - t); if (d < bestD) { bestD = d; best = tg; accroche = true; } }
+    // L'aimant agissait en silence : les bords se collaient bien, mais rien ne
+    // disait SUR QUOI, ni même qu'il s'était passé quelque chose. On garde donc
+    // l'instant accroché pour tracer un repère le temps du geste.
+    const marque = accroche ? best : null;
+    if (marqueAimantRef.current !== marque) {
+      marqueAimantRef.current = marque;
+      setMarqueAimant(marque);
+    }
     return best;
   }
 
@@ -4108,6 +4156,7 @@ export default function MontagePage() {
     setTlGhost({ x: gx, y: e.clientY - d.grabDy, w: d.widthPx, id: d.id, kind: d.kind });
   }
   function onTlDragUp(e: React.PointerEvent) {
+    effacerAimant();
     const d = tlDragRef.current;
     tlDragRef.current = null;
     setDragActive(false); setDropLane(null); setTlGhost(null);
@@ -5424,6 +5473,23 @@ export default function MontagePage() {
                       {a.waveform && a.waveform.length > 0 && (
                         <AudioWave peaks={a.waveform} srcDur={audioSrcDur(a)} de={a.srcOffset ?? 0} a={(a.srcOffset ?? 0) + a.dur} />
                       )}
+                      {/* LIGNE DE NIVEAU. Elle traverse la piste à la hauteur du
+                          volume et se tire à la souris. Masquée quand la piste
+                          porte des points-clés : le volume y varie dans le temps,
+                          une ligne droite mentirait sur ce qui se passe. */}
+                      {!(a.volKeys && a.volKeys.length > 0) && (() => {
+                        const h = blockH(`a${a.track ?? 0}`);
+                        const v = Math.max(0, Math.min(NIVEAU_MAX, a.vol ?? 1));
+                        return (
+                          <div className="a-niveau" style={{ bottom: (v / NIVEAU_MAX) * h }}
+                            title={`${t('audioLevel')} — ${Math.round(v * 100)} %`}
+                            onPointerDown={(e) => onNiveauDown(e, a, h)}
+                            onPointerMove={onNiveauMove}
+                            onPointerUp={onNiveauUp}>
+                            <span className="a-niveau-val">{Math.round(v * 100)}%</span>
+                          </div>
+                        );
+                      })()}
                       <span style={{ position: "absolute", left: 6, top: 4, fontSize: 9.5, fontWeight: 700, color: "#fff" }}>{a.kind === "voiceover" ? "🎙" : "🎵"} {a.name}</span>
                       {(() => {
                         const w = a.dur * pps;
@@ -5514,6 +5580,12 @@ export default function MontagePage() {
                 bas. Il ajoute sa hauteur au contenu, ce qui n'est que de la marge
                 de fin. */}
             <div className="a-tl-pied" aria-hidden />
+            {/* REPÈRE D'AIMANTATION : la ligne sur laquelle le bord vient de se
+                coller. Elle n'apparaît que pendant le geste et disparaît au
+                relâchement — c'est un retour, pas un élément de la timeline. */}
+            {marqueAimant !== null && (
+              <div className="a-aimant" aria-hidden style={{ left: LANE_LABEL_W + marqueAimant * pps }} />
+            )}
             {/* Position posée par `poserCurseur` (écriture DOM directe) : pendant la
                 lecture React ne touche plus à ce style, sinon chaque rendu le
                 ramènerait à la valeur du dernier rendu et le curseur sauterait
@@ -5619,6 +5691,9 @@ export default function MontagePage() {
           rows.push(item("del1", t('delete'), () => removeAudioTrack(id), { sc: "⌫", danger: true }));
           rows.push(sep("s0"));
           rows.push(item("edit", t('contextEdit'), () => setTool("audio")));
+          // Le niveau se règle à la souris sur la piste, mais il faut aussi
+          // pouvoir y arriver sans viser une ligne d'un pixel et demi.
+          rows.push(item("niveau", t('audioLevel'), () => { setSelectedAudioId(id); setTool("audio"); }));
           rows.push(item("iso", t('voiceIsolate'), () => isolateVoiceOnTrack(id, "isolate"), { disabled: !!processingVoice }));
           rows.push(item("rem", t('voiceRemove'), () => isolateVoiceOnTrack(id, "remove"), { disabled: !!processingVoice }));
           rows.push(sep("s1"));
