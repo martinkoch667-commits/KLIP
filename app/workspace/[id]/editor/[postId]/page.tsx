@@ -54,6 +54,11 @@ interface Slide {
 interface BaseEl { id: string; x: number; y: number; rotation: number; opacity: number; }
 interface TextEl extends BaseEl {
   type: 'text'; text: string; fontSize: number; fontFamily: string; fontStyle: string;
+  /** Bord qui reste fixe quand le bloc grandit ou rétrécit. « haut » : il
+   *  descend, « bas » : il monte, « milieu » : il grandit des deux côtés.
+   *  Sans ça, changer le corps ou l'interligne faisait toujours descendre le
+   *  texte, et un bloc calé sur le bas d'un visuel s'en décollait. */
+  anchorY?: 'top' | 'middle' | 'bottom';
   /** Rôle typographique d'origine (`display`, `body`, `condensed`, `serif`,
    *  `script`) quand le calque a été écrit par le système de design. Tant qu'il
    *  est là, la police suit la charte du client ; choisir une police à la main
@@ -548,6 +553,33 @@ function measureBlockSafe(el: any, areaW: number): { lines: number } {
 // ou collé au ras du cadre, doit rester exactement où on l'a mis. Le rappel à
 // l'ordre ne concerne plus que la verticale (chevauchement / sortie par le bas).
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
+/** Hauteur rendue d'un bloc de texte, dans sa largeur utile. */
+function hauteurBloc(el: TextEl): number {
+  const pH = el.paddingH ?? el.padding ?? 0;
+  const pHl = el.highlightEnabled ? (el.highlightPadding ?? 0) : 0;
+  const areaW = Math.max(1, (el.width ?? 0) - pH * 2 - pHl * 2);
+  const txt = el.uppercase ? String(el.text ?? '').toUpperCase() : String(el.text ?? '');
+  const n = Math.max(1, countLines(txt, el.fontSize, el.fontFamily, el.fontStyle, areaW, el.letterSpacing ?? 0));
+  return n * el.fontSize * (el.lineHeight ?? 1.2);
+}
+
+/**
+ * Repositionne un bloc pour que son bord d'ancrage ne bouge pas.
+ *
+ * Un bloc de texte grandit toujours vers le BAS : augmenter le corps ou
+ * l'interligne d'un titre calé en bas de visuel le faisait déborder du cadre, et
+ * il fallait le remonter à la main à chaque réglage. L'ancrage dit quel bord
+ * reste fixe, et on rattrape la différence de hauteur sur `y`.
+ */
+function recalerAncre(avant: TextEl, apres: TextEl): TextEl {
+  const ancre = apres.anchorY ?? 'top';
+  if (ancre === 'top') return apres;
+  const h0 = hauteurBloc(avant), h1 = hauteurBloc(apres);
+  if (!Number.isFinite(h0) || !Number.isFinite(h1) || h0 === h1) return apres;
+  const delta = h1 - h0;
+  return { ...apres, y: Math.round((apres.y ?? 0) - (ancre === 'bottom' ? delta : delta / 2)) };
+}
+
 function relayoutText(elements: any[], stageW: number, stageH: number): any[] {
   if (!Array.isArray(elements)) return elements;
   const margin = 26, gap = 10;
@@ -1431,16 +1463,13 @@ function EditorContextToolbar({ sel, fontGroups, brandFamilies, brandColors, sta
       {children}
     </button>
   );
-  const SliderRow = ({ label, value, min, max, step, fmt, onChange }: { label: string; value: number; min: number; max: number; step: number; fmt: (v: number) => string; onChange: (v: number) => void }) => (
-    <div style={{ marginBottom: 8 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 5 }}>
-        <span className="label" style={{ marginBottom: 0 }}>{label}</span>
-        <span style={{ fontFamily: 'var(--mono)', fontWeight: 800, fontSize: 11, color: 'var(--ink-2)' }}>{fmt(value)}</span>
-      </div>
-      <input type="range" min={min} max={max} step={step} value={value}
-        onChange={e => onChange(parseFloat(e.target.value))} className="ed-range" style={{ width: '100%', ...rangeFill(value, min, max) }} />
-    </div>
-  );
+  // Toute modification qui change la HAUTEUR du bloc doit respecter son ancrage.
+  const uTexte = (patch: Partial<TextEl>) => {
+    if (!textSel) return;
+    const recale = recalerAncre(textSel as TextEl, { ...(textSel as TextEl), ...patch });
+    onUpdate((recale.y !== textSel.y ? { ...patch, y: recale.y } : patch) as Partial<CanvasEl>);
+  };
+
   const toggleDecoration = (flag: 'underline' | 'line-through') => {
     if (!textSel) return;
     const cur = textSel.textDecoration ?? '';
@@ -1560,12 +1589,12 @@ function EditorContextToolbar({ sel, fontGroups, brandFamilies, brandColors, sta
         </div>
         {/* Size stepper */}
         <div style={{ display: 'flex', alignItems: 'center', background: 'var(--sunk)', borderRadius: 8, height: 32, marginLeft: 4, flexShrink: 0 }}>
-          <button onClick={() => u({ fontSize: Math.max(8, textSel.fontSize - 2) } as Partial<TextEl>)} style={{ width: 26, height: 32, display: 'grid', placeItems: 'center', border: 'none', background: 'transparent', cursor: 'pointer', color: 'var(--ink)' }}>
+          <button onClick={() => uTexte({ fontSize: Math.max(8, textSel.fontSize - 2) })} style={{ width: 26, height: 32, display: 'grid', placeItems: 'center', border: 'none', background: 'transparent', cursor: 'pointer', color: 'var(--ink)' }}>
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M5 12h14"/></svg>
           </button>
-          <input type="number" value={textSel.fontSize} onChange={e => { const v = parseInt(e.target.value) || 8; u({ fontSize: Math.min(400, Math.max(8, v)) } as Partial<TextEl>); }}
+          <input type="number" value={textSel.fontSize} onChange={e => { const v = parseInt(e.target.value) || 8; uTexte({ fontSize: Math.min(400, Math.max(8, v)) }); }}
             style={{ width: 32, textAlign: 'center', border: 'none', background: 'transparent', fontWeight: 700, fontSize: 12.5, outline: 'none', color: 'var(--ink)', fontVariantNumeric: 'tabular-nums' }} />
-          <button onClick={() => u({ fontSize: Math.min(400, textSel.fontSize + 2) } as Partial<TextEl>)} style={{ width: 26, height: 32, display: 'grid', placeItems: 'center', border: 'none', background: 'transparent', cursor: 'pointer', color: 'var(--ink)' }}>
+          <button onClick={() => uTexte({ fontSize: Math.min(400, textSel.fontSize + 2) })} style={{ width: 26, height: 32, display: 'grid', placeItems: 'center', border: 'none', background: 'transparent', cursor: 'pointer', color: 'var(--ink)' }}>
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M12 5v14M5 12h14"/></svg>
           </button>
         </div>
@@ -1600,17 +1629,54 @@ function EditorContextToolbar({ sel, fontGroups, brandFamilies, brandColors, sta
               ? <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M4 6h16M10 12h10M7 18h13"/></svg>
               : <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M4 6h16M4 12h10M4 18h13"/></svg>
           } />
-        {/* Spacing (line-height + letter-spacing) */}
+        {/* ESPACEMENT — bouton LIBELLÉ, comme « Effet », « Animer » et « Position ».
+            Il n'avait qu'une icône de lignes et de points, que personne ne
+            reconnaissait : Martin l'a prise pour une liste à puces et a conclu
+            que le réglage n'existait pas. Une icône seule pour une fonction
+            qu'on cherche par son nom est une fonction cachée. */}
         <div style={{ position: 'relative' }}>
-          <IBtn title={T('spacing')} on={pop === 'spacing'}
-            onClick={() => setPop(p => p === 'spacing' ? null : 'spacing')}
-            icon={<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M8 6h13M8 12h13M8 18h13M3 6v.01M3 12v.01M3 18v.01"/></svg>} />
+          <TextBtn on={pop === 'spacing'} onClick={() => setPop(p => p === 'spacing' ? null : 'spacing')}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M8 6h13M8 12h13M8 18h13M3 6v.01M3 12v.01M3 18v.01"/></svg>
+            {T('spacing')}
+          </TextBtn>
           {pop === 'spacing' && (
-            <div {...popAttrs()}>
-              <SliderRow label={T('lineHeight')} value={textSel.lineHeight ?? 1.2} min={0.8} max={3} step={0.05}
-                fmt={v => v.toFixed(2)} onChange={v => u({ lineHeight: v } as any)} />
-              <SliderRow label={T('letterSpacing')} value={textSel.letterSpacing ?? 0} min={-5} max={30} step={0.5}
-                fmt={v => (v >= 0 ? '+' : '') + v.toFixed(1) + 'px'} onChange={v => u({ letterSpacing: v } as any)} />
+            <div {...popAttrs({ width: 268 })}>
+              {/* Curseur ET champ chiffré : le curseur pour chercher, le champ
+                  pour poser une valeur exacte et la reproduire d'un bloc à
+                  l'autre. Un curseur seul ne permet pas de refaire deux fois le
+                  même réglage. */}
+              <ReglageNombre label={T('letterSpacing')} value={textSel.letterSpacing ?? 0}
+                min={-5} max={40} step={0.5} decimales={1}
+                onChange={v => uTexte({ letterSpacing: v })} />
+              <ReglageNombre label={T('lineHeight')} value={textSel.lineHeight ?? 1.2}
+                min={0.5} max={3} step={0.01} decimales={2}
+                onChange={v => uTexte({ lineHeight: v })} />
+
+              <div style={{ height: 1, background: 'var(--line)', margin: '14px 0 12px' }} />
+
+              {/* ANCRAGE — le bord qui ne bouge pas quand le bloc change de
+                  taille. Un titre calé en bas de visuel débordait du cadre dès
+                  qu'on touchait au corps ou à l'interligne, et il fallait le
+                  remonter à la main à chaque essai. */}
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
+                <span className="label" style={{ marginBottom: 0, lineHeight: 1.25, maxWidth: 108 }}>{T('anchorText')}</span>
+                <div style={{ display: 'flex', gap: 6 }}>
+                  {([
+                    ['top', 'M4 4h16M12 21V9m0 0l-4 4m4-4l4 4'],
+                    ['middle', 'M4 12h16M12 3v4m0 0l-2.5-2.5M12 7l2.5-2.5M12 21v-4m0 0l-2.5 2.5M12 17l2.5 2.5'],
+                    ['bottom', 'M4 20h16M12 3v12m0 0l-4-4m4 4l4-4'],
+                  ] as const).map(([val, d]) => {
+                    const actif = (textSel.anchorY ?? 'top') === val;
+                    return (
+                      <button key={val} title={T(`anchor_${val}`)} onClick={() => u({ anchorY: val } as Partial<TextEl>)}
+                        style={{ width: 34, height: 34, borderRadius: 9, border: 'none', cursor: 'pointer', display: 'grid', placeItems: 'center',
+                          background: actif ? 'var(--mint-soft)' : 'var(--sunk)', color: actif ? 'var(--mint-2)' : 'var(--ink-2)' }}>
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d={d} /></svg>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
             </div>
           )}
         </div>
@@ -2011,6 +2077,37 @@ function PanelHead({ title, sub, onClose }: { title: string; sub?: string; onClo
 function rangeFill(v: number, min: number, max: number): React.CSSProperties {
   const pct = Math.max(0, Math.min(100, ((v - min) / (max - min)) * 100));
   return { background: `linear-gradient(to right, var(--mint-2) ${pct}%, var(--sunk) ${pct}%)` };
+}
+
+/**
+ * Un réglage chiffré : intitulé, curseur, et champ de saisie exacte.
+ *
+ * Défini AU NIVEAU MODULE et non dans le rendu de la barre d'outils : un
+ * composant recréé à chaque rendu est un nouveau type pour React, qui démonte
+ * et remonte le champ — le curseur de saisie sautait donc à chaque frappe et il
+ * devenait impossible de taper une valeur à deux chiffres.
+ */
+function ReglageNombre({ label, value, min, max, step, decimales, onChange }:
+  { label: string; value: number; min: number; max: number; step: number; decimales: number; onChange: (v: number) => void }) {
+  return (
+    <div style={{ marginBottom: 12 }}>
+      <div className="label" style={{ marginBottom: 7 }}>{label}</div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        <input type="range" min={min} max={max} step={step} value={value}
+          onChange={e => onChange(parseFloat(e.target.value))}
+          className="ed-range" style={{ flex: 1, ...rangeFill(value, min, max) }} />
+        <input type="number" min={min} max={max} step={step} value={Number(value.toFixed(decimales))}
+          onChange={e => {
+            const v = parseFloat(e.target.value);
+            // Un champ vidé ne doit pas écrire NaN dans le document.
+            if (Number.isFinite(v)) onChange(Math.min(max, Math.max(min, v)));
+          }}
+          style={{ width: 62, textAlign: 'center', padding: '7px 4px', borderRadius: 9, border: '1px solid var(--line)',
+            background: 'var(--white)', color: 'var(--ink)', fontSize: 12.5, fontWeight: 700,
+            fontVariantNumeric: 'tabular-nums', outline: 'none' }} />
+      </div>
+    </div>
+  );
 }
 
 // Réglage générique (slider + stepper façon Canva) pour les panneaux gauche.

@@ -851,7 +851,11 @@
     "aiRolePhoto": "Fotozone",
     "photoZoneExists": "Diese Vorlage hat bereits eine Fotozone.",
     "chatNewChat": "Neue Unterhaltung",
-    "chatHint": "Beschreiben Sie, was Sie möchten"
+    "chatHint": "Beschreiben Sie, was Sie möchten",
+    "anchorText": "Textfeld verankern",
+    "anchor_top": "Oben verankern",
+    "anchor_middle": "Mittig verankern",
+    "anchor_bottom": "Unten verankern"
   },
   "composer": {
     "title": "Mit KI erstellen",

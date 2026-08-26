@@ -851,7 +851,11 @@
     "aiRolePhoto": "Photo zone",
     "photoZoneExists": "This template already has a photo zone.",
     "chatNewChat": "New conversation",
-    "chatHint": "Describe what you want"
+    "chatHint": "Describe what you want",
+    "anchorText": "Anchor text box",
+    "anchor_top": "Anchor to top",
+    "anchor_middle": "Anchor to middle",
+    "anchor_bottom": "Anchor to bottom"
   },
   "composer": {
     "title": "Compose with AI",
