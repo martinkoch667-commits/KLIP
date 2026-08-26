@@ -9,7 +9,7 @@ import ColorPicker from "@/components/ColorPicker";
 import NotificationBell from "@/components/NotificationBell";
 import { MiniTemplatePreview, type BgStyle } from "@/components/TemplateEditor";
 import { fontCssHref, CATALOG_FAMILIES } from "@/lib/fontCatalog";
-import { parseFontFile, groupFontFiles, type FontFamily } from "@/lib/fontFiles";
+import { parseFontFile, groupFontFiles, registerFontFamily, type FontFamily } from "@/lib/fontFiles";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -320,11 +320,21 @@ export default function StyleTemplatePage() {
         setBrandIconUrl(data.brand_icon_url ?? null);
         setBrandIconPreview(data.brand_icon_url ?? null);
         setExistingAssets(Array.isArray(data.brand_assets) ? data.brand_assets : []);
-        if (Array.isArray(data.brand_fonts)) setBrandFonts(data.brand_fonts as FontFamily[]);
+        // Les familles importées sont déclarées au navigateur AVANT l'aperçu :
+        // sans ça, la page rendait le nom de la police du client dans la police
+        // système, ce qui se lit comme « ma police n'a pas été enregistrée ».
+        const famsEnBase = Array.isArray(data.brand_fonts) ? (data.brand_fonts as FontFamily[]) : [];
+        setBrandFonts(famsEnBase);
+        for (const fam of famsEnBase) {
+          if (fam?.family && Array.isArray(fam.variants) && fam.variants.length) registerFontFamily(fam);
+        }
+        const famillesImportees = new Set(famsEnBase.map(f => f.family));
         if (data.font_family) setFontPrimary(data.font_family);
         if (data.font_secondary) setFontSecondary(data.font_secondary);
-        if (data.font_family) loadGoogleFont(data.font_family);
-        if (data.font_secondary) loadGoogleFont(data.font_secondary);
+        // Une police importée n'existe pas chez Google : la demander produisait
+        // un 404 à chaque ouverture de la page.
+        if (data.font_family && !data.font_primary_url && !famillesImportees.has(data.font_family)) loadGoogleFont(data.font_family);
+        if (data.font_secondary && !data.font_secondary_url && !famillesImportees.has(data.font_secondary)) loadGoogleFont(data.font_secondary);
         if (data.font_primary_url && data.font_family) {
           const styleId = "klip-custom-font-primary";
           if (!document.getElementById(styleId)) {
@@ -388,14 +398,25 @@ export default function StyleTemplatePage() {
   }, [fontSource, fontSearchSec, activeFontPrimary]);
 
   // ── File upload helper ───────────────────────────────────────────────────────
+  //
+  // Les échecs étaient renvoyés en `null` et personne ne les lisait : un fichier
+  // de police refusé par le stockage (type MIME inconnu, quota, règle d'accès)
+  // faisait enregistrer la charte SANS sa police, et l'écran annonçait quand
+  // même « charte mise à jour ». D'où l'impression que l'enregistrement ne
+  // marche pas alors qu'il marche : c'est le fichier qui n'est jamais parti.
+  const echecsTeleversement = useRef<string[]>([]);
   async function uploadFile(file: File, bucket: string): Promise<string | null> {
     if (!file.size) return null;
     const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return null;
+    if (!user) { echecsTeleversement.current.push(`${file.name} : session expirée`); return null; }
     const ext = file.name.split(".").pop();
     const path = `${user.id}/${crypto.randomUUID()}.${ext}`;
     const { error } = await supabase.storage.from(bucket).upload(path, file);
-    if (error) return null;
+    if (error) {
+      console.error(`[charte] téléversement refusé (${bucket}/${file.name})`, error);
+      echecsTeleversement.current.push(`${file.name} : ${error.message}`);
+      return null;
+    }
     return supabase.storage.from(bucket).getPublicUrl(path).data.publicUrl;
   }
 
@@ -444,6 +465,7 @@ export default function StyleTemplatePage() {
   // ── Save charte ──────────────────────────────────────────────────────────────
   async function handleSaveCharte() {
     setSaving(true);
+    echecsTeleversement.current = [];
     try {
       await fetch("/api/ensure-buckets", { method: "POST" }).catch(() => {});
 
@@ -533,7 +555,34 @@ export default function StyleTemplatePage() {
       if (finalFontSecondaryUrl) updates.font_secondary_url = finalFontSecondaryUrl;
       if (nouvellesFamilles.length) updates.brand_fonts = famillesFinales;
 
-      await supabase.from("workspaces").update(updates).eq("id", id);
+      // L'ENREGISTREMENT DOIT DIRE LA VÉRITÉ.
+      //
+      // Le résultat de l'`update` n'était jamais lu, et il n'y avait pas de
+      // `catch` : une règle d'accès qui refuse, une colonne absente, une session
+      // expirée — dans tous les cas le code enchaînait sur « Charte mise à jour ✓ »
+      // et la personne repartait en croyant avoir enregistré. C'est la raison
+      // pour laquelle ce défaut a pu durer : l'application affirmait le contraire
+      // de ce qui s'était passé.
+      let { error: errUpdate } = await supabase.from("workspaces").update(updates).eq("id", id);
+
+      // `brand_fonts` (migration 017) peut manquer sur une base qui n'a pas été
+      // migrée. Sans ce repli, une colonne absente ferait échouer TOUT
+      // l'enregistrement — couleurs et textes compris — pour une histoire de
+      // graisses. On réessaie sans elle et on le dit.
+      let famillesPerdues = false;
+      if (errUpdate && /brand_fonts/i.test(`${errUpdate.message} ${errUpdate.details ?? ""}`)) {
+        console.error("[charte] colonne brand_fonts absente : migration 017 non appliquée", errUpdate);
+        const sansFamilles = { ...updates };
+        delete sansFamilles.brand_fonts;
+        ({ error: errUpdate } = await supabase.from("workspaces").update(sansFamilles).eq("id", id));
+        famillesPerdues = !errUpdate;
+      }
+
+      if (errUpdate) {
+        console.error("[charte] enregistrement refusé", errUpdate);
+        showToast(`Enregistrement refusé : ${errUpdate.message}`);
+        return;
+      }
 
       // Sync state
       setWorkspaceName(name.trim() || workspaceName);
@@ -543,7 +592,16 @@ export default function StyleTemplatePage() {
       if (finalBrandIconUrl !== brandIconUrl)   { setBrandIconUrl(finalBrandIconUrl); setBrandIconPreview(finalBrandIconUrl); setBrandIconFile(null); }
       if (newAssetUrls.length) { setExistingAssets(p => [...p, ...newAssetUrls]); setAssetFiles([]); setAssetPreviews([]); }
 
-      showToast(t('charteUpdatedToast'));
+      if (echecsTeleversement.current.length) {
+        showToast(`Charte enregistrée, mais ${echecsTeleversement.current.length} fichier(s) refusé(s) : ${echecsTeleversement.current[0]}`);
+      } else if (famillesPerdues) {
+        showToast("Charte enregistrée, mais les graisses n'ont pas pu l'être : la base n'a pas la colonne brand_fonts.");
+      } else {
+        showToast(t('charteUpdatedToast'));
+      }
+    } catch (e) {
+      console.error("[charte] erreur pendant l'enregistrement", e);
+      showToast(`Erreur pendant l'enregistrement : ${e instanceof Error ? e.message : String(e)}`);
     } finally {
       setSaving(false);
     }
