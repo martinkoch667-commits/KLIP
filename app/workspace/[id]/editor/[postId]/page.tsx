@@ -1470,28 +1470,6 @@ function EditorContextToolbar({ sel, fontGroups, brandFamilies, brandColors, sta
     onUpdate((recale.y !== textSel.y ? { ...patch, y: recale.y } : patch) as Partial<CanvasEl>);
   };
 
-  /** Un réglage chiffré : intitulé, curseur, et champ de saisie exacte. */
-  const ReglageNombre = ({ label, value, min, max, step, decimales, onChange }:
-    { label: string; value: number; min: number; max: number; step: number; decimales: number; onChange: (v: number) => void }) => (
-    <div style={{ marginBottom: 12 }}>
-      <div className="label" style={{ marginBottom: 7 }}>{label}</div>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-        <input type="range" min={min} max={max} step={step} value={value}
-          onChange={e => onChange(parseFloat(e.target.value))}
-          className="ed-range" style={{ flex: 1, ...rangeFill(value, min, max) }} />
-        <input type="number" min={min} max={max} step={step} value={Number(value.toFixed(decimales))}
-          onChange={e => {
-            const v = parseFloat(e.target.value);
-            // Un champ vidé ne doit pas écrire NaN dans le document.
-            if (Number.isFinite(v)) onChange(Math.min(max, Math.max(min, v)));
-          }}
-          style={{ width: 62, textAlign: 'center', padding: '7px 4px', borderRadius: 9, border: '1px solid var(--line)',
-            background: 'var(--white)', color: 'var(--ink)', fontSize: 12.5, fontWeight: 700,
-            fontVariantNumeric: 'tabular-nums', outline: 'none' }} />
-      </div>
-    </div>
-  );
-
   const toggleDecoration = (flag: 'underline' | 'line-through') => {
     if (!textSel) return;
     const cur = textSel.textDecoration ?? '';
@@ -1651,11 +1629,16 @@ function EditorContextToolbar({ sel, fontGroups, brandFamilies, brandColors, sta
               ? <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M4 6h16M10 12h10M7 18h13"/></svg>
               : <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M4 6h16M4 12h10M4 18h13"/></svg>
           } />
-        {/* Spacing (line-height + letter-spacing) */}
+        {/* ESPACEMENT — bouton LIBELLÉ, comme « Effet », « Animer » et « Position ».
+            Il n'avait qu'une icône de lignes et de points, que personne ne
+            reconnaissait : Martin l'a prise pour une liste à puces et a conclu
+            que le réglage n'existait pas. Une icône seule pour une fonction
+            qu'on cherche par son nom est une fonction cachée. */}
         <div style={{ position: 'relative' }}>
-          <IBtn title={T('spacing')} on={pop === 'spacing'}
-            onClick={() => setPop(p => p === 'spacing' ? null : 'spacing')}
-            icon={<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M8 6h13M8 12h13M8 18h13M3 6v.01M3 12v.01M3 18v.01"/></svg>} />
+          <TextBtn on={pop === 'spacing'} onClick={() => setPop(p => p === 'spacing' ? null : 'spacing')}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M8 6h13M8 12h13M8 18h13M3 6v.01M3 12v.01M3 18v.01"/></svg>
+            {T('spacing')}
+          </TextBtn>
           {pop === 'spacing' && (
             <div {...popAttrs({ width: 268 })}>
               {/* Curseur ET champ chiffré : le curseur pour chercher, le champ
@@ -2094,6 +2077,37 @@ function PanelHead({ title, sub, onClose }: { title: string; sub?: string; onClo
 function rangeFill(v: number, min: number, max: number): React.CSSProperties {
   const pct = Math.max(0, Math.min(100, ((v - min) / (max - min)) * 100));
   return { background: `linear-gradient(to right, var(--mint-2) ${pct}%, var(--sunk) ${pct}%)` };
+}
+
+/**
+ * Un réglage chiffré : intitulé, curseur, et champ de saisie exacte.
+ *
+ * Défini AU NIVEAU MODULE et non dans le rendu de la barre d'outils : un
+ * composant recréé à chaque rendu est un nouveau type pour React, qui démonte
+ * et remonte le champ — le curseur de saisie sautait donc à chaque frappe et il
+ * devenait impossible de taper une valeur à deux chiffres.
+ */
+function ReglageNombre({ label, value, min, max, step, decimales, onChange }:
+  { label: string; value: number; min: number; max: number; step: number; decimales: number; onChange: (v: number) => void }) {
+  return (
+    <div style={{ marginBottom: 12 }}>
+      <div className="label" style={{ marginBottom: 7 }}>{label}</div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        <input type="range" min={min} max={max} step={step} value={value}
+          onChange={e => onChange(parseFloat(e.target.value))}
+          className="ed-range" style={{ flex: 1, ...rangeFill(value, min, max) }} />
+        <input type="number" min={min} max={max} step={step} value={Number(value.toFixed(decimales))}
+          onChange={e => {
+            const v = parseFloat(e.target.value);
+            // Un champ vidé ne doit pas écrire NaN dans le document.
+            if (Number.isFinite(v)) onChange(Math.min(max, Math.max(min, v)));
+          }}
+          style={{ width: 62, textAlign: 'center', padding: '7px 4px', borderRadius: 9, border: '1px solid var(--line)',
+            background: 'var(--white)', color: 'var(--ink)', fontSize: 12.5, fontWeight: 700,
+            fontVariantNumeric: 'tabular-nums', outline: 'none' }} />
+      </div>
+    </div>
+  );
 }
 
 // Réglage générique (slider + stepper façon Canva) pour les panneaux gauche.
