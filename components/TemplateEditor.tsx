@@ -14,6 +14,7 @@ import {
 import useImage from 'use-image';
 import ColorPicker from '@/components/ColorPicker';
 import SelectionOverlay from '@/components/SelectionOverlay';
+import { fontCssHref, CATALOG_FAMILIES } from '@/lib/fontCatalog';
 
 // ─── Types (same as editor) ───────────────────────────────────────────────────
 
@@ -57,12 +58,7 @@ export interface TemplateDraft {
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-const FONTS = [
-  'Anton', 'Oswald', 'Bebas Neue', 'Montserrat', 'Syne', 'Inter', 'Poppins',
-  'Barlow Condensed', 'Raleway', 'Roboto Condensed', 'Playfair Display', 'Lato',
-  'Nunito', 'Work Sans', 'DM Sans', 'Space Grotesk', 'Archivo Black',
-  'Fjalla One', 'Exo 2', 'Ubuntu',
-];
+const FONTS = CATALOG_FAMILIES;
 
 const FORMATS = [
   { id: 'ig-portrait', label: 'Portrait 3:4', sub: '1080×1440', w: 420, h: 560 },
@@ -499,16 +495,19 @@ export default function TemplateEditor({
 
   // ── Load Google Fonts ──────────────────────────────────────────────────────
   useEffect(() => {
-    const fonts = ['Oswald', 'Anton', 'Bebas+Neue', 'Montserrat', 'Syne', 'Inter', 'Poppins', 'Work+Sans', 'DM+Sans', 'Space+Grotesk'];
+    // Les noms portaient un « + » de vieille URL Google : passés au catalogue,
+    // ils ne correspondaient plus à aucune famille. Vrais noms, et le lot d'amorce
+    // suit le catalogue maison plutôt que le haut du classement Google.
+    const fonts = ['Satoshi', 'Switzer', 'Clash Display', 'Cabinet Grotesk', 'General Sans', 'Zodiak', 'Boska', 'Instrument Serif', 'Anton', 'Archivo'];
     fonts.forEach(font => {
       const link = document.createElement('link');
-      link.href = `https://fonts.googleapis.com/css2?family=${font}:wght@400;700;900&display=swap`;
+      link.href = fontCssHref(font);
       link.rel = 'stylesheet';
       document.head.appendChild(link);
     });
     if (fontFamily && !fonts.some(f => f.replace('+', ' ') === fontFamily)) {
       const link = document.createElement('link');
-      link.href = `https://fonts.googleapis.com/css2?family=${fontFamily.replace(/ /g, '+')}:wght@400;700;900&display=swap`;
+      link.href = fontCssHref(fontFamily);
       link.rel = 'stylesheet';
       document.head.appendChild(link);
     }

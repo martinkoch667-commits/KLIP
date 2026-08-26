@@ -11,6 +11,7 @@ import {
 } from "@/app/workspace/[id]/montage/[postId]/constants";
 import Step5Templates from "./step5";
 import { parseFontFile, groupFontFiles, type FontFamily } from "@/lib/fontFiles";
+import { fontCssHref } from "@/lib/fontCatalog";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -59,7 +60,7 @@ function loadGoogleFont(family: string) {
   _gfLoaded.add(family);
   const link = document.createElement("link");
   link.rel = "stylesheet";
-  link.href = `https://fonts.googleapis.com/css2?family=${family.replace(/ /g, "+")}&display=swap`;
+  link.href = fontCssHref(family);
   document.head.appendChild(link);
 }
 

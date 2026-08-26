@@ -44,3 +44,6 @@ next-env.d.ts
 
 # Design reference / local assets
 design-reference/
+
+# Photos clientes du banc de design : locales, jamais livrées
+/public/banc-photos/

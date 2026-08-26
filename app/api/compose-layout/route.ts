@@ -6,8 +6,9 @@ import { openToken } from '@/lib/token-crypto';
 import { LAYOUT_LIBRARY, type Slot, type Accent } from '@/lib/layoutLibrary';
 import {
   pickDesignCandidates, describeDesignCandidates, findDesignRecipe,
-  sanitizeFields, buildDesignElements,
+  sanitizeFields, buildDesignElements, resolveFonts,
 } from '@/lib/designSystem';
+import { pickColorway } from '@/lib/colorway';
 
 // Diriger un visuel prend plus que les 10 s par défaut d'une fonction Vercel :
 // le modèle regarde la photo, les références, et réfléchit. Sans cette ligne,
@@ -206,7 +207,18 @@ export async function POST(request: NextRequest) {
         roles: (t.blocks ?? []).map((b: { role: string }) => b.role),
       };
     });
-    const libCandidates = LAYOUT_LIBRARY.map(r => ({ id: r.id, desc: r.desc, anchor: r.anchor, roles: r.slots.map(s => s.role) }));
+    // LA BIBLIOTHÈQUE N'EST PLUS PROPOSÉE.
+    //
+    // Ses vingt-deux recettes ne savent qu'une chose : poser du texte sur une
+    // photo, éventuellement dans un cartouche. C'est exactement ce que Martin
+    // rejette — « ça fait template, il n'y a rien d'exploitable » — et les trois
+    // essais qui l'ont fait remonter venaient tous de là ou de leurs cousines.
+    // Le système de design couvre désormais les mêmes intentions (`ds-mot-deborde`,
+    // `ds-manuscrit-coin`, `ds-affiche-cinema` pour le minimalisme, `ds-mots-escalier`
+    // pour les blocs empilés) en dessinant vraiment quelque chose.
+    //
+    // `LAYOUT_LIBRARY` reste importée : `geomFor` doit continuer à résoudre les
+    // `recipeId` déjà enregistrés en base. On cesse simplement de les OFFRIR.
 
     // LE SYSTÈME DE DESIGN.
     //
@@ -233,7 +245,7 @@ export async function POST(request: NextRequest) {
       // Volontairement plus petit que la réserve disponible : si on présentait
       // presque tout le catalogue à chaque appel, la rotation ne ferait plus
       // tourner grand-chose et on retomberait sur les mêmes.
-      count: 14,
+      count: 16,
       seed: (Date.now() >>> 6) ^ (workspaceId ? String(workspaceId).length * 2654435761 : 0),
     });
     const designCandidates = describeDesignCandidates(designPool);
@@ -244,31 +256,30 @@ export async function POST(request: NextRequest) {
       '',
       identity ? `LA MARQUE POUR QUI TU TRAVAILLES :\n${identity}\n\nCette identité doit se VOIR dans ta composition, pas seulement dans les mots. Une marque sobre ne prend pas la mise en page la plus tapageuse ; une marque directe ne prend pas la plus timide. Choisis la composition qui RESSEMBLE à ce client, et un alignement qui va avec son caractère — le centré est solennel, le drapeau à gauche est éditorial et moderne.` : '',
       identity ? '' : '',
-      'ANALYSE la photo : où est le sujet/point focal ? quelles zones sont CALMES (pour le texte) ? haut/bas/centre clair ou sombre ?',
+      'ANALYSE la photo D\'ABORD, et dis-toi où est le sujet : en haut, au centre, en bas ? Quelles zones sont CALMES (fond uni, flou, matière) ? Sur un plan produit, le sujet est presque toujours au centre et le calme est en haut. Sur une photo prise au téléphone, il n\'y a souvent AUCUNE zone calme.',
+      'CHAQUE COMPOSITION ANNONCE SA ZONE (champ "zone") : où elle pose son texte sur la photo. C\'est le premier filtre, avant le style : une composition qui écrit dans le haut est fausse sur une photo dont le sujet est en haut, quelle que soit sa beauté. Écarte d\'abord toutes celles dont la zone tombe sur le sujet, choisis ensuite parmi le reste. Si la photo n\'a aucune zone calme, prends une composition « hors-photo » : son texte est sur un aplat ou dans une carte, il ne dépend pas de l\'image.',
+      'ATTENTION AUX LOGOS ET BADGES DÉJÀ PRÉSENTS DANS LA PHOTO (pastille de marque, mention, filigrane) : ils occupent une zone comme le ferait un sujet. Poser un rail de marque par-dessus le badge du client est le genre de détail qui trahit un visuel fabriqué.',
       'Toutes les compositions ne posent pas le texte NU sur la photo : certaines utilisent la couleur de la marque comme MATIÈRE (cartouche, bandeau plein, pastille, filet). Sur une photo chargée, ou pour une marque affirmée, elles valent mieux qu\'un simple voile noir — et ce sont elles qui donnent au visuel un air de marque plutôt qu\'une légende posée sur une image.',
       'PRINCIPES (veille design social) : règle des tiers & lecture en Z (haut-gauche -> bas-droite) ; ne place jamais le texte sur le sujet/visage ; hiérarchie claire (titre dominant) ; centré UNIQUEMENT pour une phrase courte, sinon aligné à gauche ; contraste fort ; respiration (marges).',
       '',
       'CANDIDATS DE MISE EN PAGE (tu DOIS en choisir, tu n\'inventes pas de coordonnées) :',
       'A) Templates du client (à privilégier pour rester dans son univers) :',
       JSON.stringify(tplCandidates),
-      'B) Bibliothèque de layouts simples (texte posé sur la photo) :',
-      JSON.stringify(libCandidates),
       '',
-      'C) SYSTÈME DE DESIGN — des compositions ENTIÈRES, déjà dessinées (aplats, cadres, pastilles, filets, flèches, cartes, typographies qui se répondent). C\'est ici que vivent les codes visuels réellement en usage sur Instagram aujourd\'hui. Chaque recette liste ses CHAMPS : tu écris le texte de chacun, en respectant la longueur maximale — le dessin a été fait POUR cette longueur, un texte trop long le casse.',
+      'B) SYSTÈME DE DESIGN — des compositions ENTIÈRES, déjà dessinées (aplats, cadres, pastilles, filets, flèches, cartes, typographies qui se répondent). C\'est ici que vivent les codes visuels réellement en usage sur Instagram aujourd\'hui. Chaque recette liste ses CHAMPS : tu écris le texte de chacun, en respectant la longueur maximale — le dessin a été fait POUR cette longueur, un texte trop long le casse.',
       JSON.stringify(designCandidates),
       '',
       approved.length > 0 ? `Posts déjà validés par le client (ce qui lui plaît) : ${JSON.stringify(approved)}` : '',
       instaRefs.length > 0 ? `LES ${instaRefs.length} DERNIÈRES IMAGES DU COMPTE INSTAGRAM SONT JOINTES APRÈS LA PHOTO À HABILLER. Elles montrent ce que la marque publie déjà : densité de texte, place du sujet, rapport au vide, façon d'utiliser la couleur. Ta composition doit pouvoir se poser à côté d'elles sans détonner — même famille visuelle, sans les copier. La PREMIÈRE image jointe est la photo à habiller ; les suivantes ne sont que des références.` : '',
       textList.length ? `Textes à utiliser :\n${textList.map((t, i) => `${i + 1}. "${t}"`).join('\n')}` : 'Aucun texte fourni : rédige un titre court (≤6 mots) + éventuel sous-titre, cohérents avec la photo.',
       '',
-      'Choisis les 3 MEILLEURES compositions. Pour une recette A ou B : remplis chaque slot (rôle->texte), choisis une couleur de charte par slot (contraste avec le fond), décide du scrim. Pour une recette C : remplis "fields" avec la clé de CHAQUE champ de la recette — les couleurs, les tailles et les positions sont déjà décidées par le dessin, tu n\'y touches pas.',
-      'PRIVILÉGIE le système de design (C). Une composition dessinée — avec ses aplats, ses pastilles, sa typographie qui joue — ressemble à ce que publient les comptes soignés ; du texte blanc posé sur une photo ressemble à tout le monde. Ne prends une recette B que si la photo est vraiment le sujet et qu\'elle se suffit à elle-même.',
+      'Choisis les 3 MEILLEURES compositions. Pour un template A : remplis chaque slot (rôle->texte), choisis une couleur de charte par slot (contraste avec le fond), décide du scrim. Pour une recette B : remplis "fields" avec la clé de CHAQUE champ de la recette — les couleurs, les tailles et les positions sont déjà décidées par le dessin, tu n\'y touches pas.',
       'ÉCRIS COMME LA MARQUE PARLE, pas comme une brochure. Phrases courtes, verbes concrets, aucune formule creuse (« au service de votre réussite », « l\'excellence au quotidien »). Un champ « max 14 caractères » veut dire UN ou DEUX mots, pas une phrase raccourcie.',
       preferred.length ? `CE QUE CE CLIENT A DÉJÀ RETENU, quand on lui a proposé plusieurs mises en page : ${preferred.join(', ')}. C'est son goût OBSERVÉ, pas une règle : privilégie ces directions quand elles conviennent à cette photo, et écarte-les franchement quand elles ne conviennent pas.` : '',
-      'DÉCOUPER LE TITRE EN PLUSIEURS BLOCS est une composition à part entière, souvent la plus forte : au lieu d\'un pavé de deux lignes, tu écris chaque ligne dans SON bloc (« Pause midi » / « au Shadok »), chacun avec son propre aplat. Les cartouches épousent alors la longueur de chaque ligne et créent un décroché d\'affiche. Coupe au bon endroit — là où la phrase respire naturellement, jamais au milieu d\'un groupe de mots. Les recettes « lib-stack-* » sont faites pour ça.',
+      'ÉCRIS COURT. Le calibre du titre est décidé par le dessin, mais c\'est TA longueur de texte qui décide s\'il sera grand ou minuscule : trois mots remplissent la colonne, douze la réduisent à du corps de texte. Quand un champ annonce « max 42 caractères », vise la moitié.',
       hasPhotoForDesign ? 'UNE PHOTO EST FOURNIE : au moins DEUX des trois propositions doivent l\'utiliser. La personne a importé cette image pour la voir dans son visuel — une composition purement typographique la jette, ce n\'est acceptable qu\'en troisième proposition et seulement si elle est franchement meilleure.' : 'AUCUNE PHOTO : ne choisis que des compositions qui n\'en demandent pas.',
-      'Les trois propositions doivent venir de FAMILLES DIFFÉRENTES et ne pas se ressembler de loin : si on les met côte à côte en vignette, on doit voir trois visuels distincts, pas trois cadrages du même. Deux recettes C au minimum. Du texte blanc sur voile noir est le rendu par défaut de n\'importe quelle marque : jamais deux fois, et jamais s\'il existe une composition dessinée qui convient.',
-      'Préfère TOUJOURS un template maison du client quand il peut accueillir ce contenu : le choisir applique son dessin complet — son fond, ses aplats, ses couleurs, ses formes — donc le visuel ressemble immédiatement à cette marque. Ne prends une recette de la bibliothèque que si aucun template ne convient. Évite de placer le texte sur le sujet.',
+      'Les trois propositions doivent venir de FAMILLES DIFFÉRENTES et ne pas se ressembler de loin : si on les met côte à côte en vignette, on doit voir trois visuels distincts, pas trois cadrages du même.',
+      'Préfère un template maison du client quand il peut accueillir ce contenu : le choisir applique son dessin complet — son fond, ses aplats, ses couleurs, ses formes — donc le visuel ressemble immédiatement à cette marque. Évite de placer le texte sur le sujet.',
       '',
       recentIds.length ? `DÉJÀ SERVI RÉCEMMENT À CE CLIENT (à ne pas reprendre, son fil deviendrait répétitif) : ${recentIds.join(', ')}.` : '',
       // Un parti pris formulé AVANT les choix : ça oblige à décider d'une direction
@@ -278,8 +289,8 @@ export async function POST(request: NextRequest) {
       '',
       'Réponds UNIQUEMENT avec ce JSON :',
       '{ "rationale": "<ton parti pris en une phrase>", "picks": [',
-      '  { "source": "design", "id": "<id d\'une recette C>", "fields": { "<cle du champ>": "<texte>", "...": "..." } },',
-      '  { "source": "template"|"library", "id": "<id candidat A ou B>", "slots": [ { "role": "titre"|"sous-titre"|"cta", "text": "...", "color": "primary"|"secondary"|"accent"|"white"|"black", "uppercase": boolean } ], "scrim": { "position": "bottom"|"top"|"none", "opacity": number } }',
+      '  { "source": "design", "id": "<id d\'une recette B>", "fields": { "<cle du champ>": "<texte>", "...": "..." } },',
+      '  { "source": "template", "id": "<id d\'un template A>", "slots": [ { "role": "titre"|"sous-titre"|"cta", "text": "...", "color": "primary"|"secondary"|"accent"|"white"|"black", "uppercase": boolean } ], "scrim": { "position": "bottom"|"top"|"none", "opacity": number } }',
       '] }',
     ].filter(Boolean).join('\n');
 
@@ -378,7 +389,18 @@ export async function POST(request: NextRequest) {
       body: (wsRow?.font_secondary as string | undefined) ?? null,
       name: (wsRow?.name as string | undefined) ?? null,
       handle: wsRow?.instagram_username ? `@${String(wsRow.instagram_username).replace(/^@/, '')}` : null,
+      // Secteur et ton choisissent l'IDENTITÉ TYPOGRAPHIQUE de la marque. Sans
+      // eux, `resolveFonts` retombe sur la même pour tout le monde, et les
+      // cinquante compositions se ressemblent par la typo faute de se
+      // ressembler par le dessin.
+      sector: (wsRow?.sector as string | undefined) ?? null,
+      tone: (wsRow?.tone as string | undefined) ?? null,
     };
+    // Ce que la marque devient typographiquement, dit en clair dans le journal
+    // de génération : c'est le seul endroit où l'utilisateur peut constater que
+    // deux clients ne reçoivent pas la même typo.
+    const identiteTypo = resolveFonts(brandForDesign).ident;
+    const terrain = pickColorway({ name: brandForDesign.name, sector: brandForDesign.sector, tone: brandForDesign.tone });
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const layouts = picks.slice(0, 3).map((pick: any) => {
@@ -444,6 +466,9 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       layouts,
       ...(rationale ? { rationale } : {}),
+      // L'identité typographique de la marque, pour le journal de génération.
+      typo: { id: identiteTypo.id, name: identiteTypo.name, note: identiteTypo.note },
+      terrain: { id: terrain.id, name: terrain.name, note: terrain.note },
       refs: { templates: tpls.length, approved: approved.length, instagram: instaRefs.length },
     });
   } catch (e) {

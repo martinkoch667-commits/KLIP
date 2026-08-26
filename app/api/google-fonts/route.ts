@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { FONT_CATALOG, CATALOG_FAMILIES } from "@/lib/fontCatalog";
 
 // Cache the font list for 24 h at the CDN / ISR level
 export const revalidate = 86400;
@@ -8,14 +9,19 @@ export interface GFont {
   category: string;
 }
 
-// Fallback list served when GOOGLE_FONTS_API_KEY is not set (local dev)
-const FALLBACK_FONTS: GFont[] = [
-  "Anton","Archivo Black","Barlow Condensed","Bebas Neue","DM Sans",
-  "Exo 2","Fjalla One","Inter","Josefin Sans","Lato","Merriweather",
-  "Montserrat","Nunito","Oswald","Outfit","Playfair Display",
-  "Plus Jakarta Sans","Poppins","Raleway","Roboto Condensed","Rubik",
-  "Space Grotesk","Syne","Ubuntu","Work Sans",
-].map(f => ({ family: f, category: "sans-serif" }));
+// LE CATALOGUE MAISON D'ABORD.
+//
+// Cette route renvoyait la liste Google triée par popularité : le sélecteur de
+// charte ouvrait donc sur Roboto, Open Sans, Montserrat, Lato — exactement les
+// polices qui font qu'un visuel « sent l'IA ». Les familles retenues par KLIP
+// (dont les Fontshare, absentes de chez Google) passent devant ; la liste
+// Google complète reste dessous, pour la charte qui nomme une police précise.
+const CATALOG_LIST: GFont[] = CATALOG_FAMILIES.map(family => ({
+  family,
+  category: FONT_CATALOG[family].gestures[0] ?? "sans-serif",
+}));
+
+const FALLBACK_FONTS: GFont[] = CATALOG_LIST;
 
 export async function GET() {
   const apiKey = process.env.GOOGLE_FONTS_API_KEY;
@@ -38,12 +44,12 @@ export async function GET() {
       items: Array<{ family: string; category: string }>;
     };
 
-    const fonts: GFont[] = raw.items.map((f) => ({
-      family: f.family,
-      category: f.category,
-    }));
+    const deja = new Set(CATALOG_FAMILIES.map(f => f.toLowerCase()));
+    const google: GFont[] = raw.items
+      .filter((f) => !deja.has(f.family.toLowerCase()))
+      .map((f) => ({ family: f.family, category: f.category }));
 
-    return NextResponse.json(fonts);
+    return NextResponse.json([...CATALOG_LIST, ...google]);
   } catch (err) {
     console.error("[google-fonts]", err);
     return NextResponse.json(FALLBACK_FONTS);

@@ -15,6 +15,8 @@
 // Le module ne connaît ni React ni Supabase : il prend une photo et une mise en
 // page, il rend une image.
 
+import { fontCssHrefs } from './fontCatalog';
+
 export interface RenderBlock {
   text: string;
   role?: string;
@@ -361,7 +363,7 @@ export function renderElementSpecs(els: Record<string, unknown>[], w: number, h:
 
     } else if (type === 'text') {
       const size = Math.max(11, n(e.fontSize, 20));
-      const weight = s(e.fontStyle) === 'bold' ? '700' : '400';
+      const weight = poidsDe(s(e.fontStyle));
       ctx.font = `${weight} ${size}px "${s(e.fontFamily, 'Archivo')}", system-ui, sans-serif`;
       ctx.fillStyle = s(e.fill, '#FFFFFF');
       ctx.textBaseline = 'top';
@@ -394,16 +396,37 @@ export function renderElementSpecs(els: Record<string, unknown>[], w: number, h:
 // le Composer retombait sur la photo brute et l'utilisateur ne voyait le vrai
 // visuel qu'en ouvrant l'éditeur — donc il ne le voyait presque jamais.
 
-/** Demande les feuilles de style Google manquantes, puis attend les polices. */
+/** Rôles dont le texte se CALE sur sa mesure au lieu de flotter dedans.
+ *  Même liste que l'éditeur : les deux moteurs doivent grossir les mêmes blocs. */
+const ROLES_QUI_REMPLISSENT = new Set(['titre', 'accroche', 'prix']);
+
+/**
+ * Graisse CSS d'un `fontStyle` de calque.
+ *
+ * L'éditeur écrit une graisse NUMÉRIQUE (« italic 800 ») dès que la famille en
+ * publie plusieurs — Konva l'accepte, c'est du CSS valide. L'aperçu, lui, ne
+ * connaissait que « bold » : un titre réglé sur 800 ou sur 300 se dessinait en
+ * 400, donc l'aperçu ne montrait pas le visuel qu'on venait de valider. Et sans
+ * ça, une identité typographique par marque ne peut pas exister : c'est la
+ * graisse qui sépare un titre de mode d'un titre de burger.
+ */
+function poidsDe(style: string): string {
+  const num = String(style ?? '').match(/[1-9]00|1000/)?.[0];
+  if (num) return num;
+  return String(style ?? '').includes('bold') ? '700' : '400';
+}
+
+/** Demande les feuilles de style manquantes, puis attend les polices.
+ *  Le fournisseur vient du catalogue : une famille Fontshare demandée à Google
+ *  ne renvoie rien et le texte sort en police système, sans erreur visible. */
 export async function ensureFonts(families: string[], limiteMs = 2500): Promise<void> {
   if (typeof document === 'undefined') return;
   const uniques = Array.from(new Set(families.filter(Boolean)));
-  for (const f of uniques) {
-    const cle = `gf-${f.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`;
-    if (document.getElementById(cle)) continue;
+  for (const { id, href } of fontCssHrefs(uniques)) {
+    if (document.getElementById(id)) continue;
     const lnk = document.createElement('link');
-    lnk.id = cle; lnk.rel = 'stylesheet';
-    lnk.href = `https://fonts.googleapis.com/css2?family=${encodeURIComponent(f).replace(/%20/g, '+')}:ital,wght@0,400;0,700;1,400;1,700&display=swap`;
+    lnk.id = id; lnk.rel = 'stylesheet';
+    lnk.href = href;
     document.head.appendChild(lnk);
   }
   if (!document.fonts) return;
@@ -589,7 +612,7 @@ export async function renderTemplateVisual(input: TemplateRenderInput): Promise<
     } else if (type === 'text') {
       const size = Math.max(9, n(e.fontSize, 24) * sf);
       const style = st(e.fontStyle, 'normal');
-      const weight = style.includes('bold') ? '700' : '400';
+      const weight = poidsDe(style);
       const italic = style.includes('italic') ? 'italic ' : '';
       const family = st(e.fontFamily, 'Archivo');
       const track = n(e.letterSpacing) * sf;
@@ -616,6 +639,30 @@ export async function renderTemplateVisual(input: TemplateRenderInput): Promise<
         ctx.font = `${italic}${weight} ${taille}px "${family}", system-ui, sans-serif`;
         lines = txt.split('\n').flatMap(part => wrap(ctx, part, width));
       }
+
+      // REMPLIR LA MESURE — le pendant du grossissement de l'éditeur
+      // (`autoFitFontSize`). Sans lui, l'aperçu montrerait un titre calé sur sa
+      // colonne et le fichier ouvert ensuite un titre flottant, ou l'inverse :
+      // les deux moteurs doivent appliquer la MÊME règle typographique, sinon
+      // l'aperçu ment. Mêmes garde-fous : le nombre de lignes prévu, une hauteur
+      // qui ne dépasse pas d'un tiers celle qui était réservée, 1,6 × au plus.
+      if (ROLES_QUI_REMPLISSENT.has(st(e.role)) && !deborde()) {
+        const budget = maxLines * size * 1.34;
+        const plafond = Math.round(size * 1.6);
+        const pas = Math.max(1, Math.round(size * 0.05));
+        const poserTaille = (t: number) => {
+          try { (ctx as unknown as { letterSpacing: string }).letterSpacing = `${(n(e.letterSpacing) * sf * t) / size}px`; } catch { /* noop */ }
+          ctx.font = `${italic}${weight} ${t}px "${family}", system-ui, sans-serif`;
+          return txt.split('\n').flatMap(part => wrap(ctx, part, width));
+        };
+        for (let t = taille + pas; t <= plafond; t += pas) {
+          const essai = poserTaille(t);
+          const tient = essai.length <= maxLines && essai.every(l => ctx.measureText(l).width <= width + 1);
+          if (tient && essai.length * t <= budget) { taille = t; lines = essai; } else break;
+        }
+        poserTaille(taille);
+      }
+
       lines = lines.slice(0, maxLines);
       const lh = taille * n(e.lineHeight, 1.15);
       // Konva centre chaque ligne dans sa hauteur d'interligne : sans ce demi-
@@ -626,7 +673,10 @@ export async function renderTemplateVisual(input: TemplateRenderInput): Promise<
 
       if (e.highlightEnabled) {
         const padH = n(e.highlightPadding, 8) * sf;
-        const padV = padH * 0.55;
+        // Un surlignage épouse la ligne : large sur les côtés, serré au-dessus et
+        // au-dessous. À 0,55 les blocs empilés se touchaient presque et la
+        // composition prenait l'air d'une pile de boutons.
+        const padV = padH * 0.38;
         const rad = n(e.highlightBorderRadius, 4) * sf;
         ctx.fillStyle = st(e.highlightColor, '#000000');
         const prev = ctx.globalAlpha;
