@@ -30,6 +30,8 @@ export interface MesuresPerf {
   imagesPerdues: number;
   imagesTotal: number;
   cadence: number;
+  definition: string;
+  coutCoupe: number;
 }
 
 /** Compte les rendus du composant qui l'appelle. À poser dans le corps. */
@@ -43,14 +45,18 @@ export function PerfHud({
   compteurRendus,
   dureeRenduRef,
   videoRef,
+  coutCoupeRef,
 }: {
   compteurRendus: React.MutableRefObject<number>;
   dureeRenduRef: React.MutableRefObject<number>;
   videoRef: () => HTMLVideoElement | null;
+  /** Millisecondes entre un changement de plan et la première image affichée du
+   *  nouveau. C'est LE nombre qui dit si la saccade vient du décodeur vidéo. */
+  coutCoupeRef?: React.MutableRefObject<number>;
 }) {
   const [m, setM] = useState<MesuresPerf>({
     rendus: 0, msRendu: 0, tachesLongues: 0, msBloquees: 0, piresTaches: "",
-    imagesPerdues: 0, imagesTotal: 0, cadence: 0,
+    imagesPerdues: 0, imagesTotal: 0, cadence: 0, definition: "?", coutCoupe: 0,
   });
   const [replie, setReplie] = useState(false);
 
@@ -91,6 +97,8 @@ export function PerfHud({
       derniersRendus = compteurRendus.current;
       const pires = [...taches].sort((a, b) => b.d - a.d).slice(0, 2).map((t) => `${t.d}ms ${t.nom}`).join(" · ");
       setM({
+        definition: v && v.videoWidth ? `${v.videoWidth}×${v.videoHeight}` : "?",
+        coutCoupe: Math.round(coutCoupeRef?.current ?? 0),
         rendus,
         msRendu: Math.round(dureeRenduRef.current * 10) / 10,
         tachesLongues: taches.length,
@@ -105,7 +113,7 @@ export function PerfHud({
     }, 1000);
 
     return () => { clearInterval(minuteur); cancelAnimationFrame(raf); obs?.disconnect(); };
-  }, [compteurRendus, dureeRenduRef, videoRef]);
+  }, [compteurRendus, dureeRenduRef, videoRef, coutCoupeRef]);
 
   const alerte = m.msBloquees > 120 || m.imagesPerdues > 2;
   const ligne = (nom: string, valeur: string, mauvais = false) => (
@@ -136,6 +144,8 @@ export function PerfHud({
           {ligne("fil bloqué", `${m.msBloquees} ms/s`, m.msBloquees > 120)}
           {ligne("images vidéo perdues", `${m.imagesPerdues} / ${m.imagesTotal}`, m.imagesPerdues > 2)}
           {ligne("images écran", `${m.cadence}/s`, m.cadence < 45)}
+          {ligne("définition rush", m.definition, /(\d{4,})×/.test(m.definition))}
+          {ligne("coupe → 1re image", `${m.coutCoupe} ms`, m.coutCoupe > 120)}
           {m.piresTaches && (
             <div style={{ marginTop: 6, paddingTop: 6, borderTop: "1px solid rgba(255,255,255,.14)", opacity: .8, fontSize: 10 }}>
               {m.piresTaches}

@@ -809,6 +809,9 @@ export default function MontagePage() {
   const [perf] = useState(() => typeof window !== "undefined" && new URLSearchParams(window.location.search).get("perf") === "1");
   const compteurRendus = useCompteurRendus(perf);
   const dureeRenduRef = useRef(0);
+  /** Coût réel d'un changement de plan : de la bascule à la première image
+   *  affichée du nouveau lecteur. Rempli seulement en mode mesure. */
+  const coutCoupeRef = useRef(0);
   /* Durée d'un rendu, mesurée SANS le Profiler de React : celui-ci ne rapporte
      rien dans une version de production, et c'est justement là qu'on mesure.
      On note l'heure en entrant dans le corps du composant, et on la relit dans
@@ -882,6 +885,9 @@ export default function MontagePage() {
   // vient de devenir actif » et le mettait en pause en le déplaçant sur le plan
   // suivant — d'où l'image bloquée en boucle sur deux frames.
   const activeSlotRef = useRef<0 | 1>(0);
+  /** Le plan qui était à l'antenne juste avant : sert à reconnaître une coulée
+   *  continue, c'est-à-dire une coupe qui ne demande aucun travail au lecteur. */
+  const clipPrecedentRef = useRef<(MontageClip & { start: number; end: number; dur: number }) | null>(null);
   const loadedSrcRef = useRef<string | null>(null);
   const overlayVideoRefs = useRef<Map<string, HTMLVideoElement>>(new Map());
   const scrubRef = useRef<HTMLDivElement>(null);
@@ -1691,8 +1697,14 @@ export default function MontagePage() {
     if (!activeClip || activeClip.kind !== "video") return;
     const els: (HTMLVideoElement | null)[] = [videoARef.current, videoBRef.current];
     let target: 0 | 1;
+    /* 0) LA MÊME COULÉE : le plan qui vient de finir et celui qui commence sont
+          le même fichier, bout à bout. On ne touche à rien — ni de lecteur, ni de
+          position. Le décodeur ne s'aperçoit même pas qu'on a changé de plan. */
+    const sansCouture = memeCoulee(clipPrecedentRef.current, activeClip)
+      && slotSrcRef.current[activeSlotRef.current] === activeClip.src;
+    if (sansCouture) target = activeSlotRef.current;
     // 1) un lecteur est déjà PRÊT pour ce plan (source chargée ET position atteinte)
-    if (slotClipRef.current[0] === activeClip.id) target = 0;
+    else if (slotClipRef.current[0] === activeClip.id) target = 0;
     else if (slotClipRef.current[1] === activeClip.id) target = 1;
     // 2) sinon, un lecteur a au moins la bonne source
     else if (slotSrcRef.current[slot] === activeClip.src) target = slot;
@@ -1718,18 +1730,49 @@ export default function MontagePage() {
     if (target !== slot) setSlot(target);
     v.playbackRate = activeClip.speed;
     const localTime = activeClip.trimStart + (time - activeClip.start) * activeClip.speed;
-    if (Math.abs(v.currentTime - localTime) > 0.35) v.currentTime = Math.max(0, localTime);
+    // Une coulée continue ne se recale JAMAIS : le moindre saut de position vide
+    // le tampon du décodeur et coûte une poignée d'images.
+    if (!sansCouture && Math.abs(v.currentTime - localTime) > 0.35) v.currentTime = Math.max(0, localTime);
     // La temporisation anti-rafale ne doit pas retarder le recalage d'un NOUVEAU
     // plan : sinon l'image restait figée jusqu'à une demi-seconde à chaque coupe.
     lastSeekRef.current = 0;
-    if (playing) v.play().catch(() => {});
-    els[target === 0 ? 1 : 0]?.pause(); // l'autre ne doit pas jouer en fond
+    if (perf) {
+      // `requestVideoFrameCallback` se déclenche quand le lecteur a VRAIMENT
+      // affiché une image : c'est la seule mesure honnête du coût d'une coupe.
+      const t0 = performance.now();
+      const rvfc = (v as HTMLVideoElement & { requestVideoFrameCallback?: (cb: () => void) => number }).requestVideoFrameCallback;
+      if (rvfc) rvfc.call(v, () => { coutCoupeRef.current = performance.now() - t0; });
+    }
+    if (playing && v.paused) v.play().catch(() => {});
+    if (!sansCouture) els[target === 0 ? 1 : 0]?.pause(); // l'autre ne doit pas jouer en fond
+    clipPrecedentRef.current = activeClip;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeClip?.id]);
+
+  /** Deux plans qui s'enchaînent SANS COUTURE : même fichier, même vitesse, et
+   *  le second reprend là où le premier s'arrête. C'est le cas le plus courant
+   *  d'un montage — un rush découpé en morceaux, par le prémontage ou à la main.
+   *  Le lecteur n'a alors strictement rien à faire à la coupe : il continue. */
+  function memeCoulee(
+    a: (MontageClip & { trimEnd: number }) | null | undefined,
+    b: (MontageClip & { trimStart: number }) | null | undefined,
+  ): boolean {
+    if (!a || !b || a.kind !== "video" || b.kind !== "video") return false;
+    if (a.src !== b.src || (a.speed || 1) !== (b.speed || 1)) return false;
+    return Math.abs(a.trimEnd - b.trimStart) < 0.05;
+  }
 
   // ── Précharge le plan suivant dans le lecteur libre, déjà positionné ─────────
   useEffect(() => {
     if (!nextClip) return;
+    /* SAUF si le plan suivant est la suite du plan courant dans le même fichier.
+
+       Préparer le lecteur libre le désignait alors comme « prêt », et la coupe
+       basculait dessus : on éteignait un décodeur qui tournait pour en démarrer
+       un froid, avec un saut de position, alors que la lecture n'avait qu'à
+       continuer. C'est exactement ce qui perdait des images à CHAQUE changement
+       de plan sur un rush découpé — c'est-à-dire à chaque coupe d'un prémontage. */
+    if (memeCoulee(activeClip, nextClip)) return;
     // `activeSlotRef` et non `slot` : au commit d'un changement de plan, l'état `slot`
     // porte encore l'ANCIENNE valeur et désignait comme « libre » le lecteur qui vient
     // d'être mis à l'antenne.
@@ -6320,6 +6363,7 @@ export default function MontagePage() {
         compteurRendus={compteurRendus}
         dureeRenduRef={dureeRenduRef}
         videoRef={() => [videoARef, videoBRef][activeSlotRef.current].current}
+        coutCoupeRef={coutCoupeRef}
       />
     </>
   );
