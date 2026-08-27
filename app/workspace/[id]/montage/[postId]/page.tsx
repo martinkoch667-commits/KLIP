@@ -5415,12 +5415,20 @@ export default function MontagePage() {
                         toast(t('toastMediaMissing', { name: ac.name }), "error");
                       }}
                       playsInline
-                      // SANS ceci, dessiner ce lecteur dans une toile la SALIT, et
-                      // tout ce qui relit ensuite ces pixels échoue en silence.
-                      // C'est ce qui privait la transition de son plan sortant.
-                      // Tout le reste du monteur (export, dérushage, vignettes) le
-                      // déclare déjà sur les mêmes fichiers.
-                      crossOrigin="anonymous"
+                      /* PAS de crossOrigin ici, et c'est délibéré.
+
+                         Je l'avais ajouté pour pouvoir relire les pixels du
+                         lecteur. Mais il change la façon dont le navigateur va
+                         CHERCHER le fichier : la réponse est mise en cache sous
+                         une autre clé, et les requêtes partielles ne se comportent
+                         pas pareil. C'est la dernière chose que j'aie touchée sur
+                         le chemin de la lecture, et la lecture saccade.
+
+                         On n'en a plus besoin : le plan sortant est montré par le
+                         second lecteur, pas recopié. Seules les transitions à
+                         shader relisent des pixels, et seulement à l'arrêt ; sans
+                         cet attribut elles retombent sur un fondu, ce qui est un
+                         prix dérisoire à côté d'une lecture qui hache. */
                       muted={!shown}
                       // Taille et position ne changent JAMAIS (cf. .mz-video > video) :
                       // seule l'opacité bascule. Redimensionner le lecteur au moment
