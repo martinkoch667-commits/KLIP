@@ -23,7 +23,7 @@ import { chargerPoliceGoogle, declarerPoliceMaison, surPolicesChargees } from ".
 import { lectureRapideDisponible, infosVideo, dureeAudio, imagesAux, enJpeg, vignettes, picsAudio, fermerSources } from "./media-read";
 import { MontageCtx, CutPanel, TextPanel, CaptionsPanel, AudioPanel, TransitionsPanel, FilterPanel, SpeedPanel, StickerPanel, OverlayPanel, AiPanel } from "./panels";
 import { renderExport } from "./export";
-import { drawTransitionFrame } from "./render-core";
+import { drawTransitionFrame, drawPlanFixe } from "./render-core";
 import { analyzeClipQuality, type TWord } from "./autoCut";
 import {
   runPreEdit, trimClipsByQuality, tightenSpeech, buildCaptions,
@@ -806,7 +806,6 @@ export default function MontagePage() {
   // Couches de l'aperçu : l'image entrante, l'image figée du plan sortant, et la
   // toile réservée aux transitions à shader.
   const imgInRef = useRef<HTMLImageElement>(null);
-  const imgOutRef = useRef<HTMLImageElement>(null);
   const glCanvasRef = useRef<HTMLCanvasElement>(null);
   // Jonction visée par un glisser en cours, pour qu'on voie où ça va tomber.
   const [jonctionSurvolee, setJonctionSurvolee] = useState<string | null>(null);
@@ -814,6 +813,48 @@ export default function MontagePage() {
      un objet de la timeline comme un autre : on la choisit, on la règle, on la
      supprime. Sans ça, on pouvait poser une transition mais jamais la retirer. */
   const [selectedTransId, setSelectedTransId] = useState<string | null>(null);
+
+  /** La coupe la plus proche d'une abscisse écran, ou null s'il n'y en a pas.
+   *  Viser un rond de vingt-deux pixels à la souris, en glissant, rate une fois
+   *  sur deux : on accepte le dépôt N'IMPORTE OÙ sur la piste et on choisit la
+   *  coupe la plus proche. */
+  function jonctionLaPlusProche(clientX: number): string | null {
+    const r = rulerRef.current?.getBoundingClientRect();
+    if (!r || clipStarts.length < 2) return null;
+    const t = (clientX - r.left) / pps;
+    let meilleur: { id: string; d: number } | null = null;
+    for (let i = 1; i < clipStarts.length; i++) {
+      const d = Math.abs(clipStarts[i].start - t);
+      if (!meilleur || d < meilleur.d) meilleur = { id: clipStarts[i].id, d };
+    }
+    return meilleur ? meilleur.id : null;
+  }
+
+  /** Pose la transition `id` sur la coupe qui précède le plan `clipId`. */
+  function poserTransition(clipId: string, transId: string) {
+    const cible = clipStarts.find((c) => c.id === clipId);
+    if (!cible || !TRANSITIONS.some((tr) => tr.id === transId)) return;
+    updateClip(clipId, { transitionIn: transId, transitionDur: cible.transitionDur || 0.5 });
+    deselectAll();
+    setSelectedTransId(transId === "cut" ? null : clipId);
+    setSelectedClipId(clipId);
+    setTool("transitions");
+    toast(tc(`transition.${transId}`));
+  }
+
+  const estGlisserTransition = (dt: DataTransfer) =>
+    dt.types.includes("application/x-klip-transition") || dt.types.includes("text/plain");
+  /** L'identifiant transporté, quel que soit le format qui a survécu au voyage. */
+  function transitionGlissee(dt: DataTransfer): string | null {
+    const direct = dt.getData("application/x-klip-transition");
+    if (direct && TRANSITIONS.some((tr) => tr.id === direct)) return direct;
+    const texte = dt.getData("text/plain");
+    if (texte.startsWith("klip-transition:")) {
+      const id = texte.slice("klip-transition:".length);
+      if (TRANSITIONS.some((tr) => tr.id === id)) return id;
+    }
+    return null;
+  }
   // Miroir SYNCHRONE de `slot`. Indispensable : `setSlot()` n'est appliqué qu'au rendu
   // suivant, or l'effet de préchargement se rejoue DANS LE MÊME commit que la bascule
   // de plan. Avec l'ancienne valeur d'état il calculait « lecteur libre = celui qui
@@ -4606,19 +4647,32 @@ export default function MontagePage() {
     try { cv.getContext("2d")?.drawImage(el, 0, 0, w, h); } catch { /* source non lisible */ }
   }, [time, activeClip, slot, transitionEnCours]);
 
-  /* Cette image, figée en URL, UNE FOIS au début de la transition. Un
-     `toDataURL` par coupe, pas un par image. */
-  const [urlSortant, setUrlSortant] = useState<string | null>(null);
+  /* Cette image, peinte UNE FOIS par coupe dans la toile du plan sortant.
+
+     Une toile visible, pas une image : passer par `toDataURL` demande de RELIRE
+     les pixels, ce qu'un navigateur refuse dès qu'une vidéo d'un autre domaine a
+     été dessinée dedans. L'appel échouait donc en silence, l'image du plan
+     sortant n'existait pas, et la transition se jouait sur du noir. Une toile
+     s'affiche sans qu'on ait à la relire. */
+  const cvOutRef = useRef<HTMLCanvasElement>(null);
   const cleSortantRef = useRef<string | null>(null);
+  const [sortantPret, setSortantPret] = useState(false);
   useEffect(() => {
-    if (!transitionEnCours || !outClip) { cleSortantRef.current = null; return; }
-    const cle = `${outClip.id}|${activeClip?.id}`;
+    if (!transitionEnCours || !outClip || !activeClip) { cleSortantRef.current = null; return; }
+    const cle = `${outClip.id}|${activeClip.id}`;
     if (cleSortantRef.current === cle) return;
+    const cv = cvOutRef.current, snap = instantaneRef.current;
+    if (!cv || !snap || !snap.width) { setSortantPret(false); return; }
     cleSortantRef.current = cle;
-    const cv = instantaneRef.current;
-    if (!cv || !cv.width) return;
-    try { setUrlSortant(cv.toDataURL("image/jpeg", 0.86)); } catch { setUrlSortant(null); }
-  }, [transitionEnCours, outClip, activeClip]);
+    const w = Math.max(120, Math.round(stageW || 360));
+    const h = Math.max(120, Math.round(w * (activeFmt.h / activeFmt.w)));
+    if (cv.width !== w || cv.height !== h) { cv.width = w; cv.height = h; }
+    const c2d = cv.getContext("2d");
+    if (!c2d) { setSortantPret(false); return; }
+    drawPlanFixe(c2d, snap, outClip, outClip.dur, w, h);
+    setSortantPret(true);
+  }, [transitionEnCours, outClip, activeClip, stageW, activeFmt.w, activeFmt.h]);
+  useEffect(() => { if (!transitionEnCours) setSortantPret(false); }, [transitionEnCours]);
 
   /* Les transitions à SHADER, elles, ne se décrivent pas en CSS : elles
      déforment l'image pixel par pixel. Seules celles-là passent par une toile,
@@ -4630,8 +4684,8 @@ export default function MontagePage() {
     if (!cv) return;
     if (!transitionGl || !activeClip || !outClip || exporting || hiddenLanes.has("video")) { cv.style.display = "none"; return; }
     const entrant = activeClip.kind === "video" ? [videoARef, videoBRef][slot].current : imgInRef.current;
-    const sortant = imgOutRef.current;
-    if (!entrant || !sortant || !sortant.naturalWidth) { cv.style.display = "none"; return; }
+    const sortant = instantaneRef.current;
+    if (!entrant || !sortant || !sortant.width) { cv.style.display = "none"; return; }
     if (entrant instanceof HTMLVideoElement && entrant.readyState < 2) { cv.style.display = "none"; return; }
     const w = Math.max(120, Math.round(stageW || 360));
     const h = Math.max(120, Math.round(w * (activeFmt.h / activeFmt.w)));
@@ -4981,27 +5035,21 @@ export default function MontagePage() {
               onPointerLeave={(e) => { panRef.current = null; onStagePointerUp(e); }}
             >
               <div className="mz-video">
-                {/* Le plan qui s'en va : son image figée, prise au moment où il a
-                    quitté l'écran, animée en CSS comme n'importe quelle couche.
-                    Une image est là tout de suite ; un lecteur vidéo, non, et
-                    c'était exactement le noir qu'on voyait. */}
-                {transitionEnCours && urlSortant && !hiddenLanes.has("video") && (() => {
-                  const cssSortant = activeTransPair ? transitionCss(activeTransPair.out) : {};
-                  return (
-                    <img
-                      ref={imgOutRef}
-                      src={urlSortant}
-                      alt=""
-                      style={{
-                        position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover",
-                        zIndex: 0, pointerEvents: "none",
-                        filter: [clipFilterCss(outClip!), activeTransPair?.out.extraFilter].filter(Boolean).join(" ") || undefined,
-                        ...(cssSortant as React.CSSProperties),
-                        transformOrigin: "center",
-                      }}
-                    />
-                  );
-                })()}
+                {/* Le plan qui s'en va : son image figée, prise pendant qu'il était
+                    encore à l'écran, animée en CSS comme n'importe quelle couche.
+                    Toujours montée pendant la transition — c'est elle qu'on ne
+                    voyait pas, et c'est pour ça que le fond était noir. */}
+                <canvas
+                  ref={cvOutRef}
+                  style={{
+                    position: "absolute", inset: 0, width: "100%", height: "100%",
+                    zIndex: 0, pointerEvents: "none",
+                    display: transitionEnCours && sortantPret && !hiddenLanes.has("video") ? "block" : "none",
+                    filter: [outClip ? clipFilterCss(outClip) : "", activeTransPair?.out.extraFilter].filter(Boolean).join(" ") || undefined,
+                    ...((activeTransPair ? transitionCss(activeTransPair.out) : {}) as React.CSSProperties),
+                    transformOrigin: "center",
+                  }}
+                />
                 {/* Les DEUX lecteurs restent montés en permanence (même sur un plan
                     photo) : les démonter réinitialisait la source et le préchargement,
                     ce qui refaisait saccader le plan vidéo suivant. */}
@@ -5024,6 +5072,12 @@ export default function MontagePage() {
                         toast(t('toastMediaMissing', { name: ac.name }), "error");
                       }}
                       playsInline
+                      // SANS ceci, dessiner ce lecteur dans une toile la SALIT, et
+                      // tout ce qui relit ensuite ces pixels échoue en silence.
+                      // C'est ce qui privait la transition de son plan sortant.
+                      // Tout le reste du monteur (export, dérushage, vignettes) le
+                      // déclare déjà sur les mêmes fichiers.
+                      crossOrigin="anonymous"
                       muted={!shown}
                       // Taille et position ne changent JAMAIS (cf. .mz-video > video) :
                       // seule l'opacité bascule. Redimensionner le lecteur au moment
@@ -5044,7 +5098,7 @@ export default function MontagePage() {
                 {activeClip && !hiddenLanes.has("video") ? (
                   activeClip.kind === "video"
                     ? null
-                    : <img ref={imgInRef} src={activeClip.src} alt="" style={{
+                    : <img ref={imgInRef} crossOrigin="anonymous" src={activeClip.src} alt="" style={{
                         // Posé et empilé explicitement : le plan sortant est une
                         // couche absolue, et une image restée dans le flux passerait
                         // dessous alors qu'elle doit arriver par-dessus.
@@ -5506,7 +5560,27 @@ export default function MontagePage() {
             <div className={"a-lane" + (videoTrackCount === 0 && dropLane === "new" ? " nt-hint" : "")} style={{ height: laneH("video"), order: 4 }} data-tllane="video">
               <LaneResize laneKey="video" />
               <div className="a-lane-label" style={{ display: "flex", alignItems: "center", gap: 4 }}><VIcon name="video" size={13} /> <span className="trunc">{`${t('labelVideo')} 1`}</span><LaneControls laneKey="video" /></div>
-              <div className="a-lane-track">
+              <div
+                className="a-lane-track"
+                // La piste entière est une cible : on lâche où on veut, la coupe la
+                // plus proche prend la transition. Le rond seul ratait trop souvent.
+                onDragOver={(e) => {
+                  if (!estGlisserTransition(e.dataTransfer)) return;
+                  e.preventDefault();
+                  e.dataTransfer.dropEffect = "copy";
+                  const id = jonctionLaPlusProche(e.clientX);
+                  if (id !== jonctionSurvolee) setJonctionSurvolee(id);
+                }}
+                onDragLeave={(e) => { if (!e.currentTarget.contains(e.relatedTarget as Node)) setJonctionSurvolee(null); }}
+                onDrop={(e) => {
+                  if (!estGlisserTransition(e.dataTransfer)) return;
+                  e.preventDefault();
+                  const transId = transitionGlissee(e.dataTransfer);
+                  const cible = jonctionSurvolee || jonctionLaPlusProche(e.clientX);
+                  setJonctionSurvolee(null);
+                  if (transId && cible) poserTransition(cible, transId);
+                }}
+              >
                 {clips.length === 0 && (
                   <span style={{ fontSize: 12, color: "var(--ink-3)", fontWeight: 600 }}>{t('importFirstRush')}</span>
                 )}
@@ -5573,23 +5647,18 @@ export default function MontagePage() {
                             setTool("transitions");
                           }}
                           onDragOver={(ev) => {
-                            if (!ev.dataTransfer.types.includes("application/x-klip-transition")) return;
+                            if (!estGlisserTransition(ev.dataTransfer)) return;
                             ev.preventDefault();
                             ev.dataTransfer.dropEffect = "copy";
                             if (jonctionSurvolee !== suivant.id) setJonctionSurvolee(suivant.id);
                           }}
-                          onDragLeave={() => setJonctionSurvolee((v) => (v === suivant.id ? null : v))}
                           onDrop={(ev) => {
-                            const id = ev.dataTransfer.getData("application/x-klip-transition");
-                            setJonctionSurvolee(null);
-                            if (!id || !TRANSITIONS.some((tr) => tr.id === id)) return;
+                            if (!estGlisserTransition(ev.dataTransfer)) return;
                             ev.preventDefault();
-                            updateClip(suivant.id, { transitionIn: id, transitionDur: suivant.transitionDur || 0.5 });
-                            deselectAll();
-                            setSelectedTransId(id === "cut" ? null : suivant.id);
-                            setSelectedClipId(suivant.id);
-                            setTool("transitions");
-                            toast(tc(`transition.${id}`));
+                            ev.stopPropagation();
+                            const id = transitionGlissee(ev.dataTransfer);
+                            setJonctionSurvolee(null);
+                            if (id) poserTransition(suivant.id, id);
                           }}
                         >
                           <span className="a-trans-glyph">{pose?.glyph || "▮▮"}</span>

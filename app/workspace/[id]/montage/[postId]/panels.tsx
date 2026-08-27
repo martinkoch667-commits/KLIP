@@ -1057,6 +1057,9 @@ function TransitionThumb({
       draggable
       onDragStart={(e) => {
         e.dataTransfer.setData("application/x-klip-transition", id);
+        // Doublon en texte simple : certains environnements ne transportent pas
+        // les types personnalisés, et le dépôt échouait alors sans rien dire.
+        e.dataTransfer.setData("text/plain", `klip-transition:${id}`);
         e.dataTransfer.effectAllowed = "copy";
       }}
       onMouseEnter={jouer}

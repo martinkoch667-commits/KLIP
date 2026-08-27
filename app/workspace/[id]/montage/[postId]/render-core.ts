@@ -246,6 +246,23 @@ export function drawTransitionFrame(
   drawTransitionVeils(ctx, paire.in);
 }
 
+/** Un plan posé seul dans un cadre, au cadrage « cover » du montage.
+ *  Sert à peindre l'image figée du plan sortant dans l'aperçu. */
+export function drawPlanFixe(
+  ctx: CanvasRenderingContext2D,
+  media: HTMLVideoElement | HTMLImageElement | HTMLCanvasElement,
+  clip: ClipTimed,
+  tIntoClip: number,
+  w: number,
+  h: number,
+) {
+  setCanvasSize(w, h);
+  ctx.clearRect(0, 0, w, h);
+  const neutre = { alpha: 1, dx: 0, dy: 0, scale: 1, rotate: 0, flash: 0, dark: 0,
+    extraFilter: "", clipRect: null, clipCircle: null, clipPoly: null, clipBands: null } as TransitionState;
+  drawMediaWithState(ctx, media, clip, tIntoClip, neutre);
+}
+
 /** Aperçu d'une transition entre deux images quelconques (vignettes du panneau,
  *  banc d'essai). Deux plans factices, juste pour le cadrage. */
 export function drawTransitionPreview(
