@@ -2074,7 +2074,9 @@
     "deleteTransition": "Eliminar a transição",
     "toastUploadTooBig": "«{name}» tem {mb} MB, acima do limite de envio. Reduza a resolução ou encurte o vídeo.",
     "toastUploadBadType": "«{name}» está num formato recusado pelo armazenamento ({type}).",
-    "toastUploadFailedWhy": "Não foi possível enviar «{name}»: {msg}"
+    "toastUploadFailedWhy": "Não foi possível enviar «{name}»: {msg}",
+    "toastExportNoAudio": "Esta montagem não tem qualquer faixa de som: o vídeo exportado ficará mudo.",
+    "toastExportNoAudioMuted": "Todas as faixas de som estão ocultas ou silenciadas: o vídeo exportado ficará mudo. Verifique o olho e o altifalante nas faixas."
   },
   "forgotPassword": {
     "title": "Esqueceu a palavra-passe",

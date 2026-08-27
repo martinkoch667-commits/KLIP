@@ -2074,7 +2074,9 @@
     "deleteTransition": "Übergang löschen",
     "toastUploadTooBig": "„{name}“ ist {mb} MB groß und liegt über dem Upload-Limit. Auflösung verringern oder Video kürzen.",
     "toastUploadBadType": "„{name}“ hat ein Format, das der Speicher ablehnt ({type}).",
-    "toastUploadFailedWhy": "„{name}“ konnte nicht hochgeladen werden: {msg}"
+    "toastUploadFailedWhy": "„{name}“ konnte nicht hochgeladen werden: {msg}",
+    "toastExportNoAudio": "Dieser Schnitt hat keine Tonspur: das exportierte Video bleibt stumm.",
+    "toastExportNoAudioMuted": "Alle Tonspuren sind ausgeblendet oder stummgeschaltet: das exportierte Video bleibt stumm. Prüfe Auge und Lautsprecher auf den Audiospuren."
   },
   "forgotPassword": {
     "title": "Passwort vergessen",

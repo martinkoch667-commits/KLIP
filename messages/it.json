@@ -2074,7 +2074,9 @@
     "deleteTransition": "Elimina la transizione",
     "toastUploadTooBig": "«{name}» pesa {mb} MB, oltre il limite di caricamento. Riduci la risoluzione o accorcia il video.",
     "toastUploadBadType": "«{name}» è in un formato rifiutato dallo spazio di archiviazione ({type}).",
-    "toastUploadFailedWhy": "Impossibile caricare «{name}»: {msg}"
+    "toastUploadFailedWhy": "Impossibile caricare «{name}»: {msg}",
+    "toastExportNoAudio": "Questo montaggio non ha alcuna traccia audio: il video esportato sarà muto.",
+    "toastExportNoAudioMuted": "Tutte le tracce audio sono nascoste o silenziate: il video esportato sarà muto. Controlla l'occhio e l'altoparlante sulle tracce."
   },
   "forgotPassword": {
     "title": "Password dimenticata",

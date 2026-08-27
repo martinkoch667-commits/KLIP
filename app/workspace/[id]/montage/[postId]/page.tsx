@@ -3875,6 +3875,24 @@ export default function MontagePage() {
       const exAudio = audioTracks.filter((a) => !HL.has(`a${a.track ?? 0}`)).map((a) => ML.has(`a${a.track ?? 0}`) ? { ...a, vol: 0 } : a);
       const exTitles = titles.filter((ti) => !HL.has(`t${ti.track ?? 0}`));
       const exCaptions = HL.has("subs") ? [] : captions;
+
+      /* CE QUI VA S'ENTENDRE, VÉRIFIÉ AVANT DE RENDRE.
+
+         Un export muet a trois causes possibles, et de l'extérieur elles se
+         ressemblent toutes : plus aucune source sonore, une piste masquée d'un
+         clic sur l'oeil, ou une piste coupée d'un clic sur le haut-parleur. On
+         le dit AVANT de lancer un rendu qui prend des minutes, au lieu de livrer
+         un fichier silencieux sans un mot. */
+      const sourcesSonores = exAudio.filter((a) => (a.vol ?? 0) > 0 && a.dur > 0).length
+        + exClips.filter((c) => c.kind === "video" && (c.vol ?? 1) > 0).length
+        + exOverlays.filter((o) => o.kind === "video" && (o.vol ?? 1) > 0).length;
+      const sourcesEcartees = (audioTracks.length - exAudio.length)
+        + exAudio.filter((a) => (a.vol ?? 0) <= 0).length
+        + (ML.has("video") && clips.some((c) => c.kind === "video" && (c.vol ?? 1) > 0) ? 1 : 0);
+      console.log(`[export] sources sonores actives : ${sourcesSonores} · écartées par masquage ou coupure : ${sourcesEcartees}`);
+      if (sourcesSonores === 0) {
+        toast(sourcesEcartees > 0 ? t('toastExportNoAudioMuted') : t('toastExportNoAudio'), "error");
+      }
       const { blob: rawBlob, thumbnailBlob, mimeType: recordedType } = await renderExport({ clips: exClips, overlays: exOverlays, captions: exCaptions, subStyleId, subCustom, subPos, linkedSubs, titles: exTitles, stickers, audioTracks: exAudio, showProgressBar, formatId, customW, customH, exportQuality }, (p) => setExportProgress(p));
 
       // Instagram veut du MP4/H.264. Safari sait l'enregistrer directement : dans

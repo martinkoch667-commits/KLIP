@@ -2074,7 +2074,9 @@
     "deleteTransition": "Delete transition",
     "toastUploadTooBig": "“{name}” is {mb} MB, above the upload limit. Lower the resolution or shorten the video.",
     "toastUploadBadType": "“{name}” is in a format storage refuses ({type}).",
-    "toastUploadFailedWhy": "“{name}” could not be uploaded: {msg}"
+    "toastUploadFailedWhy": "“{name}” could not be uploaded: {msg}",
+    "toastExportNoAudio": "This edit has no audio track: the exported video will be silent.",
+    "toastExportNoAudioMuted": "Every audio track is hidden or muted: the exported video will be silent. Check the eye and speaker icons on the audio lanes."
   },
   "forgotPassword": {
     "title": "Forgot password",
