@@ -1313,10 +1313,7 @@ export default function MontagePage() {
      dans le DOM : c'est le mouvement le plus visible, il reste à 60 Hz sans
      coûter un seul rendu. */
   const clockRef = useRef(0);           // temps de lecture faisant autorité
-  /* Temps moyen entre deux rendus, en millisecondes. Sert à savoir si la machine
-     tient la cadence, et à la baisser sinon. Démarre au budget d'une image à
-     trente par seconde : on suppose que ça passe, et on corrige à la mesure. */
-  const chargeRef = useRef(33);
+
   /* `timeRef` porte le temps EXACT, à l'image près, que la lecture soit en cours
      ou non : c'est lui que lisent la synchro image/son et les actions qui doivent
      tomber sur l'image affichée (couper au curseur, choisir la couverture).
@@ -1587,11 +1584,8 @@ export default function MontagePage() {
     const sc = sceneRef.current;
     for (const c of sc.clipStarts) {
       if (t < c.start || t >= c.end) continue;
-      // Ni le zoom automatique ni les transitions ne comptent : ils sont peints
-      // hors React (cf. peindreTransition), à soixante images par seconde et sans
-      // un seul rendu. Les compter ici réveillait le monteur entier trente fois
-      // par seconde — le fil principal porte aussi le décodage vidéo et le mixage
-      // audio, et c'est là que le son se mettait à hacher.
+      if (c.kind === "photo" && c.kenBurns) return true;
+      if (c.transitionIn && c.transitionIn !== "cut" && t - c.start < (c.transitionDur || 0)) return true;
       break;
     }
     if (sc.sousTitresAnimes) {
@@ -1925,24 +1919,14 @@ export default function MontagePage() {
          plan, ce qui serait pire que le mal. */
       const resteDansLePlan = ac ? (ac.end - clockRef.current) : Infinity;
       const rs = ac && ac.kind === "video" && vEl && !vEl.ended ? vEl.readyState : 4;
-      /* PENDANT UNE TRANSITION, ON N'ATTEND PAS.
+      /* Attente REMISE À L'IDENTIQUE.
 
-         Ce garde-fou met l'horloge en pause tant que le lecteur n'a pas de quoi
-         jouer. C'est juste dans le cas général : la timeline ne doit pas courir
-         devant une image figée. Mais à l'entrée d'un plan, un lecteur qui vient
-         d'être positionné annonce presque toujours « j'ai l'image courante, pas
-         la suivante » — et on gelait tout pendant six cents millisecondes, à
-         chaque coupe. C'est le décalage entre la tête de lecture et l'image, et
-         c'est exactement ce qu'on ressent comme une latence à la transition.
-
-         Or pendant une transition il y a justement quelque chose à montrer :
-         l'image figée du plan qui s'en va. On laisse donc le temps avancer, et
-         le nouveau plan se montrera dès qu'il aura une image. */
-      const enTransition = !!ac && !!ac.transitionIn && ac.transitionIn !== "cut"
-        && (ac.transitionDur || 0) > 0 && clockRef.current - ac.start < (ac.transitionDur || 0);
-      const attente = rs < 2 && !enTransition ? 3000
-        : rs < 3 && !enTransition && resteDansLePlan > 0.35 ? 300
-        : 0;
+         Je l'avais raccourcie de 600 à 300 ms et sautée pendant les transitions,
+         en croyant supprimer une latence. C'est l'inverse : ce garde-fou existe
+         pour que la timeline n'avance pas pendant que le lecteur n'a rien à
+         montrer. L'écourter, c'est laisser la tête de lecture courir devant une
+         image figée — et ça se voit exactement comme une saccade. */
+      const attente = rs < 2 ? 3000 : rs < 3 && resteDansLePlan > 0.35 ? 600 : 0;
       if (attente > 0) {
         if (!stalledSince) stalledSince = now;
         if (now - stalledSince < attente) { raf = requestAnimationFrame(tick); return; }
@@ -1972,28 +1956,7 @@ export default function MontagePage() {
 
       // React n'est réveillé que si l'écran doit changer, ou à la cadence utile.
       const sig = signatureScene(n);
-      /* CADENCE ADAPTÉE À LA MACHINE.
-
-         Trente rendus par seconde pendant une animation, c'est la cadence de
-         l'export. Sur une machine qui ne suit pas, c'est aussi la cadence qui
-         mange le son : le fil principal porte à la fois le rendu React, le
-         décodage vidéo et le mixage audio. On mesure donc le temps réellement
-         passé entre deux images ; s'il dépasse largement le budget, on descend
-         à vingt puis à quinze. Une transition à quinze images par seconde reste
-         une transition ; un son haché n'est plus rien. */
-      if (dernierRendu) {
-        const ecart = now - dernierRendu;
-        // Moyenne glissante : une image lente isolée ne doit pas tout changer.
-        chargeRef.current = chargeRef.current * 0.85 + ecart * 0.15;
-      }
-      /* VINGT-QUATRE par défaut, pas trente. Le surlignage mot à mot des
-         sous-titres est la dernière animation qui réveille encore React, et il
-         n'a rien à gagner au delà : c'est un mot qui change de couleur, pas un
-         mouvement. Vingt pour cent de rendus en moins, rendus au décodage vidéo
-         et au mixage audio. La mesure fait descendre plus bas si la machine
-         peine. */
-      const cadence = chargeRef.current > 62 ? 12 : chargeRef.current > 42 ? 18 : 24;
-      const intervalle = animationEnCours(n) ? 1000 / cadence : 1000 / 10;
+      const intervalle = animationEnCours(n) ? 1000 / 30 : 1000 / 10;
       if (sig !== derniereSignature || now - dernierRendu >= intervalle) {
         derniereSignature = sig;
         dernierRendu = now;
@@ -5389,7 +5352,7 @@ export default function MontagePage() {
                     que le peintre montre et anime. Une photo, elle, a besoin de
                     son image — mais une image ne coûte rien. */}
                 {outClip && outClip.kind === "photo" && (
-                  <img ref={imgOutRef} src={outClip.src} alt="" crossOrigin="anonymous"
+                  <img ref={imgOutRef} src={outClip.src} alt=""
                     style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover",
                       opacity: 0, zIndex: 0, pointerEvents: "none", transformOrigin: "center" }} />
                 )}
@@ -5452,12 +5415,15 @@ export default function MontagePage() {
                 {activeClip && !hiddenLanes.has("video") ? (
                   activeClip.kind === "video"
                     ? null
-                    : <img ref={imgInRef} crossOrigin="anonymous" src={activeClip.src} alt="" style={{
+                    : <img ref={imgInRef} src={activeClip.src} alt="" style={{
                         // Posé et empilé explicitement : le plan sortant est une
                         // couche absolue, et une image restée dans le flux passerait
                         // dessous alors qu'elle doit arriver par-dessus.
                         position: "absolute", inset: 0, zIndex: 1,
                         filter: clipFilterCss(activeClip) || undefined,
+                        // Le zoom automatique repasse par React : le peintre ne
+                        // tourne plus pendant la lecture, il ne peut plus le porter.
+                        transform: `scale(${kenBurnsScale(activeClip.kenBurns, activeClip.dur > 0 ? Math.min(1, Math.max(0, (time - activeClip.start) / activeClip.dur)) : 0)})`,
                         objectPosition: `${(activeClip.focusX ?? 0.5) * 100}% ${(activeClip.focusY ?? 0.5) * 100}%`,
                         transformOrigin: "center",
                       } as React.CSSProperties} />
