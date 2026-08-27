@@ -184,8 +184,23 @@ export async function renderExportTempsReel(project: ExportProject, onProgress: 
   // Note : chaque piste démarre à t=0 de l'export (offset non honoré ici, limite préexistante) —
   // donc el.currentTime correspond directement au temps local de la piste pour le calcul du fondu.
   const audioEls = project.audioTracks.map((t) => {
-    const el = document.createElement("audio");
+    /* UN LECTEUR VIDÉO, même pour du son.
+
+       Une piste audio ne contient pas forcément un fichier audio : quand on
+       détache le son d'un plan, la piste pointe vers le fichier VIDÉO d'origine.
+       Or un élément <audio> refuse d'ouvrir un conteneur vidéo — un .MOV
+       d'iPhone, typiquement. L'élément restait muet, sans erreur, et l'export
+       sortait sans un son alors que tout le reste marchait.
+
+       Un élément <video> joue les deux : un conteneur vidéo comme un mp3. On ne
+       l'affiche jamais, on ne lui prend que le son. */
+    const el = document.createElement("video");
     el.crossOrigin = "anonymous";
+    el.playsInline = true;
+    el.preload = "auto";
+    el.addEventListener("error", () => {
+      console.error("[export] piste audio illisible :", t.name || t.src.slice(0, 90));
+    });
     el.src = t.src;
     const node = audioCtx.createMediaElementSource(el);
     const gain = audioCtx.createGain();

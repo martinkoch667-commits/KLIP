@@ -1770,7 +1770,24 @@ export default function MontagePage() {
   // ── Lecture live des pistes audio (musique/voix off) ────────────────────────
   // Un <audio> par piste, joué/mis en pause/mixé (fondu) en direct pendant la
   // lecture — jusqu'ici ces pistes n'étaient audibles qu'à l'export.
-  const audioElsRef = useRef<Record<string, HTMLAudioElement>>({});
+  /* UN LECTEUR VIDÉO, même pour du son.
+
+     Une piste audio ne contient pas forcément un fichier audio : quand on détache
+     le son d'un plan, la piste pointe vers le fichier VIDÉO d'origine. Or un
+     élément <audio> refuse d'ouvrir un conteneur vidéo — un .MOV d'iPhone,
+     typiquement. Il restait muet, sans erreur et sans rien dire.
+
+     Un élément <video> joue les deux : un conteneur vidéo comme un mp3. On ne
+     l'affiche jamais, on ne lui prend que le son. */
+  function lecteurSonore(src: string): HTMLVideoElement {
+    const el = document.createElement("video");
+    el.preload = "auto";
+    el.playsInline = true;
+    el.src = src;
+    return el;
+  }
+
+  const audioElsRef = useRef<Record<string, HTMLVideoElement>>({});
   const audioTracksRef = useRef(audioTracks);
   useEffect(() => { audioTracksRef.current = audioTracks; }, [audioTracks]);
 
@@ -1783,8 +1800,8 @@ export default function MontagePage() {
     Object.keys(els).forEach((id) => { if (!ids.has(id)) { releaseMediaElement(els[id]); delete els[id]; } });
     audioTracks.forEach((a) => {
       const ex = els[a.id];
-      if (!ex) { const el = new Audio(a.src); el.preload = "auto"; els[a.id] = el; }
-      else if (ex.src !== a.src) { releaseMediaElement(ex); const el = new Audio(a.src); el.preload = "auto"; els[a.id] = el; } // src changé (voix traitée)
+      if (!ex) { els[a.id] = lecteurSonore(a.src); }
+      else if (ex.src !== a.src) { releaseMediaElement(ex); els[a.id] = lecteurSonore(a.src); } // src changé (voix traitée)
     });
   }, [audioTracks]);
 
