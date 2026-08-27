@@ -1958,7 +1958,17 @@ export default function MontagePage() {
       clockRef.current = n;
       timeRef.current = n;          // la synchro image/son lit ici, à 60 Hz
       poserCurseur(n);              // le curseur bouge sans rendu React
-      peindreTransition(n);         // la transition aussi : zéro rendu React
+      /* PENDANT LA LECTURE, LE PEINTRE NE TOURNE PAS.
+
+         J'ai corrigé son coût trois fois de suite sans jamais rendre la lecture
+         fluide. Plutôt qu'une quatrième supposition, on le sort complètement du
+         chemin : pendant la lecture, plus une seule ligne de mon travail sur les
+         transitions ne s'exécute. Le monteur lit exactement comme avant.
+
+         La transition reste visible dès qu'on s'arrête ou qu'on déplace la tête
+         de lecture, et le fichier exporté porte toujours la vraie transition.
+         C'est une marche arrière assumée, et elle sert à mesurer : si ça saccade
+         encore ainsi, la cause n'est pas dans ce que j'ai ajouté. */
 
       // React n'est réveillé que si l'écran doit changer, ou à la cadence utile.
       const sig = signatureScene(n);
@@ -5026,7 +5036,19 @@ export default function MontagePage() {
 
   /* À l'arrêt il n'y a pas d'horloge : c'est le rendu React qui déclenche le
      peintre. En lecture, c'est le minuteur, et React n'est pas réveillé. */
-  useEffect(() => { if (!playing) peindreTransition(time, true); });
+  /* Le peintre ne tourne qu'à l'arrêt : c'est le rendu React qui le déclenche,
+     donc au plus dix fois par seconde, et jamais pendant la lecture. */
+  useEffect(() => {
+    if (playing) return;
+    peindreTransition(time, true);
+  });
+  /* Au démarrage de la lecture, on efface d'un coup ce que le peintre avait
+     posé : sans ça, une transition figée resterait à l'écran. */
+  useEffect(() => {
+    if (!playing) return;
+    peintureActiveRef.current = false;
+    remettreAPlat(timeRef.current);
+  }, [playing]);
 
   /* Les transitions à shader sont peintes par `peindreTransition`, à chaque
      image et hors React, comme les autres. */
