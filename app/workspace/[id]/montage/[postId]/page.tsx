@@ -15,7 +15,7 @@ import {
   audioVolumeAt, audioSrcDur, creneauLibre, kenBurnsScale, withAlpha,
   titleLook, titleShadowCss, titleWeight, titleItalic, VIDEO_FORMATS, videoFormatById, EXPORT_QUALITIES,
   overlayEffectCss,
-  transitionPairAt, transitionCss, estTransitionGl,
+  transitionPairAt, transitionCss, estTransitionGl, type TransitionState,
   TITLE_BASE_FONT, TITLE_LINE_HEIGHT, TITLE_DEFAULT_MAX_WIDTH, titleLines, titleBoxWidth,
 } from "./constants";
 import { ClipStrip, ClipWave, AudioWave, FadeRamp, type ClipStripData } from "./timeline-parts";
@@ -1329,12 +1329,134 @@ export default function MontagePage() {
 
   /** Une animation continue est-elle à l'écran ? Si oui l'aperçu doit suivre à la
    *  cadence de l'export ; sinon seul le curseur bouge. */
+  /* LA TRANSITION, PEINTE HORS DE REACT.
+
+     Même principe que la tête de lecture : ce qui bouge à chaque image s'écrit
+     directement dans le DOM. React ne sert qu'à monter les couches et à peindre
+     l'image figée du plan sortant, une fois par coupe.
+
+     `scenePeintureRef` porte tout ce dont ce peintre a besoin, mis à jour à
+     chaque rendu React : il ne referme sur rien de périmé. */
+  const scenePeintureRef = useRef<{
+    stageW: number; fmtW: number; fmtH: number; masqueVideo: boolean; exporte: boolean;
+  }>({ stageW: 0, fmtW: 1080, fmtH: 1920, masqueVideo: false, exporte: false });
+
+  /** Applique un état de transition à une couche, sans passer par React.
+   *  `transformEnPlus` porte le zoom automatique des photos : il vit sur la MÊME
+   *  propriété que la transition, et l'écraser ferait sauter l'image. */
+  function ecrireEtat(el: HTMLElement | null, st: TransitionState | null, filtreBase: string, transformEnPlus = "") {
+    if (!el) return;
+    if (!st) {
+      el.style.opacity = ""; el.style.clipPath = "";
+      el.style.maskImage = ""; el.style.webkitMaskImage = "";
+      el.style.transform = transformEnPlus;
+      el.style.filter = filtreBase || "";
+      return;
+    }
+    const css = transitionCss(st);
+    el.style.opacity = String(css.opacity ?? 1);
+    el.style.transform = [css.transform as string, transformEnPlus].filter(Boolean).join(" ");
+    el.style.clipPath = (css.clipPath as string) || "";
+    el.style.maskImage = (css.maskImage as string) || "";
+    el.style.webkitMaskImage = (css.maskImage as string) || "";
+    el.style.filter = [filtreBase, st.extraFilter].filter(Boolean).join(" ");
+  }
+
+  /** Zoom automatique du plan photo à cet instant, sous forme de transform. */
+  function transformKenBurns(c: (MontageClip & { start: number; dur: number }) | null, t: number): string {
+    if (!c || c.kind !== "photo" || !c.kenBurns) return "";
+    const p = c.dur > 0 ? Math.min(1, Math.max(0, (t - c.start) / c.dur)) : 0;
+    return `scale(${kenBurnsScale(c.kenBurns, p)})`;
+  }
+
+  function peindreTransition(t: number) {
+    const sc = sceneRef.current;
+    const cvOut = cvOutRef.current, glCv = glCanvasRef.current;
+    const flash = voileFlashRef.current, noir = voileNoirRef.current;
+    const conf = scenePeintureRef.current;
+
+    let entrant: (MontageClip & { start: number; end: number; dur: number }) | null = null;
+    let iEntrant = -1;
+    for (let i = 0; i < sc.clipStarts.length; i++) {
+      const c = sc.clipStarts[i];
+      if (t >= c.start && t < c.end) { entrant = c; iEntrant = i; break; }
+    }
+    const dur = entrant?.transitionDur || 0;
+    const dedans = !!entrant && iEntrant > 0 && !!entrant.transitionIn && entrant.transitionIn !== "cut"
+      && dur > 0 && t - entrant.start < dur && Math.max(0, entrant.gapBefore ?? 0) <= 0;
+
+    const elEntrant: HTMLElement | null = entrant
+      ? (entrant.kind === "video" ? [videoARef, videoBRef][activeSlotRef.current].current : imgInRef.current)
+      : null;
+
+    if (!dedans || conf.masqueVideo || conf.exporte) {
+      if (peintureActiveRef.current) {
+        peintureActiveRef.current = false;
+        ecrireEtat(elEntrant, null, entrant ? (clipFilterCss(entrant) || "") : "", transformKenBurns(entrant, t));
+        if (cvOut) cvOut.style.display = "none";
+        if (glCv) glCv.style.display = "none";
+        if (flash) flash.style.opacity = "0";
+        if (noir) noir.style.opacity = "0";
+      }
+      return;
+    }
+    peintureActiveRef.current = true;
+
+    const sortant = sc.clipStarts[iEntrant - 1];
+    const avance = (t - entrant!.start) / dur;
+    const paire = transitionPairAt(entrant!.transitionIn, dur, t - entrant!.start, false);
+
+    // Shaders : l'image se calcule, elle ne se décrit pas en CSS.
+    const enGl = estTransitionGl(entrant!.transitionIn);
+    if (enGl && glCv && elEntrant && instantaneRef.current?.width) {
+      const pret = !(elEntrant instanceof HTMLVideoElement) || elEntrant.readyState >= 2;
+      if (pret) {
+        const w = Math.max(120, Math.round(conf.stageW || 360));
+        const h = Math.max(120, Math.round(w * (conf.fmtH / conf.fmtW)));
+        if (glCv.width !== w || glCv.height !== h) { glCv.width = w; glCv.height = h; }
+        const c2d = glCv.getContext("2d", { alpha: false });
+        if (c2d) {
+          try {
+            drawTransitionFrame(c2d, instantaneRef.current, sortant, sortant.dur,
+              elEntrant as HTMLVideoElement | HTMLImageElement, entrant!, t - entrant!.start,
+              entrant!.transitionIn!, avance, w, h);
+            glCv.style.display = "block";
+            if (cvOut) cvOut.style.display = "none";
+            ecrireEtat(elEntrant, null, clipFilterCss(entrant!) || "", transformKenBurns(entrant, t));
+            if (flash) flash.style.opacity = "0";
+            if (noir) noir.style.opacity = "0";
+            return;
+          } catch { glCv.style.display = "none"; }
+        }
+      }
+    }
+    if (glCv) glCv.style.display = "none";
+
+    // Transitions 2D : deux couches et du CSS, rien à calculer par image.
+    if (cvOut) {
+      cvOut.style.display = sortantPeintRef.current ? "block" : "none";
+      // Le sortant a fini sa course : son zoom automatique est à son terme.
+      ecrireEtat(cvOut, paire.out, clipFilterCss(sortant) || "",
+        sortant.kind === "photo" && sortant.kenBurns ? `scale(${kenBurnsScale(sortant.kenBurns, 1)})` : "");
+    }
+    ecrireEtat(elEntrant, paire.in, clipFilterCss(entrant!) || "", transformKenBurns(entrant, t));
+    if (flash) flash.style.opacity = String(paire.in.flash || 0);
+    if (noir) noir.style.opacity = String(paire.in.dark || 0);
+  }
+  const peintureActiveRef = useRef(false);
+  const sortantPeintRef = useRef(false);
+  const voileFlashRef = useRef<HTMLDivElement>(null);
+  const voileNoirRef = useRef<HTMLDivElement>(null);
+
   function animationEnCours(t: number): boolean {
     const sc = sceneRef.current;
     for (const c of sc.clipStarts) {
       if (t < c.start || t >= c.end) continue;
-      if (c.kind === "photo" && c.kenBurns) return true;
-      if (c.transitionIn && c.transitionIn !== "cut" && t - c.start < (c.transitionDur || 0)) return true;
+      // Ni le zoom automatique ni les transitions ne comptent : ils sont peints
+      // hors React (cf. peindreTransition), à soixante images par seconde et sans
+      // un seul rendu. Les compter ici réveillait le monteur entier trente fois
+      // par seconde — le fil principal porte aussi le décodage vidéo et le mixage
+      // audio, et c'est là que le son se mettait à hacher.
       break;
     }
     if (sc.sousTitresAnimes) {
@@ -1413,13 +1535,8 @@ export default function MontagePage() {
      L'aperçu ne montrait que le plan entrant : un fondu apparaissait donc depuis
      le noir, un balayage balayait le vide. On remet l'image d'avant en dessous,
      avec le mouvement qui lui revient — le même calcul qu'à l'export. */
-  const activeTransPair = useMemo(() => {
-    if (!activeClip) return null;
-    const isFirst = clipStarts.length > 0 && clipStarts[0].id === activeClip.id;
-    return transitionPairAt(activeClip.transitionIn, activeClip.transitionDur, time - activeClip.start, isFirst);
-  }, [activeClip, clipStarts, time]);
-  const activeTrans = activeTransPair?.in ?? null;
-  const activeTransCss = activeTrans ? transitionCss(activeTrans) : null;
+  // Plus d'état de transition calculé au rendu : `peindreTransition` s'en charge
+  // à chaque image, hors React.
 
   const outClip = useMemo(() => {
     if (!activeClip) return null;
@@ -1641,6 +1758,7 @@ export default function MontagePage() {
       clockRef.current = n;
       timeRef.current = n;          // la synchro image/son lit ici, à 60 Hz
       poserCurseur(n);              // le curseur bouge sans rendu React
+      peindreTransition(n);         // la transition aussi : zéro rendu React
 
       // React n'est réveillé que si l'écran doit changer, ou à la cadence utile.
       const sig = signatureScene(n);
@@ -4628,10 +4746,14 @@ export default function MontagePage() {
     ? { id: "custom", label: "Perso", sub: `${customW}×${customH}`, w: Math.max(1, customW), h: Math.max(1, customH) }
     : videoFormatById(formatId);
   const previewScale = (stageW || 300) / activeFmt.w;
+  // Ce dont le peintre hors React a besoin, rafraîchi à chaque rendu.
+  scenePeintureRef.current = {
+    stageW, fmtW: activeFmt.w, fmtH: activeFmt.h,
+    masqueVideo: hiddenLanes.has("video"), exporte: exporting,
+  };
 
 
   const transitionEnCours = !!outClip && !!activeClip && !!activeClip.transitionIn && activeClip.transitionIn !== "cut";
-  const transitionGl = transitionEnCours && estTransitionGl(activeClip!.transitionIn);
 
   /* L'IMAGE FIGÉE du plan qui s'en va.
 
@@ -4688,53 +4810,29 @@ export default function MontagePage() {
      s'affiche sans qu'on ait à la relire. */
   const cvOutRef = useRef<HTMLCanvasElement>(null);
   const cleSortantRef = useRef<string | null>(null);
-  const [sortantPret, setSortantPret] = useState(false);
   useEffect(() => {
     if (!transitionEnCours || !outClip || !activeClip) { cleSortantRef.current = null; return; }
     const cle = `${outClip.id}|${activeClip.id}`;
     if (cleSortantRef.current === cle) return;
     const cv = cvOutRef.current, snap = instantaneRef.current;
-    if (!cv || !snap || !snap.width) { setSortantPret(false); return; }
+    if (!cv || !snap || !snap.width) { sortantPeintRef.current = false; return; }
     cleSortantRef.current = cle;
     const w = Math.max(120, Math.round(stageW || 360));
     const h = Math.max(120, Math.round(w * (activeFmt.h / activeFmt.w)));
     if (cv.width !== w || cv.height !== h) { cv.width = w; cv.height = h; }
     const c2d = cv.getContext("2d");
-    if (!c2d) { setSortantPret(false); return; }
+    if (!c2d) { sortantPeintRef.current = false; return; }
     drawPlanFixe(c2d, snap, outClip, outClip.dur, w, h);
-    setSortantPret(true);
+    sortantPeintRef.current = true;
   }, [transitionEnCours, outClip, activeClip, stageW, activeFmt.w, activeFmt.h]);
-  useEffect(() => { if (!transitionEnCours) setSortantPret(false); }, [transitionEnCours]);
+  useEffect(() => { if (!transitionEnCours) sortantPeintRef.current = false; }, [transitionEnCours]);
 
-  /* Les transitions à SHADER, elles, ne se décrivent pas en CSS : elles
-     déforment l'image pixel par pixel. Seules celles-là passent par une toile,
-     et seulement le temps de la transition. Les autres se jouent en CSS sur les
-     deux couches, ce qui ne coûte rien par image — composer une toile trente
-     fois par seconde pendant la lecture, c'était le son haché. */
-  useEffect(() => {
-    const cv = glCanvasRef.current;
-    if (!cv) return;
-    if (!transitionGl || !activeClip || !outClip || exporting || hiddenLanes.has("video")) { cv.style.display = "none"; return; }
-    const entrant = activeClip.kind === "video" ? [videoARef, videoBRef][slot].current : imgInRef.current;
-    const sortant = instantaneRef.current;
-    if (!entrant || !sortant || !sortant.width) { cv.style.display = "none"; return; }
-    if (entrant instanceof HTMLVideoElement && entrant.readyState < 2) { cv.style.display = "none"; return; }
-    const w = Math.max(120, Math.round(stageW || 360));
-    const h = Math.max(120, Math.round(w * (activeFmt.h / activeFmt.w)));
-    if (cv.width !== w || cv.height !== h) { cv.width = w; cv.height = h; }
-    const ctx2d = cv.getContext("2d");
-    if (!ctx2d) { cv.style.display = "none"; return; }
-    const dansLaTransition = time - activeClip.start;
-    const avancement = dansLaTransition / Math.max(0.01, activeClip.transitionDur || 0.01);
-    try {
-      drawTransitionFrame(ctx2d, sortant, outClip, outClip.dur, entrant, activeClip, dansLaTransition,
-        activeClip.transitionIn!, avancement, w, h);
-      cv.style.display = "block";
-    } catch {
-      // Source illisible : mieux vaut la transition de repli en CSS que du noir.
-      cv.style.display = "none";
-    }
-  }, [transitionGl, time, activeClip, outClip, slot, stageW, activeFmt.w, activeFmt.h, exporting, hiddenLanes]);
+  /* À l'arrêt il n'y a pas d'horloge : c'est le rendu React qui déclenche le
+     peintre. En lecture, c'est le minuteur, et React n'est pas réveillé. */
+  useEffect(() => { if (!playing) peindreTransition(time); });
+
+  /* Les transitions à shader sont peintes par `peindreTransition`, à chaque
+     image et hors React, comme les autres. */
   // Le texte sélectionné s'affiche TOUJOURS dans l'aperçu (même si le curseur sort de sa
   // plage) → on peut toujours le voir, le déplacer et l'éditer.
   // Chaque rangée de texte se masque séparément, comme les pistes vidéo.
@@ -5076,9 +5174,9 @@ export default function MontagePage() {
                   style={{
                     position: "absolute", inset: 0, width: "100%", height: "100%",
                     zIndex: 0, pointerEvents: "none",
-                    display: transitionEnCours && sortantPret && !hiddenLanes.has("video") ? "block" : "none",
-                    filter: [outClip ? clipFilterCss(outClip) : "", activeTransPair?.out.extraFilter].filter(Boolean).join(" ") || undefined,
-                    ...((activeTransPair ? transitionCss(activeTransPair.out) : {}) as React.CSSProperties),
+                    // Montée en permanence, cachée par défaut : c'est le peintre
+                    // hors React qui l'affiche et l'anime.
+                    display: "none",
                     transformOrigin: "center",
                   }}
                 />
@@ -5117,9 +5215,10 @@ export default function MontagePage() {
                       // échelle, cernée de noir, le temps de se remettre en place.
                       style={shown
                         ? ({
-                            filter: [clipFilterCss(activeClip!), activeTrans?.extraFilter].filter(Boolean).join(" ") || undefined,
+                            filter: clipFilterCss(activeClip!) || undefined,
                             objectPosition: `${(activeClip!.focusX ?? 0.5) * 100}% ${(activeClip!.focusY ?? 0.5) * 100}%`,
-                            ...(activeTransCss || {}),
+                            // Ni transform, ni opacity, ni clip-path ici : ce sont les
+                            // propriétés qu'anime `peindreTransition`, hors React.
                             transformOrigin: "center",
                             zIndex: 1,
                           } as React.CSSProperties)
@@ -5135,13 +5234,8 @@ export default function MontagePage() {
                         // couche absolue, et une image restée dans le flux passerait
                         // dessous alors qu'elle doit arriver par-dessus.
                         position: "absolute", inset: 0, zIndex: 1,
-                        filter: [clipFilterCss(activeClip), activeTrans?.extraFilter].filter(Boolean).join(" ") || undefined,
+                        filter: clipFilterCss(activeClip) || undefined,
                         objectPosition: `${(activeClip.focusX ?? 0.5) * 100}% ${(activeClip.focusY ?? 0.5) * 100}%`,
-                        ...(activeTransCss || {}),
-                        // Zoom automatique et transition se composent sur le même transform.
-                        transform: [activeTransCss?.transform,
-                          `scale(${kenBurnsScale(activeClip.kenBurns, activeClip.dur > 0 ? Math.min(1, Math.max(0, (time - activeClip.start) / activeClip.dur)) : 0)})`,
-                        ].filter(Boolean).join(" "),
                         transformOrigin: "center",
                       } as React.CSSProperties} />
                 ) : clips.length === 0 ? (
@@ -5160,15 +5254,11 @@ export default function MontagePage() {
                     l'affiche que s'il a vraiment pu dessiner. */}
                 <canvas ref={glCanvasRef} style={{ position: "absolute", inset: 0, width: "100%", height: "100%", display: "none", zIndex: 2, pointerEvents: "none" }} />
 
-                {/* Voiles (flash blanc, fondu au noir), identiques à l'export. Pas
-                    pour les shaders : la toile les pose déjà, et deux couches
-                    doubleraient le flash. */}
-                {!transitionGl && activeTrans && activeTrans.flash > 0 && (
-                  <div style={{ position: "absolute", inset: 0, background: "#fff", opacity: activeTrans.flash, pointerEvents: "none", zIndex: 3 }} />
-                )}
-                {!transitionGl && activeTrans && activeTrans.dark > 0 && (
-                  <div style={{ position: "absolute", inset: 0, background: "#000", opacity: activeTrans.dark, pointerEvents: "none", zIndex: 3 }} />
-                )}
+                {/* Voiles (flash blanc, fondu au noir), identiques à l'export.
+                    Toujours montés, à opacité nulle : les faire apparaître et
+                    disparaître demanderait un rendu React par image. */}
+                <div ref={voileFlashRef} style={{ position: "absolute", inset: 0, background: "#fff", opacity: 0, pointerEvents: "none", zIndex: 3 }} />
+                <div ref={voileNoirRef} style={{ position: "absolute", inset: 0, background: "#000", opacity: 0, pointerEvents: "none", zIndex: 3 }} />
 
                 {/* incrustations (PIP) — déplaçables/redimensionnables/pivotables.
                     Triées par piste croissante : l'ordre du DOM fait le z-order (piste haute = au-dessus). */}
