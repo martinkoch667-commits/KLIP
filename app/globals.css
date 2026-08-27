@@ -2120,21 +2120,34 @@ input.mz-range::-moz-range-thumb { width: 16px; height: 16px; border-radius: 50%
 
 /* pastille de transition entre deux plans (timeline) */
 .a-trans-pill { position: absolute; top: 50%; width: 22px; height: 22px; border-radius: 50%; transform: translate(-50%, -50%); z-index: 8;
-  display: grid; place-items: center; background: var(--white); box-shadow: 0 0 0 1px var(--line), var(--shadow-card); font-size: 11px; color: var(--ink-2); cursor: pointer; border: none; }
+  display: grid; place-items: center; background: var(--white); box-shadow: 0 0 0 1px var(--line), var(--shadow-card); font-size: 11px; color: var(--ink-2); cursor: pointer; border: none;
+  transition: box-shadow .12s, background .12s; }
 .a-trans-pill:hover { box-shadow: 0 0 0 2px var(--mint-2); }
+
+/* Une transition POSÉE est un objet de la timeline : elle prend la hauteur de sa
+   piste et la largeur de sa durée, translucide pour qu'on voie les deux plans
+   qu'elle enjambe. La pastille blanche ne servait qu'à dire « ici, une coupe ». */
+.a-trans-pill.posee { border-radius: 7px; background: rgba(109, 90, 230, .42);
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,.45); backdrop-filter: blur(1px); overflow: visible; }
+.a-trans-pill.posee .a-trans-glyph { font-size: 13px; color: #fff; text-shadow: 0 1px 3px rgba(0,0,0,.7); }
+.a-trans-pill.posee.active { background: rgba(109, 90, 230, .62); box-shadow: 0 0 0 2px var(--mint-2), inset 0 0 0 1px rgba(255,255,255,.5); }
 .a-trans-pill.active { color: var(--mint-2); }
-/* Une transition POSÉE occupe sa durée : le bloc s'élargit à la mesure du temps
-   qu'elle prend, comme n'importe quoi d'autre sur une timeline. Un rond de
-   taille fixe ne disait pas si la transition durait deux images ou une seconde. */
-.a-trans-pill { border-radius: 11px; transition: box-shadow .12s, background .12s; }
-/* Cible visée pendant un glisser : on voit où ça va tomber avant de lâcher. */
+
 /* Poignées de durée : on prend la transition par le bord, comme un plan. */
-.a-trans-trim { position: absolute; top: 0; bottom: 0; width: 8px; cursor: ew-resize; touch-action: none; }
+.a-trans-trim { position: absolute; top: 0; bottom: 0; width: 9px; cursor: ew-resize; touch-action: none; }
 .a-trans-trim::after { content: ""; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
-  width: 2px; height: 11px; border-radius: 2px; background: var(--ink-3); opacity: 0; transition: opacity .12s; }
-.a-trans-pill:hover .a-trans-trim::after, .a-trans-pill.active .a-trans-trim::after { opacity: .85; }
-.a-trans-trim-l { left: -3px; }
-.a-trans-trim-r { right: -3px; }
+  width: 2px; height: 40%; min-height: 9px; border-radius: 2px; background: #fff; opacity: 0; transition: opacity .12s; }
+.a-trans-pill.posee:hover .a-trans-trim::after, .a-trans-pill.posee.active .a-trans-trim::after { opacity: .9; }
+.a-trans-trim-l { left: -4px; }
+.a-trans-trim-r { right: -4px; }
+
+/* Croix de suppression, visible au survol et sur la sélection. */
+.a-trans-del { position: absolute; top: -7px; right: -7px; width: 16px; height: 16px; border-radius: 50%;
+  display: grid; place-items: center; font-size: 12px; line-height: 1; font-weight: 800;
+  background: var(--ink); color: #fff; box-shadow: 0 1px 4px rgba(0,0,0,.5); opacity: 0; transition: opacity .12s; }
+.a-trans-pill.posee:hover .a-trans-del, .a-trans-pill.posee.active .a-trans-del { opacity: 1; }
+
+/* Cible visée pendant un glisser : on voit où ça va tomber avant de lâcher. */
 .a-trans-pill.drop { background: var(--mint-2); color: var(--ink); box-shadow: 0 0 0 3px color-mix(in srgb, var(--mint-2) 45%, transparent); }
 
 /* lane vide (audio/sous-titres/texte) */

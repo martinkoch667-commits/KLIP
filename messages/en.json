@@ -2070,7 +2070,8 @@
     "transitionDropHint": "Drag a transition onto a cut in the timeline. Click a thumbnail to apply it to the selected clip.",
     "transitionDropHintNoClip": "Drag a transition onto a cut in the timeline, between two clips.",
     "transitionNeedJunction": "Drag the transition onto a cut in the timeline.",
-    "transitionDropHere": "Drop a transition here"
+    "transitionDropHere": "Drop a transition here",
+    "deleteTransition": "Delete transition"
   },
   "forgotPassword": {
     "title": "Forgot password",

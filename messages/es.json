@@ -2070,7 +2070,8 @@
     "transitionDropHint": "Arrastra una transición sobre un corte de la línea de tiempo. Haz clic en una miniatura para aplicarla al clip seleccionado.",
     "transitionDropHintNoClip": "Arrastra una transición sobre un corte de la línea de tiempo, entre dos clips.",
     "transitionNeedJunction": "Arrastra la transición sobre un corte de la línea de tiempo.",
-    "transitionDropHere": "Suelta una transición aquí"
+    "transitionDropHere": "Suelta una transición aquí",
+    "deleteTransition": "Eliminar la transición"
   },
   "forgotPassword": {
     "title": "Contraseña olvidada",

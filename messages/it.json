@@ -2070,7 +2070,8 @@
     "transitionDropHint": "Trascina una transizione su un taglio nella timeline. Clicca una miniatura per applicarla alla clip selezionata.",
     "transitionDropHintNoClip": "Trascina una transizione su un taglio nella timeline, tra due clip.",
     "transitionNeedJunction": "Trascina la transizione su un taglio nella timeline.",
-    "transitionDropHere": "Rilascia qui una transizione"
+    "transitionDropHere": "Rilascia qui una transizione",
+    "deleteTransition": "Elimina la transizione"
   },
   "forgotPassword": {
     "title": "Password dimenticata",

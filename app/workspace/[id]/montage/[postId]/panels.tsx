@@ -1005,8 +1005,30 @@ function TransitionThumb({
     drawTransitionPreview(ctx, imgA, imgB, id, p, APERCU_W, APERCU_H);
   };
 
-  // Au repos : l'instant le plus parlant, à mi-course. C'est là que la forme se voit.
-  useEffect(() => { dessiner(0.5); return () => { if (animRef.current) cancelAnimationFrame(animRef.current); };
+  /* Dessinée SEULEMENT quand elle entre à l'écran.
+
+     Les soixante-treize vignettes se dessinaient toutes à l'ouverture du panneau,
+     et trente-cinq d'entre elles font compiler un shader au passage. Tout ça d'un
+     bloc sur le fil principal : le son se mettait à hacher. On ne dessine que ce
+     qu'on regarde, et on laisse passer une image entre deux pour ne jamais tenir
+     le fil trop longtemps. */
+  useEffect(() => {
+    const cv = cvRef.current;
+    if (!cv || !imgA || !imgB) return;
+    let fait = false;
+    let attente: number | null = null;
+    const obs = new IntersectionObserver((entrees) => {
+      if (fait || !entrees.some((e) => e.isIntersecting)) return;
+      fait = true;
+      attente = window.setTimeout(() => dessiner(0.5), 30);
+      obs.disconnect();
+    }, { rootMargin: "120px" });
+    obs.observe(cv);
+    return () => {
+      obs.disconnect();
+      if (attente) clearTimeout(attente);
+      if (animRef.current) cancelAnimationFrame(animRef.current);
+    };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id, imgA, imgB]);
 

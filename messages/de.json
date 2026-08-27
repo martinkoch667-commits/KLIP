@@ -2070,7 +2070,8 @@
     "transitionDropHint": "Ziehe einen Übergang auf einen Schnitt in der Timeline. Klicke auf ein Vorschaubild, um ihn auf den gewählten Clip anzuwenden.",
     "transitionDropHintNoClip": "Ziehe einen Übergang auf einen Schnitt in der Timeline, zwischen zwei Clips.",
     "transitionNeedJunction": "Ziehe den Übergang auf einen Schnitt in der Timeline.",
-    "transitionDropHere": "Übergang hier ablegen"
+    "transitionDropHere": "Übergang hier ablegen",
+    "deleteTransition": "Übergang löschen"
   },
   "forgotPassword": {
     "title": "Passwort vergessen",

@@ -2070,7 +2070,8 @@
     "transitionDropHint": "Glissez une transition sur une coupe de la timeline. Cliquez une vignette pour l'appliquer au plan sélectionné.",
     "transitionDropHintNoClip": "Glissez une transition sur une coupe de la timeline, entre deux plans.",
     "transitionNeedJunction": "Glissez la transition sur une coupe de la timeline.",
-    "transitionDropHere": "Déposez une transition ici"
+    "transitionDropHere": "Déposez une transition ici",
+    "deleteTransition": "Supprimer la transition"
   },
   "forgotPassword": {
     "title": "Mot de passe oublié",
