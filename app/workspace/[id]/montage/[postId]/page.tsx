@@ -1786,6 +1786,19 @@ export default function MontagePage() {
     const seek = () => {
       try { el.currentTime = Math.max(0, nextClip.trimStart); } catch {}
       slotClipRef.current[free] = nextClip.id;
+      /* On ne se contente pas de positionner : on RÉCHAUFFE.
+
+         Un lecteur simplement positionné n'a décodé qu'une image. Il annonce
+         alors « pas de quoi continuer », et à la coupe on démarrait un décodeur
+         froid. Le laisser jouer une fraction de seconde en sourdine remplit son
+         tampon : au moment où on bascule dessus, il a déjà de l'avance. */
+      el.muted = true;
+      el.play().then(() => {
+        setTimeout(() => {
+          // Sauf s'il est entre-temps passé à l'antenne : on ne coupe pas la lecture.
+          if (el !== videoRef.current) { try { el.pause(); el.currentTime = Math.max(0, nextClip.trimStart); } catch {} }
+        }, 250);
+      }).catch(() => { /* lecture refusée : on garde au moins la position */ });
     };
     if (slotSrcRef.current[free] !== nextClip.src) {
       // Fichier différent : charger puis se positionner.
@@ -1863,14 +1876,50 @@ export default function MontagePage() {
          plan, ce qui serait pire que le mal. */
       const resteDansLePlan = ac ? (ac.end - clockRef.current) : Infinity;
       const rs = ac && ac.kind === "video" && vEl && !vEl.ended ? vEl.readyState : 4;
-      const attente = rs < 2 ? 3000 : rs < 3 && resteDansLePlan > 0.35 ? 600 : 0;
+      /* PENDANT UNE TRANSITION, ON N'ATTEND PAS.
+
+         Ce garde-fou met l'horloge en pause tant que le lecteur n'a pas de quoi
+         jouer. C'est juste dans le cas général : la timeline ne doit pas courir
+         devant une image figée. Mais à l'entrée d'un plan, un lecteur qui vient
+         d'être positionné annonce presque toujours « j'ai l'image courante, pas
+         la suivante » — et on gelait tout pendant six cents millisecondes, à
+         chaque coupe. C'est le décalage entre la tête de lecture et l'image, et
+         c'est exactement ce qu'on ressent comme une latence à la transition.
+
+         Or pendant une transition il y a justement quelque chose à montrer :
+         l'image figée du plan qui s'en va. On laisse donc le temps avancer, et
+         le nouveau plan se montrera dès qu'il aura une image. */
+      const enTransition = !!ac && !!ac.transitionIn && ac.transitionIn !== "cut"
+        && (ac.transitionDur || 0) > 0 && clockRef.current - ac.start < (ac.transitionDur || 0);
+      const attente = rs < 2 && !enTransition ? 3000
+        : rs < 3 && !enTransition && resteDansLePlan > 0.35 ? 300
+        : 0;
       if (attente > 0) {
         if (!stalledSince) stalledSince = now;
         if (now - stalledSince < attente) { raf = requestAnimationFrame(tick); return; }
       } else {
         stalledSince = 0;
       }
-      const n = clockRef.current + dt;
+      /* L'HORLOGE SUIT L'IMAGE, pas l'inverse.
+
+         Le temps avançait par écarts réels de l'horloge du navigateur. Le lecteur
+         vidéo, lui, avance à SON rythme : dès qu'il perd une image, il prend du
+         retard, et la tête de lecture continue sans lui. D'où le décalage entre
+         la position sur la timeline et ce qu'on voit à l'écran, qui se creuse à
+         chaque accroc et ne se rattrape jamais.
+
+         Quand un plan vidéo joue vraiment, c'est LUI la référence : sa position
+         dit quelle image est affichée. On ne corrige pas d'un coup — un saut se
+         verrait — mais on rattrape un cinquième de l'écart à chaque image, ce qui
+         recolle en un dixième de seconde sans que rien ne saute. */
+      let n = clockRef.current + dt;
+      if (ac && ac.kind === "video" && vEl && !vEl.paused && vEl.readyState >= 2 && !enTransition) {
+        const selonLimage = ac.start + (vEl.currentTime - ac.trimStart) / (ac.speed || 1);
+        const ecart = selonLimage - n;
+        // Au delà d'une demi-seconde, ce n'est plus une dérive mais un saut
+        // (recherche, changement de plan) : l'horloge reste maîtresse.
+        if (Math.abs(ecart) < 0.5) n += ecart * 0.2;
+      }
       if (total > 0 && n >= total) {
         clockRef.current = 0; timeRef.current = 0;
         poserCurseur(0); setPlaying(false); setTime(0);
