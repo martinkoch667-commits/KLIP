@@ -2076,7 +2076,8 @@
     "toastUploadBadType": "«{name}» è in un formato rifiutato dallo spazio di archiviazione ({type}).",
     "toastUploadFailedWhy": "Impossibile caricare «{name}»: {msg}",
     "toastExportNoAudio": "Questo montaggio non ha alcuna traccia audio: il video esportato sarà muto.",
-    "toastExportNoAudioMuted": "Tutte le tracce audio sono nascoste o silenziate: il video esportato sarà muto. Controlla l'occhio e l'altoparlante sulle tracce."
+    "toastExportNoAudioMuted": "Tutte le tracce audio sono nascoste o silenziate: il video esportato sarà muto. Controlla l'occhio e l'altoparlante sulle tracce.",
+    "toastExportSilent": "Il video esportato non ha audio benché il montaggio ne abbia. Il file viene salvato comunque: segnalalo, è un difetto dell'esportazione."
   },
   "forgotPassword": {
     "title": "Password dimenticata",

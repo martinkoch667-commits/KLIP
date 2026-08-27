@@ -36,6 +36,9 @@ export interface ExportResult {
    *  donnent pas le même conteneur, et l'appelant doit savoir s'il lui reste un
    *  transcodage à faire. */
   mimeType: string;
+  /** Crête du son réellement capté, 0 à 1. Zéro = fichier muet, et il vaut mieux
+   *  le dire à l'écran que de laisser l'utilisateur le découvrir tout seul. */
+  creteAudio?: number;
 }
 
 export interface ClipTimed extends MontageClip {

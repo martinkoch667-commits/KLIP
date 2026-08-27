@@ -2076,7 +2076,8 @@
     "toastUploadBadType": "«{name}» tiene un formato que el almacenamiento rechaza ({type}).",
     "toastUploadFailedWhy": "No se pudo subir «{name}»: {msg}",
     "toastExportNoAudio": "Este montaje no tiene ninguna pista de audio: el vídeo exportado será mudo.",
-    "toastExportNoAudioMuted": "Todas las pistas de audio están ocultas o silenciadas: el vídeo exportado será mudo. Revisa el ojo y el altavoz en las pistas."
+    "toastExportNoAudioMuted": "Todas las pistas de audio están ocultas o silenciadas: el vídeo exportado será mudo. Revisa el ojo y el altavoz en las pistas.",
+    "toastExportSilent": "El vídeo exportado no tiene sonido aunque el montaje sí. El archivo se guarda igualmente: repórtalo, es un fallo de exportación."
   },
   "forgotPassword": {
     "title": "Contraseña olvidada",

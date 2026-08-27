@@ -2076,7 +2076,8 @@
     "toastUploadBadType": "„{name}“ hat ein Format, das der Speicher ablehnt ({type}).",
     "toastUploadFailedWhy": "„{name}“ konnte nicht hochgeladen werden: {msg}",
     "toastExportNoAudio": "Dieser Schnitt hat keine Tonspur: das exportierte Video bleibt stumm.",
-    "toastExportNoAudioMuted": "Alle Tonspuren sind ausgeblendet oder stummgeschaltet: das exportierte Video bleibt stumm. Prüfe Auge und Lautsprecher auf den Audiospuren."
+    "toastExportNoAudioMuted": "Alle Tonspuren sind ausgeblendet oder stummgeschaltet: das exportierte Video bleibt stumm. Prüfe Auge und Lautsprecher auf den Audiospuren.",
+    "toastExportSilent": "Das exportierte Video hat keinen Ton, obwohl der Schnitt welchen hat. Die Datei wird trotzdem gespeichert: bitte melden, das ist ein Exportfehler."
   },
   "forgotPassword": {
     "title": "Passwort vergessen",

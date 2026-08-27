@@ -2076,7 +2076,8 @@
     "toastUploadBadType": "«{name}» está num formato recusado pelo armazenamento ({type}).",
     "toastUploadFailedWhy": "Não foi possível enviar «{name}»: {msg}",
     "toastExportNoAudio": "Esta montagem não tem qualquer faixa de som: o vídeo exportado ficará mudo.",
-    "toastExportNoAudioMuted": "Todas as faixas de som estão ocultas ou silenciadas: o vídeo exportado ficará mudo. Verifique o olho e o altifalante nas faixas."
+    "toastExportNoAudioMuted": "Todas as faixas de som estão ocultas ou silenciadas: o vídeo exportado ficará mudo. Verifique o olho e o altifalante nas faixas.",
+    "toastExportSilent": "O vídeo exportado não tem som apesar de a montagem ter. O ficheiro é guardado à mesma: comunique-o, é uma falha da exportação."
   },
   "forgotPassword": {
     "title": "Esqueceu a palavra-passe",

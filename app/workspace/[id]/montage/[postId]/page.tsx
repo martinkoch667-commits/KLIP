@@ -3893,7 +3893,14 @@ export default function MontagePage() {
       if (sourcesSonores === 0) {
         toast(sourcesEcartees > 0 ? t('toastExportNoAudioMuted') : t('toastExportNoAudio'), "error");
       }
-      const { blob: rawBlob, thumbnailBlob, mimeType: recordedType } = await renderExport({ clips: exClips, overlays: exOverlays, captions: exCaptions, subStyleId, subCustom, subPos, linkedSubs, titles: exTitles, stickers, audioTracks: exAudio, showProgressBar, formatId, customW, customH, exportQuality }, (p) => setExportProgress(p));
+      const { blob: rawBlob, thumbnailBlob, mimeType: recordedType, creteAudio } = await renderExport({ clips: exClips, overlays: exOverlays, captions: exCaptions, subStyleId, subCustom, subPos, linkedSubs, titles: exTitles, stickers, audioTracks: exAudio, showProgressBar, formatId, customW, customH, exportQuality }, (p) => setExportProgress(p));
+      /* Le fichier a-t-il du son ? On ne laisse pas l'utilisateur le découvrir
+         après coup : un export muet est indiscernable d'un export sonore tant
+         qu'on ne l'a pas écouté. */
+      if (sourcesSonores > 0 && typeof creteAudio === "number" && creteAudio < 0.0005) {
+        console.error("[export] fichier MUET malgré", sourcesSonores, "source(s) sonore(s)");
+        toast(t('toastExportSilent'), "error");
+      }
 
       // Instagram veut du MP4/H.264. Safari sait l'enregistrer directement : dans
       // ce cas il n'y a rien à transcoder, et on évite ffmpeg.wasm — qui, en

@@ -162,6 +162,23 @@ export async function renderExportTempsReel(project: ExportProject, onProgress: 
   silence.connect(dest);
   silence.start();
 
+  /* MESURE DU SON RÉELLEMENT CAPTÉ.
+
+     Un enregistrement muet est indiscernable d'un enregistrement sonore : même
+     durée, même poids, mêmes en-têtes, aucune erreur. On branche donc un
+     analyseur sur la destination et on relève la crête pendant tout l'export.
+     Zéro veut dire « ce fichier n'aura pas de son », et il vaut mieux le dire à
+     l'écran que de laisser l'utilisateur le découvrir après coup. */
+  const analyseur = audioCtx.createAnalyser();
+  analyseur.fftSize = 1024;
+  dest.stream.getAudioTracks(); // (la destination reste la sortie du graphe)
+  const mesures = new Float32Array(analyseur.fftSize);
+  let creteAudio = 0;
+  const sondeAudio = setInterval(() => {
+    analyseur.getFloatTimeDomainData(mesures);
+    for (let i = 0; i < mesures.length; i++) { const v = Math.abs(mesures[i]); if (v > creteAudio) creteAudio = v; }
+  }, 100);
+
   // 2 éléments <video> alternés par index de plan (pair/impair) — indispensable pour
   // qu'un vrai fondu enchaîné ("fade") puisse décoder 2 plans vidéo consécutifs en
   // parallèle (le sortant continue de jouer pendant que l'entrant démarre) sans se
@@ -176,6 +193,7 @@ export async function renderExportTempsReel(project: ExportProject, onProgress: 
     const node = audioCtx.createMediaElementSource(v);
     const gain = audioCtx.createGain();
     gain.gain.value = 1;
+    gain.connect(analyseur);
     node.connect(gain).connect(dest);
     videoSlots.push(v);
     videoGains.push(gain);
@@ -205,6 +223,7 @@ export async function renderExportTempsReel(project: ExportProject, onProgress: 
     const node = audioCtx.createMediaElementSource(el);
     const gain = audioCtx.createGain();
     gain.gain.value = t.vol;
+    gain.connect(analyseur);
     node.connect(gain).connect(dest);
     return { el, gain, track: t };
   });
@@ -527,10 +546,12 @@ export async function renderExportTempsReel(project: ExportProject, onProgress: 
   if (blob.size < 20_000 && total > 1) {
     throw new Error("L'enregistrement n'a produit presque aucune image. Réessayez en gardant l'onglet au premier plan.");
   }
+  clearInterval(sondeAudio);
   try { silence.stop(); } catch { /* déjà arrêtée */ }
   await audioCtx.close();
   await thumbnailPromise;
-  return { blob, thumbnailBlob, mimeType: actualType };
+  console.log("[export] captation temps réel · crête du son capté :", creteAudio.toFixed(4));
+  return { blob, thumbnailBlob, mimeType: actualType, creteAudio };
 }
 
 /* Point d'entrée unique de l'export.

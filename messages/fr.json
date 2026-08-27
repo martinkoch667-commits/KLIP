@@ -2076,7 +2076,8 @@
     "toastUploadBadType": "« {name} » est dans un format refusé par le stockage ({type}).",
     "toastUploadFailedWhy": "« {name} » n'a pas pu être envoyé : {msg}",
     "toastExportNoAudio": "Ce montage n'a aucune piste sonore : la vidéo exportée sera muette.",
-    "toastExportNoAudioMuted": "Toutes les pistes sonores sont masquées ou coupées : la vidéo exportée sera muette. Vérifiez l'oeil et le haut-parleur sur les pistes audio."
+    "toastExportNoAudioMuted": "Toutes les pistes sonores sont masquées ou coupées : la vidéo exportée sera muette. Vérifiez l'oeil et le haut-parleur sur les pistes audio.",
+    "toastExportSilent": "La vidéo exportée n'a pas de son, alors que le montage en a. Le fichier est quand même enregistré : signalez-le, c'est un défaut de l'export."
   },
   "forgotPassword": {
     "title": "Mot de passe oublié",
