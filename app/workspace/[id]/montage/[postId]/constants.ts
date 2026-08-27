@@ -1324,6 +1324,11 @@ export const TRANSITIONS: { id: string; name: string; glyph: string; family: Tra
   ...GL_TRANSITIONS.map((t) => ({ id: t.id, name: t.name, glyph: t.glyph, family: t.family })),
 ];
 
+/* Table d'accès direct : la timeline cherchait la transition d'un plan en
+   parcourant les soixante-treize, pour chaque plan, à chaque rendu — et il y a
+   trente rendus par seconde pendant une animation. */
+export const TRANSITION_PAR_ID = new Map(TRANSITIONS.map((t) => [t.id, t]));
+
 export const SPEEDS = [0.25, 0.5, 1, 1.5, 2];
 
 export interface SubStyle {

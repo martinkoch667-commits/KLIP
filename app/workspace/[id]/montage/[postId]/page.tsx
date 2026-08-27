@@ -7,7 +7,7 @@ import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
 import { VIcon } from "./icons";
 import {
   MontageClip, OverlayClip, Caption, TitleEl, StickerEl, AudioTrack, MontageProject, SubCustom,
-  FILTERS, TRANSITIONS, SUB_STYLES, FONT_CHOICES, SUB_LENGTHS, DEFAULT_WORDS_PER_CAPTION, DEFAULT_SUB_POS,
+  FILTERS, TRANSITIONS, TRANSITION_PAR_ID, SUB_STYLES, FONT_CHOICES, SUB_LENGTHS, DEFAULT_WORDS_PER_CAPTION, DEFAULT_SUB_POS,
   subStyleById, effectiveSubStyle, resolveCapStyle, resolveCapPos, subtitleBoxCss, subBgLayerCss, curveLayout, SUB_BASE_FONT, applySubCase, DEFAULT_SUB_STYLE_ID,
   captionPartAt, subLines,
   // (analyzeClipQuality importé depuis ./autoCut plus bas)
@@ -1282,6 +1282,10 @@ export default function MontagePage() {
      dans le DOM : c'est le mouvement le plus visible, il reste à 60 Hz sans
      coûter un seul rendu. */
   const clockRef = useRef(0);           // temps de lecture faisant autorité
+  /* Temps moyen entre deux rendus, en millisecondes. Sert à savoir si la machine
+     tient la cadence, et à la baisser sinon. Démarre au budget d'une image à
+     trente par seconde : on suppose que ça passe, et on corrige à la mesure. */
+  const chargeRef = useRef(33);
   /* `timeRef` porte le temps EXACT, à l'image près, que la lecture soit en cours
      ou non : c'est lui que lisent la synchro image/son et les actions qui doivent
      tomber sur l'image affichée (couper au curseur, choisir la couverture).
@@ -1640,7 +1644,22 @@ export default function MontagePage() {
 
       // React n'est réveillé que si l'écran doit changer, ou à la cadence utile.
       const sig = signatureScene(n);
-      const intervalle = animationEnCours(n) ? 1000 / 30 : 1000 / 10;
+      /* CADENCE ADAPTÉE À LA MACHINE.
+
+         Trente rendus par seconde pendant une animation, c'est la cadence de
+         l'export. Sur une machine qui ne suit pas, c'est aussi la cadence qui
+         mange le son : le fil principal porte à la fois le rendu React, le
+         décodage vidéo et le mixage audio. On mesure donc le temps réellement
+         passé entre deux images ; s'il dépasse largement le budget, on descend
+         à vingt puis à quinze. Une transition à quinze images par seconde reste
+         une transition ; un son haché n'est plus rien. */
+      if (dernierRendu) {
+        const ecart = now - dernierRendu;
+        // Moyenne glissante : une image lente isolée ne doit pas tout changer.
+        chargeRef.current = chargeRef.current * 0.85 + ecart * 0.15;
+      }
+      const cadence = chargeRef.current > 62 ? 15 : chargeRef.current > 42 ? 20 : 30;
+      const intervalle = animationEnCours(n) ? 1000 / cadence : 1000 / 10;
       if (sig !== derniereSignature || now - dernierRendu >= intervalle) {
         derniereSignature = sig;
         dernierRendu = now;
@@ -4616,23 +4635,31 @@ export default function MontagePage() {
 
   /* L'IMAGE FIGÉE du plan qui s'en va.
 
-     C'est la pièce qui manquait. Le plan sortant vivait dans un lecteur vidéo à
-     qui on donnait sa source au moment même de la transition : il n'avait donc
-     rien de décodé à montrer pendant la demi-seconde où on avait besoin de lui,
-     et on voyait du noir à sa place.
+     C'est la pièce qui manquait quand la transition se jouait sur du noir : le
+     plan sortant vivait dans un lecteur vidéo à qui on donnait sa source au
+     moment même de la transition, donc sans rien de décodé à montrer.
 
-     On garde en permanence une image de ce qui est à l'écran. Quand la transition
-     commence, elle porte la dernière image du plan qui part — disponible tout de
-     suite, rien à charger, rien à décoder.
-
-     Deux fois par seconde suffisent : la capture coûte un dessin de trame, et la
-     faire à chaque battement d'horloge hachait le son. */
+     ELLE NE SE PREND QU'AU DERNIER MOMENT. Recopier une image vidéo dans une
+     toile force la carte graphique à rendre ses pixels au processeur : c'est
+     l'opération la plus chère de tout l'aperçu. La faire deux fois par seconde
+     en permanence, comme je l'avais écrit, hachait le son de la lecture. On ne
+     la prend donc que dans la demi-seconde qui précède une coupe QUI PORTE une
+     transition — une ou deux fois par coupe, et rien du tout le reste du temps,
+     c'est-à-dire presque toujours. */
   const instantaneRef = useRef<HTMLCanvasElement | null>(null);
   const derniereCaptureRef = useRef(0);
+  /** Une coupe avec transition arrive-t-elle dans moins d'une demi-seconde ? */
+  const coupeImminente = useMemo(() => {
+    if (!activeClip) return false;
+    const i = clipStarts.findIndex((c) => c.id === activeClip.id);
+    const suivant = clipStarts[i + 1];
+    if (!suivant || !suivant.transitionIn || suivant.transitionIn === "cut") return false;
+    return activeClip.end - time <= 0.6;
+  }, [activeClip, clipStarts, time]);
   useEffect(() => {
-    if (transitionEnCours || !activeClip) return;
+    if (transitionEnCours || !coupeImminente || !activeClip) return;
     const maintenant = performance.now();
-    if (maintenant - derniereCaptureRef.current < 500) return;
+    if (maintenant - derniereCaptureRef.current < 200) return;
     const el: HTMLVideoElement | HTMLImageElement | null =
       activeClip.kind === "video" ? [videoARef, videoBRef][slot].current : imgInRef.current;
     if (!el) return;
@@ -4640,12 +4667,17 @@ export default function MontagePage() {
     const sh = el instanceof HTMLVideoElement ? el.videoHeight : el.naturalHeight;
     if (!sw || !sh || (el instanceof HTMLVideoElement && el.readyState < 2)) return;
     derniereCaptureRef.current = maintenant;
-    const w = 480, h = Math.max(1, Math.round((sh / sw) * 480));
+    // 360 px suffisent : cette image n'est réaffichée que dans l'aperçu, jamais
+    // exportée. Plus grande, elle coûterait plus cher pour rien.
+    const w = 360, h = Math.max(1, Math.round((sh / sw) * 360));
     let cv = instantaneRef.current;
     if (!cv) { cv = document.createElement("canvas"); instantaneRef.current = cv; }
     if (cv.width !== w || cv.height !== h) { cv.width = w; cv.height = h; }
-    try { cv.getContext("2d")?.drawImage(el, 0, 0, w, h); } catch { /* source non lisible */ }
-  }, [time, activeClip, slot, transitionEnCours]);
+    try {
+      const c2d = cv.getContext("2d", { alpha: false });
+      if (c2d) { c2d.imageSmoothingQuality = "low"; c2d.drawImage(el, 0, 0, w, h); }
+    } catch { /* source non lisible */ }
+  }, [time, activeClip, slot, transitionEnCours, coupeImminente]);
 
   /* Cette image, peinte UNE FOIS par coupe dans la toile du plan sortant.
 
@@ -5623,7 +5655,7 @@ export default function MontagePage() {
                     </div>
                     {i < clipStarts.length - 1 && (() => {
                       const suivant = clipStarts[i + 1];
-                      const pose = TRANSITIONS.find((tr) => tr.id === suivant.transitionIn && tr.id !== "cut");
+                      const pose = suivant.transitionIn && suivant.transitionIn !== "cut" ? TRANSITION_PAR_ID.get(suivant.transitionIn) : undefined;
                       const vise = jonctionSurvolee === suivant.id;
                       const choisie = selectedTransId === suivant.id;
                       return (

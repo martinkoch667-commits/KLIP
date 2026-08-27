@@ -4,7 +4,7 @@
 // Reprend la structure de design_handoff_montage_video/design_files/panels.jsx,
 // branché sur de vraies actions (state du projet Montage).
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import { VIcon } from "./icons";
 import SubtitleStyleEditor from "@/components/SubtitleStyleEditor";
@@ -928,6 +928,30 @@ export function AudioPanel({ ctx }: { ctx: MontageCtx }) {
    ne peut donc pas promettre autre chose que ce qui sortira. */
 const APERCU_W = 96, APERCU_H = 96;
 
+/* File de dessin des vignettes : une par image, pas une de plus.
+
+   Peu importe qu'on en demande soixante-treize d'un coup ou trois : le fil
+   principal ne rend jamais plus d'une vignette par image. C'est ce qui garantit
+   que l'ouverture du panneau ne fait pas hoqueter la lecture, même sur une
+   machine lente. */
+const attente: (() => void)[] = [];
+let videEnCours = false;
+function fileDeDessin(travail: () => void) {
+  attente.push(travail);
+  if (videEnCours) return;
+  videEnCours = true;
+  // Minuteur et non `requestAnimationFrame` : ce dernier ne se déclenche PAS
+  // quand l'onglet passe en arrière-plan, et les vignettes restaient alors vides
+  // pour toujours au retour (mesuré). Un pas de 16 ms suffit à étaler le travail.
+  const pas = () => {
+    const suivant = attente.shift();
+    if (suivant) { try { suivant(); } catch { /* vignette impossible : on passe */ } }
+    if (attente.length) setTimeout(pas, 16);
+    else videEnCours = false;
+  };
+  setTimeout(pas, 0);
+}
+
 /* Deux images franchement DIFFÉRENTES, pour qu'on voie la transition agir.
 
    Les vignettes montraient les deux plans de la coupe en cours. Quand ces plans
@@ -987,12 +1011,19 @@ function imagesDemo(): Promise<[HTMLImageElement, HTMLImageElement]> {
   return promesseDemo;
 }
 
-function TransitionThumb({
+/* Mémoïsée, et ses propriétés le sont toutes.
+
+   Le monteur entier se rend jusqu'à trente fois par seconde pendant une
+   animation, et le panneau ouvert avec lui : soixante-treize vignettes
+   re-comparées à chaque fois. `onChoisir` est donc une fonction STABLE qui reçoit
+   l'identifiant, et non une flèche recréée à chaque rendu — sans quoi la
+   mémoïsation ne servirait à rien. */
+const TransitionThumb = memo(function TransitionThumb({
   id, glyph, nom, actif, imgA, imgB, onChoisir,
 }: {
   id: string; glyph: string; nom: string; actif: boolean;
   imgA: HTMLImageElement | null; imgB: HTMLImageElement | null;
-  onChoisir: () => void;
+  onChoisir: (id: string) => void;
 }) {
   const cvRef = useRef<HTMLCanvasElement>(null);
   const animRef = useRef<number | null>(null);
@@ -1000,33 +1031,36 @@ function TransitionThumb({
   const dessiner = (p: number) => {
     const cv = cvRef.current;
     if (!cv || !imgA || !imgB) return;
-    const ctx = cv.getContext("2d");
+    const ctx = cv.getContext("2d", { alpha: false });
     if (!ctx) return;
     drawTransitionPreview(ctx, imgA, imgB, id, p, APERCU_W, APERCU_H);
   };
 
-  /* Dessinée SEULEMENT quand elle entre à l'écran.
+  /* Dessinée quand elle entre à l'écran, et JAMAIS toutes d'un coup.
 
-     Les soixante-treize vignettes se dessinaient toutes à l'ouverture du panneau,
-     et trente-cinq d'entre elles font compiler un shader au passage. Tout ça d'un
-     bloc sur le fil principal : le son se mettait à hacher. On ne dessine que ce
-     qu'on regarde, et on laisse passer une image entre deux pour ne jamais tenir
-     le fil trop longtemps. */
+     Les soixante-treize vignettes se dessinaient à l'ouverture du panneau, et
+     trente-cinq d'entre elles font compiler un shader au passage : tout ça d'un
+     bloc sur le fil principal, qui porte aussi le son de la lecture.
+
+     Deux garde-fous. On n'entre dans la file qu'en devenant visible ; et la file
+     est vidée à raison d'UNE vignette par image, donc le fil n'est jamais retenu
+     longtemps, quel que soit le nombre de vignettes ou la lenteur de la machine.
+     Un repli au bout d'une demi-seconde couvre le cas où l'observateur ne dit
+     jamais rien (fenêtre sans hauteur, onglet en arrière-plan) : sans lui, la
+     vignette resterait vide pour toujours. */
   useEffect(() => {
     const cv = cvRef.current;
     if (!cv || !imgA || !imgB) return;
     let fait = false;
-    let attente: number | null = null;
+    const demander = () => { if (fait) return; fait = true; fileDeDessin(() => dessiner(0.5)); };
     const obs = new IntersectionObserver((entrees) => {
-      if (fait || !entrees.some((e) => e.isIntersecting)) return;
-      fait = true;
-      attente = window.setTimeout(() => dessiner(0.5), 30);
-      obs.disconnect();
+      if (entrees.some((e) => e.isIntersecting)) { demander(); obs.disconnect(); }
     }, { rootMargin: "120px" });
     obs.observe(cv);
+    const repli = window.setTimeout(demander, 500);
     return () => {
       obs.disconnect();
-      if (attente) clearTimeout(attente);
+      clearTimeout(repli);
       if (animRef.current) cancelAnimationFrame(animRef.current);
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -1036,9 +1070,16 @@ function TransitionThumb({
     if (animRef.current) cancelAnimationFrame(animRef.current);
     const t0 = performance.now();
     const DUREE = 1100;
+    let derniere = 0;
     const pas = () => {
-      const p = ((performance.now() - t0) % DUREE) / DUREE;
-      dessiner(p);
+      const maintenant = performance.now();
+      // 20 images par seconde : une vignette de 96 pixels n'a rien à gagner à
+      // tourner à 60, et le fil principal a autre chose à faire — le son de la
+      // lecture passe par là.
+      if (maintenant - derniere >= 50) {
+        derniere = maintenant;
+        dessiner(((maintenant - t0) % DUREE) / DUREE);
+      }
       animRef.current = requestAnimationFrame(pas);
     };
     animRef.current = requestAnimationFrame(pas);
@@ -1066,7 +1107,7 @@ function TransitionThumb({
       onMouseLeave={arreter}
       onFocus={jouer}
       onBlur={arreter}
-      onClick={onChoisir}
+      onClick={() => onChoisir(id)}
       style={{ aspectRatio: "1", background: "var(--sunk)", position: "relative", overflow: "hidden", padding: 0, cursor: "grab" }}
       title={nom}
     >
@@ -1081,12 +1122,19 @@ function TransitionThumb({
         background: "linear-gradient(transparent, rgba(0,0,0,.65))", pointerEvents: "none" }}>{nom}</span>
     </button>
   );
-}
+});
 
 export function TransitionsPanel({ ctx }: { ctx: MontageCtx }) {
   const t = useTranslations('montage');
   const tc = useTranslations('montageConstants');
+  const tRef = useRef(t); tRef.current = t;
   const c = ctx.selectedClip;
+  const ctxRef = useRef(ctx); ctxRef.current = ctx;
+  const choisir = useCallback((idTransition: string) => {
+    const courant = ctxRef.current;
+    if (courant.selectedClip) courant.updateClip(courant.selectedClip.id, { transitionIn: idTransition });
+    else courant.toast(tRef.current('transitionNeedJunction'));
+  }, []);
   const [demo, setDemo] = useState<{ a: HTMLImageElement | null; b: HTMLImageElement | null }>({ a: null, b: null });
   useEffect(() => { let vivant = true; imagesDemo().then(([a, b]) => { if (vivant) setDemo({ a, b }); }).catch(() => {}); return () => { vivant = false; }; }, []);
   const { a: imgA, b: imgB } = demo;
@@ -1115,7 +1163,7 @@ export function TransitionsPanel({ ctx }: { ctx: MontageCtx }) {
                     actif={!!c && c.transitionIn === tr.id}
                     imgA={imgA}
                     imgB={imgB}
-                    onChoisir={() => { if (c) ctx.updateClip(c.id, { transitionIn: tr.id }); else ctx.toast(t('transitionNeedJunction')); }}
+                    onChoisir={choisir}
                   />
                 ))}
               </div>
