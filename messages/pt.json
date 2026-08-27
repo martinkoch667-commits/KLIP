@@ -2071,7 +2071,10 @@
     "transitionDropHintNoClip": "Arraste uma transição para um corte na linha temporal, entre dois clipes.",
     "transitionNeedJunction": "Arraste a transição para um corte na linha temporal.",
     "transitionDropHere": "Largue aqui uma transição",
-    "deleteTransition": "Eliminar a transição"
+    "deleteTransition": "Eliminar a transição",
+    "toastUploadTooBig": "«{name}» tem {mb} MB, acima do limite de envio. Reduza a resolução ou encurte o vídeo.",
+    "toastUploadBadType": "«{name}» está num formato recusado pelo armazenamento ({type}).",
+    "toastUploadFailedWhy": "Não foi possível enviar «{name}»: {msg}"
   },
   "forgotPassword": {
     "title": "Esqueceu a palavra-passe",

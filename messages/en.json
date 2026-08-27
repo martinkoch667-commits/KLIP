@@ -2071,7 +2071,10 @@
     "transitionDropHintNoClip": "Drag a transition onto a cut in the timeline, between two clips.",
     "transitionNeedJunction": "Drag the transition onto a cut in the timeline.",
     "transitionDropHere": "Drop a transition here",
-    "deleteTransition": "Delete transition"
+    "deleteTransition": "Delete transition",
+    "toastUploadTooBig": "“{name}” is {mb} MB, above the upload limit. Lower the resolution or shorten the video.",
+    "toastUploadBadType": "“{name}” is in a format storage refuses ({type}).",
+    "toastUploadFailedWhy": "“{name}” could not be uploaded: {msg}"
   },
   "forgotPassword": {
     "title": "Forgot password",

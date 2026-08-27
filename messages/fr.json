@@ -2071,7 +2071,10 @@
     "transitionDropHintNoClip": "Glissez une transition sur une coupe de la timeline, entre deux plans.",
     "transitionNeedJunction": "Glissez la transition sur une coupe de la timeline.",
     "transitionDropHere": "Déposez une transition ici",
-    "deleteTransition": "Supprimer la transition"
+    "deleteTransition": "Supprimer la transition",
+    "toastUploadTooBig": "« {name} » fait {mb} Mo : c'est au-dessus de la limite d'envoi. Réduisez la définition ou raccourcissez la vidéo.",
+    "toastUploadBadType": "« {name} » est dans un format refusé par le stockage ({type}).",
+    "toastUploadFailedWhy": "« {name} » n'a pas pu être envoyé : {msg}"
   },
   "forgotPassword": {
     "title": "Mot de passe oublié",

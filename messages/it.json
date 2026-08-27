@@ -2071,7 +2071,10 @@
     "transitionDropHintNoClip": "Trascina una transizione su un taglio nella timeline, tra due clip.",
     "transitionNeedJunction": "Trascina la transizione su un taglio nella timeline.",
     "transitionDropHere": "Rilascia qui una transizione",
-    "deleteTransition": "Elimina la transizione"
+    "deleteTransition": "Elimina la transizione",
+    "toastUploadTooBig": "«{name}» pesa {mb} MB, oltre il limite di caricamento. Riduci la risoluzione o accorcia il video.",
+    "toastUploadBadType": "«{name}» è in un formato rifiutato dallo spazio di archiviazione ({type}).",
+    "toastUploadFailedWhy": "Impossibile caricare «{name}»: {msg}"
   },
   "forgotPassword": {
     "title": "Password dimenticata",

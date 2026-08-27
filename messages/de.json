@@ -2071,7 +2071,10 @@
     "transitionDropHintNoClip": "Ziehe einen Übergang auf einen Schnitt in der Timeline, zwischen zwei Clips.",
     "transitionNeedJunction": "Ziehe den Übergang auf einen Schnitt in der Timeline.",
     "transitionDropHere": "Übergang hier ablegen",
-    "deleteTransition": "Übergang löschen"
+    "deleteTransition": "Übergang löschen",
+    "toastUploadTooBig": "„{name}“ ist {mb} MB groß und liegt über dem Upload-Limit. Auflösung verringern oder Video kürzen.",
+    "toastUploadBadType": "„{name}“ hat ein Format, das der Speicher ablehnt ({type}).",
+    "toastUploadFailedWhy": "„{name}“ konnte nicht hochgeladen werden: {msg}"
   },
   "forgotPassword": {
     "title": "Passwort vergessen",

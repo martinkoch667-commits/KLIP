@@ -2049,11 +2049,35 @@ export default function MontagePage() {
     seek(((e.clientX - r.left) / r.width) * total);
   }
 
+  /** Traduit la réponse du stockage en phrase utile, taille du fichier à l'appui.
+
+      « n'a pas pu être envoyé » ne dit rien à personne, et coûtait un
+      aller-retour entier pour apprendre ce que le stockage avait déjà dit. */
+  function raisonEnvoi(msg: string, file: File): string {
+    const mo = Math.round(file.size / 1048576);
+    const bas = msg.toLowerCase();
+    if (bas.includes("exceed") || bas.includes("too large") || bas.includes("payload") || bas.includes("entity too")) {
+      return t('toastUploadTooBig', { name: file.name, mb: mo });
+    }
+    if (bas.includes("mime") || bas.includes("content type") || bas.includes("not supported")) {
+      return t('toastUploadBadType', { name: file.name, type: file.type || "inconnu" });
+    }
+    return t('toastUploadFailedWhy', { name: file.name, msg });
+  }
+
   // ── Import (drag & drop + click) ────────────────────────────────────────────
   async function importFiles(files: FileList | File[]) {
     const arr = Array.from(files).filter((f) => f.type.startsWith("video/") || f.type.startsWith("image/"));
     if (!arr.length) return;
     setUploading(true);
+    /* Les réglages du stockage sont remis à niveau avant le premier envoi.
+
+       Ils n'étaient posés qu'à la création d'un espace de travail : un espace
+       plus ancien gardait donc pour toujours la limite de taille et la liste de
+       formats d'origine, et refusait une vidéo de téléphone sans qu'on puisse
+       rien y faire depuis le code. Best-effort : si l'appel échoue, l'envoi est
+       tenté quand même et dira lui-même ce qui bloque. */
+    await fetch("/api/ensure-buckets", { method: "POST" }).catch(() => {});
     for (const file of arr) {
       const isVideo = file.type.startsWith("video/");
       const bucket = isVideo ? "videos" : "photos";
@@ -2061,7 +2085,11 @@ export default function MontagePage() {
       const path = `${workspaceId}/${postId}-${crypto.randomUUID()}.${ext}`;
       const { error } = await supabase.storage.from(bucket).upload(path, file, { upsert: true, contentType: file.type });
       // Ne jamais avaler l'échec : un plan sans fichier fige le lecteur.
-      if (error) { toast(t('toastUploadFailed', { name: file.name }), "error"); continue; }
+      if (error) {
+        console.error("[import]", file.name, Math.round(file.size / 1048576) + " Mo", error.message);
+        toast(raisonEnvoi(error.message, file), "error");
+        continue;
+      }
       const { data: urlData } = supabase.storage.from(bucket).getPublicUrl(path);
       const dur = isVideo ? await getVideoDuration(urlData.publicUrl) : PHOTO_DEFAULT_DUR;
       setClips((prev) => [...prev, {
@@ -2107,7 +2135,11 @@ export default function MontagePage() {
       const path = `${workspaceId}/${postId}-${crypto.randomUUID()}.${ext}`;
       const { error } = await supabase.storage.from(bucket).upload(path, file, { upsert: true, contentType: file.type });
       // Ne jamais avaler l'échec : un plan sans fichier fige le lecteur.
-      if (error) { toast(t('toastUploadFailed', { name: file.name }), "error"); continue; }
+      if (error) {
+        console.error("[import]", file.name, Math.round(file.size / 1048576) + " Mo", error.message);
+        toast(raisonEnvoi(error.message, file), "error");
+        continue;
+      }
       const { data: urlData } = supabase.storage.from(bucket).getPublicUrl(path);
       const dur = isVideo ? await getVideoDuration(urlData.publicUrl) : PHOTO_DEFAULT_DUR;
       if (lane && lane !== "video" && (lane === "new" || /^v\d+$/.test(lane))) {
