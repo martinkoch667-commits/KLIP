@@ -67,6 +67,16 @@ export const FPS = 30;
  *  premier dessin : les fonctions ci-dessous ferment sur ces deux variables. */
 export function setCanvasSize(w: number, h: number) { CANVAS_W = w; CANVAS_H = h; }
 
+/** Dimensions réelles d'une source, quelle qu'elle soit. Une TOILE n'a pas de
+ *  `naturalWidth` : la lire dessus rendait `undefined`, et l'image figée du plan
+ *  sortant ne se dessinait pas du tout. */
+export function tailleSource(media: HTMLVideoElement | HTMLImageElement | HTMLCanvasElement): [number, number] {
+  if (media instanceof HTMLVideoElement) return [media.videoWidth, media.videoHeight];
+  if (typeof HTMLCanvasElement !== "undefined" && media instanceof HTMLCanvasElement) return [media.width, media.height];
+  const img = media as HTMLImageElement;
+  return [img.naturalWidth || img.width, img.naturalHeight || img.height];
+}
+
 export function drawCover(ctx: CanvasRenderingContext2D, media: CanvasImageSource, mw: number, mh: number, focusX = 0.5, focusY = 0.5) {
   if (!mw || !mh) return;
   const scale = Math.max(CANVAS_W / mw, CANVAS_H / mh);
@@ -82,13 +92,12 @@ export function drawCover(ctx: CanvasRenderingContext2D, media: CanvasImageSourc
  *  ici, le sortant d'abord, l'entrant ensuite. */
 export function drawMediaWithState(
   ctx: CanvasRenderingContext2D,
-  media: HTMLVideoElement | HTMLImageElement,
+  media: HTMLVideoElement | HTMLImageElement | HTMLCanvasElement,
   clip: ClipTimed,
   tIntoClip: number,
   st: TransitionState,
 ) {
-  const mw = media instanceof HTMLVideoElement ? media.videoWidth : media.naturalWidth;
-  const mh = media instanceof HTMLVideoElement ? media.videoHeight : media.naturalHeight;
+  const [mw, mh] = tailleSource(media);
   const diag = Math.hypot(CANVAS_W, CANVAS_H);
   const dx = st.dx * CANVAS_W, dy = st.dy * CANVAS_H;
   const kbP = clip.dur > 0 ? Math.min(1, Math.max(0, tIntoClip / clip.dur)) : 0;
@@ -205,35 +214,55 @@ export function drawGlTransitionFrame(
 
 export { estTransitionGl };
 
-/** Une image d'aperçu d'une transition, entre deux images quelconques.
- *  Sert aux vignettes du panneau et au banc d'essai : même moteur que l'export,
- *  donc la vignette ne peut pas mentir sur ce que la transition fait. */
-export function drawTransitionPreview(
+/** UNE image de transition, quels que soient les deux plans et la transition.
+ *
+ *  C'est le seul chemin : shaders et transitions 2D, aperçu et exports. L'aperçu
+ *  jouait les transitions 2D en CSS sur les lecteurs vidéo et les shaders sur une
+ *  toile — deux façons de faire la même chose, dont une qui montrait du noir dès
+ *  que le lecteur du plan sortant n'avait pas fini de charger. */
+export function drawTransitionFrame(
   ctx: CanvasRenderingContext2D,
-  imgA: CanvasImageSource & { width?: number },
-  imgB: CanvasImageSource,
+  sortantMedia: HTMLVideoElement | HTMLImageElement | HTMLCanvasElement,
+  sortantClip: ClipTimed,
+  sortantT: number,
+  entrantMedia: HTMLVideoElement | HTMLImageElement | HTMLCanvasElement,
+  entrantClip: ClipTimed,
+  entrantT: number,
   id: string,
   progress: number,
   w: number,
   h: number,
 ) {
   setCanvasSize(w, h);
-  const bidon = (kind: "video" | "photo" = "photo"): ClipTimed => ({
-    id: "apercu", kind, name: "", src: "", srcDur: 1, trimStart: 0, trimEnd: 1, speed: 1,
+  // Fond NOIR, comme le cadre du montage : une toile transparente laisserait
+  // voir ce qu'il y a derrière, et « fondu au noir » s'afficherait en blanc.
+  ctx.fillStyle = "#000";
+  ctx.fillRect(0, 0, w, h);
+  const m = (x: unknown) => x as HTMLImageElement;
+  if (estTransitionGl(id) && drawGlTransitionFrame(ctx, m(sortantMedia), sortantClip, sortantT, m(entrantMedia), entrantClip, entrantT, id, progress)) return;
+  const paire = transitionPairAt(id, 1, progress, false);
+  drawMediaWithState(ctx, m(sortantMedia), sortantClip, sortantT, paire.out);
+  drawMediaWithState(ctx, m(entrantMedia), entrantClip, entrantT, paire.in);
+  drawTransitionVeils(ctx, paire.in);
+}
+
+/** Aperçu d'une transition entre deux images quelconques (vignettes du panneau,
+ *  banc d'essai). Deux plans factices, juste pour le cadrage. */
+export function drawTransitionPreview(
+  ctx: CanvasRenderingContext2D,
+  imgA: CanvasImageSource,
+  imgB: CanvasImageSource,
+  id: string,
+  progress: number,
+  w: number,
+  h: number,
+) {
+  const bidon = (): ClipTimed => ({
+    id: "apercu", kind: "photo", name: "", src: "", srcDur: 1, trimStart: 0, trimEnd: 1, speed: 1,
     filterId: "none", lum: 0, con: 0, sat: 0, transitionIn: id, transitionDur: 1,
     start: 0, end: 1, dur: 1,
   } as unknown as ClipTimed);
-  const a = bidon(), b = bidon();
-  // Fond NOIR, comme le cadre du montage. Une toile transparente laissait voir
-  // le fond clair du panneau : « fondu au noir » s'y affichait en blanc.
-  ctx.fillStyle = "#000";
-  ctx.fillRect(0, 0, w, h);
-  const media = (x: unknown) => x as HTMLImageElement;
-  if (estTransitionGl(id) && drawGlTransitionFrame(ctx, media(imgA), a, 1, media(imgB), b, progress, id, progress)) return;
-  const paire = transitionPairAt(id, 1, progress, false);
-  drawMediaWithState(ctx, media(imgA), a, 1, paire.out);
-  drawMediaWithState(ctx, media(imgB), b, progress, paire.in);
-  drawTransitionVeils(ctx, paire.in);
+  drawTransitionFrame(ctx, imgA as HTMLImageElement, bidon(), 1, imgB as HTMLImageElement, bidon(), progress, id, progress, w, h);
 }
 
 /** Un plan seul (hors fenêtre de transition, ou premier plan du montage). */

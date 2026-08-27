@@ -1517,7 +1517,19 @@
       "glkaleido": "Caleidoscopio",
       "glblocks": "Blocchi",
       "glscan": "Scansione",
-      "glnoise": "Neve"
+      "glnoise": "Neve",
+      "glhex": "Esagoni",
+      "glpolka": "Pois",
+      "glsquares": "Quadrati",
+      "glheart": "Cuore",
+      "glslice": "Lamelle",
+      "glspinblur": "Rotazione sfocata",
+      "glecho": "Eco",
+      "glmirror": "Specchio",
+      "glshatter": "Frammenti",
+      "glmelt": "Fusione",
+      "glchroma": "Sbavatura colore",
+      "glfilm": "Pellicola"
     },
     "subLength": {
       "one": "1 parola",
@@ -1620,7 +1632,8 @@
       "camera": "Fotocamera",
       "3d": "3D",
       "distorsion": "Distorsione",
-      "bogue": "Glitch"
+      "bogue": "Glitch",
+      "masque": "Maschere"
     }
   },
   "montage": {

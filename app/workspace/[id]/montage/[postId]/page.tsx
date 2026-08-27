@@ -10,7 +10,6 @@ import {
   FILTERS, TRANSITIONS, SUB_STYLES, FONT_CHOICES, SUB_LENGTHS, DEFAULT_WORDS_PER_CAPTION, DEFAULT_SUB_POS,
   subStyleById, effectiveSubStyle, resolveCapStyle, resolveCapPos, subtitleBoxCss, subBgLayerCss, curveLayout, SUB_BASE_FONT, applySubCase, DEFAULT_SUB_STYLE_ID,
   captionPartAt, subLines,
-  transitionPairAt, transitionCss, estTransitionGl,
   // (analyzeClipQuality importé depuis ./autoCut plus bas)
   fmt, newClipDefaults, newOverlayDefaults, clipFilterCss, overlayFilterCss, clipTimelineDur, clipAudioGainAt, overlayTimelineDur, overlayAudioGainAt, segmentCaptions, captionsFromWords, dedupeSegments,
   audioVolumeAt, audioSrcDur, creneauLibre, kenBurnsScale, withAlpha,
@@ -23,7 +22,7 @@ import { chargerPoliceGoogle, declarerPoliceMaison, surPolicesChargees } from ".
 import { lectureRapideDisponible, infosVideo, dureeAudio, imagesAux, enJpeg, vignettes, picsAudio, fermerSources } from "./media-read";
 import { MontageCtx, CutPanel, TextPanel, CaptionsPanel, AudioPanel, TransitionsPanel, FilterPanel, SpeedPanel, StickerPanel, OverlayPanel, AiPanel } from "./panels";
 import { renderExport } from "./export";
-import { drawGlTransitionFrame, setCanvasSize as fixerTailleRendu } from "./render-core";
+import { drawTransitionFrame } from "./render-core";
 import { analyzeClipQuality, type TWord } from "./autoCut";
 import {
   runPreEdit, trimClipsByQuality, tightenSpeech, buildCaptions,
@@ -1352,13 +1351,7 @@ export default function MontagePage() {
   const activeClipRef = useRef(activeClip); activeClipRef.current = activeClip;
   // Transition d'entrée du plan courant, calculée avec la MÊME fonction que l'export
   // → l'aperçu montre enfin les transitions au lieu de les révéler seulement au rendu.
-  const activeTransPair = useMemo(() => {
-    if (!activeClip) return null;
-    const isFirst = clipStarts.length > 0 && clipStarts[0].id === activeClip.id;
-    return transitionPairAt(activeClip.transitionIn, activeClip.transitionDur, time - activeClip.start, isFirst);
-  }, [activeClip, clipStarts, time]);
-  const activeTrans = activeTransPair?.in ?? null;
-  const activeTransCss = activeTrans ? transitionCss(activeTrans) : null;
+
 
   /* Le plan qui S'EN VA, pendant la transition.
 
@@ -1374,7 +1367,6 @@ export default function MontagePage() {
     const i = clipStarts.findIndex((c) => c.id === activeClip.id);
     return i > 0 ? clipStarts[i - 1] : null;
   }, [activeClip, clipStarts, time]);
-  const outTransCss = activeTransPair && outClip ? transitionCss(activeTransPair.out) : null;
 
   /* Le sortant poursuit sa course au delà de sa propre fin, comme à l'export.
      En lecture on ne le recale qu'au démarrage : chercher une position à chaque
@@ -3127,6 +3119,35 @@ export default function MontagePage() {
       return prev.map((x) => (x.id === d.id ? { ...x, start: debut, end: debut + duree } : x));
     });
   }
+  /* Durée d'une transition réglée À LA MAIN sur la timeline.
+
+     Elle ne se réglait qu'au curseur du panneau. Sur une timeline, tout ce qui a
+     une durée se prend par le bord et se tire — un plan, un sous-titre, un titre.
+     Une transition n'avait aucune raison d'y échapper. Le bloc étant centré sur la
+     coupe, tirer un bord d'un pixel en ajoute deux à la durée. */
+  const transTrimRef = useRef<{ id: string; sens: -1 | 1; startX: number; dur0: number; max: number } | null>(null);
+  function startTransTrim(e: React.PointerEvent, clipEntrant: MontageClip & { start: number; end: number; dur: number }, sens: -1 | 1) {
+    e.stopPropagation();
+    const i = clipStarts.findIndex((x) => x.id === clipEntrant.id);
+    const sortant = clipStarts[i - 1];
+    // Une transition ne peut pas durer plus que le plus court des deux plans :
+    // au delà, elle mangerait un plan entier et le montage sauterait.
+    const max = Math.max(0.1, Math.min(1.5, clipEntrant.dur, sortant ? sortant.dur : 1.5));
+    try { (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId); } catch {}
+    transTrimRef.current = { id: clipEntrant.id, sens, startX: e.clientX, dur0: clipEntrant.transitionDur || 0.5, max };
+    selectClip(clipEntrant.id);
+    setTool("transitions");
+  }
+  function onTransTrimMove(e: React.PointerEvent) {
+    const d = transTrimRef.current; if (!d) return;
+    const delta = ((e.clientX - d.startX) / pps) * 2 * d.sens;
+    updateClip(d.id, { transitionDur: Math.max(0.1, Math.min(d.max, +(d.dur0 + delta).toFixed(2))) });
+  }
+  function endTransTrim(e: React.PointerEvent) {
+    transTrimRef.current = null;
+    try { (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId); } catch {}
+  }
+
   const capTrimRef = useRef<{ id: string; edge: "start" | "end"; startX: number; t0start: number; t0end: number } | null>(null);
   function startCaptionTrim(e: React.PointerEvent, c: Caption, edge: "start" | "end") {
     e.stopPropagation();
@@ -4461,55 +4482,12 @@ export default function MontagePage() {
   }, [clips, total, time]);
 
 
-  /* Les deux images qui servent d'aperçu aux vignettes de transition.
 
-     On prend les plans de part et d'autre de la coupe qu'on est en train de
-     régler, à défaut les deux premiers du montage : la vignette montre alors la
-     transition SUR CE MONTAGE, pas sur un décor de démonstration. Calculées une
-     fois par paire de plans, jamais par vignette — il y en a quarante-cinq. */
-  const [apercuTrans, setApercuTrans] = useState<{ a: HTMLImageElement | null; b: HTMLImageElement | null }>({ a: null, b: null });
-  const apercuCleRef = useRef("");
-  useEffect(() => {
-    if (tool !== "transitions" || clipStarts.length < 2) return;
-    const i = Math.max(1, clipStarts.findIndex((c) => c.id === selectedClipId));
-    const sortant = clipStarts[i - 1] ?? clipStarts[0];
-    const entrant = clipStarts[i] ?? clipStarts[1];
-    if (!sortant || !entrant) return;
-    const cle = `${sortant.id}|${entrant.id}`;
-    if (apercuCleRef.current === cle) return;
-    apercuCleRef.current = cle;
-    let annule = false;
-    (async () => {
-      const charger = async (c: typeof sortant, quand: number) => {
-        try {
-          const url = await grabFrame(c.src, c.kind, c.kind === "video" ? c.trimStart + quand : 0, 256);
-          const img = new Image();
-          img.src = url;
-          // `onload` plutôt que `decode()` : cette dernière ne rend pas toujours
-          // la main, et les vignettes restaient alors vides pour toujours.
-          await new Promise<void>((res, rej) => {
-            if (img.complete && img.naturalWidth) return res();
-            img.onload = () => res();
-            img.onerror = () => rej(new Error("image"));
-          });
-          return img;
-        } catch { return null; }
-      };
-      // Fin du plan sortant, début du plan entrant : les deux images que la
-      // transition mettra réellement face à face.
-      const [a, b] = await Promise.all([
-        charger(sortant, Math.max(0, (sortant.trimEnd - sortant.trimStart) - 0.2)),
-        charger(entrant, 0.2),
-      ]);
-      if (!annule) setApercuTrans({ a, b });
-    })();
-    return () => { annule = true; };
-  }, [tool, clipStarts, selectedClipId]);
 
   const ctx: MontageCtx = {
     clips, selectedClip, captions, subStyleId: activeSubStyleId, subMaxWords, subCustom: activeSubCustom, subPos, hasRawSegments: rawSegments.length > 0 || rawWords.length > 0,
     linkedSubs, setLinkedSubs, selectedCaptionId, setSelectedCaptionId,
-    seek, transitionPreviewImages: apercuTrans,
+    seek,
     capSelectedCount: capMulti.length,
     titles, stickers, audioTracks, showProgressBar,
     overlays, selectedOverlay, uploadingOverlay, addOverlayFiles, updateOverlay, removeOverlay, duplicateOverlay, selectOverlay,
@@ -4590,36 +4568,71 @@ export default function MontagePage() {
   const previewScale = (stageW || 300) / activeFmt.w;
 
 
-  /* Transition à shader dans l'aperçu.
+  /* La transition, dessinée sur UNE toile posée par-dessus les lecteurs.
 
-     Les sept transitions WebGL ne se décrivent pas en CSS : elles déforment
-     l'image pixel par pixel. On rend donc la même image que l'export, sur une
-     toile posée par-dessus les deux lecteurs — qui continuent de jouer en
-     dessous, puisque ce sont eux les textures.
+     Elle se jouait en CSS sur les lecteurs vidéo pour les transitions 2D, et sur
+     une toile pour les shaders. Deux façons de faire la même chose, dont une qui
+     montrait du NOIR : le plan sortant vivait dans un troisième lecteur auquel on
+     donnait sa source au moment même de la transition, donc il n'avait aucune
+     image décodée à montrer pendant la demi-seconde où on avait besoin de lui.
 
-     Si WebGL manque, `drawGlTransitionFrame` rend false : on cache la toile et
-     les deux lecteurs reprennent la main avec le fondu de repli. */
-  const transitionGl = !!outClip && !!activeClip && estTransitionGl(activeClip.transitionIn);
+     Ici, un seul chemin, le même qu'à l'export. Et le plan sortant est pris là où
+     il est SÛREMENT disponible : l'image figée capturée au moment où il a quitté
+     l'écran, remplacée par le lecteur vidéo dès que celui-ci a de quoi montrer. */
+  const transitionEnCours = !!outClip && !!activeClip && !!activeClip.transitionIn && activeClip.transitionIn !== "cut";
   useEffect(() => {
     const cv = glCanvasRef.current;
     if (!cv) return;
-    if (!transitionGl || !activeClip || !outClip || exporting) { cv.style.display = "none"; return; }
+    if (!transitionEnCours || !activeClip || !outClip || exporting || hiddenLanes.has("video")) { cv.style.display = "none"; return; }
+
     const entrant = activeClip.kind === "video" ? [videoARef, videoBRef][slot].current : imgInRef.current;
-    const sortant = outClip.kind === "video" ? videoOutRef.current : imgOutRef.current;
+    // Le sortant : son lecteur s'il a une image prête, sinon l'instantané pris
+    // quand il a quitté l'écran. L'un des deux existe toujours.
+    const lecteurSortant = outClip.kind === "video" ? videoOutRef.current : imgOutRef.current;
+    const lecteurPret = !!lecteurSortant && (outClip.kind !== "video" || (lecteurSortant as HTMLVideoElement).readyState >= 2);
+    const sortant = lecteurPret ? lecteurSortant : (instantaneSortantRef.current?.width ? instantaneSortantRef.current : null);
     if (!entrant || !sortant) { cv.style.display = "none"; return; }
-    if (cv.width !== activeFmt.w || cv.height !== activeFmt.h) { cv.width = activeFmt.w; cv.height = activeFmt.h; }
-    const ctx = cv.getContext("2d");
-    if (!ctx) { cv.style.display = "none"; return; }
-    fixerTailleRendu(activeFmt.w, activeFmt.h);
+
+    // Toile à la taille AFFICHÉE, pas à celle de l'export : composer du 1080×1920
+    // trente fois par seconde pour le montrer dans 400 px de large ne sert à rien.
+    const w = Math.max(120, Math.round(stageW || 360));
+    const h = Math.max(120, Math.round(w * (activeFmt.h / activeFmt.w)));
+    if (cv.width !== w || cv.height !== h) { cv.width = w; cv.height = h; }
+    const ctx2d = cv.getContext("2d");
+    if (!ctx2d) { cv.style.display = "none"; return; }
+
     const dansLaTransition = time - activeClip.start;
     const avancement = dansLaTransition / Math.max(0.01, activeClip.transitionDur || 0.01);
     const localSortant = (outClip.end - outClip.start) + dansLaTransition;
-    const ok = drawGlTransitionFrame(
-      ctx, sortant, outClip, localSortant, entrant, activeClip, dansLaTransition,
-      activeClip.transitionIn!, avancement,
-    );
-    cv.style.display = ok ? "block" : "none";
-  }, [transitionGl, time, activeClip, outClip, slot, activeFmt.w, activeFmt.h, exporting]);
+    drawTransitionFrame(ctx2d, sortant, outClip, localSortant, entrant, activeClip, dansLaTransition,
+      activeClip.transitionIn!, avancement, w, h);
+    cv.style.display = "block";
+  }, [transitionEnCours, time, activeClip, outClip, slot, stageW, activeFmt.w, activeFmt.h, exporting, hiddenLanes]);
+
+  /* L'image de ce qui est à l'écran, tenue à jour en permanence.
+
+     Quand une transition commence, cet instantané porte la DERNIÈRE image du plan
+     qui s'en va : elle est là, décodée, sans rien à charger. C'est ce qui garantit
+     qu'une transition ne montre jamais de noir, même quand le lecteur du plan
+     sortant n'a pas fini d'ouvrir son fichier. Hors transition seulement : pendant,
+     l'écran montre justement autre chose. */
+  const instantaneSortantRef = useRef<HTMLCanvasElement | null>(null);
+  useEffect(() => {
+    if (transitionEnCours || !activeClip) return;
+    const el: HTMLVideoElement | HTMLImageElement | null =
+      activeClip.kind === "video" ? [videoARef, videoBRef][slot].current : imgInRef.current;
+    if (!el) return;
+    const sw = el instanceof HTMLVideoElement ? el.videoWidth : el.naturalWidth;
+    const sh = el instanceof HTMLVideoElement ? el.videoHeight : el.naturalHeight;
+    if (!sw || !sh) return;
+    if (el instanceof HTMLVideoElement && el.readyState < 2) return;
+    // Réduite : elle ne sert qu'à être réaffichée dans l'aperçu, pas à l'export.
+    const w = 480, h = Math.max(1, Math.round((sh / sw) * 480));
+    let cv = instantaneSortantRef.current;
+    if (!cv) { cv = document.createElement("canvas"); instantaneSortantRef.current = cv; }
+    if (cv.width !== w || cv.height !== h) { cv.width = w; cv.height = h; }
+    try { cv.getContext("2d")?.drawImage(el, 0, 0, w, h); } catch { /* source non lisible */ }
+  }, [time, activeClip, slot, transitionEnCours]);
   // Le texte sélectionné s'affiche TOUJOURS dans l'aperçu (même si le curseur sort de sa
   // plage) → on peut toujours le voir, le déplacer et l'éditer.
   // Chaque rangée de texte se masque séparément, comme les pistes vidéo.
@@ -4952,25 +4965,18 @@ export default function MontagePage() {
               onPointerLeave={(e) => { panRef.current = null; onStagePointerUp(e); }}
             >
               <div className="mz-video">
-                {/* Le plan qui s'en va, en dessous de celui qui arrive. Monté
-                    seulement pendant la transition : le reste du temps il n'a
-                    rien à montrer, et un lecteur de plus coûte du décodage. */}
-                {outClip && !hiddenLanes.has("video") && (() => {
-                  const styleSortant: React.CSSProperties = {
-                    position: "absolute", inset: 0, zIndex: 0, pointerEvents: "none",
-                    filter: [clipFilterCss(outClip), activeTransPair?.out.extraFilter].filter(Boolean).join(" ") || undefined,
-                    objectPosition: `${(outClip.focusX ?? 0.5) * 100}% ${(outClip.focusY ?? 0.5) * 100}%`,
-                    ...(outTransCss || {}),
-                    transformOrigin: "center",
-                  };
-                  return outClip.kind === "video"
-                    ? <video key="sortant" ref={videoOutRef} playsInline muted style={styleSortant} />
-                    : <img key="sortant" ref={imgOutRef} src={outClip.src} alt="" style={{
-                        ...styleSortant,
-                        // Le zoom automatique du sortant est arrivé au bout de sa course.
-                        transform: [outTransCss?.transform, `scale(${kenBurnsScale(outClip.kenBurns, 1)})`].filter(Boolean).join(" "),
-                      }} />;
-                })()}
+                {/* Le plan qui s'en va n'est plus une couche du DOM : la toile de
+                    transition le dessine, à partir de l'image figée prise quand il a
+                    quitté l'écran. Il reste monté, invisible, uniquement pour offrir
+                    une vidéo VIVANTE quand elle est prête à temps. */}
+                {outClip && outClip.kind === "video" && (
+                  <video ref={videoOutRef} playsInline muted preload="auto"
+                    style={{ position: "absolute", inset: 0, opacity: 0, pointerEvents: "none", zIndex: 0 }} />
+                )}
+                {outClip && outClip.kind === "photo" && (
+                  <img ref={imgOutRef} src={outClip.src} alt=""
+                    style={{ position: "absolute", inset: 0, opacity: 0, pointerEvents: "none", zIndex: 0 }} />
+                )}
                 {/* Les DEUX lecteurs restent montés en permanence (même sur un plan
                     photo) : les démonter réinitialisait la source et le préchargement,
                     ce qui refaisait saccader le plan vidéo suivant. */}
@@ -5000,9 +5006,8 @@ export default function MontagePage() {
                       // échelle, cernée de noir, le temps de se remettre en place.
                       style={shown
                         ? ({
-                            filter: [clipFilterCss(activeClip!), activeTrans?.extraFilter].filter(Boolean).join(" ") || undefined,
+                            filter: clipFilterCss(activeClip!) || undefined,
                             objectPosition: `${(activeClip!.focusX ?? 0.5) * 100}% ${(activeClip!.focusY ?? 0.5) * 100}%`,
-                            ...(activeTransCss || {}),
                             transformOrigin: "center",
                             zIndex: 1,
                           } as React.CSSProperties)
@@ -5018,14 +5023,9 @@ export default function MontagePage() {
                         // couche absolue, et une image restée dans le flux passerait
                         // dessous alors qu'elle doit arriver par-dessus.
                         position: "absolute", inset: 0, zIndex: 1,
-                        filter: [clipFilterCss(activeClip), activeTrans?.extraFilter].filter(Boolean).join(" ") || undefined,
+                        filter: clipFilterCss(activeClip) || undefined,
                         objectPosition: `${(activeClip.focusX ?? 0.5) * 100}% ${(activeClip.focusY ?? 0.5) * 100}%`,
-                        ...(activeTransCss || {}),
-                        // Ken Burns et transition se composent sur le même transform.
-                        transform: [
-                          activeTransCss?.transform,
-                          `scale(${kenBurnsScale(activeClip.kenBurns, activeClip.dur > 0 ? Math.min(1, Math.max(0, (time - activeClip.start) / activeClip.dur)) : 0)})`,
-                        ].filter(Boolean).join(" "),
+                        transform: `scale(${kenBurnsScale(activeClip.kenBurns, activeClip.dur > 0 ? Math.min(1, Math.max(0, (time - activeClip.start) / activeClip.dur)) : 0)})`,
                         transformOrigin: "center",
                       } as React.CSSProperties} />
                 ) : clips.length === 0 ? (
@@ -5044,13 +5044,9 @@ export default function MontagePage() {
                     l'affiche que s'il a vraiment pu dessiner. */}
                 <canvas ref={glCanvasRef} style={{ position: "absolute", inset: 0, width: "100%", height: "100%", display: "none", zIndex: 2, pointerEvents: "none" }} />
 
-                {/* Voiles de transition (flash blanc / fondu au noir) — identiques à l'export. */}
-                {activeTrans && activeTrans.flash > 0 && (
-                  <div style={{ position: "absolute", inset: 0, background: "#fff", opacity: activeTrans.flash, pointerEvents: "none", zIndex: 3 }} />
-                )}
-                {activeTrans && activeTrans.dark > 0 && (
-                  <div style={{ position: "absolute", inset: 0, background: "#000", opacity: activeTrans.dark, pointerEvents: "none", zIndex: 3 }} />
-                )}
+                {/* Plus de voiles ici : la toile de transition les pose elle-même,
+                    au même endroit qu'à l'export. Deux couches auraient doublé le
+                    flash et noirci le fondu au noir deux fois. */}
 
                 {/* incrustations (PIP) — déplaçables/redimensionnables/pivotables.
                     Triées par piste croissante : l'ordre du DOM fait le z-order (piste haute = au-dessus). */}
@@ -5547,6 +5543,14 @@ export default function MontagePage() {
                           }}
                         >
                           {pose?.glyph || "▮▮"}
+                          {pose && (
+                            <>
+                              <span className="a-trans-trim a-trans-trim-l" title={t('duration')}
+                                onPointerDown={(ev) => startTransTrim(ev, suivant, -1)} onPointerMove={onTransTrimMove} onPointerUp={endTransTrim} />
+                              <span className="a-trans-trim a-trans-trim-r" title={t('duration')}
+                                onPointerDown={(ev) => startTransTrim(ev, suivant, 1)} onPointerMove={onTransTrimMove} onPointerUp={endTransTrim} />
+                            </>
+                          )}
                         </button>
                       );
                     })()}

@@ -2128,6 +2128,13 @@ input.mz-range::-moz-range-thumb { width: 16px; height: 16px; border-radius: 50%
    taille fixe ne disait pas si la transition durait deux images ou une seconde. */
 .a-trans-pill { border-radius: 11px; transition: box-shadow .12s, background .12s; }
 /* Cible visée pendant un glisser : on voit où ça va tomber avant de lâcher. */
+/* Poignées de durée : on prend la transition par le bord, comme un plan. */
+.a-trans-trim { position: absolute; top: 0; bottom: 0; width: 8px; cursor: ew-resize; touch-action: none; }
+.a-trans-trim::after { content: ""; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+  width: 2px; height: 11px; border-radius: 2px; background: var(--ink-3); opacity: 0; transition: opacity .12s; }
+.a-trans-pill:hover .a-trans-trim::after, .a-trans-pill.active .a-trans-trim::after { opacity: .85; }
+.a-trans-trim-l { left: -3px; }
+.a-trans-trim-r { right: -3px; }
 .a-trans-pill.drop { background: var(--mint-2); color: var(--ink); box-shadow: 0 0 0 3px color-mix(in srgb, var(--mint-2) 45%, transparent); }
 
 /* lane vide (audio/sous-titres/texte) */

@@ -1517,7 +1517,19 @@
       "glkaleido": "Kaléidoscope",
       "glblocks": "Blocs",
       "glscan": "Balayage cathodique",
-      "glnoise": "Neige"
+      "glnoise": "Neige",
+      "glhex": "Hexagones",
+      "glpolka": "Pois",
+      "glsquares": "Carrés",
+      "glheart": "Coeur",
+      "glslice": "Lamelles",
+      "glspinblur": "Rotation filée",
+      "glecho": "Écho",
+      "glmirror": "Miroir",
+      "glshatter": "Éclats",
+      "glmelt": "Fonte",
+      "glchroma": "Bavure couleur",
+      "glfilm": "Pellicule"
     },
     "subLength": {
       "one": "1 mot",
@@ -1620,7 +1632,8 @@
       "camera": "Appareil photo",
       "3d": "3D",
       "distorsion": "Distorsion",
-      "bogue": "Bogue"
+      "bogue": "Bogue",
+      "masque": "Masques"
     }
   },
   "montage": {

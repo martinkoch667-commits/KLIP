@@ -92,9 +92,6 @@ export interface MontageCtx {
   resetSubCustom: () => void;
   applySubTemplate: (tpl: { styleId: string; custom: SubCustom; pos: { x: number; y: number }; maxWords: number }) => void;
   generateCaptionsAI: () => void;
-  /** Deux images du montage, pour que les vignettes de transition montrent
-   *  l'effet sur les VRAIS plans plutôt que sur un décor générique. */
-  transitionPreviewImages: { a: HTMLImageElement | null; b: HTMLImageElement | null };
   /** Amène la tête de lecture à cet instant (clic sur une ligne de transcription). */
   seek: (t: number) => void;
 
@@ -931,6 +928,65 @@ export function AudioPanel({ ctx }: { ctx: MontageCtx }) {
    ne peut donc pas promettre autre chose que ce qui sortira. */
 const APERCU_W = 96, APERCU_H = 96;
 
+/* Deux images franchement DIFFÉRENTES, pour qu'on voie la transition agir.
+
+   Les vignettes montraient les deux plans de la coupe en cours. Quand ces plans
+   se ressemblent — et c'est le cas normal : deux morceaux d'un même rush, deux
+   prises du même sujet — la vignette ne montrait rien du tout. On prend donc
+   deux images de la banque du produit, choisies pour ne pas se confondre.
+
+   Passées par le proxy maison : une image tierce sans en-tête CORS salit la
+   toile, et le rendu par shader s'arrête net sur une erreur de sécurité. */
+let promesseDemo: Promise<[HTMLImageElement, HTMLImageElement]> | null = null;
+
+function imageDepuis(src: string): Promise<HTMLImageElement> {
+  return new Promise((res, rej) => {
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    // `onload`, jamais `decode()` : cette dernière ne rend pas toujours la main.
+    img.onload = () => res(img);
+    img.onerror = () => rej(new Error("image"));
+    img.src = src;
+  });
+}
+
+/** Repli dessiné à la main : la banque peut être injoignable, une vignette vide
+ *  ne dit rien de mieux qu'un pictogramme. */
+function imageDeSecours(a: string, b: string, etiquette: string): Promise<HTMLImageElement> {
+  const c = document.createElement("canvas");
+  c.width = 288; c.height = 512;
+  const x = c.getContext("2d")!;
+  const g = x.createLinearGradient(0, 0, 288, 512);
+  g.addColorStop(0, a); g.addColorStop(1, b);
+  x.fillStyle = g; x.fillRect(0, 0, 288, 512);
+  x.fillStyle = "rgba(255,255,255,.9)";
+  x.font = "bold 120px system-ui"; x.textAlign = "center"; x.textBaseline = "middle";
+  x.fillText(etiquette, 144, 256);
+  return imageDepuis(c.toDataURL());
+}
+
+function imagesDemo(): Promise<[HTMLImageElement, HTMLImageElement]> {
+  if (promesseDemo) return promesseDemo;
+  promesseDemo = (async () => {
+    const prendre = async (recherche: string, rang: number) => {
+      const r = await fetch(`/api/pexels?query=${encodeURIComponent(recherche)}`);
+      const j = await r.json();
+      const url = j?.photos?.[rang]?.src?.medium;
+      if (!url) throw new Error("banque vide");
+      return imageDepuis(`/api/proxy-image?url=${encodeURIComponent(url)}`);
+    };
+    try {
+      return await Promise.all([prendre("portrait studio", 0), prendre("neon city night", 0)]) as [HTMLImageElement, HTMLImageElement];
+    } catch {
+      return await Promise.all([
+        imageDeSecours("#E0563F", "#7A1D12", "1"),
+        imageDeSecours("#2F6FE0", "#0B2456", "2"),
+      ]) as [HTMLImageElement, HTMLImageElement];
+    }
+  })();
+  return promesseDemo;
+}
+
 function TransitionThumb({
   id, glyph, nom, actif, imgA, imgB, onChoisir,
 }: {
@@ -1006,7 +1062,9 @@ export function TransitionsPanel({ ctx }: { ctx: MontageCtx }) {
   const t = useTranslations('montage');
   const tc = useTranslations('montageConstants');
   const c = ctx.selectedClip;
-  const { a: imgA, b: imgB } = ctx.transitionPreviewImages;
+  const [demo, setDemo] = useState<{ a: HTMLImageElement | null; b: HTMLImageElement | null }>({ a: null, b: null });
+  useEffect(() => { let vivant = true; imagesDemo().then(([a, b]) => { if (vivant) setDemo({ a, b }); }).catch(() => {}); return () => { vivant = false; }; }, []);
+  const { a: imgA, b: imgB } = demo;
   return (
     <>
       <div className="a-section">

@@ -1517,7 +1517,19 @@
       "glkaleido": "Kaleidoscope",
       "glblocks": "Blocks",
       "glscan": "Scanline",
-      "glnoise": "Static"
+      "glnoise": "Static",
+      "glhex": "Hexagons",
+      "glpolka": "Polka dots",
+      "glsquares": "Squares",
+      "glheart": "Heart",
+      "glslice": "Slats",
+      "glspinblur": "Spin blur",
+      "glecho": "Echo",
+      "glmirror": "Mirror",
+      "glshatter": "Shatter",
+      "glmelt": "Melt",
+      "glchroma": "Colour bleed",
+      "glfilm": "Film roll"
     },
     "subLength": {
       "one": "1 word",
@@ -1620,7 +1632,8 @@
       "camera": "Camera",
       "3d": "3D",
       "distorsion": "Distortion",
-      "bogue": "Glitch"
+      "bogue": "Glitch",
+      "masque": "Masks"
     }
   },
   "montage": {

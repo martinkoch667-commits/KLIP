@@ -79,7 +79,6 @@ function BancTransitionsDev() {
         fabriquerImage("#2B5BD9", "croix", "B"),
       ]);
       if (annule) return;
-      setImages({ a, b });
       setCanvasSize(W, H);
       const sortant = planFactice("a", a.src);
       for (const tr of liste) {
@@ -116,10 +115,8 @@ function BancTransitionsDev() {
      voit pas sur les vignettes : que les familles se rangent, et que chacune des
      quarante-cinq a bien son nom traduit — une clé manquante fait tomber la page
      entière avec next-intl. */
-  const [images, setImages] = useState<{ a: HTMLImageElement | null; b: HTMLImageElement | null }>({ a: null, b: null });
   const ctxPanneau = {
     selectedClip: { id: "x", transitionIn: "fade", transitionDur: 0.5 },
-    transitionPreviewImages: images,
     updateClip: () => {},
     applyTransitionToAll: () => {},
     toast: () => {},

@@ -1272,7 +1272,7 @@ export const FILTERS: { id: string; name: string; css: string }[] = [
   { id: "dore", name: "Doré", css: "sepia(.28) saturate(1.25) brightness(1.05) hue-rotate(-6deg)" },
 ];
 
-export const TRANSITION_FAMILIES = ["base", "fondu", "glisse", "zoom", "forme", "dynamique", "shader", "lumiere", "camera", "3d", "distorsion", "bogue"] as const;
+export const TRANSITION_FAMILIES = ["base", "fondu", "glisse", "zoom", "forme", "dynamique", "shader", "lumiere", "camera", "3d", "distorsion", "bogue", "masque"] as const;
 export type TransitionFamily = (typeof TRANSITION_FAMILIES)[number];
 
 // Le panneau les range par famille : quarante-cinq vignettes à plat, c'est un mur.

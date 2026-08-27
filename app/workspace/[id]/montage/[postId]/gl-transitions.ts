@@ -46,7 +46,7 @@ float bruit(vec2 p) {
 const FIN = `
 void main() { gl_FragColor = transition(vUv); }`;
 
-export type GlFamille = "shader" | "lumiere" | "camera" | "3d" | "distorsion" | "bogue";
+export type GlFamille = "shader" | "lumiere" | "camera" | "3d" | "distorsion" | "bogue" | "masque";
 export interface GlTransition { id: string; name: string; glyph: string; glsl: string; family: GlFamille }
 
 export const GL_TRANSITIONS: GlTransition[] = [
@@ -360,6 +360,183 @@ vec4 transition(vec2 uv) {
   float n = alea(uv * 900.0 + progress * 53.0);
   vec4 c = mix(getFromColor(uv), getToColor(uv), smoothstep(0.3, 0.7, progress));
   return vec4(mix(c.rgb, vec3(n), pic * 0.85), 1.0);
+}`,
+  },
+
+  // ── Formes calculées (ce qu'un chemin 2D ne sait pas dessiner) ────────────
+  {
+    id: "glhex", family: "masque", name: "Hexagones", glyph: "⬡",
+    glsl: `
+vec4 transition(vec2 uv) {
+  // Pavage hexagonal : chaque cellule bascule à son tour, du centre vers les bords.
+  float taille = mix(60.0, 14.0, sin(progress * 3.14159));
+  vec2 p = vec2(uv.x * max(ratio, 0.001), uv.y) * taille;
+  vec2 a = vec2(1.0, 1.7320508);
+  vec2 h = a * 0.5;
+  vec2 i1 = floor(p / a) * a + h * vec2(1.0, 1.0);
+  vec2 i2 = floor((p - h) / a) * a + h * vec2(2.0, 2.0) - h;
+  vec2 c = length(p - i1) < length(p - i2) ? i1 : i2;
+  float d = length((c / taille) - vec2(0.5 * max(ratio, 0.001), 0.5));
+  float seuil = smoothstep(0.0, 0.9, progress * 1.5 - d * 0.9);
+  return mix(getFromColor(uv), getToColor(uv), clamp(seuil, 0.0, 1.0));
+}`,
+  },
+  {
+    id: "glpolka", family: "masque", name: "Pois", glyph: "⚉",
+    glsl: `
+vec4 transition(vec2 uv) {
+  vec2 g = vec2(11.0, 11.0 / max(ratio, 0.001));
+  vec2 c = fract(uv * g) - 0.5;
+  vec2 cellule = floor(uv * g);
+  // Les pois grossissent de la gauche vers la droite, comme un rideau.
+  float retard = cellule.x / g.x;
+  float r = clamp((progress * 1.9 - retard * 0.9), 0.0, 1.0) * 0.78;
+  return length(c) < r ? getToColor(uv) : getFromColor(uv);
+}`,
+  },
+  {
+    id: "glsquares", family: "masque", name: "Carrés", glyph: "▨",
+    glsl: `
+vec4 transition(vec2 uv) {
+  vec2 g = vec2(13.0, 13.0 / max(ratio, 0.001));
+  vec2 cellule = floor(uv * g);
+  float r = alea(cellule);
+  return mix(getFromColor(uv), getToColor(uv), step(r, progress * 1.15));
+}`,
+  },
+  {
+    id: "glheart", family: "masque", name: "Coeur", glyph: "♥",
+    glsl: `
+vec4 transition(vec2 uv) {
+  vec2 c = (uv - vec2(0.5, 0.46)) * vec2(max(ratio, 0.001), -1.0) / max(progress * 1.5, 0.001);
+  float x = c.x, y = c.y;
+  float f = pow(x * x + y * y - 0.09, 3.0) - x * x * y * y * y * 0.09;
+  return f < 0.0 ? getToColor(uv) : getFromColor(uv);
+}`,
+  },
+  {
+    id: "glslice", family: "masque", name: "Lamelles", glyph: "▥",
+    glsl: `
+vec4 transition(vec2 uv) {
+  float n = 12.0;
+  float bande = floor(uv.x * n);
+  // Une lamelle sur deux descend, l'autre monte.
+  float sens = mod(bande, 2.0) * 2.0 - 1.0;
+  float av = clamp(progress * 1.35 - alea(vec2(bande, 1.0)) * 0.3, 0.0, 1.0);
+  float y = uv.y + sens * av;
+  return (y < 0.0 || y > 1.0) ? getToColor(uv) : mix(getFromColor(vec2(uv.x, y)), getToColor(uv), step(1.0, av));
+}`,
+  },
+
+  // ── Mouvement composé ─────────────────────────────────────────────────────
+  {
+    id: "glspinblur", family: "camera", name: "Rotation filée", glyph: "✼",
+    glsl: `
+vec4 transition(vec2 uv) {
+  vec2 c = (uv - 0.5) * vec2(max(ratio, 0.001), 1.0);
+  float force = 0.9 * sin(progress * 3.14159);
+  vec4 acc = vec4(0.0);
+  for (int i = 0; i < 10; i++) {
+    float f = float(i) / 9.0;
+    float a1 = force * f, a2 = -force * (1.0 - f);
+    vec2 ra = vec2(c.x * cos(a1) - c.y * sin(a1), c.x * sin(a1) + c.y * cos(a1));
+    vec2 rb = vec2(c.x * cos(a2) - c.y * sin(a2), c.x * sin(a2) + c.y * cos(a2));
+    vec2 pa = ra / vec2(max(ratio, 0.001), 1.0) + 0.5;
+    vec2 pb = rb / vec2(max(ratio, 0.001), 1.0) + 0.5;
+    acc += mix(getFromColor(pa), getToColor(pb), progress);
+  }
+  return acc / 10.0;
+}`,
+  },
+  {
+    id: "glecho", family: "camera", name: "Écho", glyph: "◫",
+    glsl: `
+vec4 transition(vec2 uv) {
+  // Traînée d'images fantômes, comme un obturateur qui traîne sur un zoom.
+  vec2 c = uv - 0.5;
+  vec4 acc = vec4(0.0);
+  float poids = 0.0;
+  for (int i = 0; i < 6; i++) {
+    float f = float(i) / 5.0;
+    float k = 1.0 + 0.5 * f * sin(progress * 3.14159);
+    float w = 1.0 - f * 0.7;
+    acc += mix(getFromColor(0.5 + c * k), getToColor(0.5 + c / k), progress) * w;
+    poids += w;
+  }
+  return acc / poids;
+}`,
+  },
+  {
+    id: "glmirror", family: "distorsion", name: "Miroir", glyph: "◪",
+    glsl: `
+vec4 transition(vec2 uv) {
+  float pic = sin(progress * 3.14159);
+  // Le cadre se plie en deux : la moitié droite devient le reflet de la gauche.
+  float x = mix(uv.x, uv.x < 0.5 ? uv.x : 1.0 - uv.x, pic);
+  vec2 p = vec2(x, uv.y);
+  return mix(getFromColor(p), getToColor(p), progress);
+}`,
+  },
+  {
+    id: "glshatter", family: "bogue", name: "Éclats", glyph: "✧",
+    glsl: `
+vec4 transition(vec2 uv) {
+  // Éclats de verre : des cellules irrégulières partent chacune dans son sens.
+  vec2 g = vec2(9.0, 9.0 / max(ratio, 0.001));
+  vec2 cellule = floor(uv * g);
+  float r = alea(cellule);
+  float dep = clamp(progress * 1.6 - r * 0.6, 0.0, 1.0);
+  vec2 dir = normalize(vec2(alea(cellule + 1.7) - 0.5, alea(cellule + 4.3) - 0.5) + 0.0001);
+  vec2 p = uv + dir * dep * 0.35;
+  vec4 depuisC = getFromColor(p);
+  return mix(depuisC, getToColor(uv), smoothstep(0.55, 1.0, dep));
+}`,
+  },
+  {
+    id: "glmelt", family: "distorsion", name: "Fonte", glyph: "⩗",
+    glsl: `
+vec4 transition(vec2 uv) {
+  // La matière coule vers le bas, plus vite là où l'image est sombre.
+  vec4 d = getFromColor(uv);
+  float lum = dot(d.rgb, vec3(0.299, 0.587, 0.114));
+  float coule = progress * (1.25 - lum * 0.75);
+  float y = uv.y + coule;
+  if (y > 1.0) return getToColor(uv);
+  return mix(getFromColor(vec2(uv.x, y)), getToColor(uv), smoothstep(0.8, 1.0, progress));
+}`,
+  },
+  {
+    id: "glchroma", family: "lumiere", name: "Bavure couleur", glyph: "◐",
+    glsl: `
+vec4 transition(vec2 uv) {
+  float pic = sin(progress * 3.14159);
+  vec2 c = (uv - 0.5);
+  vec4 acc = vec4(0.0);
+  for (int i = 0; i < 6; i++) {
+    float f = float(i) / 5.0;
+    float k = 1.0 + 0.12 * f * pic;
+    vec2 p = 0.5 + c * k;
+    vec4 m = mix(getFromColor(p), getToColor(p), progress);
+    // Chaque échantillon ne garde qu'une teinte : les couleurs se séparent en
+    // s'éloignant du centre, comme une optique bon marché.
+    acc.r += m.r * step(f, 0.34);
+    acc.g += m.g * step(0.33, f) * step(f, 0.67);
+    acc.b += m.b * step(0.66, f);
+  }
+  return vec4(acc.r / 2.0, acc.g / 2.0, acc.b / 2.0, 1.0);
+}`,
+  },
+  {
+    id: "glfilm", family: "lumiere", name: "Pellicule", glyph: "▤",
+    glsl: `
+vec4 transition(vec2 uv) {
+  // Défilement vertical d'une pellicule, avec le noir de l'interimage.
+  float pos = fract(progress);
+  float y = uv.y + progress * 1.15;
+  float inter = smoothstep(0.02, 0.0, abs(fract(y) - 0.5) - 0.46);
+  vec4 c = y > 1.0 ? getToColor(vec2(uv.x, fract(y))) : getFromColor(vec2(uv.x, y));
+  float grain = (alea(uv * 700.0 + pos * 31.0) - 0.5) * 0.12;
+  return vec4(clamp(c.rgb * (1.0 - inter) + grain, 0.0, 1.0), 1.0);
 }`,
   },
 ];
