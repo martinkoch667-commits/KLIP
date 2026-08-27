@@ -1721,7 +1721,17 @@ export default function MontagePage() {
          pour que la timeline n'avance pas pendant que le lecteur n'a rien à
          montrer. L'écourter, c'est laisser la tête de lecture courir devant une
          image figée — et ça se voit exactement comme une saccade. */
-      const attente = rs < 2 ? 3000 : rs < 3 && resteDansLePlan > 0.35 ? 600 : 0;
+      /* Deux seuils, deux natures.
+
+         `rs < 2` : le lecteur n'a rien, pas même une image. Là il FAUT attendre,
+         sinon la timeline défile sur du vide.
+
+         `rs < 3` : il a l'image courante mais pas encore la suivante. C'est
+         l'état normal d'un lecteur fraîchement positionné, et geler une
+         demi-seconde pour ça se voit comme un ralenti. On borne le gel à deux
+         cents millisecondes : le temps de laisser le tampon se remplir sans que
+         la lecture ait l'air de patiner. */
+      const attente = rs < 2 ? 3000 : rs < 3 && resteDansLePlan > 0.35 ? 200 : 0;
       if (attente > 0) {
         if (!stalledSince) stalledSince = now;
         if (now - stalledSince < attente) { raf = requestAnimationFrame(tick); return; }
@@ -5206,6 +5216,16 @@ export default function MontagePage() {
                         toast(t('toastMediaMissing', { name: ac.name }), "error");
                       }}
                       playsInline
+                      /* `auto` : le lecteur a le droit de remplir son tampon
+                         AVANT qu'on lui demande de jouer. Sans cette permission,
+                         un lecteur qu'on vient de positionner n'a qu'une image en
+                         mémoire ; il annonce « pas de quoi continuer », l'horloge
+                         se met alors en pause pour l'attendre, et ça se voit comme
+                         un ralenti ou une micro-coupure au moment de la coupe.
+                         Remplir un tampon ne coûte pas de décodage supplémentaire,
+                         contrairement à le faire jouer d'avance — ce que j'avais
+                         essayé, et qui faisait tourner deux décodeurs à la fois. */
+                      preload="auto"
                       /* Origine déclarée : SANS elle, dessiner ce lecteur dans
                          une toile la salit, et tout ce qui relit ces pixels est
                          refusé. C'est ce qui faisait retomber les trente-cinq
