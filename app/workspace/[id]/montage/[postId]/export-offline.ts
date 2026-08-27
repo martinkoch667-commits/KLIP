@@ -157,11 +157,14 @@ async function melangerAudio(
       p = (async () => {
         try {
           const r = await fetch(src, { mode: "cors" });
-          if (!r.ok) return null;
+          if (!r.ok) { console.warn("[export] son introuvable :", r.status, src.slice(0, 90)); return null; }
           return await oac.decodeAudioData(await r.arrayBuffer());
-        } catch {
-          // Source muette, illisible, ou piste audio absente du conteneur :
-          // ce n'est pas une raison de faire échouer tout l'export.
+        } catch (e) {
+          /* `decodeAudioData` ne sait pas ouvrir tous les conteneurs : un .mov,
+             par exemple, est refusé par Chrome alors que le lecteur vidéo le joue
+             sans problème. On le DIT, au lieu de rendre un fichier muet sans que
+             personne comprenne pourquoi. L'appelant, lui, saura se replier. */
+          console.warn("[export] son non décodable, source ignorée :", src.slice(0, 90), e);
           return null;
         }
       })();
@@ -200,6 +203,19 @@ async function melangerAudio(
 
   const buffers = await Promise.all(aiguillages.map((a) => decoder(a.src)));
   onProgress(1);
+
+  /* AUCUNE source décodée alors qu'il y avait du son à mettre : on rend la main
+     plutôt qu'un fichier muet.
+
+     C'est exactement ce qui arrive quand le son a été détaché d'un plan : la
+     piste audio pointe vers le fichier vidéo d'origine, et si `decodeAudioData`
+     ne sait pas ouvrir ce conteneur, TOUT le son de l'export disparaît d'un
+     coup, sans un mot. L'appelant se replie alors sur la captation en temps
+     réel, qui passe par un lecteur : ce que le navigateur sait JOUER, il saura
+     l'enregistrer. */
+  if (aiguillages.length > 0 && buffers.every((b) => !b)) {
+    throw new Error("aucune piste sonore décodable : repli sur la captation");
+  }
 
   aiguillages.forEach((a, i) => {
     const buf = buffers[i];

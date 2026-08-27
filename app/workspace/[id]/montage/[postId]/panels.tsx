@@ -989,9 +989,31 @@ function imageDeSecours(a: string, b: string, etiquette: string): Promise<HTMLIm
   return imageDepuis(c.toDataURL());
 }
 
-function imagesDemo(): Promise<[HTMLImageElement, HTMLImageElement]> {
-  if (promesseDemo) return promesseDemo;
-  promesseDemo = (async () => {
+/* Deux paires : celle qu'on a TOUT DE SUITE, et celle qui arrive après.
+
+   Les vignettes attendaient la banque d'images en ligne pour se dessiner. Quand
+   la banque met vingt secondes à répondre — et elle le fait — le panneau restait
+   une minute avec ses pictogrammes. C'est le contraire de ce qu'on cherchait.
+
+   On dessine donc immédiatement avec une paire fabriquée sur place, qui ne coûte
+   rien et ne dépend de personne. Si la banque répond dans les temps, les
+   vignettes se redessinent avec de vraies photos ; sinon on garde la paire
+   locale, et personne n'a attendu. */
+let promesseLocale: Promise<[HTMLImageElement, HTMLImageElement]> | null = null;
+export function imagesDemoLocales(): Promise<[HTMLImageElement, HTMLImageElement]> {
+  if (!promesseLocale) {
+    promesseLocale = Promise.all([
+      imageDeSecours("#E0563F", "#7A1D12", "1"),
+      imageDeSecours("#2F6FE0", "#0B2456", "2"),
+    ]) as Promise<[HTMLImageElement, HTMLImageElement]>;
+  }
+  return promesseLocale;
+}
+
+let promesseDemo2: Promise<[HTMLImageElement, HTMLImageElement]> | null = null;
+function imagesDemoBanque(): Promise<[HTMLImageElement, HTMLImageElement]> {
+  if (promesseDemo2) return promesseDemo2;
+  promesseDemo2 = (async () => {
     const prendre = async (recherche: string, rang: number) => {
       const r = await fetch(`/api/pexels?query=${encodeURIComponent(recherche)}`);
       const j = await r.json();
@@ -999,18 +1021,15 @@ function imagesDemo(): Promise<[HTMLImageElement, HTMLImageElement]> {
       if (!url) throw new Error("banque vide");
       return imageDepuis(`/api/proxy-image?url=${encodeURIComponent(url)}`);
     };
-    try {
-      return await Promise.all([prendre("portrait studio", 0), prendre("neon city night", 0)]) as [HTMLImageElement, HTMLImageElement];
-    } catch {
-      return await Promise.all([
-        imageDeSecours("#E0563F", "#7A1D12", "1"),
-        imageDeSecours("#2F6FE0", "#0B2456", "2"),
-      ]) as [HTMLImageElement, HTMLImageElement];
-    }
+    // Passé ce délai, ce n'est plus une amélioration, c'est une attente.
+    const delai = new Promise<never>((_, rej) => setTimeout(() => rej(new Error("banque trop lente")), 6000));
+    return await Promise.race([
+      Promise.all([prendre("portrait studio", 0), prendre("neon city night", 0)]),
+      delai,
+    ]) as [HTMLImageElement, HTMLImageElement];
   })();
-  return promesseDemo;
+  return promesseDemo2;
 }
-
 /* Mémoïsée, et ses propriétés le sont toutes.
 
    Le monteur entier se rend jusqu'à trente fois par seconde pendant une
@@ -1136,7 +1155,13 @@ export function TransitionsPanel({ ctx }: { ctx: MontageCtx }) {
     else courant.toast(tRef.current('transitionNeedJunction'));
   }, []);
   const [demo, setDemo] = useState<{ a: HTMLImageElement | null; b: HTMLImageElement | null }>({ a: null, b: null });
-  useEffect(() => { let vivant = true; imagesDemo().then(([a, b]) => { if (vivant) setDemo({ a, b }); }).catch(() => {}); return () => { vivant = false; }; }, []);
+  useEffect(() => {
+    let vivant = true;
+    // D'abord la paire locale, tout de suite. Puis la banque, si elle répond.
+    imagesDemoLocales().then(([a, b]) => { if (vivant) setDemo({ a, b }); }).catch(() => {});
+    imagesDemoBanque().then(([a, b]) => { if (vivant) setDemo({ a, b }); }).catch(() => {});
+    return () => { vivant = false; };
+  }, []);
   const { a: imgA, b: imgB } = demo;
   return (
     <>

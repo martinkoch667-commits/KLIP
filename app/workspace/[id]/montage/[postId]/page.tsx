@@ -1833,7 +1833,13 @@ export default function MontagePage() {
         // Moyenne glissante : une image lente isolée ne doit pas tout changer.
         chargeRef.current = chargeRef.current * 0.85 + ecart * 0.15;
       }
-      const cadence = chargeRef.current > 62 ? 15 : chargeRef.current > 42 ? 20 : 30;
+      /* VINGT-QUATRE par défaut, pas trente. Le surlignage mot à mot des
+         sous-titres est la dernière animation qui réveille encore React, et il
+         n'a rien à gagner au delà : c'est un mot qui change de couleur, pas un
+         mouvement. Vingt pour cent de rendus en moins, rendus au décodage vidéo
+         et au mixage audio. La mesure fait descendre plus bas si la machine
+         peine. */
+      const cadence = chargeRef.current > 62 ? 12 : chargeRef.current > 42 ? 18 : 24;
       const intervalle = animationEnCours(n) ? 1000 / cadence : 1000 / 10;
       if (sig !== derniereSignature || now - dernierRendu >= intervalle) {
         derniereSignature = sig;

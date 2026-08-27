@@ -692,6 +692,24 @@ export default function WorkspacePage() {
   const [typeMenuPost, setTypeMenuPost] = useState<string | null>(null);
   // Prémontage IA à l'ouverture du montage (coché par défaut), par post vidéo.
   const [preEdit, setPreEdit] = useState<Record<string, boolean>>({});
+
+  /* Une vidéo DÉJÀ prémontée ne repart pas pour un tour.
+
+     La case reste cochée d'un post à l'autre, et c'est très bien : c'est un
+     réglage, pas une action. Mais elle envoyait `?premontage=1` même vers une
+     vidéo déjà prémontée, qui relançait alors tout et écrasait le travail fait
+     depuis. On coche donc la case, mais on ne l'écoute plus une fois le
+     prémontage passé. La marque est posée par le monteur lui-même, dans ce
+     navigateur, au moment où il termine. */
+  const dejaPremonte = useCallback((dbId?: string | null) => {
+    if (!dbId || typeof window === "undefined") return false;
+    try { return !!localStorage.getItem(`klip-premontage-${dbId}`); } catch { return false; }
+  }, []);
+  /** La case, telle qu'elle compte VRAIMENT pour ce post. */
+  const preEditActif = useCallback(
+    (localId: string, dbId?: string | null) => (preEdit[localId] ?? true) && !dejaPremonte(dbId),
+    [preEdit, dejaPremonte],
+  );
   // Date du jour figée APRÈS montage : évaluée au rendu, `new Date()` peut différer
   // entre le HTML du serveur et celui du client → erreur d'hydratation React.
   const [todayISO, setTodayISO] = useState("");
@@ -1690,7 +1708,7 @@ export default function WorkspacePage() {
       const saved = await savePost(item, templateId);
       // Le drapeau de prémontage suit jusqu'au montage, qui enchaîne alors tout seul.
       if (saved) {
-        const pre = (preEdit[item.localId] ?? true) ? "?premontage=1" : "";
+        const pre = preEditActif(item.localId, saved.dbId) ? "?premontage=1" : "";
         window.location.href = item.isVideo ? `/workspace/${id}/montage/${saved.dbId}${pre}` : `/workspace/${id}/editor/${saved.dbId}`;
       }
     } catch {
@@ -2467,7 +2485,7 @@ export default function WorkspacePage() {
                                           qu'au cas sans prémontage, et porte alors ?premontage=1
                                           pour le lancer à l'ouverture. */}
                                       {post.status === "validated" && post.dbId && batchFor(post.localId)?.status !== 'done' && (
-                                        <Link href={`/workspace/${id}/montage/${post.dbId}${(preEdit[post.localId] ?? true) ? '?premontage=1' : ''}`} className="btn btn-video" style={{ textAlign: 'center' }}>
+                                        <Link href={`/workspace/${id}/montage/${post.dbId}${preEditActif(post.localId, post.dbId) ? '?premontage=1' : ''}`} className="btn btn-video" style={{ textAlign: 'center' }}>
                                           <IconEdit /> {t('openMontage')}
                                         </Link>
                                       )}
