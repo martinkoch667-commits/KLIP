@@ -4776,8 +4776,17 @@ export default function MontagePage() {
     const premier = clipStarts.length > 0 && clipStarts[0].id === activeClip.id;
     return transitionPairAt(activeClip.transitionIn, activeClip.transitionDur, time - activeClip.start, premier);
   }, [activeClip, clipStarts, time]);
-  const cssEntrant = paireTrans ? transitionCss(paireTrans.in) : null;
-  const cssSortant = transitionEnCours && paireTrans ? transitionCss(paireTrans.out) : null;
+  /* PENDANT LA LECTURE, on ne garde que le mouvement.
+
+     Poser une découpe (`clip-path`, masque) ou un filtre (`blur`) sur un lecteur
+     EN LECTURE lui fait perdre sa voie rapide : le navigateur repeint la vidéo
+     image par image, et le son accroche. Ces transitions-là gardent donc leur
+     déplacement et leur opacité pendant la lecture, et retrouvent leur forme
+     complète dès qu'on s'arrête. Le fichier exporté, lui, ne change pas. */
+  const allegerPourLaLecture = (e: TransitionState): TransitionState =>
+    playing ? { ...e, clipRect: null, clipCircle: null, clipPoly: null, clipBands: null, extraFilter: "" } : e;
+  const cssEntrant = paireTrans ? transitionCss(allegerPourLaLecture(paireTrans.in)) : null;
+  const cssSortant = transitionEnCours && paireTrans ? transitionCss(allegerPourLaLecture(paireTrans.out)) : null;
   /** Le lecteur qui porte le plan sortant, s'il est encore là. */
   const slotSortant: 0 | 1 | null = transitionEnCours && outClip && outClip.kind === "video"
     && slotClipRef.current[slot === 0 ? 1 : 0] === outClip.id ? (slot === 0 ? 1 : 0) : null;
@@ -4795,17 +4804,21 @@ export default function MontagePage() {
 
 
   /* Les transitions à SHADER ne se décrivent pas en CSS : elles déforment
-     l'image pixel par pixel. Elles passent donc par une toile — mais SEULEMENT à
-     l'arrêt et au déplacement de la tête de lecture. Pendant la lecture, elles se
-     jouent en fondu : composer une image par trame pendant que le navigateur
-     décode de la vidéo et mixe du son, c'est ce qui saccade. Le fichier exporté
-     porte toujours la vraie transition. */
+     l'image pixel par pixel. Elles passent donc par une toile, en lecture comme
+     à l'arrêt : une transition qu'on choisit et qui rend un simple fondu n'est
+     pas une transition, c'est un bug.
+
+     Le coût est borné : deux recopies dans une toile de 420 px et un passage sur
+     la carte graphique, uniquement pendant la demi-seconde que dure l'effet. Si
+     ces trente-cinq-là faisaient encore accrocher le son, la mesure serait nette
+     — le son n'accrocherait QUE sur elles — et il resterait à ne les calculer
+     qu'une image sur deux. */
   useEffect(() => {
     const cv = glCanvasRef.current;
     if (!cv) return;
     const sortantEl = slotSortant !== null ? [videoARef, videoBRef][slotSortant].current : null;
     const entrantEl = activeClip?.kind === "video" ? [videoARef, videoBRef][slot].current : imgInRef.current;
-    if (playing || !transitionEnCours || !activeClip || !outClip || exporting || hiddenLanes.has("video")
+    if (!transitionEnCours || !activeClip || !outClip || exporting || hiddenLanes.has("video")
         || !estTransitionGl(activeClip.transitionIn) || !sortantEl || !entrantEl) {
       cv.style.display = "none";
       return;
@@ -5193,20 +5206,16 @@ export default function MontagePage() {
                         toast(t('toastMediaMissing', { name: ac.name }), "error");
                       }}
                       playsInline
-                      /* PAS de crossOrigin ici, et c'est délibéré.
+                      /* Origine déclarée : SANS elle, dessiner ce lecteur dans
+                         une toile la salit, et tout ce qui relit ces pixels est
+                         refusé. C'est ce qui faisait retomber les trente-cinq
+                         transitions à shader sur un simple fondu.
 
-                         Je l'avais ajouté pour pouvoir relire les pixels du
-                         lecteur. Mais il change la façon dont le navigateur va
-                         CHERCHER le fichier : la réponse est mise en cache sous
-                         une autre clé, et les requêtes partielles ne se comportent
-                         pas pareil. C'est la dernière chose que j'aie touchée sur
-                         le chemin de la lecture, et la lecture saccade.
-
-                         On n'en a plus besoin : le plan sortant est montré par le
-                         second lecteur, pas recopié. Seules les transitions à
-                         shader relisent des pixels, et seulement à l'arrêt ; sans
-                         cet attribut elles retombent sur un fondu, ce qui est un
-                         prix dérisoire à côté d'une lecture qui hache. */
+                         Je l'avais retirée en la soupçonnant de la saccade. Elle
+                         était innocente : la vraie cause était mon peintre, et
+                         tout le reste du monteur (export, dérushage, vignettes)
+                         déclare déjà cette origine sur les mêmes fichiers. */
+                      crossOrigin="anonymous"
                       muted={!shown}
                       // Taille et position ne changent JAMAIS (cf. .mz-video > video) :
                       // seule l'opacité bascule. Redimensionner le lecteur au moment
@@ -5219,7 +5228,7 @@ export default function MontagePage() {
                          l'aurait remis à zéro à chacun de ses rendus. */
                       style={shown
                         ? ({
-                            filter: [clipFilterCss(activeClip!), paireTrans?.in.extraFilter].filter(Boolean).join(" ") || undefined,
+                            filter: [clipFilterCss(activeClip!), playing ? "" : paireTrans?.in.extraFilter].filter(Boolean).join(" ") || undefined,
                             objectPosition: `${(activeClip!.focusX ?? 0.5) * 100}% ${(activeClip!.focusY ?? 0.5) * 100}%`,
                             ...(cssEntrant || {}),
                             transformOrigin: "center",
@@ -5227,7 +5236,7 @@ export default function MontagePage() {
                           } as React.CSSProperties)
                         : sortant
                         ? ({
-                            filter: [clipFilterCss(outClip!), paireTrans?.out.extraFilter].filter(Boolean).join(" ") || undefined,
+                            filter: [clipFilterCss(outClip!), playing ? "" : paireTrans?.out.extraFilter].filter(Boolean).join(" ") || undefined,
                             objectPosition: `${(outClip!.focusX ?? 0.5) * 100}% ${(outClip!.focusY ?? 0.5) * 100}%`,
                             ...(cssSortant || {}),
                             transformOrigin: "center",
