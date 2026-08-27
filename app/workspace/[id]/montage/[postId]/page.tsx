@@ -1378,6 +1378,16 @@ export default function MontagePage() {
    *
    *  Le FILTRE n'est jamais écrit ici : c'est React qui pose celui du plan, et
    *  les transitions qui en ajoutent un passent par la toile, pas par le CSS. */
+  /** Pose une propriété seulement si elle change vraiment. */
+  function poserSur(el: HTMLElement | null, nom: string, valeur: string) {
+    if (!el) return;
+    const derniere = (dernieresEcrituresRef.current.get(el) ?? {}) as Record<string, string>;
+    if (derniere[nom] === valeur) return;
+    derniere[nom] = valeur;
+    (el.style as unknown as Record<string, string>)[nom] = valeur;
+    dernieresEcrituresRef.current.set(el, derniere);
+  }
+
   function ecrireEtat(el: HTMLElement | null, st: TransitionState | null, transformEnPlus = "") {
     if (!el) return;
     /* On n'écrit QUE ce qui change. Réaffecter une propriété CSS, même à la même
@@ -1439,11 +1449,11 @@ export default function MontagePage() {
     lecteurs().forEach((el, i) => {
       if (!el) return;
       ecrireEtat(el, null);
-      el.style.opacity = i === actif && courant?.kind === "video" ? "1" : "0";
-      el.style.zIndex = i === actif ? "1" : "0";
+      poserSur(el, "opacity", i === actif && courant?.kind === "video" ? "1" : "0");
+      poserSur(el, "zIndex", i === actif ? "1" : "0");
     });
     ecrireEtat(imgInRef.current, null, transformKenBurns(courant, t));
-    if (imgOutRef.current) imgOutRef.current.style.opacity = "0";
+    poserSur(imgOutRef.current, "opacity", "0");
   }
 
   function peindreTransition(t: number, force = false) {
@@ -1487,13 +1497,28 @@ export default function MontagePage() {
       : (slotClipRef.current[autre] === sortantClip.id ? els[autre] : null);
 
     if (!dedans || !entrant || !elEntrant || !elSortant || conf.masqueVideo || conf.exporte) {
+      /* RIEN À FAIRE, ET ON NE FAIT RIEN.
+
+         Le peintre repassait sur toutes les couches trente fois par seconde même
+         hors transition, c'est-à-dire pendant l'écrasante majorité de la lecture.
+         Chaque passage réécrivait l'opacité et l'empilement des deux lecteurs :
+         réaffecter une propriété d'un <video> EN LECTURE, même à la même valeur,
+         suffit à le faire repeindre. C'est ce qui saccadait sur un montage sans
+         la moindre transition, et c'est entièrement de mon fait.
+
+         On ne repasse donc que s'il y a quelque chose à défaire, ou un zoom
+         automatique à faire avancer. */
+      const zoomAFaire = !!entrant && entrant.kind === "photo" && !!entrant.kenBurns;
+      if (!peintureActiveRef.current && !zoomAFaire) return;
+      peintureActiveRef.current = false;
       remettreAPlat(t);
       if (glCv) glCv.style.display = "none";
-      if (flash) flash.style.opacity = "0";
-      if (noir) noir.style.opacity = "0";
+      poserSur(flash, "opacity", "0");
+      poserSur(noir, "opacity", "0");
       return;
     }
 
+    peintureActiveRef.current = true;
     const avance = (t - entrant.start) / dur;
     const paire = transitionPairAt(entrant.transitionIn, dur, t - entrant.start, false);
 
@@ -1545,13 +1570,16 @@ export default function MontagePage() {
 
     ecrireEtat(elSortant, paire.out,
       sortantClip!.kind === "photo" && sortantClip!.kenBurns ? `scale(${kenBurnsScale(sortantClip!.kenBurns, 1)})` : "");
-    elSortant.style.zIndex = "0";
+    poserSur(elSortant, "zIndex", "0");
     ecrireEtat(elEntrant, paire.in, transformKenBurns(entrant, t));
-    elEntrant.style.zIndex = "1";
-    els.forEach((el) => { if (el && el !== elEntrant && el !== elSortant) el.style.opacity = "0"; });
-    if (flash) flash.style.opacity = String(paire.in.flash || 0);
-    if (noir) noir.style.opacity = String(paire.in.dark || 0);
+    poserSur(elEntrant, "zIndex", "1");
+    els.forEach((el) => { if (el && el !== elEntrant && el !== elSortant) poserSur(el, "opacity", "0"); });
+    poserSur(flash, "opacity", String(paire.in.flash || 0));
+    poserSur(noir, "opacity", String(paire.in.dark || 0));
   }
+  /** Vrai quand la dernière image peinte portait une transition. Sert à savoir
+   *  s'il reste quelque chose à défaire, sinon le peintre ne touche à rien. */
+  const peintureActiveRef = useRef(false);
   const voileFlashRef = useRef<HTMLDivElement>(null);
   const voileNoirRef = useRef<HTMLDivElement>(null);
 
