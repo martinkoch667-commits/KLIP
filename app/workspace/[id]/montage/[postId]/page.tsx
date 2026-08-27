@@ -1357,17 +1357,7 @@ export default function MontagePage() {
 
   /** Une animation continue est-elle à l'écran ? Si oui l'aperçu doit suivre à la
    *  cadence de l'export ; sinon seul le curseur bouge. */
-  /* LA TRANSITION, PEINTE HORS DE REACT.
 
-     Même principe que la tête de lecture : ce qui bouge à chaque image s'écrit
-     directement dans le DOM. React ne sert qu'à monter les couches et à peindre
-     l'image figée du plan sortant, une fois par coupe.
-
-     `scenePeintureRef` porte tout ce dont ce peintre a besoin, mis à jour à
-     chaque rendu React : il ne referme sur rien de périmé. */
-  const scenePeintureRef = useRef<{
-    stageW: number; fmtW: number; fmtH: number; masqueVideo: boolean; exporte: boolean; enLecture: boolean;
-  }>({ stageW: 0, fmtW: 1080, fmtH: 1920, masqueVideo: false, exporte: false, enLecture: false });
 
   /** Applique un état de transition à une couche, sans passer par React.
    *  `transformEnPlus` porte le zoom automatique des photos : il vit sur la MÊME
@@ -1375,210 +1365,17 @@ export default function MontagePage() {
    *
    *  Le FILTRE n'est jamais écrit ici : c'est React qui pose celui du plan, et
    *  les transitions qui en ajoutent un passent par la toile, pas par le CSS. */
-  /** Pose une propriété seulement si elle change vraiment. */
-  function poserSur(el: HTMLElement | null, nom: string, valeur: string) {
-    if (!el) return;
-    const derniere = (dernieresEcrituresRef.current.get(el) ?? {}) as Record<string, string>;
-    if (derniere[nom] === valeur) return;
-    derniere[nom] = valeur;
-    (el.style as unknown as Record<string, string>)[nom] = valeur;
-    dernieresEcrituresRef.current.set(el, derniere);
-  }
+  /* PLUS DE PEINTRE.
 
-  function ecrireEtat(el: HTMLElement | null, st: TransitionState | null, transformEnPlus = "") {
-    if (!el) return;
-    /* On n'écrit QUE ce qui change. Réaffecter une propriété CSS, même à la même
-       valeur, invalide le style de l'élément et peut faire repeindre la couche :
-       à soixante images par seconde, sur cinq propriétés, ça se sent. */
-    const derniere = (dernieresEcrituresRef.current.get(el) ?? {}) as Record<string, string>;
-    const poser = (nom: string, valeur: string) => {
-      if (derniere[nom] === valeur) return;
-      derniere[nom] = valeur;
-      (el.style as unknown as Record<string, string>)[nom] = valeur;
-    };
-    if (!st) {
-      poser("opacity", ""); poser("clipPath", "");
-      poser("maskImage", ""); poser("webkitMaskImage", "");
-      poser("transform", transformEnPlus);
-      // Le navigateur peut rendre sa couche au tas commun : le geste est fini.
-      poser("willChange", "");
-      dernieresEcrituresRef.current.set(el, derniere);
-      return;
-    }
-    const css = transitionCss(st);
-    // Annoncé AVANT de bouger : la couche est promue une fois, pas à chaque image.
-    // `filter` volontairement absent : l'annoncer force le navigateur à sortir
-    // la vidéo de sa voie rapide, ce qu'on cherche justement à éviter.
-    poser("willChange", "transform, opacity");
-    poser("opacity", String(css.opacity ?? 1));
-    poser("transform", [css.transform as string, transformEnPlus].filter(Boolean).join(" "));
-    poser("clipPath", (css.clipPath as string) || "");
-    poser("maskImage", (css.maskImage as string) || "");
-    poser("webkitMaskImage", (css.maskImage as string) || "");
-    dernieresEcrituresRef.current.set(el, derniere);
-  }
-  /** Dernière valeur écrite par couche, pour ne jamais réécrire à l'identique. */
-  const dernieresEcrituresRef = useRef(new WeakMap<HTMLElement, Record<string, string>>());
+     J'avais sorti l'animation des transitions de React pour la faire écrire
+     directement dans le DOM à chaque image. L'intention était bonne, le résultat
+     non : c'est ce qui a fait saccader la lecture, y compris sur des montages
+     sans la moindre transition. La production, elle, anime les transitions par
+     React et du CSS, et elle est fluide.
 
-  /** Zoom automatique du plan photo à cet instant, sous forme de transform. */
-  function transformKenBurns(c: (MontageClip & { start: number; dur: number }) | null, t: number): string {
-    if (!c || c.kind !== "photo" || !c.kenBurns) return "";
-    const p = c.dur > 0 ? Math.min(1, Math.max(0, (t - c.start) / c.dur)) : 0;
-    return `scale(${kenBurnsScale(c.kenBurns, p)})`;
-  }
-
-  const dernierePeintureRef = useRef(0);
-
-  /** Les deux lecteurs vidéo de l'aperçu. */
-  function lecteurs(): [HTMLVideoElement | null, HTMLVideoElement | null] {
-    return [videoARef.current, videoBRef.current];
-  }
-
-  /** Repos : le plan courant visible, tout le reste caché. Appelée à chaque
-   *  image hors transition, les écritures redondantes étant avalées par le
-   *  cache. C'est aussi ce qui empêche une mise à l'échelle de rester collée sur
-   *  un lecteur quand une transition est interrompue autrement que par sa fin. */
-  function remettreAPlat(t: number) {
-    const sc = sceneRef.current;
-    let courant: (MontageClip & { start: number; end: number; dur: number }) | null = null;
-    for (const c of sc.clipStarts) if (t >= c.start && t < c.end) { courant = c; break; }
-    const actif = activeSlotRef.current;
-    lecteurs().forEach((el, i) => {
-      if (!el) return;
-      ecrireEtat(el, null);
-      poserSur(el, "opacity", i === actif && courant?.kind === "video" ? "1" : "0");
-      poserSur(el, "zIndex", i === actif ? "1" : "0");
-    });
-    ecrireEtat(imgInRef.current, null, transformKenBurns(courant, t));
-    poserSur(imgOutRef.current, "opacity", "0");
-  }
-
-  function peindreTransition(t: number, force = false) {
-    const maintenant = performance.now();
-    if (!force && maintenant - dernierePeintureRef.current < 32) return;
-    dernierePeintureRef.current = maintenant;
-    const sc = sceneRef.current;
-    const glCv = glCanvasRef.current;
-    const flash = voileFlashRef.current, noir = voileNoirRef.current;
-    const conf = scenePeintureRef.current;
-
-    let entrant: (MontageClip & { start: number; end: number; dur: number }) | null = null;
-    let iEntrant = -1;
-    for (let i = 0; i < sc.clipStarts.length; i++) {
-      const c = sc.clipStarts[i];
-      if (t >= c.start && t < c.end) { entrant = c; iEntrant = i; break; }
-    }
-    const dur = entrant?.transitionDur || 0;
-    const dedans = !!entrant && iEntrant > 0 && !!entrant.transitionIn && entrant.transitionIn !== "cut"
-      && dur > 0 && t - entrant.start < dur && Math.max(0, entrant.gapBefore ?? 0) <= 0;
-
-    const actif = activeSlotRef.current;
-    const autre = actif === 0 ? 1 : 0;
-    const els = lecteurs();
-    const elEntrant: HTMLElement | null = entrant
-      ? (entrant.kind === "video" ? els[actif] : imgInRef.current)
-      : null;
-
-    /* LE PLAN SORTANT EST DÉJÀ LÀ, décodé, dans l'autre lecteur.
-
-       Je copiais son image dans une toile pour pouvoir la réafficher. Recopier
-       une image vidéo force la carte graphique à rendre ses pixels au processeur,
-       et je le faisais plusieurs fois par coupe : sur un montage à beaucoup de
-       plans, c'est ça qui rendait la lecture inregardable.
-
-       Or le lecteur qui vient de jouer ce plan est toujours là, arrêté sur sa
-       dernière image. Il suffit de le MONTRER. Rien à copier, rien à charger. */
-    const sortantClip = dedans && entrant ? sc.clipStarts[iEntrant - 1] : null;
-    const elSortant: HTMLElement | null = !sortantClip ? null
-      : sortantClip.kind === "photo" ? imgOutRef.current
-      : (slotClipRef.current[autre] === sortantClip.id ? els[autre] : null);
-
-    if (!dedans || !entrant || !elEntrant || !elSortant || conf.masqueVideo || conf.exporte) {
-      /* RIEN À FAIRE, ET ON NE FAIT RIEN.
-
-         Le peintre repassait sur toutes les couches trente fois par seconde même
-         hors transition, c'est-à-dire pendant l'écrasante majorité de la lecture.
-         Chaque passage réécrivait l'opacité et l'empilement des deux lecteurs :
-         réaffecter une propriété d'un <video> EN LECTURE, même à la même valeur,
-         suffit à le faire repeindre. C'est ce qui saccadait sur un montage sans
-         la moindre transition, et c'est entièrement de mon fait.
-
-         On ne repasse donc que s'il y a quelque chose à défaire, ou un zoom
-         automatique à faire avancer. */
-      const zoomAFaire = !!entrant && entrant.kind === "photo" && !!entrant.kenBurns;
-      if (!peintureActiveRef.current && !zoomAFaire) return;
-      peintureActiveRef.current = false;
-      remettreAPlat(t);
-      if (glCv) glCv.style.display = "none";
-      poserSur(flash, "opacity", "0");
-      poserSur(noir, "opacity", "0");
-      return;
-    }
-
-    peintureActiveRef.current = true;
-    const avance = (t - entrant.start) / dur;
-    const paire = transitionPairAt(entrant.transitionIn, dur, t - entrant.start, false);
-
-    /* DEUX CHEMINS, et le choix se fait tout seul.
-
-       Déplacement, échelle, opacité : du CSS. Le compositeur s'en charge, les
-       lecteurs ne sont pas touchés et continuent de décoder tranquillement.
-
-       Découpe, masque, filtre, shader : il faut composer les pixels, et on ne le
-       fait QUE hors lecture. Pendant la lecture, ces transitions-là se réduisent
-       à leur mouvement simple — la fluidité passe avant la fidélité de l'aperçu,
-       et le fichier exporté porte toujours la vraie transition. */
-    const lourde = (e: TransitionState) => !!e.clipRect || !!e.clipCircle || !!e.clipPoly || !!e.clipBands || !!e.extraFilter;
-    const surToile = (estTransitionGl(entrant.transitionIn) || lourde(paire.in) || lourde(paire.out)) && !conf.enLecture;
-
-    if (surToile && glCv) {
-      const pret = !(elEntrant instanceof HTMLVideoElement) || elEntrant.readyState >= 2;
-      if (pret) {
-        const w = Math.max(120, Math.min(420, Math.round(conf.stageW || 360)));
-        const h = Math.max(120, Math.round(w * (conf.fmtH / conf.fmtW)));
-        if (glCv.width !== w || glCv.height !== h) { glCv.width = w; glCv.height = h; }
-        const c2d = glCv.getContext("2d", { alpha: false });
-        if (c2d) {
-          try {
-            drawTransitionFrame(c2d, elSortant as HTMLVideoElement, sortantClip!, sortantClip!.dur,
-              elEntrant as HTMLVideoElement | HTMLImageElement, entrant, t - entrant.start,
-              entrant.transitionIn!, avance, w, h);
-            glCv.style.display = "block";
-            remettreAPlat(t);
-            if (flash) flash.style.opacity = "0";
-            if (noir) noir.style.opacity = "0";
-            return;
-          } catch { glCv.style.display = "none"; }
-        }
-      }
-    }
-    if (glCv) glCv.style.display = "none";
-
-    /* Repli pendant la lecture : on garde le mouvement, on jette la découpe et
-       le filtre. Poser un `clip-path` ou un `blur()` sur un lecteur EN LECTURE
-       lui fait perdre sa voie rapide — le navigateur repeint la vidéo image par
-       image et le son part avec. Un fondu à la place, le temps de la lecture. */
-    const aAlleger = conf.enLecture && (lourde(paire.in) || lourde(paire.out) || estTransitionGl(entrant.transitionIn));
-    if (aAlleger) {
-      const p = Math.max(0, Math.min(1, avance));
-      paire.in = { ...paire.in, alpha: Math.sqrt(p), clipRect: null, clipCircle: null, clipPoly: null, clipBands: null, extraFilter: "" };
-      paire.out = { ...paire.out, alpha: Math.sqrt(1 - p), clipRect: null, clipCircle: null, clipPoly: null, clipBands: null, extraFilter: "" };
-    }
-
-    ecrireEtat(elSortant, paire.out,
-      sortantClip!.kind === "photo" && sortantClip!.kenBurns ? `scale(${kenBurnsScale(sortantClip!.kenBurns, 1)})` : "");
-    poserSur(elSortant, "zIndex", "0");
-    ecrireEtat(elEntrant, paire.in, transformKenBurns(entrant, t));
-    poserSur(elEntrant, "zIndex", "1");
-    els.forEach((el) => { if (el && el !== elEntrant && el !== elSortant) poserSur(el, "opacity", "0"); });
-    poserSur(flash, "opacity", String(paire.in.flash || 0));
-    poserSur(noir, "opacity", String(paire.in.dark || 0));
-  }
-  /** Vrai quand la dernière image peinte portait une transition. Sert à savoir
-   *  s'il reste quelque chose à défaire, sinon le peintre ne touche à rien. */
-  const peintureActiveRef = useRef(false);
-  const voileFlashRef = useRef<HTMLDivElement>(null);
-  const voileNoirRef = useRef<HTMLDivElement>(null);
+     On revient donc à sa mécanique, à laquelle il ne manquait qu'une chose : la
+     couche du plan qui s'en va. Elle existe maintenant, et c'est le second
+     lecteur — déjà décodé, arrêté sur sa dernière image. */
 
   function animationEnCours(t: number): boolean {
     const sc = sceneRef.current;
@@ -1664,8 +1461,6 @@ export default function MontagePage() {
      L'aperçu ne montrait que le plan entrant : un fondu apparaissait donc depuis
      le noir, un balayage balayait le vide. On remet l'image d'avant en dessous,
      avec le mouvement qui lui revient — le même calcul qu'à l'export. */
-  // Plus d'état de transition calculé au rendu : `peindreTransition` s'en charge
-  // à chaque image, hors React.
 
   const outClip = useMemo(() => {
     if (!activeClip) return null;
@@ -1942,17 +1737,6 @@ export default function MontagePage() {
       clockRef.current = n;
       timeRef.current = n;          // la synchro image/son lit ici, à 60 Hz
       poserCurseur(n);              // le curseur bouge sans rendu React
-      /* PENDANT LA LECTURE, LE PEINTRE NE TOURNE PAS.
-
-         J'ai corrigé son coût trois fois de suite sans jamais rendre la lecture
-         fluide. Plutôt qu'une quatrième supposition, on le sort complètement du
-         chemin : pendant la lecture, plus une seule ligne de mon travail sur les
-         transitions ne s'exécute. Le monteur lit exactement comme avant.
-
-         La transition reste visible dès qu'on s'arrête ou qu'on déplace la tête
-         de lecture, et le fichier exporté porte toujours la vraie transition.
-         C'est une marche arrière assumée, et elle sert à mesurer : si ça saccade
-         encore ainsi, la cause n'est pas dans ce que j'ai ajouté. */
 
       // React n'est réveillé que si l'écran doit changer, ou à la cadence utile.
       const sig = signatureScene(n);
@@ -4979,15 +4763,24 @@ export default function MontagePage() {
     ? { id: "custom", label: "Perso", sub: `${customW}×${customH}`, w: Math.max(1, customW), h: Math.max(1, customH) }
     : videoFormatById(formatId);
   const previewScale = (stageW || 300) / activeFmt.w;
-  // Ce dont le peintre hors React a besoin, rafraîchi à chaque rendu.
-  scenePeintureRef.current = {
-    stageW, fmtW: activeFmt.w, fmtH: activeFmt.h,
-    masqueVideo: hiddenLanes.has("video"), exporte: exporting, enLecture: playing,
-  };
+
 
 
   const transitionEnCours = !!outClip && !!activeClip && !!activeClip.transitionIn && activeClip.transitionIn !== "cut";
   transitionEnCoursRef.current = transitionEnCours;
+  /* Les deux états de la transition, calculés au rendu. React re-rend déjà à
+     trente images par seconde pendant une transition (cf. animationEnCours) :
+     c'est le mécanisme de la production, et il est fluide. */
+  const paireTrans = useMemo(() => {
+    if (!activeClip) return null;
+    const premier = clipStarts.length > 0 && clipStarts[0].id === activeClip.id;
+    return transitionPairAt(activeClip.transitionIn, activeClip.transitionDur, time - activeClip.start, premier);
+  }, [activeClip, clipStarts, time]);
+  const cssEntrant = paireTrans ? transitionCss(paireTrans.in) : null;
+  const cssSortant = transitionEnCours && paireTrans ? transitionCss(paireTrans.out) : null;
+  /** Le lecteur qui porte le plan sortant, s'il est encore là. */
+  const slotSortant: 0 | 1 | null = transitionEnCours && outClip && outClip.kind === "video"
+    && slotClipRef.current[slot === 0 ? 1 : 0] === outClip.id ? (slot === 0 ? 1 : 0) : null;
 
   /* Plus d'image figée à fabriquer, ni de toile à peindre pour le plan sortant.
 
@@ -4999,22 +4792,39 @@ export default function MontagePage() {
 
   /* À l'arrêt il n'y a pas d'horloge : c'est le rendu React qui déclenche le
      peintre. En lecture, c'est le minuteur, et React n'est pas réveillé. */
-  /* Le peintre ne tourne qu'à l'arrêt : c'est le rendu React qui le déclenche,
-     donc au plus dix fois par seconde, et jamais pendant la lecture. */
-  useEffect(() => {
-    if (playing) return;
-    peindreTransition(time, true);
-  });
-  /* Au démarrage de la lecture, on efface d'un coup ce que le peintre avait
-     posé : sans ça, une transition figée resterait à l'écran. */
-  useEffect(() => {
-    if (!playing) return;
-    peintureActiveRef.current = false;
-    remettreAPlat(timeRef.current);
-  }, [playing]);
 
-  /* Les transitions à shader sont peintes par `peindreTransition`, à chaque
-     image et hors React, comme les autres. */
+
+  /* Les transitions à SHADER ne se décrivent pas en CSS : elles déforment
+     l'image pixel par pixel. Elles passent donc par une toile — mais SEULEMENT à
+     l'arrêt et au déplacement de la tête de lecture. Pendant la lecture, elles se
+     jouent en fondu : composer une image par trame pendant que le navigateur
+     décode de la vidéo et mixe du son, c'est ce qui saccade. Le fichier exporté
+     porte toujours la vraie transition. */
+  useEffect(() => {
+    const cv = glCanvasRef.current;
+    if (!cv) return;
+    const sortantEl = slotSortant !== null ? [videoARef, videoBRef][slotSortant].current : null;
+    const entrantEl = activeClip?.kind === "video" ? [videoARef, videoBRef][slot].current : imgInRef.current;
+    if (playing || !transitionEnCours || !activeClip || !outClip || exporting || hiddenLanes.has("video")
+        || !estTransitionGl(activeClip.transitionIn) || !sortantEl || !entrantEl) {
+      cv.style.display = "none";
+      return;
+    }
+    const w = Math.max(120, Math.min(420, Math.round(stageW || 360)));
+    const h = Math.max(120, Math.round(w * (activeFmt.h / activeFmt.w)));
+    if (cv.width !== w || cv.height !== h) { cv.width = w; cv.height = h; }
+    const c2d = cv.getContext("2d", { alpha: false });
+    if (!c2d) { cv.style.display = "none"; return; }
+    const avance = (time - activeClip.start) / Math.max(0.01, activeClip.transitionDur || 0.01);
+    try {
+      drawTransitionFrame(c2d, sortantEl, outClip, outClip.dur, entrantEl, activeClip,
+        time - activeClip.start, activeClip.transitionIn!, avance, w, h);
+      cv.style.display = "block";
+    } catch {
+      // Pixels illisibles : le fondu de repli est déjà à l'écran, il fera l'affaire.
+      cv.style.display = "none";
+    }
+  }, [playing, transitionEnCours, activeClip, outClip, slot, slotSortant, time, stageW, activeFmt.w, activeFmt.h, exporting, hiddenLanes]);
   // Le texte sélectionné s'affiche TOUJOURS dans l'aperçu (même si le curseur sort de sa
   // plage) → on peut toujours le voir, le déplacer et l'éditer.
   // Chaque rangée de texte se masque séparément, comme les pistes vidéo.
@@ -5361,6 +5171,11 @@ export default function MontagePage() {
                     ce qui refaisait saccader le plan vidéo suivant. */}
                 {([videoARef, videoBRef] as const).map((ref, i) => {
                   const shown = !!activeClip && activeClip.kind === "video" && i === slot && !hiddenLanes.has("video");
+                  /* Le lecteur du plan qui S'EN VA reste à l'écran le temps de la
+                     transition. C'est ce qui manquait : sans lui, un fondu partait
+                     du noir et un balayage balayait le vide. Il est déjà décodé,
+                     arrêté sur sa dernière image — rien à charger, rien à copier. */
+                  const sortant = i === slotSortant && !hiddenLanes.has("video");
                   return (
                     <video
                       key={i}
@@ -5404,11 +5219,22 @@ export default function MontagePage() {
                          l'aurait remis à zéro à chacun de ses rendus. */
                       style={shown
                         ? ({
-                            filter: clipFilterCss(activeClip!) || undefined,
+                            filter: [clipFilterCss(activeClip!), paireTrans?.in.extraFilter].filter(Boolean).join(" ") || undefined,
                             objectPosition: `${(activeClip!.focusX ?? 0.5) * 100}% ${(activeClip!.focusY ?? 0.5) * 100}%`,
+                            ...(cssEntrant || {}),
                             transformOrigin: "center",
+                            zIndex: 1,
                           } as React.CSSProperties)
-                        : { pointerEvents: "none" }}
+                        : sortant
+                        ? ({
+                            filter: [clipFilterCss(outClip!), paireTrans?.out.extraFilter].filter(Boolean).join(" ") || undefined,
+                            objectPosition: `${(outClip!.focusX ?? 0.5) * 100}% ${(outClip!.focusY ?? 0.5) * 100}%`,
+                            ...(cssSortant || {}),
+                            transformOrigin: "center",
+                            zIndex: 0,
+                            pointerEvents: "none",
+                          } as React.CSSProperties)
+                        : { opacity: 0, pointerEvents: "none", zIndex: 0 }}
                     />
                   );
                 })}
@@ -5443,11 +5269,13 @@ export default function MontagePage() {
                     l'affiche que s'il a vraiment pu dessiner. */}
                 <canvas ref={glCanvasRef} style={{ position: "absolute", inset: 0, width: "100%", height: "100%", display: "none", zIndex: 2, pointerEvents: "none" }} />
 
-                {/* Voiles (flash blanc, fondu au noir), identiques à l'export.
-                    Toujours montés, à opacité nulle : les faire apparaître et
-                    disparaître demanderait un rendu React par image. */}
-                <div ref={voileFlashRef} style={{ position: "absolute", inset: 0, background: "#fff", opacity: 0, pointerEvents: "none", zIndex: 3 }} />
-                <div ref={voileNoirRef} style={{ position: "absolute", inset: 0, background: "#000", opacity: 0, pointerEvents: "none", zIndex: 3 }} />
+                {/* Voiles (flash blanc, fondu au noir), identiques à l'export. */}
+                {paireTrans && paireTrans.in.flash > 0 && (
+                  <div style={{ position: "absolute", inset: 0, background: "#fff", opacity: paireTrans.in.flash, pointerEvents: "none", zIndex: 3 }} />
+                )}
+                {paireTrans && paireTrans.in.dark > 0 && (
+                  <div style={{ position: "absolute", inset: 0, background: "#000", opacity: paireTrans.in.dark, pointerEvents: "none", zIndex: 3 }} />
+                )}
 
                 {/* incrustations (PIP) — déplaçables/redimensionnables/pivotables.
                     Triées par piste croissante : l'ordre du DOM fait le z-order (piste haute = au-dessus). */}
