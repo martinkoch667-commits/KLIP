@@ -1343,8 +1343,11 @@ export default function MontagePage() {
 
   /** Applique un état de transition à une couche, sans passer par React.
    *  `transformEnPlus` porte le zoom automatique des photos : il vit sur la MÊME
-   *  propriété que la transition, et l'écraser ferait sauter l'image. */
-  function ecrireEtat(el: HTMLElement | null, st: TransitionState | null, filtreBase: string, transformEnPlus = "") {
+   *  propriété que la transition, et l'écraser ferait sauter l'image.
+   *
+   *  Le FILTRE n'est jamais écrit ici : c'est React qui pose celui du plan, et
+   *  les transitions qui en ajoutent un passent par la toile, pas par le CSS. */
+  function ecrireEtat(el: HTMLElement | null, st: TransitionState | null, transformEnPlus = "") {
     if (!el) return;
     /* On n'écrit QUE ce qui change. Réaffecter une propriété CSS, même à la même
        valeur, invalide le style de l'élément et peut faire repeindre la couche :
@@ -1359,7 +1362,6 @@ export default function MontagePage() {
       poser("opacity", ""); poser("clipPath", "");
       poser("maskImage", ""); poser("webkitMaskImage", "");
       poser("transform", transformEnPlus);
-      poser("filter", filtreBase || "");
       // Le navigateur peut rendre sa couche au tas commun : le geste est fini.
       poser("willChange", "");
       dernieresEcrituresRef.current.set(el, derniere);
@@ -1367,13 +1369,14 @@ export default function MontagePage() {
     }
     const css = transitionCss(st);
     // Annoncé AVANT de bouger : la couche est promue une fois, pas à chaque image.
-    poser("willChange", "transform, opacity, filter");
+    // `filter` volontairement absent : l'annoncer force le navigateur à sortir
+    // la vidéo de sa voie rapide, ce qu'on cherche justement à éviter.
+    poser("willChange", "transform, opacity");
     poser("opacity", String(css.opacity ?? 1));
     poser("transform", [css.transform as string, transformEnPlus].filter(Boolean).join(" "));
     poser("clipPath", (css.clipPath as string) || "");
     poser("maskImage", (css.maskImage as string) || "");
     poser("webkitMaskImage", (css.maskImage as string) || "");
-    poser("filter", [filtreBase, st.extraFilter].filter(Boolean).join(" "));
     dernieresEcrituresRef.current.set(el, derniere);
   }
   /** Dernière valeur écrite par couche, pour ne jamais réécrire à l'identique. */
@@ -1387,6 +1390,21 @@ export default function MontagePage() {
   }
 
   const dernierePeintureRef = useRef(0);
+
+  /** Toutes les couches que le peintre a pu toucher. On les remet TOUTES à plat
+   *  en sortant : le plan qui portait la transition n'est pas forcément celui
+   *  qui est à l'écran une demi-seconde plus tard (changement de plan, saut dans
+   *  la timeline), et sa mise à l'échelle restait alors collée dessus — c'est
+   *  l'image rétrécie au milieu du cadre. */
+  function remettreAPlat(t: number) {
+    const sc = sceneRef.current;
+    let courant: (MontageClip & { start: number; end: number; dur: number }) | null = null;
+    for (const c of sc.clipStarts) if (t >= c.start && t < c.end) { courant = c; break; }
+    const kb = transformKenBurns(courant, t);
+    for (const r of [videoARef, videoBRef]) ecrireEtat(r.current, null);
+    ecrireEtat(imgInRef.current, null, kb);
+  }
+
   function peindreTransition(t: number, force = false) {
     /* Trente images par seconde, la cadence de l'export : l'aperçu ne peut pas
        être plus fin que le fichier rendu, et une image sur deux en moins, c'est
@@ -1414,25 +1432,39 @@ export default function MontagePage() {
       : null;
 
     if (!dedans || conf.masqueVideo || conf.exporte) {
-      if (peintureActiveRef.current) {
-        peintureActiveRef.current = false;
-        ecrireEtat(elEntrant, null, entrant ? (clipFilterCss(entrant) || "") : "", transformKenBurns(entrant, t));
-        if (cvOut) cvOut.style.display = "none";
-        if (glCv) glCv.style.display = "none";
-        if (flash) flash.style.opacity = "0";
-        if (noir) noir.style.opacity = "0";
-      }
+      /* Remise à plat INCONDITIONNELLE. Elle était gardée par un drapeau « on
+         avait peint », et une transition interrompue autrement que par sa fin —
+         un saut dans la timeline, un changement de plan plus court que la
+         transition — laissait sa mise à l'échelle collée sur le lecteur : c'est
+         l'image rétrécie au milieu du cadre noir. Les écritures redondantes ne
+         coûtent rien, le cache les avale. */
+      remettreAPlat(t);
+      if (cvOut) cvOut.style.display = "none";
+      if (glCv) glCv.style.display = "none";
+      if (flash) flash.style.opacity = "0";
+      if (noir) noir.style.opacity = "0";
       return;
     }
-    peintureActiveRef.current = true;
 
     const sortant = sc.clipStarts[iEntrant - 1];
     const avance = (t - entrant!.start) / dur;
     const paire = transitionPairAt(entrant!.transitionIn, dur, t - entrant!.start, false);
 
-    // Shaders : l'image se calcule, elle ne se décrit pas en CSS.
-    const enGl = estTransitionGl(entrant!.transitionIn);
-    if (enGl && glCv && elEntrant && instantaneRef.current?.width) {
+    /* DEUX CHEMINS, et le choix se fait tout seul.
+
+       Une transition qui ne fait que déplacer, mettre à l'échelle et fondre se
+       décrit en CSS : le compositeur s'en charge, le lecteur vidéo n'est pas
+       touché, et il continue de décoder tranquillement.
+
+       Une découpe (balayage, stores, iris) ou un filtre (flou, glitch) posés sur
+       un <video> EN LECTURE, c'est autre chose : le navigateur perd sa voie
+       rapide, repeint la vidéo à chaque image et le son se met à hacher. Ces
+       transitions-là sont donc composées sur une toile, et le lecteur, caché
+       derrière, garde sa voie rapide — c'est LUI qui porte le son. */
+    const lourde = (e: TransitionState) => !!e.clipRect || !!e.clipCircle || !!e.clipPoly || !!e.clipBands || !!e.extraFilter;
+    const surToile = estTransitionGl(entrant!.transitionIn) || lourde(paire.in) || lourde(paire.out);
+
+    if (surToile && glCv && elEntrant && instantaneRef.current?.width) {
       const pret = !(elEntrant instanceof HTMLVideoElement) || elEntrant.readyState >= 2;
       if (pret) {
         // Plafonnée à 420 px de large : au delà, on calcule des pixels que
@@ -1448,7 +1480,8 @@ export default function MontagePage() {
               entrant!.transitionIn!, avance, w, h);
             glCv.style.display = "block";
             if (cvOut) cvOut.style.display = "none";
-            ecrireEtat(elEntrant, null, clipFilterCss(entrant!) || "", transformKenBurns(entrant, t));
+            // Le lecteur ne porte AUCUN style de transition : il est derrière.
+            remettreAPlat(t);
             if (flash) flash.style.opacity = "0";
             if (noir) noir.style.opacity = "0";
             return;
@@ -1458,18 +1491,16 @@ export default function MontagePage() {
     }
     if (glCv) glCv.style.display = "none";
 
-    // Transitions 2D : deux couches et du CSS, rien à calculer par image.
+    // Chemin léger : deux couches, une transformation et une opacité.
     if (cvOut) {
       cvOut.style.display = sortantPeintRef.current ? "block" : "none";
-      // Le sortant a fini sa course : son zoom automatique est à son terme.
-      ecrireEtat(cvOut, paire.out, clipFilterCss(sortant) || "",
+      ecrireEtat(cvOut, paire.out,
         sortant.kind === "photo" && sortant.kenBurns ? `scale(${kenBurnsScale(sortant.kenBurns, 1)})` : "");
     }
-    ecrireEtat(elEntrant, paire.in, clipFilterCss(entrant!) || "", transformKenBurns(entrant, t));
+    ecrireEtat(elEntrant, paire.in, transformKenBurns(entrant, t));
     if (flash) flash.style.opacity = String(paire.in.flash || 0);
     if (noir) noir.style.opacity = String(paire.in.dark || 0);
   }
-  const peintureActiveRef = useRef(false);
   const sortantPeintRef = useRef(false);
   const voileFlashRef = useRef<HTMLDivElement>(null);
   const voileNoirRef = useRef<HTMLDivElement>(null);
