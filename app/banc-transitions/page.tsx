@@ -17,6 +17,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { TRANSITIONS, transitionPairAt, estTransitionGl, type MontageClip } from "../workspace/[id]/montage/[postId]/constants";
 import { drawMediaWithState, drawTransitionVeils, drawGlTransitionFrame, setCanvasSize } from "../workspace/[id]/montage/[postId]/render-core";
 import { TransitionsPanel } from "../workspace/[id]/montage/[postId]/panels";
+import { PerfHud, useCompteurRendus } from "../workspace/[id]/montage/[postId]/perf-hud";
 import type { MontageCtx } from "../workspace/[id]/montage/[postId]/panels";
 
 export default function BancTransitions() {
@@ -62,6 +63,15 @@ const planFactice = (id: string, src: string): MontageClip & { start: number; en
 });
 
 function BancTransitionsDev() {
+  // Le même compteur que dans le monteur : il mesure ici le coût des vignettes.
+  const compteurRendus = useCompteurRendus(true);
+  const dureeRenduRef = useRef(0);
+  const debutRenduRef = useRef(performance.now());
+  debutRenduRef.current = performance.now();
+  useEffect(() => {
+    const d = performance.now() - debutRenduRef.current;
+    dureeRenduRef.current = dureeRenduRef.current * 0.8 + d * 0.2;
+  });
   const [pret, setPret] = useState(false);
   // #gl dans l'adresse : n'affiche que les transitions à shader, pour les juger
   // sans faire défiler les quarante autres.
@@ -132,6 +142,7 @@ function BancTransitionsDev() {
         <div className="a-panel-head"><span className="a-panel-title">Panneau Transitions</span></div>
         <div className="a-panel-scroll" style={{ maxHeight: 340 }}><TransitionsPanel ctx={ctxPanneau} /></div>
       </div>
+      <PerfHud compteurRendus={compteurRendus} dureeRenduRef={dureeRenduRef} videoRef={() => null} />
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
         {liste.map((tr) => (
           <div key={tr.id} style={{ display: "flex", alignItems: "center", gap: 14 }}>

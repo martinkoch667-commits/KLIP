@@ -24,6 +24,7 @@ import { lectureRapideDisponible, infosVideo, dureeAudio, imagesAux, enJpeg, vig
 import { MontageCtx, CutPanel, TextPanel, CaptionsPanel, AudioPanel, TransitionsPanel, FilterPanel, SpeedPanel, StickerPanel, OverlayPanel, AiPanel } from "./panels";
 import { renderExport } from "./export";
 import { drawTransitionFrame, drawPlanFixe } from "./render-core";
+import { PerfHud, useCompteurRendus } from "./perf-hud";
 import { analyzeClipQuality, type TWord } from "./autoCut";
 import {
   runPreEdit, trimClipsByQuality, tightenSpeech, buildCaptions,
@@ -802,6 +803,26 @@ export default function MontagePage() {
   const slotClipRef = useRef<[string | null, string | null]>([null, null]);
   const lastSeekRef = useRef(0); // temporisation des recalages de dérive
   const mediaErrRef = useRef<Set<string>>(new Set()); // sources déjà signalées comme illisibles
+  /* Mesure de performance, ouverte avec ?perf=1. Rien du tout sans : ni
+     compteur, ni Profiler, ni observateur. On a passé plusieurs tours à deviner
+     d'où venait la saccade ; ce panneau la fait dire à la machine. */
+  const [perf] = useState(() => typeof window !== "undefined" && new URLSearchParams(window.location.search).get("perf") === "1");
+  const compteurRendus = useCompteurRendus(perf);
+  const dureeRenduRef = useRef(0);
+  /* Durée d'un rendu, mesurée SANS le Profiler de React : celui-ci ne rapporte
+     rien dans une version de production, et c'est justement là qu'on mesure.
+     On note l'heure en entrant dans le corps du composant, et on la relit dans
+     un effet sans dépendances, qui s'exécute après chaque rendu : l'écart couvre
+     le rendu ET la pose dans le DOM. */
+  const debutRenduRef = useRef(0);
+  if (perf) debutRenduRef.current = performance.now();
+  useEffect(() => {
+    if (!perf) return;
+    // Moyenne glissante : un rendu isolé ne dit rien, la tendance si.
+    const d = performance.now() - debutRenduRef.current;
+    dureeRenduRef.current = dureeRenduRef.current * 0.8 + d * 0.2;
+  });
+
   const [slot, setSlot] = useState<0 | 1>(0);
   // Couches de l'aperçu : l'image entrante, l'image figée du plan sortant, et la
   // toile réservée aux transitions à shader.
@@ -4947,7 +4968,7 @@ export default function MontagePage() {
     );
   }
 
-  return (
+  const contenu = (
     <div className="a-root" style={{ height: "100vh" }}>
       {/* topbar */}
       {/* Barre du montage en violet : dans le produit, le violet est la vidéo
@@ -6257,5 +6278,17 @@ export default function MontagePage() {
         );
       })()}
     </div>
+  );
+
+  if (!perf) return contenu;
+  return (
+    <>
+      {contenu}
+      <PerfHud
+        compteurRendus={compteurRendus}
+        dureeRenduRef={dureeRenduRef}
+        videoRef={() => [videoARef, videoBRef][activeSlotRef.current].current}
+      />
+    </>
   );
 }
