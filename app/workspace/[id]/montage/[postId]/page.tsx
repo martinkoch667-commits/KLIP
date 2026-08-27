@@ -830,6 +830,7 @@ export default function MontagePage() {
   // Couches de l'aperçu : l'image entrante, l'image figée du plan sortant, et la
   // toile réservée aux transitions à shader.
   const imgInRef = useRef<HTMLImageElement>(null);
+  const imgOutRef = useRef<HTMLImageElement>(null);
   const glCanvasRef = useRef<HTMLCanvasElement>(null);
   // Jonction visée par un glisser en cours, pour qu'on voie où ça va tomber.
   const [jonctionSurvolee, setJonctionSurvolee] = useState<string | null>(null);
@@ -888,6 +889,9 @@ export default function MontagePage() {
   /** Le plan qui était à l'antenne juste avant : sert à reconnaître une coulée
    *  continue, c'est-à-dire une coupe qui ne demande aucun travail au lecteur. */
   const clipPrecedentRef = useRef<(MontageClip & { start: number; end: number; dur: number }) | null>(null);
+  /** Vrai tant qu'une transition est à l'écran. Lu par le préchargement, qui ne
+   *  doit pas écraser le lecteur portant le plan sortant. */
+  const transitionEnCoursRef = useRef(false);
   const loadedSrcRef = useRef<string | null>(null);
   const overlayVideoRefs = useRef<Map<string, HTMLVideoElement>>(new Map());
   const scrubRef = useRef<HTMLDivElement>(null);
@@ -1365,8 +1369,8 @@ export default function MontagePage() {
      `scenePeintureRef` porte tout ce dont ce peintre a besoin, mis à jour à
      chaque rendu React : il ne referme sur rien de périmé. */
   const scenePeintureRef = useRef<{
-    stageW: number; fmtW: number; fmtH: number; masqueVideo: boolean; exporte: boolean;
-  }>({ stageW: 0, fmtW: 1080, fmtH: 1920, masqueVideo: false, exporte: false });
+    stageW: number; fmtW: number; fmtH: number; masqueVideo: boolean; exporte: boolean; enLecture: boolean;
+  }>({ stageW: 0, fmtW: 1080, fmtH: 1920, masqueVideo: false, exporte: false, enLecture: false });
 
   /** Applique un état de transition à une couche, sans passer par React.
    *  `transformEnPlus` porte le zoom automatique des photos : il vit sur la MÊME
@@ -1418,29 +1422,36 @@ export default function MontagePage() {
 
   const dernierePeintureRef = useRef(0);
 
-  /** Toutes les couches que le peintre a pu toucher. On les remet TOUTES à plat
-   *  en sortant : le plan qui portait la transition n'est pas forcément celui
-   *  qui est à l'écran une demi-seconde plus tard (changement de plan, saut dans
-   *  la timeline), et sa mise à l'échelle restait alors collée dessus — c'est
-   *  l'image rétrécie au milieu du cadre. */
+  /** Les deux lecteurs vidéo de l'aperçu. */
+  function lecteurs(): [HTMLVideoElement | null, HTMLVideoElement | null] {
+    return [videoARef.current, videoBRef.current];
+  }
+
+  /** Repos : le plan courant visible, tout le reste caché. Appelée à chaque
+   *  image hors transition, les écritures redondantes étant avalées par le
+   *  cache. C'est aussi ce qui empêche une mise à l'échelle de rester collée sur
+   *  un lecteur quand une transition est interrompue autrement que par sa fin. */
   function remettreAPlat(t: number) {
     const sc = sceneRef.current;
     let courant: (MontageClip & { start: number; end: number; dur: number }) | null = null;
     for (const c of sc.clipStarts) if (t >= c.start && t < c.end) { courant = c; break; }
-    const kb = transformKenBurns(courant, t);
-    for (const r of [videoARef, videoBRef]) ecrireEtat(r.current, null);
-    ecrireEtat(imgInRef.current, null, kb);
+    const actif = activeSlotRef.current;
+    lecteurs().forEach((el, i) => {
+      if (!el) return;
+      ecrireEtat(el, null);
+      el.style.opacity = i === actif && courant?.kind === "video" ? "1" : "0";
+      el.style.zIndex = i === actif ? "1" : "0";
+    });
+    ecrireEtat(imgInRef.current, null, transformKenBurns(courant, t));
+    if (imgOutRef.current) imgOutRef.current.style.opacity = "0";
   }
 
   function peindreTransition(t: number, force = false) {
-    /* Trente images par seconde, la cadence de l'export : l'aperçu ne peut pas
-       être plus fin que le fichier rendu, et une image sur deux en moins, c'est
-       la moitié du travail rendue au décodage vidéo et au mixage audio. */
     const maintenant = performance.now();
     if (!force && maintenant - dernierePeintureRef.current < 32) return;
     dernierePeintureRef.current = maintenant;
     const sc = sceneRef.current;
-    const cvOut = cvOutRef.current, glCv = glCanvasRef.current;
+    const glCv = glCanvasRef.current;
     const flash = voileFlashRef.current, noir = voileNoirRef.current;
     const conf = scenePeintureRef.current;
 
@@ -1454,60 +1465,63 @@ export default function MontagePage() {
     const dedans = !!entrant && iEntrant > 0 && !!entrant.transitionIn && entrant.transitionIn !== "cut"
       && dur > 0 && t - entrant.start < dur && Math.max(0, entrant.gapBefore ?? 0) <= 0;
 
+    const actif = activeSlotRef.current;
+    const autre = actif === 0 ? 1 : 0;
+    const els = lecteurs();
     const elEntrant: HTMLElement | null = entrant
-      ? (entrant.kind === "video" ? [videoARef, videoBRef][activeSlotRef.current].current : imgInRef.current)
+      ? (entrant.kind === "video" ? els[actif] : imgInRef.current)
       : null;
 
-    if (!dedans || conf.masqueVideo || conf.exporte) {
-      /* Remise à plat INCONDITIONNELLE. Elle était gardée par un drapeau « on
-         avait peint », et une transition interrompue autrement que par sa fin —
-         un saut dans la timeline, un changement de plan plus court que la
-         transition — laissait sa mise à l'échelle collée sur le lecteur : c'est
-         l'image rétrécie au milieu du cadre noir. Les écritures redondantes ne
-         coûtent rien, le cache les avale. */
+    /* LE PLAN SORTANT EST DÉJÀ LÀ, décodé, dans l'autre lecteur.
+
+       Je copiais son image dans une toile pour pouvoir la réafficher. Recopier
+       une image vidéo force la carte graphique à rendre ses pixels au processeur,
+       et je le faisais plusieurs fois par coupe : sur un montage à beaucoup de
+       plans, c'est ça qui rendait la lecture inregardable.
+
+       Or le lecteur qui vient de jouer ce plan est toujours là, arrêté sur sa
+       dernière image. Il suffit de le MONTRER. Rien à copier, rien à charger. */
+    const sortantClip = dedans && entrant ? sc.clipStarts[iEntrant - 1] : null;
+    const elSortant: HTMLElement | null = !sortantClip ? null
+      : sortantClip.kind === "photo" ? imgOutRef.current
+      : (slotClipRef.current[autre] === sortantClip.id ? els[autre] : null);
+
+    if (!dedans || !entrant || !elEntrant || !elSortant || conf.masqueVideo || conf.exporte) {
       remettreAPlat(t);
-      if (cvOut) cvOut.style.display = "none";
       if (glCv) glCv.style.display = "none";
       if (flash) flash.style.opacity = "0";
       if (noir) noir.style.opacity = "0";
       return;
     }
 
-    const sortant = sc.clipStarts[iEntrant - 1];
-    const avance = (t - entrant!.start) / dur;
-    const paire = transitionPairAt(entrant!.transitionIn, dur, t - entrant!.start, false);
+    const avance = (t - entrant.start) / dur;
+    const paire = transitionPairAt(entrant.transitionIn, dur, t - entrant.start, false);
 
     /* DEUX CHEMINS, et le choix se fait tout seul.
 
-       Une transition qui ne fait que déplacer, mettre à l'échelle et fondre se
-       décrit en CSS : le compositeur s'en charge, le lecteur vidéo n'est pas
-       touché, et il continue de décoder tranquillement.
+       Déplacement, échelle, opacité : du CSS. Le compositeur s'en charge, les
+       lecteurs ne sont pas touchés et continuent de décoder tranquillement.
 
-       Une découpe (balayage, stores, iris) ou un filtre (flou, glitch) posés sur
-       un <video> EN LECTURE, c'est autre chose : le navigateur perd sa voie
-       rapide, repeint la vidéo à chaque image et le son se met à hacher. Ces
-       transitions-là sont donc composées sur une toile, et le lecteur, caché
-       derrière, garde sa voie rapide — c'est LUI qui porte le son. */
+       Découpe, masque, filtre, shader : il faut composer les pixels, et on ne le
+       fait QUE hors lecture. Pendant la lecture, ces transitions-là se réduisent
+       à leur mouvement simple — la fluidité passe avant la fidélité de l'aperçu,
+       et le fichier exporté porte toujours la vraie transition. */
     const lourde = (e: TransitionState) => !!e.clipRect || !!e.clipCircle || !!e.clipPoly || !!e.clipBands || !!e.extraFilter;
-    const surToile = estTransitionGl(entrant!.transitionIn) || lourde(paire.in) || lourde(paire.out);
+    const surToile = (estTransitionGl(entrant.transitionIn) || lourde(paire.in) || lourde(paire.out)) && !conf.enLecture;
 
-    if (surToile && glCv && elEntrant && instantaneRef.current?.width) {
+    if (surToile && glCv) {
       const pret = !(elEntrant instanceof HTMLVideoElement) || elEntrant.readyState >= 2;
       if (pret) {
-        // Plafonnée à 420 px de large : au delà, on calcule des pixels que
-        // personne ne distingue dans un aperçu, une image sur deux.
         const w = Math.max(120, Math.min(420, Math.round(conf.stageW || 360)));
         const h = Math.max(120, Math.round(w * (conf.fmtH / conf.fmtW)));
         if (glCv.width !== w || glCv.height !== h) { glCv.width = w; glCv.height = h; }
         const c2d = glCv.getContext("2d", { alpha: false });
         if (c2d) {
           try {
-            drawTransitionFrame(c2d, instantaneRef.current, sortant, sortant.dur,
-              elEntrant as HTMLVideoElement | HTMLImageElement, entrant!, t - entrant!.start,
-              entrant!.transitionIn!, avance, w, h);
+            drawTransitionFrame(c2d, elSortant as HTMLVideoElement, sortantClip!, sortantClip!.dur,
+              elEntrant as HTMLVideoElement | HTMLImageElement, entrant, t - entrant.start,
+              entrant.transitionIn!, avance, w, h);
             glCv.style.display = "block";
-            if (cvOut) cvOut.style.display = "none";
-            // Le lecteur ne porte AUCUN style de transition : il est derrière.
             remettreAPlat(t);
             if (flash) flash.style.opacity = "0";
             if (noir) noir.style.opacity = "0";
@@ -1518,17 +1532,26 @@ export default function MontagePage() {
     }
     if (glCv) glCv.style.display = "none";
 
-    // Chemin léger : deux couches, une transformation et une opacité.
-    if (cvOut) {
-      cvOut.style.display = sortantPeintRef.current ? "block" : "none";
-      ecrireEtat(cvOut, paire.out,
-        sortant.kind === "photo" && sortant.kenBurns ? `scale(${kenBurnsScale(sortant.kenBurns, 1)})` : "");
+    /* Repli pendant la lecture : on garde le mouvement, on jette la découpe et
+       le filtre. Poser un `clip-path` ou un `blur()` sur un lecteur EN LECTURE
+       lui fait perdre sa voie rapide — le navigateur repeint la vidéo image par
+       image et le son part avec. Un fondu à la place, le temps de la lecture. */
+    const aAlleger = conf.enLecture && (lourde(paire.in) || lourde(paire.out) || estTransitionGl(entrant.transitionIn));
+    if (aAlleger) {
+      const p = Math.max(0, Math.min(1, avance));
+      paire.in = { ...paire.in, alpha: Math.sqrt(p), clipRect: null, clipCircle: null, clipPoly: null, clipBands: null, extraFilter: "" };
+      paire.out = { ...paire.out, alpha: Math.sqrt(1 - p), clipRect: null, clipCircle: null, clipPoly: null, clipBands: null, extraFilter: "" };
     }
+
+    ecrireEtat(elSortant, paire.out,
+      sortantClip!.kind === "photo" && sortantClip!.kenBurns ? `scale(${kenBurnsScale(sortantClip!.kenBurns, 1)})` : "");
+    elSortant.style.zIndex = "0";
     ecrireEtat(elEntrant, paire.in, transformKenBurns(entrant, t));
+    elEntrant.style.zIndex = "1";
+    els.forEach((el) => { if (el && el !== elEntrant && el !== elSortant) el.style.opacity = "0"; });
     if (flash) flash.style.opacity = String(paire.in.flash || 0);
     if (noir) noir.style.opacity = String(paire.in.dark || 0);
   }
-  const sortantPeintRef = useRef(false);
   const voileFlashRef = useRef<HTMLDivElement>(null);
   const voileNoirRef = useRef<HTMLDivElement>(null);
 
@@ -1773,6 +1796,10 @@ export default function MontagePage() {
        continuer. C'est exactement ce qui perdait des images à CHAQUE changement
        de plan sur un rush découpé — c'est-à-dire à chaque coupe d'un prémontage. */
     if (memeCoulee(activeClip, nextClip)) return;
+    /* Ni pendant une transition : le lecteur « libre » n'est pas libre du tout,
+       il porte l'image du plan qui s'en va. Le remplir de la suite l'effacerait
+       en plein fondu. */
+    if (transitionEnCoursRef.current) return;
     // `activeSlotRef` et non `slot` : au commit d'un changement de plan, l'état `slot`
     // porte encore l'ANCIENNE valeur et désignait comme « libre » le lecteur qui vient
     // d'être mis à l'antenne.
@@ -1786,19 +1813,13 @@ export default function MontagePage() {
     const seek = () => {
       try { el.currentTime = Math.max(0, nextClip.trimStart); } catch {}
       slotClipRef.current[free] = nextClip.id;
-      /* On ne se contente pas de positionner : on RÉCHAUFFE.
+      /* On POSITIONNE, et rien de plus.
 
-         Un lecteur simplement positionné n'a décodé qu'une image. Il annonce
-         alors « pas de quoi continuer », et à la coupe on démarrait un décodeur
-         froid. Le laisser jouer une fraction de seconde en sourdine remplit son
-         tampon : au moment où on bascule dessus, il a déjà de l'avance. */
-      el.muted = true;
-      el.play().then(() => {
-        setTimeout(() => {
-          // Sauf s'il est entre-temps passé à l'antenne : on ne coupe pas la lecture.
-          if (el !== videoRef.current) { try { el.pause(); el.currentTime = Math.max(0, nextClip.trimStart); } catch {} }
-        }, 250);
-      }).catch(() => { /* lecture refusée : on garde au moins la position */ });
+         J'avais ajouté ici une lecture d'un quart de seconde en sourdine pour
+         « réchauffer » le décodeur. C'était une mauvaise idée : ça fait tourner
+         DEUX décodeurs en même temps, à chaque changement de plan, et sur des
+         rushes lourds c'est précisément ce qui rendait la lecture inregardable.
+         Un décodeur qui démarre coûte cher ; deux qui tournent coûtent plus. */
     };
     if (slotSrcRef.current[free] !== nextClip.src) {
       // Fichier différent : charger puis se positionner.
@@ -1900,26 +1921,7 @@ export default function MontagePage() {
       } else {
         stalledSince = 0;
       }
-      /* L'HORLOGE SUIT L'IMAGE, pas l'inverse.
-
-         Le temps avançait par écarts réels de l'horloge du navigateur. Le lecteur
-         vidéo, lui, avance à SON rythme : dès qu'il perd une image, il prend du
-         retard, et la tête de lecture continue sans lui. D'où le décalage entre
-         la position sur la timeline et ce qu'on voit à l'écran, qui se creuse à
-         chaque accroc et ne se rattrape jamais.
-
-         Quand un plan vidéo joue vraiment, c'est LUI la référence : sa position
-         dit quelle image est affichée. On ne corrige pas d'un coup — un saut se
-         verrait — mais on rattrape un cinquième de l'écart à chaque image, ce qui
-         recolle en un dixième de seconde sans que rien ne saute. */
-      let n = clockRef.current + dt;
-      if (ac && ac.kind === "video" && vEl && !vEl.paused && vEl.readyState >= 2 && !enTransition) {
-        const selonLimage = ac.start + (vEl.currentTime - ac.trimStart) / (ac.speed || 1);
-        const ecart = selonLimage - n;
-        // Au delà d'une demi-seconde, ce n'est plus une dérive mais un saut
-        // (recherche, changement de plan) : l'horloge reste maîtresse.
-        if (Math.abs(ecart) < 0.5) n += ecart * 0.2;
-      }
+      const n = clockRef.current + dt;
       if (total > 0 && n >= total) {
         clockRef.current = 0; timeRef.current = 0;
         poserCurseur(0); setPlaying(false); setTime(0);
@@ -4979,83 +4981,20 @@ export default function MontagePage() {
   // Ce dont le peintre hors React a besoin, rafraîchi à chaque rendu.
   scenePeintureRef.current = {
     stageW, fmtW: activeFmt.w, fmtH: activeFmt.h,
-    masqueVideo: hiddenLanes.has("video"), exporte: exporting,
+    masqueVideo: hiddenLanes.has("video"), exporte: exporting, enLecture: playing,
   };
 
 
   const transitionEnCours = !!outClip && !!activeClip && !!activeClip.transitionIn && activeClip.transitionIn !== "cut";
+  transitionEnCoursRef.current = transitionEnCours;
 
-  /* L'IMAGE FIGÉE du plan qui s'en va.
+  /* Plus d'image figée à fabriquer, ni de toile à peindre pour le plan sortant.
 
-     C'est la pièce qui manquait quand la transition se jouait sur du noir : le
-     plan sortant vivait dans un lecteur vidéo à qui on donnait sa source au
-     moment même de la transition, donc sans rien de décodé à montrer.
-
-     ELLE NE SE PREND QU'AU DERNIER MOMENT. Recopier une image vidéo dans une
-     toile force la carte graphique à rendre ses pixels au processeur : c'est
-     l'opération la plus chère de tout l'aperçu. La faire deux fois par seconde
-     en permanence, comme je l'avais écrit, hachait le son de la lecture. On ne
-     la prend donc que dans la demi-seconde qui précède une coupe QUI PORTE une
-     transition — une ou deux fois par coupe, et rien du tout le reste du temps,
-     c'est-à-dire presque toujours. */
-  const instantaneRef = useRef<HTMLCanvasElement | null>(null);
-  const derniereCaptureRef = useRef(0);
-  /** Une coupe avec transition arrive-t-elle dans moins d'une demi-seconde ? */
-  const coupeImminente = useMemo(() => {
-    if (!activeClip) return false;
-    const i = clipStarts.findIndex((c) => c.id === activeClip.id);
-    const suivant = clipStarts[i + 1];
-    if (!suivant || !suivant.transitionIn || suivant.transitionIn === "cut") return false;
-    return activeClip.end - time <= 0.6;
-  }, [activeClip, clipStarts, time]);
-  useEffect(() => {
-    if (transitionEnCours || !coupeImminente || !activeClip) return;
-    const maintenant = performance.now();
-    if (maintenant - derniereCaptureRef.current < 200) return;
-    const el: HTMLVideoElement | HTMLImageElement | null =
-      activeClip.kind === "video" ? [videoARef, videoBRef][slot].current : imgInRef.current;
-    if (!el) return;
-    const sw = el instanceof HTMLVideoElement ? el.videoWidth : el.naturalWidth;
-    const sh = el instanceof HTMLVideoElement ? el.videoHeight : el.naturalHeight;
-    if (!sw || !sh || (el instanceof HTMLVideoElement && el.readyState < 2)) return;
-    derniereCaptureRef.current = maintenant;
-    // 360 px suffisent : cette image n'est réaffichée que dans l'aperçu, jamais
-    // exportée. Plus grande, elle coûterait plus cher pour rien.
-    const w = 360, h = Math.max(1, Math.round((sh / sw) * 360));
-    let cv = instantaneRef.current;
-    if (!cv) { cv = document.createElement("canvas"); instantaneRef.current = cv; }
-    if (cv.width !== w || cv.height !== h) { cv.width = w; cv.height = h; }
-    try {
-      const c2d = cv.getContext("2d", { alpha: false });
-      if (c2d) { c2d.imageSmoothingQuality = "low"; c2d.drawImage(el, 0, 0, w, h); }
-    } catch { /* source non lisible */ }
-  }, [time, activeClip, slot, transitionEnCours, coupeImminente]);
-
-  /* Cette image, peinte UNE FOIS par coupe dans la toile du plan sortant.
-
-     Une toile visible, pas une image : passer par `toDataURL` demande de RELIRE
-     les pixels, ce qu'un navigateur refuse dès qu'une vidéo d'un autre domaine a
-     été dessinée dedans. L'appel échouait donc en silence, l'image du plan
-     sortant n'existait pas, et la transition se jouait sur du noir. Une toile
-     s'affiche sans qu'on ait à la relire. */
-  const cvOutRef = useRef<HTMLCanvasElement>(null);
-  const cleSortantRef = useRef<string | null>(null);
-  useEffect(() => {
-    if (!transitionEnCours || !outClip || !activeClip) { cleSortantRef.current = null; return; }
-    const cle = `${outClip.id}|${activeClip.id}`;
-    if (cleSortantRef.current === cle) return;
-    const cv = cvOutRef.current, snap = instantaneRef.current;
-    if (!cv || !snap || !snap.width) { sortantPeintRef.current = false; return; }
-    cleSortantRef.current = cle;
-    const w = Math.max(120, Math.round(stageW || 360));
-    const h = Math.max(120, Math.round(w * (activeFmt.h / activeFmt.w)));
-    if (cv.width !== w || cv.height !== h) { cv.width = w; cv.height = h; }
-    const c2d = cv.getContext("2d");
-    if (!c2d) { sortantPeintRef.current = false; return; }
-    drawPlanFixe(c2d, snap, outClip, outClip.dur, w, h);
-    sortantPeintRef.current = true;
-  }, [transitionEnCours, outClip, activeClip, stageW, activeFmt.w, activeFmt.h]);
-  useEffect(() => { if (!transitionEnCours) sortantPeintRef.current = false; }, [transitionEnCours]);
+     Tout ce bloc recopiait des images vidéo dans des toiles, plusieurs fois par
+     coupe. Recopier une image vidéo force la carte graphique à rendre ses pixels
+     au processeur, et c'était la dépense la plus lourde de l'aperçu. Le lecteur
+     qui vient de jouer le plan sortant est toujours là, arrêté sur sa dernière
+     image : on le montre, et c'est tout. */
 
   /* À l'arrêt il n'y a pas d'horloge : c'est le rendu React qui déclenche le
      peintre. En lecture, c'est le minuteur, et React n'est pas réveillé. */
@@ -5395,21 +5334,15 @@ export default function MontagePage() {
               onPointerLeave={(e) => { panRef.current = null; onStagePointerUp(e); }}
             >
               <div className="mz-video">
-                {/* Le plan qui s'en va : son image figée, prise pendant qu'il était
-                    encore à l'écran, animée en CSS comme n'importe quelle couche.
-                    Toujours montée pendant la transition — c'est elle qu'on ne
-                    voyait pas, et c'est pour ça que le fond était noir. */}
-                <canvas
-                  ref={cvOutRef}
-                  style={{
-                    position: "absolute", inset: 0, width: "100%", height: "100%",
-                    zIndex: 0, pointerEvents: "none",
-                    // Montée en permanence, cachée par défaut : c'est le peintre
-                    // hors React qui l'affiche et l'anime.
-                    display: "none",
-                    transformOrigin: "center",
-                  }}
-                />
+                {/* Le plan qui s'en va n'a plus de couche à lui quand c'est une
+                    vidéo : c'est le second lecteur, arrêté sur sa dernière image,
+                    que le peintre montre et anime. Une photo, elle, a besoin de
+                    son image — mais une image ne coûte rien. */}
+                {outClip && outClip.kind === "photo" && (
+                  <img ref={imgOutRef} src={outClip.src} alt="" crossOrigin="anonymous"
+                    style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover",
+                      opacity: 0, zIndex: 0, pointerEvents: "none", transformOrigin: "center" }} />
+                )}
                 {/* Les DEUX lecteurs restent montés en permanence (même sur un plan
                     photo) : les démonter réinitialisait la source et le préchargement,
                     ce qui refaisait saccader le plan vidéo suivant. */}
@@ -5443,16 +5376,18 @@ export default function MontagePage() {
                       // seule l'opacité bascule. Redimensionner le lecteur au moment
                       // de l'afficher lui faisait montrer une image à l'ancienne
                       // échelle, cernée de noir, le temps de se remettre en place.
+                      /* Ni opacité ni empilement ici : les DEUX appartiennent au
+                         peintre, hors React. Pendant une transition, le lecteur
+                         qui n'est pas à l'antenne doit se voir — c'est lui qui
+                         porte le plan sortant — et React, qui le croit caché,
+                         l'aurait remis à zéro à chacun de ses rendus. */
                       style={shown
                         ? ({
                             filter: clipFilterCss(activeClip!) || undefined,
                             objectPosition: `${(activeClip!.focusX ?? 0.5) * 100}% ${(activeClip!.focusY ?? 0.5) * 100}%`,
-                            // Ni transform, ni opacity, ni clip-path ici : ce sont les
-                            // propriétés qu'anime `peindreTransition`, hors React.
                             transformOrigin: "center",
-                            zIndex: 1,
                           } as React.CSSProperties)
-                        : { opacity: 0, pointerEvents: "none", zIndex: 0 }}
+                        : { pointerEvents: "none" }}
                     />
                   );
                 })}
