@@ -238,6 +238,13 @@ async function melangerAudio(
   return oac.startRendering();
 }
 
+/** Le montage contient-il quelque chose qui devrait s'entendre ? */
+function aDuSonAMettre(clips: ClipTimed[], overlays: OverlayClip[], pistes: AudioTrack[]): boolean {
+  if (pistes.some((t) => t.dur > 0)) return true;
+  if (clips.some((c) => c.kind === "video" && (c.vol ?? 1) > 0 && c.dur > 0)) return true;
+  return overlays.some((o) => o.kind === "video" && (o.vol ?? 1) > 0);
+}
+
 // ── Rendu ──────────────────────────────────────────────────────────────────
 
 type Media = { video: HTMLVideoElement | null; img: HTMLImageElement | null };
@@ -469,6 +476,29 @@ export async function renderExportOffline(
     // ── Son ────────────────────────────────────────────────────────────────
     const mix = await melangerAudio(clips, overlays, project.audioTracks, total, () => onProgress(0.86));
     onProgress(0.9);
+
+    /* ON ÉCOUTE CE QU'ON S'APPRÊTE À ENCODER.
+
+       L'encodeur travaille à débit fixe : il remplit ses trames à 128 kbit/s que
+       le signal soit une voix ou du silence. Un fichier muet ressemble donc en
+       tout point à un fichier sonore — même durée, même poids, même déclaration.
+       C'est pour ça que le problème a pu passer plusieurs fois entre les mailles.
+
+       On mesure donc la crête du mélange avant de l'encoder. Si elle est nulle,
+       le rendu hors ligne rend la main : l'export se replie sur la captation en
+       temps réel, qui passe par des lecteurs — ce que le navigateur sait JOUER,
+       il saura l'enregistrer, quel que soit le conteneur. */
+    let crete = 0;
+    for (let ch = 0; ch < mix.numberOfChannels; ch++) {
+      const d = mix.getChannelData(ch);
+      // Un échantillon sur 97 : assez pour trouver une crête, sans relire des
+      // millions de valeurs pour rien.
+      for (let i = 0; i < d.length; i += 97) { const v = Math.abs(d[i]); if (v > crete) crete = v; }
+    }
+    console.log("[export] crête du mélange audio :", crete.toFixed(4));
+    if (aDuSonAMettre(clips, overlays, project.audioTracks) && crete < 0.0005) {
+      throw new Error("mélange audio muet : repli sur la captation");
+    }
 
     const audioEncoder = new AudioEncoder({
       output: (chunk, meta) => muxer.addAudioChunk(chunk, meta),
