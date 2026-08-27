@@ -1346,21 +1346,38 @@ export default function MontagePage() {
    *  propriété que la transition, et l'écraser ferait sauter l'image. */
   function ecrireEtat(el: HTMLElement | null, st: TransitionState | null, filtreBase: string, transformEnPlus = "") {
     if (!el) return;
+    /* On n'écrit QUE ce qui change. Réaffecter une propriété CSS, même à la même
+       valeur, invalide le style de l'élément et peut faire repeindre la couche :
+       à soixante images par seconde, sur cinq propriétés, ça se sent. */
+    const derniere = (dernieresEcrituresRef.current.get(el) ?? {}) as Record<string, string>;
+    const poser = (nom: string, valeur: string) => {
+      if (derniere[nom] === valeur) return;
+      derniere[nom] = valeur;
+      (el.style as unknown as Record<string, string>)[nom] = valeur;
+    };
     if (!st) {
-      el.style.opacity = ""; el.style.clipPath = "";
-      el.style.maskImage = ""; el.style.webkitMaskImage = "";
-      el.style.transform = transformEnPlus;
-      el.style.filter = filtreBase || "";
+      poser("opacity", ""); poser("clipPath", "");
+      poser("maskImage", ""); poser("webkitMaskImage", "");
+      poser("transform", transformEnPlus);
+      poser("filter", filtreBase || "");
+      // Le navigateur peut rendre sa couche au tas commun : le geste est fini.
+      poser("willChange", "");
+      dernieresEcrituresRef.current.set(el, derniere);
       return;
     }
     const css = transitionCss(st);
-    el.style.opacity = String(css.opacity ?? 1);
-    el.style.transform = [css.transform as string, transformEnPlus].filter(Boolean).join(" ");
-    el.style.clipPath = (css.clipPath as string) || "";
-    el.style.maskImage = (css.maskImage as string) || "";
-    el.style.webkitMaskImage = (css.maskImage as string) || "";
-    el.style.filter = [filtreBase, st.extraFilter].filter(Boolean).join(" ");
+    // Annoncé AVANT de bouger : la couche est promue une fois, pas à chaque image.
+    poser("willChange", "transform, opacity, filter");
+    poser("opacity", String(css.opacity ?? 1));
+    poser("transform", [css.transform as string, transformEnPlus].filter(Boolean).join(" "));
+    poser("clipPath", (css.clipPath as string) || "");
+    poser("maskImage", (css.maskImage as string) || "");
+    poser("webkitMaskImage", (css.maskImage as string) || "");
+    poser("filter", [filtreBase, st.extraFilter].filter(Boolean).join(" "));
+    dernieresEcrituresRef.current.set(el, derniere);
   }
+  /** Dernière valeur écrite par couche, pour ne jamais réécrire à l'identique. */
+  const dernieresEcrituresRef = useRef(new WeakMap<HTMLElement, Record<string, string>>());
 
   /** Zoom automatique du plan photo à cet instant, sous forme de transform. */
   function transformKenBurns(c: (MontageClip & { start: number; dur: number }) | null, t: number): string {
@@ -1369,7 +1386,14 @@ export default function MontagePage() {
     return `scale(${kenBurnsScale(c.kenBurns, p)})`;
   }
 
-  function peindreTransition(t: number) {
+  const dernierePeintureRef = useRef(0);
+  function peindreTransition(t: number, force = false) {
+    /* Trente images par seconde, la cadence de l'export : l'aperçu ne peut pas
+       être plus fin que le fichier rendu, et une image sur deux en moins, c'est
+       la moitié du travail rendue au décodage vidéo et au mixage audio. */
+    const maintenant = performance.now();
+    if (!force && maintenant - dernierePeintureRef.current < 32) return;
+    dernierePeintureRef.current = maintenant;
     const sc = sceneRef.current;
     const cvOut = cvOutRef.current, glCv = glCanvasRef.current;
     const flash = voileFlashRef.current, noir = voileNoirRef.current;
@@ -1411,7 +1435,9 @@ export default function MontagePage() {
     if (enGl && glCv && elEntrant && instantaneRef.current?.width) {
       const pret = !(elEntrant instanceof HTMLVideoElement) || elEntrant.readyState >= 2;
       if (pret) {
-        const w = Math.max(120, Math.round(conf.stageW || 360));
+        // Plafonnée à 420 px de large : au delà, on calcule des pixels que
+        // personne ne distingue dans un aperçu, une image sur deux.
+        const w = Math.max(120, Math.min(420, Math.round(conf.stageW || 360)));
         const h = Math.max(120, Math.round(w * (conf.fmtH / conf.fmtW)));
         if (glCv.width !== w || glCv.height !== h) { glCv.width = w; glCv.height = h; }
         const c2d = glCv.getContext("2d", { alpha: false });
@@ -2777,7 +2803,21 @@ export default function MontagePage() {
          la timeline ne déclenche aucune sauvegarde automatique, et le drapeau
          serait perdu à la fermeture de l'onglet. */
       preEditedAtRef.current = new Date().toISOString();
-      supabase.from("posts").update({ montage_json: projectRef.current() }).eq("id", postId).then(() => {});
+      /* DEUX écritures, parce qu'une seule ne suffisait pas.
+
+         Le drapeau ne vivait que dans `montage_json`, et cette écriture-là ne
+         lisait même pas sa réponse. Si elle échouait — et une écriture Supabase
+         peut échouer sans bruit — le drapeau n'existait nulle part : rouvrir le
+         montage relançait un prémontage complet, encore et encore, en écrasant
+         le travail fait entre-temps. C'est ce que Martin voyait à chaque
+         ouverture depuis Composer.
+
+         La marque locale prend le relais quand la base refuse. Elle est propre à
+         ce navigateur, ce qui suffit : c'est le même qui vient de faire le
+         prémontage. */
+      try { localStorage.setItem(`klip-premontage-${postId}`, preEditedAtRef.current); } catch { /* stockage plein ou refusé */ }
+      const { error: errDrapeau } = await supabase.from("posts").update({ montage_json: projectRef.current() }).eq("id", postId);
+      if (errDrapeau) console.warn("[prémontage] drapeau non enregistré en base :", errDrapeau.message);
       loggingRef.current = false;
       setPreEditing(false);
       setPreEditStep(null);
@@ -2796,7 +2836,15 @@ export default function MontagePage() {
     // Déjà prémonté : on ne recommence PAS. Quitter la page en cours de route
     // puis revenir relançait tout et écrasait le travail fait entre-temps.
     // Le panneau IA reste là pour le relancer volontairement.
-    if (preEditedAtRef.current) { preRunRef.current = true; return; }
+    // La marque locale compte autant que celle de la base : si l'écriture en base
+    // a échoué, c'est elle qui empêche de tout refaire à chaque ouverture.
+    let marqueLocale: string | null = null;
+    try { marqueLocale = localStorage.getItem(`klip-premontage-${postId}`); } catch { /* stockage refusé */ }
+    if (preEditedAtRef.current || marqueLocale) {
+      if (!preEditedAtRef.current && marqueLocale) preEditedAtRef.current = marqueLocale;
+      preRunRef.current = true;
+      return;
+    }
     runFullPreEdit();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loading, clips.length]);
@@ -4829,7 +4877,7 @@ export default function MontagePage() {
 
   /* À l'arrêt il n'y a pas d'horloge : c'est le rendu React qui déclenche le
      peintre. En lecture, c'est le minuteur, et React n'est pas réveillé. */
-  useEffect(() => { if (!playing) peindreTransition(time); });
+  useEffect(() => { if (!playing) peindreTransition(time, true); });
 
   /* Les transitions à shader sont peintes par `peindreTransition`, à chaque
      image et hors React, comme les autres. */
