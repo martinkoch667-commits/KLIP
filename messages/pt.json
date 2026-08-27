@@ -1501,7 +1501,23 @@
       "glwarp": "Distorção",
       "glrgb": "Separação RGB",
       "glburn": "Queimadura",
-      "glvortex": "Vórtice"
+      "glvortex": "Vórtice",
+      "glleak": "Fuga de luz",
+      "glflare": "Brilho",
+      "glstrobe": "Estroboscópio",
+      "glzoomrad": "Desfoque radial",
+      "glpan": "Movimento de câmara",
+      "glfocus": "Focagem",
+      "glcube": "Cubo",
+      "gldoors": "Portas",
+      "glflip": "Viragem",
+      "glwave": "Onda",
+      "glstretch": "Esticamento",
+      "glliquid": "Líquido",
+      "glkaleido": "Caleidoscópio",
+      "glblocks": "Blocos",
+      "glscan": "Linha de varrimento",
+      "glnoise": "Neve"
     },
     "subLength": {
       "one": "1 palavra",
@@ -1599,7 +1615,12 @@
       "zoom": "Zooms",
       "forme": "Formas e varrimentos",
       "dynamique": "Dinâmicas",
-      "shader": "Efeitos avançados"
+      "shader": "Efeitos avançados",
+      "lumiere": "Luz",
+      "camera": "Câmara",
+      "3d": "3D",
+      "distorsion": "Distorção",
+      "bogue": "Glitch"
     }
   },
   "montage": {
@@ -2032,7 +2053,11 @@
     "mediaInAudio": "Som · pista {n}",
     "useAsOverlay": "Adicionar como sobreposição",
     "toastOverlayAdded": "Sobreposição adicionada no cursor.",
-    "audioLevel": "Nível de áudio"
+    "audioLevel": "Nível de áudio",
+    "transitionDropHint": "Arraste uma transição para um corte na linha temporal. Clique numa miniatura para a aplicar ao clipe selecionado.",
+    "transitionDropHintNoClip": "Arraste uma transição para um corte na linha temporal, entre dois clipes.",
+    "transitionNeedJunction": "Arraste a transição para um corte na linha temporal.",
+    "transitionDropHere": "Largue aqui uma transição"
   },
   "forgotPassword": {
     "title": "Esqueceu a palavra-passe",

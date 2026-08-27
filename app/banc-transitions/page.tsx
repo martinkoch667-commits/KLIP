@@ -46,7 +46,13 @@ function fabriquerImage(couleur: string, forme: "rond" | "croix", etiquette: str
   x.fillText(etiquette, 108, 70);
   const img = new Image();
   img.src = c.toDataURL();
-  return img.decode().then(() => img);
+  // `decode()` ne rend pas la main dans certains contextes (mesuré ici même :
+  // image complète, promesse jamais tenue). `onload` est le signal fiable.
+  return new Promise<HTMLImageElement>((res, rej) => {
+    if (img.complete && img.naturalWidth) return res(img);
+    img.onload = () => res(img);
+    img.onerror = () => rej(new Error("image"));
+  });
 }
 
 const planFactice = (id: string, src: string): MontageClip & { start: number; end: number; dur: number } => ({
@@ -73,6 +79,7 @@ function BancTransitionsDev() {
         fabriquerImage("#2B5BD9", "croix", "B"),
       ]);
       if (annule) return;
+      setImages({ a, b });
       setCanvasSize(W, H);
       const sortant = planFactice("a", a.src);
       for (const tr of liste) {
@@ -109,10 +116,13 @@ function BancTransitionsDev() {
      voit pas sur les vignettes : que les familles se rangent, et que chacune des
      quarante-cinq a bien son nom traduit — une clé manquante fait tomber la page
      entière avec next-intl. */
+  const [images, setImages] = useState<{ a: HTMLImageElement | null; b: HTMLImageElement | null }>({ a: null, b: null });
   const ctxPanneau = {
     selectedClip: { id: "x", transitionIn: "fade", transitionDur: 0.5 },
+    transitionPreviewImages: images,
     updateClip: () => {},
     applyTransitionToAll: () => {},
+    toast: () => {},
   } as unknown as MontageCtx;
 
   return (

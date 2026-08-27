@@ -1501,7 +1501,23 @@
       "glwarp": "Warp",
       "glrgb": "RGB split",
       "glburn": "Burn",
-      "glvortex": "Vortex"
+      "glvortex": "Vortex",
+      "glleak": "Light leak",
+      "glflare": "Flare",
+      "glstrobe": "Strobe",
+      "glzoomrad": "Radial blur",
+      "glpan": "Camera pan",
+      "glfocus": "Focus pull",
+      "glcube": "Cube",
+      "gldoors": "Doors",
+      "glflip": "Flip",
+      "glwave": "Wave",
+      "glstretch": "Stretch",
+      "glliquid": "Liquid",
+      "glkaleido": "Kaleidoscope",
+      "glblocks": "Blocks",
+      "glscan": "Scanline",
+      "glnoise": "Static"
     },
     "subLength": {
       "one": "1 word",
@@ -1599,7 +1615,12 @@
       "zoom": "Zooms",
       "forme": "Shapes and wipes",
       "dynamique": "Dynamic",
-      "shader": "Advanced effects"
+      "shader": "Advanced effects",
+      "lumiere": "Light",
+      "camera": "Camera",
+      "3d": "3D",
+      "distorsion": "Distortion",
+      "bogue": "Glitch"
     }
   },
   "montage": {
@@ -2032,7 +2053,11 @@
     "mediaInAudio": "Audio · track {n}",
     "useAsOverlay": "Add as overlay",
     "toastOverlayAdded": "Overlay added at the playhead.",
-    "audioLevel": "Audio level"
+    "audioLevel": "Audio level",
+    "transitionDropHint": "Drag a transition onto a cut in the timeline. Click a thumbnail to apply it to the selected clip.",
+    "transitionDropHintNoClip": "Drag a transition onto a cut in the timeline, between two clips.",
+    "transitionNeedJunction": "Drag the transition onto a cut in the timeline.",
+    "transitionDropHere": "Drop a transition here"
   },
   "forgotPassword": {
     "title": "Forgot password",

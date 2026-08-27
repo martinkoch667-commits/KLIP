@@ -205,6 +205,37 @@ export function drawGlTransitionFrame(
 
 export { estTransitionGl };
 
+/** Une image d'aperçu d'une transition, entre deux images quelconques.
+ *  Sert aux vignettes du panneau et au banc d'essai : même moteur que l'export,
+ *  donc la vignette ne peut pas mentir sur ce que la transition fait. */
+export function drawTransitionPreview(
+  ctx: CanvasRenderingContext2D,
+  imgA: CanvasImageSource & { width?: number },
+  imgB: CanvasImageSource,
+  id: string,
+  progress: number,
+  w: number,
+  h: number,
+) {
+  setCanvasSize(w, h);
+  const bidon = (kind: "video" | "photo" = "photo"): ClipTimed => ({
+    id: "apercu", kind, name: "", src: "", srcDur: 1, trimStart: 0, trimEnd: 1, speed: 1,
+    filterId: "none", lum: 0, con: 0, sat: 0, transitionIn: id, transitionDur: 1,
+    start: 0, end: 1, dur: 1,
+  } as unknown as ClipTimed);
+  const a = bidon(), b = bidon();
+  // Fond NOIR, comme le cadre du montage. Une toile transparente laissait voir
+  // le fond clair du panneau : « fondu au noir » s'y affichait en blanc.
+  ctx.fillStyle = "#000";
+  ctx.fillRect(0, 0, w, h);
+  const media = (x: unknown) => x as HTMLImageElement;
+  if (estTransitionGl(id) && drawGlTransitionFrame(ctx, media(imgA), a, 1, media(imgB), b, progress, id, progress)) return;
+  const paire = transitionPairAt(id, 1, progress, false);
+  drawMediaWithState(ctx, media(imgA), a, 1, paire.out);
+  drawMediaWithState(ctx, media(imgB), b, progress, paire.in);
+  drawTransitionVeils(ctx, paire.in);
+}
+
 /** Un plan seul (hors fenêtre de transition, ou premier plan du montage). */
 export function drawMediaFrame(ctx: CanvasRenderingContext2D, media: HTMLVideoElement | HTMLImageElement, clip: ClipTimed, tIntoClip: number, isFirst: boolean) {
   const st = transitionPairAt(clip.transitionIn, clip.transitionDur, tIntoClip, isFirst).in;

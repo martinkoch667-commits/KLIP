@@ -1272,8 +1272,8 @@ export const FILTERS: { id: string; name: string; css: string }[] = [
   { id: "dore", name: "Doré", css: "sepia(.28) saturate(1.25) brightness(1.05) hue-rotate(-6deg)" },
 ];
 
-export const TRANSITION_FAMILIES = ["base", "fondu", "glisse", "zoom", "forme", "dynamique", "shader"] as const;
-export type TransitionFamily = "base" | "fondu" | "glisse" | "zoom" | "forme" | "dynamique" | "shader";
+export const TRANSITION_FAMILIES = ["base", "fondu", "glisse", "zoom", "forme", "dynamique", "shader", "lumiere", "camera", "3d", "distorsion", "bogue"] as const;
+export type TransitionFamily = (typeof TRANSITION_FAMILIES)[number];
 
 // Le panneau les range par famille : quarante-cinq vignettes à plat, c'est un mur.
 export const TRANSITIONS: { id: string; name: string; glyph: string; family: TransitionFamily }[] = [
@@ -1321,7 +1321,7 @@ export const TRANSITIONS: { id: string; name: string; glyph: string; family: Tra
   { id: "shake", family: "dynamique", name: "Secousse", glyph: "≋" },
   { id: "glitch", family: "dynamique", name: "Glitch", glyph: "⌁" },
   // — Shaders : ce qu'un canvas 2D ne sait pas faire (déformation pixel à pixel).
-  ...GL_TRANSITIONS.map((t) => ({ id: t.id, name: t.name, glyph: t.glyph, family: "shader" as const })),
+  ...GL_TRANSITIONS.map((t) => ({ id: t.id, name: t.name, glyph: t.glyph, family: t.family })),
 ];
 
 export const SPEEDS = [0.25, 0.5, 1, 1.5, 2];

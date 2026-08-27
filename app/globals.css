@@ -2123,6 +2123,12 @@ input.mz-range::-moz-range-thumb { width: 16px; height: 16px; border-radius: 50%
   display: grid; place-items: center; background: var(--white); box-shadow: 0 0 0 1px var(--line), var(--shadow-card); font-size: 11px; color: var(--ink-2); cursor: pointer; border: none; }
 .a-trans-pill:hover { box-shadow: 0 0 0 2px var(--mint-2); }
 .a-trans-pill.active { color: var(--mint-2); }
+/* Une transition POSÉE occupe sa durée : le bloc s'élargit à la mesure du temps
+   qu'elle prend, comme n'importe quoi d'autre sur une timeline. Un rond de
+   taille fixe ne disait pas si la transition durait deux images ou une seconde. */
+.a-trans-pill { border-radius: 11px; transition: box-shadow .12s, background .12s; }
+/* Cible visée pendant un glisser : on voit où ça va tomber avant de lâcher. */
+.a-trans-pill.drop { background: var(--mint-2); color: var(--ink); box-shadow: 0 0 0 3px color-mix(in srgb, var(--mint-2) 45%, transparent); }
 
 /* lane vide (audio/sous-titres/texte) */
 .a-lane-track .a-chip { position: absolute; height: 30px; top: 11px; border-radius: 8px; display: flex; align-items: center; padding: 0 8px; gap: 5px;

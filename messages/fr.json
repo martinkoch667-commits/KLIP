@@ -1501,7 +1501,23 @@
       "glwarp": "Distorsion",
       "glrgb": "Éclatement RVB",
       "glburn": "Brûlure",
-      "glvortex": "Vortex"
+      "glvortex": "Vortex",
+      "glleak": "Fuite de lumière",
+      "glflare": "Éclat",
+      "glstrobe": "Stroboscope",
+      "glzoomrad": "Flou radial",
+      "glpan": "Filé caméra",
+      "glfocus": "Mise au point",
+      "glcube": "Cube",
+      "gldoors": "Portes",
+      "glflip": "Retournement",
+      "glwave": "Vague",
+      "glstretch": "Étirement",
+      "glliquid": "Liquide",
+      "glkaleido": "Kaléidoscope",
+      "glblocks": "Blocs",
+      "glscan": "Balayage cathodique",
+      "glnoise": "Neige"
     },
     "subLength": {
       "one": "1 mot",
@@ -1599,7 +1615,12 @@
       "zoom": "Zooms",
       "forme": "Formes et balayages",
       "dynamique": "Dynamiques",
-      "shader": "Effets avancés"
+      "shader": "Effets avancés",
+      "lumiere": "Lumière",
+      "camera": "Appareil photo",
+      "3d": "3D",
+      "distorsion": "Distorsion",
+      "bogue": "Bogue"
     }
   },
   "montage": {
@@ -2032,7 +2053,11 @@
     "mediaInAudio": "Son · piste {n}",
     "useAsOverlay": "Ajouter en incrustation",
     "toastOverlayAdded": "Incrustation ajoutée au curseur.",
-    "audioLevel": "Niveau audio"
+    "audioLevel": "Niveau audio",
+    "transitionDropHint": "Glissez une transition sur une coupe de la timeline. Cliquez une vignette pour l'appliquer au plan sélectionné.",
+    "transitionDropHintNoClip": "Glissez une transition sur une coupe de la timeline, entre deux plans.",
+    "transitionNeedJunction": "Glissez la transition sur une coupe de la timeline.",
+    "transitionDropHere": "Déposez une transition ici"
   },
   "forgotPassword": {
     "title": "Mot de passe oublié",

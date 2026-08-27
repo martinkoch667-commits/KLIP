@@ -803,6 +803,8 @@ export default function MontagePage() {
   const lastSeekRef = useRef(0); // temporisation des recalages de dérive
   const mediaErrRef = useRef<Set<string>>(new Set()); // sources déjà signalées comme illisibles
   const [slot, setSlot] = useState<0 | 1>(0);
+  // Jonction visée par un glisser en cours, pour qu'on voie où ça va tomber.
+  const [jonctionSurvolee, setJonctionSurvolee] = useState<string | null>(null);
   // Miroir SYNCHRONE de `slot`. Indispensable : `setSlot()` n'est appliqué qu'au rendu
   // suivant, or l'effet de préchargement se rejoue DANS LE MÊME commit que la bascule
   // de plan. Avec l'ancienne valeur d'état il calculait « lecteur libre = celui qui
@@ -4458,10 +4460,56 @@ export default function MontagePage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [clips, total, time]);
 
+
+  /* Les deux images qui servent d'aperçu aux vignettes de transition.
+
+     On prend les plans de part et d'autre de la coupe qu'on est en train de
+     régler, à défaut les deux premiers du montage : la vignette montre alors la
+     transition SUR CE MONTAGE, pas sur un décor de démonstration. Calculées une
+     fois par paire de plans, jamais par vignette — il y en a quarante-cinq. */
+  const [apercuTrans, setApercuTrans] = useState<{ a: HTMLImageElement | null; b: HTMLImageElement | null }>({ a: null, b: null });
+  const apercuCleRef = useRef("");
+  useEffect(() => {
+    if (tool !== "transitions" || clipStarts.length < 2) return;
+    const i = Math.max(1, clipStarts.findIndex((c) => c.id === selectedClipId));
+    const sortant = clipStarts[i - 1] ?? clipStarts[0];
+    const entrant = clipStarts[i] ?? clipStarts[1];
+    if (!sortant || !entrant) return;
+    const cle = `${sortant.id}|${entrant.id}`;
+    if (apercuCleRef.current === cle) return;
+    apercuCleRef.current = cle;
+    let annule = false;
+    (async () => {
+      const charger = async (c: typeof sortant, quand: number) => {
+        try {
+          const url = await grabFrame(c.src, c.kind, c.kind === "video" ? c.trimStart + quand : 0, 256);
+          const img = new Image();
+          img.src = url;
+          // `onload` plutôt que `decode()` : cette dernière ne rend pas toujours
+          // la main, et les vignettes restaient alors vides pour toujours.
+          await new Promise<void>((res, rej) => {
+            if (img.complete && img.naturalWidth) return res();
+            img.onload = () => res();
+            img.onerror = () => rej(new Error("image"));
+          });
+          return img;
+        } catch { return null; }
+      };
+      // Fin du plan sortant, début du plan entrant : les deux images que la
+      // transition mettra réellement face à face.
+      const [a, b] = await Promise.all([
+        charger(sortant, Math.max(0, (sortant.trimEnd - sortant.trimStart) - 0.2)),
+        charger(entrant, 0.2),
+      ]);
+      if (!annule) setApercuTrans({ a, b });
+    })();
+    return () => { annule = true; };
+  }, [tool, clipStarts, selectedClipId]);
+
   const ctx: MontageCtx = {
     clips, selectedClip, captions, subStyleId: activeSubStyleId, subMaxWords, subCustom: activeSubCustom, subPos, hasRawSegments: rawSegments.length > 0 || rawWords.length > 0,
     linkedSubs, setLinkedSubs, selectedCaptionId, setSelectedCaptionId,
-    seek,
+    seek, transitionPreviewImages: apercuTrans,
     capSelectedCount: capMulti.length,
     titles, stickers, audioTracks, showProgressBar,
     overlays, selectedOverlay, uploadingOverlay, addOverlayFiles, updateOverlay, removeOverlay, duplicateOverlay, selectOverlay,
@@ -4540,6 +4588,7 @@ export default function MontagePage() {
     ? { id: "custom", label: "Perso", sub: `${customW}×${customH}`, w: Math.max(1, customW), h: Math.max(1, customH) }
     : videoFormatById(formatId);
   const previewScale = (stageW || 300) / activeFmt.w;
+
 
   /* Transition à shader dans l'aperçu.
 
@@ -5466,16 +5515,41 @@ export default function MontagePage() {
                         </>
                       )}
                     </div>
-                    {i < clipStarts.length - 1 && (
-                      <button
-                        className={"a-trans-pill" + (selectedClipId === clipStarts[i + 1].id ? " active" : "")}
-                        style={{ position: "absolute", left: c.dur * pps }}
-                        title={TRANSITIONS.find((tr) => tr.id === clipStarts[i + 1].transitionIn) ? tc(`transition.${clipStarts[i + 1].transitionIn}`) : tc('transition.cut')}
-                        onClick={() => { selectClip(clipStarts[i + 1].id); setTool("transitions"); }}
-                      >
-                        {TRANSITIONS.find((tr) => tr.id === clipStarts[i + 1].transitionIn)?.glyph || "▮▮"}
-                      </button>
-                    )}
+                    {i < clipStarts.length - 1 && (() => {
+                      const suivant = clipStarts[i + 1];
+                      const pose = TRANSITIONS.find((tr) => tr.id === suivant.transitionIn && tr.id !== "cut");
+                      const vise = jonctionSurvolee === suivant.id;
+                      return (
+                        <button
+                          className={"a-trans-pill" + (selectedClipId === suivant.id ? " active" : "") + (vise ? " drop" : "")}
+                          style={{ position: "absolute", left: c.dur * pps, width: pose ? Math.max(22, Math.min(64, (suivant.transitionDur || 0.5) * pps)) : undefined }}
+                          title={pose ? `${tc(`transition.${suivant.transitionIn}`)} · ${(suivant.transitionDur || 0).toFixed(1)}s` : t('transitionDropHere')}
+                          onClick={() => { selectClip(suivant.id); setTool("transitions"); }}
+                          // Cible de dépôt : on lâche la transition SUR la coupe, là
+                          // où elle se joue. Plus besoin de savoir que c'est le plan
+                          // d'après qui la porte.
+                          onDragOver={(e) => {
+                            if (!e.dataTransfer.types.includes("application/x-klip-transition")) return;
+                            e.preventDefault();
+                            e.dataTransfer.dropEffect = "copy";
+                            if (jonctionSurvolee !== suivant.id) setJonctionSurvolee(suivant.id);
+                          }}
+                          onDragLeave={() => setJonctionSurvolee((v) => (v === suivant.id ? null : v))}
+                          onDrop={(e) => {
+                            const id = e.dataTransfer.getData("application/x-klip-transition");
+                            setJonctionSurvolee(null);
+                            if (!id || !TRANSITIONS.some((tr) => tr.id === id)) return;
+                            e.preventDefault();
+                            updateClip(suivant.id, { transitionIn: id, transitionDur: suivant.transitionDur || 0.5 });
+                            selectClip(suivant.id);
+                            setTool("transitions");
+                            toast(tc(`transition.${id}`));
+                          }}
+                        >
+                          {pose?.glyph || "▮▮"}
+                        </button>
+                      );
+                    })()}
                     {/* Fondus du son du plan : points blancs à tirer (hors du plan pour ne pas
                         être rognés par l'overflow ; visibles quand le plan a du son). */}
                     {c.kind === "video" && (c.vol ?? 1) > 0 && (() => {

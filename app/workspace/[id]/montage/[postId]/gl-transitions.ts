@@ -46,11 +46,12 @@ float bruit(vec2 p) {
 const FIN = `
 void main() { gl_FragColor = transition(vUv); }`;
 
-export interface GlTransition { id: string; name: string; glyph: string; glsl: string }
+export type GlFamille = "shader" | "lumiere" | "camera" | "3d" | "distorsion" | "bogue";
+export interface GlTransition { id: string; name: string; glyph: string; glsl: string; family: GlFamille }
 
 export const GL_TRANSITIONS: GlTransition[] = [
   {
-    id: "glpixel", name: "Pixellisation", glyph: "▩",
+    id: "glpixel", family: "shader", name: "Pixellisation", glyph: "▩",
     glsl: `
 vec4 transition(vec2 uv) {
   float gros = 1.0 - abs(progress * 2.0 - 1.0);          // maximum au milieu
@@ -63,7 +64,7 @@ vec4 transition(vec2 uv) {
 }`,
   },
   {
-    id: "gldissolve", name: "Dissolution", glyph: "⁙",
+    id: "gldissolve", family: "shader", name: "Dissolution", glyph: "⁙",
     glsl: `
 vec4 transition(vec2 uv) {
   float n = alea(floor(uv * vec2(260.0, 260.0 / max(ratio, 0.001))));
@@ -71,7 +72,7 @@ vec4 transition(vec2 uv) {
 }`,
   },
   {
-    id: "glripple", name: "Ondulation", glyph: "≈",
+    id: "glripple", family: "shader", name: "Ondulation", glyph: "≈",
     glsl: `
 vec4 transition(vec2 uv) {
   vec2 c = uv - 0.5;
@@ -82,7 +83,7 @@ vec4 transition(vec2 uv) {
 }`,
   },
   {
-    id: "glwarp", name: "Distorsion", glyph: "⌇",
+    id: "glwarp", family: "shader", name: "Distorsion", glyph: "⌇",
     glsl: `
 vec4 transition(vec2 uv) {
   float amp = 0.4 * sin(progress * 3.14159);
@@ -92,7 +93,7 @@ vec4 transition(vec2 uv) {
 }`,
   },
   {
-    id: "glrgb", name: "Éclatement RVB", glyph: "⧉",
+    id: "glrgb", family: "shader", name: "Éclatement RVB", glyph: "⧉",
     glsl: `
 vec4 transition(vec2 uv) {
   float pic = sin(progress * 3.14159);
@@ -108,7 +109,7 @@ vec4 transition(vec2 uv) {
 }`,
   },
   {
-    id: "glburn", name: "Brûlure", glyph: "✹",
+    id: "glburn", family: "shader", name: "Brûlure", glyph: "✹",
     glsl: `
 vec4 transition(vec2 uv) {
   float n = bruit(uv * vec2(3.2, 3.2 / max(ratio, 0.001)) + progress * 0.2);
@@ -121,7 +122,7 @@ vec4 transition(vec2 uv) {
 }`,
   },
   {
-    id: "glvortex", name: "Vortex", glyph: "❋",
+    id: "glvortex", family: "shader", name: "Vortex", glyph: "❋",
     glsl: `
 vec4 transition(vec2 uv) {
   vec2 c = (uv - 0.5) * vec2(max(ratio, 0.001), 1.0);
@@ -131,6 +132,234 @@ vec4 transition(vec2 uv) {
   vec2 r = vec2(c.x * co - c.y * s, c.x * s + c.y * co);
   vec2 p = r / vec2(max(ratio, 0.001), 1.0) + 0.5;
   return mix(getFromColor(p), getToColor(p), progress);
+}`,
+  },
+
+  // ── Lumière ───────────────────────────────────────────────────────────────
+  {
+    id: "glleak", family: "lumiere", name: "Fuite de lumière", glyph: "☀",
+    glsl: `
+vec4 transition(vec2 uv) {
+  float pic = sin(progress * 3.14159);
+  // Une nappe chaude balaie le cadre en diagonale et sature au passage.
+  // Nappe ÉTROITE : large, elle noyait toute l'image et la vignette n'était
+  // plus qu'un aplat orange. Une fuite de lumière traverse, elle ne remplit pas.
+  float bande = 1.0 - smoothstep(0.0, 0.26, abs((uv.x + uv.y) * 0.5 - progress));
+  vec3 chaud = vec3(1.0, 0.78, 0.42);
+  vec4 c = mix(getFromColor(uv), getToColor(uv), smoothstep(0.35, 0.65, progress));
+  float force = clamp(bande * (0.25 + 0.6 * pic), 0.0, 0.92);
+  return vec4(mix(c.rgb, chaud, force), 1.0);
+}`,
+  },
+  {
+    id: "glflare", family: "lumiere", name: "Éclat", glyph: "✷",
+    glsl: `
+vec4 transition(vec2 uv) {
+  vec2 c = (uv - 0.5) * vec2(max(ratio, 0.001), 1.0);
+  float d = length(c);
+  float pic = sin(progress * 3.14159);
+  float halo = pow(clamp(1.0 - d * 1.7, 0.0, 1.0), 2.5) * pic;
+  vec4 m = mix(getFromColor(uv), getToColor(uv), smoothstep(0.3, 0.7, progress));
+  return vec4(clamp(m.rgb + halo * 1.5, 0.0, 1.0), 1.0);
+}`,
+  },
+  {
+    id: "glstrobe", family: "lumiere", name: "Stroboscope", glyph: "⚡",
+    glsl: `
+vec4 transition(vec2 uv) {
+  float bat = step(0.5, fract(progress * 6.0)) * sin(progress * 3.14159);
+  vec4 m = mix(getFromColor(uv), getToColor(uv), smoothstep(0.25, 0.75, progress));
+  return vec4(mix(m.rgb, vec3(1.0), bat * 0.75), 1.0);
+}`,
+  },
+
+  // ── Appareil photo ────────────────────────────────────────────────────────
+  {
+    id: "glzoomrad", family: "camera", name: "Flou radial", glyph: "◎",
+    glsl: `
+vec4 transition(vec2 uv) {
+  // Filé de zoom : on échantillonne le long du rayon, comme un obturateur lent.
+  vec2 c = uv - 0.5;
+  float force = 0.28 * sin(progress * 3.14159);
+  vec4 acc = vec4(0.0);
+  for (int i = 0; i < 10; i++) {
+    float f = float(i) / 9.0;
+    vec2 pa = 0.5 + c * (1.0 + force * f);
+    vec2 pb = 0.5 + c * (1.0 - force * (1.0 - f));
+    acc += mix(getFromColor(pa), getToColor(pb), progress);
+  }
+  return acc / 10.0;
+}`,
+  },
+  {
+    id: "glpan", family: "camera", name: "Filé caméra", glyph: "⇢",
+    glsl: `
+vec4 transition(vec2 uv) {
+  float force = 0.5 * sin(progress * 3.14159);
+  vec4 acc = vec4(0.0);
+  for (int i = 0; i < 8; i++) {
+    float f = float(i) / 7.0;
+    vec2 pa = uv + vec2(force * f + progress, 0.0);
+    vec2 pb = uv + vec2(force * f - (1.0 - progress), 0.0);
+    acc += mix(getFromColor(pa), getToColor(pb), progress);
+  }
+  return acc / 8.0;
+}`,
+  },
+  {
+    id: "glfocus", family: "camera", name: "Mise au point", glyph: "◉",
+    glsl: `
+vec4 transition(vec2 uv) {
+  float flou = 0.02 * sin(progress * 3.14159);
+  vec4 acc = vec4(0.0);
+  for (int i = 0; i < 9; i++) {
+    float a = float(i) * 0.698;
+    vec2 d = vec2(cos(a), sin(a)) * flou * (0.4 + 0.6 * fract(float(i) * 0.37));
+    acc += mix(getFromColor(uv + d), getToColor(uv + d), progress);
+  }
+  return acc / 9.0;
+}`,
+  },
+
+  // ── 3D ────────────────────────────────────────────────────────────────────
+  {
+    id: "glcube", family: "3d", name: "Cube", glyph: "▤",
+    glsl: `
+vec4 transition(vec2 uv) {
+  // Deux faces d'un cube qui tourne : la perspective vient d'un simple
+  // rétrécissement vertical fonction de la distance au bord de la face.
+  float p = progress;
+  if (uv.x > p) {
+    float u = (uv.x - p) / max(1.0 - p, 0.001);
+    float k = mix(1.0, 0.72, u);                 // la face sortante s'éloigne
+    float y = (uv.y - 0.5) / k + 0.5;
+    if (y < 0.0 || y > 1.0) return vec4(0.0, 0.0, 0.0, 1.0);
+    return getFromColor(vec2(mix(p, 1.0, u), y)) * mix(1.0, 0.55, u);
+  }
+  float u = uv.x / max(p, 0.001);
+  float k = mix(0.72, 1.0, u);                   // la face entrante arrive de loin
+  float y = (uv.y - 0.5) / k + 0.5;
+  if (y < 0.0 || y > 1.0) return vec4(0.0, 0.0, 0.0, 1.0);
+  return getToColor(vec2(u, y)) * mix(0.55, 1.0, u);
+}`,
+  },
+  {
+    id: "gldoors", family: "3d", name: "Portes", glyph: "⧓",
+    glsl: `
+vec4 transition(vec2 uv) {
+  // Le plan sortant s'ouvre en deux battants, le nouveau attend derrière.
+  float e = progress;
+  float dep = e * 0.55;
+  if (uv.x < 0.5) {
+    float x = uv.x + dep;
+    if (x < 0.5) return getFromColor(vec2(x, uv.y)) * (1.0 - e * 0.35);
+  } else {
+    float x = uv.x - dep;
+    if (x > 0.5) return getFromColor(vec2(x, uv.y)) * (1.0 - e * 0.35);
+  }
+  return getToColor(uv);
+}`,
+  },
+  {
+    id: "glflip", family: "3d", name: "Retournement", glyph: "⇋",
+    glsl: `
+vec4 transition(vec2 uv) {
+  float p = progress;
+  float demi = p < 0.5 ? p * 2.0 : (1.0 - p) * 2.0;   // largeur restante de la carte
+  // La carte ne devient jamais un cheveu : à mi-course la vignette n'était plus
+  // qu'un rectangle noir, et on ne voyait pas de quoi il s'agissait.
+  float k = max(1.0 - demi, 0.16);
+  float x = (uv.x - 0.5) / k + 0.5;
+  if (x < 0.0 || x > 1.0) return vec4(0.0, 0.0, 0.0, 1.0);
+  vec4 c = p < 0.5 ? getFromColor(vec2(x, uv.y)) : getToColor(vec2(1.0 - x, uv.y));
+  return vec4(c.rgb * mix(1.0, 0.5, demi), 1.0);
+}`,
+  },
+
+  // ── Distorsion ────────────────────────────────────────────────────────────
+  {
+    id: "glwave", family: "distorsion", name: "Vague", glyph: "∿",
+    glsl: `
+vec4 transition(vec2 uv) {
+  float front = progress * 1.4 - 0.2;
+  float d = uv.y - front;
+  float onde = sin(d * 22.0) * 0.05 * smoothstep(0.35, 0.0, abs(d));
+  vec2 p = uv + vec2(onde, 0.0);
+  return mix(getFromColor(p), getToColor(p), smoothstep(0.06, -0.06, d));
+}`,
+  },
+  {
+    id: "glstretch", family: "distorsion", name: "Étirement", glyph: "↔",
+    glsl: `
+vec4 transition(vec2 uv) {
+  float pic = sin(progress * 3.14159);
+  float k = 1.0 + 1.6 * pic;
+  vec2 pa = vec2((uv.x - 0.5) / k + 0.5, uv.y);
+  vec2 pb = vec2((uv.x - 0.5) * k + 0.5, uv.y);
+  return mix(getFromColor(pa), getToColor(pb), progress);
+}`,
+  },
+  {
+    id: "glliquid", family: "distorsion", name: "Liquide", glyph: "◍",
+    glsl: `
+vec4 transition(vec2 uv) {
+  float pic = sin(progress * 3.14159);
+  float n = bruit(uv * 5.0 + progress * 1.5);
+  float m = bruit(uv * 5.0 - progress * 1.2 + 7.3);
+  vec2 d = (vec2(n, m) - 0.5) * 0.22 * pic;
+  return mix(getFromColor(uv + d), getToColor(uv + d), progress);
+}`,
+  },
+  {
+    id: "glkaleido", family: "distorsion", name: "Kaléidoscope", glyph: "✧",
+    glsl: `
+vec4 transition(vec2 uv) {
+  float pic = sin(progress * 3.14159);
+  vec2 c = (uv - 0.5) * vec2(max(ratio, 0.001), 1.0);
+  float a = atan(c.y, c.x), r = length(c);
+  float parts = mix(1.0, 6.0, pic);
+  a = mod(a, 6.28318 / parts);
+  a = abs(a - 3.14159 / parts);
+  vec2 p = vec2(cos(a), sin(a)) * r / vec2(max(ratio, 0.001), 1.0) + 0.5;
+  return mix(getFromColor(p), getToColor(p), progress);
+}`,
+  },
+
+  // ── Bogue ─────────────────────────────────────────────────────────────────
+  {
+    id: "glblocks", family: "bogue", name: "Blocs", glyph: "▦",
+    glsl: `
+vec4 transition(vec2 uv) {
+  float pic = sin(progress * 3.14159);
+  vec2 grille = vec2(14.0, 14.0 / max(ratio, 0.001));
+  vec2 cellule = floor(uv * grille);
+  float r = alea(cellule + floor(progress * 9.0));
+  vec2 d = (vec2(alea(cellule + 3.1), alea(cellule + 7.7)) - 0.5) * 0.18 * pic * step(0.55, r);
+  vec2 p = uv + d;
+  return mix(getFromColor(p), getToColor(p), smoothstep(r * 0.5, r * 0.5 + 0.35, progress));
+}`,
+  },
+  {
+    id: "glscan", family: "bogue", name: "Balayage cathodique", glyph: "▬",
+    glsl: `
+vec4 transition(vec2 uv) {
+  float pic = sin(progress * 3.14159);
+  float ligne = floor(uv.y * 60.0);
+  float dechirure = (alea(vec2(ligne, floor(progress * 14.0))) - 0.5) * 0.3 * pic;
+  vec2 p = uv + vec2(dechirure, 0.0);
+  vec4 c = mix(getFromColor(p), getToColor(p), progress);
+  float raie = 0.86 + 0.14 * step(0.5, fract(uv.y * 130.0));
+  return vec4(c.rgb * mix(1.0, raie, pic), 1.0);
+}`,
+  },
+  {
+    id: "glnoise", family: "bogue", name: "Neige", glyph: "░",
+    glsl: `
+vec4 transition(vec2 uv) {
+  float pic = sin(progress * 3.14159);
+  float n = alea(uv * 900.0 + progress * 53.0);
+  vec4 c = mix(getFromColor(uv), getToColor(uv), smoothstep(0.3, 0.7, progress));
+  return vec4(mix(c.rgb, vec3(n), pic * 0.85), 1.0);
 }`,
   },
 ];

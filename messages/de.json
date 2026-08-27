@@ -1501,7 +1501,23 @@
       "glwarp": "Verzerrung",
       "glrgb": "RGB-Split",
       "glburn": "Brennen",
-      "glvortex": "Vortex"
+      "glvortex": "Vortex",
+      "glleak": "Lichtleck",
+      "glflare": "Flare",
+      "glstrobe": "Stroboskop",
+      "glzoomrad": "Radiale Unschärfe",
+      "glpan": "Kameraschwenk",
+      "glfocus": "Schärfeverlagerung",
+      "glcube": "Würfel",
+      "gldoors": "Türen",
+      "glflip": "Flip",
+      "glwave": "Welle",
+      "glstretch": "Dehnung",
+      "glliquid": "Flüssig",
+      "glkaleido": "Kaleidoskop",
+      "glblocks": "Blöcke",
+      "glscan": "Scanline",
+      "glnoise": "Rauschen"
     },
     "subLength": {
       "one": "1 Wort",
@@ -1599,7 +1615,12 @@
       "zoom": "Zooms",
       "forme": "Formen und Wische",
       "dynamique": "Dynamisch",
-      "shader": "Erweiterte Effekte"
+      "shader": "Erweiterte Effekte",
+      "lumiere": "Licht",
+      "camera": "Kamera",
+      "3d": "3D",
+      "distorsion": "Verzerrung",
+      "bogue": "Glitch"
     }
   },
   "montage": {
@@ -2032,7 +2053,11 @@
     "mediaInAudio": "Ton · Spur {n}",
     "useAsOverlay": "Als Überlagerung hinzufügen",
     "toastOverlayAdded": "Überlagerung an der Abspielposition hinzugefügt.",
-    "audioLevel": "Audiopegel"
+    "audioLevel": "Audiopegel",
+    "transitionDropHint": "Ziehe einen Übergang auf einen Schnitt in der Timeline. Klicke auf ein Vorschaubild, um ihn auf den gewählten Clip anzuwenden.",
+    "transitionDropHintNoClip": "Ziehe einen Übergang auf einen Schnitt in der Timeline, zwischen zwei Clips.",
+    "transitionNeedJunction": "Ziehe den Übergang auf einen Schnitt in der Timeline.",
+    "transitionDropHere": "Übergang hier ablegen"
   },
   "forgotPassword": {
     "title": "Passwort vergessen",

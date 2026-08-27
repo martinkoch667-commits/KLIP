@@ -1501,7 +1501,23 @@
       "glwarp": "Distorsione",
       "glrgb": "Separazione RGB",
       "glburn": "Bruciatura",
-      "glvortex": "Vortice"
+      "glvortex": "Vortice",
+      "glleak": "Fuga di luce",
+      "glflare": "Bagliore",
+      "glstrobe": "Stroboscopio",
+      "glzoomrad": "Sfocatura radiale",
+      "glpan": "Panoramica",
+      "glfocus": "Messa a fuoco",
+      "glcube": "Cubo",
+      "gldoors": "Porte",
+      "glflip": "Ribaltamento",
+      "glwave": "Onda",
+      "glstretch": "Stiramento",
+      "glliquid": "Liquido",
+      "glkaleido": "Caleidoscopio",
+      "glblocks": "Blocchi",
+      "glscan": "Scansione",
+      "glnoise": "Neve"
     },
     "subLength": {
       "one": "1 parola",
@@ -1599,7 +1615,12 @@
       "zoom": "Zoom",
       "forme": "Forme e tendine",
       "dynamique": "Dinamiche",
-      "shader": "Effetti avanzati"
+      "shader": "Effetti avanzati",
+      "lumiere": "Luce",
+      "camera": "Fotocamera",
+      "3d": "3D",
+      "distorsion": "Distorsione",
+      "bogue": "Glitch"
     }
   },
   "montage": {
@@ -2032,7 +2053,11 @@
     "mediaInAudio": "Suono · traccia {n}",
     "useAsOverlay": "Aggiungi come sovrapposizione",
     "toastOverlayAdded": "Sovrapposizione aggiunta al cursore.",
-    "audioLevel": "Livello audio"
+    "audioLevel": "Livello audio",
+    "transitionDropHint": "Trascina una transizione su un taglio nella timeline. Clicca una miniatura per applicarla alla clip selezionata.",
+    "transitionDropHintNoClip": "Trascina una transizione su un taglio nella timeline, tra due clip.",
+    "transitionNeedJunction": "Trascina la transizione su un taglio nella timeline.",
+    "transitionDropHere": "Rilascia qui una transizione"
   },
   "forgotPassword": {
     "title": "Password dimenticata",

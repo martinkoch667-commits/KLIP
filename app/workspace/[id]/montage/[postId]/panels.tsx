@@ -18,6 +18,7 @@ import {
   TITLE_EFFECT_PRESETS, titleLook, titleShadowCss, titleWeight, titleItalic, withAlpha,
 } from "./constants";
 import { chargerPoliceGoogle } from "./fonts";
+import { drawTransitionPreview } from "./render-core";
 
 export interface MontageCtx {
   clips: MontageClip[];
@@ -91,6 +92,9 @@ export interface MontageCtx {
   resetSubCustom: () => void;
   applySubTemplate: (tpl: { styleId: string; custom: SubCustom; pos: { x: number; y: number }; maxWords: number }) => void;
   generateCaptionsAI: () => void;
+  /** Deux images du montage, pour que les vignettes de transition montrent
+   *  l'effet sur les VRAIS plans plutôt que sur un décor générique. */
+  transitionPreviewImages: { a: HTMLImageElement | null; b: HTMLImageElement | null };
   /** Amène la tête de lecture à cet instant (clic sur une ligne de transcription). */
   seek: (t: number) => void;
 
@@ -916,39 +920,125 @@ export function AudioPanel({ ctx }: { ctx: MontageCtx }) {
 
 // ─── Transitions ────────────────────────────────────────────────────────────
 
+/* Vignette d'une transition : ce qu'elle FAIT, pas un pictogramme.
+
+   On choisissait une transition sur un glyphe et un nom. « Tourbillon », « Whip »,
+   « Iris carré » : personne ne sait à quoi ça ressemble avant de l'avoir posée,
+   annulée, reposée. La vignette montre donc la transition à mi-course sur les
+   images du montage en cours, et la joue en entier au survol.
+
+   Rendue avec le MÊME moteur que l'export (drawTransitionPreview) : une vignette
+   ne peut donc pas promettre autre chose que ce qui sortira. */
+const APERCU_W = 96, APERCU_H = 96;
+
+function TransitionThumb({
+  id, glyph, nom, actif, imgA, imgB, onChoisir,
+}: {
+  id: string; glyph: string; nom: string; actif: boolean;
+  imgA: HTMLImageElement | null; imgB: HTMLImageElement | null;
+  onChoisir: () => void;
+}) {
+  const cvRef = useRef<HTMLCanvasElement>(null);
+  const animRef = useRef<number | null>(null);
+
+  const dessiner = (p: number) => {
+    const cv = cvRef.current;
+    if (!cv || !imgA || !imgB) return;
+    const ctx = cv.getContext("2d");
+    if (!ctx) return;
+    drawTransitionPreview(ctx, imgA, imgB, id, p, APERCU_W, APERCU_H);
+  };
+
+  // Au repos : l'instant le plus parlant, à mi-course. C'est là que la forme se voit.
+  useEffect(() => { dessiner(0.5); return () => { if (animRef.current) cancelAnimationFrame(animRef.current); };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id, imgA, imgB]);
+
+  const jouer = () => {
+    if (animRef.current) cancelAnimationFrame(animRef.current);
+    const t0 = performance.now();
+    const DUREE = 1100;
+    const pas = () => {
+      const p = ((performance.now() - t0) % DUREE) / DUREE;
+      dessiner(p);
+      animRef.current = requestAnimationFrame(pas);
+    };
+    animRef.current = requestAnimationFrame(pas);
+  };
+  const arreter = () => {
+    if (animRef.current) { cancelAnimationFrame(animRef.current); animRef.current = null; }
+    dessiner(0.5);
+  };
+
+  return (
+    <button
+      className={"mz-thumb" + (actif ? " on" : "")}
+      // Glisser-déposer : c'est le geste attendu ici. Poser une transition ne
+      // devrait pas obliger à d'abord sélectionner le bon plan, puis à deviner
+      // que c'est celui d'APRÈS la coupe qui la porte.
+      draggable
+      onDragStart={(e) => {
+        e.dataTransfer.setData("application/x-klip-transition", id);
+        e.dataTransfer.effectAllowed = "copy";
+      }}
+      onMouseEnter={jouer}
+      onMouseLeave={arreter}
+      onFocus={jouer}
+      onBlur={arreter}
+      onClick={onChoisir}
+      style={{ aspectRatio: "1", background: "var(--sunk)", position: "relative", overflow: "hidden", padding: 0, cursor: "grab" }}
+      title={nom}
+    >
+      {imgA && imgB ? (
+        <canvas ref={cvRef} width={APERCU_W} height={APERCU_H}
+          style={{ position: "absolute", inset: 0, width: "100%", height: "100%", pointerEvents: "none" }} />
+      ) : (
+        <span style={{ position: "absolute", inset: 0, display: "grid", placeItems: "center", fontSize: 22, color: "var(--ink-2)" }}>{glyph}</span>
+      )}
+      <span style={{ position: "absolute", left: 0, right: 0, bottom: 0, padding: "8px 2px 4px", fontWeight: 700, fontSize: 9.5,
+        color: "#fff", textShadow: "0 1px 3px rgba(0,0,0,.9)",
+        background: "linear-gradient(transparent, rgba(0,0,0,.65))", pointerEvents: "none" }}>{nom}</span>
+    </button>
+  );
+}
+
 export function TransitionsPanel({ ctx }: { ctx: MontageCtx }) {
   const t = useTranslations('montage');
   const tc = useTranslations('montageConstants');
   const c = ctx.selectedClip;
+  const { a: imgA, b: imgB } = ctx.transitionPreviewImages;
   return (
     <>
       <div className="a-section">
         <span className="mz-sec-label">{t('entryTransitionTitle')}</span>
-        {!c ? (
-          <p style={{ fontSize: 12.5, color: "var(--ink-3)" }}>{t('selectOtherClipHint')}</p>
-        ) : (
-          // Rangées par famille : à quarante-cinq, une grille à plat devient un mur
-          // qu'on parcourt au hasard. On cherche « un zoom », pas « la vingt-deuxième ».
-          <>
-            {TRANSITION_FAMILIES.map((fam) => {
-              const lot = TRANSITIONS.filter((tr) => tr.family === fam);
-              if (!lot.length) return null;
-              return (
-                <div key={fam} style={{ marginBottom: 12 }}>
-                  <span className="mz-sec-label" style={{ display: "block", marginBottom: 6, opacity: .8 }}>{tc(`transitionFamily.${fam}`)}</span>
-                  <div className="mz-grid3">
-                    {lot.map((tr) => (
-                      <button key={tr.id} className={"mz-thumb" + (c.transitionIn === tr.id ? " on" : "")} style={{ aspectRatio: "1", background: "var(--sunk)", display: "grid", placeItems: "center", position: "relative" }} onClick={() => ctx.updateClip(c.id, { transitionIn: tr.id })}>
-                        <span style={{ fontSize: 22, color: "var(--ink-2)" }}>{tr.glyph}</span>
-                        <span style={{ position: "absolute", bottom: 5, fontWeight: 700, fontSize: 10, color: "var(--ink-2)" }}>{tc(`transition.${tr.id}`)}</span>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              );
-            })}
-          </>
-        )}
+        {/* La grille est TOUJOURS là : c'est de là qu'on glisse. Elle n'apparaissait
+            qu'avec un plan sélectionné, ce qui interdisait le seul geste naturel. */}
+        <p style={{ fontSize: 11.5, color: "var(--ink-3)", margin: "0 0 10px", lineHeight: 1.45 }}>
+          {c ? t('transitionDropHint') : t('transitionDropHintNoClip')}
+        </p>
+        {TRANSITION_FAMILIES.map((fam) => {
+          const lot = TRANSITIONS.filter((tr) => tr.family === fam);
+          if (!lot.length) return null;
+          return (
+            <div key={fam} style={{ marginBottom: 12 }}>
+              <span className="mz-sec-label" style={{ display: "block", marginBottom: 6, opacity: .8 }}>{tc(`transitionFamily.${fam}`)}</span>
+              <div className="mz-grid3">
+                {lot.map((tr) => (
+                  <TransitionThumb
+                    key={tr.id}
+                    id={tr.id}
+                    glyph={tr.glyph}
+                    nom={tc(`transition.${tr.id}`)}
+                    actif={!!c && c.transitionIn === tr.id}
+                    imgA={imgA}
+                    imgB={imgB}
+                    onChoisir={() => { if (c) ctx.updateClip(c.id, { transitionIn: tr.id }); else ctx.toast(t('transitionNeedJunction')); }}
+                  />
+                ))}
+              </div>
+            </div>
+          );
+        })}
       </div>
       {c && (
         <div className="a-section">
@@ -959,8 +1049,6 @@ export function TransitionsPanel({ ctx }: { ctx: MontageCtx }) {
     </>
   );
 }
-
-// ─── Filtres ────────────────────────────────────────────────────────────────
 
 export function FilterPanel({ ctx }: { ctx: MontageCtx }) {
   const t = useTranslations('montage');
