@@ -2077,7 +2077,8 @@
     "toastUploadFailedWhy": "“{name}” could not be uploaded: {msg}",
     "toastExportNoAudio": "This edit has no audio track: the exported video will be silent.",
     "toastExportNoAudioMuted": "Every audio track is hidden or muted: the exported video will be silent. Check the eye and speaker icons on the audio lanes.",
-    "toastExportSilent": "The exported video has no sound although the edit does. The file is saved anyway: please report it, this is an export defect."
+    "toastExportSilent": "The exported video has no sound although the edit does. The file is saved anyway: please report it, this is an export defect.",
+    "toastExportEngine": "Export: engine {resume}"
   },
   "forgotPassword": {
     "title": "Forgot password",

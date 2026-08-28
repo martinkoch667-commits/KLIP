@@ -544,7 +544,7 @@ export async function renderExportOffline(
     muxer.finalize();
     const blob = new Blob([muxer.target.buffer], { type: "video/mp4" });
     onProgress(1);
-    return { blob, thumbnailBlob, mimeType: "video/mp4", creteAudio: crete };
+    return { blob, thumbnailBlob, mimeType: "video/mp4", creteAudio: crete, moteur: "hors-ligne" };
   } finally {
     try { if (videoEncoder.state !== "closed") videoEncoder.close(); } catch { /* déjà fermé */ }
     for (const i of Array.from(reserve.keys())) relacher(i);

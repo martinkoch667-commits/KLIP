@@ -551,7 +551,7 @@ export async function renderExportTempsReel(project: ExportProject, onProgress: 
   await audioCtx.close();
   await thumbnailPromise;
   console.log("[export] captation temps réel · crête du son capté :", creteAudio.toFixed(4));
-  return { blob, thumbnailBlob, mimeType: actualType, creteAudio };
+  return { blob, thumbnailBlob, mimeType: actualType, creteAudio, moteur: "temps-reel" };
 }
 
 /* Point d'entrée unique de l'export.

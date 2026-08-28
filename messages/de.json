@@ -2077,7 +2077,8 @@
     "toastUploadFailedWhy": "„{name}“ konnte nicht hochgeladen werden: {msg}",
     "toastExportNoAudio": "Dieser Schnitt hat keine Tonspur: das exportierte Video bleibt stumm.",
     "toastExportNoAudioMuted": "Alle Tonspuren sind ausgeblendet oder stummgeschaltet: das exportierte Video bleibt stumm. Prüfe Auge und Lautsprecher auf den Audiospuren.",
-    "toastExportSilent": "Das exportierte Video hat keinen Ton, obwohl der Schnitt welchen hat. Die Datei wird trotzdem gespeichert: bitte melden, das ist ein Exportfehler."
+    "toastExportSilent": "Das exportierte Video hat keinen Ton, obwohl der Schnitt welchen hat. Die Datei wird trotzdem gespeichert: bitte melden, das ist ein Exportfehler.",
+    "toastExportEngine": "Export: Modul {resume}"
   },
   "forgotPassword": {
     "title": "Passwort vergessen",

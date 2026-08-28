@@ -39,6 +39,9 @@ export interface ExportResult {
   /** Crête du son réellement capté, 0 à 1. Zéro = fichier muet, et il vaut mieux
    *  le dire à l'écran que de laisser l'utilisateur le découvrir tout seul. */
   creteAudio?: number;
+  /** Quel moteur a produit le fichier. Deux mécaniques très différentes se
+   *  partagent l'export ; sans savoir laquelle a tourné, on corrige à l'aveugle. */
+  moteur?: "hors-ligne" | "temps-reel";
 }
 
 export interface ClipTimed extends MontageClip {

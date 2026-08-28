@@ -3893,13 +3893,22 @@ export default function MontagePage() {
       if (sourcesSonores === 0) {
         toast(sourcesEcartees > 0 ? t('toastExportNoAudioMuted') : t('toastExportNoAudio'), "error");
       }
-      const { blob: rawBlob, thumbnailBlob, mimeType: recordedType, creteAudio } = await renderExport({ clips: exClips, overlays: exOverlays, captions: exCaptions, subStyleId, subCustom, subPos, linkedSubs, titles: exTitles, stickers, audioTracks: exAudio, showProgressBar, formatId, customW, customH, exportQuality }, (p) => setExportProgress(p));
+      const { blob: rawBlob, thumbnailBlob, mimeType: recordedType, creteAudio, moteur } = await renderExport({ clips: exClips, overlays: exOverlays, captions: exCaptions, subStyleId, subCustom, subPos, linkedSubs, titles: exTitles, stickers, audioTracks: exAudio, showProgressBar, formatId, customW, customH, exportQuality }, (p) => setExportProgress(p));
       /* Le fichier a-t-il du son ? On ne laisse pas l'utilisateur le découvrir
          après coup : un export muet est indiscernable d'un export sonore tant
          qu'on ne l'a pas écouté. */
+      /* Ce que l'export vient de faire, DIT À L'ÉCRAN.
+
+         Deux moteurs très différents se partagent l'export, et rien n'indiquait
+         lequel avait tourné. On a corrigé l'un pendant que l'autre produisait le
+         fichier, plusieurs fois. Une ligne visible met fin à cette confusion. */
+      const resume = `${moteur === "hors-ligne" ? "hors ligne" : "temps réel"} · son ${typeof creteAudio === "number" ? creteAudio.toFixed(2) : "?"}`;
+      console.log("[export] moteur :", resume);
       if (sourcesSonores > 0 && typeof creteAudio === "number" && creteAudio < 0.0005) {
         console.error("[export] fichier MUET malgré", sourcesSonores, "source(s) sonore(s)");
         toast(t('toastExportSilent'), "error");
+      } else {
+        toast(t('toastExportEngine', { resume }));
       }
 
       // Instagram veut du MP4/H.264. Safari sait l'enregistrer directement : dans
