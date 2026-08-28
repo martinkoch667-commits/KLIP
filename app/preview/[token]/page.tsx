@@ -115,10 +115,9 @@ const CW_CSS = `
 /* Aucun voile : le client garde son calendrier sous les yeux pendant qu'il
    valide. La couche reste là pour capter le clic à côté, rien de plus. */
 .cw-overlay { position:fixed; inset:0; background:transparent; z-index:500; display:flex; align-items:center; justify-content:center; padding:16px; animation:cwFade .15s ease; }
-/* Posée, comme les fiches de l'app : angles presque vifs, ombre de contact
-   puis ombre portée, et la même inclinaison (--fiche-tilt, définie dans
-   globals.css). Le fond reste blanc : cette carte imite le post tel qu'il
-   paraîtra sur Instagram, la teinter en crème le trahirait. */
+/* Posée, comme les fiches de l'app : blanc, angles presque vifs, ombre de
+   contact puis ombre portée, et la même inclinaison (--fiche-tilt, définie
+   dans globals.css). */
 .cw-modal { background:#fff; border-radius:5px; box-shadow:0 2px 3px rgba(16,19,11,.10), 0 30px 54px -26px rgba(16,19,11,.5); max-width:430px; width:100%; max-height:92vh; overflow-y:auto; transform:rotate(var(--fiche-tilt,-1.4deg)); animation:cwPop .22s cubic-bezier(.16,1,.3,1); }
 .cw-acct { display:flex; align-items:center; gap:10px; padding:13px 15px; }
 .cw-avatar { width:36px; height:36px; border-radius:50%; background:var(--forest,#0C2A1D); color:var(--leaf,#BDF2A0); font-weight:800; font-size:13px; display:grid; place-items:center; overflow:hidden; flex-shrink:0; background-size:cover; background-position:center; }

@@ -273,8 +273,10 @@ img { display: block; max-width: 100%; }
 
    · aucun voile. Ce qu'il y a derrière reste net et lisible — c'est tout
      l'intérêt du format, et ce qui le distingue de la modale par défaut ;
-   · du papier. Crème, angles presque vifs (5 px, pas 18), et deux ombres :
-     le contact avec la table, puis la portée ;
+   · du papier. Le blanc des cartes (--card), angles presque vifs (5 px, pas
+     18), et deux ombres : le contact avec la table, puis la portée. Le crème
+     de la landing a été essayé et retiré : il vit sur le vert forêt, sur le
+     canvas clair de l'app il tirait au beige et ne s'accordait à rien ;
    · elle penche. Sans ça, ce n'est qu'une carte de plus.
 
    L'inclinaison tient dans --fiche-tilt : la passer à 0deg redresse toutes
@@ -296,14 +298,14 @@ img { display: block; max-width: 100%; }
 
 .fiche {
   position: relative;
-  background: var(--cream); color: var(--ink);
+  background: var(--card); color: var(--ink);
   border-radius: 5px;
   padding: 34px 32px 28px;
   width: 100%; max-width: 466px;
   /* margin:auto plutôt que le centrage flex seul : quand la feuille dépasse
      la hauteur de l'écran, align-items:center lui coupe le haut. */
   margin: auto;
-  box-shadow: 0 2px 3px rgba(16,19,11,.10), 0 30px 54px -26px rgba(16,19,11,.5);
+  box-shadow: 0 0 0 1px var(--line-2), 0 2px 3px rgba(16,19,11,.10), 0 30px 54px -26px rgba(16,19,11,.5);
   transform: rotate(var(--fiche-tilt));
   animation: fichePose .34s cubic-bezier(.16,1,.3,1);
 }
@@ -419,10 +421,9 @@ img { display: block; max-width: 100%; }
 .fiche-xl { max-width: 680px; }
 
 /* Le panneau d'un post — une fiche par le comportement (pas de voile, Échap,
-   focus rendu), mais un plan de travail par la surface : on y écrit et on y
-   voit le rendu, le crème teinterait tout. Il garde donc le blanc, et sa
-   largeur volontairement généreuse (décision Martin : mieux vaut masquer le
-   calendrier que tasser les infos du post). */
+   focus rendu), mais un plan de travail par la surface. Il garde ses angles
+   plus doux et sa largeur volontairement généreuse (décision Martin : mieux
+   vaut masquer le calendrier que tasser les infos du post). */
 .fiche.plan-post-modal {
   width: 1220px; max-width: 96vw; height: 94vh;
   background: var(--white); border-radius: 16px;

@@ -422,7 +422,7 @@ function TypePickerModal({ files, onSeparate, onMontage, onCarousel, onClose }: 
                 style={{
                   padding: '16px 14px', borderRadius: 'var(--r)', textAlign: 'left',
                   border: mode === opt.id ? '2px solid var(--mint-2)' : '1.5px solid var(--line)',
-                  background: mode === opt.id ? 'rgba(47,215,155,0.08)' : 'var(--white)',
+                  background: mode === opt.id ? 'rgba(47,215,155,0.08)' : 'var(--sunk)',
                   cursor: 'pointer', display: 'flex', flexDirection: 'column', gap: 8,
                   transition: 'border-color .15s, background .15s', outline: 'none',
                 }}>
@@ -448,7 +448,7 @@ function TypePickerModal({ files, onSeparate, onMontage, onCarousel, onClose }: 
                   padding: '22px 12px 18px',
                   borderRadius: 'var(--r)',
                   border: selected === id ? '2px solid var(--mint-2)' : '1.5px solid var(--line)',
-                  background: selected === id ? 'rgba(47,215,155,0.08)' : 'var(--white)',
+                  background: selected === id ? 'rgba(47,215,155,0.08)' : 'var(--sunk)',
                   cursor: 'pointer',
                   display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12,
                   transition: 'border-color .15s, background .15s',

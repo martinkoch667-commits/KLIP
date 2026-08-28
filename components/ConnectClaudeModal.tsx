@@ -69,7 +69,7 @@ export function ConnectClaudeModal({ open, onClose }: { open: boolean; onClose: 
 
             <Step n={2} title={t('s2Title')}>
               <p style={pText}>{t.rich('s2Text', rich)}</p>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'var(--white)', border: '1px solid var(--line, rgba(13,15,10,.10))', borderRadius: 'var(--r-s, 9px)', padding: '9px 12px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'var(--sunk, #F1F2F5)', border: '1px solid var(--line, rgba(13,15,10,.10))', borderRadius: 'var(--r-s, 9px)', padding: '9px 12px' }}>
                 <code style={{ flex: 1, fontSize: 12.5, fontFamily: 'var(--mono)', color: 'var(--ink, #14160F)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{mcpUrl}</code>
                 <button onClick={copyUrl}
                   style={{ flexShrink: 0, border: 'none', background: 'transparent', cursor: 'pointer', fontSize: 12.5, fontWeight: 800, color: 'var(--mint-2, #21B381)', fontFamily: 'var(--sans)' }}>
