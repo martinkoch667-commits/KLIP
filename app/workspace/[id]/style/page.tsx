@@ -5,6 +5,7 @@ import { useTranslations } from "next-intl";
 import { useParams, useRouter } from "next/navigation";
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
 import Sidebar from "@/components/Sidebar";
+import Fiche from "@/components/Fiche";
 import ColorPicker from "@/components/ColorPicker";
 import NotificationBell from "@/components/NotificationBell";
 import { MiniTemplatePreview, type BgStyle } from "@/components/TemplateEditor";
@@ -1220,21 +1221,18 @@ export default function StyleTemplatePage() {
 
       {/* ── Template editor modal ──────────────────────────────────────────────── */}
       {/* ── Delete confirm dialog ─────────────────────────────────────────────── */}
-      {deleteId && (
-        <div style={{ position: "fixed", inset: 0, zIndex: 999, background: "rgba(13,15,10,.5)", backdropFilter: "blur(4px)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-          <div style={{ background: "var(--white)", borderRadius: "var(--r-l)", boxShadow: "var(--shadow-pop)", padding: "28px 32px", maxWidth: 380, width: "90vw", textAlign: "center" }}>
-            <div style={{ width: 48, height: 48, borderRadius: 14, background: "#FEE2E2", display: "grid", placeItems: "center", margin: "0 auto 16px" }}>
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#DC2626" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg>
-            </div>
-            <h3 style={{ fontFamily: "var(--display)", fontWeight: 700, fontSize: 17, color: "var(--ink)", margin: "0 0 8px" }}>{t('deleteTemplateTitle')}</h3>
-            <p style={{ fontSize: 13, color: "var(--ink-3)", margin: "0 0 24px", lineHeight: 1.5 }}>{t('deleteTemplateDesc')}</p>
-            <div style={{ display: "flex", gap: 10 }}>
-              <button onClick={() => setDeleteId(null)} style={{ flex: 1, padding: "10px", borderRadius: 11, border: "1px solid var(--line)", background: "var(--white)", cursor: "pointer", fontSize: 13.5, fontWeight: 600, color: "var(--ink)" }}>{t('cancel')}</button>
-              <button onClick={confirmDelete} style={{ flex: 1, padding: "10px", borderRadius: 11, border: "none", background: "#EF4444", color: "#fff", cursor: "pointer", fontSize: 13.5, fontWeight: 700 }}>{t('delete')}</button>
-            </div>
-          </div>
+      {/* Une décision se prend, elle ne se dissipe pas au clic à côté. */}
+      <Fiche open={!!deleteId} onClose={() => setDeleteId(null)} label={t('deleteTemplateTitle')} dismissable={false}>
+        <div className="fiche-badge" style={{ background: "rgba(180,55,43,.12)" }}>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#B4372B" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg>
         </div>
-      )}
+        <h2 className="fiche-title" style={{ fontSize: 25 }}>{t('deleteTemplateTitle')}</h2>
+        <p className="fiche-lede">{t('deleteTemplateDesc')}</p>
+        <div className="fiche-foot">
+          <button onClick={confirmDelete} className="fiche-go fiche-go-warn">{t('delete')}</button>
+          <button onClick={() => setDeleteId(null)} className="fiche-link">{t('cancel')}</button>
+        </div>
+      </Fiche>
 
       {/* ── Toast ─────────────────────────────────────────────────────────────── */}
       {toast && (

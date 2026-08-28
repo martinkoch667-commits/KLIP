@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useRef, Suspense } from "react";
 import PostPreviewPane from "@/components/PostPreviewPane";
 import DateField from "@/components/DateField";
+import Fiche from "@/components/Fiche";
 import TimeField from "@/components/TimeField";
 import VideoCoverPicker from "@/components/VideoCoverPicker";
 import CaptionPrompt from "@/components/CaptionPrompt";
@@ -1002,61 +1003,58 @@ function PlanningContent() {
         </div>
       )}
 
-      {/* Instagram modal */}
-      {showIgModal && (
-        <div style={{ position: "fixed", inset: 0, zIndex: 50, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(13,15,10,.45)" }} onClick={() => setShowIgModal(false)}>
-          <div className="card pop-in" style={{ padding: 32, maxWidth: 360, width: "100%", margin: "0 16px" }} onClick={e => e.stopPropagation()}>
-            <div style={{ width: 48, height: 48, borderRadius: 14, background: "linear-gradient(135deg,#F58529,#DD2A7B,#8134AF)", display: "grid", placeItems: "center", color: "#fff", marginBottom: 16 }}><IconInstagram /></div>
-            <h2 className="h-title" style={{ fontSize: 18, marginBottom: 8 }}>{t('igNotConnected')}</h2>
-            <p style={{ color: "var(--ink-2)", fontSize: 14, marginBottom: 24, lineHeight: 1.5 }}>{t('igConnectHint')}</p>
-            <div style={{ display: "flex", gap: 10 }}>
-              <button onClick={() => setShowIgModal(false)} className="btn btn-ghost" style={{ flex: 1 }}>{t('cancel')}</button>
-              <Link href={`/workspace/${id}/parametres`} className="btn btn-dark" style={{ flex: 1, textAlign: "center" }}>{t('connectInstagram')}</Link>
-            </div>
-          </div>
+      {/* Instagram non connecté */}
+      <Fiche open={showIgModal} onClose={() => setShowIgModal(false)} label={t('igNotConnected')}>
+        <div className="fiche-badge" style={{ background: "linear-gradient(135deg,#F58529,#DD2A7B,#8134AF)", color: "#fff" }}><IconInstagram /></div>
+        <h2 className="fiche-title">{t('igNotConnected')}</h2>
+        <p className="fiche-lede">{t('igConnectHint')}</p>
+        <div className="fiche-foot">
+          <Link href={`/workspace/${id}/parametres`} className="fiche-go">{t('connectInstagram')}</Link>
+          <button onClick={() => setShowIgModal(false)} className="fiche-link">{t('cancel')}</button>
         </div>
-      )}
+      </Fiche>
 
-      {/* Modale : partager pour validation client */}
-      {shareOpen && (
-        <div style={{ position: "fixed", inset: 0, zIndex: 60, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(13,15,10,.45)", padding: 16 }} onClick={() => setShareOpen(false)}>
-          <div className="card pop-in" style={{ padding: 28, maxWidth: 440, width: "100%" }} onClick={e => e.stopPropagation()}>
-            <h2 className="h-title" style={{ fontSize: 18, marginBottom: 6 }}>{t('shareTitle')}</h2>
-            <p style={{ color: "var(--ink-2)", fontSize: 13.5, marginBottom: 20, lineHeight: 1.5 }}>
-              {t('shareHint')}
+      {/* Partager pour validation client */}
+      <Fiche
+        open={shareOpen}
+        onClose={() => { setShareOpen(false); setShareLink(""); }}
+        label={t('shareTitle')}
+        closeButton
+      >
+        <h2 className="fiche-title">{t('shareTitle')}</h2>
+        <p className="fiche-lede">{t('shareHint')}</p>
+
+        <div className="fiche-rows">
+          <label className="fiche-field">
+            <span>{t('from')}</span>
+            <DateField value={shareFrom} onChange={setShareFrom} />
+          </label>
+          <label className="fiche-field">
+            <span>{t('to')}</span>
+            <DateField value={shareTo} min={shareFrom} onChange={setShareTo} />
+          </label>
+        </div>
+
+        {!shareLink ? (
+          <div className="fiche-foot">
+            <button onClick={generateShareLink} disabled={shareBusy} className="fiche-go">
+              {shareBusy ? t('generating') : t('generateLink')}
+            </button>
+            <button onClick={() => setShareOpen(false)} className="fiche-link">{t('close')}</button>
+          </div>
+        ) : (
+          <>
+            <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
+              <input readOnly value={shareLink} onFocus={e => e.currentTarget.select()}
+                style={{ flex: 1, minWidth: 0, padding: "0 0 7px", border: "none", borderBottom: "1.5px solid rgba(13,15,10,.28)", background: "transparent", color: "var(--ink-2)", fontSize: 12.5, fontFamily: "var(--mono)", outline: "none" }} />
+              <button onClick={() => { navigator.clipboard.writeText(shareLink); setToast({ msg: t('linkCopied'), ok: true }); }} className="fiche-go">{t('copy')}</button>
+            </div>
+            <p style={{ fontSize: 12, color: "var(--ink-3)", lineHeight: 1.5, margin: 0 }}>
+              {t('shareLinkHint')}
             </p>
-            <div style={{ display: "flex", gap: 12, marginBottom: 18 }}>
-              <label style={{ flex: 1, fontSize: 12, fontWeight: 700, color: "var(--ink-2)" }}>{t('from')}
-                <DateField value={shareFrom} onChange={setShareFrom}
-                  style={{ width: "100%", marginTop: 5, padding: "9px 11px", borderRadius: 9, border: "1px solid var(--line)", background: "var(--sunk)", color: "var(--ink)", fontFamily: "var(--sans)", outline: "none" }} />
-              </label>
-              <label style={{ flex: 1, fontSize: 12, fontWeight: 700, color: "var(--ink-2)" }}>{t('to')}
-                <DateField value={shareTo} min={shareFrom} onChange={setShareTo}
-                  style={{ width: "100%", marginTop: 5, padding: "9px 11px", borderRadius: 9, border: "1px solid var(--line)", background: "var(--sunk)", color: "var(--ink)", fontFamily: "var(--sans)", outline: "none" }} />
-              </label>
-            </div>
-
-            {!shareLink ? (
-              <button onClick={generateShareLink} disabled={shareBusy} className="btn btn-primary" style={{ width: "100%", justifyContent: "center", background: "#2FD79B", color: "#0D2E1C", fontWeight: 700 }}>
-                {shareBusy ? t('generating') : t('generateLink')}
-              </button>
-            ) : (
-              <>
-                <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
-                  <input readOnly value={shareLink} onFocus={e => e.currentTarget.select()}
-                    style={{ flex: 1, padding: "9px 11px", borderRadius: 9, border: "1px solid var(--line)", background: "var(--sunk)", color: "var(--ink-2)", fontSize: 12.5, fontFamily: "var(--mono)", outline: "none" }} />
-                  <button onClick={() => { navigator.clipboard.writeText(shareLink); setToast({ msg: t('linkCopied'), ok: true }); }} className="btn btn-dark btn-sm">{t('copy')}</button>
-                </div>
-                <p style={{ fontSize: 12, color: "var(--ink-3)", lineHeight: 1.5 }}>
-                  {t('shareLinkHint')}
-                </p>
-              </>
-            )}
-
-            <button onClick={() => { setShareOpen(false); setShareLink(""); }} className="btn btn-ghost btn-sm" style={{ width: "100%", justifyContent: "center", marginTop: 14 }}>{t('close')}</button>
-          </div>
-        </div>
-      )}
+          </>
+        )}
+      </Fiche>
 
       {/* ── Main area ─────────────────────────────────────────────────────────── */}
       <div className="plan-main" style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0, minHeight: 0, overflow: "hidden" }}>
@@ -1492,10 +1490,7 @@ function PlanningContent() {
 
       {/* ── Post panel modal ─────────────────────────────────────────────────── */}
       {selectedPost && (
-        <div style={{ position: "fixed", inset: 0, zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(13,15,10,.45)" }} onClick={closePanel}>
-        {/* Fenêtre volontairement large : on préfère masquer le calendrier
-            derrière plutôt que de tasser les infos du post (décision Martin). */}
-        <div className="plan-post-modal" style={{ width: 1220, maxWidth: "96vw", height: "94vh", borderRadius: 16, background: "var(--white)", display: "flex", flexDirection: "column", overflow: "hidden", boxShadow: "0 24px 60px -12px rgba(13,15,10,.45), 0 0 0 1px rgba(13,15,10,.06)" }} onClick={e => e.stopPropagation()}>
+        <Fiche open onClose={closePanel} label={t('schedule')} large className="plan-post-modal" zIndex={100}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "16px 20px", borderBottom: "1px solid var(--line)" }}>
             <span className="h-title" style={{ fontSize: 15 }}>{t('schedule')}</span>
             <button onClick={closePanel} className="btn btn-ghost btn-icon"><IconClose /></button>
@@ -1745,7 +1740,7 @@ function PlanningContent() {
               {publishing ? t('publishing') : t('publishNow')}
             </button>
           </div>
-        </div></div>
+        </Fiche>
       )}
 
       <style>{`@keyframes spin{to{transform:rotate(360deg)}} .cal-slot:hover{background:rgba(47,215,155,.04)!important}`}</style>

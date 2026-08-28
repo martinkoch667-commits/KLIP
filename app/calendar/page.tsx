@@ -466,12 +466,15 @@ export default function CalendarPage() {
       {/* Volet de détail — on voit le rendu et on ajuste sans quitter la vue */}
       {selected && (
         <div
-          style={{ position: "fixed", inset: 0, zIndex: 120, background: "rgba(13,15,10,.45)", display: "flex", justifyContent: "flex-end" }}
+          style={{ position: "fixed", inset: 0, zIndex: 120, background: "transparent", display: "flex", justifyContent: "flex-end" }}
           onClick={() => setSelected(null)}
         >
+          {/* Volet, pas fiche : il tient au bord et garde ses angles droits.
+              Il perd en revanche son voile, comme toutes les fenêtres de
+              l'app — le calendrier reste lisible pendant qu'on ajuste. */}
           <div
             className="card"
-            style={{ width: 460, maxWidth: "94vw", height: "100%", borderRadius: 0, display: "flex", flexDirection: "column", overflow: "hidden" }}
+            style={{ width: 460, maxWidth: "94vw", height: "100%", borderRadius: 0, display: "flex", flexDirection: "column", overflow: "hidden", boxShadow: "-1px 0 0 rgba(13,15,10,.12), -26px 0 46px -30px rgba(16,19,11,.4)" }}
             onClick={e => e.stopPropagation()}
           >
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 18px", borderBottom: "1px solid var(--line)" }}>

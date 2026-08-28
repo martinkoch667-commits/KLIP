@@ -13,6 +13,7 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
 import Sidebar from "@/components/Sidebar";
+import Fiche from "@/components/Fiche";
 import VoiceButton from "@/components/VoiceButton";
 import NotificationBell from "@/components/NotificationBell";
 import { Sticker } from "@/components/Stickers";
@@ -408,12 +409,10 @@ function TypePickerModal({ files, onSeparate, onMontage, onCarousel, onClose }: 
   ];
 
   return (
-    <div style={{ position: 'fixed', inset: 0, zIndex: 9500, background: 'rgba(12,42,29,0.78)', backdropFilter: 'blur(6px)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-      onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
-      <div style={{ background: 'var(--paper)', borderRadius: 'var(--r-xl)', border: '1px solid var(--line)', padding: '32px', width: 480, maxWidth: '90vw', maxHeight: '92vh', overflowY: 'auto', boxShadow: '0 24px 64px rgba(12,42,29,.45)' }}>
-        <p style={{ margin: '0 0 8px', fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--ink-3)', fontFamily: 'var(--mono)' }}>{t('typePickerEyebrow')}</p>
-        <h2 style={{ margin: '0 0 6px', fontSize: 20, fontWeight: 800, color: 'var(--ink)', fontFamily: 'var(--display)', lineHeight: 1.2 }}>{t('typePickerTitle')}</h2>
-        <p style={{ margin: '0 0 24px', fontSize: 13, color: 'var(--ink-2)', lineHeight: 1.5 }}>{multi ? t('groupHint', { count: files.length }) : t('typePickerHint')}</p>
+    <Fiche open onClose={onClose} label={t('typePickerTitle')} zIndex={9500} className="fiche-w">
+        <p className="label" style={{ margin: '0 0 8px' }}>{t('typePickerEyebrow')}</p>
+        <h2 className="fiche-title" style={{ fontSize: 24, maxWidth: '18ch' }}>{t('typePickerTitle')}</h2>
+        <p className="fiche-lede">{multi ? t('groupHint', { count: files.length }) : t('typePickerHint')}</p>
 
         {/* Étape 1 — regroupement (seulement pour plusieurs fichiers) */}
         {multi && (
@@ -423,7 +422,7 @@ function TypePickerModal({ files, onSeparate, onMontage, onCarousel, onClose }: 
                 style={{
                   padding: '16px 14px', borderRadius: 'var(--r)', textAlign: 'left',
                   border: mode === opt.id ? '2px solid var(--mint-2)' : '1.5px solid var(--line)',
-                  background: mode === opt.id ? 'rgba(47,215,155,0.08)' : 'var(--sunk)',
+                  background: mode === opt.id ? 'rgba(47,215,155,0.08)' : 'var(--white)',
                   cursor: 'pointer', display: 'flex', flexDirection: 'column', gap: 8,
                   transition: 'border-color .15s, background .15s', outline: 'none',
                 }}>
@@ -449,7 +448,7 @@ function TypePickerModal({ files, onSeparate, onMontage, onCarousel, onClose }: 
                   padding: '22px 12px 18px',
                   borderRadius: 'var(--r)',
                   border: selected === id ? '2px solid var(--mint-2)' : '1.5px solid var(--line)',
-                  background: selected === id ? 'rgba(47,215,155,0.08)' : 'var(--sunk)',
+                  background: selected === id ? 'rgba(47,215,155,0.08)' : 'var(--white)',
                   cursor: 'pointer',
                   display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12,
                   transition: 'border-color .15s, background .15s',
@@ -504,17 +503,16 @@ function TypePickerModal({ files, onSeparate, onMontage, onCarousel, onClose }: 
           </div>
         )}
 
-        <div style={{ display: 'flex', gap: 10 }}>
-          <button onClick={onClose} className="btn btn-ghost" style={{ flex: 1 }}>{t('cancel')}</button>
+        <div className="fiche-foot">
           <button onClick={() => {
             const ordered = order.map(i => files[i]);
             if (mode === 'montage') onMontage(ordered);
             else if (mode === 'carousel') onCarousel(ordered);
             else onSeparate(selected);
-          }} className="btn btn-primary" style={{ flex: 2 }}>{t('continue')}</button>
+          }} className="fiche-go">{t('continue')}</button>
+          <button onClick={onClose} className="fiche-link">{t('cancel')}</button>
         </div>
-      </div>
-    </div>
+    </Fiche>
   );
 }
 
@@ -531,35 +529,9 @@ function TemplatePicker({
 }) {
   const t = useTranslations('workspace');
   return (
-    <div
-      style={{
-        position: 'fixed', inset: 0, zIndex: 9000,
-        background: 'rgba(10,14,10,0.72)', backdropFilter: 'blur(4px)',
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-      }}
-      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
-    >
-      <div style={{
-        background: 'var(--canvas)', borderRadius: 'var(--r-xl)',
-        border: '1px solid var(--line)',
-        padding: '28px 28px 24px',
-        width: 640, maxWidth: '90vw', maxHeight: '80vh',
-        display: 'flex', flexDirection: 'column', gap: 20,
-        boxShadow: '0 20px 60px rgba(10,14,10,.55)',
-      }}>
-        {/* Header */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <div>
-            <h2 className="h-title" style={{ fontSize: 18, marginBottom: 4 }}>{t('templatePickerTitle')}</h2>
-            <p style={{ fontSize: 13, color: 'var(--ink-3)' }}>
-              {t('templatePickerHint')}
-            </p>
-          </div>
-          <button
-            onClick={onClose}
-            style={{ width: 30, height: 30, borderRadius: 8, background: 'var(--sunk)', border: '1px solid var(--line)', cursor: 'pointer', fontSize: 16, color: 'var(--ink-3)', display: 'grid', placeItems: 'center' }}
-          >×</button>
-        </div>
+    <Fiche open onClose={onClose} label={t('templatePickerTitle')} zIndex={9000} className="fiche-xl" closeButton>
+        <h2 className="fiche-title" style={{ fontSize: 24, maxWidth: '20ch' }}>{t('templatePickerTitle')}</h2>
+        <p className="fiche-lede">{t('templatePickerHint')}</p>
 
         {/* Grid */}
         <div style={{
@@ -640,8 +612,7 @@ function TemplatePicker({
             );
           })}
         </div>
-      </div>
-    </div>
+    </Fiche>
   );
 }
 
@@ -2632,20 +2603,12 @@ export default function WorkspacePage() {
         </div>
       )}
 
-      {/* Share modal */}
-      {shareOpen && (
-        <div
-          style={{ position: 'fixed', inset: 0, zIndex: 9000, background: 'rgba(10,14,10,0.72)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-          onClick={e => { if (e.target === e.currentTarget) setShareOpen(false); }}
-        >
-          <div style={{ background: 'var(--white)', borderRadius: 'var(--r-xl)', border: '1px solid var(--line)', padding: '28px 28px 24px', width: 480, maxWidth: '92vw', boxShadow: '0 20px 60px rgba(10,14,10,.55)', display: 'flex', flexDirection: 'column', gap: 20 }}>
-            {/* Header */}
-            <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 }}>
-              <div>
-                <h2 className="h-title" style={{ fontSize: 18, marginBottom: 4 }}>{t('shareTitle')}</h2>
-                <p style={{ fontSize: 13, color: 'var(--ink-3)', lineHeight: 1.5 }}>{t('shareHint')}</p>
-              </div>
-              <button onClick={() => setShareOpen(false)} style={{ width: 30, height: 30, borderRadius: 8, background: 'var(--sunk)', border: '1px solid var(--line)', cursor: 'pointer', fontSize: 18, color: 'var(--ink-3)', display: 'grid', placeItems: 'center', flexShrink: 0 }}>×</button>
+      {/* Partager pour validation */}
+      <Fiche open={shareOpen} onClose={() => setShareOpen(false)} label={t('shareTitle')} zIndex={9000} className="fiche-w" closeButton>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+            <div>
+              <h2 className="fiche-title">{t('shareTitle')}</h2>
+              <p className="fiche-lede" style={{ marginBottom: 0 }}>{t('shareHint')}</p>
             </div>
 
             {/* Link row */}
@@ -2732,8 +2695,7 @@ export default function WorkspacePage() {
               </button>
             </div>
           </div>
-        </div>
-      )}
+      </Fiche>
 
       <style>{`
         @keyframes spin{to{transform:rotate(360deg)}}

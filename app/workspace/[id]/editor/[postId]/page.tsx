@@ -19,6 +19,7 @@ import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import ColorPicker from '@/components/ColorPicker';
 import SelectionOverlay, { getVisualRect } from '@/components/SelectionOverlay';
 import Sidebar from '@/components/Sidebar';
+import Fiche from '@/components/Fiche';
 import { TEXT_TEMPLATES, TT_CATS, TT_REF_W, TextTemplateThumb, adaptTemplateToCharter, type BrandKit, type TextTemplate } from './textTemplates';
 import { LAYOUT_TEMPLATES, LAYOUT_CATS, LAYOUT_STYLES, LayoutThumb, adaptLayoutToCharter, type LayoutTemplate } from './layoutTemplates';
 import { googleVariants, weightName } from '@/lib/fontWeights';
@@ -6635,19 +6636,21 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
         </div>
       )}
 
-      {/* ── Story format warning modal ── */}
-      {showStoryWarn && (
-        <div style={{ position: 'fixed', inset: 0, zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(13,15,10,.45)' }} onClick={() => { setShowStoryWarn(false); setPendingStoryType(null); }}>
-          <div className="card" style={{ padding: 28, maxWidth: 380, width: '100%', margin: '0 16px' }} onClick={e => e.stopPropagation()}>
-            <div style={{ width: 44, height: 44, borderRadius: 12, background: 'rgba(200,115,43,.12)', display: 'grid', placeItems: 'center', marginBottom: 16 }}>
+      {/* ── Avertissement de changement de format ── */}
+      <Fiche
+        open={showStoryWarn}
+        onClose={() => { setShowStoryWarn(false); setPendingStoryType(null); }}
+        label={T('changeFormat')}
+        zIndex={3200}
+      >
+            <div className="fiche-badge" style={{ background: 'rgba(200,115,43,.12)' }}>
               <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--warn)" strokeWidth="2" strokeLinecap="round"><path d="M10.3 3.4 2.7 17A2 2 0 0 0 4.4 20h15.2a2 2 0 0 0 1.7-3L13.7 3.4a2 2 0 0 0-3.4 0Z"/><path d="M12 9v4M12 17h.01"/></svg>
             </div>
-            <h3 style={{ fontSize: 16, fontWeight: 800, color: 'var(--ink)', marginBottom: 8 }}>{T('changeFormat')}</h3>
-            <p style={{ fontSize: 13.5, color: 'var(--ink-2)', lineHeight: 1.55, marginBottom: 22 }}>
+            <h2 className="fiche-title" style={{ fontSize: 25 }}>{T('changeFormat')}</h2>
+            <p className="fiche-lede">
               Passer en format Story (9:16) va adapter le cadre de votre visuel. Des éléments peuvent dépasser le cadre et nécessiter des ajustements.
             </p>
-            <div style={{ display: 'flex', gap: 10 }}>
-              <button onClick={() => { setShowStoryWarn(false); setPendingStoryType(null); }} className="btn btn-ghost" style={{ flex: 1 }}>{T('cancel')}</button>
+            <div className="fiche-foot">
               <button onClick={async () => {
                 setShowStoryWarn(false);
                 if (pendingStoryType) {
@@ -6663,11 +6666,10 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
                   await supabase.from('posts').update({ post_type: pendingStoryType }).eq('id', postId);
                 }
                 setPendingStoryType(null);
-              }} className="btn btn-primary" style={{ flex: 1 }}>{T('continue')}</button>
+              }} className="fiche-go">{T('continue')}</button>
+              <button onClick={() => { setShowStoryWarn(false); setPendingStoryType(null); }} className="fiche-link">{T('cancel')}</button>
             </div>
-          </div>
-        </div>
-      )}
+      </Fiche>
 
     {/* Le plan de travail est une feuille posée sur le fond, comme le reste de
         l'app : arrondie en haut, marge à gauche du rail. Replier le rail la
@@ -8616,14 +8618,7 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
       const useCharter = ttCharter && hasCharter;
       const show = (tpl: TextTemplate) => useCharter ? adaptTemplateToCharter(tpl, brandKit) : tpl;
       return (
-        <div
-          onClick={() => setTextLibOpen(false)}
-          style={{ position: 'fixed', inset: 0, zIndex: 3000, background: 'color-mix(in srgb, var(--ink) 55%, transparent)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '4vh 3vw', backdropFilter: 'blur(3px)' }}
-        >
-          <div
-            onClick={e => e.stopPropagation()}
-            style={{ width: 'min(1180px, 96vw)', height: 'min(880px, 92vh)', background: 'var(--paper)', borderRadius: 'var(--r-xl)', boxShadow: '0 24px 80px rgba(0,0,0,0.32)', display: 'flex', flexDirection: 'column', overflow: 'hidden', border: '1px solid var(--line)' }}
-          >
+        <Fiche open onClose={() => setTextLibOpen(false)} label="Bibliothèque de textes" large zIndex={3000}>
             {/* Header */}
             <div style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '18px 22px', borderBottom: '1px solid var(--line)', flexShrink: 0 }}>
               <div style={{ flex: 1, minWidth: 0 }}>
@@ -8685,8 +8680,7 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
                 </div>
               )}
             </div>
-          </div>
-        </div>
+        </Fiche>
       );
     })()}
 
@@ -8699,14 +8693,7 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
         return s.name.toLowerCase().includes(q) || s.cat.toLowerCase().includes(q);
       });
       return (
-        <div
-          onClick={() => setStickerLibOpen(false)}
-          style={{ position: 'fixed', inset: 0, zIndex: 3000, background: 'color-mix(in srgb, var(--ink) 55%, transparent)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '4vh 3vw', backdropFilter: 'blur(3px)' }}
-        >
-          <div
-            onClick={e => e.stopPropagation()}
-            style={{ width: 'min(1180px, 96vw)', height: 'min(880px, 92vh)', background: 'var(--paper)', borderRadius: 'var(--r-xl)', boxShadow: '0 24px 80px rgba(0,0,0,0.32)', display: 'flex', flexDirection: 'column', overflow: 'hidden', border: '1px solid var(--line)' }}
-          >
+        <Fiche open onClose={() => setStickerLibOpen(false)} label="Bibliothèque d'illustrations" large zIndex={3000}>
             {/* Header */}
             <div style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '18px 22px', borderBottom: '1px solid var(--line)', flexShrink: 0 }}>
               <div style={{ flex: 1, minWidth: 0 }}>
@@ -8814,8 +8801,7 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
               )}
               </>)}
             </div>
-          </div>
-        </div>
+        </Fiche>
       );
     })()}
     </>

@@ -266,6 +266,169 @@ img { display: block; max-width: 100%; }
   font-weight: 800; font-size: 13.5px;
 }
 .stk-leaf { background: var(--leaf); color: var(--leaf-ink); box-shadow: 0 18px 36px -16px rgba(120,190,90,.5); }
+
+/* ── Fiche — la fenêtre « feuille posée » ───────────────────────────────────
+   Une feuille de papier posée sur le plan de travail, et non une carte qui
+   flotte au-dessus d'un fond assombri. Trois règles la définissent :
+
+   · aucun voile. Ce qu'il y a derrière reste net et lisible — c'est tout
+     l'intérêt du format, et ce qui le distingue de la modale par défaut ;
+   · du papier. Crème, angles presque vifs (5 px, pas 18), et deux ombres :
+     le contact avec la table, puis la portée ;
+   · elle penche. Sans ça, ce n'est qu'une carte de plus.
+
+   L'inclinaison tient dans --fiche-tilt : la passer à 0deg redresse toutes
+   les fiches de l'app d'un coup. Les cartes du catalogue, elles, restent
+   d'équerre — voir .card-note, c'est une décision distincte. */
+:root { --fiche-tilt: -1.4deg; }
+
+.fiche-layer {
+  position: fixed; inset: 0; z-index: 900;
+  display: flex; align-items: center; justify-content: center;
+  padding: 5vh 4vw;
+  /* C'est la couche qui défile, pas la feuille : un overflow posé sur .fiche
+     rognerait le scotch, qui dépasse volontairement du bord haut. */
+  overflow-y: auto;
+  /* Transparent et pourtant présent : il capte le clic à côté sans rien
+     assombrir. Ce n'est pas un voile oublié, c'est le format. */
+  background: transparent;
+}
+
+.fiche {
+  position: relative;
+  background: var(--cream); color: var(--ink);
+  border-radius: 5px;
+  padding: 34px 32px 28px;
+  width: 100%; max-width: 466px;
+  /* margin:auto plutôt que le centrage flex seul : quand la feuille dépasse
+     la hauteur de l'écran, align-items:center lui coupe le haut. */
+  margin: auto;
+  box-shadow: 0 2px 3px rgba(16,19,11,.10), 0 30px 54px -26px rgba(16,19,11,.5);
+  transform: rotate(var(--fiche-tilt));
+  animation: fichePose .34s cubic-bezier(.16,1,.3,1);
+}
+@keyframes fichePose {
+  from { opacity: 0; transform: translateY(-18px) rotate(-2.6deg) scale(.985); }
+  to   { opacity: 1; transform: translateY(0) rotate(var(--fiche-tilt)) scale(1); }
+}
+
+/* Grande fiche — bibliothèques, galeries. Posée bien d'équerre : une feuille
+   de 1180 px qui penche sort de l'écran et fait bancal. Le papier et
+   l'absence de voile suffisent à la rattacher aux petites. */
+.fiche-l {
+  max-width: min(1180px, 96vw); width: min(1180px, 96vw);
+  height: min(880px, 90vh);
+  padding: 0; overflow: hidden;
+  display: flex; flex-direction: column;
+  transform: none;
+  animation: fichePoseDroite .3s cubic-bezier(.16,1,.3,1);
+}
+@keyframes fichePoseDroite {
+  from { opacity: 0; transform: translateY(-12px) scale(.99); }
+  to   { opacity: 1; transform: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .fiche, .fiche-l { animation: none; }
+}
+
+/* Le scotch — seulement là où la feuille a un bord libre. */
+.fiche-tape {
+  position: absolute; top: -11px; left: 34px;
+  width: 96px; height: 24px; border-radius: 2px;
+  background: rgba(189,242,160,.85);
+  box-shadow: 0 2px 6px rgba(16,19,11,.12);
+  transform: rotate(-3.5deg);
+  pointer-events: none; z-index: 2;
+}
+
+.fiche-title {
+  font-family: var(--display); font-weight: 800;
+  font-size: 29px; letter-spacing: -.03em; line-height: 1.06;
+  margin: 0 0 12px; max-width: 15ch; text-wrap: balance;
+}
+/* Le mot accent, en oaks sur le vert — même recette que .acc-hl. */
+.fiche-title em {
+  font-family: var(--oaks); font-style: normal; font-weight: 700;
+  background: var(--leaf); color: var(--leaf-ink);
+  border-radius: 10px; padding: .01em .14em .09em;
+  -webkit-box-decoration-break: clone; box-decoration-break: clone;
+}
+.fiche-lede { font-size: 14px; color: var(--ink-2); line-height: 1.55; margin: 0 0 26px; max-width: 46ch; }
+
+.fiche-rows { display: flex; gap: 26px; margin-bottom: 28px; }
+@media (max-width: 460px) { .fiche-rows { flex-direction: column; gap: 20px; } }
+.fiche-field { display: flex; flex-direction: column; gap: 7px; flex: 1; min-width: 0; }
+.fiche-field > span { font-family: var(--mono); font-size: 10px; font-weight: 700; letter-spacing: .16em; text-transform: uppercase; color: var(--ink-3); }
+/* Les champs de la fiche n'ont pas de cadre : un seul filet, comme un
+   formulaire imprimé. Le renfoncement gris appartient aux panneaux. */
+.fiche-field input,
+.fiche-field select,
+.fiche-field .input,
+.fiche-field .fiche-val {
+  font-family: var(--display); font-size: 15.5px; font-weight: 700; letter-spacing: -.02em;
+  color: var(--ink); background: transparent;
+  border: none; border-bottom: 1.5px solid rgba(13,15,10,.28);
+  border-radius: 0; padding: 0 0 7px; width: 100%; outline: none;
+  transition: border-color .15s;
+}
+.fiche-field input:focus,
+.fiche-field select:focus,
+.fiche-field .input:focus { border-bottom-color: var(--ink); }
+/* DateField rend un bouton .input : il faut désarmer le renfoncement gris que
+   la classe lui donne partout ailleurs. */
+.fiche-field .input { height: auto; box-shadow: none; min-height: 0; }
+
+.fiche-foot { display: flex; align-items: center; gap: 20px; flex-wrap: wrap; }
+.fiche-go {
+  font-family: var(--sans); font-weight: 700; font-size: 13.5px; letter-spacing: -.01em;
+  background: var(--ink); color: var(--paper);
+  border: none; border-radius: 11px; padding: 10px 18px; cursor: pointer;
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  transition: transform .16s cubic-bezier(.2,.7,.3,1), opacity .15s;
+}
+.fiche-go:active:not(:disabled) { transform: scale(.97); }
+.fiche-go:disabled { opacity: .5; cursor: default; }
+/* Une seule action forte par fiche. Quand la seconde est destructrice, c'est
+   elle qui prend le rouge et l'autre redevient un lien. */
+.fiche-go-warn { background: #B4372B; color: #fff; }
+.fiche-link {
+  font-family: var(--sans); font-weight: 600; font-size: 13.5px;
+  background: none; border: none; padding: 0; cursor: pointer;
+  color: var(--ink-2); text-decoration: underline; text-underline-offset: 3px;
+}
+.fiche-link:hover { color: var(--ink); }
+
+.fiche-x {
+  position: absolute; top: 12px; right: 12px; z-index: 2;
+  width: 30px; height: 30px; border: none; border-radius: 8px;
+  background: none; color: var(--ink-3); cursor: pointer;
+  display: grid; place-items: center;
+  transition: background .15s, color .15s;
+}
+.fiche-x:hover { background: rgba(13,15,10,.06); color: var(--ink); }
+
+/* Un pictogramme d'entrée, quand la fiche annonce plutôt qu'elle ne demande. */
+.fiche-badge {
+  width: 44px; height: 44px; border-radius: 12px;
+  display: grid; place-items: center; margin-bottom: 16px;
+}
+
+/* Deux largeurs de plus, pour les fiches qui portent une grille de choix.
+   Au-delà, c'est une grande fiche (.fiche-l) qu'il faut. */
+.fiche-w  { max-width: 520px; }
+.fiche-xl { max-width: 680px; }
+
+/* Le panneau d'un post — une fiche par le comportement (pas de voile, Échap,
+   focus rendu), mais un plan de travail par la surface : on y écrit et on y
+   voit le rendu, le crème teinterait tout. Il garde donc le blanc, et sa
+   largeur volontairement généreuse (décision Martin : mieux vaut masquer le
+   calendrier que tasser les infos du post). */
+.fiche.plan-post-modal {
+  width: 1220px; max-width: 96vw; height: 94vh;
+  background: var(--white); border-radius: 16px;
+  box-shadow: 0 2px 3px rgba(16,19,11,.10), 0 30px 60px -24px rgba(16,19,11,.5);
+}
+
 @media (prefers-reduced-motion: reduce) { .card-hover, .card-hover:hover { transform: none; transition: box-shadow .22s; } }
 
 /* Cadre de sélection — l'élément a l'air « choisi » dans un éditeur, comme sur

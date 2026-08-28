@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { createPortal } from "react-dom";
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
+import Fiche from "@/components/Fiche";
 
 /* Choix de la miniature d'une vidéo, au moment de programmer.
 
@@ -34,14 +34,12 @@ export default function VideoCoverPicker({
   const videoRef = useRef<HTMLVideoElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const [open, setOpen] = useState(false);
-  const [mounted, setMounted] = useState(false);
   const [dur, setDur] = useState(0);
   const [aspect, setAspect] = useState(9 / 16);
   const [at, setAt] = useState(0);
   const [busy, setBusy] = useState<"frame" | "file" | null>(null);
   const [err, setErr] = useState<string | null>(null);
 
-  useEffect(() => setMounted(true), []);
 
   // `onLoadedMetadata` peut avoir eu lieu avant que React n'attache le
   // gestionnaire quand le fichier est déjà en cache : on lit aussi l'élément.
@@ -143,22 +141,8 @@ export default function VideoCoverPicker({
 
       {/* Déplié : la fenêtre. Rendue dans <body> pour ne dépendre d'aucun
           conteneur de la page (défilement, transformations, z-index). */}
-      {open && mounted && createPortal(
-        <div
-          role="dialog" aria-modal="true" aria-label="Miniature de la vidéo"
-          onClick={() => setOpen(false)}
-          style={{ position: "fixed", inset: 0, zIndex: 9000, background: "rgba(7,33,23,.62)", display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}
-        >
-          <div
-            onClick={e => e.stopPropagation()}
-            style={{ width: "100%", maxWidth: 420, background: "var(--card, #fff)", borderRadius: "var(--r-l, 18px)", padding: "18px 18px 16px", boxShadow: "0 40px 90px -30px rgba(7,33,23,.55)", fontFamily: "var(--sans)" }}
-          >
-            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14 }}>
-              <span style={{ fontFamily: "var(--display)", fontWeight: 800, fontSize: 15, color: "var(--ink)" }}>Miniature de la vidéo</span>
-              <button onClick={() => setOpen(false)} className="mzchat-plus" style={{ marginLeft: "auto" }} aria-label="Fermer">
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><path d="M5 5l14 14M19 5L5 19" /></svg>
-              </button>
-            </div>
+      <Fiche open={open} onClose={() => setOpen(false)} label="Miniature de la vidéo" zIndex={9000} closeButton>
+            <h2 className="fiche-title" style={{ fontSize: 22, marginBottom: 18 }}>Miniature de la <em>vidéo</em></h2>
 
             <div style={{ display: "flex", justifyContent: "center" }}>
               <div style={{ height: BOX_H, width: BOX_H * aspect, maxWidth: "100%", borderRadius: 12, overflow: "hidden", background: "#000", boxShadow: "inset 0 0 0 1px var(--line)" }}>
@@ -208,10 +192,7 @@ export default function VideoCoverPicker({
             </div>
 
             {err && <p style={{ margin: "10px 0 0", fontSize: 11.5, color: "var(--warn)" }}>{err}</p>}
-          </div>
-        </div>,
-        document.body,
-      )}
+      </Fiche>
     </div>
   );
 }
