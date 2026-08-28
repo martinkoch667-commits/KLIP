@@ -37,8 +37,8 @@ function BancAudioDev() {
   async function lancer() {
     setJournal([]); setEnCours(true);
     try {
-      await mesurer("encodeur vidéo FERMÉ avant le son (le banc)", true);
-      await mesurer("encodeur vidéo ENCORE OUVERT (l'export réel)", false);
+      await mesurer("court : 3 secondes", true, 0.6, 3);
+      await mesurer("long : 36 secondes, comme un vrai montage", true, 0.6, 36);
     } finally { setEnCours(false); }
   }
 
@@ -46,15 +46,15 @@ function BancAudioDev() {
      du silence : l'export garde son encodeur VIDÉO ouvert pendant qu'il encode
      le son. Il ne le ferme qu'à la toute fin, dans son `finally`. On teste donc
      les deux ordres, sur le même son, dans la même page. */
-  async function mesurer(titre: string, fermerVideoAvant: boolean) {
+  async function mesurer(titre: string, fermerVideoAvant: boolean, ampleur: number, duree: number) {
     dire("── " + titre);
     try {
       // ── 1. un son dont on connaît la crête ──────────────────────────────
-      const DUREE = 3;
+      const DUREE = duree;
       const oac = new OfflineAudioContext(CHANNELS, DUREE * SAMPLE_RATE, SAMPLE_RATE);
       const osc = oac.createOscillator();
       osc.frequency.value = 440;
-      const g = oac.createGain(); g.gain.value = 0.6;
+      const g = oac.createGain(); g.gain.value = ampleur;
       osc.connect(g).connect(oac.destination);
       osc.start(0); osc.stop(DUREE);
       const mix = await oac.startRendering();

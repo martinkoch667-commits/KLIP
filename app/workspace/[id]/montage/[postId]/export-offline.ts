@@ -395,14 +395,43 @@ export async function renderExportOffline(
      le rendu hors ligne rend la main : l'export se replie sur la captation en
      temps réel, qui passe par des lecteurs — ce que le navigateur sait JOUER,
      il saura l'enregistrer, quel que soit le conteneur. */
-  let crete = 0;
+  /* ON REGARDE CHAQUE ÉCHANTILLON, ET ON LE REMET DANS LES CLOUS.
+
+     L'encodeur AAC attend des valeurs entre -1 et 1. Hors de cet intervalle, il
+     ne se plaint pas : il rend des trames parfaitement formées et VIDES. C'est
+     tout le mystère de ce silence — mélange correct, encodeur muet, aucune
+     erreur nulle part.
+
+     Or notre mélange peut largement dépasser 1. Le volume d'une piste monte à
+     200 % dans l'interface (et jusqu'à 400 % dans le calcul), et deux sources
+     qui jouent ensemble s'additionnent. Un son détaché remis à fond, plus le son
+     d'un plan, et on sort de l'intervalle sans que rien ne le signale.
+
+     Un NaN suffirait aussi, et ne se verrait pas davantage : `Math.abs(NaN)`
+     n'est jamais supérieur à quoi que ce soit, donc une crête mesurée à 0,98
+     peut parfaitement cacher des valeurs invalides.
+
+     On parcourt donc TOUT (et non un échantillon sur quatre-vingt-dix-sept),
+     on remplace ce qui n'est pas un nombre, et si ça dépasse on ramène
+     l'ensemble sous 1 en gardant les proportions. */
+  let crete = 0, invalides = 0;
   for (let ch = 0; ch < mix.numberOfChannels; ch++) {
     const d = mix.getChannelData(ch);
-    // Un échantillon sur 97 : assez pour trouver une crête, sans relire des
-    // millions de valeurs pour rien.
-    for (let i = 0; i < d.length; i += 97) { const v = Math.abs(d[i]); if (v > crete) crete = v; }
+    for (let i = 0; i < d.length; i++) {
+      const v = d[i];
+      if (!Number.isFinite(v)) { d[i] = 0; invalides++; continue; }
+      const a = v < 0 ? -v : v;
+      if (a > crete) crete = a;
+    }
   }
-  console.log("[export] crête du mélange audio :", crete.toFixed(4));
+  if (crete > 1) {
+    const facteur = 0.985 / crete;
+    for (let ch = 0; ch < mix.numberOfChannels; ch++) {
+      const d = mix.getChannelData(ch);
+      for (let i = 0; i < d.length; i++) d[i] *= facteur;
+    }
+  }
+  console.log(`[export] crête du mélange audio : ${crete.toFixed(4)}${crete > 1 ? " (ramenée sous 1)" : ""}${invalides ? ` · ${invalides} échantillons invalides corrigés` : ""}`);
   if (aDuSonAMettre(clips, overlays, project.audioTracks) && crete < 0.0005) {
     throw new Error("mélange audio muet : repli sur la captation");
   }
@@ -418,8 +447,26 @@ export async function renderExportOffline(
      Deux encodeurs matériels qui se disputent la même ressource, et c'est le
      second qui rend des trames vides sans lever la moindre erreur. On encode
      donc le son en premier, on ferme, et seulement ensuite on ouvre la vidéo. */
+  /* ON GARDE LES PREMIERS MORCEAUX POUR LES RÉÉCOUTER.
+
+     Tout ce qui précède est vérifié : le mélange contient du son, et la chaîne
+     d'encodage, rejouée au banc avec les mêmes réglages et la même durée, laisse
+     passer le son intact. Pourtant l'export rend du silence. Le défaut est donc
+     dans quelque chose que je ne sais pas reproduire — état de la machine,
+     ressource matérielle occupée, contexte de la page.
+
+     Alors on arrête de faire confiance. On redécode nos propres morceaux et on
+     écoute ce qu'ils contiennent VRAIMENT. S'ils sont vides, on ne livre pas un
+     fichier muet : on rend la main, et l'export bascule sur la captation en
+     temps réel, qui n'utilise pas du tout ce composant. */
+  const premiersMorceaux: EncodedAudioChunk[] = [];
+  let configDecodeur: AudioDecoderConfig | null = null;
   const audioEncoder = new AudioEncoder({
-    output: (chunk, meta) => muxer.addAudioChunk(chunk, meta),
+    output: (chunk, meta) => {
+      if (premiersMorceaux.length < 40) premiersMorceaux.push(chunk);
+      if (meta?.decoderConfig && !configDecodeur) configDecodeur = meta.decoderConfig as AudioDecoderConfig;
+      muxer.addAudioChunk(chunk, meta);
+    },
     error: (e) => { erreurEncodeur = e; },
   });
   audioEncoder.configure({ codec: "mp4a.40.2", sampleRate: SAMPLE_RATE, numberOfChannels: CHANNELS, bitrate: AUDIO_BITRATE });
@@ -443,6 +490,33 @@ export async function renderExportOffline(
   await audioEncoder.flush();
   audioEncoder.close();
   if (erreurEncodeur) throw erreurEncodeur;
+
+  // ── Réécoute de ce qu'on vient d'encoder ────────────────────────────────
+  if (crete > 0.01 && configDecodeur && premiersMorceaux.length > 0 && typeof AudioDecoder !== "undefined") {
+    let creteEncodee = 0;
+    try {
+      const decodeur = new AudioDecoder({
+        output: (donnees) => {
+          const n = donnees.numberOfFrames;
+          const tampon = new Float32Array(n);
+          try { donnees.copyTo(tampon, { planeIndex: 0, format: "f32-planar" }); } catch { /* format refusé */ }
+          for (let i = 0; i < n; i++) { const a = Math.abs(tampon[i]); if (a > creteEncodee) creteEncodee = a; }
+          donnees.close();
+        },
+        error: () => { /* un décodage raté ne condamne pas l'export */ },
+      });
+      decodeur.configure(configDecodeur);
+      // On saute les premières trames : un encodeur AAC commence par un court
+      // silence d'amorçage, parfaitement normal, qui ne dit rien du reste.
+      for (const morceau of premiersMorceaux.slice(4)) decodeur.decode(morceau);
+      await decodeur.flush();
+      decodeur.close();
+    } catch { /* pas de décodeur : on ne peut pas vérifier, on continue */ }
+    console.log("[export] réécoute du son encodé · crête :", creteEncodee.toFixed(4));
+    if (creteEncodee < 0.0005) {
+      throw new Error("le son encodé est muet alors que le mélange ne l'est pas : repli sur la captation");
+    }
+  }
 
   // L'encodeur vidéo n'est ouvert QU'APRÈS la fermeture de celui du son.
   const videoEncoder = new VideoEncoder({
