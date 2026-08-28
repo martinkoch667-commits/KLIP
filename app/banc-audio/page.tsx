@@ -37,6 +37,18 @@ function BancAudioDev() {
   async function lancer() {
     setJournal([]); setEnCours(true);
     try {
+      await mesurer("encodeur vidéo FERMÉ avant le son (le banc)", true);
+      await mesurer("encodeur vidéo ENCORE OUVERT (l'export réel)", false);
+    } finally { setEnCours(false); }
+  }
+
+  /* La seule différence entre mon banc, qui marche, et l'export réel, qui rend
+     du silence : l'export garde son encodeur VIDÉO ouvert pendant qu'il encode
+     le son. Il ne le ferme qu'à la toute fin, dans son `finally`. On teste donc
+     les deux ordres, sur le même son, dans la même page. */
+  async function mesurer(titre: string, fermerVideoAvant: boolean) {
+    dire("── " + titre);
+    try {
       // ── 1. un son dont on connaît la crête ──────────────────────────────
       const DUREE = 3;
       const oac = new OfflineAudioContext(CHANNELS, DUREE * SAMPLE_RATE, SAMPLE_RATE);
@@ -70,7 +82,8 @@ function BancAudioDev() {
         ve.encode(f, { keyFrame: k % 30 === 0 });
         f.close();
       }
-      await ve.flush(); ve.close();
+      await ve.flush();
+      if (fermerVideoAvant) ve.close();
       dire("images encodées");
 
       let chunksAudio = 0, octetsAudio = 0, configRecue = false;
@@ -131,10 +144,9 @@ function BancAudioDev() {
       dire(creteSortie < 0.001
         ? "VERDICT : le son entre et ne ressort pas — le défaut est dans cette chaîne."
         : "VERDICT : la chaîne est saine, le son traverse.");
+      if (!fermerVideoAvant) { try { ve.close(); } catch { /* déjà fermé */ } }
     } catch (e) {
       dire("EXCEPTION : " + String(e));
-    } finally {
-      setEnCours(false);
     }
   }
 

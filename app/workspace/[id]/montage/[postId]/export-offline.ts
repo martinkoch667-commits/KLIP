@@ -284,14 +284,7 @@ export async function renderExportOffline(
   });
 
   let erreurEncodeur: unknown = null;
-  const videoEncoder = new VideoEncoder({
-    output: (chunk, meta) => muxer.addVideoChunk(chunk, meta),
-    error: (e) => { erreurEncodeur = e; },
-  });
-  videoEncoder.configure({
-    codec, width: W, height: H, bitrate, framerate: FPS,
-    avc: { format: "avc" }, latencyMode: "quality",
-  });
+;
 
   const canvas = document.createElement("canvas");
   canvas.width = W; canvas.height = H;
@@ -414,6 +407,53 @@ export async function renderExportOffline(
     throw new Error("mélange audio muet : repli sur la captation");
   }
 
+  /* LE SON EST ENCODÉ AVANT LES IMAGES, ET SON ENCODEUR EST REFERMÉ AUSSITÔT.
+
+     C'est la seule différence structurelle entre l'export, qui rendait du
+     silence, et le banc d'essai qui laisse passer le son avec exactement les
+     mêmes réglages : le banc n'a jamais qu'UN encodeur vivant à la fois, tandis
+     que l'export gardait son encodeur vidéo ouvert — il ne le fermait que dans
+     son `finally` — pendant tout l'encodage du son.
+
+     Deux encodeurs matériels qui se disputent la même ressource, et c'est le
+     second qui rend des trames vides sans lever la moindre erreur. On encode
+     donc le son en premier, on ferme, et seulement ensuite on ouvre la vidéo. */
+  const audioEncoder = new AudioEncoder({
+    output: (chunk, meta) => muxer.addAudioChunk(chunk, meta),
+    error: (e) => { erreurEncodeur = e; },
+  });
+  audioEncoder.configure({ codec: "mp4a.40.2", sampleRate: SAMPLE_RATE, numberOfChannels: CHANNELS, bitrate: AUDIO_BITRATE });
+
+  const gauche = mix.getChannelData(0);
+  const droite = mix.numberOfChannels > 1 ? mix.getChannelData(1) : gauche;
+  const BLOC = 1024;
+  for (let off = 0; off < mix.length; off += BLOC) {
+    const n = Math.min(BLOC, mix.length - off);
+    const data = new Float32Array(n * CHANNELS);
+    data.set(gauche.subarray(off, off + n), 0);
+    data.set(droite.subarray(off, off + n), n);
+    const ad = new AudioData({
+      format: "f32-planar", sampleRate: SAMPLE_RATE, numberOfFrames: n,
+      numberOfChannels: CHANNELS, timestamp: Math.round((off / SAMPLE_RATE) * 1e6), data,
+    });
+    audioEncoder.encode(ad);
+    ad.close();
+    if (audioEncoder.encodeQueueSize > 32) await new Promise((r) => setTimeout(r, 2));
+  }
+  await audioEncoder.flush();
+  audioEncoder.close();
+  if (erreurEncodeur) throw erreurEncodeur;
+
+  // L'encodeur vidéo n'est ouvert QU'APRÈS la fermeture de celui du son.
+  const videoEncoder = new VideoEncoder({
+    output: (chunk, meta) => muxer.addVideoChunk(chunk, meta),
+    error: (e) => { erreurEncodeur = e; },
+  });
+  videoEncoder.configure({
+    codec, width: W, height: H, bitrate, framerate: FPS,
+    avc: { format: "avc" }, latencyMode: "quality",
+  });
+
   const totalFrames = Math.max(1, Math.round(total * FPS));
   let thumbnailBlob: Blob | null = null;
   let iCourant = -1;
@@ -511,35 +551,8 @@ export async function renderExportOffline(
     }
 
     await videoEncoder.flush();
-    onProgress(0.82);
-
-
-    const audioEncoder = new AudioEncoder({
-      output: (chunk, meta) => muxer.addAudioChunk(chunk, meta),
-      error: (e) => { erreurEncodeur = e; },
-    });
-    audioEncoder.configure({ codec: "mp4a.40.2", sampleRate: SAMPLE_RATE, numberOfChannels: CHANNELS, bitrate: AUDIO_BITRATE });
-
-    const gauche = mix.getChannelData(0);
-    const droite = mix.numberOfChannels > 1 ? mix.getChannelData(1) : gauche;
-    const BLOC = 1024;
-    for (let off = 0; off < mix.length; off += BLOC) {
-      const n = Math.min(BLOC, mix.length - off);
-      const data = new Float32Array(n * CHANNELS);
-      data.set(gauche.subarray(off, off + n), 0);
-      data.set(droite.subarray(off, off + n), n);
-      const ad = new AudioData({
-        format: "f32-planar", sampleRate: SAMPLE_RATE, numberOfFrames: n,
-        numberOfChannels: CHANNELS, timestamp: Math.round((off / SAMPLE_RATE) * 1e6), data,
-      });
-      audioEncoder.encode(ad);
-      ad.close();
-      if (audioEncoder.encodeQueueSize > 32) await new Promise((r) => setTimeout(r, 2));
-    }
-    await audioEncoder.flush();
-    audioEncoder.close();
-    if (erreurEncodeur) throw erreurEncodeur;
-
+    // Le son, lui, est déjà écrit : il a été encodé avant la première image,
+    // avec son propre encodeur, refermé aussitôt.
     onProgress(0.97);
     muxer.finalize();
     const blob = new Blob([muxer.target.buffer], { type: "video/mp4" });
