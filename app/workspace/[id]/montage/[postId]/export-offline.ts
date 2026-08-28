@@ -27,10 +27,11 @@ import {
   MontageClip, OverlayClip, AudioTrack,
   clipAudioGainAt, overlayTimelineDur, overlayAudioGainAt, audioVolumeAt,
   kenBurnsScale, clipFilterCss, videoFormatById, exportQualityById,
+  transitionPairAt, estTransitionGl, type TransitionState,
 } from "./constants";
 import {
   ExportProject, ExportResult, ClipTimed, withStarts, FPS, setCanvasSize,
-  drawCover, drawMediaFrame, drawCaptions, drawTitles, drawStickers,
+  drawCover, drawMediaFrame, drawMediaWithState, drawTransitionVeils, drawGlTransitionFrame, drawCaptions, drawTitles, drawStickers,
   drawOverlayFrame, drawProgressBar, loadImage,
 } from "./render-core";
 
@@ -156,11 +157,14 @@ async function melangerAudio(
       p = (async () => {
         try {
           const r = await fetch(src, { mode: "cors" });
-          if (!r.ok) return null;
+          if (!r.ok) { console.warn("[export] son introuvable :", r.status, src.slice(0, 90)); return null; }
           return await oac.decodeAudioData(await r.arrayBuffer());
-        } catch {
-          // Source muette, illisible, ou piste audio absente du conteneur :
-          // ce n'est pas une raison de faire échouer tout l'export.
+        } catch (e) {
+          /* `decodeAudioData` ne sait pas ouvrir tous les conteneurs : un .mov,
+             par exemple, est refusé par Chrome alors que le lecteur vidéo le joue
+             sans problème. On le DIT, au lieu de rendre un fichier muet sans que
+             personne comprenne pourquoi. L'appelant, lui, saura se replier. */
+          console.warn("[export] son non décodable, source ignorée :", src.slice(0, 90), e);
           return null;
         }
       })();
@@ -200,6 +204,19 @@ async function melangerAudio(
   const buffers = await Promise.all(aiguillages.map((a) => decoder(a.src)));
   onProgress(1);
 
+  /* AUCUNE source décodée alors qu'il y avait du son à mettre : on rend la main
+     plutôt qu'un fichier muet.
+
+     C'est exactement ce qui arrive quand le son a été détaché d'un plan : la
+     piste audio pointe vers le fichier vidéo d'origine, et si `decodeAudioData`
+     ne sait pas ouvrir ce conteneur, TOUT le son de l'export disparaît d'un
+     coup, sans un mot. L'appelant se replie alors sur la captation en temps
+     réel, qui passe par un lecteur : ce que le navigateur sait JOUER, il saura
+     l'enregistrer. */
+  if (aiguillages.length > 0 && buffers.every((b) => !b)) {
+    throw new Error("aucune piste sonore décodable : repli sur la captation");
+  }
+
   aiguillages.forEach((a, i) => {
     const buf = buffers[i];
     if (!buf) return;
@@ -219,6 +236,13 @@ async function melangerAudio(
   });
 
   return oac.startRendering();
+}
+
+/** Le montage contient-il quelque chose qui devrait s'entendre ? */
+function aDuSonAMettre(clips: ClipTimed[], overlays: OverlayClip[], pistes: AudioTrack[]): boolean {
+  if (pistes.some((t) => t.dur > 0)) return true;
+  if (clips.some((c) => c.kind === "video" && (c.vol ?? 1) > 0 && c.dur > 0)) return true;
+  return overlays.some((o) => o.kind === "video" && (o.vol ?? 1) > 0);
 }
 
 // ── Rendu ──────────────────────────────────────────────────────────────────
@@ -260,14 +284,7 @@ export async function renderExportOffline(
   });
 
   let erreurEncodeur: unknown = null;
-  const videoEncoder = new VideoEncoder({
-    output: (chunk, meta) => muxer.addVideoChunk(chunk, meta),
-    error: (e) => { erreurEncodeur = e; },
-  });
-  videoEncoder.configure({
-    codec, width: W, height: H, bitrate, framerate: FPS,
-    avc: { format: "avc" }, latencyMode: "quality",
-  });
+;
 
   const canvas = document.createElement("canvas");
   canvas.width = W; canvas.height = H;
@@ -322,23 +339,11 @@ export async function renderExportOffline(
 
   // Fondu enchaîné : le plan sortant continue d'avancer sous le plan entrant.
   // Même géométrie que l'aperçu et que le chemin temps réel.
-  function dessinerFondu(m: Media, c: ClipTimed, localT: number, alpha: number) {
+  /** Un des deux plans d'une transition, avec l'état qui lui revient. */
+  function dessinerCote(m: Media, c: ClipTimed, localT: number, st: TransitionState) {
     const media = m.video ?? m.img;
     if (!media) return;
-    const mw = m.video ? m.video.videoWidth : m.img!.naturalWidth;
-    const mh = m.video ? m.video.videoHeight : m.img!.naturalHeight;
-    const kbP = c.dur > 0 ? Math.min(1, Math.max(0, localT / c.dur)) : 0;
-    const kbScale = c.kind === "photo" ? kenBurnsScale(c.kenBurns, kbP) : 1;
-    ctx.save();
-    ctx.globalAlpha = alpha;
-    ctx.filter = clipFilterCss(c) || "none";
-    if (kbScale !== 1) {
-      ctx.translate(W / 2, H / 2);
-      ctx.scale(kbScale, kbScale);
-      ctx.translate(-W / 2, -H / 2);
-    }
-    drawCover(ctx, media, mw, mh, c.focusX, c.focusY);
-    ctx.restore();
+    drawMediaWithState(ctx, media, c, localT, st);
   }
 
   /** Instant à atteindre DANS la source pour un plan vidéo, à `localT` sur la
@@ -351,12 +356,177 @@ export async function renderExportOffline(
   }
 
   // Un plan est-il « en fondu enchaîné d'entrée » à cet instant ?
-  function fonduEntree(i: number): number {
+  /** Durée pendant laquelle le plan `i` cohabite avec celui d'avant.
+   *  C'était réservé au fondu ; toutes les transitions se jouent maintenant à
+   *  deux, un balayage sans le plan qu'il balaie n'ayant aucun sens. */
+  function recouvrementEntree(i: number): number {
     const c = clips[i];
-    if (i <= 0 || c.transitionIn !== "fade" || !(c.transitionDur > 0)) return 0;
+    if (i <= 0 || !c.transitionIn || c.transitionIn === "cut" || !(c.transitionDur > 0)) return 0;
+    // À travers un écran noir, il n'y a rien à enchaîner.
     if (Math.max(0, c.gapBefore ?? 0) > 0) return 0;
     return Math.min(c.transitionDur, clips[i - 1].dur);
   }
+
+  /* LE SON D'ABORD, ET ON VÉRIFIE QU'IL Y EN A.
+
+     Le mélange se faisait APRÈS le rendu de toutes les images. Quand il sortait
+     muet, on l'apprenait trop tard : le repli sur la captation en temps réel
+     obligeait à tout refaire une seconde fois.
+
+     Et il sort muet plus souvent qu'on ne croit. `decodeAudioData` n'ouvre pas
+     les fichiers qui contiennent une piste VIDÉO — mesuré sur nos propres
+     exports : le fichier est valide, la fonction le refuse quand même. Or TOUTES
+     nos sources sont des fichiers vidéo, y compris le son détaché d'un plan. Le
+     mélange était alors du silence numérique parfait, encodé sans broncher :
+     durée juste, poids juste, en-têtes justes, et pas un son.
+
+     On le fait donc en premier, et s'il est vide on rend la main tout de suite. */
+  const mix = await melangerAudio(clips, overlays, project.audioTracks, total, () => onProgress(0.04));
+  onProgress(0.05);
+
+  /* ON ÉCOUTE CE QU'ON S'APPRÊTE À ENCODER.
+
+     L'encodeur travaille à débit fixe : il remplit ses trames à 128 kbit/s que
+     le signal soit une voix ou du silence. Un fichier muet ressemble donc en
+     tout point à un fichier sonore — même durée, même poids, même déclaration.
+     C'est pour ça que le problème a pu passer plusieurs fois entre les mailles.
+
+     On mesure donc la crête du mélange avant de l'encoder. Si elle est nulle,
+     le rendu hors ligne rend la main : l'export se replie sur la captation en
+     temps réel, qui passe par des lecteurs — ce que le navigateur sait JOUER,
+     il saura l'enregistrer, quel que soit le conteneur. */
+  /* ON REGARDE CHAQUE ÉCHANTILLON, ET ON LE REMET DANS LES CLOUS.
+
+     L'encodeur AAC attend des valeurs entre -1 et 1. Hors de cet intervalle, il
+     ne se plaint pas : il rend des trames parfaitement formées et VIDES. C'est
+     tout le mystère de ce silence — mélange correct, encodeur muet, aucune
+     erreur nulle part.
+
+     Or notre mélange peut largement dépasser 1. Le volume d'une piste monte à
+     200 % dans l'interface (et jusqu'à 400 % dans le calcul), et deux sources
+     qui jouent ensemble s'additionnent. Un son détaché remis à fond, plus le son
+     d'un plan, et on sort de l'intervalle sans que rien ne le signale.
+
+     Un NaN suffirait aussi, et ne se verrait pas davantage : `Math.abs(NaN)`
+     n'est jamais supérieur à quoi que ce soit, donc une crête mesurée à 0,98
+     peut parfaitement cacher des valeurs invalides.
+
+     On parcourt donc TOUT (et non un échantillon sur quatre-vingt-dix-sept),
+     on remplace ce qui n'est pas un nombre, et si ça dépasse on ramène
+     l'ensemble sous 1 en gardant les proportions. */
+  let crete = 0, invalides = 0;
+  for (let ch = 0; ch < mix.numberOfChannels; ch++) {
+    const d = mix.getChannelData(ch);
+    for (let i = 0; i < d.length; i++) {
+      const v = d[i];
+      if (!Number.isFinite(v)) { d[i] = 0; invalides++; continue; }
+      const a = v < 0 ? -v : v;
+      if (a > crete) crete = a;
+    }
+  }
+  if (crete > 1) {
+    const facteur = 0.985 / crete;
+    for (let ch = 0; ch < mix.numberOfChannels; ch++) {
+      const d = mix.getChannelData(ch);
+      for (let i = 0; i < d.length; i++) d[i] *= facteur;
+    }
+  }
+  console.log(`[export] crête du mélange audio : ${crete.toFixed(4)}${crete > 1 ? " (ramenée sous 1)" : ""}${invalides ? ` · ${invalides} échantillons invalides corrigés` : ""}`);
+  if (aDuSonAMettre(clips, overlays, project.audioTracks) && crete < 0.0005) {
+    throw new Error("mélange audio muet : repli sur la captation");
+  }
+
+  /* LE SON EST ENCODÉ AVANT LES IMAGES, ET SON ENCODEUR EST REFERMÉ AUSSITÔT.
+
+     C'est la seule différence structurelle entre l'export, qui rendait du
+     silence, et le banc d'essai qui laisse passer le son avec exactement les
+     mêmes réglages : le banc n'a jamais qu'UN encodeur vivant à la fois, tandis
+     que l'export gardait son encodeur vidéo ouvert — il ne le fermait que dans
+     son `finally` — pendant tout l'encodage du son.
+
+     Deux encodeurs matériels qui se disputent la même ressource, et c'est le
+     second qui rend des trames vides sans lever la moindre erreur. On encode
+     donc le son en premier, on ferme, et seulement ensuite on ouvre la vidéo. */
+  /* ON GARDE LES PREMIERS MORCEAUX POUR LES RÉÉCOUTER.
+
+     Tout ce qui précède est vérifié : le mélange contient du son, et la chaîne
+     d'encodage, rejouée au banc avec les mêmes réglages et la même durée, laisse
+     passer le son intact. Pourtant l'export rend du silence. Le défaut est donc
+     dans quelque chose que je ne sais pas reproduire — état de la machine,
+     ressource matérielle occupée, contexte de la page.
+
+     Alors on arrête de faire confiance. On redécode nos propres morceaux et on
+     écoute ce qu'ils contiennent VRAIMENT. S'ils sont vides, on ne livre pas un
+     fichier muet : on rend la main, et l'export bascule sur la captation en
+     temps réel, qui n'utilise pas du tout ce composant. */
+  const premiersMorceaux: EncodedAudioChunk[] = [];
+  let configDecodeur: AudioDecoderConfig | null = null;
+  const audioEncoder = new AudioEncoder({
+    output: (chunk, meta) => {
+      if (premiersMorceaux.length < 40) premiersMorceaux.push(chunk);
+      if (meta?.decoderConfig && !configDecodeur) configDecodeur = meta.decoderConfig as AudioDecoderConfig;
+      muxer.addAudioChunk(chunk, meta);
+    },
+    error: (e) => { erreurEncodeur = e; },
+  });
+  audioEncoder.configure({ codec: "mp4a.40.2", sampleRate: SAMPLE_RATE, numberOfChannels: CHANNELS, bitrate: AUDIO_BITRATE });
+
+  const gauche = mix.getChannelData(0);
+  const droite = mix.numberOfChannels > 1 ? mix.getChannelData(1) : gauche;
+  const BLOC = 1024;
+  for (let off = 0; off < mix.length; off += BLOC) {
+    const n = Math.min(BLOC, mix.length - off);
+    const data = new Float32Array(n * CHANNELS);
+    data.set(gauche.subarray(off, off + n), 0);
+    data.set(droite.subarray(off, off + n), n);
+    const ad = new AudioData({
+      format: "f32-planar", sampleRate: SAMPLE_RATE, numberOfFrames: n,
+      numberOfChannels: CHANNELS, timestamp: Math.round((off / SAMPLE_RATE) * 1e6), data,
+    });
+    audioEncoder.encode(ad);
+    ad.close();
+    if (audioEncoder.encodeQueueSize > 32) await new Promise((r) => setTimeout(r, 2));
+  }
+  await audioEncoder.flush();
+  audioEncoder.close();
+  if (erreurEncodeur) throw erreurEncodeur;
+
+  // ── Réécoute de ce qu'on vient d'encoder ────────────────────────────────
+  if (crete > 0.01 && configDecodeur && premiersMorceaux.length > 0 && typeof AudioDecoder !== "undefined") {
+    let creteEncodee = 0;
+    try {
+      const decodeur = new AudioDecoder({
+        output: (donnees) => {
+          const n = donnees.numberOfFrames;
+          const tampon = new Float32Array(n);
+          try { donnees.copyTo(tampon, { planeIndex: 0, format: "f32-planar" }); } catch { /* format refusé */ }
+          for (let i = 0; i < n; i++) { const a = Math.abs(tampon[i]); if (a > creteEncodee) creteEncodee = a; }
+          donnees.close();
+        },
+        error: () => { /* un décodage raté ne condamne pas l'export */ },
+      });
+      decodeur.configure(configDecodeur);
+      // On saute les premières trames : un encodeur AAC commence par un court
+      // silence d'amorçage, parfaitement normal, qui ne dit rien du reste.
+      for (const morceau of premiersMorceaux.slice(4)) decodeur.decode(morceau);
+      await decodeur.flush();
+      decodeur.close();
+    } catch { /* pas de décodeur : on ne peut pas vérifier, on continue */ }
+    console.log("[export] réécoute du son encodé · crête :", creteEncodee.toFixed(4));
+    if (creteEncodee < 0.0005) {
+      throw new Error("le son encodé est muet alors que le mélange ne l'est pas : repli sur la captation");
+    }
+  }
+
+  // L'encodeur vidéo n'est ouvert QU'APRÈS la fermeture de celui du son.
+  const videoEncoder = new VideoEncoder({
+    output: (chunk, meta) => muxer.addVideoChunk(chunk, meta),
+    error: (e) => { erreurEncodeur = e; },
+  });
+  videoEncoder.configure({
+    codec, width: W, height: H, bitrate, framerate: FPS,
+    avc: { format: "avc" }, latencyMode: "quality",
+  });
 
   const totalFrames = Math.max(1, Math.round(total * FPS));
   let thumbnailBlob: Blob | null = null;
@@ -388,17 +558,26 @@ export async function renderExportOffline(
         const localT = Math.min(t - c.start, Math.max(0, c.dur - 1e-4));
         if (m.video) await seekPrecis(m.video, tempsSource(c, localT));
 
-        const fondu = fonduEntree(i);
-        if (fondu > 0 && t - c.start < fondu) {
+        const recouvrement = recouvrementEntree(i);
+        if (recouvrement > 0 && t - c.start < recouvrement) {
           // Les deux plans cohabitent : le sortant poursuit sa course au delà de
           // sa propre fin, exactement comme dans l'aperçu.
           const prev = clips[i - 1];
           const mp = await ouvrir(i - 1)!;
           const localPrev = prev.dur + (t - c.start);
           if (mp.video) await seekPrecis(mp.video, tempsSource(prev, localPrev));
-          const p = (t - c.start) / fondu;
-          dessinerFondu(mp, prev, localPrev, 1 - p);
-          dessinerFondu(m, c, localT, p);
+          const avancement = (t - c.start) / recouvrement;
+          const mediaPrev = mp.video ?? mp.img, mediaCur = m.video ?? m.img;
+          // Transition à shader : WebGL compose les deux plans. S'il n'est pas
+          // là, on continue en dessous avec le fondu de repli.
+          const faitEnGl = estTransitionGl(c.transitionIn) && !!mediaPrev && !!mediaCur
+            && drawGlTransitionFrame(ctx, mediaPrev, prev, localPrev, mediaCur, c, localT, c.transitionIn!, avancement);
+          if (!faitEnGl) {
+            const paire = transitionPairAt(c.transitionIn, c.transitionDur, t - c.start, false);
+            dessinerCote(mp, prev, localPrev, paire.out);
+            dessinerCote(m, c, localT, paire.in);
+            drawTransitionVeils(ctx, paire.in);
+          }
         } else if (m.video || m.img) {
           drawMediaFrame(ctx, (m.video ?? m.img)!, c, localT, i === 0);
         }
@@ -442,47 +621,17 @@ export async function renderExportOffline(
       if (erreurEncodeur) throw erreurEncodeur;
 
       // 0 → 0,80 : les images. Le reste va au son et à la finalisation.
-      if (k % 5 === 0) onProgress((k / totalFrames) * 0.8);
+      if (k % 5 === 0) onProgress(0.05 + (k / totalFrames) * 0.8);
     }
 
     await videoEncoder.flush();
-    onProgress(0.82);
-
-    // ── Son ────────────────────────────────────────────────────────────────
-    const mix = await melangerAudio(clips, overlays, project.audioTracks, total, () => onProgress(0.86));
-    onProgress(0.9);
-
-    const audioEncoder = new AudioEncoder({
-      output: (chunk, meta) => muxer.addAudioChunk(chunk, meta),
-      error: (e) => { erreurEncodeur = e; },
-    });
-    audioEncoder.configure({ codec: "mp4a.40.2", sampleRate: SAMPLE_RATE, numberOfChannels: CHANNELS, bitrate: AUDIO_BITRATE });
-
-    const gauche = mix.getChannelData(0);
-    const droite = mix.numberOfChannels > 1 ? mix.getChannelData(1) : gauche;
-    const BLOC = 1024;
-    for (let off = 0; off < mix.length; off += BLOC) {
-      const n = Math.min(BLOC, mix.length - off);
-      const data = new Float32Array(n * CHANNELS);
-      data.set(gauche.subarray(off, off + n), 0);
-      data.set(droite.subarray(off, off + n), n);
-      const ad = new AudioData({
-        format: "f32-planar", sampleRate: SAMPLE_RATE, numberOfFrames: n,
-        numberOfChannels: CHANNELS, timestamp: Math.round((off / SAMPLE_RATE) * 1e6), data,
-      });
-      audioEncoder.encode(ad);
-      ad.close();
-      if (audioEncoder.encodeQueueSize > 32) await new Promise((r) => setTimeout(r, 2));
-    }
-    await audioEncoder.flush();
-    audioEncoder.close();
-    if (erreurEncodeur) throw erreurEncodeur;
-
+    // Le son, lui, est déjà écrit : il a été encodé avant la première image,
+    // avec son propre encodeur, refermé aussitôt.
     onProgress(0.97);
     muxer.finalize();
     const blob = new Blob([muxer.target.buffer], { type: "video/mp4" });
     onProgress(1);
-    return { blob, thumbnailBlob, mimeType: "video/mp4" };
+    return { blob, thumbnailBlob, mimeType: "video/mp4", creteAudio: crete, moteur: "hors-ligne" };
   } finally {
     try { if (videoEncoder.state !== "closed") videoEncoder.close(); } catch { /* déjà fermé */ }
     for (const i of Array.from(reserve.keys())) relacher(i);

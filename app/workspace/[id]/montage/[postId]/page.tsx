@@ -7,15 +7,15 @@ import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
 import { VIcon } from "./icons";
 import {
   MontageClip, OverlayClip, Caption, TitleEl, StickerEl, AudioTrack, MontageProject, SubCustom,
-  FILTERS, TRANSITIONS, SUB_STYLES, FONT_CHOICES, SUB_LENGTHS, DEFAULT_WORDS_PER_CAPTION, DEFAULT_SUB_POS,
+  FILTERS, TRANSITIONS, TRANSITION_PAR_ID, SUB_STYLES, FONT_CHOICES, SUB_LENGTHS, DEFAULT_WORDS_PER_CAPTION, DEFAULT_SUB_POS,
   subStyleById, effectiveSubStyle, resolveCapStyle, resolveCapPos, subtitleBoxCss, subBgLayerCss, curveLayout, SUB_BASE_FONT, applySubCase, DEFAULT_SUB_STYLE_ID,
   captionPartAt, subLines,
-  transitionStateAt, transitionCss,
   // (analyzeClipQuality importé depuis ./autoCut plus bas)
   fmt, newClipDefaults, newOverlayDefaults, clipFilterCss, overlayFilterCss, clipTimelineDur, clipAudioGainAt, overlayTimelineDur, overlayAudioGainAt, segmentCaptions, captionsFromWords, dedupeSegments,
   audioVolumeAt, audioSrcDur, creneauLibre, kenBurnsScale, withAlpha,
   titleLook, titleShadowCss, titleWeight, titleItalic, VIDEO_FORMATS, videoFormatById, EXPORT_QUALITIES,
   overlayEffectCss,
+  transitionPairAt, transitionCss, estTransitionGl, type TransitionState,
   TITLE_BASE_FONT, TITLE_LINE_HEIGHT, TITLE_DEFAULT_MAX_WIDTH, titleLines, titleBoxWidth,
 } from "./constants";
 import { ClipStrip, ClipWave, AudioWave, FadeRamp, type ClipStripData } from "./timeline-parts";
@@ -23,6 +23,8 @@ import { chargerPoliceGoogle, declarerPoliceMaison, surPolicesChargees } from ".
 import { lectureRapideDisponible, infosVideo, dureeAudio, imagesAux, enJpeg, vignettes, picsAudio, fermerSources } from "./media-read";
 import { MontageCtx, CutPanel, TextPanel, CaptionsPanel, AudioPanel, TransitionsPanel, FilterPanel, SpeedPanel, StickerPanel, OverlayPanel, AiPanel } from "./panels";
 import { renderExport } from "./export";
+import { drawTransitionFrame, drawPlanFixe } from "./render-core";
+import { PerfHud, useCompteurRendus } from "./perf-hud";
 import { analyzeClipQuality, type TWord } from "./autoCut";
 import {
   runPreEdit, trimClipsByQuality, tightenSpeech, buildCaptions,
@@ -801,13 +803,95 @@ export default function MontagePage() {
   const slotClipRef = useRef<[string | null, string | null]>([null, null]);
   const lastSeekRef = useRef(0); // temporisation des recalages de dérive
   const mediaErrRef = useRef<Set<string>>(new Set()); // sources déjà signalées comme illisibles
+  /* Mesure de performance, ouverte avec ?perf=1. Rien du tout sans : ni
+     compteur, ni Profiler, ni observateur. On a passé plusieurs tours à deviner
+     d'où venait la saccade ; ce panneau la fait dire à la machine. */
+  const [perf] = useState(() => typeof window !== "undefined" && new URLSearchParams(window.location.search).get("perf") === "1");
+  const compteurRendus = useCompteurRendus(perf);
+  const dureeRenduRef = useRef(0);
+  /** Coût réel d'un changement de plan : de la bascule à la première image
+   *  affichée du nouveau lecteur. Rempli seulement en mode mesure. */
+  const coutCoupeRef = useRef(0);
+  /* Durée d'un rendu, mesurée SANS le Profiler de React : celui-ci ne rapporte
+     rien dans une version de production, et c'est justement là qu'on mesure.
+     On note l'heure en entrant dans le corps du composant, et on la relit dans
+     un effet sans dépendances, qui s'exécute après chaque rendu : l'écart couvre
+     le rendu ET la pose dans le DOM. */
+  const debutRenduRef = useRef(0);
+  if (perf) debutRenduRef.current = performance.now();
+  useEffect(() => {
+    if (!perf) return;
+    // Moyenne glissante : un rendu isolé ne dit rien, la tendance si.
+    const d = performance.now() - debutRenduRef.current;
+    dureeRenduRef.current = dureeRenduRef.current * 0.8 + d * 0.2;
+  });
+
   const [slot, setSlot] = useState<0 | 1>(0);
+  // Couches de l'aperçu : l'image entrante, l'image figée du plan sortant, et la
+  // toile réservée aux transitions à shader.
+  const imgInRef = useRef<HTMLImageElement>(null);
+  const imgOutRef = useRef<HTMLImageElement>(null);
+  const glCanvasRef = useRef<HTMLCanvasElement>(null);
+  // Jonction visée par un glisser en cours, pour qu'on voie où ça va tomber.
+  const [jonctionSurvolee, setJonctionSurvolee] = useState<string | null>(null);
+  /* Transition sélectionnée, désignée par le plan ENTRANT qui la porte. Elle est
+     un objet de la timeline comme un autre : on la choisit, on la règle, on la
+     supprime. Sans ça, on pouvait poser une transition mais jamais la retirer. */
+  const [selectedTransId, setSelectedTransId] = useState<string | null>(null);
+
+  /** La coupe la plus proche d'une abscisse écran, ou null s'il n'y en a pas.
+   *  Viser un rond de vingt-deux pixels à la souris, en glissant, rate une fois
+   *  sur deux : on accepte le dépôt N'IMPORTE OÙ sur la piste et on choisit la
+   *  coupe la plus proche. */
+  function jonctionLaPlusProche(clientX: number): string | null {
+    const r = rulerRef.current?.getBoundingClientRect();
+    if (!r || clipStarts.length < 2) return null;
+    const t = (clientX - r.left) / pps;
+    let meilleur: { id: string; d: number } | null = null;
+    for (let i = 1; i < clipStarts.length; i++) {
+      const d = Math.abs(clipStarts[i].start - t);
+      if (!meilleur || d < meilleur.d) meilleur = { id: clipStarts[i].id, d };
+    }
+    return meilleur ? meilleur.id : null;
+  }
+
+  /** Pose la transition `id` sur la coupe qui précède le plan `clipId`. */
+  function poserTransition(clipId: string, transId: string) {
+    const cible = clipStarts.find((c) => c.id === clipId);
+    if (!cible || !TRANSITIONS.some((tr) => tr.id === transId)) return;
+    updateClip(clipId, { transitionIn: transId, transitionDur: cible.transitionDur || 0.5 });
+    deselectAll();
+    setSelectedTransId(transId === "cut" ? null : clipId);
+    setSelectedClipId(clipId);
+    setTool("transitions");
+    toast(tc(`transition.${transId}`));
+  }
+
+  const estGlisserTransition = (dt: DataTransfer) =>
+    dt.types.includes("application/x-klip-transition") || dt.types.includes("text/plain");
+  /** L'identifiant transporté, quel que soit le format qui a survécu au voyage. */
+  function transitionGlissee(dt: DataTransfer): string | null {
+    const direct = dt.getData("application/x-klip-transition");
+    if (direct && TRANSITIONS.some((tr) => tr.id === direct)) return direct;
+    const texte = dt.getData("text/plain");
+    if (texte.startsWith("klip-transition:")) {
+      const id = texte.slice("klip-transition:".length);
+      if (TRANSITIONS.some((tr) => tr.id === id)) return id;
+    }
+    return null;
+  }
   // Miroir SYNCHRONE de `slot`. Indispensable : `setSlot()` n'est appliqué qu'au rendu
   // suivant, or l'effet de préchargement se rejoue DANS LE MÊME commit que la bascule
   // de plan. Avec l'ancienne valeur d'état il calculait « lecteur libre = celui qui
   // vient de devenir actif » et le mettait en pause en le déplaçant sur le plan
   // suivant — d'où l'image bloquée en boucle sur deux frames.
   const activeSlotRef = useRef<0 | 1>(0);
+  /** Le plan qui était à l'antenne juste avant : sert à reconnaître une coulée
+   *  continue, c'est-à-dire une coupe qui ne demande aucun travail au lecteur. */
+  const clipPrecedentRef = useRef<(MontageClip & { start: number; end: number; dur: number }) | null>(null);
+  /** Vrai tant qu'une transition est à l'écran. Lu par le préchargement, qui ne
+   *  doit pas écraser le lecteur portant le plan sortant. */
+  const transitionEnCoursRef = useRef(false);
   const loadedSrcRef = useRef<string | null>(null);
   const overlayVideoRefs = useRef<Map<string, HTMLVideoElement>>(new Map());
   const scrubRef = useRef<HTMLDivElement>(null);
@@ -1229,6 +1313,7 @@ export default function MontagePage() {
      dans le DOM : c'est le mouvement le plus visible, il reste à 60 Hz sans
      coûter un seul rendu. */
   const clockRef = useRef(0);           // temps de lecture faisant autorité
+
   /* `timeRef` porte le temps EXACT, à l'image près, que la lecture soit en cours
      ou non : c'est lui que lisent la synchro image/son et les actions qui doivent
      tomber sur l'image affichée (couper au curseur, choisir la couverture).
@@ -1272,6 +1357,26 @@ export default function MontagePage() {
 
   /** Une animation continue est-elle à l'écran ? Si oui l'aperçu doit suivre à la
    *  cadence de l'export ; sinon seul le curseur bouge. */
+
+
+  /** Applique un état de transition à une couche, sans passer par React.
+   *  `transformEnPlus` porte le zoom automatique des photos : il vit sur la MÊME
+   *  propriété que la transition, et l'écraser ferait sauter l'image.
+   *
+   *  Le FILTRE n'est jamais écrit ici : c'est React qui pose celui du plan, et
+   *  les transitions qui en ajoutent un passent par la toile, pas par le CSS. */
+  /* PLUS DE PEINTRE.
+
+     J'avais sorti l'animation des transitions de React pour la faire écrire
+     directement dans le DOM à chaque image. L'intention était bonne, le résultat
+     non : c'est ce qui a fait saccader la lecture, y compris sur des montages
+     sans la moindre transition. La production, elle, anime les transitions par
+     React et du CSS, et elle est fluide.
+
+     On revient donc à sa mécanique, à laquelle il ne manquait qu'une chose : la
+     couche du plan qui s'en va. Elle existe maintenant, et c'est le second
+     lecteur — déjà décodé, arrêté sur sa dernière image. */
+
   function animationEnCours(t: number): boolean {
     const sc = sceneRef.current;
     for (const c of sc.clipStarts) {
@@ -1349,12 +1454,25 @@ export default function MontagePage() {
   const activeClipRef = useRef(activeClip); activeClipRef.current = activeClip;
   // Transition d'entrée du plan courant, calculée avec la MÊME fonction que l'export
   // → l'aperçu montre enfin les transitions au lieu de les révéler seulement au rendu.
-  const activeTrans = useMemo(() => {
+
+
+  /* Le plan qui S'EN VA, pendant la transition.
+
+     L'aperçu ne montrait que le plan entrant : un fondu apparaissait donc depuis
+     le noir, un balayage balayait le vide. On remet l'image d'avant en dessous,
+     avec le mouvement qui lui revient — le même calcul qu'à l'export. */
+
+  const outClip = useMemo(() => {
     if (!activeClip) return null;
-    const isFirst = clipStarts.length > 0 && clipStarts[0].id === activeClip.id;
-    return transitionStateAt(activeClip.transitionIn, activeClip.transitionDur, time - activeClip.start, isFirst);
+    const dur = activeClip.transitionDur || 0;
+    if (!activeClip.transitionIn || activeClip.transitionIn === "cut" || dur <= 0) return null;
+    if (Math.max(0, activeClip.gapBefore ?? 0) > 0) return null; // rien à enchaîner à travers un trou
+    if (time - activeClip.start >= dur || time < activeClip.start) return null;
+    const i = clipStarts.findIndex((c) => c.id === activeClip.id);
+    return i > 0 ? clipStarts[i - 1] : null;
   }, [activeClip, clipStarts, time]);
-  const activeTransCss = activeTrans ? transitionCss(activeTrans) : null;
+
+
   // Plan vidéo suivant : préchargé en sourdine pour que le passage d'un plan à
   // l'autre soit net (sans le temps de chargement qui figeait l'image).
   const nextClip = useMemo(() => {
@@ -1419,8 +1537,14 @@ export default function MontagePage() {
     if (!activeClip || activeClip.kind !== "video") return;
     const els: (HTMLVideoElement | null)[] = [videoARef.current, videoBRef.current];
     let target: 0 | 1;
+    /* 0) LA MÊME COULÉE : le plan qui vient de finir et celui qui commence sont
+          le même fichier, bout à bout. On ne touche à rien — ni de lecteur, ni de
+          position. Le décodeur ne s'aperçoit même pas qu'on a changé de plan. */
+    const sansCouture = memeCoulee(clipPrecedentRef.current, activeClip)
+      && slotSrcRef.current[activeSlotRef.current] === activeClip.src;
+    if (sansCouture) target = activeSlotRef.current;
     // 1) un lecteur est déjà PRÊT pour ce plan (source chargée ET position atteinte)
-    if (slotClipRef.current[0] === activeClip.id) target = 0;
+    else if (slotClipRef.current[0] === activeClip.id) target = 0;
     else if (slotClipRef.current[1] === activeClip.id) target = 1;
     // 2) sinon, un lecteur a au moins la bonne source
     else if (slotSrcRef.current[slot] === activeClip.src) target = slot;
@@ -1446,18 +1570,53 @@ export default function MontagePage() {
     if (target !== slot) setSlot(target);
     v.playbackRate = activeClip.speed;
     const localTime = activeClip.trimStart + (time - activeClip.start) * activeClip.speed;
-    if (Math.abs(v.currentTime - localTime) > 0.35) v.currentTime = Math.max(0, localTime);
+    // Une coulée continue ne se recale JAMAIS : le moindre saut de position vide
+    // le tampon du décodeur et coûte une poignée d'images.
+    if (!sansCouture && Math.abs(v.currentTime - localTime) > 0.35) v.currentTime = Math.max(0, localTime);
     // La temporisation anti-rafale ne doit pas retarder le recalage d'un NOUVEAU
     // plan : sinon l'image restait figée jusqu'à une demi-seconde à chaque coupe.
     lastSeekRef.current = 0;
-    if (playing) v.play().catch(() => {});
-    els[target === 0 ? 1 : 0]?.pause(); // l'autre ne doit pas jouer en fond
+    if (perf) {
+      // `requestVideoFrameCallback` se déclenche quand le lecteur a VRAIMENT
+      // affiché une image : c'est la seule mesure honnête du coût d'une coupe.
+      const t0 = performance.now();
+      const rvfc = (v as HTMLVideoElement & { requestVideoFrameCallback?: (cb: () => void) => number }).requestVideoFrameCallback;
+      if (rvfc) rvfc.call(v, () => { coutCoupeRef.current = performance.now() - t0; });
+    }
+    if (playing && v.paused) v.play().catch(() => {});
+    if (!sansCouture) els[target === 0 ? 1 : 0]?.pause(); // l'autre ne doit pas jouer en fond
+    clipPrecedentRef.current = activeClip;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeClip?.id]);
+
+  /** Deux plans qui s'enchaînent SANS COUTURE : même fichier, même vitesse, et
+   *  le second reprend là où le premier s'arrête. C'est le cas le plus courant
+   *  d'un montage — un rush découpé en morceaux, par le prémontage ou à la main.
+   *  Le lecteur n'a alors strictement rien à faire à la coupe : il continue. */
+  function memeCoulee(
+    a: (MontageClip & { trimEnd: number }) | null | undefined,
+    b: (MontageClip & { trimStart: number }) | null | undefined,
+  ): boolean {
+    if (!a || !b || a.kind !== "video" || b.kind !== "video") return false;
+    if (a.src !== b.src || (a.speed || 1) !== (b.speed || 1)) return false;
+    return Math.abs(a.trimEnd - b.trimStart) < 0.05;
+  }
 
   // ── Précharge le plan suivant dans le lecteur libre, déjà positionné ─────────
   useEffect(() => {
     if (!nextClip) return;
+    /* SAUF si le plan suivant est la suite du plan courant dans le même fichier.
+
+       Préparer le lecteur libre le désignait alors comme « prêt », et la coupe
+       basculait dessus : on éteignait un décodeur qui tournait pour en démarrer
+       un froid, avec un saut de position, alors que la lecture n'avait qu'à
+       continuer. C'est exactement ce qui perdait des images à CHAQUE changement
+       de plan sur un rush découpé — c'est-à-dire à chaque coupe d'un prémontage. */
+    if (memeCoulee(activeClip, nextClip)) return;
+    /* Ni pendant une transition : le lecteur « libre » n'est pas libre du tout,
+       il porte l'image du plan qui s'en va. Le remplir de la suite l'effacerait
+       en plein fondu. */
+    if (transitionEnCoursRef.current) return;
     // `activeSlotRef` et non `slot` : au commit d'un changement de plan, l'état `slot`
     // porte encore l'ANCIENNE valeur et désignait comme « libre » le lecteur qui vient
     // d'être mis à l'antenne.
@@ -1471,6 +1630,13 @@ export default function MontagePage() {
     const seek = () => {
       try { el.currentTime = Math.max(0, nextClip.trimStart); } catch {}
       slotClipRef.current[free] = nextClip.id;
+      /* On POSITIONNE, et rien de plus.
+
+         J'avais ajouté ici une lecture d'un quart de seconde en sourdine pour
+         « réchauffer » le décodeur. C'était une mauvaise idée : ça fait tourner
+         DEUX décodeurs en même temps, à chaque changement de plan, et sur des
+         rushes lourds c'est précisément ce qui rendait la lecture inregardable.
+         Un décodeur qui démarre coûte cher ; deux qui tournent coûtent plus. */
     };
     if (slotSrcRef.current[free] !== nextClip.src) {
       // Fichier différent : charger puis se positionner.
@@ -1548,7 +1714,24 @@ export default function MontagePage() {
          plan, ce qui serait pire que le mal. */
       const resteDansLePlan = ac ? (ac.end - clockRef.current) : Infinity;
       const rs = ac && ac.kind === "video" && vEl && !vEl.ended ? vEl.readyState : 4;
-      const attente = rs < 2 ? 3000 : rs < 3 && resteDansLePlan > 0.35 ? 600 : 0;
+      /* Attente REMISE À L'IDENTIQUE.
+
+         Je l'avais raccourcie de 600 à 300 ms et sautée pendant les transitions,
+         en croyant supprimer une latence. C'est l'inverse : ce garde-fou existe
+         pour que la timeline n'avance pas pendant que le lecteur n'a rien à
+         montrer. L'écourter, c'est laisser la tête de lecture courir devant une
+         image figée — et ça se voit exactement comme une saccade. */
+      /* Deux seuils, deux natures.
+
+         `rs < 2` : le lecteur n'a rien, pas même une image. Là il FAUT attendre,
+         sinon la timeline défile sur du vide.
+
+         `rs < 3` : il a l'image courante mais pas encore la suivante. C'est
+         l'état normal d'un lecteur fraîchement positionné, et geler une
+         demi-seconde pour ça se voit comme un ralenti. On borne le gel à deux
+         cents millisecondes : le temps de laisser le tampon se remplir sans que
+         la lecture ait l'air de patiner. */
+      const attente = rs < 2 ? 3000 : rs < 3 && resteDansLePlan > 0.35 ? 200 : 0;
       if (attente > 0) {
         if (!stalledSince) stalledSince = now;
         if (now - stalledSince < attente) { raf = requestAnimationFrame(tick); return; }
@@ -1587,7 +1770,24 @@ export default function MontagePage() {
   // ── Lecture live des pistes audio (musique/voix off) ────────────────────────
   // Un <audio> par piste, joué/mis en pause/mixé (fondu) en direct pendant la
   // lecture — jusqu'ici ces pistes n'étaient audibles qu'à l'export.
-  const audioElsRef = useRef<Record<string, HTMLAudioElement>>({});
+  /* UN LECTEUR VIDÉO, même pour du son.
+
+     Une piste audio ne contient pas forcément un fichier audio : quand on détache
+     le son d'un plan, la piste pointe vers le fichier VIDÉO d'origine. Or un
+     élément <audio> refuse d'ouvrir un conteneur vidéo — un .MOV d'iPhone,
+     typiquement. Il restait muet, sans erreur et sans rien dire.
+
+     Un élément <video> joue les deux : un conteneur vidéo comme un mp3. On ne
+     l'affiche jamais, on ne lui prend que le son. */
+  function lecteurSonore(src: string): HTMLVideoElement {
+    const el = document.createElement("video");
+    el.preload = "auto";
+    el.playsInline = true;
+    el.src = src;
+    return el;
+  }
+
+  const audioElsRef = useRef<Record<string, HTMLVideoElement>>({});
   const audioTracksRef = useRef(audioTracks);
   useEffect(() => { audioTracksRef.current = audioTracks; }, [audioTracks]);
 
@@ -1600,8 +1800,8 @@ export default function MontagePage() {
     Object.keys(els).forEach((id) => { if (!ids.has(id)) { releaseMediaElement(els[id]); delete els[id]; } });
     audioTracks.forEach((a) => {
       const ex = els[a.id];
-      if (!ex) { const el = new Audio(a.src); el.preload = "auto"; els[a.id] = el; }
-      else if (ex.src !== a.src) { releaseMediaElement(ex); const el = new Audio(a.src); el.preload = "auto"; els[a.id] = el; } // src changé (voix traitée)
+      if (!ex) { els[a.id] = lecteurSonore(a.src); }
+      else if (ex.src !== a.src) { releaseMediaElement(ex); els[a.id] = lecteurSonore(a.src); } // src changé (voix traitée)
     });
   }, [audioTracks]);
 
@@ -1755,11 +1955,35 @@ export default function MontagePage() {
     seek(((e.clientX - r.left) / r.width) * total);
   }
 
+  /** Traduit la réponse du stockage en phrase utile, taille du fichier à l'appui.
+
+      « n'a pas pu être envoyé » ne dit rien à personne, et coûtait un
+      aller-retour entier pour apprendre ce que le stockage avait déjà dit. */
+  function raisonEnvoi(msg: string, file: File): string {
+    const mo = Math.round(file.size / 1048576);
+    const bas = msg.toLowerCase();
+    if (bas.includes("exceed") || bas.includes("too large") || bas.includes("payload") || bas.includes("entity too")) {
+      return t('toastUploadTooBig', { name: file.name, mb: mo });
+    }
+    if (bas.includes("mime") || bas.includes("content type") || bas.includes("not supported")) {
+      return t('toastUploadBadType', { name: file.name, type: file.type || "inconnu" });
+    }
+    return t('toastUploadFailedWhy', { name: file.name, msg });
+  }
+
   // ── Import (drag & drop + click) ────────────────────────────────────────────
   async function importFiles(files: FileList | File[]) {
     const arr = Array.from(files).filter((f) => f.type.startsWith("video/") || f.type.startsWith("image/"));
     if (!arr.length) return;
     setUploading(true);
+    /* Les réglages du stockage sont remis à niveau avant le premier envoi.
+
+       Ils n'étaient posés qu'à la création d'un espace de travail : un espace
+       plus ancien gardait donc pour toujours la limite de taille et la liste de
+       formats d'origine, et refusait une vidéo de téléphone sans qu'on puisse
+       rien y faire depuis le code. Best-effort : si l'appel échoue, l'envoi est
+       tenté quand même et dira lui-même ce qui bloque. */
+    await fetch("/api/ensure-buckets", { method: "POST" }).catch(() => {});
     for (const file of arr) {
       const isVideo = file.type.startsWith("video/");
       const bucket = isVideo ? "videos" : "photos";
@@ -1767,7 +1991,11 @@ export default function MontagePage() {
       const path = `${workspaceId}/${postId}-${crypto.randomUUID()}.${ext}`;
       const { error } = await supabase.storage.from(bucket).upload(path, file, { upsert: true, contentType: file.type });
       // Ne jamais avaler l'échec : un plan sans fichier fige le lecteur.
-      if (error) { toast(t('toastUploadFailed', { name: file.name }), "error"); continue; }
+      if (error) {
+        console.error("[import]", file.name, Math.round(file.size / 1048576) + " Mo", error.message);
+        toast(raisonEnvoi(error.message, file), "error");
+        continue;
+      }
       const { data: urlData } = supabase.storage.from(bucket).getPublicUrl(path);
       const dur = isVideo ? await getVideoDuration(urlData.publicUrl) : PHOTO_DEFAULT_DUR;
       setClips((prev) => [...prev, {
@@ -1813,7 +2041,11 @@ export default function MontagePage() {
       const path = `${workspaceId}/${postId}-${crypto.randomUUID()}.${ext}`;
       const { error } = await supabase.storage.from(bucket).upload(path, file, { upsert: true, contentType: file.type });
       // Ne jamais avaler l'échec : un plan sans fichier fige le lecteur.
-      if (error) { toast(t('toastUploadFailed', { name: file.name }), "error"); continue; }
+      if (error) {
+        console.error("[import]", file.name, Math.round(file.size / 1048576) + " Mo", error.message);
+        toast(raisonEnvoi(error.message, file), "error");
+        continue;
+      }
       const { data: urlData } = supabase.storage.from(bucket).getPublicUrl(path);
       const dur = isVideo ? await getVideoDuration(urlData.publicUrl) : PHOTO_DEFAULT_DUR;
       if (lane && lane !== "video" && (lane === "new" || /^v\d+$/.test(lane))) {
@@ -2567,7 +2799,21 @@ export default function MontagePage() {
          la timeline ne déclenche aucune sauvegarde automatique, et le drapeau
          serait perdu à la fermeture de l'onglet. */
       preEditedAtRef.current = new Date().toISOString();
-      supabase.from("posts").update({ montage_json: projectRef.current() }).eq("id", postId).then(() => {});
+      /* DEUX écritures, parce qu'une seule ne suffisait pas.
+
+         Le drapeau ne vivait que dans `montage_json`, et cette écriture-là ne
+         lisait même pas sa réponse. Si elle échouait — et une écriture Supabase
+         peut échouer sans bruit — le drapeau n'existait nulle part : rouvrir le
+         montage relançait un prémontage complet, encore et encore, en écrasant
+         le travail fait entre-temps. C'est ce que Martin voyait à chaque
+         ouverture depuis Composer.
+
+         La marque locale prend le relais quand la base refuse. Elle est propre à
+         ce navigateur, ce qui suffit : c'est le même qui vient de faire le
+         prémontage. */
+      try { localStorage.setItem(`klip-premontage-${postId}`, preEditedAtRef.current); } catch { /* stockage plein ou refusé */ }
+      const { error: errDrapeau } = await supabase.from("posts").update({ montage_json: projectRef.current() }).eq("id", postId);
+      if (errDrapeau) console.warn("[prémontage] drapeau non enregistré en base :", errDrapeau.message);
       loggingRef.current = false;
       setPreEditing(false);
       setPreEditStep(null);
@@ -2586,7 +2832,15 @@ export default function MontagePage() {
     // Déjà prémonté : on ne recommence PAS. Quitter la page en cours de route
     // puis revenir relançait tout et écrasait le travail fait entre-temps.
     // Le panneau IA reste là pour le relancer volontairement.
-    if (preEditedAtRef.current) { preRunRef.current = true; return; }
+    // La marque locale compte autant que celle de la base : si l'écriture en base
+    // a échoué, c'est elle qui empêche de tout refaire à chaque ouverture.
+    let marqueLocale: string | null = null;
+    try { marqueLocale = localStorage.getItem(`klip-premontage-${postId}`); } catch { /* stockage refusé */ }
+    if (preEditedAtRef.current || marqueLocale) {
+      if (!preEditedAtRef.current && marqueLocale) preEditedAtRef.current = marqueLocale;
+      preRunRef.current = true;
+      return;
+    }
     runFullPreEdit();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loading, clips.length]);
@@ -3080,6 +3334,37 @@ export default function MontagePage() {
       return prev.map((x) => (x.id === d.id ? { ...x, start: debut, end: debut + duree } : x));
     });
   }
+  /* Durée d'une transition réglée À LA MAIN sur la timeline.
+
+     Elle ne se réglait qu'au curseur du panneau. Sur une timeline, tout ce qui a
+     une durée se prend par le bord et se tire — un plan, un sous-titre, un titre.
+     Une transition n'avait aucune raison d'y échapper. Le bloc étant centré sur la
+     coupe, tirer un bord d'un pixel en ajoute deux à la durée. */
+  const transTrimRef = useRef<{ id: string; sens: -1 | 1; startX: number; dur0: number; max: number } | null>(null);
+  function startTransTrim(e: React.PointerEvent, clipEntrant: MontageClip & { start: number; end: number; dur: number }, sens: -1 | 1) {
+    e.stopPropagation();
+    const i = clipStarts.findIndex((x) => x.id === clipEntrant.id);
+    const sortant = clipStarts[i - 1];
+    // Une transition ne peut pas durer plus que le plus court des deux plans :
+    // au delà, elle mangerait un plan entier et le montage sauterait.
+    const max = Math.max(0.1, Math.min(1.5, clipEntrant.dur, sortant ? sortant.dur : 1.5));
+    try { (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId); } catch {}
+    transTrimRef.current = { id: clipEntrant.id, sens, startX: e.clientX, dur0: clipEntrant.transitionDur || 0.5, max };
+    deselectAll();
+    setSelectedTransId(clipEntrant.id);
+    setSelectedClipId(clipEntrant.id);
+    setTool("transitions");
+  }
+  function onTransTrimMove(e: React.PointerEvent) {
+    const d = transTrimRef.current; if (!d) return;
+    const delta = ((e.clientX - d.startX) / pps) * 2 * d.sens;
+    updateClip(d.id, { transitionDur: Math.max(0.1, Math.min(d.max, +(d.dur0 + delta).toFixed(2))) });
+  }
+  function endTransTrim(e: React.PointerEvent) {
+    transTrimRef.current = null;
+    try { (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId); } catch {}
+  }
+
   const capTrimRef = useRef<{ id: string; edge: "start" | "end"; startX: number; t0start: number; t0end: number } | null>(null);
   function startCaptionTrim(e: React.PointerEvent, c: Caption, edge: "start" | "end") {
     e.stopPropagation();
@@ -3590,7 +3875,41 @@ export default function MontagePage() {
       const exAudio = audioTracks.filter((a) => !HL.has(`a${a.track ?? 0}`)).map((a) => ML.has(`a${a.track ?? 0}`) ? { ...a, vol: 0 } : a);
       const exTitles = titles.filter((ti) => !HL.has(`t${ti.track ?? 0}`));
       const exCaptions = HL.has("subs") ? [] : captions;
-      const { blob: rawBlob, thumbnailBlob, mimeType: recordedType } = await renderExport({ clips: exClips, overlays: exOverlays, captions: exCaptions, subStyleId, subCustom, subPos, linkedSubs, titles: exTitles, stickers, audioTracks: exAudio, showProgressBar, formatId, customW, customH, exportQuality }, (p) => setExportProgress(p));
+
+      /* CE QUI VA S'ENTENDRE, VÉRIFIÉ AVANT DE RENDRE.
+
+         Un export muet a trois causes possibles, et de l'extérieur elles se
+         ressemblent toutes : plus aucune source sonore, une piste masquée d'un
+         clic sur l'oeil, ou une piste coupée d'un clic sur le haut-parleur. On
+         le dit AVANT de lancer un rendu qui prend des minutes, au lieu de livrer
+         un fichier silencieux sans un mot. */
+      const sourcesSonores = exAudio.filter((a) => (a.vol ?? 0) > 0 && a.dur > 0).length
+        + exClips.filter((c) => c.kind === "video" && (c.vol ?? 1) > 0).length
+        + exOverlays.filter((o) => o.kind === "video" && (o.vol ?? 1) > 0).length;
+      const sourcesEcartees = (audioTracks.length - exAudio.length)
+        + exAudio.filter((a) => (a.vol ?? 0) <= 0).length
+        + (ML.has("video") && clips.some((c) => c.kind === "video" && (c.vol ?? 1) > 0) ? 1 : 0);
+      console.log(`[export] sources sonores actives : ${sourcesSonores} · écartées par masquage ou coupure : ${sourcesEcartees}`);
+      if (sourcesSonores === 0) {
+        toast(sourcesEcartees > 0 ? t('toastExportNoAudioMuted') : t('toastExportNoAudio'), "error");
+      }
+      const { blob: rawBlob, thumbnailBlob, mimeType: recordedType, creteAudio, moteur } = await renderExport({ clips: exClips, overlays: exOverlays, captions: exCaptions, subStyleId, subCustom, subPos, linkedSubs, titles: exTitles, stickers, audioTracks: exAudio, showProgressBar, formatId, customW, customH, exportQuality }, (p) => setExportProgress(p));
+      /* Le fichier a-t-il du son ? On ne laisse pas l'utilisateur le découvrir
+         après coup : un export muet est indiscernable d'un export sonore tant
+         qu'on ne l'a pas écouté. */
+      /* Ce que l'export vient de faire, DIT À L'ÉCRAN.
+
+         Deux moteurs très différents se partagent l'export, et rien n'indiquait
+         lequel avait tourné. On a corrigé l'un pendant que l'autre produisait le
+         fichier, plusieurs fois. Une ligne visible met fin à cette confusion. */
+      const resume = `${moteur === "hors-ligne" ? "hors ligne" : "temps réel"} · son ${typeof creteAudio === "number" ? creteAudio.toFixed(2) : "?"}`;
+      console.log("[export] moteur :", resume);
+      if (sourcesSonores > 0 && typeof creteAudio === "number" && creteAudio < 0.0005) {
+        console.error("[export] fichier MUET malgré", sourcesSonores, "source(s) sonore(s)");
+        toast(t('toastExportSilent'), "error");
+      } else {
+        toast(t('toastExportEngine', { resume }));
+      }
 
       // Instagram veut du MP4/H.264. Safari sait l'enregistrer directement : dans
       // ce cas il n'y a rien à transcoder, et on évite ffmpeg.wasm — qui, en
@@ -3653,7 +3972,10 @@ export default function MontagePage() {
       if (thumbnailBlob) {
         const thumbPath = `${workspaceId}/${postId}-thumb-${Date.now()}.jpg`;
         const { error: thumbErr } = await supabase.storage.from("videos").upload(thumbPath, thumbnailBlob, { upsert: true, contentType: "image/jpeg" });
-        if (!thumbErr) thumbUrl = supabase.storage.from("videos").getPublicUrl(thumbPath).data.publicUrl;
+        // Une miniature refusée n'empêche pas l'export, mais on ne l'avale plus :
+        // c'est elle qui s'affiche partout dans le produit à la place de la vidéo.
+        if (thumbErr) console.error("[export] miniature refusée par le stockage :", thumbErr.message);
+        else thumbUrl = supabase.storage.from("videos").getPublicUrl(thumbPath).data.publicUrl;
       }
 
       await supabase.from("posts").update({
@@ -3676,6 +3998,13 @@ export default function MontagePage() {
 
   // ── Raccourcis clavier (type CapCut) ────────────────────────────────────────
   function deleteSelected() {
+    // La transition d'abord : c'est le dernier objet sélectionné qui compte, et
+    // elle vit sur un plan qu'on ne veut surtout pas supprimer avec elle.
+    if (selectedTransId) {
+      updateClip(selectedTransId, { transitionIn: "cut" });
+      setSelectedTransId(null);
+      return;
+    }
     if (multiSel.size > 0) {
       const ids = multiSel;
       setClips((prev) => prev.filter((c) => !ids.has(c.id)));
@@ -3700,7 +4029,7 @@ export default function MontagePage() {
   function deselectAll() {
     setSelectedClipId(null); setSelectedOverlayId(null); setSelectedAudioId(null);
     setSelectedTitleId(null); setTitresSel(new Set()); setSelectedStickerId(null); setSubSelected(false);
-    setSelectedCaptionId(null); setEditingCaptionId(null);
+    setSelectedCaptionId(null); setEditingCaptionId(null); setSelectedTransId(null);
     setAudioOnlyId(null); if (multiSel.size) setMultiSel(new Set());
   }
   // Bascule un élément dans la sélection multiple (⇧+clic).
@@ -4413,6 +4742,9 @@ export default function MontagePage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [clips, total, time]);
 
+
+
+
   const ctx: MontageCtx = {
     clips, selectedClip, captions, subStyleId: activeSubStyleId, subMaxWords, subCustom: activeSubCustom, subPos, hasRawSegments: rawSegments.length > 0 || rawWords.length > 0,
     linkedSubs, setLinkedSubs, selectedCaptionId, setSelectedCaptionId,
@@ -4495,6 +4827,81 @@ export default function MontagePage() {
     ? { id: "custom", label: "Perso", sub: `${customW}×${customH}`, w: Math.max(1, customW), h: Math.max(1, customH) }
     : videoFormatById(formatId);
   const previewScale = (stageW || 300) / activeFmt.w;
+
+
+
+  const transitionEnCours = !!outClip && !!activeClip && !!activeClip.transitionIn && activeClip.transitionIn !== "cut";
+  transitionEnCoursRef.current = transitionEnCours;
+  /* Les deux états de la transition, calculés au rendu. React re-rend déjà à
+     trente images par seconde pendant une transition (cf. animationEnCours) :
+     c'est le mécanisme de la production, et il est fluide. */
+  const paireTrans = useMemo(() => {
+    if (!activeClip) return null;
+    const premier = clipStarts.length > 0 && clipStarts[0].id === activeClip.id;
+    return transitionPairAt(activeClip.transitionIn, activeClip.transitionDur, time - activeClip.start, premier);
+  }, [activeClip, clipStarts, time]);
+  /* PENDANT LA LECTURE, on ne garde que le mouvement.
+
+     Poser une découpe (`clip-path`, masque) ou un filtre (`blur`) sur un lecteur
+     EN LECTURE lui fait perdre sa voie rapide : le navigateur repeint la vidéo
+     image par image, et le son accroche. Ces transitions-là gardent donc leur
+     déplacement et leur opacité pendant la lecture, et retrouvent leur forme
+     complète dès qu'on s'arrête. Le fichier exporté, lui, ne change pas. */
+  const allegerPourLaLecture = (e: TransitionState): TransitionState =>
+    playing ? { ...e, clipRect: null, clipCircle: null, clipPoly: null, clipBands: null, extraFilter: "" } : e;
+  const cssEntrant = paireTrans ? transitionCss(allegerPourLaLecture(paireTrans.in)) : null;
+  const cssSortant = transitionEnCours && paireTrans ? transitionCss(allegerPourLaLecture(paireTrans.out)) : null;
+  /** Le lecteur qui porte le plan sortant, s'il est encore là. */
+  const slotSortant: 0 | 1 | null = transitionEnCours && outClip && outClip.kind === "video"
+    && slotClipRef.current[slot === 0 ? 1 : 0] === outClip.id ? (slot === 0 ? 1 : 0) : null;
+
+  /* Plus d'image figée à fabriquer, ni de toile à peindre pour le plan sortant.
+
+     Tout ce bloc recopiait des images vidéo dans des toiles, plusieurs fois par
+     coupe. Recopier une image vidéo force la carte graphique à rendre ses pixels
+     au processeur, et c'était la dépense la plus lourde de l'aperçu. Le lecteur
+     qui vient de jouer le plan sortant est toujours là, arrêté sur sa dernière
+     image : on le montre, et c'est tout. */
+
+  /* À l'arrêt il n'y a pas d'horloge : c'est le rendu React qui déclenche le
+     peintre. En lecture, c'est le minuteur, et React n'est pas réveillé. */
+
+
+  /* Les transitions à SHADER ne se décrivent pas en CSS : elles déforment
+     l'image pixel par pixel. Elles passent donc par une toile, en lecture comme
+     à l'arrêt : une transition qu'on choisit et qui rend un simple fondu n'est
+     pas une transition, c'est un bug.
+
+     Le coût est borné : deux recopies dans une toile de 420 px et un passage sur
+     la carte graphique, uniquement pendant la demi-seconde que dure l'effet. Si
+     ces trente-cinq-là faisaient encore accrocher le son, la mesure serait nette
+     — le son n'accrocherait QUE sur elles — et il resterait à ne les calculer
+     qu'une image sur deux. */
+  useEffect(() => {
+    const cv = glCanvasRef.current;
+    if (!cv) return;
+    const sortantEl = slotSortant !== null ? [videoARef, videoBRef][slotSortant].current : null;
+    const entrantEl = activeClip?.kind === "video" ? [videoARef, videoBRef][slot].current : imgInRef.current;
+    if (!transitionEnCours || !activeClip || !outClip || exporting || hiddenLanes.has("video")
+        || !estTransitionGl(activeClip.transitionIn) || !sortantEl || !entrantEl) {
+      cv.style.display = "none";
+      return;
+    }
+    const w = Math.max(120, Math.min(420, Math.round(stageW || 360)));
+    const h = Math.max(120, Math.round(w * (activeFmt.h / activeFmt.w)));
+    if (cv.width !== w || cv.height !== h) { cv.width = w; cv.height = h; }
+    const c2d = cv.getContext("2d", { alpha: false });
+    if (!c2d) { cv.style.display = "none"; return; }
+    const avance = (time - activeClip.start) / Math.max(0.01, activeClip.transitionDur || 0.01);
+    try {
+      drawTransitionFrame(c2d, sortantEl, outClip, outClip.dur, entrantEl, activeClip,
+        time - activeClip.start, activeClip.transitionIn!, avance, w, h);
+      cv.style.display = "block";
+    } catch {
+      // Pixels illisibles : le fondu de repli est déjà à l'écran, il fera l'affaire.
+      cv.style.display = "none";
+    }
+  }, [playing, transitionEnCours, activeClip, outClip, slot, slotSortant, time, stageW, activeFmt.w, activeFmt.h, exporting, hiddenLanes]);
   // Le texte sélectionné s'affiche TOUJOURS dans l'aperçu (même si le curseur sort de sa
   // plage) → on peut toujours le voir, le déplacer et l'éditer.
   // Chaque rangée de texte se masque séparément, comme les pistes vidéo.
@@ -4524,7 +4931,7 @@ export default function MontagePage() {
     );
   }
 
-  return (
+  const contenu = (
     <div className="a-root" style={{ height: "100vh" }}>
       {/* topbar */}
       {/* Barre du montage en violet : dans le produit, le violet est la vidéo
@@ -4827,11 +5234,25 @@ export default function MontagePage() {
               onPointerLeave={(e) => { panRef.current = null; onStagePointerUp(e); }}
             >
               <div className="mz-video">
+                {/* Le plan qui s'en va n'a plus de couche à lui quand c'est une
+                    vidéo : c'est le second lecteur, arrêté sur sa dernière image,
+                    que le peintre montre et anime. Une photo, elle, a besoin de
+                    son image — mais une image ne coûte rien. */}
+                {outClip && outClip.kind === "photo" && (
+                  <img ref={imgOutRef} src={outClip.src} alt=""
+                    style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover",
+                      opacity: 0, zIndex: 0, pointerEvents: "none", transformOrigin: "center" }} />
+                )}
                 {/* Les DEUX lecteurs restent montés en permanence (même sur un plan
                     photo) : les démonter réinitialisait la source et le préchargement,
                     ce qui refaisait saccader le plan vidéo suivant. */}
                 {([videoARef, videoBRef] as const).map((ref, i) => {
                   const shown = !!activeClip && activeClip.kind === "video" && i === slot && !hiddenLanes.has("video");
+                  /* Le lecteur du plan qui S'EN VA reste à l'écran le temps de la
+                     transition. C'est ce qui manquait : sans lui, un fondu partait
+                     du noir et un balayage balayait le vide. Il est déjà décodé,
+                     arrêté sur sa dernière image — rien à charger, rien à copier. */
+                  const sortant = i === slotSortant && !hiddenLanes.has("video");
                   return (
                     <video
                       key={i}
@@ -4849,18 +5270,52 @@ export default function MontagePage() {
                         toast(t('toastMediaMissing', { name: ac.name }), "error");
                       }}
                       playsInline
+                      /* `auto` : le lecteur a le droit de remplir son tampon
+                         AVANT qu'on lui demande de jouer. Sans cette permission,
+                         un lecteur qu'on vient de positionner n'a qu'une image en
+                         mémoire ; il annonce « pas de quoi continuer », l'horloge
+                         se met alors en pause pour l'attendre, et ça se voit comme
+                         un ralenti ou une micro-coupure au moment de la coupe.
+                         Remplir un tampon ne coûte pas de décodage supplémentaire,
+                         contrairement à le faire jouer d'avance — ce que j'avais
+                         essayé, et qui faisait tourner deux décodeurs à la fois. */
+                      preload="auto"
+                      /* Origine déclarée : SANS elle, dessiner ce lecteur dans
+                         une toile la salit, et tout ce qui relit ces pixels est
+                         refusé. C'est ce qui faisait retomber les trente-cinq
+                         transitions à shader sur un simple fondu.
+
+                         Je l'avais retirée en la soupçonnant de la saccade. Elle
+                         était innocente : la vraie cause était mon peintre, et
+                         tout le reste du monteur (export, dérushage, vignettes)
+                         déclare déjà cette origine sur les mêmes fichiers. */
+                      crossOrigin="anonymous"
                       muted={!shown}
                       // Taille et position ne changent JAMAIS (cf. .mz-video > video) :
                       // seule l'opacité bascule. Redimensionner le lecteur au moment
                       // de l'afficher lui faisait montrer une image à l'ancienne
                       // échelle, cernée de noir, le temps de se remettre en place.
+                      /* Ni opacité ni empilement ici : les DEUX appartiennent au
+                         peintre, hors React. Pendant une transition, le lecteur
+                         qui n'est pas à l'antenne doit se voir — c'est lui qui
+                         porte le plan sortant — et React, qui le croit caché,
+                         l'aurait remis à zéro à chacun de ses rendus. */
                       style={shown
                         ? ({
-                            filter: [clipFilterCss(activeClip!), activeTrans?.extraFilter].filter(Boolean).join(" ") || undefined,
+                            filter: [clipFilterCss(activeClip!), playing ? "" : paireTrans?.in.extraFilter].filter(Boolean).join(" ") || undefined,
                             objectPosition: `${(activeClip!.focusX ?? 0.5) * 100}% ${(activeClip!.focusY ?? 0.5) * 100}%`,
-                            ...(activeTransCss || {}),
+                            ...(cssEntrant || {}),
                             transformOrigin: "center",
                             zIndex: 1,
+                          } as React.CSSProperties)
+                        : sortant
+                        ? ({
+                            filter: [clipFilterCss(outClip!), playing ? "" : paireTrans?.out.extraFilter].filter(Boolean).join(" ") || undefined,
+                            objectPosition: `${(outClip!.focusX ?? 0.5) * 100}% ${(outClip!.focusY ?? 0.5) * 100}%`,
+                            ...(cssSortant || {}),
+                            transformOrigin: "center",
+                            zIndex: 0,
+                            pointerEvents: "none",
                           } as React.CSSProperties)
                         : { opacity: 0, pointerEvents: "none", zIndex: 0 }}
                     />
@@ -4869,15 +5324,16 @@ export default function MontagePage() {
                 {activeClip && !hiddenLanes.has("video") ? (
                   activeClip.kind === "video"
                     ? null
-                    : <img src={activeClip.src} alt="" style={{
-                        filter: [clipFilterCss(activeClip), activeTrans?.extraFilter].filter(Boolean).join(" ") || undefined,
+                    : <img ref={imgInRef} src={activeClip.src} alt="" style={{
+                        // Posé et empilé explicitement : le plan sortant est une
+                        // couche absolue, et une image restée dans le flux passerait
+                        // dessous alors qu'elle doit arriver par-dessus.
+                        position: "absolute", inset: 0, zIndex: 1,
+                        filter: clipFilterCss(activeClip) || undefined,
+                        // Le zoom automatique repasse par React : le peintre ne
+                        // tourne plus pendant la lecture, il ne peut plus le porter.
+                        transform: `scale(${kenBurnsScale(activeClip.kenBurns, activeClip.dur > 0 ? Math.min(1, Math.max(0, (time - activeClip.start) / activeClip.dur)) : 0)})`,
                         objectPosition: `${(activeClip.focusX ?? 0.5) * 100}% ${(activeClip.focusY ?? 0.5) * 100}%`,
-                        ...(activeTransCss || {}),
-                        // Ken Burns et transition se composent sur le même transform.
-                        transform: [
-                          activeTransCss?.transform,
-                          `scale(${kenBurnsScale(activeClip.kenBurns, activeClip.dur > 0 ? Math.min(1, Math.max(0, (time - activeClip.start) / activeClip.dur)) : 0)})`,
-                        ].filter(Boolean).join(" "),
                         transformOrigin: "center",
                       } as React.CSSProperties} />
                 ) : clips.length === 0 ? (
@@ -4890,12 +5346,18 @@ export default function MontagePage() {
                   null
                 )}
 
-                {/* Voiles de transition (flash blanc / fondu au noir) — identiques à l'export. */}
-                {activeTrans && activeTrans.flash > 0 && (
-                  <div style={{ position: "absolute", inset: 0, background: "#fff", opacity: activeTrans.flash, pointerEvents: "none", zIndex: 3 }} />
+                {/* Transition à shader : l'image finale est calculée sur la carte
+                    graphique et posée par-dessus. Les lecteurs restent dessous,
+                    ce sont eux les textures. Cachée d'office : l'effet ne
+                    l'affiche que s'il a vraiment pu dessiner. */}
+                <canvas ref={glCanvasRef} style={{ position: "absolute", inset: 0, width: "100%", height: "100%", display: "none", zIndex: 2, pointerEvents: "none" }} />
+
+                {/* Voiles (flash blanc, fondu au noir), identiques à l'export. */}
+                {paireTrans && paireTrans.in.flash > 0 && (
+                  <div style={{ position: "absolute", inset: 0, background: "#fff", opacity: paireTrans.in.flash, pointerEvents: "none", zIndex: 3 }} />
                 )}
-                {activeTrans && activeTrans.dark > 0 && (
-                  <div style={{ position: "absolute", inset: 0, background: "#000", opacity: activeTrans.dark, pointerEvents: "none", zIndex: 3 }} />
+                {paireTrans && paireTrans.in.dark > 0 && (
+                  <div style={{ position: "absolute", inset: 0, background: "#000", opacity: paireTrans.in.dark, pointerEvents: "none", zIndex: 3 }} />
                 )}
 
                 {/* incrustations (PIP) — déplaçables/redimensionnables/pivotables.
@@ -5320,7 +5782,27 @@ export default function MontagePage() {
             <div className={"a-lane" + (videoTrackCount === 0 && dropLane === "new" ? " nt-hint" : "")} style={{ height: laneH("video"), order: 4 }} data-tllane="video">
               <LaneResize laneKey="video" />
               <div className="a-lane-label" style={{ display: "flex", alignItems: "center", gap: 4 }}><VIcon name="video" size={13} /> <span className="trunc">{`${t('labelVideo')} 1`}</span><LaneControls laneKey="video" /></div>
-              <div className="a-lane-track">
+              <div
+                className="a-lane-track"
+                // La piste entière est une cible : on lâche où on veut, la coupe la
+                // plus proche prend la transition. Le rond seul ratait trop souvent.
+                onDragOver={(e) => {
+                  if (!estGlisserTransition(e.dataTransfer)) return;
+                  e.preventDefault();
+                  e.dataTransfer.dropEffect = "copy";
+                  const id = jonctionLaPlusProche(e.clientX);
+                  if (id !== jonctionSurvolee) setJonctionSurvolee(id);
+                }}
+                onDragLeave={(e) => { if (!e.currentTarget.contains(e.relatedTarget as Node)) setJonctionSurvolee(null); }}
+                onDrop={(e) => {
+                  if (!estGlisserTransition(e.dataTransfer)) return;
+                  e.preventDefault();
+                  const transId = transitionGlissee(e.dataTransfer);
+                  const cible = jonctionSurvolee || jonctionLaPlusProche(e.clientX);
+                  setJonctionSurvolee(null);
+                  if (transId && cible) poserTransition(cible, transId);
+                }}
+              >
                 {clips.length === 0 && (
                   <span style={{ fontSize: 12, color: "var(--ink-3)", fontWeight: 600 }}>{t('importFirstRush')}</span>
                 )}
@@ -5361,16 +5843,61 @@ export default function MontagePage() {
                         </>
                       )}
                     </div>
-                    {i < clipStarts.length - 1 && (
-                      <button
-                        className={"a-trans-pill" + (selectedClipId === clipStarts[i + 1].id ? " active" : "")}
-                        style={{ position: "absolute", left: c.dur * pps }}
-                        title={TRANSITIONS.find((tr) => tr.id === clipStarts[i + 1].transitionIn) ? tc(`transition.${clipStarts[i + 1].transitionIn}`) : tc('transition.cut')}
-                        onClick={() => { selectClip(clipStarts[i + 1].id); setTool("transitions"); }}
-                      >
-                        {TRANSITIONS.find((tr) => tr.id === clipStarts[i + 1].transitionIn)?.glyph || "▮▮"}
-                      </button>
-                    )}
+                    {i < clipStarts.length - 1 && (() => {
+                      const suivant = clipStarts[i + 1];
+                      const pose = suivant.transitionIn && suivant.transitionIn !== "cut" ? TRANSITION_PAR_ID.get(suivant.transitionIn) : undefined;
+                      const vise = jonctionSurvolee === suivant.id;
+                      const choisie = selectedTransId === suivant.id;
+                      return (
+                        <button
+                          className={"a-trans-pill" + (pose ? " posee" : "") + (choisie ? " active" : "") + (vise ? " drop" : "")}
+                          style={{
+                            position: "absolute", left: c.dur * pps,
+                            // Un objet qui a une durée occupe la hauteur de sa piste et
+                            // la largeur de son temps, comme tout le reste de la timeline.
+                            ...(pose ? { width: Math.max(18, (suivant.transitionDur || 0.5) * pps), height: blockH("video") } : {}),
+                          }}
+                          title={pose ? `${tc(`transition.${suivant.transitionIn}`)} · ${(suivant.transitionDur || 0).toFixed(1)}s` : t('transitionDropHere')}
+                          onClick={(ev) => {
+                            ev.stopPropagation();
+                            if (!pose) { selectClip(suivant.id); setTool("transitions"); return; }
+                            // Sélectionner la TRANSITION, pas le plan : la touche Suppr
+                            // doit retirer la transition et laisser les deux plans en place.
+                            deselectAll();
+                            setSelectedTransId(suivant.id);
+                            setSelectedClipId(suivant.id);
+                            setTool("transitions");
+                          }}
+                          onDragOver={(ev) => {
+                            if (!estGlisserTransition(ev.dataTransfer)) return;
+                            ev.preventDefault();
+                            ev.dataTransfer.dropEffect = "copy";
+                            if (jonctionSurvolee !== suivant.id) setJonctionSurvolee(suivant.id);
+                          }}
+                          onDrop={(ev) => {
+                            if (!estGlisserTransition(ev.dataTransfer)) return;
+                            ev.preventDefault();
+                            ev.stopPropagation();
+                            const id = transitionGlissee(ev.dataTransfer);
+                            setJonctionSurvolee(null);
+                            if (id) poserTransition(suivant.id, id);
+                          }}
+                        >
+                          <span className="a-trans-glyph">{pose?.glyph || "▮▮"}</span>
+                          {pose && (
+                            <>
+                              <span className="a-trans-trim a-trans-trim-l" title={t('duration')}
+                                onPointerDown={(ev) => startTransTrim(ev, suivant, -1)} onPointerMove={onTransTrimMove} onPointerUp={endTransTrim} />
+                              <span className="a-trans-trim a-trans-trim-r" title={t('duration')}
+                                onPointerDown={(ev) => startTransTrim(ev, suivant, 1)} onPointerMove={onTransTrimMove} onPointerUp={endTransTrim} />
+                              <span className="a-trans-del" title={t('deleteTransition')}
+                                onPointerDown={(ev) => ev.stopPropagation()}
+                                onClick={(ev) => { ev.stopPropagation(); updateClip(suivant.id, { transitionIn: "cut" }); setSelectedTransId(null); }}>×</span>
+                            </>
+                          )}
+                        </button>
+                      );
+                    })()}
                     {/* Fondus du son du plan : points blancs à tirer (hors du plan pour ne pas
                         être rognés par l'overflow ; visibles quand le plan a du son). */}
                     {c.kind === "video" && (c.vol ?? 1) > 0 && (() => {
@@ -5745,5 +6272,18 @@ export default function MontagePage() {
         );
       })()}
     </div>
+  );
+
+  if (!perf) return contenu;
+  return (
+    <>
+      {contenu}
+      <PerfHud
+        compteurRendus={compteurRendus}
+        dureeRenduRef={dureeRenduRef}
+        videoRef={() => [videoARef, videoBRef][activeSlotRef.current].current}
+        coutCoupeRef={coutCoupeRef}
+      />
+    </>
   );
 }

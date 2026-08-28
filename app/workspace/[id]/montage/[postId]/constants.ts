@@ -1,6 +1,9 @@
 // constants.ts — types + données de référence du module Montage vidéo
 // Tokens repris à l'identique de design_handoff_montage_video/design_files/data.jsx
 
+import { GL_TRANSITIONS, estTransitionGl } from "./gl-transitions";
+export { estTransitionGl };
+
 export type ClipKind = "video" | "photo";
 
 export interface MontageClip {
@@ -1269,35 +1272,62 @@ export const FILTERS: { id: string; name: string; css: string }[] = [
   { id: "dore", name: "Doré", css: "sepia(.28) saturate(1.25) brightness(1.05) hue-rotate(-6deg)" },
 ];
 
-export const TRANSITIONS: { id: string; name: string; glyph: string }[] = [
-  { id: "cut", name: "Cut", glyph: "▮▮" },
+export const TRANSITION_FAMILIES = ["base", "fondu", "glisse", "zoom", "forme", "dynamique", "shader", "lumiere", "camera", "3d", "distorsion", "bogue", "masque"] as const;
+export type TransitionFamily = (typeof TRANSITION_FAMILIES)[number];
+
+// Le panneau les range par famille : quarante-cinq vignettes à plat, c'est un mur.
+export const TRANSITIONS: { id: string; name: string; glyph: string; family: TransitionFamily }[] = [
+  { id: "cut", family: "base", name: "Cut", glyph: "▮▮" },
   // — Fondus —
-  { id: "fade", name: "Fondu", glyph: "◐" },
-  { id: "fadeblack", name: "Fondu au noir", glyph: "◼" },
-  { id: "flash", name: "Flash", glyph: "✦" },
+  { id: "fade", family: "fondu", name: "Fondu", glyph: "◐" },
+  { id: "fadeblack", family: "fondu", name: "Fondu au noir", glyph: "◼" },
+  { id: "fadewhite", family: "fondu", name: "Fondu au blanc", glyph: "◻" },
+  { id: "flash", family: "fondu", name: "Flash", glyph: "✦" },
   // — Glissés —
-  { id: "slide", name: "Glissé", glyph: "⇥" },
-  { id: "slideright", name: "Glissé droite", glyph: "⇤" },
-  { id: "slideup", name: "Glissé haut", glyph: "⇧" },
-  { id: "slidedown", name: "Glissé bas", glyph: "⇩" },
+  { id: "slide", family: "glisse", name: "Glissé", glyph: "⇥" },
+  { id: "slideright", family: "glisse", name: "Glissé droite", glyph: "⇤" },
+  { id: "slideup", family: "glisse", name: "Glissé haut", glyph: "⇧" },
+  { id: "slidedown", family: "glisse", name: "Glissé bas", glyph: "⇩" },
+  { id: "slidediag", family: "glisse", name: "Glissé diagonale", glyph: "⇘" },
+  { id: "slidediagup", family: "glisse", name: "Glissé diagonale ↗", glyph: "⇗" },
   // — Zooms —
-  { id: "zoom", name: "Zoom avant", glyph: "⊕" },
-  { id: "zoomout", name: "Zoom arrière", glyph: "⊖" },
-  { id: "bounce", name: "Rebond", glyph: "◎" },
+  { id: "zoom", family: "zoom", name: "Zoom avant", glyph: "⊕" },
+  { id: "zoomout", family: "zoom", name: "Zoom arrière", glyph: "⊖" },
+  { id: "bounce", family: "zoom", name: "Rebond", glyph: "◎" },
+  { id: "zoomblur", family: "zoom", name: "Zoom flouté", glyph: "⊛" },
+  { id: "zoomspin", family: "zoom", name: "Zoom tournant", glyph: "⟳" },
+  { id: "punch", family: "zoom", name: "Coup de zoom", glyph: "⊙" },
   // — Balayages —
-  { id: "wipe", name: "Balayage", glyph: "◑" },
-  { id: "wiperight", name: "Balayage ←", glyph: "◐" },
-  { id: "wipeup", name: "Balayage ↑", glyph: "◒" },
-  { id: "wipedown", name: "Balayage ↓", glyph: "◓" },
-  { id: "iris", name: "Iris", glyph: "◉" },
+  { id: "wipe", family: "forme", name: "Balayage", glyph: "◑" },
+  { id: "wiperight", family: "forme", name: "Balayage ←", glyph: "◐" },
+  { id: "wipeup", family: "forme", name: "Balayage ↑", glyph: "◒" },
+  { id: "wipedown", family: "forme", name: "Balayage ↓", glyph: "◓" },
+  { id: "iris", family: "forme", name: "Iris", glyph: "◉" },
+  { id: "boxin", family: "forme", name: "Iris carré", glyph: "▣" },
+  { id: "bandin", family: "forme", name: "Bande centrale", glyph: "▤" },
+  { id: "wipediag", family: "forme", name: "Balayage diagonal", glyph: "◪" },
+  { id: "wipediagup", family: "forme", name: "Balayage diagonal ↗", glyph: "◩" },
+  { id: "diamond", family: "forme", name: "Losange", glyph: "◆" },
+  { id: "corner", family: "forme", name: "Balayage coin", glyph: "◤" },
+  { id: "chevron", family: "forme", name: "Chevron", glyph: "❯" },
+  { id: "blindsh", family: "forme", name: "Stores horizontaux", glyph: "☰" },
+  { id: "blindsv", family: "forme", name: "Stores verticaux", glyph: "▥" },
   // — Dynamiques —
-  { id: "spin", name: "Rotation", glyph: "↻" },
-  { id: "swirl", name: "Tourbillon", glyph: "✺" },
-  { id: "blur", name: "Flou", glyph: "◌" },
-  { id: "whip", name: "Whip", glyph: "⤳" },
-  { id: "shake", name: "Secousse", glyph: "≋" },
-  { id: "glitch", name: "Glitch", glyph: "⌁" },
+  { id: "spin", family: "dynamique", name: "Rotation", glyph: "↻" },
+  { id: "swirl", family: "dynamique", name: "Tourbillon", glyph: "✺" },
+  { id: "blur", family: "dynamique", name: "Flou", glyph: "◌" },
+  { id: "whip", family: "dynamique", name: "Whip", glyph: "⤳" },
+  { id: "whipup", family: "dynamique", name: "Whip vertical", glyph: "⤒" },
+  { id: "shake", family: "dynamique", name: "Secousse", glyph: "≋" },
+  { id: "glitch", family: "dynamique", name: "Glitch", glyph: "⌁" },
+  // — Shaders : ce qu'un canvas 2D ne sait pas faire (déformation pixel à pixel).
+  ...GL_TRANSITIONS.map((t) => ({ id: t.id, name: t.name, glyph: t.glyph, family: t.family })),
 ];
+
+/* Table d'accès direct : la timeline cherchait la transition d'un plan en
+   parcourant les soixante-treize, pour chaque plan, à chaque rendu — et il y a
+   trente rendus par seconde pendant une animation. */
+export const TRANSITION_PAR_ID = new Map(TRANSITIONS.map((t) => [t.id, t]));
 
 export const SPEEDS = [0.25, 0.5, 1, 1.5, 2];
 
@@ -1608,86 +1638,275 @@ export interface TransitionState {
   extraFilter: string;
   clipRect: [number, number, number, number] | null; // x,y,w,h en fractions
   clipCircle: [number, number, number] | null;       // cx,cy,r en fractions (r = /diagonale)
+  /** Découpe libre, en fractions du cadre. Le canvas en fait un chemin, l'aperçu
+   *  un `clip-path: polygon()` : la même forme des deux côtés, au pixel près.
+   *  C'est ce qui ouvre les diagonales, les losanges, les chevrons — tout ce
+   *  qu'un rectangle et un cercle ne savent pas dire. */
+  clipPoly: [number, number][] | null;
+  /** Stores : `n` bandes régulières le long d'un axe, remplies à `p`. Une forme
+   *  en plusieurs morceaux qu'aucune découpe d'un seul tenant ne décrit. */
+  clipBands: { axis: "x" | "y"; n: number; p: number } | null;
 }
 
+/** État des DEUX plans pendant une transition : celui qui arrive et celui qui part.
+ *
+ *  Une transition n'était appliquée qu'au plan ENTRANT, par-dessus un plan sortant
+ *  figé sur sa dernière image (ou, dans l'aperçu, par-dessus rien du tout : un
+ *  « fondu » apparaissait depuis le noir au lieu de l'image d'avant). C'est ce qui
+ *  les faisait toutes paraître bon marché : un glissé, c'était une photo immobile
+ *  avec une image qui passe dessus. Les deux côtés bougent maintenant, et c'est le
+ *  même calcul qui sert à l'aperçu et aux deux exports.
+ *
+ *  `out` décrit le plan qui s'en va, dessiné EN DESSOUS ; `in` celui qui arrive,
+ *  dessiné par-dessus. Les voiles (flash, noir) sont portés par `in` et posés une
+ *  seule fois, au-dessus des deux.
+ */
+export interface TransitionPair { in: TransitionState; out: TransitionState }
+
+const neutralState = (): TransitionState => ({
+  alpha: 1, dx: 0, dy: 0, scale: 1, rotate: 0, flash: 0, dark: 0,
+  extraFilter: "", clipRect: null, clipCircle: null, clipPoly: null, clipBands: null,
+});
+
+export function transitionPairAt(
+  transitionIn: string | undefined,
+  transitionDur: number,
+  tIntoClip: number,
+  isFirst: boolean,
+): TransitionPair {
+  const entrant = neutralState();
+  const sortant = neutralState();
+  if (isFirst || !transitionIn || transitionIn === "cut" || transitionDur <= 0 || tIntoClip >= transitionDur) {
+    return { in: entrant, out: sortant };
+  }
+  const p = Math.max(0, Math.min(1, tIntoClip / transitionDur));
+  const ease = 1 - Math.pow(1 - p, 2);
+  // Un fondu croisé linéaire creuse un trou de luminosité au milieu : les deux
+  // moitiés d'opacité ne s'additionnent pas. La racine le comble.
+  const fadeIn = Math.sqrt(p), fadeOut = Math.sqrt(1 - p);
+
+  // Transition à shader : le rendu passe par WebGL et n'a que faire de ces
+  // états. On rend quand même un fondu enchaîné, qui sert de REPLI là où WebGL
+  // manque (vieux navigateur, contexte refusé) : mieux vaut un fondu qu'une
+  // coupe sèche là où l'utilisateur a demandé une transition.
+  if (estTransitionGl(transitionIn)) {
+    entrant.alpha = fadeIn; sortant.alpha = fadeOut;
+    return { in: entrant, out: sortant };
+  }
+
+  switch (transitionIn) {
+    case "fade":
+      entrant.alpha = fadeIn; sortant.alpha = fadeOut;
+      break;
+    case "fadeblack":
+      // Passage par le noir : le sortant s'efface sur la première moitié, l'entrant
+      // arrive sur la seconde. Le fond noir fait le reste, sans voile à poser.
+      sortant.alpha = Math.max(0, 1 - p * 2);
+      entrant.alpha = Math.max(0, p * 2 - 1);
+      break;
+    case "fadewhite":
+      // Comme le fondu au noir, mais on passe par le blanc : le voile fait le
+      // travail pendant que les deux plans se croisent en dessous.
+      sortant.alpha = Math.max(0, 1 - p * 2);
+      entrant.alpha = Math.max(0, p * 2 - 1);
+      entrant.flash = Math.min(1, Math.sin(p * Math.PI) * 1.6);
+      break;
+    case "flash":
+      sortant.alpha = fadeOut; entrant.alpha = fadeIn;
+      entrant.flash = Math.sin(p * Math.PI); // pic de blanc au milieu, pas au début
+      break;
+
+    // — Glissés : les deux plans traversent le cadre ensemble, à pleine opacité.
+    //   Ils partaient d'un demi-cadre et en fondu, ce qui donnait un flottement
+    //   au lieu d'un glissement.
+    case "slide":      entrant.dx = 1 - ease;  sortant.dx = -ease; break;
+    case "slideright": entrant.dx = -(1 - ease); sortant.dx = ease; break;
+    case "slideup":    entrant.dy = 1 - ease;  sortant.dy = -ease; break;
+    case "slidedown":  entrant.dy = -(1 - ease); sortant.dy = ease; break;
+    // En diagonale, le sortant NE BOUGE PAS : deux rectangles qui filent en biais
+    // ne pavent pas le cadre, et on récoltait deux coins noirs. L'entrant passe
+    // donc par-dessus, en recouvrement.
+    case "slidediag":
+      entrant.dx = 1 - ease; entrant.dy = 1 - ease;
+      break;
+    case "slidediagup":
+      entrant.dx = -(1 - ease); entrant.dy = 1 - ease;
+      break;
+
+    // — Zooms : le sortant continue le mouvement du reste, l'entrant le rattrape.
+    case "zoom":
+      sortant.scale = 1 + 0.55 * ease; sortant.alpha = fadeOut;
+      entrant.scale = 1.55 - 0.55 * ease; entrant.alpha = fadeIn;
+      break;
+    // Le plan sortant ne descend JAMAIS sous le cadre plein : il est dessiné en
+    // dessous, donc tout ce qu'il libère montre du noir. C'est au plan entrant,
+    // par-dessus, d'arriver petit et de grandir.
+    case "zoomout":
+      sortant.scale = 1 + 0.1 * ease; sortant.alpha = fadeOut;
+      entrant.scale = 0.6 + 0.4 * ease; entrant.alpha = fadeIn;
+      break;
+    case "bounce": {
+      const o = Math.sin(p * Math.PI) * 0.1;
+      sortant.scale = 1 + 0.12 * ease; sortant.alpha = fadeOut;
+      entrant.scale = 0.8 + 0.2 * ease + o; entrant.alpha = fadeIn;
+      break;
+    }
+
+    case "zoomblur":
+      sortant.scale = 1 + 0.5 * ease; sortant.extraFilter = `blur(${ease * 18}px)`; sortant.alpha = fadeOut;
+      entrant.scale = 1.5 - 0.5 * ease; entrant.extraFilter = `blur(${(1 - ease) * 18}px)`; entrant.alpha = fadeIn;
+      break;
+    case "zoomspin":
+      sortant.scale = 1 + 0.3 * ease; sortant.alpha = fadeOut;
+      entrant.scale = 1.6 - 0.6 * ease; entrant.rotate = -(1 - ease) * 45; entrant.alpha = fadeIn;
+      break;
+    case "punch": {
+      // Coup sec : l'entrant arrive gros et se pose vite, au lieu de s'étaler sur
+      // toute la durée. C'est la nervosité qu'on attend d'un montage court.
+      const sec = 1 - Math.pow(1 - p, 4);
+      sortant.scale = 1 + 0.08 * sec; sortant.alpha = Math.max(0, 1 - p * 2.2);
+      entrant.scale = 1.35 - 0.35 * sec; entrant.alpha = Math.min(1, p * 2.2);
+      break;
+    }
+
+    // — Balayages : le sortant ne bouge pas, il est recouvert. C'est la définition
+    //   même d'un balayage, et elle demande que le sortant soit là.
+    case "wipe":      entrant.clipRect = [0, 0, ease, 1]; break;
+    case "wiperight": entrant.clipRect = [1 - ease, 0, ease, 1]; break;
+    case "wipedown":  entrant.clipRect = [0, 0, 1, ease]; break;
+    case "wipeup":    entrant.clipRect = [0, 1 - ease, 1, ease]; break;
+    case "iris":      entrant.clipCircle = [0.5, 0.5, 0.5 * ease]; break;
+    case "boxin":     entrant.clipRect = [0.5 - ease / 2, 0.5 - ease / 2, ease, ease]; break;
+    case "bandin":    entrant.clipRect = [0, 0.5 - ease / 2, 1, ease]; break;
+    // Diagonales : la frontière traverse le cadre en biais. On la décrit par le
+    // point où elle coupe le haut et celui où elle coupe le bas.
+    case "wipediag": {
+      const t = ease * 2;
+      entrant.clipPoly = [[0, 0], [Math.min(1, t), 0], [Math.max(0, t - 1), 1], [0, 1]];
+      break;
+    }
+    case "wipediagup": {
+      const t = ease * 2;
+      entrant.clipPoly = [[0, 1], [Math.min(1, t), 1], [Math.max(0, t - 1), 0], [0, 0]];
+      break;
+    }
+    case "diamond": {
+      // |x| + |y| <= r : à r = 1 le losange contient tout le cadre, coins compris.
+      const r = ease;
+      entrant.clipPoly = [[0.5, 0.5 - r], [0.5 + r, 0.5], [0.5, 0.5 + r], [0.5 - r, 0.5]];
+      break;
+    }
+    case "corner": {
+      // Le triangle doit aller jusqu'à DEUX pour contenir le cadre entier :
+      // borné à un, il s'arrêtait à la moitié et le reste apparaissait d'un coup.
+      const t = ease * 2;
+      entrant.clipPoly = [[0, 0], [t, 0], [0, t]];
+      break;
+    }
+    case "chevron": {
+      // Pointe qui avance : le sommet devance les flancs, comme une flèche.
+      const t = ease * 1.6;
+      const pointe = Math.min(1.6, t), flanc = Math.max(0, t - 0.6);
+      entrant.clipPoly = [[0, 0], [flanc, 0], [pointe, 0.5], [flanc, 1], [0, 1]];
+      break;
+    }
+    case "blindsh": entrant.clipBands = { axis: "y", n: 8, p: ease }; break;
+    case "blindsv": entrant.clipBands = { axis: "x", n: 8, p: ease }; break;
+
+    // — Dynamiques —
+    // Seul le plan ENTRANT tourne. Faire pivoter celui du dessous découvre ses
+    // quatre coins, et aucune échelle raisonnable ne les rattrape à 80 degrés :
+    // on gagnait un cadre noir en biais à chaque rotation.
+    case "spin":
+      sortant.scale = 1 + 0.12 * ease; sortant.alpha = fadeOut;
+      entrant.rotate = -(1 - ease) * 25; entrant.scale = 0.8 + 0.2 * ease; entrant.alpha = fadeIn;
+      break;
+    case "swirl":
+      sortant.scale = 1 + 0.2 * ease; sortant.alpha = fadeOut;
+      entrant.rotate = -(1 - ease) * 80; entrant.scale = 0.65 + 0.35 * ease; entrant.alpha = fadeIn;
+      break;
+    case "blur":
+      sortant.extraFilter = `blur(${ease * 16}px)`; sortant.alpha = fadeOut;
+      entrant.extraFilter = `blur(${(1 - ease) * 16}px)`; entrant.alpha = fadeIn;
+      break;
+    case "whip":
+      // Coup de caméra : les deux fuient dans le même sens, filés par le flou.
+      sortant.dx = -ease; sortant.extraFilter = `blur(${ease * 14}px)`;
+      entrant.dx = 1 - ease; entrant.extraFilter = `blur(${(1 - ease) * 14}px)`;
+      break;
+    case "whipup":
+      sortant.dy = -ease; sortant.extraFilter = `blur(${ease * 14}px)`;
+      entrant.dy = 1 - ease; entrant.extraFilter = `blur(${(1 - ease) * 14}px)`;
+      break;
+    case "shake": {
+      const amp = 0.036;
+      const sx = Math.sin(p * Math.PI * 7) * amp, sy = Math.cos(p * Math.PI * 5) * amp * 0.5;
+      sortant.dx = sx * ease; sortant.dy = sy * ease; sortant.alpha = fadeOut;
+      entrant.dx = sx * (1 - ease); entrant.dy = sy * (1 - ease); entrant.alpha = fadeIn;
+      break;
+    }
+    case "glitch": {
+      const amp = 0.047;
+      // pseudo-aléatoire déterministe : même rendu en aperçu et à l'export
+      const rnd = (v: number) => v - Math.floor(v);
+      const r1 = rnd(Math.sin(tIntoClip * 977.1) * 43758.5453);
+      const r2 = rnd(Math.sin(tIntoClip * 311.7) * 24634.6345);
+      sortant.dx = (r2 - 0.5) * amp * ease;
+      sortant.extraFilter = `saturate(${1 + ease * 2.2}) hue-rotate(${-ease * 25}deg)`;
+      sortant.alpha = fadeOut;
+      entrant.dx = (r1 - 0.5) * amp * (1 - ease);
+      entrant.dy = (r2 - 0.5) * amp * 0.4 * (1 - ease);
+      entrant.extraFilter = `saturate(${1 + (1 - ease) * 2.2}) hue-rotate(${(1 - ease) * 25}deg)`;
+      entrant.flash = r1 > 0.65 ? Math.sin(p * Math.PI) * 0.55 : 0;
+      entrant.alpha = fadeIn;
+      break;
+    }
+  }
+  return { in: entrant, out: sortant };
+}
+
+/** Le seul plan entrant. Conservé pour tout ce qui ne connaît qu'un plan à la fois
+ *  (vignettes de la timeline, panneau des transitions). */
 export function transitionStateAt(
   transitionIn: string | undefined,
   transitionDur: number,
   tIntoClip: number,
   isFirst: boolean,
 ): TransitionState {
-  const st: TransitionState = {
-    alpha: 1, dx: 0, dy: 0, scale: 1, rotate: 0, flash: 0, dark: 0,
-    extraFilter: "", clipRect: null, clipCircle: null,
-  };
-  if (isFirst || !transitionIn || transitionIn === "cut" || transitionDur <= 0 || tIntoClip >= transitionDur) return st;
-  const p = Math.max(0, Math.min(1, tIntoClip / transitionDur));
-  const ease = 1 - Math.pow(1 - p, 2);
-  switch (transitionIn) {
-    case "fade": st.alpha = ease; break;
-    case "fadeblack": st.dark = 1 - ease; st.alpha = Math.min(1, 0.35 + ease); break;
-    case "flash": st.flash = 1 - ease; st.alpha = Math.min(1, 0.4 + ease); break;
-    case "zoom": st.scale = 1.18 - 0.18 * ease; st.alpha = 0.2 + 0.8 * ease; break;
-    case "zoomout": st.scale = 0.82 + 0.18 * ease; st.alpha = 0.3 + 0.7 * ease; break;
-    case "bounce": {
-      const o = Math.sin(p * Math.PI) * 0.12;
-      st.scale = 0.86 + 0.14 * ease + o; st.alpha = Math.min(1, 0.3 + 1.2 * ease);
-      break;
-    }
-    case "slide": st.dx = (1 - ease) * 0.5; st.alpha = 0.3 + 0.7 * ease; break;
-    case "slideright": st.dx = -(1 - ease) * 0.5; st.alpha = 0.3 + 0.7 * ease; break;
-    case "slideup": st.dy = (1 - ease) * 0.4; st.alpha = 0.3 + 0.7 * ease; break;
-    case "slidedown": st.dy = -(1 - ease) * 0.4; st.alpha = 0.3 + 0.7 * ease; break;
-    case "spin": st.rotate = (1 - ease) * 22; st.scale = 0.85 + 0.15 * ease; st.alpha = ease; break;
-    case "swirl": st.rotate = (1 - ease) * 75; st.scale = 0.7 + 0.3 * ease; st.alpha = ease; break;
-    case "wipe": st.clipRect = [0, 0, ease, 1]; break;
-    case "wiperight": st.clipRect = [1 - ease, 0, ease, 1]; break;
-    case "wipedown": st.clipRect = [0, 0, 1, ease]; break;
-    case "wipeup": st.clipRect = [0, 1 - ease, 1, ease]; break;
-    case "iris": st.clipCircle = [0.5, 0.5, 0.5 * ease]; break;
-    case "blur": st.extraFilter = `blur(${(1 - ease) * 14}px)`; st.alpha = 0.5 + 0.5 * ease; break;
-    case "whip": st.dx = (1 - ease) * 0.6; st.extraFilter = `blur(${(1 - ease) * 12}px)`; st.alpha = 0.4 + 0.6 * ease; break;
-    case "shake": {
-      const amp = (1 - ease) * 0.036;
-      st.dx = Math.sin(p * Math.PI * 7) * amp;
-      st.dy = Math.cos(p * Math.PI * 5) * amp * 0.5;
-      st.alpha = Math.min(1, 0.5 + ease);
-      break;
-    }
-    case "glitch": {
-      const amp = (1 - ease) * 0.047;
-      // pseudo-aléatoire déterministe : même rendu en aperçu et à l'export
-      const r1 = Math.sin(tIntoClip * 977.1) * 43758.5453;
-      const r2 = Math.sin(tIntoClip * 311.7) * 24634.6345;
-      const rnd = (v: number) => v - Math.floor(v);
-      st.dx = (rnd(r1) - 0.5) * amp;
-      st.dy = (rnd(r2) - 0.5) * amp * 0.4;
-      st.extraFilter = `saturate(${1 + (1 - ease) * 2.2}) hue-rotate(${(1 - ease) * 25}deg)`;
-      st.flash = (1 - ease) * (rnd(r1) > 0.65 ? 0.55 : 0);
-      st.alpha = Math.min(1, 0.55 + ease);
-      break;
-    }
-  }
-  return st;
+  return transitionPairAt(transitionIn, transitionDur, tIntoClip, isFirst).in;
 }
 
-// Traduit un état de transition en styles CSS pour l'aperçu DOM.
 export function transitionCss(st: TransitionState): Record<string, string | number | undefined> {
   const parts: string[] = [];
   if (st.dx || st.dy) parts.push(`translate(${st.dx * 100}%, ${st.dy * 100}%)`);
   if (st.rotate) parts.push(`rotate(${st.rotate}deg)`);
   if (st.scale !== 1) parts.push(`scale(${st.scale})`);
   let clipPath: string | undefined;
-  if (st.clipRect) {
+  if (st.clipPoly) {
+    clipPath = `polygon(${st.clipPoly.map(([x, y]) => `${x * 100}% ${y * 100}%`).join(", ")})`;
+  } else if (st.clipRect) {
     const [x, y, w, h] = st.clipRect;
     clipPath = `inset(${y * 100}% ${(1 - x - w) * 100}% ${(1 - y - h) * 100}% ${x * 100}%)`;
   } else if (st.clipCircle) {
     const [cx, cy, r] = st.clipCircle;
     clipPath = `circle(${r * 100}% at ${cx * 100}% ${cy * 100}%)`;
   }
+  // Les stores sont une forme en MORCEAUX : aucune découpe d'un seul tenant ne
+  // les décrit. On passe donc par un masque en dégradé répété, dont la géométrie
+  // est exactement celle des bandes que le canvas dessine à l'export.
+  let maskImage: string | undefined;
+  if (st.clipBands) {
+    const { axis, n, p } = st.clipBands;
+    const pas = 100 / n;
+    const plein = pas * Math.max(0, Math.min(1, p));
+    const sens = axis === "x" ? "to right" : "to bottom";
+    maskImage = `repeating-linear-gradient(${sens}, #000 0 ${plein}%, transparent ${plein}% ${pas}%)`;
+  }
   return {
     opacity: st.alpha,
     transform: parts.length ? parts.join(" ") : undefined,
     clipPath,
+    maskImage,
+    WebkitMaskImage: maskImage,
   };
 }

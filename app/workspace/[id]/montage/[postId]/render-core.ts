@@ -9,7 +9,8 @@
 // Ces fonctions viennent telles quelles de export.ts, où elles étaient
 // enfermées avec la boucle de captation.
 
-import { MontageClip, OverlayClip, Caption, TitleEl, StickerEl, AudioTrack, SubCustom, effectiveSubStyle, resolveCapStyle, resolveCapPos, SUB_BASE_FONT, wrapWords, captionPartAt, subCanvasFont, subBgBox, curveLayout, applySubCase, withAlpha, subDefaultShadowOn, SUB_DEFAULT_SHADOW, transitionStateAt, DEFAULT_SUB_POS, clipFilterCss, overlayFilterCss, clipTimelineDur, clipAudioGainAt, overlayTimelineDur, overlayAudioGainAt, audioVolumeAt, kenBurnsScale, videoFormatById, exportQualityById, overlayEffects, overlayEffectCss, OUTLINE_PASSES, titleCanvasFont, titleLines, titleLook, titleBoxWidth, TITLE_BASE_FONT, TITLE_LINE_HEIGHT } from "./constants";
+import { estTransitionGl, moteurGl } from "./gl-transitions";
+import { MontageClip, OverlayClip, Caption, TitleEl, StickerEl, AudioTrack, SubCustom, effectiveSubStyle, resolveCapStyle, resolveCapPos, SUB_BASE_FONT, wrapWords, captionPartAt, subCanvasFont, subBgBox, curveLayout, applySubCase, withAlpha, subDefaultShadowOn, SUB_DEFAULT_SHADOW, transitionPairAt, type TransitionState, DEFAULT_SUB_POS, clipFilterCss, overlayFilterCss, clipTimelineDur, clipAudioGainAt, overlayTimelineDur, overlayAudioGainAt, audioVolumeAt, kenBurnsScale, videoFormatById, exportQualityById, overlayEffects, overlayEffectCss, OUTLINE_PASSES, titleCanvasFont, titleLines, titleLook, titleBoxWidth, TITLE_BASE_FONT, TITLE_LINE_HEIGHT } from "./constants";
 export interface ExportProject {
   clips: MontageClip[];
   overlays?: OverlayClip[];
@@ -35,6 +36,12 @@ export interface ExportResult {
    *  donnent pas le même conteneur, et l'appelant doit savoir s'il lui reste un
    *  transcodage à faire. */
   mimeType: string;
+  /** Crête du son réellement capté, 0 à 1. Zéro = fichier muet, et il vaut mieux
+   *  le dire à l'écran que de laisser l'utilisateur le découvrir tout seul. */
+  creteAudio?: number;
+  /** Quel moteur a produit le fichier. Deux mécaniques très différentes se
+   *  partagent l'export ; sans savoir laquelle a tourné, on corrige à l'aveugle. */
+  moteur?: "hors-ligne" | "temps-reel";
 }
 
 export interface ClipTimed extends MontageClip {
@@ -66,6 +73,16 @@ export const FPS = 30;
  *  premier dessin : les fonctions ci-dessous ferment sur ces deux variables. */
 export function setCanvasSize(w: number, h: number) { CANVAS_W = w; CANVAS_H = h; }
 
+/** Dimensions réelles d'une source, quelle qu'elle soit. Une TOILE n'a pas de
+ *  `naturalWidth` : la lire dessus rendait `undefined`, et l'image figée du plan
+ *  sortant ne se dessinait pas du tout. */
+export function tailleSource(media: HTMLVideoElement | HTMLImageElement | HTMLCanvasElement): [number, number] {
+  if (media instanceof HTMLVideoElement) return [media.videoWidth, media.videoHeight];
+  if (typeof HTMLCanvasElement !== "undefined" && media instanceof HTMLCanvasElement) return [media.width, media.height];
+  const img = media as HTMLImageElement;
+  return [img.naturalWidth || img.width, img.naturalHeight || img.height];
+}
+
 export function drawCover(ctx: CanvasRenderingContext2D, media: CanvasImageSource, mw: number, mh: number, focusX = 0.5, focusY = 0.5) {
   if (!mw || !mh) return;
   const scale = Math.max(CANVAS_W / mw, CANVAS_H / mh);
@@ -76,74 +93,206 @@ export function drawCover(ctx: CanvasRenderingContext2D, media: CanvasImageSourc
   ctx.drawImage(media, x, y, w, h);
 }
 
-// entrée transition : délègue à la SOURCE UNIQUE (constants.ts) puis convertit
-// les fractions en pixels du canvas. L'aperçu utilise exactement le même calcul.
-function transitionState(clip: ClipTimed, tIntoClip: number, isFirst: boolean) {
-  const s = transitionStateAt(clip.transitionIn, clip.transitionDur, tIntoClip, isFirst);
+/** Dessine un plan avec un état de transition IMPOSÉ, sans poser les voiles.
+ *  C'est la brique commune : pendant une transition, les deux plans passent par
+ *  ici, le sortant d'abord, l'entrant ensuite. */
+export function drawMediaWithState(
+  ctx: CanvasRenderingContext2D,
+  media: HTMLVideoElement | HTMLImageElement | HTMLCanvasElement,
+  clip: ClipTimed,
+  tIntoClip: number,
+  st: TransitionState,
+) {
+  const [mw, mh] = tailleSource(media);
   const diag = Math.hypot(CANVAS_W, CANVAS_H);
-  return {
-    alpha: s.alpha,
-    dx: s.dx * CANVAS_W,
-    dy: s.dy * CANVAS_H,
-    scale: s.scale,
-    rotate: s.rotate,
-    flash: s.flash,
-    dark: s.dark,
-    extraFilter: s.extraFilter,
-    clipRect: s.clipRect
-      ? ([s.clipRect[0] * CANVAS_W, s.clipRect[1] * CANVAS_H, s.clipRect[2] * CANVAS_W, s.clipRect[3] * CANVAS_H] as [number, number, number, number])
-      : null,
-    clipCircle: s.clipCircle
-      ? ([s.clipCircle[0] * CANVAS_W, s.clipCircle[1] * CANVAS_H, s.clipCircle[2] * diag] as [number, number, number])
-      : null,
-  };
-}
-
-export function drawMediaFrame(ctx: CanvasRenderingContext2D, media: HTMLVideoElement | HTMLImageElement, clip: ClipTimed, tIntoClip: number, isFirst: boolean) {
-  const mw = media instanceof HTMLVideoElement ? media.videoWidth : media.naturalWidth;
-  const mh = media instanceof HTMLVideoElement ? media.videoHeight : media.naturalHeight;
-  const tr = transitionState(clip, tIntoClip, isFirst);
-  const kbP = clip.dur > 0 ? Math.min(1, tIntoClip / clip.dur) : 0;
+  const dx = st.dx * CANVAS_W, dy = st.dy * CANVAS_H;
+  const kbP = clip.dur > 0 ? Math.min(1, Math.max(0, tIntoClip / clip.dur)) : 0;
   const kbScale = clip.kind === "photo" ? kenBurnsScale(clip.kenBurns, kbP) : 1;
-  const scale = tr.scale * kbScale;
+  const scale = st.scale * kbScale;
   ctx.save();
-  ctx.globalAlpha = tr.alpha;
-  ctx.filter = [clipFilterCss(clip), tr.extraFilter].filter(Boolean).join(" ") || "none";
-  if (tr.clipRect) {
+  ctx.globalAlpha = Math.max(0, Math.min(1, st.alpha));
+  ctx.filter = [clipFilterCss(clip), st.extraFilter].filter(Boolean).join(" ") || "none";
+  // Découpe libre : le chemin est le même que le `clip-path: polygon()` de l'aperçu.
+  if (st.clipPoly && st.clipPoly.length >= 3) {
     ctx.beginPath();
-    ctx.rect(...tr.clipRect);
+    st.clipPoly.forEach(([px, py], i) => {
+      const x = px * CANVAS_W, y = py * CANVAS_H;
+      if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+    });
+    ctx.closePath();
+    ctx.clip();
+  } else if (st.clipRect) {
+    ctx.beginPath();
+    ctx.rect(st.clipRect[0] * CANVAS_W, st.clipRect[1] * CANVAS_H, st.clipRect[2] * CANVAS_W, st.clipRect[3] * CANVAS_H);
+    ctx.clip();
+  }
+  // Stores : une bande pleine par pas, même géométrie que le masque en dégradé
+  // répété de l'aperçu.
+  if (st.clipBands) {
+    const { axis, n, p } = st.clipBands;
+    const total = axis === "x" ? CANVAS_W : CANVAS_H;
+    const pas = total / n;
+    const plein = pas * Math.max(0, Math.min(1, p));
+    ctx.beginPath();
+    for (let i = 0; i < n; i++) {
+      if (axis === "x") ctx.rect(i * pas, 0, plein, CANVAS_H);
+      else ctx.rect(0, i * pas, CANVAS_W, plein);
+    }
     ctx.clip();
   }
   // Iris : le plan entrant n'apparaît qu'à l'intérieur d'un disque grandissant.
-  if (tr.clipCircle) {
+  if (st.clipCircle) {
     ctx.beginPath();
-    ctx.arc(tr.clipCircle[0], tr.clipCircle[1], Math.max(0, tr.clipCircle[2]), 0, Math.PI * 2);
+    ctx.arc(st.clipCircle[0] * CANVAS_W, st.clipCircle[1] * CANVAS_H, Math.max(0, st.clipCircle[2] * diag), 0, Math.PI * 2);
     ctx.clip();
   }
-  if (scale !== 1 || tr.dx || tr.dy || tr.rotate) {
-    ctx.translate(CANVAS_W / 2 + tr.dx, CANVAS_H / 2 + tr.dy);
-    if (tr.rotate) ctx.rotate((tr.rotate * Math.PI) / 180);
+  if (scale !== 1 || dx || dy || st.rotate) {
+    ctx.translate(CANVAS_W / 2 + dx, CANVAS_H / 2 + dy);
+    if (st.rotate) ctx.rotate((st.rotate * Math.PI) / 180);
     ctx.scale(scale, scale);
     ctx.translate(-CANVAS_W / 2, -CANVAS_H / 2);
   }
   drawCover(ctx, media, mw, mh, clip.focusX, clip.focusY);
   ctx.restore();
-  // Flash blanc (transition "flash") par-dessus le plan entrant.
-  if (tr.flash > 0) {
+}
+
+/** Voiles de transition (flash blanc, fondu au noir), posés UNE FOIS au-dessus
+ *  des deux plans — sinon le sortant les recevrait deux fois. */
+export function drawTransitionVeils(ctx: CanvasRenderingContext2D, st: TransitionState) {
+  if (st.flash > 0) {
     ctx.save();
-    ctx.globalAlpha = Math.max(0, Math.min(1, tr.flash));
+    ctx.globalAlpha = Math.max(0, Math.min(1, st.flash));
     ctx.fillStyle = "#fff";
     ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
     ctx.restore();
   }
-  // Voile noir (transition "fondu au noir").
-  if (tr.dark > 0) {
+  if (st.dark > 0) {
     ctx.save();
-    ctx.globalAlpha = Math.max(0, Math.min(1, tr.dark));
+    ctx.globalAlpha = Math.max(0, Math.min(1, st.dark));
     ctx.fillStyle = "#000";
     ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
     ctx.restore();
   }
+}
+
+/* Deux toiles de brouillon, gardées d'une image à l'autre. Chaque côté d'une
+   transition WebGL y est composé D'ABORD en 2D (cadrage « cover », point de
+   recadrage, zoom automatique, filtres du plan), pour que le shader travaille
+   exactement sur ce que le rendu 2D aurait affiché. Sans ça, le shader verrait
+   des images brutes, au mauvais cadre et sans les réglages du plan. */
+let brouillonA: HTMLCanvasElement | null = null;
+let brouillonB: HTMLCanvasElement | null = null;
+function brouillon(quel: "a" | "b"): CanvasRenderingContext2D | null {
+  if (typeof document === "undefined") return null;
+  let cv = quel === "a" ? brouillonA : brouillonB;
+  if (!cv) { cv = document.createElement("canvas"); if (quel === "a") brouillonA = cv; else brouillonB = cv; }
+  if (cv.width !== CANVAS_W || cv.height !== CANVAS_H) { cv.width = CANVAS_W; cv.height = CANVAS_H; }
+  return cv.getContext("2d");
+}
+
+/** Une image de transition WebGL, posée sur le canvas de sortie.
+ *  Renvoie false si WebGL manque ou si le shader n'a pas voulu : l'appelant
+ *  retombe alors sur le fondu enchaîné, qui n'est jamais faux. */
+export function drawGlTransitionFrame(
+  ctx: CanvasRenderingContext2D,
+  sortantMedia: HTMLVideoElement | HTMLImageElement,
+  sortantClip: ClipTimed,
+  sortantT: number,
+  entrantMedia: HTMLVideoElement | HTMLImageElement,
+  entrantClip: ClipTimed,
+  entrantT: number,
+  id: string,
+  progress: number,
+): boolean {
+  const ca = brouillon("a"), cb = brouillon("b");
+  if (!ca || !cb) return false;
+  const neutre = { alpha: 1, dx: 0, dy: 0, scale: 1, rotate: 0, flash: 0, dark: 0,
+    extraFilter: "", clipRect: null, clipCircle: null, clipPoly: null, clipBands: null } as TransitionState;
+  ca.clearRect(0, 0, CANVAS_W, CANVAS_H);
+  cb.clearRect(0, 0, CANVAS_W, CANVAS_H);
+  drawMediaWithState(ca, sortantMedia, sortantClip, sortantT, neutre);
+  drawMediaWithState(cb, entrantMedia, entrantClip, entrantT, neutre);
+  const rendu = moteurGl().rendre(ca.canvas, cb.canvas, progress, id, CANVAS_W, CANVAS_H);
+  if (!rendu) return false;
+  ctx.drawImage(rendu, 0, 0, CANVAS_W, CANVAS_H);
+  return true;
+}
+
+export { estTransitionGl };
+
+/** UNE image de transition, quels que soient les deux plans et la transition.
+ *
+ *  C'est le seul chemin : shaders et transitions 2D, aperçu et exports. L'aperçu
+ *  jouait les transitions 2D en CSS sur les lecteurs vidéo et les shaders sur une
+ *  toile — deux façons de faire la même chose, dont une qui montrait du noir dès
+ *  que le lecteur du plan sortant n'avait pas fini de charger. */
+export function drawTransitionFrame(
+  ctx: CanvasRenderingContext2D,
+  sortantMedia: HTMLVideoElement | HTMLImageElement | HTMLCanvasElement,
+  sortantClip: ClipTimed,
+  sortantT: number,
+  entrantMedia: HTMLVideoElement | HTMLImageElement | HTMLCanvasElement,
+  entrantClip: ClipTimed,
+  entrantT: number,
+  id: string,
+  progress: number,
+  w: number,
+  h: number,
+) {
+  setCanvasSize(w, h);
+  // Fond NOIR, comme le cadre du montage : une toile transparente laisserait
+  // voir ce qu'il y a derrière, et « fondu au noir » s'afficherait en blanc.
+  ctx.fillStyle = "#000";
+  ctx.fillRect(0, 0, w, h);
+  const m = (x: unknown) => x as HTMLImageElement;
+  if (estTransitionGl(id) && drawGlTransitionFrame(ctx, m(sortantMedia), sortantClip, sortantT, m(entrantMedia), entrantClip, entrantT, id, progress)) return;
+  const paire = transitionPairAt(id, 1, progress, false);
+  drawMediaWithState(ctx, m(sortantMedia), sortantClip, sortantT, paire.out);
+  drawMediaWithState(ctx, m(entrantMedia), entrantClip, entrantT, paire.in);
+  drawTransitionVeils(ctx, paire.in);
+}
+
+/** Un plan posé seul dans un cadre, au cadrage « cover » du montage.
+ *  Sert à peindre l'image figée du plan sortant dans l'aperçu. */
+export function drawPlanFixe(
+  ctx: CanvasRenderingContext2D,
+  media: HTMLVideoElement | HTMLImageElement | HTMLCanvasElement,
+  clip: ClipTimed,
+  tIntoClip: number,
+  w: number,
+  h: number,
+) {
+  setCanvasSize(w, h);
+  ctx.clearRect(0, 0, w, h);
+  const neutre = { alpha: 1, dx: 0, dy: 0, scale: 1, rotate: 0, flash: 0, dark: 0,
+    extraFilter: "", clipRect: null, clipCircle: null, clipPoly: null, clipBands: null } as TransitionState;
+  drawMediaWithState(ctx, media, clip, tIntoClip, neutre);
+}
+
+/** Aperçu d'une transition entre deux images quelconques (vignettes du panneau,
+ *  banc d'essai). Deux plans factices, juste pour le cadrage. */
+export function drawTransitionPreview(
+  ctx: CanvasRenderingContext2D,
+  imgA: CanvasImageSource,
+  imgB: CanvasImageSource,
+  id: string,
+  progress: number,
+  w: number,
+  h: number,
+) {
+  const bidon = (): ClipTimed => ({
+    id: "apercu", kind: "photo", name: "", src: "", srcDur: 1, trimStart: 0, trimEnd: 1, speed: 1,
+    filterId: "none", lum: 0, con: 0, sat: 0, transitionIn: id, transitionDur: 1,
+    start: 0, end: 1, dur: 1,
+  } as unknown as ClipTimed);
+  drawTransitionFrame(ctx, imgA as HTMLImageElement, bidon(), 1, imgB as HTMLImageElement, bidon(), progress, id, progress, w, h);
+}
+
+/** Un plan seul (hors fenêtre de transition, ou premier plan du montage). */
+export function drawMediaFrame(ctx: CanvasRenderingContext2D, media: HTMLVideoElement | HTMLImageElement, clip: ClipTimed, tIntoClip: number, isFirst: boolean) {
+  const st = transitionPairAt(clip.transitionIn, clip.transitionDur, tIntoClip, isFirst).in;
+  drawMediaWithState(ctx, media, clip, tIntoClip, st);
+  drawTransitionVeils(ctx, st);
 }
 
 export function drawCaptions(ctx: CanvasRenderingContext2D, captions: Caption[], subStyleId: string, subCustom: SubCustom | undefined, subPos: { x: number; y: number } | undefined, t: number, linkedSubs: boolean = true) {

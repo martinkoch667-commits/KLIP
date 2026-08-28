@@ -4,20 +4,21 @@
 // Reprend la structure de design_handoff_montage_video/design_files/panels.jsx,
 // branché sur de vraies actions (state du projet Montage).
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import { VIcon } from "./icons";
 import SubtitleStyleEditor from "@/components/SubtitleStyleEditor";
 import { Row, Ico, Num, Fold, Swatches, AlignIcon, chargerCatalogue, type GFont } from "@/components/EditorControls";
 import {
   MontageClip, OverlayClip, Caption, TitleEl, StickerEl, AudioTrack, SubCustom, SubTemplate,
-  FILTERS, TRANSITIONS, SPEEDS, SUB_STYLES, SUB_LENGTHS, STICKER_GLYPHS, FONT_CHOICES,
+  FILTERS, TRANSITIONS, TRANSITION_FAMILIES, SPEEDS, SUB_STYLES, SUB_LENGTHS, STICKER_GLYPHS, FONT_CHOICES,
   effectiveSubStyle, loadSubTemplates, saveSubTemplates,
   clipFilterCss, overlayFilterCss, clipTimelineDur, overlayTimelineDur,
   OVERLAY_EFFECT_PRESETS, overlayEffectCss, TITLE_DEFAULT_MAX_WIDTH,
   TITLE_EFFECT_PRESETS, titleLook, titleShadowCss, titleWeight, titleItalic, withAlpha,
 } from "./constants";
 import { chargerPoliceGoogle } from "./fonts";
+import { drawTransitionPreview } from "./render-core";
 
 export interface MontageCtx {
   clips: MontageClip[];
@@ -916,26 +917,284 @@ export function AudioPanel({ ctx }: { ctx: MontageCtx }) {
 
 // ─── Transitions ────────────────────────────────────────────────────────────
 
+/* Vignette d'une transition : ce qu'elle FAIT, pas un pictogramme.
+
+   On choisissait une transition sur un glyphe et un nom. « Tourbillon », « Whip »,
+   « Iris carré » : personne ne sait à quoi ça ressemble avant de l'avoir posée,
+   annulée, reposée. La vignette montre donc la transition à mi-course sur les
+   images du montage en cours, et la joue en entier au survol.
+
+   Rendue avec le MÊME moteur que l'export (drawTransitionPreview) : une vignette
+   ne peut donc pas promettre autre chose que ce qui sortira. */
+const APERCU_W = 96, APERCU_H = 96;
+
+/* File de dessin des vignettes : une par image, pas une de plus.
+
+   Peu importe qu'on en demande soixante-treize d'un coup ou trois : le fil
+   principal ne rend jamais plus d'une vignette par image. C'est ce qui garantit
+   que l'ouverture du panneau ne fait pas hoqueter la lecture, même sur une
+   machine lente. */
+const attente: (() => void)[] = [];
+let videEnCours = false;
+function fileDeDessin(travail: () => void) {
+  attente.push(travail);
+  if (videEnCours) return;
+  videEnCours = true;
+  // Minuteur et non `requestAnimationFrame` : ce dernier ne se déclenche PAS
+  // quand l'onglet passe en arrière-plan, et les vignettes restaient alors vides
+  // pour toujours au retour (mesuré). Un pas de 16 ms suffit à étaler le travail.
+  const pas = () => {
+    const suivant = attente.shift();
+    if (suivant) { try { suivant(); } catch { /* vignette impossible : on passe */ } }
+    if (attente.length) setTimeout(pas, 16);
+    else videEnCours = false;
+  };
+  setTimeout(pas, 0);
+}
+
+/* Deux images franchement DIFFÉRENTES, pour qu'on voie la transition agir.
+
+   Les vignettes montraient les deux plans de la coupe en cours. Quand ces plans
+   se ressemblent — et c'est le cas normal : deux morceaux d'un même rush, deux
+   prises du même sujet — la vignette ne montrait rien du tout. On prend donc
+   deux images de la banque du produit, choisies pour ne pas se confondre.
+
+   Passées par le proxy maison : une image tierce sans en-tête CORS salit la
+   toile, et le rendu par shader s'arrête net sur une erreur de sécurité. */
+let promesseDemo: Promise<[HTMLImageElement, HTMLImageElement]> | null = null;
+
+function imageDepuis(src: string): Promise<HTMLImageElement> {
+  return new Promise((res, rej) => {
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    // `onload`, jamais `decode()` : cette dernière ne rend pas toujours la main.
+    img.onload = () => res(img);
+    img.onerror = () => rej(new Error("image"));
+    img.src = src;
+  });
+}
+
+/** Repli dessiné à la main : la banque peut être injoignable, une vignette vide
+ *  ne dit rien de mieux qu'un pictogramme. */
+function imageDeSecours(a: string, b: string, etiquette: string): Promise<HTMLImageElement> {
+  const c = document.createElement("canvas");
+  c.width = 288; c.height = 512;
+  const x = c.getContext("2d")!;
+  const g = x.createLinearGradient(0, 0, 288, 512);
+  g.addColorStop(0, a); g.addColorStop(1, b);
+  x.fillStyle = g; x.fillRect(0, 0, 288, 512);
+  x.fillStyle = "rgba(255,255,255,.9)";
+  x.font = "bold 120px system-ui"; x.textAlign = "center"; x.textBaseline = "middle";
+  x.fillText(etiquette, 144, 256);
+  return imageDepuis(c.toDataURL());
+}
+
+/* Deux paires : celle qu'on a TOUT DE SUITE, et celle qui arrive après.
+
+   Les vignettes attendaient la banque d'images en ligne pour se dessiner. Quand
+   la banque met vingt secondes à répondre — et elle le fait — le panneau restait
+   une minute avec ses pictogrammes. C'est le contraire de ce qu'on cherchait.
+
+   On dessine donc immédiatement avec une paire fabriquée sur place, qui ne coûte
+   rien et ne dépend de personne. Si la banque répond dans les temps, les
+   vignettes se redessinent avec de vraies photos ; sinon on garde la paire
+   locale, et personne n'a attendu. */
+let promesseLocale: Promise<[HTMLImageElement, HTMLImageElement]> | null = null;
+export function imagesDemoLocales(): Promise<[HTMLImageElement, HTMLImageElement]> {
+  if (!promesseLocale) {
+    promesseLocale = Promise.all([
+      imageDeSecours("#E0563F", "#7A1D12", "1"),
+      imageDeSecours("#2F6FE0", "#0B2456", "2"),
+    ]) as Promise<[HTMLImageElement, HTMLImageElement]>;
+  }
+  return promesseLocale;
+}
+
+let promesseDemo2: Promise<[HTMLImageElement, HTMLImageElement]> | null = null;
+function imagesDemoBanque(): Promise<[HTMLImageElement, HTMLImageElement]> {
+  if (promesseDemo2) return promesseDemo2;
+  promesseDemo2 = (async () => {
+    const prendre = async (recherche: string, rang: number) => {
+      const r = await fetch(`/api/pexels?query=${encodeURIComponent(recherche)}`);
+      const j = await r.json();
+      const url = j?.photos?.[rang]?.src?.medium;
+      if (!url) throw new Error("banque vide");
+      return imageDepuis(`/api/proxy-image?url=${encodeURIComponent(url)}`);
+    };
+    // Passé ce délai, ce n'est plus une amélioration, c'est une attente.
+    const delai = new Promise<never>((_, rej) => setTimeout(() => rej(new Error("banque trop lente")), 6000));
+    return await Promise.race([
+      Promise.all([prendre("portrait studio", 0), prendre("neon city night", 0)]),
+      delai,
+    ]) as [HTMLImageElement, HTMLImageElement];
+  })();
+  return promesseDemo2;
+}
+/* Mémoïsée, et ses propriétés le sont toutes.
+
+   Le monteur entier se rend jusqu'à trente fois par seconde pendant une
+   animation, et le panneau ouvert avec lui : soixante-treize vignettes
+   re-comparées à chaque fois. `onChoisir` est donc une fonction STABLE qui reçoit
+   l'identifiant, et non une flèche recréée à chaque rendu — sans quoi la
+   mémoïsation ne servirait à rien. */
+const TransitionThumb = memo(function TransitionThumb({
+  id, glyph, nom, actif, imgA, imgB, onChoisir,
+}: {
+  id: string; glyph: string; nom: string; actif: boolean;
+  imgA: HTMLImageElement | null; imgB: HTMLImageElement | null;
+  onChoisir: (id: string) => void;
+}) {
+  const cvRef = useRef<HTMLCanvasElement>(null);
+  const animRef = useRef<number | null>(null);
+
+  const dessiner = (p: number) => {
+    const cv = cvRef.current;
+    if (!cv || !imgA || !imgB) return;
+    const ctx = cv.getContext("2d", { alpha: false });
+    if (!ctx) return;
+    drawTransitionPreview(ctx, imgA, imgB, id, p, APERCU_W, APERCU_H);
+  };
+
+  /* Dessinée quand elle entre à l'écran, et JAMAIS toutes d'un coup.
+
+     Les soixante-treize vignettes se dessinaient à l'ouverture du panneau, et
+     trente-cinq d'entre elles font compiler un shader au passage : tout ça d'un
+     bloc sur le fil principal, qui porte aussi le son de la lecture.
+
+     Deux garde-fous. On n'entre dans la file qu'en devenant visible ; et la file
+     est vidée à raison d'UNE vignette par image, donc le fil n'est jamais retenu
+     longtemps, quel que soit le nombre de vignettes ou la lenteur de la machine.
+     Un repli au bout d'une demi-seconde couvre le cas où l'observateur ne dit
+     jamais rien (fenêtre sans hauteur, onglet en arrière-plan) : sans lui, la
+     vignette resterait vide pour toujours. */
+  useEffect(() => {
+    const cv = cvRef.current;
+    if (!cv || !imgA || !imgB) return;
+    let fait = false;
+    const demander = () => { if (fait) return; fait = true; fileDeDessin(() => dessiner(0.5)); };
+    const obs = new IntersectionObserver((entrees) => {
+      if (entrees.some((e) => e.isIntersecting)) { demander(); obs.disconnect(); }
+    }, { rootMargin: "120px" });
+    obs.observe(cv);
+    const repli = window.setTimeout(demander, 500);
+    return () => {
+      obs.disconnect();
+      clearTimeout(repli);
+      if (animRef.current) cancelAnimationFrame(animRef.current);
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id, imgA, imgB]);
+
+  const jouer = () => {
+    if (animRef.current) cancelAnimationFrame(animRef.current);
+    const t0 = performance.now();
+    const DUREE = 1100;
+    let derniere = 0;
+    const pas = () => {
+      const maintenant = performance.now();
+      // 20 images par seconde : une vignette de 96 pixels n'a rien à gagner à
+      // tourner à 60, et le fil principal a autre chose à faire — le son de la
+      // lecture passe par là.
+      if (maintenant - derniere >= 50) {
+        derniere = maintenant;
+        dessiner(((maintenant - t0) % DUREE) / DUREE);
+      }
+      animRef.current = requestAnimationFrame(pas);
+    };
+    animRef.current = requestAnimationFrame(pas);
+  };
+  const arreter = () => {
+    if (animRef.current) { cancelAnimationFrame(animRef.current); animRef.current = null; }
+    dessiner(0.5);
+  };
+
+  return (
+    <button
+      className={"mz-thumb" + (actif ? " on" : "")}
+      // Glisser-déposer : c'est le geste attendu ici. Poser une transition ne
+      // devrait pas obliger à d'abord sélectionner le bon plan, puis à deviner
+      // que c'est celui d'APRÈS la coupe qui la porte.
+      draggable
+      onDragStart={(e) => {
+        e.dataTransfer.setData("application/x-klip-transition", id);
+        // Doublon en texte simple : certains environnements ne transportent pas
+        // les types personnalisés, et le dépôt échouait alors sans rien dire.
+        e.dataTransfer.setData("text/plain", `klip-transition:${id}`);
+        e.dataTransfer.effectAllowed = "copy";
+      }}
+      onMouseEnter={jouer}
+      onMouseLeave={arreter}
+      onFocus={jouer}
+      onBlur={arreter}
+      onClick={() => onChoisir(id)}
+      style={{ aspectRatio: "1", background: "var(--sunk)", position: "relative", overflow: "hidden", padding: 0, cursor: "grab" }}
+      title={nom}
+    >
+      {imgA && imgB ? (
+        <canvas ref={cvRef} width={APERCU_W} height={APERCU_H}
+          style={{ position: "absolute", inset: 0, width: "100%", height: "100%", pointerEvents: "none" }} />
+      ) : (
+        <span style={{ position: "absolute", inset: 0, display: "grid", placeItems: "center", fontSize: 22, color: "var(--ink-2)" }}>{glyph}</span>
+      )}
+      <span style={{ position: "absolute", left: 0, right: 0, bottom: 0, padding: "8px 2px 4px", fontWeight: 700, fontSize: 9.5,
+        color: "#fff", textShadow: "0 1px 3px rgba(0,0,0,.9)",
+        background: "linear-gradient(transparent, rgba(0,0,0,.65))", pointerEvents: "none" }}>{nom}</span>
+    </button>
+  );
+});
+
 export function TransitionsPanel({ ctx }: { ctx: MontageCtx }) {
   const t = useTranslations('montage');
   const tc = useTranslations('montageConstants');
+  const tRef = useRef(t); tRef.current = t;
   const c = ctx.selectedClip;
+  const ctxRef = useRef(ctx); ctxRef.current = ctx;
+  const choisir = useCallback((idTransition: string) => {
+    const courant = ctxRef.current;
+    if (courant.selectedClip) courant.updateClip(courant.selectedClip.id, { transitionIn: idTransition });
+    else courant.toast(tRef.current('transitionNeedJunction'));
+  }, []);
+  const [demo, setDemo] = useState<{ a: HTMLImageElement | null; b: HTMLImageElement | null }>({ a: null, b: null });
+  useEffect(() => {
+    let vivant = true;
+    // D'abord la paire locale, tout de suite. Puis la banque, si elle répond.
+    imagesDemoLocales().then(([a, b]) => { if (vivant) setDemo({ a, b }); }).catch(() => {});
+    imagesDemoBanque().then(([a, b]) => { if (vivant) setDemo({ a, b }); }).catch(() => {});
+    return () => { vivant = false; };
+  }, []);
+  const { a: imgA, b: imgB } = demo;
   return (
     <>
       <div className="a-section">
         <span className="mz-sec-label">{t('entryTransitionTitle')}</span>
-        {!c ? (
-          <p style={{ fontSize: 12.5, color: "var(--ink-3)" }}>{t('selectOtherClipHint')}</p>
-        ) : (
-          <div className="mz-grid3">
-            {TRANSITIONS.map((tr) => (
-              <button key={tr.id} className={"mz-thumb" + (c.transitionIn === tr.id ? " on" : "")} style={{ aspectRatio: "1", background: "var(--sunk)", display: "grid", placeItems: "center", position: "relative" }} onClick={() => ctx.updateClip(c.id, { transitionIn: tr.id })}>
-                <span style={{ fontSize: 22, color: "var(--ink-2)" }}>{tr.glyph}</span>
-                <span style={{ position: "absolute", bottom: 5, fontWeight: 700, fontSize: 10, color: "var(--ink-2)" }}>{tc(`transition.${tr.id}`)}</span>
-              </button>
-            ))}
-          </div>
-        )}
+        {/* La grille est TOUJOURS là : c'est de là qu'on glisse. Elle n'apparaissait
+            qu'avec un plan sélectionné, ce qui interdisait le seul geste naturel. */}
+        <p style={{ fontSize: 11.5, color: "var(--ink-3)", margin: "0 0 10px", lineHeight: 1.45 }}>
+          {c ? t('transitionDropHint') : t('transitionDropHintNoClip')}
+        </p>
+        {TRANSITION_FAMILIES.map((fam) => {
+          const lot = TRANSITIONS.filter((tr) => tr.family === fam);
+          if (!lot.length) return null;
+          return (
+            <div key={fam} style={{ marginBottom: 12 }}>
+              <span className="mz-sec-label" style={{ display: "block", marginBottom: 6, opacity: .8 }}>{tc(`transitionFamily.${fam}`)}</span>
+              <div className="mz-grid3">
+                {lot.map((tr) => (
+                  <TransitionThumb
+                    key={tr.id}
+                    id={tr.id}
+                    glyph={tr.glyph}
+                    nom={tc(`transition.${tr.id}`)}
+                    actif={!!c && c.transitionIn === tr.id}
+                    imgA={imgA}
+                    imgB={imgB}
+                    onChoisir={choisir}
+                  />
+                ))}
+              </div>
+            </div>
+          );
+        })}
       </div>
       {c && (
         <div className="a-section">
@@ -946,8 +1205,6 @@ export function TransitionsPanel({ ctx }: { ctx: MontageCtx }) {
     </>
   );
 }
-
-// ─── Filtres ────────────────────────────────────────────────────────────────
 
 export function FilterPanel({ ctx }: { ctx: MontageCtx }) {
   const t = useTranslations('montage');
