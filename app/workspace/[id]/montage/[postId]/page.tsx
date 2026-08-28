@@ -3963,7 +3963,10 @@ export default function MontagePage() {
       if (thumbnailBlob) {
         const thumbPath = `${workspaceId}/${postId}-thumb-${Date.now()}.jpg`;
         const { error: thumbErr } = await supabase.storage.from("videos").upload(thumbPath, thumbnailBlob, { upsert: true, contentType: "image/jpeg" });
-        if (!thumbErr) thumbUrl = supabase.storage.from("videos").getPublicUrl(thumbPath).data.publicUrl;
+        // Une miniature refusée n'empêche pas l'export, mais on ne l'avale plus :
+        // c'est elle qui s'affiche partout dans le produit à la place de la vidéo.
+        if (thumbErr) console.error("[export] miniature refusée par le stockage :", thumbErr.message);
+        else thumbUrl = supabase.storage.from("videos").getPublicUrl(thumbPath).data.publicUrl;
       }
 
       await supabase.from("posts").update({

@@ -36,7 +36,12 @@ const BUCKETS: { id: string; public: boolean; allowedMimeTypes: string[] }[] = [
   {
     id: 'videos',
     public: true,
-    allowedMimeTypes: ['video/mp4', 'video/quicktime', 'video/webm'],
+    /* Les MINIATURES vivent dans ce bucket, à côté de la vidéo qu'elles
+       représentent. En n'y autorisant que des types vidéo, on faisait refuser
+       leur envoi par le stockage — un 400 à chaque export. Le défaut ne s'était
+       jamais vu tant que la liste n'était appliquée qu'à la création du bucket ;
+       depuis qu'on met aussi à jour les buckets existants, elle mord. */
+    allowedMimeTypes: ['video/mp4', 'video/quicktime', 'video/webm', 'image/jpeg', 'image/png', 'image/webp'],
   },
   {
     id: 'audio',
