@@ -910,23 +910,34 @@ function PlanningContent() {
   // ── Schedule / publish / delete ───────────────────────────────────────────
   async function handleSchedule() {
     if (!selectedPost || !panelDate) return;
-    setScheduling(true);
     const scheduled_at = buildScheduledAt(panelDate, panelTime);
-    if (!scheduled_at) { setScheduling(false); showToast("Date ou heure invalide", false); return; }
+    if (!scheduled_at) { showToast("Date ou heure invalide", false); return; }
     const tagged_users = panelTaggedUsers
       .split(",")
       .map(s => s.trim().replace(/^@/, ""))
       .filter(Boolean);
-    const { error } = await supabase.from("posts").update({
-      scheduled_at,
-      description: panelDesc,
-      status: "scheduled",
-      post_type: panelPostType,
-      target_platforms: panelPlatforms,
-      tagged_users,
-      music_note: panelMusicNote || null,
-    }).eq("id", selectedPost.id);
-    setScheduling(false);
+
+    /* Même précaution que pour la publication : le bouton se débloque quoi
+       qu'il arrive. supabase-js rend ses erreurs métier dans `error`, mais il
+       lève encore sur une coupure réseau — et le `finally` couvre les deux. */
+    setScheduling(true);
+    let error: { message: string } | null = null;
+    try {
+      const res = await supabase.from("posts").update({
+        scheduled_at,
+        description: panelDesc,
+        status: "scheduled",
+        post_type: panelPostType,
+        target_platforms: panelPlatforms,
+        tagged_users,
+        music_note: panelMusicNote || null,
+      }).eq("id", selectedPost.id);
+      error = res.error;
+    } catch (e) {
+      error = { message: e instanceof Error ? e.message : "connexion interrompue" };
+    } finally {
+      setScheduling(false);
+    }
     if (error) { showToast(`Échec de la programmation : ${error.message}`, false); return; }
     setPosts(prev => prev.map(p => p.id === selectedPost.id ? { ...p, scheduled_at, description: panelDesc, status: "scheduled", post_type: panelPostType, target_platforms: panelPlatforms, tagged_users, music_note: panelMusicNote || null } : p));
     showToast("Post programmé");
@@ -952,18 +963,57 @@ function PlanningContent() {
     // Cibles = plateformes sélectionnées ET réellement connectées ; sinon on retombe sur ce qui est connecté.
     let targets = panelPlatforms.filter(p => (p === "instagram" && igConnected) || (p === "facebook" && fbConnected));
     if (targets.length === 0) targets = [igConnected ? "instagram" : "facebook"];
-    setPublishing(true);
-    if (panelDesc !== selectedPost.description) {
-      await supabase.from("posts").update({ description: panelDesc }).eq("id", selectedPost.id);
-    }
     const endpoints: Record<string, string> = { instagram: "/api/publish/instagram", facebook: "/api/publish/facebook" };
     const nameOf = (p: string) => (p === "instagram" ? "Instagram" : "Facebook");
-    const results = await Promise.all(targets.map(async (plat) => {
-      const res  = await fetch(endpoints[plat], { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ postId: selectedPost.id, workspaceId: id }) });
-      const data = await res.json().catch(() => ({}));
-      return { plat, ok: res.ok, error: data?.error as string | undefined };
-    }));
-    setPublishing(false);
+
+    /* Une plateforme, une réponse — et JAMAIS d'exception. Un rejet ici
+       (réseau coupé, serveur qui ne répond pas) faisait échouer le
+       Promise.all, sautait le setPublishing(false) et laissait le bouton sur
+       « Publication… » indéfiniment, sans le moindre message. */
+    async function publierSur(plat: string): Promise<{ plat: string; ok: boolean; error?: string }> {
+      // La route Instagram peut tourner jusqu'à 5 minutes (maxDuration = 300 :
+      // envoi du média puis attente du conteneur). On laisse une marge, mais on
+      // ne reste pas suspendu pour toujours si rien ne revient.
+      const stop = new AbortController();
+      const minuteur = setTimeout(() => stop.abort(), 310_000);
+      try {
+        const res = await fetch(endpoints[plat], {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ postId: selectedPost!.id, workspaceId: id }),
+          signal: stop.signal,
+        });
+        const data = await res.json().catch(() => ({}));
+        return { plat, ok: res.ok, error: data?.error as string | undefined };
+      } catch (e) {
+        const expire = e instanceof DOMException && e.name === "AbortError";
+        return {
+          plat,
+          ok: false,
+          error: expire
+            ? "la publication n'a pas répondu à temps. Vérifiez le fil avant de réessayer : elle est peut-être partie."
+            : e instanceof Error ? e.message : "connexion interrompue",
+        };
+      } finally {
+        clearTimeout(minuteur);
+      }
+    }
+
+    setPublishing(true);
+    let results: { plat: string; ok: boolean; error?: string }[];
+    try {
+      if (panelDesc !== selectedPost.description) {
+        await supabase.from("posts").update({ description: panelDesc }).eq("id", selectedPost.id);
+      }
+      results = await Promise.all(targets.map(publierSur));
+    } catch (e) {
+      // Filet de dernier recours : quoi qu'il arrive, le bouton se débloque et
+      // l'utilisateur sait pourquoi.
+      showToast(`Échec de la publication : ${e instanceof Error ? e.message : "erreur inattendue"}`, false);
+      return;
+    } finally {
+      setPublishing(false);
+    }
     const ok   = results.filter(r => r.ok).map(r => r.plat);
     const fail = results.filter(r => !r.ok);
     if (ok.length) {
