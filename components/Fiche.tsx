@@ -55,6 +55,15 @@ export default function Fiche({
 
   useEffect(() => setMounted(true), []);
 
+  /* onClose est presque toujours une fonction anonyme, donc recréée à chaque
+     rendu. La mettre dans les dépendances de l'effet le faisait se rejouer sans
+     cesse : le nettoyage rendait le focus, l'effet le reprenait aussitôt, et
+     `restoreTo` finissait par pointer sur la fiche elle-même — retirée du DOM à
+     la fermeture, le focus retombait donc sur <body>. On la garde dans une ref
+     et l'effet ne dépend plus que de `open`. */
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
+
   useEffect(() => {
     if (!open) return;
 
@@ -69,7 +78,7 @@ export default function Fiche({
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
         e.stopPropagation();
-        onClose();
+        onCloseRef.current();
       }
     };
     document.addEventListener("keydown", onKey);
@@ -79,7 +88,7 @@ export default function Fiche({
       document.body.style.overflow = previous;
       restoreTo.current?.focus?.();
     };
-  }, [open, onClose]);
+  }, [open]);
 
   if (!open || !mounted) return null;
 
