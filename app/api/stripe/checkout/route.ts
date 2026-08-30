@@ -74,9 +74,28 @@ export async function POST(req: NextRequest) {
   // Si ce client a DÉJÀ eu un abonnement (même annulé/expiré), pas de nouvel essai.
   let hadSubscriptionBefore = false;
   try {
-    const existing = await stripe.subscriptions.list({ customer: customerId, status: "all", limit: 1 });
+    const existing = await stripe.subscriptions.list({ customer: customerId, status: "all", limit: 20 });
     hadSubscriptionBefore = existing.data.length > 0;
-  } catch { /* en cas d'erreur on ne bloque pas la création */ }
+
+    /* Un abonnement en cours interdit d'en ouvrir un second. Sans ce garde-fou,
+       la même personne pouvait être débitée deux fois : c'est arrivé en test,
+       une caisse aboutie puis une seconde rouverte 41 s plus tard par la clé
+       `klip_pending_checkout` restée dans le navigateur. La clé est maintenant
+       effacée à la réussite du paiement, mais la vraie protection est ici :
+       elle vaut quelle que soit la façon dont la caisse est appelée.
+       Changer d'offre passe par le portail Stripe, pas par une 2e caisse. */
+    const enCours = existing.data.find(sub => sub.status === "active" || sub.status === "trialing");
+    if (enCours) {
+      return NextResponse.json({
+        error: "Vous avez déjà un abonnement en cours. Gérez-le depuis votre espace Abonnement.",
+        code: "ALREADY_SUBSCRIBED",
+      }, { status: 409 });
+    }
+  } catch (err) {
+    // Une panne de lecture ne doit pas empêcher un nouveau client de payer ;
+    // elle est journalisée pour qu'un doublon reste explicable.
+    console.error("[checkout] abonnements existants illisibles :", err instanceof Error ? err.message : err);
+  }
 
   // ── Offre de lancement ─────────────────────────────────────────────────
   // Coupon Stripe (percent_off, duration: once) appliqué automatiquement quand

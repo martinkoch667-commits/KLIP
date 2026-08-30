@@ -54,6 +54,12 @@ export default function CheckoutSuccessPage() {
   useEffect(() => {
     let done = false;
 
+    /* Le paiement a abouti : l'intention de caisse mémorisée avant inscription
+       n'a plus lieu d'être. Sans cet effacement, le tableau de bord la trouvait
+       encore et rouvrait une SECONDE caisse juste après le paiement — vu en
+       test, 41 s après un abonnement réussi. */
+    try { localStorage.removeItem("klip_pending_checkout"); } catch { /* ignore */ }
+
     async function go() {
       if (done) return;
       done = true;

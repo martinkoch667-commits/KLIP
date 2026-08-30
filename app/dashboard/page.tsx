@@ -626,6 +626,9 @@ export default function Dashboard() {
       const { plan, period } = JSON.parse(raw);
       fetch('/api/stripe/checkout', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ plan, period }) })
         .then(r => r.json())
+        // Un 409 ALREADY_SUBSCRIBED n'a pas d'url : la caisse a refusé d'en
+        // ouvrir une seconde parce que l'abonnement existe déjà. On n'emmène
+        // donc nulle part, la personne reste dans son app.
         .then(j => { if (j?.url) window.location.href = j.url; })
         .catch(() => {});
     } catch {}
