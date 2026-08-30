@@ -6,11 +6,7 @@ import { usePathname, useSearchParams } from "next/navigation";
 import { CONSENT_EVENT, readConsent } from "./consent";
 import { PLANS, planKeyFromStripePlan, planValueEur } from "@/lib/plans";
 
-// ID par défaut (public — visible côté navigateur, ce n'est pas un secret).
-// La variable d'environnement NEXT_PUBLIC_FB_PIXEL_ID reste prioritaire si définie.
-// Dataset "KLIP Web" (Ensembles de données Meta) — à ne pas confondre avec
-// l'ID de l'app Facebook Login (1998010880798347) utilisé pour l'auth OAuth.
-const PIXEL_ID = process.env.NEXT_PUBLIC_FB_PIXEL_ID || "1390029399657000";
+import { PIXEL_ID } from "@/lib/meta-pixel";
 
 declare global {
   interface Window {

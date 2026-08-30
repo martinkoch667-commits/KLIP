@@ -14,9 +14,11 @@
 // côté serveur quelqu'un qui vient de refuser le bandeau.
 
 import crypto from "crypto";
+import { PIXEL_ID } from "@/lib/meta-pixel";
 
-// Dataset "KLIP Web" (Meta) — distinct de l'ID d'app Facebook Login (1998010880798347).
-const PIXEL_ID = process.env.NEXT_PUBLIC_FB_PIXEL_ID || "1390029399657000";
+// Le jeton est délivré POUR UN JEU DE DONNÉES : changer de pixel sans le
+// régénérer fait échouer ces envois en silence, pendant que le pixel navigateur
+// continue d'émettre. Voir lib/meta-pixel.ts.
 const TOKEN = process.env.META_CAPI_TOKEN;
 const API_VERSION = "v19.0";
 

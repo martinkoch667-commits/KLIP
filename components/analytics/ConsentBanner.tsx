@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { readConsent, writeConsent } from "./consent";
 
 // Dataset "KLIP Web" (Meta) — distinct de l'ID d'app Facebook Login (1998010880798347).
-const PIXEL_ID = process.env.NEXT_PUBLIC_FB_PIXEL_ID || "1390029399657000";
+import { PIXEL_ID } from "@/lib/meta-pixel";
 
 /* Charte landing v3 : carte blanche, encre, pilules, vert pastel --leaf comme
    seul accent (le mint fluo #2FD79B est réservé aux micro-accents de l'app). */
