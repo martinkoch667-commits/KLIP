@@ -6,6 +6,8 @@ import { cookies } from "next/headers";
 import { stripe, priceId, APP_URL, type Plan, type Period } from "@/lib/stripe";
 import { launchApplies } from "@/lib/launch-offer";
 import { launchSeatsOpen, forgetLaunchSeats } from "@/lib/launch-seats";
+import { PLANS, planKeyFromStripePlan, planValueEur } from "@/lib/plans";
+import { sendInitiateCheckoutEvent } from "@/lib/meta-capi";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -23,7 +25,7 @@ export async function POST(req: NextRequest) {
   const email = session.user.email ?? undefined;
 
   // ── Body : plan + period ──────────────────────────────────────────────
-  let body: { plan?: string; period?: string; cancelPath?: string } = {};
+  let body: { plan?: string; period?: string; cancelPath?: string; eventId?: string } = {};
   try { body = await req.json(); } catch { /* defaults */ }
   const plan = (body.plan === "agence" ? "agence" : "studio") as Plan;
   const period = (body.period === "yearly" ? "yearly" : "monthly") as Period;
@@ -85,6 +87,33 @@ export async function POST(req: NextRequest) {
     console.warn("[checkout] LAUNCH_OFFER active mais STRIPE_LAUNCH_COUPON absent : le prix barré de la landing ne sera PAS appliqué.");
   }
 
+  /* ── Conversion Meta « InitiateCheckout » côté serveur ─────────────────
+     Le pixel navigateur l'a déjà envoyée au clic ; celle-ci passe même si le
+     pixel est bloqué. Le même `eventId` sur les deux permet à Meta de n'en
+     compter qu'une. Pas d'eventId = consentement publicitaire refusé (ou
+     pixel absent) : on n'envoie rien, la CAPI est soumise au même
+     consentement que le pixel.
+     Lancée AVANT la création de la session Stripe et attendue après : les
+     deux appels réseau se recouvrent, le départ vers la caisse n'attend pas. */
+  const capiKey = planKeyFromStripePlan(plan);
+  const capi = body.eventId
+    ? sendInitiateCheckoutEvent({
+        eventId: body.eventId,
+        email,
+        userId,
+        value: planValueEur(capiKey, period),
+        currency: "EUR",
+        planLabel: PLANS[capiKey].label,
+        contentId: `${capiKey}:${period}`,
+        period,
+        eventSourceUrl: req.headers.get("referer") || undefined,
+        clientIp: req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || undefined,
+        userAgent: req.headers.get("user-agent") || undefined,
+        fbp: req.cookies.get("_fbp")?.value,
+        fbc: req.cookies.get("_fbc")?.value,
+      })
+    : null;
+
   // ── Session Checkout (abonnement ; essai seulement à la 1re fois) ───────
   try {
     const checkout = await stripe.checkout.sessions.create({
@@ -108,6 +137,7 @@ export async function POST(req: NextRequest) {
       cancel_url: `${APP_URL}${cancelPath}`,
     });
     if (launchCoupon) forgetLaunchSeats(); // la place vient d'être prise
+    if (capi) await capi; // ne lève jamais : les erreurs sont loggées côté meta-capi
     return NextResponse.json({ url: checkout.url });
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);

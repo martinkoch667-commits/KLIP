@@ -8,12 +8,28 @@
 
    Ce qui débite réellement, ce sont les Price ID Stripe (voir lib/stripe.ts) :
    ces montants ne sont que l'affichage, ils doivent être tenus d'accord avec
-   Stripe à la main. */
+   Stripe à la main.
 
+   L'annuel, c'est deux mois offerts : le tarif mensuel × 10 ÷ 12. Studio à
+   39 € tombe juste (32,50 × 12 = 390 = dix mois pile). Starter arrondit au
+   centime inférieur, jamais au-dessus du montant débité.
+
+   ATTENTION — Starter n'est PAS encore branché sur le paiement : il n'a ni
+   Price ID Stripe ni type de compte en base. La grille l'affiche, le bouton
+   « Essai » retombera sur « le paiement arrive bientôt » tant que
+   STRIPE_PRICE_STARTER_* n'existe pas. */
+
+/* Ce que la base connaît. Elle ne stocke que deux types de compte, et ça ne
+   bouge pas ici : Starter est une offre d'entrée sur le même compte que
+   Studio, avec un seul client autorisé. */
 export type AccountType = "solo" | "agency";
 
+/* Ce que la grille affiche. Trois offres, dont une (starter) qui n'a pas de
+   type de compte à elle. */
+export type PlanKey = "starter" | "solo" | "agency";
+
 export type PlanConfig = {
-  key: AccountType;
+  key: PlanKey;
   label: string;            // nom affiché de l'offre
   priceMonthly: number;     // €/mois, à l'engagement mensuel
   priceYearly: number;      // €/mois équivalent, à l'engagement annuel
@@ -26,12 +42,21 @@ export type PlanConfig = {
   };
 };
 
-export const PLANS: Record<AccountType, PlanConfig> = {
+export const PLANS: Record<PlanKey, PlanConfig> = {
+  starter: {
+    key: "starter",
+    label: "Starter",
+    priceMonthly: 14.99,
+    priceYearly: 12.49,
+    maxClients: 1,
+    maxMembers: 1,
+    features: { validation: true, roles: false, batch: false },
+  },
   solo: {
     key: "solo",
     label: "Studio",
-    priceMonthly: 35,
-    priceYearly: 29,
+    priceMonthly: 39,
+    priceYearly: 32.50,
     maxClients: 6,
     maxMembers: 1,
     features: { validation: true, roles: false, batch: false },
@@ -49,11 +74,40 @@ export const PLANS: Record<AccountType, PlanConfig> = {
 
 export const TRIAL_DAYS = 7;
 
+/* ── Lire l'offre d'un compte ───────────────────────────────────────────────
+   Deux colonnes, deux notions, et il faut les garder distinctes :
+
+   · account_type  = la STRUCTURE du compte (solo / agency). Elle décide des
+                     membres d'équipe, des rôles, de la création en lot.
+   · current_plan  = l'OFFRE souscrite (starter / solo / agency). Elle porte le
+                     prix et la limite de clients.
+
+   Starter est un compte solo qui n'a droit qu'à un client. Lire account_type
+   seul lui donnerait les six clients de Studio pour 14,99 € : tout ce qui
+   compte des clients doit passer par getPlanFor, jamais par getPlan seul. */
+
+type SettingsLike = { account_type?: string | null; current_plan?: string | null } | null | undefined;
+
+export function planKeyFrom(settings: SettingsLike): PlanKey {
+  const p = settings?.current_plan;
+  if (p === "starter" || p === "solo" || p === "agency") return p;
+  // Comptes d'avant l'offre Starter, ou base pas encore migrée (027) :
+  // current_plan est nul ou invalide, on retombe sur la structure du compte.
+  return settings?.account_type === "agency" ? "agency" : "solo";
+}
+
+/** L'offre réellement souscrite. C'est CELLE-CI qu'il faut pour tout bridage. */
+export function getPlanFor(settings: SettingsLike): PlanConfig {
+  return PLANS[planKeyFrom(settings)];
+}
+
 /** Convertit le paramètre d'URL (?plan=studio|agency|solo) en account_type. */
 export function planFromParam(p?: string | null): AccountType {
   return p === "agency" ? "agency" : "solo"; // "studio" et défaut → solo
 }
 
+/** Offre déduite du seul type de compte. Ne distingue PAS Starter de Studio :
+    pour un bridage, utiliser getPlanFor, qui lit aussi current_plan. */
 export function getPlan(accountType?: string | null): PlanConfig {
   return accountType === "agency" ? PLANS.agency : PLANS.solo;
 }
@@ -74,4 +128,27 @@ export function isAccessBlocked(s: {
   if (s.subscription_status === "active") return false;
   // Tout le reste (trialing par défaut sans Stripe, expired, canceled, past_due, null) → bloqué.
   return true;
+}
+
+/* ── Valeur d'une offre pour les conversions publicitaires ──────────────────
+   Meta veut un montant sur InitiateCheckout / StartTrial, et ce montant est
+   celui qui sera réellement facturé à la fin de l'essai : la somme engagée sur
+   la période choisie, pas le prix mensuel affiché. L'annuel s'affiche en
+   équivalent par mois, il se compte donc × 12.
+
+   La remise de lancement n'entre pas dans ce calcul : on annonce à Meta la
+   valeur de l'abonnement, pas celle de la première facture, sinon la valeur
+   d'une conversion changerait le jour où le coupon s'éteint. */
+export function planValueEur(plan: PlanKey, period: "monthly" | "yearly"): number {
+  const p = PLANS[plan];
+  return period === "yearly" ? Math.round(p.priceYearly * 12 * 100) / 100 : p.priceMonthly;
+}
+
+/* Nom d'offre côté Stripe ("starter" | "studio" | "agence") → clé d'offre
+   interne. Même correspondance que `planKeyForPlan` dans lib/stripe.ts, qui
+   délègue ici : lib/stripe.ts charge le SDK Stripe et ne peut pas être importé
+   depuis le navigateur, alors que ce fichier le peut. */
+export function planKeyFromStripePlan(plan?: string | null): PlanKey {
+  if (plan === "starter") return "starter";
+  return plan === "agence" ? "agency" : "solo";
 }

@@ -1,8 +1,12 @@
 import { NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
 import { createRouteHandlerClient } from "@supabase/auth-helpers-nextjs";
 import { createClient } from "@supabase/supabase-js";
 import { cookies } from "next/headers";
-import { stripe, planFromPriceId, accountTypeForPlan } from "@/lib/stripe";
+import { stripe, planFromPriceId, accountTypeForPlan, planKeyForPlan } from "@/lib/stripe";
+import { upsertUserSettings } from "@/lib/user-settings";
+import { PLANS, planKeyFromStripePlan } from "@/lib/plans";
+import { sendStartTrialEvent } from "@/lib/meta-capi";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -16,8 +20,18 @@ function internalStatus(s: string): "active" | "past_due" | "expired" | "cancele
 
 /* Synchronise l'abonnement Stripe de l'utilisateur connecté vers la DB.
    Appelé juste après le retour du Checkout pour éviter d'attendre le webhook. */
-export async function POST() {
+export async function POST(req: NextRequest) {
   if (!stripe) return NextResponse.json({ active: false, error: "STRIPE_OFF" }, { status: 200 });
+
+  /* Consentement publicitaire, tel que le navigateur vient de le lire. La
+     Conversions API envoie les mêmes données personnelles que le pixel : sans
+     ce drapeau on ne lui envoie rien, sinon on suivrait côté serveur quelqu'un
+     qui a refusé le bandeau. */
+  let trackingConsent = false;
+  try {
+    const body = await req.json();
+    trackingConsent = body?.trackingConsent === true;
+  } catch { /* appel sans corps : pas de consentement signalé */ }
 
   const supabase = createRouteHandlerClient({ cookies });
   const { data: { session } } = await supabase.auth.getSession();
@@ -43,8 +57,20 @@ export async function POST() {
     const sub = subs.data[0];
     if (!sub) return NextResponse.json({ active: false });
 
-    const pp = planFromPriceId(sub.items.data[0]?.price?.id);
+    const item = sub.items.data[0];
+    const pp = planFromPriceId(item?.price?.id);
     const internal = internalStatus(sub.status);
+
+    /* Montant réellement souscrit, pour l'événement StartTrial du pixel Meta
+       (voir app/checkout-success). On lit le prix Stripe plutôt que la grille
+       affichée : c'est ce qui sera débité à la fin de l'essai, et les deux
+       peuvent diverger le temps d'un changement de tarif. La remise de
+       lancement n'entre pas dedans (`unit_amount` est le prix catalogue), ce
+       qui est voulu : on annonce la valeur de l'abonnement, pas celle de la
+       première facture. */
+    const unit = item?.price?.unit_amount;
+    const value = typeof unit === "number" ? (unit * (item?.quantity ?? 1)) / 100 : null;
+    const currency = (item?.price?.currency ?? "eur").toUpperCase();
 
     await admin.from("subscriptions").upsert({
       user_id: userId,
@@ -58,10 +84,49 @@ export async function POST() {
     }, { onConflict: "stripe_subscription_id" });
 
     const us: Record<string, unknown> = { user_id: userId, subscription_status: internal, stripe_subscription_id: sub.id, stripe_customer_id: customerId };
-    if (pp?.plan) { us.current_plan = accountTypeForPlan(pp.plan); us.account_type = accountTypeForPlan(pp.plan); }
-    await admin.from("user_settings").upsert(us, { onConflict: "user_id" });
+    if (pp?.plan) {
+      // current_plan porte l'OFFRE (starter distinct de studio), account_type
+      // la STRUCTURE du compte.
+      us.current_plan = planKeyForPlan(pp.plan);
+      us.account_type = accountTypeForPlan(pp.plan);
+    }
+    await upsertUserSettings(admin, us);
 
-    return NextResponse.json({ active: internal === "active", status: sub.status });
+    /* ── Conversion Meta « StartTrial » côté serveur ─────────────────────
+       Un essai vient d'être créé : c'est LA conversion de la campagne. Elle
+       part d'ici en plus du pixel navigateur (voir app/checkout-success), avec
+       un id dérivé de l'abonnement — le même des deux côtés, et stable si
+       cette route est rappelée : Meta ne comptera qu'un essai. */
+    const eventId = `starttrial_${sub.id}`;
+    if (sub.status === "trialing" && trackingConsent) {
+      const key = planKeyFromStripePlan(pp?.plan);
+      await sendStartTrialEvent({
+        eventId,
+        email: session.user.email ?? undefined,
+        userId,
+        value: value ?? 0,
+        currency,
+        planLabel: PLANS[key].label,
+        contentId: `${key}:${pp?.period ?? "monthly"}`,
+        period: pp?.period ?? "monthly",
+        eventSourceUrl: req.headers.get("referer") || undefined,
+        clientIp: req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || undefined,
+        userAgent: req.headers.get("user-agent") || undefined,
+        fbp: req.cookies.get("_fbp")?.value,
+        fbc: req.cookies.get("_fbc")?.value,
+      });
+    }
+
+    return NextResponse.json({
+      eventId,
+      active: internal === "active",
+      status: sub.status,
+      subscriptionId: sub.id,
+      plan: pp?.plan ?? null,
+      period: pp?.period ?? null,
+      value,
+      currency,
+    });
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     console.error("[stripe/sync]", msg);

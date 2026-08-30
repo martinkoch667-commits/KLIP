@@ -6,6 +6,7 @@ import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
 import { useRouter } from "next/navigation";
 import { PRICING_CSS, PlanCard, PeriodToggle } from "@/components/PricingUI";
 import { PLANS } from "@/lib/plans";
+import { trackInitiateCheckout } from "@/components/analytics/MetaPixel";
 import { LAUNCH_OFFER, launchApplies, launchPrice, formatPrice } from "@/lib/launch-offer";
 
 /* Écran d'offre de l'inscription. La mise en forme vient de `PricingUI`, elle
@@ -35,11 +36,14 @@ export default function PlanView({ seatsLeft }: { seatsLeft: number | null }) {
      repérée. Cet écran mène donc à la caisse, et le questionnaire attend le
      paiement. */
   async function startCheckout(plan: "studio" | "agence"): Promise<boolean> {
+    // Compté avant la redirection : une fois sur stripe.com, le pixel n'y est
+    // plus. L'eventId part au serveur pour dédupliquer avec la CAPI.
+    const eventId = trackInitiateCheckout(plan, period);
     try {
       const res = await fetch("/api/stripe/checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ plan, period, cancelPath: "/onboarding/plan" }),
+        body: JSON.stringify({ plan, period, cancelPath: "/onboarding/plan", ...(eventId ? { eventId } : {}) }),
       });
       const json = await res.json().catch(() => ({}));
       if (res.ok && json?.url) {

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createRouteHandlerClient } from "@supabase/auth-helpers-nextjs";
 import { createClient } from "@supabase/supabase-js";
 import { cookies } from "next/headers";
-import { getPlan } from "@/lib/plans";
+import { getPlanFor } from "@/lib/plans";
 
 // Colonnes optionnelles pas forcément migrées : si l'insert échoue parce que la
 // colonne n'existe pas encore (PostgREST PGRST204 / Postgres 42703), on la retire
@@ -83,12 +83,29 @@ export async function POST(request: NextRequest) {
     }
 
     // ── 3b. Bridage par offre : limite de clients ───────────────────────────
-    const { data: settings } = await supabase
+    // On lit l'OFFRE, pas seulement le type de compte : Starter est un compte
+    // solo qui n'a droit qu'à UN client. Compter sur account_type seul lui
+    // donnerait les six de Studio.
+    // current_plan peut manquer si la migration 027 n'est pas passée : dans ce
+    // cas getPlanFor retombe sur account_type, et la limite est celle de Studio.
+    let settings: { account_type?: string | null; current_plan?: string | null } | null = null;
+    const parOffre = await supabase
       .from("user_settings")
-      .select("account_type")
+      .select("account_type, current_plan")
       .eq("user_id", userId)
       .maybeSingle();
-    const plan = getPlan(settings?.account_type);
+    if (parOffre.error) {
+      console.error("[workspace/create] current_plan illisible, repli sur account_type :", parOffre.error.message);
+      const parType = await supabase
+        .from("user_settings")
+        .select("account_type")
+        .eq("user_id", userId)
+        .maybeSingle();
+      settings = parType.data;
+    } else {
+      settings = parOffre.data;
+    }
+    const plan = getPlanFor(settings);
     const { count } = await supabase
       .from("workspaces")
       .select("id", { count: "exact", head: true })

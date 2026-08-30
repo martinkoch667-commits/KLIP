@@ -614,7 +614,9 @@ export default function Dashboard() {
   const [active, setActive] = useState<string>('all');
   const [loading, setLoading] = useState(true);
 
-  // Reprise d'un Checkout demandé depuis la landing avant inscription
+  // Reprise d'un Checkout demandé depuis la landing avant inscription.
+  // Pas d'InitiateCheckout ici : il est déjà parti au clic sur la landing,
+  // c'est le même départ vers la caisse qui se termine.
   useEffect(() => {
     let raw: string | null = null;
     try { raw = localStorage.getItem('klip_pending_checkout'); } catch { raw = null; }

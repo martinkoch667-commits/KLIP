@@ -4,6 +4,41 @@ import { useEffect } from "react";
 import { useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
+import { trackStartTrial } from "@/components/analytics/MetaPixel";
+import { readConsent } from "@/components/analytics/consent";
+
+/* Conversion Meta « StartTrial ». Elle part d'ici et pas du clic sur l'offre :
+   ce n'est un essai que si Stripe a vraiment créé l'abonnement, et /api/stripe/sync
+   vient de nous le dire (status, offre, montant du prix souscrit).
+   Une seule fois par abonnement : la page peut être rechargée, ou remontée deux
+   fois en développement (StrictMode), et Meta compterait deux essais. */
+function reportStartTrial(sync: {
+  status?: string;
+  subscriptionId?: string;
+  eventId?: string;
+  plan?: string | null;
+  period?: "monthly" | "yearly" | null;
+  value?: number | null;
+  currency?: string | null;
+} | null) {
+  if (!sync || sync.status !== "trialing") return; // renouvellement, pas un essai
+  const key = `klip-starttrial:${sync.subscriptionId ?? "unknown"}`;
+  try {
+    if (localStorage.getItem(key)) return;
+    localStorage.setItem(key, "1");
+  } catch {
+    // navigation privée : tant pis pour le garde-fou, l'essai se compte quand même
+  }
+  // Le même eventId que celui de la CAPI : Meta reçoit l'essai deux fois et
+  // n'en compte qu'un.
+  trackStartTrial({
+    plan: sync.plan,
+    period: sync.period,
+    value: sync.value,
+    currency: sync.currency,
+    eventId: sync.eventId,
+  });
+}
 
 /* Retour de la caisse Stripe. C'est ICI que l'essai commence vraiment, donc
    c'est ici que part le mail de bienvenue et qu'on présente le questionnaire.
@@ -38,8 +73,18 @@ export default function CheckoutSuccessPage() {
 
     // Synchronise l'abonnement Stripe vers la base avant d'entrer dans l'app,
     // sinon le middleware renverrait vers /abonnement alors que c'est payé.
-    fetch("/api/stripe/sync", { method: "POST" })
-      .then(() => fetch("/api/email/welcome", { method: "POST" }).catch(() => {}))
+    fetch("/api/stripe/sync", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      // Le serveur n'a aucun moyen de connaître le choix du bandeau : c'est
+      // lui qui décide s'il envoie la conversion à la Conversions API.
+      body: JSON.stringify({ trackingConsent: readConsent() === "granted" }),
+    })
+      .then((r) => r.json().catch(() => null))
+      .then((sync) => {
+        reportStartTrial(sync);
+        return fetch("/api/email/welcome", { method: "POST" }).catch(() => {});
+      })
       .then(() => go())
       .catch(() => go());
 

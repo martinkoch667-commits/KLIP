@@ -2,7 +2,8 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import Stripe from "stripe";
-import { stripe, planFromPriceId, accountTypeForPlan } from "@/lib/stripe";
+import { stripe, planFromPriceId, accountTypeForPlan, planKeyForPlan } from "@/lib/stripe";
+import { upsertUserSettings } from "@/lib/user-settings";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -54,8 +55,14 @@ async function syncSubscription(db: SupabaseClient, sub: Stripe.Subscription, us
       stripe_subscription_id: sub.id,
       stripe_customer_id: customerId,
     };
-    if (pp?.plan) { us.current_plan = accountTypeForPlan(pp.plan); us.account_type = accountTypeForPlan(pp.plan); }
-    await db.from("user_settings").upsert(us, { onConflict: "user_id" });
+    if (pp?.plan) {
+      // current_plan porte l'OFFRE (starter distinct de studio), account_type
+      // la STRUCTURE du compte. Confondre les deux donnait à un abonné Starter
+      // les six clients de Studio.
+      us.current_plan = planKeyForPlan(pp.plan);
+      us.account_type = accountTypeForPlan(pp.plan);
+    }
+    await upsertUserSettings(db, us);
   }
 }
 

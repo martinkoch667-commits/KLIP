@@ -10,7 +10,7 @@ import Link from "next/link";
 import Sidebar from "@/components/Sidebar";
 import { Sticker } from "@/components/Stickers";
 import { resetTours } from "@/components/GuidedTour";
-import { PLANS } from "@/lib/plans";
+import { PLANS, planKeyFrom, type PlanKey } from "@/lib/plans";
 import { resetOnboardingChecklist } from "@/components/OnboardingChecklist";
 import { useAccountType } from "@/hooks/useAccountType";
 
@@ -1241,12 +1241,16 @@ function AgencyTab({ supabase, userId }: { supabase: any; userId: string }) {
 
 // ─── Billing Tab ──────────────────────────────────────────────────────────────
 
-function BillingTab({ accountType }: { accountType: string }) {
-  const plans: Record<string, { name: string; price: string; desc: string }> = {
-    solo: { name: PLANS.solo.label, price: `${PLANS.solo.priceMonthly}€ / mois`, desc: "6 clients · 1 profil · Posts illimités · IA incluse" },
-    agency: { name: PLANS.agency.label, price: `${PLANS.agency.priceMonthly}€ / mois`, desc: "12 clients · 5 membres · Workflow validation · Rôles" },
+function BillingTab({ planKey }: { planKey: PlanKey }) {
+  // Le nombre de clients se lit dans la grille : recopié ici, il divergeait au
+  // premier changement de tarif (c'est l'avertissement en tête de lib/plans.ts).
+  const details: Record<PlanKey, string> = {
+    starter: `${PLANS.starter.maxClients} client · 1 profil · Posts illimités · IA incluse`,
+    solo: `${PLANS.solo.maxClients} clients · 1 profil · Posts illimités · IA incluse`,
+    agency: `${PLANS.agency.maxClients} clients · ${PLANS.agency.maxMembers} membres · Workflow validation · Rôles`,
   };
-  const plan = plans[accountType] ?? plans.solo;
+  const p = PLANS[planKey];
+  const plan = { name: p.label, price: `${p.priceMonthly}€ / mois`, desc: details[planKey] };
 
   return (
     <>
@@ -1402,15 +1406,22 @@ export default function SettingsPage() {
   const t = useTranslations("settings");
   const [tab, setTab] = useState<Tab>("profile");
   const [session, setSession] = useState<any>(null);
-  const [accountType, setAccountType] = useState<string>("solo");
+  const [planKey, setPlanKey] = useState<PlanKey>("solo");
 
   useEffect(() => {
     (async () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) { router.push("/login"); return; }
       setSession(session);
-      const { data } = await supabase.from("user_settings").select("account_type").eq("user_id", session.user.id).maybeSingle();
-      if (data?.account_type) setAccountType(data.account_type);
+      // current_plan peut ne pas exister (migration 027) : la requête tombe
+      // alors en erreur et on relit le seul account_type.
+      const parOffre = await supabase.from("user_settings").select("account_type, current_plan").eq("user_id", session.user.id).maybeSingle();
+      if (!parOffre.error) {
+        if (parOffre.data) setPlanKey(planKeyFrom(parOffre.data));
+      } else {
+        const { data } = await supabase.from("user_settings").select("account_type").eq("user_id", session.user.id).maybeSingle();
+        if (data) setPlanKey(planKeyFrom(data));
+      }
     })();
   }, [supabase, router]);
 
@@ -1460,7 +1471,7 @@ export default function SettingsPage() {
               {tab === "appearance"    && <AppearanceTab    supabase={supabase} userId={userId} />}
               {tab === "integrations"  && <IntegrationsTab  supabase={supabase} />}
               {tab === "agency"        && <AgencyTab        supabase={supabase} userId={userId} />}
-              {tab === "billing"       && <BillingTab       accountType={accountType} />}
+              {tab === "billing"       && <BillingTab       planKey={planKey} />}
               {tab === "help"          && <HelpTab          supabase={supabase} userId={userId} />}
             </div>
 

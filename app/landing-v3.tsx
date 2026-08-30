@@ -6,9 +6,10 @@ import Image from 'next/image';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import { useRouter } from 'next/navigation';
 import { ConnectClaudePill } from '@/components/ConnectClaudeModal';
-import { trackLead } from '@/components/analytics/MetaPixel';
+import { trackLead, trackInitiateCheckout } from '@/components/analytics/MetaPixel';
 import { LAUNCH_OFFER, launchApplies, launchPrice, formatPrice } from '@/lib/launch-offer';
 import { PLANS } from '@/lib/plans';
+import type { Plan } from '@/lib/stripe';
 import { gsap } from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import { Draggable } from 'gsap/Draggable';
@@ -808,7 +809,9 @@ function HeroPreview() {
 }
 
 /* ─── Comparison — la stack devient un panneau Calques ───────────────────── */
-const KLIP_PRICE = 35;
+/* Lu dans la grille, jamais recopié : c'est l'offre Studio qu'on compare
+   à la pile d'outils. */
+const KLIP_PRICE = PLANS.solo.priceMonthly;
 const STACK_TOOLS = [
   { name: 'Canva', cost: 12, domain: 'canva.com', color: '00C4CC' },
   { name: 'CapCut', cost: 15, domain: 'capcut.com', color: '000000' },
@@ -1292,12 +1295,20 @@ function Testimonials() {
 }
 
 /* ─── Checkout helper ────────────────────────────────────────────────────── */
-async function startCheckout(plan: 'studio' | 'agence', period: 'monthly' | 'yearly') {
+async function startCheckout(plan: Plan, period: 'monthly' | 'yearly') {
+  // Départ vers la caisse : on le compte ICI, avant l'aller-retour serveur et
+  // la redirection. Après, la page est déjà sur stripe.com et le pixel n'y est
+  // plus. Le passage par /register (pas encore connecté) reste un départ vers
+  // la caisse : la reprise depuis le dashboard ne le recomptera pas.
+  // L'eventId revient ici pour être transmis au serveur : il enverra la même
+  // conversion à la Conversions API, et Meta n'en gardera qu'une. `null` =
+  // consentement refusé, donc aucun suivi, ni navigateur ni serveur.
+  const eventId = trackInitiateCheckout(plan, period);
   try {
     const res = await fetch('/api/stripe/checkout', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ plan, period }),
+      body: JSON.stringify({ plan, period, ...(eventId ? { eventId } : {}) }),
     });
     if (res.status === 401) {
       try { localStorage.setItem('klip_pending_checkout', JSON.stringify({ plan, period })); } catch {}
@@ -1317,17 +1328,23 @@ async function startCheckout(plan: 'studio' | 'agence', period: 'monthly' | 'yea
 function Pricing({ prelaunch = false, seatsLeft = null }: { prelaunch?: boolean; seatsLeft?: number | null }) {
   const tp = useTranslations('landing.pricing');
   const locale = useLocale();
-  const [period, setPeriod] = useState<'monthly' | 'yearly'>('monthly');
+  /* L'annuel est sélectionné d'entrée : c'est le tarif que la grille doit
+     montrer en premier (le plus bas), et il vaut deux mois offerts. */
+  const [period, setPeriod] = useState<'monthly' | 'yearly'>('yearly');
   const [busy, setBusy] = useState<string | null>(null);
   // Les places restantes viennent du serveur (coupon Stripe). `null` = compte
   // inconnu : on laisse l'offre ouverte, la caisse appliquera la remise.
   const seatsOpen = seatsLeft === null || seatsLeft > 0;
   const launched = launchApplies(period) && seatsOpen;
+  /* Trois paliers, et c'est celui du MILIEU qui est mis en avant : Starter
+     sert de marche d'entrée, Agence de plafond, et Studio est l'offre qu'on
+     veut voir choisie. */
   const tiers = [
-    { name: PLANS.solo.label, plan: 'studio' as const, monthly: PLANS.solo.priceMonthly, yearly: PLANS.solo.priceYearly, tag: tp('studioTag'), clients: tp('studioClients'), feats: [1,2,3,4,5,6,7,8].map(n => tp(`studioF${n}`)).filter(Boolean), pop: false },
-    { name: PLANS.agency.label, plan: 'agence' as const, monthly: PLANS.agency.priceMonthly, yearly: PLANS.agency.priceYearly, tag: tp('agencyTag'), clients: tp('agencyClients'), feats: [1,2,3,4,5,6,7,8].map(n => tp(`agencyF${n}`)).filter(Boolean), pop: true },
+    { name: PLANS.starter.label, plan: 'starter' as const, monthly: PLANS.starter.priceMonthly, yearly: PLANS.starter.priceYearly, tag: tp('starterTag'), clients: tp('starterClients'), feats: [1,2,3,4,5,6,7,8].map(n => tp(`starterF${n}`)).filter(Boolean), pop: false },
+    { name: PLANS.solo.label, plan: 'studio' as const, monthly: PLANS.solo.priceMonthly, yearly: PLANS.solo.priceYearly, tag: tp('studioTag'), clients: tp('studioClients'), feats: [1,2,3,4,5,6,7,8].map(n => tp(`studioF${n}`)).filter(Boolean), pop: true },
+    { name: PLANS.agency.label, plan: 'agence' as const, monthly: PLANS.agency.priceMonthly, yearly: PLANS.agency.priceYearly, tag: tp('agencyTag'), clients: tp('agencyClients'), feats: [1,2,3,4,5,6,7,8].map(n => tp(`agencyF${n}`)).filter(Boolean), pop: false },
   ];
-  async function onChoose(plan: 'studio' | 'agence') { setBusy(plan); await startCheckout(plan, period); setBusy(null); }
+  async function onChoose(plan: Plan) { setBusy(plan); await startCheckout(plan, period); setBusy(null); }
 
   return (
     <section id="tarifs" className="section" style={{ overflow: 'hidden' }}>
@@ -1347,11 +1364,11 @@ function Pricing({ prelaunch = false, seatsLeft = null }: { prelaunch?: boolean;
             ))}
           </div>
         </div>
-        <div className="price-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 26, marginTop: 56, alignItems: 'start', maxWidth: 820, marginLeft: 'auto', marginRight: 'auto' }}>
+        <div className="price-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 22, marginTop: 56, alignItems: 'start', maxWidth: 1160, marginLeft: 'auto', marginRight: 'auto' }}>
           {tiers.map((t, i) => {
             const shown = period === 'yearly' ? t.yearly : t.monthly;
             const inner = (
-              <div style={{ position: 'relative', background: t.pop ? 'var(--forest)' : 'var(--card)', color: t.pop ? 'var(--cream)' : 'var(--ink)', borderRadius: 'var(--r)', padding: '34px 32px', border: t.pop ? 'none' : '1px solid var(--line)', boxShadow: t.pop ? '0 40px 80px -40px rgba(7,33,23,.7)' : '0 20px 44px -30px rgba(16,19,11,.2)' }}>
+              <div style={{ position: 'relative', background: t.pop ? 'var(--forest)' : 'var(--card)', color: t.pop ? 'var(--cream)' : 'var(--ink)', borderRadius: 'var(--r)', padding: '30px 26px', border: t.pop ? 'none' : '1px solid var(--line)', boxShadow: t.pop ? '0 40px 80px -40px rgba(7,33,23,.7)' : '0 20px 44px -30px rgba(16,19,11,.2)' }}>
                 {t.pop && <span className="stk-card stk-leaf" style={{ position: 'absolute', top: -16, right: 22, rotate: '3deg', fontSize: 11.5, letterSpacing: '.08em', textTransform: 'uppercase', padding: '8px 13px', zIndex: 3 }}>{tp('popular')}</span>}
                 <h3 className="t-oaksx" style={{ fontSize: 24, margin: 0 }}>{t.name}</h3>
                 <div style={{ fontFamily: 'var(--sans)', fontWeight: 600, fontSize: 13, color: t.pop ? 'var(--cream-3)' : 'var(--ink-3)', marginTop: 6 }}>{t.tag}</div>

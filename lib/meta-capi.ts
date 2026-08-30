@@ -1,5 +1,5 @@
 // Meta Conversions API (CAPI) — envoi des conversions côté serveur.
-// Complète le Pixel navigateur : le Lead remonte même si le pixel est bloqué
+// Complète le Pixel navigateur : la conversion remonte même si le pixel est bloqué
 // (adblocker) ou si le navigateur perd l'événement. La déduplication se fait via
 // un `event_id` partagé entre le pixel (client) et cet appel serveur.
 //
@@ -7,6 +7,11 @@
 // (Events Manager → Paramètres → API de conversions → Générer un token). Tant
 // qu'il n'est pas défini, la CAPI reste silencieusement désactivée (le pixel
 // navigateur continue de fonctionner seul).
+//
+// RGPD : cette API envoie les mêmes données personnelles que le pixel, elle est
+// donc soumise au MÊME consentement. Les routes qui l'appellent ne le font que
+// si le navigateur a signalé un consentement accordé — sans quoi on suivrait
+// côté serveur quelqu'un qui vient de refuser le bandeau.
 
 import crypto from "crypto";
 
@@ -15,12 +20,21 @@ const PIXEL_ID = process.env.NEXT_PUBLIC_FB_PIXEL_ID || "1390029399657000";
 const TOKEN = process.env.META_CAPI_TOKEN;
 const API_VERSION = "v19.0";
 
+// L'envoi se fait pendant une requête que l'utilisateur attend (retour de
+// caisse, départ vers Stripe) : au-delà, on abandonne plutôt que de faire
+// patienter quelqu'un devant un écran de chargement pour une statistique.
+const TIMEOUT_MS = 2500;
+
 function sha256(value: string): string {
   return crypto.createHash("sha256").update(value).digest("hex");
 }
 
-export interface LeadEventInput {
-  email: string;
+/* Ce que le navigateur peut fournir pour rapprocher l'événement d'un compte
+   Meta. Rien n'est obligatoire, mais plus il y en a, meilleur est le taux de
+   correspondance — et donc l'optimisation de la campagne. */
+export interface CapiIdentity {
+  email?: string;
+  userId?: string;           // id Supabase → external_id (haché)
   eventId?: string;          // même id que le pixel navigateur → déduplication Meta
   eventSourceUrl?: string;
   clientIp?: string;
@@ -29,26 +43,34 @@ export interface LeadEventInput {
   fbc?: string;              // cookie _fbc
 }
 
-// Envoie un événement standard « Lead » à la Conversions API Meta.
-// Ne lève jamais : toute erreur est loggée et avalée (ne doit pas casser l'inscription).
-export async function sendLeadEvent(input: LeadEventInput): Promise<void> {
+interface CapiEvent extends CapiIdentity {
+  eventName: string;
+  customData?: Record<string, unknown>;
+}
+
+/* Envoi d'un événement à la CAPI. Ne lève JAMAIS : toute erreur est loggée et
+   avalée. Une conversion publicitaire ne doit pas faire échouer une
+   inscription ni un paiement. */
+async function sendEvent({ eventName, customData, ...id }: CapiEvent): Promise<void> {
   if (!TOKEN) return; // CAPI non configurée → on ne fait rien (le pixel client suffit)
 
-  const email = input.email.trim().toLowerCase();
-  const user_data: Record<string, unknown> = { em: [sha256(email)] };
-  if (input.clientIp) user_data.client_ip_address = input.clientIp;
-  if (input.userAgent) user_data.client_user_agent = input.userAgent;
-  if (input.fbp) user_data.fbp = input.fbp;
-  if (input.fbc) user_data.fbc = input.fbc;
+  const user_data: Record<string, unknown> = {};
+  if (id.email) user_data.em = [sha256(id.email.trim().toLowerCase())];
+  if (id.userId) user_data.external_id = [sha256(id.userId)];
+  if (id.clientIp) user_data.client_ip_address = id.clientIp;
+  if (id.userAgent) user_data.client_user_agent = id.userAgent;
+  if (id.fbp) user_data.fbp = id.fbp;
+  if (id.fbc) user_data.fbc = id.fbc;
 
   const body = {
     data: [
       {
-        event_name: "Lead",
+        event_name: eventName,
         event_time: Math.floor(Date.now() / 1000),
         action_source: "website",
-        ...(input.eventSourceUrl ? { event_source_url: input.eventSourceUrl } : {}),
-        ...(input.eventId ? { event_id: input.eventId } : {}),
+        ...(id.eventSourceUrl ? { event_source_url: id.eventSourceUrl } : {}),
+        ...(id.eventId ? { event_id: id.eventId } : {}),
+        ...(customData ? { custom_data: customData } : {}),
         user_data,
       },
     ],
@@ -57,13 +79,76 @@ export async function sendLeadEvent(input: LeadEventInput): Promise<void> {
   try {
     const res = await fetch(
       `https://graph.facebook.com/${API_VERSION}/${PIXEL_ID}/events?access_token=${encodeURIComponent(TOKEN)}`,
-      { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) },
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+        signal: AbortSignal.timeout(TIMEOUT_MS),
+      },
     );
     if (!res.ok) {
       const txt = await res.text().catch(() => "");
-      console.error("[meta-capi] Lead non accepté:", res.status, txt.slice(0, 300));
+      console.error(`[meta-capi] ${eventName} non accepté:`, res.status, txt.slice(0, 300));
     }
   } catch (e) {
-    console.error("[meta-capi] envoi Lead échoué:", e instanceof Error ? e.message : String(e));
+    console.error(`[meta-capi] envoi ${eventName} échoué:`, e instanceof Error ? e.message : String(e));
   }
+}
+
+export interface LeadEventInput extends CapiIdentity {
+  email: string;
+}
+
+/** Événement standard « Lead » (inscription à la liste d'attente). */
+export async function sendLeadEvent(input: LeadEventInput): Promise<void> {
+  return sendEvent({ eventName: "Lead", ...input });
+}
+
+/* ── Parcours d'essai ───────────────────────────────────────────────────────
+   Les mêmes deux événements que le pixel navigateur (voir
+   components/analytics/MetaPixel.tsx), avec le même `event_id` : Meta reçoit
+   chaque conversion deux fois et n'en garde qu'une. Sans cet id partagé, la
+   campagne compterait le double. */
+
+export interface TrialEventInput extends CapiIdentity {
+  value: number;
+  currency?: string;
+  planLabel?: string;      // « Studio », « Agence »… (content_name)
+  contentId?: string;      // « solo:yearly » (content_ids)
+  period?: "monthly" | "yearly";
+}
+
+function trialCustomData(input: TrialEventInput): Record<string, unknown> {
+  return {
+    value: input.value,
+    currency: (input.currency || "EUR").toUpperCase(),
+    ...(input.planLabel ? { content_name: input.planLabel } : {}),
+    ...(input.period ? { content_category: input.period === "yearly" ? "annuel" : "mensuel" } : {}),
+    ...(input.contentId ? { content_ids: [input.contentId], num_items: 1 } : {}),
+  };
+}
+
+/** Ne garde de l'entrée que ce qui identifie la personne : le reste part dans
+    `custom_data`, et Meta refuse les champs qu'il ne connaît pas à la racine. */
+function identityOf(input: TrialEventInput): CapiIdentity {
+  return {
+    email: input.email,
+    userId: input.userId,
+    eventId: input.eventId,
+    eventSourceUrl: input.eventSourceUrl,
+    clientIp: input.clientIp,
+    userAgent: input.userAgent,
+    fbp: input.fbp,
+    fbc: input.fbc,
+  };
+}
+
+/** Départ vers la caisse Stripe. */
+export async function sendInitiateCheckoutEvent(input: TrialEventInput): Promise<void> {
+  return sendEvent({ eventName: "InitiateCheckout", customData: trialCustomData(input), ...identityOf(input) });
+}
+
+/** Abonnement d'essai créé côté Stripe (retour de caisse). */
+export async function sendStartTrialEvent(input: TrialEventInput): Promise<void> {
+  return sendEvent({ eventName: "StartTrial", customData: trialCustomData(input), ...identityOf(input) });
 }

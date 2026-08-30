@@ -3,7 +3,7 @@ import { createClient } from "@supabase/supabase-js";
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
-import { getPlan } from "@/lib/plans";
+import { getPlanFor } from "@/lib/plans";
 
 export async function POST(req: NextRequest) {
   const { email, agency_id, role } = await req.json();
@@ -27,12 +27,15 @@ export async function POST(req: NextRequest) {
   if (!agency) return NextResponse.json({ error: "Not agency owner" }, { status: 403 });
 
   // ── Bridage par offre : limite de membres d'équipe ────────────────────────
+  // Le nombre de membres est le même sur Starter et Studio, mais le message
+  // d'erreur nomme l'offre : le lire ici évite d'annoncer « Studio » à
+  // quelqu'un qui paie Starter.
   const { data: ownerSettings } = await supabase
     .from("user_settings")
-    .select("account_type")
+    .select("account_type, current_plan")
     .eq("user_id", session.user.id)
     .maybeSingle();
-  const plan = getPlan(ownerSettings?.account_type);
+  const plan = getPlanFor(ownerSettings);
   const { count: memberCount } = await supabase
     .from("agency_members")
     .select("id", { count: "exact", head: true })

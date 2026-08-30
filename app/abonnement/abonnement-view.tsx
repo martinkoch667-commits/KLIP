@@ -4,7 +4,8 @@ import { useEffect, useState } from "react";
 import { useTranslations, useLocale } from "next-intl";
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
 import { useRouter } from "next/navigation";
-import { PLANS } from "@/lib/plans";
+import { PLANS, type AccountType } from "@/lib/plans";
+import { trackInitiateCheckout } from "@/components/analytics/MetaPixel";
 import { PRICING_CSS, PlanCard, PeriodToggle } from "@/components/PricingUI";
 import { LAUNCH_OFFER, launchApplies, launchPrice, formatPrice } from "@/lib/launch-offer";
 
@@ -61,10 +62,13 @@ export default function AbonnementView({ seatsLeft }: { seatsLeft: number | null
     try {
       // map account_type interne → offre Stripe (solo = Studio, agency = Agence)
       const stripePlan = plan === "agency" ? "agence" : "studio";
+      // Compté avant la redirection : une fois sur stripe.com, le pixel n'y est
+      // plus. L'eventId part au serveur pour dédupliquer avec la CAPI.
+      const eventId = trackInitiateCheckout(stripePlan, period);
       const res = await fetch("/api/stripe/checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ plan: stripePlan, period, cancelPath: "/abonnement" }),
+        body: JSON.stringify({ plan: stripePlan, period, cancelPath: "/abonnement", ...(eventId ? { eventId } : {}) }),
       });
       const json = await res.json();
       if (res.ok && json.url) {
@@ -106,9 +110,12 @@ export default function AbonnementView({ seatsLeft }: { seatsLeft: number | null
       : tl('launchNote', { seats: LAUNCH_OFFER.seats, price: fmt(p.priceMonthly) });
   };
 
-  const tiers = [
-    { p: PLANS.solo, pop: false, feats: [t('featSoloClients'), t('featSoloEditor'), t('featSoloDescriptions'), t('featSoloValidation'), t('featSoloPublish')] },
-    { p: PLANS.agency, pop: true, feats: [t('featAgencyClients'), t('featAgencyMembers'), t('featAgencyRoles'), t('featAgencyEditor'), t('featAgencyDescriptions'), t('featAgencyValidation'), t('featAgencyPublish')] },
+  /* Cet écran ne vend que les deux offres qui ont un type de compte en base.
+     Starter n'y figure pas tant qu'il n'est pas branché sur Stripe : la clé
+     est donc portée à part, typée AccountType, plutôt que lue sur PLANS. */
+  const tiers: { p: typeof PLANS.solo; key: AccountType; pop: boolean; feats: string[] }[] = [
+    { p: PLANS.solo, key: "solo", pop: false, feats: [t('featSoloClients'), t('featSoloEditor'), t('featSoloDescriptions'), t('featSoloValidation'), t('featSoloPublish')] },
+    { p: PLANS.agency, key: "agency", pop: true, feats: [t('featAgencyClients'), t('featAgencyMembers'), t('featAgencyRoles'), t('featAgencyEditor'), t('featAgencyDescriptions'), t('featAgencyValidation'), t('featAgencyPublish')] },
   ];
 
   return (
@@ -133,19 +140,19 @@ export default function AbonnementView({ seatsLeft }: { seatsLeft: number | null
       />
 
       <div className="kp-grid">
-        {tiers.map(({ p, pop, feats }) => {
-          const isChosen = chosen === p.key;
+        {tiers.map(({ p, key, pop, feats }) => {
+          const isChosen = chosen === key;
           const isOther = chosen !== null && !isChosen;
           // Une seule carte est mise en avant : celle que la personne a choisie
           // a l'inscription, ou l'offre Agence tant qu'elle n'a rien choisi.
           const highlight = isChosen || (pop && chosen === null);
           return (
             <PlanCard
-              key={p.key}
+              key={key}
               popular={highlight}
               flag={isChosen ? t('yourChoice') : undefined}
               name={p.label}
-              tag={p.key === "agency" ? to('agencyDesc') : to('studioDesc')}
+              tag={key === "agency" ? to('agencyDesc') : to('studioDesc')}
               price={launched ? launchPrice(shownPrice(p)) : shownPrice(p)}
               strikePrice={launched ? shownPrice(p) : undefined}
               badge={launched ? tl('launchBadge', { percent: LAUNCH_OFFER.percent }) : undefined}
@@ -156,10 +163,10 @@ export default function AbonnementView({ seatsLeft }: { seatsLeft: number | null
             >
               <button
                 className={`kp-btn ${highlight ? "kp-btn-leaf" : "kp-btn-ghost"}`}
-                onClick={() => choose(p.key)}
+                onClick={() => choose(key)}
                 disabled={busy !== null}
               >
-                {busy === p.key
+                {busy === key
                   ? t('redirecting')
                   : isChosen ? t('continueWithPlan', { plan: p.label })
                   : isOther ? t('takeInstead', { plan: p.label })
