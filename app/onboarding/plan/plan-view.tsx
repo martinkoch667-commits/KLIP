@@ -24,18 +24,21 @@ export default function PlanView({ seatsLeft }: { seatsLeft: number | null }) {
   const router = useRouter();
   const [agencyName, setAgencyName] = useState("");
   const [agencyExpanded, setAgencyExpanded] = useState(false);
+  const [loadingStarter, setLoadingStarter] = useState(false);
   const [loadingStudio, setLoadingStudio] = useState(false);
   const [loadingAgency, setLoadingAgency] = useState(false);
   const [error, setError] = useState("");
   // La période choisie ici ne facture rien : elle est retenue pour arriver
   // pré-sélectionnée à l'écran de paiement, qui lui appelle la caisse.
-  const [period, setPeriod] = useState<"monthly" | "yearly">("monthly");
+  // Annuel d'entrée, comme la landing et l'écran de paiement : c'est le tarif le
+  // plus bas, donc celui que la grille montre en premier.
+  const [period, setPeriod] = useState<"monthly" | "yearly">("yearly");
 
   /* Départ vers Stripe. L'offre choisie ici EST celle qu'on paie : refaire
      choisir sur /abonnement juste après était la double étape que Martin a
      repérée. Cet écran mène donc à la caisse, et le questionnaire attend le
      paiement. */
-  async function startCheckout(plan: "studio" | "agence"): Promise<boolean> {
+  async function startCheckout(plan: "starter" | "studio" | "agence"): Promise<boolean> {
     // Compté avant la redirection : une fois sur stripe.com, le pixel n'y est
     // plus. L'eventId part au serveur pour dédupliquer avec la CAPI.
     const eventId = trackInitiateCheckout(plan, period);
@@ -85,8 +88,14 @@ export default function PlanView({ seatsLeft }: { seatsLeft: number | null }) {
       : tl('launchNote', { seats: LAUNCH_OFFER.seats, price: fmt(monthly) });
   };
 
-  // Les entrées vides sont là pour garder les six clés alignées entre les
-  // deux offres, elles ne s'affichent pas.
+  /* Un seul bouton actif à la fois : trois offres, trois départs possibles
+     vers la caisse, et il ne faut pas pouvoir en lancer deux. */
+  const busyAny = loadingStarter || loadingStudio || loadingAgency;
+
+  // Les entrées vides sont là pour garder les huit clés alignées entre les
+  // offres, elles ne s'affichent pas. Starter n'a pas de formulation à lui dans
+  // cet espace : on reprend celle de la landing, mot pour mot.
+  const STARTER_FEATURES = [1, 2, 3, 4, 5, 6, 7, 8].map(n => tl(`starterF${n}`)).filter(Boolean);
   const STUDIO_FEATURES = [1, 2, 3, 4, 5, 6, 7, 8].map(n => t(`studioF${n}`)).filter(Boolean);
   const AGENCY_FEATURES = [1, 2, 3, 4, 5, 6, 7, 8].map(n => t(`agencyF${n}`)).filter(Boolean);
 
@@ -98,6 +107,27 @@ export default function PlanView({ seatsLeft }: { seatsLeft: number | null }) {
       localStorage.removeItem("klip_plan");
     } catch { /* ignore */ }
   }, []);
+
+  /* Starter n'a pas de type de compte à lui : c'est un compte `solo` dont la
+     limite de clients est plus basse. C'est `current_plan`, écrit par le webhook
+     Stripe d'après le Price ID, qui le distingue de Studio. */
+  async function handleStarter() {
+    setError("");
+    setLoadingStarter(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) { router.push("/login"); return; }
+      await supabase.from("user_settings").upsert(
+        { user_id: session.user.id, account_type: "solo" },
+        { onConflict: "user_id" }
+      );
+      const gone = await startCheckout("starter");
+      if (!gone) setLoadingStarter(false);
+    } catch {
+      setError(t('errorGeneric'));
+      setLoadingStarter(false);
+    }
+  }
 
   async function handleSolo() {
     setError("");
@@ -161,7 +191,9 @@ export default function PlanView({ seatsLeft }: { seatsLeft: number | null }) {
     <div className="kp">
       <style dangerouslySetInnerHTML={{ __html: PRICING_CSS }} />
 
-      <img src="/logo-klip-dark.png" alt="Klip" className="kp-logo" />
+      <a href="/" className="kp-mark-link" aria-label="Klip">
+        <img src="/icon-192.png" alt="Klip" className="kp-mark" />
+      </a>
       <h1 className="kp-title">
         {t('titleLead')} <span className="kp-acc">{t('titleAccent')}</span>
       </h1>
@@ -175,7 +207,23 @@ export default function PlanView({ seatsLeft }: { seatsLeft: number | null }) {
         saveLabel={tl('save2mo')}
       />
 
-      <div className="kp-grid">
+      <div className="kp-grid kp-grid-3">
+        <PlanCard
+          name={PLANS.starter.label}
+          tag={tl('starterTag')}
+          price={priceOf(PLANS.starter.priceMonthly, PLANS.starter.priceYearly)}
+          strikePrice={strikeOf(PLANS.starter.priceMonthly, PLANS.starter.priceYearly)}
+          badge={badge}
+          perMonth={t('perMonth')}
+          note={noteOf(PLANS.starter.priceMonthly, PLANS.starter.priceYearly)}
+          chip={tl('starterClients')}
+          features={STARTER_FEATURES}
+        >
+          <button onClick={handleStarter} disabled={busyAny} className="kp-btn kp-btn-ghost">
+            {loadingStarter ? t('creating') : t('chooseStarter')}
+          </button>
+        </PlanCard>
+
         <PlanCard
           name={t('studioName')}
           tag={t('studioDesc')}
@@ -187,7 +235,7 @@ export default function PlanView({ seatsLeft }: { seatsLeft: number | null }) {
           chip={STUDIO_FEATURES[0]}
           features={STUDIO_FEATURES.slice(1)}
         >
-          <button onClick={handleSolo} disabled={loadingStudio || loadingAgency} className="kp-btn kp-btn-ghost">
+          <button onClick={handleSolo} disabled={busyAny} className="kp-btn kp-btn-ghost">
             {loadingStudio ? t('creating') : t('chooseStudio')}
           </button>
         </PlanCard>
@@ -206,7 +254,7 @@ export default function PlanView({ seatsLeft }: { seatsLeft: number | null }) {
           features={AGENCY_FEATURES.slice(1)}
         >
           {!agencyExpanded ? (
-            <button onClick={() => setAgencyExpanded(true)} disabled={loadingStudio || loadingAgency} className="kp-btn kp-btn-leaf">
+            <button onClick={() => setAgencyExpanded(true)} disabled={busyAny} className="kp-btn kp-btn-leaf">
               {t('chooseAgency')}
             </button>
           ) : (
@@ -222,7 +270,7 @@ export default function PlanView({ seatsLeft }: { seatsLeft: number | null }) {
                 autoFocus
                 onKeyDown={e => { if (e.key === "Enter") handleAgency(); }}
               />
-              <button onClick={handleAgency} disabled={loadingAgency || loadingStudio || !agencyName.trim()} className="kp-btn kp-btn-leaf">
+              <button onClick={handleAgency} disabled={busyAny || !agencyName.trim()} className="kp-btn kp-btn-leaf">
                 {loadingAgency ? t('creating') : t('confirm')}
               </button>
             </>

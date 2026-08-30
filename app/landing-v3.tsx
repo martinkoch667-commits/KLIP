@@ -8,7 +8,7 @@ import { useRouter } from 'next/navigation';
 import { ConnectClaudePill } from '@/components/ConnectClaudeModal';
 import { trackLead, trackInitiateCheckout } from '@/components/analytics/MetaPixel';
 import { LAUNCH_OFFER, launchApplies, launchPrice, formatPrice } from '@/lib/launch-offer';
-import { PLANS } from '@/lib/plans';
+import { PLANS, isAccessBlocked } from '@/lib/plans';
 import type { Plan } from '@/lib/stripe';
 import { gsap } from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
@@ -1589,9 +1589,24 @@ export default function LandingV3({ prelaunch = false, seatsLeft = null }: { pre
   const supabase = createClientComponentClient();
   const router = useRouter();
 
+  /* Visiteur déjà connecté : on l'emmène dans l'app plutôt que de lui remontrer
+     l'argumentaire. SAUF s'il fait partie des deux cas que le middleware
+     renvoie aussitôt ailleurs (compte sans offre → /onboarding/plan, essai
+     terminé → /abonnement) : le pousser vers /dashboard l'enfermait. Depuis
+     l'écran de paiement, retaper getklip.fr le ramenait sur l'écran de
+     paiement, en boucle, sans aucun moyen de relire la landing. */
   useEffect(() => {
     if (prelaunch) return; // en pré-ouverture, on ne redirige pas les visiteurs connectés
-    supabase.auth.getSession().then(({ data: { session } }) => { if (session) router.push('/dashboard'); });
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
+      if (!session) return;
+      const { data: s } = await supabase
+        .from('user_settings')
+        .select('account_type, subscription_status, trial_ends_at, is_comped')
+        .eq('user_id', session.user.id)
+        .maybeSingle();
+      if (!s?.account_type || isAccessBlocked(s)) return; // il reste sur la landing
+      router.push('/dashboard');
+    });
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

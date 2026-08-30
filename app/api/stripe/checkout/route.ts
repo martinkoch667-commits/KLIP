@@ -27,7 +27,11 @@ export async function POST(req: NextRequest) {
   // ── Body : plan + period ──────────────────────────────────────────────
   let body: { plan?: string; period?: string; cancelPath?: string; eventId?: string } = {};
   try { body = await req.json(); } catch { /* defaults */ }
-  const plan = (body.plan === "agence" ? "agence" : "studio") as Plan;
+  /* Les trois offres de la grille, Starter compris. Le raccourci d'avant
+     (« agence, sinon studio ») transformait silencieusement un Starter en
+     Studio : la personne cliquait sur 14,99 € et arrivait sur la caisse à 39 €.
+     Une offre inconnue retombe sur Studio, l'offre par défaut. */
+  const plan = (body.plan === "agence" || body.plan === "starter" ? body.plan : "studio") as Plan;
   const period = (body.period === "yearly" ? "yearly" : "monthly") as Period;
 
   // Retour en cas d'abandon : la page d'où l'on vient, sinon les tarifs de la

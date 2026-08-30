@@ -40,6 +40,12 @@ export const PRICING_CSS = `
   }
 
   .kp-logo{display:block;height:34px;width:auto;margin:0 0 26px;}
+  /* L'icône d'app (le K sur fond leaf) plutôt que le logo écrit : c'est sous
+     cette forme que la marque se présente maintenant, dans l'onglet du
+     navigateur comme sur l'écran d'accueil du téléphone. */
+  .kp-mark{display:block;width:54px;height:54px;border-radius:16px;margin:0 0 24px;}
+  a.kp-mark-link{display:block;transition:transform .18s;}
+  a.kp-mark-link:hover{transform:translateY(-2px);}
   .kp-eyebrow{font-family:var(--kp-sans);font-weight:800;font-size:12px;letter-spacing:.16em;
     text-transform:uppercase;color:var(--kp-ink-3);text-align:center;margin:0 0 16px;}
   .kp-title{font-family:var(--kp-heavy);font-weight:800;text-transform:uppercase;letter-spacing:-.03em;
@@ -65,6 +71,10 @@ export const PRICING_CSS = `
   .kp-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:24px;align-items:stretch;
     width:100%;max-width:840px;margin:clamp(34px,5vw,54px) 0 0;}
   @media(max-width:760px){.kp-grid{grid-template-columns:1fr;gap:34px;}}
+  /* Trois offres : même grille que la section Tarifs de la landing. Le passage
+     en colonne se fait plus tôt qu'à deux cartes, sinon les trois se serrent. */
+  .kp-grid.kp-grid-3{grid-template-columns:repeat(3,1fr);gap:22px;max-width:1160px;}
+  @media(max-width:1020px){.kp-grid.kp-grid-3{grid-template-columns:1fr;gap:34px;max-width:520px;margin-left:auto;margin-right:auto;}}
 
   .kp-card{position:relative;border-radius:13px;padding:34px 32px;display:flex;flex-direction:column;
     background:var(--kp-paper);color:var(--kp-ink);border:1px solid var(--kp-line);
