@@ -20,6 +20,17 @@ const PIXEL_ID = process.env.NEXT_PUBLIC_FB_PIXEL_ID || "1390029399657000";
 const TOKEN = process.env.META_CAPI_TOKEN;
 const API_VERSION = "v19.0";
 
+/* Code de test de l'outil « Tester les événements » (Gestionnaire d'événements
+   → Tester les événements → le code TESTxxxxx affiché en haut). Présent, il
+   fait apparaître l'événement en direct dans cet écran.
+
+   À NE JAMAIS LAISSER EN PRODUCTION NORMALE : un événement porteur d'un
+   test_event_code est rangé du côté des tests, il n'entre pas dans les
+   conversions réelles et n'alimente pas l'optimisation des campagnes. Le
+   laisser branché revient à faire tourner ses publicités à l'aveugle. Absente
+   ou vide, la variable ne change strictement rien à ce qui est envoyé. */
+const TEST_EVENT_CODE = process.env.META_TEST_EVENT_CODE?.trim() || "";
+
 // L'envoi se fait pendant une requête que l'utilisateur attend (retour de
 // caisse, départ vers Stripe) : au-delà, on abandonne plutôt que de faire
 // patienter quelqu'un devant un écran de chargement pour une statistique.
@@ -74,7 +85,23 @@ async function sendEvent({ eventName, customData, ...id }: CapiEvent): Promise<v
         user_data,
       },
     ],
+    // À la RACINE du corps, pas dans `data` : Meta l'ignorerait à l'intérieur.
+    ...(TEST_EVENT_CODE ? { test_event_code: TEST_EVENT_CODE } : {}),
   };
+
+  /* Trace de l'envoi, pour diagnostiquer sans passer par l'interface Meta.
+     Aucune donnée personnelle ici : ni adresse mail, ni identifiant de compte,
+     ni cookie. Le code de test est journalisé tel quel, ce n'est pas un secret
+     (contrairement au token, qui n'apparaît nulle part). */
+  console.info(
+    `[meta-capi] envoi ${eventName}`,
+    {
+      event_id: id.eventId ?? null,
+      value: customData?.value ?? null,
+      currency: customData?.currency ?? null,
+      test_event_code: TEST_EVENT_CODE || "aucun (envoi réel)",
+    },
+  );
 
   try {
     const res = await fetch(
@@ -89,7 +116,18 @@ async function sendEvent({ eventName, customData, ...id }: CapiEvent): Promise<v
     if (!res.ok) {
       const txt = await res.text().catch(() => "");
       console.error(`[meta-capi] ${eventName} non accepté:`, res.status, txt.slice(0, 300));
+      return;
     }
+    /* Ce que Meta dit avoir reçu. `events_received: 1` suffit à trancher entre
+       « l'événement n'est jamais parti » et « il est parti mais l'écran de test
+       ne le montre pas », qui sont deux pannes très différentes. */
+    const ack = (await res.json().catch(() => null)) as
+      | { events_received?: number; fbtrace_id?: string }
+      | null;
+    console.info(
+      `[meta-capi] ${eventName} accepté`,
+      { events_received: ack?.events_received ?? null, fbtrace_id: ack?.fbtrace_id ?? null },
+    );
   } catch (e) {
     console.error(`[meta-capi] envoi ${eventName} échoué:`, e instanceof Error ? e.message : String(e));
   }
