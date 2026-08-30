@@ -2146,7 +2146,8 @@
     "featAgencyEditor": "Vollständiger visueller Editor",
     "featAgencyDescriptions": "Unbegrenzte KI-Beschreibungen",
     "featAgencyValidation": "Kunden-Freigabe-Workflow",
-    "featAgencyPublish": "Instagram- & Facebook-Veröffentlichung"
+    "featAgencyPublish": "Instagram- & Facebook-Veröffentlichung",
+    "deleteAccount": "Mein Konto löschen"
   },
   "checkoutSuccess": {
     "activating": "Dein Konto wird aktiviert…"

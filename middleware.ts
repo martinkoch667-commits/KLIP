@@ -75,7 +75,13 @@ export async function middleware(req: NextRequest) {
       return NextResponse.redirect(new URL("/onboarding/plan", req.url));
     }
 
-    if (isAccessBlocked(settings)) {
+    /* Ses propres réglages ne sont pas derrière le péage. On y change son mot
+       de passe, ses notifications, et surtout on y SUPPRIME SON COMPTE. Bloquer
+       cet écran quand l'abonnement s'arrête enfermait la personne : renvoyée
+       sur /abonnement, elle ne pouvait plus partir sans payer d'abord. Outre
+       l'absurdité, le droit à l'effacement (RGPD, article 17) ne se monnaie
+       pas. Le reste de l'app, lui, reste bien fermé. */
+    if (isAccessBlocked(settings) && !pathname.startsWith("/settings")) {
       return NextResponse.redirect(new URL("/abonnement", req.url));
     }
   }

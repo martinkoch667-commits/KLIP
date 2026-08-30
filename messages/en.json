@@ -2146,7 +2146,8 @@
     "featAgencyEditor": "Full visual editor",
     "featAgencyDescriptions": "Unlimited AI descriptions",
     "featAgencyValidation": "Client approval workflow",
-    "featAgencyPublish": "Instagram & Facebook publishing"
+    "featAgencyPublish": "Instagram & Facebook publishing",
+    "deleteAccount": "Delete my account"
   },
   "checkoutSuccess": {
     "activating": "Activating your account…"

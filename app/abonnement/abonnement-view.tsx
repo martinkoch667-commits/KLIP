@@ -191,6 +191,13 @@ export default function AbonnementView({ seatsLeft }: { seatsLeft: number | null
 
       <p className="kp-foot">{t('secureNote')}</p>
       <button className="kp-quiet" onClick={logout}>{t('logout')}{email ? ` (${email})` : ""}</button>
+      {/* La sortie définitive. Sans ce lien, quelqu'un qui ne veut pas
+          s'abonner n'avait aucun chemin visible pour effacer son compte : cet
+          écran était un cul-de-sac. La suppression elle-même vit dans les
+          réglages, avec son code par e-mail. */}
+      <a className="kp-quiet" href="/settings?tab=security" style={{ display: "block", marginTop: 10 }}>
+        {t('deleteAccount')}
+      </a>
     </div>
   );
 }

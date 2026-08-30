@@ -1404,7 +1404,15 @@ export default function SettingsPage() {
   const router = useRouter();
   const { isAgency } = useAccountType();
   const t = useTranslations("settings");
-  const [tab, setTab] = useState<Tab>("profile");
+  /* L'onglet est adressable : /settings?tab=security ouvre directement la
+     sécurité. C'est par là qu'arrive quelqu'un qui vient de /abonnement pour
+     supprimer son compte, et le faire chercher dans les onglets après lui
+     avoir refusé l'accès à l'app serait une deuxième porte fermée. */
+  const [tab, setTab] = useState<Tab>(() => {
+    if (typeof window === "undefined") return "profile";
+    const demande = new URLSearchParams(window.location.search).get("tab");
+    return TABS.some(t => t.id === demande) ? (demande as Tab) : "profile";
+  });
   const [session, setSession] = useState<any>(null);
   const [planKey, setPlanKey] = useState<PlanKey>("solo");
 

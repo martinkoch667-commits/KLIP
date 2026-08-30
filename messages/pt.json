@@ -2146,7 +2146,8 @@
     "featAgencyEditor": "Editor visual completo",
     "featAgencyDescriptions": "Descrições de IA ilimitadas",
     "featAgencyValidation": "Fluxo de validação do cliente",
-    "featAgencyPublish": "Publicação no Instagram e Facebook"
+    "featAgencyPublish": "Publicação no Instagram e Facebook",
+    "deleteAccount": "Eliminar a minha conta"
   },
   "checkoutSuccess": {
     "activating": "A ativar a sua conta…"
