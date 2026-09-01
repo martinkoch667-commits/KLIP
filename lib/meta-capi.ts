@@ -161,7 +161,9 @@ export interface TrialEventInput extends CapiIdentity {
 function trialCustomData(input: TrialEventInput): Record<string, unknown> {
   return {
     value: input.value,
-    currency: (input.currency || "EUR").toUpperCase(),
+    // Toute la grille est libellée en euros ; une devise absente ou vide ne
+    // doit pas produire un `currency` vide, que Meta refuse aussi.
+    currency: (input.currency || "EUR").toUpperCase() || "EUR",
     ...(input.planLabel ? { content_name: input.planLabel } : {}),
     ...(input.period ? { content_category: input.period === "yearly" ? "annuel" : "mensuel" } : {}),
     ...(input.contentId ? { content_ids: [input.contentId], num_items: 1 } : {}),
@@ -183,12 +185,37 @@ function identityOf(input: TrialEventInput): CapiIdentity {
   };
 }
 
+/* Meta refuse un `value` nul, zéro ou non numérique sur InitiateCheckout et
+   StartTrial, et le signale comme événement invalide dans le gestionnaire
+   d'événements. Le piège est propre à l'essai gratuit : à l'instant T la
+   facture vaut 0 €, et c'est ce 0 qui partait. Or ce que Meta doit optimiser,
+   c'est la valeur de l'abonnement à la fin de l'essai, pas le montant débité
+   le premier jour.
+
+   La garde est ici, au dernier point de passage commun : quelle que soit la
+   route qui appelle, un montant invalide ne part pas, et la raison est écrite
+   dans les journaux plutôt que découverte des semaines plus tard dans
+   l'interface Meta. */
+function valeurEnvoyable(value: unknown, evenement: string): value is number {
+  if (typeof value !== "number" || !Number.isFinite(value) || value <= 0) {
+    console.error(
+      `[meta-capi] ${evenement} NON envoyé : value=${JSON.stringify(value)} est invalide ` +
+      `(Meta exige un nombre strictement supérieur à 0). C'est le montant facturé à la fin ` +
+      `de l'essai qu'il faut passer, pas celui du jour même — voir planValueEur dans lib/plans.ts.`,
+    );
+    return false;
+  }
+  return true;
+}
+
 /** Départ vers la caisse Stripe. */
 export async function sendInitiateCheckoutEvent(input: TrialEventInput): Promise<void> {
+  if (!valeurEnvoyable(input.value, "InitiateCheckout")) return;
   return sendEvent({ eventName: "InitiateCheckout", customData: trialCustomData(input), ...identityOf(input) });
 }
 
 /** Abonnement d'essai créé côté Stripe (retour de caisse). */
 export async function sendStartTrialEvent(input: TrialEventInput): Promise<void> {
+  if (!valeurEnvoyable(input.value, "StartTrial")) return;
   return sendEvent({ eventName: "StartTrial", customData: trialCustomData(input), ...identityOf(input) });
 }

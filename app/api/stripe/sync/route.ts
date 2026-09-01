@@ -5,7 +5,7 @@ import { createClient } from "@supabase/supabase-js";
 import { cookies } from "next/headers";
 import { stripe, planFromPriceId, accountTypeForPlan, planKeyForPlan } from "@/lib/stripe";
 import { upsertUserSettings } from "@/lib/user-settings";
-import { PLANS, planKeyFromStripePlan } from "@/lib/plans";
+import { PLANS, planKeyFromStripePlan, planValueEur } from "@/lib/plans";
 import { sendStartTrialEvent } from "@/lib/meta-capi";
 
 export const runtime = "nodejs";
@@ -69,7 +69,7 @@ export async function POST(req: NextRequest) {
        qui est voulu : on annonce la valeur de l'abonnement, pas celle de la
        première facture. */
     const unit = item?.price?.unit_amount;
-    const value = typeof unit === "number" ? (unit * (item?.quantity ?? 1)) / 100 : null;
+    const depuisStripe = typeof unit === "number" ? (unit * (item?.quantity ?? 1)) / 100 : null;
     const currency = (item?.price?.currency ?? "eur").toUpperCase();
 
     await admin.from("subscriptions").upsert({
@@ -98,14 +98,33 @@ export async function POST(req: NextRequest) {
        un id dérivé de l'abonnement — le même des deux côtés, et stable si
        cette route est rappelée : Meta ne comptera qu'un essai. */
     const eventId = `starttrial_${sub.id}`;
+    const key = planKeyFromStripePlan(pp?.plan);
+
+    /* Le montant annoncé à Meta est celui de la FIN d'essai, jamais celui du
+       jour même : pendant les 7 jours la facture vaut 0 €, et Meta rejette un
+       `value` à zéro. On garde le prix Stripe quand il est exploitable — c'est
+       le montant réellement débité, et il reste juste le temps d'un changement
+       de tarif où la grille et Stripe divergent — et on retombe sinon sur la
+       grille, source unique de vérité. Le `?? 0` d'avant envoyait 0 dès que
+       `unit_amount` manquait (prix par paliers, objet non déplié) : c'était
+       l'origine des événements refusés. */
+    const value = depuisStripe && depuisStripe > 0
+      ? depuisStripe
+      : planValueEur(key, pp?.period === "yearly" ? "yearly" : "monthly");
+    if (!depuisStripe || depuisStripe <= 0) {
+      console.error(
+        `[stripe/sync] unit_amount inexploitable (${JSON.stringify(unit)}) sur ${sub.id} : ` +
+        `repli sur la grille, value=${value} € pour ${key}/${pp?.period ?? "monthly"}.`,
+      );
+    }
+
     if (sub.status === "trialing" && trackingConsent) {
-      const key = planKeyFromStripePlan(pp?.plan);
       await sendStartTrialEvent({
         eventId,
         email: session.user.email ?? undefined,
         userId,
-        value: value ?? 0,
-        currency,
+        value,
+        currency: "EUR",
         planLabel: PLANS[key].label,
         contentId: `${key}:${pp?.period ?? "monthly"}`,
         period: pp?.period ?? "monthly",
@@ -124,8 +143,10 @@ export async function POST(req: NextRequest) {
       subscriptionId: sub.id,
       plan: pp?.plan ?? null,
       period: pp?.period ?? null,
+      // Le navigateur reçoit la valeur RÉSOLUE, jamais null : sans quoi il
+      // referait le même calcul de repli, ou pire enverrait 0 de son côté.
       value,
-      currency,
+      currency: "EUR",
     });
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
