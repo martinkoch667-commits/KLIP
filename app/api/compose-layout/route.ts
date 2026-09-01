@@ -50,9 +50,15 @@ export async function POST(request: NextRequest) {
     if (typeof workspaceId === 'string' && workspaceId) {
       const { data: ws } = await sb
         .from('workspaces')
-        .select('name, sector, tone, company_description, words_to_use, words_to_avoid, font_family, font_secondary, primary_color, secondary_color, accent_color, instagram_username')
+        .select('name, sector, tone, company_description, words_to_use, words_to_avoid, font_family, font_secondary, primary_color, secondary_color, accent_color, instagram_username, visual_dna')
         .eq('id', workspaceId)
-        .single();
+        .single()
+        // `visual_dna` peut ne pas exister encore en base (migration 028). Sans
+        // ce repli, la requête échoue en entier et le compositeur perd TOUTE
+        // l'identité du client, pas seulement son ADN.
+        .then(r => (r.error ? sb.from('workspaces')
+          .select('name, sector, tone, company_description, words_to_use, words_to_avoid, font_family, font_secondary, primary_color, secondary_color, accent_color, instagram_username')
+          .eq('id', workspaceId).single() : r));
       if (ws) {
         wsRow = ws as Record<string, unknown>;
         identity = [
@@ -136,14 +142,38 @@ export async function POST(request: NextRequest) {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
         }).filter((s: any) => (s.blocks as unknown[]).length > 0).slice(0, 3);
 
-        const token = openToken((tokRes.data as { instagram_access_token?: string } | null)?.instagram_access_token)?.trim();
-        if (token) {
-          const r = await fetch(`https://graph.instagram.com/me/media?fields=media_url,media_type&limit=6&access_token=${token}`);
-          const j = await r.json();
-          instaRefs = (Array.isArray(j?.data) ? j.data : [])
-            .filter((m: { media_type?: string; media_url?: string }) => m.media_type === 'IMAGE' && typeof m.media_url === 'string')
-            .slice(0, 2)
-            .map((m: { media_url: string }) => m.media_url);
+        // LA MÉMOIRE VISUELLE D'ABORD, LE FIL EN DIRECT ENSUITE.
+        //
+        // « Les deux dernières publications » n'est pas « les deux meilleures » :
+        // une story de remerciement floue pesait autant que le plus beau visuel
+        // de la marque. Quand des références ont été retenues (import Canva,
+        // publications gardées, dépôt manuel), ce sont elles qui parlent, et les
+        // favorites en premier. Le fil en direct reste le repli des comptes qui
+        // n'ont encore rien trié.
+        try {
+          const { data: refs } = await sb
+            .from('brand_references')
+            .select('image_url')
+            .eq('workspace_id', workspaceId)
+            .eq('kept', true)
+            .order('favori', { ascending: false })
+            .order('created_at', { ascending: false })
+            .limit(3);
+          instaRefs = (refs ?? [])
+            .map((r: { image_url?: string }) => r.image_url)
+            .filter((u: unknown): u is string => typeof u === 'string' && u.startsWith('http'));
+        } catch { /* la table peut ne pas exister encore (migration 030) */ }
+
+        if (!instaRefs.length) {
+          const token = openToken((tokRes.data as { instagram_access_token?: string } | null)?.instagram_access_token)?.trim();
+          if (token) {
+            const r = await fetch(`https://graph.instagram.com/me/media?fields=media_url,media_type&limit=6&access_token=${token}`);
+            const j = await r.json();
+            instaRefs = (Array.isArray(j?.data) ? j.data : [])
+              .filter((m: { media_type?: string; media_url?: string }) => m.media_type === 'IMAGE' && typeof m.media_url === 'string')
+              .slice(0, 2)
+              .map((m: { media_url: string }) => m.media_url);
+          }
         }
       } catch { /* les références sont un bonus, jamais un point de blocage */ }
     }
@@ -270,7 +300,7 @@ export async function POST(request: NextRequest) {
       JSON.stringify(designCandidates),
       '',
       approved.length > 0 ? `Posts déjà validés par le client (ce qui lui plaît) : ${JSON.stringify(approved)}` : '',
-      instaRefs.length > 0 ? `LES ${instaRefs.length} DERNIÈRES IMAGES DU COMPTE INSTAGRAM SONT JOINTES APRÈS LA PHOTO À HABILLER. Elles montrent ce que la marque publie déjà : densité de texte, place du sujet, rapport au vide, façon d'utiliser la couleur. Ta composition doit pouvoir se poser à côté d'elles sans détonner — même famille visuelle, sans les copier. La PREMIÈRE image jointe est la photo à habiller ; les suivantes ne sont que des références.` : '',
+      instaRefs.length > 0 ? `${instaRefs.length} VISUELS DE RÉFÉRENCE DE LA MARQUE SONT JOINTS APRÈS LA PHOTO À HABILLER. Ce sont ses visuels retenus, ou à défaut ses dernières publications. Ils montrent ce que la marque publie déjà : densité de texte, place du sujet, rapport au vide, façon d'utiliser la couleur. Ta composition doit pouvoir se poser à côté d'elles sans détonner — même famille visuelle, sans les copier. La PREMIÈRE image jointe est la photo à habiller ; les suivantes ne sont que des références.` : '',
       textList.length ? `Textes à utiliser :\n${textList.map((t, i) => `${i + 1}. "${t}"`).join('\n')}` : 'Aucun texte fourni : rédige un titre court (≤6 mots) + éventuel sous-titre, cohérents avec la photo.',
       '',
       'Choisis les 3 MEILLEURES compositions. Pour un template A : remplis chaque slot (rôle->texte), choisis une couleur de charte par slot (contraste avec le fond), décide du scrim. Pour une recette B : remplis "fields" avec la clé de CHAQUE champ de la recette — les couleurs, les tailles et les positions sont déjà décidées par le dessin, tu n\'y touches pas.',
@@ -378,6 +408,10 @@ export async function POST(request: NextRequest) {
       return { elements: filled, backgroundStyle: t.backgroundStyle ?? null, sourceFormat: { w: fw, h: fh }, name: t.name };
     };
 
+    const adn = (wsRow?.visual_dna && typeof wsRow.visual_dna === 'object')
+      ? wsRow.visual_dna as { colorwayId?: string; typeIdentityId?: string; brandColors?: string[]; families?: string[]; zones?: string[] }
+      : null;
+
     // La charte telle qu'elle sera VRAIMENT peinte. Le Composer n'envoie pas
     // toujours les couleurs ; les lire ici évite le visuel gris qui ne ressemble
     // à personne.
@@ -395,12 +429,21 @@ export async function POST(request: NextRequest) {
       // ressembler par le dessin.
       sector: (wsRow?.sector as string | undefined) ?? null,
       tone: (wsRow?.tone as string | undefined) ?? null,
+      // CE QU'ON A MESURÉ SUR SON COMPTE, quand il a été analysé.
+      //
+      // Secteur et ton ne servent qu'à DEVINER le terrain et la typo. Quand
+      // l'ADN visuel a été relevé (`/api/brand-dna`), on a mieux qu'une
+      // devinette : la palette réellement publiée et le registre réellement
+      // écrit. Ces deux identifiants court-circuitent l'empreinte du nom dans
+      // `pickColorway` et `pickTypeIdentity`.
+      colorwayId: adn?.colorwayId ?? null,
+      typeIdentityId: adn?.typeIdentityId ?? null,
     };
     // Ce que la marque devient typographiquement, dit en clair dans le journal
     // de génération : c'est le seul endroit où l'utilisateur peut constater que
     // deux clients ne reçoivent pas la même typo.
     const identiteTypo = resolveFonts(brandForDesign).ident;
-    const terrain = pickColorway({ name: brandForDesign.name, sector: brandForDesign.sector, tone: brandForDesign.tone });
+    const terrain = pickColorway({ name: brandForDesign.name, sector: brandForDesign.sector, tone: brandForDesign.tone, colorwayId: brandForDesign.colorwayId });
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const layouts = picks.slice(0, 3).map((pick: any) => {
