@@ -125,6 +125,15 @@ export interface ColorwayInput {
   name?: string | null;
   sector?: string | null;
   tone?: string | null;
+  /**
+   * Terrain MESURÉ sur le compte Instagram de la marque (`lib/brandDNA.ts`).
+   *
+   * Quand il est là, il gagne, et sans discussion : tout ce qui suit dans cette
+   * fonction est une façon honnête de deviner, mais ça reste deviner. Un terrain
+   * choisi d'après les couleurs réellement publiées n'a pas à être départagé par
+   * l'empreinte d'un nom.
+   */
+  colorwayId?: string | null;
 }
 
 /**
@@ -136,6 +145,8 @@ export interface ColorwayInput {
  * lieu de deux cents.
  */
 export function pickColorway(b: ColorwayInput): Colorway {
+  const mesure = b.colorwayId ? COLORWAY_BY_ID[b.colorwayId] : null;
+  if (mesure) return mesure;
   const nom = String(b.name ?? '').trim().toLowerCase();
   const secteur = String(b.sector ?? '').trim().toLowerCase();
   const ton = String(b.tone ?? '');

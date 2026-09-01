@@ -228,6 +228,9 @@ export interface TypeIdentityInput {
   name?: string | null;
   sector?: string | null;
   tone?: string | null;
+  /** Identité DÉDUITE du registre lu sur les visuels du compte, quand il a été
+   *  analysé (`lib/brandDNA.ts`). Elle prime : on a vu la marque écrire. */
+  typeIdentityId?: string | null;
 }
 
 /**
@@ -239,6 +242,8 @@ export interface TypeIdentityInput {
  * typo change à chaque post n'est pas une marque.
  */
 export function pickTypeIdentity(b: TypeIdentityInput): TypeIdentity {
+  const mesure = b.typeIdentityId ? TYPE_IDENTITY_BY_ID[b.typeIdentityId] : null;
+  if (mesure) return mesure;
   const nom = String(b.name ?? '').trim().toLowerCase();
   const secteur = String(b.sector ?? '').trim().toLowerCase();
   const ton = String(b.tone ?? '');

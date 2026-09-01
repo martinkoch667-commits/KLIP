@@ -1615,6 +1615,16 @@ export interface BuildBrand {
    *  l'identité typographique. Sans eux, toutes les marques repartent sur la
    *  même — c'est-à-dire sur aucune. */
   sector?: string | null; tone?: string | null;
+  /**
+   * Les deux décisions MESURÉES sur le compte du client, quand son ADN visuel a
+   * été relevé (`lib/brandDNA.ts`). Elles court-circuitent le choix par secteur,
+   * ton et empreinte du nom, qui reste le comportement par défaut.
+   *
+   * Sans ces deux champs, un client analysé recevait quand même le terrain de
+   * son empreinte : l'analyse s'affichait à l'écran et ne changeait rien aux
+   * visuels, ce qui est la pire façon de livrer une mesure.
+   */
+  colorwayId?: string | null; typeIdentityId?: string | null;
 }
 
 const HEX = /^#([0-9a-f]{6})$/i;
@@ -1667,7 +1677,7 @@ export function resolvePalette(brand: BuildBrand) {
   // opposées partageaient la majorité de leur surface. Ils viennent maintenant
   // d'un terrain choisi pour CETTE marque (`colorway.ts`). Les couleurs de la
   // charte, elles, ne bougent pas : c'est le sol qui change, pas la marque.
-  const way = pickColorway({ name: brand.name, sector: brand.sector, tone: brand.tone });
+  const way = pickColorway({ name: brand.name, sector: brand.sector, tone: brand.tone, colorwayId: brand.colorwayId });
   const INK = way.ink, PAPER = way.paper;
   // L'encre lisible SUR une couleur donnée. Elle doit venir du TERRAIN : une
   // encre générique donnerait du brun sur le papier et du vert-noir sur l'aplat
@@ -1724,7 +1734,7 @@ export function resolvePalette(brand: BuildBrand) {
  * La charte reste souveraine : si le client a une police de titre, elle titre.
  */
 export function resolveFonts(brand: BuildBrand) {
-  const ident = pickTypeIdentity({ name: brand.name, sector: brand.sector, tone: brand.tone });
+  const ident = pickTypeIdentity({ name: brand.name, sector: brand.sector, tone: brand.tone, typeIdentityId: brand.typeIdentityId });
   const charteDisplay = (brand.display || '').trim();
   const charteBody = (brand.body || '').trim();
   const display = charteDisplay || ident.display;
