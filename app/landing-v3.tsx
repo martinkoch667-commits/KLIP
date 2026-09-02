@@ -768,10 +768,10 @@ function HeroPreview() {
             <div className="win">
               <div className="win-bar">
                 <span className="win-dot" /><span className="win-dot" /><span className="win-dot" />
-                <span className="win-tab"><Icon name="image" size={13} style={{ color: 'var(--mint-2)' }} /> app.getklip.fr — composer</span>
+                <span className="win-tab"><Icon name="image" size={13} style={{ color: 'var(--mint-2)' }} /> app.getklip.fr — accueil</span>
                 <span className="win-zoom">100% · 1:1</span>
               </div>
-              <Image src="/klip-media/hero-composer.png" alt="Espace de production Klip — importer ses photos et générer les visuels et légendes d'un client" width={2160} height={1075} priority sizes="(max-width: 1080px) 100vw, 1080px" style={{ display: 'block', width: '100%', height: 'auto' }} />
+              <Image src="/klip-media/accueil.png" alt="Accueil de Klip — tous ses clients et leurs contenus au même endroit" width={3014} height={1520} priority sizes="(max-width: 1080px) 100vw, 1080px" style={{ display: 'block', width: '100%', height: 'auto' }} />
             </div>
             <Ants inset={12} radius={22} />
           </div>
@@ -1003,7 +1003,7 @@ function Steps() {
                 <span className="win-tab"><Icon name="image" size={13} style={{ color: 'var(--mint-2)' }} /> app.getklip.fr — composer</span>
                 <span className="win-zoom">86% · 4:5</span>
               </div>
-              <Image src="/klip-media/composer.png" alt="Éditeur visuel Klip pour composer un post Instagram aux couleurs du client" width={1440} height={900} sizes="(max-width: 960px) 100vw, 600px" style={{ display: 'block', width: '100%', height: 'auto' }} />
+              <Image src="/klip-media/composer.png" alt="Éditeur visuel Klip pour composer un post Instagram aux couleurs du client" width={3022} height={1536} sizes="(max-width: 960px) 100vw, 600px" style={{ display: 'block', width: '100%', height: 'auto' }} />
             </div>
             <span className="drag" data-stk style={{ position: 'absolute', top: -26, right: -20, zIndex: 5 }}><Stk name="smiley" size={62} className="floatA" style={{ ['--r' as string]: '10deg' }} /></span>
           </div>
@@ -1114,9 +1114,9 @@ function DeckShowcase() {
   const t = useTranslations('landing.showcase');
   const cards = [
     { key: 'editor', num: '01', title: t('editorTitle'), desc: t('editorText'), tags: [] as string[], tab: 'éditeur', visual: 'editor' as const, rot: -1.1, tapeR: -6, stk: 'smiley', stkPos: { top: -26, right: -20 } as React.CSSProperties },
-    { key: 'cal', num: '02', title: t('calTitle'), desc: t('calDesc'), tags: [t('calTag1'), t('calTag2'), t('calTag3')], tab: 'calendrier', visual: '/klip-media/planning.png', w: 3018, h: 1514, rot: 0.9, tapeR: 5, stk: 'star', stkPos: { bottom: -24, left: -22 } as React.CSSProperties },
-    { key: 'queue', num: '03', title: t('queueTitle'), desc: t('queueDesc'), tags: [t('queueTag1'), t('queueTag2'), t('queueTag3')], tab: 'publication', visual: '/klip-media/queue.png', w: 1440, h: 900, rot: -0.8, tapeR: -4, stk: 'at', stkPos: { top: -24, right: 60 } as React.CSSProperties },
-    { key: 'mont', num: '04', title: t('montTitle'), desc: t('montDesc'), tags: [t('montTag1'), t('montTag2'), t('montTag3')], tab: 'montage', visual: '/klip-media/montage.png', w: 2994, h: 1516, rot: 1.2, tapeR: 6, stk: 'bolt', stkPos: { bottom: -22, right: -18 } as React.CSSProperties },
+    { key: 'cal', num: '02', title: t('calTitle'), desc: t('calDesc'), tags: [t('calTag1'), t('calTag2'), t('calTag3')], tab: 'calendrier', visual: '/klip-media/planning.png', w: 3024, h: 1522, rot: 0.9, tapeR: 5, stk: 'star', stkPos: { bottom: -24, left: -22 } as React.CSSProperties },
+    { key: 'queue', num: '03', title: t('queueTitle'), desc: t('queueDesc'), tags: [t('queueTag1'), t('queueTag2'), t('queueTag3')], tab: 'publication', visual: '/klip-media/queue.png', w: 3018, h: 1532, rot: -0.8, tapeR: -4, stk: 'at', stkPos: { top: -24, right: 60 } as React.CSSProperties },
+    { key: 'mont', num: '04', title: t('montTitle'), desc: t('montDesc'), tags: [t('montTag1'), t('montTag2'), t('montTag3')], tab: 'montage', visual: '/klip-media/montage.png', w: 3008, h: 1524, rot: 1.2, tapeR: 6, stk: 'bolt', stkPos: { bottom: -22, right: -18 } as React.CSSProperties },
   ];
   return (
     <section id="apercu" className="section on-forest" style={{ overflow: 'visible' }}>
