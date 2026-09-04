@@ -33,6 +33,8 @@ import { AiThinkingLog } from '@/components/AiThinkingPanel';
 import AiChatDock from '@/components/AiChatDock';
 import KlipMark from '@/components/KlipMark';
 import RichTextOverlay, { type RichTextHandle } from '@/components/RichTextOverlay';
+import { ORNEMENTS, CATEGORIES as ORNEMENT_CATS, type OrnementCategorie } from '@/lib/ornaments';
+import { KINDS as ASSET_KINDS, STYLES as ASSET_STYLES, type AssetKind } from '@/lib/assetBanks';
 import {
   blockStyleOf, clearTextMetricsCache, isRunKey, layoutText,
   measureBlock, measureSegment, stripRunKeys, styleOfRange,
@@ -225,6 +227,11 @@ const FONTS_AMORCE = [
 
 const FORMATS = [
   { id: 'ig-portrait', label: 'Portrait 3:4',  sub: '1080×1440', w: 420, h: 560 },
+  // Le 4:5 n'est PLUS le format courant d'Instagram — le fil est passé au 3:4,
+  // 1080x1440, qui reste donc le défaut. On le garde parce que beaucoup de
+  // designs existants, notamment ceux venus de Canva, sont en 1080x1350 : sans
+  // lui ils étaient rapprochés du 3:4 et légèrement étirés à l'import.
+  { id: 'ig-45',       label: 'Portrait 4:5',  sub: '1080×1350', w: 448, h: 560 },
   { id: 'ig-square',   label: 'Carré',          sub: '1080×1080', w: 560, h: 560 },
   { id: 'ig-story',    label: 'Story',           sub: '1080×1920', w: 315, h: 560 },
   { id: 'facebook',    label: 'Facebook Post',   sub: '1200×630',  w: 560, h: 294 },
@@ -2815,6 +2822,23 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
   const [iconResults, setIconResults] = useState<string[]>([]);
   const [iconLoading, setIconLoading] = useState(false);
   const [iconColor, setIconColor] = useState('#14160F');
+  // Banques d'éléments (musées en domaine public, IconScout). Distinctes
+  // d'Iconify, qui ne rend que des icônes d'interface monochromes.
+  // Ornements dessinés en code (lib/ornaments.ts) : présents DÈS l'ouverture du
+  // panneau, sans recherche. Un panneau vide qui attend qu'on tape n'est pas un
+  // panneau — c'est le reproche exact que Martin a fait, et il a raison.
+  const [ornCat, setOrnCat] = useState<OrnementCategorie>('fleches');
+  const [ornColor, setOrnColor] = useState('#14160F');
+  const [bankSource, setBankSource] = useState<'musee' | 'iconscout'>('musee');
+  const [bankKind, setBankKind] = useState<AssetKind>('illustration');
+  const [bankStyle, setBankStyle] = useState('');
+  const [bankTout, setBankTout] = useState(false);
+  const [bankPage, setBankPage] = useState(1);
+  const [bankEncore, setBankEncore] = useState(false);
+  const [bankQuery, setBankQuery] = useState('');
+  const [bankItems, setBankItems] = useState<{ id: string; thumb: string; full: string; alt: string; source: string }[]>([]);
+  const [bankLoading, setBankLoading] = useState(false);
+  const [bankNote, setBankNote] = useState<string | null>(null);
   const [stickerColor, setStickerColor] = useState('#2FD79B');
   const [stickerCat, setStickerCat] = useState<string>('Tous');
   const [stickerLibOpen, setStickerLibOpen] = useState(false);
@@ -5432,6 +5456,40 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
   };
   useEffect(() => { fetchIcons('shape'); }, []);
 
+  // ── Banques d'éléments (/api/assets) ────────────────────────────────────
+  // On passe par `proxy-image` pour POSER l'élément : les images du Met et du
+  // Smithsonian viennent d'un autre domaine, et un canevas qui charge une image
+  // distante sans en-tête CORS devient « souillé » — l'export échoue alors en
+  // silence, tout à la fin, quand le travail est déjà fait.
+  const PAR_PAGE = 60;
+  const fetchBank = async (q: string, source = bankSource, kind = bankKind, style = bankStyle, tout = bankTout, page = 1) => {
+    // IconScout parcourt son catalogue sans mot-clé : le panneau se remplit dès
+    // qu'on l'ouvre. Le Met, lui, exige un terme.
+    if (source === 'musee' && q.trim().length < 2) { setBankItems([]); setBankNote(null); setBankEncore(false); return; }
+    setBankLoading(true);
+    try {
+      const res = await fetch(`/api/assets?source=${source}&kind=${kind}&style=${style}&query=${encodeURIComponent(q)}`
+        + `&limit=${PAR_PAGE}&page=${page}${tout ? '&all=1' : ''}`);
+      const data = await res.json();
+      const recus = data.items ?? [];
+      // Page 1 remplace, les suivantes ajoutent : on ne fait pas repartir
+      // l'utilisateur du haut chaque fois qu'il demande la suite.
+      setBankItems(prev => (page === 1 ? recus : [...prev, ...recus]));
+      setBankPage(page);
+      // Une page pleine veut dire qu'il en reste probablement.
+      setBankEncore(recus.length >= PAR_PAGE);
+      setBankNote(
+        page === 1 && recus.length === 0 && source === 'iconscout'
+          ? "IconScout n'est pas connecté sur ce serveur."
+          : page === 1 && recus.length === 0 ? 'Rien trouvé pour ce mot.' : null,
+      );
+    } catch { if (page === 1) setBankItems([]); setBankNote('Banque indisponible.'); }
+    setBankLoading(false);
+  };
+  const addBankItem = (url: string) => addLogoEl(`/api/proxy-image?url=${encodeURIComponent(url)}`);
+  const ornUrl = (id: string, c: string) => `/api/ornement?id=${id}&color=${encodeURIComponent(c)}`;
+  const addOrnement = (id: string) => addLogoEl(ornUrl(id, ornColor));
+
   // URL SVG iconify ("prefix:name" → prefix/name.svg) avec couleur
   const iconSvgUrl = (name: string, color: string, h = 240) =>
     `https://api.iconify.design/${name.replace(':', '/')}.svg?height=${h}&color=${encodeURIComponent(color)}`;
@@ -7016,6 +7074,31 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
             {/* ELEMENTS — Éléments */}
             {tool === 'elements' && (
               <div style={{ padding: '22px' }}>
+                {/* ── Parcourir les catégories ─────────────────────────────
+                    Reprise du geste de Canva : on ne tombe pas sur une longue
+                    page à faire défiler, on choisit d'abord ce qu'on cherche. */}
+                <p style={{ fontSize: 10, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '0.12em', fontFamily: 'var(--mono)', fontWeight: 800, margin: '0 0 10px' }}>Parcourir les catégories</p>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 8, marginBottom: 18 }}>
+                  {([
+                    ['ornements', 'Ornements', '#FF7A59'],
+                    ['formes', 'Formes', '#5B8DEF'],
+                    ['icones', 'Icônes', '#2FD79B'],
+                    ['stickers', 'Stickers', '#F4C144'],
+                    ['banques', 'Illustrations', '#A87BF0'],
+                    ['cadres', 'Cadres', '#4FB9A5'],
+                    ['badges', 'Badges', '#EC6A8C'],
+                    ['motifs', 'Motifs', '#7C8CA0'],
+                  ] as const).map(([id, label, couleur]) => (
+                    <button key={id} onClick={() => document.getElementById(`sect-${id}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+                      style={{ border: 'none', background: 'none', padding: 0, cursor: 'pointer', display: 'grid', gap: 5, justifyItems: 'center' }}>
+                      <span style={{ width: '100%', aspectRatio: '1', borderRadius: 12, background: `linear-gradient(150deg, ${couleur}, ${couleur}bb)`, display: 'grid', placeItems: 'center', boxShadow: '0 2px 6px rgba(0,0,0,.14)' }}>
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={ornUrl(({ ornements: 'etincelle', formes: 'blob', icones: 'etoile-cinq', stickers: 'etiquette', banques: 'arche', cadres: 'cadre-doodle', badges: 'cachet', motifs: 'ondule' } as Record<string, string>)[id], '#FFFFFF')} alt="" style={{ width: '58%', height: '58%', objectFit: 'contain' }} />
+                      </span>
+                      <span style={{ fontSize: 10.5, color: 'var(--ink-2)', fontWeight: 600, lineHeight: 1.15, textAlign: 'center' }}>{label}</span>
+                    </button>
+                  ))}
+                </div>
                 <PanelHead title={T('elements')} sub="Formes & blocs de couleur" onClose={() => setTool(null)} />
                 <div style={{ position: 'relative', marginBottom: 16 }}>
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" style={{ position: 'absolute', left: 12, top: 12, color: 'var(--ink-3)', pointerEvents: 'none' }}><circle cx="11" cy="11" r="7"/><path d="M21 21l-4-4"/></svg>
@@ -7044,7 +7127,7 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
                   ))}
                 </div>
 
-                <p style={{ fontSize: 10, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '0.12em', fontFamily: 'var(--mono)', fontWeight: 800, margin: '0 0 8px' }}>{T('shapes')}</p>
+                <p id="sect-formes" style={{ fontSize: 10, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '0.12em', fontFamily: 'var(--mono)', fontWeight: 800, margin: '0 0 8px' }}>{T('shapes')}</p>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 8, marginBottom: 18 }}>
                   {([
                     { shape: 'rectangle' as const, label: 'Carré',    icon: <rect x="5" y="5" width="14" height="14" rx="2.5" fill="currentColor"/> },
@@ -7066,7 +7149,7 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
                   ))}
                 </div>
                 {/* ── Cadres photo (patterns) : forme vide → on clippe une image dedans ── */}
-                <p style={{ fontSize: 10, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '0.12em', fontFamily: 'var(--mono)', fontWeight: 800, margin: '0 0 3px' }}>Cadres photo</p>
+                <p id="sect-cadres" style={{ fontSize: 10, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '0.12em', fontFamily: 'var(--mono)', fontWeight: 800, margin: '0 0 3px' }}>Cadres photo</p>
                 <p style={{ fontSize: 10.5, color: 'var(--ink-3)', margin: '0 0 8px', lineHeight: 1.35 }}>Pose une forme, choisis ta photo : elle se clippe dedans. Double-clic pour recadrer.</p>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 8, marginBottom: 18 }}>
                   {([
@@ -7090,7 +7173,7 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
                   ))}
                 </div>
                 {/* ── Stickers / illustrations maison ── */}
-                <p style={{ fontSize: 10, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '0.12em', fontFamily: 'var(--mono)', fontWeight: 800, margin: '0 0 8px' }}>Stickers</p>
+                <p id="sect-stickers" style={{ fontSize: 10, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '0.12em', fontFamily: 'var(--mono)', fontWeight: 800, margin: '0 0 8px' }}>Stickers</p>
                 {/* palette recolorable (agit sur les stickers recolorables) */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', marginBottom: 9 }}>
                   {[workspaceData?.primary_color || '#2FD79B', '#0C2A1D', '#BDF2A0', '#FF5A3C', '#FFD400', '#0038FF', '#9B5DE5', '#F15BB5', '#14160F', '#FFFFFF'].map(c => (
@@ -7115,7 +7198,7 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
                   <span style={{ fontSize: 11, color: 'var(--ink-3)', fontFamily: 'var(--mono)', fontWeight: 700 }}>({STICKERS.length})</span>
                 </button>
 
-                <p style={{ fontSize: 10, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '0.12em', fontFamily: 'var(--mono)', fontWeight: 800, margin: '0 0 8px' }}>{T('badges')}</p>
+                <p id="sect-badges" style={{ fontSize: 10, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '0.12em', fontFamily: 'var(--mono)', fontWeight: 800, margin: '0 0 8px' }}>{T('badges')}</p>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                   {['NOUVEAU', '-20%', 'RÉSA EN BIO'].map(badge => (
                     <button key={badge} onClick={() => { const el: TextEl = { id: newId(), type: 'text', x: 60, y: 60, rotation: 0, opacity: 100, text: badge, fontSize: 32, fontFamily: 'Archivo', fontStyle: 'bold', textDecoration: '', fill: '#fff', align: 'center', width: 220, hasBg: true, bgColor: workspaceData?.primary_color || '#0038FF', bgOpacity: 100, cornerRadius: 8, padding: 16, paddingH: 20, paddingV: 12 }; applyElements([...elements, el]); setSelectedId(el.id); }}
@@ -7126,7 +7209,22 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
                 </div>
 
                 {/* ── Icônes SVG (Iconify) ── */}
-                <p style={{ fontSize: 10, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '0.12em', fontFamily: 'var(--mono)', fontWeight: 800, margin: '20px 0 8px' }}>{T('iconsStickers')}</p>
+                <p id="sect-icones" style={{ fontSize: 10, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '0.12em', fontFamily: 'var(--mono)', fontWeight: 800, margin: '20px 0 8px' }}>{T('iconsStickers')}</p>
+                {bankSource === 'iconscout' && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
+                    {([[false, 'Gratuits'], [true, 'Tout le catalogue']] as const).map(([v, label]) => (
+                      <button key={label} onClick={() => { setBankTout(v); fetchBank(bankQuery, 'iconscout', bankKind, bankStyle, v); }}
+                        style={{ padding: '3px 9px', borderRadius: 20, border: '1px solid var(--line)', background: bankTout === v ? 'var(--ink)' : 'var(--white)', color: bankTout === v ? '#fff' : 'var(--ink-3)', fontSize: 10.5, fontWeight: 700, cursor: 'pointer' }}>
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                )}
+                {bankSource === 'iconscout' && bankTout && (
+                  <p style={{ fontSize: 10.5, color: 'var(--ink-3)', lineHeight: 1.4, margin: '0 0 8px' }}>
+                    Les éléments marqués <b>premium</b> ne sont pas licenciés pour la publication tant qu&apos;ils ne sont pas téléchargés chez IconScout. Préférez les gratuits pour un post à publier.
+                  </p>
+                )}
                 <div style={{ display: 'flex', gap: 6, marginBottom: 8 }}>
                   <div style={{ position: 'relative', flex: 1 }}>
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: 'var(--ink-3)', pointerEvents: 'none' }}><circle cx="11" cy="11" r="7"/><path d="M21 21l-4-4"/></svg>
@@ -7165,8 +7263,101 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
                   </div>
                 )}
 
+                {/* ── Ornements ── */}
+                <p id="sect-ornements" style={{ fontSize: 10, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '0.12em', fontFamily: 'var(--mono)', fontWeight: 800, margin: '20px 0 8px' }}>Ornements</p>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, marginBottom: 8 }}>
+                  {ORNEMENT_CATS.map(c => (
+                    <button key={c.id} onClick={() => setOrnCat(c.id)}
+                      style={{ padding: '4px 10px', borderRadius: 20, border: '1px solid var(--line)', background: ornCat === c.id ? 'var(--ink)' : 'var(--white)', color: ornCat === c.id ? '#fff' : 'var(--ink-2)', fontSize: 11.5, fontWeight: 600, cursor: 'pointer' }}>
+                      {c.label}
+                    </button>
+                  ))}
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 10 }}>
+                  <span style={{ fontSize: 10, color: 'var(--ink-3)', fontFamily: 'var(--mono)', fontWeight: 700 }}>{T('colorLabel')}</span>
+                  {[['#14160F', 'Encre'], ['#FFFFFF', 'Blanc'], [workspaceData?.primary_color || '#2FD79B', 'Marque'], [workspaceData?.accent_color || '#FFC600', 'Accent']].map(([c]) => (
+                    <button key={c} onClick={() => setOrnColor(c)} title={c}
+                      style={{ width: 22, height: 22, borderRadius: 6, background: c, cursor: 'pointer', border: ornColor === c ? '2px solid var(--mint, #2FD79B)' : '1.5px solid var(--line)', padding: 0 }} />
+                  ))}
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 6, marginBottom: 8 }}>
+                  {ORNEMENTS.filter(o => o.cat === ornCat).map(o => (
+                    <button key={o.id} onClick={() => addOrnement(o.id)} title={o.nom}
+                      style={{ aspectRatio: '1', borderRadius: 8, border: '1px solid var(--line)', background: ornColor === '#FFFFFF' ? '#3a3f36' : 'var(--sunk)', cursor: 'pointer', display: 'grid', placeItems: 'center', padding: 9 }}>
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={ornUrl(o.id, ornColor)} alt={o.nom} style={{ width: '100%', height: '100%', objectFit: 'contain', display: 'block' }} />
+                    </button>
+                  ))}
+                </div>
+
+                {/* ── Banques d'éléments ── */}
+                <p id="sect-banques" style={{ fontSize: 10, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '0.12em', fontFamily: 'var(--mono)', fontWeight: 800, margin: '20px 0 8px' }}>Banques d&apos;éléments</p>
+                <div style={{ display: 'flex', gap: 5, marginBottom: 8 }}>
+                  {([['musee', 'Domaine public'], ['iconscout', 'IconScout']] as const).map(([id, label]) => (
+                    <button key={id} onClick={() => { setBankSource(id); if (id === 'iconscout' || bankQuery.trim().length > 1) fetchBank(bankQuery, id); }}
+                      style={{ padding: '4px 10px', borderRadius: 20, border: '1px solid var(--line)', background: bankSource === id ? 'var(--ink)' : 'var(--white)', color: bankSource === id ? '#fff' : 'var(--ink-2)', fontSize: 11.5, fontWeight: 600, cursor: 'pointer' }}>
+                      {label}
+                    </button>
+                  ))}
+                </div>
+                {bankSource === 'iconscout' && (
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, marginBottom: 8 }}>
+                    {ASSET_KINDS.map(k => (
+                      <button key={k.id} onClick={() => { setBankKind(k.id); fetchBank(bankQuery, 'iconscout', k.id); }}
+                        style={{ padding: '3px 9px', borderRadius: 20, border: '1px solid var(--line)', background: bankKind === k.id ? 'var(--mint, #2FD79B)' : 'var(--white)', color: bankKind === k.id ? '#06281C' : 'var(--ink-3)', fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>
+                        {k.label}
+                      </button>
+                    ))}
+                  </div>
+                )}
+                {bankSource === 'iconscout' && (bankKind === 'icon' || bankKind === 'illustration') && (
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginBottom: 8 }}>
+                    {ASSET_STYLES.map(st => (
+                      <button key={st.id || 'tous'} onClick={() => { setBankStyle(st.id); fetchBank(bankQuery, 'iconscout', bankKind, st.id); }}
+                        style={{ padding: '2px 8px', borderRadius: 20, border: '1px solid var(--line)', background: bankStyle === st.id ? 'var(--ink-2)' : 'transparent', color: bankStyle === st.id ? '#fff' : 'var(--ink-3)', fontSize: 10.5, fontWeight: 600, cursor: 'pointer' }}>
+                        {st.label}
+                      </button>
+                    ))}
+                  </div>
+                )}
+                <div style={{ display: 'flex', gap: 6, marginBottom: 8 }}>
+                  <div style={{ position: 'relative', flex: 1 }}>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: 'var(--ink-3)', pointerEvents: 'none' }}><circle cx="11" cy="11" r="7"/><path d="M21 21l-4-4"/></svg>
+                    <input value={bankQuery} onChange={e => setBankQuery(e.target.value)}
+                      onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); fetchBank(bankQuery); } }}
+                      enterKeyHint="search" inputMode="search" autoCapitalize="none" autoCorrect="off"
+                      placeholder={bankSource === 'musee' ? 'gravure, motif, botanique…' : 'illustration, forme…'}
+                      style={{ width: '100%', padding: '8px 10px 8px 32px', border: '1.5px solid var(--line)', borderRadius: 8, fontSize: 12.5, outline: 'none', fontFamily: 'var(--sans)', background: 'var(--white)', color: 'var(--ink)', boxSizing: 'border-box' }} />
+                  </div>
+                  <button type="button" onClick={() => fetchBank(bankQuery)} aria-label={T('search')}
+                    style={{ flexShrink: 0, width: 40, borderRadius: 8, border: 'none', background: 'var(--mint, #2FD79B)', color: '#06281C', display: 'grid', placeItems: 'center', cursor: 'pointer' }}>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4-4"/></svg>
+                  </button>
+                </div>
+                {bankLoading ? (
+                  <p style={{ fontSize: 12, color: 'var(--ink-3)', textAlign: 'center', padding: '12px 0' }}>{T('loading')}</p>
+                ) : bankNote ? (
+                  <p style={{ fontSize: 11.5, color: 'var(--ink-3)', textAlign: 'center', padding: '10px 0', lineHeight: 1.45 }}>{bankNote}</p>
+                ) : bankItems.length > 0 ? (
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 6, marginBottom: 8 }}>
+                    {bankItems.map(it => (
+                      <button key={it.id} onClick={() => addBankItem(it.full)} title={`${it.alt} — ${it.source}`}
+                        style={{ aspectRatio: '1', borderRadius: 8, border: '1px solid var(--line)', background: 'var(--sunk)', cursor: 'pointer', overflow: 'hidden', padding: 0 }}>
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={it.thumb} alt={it.alt} loading="lazy" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+                      </button>
+                    ))}
+                  </div>
+                ) : null}
+                {bankEncore && bankItems.length > 0 && (
+                  <button onClick={() => fetchBank(bankQuery, bankSource, bankKind, bankStyle, bankTout, bankPage + 1)} disabled={bankLoading}
+                    style={{ width: '100%', padding: '8px 0', marginBottom: 10, borderRadius: 8, border: '1.5px solid var(--line)', background: 'var(--sunk)', color: 'var(--ink-2)', fontSize: 12, fontWeight: 700, cursor: bankLoading ? 'default' : 'pointer' }}>
+                    {bankLoading ? 'Chargement…' : `Voir plus (${bankItems.length} affichés)`}
+                  </button>
+                )}
+
                 {/* ── Motifs ── */}
-                <p style={{ fontSize: 10, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '0.12em', fontFamily: 'var(--mono)', fontWeight: 800, margin: '16px 0 8px' }}>{T('patterns')}</p>
+                <p id="sect-motifs" style={{ fontSize: 10, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '0.12em', fontFamily: 'var(--mono)', fontWeight: 800, margin: '16px 0 8px' }}>{T('patterns')}</p>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 7 }}>
                   {([
                     { label: 'Pois', inner: (c: string) => `<pattern id='a' width='44' height='44' patternUnits='userSpaceOnUse'><circle cx='12' cy='12' r='6' fill='${c}'/></pattern>`, id: 'a' },
