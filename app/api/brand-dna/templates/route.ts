@@ -5,7 +5,7 @@ import { generateAiText } from '@/lib/ai-text';
 import { recipePoolForDNA, type BrandDNA } from '@/lib/brandDNA';
 import {
   describeDesignCandidates, findDesignRecipe, sanitizeFields,
-  buildDesignElements, type DesignRecipe,
+  buildDesignElements, resolveFonts, resolvePalette, type DesignRecipe,
 } from '@/lib/designSystem';
 
 export const runtime = 'nodejs';
@@ -28,6 +28,7 @@ export const maxDuration = 60;
 
 const FORMATS: Record<string, { w: number; h: number }> = {
   'ig-portrait': { w: 1080, h: 1440 },
+  'ig-45': { w: 1080, h: 1350 },
   'ig-square': { w: 1080, h: 1080 },
   'ig-story': { w: 1080, h: 1920 },
   facebook: { w: 1200, h: 630 },
@@ -49,6 +50,11 @@ export async function POST(request: NextRequest) {
     const wanted = Math.max(3, Math.min(Number(body?.count) || 6, 9));
     const avoid: string[] = Array.isArray(body?.avoid) ? body.avoid.filter((x: unknown) => typeof x === 'string') : [];
 
+    // Les polices IMPORTÉES du client : elles ne sont dans aucun catalogue, donc
+    // seule leur adresse permet de les afficher. Sans elles, l'aperçu retombe
+    // sur la police par défaut du navigateur et la charte paraît ignorée alors
+    // qu'elle est appliquée.
+    let polices: { family: string; url: string; weight?: number }[] = [];
     let name: string | null = typeof body?.name === 'string' ? body.name : null;
     let sector: string | null = typeof body?.sector === 'string' ? body.sector : null;
     let tone: string | null = null;
@@ -58,7 +64,7 @@ export async function POST(request: NextRequest) {
     if (typeof body?.workspaceId === 'string' && body.workspaceId) {
       const { data: ws } = await sb
         .from('workspaces')
-        .select('name, sector, tone, instagram_username, primary_color, secondary_color, accent_color, font_family, font_secondary, company_description')
+        .select('name, sector, tone, instagram_username, primary_color, secondary_color, accent_color, font_family, font_secondary, font_primary_url, font_secondary_url, brand_fonts, company_description')
         .eq('id', body.workspaceId)
         .single();
       if (ws) {
@@ -70,6 +76,14 @@ export async function POST(request: NextRequest) {
           primary: ws.primary_color ?? null, secondary: ws.secondary_color ?? null,
           accent: ws.accent_color ?? null, display: ws.font_family ?? null, bodyFont: ws.font_secondary ?? null,
         };
+        const familles = Array.isArray(ws.brand_fonts) ? ws.brand_fonts as { family?: string; variants?: { weight?: number; italic?: boolean; url?: string }[] }[] : [];
+        polices = [
+          ...familles.flatMap(f => (f.variants ?? [])
+            .filter(v => v.url && !v.italic)
+            .map(v => ({ family: String(f.family ?? ''), url: String(v.url), weight: v.weight }))),
+          ...(ws.font_family && ws.font_primary_url ? [{ family: ws.font_family as string, url: ws.font_primary_url as string }] : []),
+          ...(ws.font_secondary && ws.font_secondary_url ? [{ family: ws.font_secondary as string, url: ws.font_secondary_url as string }] : []),
+        ].filter(p => p.family && p.url);
       }
     }
 
@@ -96,7 +110,7 @@ export async function POST(request: NextRequest) {
     // Un tirage penché vers l'ADN, jamais le catalogue entier : un modèle à
     // préférences stables rechoisit les mêmes trois recettes quand on lui en
     // montre quatre-vingts.
-    const pool = recipePoolForDNA(dna, { hasPhoto: true, count: Math.max(14, wanted * 2), avoid });
+    const pool = recipePoolForDNA(dna, { hasPhoto: true, count: Math.max(14, wanted * 2), avoid, seed: (Date.now() >>> 6) ^ avoid.length });
     if (!pool.length) return NextResponse.json({ error: 'Aucune composition disponible' }, { status: 500 });
 
     const prompt = [
@@ -177,7 +191,28 @@ export async function POST(request: NextRequest) {
     if (!templates.length) {
       return NextResponse.json({ error: 'Aucune composition valide retenue' }, { status: 500 });
     }
-    return NextResponse.json({ templates, brand: buildBrand });
+    // LA CHARTE RÉELLEMENT APPLIQUÉE, RENVOYÉE.
+    //
+    // Les polices et les couleurs ne viennent JAMAIS de la composition : une
+    // recette dit « titre » et « couleur de marque », pas « serif » ni « gris ».
+    // Quand les modèles ne ressemblent pas au client, c'est donc presque
+    // toujours la charte qui était vide, et on cherchait au mauvais endroit.
+    // On la rend explicite pour que l'écran puisse la montrer.
+    const ft = resolveFonts(buildBrand);
+    const pal = resolvePalette(buildBrand);
+    const applique = {
+      titre: ft.display, texte: ft.body, serif: ft.serif, condense: ft.condensed, manuscrit: ft.script,
+      identiteTypo: ft.ident.id, identiteNom: ft.ident.name,
+      titreDeLaCharte: ft.displayDeLaCharte,
+      couleurs: { marque: pal.brand, accent: pal.accent, papier: pal.paper, encre: pal.ink },
+      // D'où viennent les couleurs : de la charte déclarée, ou mesurées sur le fil.
+      source: {
+        marque: brand.primary ? 'charte' : (mesurees[0] ? 'mesurée' : 'défaut'),
+        accent: brand.accent ? 'charte' : (mesurees[2] ?? mesurees[1] ? 'mesurée' : 'défaut'),
+        police: ft.displayDeLaCharte ? 'charte' : 'identité déduite',
+      },
+    };
+    return NextResponse.json({ templates, brand: buildBrand, applique, polices });
   } catch (err) {
     console.error('[brand-dna/templates] unexpected:', err);
     return NextResponse.json({ error: 'Erreur serveur' }, { status: 500 });

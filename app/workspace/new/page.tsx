@@ -12,6 +12,7 @@ import {
 import Step5Templates from "./step5";
 import { parseFontFile, groupFontFiles, type FontFamily } from "@/lib/fontFiles";
 import { fontCssHref } from "@/lib/fontCatalog";
+import ModelesDeMarque from "@/components/ModelesDeMarque";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -2109,6 +2110,24 @@ export default function NewWorkspacePage() {
             )}
 
             {/* ─── STEP 5 — Templates ─── */}
+            {/* LE CHAÎNON QUI MANQUAIT. Le compte Instagram est relié depuis
+                l'étape 2, mais rien n'en tirait de modèles : la personne
+                arrivait ici devant une bibliothèque vide, et le compositeur,
+                faute de modèles du client à privilégier, tirait au sort dans le
+                catalogue général. C'est la cause de « ce n'est pas adapté à
+                chaque client ». On le propose ICI, en fin de parcours, quand
+                tout ce que la personne avait à donner a été donné. */}
+            {step === 5 && createdWorkspaceId && igUsername && (
+              <div style={{ marginBottom: 22 }}>
+                <ModelesDeMarque
+                  workspaceId={createdWorkspaceId}
+                  name={name}
+                  sector={sector}
+                  onFini={(n) => setTemplateCount(c => c + n)}
+                />
+              </div>
+            )}
+
             {step === 5 && (
               <Step5Templates
                 clientName={name}
