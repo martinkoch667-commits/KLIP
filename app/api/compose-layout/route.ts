@@ -81,7 +81,7 @@ export async function POST(request: NextRequest) {
     // composition informée dans un écran et générique dans l'autre. Les références
     // se lisent maintenant ICI quand elles ne sont pas fournies : tout appelant en
     // profite, et la RLS reste seule juge de ce qui est lisible.
-    const FMT_DIMS: Record<string, [number, number]> = { 'ig-portrait': [420, 560], 'ig-square': [560, 560], 'ig-story': [315, 560], facebook: [560, 294] };
+    const FMT_DIMS: Record<string, [number, number]> = { 'ig-portrait': [420, 560], 'ig-45': [448, 560], 'ig-square': [560, 560], 'ig-story': [315, 560], facebook: [560, 294] };
     const PT_FORMAT: Record<string, string> = { post: 'ig-portrait', reel: 'ig-story', story: 'ig-story', carrousel: 'ig-square' };
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const summarizeZones = (zones: any[], fw: number, fh: number) => (Array.isArray(zones) ? zones : [])

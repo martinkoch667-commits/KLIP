@@ -79,6 +79,15 @@ export async function POST(request: NextRequest) {
         images: [image],
         temperature: 0.2,
         maxTokens: 700,
+        // JUGER UN RENDU EST UN TRAVAIL DE JUGEMENT, PAS UNE EXTRACTION.
+        //
+        // Cette route tournait sur le palier rapide, donc RÉFLEXION COUPÉE :
+        // c'est le défaut par défaut de `generateAiText`. Or on ne lui demande
+        // pas de lire une image, on lui demande de décider si un texte tombe
+        // sur le sujet, si deux blocs se marchent dessus, si un contraste
+        // suffit. Les neuf autres routes de jugement du produit demandent
+        // toutes `high` ; celle-ci était la seule à en juger sans réfléchir.
+        quality: 'high',
       });
     } catch (err) {
       console.error('[visual-qa] API error:', err);

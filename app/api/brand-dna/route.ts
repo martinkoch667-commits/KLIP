@@ -6,7 +6,7 @@ import {
   colorwayFromMetrics, vibesFromMetrics, brandColorsFromMetrics, typeIdentityFromReading,
   type BrandDNA, type FeedMetrics, type Register,
 } from '@/lib/brandDNA';
-import { DESIGN_RECIPES, type RecipeZone, type Vibe } from '@/lib/designSystem';
+import { DESIGN_RECIPES, DISPOSITIFS, type RecipeZone, type Vibe, type Dispositif } from '@/lib/designSystem';
 
 export const runtime = 'nodejs';
 // Comme les autres routes de jugement : le modèle regarde une planche de seize
@@ -151,10 +151,16 @@ Tu réponds en français, UNIQUEMENT avec le JSON demandé.`;
         zones: `ou la marque ecrit sur ses photos, 1 a 3 valeurs parmi ${ZONES.join(' | ')}`,
         families: `1 a 4 familles de composition qui ressemblent a ce compte, parmi ${FAMILLES.join(' | ')}`,
         motifs: ['3 a 5 gestes visuels qui REVIENNENT (badge en haut a droite, signature manuscrite, cadre blanc, filet, gros chiffre...)'],
+        dispositifs: `les procedes de composition que tu vois REVENIR, 1 a 6 valeurs STRICTEMENT parmi : ${DISPOSITIFS.map(d => d.id).join(' | ')}`,
         gaps: ['2 a 4 manques concrets et actionnables : ce que ce compte ne fait jamais et qui lui servirait'],
       }, null, 0),
       '',
       'CONTRAINTES : « zones » et « families » servent à choisir de vraies compositions ensuite, donc n\'invente aucune valeur hors des listes. « motifs » décrit ce que tu VOIS se répéter, pas ce que tu imagines. Si tu ne vois rien se répéter, renvoie une liste vide plutôt qu\'une invention.',
+      // « motifs » est du texte libre : il informe, il ne peut rien choisir.
+      // « dispositifs » est le MÊME constat dit dans le vocabulaire des recettes,
+      // donc il pèse mécaniquement sur le tirage. C'est la différence entre voir
+      // juste et servir à quelque chose.
+      `DISPOSITIFS, ce que chaque valeur désigne : ${DISPOSITIFS.map(d => `${d.id} = ${d.label}`).join(' ; ')}. N'en cite aucun que tu ne vois pas RÉELLEMENT sur ces visuels.`,
     ].filter(Boolean).join('\n');
 
     let raw: string;
@@ -215,6 +221,7 @@ Tu réponds en français, UNIQUEMENT avec le JSON demandé.`;
       zones: strArr(p.zones, ZONES, 3) as RecipeZone[],
       families: strArr(p.families, FAMILLES, 4),
       motifs: strArr(p.motifs, undefined, 5),
+      dispositifs: strArr(p.dispositifs, DISPOSITIFS.map(d => d.id), 6) as Dispositif[],
       gaps: strArr(p.gaps, undefined, 4),
       summary: typeof p.summary === 'string' ? p.summary.slice(0, 600) : '',
       brandColors,

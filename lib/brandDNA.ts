@@ -29,7 +29,7 @@
 
 import { COLORWAYS, type Colorway } from './colorway';
 import { TYPE_IDENTITIES } from './typeIdentity';
-import { DESIGN_RECIPES, recipeZone, type DesignRecipe, type RecipeZone, type Vibe } from './designSystem';
+import { DESIGN_RECIPES, recipeDevices, recipeZone, type DesignRecipe, type RecipeZone, type Vibe, type Dispositif } from './designSystem';
 
 // ── Ce qu'on relève ──────────────────────────────────────────────────────────
 
@@ -99,6 +99,10 @@ export interface BrandDNA {
   families: string[];
 
   motifs: string[];
+  /** Les mêmes constats, dits dans le vocabulaire fermé des recettes : eux
+   *  pèsent mécaniquement sur le choix des compositions, contrairement à
+   *  `motifs` qui reste du texte libre et n'informait que le prompt. */
+  dispositifs: Dispositif[];
   gaps: string[];
   summary: string;
 
@@ -642,6 +646,10 @@ export interface PoolOptions {
   count?: number;
   /** Recettes déjà proposées, à ne pas resservir. */
   avoid?: string[];
+  /** Graine du départage des égalités : deux recettes à note identique ne
+   *  doivent pas sortir toujours dans le même ordre, sinon « en proposer
+   *  d'autres » rend exactement les mêmes. */
+  seed?: number;
 }
 
 /**
@@ -653,12 +661,36 @@ export interface PoolOptions {
  * (une marque qui n'écrit jamais en haut de ses photos n'a pas décidé de ne
  * jamais le faire, elle ne l'a pas essayé) mais moins nombreuses.
  */
-export function recipePoolForDNA(dna: Pick<BrandDNA, 'families' | 'zones' | 'vibes'>, o: PoolOptions): DesignRecipe[] {
+/** Générateur à graine, local : deux tirages de même graine sont identiques,
+ *  ce qui rend le banc reproductible. Même formule que `designSystem`. */
+function rng(seed: number) {
+  let x = (seed | 0) || 1;
+  return () => { x ^= x << 13; x ^= x >>> 17; x ^= x << 5; return ((x >>> 0) % 100000) / 100000; };
+}
+
+export function recipePoolForDNA(
+  dna: Pick<BrandDNA, 'families' | 'zones' | 'vibes'> & { dispositifs?: Dispositif[]; register?: Register },
+  o: PoolOptions,
+): DesignRecipe[] {
   const count = Math.max(6, Math.min(o.count ?? 12, DESIGN_RECIPES.length));
   const avoid = new Set(o.avoid ?? []);
   const famVoulues = new Set(dna.families ?? []);
   const zonesVoulues = new Set<RecipeZone>((dna.zones ?? []) as RecipeZone[]);
   const vibes = new Set(dna.vibes ?? []);
+  // LE PROCÉDÉ PÈSE PLUS QUE LA FAMILLE. Une marque qui surligne ses titres en
+  // jaune se reconnaît d'abord à ÇA, pas à l'étiquette « photo-editorial ». Sans
+  // ce terme, la lecture voyait le surlignage et le tirage n'en tenait aucun
+  // compte : le modèle avait raison et ça ne changeait rien.
+  const voulus = new Set<Dispositif>(dna.dispositifs ?? []);
+  // LE REGISTRE LU DOIT ÉCARTER CE QUI LE CONTREDIT, pas seulement informer.
+  // Un compte lu « grotesque » recevait des compositions en serif éditorial :
+  // le registre était mesuré, affiché, et n'entrait dans aucune décision. Une
+  // recette dont le geste typographique contredit le registre relevé prend
+  // donc un malus, sans être exclue — la marque peut vouloir en sortir.
+  const contraire: Partial<Record<Register, Dispositif>> = {
+    grotesque: 'serif', serif: 'condense', condense: 'serif', manuscrit: 'condense',
+  };
+  const aEviter = dna.register ? contraire[dna.register] : undefined;
 
   const aUneZonePhoto = (r: DesignRecipe) => r.nodes.some(n => n.k === 'photo');
   const usable = DESIGN_RECIPES.filter(r => (o.hasPhoto ? aUneZonePhoto(r) : !aUneZonePhoto(r)) && !avoid.has(r.id));
@@ -668,30 +700,52 @@ export function recipePoolForDNA(dna: Pick<BrandDNA, 'families' | 'zones' | 'vib
     if (famVoulues.has(r.family)) n += 2.4;
     if (zonesVoulues.has(recipeZone(r))) n += 1.8;
     for (const v of r.vibe) if (vibes.has(v)) n += 1.1;
+    const gestes = recipeDevices(r);
+    if (voulus.size) for (const d of gestes) if (voulus.has(d)) n += 2.2;
+    if (aEviter && gestes.includes(aEviter) && !voulus.has(aEviter)) n -= 2.6;
     return n;
   };
 
-  const byFamily = new Map<string, DesignRecipe[]>();
-  for (const r of usable) {
-    const list = byFamily.get(r.family) ?? [];
-    list.push(r);
-    byFamily.set(r.family, list);
-  }
-  byFamily.forEach(list => list.sort((a, b) => note(b) - note(a)));
+  // LE TOUR DE TABLE PAR FAMILLE AFFAMAIT LA FAMILLE PERTINENTE.
+  //
+  // L'ancien tirage prenait une recette par famille, puis une seconde, etc.
+  // Écrit quand le catalogue en comptait quatre-vingts, il tenait. À cent
+  // soixante-deux il ne tient plus : `photo-editorial` en compte 74 et
+  // `photo-split` en compte 2, et les deux avaient le même poids. Sur un tirage
+  // de quatorze, la famille qui contient toute la grammaire d'un client n'avait
+  // droit qu'à DEUX places, et ses compositions n'entraient jamais — même
+  // lorsqu'elles étaient les mieux notées du catalogue.
+  //
+  // On classe donc au SCORE, globalement, avec un plafond par famille assez
+  // généreux pour laisser passer la grammaire du client tout en gardant de la
+  // variété. Les égalités sont départagées par la graine, sinon deux recettes
+  // à note identique sortiraient toujours dans le même ordre.
+  const rand = rng(o.seed ?? Date.now());
+  const bruit = new Map<string, number>();
+  for (const r of usable) bruit.set(r.id, rand() * 0.9);
 
-  // Les familles voulues passent en tête du tour de table : sur un tirage de
-  // douze, l'ordre des familles décide de qui entre et qui n'entre pas.
-  const families = Array.from(byFamily.keys())
-    .sort((a, b) => (famVoulues.has(b) ? 1 : 0) - (famVoulues.has(a) ? 1 : 0));
-
+  const plafond = Math.max(2, Math.ceil(count * 0.42));
+  const pris = new Map<string, number>();
   const out: DesignRecipe[] = [];
-  for (let round = 0; out.length < count; round++) {
-    let added = 0;
-    for (const f of families) {
-      const list = byFamily.get(f)!;
-      if (round < list.length && out.length < count) { out.push(list[round]); added++; }
+
+  const classees = usable
+    .map(r => ({ r, n: note(r) + (famVoulues.has(r.family) ? 0 : 0) + (bruit.get(r.id) ?? 0) }))
+    .sort((a, b) => b.n - a.n);
+
+  for (const { r } of classees) {
+    if (out.length >= count) break;
+    const dejaPris = pris.get(r.family) ?? 0;
+    if (dejaPris >= plafond) continue;
+    pris.set(r.family, dejaPris + 1);
+    out.push(r);
+  }
+  // Si le plafond a laissé des places vides (peu de familles disponibles), on
+  // complète au score plutôt que de rendre un tirage plus court que demandé.
+  if (out.length < count) {
+    for (const { r } of classees) {
+      if (out.length >= count) break;
+      if (!out.includes(r)) out.push(r);
     }
-    if (!added) break;
   }
   return out.slice(0, count);
 }

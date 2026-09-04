@@ -53,6 +53,7 @@ export interface RapportImport {
 /** Formats KLIP, dans les coordonnées où l'éditeur enregistre ses calques. */
 const FORMATS = [
   { id: 'ig-portrait', w: 420, h: 560, ratio: 3 / 4 },
+  { id: 'ig-45', w: 448, h: 560, ratio: 4 / 5 },
   { id: 'ig-square', w: 560, h: 560, ratio: 1 },
   { id: 'ig-story', w: 315, h: 560, ratio: 9 / 16 },
   { id: 'facebook', w: 560, h: 294, ratio: 1200 / 630 },
@@ -363,7 +364,7 @@ export function pageToTemplate(page: PdfPage): ImportedTemplate {
 
   // LE FORMAT, et c'est le manque le plus fréquent.
   //
-  // Le format d'un post Instagram est aujourd'hui le 4:5 (1080x1350). KLIP n'en
+  // Instagram publie aujourd'hui en 3:4 (1080x1440) ; le 4:5 (1080x1350) reste
   // propose pas : ses formats portrait sont le 3:4 et la story. Un design 4:5
   // importé est donc légèrement étiré en hauteur. Ce n'est pas un défaut de
   // l'import, c'est un format manquant dans le produit, et le dire ici est la
@@ -371,7 +372,7 @@ export function pageToTemplate(page: PdfPage): ImportedTemplate {
   const ratioSource = page.width / page.height;
   const ecartRatio = Math.abs(Math.log(ratioSource / fmt.ratio));
   if (ecartRatio > 0.05) {
-    pertes.push(`Le design est en ${ratioSource.toFixed(2)}:1, rapproché du format ${fmt.id} : la composition est légèrement étirée. Le 4:5 (1080x1350), format courant d'un post Instagram, n'existe pas encore dans KLIP.`);
+    pertes.push(`Le design est en ${ratioSource.toFixed(2)}:1, rapproché du format ${fmt.id} : la composition est légèrement étirée.`);
   }
 
   const polices = Array.from(new Set(blocs.map(b => b.font))).filter(f => f && f !== 'inconnue');
