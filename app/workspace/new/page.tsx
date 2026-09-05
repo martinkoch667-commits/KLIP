@@ -721,7 +721,8 @@ export default function NewWorkspacePage() {
     if (connecting) return;
     setConnecting(true);
     setIgError(null);
-    if (!name.trim()) setName("Nouveau client");
+    const nom = name.trim() || "Nouveau client";
+    if (!name.trim()) setName(nom);
     // LE BOUTON NE FAISAIT RIEN, ET NE DISAIT RIEN.
     //
     // La création du client peut échouer (envoi d'un logo, appel API lent au
@@ -732,7 +733,7 @@ export default function NewWorkspacePage() {
     // à plusieurs fois ». On rapatrie le message là où il se voit.
     let ws: string | null = null;
     try {
-      ws = await ensureWorkspaceCreated();
+      ws = await ensureWorkspaceCreated(nom);
     } catch (e) {
       ws = null;
       console.error("[connectAccount] création impossible :", e);
@@ -800,7 +801,7 @@ export default function NewWorkspacePage() {
      parcours. Même défaut déjà corrigé une fois pour les seuls réglages de
      sous-titres (cf. `saveSubtitleSettings` ci-dessous) ; il vaut pour toute
      la charte, pas seulement pour eux. */
-  async function ensureWorkspaceCreated(): Promise<string | null> {
+  async function ensureWorkspaceCreated(nomForce?: string): Promise<string | null> {
     const dejaCree = createdWorkspaceId;
     setError(null);
     setLoading(true);
@@ -890,7 +891,12 @@ export default function NewWorkspacePage() {
       // seule fois, envoyés par l'une ou l'autre voie selon que la ligne
       // existe déjà.
       const champs = {
-        name: name.trim(),
+        // LE NOM NE PEUT PAS VENIR DE L'ÉTAT ICI. Un appelant qui fait
+        // `setName(...)` puis appelle cette fonction dans la même foulée lit
+        // encore l'ANCIENNE valeur : React n'a pas rendu entre les deux. C'est
+        // ce qui envoyait un nom vide et faisait répondre « name is required »
+        // à la création, un clic sur deux, sans que rien ne l'explique.
+        name: (nomForce ?? name).trim(),
         // Step 1
         sector: sector || null,
         instagram_username: instagramHandle.replace(/^@/, "").trim() || null,
@@ -1122,9 +1128,10 @@ export default function NewWorkspacePage() {
                           ? "Connexion annulée. Vous pourrez la refaire à tout moment."
                           : igError === "creation"
                             ? "Le client n'a pas pu être créé, la connexion n'a donc pas pu démarrer. Réessayez dans un instant."
-                            : igError.startsWith("http") || igError.length > 60
-                              ? "La connexion a échoué. Réessayez, ou passez cette étape."
-                              : igError}
+                            // On montre le message TEL QUEL. Le tronquer masquait
+                            // la seule phrase utile, celle qui dit par exemple
+                            // que l'offre n'autorise pas un client de plus.
+                            : igError}
                       </p>
                     ) : null}
 
