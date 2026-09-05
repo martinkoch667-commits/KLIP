@@ -722,8 +722,26 @@ export default function NewWorkspacePage() {
     setConnecting(true);
     setIgError(null);
     if (!name.trim()) setName("Nouveau client");
-    const ws = await ensureWorkspaceCreated();
-    if (!ws) { setConnecting(false); return; }
+    // LE BOUTON NE FAISAIT RIEN, ET NE DISAIT RIEN.
+    //
+    // La création du client peut échouer (envoi d'un logo, appel API lent au
+    // réveil d'une fonction, colonne absente). `ensureWorkspaceCreated` écrit
+    // alors son message dans `error`, mais CET ÉCRAN n'affiche que `igError` :
+    // l'échec était donc invisible, on recliquait à l'aveugle, et ça finissait
+    // par passer quand l'appel était plus rapide. D'où « il faut s'y reprendre
+    // à plusieurs fois ». On rapatrie le message là où il se voit.
+    let ws: string | null = null;
+    try {
+      ws = await ensureWorkspaceCreated();
+    } catch (e) {
+      ws = null;
+      console.error("[connectAccount] création impossible :", e);
+    }
+    if (!ws) {
+      setIgError(error || "creation");
+      setConnecting(false);
+      return;
+    }
     const route = network === "facebook" ? "/api/auth/facebook/connect" : "/api/auth/meta/connect";
     window.location.href = `${route}?workspaceId=${ws}&from=onboarding`;
   }
@@ -790,11 +808,20 @@ export default function NewWorkspacePage() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) { router.push("/login"); return null; }
 
-      // Ensure Supabase Storage buckets exist (created server-side with service role)
-      try {
-        await fetch("/api/ensure-buckets", { method: "POST" });
-      } catch (err) {
-        console.warn("[ensure-buckets] could not reach API:", err);
+      // LES SEAUX NE SERVENT QU'AUX FICHIERS, on ne les attend donc que s'il y
+      // en a. Cet appel était fait à CHAQUE création, en tête et bloquant : au
+      // moment de relier Instagram il n'y a rien à envoyer, et on payait quand
+      // même le réveil d'une fonction serverless avant de pouvoir partir chez
+      // Meta. Deux réveils à la suite, et le bouton semblait ne rien faire.
+      const aTeleverser = !!(logoFile || logoDarkFile || brandIconFile
+        || extraLogos.some(l => l.file) || assetFiles.length
+        || siteLogo || siteIcon || siteLogoDark || siteAssets.length);
+      if (aTeleverser) {
+        try {
+          await fetch("/api/ensure-buckets", { method: "POST" });
+        } catch (err) {
+          console.warn("[ensure-buckets] injoignable :", err);
+        }
       }
 
       // Brand asset uploads (each wrapped independently)
@@ -1068,7 +1095,7 @@ export default function NewWorkspacePage() {
                           <circle cx="12" cy="12" r="4.2" />
                           <circle cx="17.6" cy="6.4" r="1.2" fill="currentColor" stroke="none" />
                         </svg>
-                        Connecter Instagram
+                        {connecting ? "Connexion en cours…" : "Connecter Instagram"}
                       </button>
                       <button
                         type="button"
@@ -1085,7 +1112,7 @@ export default function NewWorkspacePage() {
                         <svg width="19" height="19" viewBox="0 0 24 24" fill="currentColor">
                           <path d="M22 12a10 10 0 1 0-11.6 9.9v-7H7.9V12h2.5V9.8c0-2.5 1.5-3.9 3.8-3.9 1.1 0 2.2.2 2.2.2v2.4h-1.2c-1.2 0-1.6.8-1.6 1.6V12h2.7l-.4 2.9h-2.3v7A10 10 0 0 0 22 12Z" />
                         </svg>
-                        Connecter Facebook
+                        {connecting ? "Connexion en cours…" : "Connecter Facebook"}
                       </button>
                     </div>
 
@@ -1093,7 +1120,11 @@ export default function NewWorkspacePage() {
                       <p className="wsx-err" style={{ textAlign: "center" }}>
                         {igError === "cancelled"
                           ? "Connexion annulée. Vous pourrez la refaire à tout moment."
-                          : "La connexion a échoué. Réessayez, ou passez cette étape."}
+                          : igError === "creation"
+                            ? "Le client n'a pas pu être créé, la connexion n'a donc pas pu démarrer. Réessayez dans un instant."
+                            : igError.startsWith("http") || igError.length > 60
+                              ? "La connexion a échoué. Réessayez, ou passez cette étape."
+                              : igError}
                       </p>
                     ) : null}
 
