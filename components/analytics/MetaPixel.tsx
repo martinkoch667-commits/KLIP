@@ -80,10 +80,15 @@ function newEventId(): string {
 export function trackInitiateCheckout(plan: string, period: TrialPeriod): string | null {
   if (readConsent() !== "granted") return null;
   const eventID = newEventId();
+  const value = planValueEur(planKeyFromStripePlan(plan), period);
+  if (!(value > 0)) {
+    console.error(`[MetaPixel] InitiateCheckout NON envoyé : value=${value} pour ${plan}/${period}.`);
+    return null;
+  }
   track(
     "InitiateCheckout",
     {
-      value: planValueEur(planKeyFromStripePlan(plan), period),
+      value,
       currency: "EUR",
       ...offerParams(plan, period),
     },
@@ -104,10 +109,21 @@ export function trackStartTrial(input: {
 }) {
   if (readConsent() !== "granted") return;
   const period = input.period === "yearly" ? "yearly" : "monthly";
+  /* `Number.isFinite(0)` vaut true : le test d'avant laissait donc passer un
+     zéro, que Meta refuse. Pendant l'essai la facture du jour vaut justement
+     0 €, c'était le cas courant, pas le cas limite. On exige un montant
+     strictement positif, sinon on reprend celui de la grille. */
   const value =
-    typeof input.value === "number" && Number.isFinite(input.value)
+    typeof input.value === "number" && Number.isFinite(input.value) && input.value > 0
       ? input.value
       : planValueEur(planKeyFromStripePlan(input.plan), period);
+  if (!(value > 0)) {
+    console.error(
+      `[MetaPixel] StartTrial NON envoyé : value=${value} pour l'offre ${input.plan ?? "?"}/${period}. ` +
+      `Meta exige un nombre strictement supérieur à 0.`,
+    );
+    return;
+  }
   track(
     "StartTrial",
     {

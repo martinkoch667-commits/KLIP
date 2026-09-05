@@ -51,12 +51,26 @@ export const metadata: Metadata = {
     description:
       "Créez, planifiez et publiez le contenu de tous vos clients Instagram depuis un seul espace. Éditeur visuel, légendes IA, calendrier et publication automatique.",
   },
-  // Vérification Google Search Console : coller le jeton dans la variable
-  // GOOGLE_SITE_VERIFICATION sur Vercel suffit, sans toucher au code. Sans
-  // elle, la balise n'est simplement pas émise.
-  ...(process.env.GOOGLE_SITE_VERIFICATION
-    ? { verification: { google: process.env.GOOGLE_SITE_VERIFICATION } }
-    : {}),
+  /* Vérifications de propriété du domaine. Un SEUL objet `verification` : deux
+     clés du même nom dans cet objet de métadonnées se remplaceraient l'une
+     l'autre, et la vérification Google disparaîtrait en silence.
+
+     Google Search Console se règle par la variable GOOGLE_SITE_VERIFICATION
+     sur Vercel, sans toucher au code ; sans elle la balise n'est pas émise.
+
+     Meta, lui, ne lit que le HTML rendu par le serveur : la balise doit donc
+     passer par ces métadonnées et non par un script. Posée ici, dans la mise en
+     page racine, elle est présente sur TOUTES les pages — les métadonnées des
+     pages filles ne remplacent que les champs qu'elles définissent, et aucune
+     ne définit `verification`. */
+  verification: {
+    ...(process.env.GOOGLE_SITE_VERIFICATION
+      ? { google: process.env.GOOGLE_SITE_VERIFICATION }
+      : {}),
+    other: {
+      "facebook-domain-verification": "yd04oqi8at7m4b4oqi4haz5oaoiiaz",
+    },
+  },
   icons: {
     // L'icône d'app (le K sur fond vert) plutôt que le logo écrit, illisible
     // sous 32 px. `?v=2` force les navigateurs à relâcher l'ancienne : un
