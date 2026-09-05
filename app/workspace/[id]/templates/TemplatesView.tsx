@@ -5,6 +5,7 @@ import { useTranslations } from 'next-intl';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import Sidebar from '@/components/Sidebar';
 import SubtitleStyleEditor from '@/components/SubtitleStyleEditor';
+import ModelesDeMarque from '@/components/ModelesDeMarque';
 import {
   SUB_STYLES, effectiveSubStyle, loadSubTemplates, saveSubTemplates,
   DEFAULT_SUB_POS, DEFAULT_WORDS_PER_CAPTION,
@@ -209,6 +210,21 @@ export default function TemplatesView({
                 </div>
               </div>
             )}
+
+            {/* ── 0 · Les modèles tirés du compte de la marque ──────────────
+                Cette analyse n'existait QUE dans le parcours de création, à sa
+                dernière étape. Un client déjà créé ne pouvait donc jamais la
+                déclencher, et c'est le cas de tous ceux qui existent déjà : ils
+                restaient avec une bibliothèque vide, et le compositeur sans
+                modèles à privilégier. Sa place est ici, où l'on vient
+                justement chercher ses modèles. */}
+            <section style={{ marginBottom: 18 }}>
+              <ModelesDeMarque
+                workspaceId={workspaceId}
+                name={workspace?.name ?? null}
+                onFini={() => window.location.reload()}
+              />
+            </section>
 
             {/* ── 1 · Modèles de visuels ─────────────────────────────────── */}
             <section className="card tplp-sec">
