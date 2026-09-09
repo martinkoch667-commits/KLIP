@@ -45,11 +45,23 @@ export default function SitePage() {
 
     let draft: OnbDraft = { source: "site", url, prefilled: [] };
     try {
-      const res = await fetch("/api/brand/analyze", {
+      /* Deux routes, dans cet ordre. `analyze` lit AUSSI le secteur et le ton
+         avec un modèle, mais exige une session ; `lire-site` ne fait que
+         l'extraction (couleurs, polices, logo, nom), ne coûte rien et marche
+         sans compte. Sans ce second essai, quelqu'un qui n'a pas encore de
+         compte tapait son adresse et recevait des valeurs d'exemple. */
+      let res = await fetch("/api/brand/analyze", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ url }),
       });
+      if (!res.ok) {
+        res = await fetch("/api/brand/lire-site", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ url }),
+        });
+      }
       if (res.ok) {
         const d = await res.json();
         draft = {
@@ -65,7 +77,8 @@ export default function SitePage() {
             }),
         };
       } else {
-        // 401 hors session, 422 site injoignable : on continue en démonstration.
+        // Les deux lectures ont échoué (site injoignable, hors ligne) : on
+        // continue avec des valeurs d'exemple, annoncées à l'écran suivant.
         draft = exempleDepuis(url);
       }
     } catch {
