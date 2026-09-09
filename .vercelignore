@@ -1,0 +1,13 @@
+# Archives et copies de travail restées à la racine : elles n'ont rien à faire
+# dans un déploiement, et les dossiers KLIP-4 / KLIP-5 contiennent d'anciennes
+# applications Next dont les fichiers entreraient en conflit au build.
+*.zip
+KLIP-4/
+KLIP-5/
+photo/
+video/
+mails-relance-individuelle/
+design-reference/
+design_handoff_montage_video/
+*.png
+!public/**

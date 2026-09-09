@@ -7,38 +7,87 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Sticker } from "@/components/Stickers";
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
 
+/* Écran de connexion — refonte 2026-09.
+ *
+ * Avant : carte blanche neutre sur fond gris, aucun lien visuel avec la
+ * marque. Après : le fond dégradé forêt + la typo signature de la landing
+ * (t-arch en Archivo, mot accent surligné en Oaks — voir `.acc-hl` dans
+ * globals.css) pour que la connexion ait la même tête que la promesse qui a
+ * amené la personne jusqu'ici, à deux clics d'intervalle.
+ *
+ * Le texte du titre est un gabarit à valider avec Martin, pas le texte
+ * final — la composition (deux lignes, la seconde surlignée) est ce qui
+ * compte à ce stade.
+ */
+
 const AUTH_CSS = `
-  .auth-wrap{min-height:100vh;display:flex;align-items:center;justify-content:center;background:var(--canvas);padding:24px;}
-  .auth-card{position:relative;width:100%;max-width:440px;background:#fff;border-radius:16px;box-shadow:0 8px 32px rgba(0,0,0,.08);padding:40px;}
-  .auth-logo{display:block;height:40px;width:auto;margin:0 auto 32px;}
-  .auth-title{font-family:var(--display);font-weight:800;font-size:24px;text-transform:uppercase;color:var(--forest);letter-spacing:-.01em;margin-bottom:6px;}
-  .auth-sub{font-size:13px;color:rgba(20,22,15,.6);margin-bottom:28px;}
-  .auth-label{display:block;font-family:var(--sans);font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:rgba(20,22,15,.6);margin-bottom:6px;}
-  .auth-input{width:100%;border:1.5px solid rgba(20,22,15,.15);border-radius:8px;padding:12px 16px;font-family:var(--sans);font-size:14px;color:var(--ink);background:#fff;outline:none;transition:border-color .15s;}
-  .auth-input::placeholder{color:rgba(20,22,15,.30);}
-  .auth-input:focus{border-color:var(--leaf);}
-  .auth-btn{width:100%;padding:13px;background:var(--forest);color:var(--canvas);font-family:var(--display);font-weight:700;font-size:14px;text-transform:uppercase;letter-spacing:.06em;border-radius:8px;border:none;cursor:pointer;transition:background .15s,color .15s;}
-  .auth-btn:hover:not(:disabled){background:var(--leaf);color:var(--forest);}
+  .auth-wrap{
+    min-height:100vh; position:relative; overflow:hidden;
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    padding:64px 24px;
+    background:
+      radial-gradient(100% 65% at 50% -10%, rgba(189,242,160,.10), transparent 55%),
+      radial-gradient(85% 75% at 6% 105%, rgba(31,168,120,.12), transparent 60%),
+      var(--forest);
+  }
+  .auth-logo{display:block;height:44px;width:44px;border-radius:12px;margin:0 auto 40px;position:relative;z-index:2;}
+  .auth-head{position:relative;z-index:2;text-align:center;max-width:560px;margin:0 auto;}
+  .auth-h1{
+    font-family:var(--display); font-weight:800; text-transform:uppercase;
+    letter-spacing:-.02em; line-height:1.05; color:var(--cream);
+    font-size:clamp(30px,5.2vw,46px); margin:0;
+  }
+  .auth-h1 .acc-hl{ font-size:.94em; }
+  .auth-sub{
+    font-family:var(--sans); font-size:15.5px; line-height:1.55; color:var(--cream-2);
+    max-width:400px; margin:16px auto 0;
+  }
+  .auth-body{position:relative;z-index:2;width:100%;max-width:400px;margin:36px auto 0;}
+  .auth-notice-ok{font-size:13px;line-height:1.5;color:var(--leaf-ink);background:var(--leaf);border-radius:10px;padding:10px 14px;margin-bottom:16px;font-weight:600;}
+  .auth-notice-warn{font-size:13px;line-height:1.5;color:var(--cream);background:rgba(200,115,43,.22);border:1px solid rgba(200,115,43,.4);border-radius:10px;padding:10px 14px;margin-bottom:16px;}
+  .auth-google{
+    width:100%; padding:14px 16px; background:var(--cream); border:none; border-radius:999px;
+    font-family:var(--sans); font-size:14.5px; font-weight:700; color:#14160F; cursor:pointer;
+    display:flex; align-items:center; justify-content:center; gap:10px;
+    transition:transform .16s cubic-bezier(.2,.7,.3,1), box-shadow .18s;
+  }
+  .auth-google:hover:not(:disabled){ transform:translateY(-1.5px); box-shadow:0 16px 30px -16px rgba(0,0,0,.5); }
+  .auth-google:disabled{opacity:.65;cursor:not-allowed;}
+  .auth-sep{display:flex;align-items:center;gap:12px;margin:22px 0;}
+  .auth-sep-line{flex:1;height:1px;background:var(--cream-4);}
+  .auth-sep-text{font-family:var(--sans);font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--cream-3);}
+  .auth-label{display:block;font-family:var(--sans);font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--cream-3);margin-bottom:7px;}
+  .auth-input{
+    width:100%; border:1.5px solid var(--cream-4); border-radius:10px; padding:13px 15px;
+    font-family:var(--sans); font-size:14.5px; color:var(--cream); background:rgba(255,255,255,.05);
+    outline:none; transition:border-color .15s, background .15s; box-sizing:border-box;
+  }
+  .auth-input::placeholder{color:var(--cream-3);}
+  .auth-input:focus{border-color:var(--leaf); background:rgba(255,255,255,.08);}
+  .auth-forgot{font-size:12px;color:var(--cream-3);text-decoration:none;display:block;text-align:right;margin-top:6px;}
+  .auth-forgot:hover{color:var(--leaf);}
+  .auth-error{font-size:13px;color:#F4D0B3;background:rgba(200,115,43,.18);border:1px solid rgba(200,115,43,.35);border-radius:10px;padding:10px 13px;}
+  .auth-btn{
+    width:100%; padding:14px; background:var(--leaf); color:var(--leaf-ink);
+    font-family:var(--oaks); font-weight:700; font-size:19px; text-transform:uppercase; letter-spacing:-.005em;
+    border-radius:999px; border:none; cursor:pointer;
+    transition:transform .16s cubic-bezier(.2,.7,.3,1), box-shadow .18s;
+  }
+  .auth-btn:hover:not(:disabled){ transform:translateY(-1.5px); box-shadow:0 16px 30px -16px rgba(189,242,160,.65); }
   .auth-btn:disabled{opacity:.6;cursor:not-allowed;}
-  .auth-sep{display:flex;align-items:center;gap:12px;margin:20px 0;}
-  .auth-sep-line{flex:1;height:1px;background:rgba(20,22,15,.15);}
-  .auth-sep-text{font-family:var(--sans);font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:rgba(20,22,15,.40);}
-  .auth-google{width:100%;padding:12px 16px;background:#fff;border:1.5px solid rgba(20,22,15,.15);border-radius:8px;font-family:var(--sans);font-size:14px;font-weight:500;color:var(--forest);cursor:pointer;display:flex;align-items:center;justify-content:center;gap:10px;transition:border-color .15s,background .15s;}
-  .auth-google:hover:not(:disabled){border-color:rgba(20,22,15,.30);background:var(--paper);}
-  .auth-google:disabled{opacity:.6;cursor:not-allowed;}
-  .auth-link{color:var(--mint);text-decoration:none;font-weight:600;}
+  .auth-foot{position:relative;z-index:2;text-align:center;font-family:var(--sans);font-size:13.5px;color:var(--cream-3);margin-top:26px;}
+  .auth-link{color:var(--leaf);text-decoration:none;font-weight:700;}
   .auth-link:hover{text-decoration:underline;}
-  .auth-forgot{font-size:12px;color:rgba(20,22,15,.5);text-decoration:none;display:block;text-align:right;margin-top:5px;}
-  .auth-forgot:hover{color:var(--mint);}
-  .auth-error{font-size:13px;color:var(--warn);background:var(--warn-soft);border:1px solid rgba(200,115,43,.2);border-radius:8px;padding:9px 12px;}
-  .auth-ok{font-size:13px;line-height:1.5;color:var(--mint-deep);background:var(--mint-soft);border:1px solid rgba(47,215,155,.28);border-radius:8px;padding:10px 12px;margin-bottom:18px;}
-  .auth-warn{font-size:13px;line-height:1.5;color:var(--warn);background:var(--warn-soft);border:1px solid rgba(200,115,43,.2);border-radius:8px;padding:10px 12px;margin-bottom:18px;}
+  .auth-stk{position:absolute;z-index:1;}
+  @media(max-width:640px){
+    /* Sur mobile le titre passe sur deux lignes et mord sur leur zone :
+       mieux vaut les enlever que les voir recouvrir le texte. */
+    .auth-stk{display:none;}
+  }
   @media(max-width:480px){
-    .auth-wrap{padding:16px;}
-    .auth-card{padding:28px 20px;border-radius:14px;}
-    .auth-title{font-size:20px;}
-    .auth-btn,.auth-google{min-height:48px;font-size:15px;}
-    .auth-input{padding:13px 14px;}
+    .auth-wrap{padding:48px 20px;}
+    .auth-google,.auth-btn{min-height:50px;font-size:15px;}
+    .auth-input{padding:14px 15px;}
   }
 `;
 
@@ -100,9 +149,21 @@ function LoginForm() {
 
   return (
     <>
-      {verif === "ok" && <p className="auth-ok">{t("emailConfirmed")}</p>}
-      {verif === "expire" && <p className="auth-warn">{t("linkExpired")}</p>}
-      <form onSubmit={handleLogin} style={{ display: "flex", flexDirection: "column", gap: 18 }}>
+      {verif === "ok" && <p className="auth-notice-ok">{t("emailConfirmed")}</p>}
+      {verif === "expire" && <p className="auth-notice-warn">{t("linkExpired")}</p>}
+
+      <button onClick={handleGoogleSignIn} disabled={googleLoading} className="auth-google">
+        <GoogleIcon />
+        {googleLoading ? t("redirecting") : t("continueGoogle")}
+      </button>
+
+      <div className="auth-sep">
+        <div className="auth-sep-line" />
+        <span className="auth-sep-text">{t("or")}</span>
+        <div className="auth-sep-line" />
+      </div>
+
+      <form onSubmit={handleLogin} style={{ display: "flex", flexDirection: "column", gap: 16 }}>
         <div>
           <label htmlFor="email" className="auth-label">{t("emailLabel")}</label>
           <input
@@ -125,30 +186,6 @@ function LoginForm() {
           {loading ? t("signingIn") : t("signIn")}
         </button>
       </form>
-
-      <div className="auth-sep">
-        <div className="auth-sep-line" />
-        <span className="auth-sep-text">{t("or")}</span>
-        <div className="auth-sep-line" />
-      </div>
-
-      <button onClick={handleGoogleSignIn} disabled={googleLoading} className="auth-google">
-        <GoogleIcon />
-        {googleLoading ? t("redirecting") : t("continueGoogle")}
-      </button>
-    </>
-  );
-}
-
-function LoginHeader() {
-  const t = useTranslations("auth");
-  return (
-    <>
-      <h1 className="auth-title">{t("loginTitle")}</h1>
-      <p className="auth-sub">
-        {t("noAccount")}{" "}
-        <Link href="/register" className="auth-link">{t("createAccount")}</Link>
-      </p>
     </>
   );
 }
@@ -157,19 +194,36 @@ export default function LoginPage() {
   return (
     <main className="auth-wrap">
       <style dangerouslySetInnerHTML={{ __html: AUTH_CSS }} />
-      <div className="auth-card">
-        {/* stickers die-cut qui débordent des coins de la carte */}
-        <Sticker name="sparkle" size={52} float="spin" style={{ position: 'absolute', top: -26, left: -22, zIndex: 3 }} />
-        <Sticker name="eyes" size={60} float="B" style={{ position: 'absolute', top: -30, right: -20, zIndex: 3 }} />
-        <Sticker name="heart" size={46} float="A" style={{ position: 'absolute', bottom: -24, right: -16, zIndex: 3, ['--r' as string]: '8deg' }} />
-        <Link href="/" style={{ display: 'block', textAlign: 'center' }}>
-          <img src="/logo-klip-dark.png" alt="Klip" className="auth-logo" />
-        </Link>
-        <LoginHeader />
-        <Suspense fallback={<div style={{ height: 200 }} />}>
+
+      {/* stickers décoratifs, repris du vocabulaire de la landing — cachés sous
+         640px via .auth-stk, voir AUTH_CSS */}
+      <Sticker name="sparkle" size={44} float="spin" className="auth-stk" style={{ top: '14%', left: '9%', opacity: .9 }} />
+      <Sticker name="eyes" size={64} float="B" className="auth-stk" style={{ top: '18%', right: '8%' }} />
+      <Sticker name="heart" size={40} float="A" className="auth-stk" style={{ bottom: '12%', left: '12%', ['--r' as string]: '-8deg' }} />
+
+      <Link href="/" style={{ position: 'relative', zIndex: 2 }}>
+        <img src="/icon-192.png" alt="Klip" className="auth-logo" />
+      </Link>
+
+      {/* Titre gabarit — composition à garder, texte à valider avec Martin. */}
+      <div className="auth-head">
+        <h1 className="auth-h1">
+          VOTRE STUDIO SOCIAL<br />
+          <span className="acc-hl">vous attend</span>
+        </h1>
+        <p className="auth-sub">Reconnectez-vous pour retrouver vos clients, vos visuels et vos plannings.</p>
+      </div>
+
+      <div className="auth-body">
+        <Suspense fallback={<div style={{ height: 260 }} />}>
           <LoginForm />
         </Suspense>
       </div>
+
+      <p className="auth-foot">
+        Pas encore de compte ?{" "}
+        <Link href="/register" className="auth-link">Créer un compte</Link>
+      </p>
     </main>
   );
 }
