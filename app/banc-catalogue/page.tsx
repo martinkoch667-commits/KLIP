@@ -60,21 +60,41 @@ const PHOTOS = [
   { id: "ugc-visage", label: "UGC / visage" },
 ];
 
-const MOTS = ["Ouvert ce soir", "La carte change chaque semaine", "Trois places restantes", "Nouveau"];
+/* LE TEXTE D'ESSAI DÉCIDE DU CHIFFRE, et la première version faussait la mesure.
+ *
+ * Elle prenait une phrase et la COUPAIT à la longueur du slot. « Ouvert ce soir »
+ * dans une cocarde de 12 signes devenait « OUVERT CE » : une phrase qui ne veut
+ * rien dire. Le juge a rejeté `ds-cocarde` en reprochant au badge son contenu,
+ * et il avait raison — sauf que le dessin n'y était pour rien, c'est le banc qui
+ * avait écrit n'importe quoi. Les recettes aux slots COURTS étaient donc punies
+ * pour un défaut de l'instrument.
+ *
+ * On choisit maintenant la phrase la plus longue qui TIENT, sans jamais couper.
+ * Un banc doit mesurer le catalogue, pas sa propre maladresse. */
+const PHRASES = [
+  "La carte change chaque semaine",
+  "Trois places restantes",
+  "Ouvert ce soir",
+  "Nouveau menu",
+  "Ce soir",
+  "Neuf",
+];
 
-/** Un texte PLAUSIBLE, à la longueur que le dessin porte. Remplir au hasard
- *  fausserait la mesure dans les deux sens : trop court laisse des trous, trop
- *  long casse un dessin qui n'y est pour rien. */
 function echantillon(cle: string, max: number, i: number): string {
   if (/^p\d|prix/.test(cle)) return ["12€", "8,50€", "19€"][i % 3];
   if (cle === "chiffre") return ["+248%", "12", "4,9"][i % 3];
   if (cle === "date") return "12 OCT";
   if (cle === "heure") return "19H00";
-  const t = MOTS[i % MOTS.length];
-  if (t.length <= max) return t;
-  const coupe = t.slice(0, max + 1);
-  const espace = coupe.lastIndexOf(" ");
-  return (espace > max * 0.5 ? coupe.slice(0, espace) : t.slice(0, max)).replace(/[\s,;:.!?…-]+$/, "");
+  // On part de la variante voulue par le rang, puis on descend jusqu'à celle qui
+  // entre. Descendre plutôt que couper garde une phrase sensée à chaque étage.
+  const depart = i % PHRASES.length;
+  for (let k = 0; k < PHRASES.length; k++) {
+    const t = PHRASES[(depart + k) % PHRASES.length];
+    if (t.length <= max) return t;
+  }
+  // Aucun échantillon n'entre : le slot est minuscule, on met un mot, pas un
+  // moignon de phrase.
+  return "Neuf".slice(0, Math.max(1, max));
 }
 
 type Cas = {
