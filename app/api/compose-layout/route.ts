@@ -9,6 +9,7 @@ import {
   sanitizeFields, buildDesignElements, resolveFonts,
 } from '@/lib/designSystem';
 import { pickColorway } from '@/lib/colorway';
+import { controlerRecette } from '@/lib/controleRecettes';
 
 // Diriger un visuel prend plus que les 10 s par défaut d'une fonction Vercel :
 // le modèle regarde la photo, les références, et réfléchit. Sans cette ligne,
@@ -360,8 +361,44 @@ export async function POST(request: NextRequest) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let parsed: any = null;
     try { const jm = raw.match(/\{[\s\S]*\}/); if (jm) parsed = JSON.parse(jm[0]); } catch { /* noop */ }
-    const picks: unknown[] = Array.isArray(parsed?.picks) ? parsed.picks : [];
-    if (picks.length === 0) return NextResponse.json({ error: 'Aucune composition' }, { status: 502 });
+    const picksBruts: unknown[] = Array.isArray(parsed?.picks) ? parsed.picks : [];
+    if (picksBruts.length === 0) return NextResponse.json({ error: 'Aucune composition' }, { status: 502 });
+
+    // ── LE GARDE-FOU GÉOMÉTRIQUE ────────────────────────────────────────────
+    //
+    // Entre le CHOIX de l'IA et ce qu'on MONTRE, il manquait toute relecture :
+    // une recette au dessin fautif partait telle quelle chez le client, qui
+    // découvrait un contour de 3240 px ou une carte devenue pastille difforme.
+    // Le modèle n'y est pour rien, il choisit sur une description qui ne ment
+    // pas mais qui ne dit rien de la géométrie.
+    //
+    // `controlerRecette` est déterministe, sans DOM ni réseau : le contrôle
+    // coûte quelques microsecondes et ne peut pas échouer pour une raison
+    // extérieure. Il est donc posé AVANT le juge de rendu, qui lui coûte un
+    // appel de vision : rien ne sert de demander à un modèle si un visuel est
+    // beau quand on sait déjà qu'il est faux.
+    //
+    // ON N'EN REBOUCHE PAS LE TROU, volontairement. Une recette de remplacement
+    // n'aurait pas les textes que l'IA a écrits POUR celle qu'on écarte : le
+    // rebouchage rendrait une composition vide de sens, ce qui est pire que
+    // deux propositions au lieu de trois. On écarte, on le dit, et on compte.
+    const ecartees: { id: string; raison: string }[] = [];
+    const picks = picksBruts.filter((p) => {
+      const pk = p as { source?: string; id?: unknown };
+      if (pk?.source !== 'design') return true;
+      const recette = findDesignRecipe(pk.id);
+      if (!recette) return true;
+      const fautes = controlerRecette(recette);
+      if (fautes.length === 0) return true;
+      ecartees.push({ id: recette.id, raison: fautes[0].detail });
+      return false;
+    });
+
+    if (ecartees.length) {
+      console.warn(`[compose-layout] ${ecartees.length} composition(s) écartée(s) par le contrôle géométrique :`,
+        ecartees.map(e => `${e.id} — ${e.raison}`).join(' · '));
+    }
+    if (picks.length === 0) return NextResponse.json({ error: 'Aucune composition saine' }, { status: 502 });
 
     // Résolution : on assemble la géométrie (template ou bibliothèque) + le texte/couleur choisis par l'IA.
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -513,6 +550,10 @@ export async function POST(request: NextRequest) {
       typo: { id: identiteTypo.id, name: identiteTypo.name, note: identiteTypo.note },
       terrain: { id: terrain.id, name: terrain.name, note: terrain.note },
       refs: { templates: tpls.length, approved: approved.length, instagram: instaRefs.length },
+      // Ce que le garde-fou a retiré. Rendu au client pour que « je n'ai eu que
+      // deux propositions » ait une réponse à l'écran, et pas seulement dans les
+      // journaux de la fonction.
+      ...(ecartees.length ? { ecartees } : {}),
     });
   } catch (e) {
     console.error('[compose-layout] error:', e);
