@@ -6094,21 +6094,93 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
       if (typo?.name || terrain?.name) {
         edLog(`Identité : ${[typo?.name, terrain?.name].filter(Boolean).join(' · ')}`);
       }
-      edLog(`${layouts.length} composition(s) proposée(s) — application de la 1re`);
-      edLog(nomDeComposition(layouts[0]));
-      setAiVariants(layouts); setAiVariantIdx(0); setVariantAsked(layouts.length > 1);
+      edLog(`${layouts.length} composition(s) proposée(s)`);
+      setAiVariants(layouts); setVariantAsked(layouts.length > 1);
+
+      // ── LE JUGE DANS LA BOUCLE ────────────────────────────────────────────
+      //
+      // Jusqu'ici la 1re proposition était appliquée les yeux fermés, et une
+      // composition DESSINÉE sautait tout audit (`chainQA && !dessin` plus bas).
+      // Résultat : aucun visuel généré ne passait devant un juge, alors que
+      // `visual-qa` en mode `jugement` a été écrit exactement pour ce cas et
+      // validé sur banc. Le voici branché : on rend, on juge, et une composition
+      // rejetée cède sa place à la suivante.
+      //
+      // DEUX ESSAIS JUGÉS AU MAXIMUM, et c'est un arbitrage assumé. Chaque
+      // jugement est un appel de vision avec réflexion, autour de 2,5 s : juger
+      // les trois propositions ajouterait près de huit secondes d'attente devant
+      // un écran vide, pour un troisième choix rarement meilleur que le second.
+      const JUGEMENTS_MAX = 2;
+
+      const jugerRendu = async (layout: { recipeId?: string; template?: { name?: string } }) => {
+        try {
+          // Laisse le canvas peindre : juger une toile à moitié dessinée, c'est
+          // rejeter des compositions correctes pour un défaut qui n'existe pas.
+          await new Promise<void>(r => setTimeout(r, 350));
+          await new Promise<void>(r => requestAnimationFrame(() => r()));
+          const image = stageRef.current?.toDataURL({ pixelRatio: 1 });
+          if (!image) return null;
+          const res = await fetch('/api/visual-qa', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              mode: 'jugement', image, stageW, stageH,
+              charte: {
+                // Pas de `name` : `workspaceData` ne porte pas le nom du client
+                // dans l'éditeur, et `Charte.name` est optionnel côté juge. Le
+                // secteur et le ton portent l'essentiel de ce qu'il doit savoir.
+                sector: workspaceData?.sector, tone: workspaceData?.tone,
+                colors: [workspaceData?.primary_color, workspaceData?.secondary_color, workspaceData?.accent_color].filter(Boolean),
+                fonts: [workspaceData?.font_family, workspaceData?.font_secondary].filter(Boolean),
+              },
+              recette: { id: String(layout?.recipeId ?? '').replace(/^ds:/, ''), name: layout?.template?.name },
+            }),
+          });
+          if (!res.ok) return null;
+          return await res.json() as { verdict?: string; defauts?: string[] };
+        } catch { return null; }
+      };
+
+      // UN JUGE MUET NE FAIT DISPARAÎTRE AUCUN VISUEL. Panne réseau, quota,
+      // réponse illisible : `jugerRendu` rend `null` et on garde la composition.
+      // Le doute profite au rendu, l'inverse ferait perdre des visuels sans que
+      // personne ne sache pourquoi.
+      let retenu = -1;
+      for (let i = 0; i < layouts.length && retenu < 0; i++) {
+        edLog(`${i === 0 ? 'Application' : `Remplacement ${i}`} : ${nomDeComposition(layouts[i])}`);
+        await materializeLayout(layouts[i]);
+        // Une composition qui n'est pas un dessin part à l'audit de RETOUCHE
+        // plus bas : ce sont deux métiers, et le juge n'a rien à dire ici.
+        if (!layouts[i]?.template || i >= JUGEMENTS_MAX) { retenu = i; break; }
+        setQaMsg(`Relecture du rendu… (${i + 1}/${Math.min(layouts.length, JUGEMENTS_MAX)})`);
+        const v = await jugerRendu(layouts[i]);
+        if (v?.verdict === 'rejeter') {
+          const cause = (v.defauts ?? []).slice(0, 2).join(' · ') || 'non montrable';
+          edLog(`Juge : écartée — ${cause}`);
+        } else {
+          if (v) edLog('Juge : montrable ✓');
+          retenu = i;
+        }
+      }
+      if (retenu < 0) {
+        // Toutes rejetées : on applique quand même la première. Rendre l'écran
+        // vide serait pire que rendre un visuel discutable, que l'utilisateur
+        // peut corriger lui-même.
+        retenu = 0;
+        await materializeLayout(layouts[0]);
+        edLog('Aucune n\'a passé le juge — la 1re est appliquée, à relire');
+      }
+      setAiVariantIdx(retenu);
       // Ce qui est APPLIQUÉ compte, pas seulement ce qui est changé : sans cette
       // trace, le compositeur n'a aucun moyen de savoir qu'il vient de servir
       // cette composition, et il la resert au post suivant.
-      rememberChoice(layouts[0], 1);
-      await materializeLayout(layouts[0]);
+      rememberChoice(layouts[retenu], retenu + 1);
       // Une composition DESSINÉE (template maison ou système de design) ne doit
       // pas passer devant l'audit visuel : celui-ci raisonne en « texte posé sur
       // une photo » — il écarte les blocs qui se chevauchent, retire les aplats
       // de couleur derrière le texte, réaligne tout. Sur un dessin, ces règles
       // défont exactement ce qui en fait un visuel de marque.
-      dessin = !!layouts[0]?.template;
-      setQaMsg(layouts.length > 1 ? `Composé ✓ (1/${layouts.length})` : 'Composé ✓');
+      dessin = !!layouts[retenu]?.template;
+      setQaMsg(layouts.length > 1 ? `Composé ✓ (${retenu + 1}/${layouts.length})` : 'Composé ✓');
       success = true;
     } catch {
       setQaMsg('Erreur composition');
