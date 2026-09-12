@@ -144,6 +144,16 @@ export interface DesignSlot {
   label: string;
   /** Longueur maximale, en caractères. Le dessin a été fait POUR cette longueur. */
   max: number;
+  /** LE TEXTE D'ORIGINE, quand la composition vient d'un modèle dessiné à la
+   *  main. C'est la silhouette VOULUE par l'auteur : le bloc a été dimensionné
+   *  pour ces mots-là.
+   *
+   *  Sans lui, tout aperçu remplissait les champs avec des phrases d'essai de
+   *  longueur quelconque — et une composition dessinée pour « NOUVEAU MENU »
+   *  recevait « La carte change chaque semaine ». Les blocs se chevauchaient, le
+   *  texte débordait, et on croyait le convertisseur fautif alors qu'on lui
+   *  donnait simplement le mauvais texte. */
+  exemple?: string;
 }
 
 export interface DesignRecipe {

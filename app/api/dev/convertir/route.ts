@@ -18,7 +18,7 @@ export async function GET() {
   const sb = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
 
   const { data: tpls } = await sb.from('post_templates')
-    .select('id, name, format_id, text_zones, pages, workspace_id').limit(200);
+    .select('id, name, format_id, text_zones, pages, workspace_id, background_style').limit(200);
   const { data: wss } = await sb.from('workspaces')
     .select('id, name, sector, tone, primary_color, secondary_color, accent_color, font_family, font_secondary');
   const parWs = new Map((wss ?? []).map(w => [w.id, w]));
@@ -39,6 +39,7 @@ export async function GET() {
         primary: w?.primary_color, secondary: w?.secondary_color, accent: w?.accent_color,
         display: w?.font_family, body: w?.font_secondary,
       },
+      fond: row.background_style as { type?: string; color?: string } | null,
       id: `maison-${String(row.id).slice(0, 8)}`, nom: String(row.name || 'Sans nom'),
     });
     const v = variantesDe(recette, [], 4);

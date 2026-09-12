@@ -101,7 +101,12 @@ export default function Atelier() {
   const rendre = useCallback(async (items: Item[]) => {
     for (const it of items) {
       try {
-        const fields = remplirSlots(it.recette.slots, s => effectiveMax(it.recette, s));
+        // TES MOTS, PAS LES MIENS. Une composition se montre avec le texte pour
+        // lequel elle a été dessinée ; un échantillon de secours ne sert que
+        // pour un champ laissé vide.
+        const secours = remplirSlots(it.recette.slots, s => effectiveMax(it.recette, s));
+        const fields: Record<string, string> = {};
+        for (const sl of it.recette.slots) fields[sl.key] = sl.exemple?.trim() || secours[sl.key];
         const els = buildDesignElements(it.recette, {
           fields, brand: brand as never, w: W, h: H,
           hasPhoto: it.recette.nodes.some(n => n.k === "photo"),

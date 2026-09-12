@@ -291,6 +291,11 @@ export function convertirModele(opt: {
   charte: Charte;
   id: string;
   nom: string;
+  /** Le fond du modèle, que l'éditeur garde à PART des calques
+   *  (`post_templates.background_style`). Sans lui, une composition sans photo
+   *  rendait une page blanche : son texte blanc sur un fond blanc. Il devient
+   *  ici un aplat plein cadre, converti en rôle comme le reste. */
+  fond?: { type?: string; color?: string; colorFrom?: string } | null;
   famille?: string;
   vibe?: Vibe[];
   intents?: Intent[];
@@ -304,6 +309,13 @@ export function convertirModele(opt: {
   for (const d of deduireRoles(els as Parameters<typeof deduireRoles>[0])) deduits.set(d.id, d.role);
   const nodes: DesignNode[] = [];
   const slots: DesignSlot[] = [];
+
+  // LE FOND EN PREMIER, donc SOUS tout le reste. Posé après, il masquerait la
+  // composition entière.
+  const couleurFond = opt.fond?.color || opt.fond?.colorFrom;
+  if (couleurFond) {
+    nodes.push({ k: 'rect', x: 0, y: 0, w: 1, h: 1, fill: couleurVersRole(couleurFond, opt.charte) });
+  }
   const prises = new Set<string>();
 
   for (const el of els) {
@@ -320,7 +332,17 @@ export function convertirModele(opt: {
         // dit la silhouette voulue. Un peu de marge, sans plus — le dessin a
         // été fait pour cette longueur-là.
         const max = Math.max(4, Math.round(s(el.text).length * 1.15));
-        slots.push({ key: cle, label: s(el.roleHint) || s(el.roleLabel) || s(el.role) || roleDeduit || 'texte', max });
+        slots.push({
+          key: cle,
+          label: s(el.roleHint) || s(el.roleLabel) || s(el.role) || roleDeduit || 'texte',
+          max,
+          // ON GARDE LE TEXTE ÉCRIT PAR L'AUTEUR. Il ne sert pas au client final
+          // — l'IA écrira le sien — mais il sert à MONTRER la composition telle
+          // qu'elle a été pensée. Un aperçu rempli d'autre chose ne dit rien du
+          // dessin, il dit ce qui arrive à ce dessin quand on lui donne un texte
+          // de la mauvaise longueur.
+          exemple: s(el.text).trim(),
+        });
       }
       nodes.push(texteVersNoeud(el, opt.format, opt.charte, cle, s(el.role) || roleDeduit));
       continue;

@@ -48,12 +48,12 @@ export async function POST(request: NextRequest) {
     const sansCharte = !ws.primary_color && !ws.secondary_color && !ws.accent_color;
 
     const { data: tpls, error } = await sb.from('post_templates')
-      .select('id, name, format_id, text_zones, pages')
+      .select('id, name, format_id, text_zones, pages, background_style')
       .eq('workspace_id', workspaceId)
       .order('created_at', { ascending: true })
       .limit(120)
       .then(r => (r.error
-        ? sb.from('post_templates').select('id, name, format_id, text_zones')
+        ? sb.from('post_templates').select('id, name, format_id, text_zones, background_style')
             .eq('workspace_id', workspaceId).order('created_at', { ascending: true }).limit(120)
         : r));
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
@@ -73,7 +73,8 @@ export async function POST(request: NextRequest) {
 
       const { recette, pertes: p } = convertirModele({
         elements: els, format: { w, h }, charte,
-        id: `maison-${String(row.id).slice(0, 8)}`,
+        fond: row.background_style as { type?: string; color?: string } | null,
+      id: `maison-${String(row.id).slice(0, 8)}`,
         nom: String(row.name || 'Sans nom'),
       });
       const fautes = controlerRecette(recette);
