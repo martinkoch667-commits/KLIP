@@ -65,9 +65,36 @@ function ecart(a: [number, number, number], b: [number, number, number]): number
  *  couleur change de sens dès qu'on change de fond. */
 const ROLES_CHOISIS: Col[] = ['brand', 'accent', 'secondary', 'ink', 'paper', 'white', 'black', 'surface', 'deep'];
 
+/** Les rôles NEUTRES : ceux qui ne portent aucune couleur de marque. */
+const ROLES_NEUTRES: Col[] = ['white', 'black', 'ink', 'paper', 'surface', 'deep'];
+
+/** Saturation (0 = gris parfait, 1 = couleur pure). */
+function saturation([r, g, b]: [number, number, number]): number {
+  const max = Math.max(r, g, b), min = Math.min(r, g, b);
+  return max === 0 ? 0 : (max - min) / max;
+}
+
+/** En-deçà, la couleur est un NEUTRE : un blanc, un noir, un gris, un crème. */
+const SEUIL_NEUTRE = 0.12;
+
 export function couleurVersRole(hex: string, charte: Charte): Col {
   const cible = rvb(hex);
   if (!cible) return 'white';
+
+  // UN BLANC RESTE UN BLANC, MÊME SI LA MARQUE EN A FAIT SA COULEUR SECONDAIRE.
+  //
+  // Mesuré sur un vrai client : la couleur secondaire de « Resto Chez GG » est
+  // littéralement #FFFFFF. Tous ses textes blancs se rattachaient donc au rôle
+  // `secondary` — et chez un client dont la secondaire est un vert foncé, le
+  // même texte serait repeint en vert foncé sur une photo. Illisible, et
+  // invisible au moment de la conversion.
+  //
+  // Un neutre n'est pas un choix de marque, c'est un choix de LISIBILITÉ : il
+  // ne doit jamais se rattacher à un rôle coloré, même quand ce rôle porte par
+  // hasard la même valeur. La réciproque est vraie aussi : une couleur franche
+  // ne doit pas atterrir sur un neutre.
+  const candidats = saturation(cible) < SEUIL_NEUTRE ? ROLES_NEUTRES : ROLES_CHOISIS;
+
   const palette = resolvePalette({
     primary: charte.primary ?? null, secondary: charte.secondary ?? null,
     accent: charte.accent ?? null, name: charte.name ?? null,
@@ -75,7 +102,7 @@ export function couleurVersRole(hex: string, charte: Charte): Col {
   } as Parameters<typeof resolvePalette>[0]) as Record<string, string>;
 
   let meilleur: Col = 'white', best = Infinity;
-  for (const role of ROLES_CHOISIS) {
+  for (const role of candidats) {
     const ref = rvb(palette[role] ?? '');
     if (!ref) continue;
     const d = ecart(cible, ref);
