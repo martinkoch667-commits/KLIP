@@ -279,8 +279,9 @@ export async function POST(request: NextRequest) {
       async () => {
         const r = await sb
           .from('design_recipes')
-          .select('recipe_id, name, family, vibe, intents, sectors, photo, description, nodes, slots')
-          .eq('active', true)
+          .select('recipe_id, name, family, vibe, intents, sectors, photo, description, nodes, slots, active')
+          // On lit AUSSI les inactives : ce sont elles qui masquent une recette
+          // du code. Les filtrer ici reviendrait à ne jamais voir les masques.
           .limit(1000);
         return { data: r.data as never, error: r.error };
       },

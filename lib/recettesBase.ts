@@ -23,6 +23,12 @@ type Ligne = {
   vibe: string[] | null; intents: string[] | null; sectors: string[] | null;
   photo: string; description: string | null;
   nodes: unknown; slots: unknown;
+  /** `false` RETIRE la composition du vivier — y compris quand elle vient du
+   *  CODE. C'est le seul moyen d'écarter une des 162 recettes écrites en dur
+   *  sans déployer : une ligne portant son identifiant et `active: false` la
+   *  masque. Sans ce mécanisme, retirer une composition du catalogue demandait
+   *  une mise en production. */
+  active?: boolean;
 };
 
 /** Une ligne de base ne devient une recette que si son dessin tient debout.
@@ -67,10 +73,12 @@ export async function catalogueDe(
   if (vu && Date.now() - vu.at < DUREE) return vu.recettes;
 
   let base: DesignRecipe[] = [];
+  let lignes: Ligne[] = [];
   try {
     const { data, error } = await lire();
     if (error) throw error;
-    base = (data ?? []).map(versRecette).filter((r): r is DesignRecipe => !!r);
+    lignes = data ?? [];
+    base = lignes.filter(l => l.active !== false).map(versRecette).filter((r): r is DesignRecipe => !!r);
   } catch (err) {
     // JAMAIS BLOQUANT. Le catalogue du code suffit à composer ; une base
     // injoignable doit dégrader le CHOIX, pas empêcher la génération.
@@ -83,6 +91,11 @@ export async function catalogueDe(
   const parId = new Map<string, DesignRecipe>();
   for (const r of DESIGN_RECIPES) parId.set(r.id, r);
   for (const r of base) parId.set(r.id, r);
+
+  // PUIS LES MASQUES. Une ligne inactive retire sa composition du vivier, même
+  // si elle vient du code : c'est ce qui permet d'écarter une des 162 recettes
+  // écrites en dur sans attendre un déploiement.
+  for (const l of (lignes ?? [])) if (l.active === false) parId.delete(l.recipe_id);
 
   const recettes = Array.from(parId.values());
   caches.set(cle, { at: Date.now(), recettes });
