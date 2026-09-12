@@ -47,14 +47,25 @@ type Adn = {
 type Recette = { id?: string; name?: string; family?: string; zone?: string };
 
 /** Ce qui vaut pour les deux métiers : on ne cherche pas un défaut à tout prix. */
+/** Ce qui vaut pour les deux métiers : on ne cherche pas un défaut à tout prix,
+ *  et on n'en excuse pas un qu'on a vu.
+ *
+ *  LA BARRE A DEUX CÔTÉS, et la première version n'en avait qu'un. Écrite pour
+ *  corriger un juge qui inventait des reproches, elle disait quatre fois de ne
+ *  rien signaler et jamais de signaler. Résultat mesuré au banc : témoins
+ *  propres gardés 4/4, défauts plantés rejetés 0/2. Le pendule était passé de
+ *  l'autre côté, et un juge qui garde tout ne sert à rien. */
 const BARRE = [
   '',
-  'LA BARRE, et elle compte autant que le reste :',
-  '- Un rendu correct est le cas NORMAL, pas l\'exception.',
-  '- Ne signale QUE ce que tu peux localiser précisément ET qui gêne vraiment.',
+  'LA BARRE, et elle compte autant que le reste. Elle a DEUX côtés :',
+  '- Un rendu correct est le cas NORMAL. N\'invente jamais un reproche pour',
+  '  justifier une réponse : « rien à redire » est une réponse ATTENDUE.',
   '- Un défaut que tu ne saurais pas montrer du doigt n\'est pas un défaut.',
-  '- N\'invente jamais un reproche pour justifier une réponse : répondre « rien à',
-  '  redire » est une réponse ATTENDUE, pas un échec de ta part.',
+  '- MAIS taire un défaut que tu as vu est la faute SYMÉTRIQUE, et elle coûte',
+  '  plus cher : elle envoie à un client un visuel qu\'il ne peut pas publier.',
+  '  Si tu peux le localiser, dis-le. L\'indulgence n\'est pas de la prudence.',
+  '- Ne cherche pas l\'équilibre entre les deux. Ni quota de défauts, ni quota de',
+  '  compliments : tu regardes, et tu rapportes exactement ce qui est là.',
 ];
 
 export async function POST(request: NextRequest) {
@@ -98,17 +109,35 @@ export async function POST(request: NextRequest) {
     } catch { /* laissé vide : les défauts ci-dessous sont volontairement permissifs */ }
 
     if (mode === 'jugement') {
-      // En cas de réponse illisible on GARDE le visuel : un juge muet ne doit pas
-      // faire disparaître une composition correcte. Le doute profite au rendu,
-      // l'inverse ferait perdre des visuels sans que personne ne sache pourquoi.
-      const verdict = parsed.verdict === 'rejeter' ? 'rejeter' : 'garder';
+      // LE VERDICT N'EST PLUS ÉCRIT PAR LE MODÈLE, IL EST DÉDUIT DE SES CONSTATS.
+      //
+      // Mesuré au banc : témoins propres gardés 4/4, défauts plantés rejetés
+      // 0/2. Le juge gardait TOUT, y compris un texte à 8 px du bord et un
+      // second texte posé sur le premier. Un juge qui garde tout est aussi
+      // inutile qu'un juge qui rejette tout.
+      //
+      // La cause n'était pas son oeil, elle était dans le partage du travail.
+      // On lui demandait à la fois de CONSTATER et de TRANCHER, et tout le
+      // reste de la consigne (la BARRE, la liste de ce qui n'est pas un défaut,
+      // « un visuel quelconque se GARDE ») pèse sur le mot final. Un modèle
+      // répond bien à « ce texte est-il lisible, oui ou non » et mal à « dois-je
+      // rejeter ce travail », où la politesse l'emporte.
+      //
+      // Il ne rend donc plus que ses CONSTATS, axe par axe. La conséquence se
+      // calcule ici, et elle ne peut plus être adoucie.
+      const charte = critere(parsed.charte);
+      const tenue = critere(parsed.tenue);
+      // ADN et FIL disent « ce n'est pas idéal pour cette marque », jamais « ce
+      // n'est pas montrable » : ils ne font pas tomber un visuel, sinon un
+      // client au compte encore maigre ne verrait jamais rien.
+      const rejete = !charte.ok || !tenue.ok || parsed.verdict === 'rejeter';
       return NextResponse.json({
         mode: 'jugement',
-        verdict,
-        charte: critere(parsed.charte),
+        verdict: rejete ? 'rejeter' : 'garder',
+        charte,
         adn: critere(parsed.adn),
         fil: critere(parsed.fil),
-        tenue: critere(parsed.tenue),
+        tenue,
         defauts: Array.isArray(parsed.defauts) ? parsed.defauts.slice(0, 6) : [],
       });
     }
@@ -217,13 +246,26 @@ function promptJugement(
     '  ce sont des intentions, pas des accidents.',
     ...BARRE,
     '',
-    'Verdict « rejeter » UNIQUEMENT si un critère est franchement manqué : couleur ou',
-    'police étrangère à la charte, texte coupé, texte illisible, sujet masqué. Un visuel',
-    'simplement quelconque se GARDE.',
+    'TU NE PRONONCES AUCUN VERDICT, et ce n\'est pas une formalité : on ne te demande',
+    'pas si ce travail mérite d\'être rejeté, on te demande CE QUE TU VOIS. La suite ne',
+    't\'appartient pas. Réponds donc à quatre questions fermées, sans chercher à peser',
+    'les conséquences de tes réponses.',
+    '',
+    'QUAND « ok » VAUT false, précisément :',
+    '- charte : une couleur ou une police POSÉE par la composition est étrangère à la',
+    '  marque. Les polices de GESTE (manuscrite, condensée, serif) ne comptent pas.',
+    '- tenue : au moins un mot est illisible, coupé, croisé par un autre texte, noyé',
+    '  dans un fond de valeur voisine, ou sorti du bloc dessiné pour le porter.',
+    '  Un seul mot suffit. Ce n\'est pas une moyenne, c\'est un constat.',
+    '- adn / fil : le visuel ne ressemble pas à ce que cette marque publie. Ces deux-là',
+    '  disent « pas idéal », jamais « pas montrable » : sois exigeant sans être sévère.',
+    '',
+    'Un visuel simplement QUELCONQUE a ses quatre « ok » à true : être ordinaire n\'est',
+    'pas un défaut. Mais un mot qu\'on ne peut pas lire met « tenue » à false, même si le',
+    'reste de l\'image est réussi, et même si tu devines ce qui était écrit.',
     '',
     'Réponds UNIQUEMENT avec ce JSON, rien d\'autre :',
-    '{ "verdict": "garder"|"rejeter",',
-    '  "charte": { "ok": true|false, "note": "une phrase" },',
+    '{ "charte": { "ok": true|false, "note": "une phrase" },',
     '  "adn":    { "ok": true|false, "note": "une phrase" },',
     '  "fil":    { "ok": true|false, "note": "une phrase" },',
     '  "tenue":  { "ok": true|false, "note": "une phrase" },',
