@@ -35,7 +35,12 @@ type Item = {
   pertes?: string[];
 };
 
-type Ws = { id: string; name: string | null; primary_color: string | null };
+type Ws = {
+  id: string; name: string | null;
+  primary_color: string | null; secondary_color: string | null; accent_color: string | null;
+  font_family: string | null; font_secondary: string | null;
+  sector: string | null; tone: string | null;
+};
 
 const W = 1080, H = 1350;
 
@@ -54,9 +59,18 @@ export default function Atelier() {
   const [etat, setEtat] = useState<string | null>(null);
   const [occupe, setOccupe] = useState(false);
 
+  // L'APERÇU SE JOUE SOUS UNE AUTRE CHARTE QUE CELLE D'ORIGINE, et c'est LE
+  // contrôle qui vaut : une composition dessinée pour un restaurant n'a d'intérêt
+  // que si elle tient debout chez un caviste. Tant qu'on ne la regarde que chez
+  // le client qui l'a dessinée, on ne vérifie rien — les couleurs littérales et
+  // les rôles rendent alors exactement pareil.
+  const [charteApercu, setCharteApercu] = useState<string>("");
+  const [photo, setPhoto] = useState<string>("/banc-photos/produit-sombre-1.jpg");
+  const [maPhoto, setMaPhoto] = useState<string | null>(null);
+
   useEffect(() => {
     void (async () => {
-      const { data } = await sb.from("workspaces").select("id, name, primary_color").order("created_at");
+      const { data } = await sb.from("workspaces").select("id, name, primary_color, secondary_color, accent_color, font_family, font_secondary, sector, tone").order("created_at");
       setClients((data ?? []) as Ws[]);
       if (data?.length && !ws) setWs(data[0].id);
     })();
@@ -64,9 +78,14 @@ export default function Atelier() {
   }, []);
 
   const brand = useMemo(() => {
-    const c = clients.find(x => x.id === ws);
-    return { name: c?.name ?? "", primary: c?.primary_color ?? null };
-  }, [clients, ws]);
+    const c = clients.find(x => x.id === (charteApercu || ws));
+    return {
+      name: c?.name ?? "", primary: c?.primary_color ?? null,
+      secondary: c?.secondary_color ?? null, accent: c?.accent_color ?? null,
+      display: c?.font_family ?? null, body: c?.font_secondary ?? null,
+      sector: c?.sector ?? null, tone: c?.tone ?? null,
+    };
+  }, [clients, ws, charteApercu]);
 
   /** Le rendu se fait ICI, dans le navigateur : `renderTemplateVisual` a besoin
    *  d'un canvas, et le serveur n'en a pas. C'est la même contrainte que pour le
@@ -81,12 +100,12 @@ export default function Atelier() {
         }) as Record<string, unknown>[];
         const url = await renderTemplateVisual({
           elements: els, sourceFormat: { w: W, h: H },
-          photoUrl: "/banc-photos/produit-sombre-1.jpg", w: W, h: H,
+          photoUrl: maPhoto ?? photo, w: W, h: H,
         });
         if (url) setApercus(p => ({ ...p, [it.recette.id]: url }));
       } catch { /* un aperçu manquant ne doit pas arrêter la série */ }
     }
-  }, [brand]);
+  }, [brand, photo, maPhoto]);
 
   const decliner = useCallback(async () => {
     if (!ws) return;
@@ -107,6 +126,15 @@ export default function Atelier() {
     } catch (e) { setEtat(String(e)); }
     setOccupe(false);
   }, [ws, par, rendre]);
+
+  // Changer de charte ou de photo REDESSINE tout ce qui est à l'écran : sans ça
+  // le sélecteur mentirait, et c'est exactement la vérification qu'on vient
+  // faire ici.
+  useEffect(() => {
+    const tout = [...bases, ...series];
+    if (tout.length) void rendre(tout);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [charteApercu, photo, maPhoto]);
 
   const basculer = (id: string) =>
     setEcartes(p => { const n = new Set(p); if (n.has(id)) n.delete(id); else n.add(id); return n; });
@@ -188,6 +216,49 @@ export default function Atelier() {
           padding: "8px 16px", borderRadius: 8, border: "none", cursor: occupe ? "wait" : "pointer",
           background: "#0C2A1D", color: "#fff", fontWeight: 700,
         }}>Décliner</button>
+      </div>
+
+      {/* LE CONTRÔLE QUI VAUT VRAIMENT : la même composition, une AUTRE marque.
+          Tant qu'on la regarde chez le client qui l'a dessinée, on ne vérifie
+          rien — les rôles rendent exactement comme les couleurs littérales. */}
+      {tout.length > 0 && (
+        <div style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap",
+          margin: "0 0 16px", padding: "10px 12px", background: "#F4F6F5", borderRadius: 10 }}>
+          <strong style={{ fontSize: 13 }}>Aperçu</strong>
+          <label style={{ fontSize: 13 }}>sous la charte de{" "}
+            <select value={charteApercu || ws} onChange={e => setCharteApercu(e.target.value)}>
+              {clients.map(c => <option key={c.id} value={c.id}>{c.name ?? c.id.slice(0, 8)}</option>)}
+            </select>
+          </label>
+          <label style={{ fontSize: 13 }}>sur{" "}
+            <select value={photo} onChange={e => { setMaPhoto(null); setPhoto(e.target.value); }}>
+              <option value="/banc-photos/produit-sombre-1.jpg">Burger / fond sombre</option>
+              <option value="/banc-photos/produit-carre.jpg">Produit / carré</option>
+              <option value="/banc-photos/ugc-visage.jpg">Visage</option>
+              <option value="/banc-photos/ugc-mains.jpg">Mains</option>
+              <option value="/banc-photos/studio-box.jpg">Studio</option>
+            </select>
+          </label>
+          <label style={{ fontSize: 13, cursor: "pointer" }}>
+            ou <u>ta photo</u>
+            <input type="file" accept="image/*" style={{ display: "none" }}
+              onChange={e => {
+                const f = e.target.files?.[0];
+                // Lue dans le navigateur, jamais envoyée : c'est un aperçu, pas
+                // un import. Rien n'a à quitter la machine pour vérifier un rendu.
+                if (f) setMaPhoto(URL.createObjectURL(f));
+              }} />
+          </label>
+          {maPhoto && <button onClick={() => setMaPhoto(null)} style={{ ...petitBtn }}>retirer ma photo</button>}
+          {charteApercu && charteApercu !== ws && (
+            <span style={{ fontSize: 12, color: "#1a7f37", fontWeight: 700 }}>
+              charte d’un AUTRE client : c’est le vrai test
+            </span>
+          )}
+        </div>
+      )}
+
+      <div style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap", marginBottom: 16 }}>
         {tout.length > 0 && (
           <button onClick={() => void enregistrer()} disabled={occupe} style={{
             padding: "8px 16px", borderRadius: 8, border: "1px solid #0C2A1D", cursor: "pointer",
@@ -227,3 +298,5 @@ export default function Atelier() {
     </main>
   );
 }
+
+const petitBtn: React.CSSProperties = { padding: '4px 9px', borderRadius: 6, border: '1px solid #d5d5d0', background: '#fff', cursor: 'pointer', fontSize: 12 };
