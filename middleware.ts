@@ -4,7 +4,11 @@ import type { NextRequest } from "next/server";
 import { isAccessBlocked } from "@/lib/plans";
 import { aiLimitFor, consume } from "@/lib/ai-guard";
 
-const PROTECTED_ROUTES = ["/dashboard", "/workspace", "/calendar", "/composer", "/feed", "/templates", "/settings"];
+// `/atelier` en fait partie : il lit et écrit le catalogue de compositions, et
+// il n'était protégé par rien. Ses routes API refusaient bien l'accès aux
+// données, mais les pages s'affichaient à qui passait par là — on montrait le
+// fonctionnement interne du produit à un visiteur non connecté.
+const PROTECTED_ROUTES = ["/dashboard", "/workspace", "/calendar", "/composer", "/feed", "/templates", "/settings", "/atelier"];
 
 // Routes /api qui ne dépendent pas d'une session cookie (jeton OAuth, signature
 // Stripe, appel serveur à serveur, proxy d'images très sollicité). Inutile de
@@ -103,5 +107,6 @@ export const config = {
     "/feed/:path*",
     "/templates/:path*",
     "/settings/:path*",
+    "/atelier/:path*",
   ],
 };
