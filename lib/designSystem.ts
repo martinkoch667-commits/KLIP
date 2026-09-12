@@ -232,7 +232,7 @@ export const DESIGN_RECIPES: DesignRecipe[] = [
     slots: [sl('avant', 'début de la phrase, en capitales', 34), sl('barre', 'LE mot qu’on rature', 14), sl('corrige', 'le mot manuscrit qui le remplace', 14), sl('apres', 'fin de la phrase', 30)],
     nodes: [
       P(0, 0, 1, 1, { dark: 26 }),
-      R(0, 0.35, 1, 0.65, 'black', { scrim: 'bottom', opacity: 55 }),
+      R(0, 0.35, 1, 0.65, 'black', { scrim: 'bottom', opacity: 68 }),
       T('avant', 0.08, 0.46, 0.84, 0.09, 'white', { upper: true, lh: 0.96, maxLines: 2, weight: 'bold' }),
       T('barre', 0.08, 0.63, 0.6, 0.09, 'white', { upper: true, maxLines: 1, weight: 'bold', strike: true, opacity: 70 }),
       T('corrige', 0.26, 0.608, 0.6, 0.105, 'accentLight', { font: 'script', maxLines: 1, rotation: -6, shadow: true }),

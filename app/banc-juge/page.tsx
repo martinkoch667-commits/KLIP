@@ -118,8 +118,13 @@ function saboteChevauchement(els: Record<string, unknown>[]): Record<string, unk
   const autres = els.filter(e => e.type === "text" && e !== cible);
   if (!autres.length) return els;
   const second = autres.reduce((a, b) => (Number(b.fontSize) || 0) > (Number(a.fontSize) || 0) ? b : a);
+  // IL PREND AUSSI LA TAILLE DU TITRE. Posé à sa taille d'origine (32 px sur
+  // 1080), le texte fautif était INVISIBLE pour le juge : l'image lui arrive
+  // réduite, et un chevauchement qu'on ne voit pas ne teste rien. Deux GRANDS
+  // textes qui se croisent, là, le défaut saute aux yeux — c'est la condition
+  // d'un témoin saboté.
   return els.map(e => e === second
-    ? { ...e, x: cible.x, y: (Number(cible.y) || 0) + 8, width: cible.width }
+    ? { ...e, x: cible.x, y: (Number(cible.y) || 0) + 8, width: cible.width, fontSize: cible.fontSize }
     : e);
 }
 
