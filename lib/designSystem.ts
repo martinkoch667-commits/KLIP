@@ -3151,6 +3151,7 @@ export function buildDesignElements(recipe: DesignRecipe, opt: BuildOptions): an
   }
   recalerGroupes(out, h);
   separerBlocs(out, h);
+  tenirDansLeCadre(out, w, h);
   return out;
 }
 
@@ -3197,10 +3198,69 @@ export function buildDesignElements(recipe: DesignRecipe, opt: BuildOptions): an
  *   · deux blocs qui ne partagent aucune colonne ne se gênent pas, même si
  *     leurs hauteurs se croisent : ils sont côte à côte.
  */
+/**
+ * RIEN NE SORT DU CADRE. C'est la dernière règle, et la moins négociable : un
+ * mot coupé par un bord n'est pas un parti pris, c'est un visuel qu'on ne peut
+ * pas publier.
+ *
+ * DEUX REMÈDES, DANS CET ORDRE, et l'ordre est celui d'un metteur en page :
+ *   1. REMONTER le bloc, tant qu'il ne heurte pas ce qui est au-dessus. Un
+ *      texte posé trop bas se recale sans rien perdre de sa taille ;
+ *   2. LE RÉDUIRE, quand il n'y a plus de place au-dessus. Jusqu'à 70 % — en
+ *      dessous, le bloc ne joue plus son rôle dans la hiérarchie et mieux vaut
+ *      un visuel un peu serré qu'un titre devenu mention.
+ *
+ * On ne touche qu'aux blocs porteurs de RÔLE : un chiffre géant qui déborde
+ * volontairement par le bas est un geste, et il n'a pas de rôle.
+ */
+function tenirDansLeCadre(out: Array<Record<string, unknown>>, w: number, h: number): void {
+  const n = (v: unknown, d = 0) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
+  const textes = out.filter(e => e.type === 'text' && e.role && Math.abs(n(e.rotation)) <= 15);
+  const hauteur = (e: Record<string, unknown>) =>
+    Math.max(1, n(e.maxLines, 1)) * n(e.fontSize) * n(e.lineHeight, 1.15) + n(e.paddingV) * 2;
+
+  for (const e of textes) {
+    // Le plancher au-dessus duquel ce bloc ne peut pas remonter : le pied du
+    // bloc précédent dans sa colonne.
+    const x = n(e.x), lg = n(e.width);
+    let plafond = 0;
+    for (const a of textes) {
+      if (a === e) continue;
+      const memeColonne = !(n(a.x) + n(a.width) <= x + 4 || x + lg <= n(a.x) + 4);
+      if (!memeColonne) continue;
+      if (n(a.y) + hauteur(a) <= n(e.y)) plafond = Math.max(plafond, n(a.y) + hauteur(a) + 8);
+    }
+
+    for (let essai = 0; essai < 8; essai++) {
+      const bas = n(e.y) + hauteur(e);
+      const debord = bas - h * 0.985;
+      if (debord <= 0 && n(e.y) >= -1) break;
+      if (n(e.y) < 0) { e.y = 0; continue; }
+      // 1. remonter
+      const place = n(e.y) - plafond;
+      if (place > 1) { e.y = Math.round(n(e.y) - Math.min(place, debord)); continue; }
+      // 2. réduire
+      const taille = n(e.fontSize);
+      const reduite = Math.round(taille * 0.92);
+      if (reduite < n(e.fontSize) * 0.7 || reduite < 8) break;
+      e.fontSize = reduite;
+    }
+
+    // Et jamais hors du cadre par la droite : on rétrécit la boîte, pas le texte.
+    if (x + lg > w) e.width = Math.max(w * 0.2, w - x);
+    if (x < 0) { e.width = Math.max(w * 0.2, lg + x); e.x = 0; }
+  }
+}
+
 function separerBlocs(out: Array<Record<string, unknown>>, h: number): void {
   const n = (v: unknown, d = 0) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
+  // UN PETIT ANGLE N'EST PAS UN GESTE. Exempter tout ce qui est pivoté laissait
+  // passer les collisions les plus visibles : un titre incliné de 5° est un
+  // titre, pas un tampon, et il n'a pas le droit de traverser son voisin. Le
+  // parti pris commence là où l'inclinaison se voit — au-delà de 15°.
+  const pivote = (e: Record<string, unknown>) => Math.abs(n(e.rotation)) > 15;
   const blocs = out
-    .filter(e => e.type === 'text' && e.role && !n(e.rotation))
+    .filter(e => e.type === 'text' && e.role && !pivote(e))
     .map(e => ({
       e,
       x: n(e.x), w: n(e.width),
@@ -3222,6 +3282,38 @@ function separerBlocs(out: Array<Record<string, unknown>>, h: number): void {
       if (!memeColonne) continue;
       const basA = propose[j] + a.hauteur;
       if (propose[i] < basA + souffle(a)) propose[i] = basA + souffle(a);
+    }
+  }
+
+  // LES FORMES PLEINES COMPTENT AUSSI. Une pastille, un badge, un aplat sont
+  // des calques OPAQUES : un texte qui atterrit dessus est aussi illisible que
+  // s'il tombait sur un autre texte. C'est ce qui donnait « READ MORE » à cheval
+  // sur le badge rond, et le « 01 » posé sur la vignette.
+  //
+  // On ne pousse QUE le texte, jamais la forme : la forme est le dessin, le
+  // texte est ce qui s'y adapte.
+  const formes = out
+    .filter(e => (e.type === 'rect' || e.type === 'circle' || e.type === 'vector' || e.type === 'star')
+      && !pivote(e) && n(e.opacity, 100) > 55 && !e.scrim)
+    .map(e => ({
+      x: n(e.x), w: n(e.width, n(e.radius) * 2 || n(e.outerRadius) * 2),
+      y: n(e.y), h: n(e.height, n(e.radius) * 2 || n(e.outerRadius) * 2),
+    }))
+    // Un aplat plein cadre est un FOND, pas un obstacle.
+    .filter(f => !(f.w > 0 && f.h > 0 && f.x <= 2 && f.y <= 2 && f.h >= h * 0.9));
+
+  for (let i = 0; i < blocs.length; i++) {
+    const b = blocs[i];
+    for (const f of formes) {
+      const memeColonne = !(f.x + f.w <= b.x + 4 || b.x + b.w <= f.x + 4);
+      if (!memeColonne) continue;
+      const croise = propose[i] < f.y + f.h && propose[i] + b.hauteur > f.y;
+      if (!croise) continue;
+      // On le fait glisser du côté où il reste le plus de place.
+      const versLeBas = f.y + f.h + souffle(b);
+      const versLeHaut = f.y - b.hauteur - souffle(b);
+      propose[i] = (f.y - propose[i]) > (propose[i] + b.hauteur - (f.y + f.h)) && versLeHaut > 0
+        ? versLeHaut : versLeBas;
     }
   }
 

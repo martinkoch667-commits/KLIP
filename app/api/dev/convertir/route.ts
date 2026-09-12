@@ -78,6 +78,28 @@ export async function GET() {
           const dx = Math.min(a.x2, b.x2) - Math.max(a.x1, b.x1);
           if (dy > 2 && dx > 2) out.push(`${t[i].role} × ${t[j].role} sur ${Math.round(dy)} px`);
         }
+        // Texte SORTI du cadre : le défaut le plus visible et le moins pardonnable.
+        for (const e of t) {
+          const b = boite(e);
+          if (b.y2 > 1350 + 4) out.push(`${e.role} dépasse le bas de ${Math.round(b.y2 - 1350)} px`);
+          if (b.y1 < -4) out.push(`${e.role} dépasse le haut de ${Math.round(-b.y1)} px`);
+          if (b.x2 > 1080 + 4) out.push(`${e.role} dépasse la droite de ${Math.round(b.x2 - 1080)} px`);
+        }
+        // Texte posé sur une forme PLEINE (badge, pastille, aplat).
+        const f = els.filter(e => ['rect','circle','vector','star'].includes(String(e.type))
+          && Number(e.opacity ?? 100) > 55 && !e.scrim);
+        for (const e of t) {
+          const a = boite(e);
+          for (const sh of f) {
+            const x1 = Number(sh.x) || 0, y1 = Number(sh.y) || 0;
+            const w2 = Number(sh.width) || 0, h2 = Number(sh.height) || 0;
+            if (!w2 || !h2) continue;
+            if (x1 <= 2 && y1 <= 2 && h2 >= 1350 * 0.9) continue; // le fond
+            const dy = Math.min(a.y2, y1 + h2) - Math.max(a.y1, y1);
+            const dx = Math.min(a.x2, x1 + w2) - Math.max(a.x1, x1);
+            if (dy > 6 && dx > 6) out.push(`${e.role} posé sur une forme (${Math.round(dy)} px)`);
+          }
+        }
         return out;
       })(),
       effectiveMaxOk: recette.slots.every(sl => effectiveMax(recette, sl) > 0),
