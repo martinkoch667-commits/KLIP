@@ -3178,8 +3178,32 @@ function recalerGroupes(out: Array<Record<string, unknown>>, h: number): void {
       const maxL = Math.max(1, Number(e.maxLines) || 3);
       const avance = AVANCE[String(e.fontRole ?? 'display')] ?? 0.54;
       const texte = String(e.text ?? '');
+      // COMBIEN DE LIGNES CE TEXTE PRENDRA-T-IL VRAIMENT ? On ne peut que
+      // l'estimer ici : le vrai retour à la ligne est décidé plus tard par le
+      // navigateur, avec les métriques réelles de la police, et `AVANCE` n'est
+      // qu'une avance MOYENNE par caractère.
+      //
+      // LES DEUX ERREURS NE COÛTENT PAS PAREIL, et c'est ce qui décide du sens
+      // de l'arrondi. Surestimer d'une ligne laisse un peu de vide sous un bloc :
+      // on voit la photo, personne ne le lit comme un défaut. Sous-estimer fait
+      // REMONTER le bloc suivant DANS le titre : deux textes l'un sur l'autre,
+      // illisibles tous les deux. Vu sur `ds-rail-editorial` avec « OUVERT CE
+      // SOIR » : 14 signes pour une capacité estimée à 14, donc « une ligne »
+      // pour le calcul, mais deux lignes à l'écran, et le sous-titre atterrissait
+      // en plein sur le mot « SOIR ».
+      //
+      // On compte donc en MOTS, comme le fait un vrai retour à la ligne, et on
+      // se garde une marge : un texte qui remplit plus de 88 % de la ligne
+      // estimée est traité comme s'il débordait.
       const parLigne = Math.max(1, Math.floor(largeur / Math.max(1, taille * avance)));
-      const lignes = Math.max(1, Math.min(maxL, Math.ceil(texte.length / parLigne)));
+      const tient = Math.max(1, Math.floor(parLigne * 0.88));
+      let lignesMots = 1, courante = -1;
+      for (const mot of texte.split(/\s+/).filter(Boolean)) {
+        if (courante < 0) { courante = mot.length; continue; }
+        if (courante + 1 + mot.length <= tient) courante += 1 + mot.length;
+        else { lignesMots += 1; courante = mot.length; }
+      }
+      const lignes = Math.max(1, Math.min(maxL, lignesMots));
       const marge = (Number(e.paddingV) || 0) * 2;
       return {
         e, y: Number(e.y) || 0, x: Number(e.x) || 0, w: largeur,
@@ -3225,11 +3249,28 @@ function recalerGroupes(out: Array<Record<string, unknown>>, h: number): void {
     // photo, ce qui ne se lit pas comme un défaut. Remonter le groupe depuis le
     // bas déplacerait la composition entière dès qu'un titre raccourcit, ce qui
     // est bien plus surprenant que le trou qu'on répare.
+    // LE FILET DE SÉCURITÉ. L'estimation de lignes ci-dessus reste une
+    // estimation : le jour où elle se trompe quand même, le re-calage ne doit
+    // pas pouvoir poser un bloc SUR le précédent. On calcule d'abord, on vérifie
+    // qu'aucun bloc ne remonte au-dessus du pied RÉSERVÉ du précédent, et on
+    // abandonne le groupe entier si c'est le cas. Un trou est un défaut mineur ;
+    // deux textes superposés rendent le visuel impubliable.
+    const nouveaux: number[] = [];
     let y = g[0].y;
     for (let i = 0; i < g.length; i++) {
-      g[i].e.y = Math.round(y);
+      nouveaux.push(y);
       y += g[i].reelle + (respirations[i] ?? 0);
     }
+    const collision = nouveaux.some((ny, i) =>
+      i > 0 && ny < nouveaux[i - 1] + g[i - 1].reelle - 1);
+    if (collision) continue;
+
+    // ANCRAGE EN HAUT, toujours. Le trou à supprimer est celui qui sépare deux
+    // blocs de texte ; celui qui reste sous le groupe laisse simplement voir la
+    // photo, ce qui ne se lit pas comme un défaut. Remonter le groupe depuis le
+    // bas déplacerait la composition entière dès qu'un titre raccourcit, ce qui
+    // est bien plus surprenant que le trou qu'on répare.
+    for (let i = 0; i < g.length; i++) g[i].e.y = Math.round(nouveaux[i]);
   }
 }
 

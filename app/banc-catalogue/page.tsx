@@ -29,7 +29,7 @@ import {
   pickDesignCandidates, buildDesignElements, effectiveMax, recipeZone, type DesignRecipe,
 } from "@/lib/designSystem";
 import { renderTemplateVisual } from "@/lib/composeRender";
-import { echantillon } from "@/lib/bancTextes";
+import { remplirSlots } from "@/lib/bancTextes";
 
 // Charte réelle de Pepe Chicken : le client sur lequel les visuels rejetés ont
 // été produits, donc le seul juge utile. Même charte que `/banc-juge`, pour que
@@ -96,8 +96,7 @@ export default function BancCatalogue() {
 
     for (const c of prepares) {
       try {
-        const fields: Record<string, string> = {};
-        c.recette.slots.forEach((s, k) => { fields[s.key] = echantillon(s.key, effectiveMax(c.recette, s), k); });
+        const fields = remplirSlots(c.recette.slots, s => effectiveMax(c.recette, s));
         const els = buildDesignElements(c.recette, {
           fields, brand: CHARTE, w: W, h: H, hasPhoto: true,
         }) as Record<string, unknown>[];
