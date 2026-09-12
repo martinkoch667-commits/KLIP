@@ -23,6 +23,7 @@ import {
   type Col, type Fnt, type DesignNode, type DesignRecipe, type DesignSlot,
   type TextNode, type Vibe, type Intent,
 } from './designSystem';
+import { deduireRoles } from './deduireRoles';
 
 /** Le cadre du modèle, en pixels, tel que l'éditeur l'a dessiné. */
 export type Format = { w: number; h: number };
@@ -150,7 +151,7 @@ function effet(el: El): TextNode['fx'] | undefined {
   return undefined;
 }
 
-function texteVersNoeud(el: El, fmt: Format, charte: Charte, cle: string | null): TextNode {
+function texteVersNoeud(el: El, fmt: Format, charte: Charte, cle: string | null, role: string | null): TextNode {
   const taille = n(el.fontSize) / fmt.w;
   const nd: TextNode = {
     k: 'text',
@@ -172,6 +173,7 @@ function texteVersNoeud(el: El, fmt: Format, charte: Charte, cle: string | null)
   // fois la taille du texte.
   if (n(el.letterSpacing) && n(el.fontSize)) nd.track = n(el.letterSpacing) / n(el.fontSize);
   if (n(el.maxLines)) nd.maxLines = n(el.maxLines);
+  if (role) nd.role = role as TextNode['role'];
   if (n(el.rotation)) nd.rotation = n(el.rotation);
   if (n(el.opacity, 100) !== 100) nd.opacity = n(el.opacity, 100);
   if (s(el.textDecoration).includes('line-through')) nd.strike = true;
@@ -257,10 +259,15 @@ export type Conversion = {
   pertes: string[];
 };
 
-/** Un slot par bloc de texte que l'IA devra écrire. Un calque SANS rôle porte un
- *  texte figé (un rail de marque, une mention) : il reste tel quel. */
-function estRemplissable(el: El): boolean {
-  return el.type === 'text' && !!s(el.role) && s(el.text).trim().length > 0;
+/** Un slot par bloc de texte que l'IA devra écrire.
+ *
+ *  LE RÔLE N'EST PLUS EXIGÉ DE CELUI QUI DESSINE. S'il en a posé un, il fait
+ *  foi. Sinon on le DÉDUIT du dessin (`deduireRoles`) : quelqu'un qui compose
+ *  écrit son titre en grand et sa mention en petit, et ces choix sont déjà
+ *  l'information. Avant, un modèle dont aucun bloc ne portait de rôle était
+ *  joli et parfaitement inutile — l'IA n'avait rien à y écrire. */
+function estRemplissable(el: El, roleDeduit: string | null): boolean {
+  return el.type === 'text' && !!(s(el.role) || roleDeduit) && s(el.text).trim().length > 0;
 }
 
 export function convertirModele(opt: {
@@ -275,15 +282,21 @@ export function convertirModele(opt: {
 }): Conversion {
   const pertes: string[] = [];
   const els = (opt.elements ?? []).filter((e): e is El => !!e && typeof e === 'object');
+
+  // Les rôles déduits du dessin, une fois pour toute la composition : la
+  // hiérarchie des tailles n'a de sens que comparée à l'ensemble.
+  const deduits = new Map<string, string | null>();
+  for (const d of deduireRoles(els as Parameters<typeof deduireRoles>[0])) deduits.set(d.id, d.role);
   const nodes: DesignNode[] = [];
   const slots: DesignSlot[] = [];
   const prises = new Set<string>();
 
   for (const el of els) {
     if (el.type === 'text') {
+      const roleDeduit = deduits.get(s(el.id)) ?? null;
       let cle: string | null = null;
-      if (estRemplissable(el)) {
-        const base = (s(el.roleLabel) || s(el.role) || 'texte').toLowerCase()
+      if (estRemplissable(el, roleDeduit)) {
+        const base = (s(el.roleLabel) || s(el.role) || roleDeduit || 'texte').toLowerCase()
           .normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'texte';
         cle = base; let i = 2;
         while (prises.has(cle)) cle = `${base}-${i++}`;
@@ -292,9 +305,9 @@ export function convertirModele(opt: {
         // dit la silhouette voulue. Un peu de marge, sans plus — le dessin a
         // été fait pour cette longueur-là.
         const max = Math.max(4, Math.round(s(el.text).length * 1.15));
-        slots.push({ key: cle, label: s(el.roleHint) || s(el.roleLabel) || s(el.role), max });
+        slots.push({ key: cle, label: s(el.roleHint) || s(el.roleLabel) || s(el.role) || roleDeduit || 'texte', max });
       }
-      nodes.push(texteVersNoeud(el, opt.format, opt.charte, cle));
+      nodes.push(texteVersNoeud(el, opt.format, opt.charte, cle, s(el.role) || roleDeduit));
       continue;
     }
     const nd = autreVersNoeud(el, opt.format, opt.charte);
@@ -302,7 +315,7 @@ export function convertirModele(opt: {
     else pertes.push(`calque « ${s(el.type) || 'inconnu'} » abandonné : pas d'équivalent dans une recette`);
   }
 
-  if (!slots.length) pertes.push('aucun bloc de texte porteur de rôle : l\'IA n\'aura rien à écrire dans cette composition');
+  if (!slots.length) pertes.push('aucun bloc de texte : l\'IA n\'aura rien à écrire dans cette composition');
   if (!nodes.some(x => x.k === 'photo')) pertes.push('aucune zone photo : cette composition ne sera proposée qu\'aux visuels SANS image');
 
   return {

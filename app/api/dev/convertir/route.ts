@@ -3,6 +3,7 @@ import { createClient } from '@supabase/supabase-js';
 import { convertirModele } from '@/lib/templateVersRecette';
 import { variantesDe } from '@/lib/variantesRecette';
 import { controlerRecette } from '@/lib/controleRecettes';
+import { deduireRoles } from '@/lib/deduireRoles';
 
 // Contrôle de bout en bout du convertisseur, sur de VRAIS modèles enregistrés.
 // DÉVELOPPEMENT UNIQUEMENT. Il lit avec la clé de service pour pouvoir tourner
@@ -53,6 +54,10 @@ export async function GET() {
       fautes: controlerRecette(recette).map(f => f.detail),
       pertes,
       variantes: v.map(x => x.geste),
+      // CE QUE LA DÉDUCTION SEULE AURAIT DONNÉ, rôles déclarés ignorés : c'est
+      // le cas de quelqu'un qui dessine sans rien déclarer, donc le cas visé.
+      deduction: deduireRoles((els as Record<string, unknown>[]).map(e => ({ ...e, role: undefined })) as never)
+        .map(x => `${x.role ?? 'figé'} ← ${x.texte.slice(0, 22)} (${x.pourquoi.slice(0, 40)})`),
     });
   }
   return NextResponse.json({ modeles: out.length, resultats: out });
