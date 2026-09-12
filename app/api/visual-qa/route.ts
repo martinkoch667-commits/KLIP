@@ -13,7 +13,13 @@ export const maxDuration = 60;
  *   composition TEXTE SUR PHOTO. Il corrige : taille, position, largeur, voile.
  *   Jamais la police ni la couleur (charte préservée).
  *
- * `mode: 'jugement'` — nouveau. Appelé sur une composition DESSINÉE (recette de
+ * `mode: 'reparation'` — le troisième. Il reprend les constats du juge et ne rend
+ *   que le geste MINIMAL qui les efface : déplacer, redimensionner. Interdit de
+ *   supprimer un calque, de toucher aux couleurs et aux polices, ou de défaire
+ *   une superposition voulue. C'est ce qui manquait : le juge disait « ce mot
+ *   est coupé » et personne ne le décalait.
+ *
+ * `mode: 'jugement'` — appelé sur une composition DESSINÉE (recette de
  *   `designSystem.ts`), il ne déplace RIEN : il dit si le visuel est montrable.
  *   Pourquoi un second métier plutôt qu'un réglage du premier : les règles de la
  *   retouche (« jamais deux textes qui se chevauchent », « pas d'aplat derrière
@@ -46,8 +52,71 @@ type Adn = {
 
 type Recette = { id?: string; name?: string; family?: string; zone?: string };
 
-/** Ce qui vaut pour les deux métiers : on ne cherche pas un défaut à tout prix. */
-/** Ce qui vaut pour les deux métiers : on ne cherche pas un défaut à tout prix,
+/**
+ * LE TROISIÈME MÉTIER : RÉPARER SANS DÉFAIRE.
+ *
+ * POURQUOI IL FALLAIT UN TROISIÈME MODE. `retouche` sait corriger, mais ses
+ * règles sont écrites pour du texte posé sur une photo : elle écarte tout ce
+ * qui se superpose, retire les aplats derrière le texte, réaligne. Sur une
+ * composition DESSINÉE, ces règles défont exactement ce qui en fait un visuel de
+ * marque — c'est la raison pour laquelle `jugement` existe à côté d'elle.
+ *
+ * Mais juger ne suffisait pas : le juge disait « ce mot est coupé » et personne
+ * ne le décalait. On reprend donc ses CONSTATS, et on ne demande que le geste
+ * minimal qui les efface.
+ *
+ * TROIS INTERDITS, et ce sont eux qui font la différence avec la retouche :
+ * ne pas supprimer de calque, ne pas toucher aux couleurs ni aux polices, ne
+ * pas défaire une superposition VOULUE. On déplace, on redimensionne, rien
+ * d'autre.
+ */
+function promptReparation(layers: unknown[], defauts: string[], w: number, h: number): string {
+  const liste = (layers as Array<Record<string, unknown>>).map(l =>
+    `- id=${l.id} rôle=${l.role ?? '(aucun)'} texte="${String(l.text ?? '').slice(0, 40)}" ` +
+    `x=${l.x} y=${l.y} largeur=${l.width} corps=${l.fontSize}`).join('\n');
+
+  return [
+    `Tu répares un visuel de ${w} x ${h} pixels. L'origine est en HAUT À GAUCHE.`,
+    '',
+    'CE QU\'UN PREMIER REGARD A RELEVÉ SUR CE VISUEL :',
+    ...(defauts.length ? defauts.map(d => `- ${d}`) : ['- (rien de précis : cherche ce qui saute aux yeux)']),
+    '',
+    'LES CALQUES DE TEXTE, avec leurs coordonnées actuelles :',
+    liste || '(aucun)',
+    '',
+    'TA TÂCHE : le geste MINIMAL qui efface ces défauts. Tu déplaces et tu',
+    'redimensionnes, rien d\'autre.',
+    '',
+    'TROIS INTERDITS ABSOLUS :',
+    '1. Ne SUPPRIME jamais un calque, et n\'en ajoute aucun.',
+    '2. Ne touche NI aux couleurs NI aux polices : elles viennent de la charte du',
+    '   client, elles ne t\'appartiennent pas.',
+    '3. Ne défais pas une superposition VOULUE — un mot manuscrit posé sur un mot',
+    '   barré, un texte sur son propre cartouche, un écho décalé. Tu ne sépares',
+    '   que ce qui rend un mot ILLISIBLE.',
+    '',
+    'CE QUE TU CORRIGES, dans cet ordre de priorité :',
+    '- un mot coupé par un bord : ramène-le dans le cadre ;',
+    '- deux textes DIFFÉRENTS qui se croisent : descends celui du dessous ;',
+    '- un texte posé sur un badge ou une pastille : décale-le à côté ;',
+    '- un bloc qui déborde de la place prévue : réduis son corps plutôt que de',
+    '  le déplacer, tant que la réduction reste sous 25 %.',
+    '',
+    'LES MARGES : garde au moins 5 % du cadre entre un texte et chaque bord.',
+    'LA HIÉRARCHIE : le plus gros texte doit RESTER le plus gros après ta',
+    'correction. Si tu dois réduire le titre, réduis le reste en proportion.',
+    '',
+    'Si un calque va bien, ne le mentionne pas. Un visuel déjà correct rend une',
+    'liste VIDE, et c\'est une bonne réponse.',
+    '',
+    'Réponds UNIQUEMENT avec ce JSON :',
+    '{ "ok": true|false, "issues": [ { "id": "<id du calque>", "problem": "ce qui',
+    'n\'allait pas", "fix": { "x"?: number, "y"?: number, "width"?: number,',
+    '"fontSize"?: number, "align"?: "left|center|right" } } ] }',
+  ].join('\n');
+}
+
+/** Ce qui vaut pour les trois métiers : on ne cherche pas un défaut à tout prix,
  *  et on n'en excuse pas un qu'on a vu.
  *
  *  LA BARRE A DEUX CÔTÉS, et la première version n'en avait qu'un. Écrite pour
@@ -76,12 +145,15 @@ export async function POST(request: NextRequest) {
 
     const body = await request.json();
     const { image, layers, stageW, stageH } = body;
-    const mode: 'retouche' | 'jugement' = body?.mode === 'jugement' ? 'jugement' : 'retouche';
+    const mode: 'retouche' | 'jugement' | 'reparation' =
+      body?.mode === 'jugement' ? 'jugement' : body?.mode === 'reparation' ? 'reparation' : 'retouche';
     if (typeof image !== 'string') return NextResponse.json({ error: 'image requise' }, { status: 400 });
 
     const prompt = mode === 'jugement'
       ? promptJugement(body.charte as Charte, body.adn as Adn, body.recette as Recette, stageW, stageH)
-      : promptRetouche(Array.isArray(layers) ? layers : [], stageW, stageH);
+      : mode === 'reparation'
+        ? promptReparation(Array.isArray(layers) ? layers : [], Array.isArray(body.defauts) ? body.defauts as string[] : [], stageW, stageH)
+        : promptRetouche(Array.isArray(layers) ? layers : [], stageW, stageH);
 
     let raw: string;
     try {
@@ -90,7 +162,7 @@ export async function POST(request: NextRequest) {
         userText: prompt,
         images: [image],
         temperature: 0.2,
-        maxTokens: mode === 'jugement' ? 900 : 700,
+        maxTokens: mode === 'jugement' ? 900 : mode === 'reparation' ? 900 : 700,
         // JUGER UN RENDU EST UN TRAVAIL DE JUGEMENT, PAS UNE EXTRACTION.
         // Mesuré le 2026-09-03 : au palier rapide, un titre posé à 8 px du bord
         // gauche passe inaperçu deux fois sur deux ; au palier de jugement il est

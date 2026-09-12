@@ -25,9 +25,12 @@ import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
 import { buildDesignElements, effectiveMax, type DesignRecipe } from "@/lib/designSystem";
 import { renderTemplateVisual } from "@/lib/composeRender";
 import { remplirSlots } from "@/lib/bancTextes";
+import { appliquerRetouches } from "@/lib/appliquerRetouches";
 
 type Item = {
   recette: DesignRecipe;
+  /** Nombre de corrections que le réparateur a posées sur ce dessin. */
+  reparee?: number;
   geste?: string;
   emprunt?: string | null;
   parent?: string;
@@ -98,6 +101,22 @@ export default function Atelier() {
   /** Le rendu se fait ICI, dans le navigateur : `renderTemplateVisual` a besoin
    *  d'un canvas, et le serveur n'en a pas. C'est la même contrainte que pour le
    *  juge de rendu, et la même réponse. */
+  /** Le rendu d'UNE composition, avec ses calques : le réparateur a besoin des
+   *  deux — l'image pour voir, les calques pour nommer ce qu'il déplace. */
+  const rendreUn = useCallback(async (rec: DesignRecipe) => {
+    const secours = remplirSlots(rec.slots, s => effectiveMax(rec, s));
+    const fields: Record<string, string> = {};
+    for (const sl of rec.slots) fields[sl.key] = sl.exemple?.trim() || secours[sl.key];
+    const els = buildDesignElements(rec, {
+      fields, brand: brand as never, w: W, h: H,
+      hasPhoto: rec.nodes.some(n => n.k === "photo"),
+    }) as Record<string, unknown>[];
+    const url = await renderTemplateVisual({
+      elements: els, sourceFormat: { w: W, h: H }, photoUrl: maPhoto ?? photo, w: W, h: H,
+    });
+    return { url, els };
+  }, [brand, photo, maPhoto]);
+
   const rendre = useCallback(async (items: Item[]) => {
     for (const it of items) {
       try {
@@ -158,7 +177,7 @@ export default function Atelier() {
     if (!items.length) { setEtat("Rien à relire : lance d'abord une déclinaison."); return; }
     const c = clients.find(x => x.id === (charteApercu || ws));
     setOccupe(true);
-    let vus = 0, rejetes = 0;
+    let vus = 0, rejetes = 0, reparees = 0;
     const aEcarter = new Set(ecartes);
     for (const it of items) {
       setEtat(`Relecture par le juge… ${vus}/${items.length}`);
@@ -179,17 +198,70 @@ export default function Atelier() {
         const d = await res.json();
         if (res.ok) {
           setVerdicts(v => ({ ...v, [it.recette.id]: { verdict: d.verdict, defauts: d.defauts ?? [] } }));
-          // Une composition rejetée est ÉCARTÉE d'office, pas supprimée : le
-          // dernier mot reste à l'oeil humain, et « Reprendre » la ramène.
-          if (d.verdict === "rejeter") { aEcarter.add(it.recette.id); rejetes++; }
+
+          // ON RÉPARE AVANT D'ÉCARTER. Juger ne sert à rien si personne ne
+          // corrige : le juge disait « ce mot est coupé » et la composition
+          // partait à la poubelle alors qu'un décalage de trente pixels la
+          // sauvait. On lui donne donc ses propres constats et on ne lui demande
+          // que le geste minimal qui les efface.
+          if (d.verdict === "rejeter") {
+            setEtat(`Réparation… ${vus}/${items.length}`);
+            const rep = await fetch("/api/visual-qa", {
+              method: "POST", headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                mode: "reparation", image: apercus[it.recette.id], stageW: W, stageH: H,
+                defauts: d.defauts ?? [],
+                layers: (await rendreUn(it.recette)).els
+                  .filter(e => e.type === "text")
+                  .map(e => ({ id: e.id, role: e.role, text: e.text, fontSize: e.fontSize, x: e.x, y: e.y, width: e.width })),
+              }),
+            }).then(x => x.json()).catch(() => null);
+
+            const { recette: corrigee, appliquees } =
+              appliquerRetouches(it.recette, rep?.issues ?? [], W, H);
+
+            if (appliquees > 0) {
+              // On REJUGE le résultat. Une réparation qu'on ne vérifie pas est
+              // un pari, et le juge vient précisément d'apprendre à voir.
+              const { url } = await rendreUn(corrigee);
+              if (url) {
+                setApercus(p => ({ ...p, [it.recette.id]: url }));
+                const rj = await fetch("/api/visual-qa", {
+                  method: "POST", headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({
+                    mode: "jugement", image: url, stageW: W, stageH: H,
+                    charte: {
+                      name: c?.name, sector: c?.sector, tone: c?.tone,
+                      colors: [c?.primary_color, c?.secondary_color, c?.accent_color].filter(Boolean),
+                      fonts: [c?.font_family, c?.font_secondary].filter(Boolean),
+                    },
+                    recette: { id: corrigee.id, name: corrigee.name, family: corrigee.family },
+                  }),
+                }).then(x => x.json()).catch(() => null);
+
+                if (rj?.verdict === "garder") {
+                  // Réparée ET validée : la recette CORRIGÉE remplace l'ancienne,
+                  // sinon on enregistrerait le dessin fautif avec une belle image.
+                  const remplace = (l: Item[]) => l.map(y =>
+                    y.recette.id === it.recette.id ? { ...y, recette: corrigee, reparee: appliquees } : y);
+                  setBases(remplace); setSeries(remplace);
+                  setVerdicts(v => ({ ...v, [it.recette.id]: { verdict: "garder", defauts: [`réparée : ${appliquees} correction(s)`] } }));
+                  reparees++;
+                  vus++; continue;
+                }
+                setVerdicts(v => ({ ...v, [it.recette.id]: { verdict: "rejeter", defauts: rj?.defauts ?? d.defauts ?? [] } }));
+              }
+            }
+            aEcarter.add(it.recette.id); rejetes++;
+          }
         }
       } catch { /* un jugement manquant ne doit pas arrêter la relecture */ }
       vus++;
     }
     setEcartes(aEcarter);
-    setEtat(`${vus} relue(s) · ${rejetes} écartée(s) par le juge · ${vus - rejetes} montrable(s).`);
+    setEtat(`${vus} relue(s) · ${reparees} réparée(s) puis validée(s) · ${rejetes} écartée(s) · ${vus - rejetes} montrable(s).`);
     setOccupe(false);
-  }, [bases, series, apercus, clients, charteApercu, ws, ecartes]);
+  }, [bases, series, apercus, clients, charteApercu, ws, ecartes, rendreUn]);
 
   const basculer = (id: string) =>
     setEcartes(p => { const n = new Set(p); if (n.has(id)) n.delete(id); else n.add(id); return n; });
