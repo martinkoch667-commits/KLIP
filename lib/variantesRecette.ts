@@ -205,13 +205,25 @@ export function variantesDe(
   }
 
   // LE FILTRE QUI REND LE VOLUME POSSIBLE. Sans lui, deux cents variantes
-  // demanderaient deux cents relectures de solidité avant même de parler de
-  // goût.
+  // demanderaient deux cents relectures de solidité avant même de parler de goût.
+  //
+  // ON JUGE LA VARIANTE PAR RAPPORT À SA BASE, PAS DANS L'ABSOLU. Une
+  // composition dessinée à la main porte souvent des superpositions VOULUES : un
+  // mot posé sur un badge, un prix par-dessus un titre. Le contrôle les compte
+  // comme des fautes, à raison quand c'est une machine qui les a produites — mais
+  // ici c'est un parti pris d'auteur, et refuser toutes les variantes d'une
+  // composition volontairement dense revenait à n'en décliner aucune. Mesuré sur
+  // les modèles de Martin : deux d'entre eux ne sortaient qu'UNE variante au lieu
+  // de quatre pour cette seule raison.
+  //
+  // Ce qu'on refuse, c'est donc une variante qui AJOUTE une faute : celle-là, on
+  // l'a bien introduite nous-mêmes.
+  const fautesBase = controlerRecette(r).length;
   const retenues: Variante[] = [];
   const vues = new Set<string>();
   for (const c of candidates) {
     if (retenues.length >= combien) break;
-    if (controlerRecette(c.recette).length) continue;
+    if (controlerRecette(c.recette).length > fautesBase) continue;
     // Deux réglages peuvent tomber sur le même dessin : on ne propose pas
     // deux fois la même chose à valider.
     const empreinte = JSON.stringify(c.recette.nodes);

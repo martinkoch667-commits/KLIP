@@ -3,6 +3,7 @@ import { createClient } from '@supabase/supabase-js';
 import { convertirModele } from '@/lib/templateVersRecette';
 import { variantesDe } from '@/lib/variantesRecette';
 import { controlerRecette } from '@/lib/controleRecettes';
+import { cadreDe } from '@/lib/formatsEditeur';
 import { deduireRoles } from '@/lib/deduireRoles';
 
 // Contrôle de bout en bout du convertisseur, sur de VRAIS modèles enregistrés.
@@ -11,17 +12,13 @@ import { deduireRoles } from '@/lib/deduireRoles';
 // quelqu'un d'y passer un après-midi.
 export const dynamic = 'force-dynamic';
 
-const FMT: Record<string, [number, number]> = {
-  'ig-portrait': [1080, 1350], 'ig-45': [1080, 1350], 'ig-square': [1080, 1080],
-  'ig-story': [1080, 1920], facebook: [1200, 630],
-};
 
 export async function GET() {
   if (process.env.NODE_ENV === 'production') return new NextResponse(null, { status: 404 });
   const sb = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
 
   const { data: tpls } = await sb.from('post_templates')
-    .select('id, name, format_id, text_zones, pages, workspace_id').limit(20);
+    .select('id, name, format_id, text_zones, pages, workspace_id').limit(200);
   const { data: wss } = await sb.from('workspaces')
     .select('id, name, sector, tone, primary_color, secondary_color, accent_color, font_family, font_secondary');
   const parWs = new Map((wss ?? []).map(w => [w.id, w]));
@@ -33,7 +30,7 @@ export async function GET() {
     const els = Array.isArray(pages) && pages.length ? (pages[0]?.elements ?? []) : (row.text_zones as unknown[] ?? []);
     if (!Array.isArray(els) || !els.length) continue;
     const w = parWs.get(String(row.workspace_id));
-    const [fw, fh] = FMT[String(row.format_id)] ?? FMT['ig-portrait'];
+    const [fw, fh] = cadreDe(row.format_id);
 
     const { recette, pertes } = convertirModele({
       elements: els, format: { w: fw, h: fh },

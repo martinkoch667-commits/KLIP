@@ -4,6 +4,7 @@ import { cookies } from 'next/headers';
 import { convertirModele, type Charte } from '@/lib/templateVersRecette';
 import { declinerSerie } from '@/lib/variantesRecette';
 import { controlerRecette } from '@/lib/controleRecettes';
+import { cadreDe } from '@/lib/formatsEditeur';
 
 /* POST /api/atelier/decliner — « j'ai dessiné mes modèles, fais-m'en une série ».
  *
@@ -18,10 +19,6 @@ import { controlerRecette } from '@/lib/controleRecettes';
  * restent des fractions valides. */
 export const maxDuration = 60;
 
-const FMT: Record<string, [number, number]> = {
-  'ig-portrait': [1080, 1350], 'ig-45': [1080, 1350], 'ig-square': [1080, 1080],
-  'ig-story': [1080, 1920], facebook: [1200, 630],
-};
 
 export async function POST(request: NextRequest) {
   try {
@@ -65,7 +62,7 @@ export async function POST(request: NextRequest) {
     const pertes: { modele: string; quoi: string[] }[] = [];
     for (const t of tpls ?? []) {
       const row = t as Record<string, unknown>;
-      const [w, h] = FMT[String(row.format_id)] ?? FMT['ig-portrait'];
+      const [w, h] = cadreDe(row.format_id);
       // `pages` porte le modèle complet quand il en a plusieurs ; on ne décline
       // que la PREMIÈRE page : c'est elle qui décide si un post est lu.
       const pages = row.pages as Array<{ elements?: unknown[] }> | null;

@@ -163,6 +163,21 @@ function texteVersNoeud(el: El, fmt: Format, charte: Charte, cle: string | null,
     fill: couleurVersRole(s(el.fill, '#FFFFFF'), charte),
     font: policeVersRole(s(el.fontFamily), s(el.fontRole) || undefined, charte),
   };
+  // RAMENER LA BOÎTE DANS LE CADRE.
+  //
+  // L'éditeur laisse volontiers une boîte de texte dépasser : le bloc est large,
+  // le texte à l'intérieur ne l'est pas, et à l'écran tout paraît juste. Mais une
+  // recette dit à l'IA combien de signes elle peut écrire à partir de cette
+  // largeur — une boîte qui sort du cadre l'autorise donc à écrire hors champ,
+  // et le contrôle géométrique refuse la composition à raison.
+  //
+  // On rogne la LARGEUR, jamais la position : déplacer le bloc changerait le
+  // dessin, le rogner ne fait que dire la vérité sur la place disponible.
+  if (nd.x < 0) { nd.w += nd.x; nd.x = 0; }
+  if (nd.x + nd.w > 1) nd.w = Math.max(0.1, 1 - nd.x);
+  nd.w = Math.round(nd.w * 1000) / 1000;
+  nd.x = Math.round(nd.x * 1000) / 1000;
+
   if (s(el.fontStyle).includes('bold')) nd.weight = 'bold';
   if (s(el.fontStyle).includes('italic')) nd.italic = true;
   if (el.align && el.align !== 'left') nd.align = el.align as TextNode['align'];
