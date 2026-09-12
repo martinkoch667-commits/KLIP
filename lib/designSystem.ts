@@ -213,9 +213,14 @@ export const DESIGN_RECIPES: DesignRecipe[] = [
     desc: 'Photo plein cadre, rail de marque en haut, et la signature manuscrite de la marque posée grand au milieu-bas, en couleur de marque. Le geste du restaurant Amicii : la photo parle, la marque signe.',
     slots: [sl('signature', 'le nom de la marque ou un mot manuscrit très court', 16), sl('sous', 'mention discrète sous la signature', 40)],
     nodes: [
-      P(0, 0, 1, 1, { dark: 8 }),
+      P(0, 0, 1, 1, { dark: 24 }),
       rail('white'),
-      T('signature', 0.12, 0.6, 0.76, 0.17, 'brand', { font: 'script', align: 'center', maxLines: 1, shadow: true }),
+      // BLANC, PAS LA COULEUR DE MARQUE. Une signature en rouge de charte posée
+      // à même une photo de plat était illisible : le rouge et le doré d'un
+      // burger ont la même valeur, et le halo n'y peut rien. Sur une image, le
+      // blanc est la règle ; la couleur de marque se pose sur un aplat, pas sur
+      // une photo. C'est la SEULE recette du fichier qui faisait ça.
+      T('signature', 0.12, 0.6, 0.76, 0.17, 'paper', { font: 'script', align: 'center', maxLines: 1, shadow: true }),
       T('sous', 0.18, 0.79, 0.64, 0.028, 'white', { font: 'body', align: 'center', upper: true, track: 0.2, maxLines: 1, role: 'sous-titre' }),
     ],
   },
