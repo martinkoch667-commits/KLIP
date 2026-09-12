@@ -230,7 +230,7 @@ export const DESIGN_RECIPES: DesignRecipe[] = [
       R(0, 0.35, 1, 0.65, 'black', { scrim: 'bottom', opacity: 55 }),
       T('avant', 0.08, 0.46, 0.84, 0.09, 'white', { upper: true, lh: 0.96, maxLines: 2, weight: 'bold' }),
       T('barre', 0.08, 0.63, 0.6, 0.09, 'white', { upper: true, maxLines: 1, weight: 'bold', strike: true, opacity: 70 }),
-      T('corrige', 0.26, 0.608, 0.6, 0.105, 'accentLight', { font: 'script', maxLines: 1, rotation: -6 }),
+      T('corrige', 0.26, 0.608, 0.6, 0.105, 'accentLight', { font: 'script', maxLines: 1, rotation: -6, shadow: true }),
       T('apres', 0.08, 0.76, 0.84, 0.09, 'white', { upper: true, lh: 0.96, maxLines: 1, weight: 'bold' }),
     ],
   },
@@ -1442,7 +1442,7 @@ export const DESIGN_RECIPES: DesignRecipe[] = [
     nodes: [
       P(0, 0, 1, 1, { dark: 26 }),
       T('titre', 0.07, 0.63, 0.82, 0.1, 'paper', { upper: true, lh: 0.96, maxLines: 1, role: 'titre', weight: 'bold', track: -0.01 }),
-      T('mot', 0.09, 0.755, 0.66, 0.115, 'accentLight', { font: 'script', maxLines: 1, role: 'accroche', rotation: -5 }),
+      T('mot', 0.09, 0.755, 0.66, 0.115, 'accentLight', { font: 'script', maxLines: 1, role: 'accroche', rotation: -5, shadow: true }),
     ],
   },
   {
@@ -1510,8 +1510,8 @@ export const DESIGN_RECIPES: DesignRecipe[] = [
     slots: [sl('q1', 'la première réplique', 34), sl('q2', 'la réponse', 34)],
     nodes: [
       P(0, 0, 1, 1, { dark: 26 }),
-      T('q1', 0.07, 0.085, 0.5, 0.062, 'accentLight', { font: 'script', lh: 1.05, maxLines: 2, role: 'accroche', rotation: -4 }),
-      T('q2', 0.4, 0.275, 0.52, 0.062, 'paper', { font: 'script', lh: 1.05, maxLines: 2, role: 'accroche', rotation: 3 }),
+      T('q1', 0.07, 0.085, 0.5, 0.062, 'accentLight', { font: 'script', lh: 1.05, maxLines: 2, role: 'accroche', rotation: -4, shadow: true }),
+      T('q2', 0.4, 0.275, 0.52, 0.062, 'paper', { font: 'script', lh: 1.05, maxLines: 2, role: 'accroche', rotation: 3, shadow: true }),
     ],
   },
   {
