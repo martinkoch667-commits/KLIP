@@ -65,6 +65,14 @@ export default function Atelier() {
   // le client qui l'a dessinée, on ne vérifie rien — les couleurs littérales et
   // les rôles rendent alors exactement pareil.
   const [charteApercu, setCharteApercu] = useState<string>("");
+
+  // LE JUGE DE RENDU, celui du banc, appliqué ICI. Le contrôle géométrique et le
+  // re-calage tournent déjà à la conversion : ils garantissent qu'aucun calque ne
+  // sort du cadre et que les blocs se ré-empilent sur leur hauteur réelle. Mais
+  // personne ne REGARDAIT le résultat. Or c'est le seul moment où l'on voit qu'un
+  // texte est avalé par la photo, qu'un mot en croise un autre, qu'une ligne
+  // casse là où il ne fallait pas.
+  const [verdicts, setVerdicts] = useState<Record<string, { verdict: string; defauts: string[] }>>({});
   const [photo, setPhoto] = useState<string>("/banc-photos/produit-sombre-1.jpg");
   const [maPhoto, setMaPhoto] = useState<string | null>(null);
 
@@ -136,6 +144,48 @@ export default function Atelier() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [charteApercu, photo, maPhoto]);
 
+  /** Relit chaque aperçu RENDU, comme le fait l'éditeur après une composition.
+   *  Volontairement sur DEMANDE et non à chaque déclinaison : c'est un appel de
+   *  vision par composition, autour de six secondes — trente-cinq compositions
+   *  font trois minutes, qu'on ne paie pas à chaque changement de charte. */
+  const relire = useCallback(async () => {
+    const items = [...bases, ...series].filter(i => apercus[i.recette.id]);
+    if (!items.length) { setEtat("Rien à relire : lance d'abord une déclinaison."); return; }
+    const c = clients.find(x => x.id === (charteApercu || ws));
+    setOccupe(true);
+    let vus = 0, rejetes = 0;
+    const aEcarter = new Set(ecartes);
+    for (const it of items) {
+      setEtat(`Relecture par le juge… ${vus}/${items.length}`);
+      try {
+        const res = await fetch("/api/visual-qa", {
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            mode: "jugement", image: apercus[it.recette.id], stageW: W, stageH: H,
+            charte: {
+              name: c?.name, sector: c?.sector, tone: c?.tone,
+              colors: [c?.primary_color, c?.secondary_color, c?.accent_color].filter(Boolean),
+              fonts: [c?.font_family, c?.font_secondary].filter(Boolean),
+            },
+            recette: { id: it.recette.id, name: it.recette.name, family: it.recette.family },
+          }),
+        });
+        if (res.status === 401) { setEtat("Session expirée : reconnecte-toi."); break; }
+        const d = await res.json();
+        if (res.ok) {
+          setVerdicts(v => ({ ...v, [it.recette.id]: { verdict: d.verdict, defauts: d.defauts ?? [] } }));
+          // Une composition rejetée est ÉCARTÉE d'office, pas supprimée : le
+          // dernier mot reste à l'oeil humain, et « Reprendre » la ramène.
+          if (d.verdict === "rejeter") { aEcarter.add(it.recette.id); rejetes++; }
+        }
+      } catch { /* un jugement manquant ne doit pas arrêter la relecture */ }
+      vus++;
+    }
+    setEcartes(aEcarter);
+    setEtat(`${vus} relue(s) · ${rejetes} écartée(s) par le juge · ${vus - rejetes} montrable(s).`);
+    setOccupe(false);
+  }, [bases, series, apercus, clients, charteApercu, ws, ecartes]);
+
   const basculer = (id: string) =>
     setEcartes(p => { const n = new Set(p); if (n.has(id)) n.delete(id); else n.add(id); return n; });
 
@@ -175,6 +225,16 @@ export default function Atelier() {
         <figcaption style={{ marginTop: 8 }}>
           <div style={{ fontWeight: 700, fontSize: 13 }}>{it.recette.name}</div>
           <div style={{ color: "#8a8a85", fontSize: 11 }}>{it.recette.slots.length} champ(s) · {it.recette.family}</div>
+          {verdicts[id] && (
+            <div style={{ marginTop: 6, fontSize: 11 }}>
+              <strong style={{ color: verdicts[id].verdict === "garder" ? "#1a7f37" : "#cf222e" }}>
+                juge : {verdicts[id].verdict === "garder" ? "montrable ✓" : "à revoir"}
+              </strong>
+              {verdicts[id].defauts.slice(0, 2).map((d, i) => (
+                <div key={i} style={{ color: "#cf222e" }}>· {d}</div>
+              ))}
+            </div>
+          )}
           {!!it.fautes?.length && (
             <div style={{ color: "#cf222e", fontSize: 11, marginTop: 4 }}>⚠ {it.fautes[0]}</div>
           )}
@@ -259,6 +319,12 @@ export default function Atelier() {
       )}
 
       <div style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap", marginBottom: 16 }}>
+        {tout.length > 0 && (
+          <button onClick={() => void relire()} disabled={occupe} style={{
+            padding: "8px 16px", borderRadius: 8, border: "1px solid #7a6a3a", cursor: "pointer",
+            background: "#FFF8E8", fontWeight: 700,
+          }}>Faire relire par le juge</button>
+        )}
         {tout.length > 0 && (
           <button onClick={() => void enregistrer()} disabled={occupe} style={{
             padding: "8px 16px", borderRadius: 8, border: "1px solid #0C2A1D", cursor: "pointer",
