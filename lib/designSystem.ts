@@ -3315,10 +3315,17 @@ export interface PickOptions {
   avoid?: string[];
   count?: number;
   seed?: number;
+  /** LE VIVIER DANS LEQUEL PUISER. Par défaut les recettes du code ; l'appelant
+   *  passe ici le catalogue ÉLARGI (code + base, cf. `lib/recettesBase.ts`)
+   *  quand les compositions dessinées à l'atelier doivent entrer dans le
+   *  tirage. Sans ce paramètre, tout ce qui est ajouté en base resterait
+   *  invisible jusqu'au prochain déploiement. */
+  catalogue?: DesignRecipe[];
 }
 
 export function pickDesignCandidates(o: PickOptions): DesignRecipe[] {
-  const count = Math.max(6, Math.min(o.count ?? 22, DESIGN_RECIPES.length));
+  const vivier = o.catalogue?.length ? o.catalogue : DESIGN_RECIPES;
+  const count = Math.max(6, Math.min(o.count ?? 22, vivier.length));
   const avoid = new Set((o.avoid ?? []).map(String));
   const sector = (o.sector ?? '').trim().toLowerCase();
   const rand = rng(o.seed ?? Date.now());
@@ -3331,13 +3338,13 @@ export function pickDesignCandidates(o: PickOptions): DesignRecipe[] {
   // existe, toute composition proposée doit donc avoir une zone pour l'accueillir
   // — sans exception, c'est la raison pour laquelle la personne l'a importée.
   const aUneZonePhoto = (r: DesignRecipe) => r.nodes.some(n => n.k === 'photo');
-  const usable = DESIGN_RECIPES.filter(r => (o.hasPhoto ? aUneZonePhoto(r) : !aUneZonePhoto(r)));
+  const usable = vivier.filter(r => (o.hasPhoto ? aUneZonePhoto(r) : !aUneZonePhoto(r)));
 
   // Une note TIRÉE UNE FOIS par recette. Calculée dans le comparateur, elle
   // changeait à chaque comparaison : le tri devenait du bruit, et l'affinité de
   // secteur ne pesait plus rien.
   const notes = new Map<string, number>();
-  for (const r of DESIGN_RECIPES) {
+  for (const r of vivier) {
     let n = rand();
     if (sector && r.sectors?.some(x => x.toLowerCase() === sector)) n += 1.2; // affinité de secteur
     if (avoid.has(r.id)) n -= 3;                                             // déjà vu récemment

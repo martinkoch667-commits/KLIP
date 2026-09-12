@@ -10,6 +10,7 @@ import {
 } from '@/lib/designSystem';
 import { pickColorway } from '@/lib/colorway';
 import { controlerRecette } from '@/lib/controleRecettes';
+import { catalogueDe } from '@/lib/recettesBase';
 
 // Diriger un visuel prend plus que les 10 s par défaut d'une fonction Vercel :
 // le modèle regarde la photo, les références, et réfléchit. Sans cette ligne,
@@ -269,7 +270,24 @@ export async function POST(request: NextRequest) {
     const hasPhotoForDesign = typeof hasPhoto === 'boolean'
       ? hasPhoto
       : (typeof imageUrl === 'string' && imageUrl.startsWith('http'));
+    // LE CATALOGUE ÉLARGI : le code PLUS les compositions dessinées à l'atelier
+    // et leurs déclinaisons (`design_recipes`). Sans cette ligne, tout ce qui
+    // est ajouté en base resterait invisible jusqu'au prochain déploiement —
+    // l'atelier écrirait dans le vide.
+    const catalogue = await catalogueDe(
+      typeof workspaceId === 'string' ? workspaceId : null,
+      async () => {
+        const r = await sb
+          .from('design_recipes')
+          .select('recipe_id, name, family, vibe, intents, sectors, photo, description, nodes, slots')
+          .eq('active', true)
+          .limit(1000);
+        return { data: r.data as never, error: r.error };
+      },
+    );
+
     const designPool = pickDesignCandidates({
+      catalogue,
       hasPhoto: hasPhotoForDesign,
       sector: typeof wsRow?.sector === 'string' ? wsRow.sector : null,
       avoid: recentIds.map(id => id.replace(/^ds:/, '')),
@@ -386,7 +404,7 @@ export async function POST(request: NextRequest) {
     const picks = picksBruts.filter((p) => {
       const pk = p as { source?: string; id?: unknown };
       if (pk?.source !== 'design') return true;
-      const recette = findDesignRecipe(pk.id);
+      const recette = catalogue.find(x => x.id === String(pk.id)) ?? findDesignRecipe(pk.id);
       if (!recette) return true;
       const fautes = controlerRecette(recette);
       if (fautes.length === 0) return true;
@@ -489,7 +507,7 @@ export async function POST(request: NextRequest) {
       // l'aperçu n'ont donc rien de nouveau à apprendre — et l'utilisateur peut
       // déplacer chaque élément, rien n'est verrouillé.
       if (pick?.source === 'design') {
-        const recipe = findDesignRecipe(pick.id);
+        const recipe = catalogue.find(x => x.id === String(pick.id)) ?? findDesignRecipe(pick.id);
         if (recipe) {
           const fields = sanitizeFields(recipe, pick.fields);
           if (Object.keys(fields).length) {
