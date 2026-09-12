@@ -24,6 +24,7 @@ import {
   DESIGN_RECIPES, buildDesignElements, effectiveMax, recipeZone, type DesignRecipe,
 } from "@/lib/designSystem";
 import { renderTemplateVisual } from "@/lib/composeRender";
+import { echantillon } from "@/lib/bancTextes";
 
 // Charte réelle de Pepe Chicken : c'est le client sur lequel les visuels
 // rejetés ont été produits, donc le seul juge utile.
@@ -54,19 +55,6 @@ const PHOTOS = [
   { id: "ugc-visage", label: "UGC / visage" },
 ];
 
-const MOTS = ["Ouvert ce soir", "La carte change chaque semaine", "Trois places restantes", "Nouveau"];
-
-function echantillon(cle: string, max: number, i: number): string {
-  if (/^p\d|prix/.test(cle)) return ["12€", "8,50€", "19€"][i % 3];
-  if (cle === "chiffre") return ["+248%", "12", "4,9"][i % 3];
-  if (cle === "date") return "12 OCT";
-  if (cle === "heure") return "19H00";
-  const t = MOTS[i % MOTS.length];
-  if (t.length <= max) return t;
-  const coupe = t.slice(0, max + 1);
-  const espace = coupe.lastIndexOf(" ");
-  return (espace > max * 0.5 ? coupe.slice(0, espace) : t.slice(0, max)).replace(/[\s,;:.!?…-]+$/, "");
-}
 
 type Verdict = {
   verdict: "garder" | "rejeter";
