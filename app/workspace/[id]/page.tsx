@@ -1007,22 +1007,71 @@ export default function WorkspacePage() {
         });
         if (!res.ok) return;
         const data = await res.json();
-        const layout = Array.isArray(data?.layouts) ? data.layouts[0] : null;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const propositions: any[] = Array.isArray(data?.layouts) ? data.layouts : [];
+        const layout = propositions[0] ?? null;
         if (!layout) return;
         // Une composition DESSINÉE (système de design ou template maison) arrive
         // en calques complets : on la rend telle quelle. Sans ce chemin, le
         // Composer retombait sur la photo brute et l'utilisateur ne découvrait le
         // vrai visuel qu'en ouvrant l'éditeur.
         if (Array.isArray(layout.template?.elements) && layout.template.elements.length) {
-          url = await renderTemplateVisual({
-            elements: layout.template.elements,
-            sourceFormat: layout.template.sourceFormat ?? null,
+          // LE JUGE ENTRE ICI AUSSI, et il le fallait : c'est par LE COMPOSEUR
+          // qu'on génère un visuel — on importe une photo, on écrit son prompt,
+          // on clique. La relecture n'existait que derrière le bouton de
+          // l'éditeur, c'est-à-dire sur un chemin qu'on n'emprunte presque
+          // jamais. Le garde-fou géométrique et les règles de mise en page
+          // s'appliquaient bien (elles sont côté serveur), mais PERSONNE ne
+          // regardait le rendu.
+          //
+          // ON MONTRE D'ABORD, ON RELIT ENSUITE. Le premier aperçu s'affiche
+          // tout de suite ; le jugement prend six secondes et n'a aucune raison
+          // de faire attendre devant un écran vide. Si la composition est
+          // rejetée, la suivante la remplace en silence.
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const rendre = async (l: any) => renderTemplateVisual({
+            elements: l.template.elements,
+            sourceFormat: l.template.sourceFormat ?? null,
             // Y compris un blob local : l'aperçu se dessine dans le navigateur,
             // il n'a pas besoin que la photo soit déjà en ligne.
             photoUrl: item.photo_url || null,
             w, h,
           });
+
+          url = await rendre(layout);
           if (url) setPosts((prev) => prev.map((p) => (p.localId === item.localId ? { ...p, preview_url: url! } : p)));
+
+          // DEUX JUGEMENTS AU MAXIMUM, comme dans l'éditeur : chacun est un appel
+          // de vision, et une génération en lot en paierait un par carte.
+          const dessinees = propositions.filter(
+            (l) => Array.isArray(l?.template?.elements) && l.template.elements.length).slice(0, 2);
+          for (let i = 0; i < dessinees.length; i++) {
+            const rendu = i === 0 ? url : await rendre(dessinees[i]);
+            if (!rendu) continue;
+            try {
+              const jr = await fetch('/api/visual-qa', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  mode: 'jugement', image: rendu, stageW: w, stageH: h,
+                  charte: {
+                    name: workspace?.name, sector: workspace?.sector, tone: workspace?.tone,
+                    colors: [workspace?.primary_color, workspace?.secondary_color, workspace?.accent_color].filter(Boolean),
+                    fonts: [workspace?.font_family, workspace?.font_secondary].filter(Boolean),
+                  },
+                  recette: { id: String(dessinees[i]?.recipeId ?? '').replace(/^ds:/, '') },
+                }),
+              });
+              // UN JUGE MUET NE FAIT DISPARAÎTRE AUCUN VISUEL : panne, quota,
+              // réponse illisible, on garde ce qui est affiché.
+              if (!jr.ok) break;
+              const jd = await jr.json();
+              if (jd?.verdict !== 'rejeter') {
+                if (i > 0) setPosts((prev) => prev.map((p) => (p.localId === item.localId ? { ...p, preview_url: rendu } : p)));
+                break;
+              }
+              console.info(`[composeur] composition écartée par le juge : ${(jd.defauts ?? []).slice(0, 2).join(' · ')}`);
+            } catch { break; }
+          }
           return;
         }
         if (!layout.blocks?.length) return;
