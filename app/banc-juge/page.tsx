@@ -77,28 +77,50 @@ type Cas = {
 
 const W = 1080, H = 1350;
 
-/** Colle le premier texte à 8 px du bord gauche : le défaut que le palier
- *  rapide ne voyait pas. */
-function saboteBord(els: Record<string, unknown>[]): Record<string, unknown>[] {
-  let fait = false;
-  return els.map(e => {
-    if (!fait && e.type === "text") { fait = true; return { ...e, x: 8 }; }
-    return e;
-  });
+/* LES SABOTAGES VISENT LE PLUS GROS TEXTE, jamais le premier venu.
+ *
+ * POURQUOI ON A CHANGÉ. Ils prenaient le PREMIER calque texte de la recette.
+ * Sur `ds-rail-editorial`, c'est le rail de marque : une ligne minuscule,
+ * CENTRÉE, tout en haut. Le pousser à `x: 8` ne déplaçait presque rien (le
+ * texte reste centré dans sa boîte) et ne l'approchait d'aucun bord. Le défaut
+ * planté n'existait donc pas, et la colonne « défauts rejetés » du banc ne
+ * testait rien. Les 2/2 des tours précédents étaient une coïncidence : le juge
+ * rejetait ces visuels pour leur texte tronqué et leurs doublons, pas pour le
+ * sabotage.
+ *
+ * LA RÈGLE D'UN TÉMOIN SABOTÉ : si un humain ne voit pas le défaut en une
+ * seconde, il ne teste rien. On vise donc le TITRE, le texte le plus gros, et
+ * on le casse franchement. */
+
+/** Le plus gros texte de la composition : celui qu'on voit d'abord. */
+function plusGros(els: Record<string, unknown>[]): Record<string, unknown> | null {
+  const textes = els.filter(e => e.type === "text");
+  if (!textes.length) return null;
+  return textes.reduce((a, b) => (Number(b.fontSize) || 0) > (Number(a.fontSize) || 0) ? b : a);
 }
 
-/** Pose le deuxième texte exactement sur le premier : chevauchement ACCIDENTEL,
- *  celui qui doit être vu, par opposition aux deux calques d'un autocollant. */
+/** Le titre sort par la gauche : un tiers de sa largeur passe hors du cadre,
+ *  donc ses premières lettres sont réellement TRANCHÉES, pas « près du bord ». */
+function saboteBord(els: Record<string, unknown>[]): Record<string, unknown>[] {
+  const cible = plusGros(els);
+  if (!cible) return els;
+  const w = Number(cible.width) || 0;
+  return els.map(e => e === cible
+    ? { ...e, x: -Math.round(w * 0.32), align: "left" }
+    : e);
+}
+
+/** Le second plus gros texte est posé EXACTEMENT sur le titre : deux textes
+ *  DIFFÉRENTS qui se croisent, l'accident que le juge doit voir. */
 function saboteChevauchement(els: Record<string, unknown>[]): Record<string, unknown>[] {
-  const textes = els.filter(e => e.type === "text");
-  if (textes.length < 2) return els;
-  const premier = textes[0] as { x?: number; y?: number };
-  let n = 0;
-  return els.map(e => {
-    if (e.type !== "text") return e;
-    n += 1;
-    return n === 2 ? { ...e, x: premier.x ?? 0, y: (premier.y as number ?? 0) + 6 } : e;
-  });
+  const cible = plusGros(els);
+  if (!cible) return els;
+  const autres = els.filter(e => e.type === "text" && e !== cible);
+  if (!autres.length) return els;
+  const second = autres.reduce((a, b) => (Number(b.fontSize) || 0) > (Number(a.fontSize) || 0) ? b : a);
+  return els.map(e => e === second
+    ? { ...e, x: cible.x, y: (Number(cible.y) || 0) + 8, width: cible.width }
+    : e);
 }
 
 export default function BancJuge() {
