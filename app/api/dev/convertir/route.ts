@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { convertirModele } from '@/lib/templateVersRecette';
+import { buildDesignElements, effectiveMax } from '@/lib/designSystem';
 import { variantesDe } from '@/lib/variantesRecette';
 import { controlerRecette } from '@/lib/controleRecettes';
 import { cadreDe } from '@/lib/formatsEditeur';
@@ -52,6 +53,45 @@ export async function GET() {
       fautes: controlerRecette(recette).map(f => f.detail),
       pertes,
       variantes: v.map(x => x.geste),
+      // LE CONTRÔLE QUI COMPTE VRAIMENT : après `buildDesignElements`, donc
+      // après le re-calage et l'auto-ajustement, deux blocs porteurs de rôle se
+      // marchent-ils encore dessus ? C'est l'état que l'oeil voit, pas celui de
+      // la recette.
+      chevauchementsAuRendu: (() => {
+        const fields: Record<string, string> = {};
+        for (const sl of recette.slots) fields[sl.key] = (sl.exemple || '').trim() || 'Texte';
+        const els = buildDesignElements(recette, {
+          fields, brand: { primary: w?.primary_color, secondary: w?.secondary_color, accent: w?.accent_color,
+            name: w?.name, sector: w?.sector, tone: w?.tone, display: w?.font_family, body: w?.font_secondary } as never,
+          w: 1080, h: 1350, hasPhoto: recette.nodes.some(n => n.k === 'photo'),
+        }) as Record<string, unknown>[];
+        const t = els.filter(e => e.type === 'text' && e.role);
+        const boite = (e: Record<string, unknown>) => ({
+          y1: Number(e.y) || 0,
+          y2: (Number(e.y) || 0) + (Number(e.maxLines) || 1) * (Number(e.fontSize) || 0) * (Number(e.lineHeight) || 1.15),
+          x1: Number(e.x) || 0, x2: (Number(e.x) || 0) + (Number(e.width) || 0),
+        });
+        const out: string[] = [];
+        for (let i = 0; i < t.length; i++) for (let j = i + 1; j < t.length; j++) {
+          const a = boite(t[i]), b = boite(t[j]);
+          const dy = Math.min(a.y2, b.y2) - Math.max(a.y1, b.y1);
+          const dx = Math.min(a.x2, b.x2) - Math.max(a.x1, b.x1);
+          if (dy > 2 && dx > 2) out.push(`${t[i].role} × ${t[j].role} sur ${Math.round(dy)} px`);
+        }
+        return out;
+      })(),
+      effectiveMaxOk: recette.slots.every(sl => effectiveMax(recette, sl) > 0),
+      positions: (() => {
+        const fields: Record<string, string> = {};
+        for (const sl of recette.slots) fields[sl.key] = (sl.exemple || '').trim() || 'Texte';
+        const els = buildDesignElements(recette, {
+          fields, brand: { primary: w?.primary_color, secondary: w?.secondary_color, accent: w?.accent_color,
+            name: w?.name, sector: w?.sector, tone: w?.tone, display: w?.font_family, body: w?.font_secondary } as never,
+          w: 1080, h: 1350, hasPhoto: recette.nodes.some(n => n.k === 'photo'),
+        }) as Record<string, unknown>[];
+        return els.filter(e => e.type === 'text').map(e =>
+          `${e.role ?? 'figé'} x=${e.x} y=${e.y} w=${e.width} taille=${e.fontSize} lignes=${e.maxLines ?? '-'} rot=${e.rotation ?? 0}`);
+      })(),
       // CE QUE LA DÉDUCTION SEULE AURAIT DONNÉ, rôles déclarés ignorés : c'est
       // le cas de quelqu'un qui dessine sans rien déclarer, donc le cas visé.
       deduction: deduireRoles((els as Record<string, unknown>[]).map(e => ({ ...e, role: undefined })) as never)

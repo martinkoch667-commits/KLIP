@@ -3150,6 +3150,7 @@ export function buildDesignElements(recipe: DesignRecipe, opt: BuildOptions): an
     });
   }
   recalerGroupes(out, h);
+  separerBlocs(out, h);
   return out;
 }
 
@@ -3175,6 +3176,66 @@ export function buildDesignElements(recipe: DesignRecipe, opt: BuildOptions): an
  *    haut au haut : sinon une composition « bandeau bas » remonterait au milieu
  *    dès que son titre raccourcit.
  */
+/**
+ * DEUX TEXTES NE SE MARCHENT PAS DESSUS, et c'est une règle, pas un réglage.
+ *
+ * POURQUOI `recalerGroupes` NE SUFFIT PAS, et c'est le manque que Martin a
+ * nommé : cette fonction-là ADAPTE la composition au texte reçu — elle referme
+ * un trou quand le texte est court, elle pousse quand il est long. Mais si deux
+ * blocs se chevauchent DÉJÀ dans le dessin, chacun tenant exactement dans les
+ * lignes qu'on lui a réservées, elle ne voit aucun écart à corriger et n'y
+ * touche pas. Le « Texte 2 » posé en plein milieu du « Texte 1 » survivait donc
+ * à tout.
+ *
+ * Un metteur en page ne laisse jamais passer ça. Ce qui est dessous descend
+ * jusqu'à ce qu'on puisse le lire.
+ *
+ * CE QU'ON NE SÉPARE PAS, et il faut être précis sinon on casse des partis pris :
+ *   · un texte qui n'a pas de `role` est posé là exprès (mot manuscrit sur mot
+ *     barré, écho, tampon) — c'est la même convention que partout ailleurs ;
+ *   · un texte PIVOTÉ est un geste graphique, il traverse ce qu'il veut ;
+ *   · deux blocs qui ne partagent aucune colonne ne se gênent pas, même si
+ *     leurs hauteurs se croisent : ils sont côte à côte.
+ */
+function separerBlocs(out: Array<Record<string, unknown>>, h: number): void {
+  const n = (v: unknown, d = 0) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
+  const blocs = out
+    .filter(e => e.type === 'text' && e.role && !n(e.rotation))
+    .map(e => ({
+      e,
+      x: n(e.x), w: n(e.width),
+      y: n(e.y),
+      hauteur: Math.max(1, n(e.maxLines, 1)) * n(e.fontSize) * n(e.lineHeight, 1.15) + n(e.paddingV) * 2,
+    }))
+    .sort((a, b) => a.y - b.y);
+  if (blocs.length < 2) return;
+
+  // L'ÉCART MINIMAL est proportionnel au texte, pas une constante : deux
+  // mentions de 20 px n'ont pas besoin du même souffle que deux titres de 110.
+  const souffle = (a: typeof blocs[number]) => Math.max(6, n(a.e.fontSize) * 0.18);
+
+  const propose = blocs.map(b => b.y);
+  for (let i = 1; i < blocs.length; i++) {
+    for (let j = 0; j < i; j++) {
+      const a = blocs[j], b = blocs[i];
+      const memeColonne = !(a.x + a.w <= b.x + 4 || b.x + b.w <= a.x + 4);
+      if (!memeColonne) continue;
+      const basA = propose[j] + a.hauteur;
+      if (propose[i] < basA + souffle(a)) propose[i] = basA + souffle(a);
+    }
+  }
+
+  // ON N'APPLIQUE QUE CE QUI TIENT. Pousser un bloc hors du cadre remplace un
+  // défaut visible par un défaut pire : du texte qui n'existe plus à l'écran.
+  // Dans ce cas on descend quand même ce qu'on peut, et le dernier bloc reste
+  // collé au bas plutôt que d'en sortir.
+  for (let i = 0; i < blocs.length; i++) {
+    const limite = h - blocs[i].hauteur;
+    const y = Math.min(propose[i], Math.max(blocs[i].y, limite));
+    if (Math.abs(y - blocs[i].y) >= 1) blocs[i].e.y = Math.round(y);
+  }
+}
+
 function recalerGroupes(out: Array<Record<string, unknown>>, h: number): void {
   type Bloc = {
     e: Record<string, unknown>; y: number; x: number; w: number;
@@ -3218,12 +3279,42 @@ function recalerGroupes(out: Array<Record<string, unknown>>, h: number): void {
         if (courante + 1 + mot.length <= tient) courante += 1 + mot.length;
         else { lignesMots += 1; courante = mot.length; }
       }
-      const lignes = Math.max(1, Math.min(maxL, lignesMots));
+      // AUTO-AJUSTEMENT DU CORPS, avant de déplacer quoi que ce soit.
+      //
+      // C'est la première règle d'un metteur en page : quand un texte ne tient
+      // pas dans la place prévue, on le RÉDUIT avant de bousculer ses voisins.
+      // Un titre passé de deux lignes à trois pousse tout le bas de la
+      // composition ; le même titre rendu 12 % plus petit tient en deux lignes
+      // et ne dérange personne. On ne descend en dessous de 78 % qu'en dernier
+      // recours — au-delà le titre ne domine plus, et la hiérarchie se perd.
+      let taillePosee = taille;
+      let lignesMotsAjuste = lignesMots;
+      if (lignesMots > maxL && taille > 0) {
+        for (let essai = 0; essai < 6 && lignesMotsAjuste > maxL; essai++) {
+          const reduite = taillePosee * 0.95;
+          if (reduite < taille * 0.78) break;
+          taillePosee = reduite;
+          const parL = Math.max(1, Math.floor(largeur / Math.max(1, taillePosee * avance)));
+          const seuil = Math.max(1, Math.floor(parL * 0.88));
+          let n2 = 1, cur = -1;
+          for (const mot of texte.split(/\s+/).filter(Boolean)) {
+            if (cur < 0) { cur = mot.length; continue; }
+            if (cur + 1 + mot.length <= seuil) cur += 1 + mot.length;
+            else { n2 += 1; cur = mot.length; }
+          }
+          lignesMotsAjuste = n2;
+        }
+        if (taillePosee !== taille) e.fontSize = Math.round(taillePosee);
+      }
+      const lignes = Math.max(1, Math.min(maxL, lignesMotsAjuste));
+      // La hauteur RÉELLE se compte sur les lignes VRAIMENT nécessaires, même
+      // au-delà de `maxLines` : c'est elle qui dit de combien pousser la suite.
+      const lignesVraies = Math.max(1, lignesMotsAjuste);
       const marge = (Number(e.paddingV) || 0) * 2;
       return {
         e, y: Number(e.y) || 0, x: Number(e.x) || 0, w: largeur,
         reserve: maxL * taille * inter + marge,
-        reelle: lignes * taille * inter + marge,
+        reelle: lignesVraies * taillePosee * inter + marge,
       };
     })
     .sort((a, b) => a.y - b.y);
@@ -3255,9 +3346,19 @@ function recalerGroupes(out: Array<Record<string, unknown>>, h: number): void {
       respirations.push(Math.max(0, g[i + 1].y - (g[i].y + g[i].reserve)));
     }
 
-    // Rien à récupérer : chaque bloc remplit ce qu'on lui a réservé.
-    const gagne = g.reduce((n, b) => n + (b.reserve - b.reelle), 0);
-    if (gagne < 6) continue;
+    // ON RE-EMPILE DANS LES DEUX SENS, et c'est le manque que Martin a nommé.
+    //
+    // La version d'origine ne savait que REMONTER : elle supprimait la place
+    // réservée et non utilisée. Quand un texte prend PLUS de lignes que prévu,
+    // `gagne` devenait négatif et la fonction abandonnait — le bloc suivant
+    // restait à sa place de dessin, c'est-à-dire EN PLEIN dans le texte qui
+    // venait de grandir. « Texte 2 posé sur Texte 1 », exactement.
+    //
+    // Un metteur en page fait l'inverse : ce qui grandit pousse ce qui suit. On
+    // re-empile donc dès que la hauteur réelle diffère de la réservée, dans un
+    // sens comme dans l'autre.
+    const ecart = g.reduce((n, b) => n + Math.abs(b.reserve - b.reelle), 0);
+    if (ecart < 6) continue;
 
     // ANCRAGE EN HAUT, toujours. Le trou à supprimer est celui qui sépare deux
     // blocs de texte ; celui qui reste sous le groupe laisse simplement voir la
@@ -3279,6 +3380,21 @@ function recalerGroupes(out: Array<Record<string, unknown>>, h: number): void {
     const collision = nouveaux.some((ny, i) =>
       i > 0 && ny < nouveaux[i - 1] + g[i - 1].reelle - 1);
     if (collision) continue;
+    // POUSSER NE DOIT PAS FAIRE SORTIR DU CADRE. Si le groupe grandi dépasse le
+    // bas, on resserre d'abord les respirations ; si ça ne suffit toujours pas,
+    // on laisse le dessin tel quel plutôt que de jeter du texte hors du visuel.
+    const pied = nouveaux[g.length - 1] + g[g.length - 1].reelle;
+    if (pied > h * 0.985) {
+      const trop = pied - h * 0.975;
+      const respirable = respirations.reduce((n, r) => n + r, 0);
+      if (respirable < trop) continue;
+      const facteur = (respirable - trop) / respirable;
+      let y2 = g[0].y;
+      for (let i = 0; i < g.length; i++) {
+        nouveaux[i] = y2;
+        y2 += g[i].reelle + (respirations[i] ?? 0) * facteur;
+      }
+    }
 
     // ANCRAGE EN HAUT, toujours. Le trou à supprimer est celui qui sépare deux
     // blocs de texte ; celui qui reste sous le groupe laisse simplement voir la

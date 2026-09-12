@@ -187,6 +187,30 @@ function texteVersNoeud(el: El, fmt: Format, charte: Charte, cle: string | null,
   // corps. Copier la valeur telle quelle donnait un interlettrage de plusieurs
   // fois la taille du texte.
   if (n(el.letterSpacing) && n(el.fontSize)) nd.track = n(el.letterSpacing) / n(el.fontSize);
+  // COMBIEN DE LIGNES CE BLOC OCCUPE-T-IL VRAIMENT ?
+  //
+  // Sans réponse, `buildDesignElements` en suppose TROIS pour tout le monde —
+  // c'est son défaut, prudent pour une recette écrite à la main où l'auteur
+  // déclare ses `maxLines`. Sur un modèle converti, personne ne les déclare :
+  // chaque bloc devenait donc haut de trois lignes, un titre de 339 px se
+  // croyait haut de 1170, et TOUT se chevauchait. Les défauts que Martin voyait
+  // à l'écran étaient réels ; ceux que le contrôle comptait étaient, eux, en
+  // grande partie fantômes.
+  //
+  // On compte donc les lignes du texte qu'il a ÉCRIT, en mots comme un vrai
+  // retour à la ligne, et on laisse une ligne de marge : l'IA écrira un texte
+  // de longueur voisine, pas identique.
+  const avance = nd.font === 'condensed' ? 0.46 : nd.font === 'body' ? 0.52
+    : nd.font === 'serif' ? 0.5 : nd.font === 'script' ? 0.44 : 0.56;
+  const parLigne = Math.max(1, Math.floor(nd.w / Math.max(1e-6, nd.size * avance)));
+  const mots = s(el.text).trim().split(/\s+/).filter(Boolean);
+  let lignes = 1, courante = -1;
+  for (const mot of mots) {
+    if (courante < 0) { courante = mot.length; continue; }
+    if (courante + 1 + mot.length <= parLigne) courante += 1 + mot.length;
+    else { lignes += 1; courante = mot.length; }
+  }
+  nd.maxLines = Math.max(1, Math.min(4, lignes + (lignes === 1 ? 0 : 1)));
   if (n(el.maxLines)) nd.maxLines = n(el.maxLines);
   if (role) nd.role = role as TextNode['role'];
   if (n(el.rotation)) nd.rotation = n(el.rotation);
