@@ -220,7 +220,7 @@ export const DESIGN_RECIPES: DesignRecipe[] = [
       // burger ont la même valeur, et le halo n'y peut rien. Sur une image, le
       // blanc est la règle ; la couleur de marque se pose sur un aplat, pas sur
       // une photo. C'est la SEULE recette du fichier qui faisait ça.
-      T('signature', 0.12, 0.6, 0.76, 0.17, 'paper', { font: 'script', align: 'center', maxLines: 1, shadow: true }),
+      T('signature', 0.12, 0.6, 0.76, 0.17, 'white', { font: 'script', align: 'center', maxLines: 1, shadow: true }),
       T('sous', 0.18, 0.79, 0.64, 0.028, 'white', { font: 'body', align: 'center', upper: true, track: 0.2, maxLines: 1, role: 'sous-titre' }),
     ],
   },
