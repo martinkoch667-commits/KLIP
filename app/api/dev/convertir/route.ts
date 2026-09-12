@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { convertirModele } from '@/lib/templateVersRecette';
-import { buildDesignElements, effectiveMax } from '@/lib/designSystem';
+import { buildDesignElements, effectiveMax, DESIGN_RECIPES } from '@/lib/designSystem';
 import { variantesDe } from '@/lib/variantesRecette';
 import { controlerRecette } from '@/lib/controleRecettes';
 import { cadreDe } from '@/lib/formatsEditeur';
@@ -120,5 +120,47 @@ export async function GET() {
         .map(x => `${x.role ?? 'figé'} ← ${x.texte.slice(0, 22)} (${x.pourquoi.slice(0, 40)})`),
     });
   }
-  return NextResponse.json({ modeles: out.length, resultats: out });
+  // CONTRÔLE DE NON-RÉGRESSION : les compositions du CODE dont un texte est
+  // écrit POUR une forme (pastille, étoile, losange) doivent garder ce texte à
+  // l'endroit où l'auteur l'a mis. La mise en page les avait délogés.
+  const stickers = DESIGN_RECIPES.filter(r =>
+    r.nodes.some(n => n.k === 'shape')
+    && r.nodes.some(n => n.k === 'text' && typeof (n as { fill?: string }).fill === 'string'
+      && (n as { fill: string }).fill.startsWith('on')));
+  const deplaces: string[] = [];
+  for (const r of stickers) {
+    const fields: Record<string, string> = {};
+    for (const sl of r.slots) fields[sl.key] = 'Test';
+    const els = buildDesignElements(r, { fields, brand: {} as never, w: 1080, h: 1350, hasPhoto: true }) as Record<string, unknown>[];
+    // LA BONNE QUESTION N'EST PAS « A-T-IL BOUGÉ » MAIS « EST-IL TOUJOURS SUR SA
+    // FORME ». Le re-calage remonte légitimement un bloc quand le texte reçu est
+    // plus court que la place réservée : le compter comme un délogement ferait
+    // échouer le contrôle sur une adaptation parfaitement voulue.
+    r.nodes.forEach((nd, i) => {
+      if (nd.k !== 'text') return;
+      const f = (nd as { fill?: string }).fill;
+      if (typeof f !== 'string' || !f.startsWith('on')) return;
+      const t = nd as { x: number; y: number; w: number; size: number; maxLines?: number; lh?: number };
+      // La forme sur laquelle l'auteur l'a posé, dans le DESSIN d'origine.
+      const hT = (t.maxLines ?? 1) * t.size * (t.lh ?? 1.15) * (1080 / 1350);
+      const formes = r.nodes.filter((n): n is Extract<typeof n, { h: number }> =>
+        (n.k === 'shape' || n.k === 'rect'));
+      const sh = formes.find(n =>
+        n.x < t.x + t.w && n.x + n.w > t.x && n.y < t.y + hT && n.y + n.h > t.y);
+      if (!sh) return;
+      const e = els.find(x => String(x.id).endsWith(`-${i}`));
+      if (!e) return;
+      // Après rendu, le croise-t-il encore ?
+      const y1 = Number(e.y) || 0;
+      const y2 = y1 + Math.max(1, Number(e.maxLines) || 1) * (Number(e.fontSize) || 0) * (Number(e.lineHeight) || 1.15);
+      const s1 = sh.y * 1350, s2 = (sh.y + sh.h) * 1350;
+      const dessus = Math.min(y2, s2) - Math.max(y1, s1);
+      if (dessus <= 2) deplaces.push(`${r.id} : texte sorti de sa forme (${Math.round(s1)}..${Math.round(s2)} → ${Math.round(y1)}..${Math.round(y2)})`);
+    });
+  }
+
+  return NextResponse.json({
+    modeles: out.length, resultats: out,
+    stickersIntacts: { verifies: stickers.length, deplaces },
+  });
 }

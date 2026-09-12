@@ -3122,6 +3122,13 @@ export function buildDesignElements(recipe: DesignRecipe, opt: BuildOptions): an
       // jamais étaler le bloc hors de sa colonne.
       lockWidth: true,
       ...(nd.role ? { role: nd.role } : {}),
+      // CE TEXTE EST-IL FAIT POUR ÊTRE POSÉ SUR UNE COULEUR ? Les rôles `on*`
+      // (`onAccent`, `onBrand`, `onDeep`…) ne veulent dire qu'une chose : cette
+      // couleur a été CALCULÉE pour se lire sur un fond donné. Un texte qui en
+      // porte une n'est jamais tombé par accident sur une pastille — il a été
+      // écrit pour elle. Sans ce témoin, le rendu ne garde aucune trace de
+      // l'intention et la mise en page le déloge.
+      ...(typeof nd.fill === 'string' && nd.fill.startsWith('on') ? { surFond: true } : {}),
       ...(nd.bg
         ? { hasBg: true, bgColor: fill(nd.bg), bgOpacity: nd.bgOpacity ?? 100,
             cornerRadius: nd.bgRadius ?? 0,
@@ -3304,11 +3311,25 @@ function separerBlocs(out: Array<Record<string, unknown>>, h: number): void {
 
   for (let i = 0; i < blocs.length; i++) {
     const b = blocs[i];
+    // UN TEXTE ÉCRIT POUR UN FOND COLORÉ NE SE DÉLOGE PAS. C'est le sujet même
+    // d'un autocollant, d'une pastille de prix, d'un losange de mention : le mot
+    // est DANS la forme, et l'en sortir détruit la composition. Martin l'a vu
+    // sur « Étoile de prix », « Losange de mention » et « Bulle en coin », que
+    // cette fonction avait vidées de leur geste.
+    if (b.e.surFond) continue;
     for (const f of formes) {
       const memeColonne = !(f.x + f.w <= b.x + 4 || b.x + b.w <= f.x + 4);
       if (!memeColonne) continue;
       const croise = propose[i] < f.y + f.h && propose[i] + b.hauteur > f.y;
       if (!croise) continue;
+      // ET LE CONTENU N'EST PAS UNE COLLISION. Un texte largement CONTENU dans
+      // la forme y a été mis exprès ; celui qui CHEVAUCHE son bord est tombé
+      // dessus. C'est la différence entre un badge et un accident, et elle se
+      // mesure : on ne sépare qu'en dessous de 70 % de recouvrement.
+      const dx = Math.min(b.x + b.w, f.x + f.w) - Math.max(b.x, f.x);
+      const dy = Math.min(propose[i] + b.hauteur, f.y + f.h) - Math.max(propose[i], f.y);
+      const aire = Math.max(1, b.w * b.hauteur);
+      if ((Math.max(0, dx) * Math.max(0, dy)) / aire > 0.7) continue;
       // On le fait glisser du côté où il reste le plus de place.
       const versLeBas = f.y + f.h + souffle(b);
       const versLeHaut = f.y - b.hauteur - souffle(b);
@@ -3338,7 +3359,12 @@ function recalerGroupes(out: Array<Record<string, unknown>>, h: number): void {
   };
 
   const blocs: Bloc[] = out
-    .filter(e => e.type === 'text' && e.role && !e.rotation)
+    // UN TEXTE ÉCRIT POUR UNE FORME EST ANCRÉ À ELLE, pas au flux. Le re-calage
+    // referme les trous d'un GROUPE de texte ; un prix posé dans une pastille
+    // n'appartient à aucun groupe, et le remonter avec les autres le fait sortir
+    // de sa pastille. Vu sur `ds-evenement-bas`, dont la date quittait son aplat
+    // dès que le titre raccourcissait.
+    .filter(e => e.type === 'text' && e.role && !e.rotation && !e.surFond)
     .map((e) => {
       const taille = Number(e.fontSize) || 0;
       const largeur = Number(e.width) || 0;
