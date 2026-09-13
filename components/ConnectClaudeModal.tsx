@@ -13,16 +13,20 @@ import Fiche from '@/components/Fiche';
    un outil tiers à quelqu'un qui n'a encore rien produit : elle se referme
    sans être lue. Le point d'entrée est Réglages, quand on la cherche.
 
-   Le logo Claude est le vrai (public/claude-logo.svg, récupéré chez
-   Anthropic), et non plus une vignette passée par le service de favicons de
-   Google, qui rendait une image floue et pouvait disparaître du jour au
-   lendemain. */
+   Le logo Claude est le vrai (public/claude-icon.svg : l'icône d'app —
+   pastille orange, motif blanc — construite sur le tracé officiel), et non
+   plus une vignette passée par le service de favicons de Google, qui rendait
+   une image floue et pouvait disparaître du jour au lendemain. Le glyphe
+   orange nu posé sur une pastille blanche ne ressemblait pas à la marque
+   telle qu'on la voit dans l'app ou sur l'App Store. */
 
 const rich = { strong: (c: React.ReactNode) => <strong>{c}</strong> };
 
 function ClaudeMark({ size = 30 }: { size?: number }) {
+  // L'arrondi est déjà dans le SVG ; on le repose en CSS pour que le crénelage
+  // des angles soit coupé net quelle que soit la taille de rendu.
   // eslint-disable-next-line @next/next/no-img-element
-  return <img src="/claude-logo.svg" alt="Claude" width={size} height={size} style={{ display: 'block' }} />;
+  return <img src="/claude-icon.svg" alt="Claude" width={size} height={size} style={{ display: 'block', borderRadius: Math.round(size * 0.22) }} />;
 }
 
 export function ConnectClaudeModal({ open, onClose }: { open: boolean; onClose: () => void }) {
@@ -51,8 +55,8 @@ export function ConnectClaudeModal({ open, onClose }: { open: boolean; onClose: 
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src="/icon-192.png" alt="KLIP" width={34} height={34} style={{ borderRadius: 9, display: 'block' }} />
           <span style={{ fontSize: 15, fontWeight: 700, color: 'var(--ink-3)' }}>+</span>
-          <span style={{ width: 34, height: 34, borderRadius: 9, background: '#fff', display: 'grid', placeItems: 'center', flexShrink: 0, boxShadow: '0 0 0 1px var(--line-2)' }}>
-            <ClaudeMark size={22} />
+          <span style={{ display: 'grid', placeItems: 'center', flexShrink: 0 }}>
+            <ClaudeMark size={34} />
           </span>
         </div>
         <h2 className="fiche-title">{t('title')}</h2>
@@ -118,8 +122,8 @@ export function ConnectClaudePill() {
   return (
     <>
       <button onClick={() => setOpen(true)} className="claude-tie" aria-label={t('title')}>
-        <span className="claude-tie-glyph lp-logo" aria-hidden="true" style={{ background: '#fff', display: 'grid', placeItems: 'center' }}>
-          <ClaudeMark size={18} />
+        <span className="claude-tie-glyph lp-logo" aria-hidden="true" style={{ display: 'grid', placeItems: 'center' }}>
+          <ClaudeMark size={26} />
         </span>
         <span className="claude-tie-txt">
           {t.rich('pill', rich)}

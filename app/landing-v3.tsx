@@ -189,6 +189,10 @@ const V3_CSS = `
 .v3 .claude-tie { display:inline-flex; align-items:center; gap:9px; padding:7px 8px 7px 7px; border:0; background:transparent; cursor:pointer; font-family:var(--sans); font-size:13.5px; font-weight:600; color:var(--cream-2); border-radius:999px; transition:color .16s; }
 .v3 .claude-tie:hover { color:var(--cream); }
 .v3 .claude-tie-glyph.lp-logo { width:26px; height:26px; border-radius:8px; box-shadow:0 4px 10px -5px rgba(16,19,11,.5); }
+/* l'icône Claude porte son propre fond orange : le voile lustré de .lp-logo
+   (pensé pour les vignettes blanches de la pile d'outils) délavait la couleur
+   de marque dans le coin haut-gauche. */
+.v3 .claude-tie-glyph.lp-logo::after { display:none; }
 .v3 .claude-tie-txt strong { font-weight:800; color:var(--cream); text-decoration:underline; text-decoration-color:rgba(224,135,101,.6); text-underline-offset:3px; text-decoration-thickness:1.6px; }
 .v3 .claude-tie-arr { font-size:12px; opacity:.55; transition:transform .16s, opacity .16s; }
 .v3 .claude-tie:hover .claude-tie-arr { transform:translateX(3px); opacity:1; }
@@ -296,6 +300,11 @@ const V3_CSS = `
 }
 @media (max-width:680px) {
   .v3 #top { padding-top:92px !important; padding-bottom:52px !important; }
+  /* Le bloc respire : le titre (et l'étoile qui le coiffe) descend d'une
+     quarantaine de pixels, ce qui dégage le haut de l'écran sous la nav sans
+     pousser le lien Claude sous la ligne de flottaison (retour Martin).
+     La ligne ci-dessus reste le repli des navigateurs sans unités svh. */
+  .v3 #top { padding-top:clamp(104px, 17svh, 150px) !important; padding-bottom:clamp(40px, 7svh, 72px) !important; }
   .v3 .hero-h1 { font-size:clamp(36px, 11vw, 58px) !important; }
   .v3 .hero-h1 .h-line .t-arch { font-size:clamp(24px, 8.6vw, 44px) !important; } /* "TOUS VOS CLIENTS." tient jusqu'à ~300px */
   /* le bandeau marquee incliné ne doit pas mordre sur la pill Claude */
@@ -312,7 +321,7 @@ const V3_CSS = `
      pour ne plus chevaucher les titres */
   .v3 .hero-stk svg, .v3 .cta-stk svg { width:42px !important; height:auto !important; }
   .v3 .hero-eyes svg { width:58px !important; }
-  .v3 span.hero-stk:nth-of-type(1) { top:-36px !important; left:2% !important; }
+  .v3 span.hero-stk:nth-of-type(1) { top:-28px !important; left:2% !important; }
   .v3 span.hero-eyes { top:auto !important; bottom:6% !important; right:-2px !important; } /* à droite du sticker OUTIL, jamais sur la nav ni le titre */
   /* le cœur descend à gauche des chips du flow (retour Martin) — offset depuis le
      bas du bloc titre : lead (~4 lignes) + marges + 1re rangée de chips */
@@ -323,6 +332,19 @@ const V3_CSS = `
   .v3 span.cta-stk:nth-of-type(3) { bottom:-28px !important; left:-6px !important; }
   .v3 .fcta-t { font-size:clamp(34px, 9.6vw, 44px) !important; }
   .v3 #apercu-hero { padding-top:40px !important; padding-bottom:64px !important; border-radius:20px 20px 0 0 !important; }
+}
+/* Le hero occupe tout le premier écran : en arrivant sur la landing on ne voit
+   que le fond forêt, du titre jusqu'au lien Claude, puis plus rien — le bandeau
+   défilant ne se découvre qu'au premier scroll (retour Martin).
+   svh = hauteur visible barre d'URL dépliée, donc l'écran tel qu'il est au
+   chargement. Les 34px de rab absorbent ce que le bandeau remonte sur le hero :
+   sa marge négative (-10px) plus le coin que lui fait gagner sa rotation.
+   @supports : sans unités svh, on garde l'ancien hero plutôt qu'un 100vh iOS
+   (mesuré barre repliée) qui, lui, couperait la pill Claude. */
+@supports (height:100svh) {
+  @media (max-width:680px) {
+    .v3 #top { min-height:calc(100svh + 34px); }
+  }
 }
 @media (max-width:560px) {
   .v3 .foot-grid { grid-template-columns:1fr !important; gap:30px !important; }
