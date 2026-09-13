@@ -144,6 +144,16 @@ export interface DesignSlot {
   label: string;
   /** Longueur maximale, en caractères. Le dessin a été fait POUR cette longueur. */
   max: number;
+  /** LE TEXTE D'ORIGINE, quand la composition vient d'un modèle dessiné à la
+   *  main. C'est la silhouette VOULUE par l'auteur : le bloc a été dimensionné
+   *  pour ces mots-là.
+   *
+   *  Sans lui, tout aperçu remplissait les champs avec des phrases d'essai de
+   *  longueur quelconque — et une composition dessinée pour « NOUVEAU MENU »
+   *  recevait « La carte change chaque semaine ». Les blocs se chevauchaient, le
+   *  texte débordait, et on croyait le convertisseur fautif alors qu'on lui
+   *  donnait simplement le mauvais texte. */
+  exemple?: string;
 }
 
 export interface DesignRecipe {
@@ -213,9 +223,14 @@ export const DESIGN_RECIPES: DesignRecipe[] = [
     desc: 'Photo plein cadre, rail de marque en haut, et la signature manuscrite de la marque posée grand au milieu-bas, en couleur de marque. Le geste du restaurant Amicii : la photo parle, la marque signe.',
     slots: [sl('signature', 'le nom de la marque ou un mot manuscrit très court', 16), sl('sous', 'mention discrète sous la signature', 40)],
     nodes: [
-      P(0, 0, 1, 1, { dark: 8 }),
+      P(0, 0, 1, 1, { dark: 24 }),
       rail('white'),
-      T('signature', 0.12, 0.6, 0.76, 0.17, 'brand', { font: 'script', align: 'center', maxLines: 1, shadow: true }),
+      // BLANC, PAS LA COULEUR DE MARQUE. Une signature en rouge de charte posée
+      // à même une photo de plat était illisible : le rouge et le doré d'un
+      // burger ont la même valeur, et le halo n'y peut rien. Sur une image, le
+      // blanc est la règle ; la couleur de marque se pose sur un aplat, pas sur
+      // une photo. C'est la SEULE recette du fichier qui faisait ça.
+      T('signature', 0.12, 0.6, 0.76, 0.17, 'white', { font: 'script', align: 'center', maxLines: 1, shadow: true }),
       T('sous', 0.18, 0.79, 0.64, 0.028, 'white', { font: 'body', align: 'center', upper: true, track: 0.2, maxLines: 1, role: 'sous-titre' }),
     ],
   },
@@ -227,10 +242,10 @@ export const DESIGN_RECIPES: DesignRecipe[] = [
     slots: [sl('avant', 'début de la phrase, en capitales', 34), sl('barre', 'LE mot qu’on rature', 14), sl('corrige', 'le mot manuscrit qui le remplace', 14), sl('apres', 'fin de la phrase', 30)],
     nodes: [
       P(0, 0, 1, 1, { dark: 26 }),
-      R(0, 0.35, 1, 0.65, 'black', { scrim: 'bottom', opacity: 55 }),
+      R(0, 0.35, 1, 0.65, 'black', { scrim: 'bottom', opacity: 68 }),
       T('avant', 0.08, 0.46, 0.84, 0.09, 'white', { upper: true, lh: 0.96, maxLines: 2, weight: 'bold' }),
       T('barre', 0.08, 0.63, 0.6, 0.09, 'white', { upper: true, maxLines: 1, weight: 'bold', strike: true, opacity: 70 }),
-      T('corrige', 0.26, 0.608, 0.6, 0.105, 'accentLight', { font: 'script', maxLines: 1, rotation: -6 }),
+      T('corrige', 0.26, 0.608, 0.6, 0.105, 'accentLight', { font: 'script', maxLines: 1, rotation: -6, shadow: true }),
       T('apres', 0.08, 0.76, 0.84, 0.09, 'white', { upper: true, lh: 0.96, maxLines: 1, weight: 'bold' }),
     ],
   },
@@ -1442,7 +1457,7 @@ export const DESIGN_RECIPES: DesignRecipe[] = [
     nodes: [
       P(0, 0, 1, 1, { dark: 26 }),
       T('titre', 0.07, 0.63, 0.82, 0.1, 'paper', { upper: true, lh: 0.96, maxLines: 1, role: 'titre', weight: 'bold', track: -0.01 }),
-      T('mot', 0.09, 0.755, 0.66, 0.115, 'accentLight', { font: 'script', maxLines: 1, role: 'accroche', rotation: -5 }),
+      T('mot', 0.09, 0.755, 0.66, 0.115, 'accentLight', { font: 'script', maxLines: 1, role: 'accroche', rotation: -5, shadow: true }),
     ],
   },
   {
@@ -1510,8 +1525,8 @@ export const DESIGN_RECIPES: DesignRecipe[] = [
     slots: [sl('q1', 'la première réplique', 34), sl('q2', 'la réponse', 34)],
     nodes: [
       P(0, 0, 1, 1, { dark: 26 }),
-      T('q1', 0.07, 0.085, 0.5, 0.062, 'accentLight', { font: 'script', lh: 1.05, maxLines: 2, role: 'accroche', rotation: -4 }),
-      T('q2', 0.4, 0.275, 0.52, 0.062, 'paper', { font: 'script', lh: 1.05, maxLines: 2, role: 'accroche', rotation: 3 }),
+      T('q1', 0.07, 0.085, 0.5, 0.062, 'accentLight', { font: 'script', lh: 1.05, maxLines: 2, role: 'accroche', rotation: -4, shadow: true }),
+      T('q2', 0.4, 0.275, 0.52, 0.062, 'paper', { font: 'script', lh: 1.05, maxLines: 2, role: 'accroche', rotation: 3, shadow: true }),
     ],
   },
   {
@@ -3107,6 +3122,13 @@ export function buildDesignElements(recipe: DesignRecipe, opt: BuildOptions): an
       // jamais étaler le bloc hors de sa colonne.
       lockWidth: true,
       ...(nd.role ? { role: nd.role } : {}),
+      // CE TEXTE EST-IL FAIT POUR ÊTRE POSÉ SUR UNE COULEUR ? Les rôles `on*`
+      // (`onAccent`, `onBrand`, `onDeep`…) ne veulent dire qu'une chose : cette
+      // couleur a été CALCULÉE pour se lire sur un fond donné. Un texte qui en
+      // porte une n'est jamais tombé par accident sur une pastille — il a été
+      // écrit pour elle. Sans ce témoin, le rendu ne garde aucune trace de
+      // l'intention et la mise en page le déloge.
+      ...(typeof nd.fill === 'string' && nd.fill.startsWith('on') ? { surFond: true } : {}),
       ...(nd.bg
         ? { hasBg: true, bgColor: fill(nd.bg), bgOpacity: nd.bgOpacity ?? 100,
             cornerRadius: nd.bgRadius ?? 0,
@@ -3135,6 +3157,8 @@ export function buildDesignElements(recipe: DesignRecipe, opt: BuildOptions): an
     });
   }
   recalerGroupes(out, h);
+  separerBlocs(out, h);
+  tenirDansLeCadre(out, w, h);
   return out;
 }
 
@@ -3160,6 +3184,171 @@ export function buildDesignElements(recipe: DesignRecipe, opt: BuildOptions): an
  *    haut au haut : sinon une composition « bandeau bas » remonterait au milieu
  *    dès que son titre raccourcit.
  */
+/**
+ * DEUX TEXTES NE SE MARCHENT PAS DESSUS, et c'est une règle, pas un réglage.
+ *
+ * POURQUOI `recalerGroupes` NE SUFFIT PAS, et c'est le manque que Martin a
+ * nommé : cette fonction-là ADAPTE la composition au texte reçu — elle referme
+ * un trou quand le texte est court, elle pousse quand il est long. Mais si deux
+ * blocs se chevauchent DÉJÀ dans le dessin, chacun tenant exactement dans les
+ * lignes qu'on lui a réservées, elle ne voit aucun écart à corriger et n'y
+ * touche pas. Le « Texte 2 » posé en plein milieu du « Texte 1 » survivait donc
+ * à tout.
+ *
+ * Un metteur en page ne laisse jamais passer ça. Ce qui est dessous descend
+ * jusqu'à ce qu'on puisse le lire.
+ *
+ * CE QU'ON NE SÉPARE PAS, et il faut être précis sinon on casse des partis pris :
+ *   · un texte qui n'a pas de `role` est posé là exprès (mot manuscrit sur mot
+ *     barré, écho, tampon) — c'est la même convention que partout ailleurs ;
+ *   · un texte PIVOTÉ est un geste graphique, il traverse ce qu'il veut ;
+ *   · deux blocs qui ne partagent aucune colonne ne se gênent pas, même si
+ *     leurs hauteurs se croisent : ils sont côte à côte.
+ */
+/**
+ * RIEN NE SORT DU CADRE. C'est la dernière règle, et la moins négociable : un
+ * mot coupé par un bord n'est pas un parti pris, c'est un visuel qu'on ne peut
+ * pas publier.
+ *
+ * DEUX REMÈDES, DANS CET ORDRE, et l'ordre est celui d'un metteur en page :
+ *   1. REMONTER le bloc, tant qu'il ne heurte pas ce qui est au-dessus. Un
+ *      texte posé trop bas se recale sans rien perdre de sa taille ;
+ *   2. LE RÉDUIRE, quand il n'y a plus de place au-dessus. Jusqu'à 70 % — en
+ *      dessous, le bloc ne joue plus son rôle dans la hiérarchie et mieux vaut
+ *      un visuel un peu serré qu'un titre devenu mention.
+ *
+ * On ne touche qu'aux blocs porteurs de RÔLE : un chiffre géant qui déborde
+ * volontairement par le bas est un geste, et il n'a pas de rôle.
+ */
+function tenirDansLeCadre(out: Array<Record<string, unknown>>, w: number, h: number): void {
+  const n = (v: unknown, d = 0) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
+  const textes = out.filter(e => e.type === 'text' && e.role && Math.abs(n(e.rotation)) <= 15);
+  const hauteur = (e: Record<string, unknown>) =>
+    Math.max(1, n(e.maxLines, 1)) * n(e.fontSize) * n(e.lineHeight, 1.15) + n(e.paddingV) * 2;
+
+  for (const e of textes) {
+    // Le plancher au-dessus duquel ce bloc ne peut pas remonter : le pied du
+    // bloc précédent dans sa colonne.
+    const x = n(e.x), lg = n(e.width);
+    let plafond = 0;
+    for (const a of textes) {
+      if (a === e) continue;
+      const memeColonne = !(n(a.x) + n(a.width) <= x + 4 || x + lg <= n(a.x) + 4);
+      if (!memeColonne) continue;
+      if (n(a.y) + hauteur(a) <= n(e.y)) plafond = Math.max(plafond, n(a.y) + hauteur(a) + 8);
+    }
+
+    for (let essai = 0; essai < 8; essai++) {
+      const bas = n(e.y) + hauteur(e);
+      const debord = bas - h * 0.985;
+      if (debord <= 0 && n(e.y) >= -1) break;
+      if (n(e.y) < 0) { e.y = 0; continue; }
+      // 1. remonter
+      const place = n(e.y) - plafond;
+      if (place > 1) { e.y = Math.round(n(e.y) - Math.min(place, debord)); continue; }
+      // 2. réduire
+      const taille = n(e.fontSize);
+      const reduite = Math.round(taille * 0.92);
+      if (reduite < n(e.fontSize) * 0.7 || reduite < 8) break;
+      e.fontSize = reduite;
+    }
+
+    // Et jamais hors du cadre par la droite : on rétrécit la boîte, pas le texte.
+    if (x + lg > w) e.width = Math.max(w * 0.2, w - x);
+    if (x < 0) { e.width = Math.max(w * 0.2, lg + x); e.x = 0; }
+  }
+}
+
+function separerBlocs(out: Array<Record<string, unknown>>, h: number): void {
+  const n = (v: unknown, d = 0) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
+  // UN PETIT ANGLE N'EST PAS UN GESTE. Exempter tout ce qui est pivoté laissait
+  // passer les collisions les plus visibles : un titre incliné de 5° est un
+  // titre, pas un tampon, et il n'a pas le droit de traverser son voisin. Le
+  // parti pris commence là où l'inclinaison se voit — au-delà de 15°.
+  const pivote = (e: Record<string, unknown>) => Math.abs(n(e.rotation)) > 15;
+  const blocs = out
+    .filter(e => e.type === 'text' && e.role && !pivote(e))
+    .map(e => ({
+      e,
+      x: n(e.x), w: n(e.width),
+      y: n(e.y),
+      hauteur: Math.max(1, n(e.maxLines, 1)) * n(e.fontSize) * n(e.lineHeight, 1.15) + n(e.paddingV) * 2,
+    }))
+    .sort((a, b) => a.y - b.y);
+  if (blocs.length < 2) return;
+
+  // L'ÉCART MINIMAL est proportionnel au texte, pas une constante : deux
+  // mentions de 20 px n'ont pas besoin du même souffle que deux titres de 110.
+  const souffle = (a: typeof blocs[number]) => Math.max(6, n(a.e.fontSize) * 0.18);
+
+  const propose = blocs.map(b => b.y);
+  for (let i = 1; i < blocs.length; i++) {
+    for (let j = 0; j < i; j++) {
+      const a = blocs[j], b = blocs[i];
+      const memeColonne = !(a.x + a.w <= b.x + 4 || b.x + b.w <= a.x + 4);
+      if (!memeColonne) continue;
+      const basA = propose[j] + a.hauteur;
+      if (propose[i] < basA + souffle(a)) propose[i] = basA + souffle(a);
+    }
+  }
+
+  // LES FORMES PLEINES COMPTENT AUSSI. Une pastille, un badge, un aplat sont
+  // des calques OPAQUES : un texte qui atterrit dessus est aussi illisible que
+  // s'il tombait sur un autre texte. C'est ce qui donnait « READ MORE » à cheval
+  // sur le badge rond, et le « 01 » posé sur la vignette.
+  //
+  // On ne pousse QUE le texte, jamais la forme : la forme est le dessin, le
+  // texte est ce qui s'y adapte.
+  const formes = out
+    .filter(e => (e.type === 'rect' || e.type === 'circle' || e.type === 'vector' || e.type === 'star')
+      && !pivote(e) && n(e.opacity, 100) > 55 && !e.scrim)
+    .map(e => ({
+      x: n(e.x), w: n(e.width, n(e.radius) * 2 || n(e.outerRadius) * 2),
+      y: n(e.y), h: n(e.height, n(e.radius) * 2 || n(e.outerRadius) * 2),
+    }))
+    // Un aplat plein cadre est un FOND, pas un obstacle.
+    .filter(f => !(f.w > 0 && f.h > 0 && f.x <= 2 && f.y <= 2 && f.h >= h * 0.9));
+
+  for (let i = 0; i < blocs.length; i++) {
+    const b = blocs[i];
+    // UN TEXTE ÉCRIT POUR UN FOND COLORÉ NE SE DÉLOGE PAS. C'est le sujet même
+    // d'un autocollant, d'une pastille de prix, d'un losange de mention : le mot
+    // est DANS la forme, et l'en sortir détruit la composition. Martin l'a vu
+    // sur « Étoile de prix », « Losange de mention » et « Bulle en coin », que
+    // cette fonction avait vidées de leur geste.
+    if (b.e.surFond) continue;
+    for (const f of formes) {
+      const memeColonne = !(f.x + f.w <= b.x + 4 || b.x + b.w <= f.x + 4);
+      if (!memeColonne) continue;
+      const croise = propose[i] < f.y + f.h && propose[i] + b.hauteur > f.y;
+      if (!croise) continue;
+      // ET LE CONTENU N'EST PAS UNE COLLISION. Un texte largement CONTENU dans
+      // la forme y a été mis exprès ; celui qui CHEVAUCHE son bord est tombé
+      // dessus. C'est la différence entre un badge et un accident, et elle se
+      // mesure : on ne sépare qu'en dessous de 70 % de recouvrement.
+      const dx = Math.min(b.x + b.w, f.x + f.w) - Math.max(b.x, f.x);
+      const dy = Math.min(propose[i] + b.hauteur, f.y + f.h) - Math.max(propose[i], f.y);
+      const aire = Math.max(1, b.w * b.hauteur);
+      if ((Math.max(0, dx) * Math.max(0, dy)) / aire > 0.7) continue;
+      // On le fait glisser du côté où il reste le plus de place.
+      const versLeBas = f.y + f.h + souffle(b);
+      const versLeHaut = f.y - b.hauteur - souffle(b);
+      propose[i] = (f.y - propose[i]) > (propose[i] + b.hauteur - (f.y + f.h)) && versLeHaut > 0
+        ? versLeHaut : versLeBas;
+    }
+  }
+
+  // ON N'APPLIQUE QUE CE QUI TIENT. Pousser un bloc hors du cadre remplace un
+  // défaut visible par un défaut pire : du texte qui n'existe plus à l'écran.
+  // Dans ce cas on descend quand même ce qu'on peut, et le dernier bloc reste
+  // collé au bas plutôt que d'en sortir.
+  for (let i = 0; i < blocs.length; i++) {
+    const limite = h - blocs[i].hauteur;
+    const y = Math.min(propose[i], Math.max(blocs[i].y, limite));
+    if (Math.abs(y - blocs[i].y) >= 1) blocs[i].e.y = Math.round(y);
+  }
+}
+
 function recalerGroupes(out: Array<Record<string, unknown>>, h: number): void {
   type Bloc = {
     e: Record<string, unknown>; y: number; x: number; w: number;
@@ -3170,7 +3359,12 @@ function recalerGroupes(out: Array<Record<string, unknown>>, h: number): void {
   };
 
   const blocs: Bloc[] = out
-    .filter(e => e.type === 'text' && e.role && !e.rotation)
+    // UN TEXTE ÉCRIT POUR UNE FORME EST ANCRÉ À ELLE, pas au flux. Le re-calage
+    // referme les trous d'un GROUPE de texte ; un prix posé dans une pastille
+    // n'appartient à aucun groupe, et le remonter avec les autres le fait sortir
+    // de sa pastille. Vu sur `ds-evenement-bas`, dont la date quittait son aplat
+    // dès que le titre raccourcissait.
+    .filter(e => e.type === 'text' && e.role && !e.rotation && !e.surFond)
     .map((e) => {
       const taille = Number(e.fontSize) || 0;
       const largeur = Number(e.width) || 0;
@@ -3178,13 +3372,67 @@ function recalerGroupes(out: Array<Record<string, unknown>>, h: number): void {
       const maxL = Math.max(1, Number(e.maxLines) || 3);
       const avance = AVANCE[String(e.fontRole ?? 'display')] ?? 0.54;
       const texte = String(e.text ?? '');
+      // COMBIEN DE LIGNES CE TEXTE PRENDRA-T-IL VRAIMENT ? On ne peut que
+      // l'estimer ici : le vrai retour à la ligne est décidé plus tard par le
+      // navigateur, avec les métriques réelles de la police, et `AVANCE` n'est
+      // qu'une avance MOYENNE par caractère.
+      //
+      // LES DEUX ERREURS NE COÛTENT PAS PAREIL, et c'est ce qui décide du sens
+      // de l'arrondi. Surestimer d'une ligne laisse un peu de vide sous un bloc :
+      // on voit la photo, personne ne le lit comme un défaut. Sous-estimer fait
+      // REMONTER le bloc suivant DANS le titre : deux textes l'un sur l'autre,
+      // illisibles tous les deux. Vu sur `ds-rail-editorial` avec « OUVERT CE
+      // SOIR » : 14 signes pour une capacité estimée à 14, donc « une ligne »
+      // pour le calcul, mais deux lignes à l'écran, et le sous-titre atterrissait
+      // en plein sur le mot « SOIR ».
+      //
+      // On compte donc en MOTS, comme le fait un vrai retour à la ligne, et on
+      // se garde une marge : un texte qui remplit plus de 88 % de la ligne
+      // estimée est traité comme s'il débordait.
       const parLigne = Math.max(1, Math.floor(largeur / Math.max(1, taille * avance)));
-      const lignes = Math.max(1, Math.min(maxL, Math.ceil(texte.length / parLigne)));
+      const tient = Math.max(1, Math.floor(parLigne * 0.88));
+      let lignesMots = 1, courante = -1;
+      for (const mot of texte.split(/\s+/).filter(Boolean)) {
+        if (courante < 0) { courante = mot.length; continue; }
+        if (courante + 1 + mot.length <= tient) courante += 1 + mot.length;
+        else { lignesMots += 1; courante = mot.length; }
+      }
+      // AUTO-AJUSTEMENT DU CORPS, avant de déplacer quoi que ce soit.
+      //
+      // C'est la première règle d'un metteur en page : quand un texte ne tient
+      // pas dans la place prévue, on le RÉDUIT avant de bousculer ses voisins.
+      // Un titre passé de deux lignes à trois pousse tout le bas de la
+      // composition ; le même titre rendu 12 % plus petit tient en deux lignes
+      // et ne dérange personne. On ne descend en dessous de 78 % qu'en dernier
+      // recours — au-delà le titre ne domine plus, et la hiérarchie se perd.
+      let taillePosee = taille;
+      let lignesMotsAjuste = lignesMots;
+      if (lignesMots > maxL && taille > 0) {
+        for (let essai = 0; essai < 6 && lignesMotsAjuste > maxL; essai++) {
+          const reduite = taillePosee * 0.95;
+          if (reduite < taille * 0.78) break;
+          taillePosee = reduite;
+          const parL = Math.max(1, Math.floor(largeur / Math.max(1, taillePosee * avance)));
+          const seuil = Math.max(1, Math.floor(parL * 0.88));
+          let n2 = 1, cur = -1;
+          for (const mot of texte.split(/\s+/).filter(Boolean)) {
+            if (cur < 0) { cur = mot.length; continue; }
+            if (cur + 1 + mot.length <= seuil) cur += 1 + mot.length;
+            else { n2 += 1; cur = mot.length; }
+          }
+          lignesMotsAjuste = n2;
+        }
+        if (taillePosee !== taille) e.fontSize = Math.round(taillePosee);
+      }
+      const lignes = Math.max(1, Math.min(maxL, lignesMotsAjuste));
+      // La hauteur RÉELLE se compte sur les lignes VRAIMENT nécessaires, même
+      // au-delà de `maxLines` : c'est elle qui dit de combien pousser la suite.
+      const lignesVraies = Math.max(1, lignesMotsAjuste);
       const marge = (Number(e.paddingV) || 0) * 2;
       return {
         e, y: Number(e.y) || 0, x: Number(e.x) || 0, w: largeur,
         reserve: maxL * taille * inter + marge,
-        reelle: lignes * taille * inter + marge,
+        reelle: lignesVraies * taillePosee * inter + marge,
       };
     })
     .sort((a, b) => a.y - b.y);
@@ -3216,20 +3464,62 @@ function recalerGroupes(out: Array<Record<string, unknown>>, h: number): void {
       respirations.push(Math.max(0, g[i + 1].y - (g[i].y + g[i].reserve)));
     }
 
-    // Rien à récupérer : chaque bloc remplit ce qu'on lui a réservé.
-    const gagne = g.reduce((n, b) => n + (b.reserve - b.reelle), 0);
-    if (gagne < 6) continue;
+    // ON RE-EMPILE DANS LES DEUX SENS, et c'est le manque que Martin a nommé.
+    //
+    // La version d'origine ne savait que REMONTER : elle supprimait la place
+    // réservée et non utilisée. Quand un texte prend PLUS de lignes que prévu,
+    // `gagne` devenait négatif et la fonction abandonnait — le bloc suivant
+    // restait à sa place de dessin, c'est-à-dire EN PLEIN dans le texte qui
+    // venait de grandir. « Texte 2 posé sur Texte 1 », exactement.
+    //
+    // Un metteur en page fait l'inverse : ce qui grandit pousse ce qui suit. On
+    // re-empile donc dès que la hauteur réelle diffère de la réservée, dans un
+    // sens comme dans l'autre.
+    const ecart = g.reduce((n, b) => n + Math.abs(b.reserve - b.reelle), 0);
+    if (ecart < 6) continue;
 
     // ANCRAGE EN HAUT, toujours. Le trou à supprimer est celui qui sépare deux
     // blocs de texte ; celui qui reste sous le groupe laisse simplement voir la
     // photo, ce qui ne se lit pas comme un défaut. Remonter le groupe depuis le
     // bas déplacerait la composition entière dès qu'un titre raccourcit, ce qui
     // est bien plus surprenant que le trou qu'on répare.
+    // LE FILET DE SÉCURITÉ. L'estimation de lignes ci-dessus reste une
+    // estimation : le jour où elle se trompe quand même, le re-calage ne doit
+    // pas pouvoir poser un bloc SUR le précédent. On calcule d'abord, on vérifie
+    // qu'aucun bloc ne remonte au-dessus du pied RÉSERVÉ du précédent, et on
+    // abandonne le groupe entier si c'est le cas. Un trou est un défaut mineur ;
+    // deux textes superposés rendent le visuel impubliable.
+    const nouveaux: number[] = [];
     let y = g[0].y;
     for (let i = 0; i < g.length; i++) {
-      g[i].e.y = Math.round(y);
+      nouveaux.push(y);
       y += g[i].reelle + (respirations[i] ?? 0);
     }
+    const collision = nouveaux.some((ny, i) =>
+      i > 0 && ny < nouveaux[i - 1] + g[i - 1].reelle - 1);
+    if (collision) continue;
+    // POUSSER NE DOIT PAS FAIRE SORTIR DU CADRE. Si le groupe grandi dépasse le
+    // bas, on resserre d'abord les respirations ; si ça ne suffit toujours pas,
+    // on laisse le dessin tel quel plutôt que de jeter du texte hors du visuel.
+    const pied = nouveaux[g.length - 1] + g[g.length - 1].reelle;
+    if (pied > h * 0.985) {
+      const trop = pied - h * 0.975;
+      const respirable = respirations.reduce((n, r) => n + r, 0);
+      if (respirable < trop) continue;
+      const facteur = (respirable - trop) / respirable;
+      let y2 = g[0].y;
+      for (let i = 0; i < g.length; i++) {
+        nouveaux[i] = y2;
+        y2 += g[i].reelle + (respirations[i] ?? 0) * facteur;
+      }
+    }
+
+    // ANCRAGE EN HAUT, toujours. Le trou à supprimer est celui qui sépare deux
+    // blocs de texte ; celui qui reste sous le groupe laisse simplement voir la
+    // photo, ce qui ne se lit pas comme un défaut. Remonter le groupe depuis le
+    // bas déplacerait la composition entière dès qu'un titre raccourcit, ce qui
+    // est bien plus surprenant que le trou qu'on répare.
+    for (let i = 0; i < g.length; i++) g[i].e.y = Math.round(nouveaux[i]);
   }
 }
 
@@ -3269,10 +3559,17 @@ export interface PickOptions {
   avoid?: string[];
   count?: number;
   seed?: number;
+  /** LE VIVIER DANS LEQUEL PUISER. Par défaut les recettes du code ; l'appelant
+   *  passe ici le catalogue ÉLARGI (code + base, cf. `lib/recettesBase.ts`)
+   *  quand les compositions dessinées à l'atelier doivent entrer dans le
+   *  tirage. Sans ce paramètre, tout ce qui est ajouté en base resterait
+   *  invisible jusqu'au prochain déploiement. */
+  catalogue?: DesignRecipe[];
 }
 
 export function pickDesignCandidates(o: PickOptions): DesignRecipe[] {
-  const count = Math.max(6, Math.min(o.count ?? 22, DESIGN_RECIPES.length));
+  const vivier = o.catalogue?.length ? o.catalogue : DESIGN_RECIPES;
+  const count = Math.max(6, Math.min(o.count ?? 22, vivier.length));
   const avoid = new Set((o.avoid ?? []).map(String));
   const sector = (o.sector ?? '').trim().toLowerCase();
   const rand = rng(o.seed ?? Date.now());
@@ -3285,13 +3582,13 @@ export function pickDesignCandidates(o: PickOptions): DesignRecipe[] {
   // existe, toute composition proposée doit donc avoir une zone pour l'accueillir
   // — sans exception, c'est la raison pour laquelle la personne l'a importée.
   const aUneZonePhoto = (r: DesignRecipe) => r.nodes.some(n => n.k === 'photo');
-  const usable = DESIGN_RECIPES.filter(r => (o.hasPhoto ? aUneZonePhoto(r) : !aUneZonePhoto(r)));
+  const usable = vivier.filter(r => (o.hasPhoto ? aUneZonePhoto(r) : !aUneZonePhoto(r)));
 
   // Une note TIRÉE UNE FOIS par recette. Calculée dans le comparateur, elle
   // changeait à chaque comparaison : le tri devenait du bruit, et l'affinité de
   // secteur ne pesait plus rien.
   const notes = new Map<string, number>();
-  for (const r of DESIGN_RECIPES) {
+  for (const r of vivier) {
     let n = rand();
     if (sector && r.sectors?.some(x => x.toLowerCase() === sector)) n += 1.2; // affinité de secteur
     if (avoid.has(r.id)) n -= 3;                                             // déjà vu récemment

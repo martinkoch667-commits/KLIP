@@ -30,11 +30,19 @@ import { registerFontFamily, weightLabel, type FontFamily } from '@/lib/fontFile
 import { isTextEntry } from '@/lib/keys';
 import { STICKERS, STICKER_CATS, stickerDataUri, type Sticker } from './stickers';
 import { AiThinkingLog } from '@/components/AiThinkingPanel';
+import AiGeneratingOverlay from '@/components/EcranComposition';
+import { PanneauAjuster, PanneauOutils } from '@/components/PanneauImage';
 import AiChatDock from '@/components/AiChatDock';
 import KlipMark from '@/components/KlipMark';
 import RichTextOverlay, { type RichTextHandle } from '@/components/RichTextOverlay';
-import { ORNEMENTS, CATEGORIES as ORNEMENT_CATS, type OrnementCategorie } from '@/lib/ornaments';
-import { KINDS as ASSET_KINDS, STYLES as ASSET_STYLES, type AssetKind } from '@/lib/assetBanks';
+import { type OrnementCategorie } from '@/lib/ornaments';
+import { FORMES, boite as boiteForme, tracerForme, type Forme, type FamilleForme } from '@/lib/formes';
+import { ChampRecherche, Onglets, CONTEXTES_IA, VueDegrades, CATEGORIES_ELEMENTS, TuilesCategories, BibliothequeFormes, BlocIA, VueTextures, VueIllustrations, VueIcones, VueStickers, VueOrnements, VueCadres, VueBadges, VueMotifs } from '@/components/PanneauElements';
+import { paysageTemoin, type Grille } from '@/lib/grilles';
+import { textureDataUri, type Texture } from '@/lib/textures';
+import { degradeDataUri, type Degrade, type FamilleDegrade } from '@/lib/degrades';
+import { detourerFondUni } from '@/lib/detourage';
+import { type AssetKind } from '@/lib/assetBanks';
 import {
   blockStyleOf, clearTextMetricsCache, isRunKey, layoutText,
   measureBlock, measureSegment, stripRunKeys, styleOfRange,
@@ -131,9 +139,29 @@ interface RectEl extends BaseEl { type: 'rect'; width: number; height: number; f
 interface CircleEl extends BaseEl { type: 'circle'; radius: number; fill: string; fillType?: 'color' | 'gradient'; fillTo?: string; fillAngle?: number; stroke: string; strokeWidth: number; }
 interface StarEl extends BaseEl { type: 'star'; numPoints: number; innerRadius: number; outerRadius: number; fill: string; fillType?: 'color' | 'gradient'; fillTo?: string; fillAngle?: number; stroke: string; strokeWidth: number; }
 interface AnchorPoint { x: number; y: number; cpIn?: { x: number; y: number }; cpOut?: { x: number; y: number }; }
-interface VectorEl extends BaseEl { type: 'vector'; shape: 'rectangle'|'circle'|'triangle'|'star'|'pill'|'arrow'|'diamond'|'hexagon'|'custom'; width: number; height: number;
+interface VectorEl extends BaseEl { type: 'vector'; shape: 'rectangle'|'circle'|'triangle'|'star'|'pill'|'arrow'|'diamond'|'hexagon'|'custom'|'path'; width: number; height: number;
   /** Arrondi des coins, pour les formes qui en ont (rectangle). */
-  cornerRadius?: number; fill: string; fillType?: 'color'|'none'|'image'|'gradient'; fillTo?: string; fillAngle?: number; stroke: string; strokeWidth: number; points?: AnchorPoint[]; closed?: boolean; imageSrc?: string; imageOffsetX?: number; imageOffsetY?: number; }
+  cornerRadius?: number; fill: string; fillType?: 'color'|'none'|'image'|'gradient'; fillTo?: string; fillAngle?: number; stroke: string; strokeWidth: number; points?: AnchorPoint[]; closed?: boolean; imageSrc?: string; imageOffsetX?: number; imageOffsetY?: number;
+  // ── Formes de la bibliothèque (shape 'path') ──────────────────────────────
+  // Le tracé voyage AVEC le calque plutôt que d'être relu dans la bibliothèque
+  // par son identifiant : un visuel enregistré doit se rouvrir à l'identique
+  // même si la bibliothèque bouge, et l'aperçu hors éditeur n'a alors rien à
+  // charger pour le redessiner.
+  /** Tracé SVG (M, L, C, Q, T, Z absolus), dans la boîte `pathVb`. */
+  pathD?: string;
+  /** Boîte du tracé. */
+  pathVb?: [number, number];
+  /** Identifiant de la forme d'origine, pour l'affichage et le débogage. */
+  formeId?: string;
+  /** Forme au trait (ligne, flèche fine) : le contour EST la forme. */
+  trait?: boolean;
+  /** Pointillés du contour, en pixels du plan de travail. */
+  dash?: number[];
+  /** Case de cadre ou de grille : un clic dessus ouvre le sélecteur de photo
+   *  tant qu'elle est vide. */
+  cadre?: boolean;
+  /** La case montre encore le visuel témoin, aucune vraie image dedans. */
+  vide?: boolean; }
 interface ImageEl extends BaseEl { type: 'image'; src: string; width: number; height: number; cropX?: number; cropY?: number; naturalW?: number; naturalH?: number;
   // Zoom de l'image DANS son cadre, figé indépendamment de la taille du cadre —
   // sans lui, redimensionner via une seule poignée (haut/bas notamment) faisait
@@ -144,8 +172,17 @@ interface ImageEl extends BaseEl { type: 'image'; src: string; width: number; he
   imgScale?: number;
   // Arrondi des quatre coins du cadre (px). Absent = coins nets.
   cornerRadius?: number;
+  /** Mode de fusion avec ce qu'il y a dessous. C'est ce qui fait qu'une
+   *  texture se pose SUR le visuel au lieu de le cacher. */
+  fusion?: 'multiply' | 'overlay' | 'soft-light' | 'screen';
   // Ajustements colorimétriques (chacun -100..100, 0 = neutre ; flou 0..100)
-  adjBrightness?: number; adjContrast?: number; adjSaturation?: number; adjWarmth?: number; adjTint?: number; adjBlur?: number; }
+  adjBrightness?: number; adjContrast?: number; adjSaturation?: number; adjWarmth?: number; adjTint?: number; adjBlur?: number;
+  // Lumière fine : chaque curseur agit sur une plage de tons, comme dans un
+  // vrai logiciel de retouche. Un contraste global écrase les hautes lumières,
+  // là où « tons clairs » ne touche qu'elles.
+  adjHighlights?: number; adjShadows?: number; adjWhites?: number; adjBlacks?: number;
+  // Couleur et matière.
+  adjVibrance?: number; adjClarity?: number; adjVignette?: number; adjSharpen?: number; adjInvert?: boolean; }
 type CanvasEl = TextEl | RectEl | CircleEl | StarEl | VectorEl | ImageEl;
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -153,7 +190,9 @@ type CanvasEl = TextEl | RectEl | CircleEl | StarEl | VectorEl | ImageEl;
 // ─── Template background ──────────────────────────────────────────────────────
 
 interface BgStyle {
-  type: 'gradient' | 'solid';
+  // « transparent » : aucun fond du tout. Le plan de travail devient un
+  // calque libre, et l'export PNG garde sa transparence.
+  type: 'gradient' | 'solid' | 'transparent';
   color?: string;
   angle?: number;
   colorFrom?: string;
@@ -188,6 +227,7 @@ function gradientFillPropsCentered(r: number, angle: number, colorFrom: string, 
 }
 
 function BgStyleLayer({ bgStyle, w, h }: { bgStyle: BgStyle; w: number; h: number }) {
+  if (bgStyle.type === 'transparent') return null;
   if (bgStyle.type === 'solid') {
     return <Rect x={0} y={0} width={w} height={h} fill={bgStyle.color ?? '#ffffff'} listening={false} />;
   }
@@ -240,14 +280,6 @@ const FORMATS = [
 // Filtres photo prédéfinis — mêmes 6 presets que le module Montage vidéo (constants.ts
 // FILTERS), réexprimés en réglages adj* (l'éditeur n'a pas de pipeline CSS filter/sepia/
 // hue-rotate natif côté Konva, seulement luminosité/contraste/saturation/chaleur/teinte).
-const PHOTO_FILTER_PRESETS: { id: string; name: string; values: Partial<Record<'adjBrightness' | 'adjContrast' | 'adjSaturation' | 'adjWarmth' | 'adjTint', number>> }[] = [
-  { id: 'none',   name: 'Aucun',      values: {} },
-  { id: 'chaud',  name: 'Chaud',      values: { adjWarmth: 30, adjSaturation: 15, adjContrast: 4 } },
-  { id: 'doux',   name: 'Doux',       values: { adjBrightness: 5, adjContrast: -4, adjSaturation: -8 } },
-  { id: 'froid',  name: 'Froid',      values: { adjWarmth: -25, adjSaturation: 5, adjBrightness: 2 } },
-  { id: 'argent', name: 'Argentique', values: { adjWarmth: 20, adjSaturation: -15, adjContrast: 8 } },
-  { id: 'nb',     name: 'N&B',        values: { adjSaturation: -100, adjContrast: 10 } },
-];
 
 function newId() { return `el-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`; }
 
@@ -340,6 +372,30 @@ function assurerPolicesGoogle(familles: string[]): void {
     lnk.href = href;
     document.head.appendChild(lnk);
   }
+}
+
+/** Graisse et italique lisibles depuis un `fontStyle` Konva (« italic 900 »). */
+function coupeDeStyle(style?: string): { poids: number; italique: boolean } {
+  const brut = String(style ?? 'normal');
+  const italique = brut.includes('italic');
+  const chiffre = brut.match(/\d{3}/)?.[0];
+  return { poids: chiffre ? Number(chiffre) : (brut.includes('bold') ? 700 : 400), italique };
+}
+
+/**
+ * Force le téléchargement d'une COUPE précise (famille + graisse + italique).
+ *
+ * Un canevas ne déclenche jamais le chargement d'une police : contrairement au
+ * DOM, `fillText` prend ce qui est déjà là. Une feuille Google chargée avec
+ * `display=swap` ne télécharge le fichier que lorsque quelqu'un l'utilise.
+ * Résultat : choisir « Black Italic » donnait un 700 que le navigateur
+ * épaississait et penchait lui-même — un faux gras et un faux italique, baveux
+ * à l'écran et pires à l'export. On demande donc explicitement la coupe.
+ */
+async function chargerCoupe(famille: string, style?: string): Promise<void> {
+  if (typeof document === 'undefined' || !document.fonts || !famille) return;
+  const { poids, italique } = coupeDeStyle(style);
+  try { await document.fonts.load(`${italique ? 'italic ' : ''}${poids} 32px "${famille}"`); } catch { /* police absente */ }
 }
 
 async function attendrePolices(familles: string[], limiteMs = 2500): Promise<void> {
@@ -801,29 +857,102 @@ function BgImage({ src, w, h, offsetX = 0, offsetY = 0, draggable = false, onDra
 // Lit les réglages depuis les attributs du nœud Konva (adjBrightness, adjContrast, …).
 function AdjustFilter(this: Konva.Node, imageData: ImageData) {
   const d = imageData.data;
+  const L = imageData.width, H = imageData.height;
   const bright = (Number(this.getAttr('adjBrightness')) || 0) / 100;   // -1..1
   const contrastV = Number(this.getAttr('adjContrast')) || 0;          // -100..100
   const sat = 1 + (Number(this.getAttr('adjSaturation')) || 0) / 100;  // 0..2
   const warmth = (Number(this.getAttr('adjWarmth')) || 0) / 100;       // -1..1
   const tint = (Number(this.getAttr('adjTint')) || 0) / 100;           // -1..1
+  const hautes = (Number(this.getAttr('adjHighlights')) || 0) / 100;   // -1..1
+  const basses = (Number(this.getAttr('adjShadows')) || 0) / 100;
+  const blancs = (Number(this.getAttr('adjWhites')) || 0) / 100;
+  const noirs = (Number(this.getAttr('adjBlacks')) || 0) / 100;
+  const vibr = (Number(this.getAttr('adjVibrance')) || 0) / 100;
+  const clarte = (Number(this.getAttr('adjClarity')) || 0) / 100;
+  const vign = (Number(this.getAttr('adjVignette')) || 0) / 100;
+  const inverse = !!this.getAttr('adjInvert');
   const cf = (259 * (contrastV + 255)) / (255 * (259 - contrastV));    // facteur de contraste
   const brightAdd = bright * 255;
   const warmR = warmth * 42, warmB = -warmth * 42, tintG = tint * 42;
   const clamp = (v: number) => (v < 0 ? 0 : v > 255 ? 255 : v);
+  const cx = L / 2, cy = H / 2;
+  const rayonMax = Math.hypot(cx, cy) || 1;
   for (let i = 0; i < d.length; i += 4) {
     let r = d[i], g = d[i + 1], b = d[i + 2];
     r += brightAdd; g += brightAdd; b += brightAdd;
     r = cf * (r - 128) + 128; g = cf * (g - 128) + 128; b = cf * (b - 128) + 128;
     r += warmR; b += warmB; g += tintG;
+
+    // Plages de tons : chaque poids est une cloche centrée sur sa zone, donc
+    // agir sur les ombres ne déplace pas les hautes lumières.
+    if (hautes || basses || blancs || noirs) {
+      const l = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+      const pHaut = Math.max(0, (l - 0.5) * 2);
+      const pBas = Math.max(0, (0.5 - l) * 2);
+      const pBlanc = Math.max(0, (l - 0.75) * 4);
+      const pNoir = Math.max(0, (0.25 - l) * 4);
+      const delta = (hautes * pHaut + basses * pBas + blancs * pBlanc + noirs * pNoir) * 120;
+      r += delta; g += delta; b += delta;
+    }
+
+    // Éclat : la saturation ne monte que là où il y en a peu, pour ne pas
+    // brûler ce qui est déjà vif (les peaux, notamment).
+    if (vibr) {
+      const max = Math.max(r, g, b), min = Math.min(r, g, b);
+      const satCourante = max <= 0 ? 0 : (max - min) / max;
+      const k = 1 + vibr * (1 - satCourante);
+      const gris = 0.299 * r + 0.587 * g + 0.114 * b;
+      r = gris + k * (r - gris); g = gris + k * (g - gris); b = gris + k * (b - gris);
+    }
+
+    // Clarté : du contraste sur les tons moyens seulement.
+    if (clarte) {
+      const l = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+      const poids = 1 - Math.abs(l - 0.5) * 2;
+      const k = 1 + clarte * 0.6 * poids;
+      r = 128 + k * (r - 128); g = 128 + k * (g - 128); b = 128 + k * (b - 128);
+    }
+
     const gray = 0.299 * r + 0.587 * g + 0.114 * b;
     r = gray + sat * (r - gray); g = gray + sat * (g - gray); b = gray + sat * (b - gray);
+
+    if (vign) {
+      const px = (i / 4) % L, py = Math.floor((i / 4) / L);
+      const dist = Math.hypot(px - cx, py - cy) / rayonMax;
+      const f = 1 - vign * Math.pow(Math.max(0, dist - 0.35) / 0.65, 1.6);
+      r *= f; g *= f; b *= f;
+    }
+
+    if (inverse) { r = 255 - r; g = 255 - g; b = 255 - b; }
     d[i] = clamp(r); d[i + 1] = clamp(g); d[i + 2] = clamp(b);
   }
 }
-const ADJ_FILTERS = [AdjustFilter, Konva.Filters.Blur];
+
+/** Netteté : masque flou 3×3. Une convolution, donc un second passage. */
+function SharpenFilter(this: Konva.Node, imageData: ImageData) {
+  const force = (Number(this.getAttr('adjSharpen')) || 0) / 100;
+  if (!force) return;
+  const { data: d, width: L, height: H } = imageData;
+  const src = new Uint8ClampedArray(d);
+  const k = force * 1.1;
+  const clamp = (v: number) => (v < 0 ? 0 : v > 255 ? 255 : v);
+  for (let y = 1; y < H - 1; y++) {
+    for (let x = 1; x < L - 1; x++) {
+      const i = (y * L + x) * 4;
+      for (let c = 0; c < 3; c++) {
+        const centre = src[i + c];
+        const voisins = src[i - 4 + c] + src[i + 4 + c] + src[i - L * 4 + c] + src[i + L * 4 + c];
+        d[i + c] = clamp(centre + k * (centre * 4 - voisins));
+      }
+    }
+  }
+}
+const ADJ_FILTERS = [AdjustFilter, SharpenFilter, Konva.Filters.Blur];
 
 function imageHasAdjustments(el: ImageEl): boolean {
-  return !!(el.adjBrightness || el.adjContrast || el.adjSaturation || el.adjWarmth || el.adjTint || el.adjBlur);
+  return !!(el.adjBrightness || el.adjContrast || el.adjSaturation || el.adjWarmth || el.adjTint || el.adjBlur
+    || el.adjHighlights || el.adjShadows || el.adjWhites || el.adjBlacks
+    || el.adjVibrance || el.adjClarity || el.adjVignette || el.adjSharpen || el.adjInvert);
 }
 
 function ImgNode({ el, onSelect, onChange, onDragStart, onDragMove, onDragEnd, isCropping, locked }: {
@@ -857,7 +986,7 @@ function ImgNode({ el, onSelect, onChange, onDragStart, onDragMove, onDragEnd, i
       node.getLayer()?.batchDraw();
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [img, hasAdj, el.adjBrightness, el.adjContrast, el.adjSaturation, el.adjWarmth, el.adjTint, el.adjBlur, el.width, el.height]);
+  }, [img, hasAdj, el.adjBrightness, el.adjContrast, el.adjSaturation, el.adjWarmth, el.adjTint, el.adjBlur, el.adjHighlights, el.adjShadows, el.adjWhites, el.adjBlacks, el.adjVibrance, el.adjClarity, el.adjVignette, el.adjSharpen, el.adjInvert, el.width, el.height]);
 
   const natW = el.naturalW ?? (img?.naturalWidth || el.width);
   const natH = el.naturalH ?? (img?.naturalHeight || el.height);
@@ -889,6 +1018,7 @@ function ImgNode({ el, onSelect, onChange, onDragStart, onDragMove, onDragEnd, i
       x={el.x} y={el.y}
       rotation={el.rotation}
       opacity={el.opacity / 100}
+      {...(el.fusion ? { globalCompositeOperation: el.fusion } : {})}
       {...(radius > 0
         // Coins arrondis : le découpage rectangulaire ne suffit plus, on découpe
         // sur un tracé arrondi — l'image elle-même est donc rognée, pas seulement
@@ -910,6 +1040,15 @@ function ImgNode({ el, onSelect, onChange, onDragStart, onDragMove, onDragEnd, i
         adjBrightness={el.adjBrightness || 0}
         adjContrast={el.adjContrast || 0}
         adjSaturation={el.adjSaturation || 0}
+        adjHighlights={el.adjHighlights || 0}
+        adjShadows={el.adjShadows || 0}
+        adjWhites={el.adjWhites || 0}
+        adjBlacks={el.adjBlacks || 0}
+        adjVibrance={el.adjVibrance || 0}
+        adjClarity={el.adjClarity || 0}
+        adjVignette={el.adjVignette || 0}
+        adjSharpen={el.adjSharpen || 0}
+        adjInvert={!!el.adjInvert}
         adjWarmth={el.adjWarmth || 0}
         adjTint={el.adjTint || 0}
         blurRadius={el.adjBlur || 0}
@@ -985,7 +1124,7 @@ function vectorRadius(el: VectorEl, w: number, h: number): number {
   return Math.max(0, Math.min(el.cornerRadius ?? 0, w / 2, h / 2));
 }
 
-function drawVectorShape(ctx: CanvasRenderingContext2D, shape: Exclude<VectorEl['shape'], 'custom'>, w: number, h: number, radius = 0) {
+function drawVectorShape(ctx: CanvasRenderingContext2D, shape: Exclude<VectorEl['shape'], 'custom'|'path'>, w: number, h: number, radius = 0) {
   ctx.beginPath();
   switch (shape) {
     case 'rectangle':
@@ -1044,6 +1183,14 @@ function drawVectorShape(ctx: CanvasRenderingContext2D, shape: Exclude<VectorEl[
   }
 }
 
+/** Trace la forme d'un calque vectoriel, quelle que soit son origine :
+ *  bibliothèque (`path`), plume (`custom`) ou forme primitive. */
+function dessinerVecteur(ctx: CanvasRenderingContext2D, el: VectorEl, w: number, h: number) {
+  if (el.shape === 'path') tracerForme(ctx, el.pathD ?? '', el.pathVb ?? [100, 100], w, h);
+  else if (el.shape === 'custom') drawCustomPath(ctx, el.points ?? [], el.closed ?? false);
+  else drawVectorShape(ctx, el.shape as Exclude<VectorEl['shape'], 'custom'|'path'>, w, h, vectorRadius(el, w, h));
+}
+
 function VectorNode({ el, onSelect, onDblClick, onDragStart, onDragMove, onDragEnd, isMaskCrop, onImageOffset, locked }: {
   el: VectorEl; onSelect: (shiftKey: boolean) => void;
   onDblClick?: () => void;
@@ -1061,9 +1208,7 @@ function VectorNode({ el, onSelect, onDblClick, onDragStart, onDragMove, onDragE
     const offX = el.imageOffsetX ?? (el.width - scaledW) / 2;
     const offY = el.imageOffsetY ?? (el.height - scaledH) / 2;
     const clipFn = (ctx: any) => {
-      const c = ctx as CanvasRenderingContext2D;
-      if (el.shape === 'custom') drawCustomPath(c, el.points ?? [], el.closed ?? false);
-      else drawVectorShape(c, el.shape as Exclude<VectorEl['shape'], 'custom'>, el.width, el.height, vectorRadius(el, el.width, el.height));
+      dessinerVecteur(ctx as CanvasRenderingContext2D, el, el.width, el.height);
     };
     return (
       <Group
@@ -1095,9 +1240,7 @@ function VectorNode({ el, onSelect, onDblClick, onDragStart, onDragMove, onDragE
             fill="rgba(0,0,0,0)"
             listening={false}
             sceneFunc={(kctx, shape) => {
-              const ctx = (kctx as any)._context as CanvasRenderingContext2D;
-              if (el.shape === 'custom') drawCustomPath(ctx, el.points ?? [], el.closed ?? false);
-              else drawVectorShape(ctx, el.shape as Exclude<VectorEl['shape'], 'custom'>, shape.width(), shape.height(), vectorRadius(el, shape.width(), shape.height()));
+              dessinerVecteur((kctx as any)._context as CanvasRenderingContext2D, el, shape.width(), shape.height());
               kctx.fillStrokeShape(shape);
             }}
           />
@@ -1107,12 +1250,7 @@ function VectorNode({ el, onSelect, onDblClick, onDragStart, onDragMove, onDragE
   }
 
   const draw = (kctx: any, shape: any) => {
-    const ctx = (kctx as any)._context as CanvasRenderingContext2D;
-    if (el.shape === 'custom') {
-      drawCustomPath(ctx, el.points ?? [], el.closed ?? false);
-    } else {
-      drawVectorShape(ctx, el.shape as Exclude<VectorEl['shape'], 'custom'>, shape.width(), shape.height(), vectorRadius(el, shape.width(), shape.height()));
-    }
+    dessinerVecteur((kctx as any)._context as CanvasRenderingContext2D, el, shape.width(), shape.height());
     kctx.fillStrokeShape(shape);
   };
   return (
@@ -1128,6 +1266,9 @@ function VectorNode({ el, onSelect, onDblClick, onDragStart, onDragMove, onDragE
         : { fill: el.fill })}
       stroke={el.stroke}
       strokeWidth={el.strokeWidth}
+      {...(el.dash && el.dash.length ? { dash: el.dash } : {})}
+      lineCap="round"
+      lineJoin="round"
       draggable={!locked}
       sceneFunc={draw}
       hitFunc={draw}
@@ -1356,9 +1497,77 @@ function ImageProperties({ el, onChange, onSetBg, onCrop }: { el: ImageEl; onCha
   );
 }
 
+/**
+ * Barre du fond du plan de travail : couleur, dégradé, ou rien.
+ *
+ * Volontairement courte. La barre des calques porte l'alignement, les plans,
+ * le verrouillage, la suppression : rien de tout ça ne veut dire quoi que ce
+ * soit pour un fond. On garde ce qui s'applique, et on garde surtout le MÊME
+ * sélecteur de couleur que partout ailleurs.
+ */
+function BarreFond({ bgStyle, onChange, brandColors, onFermer }: {
+  bgStyle: BgStyle | null;
+  onChange: (b: BgStyle | null) => void;
+  brandColors: string[];
+  onFermer: () => void;
+}) {
+  const [pop, setPop] = React.useState<'grad' | null>(null);
+  const type = bgStyle?.type ?? 'solid';
+  const couleur = bgStyle?.type === 'gradient' ? (bgStyle.colorFrom ?? '#0038FF') : (bgStyle?.color ?? '#FFFFFF');
+  const vers = bgStyle?.colorTo ?? '#FFFFFF';
+  const angle = bgStyle?.angle ?? 135;
+  const bouton = (actif: boolean): React.CSSProperties => ({
+    height: 32, padding: '0 11px', borderRadius: 9, border: 'none', cursor: 'pointer',
+    fontSize: 12, fontWeight: 700, fontFamily: 'var(--sans)',
+    background: actif ? 'var(--mint-soft)' : 'transparent', color: actif ? 'var(--mint-2)' : 'var(--ink-2)',
+  });
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '0 4px' }}>
+      <span style={{ fontSize: 12, fontWeight: 800, color: 'var(--ink-3)', fontFamily: 'var(--sans)', padding: '0 4px' }}>Fond</span>
+      <ColorPicker value={couleur} brandColors={brandColors}
+        onChange={(c: string) => onChange(type === 'gradient'
+          ? { ...(bgStyle ?? {}), type: 'gradient', colorFrom: c, colorTo: vers, angle }
+          : { type: 'solid', color: c })} />
+      <div style={{ position: 'relative' }}>
+        <button onClick={() => setPop(p => (p ? null : 'grad'))} style={bouton(type === 'gradient')}>Dégradé</button>
+        {pop === 'grad' && (
+          <div data-stop-deselect style={{ position: 'absolute', top: 'calc(100% + 8px)', left: 0, zIndex: 60, minWidth: 210,
+            background: 'var(--white)', borderRadius: 12, padding: 12, boxShadow: '0 1px 3px rgba(16,19,11,.06), 0 16px 34px -16px rgba(16,19,11,.45)' }}>
+            <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 10 }}>
+              <div>
+                <div style={{ fontSize: 10.5, color: 'var(--ink-3)', marginBottom: 4 }}>Début</div>
+                <ColorPicker value={couleur} brandColors={brandColors}
+                  onChange={(c: string) => onChange({ type: 'gradient', colorFrom: c, colorTo: vers, angle })} />
+              </div>
+              <div>
+                <div style={{ fontSize: 10.5, color: 'var(--ink-3)', marginBottom: 4 }}>Fin</div>
+                <ColorPicker value={vers} brandColors={brandColors}
+                  onChange={(c: string) => onChange({ type: 'gradient', colorFrom: couleur, colorTo: c, angle })} />
+              </div>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 5 }}>
+              <span style={{ fontSize: 10, fontFamily: 'var(--mono)', fontWeight: 800, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '.12em' }}>Angle</span>
+              <span style={{ fontFamily: 'var(--mono)', fontWeight: 800, fontSize: 11, color: 'var(--ink-2)' }}>{angle}°</span>
+            </div>
+            <input type="range" min={0} max={360} step={5} value={angle} className="ed-range" style={{ width: '100%' }}
+              onChange={e => onChange({ type: 'gradient', colorFrom: couleur, colorTo: vers, angle: parseInt(e.target.value) })} />
+          </div>
+        )}
+      </div>
+      <button onClick={() => onChange({ type: 'solid', color: '#FFFFFF' })} style={bouton(type === 'solid' && couleur.toUpperCase() === '#FFFFFF')}>Blanc</button>
+      <button onClick={() => onChange({ type: 'transparent' })} style={bouton(type === 'transparent')} title="Aucun fond : l'export PNG reste transparent">Aucun</button>
+      <span style={{ width: 1, height: 22, background: 'var(--line)', margin: '0 2px' }} />
+      <button onClick={onFermer} title="Fermer"
+        style={{ width: 30, height: 30, borderRadius: 8, display: 'grid', placeItems: 'center', color: 'var(--ink-3)', background: 'transparent', border: 'none', cursor: 'pointer' }}>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>
+      </button>
+    </div>
+  );
+}
+
 // ─── Layer helpers ────────────────────────────────────────────────────────────
 
-const VECTOR_LABELS: Record<VectorEl['shape'], string> = { rectangle: 'Rectangle', circle: 'Rond', triangle: 'Triangle', star: 'Étoile', pill: 'Pilule', arrow: 'Flèche', diamond: 'Losange', hexagon: 'Hexagone', custom: 'Tracé libre' };
+const VECTOR_LABELS: Record<VectorEl['shape'], string> = { rectangle: 'Rectangle', circle: 'Rond', triangle: 'Triangle', star: 'Étoile', pill: 'Pilule', arrow: 'Flèche', diamond: 'Losange', hexagon: 'Hexagone', custom: 'Tracé libre', path: 'Forme' };
 
 function layerName(el: CanvasEl): string {
   if (el.type === 'text') return (el as TextEl).text.slice(0, 18) || 'Texte';
@@ -1366,7 +1575,13 @@ function layerName(el: CanvasEl): string {
   if (el.type === 'rect') return 'Rectangle';
   if (el.type === 'circle') return 'Cercle';
   if (el.type === 'star') return 'Étoile';
-  if (el.type === 'vector') return VECTOR_LABELS[(el as VectorEl).shape] ?? 'Forme';
+  if (el.type === 'vector') {
+    const v = el as VectorEl;
+    // Une forme de la bibliothèque porte son vrai nom dans la liste des
+    // calques : « Hexagone » se retrouve, « Forme » non.
+    if (v.shape === 'path') return FORMES.find(f => f.id === v.formeId)?.nom ?? 'Forme';
+    return VECTOR_LABELS[v.shape] ?? 'Forme';
+  }
   return 'Élément';
 }
 
@@ -1392,8 +1607,8 @@ interface CtxToolbarProps {
   onRemoveBg?: () => void;
   bgRemoving?: boolean;
   onLayerAction: (action: 'front' | 'forward' | 'backward' | 'back') => void;
-  onOpenFx?: (p: 'effects' | 'position') => void;
-  fxPanel?: 'effects' | 'position' | null;
+  onOpenFx?: (p: 'effects' | 'position' | 'ajuster' | 'outils') => void;
+  fxPanel?: 'effects' | 'position' | 'ajuster' | 'outils' | null;
 }
 
 /** Une ligne du sélecteur, rendue DANS sa propre police.
@@ -1484,9 +1699,14 @@ function EditorContextToolbar({ sel, fontGroups, brandFamilies, brandColors, sta
     const parts = (['underline', 'line-through'] as const).filter(f => f === flag ? !cur.includes(f) : cur.includes(f));
     u({ textDecoration: parts.join(' ') } as Partial<TextEl>);
   };
-  const colorVal = textSel?.fill ?? (vecSel?.fill ?? (sel.type === 'rect' ? (sel as RectEl).fill : sel.type === 'circle' ? (sel as CircleEl).fill : sel.type === 'star' ? (sel as StarEl).fill : '#000'));
+  // Une ligne ou une flèche fine n'a pas de fond : ce qu'on voit est son
+  // contour. Le sélecteur de couleur de la barre doit donc écrire là où la
+  // couleur se voit, sinon on change la couleur et il ne se passe rien.
+  const vecTrait = !!vecSel?.trait;
+  const colorVal = textSel?.fill ?? ((vecTrait ? (vecSel?.stroke || '#000') : vecSel?.fill) ?? (sel.type === 'rect' ? (sel as RectEl).fill : sel.type === 'circle' ? (sel as CircleEl).fill : sel.type === 'star' ? (sel as StarEl).fill : '#000'));
   const setFill = (c: string) => {
     if (textSel) u({ fill: c } as Partial<TextEl>);
+    else if (vecTrait) u({ stroke: c, fill: c } as Partial<VectorEl>);
     else if (isVector) u({ fill: c } as Partial<VectorEl>);
     else if (isShape) u({ fill: c } as Partial<RectEl>);
   };
@@ -1873,20 +2093,13 @@ function EditorContextToolbar({ sel, fontGroups, brandFamilies, brandColors, sta
         const imgSel = sel as ImageEl;
         // Retourne du JSX inline (appel de fonction, pas un composant) pour garder le même
         // nœud DOM entre les rendus → le glissement du slider ne se casse pas.
-        const adjRow = (label: string, k: 'adjBrightness' | 'adjContrast' | 'adjSaturation' | 'adjWarmth' | 'adjTint' | 'adjBlur', min: number, max: number, unit = '') => {
-          const val = (imgSel[k] as number) || 0;
-          return (
-            <div key={k} style={{ marginBottom: 8 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 5 }}>
-                <span className="label" style={{ marginBottom: 0 }}>{label}</span>
-                <span style={{ fontFamily: 'var(--mono)', fontWeight: 800, fontSize: 11, color: 'var(--ink-2)' }}>{val > 0 && min < 0 ? '+' : ''}{val}{unit}</span>
-              </div>
-              <input type="range" min={min} max={max} step={1} value={val}
-                onChange={e => u({ [k]: parseInt(e.target.value) } as Partial<ImageEl>)} className="ed-range" style={{ width: '100%', ...rangeFill(val, min, max) }} />
-            </div>
-          );
-        };
         return <>
+          {/* « Modifier » ouvre la boîte à outils, comme dans Canva : le reste
+              de la barre garde les gestes d'un clic. */}
+          <TextBtn on={fxPanel === 'outils'} onClick={() => onOpenFx?.('outils')}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"><path d="M14.7 6.3a4 4 0 0 1-5 5L5 16v3h3l4.7-4.7a4 4 0 0 1 5-5l2-2-3-3z"/></svg>
+            Modifier
+          </TextBtn>
           {onSetBg && <button onClick={onSetBg} className="btn btn-ghost btn-sm" style={{ height: 30, flexShrink: 0 }}>{T('asBackground')}</button>}
           {onCrop && <button onClick={onCrop} className="btn btn-ghost btn-sm" style={{ height: 30, flexShrink: 0 }}>{T('crop')}</button>}
           {onRemoveBg && (
@@ -1894,41 +2107,6 @@ function EditorContextToolbar({ sel, fontGroups, brandFamilies, brandColors, sta
               {bgRemoving ? 'Détourage…' : 'Détourer'}
             </button>
           )}
-          <div style={{ position: 'relative' }}>
-            <TextBtn on={pop === 'adjust'} onClick={() => setPop(p => p === 'adjust' ? null : 'adjust')}>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round"><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="18" x2="20" y2="18"/><circle cx="9" cy="6" r="2.4" fill="var(--paper)"/><circle cx="15" cy="12" r="2.4" fill="var(--paper)"/><circle cx="8" cy="18" r="2.4" fill="var(--paper)"/></svg>
-              Ajuster
-            </TextBtn>
-            {pop === 'adjust' && (
-              <div {...popAttrs({ minWidth: 244 })}>
-                <span className="label" style={{ display: 'block', marginBottom: 8 }}>{T('filters')}</span>
-                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 12 }}>
-                  {PHOTO_FILTER_PRESETS.map(p => {
-                    const active = PHOTO_FILTER_PRESETS.every(o => o.id !== p.id ? true :
-                      (['adjBrightness', 'adjContrast', 'adjSaturation', 'adjWarmth', 'adjTint'] as const)
-                        .every(k => ((imgSel[k] as number) || 0) === (p.values[k] ?? 0)));
-                    return (
-                      <button key={p.id} onClick={() => u({ adjBrightness: 0, adjContrast: 0, adjSaturation: 0, adjWarmth: 0, adjTint: 0, ...p.values } as Partial<ImageEl>)}
-                        className="btn btn-ghost btn-sm" style={{ height: 28, padding: '0 10px', fontSize: 11.5, background: active ? 'var(--mint-soft)' : undefined, color: active ? 'var(--mint-2)' : undefined, boxShadow: active ? 'inset 0 0 0 1.5px var(--mint-2)' : undefined }}>
-                        {p.name}
-                      </button>
-                    );
-                  })}
-                </div>
-                <span className="label" style={{ display: 'block', marginBottom: 8 }}>{T('light')}</span>
-                {adjRow('Luminosité', 'adjBrightness', -100, 100)}
-                {adjRow('Contraste', 'adjContrast', -100, 100)}
-                <span className="label" style={{ display: 'block', margin: '12px 0 8px' }}>{T('color')}</span>
-                {adjRow('Saturation', 'adjSaturation', -100, 100)}
-                {adjRow('Chaleur', 'adjWarmth', -100, 100)}
-                {adjRow('Teinte', 'adjTint', -100, 100)}
-                <span className="label" style={{ display: 'block', margin: '12px 0 8px' }}>{T('effect')}</span>
-                {adjRow('Flou', 'adjBlur', 0, 40, 'px')}
-                <button onClick={() => u({ adjBrightness: 0, adjContrast: 0, adjSaturation: 0, adjWarmth: 0, adjTint: 0, adjBlur: 0 } as Partial<ImageEl>)}
-                  className="btn btn-ghost btn-sm" style={{ width: '100%', justifyContent: 'center', marginTop: 10 }}>{T('reset')}</button>
-              </div>
-            )}
-          </div>
         </>;
       })()}
 
@@ -2158,17 +2336,69 @@ function EffectsPanel({ sel, onUpdate, brandColors, onClose }: { sel: TextEl; on
   const u = (patch: Partial<TextEl>) => onUpdate(patch as Partial<CanvasEl>);
   const active = activeEffectKey(sel);
 
-  // Ordre & libellés calqués sur Canva : O. portée · Brillance · Écho / Bordure · Arrière-plan · Élévation / Creux · Néon
-  const presets: { key: string; label: string; patch: Partial<TextEl>; preview: React.CSSProperties }[] = [
-    { key: 'shadow',     label: 'O. portée',    patch: { ...FX_CLEAR, shadowEnabled: true, shadowColor: '#000000', shadowOpacity: 55, shadowBlur: 6, shadowOffsetX: 4, shadowOffsetY: 4 }, preview: { textShadow: '3px 3px 2px rgba(0,0,0,.4)' } },
-    { key: 'glow',       label: 'Brillance',    patch: { ...FX_CLEAR, glowEnabled: true, glowColor: '#FFD34E', glowIntensity: 70, glowSize: 14 }, preview: { textShadow: '0 0 11px #FFD34E, 0 0 5px #FFD34E' } },
-    { key: 'echo',       label: 'Écho',         patch: { ...FX_CLEAR, echoEnabled: true, echoColor: '#B9A3FF', echoCount: 3, echoOffset: 8, echoFade: true }, preview: { textShadow: '6px 6px 0 rgba(185,163,255,.55), 11px 11px 0 rgba(185,163,255,.28)' } },
-    { key: 'border',     label: 'Bordure',      patch: { ...FX_CLEAR, stroke: '#14160F', strokeWidth: 3 }, preview: { color: '#fff', WebkitTextStroke: '1.4px #14160F' } as React.CSSProperties },
-    { key: 'background', label: 'Arrière-plan', patch: { ...FX_CLEAR, highlightEnabled: true, highlightColor: '#FFE45C', highlightOpacity: 100, highlightBorderRadius: 4, highlightPadding: 8 }, preview: { background: '#FFE45C', padding: '2px 6px', borderRadius: 4, color: '#14160F' } },
-    { key: 'lift',       label: 'Élévation',    patch: { ...FX_CLEAR, liftEnabled: true, liftColor: '#000000', liftDepth: 5, liftDirection: 'br' }, preview: { textShadow: '0 6px 6px rgba(0,0,0,.3)' } },
-    { key: 'hollow',     label: 'Creux',        patch: { ...FX_CLEAR, hollowEnabled: true, stroke: sel.fill || '#14160F', strokeWidth: 2 }, preview: { color: 'transparent', WebkitTextStroke: '1.4px #14160F' } as React.CSSProperties },
-    { key: 'neon',       label: 'Néon',         patch: { ...FX_CLEAR, glowEnabled: true, glowColor: '#2FD79B', glowIntensity: 100, glowSize: 20, stroke: '#2FD79B', strokeWidth: 1 }, preview: { color: '#2FD79B', textShadow: '0 0 8px #2FD79B, 0 0 16px #2FD79B' } },
+  // MONOCHROME, ET UNE SEULE COULEUR. Canva montre ses effets en violet, sa
+  // couleur : chaque vignette ne parle que de l'effet, jamais du coloris. Nos
+  // vignettes étaient jaunes, violettes, vertes et noires, ce qui donnait une
+  // page de confettis. Tout passe donc par le vert de KLIP.
+  const V = 'var(--leaf-ink, #1E3317)';   // le tracé
+  const Vc = 'var(--leaf, #BDF2A0)';      // l'accent clair
+  const AG: React.CSSProperties = { fontFamily: "'Archivo', var(--sans)", fontWeight: 800, fontSize: 30, letterSpacing: '-0.02em', color: V, lineHeight: 1 };
+
+  const presets: { key: string; label: string; patch: Partial<TextEl>; preview: React.CSSProperties; sombre?: boolean }[] = [
+    { key: 'shadow',     label: 'Ombre portée', patch: { ...FX_CLEAR, shadowEnabled: true, shadowColor: '#000000', shadowOpacity: 45, shadowBlur: 7, shadowOffsetX: 4, shadowOffsetY: 5 },
+      preview: { textShadow: '4px 5px 5px rgba(30,51,23,.35)' } },
+    { key: 'glow',       label: 'Brillance',    patch: { ...FX_CLEAR, glowEnabled: true, glowColor: '#BDF2A0', glowIntensity: 75, glowSize: 16 },
+      preview: { textShadow: '0 0 12px rgba(189,242,160,1), 0 0 5px rgba(189,242,160,1)' } },
+    { key: 'echo',       label: 'Écho',         patch: { ...FX_CLEAR, echoEnabled: true, echoColor: '#BDF2A0', echoCount: 3, echoOffset: 9, echoFade: true },
+      preview: { textShadow: '7px 7px 0 rgba(189,242,160,.9), 13px 13px 0 rgba(189,242,160,.5)' } },
+    { key: 'border',     label: 'Bordure',      patch: { ...FX_CLEAR, stroke: '#1E3317', strokeWidth: 3 },
+      preview: { color: '#fff', WebkitTextStroke: '1.6px #1E3317' } as React.CSSProperties },
+    { key: 'background', label: 'Arrière-plan', patch: { ...FX_CLEAR, highlightEnabled: true, highlightColor: '#BDF2A0', highlightOpacity: 100, highlightBorderRadius: Math.max(4, Math.round((sel.fontSize || 32) * 0.12)), highlightPadding: Math.max(6, Math.round((sel.fontSize || 32) * 0.30)) },
+      preview: { background: Vc, padding: '3px 8px', borderRadius: 5 } },
+    { key: 'lift',       label: 'Élévation',    patch: { ...FX_CLEAR, liftEnabled: true, liftColor: '#000000', liftDepth: 6, liftDirection: 'br' },
+      preview: { textShadow: '0 7px 7px rgba(30,51,23,.3)' } },
+    { key: 'hollow',     label: 'Creux',        patch: { ...FX_CLEAR, hollowEnabled: true, stroke: sel.fill || '#1E3317', strokeWidth: 2 },
+      preview: { color: 'transparent', WebkitTextStroke: '1.6px #1E3317' } as React.CSSProperties },
+    { key: 'neon',       label: 'Néon',         patch: { ...FX_CLEAR, glowEnabled: true, glowColor: '#BDF2A0', glowIntensity: 100, glowSize: 22, stroke: '#BDF2A0', strokeWidth: 1 },
+      sombre: true, preview: { color: '#BDF2A0', textShadow: '0 0 9px #BDF2A0, 0 0 20px #BDF2A0' } },
   ];
+
+  // ── Avancé ────────────────────────────────────────────────────────────────
+  // Des combinaisons, pas des moteurs neufs : chacune est une composition des
+  // effets ci-dessus, donc elle se règle ensuite avec les mêmes curseurs.
+  const avances: { key: string; label: string; patch: Partial<TextEl>; preview: React.CSSProperties; sombre?: boolean }[] = [
+    { key: 'retro', label: 'Rétro', patch: { ...FX_CLEAR, echoEnabled: true, echoColor: '#1E3317', echoCount: 1, echoOffset: 7, echoFade: false, stroke: '#1E3317', strokeWidth: 2 },
+      preview: { color: Vc, WebkitTextStroke: '1.4px #1E3317', textShadow: '5px 5px 0 #1E3317' } as React.CSSProperties },
+    { key: 'serigraphie', label: 'Sérigraphie', patch: { ...FX_CLEAR, echoEnabled: true, echoColor: '#BDF2A0', echoCount: 4, echoOffset: 5, echoFade: false },
+      preview: { textShadow: '4px 4px 0 #BDF2A0, 8px 8px 0 #BDF2A0, 12px 12px 0 #BDF2A0' } },
+    { key: 'relief', label: 'Relief', patch: { ...FX_CLEAR, liftEnabled: true, liftColor: '#1E3317', liftDepth: 9, liftDirection: 'br', stroke: '#1E3317', strokeWidth: 1 },
+      preview: { color: Vc, WebkitTextStroke: '1px #1E3317', textShadow: '2px 2px 0 #1E3317, 4px 4px 0 #1E3317, 6px 6px 0 rgba(30,51,23,.6)' } as React.CSSProperties },
+    { key: 'ombre-longue', label: 'Ombre longue', patch: { ...FX_CLEAR, echoEnabled: true, echoColor: '#1E3317', echoCount: 8, echoOffset: 3, echoFade: true },
+      preview: { textShadow: '2px 2px 0 rgba(30,51,23,.9), 4px 4px 0 rgba(30,51,23,.75), 6px 6px 0 rgba(30,51,23,.55), 8px 8px 0 rgba(30,51,23,.35), 10px 10px 0 rgba(30,51,23,.2)' } },
+    { key: 'givre', label: 'Givre', patch: { ...FX_CLEAR, hollowEnabled: true, stroke: '#BDF2A0', strokeWidth: 2, glowEnabled: true, glowColor: '#BDF2A0', glowIntensity: 60, glowSize: 14 },
+      sombre: true, preview: { color: 'transparent', WebkitTextStroke: '1.6px #BDF2A0', textShadow: '0 0 12px rgba(189,242,160,.9)' } as React.CSSProperties },
+    { key: 'tampon', label: 'Tampon', patch: { ...FX_CLEAR, hollowEnabled: true, stroke: '#1E3317', strokeWidth: 3, shadowEnabled: true, shadowColor: '#1E3317', shadowOpacity: 20, shadowBlur: 0, shadowOffsetX: 2, shadowOffsetY: 2 },
+      preview: { color: 'transparent', WebkitTextStroke: '2.2px #1E3317', textShadow: '2px 2px 0 rgba(30,51,23,.2)' } as React.CSSProperties },
+  ];
+
+  const Vignette = ({ p }: { p: { key: string; label: string; patch: Partial<TextEl>; preview: React.CSSProperties; sombre?: boolean } }) => {
+    const on = active === p.key;
+    return (
+      <button key={p.key} onClick={() => u(p.patch)}
+        style={{ display: 'flex', flexDirection: 'column', alignItems: 'stretch', gap: 7, padding: 0, border: 'none', background: 'transparent', cursor: 'pointer' }}>
+        {/* Un contour, rien d'autre : pas d'ombre portée sous la vignette. */}
+        <div style={{ aspectRatio: '1', borderRadius: 11, display: 'grid', placeItems: 'center', overflow: 'hidden',
+          background: p.sombre ? '#14160F' : 'var(--white)',
+          boxShadow: on ? 'inset 0 0 0 2px var(--leaf-ink, #1E3317)' : 'inset 0 0 0 1px var(--line)',
+          transition: 'box-shadow .12s' }}
+          onMouseEnter={e => { if (!on) e.currentTarget.style.boxShadow = 'inset 0 0 0 1.5px var(--ink-3)'; }}
+          onMouseLeave={e => { if (!on) e.currentTarget.style.boxShadow = 'inset 0 0 0 1px var(--line)'; }}>
+          <span style={{ ...AG, ...(p.sombre ? { color: '#fff' } : {}), ...p.preview }}>Ag</span>
+        </div>
+        <span style={{ fontSize: 11.5, fontWeight: 600, color: on ? 'var(--ink)' : 'var(--ink-3)', textAlign: 'center', lineHeight: 1.15 }}>{p.label}</span>
+      </button>
+    );
+  };
 
   return (
     <div style={{ padding: 18 }}>
@@ -2184,25 +2414,20 @@ function EffectsPanel({ sel, onUpdate, brandColors, onClose }: { sel: TextEl; on
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '14px 12px' }}>
-        {presets.map(p => {
-          const on = active === p.key;
-          const dark = p.key === 'neon';
-          return (
-            <button key={p.key} onClick={() => u(p.patch)}
-              style={{ display: 'flex', flexDirection: 'column', alignItems: 'stretch', gap: 8, padding: 0, border: 'none', background: 'transparent', cursor: 'pointer' }}>
-              <div style={{ aspectRatio: '1', borderRadius: 10, display: 'grid', placeItems: 'center',
-                background: dark ? '#14160F' : (on ? 'var(--mint-soft)' : '#fff'),
-                boxShadow: on ? 'inset 0 0 0 2px var(--mint-2)' : 'inset 0 0 0 1px var(--line), 0 1px 3px rgba(20,22,15,.06)',
-                transition: 'box-shadow .12s, background .12s' }}
-              onMouseEnter={e => { if (!on) e.currentTarget.style.boxShadow = 'inset 0 0 0 1px var(--line), 0 3px 10px rgba(20,22,15,.14)'; }}
-              onMouseLeave={e => { if (!on) e.currentTarget.style.boxShadow = 'inset 0 0 0 1px var(--line), 0 1px 3px rgba(20,22,15,.06)'; }}>
-                <span style={{ fontFamily: 'var(--display)', fontWeight: 900, fontSize: 28, color: dark ? '#fff' : '#14160F', lineHeight: 1, ...p.preview }}>Ag</span>
-              </div>
-              <span style={{ fontSize: 11.5, fontWeight: 500, color: on ? 'var(--mint-2)' : 'var(--ink-3)', textAlign: 'center', lineHeight: 1.15 }}>{p.label}</span>
-            </button>
-          );
-        })}
+        {presets.map(p => <Vignette key={p.key} p={p} />)}
       </div>
+
+      <p style={{ fontSize: 10, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '0.12em', fontFamily: 'var(--mono)', fontWeight: 800, margin: '22px 0 10px' }}>Avancé</p>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '14px 12px' }}>
+        {avances.map(p => <Vignette key={p.key} p={p} />)}
+      </div>
+
+      {active !== 'none' && (
+        <button onClick={() => u({ ...FX_CLEAR, stroke: '' })}
+          style={{ width: '100%', height: 38, marginTop: 16, borderRadius: 11, border: 'none', background: 'var(--sunk)', color: 'var(--ink-2)', fontSize: 12.5, fontWeight: 700, fontFamily: 'var(--sans)', cursor: 'pointer' }}>
+          Retirer l&apos;effet
+        </button>
+      )}
 
       {/* Réglages fins de l'effet actif */}
       {active !== 'none' && (
@@ -2219,9 +2444,28 @@ function EffectsPanel({ sel, onUpdate, brandColors, onClose }: { sel: TextEl; on
             <FxSlider label={T('offsetY')} value={sel.shadowOffsetY ?? 4} min={-20} max={20} step={1} fmt={v => (v >= 0 ? '+' : '') + v} onChange={v => u({ shadowOffsetY: v })} />
           </>)}
 
-          {active === 'lift' && (
+          {active === 'lift' && (<>
+            {/* La couleur manquait : Élévation et Relief étaient condamnés au
+                noir, alors que le moteur sait les colorer depuis le début. */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+              <span className="label" style={{ marginBottom: 0 }}>{T('color')}</span>
+              <ColorPicker value={sel.liftColor ?? '#000000'} onChange={c => u({ liftColor: c })} brandColors={brandColors} />
+            </div>
             <FxSlider label={T('depth')} value={sel.liftDepth ?? 5} min={1} max={20} step={1} fmt={v => v + 'px'} onChange={v => u({ liftDepth: v })} />
-          )}
+            <div style={{ marginTop: 12 }}>
+              <span className="label" style={{ display: 'block', marginBottom: 7 }}>Direction</span>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 5 }}>
+                {([['tl', '↖'], ['t', '↑'], ['tr', '↗'], ['r', '→'], ['br', '↘'], ['b', '↓'], ['bl', '↙'], ['l', '←']] as const).map(([id, fleche]) => (
+                  <button key={id} onClick={() => u({ liftDirection: id })}
+                    style={{ height: 30, borderRadius: 8, border: 'none', cursor: 'pointer', fontSize: 13,
+                      background: (sel.liftDirection ?? 'br') === id ? 'var(--ink)' : 'var(--sunk)',
+                      color: (sel.liftDirection ?? 'br') === id ? '#fff' : 'var(--ink-2)' }}>
+                    {fleche}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </>)}
 
           {(active === 'hollow' || active === 'border') && (<>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
@@ -2255,8 +2499,11 @@ function EffectsPanel({ sel, onUpdate, brandColors, onClose }: { sel: TextEl; on
               <ColorPicker value={sel.highlightColor ?? '#FFE45C'} onChange={c => u({ highlightColor: c })} brandColors={brandColors} />
             </div>
             <FxSlider label={T('opacity')} value={sel.highlightOpacity ?? 100} min={0} max={100} step={1} fmt={v => v + '%'} onChange={v => u({ highlightOpacity: v })} />
-            <FxSlider label={T('rounding')} value={sel.highlightBorderRadius ?? 4} min={0} max={20} step={1} fmt={v => v + 'px'} onChange={v => u({ highlightBorderRadius: v })} />
-            <FxSlider label={T('thickness')} value={sel.highlightPadding ?? 8} min={0} max={20} step={1} fmt={v => v + 'px'} onChange={v => u({ highlightPadding: v })} />
+            {/* Les bornes suivent la taille du texte : 20 px de marge sur un
+                titre de 130 px ne veut rien dire. Au maximum, l'aplat des
+                lignes se rejoint, comme dans Canva. */}
+            <FxSlider label={T('rounding')} value={sel.highlightBorderRadius ?? 4} min={0} max={Math.round((sel.fontSize || 32) * 0.5)} step={1} fmt={v => v + 'px'} onChange={v => u({ highlightBorderRadius: v })} />
+            <FxSlider label="Écart" value={sel.highlightPadding ?? 8} min={0} max={Math.round((sel.fontSize || 32) * 0.6)} step={1} fmt={v => v + 'px'} onChange={v => u({ highlightPadding: v })} />
           </>)}
         </div>
       )}
@@ -2526,195 +2773,6 @@ function PositionPanel({ sel, stageW, stageH, elements, selectedId, onUpdate, on
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
-// ─── Écran de composition IA ─────────────────────────────────────────────────
-// Plein cadre (position fixed) : la barre d'outils de l'éditeur restait visible
-// par-dessus l'ancien calque, qui n'était qu'absolu dans la zone de travail.
-// Parti pris : au lieu d'un dégradé + logo, on MONTRE la composition en train de
-// se faire — une maquette miniature où les blocs se posent un par un. Les motifs
-// viennent tous de la landing : fond crème, cadre de sélection « fourmis » violet,
-// curseur collaboratif étiqueté, cartes flottantes leaf/forest, étoiles.
-const GEN_STEPS: {
-  key: string;
-  label: string;
-  box: React.CSSProperties;   // bloc posé dans la maquette
-  cursor: { x: string; y: string };
-}[] = [
-  { key: 'photo', label: 'On lit votre photo',
-    box: { left: 8, top: 8, right: 8, bottom: 8, borderRadius: 9, background: 'linear-gradient(150deg,#2A4A38,#16301F 60%,#0F2418)' },
-    cursor: { x: '52%', y: '34%' } },
-  { key: 'scrim', label: 'La charte du client s’applique',
-    box: { left: 8, right: 8, bottom: 8, height: 104, borderRadius: 9, background: 'linear-gradient(180deg,rgba(7,33,23,0),rgba(7,33,23,.86))' },
-    cursor: { x: '62%', y: '62%' } },
-  { key: 'title', label: 'Le titre trouve sa place',
-    box: { left: 18, bottom: 62, width: 122, height: 24, borderRadius: 4, background: '#F1F0E5' },
-    cursor: { x: '30%', y: '73%' } },
-  { key: 'sub', label: 'Textes et marges recalés, rien ne déborde',
-    box: { left: 18, bottom: 44, width: 88, height: 10, borderRadius: 3, background: 'rgba(241,240,229,.5)' },
-    cursor: { x: '24%', y: '82%' } },
-  { key: 'cta', label: 'Les couleurs de la marque arrivent',
-    box: { left: 18, bottom: 18, width: 66, height: 20, borderRadius: 999, background: '#BDF2A0' },
-    cursor: { x: '20%', y: '90%' } },
-];
-
-function AiGeneratingOverlay({ title, detail, lines }: { title: string; detail?: string; lines?: string[] }) {
-  const [step, setStep] = useState(0);
-  useEffect(() => {
-    // Boucle : on rejoue la composition tant que l'IA travaille.
-    const id = setInterval(() => setStep(s => (s + 1) % (GEN_STEPS.length + 2)), 1250);
-    return () => clearInterval(id);
-  }, []);
-
-  const active = Math.min(step, GEN_STEPS.length - 1);
-  const cur = GEN_STEPS[active].cursor;
-
-  return (
-    <div className="klipgen" role="status" aria-live="polite">
-      <div className="klipgen-stage">
-        {/* Étoiles de la charte, posées autour de la scène */}
-        <svg className="klipgen-star klipgen-s1 floatA" width="26" height="26" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 0L14 10L24 12L14 14L12 24L10 14L0 12L10 10Z" fill="#BDF2A0" /></svg>
-        <svg className="klipgen-star klipgen-s2 floatB" width="17" height="17" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 0L14 10L24 12L14 14L12 24L10 14L0 12L10 10Z" fill="#6656D9" /></svg>
-
-        {/* Cartes flottantes — mêmes pastilles que la landing */}
-        <span className="klipgen-card klipgen-card-leaf floatA">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M12 3l1.6 5.4L19 10l-5.4 1.6L12 17l-1.6-5.4L5 10l5.4-1.6L12 3Z"/></svg>
-          Votre charte
-        </span>
-        <span className="klipgen-card klipgen-card-forest floatB">Voix du client</span>
-
-        {/* Maquette miniature : les blocs se posent un par un */}
-        <div className="klipgen-canvas">
-          {GEN_STEPS.map((b, i) => (
-            <span
-              key={b.key}
-              className={`klipgen-block${i <= active && step < GEN_STEPS.length + 2 ? ' in' : ''}`}
-              style={b.box}
-            />
-          ))}
-          {/* Cadre de sélection « fourmis » sur le bloc en cours de pose.
-              Seule la géométrie est reprise : passer tout le style repeindrait
-              aussi le fond du bloc par-dessus la maquette. */}
-          <div className="klipgen-ants" aria-hidden="true" style={{
-            left: GEN_STEPS[active].box.left, top: GEN_STEPS[active].box.top,
-            right: GEN_STEPS[active].box.right, bottom: GEN_STEPS[active].box.bottom,
-            width: GEN_STEPS[active].box.width, height: GEN_STEPS[active].box.height,
-          }}>
-            {/* Le SVG est un élément remplacé : posé directement en absolu avec
-                left+right il garderait sa largeur intrinsèque (300px) au lieu de
-                s'étirer. D'où ce conteneur qui porte la géométrie. */}
-            <svg><rect x="1" y="1" rx="4" /></svg>
-          </div>
-
-          {/* Curseur collaboratif qui vient poser chaque bloc. Placé DANS la
-              maquette : ses coordonnées sont en % du cadre, pas de la scène. */}
-          <div className="klipgen-cur" style={{ left: cur.x, top: cur.y }} aria-hidden="true">
-            <svg width="19" height="19" viewBox="0 0 24 24"><path d="M3.5 2.2 L11 20.5 L13.6 12.6 L21.5 10 Z" fill="#6656D9" stroke="#fff" strokeWidth="1.8" strokeLinejoin="round"/></svg>
-            <span className="klipgen-cur-tag">Klip</span>
-          </div>
-        </div>
-      </div>
-
-      <div className="klipgen-copy">
-        <h2>{title}</h2>
-        <p className="klipgen-step">{detail || GEN_STEPS[active].label}</p>
-        <div className="klipgen-dots" aria-hidden="true">
-          {GEN_STEPS.map((b, i) => (
-            <span key={b.key} className={i <= active ? 'on' : ''} />
-          ))}
-        </div>
-        {lines && lines.length > 0 && (
-          <div style={{ width: 'min(420px, 86vw)', margin: '10px auto 0', textAlign: 'left' }}>
-            <AiThinkingLog lines={lines} />
-          </div>
-        )}
-        <p className="klipgen-reassure">Quelques secondes, et le visuel est prêt à retoucher.</p>
-      </div>
-
-      <style>{`
-        .klipgen {
-          position: fixed; inset: 0; z-index: 5000;
-          background: #F1F0E5;
-          display: flex; flex-direction: column; align-items: center; justify-content: center;
-          gap: 34px; cursor: wait; overflow: hidden;
-          font-family: var(--sans), system-ui, sans-serif;
-          /* Trame de points : la texture de fond de la landing */
-          background-image: radial-gradient(rgba(12,42,29,.07) 1px, transparent 1px);
-          background-size: 22px 22px;
-        }
-        .klipgen-stage { position: relative; width: 300px; height: 262px; display: grid; place-items: center; }
-
-        .klipgen-canvas {
-          position: relative; width: 176px; height: 220px;
-          background: #FBFAF4; border-radius: 13px;
-          box-shadow: 0 0 0 1px rgba(12,42,29,.10), 0 26px 50px -22px rgba(16,19,11,.45);
-        }
-        .klipgen-block {
-          position: absolute; display: block;
-          opacity: 0; transform: translateY(7px) scale(.97);
-          transition: opacity .34s ease, transform .34s cubic-bezier(.2,.8,.3,1);
-        }
-        .klipgen-block.in { opacity: 1; transform: none; }
-
-        .klipgen-ants {
-          position: absolute; pointer-events: none;
-          transition: all .34s cubic-bezier(.2,.8,.3,1);
-        }
-        .klipgen-ants svg { width: 100%; height: 100%; display: block; overflow: visible; }
-        .klipgen-ants rect {
-          width: calc(100% - 2px); height: calc(100% - 2px);
-          fill: none; stroke: #6656D9; stroke-width: 2; stroke-dasharray: 8 7;
-          animation: klipgen-ants 1.2s linear infinite;
-        }
-        @keyframes klipgen-ants { to { stroke-dashoffset: -15; } }
-
-        .klipgen-cur {
-          position: absolute; z-index: 8; display: flex; flex-direction: column; align-items: flex-start; gap: 2px;
-          pointer-events: none; filter: drop-shadow(0 6px 14px rgba(16,19,11,.25));
-          transition: left .42s cubic-bezier(.3,.7,.3,1), top .42s cubic-bezier(.3,.7,.3,1);
-        }
-        .klipgen-cur-tag {
-          font-weight: 800; font-size: 11px; color: #fff; background: #6656D9;
-          padding: 3px 9px; border-radius: 999px 999px 999px 4px; margin-left: 13px; white-space: nowrap;
-        }
-
-        .klipgen-card {
-          position: absolute; z-index: 7; display: inline-flex; align-items: center; gap: 7px;
-          border-radius: 12px; padding: 9px 13px; font-weight: 800; font-size: 12.5px;
-          box-shadow: 0 18px 36px -18px rgba(16,19,11,.45);
-        }
-        .klipgen-card-leaf   { background: #BDF2A0; color: #1E3317; top: 2px;  left: -78px;  --r: -7deg; }
-        .klipgen-card-forest { background: #0C2A1D; color: #EEEDE3; bottom: 8px; right: -72px; --r: 6deg; }
-
-        .klipgen-star { position: absolute; z-index: 6; }
-        .klipgen-s1 { top: -6px; right: 6px; --r: 0deg; }
-        .klipgen-s2 { bottom: 44px; left: -6px; --r: 0deg; }
-
-        .floatA { animation: klipgen-floatA 7s ease-in-out infinite; }
-        .floatB { animation: klipgen-floatB 6s ease-in-out infinite; }
-        @keyframes klipgen-floatA { 0%,100% { transform: translateY(0) rotate(var(--r,0deg)); } 50% { transform: translateY(-13px) rotate(calc(var(--r,0deg) + 3deg)); } }
-        @keyframes klipgen-floatB { 0%,100% { transform: translateY(0) rotate(var(--r,0deg)); } 50% { transform: translateY(-9px) rotate(calc(var(--r,0deg) - 3deg)); } }
-
-        .klipgen-copy { position: relative; text-align: center; max-width: 430px; padding: 0 24px; }
-        .klipgen-copy h2 {
-          margin: 0; font-family: var(--display), system-ui, sans-serif; font-weight: 800;
-          font-size: 25px; line-height: 1.2; letter-spacing: -0.02em; color: #14160F; text-wrap: balance;
-        }
-        .klipgen-step { margin: 9px 0 0; font-size: 13.5px; line-height: 1.5; color: #5A5E50; min-height: 20px; }
-        .klipgen-dots { display: flex; gap: 6px; justify-content: center; margin-top: 18px; }
-        .klipgen-dots span {
-          width: 6px; height: 6px; border-radius: 50%; background: rgba(12,42,29,.16);
-          transition: background .3s ease, transform .3s ease;
-        }
-        .klipgen-dots span.on { background: #6656D9; transform: scale(1.25); }
-        .klipgen-reassure { margin: 16px 0 0; font-size: 12.5px; color: #8B8E7F; }
-
-        @media (prefers-reduced-motion: reduce) {
-          .klipgen-ants rect, .floatA, .floatB { animation: none !important; }
-          .klipgen-block, .klipgen-ants, .klipgen-cur { transition: none !important; }
-        }
-      `}</style>
-    </div>
-  );
-}
 export function VisualEditor({ workspaceId, postId, templateId, mode }: { workspaceId: string; postId?: string; templateId?: string; mode: 'post' | 'template' }) {
   const T = useTranslations('editor');
   const isTemplate = mode === 'template';
@@ -2741,9 +2799,14 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
   const [maskCropId, setMaskCropId] = useState<string | null>(null);
   const [bgRemovingId, setBgRemovingId] = useState<string | null>(null);
   const maskPhotoInputRef = useRef<HTMLInputElement>(null);
+  /** Fin du dernier glissé : Konva envoie un clic juste après, qu'on ignore. */
+  const dernierGlisseRef = useRef(0);
 
   const [proxyUrl, setProxyUrl] = useState<string>('');
   const [bgStyle, setBgStyle] = useState<BgStyle | null>(null);
+  /** Le fond du plan de travail est sélectionné : sa barre remplace celle des
+   *  calques. Cliquer dans le vide le sélectionne, comme dans Canva. */
+  const [fondSelect, setFondSelect] = useState(false);
   const [postTemplateId, setPostTemplateId] = useState<string | null>(null);
   const [bgOffsetX, setBgOffsetX] = useState(0);
   const [bgOffsetY, setBgOffsetY] = useState(0);
@@ -2829,7 +2892,7 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
   // panneau — c'est le reproche exact que Martin a fait, et il a raison.
   const [ornCat, setOrnCat] = useState<OrnementCategorie>('fleches');
   const [ornColor, setOrnColor] = useState('#14160F');
-  const [bankSource, setBankSource] = useState<'musee' | 'iconscout'>('musee');
+  const [bankSource, setBankSource] = useState<'musee' | 'iconscout' | 'tout'>('tout');
   const [bankKind, setBankKind] = useState<AssetKind>('illustration');
   const [bankStyle, setBankStyle] = useState('');
   const [bankTout, setBankTout] = useState(false);
@@ -2845,6 +2908,78 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
   const [stickerLibQuery, setStickerLibQuery] = useState('');
   const [stickerLibPhotos, setStickerLibPhotos] = useState<{ id: number; thumb: string; full: string; alt: string }[]>([]);
   const [stickerLibPhotoLoading, setStickerLibPhotoLoading] = useState(false);
+  // ── Panneau Éléments : on entre par une catégorie ─────────────────────────
+  // Arriver sur une page unique de 300 vignettes, c'est arriver nulle part. Le
+  // panneau s'ouvre donc sur des catégories ; on en choisit une, et on peut
+  // revenir en arrière. `null` = l'accueil des catégories.
+  const [elemCat, setElemCat] = useState<string | null>(null);
+  const [formeQuery, setFormeQuery] = useState('');
+  const [formeCouleur, setFormeCouleur] = useState('#14160F');
+  /** Famille dépliée (« Afficher tout ») dans le panneau des formes. */
+  const [formeTout, setFormeTout] = useState<FamilleForme | null>(null);
+  // Génération d'illustrations : le prompt, l'attente, et les images rendues.
+  const [illuPrompt, setIlluPrompt] = useState('');
+  const [illuLoading, setIlluLoading] = useState(false);
+  const [illuEtape, setIlluEtape] = useState<string | null>(null);
+  const [illuErreur, setIlluErreur] = useState<string | null>(null);
+  const [illuDetourer, setIlluDetourer] = useState(true);
+  const [illuVariantes, setIlluVariantes] = useState<{ uri: string; detoure: boolean }[]>([]);
+  // Matières photographiées (Pexels, repli Openverse) : le grain se calcule,
+  // le papier froissé se photographie.
+  const [matQuery, setMatQuery] = useState('paper texture');
+  const [matItems, setMatItems] = useState<{ id: string; thumb: string; full: string; alt: string }[]>([]);
+  const [matLoading, setMatLoading] = useState(false);
+  const [importsListe, setImportsListe] = useState<{ nom: string; url: string }[]>([]);
+  const [importsLoading, setImportsLoading] = useState(false);
+
+  // ── Charte : on peut regarder celle d'une autre marque ────────────────────
+  // Une agence pioche souvent un logo ou une couleur chez un autre client.
+  // Regarder n'est pas déménager : le visuel reste dans son espace.
+  type CharteMarque = {
+    id: string; name: string;
+    primary_color?: string | null; secondary_color?: string | null; accent_color?: string | null;
+    font_family?: string | null; font_secondary?: string | null;
+    logo_url?: string | null; logo_dark_url?: string | null; brand_assets?: string[] | null;
+    sector?: string | null; tone?: string | null; words_to_use?: string | null; words_to_avoid?: string | null;
+  };
+  const [charteVue, setCharteVue] = useState<CharteMarque | null>(null);
+  const [charteNom, setCharteNom] = useState<string | null>(null);
+  const [chartesListe, setChartesListe] = useState<CharteMarque[]>([]);
+  const [chartesOuvert, setChartesOuvert] = useState(false);
+  const [charteOnglet, setCharteOnglet] = useState('tout');
+  const chargerChartes = async () => {
+    try {
+      const { data } = await supabase
+        .from('workspaces')
+        .select('id, name, primary_color, secondary_color, accent_color, font_family, font_secondary, logo_url, logo_dark_url, brand_assets, sector, tone, words_to_use, words_to_avoid')
+        .order('name');
+      setChartesListe((data ?? []) as CharteMarque[]);
+    } catch {
+      setChartesListe([]);
+    }
+  };
+
+  // Panneau Texte : la recherche filtre les combinaisons, et les dernières
+  // utilisées remontent en tête. Le navigateur s'en souvient d'une session à
+  // l'autre, sinon « utilisés récemment » ne veut rien dire.
+  const [degradeQuery, setDegradeQuery] = useState('');
+  const [degradeTout, setDegradeTout] = useState<FamilleDegrade | null>(null);
+
+  const [texteQuery, setTexteQuery] = useState('');
+  const [texteRecents, setTexteRecents] = useState<string[]>([]);
+  useEffect(() => {
+    try {
+      const brut = localStorage.getItem('klip-texte-recents');
+      if (brut) setTexteRecents(JSON.parse(brut) as string[]);
+    } catch { /* stockage indisponible */ }
+  }, []);
+  const memoriserTexte = (id: string) => {
+    setTexteRecents(prev => {
+      const suite = [id, ...prev.filter(x => x !== id)].slice(0, 8);
+      try { localStorage.setItem('klip-texte-recents', JSON.stringify(suite)); } catch { /* ignoré */ }
+      return suite;
+    });
+  };
 
   const elementsRef = useRef<CanvasEl[]>([]);
   const selectedIdRef = useRef<string | null>(null);
@@ -2885,6 +3020,17 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
       } catch { /* pas de scène montée : rien à re-mesurer */ }
     };
     const bump = () => { if (alive) { clearTextMetricsCache(); remesurerKonva(); setFontTick(t => t + 1); } };
+    // Les coupes utilisées par les calques, demandées nommément.
+    const coupes: string[] = [];
+    for (const el of elementsRef.current) {
+      if (el.type !== 'text') continue;
+      const c = `${(el as TextEl).fontFamily}|${(el as TextEl).fontStyle ?? 'normal'}`;
+      if (!coupes.includes(c)) coupes.push(c);
+    }
+    void Promise.all(coupes.map(c => {
+      const [f, st] = c.split('|');
+      return chargerCoupe(f, st);
+    })).then(bump);
     document.fonts.ready.then(bump).catch(() => {});
     document.fonts.addEventListener?.('loadingdone', bump);
     return () => { alive = false; document.fonts.removeEventListener?.('loadingdone', bump); };
@@ -2906,8 +3052,25 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
   const [altGhosts, setAltGhosts] = useState<CanvasEl[] | null>(null);
   const GHOST_PREFIX = 'ghost-';
 
+  /** Ouvre le sélecteur de photo pour une case de grille encore vide. */
+  const remplirCase = (id: string) => {
+    setSelectedId(id);
+    selectedIdRef.current = id;
+    setTimeout(() => maskPhotoInputRef.current?.click(), 30);
+  };
+
   const handleElClick = (id: string, shiftKey: boolean) => {
     if (lockedIds.has(id)) return;
+    setFondSelect(false);
+    // Une case vide n'a qu'un usage : recevoir une image. Un clic suffit donc,
+    // sauf s'il vient de finir un glissé (Konva envoie quand même le clic).
+    if (!shiftKey && Date.now() - dernierGlisseRef.current > 250) {
+      const el = elementsRef.current.find(e => e.id === id);
+      if (el && el.type === 'vector' && (el as VectorEl).cadre && (el as VectorEl).vide) {
+        remplirCase(id);
+        return;
+      }
+    }
     if (shiftKey) {
       setSelectedIds(prev => {
         if (prev.includes(id)) {
@@ -2950,6 +3113,7 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
 
   const handleElDragEnd = (id: string, x: number, y: number) => {
     setIsKonvaDragging(false);
+    dernierGlisseRef.current = Date.now();
     setGuides({ v: null, h: null });
     setAltGhosts(null);
     const ids = selectedIdsRef.current;
@@ -3312,6 +3476,34 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
 
   // ── Canvas zoom ───────────────────────────────────────────────────────────
   const [zoom, setZoom] = useState(1);
+
+  // ── Netteté au zoom ───────────────────────────────────────────────────────
+  // Le plan de travail est dessiné à sa taille native (1080 px, par exemple)
+  // puis AGRANDI en CSS. À 215 %, le navigateur étire donc une image de
+  // 1080 px sur 2300, et TOUT devient flou : les textes, les formes, les
+  // éléments posés. La correction ne change pas la taille affichée du
+  // canevas, elle augmente sa RÉSERVE DE PIXELS en suivant le zoom — c'est
+  // exactement ce que fait `devicePixelRatio` sur un écran Retina.
+  //
+  // Avec un plafond : à 400 % sur un écran Retina, la réserve idéale ferait
+  // 8× la page, soit près de 300 Mo pour un seul calque. On se donne un
+  // budget en pixels et on s'y tient ; au-delà, un peu de flou vaut mieux
+  // qu'un onglet qui tombe.
+  useEffect(() => {
+    const stage = stageRef.current;
+    if (!stage) return;
+    const dpr = typeof window !== 'undefined' ? window.devicePixelRatio || 1 : 1;
+    const l = stage.width() || 1, h = stage.height() || 1;
+    const plafond = Math.max(1, Math.min(4, Math.sqrt(18e6 / (l * h))));
+    const ratio = Math.max(1, Math.min(plafond, dpr * zoom));
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    stage.getLayers().forEach((calque: any) => {
+      const toile = calque.getCanvas();
+      if (Math.abs(toile.getPixelRatio() - ratio) < 0.02) return;
+      toile.setPixelRatio(ratio);
+      calque.batchDraw();
+    });
+  }, [zoom, stageW, stageH, stageWView, activeSlideIdx]);
   const canvasAreaRef = useRef<HTMLDivElement>(null);
   const slideContainerRefs = useRef<(HTMLDivElement | null)[]>([]);
   const [customFonts, setCustomFonts] = useState<{ name: string; url: string }[]>([]);
@@ -3347,7 +3539,7 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
     () => (mode === 'template' && (!templateId || templateId === 'new')) ? 'text' : null
   );
   // Panneau gauche contextuel (Effet / Position) ouvert depuis la barre de modification.
-  const [fxPanel, setFxPanel] = useState<'effects'|'position'|null>(null);
+  const [fxPanel, setFxPanel] = useState<'effects'|'position'|'ajuster'|'outils'|null>(null);
   // Bibliothèque de combinaisons de texte (modale "Voir plus").
   const [textLibOpen, setTextLibOpen] = useState(false);
   const [textLibCat, setTextLibCat] = useState<string>('Tous');
@@ -3356,7 +3548,7 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
   const [ltCharter, setLtCharter] = useState(true);  // idem pour les mises en page — activé par défaut : le client vient de définir sa charte
   const [ltCat, setLtCat] = useState<string>('Tous');
   const [ltStyle, setLtStyle] = useState<string>('Tous');
-  const openFxPanel = (p: 'effects'|'position') => { setFxPanel(cur => cur === p ? null : p); setTool(null); };
+  const openFxPanel = (p: 'effects'|'position'|'ajuster'|'outils') => { setFxPanel(cur => cur === p ? null : p); setTool(null); };
   const [bgLocked, setBgLocked] = useState(true);
   const [bgImageSelected, setBgImageSelected] = useState(false);
   const [bgOpacity, setBgOpacity] = useState(100);
@@ -4037,6 +4229,32 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
 
   const selectedEl = elements.find(e => e.id === selectedId);
 
+  // Changer la graisse ou l'italique d'un calque demande la coupe
+  // correspondante, puis redessine : sans ça, « Black Italic » restait un
+  // 700 épaissi à la main par le navigateur.
+  const coupeSel = selectedEl?.type === 'text'
+    ? `${(selectedEl as TextEl).fontFamily}|${(selectedEl as TextEl).fontStyle ?? 'normal'}`
+    : '';
+  useEffect(() => {
+    if (!coupeSel) return;
+    const [famille, style] = coupeSel.split('|');
+    let vivant = true;
+    void chargerCoupe(famille, style).then(() => {
+      if (!vivant) return;
+      clearTextMetricsCache();
+      try {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const noeuds: any[] = stageRef.current?.find?.('Text') ?? [];
+        for (const n of noeuds) { const f = n.fontFamily(); n.fontFamily('klip-remesure'); n.fontFamily(f); }
+        stageRef.current?.batchDraw?.();
+      } catch { /* pas de scène */ }
+      setFontTick(t => t + 1);
+    });
+    return () => { vivant = false; };
+  }, [coupeSel]);
+
+
+
   // Quand une portion du texte est sélectionnée, la barre d'outils doit refléter
   // le style de CETTE portion (police, corps, couleur…), pas celui du bloc.
   const toolbarSel = React.useMemo(() => {
@@ -4369,8 +4587,49 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
     if (arr.length === elementsRef.current.length) applyElements(arr);
   };
 
+  /**
+   * Les distances d'un effet suivent la taille du texte.
+   *
+   * Elles étaient stockées en pixels absolus : un aplat réglé à 9 px de marge
+   * sur un titre de 40 px devenait un liseré ridicule à 129 px, et une bordure
+   * énorme quand on rapetissait. Or personne ne pense « neuf pixels » : on
+   * pense « une marge autour des lettres ». Dès que la taille change, tout ce
+   * qui entoure le texte change dans la même proportion.
+   */
+  const echelonnerEffets = (el: TextEl, patch: Partial<TextEl>): Partial<TextEl> => {
+    const avant = el.fontSize || 0;
+    const apres = patch.fontSize ?? 0;
+    if (!avant || !apres || Math.abs(apres - avant) < 0.01) return patch;
+    const r = apres / avant;
+    const mettre = <K extends keyof TextEl>(cle: K, min = 0) => {
+      if (patch[cle] !== undefined) return;               // réglé à la main : on n'y touche pas
+      const v = el[cle] as unknown as number | undefined;
+      if (typeof v !== 'number' || v === 0) return;
+      (patch as Record<string, unknown>)[cle as string] = Math.max(min, Math.round(v * r * 10) / 10);
+    };
+    mettre('highlightPadding');
+    mettre('highlightBorderRadius');
+    mettre('strokeWidth');
+    mettre('shadowBlur');
+    mettre('shadowOffsetX');
+    mettre('shadowOffsetY');
+    mettre('echoOffset');
+    mettre('glowSize');
+    mettre('liftDepth');
+    mettre('padding');
+    mettre('paddingH');
+    mettre('paddingV');
+    return patch;
+  };
+
   const updateEl = useCallback((id: string, updates: Partial<CanvasEl>) => {
-    const newEls = elementsRef.current.map(e => e.id === id ? { ...e, ...updates } as CanvasEl : e);
+    const newEls = elementsRef.current.map(e => {
+      if (e.id !== id) return e;
+      const patch = e.type === 'text' && (updates as Partial<TextEl>).fontSize !== undefined
+        ? echelonnerEffets(e as TextEl, { ...(updates as Partial<TextEl>) })
+        : updates;
+      return { ...e, ...patch } as CanvasEl;
+    });
     applyElements(newEls);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -4791,7 +5050,7 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
 
   const addText = () => {
     const box = newTextBox();
-    const el: TextEl = { id: newId(), type: 'text', x: box.x, y: Math.round(stageH / 2 - 40), rotation: 0, opacity: 100, text: 'Nouveau texte', fontSize: 32, fontFamily: 'Oswald', fontStyle: 'bold', textDecoration: '', fill: '#FFFFFF', align: 'center', width: box.width, hasBg: false, bgColor: '#000000', bgOpacity: 80, cornerRadius: 4, padding: 16, paddingH: 16, paddingV: 10 };
+    const el: TextEl = { id: newId(), type: 'text', x: box.x, y: Math.round(stageH / 2 - 40), rotation: 0, opacity: 100, text: 'Votre texte', fontSize: 40, fontFamily: workspaceData?.font_family || 'Archivo', fontStyle: 'normal', textDecoration: '', fill: '#14160F', align: 'left', width: box.width, hasBg: false, bgColor: '#000000', bgOpacity: 80, cornerRadius: 4, padding: 16, paddingH: 16, paddingV: 10 };
     applyElements([...elements, el]);
     setSelectedId(el.id);
   };
@@ -4987,37 +5246,61 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
     setTool(null);
   };
 
-  const addVector = (shape: VectorEl['shape']) => {
-    const defaultFill = workspaceData?.primary_color || '#2FD79B';
-    const defaultSize: Record<VectorEl['shape'], [number, number]> = {
-      rectangle: [200, 120], circle: [140, 140], triangle: [160, 140],
-      star: [140, 140], pill: [220, 80], arrow: [200, 100],
-      diamond: [140, 160], hexagon: [150, 150], custom: [160, 160],
+  /**
+   * Pose une forme de la bibliothèque. Le tracé est copié dans le calque : il
+   * devient une forme à part entière, qui se recolore, se dégrade et s'étire
+   * comme un rectangle — c'est tout l'intérêt de ne pas poser une image.
+   */
+  const addForme = (f: Forme) => {
+    const [vbW, vbH] = boiteForme(f);
+    // Une ligne se pose en travers du plan de travail, une forme se pose à la
+    // taille d'un bloc : on ne dépose pas une flèche large de 30 % de l'image.
+    const large = !!f.trait || vbW / vbH >= 1.6;
+    const w = Math.round(stageW * (large ? 0.58 : 0.32));
+    const h = Math.round((w * vbH) / vbW);
+    const ech = h / vbH; // du repère du tracé au plan de travail
+    const couleur = formeCouleur || workspaceData?.primary_color || '#2FD79B';
+    const base = {
+      id: newId(), type: 'vector' as const, shape: 'path' as const,
+      x: Math.round((stageW - w) / 2), y: Math.round((stageH - h) / 2),
+      rotation: 0, opacity: 100, width: w, height: h,
+      pathD: f.d, pathVb: [vbW, vbH] as [number, number], formeId: f.id,
     };
-    const [w, h] = defaultSize[shape];
-    const el: VectorEl = { id: newId(), type: 'vector', shape, x: Math.round((stageW - w) / 2), y: Math.round((stageH - h) / 2), rotation: 0, opacity: 100, width: w, height: h, fill: defaultFill, fillType: 'color', stroke: '', strokeWidth: 0 };
+    const el: VectorEl = f.trait
+      ? { ...base, trait: true, fill: couleur, fillType: 'none', stroke: couleur,
+          strokeWidth: Math.max(1, Math.round(f.trait * ech)),
+          ...(f.dash ? { dash: f.dash.map(v => Math.max(0.01, Math.round(v * ech * 10) / 10)) } : {}) }
+      : { ...base, fill: couleur, fillType: 'color', stroke: '', strokeWidth: 0 };
     applyElements([...elements, el]);
     setSelectedId(el.id);
-    setTool(null);
+    // Le panneau reste ouvert : on parcourt une bibliothèque, on en pose
+    // souvent plusieurs d'affilée.
   };
 
-  // Cadre photo (pattern) : forme vide posée sur le plan de travail dans laquelle
-  // on clippe une image (via le bouton Photo de la barre, ou double-clic pour recadrer).
-  const addFrame = (shape: VectorEl['shape']) => {
-    const base = Math.round(stageW * 0.44);
-    const sizes: Record<VectorEl['shape'], [number, number]> = {
-      rectangle: [base, Math.round(base * 0.72)], circle: [base, base], triangle: [base, Math.round(base * 0.9)],
-      star: [base, base], pill: [base, Math.round(base * 0.52)], arrow: [base, Math.round(base * 0.6)],
-      diamond: [Math.round(base * 0.86), base], hexagon: [base, base], custom: [base, base],
-    };
-    const [w, h] = sizes[shape];
-    const el: VectorEl = { id: newId(), type: 'vector', shape, x: Math.round((stageW - w) / 2), y: Math.round((stageH - h) / 2), rotation: 0, opacity: 100, width: w, height: h, fill: '#E9EAEE', fillType: 'color', stroke: workspaceData?.primary_color || '#2FD79B', strokeWidth: 3 };
-    applyElements([...elements, el]);
-    setSelectedId(el.id);
-    selectedIdRef.current = el.id;
-    setTool(null);
-    // Ouvre directement le sélecteur de photo pour remplir le cadre.
-    setTimeout(() => maskPhotoInputRef.current?.click(), 60);
+  /**
+   * Pose une grille de composition : autant de cases que la mise en page en
+   * demande, réparties sur toute la page. On double-clique ensuite dans
+   * chacune pour y glisser une image.
+   *
+   * Les cases vont SOUS les calques existants : une grille posée par-dessus un
+   * titre le ferait disparaître d'un coup, et on croirait l'éditeur cassé.
+   */
+  const addGrille = (g: Grille) => {
+    const gouttiere = Math.round(Math.min(stageW, stageH) * 0.012);
+    const temoin = paysageTemoin();
+    const cases: VectorEl[] = g.cellules.map(k => ({
+      id: newId(), type: 'vector', shape: 'rectangle', rotation: 0, opacity: 100,
+      x: Math.round(k.x * stageW + gouttiere / 2),
+      y: Math.round(k.y * stageH + gouttiere / 2),
+      width: Math.max(8, Math.round(k.w * stageW - gouttiere)),
+      height: Math.max(8, Math.round(k.h * stageH - gouttiere)),
+      // Le visuel témoin est DANS la case, pas un aplat gris : on voit tout de
+      // suite que c'est un emplacement de photo, et un clic la remplit.
+      fill: '#E4E6E2', fillType: 'image', imageSrc: temoin, stroke: '', strokeWidth: 0,
+      cadre: true, vide: true,
+    }));
+    applyElements([...cases, ...elements]);
+    setSelectedId(cases[0]?.id ?? null);
   };
 
   // ── Pen tool handlers ─────────────────────────────────────────────────────
@@ -5205,6 +5488,97 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
   };
 
   // Détourage / suppression d'arrière-plan (100% côté client, sans clé API)
+  // ── Outils image ──────────────────────────────────────────────────────────
+  const [outilBusy, setOutilBusy] = useState<string | null>(null);
+  const [outilErreur, setOutilErreur] = useState<string | null>(null);
+
+  /** L'image en data URI : c'est ce que le modèle attend en référence. */
+  const imageEnDataUri = async (src: string): Promise<string | null> => {
+    try {
+      const url = src.startsWith('data:') || src.startsWith('blob:') ? src : `/api/proxy-image?url=${encodeURIComponent(src)}`;
+      const blob = await (await fetch(url)).blob();
+      return await new Promise<string | null>(res => {
+        const fr = new FileReader();
+        fr.onload = () => res(String(fr.result));
+        fr.onerror = () => res(null);
+        fr.readAsDataURL(blob);
+      });
+    } catch {
+      return null;
+    }
+  };
+
+  /**
+   * Retouche par l'IA : on renvoie l'image AVEC une consigne, et le modèle
+   * rend une nouvelle version. C'est le même moteur que la génération, en mode
+   * image vers image — d'où le fait que « générer l'arrière-plan », « édition
+   * magique » et « gomme magique » soient trois consignes du même outil, et
+   * pas trois technologies différentes.
+   */
+  const retoucherImage = async (el: ImageEl, invite: string, cle: string) => {
+    if (outilBusy) return;
+    setOutilBusy(cle); setOutilErreur(null);
+    try {
+      const ref = await imageEnDataUri(el.src);
+      if (!ref) { setOutilErreur("Impossible de lire cette image."); return; }
+      const res = await fetch('/api/generate-image', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prompt: invite, referenceImage: ref }),
+      });
+      const data = await res.json();
+      if (!res.ok || data?.error) { setOutilErreur(String(data?.error || 'La retouche a échoué.')); return; }
+      const sortie = Array.isArray(data?.images) ? (data.images[0] as string | undefined) : undefined;
+      if (!sortie) { setOutilErreur('Rien n\u2019est revenu. Reformulez la consigne.'); return; }
+      const blob = await (await fetch(sortie)).blob();
+      const chemin = `${workspaceId}/retouche-${Date.now()}.png`;
+      const { error } = await supabase.storage.from('photos').upload(chemin, blob, { upsert: true, contentType: blob.type || 'image/png' });
+      const url = error ? sortie : supabase.storage.from('photos').getPublicUrl(chemin).data.publicUrl;
+      // La taille naturelle repart à zéro : la nouvelle image n'a pas les
+      // mêmes proportions, et un zoom figé la ferait apparaître recadrée.
+      updateEl(el.id, { src: url, naturalW: undefined, naturalH: undefined, imgScale: undefined } as Partial<ImageEl>);
+      void chargerImports();
+    } catch (e) {
+      setOutilErreur(e instanceof Error ? e.message : 'La retouche a échoué.');
+    } finally {
+      setOutilBusy(null);
+    }
+  };
+
+  /**
+   * Capture magique : le sujet est détouré et posé en calque À PART, l'image
+   * d'origine restant dessous. C'est ce qui permet d'écrire entre le sujet et
+   * le fond, le geste qui fait tout le style des visuels actuels.
+   */
+  const capturerSujet = async (el: ImageEl) => {
+    if (outilBusy) return;
+    setOutilBusy('capture'); setOutilErreur(null);
+    try {
+      let blob: Blob;
+      try { blob = await (await fetch(el.src)).blob(); }
+      catch { blob = await (await fetch(`/api/proxy-image?url=${encodeURIComponent(el.src)}`)).blob(); }
+      blob = await toPngBlob(blob);
+      // @ts-expect-error import CDN dynamique sans types
+      const mod = await import(/* webpackIgnore: true */ 'https://esm.sh/@imgly/background-removal@1.7.0');
+      const retirerFond = mod.removeBackground || mod.default?.removeBackground || mod.default;
+      const decoupe: Blob = await retirerFond(blob);
+      const chemin = `${workspaceId}/capture-${Date.now()}.png`;
+      const { error } = await supabase.storage.from('photos').upload(chemin, decoupe, { upsert: true, contentType: 'image/png' });
+      const url = error ? URL.createObjectURL(decoupe) : supabase.storage.from('photos').getPublicUrl(chemin).data.publicUrl;
+      const copie: ImageEl = {
+        ...el, id: newId(), src: url,
+        naturalW: undefined, naturalH: undefined, imgScale: undefined,
+        adjBlur: 0,
+      };
+      applyElements([...elementsRef.current, copie]);
+      setSelectedId(copie.id);
+      void chargerImports();
+    } catch (e) {
+      setOutilErreur(e instanceof Error ? e.message : 'La capture a échoué.');
+    } finally {
+      setOutilBusy(null);
+    }
+  };
+
   const removeBgFromImage = async (el: ImageEl) => {
     if (bgRemovingId) return;
     setBgRemovingId(el.id);
@@ -5288,13 +5662,62 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
     updateEl(id, { src: URL.createObjectURL(file) } as Partial<ImageEl>);
   };
 
+  /**
+   * Téléverse un fichier dans la bibliothèque du compte et renvoie son URL.
+   *
+   * Sans ça, un import n'était qu'une URL d'objet du navigateur : l'image
+   * disparaissait au rechargement et n'existait sur aucun autre visuel. Elle
+   * vit maintenant dans le stockage, donc dans « Importer », donc réutilisable
+   * sur tous les plans de travail du compte.
+   */
+  const televerserImport = async (file: File): Promise<string | null> => {
+    try {
+      const ext = (file.name.split('.').pop() || 'png').toLowerCase().replace(/[^a-z0-9]/g, '') || 'png';
+      const chemin = `${workspaceId}/import-${Date.now()}-${Math.random().toString(36).slice(2, 7)}.${ext}`;
+      const { error } = await supabase.storage.from('photos').upload(chemin, file, { upsert: true, contentType: file.type || 'image/png' });
+      if (error) return null;
+      const { data } = supabase.storage.from('photos').getPublicUrl(chemin);
+      return data.publicUrl;
+    } catch {
+      return null;
+    }
+  };
+
   const handleFileDrop = (file: File, point?: { x: number; y: number } | null) => {
     if (!file.type.startsWith('image/')) return;
     if (postType === 'reel') {
       showEditorToast(T('reelNeedsVideo'));
       return;
     }
-    insertImageAtPoint(URL.createObjectURL(file), point);
+    // Posée tout de suite depuis le fichier local (rien à attendre), puis
+    // remplacée par l'URL stockée dès qu'elle est là.
+    const local = URL.createObjectURL(file);
+    insertImageAtPoint(local, point);
+    void (async () => {
+      const url = await televerserImport(file);
+      if (!url) return;
+      const cible = elementsRef.current.find(e => e.type === 'image' && (e as ImageEl).src === local);
+      if (cible) updateEl(cible.id, { src: url } as Partial<ImageEl>);
+      void chargerImports();
+    })();
+  };
+
+  // ── Bibliothèque du compte ────────────────────────────────────────────────
+  const chargerImports = async () => {
+    setImportsLoading(true);
+    try {
+      const { data, error } = await supabase.storage.from('photos').list(workspaceId, {
+        limit: 120, sortBy: { column: 'created_at', order: 'desc' },
+      });
+      if (error || !data) { setImportsListe([]); return; }
+      setImportsListe(data
+        .filter(f => f.name && !f.name.startsWith('.'))
+        .map(f => ({ nom: f.name, url: supabase.storage.from('photos').getPublicUrl(`${workspaceId}/${f.name}`).data.publicUrl })));
+    } catch {
+      setImportsListe([]);
+    } finally {
+      setImportsLoading(false);
+    }
   };
 
   // Coordonnées écran → coordonnées du plan de travail (le conteneur du Stage est
@@ -5384,7 +5807,7 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
     if (!file || !selectedIdRef.current) return;
     e.target.value = '';
     const src = URL.createObjectURL(file);
-    updateEl(selectedIdRef.current, { fillType: 'image', imageSrc: src, imageOffsetX: undefined, imageOffsetY: undefined } as Partial<VectorEl>);
+    updateEl(selectedIdRef.current, { fillType: 'image', imageSrc: src, vide: false, imageOffsetX: undefined, imageOffsetY: undefined } as Partial<VectorEl>);
     setMaskCropId(selectedIdRef.current);
   };
 
@@ -5445,6 +5868,28 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
   }, [stickerLibQuery, stickerLibOpen]);
 
   // ── Icônes SVG (Iconify) ────────────────────────────────────────────────
+  // À l'ouverture d'une catégorie, on remplit. Iconify et le catalogue
+  // IconScout se parcourent sans mot-clé : montrer une grille vide qui attend
+  // qu'on tape, c'est faire croire qu'il n'y a rien.
+  useEffect(() => {
+    // Chaque section arrive avec le réglage de détourage qui lui va, et
+    // surtout PROPRE : les propositions faites dans Ornements n'ont rien à
+    // faire dans Stickers. Ce qu'on a posé se retrouve dans Importer, qui est
+    // la bibliothèque du compte.
+    const ctx = elemCat ? CONTEXTES_IA[elemCat] : CONTEXTES_IA.illustrations;
+    if (ctx) setIlluDetourer(ctx.detourerDefaut);
+    setIlluVariantes([]); setIlluErreur(null); setIlluPrompt('');
+    if (elemCat === 'icones' && !iconResults.length && !iconLoading) void fetchIcons(iconQuery || 'star');
+    if (elemCat === 'illustrations' && !bankItems.length && !bankLoading) void fetchBank(bankQuery, 'tout');
+    if (elemCat === 'textures' && !matItems.length && !matLoading) void chercherMatieres(matQuery);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [elemCat]);
+
+  useEffect(() => {
+    if (tool === 'upload' && !importsListe.length && !importsLoading) void chargerImports();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tool]);
+
   const fetchIcons = async (q: string) => {
     setIconLoading(true);
     try {
@@ -5487,6 +5932,7 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
     setBankLoading(false);
   };
   const addBankItem = (url: string) => addLogoEl(`/api/proxy-image?url=${encodeURIComponent(url)}`);
+
   const ornUrl = (id: string, c: string) => `/api/ornement?id=${id}&color=${encodeURIComponent(c)}`;
   const addOrnement = (id: string) => addLogoEl(ornUrl(id, ornColor));
 
@@ -5496,6 +5942,182 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
 
   const addIcon = (name: string) => {
     addLogoEl(`/api/proxy-image?url=${encodeURIComponent(iconSvgUrl(name, iconColor))}`);
+  };
+
+  // ── Illustration générée ──────────────────────────────────────────────────
+  // Le modèle ne SAIT PAS rendre un fond transparent : vérifié le 2026-09-12,
+  // les trois modèles d'images de Gemini renvoient du JPEG et l'API n'offre
+  // aucun réglage de format. Pire, à qui demande « fond transparent » il rend
+  // un DAMIER dessiné. On demande donc un fond blanc uni et on le retire nous
+  // -mêmes (cf. lib/detourage.ts) — sauf quand l'utilisateur décoche, parce
+  // qu'une texture ou un fond n'ont rien à se faire détourer.
+  //
+  // Quatre variantes, comme Canva : sur une demande visuelle, le premier jet
+  // est rarement le bon, et quatre propositions coûtent une attente, pas
+  // quatre.
+  const genererIllustration = async () => {
+    const sujet = illuPrompt.trim();
+    if (sujet.length < 3 || illuLoading) return;
+    setIlluLoading(true); setIlluErreur(null); setIlluVariantes([]);
+    setIlluEtape(illuDetourer ? 'Quatre propositions en cours…' : 'Génération en cours…');
+    // PAS DE CHARTE ICI. Ailleurs, imposer les couleurs du client est la bonne
+    // réponse : le visuel doit ressembler à sa marque. Ici non. On demande un
+    // caillou en aquarelle, on veut un caillou en aquarelle, pas un caillou
+    // repeint aux trois couleurs du client. La charte tirait toutes les
+    // générations vers la même teinte et rendait la demande méconnaissable.
+    // Chaque section demande autre chose au modèle : un sticker n'est pas une
+    // texture, une icône n'est pas une illustration. L'invite se compose donc
+    // à partir de la catégorie ouverte.
+    const parSection: Record<string, string> = {
+      textures: `Texture de ${sujet}. Matière photographiée de près, plein cadre, uniforme, sans sujet identifiable, sans objet, sans texte.`,
+      degrades: `Dégradé abstrait, ${sujet}. Fond lisse, transitions douces, aucune forme reconnaissable, sans texte.`,
+      stickers: `Sticker de ${sujet} : illustration à plat, contour blanc épais façon autocollant, couleurs franches.`,
+      ornements: `Ornement graphique : ${sujet}. Tracé simple au trait, NOIR sur blanc, sans remplissage, sans texte.`,
+      icones: `Icône pictogramme de ${sujet} : forme simple et pleine, NOIRE sur blanc, plein cadre, sans texte.`,
+      motifs: `Motif répétitif de ${sujet}, à plat, régulier, plein cadre, sans texte.`,
+    };
+    const base = parSection[elemCat ?? 'illustrations'] ?? sujet;
+    const invite = illuDetourer
+      ? `${base} Élément isolé, entier, centré, cadré large avec de la marge autour. FOND BLANC PUR #FFFFFF parfaitement uniforme, sans ombre portée, sans reflet au sol, sans dégradé, sans cadre ni bordure.`
+      : `${base} Image pleine, cadrage plein format, sans cadre ni bordure.`;
+    const unCoup = async (): Promise<string | null> => {
+      const res = await fetch('/api/generate-image', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prompt: invite }),
+      });
+      const data = await res.json();
+      if (!res.ok || data?.error) throw new Error(String(data?.error || 'La génération a échoué.'));
+      const img = Array.isArray(data?.images) ? (data.images[0] as string | undefined) : undefined;
+      return img ?? null;
+    };
+    try {
+      // Les quatre partent ensemble : à la file, l'attente serait quadruplée.
+      const sorties = await Promise.allSettled([unCoup(), unCoup(), unCoup(), unCoup()]);
+      const brutes = sorties.flatMap(r => (r.status === 'fulfilled' && r.value ? [r.value] : []));
+      if (!brutes.length) {
+        const premier = sorties.find(r => r.status === 'rejected') as PromiseRejectedResult | undefined;
+        setIlluErreur(premier ? String(premier.reason?.message ?? premier.reason) : 'Rien n\u2019est revenu. Reformulez en une phrase simple.');
+        return;
+      }
+      if (!illuDetourer) { setIlluVariantes(brutes.map(uri => ({ uri, detoure: false }))); return; }
+      setIlluEtape('Détourage du fond…');
+      const coupees = await Promise.all(brutes.map(async brute => {
+        const coupe = await detourerFondUni(brute);
+        // Sous 5 % de pixels retirés, le fond n'était pas uni : on garde
+        // l'image telle quelle plutôt que de livrer un sujet à moitié mangé.
+        const reussi = !!coupe && coupe.part >= 0.05;
+        return { uri: reussi ? coupe!.uri : brute, detoure: reussi };
+      }));
+      setIlluVariantes(coupees);
+    } catch (e) {
+      setIlluErreur(e instanceof Error ? e.message : 'La génération a échoué.');
+    } finally {
+      setIlluLoading(false); setIlluEtape(null);
+    }
+  };
+
+  /** Pose une variante. Elle passe par le stockage : une image en base64 dans
+   *  le calque gonflerait la ligne du post à chaque sauvegarde. */
+  const poserIllustration = async (uri: string) => {
+    try {
+      const blob = await (await fetch(uri)).blob();
+      // Une variante détourée est un PNG, une image entière reste le JPEG du
+      // modèle : on enregistre chacune sous son vrai type, sinon le fichier
+      // ment sur ce qu'il contient.
+      const type = blob.type || 'image/png';
+      const chemin = `${workspaceId}/illustration-${Date.now()}.${type.includes('jpeg') ? 'jpg' : 'png'}`;
+      const { error } = await supabase.storage.from('photos').upload(chemin, blob, { upsert: true, contentType: type });
+      if (error) { addLogoEl(uri); return; }
+      const { data } = supabase.storage.from('photos').getPublicUrl(chemin);
+      addLogoEl(data.publicUrl);
+    } catch {
+      addLogoEl(uri);
+    }
+  };
+
+  /**
+   * Pose une matière. Sur la sélection si elle existe, sinon sur toute la
+   * page : c'est la même chose qu'ajouter du grain sur une photo ou sur un
+   * visuel entier, et le mode de fusion laisse voir ce qu'il y a dessous.
+   */
+  const addTexture = (t: Texture) => {
+    const cible = selectedId ? elementsRef.current.find(e => e.id === selectedId) : null;
+    const boite = cible && (cible.type === 'image' || cible.type === 'rect' || cible.type === 'vector')
+      ? { x: cible.x, y: cible.y, w: (cible as ImageEl).width, h: (cible as ImageEl).height, r: cible.rotation }
+      : { x: 0, y: 0, w: stageW, h: stageH, r: 0 };
+    const el: ImageEl = {
+      id: newId(), type: 'image', src: textureDataUri(t, Math.round(boite.w), Math.round(boite.h)),
+      x: boite.x, y: boite.y, width: boite.w, height: boite.h, rotation: boite.r,
+      opacity: t.opacite, fusion: t.fusion,
+      naturalW: Math.round(boite.w), naturalH: Math.round(boite.h),
+    };
+    applyElements([...elementsRef.current, el]);
+    setSelectedId(el.id);
+  };
+
+  const chercherMatieres = async (q: string) => {
+    const mot = q.trim() || 'texture';
+    setMatLoading(true);
+    try {
+      const res = await fetch(`/api/pexels?query=${encodeURIComponent(mot)}`);
+      const data = await res.json();
+      type Photo = { id: number | string; alt?: string; src: { medium: string; large: string; original?: string } };
+      setMatItems(((data?.photos ?? []) as Photo[]).map(p => ({
+        id: String(p.id), thumb: p.src.medium, full: p.src.large || p.src.original || p.src.medium, alt: p.alt ?? '',
+      })));
+    } catch {
+      setMatItems([]);
+    } finally {
+      setMatLoading(false);
+    }
+  };
+
+  /**
+   * Pose une matière photographiée. Même geste que les matières calculées :
+   * un calque fusionné par-dessus, pas une image qui cache tout.
+   */
+  const poserMatiere = (url: string) => {
+    const cible = selectedId ? elementsRef.current.find(e => e.id === selectedId) : null;
+    const boite = cible && (cible.type === 'image' || cible.type === 'rect' || cible.type === 'vector')
+      ? { x: cible.x, y: cible.y, w: (cible as ImageEl).width, h: (cible as ImageEl).height, r: cible.rotation }
+      : { x: 0, y: 0, w: stageW, h: stageH, r: 0 };
+    const el: ImageEl = {
+      id: newId(), type: 'image', src: `/api/proxy-image?url=${encodeURIComponent(url)}`,
+      x: boite.x, y: boite.y, width: boite.w, height: boite.h, rotation: boite.r,
+      opacity: 45, fusion: 'multiply',
+    };
+    applyElements([...elementsRef.current, el]);
+    setSelectedId(el.id);
+  };
+
+  /**
+   * Pose un dégradé. Il couvre la page, ou l'encombrement du calque
+   * sélectionné : un voile sert justement à asseoir un texte sur une photo.
+   */
+  const addDegrade = (d: Degrade) => {
+    const cible = selectedId ? elementsRef.current.find(e => e.id === selectedId) : null;
+    const boite = cible && (cible.type === 'image' || cible.type === 'rect' || cible.type === 'vector')
+      ? { x: cible.x, y: cible.y, w: (cible as ImageEl).width, h: (cible as ImageEl).height, r: cible.rotation }
+      : { x: 0, y: 0, w: stageW, h: stageH, r: 0 };
+    const el: ImageEl = {
+      id: newId(), type: 'image', src: degradeDataUri(d, Math.round(boite.w), Math.round(boite.h)),
+      x: boite.x, y: boite.y, width: boite.w, height: boite.h, rotation: boite.r,
+      opacity: 100, naturalW: Math.round(boite.w), naturalH: Math.round(boite.h),
+    };
+    applyElements([...elementsRef.current, el]);
+    setSelectedId(el.id);
+  };
+
+  /** Badge : un texte sur aplat, aux couleurs de la charte. */
+  const addBadge = (texte: string) => {
+    const el: TextEl = {
+      id: newId(), type: 'text', x: 60, y: 60, rotation: 0, opacity: 100, text: texte,
+      fontSize: 32, fontFamily: 'Archivo', fontStyle: 'bold', textDecoration: '', fill: '#fff',
+      align: 'center', width: 220, hasBg: true, bgColor: workspaceData?.primary_color || '#0038FF',
+      bgOpacity: 100, cornerRadius: 8, padding: 16, paddingH: 20, paddingV: 12,
+    };
+    applyElements([...elements, el]);
+    setSelectedId(el.id);
   };
 
   // ── Motifs / patterns (SVG généré, ajouté en pleine page) ────────────────
@@ -6094,21 +6716,93 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
       if (typo?.name || terrain?.name) {
         edLog(`Identité : ${[typo?.name, terrain?.name].filter(Boolean).join(' · ')}`);
       }
-      edLog(`${layouts.length} composition(s) proposée(s) — application de la 1re`);
-      edLog(nomDeComposition(layouts[0]));
-      setAiVariants(layouts); setAiVariantIdx(0); setVariantAsked(layouts.length > 1);
+      edLog(`${layouts.length} composition(s) proposée(s)`);
+      setAiVariants(layouts); setVariantAsked(layouts.length > 1);
+
+      // ── LE JUGE DANS LA BOUCLE ────────────────────────────────────────────
+      //
+      // Jusqu'ici la 1re proposition était appliquée les yeux fermés, et une
+      // composition DESSINÉE sautait tout audit (`chainQA && !dessin` plus bas).
+      // Résultat : aucun visuel généré ne passait devant un juge, alors que
+      // `visual-qa` en mode `jugement` a été écrit exactement pour ce cas et
+      // validé sur banc. Le voici branché : on rend, on juge, et une composition
+      // rejetée cède sa place à la suivante.
+      //
+      // DEUX ESSAIS JUGÉS AU MAXIMUM, et c'est un arbitrage assumé. Chaque
+      // jugement est un appel de vision avec réflexion, autour de 2,5 s : juger
+      // les trois propositions ajouterait près de huit secondes d'attente devant
+      // un écran vide, pour un troisième choix rarement meilleur que le second.
+      const JUGEMENTS_MAX = 2;
+
+      const jugerRendu = async (layout: { recipeId?: string; template?: { name?: string } }) => {
+        try {
+          // Laisse le canvas peindre : juger une toile à moitié dessinée, c'est
+          // rejeter des compositions correctes pour un défaut qui n'existe pas.
+          await new Promise<void>(r => setTimeout(r, 350));
+          await new Promise<void>(r => requestAnimationFrame(() => r()));
+          const image = stageRef.current?.toDataURL({ pixelRatio: 1 });
+          if (!image) return null;
+          const res = await fetch('/api/visual-qa', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              mode: 'jugement', image, stageW, stageH,
+              charte: {
+                // Pas de `name` : `workspaceData` ne porte pas le nom du client
+                // dans l'éditeur, et `Charte.name` est optionnel côté juge. Le
+                // secteur et le ton portent l'essentiel de ce qu'il doit savoir.
+                sector: workspaceData?.sector, tone: workspaceData?.tone,
+                colors: [workspaceData?.primary_color, workspaceData?.secondary_color, workspaceData?.accent_color].filter(Boolean),
+                fonts: [workspaceData?.font_family, workspaceData?.font_secondary].filter(Boolean),
+              },
+              recette: { id: String(layout?.recipeId ?? '').replace(/^ds:/, ''), name: layout?.template?.name },
+            }),
+          });
+          if (!res.ok) return null;
+          return await res.json() as { verdict?: string; defauts?: string[] };
+        } catch { return null; }
+      };
+
+      // UN JUGE MUET NE FAIT DISPARAÎTRE AUCUN VISUEL. Panne réseau, quota,
+      // réponse illisible : `jugerRendu` rend `null` et on garde la composition.
+      // Le doute profite au rendu, l'inverse ferait perdre des visuels sans que
+      // personne ne sache pourquoi.
+      let retenu = -1;
+      for (let i = 0; i < layouts.length && retenu < 0; i++) {
+        edLog(`${i === 0 ? 'Application' : `Remplacement ${i}`} : ${nomDeComposition(layouts[i])}`);
+        await materializeLayout(layouts[i]);
+        // Une composition qui n'est pas un dessin part à l'audit de RETOUCHE
+        // plus bas : ce sont deux métiers, et le juge n'a rien à dire ici.
+        if (!layouts[i]?.template || i >= JUGEMENTS_MAX) { retenu = i; break; }
+        setQaMsg(`Relecture du rendu… (${i + 1}/${Math.min(layouts.length, JUGEMENTS_MAX)})`);
+        const v = await jugerRendu(layouts[i]);
+        if (v?.verdict === 'rejeter') {
+          const cause = (v.defauts ?? []).slice(0, 2).join(' · ') || 'non montrable';
+          edLog(`Juge : écartée — ${cause}`);
+        } else {
+          if (v) edLog('Juge : montrable ✓');
+          retenu = i;
+        }
+      }
+      if (retenu < 0) {
+        // Toutes rejetées : on applique quand même la première. Rendre l'écran
+        // vide serait pire que rendre un visuel discutable, que l'utilisateur
+        // peut corriger lui-même.
+        retenu = 0;
+        await materializeLayout(layouts[0]);
+        edLog('Aucune n\'a passé le juge — la 1re est appliquée, à relire');
+      }
+      setAiVariantIdx(retenu);
       // Ce qui est APPLIQUÉ compte, pas seulement ce qui est changé : sans cette
       // trace, le compositeur n'a aucun moyen de savoir qu'il vient de servir
       // cette composition, et il la resert au post suivant.
-      rememberChoice(layouts[0], 1);
-      await materializeLayout(layouts[0]);
+      rememberChoice(layouts[retenu], retenu + 1);
       // Une composition DESSINÉE (template maison ou système de design) ne doit
       // pas passer devant l'audit visuel : celui-ci raisonne en « texte posé sur
       // une photo » — il écarte les blocs qui se chevauchent, retire les aplats
       // de couleur derrière le texte, réaligne tout. Sur un dessin, ces règles
       // défont exactement ce qui en fait un visuel de marque.
-      dessin = !!layouts[0]?.template;
-      setQaMsg(layouts.length > 1 ? `Composé ✓ (1/${layouts.length})` : 'Composé ✓');
+      dessin = !!layouts[retenu]?.template;
+      setQaMsg(layouts.length > 1 ? `Composé ✓ (${retenu + 1}/${layouts.length})` : 'Composé ✓');
       success = true;
     } catch {
       setQaMsg('Erreur composition');
@@ -6476,8 +7170,15 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
 
   // ── Templates ─────────────────────────────────────────────────────────────
 
+  /**
+   * Pose un texte à partir d'un style. Sobre par défaut : la bonne police, en
+   * NOIR, sans aplat derrière. L'ancien défaut arrivait en blanc sur un pavé
+   * bleu électrique, qu'il fallait défaire à chaque fois avant d'écrire.
+   */
   const applyTemplate = (overrides: Partial<TextEl>) => {
-    const el: TextEl = { id: newId(), type: 'text', x: 20, y: 200, rotation: 0, opacity: 100, text: 'VOTRE TEXTE', fontSize: 36, fontFamily: 'Oswald', fontStyle: 'bold', textDecoration: '', fill: '#ffffff', align: 'center', width: 560, hasBg: true, bgColor: '#0038FF', bgOpacity: 95, cornerRadius: 4, padding: 16, paddingH: 16, paddingV: 10, ...overrides };
+    const box = newTextBox();
+    const el: TextEl = { id: newId(), type: 'text', x: box.x, y: 0, rotation: 0, opacity: 100, text: 'Votre texte', fontSize: 40, fontFamily: workspaceData?.font_family || 'Archivo', fontStyle: 'normal', textDecoration: '', fill: '#14160F', align: 'center', width: box.width, hasBg: false, bgColor: '#000000', bgOpacity: 90, cornerRadius: 4, padding: 16, paddingH: 16, paddingV: 10, ...overrides };
+    el.y = Math.round(stageH / 2 - el.fontSize * 0.75);
     applyElements([...elements, el]);
     setSelectedId(el.id);
   };
@@ -6930,7 +7631,7 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
       )}
 
       {/* ── BODY: rail + flyout + canvas workspace ── */}
-      <div className={`ed-body${tool ? ' ed-open' : ''}`} style={{ flex: 1, display: 'flex', minHeight: 0 }}>
+      <div className={`ed-body${tool || fxPanel ? ' ed-open' : ''}`} style={{ flex: 1, display: 'flex', minHeight: 0 }}>
 
         {/* ── TOOL RAIL (68px) ── */}
         <div data-stop-deselect className="ed-rail" style={{ width: 88, background: 'var(--canvas)', display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '10px 0', gap: 6, flexShrink: 0 }}>
@@ -7071,320 +7772,139 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
               </div>
             )}
 
-            {/* ELEMENTS — Éléments */}
-            {tool === 'elements' && (
+            {/* ELEMENTS — Éléments, rangés par catégorie ─────────────────
+                Le panneau ne s'ouvre plus sur trois cents vignettes empilées :
+                il s'ouvre sur des familles. On en choisit une, on y travaille,
+                on revient. Le contenu de chaque famille vit dans
+                components/PanneauElements.tsx, qui leur impose la même
+                grammaire : même recherche, mêmes pastilles, mêmes vignettes. */}
+            {tool === 'elements' && (() => {
+              const courante = CATEGORIES_ELEMENTS.find(c => c.id === elemCat) ?? null;
+              const charte = [workspaceData?.primary_color, workspaceData?.secondary_color, workspaceData?.accent_color];
+              return (
               <div style={{ padding: '22px' }}>
-                {/* ── Parcourir les catégories ─────────────────────────────
-                    Reprise du geste de Canva : on ne tombe pas sur une longue
-                    page à faire défiler, on choisit d'abord ce qu'on cherche. */}
-                <p style={{ fontSize: 10, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '0.12em', fontFamily: 'var(--mono)', fontWeight: 800, margin: '0 0 10px' }}>Parcourir les catégories</p>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 8, marginBottom: 18 }}>
-                  {([
-                    ['ornements', 'Ornements', '#FF7A59'],
-                    ['formes', 'Formes', '#5B8DEF'],
-                    ['icones', 'Icônes', '#2FD79B'],
-                    ['stickers', 'Stickers', '#F4C144'],
-                    ['banques', 'Illustrations', '#A87BF0'],
-                    ['cadres', 'Cadres', '#4FB9A5'],
-                    ['badges', 'Badges', '#EC6A8C'],
-                    ['motifs', 'Motifs', '#7C8CA0'],
-                  ] as const).map(([id, label, couleur]) => (
-                    <button key={id} onClick={() => document.getElementById(`sect-${id}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
-                      style={{ border: 'none', background: 'none', padding: 0, cursor: 'pointer', display: 'grid', gap: 5, justifyItems: 'center' }}>
-                      <span style={{ width: '100%', aspectRatio: '1', borderRadius: 12, background: `linear-gradient(150deg, ${couleur}, ${couleur}bb)`, display: 'grid', placeItems: 'center', boxShadow: '0 2px 6px rgba(0,0,0,.14)' }}>
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img src={ornUrl(({ ornements: 'etincelle', formes: 'blob', icones: 'etoile-cinq', stickers: 'etiquette', banques: 'arche', cadres: 'cadre-doodle', badges: 'cachet', motifs: 'ondule' } as Record<string, string>)[id], '#FFFFFF')} alt="" style={{ width: '58%', height: '58%', objectFit: 'contain' }} />
-                      </span>
-                      <span style={{ fontSize: 10.5, color: 'var(--ink-2)', fontWeight: 600, lineHeight: 1.15, textAlign: 'center' }}>{label}</span>
+                {courante ? (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 18 }}>
+                    <button onClick={() => { setElemCat(null); setFormeTout(null); setFormeQuery(''); }} title="Toutes les catégories"
+                      style={{ width: 32, height: 32, flexShrink: 0, borderRadius: 9, border: 'none', background: 'var(--sunk)', color: 'var(--ink)', display: 'grid', placeItems: 'center', cursor: 'pointer' }}>
+                      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 5l-7 7 7 7"/></svg>
                     </button>
-                  ))}
-                </div>
-                <PanelHead title={T('elements')} sub="Formes & blocs de couleur" onClose={() => setTool(null)} />
-                <div style={{ position: 'relative', marginBottom: 16 }}>
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" style={{ position: 'absolute', left: 12, top: 12, color: 'var(--ink-3)', pointerEvents: 'none' }}><circle cx="11" cy="11" r="7"/><path d="M21 21l-4-4"/></svg>
-                  <input className="input" placeholder={T('searchElement')} value={iconQuery} onChange={e => setIconQuery(e.target.value)}
-                    onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); fetchIcons(iconQuery); } }}
-                    style={{ paddingLeft: 36, height: 40, background: 'var(--sunk)', border: 'none' }} />
-                </div>
-
-                {/* ── Parcourir par catégorie (tuiles colorées façon Canva) ── */}
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 8, marginBottom: 18 }}>
-                  {([
-                    { label: 'Formes',   q: 'shape',        grad: 'linear-gradient(135deg, var(--mint), var(--mint-2))',      fg: '#06281C', glyph: <><rect x="4" y="4" width="7" height="7" rx="1.6"/><circle cx="17" cy="7.5" r="3.6"/><polygon points="8 22 3 15 13 15"/></> },
-                    { label: 'Flèches',  q: 'arrow',        grad: 'linear-gradient(135deg, var(--acid), var(--mint))',        fg: '#06281C', glyph: <path d="M4 12h13M12 6l6 6-6 6"/> },
-                    { label: 'Icônes',   q: 'star',         grad: 'linear-gradient(135deg, var(--mint-2), var(--forest-2))',  fg: '#FFFFFF', glyph: <polygon points="12 3 14.6 9 21 9.4 16 13.8 17.6 20 12 16.6 6.4 20 8 13.8 3 9.4 9.4 9"/> },
-                    { label: 'Illustrations', q: 'illustration', grad: 'linear-gradient(135deg, var(--forest-3), var(--forest))', fg: '#FFFFFF', glyph: <><rect x="3" y="4" width="18" height="14" rx="2"/><circle cx="8" cy="9" r="1.6"/><path d="M3 16l5-4 4 3 3-2 6 5"/></> },
-                    { label: 'Cadres',   q: 'frame',        grad: 'linear-gradient(135deg, var(--forest), var(--forest-3))',  fg: '#FFFFFF', glyph: <><rect x="3" y="3" width="18" height="18" rx="1.5"/><rect x="7" y="7" width="10" height="10" rx="1"/></> },
-                    { label: 'Stickers', q: 'sticker',      grad: 'linear-gradient(135deg, var(--acid), var(--mint-2))',      fg: '#06281C', glyph: <><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h8l6-6V5a2 2 0 0 0-2-2z"/><path d="M14 21v-4a2 2 0 0 1 2-2h4"/></> },
-                  ]).map(({ label, q, grad, fg, glyph }) => (
-                    <button key={label} onClick={() => { setIconQuery(q); fetchIcons(q); }} title={label}
-                      style={{ position: 'relative', aspectRatio: '1', borderRadius: 14, border: 'none', cursor: 'pointer', background: grad, color: fg, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 6, overflow: 'hidden', boxShadow: '0 2px 8px color-mix(in srgb, var(--forest) 14%, transparent)', transition: 'transform .12s' }}
-                      onMouseEnter={e => (e.currentTarget.style.transform = 'translateY(-2px)')}
-                      onMouseLeave={e => (e.currentTarget.style.transform = 'translateY(0)')}>
-                      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">{glyph}</svg>
-                      <span style={{ fontSize: 10.5, fontFamily: 'var(--sans)', fontWeight: 700, letterSpacing: 0 }}>{label}</span>
+                    <h3 className="h-title" style={{ fontSize: 19, letterSpacing: '-0.015em', margin: 0, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{courante.label}</h3>
+                    <button onClick={() => setTool(null)} title={T('close')}
+                      style={{ marginLeft: 'auto', width: 30, height: 30, borderRadius: 8, display: 'grid', placeItems: 'center', color: 'var(--ink-3)', flexShrink: 0, background: 'transparent', border: 'none', cursor: 'pointer' }}>
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M15 6l-6 6 6 6"/></svg>
                     </button>
-                  ))}
-                </div>
-
-                <p id="sect-formes" style={{ fontSize: 10, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '0.12em', fontFamily: 'var(--mono)', fontWeight: 800, margin: '0 0 8px' }}>{T('shapes')}</p>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 8, marginBottom: 18 }}>
-                  {([
-                    { shape: 'rectangle' as const, label: 'Carré',    icon: <rect x="5" y="5" width="14" height="14" rx="2.5" fill="currentColor"/> },
-                    { shape: 'circle' as const,    label: 'Cercle',   icon: <circle cx="12" cy="12" r="7.5" fill="currentColor"/> },
-                    { shape: 'pill' as const,      label: 'Pilule',   icon: <rect x="3" y="8" width="18" height="8" rx="4" fill="currentColor"/> },
-                    { shape: 'triangle' as const,  label: 'Triangle', icon: <polygon points="12,4 21,20 3,20" fill="currentColor"/> },
-                    { shape: 'star' as const,      label: 'Étoile',   icon: <polygon points="12,3 14.5,9 21,9.5 16,14 17.5,21 12,17.5 6.5,21 8,14 3,9.5 9.5,9" fill="currentColor"/> },
-                    { shape: 'diamond' as const,   label: 'Losange',  icon: <polygon points="12,3 21,12 12,21 3,12" fill="currentColor"/> },
-                    { shape: 'hexagon' as const,   label: 'Hexagone', icon: <polygon points="12,3 20,7.5 20,16.5 12,21 4,16.5 4,7.5" fill="currentColor"/> },
-                    { shape: 'arrow' as const,     label: 'Flèche',   icon: <path fill="currentColor" strokeLinejoin="round" d="M3 10h11V6l7 6-7 6v-4H3z"/> },
-                  ]).map(({ shape, label, icon }) => (
-                    <button key={shape} onClick={() => addVector(shape)}
-                      style={{ aspectRatio: '1', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 5, cursor: 'pointer', borderRadius: 12, border: '1px solid var(--line)', background: 'var(--white)', transition: 'all .15s' }}
-                      onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--leaf)'; e.currentTarget.style.background = 'var(--sunk)'; }}
-                      onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--line)'; e.currentTarget.style.background = 'var(--white)'; }}>
-                      <svg width="26" height="26" viewBox="0 0 24 24" style={{ color: 'var(--ink)' }}>{icon}</svg>
-                      <span style={{ fontSize: 8.5, fontFamily: 'var(--mono)', fontWeight: 700, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '.04em' }}>{label}</span>
-                    </button>
-                  ))}
-                </div>
-                {/* ── Cadres photo (patterns) : forme vide → on clippe une image dedans ── */}
-                <p id="sect-cadres" style={{ fontSize: 10, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '0.12em', fontFamily: 'var(--mono)', fontWeight: 800, margin: '0 0 3px' }}>Cadres photo</p>
-                <p style={{ fontSize: 10.5, color: 'var(--ink-3)', margin: '0 0 8px', lineHeight: 1.35 }}>Pose une forme, choisis ta photo : elle se clippe dedans. Double-clic pour recadrer.</p>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 8, marginBottom: 18 }}>
-                  {([
-                    { shape: 'rectangle' as const, label: 'Carré',    icon: <rect x="4" y="4" width="16" height="16" rx="2.5" /> },
-                    { shape: 'circle' as const,    label: 'Rond',     icon: <circle cx="12" cy="12" r="8" /> },
-                    { shape: 'pill' as const,      label: 'Pilule',   icon: <rect x="3" y="7" width="18" height="10" rx="5" /> },
-                    { shape: 'triangle' as const,  label: 'Triangle', icon: <polygon points="12,4 21,20 3,20" /> },
-                    { shape: 'star' as const,      label: 'Étoile',   icon: <polygon points="12,3 14.5,9 21,9.5 16,14 17.5,21 12,17.5 6.5,21 8,14 3,9.5 9.5,9" /> },
-                    { shape: 'diamond' as const,   label: 'Losange',  icon: <polygon points="12,3 21,12 12,21 3,12" /> },
-                    { shape: 'hexagon' as const,   label: 'Hexagone', icon: <polygon points="12,3 20,7.5 20,16.5 12,21 4,16.5 4,7.5" /> },
-                    { shape: 'arrow' as const,     label: 'Flèche',   icon: <path strokeLinejoin="round" d="M3 10h11V6l7 6-7 6v-4H3z" /> },
-                  ]).map(({ shape, label, icon }) => (
-                    <button key={shape} onClick={() => addFrame(shape)} title={`Cadre ${label}`}
-                      style={{ aspectRatio: '1', position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 5, cursor: 'pointer', borderRadius: 12, border: '1px solid var(--line)', background: 'var(--white)', transition: 'all .15s' }}
-                      onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--leaf)'; e.currentTarget.style.background = 'var(--sunk)'; }}
-                      onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--line)'; e.currentTarget.style.background = 'var(--white)'; }}>
-                      <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="var(--ink-2)" strokeWidth="1.8">{icon}</svg>
-                      <span style={{ fontSize: 8.5, fontFamily: 'var(--mono)', fontWeight: 700, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '.04em' }}>{label}</span>
-                      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="var(--mint-2)" strokeWidth="3" strokeLinecap="round" style={{ position: 'absolute', top: 6, right: 6 }}><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-                    </button>
-                  ))}
-                </div>
-                {/* ── Stickers / illustrations maison ── */}
-                <p id="sect-stickers" style={{ fontSize: 10, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '0.12em', fontFamily: 'var(--mono)', fontWeight: 800, margin: '0 0 8px' }}>Stickers</p>
-                {/* palette recolorable (agit sur les stickers recolorables) */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', marginBottom: 9 }}>
-                  {[workspaceData?.primary_color || '#2FD79B', '#0C2A1D', '#BDF2A0', '#FF5A3C', '#FFD400', '#0038FF', '#9B5DE5', '#F15BB5', '#14160F', '#FFFFFF'].map(c => (
-                    <button key={c} onClick={() => setStickerColor(c)} title={c}
-                      style={{ width: 22, height: 22, borderRadius: '50%', background: c, cursor: 'pointer', border: stickerColor === c ? '2px solid var(--leaf)' : '1.5px solid var(--line)', padding: 0, boxShadow: c === '#FFFFFF' ? 'inset 0 0 0 1px var(--line)' : 'none' }} />
-                  ))}
-                </div>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 6, marginBottom: 10 }}>
-                  {STICKERS.slice(0, 12).map(s => (
-                    <button key={s.id} onClick={() => addSticker(s)} title={s.name}
-                      style={{ aspectRatio: '1', borderRadius: 10, border: '1px solid var(--line)', background: s.recolor && stickerColor === '#FFFFFF' ? '#3a3f36' : 'var(--sunk)', cursor: 'pointer', display: 'grid', placeItems: 'center', padding: 7, transition: 'all .14s' }}
-                      onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--leaf)'; e.currentTarget.style.transform = 'translateY(-2px)'; }}
-                      onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--line)'; e.currentTarget.style.transform = 'none'; }}>
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={stickerDataUri(s, stickerColor)} alt={s.name} style={{ width: '100%', height: '100%', objectFit: 'contain', display: 'block' }} />
-                    </button>
-                  ))}
-                </div>
-                <button onClick={() => { setStickerCat('Tous'); setStickerLibQuery(''); setStickerLibOpen(true); }} className="btn btn-ghost btn-sm"
-                  style={{ width: '100%', justifyContent: 'center', marginBottom: 18, height: 40, gap: 6 }}>
-                  Voir toute la bibliothèque
-                  <span style={{ fontSize: 11, color: 'var(--ink-3)', fontFamily: 'var(--mono)', fontWeight: 700 }}>({STICKERS.length})</span>
-                </button>
-
-                <p id="sect-badges" style={{ fontSize: 10, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '0.12em', fontFamily: 'var(--mono)', fontWeight: 800, margin: '0 0 8px' }}>{T('badges')}</p>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                  {['NOUVEAU', '-20%', 'RÉSA EN BIO'].map(badge => (
-                    <button key={badge} onClick={() => { const el: TextEl = { id: newId(), type: 'text', x: 60, y: 60, rotation: 0, opacity: 100, text: badge, fontSize: 32, fontFamily: 'Archivo', fontStyle: 'bold', textDecoration: '', fill: '#fff', align: 'center', width: 220, hasBg: true, bgColor: workspaceData?.primary_color || '#0038FF', bgOpacity: 100, cornerRadius: 8, padding: 16, paddingH: 20, paddingV: 12 }; applyElements([...elements, el]); setSelectedId(el.id); }}
-                      style={{ padding: '9px 14px', borderRadius: 8, border: '1.5px solid var(--line)', cursor: 'pointer', fontSize: 13, fontFamily: 'Archivo', fontWeight: 800, letterSpacing: '.05em', color: 'var(--ink-2)', background: 'var(--sunk)', textAlign: 'left' }}>
-                      {badge}
-                    </button>
-                  ))}
-                </div>
-
-                {/* ── Icônes SVG (Iconify) ── */}
-                <p id="sect-icones" style={{ fontSize: 10, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '0.12em', fontFamily: 'var(--mono)', fontWeight: 800, margin: '20px 0 8px' }}>{T('iconsStickers')}</p>
-                {bankSource === 'iconscout' && (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
-                    {([[false, 'Gratuits'], [true, 'Tout le catalogue']] as const).map(([v, label]) => (
-                      <button key={label} onClick={() => { setBankTout(v); fetchBank(bankQuery, 'iconscout', bankKind, bankStyle, v); }}
-                        style={{ padding: '3px 9px', borderRadius: 20, border: '1px solid var(--line)', background: bankTout === v ? 'var(--ink)' : 'var(--white)', color: bankTout === v ? '#fff' : 'var(--ink-3)', fontSize: 10.5, fontWeight: 700, cursor: 'pointer' }}>
-                        {label}
-                      </button>
-                    ))}
                   </div>
-                )}
-                {bankSource === 'iconscout' && bankTout && (
-                  <p style={{ fontSize: 10.5, color: 'var(--ink-3)', lineHeight: 1.4, margin: '0 0 8px' }}>
-                    Les éléments marqués <b>premium</b> ne sont pas licenciés pour la publication tant qu&apos;ils ne sont pas téléchargés chez IconScout. Préférez les gratuits pour un post à publier.
-                  </p>
-                )}
-                <div style={{ display: 'flex', gap: 6, marginBottom: 8 }}>
-                  <div style={{ position: 'relative', flex: 1 }}>
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: 'var(--ink-3)', pointerEvents: 'none' }}><circle cx="11" cy="11" r="7"/><path d="M21 21l-4-4"/></svg>
-                    <input value={iconQuery} onChange={e => setIconQuery(e.target.value)}
-                      onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); fetchIcons(iconQuery); } }}
-                      enterKeyHint="search" inputMode="search" autoCapitalize="none" autoCorrect="off"
-                      placeholder={T('searchIcon')}
-                      style={{ width: '100%', padding: '8px 10px 8px 32px', border: '1.5px solid var(--line)', borderRadius: 8, fontSize: 12.5, outline: 'none', fontFamily: 'var(--sans)', background: 'var(--white)', color: 'var(--ink)', boxSizing: 'border-box' }} />
-                  </div>
-                  <button type="button" onClick={() => fetchIcons(iconQuery)} aria-label={T('search')}
-                    style={{ flexShrink: 0, width: 40, borderRadius: 8, border: 'none', background: 'var(--mint, #2FD79B)', color: '#06281C', display: 'grid', placeItems: 'center', cursor: 'pointer' }}>
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4-4"/></svg>
-                  </button>
-                </div>
-                {/* couleur d'icône */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 10 }}>
-                  <span style={{ fontSize: 10, color: 'var(--ink-3)', fontFamily: 'var(--mono)', fontWeight: 700 }}>{T('colorLabel')}</span>
-                  {[['#14160F', 'Noir'], ['#FFFFFF', 'Blanc'], [workspaceData?.primary_color || '#2FD79B', 'Marque']].map(([c]) => (
-                    <button key={c} onClick={() => setIconColor(c)} title={c}
-                      style={{ width: 22, height: 22, borderRadius: 6, background: c, cursor: 'pointer', border: iconColor === c ? '2px solid var(--mint, #2FD79B)' : '1.5px solid var(--line)', padding: 0 }} />
-                  ))}
-                </div>
-                {iconLoading ? (
-                  <p style={{ fontSize: 12, color: 'var(--ink-3)', textAlign: 'center', padding: '12px 0' }}>{T('loading')}</p>
-                ) : iconResults.length === 0 ? (
-                  <p style={{ fontSize: 12, color: 'var(--ink-3)', textAlign: 'center', padding: '12px 0' }}>{T('noIcon')}</p>
                 ) : (
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5,1fr)', gap: 6, marginBottom: 8 }}>
-                    {iconResults.map(name => (
-                      <button key={name} onClick={() => addIcon(name)} title={name}
-                        style={{ aspectRatio: '1', borderRadius: 8, border: '1px solid var(--line)', background: iconColor === '#FFFFFF' ? '#3a3f36' : 'var(--sunk)', cursor: 'pointer', display: 'grid', placeItems: 'center', padding: 6 }}>
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img src={iconSvgUrl(name, iconColor, 48)} alt="" style={{ width: '100%', height: '100%', objectFit: 'contain', display: 'block' }} />
-                      </button>
-                    ))}
-                  </div>
+                  <PanelHead title={T('elements')} onClose={() => setTool(null)} />
                 )}
 
-                {/* ── Ornements ── */}
-                <p id="sect-ornements" style={{ fontSize: 10, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '0.12em', fontFamily: 'var(--mono)', fontWeight: 800, margin: '20px 0 8px' }}>Ornements</p>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, marginBottom: 8 }}>
-                  {ORNEMENT_CATS.map(c => (
-                    <button key={c.id} onClick={() => setOrnCat(c.id)}
-                      style={{ padding: '4px 10px', borderRadius: 20, border: '1px solid var(--line)', background: ornCat === c.id ? 'var(--ink)' : 'var(--white)', color: ornCat === c.id ? '#fff' : 'var(--ink-2)', fontSize: 11.5, fontWeight: 600, cursor: 'pointer' }}>
-                      {c.label}
-                    </button>
-                  ))}
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 10 }}>
-                  <span style={{ fontSize: 10, color: 'var(--ink-3)', fontFamily: 'var(--mono)', fontWeight: 700 }}>{T('colorLabel')}</span>
-                  {[['#14160F', 'Encre'], ['#FFFFFF', 'Blanc'], [workspaceData?.primary_color || '#2FD79B', 'Marque'], [workspaceData?.accent_color || '#FFC600', 'Accent']].map(([c]) => (
-                    <button key={c} onClick={() => setOrnColor(c)} title={c}
-                      style={{ width: 22, height: 22, borderRadius: 6, background: c, cursor: 'pointer', border: ornColor === c ? '2px solid var(--mint, #2FD79B)' : '1.5px solid var(--line)', padding: 0 }} />
-                  ))}
-                </div>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 6, marginBottom: 8 }}>
-                  {ORNEMENTS.filter(o => o.cat === ornCat).map(o => (
-                    <button key={o.id} onClick={() => addOrnement(o.id)} title={o.nom}
-                      style={{ aspectRatio: '1', borderRadius: 8, border: '1px solid var(--line)', background: ornColor === '#FFFFFF' ? '#3a3f36' : 'var(--sunk)', cursor: 'pointer', display: 'grid', placeItems: 'center', padding: 9 }}>
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={ornUrl(o.id, ornColor)} alt={o.nom} style={{ width: '100%', height: '100%', objectFit: 'contain', display: 'block' }} />
-                    </button>
-                  ))}
-                </div>
+                {!courante && (<>
+                  <BlocIA ia={{
+                    contexte: CONTEXTES_IA.illustrations,
+                    prompt: illuPrompt, setPrompt: setIlluPrompt,
+                    detourer: illuDetourer, setDetourer: setIlluDetourer,
+                    lancer: () => { void genererIllustration(); },
+                    encours: illuLoading, etape: illuEtape, erreur: illuErreur,
+                    variantes: illuVariantes,
+                    poser: uri => { void poserIllustration(uri); },
+                  }} />
+                  <p style={{ fontSize: 10, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '0.12em', fontFamily: 'var(--mono)', fontWeight: 800, margin: '0 0 10px' }}>Parcourir les catégories</p>
+                  <TuilesCategories onChoisir={setElemCat} />
+                </>)}
 
-                {/* ── Banques d'éléments ── */}
-                <p id="sect-banques" style={{ fontSize: 10, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '0.12em', fontFamily: 'var(--mono)', fontWeight: 800, margin: '20px 0 8px' }}>Banques d&apos;éléments</p>
-                <div style={{ display: 'flex', gap: 5, marginBottom: 8 }}>
-                  {([['musee', 'Domaine public'], ['iconscout', 'IconScout']] as const).map(([id, label]) => (
-                    <button key={id} onClick={() => { setBankSource(id); if (id === 'iconscout' || bankQuery.trim().length > 1) fetchBank(bankQuery, id); }}
-                      style={{ padding: '4px 10px', borderRadius: 20, border: '1px solid var(--line)', background: bankSource === id ? 'var(--ink)' : 'var(--white)', color: bankSource === id ? '#fff' : 'var(--ink-2)', fontSize: 11.5, fontWeight: 600, cursor: 'pointer' }}>
-                      {label}
-                    </button>
-                  ))}
-                </div>
-                {bankSource === 'iconscout' && (
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, marginBottom: 8 }}>
-                    {ASSET_KINDS.map(k => (
-                      <button key={k.id} onClick={() => { setBankKind(k.id); fetchBank(bankQuery, 'iconscout', k.id); }}
-                        style={{ padding: '3px 9px', borderRadius: 20, border: '1px solid var(--line)', background: bankKind === k.id ? 'var(--mint, #2FD79B)' : 'var(--white)', color: bankKind === k.id ? '#06281C' : 'var(--ink-3)', fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>
-                        {k.label}
-                      </button>
-                    ))}
-                  </div>
-                )}
-                {bankSource === 'iconscout' && (bankKind === 'icon' || bankKind === 'illustration') && (
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginBottom: 8 }}>
-                    {ASSET_STYLES.map(st => (
-                      <button key={st.id || 'tous'} onClick={() => { setBankStyle(st.id); fetchBank(bankQuery, 'iconscout', bankKind, st.id); }}
-                        style={{ padding: '2px 8px', borderRadius: 20, border: '1px solid var(--line)', background: bankStyle === st.id ? 'var(--ink-2)' : 'transparent', color: bankStyle === st.id ? '#fff' : 'var(--ink-3)', fontSize: 10.5, fontWeight: 600, cursor: 'pointer' }}>
-                        {st.label}
-                      </button>
-                    ))}
-                  </div>
-                )}
-                <div style={{ display: 'flex', gap: 6, marginBottom: 8 }}>
-                  <div style={{ position: 'relative', flex: 1 }}>
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: 'var(--ink-3)', pointerEvents: 'none' }}><circle cx="11" cy="11" r="7"/><path d="M21 21l-4-4"/></svg>
-                    <input value={bankQuery} onChange={e => setBankQuery(e.target.value)}
-                      onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); fetchBank(bankQuery); } }}
-                      enterKeyHint="search" inputMode="search" autoCapitalize="none" autoCorrect="off"
-                      placeholder={bankSource === 'musee' ? 'gravure, motif, botanique…' : 'illustration, forme…'}
-                      style={{ width: '100%', padding: '8px 10px 8px 32px', border: '1.5px solid var(--line)', borderRadius: 8, fontSize: 12.5, outline: 'none', fontFamily: 'var(--sans)', background: 'var(--white)', color: 'var(--ink)', boxSizing: 'border-box' }} />
-                  </div>
-                  <button type="button" onClick={() => fetchBank(bankQuery)} aria-label={T('search')}
-                    style={{ flexShrink: 0, width: 40, borderRadius: 8, border: 'none', background: 'var(--mint, #2FD79B)', color: '#06281C', display: 'grid', placeItems: 'center', cursor: 'pointer' }}>
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4-4"/></svg>
-                  </button>
-                </div>
-                {bankLoading ? (
-                  <p style={{ fontSize: 12, color: 'var(--ink-3)', textAlign: 'center', padding: '12px 0' }}>{T('loading')}</p>
-                ) : bankNote ? (
-                  <p style={{ fontSize: 11.5, color: 'var(--ink-3)', textAlign: 'center', padding: '10px 0', lineHeight: 1.45 }}>{bankNote}</p>
-                ) : bankItems.length > 0 ? (
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 6, marginBottom: 8 }}>
-                    {bankItems.map(it => (
-                      <button key={it.id} onClick={() => addBankItem(it.full)} title={`${it.alt} — ${it.source}`}
-                        style={{ aspectRatio: '1', borderRadius: 8, border: '1px solid var(--line)', background: 'var(--sunk)', cursor: 'pointer', overflow: 'hidden', padding: 0 }}>
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img src={it.thumb} alt={it.alt} loading="lazy" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
-                      </button>
-                    ))}
-                  </div>
-                ) : null}
-                {bankEncore && bankItems.length > 0 && (
-                  <button onClick={() => fetchBank(bankQuery, bankSource, bankKind, bankStyle, bankTout, bankPage + 1)} disabled={bankLoading}
-                    style={{ width: '100%', padding: '8px 0', marginBottom: 10, borderRadius: 8, border: '1.5px solid var(--line)', background: 'var(--sunk)', color: 'var(--ink-2)', fontSize: 12, fontWeight: 700, cursor: bankLoading ? 'default' : 'pointer' }}>
-                    {bankLoading ? 'Chargement…' : `Voir plus (${bankItems.length} affichés)`}
-                  </button>
+                {/* Chaque famille a sa génération, réglée pour ce qu'elle
+                    contient : la même boîte, une invite différente. */}
+                {courante && CONTEXTES_IA[courante.id] && (
+                  <BlocIA ia={{
+                    contexte: CONTEXTES_IA[courante.id],
+                    prompt: illuPrompt, setPrompt: setIlluPrompt,
+                    detourer: illuDetourer, setDetourer: setIlluDetourer,
+                    lancer: () => { void genererIllustration(); },
+                    encours: illuLoading, etape: illuEtape, erreur: illuErreur,
+                    variantes: illuVariantes,
+                    poser: uri => { void poserIllustration(uri); },
+                  }} />
                 )}
 
-                {/* ── Motifs ── */}
-                <p id="sect-motifs" style={{ fontSize: 10, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '0.12em', fontFamily: 'var(--mono)', fontWeight: 800, margin: '16px 0 8px' }}>{T('patterns')}</p>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 7 }}>
-                  {([
-                    { label: 'Pois', inner: (c: string) => `<pattern id='a' width='44' height='44' patternUnits='userSpaceOnUse'><circle cx='12' cy='12' r='6' fill='${c}'/></pattern>`, id: 'a' },
-                    { label: 'Rayures', inner: (c: string) => `<pattern id='b' width='28' height='28' patternUnits='userSpaceOnUse' patternTransform='rotate(45)'><rect width='10' height='28' fill='${c}'/></pattern>`, id: 'b' },
-                    { label: 'Grille', inner: (c: string) => `<pattern id='c' width='40' height='40' patternUnits='userSpaceOnUse'><path d='M40 0H0V40' fill='none' stroke='${c}' stroke-width='3'/></pattern>`, id: 'c' },
-                    { label: 'Vagues', inner: (c: string) => `<pattern id='d' width='60' height='30' patternUnits='userSpaceOnUse'><path d='M0 15 Q15 0 30 15 T60 15' fill='none' stroke='${c}' stroke-width='4'/></pattern>`, id: 'd' },
-                    { label: 'Chevrons', inner: (c: string) => `<pattern id='e' width='40' height='24' patternUnits='userSpaceOnUse'><path d='M0 22 L20 4 L40 22' fill='none' stroke='${c}' stroke-width='4'/></pattern>`, id: 'e' },
-                    { label: 'Confettis', inner: (c: string) => `<pattern id='f' width='60' height='60' patternUnits='userSpaceOnUse'><rect x='8' y='10' width='10' height='10' rx='2' fill='${c}' transform='rotate(20 13 15)'/><circle cx='44' cy='20' r='5' fill='${c}'/><rect x='30' y='42' width='9' height='9' rx='2' fill='${c}' transform='rotate(-15 34 46)'/></pattern>`, id: 'f' },
-                  ]).map(({ label, inner, id }) => {
-                    const svg = `<svg xmlns='http://www.w3.org/2000/svg' width='600' height='600'><defs>${inner(iconColor)}</defs><rect width='600' height='600' fill='url(#${id})'/></svg>`;
-                    const uri = `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
-                    return (
-                      <button key={label} onClick={() => addPattern(svg)} title={label} className="well"
-                        style={{ aspectRatio: '1', borderRadius: 10, cursor: 'pointer', overflow: 'hidden', padding: 0, background: iconColor === '#FFFFFF' ? '#3a3f36' : 'var(--sunk)' }}>
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img src={uri} alt={label} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
-                      </button>
-                    );
-                  })}
-                </div>
+                {courante?.id === 'formes' && (
+                  <BibliothequeFormes
+                    couleur={formeCouleur} setCouleur={setFormeCouleur}
+                    query={formeQuery} setQuery={setFormeQuery}
+                    tout={formeTout} setTout={setFormeTout}
+                    charte={charte} onPoser={addForme} />
+                )}
+
+                {courante?.id === 'illustrations' && (
+                  <VueIllustrations
+                    banque={{
+                      kind: bankKind, setKind: setBankKind,
+                      tout: bankTout, setTout: setBankTout,
+                      query: bankQuery, setQuery: setBankQuery,
+                      chercher: q => { void fetchBank(q ?? bankQuery, 'tout'); },
+                      encore: bankEncore, suite: () => { void fetchBank(bankQuery, 'tout', bankKind, bankStyle, bankTout, bankPage + 1); },
+                      items: bankItems, chargement: bankLoading, note: bankNote,
+                      onPoser: addBankItem,
+                    }} />
+                )}
+
+                {courante?.id === 'icones' && (
+                  <VueIcones
+                    query={iconQuery} setQuery={setIconQuery} chercher={q => { void fetchIcons(q); }}
+                    chargement={iconLoading} resultats={iconResults}
+                    couleur={iconColor} setCouleur={setIconColor} charte={charte}
+                    urlIcone={iconSvgUrl} onPoser={addIcon} />
+                )}
+
+                {courante?.id === 'stickers' && (
+                  <VueStickers couleur={stickerColor} setCouleur={setStickerColor} charte={charte}
+                    onPoser={addSticker}
+                    onVoirTout={() => { setStickerCat('Tous'); setStickerLibQuery(''); setStickerLibOpen(true); }} />
+                )}
+
+                {courante?.id === 'ornements' && (
+                  <VueOrnements cat={ornCat} setCat={setOrnCat}
+                    couleur={ornColor} setCouleur={setOrnColor} charte={charte}
+                    urlOrnement={ornUrl} onPoser={addOrnement} />
+                )}
+
+                {courante?.id === 'cadres' && (
+                  <VueCadres onGrille={addGrille} format={stageW / stageH} />
+                )}
+
+                {courante?.id === 'badges' && (
+                  <VueBadges couleur={workspaceData?.primary_color || '#0038FF'} onPoser={addBadge} />
+                )}
+
+                {courante?.id === 'degrades' && (
+                  <VueDegrades query={degradeQuery} setQuery={setDegradeQuery}
+                    tout={degradeTout} setTout={setDegradeTout} onPoser={addDegrade} />
+                )}
+
+                {courante?.id === 'textures' && (
+                  <VueTextures surSelection={!!selectedEl} onPoser={addTexture}
+                    banque={{
+                      query: matQuery, setQuery: setMatQuery,
+                      chercher: q => { void chercherMatieres(q); },
+                      chargement: matLoading, items: matItems, onPoser: poserMatiere,
+                    }} />
+                )}
+
+                {courante?.id === 'motifs' && (
+                  <VueMotifs couleur={iconColor} setCouleur={setIconColor} charte={charte} onPoser={addPattern} />
+                )}
               </div>
-            )}
+              );
+            })()}
 
-            {/* TEXT */}
+            {/* TEXT — repris dans l'ordre de Canva ────────────────────────
+                On arrive sur ce qu'on vient faire : chercher, poser une zone
+                de texte, ou partir d'un style. Les combinaisons, elles, sont
+                une bibliothèque : elles viennent après, pas avant. */}
             {tool === 'text' && (
               <div style={{ padding: '22px' }}>
                 <PanelHead title={T('text')} onClose={() => setTool(null)} />
+
 
                 {/* ── ZONES PAR RÔLE IA — EN TÊTE DU PANNEAU ──────────────────
                     C'est la raison d'être d'un template : sans zones portant un
@@ -7444,69 +7964,137 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
                   </div>
                 )}
 
-                <button onClick={addText} className="btn btn-dark" style={{ width: '100%', justifyContent: 'center', marginBottom: 16, gap: 8, height: 44 }}>
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                <ChampRecherche valeur={texteQuery} onChange={setTexteQuery}
+                  placeholder="Rechercher une combinaison…" />
+
+                <button onClick={addText}
+                  style={{ width: '100%', height: 46, marginBottom: 8, borderRadius: 12, border: 'none', cursor: 'pointer',
+                    background: 'var(--leaf-ink, #1E3317)', color: 'var(--leaf, #BDF2A0)',
+                    fontSize: 14, fontWeight: 800, fontFamily: 'var(--sans)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 9 }}>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M5 6V4h14v2M12 4v16M8.5 20h7"/></svg>
                   Ajouter une zone de texte
                 </button>
 
-                {/* ── COMBINAISONS DE TEXTE — jeux de typo façon Canva, cliquez pour ajouter ── */}
+                {/* L'écriture, c'est l'assistant : il connaît le visuel, la
+                    charte et le brief. Un second moteur de texte ici serait une
+                    deuxième vérité sur le même sujet. */}
+                <button onClick={() => { setChatOpenSignal(s => s + 1); setTool(null); }}
+                  style={{ width: '100%', height: 44, marginBottom: 18, borderRadius: 12, cursor: 'pointer',
+                    border: '1px solid var(--line)', background: 'transparent', color: 'var(--ink)',
+                    fontSize: 13.5, fontWeight: 700, fontFamily: 'var(--sans)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l2.1 5.9L20 10l-5.9 2.1L12 18l-2.1-5.9L4 10l5.9-2.1z"/></svg>
+                  Écriture magique
+                </button>
+
+                {/* ── Identité visuelle ─────────────────────────────────── */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 9 }}>
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--ink-2)" strokeWidth="1.8" strokeLinecap="round"><rect x="3" y="5" width="18" height="14" rx="3"/><path d="M7 10h4M7 14h7"/></svg>
+                  <p style={{ fontSize: 12.5, fontWeight: 800, color: 'var(--ink)', margin: 0 }}>Identité visuelle</p>
+                  <button onClick={() => setTool('brand')} style={{ marginLeft: 'auto', border: 'none', background: 'none', padding: 0, cursor: 'pointer', fontSize: 11.5, fontWeight: 700, color: 'var(--ink-2)' }}>Modifier</button>
+                </div>
+                <button onClick={() => setTool('brand')}
+                  style={{ width: '100%', height: 42, marginBottom: 18, borderRadius: 12, cursor: 'pointer',
+                    border: '1px solid var(--line)', background: 'transparent', color: 'var(--ink-2)',
+                    fontSize: 12.5, fontWeight: 700, fontFamily: 'var(--sans)' }}>
+                  {brandFamilies && brandFamilies.length
+                    ? `${brandFamilies.length} police${brandFamilies.length > 1 ? 's' : ''} de marque`
+                    : 'Ajouter vos polices de marque'}
+                </button>
+
+                {/* ── Styles par défaut ─────────────────────────────────── */}
+                {(() => {
+                  // La police du titre est celle de la marque, celle du
+                  // sous-titre est sa secondaire, et le corps garde une
+                  // linéale neutre faite pour être lue. L'aperçu est rendu
+                  // dans la police réelle, sans graisse spectaculaire : un
+                  // bouton de style n'est pas une affiche.
+                  const titreFont = workspaceData?.font_family || brandFamilies?.[0]?.family || 'Archivo';
+                  const sousFont = workspaceData?.font_secondary || brandFamilies?.[1]?.family || titreFont;
+                  const corpsFont = 'Satoshi';
+                  const styles: { label: string; police: string; taille: number; rendu: React.CSSProperties; patch: Partial<TextEl> }[] = [
+                    { label: 'Ajouter un titre', police: titreFont, taille: 40,
+                      rendu: { fontFamily: `'${titreFont}', var(--sans)`, fontSize: 24, fontWeight: 700, letterSpacing: '-0.02em' },
+                      patch: { fontSize: 40, fontFamily: titreFont, fontStyle: 'bold', uppercase: false, letterSpacing: -0.8, lineHeight: 1.05, fill: '#14160F' } },
+                    { label: 'Ajouter un sous-titre', police: sousFont, taille: 26,
+                      rendu: { fontFamily: `'${sousFont}', var(--sans)`, fontSize: 17, fontWeight: 600, letterSpacing: '-0.01em' },
+                      patch: { fontSize: 26, fontFamily: sousFont, fontStyle: 'normal', letterSpacing: -0.2, lineHeight: 1.25, fill: '#14160F' } },
+                    { label: 'Ajouter une ligne de corps', police: corpsFont, taille: 18,
+                      rendu: { fontFamily: `'${corpsFont}', var(--sans)`, fontSize: 13.5, fontWeight: 400 },
+                      patch: { fontSize: 18, fontFamily: corpsFont, fontStyle: 'normal', lineHeight: 1.5, fill: '#14160F' } },
+                  ];
+                  return (<>
+                    <p style={{ fontSize: 10, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '0.12em', fontFamily: 'var(--mono)', fontWeight: 800, margin: '0 0 9px' }}>Styles de texte</p>
+                    <div style={{ display: 'grid', gap: 7, marginBottom: 18 }}>
+                      {styles.map(st => (
+                        <button key={st.label} onClick={() => applyTemplate(st.patch)}
+                          style={{ padding: '13px 14px', borderRadius: 12, border: 'none', cursor: 'pointer', background: 'var(--sunk)', textAlign: 'left', transition: 'filter .14s, transform .14s' }}
+                          onMouseEnter={e => { e.currentTarget.style.filter = 'brightness(.96)'; e.currentTarget.style.transform = 'translateY(-1px)'; }}
+                          onMouseLeave={e => { e.currentTarget.style.filter = 'none'; e.currentTarget.style.transform = 'none'; }}>
+                          <span style={{ display: 'block', color: 'var(--ink)', lineHeight: 1.15, ...st.rendu }}>{st.label}</span>
+                          <span style={{ fontSize: 9.5, color: 'var(--ink-3)', fontFamily: 'var(--mono)', fontWeight: 700 }}>{st.police} · {st.taille}px</span>
+                        </button>
+                      ))}
+                    </div>
+                  </>);
+                })()}
+
+                {/* ── Combinaisons ──────────────────────────────────────── */}
                 {(() => {
                   const brandKit: BrandKit = { primary: workspaceData?.primary_color, secondary: workspaceData?.secondary_color, accent: workspaceData?.accent_color, font: workspaceData?.font_family };
                   const hasCharter = !!(brandKit.primary || brandKit.accent);
                   const useCharter = ttCharter && hasCharter;
                   const show = (tpl: TextTemplate) => useCharter ? adaptTemplateToCharter(tpl, brandKit) : tpl;
-                  return (
-                    <>
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, margin: '0 0 8px' }}>
-                        <p style={{ fontSize: 10, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '0.12em', fontFamily: 'var(--mono)', fontWeight: 800, margin: 0 }}>Combinaisons de texte</p>
-                        {hasCharter && (
-                          <button onClick={() => setTtCharter(v => !v)} title="Adapter les templates à la charte du client"
-                            style={{ fontSize: 10.5, fontWeight: 700, padding: '4px 9px', borderRadius: 'var(--r-btn)', cursor: 'pointer', border: '1px solid ' + (useCharter ? 'var(--leaf)' : 'var(--line)'), background: useCharter ? 'var(--leaf)' : 'transparent', color: useCharter ? '#06281C' : 'var(--ink-2)', display: 'flex', alignItems: 'center', gap: 5 }}>
-                            <span style={{ width: 8, height: 8, borderRadius: 2, background: brandKit.accent || brandKit.primary || '#BDF2A0', display: 'inline-block' }} />
-                            À ma charte
-                          </button>
-                        )}
+                  const norme = (v: string) => v.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+                  const q = norme(texteQuery.trim());
+                  const filtrees = q
+                    ? TEXT_TEMPLATES.filter(t => norme(t.cat).includes(q) || norme(t.id).includes(q))
+                    : TEXT_TEMPLATES;
+                  const recents = TEXT_TEMPLATES.filter(t => texteRecents.includes(t.id))
+                    .sort((a, b) => texteRecents.indexOf(a.id) - texteRecents.indexOf(b.id));
+                  const vignette = (tpl: TextTemplate) => {
+                    const shown = show(tpl);
+                    return (
+                      <button key={tpl.id} onClick={() => { applyTextTemplate(shown); memoriserTexte(tpl.id); }} title={tpl.cat}
+                        style={{ height: 90, padding: '10px 8px', borderRadius: 12, border: 'none', cursor: 'pointer', background: tpl.dark ? '#1B1D18' : 'var(--sunk)', display: 'grid', placeItems: 'center', transition: 'transform .14s, filter .14s', overflow: 'hidden' }}
+                        onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.filter = 'brightness(.97)'; }}
+                        onMouseLeave={e => { e.currentTarget.style.transform = 'none'; e.currentTarget.style.filter = 'none'; }}>
+                        <TextTemplateThumb tpl={shown} w={150} />
+                      </button>
+                    );
+                  };
+                  return (<>
+                    {!q && recents.length > 0 && (<>
+                      <p style={{ fontSize: 10, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '0.12em', fontFamily: 'var(--mono)', fontWeight: 800, margin: '0 0 9px' }}>Utilisés récemment</p>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 18 }}>
+                        {recents.slice(0, 4).map(vignette)}
                       </div>
+                    </>)}
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, margin: '0 0 9px' }}>
+                      <p style={{ fontSize: 10, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '0.12em', fontFamily: 'var(--mono)', fontWeight: 800, margin: 0 }}>Combinaisons de polices</p>
+                      {hasCharter && (
+                        <button onClick={() => setTtCharter(v => !v)} title="Adapter les combinaisons à la charte du client"
+                          style={{ fontSize: 10.5, fontWeight: 700, padding: '4px 9px', borderRadius: 20, cursor: 'pointer', border: 'none', background: useCharter ? 'var(--leaf)' : 'var(--sunk)', color: useCharter ? 'var(--leaf-ink, #1E3317)' : 'var(--ink-2)', display: 'flex', alignItems: 'center', gap: 5 }}>
+                          <span style={{ width: 8, height: 8, borderRadius: 2, background: brandKit.accent || brandKit.primary || '#BDF2A0', display: 'inline-block' }} />
+                          À ma charte
+                        </button>
+                      )}
+                    </div>
+                    {filtrees.length === 0 ? (
+                      <p style={{ fontSize: 12, color: 'var(--ink-3)', textAlign: 'center', padding: '16px 0' }}>Aucune combinaison pour « {texteQuery.trim()} ».</p>
+                    ) : (
                       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 10 }}>
-                        {TEXT_TEMPLATES.slice(0, 8).map(tpl => {
-                          const shown = show(tpl);
-                          return (
-                            <button key={tpl.id} onClick={() => applyTextTemplate(shown)} title={tpl.cat}
-                              style={{ height: 90, padding: '10px 8px', borderRadius: 12, border: '1px solid var(--line)', cursor: 'pointer', background: tpl.dark ? '#1B1D18' : 'var(--white)', display: 'grid', placeItems: 'center', transition: 'all .14s', overflow: 'hidden' }}
-                              onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--leaf)'; e.currentTarget.style.transform = 'translateY(-2px)'; }}
-                              onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--line)'; e.currentTarget.style.transform = 'none'; }}>
-                              <TextTemplateThumb tpl={shown} w={150} />
-                            </button>
-                          );
-                        })}
+                        {filtrees.slice(0, 8).map(vignette)}
                       </div>
-                    </>
-                  );
+                    )}
+                    <button onClick={() => { setTextLibCat('Tous'); setTextLibQuery(texteQuery); setTextLibOpen(true); }}
+                      style={{ width: '100%', height: 40, marginBottom: 18, borderRadius: 12, border: 'none', background: 'var(--sunk)', color: 'var(--ink-2)', fontSize: 12.5, fontWeight: 700, fontFamily: 'var(--sans)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+                      Afficher tout
+                      <span style={{ fontSize: 11, color: 'var(--ink-3)', fontFamily: 'var(--mono)', fontWeight: 700 }}>({TEXT_TEMPLATES.length})</span>
+                    </button>
+                  </>);
                 })()}
-                <button onClick={() => { setTextLibCat('Tous'); setTextLibQuery(''); setTextLibOpen(true); }} className="btn btn-ghost btn-sm"
-                  style={{ width: '100%', justifyContent: 'center', marginBottom: 18, height: 40, gap: 6 }}>
-                  Voir toute la bibliothèque
-                  <span style={{ fontSize: 11, color: 'var(--ink-3)', fontFamily: 'var(--mono)', fontWeight: 700 }}>({TEXT_TEMPLATES.length})</span>
-                </button>
-
-                <p style={{ fontSize: 10, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '0.12em', fontFamily: 'var(--mono)', fontWeight: 800, margin: '0 0 8px' }}>{T('styles')}</p>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                  <button onClick={() => applyTemplate({ fontSize: 96, fontFamily: 'Archivo Black', fontStyle: 'normal', uppercase: true, letterSpacing: -2, lineHeight: 0.92, fill: workspaceData?.primary_color || '#14160F' } as Partial<TextEl>)}
-                    style={{ padding: '14px', borderRadius: 10, border: '1px solid var(--line)', cursor: 'pointer', background: 'var(--white)', textAlign: 'left' }}>
-                    <span style={{ fontFamily: 'Archivo Black', fontSize: 26, color: 'var(--ink)', display: 'block', lineHeight: 0.92, textTransform: 'uppercase', letterSpacing: -1 }}>{T('styleTitle')}</span>
-                    <span style={{ fontSize: 10, color: 'var(--ink-3)', fontFamily: 'var(--mono)', fontWeight: 700 }}>Archivo Black · 96px</span>
-                  </button>
-                  <button onClick={() => applyTemplate({ fontSize: 44, fontFamily: 'Space Grotesk', fontStyle: 'bold', letterSpacing: -0.5, fill: workspaceData?.primary_color || '#14160F' } as Partial<TextEl>)}
-                    style={{ padding: '14px', borderRadius: 10, border: '1px solid var(--line)', cursor: 'pointer', background: 'var(--white)', textAlign: 'left' }}>
-                    <span style={{ fontFamily: 'Space Grotesk', fontWeight: 700, fontSize: 21, color: 'var(--ink)', display: 'block', lineHeight: 1, letterSpacing: -0.4 }}>{T('styleSubtitle')}</span>
-                    <span style={{ fontSize: 10, color: 'var(--ink-3)', fontFamily: 'var(--mono)', fontWeight: 700 }}>Space Grotesk · 44px</span>
-                  </button>
-                  <button onClick={() => applyTemplate({ fontSize: 26, fontFamily: 'Satoshi', fontStyle: 'normal', lineHeight: 1.5, fill: '#14160F' } as Partial<TextEl>)}
-                    style={{ padding: '14px', borderRadius: 10, border: '1px solid var(--line)', cursor: 'pointer', background: 'var(--white)', textAlign: 'left' }}>
-                    <span style={{ fontFamily: 'Satoshi', fontWeight: 400, fontSize: 15, color: 'var(--ink-2)', display: 'block', lineHeight: 1.5 }}>{T('styleBody')}</span>
-                    <span style={{ fontSize: 10, color: 'var(--ink-3)', fontFamily: 'var(--mono)', fontWeight: 700 }}>Satoshi · 26px</span>
-                  </button>
-                </div>
               </div>
             )}
 
@@ -7597,58 +8185,199 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
             )}
 
             {/* BRAND — Charte */}
-            {tool === 'brand' && (
+            {/* CHARTE — la marque, rangée comme dans un vrai kit ─────────
+                Sections nettes plutôt qu'une liste, et surtout un sélecteur :
+                une agence travaille pour plusieurs clients, elle doit pouvoir
+                piocher le logo ou la couleur d'une autre marque sans sortir de
+                l'éditeur. Changer de marque ici ne DÉPLACE pas le visuel : ça
+                change seulement le kit qu'on regarde. */}
+            {tool === 'brand' && (() => {
+              const kit = charteVue ?? workspaceData;
+              const couleurs = [
+                ['Principale', kit?.primary_color],
+                ['Secondaire', kit?.secondary_color],
+                ['Accent', kit?.accent_color],
+              ].filter(([, c]) => !!c) as [string, string][];
+              const polices = [
+                ['Titres', kit?.font_family],
+                ['Textes', kit?.font_secondary],
+              ].filter(([, f2]) => !!f2) as [string, string][];
+              const logos = [kit?.logo_url, kit?.logo_dark_url].filter(Boolean) as string[];
+              const assets = (kit?.brand_assets ?? []) as string[];
+              const voix = [
+                ['Secteur', kit?.sector],
+                ['Ton', kit?.tone],
+                ['À dire', kit?.words_to_use],
+                ['À éviter', kit?.words_to_avoid],
+              ].filter(([, v]) => !!v) as [string, string][];
+              return (
               <div style={{ padding: '22px' }}>
-                <PanelHead title={T('brandKit')} sub={workspaceName} onClose={() => setTool(null)} />
-                <SectionLabel>{T('colors')}</SectionLabel>
-                <div style={{ display: 'flex', gap: 5, marginBottom: 16 }}>
-                  {[workspaceData?.primary_color || '#0038FF', workspaceData?.secondary_color || '#FFFFFF', workspaceData?.accent_color].filter(Boolean).map((col, i) => (
-                    <div key={i} style={{ flex: 1, cursor: 'pointer' }} title={`Copier ${col}`} onClick={() => { try { navigator.clipboard.writeText(col!); } catch {} }}>
-                      <div style={{ height: 36, borderRadius: 6, background: col!, boxShadow: 'inset 0 0 0 1px rgba(0,0,0,.12)' }} />
-                      <div style={{ fontFamily: 'var(--mono)', fontSize: 8, color: 'var(--ink-3)', marginTop: 3, textAlign: 'center', textTransform: 'uppercase', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{col}</div>
+                <PanelHead title="Charte de marque" onClose={() => setTool(null)} />
+
+                {/* ── Sélecteur de marque ───────────────────────────────── */}
+                <div style={{ position: 'relative', marginBottom: 18 }}>
+                  <button onClick={() => { setChartesOuvert(o => !o); if (!chartesListe.length) void chargerChartes(); }}
+                    style={{ width: '100%', height: 46, borderRadius: 12, border: 'none', background: 'var(--sunk)', cursor: 'pointer',
+                      display: 'flex', alignItems: 'center', gap: 10, padding: '0 12px', textAlign: 'left' }}>
+                    <span style={{ width: 26, height: 26, borderRadius: 8, flexShrink: 0, display: 'grid', placeItems: 'center', overflow: 'hidden',
+                      background: kit?.primary_color || 'var(--ink)', color: '#fff', fontSize: 10, fontWeight: 800 }}>
+                      {kit?.logo_url
+                        // eslint-disable-next-line @next/next/no-img-element
+                        ? <img src={kit.logo_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+                        : (charteNom ?? workspaceName ?? '?').slice(0, 2).toUpperCase()}
+                    </span>
+                    <span style={{ flex: 1, minWidth: 0, fontSize: 13, fontWeight: 700, color: 'var(--ink)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {charteNom ?? workspaceName ?? 'Cette marque'}
+                    </span>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--ink-3)" strokeWidth="2.2" strokeLinecap="round"><path d="M6 9l6 6 6-6"/></svg>
+                  </button>
+                  {chartesOuvert && (
+                    <div style={{ position: 'absolute', top: 'calc(100% + 6px)', left: 0, right: 0, zIndex: 40, maxHeight: 260, overflowY: 'auto',
+                      background: 'var(--white)', borderRadius: 12, padding: 6, boxShadow: '0 1px 3px rgba(16,19,11,.06), 0 16px 34px -16px rgba(16,19,11,.45)' }}>
+                      {chartesListe.length === 0 ? (
+                        <p style={{ fontSize: 12, color: 'var(--ink-3)', textAlign: 'center', padding: '14px 0', margin: 0 }}>Chargement…</p>
+                      ) : chartesListe.map(w => (
+                        <button key={w.id} onClick={() => { setCharteVue(w.id === workspaceId ? null : w); setCharteNom(w.name); setChartesOuvert(false); }}
+                          style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 9, padding: '8px 9px', borderRadius: 9, border: 'none', cursor: 'pointer', textAlign: 'left',
+                            background: (charteVue?.id ?? workspaceId) === w.id ? 'var(--sunk)' : 'transparent' }}>
+                          <span style={{ width: 22, height: 22, borderRadius: 7, flexShrink: 0, display: 'grid', placeItems: 'center', overflow: 'hidden',
+                            background: w.primary_color || 'var(--ink)', color: '#fff', fontSize: 9, fontWeight: 800 }}>
+                            {w.logo_url
+                              // eslint-disable-next-line @next/next/no-img-element
+                              ? <img src={w.logo_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+                              : (w.name || '?').slice(0, 2).toUpperCase()}
+                          </span>
+                          <span style={{ flex: 1, minWidth: 0, fontSize: 12.5, fontWeight: 600, color: 'var(--ink)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{w.name}</span>
+                          {w.id === workspaceId && <span style={{ fontSize: 10, color: 'var(--ink-3)', fontFamily: 'var(--mono)', fontWeight: 700 }}>ce visuel</span>}
+                        </button>
+                      ))}
                     </div>
-                  ))}
+                  )}
+                  {charteVue && (
+                    <p style={{ fontSize: 11, color: 'var(--ink-3)', margin: '8px 0 0', lineHeight: 1.4 }}>
+                      Vous regardez la charte de {charteNom}. Le visuel, lui, reste sur {workspaceName}.
+                    </p>
+                  )}
                 </div>
-                {brandFontNames.length > 0 && <>
-                  <SectionLabel>{T('typography')}</SectionLabel>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 16 }}>
-                    {brandFontNames.map((font, i) => (
-                      <div key={font} title={T('addTextWithFont')}
-                        onClick={() => { const el: TextEl = { id: newId(), type: 'text', x: 30, y: 60 + i * 60, rotation: 0, opacity: 100, text: font, fontSize: 26, fontFamily: font, fontStyle: 'bold', textDecoration: '', fill: workspaceData?.primary_color || '#000', align: 'center', width: 260, hasBg: false, bgColor: '#000', bgOpacity: 80, cornerRadius: 4, padding: 12, paddingH: 12, paddingV: 8 }; applyElements([...elements, el]); setSelectedId(el.id); }}
-                        style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 10px', borderRadius: 6, background: 'var(--white)', cursor: 'pointer', border: '1px solid var(--line)' }}>
-                        <span style={{ fontFamily: `"${font}", sans-serif`, fontSize: 22, color: 'var(--ink)', lineHeight: 1 }}>Aa</span>
-                        <span style={{ fontSize: 11, color: 'var(--ink-2)', fontWeight: 600 }}>{font}</span>
-                      </div>
-                    ))}
+
+                {/* Sous-catégories : on ne fait pas défiler tout le kit pour
+                    aller chercher une couleur. */}
+                <Onglets
+                  options={[
+                    { id: 'tout', label: 'Tout' },
+                    ...(logos.length ? [{ id: 'logos', label: 'Logos' }] : []),
+                    ...(couleurs.length ? [{ id: 'couleurs', label: 'Couleurs' }] : []),
+                    { id: 'polices', label: 'Polices' },
+                    ...(voix.length ? [{ id: 'voix', label: 'Voix' }] : []),
+                    ...(assets.length ? [{ id: 'assets', label: 'Éléments' }] : []),
+                  ]}
+                  valeur={charteOnglet}
+                  onChange={setCharteOnglet} />
+
+                {/* ── Logos ─────────────────────────────────────────────── */}
+                {(charteOnglet === 'tout' || charteOnglet === 'logos') && logos.length > 0 && (
+                  <div style={{ marginBottom: 20 }}>
+                    <p style={{ fontSize: 10, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '0.12em', fontFamily: 'var(--mono)', fontWeight: 800, margin: '0 0 9px' }}>Logos</p>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2,1fr)', gap: 8 }}>
+                      {logos.map((url, i) => (
+                        <button key={url} onClick={() => addLogoEl(url)} title="Poser le logo"
+                          style={{ height: 66, borderRadius: 10, border: 'none', cursor: 'pointer', padding: 10, display: 'block', overflow: 'hidden',
+                            background: i === 1 ? '#14160F' : 'var(--sunk)', transition: 'transform .14s' }}
+                          onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-2px)'; }}
+                          onMouseLeave={e => { e.currentTarget.style.transform = 'none'; }}>
+                          {/* `width/height: 100%` plutôt que `max-*` : dans une
+                              grille, un logo très large débordait de sa tuile et
+                              passait par-dessus la section suivante. */}
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img src={url} alt="Logo" style={{ width: '100%', height: '100%', objectFit: 'contain', display: 'block' }} />
+                        </button>
+                      ))}
+                    </div>
                   </div>
-                </>}
-                {(workspaceData?.logo_url || workspaceData?.logo_dark_url) && <>
-                  <SectionLabel>{T('logo')}</SectionLabel>
-                  <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
-                    {workspaceData?.logo_url && (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img src={workspaceData.logo_url} alt="Logo" title={T('addToCanvas')} style={{ height: 38, maxWidth: 90, objectFit: 'contain', cursor: 'pointer', borderRadius: 5, background: 'var(--white)', padding: 4, border: '1px solid var(--line)' }} onClick={() => addLogoEl(workspaceData.logo_url!)} />
-                    )}
-                    {workspaceData?.logo_dark_url && (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img src={workspaceData.logo_dark_url} alt="Logo variante" title={T('addToCanvasDark')} style={{ height: 38, maxWidth: 90, objectFit: 'contain', cursor: 'pointer', borderRadius: 5, background: '#1A1A1A', padding: 4, border: '1px solid var(--line)' }} onClick={() => addLogoEl(workspaceData.logo_dark_url!)} />
-                    )}
+                )}
+
+                {/* ── Couleurs ──────────────────────────────────────────── */}
+                {(charteOnglet === 'tout' || charteOnglet === 'couleurs') && couleurs.length > 0 && (
+                  <div style={{ marginBottom: 20 }}>
+                    <p style={{ fontSize: 10, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '0.12em', fontFamily: 'var(--mono)', fontWeight: 800, margin: '0 0 9px' }}>Couleurs</p>
+                    <div style={{ display: 'grid', gridTemplateColumns: `repeat(${Math.min(3, couleurs.length)},1fr)`, gap: 8 }}>
+                      {couleurs.map(([nom, col]) => (
+                        <button key={nom} title={`Copier ${col}`}
+                          onClick={() => { try { void navigator.clipboard.writeText(col); showEditorToast(`${col} copié`); } catch { /* refusé */ } }}
+                          style={{ border: 'none', background: 'none', padding: 0, cursor: 'pointer', display: 'grid', gap: 5 }}>
+                          <span style={{ height: 46, borderRadius: 10, background: col, boxShadow: 'inset 0 0 0 1px rgba(0,0,0,.12)', display: 'block' }} />
+                          <span style={{ fontSize: 9.5, color: 'var(--ink-3)', fontFamily: 'var(--mono)', fontWeight: 700, textAlign: 'center', textTransform: 'uppercase' }}>{col}</span>
+                        </button>
+                      ))}
+                    </div>
                   </div>
-                </>}
-                {workspaceData?.brand_assets && workspaceData.brand_assets.length > 0 && <>
-                  <SectionLabel>{T('brandAssets')}</SectionLabel>
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 5 }}>
-                    {workspaceData.brand_assets.map((url, i) => (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img key={i} src={url} alt="" title={T('addToCanvas')} draggable
-                        onDragStart={e => e.dataTransfer.setData('application/x-klip-image', url)}
-                        style={{ aspectRatio: '1', objectFit: 'contain', borderRadius: 6, background: 'var(--sunk)', padding: 4, border: '1px solid var(--line)', cursor: 'pointer', width: '100%', display: 'block' }}
-                        onClick={() => addLogoEl(url)} />
-                    ))}
+                )}
+
+                {/* ── Polices ───────────────────────────────────────────── */}
+                {(charteOnglet === 'tout' || charteOnglet === 'polices') && (
+                <div style={{ marginBottom: 20 }}>
+                  <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 8, margin: '0 0 9px' }}>
+                    <p style={{ fontSize: 10, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '0.12em', fontFamily: 'var(--mono)', fontWeight: 800, margin: 0 }}>Polices</p>
+                    <button onClick={() => setTool('text')} style={{ border: 'none', background: 'none', padding: 0, cursor: 'pointer', fontSize: 11.5, fontWeight: 700, color: 'var(--ink-2)' }}>Écrire</button>
                   </div>
-                </>}
+                  {polices.length === 0 ? (
+                    <p style={{ fontSize: 11.5, color: 'var(--ink-3)', margin: 0, lineHeight: 1.45 }}>Aucune police de marque pour l&apos;instant.</p>
+                  ) : (
+                    <div style={{ display: 'grid', gap: 7 }}>
+                      {polices.map(([role, font]) => (
+                        <button key={role} title="Poser un texte dans cette police"
+                          onClick={() => applyTemplate({ fontFamily: font, fontSize: role === 'Titres' ? 72 : 32, fontStyle: role === 'Titres' ? 'bold' : 'normal' })}
+                          style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '11px 13px', borderRadius: 11, border: 'none', background: 'var(--sunk)', cursor: 'pointer', textAlign: 'left', transition: 'filter .14s' }}
+                          onMouseEnter={e => { e.currentTarget.style.filter = 'brightness(.96)'; }}
+                          onMouseLeave={e => { e.currentTarget.style.filter = 'none'; }}>
+                          <span style={{ fontFamily: `'${font}', var(--sans)`, fontSize: 24, color: 'var(--ink)', lineHeight: 1, flexShrink: 0 }}>Aa</span>
+                          <span style={{ minWidth: 0 }}>
+                            <span style={{ display: 'block', fontSize: 12.5, fontWeight: 700, color: 'var(--ink)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{font}</span>
+                            <span style={{ fontSize: 10, color: 'var(--ink-3)', fontFamily: 'var(--mono)', fontWeight: 700 }}>{role}</span>
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                )}
+
+                {/* ── Voix de marque ────────────────────────────────────── */}
+                {(charteOnglet === 'tout' || charteOnglet === 'voix') && voix.length > 0 && (
+                  <div style={{ marginBottom: 20 }}>
+                    <p style={{ fontSize: 10, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '0.12em', fontFamily: 'var(--mono)', fontWeight: 800, margin: '0 0 9px' }}>Voix de marque</p>
+                    <div style={{ borderRadius: 12, background: 'var(--sunk)', padding: '12px 13px', display: 'grid', gap: 8 }}>
+                      {voix.map(([label, valeur]) => (
+                        <div key={label}>
+                          <span style={{ display: 'block', fontSize: 9.5, color: 'var(--ink-3)', fontFamily: 'var(--mono)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.08em' }}>{label}</span>
+                          <span style={{ fontSize: 12, color: 'var(--ink-2)', lineHeight: 1.45 }}>{valeur}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* ── Éléments de marque ────────────────────────────────── */}
+                {(charteOnglet === 'tout' || charteOnglet === 'assets') && assets.length > 0 && (
+                  <div style={{ marginBottom: 20 }}>
+                    <p style={{ fontSize: 10, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '0.12em', fontFamily: 'var(--mono)', fontWeight: 800, margin: '0 0 9px' }}>Éléments de marque</p>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 8 }}>
+                      {assets.map((url, i) => (
+                        <button key={i} onClick={() => addLogoEl(url)} title="Poser sur le visuel" draggable
+                          onDragStart={e => e.dataTransfer.setData('application/x-klip-image', url)}
+                          style={{ aspectRatio: '1', borderRadius: 10, border: 'none', background: 'var(--sunk)', cursor: 'pointer', padding: 7, display: 'grid', placeItems: 'center', transition: 'transform .14s' }}
+                          onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-2px)'; }}
+                          onMouseLeave={e => { e.currentTarget.style.transform = 'none'; }}>
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img src={url} alt="" style={{ width: '100%', height: '100%', objectFit: 'contain', display: 'block' }} />
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
-            )}
+              );
+            })()}
 
             {/* UPLOAD — Importer */}
             {tool === 'upload' && (
@@ -7662,11 +8391,41 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
                 <div
                   onDragOver={e => { e.preventDefault(); e.stopPropagation(); }}
                   onDrop={e => { e.preventDefault(); e.stopPropagation(); const file = e.dataTransfer.files?.[0]; if (file) handleFileDrop(file); }}
-                  style={{ border: '1.5px solid var(--line)', borderRadius: 10, padding: '32px 14px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10, color: 'var(--ink-3)' }}>
-                  <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-                  <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink-2)' }}>{T('dropFilesHere')}</span>
+                  style={{ borderRadius: 12, background: 'var(--sunk)', padding: '26px 14px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, color: 'var(--ink-3)', marginBottom: 18 }}>
+                  <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                  <span style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--ink-2)' }}>{T('dropFilesHere')}</span>
                   <span style={{ fontSize: 11, color: 'var(--ink-3)' }}>{T('fileFormats')}</span>
                 </div>
+
+                {/* ── La bibliothèque du compte ─────────────────────────────
+                    Tout ce qui est importé ou généré atterrit ici, et se
+                    repose sur n'importe quel visuel du compte. C'est la
+                    différence entre un fichier posé une fois et une image qui
+                    appartient vraiment au client. */}
+                <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 8, marginBottom: 9 }}>
+                  <p style={{ fontSize: 10, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '0.12em', fontFamily: 'var(--mono)', fontWeight: 800, margin: 0 }}>Bibliothèque du compte</p>
+                  <button onClick={() => { void chargerImports(); }}
+                    style={{ border: 'none', background: 'none', padding: 0, cursor: 'pointer', fontSize: 11.5, fontWeight: 700, color: 'var(--ink-2)' }}>Actualiser</button>
+                </div>
+                {importsLoading ? (
+                  <p style={{ fontSize: 12, color: 'var(--ink-3)', textAlign: 'center', padding: '18px 0' }}>Chargement…</p>
+                ) : importsListe.length === 0 ? (
+                  <p style={{ fontSize: 12, color: 'var(--ink-3)', textAlign: 'center', padding: '18px 0', lineHeight: 1.45 }}>
+                    Rien pour l&apos;instant. Vos imports et vos éléments générés arrivent ici.
+                  </p>
+                ) : (
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 8 }}>
+                    {importsListe.map(it => (
+                      <button key={it.nom} onClick={() => addImageEl(it.url)} title={it.nom}
+                        style={{ aspectRatio: '1', borderRadius: 10, border: 'none', background: 'var(--sunk)', cursor: 'pointer', padding: 0, overflow: 'hidden', transition: 'transform .14s, filter .14s' }}
+                        onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.filter = 'brightness(.96)'; }}
+                        onMouseLeave={e => { e.currentTarget.style.transform = 'none'; e.currentTarget.style.filter = 'none'; }}>
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={it.url} alt="" loading="lazy" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
 
@@ -7760,7 +8519,7 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
         )}
 
         {/* ── PANNEAU GAUCHE CONTEXTUEL (Effet / Position) ── */}
-        {selectedEl && (fxPanel === 'position' || (fxPanel === 'effects' && selectedEl.type === 'text')) && (
+        {selectedEl && (fxPanel === 'position' || (fxPanel === 'effects' && selectedEl.type === 'text') || ((fxPanel === 'ajuster' || fxPanel === 'outils') && selectedEl.type === 'image')) && (
           <div data-stop-deselect className="pop-in ed-panel" style={{ width: 360, background: 'var(--white)', overflowY: 'auto', flexShrink: 0, display: 'flex', flexDirection: 'column' }}>
             {fxPanel === 'effects' && selectedEl.type === 'text' && (
               <EffectsPanel
@@ -7769,6 +8528,22 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
                 onUpdate={(patch) => updateEl(selectedEl.id, patch)}
                 onClose={() => setFxPanel(null)}
               />
+            )}
+            {fxPanel === 'outils' && selectedEl.type === 'image' && (
+              <PanneauOutils sel={selectedEl as ImageEl}
+                busy={outilBusy} erreur={outilErreur}
+                onAjuster={() => setFxPanel('ajuster')}
+                onRecadrer={() => setCropId(selectedEl.id)}
+                onDetourer={() => { void removeBgFromImage(selectedEl as ImageEl); }}
+                onCapturer={() => { void capturerSujet(selectedEl as ImageEl); }}
+                onRetoucher={(invite, cle) => { void retoucherImage(selectedEl as ImageEl, invite, cle); }}
+                onFiltre={valeurs => updateEl(selectedEl.id, valeurs)}
+                onClose={() => setFxPanel(null)} />
+            )}
+            {fxPanel === 'ajuster' && selectedEl.type === 'image' && (
+              <PanneauAjuster sel={selectedEl as ImageEl}
+                onUpdate={patch => updateEl(selectedEl.id, patch)}
+                onClose={() => setFxPanel(null)} />
             )}
             {fxPanel === 'position' && (
               <PositionPanel
@@ -7802,6 +8577,18 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
                La rangée est là même sans sélection — sinon le plan de travail
                sauterait de 62 px à chaque clic sur un objet. */}
           <div className="ed-ctx-row">
+          {/* Le fond du plan de travail se traite comme un calque : on le
+              sélectionne en cliquant dans le vide, et il a sa barre. Avant, sa
+              couleur ne venait que de la charte et ne se touchait plus. */}
+          {!selectedEl && fondSelect && (
+            <div className="ed-ctx-float" data-stop-deselect onMouseDown={e => e.stopPropagation()} style={{ maxWidth: '100%' }}>
+              <BarreFond
+                bgStyle={bgStyle}
+                onChange={setBgStyle}
+                brandColors={[workspaceData?.primary_color, workspaceData?.secondary_color, workspaceData?.accent_color].filter(Boolean) as string[]}
+                onFermer={() => setFondSelect(false)} />
+            </div>
+          )}
           {selectedEl && (
             <div className="ed-ctx-float" data-stop-deselect onMouseDown={e => e.stopPropagation()}
               style={{ maxWidth: '100%' }}>
@@ -7915,6 +8702,7 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
                   if (cropId) { setCropId(null); }
                   else {
                     setSelectedId(null); setSelectedIds([]);
+                    setFondSelect(true);
                     if (!bgLocked && proxyUrl) setBgCropMode(true); else setBgCropMode(false);
                   }
                 }
@@ -7934,7 +8722,9 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
               style={{ display: 'block' }}
             >
               <Layer>
-                <Rect x={0} y={0} width={stageWView} height={stageH} fill="white" listening={false} />
+                {bgStyle?.type !== 'transparent' && (
+                  <Rect x={0} y={0} width={stageWView} height={stageH} fill="white" listening={false} />
+                )}
                 {/* Template gradient/solid background — rendered below BgImage */}
                 {bgStyle && <BgStyleLayer bgStyle={bgStyle} w={stageWView} h={stageH} />}
                 {proxyUrl && (
@@ -8025,6 +8815,7 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
                       locked={lockedIds.has(el.id)}
                       onDblClick={() => {
                         const v = el as VectorEl;
+                        if (v.cadre && v.vide) { remplirCase(el.id); return; }
                         if (v.fillType === 'image' && v.imageSrc) { setMaskCropId(el.id); return; }
                         if (v.shape === 'custom' && v.points && v.points.length >= 2) {
                           // Re-enter pen mode on this element — load its absolute points
@@ -8112,7 +8903,12 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
                           }}
                         />
                         {/* Surbrillance — highlight rect behind text */}
-                        {el.highlightEnabled && !isEditing && (() => {
+                        {/* L'APLAT RESTE PENDANT L'ÉDITION.
+                            Il disparaissait au double-clic : un texte blanc sur
+                            aplat vert devenait blanc sur blanc, invisible tant
+                            qu'on tapait. Le calque HTML d'édition ne dessine
+                            que les lettres, l'aplat peut donc rester dessous. */}
+                        {el.highlightEnabled && (() => {
                           const hp = el.highlightPadding ?? 8;
                           // UN APLAT PAR LIGNE, chacun épousant SA ligne.
                           //
@@ -8201,32 +8997,51 @@ export function VisualEditor({ workspaceId, postId, templateId, mode }: { worksp
                           ));
                         })()}
                         {/* Lueur — glow Text clone rendered behind main text */}
-                        {el.glowEnabled && !isEditing && hasRuns && segNodes('glow', 0, 0, () => ({
-                          fill: 'transparent',
+                        {/* LA LUEUR SE DESSINE AVEC DE LA MATIÈRE.
+                            Le calque de lueur était rempli en `transparent`
+                            avec une ombre : or une ombre est projetée par ce
+                            qui est DESSINÉ. Rien de dessiné, rien d'éclairé —
+                            Brillance et Néon ne rendaient donc rien, et il ne
+                            restait que le contour du préréglage. Le calque est
+                            maintenant rempli de la couleur de la lueur (il
+                            passe sous le texte, donc invisible ailleurs), et
+                            posé deux fois : un halo serré et un halo large,
+                            comme une vraie retombée lumineuse. */}
+                        {el.glowEnabled && !isEditing && hasRuns && segNodes('glow-large', 0, 0, () => ({
+                          fill: el.glowColor ?? '#BDF2A0',
                           shadowEnabled: true,
-                          shadowColor: el.glowColor ?? '#00FFFF',
-                          shadowOpacity: (el.glowIntensity ?? 50) / 100,
-                          shadowBlur: el.glowSize ?? 10,
+                          shadowColor: el.glowColor ?? '#BDF2A0',
+                          shadowOpacity: ((el.glowIntensity ?? 70) / 100) * 0.55,
+                          shadowBlur: (el.glowSize ?? 14) * 2.2,
                           shadowOffsetX: 0,
                           shadowOffsetY: 0,
                         }))}
-                        {el.glowEnabled && !isEditing && !hasRuns && (
-                          <Text x={pH} y={pV} width={textAreaW} wrap="word"
+                        {el.glowEnabled && !isEditing && hasRuns && segNodes('glow', 0, 0, () => ({
+                          fill: el.glowColor ?? '#BDF2A0',
+                          shadowEnabled: true,
+                          shadowColor: el.glowColor ?? '#BDF2A0',
+                          shadowOpacity: (el.glowIntensity ?? 70) / 100,
+                          shadowBlur: el.glowSize ?? 14,
+                          shadowOffsetX: 0,
+                          shadowOffsetY: 0,
+                        }))}
+                        {el.glowEnabled && !isEditing && !hasRuns && ([2.2, 1] as const).map((facteur, i) => (
+                          <Text key={`glow-${i}`} x={pH} y={pV} width={textAreaW} wrap="word"
                             text={el.uppercase ? el.text.toUpperCase() : el.text}
                             fontSize={el.fontSize} fontFamily={el.fontFamily}
                             fontStyle={el.fontStyle}
-                            fill="transparent"
+                            fill={el.glowColor ?? '#BDF2A0'}
                             align={el.align} listening={false}
                             lineHeight={el.lineHeight ?? 1.2}
                             letterSpacing={el.letterSpacing ?? 0}
                             shadowEnabled={true}
-                            shadowColor={el.glowColor ?? '#00FFFF'}
-                            shadowOpacity={(el.glowIntensity ?? 50) / 100}
-                            shadowBlur={el.glowSize ?? 10}
+                            shadowColor={el.glowColor ?? '#BDF2A0'}
+                            shadowOpacity={((el.glowIntensity ?? 70) / 100) * (facteur > 1 ? 0.55 : 1)}
+                            shadowBlur={(el.glowSize ?? 14) * facteur}
                             shadowOffsetX={0}
                             shadowOffsetY={0}
                           />
-                        )}
+                        ))}
                         {/* text wraps within blockW; handles update el.width which drives blockW */}
                         {hasRuns && !isEditing && segNodes('seg', 0, 0, s => ({
                           textDecoration: s.textDecoration,

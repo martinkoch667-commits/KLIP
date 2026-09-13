@@ -13,7 +13,13 @@ export const maxDuration = 60;
  *   composition TEXTE SUR PHOTO. Il corrige : taille, position, largeur, voile.
  *   Jamais la police ni la couleur (charte préservée).
  *
- * `mode: 'jugement'` — nouveau. Appelé sur une composition DESSINÉE (recette de
+ * `mode: 'reparation'` — le troisième. Il reprend les constats du juge et ne rend
+ *   que le geste MINIMAL qui les efface : déplacer, redimensionner. Interdit de
+ *   supprimer un calque, de toucher aux couleurs et aux polices, ou de défaire
+ *   une superposition voulue. C'est ce qui manquait : le juge disait « ce mot
+ *   est coupé » et personne ne le décalait.
+ *
+ * `mode: 'jugement'` — appelé sur une composition DESSINÉE (recette de
  *   `designSystem.ts`), il ne déplace RIEN : il dit si le visuel est montrable.
  *   Pourquoi un second métier plutôt qu'un réglage du premier : les règles de la
  *   retouche (« jamais deux textes qui se chevauchent », « pas d'aplat derrière
@@ -46,15 +52,89 @@ type Adn = {
 
 type Recette = { id?: string; name?: string; family?: string; zone?: string };
 
-/** Ce qui vaut pour les deux métiers : on ne cherche pas un défaut à tout prix. */
+/**
+ * LE TROISIÈME MÉTIER : RÉPARER SANS DÉFAIRE.
+ *
+ * POURQUOI IL FALLAIT UN TROISIÈME MODE. `retouche` sait corriger, mais ses
+ * règles sont écrites pour du texte posé sur une photo : elle écarte tout ce
+ * qui se superpose, retire les aplats derrière le texte, réaligne. Sur une
+ * composition DESSINÉE, ces règles défont exactement ce qui en fait un visuel de
+ * marque — c'est la raison pour laquelle `jugement` existe à côté d'elle.
+ *
+ * Mais juger ne suffisait pas : le juge disait « ce mot est coupé » et personne
+ * ne le décalait. On reprend donc ses CONSTATS, et on ne demande que le geste
+ * minimal qui les efface.
+ *
+ * TROIS INTERDITS, et ce sont eux qui font la différence avec la retouche :
+ * ne pas supprimer de calque, ne pas toucher aux couleurs ni aux polices, ne
+ * pas défaire une superposition VOULUE. On déplace, on redimensionne, rien
+ * d'autre.
+ */
+function promptReparation(layers: unknown[], defauts: string[], w: number, h: number): string {
+  const liste = (layers as Array<Record<string, unknown>>).map(l =>
+    `- id=${l.id} rôle=${l.role ?? '(aucun)'} texte="${String(l.text ?? '').slice(0, 40)}" ` +
+    `x=${l.x} y=${l.y} largeur=${l.width} corps=${l.fontSize}`).join('\n');
+
+  return [
+    `Tu répares un visuel de ${w} x ${h} pixels. L'origine est en HAUT À GAUCHE.`,
+    '',
+    'CE QU\'UN PREMIER REGARD A RELEVÉ SUR CE VISUEL :',
+    ...(defauts.length ? defauts.map(d => `- ${d}`) : ['- (rien de précis : cherche ce qui saute aux yeux)']),
+    '',
+    'LES CALQUES DE TEXTE, avec leurs coordonnées actuelles :',
+    liste || '(aucun)',
+    '',
+    'TA TÂCHE : le geste MINIMAL qui efface ces défauts. Tu déplaces et tu',
+    'redimensionnes, rien d\'autre.',
+    '',
+    'TROIS INTERDITS ABSOLUS :',
+    '1. Ne SUPPRIME jamais un calque, et n\'en ajoute aucun.',
+    '2. Ne touche NI aux couleurs NI aux polices : elles viennent de la charte du',
+    '   client, elles ne t\'appartiennent pas.',
+    '3. Ne défais pas une superposition VOULUE — un mot manuscrit posé sur un mot',
+    '   barré, un texte sur son propre cartouche, un écho décalé. Tu ne sépares',
+    '   que ce qui rend un mot ILLISIBLE.',
+    '',
+    'CE QUE TU CORRIGES, dans cet ordre de priorité :',
+    '- un mot coupé par un bord : ramène-le dans le cadre ;',
+    '- deux textes DIFFÉRENTS qui se croisent : descends celui du dessous ;',
+    '- un texte posé sur un badge ou une pastille : décale-le à côté ;',
+    '- un bloc qui déborde de la place prévue : réduis son corps plutôt que de',
+    '  le déplacer, tant que la réduction reste sous 25 %.',
+    '',
+    'LES MARGES : garde au moins 5 % du cadre entre un texte et chaque bord.',
+    'LA HIÉRARCHIE : le plus gros texte doit RESTER le plus gros après ta',
+    'correction. Si tu dois réduire le titre, réduis le reste en proportion.',
+    '',
+    'Si un calque va bien, ne le mentionne pas. Un visuel déjà correct rend une',
+    'liste VIDE, et c\'est une bonne réponse.',
+    '',
+    'Réponds UNIQUEMENT avec ce JSON :',
+    '{ "ok": true|false, "issues": [ { "id": "<id du calque>", "problem": "ce qui',
+    'n\'allait pas", "fix": { "x"?: number, "y"?: number, "width"?: number,',
+    '"fontSize"?: number, "align"?: "left|center|right" } } ] }',
+  ].join('\n');
+}
+
+/** Ce qui vaut pour les trois métiers : on ne cherche pas un défaut à tout prix,
+ *  et on n'en excuse pas un qu'on a vu.
+ *
+ *  LA BARRE A DEUX CÔTÉS, et la première version n'en avait qu'un. Écrite pour
+ *  corriger un juge qui inventait des reproches, elle disait quatre fois de ne
+ *  rien signaler et jamais de signaler. Résultat mesuré au banc : témoins
+ *  propres gardés 4/4, défauts plantés rejetés 0/2. Le pendule était passé de
+ *  l'autre côté, et un juge qui garde tout ne sert à rien. */
 const BARRE = [
   '',
-  'LA BARRE, et elle compte autant que le reste :',
-  '- Un rendu correct est le cas NORMAL, pas l\'exception.',
-  '- Ne signale QUE ce que tu peux localiser précisément ET qui gêne vraiment.',
+  'LA BARRE, et elle compte autant que le reste. Elle a DEUX côtés :',
+  '- Un rendu correct est le cas NORMAL. N\'invente jamais un reproche pour',
+  '  justifier une réponse : « rien à redire » est une réponse ATTENDUE.',
   '- Un défaut que tu ne saurais pas montrer du doigt n\'est pas un défaut.',
-  '- N\'invente jamais un reproche pour justifier une réponse : répondre « rien à',
-  '  redire » est une réponse ATTENDUE, pas un échec de ta part.',
+  '- MAIS taire un défaut que tu as vu est la faute SYMÉTRIQUE, et elle coûte',
+  '  plus cher : elle envoie à un client un visuel qu\'il ne peut pas publier.',
+  '  Si tu peux le localiser, dis-le. L\'indulgence n\'est pas de la prudence.',
+  '- Ne cherche pas l\'équilibre entre les deux. Ni quota de défauts, ni quota de',
+  '  compliments : tu regardes, et tu rapportes exactement ce qui est là.',
 ];
 
 export async function POST(request: NextRequest) {
@@ -65,12 +145,15 @@ export async function POST(request: NextRequest) {
 
     const body = await request.json();
     const { image, layers, stageW, stageH } = body;
-    const mode: 'retouche' | 'jugement' = body?.mode === 'jugement' ? 'jugement' : 'retouche';
+    const mode: 'retouche' | 'jugement' | 'reparation' =
+      body?.mode === 'jugement' ? 'jugement' : body?.mode === 'reparation' ? 'reparation' : 'retouche';
     if (typeof image !== 'string') return NextResponse.json({ error: 'image requise' }, { status: 400 });
 
     const prompt = mode === 'jugement'
       ? promptJugement(body.charte as Charte, body.adn as Adn, body.recette as Recette, stageW, stageH)
-      : promptRetouche(Array.isArray(layers) ? layers : [], stageW, stageH);
+      : mode === 'reparation'
+        ? promptReparation(Array.isArray(layers) ? layers : [], Array.isArray(body.defauts) ? body.defauts as string[] : [], stageW, stageH)
+        : promptRetouche(Array.isArray(layers) ? layers : [], stageW, stageH);
 
     let raw: string;
     try {
@@ -79,7 +162,7 @@ export async function POST(request: NextRequest) {
         userText: prompt,
         images: [image],
         temperature: 0.2,
-        maxTokens: mode === 'jugement' ? 900 : 700,
+        maxTokens: mode === 'jugement' ? 900 : mode === 'reparation' ? 900 : 700,
         // JUGER UN RENDU EST UN TRAVAIL DE JUGEMENT, PAS UNE EXTRACTION.
         // Mesuré le 2026-09-03 : au palier rapide, un titre posé à 8 px du bord
         // gauche passe inaperçu deux fois sur deux ; au palier de jugement il est
@@ -98,17 +181,35 @@ export async function POST(request: NextRequest) {
     } catch { /* laissé vide : les défauts ci-dessous sont volontairement permissifs */ }
 
     if (mode === 'jugement') {
-      // En cas de réponse illisible on GARDE le visuel : un juge muet ne doit pas
-      // faire disparaître une composition correcte. Le doute profite au rendu,
-      // l'inverse ferait perdre des visuels sans que personne ne sache pourquoi.
-      const verdict = parsed.verdict === 'rejeter' ? 'rejeter' : 'garder';
+      // LE VERDICT N'EST PLUS ÉCRIT PAR LE MODÈLE, IL EST DÉDUIT DE SES CONSTATS.
+      //
+      // Mesuré au banc : témoins propres gardés 4/4, défauts plantés rejetés
+      // 0/2. Le juge gardait TOUT, y compris un texte à 8 px du bord et un
+      // second texte posé sur le premier. Un juge qui garde tout est aussi
+      // inutile qu'un juge qui rejette tout.
+      //
+      // La cause n'était pas son oeil, elle était dans le partage du travail.
+      // On lui demandait à la fois de CONSTATER et de TRANCHER, et tout le
+      // reste de la consigne (la BARRE, la liste de ce qui n'est pas un défaut,
+      // « un visuel quelconque se GARDE ») pèse sur le mot final. Un modèle
+      // répond bien à « ce texte est-il lisible, oui ou non » et mal à « dois-je
+      // rejeter ce travail », où la politesse l'emporte.
+      //
+      // Il ne rend donc plus que ses CONSTATS, axe par axe. La conséquence se
+      // calcule ici, et elle ne peut plus être adoucie.
+      const charte = critere(parsed.charte);
+      const tenue = critere(parsed.tenue);
+      // ADN et FIL disent « ce n'est pas idéal pour cette marque », jamais « ce
+      // n'est pas montrable » : ils ne font pas tomber un visuel, sinon un
+      // client au compte encore maigre ne verrait jamais rien.
+      const rejete = !charte.ok || !tenue.ok || parsed.verdict === 'rejeter';
       return NextResponse.json({
         mode: 'jugement',
-        verdict,
-        charte: critere(parsed.charte),
+        verdict: rejete ? 'rejeter' : 'garder',
+        charte,
         adn: critere(parsed.adn),
         fil: critere(parsed.fil),
-        tenue: critere(parsed.tenue),
+        tenue,
         defauts: Array.isArray(parsed.defauts) ? parsed.defauts.slice(0, 6) : [],
       });
     }
@@ -165,6 +266,27 @@ function promptJugement(
     'CE QUE TU JUGES, ET RIEN D\'AUTRE',
     '1. CHARTE — les couleurs et les polices POSÉES par la composition sont-elles celles de',
     '   la marque ? Les couleurs de la PHOTO ne comptent pas : elles ne sont pas un choix.',
+    '   DEUX ERREURS À NE PLUS FAIRE, elles ont fait rejeter des compositions justes :',
+    '   · LES POLICES DE GESTE. Une écriture MANUSCRITE, une CONDENSÉE d\'affiche, un',
+    '     SERIF de presse : ce sont des gestes de graphiste, pas des polices de charte.',
+    '     Une charte de client n\'en fournit presque jamais, et une composition a le',
+    '     droit d\'en poser où son dessin le demande. Ne les signale JAMAIS, même quand',
+    '     la charte liste d\'autres polices et même sur plusieurs blocs à la fois : une',
+    '     composition qui OPPOSE un serif et une grotesque le fait exprès, c\'est son',
+    '     sujet. La seule infraction typographique est une police quelconque à la place',
+    '     de la police de titre de la marque SUR LE TITRE.',
+    '   · LES NEUTRES NE SONT PAS DES INFRACTIONS. Le blanc, un blanc cassé, un crème,',
+    '     un gris, un noir, un encre très sombre : ce sont les neutres que le produit',
+    '     CALCULE pour que le texte reste lisible sur son fond. Ils ne figurent pas dans',
+    '     la liste des couleurs de la marque et n\'ont pas à y figurer. Ne signale une',
+    '     couleur que si elle est franchement COLORÉE et étrangère à la charte : un bleu',
+    '     chez une marque rouge et jaune, par exemple.',
+    '   · LES COULEURS QU\'ON N\'A PAS CHOISIES. Tu ne juges que les couleurs POSÉES par',
+    '     la composition : couleur d\'un texte, d\'un aplat, d\'un filet, d\'une pastille.',
+    '     Les couleurs d\'une IMAGE ne sont jamais une infraction — ni la photo, ni un',
+    '     badge illustré, ni un autocollant, ni un logo, ni une vignette. Elles viennent',
+    '     du fichier, personne ne les a choisies dans la charte, et les reprocher revient',
+    '     à reprocher au burger d\'être doré.',
     '2. ADN — le visuel ressemble-t-il à ce que la mesure dit de la marque (registre,',
     '   rapport au texte sur photo) ?',
     '3. FIL — pourrait-il être publié à la suite de ce que cette marque publie déjà,',
@@ -172,25 +294,114 @@ function promptJugement(
     '4. TENUE — le visuel tient-il debout : rien de coupé par un bord, rien d\'illisible,',
     '   rien qui se marche dessus par accident, le sujet de la photo pas masqué.',
     '',
+    '   LE TEST DE LA TENUE EST LA LECTURE, jamais la géométrie. Deux blocs qui se',
+    '   touchent et se lisent tous les deux vont bien ; deux blocs dont une lettre en',
+    '   croise une autre au point qu\'on ne sait plus ce qui est écrit, non. Pose-toi la',
+    '   question dans cet ordre, à chaque bloc de texte :',
+    '',
+    '   a) EST-CE QUE JE LIS CE MOT ? Lis-le vraiment, mot à mot. Si une lettre est',
+    '      barrée par une autre lettre, un bord ou une forme, et que tu dois deviner :',
+    '      c\'est un défaut, et tu dis LEQUEL des mots est touché.',
+    '      « COUPÉ » VEUT DIRE TRANCHÉ, pas « proche du bord ». Un mot n\'est coupé que',
+    '      si des lettres sont réellement SECTIONNÉES par le bord de l\'image : il en',
+    '      manque un morceau, tu vois la moitié d\'un jambage. Un bloc posé bas, un texte',
+    '      qui approche le bord à quelques millimètres, une ligne dans le dernier',
+    '      dixième de l\'image : ce sont des placements, et les compositions ancrent',
+    '      volontiers leur pied de page tout en bas. Si tu lis le mot en entier, il',
+    '      n\'est pas coupé. Ne le signale pas.',
+    '   IMPORTANT — NE CONFONDS PAS « JE N\'ARRIVE PAS À LE RÉSOUDRE » ET « IL EST',
+    '   ILLISIBLE ». L\'image que tu reçois est réduite avant de t\'être montrée. Les',
+    '   petits textes (mentions, pieds de page, sous-titres) y perdent du détail alors',
+    '   qu\'ils sont parfaitement nets dans le visuel réel, à sa vraie taille.',
+    '   LE SIGNE QUI NE TROMPE PAS : si le texte que tu transcris ne forme pas des mots',
+    '   français sensés, ce n\'est pas le visuel qui est fautif, c\'est ta copie qui est',
+    '   trop petite. « No unuhu » n\'est pas un défaut de composition, c\'est « Nouveau',
+    '   menu » que tu n\'as pas pu lire. Dans ce cas, ne signale RIEN sur ce bloc.',
+    '   Tu ne signales un défaut de lisibilité que si tu peux en donner la CAUSE que tu',
+    '   vois : ses lettres ont la même valeur que le fond, un autre texte le traverse,',
+    '   un bord le coupe. « Je ne le déchiffre pas » n\'est pas une cause.',
+    '',
+    '   b) EST-CE QUE LE MOT DISPARAÎT DANS LE FOND ? Attention, c\'est la question la',
+    '      plus facile à poser trop haut, et un juge trop sévère fait autant de dégâts',
+    '      qu\'un juge aveugle.',
+    '      LE TEST EST BINAIRE : tu viens de lire le mot, ou tu ne le lis pas. Si tu',
+    '      l\'as lu, il est lisible, POINT. Un contraste que tu aurais souhaité meilleur',
+    '      n\'est pas un défaut de tenue — tu n\'es pas là pour améliorer un visuel, tu es',
+    '      là pour dire ce qui est illisible.',
+    '      LE BLANC SUR PHOTO EST LA SOLUTION DE LA MAISON, et la bonne : du texte blanc',
+    '      posé sur une image est le cas NORMAL de ce produit. Une photo n\'est jamais',
+    '      uniformément sombre. Qu\'une zone plus claire passe derrière une lettre ou deux,',
+    '      qu\'un reflet ou un éclat traverse le bas d\'un mot, ne rend RIEN illisible et',
+    '      ne se signale pas. Les compositions posent d\'ailleurs souvent un halo ou un',
+    '      voile sous le texte : c\'est déjà la réponse à cette question.',
+    '      LE DÉFAUT, c\'est le mot qui SE CONFOND : ses lettres ont la même valeur que ce',
+    '      qu\'il y a derrière sur toute leur hauteur, et il faut deviner ce qui est écrit',
+    '      au lieu de le lire. Du texte sombre sur une zone sombre, du blanc sur un ciel',
+    '      blanc, une couleur de charte sur un aplat de la même famille. Là, dis-le.',
+    '      Et dis aussi ce qui manque : un voile sous le texte, ou un aplat de la charte',
+    '      derrière lui. C\'est ce qui permet de réparer au lieu de rejuger le dessin.',
+    '   c) EST-CE QUE LE TEXTE EST DANS SON BLOC ? Un texte qui déborde de l\'aplat, de la',
+    '      pastille ou du cartouche censé le porter, ou qui flotte à côté au lieu d\'être',
+    '      dedans, est un défaut : le fond a été dessiné POUR lui.',
+    '',
+    '   AVANT DE CONCLURE, BALAYE LES BLOCS DEUX PAR DEUX. C\'est l\'étape qu\'on',
+    '   oublie : tu lis chaque bloc isolément, tu le trouves lisible, et tu ne vois pas',
+    '   qu\'un AUTRE bloc lui passe dessus. Prends-les par paires et demande-toi pour',
+    '   chacune : est-ce que ces deux-là occupent le même endroit de l\'image ? Un petit',
+    '   texte posé au milieu d\'un grand titre, une ligne qui traverse un mot, un bloc',
+    '   dont les lettres passent entre celles d\'un autre : c\'est un défaut, même si tu',
+    '   arrives à lire les deux en te concentrant. Un lecteur ne se concentre pas.',
+    '   Rappel : seul le MÊME mot en deux exemplaires est un parti pris.',
+    '',
+    '   UNE COULEUR SATURÉE À MÊME UNE PHOTO EST SUSPECTE. Sur une image, le blanc est',
+    '   la règle de la maison. Un rouge, un jaune ou un vert de charte posé directement',
+    '   sur une photo prend la valeur de ce qu\'il y a derrière — un rouge sur un plat',
+    '   doré, c\'est du ton sur ton même si les deux couleurs sont différentes. La',
+    '   couleur de marque se pose sur un APLAT, pas sur une photo. Si tu en vois une à',
+    '   même l\'image et qu\'elle ne tranche pas franchement, dis-le.',
+    '',
+    '   Quand un contraste manque, dis-le comme un rapport de couleurs : « titre sombre',
+    '   sur le bas de photo sombre », « prix blanc sur l\'aplat jaune ». C\'est ce qui',
+    '   permet de retrouver la cause dans la palette, au lieu de rejuger le dessin.',
+    '',
     'CE QUI N\'EST PAS UN DÉFAUT, et c\'est le point sur lequel on se trompe le plus :',
     '- POSER UN OBJET sur la photo (pastille d\'angle, autocollant, tampon de travers,',
     '  étiquette, badge) est un parti pris de graphiste, même s\'il couvre une partie de',
     '  l\'image. Écrire EN TRAVERS du sujet, ça, c\'est un défaut. La différence est là.',
     '- Un aplat, un cartouche ou une bande de couleur derrière le texte : c\'est du',
-    '  vocabulaire de marque, pas un problème de lisibilité.',
-    '- Deux calques superposés VOLONTAIREMENT (un texte-autocollant est fait d\'un calque',
-    '  plein et d\'un calque de contour ; ils doivent se superposer exactement).',
+    '  vocabulaire de marque. La PRÉSENCE de l\'aplat n\'est jamais le défaut. Ce qui en',
+    '  est un, c\'est le texte qui ne se détache pas de CET aplat-là (voir 4b) : le',
+    '  cartouche est là pour porter le mot, pas pour l\'avaler.',
+    '- Deux calques superposés VOLONTAIREMENT : c\'est le MÊME mot en deux exemplaires',
+    '  (un texte-autocollant est fait d\'un calque plein et d\'un calque de contour, ils',
+    '  doivent se superposer exactement ; un écho répète le mot en décalé ; un mot',
+    '  manuscrit se pose sur un mot barré). Deux textes DIFFÉRENTS qui se croisent ne',
+    '  sont jamais un parti pris : c\'est l\'accident que tu dois voir.',
     '- Une composition asymétrique, un mot qui déborde du cadre, un titre très gros :',
     '  ce sont des intentions, pas des accidents.',
     ...BARRE,
     '',
-    'Verdict « rejeter » UNIQUEMENT si un critère est franchement manqué : couleur ou',
-    'police étrangère à la charte, texte coupé, texte illisible, sujet masqué. Un visuel',
-    'simplement quelconque se GARDE.',
+    'TU NE PRONONCES AUCUN VERDICT, et ce n\'est pas une formalité : on ne te demande',
+    'pas si ce travail mérite d\'être rejeté, on te demande CE QUE TU VOIS. La suite ne',
+    't\'appartient pas. Réponds donc à quatre questions fermées, sans chercher à peser',
+    'les conséquences de tes réponses.',
+    '',
+    'QUAND « ok » VAUT false, précisément :',
+    '- charte : une couleur ou une police POSÉE par la composition est étrangère à la',
+    '  marque. Les polices de GESTE (manuscrite, condensée, serif) ne comptent pas.',
+    '- tenue : au moins un mot est ILLISIBLE au sens strict — coupé, croisé par un autre',
+    '  texte, ou confondu avec son fond au point qu\'il faut le deviner. Un seul mot',
+    '  suffit, ce n\'est pas une moyenne. Mais un mot que tu as LU n\'est pas illisible,',
+    '  même si tu lui aurais souhaité plus de contraste : « perfectible » met ok à TRUE.',
+    '- adn / fil : le visuel ne ressemble pas à ce que cette marque publie. Ces deux-là',
+    '  disent « pas idéal », jamais « pas montrable » : sois exigeant sans être sévère.',
+    '',
+    'Un visuel simplement QUELCONQUE a ses quatre « ok » à true : être ordinaire n\'est',
+    'pas un défaut. Mais un mot qu\'on ne peut pas lire met « tenue » à false, même si le',
+    'reste de l\'image est réussi, et même si tu devines ce qui était écrit.',
     '',
     'Réponds UNIQUEMENT avec ce JSON, rien d\'autre :',
-    '{ "verdict": "garder"|"rejeter",',
-    '  "charte": { "ok": true|false, "note": "une phrase" },',
+    '{ "charte": { "ok": true|false, "note": "une phrase" },',
     '  "adn":    { "ok": true|false, "note": "une phrase" },',
     '  "fil":    { "ok": true|false, "note": "une phrase" },',
     '  "tenue":  { "ok": true|false, "note": "une phrase" },',

@@ -24,6 +24,7 @@ import {
   DESIGN_RECIPES, buildDesignElements, effectiveMax, recipeZone, type DesignRecipe,
 } from "@/lib/designSystem";
 import { renderTemplateVisual } from "@/lib/composeRender";
+import { remplirSlots } from "@/lib/bancTextes";
 
 // Charte réelle de Pepe Chicken : c'est le client sur lequel les visuels
 // rejetés ont été produits, donc le seul juge utile.
@@ -54,19 +55,6 @@ const PHOTOS = [
   { id: "ugc-visage", label: "UGC / visage" },
 ];
 
-const MOTS = ["Ouvert ce soir", "La carte change chaque semaine", "Trois places restantes", "Nouveau"];
-
-function echantillon(cle: string, max: number, i: number): string {
-  if (/^p\d|prix/.test(cle)) return ["12€", "8,50€", "19€"][i % 3];
-  if (cle === "chiffre") return ["+248%", "12", "4,9"][i % 3];
-  if (cle === "date") return "12 OCT";
-  if (cle === "heure") return "19H00";
-  const t = MOTS[i % MOTS.length];
-  if (t.length <= max) return t;
-  const coupe = t.slice(0, max + 1);
-  const espace = coupe.lastIndexOf(" ");
-  return (espace > max * 0.5 ? coupe.slice(0, espace) : t.slice(0, max)).replace(/[\s,;:.!?…-]+$/, "");
-}
 
 type Verdict = {
   verdict: "garder" | "rejeter";
@@ -89,28 +77,55 @@ type Cas = {
 
 const W = 1080, H = 1350;
 
-/** Colle le premier texte à 8 px du bord gauche : le défaut que le palier
- *  rapide ne voyait pas. */
-function saboteBord(els: Record<string, unknown>[]): Record<string, unknown>[] {
-  let fait = false;
-  return els.map(e => {
-    if (!fait && e.type === "text") { fait = true; return { ...e, x: 8 }; }
-    return e;
-  });
+/* LES SABOTAGES VISENT LE PLUS GROS TEXTE, jamais le premier venu.
+ *
+ * POURQUOI ON A CHANGÉ. Ils prenaient le PREMIER calque texte de la recette.
+ * Sur `ds-rail-editorial`, c'est le rail de marque : une ligne minuscule,
+ * CENTRÉE, tout en haut. Le pousser à `x: 8` ne déplaçait presque rien (le
+ * texte reste centré dans sa boîte) et ne l'approchait d'aucun bord. Le défaut
+ * planté n'existait donc pas, et la colonne « défauts rejetés » du banc ne
+ * testait rien. Les 2/2 des tours précédents étaient une coïncidence : le juge
+ * rejetait ces visuels pour leur texte tronqué et leurs doublons, pas pour le
+ * sabotage.
+ *
+ * LA RÈGLE D'UN TÉMOIN SABOTÉ : si un humain ne voit pas le défaut en une
+ * seconde, il ne teste rien. On vise donc le TITRE, le texte le plus gros, et
+ * on le casse franchement. */
+
+/** Le plus gros texte de la composition : celui qu'on voit d'abord. */
+function plusGros(els: Record<string, unknown>[]): Record<string, unknown> | null {
+  const textes = els.filter(e => e.type === "text");
+  if (!textes.length) return null;
+  return textes.reduce((a, b) => (Number(b.fontSize) || 0) > (Number(a.fontSize) || 0) ? b : a);
 }
 
-/** Pose le deuxième texte exactement sur le premier : chevauchement ACCIDENTEL,
- *  celui qui doit être vu, par opposition aux deux calques d'un autocollant. */
+/** Le titre sort par la gauche : un tiers de sa largeur passe hors du cadre,
+ *  donc ses premières lettres sont réellement TRANCHÉES, pas « près du bord ». */
+function saboteBord(els: Record<string, unknown>[]): Record<string, unknown>[] {
+  const cible = plusGros(els);
+  if (!cible) return els;
+  const w = Number(cible.width) || 0;
+  return els.map(e => e === cible
+    ? { ...e, x: -Math.round(w * 0.32), align: "left" }
+    : e);
+}
+
+/** Le second plus gros texte est posé EXACTEMENT sur le titre : deux textes
+ *  DIFFÉRENTS qui se croisent, l'accident que le juge doit voir. */
 function saboteChevauchement(els: Record<string, unknown>[]): Record<string, unknown>[] {
-  const textes = els.filter(e => e.type === "text");
-  if (textes.length < 2) return els;
-  const premier = textes[0] as { x?: number; y?: number };
-  let n = 0;
-  return els.map(e => {
-    if (e.type !== "text") return e;
-    n += 1;
-    return n === 2 ? { ...e, x: premier.x ?? 0, y: (premier.y as number ?? 0) + 6 } : e;
-  });
+  const cible = plusGros(els);
+  if (!cible) return els;
+  const autres = els.filter(e => e.type === "text" && e !== cible);
+  if (!autres.length) return els;
+  const second = autres.reduce((a, b) => (Number(b.fontSize) || 0) > (Number(a.fontSize) || 0) ? b : a);
+  // IL PREND AUSSI LA TAILLE DU TITRE. Posé à sa taille d'origine (32 px sur
+  // 1080), le texte fautif était INVISIBLE pour le juge : l'image lui arrive
+  // réduite, et un chevauchement qu'on ne voit pas ne teste rien. Deux GRANDS
+  // textes qui se croisent, là, le défaut saute aux yeux — c'est la condition
+  // d'un témoin saboté.
+  return els.map(e => e === second
+    ? { ...e, x: cible.x, y: (Number(cible.y) || 0) + 8, width: cible.width, fontSize: cible.fontSize }
+    : e);
 }
 
 export default function BancJuge() {
@@ -146,8 +161,7 @@ export default function BancJuge() {
     for (let i = 0; i < prepares.length; i++) {
       const c = prepares[i];
       try {
-        const fields: Record<string, string> = {};
-        c.recette.slots.forEach((s, k) => { fields[s.key] = echantillon(s.key, effectiveMax(c.recette, s), k); });
+        const fields = remplirSlots(c.recette.slots, s => effectiveMax(c.recette, s));
         let els = buildDesignElements(c.recette, {
           fields, brand: CHARTE, w: W, h: H, hasPhoto: c.recette.photo !== "none",
         }) as Record<string, unknown>[];

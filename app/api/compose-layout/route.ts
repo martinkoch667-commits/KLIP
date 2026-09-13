@@ -9,6 +9,8 @@ import {
   sanitizeFields, buildDesignElements, resolveFonts,
 } from '@/lib/designSystem';
 import { pickColorway } from '@/lib/colorway';
+import { controlerRecette } from '@/lib/controleRecettes';
+import { catalogueDe } from '@/lib/recettesBase';
 
 // Diriger un visuel prend plus que les 10 s par défaut d'une fonction Vercel :
 // le modèle regarde la photo, les références, et réfléchit. Sans cette ligne,
@@ -268,7 +270,25 @@ export async function POST(request: NextRequest) {
     const hasPhotoForDesign = typeof hasPhoto === 'boolean'
       ? hasPhoto
       : (typeof imageUrl === 'string' && imageUrl.startsWith('http'));
+    // LE CATALOGUE ÉLARGI : le code PLUS les compositions dessinées à l'atelier
+    // et leurs déclinaisons (`design_recipes`). Sans cette ligne, tout ce qui
+    // est ajouté en base resterait invisible jusqu'au prochain déploiement —
+    // l'atelier écrirait dans le vide.
+    const catalogue = await catalogueDe(
+      typeof workspaceId === 'string' ? workspaceId : null,
+      async () => {
+        const r = await sb
+          .from('design_recipes')
+          .select('recipe_id, name, family, vibe, intents, sectors, photo, description, nodes, slots, active')
+          // On lit AUSSI les inactives : ce sont elles qui masquent une recette
+          // du code. Les filtrer ici reviendrait à ne jamais voir les masques.
+          .limit(1000);
+        return { data: r.data as never, error: r.error };
+      },
+    );
+
     const designPool = pickDesignCandidates({
+      catalogue,
       hasPhoto: hasPhotoForDesign,
       sector: typeof wsRow?.sector === 'string' ? wsRow.sector : null,
       avoid: recentIds.map(id => id.replace(/^ds:/, '')),
@@ -360,8 +380,44 @@ export async function POST(request: NextRequest) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let parsed: any = null;
     try { const jm = raw.match(/\{[\s\S]*\}/); if (jm) parsed = JSON.parse(jm[0]); } catch { /* noop */ }
-    const picks: unknown[] = Array.isArray(parsed?.picks) ? parsed.picks : [];
-    if (picks.length === 0) return NextResponse.json({ error: 'Aucune composition' }, { status: 502 });
+    const picksBruts: unknown[] = Array.isArray(parsed?.picks) ? parsed.picks : [];
+    if (picksBruts.length === 0) return NextResponse.json({ error: 'Aucune composition' }, { status: 502 });
+
+    // ── LE GARDE-FOU GÉOMÉTRIQUE ────────────────────────────────────────────
+    //
+    // Entre le CHOIX de l'IA et ce qu'on MONTRE, il manquait toute relecture :
+    // une recette au dessin fautif partait telle quelle chez le client, qui
+    // découvrait un contour de 3240 px ou une carte devenue pastille difforme.
+    // Le modèle n'y est pour rien, il choisit sur une description qui ne ment
+    // pas mais qui ne dit rien de la géométrie.
+    //
+    // `controlerRecette` est déterministe, sans DOM ni réseau : le contrôle
+    // coûte quelques microsecondes et ne peut pas échouer pour une raison
+    // extérieure. Il est donc posé AVANT le juge de rendu, qui lui coûte un
+    // appel de vision : rien ne sert de demander à un modèle si un visuel est
+    // beau quand on sait déjà qu'il est faux.
+    //
+    // ON N'EN REBOUCHE PAS LE TROU, volontairement. Une recette de remplacement
+    // n'aurait pas les textes que l'IA a écrits POUR celle qu'on écarte : le
+    // rebouchage rendrait une composition vide de sens, ce qui est pire que
+    // deux propositions au lieu de trois. On écarte, on le dit, et on compte.
+    const ecartees: { id: string; raison: string }[] = [];
+    const picks = picksBruts.filter((p) => {
+      const pk = p as { source?: string; id?: unknown };
+      if (pk?.source !== 'design') return true;
+      const recette = catalogue.find(x => x.id === String(pk.id)) ?? findDesignRecipe(pk.id);
+      if (!recette) return true;
+      const fautes = controlerRecette(recette);
+      if (fautes.length === 0) return true;
+      ecartees.push({ id: recette.id, raison: fautes[0].detail });
+      return false;
+    });
+
+    if (ecartees.length) {
+      console.warn(`[compose-layout] ${ecartees.length} composition(s) écartée(s) par le contrôle géométrique :`,
+        ecartees.map(e => `${e.id} — ${e.raison}`).join(' · '));
+    }
+    if (picks.length === 0) return NextResponse.json({ error: 'Aucune composition saine' }, { status: 502 });
 
     // Résolution : on assemble la géométrie (template ou bibliothèque) + le texte/couleur choisis par l'IA.
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -452,7 +508,7 @@ export async function POST(request: NextRequest) {
       // l'aperçu n'ont donc rien de nouveau à apprendre — et l'utilisateur peut
       // déplacer chaque élément, rien n'est verrouillé.
       if (pick?.source === 'design') {
-        const recipe = findDesignRecipe(pick.id);
+        const recipe = catalogue.find(x => x.id === String(pick.id)) ?? findDesignRecipe(pick.id);
         if (recipe) {
           const fields = sanitizeFields(recipe, pick.fields);
           if (Object.keys(fields).length) {
@@ -513,6 +569,10 @@ export async function POST(request: NextRequest) {
       typo: { id: identiteTypo.id, name: identiteTypo.name, note: identiteTypo.note },
       terrain: { id: terrain.id, name: terrain.name, note: terrain.note },
       refs: { templates: tpls.length, approved: approved.length, instagram: instaRefs.length },
+      // Ce que le garde-fou a retiré. Rendu au client pour que « je n'ai eu que
+      // deux propositions » ait une réponse à l'écran, et pas seulement dans les
+      // journaux de la fonction.
+      ...(ecartees.length ? { ecartees } : {}),
     });
   } catch (e) {
     console.error('[compose-layout] error:', e);

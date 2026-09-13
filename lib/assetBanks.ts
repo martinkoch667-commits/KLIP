@@ -27,7 +27,11 @@ export type AssetItem = {
   credit?: string;
 };
 
-export type AssetSource = 'musee' | 'iconscout';
+// « tout » n'est pas une banque : c'est le mode normal du panneau. L'utilisateur
+// cherche une illustration, pas un fournisseur — on interroge tout le monde et
+// on entrelace. La provenance reste affichée sous la vignette, parce qu'elle
+// engage la licence de ce qu'il publie.
+export type AssetSource = 'musee' | 'iconscout' | 'tout';
 
 /** Ce qu'IconScout sait servir. C'est CE choix qui fait la différence entre
  *  « encore des icônes » et une vraie bibliothèque : les illustrations et les
@@ -228,19 +232,41 @@ export async function chercherAssets(
     return { items: await sur('IconScout', chercherIconScout(q, limite, kind, style, gratuitSeul, page)), erreurs };
   }
 
-  // Les deux fonds de domaine public sont interrogés ENSEMBLE et entrelacés :
-  // servis l'un après l'autre, la grille montrait vingt gravures du Met avant
-  // la première image du Smithsonian, et le second fonds n'existait pas pour
-  // qui ne fait pas défiler.
+  if (source === 'tout') {
+    // Deux tiers d'IconScout, un tiers de domaine public : les fonds de musée
+    // rendent des gravures magnifiques mais rarement l'élément qu'on cherchait,
+    // alors qu'ils sont irremplaçables quand on cherche de la matière.
+    const partIS = Math.max(4, Math.round(limite * 0.66));
+    const [is, dp] = await Promise.all([
+      sur('IconScout', chercherIconScout(q, partIS, kind, style, gratuitSeul, page)),
+      q.length >= 2 ? sur('Domaine public', chercherDomainePublic(q, limite - partIS)) : Promise.resolve(vide()),
+    ]);
+    const melange: AssetItem[] = [];
+    let i = 0, j = 0;
+    while (i < is.length || j < dp.length) {
+      for (let k = 0; k < 2 && i < is.length; k++) melange.push(is[i++]);
+      if (j < dp.length) melange.push(dp[j++]);
+    }
+    return { items: melange.slice(0, limite), erreurs };
+  }
+
+  return { items: await sur('Domaine public', chercherDomainePublic(q, limite)), erreurs };
+}
+
+/** Les deux fonds de domaine public, interrogés ENSEMBLE et entrelacés : servis
+ *  l'un après l'autre, la grille montrait vingt gravures du Met avant la
+ *  première image du Smithsonian, et le second fonds n'existait pas pour qui ne
+ *  fait pas défiler. */
+async function chercherDomainePublic(q: string, limite: number): Promise<AssetItem[]> {
   const moitie = Math.ceil(limite / 2);
   const [met, si] = await Promise.all([
-    sur('Met', chercherMet(q, moitie)),
-    sur('Smithsonian', chercherSmithsonian(q, moitie, process.env.SMITHSONIAN_API_KEY)),
+    chercherMet(q, moitie).catch(() => vide()),
+    chercherSmithsonian(q, moitie, process.env.SMITHSONIAN_API_KEY).catch(() => vide()),
   ]);
   const items: AssetItem[] = [];
   for (let i = 0; i < Math.max(met.length, si.length); i++) {
     if (met[i]) items.push(met[i]);
     if (si[i]) items.push(si[i]);
   }
-  return { items: items.slice(0, limite), erreurs };
+  return items.slice(0, limite);
 }

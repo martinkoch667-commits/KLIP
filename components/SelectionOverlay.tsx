@@ -152,27 +152,34 @@ function toLocal(dx: number, dy: number, rotation: number): [number, number] {
 
 interface HandleDef { id: string; cursor: string; style: React.CSSProperties }
 
-const HANDLES: HandleDef[] = [
-  { id: 'tl', cursor: 'nw-resize',  style: { left: -5,    top: -5 } },
-  { id: 'tc', cursor: 'n-resize',   style: { left: '50%', top: -5,    transform: 'translateX(-50%)' } },
-  { id: 'tr', cursor: 'ne-resize',  style: { right: -5,   top: -5 } },
-  { id: 'mr', cursor: 'e-resize',   style: { right: -5,   top: '50%', transform: 'translateY(-50%)' } },
-  { id: 'br', cursor: 'se-resize',  style: { right: -5,   bottom: -5 } },
-  { id: 'bc', cursor: 's-resize',   style: { left: '50%', bottom: -5,  transform: 'translateX(-50%)' } },
-  { id: 'bl', cursor: 'sw-resize',  style: { left: -5,    bottom: -5 } },
-  { id: 'ml', cursor: 'w-resize',   style: { left: -5,    top: '50%', transform: 'translateY(-50%)' } },
+/**
+ * Les poignées sont posées DANS la couche mise à l'échelle par le zoom. Sans
+ * contre-échelle, elles grossissent quand on zoome et deviennent des confettis
+ * quand on dézoome — alors qu'une poignée est un objet d'interface : sa taille
+ * se mesure à l'écran, pas sur la page. Tout ce qui suit est donc exprimé en
+ * pixels écran, divisé par le zoom au moment du rendu (`e()`).
+ */
+const handlesPour = (e: (v: number) => number): HandleDef[] => [
+  { id: 'tl', cursor: 'nw-resize',  style: { left: e(-5),    top: e(-5) } },
+  { id: 'tc', cursor: 'n-resize',   style: { left: '50%', top: e(-5),    transform: 'translateX(-50%)' } },
+  { id: 'tr', cursor: 'ne-resize',  style: { right: e(-5),   top: e(-5) } },
+  { id: 'mr', cursor: 'e-resize',   style: { right: e(-5),   top: '50%', transform: 'translateY(-50%)' } },
+  { id: 'br', cursor: 'se-resize',  style: { right: e(-5),   bottom: e(-5) } },
+  { id: 'bc', cursor: 's-resize',   style: { left: '50%', bottom: e(-5),  transform: 'translateX(-50%)' } },
+  { id: 'bl', cursor: 'sw-resize',  style: { left: e(-5),    bottom: e(-5) } },
+  { id: 'ml', cursor: 'w-resize',   style: { left: e(-5),    top: '50%', transform: 'translateY(-50%)' } },
 ];
 
-const HANDLE_BASE: React.CSSProperties = {
+const socleDePoignee = (e: (v: number) => number): React.CSSProperties => ({
   position: 'absolute',
-  width: 13, height: 13,
+  width: e(13), height: e(13),
   background: '#FFFFFF',
-  border: '1.5px solid var(--vio)',
+  border: `${e(1.5)}px solid var(--vio)`,
   borderRadius: '50%',
   boxShadow: '0 1px 3px rgba(13,15,10,.22)',
   pointerEvents: 'auto',
   transition: 'opacity .15s',
-};
+});
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
@@ -206,6 +213,11 @@ export default function SelectionOverlay({ el, stageRef, onChange, onDragEnd, zo
   if (!bounds) return null;
 
   const { x, y, w, h, rotation, originX, originY } = bounds;
+
+  // Contre-échelle : tout ce qui relève de l'interface (poignées, filet,
+  // badges) est dessiné dans la couche zoomée. On divise donc ses dimensions
+  // par le zoom pour qu'elles restent constantes à l'écran, comme dans Canva.
+  const e = (v: number) => v / (zoom || 1);
 
   // ── Resize ──────────────────────────────────────────────────────────────────
 
@@ -587,17 +599,19 @@ export default function SelectionOverlay({ el, stageRef, onChange, onDragEnd, zo
   };
 
   const ROUND_CORNERS: { id: 'tl' | 'tr' | 'bl' | 'br'; style: React.CSSProperties }[] = [
-    { id: 'tl', style: { left: roundInset - 5, top: roundInset - 5 } },
-    { id: 'tr', style: { right: roundInset - 5, top: roundInset - 5 } },
-    { id: 'br', style: { right: roundInset - 5, bottom: roundInset - 5 } },
-    { id: 'bl', style: { left: roundInset - 5, bottom: roundInset - 5 } },
+    { id: 'tl', style: { left: roundInset - e(5), top: roundInset - e(5) } },
+    { id: 'tr', style: { right: roundInset - e(5), top: roundInset - e(5) } },
+    { id: 'br', style: { right: roundInset - e(5), bottom: roundInset - e(5) } },
+    { id: 'bl', style: { left: roundInset - e(5), bottom: roundInset - e(5) } },
   ];
 
   // ── Render ───────────────────────────────────────────────────────────────────
 
+  const poignees = handlesPour(e);
+  const socle = socleDePoignee(e);
   const visibleHandles = el.type === 'text'
-    ? HANDLES.filter(h => !['tc', 'bc'].includes(h.id))
-    : HANDLES;
+    ? poignees.filter(h => !['tc', 'bc'].includes(h.id))
+    : poignees;
 
   return (
     <div style={{
@@ -612,9 +626,9 @@ export default function SelectionOverlay({ el, stageRef, onChange, onDragEnd, zo
       {/* Selection border */}
       <div style={{
         position: 'absolute', inset: 0,
-        border: '2px solid var(--vio)',
-        borderRadius: 3,
-        boxShadow: '0 0 0 1px rgba(255,255,255,.5)',
+        border: `${e(2)}px solid var(--vio)`,
+        borderRadius: e(3),
+        boxShadow: `0 0 0 ${e(1)}px rgba(255,255,255,.5)`,
         background: 'transparent',
         pointerEvents: 'none',
       }} />
@@ -622,8 +636,8 @@ export default function SelectionOverlay({ el, stageRef, onChange, onDragEnd, zo
       {/* Rotation connector line — below element */}
       <div style={{
         position: 'absolute',
-        left: '50%', bottom: -26,
-        width: 2, height: 26,
+        left: '50%', bottom: e(-26),
+        width: e(2), height: e(26),
         background: 'var(--vio)',
         transform: 'translateX(-50%)',
         pointerEvents: 'none',
@@ -635,8 +649,8 @@ export default function SelectionOverlay({ el, stageRef, onChange, onDragEnd, zo
         title="Pivoter"
         style={{
           position: 'absolute',
-          left: '50%', bottom: -52,
-          width: 26, height: 26,
+          left: '50%', bottom: e(-52),
+          width: e(26), height: e(26),
           transform: 'translate(-50%, 0)',
           borderRadius: '50%',
           background: '#FFFFFF',
@@ -648,7 +662,7 @@ export default function SelectionOverlay({ el, stageRef, onChange, onDragEnd, zo
           transition: 'opacity .15s',
         }}
       >
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12a9 9 0 1 1-3-6.7M21 4v4h-4"/></svg>
+        <svg width={e(14)} height={e(14)} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12a9 9 0 1 1-3-6.7M21 4v4h-4"/></svg>
       </div>
 
       {/* 8 resize handles */}
@@ -656,7 +670,7 @@ export default function SelectionOverlay({ el, stageRef, onChange, onDragEnd, zo
         <div
           key={hnd.id}
           onMouseDown={startResize(hnd.id)}
-          style={{ ...HANDLE_BASE, cursor: hnd.cursor, ...hnd.style }}
+          style={{ ...socle, cursor: hnd.cursor, ...hnd.style }}
         />
       ))}
 
@@ -668,9 +682,9 @@ export default function SelectionOverlay({ el, stageRef, onChange, onDragEnd, zo
           title="Arrondir les coins"
           style={{
             position: 'absolute',
-            width: 10, height: 10,
+            width: e(10), height: e(10),
             background: 'var(--mint-2, #2FD79B)',
-            border: '1.5px solid #FFFFFF',
+            border: `${e(1.5)}px solid #FFFFFF`,
             borderRadius: '50%',
             boxShadow: '0 1px 3px rgba(13,15,10,.3)',
             cursor: 'pointer',
@@ -683,9 +697,9 @@ export default function SelectionOverlay({ el, stageRef, onChange, onDragEnd, zo
       {/* Valeur d'arrondi pendant le glissement */}
       {liveRadius !== null && (
         <div style={{
-          position: 'absolute', top: -28, left: '50%', transform: 'translateX(-50%)',
-          background: '#0C2A1D', color: '#EEEDE3', borderRadius: 6, padding: '3px 8px',
-          fontFamily: "'Cabinet Grotesk', system-ui, sans-serif", fontWeight: 700, fontSize: 11,
+          position: 'absolute', top: e(-28), left: '50%', transform: 'translateX(-50%)',
+          background: '#0C2A1D', color: '#EEEDE3', borderRadius: e(6), padding: `${e(3)}px ${e(8)}px`,
+          fontFamily: "'Cabinet Grotesk', system-ui, sans-serif", fontWeight: 700, fontSize: e(11),
           whiteSpace: 'nowrap', pointerEvents: 'none', zIndex: 200,
           boxShadow: '0 2px 6px rgba(13,15,10,.28)',
         }}>
@@ -697,15 +711,15 @@ export default function SelectionOverlay({ el, stageRef, onChange, onDragEnd, zo
       {liveAngle !== null && (
         <div style={{
           position: 'absolute',
-          bottom: -52, left: '50%',
-          transform: 'translateX(20px)',
+          bottom: e(-52), left: '50%',
+          transform: `translateX(${e(20)}px)`,
           background: '#0C2A1D',
           color: '#EEEDE3',
-          borderRadius: 6,
-          padding: '3px 8px',
+          borderRadius: e(6),
+          padding: `${e(3)}px ${e(8)}px`,
           fontFamily: "'Cabinet Grotesk', system-ui, sans-serif",
           fontWeight: 700,
-          fontSize: 11,
+          fontSize: e(11),
           letterSpacing: '0.02em',
           whiteSpace: 'nowrap',
           pointerEvents: 'none',

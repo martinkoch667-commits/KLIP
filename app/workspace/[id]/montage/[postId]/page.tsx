@@ -21,6 +21,7 @@ import {
 import { ClipStrip, ClipWave, AudioWave, FadeRamp, type ClipStripData } from "./timeline-parts";
 import { chargerPoliceGoogle, declarerPoliceMaison, surPolicesChargees } from "./fonts";
 import { lectureRapideDisponible, infosVideo, dureeAudio, imagesAux, enJpeg, vignettes, picsAudio, fermerSources } from "./media-read";
+import { apercu as srcApercu, assurerProxys, recenser as recenserProxys, declarerProxy, proxyDuFichier, urlProxy, cheminStockage, resumeProxys, type AvanceProxy } from "./proxy";
 import { MontageCtx, CutPanel, TextPanel, CaptionsPanel, AudioPanel, TransitionsPanel, FilterPanel, SpeedPanel, StickerPanel, OverlayPanel, AiPanel } from "./panels";
 import { renderExport } from "./export";
 import { drawTransitionFrame, drawPlanFixe } from "./render-core";
@@ -534,7 +535,7 @@ export default function MontagePage() {
   // Glissement en cours : le plan suit le curseur « comme dans la main » (copie fidèle
   // flottante = tlGhost) + piste survolée pour le dépôt (dropLane).
   const [dragActive, setDragActive] = useState(false);
-  const [tlGhost, setTlGhost] = useState<{ x: number; y: number; w: number; id: string; kind: "clip" | "overlay" } | null>(null);
+  const [tlGhost, setTlGhost] = useState<{ x: number; y: number; w: number; h: number; id: string; kind: "clip" | "overlay" } | null>(null);
   const [dropLane, setDropLane] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const [uploadingOverlay, setUploadingOverlay] = useState(false);
@@ -728,6 +729,33 @@ export default function MontagePage() {
   const waveReqRef = useRef<Set<string>>(new Set());
   // Valeurs de zoom lues au démarrage d'un geste (Safari) — refs pour éviter les closures figées.
   const ppsRef = useRef(pps); ppsRef.current = pps;
+
+  /* Zoomer AUTOUR DE LA TÊTE DE LECTURE.
+
+     La molette zoomait déjà autour du pointeur, ce qui est juste. Les boutons,
+     le raccourci clavier et le pincement, eux, changeaient l'échelle sans
+     toucher au défilement : la vue restait accrochée à son bord gauche, donc on
+     zoomait de fait sur le milieu de ce qui était affiché. Sur une timeline
+     longue, la tête de lecture sortait de l'écran au premier cran et il fallait
+     partir à sa recherche.
+
+     Ici on garde la tête de lecture exactement où elle est à l'écran. Et si elle
+     n'est pas visible, on la ramène au centre plutôt que de zoomer dans le vide. */
+  const poserPps = useCallback((calcul: (p: number) => number) => {
+    setPps((p) => {
+      const np = Math.max(10, Math.min(220, Math.round(calcul(p))));
+      const tl = tlScrollRef.current;
+      if (tl && np !== p) {
+        const t = timeRef.current;
+        const largeur = Math.max(1, tl.clientWidth - LANE_LABEL_W);
+        const aEcran = t * p - tl.scrollLeft;            // distance depuis le bord gauche des pistes
+        const garde = aEcran >= 0 && aEcran <= largeur ? aEcran : largeur / 2;
+        // Après le rendu : `scrollLeft` serait borné par l'ancienne largeur de contenu.
+        requestAnimationFrame(() => { tl.scrollLeft = Math.max(0, t * np - garde); });
+      }
+      return np;
+    });
+  }, []);
   const previewZoomRef = useRef(previewZoom); previewZoomRef.current = previewZoom;
   /** Empêche de pousser le cadre entièrement hors de vue : on ne peut se
    *  déplacer que dans ce que le zoom a fait déborder. */
@@ -802,6 +830,11 @@ export default function MontagePage() {
   // Quel PLAN chaque lecteur est prêt à jouer (déjà positionné sur son trimStart).
   const slotClipRef = useRef<[string | null, string | null]>([null, null]);
   const lastSeekRef = useRef(0); // temporisation des recalages de dérive
+  /* L'horloge est-elle CALÉE sur le lecteur vidéo (voir l'horloge RAF) ? La
+     boucle de synchro le lit pour savoir s'il reste une dérive à rattraper —
+     quand le temps vient du lecteur lui-même, il n'y en a par construction
+     aucune, et toute « correction » ne ferait qu'abîmer le son. */
+  const ancreVideoRef = useRef(false);
   const mediaErrRef = useRef<Set<string>>(new Set()); // sources déjà signalées comme illisibles
   /* Mesure de performance, ouverte avec ?perf=1. Rien du tout sans : ni
      compteur, ni Profiler, ni observateur. On a passé plusieurs tours à deviner
@@ -918,7 +951,7 @@ export default function MontagePage() {
   // piste sous le curseur (déplacement temporel, changement de piste, ou création
   // d'une nouvelle piste vidéo en montant tout en haut). Piloté au pointeur, sans
   // drag HTML5 (fini le fantôme moche du navigateur).
-  const tlDragRef = useRef<{ id: string; kind: "clip" | "overlay"; startX: number; startY: number; grabDx: number; grabDy: number; widthPx: number; moved: boolean } | null>(null);
+  const tlDragRef = useRef<{ id: string; kind: "clip" | "overlay"; startX: number; startY: number; grabDx: number; grabDy: number; widthPx: number; hauteurPx: number; moved: boolean } | null>(null);
   const tlInnerRef = useRef<HTMLDivElement>(null);
   const tlScrollRef = useRef<HTMLDivElement>(null);
   const selDragRef = useRef<{ startX: number; startY: number; moved: boolean } | null>(null); // rectangle de sélection
@@ -1033,7 +1066,7 @@ export default function MontagePage() {
     const onGestureChange = (e: Event) => {
       e.preventDefault();
       const s = (e as unknown as { scale?: number }).scale || 1;
-      if (gZone === "tl") setPps(Math.max(10, Math.min(220, gPps * s)));
+      if (gZone === "tl") poserPps(() => gPps * s);
       else if (gZone === "stage") setPreviewZoom(Math.max(1, Math.min(5, gPrev * s)));
     };
     const onGestureEnd = (e: Event) => e.preventDefault();
@@ -1540,21 +1573,25 @@ export default function MontagePage() {
     /* 0) LA MÊME COULÉE : le plan qui vient de finir et celui qui commence sont
           le même fichier, bout à bout. On ne touche à rien — ni de lecteur, ni de
           position. Le décodeur ne s'aperçoit même pas qu'on a changé de plan. */
+    /* Quelle adresse le LECTEUR ouvre : la copie d'aperçu si elle existe, sinon
+       l'original. `activeClip.src` reste l'original partout ailleurs, et en
+       particulier à l'export, qui ne sait rien de tout ceci. */
+    const srcLecture = srcApercu(activeClip.src);
     const sansCouture = memeCoulee(clipPrecedentRef.current, activeClip)
-      && slotSrcRef.current[activeSlotRef.current] === activeClip.src;
+      && slotSrcRef.current[activeSlotRef.current] === srcLecture;
     if (sansCouture) target = activeSlotRef.current;
     // 1) un lecteur est déjà PRÊT pour ce plan (source chargée ET position atteinte)
     else if (slotClipRef.current[0] === activeClip.id) target = 0;
     else if (slotClipRef.current[1] === activeClip.id) target = 1;
     // 2) sinon, un lecteur a au moins la bonne source
-    else if (slotSrcRef.current[slot] === activeClip.src) target = slot;
-    else if (slotSrcRef.current[slot === 0 ? 1 : 0] === activeClip.src) target = slot === 0 ? 1 : 0;
+    else if (slotSrcRef.current[slot] === srcLecture) target = slot;
+    else if (slotSrcRef.current[slot === 0 ? 1 : 0] === srcLecture) target = slot === 0 ? 1 : 0;
     else {
       // 3) source jamais chargée : dans le lecteur NON affiché, pour ne pas faire
       //    clignoter l'image courante.
       target = slot === 0 ? 1 : 0;
       const el = els[target];
-      if (el) { el.src = activeClip.src; slotSrcRef.current[target] = activeClip.src; }
+      if (el) { el.src = srcLecture; slotSrcRef.current[target] = srcLecture; }
     }
     slotClipRef.current[target] = activeClip.id;
     // Un plan n'est prêt que dans UN lecteur : sans ce nettoyage, les deux slots
@@ -1638,10 +1675,11 @@ export default function MontagePage() {
          rushes lourds c'est précisément ce qui rendait la lecture inregardable.
          Un décodeur qui démarre coûte cher ; deux qui tournent coûtent plus. */
     };
-    if (slotSrcRef.current[free] !== nextClip.src) {
+    const srcSuivant = srcApercu(nextClip.src);
+    if (slotSrcRef.current[free] !== srcSuivant) {
       // Fichier différent : charger puis se positionner.
-      el.src = nextClip.src;
-      slotSrcRef.current[free] = nextClip.src;
+      el.src = srcSuivant;
+      slotSrcRef.current[free] = srcSuivant;
       el.addEventListener("loadedmetadata", seek, { once: true });
       el.load();
       return () => el.removeEventListener("loadedmetadata", seek);
@@ -1679,6 +1717,8 @@ export default function MontagePage() {
     if (!playing) return;
     let raf = 0; let last = performance.now();
     let stalledSince = 0; // depuis quand on attend la vidéo (ms)
+    let dernierCtVideo = -1;  // dernière position lue dans le lecteur
+    let ctAvanceA = 0;        // quand elle a bougé pour la dernière fois
     let derniereSignature = signatureScene(clockRef.current);
     let dernierRendu = 0;   // horodatage du dernier setTime consenti
     const tick = (now: number) => {
@@ -1738,7 +1778,54 @@ export default function MontagePage() {
       } else {
         stalledSince = 0;
       }
-      const n = clockRef.current + dt;
+      let n = clockRef.current + dt;
+
+      /* ── L'HORLOGE SE CALE SUR LE SON QU'ON ENTEND ─────────────────────────
+
+         Jusqu'ici le temps avançait au chronomètre (dt réel) et le lecteur le
+         SUIVAIT, avec une tolérance d'une seconde avant recalage et une
+         correction par la vitesse de lecture. Sur une source tirée du réseau,
+         c'est-à-dire au premier passage, avant que le fichier soit en cache, le
+         lecteur ne tient pas ce rythme : le curseur prend de l'avance sur le
+         son, et ce qu'on entend ne correspond plus au spectre dessiné sous le
+         plan. Pour monter, c'est inutilisable — on coupe à l'oreille sur une
+         image qui n'est pas la bonne. C'est aussi pourquoi « ça allait mieux »
+         après avoir lu plusieurs fois : le fichier était enfin en cache.
+
+         On inverse donc l'autorité : tant que le lecteur joue VRAIMENT, c'est
+         LUI qui donne l'heure. Le curseur est alors sur le son par
+         construction, à la frame près, dès la première lecture.
+
+         Le dt reste l'horloge de secours — photo, trou, lecteur calé ou bloqué
+         par la politique de lecture automatique. C'est ce qui empêche la
+         timeline de se figer si le lecteur ne démarre jamais, le défaut qui
+         avait justement fait abandonner le temps piloté par la vidéo. */
+      let ancree = false;
+      if (ac && ac.kind === "video" && vEl && !vEl.paused && !vEl.seeking && vEl.readyState >= 2) {
+        const ct = vEl.currentTime;
+        if (ct !== dernierCtVideo) { dernierCtVideo = ct; ctAvanceA = now; }
+        /* `currentTime` ne bouge qu'à chaque image affichée : à 24 im/s, toutes
+           les 42 ms. Passé 250 ms sans le moindre progrès, le lecteur a calé
+           pour de bon et on repasse au chronomètre. */
+        if (now - ctAvanceA < 250) {
+          const ancre = ac.start + (ct - ac.trimStart) / (ac.speed || 1);
+          // Hors des bornes du plan, le lecteur n'est pas (encore) là où il
+          // devrait : c'est au recalage de faire son travail, pas à l'horloge
+          // de suivre une position fausse.
+          if (ancre >= ac.start - 0.25 && ancre <= ac.end + 0.25) {
+            const ecart = ancre - n;
+            /* Gros écart : on saute sur le son, il n'y a rien à ménager. Petit
+               écart : on converge en douceur, sinon le curseur avancerait par
+               à-coups au rythme des images décodées au lieu de glisser. */
+            n = Math.abs(ecart) > 0.25 ? ancre : n + ecart * 0.2;
+            ancree = true;
+          }
+        }
+      } else {
+        dernierCtVideo = -1;
+      }
+      ancreVideoRef.current = ancree;
+
       if (total > 0 && n >= total) {
         clockRef.current = 0; timeRef.current = 0;
         poserCurseur(0); setPlaying(false); setTime(0);
@@ -1783,7 +1870,8 @@ export default function MontagePage() {
     const el = document.createElement("video");
     el.preload = "auto";
     el.playsInline = true;
-    el.src = src;
+    // La copie d'aperçu porte exactement le même son, pour une fraction du poids.
+    el.src = srcApercu(src);
     return el;
   }
 
@@ -1843,6 +1931,94 @@ export default function MontagePage() {
     return () => { vivant = false; };
   }, [audioTracks]);
 
+  /* ── Copies d'aperçu, dites « proxys » ──────────────────────────────────────
+
+     Le monteur lisait les rushes d'origine : 2160×3840 décodés pour être
+     affichés dans 190 px, et des dizaines de méga-octets à télécharger avant la
+     première image. On fabrique donc une copie en 720 de haut et l'aperçu monte
+     dessus ; `clip.src` et l'export ne changent pas d'un caractère.
+
+     Cette boucle est le RATTRAPAGE : elle sert aux montages créés avant que les
+     proxys existent. Les médias importés désormais reçoivent le leur au moment
+     du dépôt, depuis le fichier local, sans retéléchargement.
+
+     Elle ne tourne qu'une fois par ouverture du monteur, et elle n'est PAS
+     annulée quand on modifie le montage : encoder cinq rushes prend une minute,
+     et redémarrer la fabrication à chaque déplacement de plan ne finirait
+     jamais. Seule la sortie du monteur l'arrête. */
+  const [proxyEnCours, setProxyEnCours] = useState<AvanceProxy | null>(null);
+  const [, majProxys] = useState(0);
+  const proxysLancesRef = useRef(false);
+  /* COMBIEN de fois le monteur est monté, et non « est-il monté ».
+
+     Un simple booléen ne marche pas ici : en développement, React monte, démonte
+     puis remonte chaque composant pour débusquer les effets mal nettoyés. Le
+     nettoyage posait le drapeau à faux, le remontage ne le relevait pas, et la
+     boucle de fabrication se croyait annulée avant d'avoir traité le premier
+     fichier. Un compteur retombe à 1 au remontage, et dit donc la vérité dans
+     les deux modes.
+
+     Le nettoyage remet aussi `proxysLancesRef` à faux : si une boucle s'est
+     arrêtée en route, le remontage en relance une, et `enCours` empêche de
+     fabriquer deux fois le même fichier. */
+  const montesRef = useRef(0);
+  useEffect(() => {
+    montesRef.current++;
+    return () => { montesRef.current--; proxysLancesRef.current = false; };
+  }, []);
+  const monteEncore = () => montesRef.current > 0;
+
+  const televerserProxy = useCallback(async (bucket: string, chemin: string, blob: Blob) => {
+    const { error } = await supabase.storage.from(bucket).upload(chemin, blob, { upsert: true, contentType: "video/mp4" });
+    // Jamais silencieux : un proxy qui ne part pas veut dire un aperçu qui reste
+    // lourd, et on doit pouvoir le lire dans la console plutôt que le deviner.
+    if (error) { console.warn("[proxy] envoi refusé", chemin, error.message); return false; }
+    return true;
+  }, [supabase]);
+
+  useEffect(() => {
+    if (proxysLancesRef.current) return;
+    const videos = clips.filter((c) => c.kind === "video" && c.src).map((c) => c.src);
+    const incrustations = (overlays || []).filter((o) => o.kind === "video" && o.src).map((o) => o.src);
+    const aFabriquer = videos.concat(incrustations);
+    if (!aFabriquer.length) return; // le projet n'est pas encore chargé
+    proxysLancesRef.current = true;
+    (async () => {
+      /* Les pistes sonores sont RECENSÉES sans être fabriquées : quand on détache
+         le son d'un plan, la piste pointe vers le fichier vidéo d'origine et
+         profite donc du proxy de ce plan. Une vraie musique n'a pas d'image, la
+         fabrication n'aurait rien à réduire. */
+      const sons = audioTracks.filter((a) => a.src).map((a) => a.src);
+      if (sons.length) await recenserProxys(sons).catch(() => []);
+      if (monteEncore()) majProxys((k) => k + 1);
+      await assurerProxys(aFabriquer, televerserProxy, {
+        onAvance: (a) => { if (monteEncore()) setProxyEnCours(a); },
+        onPret: () => { if (monteEncore()) majProxys((k) => k + 1); },
+        annule: () => !monteEncore(),
+      });
+      if (monteEncore()) setProxyEnCours(null);
+    })();
+  }, [clips, overlays, audioTracks, televerserProxy]);
+
+  /** Copie d'aperçu d'un média qu'on vient de déposer. Fabriquée depuis le
+   *  fichier LOCAL : il est déjà là, le retélécharger serait absurde. Lancée
+   *  sans être attendue, pour que le plan apparaisse sur la timeline tout de
+   *  suite. */
+  const fabriquerProxyLocal = useCallback(async (file: Blob, src: string) => {
+    const cible = urlProxy(src);
+    const place = cible ? cheminStockage(cible) : null;
+    if (!place) return;
+    try {
+      const blob = await proxyDuFichier(file);
+      if (!blob) { declarerProxy(src, false); return; } // rush déjà léger : rien à faire
+      const ok = await televerserProxy(place.bucket, place.chemin, blob);
+      declarerProxy(src, ok);
+      if (ok && monteEncore()) majProxys((k) => k + 1);
+    } catch {
+      declarerProxy(src, false);
+    }
+  }, [televerserProxy]);
+
   // En quittant le monteur, aucune piste ne doit survivre à l'écran, et aucune
   // source ouverte ne doit garder ses octets en mémoire.
   useEffect(() => () => {
@@ -1854,6 +2030,10 @@ export default function MontagePage() {
   useEffect(() => {
     if (!playing) {
       Object.values(audioElsRef.current).forEach((el) => el.pause());
+      // Les lecteurs vidéo aussi : l'effet qui s'en charge d'ordinaire sort tôt
+      // quand le curseur n'est sur aucun plan vidéo (trou, photo), et le son du
+      // plan précédent continuait alors de tourner, arrêt compris.
+      [videoARef.current, videoBRef.current].forEach((v) => { if (v && !v.paused) v.pause(); });
       return;
     }
     let raf = 0;
@@ -1862,6 +2042,17 @@ export default function MontagePage() {
       // La vidéo SUIT l'horloge : on la maintient en lecture et on corrige la dérive
       // (si elle a calé, été bloquée, ou pris de l'avance/retard). + fondu du son du plan.
       const vEl = videoRef.current, ac = activeClipRef.current;
+      /* LE SON D'UN PLAN NE SURVIT PAS AU PLAN.
+
+         Quand le curseur entre dans un trou ou sur une photo, `activeClip` n'est
+         plus une vidéo : l'effet de bascule des lecteurs, celui de lecture/pause
+         et la synchro ci-dessous sortaient TOUS avant d'avoir touché au lecteur.
+         Personne ne le mettait donc en pause, et il continuait à jouer le son du
+         plan qu'on venait de quitter — on entendait un rush dont le spectre
+         n'était même plus à l'écran (retour Martin). */
+      if (!ac || ac.kind !== "video") {
+        [videoARef.current, videoBRef.current].forEach((v) => { if (v && !v.paused) v.pause(); });
+      }
       if (vEl && ac && ac.kind === "video") {
         // Position visée DANS LA SOURCE, bornée à son métrage réel : si `trimEnd`
         // dépasse la durée du fichier (métadonnée fausse, ré-encodage), viser au-delà
@@ -1885,6 +2076,16 @@ export default function MontagePage() {
           lastSeekRef.current = now;
           vEl.currentTime = Math.max(0, expected);
           if (vEl.paused) vEl.play().catch(() => {});
+        } else if (ancreVideoRef.current) {
+          /* L'horloge vient de CE lecteur : il est à l'heure par définition, il
+             n'y a pas de dérive à rattraper. Il joue donc à sa vitesse nominale.
+
+             C'est le second défaut que corrige l'ancrage : la correction par la
+             vitesse pinçait la lecture de ±4 % en permanence pour courir après
+             une horloge qui, elle, avait tort. Sur une voix, 4 % s'entendent —
+             le son montait et descendait légèrement pendant toute la lecture. */
+          const vise = ac.speed || 1;
+          if (Math.abs(vEl.playbackRate - vise) > 0.002) vEl.playbackRate = vise;
         } else if (isFinite(expected) && !vEl.seeking) {
           /* Petite dérive : on ne SAUTE PAS, on accélère ou on ralentit un peu.
 
@@ -1912,7 +2113,9 @@ export default function MontagePage() {
           // dessous on corrige par la vitesse. Un saut de lecture s'entend comme
           // un hoquet, une correction de 3 % ne s'entend pas.
           const ecart = el.currentTime - srcT;
-          if (Math.abs(ecart) > 0.5) { el.currentTime = srcT; el.playbackRate = 1; }
+          // Seuil resserré de 500 à 250 ms : l'horloge est maintenant calée sur
+          // l'image, une demi-seconde de retard sur la musique s'entendait.
+          if (Math.abs(ecart) > 0.25) { el.currentTime = srcT; el.playbackRate = 1; }
           else {
             const vise = 1 + Math.max(-0.03, Math.min(0.03, -ecart * 0.2));
             if (Math.abs(el.playbackRate - vise) > 0.002) el.playbackRate = vise;
@@ -1947,7 +2150,38 @@ export default function MontagePage() {
   function onVideoTimeUpdate() { /* le temps est piloté par l'horloge RAF */ }
   function onVideoEnded() { /* la progression entre plans est gérée par l'horloge */ }
 
-  function togglePlay() { setPlaying((p) => !p); }
+  /* ON PART TOUS DE LA MÊME LIGNE.
+
+     Appuyer sur Lecture ne faisait que lancer l'horloge : le lecteur repartait
+     d'où son décodeur s'était arrêté, les pistes sonores d'où elles en étaient,
+     et le décalage du moment devenait le décalage de départ. On recale donc
+     tout le monde sur la tête de lecture AVANT de démarrer. */
+  function togglePlay() {
+    const demarre = !playingRef.current;
+    if (demarre) {
+      const t = timeRef.current;
+      const v = videoRef.current, ac = activeClipRef.current;
+      if (v && ac && ac.kind === "video") {
+        const cible = ac.trimStart + (t - ac.start) * (ac.speed || 1);
+        // 60 ms ≈ une image et demie : en dessous, un seek coûterait plus que
+        // l'écart qu'il corrige (il vide le tampon du décodeur).
+        if (isFinite(cible) && Math.abs(v.currentTime - cible) > 0.06) {
+          try { v.currentTime = Math.max(0, cible); } catch { /* source pas prête */ }
+        }
+      }
+      for (const a of audioTracksRef.current) {
+        const el = audioElsRef.current[a.id];
+        if (!el) continue;
+        const local = t - a.offset;
+        if (local < 0 || local >= a.dur) continue;
+        const cible = (a.srcOffset ?? 0) + local;
+        if (Math.abs(el.currentTime - cible) > 0.06) {
+          try { el.currentTime = cible; } catch { /* source pas prête */ }
+        }
+      }
+    }
+    setPlaying(demarre);
+  }
 
   function onScrub(e: React.MouseEvent) {
     const r = scrubRef.current?.getBoundingClientRect();
@@ -1998,6 +2232,7 @@ export default function MontagePage() {
       }
       const { data: urlData } = supabase.storage.from(bucket).getPublicUrl(path);
       const dur = isVideo ? await getVideoDuration(urlData.publicUrl) : PHOTO_DEFAULT_DUR;
+      if (isVideo) void fabriquerProxyLocal(file, urlData.publicUrl);
       setClips((prev) => [...prev, {
         id: crypto.randomUUID(), kind: isVideo ? "video" : "photo", name: file.name, src: urlData.publicUrl,
         srcDur: isVideo ? dur : 15, trimStart: 0, trimEnd: dur, ...newClipDefaults(),
@@ -2048,6 +2283,7 @@ export default function MontagePage() {
       }
       const { data: urlData } = supabase.storage.from(bucket).getPublicUrl(path);
       const dur = isVideo ? await getVideoDuration(urlData.publicUrl) : PHOTO_DEFAULT_DUR;
+      if (isVideo) void fabriquerProxyLocal(file, urlData.publicUrl);
       if (lane && lane !== "video" && (lane === "new" || /^v\d+$/.test(lane))) {
         const track = lane === "new" ? videoTrackCount : (parseInt(lane.slice(1), 10) || 0);
         setOverlays((prev) => [...prev, {
@@ -3202,14 +3438,150 @@ export default function MontagePage() {
   }
   // Déplacement d'un texte dans le temps sur la timeline (décale start ET end).
   const titleDragRef = useRef<{ id: string; startX: number; t0start: number; dur: number; moved: boolean; alt: boolean } | null>(null);
+  /* ── DÉPLACEMENT DE GROUPE ──────────────────────────────────────────────────
+
+     On pouvait sélectionner plusieurs éléments, mais pas les bouger ensemble :
+     chaque gestionnaire de glissement commençait par effacer la sélection dès
+     qu'on posait le doigt, y compris quand l'élément saisi en faisait partie.
+
+     Le principe retenu est celui de CapCut et de n'importe quel éditeur : le
+     groupe est RIGIDE. On attrape un membre, tout le monde se décale du même
+     temps, et les écarts entre éléments ne changent pas d'un pouce.
+
+     Ce que ça ne couvre PAS, et c'est voulu : les plans de la piste vidéo
+     principale. Ils sont posés bout à bout, chacun commençant où le précédent
+     finit ; ils n'ont pas de position propre à décaler. Les déplacer en groupe
+     est une réorganisation, pas un décalage, et ça ne se traite pas ici. */
+  type MembreGroupe = { id: string; t0: number; principal: boolean };
+  const groupeRef = useRef<MembreGroupe[] | null>(null);
+
+  /** À la saisie : l'élément attrapé fait-il partie de la sélection ? Si oui on
+   *  garde la sélection et on relève la position de tous les autres. Si non, on
+   *  efface la sélection, comme avant. */
+  function saisirGroupe(idSaisi: string): boolean {
+    if (!multiSel.has(idSaisi)) {
+      if (multiSel.size) setMultiSel(new Set());
+      groupeRef.current = null;
+      return false;
+    }
+    const membres: MembreGroupe[] = [];
+    multiSel.forEach((id) => {
+      if (id === idSaisi) return;
+      /* Les plans de la piste principale d'abord : ce sont EUX qu'on sélectionne
+         le plus souvent, et les oublier ici vidait le groupe de sa substance.
+         C'était le défaut de la première version : on ne cherchait que dans les
+         pistes libres, donc sélectionner trois plans puis les glisser ne
+         déplaçait que celui qu'on tenait. */
+      const c = clipStarts.find((x) => x.id === id);
+      if (c) { membres.push({ id, t0: c.start, principal: true }); return; }
+      const o = overlays.find((x) => x.id === id); if (o) { membres.push({ id, t0: o.offset, principal: false }); return; }
+      const a = audioTracks.find((x) => x.id === id); if (a) { membres.push({ id, t0: a.offset, principal: false }); return; }
+      const sc = captions.find((x) => x.id === id); if (sc) { membres.push({ id, t0: sc.start, principal: false }); return; }
+      const ti = titles.find((x) => x.id === id); if (ti) { membres.push({ id, t0: ti.start, principal: false }); return; }
+    });
+    groupeRef.current = membres;
+    return true;
+  }
+
+  /* Décalage d'un BLOC de plans sur la piste principale.
+
+     Ces plans n'ont pas de position propre : chacun commence là où le précédent
+     finit, et le seul réglage est `gapBefore`, le vide laissé devant lui. Pour
+     décaler un bloc sans rien déranger autour, on ouvre l'écart devant le bloc
+     et on referme d'autant l'écart qui le suit. Ce qui vient après ne bouge donc
+     pas d'un pouce, et le bloc garde ses plans soudés.
+
+     On raisonne par SUITES de plans consécutifs : une sélection en deux morceaux
+     donne deux blocs, chacun décalé du même temps. */
+  function suitesPrincipales(ids: string[], liste: { id: string }[]): number[][] {
+    const dans = (id: string) => ids.indexOf(id) >= 0;
+    const suites: number[][] = [];
+    let courante: number[] = [];
+    for (let i = 0; i < liste.length; i++) {
+      if (dans(liste[i].id)) courante.push(i);
+      else if (courante.length) { suites.push(courante); courante = []; }
+    }
+    if (courante.length) suites.push(courante);
+    return suites;
+  }
+
+  /** Ce que le décalage demandé a le droit de valoir, sans qu'aucun membre ne
+   *  passe avant zéro ni ne chevauche le plan qui le suit. Le groupe est rigide :
+   *  il s'arrête ENSEMBLE, sinon les écarts entre éléments se déformeraient. */
+  function brider(dt: number, membres: MembreGroupe[]): number {
+    let d = dt;
+    for (const m of membres) if (!m.principal) d = Math.max(d, -m.t0);
+    const idsP = membres.filter((m) => m.principal).map((m) => m.id);
+    if (idsP.length) {
+      for (const suite of suitesPrincipales(idsP, clips)) {
+        const tete = clips[suite[0]];
+        const apres = clips[suite[suite.length - 1] + 1];
+        d = Math.max(d, -Math.max(0, tete.gapBefore ?? 0));                  // vers la gauche : l'écart devant
+        if (apres) d = Math.min(d, Math.max(0, apres.gapBefore ?? 0));       // vers la droite : l'écart derrière
+      }
+    }
+    return d;
+  }
+
+  /** Au relâchement : le même décalage pour tous les autres membres. */
+  function decalerGroupe(dt: number) {
+    const membres = groupeRef.current;
+    groupeRef.current = null;
+    if (!membres || !membres.length || !isFinite(dt)) return;
+    const d = brider(dt, membres);
+    if (Math.abs(d) < 0.0005) return;
+
+    const pos: Record<string, number> = {};
+    for (const m of membres) if (!m.principal) pos[m.id] = Math.max(0, m.t0 + d);
+    const vise = (id: string) => Object.prototype.hasOwnProperty.call(pos, id);
+    if (Object.keys(pos).length) {
+      setOverlays((prev) => prev.map((o) => (vise(o.id) ? { ...o, offset: pos[o.id] } : o)));
+      setAudioTracks((prev) => prev.map((a) => (vise(a.id) ? { ...a, offset: pos[a.id] } : a)));
+      setCaptions((prev) => prev.map((c) => (vise(c.id) ? { ...c, start: pos[c.id], end: pos[c.id] + (c.end - c.start) } : c)));
+      setTitles((prev) => prev.map((t) => (vise(t.id) ? { ...t, start: pos[t.id], end: pos[t.id] + (t.end - t.start) } : t)));
+    }
+
+    const idsP = membres.filter((m) => m.principal).map((m) => m.id);
+    if (idsP.length) {
+      setClips((prev) => {
+        const next = prev.map((c) => ({ ...c }));
+        for (const suite of suitesPrincipales(idsP, next)) {
+          const tete = next[suite[0]];
+          const apres = next[suite[suite.length - 1] + 1];
+          tete.gapBefore = Math.max(0, (tete.gapBefore ?? 0) + d);
+          if (apres) apres.gapBefore = Math.max(0, (apres.gapBefore ?? 0) - d);
+        }
+        return next;
+      });
+    }
+  }
+
+  /** Décalage réellement subi par l'élément attrapé, relevé au relâchement.
+   *  C'est LUI qu'on applique au groupe, et pas le mouvement brut du pointeur :
+   *  l'élément attrapé est aimanté, le groupe doit suivre le même aimant. */
+  function decalageSubi(id: string, t0: number): number {
+    const o = overlays.find((x) => x.id === id); if (o) return o.offset - t0;
+    const a = audioTracks.find((x) => x.id === id); if (a) return a.offset - t0;
+    const c = captions.find((x) => x.id === id); if (c) return c.start - t0;
+    const ti = titles.find((x) => x.id === id); if (ti) return ti.start - t0;
+    return 0;
+  }
+
   function onTitleBarDown(e: React.PointerEvent, ti: TitleEl) {
     e.stopPropagation();
+    const verrouille = lockedLanes.has(`t${ti.track ?? 0}`);
+    // Les textes rejoignent la sélection multiple, comme les plans et les
+    // sous-titres : ⇧+clic pour cumuler, et un lot attrapé se déplace en entier.
+    if (e.shiftKey && !verrouille) { toggleMulti(ti.id); setTool("text"); return; }
+    if (!verrouille && demarrerGlissementGroupe(e, ti.id)) return;
+    if (multiSel.size) setMultiSel(new Set());
     setSelectedTitleId(ti.id); setTool("text");
-    if (lockedLanes.has(`t${ti.track ?? 0}`)) return; // piste verrouillée : sélection ok, déplacement bloqué
+    if (verrouille) return; // piste verrouillée : sélection ok, déplacement bloqué
     try { (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId); } catch {}
     titleDragRef.current = { id: ti.id, startX: e.clientX, t0start: ti.start, dur: ti.end - ti.start, moved: false, alt: e.altKey };
   }
   function onTitleBarMove(e: React.PointerEvent) {
+    if (glissementGroupeMove(e)) return;
     const d = titleDragRef.current;
     if (!d) return;
     if (!d.moved && Math.abs(e.clientX - d.startX) < 4) return;
@@ -3245,10 +3617,14 @@ export default function MontagePage() {
     updateTitle(d.id, { start: ns, end: ns + d.dur });
   }
   function onTitleBarUp(e: React.PointerEvent) {
+    if (glissementGroupeUp(e)) return;
     effacerAimant();
     const d = titleDragRef.current; titleDragRef.current = null;
     try { (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId); } catch {}
     if (!d) return;
+    // Le groupe suit le même décalage. Un simple clic ne décale rien (dt = 0),
+    // mais l'appel a lieu quand même : c'est lui qui relâche le groupe mémorisé.
+    decalerGroupe(d.moved ? decalageSubi(d.id, d.t0start) : 0);
     if (!d.moved) {
       if (time < d.t0start || time > d.t0start + d.dur) seek(d.t0start + 0.05); // clic simple → recadre le curseur
       return;
@@ -3294,6 +3670,7 @@ export default function MontagePage() {
     // Maj+clic : on cumule, comme sur les plans. Sans ça on ne pouvait
     // sélectionner qu'un sous-titre à la fois.
     if (e.shiftKey) { toggleMulti(c.id); setTool("captions"); return; }
+    if (!lockedLanes.has("subs") && demarrerGlissementGroupe(e, c.id)) return;
     if (multiSel.size) setMultiSel(new Set());
     setSelectedCaptionId(c.id); setSubSelected(true); setTool("captions");
     if (lockedLanes.has("subs")) return; // piste verrouillée
@@ -3301,6 +3678,7 @@ export default function MontagePage() {
     capDragRef.current = { id: c.id, startX: e.clientX, t0start: c.start, dur: c.end - c.start, moved: false, alt: e.altKey };
   }
   function onCaptionBarMove(e: React.PointerEvent) {
+    if (glissementGroupeMove(e)) return;
     const d = capDragRef.current; if (!d) return;
     if (!d.moved && Math.abs(e.clientX - d.startX) < 4) return;
     if (!d.moved && d.alt) {   // ⌥ + glisser = dupliquer
@@ -3317,10 +3695,12 @@ export default function MontagePage() {
     updateCaption(d.id, { start: ns, end: ns + d.dur });
   }
   function onCaptionBarUp(e: React.PointerEvent) {
+    if (glissementGroupeUp(e)) return;
     effacerAimant();
     const d = capDragRef.current; capDragRef.current = null;
     try { (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId); } catch {}
     if (!d) return;
+    decalerGroupe(d.moved ? decalageSubi(d.id, d.t0start) : 0);
     if (!d.moved) {
       if (time < d.t0start || time > d.t0start + d.dur) seek(d.t0start + 0.05); // clic simple → recadre le curseur
       return;
@@ -3404,12 +3784,14 @@ export default function MontagePage() {
     e.stopPropagation();
     if (lockedLanes.has(`a${a.track ?? 0}`)) return; // piste verrouillée
     if (e.shiftKey) { toggleMulti(a.id); return; }
+    if (demarrerGlissementGroupe(e, a.id)) return;
     try { (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId); } catch {}
     audDragRef.current = { id: a.id, startX: e.clientX, t0: a.offset, moved: false, alt: e.altKey };
-    if (multiSel.size) setMultiSel(new Set());
+    saisirGroupe(a.id);
     setSelectedAudioId(a.id); setSelectedClipId(null); setSelectedOverlayId(null); setAudioOnlyId(null); setTool("audio");
   }
   function onAudioBarMove(e: React.PointerEvent) {
+    if (glissementGroupeMove(e)) return;
     const d = audDragRef.current;
     if (!d) return;
     if (!d.moved && Math.abs(e.clientX - d.startX) < 4) return;
@@ -3442,10 +3824,12 @@ export default function MontagePage() {
     setAudioTracks((prev) => prev.map((a) => (a.id === d.id ? { ...a, offset: off } : a)));
   }
   function onAudioBarUp(e: React.PointerEvent) {
+    if (glissementGroupeUp(e)) return;
     effacerAimant();
     const d = audDragRef.current; audDragRef.current = null;
     if (!d) return;
     try { (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId); } catch {}
+    decalerGroupe(d.moved ? decalageSubi(d.id, d.t0) : 0);
     if (!d.moved) return;
     const nouvelle = dropLane === "newaudio";
     setDropLane(null);
@@ -4013,8 +4397,10 @@ export default function MontagePage() {
       // Les sous-titres entrent maintenant dans la sélection au lasso : sans
       // cette ligne, en supprimer un lot n'effaçait rien.
       setCaptions((prev) => prev.filter((c) => !ids.has(c.id)));
+      // Idem pour les textes, qui entrent désormais dans le lasso.
+      setTitles((prev) => prev.filter((x) => !ids.has(x.id)));
       setMultiSel(new Set());
-      setSelectedClipId(null); setSelectedOverlayId(null); setSelectedAudioId(null); setSelectedCaptionId(null);
+      setSelectedClipId(null); setSelectedOverlayId(null); setSelectedAudioId(null); setSelectedCaptionId(null); setSelectedTitleId(null);
       return;
     }
     if (selectedAudioId) { removeAudioTrack(selectedAudioId); setSelectedAudioId(null); return; }
@@ -4165,8 +4551,8 @@ export default function MontagePage() {
       if (meta && k === "v") { e.preventDefault(); pasteClipboard(); return; }
       if (meta && k === "d") { e.preventDefault(); duplicateSelectedAny(); return; }
       if (meta && k === "b") { e.preventDefault(); splitAtPlayhead(); return; }
-      if (meta && (k === "=" || k === "+")) { e.preventDefault(); setPps((p) => Math.min(160, Math.round(p * 1.3))); return; }
-      if (meta && k === "-") { e.preventDefault(); setPps((p) => Math.max(10, Math.round(p / 1.3))); return; }
+      if (meta && (k === "=" || k === "+")) { e.preventDefault(); poserPps((p) => Math.min(160, p * 1.3)); return; }
+      if (meta && k === "-") { e.preventDefault(); poserPps((p) => Math.max(10, p / 1.3)); return; }
       if (meta) return; // laisse passer les autres raccourcis système
       if (e.altKey && e.shiftKey && k === "s") { e.preventDefault(); if (selectedOverlayId) detachOverlayAudio(selectedOverlayId); else if (selectedClipId) detachAudio(selectedClipId); return; } // ⇧⌥S : extraire le son (CapCut)
       if (e.altKey) return; // autres combos Option laissées au système
@@ -4298,17 +4684,138 @@ export default function MontagePage() {
      les suivants, leurs bords bougent en même temps, et s'y aimanter n'a aucun
      sens. Les autres pistes, elles, restent des repères utiles. */
   /** Instant sur lequel l'aimant vient d'accrocher, pour le tracer à l'écran. */
-  function snapTime(t: number, opts?: { ignorer?: string; ignorerPlans?: boolean }): number {
+  /** `ignorerIds` : tout un lot déplacé ensemble. Un élément qui bouge AVEC le
+   *  geste ne peut pas servir de repère — l'aimant se collerait à lui-même. */
+  /* ════════════════════════════════════════════════════════════════════════
+     DÉPLACER TOUTE UNE SÉLECTION D'UN SEUL GESTE
+
+     Le lasso savait déjà sélectionner plusieurs éléments, mais chaque poignée de
+     glissement commençait par VIDER la sélection : attraper un des éléments
+     retenus n'en déplaçait qu'un, et le lot se défaisait. On pouvait tout
+     sélectionner et ne rien bouger (retour Martin).
+
+     Ici, attraper un élément qui fait partie du lot déplace le lot entier, d'un
+     même décalage temporel. Deux familles à traiter, et c'est là qu'était la
+     difficulté :
+
+       • les éléments LIBRES (incrustations, sons, sous-titres, textes) ont une
+         position propre : on l'additionne au décalage, rien de plus.
+
+       • la piste principale est SÉQUENTIELLE : un plan n'a pas de position, il
+         suit le précédent, éventuellement après un blanc (`gapBefore`). Décaler
+         un plan, c'est donc changer le blanc qui le précède — et ce blanc
+         décale du même coup TOUT ce qui vient après.
+
+     C'est ce dernier point qui demande un peu de soin, et c'est pourquoi on
+     parcourt la piste en tenant un compteur de décalage déjà acquis : chaque
+     plan reçoit le blanc qu'il faut pour arriver à SA cible (décalé s'il est du
+     lot, immobile sinon), en tenant compte de ce que les plans précédents lui
+     ont déjà fait gagner. Sans ce compteur, deux groupes séparés sur la même
+     piste se décalaient deux fois — le second héritant du décalage du premier
+     puis y ajoutant le sien.
+
+     Le décalage est borné à gauche : aucun blanc ne devient négatif, rien ne
+     passe avant zéro. À droite il ne l'est pas — la sélection pousse ce qui la
+     gêne, comme sur toute piste aimantée. On applique en direct pendant le
+     geste, comme pour un déplacement simple, pour qu'on voie ce qu'on fait. */
+  type LotLibre = { genre: "overlay" | "audio" | "caption" | "title"; id: string; t0: number };
+  const grpDragRef = useRef<{
+    startX: number; moved: boolean;
+    ancreT0: number;          // position de l'élément ATTRAPÉ, pour l'aimant
+    ids: Set<string>;
+    libres: LotLibre[];
+    /** La piste principale DANS L'ORDRE : on ne peut pas raisonner plan par plan. */
+    piste: { id: string; gap0: number; sel: boolean }[];
+    minDelta: number;         // décalage le plus à gauche encore permis (≤ 0)
+  } | null>(null);
+
+  /** Prépare le déplacement du lot si `id` en fait partie. Rend `true` quand
+   *  elle a pris la main — l'appelant laisse alors tomber son glissement à lui. */
+  function demarrerGlissementGroupe(e: React.PointerEvent, id: string): boolean {
+    if (multiSel.size < 2 || !multiSel.has(id)) return false;
+    const libres: LotLibre[] = [];
+    for (const o of overlays) if (multiSel.has(o.id) && !lockedLanes.has(`v${o.track ?? 0}`)) libres.push({ genre: "overlay", id: o.id, t0: o.offset });
+    for (const a of audioTracks) if (multiSel.has(a.id) && !lockedLanes.has(`a${a.track ?? 0}`)) libres.push({ genre: "audio", id: a.id, t0: a.offset });
+    if (!lockedLanes.has("subs")) for (const c of captions) if (multiSel.has(c.id)) libres.push({ genre: "caption", id: c.id, t0: c.start });
+    for (const ti of titles) if (multiSel.has(ti.id) && !lockedLanes.has(`t${ti.track ?? 0}`)) libres.push({ genre: "title", id: ti.id, t0: ti.start });
+    const piste = lockedLanes.has("video")
+      ? []
+      : clips.map((c) => ({ id: c.id, gap0: Math.max(0, c.gapBefore ?? 0), sel: multiSel.has(c.id) }));
+    const plansDuLot = piste.some((c) => c.sel);
+    if (!libres.length && !plansDuLot) return false;
+    let minDelta = -Infinity;
+    for (const l of libres) minDelta = Math.max(minDelta, -l.t0);
+    /* Seul un plan en TÊTE de suite voit son blanc grandir du décalage (les
+       suivants héritent du sien) : ce sont donc eux, et eux seuls, qui bornent
+       le déplacement vers la gauche. */
+    piste.forEach((c, i) => {
+      if (c.sel && !(i > 0 && piste[i - 1].sel)) minDelta = Math.max(minDelta, -c.gap0);
+    });
+    // Position de l'élément attrapé, sur laquelle l'aimant travaillera.
+    const attrape = clipStarts.find((c) => c.id === id);
+    const ancreT0 = attrape ? attrape.start : (libres.find((l) => l.id === id)?.t0 ?? 0);
+    grpDragRef.current = { startX: e.clientX, moved: false, ancreT0, ids: new Set(multiSel), libres, piste, minDelta };
+    try { (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId); } catch { /* pointeur déjà relâché */ }
+    return true;
+  }
+
+  function appliquerDeltaGroupe(d: NonNullable<typeof grpDragRef.current>, delta: number) {
+    const pos = new Map<string, number>();
+    for (const l of d.libres) pos.set(l.id, Math.max(0, l.t0 + delta));
+    /* Parcours de la piste principale avec le décalage DÉJÀ acquis en main.
+       `vise` = où ce plan doit arriver (décalé s'il est du lot, immobile sinon) ;
+       le blanc qui le précède fait la différence. Un blanc ne peut pas être
+       négatif : le ramener à zéro, c'est la sélection qui pousse son voisin. */
+    const gaps = new Map<string, number>();
+    let acquis = 0;
+    for (const c of d.piste) {
+      const vise = c.sel ? delta : 0;
+      const g = Math.max(0, c.gap0 + vise - acquis);
+      if (Math.abs(g - c.gap0) > 1e-6) gaps.set(c.id, g);
+      acquis = g - c.gap0 + acquis; // décalage réellement obtenu (bridé à zéro près)
+    }
+    if (d.libres.some((l) => l.genre === "overlay")) setOverlays((prev) => prev.map((o) => (pos.has(o.id) ? { ...o, offset: pos.get(o.id)! } : o)));
+    if (d.libres.some((l) => l.genre === "audio")) setAudioTracks((prev) => prev.map((a) => (pos.has(a.id) ? { ...a, offset: pos.get(a.id)! } : a)));
+    if (d.libres.some((l) => l.genre === "caption")) setCaptions((prev) => prev.map((c) => (pos.has(c.id) ? { ...c, start: pos.get(c.id)!, end: pos.get(c.id)! + (c.end - c.start) } : c)));
+    if (d.libres.some((l) => l.genre === "title")) setTitles((prev) => prev.map((ti) => (pos.has(ti.id) ? { ...ti, start: pos.get(ti.id)!, end: pos.get(ti.id)! + (ti.end - ti.start) } : ti)));
+    if (gaps.size) setClips((prev) => prev.map((c) => (gaps.has(c.id) ? { ...c, gapBefore: gaps.get(c.id)! } : c)));
+  }
+
+  function glissementGroupeMove(e: React.PointerEvent): boolean {
+    const d = grpDragRef.current;
+    if (!d) return false;
+    if (!d.moved && Math.abs(e.clientX - d.startX) < 4) return true;
+    d.moved = true;
+    const brut = d.ancreT0 + (e.clientX - d.startX) / pps;
+    // L'aimant travaille sur l'élément attrapé, en écartant tout le lot : un
+    // repère qui se déplace avec le geste n'est pas un repère.
+    const delta = Math.max(d.minDelta, snapTime(brut, { ignorerIds: d.ids }) - d.ancreT0);
+    appliquerDeltaGroupe(d, delta);
+    return true;
+  }
+
+  function glissementGroupeUp(e: React.PointerEvent): boolean {
+    const d = grpDragRef.current;
+    if (!d) return false;
+    grpDragRef.current = null;
+    effacerAimant();
+    try { (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId); } catch { /* déjà relâché */ }
+    return true;
+  }
+
+  function snapTime(t: number, opts?: { ignorer?: string; ignorerPlans?: boolean; ignorerIds?: Set<string> }): number {
     const hors = opts?.ignorer;
+    const lot = opts?.ignorerIds;
+    const ecarte = (id: string) => id === hors || (lot ? lot.has(id) : false);
     const targets: number[] = [0, total, time];
     if (!opts?.ignorerPlans) {
-      for (const c of clipStarts) if (c.id !== hors) targets.push(c.start, c.end);
+      for (const c of clipStarts) if (!ecarte(c.id)) targets.push(c.start, c.end);
     }
-    for (const o of overlays) if (o.id !== hors) targets.push(o.offset, o.offset + overlayTimelineDur(o));
-    for (const a of audioTracks) if (a.id !== hors) targets.push(a.offset, a.offset + a.dur);
-    for (const ti of titles) if (ti.id !== hors) targets.push(ti.start, ti.end);
-    for (const c of captions) if (c.id !== hors) targets.push(c.start, c.end);
-    for (const k of stickers) if (k.id !== hors) targets.push(k.start, k.end);
+    for (const o of overlays) if (!ecarte(o.id)) targets.push(o.offset, o.offset + overlayTimelineDur(o));
+    for (const a of audioTracks) if (!ecarte(a.id)) targets.push(a.offset, a.offset + a.dur);
+    for (const ti of titles) if (!ecarte(ti.id)) targets.push(ti.start, ti.end);
+    for (const c of captions) if (!ecarte(c.id)) targets.push(c.start, c.end);
+    for (const k of stickers) if (!ecarte(k.id)) targets.push(k.start, k.end);
     const thresh = 8 / pps;
     let best = t, bestD = thresh;
     let accroche = false;
@@ -4465,17 +4972,20 @@ export default function MontagePage() {
     const laneKey = kind === "clip" ? "video" : `v${overlays.find((o) => o.id === id)?.track ?? 0}`;
     const locked = lockedLanes.has(laneKey);
     if (e.shiftKey && !locked) { toggleMulti(id); return; } // ⇧+clic → sélection multiple, pas de glissement
+    // Attraper un élément DÉJÀ dans le lot déplace tout le lot, au lieu de le défaire.
+    if (!locked && demarrerGlissementGroupe(e, id)) return;
     // Sélection immédiate au clic (sans déplacer le curseur de lecture — on garde le playhead
     // stable pendant qu'on attrape le plan, comme CapCut).
-    if (multiSel.size) setMultiSel(new Set());
+    saisirGroupe(id);
     if (kind === "clip") { setSelectedClipId(id); setAudioOnlyId(null); setSelectedOverlayId(null); setSelectedTitleId(null); setSelectedStickerId(null); setSelectedAudioId(null); }
     else { setSelectedOverlayId(id); setSelectedClipId(null); setSelectedTitleId(null); setSelectedStickerId(null); setSubSelected(false); setSelectedAudioId(null); setTool("overlay"); }
     if (locked) return; // piste verrouillée : sélection ok, déplacement bloqué
     const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-    tlDragRef.current = { id, kind, startX: e.clientX, startY: e.clientY, grabDx: e.clientX - rect.left, grabDy: e.clientY - rect.top, widthPx: rect.width, moved: false };
+    tlDragRef.current = { id, kind, startX: e.clientX, startY: e.clientY, grabDx: e.clientX - rect.left, grabDy: e.clientY - rect.top, widthPx: rect.width, hauteurPx: rect.height, moved: false };
     try { (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId); } catch {}
   }
   function onTlDragMove(e: React.PointerEvent) {
+    if (glissementGroupeMove(e)) return;
     const d = tlDragRef.current;
     if (!d) return;
     const dx = e.clientX - d.startX, dy = e.clientY - d.startY;
@@ -4492,17 +5002,26 @@ export default function MontagePage() {
     const dropT = dropTimeAt(e.clientX, d.grabDx);
     const r = rulerRef.current?.getBoundingClientRect();
     const gx = r ? r.left + dropT * pps : e.clientX - d.grabDx;
-    setTlGhost({ x: gx, y: e.clientY - d.grabDy, w: d.widthPx, id: d.id, kind: d.kind });
+    setTlGhost({ x: gx, y: e.clientY - d.grabDy, w: d.widthPx, h: d.hauteurPx, id: d.id, kind: d.kind });
   }
   function onTlDragUp(e: React.PointerEvent) {
+    if (glissementGroupeUp(e)) return;
     effacerAimant();
     const d = tlDragRef.current;
     tlDragRef.current = null;
     setDragActive(false); setDropLane(null); setTlGhost(null);
     try { (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId); } catch {}
-    if (!d || !d.moved) return; // simple clic → sélection déjà faite au down
+    if (!d || !d.moved) { decalerGroupe(0); return; } // simple clic → sélection déjà faite au down
     const lane = dropTargetAt(e.clientX, e.clientY);
     const dropT = dropTimeAt(e.clientX, d.grabDx);
+    /* Ici l'élément n'a pas bougé pendant le glissement (seule la copie flottante
+       suivait le curseur) : le décalage se lit donc directement entre sa position
+       d'origine et le point de dépôt. Un plan de la piste principale entraîne
+       lui aussi le reste de la sélection, même si lui se réordonne. */
+    const t0Saisi = d.kind === "clip"
+      ? (clipStarts.find((x) => x.id === d.id)?.start ?? 0)
+      : (overlays.find((x) => x.id === d.id)?.offset ?? 0);
+    decalerGroupe(e.altKey ? 0 : dropT - t0Saisi); // ⌥ = duplication, on ne déplace pas le groupe
     const dup = e.altKey; // ⌥ (Option) + glisser = dupliquer (façon Mac / CapCut)
     if (d.kind === "clip") {
       if (!lane || lane === "video" || lane === "audio" || lane === "captions" || lane === "text") {
@@ -5409,7 +5928,7 @@ export default function MontagePage() {
                           monte ? (
                             <video
                               ref={(el) => { if (el) overlayVideoRefs.current.set(o.id, el); else overlayVideoRefs.current.delete(o.id); }}
-                              src={o.src}
+                              src={srcApercu(o.src)}
                               playsInline muted={(o.vol ?? 1) === 0} draggable={false}
                               style={st}
                             />
@@ -5686,8 +6205,8 @@ export default function MontagePage() {
             onDoubleClick={() => { setTrackScale(1); try { localStorage.setItem("klip-mz-trackScale", "1"); } catch {} }}>
             <VIcon name="rows" size={15} />
           </button>
-          <button className="mz-hbtn" onClick={() => setPps((p) => Math.max(10, Math.round(p / 1.3)))}><VIcon name="zoomOut" size={15} /></button>
-          <button className="mz-hbtn" onClick={() => setPps((p) => Math.min(160, Math.round(p * 1.3)))}><VIcon name="zoomIn" size={15} /></button>
+          <button className="mz-hbtn" onClick={() => poserPps((p) => Math.max(10, p / 1.3))}><VIcon name="zoomOut" size={15} /></button>
+          <button className="mz-hbtn" onClick={() => poserPps((p) => Math.min(160, p * 1.3))}><VIcon name="zoomIn" size={15} /></button>
         </div>
         <div className="a-tl-scroll" ref={tlScrollRef}
           onDragOver={(e) => { if (e.dataTransfer.types.includes("Files")) { e.preventDefault(); setTlFileOver(true); } }}
@@ -6104,7 +6623,7 @@ export default function MontagePage() {
               </div>
               <div className="a-lane-track">
                 {titles.filter((ti) => (ti.track ?? 0) === ttrack).map((ti) => (
-                  <div key={ti.id} className={"a-chip a-chip-title" + (selectedTitleId === ti.id ? " on" : "")} style={{ left: ti.start * pps, width: Math.max(20, (ti.end - ti.start) * pps), top: 2, height: blockH(`t${ttrack}`), cursor: "grab", touchAction: "none" }} title={ti.text}
+                  <div key={ti.id} data-selid={ti.id} className={"a-chip a-chip-title" + (selectedTitleId === ti.id || multiSel.has(ti.id) ? " on" : "")} style={{ left: ti.start * pps, width: Math.max(20, (ti.end - ti.start) * pps), top: 2, height: blockH(`t${ttrack}`), cursor: "grab", touchAction: "none" }} title={ti.text}
                     onPointerDown={(e) => onTitleBarDown(e, ti)} onPointerMove={onTitleBarMove} onPointerUp={onTitleBarUp}
                     data-lame={`title:${ti.id}`}
                     onContextMenu={(e) => { e.preventDefault(); setSelectedTitleId(ti.id); setClipMenu({ x: e.clientX, y: e.clientY, id: ti.id, kind: "title" }); }}>
@@ -6155,10 +6674,12 @@ export default function MontagePage() {
         const isPhoto = gi.kind === "photo";
         const strip = strips[gi.id];
         const ghostW = Math.max(28, tlGhost.w);
+        // Hauteur réelle relevée à la saisie : les pistes sont redimensionnables.
+        const ghostH = Math.max(18, tlGhost.h || 34);
         return (
-          <div className="a-tl-ghost" style={{ left: tlGhost.x, top: tlGhost.y, width: ghostW,
+          <div className="a-tl-ghost" style={{ left: tlGhost.x, top: tlGhost.y, width: ghostW, height: ghostH,
             background: strip ? undefined : (isPhoto ? "linear-gradient(150deg,#c8792f,#5e3a1a)" : "linear-gradient(150deg,#2b8d57,#0c2a1d)") }}>
-            <ClipStrip data={strip} width={ghostW} height={34} />{/* 34px = hauteur de .a-tl-ghost */}
+            <ClipStrip data={strip} width={ghostW} height={ghostH} />
             <span className="a-tl-ghost-ic"><VIcon name={isPhoto ? "image" : "video"} size={10} /></span>
             <span className="a-tl-ghost-lbl">{gi.name}</span>
           </div>
@@ -6274,16 +6795,30 @@ export default function MontagePage() {
     </div>
   );
 
-  if (!perf) return contenu;
+  /* Témoin discret : fabriquer les copies prend une minute sur un montage
+     existant, et un travail invisible passe pour une lenteur de plus. */
+  const temoinProxys = proxyEnCours ? (
+    <div style={{
+      position: "fixed", left: 12, bottom: 12, zIndex: 9998,
+      background: "rgba(12,14,10,.92)", color: "#EDEDF2", borderRadius: 10,
+      padding: "8px 12px", font: "600 11px/1.4 ui-monospace, monospace",
+      border: "1px solid rgba(255,255,255,.14)", boxShadow: "0 6px 24px rgba(0,0,0,.5)",
+    }}>
+      Préparation de l&apos;aperçu · {proxyEnCours.rang}/{proxyEnCours.total} · {Math.round(proxyEnCours.part * 100)} %
+    </div>
+  ) : null;
+
   return (
     <>
       {contenu}
-      <PerfHud
+      {temoinProxys}
+      {perf && <PerfHud
         compteurRendus={compteurRendus}
         dureeRenduRef={dureeRenduRef}
         videoRef={() => [videoARef, videoBRef][activeSlotRef.current].current}
         coutCoupeRef={coutCoupeRef}
-      />
+        resumeCopies={resumeProxys}
+      />}
     </>
   );
 }
