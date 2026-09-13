@@ -1908,6 +1908,10 @@ export default function MontagePage() {
   useEffect(() => {
     if (!playing) {
       Object.values(audioElsRef.current).forEach((el) => el.pause());
+      // Les lecteurs vidéo aussi : l'effet qui s'en charge d'ordinaire sort tôt
+      // quand le curseur n'est sur aucun plan vidéo (trou, photo), et le son du
+      // plan précédent continuait alors de tourner, arrêt compris.
+      [videoARef.current, videoBRef.current].forEach((v) => { if (v && !v.paused) v.pause(); });
       return;
     }
     let raf = 0;
@@ -1916,6 +1920,17 @@ export default function MontagePage() {
       // La vidéo SUIT l'horloge : on la maintient en lecture et on corrige la dérive
       // (si elle a calé, été bloquée, ou pris de l'avance/retard). + fondu du son du plan.
       const vEl = videoRef.current, ac = activeClipRef.current;
+      /* LE SON D'UN PLAN NE SURVIT PAS AU PLAN.
+
+         Quand le curseur entre dans un trou ou sur une photo, `activeClip` n'est
+         plus une vidéo : l'effet de bascule des lecteurs, celui de lecture/pause
+         et la synchro ci-dessous sortaient TOUS avant d'avoir touché au lecteur.
+         Personne ne le mettait donc en pause, et il continuait à jouer le son du
+         plan qu'on venait de quitter — on entendait un rush dont le spectre
+         n'était même plus à l'écran (retour Martin). */
+      if (!ac || ac.kind !== "video") {
+        [videoARef.current, videoBRef.current].forEach((v) => { if (v && !v.paused) v.pause(); });
+      }
       if (vEl && ac && ac.kind === "video") {
         // Position visée DANS LA SOURCE, bornée à son métrage réel : si `trimEnd`
         // dépasse la durée du fichier (métadonnée fausse, ré-encodage), viser au-delà
