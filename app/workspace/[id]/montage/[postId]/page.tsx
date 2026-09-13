@@ -21,6 +21,7 @@ import {
 import { ClipStrip, ClipWave, AudioWave, FadeRamp, type ClipStripData } from "./timeline-parts";
 import { chargerPoliceGoogle, declarerPoliceMaison, surPolicesChargees } from "./fonts";
 import { lectureRapideDisponible, infosVideo, dureeAudio, imagesAux, enJpeg, vignettes, picsAudio, fermerSources } from "./media-read";
+import { apercu as srcApercu, assurerProxys, recenser as recenserProxys, declarerProxy, proxyDuFichier, urlProxy, cheminStockage, resumeProxys, type AvanceProxy } from "./proxy";
 import { MontageCtx, CutPanel, TextPanel, CaptionsPanel, AudioPanel, TransitionsPanel, FilterPanel, SpeedPanel, StickerPanel, OverlayPanel, AiPanel } from "./panels";
 import { renderExport } from "./export";
 import { drawTransitionFrame, drawPlanFixe } from "./render-core";
@@ -534,7 +535,7 @@ export default function MontagePage() {
   // Glissement en cours : le plan suit le curseur « comme dans la main » (copie fidèle
   // flottante = tlGhost) + piste survolée pour le dépôt (dropLane).
   const [dragActive, setDragActive] = useState(false);
-  const [tlGhost, setTlGhost] = useState<{ x: number; y: number; w: number; id: string; kind: "clip" | "overlay" } | null>(null);
+  const [tlGhost, setTlGhost] = useState<{ x: number; y: number; w: number; h: number; id: string; kind: "clip" | "overlay" } | null>(null);
   const [dropLane, setDropLane] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const [uploadingOverlay, setUploadingOverlay] = useState(false);
@@ -728,6 +729,33 @@ export default function MontagePage() {
   const waveReqRef = useRef<Set<string>>(new Set());
   // Valeurs de zoom lues au démarrage d'un geste (Safari) — refs pour éviter les closures figées.
   const ppsRef = useRef(pps); ppsRef.current = pps;
+
+  /* Zoomer AUTOUR DE LA TÊTE DE LECTURE.
+
+     La molette zoomait déjà autour du pointeur, ce qui est juste. Les boutons,
+     le raccourci clavier et le pincement, eux, changeaient l'échelle sans
+     toucher au défilement : la vue restait accrochée à son bord gauche, donc on
+     zoomait de fait sur le milieu de ce qui était affiché. Sur une timeline
+     longue, la tête de lecture sortait de l'écran au premier cran et il fallait
+     partir à sa recherche.
+
+     Ici on garde la tête de lecture exactement où elle est à l'écran. Et si elle
+     n'est pas visible, on la ramène au centre plutôt que de zoomer dans le vide. */
+  const poserPps = useCallback((calcul: (p: number) => number) => {
+    setPps((p) => {
+      const np = Math.max(10, Math.min(220, Math.round(calcul(p))));
+      const tl = tlScrollRef.current;
+      if (tl && np !== p) {
+        const t = timeRef.current;
+        const largeur = Math.max(1, tl.clientWidth - LANE_LABEL_W);
+        const aEcran = t * p - tl.scrollLeft;            // distance depuis le bord gauche des pistes
+        const garde = aEcran >= 0 && aEcran <= largeur ? aEcran : largeur / 2;
+        // Après le rendu : `scrollLeft` serait borné par l'ancienne largeur de contenu.
+        requestAnimationFrame(() => { tl.scrollLeft = Math.max(0, t * np - garde); });
+      }
+      return np;
+    });
+  }, []);
   const previewZoomRef = useRef(previewZoom); previewZoomRef.current = previewZoom;
   /** Empêche de pousser le cadre entièrement hors de vue : on ne peut se
    *  déplacer que dans ce que le zoom a fait déborder. */
@@ -923,7 +951,7 @@ export default function MontagePage() {
   // piste sous le curseur (déplacement temporel, changement de piste, ou création
   // d'une nouvelle piste vidéo en montant tout en haut). Piloté au pointeur, sans
   // drag HTML5 (fini le fantôme moche du navigateur).
-  const tlDragRef = useRef<{ id: string; kind: "clip" | "overlay"; startX: number; startY: number; grabDx: number; grabDy: number; widthPx: number; moved: boolean } | null>(null);
+  const tlDragRef = useRef<{ id: string; kind: "clip" | "overlay"; startX: number; startY: number; grabDx: number; grabDy: number; widthPx: number; hauteurPx: number; moved: boolean } | null>(null);
   const tlInnerRef = useRef<HTMLDivElement>(null);
   const tlScrollRef = useRef<HTMLDivElement>(null);
   const selDragRef = useRef<{ startX: number; startY: number; moved: boolean } | null>(null); // rectangle de sélection
@@ -1038,7 +1066,7 @@ export default function MontagePage() {
     const onGestureChange = (e: Event) => {
       e.preventDefault();
       const s = (e as unknown as { scale?: number }).scale || 1;
-      if (gZone === "tl") setPps(Math.max(10, Math.min(220, gPps * s)));
+      if (gZone === "tl") poserPps(() => gPps * s);
       else if (gZone === "stage") setPreviewZoom(Math.max(1, Math.min(5, gPrev * s)));
     };
     const onGestureEnd = (e: Event) => e.preventDefault();
@@ -1545,21 +1573,25 @@ export default function MontagePage() {
     /* 0) LA MÊME COULÉE : le plan qui vient de finir et celui qui commence sont
           le même fichier, bout à bout. On ne touche à rien — ni de lecteur, ni de
           position. Le décodeur ne s'aperçoit même pas qu'on a changé de plan. */
+    /* Quelle adresse le LECTEUR ouvre : la copie d'aperçu si elle existe, sinon
+       l'original. `activeClip.src` reste l'original partout ailleurs, et en
+       particulier à l'export, qui ne sait rien de tout ceci. */
+    const srcLecture = srcApercu(activeClip.src);
     const sansCouture = memeCoulee(clipPrecedentRef.current, activeClip)
-      && slotSrcRef.current[activeSlotRef.current] === activeClip.src;
+      && slotSrcRef.current[activeSlotRef.current] === srcLecture;
     if (sansCouture) target = activeSlotRef.current;
     // 1) un lecteur est déjà PRÊT pour ce plan (source chargée ET position atteinte)
     else if (slotClipRef.current[0] === activeClip.id) target = 0;
     else if (slotClipRef.current[1] === activeClip.id) target = 1;
     // 2) sinon, un lecteur a au moins la bonne source
-    else if (slotSrcRef.current[slot] === activeClip.src) target = slot;
-    else if (slotSrcRef.current[slot === 0 ? 1 : 0] === activeClip.src) target = slot === 0 ? 1 : 0;
+    else if (slotSrcRef.current[slot] === srcLecture) target = slot;
+    else if (slotSrcRef.current[slot === 0 ? 1 : 0] === srcLecture) target = slot === 0 ? 1 : 0;
     else {
       // 3) source jamais chargée : dans le lecteur NON affiché, pour ne pas faire
       //    clignoter l'image courante.
       target = slot === 0 ? 1 : 0;
       const el = els[target];
-      if (el) { el.src = activeClip.src; slotSrcRef.current[target] = activeClip.src; }
+      if (el) { el.src = srcLecture; slotSrcRef.current[target] = srcLecture; }
     }
     slotClipRef.current[target] = activeClip.id;
     // Un plan n'est prêt que dans UN lecteur : sans ce nettoyage, les deux slots
@@ -1643,10 +1675,11 @@ export default function MontagePage() {
          rushes lourds c'est précisément ce qui rendait la lecture inregardable.
          Un décodeur qui démarre coûte cher ; deux qui tournent coûtent plus. */
     };
-    if (slotSrcRef.current[free] !== nextClip.src) {
+    const srcSuivant = srcApercu(nextClip.src);
+    if (slotSrcRef.current[free] !== srcSuivant) {
       // Fichier différent : charger puis se positionner.
-      el.src = nextClip.src;
-      slotSrcRef.current[free] = nextClip.src;
+      el.src = srcSuivant;
+      slotSrcRef.current[free] = srcSuivant;
       el.addEventListener("loadedmetadata", seek, { once: true });
       el.load();
       return () => el.removeEventListener("loadedmetadata", seek);
@@ -1837,7 +1870,8 @@ export default function MontagePage() {
     const el = document.createElement("video");
     el.preload = "auto";
     el.playsInline = true;
-    el.src = src;
+    // La copie d'aperçu porte exactement le même son, pour une fraction du poids.
+    el.src = srcApercu(src);
     return el;
   }
 
@@ -1896,6 +1930,94 @@ export default function MontagePage() {
     })();
     return () => { vivant = false; };
   }, [audioTracks]);
+
+  /* ── Copies d'aperçu, dites « proxys » ──────────────────────────────────────
+
+     Le monteur lisait les rushes d'origine : 2160×3840 décodés pour être
+     affichés dans 190 px, et des dizaines de méga-octets à télécharger avant la
+     première image. On fabrique donc une copie en 720 de haut et l'aperçu monte
+     dessus ; `clip.src` et l'export ne changent pas d'un caractère.
+
+     Cette boucle est le RATTRAPAGE : elle sert aux montages créés avant que les
+     proxys existent. Les médias importés désormais reçoivent le leur au moment
+     du dépôt, depuis le fichier local, sans retéléchargement.
+
+     Elle ne tourne qu'une fois par ouverture du monteur, et elle n'est PAS
+     annulée quand on modifie le montage : encoder cinq rushes prend une minute,
+     et redémarrer la fabrication à chaque déplacement de plan ne finirait
+     jamais. Seule la sortie du monteur l'arrête. */
+  const [proxyEnCours, setProxyEnCours] = useState<AvanceProxy | null>(null);
+  const [, majProxys] = useState(0);
+  const proxysLancesRef = useRef(false);
+  /* COMBIEN de fois le monteur est monté, et non « est-il monté ».
+
+     Un simple booléen ne marche pas ici : en développement, React monte, démonte
+     puis remonte chaque composant pour débusquer les effets mal nettoyés. Le
+     nettoyage posait le drapeau à faux, le remontage ne le relevait pas, et la
+     boucle de fabrication se croyait annulée avant d'avoir traité le premier
+     fichier. Un compteur retombe à 1 au remontage, et dit donc la vérité dans
+     les deux modes.
+
+     Le nettoyage remet aussi `proxysLancesRef` à faux : si une boucle s'est
+     arrêtée en route, le remontage en relance une, et `enCours` empêche de
+     fabriquer deux fois le même fichier. */
+  const montesRef = useRef(0);
+  useEffect(() => {
+    montesRef.current++;
+    return () => { montesRef.current--; proxysLancesRef.current = false; };
+  }, []);
+  const monteEncore = () => montesRef.current > 0;
+
+  const televerserProxy = useCallback(async (bucket: string, chemin: string, blob: Blob) => {
+    const { error } = await supabase.storage.from(bucket).upload(chemin, blob, { upsert: true, contentType: "video/mp4" });
+    // Jamais silencieux : un proxy qui ne part pas veut dire un aperçu qui reste
+    // lourd, et on doit pouvoir le lire dans la console plutôt que le deviner.
+    if (error) { console.warn("[proxy] envoi refusé", chemin, error.message); return false; }
+    return true;
+  }, [supabase]);
+
+  useEffect(() => {
+    if (proxysLancesRef.current) return;
+    const videos = clips.filter((c) => c.kind === "video" && c.src).map((c) => c.src);
+    const incrustations = (overlays || []).filter((o) => o.kind === "video" && o.src).map((o) => o.src);
+    const aFabriquer = videos.concat(incrustations);
+    if (!aFabriquer.length) return; // le projet n'est pas encore chargé
+    proxysLancesRef.current = true;
+    (async () => {
+      /* Les pistes sonores sont RECENSÉES sans être fabriquées : quand on détache
+         le son d'un plan, la piste pointe vers le fichier vidéo d'origine et
+         profite donc du proxy de ce plan. Une vraie musique n'a pas d'image, la
+         fabrication n'aurait rien à réduire. */
+      const sons = audioTracks.filter((a) => a.src).map((a) => a.src);
+      if (sons.length) await recenserProxys(sons).catch(() => []);
+      if (monteEncore()) majProxys((k) => k + 1);
+      await assurerProxys(aFabriquer, televerserProxy, {
+        onAvance: (a) => { if (monteEncore()) setProxyEnCours(a); },
+        onPret: () => { if (monteEncore()) majProxys((k) => k + 1); },
+        annule: () => !monteEncore(),
+      });
+      if (monteEncore()) setProxyEnCours(null);
+    })();
+  }, [clips, overlays, audioTracks, televerserProxy]);
+
+  /** Copie d'aperçu d'un média qu'on vient de déposer. Fabriquée depuis le
+   *  fichier LOCAL : il est déjà là, le retélécharger serait absurde. Lancée
+   *  sans être attendue, pour que le plan apparaisse sur la timeline tout de
+   *  suite. */
+  const fabriquerProxyLocal = useCallback(async (file: Blob, src: string) => {
+    const cible = urlProxy(src);
+    const place = cible ? cheminStockage(cible) : null;
+    if (!place) return;
+    try {
+      const blob = await proxyDuFichier(file);
+      if (!blob) { declarerProxy(src, false); return; } // rush déjà léger : rien à faire
+      const ok = await televerserProxy(place.bucket, place.chemin, blob);
+      declarerProxy(src, ok);
+      if (ok && monteEncore()) majProxys((k) => k + 1);
+    } catch {
+      declarerProxy(src, false);
+    }
+  }, [televerserProxy]);
 
   // En quittant le monteur, aucune piste ne doit survivre à l'écran, et aucune
   // source ouverte ne doit garder ses octets en mémoire.
@@ -2110,6 +2232,7 @@ export default function MontagePage() {
       }
       const { data: urlData } = supabase.storage.from(bucket).getPublicUrl(path);
       const dur = isVideo ? await getVideoDuration(urlData.publicUrl) : PHOTO_DEFAULT_DUR;
+      if (isVideo) void fabriquerProxyLocal(file, urlData.publicUrl);
       setClips((prev) => [...prev, {
         id: crypto.randomUUID(), kind: isVideo ? "video" : "photo", name: file.name, src: urlData.publicUrl,
         srcDur: isVideo ? dur : 15, trimStart: 0, trimEnd: dur, ...newClipDefaults(),
@@ -2160,6 +2283,7 @@ export default function MontagePage() {
       }
       const { data: urlData } = supabase.storage.from(bucket).getPublicUrl(path);
       const dur = isVideo ? await getVideoDuration(urlData.publicUrl) : PHOTO_DEFAULT_DUR;
+      if (isVideo) void fabriquerProxyLocal(file, urlData.publicUrl);
       if (lane && lane !== "video" && (lane === "new" || /^v\d+$/.test(lane))) {
         const track = lane === "new" ? videoTrackCount : (parseInt(lane.slice(1), 10) || 0);
         setOverlays((prev) => [...prev, {
@@ -3314,6 +3438,75 @@ export default function MontagePage() {
   }
   // Déplacement d'un texte dans le temps sur la timeline (décale start ET end).
   const titleDragRef = useRef<{ id: string; startX: number; t0start: number; dur: number; moved: boolean; alt: boolean } | null>(null);
+  /* ── DÉPLACEMENT DE GROUPE ──────────────────────────────────────────────────
+
+     On pouvait sélectionner plusieurs éléments, mais pas les bouger ensemble :
+     chaque gestionnaire de glissement commençait par effacer la sélection dès
+     qu'on posait le doigt, y compris quand l'élément saisi en faisait partie.
+
+     Le principe retenu est celui de CapCut et de n'importe quel éditeur : le
+     groupe est RIGIDE. On attrape un membre, tout le monde se décale du même
+     temps, et les écarts entre éléments ne changent pas d'un pouce.
+
+     Ce que ça ne couvre PAS, et c'est voulu : les plans de la piste vidéo
+     principale. Ils sont posés bout à bout, chacun commençant où le précédent
+     finit ; ils n'ont pas de position propre à décaler. Les déplacer en groupe
+     est une réorganisation, pas un décalage, et ça ne se traite pas ici. */
+  const groupeRef = useRef<{ id: string; t0: number }[] | null>(null);
+
+  /** À la saisie : l'élément attrapé fait-il partie de la sélection ? Si oui on
+   *  garde la sélection et on relève la position de tous les autres. Si non, on
+   *  efface la sélection, comme avant. */
+  function saisirGroupe(idSaisi: string): boolean {
+    if (!multiSel.has(idSaisi)) {
+      if (multiSel.size) setMultiSel(new Set());
+      groupeRef.current = null;
+      return false;
+    }
+    const membres: { id: string; t0: number }[] = [];
+    multiSel.forEach((id) => {
+      if (id === idSaisi) return;
+      const o = overlays.find((x) => x.id === id); if (o) { membres.push({ id, t0: o.offset }); return; }
+      const a = audioTracks.find((x) => x.id === id); if (a) { membres.push({ id, t0: a.offset }); return; }
+      const c = captions.find((x) => x.id === id); if (c) { membres.push({ id, t0: c.start }); return; }
+      const ti = titles.find((x) => x.id === id); if (ti) { membres.push({ id, t0: ti.start }); return; }
+    });
+    groupeRef.current = membres;
+    return true;
+  }
+
+  /** Au relâchement : le même décalage pour tous les autres membres. */
+  function decalerGroupe(dt: number) {
+    const membres = groupeRef.current;
+    groupeRef.current = null;
+    if (!membres || !membres.length || !isFinite(dt) || Math.abs(dt) < 0.0005) return;
+    /* Le groupe s'arrête ENSEMBLE. Si un membre butait sur zéro, le borner tout
+       seul écraserait les écarts : le groupe se serait déformé en chemin. On
+       borne donc le décalage lui-même, sur le membre le plus à gauche. */
+    let plusTot = Infinity;
+    for (const m of membres) plusTot = Math.min(plusTot, m.t0);
+    const d = Math.max(dt, -plusTot);
+    if (Math.abs(d) < 0.0005) return;
+    const pos: Record<string, number> = {};
+    for (const m of membres) pos[m.id] = Math.max(0, m.t0 + d);
+    const vise = (id: string) => Object.prototype.hasOwnProperty.call(pos, id);
+    setOverlays((prev) => prev.map((o) => (vise(o.id) ? { ...o, offset: pos[o.id] } : o)));
+    setAudioTracks((prev) => prev.map((a) => (vise(a.id) ? { ...a, offset: pos[a.id] } : a)));
+    setCaptions((prev) => prev.map((c) => (vise(c.id) ? { ...c, start: pos[c.id], end: pos[c.id] + (c.end - c.start) } : c)));
+    setTitles((prev) => prev.map((t) => (vise(t.id) ? { ...t, start: pos[t.id], end: pos[t.id] + (t.end - t.start) } : t)));
+  }
+
+  /** Décalage réellement subi par l'élément attrapé, relevé au relâchement.
+   *  C'est LUI qu'on applique au groupe, et pas le mouvement brut du pointeur :
+   *  l'élément attrapé est aimanté, le groupe doit suivre le même aimant. */
+  function decalageSubi(id: string, t0: number): number {
+    const o = overlays.find((x) => x.id === id); if (o) return o.offset - t0;
+    const a = audioTracks.find((x) => x.id === id); if (a) return a.offset - t0;
+    const c = captions.find((x) => x.id === id); if (c) return c.start - t0;
+    const ti = titles.find((x) => x.id === id); if (ti) return ti.start - t0;
+    return 0;
+  }
+
   function onTitleBarDown(e: React.PointerEvent, ti: TitleEl) {
     e.stopPropagation();
     const verrouille = lockedLanes.has(`t${ti.track ?? 0}`);
@@ -3369,6 +3562,9 @@ export default function MontagePage() {
     const d = titleDragRef.current; titleDragRef.current = null;
     try { (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId); } catch {}
     if (!d) return;
+    // Le groupe suit le même décalage. Un simple clic ne décale rien (dt = 0),
+    // mais l'appel a lieu quand même : c'est lui qui relâche le groupe mémorisé.
+    decalerGroupe(d.moved ? decalageSubi(d.id, d.t0start) : 0);
     if (!d.moved) {
       if (time < d.t0start || time > d.t0start + d.dur) seek(d.t0start + 0.05); // clic simple → recadre le curseur
       return;
@@ -3444,6 +3640,7 @@ export default function MontagePage() {
     const d = capDragRef.current; capDragRef.current = null;
     try { (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId); } catch {}
     if (!d) return;
+    decalerGroupe(d.moved ? decalageSubi(d.id, d.t0start) : 0);
     if (!d.moved) {
       if (time < d.t0start || time > d.t0start + d.dur) seek(d.t0start + 0.05); // clic simple → recadre le curseur
       return;
@@ -3530,7 +3727,7 @@ export default function MontagePage() {
     if (demarrerGlissementGroupe(e, a.id)) return;
     try { (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId); } catch {}
     audDragRef.current = { id: a.id, startX: e.clientX, t0: a.offset, moved: false, alt: e.altKey };
-    if (multiSel.size) setMultiSel(new Set());
+    saisirGroupe(a.id);
     setSelectedAudioId(a.id); setSelectedClipId(null); setSelectedOverlayId(null); setAudioOnlyId(null); setTool("audio");
   }
   function onAudioBarMove(e: React.PointerEvent) {
@@ -3572,6 +3769,7 @@ export default function MontagePage() {
     const d = audDragRef.current; audDragRef.current = null;
     if (!d) return;
     try { (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId); } catch {}
+    decalerGroupe(d.moved ? decalageSubi(d.id, d.t0) : 0);
     if (!d.moved) return;
     const nouvelle = dropLane === "newaudio";
     setDropLane(null);
@@ -4293,8 +4491,8 @@ export default function MontagePage() {
       if (meta && k === "v") { e.preventDefault(); pasteClipboard(); return; }
       if (meta && k === "d") { e.preventDefault(); duplicateSelectedAny(); return; }
       if (meta && k === "b") { e.preventDefault(); splitAtPlayhead(); return; }
-      if (meta && (k === "=" || k === "+")) { e.preventDefault(); setPps((p) => Math.min(160, Math.round(p * 1.3))); return; }
-      if (meta && k === "-") { e.preventDefault(); setPps((p) => Math.max(10, Math.round(p / 1.3))); return; }
+      if (meta && (k === "=" || k === "+")) { e.preventDefault(); poserPps((p) => Math.min(160, p * 1.3)); return; }
+      if (meta && k === "-") { e.preventDefault(); poserPps((p) => Math.max(10, p / 1.3)); return; }
       if (meta) return; // laisse passer les autres raccourcis système
       if (e.altKey && e.shiftKey && k === "s") { e.preventDefault(); if (selectedOverlayId) detachOverlayAudio(selectedOverlayId); else if (selectedClipId) detachAudio(selectedClipId); return; } // ⇧⌥S : extraire le son (CapCut)
       if (e.altKey) return; // autres combos Option laissées au système
@@ -4718,12 +4916,12 @@ export default function MontagePage() {
     if (!locked && demarrerGlissementGroupe(e, id)) return;
     // Sélection immédiate au clic (sans déplacer le curseur de lecture — on garde le playhead
     // stable pendant qu'on attrape le plan, comme CapCut).
-    if (multiSel.size) setMultiSel(new Set());
+    saisirGroupe(id);
     if (kind === "clip") { setSelectedClipId(id); setAudioOnlyId(null); setSelectedOverlayId(null); setSelectedTitleId(null); setSelectedStickerId(null); setSelectedAudioId(null); }
     else { setSelectedOverlayId(id); setSelectedClipId(null); setSelectedTitleId(null); setSelectedStickerId(null); setSubSelected(false); setSelectedAudioId(null); setTool("overlay"); }
     if (locked) return; // piste verrouillée : sélection ok, déplacement bloqué
     const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-    tlDragRef.current = { id, kind, startX: e.clientX, startY: e.clientY, grabDx: e.clientX - rect.left, grabDy: e.clientY - rect.top, widthPx: rect.width, moved: false };
+    tlDragRef.current = { id, kind, startX: e.clientX, startY: e.clientY, grabDx: e.clientX - rect.left, grabDy: e.clientY - rect.top, widthPx: rect.width, hauteurPx: rect.height, moved: false };
     try { (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId); } catch {}
   }
   function onTlDragMove(e: React.PointerEvent) {
@@ -4744,7 +4942,7 @@ export default function MontagePage() {
     const dropT = dropTimeAt(e.clientX, d.grabDx);
     const r = rulerRef.current?.getBoundingClientRect();
     const gx = r ? r.left + dropT * pps : e.clientX - d.grabDx;
-    setTlGhost({ x: gx, y: e.clientY - d.grabDy, w: d.widthPx, id: d.id, kind: d.kind });
+    setTlGhost({ x: gx, y: e.clientY - d.grabDy, w: d.widthPx, h: d.hauteurPx, id: d.id, kind: d.kind });
   }
   function onTlDragUp(e: React.PointerEvent) {
     if (glissementGroupeUp(e)) return;
@@ -4753,9 +4951,17 @@ export default function MontagePage() {
     tlDragRef.current = null;
     setDragActive(false); setDropLane(null); setTlGhost(null);
     try { (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId); } catch {}
-    if (!d || !d.moved) return; // simple clic → sélection déjà faite au down
+    if (!d || !d.moved) { decalerGroupe(0); return; } // simple clic → sélection déjà faite au down
     const lane = dropTargetAt(e.clientX, e.clientY);
     const dropT = dropTimeAt(e.clientX, d.grabDx);
+    /* Ici l'élément n'a pas bougé pendant le glissement (seule la copie flottante
+       suivait le curseur) : le décalage se lit donc directement entre sa position
+       d'origine et le point de dépôt. Un plan de la piste principale entraîne
+       lui aussi le reste de la sélection, même si lui se réordonne. */
+    const t0Saisi = d.kind === "clip"
+      ? (clipStarts.find((x) => x.id === d.id)?.start ?? 0)
+      : (overlays.find((x) => x.id === d.id)?.offset ?? 0);
+    decalerGroupe(e.altKey ? 0 : dropT - t0Saisi); // ⌥ = duplication, on ne déplace pas le groupe
     const dup = e.altKey; // ⌥ (Option) + glisser = dupliquer (façon Mac / CapCut)
     if (d.kind === "clip") {
       if (!lane || lane === "video" || lane === "audio" || lane === "captions" || lane === "text") {
@@ -5662,7 +5868,7 @@ export default function MontagePage() {
                           monte ? (
                             <video
                               ref={(el) => { if (el) overlayVideoRefs.current.set(o.id, el); else overlayVideoRefs.current.delete(o.id); }}
-                              src={o.src}
+                              src={srcApercu(o.src)}
                               playsInline muted={(o.vol ?? 1) === 0} draggable={false}
                               style={st}
                             />
@@ -5939,8 +6145,8 @@ export default function MontagePage() {
             onDoubleClick={() => { setTrackScale(1); try { localStorage.setItem("klip-mz-trackScale", "1"); } catch {} }}>
             <VIcon name="rows" size={15} />
           </button>
-          <button className="mz-hbtn" onClick={() => setPps((p) => Math.max(10, Math.round(p / 1.3)))}><VIcon name="zoomOut" size={15} /></button>
-          <button className="mz-hbtn" onClick={() => setPps((p) => Math.min(160, Math.round(p * 1.3)))}><VIcon name="zoomIn" size={15} /></button>
+          <button className="mz-hbtn" onClick={() => poserPps((p) => Math.max(10, p / 1.3))}><VIcon name="zoomOut" size={15} /></button>
+          <button className="mz-hbtn" onClick={() => poserPps((p) => Math.min(160, p * 1.3))}><VIcon name="zoomIn" size={15} /></button>
         </div>
         <div className="a-tl-scroll" ref={tlScrollRef}
           onDragOver={(e) => { if (e.dataTransfer.types.includes("Files")) { e.preventDefault(); setTlFileOver(true); } }}
@@ -6408,10 +6614,12 @@ export default function MontagePage() {
         const isPhoto = gi.kind === "photo";
         const strip = strips[gi.id];
         const ghostW = Math.max(28, tlGhost.w);
+        // Hauteur réelle relevée à la saisie : les pistes sont redimensionnables.
+        const ghostH = Math.max(18, tlGhost.h || 34);
         return (
-          <div className="a-tl-ghost" style={{ left: tlGhost.x, top: tlGhost.y, width: ghostW,
+          <div className="a-tl-ghost" style={{ left: tlGhost.x, top: tlGhost.y, width: ghostW, height: ghostH,
             background: strip ? undefined : (isPhoto ? "linear-gradient(150deg,#c8792f,#5e3a1a)" : "linear-gradient(150deg,#2b8d57,#0c2a1d)") }}>
-            <ClipStrip data={strip} width={ghostW} height={34} />{/* 34px = hauteur de .a-tl-ghost */}
+            <ClipStrip data={strip} width={ghostW} height={ghostH} />
             <span className="a-tl-ghost-ic"><VIcon name={isPhoto ? "image" : "video"} size={10} /></span>
             <span className="a-tl-ghost-lbl">{gi.name}</span>
           </div>
@@ -6527,16 +6735,30 @@ export default function MontagePage() {
     </div>
   );
 
-  if (!perf) return contenu;
+  /* Témoin discret : fabriquer les copies prend une minute sur un montage
+     existant, et un travail invisible passe pour une lenteur de plus. */
+  const temoinProxys = proxyEnCours ? (
+    <div style={{
+      position: "fixed", left: 12, bottom: 12, zIndex: 9998,
+      background: "rgba(12,14,10,.92)", color: "#EDEDF2", borderRadius: 10,
+      padding: "8px 12px", font: "600 11px/1.4 ui-monospace, monospace",
+      border: "1px solid rgba(255,255,255,.14)", boxShadow: "0 6px 24px rgba(0,0,0,.5)",
+    }}>
+      Préparation de l&apos;aperçu · {proxyEnCours.rang}/{proxyEnCours.total} · {Math.round(proxyEnCours.part * 100)} %
+    </div>
+  ) : null;
+
   return (
     <>
       {contenu}
-      <PerfHud
+      {temoinProxys}
+      {perf && <PerfHud
         compteurRendus={compteurRendus}
         dureeRenduRef={dureeRenduRef}
         videoRef={() => [videoARef, videoBRef][activeSlotRef.current].current}
         coutCoupeRef={coutCoupeRef}
-      />
+        resumeCopies={resumeProxys}
+      />}
     </>
   );
 }
