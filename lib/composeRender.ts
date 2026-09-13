@@ -16,6 +16,7 @@
 // page, il rend une image.
 
 import { fontCssHrefs } from './fontCatalog';
+import { tracerForme } from './formes';
 
 export interface RenderBlock {
   text: string;
@@ -599,10 +600,28 @@ export async function renderTemplateVisual(input: TemplateRenderInput): Promise<
       }
 
     } else if (type === 'vector') {
-      vectorPath(ctx, st(e.shape, 'rectangle'), ew, eh, n(e.cornerRadius) * sf);
+      // Forme de la bibliothèque : le tracé voyage dans le calque, l'aperçu
+      // n'a donc rien à charger pour montrer la même forme que l'éditeur.
+      if (st(e.shape) === 'path' && st(e.pathD)) {
+        const vb = Array.isArray(e.pathVb) && e.pathVb.length === 2
+          ? [n((e.pathVb as unknown[])[0], 100), n((e.pathVb as unknown[])[1], 100)] as [number, number]
+          : [100, 100] as [number, number];
+        tracerForme(ctx, st(e.pathD), vb, ew, eh);
+      } else {
+        vectorPath(ctx, st(e.shape, 'rectangle'), ew, eh, n(e.cornerRadius) * sf);
+      }
       if (st(e.fillType) !== 'none') { ctx.fillStyle = st(e.fill, '#000000'); ctx.fill(); }
       const swid = n(e.strokeWidth) * sf;
-      if (swid > 0 && st(e.stroke)) { ctx.strokeStyle = st(e.stroke); ctx.lineWidth = swid; ctx.stroke(); }
+      if (swid > 0 && st(e.stroke)) {
+        ctx.strokeStyle = st(e.stroke); ctx.lineWidth = swid;
+        ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+        // Les pointillés sont mesurés dans le plan de travail : ils suivent
+        // donc la même échelle que le reste du calque.
+        const tirets = Array.isArray(e.dash) ? (e.dash as unknown[]).map(v => n(v) * sf) : [];
+        if (tirets.length) ctx.setLineDash(tirets);
+        ctx.stroke();
+        if (tirets.length) ctx.setLineDash([]);
+      }
 
     } else if (type === 'circle') {
       const r = n(e.radius) * sf;

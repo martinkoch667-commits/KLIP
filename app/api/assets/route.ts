@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { chercherAssets, KINDS, type AssetSource, type AssetKind } from '@/lib/assetBanks';
 
-// GET /api/assets?source=musee|iconscout&query=...&limit=24
+// GET /api/assets?source=tout|musee|iconscout&query=...&limit=24
 //
 // Enveloppe mince autour de `lib/assetBanks.ts`, où vivent les fournisseurs et
 // leurs pièges. Tout ce qui est ici concerne HTTP, rien d'autre.
@@ -10,12 +10,12 @@ import { chercherAssets, KINDS, type AssetSource, type AssetKind } from '@/lib/a
 // défaut de 10 s d'une fonction Vercel est trop courte quand leur API traîne.
 export const maxDuration = 30;
 
-const SOURCES: AssetSource[] = ['musee', 'iconscout'];
+const SOURCES: AssetSource[] = ['musee', 'iconscout', 'tout'];
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
-  const brut = (searchParams.get('source') || 'musee') as AssetSource;
-  const source = SOURCES.includes(brut) ? brut : 'musee';
+  const brut = (searchParams.get('source') || 'tout') as AssetSource;
+  const source = SOURCES.includes(brut) ? brut : 'tout';
   const query = (searchParams.get('query') || '').trim();
   // `per_page` d'IconScout monte à 200 (défaut 60). Le plafond de 48 qu'on
   // s'imposait n'avait aucune raison d'être : chercher ne coûte pas un crédit.
