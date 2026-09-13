@@ -3452,7 +3452,8 @@ export default function MontagePage() {
      principale. Ils sont posés bout à bout, chacun commençant où le précédent
      finit ; ils n'ont pas de position propre à décaler. Les déplacer en groupe
      est une réorganisation, pas un décalage, et ça ne se traite pas ici. */
-  const groupeRef = useRef<{ id: string; t0: number }[] | null>(null);
+  type MembreGroupe = { id: string; t0: number; principal: boolean };
+  const groupeRef = useRef<MembreGroupe[] | null>(null);
 
   /** À la saisie : l'élément attrapé fait-il partie de la sélection ? Si oui on
    *  garde la sélection et on relève la position de tous les autres. Si non, on
@@ -3463,37 +3464,96 @@ export default function MontagePage() {
       groupeRef.current = null;
       return false;
     }
-    const membres: { id: string; t0: number }[] = [];
+    const membres: MembreGroupe[] = [];
     multiSel.forEach((id) => {
       if (id === idSaisi) return;
-      const o = overlays.find((x) => x.id === id); if (o) { membres.push({ id, t0: o.offset }); return; }
-      const a = audioTracks.find((x) => x.id === id); if (a) { membres.push({ id, t0: a.offset }); return; }
-      const c = captions.find((x) => x.id === id); if (c) { membres.push({ id, t0: c.start }); return; }
-      const ti = titles.find((x) => x.id === id); if (ti) { membres.push({ id, t0: ti.start }); return; }
+      /* Les plans de la piste principale d'abord : ce sont EUX qu'on sélectionne
+         le plus souvent, et les oublier ici vidait le groupe de sa substance.
+         C'était le défaut de la première version : on ne cherchait que dans les
+         pistes libres, donc sélectionner trois plans puis les glisser ne
+         déplaçait que celui qu'on tenait. */
+      const c = clipStarts.find((x) => x.id === id);
+      if (c) { membres.push({ id, t0: c.start, principal: true }); return; }
+      const o = overlays.find((x) => x.id === id); if (o) { membres.push({ id, t0: o.offset, principal: false }); return; }
+      const a = audioTracks.find((x) => x.id === id); if (a) { membres.push({ id, t0: a.offset, principal: false }); return; }
+      const sc = captions.find((x) => x.id === id); if (sc) { membres.push({ id, t0: sc.start, principal: false }); return; }
+      const ti = titles.find((x) => x.id === id); if (ti) { membres.push({ id, t0: ti.start, principal: false }); return; }
     });
     groupeRef.current = membres;
     return true;
+  }
+
+  /* Décalage d'un BLOC de plans sur la piste principale.
+
+     Ces plans n'ont pas de position propre : chacun commence là où le précédent
+     finit, et le seul réglage est `gapBefore`, le vide laissé devant lui. Pour
+     décaler un bloc sans rien déranger autour, on ouvre l'écart devant le bloc
+     et on referme d'autant l'écart qui le suit. Ce qui vient après ne bouge donc
+     pas d'un pouce, et le bloc garde ses plans soudés.
+
+     On raisonne par SUITES de plans consécutifs : une sélection en deux morceaux
+     donne deux blocs, chacun décalé du même temps. */
+  function suitesPrincipales(ids: string[], liste: { id: string }[]): number[][] {
+    const dans = (id: string) => ids.indexOf(id) >= 0;
+    const suites: number[][] = [];
+    let courante: number[] = [];
+    for (let i = 0; i < liste.length; i++) {
+      if (dans(liste[i].id)) courante.push(i);
+      else if (courante.length) { suites.push(courante); courante = []; }
+    }
+    if (courante.length) suites.push(courante);
+    return suites;
+  }
+
+  /** Ce que le décalage demandé a le droit de valoir, sans qu'aucun membre ne
+   *  passe avant zéro ni ne chevauche le plan qui le suit. Le groupe est rigide :
+   *  il s'arrête ENSEMBLE, sinon les écarts entre éléments se déformeraient. */
+  function brider(dt: number, membres: MembreGroupe[]): number {
+    let d = dt;
+    for (const m of membres) if (!m.principal) d = Math.max(d, -m.t0);
+    const idsP = membres.filter((m) => m.principal).map((m) => m.id);
+    if (idsP.length) {
+      for (const suite of suitesPrincipales(idsP, clips)) {
+        const tete = clips[suite[0]];
+        const apres = clips[suite[suite.length - 1] + 1];
+        d = Math.max(d, -Math.max(0, tete.gapBefore ?? 0));                  // vers la gauche : l'écart devant
+        if (apres) d = Math.min(d, Math.max(0, apres.gapBefore ?? 0));       // vers la droite : l'écart derrière
+      }
+    }
+    return d;
   }
 
   /** Au relâchement : le même décalage pour tous les autres membres. */
   function decalerGroupe(dt: number) {
     const membres = groupeRef.current;
     groupeRef.current = null;
-    if (!membres || !membres.length || !isFinite(dt) || Math.abs(dt) < 0.0005) return;
-    /* Le groupe s'arrête ENSEMBLE. Si un membre butait sur zéro, le borner tout
-       seul écraserait les écarts : le groupe se serait déformé en chemin. On
-       borne donc le décalage lui-même, sur le membre le plus à gauche. */
-    let plusTot = Infinity;
-    for (const m of membres) plusTot = Math.min(plusTot, m.t0);
-    const d = Math.max(dt, -plusTot);
+    if (!membres || !membres.length || !isFinite(dt)) return;
+    const d = brider(dt, membres);
     if (Math.abs(d) < 0.0005) return;
+
     const pos: Record<string, number> = {};
-    for (const m of membres) pos[m.id] = Math.max(0, m.t0 + d);
+    for (const m of membres) if (!m.principal) pos[m.id] = Math.max(0, m.t0 + d);
     const vise = (id: string) => Object.prototype.hasOwnProperty.call(pos, id);
-    setOverlays((prev) => prev.map((o) => (vise(o.id) ? { ...o, offset: pos[o.id] } : o)));
-    setAudioTracks((prev) => prev.map((a) => (vise(a.id) ? { ...a, offset: pos[a.id] } : a)));
-    setCaptions((prev) => prev.map((c) => (vise(c.id) ? { ...c, start: pos[c.id], end: pos[c.id] + (c.end - c.start) } : c)));
-    setTitles((prev) => prev.map((t) => (vise(t.id) ? { ...t, start: pos[t.id], end: pos[t.id] + (t.end - t.start) } : t)));
+    if (Object.keys(pos).length) {
+      setOverlays((prev) => prev.map((o) => (vise(o.id) ? { ...o, offset: pos[o.id] } : o)));
+      setAudioTracks((prev) => prev.map((a) => (vise(a.id) ? { ...a, offset: pos[a.id] } : a)));
+      setCaptions((prev) => prev.map((c) => (vise(c.id) ? { ...c, start: pos[c.id], end: pos[c.id] + (c.end - c.start) } : c)));
+      setTitles((prev) => prev.map((t) => (vise(t.id) ? { ...t, start: pos[t.id], end: pos[t.id] + (t.end - t.start) } : t)));
+    }
+
+    const idsP = membres.filter((m) => m.principal).map((m) => m.id);
+    if (idsP.length) {
+      setClips((prev) => {
+        const next = prev.map((c) => ({ ...c }));
+        for (const suite of suitesPrincipales(idsP, next)) {
+          const tete = next[suite[0]];
+          const apres = next[suite[suite.length - 1] + 1];
+          tete.gapBefore = Math.max(0, (tete.gapBefore ?? 0) + d);
+          if (apres) apres.gapBefore = Math.max(0, (apres.gapBefore ?? 0) - d);
+        }
+        return next;
+      });
+    }
   }
 
   /** Décalage réellement subi par l'élément attrapé, relevé au relâchement.

@@ -1695,7 +1695,7 @@ input.ed-range::-moz-range-thumb {
 .mz-sec-label { font-family: var(--mono); font-weight: 800; font-size: 10.5px; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-3); }
 
 /* preview 9:16 */
-.mz-stage { flex: 1; min-width: 0; position: relative; overflow: hidden; display: flex; align-items: center; justify-content: center; padding: 26px; background: var(--sunk); }
+.mz-stage { flex: 1; min-width: 0; position: relative; overflow: hidden; display: flex; align-items: center; justify-content: center; padding: 10px; background: var(--sunk); }
 /* Aperçu en grand : la scène recouvre le module. Pas de plein écran natif — on
    garde la barre du haut et la lecture accessibles, il s'agit de REGARDER, pas
    de sortir de l'éditeur. Échap referme (cf. stageFull). */
@@ -1718,8 +1718,10 @@ input.ed-range::-moz-range-thumb {
 .mz-vempty { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; color: var(--cream-3); text-align: center; padding: 0 24px; }
 
 /* playback scrubber */
-.mz-playbar { display: flex; align-items: center; gap: 14px; padding: 10px 18px; flex-shrink: 0; }
-.mz-play { width: 42px; height: 42px; border-radius: 50%; display: grid; place-items: center; background: var(--ink); color: var(--paper); flex-shrink: 0; transition: transform .12s, background .15s; border: none; cursor: pointer; }
+/* Serrée au maximum : sur une fenêtre courte, cette barre prenait près d'un
+   cinquième de la zone d'aperçu, au détriment de la seule chose qu'on regarde. */
+.mz-playbar { display: flex; align-items: center; gap: 10px; padding: 3px 14px 5px; flex-shrink: 0; }
+.mz-play { width: 32px; height: 32px; border-radius: 50%; display: grid; place-items: center; background: var(--ink); color: var(--paper); flex-shrink: 0; transition: transform .12s, background .15s; border: none; cursor: pointer; }
 .mz-play:hover { background: #fff; transform: scale(1.04); }
 .mz-time { font-family: var(--mono); font-weight: 800; font-size: 12px; color: var(--ink-2); font-variant-numeric: tabular-nums; white-space: nowrap; }
 .mz-scrub { flex: 1; height: 5px; border-radius: 99px; background: var(--sunk); position: relative; cursor: pointer; }
@@ -2344,7 +2346,14 @@ input.mz-range::-moz-range-thumb { width: 16px; height: 16px; border-radius: 50%
 .a-trans-pill { position: absolute; top: 50%; width: 22px; height: 22px; border-radius: 50%; transform: translate(-50%, -50%); z-index: 12;
   display: grid; place-items: center; background: var(--white); box-shadow: 0 0 0 1px var(--line), var(--shadow-card); font-size: 11px; color: var(--ink-2); cursor: pointer; border: none;
   transition: box-shadow .12s, background .12s; }
-.a-trans-pill:hover { box-shadow: 0 0 0 2px var(--mint-2); }
+/* Jonction SANS transition : plus rien à l'écran. Ce point n'avait rien à
+   raconter, et posé sur chaque coupe il salissait la timeline entière. La zone
+   reste active : elle se révèle au survol et quand on vient y déposer une
+   transition, donc on ne perd aucune fonction. */
+.a-trans-pill:not(.posee) { background: transparent; box-shadow: none; color: transparent; }
+.a-trans-pill:not(.posee):hover, .a-trans-pill:not(.posee).drop {
+  background: var(--white); color: var(--ink-2); box-shadow: 0 0 0 2px var(--mint-2); }
+.a-trans-pill.posee:hover { box-shadow: 0 0 0 2px var(--mint-2); }
 
 /* Une transition POSÉE est un objet de la timeline : elle prend la hauteur de sa
    piste et la largeur de sa durée, translucide pour qu'on voie les deux plans
