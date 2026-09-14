@@ -1,7 +1,7 @@
 import { ImageResponse } from "next/og";
 
 export const runtime = "edge";
-export const alt = "Klip — Le studio social pour agences";
+export const alt = "Klip, le studio social pour agences";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
@@ -18,7 +18,10 @@ export default function OpengraphImage() {
           justifyContent: "space-between",
           padding: 80,
           background:
-            "radial-gradient(1000px 500px at 12% -10%, rgba(47,215,155,0.22), transparent 60%), linear-gradient(135deg, #0A2418 0%, #0C2A1D 55%, #103A28 100%)",
+            // Satori (le moteur de next/og) ne lit pas une taille en pixels dans
+            // radial-gradient : « 1000px 500px at … » rendait une image VIDE
+            // (0 octet) à chaque aperçu de lien partagé. Forme et position seules.
+            "radial-gradient(circle at 12% 0%, rgba(47,215,155,0.22) 0%, rgba(47,215,155,0) 60%), linear-gradient(135deg, #0A2418 0%, #0C2A1D 55%, #103A28 100%)",
           color: "#EEEDE3",
           fontFamily: "sans-serif",
         }}
@@ -38,7 +41,7 @@ export default function OpengraphImage() {
             Le studio social pour agences
           </div>
           <div style={{ display: "flex", fontSize: 30, color: "rgba(238,237,227,0.7)", marginTop: 26, maxWidth: 860, lineHeight: 1.4 }}>
-            Création visuelle, descriptions IA, planification et publication Instagram — tout dans un seul outil.
+            Création visuelle, descriptions IA, planification et publication Instagram : tout dans un seul outil.
           </div>
         </div>
 

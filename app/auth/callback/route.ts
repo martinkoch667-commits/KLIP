@@ -14,8 +14,17 @@ export async function GET(request: NextRequest) {
   // Supabase renvoie ses refus dans l'URL plutôt qu'en code HTTP : lien périmé,
   // déjà utilisé, ou signature invalide. Sans ce test, l'utilisateur atterrit
   // sur /login sans savoir ce qui a échoué.
+  /* Venu du parcours d'essai, la page de connexion garde l'étape où reprendre :
+     sinon la personne se connecte et atterrit sur l'ancien écran d'offre, sans
+     son site ni sa charte. */
+  const versConnexion = (verif: "ok" | "expire") => {
+    const url = new URL(`/login?verif=${verif}`, requestUrl.origin);
+    if (next.startsWith("/onboarding/")) url.searchParams.set("redirect", next);
+    return NextResponse.redirect(url);
+  };
+
   if (requestUrl.searchParams.get("error")) {
-    return NextResponse.redirect(new URL("/login?verif=expire", requestUrl.origin));
+    return versConnexion("expire");
   }
 
   if (code) {
@@ -27,8 +36,10 @@ export async function GET(request: NextRequest) {
     // vérificateur PKCE vit dans le navigateur qui a lancé l'inscription. Cliquer
     // le lien depuis son téléphone alors qu'on s'est inscrit sur l'ordinateur
     // tombe exactement là. On l'envoie donc se connecter, en le lui disant.
+    // Cas fréquent avec une campagne Instagram : inscrit dans le navigateur de
+    // l'appli, le lien du mail s'ouvre dans Safari ou Chrome.
     if (error) {
-      return NextResponse.redirect(new URL("/login?verif=ok", requestUrl.origin));
+      return versConnexion("ok");
     }
 
     // Check if new user (no account_type set) → onboarding

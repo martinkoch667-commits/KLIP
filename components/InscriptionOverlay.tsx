@@ -40,6 +40,11 @@ export function ouvrirCompte(mode: ModeCompte = "inscription", plan?: string, su
   window.dispatchEvent(new CustomEvent(EVENEMENT, { detail: { mode, plan, suite } }));
 }
 
+/* Navigateurs intégrés des applis (Instagram, Facebook, Messenger, TikTok…) :
+   Google y refuse la connexion (« disallowed_useragent »). Avec une campagne
+   Meta, c'est là qu'arrive la majorité des visiteurs mobiles. */
+const APPLI_INTEGREE = /Instagram|FBAN|FBAV|FB_IAB|FBIOS|Messenger|LinkedInApp|musical_ly|TikTok|Snapchat/i;
+
 /** Seulement un chemin du site : jamais une adresse externe. */
 function cheminSur(v?: string | null) {
   return v && v.startsWith("/") && !v.startsWith("//") ? v : null;
@@ -126,6 +131,8 @@ const IO_CSS = `
   .io-fond .io-google:hover:not(:disabled){box-shadow:inset 0 0 0 2px var(--mint-2);}
   .io-fond .io-google:disabled{opacity:.6;cursor:not-allowed;}
 
+  .io-appli{margin:14px 0 0;padding:10px 12px;border-radius:12px;background:#F3F4F6;font-size:12.5px;line-height:1.45;
+    color:var(--ink-2);text-align:center;}
   .io-envoye{text-align:center;padding:4px 0 6px;}
   .io-envoye-ic{width:52px;height:52px;border-radius:50%;margin:0 auto 14px;display:grid;place-items:center;
     background:var(--leaf);color:var(--leaf-ink);}
@@ -198,7 +205,12 @@ export default function InscriptionOverlay() {
   const [google, setGoogle] = useState(false);
   const [envoye, setEnvoye] = useState(false);
   const [suite, setSuite] = useState<string | null>(null);
+  const [appliIntegree, setAppliIntegree] = useState(false);
   const champEmail = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    setAppliIntegree(APPLI_INTEGREE.test(navigator.userAgent));
+  }, []);
 
   useEffect(() => {
     function ouvrir(m: ModeCompte, plan?: string, apres?: string) {
@@ -357,12 +369,23 @@ export default function InscriptionOverlay() {
                 </button>
               </form>
 
-              <div className="io-ou"><span />{t("or")}<span /></div>
+              {appliIntegree ? (
+                /* Pas de bouton Google qui mène à une erreur : on dit comment
+                   faire, et l'e-mail au-dessus marche partout. */
+                <p className="io-appli">
+                  Google ne fonctionne pas dans le navigateur de l&apos;appli. Utilisez votre e-mail, ou ouvrez
+                  getklip.fr dans Safari ou Chrome (menu <b>···</b> puis « Ouvrir dans le navigateur »).
+                </p>
+              ) : (
+                <>
+                  <div className="io-ou"><span />{t("or")}<span /></div>
 
-              <button type="button" className="io-google" onClick={() => void avecGoogle()} disabled={google}>
-                <GoogleIcon />
-                {google ? t("redirecting") : t("continueGoogle")}
-              </button>
+                  <button type="button" className="io-google" onClick={() => void avecGoogle()} disabled={google}>
+                    <GoogleIcon />
+                    {google ? t("redirecting") : t("continueGoogle")}
+                  </button>
+                </>
+              )}
             </>
           )}
         </div>
