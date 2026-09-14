@@ -19,7 +19,9 @@
  *
  * LE TITRE est posé côte à côte avec le texte et le choix de période (retenu
  * parmi quatre dispositions) : le titre à gauche sur deux lignes, le reste à
- * droite. Le mot final est sélectionné, un curseur « Vous » dessus.
+ * droite. Il dit « Commencez à créer » (Martin, 2026-09-14 : « Vos visuels sont
+ * prêts » ne poussait pas à agir), le dernier mot sélectionné, un curseur
+ * « Vous » dessus.
  *
  * LES PRIX SONT CEUX DE LA LANDING : mêmes chiffres, même badge de lancement,
  * même prix barré, mêmes textes tirés de `landing.pricing`. Seuls les contenants
@@ -140,12 +142,11 @@ const CSS = `
   .pv-curseur.is-vert .pv-fleche{fill:#7ED66A;} .pv-curseur.is-vert .pv-etiquette{background:#DDF8CF;color:#2E6A1D;border:1.5px solid #A6E68A;}
   .pv-curseur.is-violet .pv-fleche{fill:#8C7DFF;} .pv-curseur.is-violet .pv-etiquette{background:#E6E1FF;color:#4B3BC4;border:1.5px solid #B9AEFF;}
   @keyframes pv-flotte{from{translate:0 0;}to{translate:4px -5px;}}
-  /* « Vous » au coin bas GAUCHE du mot, flèche vers le haut à droite, dans
-     l'espace entre l'en-tête et les cartes. À droite du mot il tombait sur le
-     choix de période, au coin bas droit contre l'étiquette de Studio. */
-  .pv-mot .pv-curseur{right:calc(100% + 4px);top:calc(100% + 6px);align-items:flex-end;}
-  .pv-mot .pv-curseur .pv-fleche{transform:scaleX(-1);}
-  .pv-mot .pv-curseur .pv-etiquette{margin:2px 13px 0 0;}
+  /* « Vous » au coin bas droit du mot, dans l'espace entre l'en-tête et les
+     cartes. « créer » s'arrête assez tôt sur la ligne pour qu'il reste loin de
+     l'étiquette de Studio ; à droite du mot, il tombait sur le choix de
+     période. */
+  .pv-mot .pv-curseur{left:calc(100% + 2px);top:calc(100% + 6px);}
 
   /* Sélecteur de période : pastille de verre. */
   .pv-periode{display:inline-flex;align-self:flex-start;align-items:center;gap:4px;margin-top:16px;padding:5px;
@@ -185,7 +186,10 @@ const CSS = `
   .pv-sel-h:nth-child(3){bottom:-7px;left:-7px;} .pv-sel-h:nth-child(4){bottom:-7px;right:-7px;}
 
   /* « Le plus choisi » : un curseur qui désigne la carte. */
-  .pv-flag{position:absolute;top:-30px;right:22px;z-index:3;pointer-events:none;
+  /* Posé dans la sélection et non dans la carte, au-dessus du cadre : rangé
+     dans la carte, il restait prisonnier de sa pile et le trait du cadre lui
+     passait dessus. */
+  .pv-flag{position:absolute;top:-30px;right:22px;z-index:4;pointer-events:none;
     animation:pv-flotte 3.4s ease-in-out -1.4s infinite alternate;}
   .pv-flag-txt{display:block;padding:5px 12px;border-radius:10px;font-size:13.5px;font-weight:700;white-space:nowrap;
     background:#E6E1FF;color:#4B3BC4;border:1.5px solid #B9AEFF;
@@ -260,9 +264,7 @@ const CSS = `
     .pv-rassure{max-width:44ch;}
     /* À droite du mot, à sa hauteur : sous le titre, « Vous » tombait sur le
        texte. */
-    .pv-mot .pv-curseur{right:auto;left:calc(100% + 12px);top:-6%;align-items:flex-start;}
-    .pv-mot .pv-curseur .pv-fleche{transform:none;}
-    .pv-mot .pv-curseur .pv-etiquette{margin:2px 0 0 13px;}
+    .pv-mot .pv-curseur{left:calc(100% + 12px);top:-6%;}
   }
   /* Trois cartes côte à côte ne tiennent plus : une colonne, comme la landing. */
   @media(max-width:760px){
@@ -373,14 +375,13 @@ export default function OffreView({ seatsLeft }: { seatsLeft: number | null }) {
 
         <div className="pv-tete">
           <h1 className="pv-h1">
-            {nom ? (
-              <><span className="pv-l">Les visuels de</span><span className="pv-l">{motChoisi(nom)}</span></>
-            ) : (
-              <><span className="pv-l">Vos visuels</span><span className="pv-l">sont {motChoisi("prêts")}</span></>
-            )}
+            <span className="pv-l">Commencez</span>
+            <span className="pv-l">à {motChoisi("créer")}</span>
           </h1>
           <div className="pv-tete-droite">
-            <p className="pv-lead">Chacun s&apos;ouvre dans l&apos;éditeur, calque par calque. L&apos;essai ouvre tout le reste.</p>
+            <p className="pv-lead">
+              {nom ? `Les visuels de ${nom}` : "Vos visuels"} vous attendent dans l&apos;éditeur, calque par calque. L&apos;essai ouvre tout le reste.
+            </p>
             <div className="pv-periode">
               <button className={periode === "monthly" ? "is-on" : ""} onClick={() => setPeriode("monthly")}>{tp("monthly")}</button>
               <button className={annuel ? "is-on" : ""} onClick={() => setPeriode("yearly")}>
@@ -395,12 +396,6 @@ export default function OffreView({ seatsLeft }: { seatsLeft: number | null }) {
             const affiche = annuel ? o.annuel : o.mensuel;
             const carte = (
               <div className={"pv-carte" + (o.pop ? " is-pop" : "")}>
-                {o.pop && (
-                  <span className="pv-flag">
-                    <span className="pv-flag-txt">{tp("popular")}</span>
-                    <Fleche className="pv-fleche" />
-                  </span>
-                )}
                 <h3 className="pv-nom">{o.nom}</h3>
                 <div className="pv-tag">{o.tag}</div>
                 {lancement && <div className="pv-badge">{tp("launchBadge", { percent: LAUNCH_OFFER.percent })}</div>}
@@ -423,6 +418,10 @@ export default function OffreView({ seatsLeft }: { seatsLeft: number | null }) {
                 {o.pop ? (
                   <div className="pv-sel">
                     {carte}
+                    <span className="pv-flag">
+                      <span className="pv-flag-txt">{tp("popular")}</span>
+                      <Fleche className="pv-fleche" />
+                    </span>
                     <span className="pv-sel-cadre" aria-hidden="true">
                       <span className="pv-sel-h" /><span className="pv-sel-h" />
                       <span className="pv-sel-h" /><span className="pv-sel-h" />
