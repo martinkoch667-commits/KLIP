@@ -1,13 +1,9 @@
-import PlanView from "./plan-view";
-import { launchSeatsLeft } from "@/lib/launch-seats";
-import { priceId } from "@/lib/stripe";
+import { redirect } from "next/navigation";
 
-/* Composant serveur, uniquement pour lire les places de lancement restantes :
-   `launch-seats` importe le client Stripe et ne peut pas vivre côté navigateur.
-   Même schéma que la page d'accueil. */
-export default async function OnboardingPlanPage() {
-  const seatsLeft = await launchSeatsLeft();
-  // Starter sans prix Stripe : sa carte mènerait à « Offre non configurée ».
-  const starterPayable = !!(priceId("starter", "monthly") && priceId("starter", "yearly"));
-  return <PlanView seatsLeft={seatsLeft} starterPayable={starterPayable} />;
+/* L'ancien écran d'offre (PricingUI) renvoie sur /onboarding/offre, qui a la
+   direction du parcours d'essai et la même logique de caisse (type de compte,
+   agence, Stripe). Il reste joignable parce que le middleware y envoie un
+   compte sans offre et que les réglages y mènent (« Changer de plan »). */
+export default function OnboardingPlanPage() {
+  redirect("/onboarding/offre");
 }

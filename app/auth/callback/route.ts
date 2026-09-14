@@ -51,11 +51,11 @@ export async function GET(request: NextRequest) {
         .eq("user_id", session.user.id)
         .maybeSingle();
 
-      /* Nouveau compte venu du parcours d'essai (CTA « votre site web » de la
-         landing) : il reprend l'analyse de son site au lieu de l'écran d'offre.
-         Tout autre nouveau compte passe toujours par /onboarding/plan. */
+      /* Nouveau compte : il reprend l'étape du parcours d'essai d'où il vient
+         (`next`), sinon il commence ce parcours par son premier écran. Tout
+         nouveau compte y passe, y compris depuis « Essai gratuit » dans la nav. */
       if (!settings?.account_type) {
-        const versEssai = next.startsWith("/onboarding/") ? next : "/onboarding/plan";
+        const versEssai = next.startsWith("/onboarding/") ? next : "/onboarding/connexion";
         return NextResponse.redirect(new URL(versEssai, requestUrl.origin));
       }
     }

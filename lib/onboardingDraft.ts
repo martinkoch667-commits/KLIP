@@ -26,6 +26,11 @@ export type OnbDraft = {
   handle?: string;
   name?: string;
   sector?: string;
+  /** Le secteur tel que l'analyse l'a écrit, quand il ne rentre dans aucune
+   *  case du questionnaire (« Autre » pré-rempli avec ce texte). */
+  sectorAutre?: string;
+  /** « Vous nous avez connus comment ? », précisé quand c'est « Autre ». */
+  origine?: string;
   tone?: string;
   description?: string;
   colors?: string[];

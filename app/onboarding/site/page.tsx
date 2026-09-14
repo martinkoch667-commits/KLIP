@@ -17,6 +17,7 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import OnboardingShell, { MotChoisi } from "@/components/OnboardingShell";
 import { lireDraft, ecrireDraft, nomDepuisUrl, type OnbDraft } from "@/lib/onboardingDraft";
+import { rangerSecteur, rangerTon, nettoyerNom } from "@/lib/marqueChoix";
 
 const ETAPES = [
   "Ouverture de la page",
@@ -85,17 +86,21 @@ export default function SitePage() {
       }
       if (res.ok) {
         const d = await res.json();
+        /* Le modèle écrit un secteur et un ton libres (« Restauration rapide »,
+           « Gourmand, décontracté ») : on les range dans les cases du
+           questionnaire, sinon rien n'y était coché. Voir lib/marqueChoix. */
+        const secteur = rangerSecteur(d.sector);
+        const ton = rangerTon(d.tone);
+        const nom = nettoyerNom(d.name) || undefined;
         draft = {
           source: "site", url,
-          name: d.name, sector: d.sector, tone: d.tone, description: d.description,
+          name: nom, sector: secteur.secteur || undefined, sectorAutre: secteur.autre || undefined,
+          tone: ton || undefined, description: d.description,
           colors: d.colors, fonts: d.fonts, logoUrl: d.logoUrl, headline: d.description,
-          prefilled: ["name", "sector", "tone", "description", "colors", "fonts", "logo"]
-            .filter(k => {
-              if (k === "logo") return !!d.logoUrl;
-              if (k === "colors") return (d.colors ?? []).length > 0;
-              if (k === "fonts") return (d.fonts ?? []).length > 0;
-              return !!d[k];
-            }),
+          prefilled: [
+            nom && "name", secteur.secteur && "sector", ton && "tone", d.description && "description",
+            (d.colors ?? []).length > 0 && "colors", (d.fonts ?? []).length > 0 && "fonts", d.logoUrl && "logo",
+          ].filter((k): k is string => typeof k === "string"),
         };
       } else {
         // Les deux lectures ont échoué (site injoignable, hors ligne) : on

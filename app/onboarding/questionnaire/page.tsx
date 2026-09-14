@@ -16,7 +16,7 @@ import { useRouter } from "next/navigation";
 import OnboardingShell, { MotChoisi } from "@/components/OnboardingShell";
 import { lireDraft, ecrireDraft, type OnbDraft } from "@/lib/onboardingDraft";
 
-const SECTEURS = ["Restaurant", "Café", "Retail", "Mode", "Beauté", "Sport", "Tech", "Autre"];
+import { SECTEURS, rangerSecteur, rangerTon } from "@/lib/marqueChoix";
 
 const TONS = [
   { v: "Chic", d: "Élégant, raffiné, haut de gamme" },
@@ -29,7 +29,10 @@ const TONS = [
 
 const ORIGINES = ["Instagram", "Recherche Google", "ChatGPT ou une autre IA", "Un proche", "Une publicité", "Autre"];
 
-type Rep = { secteur: string; ton: string; nom: string; handle: string; description: string; origine: string };
+type Rep = {
+  secteur: string; secteurAutre: string; ton: string; nom: string; handle: string; description: string;
+  origine: string; origineAutre: string;
+};
 
 /* Un titre, une phrase, et rien d'autre. Les sous-titres d'origine décrivaient
    le fonctionnement interne (« oriente les compositions proposées », « dans
@@ -50,7 +53,7 @@ export default function QuestionnairePage() {
   const [draft, setDraft] = useState<OnbDraft | null>(null);
   const [pret, setPret] = useState(false);
   const [i, setI] = useState(0);
-  const [r, setR] = useState<Rep>({ secteur: "", ton: "", nom: "", handle: "", description: "", origine: "" });
+  const [r, setR] = useState<Rep>({ secteur: "", secteurAutre: "", ton: "", nom: "", handle: "", description: "", origine: "", origineAutre: "" });
 
   // Le brouillon vient de l'écran précédent. Sans lui on laisse le
   // questionnaire vide plutôt que de renvoyer la personne en arrière.
@@ -58,13 +61,18 @@ export default function QuestionnairePage() {
     const d = lireDraft();
     if (d) {
       setDraft(d);
+      // Un secteur libre (retour en arrière, ou texte de l'analyse) revient
+      // dans « Autre » avec son texte, au lieu de laisser la liste vide.
+      const secteur = d.sectorAutre ? { secteur: "Autre", autre: d.sectorAutre } : rangerSecteur(d.sector);
       setR({
-        secteur: SECTEURS.includes(d.sector ?? "") ? d.sector! : "",
-        ton: TONS.some(t => t.v === d.tone) ? d.tone! : "",
+        secteur: secteur.secteur,
+        secteurAutre: secteur.autre,
+        ton: rangerTon(d.tone),
         nom: d.name ?? "",
         handle: d.handle ?? "",
-        description: d.description ?? "",
+        description: d.headline ?? d.description ?? "",
         origine: "",
+        origineAutre: "",
       });
     }
     setPret(true);
@@ -85,7 +93,11 @@ export default function QuestionnairePage() {
       ...(draft ?? { source: "manuel", prefilled: [] }),
       // `headline` aussi : c'est lui que la charte affiche et édite. Sans lui,
       // la description corrigée ici disparaissait à l'écran suivant.
-      name: r.nom, handle: r.handle, sector: r.secteur, tone: r.ton, description: r.description, headline: r.description,
+      name: r.nom, handle: r.handle, tone: r.ton, description: r.description, headline: r.description,
+      // « Autre » précisé : c'est le texte qui part dans la fiche du client.
+      sector: r.secteur === "Autre" && r.secteurAutre.trim() ? r.secteurAutre.trim() : r.secteur,
+      sectorAutre: r.secteur === "Autre" ? r.secteurAutre.trim() || undefined : undefined,
+      origine: r.origine === "Autre" && r.origineAutre.trim() ? r.origineAutre.trim() : r.origine,
     });
     router.push("/onboarding/marque");
   }
@@ -117,6 +129,14 @@ export default function QuestionnairePage() {
               {auto("sector") && draft?.sector === s && <span className="ob-auto">trouvé</span>}
             </button>
           ))}
+        </div>
+      )}
+      {i === 0 && r.secteur === "Autre" && (
+        <div className="ob-saisie" style={{ marginTop: 16 }}>
+          <span className="ob-saisie-l">Votre secteur</span>
+          <input className="ob-in" value={r.secteurAutre} autoFocus
+            onChange={e => setR({ ...r, secteurAutre: e.target.value })}
+            placeholder="Ex : agence immobilière, fleuriste, cabinet dentaire…" />
         </div>
       )}
 
@@ -168,6 +188,14 @@ export default function QuestionnairePage() {
               {o}
             </button>
           ))}
+        </div>
+      )}
+      {i === 4 && r.origine === "Autre" && (
+        <div className="ob-saisie" style={{ marginTop: 16 }}>
+          <span className="ob-saisie-l">Précisez</span>
+          <input className="ob-in" value={r.origineAutre} autoFocus
+            onChange={e => setR({ ...r, origineAutre: e.target.value })}
+            placeholder="Ex : un podcast, un salon, un article…" />
         </div>
       )}
 

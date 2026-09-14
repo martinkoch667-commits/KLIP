@@ -7,6 +7,7 @@ import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
 import { trackStartTrial } from "@/components/analytics/MetaPixel";
 import { readConsent } from "@/components/analytics/consent";
 import { brouillonUtile, creerClientDepuisBrouillon } from "@/lib/clientDepuisBrouillon";
+import OnboardingShell, { MotChoisi } from "@/components/OnboardingShell";
 
 /* Conversion Meta « StartTrial ». Elle part d'ici et pas du clic sur l'offre :
    ce n'est un essai que si Stripe a vraiment créé l'abonnement, et /api/stripe/sync
@@ -108,13 +109,16 @@ export default function CheckoutSuccessPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [router]);
 
+  /* Même case que le parcours d'essai : c'est le dernier écran avant l'app. */
   return (
-    <main style={{ minHeight: "100vh", display: "grid", placeItems: "center", background: "var(--canvas)", fontFamily: "var(--sans)" }}>
-      <div style={{ textAlign: "center", color: "var(--ink-2)" }}>
-        <div style={{ width: 40, height: 40, margin: "0 auto 16px", borderRadius: "50%", border: "3px solid rgba(189,242,160,.35)", borderTopColor: "var(--leaf)", animation: "lp-spin .8s linear infinite" }} />
-        <p style={{ fontWeight: 700 }}>{t('activating')}</p>
-        <style>{`@keyframes lp-spin{to{transform:rotate(360deg)}}`}</style>
-      </div>
-    </main>
+    <OnboardingShell chemin="bienvenue" intro={
+      <>
+        <h1 className="ob-h1">C&apos;est <MotChoisi>parti</MotChoisi></h1>
+        <p className="ob-sub">{t('activating')}</p>
+      </>
+    }>
+      <div style={{ width: 44, height: 44, margin: "8px auto", borderRadius: "50%", border: "3px solid rgba(189,242,160,.45)", borderTopColor: "#1FA878", animation: "cs-tourne .8s linear infinite" }} />
+      <style>{`@keyframes cs-tourne{to{transform:rotate(360deg)}}`}</style>
+    </OnboardingShell>
   );
 }

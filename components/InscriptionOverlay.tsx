@@ -131,6 +131,16 @@ const IO_CSS = `
   .io-fond .io-google:hover:not(:disabled){box-shadow:inset 0 0 0 2px var(--mint-2);}
   .io-fond .io-google:disabled{opacity:.6;cursor:not-allowed;}
 
+  /* Même carte en PAGE (/login, /register, mot de passe) : plus de voile ni de
+     position fixe, un fond blanc comme le parcours d'essai. */
+  .io-fond.io-page{position:relative;inset:auto;z-index:auto;min-height:100vh;min-height:100dvh;overflow:visible;
+    background:#FFFFFF;-webkit-backdrop-filter:none;backdrop-filter:none;animation:none;}
+  .io-page .io-carte{box-shadow:0 0 0 1px rgba(16,19,11,.07),0 40px 90px -40px rgba(7,33,23,.4);}
+  .io-note{margin:0 0 14px;padding:10px 12px;border-radius:12px;font-size:13px;line-height:1.45;text-align:center;}
+  .io-note.is-ok{background:#DDF8CF;color:#2E6A1D;}
+  .io-note.is-warn{background:#FDF1E3;color:#8A5A12;}
+  .io-fond .io-renvoi{display:block;margin:6px auto 0;border:none;background:none;padding:0;font:inherit;font-weight:800;
+    color:var(--forest-3);text-decoration:underline;text-decoration-color:var(--mint-2);text-underline-offset:3px;cursor:pointer;}
   .io-appli{margin:14px 0 0;padding:10px 12px;border-radius:12px;background:#F3F4F6;font-size:12.5px;line-height:1.45;
     color:var(--ink-2);text-align:center;}
   .io-envoye{text-align:center;padding:4px 0 6px;}
@@ -192,12 +202,36 @@ const IO_CSS = `
   @media (prefers-reduced-motion: reduce){ .io-fond,.io-carte{animation:none;} }
 `;
 
-export default function InscriptionOverlay() {
+/** Les écrans de compte hors fenêtre (/login, /register, mot de passe) : la
+ *  même carte, posée sur une page blanche. */
+export function CadreCompte({ children, titre }: { children: React.ReactNode; titre: string }) {
+  return (
+    <main className="io-fond io-page">
+      <style dangerouslySetInnerHTML={{ __html: CARTE_CSS + IO_CSS }} />
+      <div className="fx is-violet io-carte" aria-label={titre}>
+        <Link href="/" className="io-fermer" aria-label="Retour à l'accueil">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round"><path d="M18 6 6 18M6 6l12 12" /></svg>
+        </Link>
+        <div className="io-visuel"><SceneCurseurs /></div>
+        <div className="io-corps">{children}</div>
+      </div>
+    </main>
+  );
+}
+
+export default function InscriptionOverlay({ page }: {
+  /** Rendu en page (/login, /register) au lieu d'une fenêtre : toujours ouverte,
+   *  `redirect`, `verif` et `plan` lus dans l'adresse. */
+  page?: { mode: ModeCompte };
+} = {}) {
   const t = useTranslations("auth");
   const router = useRouter();
   const supabase = createClientComponentClient();
-  const [ouvert, setOuvert] = useState(false);
-  const [mode, setMode] = useState<ModeCompte>("inscription");
+  const [ouvert, setOuvert] = useState(!!page);
+  const [mode, setMode] = useState<ModeCompte>(page?.mode ?? "inscription");
+  const [notice, setNotice] = useState<"ok" | "expire" | null>(null);
+  const [nonConfirmee, setNonConfirmee] = useState(false);
+  const [renvoye, setRenvoye] = useState(false);
   const [email, setEmail] = useState("");
   const [motDePasse, setMotDePasse] = useState("");
   const [erreur, setErreur] = useState<string | null>(null);
@@ -211,6 +245,20 @@ export default function InscriptionOverlay() {
 
   useEffect(() => {
     setAppliIntegree(APPLI_INTEGREE.test(navigator.userAgent));
+    if (!page) return;
+    /* En page : `redirect` (où reprendre), `verif` (posé par /auth/callback :
+       adresse confirmée mais session à ouvrir, ou lien périmé), `plan` (offre
+       cliquée sur la landing, comme l'ancien /register). */
+    const q = new URLSearchParams(location.search);
+    setSuite(cheminSur(q.get("redirect")));
+    const v = q.get("verif");
+    if (v === "ok" || v === "expire") setNotice(v);
+    const p = q.get("plan");
+    try {
+      if (p === "studio" || p === "solo") localStorage.setItem("klip_plan", "solo");
+      else if (p === "agency" || p === "agence") localStorage.setItem("klip_plan", "agency");
+    } catch { /* navigation privée */ }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -238,7 +286,7 @@ export default function InscriptionOverlay() {
   }, []);
 
   useEffect(() => {
-    if (!ouvert) return;
+    if (!ouvert || page) return;
     /* Sur mobile c'est <body> qui défile (globals.css) : on bloque les deux. */
     const html = document.documentElement.style.overflow;
     const body = document.body.style.overflow;
@@ -294,6 +342,12 @@ export default function InscriptionOverlay() {
         const essai = await supabase.auth.signInWithPassword({ email, password: motDePasse });
         setEnvoi(false);
         if (!essai.error) { router.push(suite ?? "/dashboard"); return; }
+        if (/not confirmed/i.test(essai.error.message)) {
+          // Inscrit mais jamais confirmé : on renvoie le lien directement.
+          await supabase.auth.resend({ type: "signup", email, options: { emailRedirectTo: retour } });
+          setEnvoye(true);
+          return;
+        }
         setMode("connexion");
         setMotDePasse("");
         setErreur("Un compte existe déjà avec cette adresse. Entrez votre mot de passe pour vous connecter.");
@@ -309,11 +363,27 @@ export default function InscriptionOverlay() {
     }
     const { error } = await supabase.auth.signInWithPassword({ email, password: motDePasse });
     if (error) {
-      setErreur(error.message === "Invalid login credentials" ? t("signInError") : error.message);
+      /* Adresse jamais confirmée (lien périmé, ou « consommé » par l'aperçu
+         d'une messagerie) : sans un nouveau lien, la personne est bloquée. */
+      if (/not confirmed/i.test(error.message)) {
+        setNonConfirmee(true);
+        setErreur("Votre adresse n'est pas encore confirmée.");
+      } else {
+        setErreur(error.message === "Invalid login credentials" ? t("signInError") : error.message);
+      }
       setEnvoi(false);
       return;
     }
     router.push(suite ?? "/dashboard");
+    router.refresh();
+  }
+
+  async function renvoyerLien() {
+    if (!email) { setErreur("Entrez votre adresse e-mail."); return; }
+    const { error } = await supabase.auth.resend({ type: "signup", email, options: { emailRedirectTo: retour } });
+    if (error) { setErreur(error.message); return; }
+    setRenvoye(true);
+    setErreur(null);
   }
 
   async function avecGoogle() {
@@ -334,11 +404,13 @@ export default function InscriptionOverlay() {
   }
 
   return (
-    <div className="io-fond" role="presentation" onMouseDown={e => { if (e.target === e.currentTarget) setOuvert(false); }}>
+    <div className={"io-fond" + (page ? " io-page" : "")} role="presentation"
+      onMouseDown={e => { if (!page && e.target === e.currentTarget) setOuvert(false); }}>
       <style dangerouslySetInnerHTML={{ __html: CARTE_CSS + IO_CSS }} />
-      <div className="fx is-violet io-carte" role="dialog" aria-modal="true"
+      <div className="fx is-violet io-carte" role={page ? undefined : "dialog"} aria-modal={page ? undefined : true}
         aria-label={inscription ? t("registerTitle") : t("loginTitle")}>
-        <button type="button" className="io-fermer" onClick={() => setOuvert(false)} aria-label="Fermer">
+        <button type="button" className="io-fermer" onClick={() => (page ? router.push("/") : setOuvert(false))}
+          aria-label={page ? "Retour à l'accueil" : "Fermer"}>
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round"><path d="M18 6 6 18M6 6l12 12" /></svg>
         </button>
 
@@ -363,6 +435,8 @@ export default function InscriptionOverlay() {
                   <span>On analyse</span> <b>{siteEnAttente}</b> <span>juste après</span>
                 </p>
               )}
+              {notice === "ok" && <p className="io-note is-ok">{t("emailConfirmed")}</p>}
+              {notice === "expire" && <p className="io-note is-warn">{t("linkExpired")}</p>}
               <h2 className="io-h">{inscription ? t("registerTitle") : t("loginTitle")}</h2>
               <p className="io-p">
                 {inscription ? t("haveAccount") : t("noAccount")}{" "}
@@ -383,6 +457,13 @@ export default function InscriptionOverlay() {
                   placeholder={inscription ? t("passwordPlaceholder") : ""} />
                 {!inscription && <Link href="/mot-de-passe-oublie" className="io-oubli">{t("forgotPassword")}</Link>}
                 {erreur && <p className="io-erreur">{erreur}</p>}
+                {nonConfirmee && !renvoye && (
+                  <p className="io-note is-warn" style={{ marginTop: -4 }}>
+                    Le lien de confirmation a peut-être expiré.
+                    <button type="button" className="io-renvoi" onClick={() => void renvoyerLien()}>Recevoir un nouveau lien</button>
+                  </p>
+                )}
+                {renvoye && <p className="io-note is-ok" style={{ marginTop: -4 }}>Nouveau lien envoyé à {email}. Ouvrez-le depuis ce navigateur.</p>}
                 <button type="submit" className="io-btn" disabled={envoi}>
                   {envoi
                     ? (inscription ? t("creating") : t("signingIn"))

@@ -3,27 +3,10 @@
 import { useState, useEffect } from "react";
 import { useTranslations } from "next-intl";
 import Link from "next/link";
+import { CadreCompte } from "@/components/InscriptionOverlay";
 import { useRouter } from "next/navigation";
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
 
-const AUTH_CSS = `
-  .auth-wrap{min-height:100vh;display:flex;align-items:center;justify-content:center;background:var(--canvas);padding:24px;}
-  .auth-card{width:100%;max-width:440px;background:#fff;border-radius:16px;box-shadow:0 8px 32px rgba(0,0,0,.08);padding:40px;}
-  .auth-logo{display:block;height:40px;width:auto;margin:0 auto 32px;}
-  .auth-title{font-family:var(--display);font-weight:800;font-size:24px;text-transform:uppercase;color:var(--forest);letter-spacing:-.01em;margin-bottom:6px;}
-  .auth-sub{font-size:13px;color:rgba(20,22,15,.6);margin-bottom:28px;line-height:1.5;}
-  .auth-label{display:block;font-family:var(--sans);font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:rgba(20,22,15,.6);margin-bottom:6px;}
-  .auth-input{width:100%;border:1.5px solid rgba(20,22,15,.15);border-radius:8px;padding:12px 16px;font-family:var(--sans);font-size:14px;color:var(--ink);background:#fff;outline:none;transition:border-color .15s;}
-  .auth-input:focus{border-color:var(--leaf);}
-  .auth-btn{width:100%;padding:13px;background:var(--forest);color:var(--canvas);font-family:var(--display);font-weight:700;font-size:14px;text-transform:uppercase;letter-spacing:.06em;border-radius:8px;border:none;cursor:pointer;transition:background .15s,color .15s;}
-  .auth-btn:hover:not(:disabled){background:var(--leaf);color:var(--forest);}
-  .auth-btn:disabled{opacity:.6;cursor:not-allowed;}
-  .auth-link{color:var(--mint);text-decoration:none;font-weight:600;}
-  .auth-link:hover{text-decoration:underline;}
-  .auth-error{font-size:13px;color:var(--warn);background:var(--warn-soft);border:1px solid rgba(200,115,43,.2);border-radius:8px;padding:9px 12px;}
-  .auth-ok{font-size:14px;color:var(--mint-2);background:var(--mint-soft);border:1px solid rgba(47,215,155,.3);border-radius:8px;padding:14px 16px;line-height:1.5;}
-  @media(max-width:480px){.auth-wrap{padding:16px;}.auth-card{padding:28px 20px;}.auth-btn{min-height:48px;}}
-`;
 
 export default function ResetPasswordPage() {
   const t = useTranslations('resetPassword');
@@ -63,50 +46,38 @@ export default function ResetPasswordPage() {
     setTimeout(() => { router.push("/dashboard"); router.refresh(); }, 1500);
   }
 
+  /* Même carte que la connexion (CadreCompte). */
   return (
-    <main className="auth-wrap">
-      <style dangerouslySetInnerHTML={{ __html: AUTH_CSS }} />
-      <div className="auth-card">
-        <Link href="/" style={{ display: "block", textAlign: "center" }}>
-          <img src="/logo-klip-dark.png" alt="Klip" className="auth-logo" />
-        </Link>
-        <h1 className="auth-title">{t('title')}</h1>
-
-        {!ready ? (
-          <p className="auth-sub">{t('checkingLink')}</p>
-        ) : done ? (
-          <p className="auth-ok">{t('passwordUpdated')}</p>
-        ) : !validSession ? (
-          <>
-            <p className="auth-sub">
-              {t('invalidLink')}
-            </p>
-            <Link href="/mot-de-passe-oublie" className="auth-btn" style={{ display: "block", textAlign: "center", textDecoration: "none" }}>
-              {t('requestNewLink')}
-            </Link>
-          </>
-        ) : (
-          <>
-            <p className="auth-sub">{t('subtitle')}</p>
-            <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: 18 }}>
-              <div>
-                <label htmlFor="password" className="auth-label">{t('newPasswordLabel')}</label>
-                <input id="password" type="password" required autoComplete="new-password" value={password}
-                  onChange={e => setPassword(e.target.value)} placeholder="••••••••" className="auth-input" />
-              </div>
-              <div>
-                <label htmlFor="confirm" className="auth-label">{t('confirmLabel')}</label>
-                <input id="confirm" type="password" required autoComplete="new-password" value={confirm}
-                  onChange={e => setConfirm(e.target.value)} placeholder="••••••••" className="auth-input" />
-              </div>
-              {error && <p className="auth-error">{error}</p>}
-              <button type="submit" disabled={loading} className="auth-btn">
-                {loading ? t('updating') : t('updateButton')}
-              </button>
-            </form>
-          </>
-        )}
-      </div>
-    </main>
+    <CadreCompte titre={t('title')}>
+      <h2 className="io-h">{t('title')}</h2>
+      {!ready ? (
+        <p className="io-p">{t('checkingLink')}</p>
+      ) : done ? (
+        <p className="io-note is-ok" style={{ marginTop: 14 }}>{t('passwordUpdated')}</p>
+      ) : !validSession ? (
+        <>
+          <p className="io-p">{t('invalidLink')}</p>
+          <Link href="/mot-de-passe-oublie" className="io-btn" style={{ display: "flex", alignItems: "center", justifyContent: "center", textDecoration: "none" }}>
+            {t('requestNewLink')}
+          </Link>
+        </>
+      ) : (
+        <>
+          <p className="io-p">{t('subtitle')}</p>
+          <form className="io-form" onSubmit={handleSubmit}>
+            <label className="io-lab" htmlFor="io-mdp">{t('newPasswordLabel')}</label>
+            <input id="io-mdp" className="io-in" type="password" required autoComplete="new-password" value={password}
+              onChange={e => setPassword(e.target.value)} placeholder="8 caractères minimum" />
+            <label className="io-lab" htmlFor="io-confirm">{t('confirmLabel')}</label>
+            <input id="io-confirm" className="io-in" type="password" required autoComplete="new-password" value={confirm}
+              onChange={e => setConfirm(e.target.value)} />
+            {error && <p className="io-erreur">{error}</p>}
+            <button type="submit" disabled={loading} className="io-btn">
+              {loading ? t('updating') : t('updateButton')}
+            </button>
+          </form>
+        </>
+      )}
+    </CadreCompte>
   );
 }
