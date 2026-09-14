@@ -12,7 +12,9 @@
  *  · Navigateur  une barre d'adresse, qui annonce la fenêtre du parcours ;
  *  · Bouton      le bouton vert d'aujourd'hui, qui s'ouvre en champ au clic.
  * Le sélecteur n'apparaît pas sur getklip.fr. Choix gardé dans l'onglet
- * (sessionStorage) et forçable par `?cta=`.
+ * (sessionStorage) et forçable par `?cta=`. Il est rendu dans <body> : le hero
+ * anime ses blocs en transform, et un `position: fixed` dans un parent
+ * transformé se colle à ce parent au lieu de l'écran.
  *
  * Les boutons n'ont PAS la classe `.btn` de la landing : GSAP rend ces
  * boutons magnétiques, et un bouton qui suit la souris dans un champ se
@@ -20,6 +22,7 @@
  */
 
 import { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useRouter } from 'next/navigation';
 
 export type VarianteCta = 'barre' | 'calque' | 'navigateur' | 'bouton';
@@ -125,13 +128,14 @@ const CSS = `
   .cs-bouton.is-ouvert input{flex:1;opacity:1;transition:opacity .3s .2s;}
   .v3 .cs-bouton.is-ouvert .cs-go{width:auto;height:48px;padding:0 20px;font-size:15.5px;}
 
-  /* ── Sélecteur de propositions (hors getklip.fr) ── */
-  .cs-choix{position:fixed;left:50%;bottom:18px;transform:translateX(-50%);z-index:1500;display:flex;align-items:center;gap:4px;
+  /* ── Sélecteur de propositions (hors getklip.fr), rendu hors de .v3 ── */
+  .cs-choix{position:fixed;left:18px;bottom:18px;z-index:1500;display:flex;align-items:center;gap:4px;
     padding:5px;border-radius:999px;background:#10130B;box-shadow:0 0 0 1px rgba(255,255,255,.12),0 18px 40px -12px rgba(0,0,0,.6);
-    font-family:var(--sans);}
+    font-family:'early-sans-variable','Hanken Grotesk',system-ui,sans-serif;}
   .cs-choix span{padding:0 10px 0 12px;font-size:11px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:rgba(241,240,229,.5);}
-  .v3 .cs-choix button{height:32px;padding:0 13px;border-radius:999px;font-size:13px;font-weight:700;color:rgba(241,240,229,.8);}
-  .v3 .cs-choix button.is-on{background:var(--leaf);color:var(--leaf-ink);}
+  .cs-choix button{height:32px;padding:0 13px;border:none;border-radius:999px;cursor:pointer;background:none;
+    font:inherit;font-size:13px;font-weight:700;color:rgba(241,240,229,.8);}
+  .cs-choix button.is-on{background:#BDF2A0;color:#1E3317;}
 
   @media(max-width:640px){
     .cs-long{display:none;} .cs-court{display:inline;}
@@ -147,9 +151,9 @@ const CSS = `
     .cs-bouton{width:100%;}
     .cs-bouton.is-ouvert{width:100%;padding-left:16px;}
     .cs-aide{white-space:normal;}
-    .cs-choix{bottom:12px;}
+    .cs-choix{left:50%;bottom:12px;transform:translateX(-50%);}
     .cs-choix span{display:none;}
-    .v3 .cs-choix button{padding:0 10px;font-size:12.5px;}
+    .cs-choix button{padding:0 10px;font-size:12.5px;}
   }
 `;
 
@@ -288,7 +292,7 @@ export default function CtaSiteHero() {
     <>
       <style dangerouslySetInnerHTML={{ __html: CSS }} />
       {formulaire}
-      {choix && (
+      {choix && createPortal(
         <div className="cs-choix" role="group" aria-label="Propositions de CTA">
           <span>CTA</span>
           {VARIANTES.map(v => (
@@ -296,7 +300,8 @@ export default function CtaSiteHero() {
               {v.nom}
             </button>
           ))}
-        </div>
+        </div>,
+        document.body,
       )}
     </>
   );
