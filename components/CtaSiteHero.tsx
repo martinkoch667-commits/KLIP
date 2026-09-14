@@ -180,12 +180,13 @@ const CSS = `
     .cs-bouton{width:100%;}
     .cs-bouton.is-ouvert{width:100%;padding-left:16px;}
     .cs-aide{white-space:normal;}
-    .cs-choix{left:12px;right:12px;bottom:12px;justify-content:center;border-radius:20px;}
+    .cs-choix{left:8px;right:8px;bottom:10px;justify-content:center;gap:2px;border-radius:20px;}
+    .cs-choix i{display:none;}
     .cs-vous{left:auto;right:18px;bottom:-30px;}
     /* Empilé sur mobile : de la place sous le bouton pour son curseur. */
     .cs-bouton:not(.is-ouvert){margin-bottom:26px;}
     .cs-choix span{display:none;}
-    .cs-choix button{padding:0 10px;font-size:12.5px;}
+    .cs-choix button{height:30px;padding:0 9px;font-size:12px;}
   }
 `;
 
@@ -315,7 +316,7 @@ export default function CtaSiteHero() {
           <input {...saisie} />
         </label>
         <button type="submit" className="cs-go">
-          <span className="cs-long">Lire ma charte</span><span className="cs-court">Lire</span>
+          <span className="cs-long">Lire ma charte</span><span className="cs-court">Analyser</span>
           <span className="cs-arr"><Fleche /></span>
         </button>
         {aideSousChamp}
