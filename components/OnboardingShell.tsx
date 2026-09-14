@@ -118,7 +118,7 @@ export const ONB_CSS = `
   /* Marges : le cadre déborde de 10 px et ses gélules de 5 de plus. Sans
      marge haute, sur un titre de deux lignes, le cadre touchait la ligne du
      dessus ; sans marges latérales, il collait au « ? » voisin. */
-  .ob-mot{position:relative;display:inline-block;margin:.24em .34em 0 .3em;rotate:-3deg;z-index:2;text-shadow:none;
+  .ob-mot{position:relative;display:inline-block;margin:.4em .34em 0 .3em;rotate:-3deg;z-index:2;text-shadow:none;
     animation:ob-balance 5.5s ease-in-out 1.2s infinite;}
   @keyframes ob-balance{0%,100%{rotate:-3deg;}50%{rotate:-1deg;}}
   .ob-mot-carte{display:inline-flex;align-items:center;background:#fff;border-radius:.18em;padding:.06em .22em .1em;

@@ -171,7 +171,9 @@ const CSS = `
      cartes. « créer » s'arrête assez tôt sur la ligne pour qu'il reste loin de
      l'étiquette de Studio ; à droite du mot, il tombait sur le choix de
      période. */
-  .pv-mot .pv-curseur{left:calc(100% + 8px);top:calc(100% + 4px);rotate:3deg;}
+  /* À droite du mot : sous lui, avec le bouton de rotation, « Vous » venait
+     se coller au cadre de la carte Studio. */
+  .pv-mot .pv-curseur{left:calc(100% + 16px);top:16%;rotate:3deg;}
 
   /* Sélecteur de période : pastille de verre. */
   .pv-periode{display:inline-flex;align-self:flex-start;align-items:center;gap:4px;margin-top:16px;padding:5px;
