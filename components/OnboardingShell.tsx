@@ -319,7 +319,6 @@ export const ONB_CSS = `
     .ob-case-contenu{display:grid;grid-template-columns:minmax(0,.9fr) minmax(0,1fr);column-gap:clamp(40px,5vw,72px);
       align-items:center;padding:40px 64px 44px 44px;text-align:left;}
     .ob-case-intro .ob-h1{font-size:clamp(42px,3.9vw,54px);margin-bottom:58px;text-wrap:balance;}
-    .ob-case-intro .ob-mot{margin-left:.2em;}
     .ob-case-intro .ob-sub{margin:0;max-width:30ch;font-size:17px;}
     .ob-case-action{justify-content:center;}
     .ob-case-bas{margin-top:0;padding-top:26px;}
@@ -330,8 +329,8 @@ export const ONB_CSS = `
     .ob-case-action .ob-pied{justify-content:flex-end;}
     .ob-case-action .wsx-steps{margin-top:0;}
     /* La charte a six cartes à ranger : la colonne de droite prend la place. */
-    .ob-case.is-large .ob-case-contenu{grid-template-columns:minmax(0,.62fr) minmax(0,1fr);}
-    .ob-case.is-large .ob-case-intro .ob-h1{font-size:clamp(38px,3.3vw,46px);}
+    .ob-case.is-large .ob-case-contenu{grid-template-columns:minmax(0,.72fr) minmax(0,1fr);column-gap:clamp(32px,4vw,56px);}
+    .ob-case.is-large .ob-case-intro .ob-h1{font-size:clamp(36px,3vw,44px);}
   }
 
   /* ══ MOBILE ═════════════════════════════════════════════════════════════
@@ -342,7 +341,7 @@ export const ONB_CSS = `
     .ob-h1{font-size:clamp(34px,10vw,44px);}
     .ob-sel-cadre{inset:-7px;}
     .ob-sel-rot{bottom:-40px;}
-    .ob-h1{margin-bottom:48px;}
+    .ob-h1{margin-bottom:44px;}
     .ob-sub{font-size:16px;max-width:30ch;}
 
     /* La case REMPLIT l'écran, et ses actions se calent en bas de la case,
@@ -358,8 +357,12 @@ export const ONB_CSS = `
     .ob-pied .ob-retour{order:1;}
 
     .ob-case{border-radius:24px;}
-    .ob-case-cadre{margin:28px 0 0 16px;padding:6px 0 0 6px;}
-    .ob-case-contenu{padding:26px 22px 20px 12px;}
+    .ob-case-cadre{margin:22px 0 0 14px;padding:6px 0 0 6px;}
+    .ob-case-contenu{padding:20px 22px 14px 12px;}
+    /* Mesuré à 390 × 664, la hauteur utile d'un iPhone sous Safari : sans ces
+       quelques pixels, « Passer » tombait sous la barre du navigateur. */
+    .ob-btn{min-height:54px;}
+    .ob-fin{margin-top:12px;}
   }
 `;
 

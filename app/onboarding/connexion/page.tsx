@@ -96,7 +96,7 @@ export default function ConnexionPage() {
         <CurseurNomme nom="Votre mise en page" teinte="ambre" style={{ left: "24%", top: "52%", ["--d" as string]: "-2.2s" }} />
       </div>
       <style>{`.cx-curseurs{position:relative;height:118px;max-width:360px;margin:6px auto 0;}
-        @media(max-width:639px){.cx-curseurs{height:112px;margin-top:clamp(8px,2.4vh,24px);}}`}</style>
+        @media(max-width:639px){.cx-curseurs{height:96px;margin-top:clamp(6px,2vh,20px);}}`}</style>
 
       {avertit && (
         <div className="ob-mod-bg" onClick={() => setAvertit(false)}>
