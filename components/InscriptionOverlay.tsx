@@ -16,6 +16,12 @@
  *
  * On l'ouvre de n'importe où avec `ouvrirCompte()`, qui émet un événement ; un
  * lien direct `getklip.fr/#inscription` ou `#connexion` l'ouvre au chargement.
+ *
+ * `suite` : où aller une fois le compte ouvert. Le CTA « votre site web » du
+ * hero s'en sert (Martin, 2026-09-14) : on crée le compte AVANT d'analyser le
+ * site, puis on revient sur l'analyse. L'adresse voyage dans le lien de
+ * confirmation et le retour Google (`/auth/callback?next=`), parce que le mail
+ * s'ouvre souvent dans un autre onglet, sans le sessionStorage de celui-ci.
  */
 
 import { useEffect, useRef, useState } from "react";
@@ -28,9 +34,15 @@ import { SceneCurseurs, CARTE_CSS } from "@/components/CarteCurseurs";
 export type ModeCompte = "inscription" | "connexion";
 const EVENEMENT = "klip:compte";
 
-/** Ouvre la fenêtre. `plan` : l'offre cliquée sur la grille de prix. */
-export function ouvrirCompte(mode: ModeCompte = "inscription", plan?: string) {
-  window.dispatchEvent(new CustomEvent(EVENEMENT, { detail: { mode, plan } }));
+/** Ouvre la fenêtre. `plan` : l'offre cliquée sur la grille de prix ;
+ *  `suite` : le chemin où reprendre une fois connecté. */
+export function ouvrirCompte(mode: ModeCompte = "inscription", plan?: string, suite?: string) {
+  window.dispatchEvent(new CustomEvent(EVENEMENT, { detail: { mode, plan, suite } }));
+}
+
+/** Seulement un chemin du site : jamais une adresse externe. */
+function cheminSur(v?: string | null) {
+  return v && v.startsWith("/") && !v.startsWith("//") ? v : null;
 }
 
 function GoogleIcon() {
@@ -78,6 +90,11 @@ const IO_CSS = `
   .io-h{margin:0;font-family:var(--heavy);font-weight:800;font-size:25px;letter-spacing:-.035em;line-height:1.1;
     color:#1D2019;text-align:center;}
   .io-p{margin:8px 0 18px;font-size:14.5px;color:var(--ink-3);text-align:center;}
+  /* Rappel du site en attente, quand on vient du CTA « votre site web ». */
+  .io-contexte{display:flex;align-items:center;gap:7px;width:fit-content;max-width:100%;margin:0 auto 12px;padding:5px 12px 5px 9px;
+    border-radius:999px;background:#F3F4F6;font-size:13px;font-weight:600;line-height:1.3;color:var(--ink-2);}
+  .io-contexte svg{flex:none;color:var(--ink-3);}
+  .io-contexte b{color:var(--ink);font-weight:800;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
   .io-fond .io-lien{border:none;background:none;padding:0;font:inherit;font-weight:800;color:var(--forest-3);cursor:pointer;
     text-decoration:underline;text-decoration-color:var(--mint-2);text-underline-offset:3px;text-decoration-thickness:2px;}
   .io-fond .io-lien:hover{color:var(--mint-2);}
@@ -144,6 +161,7 @@ const IO_CSS = `
     .io-corps{margin:0;padding:40px 38px 32px 42px;display:flex;flex-direction:column;justify-content:center;}
     .io-h{font-size:30px;text-align:left;}
     .io-p{text-align:left;margin:8px 0 24px;}
+    .io-contexte{margin-left:0;}
     .io-envoye .io-h,.io-envoye .io-p{text-align:center;}
     .io-fond .io-fermer{top:18px;right:18px;color:var(--ink-2);background:#F3F4F6;box-shadow:none;}
     .io-fond .io-fermer:hover{background:#E8EAEE;}
@@ -179,10 +197,11 @@ export default function InscriptionOverlay() {
   const [envoi, setEnvoi] = useState(false);
   const [google, setGoogle] = useState(false);
   const [envoye, setEnvoye] = useState(false);
+  const [suite, setSuite] = useState<string | null>(null);
   const champEmail = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    function ouvrir(m: ModeCompte, plan?: string) {
+    function ouvrir(m: ModeCompte, plan?: string, apres?: string) {
       // Même mémoire que /register : l'onboarding présélectionne l'offre cliquée.
       if (plan) {
         try { localStorage.setItem("klip_plan", plan === "agence" || plan === "agency" ? "agency" : "solo"); } catch { /* navigation privée */ }
@@ -190,11 +209,12 @@ export default function InscriptionOverlay() {
       setMode(m);
       setErreur(null);
       setEnvoye(false);
+      setSuite(cheminSur(apres));
       setOuvert(true);
     }
     const surEvenement = (e: Event) => {
-      const d = (e as CustomEvent<{ mode?: ModeCompte; plan?: string }>).detail ?? {};
-      ouvrir(d.mode === "connexion" ? "connexion" : "inscription", d.plan);
+      const d = (e as CustomEvent<{ mode?: ModeCompte; plan?: string; suite?: string }>).detail ?? {};
+      ouvrir(d.mode === "connexion" ? "connexion" : "inscription", d.plan, d.suite);
     };
     window.addEventListener(EVENEMENT, surEvenement);
     if (location.hash === "#inscription" || location.hash === "#connexion") {
@@ -228,19 +248,29 @@ export default function InscriptionOverlay() {
   if (!ouvert) return null;
 
   const inscription = mode === "inscription";
+  /* Le retour de Supabase (mail de confirmation, Google) passe par le callback,
+     qui renvoie sur `next`. */
+  const retour = `${location.origin}/auth/callback${suite ? `?next=${encodeURIComponent(suite)}` : ""}`;
+  let siteEnAttente: string | null = null;
+  if (suite) {
+    try { siteEnAttente = new URL(suite, location.origin).searchParams.get("site"); } catch { /* adresse illisible */ }
+  }
 
   async function valider(e: React.FormEvent) {
     e.preventDefault();
     setErreur(null);
     setEnvoi(true);
     if (inscription) {
-      const { error } = await supabase.auth.signUp({
+      const { data, error } = await supabase.auth.signUp({
         email,
         password: motDePasse,
-        options: { emailRedirectTo: `${location.origin}/auth/callback` },
+        options: { emailRedirectTo: retour },
       });
       setEnvoi(false);
       if (error) { setErreur(error.message); return; }
+      // Sans confirmation d'adresse exigée, la session est déjà ouverte : on
+      // reprend tout de suite là où la personne allait.
+      if (data.session && suite) { router.push(suite); return; }
       setEnvoye(true);
       return;
     }
@@ -250,14 +280,14 @@ export default function InscriptionOverlay() {
       setEnvoi(false);
       return;
     }
-    router.push("/dashboard");
+    router.push(suite ?? "/dashboard");
   }
 
   async function avecGoogle() {
     setGoogle(true);
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
-      options: { redirectTo: `${location.origin}/auth/callback` },
+      options: { redirectTo: retour },
     });
     if (error) {
       console.error(error);
@@ -294,6 +324,12 @@ export default function InscriptionOverlay() {
             </div>
           ) : (
             <>
+              {siteEnAttente && (
+                <p className="io-contexte">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M3 12h18M12 3c2.6 2.5 3.9 5.5 3.9 9s-1.3 6.5-3.9 9c-2.6-2.5-3.9-5.5-3.9-9S9.4 5.5 12 3Z" /></svg>
+                  <span>On analyse</span> <b>{siteEnAttente}</b> <span>juste après</span>
+                </p>
+              )}
               <h2 className="io-h">{inscription ? t("registerTitle") : t("loginTitle")}</h2>
               <p className="io-p">
                 {inscription ? t("haveAccount") : t("noAccount")}{" "}

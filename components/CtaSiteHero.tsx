@@ -3,7 +3,11 @@
 /* Le CTA du hero de la landing : on demande le SITE au lieu d'« Essayer
  * gratuitement » (Martin, 2026-09-14). L'adresse part vers le parcours d'essai,
  * qui lance l'analyse tout de suite (`/onboarding/site?site=…`) : la personne
- * voit ses couleurs et ses polices avant d'avoir créé quoi que ce soit.
+ * voit ses couleurs et ses polices tout de suite.
+ *
+ * LE COMPTE D'ABORD (Martin, 2026-09-14) : sans session, « Analyser » ouvre la
+ * fenêtre d'inscription de la landing (e-mail ou Google), qui renvoie ensuite
+ * sur l'analyse. Déjà connecté, on y va directement.
  *
  * FORME RETENUE : la « Barre » en VIOLET, parmi quatre formes (Barre, Calque,
  * Navigateur, Curseur) déclinées en vert et en violet. Une seule gélule, le
@@ -17,6 +21,8 @@
 
 import { useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
+import { ouvrirCompte } from '@/components/InscriptionOverlay';
 
 function Fleche() {
   return (
@@ -89,7 +95,7 @@ export default function CtaSiteHero() {
   const [aide, setAide] = useState(false);
   const champ = useRef<HTMLInputElement>(null);
 
-  function valider(e: { preventDefault(): void }) {
+  async function valider(e: { preventDefault(): void }) {
     e.preventDefault();
     const adresse = nettoyer(site);
     if (!ADRESSE.test(adresse)) {
@@ -97,13 +103,16 @@ export default function CtaSiteHero() {
       champ.current?.focus({ preventScroll: true });
       return;
     }
-    router.push(`/onboarding/site?site=${encodeURIComponent(adresse)}`);
+    const suite = `/onboarding/site?site=${encodeURIComponent(adresse)}`;
+    const { data } = await createClientComponentClient().auth.getSession();
+    if (data.session) router.push(suite);
+    else ouvrirCompte('inscription', undefined, suite);
   }
 
   return (
     <>
       <style dangerouslySetInnerHTML={{ __html: CSS }} />
-      <form className="cs" onSubmit={valider} noValidate>
+      <form className="cs" onSubmit={e => void valider(e)} noValidate>
         <span className="cs-ic"><Globe /></span>
         <input
           ref={champ}
@@ -111,7 +120,7 @@ export default function CtaSiteHero() {
           onChange={e => { setSite(e.target.value); setAide(false); }}
           /* Entrée validée à la main, comme sur l'écran du site : l'envoi
              implicite du formulaire ne part pas avec tous les claviers. */
-          onKeyDown={e => { if (e.key === 'Enter') valider(e); }}
+          onKeyDown={e => { if (e.key === 'Enter') void valider(e); }}
           type="text" inputMode="url" autoComplete="url" autoCapitalize="none" autoCorrect="off" spellCheck={false}
           placeholder="votre-site.fr" aria-label="Adresse de votre site web"
         />

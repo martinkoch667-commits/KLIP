@@ -40,8 +40,12 @@ export async function GET(request: NextRequest) {
         .eq("user_id", session.user.id)
         .maybeSingle();
 
+      /* Nouveau compte venu du parcours d'essai (CTA « votre site web » de la
+         landing) : il reprend l'analyse de son site au lieu de l'écran d'offre.
+         Tout autre nouveau compte passe toujours par /onboarding/plan. */
       if (!settings?.account_type) {
-        return NextResponse.redirect(new URL("/onboarding/plan", requestUrl.origin));
+        const versEssai = next.startsWith("/onboarding/") ? next : "/onboarding/plan";
+        return NextResponse.redirect(new URL(versEssai, requestUrl.origin));
       }
     }
   }
