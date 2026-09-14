@@ -136,7 +136,9 @@ function Curseurs(props: Props) {
       </Fenetre>
       {/* Hors de la fenêtre : les curseurs peuvent déborder sur le halo, comme
           sur la référence, sans être rognés par le fondu du bas. */}
-      <Curseur nom="ChatGPT" teinte="vert" style={{ left: "44%", top: "19%", ["--d" as string]: "0s" }} />
+      {/* ChatGPT à droite de la rangée de logos : plus à gauche, son étiquette
+          recouvrait les dernières icônes. */}
+      <Curseur nom="ChatGPT" teinte="vert" style={{ left: "57%", top: "20%", ["--d" as string]: "0s" }} />
       <Curseur nom="Canva" teinte="violet" fleche="haut-droite" style={{ left: "3%", top: "44%", ["--d" as string]: "-1.2s" }} />
       <Curseur nom="CapCut" teinte="ambre" style={{ left: "71%", top: "52%", ["--d" as string]: "-2.1s" }} />
       <div className="fx-texte">
@@ -149,11 +151,13 @@ function Curseurs(props: Props) {
 
 /* ── 2. Orbite ────────────────────────────────────────────────────────────── */
 /** Positions des six icônes autour du centre, en % de la scène. */
+/* Rien sous 72 % : le bas de la fenêtre se fond dans la carte, et Notion posé
+   à 88 % y disparaissait presque. */
 const ORBITE = [
-  { x: 16, y: 30 }, { x: 40, y: 12 }, { x: 76, y: 20 },
-  { x: 84, y: 64 }, { x: 64, y: 88 }, { x: 22, y: 76 },
+  { x: 16, y: 26 }, { x: 40, y: 12 }, { x: 76, y: 18 },
+  { x: 86, y: 56 }, { x: 66, y: 72 }, { x: 22, y: 64 },
 ];
-const CENTRE = { x: 48, y: 50 };
+const CENTRE = { x: 48, y: 44 };
 
 function Orbite(props: Props) {
   return (
@@ -199,7 +203,8 @@ function Dossier(props: Props) {
         </span>
         <span className="fx-lueur" />
       </Fenetre>
-      <Curseur nom="Vous" teinte="vert" style={{ left: "72%", top: "47%", ["--d" as string]: "-.8s" }} />
+      {/* Au coin bas droit de l'icône Klip : posé plus haut, « Vous » la cachait. */}
+      <Curseur nom="Vous" teinte="vert" style={{ left: "65%", top: "57%", ["--d" as string]: "-.8s" }} />
       <div className="fx-texte">
         <p className="fx-h">Six abonnements, un seul outil</p>
         <Phrase {...props} />
@@ -296,8 +301,8 @@ export const CARTE_CSS = `
 
   /* ── 1. Curseurs ────────────────────────────────────────────────────── */
   .fx-pile{position:absolute;left:4cqw;top:3.4cqw;display:flex;}
-  .fx-pile .fx-ic{width:7.6cqw;height:7.6cqw;}
-  .fx-pile .fx-ic + .fx-ic{margin-left:-2.2cqw;}
+  .fx-pile .fx-ic{width:8cqw;height:8cqw;}
+  .fx-pile .fx-ic + .fx-ic{margin-left:-1.3cqw;}
   .fx-titre-doc{position:absolute;left:14cqw;top:17cqw;display:flex;flex-direction:column;align-items:flex-start;gap:3cqw;
     font-family:var(--heavy);font-weight:800;font-size:7.4cqw;line-height:1;letter-spacing:-.03em;color:#23261F;
     text-shadow:0 .6cqw 1.6cqw rgba(16,19,11,.16);white-space:nowrap;}
