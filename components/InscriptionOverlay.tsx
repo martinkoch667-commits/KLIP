@@ -316,10 +316,14 @@ export default function InscriptionOverlay({ page }: {
   const inscription = mode === "inscription";
   /* Le retour de Supabase (mail de confirmation, Google) passe par le callback,
      qui renvoie sur `next`. */
-  const retour = `${location.origin}/auth/callback${suite ? `?next=${encodeURIComponent(suite)}` : ""}`;
+  /* `window` seulement : en page (/login, /register) la carte est rendue aussi
+     côté serveur, où `location` n'existe pas. Le lire directement faisait
+     répondre ces pages en 500 (le navigateur réparait ensuite, pas les robots). */
+  const origine = typeof window !== "undefined" ? window.location.origin : "https://getklip.fr";
+  const retour = `${origine}/auth/callback${suite ? `?next=${encodeURIComponent(suite)}` : ""}`;
   let siteEnAttente: string | null = null;
   if (suite) {
-    try { siteEnAttente = new URL(suite, location.origin).searchParams.get("site"); } catch { /* adresse illisible */ }
+    try { siteEnAttente = new URL(suite, origine).searchParams.get("site"); } catch { /* adresse illisible */ }
   }
 
   async function valider(e: React.FormEvent) {
