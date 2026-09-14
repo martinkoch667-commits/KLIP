@@ -33,11 +33,20 @@
  *
  * LES VISUELS sont des cases vides en attendant ceux de Martin. Déposer des
  * images dans `public/vitrine/` suffit à les remplacer (voir /api/vitrine).
+ *
+ * LES BOUTONS MÈNENT À LA CAISSE, avec la même logique que /onboarding/plan en
+ * production : type de compte écrit, agence créée pour l'offre Agence, puis
+ * session Stripe (essai 7 jours, remise de lancement) qui revient sur
+ * /checkout-success. Sans compte (arrivée directe sur cette page), la fenêtre
+ * d'inscription s'ouvre et ramène ici.
  */
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useLocale, useTranslations } from "next-intl";
+import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
+import { trackInitiateCheckout } from "@/components/analytics/MetaPixel";
+import InscriptionOverlay, { ouvrirCompte } from "@/components/InscriptionOverlay";
 import { PLANS, TRIAL_DAYS } from "@/lib/plans";
 import { LAUNCH_OFFER, launchApplies, launchPrice, formatPrice } from "@/lib/launch-offer";
 import { lireDraft } from "@/lib/onboardingDraft";
@@ -255,6 +264,12 @@ const CSS = `
   .pv .pv-btn-ghost:hover{box-shadow:inset 0 0 0 2px var(--ink);}
   .pv .pv-btn-leaf{background:var(--leaf);color:var(--leaf-ink);box-shadow:inset 0 1px 0 rgba(255,255,255,.6),0 16px 32px -16px rgba(120,190,90,.55);}
   .pv .pv-btn-leaf:hover{background:#C9F5B2;}
+  .pv .pv-btn:disabled{opacity:.6;cursor:progress;}
+  .pv-agence{width:100%;min-height:46px;margin:0 0 10px;padding:0 14px;border:none;border-radius:12px;outline:none;
+    background:#F3F4F6;color:var(--ink);font:inherit;font-size:16px;font-weight:600;box-shadow:inset 0 0 0 1.5px rgba(16,19,11,.06);}
+  .pv-agence:focus{background:#fff;box-shadow:inset 0 0 0 2px #1FA878;}
+  .pv-erreur{max-width:560px;margin:22px auto 0;padding:10px 14px;border-radius:12px;text-align:center;
+    font-size:14px;line-height:1.45;background:#FDECEA;color:#A8321F;}
   /* L'espace extensible aligne les boutons en bas des trois cartes. */
   .pv-espace{flex:1;min-height:22px;}
 
@@ -326,6 +341,62 @@ export default function OffreView({ seatsLeft }: { seatsLeft: number | null }) {
   const [periode, setPeriode] = useState<"monthly" | "yearly">("yearly");
   const [nom, setNom] = useState("");
   const [visuels, setVisuels] = useState<string[]>([]);
+  const [depart, setDepart] = useState<Offre["cle"] | null>(null);
+  const [erreur, setErreur] = useState<string | null>(null);
+  const [agence, setAgence] = useState("");
+  const [demandeAgence, setDemandeAgence] = useState(false);
+  const champAgence = useRef<HTMLInputElement>(null);
+
+  /* Départ vers Stripe, calqué sur /onboarding/plan (voir l'en-tête). */
+  async function commencer(cle: Offre["cle"]) {
+    if (depart) return;
+    setErreur(null);
+    const supabase = createClientComponentClient();
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) {
+      ouvrirCompte("inscription", cle === "agence" ? "agency" : "solo", "/onboarding/offre");
+      return;
+    }
+    // L'offre Agence crée une agence : il lui faut un nom, demandé dans la carte.
+    if (cle === "agence" && !agence.trim()) {
+      setDemandeAgence(true);
+      setTimeout(() => champAgence.current?.focus(), 30);
+      return;
+    }
+    setDepart(cle);
+    try {
+      const userId = session.user.id;
+      await supabase.from("user_settings").upsert(
+        { user_id: userId, account_type: cle === "agence" ? "agency" : "solo" },
+        { onConflict: "user_id" }
+      );
+      if (cle === "agence") {
+        const { data: ag } = await supabase.from("agencies")
+          .insert({ name: agence.trim(), owner_id: userId }).select("id").single();
+        if (ag?.id) {
+          await supabase.from("agency_members").insert({
+            agency_id: ag.id, user_id: userId, role: "admin", accepted_at: new Date().toISOString(),
+          });
+        }
+      }
+      // Compté avant de partir : sur stripe.com, le pixel n'est plus là.
+      const eventId = trackInitiateCheckout(cle, periode);
+      const res = await fetch("/api/stripe/checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ plan: cle, period: periode, cancelPath: "/onboarding/offre", ...(eventId ? { eventId } : {}) }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (res.ok && json?.url) {
+        window.location.href = json.url;
+        return;
+      }
+      setErreur(json?.error ?? "Le paiement n'a pas pu s'ouvrir. Réessayez dans un instant.");
+    } catch {
+      setErreur("Le paiement n'a pas pu s'ouvrir. Réessayez dans un instant.");
+    }
+    setDepart(null);
+  }
 
   // Même règle que la landing : sans compte connu, l'offre reste ouverte.
   const lancement = launchApplies(periode) && (seatsLeft === null || seatsLeft > 0);
@@ -382,6 +453,8 @@ export default function OffreView({ seatsLeft }: { seatsLeft: number | null }) {
     : Array<string>(NB_CASES).fill("");
 
   return (
+    <>
+    <InscriptionOverlay />
     <div className="pv">
       <style dangerouslySetInnerHTML={{ __html: CSS + CARTE_CSS }} />
 
@@ -441,9 +514,15 @@ export default function OffreView({ seatsLeft }: { seatsLeft: number | null }) {
                 <div className="pv-note">{note(o, affiche)}</div>
                 <div className="pv-chip">{o.clients}</div>
                 <div className="pv-espace" />
-                {/* Pas encore branché : l'inscription puis la caisse viendront ici. */}
-                <button type="button" className={"pv-btn " + (o.pop ? "pv-btn-leaf" : "pv-btn-ghost")}>
-                  {tp("ctaTrial")}
+                {o.cle === "agence" && demandeAgence && (
+                  <input ref={champAgence} className="pv-agence" value={agence} placeholder="Nom de votre agence"
+                    aria-label="Nom de votre agence" autoComplete="organization"
+                    onChange={e => setAgence(e.target.value)}
+                    onKeyDown={e => { if (e.key === "Enter") void commencer("agence"); }} />
+                )}
+                <button type="button" className={"pv-btn " + (o.pop ? "pv-btn-leaf" : "pv-btn-ghost")}
+                  onClick={() => void commencer(o.cle)} disabled={!!depart}>
+                  {depart === o.cle ? "Ouverture du paiement…" : tp("ctaTrial")}
                 </button>
               </div>
             );
@@ -464,10 +543,13 @@ export default function OffreView({ seatsLeft }: { seatsLeft: number | null }) {
           })}
         </div>
 
+        {erreur && <p className="pv-erreur" role="alert">{erreur}</p>}
+
         <p className="pv-rassure">
           <b>0 € aujourd&apos;hui.</b> Premier prélèvement dans {TRIAL_DAYS} jours, annulable en un clic.
         </p>
       </div>
     </div>
+    </>
   );
 }

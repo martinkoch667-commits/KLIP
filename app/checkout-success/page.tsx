@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
 import { trackStartTrial } from "@/components/analytics/MetaPixel";
 import { readConsent } from "@/components/analytics/consent";
+import { brouillonUtile, creerClientDepuisBrouillon } from "@/lib/clientDepuisBrouillon";
 
 /* Conversion Meta « StartTrial ». Elle part d'ici et pas du clic sur l'offre :
    ce n'est un essai que si Stripe a vraiment créé l'abonnement, et /api/stripe/sync
@@ -77,6 +78,12 @@ export default function CheckoutSuccessPage() {
       router.replace("/dashboard?welcome=true");
     }
 
+    /* Venu du parcours d'essai, la personne a déjà donné son site et relu sa
+       charte : on en fait son premier client, APRÈS la synchronisation (la
+       limite de clients dépend de l'offre payée). Le logo est recopié, d'où
+       un délai de secours plus long quand il y a quelque chose à créer. */
+    const aCreer = brouillonUtile();
+
     // Synchronise l'abonnement Stripe vers la base avant d'entrer dans l'app,
     // sinon le middleware renverrait vers /abonnement alors que c'est payé.
     fetch("/api/stripe/sync", {
@@ -87,15 +94,16 @@ export default function CheckoutSuccessPage() {
       body: JSON.stringify({ trackingConsent: readConsent() === "granted" }),
     })
       .then((r) => r.json().catch(() => null))
-      .then((sync) => {
+      .then(async (sync) => {
         reportStartTrial(sync);
+        if (aCreer) await creerClientDepuisBrouillon(supabase);
         return fetch("/api/email/welcome", { method: "POST" }).catch(() => {});
       })
       .then(() => go())
       .catch(() => go());
 
     // Garde-fou : on continue même si la synchronisation traîne.
-    const timer = setTimeout(go, 4000);
+    const timer = setTimeout(go, aCreer ? 12000 : 4000);
     return () => clearTimeout(timer);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [router]);

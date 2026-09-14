@@ -34,6 +34,9 @@ export type OnbDraft = {
   prefilled: string[];
   /** Vrai quand l'analyse réelle n'a pas pu tourner et qu'on montre un exemple. */
   demo?: boolean;
+  /** Le client créé à partir de ce brouillon après le paiement : empêche d'en
+   *  créer un second si /checkout-success est rechargée. */
+  clientId?: string;
 };
 
 const CLE = "klip_onb_draft";
