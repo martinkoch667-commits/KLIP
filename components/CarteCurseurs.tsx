@@ -149,7 +149,9 @@ export default function CarteCurseurs(props: Props) {
 
 export const CARTE_CSS = `
   /* ── Le cadre commun ─────────────────────────────────────────────────── */
-  .fx-tete{position:relative;}
+  /* flow-root : sans lui, la marge haute de la fenêtre traverse la scène et
+     la pousse vers le bas, avec une bande blanche au-dessus du halo. */
+  .fx-tete{position:relative;display:flow-root;}
   .fx{position:relative;container-type:inline-size;overflow:hidden;border-radius:28px;background:#FFFFFF;
     box-shadow:0 0 0 1px rgba(16,19,11,.06),0 40px 80px -36px rgba(16,19,11,.55);}
   /* Le halo en L : fort en haut, il longe le bord gauche puis s'éteint vers le

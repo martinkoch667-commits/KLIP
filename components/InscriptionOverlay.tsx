@@ -60,9 +60,9 @@ const IO_CSS = `
   /* Préfixés par .io-fond : la landing remet à zéro « .v3 button » (fond
      transparent), plus spécifique qu'une classe seule. */
   .io-fond .io-fermer{position:absolute;top:9px;right:10px;z-index:6;width:30px;height:30px;border-radius:50%;
-    display:grid;place-items:center;cursor:pointer;color:#fff;background:rgba(255,255,255,.18);
-    box-shadow:inset 0 0 0 1px rgba(255,255,255,.35);}
-  .io-fond .io-fermer:hover{background:rgba(255,255,255,.3);}
+    display:grid;place-items:center;cursor:pointer;color:#fff;background:rgba(20,12,70,.32);
+    box-shadow:inset 0 0 0 1px rgba(255,255,255,.4);}
+  .io-fond .io-fermer:hover{background:rgba(20,12,70,.48);}
 
   .io-corps{position:relative;padding:0 26px 26px;margin-top:-2cqw;}
   .io-h{margin:0;font-family:var(--heavy);font-weight:800;font-size:26px;letter-spacing:-.035em;line-height:1.1;
@@ -79,8 +79,8 @@ const IO_CSS = `
   .io-in::placeholder{color:#A3A69B;font-weight:500;}
   /* En saisie, le champ prend le violet de la sélection. */
   .io-in:focus{background:#fff;box-shadow:inset 0 0 0 2px var(--vio),0 0 0 4px rgba(102,86,217,.14);}
-  .io-oubli{align-self:flex-end;margin:-6px 0 14px;font-size:12.5px;font-weight:700;color:var(--ink-3);text-decoration:none;}
-  .io-oubli:hover{color:var(--vio);}
+  .io-fond .io-oubli{align-self:flex-end;margin:-6px 0 14px;font-size:12.5px;font-weight:700;color:var(--ink-3);text-decoration:none;}
+  .io-fond .io-oubli:hover{color:var(--vio);}
   .io-erreur{margin:0 0 12px;padding:9px 12px;border-radius:10px;font-size:13px;line-height:1.4;background:#FDECEA;color:#A8321F;}
 
   .io-fond .io-btn{min-height:52px;border:none;border-radius:999px;cursor:pointer;font:inherit;font-weight:800;font-size:15.5px;
@@ -104,6 +104,17 @@ const IO_CSS = `
   .io-envoye .io-p{margin-bottom:0;}
   .io-envoye b{color:var(--ink);}
 
+  /* Ordinateur à écran bas (1440×750) : sans ce resserrage, le bouton Google
+     sortait de l'écran. */
+  @media(min-width:481px) and (max-height:820px){
+    .io-fond{padding:14px 16px;}
+    .io-carte{max-width:400px;}
+    .io-p{margin-bottom:14px;}
+    .io-fond .io-in{min-height:46px;margin-bottom:12px;}
+    .io-fond .io-btn{min-height:48px;}
+    .io-fond .io-google{min-height:46px;}
+    .io-ou{margin:12px 0;}
+  }
   @media(max-width:480px){
     .io-fond{padding:12px 10px;place-items:start center;}
     .io-corps{padding:0 18px 20px;}
