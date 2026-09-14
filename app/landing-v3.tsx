@@ -1366,7 +1366,7 @@ async function startCheckout(plan: Plan, period: 'monthly' | 'yearly') {
 }
 
 /* ─── Pricing ────────────────────────────────────────────────────────────── */
-function Pricing({ prelaunch = false, seatsLeft = null }: { prelaunch?: boolean; seatsLeft?: number | null }) {
+function Pricing({ prelaunch = false, seatsLeft = null, starterPayable = true }: { prelaunch?: boolean; seatsLeft?: number | null; starterPayable?: boolean }) {
   const tp = useTranslations('landing.pricing');
   const locale = useLocale();
   /* L'annuel est sélectionné d'entrée : c'est le tarif que la grille doit
@@ -1384,7 +1384,7 @@ function Pricing({ prelaunch = false, seatsLeft = null }: { prelaunch?: boolean;
     { name: PLANS.starter.label, plan: 'starter' as const, monthly: PLANS.starter.priceMonthly, yearly: PLANS.starter.priceYearly, tag: tp('starterTag'), clients: tp('starterClients'), feats: [1,2,3,4,5,6,7,8].map(n => tp(`starterF${n}`)).filter(Boolean), pop: false },
     { name: PLANS.solo.label, plan: 'studio' as const, monthly: PLANS.solo.priceMonthly, yearly: PLANS.solo.priceYearly, tag: tp('studioTag'), clients: tp('studioClients'), feats: [1,2,3,4,5,6,7,8].map(n => tp(`studioF${n}`)).filter(Boolean), pop: true },
     { name: PLANS.agency.label, plan: 'agence' as const, monthly: PLANS.agency.priceMonthly, yearly: PLANS.agency.priceYearly, tag: tp('agencyTag'), clients: tp('agencyClients'), feats: [1,2,3,4,5,6,7,8].map(n => tp(`agencyF${n}`)).filter(Boolean), pop: false },
-  ];
+  ].filter(tier => tier.plan !== 'starter' || starterPayable); // sans prix Stripe, pas de carte Starter
   async function onChoose(plan: Plan) { setBusy(plan); await startCheckout(plan, period); setBusy(null); }
 
   return (
@@ -1405,7 +1405,7 @@ function Pricing({ prelaunch = false, seatsLeft = null }: { prelaunch?: boolean;
             ))}
           </div>
         </div>
-        <div className="price-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 22, marginTop: 56, alignItems: 'start', maxWidth: 1160, marginLeft: 'auto', marginRight: 'auto' }}>
+        <div className="price-grid" style={{ display: 'grid', gridTemplateColumns: `repeat(${tiers.length}, 1fr)`, gap: 22, marginTop: 56, alignItems: 'start', maxWidth: tiers.length === 2 ? 780 : 1160, marginLeft: 'auto', marginRight: 'auto' }}>
           {tiers.map((t, i) => {
             const shown = period === 'yearly' ? t.yearly : t.monthly;
             const inner = (
@@ -1626,7 +1626,7 @@ function Footer() {
 }
 
 /* ─── Page ───────────────────────────────────────────────────────────────── */
-export default function LandingV3({ prelaunch = false, seatsLeft = null }: { prelaunch?: boolean; seatsLeft?: number | null }) {
+export default function LandingV3({ prelaunch = false, seatsLeft = null, starterPayable = true }: { prelaunch?: boolean; seatsLeft?: number | null; starterPayable?: boolean }) {
   const supabase = createClientComponentClient();
   const router = useRouter();
 
@@ -1836,7 +1836,7 @@ export default function LandingV3({ prelaunch = false, seatsLeft = null }: { pre
       <DeckShowcase />
       <Features />
       <Testimonials />
-      <Pricing prelaunch={prelaunch} seatsLeft={seatsLeft} />
+      <Pricing prelaunch={prelaunch} seatsLeft={seatsLeft} starterPayable={starterPayable} />
       <FAQ />
       <AskAI />
       <FinalCTA prelaunch={prelaunch} />

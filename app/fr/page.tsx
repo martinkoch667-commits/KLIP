@@ -3,6 +3,7 @@ import LandingView from "../landing-v3";
 import { I18nProvider } from "@/lib/i18n/I18nProvider";
 import { getMessages } from "@/lib/i18n/messages";
 import { launchSeatsLeft } from "@/lib/launch-seats";
+import { priceId } from "@/lib/stripe";
 
 const SITE = "https://getklip.fr";
 
@@ -107,6 +108,7 @@ export default async function Page() {
   // Places de lancement restantes : la landing doit afficher le même état que
   // la caisse, sinon elle annoncerait une remise que le paiement n'accorde pas.
   const seatsLeft = await launchSeatsLeft();
+  const starterPayable = !!(priceId("starter", "monthly") && priceId("starter", "yearly"));
   return (
     <>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationLd) }} />
@@ -114,7 +116,7 @@ export default async function Page() {
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(softwareLd) }} />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(faqLd) }} />
       <I18nProvider locale="fr" messages={getMessages("fr")}>
-        <LandingView seatsLeft={seatsLeft} />
+        <LandingView seatsLeft={seatsLeft} starterPayable={starterPayable} />
       </I18nProvider>
     </>
   );

@@ -506,10 +506,24 @@ function visibleText(html: string): string {
 // ─── Point d'entrée ───────────────────────────────────────────────────────────
 
 export async function analyzeBrandSite(rawUrl: string): Promise<BrandFromSite | null> {
-  const url = toSafeHttpUrl(rawUrl);
+  let url = toSafeHttpUrl(rawUrl);
   if (!url) return null;
 
-  const html = await fetchTextCapped(url.toString());
+  let html = await fetchTextCapped(url.toString());
+  if (!html) {
+    /* Avec ou sans « www. » : les gens tapent l'une pour l'autre, et bien des
+       sites ne répondent qu'à une des deux formes (getklip.fr n'a pas de www).
+       Sans ce second essai, le parcours d'essai tombait sur les valeurs
+       d'exemple et la personne ne voyait jamais sa charte. L'adresse repasse
+       par le même filtre que la première. */
+    const autre = new URL(url.toString());
+    autre.hostname = autre.hostname.startsWith('www.') ? autre.hostname.slice(4) : `www.${autre.hostname}`;
+    const repli = toSafeHttpUrl(autre.toString());
+    if (repli) {
+      html = await fetchTextCapped(repli.toString());
+      if (html) url = repli;
+    }
+  }
   if (!html) return null;
 
   // Les feuilles externes portent l'essentiel de la charte. On en lit quelques

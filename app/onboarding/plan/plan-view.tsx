@@ -13,7 +13,7 @@ import { LAUNCH_OFFER, launchApplies, launchPrice, formatPrice } from "@/lib/lau
    même reprise de la section Tarifs de la landing : c'est le même écran, à deux
    minutes d'intervalle, il doit avoir la même tête. */
 
-export default function PlanView({ seatsLeft }: { seatsLeft: number | null }) {
+export default function PlanView({ seatsLeft, starterPayable = true }: { seatsLeft: number | null; starterPayable?: boolean }) {
   const t = useTranslations('onboardingPlan');
   // Les textes de l'offre de lancement sont ceux de la landing : une seule
   // formulation, dans les six langues, pour les deux écrans.
@@ -207,8 +207,8 @@ export default function PlanView({ seatsLeft }: { seatsLeft: number | null }) {
         saveLabel={tl('save2mo')}
       />
 
-      <div className="kp-grid kp-grid-3">
-        <PlanCard
+      <div className={"kp-grid" + (starterPayable ? " kp-grid-3" : "")}>
+        {starterPayable && <PlanCard
           name={PLANS.starter.label}
           tag={tl('starterTag')}
           price={priceOf(PLANS.starter.priceMonthly, PLANS.starter.priceYearly)}
@@ -222,7 +222,7 @@ export default function PlanView({ seatsLeft }: { seatsLeft: number | null }) {
           <button onClick={handleStarter} disabled={busyAny} className="kp-btn kp-btn-ghost">
             {loadingStarter ? t('creating') : t('chooseStarter')}
           </button>
-        </PlanCard>
+        </PlanCard>}
 
         <PlanCard
           name={t('studioName')}
