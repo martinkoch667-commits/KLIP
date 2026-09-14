@@ -836,13 +836,12 @@ function HeroPreview() {
 }
 
 /* ─── Comparison — la stack devient un panneau Calques ───────────────────── */
-/* Lu dans la grille, jamais recopié : c'est l'offre Studio qu'on compare
-   à la pile d'outils. « À partir de » = son prix le plus bas, celui que la
-   grille affiche d'entrée : l'annuel, remise de lancement comprise tant qu'il
-   reste des places. Avant, le bloc annonçait 39 € (le mensuel plein tarif)
-   pendant que la grille, juste en dessous, montrait 22,75 €. */
-function klipPrice(seatsLeft: number | null) {
-  const base = PLANS.solo.priceYearly;
+/* Lu dans la grille, jamais recopié. « À partir de » = le prix le plus bas de
+   la grille : Starter (Studio si Starter n'est pas payable), à l'annuel, remise
+   de lancement comprise tant qu'il reste des places. Avant, le bloc annonçait
+   39 € (Studio mensuel plein tarif) alors que la grille démarre à 8,74 €. */
+function klipPrice(seatsLeft: number | null, starterPayable: boolean) {
+  const base = starterPayable ? PLANS.starter.priceYearly : PLANS.solo.priceYearly;
   const remise = launchApplies('yearly') && (seatsLeft === null || seatsLeft > 0);
   return { prix: remise ? launchPrice(base) : base, barre: remise ? base : null };
 }
@@ -863,10 +862,10 @@ function ToolLogo({ domain, color, name, size = 24 }: { domain: string; color: s
   return <img src={`https://www.google.com/s2/favicons?sz=128&domain=${domain}`} alt={name} width={size} height={size} loading="lazy" onError={() => setErr(true)} style={{ width: size, height: size, objectFit: 'contain' }} />;
 }
 
-function Comparison({ prelaunch = false, seatsLeft = null }: { prelaunch?: boolean; seatsLeft?: number | null }) {
+function Comparison({ prelaunch = false, seatsLeft = null, starterPayable = true }: { prelaunch?: boolean; seatsLeft?: number | null; starterPayable?: boolean }) {
   const t = useTranslations('landing.comparison');
   const locale = useLocale();
-  const { prix: klipPrix, barre: klipBarre } = klipPrice(seatsLeft);
+  const { prix: klipPrix, barre: klipBarre } = klipPrice(seatsLeft, starterPayable);
   const KLIP_PRICE = formatPrice(klipPrix, locale);
   const useLabels: Record<string, string> = { Canva: t('useCanva'), CapCut: t('useCapcut'), ChatGPT: t('useChatgpt'), Metricool: t('useMetricool'), Notion: t('useNotion'), WeTransfer: t('useWetransfer') };
   const panelRef = useRef<HTMLDivElement>(null);
@@ -1840,7 +1839,7 @@ export default function LandingV3({ prelaunch = false, seatsLeft = null, starter
       <Nav prelaunch={prelaunch} />
       <Hero prelaunch={prelaunch} />
       <MarqueeBand />
-      <Comparison prelaunch={prelaunch} seatsLeft={seatsLeft} />
+      <Comparison prelaunch={prelaunch} seatsLeft={seatsLeft} starterPayable={starterPayable} />
       <HeroPreview />
       <Probleme />
       <Steps />
