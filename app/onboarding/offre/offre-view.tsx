@@ -77,10 +77,16 @@ const CSS = `
   .pv-sombre{position:absolute;inset:0;background:var(--forest);
     clip-path:polygon(70% 0, 100% 0, 100% 100%, 60% 100%);}
   /* Gouttières sombres et cases grises : sur des gouttières claires, la zone
-     entière virait au gris clair et on ne voyait plus la diagonale. */
-  .pv-mur{position:absolute;top:-24%;left:40%;width:90%;height:150%;transform:rotate(-10deg);
-    display:grid;grid-template-columns:repeat(auto-fill,150px);justify-content:center;
-    gap:12px;align-content:start;}
+     entière virait au gris clair et on ne voyait plus la diagonale.
+     PAS DE HAUTEUR sur la grille : avec une hauteur fixe, la grille répartit
+     cette hauteur entre les rangées (29 px chacune) au lieu de suivre les cases
+     (100 px), qui se chevauchaient alors sans gouttière horizontale. La grille
+     prend sa hauteur naturelle, et c'est la découpe de la zone sombre qui la
+     rogne. Cases à TAILLE FIXE partout : en fractions de la largeur, elles
+     faisaient 210 px sur tablette. */
+  .pv-mur{position:absolute;top:-24%;left:40%;width:90%;transform:rotate(-10deg);
+    display:grid;grid-template-columns:repeat(auto-fill,140px);justify-content:center;
+    gap:14px;align-content:start;}
   .pv-case{width:100%;aspect-ratio:4/5;border-radius:6px;overflow:hidden;background:#D5D7D2;}
   .pv-case img{width:100%;height:100%;object-fit:cover;display:block;}
 
@@ -169,13 +175,21 @@ const CSS = `
   .pv-btn{width:100%;display:inline-flex;align-items:center;justify-content:center;
     min-height:52px;padding:14px 16px;border-radius:999px;font-weight:800;font-size:15px;letter-spacing:-.01em;
     transition:box-shadow .2s,background .2s;white-space:nowrap;}
-  .pv-btn-ghost{color:var(--ink);box-shadow:inset 0 0 0 1.6px var(--line);}
-  .pv-btn-ghost:hover{box-shadow:inset 0 0 0 2px var(--ink);}
-  .pv-btn-leaf{background:var(--leaf);color:var(--leaf-ink);box-shadow:0 16px 32px -16px rgba(120,190,90,.55);}
-  .pv-btn-leaf:hover{background:#C9F5B2;}
+  /* Préfixés par .pv : la remise à zéro « .pv button » (fond transparent) est
+     plus spécifique qu'une classe seule, et le bouton leaf sortait sans fond,
+     invisible sur la carte sombre. */
+  .pv .pv-btn-ghost{color:var(--ink);box-shadow:inset 0 0 0 1.6px var(--line);}
+  .pv .pv-btn-ghost:hover{box-shadow:inset 0 0 0 2px var(--ink);}
+  .pv .pv-btn-leaf{background:var(--leaf);color:var(--leaf-ink);box-shadow:0 16px 32px -16px rgba(120,190,90,.55);}
+  .pv .pv-btn-leaf:hover{background:#C9F5B2;}
   /* L'espace extensible aligne les boutons en bas des trois cartes, même quand
      la note de lancement prend une ligne de plus sur l'une d'elles. */
   .pv-espace{flex:1;min-height:22px;}
+
+  /* Trois cartes dans la moitié de l'écran : le prix barré ne tient pas à côté
+     du prix sur Studio (« 32,50€ 22,75€ »), et passait à la ligne sur cette
+     carte seulement. Au-dessus du prix sur les trois, la grille reste égale. */
+  @media(min-width:1101px){ .pv-barre{flex-basis:100%;} }
 
   .pv-rassure{margin:26px 0 0;font-size:13.5px;line-height:1.5;color:var(--ink-3);}
   .pv-rassure b{color:var(--ink-2);}
@@ -185,7 +199,7 @@ const CSS = `
     .pv{min-height:0;}
     .pv-sombre{position:relative;inset:auto;height:30vh;min-height:210px;max-height:300px;
       clip-path:polygon(0 0, 100% 0, 100% 82%, 0 100%);}
-    .pv-mur{top:-40%;left:-12%;width:124%;height:190%;grid-template-columns:repeat(5,1fr);gap:10px;}
+    .pv-mur{top:-40%;left:-12%;width:124%;grid-template-columns:repeat(auto-fill,108px);gap:10px;}
     .pv-outils{position:relative;top:auto;left:auto;transform:none;z-index:3;
       margin:-30px auto 0;padding:0 20px;flex-direction:row;flex-wrap:wrap;justify-content:center;align-items:center;gap:8px;}
     .pv-logo:nth-child(n){margin-left:0;}
