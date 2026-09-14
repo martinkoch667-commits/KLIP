@@ -83,8 +83,11 @@ const CSS = `
      (100 px), qui se chevauchaient alors sans gouttière horizontale. La grille
      prend sa hauteur naturelle, et c'est la découpe de la zone sombre qui la
      rogne. Cases à TAILLE FIXE partout : en fractions de la largeur, elles
-     faisaient 210 px sur tablette. */
-  .pv-mur{position:absolute;top:-24%;left:40%;width:90%;transform:rotate(-10deg);
+     faisaient 210 px sur tablette.
+     Pivot EN HAUT : une grille de 56 cases mesure 2 000 px de haut, et pivotée
+     autour de son centre, son haut (la seule partie visible sur mobile) partait
+     de 170 px vers la gauche et laissait le bandeau à moitié vide. */
+  .pv-mur{position:absolute;top:-24%;left:40%;width:90%;transform:rotate(-10deg);transform-origin:50% 0;
     display:grid;grid-template-columns:repeat(auto-fill,140px);justify-content:center;
     gap:14px;align-content:start;}
   .pv-case{width:100%;aspect-ratio:4/5;border-radius:6px;overflow:hidden;background:#D5D7D2;}
@@ -199,7 +202,7 @@ const CSS = `
     .pv{min-height:0;}
     .pv-sombre{position:relative;inset:auto;height:30vh;min-height:210px;max-height:300px;
       clip-path:polygon(0 0, 100% 0, 100% 82%, 0 100%);}
-    .pv-mur{top:-40%;left:-12%;width:124%;grid-template-columns:repeat(auto-fill,108px);gap:10px;}
+    .pv-mur{top:-40%;left:-20%;width:140%;grid-template-columns:repeat(auto-fill,108px);gap:10px;}
     .pv-outils{position:relative;top:auto;left:auto;transform:none;z-index:3;
       margin:-30px auto 0;padding:0 20px;flex-direction:row;flex-wrap:wrap;justify-content:center;align-items:center;gap:8px;}
     .pv-logo:nth-child(n){margin-left:0;}
