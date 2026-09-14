@@ -27,7 +27,9 @@ export async function GET(request: NextRequest) {
   // On renvoie là d'où l'utilisateur est parti : le ramener dans les paramètres
   // du client au milieu d'une création en cours lui ferait perdre son parcours.
   const back = (q: string) => NextResponse.redirect(
-    fromOnboarding
+    from === "essai"
+      ? `${APP_URL}/onboarding/connexion?ws=${workspaceId}&${q}`
+      : fromOnboarding
       ? `${APP_URL}/workspace/new?ws=${workspaceId}&${q}`
       : `${APP_URL}/workspace/${workspaceId}/parametres?${q}`,
   );

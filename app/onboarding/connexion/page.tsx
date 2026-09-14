@@ -14,16 +14,38 @@
  * personne au premier écran. On dit ce qu'elle perd, dans une modale, et on la
  * laisse passer.
  *
- * RESTE À BRANCHER. La vraie autorisation (`/api/auth/meta/connect`) exige un
- * `workspaceId` et renvoie sur l'adresse de production : la boucle ne peut se
- * fermer ni sur localhost, ni avant que le compte et le client existent. Les
- * deux boutons enregistrent donc l'état « relié » et passent à la suite.
+ * LA CONNEXION EST RÉELLE (2026-09-14). Elle était simulée tant que le compte
+ * n'existait pas à cette étape ; la barre e-mail de la landing le crée
+ * maintenant avant le parcours. L'autorisation Meta (`/api/auth/meta/connect`
+ * pour Instagram, `/api/auth/facebook/connect` pour Facebook) exige un client :
+ * on le crée ici sous un nom provisoire, son id part dans le brouillon, et
+ * `/checkout-success` y recopiera la charte après le paiement. Le retour de
+ * Meta revient sur cet écran (`from=essai`), qui passe à la suite ou dit ce
+ * qui a échoué. Ne marche que sur getklip.fr : Meta ne renvoie que là.
  */
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
 import OnboardingShell, { MotChoisi, CurseurNomme } from "@/components/OnboardingShell";
-import { lireDraft, ecrireDraft } from "@/lib/onboardingDraft";
+import InscriptionOverlay, { ouvrirCompte } from "@/components/InscriptionOverlay";
+import { lireDraft, ecrireDraft, type OnbDraft } from "@/lib/onboardingDraft";
+
+type Reseau = "instagram" | "facebook";
+
+/** Ce que renvoient les callbacks Meta (`?error=`), dit à la personne. */
+const ERREURS: Record<string, string> = {
+  cancelled: "La connexion a été annulée. Réessayez, ou passez cette étape.",
+  no_pages: "Aucune Page Facebook sur ce compte. Essayez avec Instagram, ou passez cette étape.",
+  token: "La connexion n'a pas abouti. Réessayez dans un instant.",
+  save_failed: "La connexion n'a pas pu être enregistrée. Réessayez dans un instant.",
+  unknown: "La connexion n'a pas abouti. Réessayez dans un instant.",
+};
+
+/** L'étape suivante : le site, sauf s'il est déjà lu (ou écarté). */
+function etapeSuivante(d: OnbDraft | null) {
+  return d?.url || d?.sansSite ? "/onboarding/questionnaire" : "/onboarding/site";
+}
 
 function IcInstagram() {
   return (
@@ -45,18 +67,90 @@ function IcFacebook() {
 export default function ConnexionPage() {
   const router = useRouter();
   const [avertit, setAvertit] = useState(false);
+  const [enCours, setEnCours] = useState<Reseau | null>(null);
+  const [erreur, setErreur] = useState<string | null>(null);
 
-  /* Arrivée depuis le hero de la landing : le site est déjà lu (brouillon
-     présent), on file au questionnaire au lieu de redemander l'adresse. */
-  function suivant(igConnected: boolean) {
+  /* Retour de Meta : `?ws=…&connected=true` ou `?ws=…&error=…`. L'adresse est
+     nettoyée tout de suite, sinon un rechargement rejouerait le retour. */
+  useEffect(() => {
+    const q = new URLSearchParams(location.search);
+    const ws = q.get("ws");
+    const connecte = q.get("connected") === "true";
+    const code = q.get("error");
+    if (!ws || (!connecte && !code)) return;
+    history.replaceState(null, "", location.pathname);
     const d = lireDraft();
-    ecrireDraft({ ...(d ?? { source: "manuel", prefilled: [] }), igConnected });
-    router.push(d ? "/onboarding/questionnaire" : "/onboarding/site");
+    const base = { ...(d ?? { source: "manuel" as const, prefilled: [] }), clientId: ws };
+    if (!connecte) {
+      ecrireDraft(base);
+      setErreur(ERREURS[code ?? ""] ?? ERREURS.unknown);
+      return;
+    }
+    // Le nom du compte relié pré-remplit le questionnaire.
+    void (async () => {
+      let handle = d?.handle;
+      try {
+        const { data } = await createClientComponentClient()
+          .from("workspaces").select("instagram_username").eq("id", ws).maybeSingle();
+        if (data?.instagram_username) handle = data.instagram_username as string;
+      } catch { /* sans lui, le champ reste à remplir */ }
+      ecrireDraft({ ...base, igConnected: true, handle });
+      router.push(etapeSuivante(d));
+    })();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  async function relier(reseau: Reseau) {
+    if (enCours) return;
+    setErreur(null);
+    setEnCours(reseau);
+    const supabase = createClientComponentClient();
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) {
+      // Arrivée ici sans compte : on le crée d'abord, puis retour sur cet écran.
+      setEnCours(null);
+      ouvrirCompte("inscription", undefined, "/onboarding/connexion");
+      return;
+    }
+    const d = lireDraft();
+    let ws = d?.clientId;
+    if (!ws) {
+      // Nom passé en argument, jamais relu d'un état qu'on viendrait de poser
+      // (voir la mémoire « Connexion Instagram muette »).
+      try {
+        const res = await fetch("/api/workspace/create", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ name: d?.name?.trim() || "Nouveau client" }),
+        });
+        const json = await res.json().catch(() => ({}));
+        if (!res.ok || !json?.workspace?.id) {
+          // Le message du serveur tel quel : c'est lui qui explique (limite d'offre…).
+          setErreur(json?.error ?? "Impossible de préparer la connexion. Réessayez dans un instant.");
+          setEnCours(null);
+          return;
+        }
+        ws = json.workspace.id as string;
+        ecrireDraft({ ...(d ?? { source: "manuel", prefilled: [] }), clientId: ws });
+      } catch {
+        setErreur("Impossible de préparer la connexion. Réessayez dans un instant.");
+        setEnCours(null);
+        return;
+      }
+    }
+    const route = reseau === "facebook" ? "/api/auth/facebook/connect" : "/api/auth/meta/connect";
+    window.location.href = `${route}?workspaceId=${ws}&from=essai`;
   }
-  const relier = () => suivant(true);
-  const passer = () => suivant(false);
+
+  function passer() {
+    const d = lireDraft();
+    ecrireDraft({ ...(d ?? { source: "manuel", prefilled: [] }), igConnected: false });
+    router.push(etapeSuivante(d));
+  }
 
   return (
+    <>
+    <InscriptionOverlay />
     <OnboardingShell chemin="connexion" intro={
       <>
         {/* Le titre dit ce qu'on PRODUIT, le sous-titre dit ce qu'on prend pour
@@ -73,11 +167,12 @@ export default function ConnexionPage() {
       </>
     } bas={
       <>
-        <button type="button" className="ob-btn ob-btn-ig" onClick={relier}>
-          <IcInstagram /> Continuer avec Instagram
+        {erreur && <p className="ob-fin" role="alert" style={{ color: "#C4452F", fontWeight: 700, margin: "0 0 12px" }}>{erreur}</p>}
+        <button type="button" className="ob-btn ob-btn-ig" onClick={() => void relier("instagram")} disabled={!!enCours}>
+          <IcInstagram /> {enCours === "instagram" ? "Ouverture d'Instagram…" : "Continuer avec Instagram"}
         </button>
-        <button type="button" className="ob-btn ob-btn-fb" onClick={relier}>
-          <IcFacebook /> Continuer avec Facebook
+        <button type="button" className="ob-btn ob-btn-fb" onClick={() => void relier("facebook")} disabled={!!enCours}>
+          <IcFacebook /> {enCours === "facebook" ? "Ouverture de Facebook…" : "Continuer avec Facebook"}
         </button>
         <p className="ob-fin">
           On ne publie rien sans vous.{" "}
@@ -117,5 +212,6 @@ export default function ConnexionPage() {
         </div>
       )}
     </OnboardingShell>
+    </>
   );
 }

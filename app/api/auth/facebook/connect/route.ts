@@ -22,7 +22,9 @@ export async function GET(request: NextRequest) {
   const workspaceId = searchParams.get("workspaceId");
   // Même mécanique que le flux Instagram : `state` est le seul paramètre que
   // Facebook nous rend, donc le seul endroit où faire voyager la provenance.
-  const from = searchParams.get("from") === "onboarding" ? "onboarding" : "";
+  // « essai » : le parcours d'essai de la landing (/onboarding/connexion).
+  const provenance = searchParams.get("from");
+  const from = provenance === "onboarding" || provenance === "essai" ? provenance : "";
 
   if (!workspaceId) {
     return NextResponse.json({ error: "workspaceId manquant" }, { status: 400 });

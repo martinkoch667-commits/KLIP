@@ -21,6 +21,8 @@ export type OnbDraft = {
    *  suivants doivent le dire au lieu de laisser croire à une analyse complète. */
   igConnected?: boolean;
   url?: string;
+  /** « Je n'ai pas de site » : l'étape du site est faite, sans adresse. */
+  sansSite?: boolean;
   handle?: string;
   name?: string;
   sector?: string;
@@ -34,9 +36,12 @@ export type OnbDraft = {
   prefilled: string[];
   /** Vrai quand l'analyse réelle n'a pas pu tourner et qu'on montre un exemple. */
   demo?: boolean;
-  /** Le client créé à partir de ce brouillon après le paiement : empêche d'en
-   *  créer un second si /checkout-success est rechargée. */
+  /** Le client (workspace) du parcours. Créé dès la connexion Instagram ou
+   *  Facebook (la connexion a besoin d'un client), sinon après le paiement. */
   clientId?: string;
+  /** Vrai une fois la charte recopiée dans ce client : pas de second passage
+   *  si /checkout-success est rechargée. */
+  charteEcrite?: boolean;
 };
 
 const CLE = "klip_onb_draft";

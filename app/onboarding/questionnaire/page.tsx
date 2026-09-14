@@ -83,7 +83,9 @@ export default function QuestionnairePage() {
     if (i < TITRES.length - 1) { setI(i + 1); return; }
     ecrireDraft({
       ...(draft ?? { source: "manuel", prefilled: [] }),
-      name: r.nom, handle: r.handle, sector: r.secteur, tone: r.ton, description: r.description,
+      // `headline` aussi : c'est lui que la charte affiche et édite. Sans lui,
+      // la description corrigée ici disparaissait à l'écran suivant.
+      name: r.nom, handle: r.handle, sector: r.secteur, tone: r.ton, description: r.description, headline: r.description,
     });
     router.push("/onboarding/marque");
   }

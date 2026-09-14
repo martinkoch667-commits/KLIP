@@ -15,7 +15,9 @@ export async function GET(request: NextRequest) {
   // c'est donc le seul endroit où faire voyager cette information, et sans elle
   // le callback ramène toujours sur le planning — y compris quand la connexion
   // a été lancée depuis la création de client, qui n'est pas terminée.
-  const from = searchParams.get("from") === "onboarding" ? "onboarding" : "";
+  // « essai » : le parcours d'essai de la landing (/onboarding/connexion).
+  const provenance = searchParams.get("from");
+  const from = provenance === "onboarding" || provenance === "essai" ? provenance : "";
 
   if (!workspaceId) {
     return NextResponse.json({ error: "workspaceId manquant" }, { status: 400 });

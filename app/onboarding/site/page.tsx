@@ -109,13 +109,15 @@ export default function SitePage() {
     clearInterval(ticker);
     setEtape(ETAPES.length);
     const apres = suite();
-    ecrireDraft({ ...draft, igConnected: lireDraft()?.igConnected });
+    const avant = lireDraft();
+    ecrireDraft({ ...draft, igConnected: avant?.igConnected, clientId: avant?.clientId, handle: avant?.handle });
     setTimeout(() => router.push(apres), 450);
   }
 
   function aLaMain() {
     const apres = suite();
-    ecrireDraft({ source: "manuel", prefilled: [], igConnected: lireDraft()?.igConnected });
+    const avant = lireDraft();
+    ecrireDraft({ source: "manuel", prefilled: [], sansSite: true, igConnected: avant?.igConnected, clientId: avant?.clientId, handle: avant?.handle });
     router.push(apres);
   }
 

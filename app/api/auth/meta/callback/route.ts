@@ -17,8 +17,10 @@ export async function GET(request: NextRequest) {
   const fromOnboarding = from === "onboarding";
   // Où renvoyer l'utilisateur : là d'où il est parti, pas ailleurs. Le ramener
   // sur le planning au milieu d'une création de client lui faisait perdre le
-  // parcours en cours.
-  const back = (qs: string) => fromOnboarding
+  // parcours en cours. « essai » : le parcours d'essai de la landing.
+  const back = (qs: string) => from === "essai"
+    ? `${appUrl}/onboarding/connexion?ws=${workspaceId}&${qs}`
+    : fromOnboarding
     ? `${appUrl}/workspace/new?ws=${workspaceId}&${qs}`
     : `${appUrl}/workspace/${workspaceId}/${qs.startsWith("connected") ? "planning" : "parametres"}?${qs}`;
   const error = searchParams.get("error");
@@ -124,6 +126,6 @@ export async function GET(request: NextRequest) {
     return NextResponse.redirect(back("connected=true"));
   } catch (err) {
     console.error(`[CB:${inv}] Callback error:`, err);
-    return NextResponse.redirect(`${appUrl}/workspace/${workspaceId}/parametres?error=unknown`);
+    return NextResponse.redirect(from === "essai" ? back("error=unknown") : `${appUrl}/workspace/${workspaceId}/parametres?error=unknown`);
   }
 }

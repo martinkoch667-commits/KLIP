@@ -252,6 +252,9 @@ export default function CharePage() {
       ...(d ?? { source: "manuel", prefilled: [] }),
       colors: brouillon.couleurs, fonts: [brouillon.titre, brouillon.texte],
       sector: brouillon.secteur, tone: brouillon.ton, headline: brouillon.description,
+      // Un logo déposé ici remplace celui du site (l'aperçu du site passe par
+      // le proxy et n'est pas réécrit).
+      ...(brouillon.logoUrl?.startsWith("data:") ? { logoUrl: brouillon.logoUrl } : {}),
     });
   }
 
@@ -364,7 +367,17 @@ export default function CharePage() {
                 <label className="ch-depot">
                   <b>Choisir un fichier</b>PNG ou SVG, fond transparent de préférence
                   <input type="file" accept="image/*" hidden
-                    onChange={e => { const f = e.target.files?.[0]; if (f) setBrouillon(b => ({ ...b, logoUrl: URL.createObjectURL(f) })); }} />
+                    onChange={e => {
+                      /* Lu en data: et non en blob: : l'adresse blob meurt au
+                         départ vers Stripe, et le logo choisi ici n'arrivait
+                         jamais dans le client créé après le paiement. */
+                      const f = e.target.files?.[0];
+                      if (!f) return;
+                      if (f.size > 1.5 * 1024 * 1024) { alert("Logo trop lourd : 1,5 Mo au maximum."); return; }
+                      const lecteur = new FileReader();
+                      lecteur.onload = () => setBrouillon(b => ({ ...b, logoUrl: String(lecteur.result) }));
+                      lecteur.readAsDataURL(f);
+                    }} />
                 </label>
                 <button className="ob-btn ob-btn-leaf" style={{ marginTop: 16 }} onClick={valider}>Enregistrer</button>
               </>
