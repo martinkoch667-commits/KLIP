@@ -14,7 +14,7 @@
  * partie sombre est devenue un halo, et la grille inclinée une grille droite de
  * cases en verre. Sous 1100 px la diagonale ne tient plus : on empile.
  *
- * LA CARTE « SIX ABONNEMENTS, UN SEUL OUTIL » (remplace.tsx) est posée sur le
+ * LA CARTE « SIX ABONNEMENTS, UN SEUL OUTIL » (components/CarteCurseurs) est posée sur le
  * halo en desktop. En mobile elle ouvre la page, à cheval sur le bas du
  * bandeau : c'est l'argument qu'on veut lire avant les prix.
  *
@@ -41,7 +41,7 @@ import { useLocale, useTranslations } from "next-intl";
 import { PLANS, TRIAL_DAYS } from "@/lib/plans";
 import { LAUNCH_OFFER, launchApplies, launchPrice, formatPrice } from "@/lib/launch-offer";
 import { lireDraft } from "@/lib/onboardingDraft";
-import CarteCurseurs, { CARTE_CSS } from "./remplace";
+import CarteCurseurs, { CARTE_CSS } from "@/components/CarteCurseurs";
 
 /* Quatre colonnes décalées d'une demi-case sur deux, sur assez de rangées pour
    remplir le halo en hauteur. */

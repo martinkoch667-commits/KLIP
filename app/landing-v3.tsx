@@ -2,6 +2,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useTranslations, useLocale } from 'next-intl';
 import Link from 'next/link';
+import InscriptionOverlay, { ouvrirCompte, type ModeCompte } from '@/components/InscriptionOverlay';
 import Image from 'next/image';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import { useRouter } from 'next/navigation';
@@ -672,10 +673,10 @@ function Nav({ prelaunch = false }: { prelaunch?: boolean }) {
             {links.map(([label, h]) => <a key={h} href={h} className="nav-link" style={{ color: solid ? undefined : 'var(--cream-2)' }}>{label}</a>)}
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            <Link href="/login" className="nav-login" style={{ fontFamily: 'var(--sans)', fontSize: 13.5, fontWeight: 800, color: solid ? 'var(--ink)' : 'var(--cream)' }}>{t('login')}</Link>
+            <Link href="/login" onClick={versCompte('connexion')} className="nav-login" style={{ fontFamily: 'var(--sans)', fontSize: 13.5, fontWeight: 800, color: solid ? 'var(--ink)' : 'var(--cream)' }}>{t('login')}</Link>
             {prelaunch
               ? <a href="#waitlist" className="btn btn-leaf btn-sm">{t('waitlist')} <span className="arr"><Icon name="arrowUR" size={15} /></span></a>
-              : <Link href="/register" className="btn btn-leaf btn-sm">{t('tryFree')} <span className="arr"><Icon name="arrowUR" size={15} /></span></Link>}
+              : <Link href="/register" onClick={versCompte('inscription')} className="btn btn-leaf btn-sm">{t('tryFree')} <span className="arr"><Icon name="arrowUR" size={15} /></span></Link>}
             <button className="v3-mob-btn" onClick={() => setOpen(true)} aria-label="Menu">
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><path d="M3 12h18M3 6h18M3 18h18"/></svg>
             </button>
@@ -696,8 +697,8 @@ function Nav({ prelaunch = false }: { prelaunch?: boolean }) {
         <div style={{ marginTop: 'auto', display: 'flex', flexDirection: 'column', gap: 12 }}>
           {prelaunch
             ? <a href="#waitlist" className="btn btn-leaf" style={{ justifyContent: 'center' }} onClick={() => setOpen(false)}>{t('waitlist')}</a>
-            : <Link href="/register" className="btn btn-leaf" style={{ justifyContent: 'center' }} onClick={() => setOpen(false)}>{t('tryFree')}</Link>}
-          <Link href="/login" className="btn btn-ghost" style={{ justifyContent: 'center', color: '#F1F0E5', boxShadow: 'inset 0 0 0 1.6px rgba(241,240,229,.3)' }} onClick={() => setOpen(false)}>{t('login')}</Link>
+            : <Link href="/register" className="btn btn-leaf" style={{ justifyContent: 'center' }} onClick={versCompte('inscription', () => setOpen(false))}>{t('tryFree')}</Link>}
+          <Link href="/login" className="btn btn-ghost" style={{ justifyContent: 'center', color: '#F1F0E5', boxShadow: 'inset 0 0 0 1.6px rgba(241,240,229,.3)' }} onClick={versCompte('connexion', () => setOpen(false))}>{t('login')}</Link>
         </div>
       </div>
     </>
@@ -765,7 +766,7 @@ function Hero({ prelaunch = false }: { prelaunch?: boolean }) {
           </div>
         ) : (
           <div className="h-intro hero-cta" style={{ display: 'flex', gap: 14, justifyContent: 'center', marginTop: 34, flexWrap: 'wrap' }}>
-            <Link href="/register" className="btn btn-leaf">{t('ctaTry')} <span className="arr"><Icon name="arrowUR" size={18} /></span></Link>
+            <Link href="/register" onClick={versCompte('inscription')} className="btn btn-leaf">{t('ctaTry')} <span className="arr"><Icon name="arrowUR" size={18} /></span></Link>
             <a href="#apercu" className="btn btn-ghost">{t('ctaSee')}</a>
           </div>
         )}
@@ -893,7 +894,7 @@ function Comparison({ prelaunch = false }: { prelaunch?: boolean }) {
             <div className="rv d4" style={{ marginTop: 24 }}>
               {prelaunch
                 ? <a href="#waitlist" className="btn btn-leaf">{t('ctaWaitlist')} <span className="arr"><Icon name="arrowUR" size={18} /></span></a>
-                : <Link href="/register" className="btn btn-leaf">{t('ctaTry')} <span className="arr"><Icon name="arrowUR" size={18} /></span></Link>}
+                : <Link href="/register" onClick={versCompte('inscription')} className="btn btn-leaf">{t('ctaTry')} <span className="arr"><Icon name="arrowUR" size={18} /></span></Link>}
             </div>
             <p className="rv d4" style={{ fontSize: 12, color: 'var(--ink-3)', marginTop: 16 }}>{t('note')}</p>
           </div>
@@ -1316,6 +1317,19 @@ function Testimonials() {
   );
 }
 
+/* ─── Fenêtre de compte ──────────────────────────────────────────────────── */
+/* L'inscription et la connexion s'ouvrent PAR-DESSUS la landing (Martin,
+   2026-09-14) au lieu d'emmener sur /register ou /login. Les liens gardent leur
+   adresse : un clic du milieu ou Cmd+clic ouvre toujours la page à part. */
+function versCompte(mode: ModeCompte, apres?: () => void) {
+  return (e: React.MouseEvent) => {
+    if (e.metaKey || e.ctrlKey || e.shiftKey || e.button === 1) return;
+    e.preventDefault();
+    apres?.();
+    ouvrirCompte(mode);
+  };
+}
+
 /* ─── Checkout helper ────────────────────────────────────────────────────── */
 async function startCheckout(plan: Plan, period: 'monthly' | 'yearly') {
   // Départ vers la caisse : on le compte ICI, avant l'aller-retour serveur et
@@ -1334,7 +1348,8 @@ async function startCheckout(plan: Plan, period: 'monthly' | 'yearly') {
     });
     if (res.status === 401) {
       try { localStorage.setItem('klip_pending_checkout', JSON.stringify({ plan, period })); } catch {}
-      window.location.href = `/register?plan=${plan}`;
+      // Plus de détour par /register : la fenêtre s'ouvre sur la landing.
+      ouvrirCompte('inscription', plan);
       return;
     }
     const json = await res.json();
@@ -1563,7 +1578,7 @@ function FinalCTA({ prelaunch = false }: { prelaunch?: boolean }) {
           </div>
         ) : (
           <div className="rv d3 final-cta" style={{ display: 'flex', gap: 14, justifyContent: 'center', marginTop: 40, flexWrap: 'wrap' }}>
-            <Link href="/register" className="btn btn-leaf">{t('ctaStart')} <span className="arr"><Icon name="arrowUR" size={18} /></span></Link>
+            <Link href="/register" onClick={versCompte('inscription')} className="btn btn-leaf">{t('ctaStart')} <span className="arr"><Icon name="arrowUR" size={18} /></span></Link>
             <a href="#apercu" className="btn btn-ghost">{t('ctaSee')}</a>
           </div>
         )}
@@ -1822,6 +1837,7 @@ export default function LandingV3({ prelaunch = false, seatsLeft = null }: { pre
       <AskAI />
       <FinalCTA prelaunch={prelaunch} />
       <Footer />
+      <InscriptionOverlay />
     </div>
   );
 }

@@ -1,6 +1,12 @@
 "use client";
 
-/* « Klip remplace tout ça » : la carte qui accompagne les offres.
+/* La carte « Curseurs » : six abonnements, un seul outil.
+ *
+ * Deux usages, une seule scène (`SceneCurseurs`) :
+ *  · la page d'offre du parcours d'essai, avec son texte dessous
+ *    (`CarteCurseurs`, halo vert) ;
+ *  · la fenêtre d'inscription de la landing (`InscriptionOverlay`), où le
+ *    formulaire remplace le texte (halo violet, demandé par Martin).
  *
  * Martin a choisi l'idée Fusion (six icônes, une seule), puis demandé une
  * facture plus moderne sur une référence précise : un halo coloré en L derrière
@@ -100,9 +106,13 @@ function Phrase({ prix, fmt }: Props) {
   return <p className="fx-p">Pour <b>{fmt(prix)} €/mois</b> au lieu de ~{TOTAL} €.</p>;
 }
 
-export default function CarteCurseurs(props: Props) {
+/** Le haut de la carte : halo, fenêtre, logos, document sélectionné et
+ *  curseurs. Les curseurs sont placés en cqw depuis le haut de la scène, et non
+ *  en % de la carte : sous la scène, la carte peut porter un texte court ou un
+ *  formulaire entier, et des % les faisaient glisser avec sa hauteur. */
+export function SceneCurseurs() {
   return (
-    <div className="fx">
+    <div className="fx-tete">
       <div className="fx-halo" />
       <Fenetre>
         <span className="fx-pile">
@@ -114,13 +124,21 @@ export default function CarteCurseurs(props: Props) {
         </span>
         <span className="fx-lueur" />
       </Fenetre>
-      {/* Hors de la fenêtre : les curseurs peuvent déborder sur le halo, comme
-          sur la référence, sans être rognés par le fondu du bas. */}
-      {/* ChatGPT à droite de la rangée de logos : plus à gauche, son étiquette
-          recouvrait les dernières icônes. */}
-      <Curseur nom="ChatGPT" teinte="vert" style={{ left: "57%", top: "20%", ["--d" as string]: "0s" }} />
-      <Curseur nom="Canva" teinte="violet" fleche="haut-droite" style={{ left: "3%", top: "44%", ["--d" as string]: "-1.2s" }} />
-      <Curseur nom="CapCut" teinte="ambre" style={{ left: "71%", top: "52%", ["--d" as string]: "-2.1s" }} />
+      {/* Hors de la fenêtre : les curseurs peuvent déborder sur le halo sans
+          être rognés par le fondu du bas. ChatGPT à droite de la rangée de
+          logos : plus à gauche, son étiquette recouvrait les dernières icônes. */}
+      <Curseur nom="ChatGPT" teinte="vert" style={{ left: "57%", top: "19cqw", ["--d" as string]: "0s" }} />
+      <Curseur nom="Canva" teinte="violet" fleche="haut-droite" style={{ left: "3%", top: "42cqw", ["--d" as string]: "-1.2s" }} />
+      <Curseur nom="CapCut" teinte="ambre" style={{ left: "71%", top: "50cqw", ["--d" as string]: "-2.1s" }} />
+    </div>
+  );
+}
+
+/** La carte de la page d'offre : la scène, puis la phrase de prix. */
+export default function CarteCurseurs(props: Props) {
+  return (
+    <div className="fx">
+      <SceneCurseurs />
       <div className="fx-texte">
         <p className="fx-h">Tout se fait au même endroit</p>
         <Phrase {...props} />
@@ -131,16 +149,27 @@ export default function CarteCurseurs(props: Props) {
 
 export const CARTE_CSS = `
   /* ── Le cadre commun ─────────────────────────────────────────────────── */
+  .fx-tete{position:relative;}
   .fx{position:relative;container-type:inline-size;overflow:hidden;border-radius:28px;background:#FFFFFF;
     box-shadow:0 0 0 1px rgba(16,19,11,.06),0 40px 80px -36px rgba(16,19,11,.55);}
   /* Le halo en L : fort en haut, il longe le bord gauche puis s'éteint vers le
      bas, pour que le titre se lise sur un fond clair. */
+  /* Le halo couvre la SCÈNE et non plus toute la carte : le fondu est recalé
+     pour s'éteindre au même endroit qu'avant (37 % à 92 % de la scène). */
   .fx-halo{position:absolute;inset:0;pointer-events:none;
-    -webkit-mask-image:linear-gradient(to bottom,#000 30%,transparent 74%);mask-image:linear-gradient(to bottom,#000 30%,transparent 74%);}
+    -webkit-mask-image:linear-gradient(to bottom,#000 37%,transparent 92%);mask-image:linear-gradient(to bottom,#000 37%,transparent 92%);}
   .fx-halo{background:
     radial-gradient(70% 55% at 55% -8%,#072117 0%,#13603F 40%,transparent 72%),
     linear-gradient(90deg,#2FBF84 0%,#8BE3B5 14%,transparent 30%),
     linear-gradient(180deg,#3DC98E 0%,#C9F3DC 40%,transparent 70%);}
+  /* Variante violette (fenêtre d'inscription de la landing, à la demande de
+     Martin) : le dégradé d'origine de la carte, avant son passage au vert. */
+  .fx.is-violet .fx-halo{background:
+    radial-gradient(70% 55% at 55% -8%,#2F22A8 0%,#5646D6 38%,transparent 72%),
+    linear-gradient(90deg,#8C7DFF 0%,#B7ADFF 14%,transparent 30%),
+    linear-gradient(180deg,#9D90FF 0%,#D9D3FF 40%,transparent 70%);}
+  .fx.is-violet .fx-lueur{background:#9C8CFF;}
+
   /* La fenêtre, décalée vers la droite et coupée par le bord de la carte, avec
      son liseré de verre sur le haut et la gauche. */
   .fx-cadre{position:relative;margin:10.5cqw 0 0 9cqw;padding:2.4cqw 0 0 2.4cqw;border-radius:6cqw 0 0 0;
